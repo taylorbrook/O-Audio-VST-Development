@@ -886,6 +886,96 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             complete (json);
         });
 
+    // ─── Preset Manager ───────────────────────────────────────────────
+
+    options = options.withNativeFunction ("getPresetListWithCategories",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            auto categorized = processorRef.getPresetManager().getPresetListWithCategories();
+            juce::String json = "{";
+            bool firstCat = true;
+            for (const auto& [cat, names] : categorized)
+            {
+                if (! firstCat) json += ",";
+                firstCat = false;
+                json += juce::JSON::toString (cat) + ":[";
+                for (int i = 0; i < names.size(); ++i)
+                {
+                    if (i > 0) json += ",";
+                    json += juce::JSON::toString (names[i]);
+                }
+                json += "]";
+            }
+            json += "}";
+            complete (json);
+        });
+
+    options = options.withNativeFunction ("getCurrentPreset",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            complete (processorRef.getPresetManager().getCurrentPresetName());
+        });
+
+    options = options.withNativeFunction ("loadPresetFromCategory",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                auto ok = processorRef.getPresetManager()
+                    .loadPresetFromCategory (args[0].toString(), args[1].toString());
+                complete (ok);
+                return;
+            }
+            complete (false);
+        });
+
+    options = options.withNativeFunction ("loadPresetByName",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                complete (processorRef.getPresetManager().loadPreset (args[0].toString()));
+                return;
+            }
+            complete (false);
+        });
+
+    options = options.withNativeFunction ("selectNextPreset",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            complete (processorRef.getPresetManager().getNextPreset());
+        });
+
+    options = options.withNativeFunction ("selectPreviousPreset",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            complete (processorRef.getPresetManager().getPreviousPreset());
+        });
+
+    options = options.withNativeFunction ("savePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                complete (processorRef.getPresetManager().savePreset (args[0].toString()));
+                return;
+            }
+            complete (false);
+        });
+
+    options = options.withNativeFunction ("deletePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                complete (processorRef.getPresetManager().deletePreset (args[0].toString()));
+                return;
+            }
+            complete (false);
+        });
+
+    options = options.withNativeFunction ("isFactoryPreset",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                complete (processorRef.getPresetManager().isFactoryPreset (args[0].toString()));
+                return;
+            }
+            complete (false);
+        });
+
     return options;
 }
 

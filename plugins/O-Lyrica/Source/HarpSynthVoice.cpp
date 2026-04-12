@@ -41,6 +41,11 @@ void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
     stringModel.prepare(sampleRate, maxBlockSize);
     glissandoController.prepare(sampleRate);
 
+    // v2.1.9: Cache sample rate for material crossfade length calculation
+    currentSampleRate = sampleRate;
+    materialCrossfadeSamplesTotal = 0;
+    materialCrossfadeSamplesRemaining = 0;
+
     // v1.35.0: Allocate per-voice buffer for crosstalk processing
     voiceOutputBuffer.setSize(1, maxBlockSize);
     voiceOutputBuffer.clear();
@@ -143,6 +148,13 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         currentMaterialType = materialType;
         stringModel.setMaterial(currentMaterial);
 
+        // v2.1.9: Cancel any in-flight material crossfade — fresh notes start at the
+        // exact target material, no ramp. Prevents stale ramp state from a previous
+        // note's reassignment from bleeding into this note's timbre.
+        materialCrossfadeSamplesRemaining = 0;
+        crossfadeFromMaterial = currentMaterial;
+        crossfadeTargetMaterial = currentMaterial;
+
         // Core string parameters
         // v1.19.0: Apply humanization to brightness (±4% variation)
         float brightness = parameters->getRawParameterValue("brightness")->load();
@@ -175,9 +187,11 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         fingerHardness = parameters->getRawParameterValue("fingerHardness")->load();
         fingerHardness = applyHumanization(fingerHardness, 0.08f, humanizeAmount);
 
-        // v1.32.7: Velocity-sensitive hardness — harder plucks have firmer finger contact
-        // Maps vel 0→0.78x (softer) to vel 1→1.10x (harder)
-        fingerHardness *= juce::jmap(velocity, 0.0f, 1.0f, 0.78f, 1.10f);
+        // v2.1.10: Velocity-to-brightness via finger hardness — harder plucks excite
+        // higher harmonics on a real harp. Maps vel 0→0.7x (warmer/softer) to vel 1→1.0x
+        // (brighter/firmer), leaving the parameter-set hardness as the upper bound so
+        // loud notes sound like the patch intends rather than exceeding it.
+        fingerHardness *= 0.7f + 0.3f * velocity;
         fingerHardness = juce::jlimit(0.0f, 1.0f, fingerHardness);
 
         int techniqueIndex = static_cast<int>(parameters->getRawParameterValue("technique")->load());
@@ -505,7 +519,7 @@ void HarpSynthVoice::controllerMoved(int controllerNumber, int newControllerValu
         stringModel.setDampening(newControllerValue < 64);
 }
 
-void HarpSynthVoice::updateParametersFromAPVTS()
+void HarpSynthVoice::updateParametersFromAPVTS(int numSamples)
 {
     // v1.3.2: Removed per-parameter null checks - APVTS guarantees non-null for registered params
     if (parameters == nullptr)
@@ -538,12 +552,44 @@ void HarpSynthVoice::updateParametersFromAPVTS()
     int materialIndex = static_cast<int>(rawValue + 0.5f);  // Round to nearest to avoid float precision issues
     MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
 
-    // Only update if material changed (avoid unnecessary filter recalculations)
+    // v2.1.9: Crossfade material parameters over ~50ms instead of snapping instantly.
+    // When the user changes stringMaterial mid-note, damping/brightness/stiffness/coupling/
+    // noise are lerped from the current (possibly in-flight) material toward the new target.
+    // Each block pushes the interpolated StringMaterial into stringModel.setMaterial(), which
+    // in turn drives the v2.1.8 64-sample filter-coefficient crossfade — giving doubly-smoothed
+    // transitions (material values over 50ms, filter response over each sub-update).
     if (materialType != currentMaterialType)
     {
+        // Snapshot the current (possibly mid-crossfade) material as the new source.
+        // This cascades transitions smoothly if the user scrubs across materials quickly.
+        crossfadeFromMaterial = currentMaterial;
+        crossfadeTargetMaterial = StringMaterial::fromType(materialType);
+
+        // 50ms ramp at current sample rate (minimum 1 sample to avoid div-by-zero)
+        materialCrossfadeSamplesTotal = juce::jmax(1, static_cast<int>(currentSampleRate * 0.05));
+        materialCrossfadeSamplesRemaining = materialCrossfadeSamplesTotal;
+
         currentMaterialType = materialType;
-        currentMaterial = StringMaterial::fromType(materialType);
+    }
+
+    if (materialCrossfadeSamplesRemaining > 0)
+    {
+        const float t = 1.0f - (static_cast<float>(materialCrossfadeSamplesRemaining)
+                              / static_cast<float>(materialCrossfadeSamplesTotal));
+
+        currentMaterial = crossfadeFromMaterial.interpolate(crossfadeTargetMaterial, t);
         stringModel.setMaterial(currentMaterial);
+
+        materialCrossfadeSamplesRemaining -= numSamples;
+
+        if (materialCrossfadeSamplesRemaining <= 0)
+        {
+            // Snap exactly to target on completion — avoids any tiny residual from
+            // float lerp rounding and guarantees steady-state matches fromType() exactly.
+            materialCrossfadeSamplesRemaining = 0;
+            currentMaterial = crossfadeTargetMaterial;
+            stringModel.setMaterial(currentMaterial);
+        }
     }
 
 }
@@ -552,7 +598,8 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       int startSample, int numSamples)
 {
     // Update DSP parameters from APVTS at block boundaries (real-time modulation)
-    updateParametersFromAPVTS();
+    // v2.1.9: numSamples drives the material-change crossfade ramp
+    updateParametersFromAPVTS(numSamples);
 
     // Check if voice should still be active
     if (!stringModel.isActive())

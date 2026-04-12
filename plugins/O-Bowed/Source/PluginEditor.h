@@ -44,11 +44,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> bodySizeRelay;
     std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
     // String Configuration
-    std::unique_ptr<juce::WebSliderRelay> stringCountRelay;
-    std::unique_ptr<juce::WebSliderRelay> stringTuning1Relay;
-    std::unique_ptr<juce::WebSliderRelay> stringTuning2Relay;
-    std::unique_ptr<juce::WebSliderRelay> stringTuning3Relay;
-    std::unique_ptr<juce::WebSliderRelay> stringTuning4Relay;
     std::unique_ptr<juce::WebSliderRelay> sympatheticAmountRelay;
     std::unique_ptr<juce::WebSliderRelay> sympatheticCountRelay;
     // Output
@@ -79,11 +74,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> bodySizeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
     // String Configuration
-    std::unique_ptr<juce::WebSliderParameterAttachment> stringCountAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> stringTuning1Attachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> stringTuning2Attachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> stringTuning3Attachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> stringTuning4Attachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticAmountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticCountAttachment;
     // Output

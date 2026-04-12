@@ -12,7 +12,14 @@
 #pragma once
 #include <JuceHeader.h>
 #include "dsp/GlottalWavetable.h"
+#include "DSP/DelayProcessor.h"
+#include "DSP/EQProcessor.h"
+#include "DSP/ReverbProcessor.h"
 #include "OuariconPresetManager.h"
+#include "TuningEngine.h"
+#include "ScaleGenerator.h"
+#include "TuningExporter.h"
+#include "EmbeddedTunings.h"
 
 class OFormantAudioProcessor : public juce::AudioProcessor
 {
@@ -31,7 +38,7 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override { return 5.0; }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -47,6 +54,10 @@ public:
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
     OuariconPresetManager& getPresetManager() { return presetManager; }
 
+    TuningEngine tuningEngine;
+    ScaleGenerator scaleGenerator;
+    TuningExporter tuningExporter;
+
 private:
     // DSP: Shared wavetable (generated once, read-only across all voices)
     GlottalWavetable glottalWavetable;
@@ -54,6 +65,12 @@ private:
 
     // Post-synth output gain (dB -> linear, smoothed)
     juce::SmoothedValue<float> outputGainSmoothed { 1.0f };
+
+    // Effects chain (Chorus -> Delay -> Reverb -> EQ)
+    juce::dsp::Chorus<float> chorus;
+    DelayProcessor delayProcessor;
+    ReverbProcessor reverbProcessor;
+    EQProcessor eqProcessor;
 
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;

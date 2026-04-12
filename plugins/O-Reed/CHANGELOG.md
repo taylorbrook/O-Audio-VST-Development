@@ -1,5 +1,11 @@
 # O-Reed Changelog
 
+## v1.0.10 (2026-04-11)
+
+### Fixed
+
+- **No sound / silent output on default patch** -- `toneHoleCutoff` parameter defaulted to 1500 Hz instead of 8000 Hz, which opened 3 of 4 tone holes fully (scatter=-0.165 each) and 1 partially (scatter=-0.058). Each open tone hole junction radiates ~16.5% of the sum of forward and backward bore wave energy. With 4 active scattering junctions, the bore lost ~70% of its energy per round trip -- far exceeding the reed model's ability to sustain self-oscillation (reed gain ~1-3% per round trip). Fix: changed default `toneHoleCutoff` from 1500 Hz to 8000 Hz (all holes closed). Root cause: the toneHoleCutoff parameter controls progressive tone hole opening from bell-end first; at 1500 Hz (`cutoff_norm=0.167`), holes 1-3 were fully open (`opening=1.0`) and hole 4 was 33% open.
+
 ## v1.0.9 (2026-04-09)
 
 ### Fixed

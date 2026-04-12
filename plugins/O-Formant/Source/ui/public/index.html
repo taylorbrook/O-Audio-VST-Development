@@ -23,8 +23,151 @@ html, body {
   width: 800px; height: 600px;
   position: relative;
   display: grid;
-  grid-template-rows: 36px 28px 1fr 170px;
+  grid-template-rows: 36px 28px 26px 1fr;
+  grid-template-columns: 1fr;
+}
+
+/* Tab bar */
+.tab-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: stretch;
+  background: #EDD9C4;
+  border-bottom: 1px solid #8B7355;
+  padding: 0 16px;
+  gap: 0;
+}
+.tab {
+  padding: 4px 20px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: 'Garamond', serif;
+  display: flex;
+  align-items: center;
+}
+.tab:hover { color: #3C2F2F; }
+.tab.active {
+  color: #3C2F2F;
+  border-bottom-color: #6B8E4E;
+}
+
+/* Tab content */
+.tab-content {
+  display: none;
+  overflow: hidden;
+}
+.tab-content.active {
+  display: grid;
+}
+
+/* Synth tab layout */
+#synth-tab {
+  grid-template-rows: 1fr 170px;
   grid-template-columns: 390px 1fr;
+}
+
+/* Tuning tab layout */
+#tuning-tab {
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
+}
+
+/* Effects tab layout */
+#effects-tab {
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
+  padding: 10px 16px;
+  gap: 8px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,115,85,0.3) transparent;
+}
+#effects-tab::-webkit-scrollbar { width: 4px; }
+#effects-tab::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.3); border-radius: 2px; }
+.fx-section {
+  border: 1px solid rgba(139,115,85,0.3);
+  border-radius: 4px;
+  background: rgba(237,217,196,0.4);
+  padding: 6px 10px 8px;
+}
+.fx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(139,115,85,0.2);
+  padding-bottom: 3px;
+}
+.fx-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+}
+.fx-bypass-btn {
+  background: #8BA870;
+  color: #F5E6D3;
+  border: none;
+  border-radius: 3px;
+  font-family: 'Garamond', serif;
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.fx-bypass-btn.bypassed {
+  background: #D4BFA0;
+  color: #8B7355;
+}
+.fx-knobs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.fx-knobs .knob-wrap {
+  width: 50px;
+}
+.fx-knobs .knob {
+  width: 44px; height: 44px;
+}
+.fx-knobs .knob-indicator {
+  height: 11px;
+  top: 3px;
+  transform-origin: 50% 19px;
+}
+.fx-knobs .knob-center {
+  width: 12px; height: 12px;
+}
+.fx-mode-select {
+  background: #F5E6D3;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  color: #3C2F2F;
+  font-family: 'Garamond', serif;
+  font-size: 9px;
+  padding: 2px 4px;
+  cursor: pointer;
+  margin-top: 3px;
+}
+#tuning-container {
+  width: 100%;
+  height: 100%;
+}
+#tuning-container .tuning-panel-root {
+  container-type: inline-size;
+  width: 100%;
+  height: 100%;
+}
+#tuning-container .tuning-panel {
+  height: 100%;
+  font-family: 'Garamond', 'Times New Roman', serif;
 }
 
 /* Header */
@@ -435,6 +578,139 @@ canvas#consonant-xy-pad {
 .cxy-right { right: 4px; bottom: 2px; }
 .cxy-top { right: 4px; top: 2px; font-style: italic; }
 .cxy-bottom { right: 4px; bottom: 2px; display: none; }
+
+/* ===== Tuning Panel Styles ===== */
+.tuning-panel {
+    --tuning-bg: rgba(245, 230, 211, 0.95);
+    --tuning-border: rgba(139, 115, 85, 0.5);
+    --tuning-text: #3C2F2F;
+    --tuning-text-muted: #8B7355;
+    --tuning-accent: #6B8E4E;
+    --tuning-input-bg: rgba(255, 255, 255, 0.8);
+    --tuning-hover: rgba(139, 168, 112, 0.3);
+    --tuning-active: rgba(139, 195, 74, 0.4);
+}
+.tuning-panel {
+    position: relative;
+    background: var(--tuning-bg);
+    font-size: 11px; color: var(--tuning-text);
+    width: 100%; height: 100%; box-sizing: border-box;
+}
+
+/* LEFT: Interval list column */
+.tuning-viz-container {
+    position: absolute;
+    left: 14px; top: 10px; bottom: 10px;
+    width: fit-content;
+    display: flex; flex-direction: row; align-items: flex-start; gap: 12px;
+}
+
+/* CENTER: Viz mode toggle across top */
+.viz-mode-toggle {
+    position: absolute;
+    left: 150px; right: 220px; top: 8px;
+    display: flex; justify-content: center; gap: 6px; z-index: 20;
+}
+
+/* CENTER: Visualization below toggle */
+.viz-container {
+    position: absolute;
+    left: 150px; right: 220px; top: 36px; bottom: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.3);
+    border: 1px solid var(--tuning-border);
+    border-radius: 6px;
+}
+
+/* RIGHT: Controls panel */
+.tuning-controls-panel {
+    position: absolute;
+    right: 14px; top: 10px;
+    width: 200px;
+    display: flex; flex-direction: column; gap: 12px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+}
+.interval-list { width: 130px; max-height: 100%; background: rgba(235,217,199,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; padding: 6px 8px; overflow-y: auto; order: -1; }
+.interval-list-header { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; color: var(--tuning-text-muted); }
+.tonic-selector { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; padding: 6px; background: var(--tuning-input-bg); border-radius: 4px; }
+.tonic-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); }
+.tonic-arrow { background: none; border: 1px solid var(--tuning-border); border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 10px; color: var(--tuning-text); }
+.tonic-arrow:hover { background: var(--tuning-hover); }
+.tonic-value { font-weight: 600; min-width: 24px; text-align: center; }
+.interval-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid rgba(139,115,85,0.2); }
+.interval-item:last-child { border-bottom: none; }
+.interval-item.octave { background: rgba(139,195,74,0.15); margin: 4px -8px 0; padding: 6px 8px; border-radius: 0 0 5px 5px; }
+.interval-degree { width: 20px; font-size: 9px; color: var(--tuning-text-muted); text-align: right; }
+.interval-input { flex: 1; background: var(--tuning-input-bg); border: 1px solid var(--tuning-border); border-radius: 3px; padding: 3px 6px; font-size: 10px; text-align: right; width: 60px; }
+.interval-input:focus { outline: none; border-color: var(--tuning-accent); }
+.interval-input[readonly] { background: transparent; border-color: transparent; font-weight: 600; }
+.interval-unit { font-size: 9px; color: var(--tuning-text-muted); width: 12px; }
+.viz-mode-toggle { display: flex; gap: 4px; margin-bottom: 10px; }
+.viz-btn { flex: 1; padding: 6px 8px; background: rgba(255,255,255,0.5); border: 1px solid var(--tuning-border); border-radius: 4px; font-size: 9px; cursor: pointer; color: var(--tuning-text); transition: all 0.15s; }
+.viz-btn:hover { background: var(--tuning-hover); }
+.viz-btn.active { background: var(--tuning-active); border-color: var(--tuning-accent); font-weight: 600; }
+.viz-container { background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 6px; padding: 15px; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+.viz-view { display: none; width: 100%; height: 100%; }
+.viz-view.active { display: flex; align-items: center; justify-content: center; }
+.pitch-circle { text-align: center; }
+.pitch-circle svg { width: 100%; height: auto; max-width: 320px; }
+.pitch-circle-label { font-size: 9px; color: var(--tuning-text-muted); margin-top: 8px; }
+#polar-canvas { width: 100%; height: auto; max-width: 320px; }
+.matrix-view { overflow: auto; }
+.matrix-table { border-collapse: collapse; font-size: 8px; }
+.matrix-table th, .matrix-table td { padding: 3px 5px; border: 1px solid var(--tuning-border); text-align: center; }
+.matrix-table th { background: rgba(139,115,85,0.15); font-weight: 600; }
+.matrix-table td { background: var(--tuning-input-bg); }
+.truekeys-view { flex-direction: column; }
+.tk-hint { color: var(--tuning-text-muted); font-style: italic; }
+.tk-intervals { display: flex; flex-direction: column; gap: 4px; }
+.tk-interval { padding: 4px 8px; background: var(--tuning-input-bg); border-radius: 3px; }
+.rotation-view { overflow: auto; }
+.rotation-table { border-collapse: collapse; font-size: 8px; }
+.rotation-table th, .rotation-table td { padding: 3px 5px; border: 1px solid var(--tuning-border); text-align: center; }
+.rotation-table th { background: rgba(139,115,85,0.15); }
+.rotation-table .current-tonic { background: var(--tuning-active); }
+.tuning-controls-panel { display: flex; flex-direction: column; gap: 12px; }
+.library-section, .generator-section { background: rgba(255,255,255,0.5); border: 1px solid var(--tuning-border); border-radius: 6px; overflow: hidden; }
+.library-header, .generator-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(139,115,85,0.1); cursor: pointer; user-select: none; }
+.library-header:hover, .generator-header:hover { background: rgba(139,115,85,0.2); }
+.library-header-text, .generator-header-text { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.library-toggle, .generator-toggle { font-size: 10px; transition: transform 0.2s; }
+.library-toggle.expanded, .generator-toggle.expanded { transform: rotate(180deg); }
+.library-content, .generator-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.library-content.expanded, .generator-content.expanded { max-height: 300px; padding: 10px; }
+.library-filter-select, .generator-type-select { width: 100%; padding: 6px; border: 1px solid var(--tuning-border); border-radius: 4px; background: var(--tuning-input-bg); font-size: 10px; margin-bottom: 8px; }
+.library-list { max-height: 150px; overflow-y: auto; }
+.library-item { padding: 6px 8px; border-radius: 4px; cursor: pointer; margin-bottom: 4px; }
+.library-item:hover { background: var(--tuning-hover); }
+.library-item-name { font-weight: 500; }
+.library-item-desc { font-size: 9px; color: var(--tuning-text-muted); }
+.generator-inputs { margin-bottom: 10px; }
+.gen-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.gen-row label { font-size: 10px; color: var(--tuning-text-muted); }
+.gen-row input { width: 80px; padding: 4px 6px; border: 1px solid var(--tuning-border); border-radius: 3px; background: var(--tuning-input-bg); font-size: 10px; text-align: right; }
+.generator-btn { width: 100%; padding: 8px; background: var(--tuning-accent); border: none; border-radius: 4px; color: white; font-weight: 600; font-size: 10px; cursor: pointer; }
+.generator-btn:hover { filter: brightness(1.1); }
+.tuning-ref-section { text-align: center; padding: 10px; }
+.ref-knob-container { display: inline-block; }
+.ref-knob { width: 50px; height: 50px; background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0); border: 2px solid var(--tuning-border); border-radius: 50%; position: relative; cursor: ns-resize; }
+.ref-knob-indicator { position: absolute; top: 8px; left: 50%; width: 2px; height: 12px; background: var(--tuning-text); transform-origin: bottom center; margin-left: -1px; }
+.ref-knob-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); margin-top: 6px; }
+.ref-knob-value { font-size: 11px; font-weight: 600; }
+.scale-name-display { text-align: center; padding: 8px; background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-weight: 500; font-size: 11px; }
+.octave-stretch-section { padding: 8px; }
+.octave-stretch-row { display: flex; align-items: center; gap: 8px; }
+.octave-stretch-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); }
+.octave-stretch-slider { flex: 1; height: 4px; -webkit-appearance: none; background: linear-gradient(to right, var(--tuning-border), var(--tuning-accent)); border-radius: 2px; }
+.octave-stretch-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0); border: 1px solid var(--tuning-border); border-radius: 50%; cursor: pointer; }
+.octave-stretch-value { font-size: 10px; min-width: 30px; text-align: right; }
+.tuning-file-section { padding: 8px; }
+.tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tuning-file-btn { padding: 6px 8px; background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-size: 9px; cursor: pointer; color: var(--tuning-text); }
+.tuning-file-btn:hover { background: var(--tuning-hover); }
+.tuning-export-btn { grid-column: span 2; background: var(--tuning-accent); border-color: var(--tuning-accent); color: white; font-weight: 600; }
+.tuning-export-btn:hover { filter: brightness(1.1); }
 </style>
 </head>
 <body>
@@ -454,6 +730,14 @@ canvas#consonant-xy-pad {
     <button class="preset-nav" id="preset-next" title="Next preset">&#8250;</button>
     <button class="preset-save-btn" id="preset-save">Save</button>
   </div>
+
+  <div class="tab-bar">
+    <div class="tab active" data-tab="synth">Synth</div>
+    <div class="tab" data-tab="tuning">Tuning</div>
+    <div class="tab" data-tab="effects">Effects</div>
+  </div>
+
+  <div id="synth-tab" class="tab-content active">
 
   <div class="xy-area">
     <h2>Vowel Morph</h2>
@@ -660,6 +944,174 @@ canvas#consonant-xy-pad {
     </div>
   </div>
 
+  </div><!-- end synth-tab -->
+
+  <div id="effects-tab" class="tab-content">
+    <!-- Chorus -->
+    <div class="fx-section" id="chorusSection">
+      <div class="fx-header">
+        <span class="fx-title">Chorus</span>
+        <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+      </div>
+      <div class="fx-knobs" id="chorus-knobs">
+        <div class="knob-wrap" data-param="chorusRate">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Rate</div>
+          <div class="knob-value">1.00 Hz</div>
+        </div>
+        <div class="knob-wrap" data-param="chorusDepth">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Depth</div>
+          <div class="knob-value">50%</div>
+        </div>
+        <div class="knob-wrap" data-param="chorusMix">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Mix</div>
+          <div class="knob-value">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delay -->
+    <div class="fx-section" id="delaySection">
+      <div class="fx-header">
+        <span class="fx-title">Delay</span>
+        <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+      </div>
+      <div class="fx-knobs" id="delay-knobs">
+        <div class="knob-wrap" data-param="delayTime">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Time</div>
+          <div class="knob-value">375 ms</div>
+        </div>
+        <div class="knob-wrap" data-param="delayFeedback">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Feedback</div>
+          <div class="knob-value">30%</div>
+        </div>
+        <div class="knob-wrap" data-param="delayMix">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Mix</div>
+          <div class="knob-value">0%</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;width:50px;">
+          <select class="fx-mode-select" id="delayModeSelect">
+            <option value="0">Normal</option>
+            <option value="1">PingPong</option>
+          </select>
+          <div class="knob-label" style="margin-top:2px;">Mode</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reverb -->
+    <div class="fx-section" id="reverbSection">
+      <div class="fx-header">
+        <span class="fx-title">Reverb</span>
+        <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+      </div>
+      <div class="fx-knobs" id="reverb-knobs">
+        <div class="knob-wrap" data-param="reverbSize">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Size</div>
+          <div class="knob-value">50%</div>
+        </div>
+        <div class="knob-wrap" data-param="reverbDamp">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Damp</div>
+          <div class="knob-value">50%</div>
+        </div>
+        <div class="knob-wrap" data-param="reverbPredelay">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Pre-dly</div>
+          <div class="knob-value">20 ms</div>
+        </div>
+        <div class="knob-wrap" data-param="reverbMod">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Mod</div>
+          <div class="knob-value">20%</div>
+        </div>
+        <div class="knob-wrap" data-param="reverbShimmer">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Shimmer</div>
+          <div class="knob-value">0%</div>
+        </div>
+        <div class="knob-wrap" data-param="reverbMix">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Mix</div>
+          <div class="knob-value">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EQ -->
+    <div class="fx-section" id="eqSection">
+      <div class="fx-header">
+        <span class="fx-title">EQ</span>
+        <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+      </div>
+      <div class="fx-knobs" id="eq-knobs">
+        <div class="knob-wrap" data-param="eqLowGain">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Low</div>
+          <div class="knob-value">0.0 dB</div>
+        </div>
+        <div class="knob-wrap" data-param="eqMidGain">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Mid</div>
+          <div class="knob-value">0.0 dB</div>
+        </div>
+        <div class="knob-wrap" data-param="eqMidFreq">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Mid Freq</div>
+          <div class="knob-value">1000 Hz</div>
+        </div>
+        <div class="knob-wrap" data-param="eqHighGain">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">High</div>
+          <div class="knob-value">0.0 dB</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- end effects-tab -->
+
+  <div id="tuning-tab" class="tab-content">
+    <div id="tuning-container"></div>
+  </div>
+
 </div>
+<script type="module">
+import * as Juce from './js/juce/index.js';
+
+// Tab switching with lazy tuning init
+let tuningInitialized = false;
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+
+        if (tab.dataset.tab === 'tuning' && !tuningInitialized) {
+            initTuningPanel();
+            tuningInitialized = true;
+        }
+    });
+});
+
+async function initTuningPanel() {
+    try {
+        const { TuningPanel } = await import('./js/tuning-panel.js');
+        const container = document.getElementById('tuning-container');
+        const tuningPanel = new TuningPanel(container, Juce);
+        await tuningPanel.init();
+    } catch (err) {
+        console.error('[O-Formant] Failed to init tuning panel:', err);
+        document.getElementById('tuning-container').innerHTML =
+            '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+    }
+}
+</script>
 </body>
 </html>

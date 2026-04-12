@@ -1,5 +1,20 @@
 # O-Prism Changelog
 
+## v1.16.0 (2026-04-11)
+
+### Added
+- **Factory preset library: 96 presets across 10 categories** (`OuariconPresetManager.h`, `FactoryPresets.h/cpp`, `PluginProcessor.h/cpp`, `PluginEditor.cpp`, `index.html`). Full preset system with persistent in-plugin browser. Categories: Pads (18), Drone (12), Lead (12), Bass (10), Pluck (10), Harmonic (10), Keys (8), Sequence (8), FX (5), Percussion (3). Presets stored as JSON under `~/Library/O-Prism/Presets/Factory/{Category}/` on first run; user presets go in `User/`. Preset browser lives in the header bar (centered between the title and subtitle) so it's accessible from every tab — click the preset display to open a 2-column categorized picker; prev/next arrows step through the flat list; ★ saves a user preset.
+- **Tuning preservation across preset switches**. New `excludedParameterIds` list on `OuariconPresetManager` — parameters in the list are never written to preset JSON and never overwritten on load. O-Prism excludes all 7 tuning parameters (`tuningPreset`, `tonic`, `masterTune`, `octaveStretch`, `pitchBendRange`, `glideMode`, `glideTime`), so switching presets leaves the active tuning/tonic/scale intact. This matches the requirement that tuning is a global setting, independent from sound design.
+
+### Technical Notes
+- Domain: Persistence + UI (new subsystem)
+- Preset format: JSON with `parameters` (normalized APVTS values), `category`, `name`, `plugin`, `factory`, `version`. Factory presets are written once on first construction (`factoryPresetsExist()` guards re-initialization).
+- Preset completeness: every factory preset writes every non-excluded parameter (built via `completeBase()` → category archetype → per-preset overrides), so switching presets is fully deterministic — no leftover state from the previous patch.
+- Mod matrix authoring: each preset uses 2–3 mod slots minimum so nothing is a static snapshot. Common routings: velocity→filter cutoff, LFO1→OscA position (pads), AmpEnv→pitch (FX), mod wheel→LFO1 rate (leads).
+- Archetypes per category share a parameter signature but each preset overrides ~10–15 distinctive params (wavetable pick, filter shape, envelope timing, FX mix). The archetype+override pattern keeps the 96 definitions maintainable in ~1500 lines of data.
+- Header-bar UI: `position: absolute` preset menu floats over tab content at `top: 34px` with a fixed 540px width — survives tab switches without re-rendering. Uses the same `Juce.getNativeFunction` plumbing as the tuning panel.
+- Category taxonomy and preset count sourced from cross-synth research (Serum, Vital, Pigments, Surge XT, Ableton Wavetable). 96 sits in the boutique-synth sweet spot — more than Vital's free tier (~75) and Ableton Wavetable (~130), less than Serum/Pigments (~500+).
+
 ## v1.15.0 (2026-04-11)
 
 ### Changed

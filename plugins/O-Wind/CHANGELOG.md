@@ -1,5 +1,47 @@
 # O-Wind Changelog
 
+## [1.12.0] - 2026-04-11
+
+### Added — User-Controllable Vibrato Drift (Evolution) Parameters
+
+Exposed the vibrato evolution system as two new user-facing parameters, allowing control over how organically the vibrato character wanders over time.
+
+**New Parameters:**
+- **Vibrato Drift Depth** (`vibratoDriftDepth`, 0-1, default 0.5) — Scales how much the vibrato rate and depth wander. 0 = perfectly static vibrato, 1 = full organic evolution with ±0.75 Hz rate drift and ±25% depth modulation.
+- **Vibrato Drift Speed** (`vibratoDriftSpeed`, 0.1-2.0 Hz, default 0.4 Hz) — Controls how fast the vibrato character evolves. Lower values = slow, breath-like wandering; higher values = faster, more restless modulation.
+
+**Implementation:** Two independent sine-wave drift oscillators modulate the vibrato LFO rate and depth per-sample. The rate drift oscillator runs at 1.175x the base speed, the depth drift at 0.775x, maintaining the original ~1.5:1 frequency ratio for natural-sounding decorrelation.
+
+**UI:** Two new knobs added to the Expression section (Drift Depth, Drift Speed).
+
+**Factory Presets:** All 8 presets updated with musically appropriate drift values — higher drift for organic instruments (Shakuhachi 0.7, Native Am. Flute 0.8), lower for precise ones (Recorder 0.2, Piccolo 0.3).
+
+**Files Modified:** PluginProcessor.cpp, FluteSynthVoice.cpp, FluteSynthVoice.h, Resources/ui/index.html
+
+## [1.11.6] - 2026-04-11
+
+### Fixed — Tuning Panel Layout
+
+Tuning tab had incorrect layout — viz mode tabs (Circle, Polar, etc.) and visualization content were misplaced in the CSS grid, pushing the tuning library/controls to a second row instead of the rightmost column.
+
+**Root Cause:** O-Wind used the shared tuning module's CSS grid layout (`grid-template-columns: 140px 1fr 200px`) with 4 direct grid children, causing auto-placement to put viz-container in the right column and controls on a second row.
+
+**Fix:** Added absolute positioning CSS overrides in index.html matching the O-Prism/O-Lyrica pattern: interval list (left), viz tabs + content (center), controls panel (right).
+
+**File Modified:** Resources/ui/index.html
+
+## [1.11.5] - 2026-04-11
+
+### Fixed — Instrument Plays Flat (Missing Embouchure Sign Inversion)
+
+Notes played consistently flat compared to other instruments at the same MIDI note and tuning settings.
+
+**Root Cause:** The waveguide feedback loop had only ONE sign inversion (at the open/far end via `-endReflectionCoeff`), but a flute is an open-open tube requiring TWO inversions per round trip. The bore feedback entered the jet exciter with positive coupling, creating a closed-open (clarinet) loop topology where the linear resonance is at `sampleRate/(2D)` instead of `sampleRate/D`. The tanh nonlinearity forced oscillation near the target pitch, but with a systematic flat offset because the loop phase was π off from proper resonance.
+
+**Fix:** Negated bore feedback before jet exciter coupling (`-boreFeedback` instead of `boreFeedback`). This adds the physically correct embouchure-end pressure inversion (open end = pressure node). Combined with the far-end inversion, the loop now has two sign inversions per round trip — the correct open-open flute topology where `f = sampleRate/D`.
+
+**Files Modified:** FluteSynthVoice.cpp
+
 ## [1.11.4] - 2026-04-09
 
 ### Fixed — Physical Model Instability, Distortion, and Excessive Output Level

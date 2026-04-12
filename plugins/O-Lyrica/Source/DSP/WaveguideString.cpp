@@ -35,20 +35,16 @@ void WaveguideString::prepare(double sampleRate, int maxBlockSize)
     upperRail.setMaximumDelayInSamples(maxDelaySamples);
     lowerRail.setMaximumDelayInSamples(maxDelaySamples);
 
-    // Prepare filters
-    juce::dsp::ProcessSpec spec;
-    spec.sampleRate = sampleRate;
-    spec.maximumBlockSize = static_cast<juce::uint32>(maxBlockSize);
-    spec.numChannels = 1;
-
-    bridgeFilter.prepare(spec);
-    nutFilter.prepare(spec);
-    loopDamping.prepare(spec);
+    // v2.1.8: OnePoleLPF has no prepare() — only the stiffness filter needs it
     stiffnessFilter.prepare(sampleRate, maxBlockSize);
 
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
+    bridgeFilterShadow.reset();
+    nutFilterShadow.reset();
+    loopDampingShadow.reset();
+    filterCrossfadeRemaining = 0;
     stiffnessFilter.reset();
 
     // Prepare pluck exciter
@@ -57,6 +53,13 @@ void WaveguideString::prepare(double sampleRate, int maxBlockSize)
     // v1.33.0: Compute étouffé dampening rate for ~50ms decay to -60dB
     float dampeningSamples = static_cast<float>(sampleRate) * 0.05f;
     dampeningDecayRate = std::pow(0.001f, 1.0f / dampeningSamples);
+
+    buzzLowCut.setCutoff(180.0f, sampleRate);
+    buzzHighCut.setCutoff(650.0f, sampleRate);
+    buzzLowCut.reset();
+    buzzHighCut.reset();
+    buzzEnvelope = 0.0f;
+    buzzCapturedEnergy = 0.0f;
 
     updateFilters();
     reset();
@@ -81,6 +84,11 @@ void WaveguideString::trigger(double frequency, float velocity, float position, 
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
+    // v2.1.8: Also clear shadows and cancel any in-flight crossfade for new notes
+    bridgeFilterShadow.reset();
+    nutFilterShadow.reset();
+    loopDampingShadow.reset();
+    filterCrossfadeRemaining = 0;
     stiffnessFilter.reset();
 
     // Configure stiffness filter for this note
@@ -95,6 +103,11 @@ void WaveguideString::trigger(double frequency, float velocity, float position, 
     // v1.33.0: Reset dampening for new notes
     dampening = false;
     dampeningMultiplier = 1.0f;
+
+    buzzEnvelope = 0.0f;
+    buzzCapturedEnergy = 0.0f;
+    buzzLowCut.reset();
+    buzzHighCut.reset();
 
     // Initialize energy tracking
     currentEnergy = velocity;
@@ -114,17 +127,49 @@ float WaveguideString::processSample()
     float upperOut = upperRail.popSample(0);
     float lowerOut = lowerRail.popSample(0);
 
-    // Bridge reflection: Filter upper rail output, reflect back to lower rail
-    // The bridge end has frequency-dependent damping
-    float bridgeReflection = bridgeFilter.processSample(upperOut);
+    // v2.1.8: Crossfaded bridge/nut/damping filtering.
+    // During a coefficient transition we run the shadow filters (old coefs +
+    // pre-update state) in parallel with the active filters (new coefs) and
+    // linearly blend their outputs over FILTER_CROSSFADE_LENGTH samples. This
+    // eliminates the click that previously occurred when brightness/tension/
+    // material parameters caused a one-sample step in filter response inside
+    // the waveguide feedback loop.
+    float bridgeReflection;
+    float nutReflection;
 
-    // Nut reflection: Invert lower rail output, reflect back to upper rail
-    // The nut end inverts the wave (rigid boundary condition)
-    float nutReflection = -nutFilter.processSample(lowerOut);
+    if (filterCrossfadeRemaining > 0)
+    {
+        const float t = 1.0f - static_cast<float>(filterCrossfadeRemaining)
+                               / static_cast<float>(FILTER_CROSSFADE_LENGTH);
 
-    // Apply loop damping once per round-trip (at bridge end only)
-    // Note: Using same filter for both signals corrupts IIR state
-    bridgeReflection = loopDamping.processSample(bridgeReflection);
+        // Bridge
+        const float newBridge = bridgeFilter.processSample(upperOut);
+        const float oldBridge = bridgeFilterShadow.processSample(upperOut);
+        bridgeReflection = oldBridge + (newBridge - oldBridge) * t;
+
+        // Nut (rigid-boundary inversion)
+        const float newNut = nutFilter.processSample(lowerOut);
+        const float oldNut = nutFilterShadow.processSample(lowerOut);
+        nutReflection = -(oldNut + (newNut - oldNut) * t);
+
+        // Loop damping (applied once per round-trip at bridge end)
+        const float newDamp = loopDamping.processSample(bridgeReflection);
+        const float oldDamp = loopDampingShadow.processSample(bridgeReflection);
+        bridgeReflection = oldDamp + (newDamp - oldDamp) * t;
+
+        --filterCrossfadeRemaining;
+    }
+    else
+    {
+        // Bridge reflection: filter upper rail output, reflect back to lower rail
+        bridgeReflection = bridgeFilter.processSample(upperOut);
+
+        // Nut reflection: invert lower rail output, reflect back to upper rail
+        nutReflection = -nutFilter.processSample(lowerOut);
+
+        // Apply loop damping once per round-trip (at bridge end only)
+        bridgeReflection = loopDamping.processSample(bridgeReflection);
+    }
 
     // Apply stiffness filter (Phase 2.4: creates inharmonicity/dispersion)
     // This adds frequency-dependent phase shift, making higher harmonics sharp
@@ -147,6 +192,20 @@ float WaveguideString::processSample()
     // This creates the comb filtering effect based on pluck position
     float excitationToUpper = excitation * pluckPosition;
     float excitationToLower = excitation * (1.0f - pluckPosition);
+
+    if (dampening && buzzEnvelope > 1e-5f)
+    {
+        const float noise = buzzRandom.nextFloat() * 2.0f - 1.0f;
+        const float lowPart = buzzLowCut.processSample(noise);
+        const float hpf = noise - lowPart;
+        const float bpf = buzzHighCut.processSample(hpf);
+        buzzEnvelope *= dampeningDecayRate;
+
+        constexpr float BUZZ_GAIN = 2.5f;
+        const float buzzSample = bpf * buzzEnvelope * buzzCapturedEnergy * BUZZ_GAIN;
+        excitationToUpper += buzzSample * 0.5f;
+        excitationToLower += buzzSample * 0.5f;
+    }
 
     // Feed reflected waves back into opposite rails
     upperRail.pushSample(0, nutReflection + excitationToUpper);
@@ -178,9 +237,19 @@ void WaveguideString::reset()
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
+    // v2.1.8: Clear crossfade shadows too
+    bridgeFilterShadow.reset();
+    nutFilterShadow.reset();
+    loopDampingShadow.reset();
+    filterCrossfadeRemaining = 0;
     stiffnessFilter.reset();
     exciter.reset();
     currentEnergy = 0.0f;
+
+    buzzLowCut.reset();
+    buzzHighCut.reset();
+    buzzEnvelope = 0.0f;
+    buzzCapturedEnergy = 0.0f;
 }
 
 void WaveguideString::setDamping(float damping)
@@ -347,7 +416,11 @@ void WaveguideString::setDampening(bool active)
 {
     dampening = active;
     if (active)
-        dampeningMultiplier = 1.0f; // Start fresh ramp-down
+    {
+        dampeningMultiplier = 1.0f;
+        buzzEnvelope = 1.0f;
+        buzzCapturedEnergy = currentEnergy;
+    }
 }
 
 WaveguideString::FilterCutoffs WaveguideString::calculateFilterCutoffs() const
@@ -399,18 +472,39 @@ void WaveguideString::updateFilters()
 
 void WaveguideString::applyPendingFilterUpdates()
 {
-    // v1.7.10: Apply filter coefficient updates on audio thread
-    // Only called from processSample() - safe to modify filter state
+    // v2.1.8: Apply filter coefficient updates on the audio thread with a
+    // crossfade to eliminate clicks on brightness/tension/material sweeps.
+    //
+    // Before overwriting the live coefficients we snapshot the current filter
+    // (coefs + state) into a shadow copy via plain-value assignment — OnePoleLPF
+    // is a trivially-copyable POD so this is allocation-free and RT-safe. The
+    // shadow then continues running with the OLD response while the live filter
+    // switches to the NEW response; processSample() blends their outputs over
+    // FILTER_CROSSFADE_LENGTH samples (~64 samples ≈ 1.5 ms @ 44.1 kHz).
+    //
+    // If another update lands while a crossfade is still in flight, the shadow
+    // is replaced by the current (mid-transition) state and the counter resets,
+    // producing a smooth cascaded transition instead of compounding clicks.
+    //
+    // v1.7.10 thread-safety note preserved: this is the only place filter state
+    // is mutated, and it's only called from processSample() on the audio thread.
     if (filterUpdatePending.load(std::memory_order_acquire))
     {
-        bridgeFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-            currentSampleRate, pendingBridgeCutoff.load(std::memory_order_relaxed));
+        // Snapshot current live filters into shadows (holds pre-update behavior)
+        bridgeFilterShadow = bridgeFilter;
+        nutFilterShadow = nutFilter;
+        loopDampingShadow = loopDamping;
 
-        nutFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-            currentSampleRate, pendingNutCutoff.load(std::memory_order_relaxed));
+        // Install new cutoffs on live filters — allocation-free in-place write
+        bridgeFilter.setCutoff(pendingBridgeCutoff.load(std::memory_order_relaxed),
+                               currentSampleRate);
+        nutFilter.setCutoff(pendingNutCutoff.load(std::memory_order_relaxed),
+                            currentSampleRate);
+        loopDamping.setCutoff(pendingDampingCutoff.load(std::memory_order_relaxed),
+                              currentSampleRate);
 
-        loopDamping.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-            currentSampleRate, pendingDampingCutoff.load(std::memory_order_relaxed));
+        // Start (or restart) the crossfade
+        filterCrossfadeRemaining = FILTER_CROSSFADE_LENGTH;
 
         filterUpdatePending.store(false, std::memory_order_relaxed);
     }

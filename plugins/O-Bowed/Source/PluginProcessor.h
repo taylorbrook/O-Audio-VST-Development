@@ -19,7 +19,6 @@
 #include "TuningExporter.h"
 #include "DSP/BodyResonator.h"
 #include "DSP/StereoWidthProcessor.h"
-#include "DSP/DroneStringEngine.h"
 #include "DSP/SympatheticStringEngine.h"
 #include "OuariconPresetManager.h"
 
@@ -80,8 +79,7 @@ private:
     BodyResonator bodyResonator;
     StereoWidthProcessor stereoWidthProcessor;
 
-    // Drone and sympathetic engines (processor-level)
-    DroneStringEngine droneEngine;
+    // Sympathetic string engine (processor-level)
     SympatheticStringEngine sympatheticEngine;
 
     // Preset manager

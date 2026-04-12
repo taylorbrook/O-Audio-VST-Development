@@ -576,6 +576,7 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
         // Write to oversampled buffer
         oversampledData[sample] = output;
+
     }
 
     // 4. Downsample back to native rate

@@ -2,6 +2,41 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.19.0] - 2026-04-11
+
+### Added
+- **Effects tab** — New dedicated Effects tab with four signal processors matching O-Lyrica's effects chain:
+  - **Chorus** — JUCE built-in chorus with Rate (0.1–10 Hz), Depth, and Mix controls
+  - **Delay** — Stereo delay with Lagrange interpolation, 8 kHz feedback filter, Normal/PingPong modes, Time (1ms–2s), Feedback (0–95%), and Mix
+  - **Reverb** — 8-channel FDN plate reverb with input diffusion, Householder feedback matrix, multi-LFO modulation, shimmer (octave-up pitch shifter with HP filter), configurable pre-delay (0–200ms), Size, Damping, Mod, Shimmer, and Mix
+  - **EQ** — 3-band parametric EQ with Low Shelf (200 Hz), Mid Peak (200–8000 Hz), High Shelf (8 kHz), all ±12 dB
+- **Per-effect bypass buttons** — Each effect section has an On/Off toggle
+- **22 new APVTS parameters** for full effects control and automation
+- Effects chain order: Chorus → Delay → Reverb → EQ → Output Gain
+
+### Technical Notes
+- New DSP files: `DSP/DelayProcessor.cpp`, `DSP/EQProcessor.cpp`, `DSP/ReverbProcessor.cpp`
+- Effects processing inserted between synthesiser output and output gain stage
+- All effects use thread-safe atomic parameter targets with dirty-flag coefficient updates
+- Tail length updated to 5.0s to account for reverb/delay tails
+- No existing parameter IDs changed — existing presets and automation unaffected
+
+## [1.18.0] - 2026-04-11
+
+### Added
+- **Tuning module with dedicated tab** — Full microtonal tuning system integrated via the scala-tuning-engine module v2.0.0. UI converted from single-page to tabbed layout (Synth + Tuning tabs). Tuning tab provides interval editing, pitch circle/polar/matrix/TrueKeys visualizations, embedded tuning library (24+ scales across Historical, Just Intonation, EDO, Non-Octave, and World categories), scale generator (EDO, Harmonic Series, Rank-2), Scala file I/O (.scl/.kbm), adjustable master tune (A4 reference), octave stretch for physical modeling, and tonic selection.
+- **5 new APVTS parameters:** `tuning_masterTune` (400–480 Hz), `tuning_tuningMode` (12-TET/Custom/MTS-ESP), `tuning_octaveStretch` (0.95–1.25), `tuning_pitchBendRange` (1–48 st), `tuning_temperamentPreset` (11 built-in temperaments + Custom).
+- **Tuning state persistence** — Custom intervals, scale name, and tonic are saved/restored with DAW sessions via ValueTree child node.
+
+### Changed
+- FormantVoice now uses TuningEngine for MIDI-to-frequency conversion instead of standard 12-TET `getFrequencyInHertz()`. Affects note onset frequency, spectral tilt reference, and source-filter coupling estimation.
+
+### Technical Notes
+- New C++ files: `TuningEngine.cpp`, `ScaleGenerator.cpp`, `TuningExporter.cpp`, `EmbeddedTunings.cpp` (from scala-tuning-engine module)
+- New JS: `tuning-panel.js` (self-contained TuningPanel component)
+- 25 native functions registered for C++ ↔ JS tuning bridge
+- No existing parameter IDs changed — existing presets and automation unaffected.
+
 ## [1.17.0] - 2026-04-11
 
 ### Added

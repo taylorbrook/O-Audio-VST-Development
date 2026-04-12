@@ -49,6 +49,135 @@ body {
     letter-spacing: 1.5px;
     color: #8B7355;
     font-style: italic;
+    flex-shrink: 0;
+}
+
+/* ─── PRESET BROWSER (persistent in header) ─── */
+.preset-browser {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    max-width: 440px;
+    margin: 0 20px;
+    justify-content: center;
+}
+.preset-nav {
+    background: transparent;
+    border: 1px solid #8B7355;
+    color: #C9A27B;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
+    border-radius: 2px;
+    font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s, color 0.15s;
+}
+.preset-nav:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.preset-display {
+    flex: 1;
+    max-width: 320px;
+    text-align: center;
+    padding: 4px 10px;
+    background: #2A2020;
+    border: 1px solid #8B7355;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 10px;
+    line-height: 1.2;
+    color: #F5E6D3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s;
+}
+.preset-display:hover { background: #332828; }
+.preset-category {
+    color: #8B7355;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-size: 9px;
+    margin-right: 6px;
+}
+.preset-category:empty { margin-right: 0; }
+.preset-name {
+    color: #F5E6D3;
+    font-style: italic;
+}
+.preset-save {
+    background: transparent;
+    border: 1px solid #8B7355;
+    color: #C9A27B;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    border-radius: 2px;
+    transition: background 0.15s, color 0.15s;
+}
+.preset-save:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+
+/* ─── PRESET MENU (overlay opening from header) ─── */
+.preset-menu {
+    display: none;
+    position: absolute;
+    top: 34px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3C2F2F;
+    border: 1px solid #8B7355;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    max-height: 520px;
+    overflow-y: auto;
+    width: 540px;
+    font-family: 'Garamond', 'Georgia', serif;
+}
+.preset-menu.visible { display: block; }
+.preset-menu-category {
+    background: #2A2020;
+    color: #C9A27B;
+    padding: 7px 14px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    font-size: 10px;
+    border-top: 1px solid #1A1010;
+    border-bottom: 1px solid #1A1010;
+    font-weight: bold;
+}
+.preset-menu > .preset-menu-category:first-child { border-top: none; }
+.preset-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    padding: 3px;
+    background: #1A1010;
+}
+.preset-menu-item {
+    padding: 6px 10px;
+    background: #3C2F2F;
+    color: #F5E6D3;
+    font-size: 11px;
+    cursor: pointer;
+    font-style: italic;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.preset-menu-item:hover {
+    background: #5C4033;
+    color: #FFF;
+}
+.preset-menu-item.active {
+    background: #8B7355;
+    color: #FFF;
+    font-weight: bold;
 }
 
 /* ─── TAB BAR ─── */
@@ -783,8 +912,22 @@ body {
      ═══════════════════════════════════════════════════════════════════ -->
 <div class="header-bar">
     <h1>O-PRISM</h1>
+
+    <div class="preset-browser">
+        <button class="preset-nav" id="btn-preset-prev" title="Previous Preset">‹</button>
+        <div class="preset-display" id="preset-display" title="Click to browse presets">
+            <span class="preset-category" id="preset-current-category"></span>
+            <span class="preset-name" id="preset-current-name">— Init —</span>
+        </div>
+        <button class="preset-nav" id="btn-preset-next" title="Next Preset">›</button>
+        <button class="preset-save" id="btn-preset-save" title="Save Preset">★</button>
+    </div>
+
     <span class="subtitle">Microtonal Wavetable Synthesizer</span>
 </div>
+
+<!-- Preset menu (opens from header, floats over tabs) -->
+<div class="preset-menu" id="preset-menu"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════════
      TAB BAR
@@ -1452,6 +1595,184 @@ window.switchTab = function(tabName) {
         window.WavetableEditor.onTabDeactivated();
     }
 };
+
+// ─── PRESET BROWSER (persistent across tabs) ───
+(function initPresetBrowser() {
+    const getList = Juce.getNativeFunction('getPresetListWithCategories');
+    const getCurrent = Juce.getNativeFunction('getCurrentPreset');
+    const loadFromCat = Juce.getNativeFunction('loadPresetFromCategory');
+    const loadByName = Juce.getNativeFunction('loadPresetByName');
+    const nextFn = Juce.getNativeFunction('selectNextPreset');
+    const prevFn = Juce.getNativeFunction('selectPreviousPreset');
+    const savePresetFn = Juce.getNativeFunction('savePreset');
+    const isFactoryFn = Juce.getNativeFunction('isFactoryPreset');
+
+    const CATEGORY_ORDER = [
+        'Pads', 'Drone', 'Lead', 'Bass', 'Pluck',
+        'Harmonic', 'Keys', 'Sequence', 'FX', 'Percussion', 'User'
+    ];
+
+    let categorized = {};
+    let currentName = '';
+    let currentCategory = '';
+
+    const displayEl = document.getElementById('preset-display');
+    const catEl = document.getElementById('preset-current-category');
+    const nameEl = document.getElementById('preset-current-name');
+    const menuEl = document.getElementById('preset-menu');
+    const prevBtn = document.getElementById('btn-preset-prev');
+    const nextBtn = document.getElementById('btn-preset-next');
+    const saveBtn = document.getElementById('btn-preset-save');
+
+    async function refreshList() {
+        try {
+            const json = await getList();
+            categorized = JSON.parse(json || '{}');
+        } catch (e) {
+            console.error('[Presets] refreshList failed:', e);
+            categorized = {};
+        }
+    }
+
+    function findCategoryFor(name) {
+        for (const [cat, names] of Object.entries(categorized)) {
+            if (names.includes(name)) return cat;
+        }
+        return '';
+    }
+
+    async function refreshCurrent() {
+        try {
+            currentName = await getCurrent() || '';
+            currentCategory = findCategoryFor(currentName);
+            catEl.textContent = currentCategory;
+            nameEl.textContent = currentName || '— Init —';
+            // Highlight active item in menu if open
+            menuEl.querySelectorAll('.preset-menu-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.name === currentName);
+            });
+            // Notify Juce.js state relays to refresh (so every knob/slider updates)
+            requestAnimationFrame(() => {
+                if (window.__refreshAllControls) window.__refreshAllControls();
+            });
+        } catch (e) {
+            console.error('[Presets] refreshCurrent failed:', e);
+        }
+    }
+
+    function sortedCategories() {
+        return Object.keys(categorized).sort((a, b) => {
+            const ia = CATEGORY_ORDER.indexOf(a);
+            const ib = CATEGORY_ORDER.indexOf(b);
+            const na = ia < 0 ? 999 : ia;
+            const nb = ib < 0 ? 999 : ib;
+            return na - nb;
+        });
+    }
+
+    function buildMenu() {
+        menuEl.innerHTML = '';
+        for (const cat of sortedCategories()) {
+            const header = document.createElement('div');
+            header.className = 'preset-menu-category';
+            header.textContent = cat;
+            menuEl.appendChild(header);
+
+            const grid = document.createElement('div');
+            grid.className = 'preset-menu-grid';
+            for (const name of categorized[cat]) {
+                const item = document.createElement('div');
+                item.className = 'preset-menu-item';
+                if (name === currentName) item.classList.add('active');
+                item.textContent = name;
+                item.dataset.name = name;
+                item.dataset.category = cat;
+                item.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        if (cat === 'User') {
+                            await loadByName(name);
+                        } else {
+                            await loadFromCat(cat, name);
+                        }
+                        currentName = name;
+                        currentCategory = cat;
+                        catEl.textContent = cat;
+                        nameEl.textContent = name;
+                        hideMenu();
+                        requestAnimationFrame(() => {
+                            if (window.__refreshAllControls) window.__refreshAllControls();
+                        });
+                    } catch (err) {
+                        console.error('[Presets] load failed:', err);
+                    }
+                });
+                grid.appendChild(item);
+            }
+            menuEl.appendChild(grid);
+        }
+    }
+
+    function showMenu() {
+        buildMenu();
+        menuEl.classList.add('visible');
+    }
+    function hideMenu() {
+        menuEl.classList.remove('visible');
+    }
+    function toggleMenu() {
+        if (menuEl.classList.contains('visible')) hideMenu();
+        else showMenu();
+    }
+
+    displayEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu();
+    });
+    document.addEventListener('click', (e) => {
+        if (!menuEl.contains(e.target) && e.target !== displayEl) {
+            hideMenu();
+        }
+    });
+
+    nextBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+            await nextFn();
+            await refreshCurrent();
+        } catch (err) { console.error('[Presets] next failed:', err); }
+    });
+
+    prevBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+            await prevFn();
+            await refreshCurrent();
+        } catch (err) { console.error('[Presets] prev failed:', err); }
+    });
+
+    saveBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        let defaultName = 'My Preset';
+        try {
+            if (currentName && !(await isFactoryFn(currentName))) defaultName = currentName;
+        } catch (err) {}
+        const name = window.prompt('Save preset as:', defaultName);
+        if (name && name.trim()) {
+            try {
+                await savePresetFn(name.trim());
+                await refreshList();
+                await refreshCurrent();
+            } catch (err) { console.error('[Presets] save failed:', err); }
+        }
+    });
+
+    // Initial load (factory presets are written on first plugin construction)
+    (async () => {
+        await refreshList();
+        await refreshCurrent();
+    })();
+})();
 
 // ─── SVG VINE KNOB INFRASTRUCTURE ───
 

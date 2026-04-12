@@ -630,39 +630,12 @@
             </div>
 
             <div class="section-box">
-                <div class="section-label">Strings</div>
+                <div class="section-label">String</div>
                 <div class="param-row">
-                    <div class="knob-control" data-param="stringCount">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Count</div>
-                        <div class="knob-value">1</div>
-                    </div>
                     <div class="knob-control" data-param="stringGauge">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Gauge</div>
                         <div class="knob-value">0.50</div>
-                    </div>
-                </div>
-                <div class="param-row" style="margin-top: 4px;" id="tuning-knobs">
-                    <div class="knob-control hidden" data-param="stringTuning1" id="tune1-ctrl">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Tune 1</div>
-                        <div class="knob-value">0 ct</div>
-                    </div>
-                    <div class="knob-control hidden" data-param="stringTuning2" id="tune2-ctrl">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Tune 2</div>
-                        <div class="knob-value">0 ct</div>
-                    </div>
-                    <div class="knob-control hidden" data-param="stringTuning3" id="tune3-ctrl">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Tune 3</div>
-                        <div class="knob-value">0 ct</div>
-                    </div>
-                    <div class="knob-control hidden" data-param="stringTuning4" id="tune4-ctrl">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Tune 4</div>
-                        <div class="knob-value">0 ct</div>
                     </div>
                 </div>
             </div>
@@ -737,11 +710,6 @@
             bodyMaterial:      { min: 0, max: 1, default: 0.4, unit: '', decimals: 2 },
             bodySize:          { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
             brightness:        { min: 20, max: 20000, default: 8000, unit: ' Hz', decimals: 0 },
-            stringCount:       { min: 1, max: 4, default: 1, unit: '', decimals: 0 },
-            stringTuning1:     { min: -2400, max: 2400, default: 0, unit: ' ct', decimals: 0 },
-            stringTuning2:     { min: -2400, max: 2400, default: 0, unit: ' ct', decimals: 0 },
-            stringTuning3:     { min: -2400, max: 2400, default: 0, unit: ' ct', decimals: 0 },
-            stringTuning4:     { min: -2400, max: 2400, default: 0, unit: ' ct', decimals: 0 },
             sympatheticAmount: { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             sympatheticCount:  { min: 0, max: 12, default: 0, unit: '', decimals: 0 },
             width:             { min: 0, max: 2, default: 1, unit: '', decimals: 2 },
@@ -878,7 +846,6 @@
                     control.querySelector('.knob-value').textContent = formatValue(paramName, normToRaw(paramName, norm));
 
                     // Conditional visibility updates
-                    if (paramName === 'stringCount') updateStringVisibility(norm);
                     if (paramName === 'sympatheticCount') updateSympVisibility(norm);
                 });
 
@@ -962,24 +929,6 @@
         // ====================================================================
         // Conditional Visibility
         // ====================================================================
-        function updateStringVisibility(normStringCount) {
-            const def = PARAMS.stringCount;
-            const count = Math.round(def.min + normStringCount * (def.max - def.min));
-            const ctrls = [
-                document.getElementById('tune1-ctrl'),
-                document.getElementById('tune2-ctrl'),
-                document.getElementById('tune3-ctrl'),
-                document.getElementById('tune4-ctrl')
-            ];
-            // Show tuning controls for strings 2+ (string 1 always at unison)
-            for (let i = 0; i < 4; i++) {
-                if (ctrls[i]) {
-                    if (i < count) ctrls[i].classList.remove('hidden');
-                    else ctrls[i].classList.add('hidden');
-                }
-            }
-        }
-
         function updateSympVisibility(normSympCount) {
             const def = PARAMS.sympatheticCount;
             const count = Math.round(def.min + normSympCount * (def.max - def.min));
@@ -1671,9 +1620,6 @@
             bindComboBox('frictionTier', 'frictionTier');
 
             // Initialize conditional visibility
-            if (sliderStates.stringCount) {
-                updateStringVisibility(sliderStates.stringCount.getNormalisedValue());
-            }
             if (sliderStates.sympatheticCount) {
                 updateSympVisibility(sliderStates.sympatheticCount.getNormalisedValue());
             }

@@ -226,7 +226,8 @@ void FluteSynthVoice::prepareToPlay (double sampleRate, int maxBlockSize)
     totalDelaySmoothed.reset (internalSampleRate, 0.003);  // 3ms delay crossfade
     embouchureSmoothed.reset (internalSampleRate, 0.005);  // 5ms embouchure smoothing
 
-    // Vibrato drift oscillator phase increments (fixed slow rates)
+    // Vibrato drift oscillator phase increments (updated per-block from APVTS)
+    // Initial values use defaults; updateParametersFromAPVTS() overwrites each block
     vibratoRateDriftInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
                                                 * 0.47 / internalSampleRate);
     vibratoDepthDriftInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
@@ -316,13 +317,13 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                 ? static_cast<float> (samplesSinceNoteOn) / static_cast<float> (vibratoOnsetSamples)
                 : 1.0f;
 
-            // Rate drift: slow noise (~0.47 Hz) modulating LFO rate +/- 0.75 Hz
-            float rateDrift = std::sin (vibratoRateDriftPhase) * 0.75f;
+            // Rate drift: slow noise modulating LFO rate +/- (0.75 * driftDepth) Hz
+            float rateDrift = std::sin (vibratoRateDriftPhase) * 0.75f * vibratoDriftDepthParam;
             float driftedPhaseInc = vibratoPhaseInc
                 + static_cast<float> (2.0 * juce::MathConstants<double>::pi * rateDrift / internalSampleRate);
 
-            // Depth drift: independent slow noise (~0.31 Hz) +/- 25%
-            float depthScale = 1.0f + std::sin (vibratoDepthDriftPhase) * 0.25f;
+            // Depth drift: independent slow noise +/- (25% * driftDepth)
+            float depthScale = 1.0f + std::sin (vibratoDepthDriftPhase) * 0.25f * vibratoDriftDepthParam;
 
             // Shape asymmetry: sin(phase) + 0.1*sin(2*phase)
             float vibratoShape = std::sin (vibratoPhase)
@@ -362,6 +363,11 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         boreWaveguide.setBoreDelay (boreDelay);
 
         // ========== STEP 1: Jet Exciter ==========
+        // Bore feedback is NEGATED before jet coupling: the embouchure end is
+        // acoustically open, so the returning pressure wave inverts (pressure
+        // node).  Combined with the far-end inversion (-endReflCoeff in
+        // BoreWaveguide), this gives two sign inversions per round trip —
+        // the correct open-open (flute) topology where f = sampleRate/D.
         float boreFeedback = boreWaveguide.getFeedback();
 
         // Growl: sawtooth AM on bore feedback (vocal-fold coupling roughness)
@@ -373,7 +379,7 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                 growlPhase -= 1.0f;
         }
 
-        float excitation = jetExciter.processSample (boreFeedback);
+        float excitation = jetExciter.processSample (-boreFeedback);
 
         // ========== STEP 2: Jet Delay (Lagrange3rd) ==========
         float jetDelayLength = totalDelay - boreDelay;
@@ -510,6 +516,18 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     vibratoTremoloDepthParam = parameters->getRawParameterValue ("vibratoTremolo")->load();
     vibratoPhaseInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
                                            * vibratoRate / internalSampleRate);
+
+    // Vibrato drift (evolution) parameters — user-controllable depth and speed
+    vibratoDriftDepthParam = parameters->getRawParameterValue ("vibratoDriftDepth")->load();
+    vibratoDriftSpeedParam = parameters->getRawParameterValue ("vibratoDriftSpeed")->load();
+
+    // Update drift oscillator phase increments from user speed parameter
+    // Rate drift oscillator runs at 1.175x the base speed, depth drift at 0.775x
+    // (maintains the ~1.5:1 ratio from the original 0.47/0.31 Hz pairing)
+    vibratoRateDriftInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
+                                                * vibratoDriftSpeedParam * 1.175 / internalSampleRate);
+    vibratoDepthDriftInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
+                                                 * vibratoDriftSpeedParam * 0.775 / internalSampleRate);
 
     // Vibrato onset delay (with per-note humanization offset)
     float vibratoOnset = parameters->getRawParameterValue ("vibratoOnset")->load();

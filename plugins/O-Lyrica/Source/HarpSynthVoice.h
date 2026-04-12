@@ -88,8 +88,10 @@ private:
     /**
      * Update DSP components from APVTS parameters (called each render block)
      * Enables real-time parameter modulation during note playback
+     * @param numSamples Size of current render block, used to advance the
+     *                   material-change crossfade at block rate (v2.1.9)
      */
-    void updateParametersFromAPVTS();
+    void updateParametersFromAPVTS(int numSamples);
 
     // Physical modeling string (Phase 2.2 - Bidirectional Waveguide)
     WaveguideString stringModel;
@@ -129,6 +131,17 @@ private:
 
     // Track current material type to avoid unnecessary DSP updates
     MaterialType currentMaterialType = MaterialType::Nylon;
+
+    // v2.1.9: Material parameter crossfade state
+    // When stringMaterial changes mid-note, damping/brightness/stiffness/coupling/noise
+    // are interpolated from crossfadeFromMaterial to crossfadeTargetMaterial over ~50ms
+    // at block rate, driving stringModel.setMaterial() on each block. Advancing via
+    // crossfadeSamplesRemaining (decremented by numSamples each block).
+    StringMaterial crossfadeFromMaterial;
+    StringMaterial crossfadeTargetMaterial;
+    int materialCrossfadeSamplesTotal = 0;
+    int materialCrossfadeSamplesRemaining = 0;
+    double currentSampleRate = 44100.0;
 
     // v1.35.0: Per-voice output buffer for crosstalk processing
     juce::AudioBuffer<float> voiceOutputBuffer;

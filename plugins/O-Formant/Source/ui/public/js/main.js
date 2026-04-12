@@ -10,6 +10,11 @@ let formantTopologyState;
 let formantShiftState, formantSpreadState, pitchGlideState, transitionTimeState, singersFormantState;
 let nasalCouplingState, nasalPlaceState;
 let outputGainState, stereoWidthState;
+// Effects
+let chorusBypassState, chorusRateState, chorusDepthState, chorusMixState;
+let delayBypassState, delayTimeState, delayFeedbackState, delayModeState, delayMixState;
+let reverbBypassState, reverbSizeState, reverbDampState, reverbPredelayState, reverbMixState, reverbModState, reverbShimmerState;
+let eqBypassState, eqLowGainState, eqMidGainState, eqMidFreqState, eqHighGainState;
 
 // Vowel XY pad
 const canvas = document.getElementById('xy-pad');
@@ -121,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindKnobs();
   bindToggle();
   bindTopologySelector();
+  bindEffectsControls();
   drawADSR();
   initPresetBrowser();
 });
@@ -160,6 +166,29 @@ function initRelays() {
   outputGainState = getSliderState('outputGainSlider');
   stereoWidthState = getSliderState('stereoWidthSlider');
 
+  // Effects relays
+  chorusBypassState = getToggleState('chorusBypassToggle');
+  chorusRateState = getSliderState('chorusRateSlider');
+  chorusDepthState = getSliderState('chorusDepthSlider');
+  chorusMixState = getSliderState('chorusMixSlider');
+  delayBypassState = getToggleState('delayBypassToggle');
+  delayTimeState = getSliderState('delayTimeSlider');
+  delayFeedbackState = getSliderState('delayFeedbackSlider');
+  delayModeState = getComboBoxState('delayModeComboBox');
+  delayMixState = getSliderState('delayMixSlider');
+  reverbBypassState = getToggleState('reverbBypassToggle');
+  reverbSizeState = getSliderState('reverbSizeSlider');
+  reverbDampState = getSliderState('reverbDampSlider');
+  reverbPredelayState = getSliderState('reverbPredelaySlider');
+  reverbMixState = getSliderState('reverbMixSlider');
+  reverbModState = getSliderState('reverbModSlider');
+  reverbShimmerState = getSliderState('reverbShimmerSlider');
+  eqBypassState = getToggleState('eqBypassToggle');
+  eqLowGainState = getSliderState('eqLowGainSlider');
+  eqMidGainState = getSliderState('eqMidGainSlider');
+  eqMidFreqState = getSliderState('eqMidFreqSlider');
+  eqHighGainState = getSliderState('eqHighGainSlider');
+
   // Map param ID -> relay state for knob bindings
   // (consonantTone and sibilance excluded — controlled by consonant XY pad)
   const paramMap = {
@@ -190,6 +219,22 @@ function initRelays() {
     release: releaseState,
     outputGain: outputGainState,
     stereoWidth: stereoWidthState,
+    chorusRate: chorusRateState,
+    chorusDepth: chorusDepthState,
+    chorusMix: chorusMixState,
+    delayTime: delayTimeState,
+    delayFeedback: delayFeedbackState,
+    delayMix: delayMixState,
+    reverbSize: reverbSizeState,
+    reverbDamp: reverbDampState,
+    reverbPredelay: reverbPredelayState,
+    reverbMix: reverbMixState,
+    reverbMod: reverbModState,
+    reverbShimmer: reverbShimmerState,
+    eqLowGain: eqLowGainState,
+    eqMidGain: eqMidGainState,
+    eqMidFreq: eqMidFreqState,
+    eqHighGain: eqHighGainState,
   };
 
   // Listen for automation changes on all slider relays
@@ -761,6 +806,51 @@ function updateTopologyVisual() {
       btn.classList.remove('active');
     }
   });
+}
+
+// ============================================================================
+// Effects Controls
+// ============================================================================
+function bindEffectsControls() {
+  // Bypass toggles
+  setupFxBypass('chorusBypassBtn', chorusBypassState);
+  setupFxBypass('delayBypassBtn', delayBypassState);
+  setupFxBypass('reverbBypassBtn', reverbBypassState);
+  setupFxBypass('eqBypassBtn', eqBypassState);
+
+  // Delay mode dropdown
+  const modeSelect = document.getElementById('delayModeSelect');
+  if (modeSelect && delayModeState) {
+    modeSelect.addEventListener('change', () => {
+      delayModeState.setChoiceIndex(parseInt(modeSelect.value, 10));
+    });
+    delayModeState.valueChangedEvent.addListener(() => {
+      modeSelect.value = delayModeState.getChoiceIndex().toString();
+    });
+    modeSelect.value = delayModeState.getChoiceIndex().toString();
+  }
+}
+
+function setupFxBypass(btnId, toggleState) {
+  const btn = document.getElementById(btnId);
+  if (!btn || !toggleState) return;
+
+  btn.addEventListener('click', () => {
+    toggleState.setValue(!toggleState.getValue());
+  });
+
+  const update = () => {
+    const bypassed = toggleState.getValue();
+    btn.textContent = bypassed ? 'Off' : 'On';
+    if (bypassed) {
+      btn.classList.add('bypassed');
+    } else {
+      btn.classList.remove('bypassed');
+    }
+  };
+
+  toggleState.valueChangedEvent.addListener(update);
+  update();
 }
 
 // ============================================================================

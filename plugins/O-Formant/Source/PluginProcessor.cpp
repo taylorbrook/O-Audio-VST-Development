@@ -243,6 +243,175 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
         0.5f));
 
+    // --- Tuning (5) ---
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "tuning_masterTune", 1 },
+        "Master Tune",
+        juce::NormalisableRange<float> (400.0f, 480.0f, 0.1f),
+        440.0f,
+        "Hz"));
+
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "tuning_tuningMode", 1 },
+        "Tuning Mode",
+        juce::StringArray { "12-TET", "Custom", "MTS-ESP" },
+        0));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "tuning_octaveStretch", 1 },
+        "Octave Stretch",
+        juce::NormalisableRange<float> (0.95f, 1.25f, 0.001f),
+        1.0f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "tuning_pitchBendRange", 1 },
+        "Pitch Bend Range",
+        juce::NormalisableRange<float> (1.0f, 48.0f, 1.0f),
+        2.0f,
+        "st"));
+
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "tuning_temperamentPreset", 1 },
+        "Temperament",
+        juce::StringArray {
+            "Equal 12-TET", "Pythagorean", "Zarlino", "Meantone (1/4)",
+            "Werckmeister III", "Kirnberger III", "Vallotti",
+            "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom" },
+        0));
+
+    // --- Effects: Chorus (4) ---
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "chorusBypass", 1 },
+        "Chorus Bypass",
+        false));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "chorusRate", 1 },
+        "Chorus Rate",
+        juce::NormalisableRange<float> (0.1f, 10.0f, 0.0f),
+        1.0f,
+        "Hz"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "chorusDepth", 1 },
+        "Chorus Depth",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.5f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "chorusMix", 1 },
+        "Chorus Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.0f));
+
+    // --- Effects: Delay (5) ---
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "delayBypass", 1 },
+        "Delay Bypass",
+        false));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "delayTime", 1 },
+        "Delay Time",
+        juce::NormalisableRange<float> (0.001f, 2.0f, 0.0f),
+        0.375f,
+        "s"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "delayFeedback", 1 },
+        "Delay Feedback",
+        juce::NormalisableRange<float> (0.0f, 0.95f, 0.0f),
+        0.3f));
+
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "delayMode", 1 },
+        "Delay Mode",
+        juce::StringArray { "Normal", "PingPong" },
+        0));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "delayMix", 1 },
+        "Delay Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.0f));
+
+    // --- Effects: Reverb (7) ---
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "reverbBypass", 1 },
+        "Reverb Bypass",
+        false));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbSize", 1 },
+        "Reverb Size",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.5f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbDamp", 1 },
+        "Reverb Damping",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.5f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbPredelay", 1 },
+        "Reverb Pre-delay",
+        juce::NormalisableRange<float> (0.0f, 200.0f, 0.0f),
+        20.0f,
+        "ms"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbMix", 1 },
+        "Reverb Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.0f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbMod", 1 },
+        "Reverb Modulation",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.2f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbShimmer", 1 },
+        "Reverb Shimmer",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.0f));
+
+    // --- Effects: EQ (5) ---
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "eqBypass", 1 },
+        "EQ Bypass",
+        false));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "eqLowGain", 1 },
+        "EQ Low Gain",
+        juce::NormalisableRange<float> (-12.0f, 12.0f, 0.0f),
+        0.0f,
+        "dB"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "eqMidGain", 1 },
+        "EQ Mid Gain",
+        juce::NormalisableRange<float> (-12.0f, 12.0f, 0.0f),
+        0.0f,
+        "dB"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "eqMidFreq", 1 },
+        "EQ Mid Freq",
+        juce::NormalisableRange<float> (200.0f, 8000.0f, 0.0f),
+        1000.0f,
+        "Hz"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "eqHighGain", 1 },
+        "EQ High Gain",
+        juce::NormalisableRange<float> (-12.0f, 12.0f, 0.0f),
+        0.0f,
+        "dB"));
+
     return layout;
 }
 
@@ -265,10 +434,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.3f}, {"shimmer", 0.3f}, {"rdModDepth", 0.3f}, {"spectralTilt", -3.0f},
             {"consonantLevel", 0.6f}, {"consonantTone", 0.95f}, {"sibilance", 0.1f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 5.0f}, {"consonantHold", 15.0f}, {"consonantDecay", 30.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", -12.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.6f}, {"sourceFilterCoupling", 0.5f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.2f}, {"nasalPlace", 0.3f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Cinematic", "Alien Whisper", {
@@ -277,10 +448,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.2f}, {"shimmer", 0.15f}, {"rdModDepth", 0.2f}, {"spectralTilt", 4.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.67f}, {"sibilance", 0.85f}, {"autoConsonant", 0.0f},
+            {"consonantAttack", 40.0f}, {"consonantHold", 10.0f}, {"consonantDecay", 80.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 12.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.7f}, {"sourceFilterCoupling", 0.2f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Cinematic", "Sci-Fi Choir", {
@@ -289,10 +462,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 4.0f}, {"vibratoDepth", 20.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.05f}, {"shimmer", 0.05f}, {"rdModDepth", 0.4f}, {"spectralTilt", 0.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.1f}, {"sibilance", 0.7f}, {"autoConsonant", 0.0f},
+            {"consonantAttack", 25.0f}, {"consonantHold", 20.0f}, {"consonantDecay", 50.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.4f},
+            {"nasalCoupling", 0.15f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.9f}
         }, juce::var() },
         { "Cinematic", "Spectral Voice", {
@@ -301,10 +476,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.1f}, {"shimmer", 0.08f}, {"rdModDepth", 0.3f}, {"spectralTilt", 2.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.33f}, {"sibilance", 0.4f}, {"autoConsonant", 0.0f},
+            {"consonantAttack", 35.0f}, {"consonantHold", 15.0f}, {"consonantDecay", 70.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 3.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.8f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.4f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
 
@@ -315,10 +492,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.08f}, {"shimmer", 0.05f}, {"rdModDepth", 0.2f}, {"spectralTilt", -2.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.0f}, {"sibilance", 0.05f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 3.0f}, {"consonantHold", 10.0f}, {"consonantDecay", 20.0f},
             {"attack", 0.001f}, {"decay", 0.5f}, {"sustain", 0.4f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", -18.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.3f}, {"sourceFilterCoupling", 0.6f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Electronic", "Vowel Pad", {
@@ -327,10 +506,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 8.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.05f}, {"shimmer", 0.03f}, {"rdModDepth", 0.3f}, {"spectralTilt", 1.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.1f}, {"sibilance", 0.9f}, {"autoConsonant", 0.0f},
+            {"consonantAttack", 50.0f}, {"consonantHold", 40.0f}, {"consonantDecay", 80.0f},
             {"attack", 0.8f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 2.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.6f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.1f}, {"nasalPlace", 0.7f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.7f}
         }, juce::var() },
         { "Electronic", "Glitch Vocal", {
@@ -339,10 +520,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.4f}, {"shimmer", 0.35f}, {"rdModDepth", 0.1f}, {"spectralTilt", -4.0f},
             {"consonantLevel", 0.8f}, {"consonantTone", 0.33f}, {"sibilance", 0.15f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 1.0f}, {"consonantHold", 5.0f}, {"consonantDecay", 15.0f},
             {"attack", 0.001f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.1f}, {"sourceFilterCoupling", 0.1f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Electronic", "Robotic Speech", {
@@ -351,10 +534,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 0.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.0f}, {"shimmer", 0.0f}, {"rdModDepth", 0.0f}, {"spectralTilt", 0.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.33f}, {"sibilance", 0.85f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 5.0f}, {"consonantHold", 25.0f}, {"consonantDecay", 25.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 0.8f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.0f}, {"sourceFilterCoupling", 0.0f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
 
@@ -365,10 +550,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.05f}, {"shimmer", 0.03f}, {"rdModDepth", 0.3f}, {"spectralTilt", 3.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.67f}, {"sibilance", 0.9f}, {"autoConsonant", 0.0f},
+            {"consonantAttack", 60.0f}, {"consonantHold", 50.0f}, {"consonantDecay", 100.0f},
             {"attack", 2.0f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 5.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.8f}, {"sourceFilterCoupling", 0.2f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.1f}, {"nasalPlace", 0.6f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.8f}
         }, juce::var() },
         { "Ambient", "Breath Texture", {
@@ -377,10 +564,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.25f}, {"shimmer", 0.2f}, {"rdModDepth", 0.2f}, {"spectralTilt", 5.0f},
             {"consonantLevel", 0.4f}, {"consonantTone", 0.1f}, {"sibilance", 0.95f}, {"autoConsonant", 0.0f},
+            {"consonantAttack", 40.0f}, {"consonantHold", 15.0f}, {"consonantDecay", 90.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.5f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.1f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Ambient", "Overtone Chant", {
@@ -389,10 +578,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 500.0f},
             {"jitter", 0.1f}, {"shimmer", 0.08f}, {"rdModDepth", 0.4f}, {"spectralTilt", -2.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.9f}, {"sibilance", 0.3f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 20.0f}, {"consonantHold", 30.0f}, {"consonantDecay", 40.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 0.7f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.7f},
             {"singersFormant", 0.7f},
+            {"nasalCoupling", 0.35f}, {"nasalPlace", 0.4f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Ambient", "Wind Voice", {
@@ -401,10 +592,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.2f}, {"shimmer", 0.15f}, {"rdModDepth", 0.3f}, {"spectralTilt", 2.0f},
             {"consonantLevel", 0.5f}, {"consonantTone", 0.5f}, {"sibilance", 0.8f}, {"autoConsonant", 0.0f},
+            {"consonantAttack", 45.0f}, {"consonantHold", 20.0f}, {"consonantDecay", 80.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 4.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.7f}, {"sourceFilterCoupling", 0.2f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.1f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
 
@@ -415,10 +608,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.15f}, {"shimmer", 0.1f}, {"rdModDepth", 0.6f}, {"spectralTilt", 0.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.33f}, {"sibilance", 0.5f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 15.0f}, {"consonantHold", 25.0f}, {"consonantDecay", 35.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.4f},
             {"singersFormant", 0.5f},
+            {"nasalCoupling", 0.2f}, {"nasalPlace", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Breathy Soprano", {
@@ -427,10 +622,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 6.0f}, {"vibratoDepth", 12.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.2f}, {"shimmer", 0.12f}, {"rdModDepth", 0.5f}, {"spectralTilt", 3.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.5f}, {"sibilance", 0.7f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 25.0f}, {"consonantHold", 20.0f}, {"consonantDecay", 45.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 8.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.3f},
+            {"nasalCoupling", 0.15f}, {"nasalPlace", 0.6f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Pressed Baritone", {
@@ -439,10 +636,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 10.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.1f}, {"shimmer", 0.08f}, {"rdModDepth", 0.7f}, {"spectralTilt", -3.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.9f}, {"sibilance", 0.1f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 8.0f}, {"consonantHold", 30.0f}, {"consonantDecay", 30.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", -8.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.3f}, {"sourceFilterCoupling", 0.5f},
             {"singersFormant", 0.7f},
+            {"nasalCoupling", 0.25f}, {"nasalPlace", 0.4f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Child Voice", {
@@ -451,10 +650,12 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vibratoRate", 5.5f}, {"vibratoDepth", 5.0f}, {"vibratoDelay", 300.0f},
             {"jitter", 0.18f}, {"shimmer", 0.12f}, {"rdModDepth", 0.5f}, {"spectralTilt", 1.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.4f}, {"sibilance", 0.6f}, {"autoConsonant", 1.0f},
+            {"consonantAttack", 18.0f}, {"consonantHold", 15.0f}, {"consonantDecay", 35.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 18.0f}, {"formantSpread", 1.3f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.0f},
+            {"nasalCoupling", 0.1f}, {"nasalPlace", 0.6f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
     };
@@ -466,6 +667,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
         auto* voice = new FormantVoice (i);
         voice->setAPVTS (&parameters);
         voice->setWavetable (&glottalWavetable);
+        voice->setTuningEngine (&tuningEngine);
         synthesiser.addVoice (voice);
     }
 
@@ -478,7 +680,7 @@ OFormantAudioProcessor::~OFormantAudioProcessor()
 }
 
 //==============================================================================
-void OFormantAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/)
+void OFormantAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     synthesiser.setCurrentPlaybackSampleRate (sampleRate);
     setLatencySamples (0);
@@ -490,6 +692,17 @@ void OFormantAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerB
         if (auto* voice = dynamic_cast<FormantVoice*> (synthesiser.getVoice (i)))
             voice->prepare (sampleRate);
     }
+
+    // Prepare effects chain
+    juce::dsp::ProcessSpec spec { sampleRate, static_cast<juce::uint32> (samplesPerBlock), 2 };
+
+    chorus.prepare (spec);
+    chorus.setCentreDelay (7.0f);
+    chorus.setFeedback (0.0f);
+
+    delayProcessor.prepare (spec);
+    reverbProcessor.prepare (spec);
+    eqProcessor.prepare (spec);
 
     lastSampleRate = sampleRate;
 }
@@ -503,6 +716,66 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
     synthesiser.renderNextBlock (buffer, midi, 0, buffer.getNumSamples());
+
+    // ── Effects chain: Chorus -> Delay -> Reverb -> EQ ──
+    juce::dsp::AudioBlock<float> block (buffer);
+
+    // Chorus
+    {
+        bool bypassed = parameters.getRawParameterValue ("chorusBypass")->load() >= 0.5f;
+        float mix = parameters.getRawParameterValue ("chorusMix")->load();
+        if (! bypassed && mix > 0.001f)
+        {
+            chorus.setRate (parameters.getRawParameterValue ("chorusRate")->load());
+            chorus.setDepth (parameters.getRawParameterValue ("chorusDepth")->load());
+            chorus.setMix (mix);
+            juce::dsp::ProcessContextReplacing<float> ctx (block);
+            chorus.process (ctx);
+        }
+    }
+
+    // Delay
+    {
+        bool bypassed = parameters.getRawParameterValue ("delayBypass")->load() >= 0.5f;
+        float mix = parameters.getRawParameterValue ("delayMix")->load();
+        if (! bypassed && mix > 0.001f)
+        {
+            delayProcessor.setTime (parameters.getRawParameterValue ("delayTime")->load());
+            delayProcessor.setFeedback (parameters.getRawParameterValue ("delayFeedback")->load());
+            delayProcessor.setMode (static_cast<int> (parameters.getRawParameterValue ("delayMode")->load()));
+            delayProcessor.setMix (mix);
+            delayProcessor.process (block);
+        }
+    }
+
+    // Reverb
+    {
+        bool bypassed = parameters.getRawParameterValue ("reverbBypass")->load() >= 0.5f;
+        float mix = parameters.getRawParameterValue ("reverbMix")->load();
+        if (! bypassed && mix > 0.001f)
+        {
+            reverbProcessor.setSize (parameters.getRawParameterValue ("reverbSize")->load());
+            reverbProcessor.setDamping (parameters.getRawParameterValue ("reverbDamp")->load());
+            reverbProcessor.setPredelay (parameters.getRawParameterValue ("reverbPredelay")->load());
+            reverbProcessor.setMix (mix);
+            reverbProcessor.setMod (parameters.getRawParameterValue ("reverbMod")->load());
+            reverbProcessor.setShimmer (parameters.getRawParameterValue ("reverbShimmer")->load());
+            reverbProcessor.process (block);
+        }
+    }
+
+    // EQ
+    {
+        bool bypassed = parameters.getRawParameterValue ("eqBypass")->load() >= 0.5f;
+        if (! bypassed)
+        {
+            eqProcessor.setLowGain (parameters.getRawParameterValue ("eqLowGain")->load());
+            eqProcessor.setMidGain (parameters.getRawParameterValue ("eqMidGain")->load());
+            eqProcessor.setMidFreq (parameters.getRawParameterValue ("eqMidFreq")->load());
+            eqProcessor.setHighGain (parameters.getRawParameterValue ("eqHighGain")->load());
+            eqProcessor.process (block);
+        }
+    }
 
     // Post-synth output gain (dB -> linear, smoothed 50ms)
     float targetGain = juce::Decibels::decibelsToGain (
@@ -549,6 +822,21 @@ juce::AudioProcessorEditor* OFormantAudioProcessor::createEditor()
 void OFormantAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+
+    // Save tuning engine state
+    auto tuningState = state.getOrCreateChildWithName ("tuningEngine", nullptr);
+    auto intervals = tuningEngine.getIntervals();
+    juce::String intervalsStr;
+    for (size_t i = 0; i < intervals.size(); ++i)
+    {
+        if (i > 0) intervalsStr += ",";
+        intervalsStr += juce::String (intervals[i], 6);
+    }
+    tuningState.setProperty ("intervals", intervalsStr, nullptr);
+    tuningState.setProperty ("scaleName", tuningEngine.getActiveTuningName(), nullptr);
+    tuningState.setProperty ("tonic", tuningEngine.getTonicNote(), nullptr);
+    tuningState.setProperty ("preset", static_cast<int> (tuningEngine.getBuiltInPreset()), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     xml->setAttribute ("currentPreset", presetManager.getCurrentPresetName());
     copyXmlToBinary (*xml, destData);
@@ -560,9 +848,31 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
 
     if (xmlState != nullptr && xmlState->hasTagName (parameters.state.getType()))
     {
-        parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+        auto state = juce::ValueTree::fromXml (*xmlState);
+        parameters.replaceState (state);
         presetManager.setCurrentPresetName (
             xmlState->getStringAttribute ("currentPreset", "Default"));
+
+        // Restore tuning engine state
+        auto tuningState = state.getChildWithName ("tuningEngine");
+        if (tuningState.isValid())
+        {
+            juce::String intervalsStr = tuningState.getProperty ("intervals", "");
+            if (intervalsStr.isNotEmpty())
+            {
+                std::vector<double> intervals;
+                juce::StringArray tokens;
+                tokens.addTokens (intervalsStr, ",", "");
+                for (const auto& token : tokens)
+                    intervals.push_back (token.getDoubleValue());
+
+                juce::String scaleName = tuningState.getProperty ("scaleName", "Custom");
+                tuningEngine.setCustomIntervals (intervals, scaleName);
+            }
+
+            int tonic = tuningState.getProperty ("tonic", 0);
+            tuningEngine.setTonicNote (tonic);
+        }
     }
 }
 

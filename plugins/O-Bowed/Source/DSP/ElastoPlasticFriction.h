@@ -132,6 +132,7 @@ public:
         float baseStiffness = 2000.0f + 8000.0f * stiffnessParam;
         // Rosin modulates ±50% around the stiffness base
         sigma_0 = baseStiffness * (0.5f + rosinParam);
+
         z_ss = 0.0005f * (1.0f - 0.5f * rosinParam);  // Smaller stick zone when aggressive
         z_ba = z_ss * 2.0f;
     }

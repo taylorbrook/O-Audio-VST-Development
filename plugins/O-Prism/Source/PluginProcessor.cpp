@@ -11,6 +11,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "FactoryPresets.h"
 #include "dsp/ModulationMatrix.h"
 #include "dsp/WavetableOscillator.h"
 
@@ -442,8 +443,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPrismAudioProcessor::create
 OPrismAudioProcessor::OPrismAudioProcessor()
     : AudioProcessor (BusesProperties()
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      parameters (*this, nullptr, juce::Identifier ("OPrismParameters"), createParameterLayout())
+      parameters (*this, nullptr, juce::Identifier ("OPrismParameters"), createParameterLayout()),
+      presetManager (parameters, "O-Prism")
 {
+    // Tuning parameters are excluded from presets so that loading a preset
+    // never changes the user's current tuning/tonic/pitch-bend/glide settings.
+    presetManager.excludedParameterIds = {
+        "tuningPreset", "tonic", "masterTune", "octaveStretch",
+        "pitchBendRange", "glideMode", "glideTime"
+    };
+
+    // Initialize factory presets on first run (no-op if already written)
+    if (!presetManager.factoryPresetsExist())
+        presetManager.initializeFactoryPresets (FactoryPresets::build (parameters));
+
     // Generate factory wavetable library (28 tables)
     auto factoryLib = WavetableFactory::createFactoryLibrary();
     tableInfoList = WavetableFactory::getTableInfoList();

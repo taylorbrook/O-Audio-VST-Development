@@ -182,11 +182,55 @@ private:
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> upperRail;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> lowerRail;
 
+    // v2.1.8: Minimal first-order lowpass with directly accessible state.
+    // Coefficient math matches juce::dsp::IIR::Coefficients::makeFirstOrderLowPass
+    // (bilinear transform, TDF-II state update) so audible behavior is identical
+    // to the previous juce::dsp::IIR::Filter<float> implementation. The plain-POD
+    // state layout lets us trivially snapshot a filter into a shadow copy for
+    // crossfading coefficient changes (see applyPendingFilterUpdates).
+    struct OnePoleLPF
+    {
+        float b0 = 1.0f;
+        float b1 = 0.0f;
+        float a1 = 0.0f;
+        float state = 0.0f;
+
+        inline float processSample(float x) noexcept
+        {
+            const float y = b0 * x + state;
+            state = b1 * x - a1 * y;
+            return y;
+        }
+
+        void reset() noexcept { state = 0.0f; }
+
+        void setCutoff(float cutoffHz, double sampleRate) noexcept
+        {
+            const double n = std::tan(juce::MathConstants<double>::pi * (static_cast<double>(cutoffHz) / sampleRate));
+            const double a0 = n + 1.0;
+            const double invA0 = 1.0 / a0;
+            b0 = static_cast<float>(n * invA0);
+            b1 = static_cast<float>(n * invA0);
+            a1 = static_cast<float>((n - 1.0) * invA0);
+        }
+    };
+
     // Filters
-    juce::dsp::IIR::Filter<float> bridgeFilter;   // Frequency-dependent reflection
-    juce::dsp::IIR::Filter<float> nutFilter;      // Inverted reflection
-    juce::dsp::IIR::Filter<float> loopDamping;    // Material-based damping
+    OnePoleLPF bridgeFilter;   // Frequency-dependent reflection
+    OnePoleLPF nutFilter;      // Inverted reflection
+    OnePoleLPF loopDamping;    // Material-based damping
     StiffnessFilter stiffnessFilter;              // Inharmonicity/dispersion (Phase 2.4)
+
+    // v2.1.8: Shadow filter copies for crossfading coefficient transitions.
+    // When a parameter update lands we snapshot the active filters into these
+    // shadows (keeping their old coefficients + state) and run them in parallel
+    // for FILTER_CROSSFADE_LENGTH samples, linearly blending the old and new
+    // filter outputs to eliminate audible clicks on fast parameter sweeps.
+    OnePoleLPF bridgeFilterShadow;
+    OnePoleLPF nutFilterShadow;
+    OnePoleLPF loopDampingShadow;
+    int filterCrossfadeRemaining = 0;
+    static constexpr int FILTER_CROSSFADE_LENGTH = 64;
 
     // Pluck excitation generator (Phase 2.3)
     PluckExciter exciter;
@@ -227,6 +271,13 @@ private:
     bool dampening = false;
     float dampeningMultiplier = 1.0f;
     float dampeningDecayRate = 0.999f; // Recomputed in prepare() from sample rate
+
+    // v2.2.1: Pedal buzz — filtered noise burst during étouffé to simulate palm/felt friction
+    OnePoleLPF buzzLowCut;
+    OnePoleLPF buzzHighCut;
+    float buzzEnvelope = 0.0f;
+    float buzzCapturedEnergy = 0.0f;
+    juce::Random buzzRandom;
 
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;

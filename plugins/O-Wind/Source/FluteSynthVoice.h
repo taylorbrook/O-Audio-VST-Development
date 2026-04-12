@@ -83,6 +83,8 @@ private:
     float vibratoPhaseInc = 0.0f;
     float vibratoDepthParam = 0.0f;
     float vibratoTremoloDepthParam = 0.0f;  // amplitude mod locked to vibrato phase
+    float vibratoDriftDepthParam = 0.5f;   // scales drift oscillator amplitude (0=static, 1=full)
+    float vibratoDriftSpeedParam = 0.4f;   // base frequency for drift oscillators (Hz)
 
     // Vibrato humanization
     float vibratoOnsetMs = 300.0f;

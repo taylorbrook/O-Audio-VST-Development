@@ -36,7 +36,6 @@ public:
 
     // Core per-sample processing: takes bow signals + friction model, returns output sample.
     // Internally runs steps 2-8 of the algorithm.
-    // KEPT for DroneStringEngine compatibility.
     float processSample (float v_bow, float F_bow,
                          const HyperbolicFriction& friction);
 

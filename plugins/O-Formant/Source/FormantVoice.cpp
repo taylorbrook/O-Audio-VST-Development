@@ -10,6 +10,7 @@
 */
 
 #include "FormantVoice.h"
+#include "TuningEngine.h"
 
 FormantVoice::FormantVoice (int voiceIndex)
     : aspirationNoise (voiceIndex * 31 + 17),
@@ -67,6 +68,11 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 void FormantVoice::setWavetable (const GlottalWavetable* wt)
 {
     glottalSource.setWavetable (wt);
+}
+
+void FormantVoice::setTuningEngine (TuningEngine* te)
+{
+    tuningEnginePtr = te;
 }
 
 void FormantVoice::prepare (double sampleRate)
@@ -135,8 +141,12 @@ void FormantVoice::noteStarted()
     float vibratoDelayMs = pVibratoDelay != nullptr ? pVibratoDelay->load() : 0.0f;
     vibratoLFO.noteOn (vibratoDelayMs);
 
-    // Pitch glide setup
-    float f0 = static_cast<float> (getCurrentlyPlayingNote().getFrequencyInHertz());
+    // Pitch glide setup — use tuning engine if available, else fall back to 12-TET
+    int midiNote = currentlyPlayingNote.initialNote;
+    tunedF0 = tuningEnginePtr != nullptr
+        ? static_cast<float> (tuningEnginePtr->getFrequency (midiNote))
+        : static_cast<float> (getCurrentlyPlayingNote().getFrequencyInHertz());
+    float f0 = tunedF0;
     float glideMs = pPitchGlide != nullptr ? pPitchGlide->load() : 0.0f;
     pitchGlide.setTime (glideMs);
 
@@ -332,7 +342,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // Spectral tilt: read once per block, compute one-pole alpha from f0
     float spectralTilt = pSpectralTilt != nullptr ? pSpectralTilt->load() : 0.0f;
     float tiltNorm = spectralTilt / 12.0f; // normalize to -1...+1
-    float tiltF0 = static_cast<float> (currentlyPlayingNote.getFrequencyInHertz());
+    float tiltF0 = tunedF0;
     float tiltCutoff = tiltF0 * 2.0f;
     float tiltAlpha = std::exp (-juce::MathConstants<float>::twoPi * tiltCutoff
                                 / static_cast<float> (getSampleRate()));
@@ -429,7 +439,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             float coupling = pSourceFilterCoupling != nullptr ? pSourceFilterCoupling->load() : 0.3f;
             if (coupling > 0.0f)
             {
-                float f0Est = static_cast<float> (currentlyPlayingNote.getFrequencyInHertz());
+                float f0Est = tunedF0;
                 float bestProximity = 0.0f;
 
                 for (int h = 2; h <= 4; ++h)
@@ -478,7 +488,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float source = aspirationNoise.process (glottal);
 
         // Consonant noise (shaped by place/manner filters + dedicated envelope)
-        float consonantNoise = consonantEngine.getNextSample (consonantLevel) * velocityGain;
+        float consonantNoise = consonantEngine.getNextSample (consonantLevel);
         float onsetSuppression = consonantEngine.getOnsetSuppression();
 
         // During plosive onset, suppress glottal source so noise dominates
@@ -486,7 +496,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // ADSR envelope — applied to voiced source only
         float env = adsr.getNextSample();
-        float voiceWithEnv = voiceSource * env * velocityGain;
+        float voiceWithEnv = voiceSource * env;
 
         // Route through formant filters — topology determines signal path
         float sample;
@@ -524,6 +534,9 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // Soft-clip to prevent extreme amplitudes from resonant filters
         sample = std::tanh (sample);
+
+        // Velocity dynamics applied post-tanh so dynamic range isn't compressed
+        sample *= velocityGain;
 
         // NaN/Inf guard (belt-and-suspenders after tanh)
         if (! std::isfinite (sample))

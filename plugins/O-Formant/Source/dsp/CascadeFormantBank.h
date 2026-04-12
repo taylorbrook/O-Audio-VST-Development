@@ -135,9 +135,9 @@ public:
             }
         }
 
-        // Cascade gain compensation: sqrt normalization allows gentle tanh saturation
-        // Full 1/maxPeakGain was too aggressive (-20 to -26 dB), making output near-silent
-        normGainSmoothed.setTargetValue (1.0f / std::sqrt (maxPeakGain));
+        // Cascade gain compensation: drive tanh into moderate saturation for warmth
+        // 1/maxPeakGain was -20 to -26 dB (silent), 1/sqrt was still too cold
+        normGainSmoothed.setTargetValue (2.0f / std::sqrt (maxPeakGain));
     }
 
     // Process: first numCascade filters in series (resonators), remaining in parallel (BPF)

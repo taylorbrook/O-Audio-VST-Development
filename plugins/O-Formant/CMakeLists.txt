@@ -7,7 +7,7 @@ juce_add_plugin(O-Formant
     PLUGIN_CODE OuFm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Formant${OUARICON_DEV_SUFFIX}"
-    VERSION 1.17.0
+    VERSION 1.19.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -24,6 +24,13 @@ target_sources(O-Formant
         Source/PluginEditor.cpp
         Source/FormantVoice.cpp
         Source/dsp/GlottalTableGenerator.cpp
+        Source/TuningEngine.cpp
+        Source/ScaleGenerator.cpp
+        Source/TuningExporter.cpp
+        Source/EmbeddedTunings.cpp
+        Source/DSP/DelayProcessor.cpp
+        Source/DSP/EQProcessor.cpp
+        Source/DSP/ReverbProcessor.cpp
 )
 
 # Include paths
@@ -31,6 +38,7 @@ target_include_directories(O-Formant
     PRIVATE
         Source
         Source/dsp
+        Source/DSP
 )
 
 # Required JUCE modules
@@ -40,6 +48,7 @@ juce_add_binary_data(O-Formant_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/js/main.js
+        Source/ui/public/js/tuning-panel.js
         Source/ui/public/img/flora.png
 )
 

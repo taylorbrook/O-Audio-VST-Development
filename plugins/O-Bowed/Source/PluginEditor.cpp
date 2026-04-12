@@ -36,11 +36,6 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
     brightnessRelay = std::make_unique<juce::WebSliderRelay>("brightness");
 
     // String Configuration
-    stringCountRelay = std::make_unique<juce::WebSliderRelay>("stringCount");
-    stringTuning1Relay = std::make_unique<juce::WebSliderRelay>("stringTuning1");
-    stringTuning2Relay = std::make_unique<juce::WebSliderRelay>("stringTuning2");
-    stringTuning3Relay = std::make_unique<juce::WebSliderRelay>("stringTuning3");
-    stringTuning4Relay = std::make_unique<juce::WebSliderRelay>("stringTuning4");
     sympatheticAmountRelay = std::make_unique<juce::WebSliderRelay>("sympatheticAmount");
     sympatheticCountRelay = std::make_unique<juce::WebSliderRelay>("sympatheticCount");
 
@@ -87,11 +82,6 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             .withOptionsFrom(*bodySizeRelay)
             .withOptionsFrom(*brightnessRelay)
             // String Configuration
-            .withOptionsFrom(*stringCountRelay)
-            .withOptionsFrom(*stringTuning1Relay)
-            .withOptionsFrom(*stringTuning2Relay)
-            .withOptionsFrom(*stringTuning3Relay)
-            .withOptionsFrom(*stringTuning4Relay)
             .withOptionsFrom(*sympatheticAmountRelay)
             .withOptionsFrom(*sympatheticCountRelay)
             // Output
@@ -395,16 +385,6 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
         *apvts.getParameter("brightness"), *brightnessRelay, nullptr);
 
     // String Configuration
-    stringCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("stringCount"), *stringCountRelay, nullptr);
-    stringTuning1Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("stringTuning1"), *stringTuning1Relay, nullptr);
-    stringTuning2Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("stringTuning2"), *stringTuning2Relay, nullptr);
-    stringTuning3Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("stringTuning3"), *stringTuning3Relay, nullptr);
-    stringTuning4Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("stringTuning4"), *stringTuning4Relay, nullptr);
     sympatheticAmountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("sympatheticAmount"), *sympatheticAmountRelay, nullptr);
     sympatheticCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

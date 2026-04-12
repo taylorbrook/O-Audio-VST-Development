@@ -27,6 +27,7 @@
 #include "dsp/EnsembleChorus.h"
 #include "dsp/UserWavetableManager.h"
 #include "dsp/WavetableEditor.h"
+#include "OuariconPresetManager.h"
 
 class OPrismAudioProcessor : public juce::AudioProcessor
 {
@@ -131,6 +132,9 @@ public:
         return (idx >= 0 && idx < 4) ? globalLfoPhase[static_cast<size_t> (idx)] : 0.0;
     }
 
+    // ─── Preset Manager (factory + user presets) ───
+    OuariconPresetManager& getPresetManager() { return presetManager; }
+
     /** Get currently active MIDI notes and their microtonal frequencies */
     std::vector<std::pair<int, double>> getActiveNotes()
     {
@@ -145,6 +149,7 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState parameters;
+    OuariconPresetManager presetManager;
     juce::Synthesiser synthesiser;
     TuningEngine tuningEngine;
     ScaleGenerator scaleGenerator;

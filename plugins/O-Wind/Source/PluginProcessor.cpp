@@ -158,6 +158,23 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "ms"
     ));
 
+    // VIBRATO_DRIFT_DEPTH - How much the vibrato rate/depth wander organically
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "vibratoDriftDepth", 1 },
+        "Vibrato Drift Depth",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
+    // VIBRATO_DRIFT_SPEED - How fast the vibrato character evolves
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "vibratoDriftSpeed", 1 },
+        "Vibrato Drift Speed",
+        juce::NormalisableRange<float>(0.1f, 2.0f, 0.01f),
+        0.4f,
+        "Hz"
+    ));
+
     // ========== Output (4) ==========
 
     // MATERIAL - Timbral macro: 0=dark wood/bamboo, 1=bright metal
@@ -466,6 +483,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.15f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.15f) },
         { "vibratoOnset",    normalize("vibratoOnset", 300.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.5f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.4f) },
         { "width",           normalize("width", 1.0f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
@@ -494,6 +513,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.25f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.2f) },
         { "vibratoOnset",    normalize("vibratoOnset", 500.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.7f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.3f) },
         { "width",           normalize("width", 0.8f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
@@ -522,6 +543,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.18f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.15f) },
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.6f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.35f) },
         { "width",           normalize("width", 1.2f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
@@ -550,6 +573,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.3f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.25f) },
         { "vibratoOnset",    normalize("vibratoOnset", 400.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.8f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.25f) },
         { "width",           normalize("width", 1.4f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
@@ -578,6 +603,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.08f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.05f) },
         { "vibratoOnset",    normalize("vibratoOnset", 200.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.2f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.5f) },
         { "width",           normalize("width", 0.6f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
@@ -606,6 +633,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.1f) },
         { "vibratoOnset",    normalize("vibratoOnset", 450.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.5f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.3f) },
         { "width",           normalize("width", 1.5f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
@@ -634,6 +663,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.1f) },
         { "vibratoOnset",    normalize("vibratoOnset", 250.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.3f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.5f) },
         { "width",           normalize("width", 0.5f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
@@ -662,6 +693,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.2f) },
         { "vibratoTremolo",  normalize("vibratoTremolo", 0.15f) },
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
+        { "vibratoDriftDepth", normalize("vibratoDriftDepth", 0.5f) },
+        { "vibratoDriftSpeed", normalize("vibratoDriftSpeed", 0.35f) },
         { "width",           normalize("width", 0.7f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },

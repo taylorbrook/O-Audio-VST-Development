@@ -2,6 +2,26 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.2.1] - 2026-04-11
+
+### Added
+
+- **Pedal buzz resonance on étouffé release** in `WaveguideString::processSample`. When the sustain pedal is released (CC64 < 64 via `HarpSynthVoice::controllerMoved` line 519), the étouffé dampening ramp now injects a short bandpass-filtered noise burst into the waveguide rails to simulate the characteristic buzz a real harp produces when palm or felt contacts vibrating strings. Previously the ~50ms feedback ramp attenuated the string cleanly toward silence with no friction artifact — physically wrong, since muting a ringing string with palm contact produces audible stochastic friction noise before the string settles.
+- **Signal path:** White noise from a per-voice `juce::Random` → HPF @ 180Hz (via `noise - lowCut.process(noise)`) → LPF @ 650Hz → bandpass-shaped burst centered in the palm-friction band. Injected into `excitationToUpper`/`excitationToLower` at the pluck-position split so the buzz travels through the waveguide and inherits the string's current nut/bridge/loop-damping colour and material character.
+- **Amplitude scaling:** `buzzSample = bandpassed * buzzEnvelope * buzzCapturedEnergy * 2.5f` where `buzzCapturedEnergy` is a snapshot of `currentEnergy` taken at the moment `setDampening(true)` fires. This makes silent strings stay silent (no buzz from dead voices) while loud ringing strings buzz audibly — matching physical reality where palm contact on a dead string produces nothing.
+- **Envelope:** `buzzEnvelope` starts at 1.0 on pedal-release and decays at `dampeningDecayRate` (same rate as the étouffé feedback ramp, ~50ms to -60dB). The buzz is gated out once envelope drops below `1e-5` to avoid wasting cycles after the ramp finishes.
+- **State handling:** `setDampening(true)` captures energy snapshot and resets envelope. `trigger()` and `reset()` clear all buzz state (filters, envelope, captured energy) so new notes never inherit a stale buzz.
+
+### Technical notes
+
+- **Filter style:** Uses the existing `OnePoleLPF` inner class for consistency with the rest of `WaveguideString` — bandpass via `HPF = x - LPF(x)` subtraction is a standard one-pole bandpass approximation, ~6dB/oct skirts on both sides, sufficient for friction-noise shaping without the cost of a biquad.
+- **RT-safety:** `juce::Random::nextFloat()` uses an integer LCG — no allocation, no syscalls, safe in `processSample`. `OnePoleLPF::processSample` is branch-free. Buzz path is guarded by `dampening && buzzEnvelope > 1e-5f` so CPU cost is zero when pedal is up or envelope has decayed.
+- **Non-destructive behavior:** Purely additive. Zero effect on voices where the pedal is never released mid-ring, zero effect on existing presets or sessions, no parameter changes. The buzz only fires during the 50ms étouffé ramp — after that `buzzEnvelope` reaches the 1e-5 floor and the branch is skipped entirely.
+- **Why 180–650Hz band:** Matches the spectral character of palm/felt friction on vibrating wound or gut strings — dominant energy in low-mid band, rolling off above ~800Hz where felt absorption takes over. Low-cut at 180Hz removes sub-bass rumble that would muddy the effect.
+- **Why inject through the waveguide (not output bus):** Feeding the buzz into `excitationToUpper`/`excitationToLower` makes it travel through the bridge filter, nut filter, loop damping, stiffness filter, and sympathetic resonance path — so the buzz inherits the instrument's current timbre (brass vs gut, bright vs dark, etc.) and couples sympathetically into other ringing strings. Injecting post-waveguide would sound like a separate noise generator pasted on top.
+- **Files modified:** `Source/DSP/WaveguideString.h`, `Source/DSP/WaveguideString.cpp`
+- **Version bump rationale:** PATCH (v2.2.0 → v2.2.1) — enhancement to an existing feature (étouffé), no new parameters, no breaking changes, no preset compatibility impact.
+
 ## [2.2.0] - 2026-04-11
 
 ### Added

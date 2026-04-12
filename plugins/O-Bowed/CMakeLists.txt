@@ -33,8 +33,6 @@ target_sources(O-Bowed
         Source/DSP/HyperbolicFriction.h
         Source/DSP/BodyResonator.h
         Source/DSP/BodyResonator.cpp
-        Source/DSP/DroneStringEngine.h
-        Source/DSP/DroneStringEngine.cpp
         Source/DSP/SympatheticStringEngine.h
         Source/DSP/SympatheticStringEngine.cpp
         Source/DSP/StereoWidthProcessor.h

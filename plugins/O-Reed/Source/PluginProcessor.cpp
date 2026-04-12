@@ -139,7 +139,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OReedAudioProcessor::createP
         juce::ParameterID { "toneHoleCutoff", 1 },
         "Tone Hole Cutoff",
         juce::NormalisableRange<float>(200.0f, 8000.0f, 1.0f, 0.3f),
-        1500.0f,
+        8000.0f,
         "Hz"
     ));
 

@@ -22,6 +22,8 @@
 #include "dsp/PitchGlide.h"
 #include "dsp/ConsonantEngine.h"
 
+class TuningEngine;
+
 class FormantVoice : public juce::MPESynthesiserVoice
 {
 public:
@@ -29,6 +31,7 @@ public:
 
     void setAPVTS (juce::AudioProcessorValueTreeState* apvts);
     void setWavetable (const GlottalWavetable* wt);
+    void setTuningEngine (TuningEngine* te);
     void prepare (double sampleRate);
 
     // --- MPESynthesiserVoice pure virtual overrides ---
@@ -81,6 +84,10 @@ private:
     float formantFreqs[5] = {};
     float formantBWs[5] = {};
     float formantGains[5] = {};
+
+    // --- Tuning ---
+    TuningEngine* tuningEnginePtr = nullptr;
+    float tunedF0 = 440.0f; // cached tuned frequency for current note
 
     // --- APVTS ---
     juce::AudioProcessorValueTreeState* parameters = nullptr;

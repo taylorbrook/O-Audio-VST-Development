@@ -255,7 +255,7 @@ public:
         scaleModulation = modulation;
     }
 
-    // Process one sample through the 5-segment bore waveguide
+    // Process one sample through the bore waveguide
     // Returns p_bore_minus (wave arriving at reed from bore)
     float processSample(float p_reed_out)
     {
@@ -265,10 +265,8 @@ public:
             currentScaleForward[i]  += (targetScaleForward[i]  - currentScaleForward[i])  * smoothCoeff;
             currentScaleBackward[i] += (targetScaleBackward[i] - currentScaleBackward[i]) * smoothCoeff;
         }
-
-        // Apply throat vibrato modulation to scale factors
         float mod = 1.0f + scaleModulation;
-        scaleModulation = 0.0f;  // Reset after use
+        scaleModulation = 0.0f;
 
         // --- Step 1: Pop all delays ---
         float seg_fwd[5], seg_bwd[5];
@@ -279,76 +277,47 @@ public:
         }
 
         // --- Step 2: Compute junctions ---
-
-        // Register hole (between seg 0 and seg 1)
         float reg_sum = seg_fwd[0] + seg_bwd[1];
         float reg_p_scattered = registerScatter * reg_sum;
         float reg_fwd = seg_fwd[0] + reg_p_scattered;
         float reg_bwd = seg_bwd[1] + reg_p_scattered;
-        float reg_radiated = -reg_p_scattered;
 
-        // Tone hole 1 (between seg 1 and seg 2)
-        float th1_sum = seg_fwd[1] + seg_bwd[2];
-        float th1_scat = toneHoleScatter[0] * th1_sum;
-        float th1_fwd = seg_fwd[1] + th1_scat;
-        float th1_bwd = seg_bwd[2] + th1_scat;
-        float th1_rad = -th1_scat;
+        float th1_fwd = seg_fwd[1] + toneHoleScatter[0] * (seg_fwd[1] + seg_bwd[2]);
+        float th1_bwd = seg_bwd[2] + toneHoleScatter[0] * (seg_fwd[1] + seg_bwd[2]);
 
-        // Tone hole 2 (between seg 2 and seg 3)
-        float th2_sum = seg_fwd[2] + seg_bwd[3];
-        float th2_scat = toneHoleScatter[1] * th2_sum;
-        float th2_fwd = seg_fwd[2] + th2_scat;
-        float th2_bwd = seg_bwd[3] + th2_scat;
-        float th2_rad = -th2_scat;
+        float th2_fwd = seg_fwd[2] + toneHoleScatter[1] * (seg_fwd[2] + seg_bwd[3]);
+        float th2_bwd = seg_bwd[3] + toneHoleScatter[1] * (seg_fwd[2] + seg_bwd[3]);
 
-        // Tone hole 3 (between seg 3 and seg 4)
-        float th3_sum = seg_fwd[3] + seg_bwd[4];
-        float th3_scat = toneHoleScatter[2] * th3_sum;
-        float th3_fwd = seg_fwd[3] + th3_scat;
-        float th3_bwd = seg_bwd[4] + th3_scat;
-        float th3_rad = -th3_scat;
+        float th3_fwd = seg_fwd[3] + toneHoleScatter[2] * (seg_fwd[3] + seg_bwd[4]);
+        float th3_bwd = seg_bwd[4] + toneHoleScatter[2] * (seg_fwd[3] + seg_bwd[4]);
 
-        // Tone hole 4 (between seg 4 and bell)
-        float th4_sum = seg_fwd[4] + prevBellReflection;
-        float th4_scat = toneHoleScatter[3] * th4_sum;
-        float th4_fwd = seg_fwd[4] + th4_scat;
-        float th4_bwd = prevBellReflection + th4_scat;
-        float th4_rad = -th4_scat;
+        float th4_fwd = seg_fwd[4] + toneHoleScatter[3] * (seg_fwd[4] + prevBellReflection);
+        float th4_bwd = prevBellReflection + toneHoleScatter[3] * (seg_fwd[4] + prevBellReflection);
 
         // --- Step 3: Bell processing ---
         float bellFiltered = bellFilter.processSample(th4_fwd);
         float p_reflected = -bellFiltered;
         lastRadiatedOutput = radiationFilter.processSample(th4_fwd);
-
         float p_backward_lossy = viscFilter.processSample(p_reflected);
         prevBellReflection = p_backward_lossy;
 
-        // --- Step 4: Accumulate tone hole radiation ---
-        totalToneHoleRadiation = reg_radiated + th1_rad + th2_rad + th3_rad + th4_rad;
+        totalToneHoleRadiation = 0.0f;  // all scatters are 0
 
         // --- Step 5: Push into delays ---
         segForwardDelay[0].pushSample(0, p_reed_out);
         segBackwardDelay[0].pushSample(0, reg_bwd);
-
         segForwardDelay[1].pushSample(0, reg_fwd);
         segBackwardDelay[1].pushSample(0, th1_bwd);
-
         segForwardDelay[2].pushSample(0, th1_fwd);
         segBackwardDelay[2].pushSample(0, th2_bwd);
-
         segForwardDelay[3].pushSample(0, th2_fwd);
         segBackwardDelay[3].pushSample(0, th3_bwd);
-
         segForwardDelay[4].pushSample(0, th3_fwd);
         segBackwardDelay[4].pushSample(0, th4_bwd);
 
-        // --- Step 6: Energy tracking ---
-        // Track backward wave at reed (full spectrum) not highpass-filtered radiation.
-        // Radiation HP at ~3400 Hz underreports bore energy for low notes.
         float returnWave = seg_bwd[0] * feedbackGain;
         energyEstimate = 0.999f * energyEstimate + 0.001f * std::abs(returnWave);
-
-        return returnWave;  // Wave arriving at reed from bore
+        return returnWave;
     }
 
     float getRadiatedOutput() const { return lastRadiatedOutput + totalToneHoleRadiation * toneHoleRadiationMix; }

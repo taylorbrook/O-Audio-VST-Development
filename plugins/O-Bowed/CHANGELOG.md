@@ -2,6 +2,24 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.1.1] - 2026-04-11
+
+### Fixed
+- Enhanced (elasto-plastic) and Quality (thermal) friction models produced no sustained tones. Root cause: bristle stick-slip thresholds (`z_ss`, `z_ba`) were hardcoded constants that didn't scale with bristle stiffness (`sigma_0`). The steady-state bristle displacement (`mu*F_bow/sigma_0 ≈ 6.7e-5`) fell far below the stick threshold (`z_ss = 5e-4`), trapping the model in the elastic region where no stable equilibrium exists — bristle state oscillated erratically instead of converging. Fixed by making thresholds scale inversely with `sigma_0` so the transition zone always surrounds the physical equilibrium point
+- Friction state now resets on note-on to prevent stale bristle displacement from previous notes affecting attack
+
+## [1.1.0] - 2026-04-11
+
+### Removed
+- Drone string functionality entirely — removed `stringCount`, `stringTuning1-4` parameters, `DroneStringEngine` class, and all associated DSP/UI code. Drone strings were a persistent source of bugs (v1.0.3, v1.0.4, v1.0.7) and redundant with simply playing the desired note
+- "Metal Drone" factory preset (drone-dependent)
+
+### Changed
+- Factory presets reduced from 11 to 10 (7 realistic + 3 sound design)
+- Nyckelharpa preset: removed drone string, retains sympathetic strings for authentic character
+- Impossible Strings preset: removed drone dependency, retains sympathetic strings + impossible physics
+- Full 8-voice polyphony always available (no longer dynamically capped based on drone count)
+
 ## [1.0.7] - 2026-04-11
 
 ### Fixed

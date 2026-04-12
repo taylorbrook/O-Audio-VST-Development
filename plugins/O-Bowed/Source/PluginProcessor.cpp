@@ -88,52 +88,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBowedAudioProcessor::create
         "Hz"
     ));
 
-    // ========== String Configuration (7) ==========
-
-    // STRING_COUNT - Number of active drone strings (0 = no drones)
-    layout.add(std::make_unique<juce::AudioParameterInt>(
-        juce::ParameterID { "stringCount", 1 },
-        "String Count",
-        0,
-        4,
-        0
-    ));
-
-    // STRING_TUNING_1 - Pitch offset for string 1
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "stringTuning1", 1 },
-        "String 1 Tuning",
-        juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f),
-        0.0f,
-        "cents"
-    ));
-
-    // STRING_TUNING_2 - Pitch offset for string 2
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "stringTuning2", 1 },
-        "String 2 Tuning",
-        juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f),
-        0.0f,
-        "cents"
-    ));
-
-    // STRING_TUNING_3 - Pitch offset for string 3
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "stringTuning3", 1 },
-        "String 3 Tuning",
-        juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f),
-        0.0f,
-        "cents"
-    ));
-
-    // STRING_TUNING_4 - Pitch offset for string 4
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "stringTuning4", 1 },
-        "String 4 Tuning",
-        juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f),
-        0.0f,
-        "cents"
-    ));
+    // ========== String Configuration (2) ==========
 
     // SYMPATHETIC_AMOUNT - Coupling to passive sympathetic strings
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -303,7 +258,6 @@ void OBowedAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
 
     bodyResonator.prepare (sampleRate, samplesPerBlock);
     stereoWidthProcessor.prepare (sampleRate, samplesPerBlock);
-    droneEngine.prepare (sampleRate, samplesPerBlock);
     sympatheticEngine.prepare (sampleRate, samplesPerBlock);
 }
 
@@ -321,11 +275,6 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         buffer.clear (i, 0, buffer.getNumSamples());
 
     // === 1. Read all params from APVTS ===
-    int stringCount       = static_cast<int> (parameters.getRawParameterValue ("stringCount")->load());
-    float tuning1         = parameters.getRawParameterValue ("stringTuning1")->load();
-    float tuning2         = parameters.getRawParameterValue ("stringTuning2")->load();
-    float tuning3         = parameters.getRawParameterValue ("stringTuning3")->load();
-    float tuning4         = parameters.getRawParameterValue ("stringTuning4")->load();
     float sympatheticAmt  = parameters.getRawParameterValue ("sympatheticAmount")->load();
     int sympatheticCount  = static_cast<int> (parameters.getRawParameterValue ("sympatheticCount")->load());
     float material        = parameters.getRawParameterValue ("bodyMaterial")->load();
@@ -353,33 +302,7 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         default: tuningEngine.setMode (TuningEngine::Mode::TwelveTET); break;
     }
 
-    // === 2. Dynamic voice cap ===
-    int maxPolyphony = 8;
-    switch (stringCount) {
-        case 1: maxPolyphony = 8; break;
-        case 2: maxPolyphony = 6; break;
-        case 3: maxPolyphony = 5; break;
-        case 4: maxPolyphony = 4; break;
-    }
-
-    int activeVoices = 0;
-    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
-        if (synthesiser.getVoice (i)->isActive())
-            activeVoices++;
-
-    if (activeVoices > maxPolyphony)
-    {
-        for (int i = 0; i < synthesiser.getNumVoices() && activeVoices > maxPolyphony; ++i)
-        {
-            if (synthesiser.getVoice (i)->isActive())
-            {
-                synthesiser.getVoice (i)->noteStopped (false);
-                --activeVoices;
-            }
-        }
-    }
-
-    // === 3. Set voice panning (center — drones handle stereo spread) ===
+    // === 2. Set voice panning ===
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
         if (auto* voice = dynamic_cast<BowedStringVoice*> (synthesiser.getVoice (i)))
@@ -389,47 +312,18 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // === 4. Render polyphonic voices ===
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
-    // === 4b. Gate drone bowing on MIDI note activity ===
-    bool anyVoiceActive = false;
-    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
-    {
-        if (synthesiser.getVoice (i)->isActive())
-        {
-            anyVoiceActive = true;
-            break;
-        }
-    }
-    droneEngine.setNotesActive (anyVoiceActive);
-
-    // === 5. Update drone engine parameters ===
-    droneEngine.setReferencePitch (refPitch);
-    droneEngine.setTuning (0, tuning1);
-    droneEngine.setTuning (1, tuning2);
-    droneEngine.setTuning (2, tuning3);
-    droneEngine.setTuning (3, tuning4);
-    droneEngine.setBowSpeed (bowSpeed);
-    droneEngine.setBowPressure (bowPressure);
-    droneEngine.setBowPosition (bowPos);
-    droneEngine.setRosin (rosin);
-    droneEngine.setBrightness (brightness);
-    droneEngine.setInfiniteSustain (infSustain);
-    droneEngine.setStringCount (stringCount);
-
-    // === 6. Update body resonator ===
+    // === 4. Update body resonator ===
     bodyResonator.setMaterial (material);
     bodyResonator.setSize (bodySize);
     bodyResonator.setBodyAmount (bodyAmount);
 
-    // === 7. Update sympathetic engine ===
+    // === 5. Update sympathetic engine ===
     sympatheticEngine.setCount (sympatheticCount);
     sympatheticEngine.setAmount (sympatheticAmt);
     sympatheticEngine.setDecay (sympDecay);
 
-    // === 7b. Wire string gauge to drone friction models ===
-    droneEngine.setStringGauge (stringGauge);
-
     // Collect fundamentals from active voices for sympathetic tuning
-    float fundamentals[16];
+    float fundamentals[12];
     int numFundamentals = 0;
     for (int i = 0; i < synthesiser.getNumVoices() && numFundamentals < 12; ++i)
     {
@@ -439,25 +333,14 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
                 fundamentals[numFundamentals++] = voice->getCurrentFrequency();
         }
     }
-    // Add drone fundamentals
-    float tunings[4] = { tuning1, tuning2, tuning3, tuning4 };
-    for (int i = 0; i < stringCount && numFundamentals < 16; ++i)
-        fundamentals[numFundamentals++] = refPitch * std::pow (2.0f, tunings[i] / 1200.0f);
-
     sympatheticEngine.updateTunings (fundamentals, numFundamentals);
 
-    // === 8. Per-sample processing: drones + body stereo + sympathetics ===
+    // === 6. Per-sample processing: body stereo + sympathetics ===
     auto* leftData  = buffer.getWritePointer (0);
     auto* rightData = buffer.getWritePointer (1);
 
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
-        // Add drone output to stereo buffer
-        float droneL = 0.0f, droneR = 0.0f;
-        droneEngine.processSample (droneL, droneR);
-        leftData[i]  += droneL;
-        rightData[i] += droneR;
-
         // Capture pre-body bridge sum for sympathetic excitation
         float preBodyMono = (leftData[i] + rightData[i]) * 0.5f;
 
@@ -483,14 +366,14 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         dcBlockX[1] = xR;  dcBlockY[1] = rightData[i];
     }
 
-    // === 9. Stereo width ===
+    // === 7. Stereo width ===
     stereoWidthProcessor.processBlock (buffer, width);
 
-    // === 10. Master output gain ===
+    // === 8. Master output gain ===
     float outputLevel = parameters.getRawParameterValue ("outputLevel")->load();
     buffer.applyGain (juce::Decibels::decibelsToGain (outputLevel));
 
-    // === 11. Safety limiter ===
+    // === 9. Safety limiter ===
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         juce::FloatVectorOperations::clip (buffer.getWritePointer (ch),
                                            buffer.getReadPointer (ch),
@@ -526,12 +409,10 @@ void OBowedAudioProcessor::initializeFactoryPresets()
     // All values normalized 0.0-1.0
     // bowSpeed: sqrt((v-0.02)/1.98)  |  bowPressure: sqrt((v-0.01)/4.99)
     // bowPosition: (v-0.02)/0.28  |  brightness: pow((v-20)/19980, 4.0)
-    // stringCount: v/4.0  |  sympatheticCount: v/12.0
-    // outputLevel: (v+60)/72  |  referencePitch: (v-220)/660
+    // sympatheticCount: v/12.0  |  outputLevel: (v+60)/72  |  referencePitch: (v-220)/660
     // frictionTier: index/2.0  |  tuningSystem: index/2.0
     // Linear 0-1 params: rosin, bowNoise, bodyMaterial, bodySize, width(/2), sympatheticAmount,
     //                     infiniteSustain, reversedFriction, subHarmonics
-    // stringTuning: (v+2400)/4800
 
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         // ===== Realistic Instruments (7) =====
@@ -540,9 +421,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.30151f}, {"bowPressure", 0.31336f}, {"bowPosition", 0.357f},
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.3f}, {"brightness", 0.876f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
+{"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
@@ -553,9 +432,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.27832f}, {"bowPressure", 0.34996f}, {"bowPosition", 0.393f},
              {"rosin", 0.55f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.7f}, {"brightness", 0.8f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
+{"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
@@ -566,9 +443,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.28925f}, {"bowPressure", 0.33098f}, {"bowPosition", 0.375f},
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.45f}, {"brightness", 0.84f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
+{"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
@@ -579,9 +454,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.26591f}, {"bowPressure", 0.37606f}, {"bowPosition", 0.429f},
              {"rosin", 0.55f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.9f}, {"brightness", 0.7f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
+{"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
@@ -592,9 +465,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.30151f}, {"bowPressure", 0.31336f}, {"bowPosition", 0.357f},
              {"rosin", 0.65f}, {"bowNoise", 0.05f},
              {"bodyMaterial", 0.15f}, {"bodySize", 0.3f}, {"brightness", 0.876f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
+{"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
@@ -605,9 +476,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.30151f}, {"bowPressure", 0.33098f}, {"bowPosition", 0.357f},
              {"rosin", 0.6f}, {"bowNoise", 0.1f},
              {"bodyMaterial", 0.15f}, {"bodySize", 0.45f}, {"brightness", 0.84f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.4f}, {"sympatheticCount", 0.417f},
+{"sympatheticAmount", 0.4f}, {"sympatheticCount", 0.417f},
              {"width", 0.55f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
@@ -618,39 +487,22 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.30151f}, {"bowPressure", 0.31336f}, {"bowPosition", 0.357f},
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.4f}, {"brightness", 0.876f},
-             {"stringCount", 0.25f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.5f}, {"sympatheticCount", 0.833f},
+{"sympatheticAmount", 0.5f}, {"sympatheticCount", 0.833f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
-        // ===== Sound Design (4) =====
+        // ===== Sound Design (3) =====
         {
             "Glass Bow",
             {{"bowSpeed", 0.27832f}, {"bowPressure", 0.27832f}, {"bowPosition", 0.321f},
              {"rosin", 0.35f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.9f}, {"bodySize", 0.3f}, {"brightness", 0.95f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
+{"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.45f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
-            juce::var()
-        },
-        {
-            "Metal Drone",
-            {{"bowSpeed", 0.31623f}, {"bowPressure", 0.34996f}, {"bowPosition", 0.357f},
-             {"rosin", 0.55f}, {"bowNoise", 0.15f},
-             {"bodyMaterial", 0.7f}, {"bodySize", 0.7f}, {"brightness", 0.8f},
-             {"stringCount", 0.5f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.65f}, {"outputLevel", 0.833f},
-             {"infiniteSustain", 0.3f}, {"reversedFriction", 0.2f}, {"subHarmonics", 0.3f},
-             {"frictionTier", 0.5f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -658,8 +510,6 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.34996f}, {"bowPressure", 0.31336f}, {"bowPosition", 0.286f},
              {"rosin", 0.6f}, {"bowNoise", 0.2f},
              {"bodyMaterial", 0.5f}, {"bodySize", 0.5f}, {"brightness", 0.876f},
-             {"stringCount", 0.5f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.3f}, {"sympatheticCount", 0.5f},
              {"width", 0.7f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.4f}, {"reversedFriction", 0.3f}, {"subHarmonics", 0.35f},
@@ -671,9 +521,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.25149f}, {"bowPressure", 0.23403f}, {"bowPosition", 0.393f},
              {"rosin", 0.3f}, {"bowNoise", 0.7f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.5f}, {"brightness", 0.876f},
-             {"stringCount", 0.0f},
-             {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
-             {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
+{"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.15f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},

@@ -82,7 +82,8 @@ void WaveguideString::updateDelayLengths()
 void WaveguideString::updateBridgeFilterCoeffs()
 {
     // Compute loop gain from INFINITE_SUSTAIN parameter
-    float g = 0.990f + 0.010f * infiniteSustain;
+    // Cap at 0.9995 to prevent true infinite oscillation (still ~15s decay at 440Hz)
+    float g = 0.990f + 0.0095f * infiniteSustain;
 
     // Compute pole from brightness
     float pi = juce::MathConstants<float>::pi;
