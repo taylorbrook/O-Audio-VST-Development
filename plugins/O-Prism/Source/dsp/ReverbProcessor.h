@@ -53,10 +53,10 @@ private:
         float process (float input, float coefficient)
         {
             float delayed = buffer[static_cast<size_t> (writeIndex)];
-            float output = -input * coefficient + delayed;
-            buffer[static_cast<size_t> (writeIndex)] = input + delayed * coefficient;
+            float v = input - coefficient * delayed;
+            buffer[static_cast<size_t> (writeIndex)] = v;
             writeIndex = (writeIndex + 1) % bufferSize;
-            return output;
+            return coefficient * v + delayed;
         }
 
         float read (int delaySamples) const
