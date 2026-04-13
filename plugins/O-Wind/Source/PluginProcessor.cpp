@@ -246,6 +246,50 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         0.0f
     ));
 
+    // ========== ADSR Envelope (5) ==========
+
+    // ADSR_ENABLED - Toggle ADSR amplitude envelope on/off
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "adsrEnabled", 1 },
+        "ADSR Enabled",
+        false
+    ));
+
+    // ADSR_ATTACK - Attack time
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "adsrAttack", 1 },
+        "ADSR Attack",
+        juce::NormalisableRange<float>(0.001f, 5.0f, 0.001f, 0.3f),
+        0.01f,
+        "s"
+    ));
+
+    // ADSR_DECAY - Decay time
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "adsrDecay", 1 },
+        "ADSR Decay",
+        juce::NormalisableRange<float>(0.001f, 5.0f, 0.001f, 0.3f),
+        0.1f,
+        "s"
+    ));
+
+    // ADSR_SUSTAIN - Sustain level
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "adsrSustain", 1 },
+        "ADSR Sustain",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.8f
+    ));
+
+    // ADSR_RELEASE - Release time
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "adsrRelease", 1 },
+        "ADSR Release",
+        juce::NormalisableRange<float>(0.001f, 10.0f, 0.001f, 0.3f),
+        0.2f,
+        "s"
+    ));
+
     // ========== Tone Hole Toggle (1) ==========
 
     layout.add(std::make_unique<juce::AudioParameterBool>(
