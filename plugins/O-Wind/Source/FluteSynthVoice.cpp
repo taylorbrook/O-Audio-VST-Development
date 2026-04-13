@@ -423,9 +423,48 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         auto result = boreWaveguide.processSample (dcOut);
         float sample = result.voiceOutput;
 
+        // ADSR envelope: advance state machine per sample (oversampled rate)
+        if (adsrEnabled)
+        {
+            switch (adsrStage)
+            {
+                case ADSRStage::Attack:
+                    adsrLevel += adsrIncrement;
+                    if (adsrLevel >= 1.0f)
+                    {
+                        adsrLevel = 1.0f;
+                        adsrStage = ADSRStage::Decay;
+                        float decaySamples = std::max (1.0f, static_cast<float> (internalSampleRate * adsrDecaySeconds));
+                        adsrIncrement = (adsrSustainLevel - 1.0f) / decaySamples;
+                    }
+                    break;
+                case ADSRStage::Decay:
+                    adsrLevel += adsrIncrement;
+                    if (adsrLevel <= adsrSustainLevel)
+                    {
+                        adsrLevel = adsrSustainLevel;
+                        adsrStage = ADSRStage::Sustain;
+                    }
+                    break;
+                case ADSRStage::Sustain:
+                    adsrLevel = adsrSustainLevel;
+                    break;
+                case ADSRStage::Release:
+                    adsrLevel += adsrIncrement;
+                    if (adsrLevel <= 0.0f)
+                    {
+                        adsrLevel = 0.0f;
+                        adsrStage = ADSRStage::Idle;
+                    }
+                    break;
+                case ADSRStage::Idle:
+                    break;
+            }
+        }
+
         // Apply output gain, phase-locked tremolo, and fixed voice attenuation
         // -6 dB (0.5x) attenuation keeps raw waveguide output at comfortable level
-        sample *= outputGainLinear * tremoloGain * 0.5f;
+        sample *= outputGainLinear * tremoloGain * 0.5f * adsrLevel;
 
         // Soft safety clip (tanh-based to avoid aliasing from hard discontinuities)
         sample = std::tanh (sample * 0.5f) * 2.0f;
@@ -629,6 +668,17 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     //                     + DC blocker phase delay (negative, highpass advances)
     //                     + 1 implicit sample (feedback read from previous iteration)
     filterDelayCompensation = boreFilterDelay + dcPhaseDelay + 1.0f;
+
+    // ADSR envelope parameters
+    adsrEnabled = parameters->getRawParameterValue ("adsrEnabled")->load() >= 0.5f;
+    adsrAttackSeconds = parameters->getRawParameterValue ("adsrAttack")->load();
+    adsrDecaySeconds = parameters->getRawParameterValue ("adsrDecay")->load();
+    adsrSustainLevel = parameters->getRawParameterValue ("adsrSustain")->load();
+    adsrReleaseSeconds = parameters->getRawParameterValue ("adsrRelease")->load();
+
+    // If ADSR was just disabled mid-note, reset to passthrough
+    if (! adsrEnabled)
+        adsrLevel = 1.0f;
 
     // Read tone hole toggle from APVTS (stored for future ToneHoleSystem integration)
     // ToneHoleSystem scattering will be wired in a future DSP update

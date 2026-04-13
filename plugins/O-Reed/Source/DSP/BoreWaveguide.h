@@ -114,6 +114,12 @@ public:
         halfDelay = std::max(2.0f, halfDelay);
         segForwardDelay[0].setDelay(halfDelay);
         segBackwardDelay[0].setDelay(halfDelay);
+
+        // DIAGNOSTIC: print delay values once per note
+        static int diagCount = 0;
+        if (diagCount++ < 10)
+            fprintf(stderr, "[O-Reed DIAG] hz=%.1f sr=%.0f cylScale=%.3f totalDelay=%.1f viscPD=%.2f bellPD=%.2f bellA=%.4f viscP=%.4f compDelay=%.1f halfDelay=%.1f\n",
+                    hz, sr, cylindricalDelayScale, totalDelay, viscPD, bellPD, bellAllpassA, viscPole, compensatedDelay, halfDelay);
         // Segment 1 unused
         segForwardDelay[1].setDelay(2.0f);
         segBackwardDelay[1].setDelay(2.0f);

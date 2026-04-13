@@ -56,6 +56,12 @@ private:
     std::unique_ptr<juce::WebSliderRelay> infiniteSustainRelay;
     std::unique_ptr<juce::WebSliderRelay> reversedJetRelay;
     std::unique_ptr<juce::WebSliderRelay> subHarmonicsRelay;
+    // ADSR Envelope
+    std::unique_ptr<juce::WebToggleButtonRelay> adsrEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> adsrAttackRelay;
+    std::unique_ptr<juce::WebSliderRelay> adsrDecayRelay;
+    std::unique_ptr<juce::WebSliderRelay> adsrSustainRelay;
+    std::unique_ptr<juce::WebSliderRelay> adsrReleaseRelay;
     // Tone Hole Toggle
     std::unique_ptr<juce::WebToggleButtonRelay> toneHoleToggleRelay;
     // Instrument Preset (int param, bound as slider relay)
@@ -89,6 +95,12 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> infiniteSustainAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> reversedJetAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> subHarmonicsAttachment;
+    // ADSR Envelope
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> adsrEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> adsrAttackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> adsrDecayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> adsrSustainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> adsrReleaseAttachment;
     // Tone Hole Toggle
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> toneHoleToggleAttachment;
     // Instrument Preset

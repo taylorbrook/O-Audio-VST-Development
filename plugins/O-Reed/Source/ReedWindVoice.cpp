@@ -524,6 +524,14 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         float u_reed = reedModel.processSample(p_mouth, p_bore_minus);
         prevUReed = u_reed;
 
+        // DIAGNOSTIC: print signal levels every ~0.5s (every 44100 oversampled samples)
+        {
+            static int voiceDiagCount = 0;
+            if (voiceDiagCount++ % 44100 == 0 && voiceDiagCount < 500000)
+                fprintf(stderr, "[O-Reed VOICE] p_mouth=%.1f p_bore_minus=%.4f u_reed=%.6f p_bore_plus=%.1f Z_c=%.0f closurePa=%.0f\n",
+                        p_mouth, p_bore_minus, u_reed, Z_c * u_reed + p_bore_minus, Z_c, reedModel.getClosurePressure());
+        }
+
         // 6. Smooth mouthpiece volume and handle chamber activation
         smoothedMouthpieceVol += (mouthpieceVol - smoothedMouthpieceVol) * paramSmoothCoeff;
         bool chamberIsActive = smoothedMouthpieceVol > 1e-4f;

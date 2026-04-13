@@ -1,5 +1,24 @@
 # O-Wind Changelog
 
+## [1.13.0] - 2026-04-13
+
+### Added — Optional ADSR Amplitude Envelope
+
+Added a toggleable ADSR envelope that applies amplitude shaping on top of the physical model's natural breath dynamics. Disabled by default since it's non-physical, but useful for synth-style control.
+
+**New Parameters:**
+- **ADSR Enabled** (`adsrEnabled`, toggle, default OFF) — Enables/disables the ADSR envelope
+- **ADSR Attack** (`adsrAttack`, 1ms-5s, default 10ms, skewed) — Attack time
+- **ADSR Decay** (`adsrDecay`, 1ms-5s, default 100ms, skewed) — Decay time
+- **ADSR Sustain** (`adsrSustain`, 0-100%, default 80%) — Sustain level
+- **ADSR Release** (`adsrRelease`, 1ms-10s, default 200ms, skewed) — Release time
+
+**DSP:** Linear ADSR state machine runs per-sample at 2x oversampled rate, applied as amplitude multiplier after the physical model output but before output gain. When disabled, multiplier is 1.0 (transparent passthrough). Disabling mid-note smoothly restores full level.
+
+**UI:** New "ADSR Envelope" section at bottom of Sound tab with on/off toggle inline with the label. Knobs dim when ADSR is off. Time values display in ms below 1s, seconds above.
+
+**Files Modified:** PluginProcessor.cpp, FluteSynthVoice.h, FluteSynthVoice.cpp, PluginEditor.h, PluginEditor.cpp, Resources/ui/index.html
+
 ## [1.12.0] - 2026-04-11
 
 ### Added — User-Controllable Vibrato Drift (Evolution) Parameters

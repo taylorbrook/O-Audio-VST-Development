@@ -424,6 +424,23 @@
             gap: 6px;
         }
 
+        /* ADSR Section */
+        .adsr-section .section-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .adsr-toggle {
+            display: inline-flex;
+            cursor: pointer;
+        }
+
+        .adsr-disabled {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
         .controls-inline {
             display: flex;
             align-items: center;
@@ -854,6 +871,40 @@
                 </div>
             </div>
 
+            <!-- Row 4: ADSR Envelope (non-physical, toggleable) -->
+            <div class="section-box adsr-section" id="adsr-section">
+                <div class="section-label">
+                    ADSR Envelope
+                    <div class="toggle-control adsr-toggle" id="adsr-toggle">
+                        <div class="toggle-track">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="param-row adsr-knobs" id="adsr-knobs">
+                    <div class="knob-control" data-param="adsrAttack">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Attack</div>
+                        <div class="knob-value">10 ms</div>
+                    </div>
+                    <div class="knob-control" data-param="adsrDecay">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Decay</div>
+                        <div class="knob-value">100 ms</div>
+                    </div>
+                    <div class="knob-control" data-param="adsrSustain">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Sustain</div>
+                        <div class="knob-value">0.80</div>
+                    </div>
+                    <div class="knob-control" data-param="adsrRelease">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Release</div>
+                        <div class="knob-value">200 ms</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Placeholder: Breath/Jet Visualization (UI-06) -->
             <div id="breath-viz-placeholder" class="future-feature" style="display:none;"></div>
             <!-- Placeholder: Register Indicator (UI-07) -->
@@ -915,6 +966,10 @@
             infiniteSustain: { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             reversedJet:     { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             subHarmonics:    { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            adsrAttack:      { min: 0.001, max: 5, default: 0.01, unit: ' s', decimals: 3, skew: 0.3 },
+            adsrDecay:       { min: 0.001, max: 5, default: 0.1, unit: ' s', decimals: 3, skew: 0.3 },
+            adsrSustain:     { min: 0, max: 1, default: 0.8, unit: '', decimals: 2 },
+            adsrRelease:     { min: 0.001, max: 10, default: 0.2, unit: ' s', decimals: 3, skew: 0.3 },
         };
 
         // ====================================================================
@@ -1011,12 +1066,18 @@
         function formatValue(paramName, rawValue) {
             const def = PARAMS[paramName];
             if (!def) return rawValue.toFixed(2);
+            // ADSR time params: show ms for values under 1s
+            if (def.unit === ' s' && rawValue < 1.0)
+                return (rawValue * 1000).toFixed(0) + ' ms';
             return rawValue.toFixed(def.decimals) + def.unit;
         }
 
         function normToRaw(paramName, norm) {
             const def = PARAMS[paramName];
             if (!def) return norm;
+            // JUCE skewed range: raw = min + (max - min) * pow(norm, 1/skew)
+            if (def.skew && def.skew !== 1 && norm > 0)
+                norm = Math.pow(norm, 1.0 / def.skew);
             return def.min + norm * (def.max - def.min);
         }
 
@@ -1130,6 +1191,45 @@
 
             } catch (err) {
                 console.error('Failed to bind tone hole toggle:', err);
+            }
+        }
+
+        // ====================================================================
+        // ADSR Toggle Binding (JUCE WebToggleButtonRelay)
+        // ====================================================================
+        function bindAdsrToggle() {
+            const toggleEl = document.getElementById('adsr-toggle');
+            const trackEl = toggleEl.querySelector('.toggle-track');
+            const knobsEl = document.getElementById('adsr-knobs');
+
+            function updateDisabledState(enabled) {
+                if (enabled) {
+                    trackEl.classList.add('on');
+                    knobsEl.classList.remove('adsr-disabled');
+                } else {
+                    trackEl.classList.remove('on');
+                    knobsEl.classList.add('adsr-disabled');
+                }
+            }
+
+            try {
+                const state = Juce.getToggleState('adsrEnabled');
+
+                // Initialize
+                updateDisabledState(state.getValue());
+
+                // JUCE -> UI
+                state.valueChangedEvent.addListener(() => {
+                    updateDisabledState(state.getValue());
+                });
+
+                // UI -> JUCE
+                toggleEl.addEventListener('click', () => {
+                    state.setValue(!state.getValue());
+                });
+
+            } catch (err) {
+                console.error('Failed to bind ADSR toggle:', err);
             }
         }
 
@@ -1333,6 +1433,9 @@
 
             // Bind tone hole toggle
             bindToneHoleToggle();
+
+            // Bind ADSR toggle
+            bindAdsrToggle();
 
             // Bind instrument preset selector
             await bindInstrumentPreset();

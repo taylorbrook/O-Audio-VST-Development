@@ -52,6 +52,13 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
     reversedJetRelay = std::make_unique<juce::WebSliderRelay>("reversedJet");
     subHarmonicsRelay = std::make_unique<juce::WebSliderRelay>("subHarmonics");
 
+    // ADSR Envelope
+    adsrEnabledRelay = std::make_unique<juce::WebToggleButtonRelay>("adsrEnabled");
+    adsrAttackRelay = std::make_unique<juce::WebSliderRelay>("adsrAttack");
+    adsrDecayRelay = std::make_unique<juce::WebSliderRelay>("adsrDecay");
+    adsrSustainRelay = std::make_unique<juce::WebSliderRelay>("adsrSustain");
+    adsrReleaseRelay = std::make_unique<juce::WebSliderRelay>("adsrRelease");
+
     // Tone Hole Toggle
     toneHoleToggleRelay = std::make_unique<juce::WebToggleButtonRelay>("toneHoleToggle");
 
@@ -100,6 +107,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             .withOptionsFrom(*infiniteSustainRelay)
             .withOptionsFrom(*reversedJetRelay)
             .withOptionsFrom(*subHarmonicsRelay)
+            // ADSR Envelope
+            .withOptionsFrom(*adsrEnabledRelay)
+            .withOptionsFrom(*adsrAttackRelay)
+            .withOptionsFrom(*adsrDecayRelay)
+            .withOptionsFrom(*adsrSustainRelay)
+            .withOptionsFrom(*adsrReleaseRelay)
             // Tone Hole Toggle
             .withOptionsFrom(*toneHoleToggleRelay)
             // Instrument Preset
@@ -523,6 +536,18 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
     subHarmonicsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("subHarmonics"), *subHarmonicsRelay, nullptr);
 
+    // ADSR Envelope
+    adsrEnabledAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("adsrEnabled"), *adsrEnabledRelay, nullptr);
+    adsrAttackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("adsrAttack"), *adsrAttackRelay, nullptr);
+    adsrDecayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("adsrDecay"), *adsrDecayRelay, nullptr);
+    adsrSustainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("adsrSustain"), *adsrSustainRelay, nullptr);
+    adsrReleaseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("adsrRelease"), *adsrReleaseRelay, nullptr);
+
     // Tone Hole Toggle
     toneHoleToggleAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *apvts.getParameter("toneHoleToggle"), *toneHoleToggleRelay, nullptr);
@@ -543,6 +568,11 @@ OWindAudioProcessorEditor::~OWindAudioProcessorEditor()
     // Explicit destruction in reverse order for safety
     instrumentPresetAttachment.reset();
     toneHoleToggleAttachment.reset();
+    adsrReleaseAttachment.reset();
+    adsrSustainAttachment.reset();
+    adsrDecayAttachment.reset();
+    adsrAttackAttachment.reset();
+    adsrEnabledAttachment.reset();
     subHarmonicsAttachment.reset();
     reversedJetAttachment.reset();
     infiniteSustainAttachment.reset();
