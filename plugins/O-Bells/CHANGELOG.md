@@ -2,6 +2,26 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.0.0] - 2026-04-13
+
+### Added
+- **Effects tab** — Full effects chain with dedicated UI tab, replacing the simple reverb slider
+  - **Reverb** — 8-channel FDN reverb with shimmer, ported from O-Lyrica. Controls: Size, Decay, Damping, Shimmer, Mix, Bypass
+  - **Delay** — Stereo delay with ping-pong mode. Controls: Time, Feedback, Mix, Ping-Pong toggle, Bypass
+  - **EQ** — 3-band parametric EQ (Low Shelf, Peak, High Shelf). Controls: Freq, Gain, Q per band, Bypass
+  - **Chorus** — JUCE chorus processor. Controls: Rate, Depth, Mix, Bypass
+  - Each effect has independent bypass toggle and SVG vine-arc styled knobs
+
+### Changed
+- **Simple reverb slider removed** — Replaced by the full Reverb processor in the Effects tab
+
+### Technical Notes
+- Domain: DSP + UI + CMake
+- New source files: `DSP/DelayProcessor.cpp/.h`, `DSP/EQProcessor.cpp/.h`, `DSP/ReverbProcessor.cpp/.h`
+- Effects chain applied post-voice-mix, pre-output gain
+- All effects bypass-safe with no clicks or artifacts
+- Preset compatibility: Old `reverbMix` parameter no longer used; presets will load with effects at defaults
+
 ## [3.2.1] - 2026-02-19
 
 ### Added
