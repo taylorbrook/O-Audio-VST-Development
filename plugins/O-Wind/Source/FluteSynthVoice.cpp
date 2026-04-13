@@ -146,6 +146,20 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     releaseFade = 1.0f;
     releaseFadeInc = 0.0f;
     releaseFading = false;
+
+    // ADSR envelope: start attack if enabled, otherwise passthrough
+    if (adsrEnabled)
+    {
+        adsrStage = ADSRStage::Attack;
+        adsrLevel = 0.0f;
+        float attackSamples = std::max (1.0f, static_cast<float> (internalSampleRate * adsrAttackSeconds));
+        adsrIncrement = 1.0f / attackSamples;
+    }
+    else
+    {
+        adsrStage = ADSRStage::Idle;
+        adsrLevel = 1.0f;
+    }
 }
 
 void FluteSynthVoice::stopNote (float, bool allowTailOff)
@@ -153,6 +167,14 @@ void FluteSynthVoice::stopNote (float, bool allowTailOff)
     if (allowTailOff)
     {
         jetExciter.stopNote();
+
+        // ADSR: enter release stage if enabled
+        if (adsrEnabled && adsrStage != ADSRStage::Idle)
+        {
+            adsrStage = ADSRStage::Release;
+            float releaseSamples = std::max (1.0f, static_cast<float> (internalSampleRate * adsrReleaseSeconds));
+            adsrIncrement = -adsrLevel / releaseSamples;
+        }
     }
     else
     {
@@ -162,6 +184,8 @@ void FluteSynthVoice::stopNote (float, bool allowTailOff)
         dcBlocker.reset();
         boreWaveguide.reset();
         jetDelay.reset();
+        adsrStage = ADSRStage::Idle;
+        adsrLevel = 0.0f;
     }
 }
 

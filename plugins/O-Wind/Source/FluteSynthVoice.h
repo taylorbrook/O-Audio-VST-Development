@@ -153,5 +153,17 @@ private:
     float growlPhaseInc = 0.0f;           // phase increment per oversampled sample
     float growlFreq = 90.0f;             // randomized 70-120 Hz per note
 
+    // ADSR envelope (optional amplitude shaping, non-physical)
+    enum class ADSRStage { Idle, Attack, Decay, Sustain, Release };
+    ADSRStage adsrStage = ADSRStage::Idle;
+    float adsrLevel = 0.0f;               // current envelope level [0, 1]
+    float adsrIncrement = 0.0f;           // per-sample increment for current stage
+    float adsrSustainLevel = 0.8f;        // cached sustain target
+    float adsrReleaseInc = 0.0f;          // cached release increment (computed at noteOff)
+    bool adsrEnabled = false;             // cached from APVTS
+    float adsrAttackSeconds = 0.01f;
+    float adsrDecaySeconds = 0.1f;
+    float adsrReleaseSeconds = 0.2f;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FluteSynthVoice)
 };
