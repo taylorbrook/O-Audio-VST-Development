@@ -114,6 +114,7 @@ private:
     std::atomic<float>* pConsonantLevel   = nullptr;
     std::atomic<float>* pConsonantTone    = nullptr;
     std::atomic<float>* pSibilance        = nullptr;
+    std::atomic<float>* pConsonantVoicing = nullptr;
     std::atomic<float>* pAutoConsonant    = nullptr;
     std::atomic<float>* pConsonantAttack  = nullptr;
     std::atomic<float>* pConsonantHold    = nullptr;

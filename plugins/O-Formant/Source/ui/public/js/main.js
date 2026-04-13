@@ -3,7 +3,7 @@ import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } f
 // Relay states
 let vowelXState, vowelYState, vowelFocusState;
 let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibratoDelayState, jitterState, shimmerState, rdModDepthState, spectralTiltState;
-let consonantLevelState, consonantToneState, sibilanceState, autoConsonantState;
+let consonantLevelState, consonantToneState, sibilanceState, consonantVoicingState, autoConsonantState;
 let consonantAttackState, consonantHoldState, consonantDecayState;
 let attackState, decayState, sustainState, releaseState;
 let formantTopologyState;
@@ -147,6 +147,7 @@ function initRelays() {
   consonantLevelState = getSliderState('consonantLevelSlider');
   consonantToneState = getSliderState('consonantToneSlider');
   sibilanceState = getSliderState('sibilanceSlider');
+  consonantVoicingState = getSliderState('consonantVoicingSlider');
   autoConsonantState = getToggleState('autoConsonantToggle');
   consonantAttackState = getSliderState('consonantAttackSlider');
   consonantHoldState = getSliderState('consonantHoldSlider');
@@ -202,6 +203,7 @@ function initRelays() {
     rdModDepth: rdModDepthState,
     spectralTilt: spectralTiltState,
     consonantLevel: consonantLevelState,
+    consonantVoicing: consonantVoicingState,
     consonantAttack: consonantAttackState,
     consonantHold: consonantHoldState,
     consonantDecay: consonantDecayState,

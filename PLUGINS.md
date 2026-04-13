@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| O-Bells | 📦 Installed | 3.2.1 | Synth (Physical Modeling Bells) | 2026-02-19 |
+| O-Bells | 📦 Installed | 4.0.0 | Synth (Physical Modeling Bells) | 2026-04-13 |
 | O-Tremolo | 📦 Installed | 1.4.7 | Audio Effect (Tremolo) | 2026-02-12 |
 | O-AnalogSaturation | 📦 Installed | 1.1.3 | Audio Effect (Saturation) | 2026-02-25 |
 | O-Marimba | 📦 Installed | 1.12.0 | Synth (Physical Model) | 2026-02-09 |
@@ -35,7 +35,7 @@ Ouaricon Plugins:
 | O-DigiDelay | 📦 Installed | 1.2.9 | Audio Effect (Delay) | 2026-02-14 |
 | O-SimpleReverb | 📦 Installed | 1.5.5 | Audio Effect (Reverb) | 2026-02-15 |
 | O-Polystutter | 📦 Installed | 1.12.2 | Audio Effect (Beat Repeater) | 2026-03-06 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
-| O-Lyrica | 📦 Installed | 2.2.1 | Synth (Physical Modeling Harp) | 2026-04-11 |
+| O-Lyrica | 📦 Installed | 2.2.2 | Synth (Physical Modeling Harp) | 2026-04-13 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 | O-IntonationPad | 📦 Installed | 2.7.2 | Synth (Wavetable Pad) | 2026-03-09 |
@@ -50,7 +50,7 @@ Ouaricon Plugins:
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
 | O-Prism | 📦 Installed | 1.16.1 | Synth (Microtonal Wavetable) | 2026-04-12 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
-| O-Formant | 📦 Installed | 1.19.0 | Synth (Physical Model Vocal) | 2026-04-11 |
+| O-Formant | 📦 Installed | 1.20.0 | Synth (Physical Model Vocal) | 2026-04-12 |
 | O-Bowed | 📦 Installed | 1.1.1 | Synth (Physical Model Bowed String) | 2026-04-11 |
 | O-Reed | 📦 Installed | 1.0.10 | Synth (Physical Modeling Reed Wind) | 2026-04-11 |
 | O-Wind | 📦 Installed | 1.12.0 | Synth (Physical Model Flute) | 2026-04-11 |

@@ -54,12 +54,11 @@ void WaveguideString::prepare(double sampleRate, int maxBlockSize)
     float dampeningSamples = static_cast<float>(sampleRate) * 0.05f;
     dampeningDecayRate = std::pow(0.001f, 1.0f / dampeningSamples);
 
-    buzzLowCut.setCutoff(180.0f, sampleRate);
-    buzzHighCut.setCutoff(650.0f, sampleRate);
-    buzzLowCut.reset();
-    buzzHighCut.reset();
+    buzzFilter.reset();
     buzzEnvelope = 0.0f;
     buzzCapturedEnergy = 0.0f;
+    buzzOnsetRamp = 0.0f;
+    buzzOnsetPhase = false;
 
     updateFilters();
     reset();
@@ -106,8 +105,9 @@ void WaveguideString::trigger(double frequency, float velocity, float position, 
 
     buzzEnvelope = 0.0f;
     buzzCapturedEnergy = 0.0f;
-    buzzLowCut.reset();
-    buzzHighCut.reset();
+    buzzOnsetRamp = 0.0f;
+    buzzOnsetPhase = false;
+    buzzFilter.reset();
 
     // Initialize energy tracking
     currentEnergy = velocity;
@@ -193,16 +193,32 @@ float WaveguideString::processSample()
     float excitationToUpper = excitation * pluckPosition;
     float excitationToLower = excitation * (1.0f - pluckPosition);
 
-    if (dampening && buzzEnvelope > 1e-5f)
+    if (dampening && (buzzOnsetPhase || buzzEnvelope > 1e-5f))
     {
-        const float noise = buzzRandom.nextFloat() * 2.0f - 1.0f;
-        const float lowPart = buzzLowCut.processSample(noise);
-        const float hpf = noise - lowPart;
-        const float bpf = buzzHighCut.processSample(hpf);
-        buzzEnvelope *= dampeningDecayRate;
+        // v2.2.2: Onset ramp — gradual palm contact over ~8ms
+        float effectiveEnvelope;
+        if (buzzOnsetPhase)
+        {
+            buzzOnsetRamp += buzzOnsetIncrement;
+            if (buzzOnsetRamp >= 1.0f)
+            {
+                buzzOnsetRamp = 1.0f;
+                buzzOnsetPhase = false;
+                buzzEnvelope = 1.0f;
+            }
+            effectiveEnvelope = buzzOnsetRamp;
+        }
+        else
+        {
+            buzzEnvelope *= buzzDecayRate;
+            effectiveEnvelope = buzzEnvelope;
+        }
 
-        constexpr float BUZZ_GAIN = 2.5f;
-        const float buzzSample = bpf * buzzEnvelope * buzzCapturedEnergy * BUZZ_GAIN;
+        const float noise = buzzRandom.nextFloat() * 2.0f - 1.0f;
+        const float filtered = buzzFilter.processSample(noise);
+
+        constexpr float BUZZ_GAIN = 2.0f;
+        const float buzzSample = filtered * effectiveEnvelope * buzzCapturedEnergy * BUZZ_GAIN;
         excitationToUpper += buzzSample * 0.5f;
         excitationToLower += buzzSample * 0.5f;
     }
@@ -246,10 +262,11 @@ void WaveguideString::reset()
     exciter.reset();
     currentEnergy = 0.0f;
 
-    buzzLowCut.reset();
-    buzzHighCut.reset();
+    buzzFilter.reset();
     buzzEnvelope = 0.0f;
     buzzCapturedEnergy = 0.0f;
+    buzzOnsetRamp = 0.0f;
+    buzzOnsetPhase = false;
 }
 
 void WaveguideString::setDamping(float damping)
@@ -418,8 +435,33 @@ void WaveguideString::setDampening(bool active)
     if (active)
     {
         dampeningMultiplier = 1.0f;
-        buzzEnvelope = 1.0f;
         buzzCapturedEnergy = currentEnergy;
+
+        // v2.2.2: Onset ramp — palm contact over ~8ms (not instant)
+        buzzEnvelope = 0.0f;
+        buzzOnsetRamp = 0.0f;
+        buzzOnsetPhase = true;
+        float onsetSamples = static_cast<float>(currentSampleRate) * 0.008f;
+        buzzOnsetIncrement = 1.0f / onsetSamples;
+
+        // v2.2.2: Pitch-coupled LPF — cutoff relative to fundamental
+        // Loud strings: tighter filter (~3×f0) → more tonal character
+        // Quiet strings: wider filter (~6×f0) → breathier character
+        float energyFactor = juce::jlimit(0.0f, 1.0f, buzzCapturedEnergy * 15.0f);
+        float harmonicMult = 6.0f - energyFactor * 3.0f; // quiet=6×f0, loud=3×f0
+        float buzzCutoff = static_cast<float>(currentFrequency) * harmonicMult;
+        buzzCutoff = juce::jlimit(200.0f, 8000.0f, buzzCutoff);
+        buzzFilter.setCutoff(buzzCutoff, currentSampleRate);
+
+        // v2.2.2: Frequency-dependent decay — high strings buzz shorter
+        // Base duration ∝ 1/f0, clamped 10-60ms
+        float baseDurationMs = juce::jlimit(10.0f, 60.0f,
+            8000.0f / static_cast<float>(currentFrequency));
+        // Amplitude-dependent: loud strings sustain up to 2× longer
+        float energyScale = juce::jlimit(0.5f, 2.0f, buzzCapturedEnergy * 20.0f);
+        float buzzDurationMs = baseDurationMs * energyScale;
+        float buzzSamples = static_cast<float>(currentSampleRate) * buzzDurationMs * 0.001f;
+        buzzDecayRate = std::pow(0.001f, 1.0f / buzzSamples);
     }
 }
 

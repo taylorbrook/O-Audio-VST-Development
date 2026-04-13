@@ -272,10 +272,13 @@ private:
     float dampeningMultiplier = 1.0f;
     float dampeningDecayRate = 0.999f; // Recomputed in prepare() from sample rate
 
-    // v2.2.1: Pedal buzz — filtered noise burst during étouffé to simulate palm/felt friction
-    OnePoleLPF buzzLowCut;
-    OnePoleLPF buzzHighCut;
-    float buzzEnvelope = 0.0f;
+    // v2.2.2: Étouffé buzz — pitch-coupled, amplitude-dependent palm friction model
+    OnePoleLPF buzzFilter;              // LPF tuned to N×f0 (replaces fixed 180-650Hz bandpass)
+    float buzzEnvelope = 0.0f;          // main decay envelope (post-onset)
+    float buzzOnsetRamp = 0.0f;         // 0→1 over onset period (gradual palm contact)
+    float buzzOnsetIncrement = 0.0f;    // per-sample onset ramp step
+    float buzzDecayRate = 0.999f;       // per-sample decay, varies with f0 and energy
+    bool buzzOnsetPhase = false;        // true during initial palm-contact ramp
     float buzzCapturedEnergy = 0.0f;
     juce::Random buzzRandom;
 

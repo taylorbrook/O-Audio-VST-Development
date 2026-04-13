@@ -154,7 +154,7 @@ private:
 
     // Bristle model parameters (Serafin/Avanzini 2003)
     float sigma_0 = 6000.0f;    // bristle stiffness
-    float sigma_1 = 0.5f;       // bristle damping
+    float sigma_1 = 0.005f;     // bristle damping (kept low so stiffness term drives rho)
     float sigma_2 = 0.002f;     // viscous friction
     float mu_s = 0.8f;          // static friction coefficient
     float mu_d = 0.3f;          // dynamic friction coefficient

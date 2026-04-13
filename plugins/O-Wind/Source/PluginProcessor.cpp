@@ -496,6 +496,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
+        { "humanize",        normalize("humanize", 0.3f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.2f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 0.0f) },
     }, {} });
 
@@ -526,6 +530,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
+        { "humanize",        normalize("humanize", 0.5f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.35f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 1.0f) },
     }, {} });
 
@@ -556,6 +564,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  1.0f },
+        { "humanize",        normalize("humanize", 0.4f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.3f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 2.0f) },
     }, {} });
 
@@ -586,6 +598,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
+        { "humanize",        normalize("humanize", 0.5f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.35f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 3.0f) },
     }, {} });
 
@@ -616,6 +632,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  1.0f },
+        { "humanize",        normalize("humanize", 0.15f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.1f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 4.0f) },
     }, {} });
 
@@ -646,6 +666,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
+        { "humanize",        normalize("humanize", 0.35f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.25f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 5.0f) },
     }, {} });
 
@@ -676,6 +700,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  1.0f },
+        { "humanize",        normalize("humanize", 0.2f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.1f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 6.0f) },
     }, {} });
 
@@ -706,6 +734,10 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
+        { "humanize",        normalize("humanize", 0.25f) },
+        { "inharmonicity",   normalize("inharmonicity", 0.3f) },
+        { "referencePitch",  normalize("referencePitch", 440.0f) },
+        { "tuningSystem",    normalize("tuningSystem", 2.0f) },
         { "instrumentPreset", normalize("instrumentPreset", 7.0f) },
     }, {} });
 

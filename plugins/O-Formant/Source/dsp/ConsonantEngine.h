@@ -34,7 +34,7 @@ public:
         consonantPhase = EnvPhase::Off;
         consonantEnvSample = 0;
 
-        updateCoefficients (0.5f, 0.5f, sr);
+        updateCoefficients (0.5f, 0.5f, 0.5f, sr);
     }
 
     void reset() noexcept
@@ -62,7 +62,7 @@ public:
 
     // Block-rate coefficient update: place = X (0-1), manner = Y (0-1)
     // When auto mode is on, envelope timing is derived from manner.
-    void updateCoefficients (float place, float manner, double sr) noexcept
+    void updateCoefficients (float place, float manner, float voicing, double sr) noexcept
     {
         float nyquist = static_cast<float> (sr * 0.5) - 100.0f;
 
@@ -82,6 +82,7 @@ public:
 
         // Manner of articulation -> temporal parameters
         cachedManner = manner;
+        cachedVoicing = voicing;
 
         // Burst duration: plosive(0)=8ms, fricative(1)=80ms
         float burstMs = 0.008f + manner * 0.072f;
@@ -118,9 +119,11 @@ public:
         {
             float onsetProgress = 1.0f - static_cast<float> (onsetSamplesRemaining)
                                          / static_cast<float> (juce::jmax (1, onsetTotalSamples));
-            // Suppression scales with plosive-ness (1 - manner)
+            // Voiceless: full suppression. Voiced plosive: 70% suppression (voice bar at 30%).
+            // Voiced fricative: no suppression.
+            float voicelessFactor = 1.0f - cachedVoicing * (0.3f + 0.7f * cachedManner);
             currentOnsetSuppression = std::exp (-6.0f * onsetProgress)
-                                      * burstAmplitude * (1.0f - cachedManner);
+                                      * burstAmplitude * voicelessFactor;
             --onsetSamplesRemaining;
         }
         else
@@ -163,8 +166,18 @@ public:
     }
 
     // Suppression factor for glottal source during plosive onset
-    // Full suppression for plosives (manner=0), none for fricatives (manner=1)
     float getOnsetSuppression() const noexcept { return currentOnsetSuppression; }
+
+    // Continuous suppression for voiceless fricatives during full consonant envelope.
+    // Returns 0 (no suppression) to 1 (full suppression).
+    float getContinuousSuppression() const noexcept
+    {
+        if (consonantPhase == EnvPhase::Off)
+            return 0.0f;
+        float fricativeFactor = cachedManner;          // 0 for plosives, 1 for fricatives
+        float voicelessFactor = 1.0f - cachedVoicing;  // 1 for voiceless, 0 for voiced
+        return fricativeFactor * voicelessFactor;
+    }
 
 private:
     // 3-phase consonant envelope state machine
@@ -252,6 +265,7 @@ private:
     FormantBiquad placeFilter2;
 
     float cachedManner = 0.5f;
+    float cachedVoicing = 0.5f;
     int cachedBurstDuration = 353;
     float cachedBurstDecayRate = 7.0f;
 

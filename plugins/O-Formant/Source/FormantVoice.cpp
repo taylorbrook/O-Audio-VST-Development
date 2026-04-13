@@ -40,6 +40,7 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pConsonantLevel  = apvts->getRawParameterValue ("consonantLevel");
     pConsonantTone   = apvts->getRawParameterValue ("consonantTone");
     pSibilance       = apvts->getRawParameterValue ("sibilance");
+    pConsonantVoicing = apvts->getRawParameterValue ("consonantVoicing");
     pAutoConsonant   = apvts->getRawParameterValue ("autoConsonant");
     pConsonantAttack = apvts->getRawParameterValue ("consonantAttack");
     pConsonantHold   = apvts->getRawParameterValue ("consonantHold");
@@ -317,10 +318,11 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float consonantLevel = pConsonantLevel != nullptr ? pConsonantLevel->load() : 0.0f;
     float consonantTone  = pConsonantTone  != nullptr ? pConsonantTone->load()  : 0.5f;
     float sibilance      = pSibilance      != nullptr ? pSibilance->load()      : 0.0f;
+    float consonantVoicing = pConsonantVoicing != nullptr ? pConsonantVoicing->load() : 0.5f;
     bool  autoConsonant  = pAutoConsonant  != nullptr && pAutoConsonant->load() >= 0.5f;
 
     // Update consonant filter coefficients (block-rate)
-    consonantEngine.updateCoefficients (consonantTone, sibilance, getSampleRate());
+    consonantEngine.updateCoefficients (consonantTone, sibilance, consonantVoicing, getSampleRate());
 
     // When auto is off, override envelope timing with user knobs
     if (! autoConsonant)
@@ -490,9 +492,11 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Consonant noise (shaped by place/manner filters + dedicated envelope)
         float consonantNoise = consonantEngine.getNextSample (consonantLevel);
         float onsetSuppression = consonantEngine.getOnsetSuppression();
+        float continuousSuppression = consonantEngine.getContinuousSuppression();
 
-        // During plosive onset, suppress glottal source so noise dominates
-        float voiceSource = source * (1.0f - 0.7f * onsetSuppression);
+        // Suppress glottal source: onset burst (plosive) + continuous (voiceless fricative)
+        float totalSuppression = juce::jmin (1.0f, onsetSuppression + continuousSuppression);
+        float voiceSource = source * (1.0f - 0.7f * totalSuppression);
 
         // ADSR envelope — applied to voiced source only
         float env = adsr.getNextSample();

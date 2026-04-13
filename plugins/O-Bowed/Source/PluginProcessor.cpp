@@ -186,14 +186,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBowedAudioProcessor::create
         0.0f
     ));
 
-    // FRICTION_TIER - Friction model complexity selection
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "frictionTier", 1 },
-        "Friction Tier",
-        juce::StringArray { "Core", "Enhanced", "Quality" },
-        0  // Default: Core
-    ));
-
     // ========== Tuning (2) ==========
 
     // REFERENCE_PITCH - A4 reference frequency
@@ -410,7 +402,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
     // bowSpeed: sqrt((v-0.02)/1.98)  |  bowPressure: sqrt((v-0.01)/4.99)
     // bowPosition: (v-0.02)/0.28  |  brightness: pow((v-20)/19980, 4.0)
     // sympatheticCount: v/12.0  |  outputLevel: (v+60)/72  |  referencePitch: (v-220)/660
-    // frictionTier: index/2.0  |  tuningSystem: index/2.0
+    // tuningSystem: index/2.0
     // Linear 0-1 params: rosin, bowNoise, bodyMaterial, bodySize, width(/2), sympatheticAmount,
     //                     infiniteSustain, reversedFriction, subHarmonics
 
@@ -424,7 +416,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -435,7 +427,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -446,7 +438,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -457,7 +449,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -468,7 +460,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -479,7 +471,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.4f}, {"sympatheticCount", 0.417f},
              {"width", 0.55f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -490,7 +482,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.5f}, {"sympatheticCount", 0.833f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         // ===== Sound Design (3) =====
@@ -502,7 +494,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.45f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -513,7 +505,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"sympatheticAmount", 0.3f}, {"sympatheticCount", 0.5f},
              {"width", 0.7f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.4f}, {"reversedFriction", 0.3f}, {"subHarmonics", 0.35f},
-             {"frictionTier", 1.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         },
         {
@@ -524,7 +516,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
              {"infiniteSustain", 0.15f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
-             {"frictionTier", 0.0f}, {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
+             {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
         }
     };

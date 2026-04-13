@@ -21,6 +21,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     consonantLevelRelay = std::make_unique<juce::WebSliderRelay> ("consonantLevelSlider");
     consonantToneRelay = std::make_unique<juce::WebSliderRelay> ("consonantToneSlider");
     sibilanceRelay     = std::make_unique<juce::WebSliderRelay> ("sibilanceSlider");
+    consonantVoicingRelay = std::make_unique<juce::WebSliderRelay> ("consonantVoicingSlider");
     autoConsonantRelay = std::make_unique<juce::WebToggleButtonRelay> ("autoConsonantToggle");
     attackRelay        = std::make_unique<juce::WebSliderRelay> ("attackSlider");
     decayRelay         = std::make_unique<juce::WebSliderRelay> ("decaySlider");
@@ -91,6 +92,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*consonantLevelRelay)
             .withOptionsFrom (*consonantToneRelay)
             .withOptionsFrom (*sibilanceRelay)
+            .withOptionsFrom (*consonantVoicingRelay)
             .withOptionsFrom (*autoConsonantRelay)
             .withOptionsFrom (*attackRelay)
             .withOptionsFrom (*decayRelay)
@@ -601,6 +603,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     consonantLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantLevel"), *consonantLevelRelay);
     consonantToneAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantTone"), *consonantToneRelay);
     sibilanceAttachment     = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("sibilance"), *sibilanceRelay);
+    consonantVoicingAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantVoicing"), *consonantVoicingRelay);
     autoConsonantAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment> (*apvts.getParameter ("autoConsonant"), *autoConsonantRelay);
     attackAttachment        = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("attack"), *attackRelay);
     decayAttachment         = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("decay"), *decayRelay);
@@ -684,6 +687,7 @@ OFormantEditor::~OFormantEditor()
     decayAttachment.reset();
     attackAttachment.reset();
     autoConsonantAttachment.reset();
+    consonantVoicingAttachment.reset();
     sibilanceAttachment.reset();
     consonantToneAttachment.reset();
     consonantLevelAttachment.reset();
@@ -736,6 +740,7 @@ OFormantEditor::~OFormantEditor()
     decayRelay.reset();
     attackRelay.reset();
     autoConsonantRelay.reset();
+    consonantVoicingRelay.reset();
     sibilanceRelay.reset();
     consonantToneRelay.reset();
     consonantLevelRelay.reset();

@@ -552,14 +552,6 @@
                         <div class="knob-value">0.50</div>
                     </div>
                 </div>
-                <div class="dropdown-control">
-                    <div class="dropdown-label">Friction Model</div>
-                    <select class="dropdown-select" id="frictionTier">
-                        <option value="0">Core</option>
-                        <option value="1">Enhanced</option>
-                        <option value="2">Quality</option>
-                    </select>
-                </div>
             </div>
         </div>
 
@@ -896,7 +888,7 @@
         }
 
         // ====================================================================
-        // ComboBox Binding (frictionTier, tuningSystem)
+        // ComboBox Binding (tuningSystem)
         // ====================================================================
         function bindComboBox(paramId, selectId) {
             const selectEl = document.getElementById(selectId);
@@ -1617,8 +1609,6 @@
             });
 
             // Bind combo boxes
-            bindComboBox('frictionTier', 'frictionTier');
-
             // Initialize conditional visibility
             if (sliderStates.sympatheticCount) {
                 updateSympVisibility(sliderStates.sympatheticCount.getNormalisedValue());

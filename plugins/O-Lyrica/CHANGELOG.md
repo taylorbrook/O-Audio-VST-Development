@@ -2,7 +2,31 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
-## [2.2.1] - 2026-04-11
+## [2.2.2] - 2026-04-13
+
+### Changed
+
+- **Étouffé buzz realism overhaul** in `WaveguideString::processSample` / `setDampening`. The v2.2.1 buzz used white noise → fixed 180–650Hz bandpass → waveguide injection, which sounded synthetic/hissy because the filter was pitch-agnostic (removed the fundamental for strings outside 200–500Hz). Replaced with a physically-informed palm-friction model:
+  - **Pitch-coupled filtering:** Single LPF tuned to N×f0 (3× for loud strings, 6× for quiet), clamped 200–8000Hz. Lets the string's fundamental and first few partials through; the waveguide's own comb filtering shapes pitch identity. Replaces the two fixed-cutoff `OnePoleLPF` filters (`buzzLowCut` + `buzzHighCut`) with one per-note-tuned `buzzFilter`.
+  - **Gradual onset ramp:** `buzzEnvelope` now starts at 0 and ramps to 1.0 over ~8ms (via `buzzOnsetRamp` + `buzzOnsetIncrement`), simulating progressive palm/felt contact wrapping the string. Previously jumped instantly to 1.0.
+  - **Amplitude-dependent character:** Loud strings get a tighter filter (more tonal buzz) and up to 2× longer decay; quiet strings get a wider filter (breathier) and shorter decay. Scaled via `buzzCapturedEnergy` snapshot.
+  - **Frequency-dependent duration:** Base buzz duration ∝ 1/f0, clamped 10–60ms. High strings (~2kHz): short percussive buzz. Low strings (~100Hz): longer tonal buzz. Matches physical behavior where thin short strings damp faster than heavy wound strings.
+- **Buzz gain reduced** from 2.5 to 2.0 — the pitch-coupled filter passes more energy at the fundamental so less makeup gain is needed.
+
+### Technical notes
+
+- **Root cause of synthetic sound:** The fixed 180–650Hz bandpass was the primary issue. For a string at 1000Hz, the LPF@650Hz removed the fundamental entirely, leaving only sub-harmonic noise. For a string at 100Hz, the HPF@180Hz cut the fundamental. Only strings in ~200–500Hz range got reasonable results. The new approach tunes the filter relative to each string's actual pitch.
+- **Research basis:** Acoustic analysis of harp étouffé (Valette & Cuesta, Woodhouse string damping studies) shows the buzz is damped resonance — the string's own partials dying with upper harmonics collapsing faster — not broadband noise. The "buzz" quality comes from amplitude modulation as palm progressively contacts the string.
+- **RT-safety:** All new members are plain floats/bools, no allocations. `buzzOnsetPhase` branch is predicted well (true for ~350 samples then false). `buzzFilter.processSample` is the same branch-free `OnePoleLPF` used elsewhere.
+- **Member changes:** Removed `buzzLowCut`, `buzzHighCut` (two `OnePoleLPF`). Added `buzzFilter` (one `OnePoleLPF`), `buzzOnsetRamp`, `buzzOnsetIncrement`, `buzzDecayRate` (floats), `buzzOnsetPhase` (bool). Net: same memory footprint.
+- **Non-destructive:** No parameter ID changes, no preset impact. Purely internal DSP refinement.
+- **Files modified:** `Source/DSP/WaveguideString.h`, `Source/DSP/WaveguideString.cpp`
+
+## [2.2.1] - 2026-04-12
+
+### Fixed
+
+- **OnePoleLPF `setCutoff()` used `1/tan` instead of `tan`** — the v2.1.8 custom filter struct's coefficient calculation was inverted, producing DC gain of ~1/n instead of unity. For a 1kHz bridge filter at 44.1kHz, this attenuated by 14x per pass (~-23dB). With three filters in series (bridge, nut, loopDamping), 99.96% of energy was lost per waveguide cycle — strings died immediately after the pluck attack. Root cause: the comment claimed to match `juce::dsp::IIR::Coefficients::makeFirstOrderLowPass` but used `n = 1/tan(pi*f/fs)` with unnormalized numerator `(1, 1, ...)` instead of `n = tan(pi*f/fs)` with `(n, n, n+1, n-1)`. Fix: `b0 = b1 = n/(n+1)`, `a1 = (n-1)/(n+1)`.
 
 ### Added
 

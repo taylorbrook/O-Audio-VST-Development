@@ -23,7 +23,6 @@
 #include "DSP/BowModel.h"
 #include "DSP/HyperbolicFriction.h"
 #include "DSP/ElastoPlasticFriction.h"
-#include "DSP/ThermalFriction.h"
 #include "DSP/SubHarmonicsGenerator.h"
 #include "DSP/BowNoiseGenerator.h"
 
@@ -74,9 +73,8 @@ private:
     BowModel bowModel;
     HyperbolicFriction frictionModel;
 
-    // Advanced friction tiers
-    ElastoPlasticFriction enhancedFriction;
-    ThermalFriction qualityFriction;
+    // Bristle friction (blended with Core via bowHairStiffness)
+    ElastoPlasticFriction bristleFriction;
     SubHarmonicsGenerator subHarmonicsGen;
 
     // Bow noise generator (post-body additive)
@@ -89,9 +87,8 @@ private:
     // TuningEngine (processor-owned, voice holds non-owning pointer)
     TuningEngine* tuningEngine = nullptr;
 
-    // Friction tier state
-    int currentTier = 0;
-    int previousTier = 0;
+    // Bristle blend (0 = pure Core, 1 = full bristle)
+    float bristleBlend = 0.0f;
 
     // Impossible physics parameters
     float reversedAmount = 0.0f;

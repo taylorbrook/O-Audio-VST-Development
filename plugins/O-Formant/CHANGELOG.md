@@ -2,6 +2,18 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.20.0] - 2026-04-12
+
+### Added
+- **Consonant voicing parameter** (`consonantVoicing`, 0–1, default 0.5) — Distinguishes voiced consonants (B, D, G, V, Z) from voiceless (P, T, K, F, S, SH, TH) independently from manner
+- **Voicing-aware onset suppression** — Formula: `voicelessFactor = 1 - voicing * (0.3 + 0.7 * manner)`. Voiced plosives retain 30% voice bar; voiceless fricatives get full suppression
+- **Continuous voiceless fricative suppression** — New `getContinuousSuppression()` suppresses glottal source for the full consonant envelope duration (not just the 25ms onset window), scaled by fricative-ness and voicelessness
+- **Voicing knob in UI** — Added to consonant controls section alongside Level and Auto toggle
+
+### Notes
+- Default 0.5 preserves existing patch sound — no breaking changes
+- All 16 factory presets updated with `consonantVoicing: 0.5`
+
 ## [1.19.0] - 2026-04-11
 
 ### Added

@@ -96,7 +96,6 @@ void BowedStringVoice::prepareToPlay (double sampleRate, int maxBlockSize)
     // Prepare waveguide and bow at 2x oversampled rate
     waveguideString.prepare (sampleRate * 2.0, maxBlockSize * 2);
     bowModel.prepare (sampleRate * 2.0);
-    qualityFriction.prepare (sampleRate * 2.0);
 
     // dt at oversampled rate
     dt = 1.0f / static_cast<float> (sampleRate * 2.0);
@@ -148,20 +147,10 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         auto jState = waveguideString.readJunction (v_bow);
         float v_delta = v_bow - jState.v_string_incoming;
 
-        // Step 5: Friction tier dispatch -> compute rho
-        float rho;
-        switch (currentTier)
-        {
-            case 1:  // Enhanced: Elasto-Plastic
-                rho = enhancedFriction.computeReflectionCoefficient (v_delta, F_bow, dt);
-                break;
-            case 2:  // Quality: Thermal
-                rho = qualityFriction.computeReflectionCoefficient (v_delta, F_bow, dt);
-                break;
-            default: // Core: Hyperbolic (tier 0)
-                rho = frictionModel.computeReflectionCoefficient (v_delta, F_bow);
-                break;
-        }
+        // Step 5: Unified friction — Core sustain + bristle texture
+        float rhoCore = frictionModel.computeReflectionCoefficient (v_delta, F_bow);
+        float rhoBristle = bristleFriction.computeReflectionCoefficient (v_delta, F_bow, dt);
+        float rho = rhoCore + bristleBlend * (rhoBristle - rhoCore);
 
         // Reversed friction: interpolate rho toward (1 - rho)
         if (reversedAmount >= 0.001f)
@@ -233,21 +222,12 @@ void BowedStringVoice::updateParametersFromAPVTS()
     float outputLevel    = parameters->getRawParameterValue ("outputLevel")->load();
     bowNoiseAmount       = parameters->getRawParameterValue ("bowNoise")->load();
 
-    // Read friction tier parameters
-    int newTier          = static_cast<int> (parameters->getRawParameterValue ("frictionTier")->load());
+    // Read friction parameters
     reversedAmount       = parameters->getRawParameterValue ("reversedFriction")->load();
     subHarmonicsAmount   = parameters->getRawParameterValue ("subHarmonics")->load();
     float stringGauge    = parameters->getRawParameterValue ("stringGauge")->load();
     float bowHairStiff   = parameters->getRawParameterValue ("bowHairStiffness")->load();
-
-    // Detect friction tier switch -- reset state to avoid discontinuity
-    currentTier = newTier;
-    if (currentTier != previousTier)
-    {
-        enhancedFriction.resetState();
-        qualityFriction.resetState();
-        previousTier = currentTier;
-    }
+    bristleBlend         = bowHairStiff;
 
     // Apply MPE modulation on top of knob base values
     auto note = getCurrentlyPlayingNote();
@@ -269,14 +249,11 @@ void BowedStringVoice::updateParametersFromAPVTS()
     cachedInfSustain = infSustain;
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
 
-    // Update advanced friction models with matching parameters
+    // Update friction models with matching parameters
     frictionModel.setStringImpedance (stringGauge);
-    enhancedFriction.setRosin (rosin);
-    enhancedFriction.setStringImpedance (stringGauge);
-    enhancedFriction.setBristleStiffness (bowHairStiff);
-    qualityFriction.setRosin (rosin);
-    qualityFriction.setStringImpedance (stringGauge);
-    qualityFriction.setBristleStiffness (bowHairStiff);
+    bristleFriction.setRosin (rosin);
+    bristleFriction.setStringImpedance (stringGauge);
+    bristleFriction.setBristleStiffness (bowHairStiff);
 }
 
 float BowedStringVoice::getBaseFrequencyFromTuning (int midiNote) const

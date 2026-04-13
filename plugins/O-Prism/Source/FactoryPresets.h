@@ -2,7 +2,7 @@
   ==============================================================================
 
     FactoryPresets.h
-    O-Prism - Factory preset library (96 presets across 10 categories)
+    O-Prism - Factory preset library (96 presets across 9 categories)
 
   ==============================================================================
 */

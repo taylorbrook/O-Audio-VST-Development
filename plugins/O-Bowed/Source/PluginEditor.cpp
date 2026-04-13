@@ -28,7 +28,6 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
     bowPositionRelay = std::make_unique<juce::WebSliderRelay>("bowPosition");
     rosinRelay = std::make_unique<juce::WebSliderRelay>("rosin");
     bowNoiseRelay = std::make_unique<juce::WebSliderRelay>("bowNoise");
-    frictionTierRelay = std::make_unique<juce::WebComboBoxRelay>("frictionTier");
 
     // Body Controls
     bodyMaterialRelay = std::make_unique<juce::WebSliderRelay>("bodyMaterial");
@@ -76,7 +75,6 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             .withOptionsFrom(*bowPositionRelay)
             .withOptionsFrom(*rosinRelay)
             .withOptionsFrom(*bowNoiseRelay)
-            .withOptionsFrom(*frictionTierRelay)
             // Body Controls
             .withOptionsFrom(*bodyMaterialRelay)
             .withOptionsFrom(*bodySizeRelay)
@@ -373,8 +371,6 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
         *apvts.getParameter("rosin"), *rosinRelay, nullptr);
     bowNoiseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("bowNoise"), *bowNoiseRelay, nullptr);
-    frictionTierAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
-        *apvts.getParameter("frictionTier"), *frictionTierRelay, nullptr);
 
     // Body Controls
     bodyMaterialAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

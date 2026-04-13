@@ -3,9 +3,9 @@
 
     FactoryPresets.cpp
     O-Prism - Factory preset library
-    96 presets across 10 categories:
-      Pads (18), Drone (12), Lead (12), Bass (10), Pluck (10),
-      Harmonic (10), Keys (8), Sequence (8), FX (5), Percussion (3)
+    96 presets across 9 categories:
+      Pads (18), Lead (15), Drone (12), Sequence (12), Bass (10),
+      Pluck (10), Keys (8), FX (8), Percussion (3)
 
     Each preset is a complete parameter snapshot (except excluded tuning
     params, preserved across preset switches). Raw values are converted to
@@ -287,29 +287,6 @@ static RawMap pluckArchetype()
     });
     m = merge (m, modSlot (0, SRC_Vel,    DST_FiltACut, 0.6f));
     m = merge (m, modSlot (1, SRC_Vel,    DST_OscMix,   0.15f));
-    return m;
-}
-
-static RawMap xenArchetype()
-{
-    auto m = merge (completeBase(), {
-        { "oscATable", WT_HarmonicSeries }, { "oscAPos", 0.5f },
-        { "oscAUnison", 4 }, { "oscADetune", 0.3f }, { "oscAWidth", 0.85f },
-        { "oscBLevel", 0.6f }, { "oscBTable", WT_OddHarmonics },
-        { "oscBUnison", 3 }, { "oscBDetune", 0.25f }, { "oscBWidth", 0.7f },
-        { "filtAType", 1 }, { "filtACutoff", 4500.0f }, { "filtARes", 0.12f },
-        { "ampAttack", 2.0f }, { "ampDecay", 1.0f },
-        { "ampSustain", 0.95f }, { "ampRelease", 4.0f },
-        { "filtAttack", 3.0f }, { "filtRelease", 3.5f },
-        { "filtAEnvDepth", 0.2f },
-        { "lfo1Rate", 0.2f }, { "lfo1FreeRun", 1 },
-        { "reverbMix", 0.55f }, { "reverbSize", 0.88f }, { "reverbDamp", 0.3f },
-        { "delayMix", 0.15f }, { "delayTime", 0.6f },
-        { "chorusMix", 0.2f },
-        { "stereoWidth", 1.4f }
-    });
-    m = merge (m, modSlot (0, SRC_LFO1, DST_OscAPos,  0.2f));
-    m = merge (m, modSlot (1, SRC_Vel,  DST_FiltACut, 0.3f));
     return m;
 }
 
@@ -756,6 +733,32 @@ static void addLeads (juce::AudioProcessorValueTreeState& apvts,
         { "filtACutoff", 4500.0f }, { "filtARes", 0.3f },
         { "distMix", 0.1f }, { "reverbMix", 0.22f }, { "delayMix", 0.2f }
     })));
+
+    out.push_back (makePreset (apvts, cat, "Razor Wire", merge (base, {
+        { "oscATable", WT_SyncSweep }, { "oscAPos", 0.75f }, { "oscAUnison", 5 }, { "oscADetune", 0.35f },
+        { "oscBTable", WT_Bitcrush }, { "oscBLevel", 0.4f }, { "oscBPos", 0.5f },
+        { "filtACutoff", 3800.0f }, { "filtARes", 0.5f }, { "filtADrive", 0.35f },
+        { "distMix", 0.2f }, { "distDrive", 0.45f }, { "distType", 1 },
+        { "delayMix", 0.2f }, { "reverbMix", 0.15f }
+    })));
+
+    out.push_back (makePreset (apvts, cat, "Phantom Vocal", merge (base, {
+        { "oscATable", WT_VowelMorph }, { "oscAPos", 0.3f }, { "oscAUnison", 3 },
+        { "oscBTable", WT_FormantFilter }, { "oscBLevel", 0.5f }, { "oscBPos", 0.6f },
+        { "filtACutoff", 2600.0f }, { "filtARes", 0.3f },
+        { "lfo1Rate", 3.5f }, { "modSlot0Src", SRC_LFO1 },
+        { "modSlot0Dst", DST_OscAPos }, { "modSlot0Amt", 0.35f }, { "modSlot0On", 1 },
+        { "chorusMix", 0.22f }, { "reverbMix", 0.3f }
+    })));
+
+    out.push_back (makePreset (apvts, cat, "Acid Bite", merge (base, {
+        { "oscATable", WT_Saw }, { "oscAUnison", 2 }, { "oscADetune", 0.18f },
+        { "oscBTable", WT_Square }, { "oscBLevel", 0.45f }, { "oscBCoarse", 0 },
+        { "filtACutoff", 1200.0f }, { "filtARes", 0.65f }, { "filtADrive", 0.4f },
+        { "filtAEnvDepth", 0.8f }, { "filtDecay", 0.2f }, { "filtSustain", 0.1f },
+        { "distMix", 0.15f }, { "distDrive", 0.35f },
+        { "delayMix", 0.22f }, { "reverbMix", 0.12f }
+    })));
 }
 
 static void addBass (juce::AudioProcessorValueTreeState& apvts,
@@ -917,85 +920,6 @@ static void addPlucks (juce::AudioProcessorValueTreeState& apvts,
     })));
 }
 
-static void addXen (juce::AudioProcessorValueTreeState& apvts,
-                    std::vector<Preset>& out)
-{
-    const juce::String cat = "Harmonic";
-    auto base = xenArchetype();
-
-    out.push_back (makePreset (apvts, cat, "Septimal Rain", merge (base, {
-        { "oscATable", WT_OddHarmonics }, { "oscBTable", WT_HarmonicSeries },
-        { "filtACutoff", 4200.0f },
-        { "reverbMix", 0.6f }, { "delayMix", 0.2f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Bohlen Bells", merge (base, {
-        { "oscATable", WT_ChurchBell }, { "oscBTable", WT_FMBell },
-        { "oscBCoarse", 13 },
-        { "filtACutoff", 5000.0f },
-        { "ampAttack", 2.5f }, { "ampRelease", 5.0f },
-        { "reverbMix", 0.65f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Just Intonation Choir", merge (base, {
-        { "oscATable", WT_ChoirPad }, { "oscBTable", WT_VowelMorph },
-        { "filtACutoff", 3000.0f },
-        { "ampAttack", 3.0f }, { "ampRelease", 5.0f },
-        { "reverbMix", 0.68f }, { "reverbSize", 0.92f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Neutral Third Pad", merge (base, {
-        { "oscATable", WT_HarmonicSeries }, { "oscBTable", WT_HarmonicStretch },
-        { "filtACutoff", 3500.0f },
-        { "chorusMix", 0.28f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Schismatic Drift", merge (base, {
-        { "oscATable", WT_SpectralTilt }, { "oscBTable", WT_CombSweep },
-        { "oscBCoarse", 7 },
-        { "lfo1Rate", 0.12f },
-        { "modSlot0Amt", 0.3f },
-        { "reverbMix", 0.62f }, { "delayMix", 0.22f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Partch Dream", merge (base, {
-        { "oscATable", WT_OddHarmonics }, { "oscBTable", WT_PrismSpectrum },
-        { "oscBCoarse", 5 },
-        { "filtACutoff", 3800.0f },
-        { "ampAttack", 2.5f }, { "reverbMix", 0.6f }, { "delayFeedback", 0.45f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Overtone Stack", merge (base, {
-        { "oscATable", WT_HarmonicSeries }, { "oscBTable", WT_HarmonicStretch },
-        { "oscBCoarse", 12 },
-        { "filtACutoff", 5000.0f },
-        { "reverbMix", 0.55f }, { "chorusMix", 0.22f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "5-Limit Chant", merge (base, {
-        { "oscATable", WT_VocalLead }, { "oscBTable", WT_ChoirPad },
-        { "filtACutoff", 2800.0f },
-        { "ampAttack", 2.8f }, { "ampRelease", 4.5f },
-        { "reverbMix", 0.7f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Tempered Mist", merge (base, {
-        { "oscATable", WT_Breath }, { "oscBTable", WT_HarmonicSeries },
-        { "filtACutoff", 3200.0f },
-        { "noiseType", 1 }, { "noiseLevel", 0.08f },
-        { "reverbMix", 0.65f }
-    })));
-
-    out.push_back (makePreset (apvts, cat, "Harmonic Lattice", merge (base, {
-        { "oscATable", WT_PrismSpectrum }, { "oscBTable", WT_OddHarmonics },
-        { "oscBCoarse", 7 },
-        { "lfo1Rate", 0.15f }, { "lfo2Rate", 0.18f }, { "lfo2FreeRun", 1 },
-        { "modSlot2Src", SRC_LFO2 }, { "modSlot2Dst", DST_OscBPos },
-        { "modSlot2Amt", 0.2f }, { "modSlot2On", 1 },
-        { "reverbMix", 0.62f }
-    })));
-}
-
 static void addKeys (juce::AudioProcessorValueTreeState& apvts,
                      std::vector<Preset>& out)
 {
@@ -1122,6 +1046,44 @@ static void addSeq (juce::AudioProcessorValueTreeState& apvts,
         { "modSlot0Amt", 0.6f }, { "modSlot0On", 1 },
         { "reverbMix", 0.3f }
     })));
+
+    out.push_back (makePreset (apvts, cat, "Stutter Glitch", merge (base, {
+        { "oscATable", WT_Bitcrush }, { "oscAPos", 0.6f },
+        { "oscBTable", WT_Square }, { "oscBLevel", 0.45f }, { "oscBCoarse", 7 },
+        { "filtACutoff", 2000.0f }, { "filtARes", 0.5f },
+        { "lfo1Rate", 16.0f }, { "lfo1Shape", 3 }, { "lfo1Sync", 1 }, { "lfo1Division", 5 },
+        { "modSlot0Src", SRC_LFO1 }, { "modSlot0Dst", DST_MasterVol },
+        { "modSlot0Amt", 0.7f }, { "modSlot0On", 1 },
+        { "distMix", 0.15f }, { "delayMix", 0.25f }
+    })));
+
+    out.push_back (makePreset (apvts, cat, "Ripple Chain", merge (base, {
+        { "oscATable", WT_Triangle }, { "oscAUnison", 3 }, { "oscADetune", 0.2f },
+        { "oscBTable", WT_Sine }, { "oscBLevel", 0.4f }, { "oscBCoarse", 12 },
+        { "filtACutoff", 3500.0f }, { "filtARes", 0.25f },
+        { "lfo1Rate", 6.0f }, { "lfo1Shape", 0 }, { "lfo1Sync", 1 }, { "lfo1Division", 3 },
+        { "delayMode", 1 }, { "delayDivision", 4 }, { "delayFeedback", 0.6f }, { "delayMix", 0.4f },
+        { "reverbMix", 0.28f }
+    })));
+
+    out.push_back (makePreset (apvts, cat, "Spectral Chop", merge (base, {
+        { "oscATable", WT_PrismSpectrum }, { "oscAPos", 0.5f },
+        { "oscBTable", WT_CombSweep }, { "oscBLevel", 0.5f }, { "oscBPos", 0.4f },
+        { "filtACutoff", 2400.0f }, { "filtARes", 0.4f },
+        { "lfo1Rate", 4.0f }, { "lfo1Shape", 3 }, { "lfo1Sync", 1 }, { "lfo1Division", 4 },
+        { "lfo2Rate", 2.0f }, { "lfo2Shape", 1 }, { "lfo2Sync", 1 }, { "lfo2Division", 2 },
+        { "modSlot1Src", SRC_LFO2 }, { "modSlot1Dst", DST_OscAPos },
+        { "modSlot1Amt", 0.4f }, { "modSlot1On", 1 },
+        { "reverbMix", 0.22f }, { "delayMix", 0.3f }
+    })));
+
+    out.push_back (makePreset (apvts, cat, "Neon Pulse", merge (base, {
+        { "oscATable", WT_PWMSweep }, { "oscAPos", 0.4f }, { "oscAUnison", 4 }, { "oscADetune", 0.25f },
+        { "oscBTable", WT_Saw }, { "oscBLevel", 0.45f },
+        { "filtACutoff", 1800.0f }, { "filtARes", 0.45f }, { "filtAEnvDepth", 0.6f },
+        { "lfo1Rate", 4.0f }, { "lfo1Shape", 0 }, { "lfo1Sync", 1 }, { "lfo1Division", 3 },
+        { "chorusMix", 0.2f }, { "delayMix", 0.3f }, { "reverbMix", 0.25f }
+    })));
 }
 
 static void addFX (juce::AudioProcessorValueTreeState& apvts,
@@ -1172,6 +1134,39 @@ static void addFX (juce::AudioProcessorValueTreeState& apvts,
         { "modSlot2Amt", -0.5f }, { "modSlot2On", 1 },
         { "delayMix", 0.3f }, { "reverbMix", 0.4f }
     })));
+
+    out.push_back (makePreset (apvts, cat, "Metallic Rain", merge (base, {
+        { "oscATable", WT_FMMetallic }, { "oscAPos", 0.6f }, { "oscAUnison", 3 },
+        { "oscBTable", WT_ChurchBell }, { "oscBLevel", 0.45f }, { "oscBPos", 0.4f },
+        { "ampAttack", 0.8f }, { "ampDecay", 1.5f }, { "ampSustain", 0.4f }, { "ampRelease", 3.0f },
+        { "filtACutoff", 3500.0f }, { "filtARes", 0.2f },
+        { "delayMode", 1 }, { "delayFeedback", 0.65f }, { "delayMix", 0.45f },
+        { "reverbMix", 0.6f }, { "reverbSize", 0.9f }
+    })));
+
+    out.push_back (makePreset (apvts, cat, "Glitch Storm", merge (base, {
+        { "oscATable", WT_Bitcrush }, { "oscAPos", 0.8f }, { "oscAUnison", 6 }, { "oscADetune", 0.6f },
+        { "oscBTable", WT_FilteredNoise }, { "oscBLevel", 0.5f },
+        { "noiseType", 3 }, { "noiseLevel", 0.4f },
+        { "ampAttack", 0.01f }, { "ampDecay", 0.5f }, { "ampSustain", 0.3f }, { "ampRelease", 1.5f },
+        { "filtACutoff", 1500.0f }, { "filtARes", 0.5f }, { "filtAEnvDepth", 0.6f },
+        { "lfo1Rate", 12.0f }, { "lfo1Shape", 4 },
+        { "distMix", 0.3f }, { "distDrive", 0.5f },
+        { "delayMix", 0.35f }, { "reverbMix", 0.5f }
+    })));
+
+    out.push_back (makePreset (apvts, cat, "Frozen Drift", merge (base, {
+        { "oscATable", WT_ChoirPad }, { "oscAPos", 0.5f }, { "oscAUnison", 7 }, { "oscADetune", 0.5f },
+        { "oscBTable", WT_Wind }, { "oscBLevel", 0.4f },
+        { "noiseType", 1 }, { "noiseLevel", 0.15f },
+        { "ampAttack", 3.0f }, { "ampRelease", 5.0f },
+        { "filtACutoff", 2500.0f }, { "filtAEnvDepth", 0.3f },
+        { "lfo1Rate", 0.08f }, { "lfo1FreeRun", 1 },
+        { "modSlot0Src", SRC_LFO1 }, { "modSlot0Dst", DST_OscAPos },
+        { "modSlot0Amt", 0.4f }, { "modSlot0On", 1 },
+        { "reverbMix", 0.75f }, { "reverbSize", 0.98f }, { "reverbDamp", 0.2f },
+        { "stereoWidth", 1.8f }
+    })));
 }
 
 static void addPercussion (juce::AudioProcessorValueTreeState& apvts,
@@ -1216,14 +1211,13 @@ FactoryPresets::build (juce::AudioProcessorValueTreeState& apvts)
     out.reserve (96);
 
     addPads       (apvts, out);  // 18
+    addLeads      (apvts, out);  // 15
     addDrones     (apvts, out);  // 12
-    addLeads      (apvts, out);  // 12
+    addSeq        (apvts, out);  // 12
     addBass       (apvts, out);  // 10
     addPlucks     (apvts, out);  // 10
-    addXen        (apvts, out);  // 10
     addKeys       (apvts, out);  //  8
-    addSeq        (apvts, out);  //  8
-    addFX         (apvts, out);  //  5
+    addFX         (apvts, out);  //  8
     addPercussion (apvts, out);  //  3
 
     jassert (out.size() == 96);

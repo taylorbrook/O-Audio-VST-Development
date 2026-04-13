@@ -37,8 +37,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> bowPositionRelay;
     std::unique_ptr<juce::WebSliderRelay> rosinRelay;
     std::unique_ptr<juce::WebSliderRelay> bowNoiseRelay;
-    // Friction model
-    std::unique_ptr<juce::WebComboBoxRelay> frictionTierRelay;
     // Body Controls
     std::unique_ptr<juce::WebSliderRelay> bodyMaterialRelay;
     std::unique_ptr<juce::WebSliderRelay> bodySizeRelay;
@@ -67,8 +65,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> bowPositionAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> rosinAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bowNoiseAttachment;
-    // Friction model
-    std::unique_ptr<juce::WebComboBoxParameterAttachment> frictionTierAttachment;
     // Body Controls
     std::unique_ptr<juce::WebSliderParameterAttachment> bodyMaterialAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bodySizeAttachment;
