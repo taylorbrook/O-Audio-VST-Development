@@ -52,8 +52,30 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     lpFilterEnabledRelay = std::make_unique<juce::WebSliderRelay>("lpFilterEnabled");  // v2.6.0
     lpFilterCutoffRelay = std::make_unique<juce::WebSliderRelay>("lpFilterCutoff");    // v2.6.0
     highFidelityRelay = std::make_unique<juce::WebSliderRelay>("highFidelity");        // v3.1.2
-    reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("outputGain");
+
+    // v4.0.0: Effects chain relays
+    chorusRateRelay = std::make_unique<juce::WebSliderRelay>("chorusRate");
+    chorusDepthRelay = std::make_unique<juce::WebSliderRelay>("chorusDepth");
+    chorusMixRelay = std::make_unique<juce::WebSliderRelay>("chorusMix");
+    fxDelayTimeRelay = std::make_unique<juce::WebSliderRelay>("delayTime");
+    delayFeedbackRelay = std::make_unique<juce::WebSliderRelay>("delayFeedback");
+    delayMixRelay = std::make_unique<juce::WebSliderRelay>("delayMix");
+    eqLowGainRelay = std::make_unique<juce::WebSliderRelay>("eqLowGain");
+    eqMidGainRelay = std::make_unique<juce::WebSliderRelay>("eqMidGain");
+    eqMidFreqRelay = std::make_unique<juce::WebSliderRelay>("eqMidFreq");
+    eqHighGainRelay = std::make_unique<juce::WebSliderRelay>("eqHighGain");
+    reverbSizeRelay = std::make_unique<juce::WebSliderRelay>("reverbSize");
+    reverbDampRelay = std::make_unique<juce::WebSliderRelay>("reverbDamp");
+    reverbPredelayRelay = std::make_unique<juce::WebSliderRelay>("reverbPredelay");
+    reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
+    reverbModRelay = std::make_unique<juce::WebSliderRelay>("reverbMod");
+    reverbShimmerRelay = std::make_unique<juce::WebSliderRelay>("reverbShimmer");
+    delayModeRelay = std::make_unique<juce::WebComboBoxRelay>("delayMode");
+    chorusBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("chorusBypass");
+    delayBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("delayBypass");
+    eqBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("eqBypass");
+    reverbBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("reverbBypass");
     // Multi-stage envelope relays
     strikeTimeRelay = std::make_unique<juce::WebSliderRelay>("strikeTime");
     brillianceRelay = std::make_unique<juce::WebSliderRelay>("brilliance");
@@ -114,8 +136,29 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*lpFilterEnabledRelay)  // v2.6.0
             .withOptionsFrom(*lpFilterCutoffRelay)    // v2.6.0
             .withOptionsFrom(*highFidelityRelay)      // v3.1.2
-            .withOptionsFrom(*reverbMixRelay)
             .withOptionsFrom(*outputGainRelay)
+            // v4.0.0: Effects chain relays
+            .withOptionsFrom(*chorusRateRelay)
+            .withOptionsFrom(*chorusDepthRelay)
+            .withOptionsFrom(*chorusMixRelay)
+            .withOptionsFrom(*fxDelayTimeRelay)
+            .withOptionsFrom(*delayFeedbackRelay)
+            .withOptionsFrom(*delayMixRelay)
+            .withOptionsFrom(*eqLowGainRelay)
+            .withOptionsFrom(*eqMidGainRelay)
+            .withOptionsFrom(*eqMidFreqRelay)
+            .withOptionsFrom(*eqHighGainRelay)
+            .withOptionsFrom(*reverbSizeRelay)
+            .withOptionsFrom(*reverbDampRelay)
+            .withOptionsFrom(*reverbPredelayRelay)
+            .withOptionsFrom(*reverbMixRelay)
+            .withOptionsFrom(*reverbModRelay)
+            .withOptionsFrom(*reverbShimmerRelay)
+            .withOptionsFrom(*delayModeRelay)
+            .withOptionsFrom(*chorusBypassRelay)
+            .withOptionsFrom(*delayBypassRelay)
+            .withOptionsFrom(*eqBypassRelay)
+            .withOptionsFrom(*reverbBypassRelay)
             // Multi-stage envelope relays
             .withOptionsFrom(*strikeTimeRelay)
             .withOptionsFrom(*brillianceRelay)
@@ -681,10 +724,52 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("lpFilterCutoff"), *lpFilterCutoffRelay, nullptr);    // v2.6.0
     highFidelityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("highFidelity"), *highFidelityRelay, nullptr);        // v3.1.2
-    reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("outputGain"), *outputGainRelay, nullptr);
+
+    // v4.0.0: Effects chain attachments
+    chorusRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusRate"), *chorusRateRelay, nullptr);
+    chorusDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusDepth"), *chorusDepthRelay, nullptr);
+    chorusMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusMix"), *chorusMixRelay, nullptr);
+    fxDelayTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayTime"), *fxDelayTimeRelay, nullptr);
+    delayFeedbackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayFeedback"), *delayFeedbackRelay, nullptr);
+    delayMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayMix"), *delayMixRelay, nullptr);
+    eqLowGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqLowGain"), *eqLowGainRelay, nullptr);
+    eqMidGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidGain"), *eqMidGainRelay, nullptr);
+    eqMidFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidFreq"), *eqMidFreqRelay, nullptr);
+    eqHighGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqHighGain"), *eqHighGainRelay, nullptr);
+    reverbSizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbSize"), *reverbSizeRelay, nullptr);
+    reverbDampAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbDamp"), *reverbDampRelay, nullptr);
+    reverbPredelayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbPredelay"), *reverbPredelayRelay, nullptr);
+    reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
+    reverbModAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbMod"), *reverbModRelay, nullptr);
+    reverbShimmerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbShimmer"), *reverbShimmerRelay, nullptr);
+    delayModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("delayMode"), *delayModeRelay, nullptr);
+    chorusBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("chorusBypass"), *chorusBypassRelay, nullptr);
+    delayBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("delayBypass"), *delayBypassRelay, nullptr);
+    eqBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("eqBypass"), *eqBypassRelay, nullptr);
+    reverbBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("reverbBypass"), *reverbBypassRelay, nullptr);
     // Multi-stage envelope attachments
     strikeTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("strikeTime"), *strikeTimeRelay, nullptr);

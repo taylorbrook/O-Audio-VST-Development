@@ -78,8 +78,30 @@ private:
     std::unique_ptr<juce::WebSliderRelay> lpFilterEnabledRelay;  // v2.6.0
     std::unique_ptr<juce::WebSliderRelay> lpFilterCutoffRelay;   // v2.6.0
     std::unique_ptr<juce::WebSliderRelay> highFidelityRelay;     // v3.1.2
-    std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
+
+    // v4.0.0: Effects chain relays
+    std::unique_ptr<juce::WebSliderRelay> chorusRateRelay;
+    std::unique_ptr<juce::WebSliderRelay> chorusDepthRelay;
+    std::unique_ptr<juce::WebSliderRelay> chorusMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> fxDelayTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayFeedbackRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqLowGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqMidGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqMidFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqHighGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbSizeRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbDampRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbPredelayRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbModRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbShimmerRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> delayModeRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> chorusBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> delayBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> reverbBypassRelay;
     // Multi-stage envelope relays (4 sliders, active when decayShape == 2)
     std::unique_ptr<juce::WebSliderRelay> strikeTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> brillianceRelay;
@@ -136,8 +158,30 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> lpFilterEnabledAttachment;  // v2.6.0
     std::unique_ptr<juce::WebSliderParameterAttachment> lpFilterCutoffAttachment;   // v2.6.0
     std::unique_ptr<juce::WebSliderParameterAttachment> highFidelityAttachment;     // v3.1.2
-    std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
+
+    // v4.0.0: Effects chain attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusRateAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusDepthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> fxDelayTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayFeedbackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqLowGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqMidGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqMidFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqHighGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbSizeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbDampAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbPredelayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbModAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbShimmerAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> delayModeAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> chorusBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> delayBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> reverbBypassAttachment;
     // Multi-stage envelope attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> strikeTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> brillianceAttachment;

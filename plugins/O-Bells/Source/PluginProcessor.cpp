@@ -453,14 +453,74 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         false  // Default: off (voice culling active for CPU safety)
     ));
 
-    // REVERB_MIX - Spaciousness control (0-100%)
+    // ========== Effects Chain Parameters (v4.0.0) ==========
+
+    // --- Chorus ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "chorusBypass", 1 }, "Chorus Bypass", false));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "reverbMix", 1 },
-        "Reverb",
-        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
-        0.3f,
-        "%"
-    ));
+        juce::ParameterID { "chorusRate", 1 }, "Chorus Rate",
+        juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f), 1.0f, "Hz"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusDepth", 1 }, "Chorus Depth",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f, "%"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusMix", 1 }, "Chorus Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f, "%"));
+
+    // --- Delay ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "delayBypass", 1 }, "Delay Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayTime", 1 }, "Delay Time",
+        juce::NormalisableRange<float>(0.001f, 2.0f, 0.001f), 0.375f, "s"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayFeedback", 1 }, "Delay Feedback",
+        juce::NormalisableRange<float>(0.0f, 0.95f, 0.01f), 0.3f, "%"));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "delayMode", 1 }, "Delay Mode",
+        juce::StringArray { "Normal", "PingPong" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayMix", 1 }, "Delay Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f, "%"));
+
+    // --- EQ ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "eqBypass", 1 }, "EQ Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqLowGain", 1 }, "EQ Low",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqMidGain", 1 }, "EQ Mid",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqMidFreq", 1 }, "EQ Mid Freq",
+        juce::NormalisableRange<float>(200.0f, 8000.0f, 1.0f, 0.5f), 1000.0f, "Hz"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqHighGain", 1 }, "EQ High",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
+
+    // --- Reverb (FDN) ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "reverbBypass", 1 }, "Reverb Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbSize", 1 }, "Reverb Size",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f, "%"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbDamp", 1 }, "Reverb Damp",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f, "%"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbPredelay", 1 }, "Reverb Pre-delay",
+        juce::NormalisableRange<float>(0.0f, 200.0f, 1.0f), 20.0f, "ms"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbMix", 1 }, "Reverb Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.3f, "%"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbMod", 1 }, "Reverb Mod",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.2f, "%"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbShimmer", 1 }, "Reverb Shimmer",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f, "%"));
 
     // OUTPUT_GAIN - Master output level
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -572,21 +632,20 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         }
     }
 
-    // Prepare reverb DSP
+    // Prepare effects chain DSP (v4.0.0)
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = 2;
-    reverb.prepare(spec);
 
-    // Configure reverb for spacious bell sound
-    reverbParams.roomSize = BellReverbSpec::roomSize;
-    reverbParams.damping = BellReverbSpec::damping;
-    reverbParams.width = BellReverbSpec::width;
-    reverbParams.freezeMode = BellReverbSpec::freezeMode;
-    reverbParams.wetLevel = 0.3f;  // Will be modulated by reverbMix
-    reverbParams.dryLevel = 0.7f;
-    reverb.setParameters(reverbParams);
+    chorus.prepare(spec);
+    chorus.reset();
+    chorus.setCentreDelay(7.0f);
+    chorus.setFeedback(0.0f);
+
+    delayProcessor.prepare(spec);
+    eqProcessor.prepare(spec);
+    reverbFDN.prepare(spec);
 
     // Cache parameter pointers (atomic reads in processBlock)
     // Main Panel
@@ -642,14 +701,39 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     tuningPitchBendRangeParam = parameters.getRawParameterValue("tuning_pitchBendRange");
     tuningTemperamentPresetParam = parameters.getRawParameterValue("tuning_temperamentPreset");
     // Output
-    reverbMixParam = parameters.getRawParameterValue("reverbMix");
     outputGainParam = parameters.getRawParameterValue("outputGain");
+
+    // v4.0.0: Effects chain parameter cache
+    fxCache.chorusBypass    = parameters.getRawParameterValue("chorusBypass");
+    fxCache.chorusRate      = parameters.getRawParameterValue("chorusRate");
+    fxCache.chorusDepth     = parameters.getRawParameterValue("chorusDepth");
+    fxCache.chorusMix       = parameters.getRawParameterValue("chorusMix");
+    fxCache.delayBypass     = parameters.getRawParameterValue("delayBypass");
+    fxCache.delayTime       = parameters.getRawParameterValue("delayTime");
+    fxCache.delayFeedback   = parameters.getRawParameterValue("delayFeedback");
+    fxCache.delayMode       = parameters.getRawParameterValue("delayMode");
+    fxCache.delayMix        = parameters.getRawParameterValue("delayMix");
+    fxCache.eqBypass        = parameters.getRawParameterValue("eqBypass");
+    fxCache.eqLowGain       = parameters.getRawParameterValue("eqLowGain");
+    fxCache.eqMidGain       = parameters.getRawParameterValue("eqMidGain");
+    fxCache.eqMidFreq       = parameters.getRawParameterValue("eqMidFreq");
+    fxCache.eqHighGain      = parameters.getRawParameterValue("eqHighGain");
+    fxCache.reverbBypass    = parameters.getRawParameterValue("reverbBypass");
+    fxCache.reverbSize      = parameters.getRawParameterValue("reverbSize");
+    fxCache.reverbDamp      = parameters.getRawParameterValue("reverbDamp");
+    fxCache.reverbPredelay  = parameters.getRawParameterValue("reverbPredelay");
+    fxCache.reverbMix       = parameters.getRawParameterValue("reverbMix");
+    fxCache.reverbMod       = parameters.getRawParameterValue("reverbMod");
+    fxCache.reverbShimmer   = parameters.getRawParameterValue("reverbShimmer");
 }
 
 void OBellsAudioProcessor::releaseResources()
 {
-    // Release reverb resources
-    reverb.reset();
+    // Release effects chain resources
+    chorus.reset();
+    delayProcessor.reset();
+    eqProcessor.reset();
+    reverbFDN.reset();
 }
 
 void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -801,16 +885,72 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         }
     }
 
-    // Read reverb mix parameter and apply reverb
-    float reverbMix = reverbMixParam->load();
-    reverbParams.wetLevel = reverbMix;
-    reverbParams.dryLevel = 1.0f - (reverbMix * 0.5f);  // Keep some dry signal even at 100%
-    reverb.setParameters(reverbParams);
-
-    // Process reverb (stereo in-place)
+    // v4.0.0: Effects chain (Chorus -> Delay -> Reverb -> EQ)
     juce::dsp::AudioBlock<float> block(buffer);
-    juce::dsp::ProcessContextReplacing<float> context(block);
-    reverb.process(context);
+
+    // 1. Chorus
+    bool chorusBypassed = fxCache.chorusBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!chorusBypassed)
+    {
+        float chorusRate = fxCache.chorusRate->load(std::memory_order_relaxed);
+        float chorusDepth = fxCache.chorusDepth->load(std::memory_order_relaxed);
+        float chorusMixVal = fxCache.chorusMix->load(std::memory_order_relaxed);
+
+        chorus.setRate(chorusRate);
+        chorus.setDepth(chorusDepth);
+        chorus.setMix(chorusMixVal);
+
+        if (chorusMixVal > 0.001f)
+        {
+            juce::dsp::ProcessContextReplacing<float> chorusCtx(block);
+            chorus.process(chorusCtx);
+        }
+    }
+
+    // 2. Delay
+    bool delayBypassed = fxCache.delayBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!delayBypassed)
+    {
+        float delayTimeSec = fxCache.delayTime->load(std::memory_order_relaxed);
+        float delayFb = fxCache.delayFeedback->load(std::memory_order_relaxed);
+        int delayModeVal = static_cast<int>(fxCache.delayMode->load(std::memory_order_relaxed));
+        float delayMixVal = fxCache.delayMix->load(std::memory_order_relaxed);
+
+        delayProcessor.setTime(delayTimeSec);
+        delayProcessor.setFeedback(delayFb);
+        delayProcessor.setMode(delayModeVal);
+        delayProcessor.setMix(delayMixVal);
+
+        if (delayMixVal > 0.001f)
+            delayProcessor.process(block);
+    }
+
+    // 3. Reverb (FDN)
+    bool reverbBypassed = fxCache.reverbBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!reverbBypassed)
+    {
+        float reverbMixVal = fxCache.reverbMix->load(std::memory_order_relaxed);
+        reverbFDN.setSize(fxCache.reverbSize->load(std::memory_order_relaxed));
+        reverbFDN.setDamping(fxCache.reverbDamp->load(std::memory_order_relaxed));
+        reverbFDN.setPredelay(fxCache.reverbPredelay->load(std::memory_order_relaxed));
+        reverbFDN.setMix(reverbMixVal);
+        reverbFDN.setMod(fxCache.reverbMod->load(std::memory_order_relaxed));
+        reverbFDN.setShimmer(fxCache.reverbShimmer->load(std::memory_order_relaxed));
+
+        if (reverbMixVal > 0.001f)
+            reverbFDN.process(block);
+    }
+
+    // 4. EQ
+    bool eqBypassed = fxCache.eqBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!eqBypassed)
+    {
+        eqProcessor.setLowGain(fxCache.eqLowGain->load(std::memory_order_relaxed));
+        eqProcessor.setMidGain(fxCache.eqMidGain->load(std::memory_order_relaxed));
+        eqProcessor.setMidFreq(fxCache.eqMidFreq->load(std::memory_order_relaxed));
+        eqProcessor.setHighGain(fxCache.eqHighGain->load(std::memory_order_relaxed));
+        eqProcessor.process(block);
+    }
 
     // Calculate output levels for metering (peak detection)
     const int numSamples = buffer.getNumSamples();

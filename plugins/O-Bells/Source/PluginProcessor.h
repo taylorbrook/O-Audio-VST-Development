@@ -15,6 +15,9 @@
 #include "BellVoice.h"
 #include "OuariconPresetManager.h"
 #include "TuningEngine.h"
+#include "DSP/DelayProcessor.h"
+#include "DSP/EQProcessor.h"
+#include "DSP/ReverbProcessor.h"
 #include "ScaleGenerator.h"
 #include "TuningExporter.h"
 #include "EmbeddedTunings.h"
@@ -22,15 +25,6 @@
 #if OUARICON_LICENSING_ENABLED
   #include "OuariconLicense.h"
 #endif
-
-// Reverb spec for spacious bell sound
-struct BellReverbSpec
-{
-    static constexpr float roomSize = 0.7f;      // Large room
-    static constexpr float damping = 0.4f;       // Moderate high-freq damping
-    static constexpr float width = 1.0f;         // Full stereo width
-    static constexpr float freezeMode = 0.0f;    // No freeze
-};
 
 class OBellsAudioProcessor : public juce::AudioProcessor,
                               public juce::AudioProcessorValueTreeState::Listener
@@ -96,8 +90,12 @@ public:
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
-    juce::dsp::Reverb reverb;
-    juce::dsp::Reverb::Parameters reverbParams;
+
+    // v4.0.0: Effects chain (Chorus -> Delay -> Reverb -> EQ)
+    juce::dsp::Chorus<float> chorus;
+    DelayProcessor delayProcessor;
+    EQProcessor eqProcessor;
+    ReverbProcessor reverbFDN;
 
     // v3.0.0: Tuning engine
     TuningEngine tuningEngine;
@@ -161,8 +159,34 @@ private:
     std::atomic<float>* tuningPitchBendRangeParam = nullptr;
     std::atomic<float>* tuningTemperamentPresetParam = nullptr;
     // Output
-    std::atomic<float>* reverbMixParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
+
+    // v4.0.0: Effects chain cached parameter pointers
+    struct EffectsParamCache
+    {
+        std::atomic<float>* chorusBypass = nullptr;
+        std::atomic<float>* chorusRate = nullptr;
+        std::atomic<float>* chorusDepth = nullptr;
+        std::atomic<float>* chorusMix = nullptr;
+        std::atomic<float>* delayBypass = nullptr;
+        std::atomic<float>* delayTime = nullptr;
+        std::atomic<float>* delayFeedback = nullptr;
+        std::atomic<float>* delayMode = nullptr;
+        std::atomic<float>* delayMix = nullptr;
+        std::atomic<float>* eqBypass = nullptr;
+        std::atomic<float>* eqLowGain = nullptr;
+        std::atomic<float>* eqMidGain = nullptr;
+        std::atomic<float>* eqMidFreq = nullptr;
+        std::atomic<float>* eqHighGain = nullptr;
+        std::atomic<float>* reverbBypass = nullptr;
+        std::atomic<float>* reverbSize = nullptr;
+        std::atomic<float>* reverbDamp = nullptr;
+        std::atomic<float>* reverbPredelay = nullptr;
+        std::atomic<float>* reverbMix = nullptr;
+        std::atomic<float>* reverbMod = nullptr;
+        std::atomic<float>* reverbShimmer = nullptr;
+    };
+    EffectsParamCache fxCache;
 
     // APVTS (AFTER DSP components)
     juce::AudioProcessorValueTreeState parameters;

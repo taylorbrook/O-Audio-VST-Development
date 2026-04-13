@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "3.2.1"
+    PLUGIN_VERSION "4.0.0"
 
     # Synthesizer configuration
     IS_SYNTH TRUE
@@ -28,6 +28,12 @@ target_sources(O-Bells
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
         Source/BellSound.h
+        Source/DSP/DelayProcessor.h
+        Source/DSP/DelayProcessor.cpp
+        Source/DSP/EQProcessor.h
+        Source/DSP/EQProcessor.cpp
+        Source/DSP/ReverbProcessor.h
+        Source/DSP/ReverbProcessor.cpp
         Source/BellVoice.h
         Source/BellVoice.cpp
         Source/TuningEngine.cpp
@@ -40,6 +46,7 @@ target_sources(O-Bells
 target_include_directories(O-Bells
     PRIVATE
         Source
+        Source/DSP
 )
 
 # Required JUCE modules
