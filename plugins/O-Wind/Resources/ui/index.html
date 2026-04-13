@@ -616,25 +616,135 @@
         }
 
         /* ====================================================================
-           Effects Tab (placeholder)
+           Effects Tab (v1.14.0)
            ==================================================================== */
-        .effects-placeholder {
+        #tab-effects {
+            gap: 6px;
+        }
+
+        .fx-section {
+            background: rgba(255, 248, 220, 0.25);
+            border: 1px solid rgba(139, 115, 85, 0.35);
+            border-radius: 5px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fx-header {
+            display: contents;
+        }
+
+        .fx-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--green-dark);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: auto;
+        }
+
+        .fx-bypass-btn {
+            padding: 2px 8px;
+            background: rgba(107, 142, 35, 0.5);
+            border: 1px solid var(--brown-frame);
+            border-radius: 3px;
+            font-size: 9px;
+            color: #1a2a10;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            order: 99;
+            margin-left: auto;
+        }
+
+        .fx-bypass-btn.bypassed {
+            background: rgba(139, 115, 85, 0.2);
+            color: rgba(60, 47, 47, 0.4);
+        }
+
+        .fx-knobs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .fx-section.bypassed .fx-knobs {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        /* SVG Vine-Arc Knobs for Effects Tab */
+        #tab-effects .knob-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            gap: 1px;
+        }
+
+        #tab-effects .knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #tab-effects .knob-visual {
+            width: 44px;
+            height: 44px;
+            position: relative;
+        }
+
+        #tab-effects .knob-visual svg {
+            width: 100%;
             height: 100%;
-            color: var(--brown-text-lighter);
+            transform: rotate(-135deg);
         }
-        .effects-placeholder h2 {
-            font-weight: 400;
-            font-style: italic;
-            font-size: 24px;
-            margin-bottom: 8px;
+
+        #tab-effects .knob-track {
+            fill: none;
+            stroke: rgba(139, 115, 85, 0.3);
+            stroke-width: 2;
         }
-        .effects-placeholder p {
-            font-size: 14px;
-            opacity: 0.7;
+
+        #tab-effects .knob-vine {
+            fill: none;
+            stroke: var(--knob-fill);
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        #tab-effects .knob-label {
+            font-size: 9px;
+            color: var(--brown-text);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #tab-effects .knob-value {
+            font-size: 9px;
+            color: var(--brown-frame);
+            font-weight: bold;
+        }
+
+        .fx-dropdown-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .fx-dropdown {
+            padding: 2px 4px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid var(--brown-border);
+            border-radius: 3px;
+            font-size: 9px;
+            color: var(--brown-text);
+            cursor: pointer;
+            font-family: inherit;
         }
 
         /* ====================================================================
@@ -921,14 +1031,39 @@
             <div id="visual-polish-tuning" class="future-feature" style="display:none;"></div>
         </div>
 
-        <!-- EFFECTS TAB -->
+        <!-- EFFECTS TAB (v1.14.0) -->
         <div class="tab-panel" id="tab-effects">
-            <div class="effects-placeholder">
-                <h2>Coming Soon</h2>
-                <p>Effects processing will be added in a future update.</p>
+            <div class="fx-section" id="chorusSection">
+                <div class="fx-header">
+                    <span class="fx-title">Chorus</span>
+                    <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="chorus-knobs"></div>
             </div>
-            <!-- Placeholder: Visual Polish (UI-08) -->
-            <div id="visual-polish-effects" class="future-feature" style="display:none;"></div>
+
+            <div class="fx-section" id="delaySection">
+                <div class="fx-header">
+                    <span class="fx-title">Delay</span>
+                    <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="delay-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="reverbSection">
+                <div class="fx-header">
+                    <span class="fx-title">Reverb</span>
+                    <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="reverb-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="eqSection">
+                <div class="fx-header">
+                    <span class="fx-title">EQ</span>
+                    <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="eq-knobs"></div>
+            </div>
         </div>
 
     </div>
@@ -1423,10 +1558,275 @@
         }
 
         // ====================================================================
+        // Effects Tab (v1.14.0)
+        // ====================================================================
+        const fxKnobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!fxKnobDrag.active) return;
+            const deltaY = fxKnobDrag.lastY - e.clientY;
+            const sensitivity = 0.005;
+            fxKnobDrag.virtualNorm = Math.max(0, Math.min(1, fxKnobDrag.virtualNorm + (deltaY * sensitivity)));
+            fxKnobDrag.state.setNormalisedValue(fxKnobDrag.virtualNorm);
+            fxKnobDrag.lastY = e.clientY;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (fxKnobDrag.active) {
+                fxKnobDrag.state.sliderDragEnded();
+                fxKnobDrag.active = false;
+                fxKnobDrag.state = null;
+            }
+        });
+
+        function makeFxKnob(id, label) {
+            const vb = 44, c = 22, r = 18;
+            const da = (2 * Math.PI * r * 0.75).toFixed(2);
+            const container = document.createElement('div');
+            container.className = 'knob-container';
+            container.innerHTML =
+                `<div class="knob" id="${id}Knob">` +
+                    `<div class="knob-visual">` +
+                        `<svg viewBox="0 0 ${vb} ${vb}">` +
+                            `<circle class="knob-track" cx="${c}" cy="${c}" r="${r}"/>` +
+                            `<circle class="knob-vine" id="${id}Vine" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${da}" stroke-dashoffset="${da}"/>` +
+                        `</svg>` +
+                    `</div>` +
+                `</div>` +
+                `<div class="knob-label">${label}</div>` +
+                `<div class="knob-value" id="${id}Value"></div>`;
+            return container;
+        }
+
+        function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter) {
+            if (!sliderState) return;
+            const knobEl = document.getElementById(id + 'Knob');
+            const vine = document.getElementById(id + 'Vine');
+            const valueDisplay = document.getElementById(id + 'Value');
+            if (!knobEl || !vine || !valueDisplay) return;
+
+            const r = parseFloat(vine.getAttribute('r'));
+            const arcLength = 2 * Math.PI * r * 0.75;
+            let isEditing = false;
+
+            function updateVisual() {
+                const normValue = sliderState.getNormalisedValue();
+                const realValue = displayMin + (normValue * (displayMax - displayMin));
+                vine.style.strokeDashoffset = arcLength - (normValue * arcLength);
+                if (!isEditing) {
+                    valueDisplay.textContent = formatter(realValue) + suffix;
+                }
+            }
+
+            sliderState.valueChangedEvent.addListener(() => updateVisual());
+
+            const knobVisual = knobEl.querySelector('.knob-visual');
+            (knobVisual || knobEl).addEventListener('mousedown', (e) => {
+                fxKnobDrag.active = true;
+                fxKnobDrag.state = sliderState;
+                fxKnobDrag.lastY = e.clientY;
+                fxKnobDrag.virtualNorm = sliderState.getNormalisedValue();
+                sliderState.sliderDragStarted();
+                e.preventDefault();
+            });
+
+            (knobVisual || knobEl).addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const currentNorm = sliderState.getNormalisedValue();
+                const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                sliderState.setNormalisedValue(Math.max(0, Math.min(1, currentNorm + delta)));
+            }, { passive: false });
+
+            updateVisual();
+
+            valueDisplay.style.cursor = 'text';
+            valueDisplay.title = 'Double-click to edit';
+            valueDisplay.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                if (isEditing) return;
+                isEditing = true;
+                const normValue = sliderState.getNormalisedValue();
+                const realValue = displayMin + (normValue * (displayMax - displayMin));
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = formatter(realValue);
+                input.style.cssText = `
+                    width: 45px; text-align: center; font-size: 9px;
+                    color: var(--brown-frame); background: rgba(255,248,220,0.9);
+                    border: 1px solid var(--brown-border); border-radius: 3px;
+                    padding: 1px 2px; outline: none; user-select: text;
+                    -webkit-user-select: text;
+                `;
+                valueDisplay.textContent = '';
+                valueDisplay.appendChild(input);
+                input.focus();
+                input.select();
+
+                function commitValue() {
+                    if (!isEditing) return;
+                    const rawVal = parseFloat(input.value);
+                    if (!isNaN(rawVal)) {
+                        const clamped = Math.max(displayMin, Math.min(displayMax, rawVal));
+                        const norm = (clamped - displayMin) / (displayMax - displayMin);
+                        sliderState.sliderDragStarted();
+                        sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
+                        sliderState.sliderDragEnded();
+                    }
+                    isEditing = false;
+                    updateVisual();
+                }
+
+                input.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
+                    else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
+                });
+                input.addEventListener('blur', () => { if (isEditing) commitValue(); });
+            });
+        }
+
+        function populateFxKnobs(containerId, knobs) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            knobs.forEach(k => container.appendChild(makeFxKnob(k.id, k.label)));
+        }
+
+        function setupFxBypassToggle(fxName, toggleState) {
+            const btn = document.getElementById(fxName + 'BypassBtn');
+            const section = document.getElementById(fxName + 'Section');
+            if (!btn || !section || !toggleState) return;
+
+            function updateVisual() {
+                const bypassed = toggleState.getValue();
+                btn.textContent = bypassed ? 'Off' : 'On';
+                btn.classList.toggle('bypassed', bypassed);
+                section.classList.toggle('bypassed', bypassed);
+            }
+
+            toggleState.valueChangedEvent.addListener(() => updateVisual());
+            btn.addEventListener('click', () => toggleState.setValue(!toggleState.getValue()));
+            updateVisual();
+        }
+
+        function initializeEffects() {
+            try {
+                // Populate knobs
+                populateFxKnobs('chorus-knobs', [
+                    { id: 'chorusRate', label: 'Rate' },
+                    { id: 'chorusDepth', label: 'Depth' },
+                    { id: 'chorusMix', label: 'Mix' },
+                ]);
+
+                const delayRow = document.getElementById('delay-knobs');
+                if (delayRow) {
+                    delayRow.appendChild(makeFxKnob('delayTime', 'Time'));
+                    delayRow.appendChild(makeFxKnob('delayFeedback', 'Feedback'));
+
+                    const modeWrap = document.createElement('div');
+                    modeWrap.className = 'fx-dropdown-container';
+                    const modeLbl = document.createElement('div');
+                    modeLbl.className = 'knob-label';
+                    modeLbl.textContent = 'Mode';
+                    const modeSel = document.createElement('select');
+                    modeSel.className = 'fx-dropdown';
+                    modeSel.id = 'delayModeSelect';
+                    ['Normal', 'PingPong'].forEach((name, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = i;
+                        opt.textContent = name;
+                        modeSel.appendChild(opt);
+                    });
+                    modeWrap.appendChild(modeLbl);
+                    modeWrap.appendChild(modeSel);
+                    delayRow.appendChild(modeWrap);
+                    delayRow.appendChild(makeFxKnob('delayMix', 'Mix'));
+                }
+
+                populateFxKnobs('eq-knobs', [
+                    { id: 'eqLowGain', label: 'Low' },
+                    { id: 'eqMidGain', label: 'Mid' },
+                    { id: 'eqMidFreq', label: 'Mid Freq' },
+                    { id: 'eqHighGain', label: 'High' },
+                ]);
+
+                populateFxKnobs('reverb-knobs', [
+                    { id: 'reverbSize', label: 'Size' },
+                    { id: 'reverbDamp', label: 'Damp' },
+                    { id: 'reverbPredelay', label: 'Pre-dly' },
+                    { id: 'reverbMod', label: 'Mod' },
+                    { id: 'reverbShimmer', label: 'Shimmer' },
+                    { id: 'reverbMix', label: 'Mix' },
+                ]);
+
+                // Get JUCE states
+                const chorusRateState     = Juce.getSliderState('chorusRate');
+                const chorusDepthState    = Juce.getSliderState('chorusDepth');
+                const chorusMixState      = Juce.getSliderState('chorusMix');
+                const delayTimeState      = Juce.getSliderState('delayTime');
+                const delayFeedbackState  = Juce.getSliderState('delayFeedback');
+                const delayModeState      = Juce.getComboBoxState('delayMode');
+                const delayMixState       = Juce.getSliderState('delayMix');
+                const eqLowGainState      = Juce.getSliderState('eqLowGain');
+                const eqMidGainState      = Juce.getSliderState('eqMidGain');
+                const eqMidFreqState      = Juce.getSliderState('eqMidFreq');
+                const eqHighGainState     = Juce.getSliderState('eqHighGain');
+                const reverbSizeState     = Juce.getSliderState('reverbSize');
+                const reverbDampState     = Juce.getSliderState('reverbDamp');
+                const reverbPredelayState = Juce.getSliderState('reverbPredelay');
+                const reverbMixState      = Juce.getSliderState('reverbMix');
+                const reverbModState      = Juce.getSliderState('reverbMod');
+                const reverbShimmerState  = Juce.getSliderState('reverbShimmer');
+                const chorusBypassState   = Juce.getToggleState('chorusBypass');
+                const delayBypassState    = Juce.getToggleState('delayBypass');
+                const eqBypassState       = Juce.getToggleState('eqBypass');
+                const reverbBypassState   = Juce.getToggleState('reverbBypass');
+
+                // Setup knobs with display ranges
+                setupFxKnob('chorusRate',      chorusRateState,     0.1, 10, ' Hz', v => v.toFixed(2));
+                setupFxKnob('chorusDepth',     chorusDepthState,    0, 100, '%', v => Math.round(v));
+                setupFxKnob('chorusMix',       chorusMixState,      0, 100, '%', v => Math.round(v));
+                setupFxKnob('delayTime',       delayTimeState,      1, 2000, ' ms', v => Math.round(v));
+                setupFxKnob('delayFeedback',   delayFeedbackState,  0, 95, '%', v => Math.round(v));
+                setupFxKnob('delayMix',        delayMixState,       0, 100, '%', v => Math.round(v));
+                setupFxKnob('eqLowGain',       eqLowGainState,      -12, 12, ' dB', v => v.toFixed(1));
+                setupFxKnob('eqMidGain',       eqMidGainState,      -12, 12, ' dB', v => v.toFixed(1));
+                setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v));
+                setupFxKnob('eqHighGain',      eqHighGainState,     -12, 12, ' dB', v => v.toFixed(1));
+                setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v));
+                setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v));
+                setupFxKnob('reverbPredelay',  reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
+                setupFxKnob('reverbMod',       reverbModState,      0, 100, '%', v => Math.round(v));
+                setupFxKnob('reverbShimmer',   reverbShimmerState,  0, 100, '%', v => Math.round(v));
+                setupFxKnob('reverbMix',       reverbMixState,      0, 100, '%', v => Math.round(v));
+
+                // Delay mode dropdown
+                const modeSelect = document.getElementById('delayModeSelect');
+                if (modeSelect && delayModeState) {
+                    modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+                    modeSelect.addEventListener('change', (e) => {
+                        delayModeState.setChoiceIndex(e.target.selectedIndex);
+                    });
+                    delayModeState.valueChangedEvent.addListener(() => {
+                        modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+                    });
+                }
+
+                // Bypass toggles
+                setupFxBypassToggle('chorus', chorusBypassState);
+                setupFxBypassToggle('delay', delayBypassState);
+                setupFxBypassToggle('eq', eqBypassState);
+                setupFxBypassToggle('reverb', reverbBypassState);
+
+                console.log('[Effects] Panel initialized (v1.14.0)');
+            } catch (error) {
+                console.error('Failed to initialize effects:', error);
+            }
+        }
+
+        // ====================================================================
         // Initialize All Bindings
         // ====================================================================
         document.addEventListener('DOMContentLoaded', async () => {
-            // Bind all 14 slider parameters
+            // Bind all slider parameters
             Object.keys(PARAMS).forEach(paramName => {
                 bindSliderParam(paramName);
             });
@@ -1439,6 +1839,9 @@
 
             // Bind instrument preset selector
             await bindInstrumentPreset();
+
+            // Initialize effects panel
+            initializeEffects();
 
             // Initialize preset display
             await refreshPresetDisplay();

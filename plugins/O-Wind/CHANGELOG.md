@@ -1,5 +1,25 @@
 # O-Wind Changelog
 
+## [1.14.0] - 2026-04-13
+
+### Added — Effects Panel (Chorus, Delay, Reverb, EQ)
+
+Added a full effects chain matching O-Lyrica's effects panel — 4 professional effects with 21 new parameters, replacing the "Coming Soon" placeholder in the Effects tab.
+
+**Effects Chain (processing order: Chorus → Delay → Reverb → EQ):**
+
+- **Chorus** — JUCE built-in chorus with Rate (0.1-10 Hz), Depth, Mix, and bypass toggle
+- **Delay** — Lagrange-interpolated stereo delay with Time (1-2000 ms), Feedback (0-95%), Normal/PingPong mode, Mix, and bypass toggle
+- **3-Band EQ** — Low shelf (200 Hz), parametric mid (200-8000 Hz), high shelf (8000 Hz), each ±12 dB, with bypass toggle
+- **FDN Plate Reverb** — 8-channel Feedback Delay Network with Householder matrix, 4-stage input diffusion, Size, Damping, Pre-delay (0-200 ms), Modulation, Shimmer (octave-up feedback), Mix, and bypass toggle
+
+**DSP:** Ported from O-Lyrica — DelayProcessor, EQProcessor, ReverbProcessor. All effects use atomic parameter caching for thread-safe real-time access. Each effect has a mix gate (skips processing when mix < 0.001) and bypass toggle. Tail length updated to 3.0s for reverb/delay tails.
+
+**UI:** SVG vine-arc knobs (44×44px) with drag, scroll, and double-click-to-edit. Bypass toggles per effect (On/Off). Delay mode dropdown (Normal/PingPong). Matches O-Wind's naturalist aesthetic.
+
+**Files Added:** DSP/DelayProcessor.h/.cpp, DSP/EQProcessor.h/.cpp, DSP/ReverbProcessor.h/.cpp
+**Files Modified:** PluginProcessor.h, PluginProcessor.cpp, CMakeLists.txt, Resources/ui/index.html
+
 ## [1.13.0] - 2026-04-13
 
 ### Added — Optional ADSR Amplitude Envelope

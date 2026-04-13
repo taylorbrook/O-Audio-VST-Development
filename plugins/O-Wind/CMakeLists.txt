@@ -34,6 +34,12 @@ target_sources(O-Wind
         Source/DSP/InstrumentPresets.h
         Source/DSP/StereoWidth.h
         Source/DSP/ToneHoleSystem.h
+        Source/DSP/DelayProcessor.h
+        Source/DSP/DelayProcessor.cpp
+        Source/DSP/EQProcessor.h
+        Source/DSP/EQProcessor.cpp
+        Source/DSP/ReverbProcessor.h
+        Source/DSP/ReverbProcessor.cpp
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
