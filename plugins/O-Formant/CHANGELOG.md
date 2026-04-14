@@ -2,6 +2,34 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.22.0] - 2026-04-13
+
+### Improved
+- **Lyrics mode XY pad animation** — When lyrics mode is active, vowel and consonant XY pads on the Synth tab now show the dot moving to each syllable's target position as notes are played
+- **XY pads disabled during lyrics mode** — Pointer interaction is blocked on both pads when lyrics are driving articulation, preventing accidental overrides
+- **Visual lyrics mode indicator** — XY pads show "LYRICS" label, dimmed overlay, and deeper green dot/crosshair color when in lyrics-driven mode
+- **Extended `getLyricsPosition()`** — Native function now returns current syllable's vowelX, vowelY, consonantTone, and sibilance for UI animation
+
+## [1.21.0] - 2026-04-13
+
+### Added
+- **Lyrics Engine (MVP)** — New "Lyrics" tab for phoneme-driven vocal articulation
+  - ARPABET phonetic input: type phoneme sequences and the synth performs them one syllable per MIDI note
+  - Automatic syllabification via Maximum Onset Principle (MOP) algorithm
+  - Global syllable stepping: each note-on advances to the next syllable
+  - Loop mode (default on) with Reset button
+  - Per-syllable parameter automation: vowelX/Y, consonant place/manner/voicing/level, nasal coupling/place
+  - Phoneme-to-parameter mapping for all English ARPABET phonemes (15 vowels + 24 consonants)
+  - Visual syllable display with real-time position highlighting
+  - Lyrics text persists across DAW save/load
+- **`lyricsEnabled` parameter** — Toggle to activate/deactivate lyrics-driven articulation
+- **7 new native functions** for WebView-C++ lyrics communication
+
+### Technical Notes
+- New DSP file: `dsp/LyricsEngine.h` — Thread-safe syllable queue with SpinLock, atomic index
+- LyricsEngine acts as parameter overlay: when enabled, overrides vowelX/Y and consonant params at note-on
+- When disabled, all existing parameters and presets work exactly as before
+
 ## [1.20.0] - 2026-04-12
 
 ### Added

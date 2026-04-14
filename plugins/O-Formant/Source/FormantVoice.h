@@ -21,6 +21,7 @@
 #include "dsp/VibratoLFO.h"
 #include "dsp/PitchGlide.h"
 #include "dsp/ConsonantEngine.h"
+#include "dsp/LyricsEngine.h"
 
 class TuningEngine;
 
@@ -32,6 +33,7 @@ public:
     void setAPVTS (juce::AudioProcessorValueTreeState* apvts);
     void setWavetable (const GlottalWavetable* wt);
     void setTuningEngine (TuningEngine* te);
+    void setLyricsEngine (LyricsEngine* le);
     void prepare (double sampleRate);
 
     // --- MPESynthesiserVoice pure virtual overrides ---
@@ -89,6 +91,11 @@ private:
     TuningEngine* tuningEnginePtr = nullptr;
     float tunedF0 = 440.0f; // cached tuned frequency for current note
 
+    // --- Lyrics ---
+    LyricsEngine* lyricsEnginePtr = nullptr;
+    LyricsEngine::SyllableTarget currentSyllable;
+    bool lyricsActive = false;  // cached per-note: was lyrics enabled at note-on?
+
     // --- APVTS ---
     juce::AudioProcessorValueTreeState* parameters = nullptr;
 
@@ -138,6 +145,9 @@ private:
     // Nasal
     std::atomic<float>* pNasalCoupling = nullptr;
     std::atomic<float>* pNasalPlace    = nullptr;
+
+    // Lyrics
+    std::atomic<float>* pLyricsEnabled = nullptr;
 
     // Output
     std::atomic<float>* pOutputGain   = nullptr;

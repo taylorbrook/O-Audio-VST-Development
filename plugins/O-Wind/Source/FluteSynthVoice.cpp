@@ -146,6 +146,7 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     releaseFade = 1.0f;
     releaseFadeInc = 0.0f;
     releaseFading = false;
+    pendingJetRelease = false;
 
     // ADSR envelope: start attack if enabled, otherwise passthrough
     if (adsrEnabled)
@@ -166,14 +167,20 @@ void FluteSynthVoice::stopNote (float, bool allowTailOff)
 {
     if (allowTailOff)
     {
-        jetExciter.stopNote();
-
         // ADSR: enter release stage if enabled
         if (adsrEnabled && adsrStage != ADSRStage::Idle)
         {
+            // Defer jet exciter release — keep breath excitation alive so the
+            // waveguide has energy for the ADSR release envelope to shape.
+            // jetExciter.stopNote() is called when ADSR reaches zero.
+            pendingJetRelease = true;
             adsrStage = ADSRStage::Release;
             float releaseSamples = std::max (1.0f, static_cast<float> (internalSampleRate * adsrReleaseSeconds));
             adsrIncrement = -adsrLevel / releaseSamples;
+        }
+        else
+        {
+            jetExciter.stopNote();
         }
     }
     else
@@ -186,6 +193,7 @@ void FluteSynthVoice::stopNote (float, bool allowTailOff)
         jetDelay.reset();
         adsrStage = ADSRStage::Idle;
         adsrLevel = 0.0f;
+        pendingJetRelease = false;
     }
 }
 
@@ -276,8 +284,12 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     updateParametersFromAPVTS();
 
     // Voice clearing: once breath envelope has fully released, begin a fade-out
-    // to ensure the voice clears even if the bore waveguide has residual energy
-    if (jetExciter.isReleasing() && jetExciter.getEnvelopeLevel() < energyThreshold)
+    // to ensure the voice clears even if the bore waveguide has residual energy.
+    // If ADSR is enabled and still releasing, defer cleanup so the ADSR release
+    // tail is heard (the physical model's waveguide output shapes the release).
+    bool adsrStillReleasing = adsrEnabled && adsrStage == ADSRStage::Release;
+    if (jetExciter.isReleasing() && jetExciter.getEnvelopeLevel() < energyThreshold
+        && ! adsrStillReleasing)
     {
         if (! releaseFading)
         {
@@ -455,6 +467,12 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                     {
                         adsrLevel = 0.0f;
                         adsrStage = ADSRStage::Idle;
+                        // Now release the breath excitation so voice cleanup can proceed
+                        if (pendingJetRelease)
+                        {
+                            jetExciter.stopNote();
+                            pendingJetRelease = false;
+                        }
                     }
                     break;
                 case ADSRStage::Idle:

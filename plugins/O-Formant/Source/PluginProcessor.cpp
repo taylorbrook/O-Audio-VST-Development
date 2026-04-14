@@ -418,6 +418,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         0.0f,
         "dB"));
 
+    // --- Lyrics (1) ---
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "lyricsEnabled", 1 },
+        "Lyrics Enabled",
+        false));
+
     return layout;
 }
 
@@ -674,6 +680,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
         voice->setAPVTS (&parameters);
         voice->setWavetable (&glottalWavetable);
         voice->setTuningEngine (&tuningEngine);
+        voice->setLyricsEngine (&lyricsEngine);
         synthesiser.addVoice (voice);
     }
 
@@ -843,6 +850,11 @@ void OFormantAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     tuningState.setProperty ("tonic", tuningEngine.getTonicNote(), nullptr);
     tuningState.setProperty ("preset", static_cast<int> (tuningEngine.getBuiltInPreset()), nullptr);
 
+    // Save lyrics engine state
+    auto lyricsState = state.getOrCreateChildWithName ("lyricsEngine", nullptr);
+    lyricsState.setProperty ("text", lyricsEngine.getLyricsText(), nullptr);
+    lyricsState.setProperty ("looping", lyricsEngine.isLooping(), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     xml->setAttribute ("currentPreset", presetManager.getCurrentPresetName());
     copyXmlToBinary (*xml, destData);
@@ -878,6 +890,16 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
 
             int tonic = tuningState.getProperty ("tonic", 0);
             tuningEngine.setTonicNote (tonic);
+        }
+
+        // Restore lyrics engine state
+        auto lyricsState = state.getChildWithName ("lyricsEngine");
+        if (lyricsState.isValid())
+        {
+            juce::String text = lyricsState.getProperty ("text", "");
+            lyricsEngine.setLyricsText (text);
+            bool loop = lyricsState.getProperty ("looping", true);
+            lyricsEngine.setLooping (loop);
         }
     }
 }

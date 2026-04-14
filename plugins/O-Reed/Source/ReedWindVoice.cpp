@@ -377,6 +377,7 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         frequency *= std::pow(2.0f, bendSemitones / 12.0f);
     bore.setFrequency(frequency);
 
+
     // Phase 3.4: wire bore2 if dual bore active
     if (dualBoreActive)
     {
@@ -524,14 +525,6 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         float u_reed = reedModel.processSample(p_mouth, p_bore_minus);
         prevUReed = u_reed;
 
-        // DIAGNOSTIC: print signal levels every ~0.5s (every 44100 oversampled samples)
-        {
-            static int voiceDiagCount = 0;
-            if (voiceDiagCount++ % 44100 == 0 && voiceDiagCount < 500000)
-                fprintf(stderr, "[O-Reed VOICE] p_mouth=%.1f p_bore_minus=%.4f u_reed=%.6f p_bore_plus=%.1f Z_c=%.0f closurePa=%.0f\n",
-                        p_mouth, p_bore_minus, u_reed, Z_c * u_reed + p_bore_minus, Z_c, reedModel.getClosurePressure());
-        }
-
         // 6. Smooth mouthpiece volume and handle chamber activation
         smoothedMouthpieceVol += (mouthpieceVol - smoothedMouthpieceVol) * paramSmoothCoeff;
         bool chamberIsActive = smoothedMouthpieceVol > 1e-4f;
@@ -547,6 +540,16 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
         // 8. Bore waveguide(s): push forward, process bell/loss, returns next p_bore_minus
         prevBoreMinus = bore.processSample(p_bore_plus);
+
+        // Soft-limit bore pressure to prevent runaway divergence.
+        // Without this, mismatched Z_c vs closurePa drives bore to hundreds
+        // of thousands of Pa, producing hard-clipped square waves.
+        // Limit at 3x closure pressure preserves natural dynamics while
+        // preventing the output tanh from hard-clipping.
+        {
+            float boreLimit = std::max(p_closure * 3.0f, 2000.0f);
+            prevBoreMinus = boreLimit * std::tanh(prevBoreMinus / boreLimit);
+        }
 
         // 8.5. Post-release bore damping: once breath envelope fully off,
         // apply exponential damping (~50ms TC) to accelerate bore decay.
@@ -565,6 +568,10 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         if (dualBoreActive)
         {
             prevBore2Minus = bore2.processSample(p_bore_plus);
+            {
+                float boreLimit2 = std::max(p_closure * 3.0f, 2000.0f);
+                prevBore2Minus = boreLimit2 * std::tanh(prevBore2Minus / boreLimit2);
+            }
             prevBore2Minus *= releaseDampGain;
             output = (prevBoreMinus + prevBore2Minus) * normalization * outputGain;
         }

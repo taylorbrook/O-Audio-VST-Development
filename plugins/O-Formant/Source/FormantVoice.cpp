@@ -62,6 +62,8 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pNasalCoupling = apvts->getRawParameterValue ("nasalCoupling");
     pNasalPlace    = apvts->getRawParameterValue ("nasalPlace");
 
+    pLyricsEnabled = apvts->getRawParameterValue ("lyricsEnabled");
+
     pOutputGain   = apvts->getRawParameterValue ("outputGain");
     pStereoWidth  = apvts->getRawParameterValue ("stereoWidth");
 }
@@ -74,6 +76,11 @@ void FormantVoice::setWavetable (const GlottalWavetable* wt)
 void FormantVoice::setTuningEngine (TuningEngine* te)
 {
     tuningEnginePtr = te;
+}
+
+void FormantVoice::setLyricsEngine (LyricsEngine* le)
+{
+    lyricsEnginePtr = le;
 }
 
 void FormantVoice::prepare (double sampleRate)
@@ -176,6 +183,13 @@ void FormantVoice::noteStarted()
         glottalSource.setRd (initRd);
     }
 
+    // Lyrics engine: check if active and advance syllable
+    lyricsActive = pLyricsEnabled != nullptr && pLyricsEnabled->load() >= 0.5f
+                   && lyricsEnginePtr != nullptr && lyricsEnginePtr->getNumSyllables() > 0;
+
+    if (lyricsActive)
+        currentSyllable = lyricsEnginePtr->advanceAndGet();
+
     // Always trigger consonant envelope + burst at note onset
     consonantEngine.triggerBurst (noteVelocity);
 
@@ -238,9 +252,18 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         });
     }
 
-    // Nasal state (read once per block; used for breath suppression + BW widening + amp reduction)
-    float nasalCouplingVal = pNasalCoupling != nullptr ? pNasalCoupling->load() : 0.0f;
-    float nasalPlaceVal    = pNasalPlace    != nullptr ? pNasalPlace->load()    : 0.5f;
+    // Nasal state (read once per block; lyrics override when active)
+    float nasalCouplingVal, nasalPlaceVal;
+    if (lyricsActive)
+    {
+        nasalCouplingVal = currentSyllable.nasalCoupling;
+        nasalPlaceVal    = currentSyllable.nasalPlace;
+    }
+    else
+    {
+        nasalCouplingVal = pNasalCoupling != nullptr ? pNasalCoupling->load() : 0.0f;
+        nasalPlaceVal    = pNasalPlace    != nullptr ? pNasalPlace->load()    : 0.5f;
+    }
     nasalPoleZero.updateCoefficients (nasalCouplingVal, nasalPlaceVal, getSampleRate());
 
     // Nasal amplitude reduction: -3 dB at full coupling (gentle dip, not dramatic drop)
@@ -314,12 +337,25 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float vibratoRate  = pVibratoRate  != nullptr ? pVibratoRate->load()  : 5.0f;
     float vibratoDepth = pVibratoDepth != nullptr ? pVibratoDepth->load() : 0.0f;
 
-    // Read consonant params once per block
-    float consonantLevel = pConsonantLevel != nullptr ? pConsonantLevel->load() : 0.0f;
-    float consonantTone  = pConsonantTone  != nullptr ? pConsonantTone->load()  : 0.5f;
-    float sibilance      = pSibilance      != nullptr ? pSibilance->load()      : 0.0f;
-    float consonantVoicing = pConsonantVoicing != nullptr ? pConsonantVoicing->load() : 0.5f;
-    bool  autoConsonant  = pAutoConsonant  != nullptr && pAutoConsonant->load() >= 0.5f;
+    // Read consonant params once per block (lyrics override when active)
+    float consonantLevel, consonantTone, sibilance, consonantVoicing;
+    bool autoConsonant;
+    if (lyricsActive)
+    {
+        consonantLevel   = currentSyllable.consonantLevel;
+        consonantTone    = currentSyllable.consonantTone;
+        sibilance        = currentSyllable.sibilance;
+        consonantVoicing = currentSyllable.consonantVoicing;
+        autoConsonant    = true;  // Lyrics engine manages consonant timing
+    }
+    else
+    {
+        consonantLevel   = pConsonantLevel   != nullptr ? pConsonantLevel->load()   : 0.0f;
+        consonantTone    = pConsonantTone    != nullptr ? pConsonantTone->load()    : 0.5f;
+        sibilance        = pSibilance        != nullptr ? pSibilance->load()        : 0.0f;
+        consonantVoicing = pConsonantVoicing != nullptr ? pConsonantVoicing->load() : 0.5f;
+        autoConsonant    = pAutoConsonant    != nullptr && pAutoConsonant->load() >= 0.5f;
+    }
 
     // Update consonant filter coefficients (block-rate)
     consonantEngine.updateCoefficients (consonantTone, sibilance, consonantVoicing, getSampleRate());
@@ -371,8 +407,17 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Block-rate formant coefficient update every 32 samples
         if ((sampleCounter % kCoeffUpdateInterval) == 0)
         {
-            float vowelX = pVowelX != nullptr ? pVowelX->load() : 0.5f;
-            float vowelY = pVowelY != nullptr ? pVowelY->load() : 0.5f;
+            float vowelX, vowelY;
+            if (lyricsActive)
+            {
+                vowelX = currentSyllable.vowelX;
+                vowelY = currentSyllable.vowelY;
+            }
+            else
+            {
+                vowelX = pVowelX != nullptr ? pVowelX->load() : 0.5f;
+                vowelY = pVowelY != nullptr ? pVowelY->load() : 0.5f;
+            }
 
             // Apply MPE timbre offset to vowelY
             vowelY = juce::jlimit (0.0f, 1.0f, vowelY + mpeVowelYOffset);

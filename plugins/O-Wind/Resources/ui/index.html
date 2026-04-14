@@ -761,10 +761,47 @@
         }
 
         /* ====================================================================
-           Responsive tweaks for smaller content area
+           Sound Panel - Compact layout (no scroll)
            ==================================================================== */
+        .sound-panel {
+            padding: 8px 18px !important;
+        }
         .sound-panel .sections-grid {
-            grid-template-columns: 1fr 1.4fr 0.8fr;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .sound-panel .sections-grid-2 {
+            gap: 10px;
+            margin-bottom: 0;
+        }
+        .sound-panel .section-box {
+            padding: 6px 10px;
+        }
+        .sound-panel .section-label {
+            margin-bottom: 4px;
+            padding-bottom: 2px;
+        }
+        .sound-panel .param-row {
+            gap: 6px;
+        }
+        .instrument-strip {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 6px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid var(--bg-paper-darker);
+            border-radius: 6px;
+        }
+        .instrument-strip .section-label {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .expression-section {
+            margin-bottom: 6px;
         }
     </style>
 </head>
@@ -804,7 +841,31 @@
         <!-- SOUND TAB -->
         <div class="tab-panel active sound-panel" id="tab-sound">
 
-            <!-- Row 1: Excitation | Resonator | Expression -->
+            <!-- Row 0: Instrument strip -->
+            <div class="instrument-strip">
+                <div class="section-label">Instrument</div>
+                <div class="toggle-control" id="tone-hole-toggle">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                    <span class="toggle-label">Tone Holes</span>
+                </div>
+                <div class="instrument-selector">
+                    <label>Preset</label>
+                    <select class="instrument-select" id="instrument-select">
+                        <option value="0">Concert Flute</option>
+                        <option value="1">Shakuhachi</option>
+                        <option value="2">Bansuri</option>
+                        <option value="3">Native Am. Flute</option>
+                        <option value="4">Recorder</option>
+                        <option value="5">Pan Flute</option>
+                        <option value="6">Piccolo</option>
+                        <option value="7">Ocarina</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Row 1: Excitation | Resonator | ADSR -->
             <div class="sections-grid">
                 <!-- Excitation -->
                 <div class="section-box">
@@ -860,55 +921,89 @@
                     </div>
                 </div>
 
-                <!-- Expression -->
-                <div class="section-box">
-                    <div class="section-label">Expression</div>
-                    <div class="param-row">
-                        <div class="knob-control" data-param="vibratoRate">
-                            <div class="knob-wrapper"></div>
-                            <div class="knob-label">Vib Rate</div>
-                            <div class="knob-value">5.0 Hz</div>
+                <!-- ADSR Envelope -->
+                <div class="section-box adsr-section" id="adsr-section">
+                    <div class="section-label">
+                        ADSR Envelope
+                        <div class="toggle-control adsr-toggle" id="adsr-toggle">
+                            <div class="toggle-track">
+                                <div class="toggle-thumb"></div>
+                            </div>
                         </div>
-                        <div class="knob-control" data-param="vibratoDepth">
+                    </div>
+                    <div class="param-row adsr-knobs" id="adsr-knobs">
+                        <div class="knob-control" data-param="adsrAttack">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Vib Pitch</div>
-                            <div class="knob-value">0.30</div>
+                            <div class="knob-label">Attack</div>
+                            <div class="knob-value">10 ms</div>
                         </div>
-                        <div class="knob-control" data-param="vibratoTremolo">
+                        <div class="knob-control" data-param="adsrDecay">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Vib Tremolo</div>
-                            <div class="knob-value">0.00</div>
+                            <div class="knob-label">Decay</div>
+                            <div class="knob-value">100 ms</div>
                         </div>
-                        <div class="knob-control" data-param="vibratoDriftDepth">
+                        <div class="knob-control" data-param="adsrSustain">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Drift Depth</div>
-                            <div class="knob-value">0.50</div>
+                            <div class="knob-label">Sustain</div>
+                            <div class="knob-value">0.80</div>
                         </div>
-                        <div class="knob-control" data-param="vibratoDriftSpeed">
+                        <div class="knob-control" data-param="adsrRelease">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Drift Speed</div>
-                            <div class="knob-value">0.4 Hz</div>
-                        </div>
-                        <div class="knob-control" data-param="flutterTongue">
-                            <div class="knob-wrapper"></div>
-                            <div class="knob-label">Flutter</div>
-                            <div class="knob-value">0.00</div>
-                        </div>
-                        <div class="knob-control" data-param="flutterRate">
-                            <div class="knob-wrapper"></div>
-                            <div class="knob-label">Flut Rate</div>
-                            <div class="knob-value">22.0 Hz</div>
-                        </div>
-                        <div class="knob-control" data-param="growl">
-                            <div class="knob-wrapper"></div>
-                            <div class="knob-label">Growl</div>
-                            <div class="knob-value">0.00</div>
+                            <div class="knob-label">Release</div>
+                            <div class="knob-value">200 ms</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Row 2: Output | Impossible Physics -->
+            <!-- Row 2: Expression (full width) -->
+            <div class="section-box expression-section">
+                <div class="section-label">Expression</div>
+                <div class="param-row">
+                    <div class="knob-control" data-param="vibratoRate">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Vib Rate</div>
+                        <div class="knob-value">5.0 Hz</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoDepth">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Vib Pitch</div>
+                        <div class="knob-value">0.30</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoTremolo">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Vib Tremolo</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoDriftDepth">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Drift Depth</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoDriftSpeed">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Drift Speed</div>
+                        <div class="knob-value">0.4 Hz</div>
+                    </div>
+                    <div class="knob-control" data-param="flutterTongue">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Flutter</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                    <div class="knob-control" data-param="flutterRate">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Flut Rate</div>
+                        <div class="knob-value">22.0 Hz</div>
+                    </div>
+                    <div class="knob-control" data-param="growl">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Growl</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Output | Impossible Physics -->
             <div class="sections-grid-2">
                 <!-- Output -->
                 <div class="section-box">
@@ -955,71 +1050,9 @@
                 </div>
             </div>
 
-            <!-- Row 3: Tone Hole + Instrument Preset -->
-            <div class="section-box">
-                <div class="section-label">Instrument</div>
-                <div class="controls-inline">
-                    <div class="toggle-control" id="tone-hole-toggle">
-                        <div class="toggle-track">
-                            <div class="toggle-thumb"></div>
-                        </div>
-                        <span class="toggle-label">Tone Holes</span>
-                    </div>
-                    <div class="instrument-selector">
-                        <label>Preset</label>
-                        <select class="instrument-select" id="instrument-select">
-                            <option value="0">Concert Flute</option>
-                            <option value="1">Shakuhachi</option>
-                            <option value="2">Bansuri</option>
-                            <option value="3">Native Am. Flute</option>
-                            <option value="4">Recorder</option>
-                            <option value="5">Pan Flute</option>
-                            <option value="6">Piccolo</option>
-                            <option value="7">Ocarina</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Row 4: ADSR Envelope (non-physical, toggleable) -->
-            <div class="section-box adsr-section" id="adsr-section">
-                <div class="section-label">
-                    ADSR Envelope
-                    <div class="toggle-control adsr-toggle" id="adsr-toggle">
-                        <div class="toggle-track">
-                            <div class="toggle-thumb"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="param-row adsr-knobs" id="adsr-knobs">
-                    <div class="knob-control" data-param="adsrAttack">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Attack</div>
-                        <div class="knob-value">10 ms</div>
-                    </div>
-                    <div class="knob-control" data-param="adsrDecay">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Decay</div>
-                        <div class="knob-value">100 ms</div>
-                    </div>
-                    <div class="knob-control" data-param="adsrSustain">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Sustain</div>
-                        <div class="knob-value">0.80</div>
-                    </div>
-                    <div class="knob-control" data-param="adsrRelease">
-                        <div class="knob-wrapper"></div>
-                        <div class="knob-label">Release</div>
-                        <div class="knob-value">200 ms</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Placeholder: Breath/Jet Visualization (UI-06) -->
+            <!-- Placeholders -->
             <div id="breath-viz-placeholder" class="future-feature" style="display:none;"></div>
-            <!-- Placeholder: Register Indicator (UI-07) -->
             <div id="register-indicator-placeholder" class="future-feature" style="display:none;"></div>
-            <!-- Placeholder: Visual Polish (UI-08) -->
             <div id="visual-polish-sound" class="future-feature" style="display:none;"></div>
 
         </div>

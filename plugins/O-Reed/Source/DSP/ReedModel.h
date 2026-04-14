@@ -109,7 +109,7 @@ public:
             // Negative dp: positive pressure closes reed (standard reed physics)
             state.x = -dp / k_eff;
             state.x_dot = 0.0f;
-            state.x = std::max(state.x, x_min);
+            state.x = std::clamp(state.x, x_min, 0.0f);
         }
         else
         {
@@ -126,11 +126,22 @@ public:
 
             state.x += state.x_dot * dt;
 
-            // Reed closure clamp with velocity zeroing
+            // Reed closure clamp (can't close past mouthpiece lay)
             if (state.x < x_min)
             {
                 state.x = x_min;
                 if (state.x_dot < 0.0f)
+                    state.x_dot = 0.0f;
+            }
+
+            // Reed opening clamp: can't deflect outward past rest position.
+            // Without this, large bore feedback drives x unbounded positive,
+            // S_opening grows without limit, and bore pressure diverges to
+            // hundreds of thousands of Pa. Physical: mouthpiece lay constrains reed.
+            if (state.x > 0.0f)
+            {
+                state.x = 0.0f;
+                if (state.x_dot > 0.0f)
                     state.x_dot = 0.0f;
             }
         }

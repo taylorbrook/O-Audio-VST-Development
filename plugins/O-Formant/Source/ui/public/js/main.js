@@ -26,6 +26,10 @@ let dpr = 1;
 let cxyCanvas, cxyCtx, cxyDpr;
 let isDraggingCXY = false;
 
+// Lyrics XY animation state
+let lyricsAnimating = false;
+let lyricsTarget = null; // { vowelX, vowelY, consonantTone, sibilance }
+
 // IPA vowel positions (normalised X, Y where Y=1 is top)
 const vowelLabels = [
   { label: 'i',  x: 0.00, y: 1.00 },
@@ -129,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindEffectsControls();
   drawADSR();
   initPresetBrowser();
+  initLyricsTab();
 });
 
 function initRelays() {
@@ -367,6 +372,7 @@ function bindXYPad() {
   if (!canvas) return;
 
   canvas.addEventListener('pointerdown', (e) => {
+    if (lyricsAnimating) return;
     isDraggingXY = true;
     canvas.setPointerCapture(e.pointerId);
     vowelXState.sliderDragStarted();
@@ -437,15 +443,29 @@ function drawXYPad() {
     ctx.fillText(v.label, lx, ly);
   }
 
-  // Cursor
-  const normX = vowelXState.getNormalisedValue();
-  const normY = vowelYState.getNormalisedValue();
+  // Cursor — use lyrics target position when animating
+  const normX = lyricsAnimating && lyricsTarget ? lyricsTarget.vowelX : vowelXState.getNormalisedValue();
+  const normY = lyricsAnimating && lyricsTarget ? lyricsTarget.vowelY : vowelYState.getNormalisedValue();
   const cx = pad + normX * (cw - pad * 2);
   const cy = pad + (1.0 - normY) * (ch - pad * 2);
 
+  // Lyrics mode overlay
+  if (lyricsAnimating) {
+    ctx.fillStyle = 'rgba(245, 230, 211, 0.25)';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.font = '9px Garamond, Times New Roman, serif';
+    ctx.fillStyle = 'rgba(107, 142, 78, 0.6)';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText('LYRICS', cw - 6, 4);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+  }
+
   // Cursor glow
+  const glowColor = lyricsAnimating ? 'rgba(107, 142, 78, 0.4)' : 'rgba(139, 168, 112, 0.3)';
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 28);
-  grad.addColorStop(0, 'rgba(139, 168, 112, 0.3)');
+  grad.addColorStop(0, glowColor);
   grad.addColorStop(1, 'rgba(139, 168, 112, 0.0)');
   ctx.fillStyle = grad;
   ctx.beginPath();
@@ -453,7 +473,7 @@ function drawXYPad() {
   ctx.fill();
 
   // Crosshair
-  ctx.strokeStyle = 'rgba(139,163,112,0.4)';
+  ctx.strokeStyle = lyricsAnimating ? 'rgba(107,142,78,0.5)' : 'rgba(139,163,112,0.4)';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, ch); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(cw, cy); ctx.stroke();
@@ -461,7 +481,7 @@ function drawXYPad() {
   // Dot
   ctx.beginPath();
   ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-  ctx.fillStyle = '#8BA870';
+  ctx.fillStyle = lyricsAnimating ? '#6B8E4E' : '#8BA870';
   ctx.fill();
   ctx.strokeStyle = '#3C2F2F';
   ctx.lineWidth = 1.5;
@@ -523,6 +543,7 @@ function bindConsonantXYPad() {
   if (!cxyCanvas) return;
 
   cxyCanvas.addEventListener('pointerdown', (e) => {
+    if (lyricsAnimating) return;
     isDraggingCXY = true;
     cxyCanvas.setPointerCapture(e.pointerId);
     consonantToneState.sliderDragStarted();
@@ -615,15 +636,22 @@ function drawConsonantXYPad() {
     cxyCtx.fillText(c.label, lx, ly);
   }
 
-  // Cursor
-  const normX = consonantToneState.getNormalisedValue();
-  const normY = sibilanceState.getNormalisedValue();
+  // Cursor — use lyrics target when animating
+  const normX = lyricsAnimating && lyricsTarget ? lyricsTarget.consonantTone : consonantToneState.getNormalisedValue();
+  const normY = lyricsAnimating && lyricsTarget ? lyricsTarget.sibilance : sibilanceState.getNormalisedValue();
   const cx = pad + normX * (cw - pad * 2);
   const cy = pad + (1.0 - normY) * (ch - pad * 2);
 
+  // Lyrics mode overlay
+  if (lyricsAnimating) {
+    cxyCtx.fillStyle = 'rgba(245, 230, 211, 0.25)';
+    cxyCtx.fillRect(0, 0, cw, ch);
+  }
+
   // Cursor glow
+  const glowColor = lyricsAnimating ? 'rgba(107, 142, 78, 0.4)' : 'rgba(139, 168, 112, 0.3)';
   const grad = cxyCtx.createRadialGradient(cx, cy, 0, cx, cy, 20);
-  grad.addColorStop(0, 'rgba(139, 168, 112, 0.3)');
+  grad.addColorStop(0, glowColor);
   grad.addColorStop(1, 'rgba(139, 168, 112, 0.0)');
   cxyCtx.fillStyle = grad;
   cxyCtx.beginPath();
@@ -631,7 +659,7 @@ function drawConsonantXYPad() {
   cxyCtx.fill();
 
   // Crosshair
-  cxyCtx.strokeStyle = 'rgba(139,163,112,0.35)';
+  cxyCtx.strokeStyle = lyricsAnimating ? 'rgba(107,142,78,0.5)' : 'rgba(139,163,112,0.35)';
   cxyCtx.lineWidth = 1;
   cxyCtx.beginPath(); cxyCtx.moveTo(cx, 0); cxyCtx.lineTo(cx, ch); cxyCtx.stroke();
   cxyCtx.beginPath(); cxyCtx.moveTo(0, cy); cxyCtx.lineTo(cw, cy); cxyCtx.stroke();
@@ -639,7 +667,7 @@ function drawConsonantXYPad() {
   // Dot
   cxyCtx.beginPath();
   cxyCtx.arc(cx, cy, 5, 0, Math.PI * 2);
-  cxyCtx.fillStyle = '#8BA870';
+  cxyCtx.fillStyle = lyricsAnimating ? '#6B8E4E' : '#8BA870';
   cxyCtx.fill();
   cxyCtx.strokeStyle = '#3C2F2F';
   cxyCtx.lineWidth = 1.5;
@@ -932,4 +960,410 @@ async function populateCategories(selectEl) {
     opt.textContent = cat;
     selectEl.appendChild(opt);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LYRICS ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+// ARPABET vowel nuclei (used for syllabification)
+const ARPABET_VOWELS = new Set([
+  'AA','AE','AH','AO','AW','AY','EH','ER','EY','IH','IY','OW','OY','UH','UW'
+]);
+
+// Phoneme → parameter mapping
+const PHONEME_MAP = {
+  // Vowels → vowelX, vowelY (from research brief + VowelData.h positions)
+  'IY':  { vowelX: 0.00, vowelY: 1.00 },
+  'IH':  { vowelX: 0.10, vowelY: 0.80 },
+  'EY':  { vowelX: 0.31, vowelY: 0.43 },
+  'EH':  { vowelX: 0.25, vowelY: 0.30 },
+  'AE':  { vowelX: 0.50, vowelY: 0.05 },
+  'AA':  { vowelX: 0.83, vowelY: 0.00 },
+  'AH':  { vowelX: 0.60, vowelY: 0.15 },
+  'AO':  { vowelX: 0.92, vowelY: 0.20 },
+  'OW':  { vowelX: 1.00, vowelY: 0.35 },
+  'UH':  { vowelX: 0.85, vowelY: 0.78 },
+  'UW':  { vowelX: 0.98, vowelY: 0.93 },
+  'ER':  { vowelX: 0.55, vowelY: 0.50 },
+  'AW':  { vowelX: 0.55, vowelY: 0.08 },
+  'AY':  { vowelX: 0.65, vowelY: 0.10 },
+  'OY':  { vowelX: 0.90, vowelY: 0.28 },
+
+  // Consonants → place, manner, voicing, level, nasal
+  'P':  { consonantTone: 0.00, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6 },
+  'B':  { consonantTone: 0.00, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6 },
+  'M':  { nasalCoupling: 1.0, nasalPlace: 0.0, consonantLevel: 0.0 },
+  'F':  { consonantTone: 0.08, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5 },
+  'V':  { consonantTone: 0.08, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5 },
+  'W':  { vowelX: 0.98, vowelY: 0.93, consonantLevel: 0.0 },  // Glide from U-region
+  'TH': { consonantTone: 0.15, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.4 },
+  'DH': { consonantTone: 0.15, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.4 },
+  'T':  { consonantTone: 0.33, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6 },
+  'D':  { consonantTone: 0.33, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6 },
+  'N':  { nasalCoupling: 1.0, nasalPlace: 0.5, consonantLevel: 0.0 },
+  'S':  { consonantTone: 0.33, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5 },
+  'Z':  { consonantTone: 0.33, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5 },
+  'L':  { vowelX: 0.55, vowelY: 0.85, consonantLevel: 0.0 },  // Existing morph point
+  'R':  { vowelX: 0.12, vowelY: 0.72, consonantLevel: 0.0 },  // Existing morph point
+  'CH': { consonantTone: 0.55, sibilance: 0.15, consonantVoicing: 0.0, consonantLevel: 0.6 },
+  'JH': { consonantTone: 0.55, sibilance: 0.15, consonantVoicing: 1.0, consonantLevel: 0.6 },
+  'SH': { consonantTone: 0.55, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5 },
+  'ZH': { consonantTone: 0.55, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5 },
+  'Y':  { vowelX: 0.00, vowelY: 1.00, consonantLevel: 0.0 },  // Glide from I-region
+  'K':  { consonantTone: 1.00, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6 },
+  'G':  { consonantTone: 1.00, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6 },
+  'NG': { nasalCoupling: 1.0, nasalPlace: 1.0, consonantLevel: 0.0 },
+  'HH': { consonantTone: 0.50, sibilance: 0.85, consonantVoicing: 0.0, consonantLevel: 0.3 },
+};
+
+// Legal 2-consonant onsets for MOP syllabification
+const LEGAL_ONSETS_2 = new Set([
+  'P L','P R','B L','B R','T R','D R','K L','K R','G L','G R',
+  'F L','F R','TH R','SH R','S K','S P','S T','S M','S N','S L','S W'
+]);
+const LEGAL_ONSETS_3 = new Set(['S P L','S P R','S T R','S K R','S K W']);
+
+// Syllabify ARPABET phoneme array using Maximum Onset Principle
+function syllabify(phonemes) {
+  if (phonemes.length === 0) return [];
+
+  // Find vowel positions
+  const vowelIndices = [];
+  for (let i = 0; i < phonemes.length; i++) {
+    if (ARPABET_VOWELS.has(phonemes[i])) vowelIndices.push(i);
+  }
+
+  if (vowelIndices.length === 0) {
+    // No vowels — treat entire sequence as one syllable
+    return [phonemes];
+  }
+
+  const syllables = [];
+  let syllStart = 0;
+
+  for (let vi = 0; vi < vowelIndices.length; vi++) {
+    const vowelIdx = vowelIndices[vi];
+    const nextVowelIdx = vi + 1 < vowelIndices.length ? vowelIndices[vi + 1] : phonemes.length;
+
+    if (vi + 1 < vowelIndices.length) {
+      // Consonants between this vowel and next vowel
+      const gapStart = vowelIdx + 1;
+      const gapEnd = nextVowelIdx;
+      const gap = phonemes.slice(gapStart, gapEnd);
+
+      // Find maximum legal onset for the next syllable
+      let onsetLen = 0;
+      for (let tryLen = Math.min(gap.length, 3); tryLen >= 1; tryLen--) {
+        const candidate = gap.slice(gap.length - tryLen);
+        const key = candidate.join(' ');
+        if (tryLen === 1) {
+          // Single consonants are always legal onsets (except NG)
+          if (candidate[0] !== 'NG') { onsetLen = 1; break; }
+        } else if (tryLen === 2 && LEGAL_ONSETS_2.has(key)) {
+          onsetLen = 2; break;
+        } else if (tryLen === 3 && LEGAL_ONSETS_3.has(key)) {
+          onsetLen = 3; break;
+        }
+      }
+
+      const splitPoint = gapEnd - onsetLen;
+      syllables.push(phonemes.slice(syllStart, splitPoint));
+      syllStart = splitPoint;
+    } else {
+      // Last vowel — take everything remaining
+      syllables.push(phonemes.slice(syllStart));
+    }
+  }
+
+  return syllables.filter(s => s.length > 0);
+}
+
+// Convert a syllable (array of ARPABET phonemes) to a SyllableTarget
+function syllableToTarget(phonemes) {
+  const target = {
+    vowelX: 0.5, vowelY: 0.5,
+    consonantTone: 0.5, sibilance: 0.5,
+    consonantVoicing: 0.5, consonantLevel: 0.0,
+    nasalCoupling: 0.0, nasalPlace: 0.5,
+    hasConsonant: false
+  };
+
+  // Find the vowel nucleus
+  let vowelFound = false;
+  for (const ph of phonemes) {
+    if (ARPABET_VOWELS.has(ph) && PHONEME_MAP[ph]) {
+      target.vowelX = PHONEME_MAP[ph].vowelX;
+      target.vowelY = PHONEME_MAP[ph].vowelY;
+      vowelFound = true;
+      break;
+    }
+  }
+
+  // Find the first onset consonant (before the vowel)
+  for (const ph of phonemes) {
+    if (ARPABET_VOWELS.has(ph)) break;  // Stop at vowel
+    const map = PHONEME_MAP[ph];
+    if (!map) continue;
+
+    // Nasal consonants
+    if (map.nasalCoupling !== undefined && map.nasalCoupling > 0) {
+      target.nasalCoupling = map.nasalCoupling;
+      target.nasalPlace = map.nasalPlace;
+      target.hasConsonant = true;
+      break;
+    }
+    // Approximants (L, R, W, Y) — override vowel position for coloring
+    if (map.vowelX !== undefined && (map.consonantLevel === undefined || map.consonantLevel === 0)) {
+      target.vowelX = map.vowelX;
+      target.vowelY = map.vowelY;
+      continue;  // Don't count as consonant onset
+    }
+    // Plosive/fricative consonants
+    if (map.consonantLevel !== undefined && map.consonantLevel > 0) {
+      target.consonantTone = map.consonantTone;
+      target.sibilance = map.sibilance;
+      target.consonantVoicing = map.consonantVoicing;
+      target.consonantLevel = map.consonantLevel;
+      target.hasConsonant = true;
+      break;
+    }
+  }
+
+  // Check coda for nasals (e.g., NG at end of "SING")
+  if (!target.hasConsonant || target.nasalCoupling === 0) {
+    for (let i = phonemes.length - 1; i >= 0; i--) {
+      if (ARPABET_VOWELS.has(phonemes[i])) break;
+      const map = PHONEME_MAP[phonemes[i]];
+      if (map && map.nasalCoupling > 0) {
+        target.nasalCoupling = map.nasalCoupling * 0.5;  // Coda nasals softer
+        target.nasalPlace = map.nasalPlace;
+        break;
+      }
+    }
+  }
+
+  return target;
+}
+
+// Parse raw ARPABET text → syllable targets
+function parseArpabet(text) {
+  const cleaned = text.trim().toUpperCase().replace(/[^A-Z0-9\s]/g, '');
+  if (!cleaned) return [];
+
+  const tokens = cleaned.split(/\s+/);
+
+  // Merge digraphs: CH, SH, ZH, TH, DH, JH, HH, NG, etc.
+  const phonemes = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const pair = tokens[i] + (i + 1 < tokens.length ? tokens[i + 1] : '');
+    if (['CH','SH','ZH','TH','DH','JH','HH','NG','AW','AY','EY','OW','OY',
+         'AA','AE','AH','AO','EH','ER','IH','IY','UH','UW'].includes(pair)
+        && pair.length === 2 && tokens[i].length === 1) {
+      phonemes.push(pair);
+      i++;  // Skip next token
+    } else if (PHONEME_MAP[tokens[i]] || ARPABET_VOWELS.has(tokens[i])) {
+      phonemes.push(tokens[i]);
+    }
+    // Skip unrecognized tokens
+  }
+
+  const syllables = syllabify(phonemes);
+  return syllables.map(syl => ({
+    phonemes: syl,
+    label: syl.join(' '),
+    target: syllableToTarget(syl)
+  }));
+}
+
+let lyricsEnabledState;
+let lyricsFns = {};
+let lyricsPollingId = null;
+
+function initLyricsTab() {
+  const input = document.getElementById('lyrics-input');
+  const syllablesEl = document.getElementById('lyrics-syllables');
+  const counterEl = document.getElementById('lyrics-counter');
+  const loopBtn = document.getElementById('lyrics-loop-btn');
+  const resetBtn = document.getElementById('lyrics-reset-btn');
+
+  if (!input) return;
+
+  // Get native functions
+  lyricsFns.setLyrics = getNativeFunction('setLyrics');
+  lyricsFns.setLyricsText = getNativeFunction('setLyricsText');
+  lyricsFns.getLyricsText = getNativeFunction('getLyricsText');
+  lyricsFns.getLyricsPosition = getNativeFunction('getLyricsPosition');
+  lyricsFns.resetLyrics = getNativeFunction('resetLyrics');
+  lyricsFns.setLyricsLooping = getNativeFunction('setLyricsLooping');
+  lyricsFns.getLyricsLooping = getNativeFunction('getLyricsLooping');
+
+  // Lyrics enabled toggle
+  lyricsEnabledState = getToggleState('lyricsEnabledToggle');
+  const toggleBtn = document.getElementById('lyricsEnabled-toggle');
+  if (toggleBtn && lyricsEnabledState) {
+    const updateToggleUI = () => {
+      const isOn = lyricsEnabledState.getValue();
+      toggleBtn.classList.toggle('active', isOn);
+    };
+    lyricsEnabledState.valueChangedEvent.addListener(() => {
+      updateToggleUI();
+      updateLyricsAnimatingState();
+    });
+    updateToggleUI();
+    toggleBtn.addEventListener('click', () => {
+      lyricsEnabledState.setValue(!lyricsEnabledState.getValue());
+    });
+  }
+
+  let parsedSyllables = [];
+
+  // Parse and send on input change
+  let debounceTimer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      parsedSyllables = parseArpabet(input.value);
+      renderSyllables(parsedSyllables, syllablesEl, counterEl, -1);
+      sendToEngine(parsedSyllables, input.value);
+    }, 300);
+  });
+
+  // Loop button
+  let looping = true;
+  loopBtn.classList.add('active');
+  loopBtn.addEventListener('click', async () => {
+    looping = !looping;
+    loopBtn.classList.toggle('active', looping);
+    await lyricsFns.setLyricsLooping(looping);
+  });
+
+  // Reset button
+  resetBtn.addEventListener('click', async () => {
+    await lyricsFns.resetLyrics();
+  });
+
+  // Restore saved lyrics text on load
+  (async () => {
+    try {
+      const savedText = await lyricsFns.getLyricsText();
+      if (savedText && savedText.length > 0) {
+        input.value = savedText;
+        parsedSyllables = parseArpabet(savedText);
+        renderSyllables(parsedSyllables, syllablesEl, counterEl, -1);
+        sendToEngine(parsedSyllables, savedText);
+      }
+      const savedLoop = await lyricsFns.getLyricsLooping();
+      looping = !!savedLoop;
+      loopBtn.classList.toggle('active', looping);
+    } catch (e) { /* ignore on first load */ }
+  })();
+
+  // Position polling (50ms when lyrics tab is visible)
+  startPositionPolling(parsedSyllables, syllablesEl, counterEl);
+}
+
+async function sendToEngine(parsedSyllables, rawText) {
+  if (!lyricsFns.setLyrics) return;
+  const targets = parsedSyllables.map(s => s.target);
+  const json = JSON.stringify(targets);
+  await lyricsFns.setLyrics(json);
+  await lyricsFns.setLyricsText(rawText);
+}
+
+function renderSyllables(parsed, container, counterEl, currentIdx) {
+  if (!container) return;
+  container.innerHTML = '';
+  parsed.forEach((syl, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'syl-chip';
+    if (i === currentIdx) chip.classList.add('current');
+    else if (currentIdx >= 0 && i < currentIdx) chip.classList.add('past');
+    chip.textContent = syl.label;
+    chip.title = `Syllable ${i + 1}: ${syl.phonemes.join('-')}`;
+    container.appendChild(chip);
+  });
+  if (counterEl) {
+    const idx = currentIdx >= 0 ? currentIdx + 1 : 0;
+    counterEl.textContent = `${idx} / ${parsed.length}`;
+  }
+}
+
+function updateLyricsAnimatingState() {
+  const wasAnimating = lyricsAnimating;
+  const enabled = lyricsEnabledState && lyricsEnabledState.getValue();
+  lyricsAnimating = !!(enabled && lyricsTarget);
+
+  // Update cursor style on pads
+  if (canvas) canvas.style.cursor = lyricsAnimating ? 'default' : 'crosshair';
+  if (cxyCanvas) cxyCanvas.style.cursor = lyricsAnimating ? 'default' : 'crosshair';
+
+  // When transitioning out of lyrics mode, clear target and redraw pads at APVTS values
+  if (wasAnimating && !lyricsAnimating) {
+    lyricsTarget = null;
+    drawXYPad();
+    drawConsonantXYPad();
+  }
+}
+
+function startPositionPolling(initialParsed, container, counterEl) {
+  let lastIdx = -1;
+  let cachedParsed = initialParsed;
+
+  const input = document.getElementById('lyrics-input');
+
+  setInterval(async () => {
+    if (!lyricsFns.getLyricsPosition) return;
+
+    const enabled = lyricsEnabledState && lyricsEnabledState.getValue();
+    const lyricsTab = document.getElementById('lyrics-tab');
+    const synthTab = document.getElementById('synth-tab');
+    const lyricsTabActive = lyricsTab && lyricsTab.classList.contains('active');
+    const synthTabActive = synthTab && synthTab.classList.contains('active');
+
+    // Nothing to poll if neither tab is active or lyrics disabled
+    if (!enabled || (!lyricsTabActive && !synthTabActive)) {
+      if (lyricsAnimating) {
+        lyricsAnimating = false;
+        lyricsTarget = null;
+        if (synthTabActive) { drawXYPad(); drawConsonantXYPad(); }
+      }
+      return;
+    }
+
+    try {
+      const pos = await lyricsFns.getLyricsPosition();
+      if (!pos || pos.total === 0) {
+        if (lyricsAnimating) {
+          lyricsAnimating = false;
+          lyricsTarget = null;
+          if (synthTabActive) { drawXYPad(); drawConsonantXYPad(); }
+        }
+        return;
+      }
+
+      // Update XY pad animation target
+      lyricsTarget = {
+        vowelX: pos.vowelX,
+        vowelY: pos.vowelY,
+        consonantTone: pos.consonantTone,
+        sibilance: pos.sibilance
+      };
+      lyricsAnimating = true;
+
+      // Redraw XY pads on synth tab
+      if (synthTabActive) {
+        drawXYPad();
+        drawConsonantXYPad();
+      }
+
+      // Update syllable chips on lyrics tab
+      const idx = pos.index;
+      if (lyricsTabActive && idx !== lastIdx) {
+        lastIdx = idx;
+        if (input) cachedParsed = parseArpabet(input.value);
+        renderSyllables(cachedParsed, container, counterEl, idx);
+      }
+    } catch (e) { /* ignore polling errors */ }
+  }, 80);
 }

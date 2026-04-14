@@ -12,6 +12,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "dsp/GlottalWavetable.h"
+#include "dsp/LyricsEngine.h"
 #include "DSP/DelayProcessor.h"
 #include "DSP/EQProcessor.h"
 #include "DSP/ReverbProcessor.h"
@@ -57,6 +58,9 @@ public:
     TuningEngine tuningEngine;
     ScaleGenerator scaleGenerator;
     TuningExporter tuningExporter;
+    LyricsEngine lyricsEngine;
+
+    LyricsEngine& getLyricsEngine() { return lyricsEngine; }
 
 private:
     // DSP: Shared wavetable (generated once, read-only across all voices)

@@ -122,6 +122,10 @@ private:
     float releaseFadeInc = 0.0f;
     bool releaseFading = false;
 
+    // Deferred jet exciter release: when ADSR is enabled, breath excitation
+    // continues through the ADSR release so the waveguide has energy to shape
+    bool pendingJetRelease = false;
+
     // CC state for MPE
     float ccBreathPressure = 0.0f;
     float ccEmbouchure = 0.0f;

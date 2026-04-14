@@ -38,6 +38,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     outputGainRelay    = std::make_unique<juce::WebSliderRelay> ("outputGainSlider");
     stereoWidthRelay   = std::make_unique<juce::WebSliderRelay> ("stereoWidthSlider");
 
+    // Lyrics relay
+    lyricsEnabledRelay = std::make_unique<juce::WebToggleButtonRelay> ("lyricsEnabledToggle");
+
     // Effects relays
     chorusBypassRelay  = std::make_unique<juce::WebToggleButtonRelay> ("chorusBypassToggle");
     chorusRateRelay    = std::make_unique<juce::WebSliderRelay> ("chorusRateSlider");
@@ -108,6 +111,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*nasalPlaceRelay)
             .withOptionsFrom (*outputGainRelay)
             .withOptionsFrom (*stereoWidthRelay)
+            .withOptionsFrom (*lyricsEnabledRelay)
             .withOptionsFrom (*chorusBypassRelay)
             .withOptionsFrom (*chorusRateRelay)
             .withOptionsFrom (*chorusDepthRelay)
@@ -559,6 +563,87 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                 complete (juce::var (false));
             })
 
+            // ── Lyrics Native Functions ──
+
+            .withNativeFunction ("setLyrics", [this] (const auto& args, auto complete) {
+                if (args.size() < 1)
+                {
+                    complete (juce::var (false));
+                    return;
+                }
+                auto& le = processorRef.getLyricsEngine();
+                auto jsonStr = args[0].toString();
+                auto parsed = juce::JSON::parse (jsonStr);
+                auto* arr = parsed.getArray();
+                if (arr == nullptr)
+                {
+                    complete (juce::var (false));
+                    return;
+                }
+                std::vector<LyricsEngine::SyllableTarget> targets;
+                for (const auto& item : *arr)
+                {
+                    if (auto* obj = item.getDynamicObject())
+                    {
+                        LyricsEngine::SyllableTarget t;
+                        t.vowelX          = static_cast<float> (obj->getProperty ("vowelX"));
+                        t.vowelY          = static_cast<float> (obj->getProperty ("vowelY"));
+                        t.consonantTone   = static_cast<float> (obj->getProperty ("consonantTone"));
+                        t.sibilance       = static_cast<float> (obj->getProperty ("sibilance"));
+                        t.consonantVoicing = static_cast<float> (obj->getProperty ("consonantVoicing"));
+                        t.consonantLevel  = static_cast<float> (obj->getProperty ("consonantLevel"));
+                        t.nasalCoupling   = static_cast<float> (obj->getProperty ("nasalCoupling"));
+                        t.nasalPlace      = static_cast<float> (obj->getProperty ("nasalPlace"));
+                        t.hasConsonant    = static_cast<bool> (obj->getProperty ("hasConsonant"));
+                        targets.push_back (t);
+                    }
+                }
+                if (! targets.empty())
+                    le.setSyllables (targets.data(), static_cast<int> (targets.size()));
+                complete (juce::var (true));
+            })
+
+            .withNativeFunction ("setLyricsText", [this] (const auto& args, auto complete) {
+                if (args.size() >= 1)
+                    processorRef.getLyricsEngine().setLyricsText (args[0].toString());
+                complete (juce::var (true));
+            })
+
+            .withNativeFunction ("getLyricsText", [this] (auto, auto complete) {
+                complete (juce::var (processorRef.getLyricsEngine().getLyricsText()));
+            })
+
+            .withNativeFunction ("getLyricsPosition", [this] (auto, auto complete) {
+                auto& le = processorRef.getLyricsEngine();
+                auto* obj = new juce::DynamicObject();
+                obj->setProperty ("index", le.getCurrentIndex());
+                obj->setProperty ("total", le.getNumSyllables());
+
+                // Include current syllable target for XY pad animation
+                auto syl = le.peekCurrent();
+                obj->setProperty ("vowelX", syl.vowelX);
+                obj->setProperty ("vowelY", syl.vowelY);
+                obj->setProperty ("consonantTone", syl.consonantTone);
+                obj->setProperty ("sibilance", syl.sibilance);
+
+                complete (juce::var (obj));
+            })
+
+            .withNativeFunction ("resetLyrics", [this] (auto, auto complete) {
+                processorRef.getLyricsEngine().reset();
+                complete (juce::var (true));
+            })
+
+            .withNativeFunction ("setLyricsLooping", [this] (const auto& args, auto complete) {
+                if (args.size() >= 1)
+                    processorRef.getLyricsEngine().setLooping (static_cast<bool> (args[0]));
+                complete (juce::var (true));
+            })
+
+            .withNativeFunction ("getLyricsLooping", [this] (auto, auto complete) {
+                complete (juce::var (processorRef.getLyricsEngine().isLooping()));
+            })
+
             .withNativeFunction ("exportTuningHTML", [this] (auto, auto complete) {
                 fileChooser = std::make_shared<juce::FileChooser> (
                     "Export Tuning Documentation",
@@ -617,6 +702,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     singersFormantAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("singersFormant"), *singersFormantRelay);
     nasalCouplingAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("nasalCoupling"), *nasalCouplingRelay);
     nasalPlaceAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("nasalPlace"), *nasalPlaceRelay);
+    lyricsEnabledAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment> (*apvts.getParameter ("lyricsEnabled"), *lyricsEnabledRelay);
     outputGainAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("outputGain"), *outputGainRelay);
     stereoWidthAttachment   = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("stereoWidth"), *stereoWidthRelay);
 
@@ -674,6 +760,7 @@ OFormantEditor::~OFormantEditor()
     chorusDepthAttachment.reset();
     chorusRateAttachment.reset();
     chorusBypassAttachment.reset();
+    lyricsEnabledAttachment.reset();
     stereoWidthAttachment.reset();
     outputGainAttachment.reset();
     singersFormantAttachment.reset();
@@ -727,6 +814,7 @@ OFormantEditor::~OFormantEditor()
     chorusDepthRelay.reset();
     chorusRateRelay.reset();
     chorusBypassRelay.reset();
+    lyricsEnabledRelay.reset();
     stereoWidthRelay.reset();
     outputGainRelay.reset();
     singersFormantRelay.reset();

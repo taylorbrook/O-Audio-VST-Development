@@ -60,7 +60,12 @@ public:
 
         targetFrequency = hz;
 
-        float totalDelay = (sr / hz) * cylindricalDelayScale;
+        // Total delay = sr/(2*hz) regardless of bore character.
+        // The bell always reflects with inversion (closed-open resonance),
+        // so f_resonance = sr/(2*totalDelay). For f_resonance = hz:
+        // totalDelay = sr/(2*hz). Bore character affects tone via conical
+        // scaling, not pitch.
+        float totalDelay = sr / (2.0f * hz);
 
         // Compute filter PHASE delays at the target frequency.
         // Phase delay (not group delay) determines pitch in a waveguide.
@@ -109,20 +114,14 @@ public:
         // Safety clamp: prevent negative or near-zero delay
         compensatedDelay = std::max(4.0f, compensatedDelay);
 
-        // DIAGNOSTIC: All delay in segment 0 (1-segment bore test)
-        float halfDelay = compensatedDelay * 0.5f;
-        halfDelay = std::max(2.0f, halfDelay);
-        segForwardDelay[0].setDelay(halfDelay);
-        segBackwardDelay[0].setDelay(halfDelay);
-
-        // DIAGNOSTIC: print delay values once per note
-        static int diagCount = 0;
-        if (diagCount++ < 10)
-            fprintf(stderr, "[O-Reed DIAG] hz=%.1f sr=%.0f cylScale=%.3f totalDelay=%.1f viscPD=%.2f bellPD=%.2f bellA=%.4f viscP=%.4f compDelay=%.1f halfDelay=%.1f\n",
-                    hz, sr, cylindricalDelayScale, totalDelay, viscPD, bellPD, bellAllpassA, viscPole, compensatedDelay, halfDelay);
-        // Segment 1 unused
-        segForwardDelay[1].setDelay(2.0f);
-        segBackwardDelay[1].setDelay(2.0f);
+        // Split into 2 equal segments
+        for (int i = 0; i < 2; ++i)
+        {
+            float halfDelay = compensatedDelay * 0.25f;  // 0.5 per segment * 0.5 for fwd/bwd
+            halfDelay = std::max(2.0f, halfDelay);
+            segForwardDelay[i].setDelay(halfDelay);
+            segBackwardDelay[i].setDelay(halfDelay);
+        }
     }
 
     void updateParams(float boreCharacter, float bellSize, float boreDiameter, float boreLength,
@@ -276,32 +275,38 @@ public:
         float mod = 1.0f + scaleModulation;
         scaleModulation = 0.0f;
 
-        // --- DIAGNOSTIC: Single-segment bore (proven working in tests) ---
-        // Using only segment 0 as a single forward+backward delay pair.
-        // Segment 1 is unused (kept prepared but not in signal path).
-        float fwd = segForwardDelay[0].popSample(0) * currentScaleForward[0] * mod;
-        float bwd = segBackwardDelay[0].popSample(0) * currentScaleBackward[0] * mod;
+        // --- Pop both segment delays ---
+        float fwd0 = segForwardDelay[0].popSample(0) * currentScaleForward[0] * mod;
+        float bwd0 = segBackwardDelay[0].popSample(0) * currentScaleBackward[0] * mod;
+        float fwd1 = segForwardDelay[1].popSample(0) * currentScaleForward[1] * mod;
+        float bwd1 = segBackwardDelay[1].popSample(0) * currentScaleBackward[1] * mod;
 
-        // Pop segment 1 to keep delay line state advancing (prevent stale data)
-        segForwardDelay[1].popSample(0);
-        segBackwardDelay[1].popSample(0);
+        // --- Register hole junction (between seg 0 and seg 1) ---
+        float reg_sum = fwd0 + bwd1;
+        float reg_scattered = registerScatter * reg_sum;
+        float reg_fwd = fwd0 + reg_scattered;
+        float reg_bwd = bwd1 + reg_scattered;
 
-        // Bell processing (direct, no junctions)
-        float bellFiltered = bellFilter.processSample(fwd);
+        // --- Tone hole junction (between seg 1 and bell) ---
+        float th_sum = fwd1 + prevBellReflection;
+        float th_scattered = lumpedToneHoleScatter * th_sum;
+        float th_fwd = fwd1 + th_scattered;
+        float th_bwd = prevBellReflection + th_scattered;
+
+        // --- Bell processing ---
+        float bellFiltered = bellFilter.processSample(th_fwd);
         float p_reflected = -bellFiltered;
-        lastRadiatedOutput = radiationFilter.processSample(fwd);
+        lastRadiatedOutput = radiationFilter.processSample(th_fwd);
         float p_backward_lossy = viscFilter.processSample(p_reflected);
         prevBellReflection = p_backward_lossy;
 
-        // Push into single segment
+        // --- Push into delays ---
         segForwardDelay[0].pushSample(0, p_reed_out);
-        segBackwardDelay[0].pushSample(0, p_backward_lossy);
+        segBackwardDelay[0].pushSample(0, reg_bwd);
+        segForwardDelay[1].pushSample(0, reg_fwd);
+        segBackwardDelay[1].pushSample(0, th_bwd);
 
-        // Push zeros into unused segment 1
-        segForwardDelay[1].pushSample(0, 0.0f);
-        segBackwardDelay[1].pushSample(0, 0.0f);
-
-        float returnWave = bwd * feedbackGain;
+        float returnWave = bwd0 * feedbackGain;
         energyEstimate = 0.999f * energyEstimate + 0.001f * std::abs(returnWave);
         return returnWave;
     }

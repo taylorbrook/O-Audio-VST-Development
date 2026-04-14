@@ -147,10 +147,8 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         auto jState = waveguideString.readJunction (v_bow);
         float v_delta = v_bow - jState.v_string_incoming;
 
-        // Step 5: Unified friction — Core sustain + bristle texture
-        float rhoCore = frictionModel.computeReflectionCoefficient (v_delta, F_bow);
-        float rhoBristle = bristleFriction.computeReflectionCoefficient (v_delta, F_bow, dt);
-        float rho = rhoCore + bristleBlend * (rhoBristle - rhoCore);
+        // Step 5: Friction — Hyperbolic Stribeck curve
+        float rho = frictionModel.computeReflectionCoefficient (v_delta, F_bow);
 
         // Reversed friction: interpolate rho toward (1 - rho)
         if (reversedAmount >= 0.001f)

@@ -156,6 +156,140 @@ html, body {
   cursor: pointer;
   margin-top: 3px;
 }
+/* Lyrics tab layout */
+#lyrics-tab {
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
+  padding: 12px 16px;
+}
+.lyrics-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+.lyrics-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lyrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.lyrics-header h3 {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+  margin: 0;
+}
+.lyrics-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lyrics-btn {
+  background: #EDD9C4;
+  border: 1px solid rgba(139,115,85,0.4);
+  border-radius: 3px;
+  color: #8B7355;
+  font-family: 'Garamond', serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.lyrics-btn:hover { background: rgba(139,115,85,0.15); color: #3C2F2F; }
+.lyrics-btn.active { background: #8BA870; color: #F5E6D3; border-color: #8BA870; }
+#lyrics-input {
+  width: 100%;
+  background: #EDE0CF;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  color: #3C2F2F;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+  letter-spacing: 1px;
+}
+#lyrics-input::placeholder { color: #B8A590; font-style: italic; font-family: 'Garamond', serif; letter-spacing: 0; font-size: 11px; }
+#lyrics-input:focus { border-color: #6B8E4E; }
+.lyrics-help {
+  font-size: 8px;
+  color: #B8A590;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+}
+.lyrics-display-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.lyrics-syllable-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lyrics-syllable-label span {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: #6B8E4E;
+  letter-spacing: 0;
+}
+.lyrics-syllables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: #EDE0CF;
+  border: 1px solid rgba(139,115,85,0.3);
+  border-radius: 3px;
+  flex: 1;
+  overflow-y: auto;
+  align-content: flex-start;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,115,85,0.3) transparent;
+}
+.lyrics-syllables::-webkit-scrollbar { width: 4px; }
+.lyrics-syllables::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.3); border-radius: 2px; }
+.syl-chip {
+  background: #F5E6D3;
+  border: 1px solid rgba(139,115,85,0.3);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: #3C2F2F;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.syl-chip.current {
+  background: #6B8E4E;
+  border-color: #4A6B35;
+  color: #F5E6D3;
+}
+.syl-chip.past {
+  opacity: 0.5;
+}
+.lyrics-toggle .toggle-btn {
+  width: 28px; height: 14px;
+}
+.lyrics-toggle .toggle-thumb {
+  width: 10px; height: 10px;
+}
+
 #tuning-container {
   width: 100%;
   height: 100%;
@@ -733,6 +867,7 @@ canvas#consonant-xy-pad {
 
   <div class="tab-bar">
     <div class="tab active" data-tab="synth">Synth</div>
+    <div class="tab" data-tab="lyrics">Lyrics</div>
     <div class="tab" data-tab="tuning">Tuning</div>
     <div class="tab" data-tab="effects">Effects</div>
   </div>
@@ -1079,6 +1214,34 @@ canvas#consonant-xy-pad {
       </div>
     </div>
   </div><!-- end effects-tab -->
+
+  <div id="lyrics-tab" class="tab-content">
+    <div class="lyrics-panel">
+      <div class="lyrics-input-section">
+        <div class="lyrics-header">
+          <h3>ARPABET Input</h3>
+          <div class="lyrics-controls">
+            <div class="toggle-wrap lyrics-toggle" data-param="lyricsEnabled">
+              <div class="toggle-btn" id="lyricsEnabled-toggle"><div class="toggle-thumb"></div></div>
+              <div class="toggle-label">Enable</div>
+            </div>
+            <button class="lyrics-btn" id="lyrics-loop-btn" title="Toggle loop">Loop</button>
+            <button class="lyrics-btn" id="lyrics-reset-btn" title="Reset to first syllable">Reset</button>
+          </div>
+        </div>
+        <textarea id="lyrics-input" rows="3" spellcheck="false"
+          placeholder="Type ARPABET phonemes separated by spaces (e.g. HH AH L OW W ER L D)"></textarea>
+        <div class="lyrics-help">
+          Vowels: AA AE AH AO AW AY EH ER EY IH IY OW OY UH UW &nbsp;|&nbsp;
+          Consonants: B CH D DH F G HH JH K L M N NG P R S SH T TH V W Y Z ZH
+        </div>
+      </div>
+      <div class="lyrics-display-section">
+        <div class="lyrics-syllable-label">Syllables <span id="lyrics-counter">0 / 0</span></div>
+        <div class="lyrics-syllables" id="lyrics-syllables"></div>
+      </div>
+    </div>
+  </div>
 
   <div id="tuning-tab" class="tab-content">
     <div id="tuning-container"></div>

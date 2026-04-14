@@ -49,6 +49,9 @@ private:
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
     std::unique_ptr<juce::WebSliderRelay> stereoWidthRelay;
 
+    // Lyrics relay
+    std::unique_ptr<juce::WebToggleButtonRelay> lyricsEnabledRelay;
+
     // Effects relays
     std::unique_ptr<juce::WebToggleButtonRelay> chorusBypassRelay;
     std::unique_ptr<juce::WebSliderRelay> chorusRateRelay;
@@ -107,6 +110,9 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> nasalPlaceAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> stereoWidthAttachment;
+
+    // Lyrics attachment
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lyricsEnabledAttachment;
 
     // Effects attachments
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> chorusBypassAttachment;

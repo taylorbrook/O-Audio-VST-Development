@@ -1,5 +1,34 @@
 # O-Wind Changelog
 
+## [1.15.1] - 2026-04-13
+
+### Fixed — ADSR Release Envelope Cut Short
+
+The ADSR amplitude release was inaudible because the voice-clearing mechanism terminated the note ~60ms after noteOff, before the ADSR release could complete.
+
+**Root cause:** The `releaseFading` cleanup in `renderNextBlock()` triggers when the JetExciter breath envelope drops below threshold (~50ms after noteOff) + a 10ms fade. This fired regardless of the ADSR release state, killing a voice that might have seconds of release remaining.
+
+**Fix:** Gate the `releaseFading` trigger to defer while the ADSR is still in its Release stage. Once the ADSR envelope reaches zero (stage → Idle), the existing cleanup mechanism fires normally.
+
+**Files Modified:** Source/FluteSynthVoice.cpp (1 condition added)
+
+## [1.15.0] - 2026-04-13
+
+### Improved — Sound Tab Layout
+
+Rearranged the Sound tab to eliminate scrolling and remove wasted blank space.
+
+**Layout changes:**
+- Instrument strip (Tone Holes + Preset) moved to top as a compact bar
+- ADSR Envelope moved into the 3-column grid (replaces Expression)
+- Expression section now full-width — all 8 knobs in a single horizontal row
+- Output and Impossible Physics remain as 2-column bottom row
+- Tighter padding/margins scoped to Sound panel only (other tabs unaffected)
+
+**Root cause:** Expression's 8 knobs were in the smallest grid column (0.8fr), causing 4 rows of wrapping (~400px) which forced the entire tab to scroll.
+
+**Files Modified:** Resources/ui/index.html (CSS + HTML restructure)
+
 ## [1.14.0] - 2026-04-13
 
 ### Added — Effects Panel (Chorus, Delay, Reverb, EQ)
