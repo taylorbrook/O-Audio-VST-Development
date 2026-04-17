@@ -22,6 +22,11 @@ void BowModel::prepare (double sr)
 
 void BowModel::startBow (float velocity)
 {
+    // Start each note from silence so retriggers during a previous note's
+    // release decay don't carry residual bow state into the new attack.
+    v_bow = 0.0f;
+    F_bow = 0.0f;
+
     // Map MIDI velocity (0-1) to bow speed multiplier: minimum 20% speed
     float multiplier = 0.2f + 0.8f * velocity;
     v_bow_target = bowSpeedParam * multiplier;

@@ -40,6 +40,10 @@ void BowedStringVoice::noteStarted()
     bowModel.startBow (velocity);
     oversampling.reset();
     bowNoiseGen.reset();
+
+    // Reset reversed-friction smoother so the reversal formula can't pin rho
+    // to a non-zero value before the bow physically engages (v1.1.2 thump fix).
+    smoothedReversedAmount = 0.0f;
 }
 
 void BowedStringVoice::noteStopped (bool allowTailOff)
@@ -109,6 +113,9 @@ void BowedStringVoice::prepareToPlay (double sampleRate, int maxBlockSize)
 
     // Prepare bow noise at native rate (not oversampled)
     bowNoiseGen.prepare (sampleRate, voiceIndex);
+
+    // Reversed-friction smoother coefficient: ~25 ms one-pole at oversampled rate
+    reversedRampCoeff = 1.0f - std::exp (-1.0f / (0.025f * static_cast<float> (sampleRate * 2.0)));
 }
 
 void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
@@ -150,9 +157,14 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Step 5: Friction — Hyperbolic Stribeck curve
         float rho = frictionModel.computeReflectionCoefficient (v_delta, F_bow);
 
-        // Reversed friction: interpolate rho toward (1 - rho)
-        if (reversedAmount >= 0.001f)
-            rho = rho + reversedAmount * (1.0f - 2.0f * rho);
+        // Reversed friction: interpolate rho toward (1 - rho).
+        // The smoother ramps from 0 on note-on over ~25 ms so the reversal
+        // formula can't pin rho to a non-zero value while F_bow is still
+        // ramping — which previously caused the waveguide to latch onto the
+        // bow velocity attack and emit a thump at note-on.
+        smoothedReversedAmount += (reversedAmount - smoothedReversedAmount) * reversedRampCoeff;
+        if (smoothedReversedAmount >= 0.001f)
+            rho = rho + smoothedReversedAmount * (1.0f - 2.0f * rho);
 
         // Clamp rho to prevent excessive velocity injection
         rho = std::min (rho, 0.85f);

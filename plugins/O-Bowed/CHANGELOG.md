@@ -2,6 +2,12 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.1.2] - 2026-04-16
+
+### Fixed
+- Audible thump at the start of every new note whenever Reversed Friction was non-zero. Root cause: the reversal formula `rho = rho + reversedAmount * (1 - 2*rho)` evaluates to `reversedAmount` when base `rho ≈ 0` (which it is while `F_bow` is still ramping through the attack envelope). That pinned `rho` from the very first sample of the note, making `frictionVelocity = 2ρ/(1-ρ)` large enough for the sticking branch (`|v_delta| < frictionVelocity`) to always hold — so the bow-velocity attack ramp was injected directly into a freshly reset waveguide as a velocity step, producing a broadband click. Fixed with a per-voice one-pole smoother on `reversedAmount` that resets to 0 on `noteStarted()` and ramps to the knob value over ~25 ms at the oversampled rate, letting physical friction build up first before the reversal takes effect. Sustain-time character is unchanged
+- `BowModel::startBow()` now zeros `v_bow`/`F_bow` before setting new targets, so retriggering a note while a previous note's release envelope is still decaying no longer carries residual bow state into the new attack
+
 ## [1.1.1] - 2026-04-11
 
 ### Fixed

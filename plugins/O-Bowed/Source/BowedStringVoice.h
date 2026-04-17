@@ -94,6 +94,12 @@ private:
     float reversedAmount = 0.0f;
     float subHarmonicsAmount = 0.0f;
 
+    // Per-voice smoother for reversedAmount. Resets to 0 on noteStarted()
+    // and ramps toward the knob value over ~25 ms, so the reversal formula
+    // can't inject a discontinuity into rho during the bow attack (thump fix).
+    float smoothedReversedAmount = 0.0f;
+    float reversedRampCoeff = 0.0f;
+
     // Cached sample period (at oversampled rate)
     float dt = 1.0f / 88200.0f;
 
