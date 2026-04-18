@@ -51,6 +51,16 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
     referencePitchRelay = std::make_unique<juce::WebSliderRelay>("referencePitch");
     tuningSystemRelay = std::make_unique<juce::WebComboBoxRelay>("tuningSystem");
 
+    // Humanize (range + rate per bow param)
+    humanizeSpeedRangeRelay    = std::make_unique<juce::WebSliderRelay>("humanizeSpeedRange");
+    humanizeSpeedRateRelay     = std::make_unique<juce::WebSliderRelay>("humanizeSpeedRate");
+    humanizePressureRangeRelay = std::make_unique<juce::WebSliderRelay>("humanizePressureRange");
+    humanizePressureRateRelay  = std::make_unique<juce::WebSliderRelay>("humanizePressureRate");
+    humanizePositionRangeRelay = std::make_unique<juce::WebSliderRelay>("humanizePositionRange");
+    humanizePositionRateRelay  = std::make_unique<juce::WebSliderRelay>("humanizePositionRate");
+    humanizeRosinRangeRelay    = std::make_unique<juce::WebSliderRelay>("humanizeRosinRange");
+    humanizeRosinRateRelay     = std::make_unique<juce::WebSliderRelay>("humanizeRosinRate");
+
     // ===================================================================
     // 2. CREATE WEBVIEW with all relays + native functions
     // ===================================================================
@@ -92,6 +102,15 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             // Tuning
             .withOptionsFrom(*referencePitchRelay)
             .withOptionsFrom(*tuningSystemRelay)
+            // Humanize
+            .withOptionsFrom(*humanizeSpeedRangeRelay)
+            .withOptionsFrom(*humanizeSpeedRateRelay)
+            .withOptionsFrom(*humanizePressureRangeRelay)
+            .withOptionsFrom(*humanizePressureRateRelay)
+            .withOptionsFrom(*humanizePositionRangeRelay)
+            .withOptionsFrom(*humanizePositionRateRelay)
+            .withOptionsFrom(*humanizeRosinRangeRelay)
+            .withOptionsFrom(*humanizeRosinRateRelay)
 
             // =============================================================
             // VISUALIZATION NATIVE FUNCTION
@@ -405,6 +424,24 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
         *apvts.getParameter("referencePitch"), *referencePitchRelay, nullptr);
     tuningSystemAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("tuningSystem"), *tuningSystemRelay, nullptr);
+
+    // Humanize
+    humanizeSpeedRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizeSpeedRange"), *humanizeSpeedRangeRelay, nullptr);
+    humanizeSpeedRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizeSpeedRate"), *humanizeSpeedRateRelay, nullptr);
+    humanizePressureRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizePressureRange"), *humanizePressureRangeRelay, nullptr);
+    humanizePressureRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizePressureRate"), *humanizePressureRateRelay, nullptr);
+    humanizePositionRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizePositionRange"), *humanizePositionRangeRelay, nullptr);
+    humanizePositionRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizePositionRate"), *humanizePositionRateRelay, nullptr);
+    humanizeRosinRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizeRosinRange"), *humanizeRosinRangeRelay, nullptr);
+    humanizeRosinRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanizeRosinRate"), *humanizeRosinRateRelay, nullptr);
 
     // Navigate to embedded UI
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());

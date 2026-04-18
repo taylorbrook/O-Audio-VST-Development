@@ -40,6 +40,7 @@ target_sources(O-Bowed
         Source/DSP/ThermalFriction.h
         Source/DSP/SubHarmonicsGenerator.h
         Source/DSP/BowNoiseGenerator.h
+        Source/DSP/HumanizeEngine.h
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp

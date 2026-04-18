@@ -2,6 +2,63 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.24.1] - 2026-04-17
+
+### Fixed
+- **Plosive consonants (/k/, /t/, /p/) now trigger consistently on note-on** — previously inconsistent, especially after fricatives like /s/. Fricative consonants were unaffected because their dominant sustained-noise component used updated coefficients; plosives rely entirely on the 8 ms burst which used stale values.
+- **Root cause:** In `FormantVoice::noteStarted()`, `consonantEngine.triggerBurst()` and `fricationBank.snapToTargets()` ran BEFORE `renderNextBlock()` could update coefficients with the new note's parameters. This caused three stale-cache failures:
+  1. `burstSamplesRemaining = cachedBurstDuration` was set from the previous syllable. After fricative (80 ms, manner=1) → plosive (8 ms, manner=0), the first-sample progress calculation became `1 - 3528/353 = -9.0`, causing `exp(-12 × -9) = exp(108)` overflow — the burst envelope clipped to max amplitude for ~72 ms, masking the plosive character.
+  2. The VOT/aspiration trigger condition `cachedVoicing < 0.5 && cachedManner < 0.3` was evaluated against stale values, so voiceless plosives following fricatives never got their aspiration phase (the 40–80 ms noise through the cascade bank that makes /k t p/ sound distinctly plosive).
+  3. `fricationBank.snapToTargets()` snapped smoothed amplitudes to the previous syllable's place target, so the 8 ms burst was filtered by ~"s"-like F6F @ 6 kHz amplitudes instead of the current consonant's target.
+
+### Technical Notes
+- **Non-breaking.** No parameter IDs, ranges, or defaults changed. Existing presets and automation load identically.
+- Fix is ~35 LOC in `FormantVoice::noteStarted()`: priming block reads the new syllable's consonant parameters (from `currentSyllable` in lyrics mode or APVTS otherwise) and calls `consonantEngine.updateCoefficients()`, `setVOTScale()`, `setManualEnvelope()` (when auto off), and `fricationBank.setPlace()` BEFORE `snapToTargets()` and `triggerBurst()`.
+- The existing `renderNextBlock()` block-rate updates at lines 415–426 are still in place; they're now redundant for the first block after note-on but remain necessary for subsequent blocks when parameters change mid-note.
+
+### Based On
+- Investigation via root-cause code trace (Tier 2). No new literature.
+
+## [1.24.0] - 2026-04-16
+
+### Added
+- **Locus-based F2/F3 formant transitions** (Delattre-Liberman-Cooper 1955) — for 40–50 ms after note onset, when a consonant is active (consonantLevel > 0.1 at onset), F2 and F3 are biased toward place-specific loci and decay exponentially (τ=15 ms per Kewley-Port 1982) toward the vowel morpher target. This provides the dominant place-of-articulation cue that listeners use when bursts are masked or ambiguous, and was previously missing entirely.
+  - F2 locus table: Labial 720 Hz → Alveolar 1800 Hz → Palatal 2200 Hz → Velar back-V pinch 1200 Hz (continuous piecewise-linear interpolation across the place axis).
+  - F3 locus table: Labial 2000 Hz, Alveolar 2700 Hz, Palatal 3000 Hz, Velar 2200 Hz.
+  - Block-rate application (every 32 samples) inside `FormantVoice::renderNextBlock` immediately after `vowelMorpher.compute()` — so existing per-formant smoothing (`transitionTime`), Singer's Formant clustering, breathiness/nasal BW scaling, and source-filter coupling all ride naturally on top of the post-biased frequencies.
+- **`consonantTransition` parameter** (0–1, default 0.5) — user scale on the locus pull. 0.0 = legacy behavior (no locus bias, equivalent to v1.23.0). 0.5 = half-strength DLC locus. 1.0 = full Delattre-Liberman-Cooper locus at onset.
+- **Transition knob in UI** — added to the consonant envelope controls row next to Atk/Hold/Decay.
+
+### Technical Notes
+- **Non-breaking, additive.** All existing APVTS parameter IDs, ranges, and defaults are unchanged. Existing presets and automation load identically. The default 0.5 produces audible but subtle locus onsets; users set to 0.0 to restore exact v1.23.0 formant trajectories.
+- Trigger decision is made once at `noteStarted()` (reads `consonantLevel` and `consonantTone` via lyrics-aware priority). The transition does not retrigger mid-note.
+- Effective weight `w = exp(-t/τ) * consonantTransition` interpolates `formantFreqs[1]` and `formantFreqs[2]` from their post-vowel-morph values toward the loci. At `t=50 ms`, `exp(-50/15) ≈ 0.036`, contributing <2% pull even at full amount, so the transition naturally fades into the standard vowel formant path.
+- Implementation is entirely inside `FormantVoice` (no new files) plus one APVTS entry and one WebView relay/attachment pair. ~110 LOC C++, ~6 LOC UI wiring.
+- No interaction hazards verified for `transitionTime` (per-formant SmoothedValue — still smooths toward the biased target) or Singer's Formant (clustering runs on post-locus F3 frequency so the effect is preserved relative to wherever F3 currently sits).
+
+### Based On
+- Research doc: `improvements/consonant-realism-research.md` Item 5
+- Delattre, Liberman & Cooper (1955). Acoustic loci and transitional cues for consonants. JASA 27:769.
+- Kewley-Port (1982). Measurement of formant transitions in naturally produced stop CV syllables. JASA 72:379.
+
+## [1.23.0] - 2026-04-16
+
+### Added
+- **Klatt frication formant bank** (`dsp/FricationFormantBank.h`) — 3 parallel BPFs at fixed Klatt frequencies (F3F=2500 Hz Q=2.0, F4F=3500 Hz Q=1.8, F6F=6000 Hz Q=2.5) plus a flat bypass path for weak fricatives /f v θ ð/. Uses eSpeak-NG alternating-sign summation for inter-formant notches without explicit anti-resonators. Continuous place axis drives a 5-anchor piecewise-linear amplitude table (Labial=bypass / Alveolar=F6F dominant / Post-alveolar=F3F dominant / Velar=F3F+F4F mid).
+- **Stevens-Blumstein plosive burst spectral templates** (in `ConsonantEngine::applyBurstTemplate`) — place-dependent burst coloration via LP@800Hz (labial /p b/ diffuse-falling), HP@3.5kHz (alveolar /t d/ diffuse-rising), and BP Q=3 @2kHz (velar /k g/ compact). Crossfaded along the place axis; activates only for plosives (manner<0.3) with smooth blend to the generic shape at higher manner values.
+- **VOT / aspiration phase** for voiceless stops — when voicing<0.5 AND manner<0.3, an aspiration window of `(1-voicing)*80+5 ms` is inserted between the burst and voice onset. Aspiration noise is routed through the cascade bank (not the frication bank) so it is shaped by the opening vocal tract toward the following vowel (Klatt AH behavior). Glottal source is fully suppressed during aspiration.
+- **Klatt MOD voiced-fricative noise gating** — when voicing>0.5 AND manner>0.3, noise is multiplied by a 50% square gate synced to F0 (`phase<0.5 ? 1.0 : 0.5`). Makes /z/, /ʒ/, /v/, /ð/ distinct from voiceless + voice-bar bleed.
+- **`consonantVOT` parameter** (0–1, default 0.5) — user scale for aspiration duration. 0.0 = no aspiration (suppresses VOT phase entirely), 0.5 = nominal Klatt VOT, 1.0 = 2× nominal.
+
+### Technical Notes
+- **Non-breaking:** all existing parameter IDs and ranges are unchanged. Existing presets and automation continue to load identically. New `consonantVOT` defaults to 0.5 (nominal VOT) which matches the prior fixed 25 ms onset behavior closely enough that preset character is preserved while adding the new realism when voicing/manner enter voiceless-plosive territory.
+- Aspiration noise routing uses the existing `AspirationNoise` module's pipeline (aspiration injected before cascade-bank processing), avoiding a separate noise generator.
+- `FricationFormantBank` replaces `filterBank.process()` for consonant noise in Cascade (topology 0) and Hybrid (topology 2) branches of `FormantVoice::renderNextBlock` (lines 570-580). Parallel legacy topology (1) is unchanged for back-compat.
+- ~360 LOC total, 1 new file. No new dependencies.
+
+### Based On
+- Research doc: `improvements/consonant-realism-research.md` (Klatt 1980; Stevens & Blumstein 1978/79; Lisker & Abramson 1964; KlattGrid; eSpeak NG klatt.c)
+
 ## [1.22.0] - 2026-04-13
 
 ### Improved

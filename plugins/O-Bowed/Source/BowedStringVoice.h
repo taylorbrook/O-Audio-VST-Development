@@ -25,6 +25,7 @@
 #include "DSP/ElastoPlasticFriction.h"
 #include "DSP/SubHarmonicsGenerator.h"
 #include "DSP/BowNoiseGenerator.h"
+#include "DSP/HumanizeEngine.h"
 
 class TuningEngine;
 
@@ -57,6 +58,9 @@ public:
     // TuningEngine integration
     void setTuningEngine (TuningEngine* engine) noexcept { tuningEngine = engine; }
 
+    // Humanize engine (processor-owned, shared across voices)
+    void setHumanizeEngine (const HumanizeEngine* engine) noexcept { humanizeEngine = engine; }
+
     // Voice index for seeding noise generator
     void setVoiceIndex (int idx) noexcept { voiceIndex = idx; }
 
@@ -86,6 +90,9 @@ private:
 
     // TuningEngine (processor-owned, voice holds non-owning pointer)
     TuningEngine* tuningEngine = nullptr;
+
+    // HumanizeEngine (processor-owned, read-only from voice)
+    const HumanizeEngine* humanizeEngine = nullptr;
 
     // Bristle blend (0 = pure Core, 1 = full bristle)
     float bristleBlend = 0.0f;

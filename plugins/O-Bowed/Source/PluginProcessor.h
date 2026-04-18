@@ -20,6 +20,7 @@
 #include "DSP/BodyResonator.h"
 #include "DSP/StereoWidthProcessor.h"
 #include "DSP/SympatheticStringEngine.h"
+#include "DSP/HumanizeEngine.h"
 #include "OuariconPresetManager.h"
 
 class OBowedAudioProcessor : public juce::AudioProcessor
@@ -56,6 +57,9 @@ public:
     // Public access to tuning engine
     TuningEngine* getTuningEngine() { return &tuningEngine; }
 
+    // Public access to humanize engine (voices read per-block offsets)
+    const HumanizeEngine* getHumanizeEngine() const noexcept { return &humanizeEngine; }
+
     // Public access to preset manager for editor
     OuariconPresetManager& getPresetManager() { return presetManager; }
 
@@ -81,6 +85,9 @@ private:
 
     // Sympathetic string engine (processor-level)
     SympatheticStringEngine sympatheticEngine;
+
+    // Random-walk humanization, shared across voices (processor-level)
+    HumanizeEngine humanizeEngine;
 
     // Preset manager
     OuariconPresetManager presetManager;

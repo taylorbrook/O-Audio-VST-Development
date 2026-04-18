@@ -149,6 +149,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         40.0f,
         "ms"));
 
+    // VOT scale for voiceless plosive aspiration (0 = no aspiration, 1 = 2x nominal)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "consonantVOT", 1 },
+        "VOT",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.5f));
+
+    // F2/F3 locus transition amount (Delattre-Liberman-Cooper 1955;
+    // Kewley-Port 1982 τ=15ms). 0 = legacy off, 1 = full DLC locus pull.
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "consonantTransition", 1 },
+        "Transition",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.5f));
+
     // --- Envelope (4) ---
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "attack", 1 },

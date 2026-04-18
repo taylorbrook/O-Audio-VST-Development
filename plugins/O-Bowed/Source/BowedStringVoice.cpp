@@ -227,6 +227,28 @@ void BowedStringVoice::updateParametersFromAPVTS()
     float bowPressure    = parameters->getRawParameterValue ("bowPressure")->load();
     float bowPos         = parameters->getRawParameterValue ("bowPosition")->load();
     float rosin          = parameters->getRawParameterValue ("rosin")->load();
+
+    // Humanize: add random-walk offsets scaled to each parameter's musical range.
+    // Offsets are in [-1..+1] normalised scale; per-param deviations below were
+    // chosen so a full "humanize" knob (1.0) gives noticeable but never
+    // destructive variation. The engine is processor-shared, so all active
+    // voices breathe coherently.
+    if (humanizeEngine != nullptr)
+    {
+        constexpr float speedDev    = 0.30f;  // m/s
+        constexpr float pressureDev = 0.60f;  // N
+        constexpr float positionDev = 0.05f;  // fraction of string length
+        constexpr float rosinDev    = 0.20f;  // 0-1 friction shape
+
+        bowSpeed    = juce::jlimit (0.02f, 2.0f,
+                                    bowSpeed    + humanizeEngine->getOffset (HumanizeEngine::Speed)    * speedDev);
+        bowPressure = juce::jlimit (0.01f, 5.0f,
+                                    bowPressure + humanizeEngine->getOffset (HumanizeEngine::Pressure) * pressureDev);
+        bowPos      = juce::jlimit (0.02f, 0.30f,
+                                    bowPos      + humanizeEngine->getOffset (HumanizeEngine::Position) * positionDev);
+        rosin       = juce::jlimit (0.0f, 1.0f,
+                                    rosin       + humanizeEngine->getOffset (HumanizeEngine::Rosin)    * rosinDev);
+    }
     float brightness     = parameters->getRawParameterValue ("brightness")->load();
     float infSustain     = parameters->getRawParameterValue ("infiniteSustain")->load();
     float outputLevel    = parameters->getRawParameterValue ("outputLevel")->load();

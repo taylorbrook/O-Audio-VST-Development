@@ -2,6 +2,15 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.2.0] - 2026-04-17
+
+### Added
+- **Humanize** section with per-parameter random-walk variation on the four primary bow controls (Speed, Pressure, Position, Rosin). Each parameter exposes two dials:
+  - **Amt** (range) — peak deviation. At 0 the walk is inactive; at 1 the parameter drifts across its full musically-tuned deviation (speed ±0.30 m/s, pressure ±0.60 N, position ±0.05, rosin ±0.20).
+  - **Rate** — drift speed, mapped 0→0.15 Hz to 1→8 Hz as the corner frequency of a 1-pole smoother fed with uniform-noise targets (sum of 3 uniforms for a Gaussian-ish distribution).
+- The walk state lives in a new processor-level `HumanizeEngine` (`Source/DSP/HumanizeEngine.h`), updated once per `processBlock` and shared across all 8 voices so the instrument breathes coherently. State is continuous — never reset on note-on — matching the natural drift of a live player
+- Default Rate values (0.20–0.35) chosen to feel like subtle natural bow fluctuation (≈2–3 Hz). All Amt dials default to 0 so existing presets are unchanged
+
 ## [1.1.2] - 2026-04-16
 
 ### Fixed

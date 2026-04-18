@@ -54,6 +54,15 @@ private:
     // Tuning
     std::unique_ptr<juce::WebSliderRelay> referencePitchRelay;
     std::unique_ptr<juce::WebComboBoxRelay> tuningSystemRelay;
+    // Humanize (range + rate per bow parameter)
+    std::unique_ptr<juce::WebSliderRelay> humanizeSpeedRangeRelay;
+    std::unique_ptr<juce::WebSliderRelay> humanizeSpeedRateRelay;
+    std::unique_ptr<juce::WebSliderRelay> humanizePressureRangeRelay;
+    std::unique_ptr<juce::WebSliderRelay> humanizePressureRateRelay;
+    std::unique_ptr<juce::WebSliderRelay> humanizePositionRangeRelay;
+    std::unique_ptr<juce::WebSliderRelay> humanizePositionRateRelay;
+    std::unique_ptr<juce::WebSliderRelay> humanizeRosinRangeRelay;
+    std::unique_ptr<juce::WebSliderRelay> humanizeRosinRateRelay;
 
     // 2. WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -82,6 +91,15 @@ private:
     // Tuning
     std::unique_ptr<juce::WebSliderParameterAttachment> referencePitchAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> tuningSystemAttachment;
+    // Humanize
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizeSpeedRangeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizeSpeedRateAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizePressureRangeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizePressureRateAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizePositionRangeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizePositionRateAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizeRosinRangeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humanizeRosinRateAttachment;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

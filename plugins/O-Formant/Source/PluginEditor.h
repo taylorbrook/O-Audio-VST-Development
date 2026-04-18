@@ -33,6 +33,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> consonantToneRelay;
     std::unique_ptr<juce::WebSliderRelay> sibilanceRelay;
     std::unique_ptr<juce::WebSliderRelay> consonantVoicingRelay;
+    std::unique_ptr<juce::WebSliderRelay> consonantTransitionRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> autoConsonantRelay;
     std::unique_ptr<juce::WebSliderRelay> attackRelay;
     std::unique_ptr<juce::WebSliderRelay> decayRelay;
@@ -95,6 +96,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> consonantToneAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sibilanceAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> consonantVoicingAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> consonantTransitionAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> autoConsonantAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> attackAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> decayAttachment;

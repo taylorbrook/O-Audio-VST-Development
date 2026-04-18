@@ -22,6 +22,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     consonantToneRelay = std::make_unique<juce::WebSliderRelay> ("consonantToneSlider");
     sibilanceRelay     = std::make_unique<juce::WebSliderRelay> ("sibilanceSlider");
     consonantVoicingRelay = std::make_unique<juce::WebSliderRelay> ("consonantVoicingSlider");
+    consonantTransitionRelay = std::make_unique<juce::WebSliderRelay> ("consonantTransitionSlider");
     autoConsonantRelay = std::make_unique<juce::WebToggleButtonRelay> ("autoConsonantToggle");
     attackRelay        = std::make_unique<juce::WebSliderRelay> ("attackSlider");
     decayRelay         = std::make_unique<juce::WebSliderRelay> ("decaySlider");
@@ -96,6 +97,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*consonantToneRelay)
             .withOptionsFrom (*sibilanceRelay)
             .withOptionsFrom (*consonantVoicingRelay)
+            .withOptionsFrom (*consonantTransitionRelay)
             .withOptionsFrom (*autoConsonantRelay)
             .withOptionsFrom (*attackRelay)
             .withOptionsFrom (*decayRelay)
@@ -689,6 +691,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     consonantToneAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantTone"), *consonantToneRelay);
     sibilanceAttachment     = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("sibilance"), *sibilanceRelay);
     consonantVoicingAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantVoicing"), *consonantVoicingRelay);
+    consonantTransitionAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantTransition"), *consonantTransitionRelay);
     autoConsonantAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment> (*apvts.getParameter ("autoConsonant"), *autoConsonantRelay);
     attackAttachment        = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("attack"), *attackRelay);
     decayAttachment         = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("decay"), *decayRelay);

@@ -21,6 +21,7 @@
 #include "dsp/VibratoLFO.h"
 #include "dsp/PitchGlide.h"
 #include "dsp/ConsonantEngine.h"
+#include "dsp/FricationFormantBank.h"
 #include "dsp/LyricsEngine.h"
 
 class TuningEngine;
@@ -57,6 +58,7 @@ private:
     VibratoLFO vibratoLFO;
     PitchGlide pitchGlide;
     ConsonantEngine consonantEngine;
+    FricationFormantBank fricationBank;
     juce::ADSR adsr;
 
     // --- Voice state ---
@@ -86,6 +88,16 @@ private:
     float formantFreqs[5] = {};
     float formantBWs[5] = {};
     float formantGains[5] = {};
+
+    // Consonant-to-vowel F2/F3 locus transition
+    // (Delattre-Liberman-Cooper 1955; Kewley-Port 1982 τ=15ms exp. decay)
+    bool  consonantTransitionActive = false;
+    int   consonantTransitionSamples = 0;
+    int   consonantTransitionMaxSamples = 0; // ~50ms in samples, set in prepare()
+    float consonantTauSamples = 1.0f;        // τ=15ms in samples, set in prepare()
+    float consonantF2Locus = 1800.0f;
+    float consonantF3Locus = 2700.0f;
+    float consonantTransitionAmount = 0.5f;  // cached per-block from APVTS
 
     // --- Tuning ---
     TuningEngine* tuningEnginePtr = nullptr;
@@ -126,6 +138,8 @@ private:
     std::atomic<float>* pConsonantAttack  = nullptr;
     std::atomic<float>* pConsonantHold    = nullptr;
     std::atomic<float>* pConsonantDecay   = nullptr;
+    std::atomic<float>* pConsonantVOT     = nullptr;
+    std::atomic<float>* pConsonantTransition = nullptr;
 
     // Envelope
     std::atomic<float>* pAttack  = nullptr;

@@ -45,6 +45,8 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pConsonantAttack = apvts->getRawParameterValue ("consonantAttack");
     pConsonantHold   = apvts->getRawParameterValue ("consonantHold");
     pConsonantDecay  = apvts->getRawParameterValue ("consonantDecay");
+    pConsonantVOT    = apvts->getRawParameterValue ("consonantVOT");
+    pConsonantTransition = apvts->getRawParameterValue ("consonantTransition");
 
     pAttack  = apvts->getRawParameterValue ("attack");
     pDecay   = apvts->getRawParameterValue ("decay");
@@ -93,10 +95,38 @@ void FormantVoice::prepare (double sampleRate)
     vibratoLFO.prepare (sampleRate);
     pitchGlide.prepare (sampleRate);
     consonantEngine.prepare (sampleRate, voiceIdx);
+    fricationBank.prepare (sampleRate);
     adsr.setSampleRate (sampleRate);
     rdSmoothed.reset (sampleRate, 0.020); // 20ms ramp for Rd modulation
     sourceFilterGain.reset (sampleRate, 0.010); // 10ms ramp for coupling gain
     sourceFilterGain.setCurrentAndTargetValue (1.0f);
+
+    // Locus transition window (~50ms total, τ=15ms) — Kewley-Port 1982
+    consonantTransitionMaxSamples = static_cast<int> (0.050 * sampleRate);
+    consonantTauSamples = static_cast<float> (0.015 * sampleRate);
+    consonantTransitionActive = false;
+    consonantTransitionSamples = 0;
+}
+
+// F2 locus by place (Delattre-Liberman-Cooper 1955; Kewley-Port 1982)
+// Labial 720 / Alveolar 1800 / Palatal 2200 / Velar back-V pinch → 1200
+static float computeF2Locus (float place) noexcept
+{
+    if (place < 0.33f)
+        return 720.0f + (place / 0.33f) * (1800.0f - 720.0f);
+    if (place < 0.67f)
+        return 1800.0f + ((place - 0.33f) / 0.34f) * (2200.0f - 1800.0f);
+    return 2200.0f + ((place - 0.67f) / 0.33f) * (1200.0f - 2200.0f);
+}
+
+// F3 locus: Labial 2000 / Alveolar 2700 / Palatal 3000 / Velar 2200
+static float computeF3Locus (float place) noexcept
+{
+    if (place < 0.33f)
+        return 2000.0f + (place / 0.33f) * (2700.0f - 2000.0f);
+    if (place < 0.67f)
+        return 2700.0f + ((place - 0.33f) / 0.34f) * (3000.0f - 2700.0f);
+    return 3000.0f + ((place - 0.67f) / 0.33f) * (2200.0f - 3000.0f);
 }
 
 void FormantVoice::noteStarted()
@@ -113,8 +143,12 @@ void FormantVoice::noteStarted()
     nasalPoleZero.reset();
     vibratoLFO.reset();
     consonantEngine.reset();
+    fricationBank.reset();
 
-    // Snap formant SmoothedValues to current targets for click-free onset
+    // Snap formant SmoothedValues to current targets for click-free onset.
+    // fricationBank.snapToTargets() is deferred to after the new syllable's
+    // place is set (see consonant priming block below) so it doesn't snap to
+    // the previous note's amplitudes.
     filterBank.snapToTargets();
     cascadeBank.snapToTargets();
     nasalPoleZero.snapToTargets();
@@ -190,8 +224,68 @@ void FormantVoice::noteStarted()
     if (lyricsActive)
         currentSyllable = lyricsEnginePtr->advanceAndGet();
 
-    // Always trigger consonant envelope + burst at note onset
+    // Prime consonant engine + frication bank with THIS note's parameters
+    // BEFORE triggerBurst. Fixes stale-cache bug where burst duration, VOT
+    // trigger, and frication amplitudes used the previous syllable's values,
+    // causing plosives to be inconsistently triggered (especially after
+    // fricatives where manner=1 caused exp overflow in burst progress calc
+    // and the voicing<0.5 && manner<0.3 VOT condition to fail).
+    {
+        float consonantTone    = lyricsActive ? currentSyllable.consonantTone
+                                              : (pConsonantTone    != nullptr ? pConsonantTone->load()    : 0.5f);
+        float sibilance        = lyricsActive ? currentSyllable.sibilance
+                                              : (pSibilance        != nullptr ? pSibilance->load()        : 0.0f);
+        float consonantVoicing = lyricsActive ? currentSyllable.consonantVoicing
+                                              : (pConsonantVoicing != nullptr ? pConsonantVoicing->load() : 0.5f);
+        double sr = getSampleRate();
+
+        consonantEngine.updateCoefficients (consonantTone, sibilance, consonantVoicing, sr);
+
+        // Manual envelope override when auto-consonant is off (lyrics always auto)
+        bool autoConsonant = lyricsActive
+            || (pAutoConsonant != nullptr && pAutoConsonant->load() >= 0.5f);
+        if (! autoConsonant)
+        {
+            float consAtk   = pConsonantAttack != nullptr ? pConsonantAttack->load() : 20.0f;
+            float consHold  = pConsonantHold   != nullptr ? pConsonantHold->load()   : 30.0f;
+            float consDecay = pConsonantDecay  != nullptr ? pConsonantDecay->load()  : 40.0f;
+            consonantEngine.setManualEnvelope (consAtk, consHold, consDecay, sr);
+        }
+
+        // VOT scale affects aspiration duration computed inside triggerBurst
+        float votScale = pConsonantVOT != nullptr ? pConsonantVOT->load() : 0.5f;
+        consonantEngine.setVOTScale (votScale);
+
+        // Frication bank: set new target then snap so the 8ms plosive burst
+        // is filtered by the correct place amplitudes from the very first sample
+        fricationBank.setPlace (consonantTone);
+        fricationBank.snapToTargets();
+    }
+
+    // Always trigger consonant envelope + burst at note onset (fresh coeffs)
     consonantEngine.triggerBurst (noteVelocity);
+
+    // Locus-based F2/F3 transition — Delattre-Liberman-Cooper 1955.
+    // Active only when a consonant is present at onset (level > 0.1).
+    // Loci decay exponentially (τ=15ms) toward the vowel target over ~50ms.
+    consonantTransitionSamples = 0;
+    consonantTransitionActive  = false;
+    {
+        float consLevelAtOnset = lyricsActive
+            ? currentSyllable.consonantLevel
+            : (pConsonantLevel != nullptr ? pConsonantLevel->load() : 0.0f);
+
+        if (consLevelAtOnset > 0.1f)
+        {
+            float placeAtOnset = lyricsActive
+                ? currentSyllable.consonantTone
+                : (pConsonantTone != nullptr ? pConsonantTone->load() : 0.5f);
+
+            consonantF2Locus = computeF2Locus (placeAtOnset);
+            consonantF3Locus = computeF3Locus (placeAtOnset);
+            consonantTransitionActive = true;
+        }
+    }
 
     // Force immediate coefficient update on first sample
     sampleCounter = 0;
@@ -360,6 +454,17 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // Update consonant filter coefficients (block-rate)
     consonantEngine.updateCoefficients (consonantTone, sibilance, consonantVoicing, getSampleRate());
 
+    // Frication formant bank: place-dependent amplitudes (F3F/F4F/F6F/bypass)
+    fricationBank.setPlace (consonantTone);
+
+    // VOT scale: user knob 0-1 scales aspiration duration (default 0.5 = nominal)
+    float votScale = pConsonantVOT != nullptr ? pConsonantVOT->load() : 0.5f;
+    consonantEngine.setVOTScale (votScale);
+
+    // Locus transition amount: user knob 0-1 scales F2/F3 pull at note onset
+    consonantTransitionAmount = pConsonantTransition != nullptr
+                                ? pConsonantTransition->load() : 0.5f;
+
     // When auto is off, override envelope timing with user knobs
     if (! autoConsonant)
     {
@@ -428,6 +533,28 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
             vowelMorpher.compute (vowelX, vowelY, focus,
                                   formantFreqs, formantBWs, formantGains);
+
+            // F2/F3 locus bias — Delattre-Liberman-Cooper 1955; Kewley-Port 1982.
+            // Exponential decay (τ=15ms) from place-specific loci toward the
+            // vowel morpher target over ~50ms; scaled by user transitionAmount.
+            // Runs before singersFormant / breathiness BW scaling so those
+            // modulations ride on the post-biased frequencies naturally.
+            if (consonantTransitionActive && consonantTransitionAmount > 0.0f)
+            {
+                if (consonantTransitionSamples < consonantTransitionMaxSamples)
+                {
+                    float locusWeight = std::exp (-static_cast<float> (consonantTransitionSamples)
+                                                  / consonantTauSamples);
+                    float w = locusWeight * consonantTransitionAmount;
+                    formantFreqs[1] = w * consonantF2Locus + (1.0f - w) * formantFreqs[1];
+                    formantFreqs[2] = w * consonantF3Locus + (1.0f - w) * formantFreqs[2];
+                    consonantTransitionSamples += kCoeffUpdateInterval;
+                }
+                else
+                {
+                    consonantTransitionActive = false;
+                }
+            }
 
             // Dynamic bandwidth variation based on vowel openness and breathiness
             // (1) Openness — F1 as proxy: higher F1 = more open = wider B1
@@ -529,7 +656,10 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float glottal = glottalSource.getNextSample();
 
         // Pass glottal cycle phase for pitch-synchronous aspiration
-        aspirationNoise.setGlottalPhase (glottalSource.getPhase());
+        float glottalPhase = glottalSource.getPhase();
+        aspirationNoise.setGlottalPhase (glottalPhase);
+        // Klatt MOD: voiced-fricative noise gating at F0
+        consonantEngine.setGlottalPhase (glottalPhase);
 
         // Mix with aspiration noise
         float source = aspirationNoise.process (glottal);
@@ -565,11 +695,15 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             spectralTiltPrev = tiltLP;
             float tiltedVoice = voiceWithEnv - tiltNorm * (voiceWithEnv - tiltLP);
 
-            // Voiced through cascade bank (correct relative formant amplitudes)
-            float voicedFiltered = cascadeBank.process (tiltedVoice);
+            // Aspiration noise (VOT phase) routed through cascade bank so it is
+            // shaped by the opening vocal tract toward the following vowel.
+            float aspirationInject = consonantEngine.getAspirationNoise();
 
-            // Consonant through parallel bank (needs per-formant gain control)
-            float consonantFiltered = filterBank.process (consonantNoise);
+            // Voiced through cascade bank (correct relative formant amplitudes)
+            float voicedFiltered = cascadeBank.process (tiltedVoice + aspirationInject);
+
+            // Consonant through Klatt frication bank (parallel F3F/F4F/F6F + bypass)
+            float consonantFiltered = fricationBank.process (consonantNoise);
 
             sample = voicedFiltered + consonantFiltered;
         }

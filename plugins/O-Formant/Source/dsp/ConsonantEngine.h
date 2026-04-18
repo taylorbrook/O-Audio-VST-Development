@@ -7,11 +7,23 @@
     Developer: Taylor Brook
 
     Place/manner articulation model for consonant synthesis.
-    X axis (Place): spectral center frequency via resonant bandpass pair.
+    X axis (Place): spectral center frequency via resonant bandpass pair and
+                    place-dependent plosive burst spectral template.
     Y axis (Manner): temporal profile from plosive burst to sustained fricative.
     Dedicated consonant envelope (Attack/Hold/Decay) triggered at note onset
     with timing derived from manner parameter (Klatt-informed values).
-    Consonant noise is routed through formant filter bank by FormantVoice.
+
+    v1.23.0: consonant realism overhaul
+      - Stevens-Blumstein plosive burst spectral templates
+        (LP@800Hz labial / HP@3.5kHz alveolar / BP@2kHz velar) crossfaded
+        by place
+      - VOT / aspiration phase for voiceless stops: (1-voicing)*80+5 ms
+        aspiration window with separate noise output routed through the
+        cascade (vowel) bank by FormantVoice
+      - Klatt MOD voiced-fricative noise gating (50% square gate at F0)
+
+    Consonant noise is routed through FricationFormantBank by FormantVoice.
+    Aspiration noise is routed through CascadeFormantBank by FormantVoice.
 
   ==============================================================================
 */
@@ -31,22 +43,34 @@ public:
         burstSamplesRemaining = 0;
         onsetSamplesRemaining = 0;
         onsetTotalSamples = static_cast<int> (0.025f * static_cast<float> (sr));
+        aspirationSamplesRemaining = 0;
+        aspirationTotalSamples = 0;
         consonantPhase = EnvPhase::Off;
         consonantEnvSample = 0;
+        cachedGlottalPhase = 0.0f;
+        currentAspirationNoise = 0.0f;
+        burstLpState = 0.0f;
+        burstHpLpState = 0.0f;
 
         updateCoefficients (0.5f, 0.5f, 0.5f, sr);
+        setBurstTemplateCoefficients (sr);
     }
 
     void reset() noexcept
     {
         placeFilter1.reset();
         placeFilter2.reset();
+        burstBpFilter.reset();
         burstSamplesRemaining = 0;
         onsetSamplesRemaining = 0;
+        aspirationSamplesRemaining = 0;
         burstAmplitude = 0.0f;
         currentOnsetSuppression = 0.0f;
+        currentAspirationNoise = 0.0f;
         consonantPhase = EnvPhase::Off;
         consonantEnvSample = 0;
+        burstLpState = 0.0f;
+        burstHpLpState = 0.0f;
     }
 
     void triggerBurst (float velocity) noexcept
@@ -54,6 +78,27 @@ public:
         burstSamplesRemaining = cachedBurstDuration;
         onsetSamplesRemaining = onsetTotalSamples;
         burstAmplitude = velocity;
+
+        // VOT / aspiration phase: only for voiceless plosives
+        // (voicing < 0.5 AND manner < 0.3)
+        if (cachedVoicing < 0.5f && cachedManner < 0.3f)
+        {
+            // Voiceless-strength factor: 1.0 at voicing=0, 0.0 at voicing=0.5
+            float voicelessFactor = juce::jlimit (0.0f, 1.0f,
+                                                  (0.5f - cachedVoicing) * 2.0f);
+            // VOT duration: (1-voicing)*80 + 5 ms  (Lisker-Abramson 1964)
+            float votMs = (1.0f - cachedVoicing) * 80.0f + 5.0f;
+            // consonantVOT param scales 0-2x (default 0.5 -> 1.0x)
+            votMs *= 2.0f * cachedVOTScale * voicelessFactor;
+            aspirationTotalSamples = juce::jmax (1, static_cast<int> (votMs * 0.001f
+                                                                      * static_cast<float> (sampleRate)));
+            aspirationSamplesRemaining = aspirationTotalSamples;
+        }
+        else
+        {
+            aspirationSamplesRemaining = 0;
+            aspirationTotalSamples = 0;
+        }
 
         // Start dedicated consonant envelope
         consonantPhase = EnvPhase::Attack;
@@ -65,6 +110,8 @@ public:
     void updateCoefficients (float place, float manner, float voicing, double sr) noexcept
     {
         float nyquist = static_cast<float> (sr * 0.5) - 100.0f;
+
+        cachedPlace = place;
 
         // Place of articulation -> spectral center frequency
         // Labial(0)=500Hz -> Alveolar(0.33)=3kHz -> Palatal(0.67)=6kHz -> Velar(1.0)=2kHz
@@ -112,9 +159,39 @@ public:
         cachedDecaySamples  = juce::jmax (1, static_cast<int> (decayMs * 0.001f * srF));
     }
 
+    // Inject glottal phase from FormantVoice for Klatt MOD voiced-fricative gating
+    void setGlottalPhase (float phase01) noexcept
+    {
+        cachedGlottalPhase = phase01;
+    }
+
+    // Set VOT scale factor (0-1, default 0.5 = 1.0x nominal VOT duration)
+    void setVOTScale (float vot01) noexcept
+    {
+        cachedVOTScale = juce::jlimit (0.0f, 1.0f, vot01);
+    }
+
     inline float getNextSample (float consonantLevel) noexcept
     {
-        // Onset suppression envelope
+        // -------- Aspiration phase: voice-suppressed noise for voiceless stops
+        // Generates a separate noise stream that FormantVoice routes through
+        // the cascade (vowel) bank so it is shaped by the opening vocal tract.
+        if (aspirationSamplesRemaining > 0)
+        {
+            float aspProgress = 1.0f - static_cast<float> (aspirationSamplesRemaining)
+                                       / static_cast<float> (juce::jmax (1, aspirationTotalSamples));
+            // Raised-sine envelope: smooth rise-peak-fall over the VOT window
+            float aspEnv = std::sin (aspProgress * juce::MathConstants<float>::pi);
+            float rawNoise = random.nextFloat() * 2.0f - 1.0f;
+            currentAspirationNoise = rawNoise * aspEnv * 0.6f * burstAmplitude;
+            --aspirationSamplesRemaining;
+        }
+        else
+        {
+            currentAspirationNoise = 0.0f;
+        }
+
+        // -------- Onset suppression envelope (glottal source damping)
         if (onsetSamplesRemaining > 0)
         {
             float onsetProgress = 1.0f - static_cast<float> (onsetSamplesRemaining)
@@ -131,31 +208,63 @@ public:
             currentOnsetSuppression = 0.0f;
         }
 
-        // Early-out: no consonant activity
+        // Aspiration phase also fully suppresses the glottal source
+        if (aspirationSamplesRemaining > 0 || currentAspirationNoise > 0.0f)
+            currentOnsetSuppression = juce::jmax (currentOnsetSuppression, burstAmplitude);
+
+        // -------- Early-out: no consonant activity
         bool burstActive = burstSamplesRemaining > 0;
         bool envActive = consonantPhase != EnvPhase::Off;
 
         if (consonantLevel < 0.001f && ! burstActive && ! envActive)
             return 0.0f;
 
-        // White noise source
+        // -------- White noise source
         float noise = random.nextFloat() * 2.0f - 1.0f;
 
-        // Place-of-articulation spectral shaping (dual resonant bandpass)
+        // Klatt MOD: 50% square-wave gate at F0 for voiced fricatives.
+        // Makes /z/, /v/, /Z/ sound distinct from voiceless + voice-bar bleed.
+        if (cachedVoicing > 0.5f && cachedManner > 0.3f)
+        {
+            float modGate = (cachedGlottalPhase < 0.5f) ? 1.0f : 0.5f;
+            noise *= modGate;
+        }
+
+        // Place-of-articulation spectral shaping (dual resonant bandpass).
+        // Kept for back-compat: contributes to sustained fricative shape but
+        // the primary frication coloration now comes from FricationFormantBank
+        // applied downstream in FormantVoice.
         float shaped = placeFilter1.processSample (noise)
                        + 0.4f * placeFilter2.processSample (noise);
 
         // Continuous component: fricatives produce sustained noise (scales with manner)
         float output = consonantLevel * cachedManner * shaped;
 
-        // Burst component: plosive onset transient
+        // -------- Burst component: plosive onset transient
         if (burstSamplesRemaining > 0)
         {
             float progress = 1.0f - static_cast<float> (burstSamplesRemaining)
                                     / static_cast<float> (juce::jmax (1, cachedBurstDuration));
             float burstEnv = std::exp (-cachedBurstDecayRate * progress) * burstAmplitude;
+
+            // Stevens-Blumstein place-dependent burst templates (plosives only)
+            // For plosives (manner < 0.3), replace the generic dual-BPF shape
+            // with a place-crossfaded template; for fricatives, keep shape.
+            float burstShaped;
+            if (cachedManner < 0.3f)
+            {
+                burstShaped = applyBurstTemplate (noise, cachedPlace);
+                // Crossfade between template and generic shape as manner approaches 0.3
+                float blend = juce::jlimit (0.0f, 1.0f, cachedManner / 0.3f);
+                burstShaped = (1.0f - blend) * burstShaped + blend * shaped;
+            }
+            else
+            {
+                burstShaped = shaped;
+            }
+
             // Burst amplitude boosted for plosives: 2x at manner=0, 1x at manner=1
-            output += burstEnv * (2.0f - cachedManner) * shaped;
+            output += burstEnv * (2.0f - cachedManner) * burstShaped;
             --burstSamplesRemaining;
         }
 
@@ -165,7 +274,10 @@ public:
         return juce::jlimit (-1.0f, 1.0f, output);
     }
 
-    // Suppression factor for glottal source during plosive onset
+    // Separate aspiration noise output (routed through cascade bank by FormantVoice)
+    float getAspirationNoise() const noexcept { return currentAspirationNoise; }
+
+    // Suppression factor for glottal source during plosive onset / aspiration
     float getOnsetSuppression() const noexcept { return currentOnsetSuppression; }
 
     // Continuous suppression for voiceless fricatives during full consonant envelope.
@@ -224,6 +336,45 @@ private:
         }
     }
 
+    // ---- Stevens-Blumstein plosive burst spectral templates ----
+    // One-pole LP (for /p b/ diffuse-falling) + HP derived from second LP
+    // (for /t d/ diffuse-rising) + biquad BP (for /k g/ compact).
+    // Crossfaded by place: 0->LP, 0.5->HP, 1.0->BP
+    void setBurstTemplateCoefficients (double sr) noexcept
+    {
+        float srF = static_cast<float> (sr);
+        // LP @ 800 Hz (labial)
+        burstLpAlpha = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * 800.0f / srF);
+        // HP derived as: x - LP_at_3.5kHz(x)
+        burstHpLpAlpha = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * 3500.0f / srF);
+        // BP Q=3 @ 2 kHz (velar)
+        auto bpCoeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, 2000.0f, 3.0f);
+        burstBpFilter.setCoefficients (bpCoeffs);
+    }
+
+    inline float applyBurstTemplate (float noise, float place) noexcept
+    {
+        // LP one-pole (labial): y[n] = y[n-1] + alpha * (x - y[n-1])
+        burstLpState += burstLpAlpha * (noise - burstLpState);
+        float lp = burstLpState;
+
+        // HP: x - LP(x) at cutoff 3.5 kHz
+        burstHpLpState += burstHpLpAlpha * (noise - burstHpLpState);
+        float hp = noise - burstHpLpState;
+
+        // BP Q=3 @ 2 kHz (velar)
+        float bp = burstBpFilter.processSample (noise);
+
+        // Crossfade LP -> HP -> BP across place axis [0, 0.5, 1]
+        if (place < 0.5f)
+        {
+            float t = place * 2.0f;
+            return (1.0f - t) * lp + t * hp;
+        }
+        float t = (place - 0.5f) * 2.0f;
+        return (1.0f - t) * hp + t * bp;
+    }
+
     // Piecewise linear place frequency mapping
     static float computePlaceFrequency (float place) noexcept
     {
@@ -264,8 +415,18 @@ private:
     FormantBiquad placeFilter1;
     FormantBiquad placeFilter2;
 
+    // Burst template filters
+    FormantBiquad burstBpFilter;       // velar BP Q=3 @ 2kHz
+    float burstLpState = 0.0f;         // one-pole LP (labial) state
+    float burstHpLpState = 0.0f;       // one-pole LP used to derive HP (alveolar)
+    float burstLpAlpha = 0.0f;
+    float burstHpLpAlpha = 0.0f;
+
+    float cachedPlace = 0.5f;
     float cachedManner = 0.5f;
     float cachedVoicing = 0.5f;
+    float cachedGlottalPhase = 0.0f;
+    float cachedVOTScale = 0.5f;       // user param, 0.5 -> nominal Klatt VOT
     int cachedBurstDuration = 353;
     float cachedBurstDecayRate = 7.0f;
 
@@ -275,6 +436,11 @@ private:
     int onsetSamplesRemaining = 0;
     int onsetTotalSamples = 1103;
     float currentOnsetSuppression = 0.0f;
+
+    // VOT / aspiration state (voiceless plosives only)
+    int aspirationSamplesRemaining = 0;
+    int aspirationTotalSamples = 0;
+    float currentAspirationNoise = 0.0f;
 
     // Consonant envelope state
     EnvPhase consonantPhase = EnvPhase::Off;

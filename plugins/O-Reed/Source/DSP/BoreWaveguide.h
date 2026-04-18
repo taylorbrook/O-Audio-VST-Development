@@ -108,8 +108,12 @@ public:
             }
         }
 
-        // Subtract 1 for the prevBellReflection one-sample storage delay
-        float compensatedDelay = totalDelay - viscPD - bellPD - 1.0f;
+        // Subtract 2 samples of storage delay:
+        //   1 for prevBellReflection (inside bore loop)
+        //   1 for prevBoreMinus latch in ReedWindVoice (external feedback storage)
+        // Without the second sample, pitch is systematically flat: ~17 cents at A4,
+        // ~67 cents at A6, >semitone at C8 (D/(D+1) ratio).
+        float compensatedDelay = totalDelay - viscPD - bellPD - 2.0f;
 
         // Safety clamp: prevent negative or near-zero delay
         compensatedDelay = std::max(4.0f, compensatedDelay);

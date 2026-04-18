@@ -475,6 +475,42 @@
         .hidden { display: none !important; }
 
         /* ====================================================================
+           Humanize Section
+           ==================================================================== */
+        .humanize-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            justify-items: center;
+        }
+        .humanize-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .humanize-col-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-lighter);
+            margin-bottom: 2px;
+        }
+        .humanize-knob {
+            width: 42px;
+        }
+        .humanize-knob .knob-wrapper {
+            width: 30px;
+            height: 30px;
+        }
+        .humanize-knob .knob-label {
+            font-size: 8px;
+        }
+        .humanize-knob .knob-value {
+            font-size: 8px;
+        }
+
+        /* ====================================================================
            Scrollbar
            ==================================================================== */
         .left-panel::-webkit-scrollbar,
@@ -550,6 +586,64 @@
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Hair Stiff.</div>
                         <div class="knob-value">0.50</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-box">
+                <div class="section-label">Humanize</div>
+                <div class="humanize-grid">
+                    <div class="humanize-col">
+                        <div class="humanize-col-label">Speed</div>
+                        <div class="knob-control humanize-knob" data-param="humanizeSpeedRange">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizeSpeedRate">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Rate</div>
+                            <div class="knob-value">0.25</div>
+                        </div>
+                    </div>
+                    <div class="humanize-col">
+                        <div class="humanize-col-label">Pressure</div>
+                        <div class="knob-control humanize-knob" data-param="humanizePressureRange">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizePressureRate">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Rate</div>
+                            <div class="knob-value">0.30</div>
+                        </div>
+                    </div>
+                    <div class="humanize-col">
+                        <div class="humanize-col-label">Position</div>
+                        <div class="knob-control humanize-knob" data-param="humanizePositionRange">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizePositionRate">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Rate</div>
+                            <div class="knob-value">0.20</div>
+                        </div>
+                    </div>
+                    <div class="humanize-col">
+                        <div class="humanize-col-label">Rosin</div>
+                        <div class="knob-control humanize-knob" data-param="humanizeRosinRange">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizeRosinRate">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Rate</div>
+                            <div class="knob-value">0.35</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -710,6 +804,15 @@
             reversedFriction:  { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             subHarmonics:      { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             referencePitch:    { min: 220, max: 880, default: 440, unit: ' Hz', decimals: 1 },
+            // Humanize (range = 0..1 amount, rate = 0..1 drift speed)
+            humanizeSpeedRange:    { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizeSpeedRate:     { min: 0, max: 1, default: 0.25,  unit: '', decimals: 2 },
+            humanizePressureRange: { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizePressureRate:  { min: 0, max: 1, default: 0.30,  unit: '', decimals: 2 },
+            humanizePositionRange: { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizePositionRate:  { min: 0, max: 1, default: 0.20,  unit: '', decimals: 2 },
+            humanizeRosinRange:    { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizeRosinRate:     { min: 0, max: 1, default: 0.35,  unit: '', decimals: 2 },
         };
 
         // ====================================================================
@@ -820,7 +923,8 @@
 
             const wrapper = control.querySelector('.knob-wrapper');
             const isFooter = control.closest('.footer-bar') !== null;
-            const knobSize = isFooter ? 30 : 55;
+            const isHumanize = control.classList.contains('humanize-knob');
+            const knobSize = (isFooter || isHumanize) ? 30 : 55;
             createKnobSVG(wrapper, knobSize);
 
             try {

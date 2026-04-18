@@ -205,6 +205,31 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBowedAudioProcessor::create
         2  // Default: 12-TET (index 2)
     ));
 
+    // ========== Humanize (8) ==========
+    // Four bow parameters each get a (range, rate) pair. Range 0 = off.
+    // Rate maps internally to 0.15 - 8 Hz drift. All default off to preserve
+    // existing preset behaviour.
+    auto addHumanizePair = [&layout] (const juce::String& id,
+                                      const juce::String& label,
+                                      float defaultRate)
+    {
+        layout.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { id + "Range", 1 },
+            label + " Humanize",
+            juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f),
+            0.0f));
+        layout.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { id + "Rate", 1 },
+            label + " Humanize Rate",
+            juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f),
+            defaultRate));
+    };
+
+    addHumanizePair ("humanizeSpeed",    "Speed",    0.25f); // slow-ish drift
+    addHumanizePair ("humanizePressure", "Pressure", 0.30f);
+    addHumanizePair ("humanizePosition", "Position", 0.20f);
+    addHumanizePair ("humanizeRosin",    "Rosin",    0.35f);
+
     return layout;
 }
 
@@ -221,6 +246,7 @@ OBowedAudioProcessor::OBowedAudioProcessor()
         auto* voice = new BowedStringVoice (&parameters);
         voice->setVoiceIndex (i);
         voice->setTuningEngine (&tuningEngine);
+        voice->setHumanizeEngine (&humanizeEngine);
         synthesiser.addVoice (voice);
     }
 
@@ -251,6 +277,7 @@ void OBowedAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     bodyResonator.prepare (sampleRate, samplesPerBlock);
     stereoWidthProcessor.prepare (sampleRate, samplesPerBlock);
     sympatheticEngine.prepare (sampleRate, samplesPerBlock);
+    humanizeEngine.prepare (sampleRate, samplesPerBlock);
 }
 
 void OBowedAudioProcessor::releaseResources()
@@ -283,6 +310,21 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     float bodyAmount      = parameters.getRawParameterValue ("bodyAmount")->load();
     float stringGauge     = parameters.getRawParameterValue ("stringGauge")->load();
     float bowHairStiff    = parameters.getRawParameterValue ("bowHairStiffness")->load();
+
+    // === 1a. Advance humanize random walk (shared across all voices) ===
+    const std::array<float, 4> humanRanges {
+        parameters.getRawParameterValue ("humanizeSpeedRange")   ->load(),
+        parameters.getRawParameterValue ("humanizePressureRange")->load(),
+        parameters.getRawParameterValue ("humanizePositionRange")->load(),
+        parameters.getRawParameterValue ("humanizeRosinRange")   ->load()
+    };
+    const std::array<float, 4> humanRates {
+        parameters.getRawParameterValue ("humanizeSpeedRate")   ->load(),
+        parameters.getRawParameterValue ("humanizePressureRate")->load(),
+        parameters.getRawParameterValue ("humanizePositionRate")->load(),
+        parameters.getRawParameterValue ("humanizeRosinRate")   ->load()
+    };
+    humanizeEngine.update (humanRanges, humanRates);
 
     // === 1b. Wire tuning engine ===
     tuningEngine.setMasterTune (static_cast<double> (refPitch));

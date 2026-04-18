@@ -1,5 +1,11 @@
 # O-Reed Changelog
 
+## v1.0.11 (2026-04-16)
+
+### Fixed
+
+- **Notes play flat — pitch progressively wrong with higher MIDI notes** -- bore waveguide delay compensation only subtracted 1 sample (for the internal `prevBellReflection` storage) but the voice loop has a SECOND single-sample latch via `prevBoreMinus` in `ReedWindVoice` (lines 516, 542). The reed reads `p_bore_minus` from the previous iteration, so the actual round-trip delay = `4*halfDelay + 2 + bellPD + viscPD` while the code compensated for `4*halfDelay + 1 + bellPD + viscPD`. This made every note flat by a `D/(D+1)` ratio: ~17 cents at A4, ~33 cents at A5, ~67 cents at A6, >semitone at C8. Fix: change `compensatedDelay = totalDelay - viscPD - bellPD - 1.0f` to `- 2.0f` in `BoreWaveguide::setFrequency()` to compensate both storage samples (one inside the bore, one in the external feedback latch).
+
 ## v1.0.10 (2026-04-11)
 
 ### Fixed
