@@ -5,7 +5,7 @@ milestone_name: Microtonal Shared Module & Suite Propagation
 status: active
 last_updated: "2026-04-24T00:00:00.000Z"
 progress:
-  total_phases: 22
+  total_phases: 25
   completed_phases: 22
   total_plans: 64
   completed_plans: 64
@@ -15,20 +15,22 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-07)
+See: .planning/PROJECT.md (updated 2026-04-24)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 23 (A) — Extract microtonal shared module
 
 ## Current Position
 
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-24 — Milestone v1.5 started; brief = `.claude/commands/generalize-microtones.md`, implementation bible = `spike-findings-VST-development` skill
+Phase: 23 (A) of 25 — Extract (shared microtonal module + O-Lyrica reference integration)
+Plan: Not started (0 of TBD)
+Status: Ready to plan
+Last activity: 2026-04-24 — ROADMAP.md written with v1.5 phases 23-25; 33/33 requirements mapped
 
-Next: `/gsd-plan-phase` for Phase A (23) — Extract
+Progress: [████████████████████████░░] 88% (22/25 phases complete across project)
+
+Next: `/gsd-plan-phase 23` — Extract
 
 ## Performance Metrics
 
@@ -46,6 +48,7 @@ Next: `/gsd-plan-phase` for Phase A (23) — Extract
 | v1.2 | 10-13 | 12 | 15 | 2 days |
 | v1.3 | 14-17 | 14 | 22 | 3 days |
 | v1.4 | 18-22 | 13 | 23 | 2 days |
+| v1.5 | 23-25 | TBD | 33 | in progress |
 
 **v1.4 Plan Metrics:**
 
@@ -71,6 +74,11 @@ Next: `/gsd-plan-phase` for Phase A (23) — Extract
 
 All v1.0-v1.4 decisions logged in PROJECT.md Key Decisions table.
 Milestone-specific decisions archived in `.planning/milestones/`.
+
+v1.5 decisions (to be logged as phase execution progresses):
+- Phase 24 per-plugin rollouts MUST use `/improve [PluginName]` — enforces versioning, changelog, STATUS.md update, regression test (TRACK-01).
+- Shared module candidate name `dsp/note-expression` — confirm against `/module-list` before creation (MOD-01).
+- Local JUCE patch tracked as a named patch file in `scripts/` with re-apply procedure for JUCE upgrades (MOD-07).
 
 ### Pending Todos
 
@@ -99,10 +107,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-04-24
-Stopped at: Scaffolded v1.5 milestone (PROJECT.md, REQUIREMENTS.md, ROADMAP.md created)
+Stopped at: ROADMAP.md populated with v1.5 phases 23-25 (Extract / Propagate / Package & Internal Technical Notes); 33/33 requirements mapped; dependencies recorded
 Resume file: None
 
-Next: `/gsd-plan-phase` for Phase A (23) — Extract
+Next: `/gsd-plan-phase 23` — Extract
 
 ---
-*v1.4 shipped 2026-03-07. v1.5 Microtonal Shared Module & Suite Propagation started 2026-04-24. Running total: 5 milestones shipped, 22 phases, 64 plans, 108 requirements.*
+*v1.4 shipped 2026-03-07. v1.5 Microtonal Shared Module & Suite Propagation started 2026-04-24. Running total: 5 milestones shipped, 22 phases, 64 plans, 108 requirements. v1.5 adds 3 phases (23-25) and 33 requirements.*

@@ -7,6 +7,7 @@
 - ✅ **v1.2 Agent Intelligence & Resource Orchestration** -- Phases 10-13 (shipped 2026-02-06)
 - ✅ **v1.3 System Modernization** -- Phases 14-17 (shipped 2026-02-10)
 - ✅ **v1.4 System Hygiene & Quality Gates** -- Phases 18-22 (shipped 2026-03-07)
+- 🚧 **v1.5 Microtonal Shared Module & Suite Propagation** -- Phases 23-25 (in progress)
 
 ## Phases
 
@@ -62,7 +63,56 @@
 
 </details>
 
+### 🚧 v1.5 Microtonal Shared Module & Suite Propagation (In Progress)
+
+**Milestone Goal:** Promote the validated VST3 Note Expression pattern (O-Lyrica spikes 001–003) into a shared Ouaricon module and propagate Dorico microtonal playback across all pitched plugins, with every per-plugin rollout tracked through the standard `/improve` workflow.
+
+- [ ] **Phase 23 (A): Extract** -- Build shared microtonal module from cleaned spike code; prove it on O-Lyrica as the reference consumer
+- [ ] **Phase 24 (B): Propagate** -- Apply the module to the remaining 7 pitched plugins via `/improve`, each with version bump, changelog, and regression test
+- [ ] **Phase 25 (C): Package & Internal Technical Notes** -- Bundle the Dorico expression map in every affected plugin's installer and capture internal developer-reference notes
+
+## Phase Details
+
+### Phase 23 (A): Extract
+**Goal**: A new shared Ouaricon microtonal module exists, is registered in the module system, and is proven as a working consumer integration in O-Lyrica — replacing the embedded spike code with module-based consumption while composing cleanly with O-Lyrica's existing `TuningEngine`.
+**Depends on**: Phase 22 (v1.4 shipped); spike-findings-VST-development skill (implementation bible)
+**Requirements**: MOD-01, MOD-02, MOD-03, MOD-04, MOD-05, MOD-06, MOD-07, MOD-08, LYR-01, LYR-02, LYR-03, LYR-04
+**Success Criteria** (what must be TRUE):
+  1. The new microtonal module appears in `/module-list` with a semver version, and `/module-info [name]` shows its description, contents, and consumer integration steps.
+  2. O-Lyrica builds cleanly after `/module-add [module-name]` with no remaining `detail::neTrace` / `detail::iidToHex` call sites or stray `#include <fstream>` in module or O-Lyrica sources (diagnostic spike code fully stripped).
+  3. O-Lyrica passes the Dorico quarter-sharp smoke test after refactor — pitch lands at +50¢ above C4 with NE events correlated by `noteId`, no attack zipper, and the existing `TuningEngine` still composes with NE offsets (no raw `pow()` bypass).
+  4. O-Lyrica `CHANGELOG.md` has a version-bumped entry documenting shared-module adoption and microtonal NE support.
+  5. The local JUCE patch is committed as a named patch file in `scripts/` (or equivalent) with a documented re-apply procedure for JUCE-version bumps.
+**Plans**: TBD
+
+### Phase 24 (B): Propagate
+**Goal**: The shared microtonal module is consumed by all 7 remaining pitched plugins (O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant) via the standard `/improve [PluginName]` workflow — each rollout produces a version bump, CHANGELOG entry, STATUS.md update, regression test, and a fresh system install, with zero direct source edits bypassing the tracked improvement cycle.
+**Depends on**: Phase 23 (module must exist and be proven on O-Lyrica before other plugins consume it)
+**Requirements**: PROP-01, PROP-02, PROP-03, PROP-04, PROP-05, PROP-06, PROP-07, TRACK-01, TRACK-02, TRACK-03, TRACK-04, TRACK-05
+**Success Criteria** (what must be TRUE):
+  1. All 7 target plugins (O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant) appear as consumers of the microtonal module in `/module-list --consumers [module]` (or equivalent module-registry query).
+  2. Each of the 7 plugins passes the Dorico quarter-sharp smoke test — pitch lands at +50¢ above C4, no attack zipper, NE correlated by `noteId`.
+  3. Every Phase 24 rollout is traceable to an `/improve [PluginName]` cycle: each plugin has a version bump applied in `CMakeLists.txt`, a CHANGELOG entry naming "adds VST3 Note Expression microtonal support for Dorico", and a STATUS.md update — with no direct source edits that bypass plugin-level versioning/changelog/state tracking (TRACK-01 enforced).
+  4. All 8 affected plugins (the 7 above plus O-Lyrica from Phase 23) are rebuilt and freshly installed per CLAUDE.md rules — AU cache cleared, old bundles removed, fresh `.vst3` and `.component` in `~/Library/Audio/Plug-Ins/VST3/` and `~/Library/Audio/Plug-Ins/Components/`.
+  5. Each plan under Phase 24 names `/improve [PluginName]` as its execution mechanism (not direct edits), and each plugin's post-`/improve` STATUS.md reflects the microtonal integration.
+**Plans**: TBD
+
+### Phase 25 (C): Package & Internal Technical Notes
+**Goal**: A canonical pre-configured Dorico expression map file is authored once, stored as single source of truth in the microtonal module's resources, and bundled into every affected plugin's installer — with internal developer-reference notes (not end-user manuals) captured under `research/` to serve as source material for future website manual/quickstart authoring.
+**Depends on**: Phase 24 (installer/docs reflect the completed set of 8 integrated plugins)
+**Requirements**: INST-01, INST-02, INST-03, INST-04, DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05
+**Success Criteria** (what must be TRUE):
+  1. A canonical `Ouaricon-VST3-NoteExpression.doricoexpmap` (or similarly named) exists at `modules/[microtonal-module]/resources/` with Microtonality explicitly set to "VST3 Note Expression" — confirmed as the single source of truth referenced by all 8 plugin installers.
+  2. All 8 affected plugins' installers (PKG on macOS, EXE on Windows per existing `build-installer` / `package` workflows) bundle the `.doricoexpmap` file, and at least one dry-run install + Dorico quarter-sharp test validates the bundled expression map produces correct microtonal playback.
+  3. Internal technical notes live under `research/microtonal-dorico-integration.md` (or per-topic sub-files) and cover all four required topics: module architecture (DOCS-01), canonical Dorico expression-map setup procedure (DOCS-02), host-side behavior quirks (DOCS-03), and troubleshooting signatures for the expression-map-skipped UX trap (DOCS-04).
+  4. Notes are developer-facing only — no end-user manual or quickstart copy is published this milestone; DOCS-01..04 are structured to translate cleanly into future website authoring (DOCS-05 constraint honored).
+  5. Installed `.doricoexpmap` lands at a discoverable location for end users, or the installer emits a README pointing to the file's install path with a one-line Dorico import instruction.
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 23 → 24 → 25
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -71,9 +121,12 @@
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
+| 23 (A) | v1.5 | 0/TBD | Not started | - |
+| 24 (B) | v1.5 | 0/TBD | Not started | - |
+| 25 (C) | v1.5 | 0/TBD | Not started | - |
 
-**Total: 22 phases complete, 64 plans complete, 5 milestones shipped.**
+**Cumulative: 22 phases complete, 64 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped.**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-03-07 -- v1.4 milestone shipped*
+*Last updated: 2026-04-24 -- v1.5 milestone phases 23-25 added*
