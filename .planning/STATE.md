@@ -1,9 +1,9 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: System Hygiene & Quality Gates
-status: unknown
-last_updated: "2026-03-07T18:58:38.830Z"
+milestone: v1.5
+milestone_name: Microtonal Shared Module & Suite Propagation
+status: active
+last_updated: "2026-04-24T00:00:00.000Z"
 progress:
   total_phases: 22
   completed_phases: 22
@@ -22,11 +22,13 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 
 ## Current Position
 
-Milestone: v1.4 System Hygiene & Quality Gates -- SHIPPED 2026-03-07
-Status: Complete -- all 5 phases, 13 plans, 23 requirements satisfied
-Last activity: 2026-04-09 - Completed quick task 260408-vzl: Fix tuning module integration
+Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-24 — Milestone v1.5 started; brief = `.claude/commands/generalize-microtones.md`, implementation bible = `spike-findings-VST-development` skill
 
-Next: `/gsd:new-milestone` to start next version
+Next: `/gsd-plan-phase` for Phase A (23) — Extract
 
 ## Performance Metrics
 
@@ -96,11 +98,11 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-19
-Stopped at: Completed 260319-e4q (sweep repo root for misplaced screenshots)
+Last session: 2026-04-24
+Stopped at: Scaffolded v1.5 milestone (PROJECT.md, REQUIREMENTS.md, ROADMAP.md created)
 Resume file: None
 
-Next: `/gsd:new-milestone` to define next version
+Next: `/gsd-plan-phase` for Phase A (23) — Extract
 
 ---
-*v1.4 System Hygiene & Quality Gates archived. 5 milestones shipped (v1.0-v1.4), 22 phases, 64 plans, 108 requirements.*
+*v1.4 shipped 2026-03-07. v1.5 Microtonal Shared Module & Suite Propagation started 2026-04-24. Running total: 5 milestones shipped, 22 phases, 64 plans, 108 requirements.*

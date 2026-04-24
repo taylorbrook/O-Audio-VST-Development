@@ -73,7 +73,24 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to start next version)
+## Current Milestone: v1.5 Microtonal Shared Module & Suite Propagation
+
+**Goal:** Promote the validated VST3 Note Expression pattern (O-Lyrica spikes 001–003) into a shared Ouaricon module and propagate Dorico microtonal playback across all pitched plugins, with every per-plugin rollout tracked through the standard `/improve` workflow.
+
+**Target features:**
+- Shared microtonal module (candidate name `dsp/note-expression` — confirm via `/module-list`) extracted from cleaned spike code
+- O-Lyrica refactored as reference consumer, integrating the module with its existing `TuningEngine`
+- Module propagated to 7 pitched plugins via `/improve` — each with version bump, CHANGELOG entry, STATUS.md update, regression test
+- Pre-configured `.doricoexpmap` file bundled in every affected plugin's installer
+- Internal technical notes (developer reference, not end-user manuals) as source material for future website manual/quickstart authoring
+
+**Key context:**
+- Implementation bible: auto-loaded `spike-findings-VST-development` skill (synthesized from spikes 001–003, 2026-04-22/23)
+- Seed `microtonal-shared-module.md` triggered — O-Lyrica spike validated
+- Correlate NE by `noteId`, never by MIDI pitch (Dorico represents quarter-sharp C4 as `pitch=C#4, NE=-50¢`)
+- Apply per-voice tuning to `currentFrequency` before DSP `trigger(...)` to avoid attack-zipper
+- Per-plugin rollout uses `/improve` — no raw edits, all tracked with version + changelog
+- Local JUCE patch lives in-repo, re-applied on JUCE updates
 
 ### Deferred (v2+)
 
@@ -223,4 +240,4 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | 5-field minimum frontmatter standard | Consistent metadata across all 64 research docs | ✓ Good — validator hook enforces going forward |
 
 ---
-*Last updated: 2026-03-07 after v1.4 milestone*
+*Last updated: 2026-04-24 — milestone v1.5 started (Microtonal Shared Module & Suite Propagation)*
