@@ -31,8 +31,8 @@
 
 ### O-Lyrica Reference Integration (LYRICA)
 
-- [ ] **LYR-01**: O-Lyrica consumes the shared module via `/module-add [module-name]` — existing spike-embedded code replaced with module consumption, not duplicated.
-- [ ] **LYR-02**: O-Lyrica's NE tuning composes with its existing `TuningEngine` (no raw `pow()` multiplier bypass as in the spike) — alternate tunings still work alongside NE offsets.
+- [x] **LYR-01**: O-Lyrica consumes the shared module via `/module-add [module-name]` — existing spike-embedded code replaced with module consumption, not duplicated.
+- [x] **LYR-02**: O-Lyrica's NE tuning composes with its existing `TuningEngine` (no raw `pow()` multiplier bypass as in the spike) — alternate tunings still work alongside NE offsets.
 - [ ] **LYR-03**: O-Lyrica passes the Dorico quarter-sharp smoke test after refactor (pitch = 50¢ above C4 for quarter-sharp C4, no attack zipper, NE events correlated by `noteId`).
 - [ ] **LYR-04**: O-Lyrica version bumped with a CHANGELOG.md entry documenting shared-module adoption and microtonal NE support.
 
@@ -125,8 +125,8 @@ Populated by roadmapper during Phase A/B/C creation. Each requirement maps to ex
 | MOD-06 | Phase A (23) | Pending |
 | MOD-07 | Phase A (23) | Pending |
 | MOD-08 | Phase A (23) | Pending |
-| LYR-01 | Phase A (23) | Pending |
-| LYR-02 | Phase A (23) | Pending |
+| LYR-01 | Phase A (23) | Complete |
+| LYR-02 | Phase A (23) | Complete |
 | LYR-03 | Phase A (23) | Pending |
 | LYR-04 | Phase A (23) | Pending |
 | PROP-01 | Phase B (24) | Pending |
