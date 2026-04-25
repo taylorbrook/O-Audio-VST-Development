@@ -74,6 +74,10 @@ target_link_libraries(OLyrica
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL)
 juce_generate_juce_header(OLyrica)
 
+# Phase 23: VST3 Note Expression microtonal support (Dorico)
+# Header-only module; its module.cmake auto-verifies the JUCE-NE-PATCH marker.
+ouaricon_add_module(OLyrica note-expression)
+
 # Licensing module (compile-flag gated, OFF for local dev)
 if(OUARICON_LICENSING)
     ouaricon_add_module(OLyrica licensing)
