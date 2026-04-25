@@ -79,6 +79,12 @@ function(ouaricon_add_module TARGET_NAME MODULE_NAME)
         endif()
     endif()
 
+    # Module-supplied CMake hook (optional, backward-compatible)
+    if(EXISTS "${MODULE_DIR}/module.cmake")
+        message(STATUS "[Ouaricon]   Including ${MODULE_NAME}/module.cmake")
+        include("${MODULE_DIR}/module.cmake")
+    endif()
+
     # Process configuration if provided
     if(ARG_CONFIG)
         if(NOT EXISTS "${ARG_CONFIG}")
