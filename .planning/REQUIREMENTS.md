@@ -21,7 +21,7 @@
 **: Module contains cleaned `VST3ClientExtensions` subclass with raw-event queue and `queryIEditController` dispatch to the NEC.
 - [x] **MOD-04
 **: Module provides a header-only voice helper (e.g. `applyPendingTuning(pendingSource, midiNote, currentFrequency)`) so each plugin's `startNote` can integrate NE tuning in one line, and applies the tuning to `currentFrequency` **before** the DSP model's `trigger(...)` call (zipper prevention).
-- [ ] **MOD-05**: Module `README.md` documents consumer integration, the required local JUCE patch, and the end-user Dorico expression-map setup procedure.
+- [x] **MOD-05**: Module `README.md` documents consumer integration, the required local JUCE patch, and the end-user Dorico expression-map setup procedure.
 - [x] **MOD-06
 **: All diagnostic spike code stripped from module source — no `OLyrica::detail::neTrace(...)` call sites, no `detail::neTrace` / `detail::iidToHex` helpers, no stray `#include <fstream>` in the header.
 - [x] **MOD-07
@@ -33,8 +33,8 @@
 
 - [x] **LYR-01**: O-Lyrica consumes the shared module via `/module-add [module-name]` — existing spike-embedded code replaced with module consumption, not duplicated.
 - [x] **LYR-02**: O-Lyrica's NE tuning composes with its existing `TuningEngine` (no raw `pow()` multiplier bypass as in the spike) — alternate tunings still work alongside NE offsets.
-- [ ] **LYR-03**: O-Lyrica passes the Dorico quarter-sharp smoke test after refactor (pitch = 50¢ above C4 for quarter-sharp C4, no attack zipper, NE events correlated by `noteId`).
-- [ ] **LYR-04**: O-Lyrica version bumped with a CHANGELOG.md entry documenting shared-module adoption and microtonal NE support.
+- [x] **LYR-03**: O-Lyrica passes the Dorico quarter-sharp smoke test after refactor (pitch = 50¢ above C4 for quarter-sharp C4, no attack zipper, NE events correlated by `noteId`).
+- [x] **LYR-04**: O-Lyrica version bumped with a CHANGELOG.md entry documenting shared-module adoption and microtonal NE support.
 
 ### Suite Propagation (PROP)
 
@@ -121,14 +121,14 @@ Populated by roadmapper during Phase A/B/C creation. Each requirement maps to ex
 | MOD-02 | Phase A (23) | Pending |
 | MOD-03 | Phase A (23) | Pending |
 | MOD-04 | Phase A (23) | Pending |
-| MOD-05 | Phase A (23) | Pending |
+| MOD-05 | Phase A (23) | Complete |
 | MOD-06 | Phase A (23) | Pending |
 | MOD-07 | Phase A (23) | Pending |
 | MOD-08 | Phase A (23) | Pending |
 | LYR-01 | Phase A (23) | Complete |
 | LYR-02 | Phase A (23) | Complete |
-| LYR-03 | Phase A (23) | Pending |
-| LYR-04 | Phase A (23) | Pending |
+| LYR-03 | Phase A (23) | Complete |
+| LYR-04 | Phase A (23) | Complete |
 | PROP-01 | Phase B (24) | Pending |
 | PROP-02 | Phase B (24) | Pending |
 | PROP-03 | Phase B (24) | Pending |

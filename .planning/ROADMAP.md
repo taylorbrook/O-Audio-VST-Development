@@ -83,13 +83,14 @@
   3. O-Lyrica passes the Dorico quarter-sharp smoke test after refactor — pitch lands at +50¢ above C4 with NE events correlated by `noteId`, no attack zipper, and the existing `TuningEngine` still composes with NE offsets (no raw `pow()` bypass).
   4. O-Lyrica `CHANGELOG.md` has a version-bumped entry documenting shared-module adoption and microtonal NE support.
   5. The local JUCE patch is committed as a named patch file in `scripts/` (or equivalent) with a documented re-apply procedure for JUCE-version bumps.
-**Plans:** 4 plans
+**Plans:** 5 plans (4 complete, 1 outstanding — Plan 05 added 2026-04-25 to address AU-link defect surfaced in Plan 04)
 
 Plans:
 - [x] 23-01-module-scaffolding-PLAN.md — Create note-expression module (yaml/README stub/cpp/NoteExpression.h) + registry entry (MOD-01/02/03/04/06/08) -- completed 2026-04-25
 - [x] 23-02-juce-patch-tooling-PLAN.md — Committable .patch file + idempotent apply-juce-patches.sh + CMake-time marker check via module.cmake (MOD-07) -- completed 2026-04-25
 - [x] 23-03-olyrica-consume-refactor-PLAN.md — Wire ouaricon_add_module(OLyrica note-expression); refactor PluginProcessor + HarpSynthVoice; delete VST3/NoteExpressionSupport.h; clean build (LYR-01/02) -- completed 2026-04-25
-- [ ] 23-04-version-readme-dorico-smoketest-PLAN.md — VERSION 2.3.0 + CHANGELOG entry + comprehensive module README + clean install + Dorico quarter-sharp smoke test (MOD-05, LYR-03/04)
+- [x] 23-04-version-readme-dorico-smoketest-PLAN.md — VERSION 2.3.0 + CHANGELOG entry + comprehensive module README + clean install + Dorico quarter-sharp smoke test (MOD-05, LYR-03/04) -- completed 2026-04-25 (Dorico VST3 5/5 PASS; AU re-link failure exposed, deferred to Plan 05)
+- [ ] 23-05-fix-au-link-steinberg-symbols-PLAN.md — Move Controller + Steinberg-touching code from NoteExpression.h header to a .cpp compiled only into the VST3 target; restore clean OLyrica_AU build. BLOCKS Phase 24 propagation.
 
 ### Phase 24 (B): Propagate
 **Goal**: The shared microtonal module is consumed by all 7 remaining pitched plugins (O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant) via the standard `/improve [PluginName]` workflow — each rollout produces a version bump, CHANGELOG entry, STATUS.md update, regression test, and a fresh system install, with zero direct source edits bypassing the tracked improvement cycle.

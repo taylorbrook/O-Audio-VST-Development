@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
 status: executing
-stopped_at: Completed 23-03 O-Lyrica consume + refactor (clean OLyrica_VST3+AU build)
+stopped_at: Completed 23-04 O-Lyrica v2.3.0 + Dorico smoke test 5/5 PASS via VST3; AU-link defect surfaced, Plan 23-05 added to close before Phase 24
 last_updated: "2026-04-25T04:57:02.019Z"
 last_activity: 2026-04-25
 progress:
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
 Phase: 23 (extract) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
+Plan: 4 of 5 complete (Plan 05 added 2026-04-25 to address AU-link defect)
+Status: Plan 23-05 needs to be planned + executed
 Last activity: 2026-04-25
 
 Progress: [██████████] 96%
@@ -74,6 +74,7 @@ Next: `/gsd-plan-phase 23` — Extract
 | Phase 23 P01 | 4min | 2 tasks | 4 files |
 | Phase Phase 23 P02 P23-02 | 4min | 3 tasks tasks | 4 files files |
 | 23 | 03 | ~25min | 4 | 6 |
+| 23 | 04 | ~12min + human | 4 | 3 |
 
 ## Accumulated Context
 
@@ -89,7 +90,8 @@ v1.5 decisions (to be logged as phase execution progresses):
 - Local JUCE patch tracked as a named patch file in `scripts/` with re-apply procedure for JUCE upgrades (MOD-07).
 - Phase 23 Plan 01: note-expression module shipped at modules/tuning/note-expression v1.0.0 — header-only under Ouaricon::NoteExpression, owns PendingTuningTable on VST3Extensions (D-09), no dependency on scala-tuning-engine (D-11)
 - Phase 23 Plan 02: JUCE patch shipped as scripts/juce-patches/note-expression-juce-8.0.4.patch (1112 lines, generated via diff -u against pristine JUCE 8.0.4); idempotent apply-juce-patches.sh wrapper preflights JUCE_DIR and skips when JUCE-NE-PATCH marker already present (T-23-04); modules/tuning/note-expression/module.cmake gates only future consumers via opt-in module.cmake hook auto-included by OuariconModules.cmake (T-23-05, D-15)
-- Phase 23 Plan 03: O-Lyrica refactored onto Ouaricon::NoteExpression — 4 source files edited, spike header VST3/NoteExpressionSupport.h deleted, OLyrica_VST3 + OLyrica_AU build clean (LYR-01/02). Build-gate discovery (D-23-03-A): Steinberg SDK symbols only link for VST3 client target — Controller class + queryIEditController body + nec member guarded behind #if JucePlugin_Build_VST3 in NoteExpression.h so AU/Standalone/VST2 link cleanly. Fix committed as f85ff38 against plan 23-01's deliverable.
+- Phase 23 Plan 03: O-Lyrica refactored onto Ouaricon::NoteExpression — 4 source files edited, spike header VST3/NoteExpressionSupport.h deleted, OLyrica_VST3 + OLyrica_AU build clean (LYR-01/02). Build-gate discovery (D-23-03-A): Steinberg SDK symbols only link for VST3 client target — Controller class + queryIEditController body + nec member guarded behind #if JucePlugin_Build_VST3 in NoteExpression.h so AU/Standalone/VST2 link cleanly. Fix committed as f85ff38 against plan 23-01's deliverable. NOTE: Plan 23-04 later discovered Plan 23-03's "OLyrica_AU built clean" claim was incorrect — the on-disk AU artefact pre-dated the refactor commits and the AU re-link was never actually exercised. The f85ff38 guard does not solve the issue because guards evaluate at every TU compile site and SharedCode is compiled with VST3=1.
+- Phase 23 Plan 04: O-Lyrica v2.3.0 shipped (CMakeLists VERSION + CHANGELOG [2.3.0] entry, LYR-04). Comprehensive note-expression module README published — 223 lines covering Quick Start / Features / Installation / Dorico Setup / Patch Management / Integration Approach (MOD-05). Dorico quarter-sharp smoke test 5/5 PASS via VST3 (LYR-03 gate cleared). Build-gate discovery (D-23-04-A): AU re-link failure exposed module-level architectural defect — JucePlugin_Build_VST3 guards in NoteExpression.h evaluate at TU-compile site, so SharedCode (compiled with VST3=1) carries Steinberg symbol references that AU's link line cannot resolve. Resolution deferred to Plan 23-05 (move Controller + Steinberg-touching code from header to VST3-only .cpp). Phase 24 BLOCKED until 23-05 lands.
 
 ### Pending Todos
 
@@ -97,7 +99,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 
 ### Blockers/Concerns
 
-None currently.
+- **AU build broken module-wide.** OLyrica_AU re-link fails with undefined Steinberg SDK symbols (`INoteExpressionController::iid`, `UString::assign`, `FUnknown::iid`). Same defect will affect all 7 Phase 24 propagation targets. Plan 23-05 must land before Phase 24 starts. VST3 path is unaffected; Dorico smoke test 5/5 PASS via VST3.
 
 ### Quick Tasks Completed
 
@@ -118,7 +120,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-04-25T04:57:02.015Z
-Stopped at: Completed 23-03 O-Lyrica consume + refactor (clean OLyrica_VST3+AU build)
+Stopped at: Completed 23-04 O-Lyrica v2.3.0 + Dorico smoke test 5/5 PASS via VST3; Plan 23-05 needed before Phase 24
 Resume file: None
 
 Next: `/gsd-plan-phase 23` — Extract
