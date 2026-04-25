@@ -49,9 +49,13 @@ function(ouaricon_add_module TARGET_NAME MODULE_NAME)
 
     message(STATUS "[Ouaricon] Adding module '${MODULE_NAME}' from ${MODULE_DIR}")
 
-    # Add C++ sources to target
+    # Add C++ sources to target — SharedCode glob (top-level cpp/ ONLY).
+    # Per-format subdirectories (cpp/vst3/, cpp/au/, etc.) are handled in the
+    # per-format routing block below and MUST NOT be swept into SharedCode,
+    # otherwise format-specific symbol references leak into the shared static
+    # library and break non-format link lines (Plan 23-05 D-23-04-A).
     if(EXISTS "${MODULE_DIR}/cpp")
-        file(GLOB_RECURSE MODULE_CPP_SOURCES
+        file(GLOB MODULE_CPP_SOURCES
             "${MODULE_DIR}/cpp/*.cpp"
             "${MODULE_DIR}/cpp/*.h"
         )
@@ -59,8 +63,31 @@ function(ouaricon_add_module TARGET_NAME MODULE_NAME)
         if(MODULE_CPP_SOURCES)
             target_sources(${TARGET_NAME} PRIVATE ${MODULE_CPP_SOURCES})
             target_include_directories(${TARGET_NAME} PRIVATE "${MODULE_DIR}/cpp")
-            message(STATUS "[Ouaricon]   Added ${CMAKE_CURRENT_LIST_DIR} C++ sources")
+            message(STATUS "[Ouaricon]   Added ${MODULE_NAME} SharedCode sources to ${TARGET_NAME}")
         endif()
+
+        # Per-format routing (Plan 23-05 D-24..D-28): files placed under
+        # cpp/<format>/ are added to ${TARGET_NAME}_<FORMAT> only, with PRIVATE
+        # include directories so format-specific headers cannot be pulled in by
+        # SharedCode or other-format translation units. Silently no-ops when
+        # ${TARGET_NAME}_<FORMAT> does not exist (e.g. plugin excludes that
+        # format from its FORMATS list).
+        set(_OUA_JUCE_FORMATS vst3 au standalone vst2 aax lv2 unity)
+        foreach(fmt ${_OUA_JUCE_FORMATS})
+            string(TOUPPER ${fmt} _FMT_UPPER)
+            set(_FMT_DIR "${MODULE_DIR}/cpp/${fmt}")
+            if(EXISTS "${_FMT_DIR}" AND TARGET "${TARGET_NAME}_${_FMT_UPPER}")
+                file(GLOB_RECURSE _FMT_SOURCES
+                    "${_FMT_DIR}/*.cpp"
+                    "${_FMT_DIR}/*.h"
+                )
+                if(_FMT_SOURCES)
+                    target_sources(${TARGET_NAME}_${_FMT_UPPER} PRIVATE ${_FMT_SOURCES})
+                    target_include_directories(${TARGET_NAME}_${_FMT_UPPER} PRIVATE "${_FMT_DIR}")
+                    message(STATUS "[Ouaricon]   Added ${MODULE_NAME}/cpp/${fmt} sources to ${TARGET_NAME}_${_FMT_UPPER}")
+                endif()
+            endif()
+        endforeach()
     endif()
 
     # Copy JS files to ui/public/modules/
