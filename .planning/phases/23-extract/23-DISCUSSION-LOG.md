@@ -3,9 +3,9 @@
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
 
-**Date:** 2026-04-24
+**Date:** 2026-04-24 (initial); 2026-04-25 (Plan 23-05 addendum)
 **Phase:** 23-extract
-**Areas discussed:** Module identity & placement, Module API surface, JUCE patch management, O-Lyrica refactor shape
+**Areas discussed:** Module identity & placement, Module API surface, JUCE patch management, O-Lyrica refactor shape, Plan 23-05: Code split shape, Per-format file convention, OuariconModules.cmake API, AU regression-prevention, Controller member layout, AU verify gate sourcing
 
 ---
 
@@ -159,3 +159,90 @@ Areas where the user deferred to Claude's judgment (captured in CONTEXT.md `<dec
 - MTS-ESP orthogonal path — FUT-03, deferred.
 - Cross-block noteId→voice map — FUT-04, deferred.
 - Custom NE type IDs beyond kTuningTypeID — FUT-02, deferred.
+
+---
+
+# Plan 23-05 Addendum (2026-04-25)
+
+**Trigger:** Plan 23-04 surfaced AU-link defect (D-23-04-A in 23-04-SUMMARY.md). Plan 23-05 added to roadmap to fix it before Phase 24 propagation can begin. User requested: "add Plan 23-05 context (the AU-link defect, the per-format module-source pattern, OuariconModules.cmake extension)".
+
+## Code split (header → .cpp)
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Minimal: Controller class only | Move just Controller body to .cpp. queryIEditController stays inline guarded. Header still needs pluginterfaces include in VST3 builds. | |
+| Standard: Controller + queryIEditController | Move both to .cpp. Header forward-declares Controller, no pluginterfaces include in header. Mirrors how JUCE splits VST3 wrapper code. | ✓ |
+| Aggressive: pimpl entire VST3 surface | Move Controller, queryIEditController, AND updatePendingFromEvents to .cpp. Header has zero Steinberg refs. Largest diff. | |
+
+**User's choice:** Standard: Controller + queryIEditController (Recommended)
+**Notes:** During follow-up the boundary effectively expanded to "anything that references Steinberg::*" — `updatePendingFromEvents` references `Steinberg::Vst::kTuningTypeID` and the Steinberg includes are leaving the header anyway, so it MUST move to the .cpp too (D-22). Net effect lands close to the "Aggressive" option in scope, but framed as the natural consequence of the Standard split rather than as a separate decision.
+
+## Per-format file convention
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Subdirectory: cpp/vst3/, cpp/au/, cpp/standalone/ | Files under cpp/<fmt>/ auto-route to ${TARGET}_<FMT>. Mirrors JUCE's native/win32/, native/mac/ pattern. Self-documenting. | ✓ |
+| Filename suffix: *.vst3.cpp, *.au.cpp | Compact for small per-format footprint. Less self-documenting than directories. | |
+| Explicit module.cmake declaration | New helper macro listing per-format files explicitly. Most flexible. Every module re-states routing. | |
+
+**User's choice:** Subdirectory: cpp/vst3/, cpp/au/ (Recommended)
+
+## OuariconModules.cmake API shape
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Auto-detect inside ouaricon_add_module() | Macro scans for cpp/<fmt>/ convention and routes to ${TARGET}_<FMT> if it exists. Zero call-site change for any plugin. Phase 24 inherits the fix automatically. | ✓ |
+| Helper invoked from module.cmake | New macro ouaricon_module_add_format_sources(...) callable from module.cmake. Modules opt-in to per-format routing explicitly. | |
+| Add VST3_SOURCES/AU_SOURCES kwargs | Plugin call-site grows. Pushes module internals into every consumer's CMakeLists. Breaks the one-liner contract. | |
+
+**User's choice:** Auto-detect inside ouaricon_add_module() (Recommended)
+
+## AU regression-prevention
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Plan 23-05 verify gate only | Clean rebuild (VST3+AU+Standalone) + auval check + Dorico smoke test. Convention + reference plugin enforce it. Phase 24 inherits the gate per plugin. | ✓ |
+| Verify gate + module CMake assertion | Add a configure-time grep for `#include <pluginterfaces/...>` outside cpp/vst3/. Structural enforcement; defect literally cannot ship. Slightly brittle. | |
+| Verify gate + per-plugin AU-link smoke in build-and-install script | Catch silent install-time skip (the scenario that masked D-23-04-A). | |
+
+**User's choice:** Plan 23-05 verify gate only (Recommended)
+**Notes:** CMake-time include-grep assertion captured as deferred (re-open if Phase 24 reveals recurring symbol-leakage incidents).
+
+## Controller member layout
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Pimpl: unique_ptr<Controller> | Header forward-declares Controller; member is std::unique_ptr<Controller>. Header is fully Steinberg-free, no #if guards anywhere. One heap allocation per processor instance. | ✓ |
+| Guarded value member: #if JucePlugin_Build_VST3 Controller nec; #endif | Avoids heap allocation but keeps the conditional in the header AND requires Controller to be a complete type at the member-declaration point — contradicts the chosen split goal. | |
+
+**User's choice:** Pimpl: unique_ptr<Controller> (Recommended)
+
+## AU verify gate sourcing
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Read codes from <Plugin>/CMakeLists.txt at verify time | Parse PLUGIN_CODE / PLUGIN_MANUFACTURER_CODE / PLUGIN_AU_MAIN_TYPE per plugin. Generalizes across all Phase 24 plugins without per-plugin hardcoding. | ✓ |
+| auval -a \| grep -i lyrica | Lighter check: confirm AU appears in global validation list. Matches CLAUDE.md smoke check. | |
+| Skip auval, rely on link success + manual DAW open | Fastest gate, weakest signal. | |
+
+**User's choice:** Read codes from <Plugin>/CMakeLists.txt at verify time (Recommended)
+
+---
+
+## Plan 23-05: Claude's Discretion
+
+Areas where the user deferred to Claude's judgment (captured in CONTEXT.md `<decisions>` section):
+- Exact filename for the new VST3-only translation unit (`NoteExpression_VST3.cpp` vs `Controller.cpp` vs `VST3Bridge.cpp`).
+- Whether `VST3Extensions` ctor/dtor are `=default` in the .cpp.
+- Naming and exact location of the AU verify shell script.
+- CTest target vs verify-step shell command for `auval` integration.
+- Whether O-Lyrica patches to 2.3.1 (defect fix never released externally) — D-33.
+- Final exact form of the `OuariconModules.cmake` per-format loop (sketch in D-27 is the spec).
+
+## Plan 23-05 Deferred
+
+- CMake-time include-grep assertion (`#include <pluginterfaces/...>` outside `cpp/vst3/`) — rejected as brittle for now; re-open if Phase 24 reveals recurring symbol-leakage.
+- CTest integration of `auval` smoke check — deferred to Claude's discretion during planning.
+- Per-format pattern for non-source assets (per-format JS, YAML, resources) — out of scope; re-open when a real consumer needs them.
+- Refactoring `module.cmake` hook system — out of scope.
+- Windows AU equivalent — does not exist (AU is macOS-only).

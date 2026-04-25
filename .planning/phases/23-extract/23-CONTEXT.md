@@ -1,14 +1,17 @@
 # Phase 23: Extract — Context
 
 **Gathered:** 2026-04-24
-**Status:** Ready for planning
+**Updated:** 2026-04-25 (Plan 23-05 added — AU-link defect fix via per-format module sources)
+**Status:** Plans 23-01..04 complete; Plan 23-05 ready for planning
 
 <domain>
 ## Phase Boundary
 
 A new shared Ouaricon microtonal module (`modules/tuning/note-expression`) is extracted from the cleaned spike code (O-Lyrica spikes 001–003), registered in the module system, and proven end-to-end on O-Lyrica as the reference consumer. O-Lyrica consumes the module via `/module-add`, composes NE tuning with its existing `TuningEngine`, and passes the Dorico quarter-sharp smoke test. The local JUCE patch is promoted from spike-findings markdown hunks into a real `.patch` file with an idempotent apply script and a CMake-time verification check.
 
-**In scope:** module creation, O-Lyrica refactor, JUCE patch tooling, O-Lyrica version bump + CHANGELOG.
+**Plan 23-05 addendum (added 2026-04-25):** restore clean OLyrica_AU + OLyrica_Standalone link by relocating Steinberg-touching code out of SharedCode into a VST3-target-only translation unit, and establish a project-wide per-format module-source convention (with an `OuariconModules.cmake` extension) so the same defect cannot recur during Phase 24 propagation.
+
+**In scope:** module creation, O-Lyrica refactor, JUCE patch tooling, O-Lyrica version bump + CHANGELOG, AU-link defect fix, per-format module-source pattern, `OuariconModules.cmake` extension.
 **Out of scope** (owned by later phases): 7 other pitched plugins (Phase 24), `.doricoexpmap` bundling in installers (Phase 25), website-ready DOCS-01..05 (Phase 25), Windows verification (FUT-01), MTS-ESP (FUT-03).
 
 </domain>
@@ -63,12 +66,81 @@ A new shared Ouaricon microtonal module (`modules/tuning/note-expression`) is ex
 - **D-18:** Diagnostic spike code stripped per MOD-06: zero `OLyrica::detail::neTrace(...)` call sites remain in O-Lyrica sources; `detail::neTrace` / `detail::iidToHex` helpers deleted; `#include <fstream>` removed from any O-Lyrica or module source. Grep-verify as acceptance.
 - **D-19:** O-Lyrica version bump = **2.2.2 → 2.3.0** (minor). New user-visible feature (Dorico microtonal playback via VST3 Note Expression). CHANGELOG entry documents "adds VST3 Note Expression microtonal support for Dorico" + shared-module adoption.
 
+### Plan 23-05: AU-Link Defect Fix (added 2026-04-25)
+
+**Background.** Plan 23-04 surfaced D-23-04-A: `OLyrica_AU` re-link failed with `Undefined symbols: Steinberg::Vst::INoteExpressionController::iid, Steinberg::UString::assign, Steinberg::FUnknown::iid`. Root cause: the `#if JucePlugin_Build_VST3` guards added in Plan 23-03 (`f85ff38`) are evaluated per translation unit. SharedCode (`libO-Lyrica-dev_SharedCode.a`) compiles with `JucePlugin_Build_VST3=1` because the plugin's FORMATS list includes VST3 — so the guarded Steinberg references leak into SharedCode IR. The AU/Standalone link lines do NOT link `pluginterfaces`, so the symbols go unresolved. VST3 path was unaffected (Dorico smoke test 5/5 PASS); AU/Standalone broken at link time. Architectural defect; fix must be at the module level, not per-plugin.
+
+#### Code Split (header → .cpp)
+
+- **D-20:** `Controller` class definition + `VST3Extensions::queryIEditController` body relocate from `modules/tuning/note-expression/cpp/NoteExpression.h` into a new `modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp`. Header keeps a forward-declaration of `Controller` and an out-of-line declaration of `queryIEditController`. All `<pluginterfaces/...>` includes leave the header.
+- **D-21:** `VST3Extensions::nec` member becomes `std::unique_ptr<Controller>` (pimpl). Forward-declared `Controller` is sufficient at the header. `VST3Extensions` constructor + destructor are declared in the header and defined out-of-line in `NoteExpression_VST3.cpp` (where `Controller` is complete) — required for `unique_ptr<Controller>` with an incomplete type at the member-declaration site. One heap allocation per processor instance — negligible vs the existing 128-slot atomic table.
+- **D-22:** Header retains only Steinberg-free symbols: `PendingTuningTable` (atomic-array typedef), `applyPendingTuning` (voice-side, `inline`, just `pow`), `VST3Extensions::drainBlockEvents` (no Steinberg refs). Out-of-line in `NoteExpression_VST3.cpp`: `Controller` (full body), `VST3Extensions::queryIEditController` (references `INoteExpressionController::iid`), `updatePendingFromEvents` free helper (references `Steinberg::Vst::kTuningTypeID`), `VST3Extensions::drainAndUpdate` (calls `updatePendingFromEvents`), `VST3Extensions` ctor/dtor. The existing `#if JucePlugin_Build_VST3` guards in `NoteExpression.h` are removed entirely — no longer needed once the symbol-touching code is segregated by translation unit.
+- **D-23:** Module public API surface is preserved verbatim. `Ouaricon::NoteExpression::PendingTuningTable`, `applyPendingTuning(...)`, `VST3Extensions` public methods (`queryIEditController`, `onVst3RawEvent`, `drainBlockEvents`, `drainAndUpdate`, `getPendingTable`), and free `updatePendingFromEvents(...)` keep their existing signatures. `Controller` is internal — never appeared in the public consumer surface. O-Lyrica's existing call-sites (PluginProcessor, HarpSynthVoice) compile unchanged.
+
+#### Per-Format Source Convention (new project-wide pattern)
+
+- **D-24:** Convention: source files under `modules/<category>/<module>/cpp/<format>/` (lowercase JUCE format name) compile only into the JUCE `${TARGET}_<FORMAT>` per-format target. Files directly under `cpp/` continue to compile into SharedCode (umbrella target). Recognized format subdirectories: `cpp/vst3/`, `cpp/au/`, `cpp/standalone/`, `cpp/vst2/`, `cpp/aax/`, `cpp/lv2/`, `cpp/unity/`. Mirrors how JUCE itself organizes platform-specific code (`native/win32/`, `native/mac/`).
+- **D-25:** `cpp/<format>/` include directories are added with PRIVATE visibility on the `${TARGET}_<FORMAT>` target only — non-format translation units cannot accidentally include format-specific headers. Headers placed under `cpp/<format>/` are themselves format-private.
+- **D-26:** Convention applies to all current and future Ouaricon modules, not just `note-expression`. Phase 24 plugins inherit the fix automatically with no consumer-side change.
+
+#### OuariconModules.cmake Extension
+
+- **D-27:** `ouaricon_add_module()` is extended to auto-detect the per-format convention. Plugin call-sites (`ouaricon_add_module(<plugin> note-expression)`) remain UNCHANGED — the existing one-liner contract is preserved across O-Lyrica and all 7 Phase 24 plugins. Sketch of the new behavior (planner finalizes exact form):
+  ```cmake
+  # SharedCode glob narrows to top-level cpp/ only (excludes cpp/<format>/ subdirs):
+  file(GLOB MODULE_CPP_SOURCES "${MODULE_DIR}/cpp/*.cpp" "${MODULE_DIR}/cpp/*.h")
+  target_sources(${TARGET_NAME} PRIVATE ${MODULE_CPP_SOURCES})
+  target_include_directories(${TARGET_NAME} PRIVATE "${MODULE_DIR}/cpp")
+
+  # Per-format routing:
+  set(_OUA_JUCE_FORMATS vst3 au standalone vst2 aax lv2 unity)
+  foreach(fmt ${_OUA_JUCE_FORMATS})
+      string(TOUPPER ${fmt} _FMT_UPPER)
+      set(_FMT_DIR "${MODULE_DIR}/cpp/${fmt}")
+      if(EXISTS "${_FMT_DIR}" AND TARGET "${TARGET_NAME}_${_FMT_UPPER}")
+          file(GLOB_RECURSE _FMT_SOURCES "${_FMT_DIR}/*.cpp" "${_FMT_DIR}/*.h")
+          if(_FMT_SOURCES)
+              target_sources(${TARGET_NAME}_${_FMT_UPPER} PRIVATE ${_FMT_SOURCES})
+              target_include_directories(${TARGET_NAME}_${_FMT_UPPER} PRIVATE "${_FMT_DIR}")
+              message(STATUS "[Ouaricon]   Added ${MODULE_NAME}/cpp/${fmt} sources to ${TARGET_NAME}_${_FMT_UPPER}")
+          endif()
+      endif()
+  endforeach()
+  ```
+  Two structural changes from today: (a) the SharedCode `file(GLOB_RECURSE ...)` becomes a non-recursive `file(GLOB ...)` so it doesn't sweep up `cpp/<format>/` files; (b) a per-format loop adds those subdirs to `${TARGET}_<FORMAT>` IF that target exists.
+- **D-28:** Per-format routing silently no-ops when `${TARGET_NAME}_<FORMAT>` does not exist — e.g., a plugin that excludes AU from FORMATS still gets a clean configure when consuming a module that ships `cpp/au/`. Symmetric with the existing JS-copy block, which silently no-ops when `js/` is absent. Loud-error path is reserved for the existing "module not found" case.
+- **D-29:** No change to `module.yaml` schema, no change to `registry.yaml`, no new helper macros. Convention-over-configuration: zero per-module CMake plumbing once `OuariconModules.cmake` is extended. The existing `module.cmake` hook (used by `note-expression` for the `JUCE-NE-PATCH` marker check) keeps its current contract.
+
+#### AU Regression-Prevention Gate
+
+- **D-30:** Plan 23-05 verify gate (and inherited as the Phase 24 per-plugin gate template):
+  1. Clean rebuild: `ninja OLyrica_VST3 OLyrica_AU OLyrica_Standalone` — all three link cleanly with no `Undefined symbols for architecture arm64` errors mentioning `Steinberg::*`.
+  2. Fresh install per CLAUDE.md (AU cache cleared, `.vst3` and `.component` re-installed).
+  3. AU runtime check: `auval -v <type> <subtype> <manuf>`. Codes are extracted at verify time from `plugins/<Plugin>/CMakeLists.txt` (`PLUGIN_CODE` / `PLUGIN_MANUFACTURER_CODE` lines), with the AU type derived from `PLUGIN_AU_MAIN_TYPE` (e.g., `kAudioUnitType_MusicDevice → aumu`). Same one-liner generalizes across all Phase 24 plugins.
+  4. Dorico smoke test (LYR-03 5-test set) re-passes via VST3 — proves the refactor preserved behavior.
+- **D-31:** D-30's `auval` invocation is lifted into a small reusable shell script (e.g., `scripts/verify-au-link.sh <PluginName>`) so each Phase 24 plan inherits the same one-liner. Exact script location/naming is Claude's discretion during planning. Captures the discipline at the convention level — Phase 24 propagation cannot ship with a silently-broken AU again.
+
+#### Scope Boundary (what Plan 23-05 does NOT do)
+
+- **D-32:** No change to module public namespace (`Ouaricon::NoteExpression`), public class names, public method signatures, `module.yaml`, or `registry.yaml`. Internal layout change only — every consumer's call-site compiles unchanged.
+- **D-33:** No version bump on the `note-expression` module (stays 1.0.0). Public API is unchanged; module hasn't shipped to any plugin other than O-Lyrica's local dev install. Whether O-Lyrica patches to 2.3.1 (defect fix) or stays at 2.3.0 (never released externally) is a Plan 23-05 planning question — leaning "no version bump, defect fix internal to Phase 23 closeout". Planner decides.
+- **D-34:** No change to JUCE patch tooling, no re-generation of `scripts/juce-patches/note-expression-juce-8.0.4.patch`, no change to `apply-juce-patches.sh` or the `JUCE-NE-PATCH` marker check. Plan 23-05 is purely a Steinberg-symbol-leakage fix.
+
 ### Claude's Discretion
 
 - Module README structure (format, TOC depth) — follow `scala-tuning-engine`'s README pattern.
 - Exact apply-script error message wording — Claude chooses so long as it names the script path and explains the recovery action.
 - CMake marker-check implementation (shell `execute_process` vs CMake `file(READ)` + `string(FIND)`) — Claude picks the cleaner option.
 - Test ordering within the O-Lyrica refactor — Claude sequences the safe-rebuild checkpoints.
+
+### Plan 23-05: Claude's Discretion
+
+- Exact filename for the new VST3-only translation unit — `cpp/vst3/NoteExpression_VST3.cpp` is fine; alternatives like `cpp/vst3/Controller.cpp` or `cpp/vst3/VST3Bridge.cpp` are equally valid. Keep the Steinberg-touching code consolidated in one file.
+- Whether `VST3Extensions` ctor/dtor are explicitly defined or `=default` in the .cpp — only required to be out-of-line because of the `unique_ptr<Controller>` incomplete-type rule.
+- Naming and exact location of the AU verify script (`scripts/verify-au-link.sh` or `scripts/au-smoke.sh` or similar).
+- Whether to wire `auval` as a CTest target vs a verify-step shell command — Claude picks the cleaner integration.
+- Whether O-Lyrica patches to 2.3.1 (D-33).
+- Final exact form of the `OuariconModules.cmake` per-format loop — sketch in D-27 is the spec, planner finalizes the cmake_parse_arguments / message wording / variable naming.
 
 </decisions>
 
@@ -112,6 +184,18 @@ A new shared Ouaricon microtonal module (`modules/tuning/note-expression`) is ex
 - `CLAUDE.md` — Plugin Cache Clearing protocol (AU cache + re-install sequence) applies to post-refactor O-Lyrica build.
 - `plugins/O-Lyrica/CHANGELOG.md` — style reference for the 2.3.0 entry.
 
+### Plan 23-05 Sources (AU-link defect)
+- `.planning/phases/23-extract/23-04-version-readme-dorico-smoketest-SUMMARY.md` §"D-23-04-A: AU re-link failure exposed module-level architectural defect" — full root-cause analysis, exact `Undefined symbols` output, why Plan 23-03's "AU built clean" claim was incorrect (stale Apr 13 artefact). Required reading before planning Plan 23-05.
+- `modules/tuning/note-expression/cpp/NoteExpression.h` — current state. The `#if JucePlugin_Build_VST3` guards (lines 28–33, 126, 227, 249–270, 304–306) and value-composed `Controller nec` member (line 305) are the deletion / relocation targets. The header-level "Per-format guarding (added Plan 23-03)" comment block describes the broken approach being replaced.
+- `modules/cmake/OuariconModules.cmake` lines 30–107 (`ouaricon_add_module()`) — extension target. Specifically: line 54's `file(GLOB_RECURSE ...)` becomes a top-level-only `file(GLOB ...)`; new per-format loop appended after the existing C++ source block (line 64) and before the JS-copy block (line 66).
+- `modules/tuning/note-expression/module.cmake` — unchanged by Plan 23-05; reference for how `module.cmake` hooks plug into the per-module CMake flow without modifying `OuariconModules.cmake`.
+- `plugins/O-Lyrica/CMakeLists.txt:10` (`FORMATS VST3 AU Standalone`) — defines which `${OLyrica}_<FORMAT>` targets JUCE creates and therefore which per-format routes the new `ouaricon_add_module()` extension activates.
+- `plugins/O-Lyrica/CMakeLists.txt:6` (`juce_add_plugin(OLyrica ...)`) — must be invoked BEFORE `ouaricon_add_module(OLyrica note-expression)` so per-format subtargets exist when the macro runs. Already true today; document as a pre-condition.
+
+### JUCE Per-Format Targets (reference)
+- `JUCE/extras/Build/CMake/JUCEUtils.cmake` — defines how `juce_add_plugin(<TARGET> ... FORMATS VST3 AU Standalone ...)` creates per-format subtargets named `${TARGET}_VST3`, `${TARGET}_AU`, `${TARGET}_Standalone` plus the umbrella SharedCode static library. Per-format targets are what Plan 23-05's auto-detect routing attaches sources to.
+- `JUCE/extras/Build/CMake/JUCEModuleSupport.cmake` — JUCE's own pattern for routing module sources by category (`native/win32/`, `native/mac/`) is the design precedent for the new `cpp/<format>/` convention.
+
 </canonical_refs>
 
 <code_context>
@@ -135,6 +219,22 @@ A new shared Ouaricon microtonal module (`modules/tuning/note-expression`) is ex
 - **O-Lyrica `PluginProcessor.h`** — swap 128-slot table declaration for `Ouaricon::NoteExpression::VST3Extensions m_extensions;`.
 - **CMake marker check** — lives inside the module's CMake glue (`modules/tuning/note-expression/` or registered via `ouaricon_add_module` hook), so it only activates for plugins that consume the module.
 
+### Plan 23-05 Touch Points
+
+**Module-side (the fix):**
+- **`modules/tuning/note-expression/cpp/NoteExpression.h`** — strip Steinberg includes (lines 28–33), strip all `#if JucePlugin_Build_VST3` guards, forward-declare `Controller`, change `Controller nec` member to `std::unique_ptr<Controller> nec`, declare ctor/dtor + `queryIEditController` + `updatePendingFromEvents` + `drainAndUpdate` out-of-line.
+- **`modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp` (new)** — full `Controller` class body, `VST3Extensions` ctor/dtor + `queryIEditController` body + `drainAndUpdate` body, `updatePendingFromEvents` free helper. The single VST3-only translation unit. All `<pluginterfaces/...>` includes live here.
+
+**CMake-side (the convention):**
+- **`modules/cmake/OuariconModules.cmake`** — narrow the SharedCode glob (line 54) to non-recursive `cpp/*.cpp` + `cpp/*.h`; append a per-format loop iterating `vst3 au standalone vst2 aax lv2 unity` and routing matching `cpp/<format>/` directories to `${TARGET_NAME}_<FORMAT>` when that target exists. Update the `[Ouaricon]` STATUS message wording to distinguish SharedCode adds from per-format adds.
+
+**Verification-side (the gate):**
+- **`scripts/verify-au-link.sh` (new, name TBD)** — small shell helper that takes a plugin target name, parses `PLUGIN_CODE` / `PLUGIN_MANUFACTURER_CODE` / `PLUGIN_AU_MAIN_TYPE` from `plugins/<Plugin>/CMakeLists.txt`, and invokes `auval -v <type> <subtype> <manuf>`. Reused verbatim by Plan 23-05 verify and every Phase 24 plan.
+
+**Consumer-side (zero change):**
+- **`plugins/O-Lyrica/CMakeLists.txt`** — `ouaricon_add_module(OLyrica note-expression)` call-site untouched. Same for all 7 Phase 24 plugins when they adopt the module.
+- **`plugins/O-Lyrica/Source/PluginProcessor.{h,cpp}`** — `Ouaricon::NoteExpression::VST3Extensions m_extensions` member, `getVST3ClientExtensions()` accessor, `drainAndUpdate()` call from `processBlock` — all untouched. Public API preservation (D-23) means no consumer-side code edits.
+
 </code_context>
 
 <specifics>
@@ -144,6 +244,14 @@ A new shared Ouaricon microtonal module (`modules/tuning/note-expression`) is ex
 - **Reference-consumer pattern:** O-Lyrica is the template Phase 24 plugins copy. Keeping O-Lyrica free of any plugin-local NE code (no shim) means Phase 24 follow-up plugins have an unambiguous target shape.
 - **Dorico quarter-sharp smoke test is the canonical acceptance gate:** pitch = +50¢ above C4, no attack zipper, NE events correlated by `noteId`. Every Phase 24 plugin will repeat this test.
 - **JUCE-NE-PATCH marker is the load-bearing convention** — both hunks already carry it (spike 001), the `.patch` file preserves it, the CMake check greps for it. Do not rename this marker.
+
+### Plan 23-05 Specifics
+
+- **"Convention over configuration."** The chosen `cpp/<format>/` subdirectory pattern means modules declare per-format intent by file placement — no `module.yaml` schema growth, no per-module CMake boilerplate, no kwargs in consumer call-sites. Mirrors how JUCE itself organizes platform-specific source under `native/`.
+- **"The one-liner contract is non-negotiable."** Every plugin in Phase 24 keeps consuming the module via `ouaricon_add_module(<plugin> note-expression)` — same line, no new args, no per-format awareness in the plugin CMakeLists. The fix lives entirely in the module + the macro.
+- **"Symbol leakage was structural, not accidental."** D-23-04-A is not a coding error to be patched per-plugin — it's a translation-unit-scoping defect that any future `Steinberg::*`-touching module would re-introduce without the per-format convention. Plan 23-05 is the structural fix, not a workaround.
+- **"AU has to load, not just link."** `ninja OLyrica_AU` succeeding is necessary but not sufficient — `auval` must accept the .component too (catches code-signing, plist, and IID-registration failures that only surface at host-load time). The AU verify gate is the load test, not just the link test.
+- **"Pimpl is justified by the symbol-leakage class, not by encapsulation aesthetics."** `unique_ptr<Controller>` is the cleanest way to keep `Controller`'s definition out of the header — the heap allocation cost is irrelevant against the existing 128-slot atomic table. Don't second-guess the pimpl during planning.
 
 </specifics>
 
@@ -157,9 +265,18 @@ A new shared Ouaricon microtonal module (`modules/tuning/note-expression`) is ex
 - **Cross-block `noteId → voice` map** — FUT-04. Dorico emits NE in same block; sufficient for this phase.
 - **Custom NE types beyond `kTuningTypeID`** (per-note timbre, vibrato depth) — FUT-02. Reserved ID range `[100000, 200000]` noted in spike findings.
 
+### Plan 23-05 Deferred
+
+- **CMake-time include-grep assertion** — a structural check that scans `cpp/*.cpp` for `#include <pluginterfaces/...>` and fails configure if found outside `cpp/vst3/`. Considered as an extra belt-and-suspenders guard against future regressions, but rejected for Plan 23-05: brittle (relies on greppable include paths), and the per-format convention + verify gate (D-30) already prevent the defect at the structural level. Re-open if Phase 24 reveals recurring symbol-leakage incidents.
+- **CTest integration of `auval` smoke check** — wiring the AU verify gate as a CTest target (instead of a verify-step shell command) was considered. Deferred to Claude's discretion during Plan 23-05 planning (D-30/D-31 footnote); not a binding decision.
+- **Windows AU equivalent** — there is none (AU is macOS-only). Plan 23-05's gate runs only on macOS; Windows verification (FUT-01) is unaffected.
+- **Per-format pattern for non-source assets** — the new `cpp/<format>/` convention covers C++ sources only. Per-format JS, per-format YAML configs, per-format resources are not in scope. Re-open only when a real consumer needs them.
+- **Refactoring `module.cmake` hooks** — the per-module CMake hook (used by `note-expression` for the `JUCE-NE-PATCH` marker check) keeps its current contract (D-29). Any restructure of the hook system is out of scope.
+
 </deferred>
 
 ---
 
 *Phase: 23-extract*
 *Context gathered: 2026-04-24*
+*Plan 23-05 context appended: 2026-04-25*
