@@ -2,41 +2,44 @@
   ==============================================================================
     NoteExpression.h — note-expression module v1.0.0
     VST3 Note Expression (kTuningTypeID) support for Dorico microtonal playback.
-    Header-only. Public API lives under the Ouaricon::NoteExpression nested namespace.
-    Requires a local JUCE patch (see scripts/apply-juce-patches.sh).
+    Public API lives under the Ouaricon::NoteExpression nested namespace.
 
-    Per-format guarding (added Plan 23-03):
-    The Controller / VST3Extensions classes reference Steinberg SDK symbols
-    (INoteExpressionController::iid, FUnknown::iid, UString::assign) which are
-    only linked into the JUCE VST3 plug-in client target. Non-VST3 formats
-    (AU / Standalone / VST2 / AAX / LV2 / Unity) link the shared-code static
-    library but NOT the pluginterfaces SDK, so referencing those symbols
-    unconditionally produces "undefined symbols" errors at AU/Standalone link.
-    We guard the symbol-touching bodies behind JucePlugin_Build_VST3 so that:
-      - VST3 builds: full bodies present, all symbols resolved.
-      - non-VST3 builds: classes still exist (so plugins can declare a
-        VST3Extensions member unconditionally), but no Steinberg symbol is
-        referenced. queryIEditController returns kNoInterface; the NEC
-        Controller is a no-op. Hosts that don't speak VST3 never call these
-        anyway, so behavior is unchanged.
+    Translation-unit segregation (Plan 23-05 amended D-22) — two-TU split:
+      - This header is Steinberg-free. SharedCode (used by AU / Standalone /
+        VST2 / AAX / LV2 / Unity link lines) can include it without pulling in
+        any VST3-SDK symbol.
+      - cpp/NoteExpression.cpp (SharedCode-bound) defines VST3Extensions ctor
+        and dtor and drainAndUpdate. Zero Steinberg refs. Links into every
+        format's link line.
+      - cpp/vst3/NoteExpression_VST3.cpp (VST3-only via OuariconModules.cmake
+        per-format routing) defines the Controller body, queryIEditController,
+        updatePendingFromEvents, and a static-init that registers
+        updatePendingFromEvents into the SharedCode TU's dispatch slot.
+
+    Custom-deleter pimpl (D-21 amended):
+      - VST3Extensions::nec is std::unique_ptr<Controller, void(*)(Controller*)>.
+      - SharedCode's ctor initializes nec(nullptr, &noopControllerDelete) — a
+        no-op deleter defined in cpp/NoteExpression.cpp.
+      - The VST3 TU's queryIEditController lazy-creates the Controller via
+        move-assignment with realControllerDelete (defined in that TU), which
+        atomically swaps both the managed pointer AND the deleter slot of nec.
+      - The custom function-pointer deleter is what allows the SharedCode-bound
+        dtor (= default) to compile without seeing Controller's body — the
+        unique_ptr dtor calls a function pointer, never `delete Controller*`
+        directly, so Controller's definition is irrelevant at the dtor
+        instantiation site.
   ==============================================================================
 */
 #pragma once
 
 #include <JuceHeader.h>
 
-#if JucePlugin_Build_VST3
- #include <pluginterfaces/vst/ivstnoteexpression.h>
- #include <pluginterfaces/base/ibstream.h>
- #include <pluginterfaces/base/ustring.h>
- #include <public.sdk/source/common/pluginview.h>
-#endif
-
 #include <array>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace Ouaricon::NoteExpression
@@ -54,9 +57,11 @@ using PendingTuningTable = std::array<std::atomic<double>, 128>;
 /** Consumes the pending NE tuning delta for `midiNoteNumber` and returns the
     new frequency. exchange(0.0) ensures a retriggered note at the same pitch
     in a later block does not inherit a stale offset. Encapsulates the
-    pow(2, semis/12) call so voice code never invokes it directly. Composes multiplicatively with
-    the caller's base frequency — caller should pass the frequency AFTER any
-    TuningEngine / humanize lookup (D-10).
+    pow(2, semis/12) call so voice code never invokes it directly. Composes
+    multiplicatively with the caller's base frequency — caller should pass the
+    frequency AFTER any TuningEngine / humanize lookup (D-10).
+
+    This helper is Steinberg-free and therefore stays inline in the header.
 */
 inline double applyPendingTuning (PendingTuningTable& table,
                                   int                 midiNoteNumber,
@@ -74,200 +79,70 @@ inline double applyPendingTuning (PendingTuningTable& table,
 }
 
 //==============================================================================
+// Forward declarations — full bodies live in cpp/vst3/NoteExpression_VST3.cpp.
+
+/** NEC implementation. Forward-declared so the header carries no Steinberg
+    SDK references; full body in cpp/vst3/NoteExpression_VST3.cpp.
+*/
+class Controller;
+
 /** Two-pass correlation: (1) build noteId -> midi-pitch map from NoteOns in
     the block; (2) for each kTuningTypeID NE, compute 240*(value-0.5) semitones
     and store into table[pitch]. Caller must call
     VST3Extensions::drainBlockEvents(events) immediately before this.
 
-    Important: Dorico represents microtonal notes by the *nearest* neighbour
-    semitone + an NE tuning delta (e.g. quarter-sharp C4 arrives as pitch=C#4
-    with NE=-50c, not pitch=C4 with NE=+50c). Correlate via noteId, never via
-    MIDI pitch arithmetic.
+    Defined out-of-line in cpp/vst3/NoteExpression_VST3.cpp because the
+    kTuningTypeID reference must not leak into SharedCode (Plan 23-05).
 */
-inline void updatePendingFromEvents (
+void updatePendingFromEvents (
     const std::vector<juce::VST3ClientExtensions::Vst3RawEvent>& events,
-    PendingTuningTable&                                          table)
-{
-    if (events.empty()) return;
-
-    using Kind = juce::VST3ClientExtensions::Vst3RawEvent::Kind;
-
-    std::map<int32_t, int> noteIdToPitch;
-    for (const auto& e : events)
-        if (e.kind == Kind::NoteOn)
-            noteIdToPitch[e.noteId] = (int) e.pitch;
-
-    for (const auto& e : events)
-    {
-        if (e.kind != Kind::NoteExpressionValue)        continue;
-        if (e.typeId != Steinberg::Vst::kTuningTypeID)  continue;
-
-        auto it = noteIdToPitch.find (e.noteId);
-        if (it == noteIdToPitch.end())                  continue;
-
-        const int pitch = it->second;
-        if (pitch < 0 || pitch >= 128)                  continue;
-
-        // VST3 kTuningTypeID: norm [0,1] -> plain semitones [-120, +120].
-        const double semitones = 240.0 * (e.value - 0.5);
-        table[(size_t) pitch].store (semitones, std::memory_order_release);
-    }
-}
+    PendingTuningTable&                                          table);
 
 //==============================================================================
-/** Advertises kTuningTypeID as a supported Note Expression for all (busIndex,
-    channel) pairs. Dorico queries this on plugin load to decide whether to
-    send NE or fall back to pitch bend.
+// Dispatch-slot wiring (Plan 23-05 amended D-22).
+//
+// SharedCode-bound cpp/NoteExpression.cpp owns a std::atomic<NEUpdateFn>
+// dispatch slot. The VST3-only cpp/vst3/NoteExpression_VST3.cpp registers its
+// updatePendingFromEvents body into that slot via static-init at TU load.
+// SharedCode's drainAndUpdate loads the slot and dispatches if non-null.
+// Non-VST3 builds: VST3 TU is not linked, slot stays nullptr, correlation is
+// skipped — correct because non-VST3 hosts cannot deliver kTuningTypeID events.
+using NEUpdateFn = void (*) (
+    const std::vector<juce::VST3ClientExtensions::Vst3RawEvent>&,
+    PendingTuningTable&);
 
-    NOTE: only present in VST3 builds — derives from Steinberg::Vst::
-    INoteExpressionController which is declared in the VST3 SDK headers.
-    Non-VST3 formats never see or instantiate this class.
-*/
-#if JucePlugin_Build_VST3
-class Controller : public Steinberg::Vst::INoteExpressionController
-{
-public:
-    Controller() = default;
-
-    Steinberg::int32 PLUGIN_API getNoteExpressionCount (Steinberg::int32 /*busIndex*/,
-                                                        Steinberg::int16 /*channel*/) override
-    {
-        return 1;
-    }
-
-    Steinberg::tresult PLUGIN_API getNoteExpressionInfo (Steinberg::int32 /*busIndex*/,
-                                                         Steinberg::int16 /*channel*/,
-                                                         Steinberg::int32 noteExpressionIndex,
-                                                         Steinberg::Vst::NoteExpressionTypeInfo& info) override
-    {
-        if (noteExpressionIndex != 0)
-            return Steinberg::kResultFalse;
-
-        std::memset (&info, 0, sizeof (info));
-        info.typeId = Steinberg::Vst::kTuningTypeID;
-        Steinberg::UString (info.title,      128).assign (STR16 ("Tuning"));
-        Steinberg::UString (info.shortTitle, 128).assign (STR16 ("Tun"));
-        Steinberg::UString (info.units,      128).assign (STR16 ("semitones"));
-        info.unitId = -1;
-        info.valueDesc.defaultValue = 0.5;
-        info.valueDesc.minimum      = 0.0;
-        info.valueDesc.maximum      = 1.0;
-        info.valueDesc.stepCount    = 0;
-        info.associatedParameterId  = Steinberg::Vst::kNoParamId;
-        info.flags = Steinberg::Vst::NoteExpressionTypeInfo::kIsBipolar
-                   | Steinberg::Vst::NoteExpressionTypeInfo::kIsAbsolute;
-        return Steinberg::kResultTrue;
-    }
-
-    Steinberg::tresult PLUGIN_API getNoteExpressionStringByValue (Steinberg::int32 /*busIndex*/,
-                                                                  Steinberg::int16 /*channel*/,
-                                                                  Steinberg::Vst::NoteExpressionTypeID id,
-                                                                  Steinberg::Vst::NoteExpressionValue valueNormalized,
-                                                                  Steinberg::Vst::String128 string) override
-    {
-        if (id != Steinberg::Vst::kTuningTypeID)
-            return Steinberg::kResultFalse;
-
-        // Format "+/-N.NN" as ASCII, then widen to char16. Avoids juce::String <-> UString
-        // conversion pitfalls. This is display-only; Dorico doesn't rely on it.
-        const double semitones = 240.0 * (valueNormalized - 0.5);
-        char ascii[32];
-        std::snprintf (ascii, sizeof (ascii), "%.2f", semitones);
-        int i = 0;
-        for (; i < 31 && ascii[i] != '\0'; ++i)
-            string[i] = (Steinberg::Vst::TChar) (unsigned char) ascii[i];
-        string[i] = 0;
-        return Steinberg::kResultTrue;
-    }
-
-    Steinberg::tresult PLUGIN_API getNoteExpressionValueByString (Steinberg::int32 /*busIndex*/,
-                                                                  Steinberg::int16 /*channel*/,
-                                                                  Steinberg::Vst::NoteExpressionTypeID id,
-                                                                  const Steinberg::Vst::TChar* string,
-                                                                  Steinberg::Vst::NoteExpressionValue& valueNormalized) override
-    {
-        if (id != Steinberg::Vst::kTuningTypeID)
-            return Steinberg::kResultFalse;
-
-        // Narrow char16 -> ASCII for atof. Values only contain digits / '.' / '-' / '+'.
-        char ascii[32] = {};
-        for (int i = 0; i < 31 && string[i] != 0; ++i)
-            ascii[i] = (char) (string[i] & 0x7F);
-        const double semitones = std::atof (ascii);
-        valueNormalized = juce::jlimit (0.0, 1.0, semitones / 240.0 + 0.5);
-        return Steinberg::kResultTrue;
-    }
-
-    //==============================================================================
-    // FUnknown / refcount plumbing — NEC is owned by the extensions object so the
-    // refcount is effectively ignored, but Steinberg hosts may still query it.
-    Steinberg::tresult PLUGIN_API queryInterface (const Steinberg::TUID iid, void** obj) override
-    {
-        if (obj == nullptr)
-            return Steinberg::kInvalidArgument;
-
-        if (Steinberg::FUnknownPrivate::iidEqual (iid, Steinberg::Vst::INoteExpressionController::iid)
-         || Steinberg::FUnknownPrivate::iidEqual (iid, Steinberg::FUnknown::iid))
-        {
-            *obj = static_cast<Steinberg::Vst::INoteExpressionController*> (this);
-            addRef();
-            return Steinberg::kResultOk;
-        }
-
-        *obj = nullptr;
-        return Steinberg::kNoInterface;
-    }
-
-    Steinberg::uint32 PLUGIN_API addRef()  override { return ++refCount; }
-    Steinberg::uint32 PLUGIN_API release() override { return --refCount; }
-
-private:
-    std::atomic<Steinberg::uint32> refCount { 1 };
-};
-#endif // JucePlugin_Build_VST3
+void registerNEUpdate (NEUpdateFn fn) noexcept;
 
 //==============================================================================
 /** VST3 client extensions for note-expression-aware plugins.
-    - Advertises the Controller on IEditController queries.
+    - Advertises the Controller on IEditController queries (VST3 only — body
+      lives in cpp/vst3/NoteExpression_VST3.cpp).
     - Buffers raw VST3 events (pushed by the patched JUCE wrapper) so the
       processor can correlate NE tuning deltas with their NoteOn noteIds and
       apply per-voice pitch offsets before voices emit their first sample.
     - Owns the 128-slot PendingTuningTable (D-09): plugins do not need to
       re-declare it, voices receive a pointer via getPendingTable().
+
+    The class itself is fully usable from non-VST3 builds (AU / Standalone /
+    VST2 / AAX / LV2 / Unity) — those builds simply never invoke
+    queryIEditController, the VST3 TU is not linked, the dispatch slot stays
+    nullptr, and drainAndUpdate is a fast pass-through.
+
+    Custom-deleter pimpl (D-21 amended): nec is
+        std::unique_ptr<Controller, void(*)(Controller*)>
+    which lets the SharedCode-bound dtor (= default in cpp/NoteExpression.cpp)
+    compile without seeing Controller's body. The deleter starts as
+    noopControllerDelete (cpp/NoteExpression.cpp); queryIEditController's
+    lazy-create idiom in the VST3 TU swaps it to realControllerDelete via
+    move-assignment.
 */
 class VST3Extensions : public juce::VST3ClientExtensions
 {
 public:
-    VST3Extensions()
-    {
-        blockEvents.reserve (64);
-        rawEventScratch.reserve (64);
-    }
+    VST3Extensions();
+    ~VST3Extensions() override;
 
-    int32_t queryIEditController (const Steinberg::TUID targetIID, void** obj) override
-    {
-       #if JucePlugin_Build_VST3
-        const bool isNEC = Steinberg::FUnknownPrivate::iidEqual (
-                                targetIID, Steinberg::Vst::INoteExpressionController::iid);
-
-        if (isNEC)
-        {
-            nec.addRef();
-            *obj = static_cast<Steinberg::Vst::INoteExpressionController*> (&nec);
-            return Steinberg::kResultOk;
-        }
-
-        *obj = nullptr;
-        return Steinberg::kNoInterface;
-       #else
-        // Non-VST3 builds never invoke this (host wouldn't have a VST3 IID), but
-        // the override must exist because juce::VST3ClientExtensions is a JUCE
-        // base class that is compiled into the shared library for all formats.
-        juce::ignoreUnused (targetIID);
-        if (obj != nullptr) *obj = nullptr;
-        return -1; // Steinberg::kNoInterface numeric value
-       #endif
-    }
+    int32_t queryIEditController (const Steinberg::TUID targetIID, void** obj) override;
 
     void onVst3RawEvent (const Vst3RawEvent& e) override
     {
@@ -289,21 +164,22 @@ public:
     }
 
     /** Convenience: drain + correlate in one call. Plugins use this from
-        processBlock before renderNextBlock. */
-    void drainAndUpdate()
-    {
-        drainBlockEvents (rawEventScratch);
-        updatePendingFromEvents (rawEventScratch, pendingTable);
-    }
+        processBlock before renderNextBlock. Defined out-of-line in
+        cpp/NoteExpression.cpp; dispatches via the dispatch slot (D-22). */
+    void drainAndUpdate();
 
     /** Voice wiring entry point. Hand this to each voice's
         setPendingTuningSource(). */
     PendingTuningTable& getPendingTable() noexcept { return pendingTable; }
 
 private:
-   #if JucePlugin_Build_VST3
-    Controller                  nec;
-   #endif
+    // Custom function-pointer deleter pimpl (D-21 amended). The deleter slot
+    // is set by the ctor (in cpp/NoteExpression.cpp) to noopControllerDelete;
+    // the VST3 TU swaps it to realControllerDelete via move-assignment in
+    // queryIEditController's lazy-create. The dtor (= default) only invokes
+    // the stored function pointer — Controller's body is not required here.
+    std::unique_ptr<Controller, void(*)(Controller*)> nec;
+
     std::vector<Vst3RawEvent>   blockEvents;
     std::vector<Vst3RawEvent>   rawEventScratch;
     PendingTuningTable          pendingTable {};
