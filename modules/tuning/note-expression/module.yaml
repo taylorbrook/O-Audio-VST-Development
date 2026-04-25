@@ -1,0 +1,72 @@
+# note-expression module v1.0.0
+# VST3 Note Expression (kTuningTypeID) for Dorico microtonal playback.
+# Surfaces NE events via a local JUCE patch and exposes a header-only
+# Controller + Extensions + voice helper for per-note semitone offsets.
+
+name: note-expression
+version: 1.0.0
+description: |
+  VST3 Note Expression (kTuningTypeID) support for Dorico-driven microtonal
+  playback. Owns the Note Expression Controller (NEC), the
+  juce::VST3ClientExtensions subclass, the 128-slot PendingTuningTable, a
+  drain+correlate helper that turns the patched JUCE wrapper's raw-event
+  queue into per-pitch semitone deltas, and a header-only voice helper
+  (applyPendingTuning) that composes an NE semitone delta with any
+  existing base frequency (e.g. a TuningEngine lookup).
+
+  Requires a local JUCE patch (scripts/juce-patches/note-expression-juce-8.0.4.patch)
+  that adds VST3ClientExtensions::onVst3RawEvent so kNoteExpressionValueEvent
+  and noteId-tagged NoteOn/NoteOff reach the plugin before
+  MidiEventList::toMidiBuffer drops them.
+
+category: tuning
+author: Ouaricon Audio
+
+# What this module provides
+provides:
+  cpp-classes:
+    - Ouaricon::NoteExpression::Controller       # NEC for kTuningTypeID
+    - Ouaricon::NoteExpression::VST3Extensions   # Owns NEC + raw-event queue + PendingTuningTable
+  cpp-free-functions:
+    - Ouaricon::NoteExpression::applyPendingTuning      # Voice-side helper (D-07, MOD-04)
+    - Ouaricon::NoteExpression::updatePendingFromEvents # Processor-side drain+correlate (D-08)
+  cpp-types:
+    - Ouaricon::NoteExpression::PendingTuningTable      # std::array<std::atomic<double>, 128>
+
+# Dependencies (D-11: no dependency on scala-tuning-engine — composition
+# happens at the voice call site, not inside either module).
+dependencies: []
+
+# JUCE requirements
+requirements:
+  juce_modules:
+    - juce_audio_processors   # for VST3ClientExtensions
+    - juce_core
+  cpp_standard: 20
+  juce_patch:
+    marker: "JUCE-NE-PATCH"
+    file: "scripts/juce-patches/note-expression-juce-8.0.4.patch"
+    juce_version: "8.0.4"
+
+# Source files (header-only)
+sources:
+  cpp:
+    - cpp/NoteExpression.h
+
+# Tracking — first consumer is O-Lyrica 2.3.0 (Phase 23 reference consumer).
+used_by:
+  - plugin: OLyrica
+    version: 2.3.0
+
+changelog:
+  - version: 1.0.0
+    date: 2026-04-24
+    changes:
+      - "Initial extraction from O-Lyrica spike 001/002/003"
+      - "Header-only public API under namespace Ouaricon::NoteExpression"
+      - "Owns PendingTuningTable (128-slot std::array<std::atomic<double>>)"
+      - "Provides Controller (NEC for kTuningTypeID) + VST3Extensions"
+      - "Provides applyPendingTuning voice helper (encapsulates std::pow)"
+      - "Provides updatePendingFromEvents drain+correlate helper"
+      - "CMake-time patch-marker verification (added in Plan 02)"
+      - "Stripped of all spike diagnostics (no neTrace, no <fstream>, no <mutex>)"

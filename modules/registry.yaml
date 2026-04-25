@@ -248,6 +248,29 @@ modules:
     reuse_score: 10
     used_by: []
 
+  - name: note-expression
+    path: tuning/note-expression
+    version: 1.0.0
+    description: |
+      VST3 Note Expression (kTuningTypeID) support for Dorico microtonal playback.
+      Header-only C++ module under Ouaricon::NoteExpression — provides the NEC,
+      the VST3Extensions subclass that owns the 128-slot pending-tuning table,
+      a drain+correlate helper, and a voice-side applyPendingTuning helper.
+      Requires a local JUCE patch (scripts/juce-patches/note-expression-juce-8.0.4.patch).
+    category: tuning
+    provides:
+      - cpp-class: Ouaricon::NoteExpression::Controller
+      - cpp-class: Ouaricon::NoteExpression::VST3Extensions
+      - cpp-type: Ouaricon::NoteExpression::PendingTuningTable
+      - cpp-free-function: Ouaricon::NoteExpression::applyPendingTuning
+      - cpp-free-function: Ouaricon::NoteExpression::updatePendingFromEvents
+    dependencies: []
+    tags: [vst3, note-expression, dorico, microtuning, per-note-pitch, header-only]
+    reuse_score: 10
+    used_by:
+      - plugin: OLyrica
+        version: 2.3.0
+
   # ============================================================================
   # EFFECTS MODULES
   # ============================================================================
