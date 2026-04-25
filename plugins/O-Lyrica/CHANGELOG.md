@@ -2,6 +2,30 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.3.0] - 2026-04-24
+
+### Added
+
+- **VST3 Note Expression microtonal support for Dorico.** O-Lyrica now responds to Dorico's per-note tuning messages (`kTuningTypeID` Note Expression events), enabling correct microtonal playback of quarter-tones, third-tones, and arbitrary tuning deltas authored in Dorico's tonality system. Required procedure for end users: `Dorico -> Library -> Expression Maps...` -> duplicate an existing map -> set **Microtonality** to **"VST3 Note Expression"** -> assign the new map to O-Lyrica's Endpoint Setup channel. Default expression maps route microtones to VST2 detune or pitch bend — neither reaches VST3 plugins, so without this setup microtonal playback falls back to 12-TET.
+- **Shared `note-expression` module adoption.** O-Lyrica is the reference consumer for the new Ouaricon module at `modules/tuning/note-expression` (v1.0.0). The 128-slot pending-tuning table, NEC advertisement, raw-event drain, and voice-side pitch-offset helper now live in the module rather than O-Lyrica's own sources. Phase 24 will propagate the same module to O-Bells, O-Wind, O-Reed, O-Bowed, O-Formant, O-IntonationPad, and O-Prism.
+
+### Changed
+
+- **Composition with existing tuning.** Voice code now computes its base frequency via `TuningEngine::getFrequency(midi)` FIRST, then applies the NE semitone delta via `Ouaricon::NoteExpression::applyPendingTuning(table, midi, freq)`. This is multiplicatively correct for any base tuning (12-TET, Scala, MTS-ESP future) and satisfies the "no raw `std::pow` in voice" constraint — the `pow(2, semis/12)` call lives inside the module helper.
+- **Spike diagnostic code stripped.** `OLyrica::detail::neTrace` and `detail::iidToHex` helpers plus all `neTrace(...)` call sites removed from `PluginProcessor.cpp` and `HarpSynthVoice.cpp`. `<fstream>` include removed. No more audio-thread file I/O (the spike wrote `/tmp/olyrica-ne-trace.log` synchronously).
+
+### Removed
+
+- **`Source/VST3/NoteExpressionSupport.h`** — deleted entirely. Replaced by the shared module (no plugin-local shim kept; sets the clean reference shape for Phase 24 adopters).
+
+### Technical notes
+
+- **JUCE patch required:** the NE path only works if `/Users/taylorbrook/JUCE` has the `JUCE-NE-PATCH` markers applied. After a JUCE upgrade, run `./scripts/apply-juce-patches.sh`. CMake verifies the markers at configure time and fails fast if missing.
+- **Composition order is load-bearing:** `applyPendingTuning` must run AFTER the TuningEngine lookup but BEFORE `stringModel.trigger()`, so the first waveguide sample sizes to the tuned frequency. Landmine 4 of `vst3-note-expression-dorico.md`.
+- **Version bump rationale:** MINOR (v2.2.2 -> v2.3.0) — new user-visible feature (Dorico microtonal playback), backward compatible, no preset impact, no parameter changes.
+- **Files modified:** `Source/PluginProcessor.{h,cpp}`, `Source/HarpSynthVoice.{h,cpp}`, `CMakeLists.txt`.
+- **Files deleted:** `Source/VST3/NoteExpressionSupport.h`.
+
 ## [2.2.2] - 2026-04-13
 
 ### Changed
