@@ -18,6 +18,7 @@
 #include "DSP/SympatheticResonance.h"
 #include "DSP/TuningEngine.h"
 #include "DSP/GlissandoController.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (PendingTuningTable + helpers)
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {
@@ -80,6 +81,13 @@ public:
     void setHostBpm(std::atomic<double>* bpmPtr);
 
     /**
+     * Set pointer to the module-owned pending-tuning table (128 MIDI slots,
+     * semitones). Voice reads-and-clears its slot in startNote() to apply Dorico's
+     * VST3 Note Expression tuning delta before the first sample renders.
+     */
+    void setPendingTuningSource(Ouaricon::NoteExpression::PendingTuningTable* source);
+
+    /**
      * Get unique voice ID for sympathetic resonance tracking
      */
     int getVoiceId() const;
@@ -116,6 +124,9 @@ private:
 
     // v1.31.0: Host BPM pointer (owned by processor, for tempo sync)
     std::atomic<double>* hostBpmPtr = nullptr;
+
+    // VST3 Note Expression: pending tuning deltas (semitones) — module-owned table
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     double currentFrequency = 440.0;
     float currentVelocity = 0.0f;

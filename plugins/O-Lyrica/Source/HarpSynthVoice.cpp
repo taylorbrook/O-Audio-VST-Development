@@ -81,6 +81,11 @@ void HarpSynthVoice::setHostBpm(std::atomic<double>* bpmPtr)
     hostBpmPtr = bpmPtr;
 }
 
+void HarpSynthVoice::setPendingTuningSource(Ouaricon::NoteExpression::PendingTuningTable* source)
+{
+    pendingTuningSource = source;
+}
+
 int HarpSynthVoice::getVoiceId() const
 {
     return voiceId;
@@ -128,6 +133,17 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             double freqRatio = std::pow(2.0, centsDeviation / 1200.0);
             currentFrequency *= freqRatio;
         }
+    }
+
+    // VST3 Note Expression tuning delta (Dorico microtonal).
+    // Composes multiplicatively with the frequency already set by
+    // TuningEngine / humanize above (D-10): base tuning * NE semitone offset.
+    // Helper uses exchange(0.0) internally so retriggered notes at the same
+    // pitch in a later block don't inherit a stale offset.
+    if (pendingTuningSource != nullptr)
+    {
+        currentFrequency = Ouaricon::NoteExpression::applyPendingTuning (
+                               *pendingTuningSource, midiNoteNumber, currentFrequency);
     }
 
     // Default pluck parameters
