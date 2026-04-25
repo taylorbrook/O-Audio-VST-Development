@@ -83,14 +83,14 @@
   3. O-Lyrica passes the Dorico quarter-sharp smoke test after refactor — pitch lands at +50¢ above C4 with NE events correlated by `noteId`, no attack zipper, and the existing `TuningEngine` still composes with NE offsets (no raw `pow()` bypass).
   4. O-Lyrica `CHANGELOG.md` has a version-bumped entry documenting shared-module adoption and microtonal NE support.
   5. The local JUCE patch is committed as a named patch file in `scripts/` (or equivalent) with a documented re-apply procedure for JUCE-version bumps.
-**Plans:** 5 plans (4 complete, 1 outstanding — Plan 05 added 2026-04-25 to address AU-link defect surfaced in Plan 04)
+**Plans:** 5 plans (5 complete — Plan 05 added 2026-04-25 to address AU-link defect surfaced in Plan 04; resolved 2026-04-25)
 
 Plans:
 - [x] 23-01-module-scaffolding-PLAN.md — Create note-expression module (yaml/README stub/cpp/NoteExpression.h) + registry entry (MOD-01/02/03/04/06/08) -- completed 2026-04-25
 - [x] 23-02-juce-patch-tooling-PLAN.md — Committable .patch file + idempotent apply-juce-patches.sh + CMake-time marker check via module.cmake (MOD-07) -- completed 2026-04-25
 - [x] 23-03-olyrica-consume-refactor-PLAN.md — Wire ouaricon_add_module(OLyrica note-expression); refactor PluginProcessor + HarpSynthVoice; delete VST3/NoteExpressionSupport.h; clean build (LYR-01/02) -- completed 2026-04-25
 - [x] 23-04-version-readme-dorico-smoketest-PLAN.md — VERSION 2.3.0 + CHANGELOG entry + comprehensive module README + clean install + Dorico quarter-sharp smoke test (MOD-05, LYR-03/04) -- completed 2026-04-25 (Dorico VST3 5/5 PASS; AU re-link failure exposed, deferred to Plan 05)
-- [ ] 23-05-fix-au-link-steinberg-symbols-PLAN.md — Move Controller + Steinberg-touching code from NoteExpression.h header to a .cpp compiled only into the VST3 target; restore clean OLyrica_AU build. BLOCKS Phase 24 propagation.
+- [x] 23-05-fix-au-link-steinberg-symbols-PLAN.md — Two-TU split + custom-deleter pimpl + dual dispatch slots restore clean OLyrica_VST3 + AU + Standalone link; per-format module-source convention added to OuariconModules.cmake; reusable scripts/verify-au-link.sh AU gate; LYR-03 5/5 re-passed via VST3. Phase 24 unblocked. -- completed 2026-04-25
 
 ### Phase 24 (B): Propagate
 **Goal**: The shared microtonal module is consumed by all 7 remaining pitched plugins (O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant) via the standard `/improve [PluginName]` workflow — each rollout produces a version bump, CHANGELOG entry, STATUS.md update, regression test, and a fresh system install, with zero direct source edits bypassing the tracked improvement cycle.
@@ -128,12 +128,12 @@ Phases execute in numeric order: 23 → 24 → 25
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
-| 23 (A) | v1.5 | 0/4   | Not started | - |
-| 24 (B) | v1.5 | 0/TBD | Not started | - |
+| 23 (A) | v1.5 | 5/5   | Plans complete; awaiting verification gate | 2026-04-25 |
+| 24 (B) | v1.5 | 0/TBD | Not started (unblocked) | - |
 | 25 (C) | v1.5 | 0/TBD | Not started | - |
 
-**Cumulative: 22 phases complete, 64 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped.**
+**Cumulative: 22 phases complete, 64 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 23 plans complete; verification gate next.**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-04-24 -- v1.5 milestone phases 23-25 added*
+*Last updated: 2026-04-25 -- Phase 23 Plan 23-05 complete (AU-link defect resolved); Phase 23 awaits verification*
