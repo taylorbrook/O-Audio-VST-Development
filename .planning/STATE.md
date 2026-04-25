@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
 status: executing
-stopped_at: Completed 23-01 module scaffolding
-last_updated: "2026-04-25T04:49:43.966Z"
+stopped_at: Completed 23-02 JUCE patch tooling
+last_updated: "2026-04-25T04:57:02.019Z"
 last_activity: 2026-04-25
 progress:
   total_phases: 18
   completed_phases: 17
   total_plans: 55
-  completed_plans: 52
-  percent: 95
+  completed_plans: 53
+  percent: 96
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
 Phase: 23 (extract) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-25
 
-Progress: [██████████] 95%
+Progress: [██████████] 96%
 
 Next: `/gsd-plan-phase 23` — Extract
 
@@ -72,6 +72,7 @@ Next: `/gsd-plan-phase 23` — Extract
 | 22 | 01 | 2min | 2 | 9 |
 | 22 | 02 | 2min | 2 | 2 |
 | Phase 23 P01 | 4min | 2 tasks | 4 files |
+| Phase Phase 23 P02 P23-02 | 4min | 3 tasks tasks | 4 files files |
 
 ## Accumulated Context
 
@@ -86,6 +87,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 - Shared module candidate name `dsp/note-expression` — confirm against `/module-list` before creation (MOD-01).
 - Local JUCE patch tracked as a named patch file in `scripts/` with re-apply procedure for JUCE upgrades (MOD-07).
 - Phase 23 Plan 01: note-expression module shipped at modules/tuning/note-expression v1.0.0 — header-only under Ouaricon::NoteExpression, owns PendingTuningTable on VST3Extensions (D-09), no dependency on scala-tuning-engine (D-11)
+- Phase 23 Plan 02: JUCE patch shipped as scripts/juce-patches/note-expression-juce-8.0.4.patch (1112 lines, generated via diff -u against pristine JUCE 8.0.4); idempotent apply-juce-patches.sh wrapper preflights JUCE_DIR and skips when JUCE-NE-PATCH marker already present (T-23-04); modules/tuning/note-expression/module.cmake gates only future consumers via opt-in module.cmake hook auto-included by OuariconModules.cmake (T-23-05, D-15)
 
 ### Pending Todos
 
@@ -113,8 +115,8 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-04-25T04:49:43.962Z
-Stopped at: Completed 23-01 module scaffolding
+Last session: 2026-04-25T04:57:02.015Z
+Stopped at: Completed 23-02 JUCE patch tooling
 Resume file: None
 
 Next: `/gsd-plan-phase 23` — Extract

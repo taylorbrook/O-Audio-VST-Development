@@ -24,7 +24,8 @@
 - [ ] **MOD-05**: Module `README.md` documents consumer integration, the required local JUCE patch, and the end-user Dorico expression-map setup procedure.
 - [x] **MOD-06
 **: All diagnostic spike code stripped from module source — no `OLyrica::detail::neTrace(...)` call sites, no `detail::neTrace` / `detail::iidToHex` helpers, no stray `#include <fstream>` in the header.
-- [ ] **MOD-07**: Local JUCE patch committed as a named patch file in `scripts/` (or equivalent) with a re-apply procedure documented for JUCE-version bumps.
+- [x] **MOD-07
+**: Local JUCE patch committed as a named patch file in `scripts/` (or equivalent) with a re-apply procedure documented for JUCE-version bumps.
 - [x] **MOD-08
 **: Module registered in `OuariconModules.cmake` / the module registry with semver, discoverable via `/module-list` and `/module-info`.
 
