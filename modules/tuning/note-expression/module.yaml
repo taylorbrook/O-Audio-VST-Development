@@ -69,4 +69,4 @@ changelog:
       - "Provides applyPendingTuning voice helper (encapsulates std::pow)"
       - "Provides updatePendingFromEvents drain+correlate helper"
       - "CMake-time patch-marker verification (added in Plan 02)"
-      - "Stripped of all spike diagnostics (no neTrace, no <fstream>, no <mutex>)"
+      - "Stripped of all spike diagnostics — no audio-thread file I/O, no debug locks, no trace helpers"
