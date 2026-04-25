@@ -13,14 +13,20 @@
 
 ### Shared Module (MODULE)
 
-- [ ] **MOD-01**: A new shared Ouaricon module exists for microtonal VST3 Note Expression support; name confirmed against `/module-list` before creation (candidate: `dsp/note-expression`).
-- [ ] **MOD-02**: Module contains cleaned `TuningNoteExpressionController` class advertising `kTuningTypeID`.
-- [ ] **MOD-03**: Module contains cleaned `VST3ClientExtensions` subclass with raw-event queue and `queryIEditController` dispatch to the NEC.
-- [ ] **MOD-04**: Module provides a header-only voice helper (e.g. `applyPendingTuning(pendingSource, midiNote, currentFrequency)`) so each plugin's `startNote` can integrate NE tuning in one line, and applies the tuning to `currentFrequency` **before** the DSP model's `trigger(...)` call (zipper prevention).
+- [x] **MOD-01
+**: A new shared Ouaricon module exists for microtonal VST3 Note Expression support; name confirmed against `/module-list` before creation (candidate: `dsp/note-expression`).
+- [x] **MOD-02
+**: Module contains cleaned `TuningNoteExpressionController` class advertising `kTuningTypeID`.
+- [x] **MOD-03
+**: Module contains cleaned `VST3ClientExtensions` subclass with raw-event queue and `queryIEditController` dispatch to the NEC.
+- [x] **MOD-04
+**: Module provides a header-only voice helper (e.g. `applyPendingTuning(pendingSource, midiNote, currentFrequency)`) so each plugin's `startNote` can integrate NE tuning in one line, and applies the tuning to `currentFrequency` **before** the DSP model's `trigger(...)` call (zipper prevention).
 - [ ] **MOD-05**: Module `README.md` documents consumer integration, the required local JUCE patch, and the end-user Dorico expression-map setup procedure.
-- [ ] **MOD-06**: All diagnostic spike code stripped from module source — no `OLyrica::detail::neTrace(...)` call sites, no `detail::neTrace` / `detail::iidToHex` helpers, no stray `#include <fstream>` in the header.
+- [x] **MOD-06
+**: All diagnostic spike code stripped from module source — no `OLyrica::detail::neTrace(...)` call sites, no `detail::neTrace` / `detail::iidToHex` helpers, no stray `#include <fstream>` in the header.
 - [ ] **MOD-07**: Local JUCE patch committed as a named patch file in `scripts/` (or equivalent) with a re-apply procedure documented for JUCE-version bumps.
-- [ ] **MOD-08**: Module registered in `OuariconModules.cmake` / the module registry with semver, discoverable via `/module-list` and `/module-info`.
+- [x] **MOD-08
+**: Module registered in `OuariconModules.cmake` / the module registry with semver, discoverable via `/module-list` and `/module-info`.
 
 ### O-Lyrica Reference Integration (LYRICA)
 

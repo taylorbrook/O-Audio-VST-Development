@@ -83,7 +83,13 @@
   3. O-Lyrica passes the Dorico quarter-sharp smoke test after refactor — pitch lands at +50¢ above C4 with NE events correlated by `noteId`, no attack zipper, and the existing `TuningEngine` still composes with NE offsets (no raw `pow()` bypass).
   4. O-Lyrica `CHANGELOG.md` has a version-bumped entry documenting shared-module adoption and microtonal NE support.
   5. The local JUCE patch is committed as a named patch file in `scripts/` (or equivalent) with a documented re-apply procedure for JUCE-version bumps.
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 23-01-module-scaffolding-PLAN.md — Create note-expression module (yaml/README stub/cpp/NoteExpression.h) + registry entry (MOD-01/02/03/04/06/08)
+- [ ] 23-02-juce-patch-tooling-PLAN.md — Committable .patch file + idempotent apply-juce-patches.sh + CMake-time marker check via module.cmake (MOD-07)
+- [ ] 23-03-olyrica-consume-refactor-PLAN.md — Wire ouaricon_add_module(OLyrica note-expression); refactor PluginProcessor + HarpSynthVoice; delete VST3/NoteExpressionSupport.h; clean build (LYR-01/02)
+- [ ] 23-04-version-readme-dorico-smoketest-PLAN.md — VERSION 2.3.0 + CHANGELOG entry + comprehensive module README + clean install + Dorico quarter-sharp smoke test (MOD-05, LYR-03/04)
 
 ### Phase 24 (B): Propagate
 **Goal**: The shared microtonal module is consumed by all 7 remaining pitched plugins (O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant) via the standard `/improve [PluginName]` workflow — each rollout produces a version bump, CHANGELOG entry, STATUS.md update, regression test, and a fresh system install, with zero direct source edits bypassing the tracked improvement cycle.
@@ -121,7 +127,7 @@ Phases execute in numeric order: 23 → 24 → 25
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
-| 23 (A) | v1.5 | 0/TBD | Not started | - |
+| 23 (A) | v1.5 | 0/4   | Not started | - |
 | 24 (B) | v1.5 | 0/TBD | Not started | - |
 | 25 (C) | v1.5 | 0/TBD | Not started | - |
 
