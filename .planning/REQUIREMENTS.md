@@ -117,14 +117,14 @@ Populated by roadmapper during Phase A/B/C creation. Each requirement maps to ex
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MOD-01 | Phase A (23) | Pending |
-| MOD-02 | Phase A (23) | Pending |
-| MOD-03 | Phase A (23) | Pending |
-| MOD-04 | Phase A (23) | Pending |
+| MOD-01 | Phase A (23) | Complete |
+| MOD-02 | Phase A (23) | Complete |
+| MOD-03 | Phase A (23) | Complete |
+| MOD-04 | Phase A (23) | Complete |
 | MOD-05 | Phase A (23) | Complete |
-| MOD-06 | Phase A (23) | Pending |
-| MOD-07 | Phase A (23) | Pending |
-| MOD-08 | Phase A (23) | Pending |
+| MOD-06 | Phase A (23) | Complete |
+| MOD-07 | Phase A (23) | Complete |
+| MOD-08 | Phase A (23) | Complete |
 | LYR-01 | Phase A (23) | Complete |
 | LYR-02 | Phase A (23) | Complete |
 | LYR-03 | Phase A (23) | Complete |

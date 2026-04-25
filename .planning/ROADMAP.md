@@ -67,7 +67,7 @@
 
 **Milestone Goal:** Promote the validated VST3 Note Expression pattern (O-Lyrica spikes 001–003) into a shared Ouaricon module and propagate Dorico microtonal playback across all pitched plugins, with every per-plugin rollout tracked through the standard `/improve` workflow.
 
-- [ ] **Phase 23 (A): Extract** -- Build shared microtonal module from cleaned spike code; prove it on O-Lyrica as the reference consumer
+- [x] **Phase 23 (A): Extract** -- Build shared microtonal module from cleaned spike code; prove it on O-Lyrica as the reference consumer (completed 2026-04-25)
 - [ ] **Phase 24 (B): Propagate** -- Apply the module to the remaining 7 pitched plugins via `/improve`, each with version bump, changelog, and regression test
 - [ ] **Phase 25 (C): Package & Internal Technical Notes** -- Bundle the Dorico expression map in every affected plugin's installer and capture internal developer-reference notes
 
@@ -83,7 +83,7 @@
   3. O-Lyrica passes the Dorico quarter-sharp smoke test after refactor — pitch lands at +50¢ above C4 with NE events correlated by `noteId`, no attack zipper, and the existing `TuningEngine` still composes with NE offsets (no raw `pow()` bypass).
   4. O-Lyrica `CHANGELOG.md` has a version-bumped entry documenting shared-module adoption and microtonal NE support.
   5. The local JUCE patch is committed as a named patch file in `scripts/` (or equivalent) with a documented re-apply procedure for JUCE-version bumps.
-**Plans:** 5 plans (5 complete — Plan 05 added 2026-04-25 to address AU-link defect surfaced in Plan 04; resolved 2026-04-25)
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 23-01-module-scaffolding-PLAN.md — Create note-expression module (yaml/README stub/cpp/NoteExpression.h) + registry entry (MOD-01/02/03/04/06/08) -- completed 2026-04-25
@@ -128,7 +128,7 @@ Phases execute in numeric order: 23 → 24 → 25
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
-| 23 (A) | v1.5 | 5/5   | Plans complete; awaiting verification gate | 2026-04-25 |
+| 23 (A) | v1.5 | 5/5 | Complete    | 2026-04-25 |
 | 24 (B) | v1.5 | 0/TBD | Not started (unblocked) | - |
 | 25 (C) | v1.5 | 0/TBD | Not started | - |
 
