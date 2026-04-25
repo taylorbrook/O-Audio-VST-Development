@@ -19,6 +19,7 @@
 #include "DSP/EQProcessor.h"
 #include "DSP/ReverbProcessor.h"
 #include "OuariconPresetManager.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
 #if OUARICON_LICENSING_ENABLED
   #include "OuariconLicense.h"
@@ -111,6 +112,12 @@ public:
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    //==============================================================================
+    // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
+    // Backed by note-expression module v1.0.0 (modules/tuning/note-expression).
+    // Requires local JUCE patch (see scripts/apply-juce-patches.sh).
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
+
     /**
      * Get pointer to sympathetic resonance engine (for voice access)
      */
@@ -188,6 +195,9 @@ public:
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
+
+    // VST3 Note Expression support (module-owned table + raw-event scratch)
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
 
     // Phase 2.7: Sympathetic Resonance Engine (processor-level, shared by all voices)
     SympatheticResonanceEngine sympatheticEngine;

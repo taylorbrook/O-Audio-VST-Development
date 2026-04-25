@@ -503,6 +503,7 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
         voice->setActiveGlissandoMode(&activeGlissandoMode); // v1.30.0: Glissando mode atomic
         voice->setCustomDegreeMask(&glissCustomDegrees); // v1.30.0: Custom degree bitmask
         voice->setHostBpm(&currentBpm); // v1.31.0: BPM for tempo sync
+        voice->setPendingTuningSource(&vst3Extensions.getPendingTable()); // D-09: module-owned table
         synthesiser.addVoice(voice);
     }
 
@@ -700,6 +701,11 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     // Clear output buffer
     buffer.clear();
+
+    // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
+    // correlate tuning deltas to their NoteOn's MIDI pitch. Pending table
+    // is consumed atomically by each voice in startNote().
+    vst3Extensions.drainAndUpdate();
 
     // v1.18.3: Removed redundant null checks - APVTS guarantees non-null for registered params
     // (Pattern matches HarpSynthVoice cleanup from v1.3.2)
