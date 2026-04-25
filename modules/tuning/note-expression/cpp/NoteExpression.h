@@ -113,6 +113,26 @@ using NEUpdateFn = void (*) (
 
 void registerNEUpdate (NEUpdateFn fn) noexcept;
 
+// queryIEditController dispatch slot (Rule-1 fix during Plan 23-05 build):
+// VST3Extensions::queryIEditController is a virtual override on
+// juce::VST3ClientExtensions, so its symbol is referenced by the vtable that
+// gets emitted alongside the SharedCode-bound class definition. Defining the
+// body in the VST3-only TU produced an undefined-symbol failure on AU /
+// Standalone link lines (vtable references it, body not visible). We solve
+// this with a second dispatch slot identical in shape to NEUpdateFn:
+//   - SharedCode owns std::atomic<NEQueryFn> g_neQuery {nullptr}.
+//   - VST3 TU's static-init registers vst3QueryIEditController into the slot.
+//   - SharedCode's queryIEditController body loads the slot and dispatches if
+//     non-null; otherwise returns kNoInterface (-1) — correct because non-VST3
+//     hosts never call this entry point.
+class VST3Extensions; // forward for the function-pointer signature below
+using NEQueryFn = int32_t (*) (
+    VST3Extensions&,
+    const Steinberg::TUID,
+    void**);
+
+void registerNEQuery (NEQueryFn fn) noexcept;
+
 //==============================================================================
 /** VST3 client extensions for note-expression-aware plugins.
     - Advertises the Controller on IEditController queries (VST3 only — body
@@ -171,6 +191,14 @@ public:
     /** Voice wiring entry point. Hand this to each voice's
         setPendingTuningSource(). */
     PendingTuningTable& getPendingTable() noexcept { return pendingTable; }
+
+    // Internal-use accessor for the VST3 TU's q-slot dispatch (Rule-1 fix
+    // during Plan 23-05 build). The VST3 TU's vst3QueryIEditController free
+    // function needs to lazy-create the Controller and swap deleters; this
+    // accessor returns the pimpl reference so the swap can happen in the
+    // VST3 TU where Controller is complete. Not part of the public consumer
+    // API — plugin code should never call this directly.
+    std::unique_ptr<Controller, void(*)(Controller*)>& _internalNecPimpl() noexcept { return nec; }
 
 private:
     // Custom function-pointer deleter pimpl (D-21 amended). The deleter slot

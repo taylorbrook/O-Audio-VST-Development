@@ -5,7 +5,7 @@
 
     Plan 23-05 amended D-22 — two-TU split:
       - This file (cpp/NoteExpression.cpp) is picked up by the new non-recursive
-        `file(GLOB cpp/*.cpp ...)` glob in OuariconModules.cmake and links into
+        file(GLOB cpp star-cpp ...) glob in OuariconModules.cmake and links into
         SharedCode (libO-Lyrica-dev_SharedCode.a). Because PluginProcessor (in
         SharedCode) holds `vst3Extensions` as a value member and calls
         `drainAndUpdate()` from processBlock, the SharedCode link line MUST be
@@ -79,6 +79,18 @@ namespace
     // use acquire ordering paired with the VST3 TU's release-store registration.
     //==========================================================================
     std::atomic<NEUpdateFn> g_neUpdate { nullptr };
+
+    //==========================================================================
+    // Dispatch slot for queryIEditController (Rule-1 fix during Plan 23-05
+    // build). The vtable for VST3Extensions is emitted with the SharedCode-
+    // bound class definition (the class is value-held by PluginProcessor in
+    // SharedCode), so every virtual override symbol must be resolvable on the
+    // SharedCode link line. Defining queryIEditController only in the VST3 TU
+    // produced an Undefined-symbol failure on AU/Standalone link lines
+    // (vtable referenced it, body not visible). The slot lets us define the
+    // body in SharedCode and dispatch into the VST3 TU when present.
+    //==========================================================================
+    std::atomic<NEQueryFn>  g_neQuery  { nullptr };
 }
 
 //==============================================================================
@@ -89,6 +101,15 @@ namespace
 void registerNEUpdate (NEUpdateFn fn) noexcept
 {
     g_neUpdate.store (fn, std::memory_order_release);
+}
+
+//==============================================================================
+// registerNEQuery — twin of registerNEUpdate. Called by the VST3 TU's
+// static-init to install vst3QueryIEditController into the SharedCode q-slot.
+//==============================================================================
+void registerNEQuery (NEQueryFn fn) noexcept
+{
+    g_neQuery.store (fn, std::memory_order_release);
 }
 
 //==============================================================================
@@ -128,6 +149,38 @@ void VST3Extensions::drainAndUpdate()
 
     // Non-VST3 builds: fn is null, correlation is skipped. Correct because
     // non-VST3 hosts cannot deliver kTuningTypeID events to this plugin.
+}
+
+//==============================================================================
+// VST3Extensions::queryIEditController — body lives in SharedCode (Rule-1 fix
+// during Plan 23-05 build).
+//
+// The VST3Extensions vtable is emitted with the SharedCode class definition
+// because PluginProcessor (in SharedCode) holds VST3Extensions by value — so
+// the link line for AU/Standalone/etc. demands a body for every virtual
+// override. We therefore define the body here and dispatch via the q-slot:
+//   - VST3 TU links and its static-init populates g_neQuery with the real
+//     INEC-aware body — host calls are forwarded into the VST3 TU.
+//   - VST3 TU is NOT linked (AU/Standalone): g_neQuery stays nullptr; we
+//     return kNoInterface (-1). Correct because non-VST3 hosts never invoke
+//     IEditController queries with VST3 IIDs anyway.
+//
+// Note: Steinberg::TUID is `char[16]` typedef (decays to char const*), forward-
+// declared by JUCE in the juce::VST3ClientExtensions base class. We never
+// touch any pluginterfaces header here — the decay-to-char-const* pointer is
+// passed straight through to the dispatched function pointer.
+//==============================================================================
+int32_t VST3Extensions::queryIEditController (const Steinberg::TUID targetIID, void** obj)
+{
+    if (auto fn = g_neQuery.load (std::memory_order_acquire))
+        return fn (*this, targetIID, obj);
+
+    // Non-VST3 build: VST3 TU not linked. The host wouldn't be calling this
+    // anyway, but we must satisfy the override contract. Return kNoInterface
+    // by numeric value (= -1) without referencing the Steinberg constant.
+    if (obj != nullptr) *obj = nullptr;
+    juce::ignoreUnused (targetIID);
+    return -1;
 }
 
 } // namespace Ouaricon::NoteExpression

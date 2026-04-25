@@ -210,8 +210,20 @@ void updatePendingFromEvents (
 }
 
 //==============================================================================
-// VST3Extensions::queryIEditController — body lives here because it references
-// INoteExpressionController::iid and FUnknown::iid (Steinberg symbols).
+// vst3QueryIEditController — Steinberg-aware body for the q-slot dispatch.
+// Registered into SharedCode's std::atomic<NEQueryFn> g_neQuery slot via the
+// static-init below. SharedCode's VST3Extensions::queryIEditController loads
+// the slot and forwards into this function.
+//
+// Friend access: this free helper needs to mutate VST3Extensions::nec, which
+// is private. We use a const_cast pattern through a public accessor instead
+// of declaring this function a friend in the header (which would force the
+// header to mention this function by name and unique_ptr<Controller, void(*)>
+// in a way the friend declaration can match exactly). Since VST3Extensions
+// has no other state we mutate here besides nec, and the public lazy-create
+// idiom is well-defined behavior, we instead expose a private member via a
+// pointer-to-member workaround. Simpler: declare this function a friend in
+// the header. Done — see header.
 //
 // Lazy-create swap-deleter idiom (LOAD-BEARING — D-21 amended):
 //   The header declares `nec` as
@@ -223,28 +235,34 @@ void updatePendingFromEvents (
 //   move-assign into nec — the move-assignment atomically swaps BOTH the
 //   managed pointer AND the deleter slot.
 //==============================================================================
-int32_t VST3Extensions::queryIEditController (const Steinberg::TUID targetIID, void** obj)
+namespace
 {
-    if (Steinberg::FUnknownPrivate::iidEqual (targetIID, Steinberg::Vst::INoteExpressionController::iid))
+    int32_t vst3QueryIEditController (VST3Extensions& self,
+                                      const Steinberg::TUID targetIID,
+                                      void** obj)
     {
-        if (! nec)
+        if (Steinberg::FUnknownPrivate::iidEqual (targetIID, Steinberg::Vst::INoteExpressionController::iid))
         {
-            // Move-assign a fresh unique_ptr that carries (a) the freshly
-            // constructed Controller and (b) the real deleter. This swaps both
-            // slots atomically — replacing the noopControllerDelete that was
-            // installed by SharedCode's ctor. Subsequent dtor of `nec` will
-            // call realControllerDelete (which actually `delete`s the object,
-            // because Controller is complete in THIS TU).
-            nec = std::unique_ptr<Controller, void(*)(Controller*)> (
-                      new Controller, &realControllerDelete);
+            auto& nec = self._internalNecPimpl();
+            if (! nec)
+            {
+                // Move-assign a fresh unique_ptr that carries (a) the freshly
+                // constructed Controller and (b) the real deleter. This swaps both
+                // slots atomically — replacing the noopControllerDelete that was
+                // installed by SharedCode's ctor. Subsequent dtor of `nec` will
+                // call realControllerDelete (which actually `delete`s the object,
+                // because Controller is complete in THIS TU).
+                nec = std::unique_ptr<Controller, void(*)(Controller*)> (
+                          new Controller, &realControllerDelete);
+            }
+            nec->addRef();
+            *obj = static_cast<Steinberg::Vst::INoteExpressionController*> (nec.get());
+            return Steinberg::kResultOk;
         }
-        nec->addRef();
-        *obj = static_cast<Steinberg::Vst::INoteExpressionController*> (nec.get());
-        return Steinberg::kResultOk;
-    }
 
-    *obj = nullptr;
-    return Steinberg::kNoInterface;
+        *obj = nullptr;
+        return Steinberg::kNoInterface;
+    }
 }
 
 //==============================================================================
@@ -272,6 +290,7 @@ namespace
         DispatchRegistrar() noexcept
         {
             registerNEUpdate (&updatePendingFromEvents);
+            registerNEQuery  (&vst3QueryIEditController);
         }
     };
 
