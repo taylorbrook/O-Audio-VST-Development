@@ -4,16 +4,33 @@
     VST3 Note Expression (kTuningTypeID) support for Dorico microtonal playback.
     Header-only. Public API lives under the Ouaricon::NoteExpression nested namespace.
     Requires a local JUCE patch (see scripts/apply-juce-patches.sh).
+
+    Per-format guarding (added Plan 23-03):
+    The Controller / VST3Extensions classes reference Steinberg SDK symbols
+    (INoteExpressionController::iid, FUnknown::iid, UString::assign) which are
+    only linked into the JUCE VST3 plug-in client target. Non-VST3 formats
+    (AU / Standalone / VST2 / AAX / LV2 / Unity) link the shared-code static
+    library but NOT the pluginterfaces SDK, so referencing those symbols
+    unconditionally produces "undefined symbols" errors at AU/Standalone link.
+    We guard the symbol-touching bodies behind JucePlugin_Build_VST3 so that:
+      - VST3 builds: full bodies present, all symbols resolved.
+      - non-VST3 builds: classes still exist (so plugins can declare a
+        VST3Extensions member unconditionally), but no Steinberg symbol is
+        referenced. queryIEditController returns kNoInterface; the NEC
+        Controller is a no-op. Hosts that don't speak VST3 never call these
+        anyway, so behavior is unchanged.
   ==============================================================================
 */
 #pragma once
 
 #include <JuceHeader.h>
 
-#include <pluginterfaces/vst/ivstnoteexpression.h>
-#include <pluginterfaces/base/ibstream.h>
-#include <pluginterfaces/base/ustring.h>
-#include <public.sdk/source/common/pluginview.h>
+#if JucePlugin_Build_VST3
+ #include <pluginterfaces/vst/ivstnoteexpression.h>
+ #include <pluginterfaces/base/ibstream.h>
+ #include <pluginterfaces/base/ustring.h>
+ #include <public.sdk/source/common/pluginview.h>
+#endif
 
 #include <array>
 #include <atomic>
@@ -101,7 +118,12 @@ inline void updatePendingFromEvents (
 /** Advertises kTuningTypeID as a supported Note Expression for all (busIndex,
     channel) pairs. Dorico queries this on plugin load to decide whether to
     send NE or fall back to pitch bend.
+
+    NOTE: only present in VST3 builds — derives from Steinberg::Vst::
+    INoteExpressionController which is declared in the VST3 SDK headers.
+    Non-VST3 formats never see or instantiate this class.
 */
+#if JucePlugin_Build_VST3
 class Controller : public Steinberg::Vst::INoteExpressionController
 {
 public:
@@ -202,6 +224,7 @@ public:
 private:
     std::atomic<Steinberg::uint32> refCount { 1 };
 };
+#endif // JucePlugin_Build_VST3
 
 //==============================================================================
 /** VST3 client extensions for note-expression-aware plugins.
@@ -223,6 +246,7 @@ public:
 
     int32_t queryIEditController (const Steinberg::TUID targetIID, void** obj) override
     {
+       #if JucePlugin_Build_VST3
         const bool isNEC = Steinberg::FUnknownPrivate::iidEqual (
                                 targetIID, Steinberg::Vst::INoteExpressionController::iid);
 
@@ -235,6 +259,14 @@ public:
 
         *obj = nullptr;
         return Steinberg::kNoInterface;
+       #else
+        // Non-VST3 builds never invoke this (host wouldn't have a VST3 IID), but
+        // the override must exist because juce::VST3ClientExtensions is a JUCE
+        // base class that is compiled into the shared library for all formats.
+        juce::ignoreUnused (targetIID);
+        if (obj != nullptr) *obj = nullptr;
+        return -1; // Steinberg::kNoInterface numeric value
+       #endif
     }
 
     void onVst3RawEvent (const Vst3RawEvent& e) override
@@ -269,7 +301,9 @@ public:
     PendingTuningTable& getPendingTable() noexcept { return pendingTable; }
 
 private:
+   #if JucePlugin_Build_VST3
     Controller                  nec;
+   #endif
     std::vector<Vst3RawEvent>   blockEvents;
     std::vector<Vst3RawEvent>   rawEventScratch;
     PendingTuningTable          pendingTable {};
