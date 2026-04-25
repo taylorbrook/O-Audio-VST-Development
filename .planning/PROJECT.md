@@ -11,9 +11,10 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 ## Current State
 
 **Latest shipped:** v1.4 System Hygiene & Quality Gates (2026-03-07)
+**In flight:** v1.5 Microtonal Shared Module & Suite Propagation — Phase 23 (extract) complete 2026-04-25; Phase 24 propagation next
 
 **System overview:**
-- 22 phases completed across 5 milestones
+- 23 phases completed across 5 milestones (Phase 23 closed out the v1.5 extract milestone)
 - 64 plans executed
 - 108 requirements satisfied
 - Repository: 58MB (91% reduction from 636MB)
@@ -70,6 +71,11 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 - ✓ Agent memory seed patterns (4 agents populated with production experience) — v1.4
 - ✓ Agent memory write-back mechanism (persistent learning via SubagentStop) — v1.4
 - ✓ Infrastructure cleanup (validation cache removed, canary-test deduplicated, doc files relocated) — v1.4
+- ✓ Shared `note-expression` module extracted with header-only public API — v1.5 Phase 23
+- ✓ JUCE patch tooling (named .patch artefact + idempotent apply script + module.cmake marker check) — v1.5 Phase 23
+- ✓ O-Lyrica refactored as reference consumer (zero plugin-local NE code; TuningEngine composition preserved) — v1.5 Phase 23
+- ✓ Per-format module-source routing convention (`cpp/<format>/` → `${TARGET}_<FORMAT>`) — v1.5 Phase 23
+- ✓ Reusable `scripts/verify-au-link.sh` AU verification gate — v1.5 Phase 23
 
 ### Active
 
@@ -240,4 +246,4 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | 5-field minimum frontmatter standard | Consistent metadata across all 64 research docs | ✓ Good — validator hook enforces going forward |
 
 ---
-*Last updated: 2026-04-24 — milestone v1.5 started (Microtonal Shared Module & Suite Propagation)*
+*Last updated: 2026-04-25 — Phase 23 (extract) complete (5/5 plans, 12/12 must-haves verified); Phase 24 propagation unblocked*
