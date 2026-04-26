@@ -102,7 +102,17 @@ Plans:
   3. Every Phase 24 rollout is traceable to an `/improve [PluginName]` cycle: each plugin has a version bump applied in `CMakeLists.txt`, a CHANGELOG entry naming "adds VST3 Note Expression microtonal support for Dorico", and a STATUS.md update — with no direct source edits that bypass plugin-level versioning/changelog/state tracking (TRACK-01 enforced).
   4. All 8 affected plugins (the 7 above plus O-Lyrica from Phase 23) are rebuilt and freshly installed per CLAUDE.md rules — AU cache cleared, old bundles removed, fresh `.vst3` and `.component` in `~/Library/Audio/Plug-Ins/VST3/` and `~/Library/Audio/Plug-Ins/Components/`.
   5. Each plan under Phase 24 names `/improve [PluginName]` as its execution mechanism (not direct edits), and each plugin's post-`/improve` STATUS.md reflects the microtonal integration.
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 24-01-O-Bells-PLAN.md — O-Bells consumes note-expression module via /improve (PROP-01 + TRACK-01..05). Version 4.0.0 → 4.1.0.
+- [ ] 24-02-O-Prism-PLAN.md — O-Prism consumes note-expression via /improve (PROP-03 + TRACK-01..05). Version 1.16.1 → 1.17.0.
+- [ ] 24-03-O-Wind-PLAN.md — O-Wind consumes note-expression via /improve; adds missing PLUGIN_VERSION line (PROP-04 + TRACK-01..05). Version 1.15.1 → 1.16.0.
+- [ ] 24-04-O-IntonationPad-PLAN.md — O-IntonationPad consumes note-expression via /improve; multi-sub-voice neRatio propagation (PROP-02 + TRACK-01..05). Version 2.7.2 → 2.8.0.
+- [ ] 24-05-O-Reed-PLAN.md — O-Reed consumes note-expression via /improve; first MPE plugin, helper-based composition (PROP-05 + TRACK-01..05). Version 1.0.11 → 1.1.0.
+- [ ] 24-06-O-Bowed-PLAN.md — O-Bowed consumes note-expression via /improve; second MPE plugin (PROP-06 + TRACK-01..05). Version 1.2.1 → 1.3.0.
+- [ ] 24-07-O-Formant-PLAN.md — O-Formant consumes note-expression via /improve; adds missing OuariconModules.cmake include (PROP-07 + TRACK-01..05). Version 1.24.2 → 1.25.0.
+- [ ] 24-08-final-sweep-PLAN.md — Rebuild + freshly install all 8 affected plugins; registry audit; aggregate Dorico smoke results (TRACK-05; re-claims PROP-01..07 via post-sweep regression smoke).
 
 ### Phase 25 (C): Package & Internal Technical Notes
 **Goal**: A canonical pre-configured Dorico expression map file is authored once, stored as single source of truth in the microtonal module's resources, and bundled into every affected plugin's installer — with internal developer-reference notes (not end-user manuals) captured under `research/` to serve as source material for future website manual/quickstart authoring.
@@ -114,7 +124,7 @@ Plans:
   3. Internal technical notes live under `research/microtonal-dorico-integration.md` (or per-topic sub-files) and cover all four required topics: module architecture (DOCS-01), canonical Dorico expression-map setup procedure (DOCS-02), host-side behavior quirks (DOCS-03), and troubleshooting signatures for the expression-map-skipped UX trap (DOCS-04).
   4. Notes are developer-facing only — no end-user manual or quickstart copy is published this milestone; DOCS-01..04 are structured to translate cleanly into future website authoring (DOCS-05 constraint honored).
   5. Installed `.doricoexpmap` lands at a discoverable location for end users, or the installer emits a README pointing to the file's install path with a one-line Dorico import instruction.
-**Plans**: TBD
+**Plans**: 8 plans
 
 ## Progress
 
