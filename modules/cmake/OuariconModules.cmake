@@ -67,24 +67,35 @@ function(ouaricon_add_module TARGET_NAME MODULE_NAME)
         endif()
 
         # Per-format routing (Plan 23-05 D-24..D-28): files placed under
-        # cpp/<format>/ are added to ${TARGET_NAME}_<FORMAT> only, with PRIVATE
-        # include directories so format-specific headers cannot be pulled in by
-        # SharedCode or other-format translation units. Silently no-ops when
-        # ${TARGET_NAME}_<FORMAT> does not exist (e.g. plugin excludes that
-        # format from its FORMATS list).
-        set(_OUA_JUCE_FORMATS vst3 au standalone vst2 aax lv2 unity)
-        foreach(fmt ${_OUA_JUCE_FORMATS})
-            string(TOUPPER ${fmt} _FMT_UPPER)
-            set(_FMT_DIR "${MODULE_DIR}/cpp/${fmt}")
-            if(EXISTS "${_FMT_DIR}" AND TARGET "${TARGET_NAME}_${_FMT_UPPER}")
+        # cpp/<format>/ are added to ${TARGET_NAME}_<FormatSuffix> only, with
+        # PRIVATE include directories so format-specific headers cannot be pulled
+        # in by SharedCode or other-format translation units. Silently no-ops
+        # when ${TARGET_NAME}_<FormatSuffix> does not exist (e.g. plugin excludes
+        # that format from its FORMATS list).
+        #
+        # NOTE: JUCE uses mixed-case target suffixes for several formats
+        # (Standalone, AAX, LV2, AUv3, Unity) — see
+        # JUCE/extras/Build/CMake/JUCEUtils.cmake. We keep lowercase directory
+        # names as the on-disk convention but map to JUCE's exact target suffix
+        # via parallel lists. Using string(TOUPPER ...) here would produce
+        # nonexistent targets like ${TARGET_NAME}_STANDALONE and silently no-op.
+        set(_OUA_FMT_DIRS    vst3 au standalone vst2 aax lv2 auv3 unity)
+        set(_OUA_FMT_TARGETS VST3 AU Standalone VST2 AAX LV2 AUv3 Unity)
+        list(LENGTH _OUA_FMT_DIRS _OUA_FMT_COUNT)
+        math(EXPR _OUA_FMT_LAST "${_OUA_FMT_COUNT} - 1")
+        foreach(_idx RANGE 0 ${_OUA_FMT_LAST})
+            list(GET _OUA_FMT_DIRS    ${_idx} _FMT_DIR_NAME)
+            list(GET _OUA_FMT_TARGETS ${_idx} _FMT_TARGET_SUFFIX)
+            set(_FMT_DIR "${MODULE_DIR}/cpp/${_FMT_DIR_NAME}")
+            if(EXISTS "${_FMT_DIR}" AND TARGET "${TARGET_NAME}_${_FMT_TARGET_SUFFIX}")
                 file(GLOB_RECURSE _FMT_SOURCES
                     "${_FMT_DIR}/*.cpp"
                     "${_FMT_DIR}/*.h"
                 )
                 if(_FMT_SOURCES)
-                    target_sources(${TARGET_NAME}_${_FMT_UPPER} PRIVATE ${_FMT_SOURCES})
-                    target_include_directories(${TARGET_NAME}_${_FMT_UPPER} PRIVATE "${_FMT_DIR}")
-                    message(STATUS "[Ouaricon]   Added ${MODULE_NAME}/cpp/${fmt} sources to ${TARGET_NAME}_${_FMT_UPPER}")
+                    target_sources(${TARGET_NAME}_${_FMT_TARGET_SUFFIX} PRIVATE ${_FMT_SOURCES})
+                    target_include_directories(${TARGET_NAME}_${_FMT_TARGET_SUFFIX} PRIVATE "${_FMT_DIR}")
+                    message(STATUS "[Ouaricon]   Added ${MODULE_NAME}/cpp/${_FMT_DIR_NAME} sources to ${TARGET_NAME}_${_FMT_TARGET_SUFFIX}")
                 endif()
             endif()
         endforeach()
