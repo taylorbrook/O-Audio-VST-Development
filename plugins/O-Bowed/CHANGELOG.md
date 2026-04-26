@@ -2,6 +2,21 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.3.0] - 2026-04-26
+
+### Added
+
+- **adds VST3 Note Expression microtonal support for Dorico.** O-Bowed responds to Dorico's per-note tuning messages (`kTuningTypeID` Note Expression events), enabling microtonal playback of quarter-tones and arbitrary tuning deltas authored in Dorico's tonality system. End users must set Microtonality to "VST3 Note Expression" on the assigned expression map (see O-Lyrica 2.3.0 for procedure).
+- **Shared `note-expression` module adoption.** O-Bowed consumes the Ouaricon module at `modules/tuning/note-expression` (v1.0.0), same shape as O-Lyrica v2.3.0 / O-Bells v4.1.0 / O-Prism v1.17.0 / O-Wind v1.16.0 / O-IntonationPad v2.8.0 / O-Reed v1.1.0.
+
+### Technical Notes
+
+- **Second MPE consumer of the shared note-expression module.** `BowedStringVoice` extends `juce::MPESynthesiserVoice` (via `BowedMPESynthesiser`) and reads MIDI pitch via `getCurrentlyPlayingNote().initialNote` from `noteStarted()` and `notePitchbendChanged()` (no parameter form). Pattern 1 (`noteId` correlation in the shared module's `updatePendingFromEvents`) holds regardless of MPE channel — same as O-Reed v1.1.0.
+- **Helper-based composition (single source of truth).** `applyPendingTuning` is invoked INSIDE `getBaseFrequencyFromTuning(midiNote)` so BOTH call sites — `noteStarted()` (line 32) and `notePitchbendChanged()` (line 71) — inherit the NE delta with one insertion. `exchange(0.0)` consume semantics correct for one-NE-per-noteOn delivery: first call (in `noteStarted`) consumes the slot; the `notePitchbendChanged` call during a held note returns base unchanged (NE applies once per noteStarted; MPE pitch-bend updates per-block on top).
+- **Composition order:** tuning engine → NE delta → MPE pitch-bend → `waveguideString.trigger(currentFrequency)` (waveguide string period sized to the final tuned frequency on sample 0; Pattern 2 satisfied — first sample at tuned pitch, no attack zipper).
+- **Files modified:** `Source/PluginProcessor.{h,cpp}`, `Source/BowedStringVoice.{h,cpp}`, `CMakeLists.txt` (added `PLUGIN_VERSION "1.3.0"` line + `ouaricon_add_module(O-Bowed note-expression)`).
+- **Version:** 1.2.1 → 1.3.0 (MINOR — new user-visible feature, backward compatible, no preset impact).
+
 ## [1.2.1] - 2026-04-19
 
 ### Fixed

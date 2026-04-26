@@ -290,8 +290,18 @@ void BowedStringVoice::updateParametersFromAPVTS()
 
 float BowedStringVoice::getBaseFrequencyFromTuning (int midiNote) const
 {
-    if (tuningEngine != nullptr)
-        return static_cast<float> (tuningEngine->getFrequency (midiNote));
+    double freq = (tuningEngine != nullptr)
+        ? tuningEngine->getFrequency (midiNote)
+        : juce::MidiMessage::getMidiNoteInHertz (midiNote);
 
-    return static_cast<float> (juce::MidiMessage::getMidiNoteInHertz (midiNote));
+    // VST3 Note Expression tuning delta (Dorico microtonal). Phase 24.
+    // Single source of truth for noteStarted() (line 32) and notePitchbendChanged()
+    // (line 71) — both call this helper before waveguideString.trigger() (lines
+    // 39, 76). exchange(0.0) consume — first call (in noteStarted) tunes; held-note
+    // pitch-bend updates return base unchanged (correct: NE applies once per
+    // noteStarted, MPE pitch-bend updates compose multiplicatively per-block).
+    if (pendingTuningSource != nullptr)
+        freq = Ouaricon::NoteExpression::applyPendingTuning (*pendingTuningSource, midiNote, freq);
+
+    return static_cast<float> (freq);
 }

@@ -22,6 +22,7 @@
 #include "DSP/SympatheticStringEngine.h"
 #include "DSP/HumanizeEngine.h"
 #include "OuariconPresetManager.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
 class OBowedAudioProcessor : public juce::AudioProcessor
 {
@@ -32,6 +33,7 @@ public:
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -63,6 +65,9 @@ public:
     // Public access to preset manager for editor
     OuariconPresetManager& getPresetManager() { return presetManager; }
 
+    // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback (Phase 24).
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
+
     // Check if any synthesiser voice is active (for visualization)
     bool isAnyVoiceActive() const
     {
@@ -75,6 +80,9 @@ public:
 private:
     juce::AudioProcessorValueTreeState parameters;
     BowedMPESynthesiser synthesiser;
+
+    // VST3 Note Expression support (module-owned table + raw-event scratch)
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
 
     // Tuning engine (processor-level, shared by all voices)
     TuningEngine tuningEngine;

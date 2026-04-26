@@ -26,6 +26,7 @@
 #include "DSP/SubHarmonicsGenerator.h"
 #include "DSP/BowNoiseGenerator.h"
 #include "DSP/HumanizeEngine.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (PendingTuningTable + helpers)
 
 class TuningEngine;
 
@@ -57,6 +58,12 @@ public:
 
     // TuningEngine integration
     void setTuningEngine (TuningEngine* engine) noexcept { tuningEngine = engine; }
+
+    // VST3 Note Expression source (Phase 24): processor-owned, voice holds non-owning pointer.
+    void setPendingTuningSource (Ouaricon::NoteExpression::PendingTuningTable* source) noexcept
+    {
+        pendingTuningSource = source;
+    }
 
     // Humanize engine (processor-owned, shared across voices)
     void setHumanizeEngine (const HumanizeEngine* engine) noexcept { humanizeEngine = engine; }
@@ -90,6 +97,9 @@ private:
 
     // TuningEngine (processor-owned, voice holds non-owning pointer)
     TuningEngine* tuningEngine = nullptr;
+
+    // VST3 Note Expression pending-tuning table (Phase 24): module-owned, voice holds non-owning pointer.
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // HumanizeEngine (processor-owned, read-only from voice)
     const HumanizeEngine* humanizeEngine = nullptr;

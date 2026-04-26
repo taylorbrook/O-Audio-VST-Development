@@ -247,6 +247,7 @@ OBowedAudioProcessor::OBowedAudioProcessor()
         voice->setVoiceIndex (i);
         voice->setTuningEngine (&tuningEngine);
         voice->setHumanizeEngine (&humanizeEngine);
+        voice->setPendingTuningSource (&vst3Extensions.getPendingTable()); // Phase 24: NE
         synthesiser.addVoice (voice);
     }
 
@@ -292,6 +293,10 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // Clear all output channels
     for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
+
+    // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
+    // correlate tuning deltas to their NoteOn's MIDI pitch (Phase 24).
+    vst3Extensions.drainAndUpdate();
 
     // === 1. Read all params from APVTS ===
     float sympatheticAmt  = parameters.getRawParameterValue ("sympatheticAmount")->load();
@@ -412,6 +417,21 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         juce::FloatVectorOperations::clip (buffer.getWritePointer (ch),
                                            buffer.getReadPointer (ch),
                                            -2.0f, 2.0f, buffer.getNumSamples());
+}
+
+bool OBowedAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+{
+    // Stereo-only output (matches BusesProperties); no input bus for synth.
+    // Required by AU validation (auval mono Render Test segfaulted without this
+    // explicit gate — same pattern as O-Reed::isBusesLayoutSupported, Rule-3
+    // inline fix during Phase 24 plan 24-06).
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+
+    if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::disabled())
+        return false;
+
+    return true;
 }
 
 juce::AudioProcessorEditor* OBowedAudioProcessor::createEditor()

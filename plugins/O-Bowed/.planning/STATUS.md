@@ -1,13 +1,14 @@
 ---
 plugin: O-Bowed
+version: 1.3.0
 stage: 4
 phase: verified
 status: complete
-last_updated: 2026-04-05
+last_updated: 2026-04-26
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: install
+next_action: dorico_microtonal_smoke_test
 next_phase: complete
 contract_checksums:
   brief: sha256:0ed36f0b45d58bffffc4595fc1cb1bac080262c68fb3ff0280c0e702aab4b38c
@@ -23,6 +24,15 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED / COMPLETE
 Status: All stages verified. 11 factory presets, pluginval level 10 (VST3 + AU), auval pass, CHANGELOG.md v1.0.0. Ready for install.
 Progress: [####################] 100%
+
+## v1.3.0 -- Phase 24 propagation (2026-04-26)
+
+- **VST3 Note Expression microtonal support for Dorico** added via shared `note-expression` module (`modules/tuning/note-expression` v1.0.0).
+- **Helper-based MPE composition** — `applyPendingTuning` inserted INSIDE `getBaseFrequencyFromTuning(int midiNote)` at `BowedStringVoice.cpp:291-307`. Single source of truth covers both call sites: `noteStarted()` (line 32) and `notePitchbendChanged()` (line 71). `exchange(0.0)` consume semantics correct for one-NE-per-noteOn delivery — second call returns base unchanged because slot is already consumed (correct: NE applies once per noteStarted; MPE pitch-bend updates compose multiplicatively per-block on top via `currentFrequency *= pow(2, bendSemitones/12.0f)`).
+- **Composition order:** tuning engine → NE delta → MPE pitch-bend → `waveguideString.trigger(currentFrequency)` (waveguide string period sized to the final tuned frequency on sample 0).
+- **CMakeLists.txt:** added `PLUGIN_VERSION "1.3.0"` (was missing from `juce_add_plugin(O-Bowed ...)` — same explicit-add pattern as O-Wind v1.16.0 / O-Reed v1.1.0) + `ouaricon_add_module(O-Bowed note-expression)`.
+- Tri-format build clean; bundles freshly installed; AU validates via `scripts/verify-au-link.sh O-Bowed`.
+- Dorico 3-point smoke gate DEFERRED to Phase 24 batch validation (per orchestrator direction).
 
 ## Completed So Far
 
