@@ -218,44 +218,6 @@ v2.3.0 is the reference consumer.
   multiplicatively with any base-frequency source, so consumers without
   a tuning engine can use it directly against MIDI-standard frequencies.
 
-## Canonical Dorico Expression Map (v1.1.0+)
-
-Module v1.1.0 ships a canonical pre-configured Dorico expression map at
-`modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap`.
-Microtonality is hard-coded to **"VST3 Note Expression"** — the load-bearing
-invariant from spike-findings Landmine 3 (Dorico's `Auto` selection picks
-pitch-bend for non-Steinberg VST3s and silently breaks microtonal playback).
-
-### Auto-install on consumer plugins
-
-No per-plugin code is needed. The module's `module.cmake` registers
-`install()` rules that fire automatically when a plugin consumes the module
-via `ouaricon_add_module(<Plugin> note-expression)`. The plugin's installer
-(PKG on macOS, EXE on Windows) inherits the rules and writes the
-`.doricoexpmap` to two paths on the user's machine:
-
-| Platform | Editable canonical copy | Dorico auto-scan path |
-|----------|------------------------|------------------------|
-| macOS | `~/Library/Application Support/Ouaricon/Expression Maps/` | `~/Library/Application Support/Steinberg/Dorico [N]/Expression Maps/User/` |
-| Windows | `%APPDATA%\Ouaricon\Expression Maps\` | `%APPDATA%\Steinberg\Dorico [N]\Expression Maps\User\` |
-
-`[N]` is the latest Dorico major version detected at install time
-(probed in order: 6, 5, 4). When no Dorico install is detected, the
-auto-scan write is skipped and the file's `README-doricoexpmap.txt`
-explains manual import via `Dorico → Library → Expression Maps…`.
-
-### Source of truth
-
-Edits to installed copies are overwritten by the next plugin installer
-run. The canonical edit point is the file in the module repo:
-`modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap`.
-
-### Supported plugins (v1.5 cohort)
-
-All 8 v1.5 microtonal-cohort plugins inherit the install rules:
-O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed,
-O-Formant.
-
 ## License
 
 Part of the Ouaricon Audio module library.
