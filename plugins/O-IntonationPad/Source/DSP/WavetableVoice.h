@@ -32,6 +32,7 @@
 #include "WavetableOscillator.h"
 #include "WavetableSound.h"
 #include "ChordGenerator.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression
 
 class TuningEngine;  // Forward declaration
 
@@ -72,6 +73,12 @@ public:
     void setStereoSpread(float spread);
     void setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth);
     void setWavetablePosition2WithLFO(float basePos, float lfoPhase, float lfoDepth);
+
+    // VST3 Note Expression: source pointer wired by PluginProcessor at construction.
+    void setPendingTuningSource(Ouaricon::NoteExpression::PendingTuningTable* source)
+    {
+        pendingTuningSource = source;
+    }
 
     // UI data access (read from message thread — acquire pairs with release in startNote)
     int getActiveSubVoiceCount() const { return activeSubVoices.load(std::memory_order_acquire); }
@@ -143,6 +150,9 @@ private:
     ChordGenerator* chordGeneratorPtr = nullptr;
     TuningEngine* tuningEnginePtr = nullptr;
     juce::Random* randomPtr = nullptr;
+
+    // VST3 Note Expression: 128-slot pending-tuning table source (owned by PluginProcessor's vst3Extensions)
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // Per-sub-oscillator timing delays (in samples)
     std::array<int, MAX_SUB_VOICES> subVoiceDelays{};

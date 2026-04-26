@@ -1,14 +1,15 @@
 <!-- NOTE: This is a historical Stage 0 planning document and may not reflect the current implementation. -->
 ---
 plugin: O-IntonationPad
+version: 2.8.0
 stage: 4
 status: complete
 phase: null
-last_updated: 2026-01-30
+last_updated: 2026-04-26
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: none
+next_action: dorico_microtonal_smoke_test
 contract_checksums:
   brief: valid
   architecture: valid
@@ -106,6 +107,14 @@ Plugin is complete. Optional future enhancements:
 - Scala file import (.scl file picker)
 - Active note highlighting on pitch circle
 - Additional wavetable banks
+
+## v2.8.0 — Phase 24 propagation (2026-04-26)
+
+- Adopted shared `modules/tuning/note-expression` v1.0.0 (header-only module + per-format VST3 TU routing via `OuariconModules.cmake`).
+- Added VST3 Note Expression microtonal support for Dorico (`kTuningTypeID`).
+- **Multi-sub-voice composition:** `WavetableVoice::startNote` derives a multiplicative `neRatio` from the noteOn MIDI pitch via `applyPendingTuning(table, midiNoteNumber, 1.0)` ONCE at the top of `startNote` (BEFORE the chord-generator block) and propagates it into all 12 sub-voices' `resolveFrequency` results. Sub-voice octave shifts inherit the tuned root.
+- Static voice wiring at construction: `voice->setPendingTuningSource(&vst3Extensions.getPendingTable())` runs once in the addVoice loop (matches O-Lyrica static wiring; orthogonal to the per-block `setChordGenerationParams` call).
+- Files modified: `CMakeLists.txt`, `Source/PluginProcessor.{h,cpp}`, `Source/DSP/WavetableVoice.{h,cpp}`, `CHANGELOG.md`.
 
 ## Research Findings Summary (Stage 3)
 

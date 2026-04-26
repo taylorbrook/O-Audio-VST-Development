@@ -105,6 +105,15 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
     // Calculate gain smoothing coefficient for ~250ms gradual crossfade
     gainSmoothCoeff = 1.0f - std::exp(-1.0f / (0.25f * static_cast<float>(currentSampleRate)));
 
+    // VST3 Note Expression: derive a multiplicative delta from the noteOn MIDI pitch
+    // and propagate to every sub-voice frequency via resolveFrequency * neRatio.
+    // exchange(0.0) inside the helper consumes the slot — retriggered notes don't
+    // inherit stale offsets. Sub-voice octave shifts inherit the tuned root, so chord
+    // intervals remain musically correct relative to Dorico's microtonal root pitch.
+    double neRatio = 1.0;
+    if (pendingTuningSource != nullptr)
+        neRatio = Ouaricon::NoteExpression::applyPendingTuning(*pendingTuningSource, midiNoteNumber, 1.0);
+
     // Generate chord voicing if chord generator is available
     if (chordGeneratorPtr != nullptr && !cachedEnabledDegrees.empty())
     {
@@ -131,7 +140,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             if (randomPtr != nullptr && cachedDetuneRandom > 0.0f)
                 centOffset = (randomPtr->nextFloat() * 2.0f - 1.0f) * static_cast<double>(cachedDetuneRandom);
 
-            float baseFreq = resolveFrequency(baseMidiNote, centOffset);
+            float baseFreq = static_cast<float>(resolveFrequency(baseMidiNote, centOffset) * neRatio);
 
             // --- Spacing oscillator (shift UP by 1-3 octaves) ---
             int spacingOctaves = getRandomOctaveShift(randomPtr);
@@ -139,7 +148,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             if (spacingMidiNote > 127)
                 spacingMidiNote = 127;  // Clamp to valid range
 
-            float spacingFreq = resolveFrequency(spacingMidiNote, centOffset);
+            float spacingFreq = static_cast<float>(resolveFrequency(spacingMidiNote, centOffset) * neRatio);
 
             // --- Inversion oscillator (shift DOWN by 1-3 octaves) ---
             int inversionOctaves = getRandomOctaveShift(randomPtr);
@@ -147,7 +156,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             if (inversionMidiNote < 0)
                 inversionMidiNote = 0;  // Clamp to valid range
 
-            float inversionFreq = resolveFrequency(inversionMidiNote, centOffset);
+            float inversionFreq = static_cast<float>(resolveFrequency(inversionMidiNote, centOffset) * neRatio);
 
             initializeSingleSubVoice(idx, baseMidiNote, baseFreq,
                                      spacingMidiNote, spacingFreq,

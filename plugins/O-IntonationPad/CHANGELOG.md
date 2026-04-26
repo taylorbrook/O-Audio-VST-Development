@@ -1,5 +1,18 @@
 # O-IntonationPad Changelog
 
+## [2.8.0] - 2026-04-26
+
+### Added
+
+- **adds VST3 Note Expression microtonal support for Dorico** (per O-Lyrica 2.3.0 reference shape). End users must set Microtonality to "VST3 Note Expression" on the assigned Dorico expression map.
+- **Shared `note-expression` module adoption** (`modules/tuning/note-expression` v1.0.0).
+
+### Technical notes
+
+- **Composition with TuningEngine + chord generator (multi-sub-voice).** `WavetableVoice::startNote` derives a multiplicative NE delta from the noteOn MIDI pitch via `applyPendingTuning(table, midi, 1.0)` and applies it to every sub-voice's `resolveFrequency` result. NE deltas correlate to the original noteOn pitch (Pattern 1: noteId, not pitch); sub-voice octave shifts inherit the tuned root, so chord intervals remain musically correct relative to Dorico's microtonal root pitch.
+- **Files modified:** `Source/PluginProcessor.{h,cpp}`, `Source/DSP/WavetableVoice.{h,cpp}`, `CMakeLists.txt`.
+- **Version bump rationale:** MINOR (2.7.2 → 2.8.0) — new user-visible feature, backward compatible, no preset impact.
+
 ## [2.7.2] - 2026-03-09
 
 ### Added

@@ -364,7 +364,9 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
 
     for (int i = 0; i < 8; ++i)
     {
-        synthesiser.addVoice(new WavetableVoice());
+        auto* voice = new WavetableVoice();
+        voice->setPendingTuningSource(&vst3Extensions.getPendingTable()); // Phase 24: NE (static wiring — vst3Extensions outlives all voices)
+        synthesiser.addVoice(voice);
     }
 
     // Cache parameter pointers (stable for APVTS lifetime)
@@ -514,6 +516,10 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
     // Clear output buffer
     buffer.clear();
+
+    // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
+    // correlate tuning deltas to their NoteOn's MIDI pitch.
+    vst3Extensions.drainAndUpdate();
 
     // Read parameters via cached pointers (atomic, real-time safe, no string lookups)
     int wavetableBank = static_cast<int>(cachedWavetableBank->load());

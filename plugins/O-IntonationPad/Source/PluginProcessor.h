@@ -18,6 +18,7 @@
 #include "DSP/EQProcessor.h"
 #include "DSP/ReverbProcessor.h"
 #include "PresetManager.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 #if OUARICON_LICENSING_ENABLED
   #include "OuariconLicense.h"
 #endif
@@ -71,6 +72,9 @@ public:
     // Tuning engine access
     TuningEngine& getTuningEngine() { return tuningEngine; }
 
+    // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
+
     // v2.7.0: Preset manager access
     PresetManager& getPresetManager() { return presetManager; }
 
@@ -102,6 +106,8 @@ private:
 
     // DSP Components (declare BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
+    // VST3 Note Expression support (module-owned table + raw-event scratch)
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
     ChordGenerator chordGenerator;
     TuningEngine tuningEngine;
 

@@ -6,7 +6,7 @@ juce_add_plugin(O-IntonationPad
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuIP
-    PLUGIN_VERSION "2.7.2"
+    PLUGIN_VERSION "2.8.0"
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-IntonationPad${OUARICON_DEV_SUFFIX}"
     IS_SYNTH TRUE
@@ -32,6 +32,9 @@ target_sources(O-IntonationPad
         Source/DSP/ReverbProcessor.cpp
 )
 
+# Phase 24: VST3 Note Expression microtonal support (Dorico)
+ouaricon_add_module(O-IntonationPad note-expression)
+
 # Include paths
 target_include_directories(O-IntonationPad
     PRIVATE
@@ -42,8 +45,10 @@ target_include_directories(O-IntonationPad
 target_link_libraries(O-IntonationPad
     PRIVATE
         juce::juce_audio_basics
+        juce::juce_audio_devices  # Phase 24: required for Standalone format (matches sibling plugins)
         juce::juce_audio_plugin_client
         juce::juce_audio_processors
+        juce::juce_audio_utils     # Phase 24: required for Standalone format (matches sibling plugins)
         juce::juce_core
         juce::juce_data_structures
         juce::juce_dsp
