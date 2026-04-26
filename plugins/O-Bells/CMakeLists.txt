@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "4.0.0"
+    PLUGIN_VERSION "4.1.0"
 
     # Synthesizer configuration
     IS_SYNTH TRUE
@@ -92,6 +92,9 @@ target_compile_definitions(O-Bells
 
 # Module system integration
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
+# Phase 24: VST3 Note Expression microtonal support (Dorico)
+ouaricon_add_module(O-Bells note-expression)
 
 # WebView UI Resources
 juce_add_binary_data(O-Bells_UIResources

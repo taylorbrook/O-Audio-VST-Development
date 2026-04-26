@@ -12,6 +12,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
 #include "BellSound.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression
 
 class TuningEngine;
 
@@ -29,6 +30,12 @@ public:
 
     // v3.0.0: Tuning engine integration
     void setTuningEngine(TuningEngine* engine) { tuningEngine = engine; }
+
+    // VST3 Note Expression (kTuningTypeID) — module-owned pending table source.
+    void setPendingTuningSource(Ouaricon::NoteExpression::PendingTuningTable* source)
+    {
+        pendingTuningSource = source;
+    }
     void renderNextBlock(juce::AudioBuffer<float>&, int startSample, int numSamples) override;
 
     // Prepare DSP components
@@ -208,6 +215,9 @@ private:
 
     // v3.0.0: Tuning engine (owned by processor)
     TuningEngine* tuningEngine = nullptr;
+
+    // VST3 Note Expression pending-tuning source (owned by processor's vst3Extensions)
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // v3.1.2: Voice-level silence gating
     bool currentHighFidelity = false;

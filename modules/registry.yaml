@@ -270,6 +270,8 @@ modules:
     used_by:
       - plugin: OLyrica
         version: 2.3.0
+      - plugin: O-Bells
+        version: 4.1.0
 
   # ============================================================================
   # EFFECTS MODULES

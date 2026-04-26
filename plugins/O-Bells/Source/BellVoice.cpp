@@ -162,6 +162,15 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
         ? static_cast<float>(tuningEngine->getFrequency(midiNoteNumber))
         : static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
 
+    // VST3 Note Expression tuning delta (Dorico microtonal).
+    // Compose multiplicatively after TuningEngine, before any DSP coefficient setup.
+    // Helper uses exchange(0.0) internally so retriggered notes don't inherit stale offsets.
+    if (pendingTuningSource != nullptr)
+    {
+        fundamental = static_cast<float>(Ouaricon::NoteExpression::applyPendingTuning(
+            *pendingTuningSource, midiNoteNumber, static_cast<double>(fundamental)));
+    }
+
     // Pre-calculate multi-stage coefficients (always active in v1.2.0)
     calculateMultiStageCoefficients(fundamental);
 

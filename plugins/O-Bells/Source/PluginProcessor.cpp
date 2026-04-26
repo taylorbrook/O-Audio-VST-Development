@@ -546,6 +546,7 @@ OBellsAudioProcessor::OBellsAudioProcessor()
     {
         auto* voice = new BellVoice();
         voice->setTuningEngine(&tuningEngine);
+        voice->setPendingTuningSource(&vst3Extensions.getPendingTable()); // Phase 24: NE
         synthesiser.addVoice(voice);
     }
 
@@ -742,6 +743,9 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
     // Clear output buffer
     buffer.clear();
+
+    // VST3 Note Expression: drain raw event queue and correlate tuning deltas to NoteOn pitches.
+    vst3Extensions.drainAndUpdate();
 
     // Read parameters (atomic, real-time safe)
     float inharmonicity = inharmonicityParam->load();

@@ -21,6 +21,7 @@
 #include "ScaleGenerator.h"
 #include "TuningExporter.h"
 #include "EmbeddedTunings.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
 #if OUARICON_LICENSING_ENABLED
   #include "OuariconLicense.h"
@@ -68,6 +69,9 @@ public:
     // v3.0.0: Tuning engine access
     TuningEngine& getTuningEngine() { return tuningEngine; }
 
+    // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
+
     // v3.1.0: Get held notes and their actual frequencies for TrueKeys visualization
     void getHeldNotesData(std::vector<int>& notes, std::vector<double>& frequencies);
 
@@ -90,6 +94,9 @@ public:
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
+
+    // VST3 Note Expression support (module-owned table + raw-event scratch)
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
 
     // v4.0.0: Effects chain (Chorus -> Delay -> Reverb -> EQ)
     juce::dsp::Chorus<float> chorus;
