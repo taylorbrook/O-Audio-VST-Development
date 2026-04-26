@@ -68,7 +68,7 @@
 **Milestone Goal:** Promote the validated VST3 Note Expression pattern (O-Lyrica spikes 001–003) into a shared Ouaricon module and propagate Dorico microtonal playback across all pitched plugins, with every per-plugin rollout tracked through the standard `/improve` workflow.
 
 - [x] **Phase 23 (A): Extract** -- Build shared microtonal module from cleaned spike code; prove it on O-Lyrica as the reference consumer (completed 2026-04-25)
-- [ ] **Phase 24 (B): Propagate** -- Apply the module to the remaining 7 pitched plugins via `/improve`, each with version bump, changelog, and regression test
+- [x] **Phase 24 (B): Propagate** -- Apply the module to the remaining 7 pitched plugins via `/improve`, each with version bump, changelog, and regression test (completed 2026-04-26)
 - [ ] **Phase 25 (C): Package & Internal Technical Notes** -- Bundle the Dorico expression map in every affected plugin's installer and capture internal developer-reference notes
 
 ## Phase Details
@@ -106,13 +106,13 @@ Plans:
 
 Plans:
 - [x] 24-01-O-Bells-PLAN.md — O-Bells consumes note-expression module via /improve (PROP-01 + TRACK-01..05). Version 4.0.0 → 4.1.0. -- completed 2026-04-26 (Dorico 3-point smoke gate 3/3 PASS; canary)
-- [ ] 24-02-O-Prism-PLAN.md — O-Prism consumes note-expression via /improve (PROP-03 + TRACK-01..05). Version 1.16.1 → 1.17.0.
-- [ ] 24-03-O-Wind-PLAN.md — O-Wind consumes note-expression via /improve; adds missing PLUGIN_VERSION line (PROP-04 + TRACK-01..05). Version 1.15.1 → 1.16.0.
-- [ ] 24-04-O-IntonationPad-PLAN.md — O-IntonationPad consumes note-expression via /improve; multi-sub-voice neRatio propagation (PROP-02 + TRACK-01..05). Version 2.7.2 → 2.8.0.
-- [ ] 24-05-O-Reed-PLAN.md — O-Reed consumes note-expression via /improve; first MPE plugin, helper-based composition (PROP-05 + TRACK-01..05). Version 1.0.11 → 1.1.0.
-- [ ] 24-06-O-Bowed-PLAN.md — O-Bowed consumes note-expression via /improve; second MPE plugin (PROP-06 + TRACK-01..05). Version 1.2.1 → 1.3.0.
-- [ ] 24-07-O-Formant-PLAN.md — O-Formant consumes note-expression via /improve; adds missing OuariconModules.cmake include (PROP-07 + TRACK-01..05). Version 1.24.2 → 1.25.0.
-- [ ] 24-08-final-sweep-PLAN.md — Rebuild + freshly install all 8 affected plugins; registry audit; aggregate Dorico smoke results (TRACK-05; re-claims PROP-01..07 via post-sweep regression smoke).
+- [x] 24-02-O-Prism-PLAN.md — O-Prism consumes note-expression via /improve (PROP-03 + TRACK-01..05). Version 1.16.1 → 1.17.0.
+- [x] 24-03-O-Wind-PLAN.md — O-Wind consumes note-expression via /improve; adds missing PLUGIN_VERSION line (PROP-04 + TRACK-01..05). Version 1.15.1 → 1.16.0.
+- [x] 24-04-O-IntonationPad-PLAN.md — O-IntonationPad consumes note-expression via /improve; multi-sub-voice neRatio propagation (PROP-02 + TRACK-01..05). Version 2.7.2 → 2.8.0.
+- [x] 24-05-O-Reed-PLAN.md — O-Reed consumes note-expression via /improve; first MPE plugin, helper-based composition (PROP-05 + TRACK-01..05). Version 1.0.11 → 1.1.0.
+- [x] 24-06-O-Bowed-PLAN.md — O-Bowed consumes note-expression via /improve; second MPE plugin (PROP-06 + TRACK-01..05). Version 1.2.1 → 1.3.0.
+- [x] 24-07-O-Formant-PLAN.md — O-Formant consumes note-expression via /improve; adds missing OuariconModules.cmake include (PROP-07 + TRACK-01..05). Version 1.24.2 → 1.25.0.
+- [x] 24-08-final-sweep-PLAN.md — Rebuild + freshly install all 8 affected plugins; registry audit; aggregate Dorico smoke results (TRACK-05; re-claims PROP-01..07 via post-sweep regression smoke).
 
 ### Phase 25 (C): Package & Internal Technical Notes
 **Goal**: A canonical pre-configured Dorico expression map file is authored once, stored as single source of truth in the microtonal module's resources, and bundled into every affected plugin's installer — with internal developer-reference notes (not end-user manuals) captured under `research/` to serve as source material for future website manual/quickstart authoring.
@@ -139,7 +139,7 @@ Phases execute in numeric order: 23 → 24 → 25
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
 | 23 (A) | v1.5 | 5/5 | Complete    | 2026-04-25 |
-| 24 (B) | v1.5 | 1/8 | In progress (Plan 24-01 O-Bells canary complete) | - |
+| 24 (B) | v1.5 | 8/8 | Complete   | 2026-04-26 |
 | 25 (C) | v1.5 | 0/TBD | Not started | - |
 
 **Cumulative: 22 phases complete, 65 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 24 Plan 24-01 (O-Bells canary) complete — Dorico 3-point smoke gate 3/3 PASS.**
