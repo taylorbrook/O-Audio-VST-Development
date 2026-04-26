@@ -2,6 +2,24 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.25.0] - 2026-04-26
+
+### Added — VST3 Note Expression Microtonal Support for Dorico
+
+adds VST3 Note Expression microtonal support for Dorico. O-Formant responds to Dorico's per-note tuning messages (`kTuningTypeID` Note Expression events). The voice's cached `tunedF0` composes Dorico's NE delta multiplicatively after `TuningEngine::getFrequency` and before `PitchGlide` / glottal source frequency assignment, so the glottal source `LFGlottalSource` samples the correct fundamental from sample 0 (no attack zipper). Downstream consumers of `tunedF0` in `renderNextBlock` — spectral tilt (line ~488) and source-filter coupling (line ~616) — all see the tuned value. ConsonantEngine articulation is independent of pitched fundamental and remains intelligible at microtonal shifts. MPE pitch-bend stacks on top via `getCurrentlyPlayingNote().getFrequencyInHertz()` (per-sample lookup unaffected by NE). End users must set Microtonality to "VST3 Note Expression" on the Dorico expression map.
+
+### Technical Notes
+
+- **Composition order** (D-10 with MPE): `TuningEngine::getFrequency(midi)` → `applyPendingTuning(table, midi, tunedF0)` → `pitchGlide.snapTo/setTarget(f0)` → glottal source uses `pitchGlide.processSample()` per-sample. NE applies once per `noteStarted` (slot consumed via `exchange(0.0)` semantics); MPE pitch-bend updates compose multiplicatively per-sample on top via the existing pitchGlide / vibrato / jitter chain.
+- **MPE pitch source for NE correlation**: `int midiNote = currentlyPlayingNote.initialNote` (the noteOn MIDI pitch). The shared module's `updatePendingFromEvents` correlates by `noteId` regardless of MPE channel.
+- **Per-call-site composition** (vs helper-based in O-Reed/O-Bowed): `FormantVoice` has no `getBaseFrequencyFromTuning` helper to wrap. The `tunedF0` cached field is assigned in `noteStarted()` and consumed by the per-sample `pitchGlide`. NE is applied at the single assignment site in `noteStarted()` immediately after the `TuningEngine` query and before `pitchGlide.snapTo/setTarget`.
+- **Files Modified:** `CMakeLists.txt` (added `include(OuariconModules.cmake)` + `ouaricon_add_module(O-Formant note-expression)` — note: O-Formant was the only Phase 24 plugin missing the module-system include), `Source/PluginProcessor.{h,cpp}`, `Source/FormantVoice.{h,cpp}`. Version: 1.24.2 → 1.25.0.
+
+### Based On
+
+- Phase 23 textbook reference (O-Lyrica v2.3.0 module extraction).
+- Phase 24 patterns 24-01..24-06 (canary + 6 propagation waves established the 8-file atomic-commit playbook + composition order conventions).
+
 ## [1.24.2] - 2026-04-19
 
 ### Fixed

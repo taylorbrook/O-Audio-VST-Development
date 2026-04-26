@@ -23,6 +23,7 @@
 #include "dsp/ConsonantEngine.h"
 #include "dsp/FricationFormantBank.h"
 #include "dsp/LyricsEngine.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (PendingTuningTable + helpers)
 
 class TuningEngine;
 
@@ -35,6 +36,7 @@ public:
     void setWavetable (const GlottalWavetable* wt);
     void setTuningEngine (TuningEngine* te);
     void setLyricsEngine (LyricsEngine* le);
+    void setPendingTuningSource (Ouaricon::NoteExpression::PendingTuningTable* source) noexcept { pendingTuningSource = source; }
     void prepare (double sampleRate);
 
     // --- MPESynthesiserVoice pure virtual overrides ---
@@ -102,6 +104,9 @@ private:
     // --- Tuning ---
     TuningEngine* tuningEnginePtr = nullptr;
     float tunedF0 = 440.0f; // cached tuned frequency for current note
+
+    // VST3 Note Expression (Dorico microtonal — module-owned table)
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // --- Lyrics ---
     LyricsEngine* lyricsEnginePtr = nullptr;

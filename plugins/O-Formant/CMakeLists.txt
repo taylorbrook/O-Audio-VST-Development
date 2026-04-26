@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Module system integration
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Formant
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -7,7 +10,7 @@ juce_add_plugin(O-Formant
     PLUGIN_CODE OuFm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Formant${OUARICON_DEV_SUFFIX}"
-    VERSION 1.24.2
+    VERSION 1.25.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -32,6 +35,9 @@ target_sources(O-Formant
         Source/DSP/EQProcessor.cpp
         Source/DSP/ReverbProcessor.cpp
 )
+
+# Phase 24: VST3 Note Expression microtonal support (Dorico)
+ouaricon_add_module(O-Formant note-expression)
 
 # Include paths
 target_include_directories(O-Formant

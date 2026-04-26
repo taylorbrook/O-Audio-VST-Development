@@ -189,6 +189,21 @@ void FormantVoice::noteStarted()
         ? static_cast<float> (tuningEnginePtr->getFrequency (midiNote))
         : static_cast<float> (getCurrentlyPlayingNote().getFrequencyInHertz());
     float f0 = tunedF0;
+
+    // VST3 Note Expression tuning delta (Dorico microtonal).
+    // Apply BEFORE pitchGlide so the glottal source samples the correct fundamental
+    // from sample 0 (Pattern 2 — no attack zipper). tunedF0 is referenced downstream
+    // at lines 488, 616 (renderNextBlock) for spectral tilt and source-filter coupling
+    // — all consumers see the tuned value. Helper consumes the slot via exchange(0.0)
+    // so retriggered notes at the same pitch in a later block don't inherit a stale
+    // offset. Cast through double at helper boundary (tunedF0 is float).
+    if (pendingTuningSource != nullptr)
+    {
+        tunedF0 = static_cast<float> (Ouaricon::NoteExpression::applyPendingTuning (
+            *pendingTuningSource, midiNote, static_cast<double> (tunedF0)));
+        f0 = tunedF0;  // re-read after NE composition
+    }
+
     float glideMs = pPitchGlide != nullptr ? pPitchGlide->load() : 0.0f;
     pitchGlide.setTime (glideMs);
 

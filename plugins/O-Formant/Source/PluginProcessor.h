@@ -21,6 +21,7 @@
 #include "ScaleGenerator.h"
 #include "TuningExporter.h"
 #include "EmbeddedTunings.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
 class OFormantAudioProcessor : public juce::AudioProcessor
 {
@@ -62,6 +63,9 @@ public:
 
     LyricsEngine& getLyricsEngine() { return lyricsEngine; }
 
+    // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
+
 private:
     // DSP: Shared wavetable (generated once, read-only across all voices)
     GlottalWavetable glottalWavetable;
@@ -79,6 +83,9 @@ private:
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
     juce::MPESynthesiser synthesiser;
+
+    // VST3 Note Expression support (module-owned table + raw-event scratch)
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

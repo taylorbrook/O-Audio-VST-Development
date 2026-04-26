@@ -282,6 +282,8 @@ modules:
         version: 1.1.0
       - plugin: O-Bowed
         version: 1.3.0
+      - plugin: O-Formant
+        version: 1.25.0
 
   # ============================================================================
   # EFFECTS MODULES

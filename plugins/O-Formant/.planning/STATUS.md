@@ -3,11 +3,12 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-last_updated: 2026-04-05
+version: 1.25.0
+last_updated: 2026-04-26
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: install
+next_action: dorico_microtonal_smoke_test
 next_phase: done
 contract_checksums:
   brief: sha256:887e6d791af653926f6ceb139dae19cb6fcc89668d0193023f05aba3da64bd0b
@@ -23,6 +24,18 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.25.0 -- Phase 24 propagation (2026-04-26)
+
+- **Phase 24 wave 7 of 7 (final per-plugin propagation).** O-Formant adopts the shared `note-expression` module (modules/tuning/note-expression v1.0.0) for VST3 Note Expression microtonal playback in Dorico.
+- **CMake delta**: O-Formant was the only Phase 24 plugin missing `include(OuariconModules.cmake)` — added at line 3 (immediately after `cmake_minimum_required` and BEFORE `juce_add_plugin`). Module call `ouaricon_add_module(O-Formant note-expression)` added after the `target_sources` block.
+- **Per-call-site MPE composition** (different shape from O-Reed/O-Bowed helper-based pattern): NE applied at the single `tunedF0` assignment site in `FormantVoice::noteStarted()` immediately after `tuningEnginePtr->getFrequency(midi)` and BEFORE `pitchGlide.snapTo/setTarget(f0)`. Cast through `double` at helper boundary (`tunedF0` is `float`). `f0` re-read after NE composition (was a local copy of `tunedF0` before the NE step).
+- **MPE pitch source for NE correlation**: `int midiNote = currentlyPlayingNote.initialNote`. Shared module's `updatePendingFromEvents` correlates by `noteId` regardless of MPE channel.
+- **Composition correctness**: glottal source `LFGlottalSource` samples the correct fundamental from sample 0 (Pattern 2 — no attack zipper). Downstream `tunedF0` consumers in `renderNextBlock` (spectral tilt + source-filter coupling) all see the tuned value because NE updates `tunedF0` BEFORE `pitchGlide` consumption. ConsonantEngine articulation independent of pitched fundamental — remains intelligible at microtonal shifts.
+- **Version bump**: 1.24.2 → 1.25.0 (MINOR — new user-visible feature, backward compatible, no preset impact).
+- **Files modified**: 8 (CMakeLists.txt, PluginProcessor.{h,cpp}, FormantVoice.{h,cpp}, CHANGELOG.md, .planning/STATUS.md, modules/registry.yaml).
+- **Build**: tri-format ninja exit 0; AU validates via `verify-au-link.sh O-Formant`; freshly installed per CLAUDE.md (cache cleared, dev-suffix + prod-named bundles).
+- **Dorico 3-point smoke gate**: DEFERRED — batch validation pending (per user direction at orchestrator level for Phase 24 — gates for plans 24-02..24-07 are batch-validated together at end-of-phase rather than gating each plan inline).
 
 ## Completed So Far
 
