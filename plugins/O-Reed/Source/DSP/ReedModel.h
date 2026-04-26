@@ -98,6 +98,22 @@ public:
         float k_eff = params.k_r + emb * 5e6f;
         float H_eff = std::max(params.H - emb * 0.0003f, 1e-5f);
 
+        // Reed-Q cap: prevent parasitic high-frequency mode locking.
+        // Q = sqrt(k_eff * mu_r) / g_eff. When mu_r is large and g_eff small
+        // (heavy reed, low damping), reed natural freq f_n = sqrt(k/mu)/2pi
+        // can fall in the audible range (~1-3 kHz) with Q > 1, turning the
+        // reed into a sharp bandpass that dominates bore feedback and locks
+        // output to f_n instead of the bore fundamental. Real clarinets avoid
+        // this via heavy lip loading (effective Q ~0.5-1.5). Enforce a Q
+        // ceiling by raising g_eff to the minimum value that keeps Q <= Q_MAX.
+        constexpr float Q_MAX = 0.5f;
+        float k_mu = k_eff * params.mu_r;
+        if (k_mu > 0.0f)
+        {
+            float g_min = std::sqrt(k_mu) / Q_MAX;
+            g_eff = std::max(g_eff, g_min);
+        }
+
         // Pressure difference across reed
         float dp = p_mouth - p_bore_minus;
 

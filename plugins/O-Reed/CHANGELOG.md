@@ -1,5 +1,11 @@
 # O-Reed Changelog
 
+## v1.0.12 (2026-04-26)
+
+### Fixed
+
+- **Parameter-sensitive parasitic high-frequency oscillation** -- with v1.0.11 bore delay math correct (1046 Hz request -> 1062 Hz output, ~26 cents sharp), the reed-bore loop still locked to a wrong high-frequency mode at certain reed parameter combinations. Symptom: "very high-pitched tones that don't correspond with MIDI notes" reproducible by sweeping `reedHardness`/`reedMass`/`reedDamping`. Root cause: when `reedMass` is high and `reedDamping` low, reed natural frequency `f_n = sqrt(k_eff/mu_r)/2pi` falls into the audible range (1-3 kHz at extremes: e.g. `mu_r=0.06, k_eff=20e6 -> f_n=2907 Hz, Q=2.19`). With `Q = sqrt(k_eff*mu_r)/g_eff > 1`, the reed acts as a sharp bandpass resonator that dominates the bore feedback signal, locking output to `f_n` regardless of MIDI note. Real clarinets avoid this via heavy lip loading (effective reed Q ~0.5-1.5). Fix: enforce a `Q_MAX = 0.5` cap on the reed by raising `g_eff` to `sqrt(k_eff*mu_r)/Q_MAX` whenever the natural Q would exceed the ceiling. Single-line physical fix in `ReedModel::processSample()` after embouchure-effective parameters are computed; preserves natural-frequency variation (timbral character intact) while preventing reed from becoming a high-Q resonator that hijacks the bore loop. Verified across reed param sweep (`reedHardness`/`reedMass`/`reedDamping` in {0, 0.5, 1}) at MIDI 36/60/84 -- output dominant frequency now tracks bore setpoint at all combos. v1.0.11 pitch accuracy preserved.
+
 ## v1.0.11 (2026-04-16)
 
 ### Fixed
