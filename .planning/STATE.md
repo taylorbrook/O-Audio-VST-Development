@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
 status: executing
-stopped_at: Phase 25 context gathered
-last_updated: "2026-04-26T20:28:13.435Z"
-last_activity: 2026-04-26 -- Phase 25 planning complete
+stopped_at: Phase 25 Plan 01 reverted — replan needed (Playback Template pivot)
+last_updated: "2026-04-26T21:45:00.000Z"
+last_activity: 2026-04-26 -- Phase 25 Plan 01 rolled back; finding logged for replan
 progress:
   total_phases: 20
   completed_phases: 19
@@ -21,19 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-24)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
-**Current focus:** Phase 24 — propagate
+**Current focus:** Phase 25 — package-docs
 
 ## Current Position
 
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
-Phase: 24 (propagate) — COMPLETE (verification passed 2026-04-26)
-Plan: 8 of 8 (all closed; 7 atomic propagation commits + 1 final-sweep SUMMARY commit)
-Status: Ready to execute
-Last activity: 2026-04-26 -- Phase 25 planning complete
+Phase: 25 (package-docs) — REPLAN NEEDED (Plan 01 reverted)
+Plan: 0 of 3 (Plan 01 attempted then reverted; Plans 02-03 still pending)
+Status: Blocked on architectural pivot — see finding doc
+Last activity: 2026-04-26 -- Plan 25-01 rolled back; Playback Template pivot logged
 
 Progress: [██████████] 99%
 
-Next: `/gsd-progress` to route to Phase 25 (final v1.5 phase) — or `/gsd-complete-milestone` if v1.5 is ready to ship
+Discovery: Plan 25-01's distribution mechanism (drop .doricoexpmap into Dorico's User/ scan path) does not work — Dorico does not auto-ingest standalone .doricoexpmap files. The XML asset is valid; the plumbing approach was wrong. Pivot: ship a Dorico Playback Template (Option B) instead of a standalone expression map.
+
+Reverted: cd2c2c6, 496d4c4, 029b12b — combined revert at d2c86c5.
+
+Finding doc: `.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md`
+
+Next: `/clear` then `/gsd-discuss-phase 25 --replan` to capture the Playback Template approach, OR `/gsd-research-phase 25` first if more Dorico-format research is needed before discuss.
 
 ## Performance Metrics
 
