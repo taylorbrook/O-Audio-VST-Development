@@ -1,0 +1,47 @@
+# ==============================================================================
+# install-doricoexpmap.cmake.in — install-time Dorico version probe + scan-path copy
+#
+# This template is processed by configure_file() at configure time (per consumer
+# plugin), with @VAR@ placeholders substituted. The resulting concrete .cmake
+# script is run at install time via install(SCRIPT ...). $ENV{HOME} and
+# $ENV{APPDATA} evaluate at install time — they are NOT substituted by
+# configure_file() because they are not @-wrapped.
+#
+# Configure-time substitutions:
+#   @NE_DORICOEXPMAP@        — absolute path to the canonical .doricoexpmap source
+#   @NE_DORICOEXPMAP_NAME@   — basename of the .doricoexpmap (filename only)
+#   @NE_TARGET_NAME@         — consumer plugin target name (for log lines)
+# ==============================================================================
+
+# Resolve Dorico user expression-maps directory at install time.
+# Probe Dorico 6, 5, 4 in descending order. First hit wins.
+set(_OUA_DORICO_USER_DIR "")
+set(_OUA_DORICO_VERSION "")
+
+if(APPLE)
+    foreach(_v 6 5 4)
+        set(_dorico_root "$ENV{HOME}/Library/Application Support/Steinberg/Dorico ${_v}")
+        if(IS_DIRECTORY "${_dorico_root}")
+            set(_OUA_DORICO_USER_DIR "${_dorico_root}/Expression Maps/User")
+            set(_OUA_DORICO_VERSION "${_v}")
+            break()
+        endif()
+    endforeach()
+elseif(WIN32)
+    foreach(_v 6 5 4)
+        set(_dorico_root "$ENV{APPDATA}/Steinberg/Dorico ${_v}")
+        if(IS_DIRECTORY "${_dorico_root}")
+            set(_OUA_DORICO_USER_DIR "${_dorico_root}/Expression Maps/User")
+            set(_OUA_DORICO_VERSION "${_v}")
+            break()
+        endif()
+    endforeach()
+endif()
+
+if(_OUA_DORICO_USER_DIR)
+    file(MAKE_DIRECTORY "${_OUA_DORICO_USER_DIR}")
+    file(COPY "@NE_DORICOEXPMAP@" DESTINATION "${_OUA_DORICO_USER_DIR}")
+    message(STATUS "[note-expression] (@NE_TARGET_NAME@) Dorico expression map installed to Dorico ${_OUA_DORICO_VERSION} scan path: ${_OUA_DORICO_USER_DIR}")
+else()
+    message(STATUS "[note-expression] (@NE_TARGET_NAME@) No Dorico install detected — skipping Dorico-scan write (manual import fallback applies; see README-doricoexpmap.txt)")
+endif()

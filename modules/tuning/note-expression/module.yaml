@@ -1,10 +1,10 @@
-# note-expression module v1.0.0
+# note-expression module v1.1.0
 # VST3 Note Expression (kTuningTypeID) for Dorico microtonal playback.
 # Surfaces NE events via a local JUCE patch and exposes a header-only
 # Controller + Extensions + voice helper for per-note semitone offsets.
 
 name: note-expression
-version: 1.0.0
+version: 1.1.0
 description: |
   VST3 Note Expression (kTuningTypeID) support for Dorico-driven microtonal
   playback. Owns the Note Expression Controller (NEC), the
@@ -53,6 +53,11 @@ sources:
   cpp:
     - cpp/NoteExpression.h
 
+# Resources (Phase 25 INST-01, INST-02 — module owns the canonical Dorico expression map)
+resources:
+  - resources/Ouaricon-VST3-NoteExpression.doricoexpmap
+  - resources/README-doricoexpmap.txt
+
 # Tracking — first consumer is O-Lyrica 2.3.0 (Phase 23 reference consumer).
 used_by:
   - plugin: OLyrica
@@ -70,3 +75,12 @@ changelog:
       - "Provides updatePendingFromEvents drain+correlate helper"
       - "CMake-time patch-marker verification (added in Plan 02)"
       - "Stripped of all spike diagnostics — no audio-thread file I/O, no debug locks, no trace helpers"
+  - version: 1.1.0
+    date: 2026-04-26
+    changes:
+      - "Adds canonical Dorico expression map at resources/Ouaricon-VST3-NoteExpression.doricoexpmap (INST-01)"
+      - "Adds plain-text README-doricoexpmap.txt as INST-04 fallback for users whose Dorico version directory was not detected at install time"
+      - "Extends module.cmake with dual-write install() rules: Ouaricon shared resources path (editable canonical) + Dorico user Expression Maps/User scan path (auto-discovery; latest detected Dorico 4/5/6) per D-04..D-07"
+      - "Replaces fragile install(CODE \"...\") shell-escape pattern with configure_file() + install(SCRIPT) using install-doricoexpmap.cmake.in template"
+      - "Microtonality-only minimum scope per D-02 — no articulation switches; covers Dorico's expression-map skipped UX trap (spike-findings Landmine 3) for all 8 v1.5 plugins"
+      - "Module-side asset ownership extends Phase 23's 'module owns everything' principle from source code/JUCE patch/README to resources (INST-02)"
