@@ -40,7 +40,7 @@
 
 Each requirement corresponds to one `/improve [PluginName]` cycle — see TRACK requirements for workflow discipline.
 
-- [ ] **PROP-01**: O-Bells consumes the shared module and passes the Dorico quarter-sharp smoke test.
+- [x] **PROP-01**: O-Bells consumes the shared module and passes the Dorico quarter-sharp smoke test. (completed 2026-04-26 via Plan 24-01; Dorico 3-point gate 3/3 PASS)
 - [ ] **PROP-02**: O-IntonationPad consumes the shared module and passes the Dorico quarter-sharp smoke test.
 - [ ] **PROP-03**: O-Prism consumes the shared module and passes the Dorico quarter-sharp smoke test.
 - [ ] **PROP-04**: O-Wind consumes the shared module and passes the Dorico quarter-sharp smoke test.
@@ -129,18 +129,18 @@ Populated by roadmapper during Phase A/B/C creation. Each requirement maps to ex
 | LYR-02 | Phase A (23) | Complete |
 | LYR-03 | Phase A (23) | Complete |
 | LYR-04 | Phase A (23) | Complete |
-| PROP-01 | Phase B (24) | Pending |
+| PROP-01 | Phase B (24) | Complete (Plan 24-01, 2026-04-26) |
 | PROP-02 | Phase B (24) | Pending |
 | PROP-03 | Phase B (24) | Pending |
 | PROP-04 | Phase B (24) | Pending |
 | PROP-05 | Phase B (24) | Pending |
 | PROP-06 | Phase B (24) | Pending |
 | PROP-07 | Phase B (24) | Pending |
-| TRACK-01 | Phase B (24) | Pending |
-| TRACK-02 | Phase B (24) | Pending |
-| TRACK-03 | Phase B (24) | Pending |
-| TRACK-04 | Phase B (24) | Pending |
-| TRACK-05 | Phase B (24) | Pending |
+| TRACK-01 | Phase B (24) | In progress (1/8 plugins; O-Bells via Plan 24-01) |
+| TRACK-02 | Phase B (24) | In progress (1/8 plugins; O-Bells 4.0.0→4.1.0 via Plan 24-01) |
+| TRACK-03 | Phase B (24) | In progress (1/8 plugins; O-Bells CHANGELOG 4.1.0 via Plan 24-01) |
+| TRACK-04 | Phase B (24) | In progress (1/8 plugins; O-Bells STATUS.md via Plan 24-01) |
+| TRACK-05 | Phase B (24) | In progress (1/8 plugins; O-Bells fresh install via Plan 24-01) |
 | INST-01 | Phase C (25) | Pending |
 | INST-02 | Phase C (25) | Pending |
 | INST-03 | Phase C (25) | Pending |

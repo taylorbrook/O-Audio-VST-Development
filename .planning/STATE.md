@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
-status: completed
-stopped_at: Phase 24 context gathered
-last_updated: "2026-04-26T05:25:14.994Z"
-last_activity: 2026-04-25
+status: executing
+stopped_at: Phase 24 Plan 24-01 complete (O-Bells canary)
+last_updated: "2026-04-26T17:00:00.000Z"
+last_activity: 2026-04-26 -- Phase 24 Plan 24-01 (O-Bells) complete; canary PASS
 progress:
   total_phases: 19
   completed_phases: 18
   total_plans: 64
-  completed_plans: 56
-  percent: 88
+  completed_plans: 57
+  percent: 89
 ---
 
 # Project State
@@ -21,19 +21,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-24)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
-**Current focus:** Phase 23 ready for verification gate
+**Current focus:** Phase 24 — propagate
 
 ## Current Position
 
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
-Phase: 23
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-04-25
+Phase: 24 (propagate) — EXECUTING
+Plan: 2 of 8 (Plan 24-01 O-Bells complete; next: 24-02 O-Prism)
+Status: Executing Phase 24
+Last activity: 2026-04-26 -- Phase 24 Plan 24-01 (O-Bells) complete; canary PASS
 
 Progress: [██████████] 99%
 
-Next: `/gsd-verify-phase 23` — verify Phase 23 then proceed to Phase 24 propagation
+Next: `/plugin-execute O-Prism` — Plan 24-02 O-Prism propagation (PROP-03 + TRACK-01..05; version 1.16.1 → 1.17.0)
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Next: `/gsd-verify-phase 23` — verify Phase 23 then proceed to Phase 24 propag
 | 23 | 03 | ~25min | 4 | 6 |
 | 23 | 04 | ~12min + human | 4 | 3 |
 | 23 | 05 | ~25min + human | 7 | 6 |
+| 24 | 01 | ~30min + human | 5 | 8 |
 
 ## Accumulated Context
 
@@ -94,6 +95,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 - Phase 23 Plan 03: O-Lyrica refactored onto Ouaricon::NoteExpression — 4 source files edited, spike header VST3/NoteExpressionSupport.h deleted, OLyrica_VST3 + OLyrica_AU build clean (LYR-01/02). Build-gate discovery (D-23-03-A): Steinberg SDK symbols only link for VST3 client target — Controller class + queryIEditController body + nec member guarded behind #if JucePlugin_Build_VST3 in NoteExpression.h so AU/Standalone/VST2 link cleanly. Fix committed as f85ff38 against plan 23-01's deliverable. NOTE: Plan 23-04 later discovered Plan 23-03's "OLyrica_AU built clean" claim was incorrect — the on-disk AU artefact pre-dated the refactor commits and the AU re-link was never actually exercised. The f85ff38 guard does not solve the issue because guards evaluate at every TU compile site and SharedCode is compiled with VST3=1.
 - Phase 23 Plan 04: O-Lyrica v2.3.0 shipped (CMakeLists VERSION + CHANGELOG [2.3.0] entry, LYR-04). Comprehensive note-expression module README published — 223 lines covering Quick Start / Features / Installation / Dorico Setup / Patch Management / Integration Approach (MOD-05). Dorico quarter-sharp smoke test 5/5 PASS via VST3 (LYR-03 gate cleared). Build-gate discovery (D-23-04-A): AU re-link failure exposed module-level architectural defect — JucePlugin_Build_VST3 guards in NoteExpression.h evaluate at TU-compile site, so SharedCode (compiled with VST3=1) carries Steinberg symbol references that AU's link line cannot resolve. Resolution deferred to Plan 23-05 (move Controller + Steinberg-touching code from header to VST3-only .cpp). Phase 24 BLOCKED until 23-05 lands.
 - Phase 23 Plan 05: D-23-04-A AU-link Steinberg-symbol leak RESOLVED via two-TU split + custom function-pointer deleter pimpl + dual dispatch slots (g_neUpdate, g_neQuery). cpp/NoteExpression.cpp (SharedCode-bound, Steinberg-free) hosts ctor/dtor/drainAndUpdate/queryIEditController bodies; cpp/vst3/NoteExpression_VST3.cpp (VST3-only) hosts Controller body, vst3QueryIEditController free helper, updatePendingFromEvents, and the static-init DispatchRegistrar. modules/cmake/OuariconModules.cmake gained per-format source routing convention (cpp/<format>/ → ${TARGET}_<FORMAT>) used project-wide going forward. scripts/verify-au-link.sh provides reusable AU-link gate for Phase 24. Mid-flight Rule-1 q-slot fix (commit 0e00826) addressed plan-checker's prescient warning about VST3Extensions vtable references. LYR-03 Dorico smoke test re-passed 5/5 via VST3 (regression check). Public API + consumer call-sites preserved verbatim (D-23/D-32). Out-of-scope discovery: pre-existing APVTS Meta-Flag failure on parameter ID 1275870432 logged to deferred-items.md (was previously masked by AU re-link failure; not a Plan 23-05 regression). Phase 24 unblocked.
+- Phase 24 Plan 01: O-Bells v4.1.0 propagation canary COMPLETE (atomic commit 8fee3a8). PROP-01 + TRACK-01..05 satisfied. 8-file atomic commit (CMakeLists.txt + PluginProcessor.{h,cpp} + BellVoice.{h,cpp} + CHANGELOG.md + STATUS.md + registry.yaml). Tri-format ninja exit 0 — no Steinberg-symbol leak (per-format module-source convention from Phase 23 D-22..D-29 holds). scripts/verify-au-link.sh O-Bells PASS — `AU VALIDATION SUCCEEDED. auval accepted O-Bells (aumu OBls OuDv)`. Dorico 3-point smoke gate (D-07) ALL PASS — gate 1 (~269.29 Hz at +50¢ above C4, Pattern 3 240-semitone full-scale validated); gate 2 (no attack zipper, Pattern 2 apply-before-DSP-trigger validated); gate 3 (polyphonic chord — only C4 detuned, E4 plays 12-TET 329.63 Hz, Pattern 1 noteId-correlation validated). System-environment notes: OUARICON_DEV_SUFFIX=-dev produces dev-suffixed bundles alongside prod-named bundles (intentional dev branding); auval -a system listing returns zero aumu entries on this machine (host-environment quirk affecting all plugins; verify-au-link.sh is canonical D-08 path and PASSES). Float→double cast at applyPendingTuning helper boundary works as designed (BellVoice uses float fundamental). Plan-checker phrasing: CHANGELOG body lowercase "adds" matches plan §verify grep; pattern propagates to plans 24-02..24-07. Feeds 24-08-final-sweep-SUMMARY.md row 1 of 8.
 
 ### Pending Todos
 
@@ -122,11 +124,11 @@ v1.5 decisions (to be logged as phase execution progresses):
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 24 context gathered
-Resume file: --resume-file
+Last session: 2026-04-26 (Plan 24-01 O-Bells canary executed end-to-end)
+Stopped at: Phase 24 Plan 24-01 complete (O-Bells canary PASS — Dorico 3-point gate 3/3)
+Resume file: .planning/phases/24-propagate/24-02-O-Prism-PLAN.md
 
-Next: `/gsd-verify-phase 23` — verify Phase 23 then proceed to Phase 24 propagation
+Next: `/plugin-execute O-Prism` — Plan 24-02 O-Prism propagation (PROP-03 + TRACK-01..05; version 1.16.1 → 1.17.0)
 
 ---
 *v1.4 shipped 2026-03-07. v1.5 Microtonal Shared Module & Suite Propagation started 2026-04-24. Running total: 5 milestones shipped, 22 phases, 64 plans, 108 requirements. v1.5 adds 3 phases (23-25) and 33 requirements.*

@@ -105,7 +105,7 @@ Plans:
 **Plans**: 8 plans
 
 Plans:
-- [ ] 24-01-O-Bells-PLAN.md — O-Bells consumes note-expression module via /improve (PROP-01 + TRACK-01..05). Version 4.0.0 → 4.1.0.
+- [x] 24-01-O-Bells-PLAN.md — O-Bells consumes note-expression module via /improve (PROP-01 + TRACK-01..05). Version 4.0.0 → 4.1.0. -- completed 2026-04-26 (Dorico 3-point smoke gate 3/3 PASS; canary)
 - [ ] 24-02-O-Prism-PLAN.md — O-Prism consumes note-expression via /improve (PROP-03 + TRACK-01..05). Version 1.16.1 → 1.17.0.
 - [ ] 24-03-O-Wind-PLAN.md — O-Wind consumes note-expression via /improve; adds missing PLUGIN_VERSION line (PROP-04 + TRACK-01..05). Version 1.15.1 → 1.16.0.
 - [ ] 24-04-O-IntonationPad-PLAN.md — O-IntonationPad consumes note-expression via /improve; multi-sub-voice neRatio propagation (PROP-02 + TRACK-01..05). Version 2.7.2 → 2.8.0.
@@ -139,11 +139,11 @@ Phases execute in numeric order: 23 → 24 → 25
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
 | 23 (A) | v1.5 | 5/5 | Complete    | 2026-04-25 |
-| 24 (B) | v1.5 | 0/TBD | Not started (unblocked) | - |
+| 24 (B) | v1.5 | 1/8 | In progress (Plan 24-01 O-Bells canary complete) | - |
 | 25 (C) | v1.5 | 0/TBD | Not started | - |
 
-**Cumulative: 22 phases complete, 64 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 23 plans complete; verification gate next.**
+**Cumulative: 22 phases complete, 65 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 24 Plan 24-01 (O-Bells canary) complete — Dorico 3-point smoke gate 3/3 PASS.**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-04-25 -- Phase 23 Plan 23-05 complete (AU-link defect resolved); Phase 23 awaits verification*
+*Last updated: 2026-04-26 -- Phase 24 Plan 24-01 (O-Bells) complete; canary PASS, propagation playbook validated*
