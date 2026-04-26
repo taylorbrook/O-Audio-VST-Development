@@ -28,6 +28,7 @@
 #include "dsp/UserWavetableManager.h"
 #include "dsp/WavetableEditor.h"
 #include "OuariconPresetManager.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
 class OPrismAudioProcessor : public juce::AudioProcessor
 {
@@ -59,6 +60,9 @@ public:
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
     TuningEngine* getTuningEngine() { return &tuningEngine; }
+
+    // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
     ScaleGenerator* getScaleGenerator() { return &scaleGenerator; }
     TuningExporter* getTuningExporter() { return &tuningExporter; }
 
@@ -151,6 +155,8 @@ private:
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
     juce::Synthesiser synthesiser;
+    // VST3 Note Expression support (module-owned table + raw-event scratch)
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
     TuningEngine tuningEngine;
     ScaleGenerator scaleGenerator;
     TuningExporter tuningExporter;

@@ -272,6 +272,8 @@ modules:
         version: 2.3.0
       - plugin: O-Bells
         version: 4.1.0
+      - plugin: O-Prism
+        version: 1.17.0
 
   # ============================================================================
   # EFFECTS MODULES

@@ -17,6 +17,7 @@
 #include "dsp/SVFFilter.h"
 #include "dsp/LFO.h"
 #include "dsp/ModulationMatrix.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (PendingTuningTable + helpers)
 
 class TuningEngine;
 class PrismSound;
@@ -32,6 +33,14 @@ public:
     void setTuningEngine (TuningEngine* engine);
     void setProcessor (OPrismAudioProcessor* proc);
     void prepare (double sampleRate, int samplesPerBlock);
+
+    /** Set pointer to the module-owned pending-tuning table (128 MIDI slots,
+        semitones). Voice reads-and-clears its slot in startNote() to apply
+        Dorico's VST3 Note Expression tuning delta before the first sample. */
+    void setPendingTuningSource (Ouaricon::NoteExpression::PendingTuningTable* source)
+    {
+        pendingTuningSource = source;
+    }
 
     bool canPlaySound (juce::SynthesiserSound* sound) override;
     void startNote (int midiNoteNumber, float velocity,
@@ -49,6 +58,9 @@ private:
     juce::AudioProcessorValueTreeState* parameters = nullptr;
     TuningEngine* tuningEngine = nullptr;
     OPrismAudioProcessor* processor = nullptr;
+
+    // VST3 Note Expression: pending tuning deltas (semitones) — module-owned table
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // Modulation matrix (per-voice for per-sample evaluation)
     ModulationMatrix modMatrix;

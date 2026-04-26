@@ -1,5 +1,16 @@
 # O-Prism Changelog
 
+## v1.17.0 (2026-04-26)
+
+### Added
+- **adds VST3 Note Expression microtonal support for Dorico** (per O-Lyrica 2.3.0 reference shape). O-Prism now responds to Dorico's per-note tuning messages (`kTuningTypeID` Note Expression events), enabling correct microtonal playback of quarter-tones, third-tones, and arbitrary tuning deltas authored in Dorico's tonality system. End users must set Microtonality to "VST3 Note Expression" on the assigned Dorico expression map.
+- **Shared `note-expression` module adoption** (`modules/tuning/note-expression` v1.0.0).
+
+### Technical Notes
+- **Composition with TuningEngine:** `PrismVoice::startNote` queries `TuningEngine::getFrequency(midi)`, then composes Dorico's NE delta via `applyPendingTuning(table, midi, freq)` before `glide.setTarget()` and per-oscillator `setFrequency()` calls. `currentFrequency` is the multiplicative root for `freqA = currentFrequency * pow(2, ...)`, `freqB = currentFrequency * pow(2, ...)`, and `subOsc.setFrequency(currentFrequency)` — applying NE before these multiplications is mathematically correct (D-10).
+- **Files modified:** `Source/PluginProcessor.{h,cpp}`, `Source/PrismVoice.{h,cpp}`, `CMakeLists.txt`.
+- **Version bump rationale:** MINOR (1.16.1 → 1.17.0) — new user-visible feature, backward compatible, no preset impact.
+
 ## v1.16.0 (2026-04-11)
 
 ### Added

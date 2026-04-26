@@ -9,7 +9,7 @@ juce_add_plugin(O-Prism
     PLUGIN_CODE OuPr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Prism${OUARICON_DEV_SUFFIX}"
-    VERSION 1.16.1
+    VERSION 1.17.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -79,6 +79,9 @@ juce_generate_juce_header(O-Prism)
 
 # WebView relay manager module
 ouaricon_add_module(O-Prism webview-relay-manager)
+
+# Phase 24: VST3 Note Expression microtonal support (Dorico)
+ouaricon_add_module(O-Prism note-expression)
 
 # WebView UI Resources
 juce_add_binary_data(O-Prism_UIResources

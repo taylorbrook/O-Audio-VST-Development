@@ -473,6 +473,7 @@ OPrismAudioProcessor::OPrismAudioProcessor()
         voice->setAPVTS (&parameters);
         voice->setTuningEngine (&tuningEngine);
         voice->setProcessor (this);
+        voice->setPendingTuningSource (&vst3Extensions.getPendingTable()); // Phase 24: NE
         voice->setWavetableA (factoryTables[0].get()); // Default: Saw
         voice->setWavetableB (factoryTables[0].get());
         synthesiser.addVoice (voice);
@@ -560,6 +561,10 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
+
+    // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
+    // correlate tuning deltas to their NoteOn's MIDI pitch.
+    vst3Extensions.drainAndUpdate();
 
     // Read BPM from host transport for tempo-synced LFOs
     if (auto* playHead = getPlayHead())

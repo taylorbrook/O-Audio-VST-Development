@@ -1,13 +1,14 @@
 ---
 plugin: O-Prism
+version: 1.17.0
 stage: 4
 gsd_phase: verify_complete
 status: plugin_complete
-last_updated: 2026-02-18
+last_updated: 2026-04-26
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: install
+next_action: dorico_microtonal_smoke_test
 next_stage: complete
 ready_for_implementation: true
 contract_checksums:
@@ -70,6 +71,10 @@ Progress: [####################] 100%
 1. Install plugin (`/install-plugin O-Prism`)
 2. DAW testing (Ableton + Logic)
 3. CPU profiling (if needed)
+
+## v1.17.0 — Phase 24 propagation (2026-04-26)
+
+VST3 Note Expression microtonal support for Dorico via shared `modules/tuning/note-expression` v1.0.0. PrismVoice composes NE delta after TuningEngine and before glide/per-oscillator `setFrequency`. Dorico 3-point smoke gate deferred to Phase 24 batch validation (per orchestrator direction). Tri-format build clean; AU validates via `scripts/verify-au-link.sh O-Prism`; freshly installed per CLAUDE.md.
 
 ## Context to Preserve
 - Architecture: plugins/O-Prism/.planning/research/ARCHITECTURE.md

@@ -184,6 +184,16 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     else
         currentFrequency = juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
 
+    // VST3 Note Expression tuning delta (Dorico microtonal).
+    // Compose multiplicatively after TuningEngine, before glide/oscillator setup.
+    // Helper uses exchange(0.0) internally so retriggered notes at the same
+    // pitch in a later block don't inherit a stale offset.
+    if (pendingTuningSource != nullptr)
+    {
+        currentFrequency = Ouaricon::NoteExpression::applyPendingTuning (
+                               *pendingTuningSource, midiNoteNumber, currentFrequency);
+    }
+
     if (parameters == nullptr)
         return;
 
