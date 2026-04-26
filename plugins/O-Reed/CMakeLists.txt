@@ -8,6 +8,7 @@ juce_add_plugin(O-Reed
     PLUGIN_CODE ORed
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Reed${OUARICON_DEV_SUFFIX}"
+    PLUGIN_VERSION "1.1.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -27,6 +28,9 @@ target_sources(O-Reed
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/EmbeddedTunings.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningExporter.cpp
 )
+
+# Phase 24: VST3 Note Expression microtonal support (Dorico)
+ouaricon_add_module(O-Reed note-expression)
 
 target_include_directories(O-Reed
     PRIVATE

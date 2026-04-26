@@ -1,5 +1,20 @@
 # O-Reed Changelog
 
+## v1.1.0 (2026-04-26)
+
+### Added
+
+- **adds VST3 Note Expression microtonal support for Dorico.** O-Reed responds to Dorico's per-note tuning messages (`kTuningTypeID` Note Expression events), enabling microtonal playback of quarter-tones and arbitrary tuning deltas authored in Dorico's tonality system. End users must set Microtonality to "VST3 Note Expression" on the assigned expression map (see O-Lyrica 2.3.0 for procedure).
+- **Shared `note-expression` module adoption.** O-Reed consumes the Ouaricon module at `modules/tuning/note-expression` (v1.0.0), same shape as O-Lyrica v2.3.0 / O-Bells v4.1.0 / O-Prism v1.17.0 / O-Wind v1.16.0 / O-IntonationPad v2.8.0.
+
+### Technical Notes
+
+- **First MPE consumer of the shared note-expression module.** `ReedWindVoice` extends `juce::MPESynthesiserVoice` and reads MIDI pitch via `getCurrentlyPlayingNote().initialNote` from `noteStarted()` (no parameter form). Pattern 1 (`noteId` correlation in the shared module's `updatePendingFromEvents`) holds regardless of MPE channel.
+- **Helper-based composition (single source of truth).** `applyPendingTuning` is invoked INSIDE `getBaseFrequencyFromTuning(midiNote)`, so all three call sites — `noteStarted()` legato (line 141), `noteStarted()` normal (line 202), `notePitchbendChanged()` (line 374) — inherit the NE delta with one insertion. `exchange(0.0)` consume semantics correct for one-NE-per-noteOn delivery: first call in a block consumes the slot; subsequent calls return base unchanged (NE applies once per noteStarted, MPE pitch-bend updates per-block on top).
+- **Composition order:** tuning engine → NE delta → MPE pitch-bend → `bore.setFrequency(freq)` (bore waveguide period derived from the final tuned frequency; Pattern 2 satisfied — first sample at tuned pitch).
+- **Files modified:** `Source/PluginProcessor.{h,cpp}`, `Source/ReedWindVoice.{h,cpp}`, `CMakeLists.txt` (added `PLUGIN_VERSION "1.1.0"` line + `ouaricon_add_module(O-Reed note-expression)`).
+- **Version:** 1.0.12 → 1.1.0 (MINOR — new user-visible feature, backward compatible, no preset impact).
+
 ## v1.0.12 (2026-04-26)
 
 ### Fixed

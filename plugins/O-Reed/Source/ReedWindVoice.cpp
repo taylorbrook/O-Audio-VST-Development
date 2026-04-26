@@ -120,9 +120,20 @@ void ReedWindVoice::prepare(double sampleRate, int maxBlockSize)
 
 float ReedWindVoice::getBaseFrequencyFromTuning(int midiNote) const
 {
-    if (tuningEngine != nullptr)
-        return static_cast<float>(tuningEngine->getFrequency(midiNote));
-    return static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNote));
+    double freq = (tuningEngine != nullptr)
+        ? tuningEngine->getFrequency(midiNote)
+        : juce::MidiMessage::getMidiNoteInHertz(midiNote);
+
+    // VST3 Note Expression tuning delta (Dorico microtonal). Phase 24.
+    // Helper consumes slot via exchange(0.0) — first call (in noteStarted)
+    // tunes; subsequent calls in the same block (notePitchbendChanged during
+    // a held note) return base unchanged, which is correct: NE applies once
+    // per noteStarted. Single source of truth for all three call sites
+    // (noteStarted legato, noteStarted normal, notePitchbendChanged).
+    if (pendingTuningSource != nullptr)
+        freq = Ouaricon::NoteExpression::applyPendingTuning(*pendingTuningSource, midiNote, freq);
+
+    return static_cast<float>(freq);
 }
 
 juce::dsp::Oversampling<float>& ReedWindVoice::getActiveOversampling() noexcept

@@ -341,6 +341,7 @@ OReedAudioProcessor::OReedAudioProcessor()
         auto* voice = new ReedWindVoice(i);
         voice->setAPVTS(&parameters);
         voice->setTuningEngine(&tuningEngine);
+        voice->setPendingTuningSource(&vst3Extensions.getPendingTable()); // Phase 24: NE
         synthesiser.addVoice(voice);
     }
 
@@ -379,6 +380,10 @@ void OReedAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
+
+    // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
+    // correlate tuning deltas to their NoteOn's MIDI pitch (Phase 24).
+    vst3Extensions.drainAndUpdate();
 
     // Wire tuning engine parameters
     float refPitch = parameters.getRawParameterValue("referencePitch")->load();

@@ -4,12 +4,12 @@ stage: 4
 phase: verify
 status: complete
 gsd_phase: verified
-last_updated: 2026-04-07
-version: 1.0.6
+last_updated: 2026-04-26
+version: 1.1.0
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: install
+next_action: dorico_microtonal_smoke_test
 next_stage: 4
 next_phase: complete
 stage_4_executed: true
@@ -73,6 +73,10 @@ Progress: [####################] 100%
 6. ~~Stage 2 Phase 3.5: Oversampling + Tuning + MPE + Optimization~~ -- VERIFIED (2026-04-05), zero errors, auval PASS, pluginval L10 PASS
 7. **Stage 2 COMPLETE** -- All 5 DSP phases verified, 33/35 params active
 8. **Stage 3 Phase 4.1:** WebView UI integrated -- 28 slider knobs, 6 comboboxes, 1 toggle, XY pad, 3-tab layout, collapsible sections, tuning panel, build verified (2026-04-06)
+
+## v1.1.0 -- Phase 24 propagation (2026-04-26)
+
+VST3 Note Expression microtonal support adopted via the shared `modules/tuning/note-expression` module. **First MPE consumer of the shared module.** Composition strategy: NE delta applied INSIDE the existing `getBaseFrequencyFromTuning(midiNote)` helper at `Source/ReedWindVoice.cpp:121-138`, so all three call sites (noteStarted legato @ line 141, noteStarted normal @ line 202, notePitchbendChanged @ line 374) inherit the tuning delta with a single insertion. `exchange(0.0)` consume semantics correct for one-NE-per-noteOn delivery — first call consumes the slot, subsequent calls return base unchanged (NE applies once per noteStarted; MPE pitch-bend updates compose multiplicatively on top). PLUGIN_VERSION line added explicitly to `CMakeLists.txt` (was missing — same pattern as O-Wind v1.16.0). Tri-format build clean; freshly installed; AU validates via `verify-au-link.sh`. Version bump 1.0.12 → 1.1.0 (MINOR).
 
 ## Files Created
 - plugins/O-Reed/.planning/research/ARCHITECTURE.md

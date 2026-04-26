@@ -18,6 +18,7 @@
 #include "DSP/BreathEnvelope.h"
 #include "DSP/BreathNoise.h"
 #include "DSP/MouthpieceChamber.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (PendingTuningTable + helpers)
 
 class TuningEngine;  // Forward declare, avoid header dependency
 
@@ -43,6 +44,13 @@ public:
 
     // TuningEngine injection (processor-owned, voice holds non-owning pointer)
     void setTuningEngine(TuningEngine* engine) noexcept { tuningEngine = engine; }
+
+    // VST3 Note Expression source (Phase 24): processor-owned, voice holds non-owning pointer.
+    void setPendingTuningSource(Ouaricon::NoteExpression::PendingTuningTable* source) noexcept
+    {
+        pendingTuningSource = source;
+    }
+
     float getOversamplingLatency() const noexcept { return oversampling2x.getLatencyInSamples(); }
 
 private:
@@ -58,6 +66,9 @@ private:
 
     // TuningEngine (processor-owned, voice holds non-owning pointer)
     TuningEngine* tuningEngine = nullptr;
+
+    // VST3 Note Expression pending-tuning table (Phase 24): module-owned, voice holds non-owning pointer.
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // --- DSP Components ---
     ReedModel reedModel;
