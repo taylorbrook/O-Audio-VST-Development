@@ -118,11 +118,10 @@ public:
         // Safety clamp: prevent negative or near-zero delay
         compensatedDelay = std::max(4.0f, compensatedDelay);
 
-        // Split into 2 equal segments
+        // Split into 2 equal segments (each fwd + bwd line gets compensatedDelay/4)
+        float halfDelay = std::max(2.0f, compensatedDelay * 0.25f);
         for (int i = 0; i < 2; ++i)
         {
-            float halfDelay = compensatedDelay * 0.25f;  // 0.5 per segment * 0.5 for fwd/bwd
-            halfDelay = std::max(2.0f, halfDelay);
             segForwardDelay[i].setDelay(halfDelay);
             segBackwardDelay[i].setDelay(halfDelay);
         }
