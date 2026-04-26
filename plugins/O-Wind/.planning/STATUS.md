@@ -1,14 +1,15 @@
 ---
 plugin: O-Wind
+version: 1.16.0
 stage: 4
 phase: verify
 status: installed
 gsd_phase: installed
-last_updated: 2026-04-05
+last_updated: 2026-04-26
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: none
+next_action: dorico_microtonal_smoke_test
 next_stage: complete
 contract_checksums:
   brief: sha256:9627df12cfc8f3dc786fb17e553ea73c225e928a8df21408315b4565d9d908cb
@@ -76,6 +77,10 @@ Progress: [####################] 100%
 
 1. Install plugin (`/install-plugin O-Wind`)
 2. Manual DAW testing
+
+## v1.16.0 — Phase 24 propagation (2026-04-26)
+
+Adopted shared `note-expression` module — O-Wind responds to Dorico VST3 Note Expression `kTuningTypeID` events. Composition order in `FluteSynthVoice::startNote`: TuningEngine assignment → `applyPendingTuning` (float→double cast at helper boundary) → pitch-bend → BoreWaveguide period derivation (Pattern 2: physical-model period sees tuned frequency at sample 0). CMake delta (a): added missing `PLUGIN_VERSION "1.16.0"` line inside `juce_add_plugin(O-Wind ...)` block. Tri-format build clean; AU validates via `verify-au-link.sh O-Wind`. Atomic 8-file commit. Dorico 3-point smoke gate deferred to Phase 24 batch validation.
 
 ## Context to Preserve
 

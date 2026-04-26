@@ -1,5 +1,15 @@
 # O-Wind Changelog
 
+## [1.16.0] - 2026-04-26
+
+### Added — VST3 Note Expression Microtonal Support for Dorico
+
+O-Wind adds VST3 Note Expression microtonal support for Dorico. The plugin responds to Dorico's per-note tuning messages (`kTuningTypeID` Note Expression events). Composition order: TuningEngine → NE delta → pitch-bend → bore-delay derivation. The bore waveguide period sizes to the tuned frequency on the first sample (no attack zipper). End users must set Microtonality to "VST3 Note Expression" on the Dorico expression map.
+
+**Files Modified:** `Source/PluginProcessor.{h,cpp}`, `Source/FluteSynthVoice.{h,cpp}`, `CMakeLists.txt` (added `PLUGIN_VERSION` line + `ouaricon_add_module(O-Wind note-expression)`).
+
+**Version:** 1.15.1 → 1.16.0 (MINOR — new user-visible feature, backward compatible).
+
 ## [1.15.1] - 2026-04-13
 
 ### Fixed — ADSR Release Envelope Cut Short

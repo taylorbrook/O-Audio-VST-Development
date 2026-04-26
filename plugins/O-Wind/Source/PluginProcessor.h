@@ -23,6 +23,7 @@
 #include "EmbeddedTunings.h"
 #include "TuningExporter.h"
 #include "OuariconPresetManager.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
 class OWindAudioProcessor : public juce::AudioProcessor,
                             private juce::AudioProcessorValueTreeState::Listener
@@ -62,9 +63,15 @@ public:
     // Public access to preset manager for editor
     OuariconPresetManager& getPresetManager() { return presetManager; }
 
+    // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
+
+    // VST3 Note Expression support (module-owned table + raw-event scratch)
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
 
     // Tuning engine (processor-level, shared by all voices)
     TuningEngine tuningEngine;

@@ -24,6 +24,7 @@
 #include "DSP/DCBlocker.h"
 #include "DSP/BoreWaveguide.h"
 #include "DSP/InstrumentPresets.h"
+#include "NoteExpression.h"  // modules/tuning/note-expression (PendingTuningTable + helpers)
 
 class TuningEngine;
 
@@ -46,11 +47,18 @@ public:
     // Query oversampling latency (called by processor for setLatencySamples)
     float getOversamplingLatency() const;
 
+    // VST3 Note Expression — wired by processor at addVoice time.
+    void setPendingTuningSource (Ouaricon::NoteExpression::PendingTuningTable* source)
+    {
+        pendingTuningSource = source;
+    }
+
 private:
     void updateParametersFromAPVTS();
 
     juce::AudioProcessorValueTreeState* parameters = nullptr;
     TuningEngine* tuningEngine = nullptr;
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // Current preset internal coefficients (applied on startNote or param change)
     InstrumentPreset currentPreset = InstrumentPresets::concertFlute;

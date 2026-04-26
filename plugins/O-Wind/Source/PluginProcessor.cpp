@@ -486,6 +486,7 @@ void OWindAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     {
         auto* voice = new FluteSynthVoice (&parameters, &tuningEngine);
         voice->prepareToPlay (sampleRate, samplesPerBlock);
+        voice->setPendingTuningSource (&vst3Extensions.getPendingTable()); // Phase 24: NE
         synthesiser.addVoice (voice);
     }
     synthesiser.setCurrentPlaybackSampleRate (sampleRate);
@@ -535,6 +536,10 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
     // Clear all channels (instrument: no input, voices add to buffer)
     buffer.clear();
+
+    // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
+    // correlate tuning deltas to their NoteOn's MIDI pitch.
+    vst3Extensions.drainAndUpdate();
 
     // Zero-length buffer early exit
     if (buffer.getNumSamples() == 0)

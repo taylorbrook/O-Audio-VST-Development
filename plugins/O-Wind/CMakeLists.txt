@@ -9,6 +9,7 @@ juce_add_plugin(O-Wind
     PLUGIN_CODE OWnd
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Wind${OUARICON_DEV_SUFFIX}"
+    PLUGIN_VERSION "1.16.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -46,6 +47,9 @@ target_sources(O-Wind
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/EmbeddedTunings.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningExporter.cpp
 )
+
+# Phase 24: VST3 Note Expression microtonal support (Dorico)
+ouaricon_add_module(O-Wind note-expression)
 
 # Include paths
 target_include_directories(O-Wind

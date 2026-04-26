@@ -80,6 +80,18 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     else
         currentFrequency = static_cast<float> (juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber));
 
+    // VST3 Note Expression tuning delta (Dorico).
+    // Apply BEFORE pitch-bend (below) and BEFORE BoreWaveguide period derivation
+    // (boreWaveguide.setBoreDelay(...) at the end of this block) so the
+    // physical-model period sees the tuned frequency on sample 0
+    // (Pattern 2 — no attack zipper). FluteSynthVoice uses float currentFrequency;
+    // cast through double at the helper boundary (same pattern as O-Bells).
+    if (pendingTuningSource != nullptr)
+    {
+        currentFrequency = static_cast<float> (Ouaricon::NoteExpression::applyPendingTuning (
+            *pendingTuningSource, midiNoteNumber, static_cast<double> (currentFrequency)));
+    }
+
     // Apply pitch bend
     float bendedFreq = currentFrequency * std::pow (2.0f, pitchBendSemitones / 12.0f);
 

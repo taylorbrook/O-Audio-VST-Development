@@ -274,6 +274,8 @@ modules:
         version: 4.1.0
       - plugin: O-Prism
         version: 1.17.0
+      - plugin: O-Wind
+        version: 1.16.0
 
   # ============================================================================
   # EFFECTS MODULES
