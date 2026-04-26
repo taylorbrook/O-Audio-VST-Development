@@ -2,6 +2,11 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.2.1] - 2026-04-19
+
+### Fixed
+- **Humanize panel layout** — column labels (Speed/Pressure/Position/Rosin) were overflowing their 42px-wide dial cells in the 200px-wide left panel, causing visual crowding. Reduced column-label font from 9px → 8px, tightened letter-spacing from 0.5px → 0.3px, narrowed dial cells from 42px → 38px, and reduced grid gap from 4px → 1px so all four labels and their dial pairs fit cleanly within the section box
+
 ## [1.2.0] - 2026-04-17
 
 ### Added
