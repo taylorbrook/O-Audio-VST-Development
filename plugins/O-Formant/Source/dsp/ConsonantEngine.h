@@ -140,9 +140,14 @@ public:
 
         // Consonant envelope timing derived from manner (Klatt-informed)
         // Plosive(0): 1ms attack, 0ms hold, 15ms decay  -> ~16ms total
-        // Fricative(1): 40ms attack, 60ms hold, 40ms decay -> ~140ms total
-        float envAttackMs = 1.0f + manner * 39.0f;
-        float envHoldMs   = manner * 60.0f;
+        // Fricative(1): 8ms attack, 90ms hold, 40ms decay -> ~138ms total
+        // Attack reduced from 39ms slope to 7ms slope so fricative onset is
+        // perceived at note-on (Stevens 1998: natural fricatives reach plateau
+        // in 5-15ms). 40ms attack masked the burst transient and pushed the
+        // peak energy of /sh f s/ into the middle of short notes, which read
+        // as the consonant happening late instead of at the start.
+        float envAttackMs = 1.0f + manner * 7.0f;
+        float envHoldMs   = manner * 90.0f;
         float envDecayMs  = 15.0f + manner * 25.0f;
         float srF = static_cast<float> (sr);
         cachedAttackSamples = juce::jmax (1, static_cast<int> (envAttackMs * 0.001f * srF));
@@ -237,10 +242,14 @@ public:
         float shaped = placeFilter1.processSample (noise)
                        + 0.4f * placeFilter2.processSample (noise);
 
-        // Continuous component: fricatives produce sustained noise (scales with manner)
-        float output = consonantLevel * cachedManner * shaped;
+        // Continuous component: fricatives produce sustained noise (scales with manner).
+        // Envelope is applied here only — the burst transient bypasses it so the
+        // initial onset is heard at sample 0 instead of being silenced by the
+        // attack ramp (critical for fricative perception in lyrics mode).
+        float envValue = advanceEnvelope();
+        float output = consonantLevel * cachedManner * shaped * envValue;
 
-        // -------- Burst component: plosive onset transient
+        // -------- Burst component: plosive/fricative onset transient (envelope-bypassed)
         if (burstSamplesRemaining > 0)
         {
             float progress = 1.0f - static_cast<float> (burstSamplesRemaining)
@@ -267,9 +276,6 @@ public:
             output += burstEnv * (2.0f - cachedManner) * burstShaped;
             --burstSamplesRemaining;
         }
-
-        // Always gate output with dedicated consonant envelope
-        output *= advanceEnvelope();
 
         return juce::jlimit (-1.0f, 1.0f, output);
     }

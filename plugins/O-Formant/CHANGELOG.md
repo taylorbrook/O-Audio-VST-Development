@@ -2,6 +2,26 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.24.2] - 2026-04-19
+
+### Fixed
+- **Lyrics mode: fricative consonants (/sh f s th hh/) now sound at note-on instead of mid-note.** Previously, in syllables like "SH IY", the SH was perceived as triggering at the *end* of the note rather than the beginning. Plosives were unaffected (their 1 ms attack already produced sharp onsets); the bug was specific to fricatives.
+- **Root cause:** Two compounding issues in `ConsonantEngine::getNextSample`:
+  1. The Klatt-style consonant envelope's attack scaled steeply with manner — `1 + manner * 39` ms — so for fricatives (manner=1.0) the envelope took 40 ms to ramp from 0 to 1.0. With a 140 ms total envelope (40 attack / 60 hold / 40 decay), the perceived energy peak landed at 40–100 ms after note-on.
+  2. The output multiplier `output *= advanceEnvelope()` applied the envelope to *both* the continuous frication noise *and* the burst transient. The burst (which represents the immediate aerodynamic onset and starts at full amplitude at sample 0) was therefore silenced by the envelope=0 ramp at note-on, eliminating the only fast cue that could have signaled "consonant happens here".
+- For notes shorter than ~150 ms, the consonant peak fell at or after note-off — exactly matching the user-reported "SH at the end" perception.
+
+### Technical Notes
+- **Non-breaking.** No parameter IDs, ranges, or defaults changed. Existing presets and automation load identically.
+- `envAttackMs` slope reduced from `1 + manner*39` to `1 + manner*7` (Stevens 1998: natural fricative onsets reach plateau in 5–15 ms; 8 ms attack at manner=1.0 matches that range while preserving a click-free ramp).
+- `envHoldMs` lengthened from `manner*60` to `manner*90` to keep the total fricative duration close to the previous ~140 ms (now ~138 ms) so the consonant doesn't perceptually shorten.
+- Burst component moved *outside* the envelope multiplier — applied directly to `output` after the continuous component is enveloped. The burst already has its own intrinsic decay (`exp(-cachedBurstDecayRate * progress)`) that shapes its amplitude.
+- Plosives unaffected: their attack was already 1 ms, and the burst-bypass change only matters when the envelope is non-1.0 in the first ~8 ms (which it now isn't for fricatives either).
+
+### Based On
+- Stevens, K. N. (1998). *Acoustic Phonetics*, MIT Press — fricative amplitude rise times.
+- Code-trace investigation (Tier 2). No new literature beyond reference confirmation.
+
 ## [1.24.1] - 2026-04-17
 
 ### Fixed
