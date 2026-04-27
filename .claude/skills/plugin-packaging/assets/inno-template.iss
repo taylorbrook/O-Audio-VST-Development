@@ -47,6 +47,10 @@ WelcomeLabel2=This will install {#MyAppName} v{#MyAppVersion} by Ouaricon Audio 
 [Files]
 ; Install the VST3 bundle (entire directory tree)
 Source: "{{VST3_SOURCE_PATH}}\*"; DestDir: "{commonpf}\Common Files\VST3\{#MyAppName}.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Microtonal Suite (Phase 25 v3 Path B) — bundled with every plugin install
+; Lands at %APPDATA%\Ouaricon\Microtonal Suite\ for one-time Dorico Library Manager Import.
+Source: "{{MICROTONAL_SUITE_DORICOLIB_PATH}}"; DestDir: "{userappdata}\Ouaricon\Microtonal Suite"; Flags: ignoreversion
+Source: "{{MICROTONAL_SUITE_README_PATH}}"; DestDir: "{userappdata}\Ouaricon\Microtonal Suite"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
@@ -72,5 +76,9 @@ begin
       // Ableton will rescan on next launch
       Log('Ableton preferences directory found - plugin rescan will occur on next launch');
     end;
+    // Microtonal Suite (Phase 25 v3 Path B) installed via [Files]; user activates via:
+    //   Dorico -> Library -> Library Manager -> Import... -> select Ouaricon-VST3-NoteExpression.doricolib
+    Log('[Ouaricon] Microtonal Suite installed at: ' + ExpandConstant('{userappdata}\Ouaricon\Microtonal Suite'));
+    Log('[Ouaricon] Activate in Dorico via Library -> Library Manager -> Import...');
   end;
 end;

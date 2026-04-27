@@ -172,7 +172,40 @@ $issContent | Out-File -FilePath $issPath -Encoding UTF8
 Write-Host "Generated: $issPath"
 ```
 
-### 3.4 Key Inno Setup Directives Explained
+### 3.4 Microtonal Suite template variables (Phase 25 v3 Path B)
+
+Plugins that consume the `note-expression` module bundle the canonical Dorico expression-map library bundle. The asset lands at `%APPDATA%\Ouaricon\Microtonal Suite\` on user install. The user performs a one-time `Library → Library Manager → Import…` per machine to activate the map. No Dorico auto-discovery directory is written; the install destination is Dorico-version-agnostic (D-07).
+
+Two new template variables in `inno-template.iss` `[Files]` section:
+
+- **`{{MICROTONAL_SUITE_DORICOLIB_PATH}}`** — absolute path to `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` at packaging time. Resolve from project root.
+- **`{{MICROTONAL_SUITE_README_PATH}}`** — absolute path to `modules/tuning/note-expression/resources/README-microtonal-suite.txt` at packaging time. Resolve from project root.
+
+Both lines write to `{userappdata}\Ouaricon\Microtonal Suite` with `Flags: ignoreversion` (single canonical asset; idempotent overwrite across the 8-plugin cohort).
+
+PowerShell substitution (mirroring the `{{VST3_SOURCE_PATH}}` pattern in 3.3):
+
+```powershell
+# Adjust depth per script location; from a packaging script in plugins/<P>/scripts/, the repo root is 4 levels up.
+$repoRoot = Resolve-Path "${PSScriptRoot}\..\..\..\.."
+$suiteDoricolib = "$repoRoot\modules\tuning\note-expression\resources\library\Ouaricon-VST3-NoteExpression.doricolib"
+$suiteReadme = "$repoRoot\modules\tuning\note-expression\resources\README-microtonal-suite.txt"
+$issContent = $issContent -replace '\{\{MICROTONAL_SUITE_DORICOLIB_PATH\}\}', $suiteDoricolib
+$issContent = $issContent -replace '\{\{MICROTONAL_SUITE_README_PATH\}\}', $suiteReadme
+```
+
+If the orchestrating PowerShell already runs from the project root (typical for the `build-installer` skill), substitute `$projectRoot = (Get-Location).Path` from Section 3.2 directly:
+
+```powershell
+$suiteDoricolib = Join-Path $projectRoot "modules\tuning\note-expression\resources\library\Ouaricon-VST3-NoteExpression.doricolib"
+$suiteReadme = Join-Path $projectRoot "modules\tuning\note-expression\resources\README-microtonal-suite.txt"
+$issContent = $issContent -replace '\{\{MICROTONAL_SUITE_DORICOLIB_PATH\}\}', $suiteDoricolib
+$issContent = $issContent -replace '\{\{MICROTONAL_SUITE_README_PATH\}\}', $suiteReadme
+```
+
+The activation hint is logged by the template's `[Code]` `CurStepChanged(ssPostInstall)` block (no PowerShell substitution required for that side).
+
+### 3.5 Key Inno Setup Directives Explained
 
 - **`{commonpf}`** = `C:\Program Files` on 64-bit Windows (handles 64-bit correctly with `ArchitecturesInstallIn64BitMode`)
 - **`ArchitecturesInstallIn64BitMode=x64compatible`** = ensures 64-bit installation mode for 64-bit-only VST3 plugins
