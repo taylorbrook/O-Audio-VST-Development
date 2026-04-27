@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
 status: executing
-stopped_at: Phase 25 v3 context gathered (Path B locked)
-last_updated: "2026-04-27T15:30:11.375Z"
-last_activity: 2026-04-27 -- Phase 25 planning complete
+stopped_at: Phase 25 Plan 25-01 v3 complete (Path B canary PASS); Plan 25-02 next
+last_updated: "2026-04-27T16:30:00.000Z"
+last_activity: 2026-04-27 -- Plan 25-01 v3 closed; canary PASS end-to-end
 progress:
   total_phases: 20
   completed_phases: 19
   total_plans: 67
-  completed_plans: 65
-  percent: 97
+  completed_plans: 66
+  percent: 98
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 ## Current Position
 
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
-Phase: 25 (package-docs) — REPLAN NEEDED (Plan 25-01 v2 deterministic work merged at 819b2b4 but architecturally superseded mid-checkpoint)
-Plan: 0 of 3 (v2 work merged but invalidated; Plans 02–03 also need replan)
-Status: Ready to execute
-Last activity: 2026-04-27 -- Phase 25 planning complete
+Phase: 25 (package-docs) — EXECUTING
+Plan: 2 of 3 (25-01 v3 complete; 25-02 next)
+Status: Plan 25-01 closed; Plan 25-02 (8-plugin installer-bundling sweep) unblocked
+Last activity: 2026-04-27 -- Plan 25-01 v3 closed; canary PASS end-to-end on O-Lyrica-dev
 
 Progress: [██████████] 99%
 
@@ -41,6 +41,7 @@ History (Phase 25):
   2. endpointconfig.xml.in has hardcoded prod plugin names but dev/prod CIDs → silent slot drop on dev installs
   3. Playback Template architecture is over-engineered for v1.5 use case
 - Path B (validated 2026-04-27): ship single Dorico-valid .doricolib only; user assigns expression map manually in Play → Endpoints → Expression Map dropdown after loading their plugin. Verified end-to-end with quarter-sharp C4 playback at ~269 Hz on O-Lyrica-dev.
+- v3 Plan 25-01 (executed 2026-04-27): canonical .doricolib reauthored from factory skeleton + injected ExpressionMapDefinition (byte-identical to verified reference); Path A artifacts surgically excised under D-10 amend-forward (playback-template/ subtree, ouaricon_extract_vst3_cids helper, .dorico_pt packing, dual-write logic); install.cmake.in collapsed to single-write to Ouaricon shared path; module READMEs rewritten for Library Manager Import flow; O-Lyrica canary PASS end-to-end on macOS 26.3.1 / Dorico 6 / O-Lyrica-dev (build → cmake-install → Library Manager Import → quarter-sharp ~269 Hz, no zipper, polyphonic isolation). Wave 0 v3 auto-discovery probe FAIL (informational; non-blocking; logged for v1.6 deferred-ideas per D-08 carry-forward).
 
 Finding docs:
 
@@ -51,7 +52,7 @@ Test log: `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` (full 
 
 Reference asset: `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B, Dorico-valid skeleton, import-confirmed)
 
-Next: `/clear` then `/gsd-discuss-phase 25 --replan` to lock Path B as v3 architecture; surface open questions (auto-discovery vs explicit import, <pluginNames> schema, Plan 25-02/03 simplification, whether to revert 819b2b4 or amend forward).
+Next: `/clear` then `/gsd-execute-phase 25` to run Plan 25-02 (8-plugin installer-bundling sweep — INST-03, INST-04). Plan 25-01 v3 closed with canary PASS; install component `ouaricon_note_expression_<TARGET>` proven; canonical asset + companion README at `~/Library/Application Support/Ouaricon/Microtonal Suite/` on macOS install.
 
 ## Performance Metrics
 
@@ -95,6 +96,7 @@ Next: `/clear` then `/gsd-discuss-phase 25 --replan` to lock Path B as v3 archit
 | 23 | 04 | ~12min + human | 4 | 3 |
 | 23 | 05 | ~25min + human | 7 | 6 |
 | 24 | 01 | ~30min + human | 5 | 8 |
+| 25 | 01 | ~25min + human canary | 5 | 7 modified, 3 deleted |
 
 ## Accumulated Context
 
@@ -116,6 +118,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 - Phase 24 Plan 01: O-Bells v4.1.0 propagation canary COMPLETE (atomic commit 8fee3a8). PROP-01 + TRACK-01..05 satisfied. 8-file atomic commit (CMakeLists.txt + PluginProcessor.{h,cpp} + BellVoice.{h,cpp} + CHANGELOG.md + STATUS.md + registry.yaml). Tri-format ninja exit 0 — no Steinberg-symbol leak (per-format module-source convention from Phase 23 D-22..D-29 holds). scripts/verify-au-link.sh O-Bells PASS — `AU VALIDATION SUCCEEDED. auval accepted O-Bells (aumu OBls OuDv)`. Dorico 3-point smoke gate (D-07) ALL PASS — gate 1 (~269.29 Hz at +50¢ above C4, Pattern 3 240-semitone full-scale validated); gate 2 (no attack zipper, Pattern 2 apply-before-DSP-trigger validated); gate 3 (polyphonic chord — only C4 detuned, E4 plays 12-TET 329.63 Hz, Pattern 1 noteId-correlation validated). System-environment notes: OUARICON_DEV_SUFFIX=-dev produces dev-suffixed bundles alongside prod-named bundles (intentional dev branding); auval -a system listing returns zero aumu entries on this machine (host-environment quirk affecting all plugins; verify-au-link.sh is canonical D-08 path and PASSES). Float→double cast at applyPendingTuning helper boundary works as designed (BellVoice uses float fundamental). Plan-checker phrasing: CHANGELOG body lowercase "adds" matches plan §verify grep; pattern propagates to plans 24-02..24-07. Feeds 24-08-final-sweep-SUMMARY.md row 1 of 8.
 - Phase 24 Plans 02-07: 6 atomic propagation commits landed in single `/gsd-execute-phase 24` session 2026-04-26 (deferred-batch Dorico flow per user direction): O-Prism v1.17.0 (0393d0d), O-Wind v1.16.0 (4ae4600), O-IntonationPad v2.8.0 (a935830), O-Reed v1.1.0 (c829350), O-Bowed v1.3.0 (7b20d14), O-Formant v1.25.0 (d0e101a). Each: 8-file atomic commit, tri-format ninja exit 0, verify-au-link.sh PASS, fresh dual-bundle install. Three Rule-3 inline fixes uncovered/resolved during sweep: (a) O-IntonationPad CMakeLists missing `juce::juce_audio_utils` + `juce::juce_audio_devices` (blocked Standalone build); (b) O-Bowed missing `isBusesLayoutSupported` override (caused auval segfault, NOT NE regression); (c) O-Formant missing `OuariconModules.cmake` include (planned 2-step structural edit). Five propagation patterns catalogued for v1.5 retrospective: classic-Synthesiser-multi-osc (Prism), classic-Synthesiser-physical-period (Bells/Wind), classic-Synthesiser-multi-sub-voice (IntonationPad: applyPendingTuning at root with multiplicative ratio derivation), MPE-helper-based (Reed 3 sites / Bowed 2 sites), MPE-per-call-site (Formant). Note D pattern (explicit PLUGIN_VERSION arg in juce_add_plugin) applied to Wind/Reed/Formant/Bowed CMakeLists.
 - Phase 24 Plan 08 final sweep COMPLETE (commit 0ec32e9). All 16 build targets `ninja: no work to do` (incremental no-op confirms cumulative tri-format link cleanliness across 8 plugins). All 8 plugins PASS substantive Dorico runtime + AU loading gates (O-Lyrica is the validated spike/reference plugin from Phase 23 Plans 01-05; the auval static-check finding DEF-24-01 was DOWNGRADED 2026-04-26 to a benign parameter-meta-flag annotation gap, not a defect). modules/registry.yaml note-expression.used_by has all 8 expected consumers; module v1.0.0 unchanged (D-33 honored). Dorico 3-point batch validation 2026-04-26: ALL 8 PLUGINS PASS (24/24 individual gate-points). VERIFICATION.md status=passed. Phase 24 closes v1.5 propagation cycle.
+- Phase 25 Plan 01 v3 (Path B locked, completed 2026-04-27): single canonical Dorico-valid `.doricolib` (full 48-container kScoreLibrary skeleton + injected ExpressionMapDefinition; byte-identical to verified `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` reference) authored at `modules/tuning/note-expression/resources/library/`. Path A artifacts surgically excised under D-10 amend-forward (3 deletion groups in commit db20a04: playback-template/ subtree, ouaricon_extract_vst3_cids helper, .dorico_pt packing in module.cmake). install-microtonal-suite.cmake.in collapsed from 87-line dual-write to ~40-line single-write to platform-specific Ouaricon shared path only (D-07; v1.6 revival reference preserved as `git show 819b2b4:...`). Module READMEs rewritten for Library Manager Import flow (Path B); technical-mechanics paragraph (kVST3NoteExpression invariant) preserved verbatim. O-Lyrica canary PASS end-to-end on macOS 26.3.1 / Dorico 6 / O-Lyrica-dev: ninja build exit 0, cmake --install lands assets at `~/Library/Application Support/Ouaricon/Microtonal Suite/`, Dorico Library Manager Import succeeds (no invalid-file-format error), quarter-sharp C4 plays at ~269 Hz target with no attack zipper, polyphonic isolation as expected. Wave 0 v3 auto-discovery probe FAIL (informational only; non-blocking; logged for v1.6 deferred-ideas per D-08 carry-forward). 6 atomic commits: ad9e5e4 (Task 1), db20a04 (Task 2), 98479ba (Task 3), 93d29d6 (Task 4), c45703b (Task 5 verification log), f15b7e8 (v3 SUMMARY). INST-01 + INST-02 satisfied. Plan 25-02 unblocked.
 
 ### Pending Todos
 
@@ -144,11 +147,11 @@ v1.5 decisions (to be logged as phase execution progresses):
 
 ## Session Continuity
 
-Last session: 2026-04-27T14:43:38.816Z
-Stopped at: Phase 25 v3 context gathered (Path B locked)
-Resume file: .planning/phases/25-package-docs/25-CONTEXT.md
+Last session: 2026-04-27T16:30:00.000Z
+Stopped at: Phase 25 Plan 25-01 v3 closed; canary PASS end-to-end; Plan 25-02 unblocked
+Resume file: None
 
-Next: `/gsd-progress` to route to Phase 25 (final v1.5 phase) — or `/gsd-complete-milestone v1.5` if v1.5 is ready to ship
+Next: `/clear` then `/gsd-execute-phase 25` to run Plan 25-02 (8-plugin installer-bundling sweep — INST-03, INST-04). Plan 25-03 (internal docs — DOCS-01..DOCS-05) follows.
 
 ---
 *v1.4 shipped 2026-03-07. v1.5 Microtonal Shared Module & Suite Propagation started 2026-04-24. Running total: 5 milestones shipped, 22 phases, 64 plans, 108 requirements. v1.5 adds 3 phases (23-25) and 33 requirements.*

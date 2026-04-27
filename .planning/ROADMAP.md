@@ -127,7 +127,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 25-01-author-and-install-collapse-PLAN.md — Wave 0 informational auto-discovery probe + reauthor canonical .doricolib from factory skeleton + surgical Path A deletion (playback-template/, extract_vst3_cids helper, .dorico_pt packing) + collapse install.cmake.in to single-write + rewrite both READMEs for Path B import flow + O-Lyrica canary install (INST-01, INST-02)
+- [x] 25-01-author-and-install-collapse-PLAN.md — Wave 0 informational auto-discovery probe + reauthor canonical .doricolib from factory skeleton + surgical Path A deletion (playback-template/, extract_vst3_cids helper, .dorico_pt packing) + collapse install.cmake.in to single-write + rewrite both READMEs for Path B import flow + O-Lyrica canary install (INST-01, INST-02) -- completed 2026-04-27 (canary PASS end-to-end on macOS 26.3.1 / Dorico 6 / O-Lyrica-dev; Wave 0 v3 probe FAIL informational/non-blocking)
 - [ ] 25-02-installer-bundling-sweep-PLAN.md — Extend shared PKG postinstall + Inno Setup template + reference for Path B single-asset bundling; rebuild installers across 8 plugins; cross-platform validation matrix (INST-03, INST-04)
 - [ ] 25-03-internal-notes-PLAN.md — Author research/microtonal-dorico-integration.md (4 H2 sections, Path B reframed) (DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05)
 
@@ -145,10 +145,10 @@ Phases execute in numeric order: 23 → 24 → 25
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
 | 23 (A) | v1.5 | 5/5 | Complete    | 2026-04-25 |
 | 24 (B) | v1.5 | 8/8 | Complete   | 2026-04-26 |
-| 25 (C) | v1.5 | 0/3 | Planning complete (replan v3 — Path B) | - |
+| 25 (C) | v1.5 | 1/3 | Plan 25-01 complete (canary PASS); 25-02 next | - |
 
-**Cumulative: 22 phases complete, 65 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 25 v3 replan locks Path B (standalone .doricolib + Library Manager Import).**
+**Cumulative: 22 phases complete, 66 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 25 v3 replan locks Path B (standalone .doricolib + Library Manager Import). Plan 25-01 closed 2026-04-27 with end-to-end O-Lyrica canary PASS.**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-04-27 -- Phase 25 v3 replan (Path B locked); 3 plans authored*
+*Last updated: 2026-04-27 -- Plan 25-01 v3 complete (canary PASS); Plan 25-02 unblocked*
