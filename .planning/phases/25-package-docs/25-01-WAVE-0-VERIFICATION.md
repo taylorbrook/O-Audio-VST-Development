@@ -131,3 +131,78 @@ ACTUAL_CID=$(python3 -c "import json,re; raw=open('$HOME/Library/Audio/Plug-Ins/
 grep -q "$ACTUAL_CID" "$HOME/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml" && echo "OLYRICA CID SUBSTITUTED OK"
 grep -c "@.*_PLUGINID@" "$HOME/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml"  # expect 0
 ```
+
+---
+
+## Wave 0 v3 — Auto-discovery Probe Result
+
+**Probe date:** 2026-04-27
+**Dorico version:** 6 (macOS, `/Applications/Dorico 6.app`)
+**macOS version:** 26.3.1 (captured via `sw_vers -productVersion`)
+**Plugin build flavor:** O-Lyrica-dev
+**Reference asset used:** `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B; the verified 2026-04-27 reference)
+**Verdict:** **FAIL** (informational only — non-blocking)
+
+**Evidence (one-line):** Ouaricon VST3 Note Expression did NOT appear in `Play → Endpoints → Expression Map` dropdown without an explicit `Library → Library Manager → Import` action.
+
+**Mandatory statement:** Informational only — does not affect v3 ship behavior (D-01 ships explicit-import). Result logged for v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas).
+
+**Cleanup verification (`ls` of Dorico User expression-map dir post-probe):**
+```
+$ ls -la "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/"
+total 0
+drwxr-xr-x@ 2 taylorbrook  staff   64 Apr 27 09:13 .
+drwxr-xr-x@ 4 taylorbrook  staff  128 Apr 26 22:53 ..
+```
+The temporary `.doricolib` (the user copied it under the canonical name `Ouaricon-VST3-NoteExpression.doricolib` rather than the `-v2` suffix specified in the plan) was removed during continuation-executor cleanup. Dir is now empty — no probe residue persists.
+
+---
+
+## Plan 25-01 v3 Canary — O-Lyrica Path B End-to-End
+
+**Date:** 2026-04-27
+**Dorico version:** 6 (macOS, `/Applications/Dorico 6.app`)
+**macOS version:** 26.3.1 (`sw_vers -productVersion`)
+**Plugin build flavor:** O-Lyrica-dev
+**Verdict:** **PASS**
+
+User-confirmed PASS on dev machine; granular timing/Hz metrics not separately captured (subjective listening confirmed quarter-sharp at the expected ~269 Hz target).
+
+### Step 1 — Configure + build O-Lyrica
+- Command: `ninja OLyrica_VST3 OLyrica_AU` (run in `/Users/taylorbrook/Dev/VST-development/build`)
+- Result: **PASS** — exit 0; build succeeded with no CMake-configure errors referencing the deleted `ouaricon_extract_vst3_cids` helper or any deleted Path A file path. The surgical-deletion + collapse work from Tasks 1-4 holds at the build gate.
+
+### Step 2 — Cache clear + fresh install (per CLAUDE.md)
+- AU cache cleared (`killall AudioComponentRegistrar`, `rm -rf ~/Library/Caches/AudioUnitCache/`, etc.)
+- VST3 + AU bundles relocated to system plugin folders:
+  - `~/Library/Audio/Plug-Ins/VST3/OLyrica*.vst3`
+  - `~/Library/Audio/Plug-Ins/Components/OLyrica*.component`
+- Result: **PASS** — fresh-install per CLAUDE.md protocol completed without stale-cache artifacts.
+
+### Step 3 — `cmake --install` (suite component)
+- Command: `cmake --install . --component ouaricon_note_expression_OLyrica`
+- Console: `[Ouaricon] Microtonal Suite installed: …` STATUS line printed
+- Files landed at `~/Library/Application Support/Ouaricon/Microtonal Suite/`:
+  - `Ouaricon-VST3-NoteExpression.doricolib` (6,431 B; byte-identical to canonical source)
+  - `README-microtonal-suite.txt` (Path B fallback docs)
+- Result: **PASS** — single-write to Ouaricon shared path (D-07) confirmed; no writes to Dorico auto-discovery directories (D-01).
+
+### Step 4 — Library Manager Import in Dorico 6
+- Action: `Library → Library Manager → Import…` → selected `Ouaricon-VST3-NoteExpression.doricolib` from `~/Library/Application Support/Ouaricon/Microtonal Suite/`
+- Result: **PASS** — import succeeded with NO "Error opening file: invalid file format" dialog. The reauthored `.doricolib` (full 48-container `<kScoreLibrary>` skeleton + injected `<ExpressionMapDefinition>`) is Dorico-valid.
+- Verification: `Library → Expression Maps` shows "Ouaricon VST3 Note Expression" in the list. `Play → Endpoints → Expression Map` dropdown contains "Ouaricon VST3 Note Expression" for the O-Lyrica-dev channel; assigned successfully.
+
+### Step 5 — Quarter-sharp smoke (Phase 24 3-point gate)
+- Test: C4 with quarter-sharp accidental on O-Lyrica-dev channel with the imported expression map assigned
+- **Pitch:** quarter-sharp C4 plays at the expected ~269 Hz target (between standard C4 = 261.63 Hz and C♯ = 277.18 Hz). User-confirmed PASS by ear; exact frequency reading not separately measured at this checkpoint (full Hz-meter reading was previously captured during the Path B validation on 2026-04-27, see `25-FINDING-path-b-validation.md`).
+- **Attack zipper:** none observed at note onset (Pattern 2 `apply-before-DSP-trigger` invariant holds).
+- **Polyphonic isolation (3-point gate):** as expected — only the C4 quarter-sharp note is detuned; other notes in a chord play 12-TET (Pattern 1 `noteId-correlation` holds).
+
+### Step 6 — Result appended above
+- Section header: `## Plan 25-01 v3 Canary — O-Lyrica Path B End-to-End` (this section)
+- All 6 step results recorded
+- Final line: **Verdict: PASS**
+
+### Outcome
+
+End-to-end v3 Path B pipeline proven on O-Lyrica-dev. The single-asset (`Ouaricon-VST3-NoteExpression.doricolib`) + single-write (`~/Library/Application Support/Ouaricon/Microtonal Suite/`) + manual Library Manager Import flow works as designed. Plan 25-01 closes; Plan 25-02 (8-plugin installer-bundling sweep) unblocked.
