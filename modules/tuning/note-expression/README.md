@@ -1,4 +1,4 @@
-# note-expression v1.0.0
+# note-expression v1.1.0
 
 VST3 Note Expression (`kTuningTypeID`) support for Dorico microtonal playback.
 The module wraps the VST3 Note Expression mechanism so JUCE-based plugins can
@@ -152,25 +152,48 @@ the DSP trigger (so the first output sample sizes to the tuned frequency —
 no attack zipper). See landmine 4 in
 `.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md`.
 
-## Dorico End-User Setup
+## Dorico End-User Setup (v1.1.0+ auto-discovery flow)
 
-Dorico's default and "Auto" microtonality settings route microtones to VST2
-detune or pitch bend for non-Steinberg VST3 plugins — neither reaches a
-JUCE-based VST3 plugin. The plugin will play 12-TET no matter how
-microtonal the score is. Users MUST create a custom expression map.
+Starting in module v1.1.0, every cohort plugin's installer ships the
+Ouaricon Microtonal Suite Playback Template + expression-map library
+directly to Dorico's auto-scan directories. NO manual import is
+required for the typical case.
 
-Four-step procedure:
+**Auto-discovery (default):**
 
-1. `Dorico -> Library -> Expression Maps...`
-2. Duplicate an existing compatible map (or create a new one).
-3. Set **Microtonality** to **"VST3 Note Expression"**. Save the map.
-4. In `Play -> Endpoint Setup`, assign the new expression map to your
-   plugin's channel.
+1. Install any Ouaricon plugin (PKG on macOS or EXE on Windows).
+2. Restart Dorico.
+3. `Play -> Playback Template -> Ouaricon Microtonal Suite -> Apply and Close`.
+4. Quarter-sharp C4 verifies routing: pitch lands at +50¢ (~269.29 Hz).
+
+The installer writes to:
+
+- macOS: `~/Library/Application Support/Steinberg/Dorico [N]/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/` and `.../Default Library Additions/`
+- Windows: `%APPDATA%\Steinberg\Dorico [N]\PlaybackTemplateSpecs\Ouaricon Microtonal Suite\` and `...\DefaultLibraryAdditions\` (note: NO spaces on Windows; spaces on macOS — Pitfall 3)
+
+A canonical editable copy of both files (`Ouaricon-Microtonal-Suite.dorico_pt`
+and `Ouaricon-VST3-NoteExpression.doricolib`) is also written to the
+shared `~/Library/Application Support/Ouaricon/Microtonal Suite/`
+(macOS) or `%APPDATA%\Ouaricon\Microtonal Suite\` (Windows) directory
+for manual reference.
+
+**Manual import fallback** (if Dorico did not pick up the auto-discovered files):
+
+1. `Play -> Playback Template -> Import...` -> select `Ouaricon-Microtonal-Suite.dorico_pt` from the shared directory above.
+2. `Library -> Import Library...` -> select `Ouaricon-VST3-NoteExpression.doricolib` from the same shared directory.
+
+**Underlying mechanics.** Dorico's default and "Auto" microtonality
+settings route microtones to VST2 detune or pitch bend for non-Steinberg
+VST3 plugins — neither reaches a JUCE-based VST3 plugin. The shipped
+expression map sets `microtonalPlaybackMethod=kVST3NoteExpression`, the
+load-bearing Dorico setting that routes microtones as VST3 Note
+Expression events.
 
 **Verification.** Write a quarter-sharp accidental on C4. Playback should
 land at C4 + 50¢ ≈ 269.29 Hz (vs standard C4 = 261.63 Hz). If the note
-plays at standard C4, either the expression map is not assigned to the
-channel or its Microtonality is still set to Auto.
+plays at standard C4, the Playback Template is not applied (apply via
+`Play -> Playback Template`) or Dorico did not auto-discover the files
+(use the manual fallback above).
 
 ## JUCE Patch Management
 
