@@ -29,9 +29,6 @@ target_sources(O-Bowed
         Source/BowedStringVoice.cpp
         Source/DSP/WaveguideString.h
         Source/DSP/WaveguideString.cpp
-        Source/DSP/BowModel.h
-        Source/DSP/BowModel.cpp
-        Source/DSP/HyperbolicFriction.h
         Source/DSP/BodyResonator.h
         Source/DSP/BodyResonator.cpp
         Source/DSP/SympatheticStringEngine.h
@@ -51,6 +48,10 @@ target_sources(O-Bowed
 
 # Phase 24: VST3 Note Expression microtonal support (Dorico)
 ouaricon_add_module(O-Bowed note-expression)
+
+# Phase 2.1b: shared bow-friction module (HyperbolicFriction + BowModel).
+# Treble defaults preserved verbatim; no setter calls required in O-Bowed.
+ouaricon_add_module(O-Bowed bow-friction)
 
 # Include paths
 target_include_directories(O-Bowed

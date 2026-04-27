@@ -115,6 +115,14 @@ void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSiz
     waveguideString.prepare (spec_at_2x.sampleRate,
                              static_cast<int> (spec_at_2x.maximumBlockSize));
     bowModel.prepare (spec_at_2x.sampleRate);
+
+    // Phase 2.1b — bass-string friction defaults (module init = treble defaults).
+    // RESEARCH §13.3-Q5 setter API; PLAN rev-4 R13. v_0 (0.05) and R_s (0.5)
+    // match between treble and bass — only mu_s and mu_d differ. setRosin
+    // continues to be called per-block from updateExpressionParameters; that
+    // path overwrites v_0 from the APVTS ROSIN value, not mu_s/mu_d.
+    frictionModel.setStaticFrictionCoefficient  (0.85f);
+    frictionModel.setDynamicFrictionCoefficient (0.25f);
 }
 
 //==============================================================================

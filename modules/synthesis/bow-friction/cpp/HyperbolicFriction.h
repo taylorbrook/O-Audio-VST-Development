@@ -2,13 +2,20 @@
   ==============================================================================
 
     HyperbolicFriction.h
-    O-Bowed - Memoryless Hyperbolic Friction Model
+    Ouaricon - Memoryless Hyperbolic Friction Model
+    (shared module: bow-friction v1.0.0; consumers: O-Bowed, O-Contrabass)
     Ouaricon Audio
     Developer: Taylor Brook
 
     STK-style memoryless friction curve. Computes waveguide reflection
     coefficient from differential velocity and bow force. O(1) per sample,
     no iteration required. Always stable (rho bounded in [0, ~0.5]).
+
+    Treble defaults (mu_s = 0.8, mu_d = 0.3) preserved verbatim from
+    O-Bowed pre-extraction state. Bass-string consumers (O-Contrabass)
+    inject bass-coefficient overrides via setStaticFrictionCoefficient
+    + setDynamicFrictionCoefficient setter calls in prepareToPlay
+    (Phase 2.1b extraction; RESEARCH §13.3-Q5).
 
   ==============================================================================
 */
@@ -46,6 +53,12 @@ public:
     {
         R_s = impedance;
     }
+
+    // Phase 2.1b — bass-string consumer hooks (RESEARCH §13.3-Q5).
+    // O-Bowed never calls these (treble = init defaults, mu_s=0.8, mu_d=0.3).
+    // O-Contrabass calls both in prepareToPlay (bass = mu_s=0.85, mu_d=0.25).
+    void setStaticFrictionCoefficient  (float mu) noexcept   { mu_s = mu; }
+    void setDynamicFrictionCoefficient (float mu) noexcept   { mu_d = mu; }
 
 private:
     float mu_s = 0.8f;   // static friction coefficient

@@ -1,0 +1,58 @@
+# bow-friction module v1.0.0
+# Hyperbolic friction junction + bow-envelope state for digital-waveguide
+# bowed-string physical models. Extracted from O-Bowed Phase 2.1b.
+
+name: bow-friction
+version: 1.0.0
+description: |
+  Memoryless hyperbolic friction model (HyperbolicFriction) and
+  bow-envelope state (BowModel) for digital-waveguide bowed-string
+  synthesis. Pure value-class C++ — no JUCE patch, no per-format
+  routing, no allocations. Parametrised via setRosin / setStringImpedance
+  / setStaticFrictionCoefficient / setDynamicFrictionCoefficient.
+
+  Treble-string defaults match O-Bowed's verbatim init list
+  (mu_s = 0.8, mu_d = 0.3, v_0 = 0.05, R_s = 0.5). Bass-string
+  consumers (O-Contrabass) inject bass tuning via setter calls in
+  prepareToPlay.
+
+category: synthesis
+author: Ouaricon Audio
+
+# What this module provides
+provides:
+  cpp-classes:
+    - HyperbolicFriction
+    - BowModel
+
+# Dependencies (none — pure value-class C++)
+dependencies: []
+
+# JUCE requirements
+requirements:
+  juce_modules: []   # BowModel.cpp uses only <cmath>; HyperbolicFriction.h is header-only
+  cpp_standard: 20
+
+# Source files
+sources:
+  cpp:
+    - cpp/HyperbolicFriction.h
+    - cpp/BowModel.h
+    - cpp/BowModel.cpp
+
+# Tracking — first consumers are O-Bowed 1.3.0 + O-Contrabass 1.0.0 (Phase 2.1b extraction).
+used_by:
+  - plugin: O-Bowed
+    version: 1.3.0
+  - plugin: O-Contrabass
+    version: 1.0.0
+
+changelog:
+  - version: 1.0.0
+    date: 2026-04-27
+    changes:
+      - "Initial extraction from O-Bowed/Source/DSP (Phase 2.1b)"
+      - "HyperbolicFriction (header-only, 55 LOC + 2 new bass setters)"
+      - "BowModel (51 LOC header + 97 LOC cpp)"
+      - "setStaticFrictionCoefficient / setDynamicFrictionCoefficient setters added (PLAN rev-4 R10 / RESEARCH §13.3-Q5)"
+      - "Treble defaults preserved verbatim; bass consumers inject via setter API"

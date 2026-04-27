@@ -2,9 +2,11 @@
   ==============================================================================
 
     BowModel.cpp
-    O-Contrabass - Bow Excitation Envelope Model (bass-tuned)
+    Ouaricon (bow-friction module) - Bow Excitation Envelope Model
     Ouaricon Audio
     Developer: Taylor Brook
+
+    Phase 2.1b extraction — implementation unchanged from O-Bowed.
 
   ==============================================================================
 */

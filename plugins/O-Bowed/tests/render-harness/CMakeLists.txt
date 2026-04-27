@@ -20,10 +20,12 @@ target_sources(O-Bowed-render-test PRIVATE
     # implementation, not a separate static library. PluginEditor.cpp is
     # included so the AudioProcessor's createEditor() symbol resolves at link
     # time, even though the harness never calls it.
+    #
+    # Phase 2.1b: BowModel.cpp + HyperbolicFriction.h are now provided by the
+    # bow-friction module via ouaricon_add_module() at the bottom of this file.
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginEditor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/BowedStringVoice.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/BowModel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/WaveguideString.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/BodyResonator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/SympatheticStringEngine.cpp
@@ -110,3 +112,8 @@ target_link_libraries(O-Bowed-render-test
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
 )
+
+# Phase 2.1b — bow-friction module pulls HyperbolicFriction.h + BowModel.{h,cpp}
+# into the harness binary alongside the per-plugin reach-back sources above.
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+ouaricon_add_module(O-Bowed-render-test bow-friction)

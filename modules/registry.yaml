@@ -286,6 +286,33 @@ modules:
         version: 1.25.0
 
   # ============================================================================
+  # SYNTHESIS MODULES
+  # ============================================================================
+
+  - name: bow-friction
+    path: synthesis/bow-friction
+    version: 1.0.0
+    description: |
+      Memoryless hyperbolic friction model (HyperbolicFriction) and
+      bow-envelope state (BowModel) for digital-waveguide bowed-string
+      physical models. Extracted from O-Bowed Phase 2.1b. Treble-string
+      defaults (mu_s=0.8, mu_d=0.3) preserved verbatim; bass consumers
+      (O-Contrabass) inject mu_s=0.85, mu_d=0.25 via setter API in
+      prepareToPlay.
+    category: synthesis
+    provides:
+      - cpp-class: HyperbolicFriction
+      - cpp-class: BowModel
+    dependencies: []
+    tags: [synthesis, physical-modelling, friction, waveguide, bowed-string]
+    reuse_score: 8
+    used_by:
+      - plugin: O-Bowed
+        version: 1.3.0
+      - plugin: O-Contrabass
+        version: 1.0.0
+
+  # ============================================================================
   # EFFECTS MODULES
   # ============================================================================
 

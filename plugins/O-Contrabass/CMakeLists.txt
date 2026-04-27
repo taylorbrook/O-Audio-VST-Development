@@ -27,10 +27,11 @@ target_sources(O-Contrabass PRIVATE
     Source/PluginEditor.cpp
 
     # Phase 2.1a — single-string E1 voice + bass-tuned bow-friction + waveguide.
-    # HyperbolicFriction.h, BowModel.h, WaveguideString.h, BowedContrabassVoice.h,
-    # OContrabassMPESynthesiser.h are header-only / picked up via include path.
+    # WaveguideString.h, BowedContrabassVoice.h, OContrabassMPESynthesiser.h
+    # are header-only / picked up via include path.
+    # Phase 2.1b — HyperbolicFriction.h + BowModel.{h,cpp} now come from the
+    # shared bow-friction module via ouaricon_add_module below.
     Source/BowedContrabassVoice.cpp
-    Source/DSP/BowModel.cpp
     Source/DSP/WaveguideString.cpp
 
     # scala-tuning-engine — Pattern B (explicit file refs, sibling-plugin convention)
@@ -86,6 +87,9 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # note-expression — Pattern A (per-format VST3 routing required)
 ouaricon_add_module(O-Contrabass note-expression)
+
+# Phase 2.1b — extracted shared friction module (bass setters in prepareToPlay).
+ouaricon_add_module(O-Contrabass bow-friction)
 
 # ----------------------------------------------------------------------------
 # Phase 2.1a render-harness binary (Phase 2.1 stability gate, RESEARCH §Q1).

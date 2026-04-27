@@ -20,8 +20,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "DSP/WaveguideString.h"
-#include "DSP/BowModel.h"
-#include "DSP/HyperbolicFriction.h"
+#include "BowModel.h"
+#include "HyperbolicFriction.h"
 #include "DSP/ElastoPlasticFriction.h"
 #include "DSP/SubHarmonicsGenerator.h"
 #include "DSP/BowNoiseGenerator.h"

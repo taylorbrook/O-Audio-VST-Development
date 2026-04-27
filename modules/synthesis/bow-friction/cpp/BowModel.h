@@ -2,13 +2,16 @@
   ==============================================================================
 
     BowModel.h
-    O-Bowed - Bow Excitation Envelope Model
+    Ouaricon (bow-friction module) - Bow Excitation Envelope Model
     Ouaricon Audio
     Developer: Taylor Brook
 
     Generates bow velocity (v_bow) and bow force (F_bow) signals from
     MIDI input and parameter values. One-pole envelope smoothing for
     click-free attack/release. Velocity-dependent attack time (5-50ms).
+
+    Plugin-agnostic: same envelope behaviour for both O-Bowed and
+    O-Contrabass consumers. Phase 2.1b extraction.
 
   ==============================================================================
 */
