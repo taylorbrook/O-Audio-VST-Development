@@ -61,6 +61,14 @@ Plugins use web-based interfaces (HTML/CSS/JS) rendered via JUCE's WebView inste
 - **Familiar tools**: Use web technologies many creators already understand
 - **Responsive layouts**: Easily adapt UIs to different sizes and contexts
 
+### Microtonal Dorico Playback (v1.5)
+
+Pitched plugins ship with VST3 Note Expression support so Dorico can drive per-note microtonal inflections (quarter-tones, just intonation, custom tunings) directly from the score — no MIDI Pitch Bend hacks, no per-track lane workarounds.
+
+- **Shared module** — `modules/tuning/note-expression` (v1.1.0): a header-only `Ouaricon::NoteExpression` API that owns the Note Expression Controller (`kTuningTypeID`), drains raw NE events from a patched JUCE wrapper, and applies per-note semitone offsets at the voice call site. Composes cleanly with the `scala-tuning-engine` module.
+- **Cohort consumers** — O-Lyrica, O-Bells, O-Prism, O-Wind, O-IntonationPad, O-Reed, O-Bowed, O-Formant.
+- **How it works in Dorico** — installers (PKG on macOS, EXE on Windows) bundle `Ouaricon-VST3-NoteExpression.doricolib`. User runs Dorico → Library → Library Manager → Import once; the plugins then play back tuned pitches automatically when used as VST3 instruments in a Dorico project.
+
 ### GUI-Optional Workflow
 
 Plugins can skip custom UI and ship as "headless" plugins using DAW-provided controls:
@@ -855,7 +863,18 @@ All 35 requirements delivered across 7 phases:
 | 6. Domain Specialization | Real-time safety rules, thread-safety patterns, quality standards | ✓ Complete |
 | 7. Module System | Dependency tracking, semver, upgrade notifications | ✓ Complete |
 
-**System status**: Production ready. v1.0 milestone complete (2026-02-01).
+### Milestone History
+
+| Milestone | Theme | Shipped |
+|-----------|-------|---------|
+| v1.0 | Plugin Freedom System foundation | 2026-02-01 |
+| v1.1 | Repository cleanup, planning workflow | — |
+| v1.2 | Resource discovery & context injection | — |
+| v1.3 | Opus 4.6 platform, agent teams, persistence | — |
+| v1.4 | Domain refinements & template auto-selection | — |
+| v1.5 | **Microtonal Shared Module & Suite Propagation** — `note-expression` v1.1.0 module + Dorico Library Manager distribution across 8 cohort plugins | 2026-04-27 |
+
+**System status**: Production ready. 25 phases complete across 6 milestones (141 requirements satisfied).
 
 ## Requirements
 

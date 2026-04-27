@@ -133,6 +133,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 14 | Full system review of PFS (632K tokens, 15 recommendations, 9 quick wins) | 2026-03-05 | 564c8bd | [14-full-system-review-of-plugin-freedom-sys](./quick/14-full-system-review-of-plugin-freedom-sys/) |
 | e4q | Sweep repo root: remove 24 debug artifacts, add gitignore rules | 2026-03-19 | 523c74e | [260319-e4q-sweep-repo-root-for-misplaced-screenshot](./quick/260319-e4q-sweep-repo-root-for-misplaced-screenshot/) |
 | 260408-vzl | Fix tuning module integration - compare with O-Prism, add container queries | 2026-04-09 | b6df44a | [260408-vzl-fix-tuning-module-integration-compare-wi](./quick/260408-vzl-fix-tuning-module-integration-compare-wi/) |
+| 260427-readme | README v1.5 milestone update — Microtonal Dorico Playback subsection + Milestone History table | 2026-04-27 | (pending) | [260427-readme-v15-microtonal](./quick/260427-readme-v15-microtonal/) |
 
 ## Session Continuity
 
