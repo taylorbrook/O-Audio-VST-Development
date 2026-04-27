@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<playbackTemplateSpec>
+    <fileVersion>1.1416</fileVersion>
+    <playbackTemplateSpecID>playbacktemplate.user.ouaricon_microtonal_suite</playbackTemplateSpecID>
+    <name>Ouaricon Microtonal Suite</name>
+    <creator>Ouaricon Audio</creator>
+    <description>VST3 Note Expression routing for the Ouaricon v1.5 microtonal cohort (O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant).</description>
+    <version>1</version>
+    <associatedSpaceTemplateID/>
+    <entries array="true">
+        <entry>
+            <instrumentFamilies/>
+            <instruments/>
+            <endpointConfig>
+                <configID>endpointconfig.user.ouaricon_microtonal_suite</configID>
+            </endpointConfig>
+        </entry>
+    </entries>
+</playbackTemplateSpec>
