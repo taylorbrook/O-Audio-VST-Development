@@ -2,158 +2,255 @@
 phase: 25-package-docs
 plan: 01
 subsystem: tuning/note-expression module
-tags: [dorico, playback-template, doricolib, microtuning, vst3-note-expression, cmake, configure_file, install-script]
+tags: [dorico, doricolib, microtuning, vst3-note-expression, cmake, path-b, library-manager-import]
+
 dependency_graph:
   requires:
-    - "Phase 23 (note-expression module v1.0.0 extracted at modules/tuning/note-expression/)"
-    - "Phase 24 (8 cohort plugins consume ouaricon_add_module(<P> note-expression))"
-    - "Plan 25-01 v1 reverted at d2c86c5 — XML body recoverable from cd2c2c6"
+    - phase: 23-extract
+      provides: "note-expression module v1.0.0 at modules/tuning/note-expression/ + 8 cohort consumers wired"
+    - phase: 24-propagate
+      provides: "All 8 plugins consume ouaricon_add_module(<P> note-expression); 3-point Dorico gate validated"
+    - finding: "25-FINDING-path-b-validation.md (2026-04-27) — proves single .doricolib + Library Manager Import works end-to-end"
+    - reference: "/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib (6,431 B Dorico-valid reference; verified 2026-04-27)"
   provides:
-    - "Two distributable Dorico assets (.dorico_pt + .doricolib) authored at modules/tuning/note-expression/resources/"
-    - "ouaricon_extract_vst3_cids CMake helper (reads moduleinfo.json, sets <NAME>_PLUGINID vars)"
-    - "module.cmake-driven .dorico_pt packing + dual install(SCRIPT) plumbing"
-    - "Per-platform install-microtonal-suite.cmake.in template (macOS/Windows; Dorico 6/5/4 probe)"
-    - "Module v1.1.0 in module.yaml + registry.yaml; README documents auto-discovery flow"
+    - "Canonical Path B asset at modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib (full 48-container kScoreLibrary skeleton + injected ExpressionMapDefinition)"
+    - "Surgically clean module/CMake state — no Path A residue (no .dorico_pt packing, no extract_vst3_cids helper, no playback-template/ subtree, no dual-write)"
+    - "Single-write install script targeting platform-specific Ouaricon shared path only (~/Library/Application Support/Ouaricon/Microtonal Suite/ on macOS; %APPDATA%\\Ouaricon\\Microtonal Suite\\ on Windows)"
+    - "Module v1.1.0 README + user-facing fallback README rewritten for Path B Library Manager Import flow"
+    - "End-to-end O-Lyrica canary PASS proving build → install → import → quarter-sharp playback pipeline"
   affects:
-    - "Plan 25-02 (atomic 8-plugin installer sweep) — installer configs consume the module's two staged resources"
-    - "Plan 25-03 (internal docs) — referenced canonical asset paths"
-tech_stack:
-  added: [cmake-configure_file-AT_ONLY, cmake-tar-zip-pack, cmake-install-SCRIPT, python3-json-trailing-comma-strip]
-  patterns: [pattern-A-module-owned-asset, pattern-B-cmake-helper-fn, pattern-C-xml-token-substitution, pattern-D-recovered-XML, pattern-E-recovered-README, pattern-F-per-platform-dual-write, pattern-J-semver-minor-bump]
-key_files:
-  created:
-    - "modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib"
+    - "Plan 25-02 (8-plugin installer-bundling sweep) — consumes ouaricon_note_expression_<TARGET> install component for PKG/EXE bundling"
+    - "Plan 25-03 (internal docs) — references canonical asset path + Path B import procedure"
+
+tech-stack:
+  added: [cmake-configure_file-AT_ONLY, cmake-install-SCRIPT, doricolib-kScoreLibrary-48-container-skeleton, library-manager-import-flow]
+  patterns:
+    - "Pattern (revised): module-owned single canonical asset + per-consumer install component"
+    - "Pattern: factory-skeleton bootstrap + injected definition body (kScoreLibrary container + ExpressionMapDefinition)"
+    - "Pattern: single-write to platform-specific Ouaricon shared path (D-07; no Dorico auto-discovery dual-write)"
+    - "Pattern: surgical-amend-forward over full revert (D-10; preserves audit trail in git history)"
+
+key-files:
+  created: []
+  modified:
+    - "modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib (reauthored from factory skeleton + recovered ExpressionMapDefinition; byte-identical to verified reference)"
+    - "modules/tuning/note-expression/module.cmake (lines 1-41 JUCE-NE-PATCH check preserved verbatim; lines 43-132 Path A block surgically replaced with ~25-line Path B block)"
+    - "modules/cmake/OuariconModules.cmake (ouaricon_extract_vst3_cids helper deleted; 4 functions → 3)"
+    - "modules/tuning/note-expression/install-microtonal-suite.cmake.in (collapsed from 87-line dual-write to ~40-line single-write)"
+    - "modules/tuning/note-expression/resources/README-microtonal-suite.txt (Path B import-flow rewrite; 6-section structure preserved)"
+    - "modules/tuning/note-expression/README.md (Dorico End-User Setup section rewritten for Path B; technical-mechanics paragraph preserved verbatim)"
+    - ".planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md (appended Wave 0 v3 probe + canary PASS sections)"
+  deleted:
     - "modules/tuning/note-expression/resources/playback-template/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml.in"
     - "modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml.in"
     - "modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/playbacktemplatedeps.doricolib.in"
-    - "modules/tuning/note-expression/resources/README-microtonal-suite.txt"
-    - "modules/tuning/note-expression/install-microtonal-suite.cmake.in"
-    - ".planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md"
-  modified:
-    - "modules/cmake/OuariconModules.cmake"
-    - "modules/tuning/note-expression/module.cmake"
-    - "modules/tuning/note-expression/module.yaml"
-    - "modules/tuning/note-expression/README.md"
-    - "modules/registry.yaml"
-decisions:
-  - "Per-consumer install component naming follows ouaricon_note_expression_<TARGET> convention (consistent with Phase 23 module-owned-asset shape)"
-  - "Single-target guard via `if(NOT TARGET ouaricon_microtonal_suite_pt)` avoids duplicate target definition when multiple consumers fire module.cmake"
-  - "Plan 25-01 v2 deterministic file-authoring (Tasks 1-7) executed in parallel worktree; checkpoint tasks (0a A2, 0b A4, 8 canary) deferred to user-on-dev-machine post-merge — they require physical Dorico 6 interaction and full 8-cohort VST3 builds"
+    - "(empty playback-template/ subtree directories removed)"
+
+key-decisions:
+  - "D-01 (locked): Ship explicit Library Manager Import flow for v1.5; auto-discovery deferred to v1.6 deferred-ideas"
+  - "D-03 (executed): Canonical .doricolib reauthored from factory skeleton + injected ExpressionMapDefinition; byte-identical to verified Path B reference"
+  - "D-07 (executed): Install script collapsed to single-write per platform — no Dorico auto-discovery dual-write"
+  - "D-10 (executed): Surgical amend-forward over full revert — module v1.1.0 bump, registry entry, README skeleton, version-probe pattern (preserved unused for v1.6 revival), and recovered XML body all kept; only Path A-specific files and code regions deleted"
+  - "Wave 0 v3 auto-discovery probe: FAIL (informational only; non-blocking; logged for v1.6 deferred-ideas per D-08 carry-forward)"
+
+patterns-established:
+  - "Pattern: module-owned canonical asset under modules/<category>/<module>/resources/<asset-class>/ + per-consumer install component named ouaricon_<module>_<TARGET> + configure_file → install(SCRIPT) wiring"
+  - "Pattern: dorico .doricolib authoring via HALion Sonic factory skeleton + injected definition body (preserves Dorico's required 48-container kScoreLibrary structure)"
+  - "Pattern: amend-forward strategy for failed v2 work — preserve recoverable artifacts (registry entries, version bumps, README skeletons, recovered content) in atomic deletion commits with audit-trail-preserving messages"
+
+requirements-completed: [INST-01, INST-02]
+
 metrics:
-  duration_minutes: ~15
-  tasks_completed: 7
-  tasks_deferred: 3
-  files_created: 7
-  files_modified: 5
-  commits: 8
-  completed_date: "2026-04-26"
+  duration_minutes: ~25 (deterministic Tasks 1-4) + human canary verification (Task 5)
+  tasks_completed: 5
+  files_created: 0
+  files_modified: 7
+  files_deleted: 3 (+ 5 empty parent dirs)
+  commits: 6
+  completed_date: "2026-04-27"
 ---
 
-# Phase 25 Plan 25-01 v2: Microtonal Suite Author + Plumbing Summary
+# Phase 25 Plan 25-01 v3: Author + Install-Collapse Summary
 
-VST3 Note Expression Dorico Playback Template + companion .doricolib library bundle authored, with single-source-of-truth ownership in the note-expression module's `resources/` tree and CMake plumbing that auto-installs the dual-resource pair to Dorico's auto-scan directories whenever any consumer of `ouaricon_add_module(<P> note-expression)` runs `cmake --install`.
+**Single Dorico-valid `.doricolib` (full 48-container kScoreLibrary skeleton + injected ExpressionMapDefinition) authored as module's canonical asset; Path A artifacts surgically excised; install logic collapsed to single-write to Ouaricon shared path; O-Lyrica canary PASS end-to-end (build → cmake-install → Library Manager Import → quarter-sharp ~269 Hz).**
 
-## What Was Built
+## Performance
 
-**Two distributable Dorico assets** (single source at `modules/tuning/note-expression/resources/`):
-1. `Ouaricon-Microtonal-Suite.dorico_pt` — packed at build time as a zip from the `playback-template/` source tree. Contains `playbacktemplatespec.xml`, `endpointconfig.xml` (8 plugin slots, one per cohort), and embedded `playbacktemplatedeps.doricolib` (the canonical kScoreLibrary expression-map body).
-2. `Ouaricon-VST3-NoteExpression.doricolib` — standalone expression-map library bundle, byte-exact copy of the same kScoreLibrary body. Lands in Dorico's `Default Library Additions/` for Library → Expression Maps reuse.
+- **Duration (deterministic Tasks 1-4):** ~25 minutes (sequential commits)
+- **Started:** 2026-04-27 (continuing from prior agent's checkpoint at Task 5)
+- **Completed:** 2026-04-27 (canary PASS verified by user on dev machine)
+- **Tasks:** 5 (4 deterministic + 1 human-verified canary)
+- **Files modified:** 7
+- **Files deleted:** 3 (Path A subtree)
 
-**CMake plumbing** in three coordinated touchpoints:
-- `modules/cmake/OuariconModules.cmake` — appended `ouaricon_extract_vst3_cids()` helper. Reads each built `.vst3` bundle's `Contents/Resources/moduleinfo.json` and emits per-plugin `<NAME>_PLUGINID` variables in PARENT_SCOPE. Honors `${OUARICON_DEV_SUFFIX}` so dev installers ship dev CIDs and prod ship prod (Pitfall 2 mitigation, S-3).
-- `modules/tuning/note-expression/module.cmake` — appended Microtonal Suite block (lines 1-41 preserved verbatim). Stages the templated XML files into `${CMAKE_BINARY_DIR}/_microtonal-suite/`, runs `configure_file @ONLY` × 3 to substitute the 8 `@<NAME>_PLUGINID@` tokens into endpointconfig.xml, packs the `.dorico_pt` via `cmake -E tar cf --format=zip` with stage as WORKING_DIRECTORY (no parent-dir wrapping, Pitfall 5 mitigation), and registers a per-consumer `install(SCRIPT ouaricon_note_expression_<TARGET>)` rule.
-- `modules/tuning/note-expression/install-microtonal-suite.cmake.in` — per-platform dual-write template. macOS branch + Windows branch each: copy both files to Ouaricon shared canonical path, then probe Dorico 6/5/4 in descending order, extract `.dorico_pt` zip into the first found Dorico version dir, and copy `.doricolib` into the version's `Default Library Additions/` (macOS, with spaces) or `DefaultLibraryAdditions/` (Windows, NO spaces — intentional Pitfall 3 asymmetry).
+## Accomplishments
 
-**Module metadata bumped** 1.0.0 → 1.1.0 in both `module.yaml` and `registry.yaml`. New v1.1.0 changelog entry. README "Dorico End-User Setup" section rewritten as v1.1.0+ auto-discovery flow with manual-import fallback. The 8-entry `used_by:` list in registry.yaml preserved verbatim.
+- **Canonical Dorico-valid `.doricolib`** at `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` — byte-identical (`diff -q` clean) to the verified `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` reference (6,431 B; Library Manager Import + quarter-sharp PASS validated 2026-04-27).
+- **All Path A artifacts excised** — `playback-template/` subtree (3 files + 5 empty parent dirs), `ouaricon_extract_vst3_cids` helper (~70 lines), `.dorico_pt` packing block in `module.cmake` (~90 lines), dual-write logic in `install-microtonal-suite.cmake.in` (collapsed 87 → ~40 lines).
+- **Install script collapsed to single-write** — `file(COPY)` to `~/Library/Application Support/Ouaricon/Microtonal Suite/` (macOS) or `%APPDATA%\Ouaricon\Microtonal Suite\` (Windows) only. No Dorico auto-discovery directories touched.
+- **Module READMEs rewritten** for the Path B Library Manager Import flow. Technical-mechanics paragraph (`kVST3NoteExpression` invariant) preserved verbatim. No Path A residue (`auto-discovery`, `dorico_pt`, `Default Library Additions`) anywhere.
+- **O-Lyrica canary PASS** end-to-end on macOS 26.3.1 / Dorico 6 / O-Lyrica-dev — build clean, cmake-install lands assets at Ouaricon shared path, Dorico Library Manager imports without "invalid file format", quarter-sharp C4 plays at ~269 Hz target with no attack zipper, polyphonic isolation as expected.
+- **Wave 0 v3 auto-discovery probe FAIL** logged as informational evidence for v1.6 deferred-ideas (per D-08 carry-forward). Non-blocking; v1.5 ships explicit-import as designed.
 
-**User-facing fallback README** (`README-microtonal-suite.txt`) authored with 6-section structure recovered from the v1 `README-doricoexpmap.txt` (cd2c2c6) but content fully revised for the new dual-asset Playback Template flow. Captures the macOS/Windows directory-name asymmetry explicitly so users know where files land on their platform.
+## Task Commits
 
-## Per-Task Commits (chronological)
+Six atomic commits from `ad9e5e4` through `<this final tracking commit>`:
 
-| Task | Commit | Title | Files |
-|------|--------|-------|-------|
-| 1 | `06fb002` | feat(25-01): recover canonical doricolib XML body from cd2c2c6 | library/Ouaricon-VST3-NoteExpression.doricolib + playbacktemplatedeps.doricolib.in |
-| 2 | `9f0c8ff` | feat(25-01): author Playback Template spec + 8-slot endpoint config | playbacktemplatespec.xml.in + endpointconfig.xml.in |
-| 3 | `9290835` | docs(25-01): author Microtonal Suite fallback README (INST-04) | README-microtonal-suite.txt |
-| 4 | `ef64ec4` | feat(25-01): add ouaricon_extract_vst3_cids helper for CID substitution | OuariconModules.cmake (appended) |
-| 5 | `6caf768` | feat(25-01): author per-platform install script template | install-microtonal-suite.cmake.in |
-| 6 | `33f0597` | feat(25-01): extend module.cmake with .dorico_pt packing + dual install | module.cmake (appended; lines 1-41 preserved) |
-| 7 | `02fdcc2` | feat(25-01): bump note-expression module 1.0.0 -> 1.1.0 | module.yaml + registry.yaml + README.md |
-| Wave 0 | `1815c9a` | docs(25-01): create Wave 0 + canary verification log | 25-01-WAVE-0-VERIFICATION.md |
+1. **Task 1: Reauthor canonical .doricolib (D-03)** — `ad9e5e4` (feat)
+   `feat(25-01): reauthor canonical .doricolib with full kScoreLibrary skeleton (D-03)`
+2. **Task 2: Surgical delete of Path A artifacts (D-10)** — `db20a04` (chore)
+   `chore(25-01): surgical delete of Path A artifacts (D-10)`
+   3 deletion groups in one atomic commit: playback-template/ subtree, `ouaricon_extract_vst3_cids` helper, `.dorico_pt` packing in module.cmake.
+3. **Task 3: Collapse install script to single-write (D-07)** — `98479ba` (chore)
+   `chore(25-01): collapse install script to single-write (D-07)`
+4. **Task 4: Rewrite Path B import flow in module READMEs** — `93d29d6` (docs)
+   `docs(25-01): rewrite Path B import flow in module READMEs`
+5. **Task 5: Wave 0 probe (FAIL) + canary (PASS) verification log** — `c45703b` (docs)
+   `docs(25-01): append Wave 0 probe (FAIL informational) + canary PASS results to verification log`
+6. **SUMMARY + tracking advance** — `<final commit hash>` (docs)
+   `docs(25-01): mark plan complete and advance tracking`
 
-## Pipeline Gates Passed
+## What Was Preserved from `819b2b4` (D-10 Amend-Forward)
 
-| Gate | Result |
-|------|--------|
-| `xmllint --noout` × 4 (library, deps, endpoint, spec) | PASS |
-| Cross-file ID coupling (S-4) — `xmap.ouaricon.vst3_note_expression` | PASS — 10 occurrences total (1 library + 1 deps + 8 endpoint slots) |
-| 8 plugin tokens present (`@OLYRICA_PLUGINID@` … `@OFORMANT_PLUGINID@`) | PASS — all 8 found |
-| spec → endpoint linkage (`endpointconfig.user.ouaricon_microtonal_suite`) | PASS |
-| Recovered XML byte-exact between library and embedded deps copy | PASS — `diff -q` clean |
-| README contains all 6 sections + both dir-name variants + all 8 plugins | PASS |
-| OuariconModules.cmake function count 3 → 4 | PASS |
-| module.cmake lines 1-41 preserved verbatim | PASS — `head -41` byte-exact match against parent commit |
-| module.yaml v1.1.0 + 2026-04-26 changelog entry | PASS |
-| registry.yaml note-expression v1.1.0 + 8-entry used_by preserved | PASS |
-| README.md "auto-discovery flow" + both dir-name variants + dorico_pt asset name | PASS |
+Per the D-10 surgical-amend strategy, NOT a full revert. Preserved from the v2 work:
+
+| Artifact | Provenance | Why preserved |
+|----------|------------|---------------|
+| Module v1.1.0 bump in `module.yaml` + `registry.yaml` | v2 commit `02fdcc2` | Module advanced v1.0.0 → v1.1.0 with the v2 work; v3 keeps the bump (substantive ABI/feature changes warrant the minor) |
+| Registry entry note-expression v1.1.0 + 8-entry `used_by:` list | v2 commit `02fdcc2` | Registry-system source of truth; not Path A-specific |
+| README structural skeleton (6-section fallback README + module README "Dorico End-User Setup" subsection) | v2 commits `9290835`, `02fdcc2` | Structure is sound; only the Path A content under each heading was rewritten |
+| Recovered `<ExpressionMapDefinition>` body (entityID, microtonalPlaybackMethod, creator, pitchBendRange) | v2 commit `06fb002` (originally from cd2c2c6) | Re-wrapped inside the new factory-skeleton-bootstrapped `<kScoreLibrary>` for v3; byte-equivalent expression-map content |
+| Dorico-version probe pattern (`foreach(_v 6 5 4)`) | v2 commit `6caf768` | Pattern preserved as a v1.6 revival reference in `install-microtonal-suite.cmake.in` comment block: `git show 819b2b4:modules/tuning/note-expression/install-microtonal-suite.cmake.in` |
+
+## What Was Surgically Deleted (Path A)
+
+3 deletion groups, all in commit `db20a04`:
+
+1. **`playback-template/` subtree** (3 files + 5 empty parent dirs)
+   - `playback-template/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml.in`
+   - `playback-template/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml.in`
+   - `playback-template/EndpointConfigs/Ouaricon Microtonal Suite/playbacktemplatedeps.doricolib.in`
+2. **`ouaricon_extract_vst3_cids` helper** in `modules/cmake/OuariconModules.cmake` (~70 lines; function count 4 → 3)
+3. **`.dorico_pt` packing block** in `modules/tuning/note-expression/module.cmake` (~90 lines lines 43-132 replaced with ~25-line Path B `configure_file` + `install(SCRIPT)` block; lines 1-41 JUCE-NE-PATCH marker check preserved byte-identical)
+
+## Reauthored `.doricolib` Provenance
+
+The canonical asset at `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` was reauthored per D-03:
+
+1. **Factory skeleton source:** `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/HALion Sonic/expressionMapsDefinitions.xml` — provides the authoritative 48-container `<kScoreLibrary>` structure that Dorico's parser requires for acceptance.
+2. **Injected `<ExpressionMapDefinition>`:** Body recovered from cd2c2c6 — entityID `xmap.ouaricon.vst3_note_expression`, microtonalPlaybackMethod `kVST3NoteExpression` (Landmine 3 — never `kAuto`/`kPitchBend`), creator "Ouaricon Audio", `<pluginNames />` (CID-free per D-02), pitchBendRange 2, one playingTechniqueCombination `pt.natural`.
+3. **47/48 containers emptied** to `<entities array="true" />`; `<expressionMapDefinitions>` retains the injected body. Special case: `<instrumentNames>` keeps `<language>kEnglish</language>` alongside `<entities array="true" />` (factory-skeleton invariant).
+4. **Verification:** `diff -q` clean against `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib`; `xmllint --noout` exits 0; `xmllint --xpath 'count(/kScoreLibrary/*)'` returns 48.
+
+## Single-Write Install Collapse Rationale (D-07)
+
+`install-microtonal-suite.cmake.in` collapsed from 87-line dual-write (Ouaricon shared path + Dorico version-probed `Default Library Additions/`) to ~40-line single-write (Ouaricon shared path only). Rationale:
+
+- **Path B distribution model** is "land asset at well-known location; user does one-time Library Manager Import" (D-01). Writing into Dorico's auto-discovery directories is unnecessary and leaks plugin-installer scope into Dorico's user-config space.
+- **Idempotent overwrite:** `file(COPY DESTINATION)` overwrites in place, safe for the 8-plugin installer sweep where each plugin's installer writes the same content.
+- **v1.6 revival reference:** comment block in the new file preserves a pointer to `git show 819b2b4:modules/tuning/note-expression/install-microtonal-suite.cmake.in` so the Dorico-version probe pattern is discoverable if auto-discovery work is taken up post-v1.5.
+
+## Canary Install Result
+
+**Verdict:** PASS (full step trace in `25-01-WAVE-0-VERIFICATION.md` `## Plan 25-01 v3 Canary` section)
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | `ninja OLyrica_VST3 OLyrica_AU` | exit 0 — no Path A regressions |
+| 2 | Cache clear + fresh install per CLAUDE.md | VST3 + AU bundles relocated to system plugin folders |
+| 3 | `cmake --install . --component ouaricon_note_expression_OLyrica` | `.doricolib` (6,431 B) + README landed at `~/Library/Application Support/Ouaricon/Microtonal Suite/` |
+| 4 | Dorico 6 Library Manager Import | SUCCESS — no "invalid file format" error; "Ouaricon VST3 Note Expression" appears in `Library → Expression Maps` and `Play → Endpoints → Expression Map` dropdown |
+| 5 | Quarter-sharp C4 smoke (3-point gate) | PASS — ~269 Hz target by ear; no attack zipper; polyphonic isolation as expected |
+
+Granular Hz measurement was not separately captured at this checkpoint (already captured during Path B validation 2026-04-27, see `25-FINDING-path-b-validation.md`).
+
+## Wave 0 v3 Auto-discovery Probe Result
+
+**Verdict:** FAIL (informational only — non-blocking)
+
+Probe: dropped reference asset into `~/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/`, restarted Dorico, opened a project with O-Lyrica-dev, checked `Play → Endpoints → Expression Map` dropdown.
+
+**Result:** "Ouaricon VST3 Note Expression" did NOT appear without an explicit `Library → Library Manager → Import` action.
+
+**Disposition:** Informational only — does not affect v3 ship behavior (D-01 ships explicit-import). Result logged for v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas). Probe residue cleaned up by continuation executor (Dorico User expression-map dir empty).
+
+## Decisions Made
+
+- D-01 ratified: ship explicit Library Manager Import for v1.5
+- D-03 executed: canonical .doricolib reauthored from factory skeleton + injected definition; byte-identical to verified reference
+- D-07 executed: install collapsed to single-write to Ouaricon shared path
+- D-10 executed: amend-forward over full revert
+- Wave 0 v3 probe FAIL recorded as v1.6 deferred-ideas evidence
 
 ## Deviations from Plan
 
-### Auto-fixed Issues — None
+### Auto-fixed Issues
 
-The deterministic Tasks 1-7 executed exactly as planned with no inline fixes required. The plan's `<read_first>` blocks pointed to ready-to-use verbatim XML/CMake content from RESEARCH.md and PATTERNS.md, which was used directly.
+**1. [Rule 3 - Blocking] Probe-residue cleanup mismatch**
+- **Found during:** Continuation-executor pre-flight after Task 5 PASS
+- **Issue:** Plan §`<how-to-verify>` Pre-Canary Step 6 specified cleanup of `Ouaricon-VST3-NoteExpression-v2.doricolib` from `~/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/`, but the user copied the reference under the canonical name `Ouaricon-VST3-NoteExpression.doricolib` (without the `-v2` suffix). The exact cleanup command in the plan was a no-op for the actual filename present.
+- **Fix:** Continuation executor removed `Ouaricon-VST3-NoteExpression.doricolib` from the Dorico User dir; verified dir is now empty.
+- **Files modified:** None in repo (filesystem-side cleanup outside the working tree).
+- **Verification:** `ls -la "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/"` returns the empty dir.
+- **Committed in:** `c45703b` (verification-log appendage records the corrected cleanup path).
 
-### Minor verification-criterion clarification
+### Literal-grep vs intent discrepancy (plan-checker advisory; non-blocking)
 
-Plan §Task 1 acceptance criterion states "Each file contains exactly 1 occurrence of `kVST3NoteExpression`". The recovered XML body (cd2c2c6, treated as byte-exact source per D-03) contains the load-bearing `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>` element AND a trailing comment that mentions the value name. `grep -c kVST3NoteExpression` returns 2, not 1. The XML element occurrence is correct (one per file); the comment is incidental and is part of the byte-exact recovered content. **Treating this as compliant** — the load-bearing invariant (microtonalPlaybackMethod set to kVST3NoteExpression, NOT kAuto/kPitchBend, Landmine 3) is satisfied. The recovered comment carries forward verbatim per the plan's mandate to "Recover, do not re-author" (D-03). No code change needed.
+The plan's automated acceptance check `grep -q '<pluginNames/>' modules/.../Ouaricon-VST3-NoteExpression.doricolib` (Task 1 acceptance criterion: "File contains `<pluginNames/>` (self-closing, empty — D-02 CID-free)") does NOT match the actual file content, which contains `<pluginNames />` (with a space, the form Dorico's HALion factory skeleton emits). The acceptance criterion's intent — "self-closing, empty, CID-free" — is satisfied by both the verified reference asset and the file copied from it. Both literally contain the space; the form is faithful to the validated source. Treated as compliant.
 
-## Deferred Verifications (Checkpoint Tasks 0a, 0b, 8)
+---
 
-The plan's three `checkpoint:human-verify` tasks (Wave 0 A2, Wave 0 A4, Task 8 canary) require physical interaction with Dorico 6 on the user's dev machine and cannot be executed by a parallel worktree:
+**Total deviations:** 1 auto-fixed (Rule 3 - blocking cleanup) + 1 literal-grep vs intent advisory (non-blocking, no action).
+**Impact on plan:** No scope creep. The cleanup mismatch was housekeeping; the literal-grep advisory is a Task 1 acceptance-criterion phrasing choice that does not impact the load-bearing invariant.
 
-| Task | Why deferred | Where to resume |
-|------|--------------|-----------------|
-| **0a (A2)** — state-less .dorico_pt accepted by Dorico | Requires hand-authoring a stripped `.dorico_pt`, dragging into Dorico 6, applying template, quarter-sharp playback | `25-01-WAVE-0-VERIFICATION.md` `## A2 Result` section |
-| **0b (A4)** — drag-drop extraction faithful | Requires drag-drop of `/tmp/ample_china/Ample China.dorico_pt` onto Dorico 6 + post-state inspection | `25-01-WAVE-0-VERIFICATION.md` `## A4 Result` section |
-| **8 (Canary)** — O-Lyrica end-to-end pipeline proof | Requires building all 8 cohort `_VST3` targets, running `cmake --install . --component ouaricon_note_expression_OLyrica`, and confirming Dorico picker + quarter-sharp playback | `25-01-WAVE-0-VERIFICATION.md` `## Canary Install Result` section |
+## Issues Encountered
 
-The deterministic work (Tasks 1-7) is independent of A2/A4 outcomes — even if A2 or A4 fails, the recovered XML, helper, install template, and module.cmake extensions are reusable. Only the install-time strategy (file extraction destination vs file landing) would change. If A2 fails, escalate to D-05 reconsideration (curated `.pluginstate` authoring becomes mandatory) per `25-01-A2-FAIL-fix-PLAN.md`. If A4 fails, escalate to D-11 reconsideration per `25-01-A4-FAIL-fix-PLAN.md`. If the canary fails, escalate to `25-01-canary-FAIL-fix-PLAN.md`.
-
-## Implementation Notes for Plan 25-02
-
-The CMake install component name is **`ouaricon_note_expression_<TARGET_NAME>`** (e.g. `ouaricon_note_expression_OLyrica`, `ouaricon_note_expression_O-Bells`). Plan 25-02's PKG/EXE installer scripts should consume this component name when invoking `cmake --install . --component <name>` to stage the suite resources for bundling. Each consumer's install rule fires once via the per-target `configure_file` output `install-microtonal-suite-<TARGET_NAME>.cmake`.
-
-The `.dorico_pt` artifact lives at `${CMAKE_BINARY_DIR}/Ouaricon-Microtonal-Suite.dorico_pt`. The `.doricolib` lives at the canonical source path `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib`. Plan 25-02's per-plugin `inno-template.iss` and `pkg-creation.md` postinstall script need both paths.
-
-**Build ordering**: `ouaricon_extract_vst3_cids` FATAL_ERRORs if any of the 8 cohort plugins' `.vst3` bundle is missing. In Plan 25-02, each plugin's installer build pipeline must build all 8 `_VST3` targets before invoking `cmake --install` for the suite component.
-
-## Threat Flags
-
-No new threat surface introduced. All threats in the plan's `<threat_model>` are mitigated as designed:
-- T-25-01-01 (cross-file ID coupling): mitigated — verified byte-exact `xmap.ouaricon.vst3_note_expression` in 3 source files (10 total occurrences).
-- T-25-01-02 (dev/prod CID divergence): mitigated — `${OUARICON_DEV_SUFFIX}` honored in helper.
-- T-25-01-05 (path traversal in tar xf): mitigated — destination is hard-coded probed Dorico version dir; zip's internal layout is repo-controlled.
-- T-25-01-07 (recovered XML tampering): mitigated — byte-exact diff verified library vs deps; xmllint on all 4 XML files.
+None during the deterministic Tasks 1-4 (each executed and committed atomically by the prior agent without inline fixes). Task 5 (canary) PASSed on user's first attempt on the dev machine.
 
 ## Self-Check: PASSED
 
-**Files created (verified exist):**
-- modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib — FOUND
-- modules/tuning/note-expression/resources/playback-template/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml.in — FOUND
-- modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml.in — FOUND
-- modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/playbacktemplatedeps.doricolib.in — FOUND
-- modules/tuning/note-expression/resources/README-microtonal-suite.txt — FOUND
-- modules/tuning/note-expression/install-microtonal-suite.cmake.in — FOUND
-- .planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md — FOUND
+**Files modified (verified in HEAD):**
+- `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` — FOUND (6,431 B; `diff -q` against `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` clean)
+- `modules/tuning/note-expression/module.cmake` — FOUND (Path B block; lines 1-41 byte-identical to pre-edit)
+- `modules/cmake/OuariconModules.cmake` — FOUND (3 functions; `ouaricon_extract_vst3_cids` removed)
+- `modules/tuning/note-expression/install-microtonal-suite.cmake.in` — FOUND (single-write; ~40 lines)
+- `modules/tuning/note-expression/resources/README-microtonal-suite.txt` — FOUND (Path B rewrite)
+- `modules/tuning/note-expression/README.md` — FOUND (Path B rewrite; mechanics paragraph preserved)
+- `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` — FOUND (Wave 0 probe + canary sections appended)
+
+**Files deleted (verified absent):**
+- `modules/tuning/note-expression/resources/playback-template/` subtree — ABSENT
+- `ouaricon_extract_vst3_cids` function in OuariconModules.cmake — ABSENT
+- `.dorico_pt` packing references in module.cmake — ABSENT
 
 **Commits (verified in git log):**
-- 06fb002 — FOUND
-- 9f0c8ff — FOUND
-- 9290835 — FOUND
-- ef64ec4 — FOUND
-- 6caf768 — FOUND
-- 33f0597 — FOUND
-- 02fdcc2 — FOUND
-- 1815c9a — FOUND
+- `ad9e5e4` (Task 1) — FOUND
+- `db20a04` (Task 2) — FOUND
+- `98479ba` (Task 3) — FOUND
+- `93d29d6` (Task 4) — FOUND
+- `c45703b` (Task 5 verification log) — FOUND
+- Final tracking commit — pending (this SUMMARY commit + tracking-advance commit immediately follow)
 
-Phase 25 Plan 25-02 unblocked (subject to A2/A4/canary PASS on dev machine).
+## Threat Flags
+
+No new threat surface introduced. All threats in plan §`<threat_model>` mitigated as designed:
+- T-25-01-01 (canonical-bytes tampering): mitigated — `diff -q` against verified reference clean at commit time
+- T-25-01-02 (load-bearing string tampering): mitigated — exactly 1 occurrence each of `xmap.ouaricon.vst3_note_expression` and `kVST3NoteExpression`
+- T-25-01-05 (broken consumer from helper deletion): mitigated — Task 2 acceptance criteria verified zero remaining `ouaricon_extract_vst3_cids` references; only consumer was the Path A `module.cmake` block deleted in the same commit
+- T-25-01-06 (privilege escalation via install script): mitigated — paths derived from `@CMAKE_CURRENT_LIST_DIR@` + `$ENV{HOME}` / `$ENV{APPDATA}`; no user-supplied input; CMake `file()` primitives reject relative-traversal
+
+## Next Phase Readiness
+
+**Plan 25-02 unblocked.** The canary PASS proves the install component `ouaricon_note_expression_<TARGET>` is wired correctly. Plan 25-02's 8-plugin installer-bundling sweep can consume this component for PKG (macOS) and Inno Setup EXE (Windows) bundling.
+
+Implementation notes for Plan 25-02:
+- Install component name: `ouaricon_note_expression_<TARGET_NAME>` (e.g. `ouaricon_note_expression_OLyrica`, `ouaricon_note_expression_O-Bells`)
+- Canonical asset path: `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` (single source of truth)
+- Companion fallback README: `modules/tuning/note-expression/resources/README-microtonal-suite.txt`
+- Cross-platform validation gate (D-08): one representative install on each platform proves landing path + 3-point gate
+
+---
+*Phase: 25-package-docs*
+*Plan: 25-01-author-and-install-collapse*
+*Completed: 2026-04-27*
+*v3 — Path B locked, canary PASS*
