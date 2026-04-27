@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-Contrabass
 created: 2026-04-25
-lastUpdated: 2026-04-25
+lastUpdated: 2026-04-26
 ---
 
 ## Overview
@@ -61,7 +61,7 @@ lastUpdated: 2026-04-25
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation at strictness 10 (VST3 and AU on macOS, VST3 on Windows) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation at strictness 10 (VST3 and AU on macOS, VST3 on Windows) | must | partial | stage-1 |
 | COMPAT-02 | Loads and plays correctly in Dorico (Note Expression microtonal playback verified) | must | pending | stage-4 |
 
 ### Quality (QUAL)
