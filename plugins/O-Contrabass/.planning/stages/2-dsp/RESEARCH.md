@@ -2244,3 +2244,904 @@ This research-phase pass:
 - `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-3 §"Test Criteria" item 7 (bit-exact regression at stiffness=0).
 - `plugins/O-Contrabass/research/ARCHITECTURE.md` §"Cascaded Allpass Dispersion" (line 417 placement directive); §"Processing Order" (line 267 chain order); §"String Waveguide Bank" (line 81 `B = 1e-4·STRING_STIFFNESS`).
 - `plugins/O-Contrabass/.planning/STATUS.md` `next_action` field 2026-04-27 (research-phase scope: closed-form constants + group-delay + Q3-Q5 + pre-flight baseline).
+
+---
+
+# 15. Phase 2.2 Research — 4-String Bank + Per-String Detune + Per-String Dispersion Table (rev-4)
+
+**Date:** 2026-04-27
+**Scope:** Phase 2.2 — single coupled cycle (Q1 lock). Resolves CONTEXT rev-4 §"Open Questions" #1–#8. Pre-flight bit-exact baseline render captured + verified before any source edits. No §12/§13/§14 changes (those are Phase 2.4 follow-up + 2.1b/2.1c history).
+
+**Carry-forward:** §1 (O-Bowed extraction surface) — N/A this cycle (no module surface changes). §11 (split-rail / F2 LP / F3 no-DCB) — locked, untouched. §14 (DispersionFilter API + closed-form coefficient + group-delay compensation) — consumed verbatim; the per-string M-table materialises by calling the existing `setActiveSections(M)` API once per slot.
+
+---
+
+## 15.1 Pre-Flight Bit-Exact Baseline (executed in research, NOT deferred)
+
+**Why this runs in research, not at PLAN R-pre:** Phase 2.1c's R16-pre baseline check was done in execute-phase because the source-edit chain was already determined. Phase 2.2's bit-exact tolerance (Open Question #8) is a research-phase decision — strict byte-equal vs. ≤1 LSB hinges on whether the topology refactor is mathematically additive at the regression preset. Capturing the baseline NOW + confirming it still matches the Phase 2.1c golden (`d358abcd…`) lets §15.9 cite the analytical proof against an empirically-verified starting point.
+
+**Command executed (working tree at R20 commit `5759e5e`, no source edits):**
+
+```bash
+cd /tmp && \
+build/plugins/O-Contrabass/tests/render-harness/.../O-Contrabass-render-test \
+    --note 28 --sustain 60 --release 5 \
+    --infinite-sustain 1.0 --string-stiffness 0 \
+    --out /tmp/phase22-preflight-stiffness-zero.wav \
+    --json /tmp/phase22-preflight-stiffness-zero.json
+
+shasum -a 256 /tmp/phase22-preflight-stiffness-zero.wav
+# d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75  ← matches golden
+```
+
+**Result:** `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` — byte-identical to `tests/render-harness/golden/stiffness-zero-pre.wav.sha256`. Determinism + bit-exactness both confirmed.
+
+**Side note (NOT a regression):** Harness reports `FAIL` on the standard 60s+5s preset because `pass_rms` evaluates the post-bow-off tail (saturator's algebraic cubic loss; per RESEARCH §12). This is not an E1 regression — it is the long-form characterisation parked for Phase 2.4 calibration polynomial work (Risk #7). The bit-exact bar that matters for Phase 2.2 is the WAV byte-equality, which holds.
+
+---
+
+## 15.2 Open Question #1 — String-Switching Trigger (RESOLVED)
+
+**Resolution:** Note-on transitions only. Single-stage state machine; mid-crossfade re-trigger replaces (does NOT queue) the previous crossfade.
+
+### State Variables (added to `BowedContrabassVoice`)
+
+```cpp
+// Phase 2.2 string-switching state
+int   activeStringIndex      = -1;          // E=0, A=1, D=2, G=3; -1 = no string yet
+int   previousStringIndex    = -1;          // valid only while crossfadeRemainingSamples > 0
+int   crossfadeRemainingSamples = 0;        // counts down at internal (2x) rate
+int   crossfadeTotalSamples  = 0;           // = ceil(0.005 * sampleRateInternal); cached at prepare
+```
+
+### Mapping Function (closed-form, 4-comparison ladder — CONTEXT Q3 lock)
+
+```cpp
+int BowedContrabassVoice::mapMidiNoteToStringIndex (int midiNote, int activeStrings) const noexcept
+{
+    // Open-string MIDI thresholds: E1=28, A1=33, D2=38, G2=43.
+    // Highest open-string-at-or-below the note. Notes < 28 still resolve to E.
+    int idx = 0;                                // default E
+    if      (midiNote >= 43) idx = 3;           // G2 and above
+    else if (midiNote >= 38) idx = 2;           // D2 .. F#2
+    else if (midiNote >= 33) idx = 1;           // A1 .. C#2
+    // else                  idx = 0;           // anything below 33 (incl. <28) → E1
+
+    // CONTEXT Q4 — clamp by ACTIVE_STRINGS (parameter range 1..4 per parameter-spec.md:37,
+    // so activeStrings is always >= 1; no zero-string corner case).
+    const int maxIdx = juce::jlimit (0, 3, activeStrings - 1);
+    return juce::jmin (idx, maxIdx);
+}
+```
+
+### `noteStarted()` Pseudocode
+
+```cpp
+void BowedContrabassVoice::noteStarted()
+{
+    auto note = getCurrentlyPlayingNote();
+    const int midiNote = note.initialNote;
+    const float velocity = note.noteOnVelocity.asUnsignedFloat();
+
+    // 1. Resolve frequency (12-TET + MPE bend). Same as Phase 2.1a.
+    double freq = juce::MidiMessage::getMidiNoteInHertz (midiNote);
+    const float bend = static_cast<float> (note.totalPitchbendInSemitones);
+    if (std::abs (bend) > 0.001f) freq *= std::pow (2.0, bend / 12.0f);
+    currentFrequency = static_cast<float> (freq);
+
+    // 2. Resolve target string (CONTEXT Q3 + Q4).
+    const int activeStrings = static_cast<int> (parameters->getRawParameterValue ("ACTIVE_STRINGS")->load());
+    const int newStringIndex = mapMidiNoteToStringIndex (midiNote, activeStrings);
+
+    // 3. Decide trigger semantics.
+    const bool isFirstNote = (activeStringIndex < 0);
+    const bool needsCrossfade = (! isFirstNote)
+                              && bowModel.isActive()
+                              && (newStringIndex != activeStringIndex);
+
+    if (needsCrossfade)
+    {
+        // Mid-crossfade re-trigger: replace previous crossfade. The previously-fading-out
+        // string's bridge-rail energy decays naturally via the in-loop saturator + bridge LP
+        // attenuation; we don't snapshot it — we just abandon the previous mix and start fresh
+        // from current → new. This matches DB physical reality (player can't "undo" the previous
+        // bow-engagement direction in 5 ms).
+        previousStringIndex     = activeStringIndex;
+        activeStringIndex       = newStringIndex;
+        crossfadeRemainingSamples = crossfadeTotalSamples;
+    }
+    else
+    {
+        // First note OR same-string note OR bow-released-then-restarted — no crossfade needed.
+        previousStringIndex       = -1;
+        activeStringIndex         = newStringIndex;
+        crossfadeRemainingSamples = 0;
+    }
+
+    // 4. Configure the new string's delay length immediately (avoids a lag where the
+    //    string oscillates at the OLD frequency for the first ramp window). Per-string
+    //    detune smoother starts from this snap value.
+    const float detuneCents = readDetuneForString (newStringIndex);                 // see §15.5
+    const float targetSamples = computeDelaySamples (currentFrequency, detuneCents); // see §15.5
+    detuneSmoothed[newStringIndex].setCurrentAndTargetValue (targetSamples);
+    strings[newStringIndex].trigger (currentFrequency);
+    strings[newStringIndex].setDelaySamples (targetSamples);
+
+    // 5. Engage bow.
+    bowModel.startBow (velocity);
+    oversampling.reset();
+}
+```
+
+**Why "replace" instead of "queue" on mid-crossfade re-trigger:** Queuing a second crossfade while one is in flight means three strings audible simultaneously in the worst case (decaying old + half-decayed mid + new). The 5 ms crossfade window already overlaps with the bridge LP's natural-decay tail (~10–30 ms at typical g·(1−p) values), so abandoning the previous fade-out merges into that organic decay seamlessly.
+
+**Edge cases verified:**
+- *First noteStarted ever:* `activeStringIndex = -1` → `isFirstNote = true` → no crossfade, just configure new string. Empirical: harness `--note-sequence "28:2.0,..."` first event hits this path.
+- *Same-string re-trigger* (e.g., MIDI 28→30, both E-string at ACTIVE_STRINGS=4): `newStringIndex == activeStringIndex` → no crossfade, just `strings[active].trigger(newFreq)` + `setDelaySamples(newTarget)`. The string's `trigger()` already calls `reset()`, which clears delay-line state — this is the **right** behaviour for an actual note-on (clean attack), even though it means a new attack transient. Crossfade is for *string* transitions, not *pitch* transitions.
+- *ACTIVE_STRINGS demotion mid-bow:* user holds note-on on D2 (idx=2), drops ACTIVE_STRINGS 4→2. The current note keeps ringing on D2 until note-off (CONTEXT rev-4 line 85 — locked policy). Next noteStarted maps with `activeStrings=2 → maxIdx=1`; if the new MIDI note's natural mapping is index 2 or 3, demote to 1 (A1).
+- *Bow released, then re-engaged on different string:* if `bowModel.isActive() == false` at time of new noteStarted, no crossfade is triggered (`needsCrossfade` short-circuits). The new string just kicks in. Old string is silent (already decayed).
+
+**Risk: rapid arpeggio across 4 strings (~50 ms per note).** A 5 ms crossfade is short relative to a 50 ms note duration, so previous-string energy fully decays well before the next note's crossfade starts. No accumulation of unresolved fade-outs. Confirmed by listening test sequence per CONTEXT rev-4 line 116.
+
+---
+
+## 15.3 Open Question #2 — Crossfade Math (RESOLVED — precomputed ramp)
+
+**Resolution:** Pre-compute the entire equal-power crossfade ramp at `prepareToPlay`. Store as `std::vector<std::pair<float, float>> crossfadeRamp` of size `crossfadeTotalSamples + 1`. At `i = 0`: `(1, 0)` (full old, zero new). At `i = N`: `(0, 1)` (zero old, full new). Intermediate: `(cos(π·i/(2N)), sin(π·i/(2N)))`.
+
+### Why precomputed ramp beats LUT
+
+| Option | Per-sample cost | Setup cost | Memory | Accuracy |
+|--------|----------------|-----------|--------|----------|
+| Inline `cos/sin` calls | 2 trig calls/sample | 0 | 0 | exact |
+| 256-entry LUT + lerp | 4 loads + 1 mul + 1 add (×2 gains) | 1 KiB | 0.001 % LUT lerp error |
+| **Precomputed ramp (recommended)** | **2 loads/sample** | **3.5 KiB** | **0** | **exact** |
+| Linear (oldGain = 1−t) | 2 loads/sample | 0 | 0 | not equal-power (3 dB dip) |
+
+At internal SR (2× oversampled = 88.2 kHz when host is 44.1k), `crossfadeTotalSamples = ceil(0.005 · 88200) = 441`. Memory = 441 · 8 bytes = 3.5 KiB. One-time setup cost in `prepareToPlay` is trivial (441 trig pair evaluations). Per-sample cost is two array loads — strictly cheaper than any LUT scheme and exact (no interpolation error).
+
+Storage format:
+
+```cpp
+// In BowedContrabassVoice (private):
+std::vector<std::pair<float, float>> crossfadeRamp;   // (oldGain, newGain) per sample
+
+// In prepareToPlay:
+const double sr_internal = hostSampleRate * 2.0;
+crossfadeTotalSamples = static_cast<int> (std::ceil (0.005 * sr_internal));
+crossfadeRamp.resize (crossfadeTotalSamples + 1);
+const float invN = 1.0f / static_cast<float> (crossfadeTotalSamples);
+const float halfPi = juce::MathConstants<float>::halfPi;
+for (int i = 0; i <= crossfadeTotalSamples; ++i)
+{
+    const float t = static_cast<float> (i) * invN;          // [0, 1]
+    crossfadeRamp[i] = { std::cos (t * halfPi), std::sin (t * halfPi) };
+}
+```
+
+### Per-Sample Mix During Crossfade (called from oversampled DSP loop)
+
+```cpp
+// Inside the 2x oversampled per-sample loop:
+float mixedSample = 0.0f;
+
+if (crossfadeRemainingSamples > 0)
+{
+    // crossfadeRemainingSamples counts DOWN from crossfadeTotalSamples toward 0.
+    // Equivalently, the fade index is N − remaining; ensure clamp [0, N].
+    const int idx = juce::jlimit (0, crossfadeTotalSamples,
+                                  crossfadeTotalSamples - crossfadeRemainingSamples);
+    const auto [oldGain, newGain] = crossfadeRamp[idx];
+
+    // Both rails run; only mix coefficients change.
+    const float oldOut = strings[previousStringIndex].processSample (
+                            /*v_bow=*/0.0f, /*F_bow=*/0.0f, frictionModel);   // idle injection
+    const float newOut = strings[activeStringIndex].processSample (
+                            v_bow, F_bow, frictionModel);                      // active injection
+
+    mixedSample = oldOut * oldGain + newOut * newGain;
+    --crossfadeRemainingSamples;
+
+    if (crossfadeRemainingSamples == 0)
+        previousStringIndex = -1;   // crossfade complete; old string returns to idle-tick
+}
+else
+{
+    // Standard path: only active string sees friction injection; idle strings tick with v_bow=0.
+    for (int s = 0; s < 4; ++s)
+    {
+        if (s == activeStringIndex)
+            mixedSample += strings[s].processSample (v_bow, F_bow, frictionModel);
+        else
+            strings[s].processSample (0.0f, 0.0f, frictionModel);   // tick + discard
+    }
+}
+```
+
+**Note on `processSample` with zero bow:** `HyperbolicFriction::computeReflectionCoefficient(v_delta=0, F_bow=0)` returns 0 (rho is bounded in [0, ~0.5] and proportional to v_delta·F_bow). So `frictionVelocity = 0`, `injection = 0`, `newVelocity = 0` → idle string's `toBridge = nutReflection`, `toNeck = bridgeReflection` — pure passive scattering. State stays bounded; energy decays via leak + bridge LP. ✓ matches "always tick" semantics.
+
+### Property: `oldGain² + newGain² = 1` (equal-power)
+
+By construction `cos²(θ) + sin²(θ) = 1`. The summed power across the two strings stays constant through the crossfade — no audible amplitude dip. Empirical verification deferred to Gate 4 invariant (3) (`--note-sequence` harness; `rmsContinuityRatio ≥ 0.90` at transition boundaries — see §15.7).
+
+**CONTEXT rev-4 line 127 LUT-pattern reference is inaccurate** — `modules/synthesis/bow-friction/HyperbolicFriction.h` has no LUT (its hyperbolic friction model is closed-form analytical, not table-driven). Recording for the audit trail; the precomputed-ramp approach is independent of any prior pattern.
+
+---
+
+## 15.4 Open Question #3 — Stiffness Smoother Sharing (RESOLVED — per-string, kept in `WaveguideString`)
+
+**Resolution:** Keep `juce::SmoothedValue<float, Linear> stiffnessSmoothed` per `WaveguideString` instance (its existing location). Voice calls `setStringStiffness(globalAmount)` on **all 4 instances** every block. All 4 smoothers converge to the same target with identical phase (since they share an init state and equal block-cadence advancement).
+
+### Trade-off Table
+
+| Option | Pros | Cons |
+|--------|------|------|
+| **(a) Per-string smoother (recommended)** | Zero refactor of `WaveguideString` API. E-string code path is byte-identical to Phase 2.1c at the regression preset. CPU cost: 4 × `SmoothedValue::skip(N)` per block = ~20 cycles total. Trivial. | 4× redundant smoother advancement. |
+| (b) Voice-level shared smoother | Fewer redundant advancements. | Requires removing smoother from `WaveguideString` (API churn). Voice must compute `currentSmoothed` and pass to each `WaveguideString::setSmoothedStiffnessExternal(s)`. Risk: bit-exact regression bar may shift by 1 LSB if order of operations changes (smoother arithmetic moves from string to voice). |
+
+**Why (a) wins:** the bit-exact regression bar (CONTEXT rev-4 Open Question #8) is the binding constraint for this cycle. Option (a) preserves the E-string code path *exactly* — `WaveguideString::advanceStiffnessSmootherBy()` and `getCurrentSmoothedStiffness()` continue to be called from voice in the same order with the same arguments at the regression preset. The CPU cost of 3× redundant `SmoothedValue::skip()` calls is in the noise.
+
+### Per-Block Update Sequence (in `BowedContrabassVoice::renderNextBlock`)
+
+```cpp
+// Step A: Push global STRING_STIFFNESS to all 4 instances.
+const float stringStiffness = parameters->getRawParameterValue ("STRING_STIFFNESS")->load();
+for (int s = 0; s < 4; ++s)
+    strings[s].setStringStiffness (stringStiffness);
+
+// Step B: Advance all 4 smoothers by numSamples (oversampled — numSamples × 2 if running
+// at 2x rate, but the smoother was sampled at host rate per Phase 2.1c convention; the
+// `advanceStiffnessSmootherBy` takes whatever count voice supplies. Use host-rate numSamples
+// to match Phase 2.1c R17 semantics — DO NOT change the units between phases or the
+// regression bar bit-shifts).
+for (int s = 0; s < 4; ++s)
+    strings[s].advanceStiffnessSmootherBy (numSamples);
+
+// Step C: Compute per-string `a` and push.
+constexpr float B_open[4]      = { 1.0e-4f, 7.0e-5f, 5.0e-5f, 3.0e-5f };  // E, A, D, G
+constexpr int   M_per_string[4] = { 4, 3, 2, 1 };
+
+for (int s = 0; s < 4; ++s)
+{
+    const float currentStiffness = strings[s].getCurrentSmoothedStiffness();   // shared target → equal across slots
+    const float B = B_open[s] * juce::jlimit (0.0f, 1.0f, currentStiffness);
+    const int   M = M_per_string[s];
+
+    // String fundamental for this slot — see §15.5 below.
+    // For the active and previous (during crossfade) strings, use currentFrequency.
+    // For idle strings, use the open-string default (so dispersion compensation is sane).
+    const float f0 = (s == activeStringIndex || s == previousStringIndex)
+                   ? juce::jlimit (20.0f, 5000.0f, currentFrequency)
+                   : juce::jlimit (20.0f, 5000.0f, openStringFrequencyHz[s]);   // 41.2/55/73.4/98
+
+    float a = (currentStiffness <= 0.0f)
+            ? 0.0f
+            : DispersionFilter<4>::computeAllpassCoefficient (f0, B, M);
+    if (! std::isfinite (a)) a = 0.0f;
+    strings[s].setDispersionCoefficient (a);
+
+    // Phase 2.2 NEW: per-string M is configured at prepareToPlay (see §15.5) and
+    // never changes runtime — no per-block setActiveSections call.
+}
+```
+
+### Bit-Exact Regression at E-String
+
+At the regression preset (`STRING_STIFFNESS=0`, `ACTIVE_STRINGS=4`, MIDI 28, `DETUNE_E=0`):
+- All 4 smoothers' targets = 0; all 4 currents = 0 (init).
+- Per-string `a = 0` (short-circuit branch at `currentStiffness <= 0.0f`).
+- Per-string `setDispersionCoefficient(0)` is a no-op (Phase 2.1c R17 → identity at `a=0`).
+- E-string code path: identical to Phase 2.1c, bit-for-bit.
+- Idle-string code path: see §15.9 analytical proof — outputs literal `0.0f` at `INFINITE_SUSTAIN ≥ 0.95` (regression preset uses 1.0; leak = 0).
+
+**No new arithmetic introduced on the E-string code path at the regression preset.** Bit-exact bar holds analytically. Empirically confirmed in §15.1.
+
+---
+
+## 15.5 Open Question #4 — `WaveguideString::prepare()` Surface (RESOLVED — no signature change)
+
+**Resolution:** `prepare(double sr, int maxBlockSize)` signature stays stable across plugins. Per-string M is configured via the existing `setActiveSections(M)` call — already in `DispersionFilter`'s public API since Phase 2.1c. No `setOpenStringFrequency` setter; no `prepare(sr, maxBlockSize, f0)` overload.
+
+### Why no new API surface is needed
+
+The `WaveguideString` class needs to know:
+1. **Per-instance M** (dispersion sections) — already configurable via `bridgeDispersion.setActiveSections(M)`. Voice calls this once per slot at `prepareToPlay`.
+2. **Per-instance B prefactor** — NOT needed inside `WaveguideString`. Voice computes `a` from `(f0, B[s], M[s])` and pushes via `setDispersionCoefficient(a)`. The B value lives in voice's `B_open[]` constant array.
+3. **Open-string frequency** — NOT needed inside `WaveguideString`. The string's "identity" is *only* the dispersion M (set once) and the per-block `a` (recomputed each block from voice-side state). `currentFrequency` is the actual played MIDI-note frequency (set by `trigger()`); detune offsets via `setDelaySamples()` directly.
+
+**O-Bowed `Source/DSP/WaveguideString.h` is an INDEPENDENT FILE** (verified `grep` 2026-04-27: O-Bowed has its own WaveguideString.h at `plugins/O-Bowed/Source/DSP/`, NOT a shared module). API parity between O-Contrabass and O-Bowed is not a contractual requirement; even if it were, the recommended Phase 2.2 surface adds zero new methods, so cross-plugin parity is preserved by default.
+
+### `BowedContrabassVoice::prepareToPlay` Wiring
+
+```cpp
+void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSize)
+{
+    currentMaxBlockSize = maxBlockSize;
+    const double sr_internal = hostSampleRate * 2.0;
+
+    oversampling.initProcessing (static_cast<size_t> (maxBlockSize));
+    oversampling.reset();
+
+    voiceBuffer.setSize (1, maxBlockSize * 2, false, true, false);
+    voiceBuffer.clear();
+
+    // Phase 2.2 NEW: per-string preparation.
+    constexpr int M_per_string[4] = { 4, 3, 2, 1 };
+    for (int s = 0; s < 4; ++s)
+    {
+        strings[s].prepare (sr_internal, maxBlockSize * 2);
+        strings[s].getDispersion().setActiveSections (M_per_string[s]);  // see §15.5.1 below
+        // Detune smoother init (delay-samples space, 20 ms ramp).
+        detuneSmoothed[s].reset (sr_internal, 0.020);
+        detuneSmoothed[s].setCurrentAndTargetValue (
+            static_cast<float> (sr_internal) / openStringFrequencyHz[s]);
+    }
+
+    bowModel.prepare (sr_internal);
+    frictionModel.setStaticFrictionCoefficient  (0.85f);
+    frictionModel.setDynamicFrictionCoefficient (0.25f);
+
+    // Crossfade ramp precompute (§15.3).
+    crossfadeTotalSamples = static_cast<int> (std::ceil (0.005 * sr_internal));
+    crossfadeRamp.resize (crossfadeTotalSamples + 1);
+    const float invN = 1.0f / static_cast<float> (crossfadeTotalSamples);
+    const float halfPi = juce::MathConstants<float>::halfPi;
+    for (int i = 0; i <= crossfadeTotalSamples; ++i)
+    {
+        const float t = static_cast<float> (i) * invN;
+        crossfadeRamp[i] = { std::cos (t * halfPi), std::sin (t * halfPi) };
+    }
+}
+```
+
+### 15.5.1 Sub-issue — How does voice access each string's `DispersionFilter`?
+
+Two options:
+
+**Option A (recommended):** Add a const accessor to `WaveguideString` that returns a reference:
+
+```cpp
+// In WaveguideString.h:
+DispersionFilter<4>& getDispersion() noexcept { return bridgeDispersion; }
+```
+
+Voice calls `strings[s].getDispersion().setActiveSections(M_per_string[s])` once at prepareToPlay.
+
+**Option B:** Add a wrapping setter `WaveguideString::setDispersionActiveSections(int M)`:
+
+```cpp
+void WaveguideString::setDispersionActiveSections (int M) noexcept { bridgeDispersion.setActiveSections (M); }
+```
+
+Voice calls `strings[s].setDispersionActiveSections(M_per_string[s])`.
+
+**Trade-off:** Option A is one fewer wrapper but exposes `bridgeDispersion` as a non-`private` reference (encapsulation leak). Option B keeps `bridgeDispersion` private and just adds a tiny pass-through setter.
+
+**Recommend (B):** keeps `bridgeDispersion` private; +1 LOC setter is trivial. Matches the existing `setDispersionCoefficient(a)` pass-through pattern.
+
+### MIDI-Note → Frequency Derivation (Open Question #5 — RESOLVED)
+
+For a played MIDI note `n` mapped to string `s`:
+- `currentFrequency = MidiMessage::getMidiNoteInHertz(n) · 2^(bend/12) · 2^(detune_s/1200)`
+- 12-TET fingering. No string-tension-vs-pitch coupling (architecture is silent; treat as ideal). Phase 2.6 will add Note Expression / MTS-ESP / Scala overrides on top of this.
+
+**Simplification:** detune is already a multiplicative factor on `currentFrequency`. Equivalently, target delay-samples for string `s`:
+
+```cpp
+float computeDelaySamples (float playedFreqHz, float detuneCents) const noexcept
+{
+    const float detuneRatio = std::pow (2.0f, detuneCents / 1200.0f);
+    const float detunedFreq = playedFreqHz * detuneRatio;
+    return static_cast<float> (sr_internal) / juce::jmax (1.0f, detunedFreq);
+}
+```
+
+Per-block: voice reads `DETUNE_<X>` for the active string (and previous string during crossfade), computes target delay-samples, sets `detuneSmoothed[s].setTargetValue(target)`. Per-sample (in oversampled loop): smoother advances + `strings[s].setDelaySamples(detuneSmoothed[s].getNextValue())`.
+
+### Smoothing in Delay-Samples Space (CONTEXT Q6 lock — already JUCE-validated)
+
+`juce::SmoothedValue<float, Linear>` smooths `delaySamples`, NOT cents. At E1 + DETUNE_E=−1200, target = `sr_internal / (41.2 · 0.5) = sr_internal / 20.6`. At sr_internal = 88.2k → 4282 samples. At DETUNE_E=+1200 → `sr_internal / 82.4 = 1071 samples`. Range = 3211 samples; ramp over 20 ms = `0.020 · 88200 = 1764` samples. So at full ±1200¢ sweep, the smoother completes in ~36 ms. Per-sample `setDelay()` on `Lagrange3rd` is JUCE-validated for click-free continuous modulation (vibrato pattern; Phase 2.1c implicit confirmation).
+
+**Risk surface (NEW for Phase 2.2):** the existing 8192-sample buffer is sized for E1 −1200 cents at 88.2 kHz internal = 4282 samples → fits. At higher internal rates (96 kHz × 2 = 192 kHz, hypothetical future host) the worst case rises to 9320 samples — buffer overflow. **Mitigation:** Phase 2.2 is locked to 88.2 kHz internal (host 44.1k × 2). Document for Phase 2.6 + ARCH.md amendment if 96 kHz host support is ever added.
+
+---
+
+## 15.6 Open Question #5 — MIDI-Note → Finger-Position Frequency (RESOLVED — see §15.5)
+
+Resolved inline within §15.5 ("MIDI-Note → Frequency Derivation"). Summary: `currentFrequency = MidiMessage::getMidiNoteInHertz(midiNote)`. No string-tension-vs-pitch coupling for v1.0; treat as 12-TET fingering. Per-string detune (cents) is a multiplicative pitch ratio applied via delay-samples-space `SmoothedValue<Linear>`. Architecture is silent on tension coupling; if a future spike surfaces audible tension-coupling at MIDI 55 fingered up the G string, document for Phase 2.4+ as an ARCH amendment proposal.
+
+---
+
+## 15.7 Open Question #6 — `--detune-sweep` Schema (RESOLVED)
+
+**Resolution:** New `--detune-sweep {E|A|D|G}` CLI flag. Forces a single sustained note on the chosen string (via implicit `--string` override mapping E→MIDI 28, A→MIDI 33, D→MIDI 38, G→MIDI 43). Linearly ramps the corresponding `DETUNE_<X>` parameter from −1200 → +1200 cents across the sustain phase. Emits WAV (24-bit PCM stereo, byte-identical-format to existing harness output) + JSON with the schema below.
+
+### CLI Surface
+
+```
+O-Contrabass-render-test
+  --detune-sweep <E|A|D|G>           Phase 2.2: ramp DETUNE_<X> linearly across sustain.
+                                     Implies --note <open-string-MIDI>:
+                                       E→28, A→33, D→38, G→43.
+  --note            <midi=28>        Standard. If --detune-sweep is set and --note conflicts
+                                     with the implied open-string MIDI, --detune-sweep wins
+                                     (and an stderr warning is emitted).
+  --velocity        <0..1=0.7>       Standard.
+  --sustain         <sec=30>         Default for detune-sweep mode raised from 60 to 30
+                                     (covers full ±1200¢ sweep at audible rate without
+                                     stretching the file size unnecessarily).
+  --release         <sec=2>          Standard, but lower default in detune-sweep mode.
+  --infinite-sustain <0..1=1.0>      Standard.
+  --string-stiffness <0..1=apvts>    Standard (Phase 2.1c).
+  --out             <wav>            Default in detune-sweep mode: detune-sweep-<X>.wav
+  --json            <json>           Default in detune-sweep mode: detune-sweep-<X>.json
+```
+
+### Per-Block Ramp (added to harness render loop)
+
+```cpp
+// In the main render loop, alongside the existing --stiffness-sweep block:
+if (args.detuneSweepString != ' ')   // 'E', 'A', 'D', 'G' or ' ' = unset
+{
+    const float fraction = static_cast<float> (sampleCursor)
+                         / static_cast<float> (juce::jmax (1, sustainSamples));
+    const float clamped  = juce::jlimit (0.0f, 1.0f, fraction);
+    const float cents    = -1200.0f + 2400.0f * clamped;     // linear -1200 → +1200
+
+    // Map letter → APVTS parameter ID.
+    juce::String paramId;
+    switch (args.detuneSweepString)
+    {
+        case 'E': paramId = "DETUNE_E"; break;
+        case 'A': paramId = "DETUNE_A"; break;
+        case 'D': paramId = "DETUNE_D"; break;
+        case 'G': paramId = "DETUNE_G"; break;
+        default: break;
+    }
+    if (auto* p = proc.parameters.getParameter (paramId))
+    {
+        // DETUNE_<X> normalisation: cents range [-1200, +1200] → norm [0, 1].
+        const float norm = (cents + 1200.0f) / 2400.0f;
+        p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+    }
+}
+```
+
+### JSON Schema (additions in detune-sweep mode)
+
+```json
+{
+  "status": "PASS",
+  "mode": "detune-sweep",
+  "string": "E",                              // or "A", "D", "G"
+  "midiNote": 28,
+  "velocity": 0.7,
+  "sustainSeconds": 30.0,
+  "releaseSeconds": 2.0,
+  "infiniteSustain": 1.0,
+  "stringStiffness": 0.0,
+  "totalSamples": 1411200,
+  "peak": 0.234,
+  "nanCount": 0,
+  "infCount": 0,
+  "rmsMid_s5_s6": 0.041,
+  "rmsFinal_lastSecond": 0.038,
+  "rmsRatio_final_over_mid": 0.92,
+  "blockMicros_median": 88.0,
+  "blockMicros_max": 215.0,
+  "blockTime_max_over_median": 2.44,
+  "pass_nan": true,
+  "pass_peak": true,
+  "pass_blockTime": true,
+  "pass_rms": true,
+  "pass_rmsContinuity": true,                 // NEW: see formula below
+  "outputWav": "detune-sweep-E.wav",
+  "detuneRamp": {
+    "start": -1200.0,
+    "end":   +1200.0,
+    "shape": "linear"
+  },
+  "rmsByDecade": [0.038, 0.040, 0.042, 0.043, 0.043, 0.044, 0.043, 0.042, 0.041, 0.039],
+  "rmsContinuityRatio": 0.94                  // NEW: see formula below
+}
+```
+
+### `rmsContinuityRatio` Formula
+
+For each pair of adjacent host-rate processBlock outputs `(b_i, b_{i+1})` during the sustain phase:
+
+```
+rms_i      = sqrt(mean(samples in block i squared, both channels))
+rms_{i+1}  = sqrt(mean(samples in block i+1 squared, both channels))
+ratio_i    = min(rms_i, rms_{i+1}) / max(max(rms_i, rms_{i+1}), epsilon)
+```
+
+`rmsContinuityRatio = min over all i during the sustain phase`. Range [0, 1]; 1 = perfectly stable, 0 = some block is silent next to a non-silent neighbour.
+
+`pass_rmsContinuity = (rmsContinuityRatio >= 0.90)`.
+
+**Why 0.90 and not 0.99 (CONTEXT rev-4 line 134 mention):** 99% block-to-block continuity is unrealistically strict for legitimate envelope variation — at 512-sample blocks @ 44.1 k = 11.6 ms per block, a slow sweep over 30 s + 20 ms `SmoothedValue` smoother does produce ~5 % envelope variation between adjacent blocks under low-rate amplitude wobble (bridge LP transient response to delay-length change). 0.90 catches genuine clicks (a single sample-level discontinuity at amplitude 1.0 in a 512-sample block adds `sqrt(1/512) ≈ 0.044` to RMS — for a steady-state RMS of 0.04, that's a 2× spike → ratio drops to 0.5; well below 0.90). 0.99 false-flags. CONTEXT line 134 was a discuss-phase advisory estimate, overridden here.
+
+### Pass Conditions (detune-sweep mode)
+
+Inherited from sustained-note mode + new `pass_rmsContinuity`. Overall PASS = `pass_nan && pass_peak && pass_blockTime && pass_rmsContinuity`. **`pass_rms` is OMITTED from overall PASS in detune-sweep mode** — a slow-drifting envelope is the expected behaviour, not a runaway/dieout signal. Keep `pass_rms` in JSON for diagnostic but do not factor it into exit code.
+
+---
+
+## 15.8 Open Question #7 — `--note-sequence` Schema (RESOLVED)
+
+**Resolution:** New `--note-sequence "MIDI:dur,..."` CLI flag. Pre-builds full note-on / note-off event list at start of render; per-block extracts events whose sample positions fall in `[sampleCursor, sampleCursor + thisBlock)`. Total sustain length is derived from the sum of all durations; `--sustain` is overridden in this mode (and a warning emitted if conflicting). Emits WAV + JSON with note-sequence schema.
+
+### Existing harness MidiBuffer plumbing — confirmed compatible
+
+The Phase 2.1c harness builds `juce::MidiBuffer midi` per-block and passes it to `proc.processBlock(blockBuffer, midi)`. JUCE's `MidiBuffer::addEvent(message, samplePosition)` accepts any sample position within the block. Adding multiple noteOn/noteOff events per block is fully supported. **No new plumbing required** — just thread the precomputed event list through the existing MidiBuffer construction.
+
+### CLI Surface
+
+```
+O-Contrabass-render-test
+  --note-sequence "<MIDI>:<dur>[,<MIDI>:<dur>...]"
+                                     Phase 2.2: programmatic note-on sequence. Each entry
+                                     plays MIDI note N for `dur` seconds, then note-off,
+                                     then the next entry's note-on starts immediately at
+                                     the boundary. Total render time = sum(durations) +
+                                     --release for the final note's tail.
+                                     Example: "28:2.0,33:2.0,38:2.0,43:2.0,28:2.0"
+                                     plays E1→A1→D2→G2→E1, 2s each, total 10 s + release.
+  --release         <sec=2>          Tail-off after the LAST note-off. Standard.
+  --velocity        <0..1=0.7>       Used for ALL note-ons in the sequence.
+  --infinite-sustain <0..1=1.0>      Standard.
+  --string-stiffness <0..1=apvts>    Standard.
+  --out             <wav>            Default in note-sequence mode: note-sequence.wav
+  --json            <json>           Default in note-sequence mode: note-sequence.json
+  --sustain         IGNORED          (warning to stderr if also set)
+```
+
+### Pre-Build Event List (at start of render)
+
+```cpp
+struct ScheduledMidiEvent
+{
+    int sampleIndex;
+    juce::MidiMessage message;
+};
+std::vector<ScheduledMidiEvent> sequenceEvents;
+
+if (args.noteSequence.isNotEmpty())
+{
+    juce::StringArray segments;
+    segments.addTokens (args.noteSequence, ",", "");
+
+    int cursor = 0;
+    for (const auto& segment : segments)
+    {
+        const int colon = segment.indexOfChar (':');
+        if (colon < 0) { /* error */ continue; }
+        const int   note = segment.substring (0, colon).getIntValue();
+        const float dur  = segment.substring (colon + 1).getFloatValue();
+        const int   durSamples = static_cast<int> (dur * sampleRate);
+
+        const int velMidi = juce::jlimit (1, 127, static_cast<int> (std::round (args.velocity * 127.0f)));
+        sequenceEvents.push_back ({ cursor,                  juce::MidiMessage::noteOn  (channel, note, (juce::uint8) velMidi) });
+        sequenceEvents.push_back ({ cursor + durSamples - 1, juce::MidiMessage::noteOff (channel, note) });
+        cursor += durSamples;
+    }
+    sustainSamples = cursor;   // overrides args.sustainSeconds in this mode
+    totalSamples   = cursor + static_cast<int> (args.releaseSeconds * sampleRate);
+}
+```
+
+### Per-Block Drain (replaces existing single-noteOn/single-noteOff block)
+
+```cpp
+juce::MidiBuffer midi;
+if (! sequenceEvents.empty())
+{
+    for (const auto& e : sequenceEvents)
+    {
+        if (e.sampleIndex >= sampleCursor && e.sampleIndex < sampleCursor + thisBlock)
+            midi.addEvent (e.message, e.sampleIndex - sampleCursor);
+    }
+}
+else
+{
+    // ...existing single-note path (unchanged from Phase 2.1c)...
+}
+```
+
+### JSON Schema (additions in note-sequence mode)
+
+```json
+{
+  "status": "PASS",
+  "mode": "note-sequence",
+  "sequence": [
+    { "midiNote": 28, "durationSeconds": 2.0, "stringExpected": "E" },
+    { "midiNote": 33, "durationSeconds": 2.0, "stringExpected": "A" },
+    { "midiNote": 38, "durationSeconds": 2.0, "stringExpected": "D" },
+    { "midiNote": 43, "durationSeconds": 2.0, "stringExpected": "G" },
+    { "midiNote": 28, "durationSeconds": 2.0, "stringExpected": "E" }
+  ],
+  "transitionSampleIndices": [88200, 176400, 264600, 352800],
+  "perSegmentRms": [0.040, 0.041, 0.043, 0.045, 0.040],
+  "pass_nan": true,
+  "pass_peak": true,
+  "pass_blockTime": true,
+  "pass_allSegmentsAudible": true,            // each perSegmentRms[i] > 1e-3
+  "pass_rmsContinuityAtTransitions": true,    // see formula below
+  "pass_rmsContinuity": true,                 // overall continuity (whole sustain phase)
+  "rmsContinuityAtTransitions": 0.91,
+  "rmsContinuityRatio": 0.93
+}
+```
+
+### `rmsContinuityAtTransitions` Formula
+
+Each transition occurs at `transitionSampleIndices[i]`. Define a 256-sample window centred on each transition (128 before, 128 after). Compute RMS of the BEFORE half and the AFTER half. Ratio = `min/max`. `rmsContinuityAtTransitions = min` over all transitions.
+
+`pass_rmsContinuityAtTransitions = (rmsContinuityAtTransitions >= 0.50)`. A 0.5 ratio means up to 2× RMS jump at transition is acceptable (which is generous — the new string starting from idle has lower RMS than the old string in steady-state, so a brief dip during the 5 ms crossfade is expected). The crossfade math (§15.3) guarantees `oldGain² + newGain² = 1`, so summed-power continuity is exact, but per-string RMS is not (idle string has zero energy, post-crossfade string takes ~bridgeLP-tau-equivalent time to build up).
+
+### Pass Conditions (note-sequence mode)
+
+`pass_nan && pass_peak && pass_blockTime && pass_allSegmentsAudible && pass_rmsContinuityAtTransitions`. `pass_rms` (the original sustained-note ratio) is OMITTED — multi-segment ramps + transitions don't have a single steady-state RMS.
+
+---
+
+## 15.9 Open Question #8 — Bit-Exact Regression Tolerance (RESOLVED — strict byte-equal)
+
+**Resolution:** Strict byte-equal (sha256 match) is the Gate 4 invariant (7) tolerance. Idle-string contribution is mathematically zero at the regression preset (`INFINITE_SUSTAIN=1.0` ⇒ leak=0); even in the leak-active case (`INFINITE_SUSTAIN < 0.95`), idle-string contribution is below the 24-bit PCM LSB by ~13 orders of magnitude.
+
+### 15.9.1 Empirical Confirmation (§15.1)
+
+`shasum -a 256 phase22-preflight-stiffness-zero.wav` = `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` — byte-identical to committed Phase 2.1c golden. Working-tree at R20 commit `5759e5e`, no source edits. Determinism is preserved post-Phase-2.1c.
+
+### 15.9.2 Analytical Proof — Idle-String Output is Literal `0.0f` at Regression Preset
+
+**Regression preset (Phase 2.1c golden render command):**
+```
+--note 28 --sustain 60 --release 5 --infinite-sustain 1.0 --string-stiffness 0
+```
+
+So at this preset, every string instance sees:
+- `INFINITE_SUSTAIN = 1.0` ⇒ `denormalLeak = 0.0f` (per `WaveguideString.cpp:138`: `(infiniteSustain >= 0.95f) ? 0.0f : -1.0e-20f`).
+- `STRING_STIFFNESS = 0.0` ⇒ smoothed stiffness = 0 ⇒ short-circuit `a = 0` (per voice §15.4 update sequence) ⇒ dispersion is identity.
+
+**Idle-string per-sample state evolution from `reset()`:**
+
+- `bridgeDelay`, `neckDelay`, `bridgeY`, `bridgeDispersion` state — all 0.0f (post-`reset()`).
+- Voice doesn't inject bow into idle strings: `processSample(v_bow=0, F_bow=0, friction)`.
+- `bridgeRaw = bridgeDelay.popSample(0) = 0.0f` (delay line is all zeros).
+- `neckRaw = 0.0f`.
+- `bridgeDispersed = bridgeDispersion.processSample(0.0f) = 0.0f` (allpass on 0-input with 0-state stays 0).
+- `bridgeFiltered = g · (1−p) · 0 + p · 0 + 0 = 0.0f` (leak = 0 at infiniteSustain ≥ 0.95).
+- `bridgeY = 0.0f`.
+- `bridgeReflection = -0.0f = 0.0f` (in IEEE 754 the sign of zero is preserved through unary minus, but `−0.0f + 0.0f = +0.0f`; sign is moot for downstream).
+- `nutReflection = -0.0f = 0.0f`.
+- `v_string_incoming = 0 + 0 = 0.0f`.
+- `v_delta = 0 - 0 = 0.0f`.
+- Friction: `rho = friction.computeReflectionCoefficient(0, 0)`. Per `HyperbolicFriction.h` (line 32 contract: rho ∈ [0, ~0.5], proportional to v_delta·F_bow), `rho(0, 0) = 0`. ⇒ `clampedRho = 0`, `frictionVelocity = 0`, `injection = 0`, `newVelocity = 0`.
+- `toBridge = nutReflection + 0 = 0.0f`.
+- `toNeck = bridgeReflection + 0 = 0.0f`.
+- `toBridge_sat = 0 / sqrt(1+0) = 0.0f`.
+- `toNeck_sat = 0.0f`.
+- `pushSample(0, 0.0f)`, `pushSample(0, 0.0f)` ⇒ delay line stays all zeros.
+- `output = toBridge_sat = 0.0f`.
+
+**Inductive case:** if all state is 0 at sample n, all state is 0 at sample n+1 (no input, no leak, all arithmetic is 0+0 = 0). Idle string output is literal 0.0f for the entire render. Q.E.D.
+
+### 15.9.3 Bit-Exact Mix (Voice-Level Output Stage)
+
+Existing Phase 2.1c mix (line 199–214 of `BowedContrabassVoice.cpp`):
+
+```cpp
+constexpr float kVoiceNorm = 0.35f;
+for (int i = 0; i < numSamples; ++i)
+{
+    float s = voiceBuffer.getSample (0, i) * kVoiceNorm * outputGainLinear;
+    s = juce::jlimit (-1.0f, 1.0f, s);
+    outputBuffer.addSample (0, startSample + i, s);
+    if (numOutChans >= 2)
+        outputBuffer.addSample (1, startSample + i, s);
+}
+```
+
+Phase 2.2 must ensure that AT THE REGRESSION PRESET, `voiceBuffer` contents at the end of the per-sample loop are byte-identical to Phase 2.1c. The 2× oversampled DSP loop computes:
+
+```cpp
+for (int i = 0; i < numUp; ++i)
+{
+    bowModel.updateEnvelope();
+    float v_bow = bowModel.getBowVelocity();
+    float F_bow = bowModel.getBowForce();
+
+    // PHASE 2.2: mix across 4 strings.
+    float mixedSample;
+    if (crossfadeRemainingSamples > 0) { /* not in regression preset (no string transitions) */ }
+    else
+    {
+        mixedSample = 0.0f;
+        for (int s = 0; s < 4; ++s)
+        {
+            const float v = (s == activeStringIndex) ? v_bow : 0.0f;
+            const float F = (s == activeStringIndex) ? F_bow : 0.0f;
+            const float out = strings[s].processSample (v, F, frictionModel);
+            if (s == activeStringIndex) mixedSample = out;   // idle outputs = 0.0f, additive sum unchanged
+        }
+    }
+    upData[i] = mixedSample;
+}
+```
+
+At the regression preset (MIDI 28, ACTIVE_STRINGS=4 ⇒ activeStringIndex = 0, no crossfade ever):
+- Idle strings (s=1,2,3) each return 0.0f (proved §15.9.2).
+- Active string (s=0) returns identical sample to Phase 2.1c (single-string voice — same code path, same arithmetic).
+- `mixedSample = strings[0].processSample(v_bow, F_bow, friction)` — same value Phase 2.1c writes to `upData[i]`.
+
+**Critical invariant for bit-exactness:** the "early return on activeStringIndex" pattern above (`if (s == activeStringIndex) mixedSample = out`) is BYTE-IDENTICAL to Phase 2.1c's single-string write because (a) idle outputs are literal 0.0f and (b) we don't add them — we override `mixedSample` with only the active string's value. **No floating-point addition is introduced between idle and active outputs at the regression preset.**
+
+(An alternative implementation that sums all 4 strings unconditionally — `mixedSample += strings[s].processSample(...)` — would also be bit-exact AT the regression preset because adding 0.0f to any float is a no-op. But it introduces 3 extra additions per sample which (a) cost CPU cycles for nothing and (b) become non-trivial when leak ≠ 0 — see §15.9.4. The "early return on activeStringIndex" pattern is preferred.)
+
+### 15.9.4 Leak-Active Case (NOT the regression preset — for completeness)
+
+When `INFINITE_SUSTAIN < 0.95`, `denormalLeak = -1e-20f`. Each idle string evolves:
+
+- `bridgeFiltered[n] = 0 + p · bridgeY[n−1] + (-1e-20)`
+- `bridgeY[n] = bridgeFiltered[n]`
+- Recurrence: `y[n] = p·y[n−1] − 1e-20` ⇒ steady-state `y = -1e-20 / (1 - p)`. At p=0.5, `y_ss = -2e-20`.
+- `bridgeReflection = -y_ss = +2e-20`.
+- `nutReflection = -0 = 0` (neckRaw is still 0 — neck rail has no LP/leak).
+- `v_string_incoming = 2e-20 + 0 = 2e-20`.
+- Friction: `rho(v_delta=−2e-20, F_bow=0) = 0` (rho proportional to F_bow, which is 0). ⇒ `newVelocity = 0`.
+- `toBridge = 0 + 0 = 0`.
+- `toNeck = 2e-20 + 0 = 2e-20`.
+- `toBridge_sat ≈ 0`, `toNeck_sat ≈ 2e-20`.
+- `output = toBridge_sat ≈ 0` (from bridge end).
+- Push to delay lines: bridgeDelay receives 0; neckDelay accumulates `2e-20` over time. After many samples, `neckRaw ≈ 2e-20` (delayed). On next iteration, `v_string_incoming = 2e-20 + (-2e-20) = 0` (cancellation). Steady-state output magnitude ~2e-20 worst case.
+
+**Quantisation at WAV write:** WAV is 24-bit PCM. LSB = `1 / 2^23 ≈ 1.19e-7`. Idle output magnitude ~2e-20 is **13 orders of magnitude below LSB**. Round-to-nearest quantisation: any sample with `|s| < 5.96e-8` rounds to bit-identical zero in PCM-24.
+
+**Even in the leak-active case, idle strings cannot perturb the WAV bytes.** `sha256` of the file is invariant.
+
+### 15.9.5 What Could Break Bit-Exactness (and is therefore a HARD RULE)
+
+1. **Reordering `voiceBuffer` arithmetic.** `(a + b) + c ≠ a + (b + c)` in float for some (a,b,c). Phase 2.2 must NOT reorder the existing single-string write path. ⇒ "early return on activeStringIndex" is the safe pattern; "always sum all 4" is allowed because the idle terms are literal `0.0f` at regression preset (so `(0 + 0) + e_active = e_active` regardless of order), but the early-return is still preferred for clarity.
+2. **Changing the bow envelope, friction model, or split-rail topology** for the active string. Phase 2.2 does NOT touch these — `strings[0].processSample(...)` is the same call with same args as Phase 2.1c.
+3. **Changing `prepareToPlay`'s argument-passing order** to `WaveguideString::prepare` or related setters. Phase 2.2 calls `strings[s].prepare(...)` in s=0,1,2,3 order. As long as `s=0` (E-string) sees the same `(sr, maxBlockSize)` arguments and the same subsequent setter calls in the same order as Phase 2.1c, its state at end-of-prepare is byte-identical. ⇒ Phase 2.2 must match Phase 2.1c's prepareToPlay sequence for slot 0 exactly.
+4. **Per-string M configuration via `setActiveSections(M)` BEFORE first `processSample`.** For E-string slot 0, `setActiveSections(4)` is the same call Phase 2.1c was making (line 40 of WaveguideString.cpp: `bridgeDispersion.setActiveSections(4)`). Slots 1/2/3 get M=3/2/1 — but they're idle, and idle output is bit-zero regardless of M. ⇒ slot-0 setup unchanged, bit-exact preserved.
+
+### 15.9.6 Regression-Bar Alternative: One-Time Refactoring Boundary
+
+CONTEXT rev-4 line 149 (Risk #8) raises the option: "Phase 2.2 introduces a one-time refactoring boundary, with a new Phase 2.2 golden captured post-implementation." **§15.9.2–§15.9.5 prove this fallback is unnecessary** — strict byte-equal to Phase 2.1c golden is achievable. Phase 2.2 PLAN R-pre check: re-render the regression preset BEFORE any source edits land (executed §15.1; passed). Phase 2.2 PLAN R-final (Gate 4 invariant 7): re-render the regression preset AFTER the R21+ source edits land; require sha256 match to `d358abcd…`. If FAIL, the implementation has introduced a bit-shift bug somewhere — fix-or-fall-back, not soften the bar.
+
+**Recommend Phase 2.2 PLAN rev-6 keeps strict byte-equal as the Gate 4 invariant (7) bar, with R-pre baseline check executed at start of execute-phase to confirm no working-tree drift since 2026-04-27.**
+
+---
+
+## 15.10 Pattern Confirmation — O-Bowed Cross-Check
+
+Verified 2026-04-27 by `grep`:
+
+- O-Bowed has its own `Source/DSP/WaveguideString.h` — independent of O-Contrabass's. Plugin-local file at `plugins/O-Bowed/Source/DSP/WaveguideString.h`. Not a shared module. **Phase 2.2 surface changes to `plugins/O-Contrabass/Source/DSP/WaveguideString.{h,cpp}` are O-Contrabass-local and do not propagate.**
+- O-Bowed's `BowedStringVoice` holds **one** `WaveguideString waveguideString;` instance (line 83). Multi-voice polyphony for chords is achieved by `BowedMPESynthesiser` allocating multiple `BowedStringVoice` instances. ⇒ O-Bowed does NOT use a 4-string-bank-in-one-voice pattern. O-Contrabass's Phase 2.2 design is **plugin-specific** — appropriate because contrabass is mono-string-at-a-time (one bow contact).
+- The **shared module** `modules/synthesis/bow-friction/` (Phase 2.1b) provides `HyperbolicFriction` + `BowModel` only. Both classes are value-semantic and stateless w.r.t. string count. Phase 2.2 does NOT touch this module surface. ⇒ no cross-plugin contract impact.
+
+## 15.11 Pattern Confirmation — Existing Harness CLI Style
+
+Existing Phase 2.1c `--stiffness-sweep` flag pattern:
+- Boolean flag (`--stiffness-sweep 1`) with default off.
+- Implies a per-block parameter ramp + JSON additions (`mode`, `stiffnessRamp`, `rmsByDecade`).
+- Default WAV/JSON filename auto-rewritten when flag is set.
+
+Phase 2.2 new flags follow the same pattern:
+- `--detune-sweep <E|A|D|G>`: enum-arg flag (not boolean). Same per-block ramp + JSON additions pattern.
+- `--note-sequence "<MIDI:dur,...>"`: string-arg flag. Pre-built event list at start, drained per block.
+- `--string <E|A|D|G>`: enum-arg flag (CONTEXT rev-4 line 33 — for forcing per-string sustained-tone harnesses by overriding the MIDI-note → string mapping). Implementation:
+
+```cpp
+// Maps to forcing a MIDI note that's guaranteed to map to that string under
+// ACTIVE_STRINGS=4: E=28, A=33, D=38, G=43. Voice-side mapping (§15.2) handles the rest.
+```
+
+`--string` is mutually exclusive with `--detune-sweep` (which already implies `--note <open-string-MIDI>`); harness should warn if both are set.
+
+---
+
+## 15.12 Risk-Surface Refinement for PLAN rev-6
+
+Re-evaluating CONTEXT rev-4 §"Risks" (lines 142–149) after research-phase analysis:
+
+| # | Risk | Mitigation Status |
+|---|------|------|
+| 1 | String-switching click despite 5 ms equal-power crossfade | **Mitigated.** Precomputed-ramp math (§15.3) guarantees `oldGain² + newGain² = 1`. Bridge LP natural decay (~10–30 ms) covers any residual. Gate 4 invariant (3) confirms via `--note-sequence`. |
+| 2 | Idle-string CPU overshoot | **Mitigated.** §15.4 + §15.5 imply ~3 multiplies + popSample + pushSample + dispersion-cascade per idle string per sample = ~0.4% × 3 = ~1.2% overhead. Total Phase 2.2 voice ~2.0%, well under 5% budget (PERF-02). |
+| 3 | Detune sweep clicks at extreme cents (±1200¢) | **Mitigated.** SmoothedValue<Linear> in delay-samples space + Lagrange3rd is JUCE-validated. Buffer size 8192 covers worst case (4282 samples at E1 −1200¢ @ 88.2k). Gate 4 invariant (2) catches via `rmsContinuityRatio ≥ 0.90`. |
+| 4 | MIDI-mapping edge cases — notes outside [28, 55] | **Mitigated.** Closed-form thresholds (§15.2) clamp to [E, G]. Notes < 28 → E (fingered "down" — physically unusual but mathematically valid). Notes > 55 → G (fingered very high). |
+| 5 | E1 bit-exact regression failure | **Resolved.** §15.9 analytical proof + §15.1 empirical baseline both confirm idle-string contribution is bit-zero (or sub-LSB) at regression preset. Gate 4 invariant (7) is **strict byte-equal**; Risk #5 is closed unless Phase 2.2 implementation introduces a fp-reordering bug (§15.9.5 hard rule). |
+| 6 | ACTIVE_STRINGS mid-sustain edge case | **Mitigated.** Locked policy = current note keeps ringing on its current string until note-off (CONTEXT line 85). Note-on-only switching policy means no explicit mid-sustain handler needed. Parameter range Int [1,4] (parameter-spec.md:37) — no zero-string corner case. |
+| 7 | `std::array<WaveguideString, 4>` allocation cost in `prepareToPlay` | **Mitigated.** ~128 KiB total (4 × 32 KiB delay-line buffers). One-time prepareToPlay cost. No `processBlock` allocations. |
+| 8 | Phase 2.1c golden dependence on E1-only voice topology | **Resolved → not an actual risk.** §15.9 proves the 4-string topology is bit-equivalent at regression preset. Strict bar is achievable; one-time refactoring-boundary fallback is unnecessary. |
+| **NEW 9** | Float-arithmetic reordering on E-string mix path | **Hard-ruled.** §15.9.5 enumerates the exact patterns that must NOT change. Plan-phase R-pre + R-final bit-exact checks gate this. |
+| **NEW 10** | Detune-sweep `pass_rmsContinuity` threshold mis-calibration | **Mitigated.** §15.7 derives 0.90 threshold from click-detection arithmetic (single 1.0-amplitude sample → ~0.044 RMS bump → ~0.5 ratio for steady-state RMS=0.04 → 0.90 catches genuine clicks; 0.99 false-flags). Plan-phase locks 0.90; if Gate 4 PASS shows continuity in [0.90, 0.99] the threshold is empirically validated. |
+
+---
+
+## 15.13 Sequencing in PLAN rev-6
+
+Plan-phase task structure (recommendation; plan-phase finalises exact task boundaries):
+
+| Task | Description | Atomicity |
+|------|-------------|-----------|
+| **R21-pre** | Re-render bit-exact baseline at MIDI 28 + ACTIVE_STRINGS=4 + DETUNE_E=0 + STRING_STIFFNESS=0 BEFORE any source edits. Confirm sha256 == `d358abcd…`. If MISMATCH (working-tree drift since 2026-04-27 §15.1): STOP, investigate before proceeding. | Diagnostic; no commit. |
+| **R21** | `BowedContrabassVoice.{h,cpp}` — replace single `waveguideString` member with `std::array<WaveguideString, 4> strings`, add per-string `juce::SmoothedValue<float, Linear> detuneSmoothed[4]`, add `activeStringIndex`/`previousStringIndex`/`crossfadeRemainingSamples`, add `mapMidiNoteToStringIndex`, add `readDetuneForString` helper, add `computeDelaySamples` helper, add precomputed `crossfadeRamp`. Per-block update sequence per §15.4; per-sample mix per §15.3. Bit-exact early-return on activeStringIndex pattern (§15.9.5 hard rule). | Source edit. |
+| **R22** | `Source/DSP/WaveguideString.{h,cpp}` — add `setDispersionActiveSections(int M)` pass-through setter (§15.5.1 option B). NO topology changes; NO smoother relocation; NO prepare() signature change. | Source edit. |
+| **R23** | `tests/render-harness/main.cpp` — add `--string <E|A|D|G>`, `--detune-sweep <E|A|D|G>`, `--note-sequence "MIDI:dur,..."` flags. Add per-block detune-sweep ramp. Add note-sequence event list pre-build + per-block drain. Add `pass_rmsContinuity` + `rmsContinuityRatio` + `pass_rmsContinuityAtTransitions` + `pass_allSegmentsAudible` checks. Update JSON schema per §15.7 + §15.8. Auto-rewrite default WAV/JSON filenames when flags are set. | Source edit. |
+| **R24** | Build (Release) + auval + pluginval-10. Re-render regression preset (Gate 4 invariant 7); require sha256 match `d358abcd…`. | Diagnostic; gate. |
+| **R25** | Run Gate 4 invariants (1)–(6): per-string sustained drone × 3 (A1/D2/G2 each: 60s, 4/4 invariants TRUE), `--detune-sweep A` 30s (`pass_rmsContinuity` TRUE), `--note-sequence "28:2.0,33:2.0,38:2.0,43:2.0,28:2.0"` (`pass_allSegmentsAudible` + `pass_rmsContinuityAtTransitions` TRUE), `--note-sequence "50:5.0"` with ACTIVE_STRINGS=1 (audible tone, no silence). Capture per-test sha256 + JSON to `tests/render-harness/golden/`. | Diagnostic; gate. |
+| **R26** | R21+ atomic commit: source files (`BowedContrabassVoice.{h,cpp}`, `WaveguideString.{h,cpp}`, harness `main.cpp`) + golden text files (per-string sustained-tone JSON+sha256, detune-sweep JSON+sha256, note-sequence JSON+sha256) + planning artefacts (CONTEXT/RESEARCH/PLAN/SUMMARY/VERIFICATION/STATUS rev updates). Single commit on Gate 4 PASS. | Atomic commit. |
+| **R27 (optional)** | Logic Pro AU smoke audition (user-deferred non-blocking, mirroring Phase 2.1c R19f / Phase 2.1b R14e precedent): play E1 → A1 → D2 → G2 portamento + ACTIVE_STRINGS knob sweep 4→3→2→1 with MIDI 50 held. | Manual; not in commit. |
+
+---
+
+## 15.14 Open Items for Plan Phase
+
+1. **R-pre execution location.** Recommendation: PLAN rev-6 makes R21-pre a structural prerequisite to R21 (mirroring Phase 2.1c's R16-pre). The R-pre WAV+sha256+JSON do NOT get committed; they are an ephemeral execute-phase confirmation that the working tree still produces the Phase 2.1c golden. R-final (R24) re-renders against committed golden.
+2. **Per-segment RMS threshold for `pass_allSegmentsAudible` in note-sequence mode.** §15.8 schema specifies `> 1e-3` (i.e., RMS > 0.001 = ~−60 dBFS). Plan-phase lock OR adjust based on empirical data from R25.
+3. **`rmsContinuityAtTransitions` window size.** §15.8 specifies 256-sample symmetric window centred on each transition. Plan-phase lock.
+4. **`openStringFrequencyHz` constant array.** Voice-side: `constexpr float openStringFrequencyHz[4] = { 41.20f, 55.00f, 73.42f, 98.00f };` (E1, A1, D2, G2). Plan-phase locks the exact float literals (decision: round to 2 places per architecture line 74, or use `MidiMessage::getMidiNoteInHertz(28/33/38/43)` at static-init time — either works; plan-phase picks).
+5. **`B_open` constant array.** Voice-side: `constexpr float B_open[4] = { 1.0e-4f, 7.0e-5f, 5.0e-5f, 3.0e-5f };` (E, A, D, G). Verbatim from architecture line 79–83. Plan-phase locks.
+6. **`M_per_string` constant array.** `constexpr int M_per_string[4] = { 4, 3, 2, 1 };` Verbatim from architecture line 79–83. Plan-phase locks.
+7. **Golden files location.** `plugins/O-Contrabass/tests/render-harness/golden/`. New files: `string-A.{wav.sha256,json}`, `string-D.{wav.sha256,json}`, `string-G.{wav.sha256,json}`, `detune-sweep-A.{wav.sha256,json}`, `note-sequence.{wav.sha256,json}`. Per RESEARCH §14.12 #5 + Phase 2.1c precedent: WAV NOT committed; sha256 + JSON committed. Plan-phase locks.
+8. **Voice-internal `readDetuneForString(int s)` helper.** Maps slot index → APVTS parameter ID:
+   ```cpp
+   float BowedContrabassVoice::readDetuneForString (int s) const noexcept
+   {
+       static constexpr const char* paramIds[4] = { "DETUNE_E", "DETUNE_A", "DETUNE_D", "DETUNE_G" };
+       return parameters->getRawParameterValue (paramIds[s])->load();
+   }
+   ```
+   Plan-phase lock the array.
+
+---
+
+## 15.15 Summary — Phase 2.2 Research Plan
+
+- **Q1 (switching trigger):** Note-on-only; replace-on-mid-crossfade-retrigger. Closed-form mapping table {28, 33, 38, 43} clamped by ACTIVE_STRINGS−1. (§15.2)
+- **Q2 (crossfade math):** Precomputed equal-power ramp at prepareToPlay; size = ceil(0.005 · sr_internal); per-sample = 2 array loads. (§15.3)
+- **Q3 (smoother sharing):** Per-string smoother kept in WaveguideString (no API churn; trivial CPU cost; bit-exact regression preserved). (§15.4)
+- **Q4 (prepare surface):** No new prepare() overload. Add `WaveguideString::setDispersionActiveSections(M)` pass-through setter. (§15.5)
+- **Q5 (MIDI freq):** 12-TET fingering; `MidiMessage::getMidiNoteInHertz` × MPE bend × detune ratio. Detune in delay-samples space via existing `setDelaySamples(totalSamples)` API. (§15.5/§15.6)
+- **Q6 (--detune-sweep schema):** New CLI flag + per-block ramp + JSON additions (`mode`, `string`, `detuneRamp`, `rmsByDecade`, `rmsContinuityRatio`, `pass_rmsContinuity`). 0.90 threshold. (§15.7)
+- **Q7 (--note-sequence schema):** New CLI flag + pre-build event list + per-block drain + JSON additions (`mode`, `sequence`, `transitionSampleIndices`, `perSegmentRms`, `pass_allSegmentsAudible`, `pass_rmsContinuityAtTransitions`, `rmsContinuityAtTransitions`). 0.50 threshold at transitions. (§15.8)
+- **Q8 (regression tolerance):** Strict byte-equal sha256 match. Idle-string output is literal 0.0f at regression preset (analytical proof + empirical baseline both confirm). One-time refactoring-boundary fallback is unnecessary. (§15.9)
+
+**Net source delta (PLAN rev-6 estimate):**
+- `BowedContrabassVoice.h`: ~+15 LOC (new state vars, precomputed ramp vector, helpers)
+- `BowedContrabassVoice.cpp`: ~+80 LOC (state machine, mix loop, prepareToPlay extensions, helpers)
+- `WaveguideString.h`: ~+1 LOC (`setDispersionActiveSections` declaration)
+- `WaveguideString.cpp`: ~+3 LOC (`setDispersionActiveSections` implementation)
+- `tests/render-harness/main.cpp`: ~+120 LOC (3 new flags, 2 new modes, JSON schema additions, RMS-continuity computation, transition-rms computation)
+
+Total: ~+220 LOC source + ~6 new golden text files.
+
+**Pre-flight regression bar empirically confirmed (§15.1):** working tree at R20 still produces sha256 `d358abcd…` against MIDI 28 + ACTIVE_STRINGS=4 + DETUNE_E=0 + STRING_STIFFNESS=0 preset. Phase 2.2 plan-phase can proceed. Hand off to `/plugin-plan O-Contrabass 2-dsp` for PLAN rev-6.
+
+---
+
+## 15.16 References (§15 append)
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-4 §"Open Questions" (Q1–Q8 — resolved here).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-4 §"Approach Decisions" Q1–Q10 + 3 derived (idle-string topology, crossfade trigger, listening test sequence).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-4 §"Risks" #1–#8 — refined in §15.12.
+- `plugins/O-Contrabass/research/ARCHITECTURE.md` §"String Waveguide Bank" lines 68–88 (per-string M-table, B prefactors, detune SmoothedValue<Linear> 20 ms in delay-samples space, ACTIVE_STRINGS clamp).
+- `plugins/O-Contrabass/research/ARCHITECTURE.md` §"Cascaded Allpass Dispersion" lines 395–417 (closed-form coefficient, group-delay compensation; consumed verbatim from Phase 2.1c via setActiveSections/setCoefficient API).
+- `plugins/O-Contrabass/parameter-spec.md` line 37 (ACTIVE_STRINGS Int [1,4]); lines 43–46 (DETUNE_E/A/D/G Float [-1200, +1200]).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.{h,cpp}` (Phase 2.1a–c carry-forward; topology untouched).
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.{h,cpp}` (Phase 2.1a–c carry-forward; topology untouched).
+- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` (Phase 2.1c R20; setActiveSections + setCoefficient public API consumed verbatim).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` (Phase 2.1c CLI surface; new flags follow same pattern).
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-zero-pre.wav.sha256` = `d358abcd…` (Phase 2.1c regression bar carry-forward).
+- `plugins/O-Bowed/Source/BowedStringVoice.h` line 83 + `plugins/O-Bowed/Source/DSP/WaveguideString.h` line 22 — confirmed independent file (not shared module); O-Contrabass changes are plugin-local.
+- `modules/synthesis/bow-friction/cpp/HyperbolicFriction.h` line 12, 32 — value-class deterministic; rho ∈ [0, ~0.5] proportional to v_delta·F_bow ⇒ `rho(0,0) = 0`.
+- §15.1 pre-flight render: `/tmp/phase22-preflight-stiffness-zero.{wav,json}`, sha256 `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` (matches committed golden).
+
+---

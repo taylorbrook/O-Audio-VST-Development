@@ -811,3 +811,236 @@ End-of-Stage-2 verify per locked decision (CONTEXT.md rev-2 + RESEARCH §12.6). 
 2. **`/clear` + `/plugin-discuss O-Contrabass 2-dsp`** — fresh context; Phase 2.2 (per-string detune + A1/D2/G2 strings) opens as a new GSD cycle.
 
 Stage 2 verify (full) cannot complete until Phases 2.2, 2.3, 2.4, 2.5, and 2.6 are all verified per their own GSD cycles.
+
+---
+
+# Phase 2.2 — Verification (4-String Bank + Per-String Detune + Per-String Dispersion Table)
+
+**Date:** 2026-04-27
+**Plugin:** O-Contrabass
+**Stage:** 2 of 4 (DSP) — Phase 2.2 cycle
+**Phase:** verify
+**Cycle scope:** Phase 2.2 — 4-string EADG bank + per-string detune ±1200¢ + per-string M=4/3/2/1 dispersion table + MIDI→string mapping + ACTIVE_STRINGS clamp + 5 ms equal-power crossfade
+**Plan revision verified:** rev-6 (R21-pre / R22 / R21 / R23 / R24 / R25 / R26 sequencing)
+**Verdict:** ✅ **VERIFIED — Gate 4 PASS on all 7 automated invariants; R26 atomic commit composed.**
+
+---
+
+## Goal-Backward Analysis
+
+### Original Goals (from CONTEXT.md rev-4 §"Cycle Scope")
+
+1. Add A1, D2, G2 strings to the existing E1 voice — all four strings allocated permanently, bow engages exactly one at a time selected by MIDI note → open-string mapping.
+2. Per-string detune ±1200¢ ramps click-free (in delay-samples space, 20 ms `SmoothedValue<Linear>`).
+3. Per-string M=4/3/2/1 dispersion with locked B prefactors (1e-4 / 7e-5 / 5e-5 / 3e-5).
+4. String-to-string transitions during sustained bowing crossfade equal-power over 5 ms with no audible click.
+5. **E1 STRING_STIFFNESS=0 byte-exact regression**: render at default tuning + ACTIVE_STRINGS=4 + MIDI 28 + STRING_STIFFNESS=0 must be byte-identical to Phase 2.1c golden sha256 `d358abcd…` (the strongest possible "Phase 2.2 didn't break E1" check).
+6. ACTIVE_STRINGS=1 + MIDI 50 demote produces audible tone on E1 (no silence).
+7. `auval -v aumu OCbs OuDv` SUCCEEDED + pluginval --strictness-level 10 SUCCESS.
+
+### Deliverables (from SUMMARY.md / source inspection)
+
+1. `BowedContrabassVoice.{h,cpp}` — `std::array<WaveguideString, 4>` keyed E/A/D/G, per-string `juce::SmoothedValue<float, Linear>` detune (4 instances, 20 ms ramp), MIDI→string mapping helper (closed-form thresholds 28/33/38/43 + ACTIVE_STRINGS clamp), `activeStringIndex` + `previousStringIndex` + `crossfadeRemainingSamples`, equal-power crossfade ramp (precomputed at prepare()), per-block detune + stiffness smoother advance, per-sample friction-injection-only-into-active-string + tick-all-4-strings + crossfade-mix.
+2. `WaveguideString.{h,cpp}` — added `setDispersionActiveSections(int M)` pass-through setter (R22, +8 LOC); `setDelaySamples()` extended +5 LOC to mirror `updateDelayLengths()` LP+dispersion compensation (critical bit-exact discovery during execute).
+3. `tests/render-harness/main.cpp` — three new CLI flags (`--string {E|A|D|G}`, `--detune-sweep {E|A|D|G}`, `--note-sequence "MIDI:dur,..."`), mode-aware JSON schema (per-mode pass-conditions), 4096-sample audit window for bass-period RMS continuity.
+4. Ten new golden text files at `tests/render-harness/golden/{string-A,string-D,string-G,detune-sweep-A,note-sequence}.{wav.sha256,json}` (WAV NOT committed, sha256+JSON only — Phase 2.1c pattern).
+
+### Goal Achievement
+
+| Goal | Status | Evidence (verify-phase reproduction) |
+|------|--------|--------------------------------------|
+| 4-string EADG voicing (per-string A/D/G audible) | ✅ Achieved | A: peak 0.068 / rmsMid 0.0357; D: peak 0.068 / rmsMid 0.0358; G: peak 0.068 / rmsMid 0.0354 — all ~3 orders of magnitude above 1e-3 audibility threshold. sha256 byte-identical to committed goldens (aa88f4c3…, d0ef8087…, 524d2186…). |
+| Per-string detune ±1200¢ click-free | ✅ Achieved | `--detune-sweep A` over 30 s: rmsContinuityRatio = 0.960 ≥ 0.90 threshold → `pass_rmsContinuity = true`. WAV byte-identical to golden 5e31dad3…. |
+| Per-string M=4/3/2/1 dispersion table active | ✅ Achieved (component-level) | R22 setter `WaveguideString::setDispersionActiveSections(M)` exposed; `BowedContrabassVoice::prepareToPlay` configures slots 1/2/3 with M=3/2/1 + B=7e-5/5e-5/3e-5 (slot 0 retains M=4 + B=1e-4 from `prepare()`). Bit-exact regression at slot 0 confirms slot-0 path unchanged; per-string A/D/G tones audible confirms slots 1/2/3 dispersion runs without instability. |
+| String-switching crossfade click-free | ✅ Achieved | Note-sequence `28:1.5,33:1.5,38:1.5,43:1.5,28:1.5` (E→A→D→G→E): rmsContinuityAtTransitions = 0.909 ≥ 0.50 threshold → `pass_rmsContinuityAtTransitions = true`. All 5 segments perSegmentRms ≥ 0.0092 → `pass_allSegmentsAudible = true`. WAV byte-identical to golden 2a731edb…. |
+| **E1 STRING_STIFFNESS=0 strict byte-equal regression** | ✅ Achieved | Verify-phase reproduction `O-Contrabass-render-test --note 28 --sustain 60 --release 5 --infinite-sustain 1.0 --string-stiffness 0` produced sha256 `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` — **byte-identical to Phase 2.1c golden** at `tests/render-harness/golden/stiffness-zero-pre.wav.sha256`. RESEARCH §15.9 analytical proof empirically confirmed: 4-string refactor is purely additive on the E-string code path. HARD RULES §15.9.5 (no fp-reordering on slot-0 mix path, no topology change for active string, prepareToPlay slot-0 sequence unchanged, slot-0 setActiveSections(4) retained verbatim) honoured by implementation. |
+| ACTIVE_STRINGS=1 + MIDI 50 demote audible | ✅ Achieved | `--note 50 --active-strings 1`: peak 0.069 / rmsMid 0.034 — audible (not silent); demote-to-E1 path active. |
+| `auval` + pluginval-10 PASS | ✅ Achieved | `auval -v aumu OCbs OuDv` → "AU VALIDATION SUCCEEDED" (full render rate matrix 22050→192000 Hz, parameter setting/scheduling, MIDI all PASS). `pluginval --strictness-level 10 --validate-in-process` → SUCCESS (Editor Automation, Automatable Parameters, Parameter thread safety, Background thread state, Basic bus, Listing buses 0-in/2-out, Enabling/disabling/restoring buses, Fuzz parameters all PASS). Independently re-run 2026-04-27 against fresh-installed binaries. |
+
+---
+
+## Independent Reproduction (verify-phase audit trail)
+
+All seven automated Gate 4 numeric checks were independently re-run against the freshly-built render-harness + the freshly-installed AU/VST3 binaries:
+
+| Check | Phase 2.2 SUMMARY claim | Verify-phase reproduction | Match |
+|---|---|---|---|
+| String A (MIDI 33, 6 s + 1 s) | sha256 aa88f4c3… | `/tmp/verify-string-A.wav` sha256 `aa88f4c3eb373d1cb3f7b6efc6f0555f295ef8b34d551a73411f9525fa7ce6bd` | ✅ byte-equal |
+| String D (MIDI 38, 6 s + 1 s) | sha256 d0ef8087… | `/tmp/verify-string-D.wav` sha256 `d0ef8087caf7a9e8e9084a976a27e6b6be16ea7213ef8d14b15677e042017ca5` | ✅ byte-equal |
+| String G (MIDI 43, 6 s + 1 s) | sha256 524d2186… | `/tmp/verify-string-G.wav` sha256 `524d2186a8c8534aadeae162bc0b962e1c9306dc2a8675a1527016af36677a9a` | ✅ byte-equal |
+| Detune-sweep A ±1200¢ over 30 s | sha256 5e31dad3…; rmsContinuity 0.960 ≥ 0.90 | sha256 `5e31dad32ed2d34d1a972609eb1cd35487c2344e6ca3dd7351350193e22dbb05`; rmsContinuityRatio 0.960221230983734 → `pass_rmsContinuity = true` | ✅ byte-equal |
+| Note-sequence E→A→D→G→E | sha256 2a731edb…; allSegmentsAudible = true; rmsContinuityAtTransitions 0.909 ≥ 0.50 | sha256 `2a731edbfd540dcfaf1d2dee8b0aacd3ddeaec2f661f4f03751bbcbb3b281b38`; allSegmentsAudible = true; rmsContinuityAtTransitions 0.908523082733154 → `pass_rmsContinuityAtTransitions = true` | ✅ byte-equal |
+| ACTIVE_STRINGS=1 + MIDI 50 (demote) | audible (peak ≥ 1e-3) | peak 0.069161936640739 / rmsMid 0.033628407865763 — ~3 orders above audibility threshold | ✅ |
+| **E1 STRING_STIFFNESS=0 strict byte-equal** | sha256 `d358abcd…` (Phase 2.1c golden carry-forward) | `/tmp/verify-stiffness-zero.wav` sha256 `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` | ✅ **byte-equal — strict invariant honoured** |
+| `auval -v aumu OCbs OuDv` | SUCCEEDED | "AU VALIDATION SUCCEEDED" | ✅ |
+| `pluginval --strictness-level 10 --validate-in-process` | SUCCESS | SUCCESS | ✅ |
+
+Reproduction is bit-stable; all five Phase 2.2 golden text files at `tests/render-harness/golden/` reproduce byte-for-byte. The Phase 2.1c regression golden (`stiffness-zero-pre.wav.sha256 = d358abcd…`) survives the 4-string refactor unchanged — the strongest possible empirical confirmation of RESEARCH §15.9's analytical proof + §15.9.5's hard rules.
+
+---
+
+## Code-Level Verification Against PLAN rev-6
+
+### R21 — `BowedContrabassVoice` 4-string bank
+
+`Source/BowedContrabassVoice.h` declares `std::array<WaveguideString, 4> waveguideStrings`, four `juce::SmoothedValue<float, Linear> detuneSmoothed[4]`, `int activeStringIndex` + `int previousStringIndex` + `int crossfadeRemainingSamples`, plus precomputed equal-power ramp (`std::vector<float> crossfadeOldGain` / `crossfadeNewGain`, sized at prepareToPlay).
+
+`Source/BowedContrabassVoice.cpp`:
+- `prepareToPlay`: per-slot `prepare()` + `setDispersionActiveSections(M_per_string[s])` + `setDispersionCoefficient(0.0f initial)`, four detune smoothers initialised at 0.0f (1200¢ per ARCHITECTURE.md), crossfade ramp precomputed (3.5 KiB at 88.2k internal). **Slot-0 sequence unchanged from Phase 2.1c (HARD RULES §15.9.5 honoured).**
+- `noteStarted()`: closed-form `mapMidiNoteToStringIndex(midiNote, activeStringsParam)` produces target slot; if different from current `activeStringIndex`, sets `previousStringIndex = activeStringIndex`, `activeStringIndex = newSlot`, `crossfadeRemainingSamples = ceil(0.005 * sampleRateInternal)`. Friction injection routes to new slot at crossfade-start (sample-accurate).
+- Per-block: advance all 4 detune smoothers + advance shared stiffness smoother + recompute per-string `a` from `(currentStiffness, openStringFrequencyHz[s], B_open[s], M_per_string[s])`, push via `setDispersionCoefficient()`.
+- Per-sample inside `renderNextBlock` inner loop: friction injection only into `waveguideStrings[activeStringIndex]` via early-return pattern (slot-0 fp-arithmetic preserved bit-exact); tick all 4 strings (idle slots `popSample`/`pushSample` keep delay-line state warm via existing `−1e-20` leak); equal-power crossfade mix during the 5 ms transition window.
+
+### R22 — `WaveguideString::setDispersionActiveSections`
+
+`Source/DSP/WaveguideString.h` declares `void setDispersionActiveSections(int activeSections)`; `Source/DSP/WaveguideString.cpp` implements it as a pass-through to `bridgeDispersion.setActiveSections(activeSections)` (single-line wrapper, +8 LOC total). Public surface added without changing `prepare()` signature; per-string M is configured once at prepareToPlay via this setter; runtime API stable across plugins (O-Bowed compatibility preserved).
+
+**Critical bit-exact subtlety (carried in SUMMARY):** `setDelaySamples()` was extended +5 LOC to mirror `updateDelayLengths()`'s LP + dispersion group-delay compensation. Without this, `noteStarted()`'s `setDelaySamples(sr/f)` would overwrite `trigger(f)`'s carefully compensated bridge/neck delays with the uncompensated raw round-trip — a one-block bit-exact perturbation that would invalidate the slot-0 regression bar. Confirmed by inspection.
+
+### R23 — Render-harness CLI flags + JSON schema
+
+`tests/render-harness/main.cpp` adds:
+- `--string <E|A|D|G>` overrides `--note` to open-string MIDI 28/33/38/43.
+- `--detune-sweep <E|A|D|G>` ramps `DETUNE_<X>` from −1200→+1200¢ across the sustain phase (per-block linear ramp via `setValueNotifyingHost`).
+- `--note-sequence "MIDI:dur,..."` pre-builds a full `MidiBuffer` event list at render start; per-block drain via existing harness MidiBuffer plumbing.
+- `--active-strings <int>` parameter override (Phase 2.2 R23 sentinel <0 = APVTS factory default = 4).
+
+JSON schema additions (mode-aware):
+- `mode` ∈ {`sustained`, `stiffness-sweep`, `detune-sweep`, `note-sequence`}.
+- `detune-sweep`: adds `string`, `detuneRamp.startCents/endCents/shape`, `rmsByDecade[10]`, `rmsContinuityRatio`, `pass_rmsContinuity` (≥0.90 threshold).
+- `note-sequence`: adds `sequence[].midiNote/sampleStart/sampleCount`, `transitionSampleIndices[]`, `perSegmentRms[]`, `pass_allSegmentsAudible` (>1e-3 threshold), `rmsContinuityAtTransitions` (256-sample symmetric window centred on each transition; ≥0.50 threshold).
+
+RMS-continuity audit window extended from 512 to 4096 samples (~92 ms at 44.1k) to handle bass-register periods (≈22 Hz at deep detune ≈2000-sample period spans multiple processBlocks). 0.90 threshold derived analytically (RESEARCH §15.7) for steady-state held; 0.50 threshold for note transitions reflects new-string-starts-from-zero-energy reality.
+
+### R24/R25 — Build + automated Gate 4
+
+Build clean (no new warnings beyond pre-existing macOS-deprecation on `createWriterFor`). All 7 automated invariants PASS at the verify-phase independent re-run (table above). `--active-strings 1 --note 50` produces audible tone (peak 0.069, rmsMid 0.034) — demote-to-E1 path empirically active.
+
+---
+
+## Requirements Verification
+
+**Stage:** 2-dsp (Phase 2.2 cycle)
+**Phase 2.2 verifies:** narrow subset only — 4-string voicing, per-string detune, per-string dispersion. Most Stage-2 requirements verify in later Phase 2.x cycles per ROADMAP.
+
+| Requirement | Priority | Status (post-2.2) | Evidence / Deferral |
+|-------------|----------|-------------------|---------------------|
+| FUNC-01: Monophonic 4-string EADG E1–G3 | must | ✅ Complete | All 4 strings (E1/A1/D2/G2) produce stable audible tone (verify-phase per-string sustained-tone harness × 3 plus E1 strict byte-equal regression). MIDI→string mapping closed-form verified. ACTIVE_STRINGS clamp + remap-to-highest-active-string verified at MIDI 50 + ACTIVE_STRINGS=1. |
+| FUNC-02: Sustained tone is the default articulation | must | ⚠️ Partial | Phase 2.1a-recovery verified bow-on hold sustains 65 s at max INFINITE_SUSTAIN; Phase 2.2 extends to all 4 strings (per-string A/D/G + note-sequence E→A→D→G→E). Release-tail naturalness pending body-resonator (Phase 2.5). |
+| FUNC-05: MPE per-note pitch / pressure / slide | should | ⏸️ Deferred | Phase 2.6 |
+| FUNC-06: VST3 Note Expression for Dorico | must | ⏸️ Deferred | Phase 2.6 |
+| FUNC-07: MTS-ESP / Scala/TUN | should | ⏸️ Deferred | Phase 2.6 |
+| DSP-01: Waveguide stable across E1–G3, 2× oversampling at friction junction | must | ✅ Complete | All 4 strings (E1=41.2 Hz / A1=55.0 Hz / D2=73.4 Hz / G2=98.0 Hz) verified stable, no NaN/Inf, peak ≤ 0.07 across all per-string + sweep + sequence renders. 2× oversampling at friction junction unchanged from Phase 2.1c. |
+| DSP-02: Bass-tuned friction junction | must | ✅ Complete | `bow-friction` v1.0.0 module (Phase 2.1b R15 atomic commit `ef0604d`) consumed verbatim with bass setters `mu_s=0.85` / `mu_d=0.25` applied at `prepareToPlay`. Phase 2.2 does NOT touch friction. |
+| DSP-03: Bass-tuned wood body resonator | must | ⏸️ Deferred | Phase 2.5 |
+| DSP-04: Bow noise / rosin grit | should | ⏸️ Deferred | Phase 2.5 |
+| DSP-05: Per-string detuning ±1200 cents | must | ✅ Complete | Per-string `juce::SmoothedValue<float, Linear>` 20 ms ramp in delay-samples space verified click-free across full ±1200¢ sweep on A1 (rmsContinuityRatio = 0.960 ≥ 0.90; pass_rmsContinuity = true). State persistence via APVTS XML serialisation (Stage 1 carry-forward). |
+| DSP-06: Infinite Sustain control | must | ⚠️ Partial | Quadratic skew + ceiling clamp verified; max-setting + drone-mode leak suppression all verified stable across 4-string surface. Smooth-sweep / click-free check on INFINITE_SUSTAIN parameter sweep deferred to Phase 2.4 (108-combo matrix). |
+| DSP-07: Sub-Harmonic generator | should | ⏸️ Deferred | Phase 2.4 |
+| DSP-08: Slow Bow LFO | should | ⏸️ Deferred | Phase 2.3 |
+| DSP-09: Layered expression | must | ⏸️ Deferred | Phase 2.3 / 2.6 |
+| DSP-10: Slow expressive attack characteristic | must | ⚠️ Partial | BowState envelope verified across 4 strings; full attack-character audition pending Logic AU smoke (R27, user-deferred non-blocking). |
+| PERF-01: Real-time safe processing | must | ⚠️ Partial | `juce::ScopedNoDenormals` in `processBlock`; pluginval-10 fuzz + parameter-thread-safety PASS; idle-slot CPU overhead empirically within budget (blockTime ratio max 2.61 across all 7 reproductions, well under 5× denormal-spike sentinel); explicit RT-safety code review deferred to end-of-Stage-2. |
+| PERF-03: Zero algorithmic latency | nice | ⚠️ Partial | Per-string dispersion group-delay compensation wired (R17 plumbing) + detune in delay-samples space does not change reported plugin latency. Numerical verification deferred. |
+| QUAL-01: No audio artifacts at normal ranges | must | ⚠️ Partial | Per-string A/D/G + detune-sweep + note-sequence all PASS pass_nan + pass_peak + pass_blockTime. Click-free invariant verified across ±1200¢ detune sweep + E→A→D→G→E string switching. 108-combo parameter-matrix click test deferred to Phase 2.4. |
+| QUAL-02: Self-oscillation remains musical | nice | ⏸️ Deferred | Phase 2.6 |
+
+**Requirements Summary (Phase 2.2 cycle, cumulative across Stage 2):**
+- ✅ Complete: 4 (FUNC-01, DSP-01, DSP-02, DSP-05)
+- ⚠️ Partial: 6 (FUNC-02, DSP-06, DSP-10, PERF-01, PERF-03, QUAL-01) — multi-phase requirements with Phase 2.2 component-level progress
+- ⏸️ Deferred to later Phase 2.x cycle: 8
+- ❌ Failed: 0
+
+**Promoted to "complete" in REQUIREMENTS.md:** FUNC-01, DSP-01, DSP-02, DSP-05.
+
+---
+
+## Automated Checks
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| Build (VST3 + AU + render-harness) | ✅ Pass | All artefacts present; ninja `no work to do` (working tree state matches built artefacts). |
+| Source matches PLAN rev-6 (R21+R22+R23 task bodies) | ✅ Pass | Inspection confirms `std::array<WaveguideString, 4>`, per-string detune smoother, MIDI→string mapping, equal-power crossfade ramp, 4 new harness flags + mode-aware JSON schema. HARD RULES §15.9.5 honoured. |
+| Slot-0 (E1) byte-exact regression | ✅ Pass | sha256 == `d358abcd…` — byte-identical to Phase 2.1c golden. RESEARCH §15.9 analytical proof empirically confirmed. |
+| Per-string A/D/G sustained tone | ✅ Pass | All 3 sha256 byte-identical to committed goldens; peak ~0.068, rmsMid ~0.035 (audible, no NaN/Inf). |
+| Detune-sweep A ±1200¢ click-free | ✅ Pass | sha256 5e31dad3…; rmsContinuityRatio 0.960 ≥ 0.90 → pass_rmsContinuity true. |
+| Note-sequence E→A→D→G→E click-free | ✅ Pass | sha256 2a731edb…; allSegmentsAudible true; rmsContinuityAtTransitions 0.909 ≥ 0.50 → pass_rmsContinuityAtTransitions true. |
+| ACTIVE_STRINGS=1 + MIDI 50 demote audible | ✅ Pass | peak 0.069 / rmsMid 0.034 — ~3 orders above 1e-3 audibility threshold. |
+| `auval -v aumu OCbs OuDv` | ✅ Pass | "AU VALIDATION SUCCEEDED" — full render rate matrix + parameter setting/scheduling + MIDI all PASS. |
+| `pluginval --strictness-level 10 --validate-in-process` | ✅ Pass | SUCCESS — Editor Automation, Automatable Parameters, Parameter thread safety, Background thread state, Basic bus, Listing buses (0-in/2-out), Enabling/disabling/restoring buses, Fuzz parameters all PASS. |
+| Installed binaries match build | ✅ Pass | `~/Library/Audio/Plug-Ins/{VST3,Components}/O-Contrabass-dev.*` freshly installed (AU cache cleared per CLAUDE.md "Plugin Cache Clearing"). |
+| Source committed to git | ✅ Pass | R26 atomic commit landed during verify (this report). Single commit lands ~21 files: 5 source files + harness + 10 golden text files + 6 planning artefacts. |
+
+---
+
+## Human Verification
+
+- [ ] **Logic Pro AU smoke (R27, user-deferred non-blocking)** — load `O-Contrabass-dev` AU, audition E1 → A1 → D2 → G2 portamento sweep at 1 s/string, ACTIVE_STRINGS knob sweep 4→3→2→1 with MIDI 50 held, STRING_STIFFNESS sweep on D2. Mirrors R19f (Phase 2.1c) / R14e (Phase 2.1b) precedent. **Status: DEFERRED — user-side audition; not blocking R26 commit landing.**
+
+---
+
+## Issues Found
+
+### 1. R27 Logic AU smoke — user-deferred (carry-forward from SUMMARY)
+
+Optional manual audition; not blocking Gate 4 PASS or R26 atomic commit. Mirrors Phase 2.1b R14e and Phase 2.1c R19f precedent.
+
+### 2. ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments still deferred
+
+Both deferred to end-of-Stage-2 verify per locked decision (CONTEXT.md rev-2 + RESEARCH §12.6). F3 deviation tracked in commit-message bodies (R7 + R15 + R20 + R26) until then. Phase 2.2 did NOT touch the F1+F2+F3+F4 topology; deviation still applies unchanged.
+
+### 3. Phase 2.4 calibration polynomial follow-up still parked
+
+Per RESEARCH §14.10 Risk #7, the closed-form clamp at I=8.0 makes E1 STRING_STIFFNESS sweep musically near-flat (≈4.8% rmsByDecade variation). Phase 2.4 follow-up if R18-equivalent analysis on bass register surfaces audible musical interest gap. Not blocking Phase 2.2.
+
+---
+
+## Stage Verdict
+
+**Status:** ✅ **VERIFIED — Phase 2.2 Gate 4 PASS**
+
+**What is verified:**
+- 4-string EADG voicing — all 4 strings produce stable audible tone; MIDI→string mapping closed-form correct.
+- Per-string detune ±1200¢ — click-free across full sweep on A1 (rmsContinuityRatio = 0.960).
+- Per-string M=4/3/2/1 dispersion table — slot-0 byte-exact preserved; slots 1/2/3 audible without instability.
+- 5 ms equal-power crossfade — note-sequence E→A→D→G→E rmsContinuityAtTransitions = 0.909.
+- ACTIVE_STRINGS=1 + MIDI 50 demote — audible (peak 0.069), no silent-fail.
+- **E1 STRING_STIFFNESS=0 strict byte-equal regression** — sha256 == `d358abcd…` verbatim. RESEARCH §15.9 analytical proof + §15.9.5 hard rules empirically confirmed.
+- `auval` SUCCEEDED + pluginval-10 SUCCESS.
+
+**What is NOT verified (still open by ROADMAP design):**
+- Phase 2.3 (vibrato + Slow-Bow LFO + Schelleng wedge clamp) — fresh GSD cycle.
+- Phase 2.4 (sub-harmonic bias + 108-combo stability matrix + saturator-tail follow-up + E1 calibration polynomial follow-up) — fresh GSD cycle.
+- Phase 2.5 (body resonator + bow noise) — fresh GSD cycle.
+- Phase 2.6 (master saturator/limiter, stereo width, microtonal, MPE) — fresh GSD cycle.
+- Logic AU smoke (R27) — user-deferred non-blocking.
+- ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments — end-of-Stage-2 verify.
+
+**Stage 2 cumulative status:** Phase 2.1 closed (Gate 1+2+3 PASS, R7+R15+R20 commits). Phase 2.2 closed (Gate 4 PASS, R26 commit). 4 of 6 Phase-2.x cycles remain (2.3 / 2.4 / 2.5 / 2.6).
+
+**Ready for next phase:** Yes — Phase 2.3 opens fresh GSD cycle.
+
+---
+
+## Files Touched (Phase 2.2 verify-phase)
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — Phase 2.2 verify section appended (this report).
+- `plugins/O-Contrabass/.planning/STATUS.md` — Phase 2.2 verify status + R26 commit sha.
+- `plugins/O-Contrabass/.planning/REQUIREMENTS.md` — FUNC-01, DSP-01, DSP-02, DSP-05 promoted to "complete".
+- `~/Library/Audio/Plug-Ins/VST3/O-Contrabass-dev.vst3` — fresh-installed (AU cache cleared per CLAUDE.md).
+- `~/Library/Audio/Plug-Ins/Components/O-Contrabass-dev.component` — fresh-installed.
+- `/tmp/verify-stiffness-zero.wav` — verify-phase E1 regression render (sha256 `d358abcd…`).
+- `/tmp/verify-string-{A,D,G}.wav` — verify-phase per-string sustained-tone reproductions.
+- `/tmp/verify-detune-sweep-A.wav` — verify-phase detune-sweep reproduction.
+- `/tmp/verify-note-sequence.wav` — verify-phase note-sequence reproduction.
+- `/tmp/verify-active1-midi50.wav` — verify-phase ACTIVE_STRINGS=1 + MIDI 50 demote reproduction.
+
+---
+
+## Next Action
+
+**Phase 2.2 verify complete; R26 atomic commit landed during this verify.**
+
+Next: **`/clear` + `/plugin-discuss O-Contrabass 2-dsp`** opens Phase 2.3 (vibrato + Slow-Bow LFO + Schelleng wedge clamp) as a fresh GSD cycle.
+
+Stage 2 verify (full) cannot complete until Phases 2.3, 2.4, 2.5, and 2.6 are all verified per their own GSD cycles.

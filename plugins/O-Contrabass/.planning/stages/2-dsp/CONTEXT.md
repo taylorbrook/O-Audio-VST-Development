@@ -1,11 +1,11 @@
-# Stage 2: DSP — Context (rev-3)
+# Stage 2: DSP — Context (rev-4)
 
 **Date:** 2026-04-27
 **Plugin:** O-Contrabass
 **Stage:** 2 of 4 (DSP)
 **Phase:** discuss
-**Cycle Scope:** **Phase 2.1c — Cascaded Allpass Dispersion (Gate 3)**
-**Supersedes:** rev-2 (Phase 2.1a closure + 2.1b opening, dated 2026-04-26). rev-2 contracts that remain locked are inherited verbatim and not re-litigated.
+**Cycle Scope:** **Phase 2.2 — 4-String Bank + Per-String Detune + Per-String Dispersion Table**
+**Supersedes:** rev-3 (Phase 2.1c — Cascaded Allpass Dispersion, Gate 3, dated 2026-04-27). rev-3 contracts that remain locked are inherited verbatim and not re-litigated.
 
 ---
 
@@ -13,44 +13,48 @@
 
 **Participants:** User, Claude
 
-This discuss cycle opens Phase 2.1c — cascaded allpass dispersion on the bridge rail of the E-string waveguide — the third and final sub-phase of Phase 2.1. Phase 2.1b verified ✅ on 2026-04-27 (R8a `bd5fae0` + R15 `ef0604d` atomic commits, Gate 2 PASS bit-exact); the friction module is now extracted and consumed by both O-Bowed and O-Contrabass.
+This discuss cycle opens Phase 2.2 — expansion from single-string E1 to the full 4-string EADG bank, with per-string detune ±1200¢, per-string dispersion (M=4/3/2/1 with B=1e-4/7e-5/5e-5/3e-5 prefactors), MIDI note → string mapping, ACTIVE_STRINGS handling, and click-free string-switching. Phase 2.1 closed 2026-04-27 with R20 atomic commit (`5759e5e`); the friction junction, split-rail waveguide, cascaded allpass dispersion, and bow-friction module are all in place and validated.
 
-The Phase 2.1c scope is single-purpose: implement the Rauhala/Välimäki 2006 cascaded first-order allpass dispersion filter, wire it onto the bridge rail of the existing split-rail waveguide for the E-string (M=4), validate via STRING_STIFFNESS sweep + 60 s sustained-tone harness rerun, and atomic-commit on Gate 3 PASS.
+The Phase 2.2 scope is a single coupled cycle: four `WaveguideString` instances inside one mono voice; bow energy routes to one selected string at a time per `ACTIVE_STRINGS` and the MIDI note's open-string mapping. Detune ramps in delay-samples space (architecture-locked). Dispersion uses Phase 2.1c's runtime `setActiveSections()` API to configure M per string at `prepare()`. String switches mid-sustain crossfade equal-power over 5 ms. Atomic-commit on Gate 4 PASS.
 
-After Phase 2.1c verifies, Phase 2.1 (the highest-risk phase, ~50% of project risk) closes and Phase 2.2 (per-string detune + A/D/G strings) opens as a fresh GSD cycle.
+After Phase 2.2 verifies, Phase 2.3 (modulators: vibrato + Slow-Bow LFO + Schelleng wedge) opens as a fresh GSD cycle.
 
 ---
 
 ## Cycle Scope
 
-**Goal:** Implement cascaded allpass dispersion (Rauhala/Välimäki 2006) on the E-string waveguide's bridge rail. Validate that STRING_STIFFNESS produces continuous, click-free timbral change; that dispersion at 100 % affects attack character but not steady-state pitch (mode-locking); and that the engine remains stable under the Gate 1 bow-on-only 65 s harness. Atomic-commit on Gate 3 PASS.
+**Goal:** Add A1, D2, G2 strings to the existing E1 voice. All four strings allocated permanently (not stolen). Bow engages exactly one at a time, selected by MIDI note → open-string mapping (highest open-string at-or-below the note, clamped by ACTIVE_STRINGS). Per-string detune ±1200¢ ramps click-free. Per-string M=4/3/2/1 dispersion with locked B prefactors. String-to-string transitions during sustained bowing crossfade equal-power over 5 ms with no audible click. E1 behaviour at default tuning + STRING_STIFFNESS=0 stays bit-exact identical to the Phase 2.1c golden (regression bar — Phase 2.2 must not change E1 in any way).
 
 **In scope:**
-- `Source/DSP/DispersionFilter.h` — new file, per-plugin (NOT extracted to a shared module — coefficient closed-form is plugin-agnostic but topology integration is plugin-specific; module-promotion can be revisited if O-Bowed grows a dispersion filter later).
-- `Source/DSP/WaveguideString.{h,cpp}` — wire `DispersionFilter<4>` onto the bridge rail at the locked placement (see Approach Decisions Q1).
-- `Source/BowedContrabassVoice.{h,cpp}` — advance the existing 20 ms `stiffnessSmoothed` per block; recompute coefficient `a` once per block from current smoothed stiffness; push to `WaveguideString::setDispersionCoefficient(a)` (or equivalent setter — research-phase finalises API shape).
-- `tests/render-harness/main.cpp` — add `--stiffness-sweep` CLI mode (ramp STRING_STIFFNESS 0→1 over 60 s; dump WAV).
+- `Source/BowedContrabassVoice.{h,cpp}` — replace single `waveguideString` member with `std::array<WaveguideString, 4>` keyed E/A/D/G. Add per-string `juce::SmoothedValue<float, Linear>` detune (4 instances, 20 ms ramp, smoothed in delay-samples). Add `activeStringIndex` + `previousStringIndex` + `crossfadeRemainingSamples` for string-switching. Add MIDI note → string mapping helper (closed-form thresholds 28/33/38/43, ACTIVE_STRINGS clamp). Per-block: advance all 4 detune smoothers, advance all 4 stiffness smoothers, recompute per-string dispersion `a` from current smoothed stiffness, push each via `setDispersionCoefficient()`. Per-sample: friction injection only into active string; tick all 4 strings (so silent strings keep idle leak state, no cold-start on reactivation); equal-power crossfade mix during the 5 ms transition window.
+- `Source/BowModel.{h,cpp}` (review only) — confirm bow state is voice-level (one bow regardless of string count), no per-string changes needed. Bass detune defaults `0.85f / 0.25f` already wired Phase 2.1b.
+- `Source/DSP/WaveguideString.{h,cpp}` — minor surface additions (NOT topology changes): per-instance `setStringIndex()` or `prepare()` parameter so each instance can apply its own M and B prefactor. The existing `MaxSections + activeSections` + `setDispersionCoefficient()` API from Phase 2.1c carries the per-string M without re-templating.
+- `tests/render-harness/main.cpp` — add CLI flags for the new gate invariants:
+  - `--string {E,A,D,G}` to override the MIDI note → string mapping (forces a specific string for per-string sustained-tone harnesses).
+  - `--detune-sweep {E,A,D,G}` to ramp the chosen string's `DETUNE_*` parameter from −1200 → +1200 cents over the configured sustain duration; emit WAV + JSON with `mode: detune-sweep`, `string: <X>`, `detuneRamp: {start: -1200, end: 1200, shape: linear}`.
+  - `--note-sequence "MIDI:duration[,MIDI:duration...]"` for the string-switching gate test (programmatic note-on sequence; e.g., `--note-sequence "28:2.0,33:2.0,38:2.0,43:2.0,28:2.0"` exercises E→A→D→G→E with 2 s per note).
+- `Source/PluginProcessor.cpp` — no changes expected (APVTS already declares all four `DETUNE_*` parameters and `ACTIVE_STRINGS` from Stage 1; voice reads them directly).
 
 **Out of scope (deferred to later Phase 2.x cycles):**
-- A1/D2/G2 strings + per-string M=3/2/1 dispersion table (Phase 2.2)
-- Per-string detune ±1200 cents (Phase 2.2)
 - Vibrato + Slow-Bow LFO + Schelleng wedge clamp (Phase 2.3)
 - Sub-harmonic bias + 108-combo stability matrix (Phase 2.4)
 - Body resonator + bow noise (Phase 2.5)
 - Master saturator/limiter, stereo width, microtonal, MPE (Phase 2.6)
 - ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments (end-of-Stage-2 verify per locked decision)
+- Phase 2.4 calibration polynomial follow-up for E1 closed-form clamp (parked per RESEARCH §14.10 Risk #7)
 
 ---
 
-## Requirements Confirmed (Phase 2.1c-relevant subsets of locked contracts)
+## Requirements Confirmed (Phase 2.2-relevant subsets of locked contracts)
 
-- **DSP-03** (cascaded allpass dispersion, M=4 for E-string): primary deliverable of this cycle.
-- **DSP-01** (waveguide string, Lagrange3rd, 8192-sample buffer): in effect; Phase 2.1c does NOT touch the delay-line topology — split-rail bridgeDelay/neckDelay stays exactly as committed in `ef0604d`.
-- **FUNC-02** (sustained tone, no runaway, no NaN): carry-forward from Phase 2.1a-recovery + Phase 2.1b verify; dispersion must not regress.
-- **PERF-01** (no allocations, no locks, no file I/O in `processBlock`): enforced — coefficient computation runs in `BowedContrabassVoice::renderNextBlock` *before* the per-sample loop, on smoothed stiffness; per-sample dispersion processing is 1 multiply + 1 add + 1 state load per section, no allocs.
-- **PERF-02** (< 5 % CPU on M1): tracked — dispersion at M=4 adds ~0.3 % per the architecture's per-component CPU budget table; well within margin.
-- **PERF-03** (latency = oversampler only): in effect; dispersion's group delay is *subtracted* from the base delay-line length in `updateDelayLengths()` (Phase 2.1c R17 plumbing) so reported plugin latency is unchanged.
-- **QUAL-01** (no audible clicks during parameter sweeps): explicit Gate 3 invariant — STRING_STIFFNESS sweep 0→100 % produces continuous timbral change, no clicks.
+- **DSP-01** (waveguide string, Lagrange3rd, 8192-sample buffer): primary deliverable — replicated × 4 instances, one per string. Buffer size carries forward verbatim (sized for E1 worst case at −1200¢ + 88.2 kHz = 4282 samples; rounded to 8192).
+- **DSP-03** (cascaded allpass dispersion per string): per-string M-table now materialises (E=4, A=3, D=2, G=1). Phase 2.1c's runtime-`activeSections` design carries this without re-templating. Per-string B prefactors lock per ARCHITECTURE.md §"String Waveguide Bank" inharmonicity table (E1=1e-4, A1=7e-5, D2=5e-5, G2=3e-5, all multiplied by `STRING_STIFFNESS` ∈ [0,1]).
+- **FUNC-01** (4-string EADG voicing): Phase 2.2 satisfies at acceptance level for the bow path. (MIDI tuning resolution incl. Note Expression / MTS-ESP / Scala / 12-TET comes in Phase 2.6.)
+- **FUNC-02** (sustained tone, no runaway, no NaN): carry-forward from Phase 2.1; per-string sustained-tone harness on A1/D2/G2 + portamento sequence harness extend the bar to all 4 strings.
+- **PERF-01** (no allocations, no locks, no file I/O in `processBlock`): enforced — all 4 string instances allocated in `prepareToPlay`; 4× detune smoothers + 4× stiffness smoothers preallocated; crossfade state is plain integer counter.
+- **PERF-02** (< 5 % CPU on M1): tracked — 4 strings always tick (so silent strings stay warm via leak), but only the active string runs friction injection. Idle-string cost is ~3 multiplies + 1 delay-line `popSample`/`pushSample` + dispersion's M-section cascade. Estimated ~0.4 % CPU per idle string × 3 idle = ~1.2 % overhead. Under the 5 % budget.
+- **PERF-03** (latency = oversampler only): in effect; per-string dispersion group-delay compensation already wired (Phase 2.1c R17 plumbing in `updateDelayLengths()`). Detune smoothing in delay-samples space does not change reported plugin latency.
+- **QUAL-01** (no audible clicks during parameter sweeps): explicit Gate 4 invariants — DETUNE sweep ±1200¢ (per string) + ACTIVE_STRINGS toggle + string-switching mid-sustain all click-free.
 
 ---
 
@@ -58,28 +62,38 @@ After Phase 2.1c verifies, Phase 2.1 (the highest-risk phase, ~50% of project ri
 
 **Locked contracts (do NOT modify in this cycle):**
 - All 29 APVTS parameter IDs, ranges, skews — `parameter-spec.md` (sha256:c47fe736…)
-- DSP architecture (`research/ARCHITECTURE.md`, sha256:3cb26814…) — F3 deviation flagged in PLAN rev-3 + R7 commit; ARCHITECTURE amendment still deferred to end-of-Stage-2 verify
+- DSP architecture (`research/ARCHITECTURE.md`, sha256:3cb26814…) — F3 deviation flagged through Phase 2.1; ARCHITECTURE amendment still deferred to end-of-Stage-2 verify
 - ROADMAP phasing (sha256:106639f6…)
-- `modules/synthesis/bow-friction/` (extracted Phase 2.1b) — module is value-class deterministic; Phase 2.1c does NOT touch friction.
+- `modules/synthesis/bow-friction/` v1.0.0 (Phase 2.1b) — module is value-class deterministic; Phase 2.2 does NOT touch friction
+- `Source/DSP/DispersionFilter.h` (Phase 2.1c, R20 commit `5759e5e`) — Phase 2.2 consumes the public API verbatim; no edits
+- `Source/DSP/WaveguideString.{h,cpp}` topology (split-rail bridgeDelay/neckDelay, F2 LP form, F3 no in-loop DCB, dispersion before bridge LP) — Phase 2.2 may add per-instance config surface but MUST NOT change the loop structure
 
 **JUCE 8 critical patterns (auto-loaded `spike-findings-VST-development` + memory):**
-- `getLatencySamples()` is non-virtual — keep using `setLatencySamples()` in `prepareToPlay`; dispersion's compensated group delay does not change reported latency.
-- `juce::ScopedNoDenormals` at `processBlock` entry (mandatory). Allpass cascades can produce small persistent state values that benefit from FTZ; rely on the existing scope.
+- `getLatencySamples()` is non-virtual — keep using `setLatencySamples()` in `prepareToPlay`; per-string dispersion compensation does not change reported latency.
+- `juce::ScopedNoDenormals` at `processBlock` entry (mandatory). Idle-string state benefits from FTZ; rely on existing scope. Constant `−1e-20` leak in bridge filter (already wired) keeps idle strings out of denormal territory.
+- `juce::SmoothedValue<float, Linear>` per ARCHITECTURE.md §"String Waveguide Bank" line 84 — NOT `Multiplicative`. Smooth in **delay-samples space**, NOT cents (avoids logarithmic warping at low f0).
+- `juce::dsp::DelayLine<float, Lagrange3rd>` per-sample `setDelay()` during ramp is JUCE-validated for click-free continuous modulation (vibrato pattern; Phase 2.1c implicit confirmation).
 - `IS_SYNTH TRUE` + output-only `BusesProperties` already in place from Stage 1.
 - Both WebView2 flags already in place from Stage 1.
 
-**Phase 2.1c-specific constraints:**
-- **Bridge-rail-only placement** — dispersion lives on the bridge rail's path between `popSample` and the bridge LP (locked Q1 decision). Nut rail remains untouched (no dispersion, no LP, no saturator — `-1` boundary only). Mirrors O-Bowed's bridge-rail-only loop chain.
-- **Identity at stiffness=0** — `B = 1e-4 · STRING_STIFFNESS`; at STRING_STIFFNESS=0, `B → 0`, closed-form `a → 0`, allpass becomes identity. Gate 3 includes a bit-exact regression at STRING_STIFFNESS=0 to prove this.
-- **Coefficient cadence: per-block** — `a` recomputed once per block from `stiffnessSmoothed.getNextValue()` advanced by `numSamples` (skip-ahead). Per-sample `a` modulation is the click-fallback (only invoked if R18 sweep produces clicks).
-- **No mid-stage architecture amendment** — if dispersion behaviour disappoints sonically (e.g., too subtle on E1), address via Phase 2.4 follow-up RESEARCH note, not architecture rework. Q3 prefactor `1e-4` is locked unless R18 reveals an outright bug.
+**Phase 2.2-specific constraints:**
+- **Single-voice, 4-string topology** — ONE `BowedContrabassVoice` instance, holding `std::array<WaveguideString, 4>` keyed E/A/D/G. NOT 4 voices in MPESynthesiser. Bow state is voice-level (one bow at a time, mono). MPESynthesiser keeps voice count = 1.
+- **All strings always allocated and ticking** — silent strings still call `popSample`/`pushSample` per sample (no friction injection, but topology runs) so they stay warm via the existing leak. No cold-start when bow re-engages a previously-silent string.
+- **MIDI → string mapping is closed-form** — `string = max{E:28, A:33, D:38, G:43} where threshold ≤ midiNote`. Clamp by `ACTIVE_STRINGS`: if the chosen string's index exceeds `ACTIVE_STRINGS - 1`, demote to the highest-allowed string. Notes below MIDI 28 → E1 string (detuned down via finger position). Notes above MIDI 55 (G3) → G2 string fingered very high (architecture line 280; musically thin but honest).
+- **String-switching trigger semantics** — only on note-on transitions (new note maps to a different string than current). Mid-note pitchbend / portamento stays on the current string (DB players don't smoothly cross strings during a note — they un-fret up the neck). This keeps Phase 2.2 mechanics simple; revisit only if Phase 2.3+ vibrato/slow-bow modulation surfaces a need.
+- **Crossfade is at voice-mix bus level** — equal-power (sin/cos) ramp over 5 ms from old string's mix coefficient to new string's. Both strings' DSP runs during the crossfade window; only the mix coefficients change. Friction injection switches to the new string at crossfade-start (sample-accurate); old string's bridge-rail energy decays naturally via leak.
+- **ACTIVE_STRINGS is mid-sustain tolerant** — going 4→1 while bowing on (e.g.) D2 does NOT yank the string out. Current note keeps ringing on D2 until note-off; the next note-on respects ACTIVE_STRINGS=1 and remaps to E1. (Research-phase confirms whether this needs an explicit handler or falls out of the note-on-only switching policy naturally.)
+- **E1 bit-exact regression bar** — Phase 2.2 must NOT change E1 behaviour at `DETUNE_E=0 + ACTIVE_STRINGS≥1 + STRING_STIFFNESS=0`. The Phase 2.1c golden `tests/render-harness/golden/stiffness-zero-pre.wav.sha256 = d358abcd…` carries forward as a Gate 4 invariant — render must be byte-identical. This proves the 4-string refactor is purely additive on the E-string code path.
+- **No mid-cycle architecture amendment** — if any Phase 2.2 issue surfaces (e.g., string-switching click that 5 ms equal-power crossfade can't suppress, idle-string CPU exceeding budget, detune-sweep zipper at extreme cents), document as Phase 2.4+ follow-up RESEARCH note. Do not rework architecture mid-cycle.
 
-**Working-tree starting state (locked from Phase 2.1b verify):**
-- `WaveguideString.{h,cpp}` rev-3 split-rail (committed `ef0604d`)
-- `BowedContrabassVoice.{h,cpp}` Phase 2.1b extraction-consumer state (committed `ef0604d`)
-- `modules/synthesis/bow-friction/` v1.0.0 (committed `ef0604d`, registry entry at `modules/registry.yaml:292-293`)
-- O-Bowed canonical preset golden render: sha256 `93124fb8…34c8891` (committed at `plugins/O-Bowed/tests/render-harness/golden/canonical-preset.wav.sha256`, harness committed `bd5fae0`)
-- O-Contrabass bow-on-only reference render: sha256 `00431582…d5e60`
+**Working-tree starting state (locked from Phase 2.1c verify, R20 commit `5759e5e`):**
+- `Source/BowedContrabassVoice.{h,cpp}` — single E1-only voice with one `WaveguideString`
+- `Source/DSP/WaveguideString.{h,cpp}` — split-rail with M=4 dispersion (Phase 2.1c rev-3 R20)
+- `Source/DSP/DispersionFilter.h` (130 LOC) — public API: `prepare(M)`, `setActiveSections(M)`, `setCoefficient(a)`, `processSample(x)`, `reset()`. Phase 2.2 uses this verbatim
+- `Source/PluginProcessor.{h,cpp}` — 29 APVTS parameters incl. all 4 `DETUNE_*` and `ACTIVE_STRINGS` (Stage 1 commit)
+- `modules/synthesis/bow-friction/` v1.0.0 — module is value-class deterministic; Phase 2.2 does NOT touch friction
+- E1 sustained drone (bow-on-only 65 s @ INFINITE_SUSTAIN=1.0): sha256 `0cc6ed4c…` (deterministic across retries)
+- E1 STRING_STIFFNESS=0 golden: sha256 `d358abcd…` (Phase 2.1c regression bar, carries forward as Gate 4 invariant)
 
 ---
 
@@ -87,94 +101,52 @@ After Phase 2.1c verifies, Phase 2.1 (the highest-risk phase, ~50% of project ri
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Q1 — Dispersion placement on bridge rail** | **(a) Before bridge LP** — `pop → dispersion → bridge LP → −1 boundary → friction → inject → saturator → push` | Direct match to ARCHITECTURE.md §"Cascaded Allpass Dispersion" (line 417 "immediately before bridge filter on the right-going wave") + §"Processing Order" (line 267 "dispersion → bridge LP → saturator → DC blocker → fractional delay"). Canonical Smith PASP chain `dispersion → loss → nonlinearity → delay`. The placeholder comment at `WaveguideString.cpp:170-171` (which suggests after-saturator placement) is **stale** — written before split-rail rev-3 landed; supersede in Phase 2.1c R17 with the correct (a) placement and update the comment. |
-| **Q2 — M for Phase 2.1c (E1 only)** | **Hardcode M=4 for E1** — do NOT pre-wire the per-string M=4/3/2/1 table | Single-string scope; A/D/G strings come in Phase 2.2 with the per-string bank, which is the natural home for the M-table. Don't pay table-plumbing cost twice. `DispersionFilter<4>` template parameter at compile time; per-string M parameterisation deferred to Phase 2.2. |
-| **Q3 — Inharmonicity B mapping** | **`B = 1e-4 · STRING_STIFFNESS`** verbatim per ARCHITECTURE.md §"String Waveguide Bank" (line 81) | No mid-stage architecture override. Prefactor `1e-4` is the locked E1 value. If R18 sweep reveals the audible range is too subtle/aggressive, file as Phase 2.4 follow-up RESEARCH note (matches the saturator-tail Phase 2.4 parking pattern from rev-2). |
-| **Q4 — Gate 3 invariants** | **Six-item bar:** STRING_STIFFNESS sweep no clicks; 100 %-stiffness affects attack but not steady-state pitch (mode-locking); BRIGHTNESS sweep no clicks; auval + pluginval-10 PASS; bow-on-only 65 s harness 4/4 TRUE (no regression of Gate 1); **bit-exact regression at STRING_STIFFNESS=0** (dispersion identity check). | First five items carry forward verbatim from PLAN rev-3 §"Success Criteria". Sixth item (bit-exact at stiffness=0) is the cheap-strong regression bar that proves the dispersion path correctly degenerates to identity when `B → 0` — same regression-bar philosophy as Phase 2.1b's bit-exact O-Bowed canonical render. |
-| **Q5 — Stiffness-sweep validation harness** | **(a) Extend `tests/render-harness/main.cpp` with `--stiffness-sweep` CLI mode** | Automated, reproducible, matches Gate 1/Gate 2 cadence. ~30 LOC of CLI plumbing — ramp STRING_STIFFNESS 0→1 linearly over 60 s, dump WAV with sha256 + JSON metadata. User auditions in Logic post-render for the "continuous timbral change, no clicks" qualitative invariant; harness mechanically captures the WAV + sha256 for repeatability. |
-| Coefficient cadence | Per-block from smoothed stiffness | Already-wired 20 ms `stiffnessSmoothed` (`WaveguideString.cpp:38`) advances per block in voice's `renderNextBlock` (R17); coefficient `a` recomputed once per block. Per-sample `a` modulation reserved as click-fallback if R18 sweep fails. |
-| DispersionFilter location | **Per-plugin** at `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` — NOT a shared module | O-Bowed has no dispersion filter (verified — `plugins/O-Bowed/Source/DSP/` has no `Dispersion*` files). Module promotion premature with one consumer. Revisit in a future cycle if O-Bowed adds dispersion. Keeps Phase 2.1c surface tight. |
-| Latency compensation | Subtract dispersion group delay from base delay-line length in `updateDelayLengths()` | Standard Smith PASP technique. Group delay at the fundamental frequency `D_disp(f0) = M · (1 − a²) / |1 + a·e^{-j·2π·f0/sr}|²` (closed-form per Rauhala/Välimäki paper §III.B). Base length stays bit-exact when `a=0` (M·(1−0)/1 = M ≈ 4 samples, but at `a=0` group delay = M, so subtract 4 samples; at `a=0` the allpass IS identity so the subtraction is exactly compensated by the M unit-delays it inserts — net delay unchanged). Research-phase derives the exact subtraction formula. |
-| Atomic commit unit | **R20 (Phase 2.1c) atomic commit** lands `DispersionFilter.h` + `WaveguideString.{h,cpp}` edits + `BowedContrabassVoice.{h,cpp}` edits + `tests/render-harness/main.cpp` `--stiffness-sweep` mode + planning artefacts (CONTEXT/RESEARCH/PLAN/SUMMARY/VERIFICATION/STATUS updates) — all in one commit, only on Gate 3 PASS. | Same gate-first principle as R7 / R15. R20 numbering continues the Phase 2.1 task sequence (R1–R7 = 2.1a-recovery, R8–R15 = 2.1b extraction, R16–R20 = 2.1c dispersion). |
-| Phase 2.1c primary listening DAW | **Logic Pro (AU)** (rev-1 / rev-2 carry-forward) | Same validated workflow used through Phase 2.1a/2.1b. AU is the stricter validation surface. Manual smoke after R20 commit on E1 sustained tone with STRING_STIFFNESS at 0 / 50 / 100 % to confirm "attack changes, steady-state pitch locks". |
+| **Q1 — Cycle scope** | **Single Phase 2.2 cycle** covering 4-string bank + per-string detune + per-string dispersion M-table + MIDI→string mapping + ACTIVE_STRINGS handling + 5 ms string-switching crossfade | Six tasks are tightly coupled. M-table just sets `activeSections` per string at prepare(); detune is a delay-samples offset on the existing Lagrange3rd buffer; ACTIVE_STRINGS is a clamp on the mapping output. Splitting buys little — there's no known sub-gate that would benefit from independent gating (unlike Phase 2.1's a/b/c which had genuinely distinct risk surfaces: friction stability, module surface, dispersion algorithm). User-confirmed. |
+| **Q2 — Voice topology** | **Single voice holds `std::array<WaveguideString, 4>`** (keyed E/A/D/G) | Architecture line 28 ("Bow engages one string at a time (mono)") is the operative constraint. Bow state is global to the voice — one velocity, one position, one pressure. Single voice with internal string-routing is the natural mapping. MPESynthesiser stays at voice count = 1. ACTIVE_STRINGS as a global parameter aligns with single-voice semantics. User-confirmed. |
+| **Q3 — MIDI → string mapping** | **Highest open-string-at-or-below the MIDI note**, with thresholds {E:28, A:33, D:38, G:43}. Clamp output by `ACTIVE_STRINGS - 1` (demote if chosen string index > active limit). Notes < 28 → E string. Notes > 55 (G3) → G string fingered up | Closed-form 4-way threshold ladder = 4 if-comparisons total. Idiomatic DB convention (architecture line 280 specifies exactly this). Matches user's "whatever is simpler to code" — single-pass thresholding is genuinely simpler than any closest-distance or lowest-then-up alternative. |
+| **Q4 — ACTIVE_STRINGS behaviour for out-of-range notes** | **Remap to highest active string** (the one chosen by Q3 mapping, demoted to fit ACTIVE_STRINGS clamp). Plugin always speaks. | Silent-fail is bad UX. Demoting MIDI 50 (D2 string) to E1 with ACTIVE_STRINGS=1 fingers it way up the E string — sounds thin, but musically honest. User-confirmed. |
+| **Q5 — String-switching click suppression** | **5 ms equal-power crossfade at voice mix-bus**. Both strings' DSP runs during the 5 ms window; only the mix coefficients ramp (sin/cos). Friction injection switches to new string at crossfade-start. Trigger only on note-on transitions that map to a different string than current | 5 ms = 220 samples @ 44.1k = 423 samples @ 88.2k. Equal-power (sin/cos) preserves perceived loudness through the transition. Fade-out-then-engage gives a 5 ms gap; not acceptable. Crossfade adds 1 mix multiply per sample × 4 strings = trivial CPU. User-confirmed. |
+| **Q6 — Detune smoothing** | **Inherited verbatim from ARCHITECTURE.md §"String Waveguide Bank" line 84**: `juce::SmoothedValue<float, Linear>`, 20 ms ramp, smoothed in **delay-samples space** (NOT cents — avoids log warping at low f0). Per-sample `setDelay()` during ramp | Architecture-locked. JUCE-validated pattern (vibrato on Lagrange3rd is identical mechanic). User-confirmed (no override). |
+| **Q7 — Per-string dispersion config** | **Inherited verbatim from ARCHITECTURE.md §"String Waveguide Bank" inharmonicity table**: E=`setActiveSections(4)` + B prefactor 1e-4 · STRING_STIFFNESS; A=3 + 7e-5; D=2 + 5e-5; G=1 + 3e-5. Applied at `prepareToPlay` per string instance | Phase 2.1c already shipped runtime `setActiveSections()` API specifically to enable this. No new template parameters; just per-instance config at prepare(). User-confirmed. |
+| **Q8 — Gate 4 invariants** | **Eight-item bar:** (1) per-string sustained drone harness × 3 (A1/D2/G2 each: 60 s @ INFINITE_SUSTAIN=1.0, 4/4 invariants TRUE — same template as Phase 2.1a-recovery's bow-on-only harness, replicated per string); (2) DETUNE sweep ±1200¢ on A1 (or any one chosen string) over 30 s — RMS continuity ≥ 99 % adjacent-block ratio (no clicks); (3) string-switching test via `--note-sequence "28:2.0,33:2.0,38:2.0,43:2.0,28:2.0"` — no clicks, no NaN, all 4 strings produce tone; (4) ACTIVE_STRINGS=1 + MIDI 50 → produces tone on E1 (no silence); (5) auval AU VALIDATION SUCCEEDED; (6) pluginval --strictness-level 10 SUCCESS; (7) **E1 STRING_STIFFNESS=0 bit-exact regression** — render at default tuning + ACTIVE_STRINGS=4 + MIDI 28 + STRING_STIFFNESS=0 must be byte-identical to Phase 2.1c golden sha256 `d358abcd…`; (8) Logic AU smoke (user-deferred, non-blocking, mirroring R19f / R14e precedent) — audition E1→A1→D2→G2 sweep + ACTIVE_STRINGS knob | First six items extend Phase 2.1c's automated bar to the 4-string surface. Item (7) is the strongest possible "Phase 2.2 didn't break E1" check — same regression-bar philosophy as Phase 2.1b's bit-exact O-Bowed canonical render and Phase 2.1c's stiffness=0 identity. Item (8) is the qualitative "does it sound like a contrabass yet" smoke. User-confirmed. |
+| **Q9 — Atomic commit unit** | **R21+ Phase 2.2 atomic commit** lands `BowedContrabassVoice.{h,cpp}` edits + minor `WaveguideString.{h,cpp}` per-instance config additions + `tests/render-harness/main.cpp` new CLI flags + new golden text files (per-string sustained-tone JSON+sha256, detune-sweep JSON+sha256, note-sequence JSON+sha256) + planning artefacts (CONTEXT/RESEARCH/PLAN/SUMMARY/VERIFICATION/STATUS updates) — all in one commit, only on Gate 4 PASS | Same gate-first principle as R7 / R15 / R20. Continues task-numbering sequence: R21 = Phase 2.2 implementation start. User-confirmed. |
+| **Q10 — Primary listening DAW** | **Logic Pro (AU)** carry-forward | Same validated workflow used through Phase 2.1a/2.1b/2.1c. Manual smoke after R21+ commit on E1→A1→D2→G2 portamento sweep + ACTIVE_STRINGS knob audit (4 → 3 → 2 → 1 → 4 with note held mid-bow per locked decision: current note keeps ringing, next note-on remaps). User-confirmed. |
+| Idle-string topology | All 4 strings always tick; only friction injection gates by `activeStringIndex` | Cold-start on bow re-engagement causes pluck-like attack transient. Existing leak (`−1e-20` constant in bridge filter from F2 carry-forward) keeps idle strings out of denormal territory at zero CPU cost beyond the per-sample `popSample`/`pushSample`/dispersion-cascade. ~1.2 % total idle-string CPU overhead (3 idle × 0.4 %). |
+| Crossfade trigger | Only on note-on that maps to a different string than current | DB physical reality — players un-fret up the neck within a string, not across strings, during a note. Pitchbend / portamento mid-note keeps the current string. Simplifies state machine; revisit only if Phase 2.3+ surfaces a need. |
+| Phase 2.2 listening test sequence | E1 sustained → A1 sustained → D2 sustained → G2 sustained (each ~3 s) → E1→A1→D2→G2 portamento at 1 s/string → ACTIVE_STRINGS knob sweep 4→3→2→1 with MIDI 50 held → STRING_STIFFNESS sweep on D2 | Covers per-string voicing, switching, ACTIVE_STRINGS demotion, and Phase 2.1c dispersion regression on a non-E string. ~30 s total. |
 
 ---
 
-## Phase 2.1c Test Criteria (locked — Gate 3 exit bar)
+## Open Questions (handed to research-phase)
 
-- [ ] **STRING_STIFFNESS 0%→100% sweep** produces continuous timbral change, no audible clicks (validated via `--stiffness-sweep` harness WAV + Logic audition).
-- [ ] **STRING_STIFFNESS = 100 %** audibly affects attack character but **not** steady-state pitch (mode-locking — Helmholtz period dominates after the first ~50 ms).
-- [ ] **BRIGHTNESS sweep 80 Hz → 12 kHz** produces no clicks (regression check — bridge LP path now has dispersion upstream of it).
-- [ ] **`auval -v aumu OCbs OuDv` PASS** for O-Contrabass.
-- [ ] **`pluginval --strictness-level 10 --validate-in-process` PASS** for O-Contrabass VST3.
-- [ ] **Bow-on-only 65 s render-harness** at INFINITE_SUSTAIN=1.0: 4/4 invariants TRUE (no regression of Gate 1 stability).
-- [ ] **Bit-exact regression at STRING_STIFFNESS=0** — render bow-on-only 65 s with STRING_STIFFNESS=0 *before* R16 (golden) → render same after R19 → `cmp` byte-equal. Proves the dispersion path is identity when `a → 0`.
-- [ ] **R20 atomic commit landed** — module + harness CLI + planning artefacts in one commit.
-
----
-
-## Open Questions (for research phase)
-
-The following questions remain genuinely-open and are handed to Phase 2.1c research:
-
-1. **Closed-form `a` coefficient — exact paper constants.** ARCHITECTURE.md §"Cascaded Allpass Dispersion" gives the structural form (`I = log2(f0/440)·12 + 49`, `lB = log(B)`, `lM = log(M)`, `C = m1·lB + m2·lM + m3·lB·lM + m4`, `k = k1 + k2·I + k3·I²`, `a = clamp(-C/k, -0.99, 0.99)`) but does NOT pin the literal `m1..m4, k1..k3` values. Research-phase must extract them from Rauhala/Välimäki 2006 IEEE SP Letters Table 1 (or the equivalent published table) and pin them in `DispersionFilter.h` as `constexpr` values with a citation comment.
-
-2. **Group-delay subtraction formula in `updateDelayLengths()`.** What is the exact closed-form for `D_disp(f0)` of an M-section first-order allpass cascade at the fundamental? Two candidates from the literature:
-   - (a) Per-section group delay at DC: `D_section(f=0) = (1 − a²) / (1 + a)² = (1 − a) / (1 + a)`; total = M · D_section. Cheap; correct only at DC.
-   - (b) Per-section group delay at `f0`: `D_section(f0) = (1 − a²) / |1 + a·e^{-j·2π·f0/sr}|²`; total = M · D_section. Slightly more expensive; matches the actual phase delay at the fundamental.
-   Research-phase picks (a) or (b) and pins the formula. **Recommend (b)** — accuracy at `f0` is what mode-locking cares about; cost is negligible (one block-rate computation).
-
-3. **Per-sample setter API on `WaveguideString` for dispersion coefficient.** Two shapes:
-   - (a) `setDispersionCoefficient(float a)` — voice computes `a` from smoothed stiffness once per block, calls setter. Symmetric with existing `setBrightness(cutoffHz)` etc.
-   - (b) `setDispersionStiffness(float stiffness01)` — voice forwards smoothed stiffness; `WaveguideString` computes `a` internally. Encapsulates the `a` math inside the waveguide.
-   **Recommend (a)** — the closed-form computation depends on `f0` (the per-note fundamental), which is voice-state, not waveguide-state. Voice computes once per block; waveguide accepts the result. Clean separation.
-
-4. **DispersionFilter.h template/class shape.** Three shapes:
-   - (a) `template <int MaxSections> class DispersionFilter` — fixed cascade depth at compile time (M=4 for E1 here).
-   - (b) `class DispersionFilter` with runtime `int M` parameter — dynamic depth, configurable at `prepare()` time.
-   - (c) `template <int MaxSections> class DispersionFilter` with runtime `int activeSections ≤ MaxSections` — both compile-time max and runtime active count.
-   **Recommend (c)** — Phase 2.1c uses M=4 for E1 hard-locked; Phase 2.2 will introduce per-string M (4/3/2/1) and benefits from a runtime `activeSections` selector without changing the template. Pre-allocates state for the worst case (M=4) at compile time.
-
-5. **`--stiffness-sweep` harness output format.** The existing harness writes `e1-max-sustain.wav` + `e1-max-sustain.json`. Should `--stiffness-sweep` emit:
-   - (a) Single WAV `e1-stiffness-sweep.wav` (60 s mono float, MIDI E1, STRING_STIFFNESS ramps 0→1 linearly over duration, all other params at defaults), plus JSON metadata documenting ramp params + sha256.
-   - (b) Three discrete WAVs at STRING_STIFFNESS = 0 / 50 / 100 % (5 s each, separate files).
-   **Recommend (a)** — single file is easier to listen-test continuously in Logic; ramp-discontinuity audibility is the actual click-detection invariant. (b) is captured implicitly by listening to specific time-windows of the (a) WAV.
+1. **String-switching trigger detection — exact code path.** `noteStarted()` is called per new note; need to query `getCurrentlyPlayingNote().initialNote`, run mapping → new string index, compare with `activeStringIndex`. If different, set `previousStringIndex = activeStringIndex; activeStringIndex = newIndex; crossfadeRemainingSamples = ceil(0.005 * sampleRateInternal)`. Friction injection routes to `strings[activeStringIndex]` immediately. Research-phase finalises the exact pseudocode + edge cases (rapid re-trigger during crossfade — does it cancel previous crossfade or queue?).
+2. **Crossfade math choice — sin/cos vs cubic vs Hann.** Equal-power options:
+   - sin/cos: `oldGain = cos(t · π/2)`, `newGain = sin(t · π/2)`, `t ∈ [0, 1]`. Two trig calls per sample × 4 strings = 8 trig per sample during crossfade — affordable but not free.
+   - Lookup table: precompute 256-entry sin/cos at prepare(); read with `t * 256` index. Zero per-sample trig.
+   - Linear: `oldGain = 1 - t`, `newGain = t`. Not equal-power but lossless during crossfade if old string is also fully decaying. Simplest.
+   - Recommend: 256-entry LUT (matches the 1024-entry friction LUT pattern from `modules/synthesis/bow-friction/`). Research-phase finalises LUT size + interpolation.
+3. **Per-string dispersion stiffness smoother — shared or per-string?** Current architecture has one `STRING_STIFFNESS` parameter that affects all strings (B prefactor differs per string but stiffness multiplier is global). Phase 2.1c has one `stiffnessSmoothed` in the voice. Phase 2.2 question: does each string get its own smoother (so per-string `a` updates independently as the smoother advances), or do all strings share one smoother and recompute their respective `a` from the same smoothed value? Recommend (b) shared — one smoother, four `computeAllpassCoefficient(f0_per_string, B_per_string, M_per_string)` calls per block. Research-phase confirms.
+4. **Per-string `WaveguideString::prepare()` config surface.** Current API: `prepare(spec)`. Phase 2.1c adds `setActiveSections(M)` and `setCoefficient(a)`. Phase 2.2 adds: per-instance `f0` (the open-string frequency for delay-length seeding). Options:
+   - Pass `openStringFrequency` to `prepare(spec, f0)` overload.
+   - Keep `prepare(spec)` as-is and let voice call `setOpenStringFrequency(f0)` separately at prepare-time, before first render.
+   - Recommend (b) — keeps `prepare()` signature stable across plugins (O-Bowed shares this class? — check; if so, additive setter is safer).
+5. **MIDI-note → finger-position frequency.** For a MIDI note that maps to (e.g.) A1 string but is actually MIDI 40 (E2), the string is fingered up 7 semitones. The waveguide frequency is the actual MIDI-note frequency (E2 = 82.4 Hz), not the open-string frequency. So per-string `currentFrequency` is just `MidiMessage::getMidiNoteInHertz(midiNote)`. Detune (cents) modulates the delay-line length on top. Research-phase confirms there's no string-specific frequency offset (e.g., does string-tension-vs-pitch coupling produce a small frequency error at high finger positions? — architecture is silent; treat as 12-TET fingering for v1.0).
+6. **Detune-sweep harness mode.** New `--detune-sweep {E,A,D,G}` flag emits WAV + JSON. JSON should include: `mode: "detune-sweep"`, `string: "<X>"`, `detuneRamp: {start: -1200, end: +1200, shape: "linear"}`, `rmsByDecade: [10 deciles]`, plus pass/fail invariant `rmsContinuityRatio ≥ 0.99` (max ratio of adjacent-block RMS values; clicks would spike this). Research-phase finalises the exact JSON schema + the RMS continuity check formula.
+7. **Note-sequence harness mode.** New `--note-sequence "MIDI:dur,..."` flag — programmatically schedules note-on/note-off events at sample-accurate offsets. Research-phase confirms: does the existing harness `processBlock` driver support mid-render MIDI buffer injection, or does this need new plumbing? Probably just push `MidiMessage::noteOn/noteOff` into a `MidiBuffer` keyed by sample index, drained per block.
+8. **Bit-exact regression at E1 — what exactly stays byte-identical?** Phase 2.1c golden was rendered at: MIDI 28, velocity 0.7, INFINITE_SUSTAIN=1.0, STRING_STIFFNESS=0, sustain=65 s. Phase 2.2 must reproduce this exact preset and get sha256 `d358abcd…`. The 4-string refactor must be additive on the E-string code path: when ACTIVE_STRINGS=4 + MIDI 28 + DETUNE_E=0, the E-string renders identically (other 3 strings idle-tick but contribute zero to mix because their friction injection is gated and their bridge-rail leak is below denormal threshold). Research-phase confirms idle-string contribution is mathematically zero (or below the 24-bit PCM least-significant-bit, which is ~6e-8 in normalized float — well above the leak's 1e-20). Critical question: does the harness output mix include idle strings' near-zero output, and does that perturb the LSB? Recommend: yes-by-design, AND verify via stub test rendering pre/post-Phase-2.2 with all-zero detune + ACTIVE_STRINGS=4. If LSB perturbs, gate 4 invariant (7) needs softening to "RMS-equivalent within 1 LSB" rather than strict bit-exact. Research-phase locks this.
 
 ---
 
-## Files / Artefacts to Produce in Phase 2.1c
+## Risks (Phase 2.2-specific)
 
-**Source (new):**
-- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` — Rauhala/Välimäki 2006 closed-form, `template<int MaxSections=4> class DispersionFilter`, `prepare`, `reset`, `setCoefficient(float a)`, `processSample(float x)`, `getGroupDelaySamples(float f0, float sr) const`.
-
-**Source (modified):**
-- `plugins/O-Contrabass/Source/DSP/WaveguideString.h` — add `DispersionFilter<4> bridgeDispersion` member; add `setDispersionCoefficient(float a)` setter; update `processSample` to insert dispersion BEFORE bridge LP on the bridge rail; update `updateDelayLengths()` to subtract dispersion group delay from base length.
-- `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` — corresponding implementations; update the stale "Phase 2.1c placeholder" comment at line 170-171 to reflect the (a)-placement decision (before bridge LP, not before saturator).
-- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` — in `renderNextBlock`, advance `stiffnessSmoothed` per block, compute `a` from current smoothed stiffness via `DispersionFilter::computeCoefficient(f0, B, M)` static helper, push to `waveguideString.setDispersionCoefficient(a)`.
-- `plugins/O-Contrabass/tests/render-harness/main.cpp` — add `--stiffness-sweep` CLI flag; ramp STRING_STIFFNESS 0→1 over 60 s; emit `e1-stiffness-sweep.wav` + `.json` with sha256.
-
-**Test artefacts:**
-- `e1-stiffness-sweep.wav` + `.json` (Phase 2.1c R18 validation render).
-- `e1-bowon-only-stiffness-zero-pre.wav` (golden — captured BEFORE R16 source edits).
-- `e1-bowon-only-stiffness-zero-post.wav` (Gate 3 verification — bit-exact match to golden required).
-
-**Verification artefacts:**
-- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` — append §14 (Phase 2.1c dispersion research) resolving the 5 Open Questions above.
-- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` — append rev-5 (R16–R20 task bodies authored fresh; the rev-1/rev-2/rev-3 references to "Tasks 17–20 carry forward verbatim" were placeholders — actual task bodies need to be written in this rev because the prior PLANs only described scope, not execution detail).
-- `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` — append "Phase 2.1c execute" section after R20 lands.
-- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — append "Phase 2.1c verify" section with Gate 3 pass-bar evidence.
-- `plugins/O-Contrabass/.planning/STATUS.md` — flip `next_action` to `phase_2_2_discuss` after Gate 3 PASS.
-
----
-
-## Risks
-
-1. **Dispersion produces audible clicks under STRING_STIFFNESS automation.** Mitigation: per-block coefficient cadence with 20 ms `stiffnessSmoothed` is the first defence; if R18 sweep produces clicks, fall back to per-sample `a` interpolation (cubic interp between block-boundary `a` values, ~5 LOC change in `WaveguideString::processSample`). Research-phase confirms per-sample fallback is a known O-Bells/O-Lyrica pattern.
-2. **Group-delay subtraction wrong → pitch drifts as STRING_STIFFNESS changes.** Mitigation: bit-exact regression at STRING_STIFFNESS=0 catches the degenerate case (M unit delays + M·D_section subtraction must net to zero). For STRING_STIFFNESS > 0, the "mode-locking" Gate 3 invariant (steady-state pitch unchanged at 100 % stiffness) is the audible regression bar; quantitative check via FFT-bin peak detection on the sustained tone is the harness-level fallback if the audible test is ambiguous.
-3. **Bridge LP recurrence regression after dispersion is inserted upstream.** Mitigation: F2 LP form (`y = g·(1−p)·x + p·y_prev + leak`, locked Phase 2.1a-recovery) is independent of dispersion — dispersion only changes the input `x`. Bow-on-only 65 s harness invariants (4/4 TRUE) catches any LP regression. The bit-exact regression at STRING_STIFFNESS=0 is the strongest possible bar — any LP-touching change shows as byte-difference.
-4. **Coefficient overflow / NaN at extreme STRING_STIFFNESS.** Mitigation: `a = clamp(-C/k, -0.99, 0.99)` is in the closed form; values outside `(-1, 1)` would make the allpass unstable. Research-phase confirms the clamp range matches the paper's stated stability bounds.
-5. **Per-string M-table absence makes Phase 2.2 wiring non-trivial.** Acknowledged but acceptable: Phase 2.1c's `DispersionFilter<4>` template-max + runtime `activeSections` (Q4 (c) recommendation) lets Phase 2.2 wire per-string M without re-templating — `activeSections` becomes the per-string variable.
-6. **Harness `--stiffness-sweep` adds CLI complexity.** Acceptable: ~30 LOC, isolated to harness, no production-code coupling. Pattern matches the existing CLI structure (already accepts `--note`, `--velocity`, `--sustain` flags per Phase 2.1b R8 implementation).
+1. **String-switching click despite 5 ms equal-power crossfade.** Mitigation: the bridge-rail energy on the previously-bowed string takes longer than 5 ms to decay below audibility, so the crossfade window keeps both strings' contributions audible — the equal-power sum is the standard click-free transition. If clicks still appear, escalate to longer crossfade (10–20 ms) or per-sample `a` smoothing on the dispersion coefficient. Research-phase pre-flight: simulate the crossfade math (sin² + cos² = 1) to confirm no amplitude dip. Gate 3 (Phase 2.1c) bit-exact at stiffness=0 carries forward as the unbreakable lower bound.
+2. **Idle-string CPU overshoot.** Mitigation: ~0.4 % per idle string × 3 = ~1.2 % overhead estimate; total Phase 2.2 voice CPU projects at ~1.2 + 0.8 (active) = ~2.0 % — well under the 5 % budget. If measured CPU exceeds 3 % on M1, flag for Phase 2.4+ optimization (e.g., gate idle-string dispersion cascade as well, accepting cold-start risk).
+3. **Detune sweep clicks at extreme cents (±1200¢).** Mitigation: 20 ms `SmoothedValue<Linear>` in delay-samples space is JUCE-validated. At ±1200¢ on E1 (41.2 Hz → 20.6/82.4 Hz), the delay length doubles or halves — a large absolute change but smooth in samples-space. Per-sample `setDelay()` during ramp is the JUCE pattern. Gate 4 invariant (2) catches any failure (RMS continuity ≥ 99 %).
+4. **MIDI-mapping edge cases — notes outside [28, 55].** Mitigation: closed-form thresholds clamp at boundaries (notes < 28 → E string fingered "down" — actually still rendered as MIDI-note-frequency, just below the open-string fundamental, which is musically OK on a detuned-down E string; notes > 55 → G string fingered very high). Gate 4 invariant (4) catches the ACTIVE_STRINGS demotion path; full out-of-range testing is implicit in the listening test sequence.
+5. **E1 bit-exact regression failure** — idle strings perturbing the mix LSB. Mitigation: see Open Question #8 — research-phase locks the regression bar (strict bit-exact vs ≤1 LSB tolerance). Architecture says all strings tick; if ticking introduces non-zero contribution at idle, the strict bit-exact bar is geometrically impossible and we soften to RMS-equivalent. This is a research-phase decision, not a discuss-phase decision.
+6. **`ACTIVE_STRINGS` mid-sustain edge case.** Mitigation: locked policy = current note keeps ringing on its current string until note-off; next note-on respects ACTIVE_STRINGS clamp. No explicit handler needed if this falls out of the note-on-only switching policy. Research-phase confirms (no surprise corner cases like ACTIVE_STRINGS=0 — parameter is Int 1–4 per parameter-spec.md, so always ≥ 1).
+7. **`std::array<WaveguideString, 4>` allocation cost in `prepareToPlay`.** Mitigation: `WaveguideString` already preallocates 8192-sample delay-line buffer in its constructor; 4 instances = ~128 KiB total. Once-per-prepare cost is acceptable. No allocations in `processBlock`.
+8. **Phase 2.1c golden dependence on E1-only voice topology.** If the Phase 2.1c regression bar fails because of the topology change alone (independent of detune/dispersion), the regression-bar bit-exact philosophy breaks down for Phase 2.2. Mitigation: research-phase Open Question #8 resolves whether to soften the bar; alternatively, document that "bit-exact at E1" is a Phase-2.1c-internal invariant and Phase 2.2 introduces a one-time refactoring boundary, with a new Phase 2.2 golden captured post-implementation. Latter is acceptable as long as the 8-item Gate 4 bar is otherwise PASS.
 
 ---
 
@@ -182,42 +154,53 @@ The following questions remain genuinely-open and are handed to Phase 2.1c resea
 
 Ready for: **research** phase — `/plugin-research O-Contrabass 2-dsp`
 
-Research focus (Phase 2.1c):
+Research focus (Phase 2.2):
 
-1. **Pin Rauhala/Välimäki 2006 closed-form constants** (`m1..m4, k1..k3`) — extract from the IEEE SP Letters paper Table 1 (or the equivalent table in `research/O-Contrabass-bass-waveguide-stability.md`) and lock as `constexpr` values in the planned `DispersionFilter.h`.
-2. **Resolve Open Question #2** — pick the group-delay formula (recommend `D_section(f0) = (1 − a²) / |1 + a·e^{-j·2π·f0/sr}|²`) and document the closed-form derivation.
-3. **Resolve Open Questions #3–#5** — setter API shape (recommend `setDispersionCoefficient(float a)`), `DispersionFilter.h` template/class shape (recommend (c) — fixed `MaxSections` + runtime `activeSections`), harness output format (recommend single WAV ramp).
-4. **Pre-flight bit-exact baseline render** — capture `e1-bowon-only-stiffness-zero-pre.wav` BEFORE any R16 source edits, log sha256. This is the Gate 3 STRING_STIFFNESS=0 regression-bar golden reference.
-5. **Pattern-confirm `--stiffness-sweep` against existing harness CLI** — confirm the existing CLI parser shape, note any required `getopt`-style flag handling that needs new branches.
-6. **Update RESEARCH.md** — append §14 documenting the resolutions above. (No §12/§13 changes; those are Phase 2.4 follow-up + 2.1b history.)
+1. **Resolve Open Questions #1–#7** — pseudocode for string-switching trigger, crossfade LUT size + math, stiffness-smoother sharing, per-string `WaveguideString::prepare()` config surface, MIDI-note frequency derivation, harness JSON schemas.
+2. **Resolve Open Question #8 (regression-bar tolerance)** — render pre-flight bit-exact baseline at MIDI 28 + ACTIVE_STRINGS=4 + DETUNE_E=0 + STRING_STIFFNESS=0 BEFORE any Phase 2.2 source edits; capture sha256 (should match Phase 2.1c golden `d358abcd…`). Then derive whether the planned 4-string topology refactor preserves bit-exactness mathematically (idle-string contribution analysis: do `popSample`/`pushSample` on a delay line seeded with all-zeros + leak `−1e-20` produce non-zero output? — analytically derive). Lock the Gate 4 invariant (7) tolerance: strict byte-equal or RMS-equivalent within 1 LSB.
+3. **Pattern-confirm against O-Bowed** — does O-Bowed's voice hold one or many `WaveguideString` instances? `BowedStringVoice` likely is single-string per voice with multi-voice polyphony for chords. O-Contrabass is mono with multiple strings inside one voice. Confirm the surface change is O-Contrabass-local (not breaking the shared bow-friction module's API).
+4. **Pattern-confirm `--detune-sweep` and `--note-sequence` against existing harness CLI** — confirm the existing CLI parser shape (`--note`, `--velocity`, `--sustain`, `--string-stiffness`, `--stiffness-sweep` already wired). New flags follow same `getopt`-like parsing pattern.
+5. **Update RESEARCH.md** — append §15 documenting the resolutions above. (No §12/§13/§14 changes; those are Phase 2.4 follow-up + 2.1b/2.1c history.)
 
-After research: plan-phase (PLAN.md rev-5) writes R16–R20 task breakdown verbatim against this CONTEXT + research findings; execute-phase performs the implementation + R20 atomic commit; verify-phase confirms Gate 3 invariants + Logic AU smoke.
+After research: plan-phase (PLAN rev-6) writes R21+ task breakdown verbatim against this CONTEXT + research findings; execute-phase performs the implementation + R21+ atomic commit; verify-phase confirms Gate 4 invariants + Logic AU smoke.
 
 ---
 
-## Audit Trail (rev-3 supersedes rev-2)
+## Audit Trail (rev-4 supersedes rev-3)
 
 **rev-1 (earlier 2026-04-26):** Phase 2.1 broad discuss. Cycle scope = Phase 2.1 (sub-phases a/b/c).
 
 **rev-2 (later 2026-04-26):** Phase 2.1a closure (Option A, R7 commit) + Phase 2.1b opening (module extraction, Gate 2). 9 approach decisions, 5 open questions. Phase 2.1b verified 2026-04-27 (R8a `bd5fae0` + R15 `ef0604d` atomic commits, Gate 2 PASS bit-exact).
 
-**rev-3 (this document, 2026-04-27):** Phase 2.1c opening — cascaded allpass dispersion (Rauhala/Välimäki 2006), bridge-rail-only on E-string, Gate 3 exit bar. 5 approach decisions (Q1–Q5 all confirmed by user as recommendations: placement before bridge LP, M=4 hardcoded, B=1e-4·stiffness verbatim, six-item Gate 3 bar with bit-exact regression at stiffness=0, harness `--stiffness-sweep` mode). 5 open questions handed to research-phase: closed-form constants, group-delay formula, setter API shape, template/class shape, harness output format.
+**rev-3 (2026-04-27):** Phase 2.1c opening — cascaded allpass dispersion (Rauhala/Välimäki 2006), bridge-rail-only on E-string, Gate 3 exit bar. 5 approach decisions, 5 open questions. Phase 2.1c verified 2026-04-27 (R20 atomic commit `5759e5e`, Gate 3 PASS).
 
-**Inherited verbatim from rev-2 (not re-litigated):**
-- All Phase 2.1a-recovery contracts (split-rail topology, F2 LP form, F3 no in-loop DCB, F4 betaScale removed)
-- All Phase 2.1b contracts (bow-friction module v1.0.0 at `modules/synthesis/bow-friction/`, both plugins consume)
-- ARCH §"DC Blocker" + §"In-loop saturator" amendments deferred to end-of-Stage-2 verify
-- Saturator-tail Phase 2.4 follow-up parking + RESEARCH §12 footnote
+**rev-4 (this document, 2026-04-27):** Phase 2.2 opening — 4-string EADG bank + per-string detune ±1200¢ + per-string M=4/3/2/1 dispersion table + MIDI→string mapping + ACTIVE_STRINGS handling + 5 ms string-switching crossfade. 13 approach decisions (Q1–Q10 user-confirmed: single cycle, 4 strings in 1 voice, highest-string-at-or-below-the-note mapping, remap-to-highest-active-string, 5 ms equal-power crossfade, detune in delay-samples space, per-string M-table verbatim from architecture, eight-item Gate 4 bar incl. E1 bit-exact regression, R21+ atomic commit, Logic AU primary; plus three derived: idle-string topology, crossfade trigger, listening test sequence). 8 open questions handed to research-phase: switching pseudocode, crossfade LUT, stiffness smoother sharing, prepare() surface, MIDI frequency derivation, two harness JSON schemas, bit-exact regression tolerance.
+
+**Inherited verbatim from rev-3 (not re-litigated):**
+- Split-rail topology (`bridgeDelay` + `neckDelay` per string)
+- F2 LP form (`y = g·(1−p)·x + p·y_prev + leak`, drop `g` from feedback)
+- F3 in-loop DCB removed (ARCH §"DC Blocker" amendment deferred to end-of-Stage-2 verify)
+- F4 `betaScale` fudge removed
+- Cascaded allpass dispersion (Rauhala/Välimäki 2006) with closed-form coefficient, bridge-rail-only placement, group-delay compensation in `updateDelayLengths()` (subtract from `bridgeSamples`, not `compensated`)
+- Per-plugin `DispersionFilter.h` (NOT extracted to shared module)
+- `MaxSections + activeSections` runtime config API
+- Per-block coefficient cadence (per-sample `a` modulation reserved as click-fallback)
+- Bow-friction module v1.0.0 at `modules/synthesis/bow-friction/` (Phase 2.1b)
 - Primary listening DAW: Logic Pro (AU)
 - Sample-rate strategy: internal 88.2 / 96 kHz at friction junction
-- Atomic-commit gate-first principle (R7 → R15 → R20)
+- Atomic-commit gate-first principle (R7 → R15 → R20 → R21+)
+- Saturator-tail Phase 2.4 follow-up parking + RESEARCH §12 footnote
+- Phase 2.4 calibration polynomial follow-up parking (Risk #7, E1 closed-form clamp)
 
-**New in rev-3:**
-- Q1 dispersion placement locked: before bridge LP on bridge rail (overrides stale `WaveguideString.cpp:170-171` placeholder comment)
-- Q2 M=4 hardcoded for E1; per-string M-table deferred to Phase 2.2
-- Q3 `B = 1e-4 · STRING_STIFFNESS` locked verbatim per ARCHITECTURE
-- Q4 Gate 3 bar = six items including bit-exact regression at STRING_STIFFNESS=0
-- Q5 `--stiffness-sweep` CLI mode added to render-harness
-- DispersionFilter location: per-plugin (not extracted to shared module)
-- Latency compensation: subtract dispersion group delay from base length in `updateDelayLengths()`
-- Atomic commit: R20 lands all Phase 2.1c work in one commit on Gate 3 PASS
+**New in rev-4:**
+- Q1 single-cycle Phase 2.2 (no a/b/c sub-split)
+- Q2 single voice with `std::array<WaveguideString, 4>` (NOT 4 voices in MPESynthesiser)
+- Q3 closed-form thresholding 28/33/38/43 with ACTIVE_STRINGS clamp
+- Q4 remap-to-highest-active-string (silent-fail rejected)
+- Q5 5 ms equal-power crossfade at voice mix-bus, note-on-only trigger
+- Q8 eight-item Gate 4 bar incl. per-string sustained-tone × 3 + detune-sweep + note-sequence + ACTIVE_STRINGS=1 + auval/pluginval-10 + E1 bit-exact regression (Phase 2.1c golden carry-forward) + Logic AU smoke
+- Q9 R21+ Phase 2.2 atomic commit (lands ~6 source files + harness + per-string golden text files + planning artefacts)
+- Idle-string topology: all 4 always tick; only friction injection gates by `activeStringIndex`
+- String-switching trigger semantics: only on note-on transitions, not pitchbend/portamento
+- `tests/render-harness/main.cpp` new CLI flags: `--string {E,A,D,G}`, `--detune-sweep {E,A,D,G}`, `--note-sequence "MIDI:dur,..."`
+- Per-string golden text files NOT WAVs (sha256 + JSON only — RESEARCH §14.12 #5 pattern carry-forward from Phase 2.1c)

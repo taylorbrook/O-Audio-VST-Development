@@ -1,0 +1,68 @@
+{
+  "status": "PASS",
+  "mode": "note-sequence",
+  "midiNote": 28,
+  "velocity": 0.699999988079071,
+  "sustainSeconds": 60.0,
+  "releaseSeconds": 2.0,
+  "infiniteSustain": 1.0,
+  "stringStiffness": -1.0,
+  "totalSamples": 418950,
+  "peak": 0.057925939559937,
+  "nanCount": 0,
+  "infCount": 0,
+  "rmsMid_s5_s6": 0.0096182115376,
+  "rmsFinal_lastSecond": 0.008535347878933,
+  "rmsRatio_final_over_mid": 0.887415289878845,
+  "blockMicros_median": 45.707999999999998,
+  "blockMicros_max": 65.292000000000002,
+  "blockTime_max_over_median": 1.428458913100551,
+  "pass_nan": true,
+  "pass_peak": true,
+  "pass_blockTime": true,
+  "pass_rms": true,
+  "outputWav": "note-sequence.wav",
+  "sequence": [
+    {
+      "midiNote": 28,
+      "sampleStart": 0,
+      "sampleCount": 66150
+    },
+    {
+      "midiNote": 33,
+      "sampleStart": 66150,
+      "sampleCount": 66150
+    },
+    {
+      "midiNote": 38,
+      "sampleStart": 132300,
+      "sampleCount": 66150
+    },
+    {
+      "midiNote": 43,
+      "sampleStart": 198450,
+      "sampleCount": 66150
+    },
+    {
+      "midiNote": 28,
+      "sampleStart": 264600,
+      "sampleCount": 66150
+    }
+  ],
+  "transitionSampleIndices": [
+    66150,
+    132300,
+    198450,
+    264600
+  ],
+  "perSegmentRms": [
+    0.035580087453127,
+    0.011158196255565,
+    0.010304272174835,
+    0.009713293984532,
+    0.009219934232533
+  ],
+  "pass_allSegmentsAudible": true,
+  "rmsContinuityAtTransitions": 0.908523082733154,
+  "pass_rmsContinuityAtTransitions": true
+}

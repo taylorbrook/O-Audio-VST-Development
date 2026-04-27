@@ -99,9 +99,19 @@ void WaveguideString::updateDelayLengths()
 void WaveguideString::setDelaySamples (float totalSamples)
 {
     // Per-sample total-delay setter (vibrato/detune ramps in 2.2/2.3). Splits
-    // the total delay across the two rails using the current bowPosition.
-    float bridgeSamples = totalSamples * bowPosition;
-    float neckSamples   = totalSamples * (1.0f - bowPosition);
+    // the target round-trip period across the two rails using the current
+    // bowPosition, and applies the same LP + dispersion group-delay
+    // compensation as updateDelayLengths() so that calling
+    // setDelaySamples(sr/f) is bit-exactly equivalent to trigger(f) for the
+    // slot-0 regression preset (HARD RULE §15.9.5).
+    const float pi               = juce::MathConstants<float>::pi;
+    const float filterGroupDelay = static_cast<float> (sampleRate)
+                                 / (2.0f * pi * std::max (1.0f, brightnessHz));
+    const float dispersionDelay  = bridgeDispersion.getGroupDelaySamples (currentFrequency);
+    const float compensated      = totalSamples - filterGroupDelay;
+
+    float bridgeSamples = compensated * bowPosition - dispersionDelay;
+    float neckSamples   = compensated * (1.0f - bowPosition);
     bridgeSamples = juce::jlimit (4.0f, 8190.0f, bridgeSamples);
     neckSamples   = juce::jlimit (4.0f, 8190.0f, neckSamples);
     bridgeDelay.setDelay (bridgeSamples);
@@ -263,6 +273,11 @@ void WaveguideString::setDispersionCoefficient (float a) noexcept
 void WaveguideString::advanceStiffnessSmootherBy (int numSamples) noexcept
 {
     stiffnessSmoothed.skip (juce::jmax (0, numSamples));
+}
+
+void WaveguideString::setDispersionActiveSections (int M) noexcept
+{
+    bridgeDispersion.setActiveSections (M);
 }
 
 float WaveguideString::getCurrentSmoothedStiffness() const noexcept

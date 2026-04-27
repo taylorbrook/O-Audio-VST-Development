@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-Contrabass
 created: 2026-04-25
-lastUpdated: 2026-04-26
+lastUpdated: 2026-04-27
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ lastUpdated: 2026-04-26
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Monophonic 4-string EADG bowed bass synth covering E1-G3 range | must | pending | stage-2 |
+| FUNC-01 | Monophonic 4-string EADG bowed bass synth covering E1-G3 range | must | complete | stage-2 |
 | FUNC-02 | Sustained tone is the default articulation: legato bow held while MIDI note held, with release tail on note-off | must | pending | stage-2 |
 | FUNC-03 | Plays both convincing orchestral arco sustains and ambient drone material from the same engine | must | pending | stage-4 |
 | FUNC-04 | Includes orchestral preset bank (Cinematic, Section, Solo Arco, Pianissimo, Forte) and drone preset bank (Infinite Drone, Just-Intoned, Scordatura, Sub Drone, Dark Pad) | should | pending | stage-4 |
@@ -31,11 +31,11 @@ lastUpdated: 2026-04-26
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Digital waveguide string model stable across full E1-G3 fundamental range with 2x oversampling at friction junction | must | pending | stage-2 |
-| DSP-02 | Nonlinear bow-string friction junction tuned for thick rosined bass strings (high default rosin grip) | must | pending | stage-2 |
+| DSP-01 | Digital waveguide string model stable across full E1-G3 fundamental range with 2x oversampling at friction junction | must | complete | stage-2 |
+| DSP-02 | Nonlinear bow-string friction junction tuned for thick rosined bass strings (high default rosin grip) | must | complete | stage-2 |
 | DSP-03 | Bass-tuned wood body resonator producing convincing low-mid wood resonance (parametric size + damping; fixed wood material) | must | pending | stage-2 |
 | DSP-04 | Bow noise / rosin grit generator audible at low bow pressure for intimate close-mic character | should | pending | stage-2 |
-| DSP-05 | Per-string detuning (+/- 1200 cents) supports scordatura and just-intoned drone tunings | must | pending | stage-2 |
+| DSP-05 | Per-string detuning (+/- 1200 cents) supports scordatura and just-intoned drone tunings | must | complete | stage-2 |
 | DSP-06 | Infinite Sustain control reduces damping toward zero for endless drone resonance | must | pending | stage-2 |
 | DSP-07 | Sub-Harmonic generator (nonlinear feedback) extends bass below string fundamental musically | should | pending | stage-2 |
 | DSP-08 | Slow Bow LFO (0.05-2 Hz) modulates bow speed/pressure for evolving drones | should | pending | stage-2 |

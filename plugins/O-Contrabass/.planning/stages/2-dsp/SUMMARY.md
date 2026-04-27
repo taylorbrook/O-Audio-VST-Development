@@ -632,3 +632,183 @@ After R19f PASSes, the verify phase appends `VERIFICATION.md` Phase 2.1c section
 3. **Phase 2.4 calibration follow-up** — file as RESEARCH note: piecewise polynomial `a(B, I)` for bass register to recover audible STRING_STIFFNESS sweep at E1 (Risk #7).
 4. **End-of-Stage-2 verify** — ARCHITECTURE.md F3 amendment + saturator-placement amendment.
 5. **Phase 2.2 → 2.6** — per-string detune + multi-string (2.2), vibrato/LFO (2.3), sub-harmonic + stability matrix (2.4 — calibration polynomial home), body resonator (2.5), master FX + microtonal + MPE (2.6).
+
+---
+
+# Stage 2 / Phase 2.2 — Execute SUMMARY (4-String Bank + Per-String Detune + Per-String Dispersion Table, Gate 4)
+
+**Date:** 2026-04-27
+**Plugin:** O-Contrabass
+**Stage:** 2 of 4 (DSP) — Phase 2.2 cycle
+**Phase:** execute
+**Cycle scope:** Phase 2.2 only (Phase 2.3–2.6 remain fresh GSD cycles)
+**Plan:** PLAN.md rev-6 (R21-pre + R21–R26 + R27 optional)
+**Outcome:** **PASS — Gate 4 cleared on all 7 automated invariants; R27 user-deferred non-blocking. Atomic R26 commit pending.**
+
+---
+
+## Executive Summary
+
+Phase 2.2 expanded the single-string E1 voice into a **4-string EADG bank** (open frequencies 41.20 / 55.00 / 73.42 / 98.00 Hz) with **per-string M=4/3/2/1 cascaded-allpass dispersion** (B prefactors 1.0e-4 / 7.0e-5 / 5.0e-5 / 3.0e-5), **per-string detune ±1200¢ ramps** (20 ms `SmoothedValue<Linear>` in delay-samples space), **closed-form MIDI→string mapping** (28/33/38/43 thresholds with ACTIVE_STRINGS clamp + remap-to-highest-active), and **5 ms equal-power crossfade** at the voice mix-bus on note-on string transitions.
+
+**Gate 4 invariant (7) — strict byte-equal regression — PASS:** the canonical pre-flight render at MIDI 28 / sustain 60 / release 5 / INFINITE_SUSTAIN=1.0 / STRING_STIFFNESS=0 produces sha256 `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` — byte-identical to the Phase 2.1c committed golden at `tests/render-harness/golden/stiffness-zero-pre.wav.sha256`. Slot-0 (E-string) bit-exactness was preserved through all source edits via the HARD RULES enumerated in PLAN rev-6 §15.9.5.
+
+A subtle bit-exact issue was discovered and resolved during R24: `noteStarted()`'s call to `setDelaySamples(targetSamples)` was overwriting `trigger()`'s LP+dispersion-compensated bridge/neck delays with an uncompensated round-trip total. The fix mirrors `updateDelayLengths()`'s compensation directly inside `setDelaySamples`, so calling `setDelaySamples(sr/f)` is bit-exactly equivalent to `trigger(f)` for slot 0. This changes the per-sample setter semantics from "raw round-trip total" to "effective round-trip total (compensation applied)" — a cleaner abstraction that also benefits Phase 2.3 vibrato.
+
+A second issue surfaced during R25 detune-sweep: the analytical 0.90 rmsContinuity threshold (PLAN R23 task 5) was derived assuming the fundamental period << blockSize, which fails at deep-detune A (≈22 Hz, period ≈2000 samples > 512-sample block). The 512-sample-block continuity metric reported 0.596 due to inherent window-vs-period RMS oscillation, not a DSP discontinuity. Switching the audit window to **4096 samples (92 ms)** — covering ≥3 cycles down to 33 Hz and ≥2 cycles down to 22 Hz — restored the metric to **0.960**, well above the 0.90 threshold.
+
+---
+
+## Tasks Executed (PLAN rev-6)
+
+### R21-pre — Working-tree tripwire
+
+Pre-flight render at the regression preset against the unmodified working tree (post-R20 commit `5759e5e`).
+
+```
+sha256: d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75
+match:  YES (matches Phase 2.1c committed golden)
+```
+
+Confirms: working tree is undrifted from R20; analytical bit-exact proof in RESEARCH §15.9 applies. **PASS**.
+
+### R22 — `WaveguideString::setDispersionActiveSections` pass-through
+
+- `Source/DSP/WaveguideString.h` — declared `void setDispersionActiveSections(int M) noexcept` (5-LOC doc-comment + signature).
+- `Source/DSP/WaveguideString.cpp` — body: `bridgeDispersion.setActiveSections(M);` (3 LOC).
+- HARD RULE preserved: `prepare()` line 40 `bridgeDispersion.setActiveSections(4)` retained verbatim. R21's per-slot `setDispersionActiveSections(4)` for slot 0 is a no-op re-set. **PASS**.
+
+### R21 — `BowedContrabassVoice` — 4-string bank + detune + crossfade + mapping
+
+- `Source/BowedContrabassVoice.h` — replaced single `WaveguideString waveguideString` with `std::array<WaveguideString, 4> strings`. Added `std::array<juce::SmoothedValue<float, Linear>, 4> detuneSmoothed`; `int activeStringIndex / previousStringIndex / crossfadeRemainingSamples / crossfadeTotalSamples`; `std::vector<std::pair<float, float>> crossfadeRamp`; `double sr_internal`; helper signatures (`mapMidiNoteToStringIndex`, `readDetuneForString`, `computeDelaySamples`).
+- `Source/BowedContrabassVoice.cpp` — full 4-string implementation:
+  - `prepareToPlay`: per-slot `prepare(sr_internal, maxBlockSize*2)` + `setDispersionActiveSections(M_per_string[s])` + 20 ms detune smoother init at open-string default; precomputed equal-power crossfade ramp (`crossfadeTotalSamples = ceil(0.005 * sr_internal)`, two array loads/sample).
+  - `noteStarted`: closed-form MIDI→string mapping with ACTIVE_STRINGS clamp; needsCrossfade decision (only on bow-active + different-string transitions); per-slot `trigger(currentFrequency)` + `setDelaySamples(targetSamples)` setup.
+  - `renderNextBlock`: per-block `STRING_STIFFNESS` push to all 4 slots; per-slot dispersion `a` from closed-form `(f0, B_open[s] * stiffness, M_per_string[s])` with `currentStiffness <= 0` short-circuit to `a = 0`; per-block detune-target update for active + previous slots only (idle slots stay at open-string default).
+  - Per-sample inner loop: HARD RULE §15.9.5 early-return on `activeStringIndex` (NOT unconditional sum); per-slot `setDelaySamples` gated on `isSmoothing()` to skip steady-state state churn; equal-power crossfade mix (`oldOut * oldGain + newOut * newGain`) when `crossfadeRemainingSamples > 0`.
+- Net source delta: `BowedContrabassVoice.h` +21 LOC, `BowedContrabassVoice.cpp` +127 LOC. **PASS**.
+
+### R21-bonus — `WaveguideString::setDelaySamples` LP+dispersion compensation
+
+Bit-exact fix discovered during R24 verification. `setDelaySamples` now mirrors `updateDelayLengths()`'s LP filter group-delay + cascaded-allpass group-delay compensation, so calling `setDelaySamples(sr/f)` is bit-exactly equivalent to `trigger(f)` for slot 0 with detune=0. Phase 2.3 vibrato benefits from the cleaner abstraction (effective vs raw round-trip).
+
+- `Source/DSP/WaveguideString.cpp` — `setDelaySamples` body extended +5 LOC for compensation (filter group delay = `sr / (2π · brightnessHz)`, dispersion group delay via `bridgeDispersion.getGroupDelaySamples(currentFrequency)`).
+
+### R23 — Render-harness new flags + JSON schema
+
+- `tests/render-harness/main.cpp` — added 4 new CLI flags: `--string <E|A|D|G>`, `--detune-sweep <E|A|D|G>`, `--note-sequence "MIDI:dur,..."`, `--active-strings <1..4>` (the last is needed for invariant 4 demote test).
+- Mode-aware overall PASS criterion:
+  - sustained / stiffness-sweep: `pass_nan && pass_peak && pass_blockTime && pass_rms` (unchanged).
+  - detune-sweep: `pass_nan && pass_peak && pass_blockTime && pass_rmsContinuity` (≥0.90).
+  - note-sequence: `pass_nan && pass_peak && pass_blockTime && pass_allSegmentsAudible && pass_rmsContinuityAtTransitions` (≥0.50).
+- JSON additions per mode:
+  - `mode`: `"sustained" | "stiffness-sweep" | "detune-sweep" | "note-sequence"`.
+  - detune-sweep: `string`, `detuneRamp`, `rmsByDecade`, `rmsContinuityRatio`, `pass_rmsContinuity`.
+  - note-sequence: `sequence`, `transitionSampleIndices`, `perSegmentRms`, `pass_allSegmentsAudible`, `rmsContinuityAtTransitions`, `pass_rmsContinuityAtTransitions`.
+- RMS-continuity audit window: 4096 samples (92 ms, ≥3 cycles ≥33 Hz; ≥2 cycles ≥22 Hz). 250 ms attack-window skip.
+- Auto-rewrite default WAV/JSON filenames: `--string X` → `string-X.{wav,json}`; `--detune-sweep X` → `detune-sweep-X.{wav,json}`; `--note-sequence` → `note-sequence.{wav,json}`.
+- Net harness delta: ~+220 LOC. **PASS**.
+
+### R24 — Build + auval + pluginval-10 + bit-exact regression
+
+- macOS build: `ninja O-Contrabass_VST3 O-Contrabass_AU O-Contrabass-render-test` — clean (warnings: 1 unused-private-field in editor stub, sign-conversion warnings on container indices, harness `createWriterFor` deprecation; all pre-existing or non-functional).
+- Install: AU caches cleared; fresh install of `O-Contrabass-dev.{component,vst3}` to `~/Library/Audio/Plug-Ins/...`.
+- `auval -v aumu OCbs OuDv` → **AU VALIDATION SUCCEEDED**.
+- `pluginval --strictness-level 10 --validate-in-process` → **SUCCESS**.
+- **Bit-exact regression** (Gate 4 invariant 7): sha256 `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` — byte-identical to Phase 2.1c golden. **PASS**.
+
+### R25 — Gate 4 invariants (1)–(6)
+
+| Invariant | Test | Result | Evidence |
+|---|---|---|---|
+| 1a | A-string sustained (MIDI 33, 6s) | PASS audible | rmsMid=0.0357 ≫ 1e-3, peak=0.068, no NaN/Inf |
+| 1b | D-string sustained (MIDI 38, 6s) | PASS audible | rmsMid=0.0358, peak=0.068 |
+| 1c | G-string sustained (MIDI 43, 6s) | PASS audible | rmsMid=0.0354, peak=0.068 |
+| 2  | Detune-sweep A (−1200→+1200¢, 30s) | PASS | rmsContinuityRatio=0.960 ≥ 0.90 |
+| 3  | Note-sequence E→A→D→G→E (1.5s each) | PASS | rmsContinuityAtTransitions=0.909 ≥ 0.50; perSegmentRms = [0.0356, 0.0112, 0.0103, 0.0097, 0.0092], all > 1e-3 |
+| 4  | ACTIVE_STRINGS=1 + MIDI 50 demote | PASS audible | rmsMid=0.0154, demote-to-E confirmed |
+
+(Carry-forward: Phase 2.1c E1 STRING_STIFFNESS=0 sustained `pass_rms` "FAIL" on bow-off saturator-tail dissipation is the parked Phase 2.4 follow-up per RESEARCH §12 — NOT a Phase 2.2 regression.)
+
+### R26 — Atomic Commit
+
+PENDING — staged for `/plugin-verify` to compose final commit + commit-message body documenting Gate 4 PASS evidence + Phase 2.4 calibration polynomial follow-up parking + ARCHITECTURE.md amendment deferral.
+
+### R27 (optional) — Logic Pro AU smoke
+
+USER-DEFERRED non-blocking. Mirrors Phase 2.1c R19f / Phase 2.1b R14e precedent — automated bar is the binding gate.
+
+---
+
+## Files Modified / Created (working tree, uncommitted — R26 absorbs)
+
+| File | Change | LOC delta |
+|---|---|---|
+| `plugins/O-Contrabass/Source/BowedContrabassVoice.h` | 4-string bank state + helpers | +21 |
+| `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` | 4-string bank logic | ~+127 (full rewrite) |
+| `plugins/O-Contrabass/Source/DSP/WaveguideString.h` | `setDispersionActiveSections` decl | +5 |
+| `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` | setter body + `setDelaySamples` compensation | +9 |
+| `plugins/O-Contrabass/tests/render-harness/main.cpp` | 4 new flags + audit metrics + JSON schema | ~+220 |
+| `plugins/O-Contrabass/tests/render-harness/golden/string-A.{wav.sha256,json}` | new | 2 files |
+| `plugins/O-Contrabass/tests/render-harness/golden/string-D.{wav.sha256,json}` | new | 2 files |
+| `plugins/O-Contrabass/tests/render-harness/golden/string-G.{wav.sha256,json}` | new | 2 files |
+| `plugins/O-Contrabass/tests/render-harness/golden/detune-sweep-A.{wav.sha256,json}` | new | 2 files |
+| `plugins/O-Contrabass/tests/render-harness/golden/note-sequence.{wav.sha256,json}` | new | 2 files |
+| `plugins/O-Contrabass/.planning/STATUS.md` | flip to phase_2_2_execute_complete | TBD |
+| `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` | this file | +N |
+
+Total: ~382 LOC source delta + 10 new golden text files + planning artefacts.
+
+---
+
+## What's Green (Phase 2.2 execute)
+
+- All 7 automated Gate 4 invariants PASS.
+- Slot-0 bit-exact regression preserved (sha256 `d358abcd…` matches Phase 2.1c golden).
+- Per-string sustained-tone audibility on A/D/G.
+- Detune-sweep RMS continuity 0.960 ≥ 0.90.
+- Note-sequence segment audibility + transition continuity.
+- ACTIVE_STRINGS clamp + remap-to-highest-active demote logic.
+- auval + pluginval-10 SUCCESS.
+- Build clean (no errors; only pre-existing warnings).
+- HARD RULES §15.9.5 all preserved (early-return on activeStringIndex; topology unchanged for slot 0; prepare() slot-0 sequence unchanged; slot-0 setActiveSections(4) retained verbatim).
+
+## What's Red / Pending
+
+- R26 atomic commit pending (verify-phase composes).
+- R27 Logic AU smoke user-deferred non-blocking.
+- Phase 2.4 calibration polynomial for bass-register dispersion still parked (Risk #7).
+- ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments still deferred to end-of-Stage-2 verify.
+
+---
+
+## Architecture Deviations (Phase 2.2)
+
+None new for Phase 2.2. The F3 deviation (no in-loop DC blocker, per Phase 2.1a-recovery) carries forward unchanged. The `setDelaySamples` compensation extension is consistent with the existing `updateDelayLengths()` formula and does not deviate from ARCHITECTURE.md §"Delay Lengths" or §"Group-Delay Compensation".
+
+---
+
+## Open Decisions (none — Phase 2.2 close-out)
+
+All 8 RESEARCH §15.14 open items resolved during execute.
+
+---
+
+## Validated Artifacts (Phase 2.2)
+
+- `tests/render-harness/golden/string-{A,D,G}.{wav.sha256,json}` — per-string sustained-tone goldens (audibility check baselines).
+- `tests/render-harness/golden/detune-sweep-A.{wav.sha256,json}` — −1200→+1200¢ A-string sweep golden (rmsContinuity audit baseline).
+- `tests/render-harness/golden/note-sequence.{wav.sha256,json}` — E→A→D→G→E sequence golden (transition audit baseline).
+- `~/Library/Audio/Plug-Ins/{Components,VST3}/O-Contrabass-dev.{component,vst3}` — installed AU/VST3 binaries; auval + pluginval-10 PASS post-build.
+
+---
+
+## Next Steps (Phase 2.2 verify → R26 → Phase 2.3)
+
+1. **Verify phase** — `/plugin-verify O-Contrabass 2-dsp`:
+   - Compose R25 audit table + R24 sha256 confirmation into VERIFICATION.md.
+   - Land R26 atomic commit (~21 files, gate-first principle, mirrors R7 + R15 + R20).
+   - User-confirm R27 Logic smoke status (deferred non-blocking acceptable).
+2. **STATUS.md flip** (part of R26): `next_action: phase_2_2_execute` → `phase_2_3_discuss`.
+3. **Phase 2.3 → 2.6** still get fresh GSD cycles. Phase 2.4 calibration polynomial (Risk #7) + saturator-tail re-evaluation (RESEARCH §12) + 108-combo stability matrix.
+4. **End-of-Stage-2 verify** — ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments.

@@ -2,26 +2,28 @@
   ==============================================================================
 
     BowedContrabassVoice.h
-    O-Contrabass - Single-String E1 MPESynthesiserVoice (Phase 2.1a)
+    O-Contrabass - 4-String Bank MPESynthesiserVoice (Phase 2.2)
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Modelled on O-Bowed/Source/BowedStringVoice — per-voice 2× oversampler,
-    voiceBuffer scratch, WaveguideString + BowModel + HyperbolicFriction
-    composition. Phase 2.1a simplifications (locked, NOT deviations):
-
-    - Single E-string only (E1 / MIDI 28). Multi-string voicing is Phase 2.2.
-    - BOW_POSITION read but only modulates the friction-junction β-derived
-      impedance (no split rails yet — Phase 2.5).
-    - No Note Expression consumption (Phase 2.6).
-    - No vibrato / detune ramps (Phase 2.2 / 2.3).
-    - No body resonator, sub-harmonics, slow-bow LFO, or bow-noise generator
-      (Phases 2.4 / 2.5).
+    Phase 2.2 expands the single-string E1 voice to a 4-string E/A/D/G bank
+    (open frequencies 41.20 / 55.00 / 73.42 / 98.00 Hz) with per-string
+    M=4/3/2/1 dispersion sections (B prefactors 1e-4 / 7e-5 / 5e-5 / 3e-5),
+    per-string detune ±1200¢ ramps (20 ms SmoothedValue<Linear> in
+    delay-samples space), MIDI→string mapping (28/33/38/43 thresholds with
+    ACTIVE_STRINGS clamp), and 5 ms equal-power crossfade at voice mix-bus
+    on note-on string transitions. Idle strings tick on every sample with
+    zero-input excitation; only the active string receives bow friction
+    injection. HARD RULES §15.9.5 govern slot-0 bit-exact preservation
+    against the Phase 2.1c regression preset.
 
   ==============================================================================
 */
 
 #pragma once
+#include <array>
+#include <utility>
+#include <vector>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
@@ -60,12 +62,27 @@ public:
 private:
     void updateParametersFromAPVTS();
 
+    int   mapMidiNoteToStringIndex (int midiNote, int activeStrings) const noexcept;
+    float readDetuneForString      (int s) const noexcept;
+    float computeDelaySamples      (float playedFreqHz, float detuneCents) const noexcept;
+
     juce::AudioProcessorValueTreeState* parameters = nullptr;
 
-    // DSP composition
-    WaveguideString waveguideString;
+    // DSP composition — Phase 2.2 4-string bank (slots 0=E, 1=A, 2=D, 3=G).
+    std::array<WaveguideString, 4> strings;
     BowModel bowModel;
     HyperbolicFriction frictionModel;
+
+    // Phase 2.2 — per-string detune ramp (20 ms linear, in delay-samples space).
+    std::array<juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>, 4> detuneSmoothed;
+
+    // Phase 2.2 — string-bank state machine.
+    int   activeStringIndex          = -1;     // -1 = no string yet (first noteStarted)
+    int   previousStringIndex        = -1;     // valid only while crossfadeRemainingSamples > 0
+    int   crossfadeRemainingSamples  = 0;
+    int   crossfadeTotalSamples      = 0;      // = ceil(0.005 * sr_internal); cached at prepare
+    std::vector<std::pair<float, float>> crossfadeRamp;  // (oldGain, newGain) per sample
+    double sr_internal               = 88200.0;
 
     // Per-voice 2× oversampler — RESEARCH §3.1 / §Q4. PolyphaseIIR, max quality,
     // useIntegerLatency=false (default).

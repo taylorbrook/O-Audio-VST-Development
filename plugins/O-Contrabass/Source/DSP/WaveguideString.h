@@ -89,6 +89,12 @@ public:
     void advanceStiffnessSmootherBy (int numSamples) noexcept;
     float getCurrentSmoothedStiffness() const noexcept;
 
+    /** Configures the per-instance dispersion section count. Phase 2.2: voice calls this
+     *  once per slot at prepareToPlay (E=4, A=3, D=2, G=1 per ARCH §"String Waveguide
+     *  Bank"). Pass-through to bridgeDispersion.setActiveSections.
+     */
+    void setDispersionActiveSections (int M) noexcept;
+
     // Per-sample total-delay setter — Lagrange3rd is stateless, so this is
     // safe to call mid-stream. Internally splits via bowPosition and updates
     // both rails (used by vibrato/detune ramps in Phase 2.2/2.3).
