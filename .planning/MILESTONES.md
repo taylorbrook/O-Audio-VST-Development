@@ -1,5 +1,49 @@
 # Project Milestones: Plugin Freedom System
 
+## v1.5 Microtonal Shared Module & Suite Propagation (Shipped: 2026-04-27)
+
+**Delivered:** Promoted the validated VST3 Note Expression pattern from O-Lyrica spikes into a shared `note-expression` module and propagated Dorico microtonal playback across all 8 pitched plugins (O-Lyrica, O-Bells, O-Prism, O-Wind, O-IntonationPad, O-Reed, O-Bowed, O-Formant). Authored the canonical Dorico `.doricolib` expression-map asset, bundled it cross-platform (PKG + EXE) with one-time Library Manager Import activation, and consolidated internal developer-reference notes for future website authoring.
+
+**Phases completed:** 23-25 (16 plans)
+
+**Key accomplishments:**
+
+- Extracted shared `note-expression` module from O-Lyrica spike code — header-only voice helper (`applyPendingTuning`), NEC + VST3Extensions raw-event queue, JUCE 8.0.4 patch tooling with idempotent re-apply script and CMake-time marker check
+- Resolved AU re-link via two-TU split (`NoteExpression.cpp` SharedCode + `vst3/NoteExpression_VST3.cpp` VST3-only) + custom-deleter pimpl + reusable `scripts/verify-au-link.sh` AU verification gate; codified per-format module-source convention in `OuariconModules.cmake`
+- Propagated module to 7 cohort plugins via `/improve` workflow — version bumps, CHANGELOG entries, STATUS updates, fresh installs; full Dorico 3-point smoke gate PASS on all 8 plugins (quarter-sharp +50¢, no attack zipper, polyphonic noteId correlation)
+- Authored canonical `Ouaricon-VST3-NoteExpression.doricolib` (6,431 B, 48-container kScoreLibrary skeleton + injected ExpressionMapDefinition); pivoted v1→v2→v3 from `.doricoexpmap` drop → `.dorico_pt` Playback Template → standalone `.doricolib` + Library Manager Import (Path B locked) after empirical validation
+- Cross-platform installer bundling for all 8 cohort plugins (PKG on macOS + EXE on Windows) with D-08 STRICT-PASS validation; lands at `~/Library/Application Support/Ouaricon/Microtonal Suite/` and `%APPDATA%\Ouaricon\Microtonal Suite\`
+- Consolidated internal developer-reference notes at `research/microtonal-dorico-integration.md` (4 H2 sections, 554 lines, `audience: internal-dev-only`) covering module architecture, canonical Dorico setup procedure, host-side behavior quirks, troubleshooting signatures
+
+**Stats:**
+
+- 707 files changed
+- +145,617 / −1,747 (heavy due to JUCE patch tooling, factory-skeleton bootstrapping, research consolidation, and Path A artifact churn during v1→v2→v3 evolution)
+- 3 phases, 16 plans, 245 commits
+- 33 requirements satisfied (100% coverage)
+- 4 days from start to ship (2026-04-24 → 2026-04-27)
+
+**Git range:** `4ce5b13` → `6db3a79`
+
+**Key decisions:**
+
+- `/improve [PluginName]` workflow as single propagation mechanism for Phase 24 — no direct source edits across 7 production plugins
+- Module-format split convention: `cpp/` SharedCode-bound, `cpp/vst3/` VST3-only, `cpp/au/` AU-only — codified after AU re-link surfaced VST3 SDK symbol leakage
+- Path B over Path A in Phase 25 v3: ship single `.doricolib` + one-time Library Manager Import instead of `.dorico_pt` Playback Template with auto-discovery
+- CID-free `<pluginNames />` element in canonical `.doricolib` — endpoint-binding deferred to user via Dorico's `Play → Endpoints → Expression Map` dropdown
+- D-10 amend-forward strategy for v3 cleanup — surgical deletion of Path A artifacts (playback-template/ subtree, `ouaricon_extract_vst3_cids` helper, `.dorico_pt` packing, dual-write logic) preserves git history clarity
+
+**Tech debt / carry-forward:**
+
+- BL-01 Windows multi-account UAC test deferred to UAT (persisted in `25-HUMAN-UAT.md`) — D-08 canary ran on single-account dev box
+- DEF-24-01 O-Lyrica `auval -v` exit 255 on APVTS Meta Param Flag invariant — pre-existing parameter-implementation issue, NOT a note-expression module regression
+- Wave 0 v3 auto-discovery probe FAIL logged as informational/non-blocking — Path B explicit-import flow is the primary supported activation path
+- `.dorico_pt` Playback Template machinery unbuilt this milestone (deferred per Path B decision); usable foundation if Path A revisited in v1.6+
+
+**What's next:** `/gsd-new-milestone` for v1.6
+
+---
+
 ## v1.4 System Hygiene & Quality Gates (Shipped: 2026-03-07)
 
 **Delivered:** Complete system hygiene pass driven by full system review -- dead code purged, quality gates activated, research corpus standardized and expanded, skills consolidated, and agent memory write-back mechanism built for persistent learning

@@ -2,57 +2,42 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
-status: milestone_complete
-stopped_at: Phase 25 Plan 25-03 v3 closed; DOCS-01..05 satisfied; Phase 25 ready for verification (all 9 v1.5 Phase 25 requirements complete)
-last_updated: "2026-04-27T18:10:06.524Z"
+status: shipped
+stopped_at: v1.5 archived 2026-04-27 — see .planning/milestones/v1.5-ROADMAP.md and .planning/milestones/v1.5-REQUIREMENTS.md
+last_updated: "2026-04-27T19:00:00.000Z"
 last_activity: 2026-04-27
 progress:
-  total_phases: 20
-  completed_phases: 21
-  total_plans: 67
-  completed_plans: 67
-  percent: 105
+  total_phases: 25
+  completed_phases: 25
+  total_plans: 80
+  completed_plans: 80
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-24)
+See: .planning/PROJECT.md (updated 2026-04-27)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
-**Current focus:** Phase 25 — package-docs
+**Current focus:** None — v1.5 shipped. Awaiting `/gsd-new-milestone` for v1.6.
 
 ## Current Position
 
-Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
-Phase: 25
-Plan: Not started
-Status: Milestone complete
+Milestone: v1.5 -- SHIPPED 2026-04-27
+Phase: All complete
+Plan: All complete
+Status: Milestone shipped and archived
 Last activity: 2026-04-27
 
 Progress: [██████████] 100%
 
-History (Phase 25):
+## Carry-Forward
 
-- v1: drop .doricoexpmap into Dorico's User/ → reverted at d2c86c5 (Dorico does not recognize .doricoexpmap extension). See `25-FINDING-playback-template-pivot.md`.
-- v2: ship .dorico_pt Playback Template + .doricolib → merged at 819b2b4 BUT three blocking issues found at A2 checkpoint:
-  1. .doricolib lacks Dorico's required 48-container kScoreLibrary skeleton (cd2c2c6 recovery is a fragment, not a library)
-  2. endpointconfig.xml.in has hardcoded prod plugin names but dev/prod CIDs → silent slot drop on dev installs
-  3. Playback Template architecture is over-engineered for v1.5 use case
-- Path B (validated 2026-04-27): ship single Dorico-valid .doricolib only; user assigns expression map manually in Play → Endpoints → Expression Map dropdown after loading their plugin. Verified end-to-end with quarter-sharp C4 playback at ~269 Hz on O-Lyrica-dev.
-- v3 Plan 25-01 (executed 2026-04-27): canonical .doricolib reauthored from factory skeleton + injected ExpressionMapDefinition (byte-identical to verified reference); Path A artifacts surgically excised under D-10 amend-forward (playback-template/ subtree, ouaricon_extract_vst3_cids helper, .dorico_pt packing, dual-write logic); install.cmake.in collapsed to single-write to Ouaricon shared path; module READMEs rewritten for Library Manager Import flow; O-Lyrica canary PASS end-to-end on macOS 26.3.1 / Dorico 6 / O-Lyrica-dev (build → cmake-install → Library Manager Import → quarter-sharp ~269 Hz, no zipper, polyphonic isolation). Wave 0 v3 auto-discovery probe FAIL (informational; non-blocking; logged for v1.6 deferred-ideas per D-08 carry-forward).
+- **BL-01** (Phase 25 UAT): Retest Windows installer on non-admin Windows account with UAC elevation via separate admin credential. Persisted in `.planning/phases/25-package-docs/25-HUMAN-UAT.md`.
 
-Finding docs:
-
-- `.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md` (v1 → v2)
-- `.planning/phases/25-package-docs/25-FINDING-path-b-validation.md` (v2 → v3, NEW)
-
-Test log: `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` (full A2 + Path B trace)
-
-Reference asset: `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B, Dorico-valid skeleton, import-confirmed)
-
-Next: `/clear` then `/gsd-execute-phase 25` to run Plan 25-03 (internal developer-reference notes at `research/microtonal-dorico-integration.md` — DOCS-01..05). Plan 25-02 v3 closed with D-08 cross-platform STRICT-PASS: 8 cohort plugins on macOS + Windows have PKG/EXE bundling the canonical 6,431 B `.doricolib`; canary O-Lyrica clears the Phase 24 3-point Dorico gate on each platform.
+Next: `/gsd-new-milestone` to begin v1.6 milestone planning.
 
 ## Performance Metrics
 

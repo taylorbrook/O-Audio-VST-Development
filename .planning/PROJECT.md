@@ -10,22 +10,36 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 
 ## Current State
 
-**Latest shipped:** v1.4 System Hygiene & Quality Gates (2026-03-07)
-**In flight:** v1.5 Microtonal Shared Module & Suite Propagation — Phase 23 (extract) complete 2026-04-25; Phase 24 (propagate to 8 cohort plugins) complete 2026-04-26; Phase 25 (package & internal docs, Path B locked) complete 2026-04-27 with 1 human-UAT carry-forward (Windows multi-account UAC test). v1.5 ready for ship audit.
+**Latest shipped:** v1.5 Microtonal Shared Module & Suite Propagation (2026-04-27)
+**In flight:** None — ready for v1.6 milestone planning via `/gsd-new-milestone`.
 
 **System overview:**
-- 23 phases completed across 5 milestones (Phase 23 closed out the v1.5 extract milestone)
-- 64 plans executed
-- 108 requirements satisfied
+- 25 phases completed across 6 milestones
+- 80 plans executed
+- 141 requirements satisfied
+- 8 cohort pitched plugins (O-Lyrica, O-Bells, O-Prism, O-Wind, O-IntonationPad, O-Reed, O-Bowed, O-Formant) ship with VST3 Note Expression microtonal Dorico playback via the shared `note-expression` module
+- Canonical `Ouaricon-VST3-NoteExpression.doricolib` bundled in PKG (macOS) and EXE (Windows) installers; user activates via one-time Dorico Library Manager Import
 - Repository: 58MB (91% reduction from 636MB)
-- Clone time: 4 seconds
 - 64 research documents indexed with 5-field minimum YAML frontmatter
 - All agents running on Opus 4.6 with effort-level tuning
 - Multi-layer context persistence (compaction snapshots, DIGEST.json, agent memory with write-back)
 - Agent teams available for parallel research and review
 - gsd-tools CLI handles all state operations
 - 3 active quality gates: SubagentStop contract validation, research frontmatter validation, resource index auto-regeneration
-- Agent memory write-back: learnings persist across sessions with deduplication and 10KB cap
+
+**Carry-forward:**
+- BL-01 Windows multi-account UAC test (`.planning/phases/25-package-docs/25-HUMAN-UAT.md`) — retest installer on non-admin Windows account with UAC elevation via separate admin credential.
+
+## Next Milestone Goals (v1.6)
+
+To be defined via `/gsd-new-milestone`. Candidate themes from carry-forward signals:
+- **Windows VST3 microtonal pipeline** beyond the installer canary (FUT-01)
+- **End-user manuals/quickstart** authoring on Ouaricon Audio sales website using DOCS-01..05 as source material (FUT-06)
+- **Additional NE types** beyond `kTuningTypeID` (per-note timbre, vibrato — FUT-02)
+- **MTS-ESP path** for Reaper/Bitwig/non-Dorico hosts (FUT-03)
+- **Cross-block `noteId → voice` map** for hosts that emit mid-note NE (FUT-04)
+- **Expanded test matrix** (quarter-flat, ¾-sharp, chords with per-note inflections — FUT-05)
+- **Auto-discovery v2** revisit (Wave 0 probe deferred from Phase 25)
 
 ## Requirements
 
