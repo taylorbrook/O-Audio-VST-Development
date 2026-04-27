@@ -1,17 +1,125 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Ouaricon Audio canonical Dorico expression map. Single source of truth at modules/tuning/note-expression/resources/. Bundled by all 8 v1.5 plugins (O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant). DO NOT edit installed copies — edit the canonical file in the module repo. -->
+<?xml version='1.0' encoding='utf-8'?>
 <kScoreLibrary>
+	<temperaments>
+		<entities array="true" />
+	</temperaments>
+	<accidentalSystems>
+		<entities array="true" />
+	</accidentalSystems>
+	<accidentalDefinitions>
+		<entities array="true" />
+	</accidentalDefinitions>
+	<tonalitySystemDefinitions>
+		<entities array="true" />
+	</tonalitySystemDefinitions>
+	<ensembles>
+		<entities array="true" />
+	</ensembles>
+	<instruments>
+		<entities array="true" />
+	</instruments>
+	<instrumentNames>
+		<entities array="true" />
+		<language>kEnglish</language>
+	</instrumentNames>
+	<instrumentFamilies>
+		<entities array="true" />
+	</instrumentFamilies>
+	<instrumentScoreOrders>
+		<entities array="true" />
+	</instrumentScoreOrders>
+	<clefDefinitions>
+		<entities array="true" />
+	</clefDefinitions>
+	<ottavaLineDefinitions>
+		<entities array="true" />
+	</ottavaLineDefinitions>
+	<noteheadSetDefinitions>
+		<entities array="true" />
+	</noteheadSetDefinitions>
+	<noteheadDefinitions>
+		<entities array="true" />
+	</noteheadDefinitions>
+	<restSetDefinitions>
+		<entities array="true" />
+	</restSetDefinitions>
+	<restDefinitions>
+		<entities array="true" />
+	</restDefinitions>
+	<flagSetDefinitions>
+		<entities array="true" />
+	</flagSetDefinitions>
+	<flagDefinitions>
+		<entities array="true" />
+	</flagDefinitions>
+	<graphicDefinitions>
+		<entities array="true" />
+	</graphicDefinitions>
+	<blobDefinitions>
+		<entities array="true" />
+	</blobDefinitions>
+	<drawingDefinitions>
+		<entities array="true" />
+	</drawingDefinitions>
+	<textDefinitions>
+		<entities array="true" />
+	</textDefinitions>
+	<glyphDefinitions>
+		<entities array="true" />
+	</glyphDefinitions>
+	<compositeDefinitions>
+		<entities array="true" />
+	</compositeDefinitions>
+	<tempoPresetDefinitions>
+		<entities array="true" />
+	</tempoPresetDefinitions>
+	<rhythmicFeelDefinitions>
+		<entities array="true" />
+	</rhythmicFeelDefinitions>
+	<penstyles>
+		<entities array="true" />
+	</penstyles>
+	<fontstyles>
+		<entities array="true" />
+	</fontstyles>
+	<brushstyles>
+		<entities array="true" />
+	</brushstyles>
+	<pagePairDefinitionSets>
+		<entities array="true" />
+	</pagePairDefinitionSets>
+	<pageDimensionPresets>
+		<entities array="true" />
+	</pageDimensionPresets>
+	<paragraphStyles>
+		<entities array="true" />
+	</paragraphStyles>
+	<characterStyles>
+		<entities array="true" />
+	</characterStyles>
+	<playingTechniques>
+		<entities array="true" />
+	</playingTechniques>
+	<ornamentDefinitions>
+		<entities array="true" />
+	</ornamentDefinitions>
+	<multiSegmentLineDefinitions>
+		<entities array="true" />
+	</multiSegmentLineDefinitions>
+	<playingTechniqueAppearanceCollectionDefinition>
+		<entities array="true" />
+	</playingTechniqueAppearanceCollectionDefinition>
 	<expressionMapDefinitions>
 		<entities array="true">
 			<ExpressionMapDefinition>
 				<name>Ouaricon VST3 Note Expression</name>
 				<entityID>xmap.ouaricon.vst3_note_expression</entityID>
-				<parentEntityID/>
+				<parentEntityID />
 				<inheritanceMask>0</inheritanceMask>
 				<creator>Ouaricon Audio</creator>
 				<description>Routes Dorico per-note microtonal pitch deltas as VST3 Note Expression (kTuningTypeID) events to Ouaricon plugins (O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant). Microtonality is locked to "VST3 Note Expression" — the load-bearing setting required for non-Steinberg VST3s. Auto routing silently falls back to pitch-bend and breaks microtonal playback.</description>
 				<version>1</version>
-				<pluginNames/>
+				<pluginNames />
 				<autoMutualExclusion>true</autoMutualExclusion>
 				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
 				<applyStageTemplateSettings>true</applyStageTemplateSettings>
@@ -19,7 +127,7 @@
 				<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 				<initSwitchData>
 					<enabled>true</enabled>
-					<initActions array="true"/>
+					<initActions array="true" />
 				</initSwitchData>
 				<playingTechniqueCombinations array="true">
 					<playingTechniqueCombination>
@@ -27,7 +135,7 @@
 						<techniqueIDs>pt.natural</techniqueIDs>
 						<enabled>true</enabled>
 						<flags>0</flags>
-						<conditionString/>
+						<conditionString />
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -46,15 +154,47 @@
 							<type>kNoteVelocity</type>
 							<param1>0</param1>
 						</attackType>
-						<switchOnActions array="true"/>
-						<switchOffActions array="true"/>
+						<switchOnActions array="true" />
+						<switchOffActions array="true" />
 					</playingTechniqueCombination>
 				</playingTechniqueCombinations>
-				<techniqueAddOns array="true"/>
-				<mutualExclusionGroups array="true"/>
-				<playbackOptionsOverrides array="true"/>
+				<techniqueAddOns array="true" />
+				<mutualExclusionGroups array="true" />
+				<playbackOptionsOverrides array="true" />
 			</ExpressionMapDefinition>
 		</entities>
 	</expressionMapDefinitions>
+	<drumKitNoteMapDefinitions>
+		<entities array="true" />
+	</drumKitNoteMapDefinitions>
+	<repeatableCompositeCollectionDefinitions>
+		<entities array="true" />
+	</repeatableCompositeCollectionDefinitions>
+	<chordSymbolAppearanceCollectionDefinitions>
+		<entities array="true" />
+	</chordSymbolAppearanceCollectionDefinitions>
+	<chordSymbolAppearanceComponentCollectionDefinitions>
+		<entities array="true" />
+	</chordSymbolAppearanceComponentCollectionDefinitions>
+	<percussionKitDefinitionCollectionDefinition>
+		<entities array="true" />
+	</percussionKitDefinitionCollectionDefinition>
+	<percussionInstrumentDataCollectionDefinition>
+		<entities array="true" />
+	</percussionInstrumentDataCollectionDefinition>
+	<frettedInstrumentDataCollectionDefinition>
+		<entities array="true" />
+	</frettedInstrumentDataCollectionDefinition>
+	<chordDiagramCollectionDefinition>
+		<entities array="true" />
+	</chordDiagramCollectionDefinition>
+	<lineAnnotationCollectionDefinition>
+		<entities array="true" />
+	</lineAnnotationCollectionDefinition>
+	<lineBodyStyleCollectionDefinition>
+		<entities array="true" />
+	</lineBodyStyleCollectionDefinition>
+	<lineStyleCollectionDefinition>
+		<entities array="true" />
+	</lineStyleCollectionDefinition>
 </kScoreLibrary>
-<!-- Microtonality field set to: VST3 Note Expression (kVST3NoteExpression). This is the canonical Dorico value name for VST3 Note Expression routing. -->
