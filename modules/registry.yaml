@@ -250,7 +250,7 @@ modules:
 
   - name: note-expression
     path: tuning/note-expression
-    version: 1.0.0
+    version: 1.1.0
     description: |
       VST3 Note Expression (kTuningTypeID) support for Dorico microtonal playback.
       Header-only C++ module under Ouaricon::NoteExpression — provides the NEC,
