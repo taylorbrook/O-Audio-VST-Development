@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
-status: executing
-stopped_at: Phase 25 v2 (Playback Template) superseded by Path B finding — replan needed
-last_updated: "2026-04-27T07:20:00.000Z"
-last_activity: 2026-04-27 -- Phase 25 v2 paused; Path B (standalone .doricolib) validated end-to-end
+status: paused
+stopped_at: Phase 25 v3 context gathered (Path B locked)
+last_updated: "2026-04-27T14:43:38.822Z"
+last_activity: 2026-04-27 -- Plan 25-01 v2 deterministic work merged (819b2b4); A2 checkpoint surfaced two bugs in v2 + invalidated the .dorico_pt architecture; Path B (standalone .doricolib) tested end-to-end and PASSED (quarter-sharp playback at ~269 Hz via O-Lyrica-dev with Dorico-valid wrapped .doricolib).
 progress:
   total_phases: 20
   completed_phases: 19
   total_plans: 67
-  completed_plans: 64
-  percent: 96
+  completed_plans: 65
+  percent: 97
 ---
 
 # Project State
@@ -34,6 +34,7 @@ Last activity: 2026-04-27 -- Plan 25-01 v2 deterministic work merged (819b2b4); 
 Progress: [██████████] 99%
 
 History (Phase 25):
+
 - v1: drop .doricoexpmap into Dorico's User/ → reverted at d2c86c5 (Dorico does not recognize .doricoexpmap extension). See `25-FINDING-playback-template-pivot.md`.
 - v2: ship .dorico_pt Playback Template + .doricolib → merged at 819b2b4 BUT three blocking issues found at A2 checkpoint:
   1. .doricolib lacks Dorico's required 48-container kScoreLibrary skeleton (cd2c2c6 recovery is a fragment, not a library)
@@ -42,6 +43,7 @@ History (Phase 25):
 - Path B (validated 2026-04-27): ship single Dorico-valid .doricolib only; user assigns expression map manually in Play → Endpoints → Expression Map dropdown after loading their plugin. Verified end-to-end with quarter-sharp C4 playback at ~269 Hz on O-Lyrica-dev.
 
 Finding docs:
+
 - `.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md` (v1 → v2)
 - `.planning/phases/25-package-docs/25-FINDING-path-b-validation.md` (v2 → v3, NEW)
 
@@ -142,8 +144,8 @@ v1.5 decisions (to be logged as phase execution progresses):
 
 ## Session Continuity
 
-Last session: 2026-04-27T03:25:20.559Z
-Stopped at: Phase 25 v2 context locked (Playback Template pivot) — ready to replan
+Last session: 2026-04-27T14:43:38.816Z
+Stopped at: Phase 25 v3 context gathered (Path B locked)
 Resume file: .planning/phases/25-package-docs/25-CONTEXT.md
 
 Next: `/gsd-progress` to route to Phase 25 (final v1.5 phase) — or `/gsd-complete-milestone v1.5` if v1.5 is ready to ship

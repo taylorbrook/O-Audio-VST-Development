@@ -1,180 +1,182 @@
-# Phase 25: Package & Internal Technical Notes — Context (v2 — Playback Template pivot)
+# Phase 25: Package & Internal Technical Notes — Context (v3 — Path B locked)
 
-**Gathered:** 2026-04-26 (v2 replan after Plan 25-01 v1 revert)
+**Gathered:** 2026-04-27 (v3 replan after Path B validation)
 **Status:** Ready for replanning
-**Supersedes:** v1 CONTEXT (committed at ed0fc90) — distribution mechanism was wrong; XML asset content stays.
+**Supersedes:** v2 CONTEXT (committed at 3dc28e4 — `.dorico_pt` Playback Template approach) and v1 CONTEXT (committed at ed0fc90 — `.doricoexpmap` distribution mechanism). Architectural pivot recorded in `25-FINDING-path-b-validation.md`.
 
 <domain>
 ## Phase Boundary
 
-Author one canonical Dorico Playback Template (`Ouaricon-Microtonal-Suite.dorico_pt`, a zip archive containing `playbacktemplatespec.xml` + `endpointconfig.xml` + `playbacktemplatedeps.doricolib`) and one canonical expression-map library bundle (`Ouaricon-VST3-NoteExpression.doricolib`). Bundle BOTH files in all 8 affected plugins' installers (PKG on macOS, EXE on Windows) so Dorico-aware microtonal playback wires up automatically when the user installs any Ouaricon plugin. Capture developer-facing internal technical notes under `research/` covering module architecture, Dorico Playback Template setup procedure, host-side quirks, and troubleshooting signatures. Both shipped assets are the single source of truth at `modules/tuning/note-expression/resources/`; consumed via the existing module system; written to user systems via auto-discovery directories that Dorico scans at startup.
+Author one canonical Dorico expression-map library bundle (`Ouaricon-VST3-NoteExpression.doricolib`) — a Dorico-valid `.doricolib` with the full ~48-container `<kScoreLibrary>` skeleton, populated only with the recovered `<ExpressionMapDefinition>` for VST3 Note Expression microtonal routing. Bundle this single file in all 8 affected plugins' installers (PKG on macOS, EXE on Windows) so any Ouaricon plugin install lands the asset at a canonical Ouaricon shared path. User performs a one-time Library Manager → Import to load the expression map into Dorico, then assigns it to plugin channels via the normal Play → Endpoints flow. Capture developer-facing internal technical notes under `research/` covering module architecture, Path B setup procedure, host-side quirks, and troubleshooting signatures. Single shipped asset is the source of truth at `modules/tuning/note-expression/resources/library/`; consumed via the existing module system.
 
-**Distribution mechanism (NEW vs v1):** Drop into Dorico's auto-scan directories. The `.dorico_pt` extracts into `~/Library/Application Support/Steinberg/Dorico [N]/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/`; the `.doricolib` lands in `Default Library Additions/`. Dorico's `loadDefaultLibraryAdditions` and `PlaybackTemplateSpecs` scan symbols are confirmed in the v6 binary; `.doricoexpmap` is NOT a recognized extension (verified empirically by Plan 25-01 v1 + binary `strings`).
+**Distribution mechanism (Path B, v3):** One `.doricolib` lands at one platform-specific Ouaricon shared path. No auto-discovery. No Playback Template. No CID extraction. No dual-write.
+
+- **macOS:** `~/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib`
+- **Windows:** `%APPDATA%\Ouaricon\Microtonal Suite\Ouaricon-VST3-NoteExpression.doricolib`
+
+**User flow:** install any Ouaricon plugin → open Dorico → `Library → Library Manager → Import…` → pick the canonical path. After one-time import, the expression map appears in `Play → Endpoints → Expression Map` dropdown for any channel. User assigns it to their already-loaded Ouaricon plugin's channel manually.
+
+**Verified end-to-end on macOS Dorico 6 with O-Lyrica-dev** (2026-04-27): quarter-sharp C4 plays at ~269 Hz between standard C4 (261.63 Hz) and C♯ (277.18 Hz) — VST3 Note Expression microtonal routing confirmed. See `25-FINDING-path-b-validation.md` and `25-01-WAVE-0-VERIFICATION.md` § A2 Result. Reference asset built during validation: `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B).
 
 **In scope:**
-- Authoring `modules/tuning/note-expression/resources/playback-template/` (template source tree zipped at build time into `Ouaricon-Microtonal-Suite.dorico_pt`).
-- Authoring `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` (standalone expression-map library; recovered from commit `cd2c2c6` — the XML body is structurally valid as `.doricolib`).
-- CID extraction helper (`ouaricon_extract_vst3_cids`) that reads `Contents/Resources/moduleinfo.json` from each built `.vst3` bundle and substitutes plugin GUIDs into `endpointconfig.xml` via `configure_file @ONLY`. Dev installers ship dev CIDs; prod installers ship prod CIDs.
-- Module-level `install()` rule + propagation logic so each consuming plugin inherits both resources via `ouaricon_add_module()`.
-- Per-platform dual-write installer logic: PKG (macOS) and Inno Setup EXE (Windows) each write to (a) Ouaricon shared resources path and (b) Dorico `PlaybackTemplateSpecs/` + `Default Library Additions/` auto-scan paths.
-- All 8 affected plugins' installer configs updated to bundle and write both files.
-- Cross-platform validation: dry-run install + Dorico apply-template + quarter-sharp smoke test on **both** macOS and Windows.
-- Internal notes under `research/microtonal-dorico-integration.md` (single combined file with 4 H2 sections covering DOCS-01..04). DOCS-02 / DOCS-03 / DOCS-04 are reframed for the Playback Template apply flow (not the standalone expression-map import flow).
+- Authoring `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` — full `<kScoreLibrary>` skeleton sourced from `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/HALion Sonic/expressionMapsDefinitions.xml`, with the recovered `<ExpressionMapDefinition>` from `git show cd2c2c6` injected into `<expressionMapDefinitions>/<entities>`. Replace v2's invalid fragment.
+- Module-level `install()` rule that propagates the single resource to every consumer of `ouaricon_add_module(<Plugin> note-expression)`.
+- Per-platform single-write installer logic: PKG (macOS) and Inno Setup EXE (Windows) write the `.doricolib` + a fallback README to the platform-specific Ouaricon shared path.
+- All 8 affected plugins' installer configs updated to bundle and write the file (mechanical sweep).
+- Cross-platform validation: install + Dorico Library Manager Import + quarter-sharp smoke on **both** macOS and Windows.
+- Internal notes at `research/microtonal-dorico-integration.md` — single combined file, four H2 sections (DOCS-01..04) reframed for Path B's manual-assign flow.
+- **Surgical amend-forward cleanup of Path A artifacts in commit `819b2b4`** (D-10): delete `.dorico_pt` packing from `module.cmake`, the `ouaricon_extract_vst3_cids` helper in `OuariconModules.cmake`, the three `.xml.in` templates under `resources/playback-template/`, and `playbacktemplatedeps.doricolib.in`. Keep the version bump, registry entry, README structure, version-probe install script (collapse to single-write), and recovered XML body (re-wrapped).
 
-**Out of scope (deferred to other phases / future work):**
-- End-user-facing manuals or quickstart guides on the sales website (FUT-06; DOCS-01..05 explicitly remain internal this milestone).
-- Articulation switches in the expression map (staccato, legato, dynamics) — microtonality-only this milestone.
-- `slot<N>.pluginstate` files (curated knob positions per plugin) — see **D-12** below; v1.5 ships state-less.
-- Per-plugin `.dorico_pt` variants — single omnibus across all 8 plugins (D-08 below).
+**Out of scope (deferred):**
+- Auto-discovery via `Expression Maps/User/` or `Default Library Additions/` — explicit-import is the user-facing flow this milestone (D-01). Auto-discovery candidate for v1.6 if user feedback warrants.
+- `<pluginNames>` array populating `<ExpressionMapDefinition>` for auto-suggestion in the Endpoints dropdown (D-02) — skipped this milestone. Schema verification cost not paid; manual dropdown selection is acceptable. Revisit for v1.6 with a clear user-feedback signal.
+- End-user-facing manuals or quickstart guides on the sales website (FUT-06; DOCS-05 boundary).
+- Articulation switches in the expression map (staccato, legato, dynamics) — microtonality-only.
+- Per-plugin `.doricolib` variants — single canonical map applies to all 8 plugins.
 - MTS-ESP, MPE, pitch-bend fallback (FUT-02..04).
 - Per-note custom NE types beyond `kTuningTypeID` (FUT-02).
-- Automated Dorico smoke harness (still manual; deferred from Phase 24).
+- Automated Dorico smoke harness — still manual per platform.
+- Curated `.pluginstate` snapshots — Playback Template architecture is gone; not relevant under Path B.
+- Dev/prod CID handling in shipped asset — `.doricolib` carries no plugin CIDs at all under Path B (D-02 makes the asset CID-free).
 
-**Carrying forward from v1 CONTEXT (still valid after pivot):**
-- **Module owns the asset** (v1 D-04 / now D-05). Extends from one file to two (.dorico_pt + .doricolib). The module's `install()` rule fires per-consumer at install/package time, mirroring Phase 23's per-consumer JUCE-NE-PATCH marker check.
-- **Module v1.0.0 → v1.1.0 minor bump.** Additive resource surface, not breaking. `modules/registry.yaml` updated.
-- **3-plan structure** (v1 D-11 / now D-15). 25-01 / 25-02 / 25-03 keep their roles; content of each is updated to reflect the new architecture. `--replan` will regenerate plan files; old PLAN.md files are stale and supersede-tagged.
-- **Stop-on-first-failure with in-plan triage** (v1 D-12 / now D-16). Structural failures promote to `25-NN-fix-PLAN.md`.
-- **Cross-platform validation gate** (v1 D-09 / now D-13). Both macOS and Windows must pass real Dorico smoke for the installer/template pipeline. The plugins' non-installer behavior remains FUT-01 (macOS-only).
-- **Internal-developer-only notes** (v1 D-14 / now D-19). DOCS-05 boundary preserved. Tone is technical reference, not user marketing.
-- **Single canonical file location at `modules/tuning/note-expression/resources/`** (v1 D-03). Tree expands from one file to a small subdirectory (`playback-template/` source tree + `library/` standalone .doricolib + `README-microtonal-suite.txt`).
+**Carrying forward from v2 CONTEXT (still valid after Path B pivot):**
+- **Module owns the asset** (v2 D-08; now D-03). Reduces from two resources to one. Module's `install()` rule fires per-consumer.
+- **Module v1.0.0 → v1.1.0 minor bump** — already landed in commit `02fdcc2` (part of `819b2b4`). Keep; re-version is unnecessary churn.
+- **3-plan structure** (v2 D-17; now D-09). 25-01 v3 / 25-02 v3 / 25-03 v3 — much smaller scope per plan than v2 since dual-write collapses to single-write and CID plumbing disappears.
+- **Stop-on-first-failure with in-plan triage** (v2 D-18; preserved). Structural failures promote to `25-NN-fix-PLAN.md`.
+- **Cross-platform validation gate** (v2 D-15/D-16; now D-08). Both macOS and Windows must pass installer build + Dorico Library Manager Import + quarter-sharp smoke. Per-platform reference consumer: O-Lyrica on macOS (Phase 23 precedent), planner picks Windows reference based on availability.
+- **Per-plugin installer bundles the asset** (v2 D-10; preserved). All 8 plugins' installers ship the same canonical file. Idempotent overwrite.
+- **Internal-developer-only docs** (v2 D-20; preserved). DOCS-05 boundary. Tone is technical reference.
 
 **Carrying forward from Phase 23 (locked):**
-- Module path `modules/tuning/note-expression`, public API surface `Ouaricon::NoteExpression::*`, header-only consumption (D-04..D-09, D-23). Phase 25 v2 does NOT modify the module's source surface.
-- Per-format module-source convention (`cpp/<format>/`) — not directly relevant since these are configuration/data resources, but the module-owned-asset principle extends naturally.
-- One-liner consumer integration via `ouaricon_add_module()` — v2 extends this to propagate dual-resource installation (`.dorico_pt` + `.doricolib`).
+- Module path `modules/tuning/note-expression`, public API surface `Ouaricon::NoteExpression::*`, header-only consumption (D-04..D-09, D-23). Phase 25 v3 does NOT modify the module's source surface.
+- One-liner consumer integration via `ouaricon_add_module()` — v3 propagates single-resource installation (collapsed from v2's dual-resource).
 
 **Carrying forward from Phase 24 (locked):**
-- 8 affected plugins are the v1.5 cohort: O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant. All 8 are confirmed `note-expression` consumers (Phase 24 final sweep, commit 0ec32e9).
-- Each plugin's installer workflow already exists: `plugin-packaging` / `package` skill (PKG, macOS); `build-installer` skill (EXE, Windows). Phase 25 v2 extends configs, does not redesign workflows.
-- D-12 (Phase 24): stop-on-first-failure, triage in same plan — preserved.
+- 8 affected plugins are the v1.5 cohort: O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant. All 8 confirmed `note-expression` consumers (commit `0ec32e9`).
+- Each plugin's installer workflow already exists: `plugin-packaging` / `package` skill (PKG, macOS); `build-installer` skill (EXE, Windows). v3 extends configs, does not redesign workflows.
 
 **Carrying forward from `CLAUDE.md`:**
 - Build targets: `ninja <Plugin>_VST3 <Plugin>_AU <Plugin>_Standalone` (macOS); `cmake --build build --config Release --target <Plugin>_VST3` (Windows).
-- AU cache clear + remove old bundles + fresh install protocol must be honored before any cross-platform Dorico smoke test.
+- AU cache clear + remove-old-bundles + fresh install protocol must be honored before each platform's Dorico smoke test.
 
 </domain>
 
 <decisions>
-## Implementation Decisions (v2)
+## Implementation Decisions (v3)
 
-> **Numbering note:** v2 starts D-01 from scratch and explicitly cites which v1 decisions it replaces or extends. Several v1 decisions remain valid in spirit (module ownership, semver bump, plan structure, validation gate) and are noted in the Phase Boundary's "Carrying forward from v1" section above.
+> **Numbering note:** v3 starts D-01 from scratch and explicitly cites which v2 decisions it replaces, extends, or carries forward. v3 is much shorter than v2 (single asset, single path, no Playback Template plumbing).
 
-### Distribution Architecture (replaces v1 D-01..D-08)
+### Distribution Architecture (replaces v2 D-01..D-13)
 
-- **D-01: Two distributable assets, single canonical source.** Ship a `.dorico_pt` (Playback Template archive) alongside a `.doricolib` (expression-map library bundle). The `.dorico_pt` carries the full routing config (plugin slots + per-channel expression-map binding); the `.doricolib` makes the expression map independently available in `Library → Expression Maps` even when the user has not yet applied the template. Both files are produced from a single canonical XML body — the `<kScoreLibrary><expressionMapDefinitions><ExpressionMapDefinition>` recovered from commit `cd2c2c6` (D-04). The `.dorico_pt`'s embedded `playbacktemplatedeps.doricolib` and the standalone `.doricolib` share the same `<entityID>xmap.ouaricon.vst3_note_expression</entityID>` byte-exactly.
-  - Why both: self-containment of the template (drag-drop install does not need pre-existing library content) AND independent reusability of the expression map (advanced users may apply a custom endpoint config and still want the map available).
-  - `.dorico_pt` is a standard zip archive; verified by extracting the Ample China public sample and matching the binary's recognized `dorico_pt` / `dorico_pt.zip` strings.
+- **D-01: Single canonical asset, single canonical install path, explicit one-time import.** Ship one file: `Ouaricon-VST3-NoteExpression.doricolib` (Dorico-valid `.doricolib` with full `<kScoreLibrary>` skeleton + the recovered `<ExpressionMapDefinition>`). Installer writes it (and the fallback README) to one platform-specific Ouaricon shared path:
+  - macOS: `~/Library/Application Support/Ouaricon/Microtonal Suite/`
+  - Windows: `%APPDATA%\Ouaricon\Microtonal Suite\`
+  - **No auto-discovery.** Do NOT also write to `Expression Maps/User/`, `Default Library Additions/`, or `PlaybackTemplateSpecs/`. The README directs the user to perform a one-time `Library → Library Manager → Import…` from the canonical Ouaricon path. Most deterministic, simplest plumbing, no Dorico-side scan-behavior dependency. *(User confirmed 2026-04-27.)*
+  - **Cost:** one-time manual import per machine. Documented in README + DOCS-02. Revisit auto-discovery in v1.6 if user feedback shows the manual step is friction.
 
-- **D-02: Microtonality-only minimum scope.** The expression-map XML body sets `microtonalPlaybackMethod=kVST3NoteExpression` (the spike-validated trap from Patterns 1–3 — Dorico's `Auto` selection picks pitch-bend for non-Steinberg VST3s and silently breaks microtonal playback). No articulation switches (staccato/legato/dynamics) or per-plugin variants this milestone. (Carries forward from v1 D-02 unchanged.)
+- **D-02: Skip `<pluginNames>` auto-suggest array.** The shipped `.doricolib` does NOT populate the `<pluginNames>` element on its `<ExpressionMapDefinition>`. User picks "Ouaricon VST3 Note Expression" manually from the Endpoints dropdown after the one-time import. Schema verification cost not paid this milestone. *(User confirmed 2026-04-27.)*
+  - **Carry-forward note:** if/when v1.6 revisits, ship both prod and dev names (16 entries) so dev installs auto-suggest too. This was the user's preference if `<pluginNames>` were shipped — captured here so future-Claude doesn't re-ask. (User reasoning: dev users matter; we are them.)
+  - **Asset is CID-free.** Without `<pluginNames>` and without the Playback Template's `<endpointconfig>`, the shipped XML carries no plugin GUID references. Dev/prod build flavors ship byte-identical `.doricolib` content.
 
-- **D-03: Recover, do not re-author the expression-map XML.** The Plan 25-01 v1 `.doricoexpmap` body is structurally valid as a `.doricolib` — its `<kScoreLibrary>` root matches the .doricolib root verbatim. Recover from `git show cd2c2c6:modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap`. The plumbing was wrong; the asset content was right.
+### Asset Authoring (replaces v2 D-03)
 
-### Template Granularity
+- **D-03: Bootstrap from the HALion Sonic factory skeleton; inject the recovered `<ExpressionMapDefinition>`.** The Plan 25-01 v2 strategy of "recover, do not re-author" inherited a defect: the cd2c2c6 XML body is an expression-map *fragment* (only `<expressionMapDefinitions>` under `<kScoreLibrary>`), not a complete library bundle. Dorico requires all ~48 top-level `<kScoreLibrary>` containers as siblings (`<temperaments>`, `<accidentalSystems>`, `<accidentalDefinitions>`, … `<lineStyleCollectionDefinition>`), even when empty (`<entities array="true"/>`). v3 protocol:
+  1. Read `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/HALion Sonic/expressionMapsDefinitions.xml` — the canonical 48-container factory skeleton.
+  2. Empty every container EXCEPT `<expressionMapDefinitions>` (set `<entities array="true"/>` on each emptied one).
+  3. Inject the recovered `<ExpressionMapDefinition>` from `git show cd2c2c6:modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap` into `<expressionMapDefinitions>/<entities>`. The element is structurally correct and load-bearing — `microtonalPlaybackMethod=kVST3NoteExpression`, `entityID=xmap.ouaricon.vst3_note_expression`, technique combinations preserved.
+  4. Write to `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib`.
+  - **Reference implementation:** `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B, Dorico-valid, Library Manager → Import: PASS, quarter-sharp smoke: PASS). v3 plan task should follow this build pattern.
 
-- **D-04: ONE omnibus `Ouaricon-Microtonal-Suite.dorico_pt`** with 8 plugin slots (one per cohort plugin). Schema natively supports multi-plugin via `<slots>` in `endpointconfig.xml` — Ample China sample proves 11-slot multi-plugin templates load correctly. Dorico warns + skips missing-plugin slots rather than failing template apply. Single discoverable entry in `Play → Playback Template`. Lower user friction, lower maintenance surface, single source of truth. *(User confirmed 2026-04-26.)*
+### Module-Side Asset Ownership (replaces v2 D-08)
 
-### Plugin State
+- **D-04: The `note-expression` module owns the single resource via a CMake `install()` rule in `modules/tuning/note-expression/module.cmake`.** Any consumer of `ouaricon_add_module(<Plugin> note-expression)` automatically inherits the `.doricolib` (copied from `resources/library/`) at install time. Mirrors v2's ownership philosophy, simplified from two resources to one.
 
-- **D-05: Ship state-less `.dorico_pt`** for v1.5. `endpointconfig.xml` declares 8 slots WITHOUT corresponding `slot<N>.pluginstate` files. Dorico loads each plugin with its own factory defaults; the load-bearing invariant (microtonal routing via expression-map binding) is fully encoded in `endpointconfig.xml`'s `<expressionMapID>` and survives the omission. Factory `Silence` template demonstrates the same pattern (`<pluginStateFile/>` empty self-closing). Curated states are deferred — they cannot be hand-authored (proprietary Steinberg binary), they require a one-time human Dorico session, and they create maintenance debt as plugin defaults evolve. **Verification: A2 (manual ~10 min, runs in Plan 25-01 v2 Wave 0).** *(User confirmed 2026-04-26.)*
-
-### Plugin GUID Acquisition
-
-- **D-06: Read each plugin's `Contents/Resources/moduleinfo.json` from the built `.vst3` bundle.** The `Audio Module Class` entry's `CID` field is the canonical 32-hex value. `configure_file(... @ONLY)` substitutes per-plugin tokens (e.g., `@OLYRICA_PLUGINID@`) into `endpointconfig.xml.in` at packaging time. JUCE 8 emits this JSON deterministically from `(manufacturerCode, pluginCode)`; reading the actually-built artifact avoids any drift from algorithm reimplementation. **Dev installers carry dev CIDs (`OuDv` middle bytes `4F754476`); prod installers carry prod CIDs (`OuAu` middle bytes `4F754175`).** All 8 dev CIDs are tabulated in `25-RESEARCH.md` Pattern 2.
-
-- **D-07: Helper lives in `modules/cmake/OuariconModules.cmake`.** New function `ouaricon_extract_vst3_cids(OUTPUT_VAR ... PLUGINS ...)` parses each `moduleinfo.json` (Python helper to handle JUCE's trailing-comma JSON quirk) and sets per-plugin `<NAME>_PLUGINID` variables in parent scope. Invoked from `module.cmake` AFTER all 8 `_VST3` targets build (custom command dependency).
-
-### Module-Side Asset Ownership (extends v1 D-04)
-
-- **D-08: The `note-expression` module owns BOTH resources via CMake `install()` rules in `modules/tuning/note-expression/module.cmake`.** Any consumer of `ouaricon_add_module(<Plugin> note-expression)` automatically inherits both `.dorico_pt` (built from the `playback-template/` source tree at build time via `cmake -E tar cf ... --format=zip`) and `.doricolib` (copied from `library/` directly). Mirrors v1 ownership philosophy — extends from one file to two.
-
-- **D-09: Resource layout under `modules/tuning/note-expression/resources/`:**
+- **D-05: Resource layout under `modules/tuning/note-expression/resources/`:**
   ```
   resources/
-  ├── playback-template/                                          # Source for .dorico_pt (zipped at build time)
-  │   ├── PlaybackTemplateSpecs/Ouaricon Microtonal Suite/
-  │   │   └── playbacktemplatespec.xml.in                        # configure_file template
-  │   └── EndpointConfigs/Ouaricon Microtonal Suite/
-  │       ├── endpointconfig.xml.in                              # @<NAME>_PLUGINID@ tokens
-  │       └── playbacktemplatedeps.doricolib.in                  # Embedded copy of the expression-map XML body
   ├── library/
-  │   └── Ouaricon-VST3-NoteExpression.doricolib                 # Standalone, recovered from cd2c2c6
-  └── README-microtonal-suite.txt                                # User-facing fallback (INST-04)
+  │   └── Ouaricon-VST3-NoteExpression.doricolib   # Authored per D-03; the canonical asset
+  └── README-microtonal-suite.txt                  # User-facing fallback (INST-04, Path B-flavored)
   ```
+  - **Surgical deletion (D-10):** the `playback-template/` subtree from commit `819b2b4` (3 `.xml.in` templates + `playbacktemplatedeps.doricolib.in`) is removed under Plan 25-01 v3.
 
-### Cross-Platform Installer Logic (replaces v1 D-05..D-08)
+### Cross-Platform Installer Logic (replaces v2 D-10..D-13)
 
-- **D-10: Per-plugin installer bundles BOTH files.** Each of the 8 plugins' PKG (macOS) and EXE (Windows) installers ships `Ouaricon-Microtonal-Suite.dorico_pt` + `Ouaricon-VST3-NoteExpression.doricolib`. Idempotent overwrite — all 8 installers write the same canonical content for a given build flavor. *(User confirmed 2026-04-26.)*
+- **D-06: Per-plugin installer bundles the single asset.** Each of the 8 plugins' PKG (macOS) and EXE (Windows) installers ships `Ouaricon-VST3-NoteExpression.doricolib` + `README-microtonal-suite.txt`. Idempotent overwrite — all 8 installers write the same canonical content.
 
-- **D-11: Dual-write per platform** to (a) Ouaricon shared resources (canonical, editable) AND (b) Dorico's auto-scan directories (auto-discovered without user import action):
-  - **macOS shared:** `~/Library/Application Support/Ouaricon/Microtonal Suite/`
-  - **macOS Dorico template:** Extract `.dorico_pt` zip into `~/Library/Application Support/Steinberg/Dorico [N]/` (zip's internal layout already targets `PlaybackTemplateSpecs/` + `EndpointConfigs/` subdirectories — verified via Ample China sample)
-  - **macOS Dorico library:** Copy `.doricolib` into `~/Library/Application Support/Steinberg/Dorico [N]/Default Library Additions/` (note: spaces in dir name on macOS)
-  - **Windows shared:** `%APPDATA%\Ouaricon\Microtonal Suite\`
-  - **Windows Dorico template:** Extract into `%APPDATA%\Steinberg\Dorico [N]\` matching internal layout
-  - **Windows Dorico library:** `%APPDATA%\Steinberg\Dorico [N]\DefaultLibraryAdditions\` (note: NO spaces on Windows)
-  - Installer creates `Default Library Additions` / `DefaultLibraryAdditions` dir if missing — Dorico does not auto-create it.
+- **D-07: Single-write per platform** to the Ouaricon shared resources path only:
+  - **macOS:** `~/Library/Application Support/Ouaricon/Microtonal Suite/`
+  - **Windows:** `%APPDATA%\Ouaricon\Microtonal Suite\`
+  - Installer creates the directory if missing.
+  - **No Dorico-version probe required for the install destination** (the install target is an Ouaricon-controlled path, not a Dorico-version-specific one). The version-probe pattern from v2's `install-microtonal-suite.cmake.in` is preserved as carry-forward but logically unused — keep the helper for future revival if v1.6 adds auto-discovery; it's a no-op under v3.
 
-- **D-12: Dorico version targeting — install to the latest detected Dorico version directory.** Probe descending order (Dorico 6, 5, 4). If multiple Dorico versions are installed, install to the latest (consistent with Plan 25-01 v1 detection logic — that part was correct; only the destination subdirectory changes). Future Dorico releases require an installer config update — note as known maintenance touchpoint in DOCS-03. (Carries forward from v1 D-07.)
+### Verification Gates (replaces v2 D-14)
 
-- **D-13: README emission as fallback (INST-04).** Each installer writes `README-microtonal-suite.txt` at the Ouaricon shared resources path describing (a) both files' purposes, (b) how to manually apply the Playback Template via `Play → Playback Template → Import` if auto-discovery missed the directory, (c) how to manually import the expression map via `Library → Import Library` if needed, and (d) the canonical files' source-of-truth location in the module repo. README is plain technical text (honors DOCS-05 boundary). (Carries forward from v1 D-08, content updated.)
+- **D-08: Plan 25-01 v3 Wave 0 retest.** Single ~5 min check on the dev machine before bulk implementation:
+  - **Auto-discovery sanity (informational, not blocking):** drop the `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` reference asset into `~/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/`, restart Dorico, check whether "Ouaricon VST3 Note Expression" appears in the Endpoints dropdown without explicit import. **PASS or FAIL is informational only** — D-01 ships explicit-import regardless. A PASS result gets logged into v1.6 deferred-ideas with concrete evidence.
+  - **Cross-platform validation gate (D-08; replaces v2 D-15/D-16):** install reference plugin → Dorico Library Manager Import from canonical path → quarter-sharp C4 → confirm ~269 Hz on both macOS and Windows. macOS reference: O-Lyrica (Phase 23 precedent). Windows reference: planner picks based on availability, recommend O-Lyrica for parity. If Windows access blocked, plan halts hard (don't silently degrade to macOS-only).
 
-### Verification Gates (NEW)
+### Plan Structure (replaces v2 D-17)
 
-- **D-14: A2 + A4 verifications run inside Plan 25-01 v2 Wave 0.** *(User confirmed 2026-04-26.)*
-  - **A2 (state-less .dorico_pt accepted by Dorico):** Pack a stripped `.dorico_pt` with slots only, no `slot<N>.pluginstate` files. Import into Dorico 6. Confirm template appears in `Play → Playback Template`, applies cleanly, and slots load (with whatever default plugin state). ~10 min.
-  - **A4 (drag-drop extraction is faithful):** Drag the Ample China sample onto Dorico 6. Confirm both `~/Library/Application Support/Steinberg/Dorico 6/PlaybackTemplateSpecs/Ample China/` AND `EndpointConfigs/Ample China/` exist after install. ~5 min.
-  - **Stop-on-first-failure (D-16) applies.** If A2 fails, escalate to D-05 reconsideration (curated state authoring becomes mandatory). If A4 fails, escalate to D-11 reconsideration (drag-drop install is rejected; explicit `Play → Playback Template → Import` becomes the user-facing flow and the installer simply lands the file in `~/Library/Application Support/Ouaricon/Microtonal Suite/`).
+- **D-09: 3 plans, contents reframed for Path B.** Existing v2 PLAN.md files are stale and superseded; `/gsd-plan-phase 25` regenerates them.
+  - **`25-01-author-and-plumbing-PLAN.md` (v3)** — Wave 0 auto-discovery sanity check (informational); author the canonical `.doricolib` per D-03 (skeleton + injected expression-map body); collapse `module.cmake`'s install logic from dual-write to single-write of one asset; surgical deletion sweep per D-10; rewrite README content for Path B's import flow (structure preserved); canary install on O-Lyrica proves single-asset single-path pipeline.
+  - **`25-02-installer-bundling-sweep-PLAN.md` (v3)** — atomic sweep across all 8 plugins' installer configs (PKG + EXE) bundling the single `.doricolib` + README. Cross-platform installer build + Dorico Library Manager Import + quarter-sharp smoke matrix per D-08. Much smaller scope than v2 (one file, one destination, no Inno Setup Pascal `[Code]` for Dorico-version detection or directory-name variance).
+  - **`25-03-internal-notes-PLAN.md` (v3)** — write `research/microtonal-dorico-integration.md` (4 H2 sections, DOCS-01..04). DOCS-02 reframed for Path B's manual-import + manual-assign flow. DOCS-03 covers explicit-import rationale, Dorico Library Manager behavior, the kScoreLibrary 48-container schema requirement (the bug v2 inherited), and rationale for skipping `<pluginNames>` this milestone. DOCS-04 includes new troubleshooting signature: "Library Manager Import: Error opening file: invalid file format" → kScoreLibrary skeleton incomplete.
 
-### Validation Gate (extends v1 D-09 / D-10)
+### v2 Cleanup Strategy (NEW)
 
-- **D-15: Cross-platform Dorico apply-template + quarter-sharp smoke on macOS AND Windows.** Reverses Phase 23/24's macOS-only convention for the installer pipeline. Each platform: install one representative plugin → open Dorico → confirm `Ouaricon Microtonal Suite` appears in template picker → apply template → load test project → quarter-sharp C4 = +50¢, no attack zipper, NE correlated by `noteId` (3-point gate from Phase 24 D-07). Aggregate results in Plan 25-02's SUMMARY.md.
+- **D-10: Amend-forward with surgical deletions of Path A artifacts.** v3 plans do NOT revert commit `819b2b4` wholesale. Instead, Plan 25-01 v3 surgically deletes only the Path A-specific files and code regions, preserving the carry-forward bits as in-place modifications:
+  - **Delete from working tree:**
+    - `modules/tuning/note-expression/resources/playback-template/` — entire subtree (3 `.xml.in` templates, `playbacktemplatedeps.doricolib.in`).
+    - `ouaricon_extract_vst3_cids` function in `modules/cmake/OuariconModules.cmake` — only consumer was endpointconfig CID substitution; Path B's CID-free asset (D-02) makes this dead code.
+    - `.dorico_pt` packing custom command in `modules/tuning/note-expression/module.cmake` (the `cmake -E tar cf … --format=zip` block).
+    - The dual-write logic in `install-microtonal-suite.cmake.in` — collapse to single-write of `.doricolib` to Ouaricon shared path. Keep the Dorico-version-probe pattern as commented-out / unused-but-preserved carry-forward; mark as "v1.6 revival candidate".
+    - The invalid `library/Ouaricon-VST3-NoteExpression.doricolib` (current content is the truncated-fragment defect) — **rewrite per D-03**, not a delete-then-recreate; v3 task reauthors the file.
+  - **Keep from `819b2b4` (no v3 work needed):**
+    - `module.yaml` v1.0.0 → v1.1.0 bump (commit `02fdcc2`).
+    - `modules/registry.yaml` updated entry.
+    - `modules/tuning/note-expression/README.md` "Dorico End-User Setup" structure (rewrite *content* for Path B import flow; structure preserved).
+    - `install-microtonal-suite.cmake.in` Dorico-version probe logic (preserved unused under v3 — see above).
+  - **Audit-trail consequence:** each surgical deletion is its own task in Plan 25-01 v3, atomically committed. `git log --oneline` will show: v2 author/plumbing commits → v3 surgical deletes → v3 reauthors → v3 single-write collapse → v3 README rewrite → v3 canary. Cleaner than rerunning a full revert + reland sequence; keeps the version-bump and registry commits intact. *(User confirmed 2026-04-27.)*
 
-- **D-16: Per-platform validation matrix.** macOS reference consumer: O-Lyrica (Phase 23 precedent). Windows reference consumer: planner picks based on Windows machine availability (recommend O-Lyrica for parity, fall back to whatever is fastest to install). If Windows access is blocked, plan must surface as hard halt (don't silently degrade to macOS-only).
+- **D-11: Stop-on-first-failure, in-plan triage** (carries v2 D-18). Structural failures promote to `25-NN-fix-PLAN.md`.
 
-### Plan Structure (carries v1 D-11 with content updates)
+### Internal Notes Layout (replaces v2 D-19)
 
-- **D-17: 3 plans, contents reframed for v2 architecture.** Existing v1 PLAN.md files are stale and will be regenerated by `/gsd-plan-phase 25`.
-  - **`25-01-author-and-plumbing-PLAN.md` (v2)** — A2/A4 verifications first; recover XML body from cd2c2c6; author `playback-template/` source tree (`playbacktemplatespec.xml.in`, `endpointconfig.xml.in`, `playbacktemplatedeps.doricolib.in`); author standalone `library/Ouaricon-VST3-NoteExpression.doricolib`; add `ouaricon_extract_vst3_cids` helper to `OuariconModules.cmake`; extend `module.cmake` with `.dorico_pt` packing custom command + dual `install()` rules + `install-microtonal-suite.cmake.in` template; bump module 1.0.0 → 1.1.0; update `modules/registry.yaml`; canary install on O-Lyrica proves end-to-end pipeline (file is at canonical user paths AND template appears in Dorico picker).
-  - **`25-02-installer-bundling-sweep-PLAN.md` (v2)** — atomic sweep across all 8 plugins' installer configs (PKG + EXE) bundling `.dorico_pt` + `.doricolib`. Cross-platform installer build + dry-run install + Dorico apply-template + quarter-sharp smoke matrix (D-15/D-16). Mirrors Phase 24 final-sweep shape.
-  - **`25-03-internal-notes-PLAN.md` (v2)** — write `research/microtonal-dorico-integration.md` (4 H2 sections, DOCS-01..04). DOCS-02 reframed for Playback Template apply flow (not standalone .doricoexpmap import). DOCS-03 covers Playback Template + Default Library Additions auto-discovery quirks. DOCS-04 includes new troubleshooting signatures: missing-plugin warnings on apply, `.doricolib` directory-name spaces variance (macOS vs Windows), CID-mismatch silent failure (dev vs prod build).
+- **D-12: Single combined file at `research/microtonal-dorico-integration.md`** with 4 H2 sections:
+  - `## Module Architecture` (DOCS-01) — unchanged from v2: NEC advertisement flow, raw-event queue semantics, voice-routing logic, composition with `TuningEngine` analogs. References `modules/tuning/note-expression/cpp/NoteExpression.h` + `cpp/vst3/NoteExpression_VST3.cpp`.
+  - `## Canonical Dorico Setup Procedure` (DOCS-02) — **REFRAMED for Path B**: install Ouaricon plugin → open Dorico → `Library → Library Manager → Import…` → select `<canonical Ouaricon path>/Ouaricon-VST3-NoteExpression.doricolib` → confirm import. Then load Ouaricon plugin in score's playback template flow, assign "Ouaricon VST3 Note Expression" via `Play → Endpoints → Expression Map` dropdown. Names exact menu paths.
+  - `## Host-Side Behavior Quirks` (DOCS-03) — **REWRITTEN for Path B**: Dorico's neighbor-semitone + NE-delta representation; NEC handshake ignored by Dorico but kept for other hosts; sample-offset timing; **NEW: kScoreLibrary 48-container schema requirement (the v2 inherited defect — Dorico's parser rejects partial-skeleton `.doricolib` files with "invalid file format")**; **NEW: rationale for explicit-import (deterministic, no Dorico-side scan dependency, accepted UX cost of one manual step per user/machine)**; **NEW: rationale for skipping `<pluginNames>` this milestone (schema verification cost not paid; revisit candidate for v1.6)**.
+  - `## Troubleshooting Signatures` (DOCS-04) — **REWRITTEN for Path B**: symptoms-vs-cause table for the expression-map-skipped UX trap; new entry: "Library Manager Import: Error opening file: invalid file format" → asset author injected expression-map fragment into incomplete `<kScoreLibrary>` skeleton (recovery: bootstrap from HALion Sonic factory skeleton per D-03); new entry: "Expression map appears in dropdown but quarter-sharp plays at semitone" → user assigned wrong map to channel OR plugin advertises wrong CID (Dorico's expression map binding is name+CID matched).
 
-- **D-18: Stop-on-first-failure, in-plan triage** (carries v1 D-12). Structural failures promote to `25-NN-fix-PLAN.md`.
-
-### Internal Notes Layout (carries v1 D-13 with content updates)
-
-- **D-19: Single combined file at `research/microtonal-dorico-integration.md`** with 4 H2 sections:
-  - `## Module Architecture` (DOCS-01) — unchanged from v1: NEC advertisement flow, raw-event queue semantics, voice-routing logic, composition with `TuningEngine` analogs. References `modules/tuning/note-expression/cpp/NoteExpression.h` + `cpp/vst3/NoteExpression_VST3.cpp`.
-  - `## Canonical Dorico Setup Procedure` (DOCS-02) — **REFRAMED**: step-by-step Playback Template apply flow (not standalone expression-map import). Covers: install Ouaricon plugin → restart Dorico → `Play → Playback Template → Ouaricon Microtonal Suite → Apply and Close`. Names exact menu paths. Includes the manual-import fallback (`Play → Playback Template → Import` for `.dorico_pt`; `Library → Import Library` for `.doricolib`) for users whose auto-scan didn't catch the directory.
-  - `## Host-Side Behavior Quirks` (DOCS-03) — **EXTENDED**: Dorico's neighbor-semitone + NE-delta representation; NEC handshake ignored by Dorico but kept for other hosts; sample-offset timing; multiple-Dorico-version installer caveat; **NEW: `Default Library Additions` directory does not exist by default — installer creates it**; **NEW: directory name spaces variance (macOS spaces, Windows no spaces)**; **NEW: dev vs prod CID variance and the `configure_file @ONLY` mitigation**.
-  - `## Troubleshooting Signatures` (DOCS-04) — **EXTENDED**: symptoms-vs-cause table for the expression-map-skipped UX trap; missing-plugin warnings on template apply (graceful, not a failure); silent template non-appearance after install (caused by writing to wrong Dorico version dir or wrong subdirectory name).
-- **D-20: Notes are developer-facing only (DOCS-05).** No end-user manual or quickstart copy this milestone. Tone: technical reference. (Carries forward from v1 D-14.)
+- **D-13: Notes are developer-facing only (DOCS-05).** No end-user manual or quickstart copy this milestone. Tone: technical reference. (Carries v2 D-20.)
 
 ### Stale Artifacts to Clean Up
 
-- **D-21: `build/plugins/<Plugin>/install-doricoexpmap-<Plugin>.cmake` files (9 stale).** Generated by reverted Plan 25-01 v1's `configure_file`. Gitignored; regenerated on next clean build but currently named after the dead path. Plan 25-01 v2 deletes the v1 `.cmake.in` template and renames its replacement `install-microtonal-suite.cmake.in`. Stale build outputs vanish on next clean build.
+- **D-14: `build/plugins/<Plugin>/install-doricoexpmap-<Plugin>.cmake` and `install-microtonal-suite-<Plugin>.cmake` files (gitignored).** Generated by reverted v1 and current v2 `configure_file` calls. Vanish on next clean build under v3's collapsed install logic.
 
 ### Claude's Discretion
 
-- **Exact ordering of plugins in the bundling sweep** (D-15). Recommended canary: O-Lyrica first (reference consumer); other 7 in any order — installer-config edit is mechanical.
-- **Whether `ouaricon_add_module()` implicitly auto-installs the resources** vs requiring an explicit `ouaricon_install_microtonal_suite()` call. Recommend implicit (matches one-liner integration philosophy from Phase 23 D-26/D-27/D-29).
-- **`fileVersion` in the canonical XML files** (`1.1416` from Ample China sample for Dorico 6; A3 verifies cross-version compatibility). Recommend pinning to `1.1416` initially; revisit if A3 verification (drag-drop into Dorico 5) fails.
-- **Whether to bundle README inside `.vst3` too** (belt-and-braces). Recommend NO — single shared location only.
-- **PLAN.md naming convention.** Recommend `25-NN-<slug>-PLAN.md` matching v1 / Phase 23/24 style.
+- **Exact ordering of plugins in the bundling sweep** (Plan 25-02 v3). Recommended canary: O-Lyrica first (reference consumer); other 7 in any order — installer-config edit is mechanical.
+- **Whether `ouaricon_add_module()` implicitly auto-installs the resource** vs requiring an explicit `ouaricon_install_microtonal_suite()` call. Recommend implicit (matches one-liner integration philosophy from Phase 23 D-26/D-27/D-29). v2 already did implicit; preserve.
+- **`fileVersion` in the canonical XML.** Recommend pinning to whatever HALion Sonic factory uses on Dorico 6 (matches the bootstrap skeleton's source). A3 cross-version verification (Dorico 5 import) is non-blocking; defer to research-followup if it surfaces an issue.
+- **README.md content rewrite tone.** Recommend keeping the v2 structure (3 sections: Quick Start, Manual Import Steps, Source-of-Truth Note) and updating each for Path B's import-then-assign flow.
+- **PLAN.md naming convention.** Recommend `25-NN-<slug>-PLAN.md` matching v1 / v2 / Phase 23/24 style.
+- **Whether D-08's auto-discovery sanity result feeds into v1.6 deferred-ideas.** Recommend yes — log result with concrete date and evidence so v1.6 has a starting point.
 
 </decisions>
 
 <specifics>
 ## Specific Ideas
 
-- **"The asset content is fine; the wrapper format is wrong."** Plan 25-01 v1's `.doricoexpmap` XML body is structurally valid as a `.doricolib` (both have `<kScoreLibrary>` root). Recover from cd2c2c6, do not re-author. The pivot is purely a wrapper + distribution change.
-- **"One omnibus suite is the schema-native answer."** Dorico's `endpointconfig.xml` natively supports multi-plugin via `<slots>`. The Ample China sample proves 11-slot templates work. Eight per-plugin templates would replicate v1's "many small files" pattern unnecessarily.
-- **"State-less is the right v1.5 default."** The load-bearing invariant is microtonal routing (expression-map binding); knob positions are not. Skipping `.pluginstate` authoring eliminates a maintenance vector and a Dorico-session lock-in. Curated states are a candidate for v1.6+ if user feedback warrants.
-- **"Dual-write means the user never has to import anything."** `.dorico_pt` extracts into `PlaybackTemplateSpecs/` (Dorico scans at startup); `.doricolib` lands in `Default Library Additions/` (Dorico merges via `loadDefaultLibraryAdditions`). Both auto-discover. Users open Dorico after installing any Ouaricon plugin and the suite is wired up.
-- **"Dev/prod CID divergence is real and `configure_file` solves it."** JUCE 8 emits `Contents/Resources/moduleinfo.json` per-build; dev manufacturer code `OuDv` and prod `OuAu` produce different CIDs. Reading the just-built artifact at packaging time means dev installers ship dev CIDs and prod installers ship prod CIDs automatically. No hard-coded CIDs in source.
-- **"A2 + A4 verifications are cheap; do them first."** ~15 min combined on the dev machine. Eliminates the only two MEDIUM-confidence assumptions in research before the bulk implementation work begins. Plan 25-01 v2 Wave 0 = these two checks.
-- **"Per-plugin installer bundle, not a separate Suite Installer."** All 8 plugins' installers ship the same canonical pair. Idempotent overwrite. Users get the suite-wide Dorico routing whether they install one Ouaricon plugin or all eight. Mirrors v1 architecture exactly.
-- **"Internal notes are source material for FUT-06."** DOCS-01..04 reframed for the Playback Template flow; tone stays technical-reference; the website team translates later.
+- **"Bootstrap from the factory skeleton, never re-author the kScoreLibrary."** The HALion Sonic factory `expressionMapsDefinitions.xml` shipped inside Dorico 6's app bundle is the canonical reference for the 48-container `<kScoreLibrary>` structure. v2 inherited the truncated-fragment defect by trusting the recovered cd2c2c6 XML body without verifying Dorico's parser would accept it. v3 task: load factory file, empty all containers except `<expressionMapDefinitions>`, inject recovered `<ExpressionMapDefinition>`, write. The reference asset at `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` is the proof-of-concept.
+- **"Explicit-import is a feature, not a regression."** No Dorico-side scan-behavior dependency means our distribution is deterministic across Dorico versions, plugin installation orders, and user environments. The one-time manual step is documented and easily understood. Auto-discovery is a v1.6 polish candidate, not a v1.5 blocker.
+- **"`<pluginNames>` skipped means the asset is CID-free."** No `<pluginNames>` element + no `<endpointconfig>` (Path A artifact) = no plugin GUID references in the shipped XML. Dev and prod build flavors ship byte-identical `.doricolib` content. The dev/prod CID divergence problem that v2 solved with `ouaricon_extract_vst3_cids` is moot under Path B — that helper is dead code and gets deleted under D-10.
+- **"Amend-forward, not full-revert."** Commit `819b2b4` carried real value: version bump (`02fdcc2`), registry entry, README skeleton, version-probe pattern, recovered XML body. Surgically deleting only the Path A-specific files (.dorico_pt packing, CID helper, .xml.in templates, embedded .doricolib.in) preserves those wins and avoids re-doing work. Each deletion is its own atomic commit for clean audit trail.
+- **"Plan 25-02 v3 is dramatically smaller than v2."** No Inno Setup Pascal `[Code]` for Dorico-version detection. No `Default Library Additions` directory creation. No spaces-vs-no-spaces directory-name handling. One `[Files]` entry per platform per plugin. Sweep is purely mechanical.
+- **"v1.5 ships first; v1.6 evaluates the friction."** Real user feedback after v1.5 ships will tell us whether explicit-import friction or skipped-auto-suggest friction warrants the schema-verification + asset-population work. Empirical signal beats premature optimization.
+- **"Internal docs document the failure mode, not just the success path."** DOCS-03 and DOCS-04 explicitly capture the kScoreLibrary 48-container schema requirement (the v2 inherited defect) and the symptom-cause mapping for "Library Manager Import: invalid file format". Future implementers (us, v1.6) get the failure mode in the troubleshooting bible.
 
 </specifics>
 
@@ -184,152 +186,161 @@ Author one canonical Dorico Playback Template (`Ouaricon-Microtonal-Suite.dorico
 **Downstream agents (researcher, planner, executor) MUST read these before planning or implementing.**
 
 ### Phase Scoping
-- `.planning/ROADMAP.md` §Phase 25 — goal, dependencies (Phase 24), 5 success criteria. Note: criterion #1 mentions `.doricoexpmap` by name; success is measured by *behavioral* equivalence (canonical asset exists at module path; installers bundle it; Dorico picks it up; quarter-sharp smoke passes). The `.dorico_pt` + `.doricolib` pair satisfies the same intent via a different file format. ROADMAP success-criteria text may be tightened in Plan 25-01 v2's docs touch.
-- `.planning/REQUIREMENTS.md` §INST-01..04, §DOCS-01..05 — binding requirements. Same observation as above re: filename in INST-01 — the canonical asset is now a pair of files; intent is preserved.
-- `.planning/REQUIREMENTS.md` §FUT-06 — end-user manual/quickstart deferred; DOCS-05 boundary.
-- `.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md` — **MANDATORY READ.** Records what was tried, why it failed, and the pivot trigger. Reverted commits: cd2c2c6, 496d4c4, 029b12b. Combined revert: d2c86c5.
-- `.planning/phases/25-package-docs/25-RESEARCH.md` — **MANDATORY READ.** Pivot research with HIGH-confidence answers to Q1, Q2, Q6, Q7 + recommendations for Q3, Q4, Q5 (all locked in this CONTEXT.md). Includes verified `.dorico_pt` zip layout, all 8 cohort dev CIDs, recovered XML body schema, A2/A3/A4/A5/A6 assumptions log.
-- `.planning/phases/24-propagate/24-CONTEXT.md` — Phase 24 design decisions, especially D-12 (stop-on-first-failure playbook) and the 5 propagation patterns catalogued in plan 24-08.
-- `.planning/phases/23-extract/23-CONTEXT.md` — Phase 23 module ownership philosophy, per-format routing convention. Phase 25 v2's "module owns the asset" decision (D-08) extends these principles to two resources instead of one.
+- `.planning/ROADMAP.md` § Phase 25 — goal, dependencies (Phase 24), 5 success criteria. Note: criterion #1 mentions `.doricoexpmap` by name; success is measured by *behavioral* equivalence (canonical asset exists at module path; installers bundle it; user can route quarter-sharp via VST3 NE through Dorico). The single Path B `.doricolib` satisfies the same intent.
+- `.planning/REQUIREMENTS.md` § INST-01..04, § DOCS-01..05 — binding requirements. Same observation as above re: filename in INST-01 — canonical asset is one `.doricolib`; intent is preserved.
+- `.planning/REQUIREMENTS.md` § FUT-06 — end-user manual/quickstart deferred; DOCS-05 boundary.
+
+### Mandatory Reads (architectural-pivot trail — newest first)
+- `.planning/phases/25-package-docs/25-FINDING-path-b-validation.md` — **MANDATORY READ.** Records v2 → v3 pivot. Documents two concrete bugs in commit `819b2b4` (invalid `.doricolib` format; dev/prod plugin-name divergence) and the architectural mismatch (Playback Template over-engineered for the use case). Path B end-to-end PASS verified 2026-04-27.
+- `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` § A2 Result — verification log with full test trace, hypothesis chain, and final PASS at ~269 Hz quarter-sharp C4 on macOS Dorico 6 / O-Lyrica-dev.
+- `.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md` — earlier v1 → v2 pivot. Background context on why `.doricoexpmap` failed.
+- `.planning/phases/25-package-docs/25-RESEARCH.md` — v2 research; superseded by Path B finding for distribution mechanism, but still authoritative on dev/prod CID layouts (informational, not consumed by v3 plumbing).
+- `.planning/phases/24-propagate/24-CONTEXT.md` — Phase 24 design decisions, especially D-12 (stop-on-first-failure playbook).
+- `.planning/phases/23-extract/23-CONTEXT.md` — Phase 23 module ownership philosophy. Phase 25 v3's "module owns the asset" decision (D-04) extends Phase 23's principles to the data resource layer.
 - `.planning/seeds/microtonal-shared-module.md` — original seed; rationale for the microtonal milestone.
 
-### Recovery Source
-- `git show cd2c2c6:modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap` — recovered XML body for both `.doricolib` and embedded `playbacktemplatedeps.doricolib`. Use as-is; do not re-author. The reverted README content (`README-doricoexpmap.txt`) is similarly recoverable from `git show cd2c2c6:modules/tuning/note-expression/resources/README-doricoexpmap.txt` — content needs revision for the new flow but tone/structure carry forward.
-
-### Reference Sample (extracted, kept for ongoing reference)
-- `/tmp/ample_china/` and `/tmp/ample_china_extracted/` — public third-party `.dorico_pt` extracted during research. Schema reference for `playbacktemplatespec.xml`, `endpointconfig.xml`, `playbacktemplatedeps.doricolib`, `slot<N>.pluginstate`. Plan 25-01 v2 A4 verification uses this directly.
+### Recovery / Reference Sources
+- `git show cd2c2c6:modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap` — recovered `<ExpressionMapDefinition>` element. Use the element body as-is per D-03; do NOT reuse the surrounding `<kScoreLibrary>` skeleton (it's the defect).
+- `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/HALion Sonic/expressionMapsDefinitions.xml` — **the kScoreLibrary skeleton authority.** v3 task bootstraps from this file per D-03.
+- `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B) — **reference implementation for the v3 authoring task.** Dorico 6 Library Manager → Import: PASS. Quarter-sharp C4: PASS. v3 plan's authoring task should produce a byte-identical or functionally-equivalent file.
 
 ### Implementation Bible (auto-loaded skill)
 - `.claude/skills/spike-findings-VST-development/SKILL.md` — findings index.
-- `.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md` — validated patterns 1–5, landmines 1–5, constraints. **The `kVST3NoteExpression` Microtonality invariant (Landmine 3) is what the recovered XML encodes.**
+- `.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md` — validated patterns 1–5, landmines 1–5, constraints. **The `kVST3NoteExpression` Microtonality invariant (Landmine 3) is what the recovered `<ExpressionMapDefinition>` encodes.**
 - `.claude/skills/spike-findings-VST-development/sources/` — spike-era reference code; useful for DOCS-01 architecture cross-references.
 
-### Background Research (carry-forward from v1 — still applicable)
-- `.planning/notes/dorico-microtonal-vst-research.md` — Dorico's 3 wire mechanisms; source material for DOCS-02 (canonical setup procedure, REFRAMED for Playback Template flow) and DOCS-03 (host-side quirks).
+### Background Research (carry-forward — still applicable)
+- `.planning/notes/dorico-microtonal-vst-research.md` — Dorico's wire mechanisms; source material for DOCS-02/DOCS-03 (REFRAMED for Path B).
 - `research/microtonality-implementation-juce.md`
 - `research/microtonality-theory-formats.md`
 - `research/microtonality-comprehensive-database.md`
 - `research/microtonality-commercial-performance.md`
 
-### Module Surface (consume; module install() rules will be ADDED in this phase)
-- `modules/tuning/note-expression/cpp/NoteExpression.h` — public API. Source for DOCS-01 architecture notes.
+### Module Surface (consume; module install() rules will be ADDED/MODIFIED in this phase)
+- `modules/tuning/note-expression/cpp/NoteExpression.h` — public API. Source for DOCS-01.
 - `modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp` — VST3-only TU. Source for DOCS-01.
-- `modules/tuning/note-expression/README.md` — consumer integration steps; updated to mention canonical `.dorico_pt` + `.doricolib` and auto-install behavior.
-- `modules/tuning/note-expression/module.yaml` — bumped 1.0.0 → 1.1.0 in plan 25-01 v2.
-- `modules/tuning/note-expression/module.cmake` — currently fires JUCE-NE-PATCH marker check; plan 25-01 v2 ADDS the `.dorico_pt` packing custom command + dual `install()` rules.
-- `modules/registry.yaml` — `note-expression` entry; version bumped to 1.1.0; changelog entry.
+- `modules/tuning/note-expression/README.md` — already updated by `819b2b4`; v3 rewrites *content* of "Dorico End-User Setup" section for Path B import flow; structure preserved.
+- `modules/tuning/note-expression/module.yaml` — already at 1.1.0 per `02fdcc2`; no v3 changes.
+- `modules/tuning/note-expression/module.cmake` — currently has v2's `.dorico_pt` packing + dual-write install rules; v3 surgically deletes the packing block and collapses install rules to single-write of `.doricolib`.
+- `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` — currently invalid (truncated fragment); v3 reauthors per D-03.
+- `modules/tuning/note-expression/resources/playback-template/` — DELETED entire subtree under D-10.
+- `modules/tuning/note-expression/resources/README-microtonal-suite.txt` — content rewritten for Path B's manual-import flow.
+- `modules/registry.yaml` — already updated by `819b2b4`; no v3 changes.
 
 ### Module System Plumbing
-- `modules/cmake/OuariconModules.cmake` — `ouaricon_add_module()` macro. Plan 25-01 v2 ADDS `ouaricon_extract_vst3_cids()` helper here.
+- `modules/cmake/OuariconModules.cmake` — `ouaricon_add_module()` macro intact; v3 surgically DELETES the `ouaricon_extract_vst3_cids()` helper added in `ef64ec4` (dead code under Path B).
 
 ### Installer Workflows (the bundling targets — extend, do not redesign)
-- `.claude/skills/plugin-packaging/SKILL.md` — macOS PKG installer workflow. Plan 25-02 v2 extends per-plugin packaging configs.
+- `.claude/skills/plugin-packaging/SKILL.md` — macOS PKG installer workflow. Plan 25-02 v3 extends per-plugin packaging configs.
 - `.claude/skills/package/SKILL.md` — `/package` command. Same workflow.
-- `.claude/skills/build-installer/SKILL.md` — Windows EXE via Inno Setup. Plan 25-02 v2 extends per-plugin Inno Setup configs (`[Files]` section + Pascal `[Code]` for Dorico version detection).
+- `.claude/skills/build-installer/SKILL.md` — Windows EXE via Inno Setup. Plan 25-02 v3 extends per-plugin Inno Setup configs (single `[Files]` entry, no Pascal `[Code]` Dorico-version detection).
 
 ### Build & Install Discipline
-- `CLAUDE.md` — Plugin Cache Clearing protocol on macOS; Windows installer + cache-clear steps. **Mandatory before each platform's Dorico smoke test in plan 25-02.**
+- `CLAUDE.md` — Plugin Cache Clearing protocol on macOS; Windows installer + cache-clear steps. **Mandatory before each platform's Dorico smoke test in Plan 25-02 v3.**
 
-### Reference Plugins (the 8 affected; installer configs touched in plan 25-02 v2)
+### Reference Plugins (the 8 affected; installer configs touched in Plan 25-02 v3)
 - `plugins/O-Lyrica/CMakeLists.txt`, `plugins/O-Bells/CMakeLists.txt`, `plugins/O-IntonationPad/CMakeLists.txt`, `plugins/O-Prism/CMakeLists.txt`, `plugins/O-Wind/CMakeLists.txt`, `plugins/O-Reed/CMakeLists.txt`, `plugins/O-Bowed/CMakeLists.txt`, `plugins/O-Formant/CMakeLists.txt`. Each consumes `note-expression`. Installer configs under each plugin's packaging entry point.
 
-### Phase 24 Closeout (immediate predecessor — read for context, not for re-decision)
+### Phase 24 Closeout (predecessor — read for context)
 - `.planning/phases/24-propagate/24-VERIFICATION.md` — confirms all 8 plugins ship with NE module, 8/8 PASS Dorico smoke.
 - `.planning/phases/24-propagate/24-08-final-sweep-SUMMARY.md` — aggregate matrix.
 
-### Dorico Documentation (external — agents fetch live)
-- Steinberg Dorico Playback Template + `.dorico_pt` import flow (current Dorico 6 docs). Researcher fetches at planning time.
-- [archive.steinberg.help/dorico/v3/en/dorico/topics/play_mode/play_mode_playback_templates_importing_t.html](https://archive.steinberg.help/dorico/v3/en/dorico/topics/play_mode/play_mode_playback_templates_importing_t.html) — drag-and-drop import documented.
-- [steinberg.help/dorico_pro/v5/en/dorico/topics/play_mode/play_mode_playback_template_custom_creating_t.html](https://steinberg.help/dorico_pro/v5/en/dorico/topics/play_mode/play_mode_playback_template_custom_creating_t.html) — custom playback template creation.
+### Dorico Documentation (external)
+- Steinberg Dorico Library Manager Import flow (current Dorico 6 docs). Researcher fetches at planning time for DOCS-02 menu-path accuracy.
 
 </canonical_refs>
 
 <code_context>
-## Existing Code Insights (v2)
+## Existing Code Insights (v3)
 
 ### Reusable Assets
-- **`modules/tuning/note-expression/`** — fully extracted module with stable API. Phase 25 v2 ADDS one new directory tree (`resources/playback-template/` + `resources/library/`) and one new CMake build/install pipeline in `module.cmake`. Module source surface is otherwise untouched.
-- **`modules/cmake/OuariconModules.cmake`** — `ouaricon_add_module()` macro. Plan 25-01 v2 APPENDS `ouaricon_extract_vst3_cids()` helper here.
-- **`.claude/skills/plugin-packaging/SKILL.md` + `.claude/skills/package/SKILL.md`** — macOS PKG installer workflow (signed, branded). Plan 25-02 v2 extends per-plugin configs with two payload entries instead of one.
-- **`.claude/skills/build-installer/SKILL.md`** — Windows Inno Setup EXE workflow. Plan 25-02 v2 extends each plugin's `.iss` template (or equivalent) with two `[Files]` entries + Pascal `[Code]` for Dorico version detection + `Default Library Additions`-creation.
-- **`scripts/verify-au-link.sh`** — AU verify gate (Phase 23/24). Optional inheritance for plan 25-02 per-plugin smoke (recommend skip — already validated in Phase 24).
-- **`research/` directory** — already contains 4 microtonality research files. Plan 25-03 v2's `research/microtonal-dorico-integration.md` is a NEW file in this same family.
-- **Plan 25-01 v1 CMake plumbing patterns** — the `configure_file` + `install(SCRIPT)` pattern (commit 496d4c4) is reusable; only source/destination paths and per-platform branches need adjustment. Don't re-architect what worked.
+- **`modules/tuning/note-expression/`** — fully extracted module with stable API. v3 modifies only the `resources/` subtree and `module.cmake`'s install logic. Module source surface untouched.
+- **v2 carry-forward in `819b2b4`:** module.yaml v1.1.0 bump (`02fdcc2`), registry.yaml entry, README.md "Dorico End-User Setup" section structure, `install-microtonal-suite.cmake.in` Dorico-version probe pattern, recovered `<ExpressionMapDefinition>` body. All preserved under D-10.
+- **`/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib`** — Dorico-valid reference asset. v3 authoring task should produce equivalent output.
+- **`.claude/skills/plugin-packaging/SKILL.md` + `.claude/skills/package/SKILL.md`** — macOS PKG installer workflow. v3 extends per-plugin configs with one payload entry.
+- **`.claude/skills/build-installer/SKILL.md`** — Windows Inno Setup EXE workflow. v3 extends each plugin's `.iss` template with one `[Files]` entry.
+- **`research/` directory** — already contains 4 microtonality research files. Plan 25-03 v3's `research/microtonal-dorico-integration.md` is a NEW file in this same family.
 
 ### Established Patterns
-- **Module owns the asset** — Phase 23 established for source code, JUCE patch, README; Phase 25 v2 extends to two distributable resources (.dorico_pt + .doricolib).
-- **One-liner consumer integration** — `ouaricon_add_module(<Plugin> note-expression)` already wires source compilation + patch-marker check. Phase 25 v2 makes this also wire dual-resource installation.
+- **Module owns the asset** — Phase 23 established for source code, JUCE patch, README; v3 extends to one data resource (`.doricolib`).
+- **One-liner consumer integration** — `ouaricon_add_module(<Plugin> note-expression)` already wires source compilation + patch-marker check + (post-v2) resource install. v3 simplifies the resource install from dual-write to single-write.
 - **Atomic plan = atomic commit** — preserved.
-- **Stop-on-first-failure with in-plan triage; promote structural failures to fix-plans** — preserved (D-18).
-- **Per-platform dual-path install** — extends from one file × two paths (v1) to two files × multiple paths (v2): `.dorico_pt` to Ouaricon shared + Dorico `PlaybackTemplateSpecs/`; `.doricolib` to Ouaricon shared + Dorico `Default Library Additions/`.
-- **Cross-platform validation gate** — extends from "installer-build only" to "installer-build + apply-template + Dorico smoke" on both platforms.
+- **Stop-on-first-failure with in-plan triage** — preserved (D-11).
+- **Per-platform install** — collapses from v2's two-files-multiple-paths to v3's one-file-one-path.
+- **Cross-platform validation gate** — preserved; verification protocol simplifies to "Library Manager Import" instead of "Playback Template apply".
 
 ### NEW Patterns this phase
-- **Configured-XML resource generation** — `playbacktemplatespec.xml.in` / `endpointconfig.xml.in` / `playbacktemplatedeps.doricolib.in` carry `@TOKEN@` placeholders substituted at packaging time by `configure_file @ONLY` from per-plugin `moduleinfo.json` reads. First time the project authors XML resources from a templated source.
-- **JUCE-bundle `moduleinfo.json` introspection** — `ouaricon_extract_vst3_cids()` reads `Contents/Resources/moduleinfo.json` from each built `.vst3` to extract the canonical 32-hex CID. Avoids re-implementing JUCE's `jucePluginId` algorithm; tracks the actually-built artifact.
-- **Build-time zip packing** — `cmake -E tar cf <archive>.dorico_pt --format=zip <files>` produces the distributable archive. Cross-platform; built into CMake.
+- **Factory-skeleton bootstrap for Dorico XML resources** (D-03) — load HALion Sonic factory `expressionMapsDefinitions.xml`, empty all containers except the relevant one, inject the project-specific element. Establishes a precedent for any future Dorico XML asset authoring. The recovered cd2c2c6 fragment is reusable as the *injected element*, NOT as a complete library bundle.
+- **Surgical amend-forward** (D-10) — instead of reverting a merged feature commit, delete only the dead-end files and code regions in their own atomic commits, preserving the carry-forward bits in place. Cleaner audit trail than full revert + reland; precedent for future architectural pivots in mid-implementation phases.
 
-### Integration Points (per-platform install pipeline, v2)
+### Integration Points (per-platform install pipeline, v3)
 
-**Module side (one-time, plan 25-01 v2):**
-1. `modules/tuning/note-expression/resources/playback-template/` — NEW source tree (3 templated XML files).
-2. `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` — NEW (recovered from cd2c2c6).
-3. `modules/tuning/note-expression/resources/README-microtonal-suite.txt` — NEW.
-4. `modules/cmake/OuariconModules.cmake` — APPEND `ouaricon_extract_vst3_cids()` function.
-5. `modules/tuning/note-expression/module.cmake` — ADD packing custom command + dual `install()` rules + `install-microtonal-suite.cmake.in` template.
-6. `modules/tuning/note-expression/module.yaml` — bump 1.0.0 → 1.1.0; add changelog entry.
-7. `modules/tuning/note-expression/README.md` — append section describing the dual-resource shipping behavior.
-8. `modules/registry.yaml` — bump version + changelog.
+**Module side (one-time, Plan 25-01 v3):**
+1. `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` — REAUTHOR per D-03 (replace truncated-fragment with factory-skeleton-bootstrapped valid asset).
+2. `modules/tuning/note-expression/resources/playback-template/` — DELETE entire subtree (D-10).
+3. `modules/tuning/note-expression/resources/README-microtonal-suite.txt` — REWRITE content for Path B import flow.
+4. `modules/cmake/OuariconModules.cmake` — DELETE `ouaricon_extract_vst3_cids()` function added in `ef64ec4` (D-10).
+5. `modules/tuning/note-expression/module.cmake` — DELETE `.dorico_pt` packing custom command; COLLAPSE dual `install()` rules to single-write of `.doricolib` to Ouaricon shared path.
+6. `modules/tuning/note-expression/install-microtonal-suite.cmake.in` (or wherever the staged install script lives) — collapse dual-write logic to single-write; preserve Dorico-version probe as commented unused-but-preserved (v1.6 revival candidate).
+7. `modules/tuning/note-expression/README.md` — REWRITE "Dorico End-User Setup" section content for Path B import flow; preserve overall README structure.
 
-**Plugin side (per-plugin, plan 25-02 v2 — atomic sweep):**
-- Each plugin's PKG payload + Inno Setup `[Files]` section updated to consume the module's two staged resources (`.dorico_pt` + `.doricolib`).
-- Per-platform install destinations follow D-11 (Ouaricon shared + Dorico auto-scan).
-- Inno Setup `[Code]` Pascal section adds Dorico version detection + `DefaultLibraryAdditions` directory creation.
+**Plugin side (per-plugin, Plan 25-02 v3 — atomic sweep):**
+- Each plugin's PKG payload + Inno Setup `[Files]` section updated to consume the module's single staged resource (`.doricolib` + README).
+- Per-platform install destinations follow D-07 (Ouaricon shared only).
+- Inno Setup `[Code]` Pascal section: NO Dorico-version detection needed; NO `Default Library Additions` directory creation needed.
 
-**Notes side (one-time, plan 25-03 v2):**
-- `research/microtonal-dorico-integration.md` — NEW file, single combined doc with 4 H2 sections (DOCS-02/03/04 reframed for Playback Template flow).
+**Notes side (one-time, Plan 25-03 v3):**
+- `research/microtonal-dorico-integration.md` — NEW file, single combined doc with 4 H2 sections (DOCS-01..04) reframed for Path B's manual-import + manual-assign flow.
 
 ### Variation Points
-- **macOS PKG payload structure** — postinstall script unzips `.dorico_pt` directly into `~/Library/Application Support/Steinberg/Dorico [N]/` (zip's internal `PlaybackTemplateSpecs/` and `EndpointConfigs/` paths land naturally) and copies `.doricolib` into `Default Library Additions/`.
-- **Windows Inno Setup `[Files]` section** — two source entries (`.dorico_pt` + `.doricolib`) with multiple destinations each; Inno's `external: yes` flag may help if `.dorico_pt` is unzipped at install time vs shipped as a zip.
-- **Dorico version detection** — both platforms probe descending order (6 → 5 → 4); skip + log if no Dorico version directory exists; user falls back to README manual-import path.
+- **macOS PKG payload structure** — postinstall script copies `.doricolib` + README to `~/Library/Application Support/Ouaricon/Microtonal Suite/`. Single source-dest pair per file. Idempotent.
+- **Windows Inno Setup `[Files]` section** — two source entries (`.doricolib` + README), each with one destination. Inno's `external: yes` flag NOT needed.
+- **Dorico-version detection** — NOT REQUIRED for v3's install destinations. The Ouaricon shared path is Dorico-version-agnostic. (User performs Library Manager → Import once; Dorico itself handles version compatibility on import.)
 
-### Phase 25 v2 Touch Points (the package surface)
+### Phase 25 v3 Touch Points (the package surface)
 
-**Module-side (additive — does not modify existing module API):**
-- `modules/tuning/note-expression/resources/` — NEW subtree.
-- `modules/tuning/note-expression/module.cmake` — packing + install rules added.
-- `modules/tuning/note-expression/module.yaml` — version bump.
-- `modules/tuning/note-expression/README.md` — append.
-- `modules/cmake/OuariconModules.cmake` — `ouaricon_extract_vst3_cids()` appended.
-- `modules/registry.yaml` — version bump entry.
+**Module-side (modify-and-delete, Plan 25-01 v3):**
+- `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` — reauthored.
+- `modules/tuning/note-expression/resources/playback-template/` — entire subtree deleted.
+- `modules/tuning/note-expression/resources/README-microtonal-suite.txt` — rewritten.
+- `modules/tuning/note-expression/module.cmake` — surgical deletions + install collapse.
+- `modules/tuning/note-expression/README.md` — content rewrite, structure preserved.
+- `modules/cmake/OuariconModules.cmake` — `ouaricon_extract_vst3_cids()` deleted.
+- `modules/tuning/note-expression/install-microtonal-suite.cmake.in` — single-write collapse.
 
-**Plugin-side (per-plugin, plan 25-02 v2):**
-- 8 plugins' packaging configs — extended (specifics depend on packaging skill's config layout).
+**Module-side (no-op, preserved from `819b2b4`):**
+- `modules/tuning/note-expression/module.yaml` — already at 1.1.0.
+- `modules/registry.yaml` — already updated.
+
+**Plugin-side (per-plugin, Plan 25-02 v3):**
+- 8 plugins' packaging configs — extended (single bundle entry per platform).
 
 **Skill-side (potentially):**
-- `.claude/skills/plugin-packaging/SKILL.md` and `.claude/skills/build-installer/SKILL.md` — may need template-level updates to read module-staged resources. Planner determines.
+- `.claude/skills/plugin-packaging/SKILL.md` and `.claude/skills/build-installer/SKILL.md` — minimal/no template-level updates expected. Planner determines.
 
-**Notes-side (plan 25-03 v2):**
+**Notes-side (Plan 25-03 v3):**
 - `research/microtonal-dorico-integration.md` — NEW.
 
 **Stale build outputs (auto-cleanup):**
-- `build/plugins/<Plugin>/install-doricoexpmap-<Plugin>.cmake` — 9 files, gitignored, vanish on next clean build (D-21).
+- `build/plugins/<Plugin>/install-doricoexpmap-<Plugin>.cmake` (v1) and `install-microtonal-suite-<Plugin>.cmake` (v2) — gitignored, vanish on next clean build (D-14).
 
 </code_context>
 
 <deferred>
 ## Deferred Ideas
 
-- **Curated `slot<N>.pluginstate` per plugin** — D-05 ships state-less for v1.5. Revisit in v1.6+ if user feedback shows curated knob positions add meaningful value. Authoring path: one Dorico session, `Play → Save Endpoint Configuration`, copy state files into module resources, re-pack `.dorico_pt`.
+- **Auto-discovery via `Expression Maps/User/`** — D-08's auto-discovery sanity check is informational; if PASS, log result + concrete date in v1.6 deferred-ideas as a no-friction-cost enhancement. Plan 25-01 v3 ships explicit-import regardless.
+- **`<pluginNames>` array for auto-suggestion** — schema verification + 8 (or 16) entries. User preference if revisited: ship both prod + dev names (16 entries). Big UX win for ~30 min of work; deferred to v1.6 with clear user-feedback signal.
+- **`.dorico_pt` Playback Template architecture** — the v2 approach is rejected for the v1.5 routing-only use case but may resurface in a later milestone if curated `slot<N>.pluginstate` snapshots become a feature (e.g., "demo project setup" workflow). Architecture documented in `25-FINDING-path-b-validation.md`.
+- **Curated `slot<N>.pluginstate` per plugin** — depends on Playback Template revival. Not relevant under v3.
 - **Articulation switches in the canonical .doricolib** — staccato, legato, dynamics. Out of scope for v1.5 (microtonality-only). Revisit when there's user demand or website-manual content needs articulation coverage.
-- **Per-plugin .dorico_pt variants** — e.g., MPE plugins (O-Reed, O-Bowed) potentially needing different routing. Defer until a real user-facing playback issue surfaces; the omnibus suite is correct for the milestone.
+- **Per-plugin `.doricolib` variants** — e.g., MPE plugins (O-Reed, O-Bowed) potentially needing different routing. Defer until a real user-facing playback issue surfaces; the single canonical map is correct for the milestone.
 - **Automated Dorico smoke harness** — still manual per platform.
-- **Multi-Dorico-version installer logic** — installer auto-detects Dorico 5/6/N and writes to all present versions. Plan 25-01 v2 may implement if straightforward; otherwise pin to latest detected (D-12) and document upgrade path in DOCS-03.
+- **Multi-Dorico-version installer logic** — not needed under v3 (install destination is Dorico-version-agnostic). The `install-microtonal-suite.cmake.in` Dorico-version probe is preserved as commented unused-but-preserved code, ready for v1.6 revival if auto-discovery work needs it.
 - **Cubase / Nuendo expression-map paths** — Cubase reads expression maps too. Out of scope for v1.5 (Dorico-only). Future generalization candidate.
-- **Module-side `.doricolib` / `.dorico_pt` schema linting in CI** — programmatic XML schema validation before packaging. Manual smoke covers it for v1.5.
-- **Updating each plugin's CHANGELOG with "now ships Ouaricon Microtonal Suite Dorico template"** — optional. Not required by INST/DOCS. If included, recommend uniform one-line entry without binary-version bump.
-- **Cross-version `fileVersion` handling** — A3 not blocking; pinning to Dorico 6's `1.1416` and verifying Dorico 5 import works in research-followup. If Dorico 5 rejects, plan 25-01 v2 may need version-conditional `fileVersion` tokens.
+- **Module-side `.doricolib` schema linting in CI** — programmatic XML schema validation before packaging, specifically the kScoreLibrary 48-container check. Manual smoke + the factory-skeleton bootstrap pattern (D-03) covers it for v1.5.
+- **Updating each plugin's CHANGELOG with "now ships Ouaricon Microtonal Suite expression map"** — optional. Not required by INST/DOCS. If included, recommend uniform one-line entry without binary-version bump.
+- **Cross-version `fileVersion` handling** — A3 not blocking; pin to whatever HALion Sonic factory uses on Dorico 6. Verify Dorico 5 import in research-followup if user reports an issue.
 - **End-user-facing manual / quickstart on the sales website** — FUT-06.
 
 </deferred>
@@ -337,5 +348,6 @@ Author one canonical Dorico Playback Template (`Ouaricon-Microtonal-Suite.dorico
 ---
 
 *Phase: 25-package-docs*
-*Context gathered: 2026-04-26 (v2 — Playback Template pivot)*
+*Context gathered: 2026-04-27 (v3 — Path B validation locked)*
+*v2 superseded — see `25-FINDING-path-b-validation.md` and `25-01-WAVE-0-VERIFICATION.md` § A2 Result.*
 *v1 superseded — see `25-FINDING-playback-template-pivot.md` and revert commit `d2c86c5`.*
