@@ -145,7 +145,7 @@ Phases execute in numeric order: 23 → 24 → 25
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
 | 23 (A) | v1.5 | 5/5 | Complete    | 2026-04-25 |
 | 24 (B) | v1.5 | 8/8 | Complete   | 2026-04-26 |
-| 25 (C) | v1.5 | 3/3 | Complete   | 2026-04-27 |
+| 25 (C) | v1.5 | 3/3 | Complete    | 2026-04-27 |
 
 **Cumulative: 22 phases complete, 67 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 25 v3 replan locks Path B (standalone .doricolib + Library Manager Import). Plan 25-01 closed 2026-04-27 with end-to-end O-Lyrica canary PASS; Plan 25-02 closed 2026-04-27 with D-08 cross-platform STRICT-PASS (8 cohort plugins × macOS + Windows).**
 
