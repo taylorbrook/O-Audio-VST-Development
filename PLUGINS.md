@@ -52,9 +52,10 @@ Ouaricon Plugins:
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
 | O-Formant | 📦 Installed | 1.24.1 | Synth (Physical Model Vocal) | 2026-04-17 |
 | O-Bowed | 📦 Installed | 1.2.0 | Synth (Physical Model Bowed String) | 2026-04-17 |
-| O-Reed | 📦 Installed | 1.0.11 | Synth (Physical Modeling Reed Wind) | 2026-04-16 |
+| O-Reed | 📦 Installed | 1.0.12 | Synth (Physical Modeling Reed Wind) | 2026-04-26 |
 | O-Wind | 📦 Installed | 1.15.1 | Synth (Physical Model Flute) | 2026-04-13 |
 | O-Contrabass | 🚧 Stage 0 | - | Synth (Physical Model Bowed Bass) | 2026-04-25 |
+| O-Bassoon | 💡 Ideated | - | Synth (Physical Model Bassoon) | 2026-04-27 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
