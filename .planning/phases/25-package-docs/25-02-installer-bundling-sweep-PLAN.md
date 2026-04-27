@@ -3,55 +3,55 @@ phase: 25-package-docs
 plan: 02
 type: execute
 wave: 2
-depends_on: [25-01-author-and-plumbing-PLAN.md]
+depends_on: [25-01]
 files_modified:
   - .claude/skills/plugin-packaging/references/pkg-creation.md
   - .claude/skills/plugin-packaging/assets/inno-template.iss
   - .claude/skills/plugin-packaging/references/inno-setup-creation.md
-  - .planning/phases/25-package-docs/25-02-SUMMARY.md
 autonomous: false
 requirements: [INST-03, INST-04]
+tags: [installer, pkg, inno-setup, dorico, doricolib, atomic-sweep, path-b]
+
 must_haves:
   truths:
-    - "macOS PKG postinstall script (single shared source) extracts .dorico_pt zip into ~/Library/Application Support/Steinberg/Dorico [N]/ via ditto -x -k AND copies .doricolib into Default Library Additions/ (with spaces) (D-10, D-11, D-12)"
-    - "Windows Inno Setup template (single shared source) carries new [Files] entries for .dorico_pt + .doricolib AND new [Code] Pascal logic that probes Dorico 6 -> 5 -> 4, extracts via Shell.Application.NameSpace.CopyHere, and copies into DefaultLibraryAdditions (NO spaces) (D-10, D-11, D-12)"
-    - "All 8 cohort plugins' next packaging run (PKG on macOS + EXE on Windows) automatically inherits the dual-resource bundling — no per-plugin CMakeLists.txt or per-plugin packaging-config edits needed (PATTERNS.md observation 3+4)"
-    - "Cross-platform validation matrix passes: 1 representative macOS install + 1 representative Windows install both surface 'Ouaricon Microtonal Suite' in Dorico's template picker and quarter-sharp C4 = +50¢ (D-15, D-16)"
-    - "If Windows access is blocked, plan surfaces as hard halt rather than silently degrading to macOS-only (D-16)"
-    - "Phase 24's 3-point gate (quarter-sharp C4 = +50¢, no attack zipper, NE correlated by noteId) re-passes per platform per representative plugin"
+    - "PKG postinstall (shared template) writes the canonical .doricolib + README to ~/Library/Application Support/Ouaricon/Microtonal Suite/ on every plugin install."
+    - "Inno Setup template writes the canonical .doricolib + README to %APPDATA%\\Ouaricon\\Microtonal Suite\\ on every plugin install."
+    - "All 8 plugins' freshly-built installers, when installed, produce a working Path B import flow on macOS and Windows."
+    - "Cross-platform validation gate (D-08) passes: 1 representative install on macOS + 1 on Windows confirms Library Manager Import + quarter-sharp ~269 Hz."
   artifacts:
     - path: ".claude/skills/plugin-packaging/references/pkg-creation.md"
-      provides: "Single source of truth for macOS PKG postinstall — Section 4b extended with Microtonal Suite block (Pattern G)"
-      contains: "Ouaricon-Microtonal-Suite.dorico_pt"
+      provides: "Shared PKG postinstall reference; new section copies .doricolib + README to Ouaricon shared path"
+      contains: "Ouaricon/Microtonal Suite"
     - path: ".claude/skills/plugin-packaging/assets/inno-template.iss"
-      provides: "Single source of truth for Windows Inno Setup — [Files] + [Code] extended (Pattern H)"
-      contains: "ExtractZipTo"
+      provides: "Shared Inno Setup template; new [Files] entries for .doricolib + README"
+      contains: "Ouaricon-VST3-NoteExpression.doricolib"
     - path: ".claude/skills/plugin-packaging/references/inno-setup-creation.md"
-      provides: "Documents 2 new template variables: MICROTONAL_SUITE_PT_PATH and MICROTONAL_SUITE_DORICOLIB_PATH"
-      contains: "MICROTONAL_SUITE_PT_PATH"
-    - path: ".planning/phases/25-package-docs/25-02-SUMMARY.md"
-      provides: "Cross-platform validation matrix per D-15"
+      provides: "Shared Inno Setup reference; new template variables for the two suite paths"
+    - path: ".planning/phases/25-package-docs/25-02-VALIDATION-MATRIX.md"
+      provides: "Cross-platform install + Library Manager Import + quarter-sharp results"
   key_links:
-    - from: ".claude/skills/plugin-packaging/references/pkg-creation.md (Section 4b postinstall)"
-      to: "Per-plugin PKG payload includes Ouaricon-Microtonal-Suite.dorico_pt and Ouaricon-VST3-NoteExpression.doricolib (sourced from build/ produced by Plan 25-01)"
-      via: "cp + ditto -x -k from /tmp staging into ~/Library/Application Support/Steinberg/Dorico [N]/"
-      pattern: "ditto -x -k"
-    - from: ".claude/skills/plugin-packaging/assets/inno-template.iss [Code] section"
-      to: "%APPDATA%\\Steinberg\\Dorico [N]\\PlaybackTemplateSpecs\\Ouaricon Microtonal Suite\\ AND %APPDATA%\\Steinberg\\Dorico [N]\\DefaultLibraryAdditions\\"
-      via: "Shell.Application.NameSpace.CopyHere for zip extraction; FileCopy for .doricolib"
-      pattern: "Shell.Application"
-    - from: "Each of 8 cohort plugins' next /package or build-installer invocation"
-      to: "Plan 25-01's two staged resources (build/Ouaricon-Microtonal-Suite.dorico_pt and modules/.../resources/library/Ouaricon-VST3-NoteExpression.doricolib)"
-      via: "Both shared skill templates emit identical payload entries — propagation is implicit (PATTERNS.md observation 3)"
-      pattern: "Ouaricon-VST3-NoteExpression.doricolib"
+    - from: "PKG postinstall script"
+      to: "~/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib"
+      via: "cp + chown ${ACTUAL_USER}:staff"
+      pattern: "Ouaricon/Microtonal Suite"
+    - from: "Inno Setup [Files] section"
+      to: "%APPDATA%\\Ouaricon\\Microtonal Suite\\Ouaricon-VST3-NoteExpression.doricolib"
+      via: "{userappdata}\\Ouaricon\\Microtonal Suite — Flags: ignoreversion"
+      pattern: "userappdata.*Ouaricon"
+    - from: "any of 8 freshly-built installers"
+      to: "Library Manager Import + quarter-sharp playback"
+      via: "PKG/EXE install → user runs Library Manager Import once → assigns map per-channel"
+      pattern: "xmap.ouaricon.vst3_note_expression"
 ---
 
 <objective>
-Atomically extend the SHARED macOS PKG postinstall script and SHARED Windows Inno Setup template so all 8 cohort plugins' next packaging run bundles and dual-writes the Ouaricon Microtonal Suite resources. Validate the result with a cross-platform Dorico apply-template + quarter-sharp smoke matrix on macOS AND Windows.
+Extend the shared PKG postinstall reference and Inno Setup template so every PKG/EXE installer built across the 8-plugin cohort bundles the canonical `.doricolib` + user-facing README, lands them at the Ouaricon shared path on the target platform, and works with a one-time Library Manager Import in Dorico. Then build fresh installers for all 8 plugins on whichever platforms are accessible and run the cross-platform validation gate (D-08): a representative install on macOS + a representative install on Windows.
 
-Purpose: Realize Phase 25's distribution goal — every Ouaricon plugin's installer ships the canonical Microtonal Suite assets. PATTERNS.md observation 4: edit the shared `pkg-creation.md` + `inno-template.iss` ONCE -> propagates to all 8 plugins' next packaging run. No per-plugin CMakeLists.txt or per-plugin packaging-config edits needed (observation 3 — all 8 already consume the module).
+Purpose: Plan 25-01 ships the canonical asset and module-level install rule, but those only fire when running `cmake --install` directly. End users install plugins via PKG (macOS) or EXE (Windows) — those installer pipelines need to bundle and write the suite asset themselves. This plan modifies the shared installer templates so all 8 plugins' next installer rebuild picks up the new bundling; it does NOT redesign the per-plugin packaging workflow (the existing `plugin-packaging` and `build-installer` skills remain authoritative).
 
-Output: 3 MODIFIED skill files (single source of truth for both platforms) + 1 NEW SUMMARY.md with cross-platform validation matrix.
+Output: Two shared template files modified (the mechanical sweep), 8 plugin installers rebuilt + validated, and a cross-platform validation matrix recording PASS/FAIL per plugin per platform per gate point. v1.5 ships when this plan's matrix shows the required PASSes (D-08).
+
+Per D-09: Plan 25-02 v3 is dramatically smaller than v2 — no Pascal `[Code]` Dorico-version detection, no `Default Library Additions` directory creation, no spaces-vs-no-spaces variance handling. One destination per platform.
 </objective>
 
 <execution_context>
@@ -60,616 +60,393 @@ Output: 3 MODIFIED skill files (single source of truth for both platforms) + 1 N
 </execution_context>
 
 <context>
-@.planning/PROJECT.md
-@.planning/ROADMAP.md
-@.planning/STATE.md
-@.planning/REQUIREMENTS.md
-
 @.planning/phases/25-package-docs/25-CONTEXT.md
-@.planning/phases/25-package-docs/25-RESEARCH.md
-@.planning/phases/25-package-docs/25-PATTERNS.md
-@.planning/phases/25-package-docs/25-01-SUMMARY.md
-
-@.planning/phases/24-propagate/24-CONTEXT.md
+@.planning/phases/25-package-docs/25-01-author-and-install-collapse-PLAN.md
 @.planning/phases/24-propagate/24-08-final-sweep-PLAN.md
-
 @.claude/skills/plugin-packaging/SKILL.md
 @.claude/skills/plugin-packaging/SKILL-windows.md
 @.claude/skills/plugin-packaging/references/pkg-creation.md
 @.claude/skills/plugin-packaging/references/inno-setup-creation.md
 @.claude/skills/plugin-packaging/assets/inno-template.iss
-
+@.claude/skills/build-installer/SKILL.md
 @CLAUDE.md
-@.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md
 
 <interfaces>
-Plan 25-01 produces these two artifacts that Plan 25-02 consumes:
-  1. build/Ouaricon-Microtonal-Suite.dorico_pt (zip; per-build-flavor — dev or prod CIDs)
-  2. modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib (static, recovered from cd2c2c6)
+<!-- Canonical asset paths (created by Plan 25-01) -->
+- modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib  (6,431 B Dorico-valid)
+- modules/tuning/note-expression/resources/README-microtonal-suite.txt                     (Path B user-facing fallback)
 
-Both files MUST be findable by the per-platform packaging templates:
-  - PKG side: copy from build/ into the packaging /tmp staging dir alongside the existing VST3+AU payload
-  - Inno side: 2 new TEMPLATE_VARS resolve to absolute paths
+<!-- Build-tree paths (after `ninja <Plugin>_VST3 <Plugin>_AU`) -->
+- build/plugins/<Plugin>/<Plugin>_artefacts/Release/VST3/<Plugin>{,-dev}.vst3
+- build/plugins/<Plugin>/<Plugin>_artefacts/Release/AU/<Plugin>{,-dev}.component   (macOS only)
 
-Phase 24's 3-point smoke gate (D-07 from Phase 24):
-  1. Quarter-sharp C4 = +50 cents at approximately 269.29 Hz (vs 12-TET 261.63 Hz)
-  2. No attack zipper on the first sample of the tuned note
-  3. NE correlated by noteId — polyphonic chord shows ONLY the quarter-sharp note detuned (others play 12-TET)
+<!-- Install destinations (Path B, Plan 25-01 D-07) -->
+- macOS PKG postinstall:  ~/Library/Application Support/Ouaricon/Microtonal Suite/
+- Windows Inno Setup:     %APPDATA%\Ouaricon\Microtonal Suite\
 
-D-15 cross-platform matrix: macOS reference = O-Lyrica; Windows reference = O-Lyrica (recommended for parity, fall back to fastest-to-install if O-Lyrica build is blocked on Windows).
+<!-- 8-plugin cohort -->
+OLyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant
 
-D-16: if Windows access is blocked, HARD HALT, do not silently ship macOS-only.
+<!-- Existing shared template structure (unchanged surfaces — extend, do not redesign) -->
+PKG (pkg-creation.md):
+- Section 4a "Copy Binaries to Payload" copies VST3+AU into $TEMP_DIR/payload/${PLUGIN_NAME}/
+- Section 4b "Create Postinstall Script" emits a /bin/bash heredoc with ACTUAL_USER detection,
+  mkdir -p Plug-Ins dirs, cp from /tmp/PLUGIN_NAME_PLACEHOLDER/, chown -R ACTUAL_USER:staff,
+  rm -rf /tmp/PLUGIN_NAME_PLACEHOLDER, exit 0.
+- Placeholders replaced via sed -i ''  s/PLUGIN_NAME_PLACEHOLDER and PRODUCT_NAME_PLACEHOLDER
+
+Inno Setup (inno-template.iss):
+- [Files] section contains: Source: "{{VST3_SOURCE_PATH}}\*"; DestDir: "{commonpf}\Common Files\VST3\{#MyAppName}.vst3"
+- [Code] section has CurStepChanged(ssPostInstall) that logs Ableton dir
+- Template variables in {{double-curlies}} replaced by build-installer skill PowerShell
+
+Plan 25-02 EXTENDS:
+- pkg-creation.md Section 4a: copy 2 additional files into $TEMP_DIR/payload/${PLUGIN_NAME}/microtonal-suite/
+- pkg-creation.md Section 4b heredoc: append a new "Microtonal Suite" block AFTER existing chown lines and BEFORE rm -rf /tmp/...
+- inno-template.iss [Files]: append 2 lines for .doricolib + README
+- inno-setup-creation.md: document 2 new template variables (paths to canonical asset + README)
 </interfaces>
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Pre-flight — verify Plan 25-01 closeout and rebuild canonical .dorico_pt</name>
+  <name>Task 1: Extend shared PKG postinstall (single source of truth across 8 plugins) for Path B suite copy</name>
+  <files>.claude/skills/plugin-packaging/references/pkg-creation.md</files>
   <read_first>
-    - .planning/phases/25-package-docs/25-01-SUMMARY.md (must exist; canary PASS recorded)
-    - .planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md (A2 + A4 + canary PASS)
-    - modules/tuning/note-expression/module.yaml (must show version: 1.1.0)
-    - modules/tuning/note-expression/install-microtonal-suite.cmake.in
-    - modules/tuning/note-expression/module.cmake (must show v2 append after line 42)
+    - .claude/skills/plugin-packaging/references/pkg-creation.md (full file; understand Section 4a/4b structure before editing)
+    - .planning/phases/25-package-docs/25-CONTEXT.md (D-06 single bundled asset; D-07 single-write to Ouaricon shared path)
+    - .planning/phases/25-package-docs/25-01-author-and-install-collapse-PLAN.md (Task 4 README content; install destination strings)
+    - CLAUDE.md (postinstall must run as root but write user-owned files via chown -R ACTUAL_USER:staff)
   </read_first>
   <action>
-    Pre-flight gate before touching any installer config.
+    Edit `.claude/skills/plugin-packaging/references/pkg-creation.md` to extend the shared PKG postinstall with Microtonal Suite copy logic.
 
-    1. Verify Plan 25-01 closed cleanly:
-       - 25-01-SUMMARY.md exists
-       - Module version is 1.1.0 in both yaml files
-       - Canary PASS recorded for O-Lyrica
-       - Build artifact build/Ouaricon-Microtonal-Suite.dorico_pt exists and unzip -t is clean
+    **Edit 1 — Extend Section 4a "Copy Binaries to Payload":**
+    Append a new sub-block AFTER the existing two `cp -R` lines (the ones that copy VST3 + AU). Add:
 
-    2. Rebuild the canonical .dorico_pt fresh from current source (idempotent — confirms reproducibility):
+    ```bash
+    # Microtonal Suite asset (Phase 25 v3 Path B) — bundled in every PKG built
+    # against a plugin that consumes the note-expression module.
+    mkdir -p "$TEMP_DIR/payload/${PLUGIN_NAME}/microtonal-suite"
+    cp "<PROJECT_ROOT>/modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib" \
+       "$TEMP_DIR/payload/${PLUGIN_NAME}/microtonal-suite/"
+    cp "<PROJECT_ROOT>/modules/tuning/note-expression/resources/README-microtonal-suite.txt" \
+       "$TEMP_DIR/payload/${PLUGIN_NAME}/microtonal-suite/"
+    ```
 
-       cd build
-       ninja OLyrica_VST3 O-Bells_VST3 O-IntonationPad_VST3 O-Prism_VST3 O-Wind_VST3 O-Reed_VST3 O-Bowed_VST3 O-Formant_VST3
-       ninja ouaricon_microtonal_suite_pt
-       unzip -t Ouaricon-Microtonal-Suite.dorico_pt
-       unzip -l Ouaricon-Microtonal-Suite.dorico_pt
+    Use literal `<PROJECT_ROOT>` as a documentation placeholder; the per-plugin packaging script that consumes this reference resolves it (existing convention — pkg-creation.md uses similar shell-variable conventions throughout). Add a one-line clarifying comment that the path resolves to the repo root at packaging time.
 
-    3. Capture the absolute build paths the installers will need:
+    **Edit 2 — Extend Section 4b postinstall heredoc:**
+    Insert a NEW block of bash AFTER the existing `chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Audio/Plug-Ins/Components/PRODUCT_NAME_PLACEHOLDER.component"` line (currently around line 202) and BEFORE the `# Clean up temp files` / `rm -rf "/tmp/PLUGIN_NAME_PLACEHOLDER"` lines (currently around line 204-205).
 
-       PT_PATH=$(realpath build/Ouaricon-Microtonal-Suite.dorico_pt)
-       LIB_PATH=$(realpath modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib)
-       echo "PT_PATH=$PT_PATH"
-       echo "LIB_PATH=$LIB_PATH"
+    Insert this block:
 
-    Record both paths in this task's notes — they're load-bearing for Tasks 2 and 3.
+    ```bash
 
-    Stop-on-first-failure (D-18): If pre-flight fails (Plan 25-01 incomplete, build broken, missing artifacts), HALT and escalate. Do NOT touch installer configs against an unfinished module-side pipeline.
+    # Microtonal Suite (Phase 25 v3 Path B): copy canonical .doricolib + README
+    # to the Ouaricon shared path. User performs a one-time Library Manager
+    # Import in Dorico per machine. No Dorico auto-discovery write.
+    SUITE_DIR="$USER_HOME/Library/Application Support/Ouaricon/Microtonal Suite"
+    mkdir -p "$SUITE_DIR"
+    cp "/tmp/PLUGIN_NAME_PLACEHOLDER/microtonal-suite/Ouaricon-VST3-NoteExpression.doricolib" "$SUITE_DIR/"
+    cp "/tmp/PLUGIN_NAME_PLACEHOLDER/microtonal-suite/README-microtonal-suite.txt" "$SUITE_DIR/"
+    chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Application Support/Ouaricon"
+    echo "[Ouaricon] Microtonal Suite installed at: $SUITE_DIR"
+    echo "[Ouaricon] To activate in Dorico: Library -> Library Manager -> Import... -> select Ouaricon-VST3-NoteExpression.doricolib"
+    ```
+
+    Place the new block exactly between the existing chown lines and the cleanup. Sed-placeholder substitution (`PLUGIN_NAME_PLACEHOLDER` → `${PLUGIN_NAME}` etc.) already occurs after the heredoc; the new block uses `PLUGIN_NAME_PLACEHOLDER` consistently with the rest of the script and gets substituted automatically.
+
+    **Edit 3 — Add a section header above the new Section 4a sub-block:**
+    Add a small inline subsection header `#### Microtonal Suite asset (Phase 25 v3 Path B)` right above the new block, with a one-paragraph explanation: "Plugins that consume the `note-expression` module ship the canonical Dorico expression-map library bundle alongside the VST3+AU artefacts. The asset is single-source-of-truth at `modules/tuning/note-expression/resources/library/`. The postinstall script lands it at `~/Library/Application Support/Ouaricon/Microtonal Suite/` on the user system; one-time Library Manager Import in Dorico activates it (D-01)."
+
+    Stage as a single atomic commit `docs(25-02): extend PKG postinstall shared template for Path B suite (INST-03)`.
   </action>
   <verify>
-    <automated>test -f .planning/phases/25-package-docs/25-01-SUMMARY.md && grep -q "version: 1.1.0" modules/tuning/note-expression/module.yaml && test -f build/Ouaricon-Microtonal-Suite.dorico_pt && unzip -t build/Ouaricon-Microtonal-Suite.dorico_pt > /dev/null && unzip -l build/Ouaricon-Microtonal-Suite.dorico_pt | grep "PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml" > /dev/null && unzip -l build/Ouaricon-Microtonal-Suite.dorico_pt | grep "EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml" > /dev/null && test -f modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib</automated>
+    <automated>
+      grep -q 'microtonal-suite' .claude/skills/plugin-packaging/references/pkg-creation.md && \
+      grep -q 'Ouaricon-VST3-NoteExpression.doricolib' .claude/skills/plugin-packaging/references/pkg-creation.md && \
+      grep -q 'README-microtonal-suite.txt' .claude/skills/plugin-packaging/references/pkg-creation.md && \
+      grep -q 'Library/Application Support/Ouaricon/Microtonal Suite' .claude/skills/plugin-packaging/references/pkg-creation.md && \
+      grep -q 'Library Manager.*Import' .claude/skills/plugin-packaging/references/pkg-creation.md && \
+      ! grep -q 'PlaybackTemplateSpecs\|Default Library Additions\|dorico_pt' .claude/skills/plugin-packaging/references/pkg-creation.md
+    </automated>
   </verify>
   <acceptance_criteria>
-    - 25-01-SUMMARY.md exists
-    - module.yaml reports version 1.1.0
-    - build/Ouaricon-Microtonal-Suite.dorico_pt exists and unzip -t is clean
-    - unzip -l shows BOTH PlaybackTemplateSpecs and EndpointConfigs entries (no parent-dir wrapping)
-    - library/Ouaricon-VST3-NoteExpression.doricolib exists at canonical module path
+    - `pkg-creation.md` Section 4a contains a sub-block referencing `microtonal-suite` directory under payload
+    - `pkg-creation.md` Section 4a copies BOTH `Ouaricon-VST3-NoteExpression.doricolib` AND `README-microtonal-suite.txt` from the module's `resources/` tree into the payload
+    - `pkg-creation.md` Section 4b postinstall heredoc contains a `SUITE_DIR` variable resolving to `$USER_HOME/Library/Application Support/Ouaricon/Microtonal Suite`
+    - `pkg-creation.md` Section 4b postinstall heredoc contains exactly 2 `cp` lines copying from `/tmp/PLUGIN_NAME_PLACEHOLDER/microtonal-suite/` into `$SUITE_DIR/`
+    - `pkg-creation.md` Section 4b postinstall heredoc contains a `chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Application Support/Ouaricon"` line (ownership fix per CLAUDE.md root-vs-user pattern)
+    - `pkg-creation.md` Section 4b heredoc echoes the canonical activation hint mentioning `Library Manager` and `Import`
+    - The new postinstall block is placed BEFORE the `rm -rf "/tmp/PLUGIN_NAME_PLACEHOLDER"` cleanup line (verified by line ordering — `grep -n` shows SUITE_DIR appears before `rm -rf "/tmp/PLUGIN_NAME_PLACEHOLDER"`)
+    - `pkg-creation.md` does NOT contain Path A strings: `PlaybackTemplateSpecs`, `Default Library Additions`, `dorico_pt`, `EndpointConfigs`
+    - Atomic commit `docs(25-02): extend PKG postinstall shared template for Path B suite (INST-03)` modifies only this file
   </acceptance_criteria>
-  <done>Plan 25-01 closeout verified, canonical .dorico_pt is fresh and well-formed, both source paths captured for installer template substitution.</done>
-  <files>See plan frontmatter `files_modified` and `<read_first>` block above.</files>
+  <done>
+    Shared PKG postinstall reference describes how to bundle and install the Microtonal Suite asset on macOS. All 8 plugins' next PKG rebuild picks up the change automatically.
+  </done>
 </task>
 
 <task type="auto">
-  <name>Task 2: Extend macOS PKG postinstall — single source of truth (pkg-creation.md Section 4)</name>
+  <name>Task 2: Extend shared Inno Setup template + reference (single source of truth across 8 plugins) for Path B suite copy</name>
+  <files>
+    .claude/skills/plugin-packaging/assets/inno-template.iss
+    .claude/skills/plugin-packaging/references/inno-setup-creation.md
+  </files>
   <read_first>
-    - .claude/skills/plugin-packaging/references/pkg-creation.md (Section 4 — existing payload + postinstall blocks)
-    - .claude/skills/plugin-packaging/SKILL.md (workflow context)
-    - .planning/phases/25-package-docs/25-PATTERNS.md Pattern G (lines 422-475) and S-1 (cache clear)
-    - .planning/phases/25-package-docs/25-CONTEXT.md (D-10, D-11, D-12)
+    - .claude/skills/plugin-packaging/assets/inno-template.iss (full file; understand current [Files] + [Code] structure)
+    - .claude/skills/plugin-packaging/references/inno-setup-creation.md (full file; understand template-variable substitution pattern)
+    - .planning/phases/25-package-docs/25-CONTEXT.md (D-06 single bundled asset; D-07 single-write to %APPDATA%\Ouaricon\Microtonal Suite\)
+    - .planning/phases/25-package-docs/25-01-author-and-install-collapse-PLAN.md (Task 1 + Task 4 — canonical asset path; README path)
   </read_first>
   <action>
-    Extend `.claude/skills/plugin-packaging/references/pkg-creation.md` Section 4. Per Pattern G (PATTERNS.md lines 422-475), make TWO additive edits:
+    Two coordinated edits across the Inno Setup shared template files.
 
-    EDIT (a): Section 4a — Payload Copy. After the existing two cp lines that copy VST3 + AU bundles into TEMP_DIR/payload/PLUGIN_NAME/, INSERT this block:
+    **Edit 1 — `.claude/skills/plugin-packaging/assets/inno-template.iss`:**
 
-    ```bash
-    # NEW (Phase 25 v2): Microtonal Suite Dorico template + library bundle
-    # Sourced from the module's build-time output and canonical resources path.
-    # PROJECT_ROOT is the repo root; the calling /package skill must export it.
-    if [ -f "${PROJECT_ROOT}/build/Ouaricon-Microtonal-Suite.dorico_pt" ]; then
-        cp "${PROJECT_ROOT}/build/Ouaricon-Microtonal-Suite.dorico_pt" "$TEMP_DIR/payload/${PLUGIN_NAME}/"
-    else
-        echo "ERROR: Ouaricon-Microtonal-Suite.dorico_pt not found in build/ — run: ninja ouaricon_microtonal_suite_pt"
-        exit 1
-    fi
-
-    if [ -f "${PROJECT_ROOT}/modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib" ]; then
-        cp "${PROJECT_ROOT}/modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib" "$TEMP_DIR/payload/${PLUGIN_NAME}/"
-    else
-        echo "ERROR: Ouaricon-VST3-NoteExpression.doricolib not found in module resources"
-        exit 1
-    fi
-    ```
-
-    EDIT (b): Section 4b — Postinstall Script. Inside the existing `cat > "$TEMP_DIR/scripts/postinstall" << 'EOF' ... EOF` heredoc, INSERT the following block AFTER the existing `chown` lines (the `chown -R ... .component` line) and BEFORE the `rm -rf "/tmp/PLUGIN_NAME_PLACEHOLDER"` cleanup:
-
-    ```bash
-    # NEW (Phase 25 v2): Ouaricon Microtonal Suite Dorico template + library bundle
-    # Dual-write per D-11: shared canonical (Ouaricon dir) + Dorico auto-scan (Steinberg dir)
-    SHARED_DIR="$USER_HOME/Library/Application Support/Ouaricon/Microtonal Suite"
-    mkdir -p "$SHARED_DIR"
-
-    if [ -f "/tmp/PLUGIN_NAME_PLACEHOLDER/Ouaricon-Microtonal-Suite.dorico_pt" ]; then
-        cp "/tmp/PLUGIN_NAME_PLACEHOLDER/Ouaricon-Microtonal-Suite.dorico_pt" "$SHARED_DIR/"
-    fi
-    if [ -f "/tmp/PLUGIN_NAME_PLACEHOLDER/Ouaricon-VST3-NoteExpression.doricolib" ]; then
-        cp "/tmp/PLUGIN_NAME_PLACEHOLDER/Ouaricon-VST3-NoteExpression.doricolib" "$SHARED_DIR/"
-    fi
-    chown -R "$ACTUAL_USER:staff" "$SHARED_DIR"
-
-    # Probe Dorico 6 -> 5 -> 4; install to first detected (D-12)
-    for _v in 6 5 4; do
-        DORICO_DIR="$USER_HOME/Library/Application Support/Steinberg/Dorico ${_v}"
-        if [ -d "$DORICO_DIR" ]; then
-            mkdir -p "$DORICO_DIR/PlaybackTemplateSpecs"
-            # ditto -x -k unzips a .dorico_pt into the destination, preserving the
-            # archive's internal PlaybackTemplateSpecs/ + EndpointConfigs/ subdirs.
-            if [ -f "$SHARED_DIR/Ouaricon-Microtonal-Suite.dorico_pt" ]; then
-                ditto -x -k "$SHARED_DIR/Ouaricon-Microtonal-Suite.dorico_pt" "$DORICO_DIR"
-            fi
-            # macOS dir name has SPACES (Pitfall 3). Installer creates if missing — Dorico does not auto-create.
-            mkdir -p "$DORICO_DIR/Default Library Additions"
-            if [ -f "$SHARED_DIR/Ouaricon-VST3-NoteExpression.doricolib" ]; then
-                cp "$SHARED_DIR/Ouaricon-VST3-NoteExpression.doricolib" "$DORICO_DIR/Default Library Additions/"
-            fi
-            chown -R "$ACTUAL_USER:staff" "$DORICO_DIR/PlaybackTemplateSpecs/Ouaricon Microtonal Suite" 2>/dev/null || true
-            chown -R "$ACTUAL_USER:staff" "$DORICO_DIR/EndpointConfigs/Ouaricon Microtonal Suite" 2>/dev/null || true
-            chown -R "$ACTUAL_USER:staff" "$DORICO_DIR/Default Library Additions" 2>/dev/null || true
-            echo "[Ouaricon] Microtonal Suite installed for Dorico ${_v}"
-            break
-        fi
-    done
-    ```
-
-    Why `ditto -x -k` and not `unzip`: macOS PKG postinstalls run as root with a known-minimal PATH; `ditto` is in `/usr/bin` always. Pattern G chose `ditto -x -k` as the macOS-native idiom that handles extended attributes correctly.
-
-    Add an explanatory sub-header in the markdown noting that Section 4 is now extended for Phase 25 v2 (e.g. "### Section 4b (extended for Phase 25 v2 — Microtonal Suite)" before the new block).
-
-    Do NOT modify Sections 1, 2, 3, 5, 6 of pkg-creation.md or the pkgbuild invocation in 4c.
-  </action>
-  <verify>
-    <automated>F=.claude/skills/plugin-packaging/references/pkg-creation.md && grep -q "Ouaricon-Microtonal-Suite.dorico_pt" "$F" && grep -q "Ouaricon-VST3-NoteExpression.doricolib" "$F" && grep -q "ditto -x -k" "$F" && grep -q "Default Library Additions" "$F" && grep -q "for _v in 6 5 4" "$F" && grep -q "Microtonal Suite" "$F" && grep -q "PROJECT_ROOT" "$F"</automated>
-  </verify>
-  <acceptance_criteria>
-    - File contains the asset filename `Ouaricon-Microtonal-Suite.dorico_pt`
-    - File contains the asset filename `Ouaricon-VST3-NoteExpression.doricolib`
-    - File contains `ditto -x -k` (macOS-native extraction)
-    - File contains the literal `Default Library Additions` (with SPACES — Pitfall 3 macOS branch)
-    - File contains `for _v in 6 5 4` (descending Dorico version probe — D-12)
-    - File contains `Microtonal Suite` literal (sanity)
-    - File contains `PROJECT_ROOT` reference (payload sourcing precondition)
-  </acceptance_criteria>
-  <done>macOS PKG single source of truth extended; all 8 plugins' next /package run will inherit dual-resource bundling.</done>
-  <files>See plan frontmatter `files_modified` and `<read_first>` block above.</files>
-</task>
-
-<task type="auto">
-  <name>Task 3: Extend Windows Inno Setup template + creation reference (single source)</name>
-  <read_first>
-    - .claude/skills/plugin-packaging/assets/inno-template.iss (full file — existing [Files] line 47-49 + [Code] block lines 60-77)
-    - .claude/skills/plugin-packaging/references/inno-setup-creation.md (template variable documentation conventions)
-    - .planning/phases/25-package-docs/25-PATTERNS.md Pattern H (lines 478-580) — full Pascal extraction code provided
-    - .planning/phases/25-package-docs/25-CONTEXT.md (D-10, D-11, D-12; Pitfall 3 — DefaultLibraryAdditions has NO spaces on Windows)
-    - .planning/phases/25-package-docs/25-RESEARCH.md "Pattern 2" (CID variance) and Pitfall 3
-  </read_first>
-  <action>
-    Two coordinated edits to the SHARED Inno Setup configuration:
-
-    EDIT (a): `.claude/skills/plugin-packaging/assets/inno-template.iss` — extend [Files] and [Code] sections.
-
-    Append two NEW lines to the existing [Files] section (after the existing VST3 line at ~line 49):
+    In the existing `[Files]` block, AFTER the existing `Source: "{{VST3_SOURCE_PATH}}\*"; ...` line (currently line 49), append two new lines:
 
     ```iss
-    ; NEW (Phase 25 v2): Microtonal Suite Dorico template + library bundle
-    ; Stage to %APPDATA%\Ouaricon\Microtonal Suite\ (canonical, editable shared dir)
-    Source: "{{MICROTONAL_SUITE_PT_PATH}}"; DestDir: "{userappdata}\Ouaricon\Microtonal Suite"; Flags: ignoreversion
+    ; Microtonal Suite (Phase 25 v3 Path B) — bundled with every plugin install
+    ; Lands at %APPDATA%\Ouaricon\Microtonal Suite\ for one-time Dorico Library Manager Import.
     Source: "{{MICROTONAL_SUITE_DORICOLIB_PATH}}"; DestDir: "{userappdata}\Ouaricon\Microtonal Suite"; Flags: ignoreversion
+    Source: "{{MICROTONAL_SUITE_README_PATH}}"; DestDir: "{userappdata}\Ouaricon\Microtonal Suite"; Flags: ignoreversion
     ```
 
-    REPLACE the existing [Code] block (lines 60-77) with the extended version per Pattern H lines 521-571. The new block adds an `ExtractZipTo` helper function (uses Windows Shell.Application COM — Inno Setup has no native unzip) and extends `CurStepChanged(ssPostInstall)` to probe Dorico 6 -> 5 -> 4 and dual-write:
+    The existing `[Code]` block's `CurStepChanged(ssPostInstall)` procedure can be extended to log the suite install location for the user. Update the existing procedure body (currently logs Ableton plugin rescan) to ALSO log the Microtonal Suite hint:
 
     ```iss
     [Code]
-    function ExtractZipTo(ZipPath, DestDir: String): Boolean;
-    var
-      Shell, ZipObj, Folder: Variant;
-    begin
-      // Use Windows Shell.Application COM to extract zip; Inno Setup has no native unzip.
-      // Flag 16 = no UI prompts, overwrite existing files.
-      Result := False;
-      try
-        Shell := CreateOleObject('Shell.Application');
-        ZipObj := Shell.NameSpace(ZipPath);
-        Folder := Shell.NameSpace(DestDir);
-        Folder.CopyHere(ZipObj.Items, 16);
-        Result := True;
-      except
-        Log('Zip extraction failed: ' + GetExceptionMessage);
-      end;
-    end;
-
     procedure CurStepChanged(CurStep: TSetupStep);
     var
-      AbletonDir, DoricoBase, DoricoDir, SharedDir, PtPath, LibPath: String;
-      V: Integer;
+      AbletonDir: String;
     begin
       if CurStep = ssPostInstall then
       begin
-        // Existing: Ableton cache hint
+        // Clear Ableton plugin cache (optional, non-fatal)
         AbletonDir := ExpandConstant('{userappdata}\Ableton');
         if DirExists(AbletonDir) then
-          Log('Ableton preferences directory found - plugin rescan will occur on next launch');
-
-        // NEW (Phase 25 v2): probe Dorico 6 -> 5 -> 4 and dual-write Microtonal Suite
-        SharedDir := ExpandConstant('{userappdata}\Ouaricon\Microtonal Suite');
-        PtPath := SharedDir + '\Ouaricon-Microtonal-Suite.dorico_pt';
-        LibPath := SharedDir + '\Ouaricon-VST3-NoteExpression.doricolib';
-        DoricoBase := ExpandConstant('{userappdata}\Steinberg');
-
-        for V := 6 downto 4 do
         begin
-          DoricoDir := DoricoBase + '\Dorico ' + IntToStr(V);
-          if DirExists(DoricoDir) then
-          begin
-            ForceDirectories(DoricoDir + '\PlaybackTemplateSpecs');
-            ExtractZipTo(PtPath, DoricoDir);
-            // Windows: dir name has NO spaces (Pitfall 3) — vs macOS spaces.
-            ForceDirectories(DoricoDir + '\DefaultLibraryAdditions');
-            FileCopy(LibPath, DoricoDir + '\DefaultLibraryAdditions\Ouaricon-VST3-NoteExpression.doricolib', False);
-            Log('[Ouaricon] Microtonal Suite installed for Dorico ' + IntToStr(V));
-            Break;
-          end;
+          Log('Ableton preferences directory found - plugin rescan will occur on next launch');
         end;
+        // Microtonal Suite (Phase 25 v3 Path B) installed via [Files]; user activates via:
+        //   Dorico -> Library -> Library Manager -> Import... -> select Ouaricon-VST3-NoteExpression.doricolib
+        Log('[Ouaricon] Microtonal Suite installed at: ' + ExpandConstant('{userappdata}\Ouaricon\Microtonal Suite'));
+        Log('[Ouaricon] Activate in Dorico via Library -> Library Manager -> Import...');
       end;
     end;
     ```
 
-    Add a top-of-file template-comment line documenting the two new template variables (matching the existing `; - {{APP_GUID}} must be generated...` style):
+    Do NOT add: a `function ExtractZipTo(...)` (no zip extraction needed under Path B), a `for V := 6 downto 4 do` loop (no Dorico-version probe), any `ForceDirectories(DoricoDir + ...)` calls (no auto-discovery write).
 
-    ```
-    ; - {{MICROTONAL_SUITE_PT_PATH}} resolves to absolute path of build/Ouaricon-Microtonal-Suite.dorico_pt (built by Plan 25-01's ouaricon_microtonal_suite_pt CMake target)
-    ; - {{MICROTONAL_SUITE_DORICOLIB_PATH}} resolves to absolute path of modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib
-    ```
+    **Edit 2 — `.claude/skills/plugin-packaging/references/inno-setup-creation.md`:**
 
-    EDIT (b): `.claude/skills/plugin-packaging/references/inno-setup-creation.md`
+    Find Section 3 (the section that documents the template-variable substitution PowerShell). Add a new subsection 3.x titled "Microtonal Suite template variables (Phase 25 v3 Path B)" documenting two new template variables:
 
-    Add a subsection (or extend the existing Section 3.2 PowerShell template-variable substitution if present) documenting the 2 new template variables. PowerShell side must locate both files in the build tree and substitute their absolute paths into the .iss before `iscc` compile. Recommended snippet:
+    - `{{MICROTONAL_SUITE_DORICOLIB_PATH}}` — absolute path to `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` at packaging time. Resolve from project root.
+    - `{{MICROTONAL_SUITE_README_PATH}}` — absolute path to `modules/tuning/note-expression/resources/README-microtonal-suite.txt` at packaging time.
+
+    Provide a 4-5-line PowerShell snippet showing how the per-plugin packaging script resolves these to absolute paths and substitutes them in the template (mirroring the existing `{{VST3_SOURCE_PATH}}` substitution pattern). Example:
 
     ```powershell
-    $MicrotonalSuitePtPath = (Resolve-Path "$ProjectRoot\build\Ouaricon-Microtonal-Suite.dorico_pt").Path
-    $MicrotonalSuiteDoricolibPath = (Resolve-Path "$ProjectRoot\modules\tuning\note-expression\resources\library\Ouaricon-VST3-NoteExpression.doricolib").Path
-    if (-not (Test-Path $MicrotonalSuitePtPath)) {
-        Write-Error "Ouaricon-Microtonal-Suite.dorico_pt not found — run: cmake --build build --target ouaricon_microtonal_suite_pt"
-        exit 1
-    }
-    $issContent = $issContent -replace '\{\{MICROTONAL_SUITE_PT_PATH\}\}', $MicrotonalSuitePtPath
-    $issContent = $issContent -replace '\{\{MICROTONAL_SUITE_DORICOLIB_PATH\}\}', $MicrotonalSuiteDoricolibPath
+    $repoRoot = Resolve-Path "${PSScriptRoot}\..\..\..\.."  # adjust depth per script location
+    $suiteDoricolib = "$repoRoot\modules\tuning\note-expression\resources\library\Ouaricon-VST3-NoteExpression.doricolib"
+    $suiteReadme = "$repoRoot\modules\tuning\note-expression\resources\README-microtonal-suite.txt"
+    $issContent = $issContent -replace '\{\{MICROTONAL_SUITE_DORICOLIB_PATH\}\}', $suiteDoricolib
+    $issContent = $issContent -replace '\{\{MICROTONAL_SUITE_README_PATH\}\}', $suiteReadme
     ```
 
-    Do NOT modify any other sections of inno-setup-creation.md.
+    Also add a one-paragraph note: "Plugins that consume the `note-expression` module bundle the canonical Dorico expression-map library bundle. The asset lands at `%APPDATA%\Ouaricon\Microtonal Suite\` on user install. The user performs a one-time `Library → Library Manager → Import…` per machine to activate the map. No Dorico auto-discovery directory is written; the install destination is Dorico-version-agnostic (D-07)."
+
+    Stage as a single atomic commit `docs(25-02): extend Inno Setup shared template + reference for Path B suite (INST-03)`.
   </action>
   <verify>
-    <automated>I=.claude/skills/plugin-packaging/assets/inno-template.iss && grep -q "MICROTONAL_SUITE_PT_PATH" "$I" && grep -q "MICROTONAL_SUITE_DORICOLIB_PATH" "$I" && grep -q "function ExtractZipTo" "$I" && grep -q "Shell.Application" "$I" && grep -q "for V := 6 downto 4" "$I" && grep -q "DefaultLibraryAdditions" "$I" && ! grep -q "Default Library Additions" "$I" && D=.claude/skills/plugin-packaging/references/inno-setup-creation.md && grep -q "MICROTONAL_SUITE_PT_PATH" "$D" && grep -q "MICROTONAL_SUITE_DORICOLIB_PATH" "$D"</automated>
+    <automated>
+      grep -c 'MICROTONAL_SUITE_DORICOLIB_PATH' .claude/skills/plugin-packaging/assets/inno-template.iss && \
+      grep -c 'MICROTONAL_SUITE_README_PATH' .claude/skills/plugin-packaging/assets/inno-template.iss && \
+      grep -q 'userappdata.*Ouaricon.*Microtonal Suite' .claude/skills/plugin-packaging/assets/inno-template.iss && \
+      grep -q 'ignoreversion' .claude/skills/plugin-packaging/assets/inno-template.iss && \
+      ! grep -q 'function ExtractZipTo\|for V := 6 downto\|ForceDirectories\|DefaultLibraryAdditions\|dorico_pt' .claude/skills/plugin-packaging/assets/inno-template.iss && \
+      grep -q 'MICROTONAL_SUITE_DORICOLIB_PATH' .claude/skills/plugin-packaging/references/inno-setup-creation.md && \
+      grep -q 'MICROTONAL_SUITE_README_PATH' .claude/skills/plugin-packaging/references/inno-setup-creation.md && \
+      grep -q 'Library Manager' .claude/skills/plugin-packaging/references/inno-setup-creation.md
+    </automated>
   </verify>
   <acceptance_criteria>
-    - inno-template.iss contains literal `MICROTONAL_SUITE_PT_PATH`
-    - inno-template.iss contains literal `MICROTONAL_SUITE_DORICOLIB_PATH`
-    - inno-template.iss contains `function ExtractZipTo` definition
-    - inno-template.iss contains `Shell.Application` COM invocation
-    - inno-template.iss contains `for V := 6 downto 4` (descending Dorico version probe)
-    - inno-template.iss contains `DefaultLibraryAdditions` (NO spaces — Windows branch)
-    - inno-template.iss does NOT contain `Default Library Additions` (with spaces — that is macOS-only; Pitfall 3 separation)
-    - inno-setup-creation.md documents both template vars
+    - `inno-template.iss` `[Files]` section contains exactly one line matching `MICROTONAL_SUITE_DORICOLIB_PATH` with `DestDir: "{userappdata}\Ouaricon\Microtonal Suite"` and `Flags: ignoreversion`
+    - `inno-template.iss` `[Files]` section contains exactly one line matching `MICROTONAL_SUITE_README_PATH` with same `DestDir` + `ignoreversion`
+    - `inno-template.iss` `[Code]` `CurStepChanged` procedure contains 2 new `Log(...)` calls referencing the Microtonal Suite path and the Library Manager Import activation hint
+    - `inno-template.iss` does NOT contain Path A strings: `function ExtractZipTo`, `for V := 6 downto`, `ForceDirectories`, `DefaultLibraryAdditions`, `dorico_pt`, `PlaybackTemplateSpecs`
+    - `inno-setup-creation.md` documents both template variables with descriptions and a PowerShell substitution example
+    - `inno-setup-creation.md` contains a paragraph explaining the Path B import flow (`Library Manager` + `Import` mentioned)
+    - Atomic commit `docs(25-02): extend Inno Setup shared template + reference for Path B suite (INST-03)` modifies exactly these 2 files
   </acceptance_criteria>
-  <done>Windows Inno single source of truth extended; PowerShell substitution path documented; directory-name asymmetry preserved.</done>
-  <files>See plan frontmatter `files_modified` and `<read_first>` block above.</files>
+  <done>
+    Shared Inno Setup template + reference describe how to bundle and install the Microtonal Suite asset on Windows. All 8 plugins' next EXE rebuild picks up the change automatically.
+  </done>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
-  <name>Task 4: macOS validation — build PKG, install, run Dorico smoke (D-15 macOS half)</name>
+  <name>Task 3: Cross-platform validation gate (D-08) — 1 representative install per platform + quarter-sharp smoke</name>
+  <files>.planning/phases/25-package-docs/25-02-VALIDATION-MATRIX.md</files>
   <read_first>
-    - CLAUDE.md (lines 9-26 — cache-clear protocol)
-    - .planning/phases/25-package-docs/25-PATTERNS.md S-1 + S-5
-    - .planning/phases/25-package-docs/25-CONTEXT.md (D-15, D-16; Phase 24 D-07 3-point gate)
-    - .planning/phases/24-propagate/24-08-final-sweep-PLAN.md (3-point gate canonical formulation)
+    - .planning/phases/25-package-docs/25-CONTEXT.md (D-08 cross-platform validation gate; canary on O-Lyrica per Phase 23 precedent)
+    - CLAUDE.md (build + install commands; cache-clear protocol — mandatory)
+    - .claude/skills/plugin-packaging/SKILL.md (macOS PKG build flow; the `/package` command)
+    - .claude/skills/plugin-packaging/SKILL-windows.md (Windows EXE build flow)
+    - .claude/skills/build-installer/SKILL.md (Windows installer build CLI)
+    - .planning/phases/24-propagate/24-08-final-sweep-PLAN.md (atomic-sweep shape; per-plugin task table reference)
+    - modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib (canonical asset Plan 25-01 created)
+    - .planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md (Plan 25-01 canary log; this validation extends that pattern)
   </read_first>
+  <action>Execute the human-verified cross-platform validation gate described in <how-to-verify>. The task pauses for the user to rebuild installers across the 8-plugin cohort, install the canary representative on each accessible platform, run Dorico Library Manager Import, and run the 3-point smoke gate. Results are recorded in the validation matrix file. No autonomous code action is performed by the executor for this task.</action>
   <what-built>
-    A complete fresh PKG installer for the macOS reference plugin (O-Lyrica) built using the extended pkg-creation.md flow. Installer is run; Dorico is restarted; the Microtonal Suite template is auto-discovered and applied; quarter-sharp C4 is verified.
+    Tasks 1+2 modified two shared template files. Those templates feed every per-plugin installer build via the existing `plugin-packaging`/`build-installer` skills. The shipped feature only works if (a) the templates are correct, (b) per-plugin installers are rebuilt, and (c) running an installer on a clean target system produces a working end-to-end import flow. This checkpoint exercises (b) and (c).
   </what-built>
   <how-to-verify>
-    From repo root, with Plan 25-01 module-side already built:
+    Two phases. Run on the dev machine; coordinate with the user for Windows access if not present.
 
-    Step 1 — Build O-Lyrica fresh + ensure dorico_pt is built:
-    ```
-    cd build
-    ninja OLyrica_VST3 OLyrica_AU
-    ninja ouaricon_microtonal_suite_pt
-    ```
+    Append all results to `.planning/phases/25-package-docs/25-02-VALIDATION-MATRIX.md` (NEW file). Use a single matrix table per platform.
 
-    Step 2 — Cache-clear protocol per CLAUDE.md (S-1):
+    ### Phase A — macOS sweep + canary
+
+    **A1. Rebuild macOS PKG installer for O-Lyrica (representative; Phase 23 precedent):**
+    ```bash
+    # Pre-reqs: clean build of OLyrica VST3+AU per CLAUDE.md
+    cd /Users/taylorbrook/Dev/VST-development
+    ninja -C build OLyrica_VST3 OLyrica_AU
     ```
+    Then trigger PKG packaging for O-Lyrica via the `/package` skill or its Bash equivalent (whichever the team uses for individual plugin packaging — the user-facing slash command is `/package O-Lyrica` per `.claude/skills/package/SKILL.md`). The build script must consume the updated `pkg-creation.md` reference; if the per-plugin script has its own copy of the postinstall heredoc, that is a process bug to flag (escalate per D-11). Capture: PKG output path (e.g., `plugins/O-Lyrica/dist/O-Lyrica-OuariconAudio.pkg`).
+
+    **A2. Clean target environment:**
+    ```bash
+    # Cache clear per CLAUDE.md
     killall -9 AudioComponentRegistrar 2>/dev/null || true
-    rm -rf ~/Library/Caches/AudioUnitCache/
-    rm -rf ~/Library/Caches/com.apple.audiounits.cache
-    rm -rf ~/Library/Audio/Plug-Ins/VST3/O-Lyrica.vst3
-    rm -rf ~/Library/Audio/Plug-Ins/Components/O-Lyrica.component
-    ```
-
-    Step 3 — Install fresh O-Lyrica binaries (so /package preconditions are met):
-    ```
-    cp -R build/plugins/O-Lyrica/OLyrica_artefacts/Release/VST3/O-Lyrica*.vst3 ~/Library/Audio/Plug-Ins/VST3/
-    cp -R build/plugins/O-Lyrica/OLyrica_artefacts/Release/AU/O-Lyrica*.component ~/Library/Audio/Plug-Ins/Components/
-    ```
-
-    Step 4 — Run /package O-Lyrica (uses the EXTENDED pkg-creation.md). The skill produces a signed branded PKG under plugins/O-Lyrica/dist/.
-
-    Step 5 — Pre-state cleanup (so we observe a true install, not a re-run):
-    ```
-    rm -rf "$HOME/Library/Application Support/Steinberg/Dorico 6/PlaybackTemplateSpecs/Ouaricon Microtonal Suite"
-    rm -rf "$HOME/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Ouaricon Microtonal Suite"
-    rm -f "$HOME/Library/Application Support/Steinberg/Dorico 6/Default Library Additions/Ouaricon-VST3-NoteExpression.doricolib"
+    rm -rf ~/Library/Caches/AudioUnitCache/ ~/Library/Caches/com.apple.audiounits.cache
+    rm -rf ~/Library/Audio/Plug-Ins/VST3/OLyrica*.vst3
+    rm -rf ~/Library/Audio/Plug-Ins/Components/OLyrica*.component
+    # Suite slate
     rm -rf "$HOME/Library/Application Support/Ouaricon/Microtonal Suite"
     ```
 
-    Step 6 — Install the PKG (double-click in Finder, or `installer -pkg <path> -target /` if testing as admin). Capture install log under /var/log/install.log.
-
-    Step 7 — Post-install verification:
+    **A3. Install the freshly-built PKG:**
+    ```bash
+    sudo installer -pkg plugins/O-Lyrica/dist/O-Lyrica-OuariconAudio.pkg -target /
     ```
-    test -f "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-Microtonal-Suite.dorico_pt" && echo "OK shared dorico_pt"
-    test -f "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib" && echo "OK shared doricolib"
-    test -f "$HOME/Library/Application Support/Steinberg/Dorico 6/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml" && echo "OK dorico spec"
-    test -f "$HOME/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml" && echo "OK dorico endpoint"
-    test -f "$HOME/Library/Application Support/Steinberg/Dorico 6/Default Library Additions/Ouaricon-VST3-NoteExpression.doricolib" && echo "OK dorico lib"
+    Expected console: pkg-creation log lines including the new `[Ouaricon] Microtonal Suite installed at: ...` echo.
+
+    **A4. Verify suite asset landed at Ouaricon shared path:**
+    ```bash
+    ls -la "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/"
+    stat -f%z "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib"
+    # Must show 6431 bytes
     ```
+    Verify ownership: file owner is `$USER`, not `root`.
 
-    Step 8 — Open Dorico 6. In `Play -> Playback Template`, confirm "Ouaricon Microtonal Suite" appears. Apply it to a fresh project. Quarter-sharp C4 smoke: write a quarter-sharp accidental on C4. Confirm playback at +50 cents (about 269.29 Hz, vs 12-TET 261.63 Hz).
+    **A5. Dorico Library Manager Import + quarter-sharp gate:**
+    Repeat the procedure from Plan 25-01 Task 5 (Library Manager Import → assign expression map → quarter-sharp ~269 Hz on a chord with quarter-sharp C4). All 3 gate points (per Phase 24 D-07): pitch ~269 Hz, no attack zipper, polyphonic isolation (other notes play 12-TET).
 
-    Step 9 — Polyphonic NE-correlation gate: write a chord with quarter-sharp C4 + natural E4 + natural G4. Confirm only C4 is detuned (E4 = 329.63 Hz, G4 = 392.00 Hz play 12-TET).
+    Record in matrix: PKG built, install succeeded, suite landed (size + owner), Library Manager Import PASS, quarter-sharp gate PASS/FAIL.
 
-    Step 10 — Attack-zipper gate: visually verify the first ~10 ms of the C4 quarter-sharp envelope is smooth (no detune sweep from 261.63 -> 269.29 Hz).
+    **A6. Bulk PKG sweep (remaining 7 plugins):**
+    Per Phase 24 atomic-sweep shape, rebuild PKG for each remaining plugin sequentially:
+    ```bash
+    for p in O-Bells O-IntonationPad O-Prism O-Wind O-Reed O-Bowed O-Formant; do
+        ninja -C build ${p}_VST3 ${p}_AU
+        # Run /package $p (or its non-interactive equivalent)
+    done
+    ```
+    For each: capture PKG output path. Spot-check (NOT full Dorico import per plugin — D-08 only requires 1 representative per platform): install one PKG (any of the 7), verify the suite copy landed (running A4 step). Stop-on-first-failure per D-11 — escalate any structural failure to `25-02-NN-fix-PLAN.md`.
 
-    Append the full bash output + 3-point gate observations to `.planning/phases/25-package-docs/25-02-SUMMARY.md` under "## macOS Validation Result".
+    Record per-plugin: PKG built (Y/N), spot-check install (Y/N for the one selected — for the others, Y means "PKG built without packaging error", relying on the shared template guarantee).
 
-    Stop-on-first-failure (D-18): If any step fails, HALT and escalate to `25-02-macOS-FAIL-fix-PLAN.md`.
-  </how-to-verify>
-  <acceptance_criteria>
-    - All 5 `test -f` "OK" markers echoed
-    - Dorico 6 picker shows "Ouaricon Microtonal Suite"
-    - Quarter-sharp C4 plays at +50 cents (matches Phase 23 LYR-03 + Phase 24 D-07 gate value)
-    - Polyphonic chord shows only C4 detuned (NE-correlation by noteId proven)
-    - No attack zipper observed
-    - 25-02-SUMMARY.md "## macOS Validation Result" section recorded with timestamps + observed behavior
-  </acceptance_criteria>
-  <resume-signal>Type "macOS PASS — proceed to Windows" or "macOS FAIL — escalate to fix-plan"</resume-signal>
-  <files>See plan frontmatter `files_modified` and `<read_first>` block above.</files>
-  <action>
-    (checkpoint task — see <what-built> and <how-to-verify> below for the verification protocol)
-    
-    WHAT BUILT:
-    A complete fresh PKG installer for the macOS reference plugin (O-Lyrica) built using the extended pkg-creation.md flow. Installer is run; Dorico is restarted; the Microtonal Suite template is auto-discovered and applied; quarter-sharp C4 is verified.
-    
-    HOW TO VERIFY:
-    From repo root, with Plan 25-01 module-side already built:
-    
-        Step 1 — Build O-Lyrica fresh + ensure dorico_pt is built:
-        ```
-        cd build
-        ninja OLyrica_VST3 OLyrica_AU
-        ninja ouaricon_microtonal_suite_pt
-        ```
-    
-        Step 2 — Cache-clear protocol per CLAUDE.md (S-1):
-        ```
-        killall -9 AudioComponentRegistrar 2>/dev/null || true
-        rm -rf ~/Library/Caches/AudioUnitCache/
-        rm -rf ~/Library/Caches/com.apple.audiounits.cache
-        rm -rf ~/Library/Audio/Plug-Ins/VST3/O-Lyrica.vst3
-        rm -rf ~/Library/Audio/Plug-Ins/Components/O-Lyrica.component
-        ```
-    
-        Step 3 — Install fresh O-Lyrica binaries (so /package preconditions are met):
-        ```
-        cp -R build/plugins/O-Lyrica/OLyrica_artefacts/Release/VST3/O-Lyrica*.vst3 ~/Library/Audio/Plug-Ins/VST3/
-        cp -R build/plugins/O-Lyrica/OLyrica_artefacts/Release/AU/O-Lyrica*.component ~/Library/Audio/Plug-Ins/Components/
-        ```
-    
-        Step 4 — Run /package O-Lyrica (uses the EXTENDED pkg-creation.md). The skill produces a signed branded PKG under plugins/O-Lyrica/dist/.
-    
-        Step 5 — Pre-state cleanup (so we observe a true install, not a re-run):
-        ```
-        rm -rf "$HOME/Library/Application Support/Steinberg/Dorico 6/PlaybackTemplateSpecs/Ouaricon Microtonal Suite"
-        rm -rf "$HOME/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Ouaricon Microtonal Suite"
-        rm -f "$HOME/Library/Application Support/Steinberg/Dorico 6/Default Library Additions/Ouaricon-VST3-NoteExpression.doricolib"
-        rm -rf "$HOME/Library/Application Support/Ouaricon/Microtonal Suite"
-        ```
-    
-        Step 6 — Install the PKG (double-click in Finder, or `installer -pkg <path> -target /` if testing as admin). Capture install log under /var/log/install.log.
-    
-        Step 7 — Post-install verification:
-        ```
-        test -f "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-Microtonal-Suite.dorico_pt" && echo "OK shared dorico_pt"
-        test -f "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib" && echo "OK shared doricolib"
-        test -f "$HOME/Library/Application Support/Steinberg/Dorico 6/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml" && echo "OK dorico spec"
-        test -f "$HOME/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml" && echo "OK dorico endpoint"
-        test -f "$HOME/Library/Application Support/Steinberg/Dorico 6/Default Library Additions/Ouaricon-VST3-NoteExpression.doricolib" && echo "OK dorico lib"
-        ```
-    
-        Step 8 — Open Dorico 6. In `Play -> Playback Template`, confirm "Ouaricon Microtonal Suite" appears. Apply it to a fresh project. Quarter-sharp C4 smoke: write a quarter-sharp accidental on C4. Confirm playback at +50 cents (about 269.29 Hz, vs 12-TET 261.63 Hz).
-    
-        Step 9 — Polyphonic NE-correlation gate: write a chord with quarter-sharp C4 + natural E4 + natural G4. Confirm only C4 is detuned (E4 = 329.63 Hz, G4 = 392.00 Hz play 12-TET).
-    
-        Step 10 — Attack-zipper gate: visually verify the first ~10 ms of the C4 quarter-sharp envelope is smooth (no detune sweep from 261.63 -> 269.29 Hz).
-    
-        Append the full bash output + 3-point gate observations to `.planning/phases/25-package-docs/25-02-SUMMARY.md` under "## macOS Validation Result".
-    
-        Stop-on-first-failure (D-18): If any step fails, HALT and escalate to `25-02-macOS-FAIL-fix-PLAN.md`.
-  </action>
-  <verify><automated>see acceptance_criteria above (human-verified checkpoint; automated gate is on the recorded VERIFICATION.md file)</automated></verify>
-  <done>All <acceptance_criteria> conditions above are satisfied.</done>
-</task>
+    ### Phase B — Windows sweep + canary
 
-<task type="checkpoint:human-verify" gate="blocking">
-  <name>Task 5: Windows validation — build EXE, install, run Dorico smoke (D-15 Windows half)</name>
-  <read_first>
-    - CLAUDE.md (lines 31-41 — Windows install + cache-clear protocol)
-    - .planning/phases/25-package-docs/25-PATTERNS.md S-1 (Windows half) + Pattern H
-    - .planning/phases/25-package-docs/25-CONTEXT.md (D-15, D-16 — D-16 hard halt if Windows blocked)
-    - .claude/skills/plugin-packaging/SKILL-windows.md
-  </read_first>
-  <what-built>
-    A fresh EXE installer for the Windows reference plugin (recommend O-Lyrica for cross-platform parity) built using the extended inno-template.iss + inno-setup-creation.md PowerShell substitution. Installer is run on Windows; Dorico is restarted; the Microtonal Suite template is auto-discovered and applied; quarter-sharp C4 is verified.
-  </what-built>
-  <how-to-verify>
-    Pre-flight gate: confirm Windows machine with Dorico 6 (or 5 or 4) is accessible. If NO Windows access, HALT this task per D-16 — surface as hard halt, do NOT silently degrade to macOS-only.
+    **B1. Determine Windows access:**
+    Check whether a Windows dev environment is currently available. If NOT (e.g., user only has macOS access today), record `Windows: ACCESS-BLOCKED` in the matrix. Per D-08: if Windows access is blocked, this plan halts hard — don't silently degrade to macOS-only. The user MUST decide whether to (a) defer Plan 25-02 closeout until Windows access is available, or (b) accept a documented "macOS-only validated" risk for v1.5 ship and explicitly punt Windows validation to v1.6.
 
-    From repo root on Windows (PowerShell):
+    If Windows IS available:
 
-    Step 1 — Build O-Lyrica VST3:
+    **B2. Rebuild Windows EXE installer for O-Lyrica:**
     ```powershell
-    cmake --build build --config Release --target OLyrica_VST3 ouaricon_microtonal_suite_pt --parallel
+    # On the Windows host:
+    cd C:\path\to\VST-development
+    cmake --build build --config Release --target OLyrica_VST3 --parallel
+    # Trigger build-installer for O-Lyrica (per .claude/skills/build-installer/SKILL.md)
     ```
+    The build-installer script must consume the updated `inno-template.iss` and `inno-setup-creation.md`. Capture: EXE output path.
 
-    Step 2 — Cache-clear protocol per CLAUDE.md Windows section:
+    **B3. Clean target environment:**
     ```powershell
-    Remove-Item -Recurse -Force "$env:COMMONPROGRAMFILES\VST3\O-Lyrica.vst3" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "$env:COMMONPROGRAMFILES\VST3\OLyrica*.vst3" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "$env:APPDATA\Ouaricon\Microtonal Suite" -ErrorAction SilentlyContinue
     Remove-Item "$env:APPDATA\Ableton\*\PluginScanDb.txt" -Force -ErrorAction SilentlyContinue
     ```
 
-    Step 3 — Run the build-installer skill for O-Lyrica. The skill invokes the EXTENDED inno-template.iss + the EXTENDED PowerShell substitution from inno-setup-creation.md. Output: plugins\O-Lyrica\dist\O-Lyrica-OuariconAudio-Setup.exe.
-
-    Step 4 — Pre-state cleanup:
+    **B4. Install the freshly-built EXE silently or with UI:**
     ```powershell
-    Remove-Item -Recurse -Force "$env:APPDATA\Steinberg\Dorico 6\PlaybackTemplateSpecs\Ouaricon Microtonal Suite" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "$env:APPDATA\Steinberg\Dorico 6\EndpointConfigs\Ouaricon Microtonal Suite" -ErrorAction SilentlyContinue
-    Remove-Item -Force "$env:APPDATA\Steinberg\Dorico 6\DefaultLibraryAdditions\Ouaricon-VST3-NoteExpression.doricolib" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "$env:APPDATA\Ouaricon\Microtonal Suite" -ErrorAction SilentlyContinue
+    .\plugins\O-Lyrica\dist\O-Lyrica-OuariconAudio-Setup.exe /SILENT
+    # or interactive: .\plugins\O-Lyrica\dist\O-Lyrica-OuariconAudio-Setup.exe
     ```
 
-    Step 5 — Run the EXE installer (elevated). Inno's [Code] section logs to %TEMP%\Setup Log YYYY-MM-DD.txt; capture the lines starting with "[Ouaricon]".
-
-    Step 6 — Post-install verification:
+    **B5. Verify suite asset landed:**
     ```powershell
-    Test-Path "$env:APPDATA\Ouaricon\Microtonal Suite\Ouaricon-Microtonal-Suite.dorico_pt"
-    Test-Path "$env:APPDATA\Ouaricon\Microtonal Suite\Ouaricon-VST3-NoteExpression.doricolib"
-    Test-Path "$env:APPDATA\Steinberg\Dorico 6\PlaybackTemplateSpecs\Ouaricon Microtonal Suite\playbacktemplatespec.xml"
-    Test-Path "$env:APPDATA\Steinberg\Dorico 6\EndpointConfigs\Ouaricon Microtonal Suite\endpointconfig.xml"
-    Test-Path "$env:APPDATA\Steinberg\Dorico 6\DefaultLibraryAdditions\Ouaricon-VST3-NoteExpression.doricolib"
+    Get-ChildItem "$env:APPDATA\Ouaricon\Microtonal Suite\"
+    (Get-Item "$env:APPDATA\Ouaricon\Microtonal Suite\Ouaricon-VST3-NoteExpression.doricolib").Length
+    # Must show 6431
     ```
-    All 5 must return True.
 
-    Step 7 — Open Dorico 6 on Windows. Same 3-point gate as Task 4 (apply template, quarter-sharp C4 = +50 cents, polyphonic NE-correlation, no attack zipper).
+    **B6. Dorico Library Manager Import + quarter-sharp gate (Windows):**
+    Repeat A5 in Dorico Windows. Same 3-point gate. Record PASS/FAIL.
 
-    Append "## Windows Validation Result" section to 25-02-SUMMARY.md.
+    **B7. Bulk EXE sweep (remaining 7 plugins):**
+    Mirror A6 on Windows. Spot-check one of the 7 by installing + suite-asset check (B5 step).
 
-    Stop-on-first-failure (D-18 + D-16): If extraction failed (Shell.Application COM error), or directory creation failed (admin/permission issue), or Dorico picker did not show the template, HALT and escalate. The fix-plan must address the specific Windows-side failure mode.
+    ### Matrix output
+
+    Create `.planning/phases/25-package-docs/25-02-VALIDATION-MATRIX.md` with this structure:
+
+    ```markdown
+    # Plan 25-02 Cross-Platform Validation Matrix
+
+    Date: <YYYY-MM-DD>
+    Dorico version: <version>
+    macOS host: <version>
+    Windows host: <version-or-ACCESS-BLOCKED>
+
+    ## macOS PKG Sweep
+
+    | Plugin | PKG built | Install OK | Suite landed (6431 B) | Library Mgr Import | 3-point gate |
+    |--------|-----------|------------|----------------------|--------------------|--------------|
+    | O-Lyrica (canary) | Y/N | Y/N | Y/N | PASS/FAIL | PASS/FAIL |
+    | O-Bells | Y/N | (skipped) | (skipped) | (skipped) | (skipped) |
+    | ... |
+
+    ## Windows EXE Sweep
+
+    (same shape; mark ACCESS-BLOCKED row if applicable)
+
+    ## Verdict
+    macOS: PASS / FAIL / PARTIAL
+    Windows: PASS / FAIL / ACCESS-BLOCKED
+    Overall: PASS / FAIL / DEFER-WINDOWS-TO-v1.6 (per user decision if Windows blocked)
+    ```
   </how-to-verify>
   <acceptance_criteria>
-    - Windows access confirmed (D-16 hard halt would have fired otherwise)
-    - All 5 Test-Path calls return True
-    - Inno Setup log contains `[Ouaricon] Microtonal Suite installed for Dorico` line
-    - Dorico picker on Windows shows "Ouaricon Microtonal Suite"
-    - Quarter-sharp C4 plays at +50 cents on Windows
-    - Polyphonic chord NE-correlation observed on Windows
-    - No attack zipper on Windows
-    - 25-02-SUMMARY.md "## Windows Validation Result" recorded
+    - `.planning/phases/25-package-docs/25-02-VALIDATION-MATRIX.md` exists with the documented structure
+    - macOS row "O-Lyrica (canary)" has PKG built, Install OK, Suite landed, Library Mgr Import = PASS, 3-point gate = PASS
+    - macOS rows for the 7 other plugins each have "PKG built" = Y (or DEFERRED if PKG packaging is rate-limited or batch-deferred per user)
+    - Suite landed verification shows file size 6,431 bytes on macOS (`stat -f%z`)
+    - Suite file owner on macOS is `$USER` (NOT `root`) — verifies the postinstall chown step worked
+    - If Windows accessible: Windows row "O-Lyrica (canary)" has EXE built, Install OK, Suite landed (size 6,431), Library Mgr Import = PASS, 3-point gate = PASS
+    - If Windows accessible: Suite landed verification shows file size 6,431 bytes on Windows (`(Get-Item ...).Length`)
+    - If Windows blocked: matrix records `ACCESS-BLOCKED` and the Verdict line records the user's explicit decision (`DEFER-WINDOWS-TO-v1.6` is the only valid alternative to a Windows PASS — silent degradation is rejected per D-08)
+    - The matrix's Verdict line is one of: `PASS` (both platforms PASS), `FAIL` (any required gate FAIL), or `DEFER-WINDOWS-TO-v1.6` (macOS PASS + user decision)
+    - On any structural FAIL: a `25-02-NN-fix-PLAN.md` is created per D-11 stop-on-first-failure protocol; main plan halts pending fix-plan completion
   </acceptance_criteria>
-  <resume-signal>Type "Windows PASS — finalize SUMMARY" or "Windows FAIL — escalate" or "Windows BLOCKED — D-16 hard halt"</resume-signal>
-  <files>See plan frontmatter `files_modified` and `<read_first>` block above.</files>
-  <action>
-    (checkpoint task — see <what-built> and <how-to-verify> below for the verification protocol)
-    
-    WHAT BUILT:
-    A fresh EXE installer for the Windows reference plugin (recommend O-Lyrica for cross-platform parity) built using the extended inno-template.iss + inno-setup-creation.md PowerShell substitution. Installer is run on Windows; Dorico is restarted; the Microtonal Suite template is auto-discovered and applied; quarter-sharp C4 is verified.
-    
-    HOW TO VERIFY:
-    Pre-flight gate: confirm Windows machine with Dorico 6 (or 5 or 4) is accessible. If NO Windows access, HALT this task per D-16 — surface as hard halt, do NOT silently degrade to macOS-only.
-    
-        From repo root on Windows (PowerShell):
-    
-        Step 1 — Build O-Lyrica VST3:
-        ```powershell
-        cmake --build build --config Release --target OLyrica_VST3 ouaricon_microtonal_suite_pt --parallel
-        ```
-    
-        Step 2 — Cache-clear protocol per CLAUDE.md Windows section:
-        ```powershell
-        Remove-Item -Recurse -Force "$env:COMMONPROGRAMFILES\VST3\O-Lyrica.vst3" -ErrorAction SilentlyContinue
-        Remove-Item "$env:APPDATA\Ableton\*\PluginScanDb.txt" -Force -ErrorAction SilentlyContinue
-        ```
-    
-        Step 3 — Run the build-installer skill for O-Lyrica. The skill invokes the EXTENDED inno-template.iss + the EXTENDED PowerShell substitution from inno-setup-creation.md. Output: plugins\O-Lyrica\dist\O-Lyrica-OuariconAudio-Setup.exe.
-    
-        Step 4 — Pre-state cleanup:
-        ```powershell
-        Remove-Item -Recurse -Force "$env:APPDATA\Steinberg\Dorico 6\PlaybackTemplateSpecs\Ouaricon Microtonal Suite" -ErrorAction SilentlyContinue
-        Remove-Item -Recurse -Force "$env:APPDATA\Steinberg\Dorico 6\EndpointConfigs\Ouaricon Microtonal Suite" -ErrorAction SilentlyContinue
-        Remove-Item -Force "$env:APPDATA\Steinberg\Dorico 6\DefaultLibraryAdditions\Ouaricon-VST3-NoteExpression.doricolib" -ErrorAction SilentlyContinue
-        Remove-Item -Recurse -Force "$env:APPDATA\Ouaricon\Microtonal Suite" -ErrorAction SilentlyContinue
-        ```
-    
-        Step 5 — Run the EXE installer (elevated). Inno's [Code] section logs to %TEMP%\Setup Log YYYY-MM-DD.txt; capture the lines starting with "[Ouaricon]".
-    
-        Step 6 — Post-install verification:
-        ```powershell
-        Test-Path "$env:APPDATA\Ouaricon\Microtonal Suite\Ouaricon-Microtonal-Suite.dorico_pt"
-        Test-Path "$env:APPDATA\Ouaricon\Microtonal Suite\Ouaricon-VST3-NoteExpression.doricolib"
-        Test-Path "$env:APPDATA\Steinberg\Dorico 6\PlaybackTemplateSpecs\Ouaricon Microtonal Suite\playbacktemplatespec.xml"
-        Test-Path "$env:APPDATA\Steinberg\Dorico 6\EndpointConfigs\Ouaricon Microtonal Suite\endpointconfig.xml"
-        Test-Path "$env:APPDATA\Steinberg\Dorico 6\DefaultLibraryAdditions\Ouaricon-VST3-NoteExpression.doricolib"
-        ```
-        All 5 must return True.
-    
-        Step 7 — Open Dorico 6 on Windows. Same 3-point gate as Task 4 (apply template, quarter-sharp C4 = +50 cents, polyphonic NE-correlation, no attack zipper).
-    
-        Append "## Windows Validation Result" section to 25-02-SUMMARY.md.
-    
-        Stop-on-first-failure (D-18 + D-16): If extraction failed (Shell.Application COM error), or directory creation failed (admin/permission issue), or Dorico picker did not show the template, HALT and escalate. The fix-plan must address the specific Windows-side failure mode.
-  </action>
-  <verify><automated>see acceptance_criteria above (human-verified checkpoint; automated gate is on the recorded VERIFICATION.md file)</automated></verify>
-  <done>All <acceptance_criteria> conditions above are satisfied.</done>
-</task>
-
-<task type="auto">
-  <name>Task 6: Author 25-02-SUMMARY.md cross-platform validation matrix</name>
-  <read_first>
-    - .planning/phases/24-propagate/24-08-final-sweep-SUMMARY.md (matrix shape reference)
-    - .planning/phases/25-package-docs/25-PATTERNS.md Pattern I (atomic-sweep + per-plugin table)
-    - Tasks 4 + 5 outputs already appended in 25-02-SUMMARY.md
-  </read_first>
-  <action>
-    Finalize `.planning/phases/25-package-docs/25-02-SUMMARY.md`. The earlier verification tasks have been appending sections to it. This task structures the file into a final, agent-readable matrix.
-
-    Required sections (in order):
-    1. Front-matter / header (phase, plan, status, completion timestamp)
-    2. Summary (1-paragraph: "All 8 cohort plugins inherit Microtonal Suite bundling via shared skill templates; macOS PKG postinstall + Windows Inno [Code] logic dual-write to user systems; cross-platform validation gate passed.")
-    3. ## Files Modified — list of 3 files: pkg-creation.md, inno-template.iss, inno-setup-creation.md (with brief diff intent per file)
-    4. ## Cross-Platform Validation Matrix (D-15) — table with columns: Platform | Reference plugin | PKG/EXE built | Auto-discovery | Template in picker | Quarter-sharp C4 = +50¢ | Polyphonic NE | Attack zipper | Result. Rows: macOS / O-Lyrica, Windows / O-Lyrica.
-    5. ## Per-File Truth Table — list each of the 5 destination paths (3 macOS + 3 Windows = 6 actually) and the test-f / Test-Path result
-    6. ## Affected Plugins (8) — table with column "Will inherit on next /package run" — list all 8 cohort plugins with Y for each
-    7. ## Outstanding work — note that the 7 non-O-Lyrica cohort plugins inherit the bundling automatically, but their actual /package or build-installer runs happen organically (next time their CHANGELOGs are bumped), NOT in this plan; INST-03 is satisfied structurally
-    8. ## Decisions Honored — table mapping D-XX decision to evidence in this plan
-    9. ## Stop-on-first-failure log — list any escalations (Tasks 4/5 fix-plans triggered, if any)
-
-    Use the `gsd-sdk query` SUMMARY template if available; otherwise mirror Phase 24 final-sweep SUMMARY.md style.
-  </action>
-  <verify>
-    <automated>S=.planning/phases/25-package-docs/25-02-SUMMARY.md && grep -q "Cross-Platform Validation Matrix" "$S" && grep -q "macOS" "$S" && grep -q "Windows" "$S" && grep -q "Quarter-sharp" "$S" && grep -q "O-Lyrica" "$S" && for plug in O-Bells O-IntonationPad O-Prism O-Wind O-Reed O-Bowed O-Formant; do grep -q "$plug" "$S" || { echo "MISSING PLUGIN IN AFFECTED TABLE: $plug"; exit 1; }; done && echo "ALL 8 PLUGINS RECORDED IN SUMMARY"</automated>
-  </verify>
-  <acceptance_criteria>
-    - File contains "Cross-Platform Validation Matrix" header
-    - File names both macOS and Windows
-    - File contains "Quarter-sharp" gate descriptor
-    - All 8 cohort plugin names appear in the file
-    - Final command echoes "ALL 8 PLUGINS RECORDED IN SUMMARY"
-  </acceptance_criteria>
-  <done>SUMMARY.md authored as cross-platform matrix; INST-03 + INST-04 satisfaction documented; downstream consumers (Plan 25-03 doc references, future improve-cycle SUMMARYs) can read it.</done>
-  <files>See plan frontmatter `files_modified` and `<read_first>` block above.</files>
+  <resume-signal>Type "matrix-pass" if both platforms PASS; "matrix-defer-windows" with user-decision rationale if Windows is blocked and v1.6-deferral is accepted; or "matrix-fail [details]" to escalate to a fix-plan per D-11.</resume-signal>
 </task>
 
 </tasks>
@@ -679,46 +456,50 @@ D-16: if Windows access is blocked, HARD HALT, do not silently ship macOS-only.
 
 | Boundary | Description |
 |----------|-------------|
-| macOS PKG postinstall (root) -> user filesystem under ~/Library/Application Support/ | Postinstall runs as root; writes to user-owned paths under $USER_HOME (derived from /dev/console). |
-| Windows EXE installer (admin elevated) -> %APPDATA% under user's profile | Inno installer runs elevated; %APPDATA% expands to the elevating user's roaming profile. |
-| ditto -x -k extracting .dorico_pt zip into Steinberg dir | Zip contents are repo-controlled (built by Plan 25-01 from source-controlled XML). No external zip enters the pipeline. |
-| Shell.Application COM in Windows Inno [Code] | Same — zip is repo-controlled. Shell.Application has no path-traversal protection but the destination DoricoDir is controlled. |
+| Build host → user system (PKG/EXE) | Installer payload is signed (PKG productsign on macOS; Inno Setup signature optional on Windows). Plan 25-02 does not change signature posture; the existing `plugin-packaging` skill is authoritative for codesigning. |
+| Postinstall script → user filesystem | macOS postinstall runs as root with elevated privileges (`sudo installer`). Writes to `$USER_HOME/Library/Application Support/Ouaricon/Microtonal Suite/`. |
+| Inno Setup [Files] copy → user filesystem | Runs in installer process context (typically admin per existing `PrivilegesRequired=admin`). Writes to `%APPDATA%\Ouaricon\Microtonal Suite\`. |
+| Shared template files (in-repo) | Single source of truth for all 8 plugins' installers. Tampering or accidental edit affects all 8 next rebuilds. Mitigation: existing PR review + atomic commit per task. |
 
 ## STRIDE Threat Register
 
 | Threat ID | Category | Component | Disposition | Mitigation Plan |
 |-----------|----------|-----------|-------------|-----------------|
-| T-25-02-01 | Tampering / Path traversal | macOS postinstall ditto extraction destination | mitigate | Destination DORICO_DIR is hardcoded probe of `~/Library/Application Support/Steinberg/Dorico 6/` (etc.). Zip contents (PlaybackTemplateSpecs/, EndpointConfigs/) are repo-controlled, validated by Wave 0 A4 in Plan 25-01 + by `unzip -l` gates in Task 1. |
-| T-25-02-02 | Tampering / Path traversal | Windows Inno Shell.Application.NameSpace.CopyHere extraction | mitigate | Same — DoricoDir is hardcoded ExpandConstant('{userappdata}\Steinberg\Dorico N'); zip entries are repo-controlled. ExtractZipTo helper logs failures via try/except. |
-| T-25-02-03 | Elevation of privilege | macOS postinstall runs as root; Windows installer elevated | accept | Both installers run with the privileges the platform's PKG/EXE convention demands. Postinstall confines writes to USER_HOME-derived paths and chowns back to ACTUAL_USER. Inno writes to {userappdata} (per-user). No system-wide writes outside per-user profile. |
-| T-25-02-04 | Idempotency / partial-state | Mid-install crash after .dorico_pt extracted but before .doricolib copied | mitigate | Each cp / FileCopy / ditto invocation is independent; Dorico tolerates partial install (template appears but library missing -> warns but the .dorico_pt's embedded playbacktemplatedeps.doricolib still carries the expression-map definition, so apply still works). Re-running the installer is safe (idempotent overwrite per D-10). |
-| T-25-02-05 | Stale-asset risk | Older Microtonal Suite version remains after upgrade | mitigate | `file(COPY)` and `cp` overwrite in place. `ditto -x -k` likewise overwrites. The Dorico-side extraction always replaces files of the same name. Version tracking is via the installer version (PKG identifier + EXE version), not per-resource. |
-| T-25-02-06 | Information disclosure | Dev CIDs from a misbuilt installer leak to prod machines | mitigate | Plan 25-01's `ouaricon_extract_vst3_cids` honors OUARICON_DEV_SUFFIX (S-3); dev installers ship dev CIDs, prod installers ship prod CIDs. The /package skill must be invoked against a prod build before any public release; this plan tests against dev builds for the validation gate (correct, since Dorico tests against installed dev plugins). |
-| T-25-02-07 | Denial of service | Inno Shell.Application COM failure on locked-down Windows hosts | accept | ExtractZipTo's try/except catches and logs the failure. Worst case: extraction fails, user sees install completed but template absent. Manual import fallback (README-microtonal-suite.txt from Plan 25-01) works as backstop. Documented in DOCS-04 (Plan 25-03). |
-| T-25-02-08 | Spoofing | If user has malicious zip at SharedDir before install (race) | accept | Installer overwrites SharedDir contents with its own bundled assets; pre-existing files are replaced. Window for race is sub-second. Acceptable risk. |
+| T-25-02-01 | Tampering | Shared `pkg-creation.md` and `inno-template.iss` are single-source-of-truth across all 8 plugins; an unintended edit cascades | mitigate | Each task is one shared-template edit, atomic commit, with grep-verifiable acceptance criteria pinning the expected strings (Microtonal Suite path, ignoreversion flag, Library Manager hint). Reviewer can diff to confirm scope. |
+| T-25-02-02 | Elevation of Privilege | macOS postinstall runs as root and writes user-owned files; if `$USER_HOME` were attacker-controlled, files could land outside intended dir | mitigate | `$USER_HOME` is derived from `eval echo ~$ACTUAL_USER` where `ACTUAL_USER` comes from `stat -f '%Su' /dev/console` (existing pattern). Both are resolved in-script from system state, not user input. The `chown -R "$ACTUAL_USER:staff"` step ensures correct ownership transfer. ASVS L1 path-traversal mitigation: hard-coded subdir name `Ouaricon/Microtonal Suite` (no user-controlled segment). |
+| T-25-02-03 | Tampering | `.doricolib` could be tampered between authoring (Plan 25-01) and packaging (this plan) | mitigate | Plan 25-01 committed the canonical bytes to the repo. Packaging reads from `modules/tuning/note-expression/resources/library/`, the same in-repo path. PKG payload includes the file as-is from repo; PKG signing covers the bundle. Inno Setup [Files] reads the same path; EXE is signed (existing process). |
+| T-25-02-04 | Information Disclosure | Postinstall script logs (echo lines) printed to installer log — could leak user paths | accept | Logged paths are well-known canonical locations (`$USER_HOME/Library/Application Support/Ouaricon/Microtonal Suite`, `%APPDATA%\Ouaricon\Microtonal Suite`). No PII. Standard installer behavior. |
+| T-25-02-05 | Denial of Service | Per-plugin installer rebuild could fail across the cohort if a plugin has a broken `note-expression` consumption (regression from earlier phases) | mitigate | Plan 25-01 Task 5 already validates O-Lyrica works; Phase 24 closed with all 8 plugins passing. Per-plugin rebuild that fails is detected at PKG/EXE build time, not at install time. Stop-on-first-failure (D-11) escalates structural failures to fix plans. |
+| T-25-02-06 | Repudiation | The cross-platform validation gate is human-driven (canary install + Library Manager Import + audible smoke) | accept | This is the same architecture as Phase 24's per-plugin Dorico smoke gate. Audit-trail is the matrix file; the gate is the milestone-defining shipped behavior, validated by the human user (visual + auditory). Automated alternatives are deferred (CONTEXT.md "Automated Dorico smoke harness" deferred). |
+| T-25-02-07 | Tampering | Inno Setup `Flags: ignoreversion` causes overwrite without version check — if an attacker placed a malicious file at `%APPDATA%\Ouaricon\Microtonal Suite\` before install, our install would NOT detect it | accept | Pre-install state of `%APPDATA%\Ouaricon\Microtonal Suite\` is user-controlled; if compromised, the entire user environment is compromised. ASVS L1 scope is the installer payload itself, which is signed. `ignoreversion` is the standard Inno Setup pattern for non-versioned static assets. |
+
+**Severity:** All HIGH severity threats (Tampering of shared templates, Tampering of `.doricolib` in transit, EoP via path manipulation) mitigated. MEDIUM/LOW threats accepted.
+
 </threat_model>
 
 <verification>
-- Task 1 pre-flight: gates the entire plan; failure HALTS Wave 2 entirely.
-- Tasks 2 + 3 (template edits): grep gates on shared skill files. The directory-name asymmetry (Default Library Additions on macOS, DefaultLibraryAdditions on Windows) is verified by separate grep checks per file.
-- Task 4 (macOS validation): full Phase 24 D-07 3-point gate re-run — quarter-sharp + polyphonic NE-correlation + no attack zipper. Plus 5 dual-write paths verified.
-- Task 5 (Windows validation): same 3-point gate on Windows. D-16 hard halt if Windows blocked.
-- Task 6 (SUMMARY): structural gate — all 8 plugins enumerated even though only 1 was actually installed (the other 7 inherit on their next /package run).
+- `.claude/skills/plugin-packaging/references/pkg-creation.md` extended; postinstall block writes 2 files to `~/Library/Application Support/Ouaricon/Microtonal Suite/` with correct chown
+- `.claude/skills/plugin-packaging/assets/inno-template.iss` extended; 2 new `[Files]` entries write to `%APPDATA%\Ouaricon\Microtonal Suite\` with `ignoreversion`
+- `.claude/skills/plugin-packaging/references/inno-setup-creation.md` documents 2 new template variables with PowerShell substitution example
+- macOS validation: O-Lyrica PKG built, install lands the asset (6,431 B, user-owned), Library Manager Import PASS, quarter-sharp ~269 Hz PASS, no attack zipper, polyphonic isolation works
+- Windows validation: same end-to-end (or explicit `DEFER-WINDOWS-TO-v1.6` user decision)
+- Validation matrix file recorded in `.planning/phases/25-package-docs/25-02-VALIDATION-MATRIX.md`
 </verification>
 
 <success_criteria>
-- macOS PKG postinstall (single shared source) extended with Microtonal Suite block (Pattern G)
-- Windows Inno template (single shared source) extended with [Files] entries + ExtractZipTo helper + Dorico-version probe in [Code] (Pattern H)
-- inno-setup-creation.md documents 2 new template variables
-- macOS validation (Task 4): O-Lyrica PKG installs cleanly, dual-write succeeds, Dorico 6 picker shows the template, quarter-sharp C4 at +50 cents
-- Windows validation (Task 5): O-Lyrica EXE installs cleanly, dual-write succeeds, Dorico 6 picker shows the template, quarter-sharp C4 at +50 cents — OR D-16 hard halt surfaced if Windows blocked
-- 25-02-SUMMARY.md cross-platform matrix recorded
-- Pitfall 3 (directory-name asymmetry) honored in BOTH platforms' configs
-- Pitfall 5 (Pitfall 5 — wrapping parent dir in zip) verified at Task 1 by `unzip -l`
-- INST-03 satisfied structurally for all 8 plugins (skill-template propagation), INST-04 satisfied via Plan 25-01's README + this plan's macOS/Windows fallback in the README content
+1. Both shared templates (`pkg-creation.md` postinstall + `inno-template.iss` [Files]/[Code]) extended with Path B suite copy logic.
+2. `inno-setup-creation.md` documents the 2 new template variables for the per-plugin packaging script substitution.
+3. All 8 plugins have freshly-built PKG (and EXE if Windows accessible) installers that bundle the suite asset, verified by spot-check installs.
+4. Cross-platform validation gate (D-08) passes on macOS + (Windows or explicit deferral): canary plugin install lands the asset, Library Manager Import PASS, quarter-sharp ~269 Hz, no attack zipper, polyphonic isolation works.
+5. Validation matrix file documents the per-platform per-plugin per-gate-point result.
+6. No Path A residue in shared templates: zero matches for `dorico_pt`, `PlaybackTemplateSpecs`, `Default Library Additions`, `DefaultLibraryAdditions`, `EndpointConfigs` in modified files.
 </success_criteria>
 
 <output>
-After completion, ensure `.planning/phases/25-package-docs/25-02-SUMMARY.md` is finalized per Task 6 structure. Update `.planning/STATE.md` with Plan 25-02 completion + cross-platform matrix result + any escalation breadcrumbs.
+After completion, create `.planning/phases/25-package-docs/25-02-SUMMARY.md` documenting:
+- The two shared-template edits (single-source-of-truth across 8 plugins)
+- Per-plugin installer rebuild status (built/skipped/failed)
+- Cross-platform validation matrix verdict
+- Any in-flight escalations to fix plans (per D-11)
+- Final ship-readiness gate: this plan + Plan 25-03 close v1.5 Phase 25.
 </output>
-</content>
