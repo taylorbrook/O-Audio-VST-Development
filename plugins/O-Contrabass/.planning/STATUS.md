@@ -67,6 +67,7 @@ verify_outcome: PARTIAL_engine_validated_r7_landed_2026_04_26
 phase_2_1b_verify_outcome: VERIFIED_gate_2_pass_bit_exact_2026_04_27  # auval + pluginval-10 + cmp byte-equal + bow-on-only carry-forward all reproduced independently
 phase_2_1c_verify_outcome: VERIFIED_gate_3_pass_2026_04_27  # R19a stiffness=0 sha256 d358abcd… matches committed golden; R19b 4/4 clean retry; R19c auval; R19d pluginval-10; R19e sweep sha256 94a42a81… matches committed golden + rmsByDecade ~5% confirms Risk #7; R19f Logic smoke user-deferred non-blocking
 phase_2_2_verify_outcome: VERIFIED_gate_4_pass_2026_04_27  # all 7 automated invariants reproduced byte-equal: slot-0 stiffness=0 sha256 d358abcd… (strict byte-equal regression); per-string A/D/G sha256 aa88f4c3…/d0ef8087…/524d2186… (audible audible); detune-sweep-A sha256 5e31dad3… + rmsContinuity 0.960 ≥ 0.90; note-sequence sha256 2a731edb… + rmsContinuityAtTransitions 0.909 + allSegmentsAudible; ACTIVE_STRINGS=1+MIDI 50 peak 0.069 (demote-to-E1 path active); auval SUCCEEDED; pluginval-10 SUCCESS; R27 Logic AU smoke user-deferred non-blocking
+phase_2_2_atomic_commit_sha: 131c2c7  # R26 atomic commit landed during verify 2026-04-27 — 23 files (5 source + harness + 10 golden text + 6 planning + 2 plumbing)
 phase_2_2_verify_independent_reproduction:
   stiffness_zero_sha256: d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75  # strict byte-equal regression PASS
   string_a_sha256: aa88f4c3eb373d1cb3f7b6efc6f0555f295ef8b34d551a73411f9525fa7ce6bd  # matches committed golden
