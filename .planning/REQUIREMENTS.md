@@ -62,8 +62,8 @@ This category exists because Phase B touches 7 production plugins — the suite-
 
 - [x] **INST-01**: A canonical pre-configured Dorico expression map file (`Ouaricon-VST3-NoteExpression.doricolib` — note: v3 ships `.doricolib` library bundle, not `.doricoexpmap`, since Dorico does not recognize the `.doricoexpmap` extension; full 48-container kScoreLibrary skeleton + injected ExpressionMapDefinition with `microtonalPlaybackMethod = kVST3NoteExpression`) authored with Microtonality explicitly set to "VST3 Note Expression". (completed 2026-04-27 via Plan 25-01; byte-identical to verified Path B reference; Library Manager Import + quarter-sharp ~269 Hz canary PASS end-to-end)
 - [x] **INST-02**: Canonical `.doricolib` stored at `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib` as the single source of truth. (completed 2026-04-27 via Plan 25-01)
-- [ ] **INST-03**: Each of the 8 affected plugins' installers bundle the `.doricoexpmap` file (PKG on macOS, EXE on Windows per existing `build-installer` / `package` workflows).
-- [ ] **INST-04**: Installed `.doricoexpmap` placed at a discoverable location, or the installer emits a README pointing users to the file's install path with a one-line import instruction for Dorico.
+- [x] **INST-03**: Each of the 8 affected plugins' installers bundle the `.doricoexpmap` file (PKG on macOS, EXE on Windows per existing `build-installer` / `package` workflows).
+- [x] **INST-04**: Installed `.doricoexpmap` placed at a discoverable location, or the installer emits a README pointing users to the file's install path with a one-line import instruction for Dorico.
 
 ### Internal Technical Notes (DOCS)
 
@@ -143,8 +143,8 @@ Populated by roadmapper during Phase A/B/C creation. Each requirement maps to ex
 | TRACK-05 | Phase B (24) | In progress (1/8 plugins; O-Bells fresh install via Plan 24-01) |
 | INST-01 | Phase C (25) | Complete (Plan 25-01 v3, 2026-04-27 — canonical .doricolib reauthored; canary PASS) |
 | INST-02 | Phase C (25) | Complete (Plan 25-01 v3, 2026-04-27 — single source at modules/tuning/note-expression/resources/library/) |
-| INST-03 | Phase C (25) | Pending |
-| INST-04 | Phase C (25) | Pending |
+| INST-03 | Phase C (25) | Complete (Plan 25-02 v3, 2026-04-27 — 8 cohort plugins' PKG + EXE installers bundle canonical 6,431 B .doricolib; D-08 cross-platform STRICT-PASS) |
+| INST-04 | Phase C (25) | Complete (Plan 25-02 v3, 2026-04-27 — shared PKG postinstall echoes Library Manager Import hint; Inno Setup CurStepChanged Log() call mirrors; companion README shipped at Ouaricon/Microtonal Suite/) |
 | DOCS-01 | Phase C (25) | Pending |
 | DOCS-02 | Phase C (25) | Pending |
 | DOCS-03 | Phase C (25) | Pending |
@@ -158,4 +158,4 @@ Populated by roadmapper during Phase A/B/C creation. Each requirement maps to ex
 
 ---
 *Requirements defined: 2026-04-24*
-*Last updated: 2026-04-27 — INST-01, INST-02 satisfied via Plan 25-01 v3 (canary PASS)*
+*Last updated: 2026-04-27 — INST-03, INST-04 satisfied via Plan 25-02 v3 (D-08 cross-platform STRICT-PASS for 8 cohort plugins × macOS + Windows)*
