@@ -1,87 +1,41 @@
 # ==============================================================================
-# install-microtonal-suite.cmake.in — per-platform dual-write install script
+# install-microtonal-suite.cmake.in — per-platform single-write install script
 #
-# Phase 25 v2 (Playback Template pivot). Configured by module.cmake via
-# configure_file(... @ONLY) at build time; executed by `cmake --install` at
-# install time. Writes BOTH distributable resources (.dorico_pt + .doricolib)
-# to:
-#   (a) Ouaricon shared canonical path  — editable, single source of user-
-#                                         facing copy
-#   (b) Dorico's auto-scan directories  — discovered at Dorico startup
+# Phase 25 v3 (Path B). Configured by module.cmake via configure_file(... @ONLY)
+# at build time; executed by `cmake --install` at install time. Writes the
+# canonical .doricolib + user-facing README to the platform-specific Ouaricon
+# shared path (D-07):
+#   macOS:   ~/Library/Application Support/Ouaricon/Microtonal Suite/
+#   Windows: %APPDATA%/Ouaricon/Microtonal Suite/
 #
-# Dorico version probe order: 6 -> 5 -> 4 (descending; install to first
-# found, then break). D-12.
+# User performs a one-time Library Manager Import per machine (D-01). No
+# writes to Dorico auto-discovery directories.
 #
-# Directory-name asymmetry (Pitfall 3, D-11):
-#   macOS:   "Default Library Additions" (with spaces)
-#   Windows: "DefaultLibraryAdditions"   (NO spaces)
+# NOTE (D-07 carry-forward): the v2 template's Dorico-version probe (foreach
+# over 6 -> 5 -> 4) is intentionally absent here. The Ouaricon shared path is
+# Dorico-version-agnostic. The probe pattern remains a v1.6 revival candidate
+# if auto-discovery work is added; reference the v2 template at git show
+# 819b2b4:modules/tuning/note-expression/install-microtonal-suite.cmake.in.
 #
 # Idempotent overwrite: file(COPY) overwrites in place; safe for all-8-
-# installers writing identical content (D-10).
+# installers writing identical content.
 # ==============================================================================
 
-set(SUITE_PT  "@CMAKE_BINARY_DIR@/Ouaricon-Microtonal-Suite.dorico_pt")
-set(SUITE_LIB "@CMAKE_CURRENT_LIST_DIR@/resources/library/Ouaricon-VST3-NoteExpression.doricolib")
+set(SUITE_LIB    "@CMAKE_CURRENT_LIST_DIR@/resources/library/Ouaricon-VST3-NoteExpression.doricolib")
 set(SUITE_README "@CMAKE_CURRENT_LIST_DIR@/resources/README-microtonal-suite.txt")
 
 if(APPLE)
-    # ----- macOS -----
     set(SHARED_DIR "$ENV{HOME}/Library/Application Support/Ouaricon/Microtonal Suite")
-    file(MAKE_DIRECTORY "${SHARED_DIR}")
-    file(COPY "${SUITE_PT}"  DESTINATION "${SHARED_DIR}")
-    file(COPY "${SUITE_LIB}" DESTINATION "${SHARED_DIR}")
-    if(EXISTS "${SUITE_README}")
-        file(COPY "${SUITE_README}" DESTINATION "${SHARED_DIR}")
-    endif()
-    message(STATUS "[Ouaricon] Microtonal Suite shared copy installed: ${SHARED_DIR}")
-
-    foreach(_v 6 5 4)
-        set(DORICO_DIR "$ENV{HOME}/Library/Application Support/Steinberg/Dorico ${_v}")
-        if(IS_DIRECTORY "${DORICO_DIR}")
-            file(MAKE_DIRECTORY "${DORICO_DIR}/PlaybackTemplateSpecs")
-            execute_process(
-                COMMAND "@CMAKE_COMMAND@" -E tar xf "${SUITE_PT}"
-                WORKING_DIRECTORY "${DORICO_DIR}"
-                RESULT_VARIABLE _tar_result
-            )
-            if(NOT _tar_result EQUAL 0)
-                message(WARNING "[Ouaricon] Failed to extract ${SUITE_PT} into ${DORICO_DIR} (tar result=${_tar_result})")
-            endif()
-            # Default Library Additions — with spaces on macOS
-            file(MAKE_DIRECTORY "${DORICO_DIR}/Default Library Additions")
-            file(COPY "${SUITE_LIB}" DESTINATION "${DORICO_DIR}/Default Library Additions")
-            message(STATUS "[Ouaricon] Microtonal Suite installed for Dorico ${_v}: ${DORICO_DIR}")
-            break()
-        endif()
-    endforeach()
 elseif(WIN32)
-    # ----- Windows -----
     set(SHARED_DIR "$ENV{APPDATA}/Ouaricon/Microtonal Suite")
-    file(MAKE_DIRECTORY "${SHARED_DIR}")
-    file(COPY "${SUITE_PT}"  DESTINATION "${SHARED_DIR}")
-    file(COPY "${SUITE_LIB}" DESTINATION "${SHARED_DIR}")
-    if(EXISTS "${SUITE_README}")
-        file(COPY "${SUITE_README}" DESTINATION "${SHARED_DIR}")
-    endif()
-    message(STATUS "[Ouaricon] Microtonal Suite shared copy installed: ${SHARED_DIR}")
-
-    foreach(_v 6 5 4)
-        set(DORICO_DIR "$ENV{APPDATA}/Steinberg/Dorico ${_v}")
-        if(IS_DIRECTORY "${DORICO_DIR}")
-            file(MAKE_DIRECTORY "${DORICO_DIR}/PlaybackTemplateSpecs")
-            execute_process(
-                COMMAND "@CMAKE_COMMAND@" -E tar xf "${SUITE_PT}"
-                WORKING_DIRECTORY "${DORICO_DIR}"
-                RESULT_VARIABLE _tar_result
-            )
-            if(NOT _tar_result EQUAL 0)
-                message(WARNING "[Ouaricon] Failed to extract ${SUITE_PT} into ${DORICO_DIR} (tar result=${_tar_result})")
-            endif()
-            # DefaultLibraryAdditions — NO spaces on Windows (intentional asymmetry vs macOS, Pitfall 3)
-            file(MAKE_DIRECTORY "${DORICO_DIR}/DefaultLibraryAdditions")
-            file(COPY "${SUITE_LIB}" DESTINATION "${DORICO_DIR}/DefaultLibraryAdditions")
-            message(STATUS "[Ouaricon] Microtonal Suite installed for Dorico ${_v}: ${DORICO_DIR}")
-            break()
-        endif()
-    endforeach()
+else()
+    message(STATUS "[Ouaricon] Microtonal Suite install: unsupported platform; skipping")
+    return()
 endif()
+
+file(MAKE_DIRECTORY "${SHARED_DIR}")
+file(COPY "${SUITE_LIB}" DESTINATION "${SHARED_DIR}")
+if(EXISTS "${SUITE_README}")
+    file(COPY "${SUITE_README}" DESTINATION "${SHARED_DIR}")
+endif()
+message(STATUS "[Ouaricon] Microtonal Suite installed: ${SHARED_DIR}")
