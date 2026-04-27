@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
-status: executing
-stopped_at: Phase 25 Plan 25-02 v3 closed; D-08 cross-platform STRICT-PASS (8 plugins × macOS + Windows); Plan 25-03 unblocked
-last_updated: "2026-04-27T17:55:56.290Z"
+status: verifying
+stopped_at: Phase 25 Plan 25-03 v3 closed; DOCS-01..05 satisfied; Phase 25 ready for verification (all 9 v1.5 Phase 25 requirements complete)
+last_updated: "2026-04-27T18:10:06.524Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 20
-  completed_phases: 19
+  completed_phases: 20
   total_plans: 67
-  completed_plans: 66
-  percent: 99
+  completed_plans: 67
+  percent: 100
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
 Phase: 25 (package-docs) — EXECUTING
 Plan: 3 of 3 (25-01 v3 complete; 25-02 v3 complete; 25-03 next)
-Status: Plan 25-02 closed; D-08 cross-platform STRICT-PASS; Plan 25-03 (internal docs — DOCS-01..05) unblocked
-Last activity: 2026-04-27 — Plan 25-02 v3 closed; D-08 cross-platform STRICT-PASS for 8-plugin cohort × macOS + Windows
+Status: Phase complete — ready for verification
+Last activity: 2026-04-27
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 History (Phase 25):
 
@@ -98,6 +98,7 @@ Next: `/clear` then `/gsd-execute-phase 25` to run Plan 25-03 (internal develope
 | 24 | 01 | ~30min + human | 5 | 8 |
 | 25 | 01 | ~25min + human canary | 5 | 7 modified, 3 deleted |
 | Phase 25 P02 | ~30min | 4 tasks | 6 files |
+| Phase 25 P03 | 9min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 - Phase 24 Plan 08 final sweep COMPLETE (commit 0ec32e9). All 16 build targets `ninja: no work to do` (incremental no-op confirms cumulative tri-format link cleanliness across 8 plugins). All 8 plugins PASS substantive Dorico runtime + AU loading gates (O-Lyrica is the validated spike/reference plugin from Phase 23 Plans 01-05; the auval static-check finding DEF-24-01 was DOWNGRADED 2026-04-26 to a benign parameter-meta-flag annotation gap, not a defect). modules/registry.yaml note-expression.used_by has all 8 expected consumers; module v1.0.0 unchanged (D-33 honored). Dorico 3-point batch validation 2026-04-26: ALL 8 PLUGINS PASS (24/24 individual gate-points). VERIFICATION.md status=passed. Phase 24 closes v1.5 propagation cycle.
 - Phase 25 Plan 01 v3 (Path B locked, completed 2026-04-27): single canonical Dorico-valid `.doricolib` (full 48-container kScoreLibrary skeleton + injected ExpressionMapDefinition; byte-identical to verified `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` reference) authored at `modules/tuning/note-expression/resources/library/`. Path A artifacts surgically excised under D-10 amend-forward (3 deletion groups in commit db20a04: playback-template/ subtree, ouaricon_extract_vst3_cids helper, .dorico_pt packing in module.cmake). install-microtonal-suite.cmake.in collapsed from 87-line dual-write to ~40-line single-write to platform-specific Ouaricon shared path only (D-07; v1.6 revival reference preserved as `git show 819b2b4:...`). Module READMEs rewritten for Library Manager Import flow (Path B); technical-mechanics paragraph (kVST3NoteExpression invariant) preserved verbatim. O-Lyrica canary PASS end-to-end on macOS 26.3.1 / Dorico 6 / O-Lyrica-dev: ninja build exit 0, cmake --install lands assets at `~/Library/Application Support/Ouaricon/Microtonal Suite/`, Dorico Library Manager Import succeeds (no invalid-file-format error), quarter-sharp C4 plays at ~269 Hz target with no attack zipper, polyphonic isolation as expected. Wave 0 v3 auto-discovery probe FAIL (informational only; non-blocking; logged for v1.6 deferred-ideas per D-08 carry-forward). 6 atomic commits: ad9e5e4 (Task 1), db20a04 (Task 2), 98479ba (Task 3), 93d29d6 (Task 4), c45703b (Task 5 verification log), f15b7e8 (v3 SUMMARY). INST-01 + INST-02 satisfied. Plan 25-02 unblocked.
 - Phase 25 Plan 02 v3 (installer-bundling sweep, completed 2026-04-27): Task 0 preflight audit GREEN (0 forks; 8/8 cohort plugins consume shared `pkg-creation.md` and `inno-template.iss` templates directly via `/package` and `build-installer` skills). Tasks 1-2 extended the shared PKG postinstall reference (Section 4a `${PROJECT_ROOT}` precondition + Microtonal Suite payload-copy sub-block; Section 4b `SUITE_DIR` postinstall block before `/tmp` cleanup with `chown -R "$ACTUAL_USER:staff"` + Library Manager Import activation hint echo) and the shared Inno Setup template (`[Files]` 2 new entries to `{userappdata}\Ouaricon\Microtonal Suite` with `ignoreversion`; `[Code]` `CurStepChanged(ssPostInstall)` 2 new `Log()` activation-hint calls) plus the `inno-setup-creation.md` reference (new Section 3.4 documenting `MICROTONAL_SUITE_DORICOLIB_PATH` + `MICROTONAL_SUITE_README_PATH` template variables with PowerShell substitution example). Task 3 D-08 cross-platform validation gate STRICT-PASS via `matrix-pass` resume signal: all 8 cohort plugins (O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant) on both macOS and Windows have PKG/EXE built bundling the canonical 6,431 B `.doricolib`; canary O-Lyrica on each platform clears the Phase 24 3-point Dorico gate (Library Manager Import success + quarter-sharp C4 ~269 Hz + no attack zipper + polyphonic isolation). Per-plugin sha256 captured locally during user-driven sweep; documented in `25-02-VALIDATION-MATRIX.md` with `Final Verdict: PASS`. No `DEFER-WINDOWS-TO-v1.6` or `DEFER-N-PLUGINS-TO-v1.6` escape valves invoked. 6 atomic commits: 9176903 (Task 0 preflight), b8c9b00 (Task 1 PKG), d1477e4 (Task 2 Inno Setup), 4258072 (Tasks 0-2 progress + Task 3 checkpoint blocker), de8e9df (Task 3 validation matrix), bc2aef1 (SUMMARY). INST-03 + INST-04 satisfied. Plan 25-03 unblocked.
+- [Phase 25]: Plan 25-03 (internal docs) complete: research/microtonal-dorico-integration.md authored as single combined developer-facing technical reference (554 lines; audience: internal-dev-only per DOCS-05; 4 H2 sections DOCS-01..04). DOCS-01 grounded in NoteExpression.h + NoteExpression_VST3.cpp (two-TU split, dispatch slots g_neUpdate/g_neQuery, applyPendingTuning composition order). DOCS-02 reframed for Path B (Library Manager Import + per-channel assignment; ~269 Hz verification). DOCS-03 covers kScoreLibrary 48-container schema requirement (v2-defect lesson; cd2c2c6 fragment), explicit-import rationale (D-01), skipped <pluginNames> rationale (D-02), kVST3NoteExpression invariant. DOCS-04 9-row symptom-cause-fix table. One Rule-3 fix (literal-grep gate compliance — Path A residue strings rephrased; semantic content preserved). 1 atomic commit 8091d64. DOCS-01..05 satisfied; all 9 Phase 25 requirements complete; phase ready for verification.
 
 ### Pending Todos
 
@@ -149,8 +151,8 @@ v1.5 decisions (to be logged as phase execution progresses):
 
 ## Session Continuity
 
-Last session: 2026-04-27T17:54:31.469Z
-Stopped at: Phase 25 Plan 25-02 v3 closed; D-08 cross-platform STRICT-PASS (8 plugins × macOS + Windows); Plan 25-03 unblocked
+Last session: 2026-04-27T18:10:06.518Z
+Stopped at: Phase 25 Plan 25-03 v3 closed; DOCS-01..05 satisfied; Phase 25 ready for verification (all 9 v1.5 Phase 25 requirements complete)
 Resume file: None
 
 Next: `/clear` then `/gsd-execute-phase 25` to run Plan 25-03 (internal developer-reference notes — DOCS-01..DOCS-05). Phase 25 closes when 25-03 lands; v1.5 ship gate ready.

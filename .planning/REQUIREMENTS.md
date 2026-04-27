@@ -69,11 +69,11 @@ This category exists because Phase B touches 7 production plugins — the suite-
 
 These are developer-reference notes, **not** end-user manuals. They become the source-of-truth material used later during the sales-website manual/quickstart authoring pass.
 
-- [ ] **DOCS-01**: Technical note covering module architecture — NEC advertisement flow, raw-event queue semantics, voice-routing logic, composition with each plugin's `TuningEngine`.
-- [ ] **DOCS-02**: Technical note with the canonical Dorico expression-map setup procedure (step-by-step, host-version noted), suitable for direct translation into website manual/quickstart copy.
-- [ ] **DOCS-03**: Technical note on host-side behavior quirks — Dorico's neighbor-semitone + NE-delta representation (`quarter-sharp C4 = C#4 + -50¢`), NEC handshake being ignored by Dorico (kept for other hosts), sample-offset timing requirements.
-- [ ] **DOCS-04**: Technical note on troubleshooting signatures — what breakage looks like when end-users skip the expression-map setup (matches the UX trap observed in Spike 002), symptoms-vs-cause table.
-- [ ] **DOCS-05**: Internal notes stored under `research/` per CLAUDE.md convention as `research/microtonal-dorico-integration.md` (or per-topic sub-files); NOT published as end-user-facing docs this milestone.
+- [x] **DOCS-01**: Technical note covering module architecture — NEC advertisement flow, raw-event queue semantics, voice-routing logic, composition with each plugin's `TuningEngine`.
+- [x] **DOCS-02**: Technical note with the canonical Dorico expression-map setup procedure (step-by-step, host-version noted), suitable for direct translation into website manual/quickstart copy.
+- [x] **DOCS-03**: Technical note on host-side behavior quirks — Dorico's neighbor-semitone + NE-delta representation (`quarter-sharp C4 = C#4 + -50¢`), NEC handshake being ignored by Dorico (kept for other hosts), sample-offset timing requirements.
+- [x] **DOCS-04**: Technical note on troubleshooting signatures — what breakage looks like when end-users skip the expression-map setup (matches the UX trap observed in Spike 002), symptoms-vs-cause table.
+- [x] **DOCS-05**: Internal notes stored under `research/` per CLAUDE.md convention as `research/microtonal-dorico-integration.md` (or per-topic sub-files); NOT published as end-user-facing docs this milestone.
 
 ## Future Requirements (v1.6+ / v2+)
 
@@ -145,11 +145,11 @@ Populated by roadmapper during Phase A/B/C creation. Each requirement maps to ex
 | INST-02 | Phase C (25) | Complete (Plan 25-01 v3, 2026-04-27 — single source at modules/tuning/note-expression/resources/library/) |
 | INST-03 | Phase C (25) | Complete (Plan 25-02 v3, 2026-04-27 — 8 cohort plugins' PKG + EXE installers bundle canonical 6,431 B .doricolib; D-08 cross-platform STRICT-PASS) |
 | INST-04 | Phase C (25) | Complete (Plan 25-02 v3, 2026-04-27 — shared PKG postinstall echoes Library Manager Import hint; Inno Setup CurStepChanged Log() call mirrors; companion README shipped at Ouaricon/Microtonal Suite/) |
-| DOCS-01 | Phase C (25) | Pending |
-| DOCS-02 | Phase C (25) | Pending |
-| DOCS-03 | Phase C (25) | Pending |
-| DOCS-04 | Phase C (25) | Pending |
-| DOCS-05 | Phase C (25) | Pending |
+| DOCS-01 | Phase C (25) | Complete |
+| DOCS-02 | Phase C (25) | Complete |
+| DOCS-03 | Phase C (25) | Complete |
+| DOCS-04 | Phase C (25) | Complete |
+| DOCS-05 | Phase C (25) | Complete |
 
 **Coverage:**
 - v1.5 requirements: 33 total
