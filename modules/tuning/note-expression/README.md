@@ -152,35 +152,61 @@ the DSP trigger (so the first output sample sizes to the tuned frequency —
 no attack zipper). See landmine 4 in
 `.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md`.
 
-## Dorico End-User Setup (v1.1.0+ auto-discovery flow)
+## Dorico End-User Setup (v1.1.0+ Path B import flow)
 
-Starting in module v1.1.0, every cohort plugin's installer ships the
-Ouaricon Microtonal Suite Playback Template + expression-map library
-directly to Dorico's auto-scan directories. NO manual import is
-required for the typical case.
+Starting in module v1.1.0, every cohort plugin's installer ships a
+single canonical `.doricolib` to a platform-specific Ouaricon shared
+path. The user performs a one-time Library Manager Import per machine,
+then assigns the expression map per project.
 
-**Auto-discovery (default):**
+### Quick Start
 
-1. Install any Ouaricon plugin (PKG on macOS or EXE on Windows).
-2. Restart Dorico.
-3. `Play -> Playback Template -> Ouaricon Microtonal Suite -> Apply and Close`.
-4. Quarter-sharp C4 verifies routing: pitch lands at +50¢ (~269.29 Hz).
+- Install any Ouaricon plugin (PKG on macOS, EXE on Windows). The
+  installer drops `Ouaricon-VST3-NoteExpression.doricolib` to the
+  Ouaricon shared path (see [Source of Truth](#source-of-truth)).
+- One-time per machine: run `Library → Library Manager → Import…` in
+  Dorico and select the `.doricolib` from the shared path.
+- Per project: load any Ouaricon plugin via `Play → Endpoints → Add
+  Plug-in`, then assign the imported expression map to that channel
+  via `Play → Endpoints → Expression Map` dropdown.
 
-The installer writes to:
+### Manual Import Steps
 
-- macOS: `~/Library/Application Support/Steinberg/Dorico [N]/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/` and `.../Default Library Additions/`
-- Windows: `%APPDATA%\Steinberg\Dorico [N]\PlaybackTemplateSpecs\Ouaricon Microtonal Suite\` and `...\DefaultLibraryAdditions\` (note: NO spaces on Windows; spaces on macOS — Pitfall 3)
+1. Open Dorico (any project).
+2. `Library → Library Manager → Import…`.
+3. Navigate to the install location and select
+   `Ouaricon-VST3-NoteExpression.doricolib`:
+   - macOS: `~/Library/Application Support/Ouaricon/Microtonal Suite/`
+   - Windows: `%APPDATA%\Ouaricon\Microtonal Suite\`
+4. Confirm the import. The expression map "Ouaricon VST3 Note
+   Expression" now appears under `Library → Expression Maps`.
+5. Per project: load any Ouaricon plugin under
+   `Play → Endpoints → Add Plug-in`, then assign the expression map to
+   the plugin's channel via `Play → Endpoints → Expression Map`.
 
-A canonical editable copy of both files (`Ouaricon-Microtonal-Suite.dorico_pt`
-and `Ouaricon-VST3-NoteExpression.doricolib`) is also written to the
-shared `~/Library/Application Support/Ouaricon/Microtonal Suite/`
-(macOS) or `%APPDATA%\Ouaricon\Microtonal Suite\` (Windows) directory
-for manual reference.
+The import persists across Dorico restarts and version upgrades.
+Re-importing after a plugin reinstall is harmless but not required —
+the `.doricolib` content is stable.
 
-**Manual import fallback** (if Dorico did not pick up the auto-discovered files):
+**Verification.** Write a quarter-sharp accidental on C4 and play.
+Pitch lands at C4 + 50¢ ≈ 269.29 Hz (vs standard C4 = 261.63 Hz). If
+the note plays at standard C4, the expression map is not assigned to
+the plugin's channel under `Play → Endpoints`, or the import has not
+yet been performed.
 
-1. `Play -> Playback Template -> Import...` -> select `Ouaricon-Microtonal-Suite.dorico_pt` from the shared directory above.
-2. `Library -> Import Library...` -> select `Ouaricon-VST3-NoteExpression.doricolib` from the same shared directory.
+### Source of Truth
+
+The canonical `.doricolib` lives in-repo at
+`modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib`
+and is installed to:
+
+- macOS: `~/Library/Application Support/Ouaricon/Microtonal Suite/`
+- Windows: `%APPDATA%\Ouaricon\Microtonal Suite\`
+
+There are no writes to Dorico's user-data directories under v1.5 — a
+ship-time flow that pre-stages the `.doricolib` directly into
+`Library → Expression Maps` without a manual Import is a v1.6 revival
+candidate, deferred per Phase 25 D-08 carry-forward.
 
 **Underlying mechanics.** Dorico's default and "Auto" microtonality
 settings route microtones to VST2 detune or pitch bend for non-Steinberg
@@ -188,12 +214,6 @@ VST3 plugins — neither reaches a JUCE-based VST3 plugin. The shipped
 expression map sets `microtonalPlaybackMethod=kVST3NoteExpression`, the
 load-bearing Dorico setting that routes microtones as VST3 Note
 Expression events.
-
-**Verification.** Write a quarter-sharp accidental on C4. Playback should
-land at C4 + 50¢ ≈ 269.29 Hz (vs standard C4 = 261.63 Hz). If the note
-plays at standard C4, the Playback Template is not applied (apply via
-`Play -> Playback Template`) or Dorico did not auto-discover the files
-(use the manual fallback above).
 
 ## JUCE Patch Management
 

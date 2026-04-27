@@ -1,102 +1,66 @@
-Ouaricon Microtonal Suite — Dorico Integration Resources
-=========================================================
+OUARICON MICROTONAL SUITE — DORICO EXPRESSION MAP
+=================================================
 
 PURPOSE
 -------
-Adds Dorico-aware microtonal playback for the Ouaricon v1.5 cohort via
-VST3 Note Expression. Two files ship together:
-
-  • Ouaricon-Microtonal-Suite.dorico_pt
-      A Dorico Playback Template archive (zip). Routes Dorico instruments
-      to the cohort plugins on per-channel slots and binds the canonical
-      expression map to each slot.
-
-  • Ouaricon-VST3-NoteExpression.doricolib
-      A standalone Dorico expression-map library bundle. Makes "Ouaricon
-      VST3 Note Expression" available in Library → Expression Maps even
-      when the Playback Template has not been applied.
-
-Both encode microtonalPlaybackMethod=kVST3NoteExpression, which is the
-load-bearing setting for non-Steinberg VST3 microtonal routing. Dorico's
-default Auto setting falls back to pitch-bend and silently breaks
-microtonal playback.
+Adds an "Ouaricon VST3 Note Expression" expression map to Dorico, which
+routes microtonal pitches as VST3 Note Expression events to Ouaricon
+plugins. This is a one-time, manual import per machine — Dorico does
+not auto-discover the file. Once imported, the expression map appears
+under Library → Expression Maps and can be assigned to any Ouaricon
+plugin's channel under Play → Endpoints. The map encodes
+microtonalPlaybackMethod=kVST3NoteExpression, which is the load-bearing
+setting for non-Steinberg VST3 microtonal routing; Dorico's default
+Auto setting falls back to pitch-bend and silently breaks microtonal
+playback for these plugins.
 
 INSTALL LOCATIONS
 -----------------
-The plugin installer writes both files to multiple locations.
+The plugin installer drops the .doricolib at one platform-specific
+shared path. The installer does NOT write to Dorico's user-data
+directories under v1.5.
 
-macOS:
-  • Canonical (editable) shared copy:
-      ~/Library/Application Support/Ouaricon/Microtonal Suite/
-        Ouaricon-Microtonal-Suite.dorico_pt
-        Ouaricon-VST3-NoteExpression.doricolib
-  • Dorico Playback Template (auto-discovered, extracted from the .dorico_pt):
-      ~/Library/Application Support/Steinberg/Dorico [N]/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/
-        playbacktemplatespec.xml
-      ~/Library/Application Support/Steinberg/Dorico [N]/EndpointConfigs/Ouaricon Microtonal Suite/
-        endpointconfig.xml
-        playbacktemplatedeps.doricolib
-  • Dorico Default Library Additions (auto-merged at startup):
-      ~/Library/Application Support/Steinberg/Dorico [N]/Default Library Additions/
-        Ouaricon-VST3-NoteExpression.doricolib
-      (NOTE: directory name has spaces on macOS.)
+  macOS:
+    ~/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib
 
-Windows:
-  • Canonical (editable) shared copy:
-      %APPDATA%\Ouaricon\Microtonal Suite\
-        Ouaricon-Microtonal-Suite.dorico_pt
-        Ouaricon-VST3-NoteExpression.doricolib
-  • Dorico Playback Template:
-      %APPDATA%\Steinberg\Dorico [N]\PlaybackTemplateSpecs\Ouaricon Microtonal Suite\
-      %APPDATA%\Steinberg\Dorico [N]\EndpointConfigs\Ouaricon Microtonal Suite\
-  • Dorico Default Library Additions:
-      %APPDATA%\Steinberg\Dorico [N]\DefaultLibraryAdditions\
-        Ouaricon-VST3-NoteExpression.doricolib
-      (NOTE: directory name has NO spaces on Windows. The asymmetry vs
-       macOS is intentional — Dorico's discovery code uses different
-       names per platform.)
+  Windows:
+    %APPDATA%\Ouaricon\Microtonal Suite\Ouaricon-VST3-NoteExpression.doricolib
 
-[N] is the latest Dorico major version detected at install time
-(probed in descending order: 6 → 5 → 4).
+MANUAL IMPORT
+-------------
+One-time per machine, after installing any Ouaricon plugin from the
+v1.5 cohort:
 
-MANUAL IMPORT FALLBACK
-----------------------
-If Dorico did not auto-discover the files (e.g. Dorico was running during
-installation, or a Dorico version was installed AFTER the plugin), import
-manually from the canonical shared copy:
+  1. Open Dorico (any project).
+  2. Library → Library Manager → Import…
+  3. Select the .doricolib from the install location above.
+  4. Confirm the import. The expression map "Ouaricon VST3 Note
+     Expression" now appears under Library → Expression Maps.
+  5. Per project: load any Ouaricon plugin via Play → Endpoints → Add
+     Plug-in, then assign the expression map to the plugin's channel
+     via Play → Endpoints → Expression Map dropdown.
 
-  • Playback Template:
-      Play → Playback Template → Import…
-      Select Ouaricon-Microtonal-Suite.dorico_pt from
-        macOS:   ~/Library/Application Support/Ouaricon/Microtonal Suite/
-        Windows: %APPDATA%\Ouaricon\Microtonal Suite\
-      Then Apply and Close.
-
-  • Expression Map library (standalone):
-      Library → Import Library…
-      Select Ouaricon-VST3-NoteExpression.doricolib from the same
-      shared directory.
-
-After import, the routing is identical to the auto-discovered case.
+The import persists across Dorico restarts and across Dorico version
+upgrades. Re-importing after a plugin reinstall is harmless but not
+required (the .doricolib content is stable).
 
 SOURCE OF TRUTH
 ---------------
-Both files are generated from the canonical sources in the Ouaricon
-VST-development repo:
-  modules/tuning/note-expression/resources/playback-template/
+This file ships from
   modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib
-Edits to installed copies are overwritten by the next plugin installer
-run. Bug reports and revisions go upstream against the module repo, not
-against the installed copies.
+in the Ouaricon plugin source repo. DO NOT edit installed copies —
+they are overwritten by the next plugin installer run. Bug reports
+and revisions go upstream against the module repo.
 
 SUPPORTED PLUGINS (v1.5 cohort)
 -------------------------------
   O-Lyrica, O-Bells, O-IntonationPad, O-Prism,
   O-Wind, O-Reed, O-Bowed, O-Formant
 
-The Playback Template defines slots for all 8 plugins. Dorico will warn
-about any plugin that is not currently installed when the template is
-applied, but the template still applies cleanly for the plugins that
-ARE installed (graceful missing-plugin behavior).
+The expression map is plugin-agnostic — it routes Note Expression
+events to whatever VST3 plugin the user assigns it to. The cohort
+list is informational; any future Ouaricon plugin built on the
+shared note-expression module will work with the same .doricolib
+without changes.
 
-— Ouaricon Audio
+— Ouaricon Audio, v1.5 (Phase 25 v3 / Path B)
