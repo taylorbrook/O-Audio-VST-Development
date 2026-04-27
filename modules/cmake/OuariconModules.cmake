@@ -186,3 +186,72 @@ function(ouaricon_check_module_updates PLUGIN_DIR)
     # Would parse YAML and compare versions here
     # For now, just note the functionality
 endfunction()
+
+# ==============================================================================
+# ouaricon_extract_vst3_cids(OUTPUT_VAR <var> PLUGINS <list>)
+#
+# Reads each built VST3 bundle's Contents/Resources/moduleinfo.json (emitted by
+# JUCE 8) and extracts the canonical 32-hex Audio Module Class CID. Sets
+# per-plugin <NAME>_PLUGINID variables in PARENT_SCOPE for use with
+# configure_file @ONLY substitution in module.cmake.
+#
+# Honors ${OUARICON_DEV_SUFFIX} so dev installers ship dev CIDs and prod
+# installers ship prod CIDs (mitigates Pitfall 2 — see Phase 25 RESEARCH.md).
+#
+# Fails loud + fails fast at configure time if any plugin's VST3 bundle is
+# not yet built (mirrors ouaricon_add_module's FATAL_ERROR pattern).
+#
+# Variable suffix derivation: target name is upper-cased and "-" stripped, e.g.
+# "O-Lyrica" -> "OLYRICA_PLUGINID", "O-IntonationPad" -> "OINTONATIONPAD_PLUGINID".
+# This matches the @<NAME>_PLUGINID@ tokens in endpointconfig.xml.in.
+# ==============================================================================
+function(ouaricon_extract_vst3_cids)
+    set(options)
+    set(oneValueArgs OUTPUT_VAR)
+    set(multiValueArgs PLUGINS)
+    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    foreach(plugin_target IN LISTS ARG_PLUGINS)
+        # Honor OUARICON_DEV_SUFFIX (S-3) — dev builds emit "-dev" suffixed
+        # bundles whose moduleinfo.json carries dev CIDs; prod builds emit
+        # un-suffixed bundles with prod CIDs.
+        set(moduleinfo "${CMAKE_BINARY_DIR}/plugins/${plugin_target}/${plugin_target}_artefacts/Release/VST3/${plugin_target}${OUARICON_DEV_SUFFIX}.vst3/Contents/Resources/moduleinfo.json")
+
+        if(NOT EXISTS "${moduleinfo}")
+            message(FATAL_ERROR
+                "[Ouaricon] CID extraction: ${plugin_target} VST3 not built yet — "
+                "build all _VST3 targets before packaging the Microtonal Suite.\n"
+                "Expected: ${moduleinfo}")
+        endif()
+
+        # JUCE 8 emits moduleinfo.json with trailing commas — strip them via
+        # python3 regex, then parse and pull the Audio Module Class CID.
+        execute_process(
+            COMMAND python3 -c "
+import json, sys, re
+with open(sys.argv[1]) as f:
+    raw = f.read()
+raw = re.sub(r',(\\s*[}\\]])', r'\\1', raw)
+data = json.loads(raw)
+for cls in data['Classes']:
+    if cls['Category'] == 'Audio Module Class':
+        print(cls['CID'])
+        sys.exit(0)
+sys.exit(1)
+" "${moduleinfo}"
+            OUTPUT_VARIABLE cid
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            COMMAND_ERROR_IS_FATAL ANY
+        )
+
+        # Variable suffix: "O-IntonationPad" -> "OINTONATIONPAD_PLUGINID"
+        string(TOUPPER "${plugin_target}" var_name)
+        string(REPLACE "-" "" var_name "${var_name}")
+        set("${var_name}_PLUGINID" "${cid}" PARENT_SCOPE)
+        message(STATUS "[Ouaricon] ${plugin_target} pluginID = ${cid}")
+    endforeach()
+
+    if(ARG_OUTPUT_VAR)
+        set("${ARG_OUTPUT_VAR}" "extracted" PARENT_SCOPE)
+    endif()
+endfunction()
