@@ -169,9 +169,33 @@ EOF
 
 ### 4a. Copy Binaries to Payload
 
+**Precondition (Phase 25 v3 Path B):** The orchestrating per-plugin packaging script (or the `/package` skill invocation) MUST set the `PROJECT_ROOT` shell variable to the absolute path of the Ouaricon plugin source repo BEFORE invoking the steps below. Recommended:
+
+```bash
+: "${PROJECT_ROOT:=$(git rev-parse --show-toplevel)}"
+export PROJECT_ROOT
+```
+
+The Microtonal Suite asset copy (this section, plus Section 4b's postinstall heredoc) reads from `${PROJECT_ROOT}/modules/tuning/note-expression/resources/...`. If `PROJECT_ROOT` is unset, the cp will fail and the PKG build will halt.
+
 ```bash
 cp -R "$HOME/Library/Audio/Plug-Ins/VST3/${PRODUCT_NAME}.vst3" "$TEMP_DIR/payload/${PLUGIN_NAME}/"
 cp -R "$HOME/Library/Audio/Plug-Ins/Components/${PRODUCT_NAME}.component" "$TEMP_DIR/payload/${PLUGIN_NAME}/"
+```
+
+#### Microtonal Suite asset (Phase 25 v3 Path B)
+
+Plugins that consume the `note-expression` module ship the canonical Dorico expression-map library bundle alongside the VST3+AU artefacts. The asset is single-source-of-truth at `modules/tuning/note-expression/resources/library/`. The postinstall script lands it at `~/Library/Application Support/Ouaricon/Microtonal Suite/` on the user system; one-time Library Manager Import in Dorico activates it (D-01).
+
+```bash
+# Microtonal Suite asset (Phase 25 v3 Path B) — bundled in every PKG built
+# against a plugin that consumes the note-expression module.
+# Uses ${PROJECT_ROOT} shell variable (see Section 4a precondition above).
+mkdir -p "$TEMP_DIR/payload/${PLUGIN_NAME}/microtonal-suite"
+cp "${PROJECT_ROOT}/modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib" \
+   "$TEMP_DIR/payload/${PLUGIN_NAME}/microtonal-suite/"
+cp "${PROJECT_ROOT}/modules/tuning/note-expression/resources/README-microtonal-suite.txt" \
+   "$TEMP_DIR/payload/${PLUGIN_NAME}/microtonal-suite/"
 ```
 
 ### 4b. Create Postinstall Script
@@ -200,6 +224,17 @@ cp -R "/tmp/PLUGIN_NAME_PLACEHOLDER/PRODUCT_NAME_PLACEHOLDER.component" "$USER_H
 # Set ownership
 chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Audio/Plug-Ins/VST3/PRODUCT_NAME_PLACEHOLDER.vst3"
 chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Audio/Plug-Ins/Components/PRODUCT_NAME_PLACEHOLDER.component"
+
+# Microtonal Suite (Phase 25 v3 Path B): copy canonical .doricolib + README
+# to the Ouaricon shared path. User performs a one-time Library Manager
+# Import in Dorico per machine. No Dorico auto-discovery write.
+SUITE_DIR="$USER_HOME/Library/Application Support/Ouaricon/Microtonal Suite"
+mkdir -p "$SUITE_DIR"
+cp "/tmp/PLUGIN_NAME_PLACEHOLDER/microtonal-suite/Ouaricon-VST3-NoteExpression.doricolib" "$SUITE_DIR/"
+cp "/tmp/PLUGIN_NAME_PLACEHOLDER/microtonal-suite/README-microtonal-suite.txt" "$SUITE_DIR/"
+chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Application Support/Ouaricon"
+echo "[Ouaricon] Microtonal Suite installed at: $SUITE_DIR"
+echo "[Ouaricon] To activate in Dorico: Library -> Library Manager -> Import... -> select Ouaricon-VST3-NoteExpression.doricolib"
 
 # Clean up temp files
 rm -rf "/tmp/PLUGIN_NAME_PLACEHOLDER"
