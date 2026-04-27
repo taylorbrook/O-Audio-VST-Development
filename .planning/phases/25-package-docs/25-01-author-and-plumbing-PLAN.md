@@ -709,8 +709,16 @@ Output: 6 NEW files (4 XML resources + 1 README + 1 cmake template) + 5 MODIFIED
     unzip -l Ouaricon-Microtonal-Suite.dorico_pt | head -5
     # Expected: first non-zero entries should be `PlaybackTemplateSpecs/Ouaricon Microtonal Suite/...` and `EndpointConfigs/Ouaricon Microtonal Suite/...`
     unzip -t Ouaricon-Microtonal-Suite.dorico_pt
-    # Step 4: Run install for O-Lyrica only (cmake --install with COMPONENT or per-target install).
-    cmake --install . --component <O-Lyrica install component> 2>&1 | tee /tmp/canary-install.log
+    # Step 4: Discover the install COMPONENT name authored by Task 6's module.cmake extension, then run install.
+    # Task 6 names the component on the install() rules; pull it from the live CMakeCache + cmake_install.cmake rather than guessing.
+    INSTALL_COMPONENTS=$(cmake --build . --target help 2>/dev/null | grep -oE 'install/[A-Za-z0-9_]+' | sort -u; \
+                        grep -hoE 'set\(CMAKE_INSTALL_COMPONENT "[A-Za-z0-9_]+"\)' build/cmake_install.cmake build/modules/tuning/note-expression/cmake_install.cmake 2>/dev/null | sed 's/.*"\(.*\)".*/\1/' | sort -u)
+    echo "Available install components: $INSTALL_COMPONENTS"
+    # Component naming follows Phase 23 module convention: ouaricon_<module>_<consumer> (expected: ouaricon_note_expression_OLyrica).
+    # If Task 6 used a different name, substitute below from the discovered list.
+    INSTALL_COMPONENT=$(echo "$INSTALL_COMPONENTS" | grep -E 'note_expression.*OLyrica|microtonal.*OLyrica' | head -1)
+    test -n "$INSTALL_COMPONENT" || { echo "FAIL: no microtonal install component found — Task 6 module.cmake install() rule missing or misnamed"; exit 1; }
+    cmake --install . --component "$INSTALL_COMPONENT" 2>&1 | tee /tmp/canary-install.log
     # Step 5: Verify dual-write happened.
     test -f "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-Microtonal-Suite.dorico_pt" && echo "SHARED DORICO_PT OK"
     test -f "$HOME/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib" && echo "SHARED DORICOLIB OK"

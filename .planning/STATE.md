@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
-status: Blocked on architectural pivot — see finding doc
+status: executing
 stopped_at: Phase 25 v2 context locked (Playback Template pivot) — ready to replan
-last_updated: "2026-04-27T03:25:20.565Z"
-last_activity: 2026-04-26 -- Plan 25-01 rolled back; Playback Template pivot logged
+last_updated: "2026-04-27T04:24:57.763Z"
+last_activity: 2026-04-27 -- Phase 25 planning complete
 progress:
   total_phases: 20
   completed_phases: 19
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
 Phase: 25 (package-docs) — REPLAN NEEDED (Plan 01 reverted)
 Plan: 0 of 3 (Plan 01 attempted then reverted; Plans 02-03 still pending)
-Status: Blocked on architectural pivot — see finding doc
-Last activity: 2026-04-26 -- Plan 25-01 rolled back; Playback Template pivot logged
+Status: Ready to execute
+Last activity: 2026-04-27 -- Phase 25 planning complete
 
 Progress: [██████████] 99%
 
