@@ -11,7 +11,7 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 ## Current State
 
 **Latest shipped:** v1.4 System Hygiene & Quality Gates (2026-03-07)
-**In flight:** v1.5 Microtonal Shared Module & Suite Propagation — Phase 23 (extract) complete 2026-04-25; Phase 24 propagation next
+**In flight:** v1.5 Microtonal Shared Module & Suite Propagation — Phase 23 (extract) complete 2026-04-25; Phase 24 (propagate to 8 cohort plugins) complete 2026-04-26; Phase 25 (package & internal docs, Path B locked) complete 2026-04-27 with 1 human-UAT carry-forward (Windows multi-account UAC test). v1.5 ready for ship audit.
 
 **System overview:**
 - 23 phases completed across 5 milestones (Phase 23 closed out the v1.5 extract milestone)
@@ -246,4 +246,4 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | 5-field minimum frontmatter standard | Consistent metadata across all 64 research docs | ✓ Good — validator hook enforces going forward |
 
 ---
-*Last updated: 2026-04-25 — Phase 23 (extract) complete (5/5 plans, 12/12 must-haves verified); Phase 24 propagation unblocked*
+*Last updated: 2026-04-27 — Phase 25 (package-docs) complete: canonical .doricolib + cross-platform installer bundling (8 plugins × macOS + Windows STRICT-PASS) + internal-dev technical reference. v1.5 milestone ready for ship audit; 1 HUMAN-UAT item carries forward (Windows multi-account UAC test for Inno Setup `{userappdata}` semantics).*
