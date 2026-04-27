@@ -5,15 +5,15 @@ type: execute
 wave: 1
 depends_on: []
 files_modified:
-  - modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib
-  - modules/tuning/note-expression/resources/playback-template/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml.in
-  - modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml.in
-  - modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/playbacktemplatedeps.doricolib.in
-  - modules/tuning/note-expression/resources/README-microtonal-suite.txt
-  - modules/tuning/note-expression/module.cmake
-  - modules/tuning/note-expression/install-microtonal-suite.cmake.in
-  - modules/tuning/note-expression/README.md
-  - modules/cmake/OuariconModules.cmake
+  - modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib  # MODIFIED (reauthored per D-03)
+  - modules/tuning/note-expression/resources/playback-template/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/playbacktemplatespec.xml.in  # DELETED (D-10 surgical)
+  - modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/endpointconfig.xml.in  # DELETED (D-10 surgical)
+  - modules/tuning/note-expression/resources/playback-template/EndpointConfigs/Ouaricon Microtonal Suite/playbacktemplatedeps.doricolib.in  # DELETED (D-10 surgical)
+  - modules/tuning/note-expression/resources/README-microtonal-suite.txt  # MODIFIED (Path B rewrite)
+  - modules/tuning/note-expression/module.cmake  # MODIFIED (Path A block surgically replaced; lines 1-41 preserved)
+  - modules/tuning/note-expression/install-microtonal-suite.cmake.in  # MODIFIED (collapse to single-write)
+  - modules/tuning/note-expression/README.md  # MODIFIED (Path B import-flow rewrite)
+  - modules/cmake/OuariconModules.cmake  # MODIFIED (ouaricon_extract_vst3_cids deleted)
 autonomous: false
 requirements: [INST-01, INST-02]
 tags: [dorico, doricolib, microtuning, vst3-note-expression, cmake, path-b]
@@ -23,8 +23,14 @@ must_haves:
     - "A Dorico-valid Ouaricon-VST3-NoteExpression.doricolib (full 48-container kScoreLibrary skeleton + injected ExpressionMapDefinition) lives in the repo at modules/tuning/note-expression/resources/library/."
     - "Path A artifacts (.dorico_pt packing, ouaricon_extract_vst3_cids helper, three .xml.in templates, embedded .doricolib.in) are deleted from the working tree."
     - "module.cmake's install logic is single-write of one .doricolib + README to the Ouaricon shared path; no Dorico auto-discovery dual-write."
-    - "Wave 0 informational auto-discovery probe result is logged into 25-01-WAVE-0-VERIFICATION.md (PASS or FAIL — informational, non-blocking)."
     - "O-Lyrica canary install lands the .doricolib at ~/Library/Application Support/Ouaricon/Microtonal Suite/ and Library Manager Import + quarter-sharp C4 (~269 Hz) PASS."
+  notes:
+    # Wave 0 informational auto-discovery probe is INFORMATIONAL ONLY (D-08 carry-forward
+    # to v1.6 deferred-ideas). It does NOT gate ship behavior — D-01 ships explicit-import
+    # regardless of probe outcome. Probe result is appended to 25-01-WAVE-0-VERIFICATION.md
+    # as part of Task 5's pre-canary checkpoint flow. Kept out of the truths list because
+    # it is non-blocking; failure or skip does not invalidate the plan.
+    - "Wave 0 informational auto-discovery probe result is appended to 25-01-WAVE-0-VERIFICATION.md (PASS / FAIL / SKIPPED — informational only, feeds v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas))."
   artifacts:
     - path: "modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib"
       provides: "Canonical Path B asset — full kScoreLibrary skeleton with injected ExpressionMapDefinition"
@@ -80,6 +86,10 @@ Per D-10 (amend-forward, not full revert): preserve module v1.1.0 bump, registry
 @modules/cmake/OuariconModules.cmake
 @modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib
 
+<authority_note>
+RESEARCH.md is partially superseded by the v3 architectural pivot. CONTEXT.md v3 (this plan's primary authority) and `25-FINDING-path-b-validation.md` are the load-bearing sources for architectural decisions. RESEARCH.md's `## Architectural Responsibility Map` describes v2 Path A (now deleted under D-10) — DO NOT use it for tier assignments in this plan. Where RESEARCH.md and CONTEXT.md v3 disagree, CONTEXT.md v3 wins.
+</authority_note>
+
 <interfaces>
 <!-- Reference asset (Dorico-valid; Library Manager Import + quarter-sharp PASS verified 2026-04-27) -->
 File: /tmp/Ouaricon-VST3-NoteExpression-v2.doricolib (6,431 bytes, 199 lines)
@@ -115,44 +125,6 @@ NO writes to Dorico auto-discovery directories under v3.
 </context>
 
 <tasks>
-
-<task type="checkpoint:human-verify" gate="non-blocking">
-  <name>Task 0: Wave 0 informational auto-discovery probe (D-08)</name>
-  <files>.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md</files>
-  <read_first>
-    - .planning/phases/25-package-docs/25-CONTEXT.md (D-08 spec)
-    - .planning/phases/25-package-docs/25-FINDING-path-b-validation.md (Path B context)
-    - .planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md (existing Wave 0 log to append into)
-  </read_first>
-  <action>Execute the human-verified Wave 0 informational auto-discovery probe described in <how-to-verify>. The task pauses for the user to perform the probe steps and report PASS/FAIL/SKIPPED via the resume-signal. No autonomous code action is performed by the executor for this task — it only records the result in the verification log file.</action>
-  <what-built>
-    Reference asset already exists at `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B, Dorico-valid). This task does NOT modify production files. It runs a single ~5 min informational probe to inform v1.6 deferred-ideas.
-  </what-built>
-  <how-to-verify>
-    Inform the user that Claude is about to run an informational probe (non-blocking, regardless of outcome the plan continues with explicit-import per D-01). Then have the user run these steps and report back:
-
-    1. Quit Dorico if open: `osascript -e 'quit app "Dorico 6"'` (or close manually)
-    2. Copy the reference asset into Dorico's user expression-map directory:
-       `mkdir -p "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User"`
-       `cp /tmp/Ouaricon-VST3-NoteExpression-v2.doricolib "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/"`
-    3. Launch Dorico 6, open any project that contains an Ouaricon plugin (e.g. O-Lyrica-dev).
-    4. Open Play → Endpoints → click the channel of the Ouaricon plugin → look at the "Expression Map" dropdown.
-    5. Report: does "Ouaricon VST3 Note Expression" appear in the dropdown WITHOUT performing any Library → Library Manager → Import action?
-       - If YES → auto-discovery PASS (informational; logged for v1.6).
-       - If NO → auto-discovery FAIL (expected; explicit import is the v1.5 ship behavior).
-    6. Cleanup (regardless of result):
-       `rm "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/Ouaricon-VST3-NoteExpression-v2.doricolib"`
-
-    Append the result (date, PASS/FAIL, Dorico version, build flavor used) to `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` under a new H2 section `## Wave 0 v3 — Auto-discovery Probe Result`.
-  </how-to-verify>
-  <acceptance_criteria>
-    - `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` contains a new H2 section `## Wave 0 v3 — Auto-discovery Probe Result`
-    - Section records: probe date (YYYY-MM-DD), Dorico version, plugin build flavor, PASS or FAIL verdict, and one-line evidence (e.g., "Map appeared in Endpoints dropdown" or "Map did NOT appear; explicit Library Manager Import required")
-    - Section explicitly states "Informational only — does not affect v3 ship behavior (D-01 ships explicit-import)"
-    - The temporary `.doricolib` was removed from `~/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/` after the probe (verify with `ls`)
-  </acceptance_criteria>
-  <resume-signal>Type "probe-pass", "probe-fail", or "probe-skipped" along with any notes; planner continues regardless.</resume-signal>
-</task>
 
 <task type="auto">
   <name>Task 1: Reauthor canonical .doricolib from factory skeleton + injected ExpressionMapDefinition (D-03)</name>
@@ -370,7 +342,7 @@ NO writes to Dorico auto-discovery directories under v3.
       ! grep -q 'Default Library Additions' modules/tuning/note-expression/install-microtonal-suite.cmake.in && \
       ! grep -q 'DefaultLibraryAdditions' modules/tuning/note-expression/install-microtonal-suite.cmake.in && \
       ! grep -q 'Steinberg/Dorico' modules/tuning/note-expression/install-microtonal-suite.cmake.in && \
-      test "$(grep -c '^[^#]*file(COPY' modules/tuning/note-expression/install-microtonal-suite.cmake.in)" = "2" && \
+      test "$(grep -v '^[[:space:]]*#' modules/tuning/note-expression/install-microtonal-suite.cmake.in | grep -c 'file(COPY')" = "2" && \
       grep -q 'Ouaricon/Microtonal Suite' modules/tuning/note-expression/install-microtonal-suite.cmake.in && \
       grep -q 'SUITE_LIB' modules/tuning/note-expression/install-microtonal-suite.cmake.in
     </automated>
@@ -378,7 +350,7 @@ NO writes to Dorico auto-discovery directories under v3.
   <acceptance_criteria>
     - File does NOT contain strings: `SUITE_PT`, `tar xf`, `Default Library Additions`, `DefaultLibraryAdditions`, `Steinberg/Dorico`, `dorico_pt`
     - File does NOT contain a `foreach(_v` loop (Dorico-version probe absent)
-    - File contains exactly 2 non-comment `file(COPY` lines (one for SUITE_LIB, one for SUITE_README inside `if(EXISTS)`)
+    - File contains exactly 2 non-comment `file(COPY` lines (one for SUITE_LIB, one for SUITE_README inside `if(EXISTS)`) — verified with `grep -v '^[[:space:]]*#' file | grep -c 'file(COPY'` returns 2
     - File contains both `if(APPLE)` (with `~/Library/Application Support/Ouaricon/Microtonal Suite`) and `elseif(WIN32)` (with `$ENV{APPDATA}/Ouaricon/Microtonal Suite`) branches
     - File defines `SUITE_LIB` pointing at `@CMAKE_CURRENT_LIST_DIR@/resources/library/Ouaricon-VST3-NoteExpression.doricolib`
     - File total non-empty non-comment lines is < 25 (sanity: collapsed from ~70 substantive lines down to <25)
@@ -437,7 +409,7 @@ NO writes to Dorico auto-discovery directories under v3.
   </action>
   <verify>
     <automated>
-      ! grep -q 'dorico_pt\|PlaybackTemplateSpecs\|Default Library Additions\|DefaultLibraryAdditions\|auto-discovery\|Playback Template -> Ouaricon' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
+      ! grep -qi 'dorico_pt\|PlaybackTemplateSpecs\|Default Library Additions\|DefaultLibraryAdditions\|auto-discovery\|Playback Template -> Ouaricon' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
       grep -q 'Library Manager.*Import' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
       grep -q 'Ouaricon/Microtonal Suite' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
       grep -q 'O-Lyrica' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
@@ -448,18 +420,20 @@ NO writes to Dorico auto-discovery directories under v3.
       grep -q 'O-Reed' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
       grep -q 'O-Bowed' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
       grep -q 'O-Formant' modules/tuning/note-expression/resources/README-microtonal-suite.txt && \
+      ! grep -qi 'auto-discovery' modules/tuning/note-expression/README.md && \
       ! grep -q 'dorico_pt\|PlaybackTemplateSpecs\|Default Library Additions\|DefaultLibraryAdditions' modules/tuning/note-expression/README.md && \
       grep -q 'Library Manager' modules/tuning/note-expression/README.md && \
       grep -q 'kVST3NoteExpression' modules/tuning/note-expression/README.md
     </automated>
   </verify>
   <acceptance_criteria>
-    - `README-microtonal-suite.txt` does NOT contain strings: `dorico_pt`, `PlaybackTemplateSpecs`, `Default Library Additions`, `DefaultLibraryAdditions`, `auto-discovery` (case-insensitive), `Playback Template`
+    - `README-microtonal-suite.txt` does NOT contain strings (case-insensitive): `dorico_pt`, `PlaybackTemplateSpecs`, `Default Library Additions`, `DefaultLibraryAdditions`, `auto-discovery`, `Playback Template`
     - `README-microtonal-suite.txt` contains string `Library Manager` and `Import…` (or `Import...`)
     - `README-microtonal-suite.txt` contains both install paths: `~/Library/Application Support/Ouaricon/Microtonal Suite/` AND `%APPDATA%\Ouaricon\Microtonal Suite\`
     - `README-microtonal-suite.txt` lists all 8 cohort plugin names: O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant
     - `README-microtonal-suite.txt` contains 6 H1-style section headers (PURPOSE, INSTALL LOCATIONS, MANUAL IMPORT, SOURCE OF TRUTH, SUPPORTED PLUGINS, plus title)
     - `modules/tuning/note-expression/README.md` does NOT contain `dorico_pt`, `PlaybackTemplateSpecs`, `Default Library Additions`, `DefaultLibraryAdditions`
+    - **`modules/tuning/note-expression/README.md` does NOT contain string `auto-discovery` (case-insensitive — verifies the Path A subsection title was actually replaced; gate against silent residue):** `! grep -qi 'auto-discovery' modules/tuning/note-expression/README.md`
     - `modules/tuning/note-expression/README.md` contains string `Library Manager`
     - `modules/tuning/note-expression/README.md` preserves the "Underlying mechanics" paragraph mentioning `kVST3NoteExpression` (verify presence; this technical-mechanics paragraph survives the rewrite)
     - `modules/tuning/note-expression/README.md` contains a section heading containing both `Path B` and `Dorico End-User Setup`
@@ -471,20 +445,57 @@ NO writes to Dorico auto-discovery directories under v3.
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
-  <name>Task 5: O-Lyrica canary install + Library Manager Import + quarter-sharp smoke test</name>
+  <name>Task 5: O-Lyrica canary install + Library Manager Import + quarter-sharp smoke test (with pre-canary informational auto-discovery probe)</name>
   <files>.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md</files>
   <read_first>
     - CLAUDE.md (Plugin Cache Clearing protocol — mandatory before AU smoke; rebuild + fresh-install procedure)
-    - .planning/phases/25-package-docs/25-CONTEXT.md (D-08 cross-platform validation gate; canary on O-Lyrica per Phase 23 precedent)
+    - .planning/phases/25-package-docs/25-CONTEXT.md (D-08 cross-platform validation gate; canary on O-Lyrica per Phase 23 precedent; v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas))
     - .planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md (existing verification log to append into)
     - modules/tuning/note-expression/install-microtonal-suite.cmake.in (single-write target; verify the file ends up at the documented Ouaricon shared path)
   </read_first>
-  <action>Execute the human-verified O-Lyrica canary install + Library Manager Import + quarter-sharp smoke procedure described in <how-to-verify>. The task pauses for the user to run the 6 steps and report verdict via the resume-signal. No autonomous code action is performed by the executor for this task — it records results in the verification log file.</action>
+  <action>Execute the human-verified flow described in <how-to-verify>: a non-blocking informational auto-discovery probe (Pre-Canary Step) feeds v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas) regardless of outcome, then the blocking O-Lyrica canary install + Library Manager Import + quarter-sharp smoke procedure runs. Both occur on the same dev machine in the same checkpoint context. The task pauses for the user to perform the steps and report verdicts via the resume-signal. No autonomous code action is performed by the executor for this task — it records results in the verification log file.</action>
   <what-built>
     Tasks 1-4 produced: a Dorico-valid `.doricolib`, surgically clean module/CMake state with no Path A residue, and a single-write install script. This checkpoint exercises the end-to-end pipeline by building O-Lyrica, running `cmake --install` to land the asset at the Ouaricon shared path, then proves the full user flow in Dorico.
+
+    Before the canary, a 5-min informational probe (folded in from former Task 0) checks Dorico's auto-discovery behavior with the reference `.doricolib`. The probe outcome does NOT gate anything — D-01 ships explicit-import regardless. Folding the probe into this checkpoint avoids a separate Wave 0 task while preserving the v1.6 deferred-ideas evidence chain (per D-08 carry-forward).
   </what-built>
   <how-to-verify>
-    Run on the dev machine (macOS Dorico 6 / O-Lyrica-dev). Append all results to `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` under a new H2 section `## Plan 25-01 v3 Canary — O-Lyrica Path B End-to-End`.
+    Run on the dev machine (macOS Dorico 6 / O-Lyrica-dev). Append all results to `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md`.
+
+    ---
+
+    ### Pre-Canary Step: Informational auto-discovery probe (D-08; non-blocking)
+
+    Run this FIRST, before the canary build/install. The probe is informational only — it does NOT gate the canary or the v1.5 ship behavior. Its outcome is logged for v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas).
+
+    Append the probe result (date, PASS/FAIL/SKIPPED, Dorico version, build flavor) to a new H2 section `## Wave 0 v3 — Auto-discovery Probe Result` in `25-01-WAVE-0-VERIFICATION.md`.
+
+    1. Quit Dorico if open: `osascript -e 'quit app "Dorico 6"'` (or close manually)
+    2. Copy the reference asset into Dorico's user expression-map directory:
+       `mkdir -p "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User"`
+       `cp /tmp/Ouaricon-VST3-NoteExpression-v2.doricolib "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/"`
+    3. Launch Dorico 6, open any project that contains an Ouaricon plugin (e.g. O-Lyrica-dev).
+    4. Open Play → Endpoints → click the channel of the Ouaricon plugin → look at the "Expression Map" dropdown.
+    5. Report: does "Ouaricon VST3 Note Expression" appear in the dropdown WITHOUT performing any Library → Library Manager → Import action?
+       - If YES → auto-discovery PASS (informational; logged for v1.6).
+       - If NO → auto-discovery FAIL (expected; explicit import is the v1.5 ship behavior).
+       - If skipped (Dorico 6 not currently installed / dev machine constraint) → SKIPPED is acceptable; record reason.
+    6. Cleanup (regardless of result):
+       `rm "$HOME/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/Ouaricon-VST3-NoteExpression-v2.doricolib"`
+
+    Mandatory log fields under `## Wave 0 v3 — Auto-discovery Probe Result`:
+    - Probe date (YYYY-MM-DD), Dorico version, plugin build flavor
+    - Verdict: PASS / FAIL / SKIPPED + one-line evidence
+    - Statement: "Informational only — does not affect v3 ship behavior (D-01 ships explicit-import). Result logged for v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas)."
+    - `ls` output confirming the temporary `.doricolib` was removed from `~/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/`
+
+    Probe outcome (PASS / FAIL / SKIPPED) MUST NOT block the canary. Continue to canary regardless.
+
+    ---
+
+    ### Blocking Canary: O-Lyrica end-to-end Path B install
+
+    Append all results to a new H2 section `## Plan 25-01 v3 Canary — O-Lyrica Path B End-to-End` in the same verification log file.
 
     **Step 1 — Configure + build O-Lyrica:**
     ```bash
@@ -542,17 +553,24 @@ NO writes to Dorico auto-discovery directories under v3.
     - Verdict: PASS or FAIL
   </how-to-verify>
   <acceptance_criteria>
-    - `ninja OLyrica_VST3 OLyrica_AU` exits 0
-    - `cmake --install . --component ouaricon_note_expression_OLyrica` exits 0 and prints a STATUS line containing `Microtonal Suite installed`
-    - `~/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib` exists with size 6431 bytes (`stat -f%z` matches)
-    - `~/Library/Application Support/Ouaricon/Microtonal Suite/README-microtonal-suite.txt` exists
-    - Dorico 6 Library Manager Import of the canonical `.doricolib` reports SUCCESS (NOT "Error opening file: invalid file format")
-    - Dorico's `Play → Endpoints → Expression Map` dropdown contains "Ouaricon VST3 Note Expression" after import
-    - Quarter-sharp C4 plays at ~269 Hz (within ±2 Hz tolerance) when O-Lyrica-dev's channel has the expression map assigned
-    - No attack zipper at note onset (subjective; record observation)
-    - `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` contains a new H2 section `## Plan 25-01 v3 Canary — O-Lyrica Path B End-to-End` with all 6 step results recorded and a final `Verdict: PASS` line
+    - **Pre-canary informational probe (non-blocking):**
+      - `25-01-WAVE-0-VERIFICATION.md` contains a new H2 section `## Wave 0 v3 — Auto-discovery Probe Result`
+      - Section records: probe date (YYYY-MM-DD), Dorico version, plugin build flavor, verdict (PASS / FAIL / SKIPPED), and one-line evidence
+      - Section explicitly states "Informational only — does not affect v3 ship behavior (D-01 ships explicit-import). Result logged for v1.6 deferred-ideas (per D-08 carry-forward + CONTEXT.md ## Deferred Ideas)."
+      - The temporary `.doricolib` was removed from `~/Library/Application Support/Steinberg/Dorico 6/Expression Maps/User/` after the probe (verified via `ls` line in the log)
+      - **Probe verdict (PASS / FAIL / SKIPPED) does NOT gate the canary** — recorded for evidence only
+    - **Blocking canary:**
+      - `ninja OLyrica_VST3 OLyrica_AU` exits 0
+      - `cmake --install . --component ouaricon_note_expression_OLyrica` exits 0 and prints a STATUS line containing `Microtonal Suite installed`
+      - `~/Library/Application Support/Ouaricon/Microtonal Suite/Ouaricon-VST3-NoteExpression.doricolib` exists with size 6431 bytes (`stat -f%z` matches)
+      - `~/Library/Application Support/Ouaricon/Microtonal Suite/README-microtonal-suite.txt` exists
+      - Dorico 6 Library Manager Import of the canonical `.doricolib` reports SUCCESS (NOT "Error opening file: invalid file format")
+      - Dorico's `Play → Endpoints → Expression Map` dropdown contains "Ouaricon VST3 Note Expression" after import
+      - Quarter-sharp C4 plays at ~269 Hz (within ±2 Hz tolerance) when O-Lyrica-dev's channel has the expression map assigned
+      - No attack zipper at note onset (subjective; record observation)
+      - `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` contains a new H2 section `## Plan 25-01 v3 Canary — O-Lyrica Path B End-to-End` with all 6 step results recorded and a final `Verdict: PASS` line
   </acceptance_criteria>
-  <resume-signal>Type "canary-pass" to advance Plan 25-02; "canary-fail" to escalate to a 25-01-canary-FAIL-fix-PLAN.md per D-11; or describe specific issues for in-plan triage.</resume-signal>
+  <resume-signal>Type "canary-pass" to advance Plan 25-02; "canary-fail" to escalate to a 25-01-canary-FAIL-fix-PLAN.md per D-11; or describe specific issues for in-plan triage. The pre-canary probe verdict (probe-pass / probe-fail / probe-skipped) is recorded in the log but does NOT affect the canary resume-signal.</resume-signal>
 </task>
 
 </tasks>
@@ -586,18 +604,19 @@ NO writes to Dorico auto-discovery directories under v3.
 - `xmllint --noout` on the canonical `.doricolib` exits 0
 - `xmllint --xpath 'count(/kScoreLibrary/*)'` returns `48`
 - No Path A strings (`dorico_pt`, `tar cf`, `Default Library Additions`, `DefaultLibraryAdditions`, `ouaricon_extract_vst3_cids`, `DORICO_PT_STAGE`, `ouaricon_microtonal_suite_pt`) remain in `modules/tuning/note-expression/module.cmake`, `modules/cmake/OuariconModules.cmake`, `modules/tuning/note-expression/install-microtonal-suite.cmake.in`, `modules/tuning/note-expression/README.md`, `modules/tuning/note-expression/resources/README-microtonal-suite.txt`
+- Module README does NOT contain `auto-discovery` (case-insensitive) — verifies Path A subsection title was actually replaced
 - Directory `modules/tuning/note-expression/resources/playback-template/` does not exist
 - O-Lyrica canary: build PASS, cmake --install PASS, Library Manager Import PASS, quarter-sharp ~269 Hz PASS
-- Wave 0 informational auto-discovery probe result is logged (PASS/FAIL/SKIPPED, all acceptable)
+- Wave 0 informational auto-discovery probe result is logged (PASS/FAIL/SKIPPED, all acceptable; non-blocking; recorded for v1.6 deferred-ideas (per D-08 carry-forward))
 </verification>
 
 <success_criteria>
 1. Canonical `.doricolib` exists at `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib`, byte-identical to the verified `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` reference, contains the load-bearing entityID and microtonalPlaybackMethod values, and is XML-well-formed with 48 top-level `<kScoreLibrary>` children.
 2. All Path A artifacts deleted: `playback-template/` subtree, `ouaricon_extract_vst3_cids` helper, `.dorico_pt` packing in `module.cmake`, dual-write logic in `install-microtonal-suite.cmake.in`. Verified by grep returning zero matches for each banned string.
 3. `module.cmake` lines 1-41 byte-identical to pre-edit (JUCE-NE-PATCH preserved); collapsed Microtonal Suite block is configure_file + install(SCRIPT) only.
-4. Module README and user-facing fallback README describe Path B's Library Manager Import flow; no Path A residue.
+4. Module README and user-facing fallback README describe Path B's Library Manager Import flow; no Path A residue (including no `auto-discovery` substring case-insensitive).
 5. O-Lyrica canary install end-to-end PASS: build, install, Library Manager Import, quarter-sharp ~269 Hz, all logged in `25-01-WAVE-0-VERIFICATION.md` with `Verdict: PASS`.
-6. Wave 0 informational auto-discovery probe result is appended to the verification log (any verdict acceptable; result feeds v1.6 deferred-ideas per D-08 carry-forward note).
+6. Wave 0 informational auto-discovery probe result is appended to the verification log (any verdict acceptable; non-blocking; result feeds v1.6 deferred-ideas per D-08 carry-forward note).
 </success_criteria>
 
 <output>
@@ -606,7 +625,9 @@ After completion, create `.planning/phases/25-package-docs/25-01-SUMMARY.md` (ov
 - Reauthored canonical `.doricolib` provenance (factory skeleton + recovered ExpressionMapDefinition; byte-identical to verified reference)
 - Single-write install collapse rationale (D-07; v1.6 revival reference)
 - Canary install result (PASS/FAIL with full step trace)
-- Wave 0 auto-discovery probe result (PASS/FAIL; informational)
+- Wave 0 auto-discovery probe result (PASS/FAIL/SKIPPED; informational; non-blocking)
 - Per-task commits list
 )
 </output>
+</content>
+</invoke>
