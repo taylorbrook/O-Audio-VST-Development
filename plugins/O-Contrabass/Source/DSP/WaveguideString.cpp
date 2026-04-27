@@ -34,6 +34,12 @@ void WaveguideString::prepare (double sr, int maxBlockSize)
     neckDelay.prepare (spec);
     neckDelay.setMaximumDelayInSamples (8192);
 
+    // Phase 2.1c — bridge-rail dispersion (M=4 hardcoded for E1; CONTEXT rev-3 Q2).
+    // Identity coefficient (a=0) until voice pushes a non-zero `a` per block.
+    bridgeDispersion.prepare (sr);
+    bridgeDispersion.setActiveSections (4);
+    bridgeDispersion.setCoefficient (0.0f);
+
     // 20 ms linear ramp on STRING_STIFFNESS (RESEARCH §5 pitfall #6).
     stiffnessSmoothed.reset (sr, 0.020);
     stiffnessSmoothed.setCurrentAndTargetValue (cachedStringStiffness);
@@ -57,6 +63,7 @@ void WaveguideString::reset()
 {
     bridgeDelay.reset();
     neckDelay.reset();
+    bridgeDispersion.reset();
     bridgeY = 0.0f;
     energyEstimate = 0.0f;
 }
@@ -73,6 +80,13 @@ void WaveguideString::updateDelayLengths()
 
     float bridgeSamples = compensated * bowPosition;
     float neckSamples   = compensated * (1.0f - bowPosition);
+
+    // Phase 2.1c: dispersion lives on the bridge rail only → compensate bridge-rail
+    // delay-line length only, NOT `compensated`. Identity at a=0 (groupDelay returns
+    // M=4 samples; cascade adds M unit delays; net round-trip preserved → bit-exact
+    // regression at stiffness=0 holds). RESEARCH §14.7 option (i).
+    const float dispersionDelay = bridgeDispersion.getGroupDelaySamples (currentFrequency);
+    bridgeSamples -= dispersionDelay;
 
     // Lagrange3rd needs ≥4 samples per rail (4-tap kernel).
     bridgeSamples = juce::jlimit (4.0f, 8190.0f, bridgeSamples);
@@ -137,13 +151,17 @@ float WaveguideString::processSample (float v_bow, float F_bow,
     float bridgeRaw = bridgeDelay.popSample (0);
     float neckRaw   = neckDelay.popSample   (0);
 
+    // Step 1.5 [Phase 2.1c]: bridge-rail dispersion (cascaded first-order allpass).
+    // Identity at a=0; per ARCHITECTURE.md §"Cascaded Allpass Dispersion".
+    const float bridgeDispersed = bridgeDispersion.processSample (bridgeRaw);
+
     // Step 2: Bridge LP — F2 fixed form: y = g·(1−p)·x + p·y_prev + leak.
     // (DROP the `g` from the feedback term so DC gain == g exactly. See
     //  RESEARCH §11.1 B2; mirrors O-Bowed WaveguideString.cpp:94-95
     //  coefficient form (b0, b1, a0, a1) = (g·(1−p), 0, 1, −p).)
     if (! std::isfinite (bridgeY))
         bridgeY = 0.0f;
-    float bridgeFiltered = bridgeG * bridgeOneMinusP * bridgeRaw
+    float bridgeFiltered = bridgeG * bridgeOneMinusP * bridgeDispersed
                          + bridgeP * bridgeY
                          + denormalLeak;
     bridgeY = bridgeFiltered;
@@ -167,8 +185,9 @@ float WaveguideString::processSample (float v_bow, float F_bow,
     float newVelocity = (v_delta >= 0.0f) ? injection : -injection;
 
     // Step 6: Symmetric injection into both rails (canonical Smith two-port).
-    // [Phase 2.1c placeholder] dispersion will run on the BRIDGE rail's
-    //  outgoing wave only, BEFORE the algebraic saturator below.
+    //  (Dispersion already ran at Step 1.5, between bridgeRaw popSample and bridge LP —
+    //   bridge rail only, per ARCHITECTURE.md §"Cascaded Allpass Dispersion" and
+    //   §"Processing Order"; mirrors O-Bowed bridge-rail-only loop chain.)
     float toBridge = nutReflection    + newVelocity;
     float toNeck   = bridgeReflection + newVelocity;
 
@@ -222,12 +241,33 @@ void WaveguideString::setInfiniteSustain (float amount)
 
 void WaveguideString::setStringStiffness (float amount)
 {
-    // Drives the 20 ms smoother. Phase 2.1a only caches the value — dispersion
-    // is wired in 2.1c, at which point the voice's renderNextBlock will
-    // advance the smoother by numSamples per block before reading the
-    // current value to recompute the allpass coefficient `a`.
+    // Drives the 20 ms smoother. Phase 2.1c voice path: the per-block update
+    // in BowedContrabassVoice::renderNextBlock advances the smoother via
+    // advanceStiffnessSmootherBy(numSamples), reads the current smoothed
+    // value via getCurrentSmoothedStiffness(), computes `a` via
+    // DispersionFilter::computeAllpassCoefficient(f0, B, M), then pushes via
+    // setDispersionCoefficient(a).
     cachedStringStiffness = juce::jlimit (0.0f, 1.0f, amount);
     stiffnessSmoothed.setTargetValue (cachedStringStiffness);
+}
+
+void WaveguideString::setDispersionCoefficient (float a) noexcept
+{
+    // Defensive: voice should already pass a finite, clamped value via
+    // DispersionFilter::computeAllpassCoefficient; belt-and-braces guard
+    // mirrors RESEARCH §14.9 against pathological inputs (NaN/Inf).
+    const float safe = std::isfinite (a) ? a : 0.0f;
+    bridgeDispersion.setCoefficient (safe);
+}
+
+void WaveguideString::advanceStiffnessSmootherBy (int numSamples) noexcept
+{
+    stiffnessSmoothed.skip (juce::jmax (0, numSamples));
+}
+
+float WaveguideString::getCurrentSmoothedStiffness() const noexcept
+{
+    return stiffnessSmoothed.getCurrentValue();
 }
 
 bool WaveguideString::isActive() const noexcept

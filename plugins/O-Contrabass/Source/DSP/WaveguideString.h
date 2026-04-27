@@ -35,10 +35,12 @@
     - Defensive recovery: if (!std::isfinite(state)) state = 0.0f at the
       bridge LP entry (RESEARCH §5 pitfall #9).
     - Per-sample bridge-rail loop order (HARD CONTRACT):
-          [Phase 2.1c: dispersion] → bridge LP → −1 boundary → sum at bow
+          dispersion → bridge LP → −1 boundary → sum at bow
           → friction injection → in-loop saturator (per rail) → delay write.
-      Phase 2.1a omits dispersion; placeholder lives at the friction-write
-      boundary (lands in Phase 2.1c on the bridge rail only).
+      Phase 2.1c: dispersion runs on the bridge rail between popSample and
+      bridge LP. Mirrors O-Bowed bridge-rail-only chain. Per
+      ARCHITECTURE.md §"Cascaded Allpass Dispersion" + §"Processing Order"
+      and RESEARCH §14.4.
     - Sign convention (HARD CONTRACT, RESEARCH §11.4):
           bridgeReflection = -bridgeFiltered  (LP, then −1 boundary)
           nutReflection    = -neckRaw         (rigid nut, no LP)
@@ -54,6 +56,7 @@
 
 #pragma once
 #include <juce_dsp/juce_dsp.h>
+#include "DispersionFilter.h"
 
 class HyperbolicFriction;
 
@@ -78,6 +81,14 @@ public:
     void setInfiniteSustain (float amount);    // 0.0 - 1.0
     void setStringStiffness (float amount);    // 0.0 - 1.0 (drives smoother; dispersion lands in 2.1c)
 
+    // Phase 2.1c — dispersion plumbing. Voice computes `a` from (f0, B, M)
+    // once per block and pushes it here; voice also drives the smoother by
+    // calling `advanceStiffnessSmootherBy(numSamples)` then reading the
+    // current value via `getCurrentSmoothedStiffness()`.
+    void setDispersionCoefficient (float a) noexcept;
+    void advanceStiffnessSmootherBy (int numSamples) noexcept;
+    float getCurrentSmoothedStiffness() const noexcept;
+
     // Per-sample total-delay setter — Lagrange3rd is stateless, so this is
     // safe to call mid-stream. Internally splits via bowPosition and updates
     // both rails (used by vibrato/detune ramps in Phase 2.2/2.3).
@@ -94,9 +105,17 @@ private:
     float brightnessHz = 4500.0f;
     float infiniteSustain = 0.0f;
 
+    // Phase 2.1c bridge-rail dispersion. M=4 hardcoded for E1 (Phase 2.2 will
+    // extend per-string M=4/3/2/1 via DispersionFilter::setActiveSections).
+    // Placed BEFORE the stiffness smoother so the init-order in prepare() is
+    // dispersion → smoother → bridge filter coeffs.
+    DispersionFilter<4> bridgeDispersion;
+
     // Stiffness smoothing (20 ms linear). Dispersion 'a' coefficient is
-    // computed from this in Phase 2.1c; for now we simply cache the smoothed
-    // value so the per-block update path is in place.
+    // computed from this in Phase 2.1c via voice-side per-block path:
+    //  voice → advanceStiffnessSmootherBy(N) → getCurrentSmoothedStiffness()
+    //        → DispersionFilter::computeAllpassCoefficient(f0, B, M)
+    //        → setDispersionCoefficient(a).
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> stiffnessSmoothed;
     float cachedStringStiffness = 0.30f;
 

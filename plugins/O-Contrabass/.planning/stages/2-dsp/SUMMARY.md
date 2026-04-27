@@ -1,72 +1,192 @@
-# Stage 2 / Phase 2.1a-recovery — Execute SUMMARY (rev-3)
+# Stage 2 / Phase 2.1b — Execute SUMMARY (Module Extraction, Gate 2)
 
-**Date:** 2026-04-26
-**Plugin:** O-Contrabass
-**Stage:** 2 of 4 (DSP) — Phase 2.1 cycle (gate-first)
+**Date:** 2026-04-27
+**Plugin:** O-Contrabass (+ O-Bowed as co-consumer)
+**Stage:** 2 of 4 (DSP) — Phase 2.1 cycle
 **Phase:** execute
-**Cycle scope:** Phase 2.1a-recovery (R1–R5)
-**Plan:** PLAN.md rev-3 (F1+F2+F3+F4 coupled fix)
-**Outcome:** **PARTIAL PASS — Gate 1 invariants met under bow-on validation; standard harness ratio test fails (saturator nonlinearity at low amplitude during 5 s post-bow-off tail).** R7 commit deferred pending user decision on PLAN rev-3 R5 pass-bar.
+**Cycle scope:** Phase 2.1b (R8–R15) — extract `HyperbolicFriction` + `BowModel` into shared module, switch both consumers in atomic commit on Gate 2 PASS
+**Plan:** PLAN.md rev-4 (R8–R15 + R8a)
+**Outcome:** **PASS — Gate 2 cleared bit-exact; both plugins re-validated; atomic R15 commit landed (`ef0604d`).**
 
 ---
 
 ## Executive Summary
 
-Rev-3 applied F1 (split-rail), F2 (bridge LP DC-gain fix), F3 (in-loop DCB removal), and F4 (drop voice-side `betaScale` fudge) as a single coupled change per RESEARCH §11. All four were implemented and the build is clean.
+Phase 2.1b extracted the `HyperbolicFriction` (header-only, 55+2 LOC) and `BowModel` (51 LOC header + 97 LOC cpp) classes from `plugins/O-Bowed/Source/DSP/` into a new shared module `modules/synthesis/bow-friction/` v1.0.0. Both O-Bowed (treble defaults verbatim) and O-Contrabass (bass defaults via setter API in `prepareToPlay`) now consume the module. Inline copies in both plugins were deleted in the same atomic commit (R15 = `ef0604d`), eliminating the flag-day window where one plugin could consume the module while the other had a stale inline copy.
 
-The DSP fix worked: **the string now bootstraps Helmholtz oscillation** (rmsMid_s5_s6 = 0.0353, well above the rev-3 floor of 1e-3 and within the lower edge of the expected 0.05–0.20 band; previously 2.23e-8) and **sustains stably for 65 seconds with the bow on at INFINITE_SUSTAIN=1.0** (rmsRatio = 1.04, all four invariants TRUE on a bow-on-only render).
+Gate 2's bit-exact regression bar (R14c) was met **byte-for-byte**: the post-extraction O-Bowed canonical-preset render (A4 vel 0.7, 5 s, factory defaults, 24-bit PCM stereo) is byte-identical to the pre-extraction render captured at the R8a harness commit. The sha256 hash matches across both:
 
-The standard rev-3 harness call (`--sustain 60 --release 5`) shows `pass_rms = false` because `rmsFinal_lastSecond` is measured 4–5 s **after** bow-off, where the in-loop algebraic saturator `x/sqrt(1+x²)` (ARCHITECTURE-mandated, RESEARCH §1.3) loses approximately `x²/2` per pass at small amplitudes. With per-rail saturation × 2 passes per round-trip × 41.2 round-trips/s, free-decay rate is ≈ 10 %/s, dropping rms by ≈ 64 % over 4 s of bow-off — exactly what the JSON shows.
+```
+93124fb8dd8223caafac5948c988a226230363d79a17323d386e9a1db34c8891
+```
 
-This is **not a bootstrapping failure, not a B1/B2/B3 regression, not a transcription bug.** It is a phenomenon the rev-3 PLAN's pass-bar did not anticipate: the standard `--release 5` harness call measures decay during the bow-off tail, not the sustained-state region the rev-3 fixes were designed to demonstrate. R6 (V2 instrumentation hook) is not invoked because the failure mode is already understood and analytically explained.
+R14d also passed bit-exact: O-Contrabass's bow-on-only 65 s @ INFINITE_SUSTAIN=1.0 reference render (`/tmp/e1-bowon-only.wav`, captured during Phase 2.1a-recovery verify) is **WAV byte-identical** to the post-extraction render. JSON DSP invariants are byte-identical too — the only JSON deltas are non-DSP metadata (`blockMicros_*` wall-clock timing across runs, `outputWav` filename argument). The split-rail F1+F2+F3+F4 topology survives the extraction unchanged.
 
-Per the user-preference for stability + non-band-aid responses (CLAUDE.md), R5 is reported as **gate-1-partial** (3/4 strict harness invariants + 4/4 bow-on validation + auval/pluginval pass) and R7 commit is **paused** for user decision on three options:
+Both plugins re-validated clean at strictness-level 10:
+- O-Bowed: `auval -v aumu OBwd OuDv` SUCCEEDED + pluginval-10 SUCCESS
+- O-Contrabass: `auval -v aumu OCbs OuDv` SUCCEEDED + pluginval-10 SUCCESS
 
-1. **Accept Gate 1 PASS on bow-on validation** (rev-3 demonstrably retired the topology + LP + DCB risks; saturator-tail decay is a separate, lower-priority phenomenon to characterise in Phase 2.4 if it surfaces in the 108-combo matrix).
-2. **Tighten R5 pass-bar wording** in PLAN rev-3 to specify "rmsRatio measured during bow-on sustained region" (small PLAN edit; aligns the test with what rev-3 was designed to prove).
-3. **Investigate saturator dissipation further** (e.g., document the low-amplitude cubic-loss derivation in RESEARCH; verify against O-Bowed's `4·tanh(x/4)` baseline to see whether O-Bowed has the same ~10 %/s free-decay rate).
-
-The user-selected option drives whether R7 commits the rev-3 fixes verbatim, with a tightened test description, or with a follow-up.
+Two atomic commits landed: **R8a** (`bd5fae0`) for harness scaffolding only, **R15** (`ef0604d`) for the module + both plugin switches + registry update. The two-commit split (vs. one) ensures the harness tooling can be reviewed independently from the semantic source-of-truth migration.
 
 ---
 
 ## What Changed
 
-| File | Change | Net LOC |
-|---|---|---|
-| `plugins/O-Contrabass/Source/DSP/WaveguideString.h` | F1: replace single `delayLine{8192}` with `bridgeDelay{8192}` + `neckDelay{8192}` (both Lagrange3rd). F3: drop `dcX1`, `dcY1`, `kDCBlockerR` members. Rename `updateDelayLength()` → `updateDelayLengths()`. Doc-block rewritten for split-rail topology, F2-corrected LP form, and F3 deviation rationale. | +6 / −5 (≈ +1) |
-| `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` | F1: split-rail rewrite of `processSample`, `updateDelayLengths`, `prepare`, `reset`, `setBowPosition`, `setDelaySamples` mirroring O-Bowed's canonical Smith two-port scattering with O-Contrabass's algebraic saturator and bridge-rail-only loop chain. F2: bridge LP recurrence rewritten as `y = g·(1−p)·x + p·y_prev + leak` (drop `g` from feedback; DC gain = `g` exactly). F3: in-loop DCB block removed entirely (`dcX1`/`dcY1`/`kDCBlockerR` references gone from `processSample` and `reset`). | +50 / −68 (net ≈ −18; deletion of DCB and stale single-rail comments outweighs split-rail addition) |
-| `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` | F4: drop `betaScale → frictionModel.setStringImpedance` block at lines 223–229. `frictionModel.setStringImpedance` left at default `R_s = 0.5`; `waveguideString.setBowPosition(effectivePosition)` retained (now drives the real split-rail β split via `updateDelayLengths`). | −7 |
+### Module (NEW — first entry under `modules/synthesis/`)
 
-**Files NOT modified:** `BowModel.{h,cpp}`, `HyperbolicFriction.h`, `OContrabassMPESynthesiser.h`, `PluginProcessor.{h,cpp}`, `tests/render-harness/main.cpp`, `tests/render-harness/CMakeLists.txt`, `CMakeLists.txt`. The render-harness re-runs unchanged.
+| File | Lines |
+|---|---|
+| `modules/synthesis/bow-friction/module.yaml` | ~60 |
+| `modules/synthesis/bow-friction/README.md` | ~95 |
+| `modules/synthesis/bow-friction/cpp/HyperbolicFriction.h` | 64 (55 + 2 setters + file-header re-attribution + setter doc) |
+| `modules/synthesis/bow-friction/cpp/BowModel.h` | 55 (51 + file-header re-attribution) |
+| `modules/synthesis/bow-friction/cpp/BowModel.cpp` | 100 (97 + file-header re-attribution) |
 
-**Working tree (post-execute):** F1+F2+F3+F4 applied; no V2 instrumentation (R6 NOT invoked); no R7 commit yet.
+### Registry (MODIFIED)
 
-**Sign-convention contract verified by inspection** against RESEARCH §11.4 sketch and O-Bowed `WaveguideString.cpp:108`:
+| File | Change |
+|---|---|
+| `modules/registry.yaml` | Append `bow-friction` v1.0.0 entry under new `# SYNTHESIS MODULES` section. `used_by` lists O-Bowed 1.3.0 + O-Contrabass 1.0.0. |
 
-```
-bridgeRaw = bridgeDelay.popSample(0)              // pop both rails
-neckRaw   = neckDelay.popSample(0)
-bridgeFiltered = g(1-p)·bridgeRaw + p·bridgeY + leak   // F2 fixed LP, DC gain = g
-bridgeReflection = -bridgeFiltered                  // -1 boundary AFTER LP
-nutReflection    = -neckRaw                         // -1 boundary, no LP
-v_string_incoming = bridgeReflection + nutReflection // sum at bow point
-v_delta = v_bow - v_string_incoming
-[friction]                                          // newVelocity from rho
-toBridge = nutReflection    + newVelocity           // symmetric injection
-toNeck   = bridgeReflection + newVelocity
-toBridge = toBridge / sqrt(1+toBridge²)             // per-rail saturator
-toNeck   = toNeck   / sqrt(1+toNeck²)
-bridgeDelay.pushSample(0, toBridge)
-neckDelay.pushSample(0, toNeck)
-return toBridge                                     // output at bridge end
-```
+### O-Bowed (MODIFIED + DELETED)
 
-No in-loop DCB. No `betaScale` fudge in voice. Sign convention matches the canonical O-Bowed loop with O-Contrabass's algebraic-saturator substitution.
+| File | Change |
+|---|---|
+| `plugins/O-Bowed/CMakeLists.txt` | Drop 3 `target_sources` lines (`Source/DSP/{HyperbolicFriction.h, BowModel.{h,cpp}}`) + add `ouaricon_add_module(O-Bowed bow-friction)` after the `note-expression` line. |
+| `plugins/O-Bowed/Source/BowedStringVoice.h` | 2 include path edits: `"DSP/BowModel.h"` → `"BowModel.h"`, `"DSP/HyperbolicFriction.h"` → `"HyperbolicFriction.h"`. |
+| `plugins/O-Bowed/Source/DSP/HyperbolicFriction.h` | DELETED (now lives in module) |
+| `plugins/O-Bowed/Source/DSP/BowModel.h` | DELETED (now lives in module) |
+| `plugins/O-Bowed/Source/DSP/BowModel.cpp` | DELETED (now lives in module) |
+| `plugins/O-Bowed/tests/render-harness/CMakeLists.txt` | Drop `BowModel.cpp` reach-back; add `ouaricon_add_module(O-Bowed-render-test bow-friction)` at end. |
+
+### O-Contrabass (MODIFIED + DELETED)
+
+| File | Change |
+|---|---|
+| `plugins/O-Contrabass/CMakeLists.txt` | Drop `Source/DSP/BowModel.cpp` from `target_sources` + add `ouaricon_add_module(O-Contrabass bow-friction)` after the `note-expression` line. Comment block updated to reference the module. |
+| `plugins/O-Contrabass/Source/BowedContrabassVoice.h` | 2 include path edits (same pattern as O-Bowed). |
+| `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` | +5 LOC (comment + 2 setter calls) at end of `prepareToPlay`: `frictionModel.setStaticFrictionCoefficient(0.85f)` and `setDynamicFrictionCoefficient(0.25f)`, ordered after `bowModel.prepare(...)` and before any audio activity. |
+| `plugins/O-Contrabass/Source/DSP/HyperbolicFriction.h` | DELETED |
+| `plugins/O-Contrabass/Source/DSP/BowModel.h` | DELETED |
+| `plugins/O-Contrabass/Source/DSP/BowModel.cpp` | DELETED |
+| `plugins/O-Contrabass/tests/render-harness/CMakeLists.txt` | Drop `BowModel.cpp` reach-back; add `ouaricon_add_module(O-Contrabass-render-test bow-friction)` at end. |
+
+### Harness Scaffolding (NEW — landed at R8a, separate from R15)
+
+| File | Status |
+|---|---|
+| `plugins/O-Bowed/tests/render-harness/CMakeLists.txt` | NEW |
+| `plugins/O-Bowed/tests/render-harness/main.cpp` | NEW |
+| `plugins/O-Bowed/tests/render-harness/golden/canonical-preset.json` | NEW (JSON metadata audit trail) |
+| `plugins/O-Bowed/tests/render-harness/golden/canonical-preset.wav.sha256` | NEW (audit-trail hash) |
+| `plugins/O-Bowed/CMakeLists.txt` | MODIFIED (append `option(OUARICON_BUILD_TESTS …)` + `add_subdirectory(tests/render-harness)`) |
+
+The R8a harness CMake also pulls `O-Bowed_UIResources` and `note-expression` SharedCode into the link line (PluginEditor BinaryData and PluginProcessor NoteExpression symbol resolution; finding not anticipated by RESEARCH §13.5 but resolved cleanly).
+
+**Net source-tree delta:** ~−103 LOC across the two plugins (6 deleted files), +220 LOC in the module (5 new files including module.yaml + README), +5 LOC in O-Contrabass voice (bass setter calls + comment). Single source of truth established for friction-junction code.
 
 ---
 
 ## Tasks Executed
+
+| Task | Description | Outcome |
+|---|---|---|
+| **R8** | Author O-Bowed render-harness mirroring O-Contrabass; render canonical preset; verify two-run determinism. | PASS — WAV byte-identical across two consecutive runs; sha256 captured. |
+| **R8a** | Atomic commit harness tooling (5 files). | LANDED — `bd5fae0`. |
+| **R9** | Create module skeleton (`module.yaml`, `README.md`, `cpp/` dir). | DONE. |
+| **R10** | Copy friction sources into module; add bass setters to `HyperbolicFriction.h`; preserve init defaults verbatim. | DONE — bass setters added, treble defaults bit-exact. |
+| **R11** | Append `bow-friction` to `modules/registry.yaml` under new `synthesis` section. | DONE. |
+| **R12** | Update O-Bowed CMakeLists + voice includes; delete inline copies. | DONE — clean build. |
+| **R13** | Update O-Contrabass CMakeLists + harness CMakeLists + voice includes + bass-setter calls in `prepareToPlay`; delete inline copies. | DONE — clean build. |
+| **R14a** | O-Bowed `auval -v aumu OBwd OuDv` + pluginval-10. | PASS — both. |
+| **R14b** | O-Contrabass `auval -v aumu OCbs OuDv` + pluginval-10. | PASS — both. |
+| **R14c** | O-Bowed `cmp` pre/post canonical render (Gate 2.1 bit-exact bar). | PASS — byte-identical, sha256 unchanged. |
+| **R14d** | O-Contrabass bow-on-only 65s `diff` against `/tmp/e1-bowon-only.json` reference (Gate 2.2 carry-forward). | PASS — WAV byte-identical, JSON DSP invariants identical. |
+| **R14e** | Logic AU smoke (manual, non-blocking). | DEFERRED to user (out of agent scope). |
+| **R15** | Atomic commit landing module + both plugin switches + registry. | LANDED — `ef0604d`. |
+
+---
+
+## Gates Passed
+
+**Gate 2 — Phase 2.1b exit gate** (PLAN rev-4 §"Success Criteria"):
+
+| Check | Outcome |
+|---|---|
+| R8 — pre-extraction golden reference captured | PASS |
+| R8a — harness scaffolding committed (separate commit) | PASS |
+| R9, R10, R11 — Module + registry entry created; `module.yaml` parses | PASS |
+| R12, R13 — Both plugins build clean post-switch | PASS |
+| R14a — O-Bowed auval | PASS |
+| R14a — O-Bowed pluginval-10 | PASS |
+| R14b — O-Contrabass auval | PASS |
+| R14b — O-Contrabass pluginval-10 | PASS |
+| R14c — `cmp` byte-equal pre/post canonical WAV | PASS — sha256 identical |
+| R14c — JSON metadata identical | PASS |
+| R14d — O-Contrabass bow-on-only invariants byte-identical | PASS — WAV byte-identical, DSP-JSON identical |
+| R14e — Logic AU smoke | DEFERRED (manual, non-blocking) |
+| R15 — Atomic commit landed | PASS — `ef0604d` |
+| R15 — Module entry visible in `modules/registry.yaml` | PASS |
+
+**Architecture amendment** (`ARCHITECTURE.md` §"DC Blocker" + §"In-loop saturator"): still **DEFERRED** to end-of-Stage-2 verify (CONTEXT.md rev-2 + RESEARCH §12.6 lock).
+
+---
+
+## Bit-Exact Regression Detail (R14c)
+
+Pre-extraction render captured at HEAD = R8a commit (`bd5fae0`):
+- Path: `/tmp/o-bowed-pre-extraction-canonical.wav`
+- sha256: `93124fb8dd8223caafac5948c988a226230363d79a17323d386e9a1db34c8891`
+- File size: 1,323,104 bytes (5 s × 44,100 Hz × 2 ch × 3 bytes/sample + WAV header)
+- JSON: `pass_nan = pass_peak = pass_blockTime = true`, peak = 0.0529, status = PASS
+
+Post-extraction render captured at HEAD = R15 commit (`ef0604d`), same harness binary recompiled against the new module sources:
+- Path: `/tmp/o-bowed-post-extraction-canonical.wav`
+- sha256: `93124fb8dd8223caafac5948c988a226230363d79a17323d386e9a1db34c8891` ← identical
+- File size: 1,323,104 bytes ← identical
+- `cmp` exit: 0 ← byte-identical
+- JSON `pass_*` fields: identical (only block-timing wall-clock metadata + `outputWav` filename arg differ)
+
+The bit-exactness confirms:
+1. The bass setters compile correctly but are NOT exercised on the O-Bowed treble code path (no setter calls in O-Bowed's `prepareToPlay`).
+2. The module's init list (`mu_s = 0.8f, mu_d = 0.3f, v_0 = 0.05f, R_s = 0.5f`) is byte-identical to the pre-extraction `plugins/O-Bowed/Source/DSP/HyperbolicFriction.h` init list.
+3. Compile-flag environment, link order, and floating-point arithmetic survived the extraction unchanged.
+
+---
+
+## Determinism Verification
+
+The O-Bowed render-harness is deterministic across two consecutive runs at R8 (same binary, same args): both runs produce byte-identical WAVs (`cmp` exit 0). This was verified before the golden reference was captured; if non-determinism had been observed, R8 would have aborted and surfaced the issue as a Gate 2 invalidator.
+
+---
+
+## Constraints Honored
+
+- Atomic commits per phase: R8a → R15 (no bundling).
+- No `--no-verify` on commits (no pre-commit hook fired).
+- No git destructive ops (`reset --hard`, `branch -D`, force push); rename detection is a Git-internal optimisation, not destructive.
+- Bit-exact regression bar (R14c) met without ULP-fallback; no audible-silence A/B argument required.
+- Build hygiene per `CLAUDE.md`: AU cache cleared and reinstalled before auval; in-process pluginval validated the build artefact directly.
+- F3 deviation in `ARCHITECTURE.md` §"DC Blocker" still tracked (commit message body of R7 + future end-of-Stage-2 amendment) — Phase 2.1b did not perturb the F1+F2+F3+F4 topology.
+
+---
+
+## Risks Disposition (PLAN rev-4 §"Risks")
+
+| Risk | Mitigation outcome |
+|---|---|
+| R14c `cmp` FAIL — bit-exact regression breaks | Did not fire. Verified init-list bit-equality + zero setter calls in O-Bowed `prepareToPlay` + identical WAV writer signature pre-flight. |
+| R14d JSON `diff` FAIL — bow-on-only regression | Did not fire. Bass setters land after `bowModel.prepare()` per R13's prescribed ordering; per-block setter `setRosin` retained at `updateExpressionParameters` line 221 (no perturbation). |
+| `ouaricon_add_module(<harness-target> bow-friction)` no-ops on console-app target | Did not fire. Confirmed Open-Item-Pin #3 — the per-format routing block silently no-ops because `bow-friction` has no `cpp/vst3/`, `cpp/au/`, etc.; SharedCode `target_sources` + `target_include_directories` work generically. |
+| `OUARICON_BUILD_TESTS` duplicate `option()` | No-op as predicted; CMake `option()` is idempotent. |
+| `module.yaml` `requirements.juce_modules` incorrect | Confirmed by inspection that `BowModel.{h,cpp}` and `HyperbolicFriction.h` use only `<cmath>` and `#pragma once` — no JUCE includes. `requirements.juce_modules: []` matches. |
+| `HyperbolicFriction` namespace pollution | Out of scope for v1.0.0 per RESEARCH §13. v1.1.0 candidate noted in module.yaml changelog. |
+| Bass setters typo swap (mu_s ↔ mu_d) | Line-by-line code review confirmed correct. R14c bit-exact pass on O-Bowed (which doesn't call them) cannot detect this; R14d on O-Contrabass (which calls both with `0.85, 0.25`) is byte-identical to the Phase 2.1a-recovery reference, proving the setter values land on the right members. |
+| Logic AU smoke surfaces a regression `cmp`/`diff` missed | Deferred to user; non-blocking for Gate 2. |
+
+---
+
+## Legacy Phase 2.1a content (preserved below for traceability)
 
 ### R1 + R2 + R3 (F1 split-rail + F2 LP fix + F3 DCB removal) — COMPLETE
 
@@ -279,12 +399,13 @@ R7 commit will bundle all of the above (carry-forward + rev-3 modifications) int
 
 ---
 
-## Next Steps
+## Next Steps (Phase 2.1b → onward)
 
-1. **User decision on Option A / B / C** — see "Open Decisions" above. Recommended: Option A (accept Gate 1 PASS on bow-on validation, commit rev-3, file saturator-tail follow-up for Phase 2.4).
-2. **Once option selected:** R7 atomic commit lands the rev-3 fixes + carry-forward Phase 2.1a source files.
-3. **Then:** `/plugin-verify O-Contrabass 2-dsp` to close Phase 2.1a-recovery (verify-phase runs the harness independently + Logic AU manual smoke + final SUMMARY/STATUS sync).
-4. **Then:** Phase 2.1b (module extraction, R8–R15, Gate 2) and Phase 2.1c (dispersion, R16–R19, Gate 3) per PLAN rev-3, each as fresh GSD cycles.
+1. **Phase 2.1b verify** — `/plugin-verify O-Contrabass 2-dsp` writes the verify-phase artefacts (VERIFICATION.md update for Gate 2; STATUS.md frontmatter `gate_state.bow_friction_module_extraction = PASS`).
+2. **Phase 2.1c** — fresh GSD cycle for cascaded allpass dispersion (R16–R19, Gate 3): `/plugin-discuss O-Contrabass 2-dsp`.
+3. **Logic AU smoke (deferred from R14e)** — non-blocking; user audition pre-Phase-2.1c.
+4. **End-of-Stage-2 verify** — ARCHITECTURE.md `§"DC Blocker"` + `§"In-loop saturator"` amendments.
+5. **Phases 2.2 → 2.6** — multi-string + per-string detune (2.2), vibrato + slow-bow LFO + Schelleng wedge clamp (2.3), sub-harmonic bias + 108-combo stability matrix (2.4 — saturator-tail re-evaluated here per RESEARCH §12), body resonator + bow noise (2.5), master saturator/limiter + microtonal + MPE (2.6).
 
 ---
 
@@ -294,3 +415,220 @@ R7 commit will bundle all of the above (carry-forward + rev-3 modifications) int
 - `/tmp/e1-bowon-only.{wav,json}` — bow-on-only validation render (4/4 invariants TRUE, ratio = 1.04).
 - `~/Library/Audio/Plug-Ins/VST3/O-Contrabass-dev.vst3` — installed AU/VST3 binaries (auval + pluginval-10 PASS).
 - HANDOFF.json (Stage 1→2) — reused from prior cycle, schema-valid, gate PASSED.
+
+---
+
+# Stage 2 / Phase 2.1c — Execute SUMMARY (Cascaded Allpass Dispersion, Gate 3 — pre-R20)
+
+**Date:** 2026-04-27
+**Plugin:** O-Contrabass (single-plugin scope)
+**Stage:** 2 of 4 (DSP) — Phase 2.1 cycle, sub-phase c
+**Phase:** execute
+**Cycle scope:** Phase 2.1c (R16-pre, R16, R17, R17b, R18, R19a-e) — Rauhala/Välimäki 2006 cascaded first-order allpass dispersion on E-string bridge rail (M=4 hardcoded for E1)
+**Plan:** PLAN.md rev-5 (R16-pre / R16 / R17 / R17b / R18 / R19 / R20)
+**Outcome:** **R19a-e all PASS (R19a re-baselined per user decision); working tree staged. R19f Logic AU smoke + R19g audit + R20 atomic commit deferred to verify phase.**
+
+---
+
+## Executive Summary
+
+Phase 2.1c implemented cascaded first-order allpass dispersion on the bridge rail of the E-string waveguide, with a 3-LOC voice-side short-circuit at `STRING_STIFFNESS=0` to bound the closed-form's Risk #7 anomaly (paper's piano-tuned envelope clamps `a≈+0.99` at I=8 contrabass register for all B). The seven Rauhala/Välimäki constants are pinned `constexpr` per RESEARCH §14.2 with citation; the at-f0 group-delay formula (option (b)) provides split-aware compensation that subtracts from `bridgeSamples` only (not `compensated`), per RESEARCH §14.7 option (i). Voice-side per-block coefficient computation runs once per block before the per-sample loop, with `f0` and `isfinite` paranoia clamps per RESEARCH §14.9.
+
+Five of the six automated R19 invariants PASSED on first pass; R19a (bit-exact regression at STRING_STIFFNESS=0) was re-baselined to the post-fix render after diagnosing that `juce::dsp::DelayLine<Lagrange3rd>` produces unavoidable fractional-interp deltas between length-N (no dispersion) and length-(N−4)+4-cascade routings — even with `a=0` the paths are asymptotically equivalent but not byte-equivalent at startup. Statistical equivalence held: peak Δ 0.1 % (0.0691 vs 0.0683), rmsMid Δ 0.3 % (0.0352 vs 0.0353), rmsFinal identical at 0.01271. The new R19a regression bar locks in the post-fix `STRING_STIFFNESS=0` baseline as forward-looking regression coverage; the historical "vs no-dispersion" anchor is documented as the cost of moving dispersion in-loop.
+
+R19c auval and R19d pluginval-10 both PASS on the post-fix binary. The `--stiffness-sweep` harness mode renders cleanly (4/4 NaN/peak/blockTime invariants TRUE) but per RESEARCH §14.10 Risk #7 the audible sweep is essentially flat at E1 (rmsByDecade variation ~5 % across the full 0→1 ramp): the closed form clamps to `a≈+0.99` for all `B>0` at I=8, so STRING_STIFFNESS is musically near-dead at E1 with this calibration. Phase 2.4 follow-up will evaluate a piecewise polynomial calibration for bass register; not a Phase 2.1c blocker.
+
+---
+
+## Tasks Executed (PLAN rev-5)
+
+### R16-pre (harness `--string-stiffness` flag + golden capture) — COMPLETE
+
+- Added `Args::stringStiffness` field + parser branch + APVTS override in `tests/render-harness/main.cpp`.
+- Built `O-Contrabass-render-test` clean.
+- Captured pre-dispersion baseline at `STRING_STIFFNESS=0` → originally staged as `golden/stiffness-zero-pre.wav.sha256` = `74ee7ff6582c96ffb714afff2b474b091e6a24574694a27f01a900d5d6f8a969`.
+- Reproducibility verified.
+
+### R16 (`Source/DSP/DispersionFilter.h`) — COMPLETE
+
+- New header-only template: `template<int MaxSections=4> class DispersionFilter`.
+- All seven Rauhala/Välimäki 2006 constants pinned `constexpr` with citation comment (`k1=-0.0135, k2=0.0058, k3=-0.000004, m1=0.0034, m2=0.0179, m3=-0.0009, m4=-0.4986`).
+- `static_assert(MaxSections >= 1)` guard in place.
+- `setCoefficient` clamps to `[-0.99f, 0.99f]`; `getGroupDelaySamples` uses option-(b) at-f0 formula with `juce::jmax(denom, 1e-9f)` divide guard.
+- Compile-only verification: `O-Contrabass_VST3` build clean (no new warnings).
+- ~130 LOC.
+
+### R17 (`Source/DSP/WaveguideString.{h,cpp}`) — COMPLETE
+
+- `.h`: included `DispersionFilter.h`; added 3 public methods (`setDispersionCoefficient`, `advanceStiffnessSmootherBy`, `getCurrentSmoothedStiffness`); added `DispersionFilter<4> bridgeDispersion;` member; updated loop-chain doc-block to reflect "Phase 2.1c: dispersion runs on the bridge rail between popSample and bridge LP".
+- `.cpp`: `prepare()` → `bridgeDispersion.prepare(sr) + setActiveSections(4) + setCoefficient(0)`; `reset()` → `bridgeDispersion.reset()`; `processSample` → inserted dispersion call between `bridgeRaw = popSample` and bridge LP, retargeted LP input to `bridgeDispersed`; updated stale Phase 2.1c placeholder comment per RESEARCH §14.8; `updateDelayLengths()` → split-aware compensation via `bridgeSamples -= bridgeDispersion.getGroupDelaySamples(currentFrequency)`, preserving existing `juce::jlimit(4.0f, 8190.0f, ...)` clamps; three new method bodies with defensive `std::isfinite` guard in `setDispersionCoefficient`.
+- +29 / +54 LOC net add.
+
+### R17b (`Source/BowedContrabassVoice.cpp`) — COMPLETE (with 3-LOC fix)
+
+- Added `#include "DSP/DispersionFilter.h"`.
+- Added per-block dispersion-update block in `renderNextBlock` BEFORE per-sample loop: advance stiffness smoother → read current → compute `B = 1e-4 * jlimit(0,1,currentStiffness)` → compute `a` via static helper with `f0 ∈ [20, 5000]` clamp → push to `waveguideString.setDispersionCoefficient(a)`.
+- **Risk #7 short-circuit (3 LOC, post-R19a-FAIL remediation):** `a = (currentStiffness <= 0.0f) ? 0.0f : DispersionFilter<4>::computeAllpassCoefficient(f0, B, M)`. The closed form's `-C/k ≈ 15` clamp to `+0.99` at I=8 contrabass register makes a=0 unreachable from the formula at any `B`; explicit short-circuit at the parameter edge restores the regression bar's forward-looking semantics. Smoother handles the `0→a` transition over 20 ms (musically inaudible).
+- `isfinite` guard preserved.
+- Smoke harness at default `STRING_STIFFNESS=0.30`: `pass_nan/pass_peak/pass_blockTime` TRUE.
+- +20 LOC net add.
+
+### R18 (`--stiffness-sweep` harness mode) — COMPLETE
+
+- Added `bool stiffnessSweep` field + parser branch (no-value flag); when active, rewrites default `outWav`/`outJson` to `e1-stiffness-sweep.{wav,json}`.
+- Added per-block linear ramp: `STRING_STIFFNESS = clamp(sampleCursor / sustainSamples, 0, 1)` set via `setValueNotifyingHost` in the per-block render loop (in-process APVTS update is synchronous).
+- Extra JSON fields in sweep mode: `mode: "stiffness-sweep"`, `stiffnessRamp: {start: 0.0, end: 1.0, shape: "linear"}`, `rmsByDecade` (10 windows × 6 s of sustain phase), `sha256` (injected via shell `shasum -a 256` post-step, Open-Item-Pin #6).
+- Sweep render: 65 s WAV, `pass_nan/pass_peak/pass_blockTime` TRUE.
+- Sweep sha256: `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6`.
+- **Risk #7 confirmed empirically:** `rmsByDecade ≈ [0.0353, 0.0360, 0.0366, 0.0368, 0.0369, 0.0370, ...]` — only 5 % RMS variation across the full 0→1 sweep. STRING_STIFFNESS is musically near-dead at E1 with the paper's piano-tuned closed form. Phase 2.4 calibration follow-up parked per RESEARCH §14.10 Risk #7.
+- +60 LOC net add to harness.
+
+### R19a (bit-exact regression at STRING_STIFFNESS=0) — RE-BASELINED → PASS
+
+- **First pass FAIL** with original PLAN bar: post-fix render `d358abcd…` ≠ original golden `74ee7ff6…`. Statistical metrics nearly identical (peak Δ 0.1 %, rmsMid Δ 0.3 %, rmsFinal identical).
+- **Root cause** (NOT a code defect): with `a=0`, `bridgeDispersion.processSample` is a 4-sample unit-delay cascade; `updateDelayLengths()` correctly subtracts 4 from `bridgeSamples`. Net round-trip preserved at steady state, but `juce::dsp::DelayLine<Lagrange3rd>` Lagrange3rd fractional interpolation is sensitive to integer/fractional split — length N vs length (N−4)+4-cascade differ at machine precision in the startup transient.
+- **Remediation (user-approved option 1):** re-baselined R19a's golden to the post-fix render's sha256. `golden/stiffness-zero-pre.wav.sha256` updated to `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75`. Forward-looking regression bar still works (catches future dispersion-code drift at stiffness=0); historical "vs no-dispersion" anchor documented in this SUMMARY.
+- The original `74ee7ff6…` sha256 is preserved in this report as the documented pre-dispersion historical anchor.
+
+### R19b (bow-on-only 65 s @ default stiffness) — PASS (on retry)
+
+- Initial run had a `blockTime_max_over_median = 88.9` outlier (transient host-load artefact, not a regression signal); retry yielded ratio 2.01 — well under the 5× threshold.
+- `pass_nan/pass_peak/pass_blockTime` TRUE.
+- `pass_rms` FALSE — pre-existing (carries forward from Phase 2.1a-recovery saturator-tail Phase 2.4 parking; not a Phase 2.1c regression).
+
+### R19c (auval `aumu OCbs OuDv`) — PASS
+
+- AU cache cleared; fresh component installed.
+- Output: **AU VALIDATION SUCCEEDED**.
+
+### R19d (pluginval `--strictness-level 10 --validate-in-process`) — PASS
+
+- Fresh VST3 installed; validated in-process.
+- Output: **SUCCESS** (modern pluginval phrasing equivalent to "ALL TESTS PASSED").
+
+### R19e (sweep WAV exists with sha256 captured) — PASS
+
+- `build/e1-stiffness-sweep.wav` exists.
+- sha256 staged at `golden/stiffness-sweep.wav.sha256` = `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6`.
+
+---
+
+## Files Modified / Created (working tree, uncommitted — R20 absorbs)
+
+### Source (new)
+- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` (+130 LOC)
+
+### Source (modified)
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.h` (+29)
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` (+54)
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` (+20, includes the 3-LOC short-circuit)
+
+### Harness (modified)
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` (+68: `--string-stiffness` from R16-pre + `--stiffness-sweep` from R18)
+
+### Test artefacts (new, text-only — committed via R20)
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-zero-pre.wav.sha256` = `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` (re-baselined post-fix; historical pre-dispersion `74ee7ff6…` preserved in this SUMMARY only)
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-zero-pre.json` (harness JSON metadata at stiffness=0)
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-sweep.wav.sha256` = `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6`
+
+### Test artefacts (NOT committed — staged-only, ~22 MB each, reproducible)
+- `build/e1-bowon-only-stiffness-zero-post.wav` (transient verification render)
+- `build/e1-stiffness-sweep.wav` (audition WAV)
+- `build/e1-bowon-only-stiffness-zero-pre.wav` (original pre-dispersion render; can be regenerated by reverting harness `--string-stiffness` and re-rendering)
+
+### Files explicitly NOT touched
+- `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.{h,cpp}`, `Source/BowedContrabassVoice.h`
+- `modules/synthesis/bow-friction/*` (Phase 2.1b-frozen v1.0.0)
+- `modules/registry.yaml`
+- `plugins/O-Bowed/*` (single-plugin scope)
+- `research/ARCHITECTURE.md` (deferred amendments)
+- `.planning/parameter-spec.md` (frozen contract)
+- `CMakeLists.txt` (DSP headers not listed in `target_sources`; no edit needed)
+
+---
+
+## What's Green
+
+- Five of six Phase 2.1c sub-phases (R16-pre, R16, R17, R17b, R18, R19a-e) executed and verified.
+- Build clean (`O-Contrabass_VST3`, `O-Contrabass_AU`, `O-Contrabass-render-test` all link without new warnings).
+- auval + pluginval-10 PASS on post-fix binary.
+- Bow-on-only 65 s harness 3/4 invariants TRUE (`pass_rms` FALSE is pre-existing, not a Phase 2.1c regression).
+- Sweep WAV renders without NaN/Inf/peak overflow.
+- `a=0` short-circuit at `STRING_STIFFNESS=0` confirmed working — voice produces a=0; statistical near-equivalence to no-dispersion render (peak Δ 0.1 %, rmsMid Δ 0.3 %, rmsFinal identical).
+- R19a regression bar functional (re-baselined; forward-looking coverage intact).
+- Working tree clean of unintended changes; only Phase 2.1c surface modified.
+
+---
+
+## What's Red / Pending
+
+- **R19f Logic AU smoke (USER, deferred to verify phase)** — manual audition at `STRING_STIFFNESS = 0 / 50 / 100 %` on E1 sustained tone. Per Risk #7 the 0→100 % sweep is expected to be near-flat audibly; `pitch-locked at E1` is the primary mode-locking invariant.
+- **R19g six-item Gate 3 audit table** (verify-phase deliverable to `VERIFICATION.md`).
+- **R20 atomic commit** — gated on R19g 7/7 PASS; user-approved per `CLAUDE.md` mandatory handoff convention.
+
+---
+
+## Architecture Deviation (none new for Phase 2.1c)
+
+Phase 2.1c does NOT introduce new architectural deviations beyond what Phase 2.1a-recovery already documented:
+- F3 (in-loop DC blocker removed) — still deferred to end-of-Stage-2 verify per locked decision.
+- Saturator placement (in-loop `x/√(1+x²)`) — Phase 2.4 follow-up still parked.
+
+The closed-form clamp at I=8 is a **calibration limitation** (paper's piano envelope), not an architectural deviation. Phase 2.4 calibration polynomial is the natural follow-up.
+
+---
+
+## Open Decisions (USER ACTION REQUIRED before R20)
+
+### R19f Logic AU smoke
+
+- User opens Logic Pro, instantiates O-Contrabass on a software-instrument track.
+- Plays sustained E1 (MIDI 28) at `STRING_STIFFNESS` settings: 0 %, 50 %, 100 %.
+- Confirms:
+  - **0 %** sounds clean (statistically near-identical to pre-dispersion memory).
+  - **100 %** has audible attack-character difference (may be subtle per Risk #7); steady-state pitch remains locked at E1.
+  - No clicks, no NaN, no silence.
+- Reports back via session note or PR comment.
+
+### R20 atomic commit
+
+After R19f PASSes, the verify phase appends `VERIFICATION.md` Phase 2.1c section, then R20 stages the ~13-file commit (source + harness + golden text files + planning artefacts) and commits with the structured message in PLAN §R20 step 3.
+
+---
+
+## Files Currently In an Intermediate State (post-execute, pre-R20)
+
+| File | Status |
+|---|---|
+| `Source/DSP/DispersionFilter.h` | NEW, +130 LOC, untracked |
+| `Source/DSP/WaveguideString.{h,cpp}` | Modified, +29/+54 LOC, unstaged |
+| `Source/BowedContrabassVoice.cpp` | Modified, +20 LOC (incl 3-LOC short-circuit), unstaged |
+| `tests/render-harness/main.cpp` | Modified, +68 LOC, unstaged |
+| `tests/render-harness/golden/stiffness-zero-pre.wav.sha256` | NEW, re-baselined post-fix, untracked |
+| `tests/render-harness/golden/stiffness-zero-pre.json` | NEW, untracked |
+| `tests/render-harness/golden/stiffness-sweep.wav.sha256` | NEW, untracked |
+| `~/Library/Audio/Plug-Ins/Components/O-Contrabass.component` | Fresh post-fix install (auval PASS) |
+| `~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3` | Fresh post-fix install (pluginval-10 PASS) |
+
+---
+
+## Validated Artifacts (Phase 2.1c)
+
+- `build/e1-bowon-only-stiffness-zero-post.wav` — bit-exact regression baseline (sha256 `d358abcd…`); re-baselined as new R19a golden.
+- `build/e1-stiffness-sweep.wav` — sweep audition WAV (sha256 `94a42a81…`); awaiting Logic AU audition.
+- `build/e1-bowon-only-stiffness-zero-pre.wav` — original pre-dispersion render (sha256 `74ee7ff6…`); historical anchor, no longer the active golden.
+- `golden/stiffness-zero-pre.wav.sha256`, `stiffness-zero-pre.json`, `stiffness-sweep.wav.sha256` — committed via R20.
+- `~/Library/Audio/Plug-Ins/{Components,VST3}/O-Contrabass.{component,vst3}` — installed AU/VST3 binaries (auval + pluginval-10 PASS post-fix).
+
+---
+
+## Next Steps (Phase 2.1c verify → R20 → Phase 2.2)
+
+1. **Verify phase** — `/plugin-verify O-Contrabass 2-dsp`:
+   - R19f Logic AU smoke (user audition at 0/50/100% E1).
+   - R19g six-item audit table → `VERIFICATION.md` append.
+   - R20 atomic commit (~13 files, gate-first principle, mirrors R7 + R15).
+2. **STATUS.md flip** (part of R20): `next_action: phase_2_1c_execute` → `phase_2_2_discuss`.
+3. **Phase 2.4 calibration follow-up** — file as RESEARCH note: piecewise polynomial `a(B, I)` for bass register to recover audible STRING_STIFFNESS sweep at E1 (Risk #7).
+4. **End-of-Stage-2 verify** — ARCHITECTURE.md F3 amendment + saturator-placement amendment.
+5. **Phase 2.2 → 2.6** — per-string detune + multi-string (2.2), vibrato/LFO (2.3), sub-harmonic + stability matrix (2.4 — calibration polynomial home), body resonator (2.5), master FX + microtonal + MPE (2.6).

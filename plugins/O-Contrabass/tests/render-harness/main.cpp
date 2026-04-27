@@ -17,6 +17,8 @@
         --sustain <sec=60>
         --release <sec=5>
         --infinite-sustain <0..1=1.0>
+        --string-stiffness <0..1=apvts>   (Phase 2.1c R16-pre; sentinel <0 = use APVTS factory default)
+        --stiffness-sweep <0|1=0>         (Phase 2.1c R18; ramps STRING_STIFFNESS 0→1 across the sustain phase)
         --out <wav=e1-max-sustain.wav>
         --json <json=e1-max-sustain.json>
 
@@ -54,6 +56,8 @@ struct Args
     float sustainSeconds    = 60.0f;
     float releaseSeconds    = 5.0f;
     float infiniteSustain   = 1.0f;
+    float stringStiffness   = -1.0f;   // sentinel: <0 = unset, use APVTS factory default
+    bool  stiffnessSweep    = false;   // Phase 2.1c R18: linear 0→1 ramp across sustain phase
     juce::String outWav     = "e1-max-sustain.wav";
     juce::String outJson    = "e1-max-sustain.json";
 };
@@ -75,6 +79,8 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--sustain")          args.sustainSeconds  = val.getFloatValue();
         else if (key == "--release")          args.releaseSeconds  = val.getFloatValue();
         else if (key == "--infinite-sustain") args.infiniteSustain = val.getFloatValue();
+        else if (key == "--string-stiffness") args.stringStiffness = val.getFloatValue();
+        else if (key == "--stiffness-sweep")  args.stiffnessSweep  = (val.getIntValue() != 0);
         else if (key == "--out")              args.outWav          = val;
         else if (key == "--json")             args.outJson         = val;
         else
@@ -95,6 +101,14 @@ int main (int argc, char** argv)
     if (! parseArgs (argc, argv, args))
         return 2;
 
+    // Phase 2.1c R18: in sweep mode, rewrite default output filenames so the
+    // user doesn't have to pass --out / --json explicitly (mirrors README).
+    if (args.stiffnessSweep)
+    {
+        if (args.outWav  == "e1-max-sustain.wav")  args.outWav  = "e1-stiffness-sweep.wav";
+        if (args.outJson == "e1-max-sustain.json") args.outJson = "e1-stiffness-sweep.json";
+    }
+
     constexpr double sampleRate = 44100.0;
     constexpr int    blockSize  = 512;
 
@@ -106,6 +120,15 @@ int main (int argc, char** argv)
     {
         const float clamped = juce::jlimit (0.0f, 1.0f, args.infiniteSustain);
         infParam->setValueNotifyingHost (clamped);
+    }
+
+    // Phase 2.1c R16-pre: optional STRING_STIFFNESS override (sentinel <0 = unset).
+    // In sweep mode, this is a starting value that gets immediately ramped over
+    // by the per-block setValueNotifyingHost in the render loop below.
+    if (args.stringStiffness >= 0.0f)
+    {
+        if (auto* p = proc.parameters.getParameter ("STRING_STIFFNESS"))
+            p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, args.stringStiffness));
     }
 
     proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
@@ -140,6 +163,16 @@ int main (int argc, char** argv)
         const int thisBlock = std::min (blockSize, totalSamples - sampleCursor);
         blockBuffer.setSize (2, thisBlock, /*keep*/ false, /*clear*/ true, /*avoidRealloc*/ true);
         blockBuffer.clear();
+
+        // Phase 2.1c R18: per-block STRING_STIFFNESS ramp (linear 0→1 across sustain phase).
+        if (args.stiffnessSweep)
+        {
+            const float fraction      = static_cast<float> (sampleCursor)
+                                      / static_cast<float> (juce::jmax (1, sustainSamples));
+            const float stiffnessNorm = juce::jlimit (0.0f, 1.0f, fraction);
+            if (auto* p = proc.parameters.getParameter ("STRING_STIFFNESS"))
+                p->setValueNotifyingHost (stiffnessNorm);
+        }
 
         juce::MidiBuffer midi;
 
@@ -248,11 +281,13 @@ int main (int argc, char** argv)
     // ---- Write JSON summary ----
     juce::DynamicObject::Ptr summary (new juce::DynamicObject());
     summary->setProperty ("status",                 overallPass ? "PASS" : "FAIL");
+    summary->setProperty ("mode",                   args.stiffnessSweep ? "stiffness-sweep" : "sustained-note");
     summary->setProperty ("midiNote",               args.midiNote);
     summary->setProperty ("velocity",               args.velocity);
     summary->setProperty ("sustainSeconds",         args.sustainSeconds);
     summary->setProperty ("releaseSeconds",         args.releaseSeconds);
     summary->setProperty ("infiniteSustain",        args.infiniteSustain);
+    summary->setProperty ("stringStiffness",        args.stringStiffness);
     summary->setProperty ("totalSamples",           totalSamples);
     summary->setProperty ("peak",                   peak);
     summary->setProperty ("nanCount",               nanCount);
@@ -268,6 +303,39 @@ int main (int argc, char** argv)
     summary->setProperty ("pass_blockTime",         passBlockTime);
     summary->setProperty ("pass_rms",               passRms);
     summary->setProperty ("outputWav",              args.outWav);
+
+    // Phase 2.1c R18: sweep-mode JSON extras (mode + stiffnessRamp + rmsByDecade).
+    if (args.stiffnessSweep)
+    {
+        juce::DynamicObject::Ptr ramp (new juce::DynamicObject());
+        ramp->setProperty ("start", 0.0);
+        ramp->setProperty ("end",   1.0);
+        ramp->setProperty ("shape", "linear");
+        summary->setProperty ("stiffnessRamp", juce::var (ramp.get()));
+
+        // 10 deciles of the sustain phase (release excluded). RMS per decile.
+        juce::Array<juce::var> decades;
+        const int decileSamples = juce::jmax (1, sustainSamples / 10);
+        for (int d = 0; d < 10; ++d)
+        {
+            const int s0 = d * decileSamples;
+            const int s1 = juce::jmin (sustainSamples, (d + 1) * decileSamples);
+            double sumSq = 0.0;
+            int    count = 0;
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const auto* p = output.getReadPointer (ch);
+                for (int i = s0; i < s1; ++i)
+                {
+                    sumSq += static_cast<double> (p[i]) * p[i];
+                    ++count;
+                }
+            }
+            const double rms = (count > 0) ? std::sqrt (sumSq / static_cast<double> (count)) : 0.0;
+            decades.add (juce::var (static_cast<double> (rms)));
+        }
+        summary->setProperty ("rmsByDecade", juce::var (decades));
+    }
 
     juce::var summaryVar (summary.get());
     juce::File jsonOut (juce::File::getCurrentWorkingDirectory().getChildFile (args.outJson));

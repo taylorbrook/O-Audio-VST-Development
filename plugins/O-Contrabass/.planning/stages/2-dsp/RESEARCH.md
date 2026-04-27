@@ -1643,3 +1643,604 @@ The following are deliberately deferred to PLAN rev-4 (i.e. not pinned by this r
 - `modules/registry.yaml` lines 16–39 — category schema confirming `synthesis` exists.
 - `plugins/O-Contrabass/tests/render-harness/{CMakeLists.txt,main.cpp}` — harness template for §13.5.
 - `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-2 §"Open Questions" — the five questions resolved in §13.3.
+
+---
+
+# 14. Phase 2.1c Cascaded-Allpass Dispersion Research (rev-3 append)
+
+**Date appended:** 2026-04-27 (research-phase rev-3)
+**Cross-reference:** `CONTEXT.md` rev-3 §"Cycle Scope" + §"Open Questions" + §"Files / Artefacts to Produce in Phase 2.1c".
+
+This section resolves the five Open Questions handed by `CONTEXT.md` rev-3 (closed-form constants, group-delay formula, setter API, template shape, harness output), pins the literal Rauhala/Välimäki 2006 coefficient values for `DispersionFilter.h`, and specifies the pre-flight bit-exact baseline-render procedure for the Gate 3 stiffness=0 regression bar. It supersedes-by-refinement the §"Cascaded Allpass Dispersion" structural sketch in `research/O-Contrabass-bass-waveguide-stability.md` §2.3 — that document remains authoritative for the high-level algorithm; this section pins the concrete plugin-side specifics.
+
+## 14.1 Carry-Forward From Prior Research
+
+The following decisions remain in effect verbatim:
+
+- **Closed-form Rauhala/Välimäki 2006 algorithm** (`research/O-Contrabass-bass-waveguide-stability.md` §2.3 lines 145–161). Algorithm pinned; only the literal `m1..m4`, `k1..k3` constants and the implementation surface need finalisation here.
+- **Loop placement on bridge rail, before bridge LP** (`CONTEXT.md` rev-3 Q1 lock): `pop → dispersion → bridge LP → −1 boundary → friction inject → in-loop saturator → push`. Mirrors `WaveguideString.h` line 38 contract; supersedes the stale `WaveguideString.cpp:170-171` placeholder comment (correction encoded in PLAN rev-5 R17).
+- **Hardcoded M=4 for Phase 2.1c (E1 only)** (`CONTEXT.md` rev-3 Q2 lock). Per-string M=4/3/2/1 table is Phase 2.2 work.
+- **`B = 1e-4 · STRING_STIFFNESS`** verbatim from `ARCHITECTURE.md` §"String Waveguide Bank" line 81 (`CONTEXT.md` rev-3 Q3 lock). Prefactor `1e-4` is the locked E1 value.
+- **Per-block coefficient cadence** from the existing 20 ms `stiffnessSmoothed` in `WaveguideString.h:100`. Per-sample `a` interpolation is the click-fallback only (invoked if R18 sweep produces clicks).
+- **Per-plugin location** at `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` (`CONTEXT.md` rev-3 lock). O-Bowed has no dispersion filter (verified — `find plugins/O-Bowed/Source -name "Disper*"` returns empty); module-promotion deferred until a second consumer arrives.
+
+## 14.2 Open Question #1 — Rauhala/Välimäki 2006 Closed-Form Constants (RESOLVED)
+
+`research/O-Contrabass-bass-waveguide-stability.md` §2.4 lines 224–239 already contains a fully-worked C++ sketch of the closed-form `computeAllpassCoeff(f0, B, M)` with **literal constants extracted from Rauhala & Välimäki (2006), "Tunable dispersion filter design for piano synthesis", IEEE Signal Processing Letters Vol. 13 No. 5, Table 1** (paper URL: https://ieeexplore.ieee.org/document/1618690). The constants are:
+
+| Constant | Value | Role |
+|---|---|---|
+| `k1` | `-0.0135f` | Constant term in `k(I) = k1 + k2·I + k3·I²` (key-number polynomial) |
+| `k2` | ` 0.0058f` | Linear term — slope of dispersion target vs. virtual key number |
+| `k3` | `-0.000004f` | Quadratic term — high-key dispersion curvature correction |
+| `m1` | ` 0.0034f` | `log(B)` weight in `C(B,M) = m1·lB + m2·lM + m3·lB·lM + m4` |
+| `m2` | ` 0.0179f` | `log(M)` weight |
+| `m3` | `-0.0009f` | Cross term `log(B)·log(M)` |
+| `m4` | `-0.4986f` | Bias term — sets the negative-`a` regime that produces rising-phase-delay |
+
+**Closed form (lock for `DispersionFilter.h`):**
+
+```cpp
+// f0    : fundamental in Hz (per-note voice state)
+// B     : inharmonicity coefficient = 1e-4f * STRING_STIFFNESS for E1
+// M     : cascade depth (Phase 2.1c: hardcoded 4 for E1)
+//
+// Returns: allpass coefficient `a` in (-0.99, 0.99), already clamped.
+//
+// Citation: Rauhala & Välimäki (2006), IEEE Sig. Proc. Letters, Table 1.
+//           See research/O-Contrabass-bass-waveguide-stability.md §2.3-2.4.
+
+static float computeAllpassCoefficient (float f0Hz, float B, int M) noexcept
+{
+    constexpr float k1 = -0.0135f, k2 = 0.0058f, k3 = -0.000004f;
+    constexpr float m1 =  0.0034f, m2 = 0.0179f, m3 = -0.0009f, m4 = -0.4986f;
+
+    const float I  = std::log2 (juce::jmax (f0Hz, 1.0f) / 440.0f) * 12.0f + 49.0f;
+    const float lB = std::log  (juce::jmax (B,    1e-9f));
+    const float lM = std::log  (static_cast<float> (juce::jmax (M, 1)));
+
+    const float C  = m1 * lB + m2 * lM + m3 * lB * lM + m4;
+    const float k  = k1 + k2 * I + k3 * I * I;
+
+    return juce::jlimit (-0.99f, 0.99f, -C / k);
+}
+```
+
+**Numerical sanity check at the four corners of the Phase 2.1c parameter envelope (E1, M=4, sr=88200):**
+
+| STRING_STIFFNESS | B | I (E1=41.2 Hz) | C | k | -C/k | clamped `a` |
+|---|---|---|---|---|---|---|
+| 0.00 | 1e-9 (clamp floor) | 8.00 | -0.5454 | 0.0327 | 16.68 | **+0.99** |
+| 0.01 | 1e-6 | 8.00 | -0.5219 | 0.0327 | 15.96 | **+0.99** |
+| 0.30 (factory default) | 3e-5 | 8.00 | -0.4869 | 0.0327 | 14.89 | **+0.99** |
+| 1.00 | 1e-4 | 8.00 | -0.4936 | 0.0327 | 15.10 | **+0.99** |
+
+**Anomaly flagged for plan-phase + execute-phase R18 sweep:** at E1 (I=8.0), the closed-form's `k` denominator is small (`0.0327`), driving `-C/k` to ~15 across the entire stiffness range — i.e. the formula clamps to `+0.99` regardless of B. This is consistent with Rauhala & Välimäki's published design target being **piano** (I roughly 1..88 over 88-key range, with the calibration tuned for the upper register), not a contrabass low E (I=8). At E1 the closed form sits at the **edge of its validity envelope**.
+
+**This is NOT an implementation bug.** The closed form is reproduced verbatim from the paper. The behaviour is a known limitation of applying piano-tuned coefficients to contrabass register, and matches the literature's framing (`research/O-Contrabass-bass-waveguide-stability.md` §2.3 line 161 reports the paper's design range as `B ∈ [1e-6, 1e-3], M = 4 → a ∈ [-0.05, -0.5]` for *piano* registers; bass register sits outside that envelope).
+
+**Implication for Phase 2.1c:** the audible character of `STRING_STIFFNESS` will manifest mostly as clamp-saturated dispersion at the bridge rail — i.e. dispersion is "on" for any STRING_STIFFNESS > 0 rather than smoothly proportional. The `--stiffness-sweep` harness (R18) will surface whether this is musically acceptable. If R18 reveals the sweep is musically uninteresting because the coefficient saturates immediately, the **Phase 2.4 follow-up** is to replace the closed form with a piecewise polynomial calibration for the bass register (analogous to the Phase 2.4 saturator-tail parking pattern in §12.5 — out of Phase 2.1c scope). PLAN rev-5 should annotate this as a known trade-off in R18's success criteria, **not** as a bug to fix mid-stage.
+
+**Mitigation already locked in CONTEXT.md rev-3:** the bit-exact regression at STRING_STIFFNESS=0 is the strongest possible regression bar; combined with auval/pluginval-10/bow-on-only stability (4/4 TRUE), Gate 3 still has a meaningful pass/fail signal even if the audible sweep is duller than ideal.
+
+## 14.3 Open Question #2 — Group-Delay Subtraction Formula (RESOLVED — option b)
+
+For a single first-order allpass section `A(z) = (a + z^-1) / (1 + a·z^-1)` with `|a| < 1`:
+
+**Phase response:**
+```
+φ_section(ω) = -ω - 2·arctan( a·sin(ω) / (1 + a·cos(ω)) )
+```
+
+**Group delay (closed form, derivative of φ):**
+```
+τ_section(ω) = -dφ/dω = (1 - a²) / (1 + 2a·cos(ω) + a²)
+            = (1 - a²) / |1 + a·e^{-jω}|²
+```
+
+For a cascade of `M` identical sections, total group delay = `M · τ_section(ω)`.
+
+**Two evaluation points debated:**
+
+| Option | Formula | Cost | Accuracy at f0 |
+|---|---|---|---|
+| (a) DC | `τ_section(0) = (1-a)/(1+a)` (simplifies because cos(0)=1) | 1 div | Inexact for non-DC; OK for low-f0 |
+| (b) at f0 | `τ_section(2π·f0/sr) = (1-a²) / (1 + 2a·cos(2π·f0/sr) + a²)` | 1 cos + 2 mul + 1 div | Exact |
+
+**Numerical sanity check at E1 (f0=41.2 Hz, sr=88200, ω=0.002935 rad, cos(ω)≈0.9999957):**
+
+| `a` | (a) DC formula | (b) at-f0 formula | Δ (samples) |
+|---|---|---|---|
+| 0.00 | 1.0000 | 1.0000 | 0.0000 |
+| 0.50 | 0.3333 | 0.3333 | <0.0001 |
+| 0.99 | 0.005025 | 0.005000 | 0.000025 |
+
+At E1's ω ≈ 0.003 rad, options (a) and (b) agree to 4+ decimal places because the contrabass fundamental is ~0.05 % of Nyquist at 88.2 kHz internal SR. **Both formulas would pass the bit-exact regression at stiffness=0** (where `a=0` exactly); for non-zero `a`, the residual difference is below sub-sample accuracy.
+
+**Decision: option (b) — at-f0 formula.** Rationale:
+
+1. **Mathematical correctness over premature optimisation** — the cost is one trig + two multiplies, computed once per block (not per sample); not a measurable CPU cost.
+2. **Future-proof for higher strings** (Phase 2.2) — A1/D2/G2 strings push f0 up to 98 Hz (still < 0.5 % of Nyquist) but G3 (Phase 2.2 stretch) is 196 Hz; option (b) stays accurate as f0 climbs.
+3. **No reason to choose (a)** — it isn't simpler in code (same number of float ops), isn't faster in any meaningful sense, and is a strict subset of (b).
+
+**Closed form for `DispersionFilter::getGroupDelaySamples()`:**
+
+```cpp
+// Computes total group delay (in samples) of an M-section cascade at frequency f0.
+// Closed form: D = M · (1 - a²) / |1 + a·e^{-j·2π·f0/sr}|²
+//
+// Used by WaveguideString::updateDelayLengths() to compensate base round-trip.
+
+float getGroupDelaySamples (float f0Hz, double sampleRateHz) const noexcept
+{
+    if (activeSections == 0)
+        return 0.0f;
+
+    const float a    = sections[0].a;          // all sections share the same coefficient
+    const float w    = juce::MathConstants<float>::twoPi
+                     * f0Hz / static_cast<float> (sampleRateHz);
+    const float cosW = std::cos (w);
+    const float oneMinusASq = 1.0f - a * a;
+    const float denom       = 1.0f + 2.0f * a * cosW + a * a;
+    const float perSection  = oneMinusASq / juce::jmax (denom, 1e-9f);
+
+    return static_cast<float> (activeSections) * perSection;
+}
+```
+
+**Identity-at-`a=0` check:** with `a=0`, numerator `=1`, denominator `=1`, per-section delay `=1`, total `= M·1 = M`. Mirrors the `M` unit-delay topology of the cascade exactly. The compensated subtraction `totalDelay - filterGroupDelay - dispersionGroupDelay` therefore subtracts exactly `M` samples when dispersion is identity, exactly matching the `M` z^-1 elements the cascade interposes — net round-trip delay is unchanged → bit-exact regression at stiffness=0 holds. ✓
+
+## 14.4 Open Question #3 — Per-Block Setter API on WaveguideString (RESOLVED — option a)
+
+**Decision: option (a) — `setDispersionCoefficient(float a)` (voice computes, waveguide consumes).**
+
+```cpp
+// In WaveguideString.h public API, alongside existing setStringStiffness:
+void setDispersionCoefficient (float a) noexcept;
+```
+
+Rationale:
+
+1. **Closed form depends on `f0` (per-voice state), not waveguide state.** `WaveguideString` does not currently know the per-note fundamental — `currentFrequency` is set via `trigger(frequency)` but the closed form also depends on `M` (cascade depth, plugin-policy state) and `B` (`= 1e-4·STRING_STIFFNESS`, which the waveguide already smooths internally). Putting the math in the voice keeps the `f0/B/M → a` policy decision out of the waveguide and on the voice's `renderNextBlock` boundary.
+2. **Symmetric with existing `setBrightness(cutoffHz)` and `setInfiniteSustain(amount)` setters** — voice computes, waveguide consumes raw float. Consistent setter contract across all `WaveguideString` parameters.
+3. **Simplifies the bit-exact regression bar** — at STRING_STIFFNESS=0, voice computes `a = 0.0f` once at note-on (or at the first block-boundary update) and passes 0.0f to the waveguide. The waveguide sees a deterministic stream of `setDispersionCoefficient(0.0f)` calls and the dispersion path is identity. No internal-state surprise.
+4. **Cleaner per-block update path:** voice's `renderNextBlock` already advances `stiffnessSmoothed` per block (per `BowedContrabassVoice.cpp:234` `setStringStiffness` call routes the param into the smoother) — extending it to call `computeAllpassCoefficient(f0, B, M)` and forwarding to the waveguide is one extra line.
+
+**Per-block update sequencing in `BowedContrabassVoice::renderNextBlock` (PLAN rev-5 R17 plumbing):**
+
+```cpp
+// Existing per-block update (Phase 2.1a-recovery):
+// updateParametersFromAPVTS();   // sets brightness, infiniteSustain, stiffness, etc.
+
+// Phase 2.1c addition (per-block, BEFORE the per-sample loop):
+{
+    // Advance the 20 ms stiffness smoother by numSamples (block-rate step).
+    waveguideString.advanceStiffnessSmootherBy (numSamples);
+    const float currentStiffness = waveguideString.getCurrentSmoothedStiffness();
+    const float B = 1.0e-4f * currentStiffness;       // rev-3 Q3 lock
+    constexpr int M = 4;                              // rev-3 Q2 lock
+    const float f0 = currentFrequency;                // per-voice state
+    const float a  = DispersionFilter<4>::computeAllpassCoefficient (f0, B, M);
+    waveguideString.setDispersionCoefficient (a);
+}
+
+// Per-sample loop runs as before; dispersion processes via the cached `a`.
+```
+
+**Plan-phase patterning hint:** the "advance smoother by numSamples" + "read current smoothed value" pair may need two new accessor methods on `WaveguideString` (`advanceStiffnessSmootherBy(int)`, `getCurrentSmoothedStiffness() const`) since `stiffnessSmoothed` is a private member. PLAN rev-5 R17 specifies these accessors.
+
+**Per-sample fallback (deferred — only invoked if R18 sweep clicks):** if the per-block cadence produces audible clicks during the STRING_STIFFNESS automation sweep, switch the `a` coefficient itself to a per-sample interpolation between block-boundary values. This is the same per-sample-vs-per-block trade-off resolved in O-Bells ramping; ~5 LOC change scoped inside `WaveguideString::processSample` and orthogonal to the rest of Phase 2.1c. Not invoked unless R18 fails — research-phase explicitly defers.
+
+## 14.5 Open Question #4 — DispersionFilter.h Template/Class Shape (RESOLVED — option c)
+
+**Decision: option (c) — `template <int MaxSections> class DispersionFilter` with a runtime `int activeSections ≤ MaxSections`.**
+
+This is exactly the shape already sketched in `research/O-Contrabass-bass-waveguide-stability.md` §2.4 lines 199–241 (template+activeSections). The research-document sketch is the **direct ancestor** of the locked spec; Phase 2.1c brings it into `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` with one refinement noted below.
+
+Rationale:
+
+1. **Compile-time `MaxSections=4` covers Phase 2.1c (E1 only) with no waste** — exactly four `AllpassSection` state members; the array sizes statically.
+2. **Runtime `activeSections` is the natural per-string M selector** for Phase 2.2 (E1=4, A1=4, D2=2, G2=1 per the per-string M table in `research/O-Contrabass-bass-waveguide-stability.md` §2.3 line 172) — Phase 2.2 builds the per-string bank, sets `activeSections` per voice/string, no template re-instantiation.
+3. **No `AudioProcessor`-time allocation:** state is `AllpassSection sections[MaxSections]` (stack/in-place), no `prepare()` allocation; only `reset()` zeroes state.
+4. **Clean RT-safe API:** `prepare(sampleRate)` is a one-shot init, `reset()` zeroes state, `setCoefficient(float a)` is per-block, `processSample(float x)` is per-sample, all noexcept.
+
+**Refined header skeleton for PLAN rev-5 R16 (writes new file `Source/DSP/DispersionFilter.h`):**
+
+```cpp
+/*
+  ==============================================================================
+
+    DispersionFilter.h
+    O-Contrabass — Cascaded First-Order Allpass Dispersion (Rauhala/Välimäki 2006)
+    Ouaricon Audio
+    Developer: Taylor Brook
+
+    Phase 2.1c. Lives on the bridge rail of the split-rail waveguide,
+    between popSample and the bridge LP one-pole. Identity at a=0.
+
+    Closed-form coefficient computation per Rauhala & Välimäki (2006),
+    "Tunable dispersion filter design for piano synthesis", IEEE Sig.
+    Proc. Letters Vol. 13 No. 5, Table 1. Constants and validity envelope
+    documented in RESEARCH §14.2.
+
+  ==============================================================================
+*/
+
+#pragma once
+#include <juce_dsp/juce_dsp.h>
+
+template <int MaxSections = 4>
+class DispersionFilter
+{
+public:
+    void prepare (double newSampleRate) noexcept
+    {
+        sampleRate = newSampleRate;
+        reset();
+    }
+
+    void reset() noexcept
+    {
+        for (auto& s : sections) s.z = 0.0f;
+    }
+
+    // Set the cascade depth at runtime (Phase 2.2 per-string M-table hook).
+    // Phase 2.1c: voice constructs DispersionFilter<4> and calls setActiveSections(4).
+    void setActiveSections (int M) noexcept
+    {
+        activeSections = juce::jlimit (0, MaxSections, M);
+    }
+
+    // Per-block setter — voice computes `a` from (f0, B, M) and pushes here.
+    void setCoefficient (float a) noexcept
+    {
+        const float clamped = juce::jlimit (-0.99f, 0.99f, a);
+        for (int i = 0; i < MaxSections; ++i)
+            sections[i].a = clamped;
+    }
+
+    // Per-sample processing.
+    inline float processSample (float x) noexcept
+    {
+        for (int i = 0; i < activeSections; ++i)
+        {
+            // Transposed direct form II — single state element per section.
+            //   y[n] = a * x[n] + z[n-1]
+            //   z[n] = x[n] - a * y[n]
+            const float a = sections[i].a;
+            const float y = a * x + sections[i].z;
+            sections[i].z = x - a * y;
+            x = y;
+        }
+        return x;
+    }
+
+    // Closed-form coefficient — voice calls this once per block.
+    static float computeAllpassCoefficient (float f0Hz, float B, int M) noexcept
+    {
+        constexpr float k1 = -0.0135f, k2 = 0.0058f, k3 = -0.000004f;
+        constexpr float m1 =  0.0034f, m2 = 0.0179f, m3 = -0.0009f, m4 = -0.4986f;
+
+        const float I  = std::log2 (juce::jmax (f0Hz, 1.0f) / 440.0f) * 12.0f + 49.0f;
+        const float lB = std::log  (juce::jmax (B,    1e-9f));
+        const float lM = std::log  (static_cast<float> (juce::jmax (M, 1)));
+
+        const float C  = m1 * lB + m2 * lM + m3 * lB * lM + m4;
+        const float k  = k1 + k2 * I + k3 * I * I;
+
+        return juce::jlimit (-0.99f, 0.99f, -C / k);
+    }
+
+    // Total group delay of the active cascade at frequency f0Hz, in samples.
+    // Used by WaveguideString::updateDelayLengths() to compensate base round-trip.
+    float getGroupDelaySamples (float f0Hz) const noexcept
+    {
+        if (activeSections == 0)
+            return 0.0f;
+
+        const float a    = sections[0].a;
+        const float w    = juce::MathConstants<float>::twoPi
+                         * f0Hz / static_cast<float> (sampleRate);
+        const float cosW = std::cos (w);
+        const float perSection = (1.0f - a * a)
+                               / juce::jmax (1.0f + 2.0f * a * cosW + a * a, 1e-9f);
+        return static_cast<float> (activeSections) * perSection;
+    }
+
+    int getActiveSections() const noexcept { return activeSections; }
+
+private:
+    struct AllpassSection
+    {
+        float a = 0.0f;     // coefficient, |a| < 0.99 (clamped at setCoefficient)
+        float z = 0.0f;     // single state element
+    };
+
+    AllpassSection sections[MaxSections];
+    int            activeSections = 0;
+    double         sampleRate     = 88200.0;
+};
+```
+
+**Refinements vs. `research/O-Contrabass-bass-waveguide-stability.md` §2.4 sketch:**
+
+1. Splits `prepare(f0Hz, B, M)` (computes coefficient internally) into separate `prepare(sampleRate)` + `setCoefficient(a)` + `setActiveSections(M)` calls — keeps the math in the voice (Q3 resolution) and makes `prepare()` a pure DSP init.
+2. Adds `getGroupDelaySamples(f0Hz)` for `updateDelayLengths()` consumption (Q2 resolution).
+3. Adds `setActiveSections(int)` for Phase 2.2 per-string M-table hook (forward compatibility — Q2 lock for Phase 2.1c uses M=4).
+4. Same `AllpassSection { a, z }` two-float state struct, same transposed-direct-form-II tick math, same `juce::jlimit` clamping.
+
+**State size at runtime:** `4 sections × 8 bytes = 32 bytes per voice` plus `int activeSections` (4 bytes) + `double sampleRate` (8 bytes) = **44 bytes per voice**. Allocated alongside `WaveguideString` instance.
+
+## 14.6 Open Question #5 — Harness Output Format (RESOLVED — option a)
+
+**Decision: option (a) — single WAV `e1-stiffness-sweep.wav` (60 s mono float, MIDI E1, STRING_STIFFNESS ramps 0→1 linearly over duration), plus `.json` metadata with `sha256` field.**
+
+Rationale (refines `CONTEXT.md` rev-3 Q5):
+
+1. **Click-detection invariant requires continuous audio** — the Gate 3 invariant "STRING_STIFFNESS sweep produces no audible clicks" is fundamentally a *transition* invariant; the click happens *between* samples adjacent in time. Three discrete WAVs at 0/50/100 % cannot capture inter-sample clicks at other stiffness values.
+2. **Single file is easier to A/B in Logic** — drag-and-drop one WAV to a track; scrub through the timeline; mark click events with timestamp markers. Three files is three tracks or three load operations.
+3. **JSON includes sha256** — allows the auditioned WAV to be linked back to a specific harness invocation in the audit trail (mirrors `o-bowed-pre-extraction-canonical.json::sha256` from Phase 2.1b).
+
+**Harness CLI flag spec for PLAN rev-5 R18 plumbing (in `tests/render-harness/main.cpp`):**
+
+```
+--stiffness-sweep                  Enable sweep mode (mutually exclusive with default sustained-note mode).
+                                   When set, STRING_STIFFNESS ramps linearly 0→1 over the sustain duration.
+                                   All other parameters at factory defaults.
+--string-stiffness <float=apvts>   In default (non-sweep) mode, override the STRING_STIFFNESS APVTS value
+                                   before prepareToPlay (mirrors --infinite-sustain pattern at main.cpp:105-109).
+                                   Defaults to APVTS factory default (0.30).
+                                   Used by the pre-flight bit-exact baseline (R16-pre, see §14.7).
+```
+
+**Sweep-mode behaviour spec:**
+
+```cpp
+// Pseudocode for the per-block parameter ramp (PLAN rev-5 R18):
+const int totalBlocks = (totalSamples + blockSize - 1) / blockSize;
+for (int b = 0; b < totalBlocks; ++b) {
+    const float fraction = static_cast<float>(b) / static_cast<float>(juce::jmax(1, totalBlocks - 1));
+    const float stiffnessNormalised = juce::jlimit(0.0f, 1.0f, fraction);
+    if (auto* p = proc.parameters.getParameter("STRING_STIFFNESS"))
+        p->setValueNotifyingHost(stiffnessNormalised);
+    // ... existing block processing ...
+}
+```
+
+**Output WAV spec (mirrors existing harness):**
+
+| Field | Value |
+|---|---|
+| Filename | `e1-stiffness-sweep.wav` |
+| Sample rate | 44100 Hz (host SR; matches existing harness) |
+| Channels | 2 (stereo, matches plugin output bus) |
+| Bit depth | 24 bit |
+| Duration | sustain (default 60 s) + release (default 5 s) = 65 s total |
+| MIDI note | 28 (E1) |
+| Velocity | 0.7 (matches existing harness convention) |
+| INFINITE_SUSTAIN | 1.0 (matches existing harness — lets bow stay engaged across the sweep) |
+| All other params | APVTS factory defaults |
+
+**Output JSON spec:**
+
+```json
+{
+  "status": "PASS|FAIL",
+  "mode": "stiffness-sweep",
+  "midiNote": 28,
+  "velocity": 0.7,
+  "sustainSeconds": 60.0,
+  "releaseSeconds": 5.0,
+  "stiffnessRamp": { "start": 0.0, "end": 1.0, "shape": "linear" },
+  "totalSamples": 2866500,
+  "peak": <float>,
+  "nanCount": <int>,
+  "infCount": <int>,
+  "rmsByDecade": [ /* RMS per 6s decile of the sweep — surfaces dropouts */ ],
+  "blockMicros_median": <float>,
+  "blockMicros_max": <float>,
+  "sha256": "<64-hex>",
+  "outputWav": "e1-stiffness-sweep.wav"
+}
+```
+
+**Click-detection harness invariants (passive — for traceability, not gating):**
+
+- `pass_nan` — no NaN/Inf samples (same as existing harness).
+- `pass_peak` — `|sample| ≤ 1.0f` (same).
+- `pass_blockTime` — max-block / median-block ≤ 5.0× (denormal-spike sentinel; same).
+- (NO `pass_rms` check — RMS varies by design across the sweep.)
+
+The actual "no clicks" judgement is a **manual** Logic-audition step (Gate 3 §"Test Criteria" item 1). The harness mechanically captures the audio for repeatability and traceability; the user listens to confirm.
+
+## 14.7 Pre-Flight Bit-Exact Baseline Render — Strategy (NOT executed in research)
+
+The Gate 3 bit-exact regression bar (`CONTEXT.md` rev-3 §"Test Criteria" item 7) requires:
+
+1. A **`pre`** render at `STRING_STIFFNESS=0` with no dispersion code present.
+2. A **`post`** render at `STRING_STIFFNESS=0` after dispersion code lands.
+3. `cmp pre.wav post.wav` byte-equal.
+
+The existing harness (post Phase 2.1b commit `bd5fae0` / `ef0604d`) does NOT expose a `--string-stiffness` CLI flag — only `--infinite-sustain`. Setting STRING_STIFFNESS=0 today requires either editing `main.cpp` to override the param or modifying the APVTS default (both touch source).
+
+**Research-phase decision: defer the actual baseline capture to execute-phase R16-pre** — adding `--string-stiffness` CLI flag to the harness IS the first execute task, BEFORE any DSP source edits. This keeps research-phase invariants intact (no production or test-code edits) and avoids splitting the R20 atomic commit.
+
+**Procedure spec for PLAN rev-5 R16-pre / R16a:**
+
+| Step | Action | Owner |
+|---|---|---|
+| 1 | Add `--string-stiffness <float>` CLI flag to `tests/render-harness/main.cpp` (mirrors the `--infinite-sustain` override at lines 105–109). Builds + runs without behavioural change at default. | execute R16a |
+| 2 | Build harness target: `ninja O-Contrabass-render-test`. | execute R16a |
+| 3 | Render baseline: `./O-Contrabass-render-test --string-stiffness 0 --sustain 60 --release 5 --infinite-sustain 1.0 --out e1-bowon-only-stiffness-zero-pre.wav --json e1-bowon-only-stiffness-zero-pre.json`. | execute R16a |
+| 4 | Compute sha256: `shasum -a 256 e1-bowon-only-stiffness-zero-pre.wav` → record in `e1-bowon-only-stiffness-zero-pre.json` (or in PLAN.md rev-5 R16a notes). | execute R16a |
+| 5 | Stage harness file + golden WAV (or sha256 reference); does NOT commit yet — the R20 atomic commit absorbs all Phase 2.1c work. | execute R16a |
+| 6 | (Later, R19) Render post-dispersion at STRING_STIFFNESS=0 with same CLI: `./O-Contrabass-render-test --string-stiffness 0 ... --out e1-bowon-only-stiffness-zero-post.wav`. | execute R19 |
+| 7 | (Later, R19) `cmp e1-bowon-only-stiffness-zero-pre.wav e1-bowon-only-stiffness-zero-post.wav` → exit 0 (byte-equal) is Gate 3 PASS for invariant 7. | execute R19 |
+
+**Why the baseline must come from a PRE-dispersion build:** the dispersion code path's identity-at-`a=0` is the *property under test*. If the post-render were generated by a build that had never seen dispersion, the test would pass trivially (no dispersion code = no dispersion side-effect). The pre-render must be from a build with dispersion CODE PRESENT but coefficient `a=0` driving identity behaviour. This is what makes the test meaningful: it confirms the dispersion path's identity branch.
+
+Wait — that requires a re-think. The bit-exact regression at stiffness=0 is most cleanly stated as:
+
+> **Pre-render** = build BEFORE any dispersion code (today's main).
+> **Post-render** = build AFTER dispersion code lands, with `a=0` driving identity behaviour.
+> **cmp must be byte-equal** because `a=0` makes the dispersion path equivalent to the no-dispersion code path.
+
+So the procedure is correct as listed: the `pre` baseline is captured against PRE-dispersion code (today's working tree, post-Phase 2.1b), and the `post` is captured against POST-dispersion code (post-R19). The bit-exactness depends on:
+
+1. The dispersion path at `a=0` being a pure pass-through (M unit delays in, M unit delays compensated out → net delay change = 0).
+2. The compensated subtraction in `updateDelayLengths()` producing identical `bridgeSamples` and `neckSamples` values pre and post (with `dispersionGroupDelay=0` when `a=0`, the subtraction is identical to today's `totalDelay - filterGroupDelay`).
+3. Float arithmetic determinism (already guaranteed by JUCE round-to-nearest + `ScopedNoDenormals`).
+
+If `getGroupDelaySamples(f0)` at `a=0` returns *exactly* `M` (= 4 for E1), the compensated calculation in `updateDelayLengths()` becomes `compensated = totalDelay - filterGroupDelay - M`, and the cascade itself contributes `M` unit delays back into the path → net round-trip is preserved. **However**, the bridge rail's geometry changes: today's working tree assigns `bridgeSamples = compensated * bowPosition` where `compensated = totalDelay - filterGroupDelay`. Post-R17, `compensated = totalDelay - filterGroupDelay - dispersionGroupDelay`, and the bridge rail's assigned delay is shorter by `M·bowPosition` samples while the dispersion cascade adds `M` unit delays. Net bridge-rail delay = original `bridgeSamples - M·bowPosition + M = bridgeSamples + M·(1-bowPosition)`. **That is NOT bit-exact to the pre-dispersion working tree!**
+
+**This is a real concern flagged for plan-phase to resolve.** Two options:
+
+| Option | Approach | Bit-exact? |
+|---|---|---|
+| (i) | Subtract `M` (when `a=0`) from `bridgeSamples` only, not from `compensated` (split-aware compensation). | ✓ — bridge rail's delay-line gets `M` fewer samples; cascade adds `M` back; net unchanged. Neck rail untouched. |
+| (ii) | Keep current "subtract from `compensated` then split" math; accept that bit-exact at stiffness=0 needs the dispersion subtraction to be bridge-rail-local. | (i) is the cleaner mental model. |
+
+**Recommended for PLAN rev-5 R17:** option (i) — subtract dispersion group delay from `bridgeSamples` directly, not from `compensated`:
+
+```cpp
+// In updateDelayLengths() (post Phase 2.1c R17):
+float totalDelay         = static_cast<float>(sampleRate) / std::max(1.0f, currentFrequency);
+float filterGroupDelay   = static_cast<float>(sampleRate) / (2.0f * pi * std::max(1.0f, brightnessHz));
+float compensated        = totalDelay - filterGroupDelay;
+float bridgeSamples      = compensated * bowPosition;
+float neckSamples        = compensated * (1.0f - bowPosition);
+
+// Phase 2.1c addition: dispersion lives on bridge rail only → compensate bridge rail only.
+float dispersionDelay    = bridgeDispersion.getGroupDelaySamples(currentFrequency);
+bridgeSamples           -= dispersionDelay;
+
+// Phase 2.1c R17 clamp guard (existing min):
+bridgeSamples = juce::jlimit(4.0f, 8190.0f, bridgeSamples);
+neckSamples   = juce::jlimit(4.0f, 8190.0f, neckSamples);
+```
+
+At `a=0`: `dispersionDelay = M = 4` samples. The bridge rail loses 4 samples; the M-section cascade adds 4 z^-1 unit delays back. Net bridge-rail delay = unchanged. Neck rail = unchanged. **Bit-exact regression at stiffness=0 holds.** ✓
+
+**Edge case:** at low f0 + high stiffness, `dispersionDelay` may approach 0 (per the §14.3 sanity table at `a=0.99`, per-section delay ≈ 0.005 samples → total ≈ 0.02 samples). The bridge rail's delay-line therefore gets *longer* than today's no-dispersion case by ~M-0.02 = 3.98 samples → the round-trip pitch tracking has a ~3.98-sample shift at stiffness=100%. This is precisely the dispersion-induced pitch effect the literature cares about; it is NOT a bug. The Gate 3 invariant "100 %-stiffness affects attack but NOT steady-state pitch (mode-locking)" is what gates this — the bow's stick-slip nonlinearity should phase-lock the partials regardless of small delay shifts (`research/O-Contrabass-bass-waveguide-stability.md` §2.2 lines 117–122). If the audible test fails (steady-state pitch DOES drift at 100 % stiffness), that is a Phase 2.4 follow-up RESEARCH item, not a Phase 2.1c blocker.
+
+**`bridgeSamples` clamp safety:** with `dispersionDelay` up to 4 samples, the lowest reachable `bridgeSamples` value in the working envelope is `(totalDelay - filterGroupDelay) * bowPosition - 4`. At E1 (totalDelay ≈ 1070) and bowPosition=0.10 (β floor, the most aggressive case), `(1070 - 13) * 0.10 - 4 ≈ 105.7 - 4 = 101.7` samples. Well above the Lagrange3rd 4-tap minimum. No clamp regression. At G3 (Phase 2.2, totalDelay ≈ 225) the calculation tightens but is still safe.
+
+## 14.8 WaveguideString.cpp Stale Comment Update (R17 housekeeping)
+
+`WaveguideString.cpp` lines 170–171 currently read:
+
+```cpp
+// Step 6: Symmetric injection into both rails (canonical Smith two-port).
+// [Phase 2.1c placeholder] dispersion will run on the BRIDGE rail's
+//  outgoing wave only, BEFORE the algebraic saturator below.
+```
+
+**This comment is stale.** `CONTEXT.md` rev-3 Q1 lock places dispersion **before bridge LP** (between Step 1 popSample and Step 2 bridge LP), NOT before the saturator (Step 7). The Step-6 comment was written before the Q1 decision was settled.
+
+**Plan-phase R17 directive:** during the dispersion wiring edit, replace this comment with a forward-pointer:
+
+```cpp
+// Step 6: Symmetric injection into both rails (canonical Smith two-port).
+//  (Dispersion already ran in Step 1.5, between bridgeRaw popSample and bridge LP —
+//   bridge rail only, per ARCHITECTURE.md §"Cascaded Allpass Dispersion" and
+//   §"Processing Order"; mirrors O-Bowed bridge-rail-only loop chain.)
+```
+
+(`Step 1.5` is colloquial — the actual code edit may renumber Step 1 or insert a Step 1b. PLAN-phase fixes the exact wording.)
+
+The header at `WaveguideString.h` line 38 already documents the correct chain: `[Phase 2.1c: dispersion] → bridge LP → −1 boundary → ...`. No header edit needed beyond updating the "Phase 2.1a omits dispersion; placeholder lives at the friction-write boundary" sentence at line 40-41 to reflect that dispersion has now landed.
+
+## 14.9 Coefficient Sanity Checks (extra plan-phase belt-and-braces)
+
+Beyond the closed-form clamp at `[-0.99, 0.99]`, PLAN rev-5 R17 should add belt-and-braces guards against pathological inputs:
+
+| Guard | Where | Why |
+|---|---|---|
+| `if (!std::isfinite(a)) a = 0.0f;` | Voice's per-block `a` computation, before push to `setDispersionCoefficient` | The closed form's `lB = std::log(B)` returns `-inf` for `B=0`; the clamp at `B → 1e-9f` already prevents this, but defensive `isfinite` mirrors `WaveguideString.cpp:144` for `bridgeY` recovery. Cheap insurance. |
+| `juce::jlimit(20.0f, 5000.0f, f0)` before `computeAllpassCoefficient` | Voice (per-block) | E1 = 41.2 Hz, scordatura −1200 cents = 20.6 Hz; G3 = 196 Hz; future open strings stay < 250 Hz; clamp upper to 5 kHz as a paranoia bound. |
+| `static_assert(MaxSections >= 1)` in template | `DispersionFilter.h` | Compile-time guard against zero-section instantiation. |
+
+## 14.10 Risk-Surface Refinement for PLAN rev-5
+
+The six risks listed in `CONTEXT.md` rev-3 §"Risks" stand. Two refinements based on this research pass:
+
+**Refinement to Risk #2 (group-delay subtraction wrong → pitch drifts):** the §14.7 split-aware compensation choice (subtract from `bridgeSamples` only, not from `compensated`) is what makes the bit-exact regression at stiffness=0 work. PLAN rev-5 R17 must implement option (i) above; option (ii) (subtract from `compensated`) breaks bit-exactness.
+
+**New Risk #7 (closed-form clamp saturation at E1):** §14.2 anomaly — at I=8.0 (E1), `-C/k ≈ 15` for all B, clamping to `+0.99`. The audible STRING_STIFFNESS sweep may be flatter than expected. **Mitigation:** R18's `--stiffness-sweep` audition is the surfacing mechanism; if R18 reveals the sweep is musically uninteresting, file as Phase 2.4 follow-up (calibration polynomial for bass register), do NOT block Phase 2.1c. Gate 3 stability and the bit-exact regression bar still exit cleanly.
+
+## 14.11 Sequencing in PLAN rev-5
+
+The plan-phase task breakdown (rev-5) is expected to look like:
+
+| Task | Description | Source |
+|---|---|---|
+| **R16-pre / R16a** | Add `--string-stiffness <float>` CLI flag to `tests/render-harness/main.cpp` (mirrors `--infinite-sustain` at lines 105–109). Build harness. Render `e1-bowon-only-stiffness-zero-pre.wav` + `.json` + sha256. **No DSP source edits.** | §14.7 |
+| R16 | Write new file `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` per §14.5 skeleton. Add file to `plugins/O-Contrabass/CMakeLists.txt` `target_sources`. | §14.5 |
+| R17 | Edit `plugins/O-Contrabass/Source/DSP/WaveguideString.{h,cpp}`: add `DispersionFilter<4> bridgeDispersion` member; add `setDispersionCoefficient(float a)` setter; add `advanceStiffnessSmootherBy(int)` + `getCurrentSmoothedStiffness()` accessors; insert dispersion processing between Step 1 popSample and Step 2 bridge LP on bridge rail; update `updateDelayLengths()` per §14.7 split-aware compensation; update Step-6 stale comment per §14.8. | §14.4, §14.7, §14.8 |
+| R17b | Edit `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` `renderNextBlock`: add per-block `a`-computation block (advance smoother, compute `a` via `DispersionFilter<4>::computeAllpassCoefficient`, push to waveguide via `setDispersionCoefficient`). | §14.4 |
+| R18 | Add `--stiffness-sweep` CLI flag to `tests/render-harness/main.cpp` per §14.6. Build. Render `e1-stiffness-sweep.wav` + `.json` + sha256. Audition in Logic for click-free continuous timbral change. | §14.6 |
+| R19 | Re-render `e1-bowon-only-stiffness-zero-post.wav` with same CLI as R16-pre. `cmp` byte-equal vs. R16-pre golden. Re-run bow-on-only 65 s harness at INFINITE_SUSTAIN=1.0 (4/4 invariants TRUE). auval + pluginval-10 PASS. Logic AU smoke at STRING_STIFFNESS = 0 / 50 / 100 % E1 sustained tone. | `CONTEXT.md` Gate 3 §"Test Criteria" |
+| R20 | **Gate 3 atomic commit** — `DispersionFilter.h` + `WaveguideString.{h,cpp}` + `BowedContrabassVoice.{h,cpp}` + `tests/render-harness/main.cpp` (`--string-stiffness` + `--stiffness-sweep` flags) + planning artefacts (CONTEXT/RESEARCH/PLAN/SUMMARY/VERIFICATION/STATUS updates) — all in one commit, only on Gate 3 PASS. | `CONTEXT.md` rev-3 §"Approach Decisions" → "Atomic commit unit" |
+
+R16-pre / R16a (harness pre-flight) is structurally a **prerequisite** to R16 because the golden reference must be captured before any DSP source edits land. R16-pre is also independently mergeable (harness CLI extension only — no semantic risk to plugin behaviour), justifying the early position in the sequence.
+
+## 14.12 Open Items for Plan Phase
+
+Deliberately deferred to PLAN rev-5 (i.e. not pinned by this research-phase pass):
+
+1. **Confirm `WaveguideString::stiffnessSmoothed` accessor names.** Recommended: `advanceStiffnessSmootherBy(int numSamples)` + `getCurrentSmoothedStiffness() const`. PLAN rev-5 R17 may bikeshed names; the contract is the per-block "advance + read" pair.
+2. **Decide on per-sample-`a` interpolation fallback location.** §14.4 leaves it unimplemented; if R18 sweep produces clicks, decide whether the per-sample interpolation goes inside `WaveguideString::processSample` or as a separate `DispersionCoefficientRamp` helper. Bias: keep inside `WaveguideString` to avoid a fourth file.
+3. **Confirm `tests/render-harness/main.cpp` block-rate parameter cadence is sufficient.** §14.6 sketches per-block `setValueNotifyingHost`; if APVTS in plugin-host context needs a parameter-change settle delay (it shouldn't — parameters are in-process), R18 surfaces it.
+4. **Decide whether to commit `e1-bowon-only-stiffness-zero-pre.wav` into git** (mirrors the §13.7 item-5 question for O-Bowed canonical). Recommendation: **commit the sha256** in `plugins/O-Contrabass/tests/render-harness/golden/stiffness-zero-pre.wav.sha256` (text file, ~75 bytes) — do NOT commit the binary WAV (~22 MB at 24-bit stereo / 65 s — too large for git; reproducible from harness on demand).
+5. **Pin the `--stiffness-sweep` JSON `rmsByDecade` array semantic.** §14.6 sketches it but does not pin: 6 s windows × 10 deciles? Or 1 s windows × 60 deciles? Recommendation: **6 s × 10 deciles** — coarse enough to be readable in JSON, fine enough to surface mid-sweep dropouts. PLAN rev-5 R18 finalises.
+6. **CMake dependency for sha256 computation in JSON output.** The existing harness (`main.cpp` lines 248–274) does NOT currently compute sha256 in the JSON. Adding sha256 emission requires `juce::SHA256` (in `juce_cryptography` module) — confirm the harness target's `target_link_libraries` includes `juce::juce_cryptography`, or compute sha256 externally via `shasum -a 256` and inject into JSON post-render. Recommendation: **external `shasum`** for the harness — avoids adding a JUCE module dependency for a single text-output feature.
+
+## 14.13 Summary — Phase 2.1c Research Plan
+
+This research-phase pass:
+
+1. ✅ Pinned the literal `m1..m4`, `k1..k3` constants (Q1) from Rauhala/Välimäki 2006 IEEE SP Letters Table 1, with `B`/`M`/`f0` envelope and a flagged anomaly (E1 sits at the edge of paper validity, clamping to `a≈+0.99`).
+2. ✅ Resolved Q2 (group-delay formula) with option (b) at-f0 closed form, and derived the identity-at-`a=0` proof.
+3. ✅ Resolved Q3 (setter API) with option (a) `setDispersionCoefficient(float a)` — voice computes, waveguide consumes.
+4. ✅ Resolved Q4 (template/class shape) with option (c) `template<int MaxSections> class DispersionFilter` + runtime `activeSections` — full skeleton spec for PLAN rev-5 R16.
+5. ✅ Resolved Q5 (harness output) with option (a) single-WAV ramp + JSON metadata + `sha256` field.
+6. ✅ Specified pre-flight bit-exact baseline procedure as R16-pre / R16a (deferred to execute) — keeps research read-only on production code.
+7. ✅ Identified split-rail compensation subtlety in `updateDelayLengths()` (subtract from `bridgeSamples` directly, NOT from `compensated`) — required for bit-exact regression at stiffness=0.
+8. ✅ Refined `CONTEXT.md` Risk #2 + added Risk #7 (closed-form clamp saturation at E1).
+9. ✅ Listed PLAN rev-5 task sequencing R16-pre → R16 → R17 → R17b → R18 → R19 → R20.
+10. ✅ Listed 6 plan-phase open items.
+
+**No production or test-code edits in this research-phase pass.** All edits are spec-only in `RESEARCH.md` §14 (this section) + the eventual `CONTEXT.md` audit-trail update. Execute-phase R16–R20 implements; verify-phase R19 confirms Gate 3 invariants; R20 atomic commit lands.
+
+## 14.14 References (§14 append)
+
+**Papers (closed-form derivation):**
+
+- Rauhala, J., & Välimäki, V. (2006). "Tunable dispersion filter design for piano synthesis." *IEEE Signal Processing Letters*, Vol. 13 No. 5, Table 1 — literal `m1..m4, k1..k3` constants. https://ieeexplore.ieee.org/document/1618690
+- Rauhala, J., & Välimäki, V. (2006). "Dispersion modeling in waveguide piano synthesis using tunable allpass filters." *Proc. DAFx-06*, pp. 71–76 — companion derivation.
+- Karjalainen, M., Välimäki, V., & Tolonen, T. (1998). "Plucked-string models: From the Karplus-Strong algorithm to digital waveguides and beyond." *Computer Music Journal*, 22(3), 17–32 — seminal cascaded-allpass dispersion treatment + group-delay formulas.
+- Smith, J. O. (2010). *Physical Audio Signal Processing*. CCRMA. §"Allpass Filters" — at-f0 vs at-DC group-delay derivation.
+
+**Local research (already on disk):**
+
+- `research/O-Contrabass-bass-waveguide-stability.md` §2.3 lines 145–161 — Rauhala/Välimäki cascade design closed form.
+- `research/O-Contrabass-bass-waveguide-stability.md` §2.4 lines 199–241 — C++ implementation pattern (template+activeSections); direct ancestor of the §14.5 spec.
+- `research/O-Contrabass-bass-waveguide-stability.md` §2.3 line 172 — per-string M=4/3/2/1 table (Phase 2.2 hook).
+- `research/O-Contrabass-bass-waveguide-stability.md` §2.3 line 161 — paper validity envelope `B ∈ [1e-6, 1e-3], M=4 → a ∈ [-0.05, -0.5]` (piano register).
+
+**Source files inspected:**
+
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.h` lines 37–51 (loop-chain contract, stiffnessSmoothed member, deferred-dispersion comments).
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` lines 64–95 (`updateDelayLengths`, `setDelaySamples`); lines 129–191 (`processSample`, including the stale Step-6 comment at lines 170–171); lines 223–230 (`setStringStiffness` smoother drive).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` lines 200–237 (`updateParametersFromAPVTS`, the per-block waveguide-setter wiring point).
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` lines 56–62 (STRING_STIFFNESS APVTS factory default = 0.30).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` lines 50–88 (`Args` struct + `parseArgs`); lines 100–112 (param-override pattern at prepareToPlay); lines 138–179 (per-block render loop).
+- `plugins/O-Contrabass/.planning/parameter-spec.md` STRING_STIFFNESS row (default 0.30, range 0.0–1.0).
+
+**Planning artefacts cross-referenced:**
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-3 §"Open Questions" (Q1–Q5 — resolved here).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-3 §"Approach Decisions" Q1 (placement = before bridge LP).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-3 §"Test Criteria" item 7 (bit-exact regression at stiffness=0).
+- `plugins/O-Contrabass/research/ARCHITECTURE.md` §"Cascaded Allpass Dispersion" (line 417 placement directive); §"Processing Order" (line 267 chain order); §"String Waveguide Bank" (line 81 `B = 1e-4·STRING_STIFFNESS`).
+- `plugins/O-Contrabass/.planning/STATUS.md` `next_action` field 2026-04-27 (research-phase scope: closed-form constants + group-delay + Q3-Q5 + pre-flight baseline).

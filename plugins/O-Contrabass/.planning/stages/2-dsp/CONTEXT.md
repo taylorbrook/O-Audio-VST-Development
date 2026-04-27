@@ -1,11 +1,11 @@
-# Stage 2: DSP — Context (rev-2)
+# Stage 2: DSP — Context (rev-3)
 
-**Date:** 2026-04-26
+**Date:** 2026-04-27
 **Plugin:** O-Contrabass
 **Stage:** 2 of 4 (DSP)
 **Phase:** discuss
-**Cycle Scope:** **Phase 2.1a closure (R7 commit) + Phase 2.1b opening (module extraction, Gate 2)**
-**Supersedes:** rev-1 (Phase 2.1 broad discuss, dated 2026-04-26 earlier the same day) — rev-1 contracts that remain locked are inherited verbatim and not re-litigated.
+**Cycle Scope:** **Phase 2.1c — Cascaded Allpass Dispersion (Gate 3)**
+**Supersedes:** rev-2 (Phase 2.1a closure + 2.1b opening, dated 2026-04-26). rev-2 contracts that remain locked are inherited verbatim and not re-litigated.
 
 ---
 
@@ -13,83 +13,44 @@
 
 **Participants:** User, Claude
 
-This discuss cycle is a continuation of the Phase 2.1 GSD cycle, called after Phase 2.1a-recovery verify returned ⚠️ PARTIAL (engine validated under bow-on, standard `pass_rms` invariant FALSE due to characterised saturator-tail decay, R7 commit deferred pending user Option A/B/C decision).
+This discuss cycle opens Phase 2.1c — cascaded allpass dispersion on the bridge rail of the E-string waveguide — the third and final sub-phase of Phase 2.1. Phase 2.1b verified ✅ on 2026-04-27 (R8a `bd5fae0` + R15 `ef0604d` atomic commits, Gate 2 PASS bit-exact); the friction module is now extracted and consumed by both O-Bowed and O-Contrabass.
 
-The cycle scope is **dual**: (1) close Phase 2.1a by resolving the Option A/B/C decision so R7 atomic commit can land, and (2) open Phase 2.1b by scoping the module extraction (`modules/synthesis/bow-friction/`) + O-Bowed regression bar so research+plan+execute can proceed against Gate 2.
+The Phase 2.1c scope is single-purpose: implement the Rauhala/Välimäki 2006 cascaded first-order allpass dispersion filter, wire it onto the bridge rail of the existing split-rail waveguide for the E-string (M=4), validate via STRING_STIFFNESS sweep + 60 s sustained-tone harness rerun, and atomic-commit on Gate 3 PASS.
 
-Phase 2.1c (cascaded allpass dispersion, Gate 3) and Phases 2.2–2.6 remain out of scope for this discuss — each gets its own fresh GSD cycle once 2.1b verifies.
+After Phase 2.1c verifies, Phase 2.1 (the highest-risk phase, ~50% of project risk) closes and Phase 2.2 (per-string detune + A/D/G strings) opens as a fresh GSD cycle.
 
 ---
 
 ## Cycle Scope
 
-### Part A — Phase 2.1a closure (R7 atomic commit)
+**Goal:** Implement cascaded allpass dispersion (Rauhala/Välimäki 2006) on the E-string waveguide's bridge rail. Validate that STRING_STIFFNESS produces continuous, click-free timbral change; that dispersion at 100 % affects attack character but not steady-state pitch (mode-locking); and that the engine remains stable under the Gate 1 bow-on-only 65 s harness. Atomic-commit on Gate 3 PASS.
 
-**Decision:** **Option A** — accept Gate 1 PASS on bow-on validation, commit rev-3 verbatim.
+**In scope:**
+- `Source/DSP/DispersionFilter.h` — new file, per-plugin (NOT extracted to a shared module — coefficient closed-form is plugin-agnostic but topology integration is plugin-specific; module-promotion can be revisited if O-Bowed grows a dispersion filter later).
+- `Source/DSP/WaveguideString.{h,cpp}` — wire `DispersionFilter<4>` onto the bridge rail at the locked placement (see Approach Decisions Q1).
+- `Source/BowedContrabassVoice.{h,cpp}` — advance the existing 20 ms `stiffnessSmoothed` per block; recompute coefficient `a` once per block from current smoothed stiffness; push to `WaveguideString::setDispersionCoefficient(a)` (or equivalent setter — research-phase finalises API shape).
+- `tests/render-harness/main.cpp` — add `--stiffness-sweep` CLI mode (ramp STRING_STIFFNESS 0→1 over 60 s; dump WAV).
 
-Rationale per SUMMARY.md "Open Decisions" + VERIFICATION.md "Stage Verdict": rev-3 demonstrably retired the topology + LP + DCB risks (B1/B2/B3) and dropped the F4 betaScale fudge. Bow-on validation 4/4 invariants TRUE for 65 s at INFINITE_SUSTAIN = 1.0. auval/pluginval-10 PASS. The standard `pass_rms` invariant FALSE on the 5 s post-bow-off tail is a characterised low-amplitude cubic-loss in the in-loop algebraic saturator (`x/sqrt(1+x²)` × 2 rails × 41.2 RTs/s ≈ 10 %/s free-decay) — analytically derived in SUMMARY.md "R6 NOT INVOKED", not a bootstrapping failure, not a B1/B2/B3 regression, not a transcription bug. The primary Phase 2.1a-recovery goal (Helmholtz bootstrapping + 65 s stable sustain) is achieved.
-
-**R7 atomic commit lands the following working-tree files in a single commit:**
-- `plugins/O-Contrabass/CMakeLists.txt`
-- `plugins/O-Contrabass/Source/PluginProcessor.{h,cpp}` (Stage 1 carry-forward + Phase 2.1a synth wiring)
-- `plugins/O-Contrabass/Source/PluginEditor.{h,cpp}` (Stage 1 stub)
-- `plugins/O-Contrabass/Source/DSP/HyperbolicFriction.h`
-- `plugins/O-Contrabass/Source/DSP/BowModel.{h,cpp}`
-- `plugins/O-Contrabass/Source/DSP/WaveguideString.{h,cpp}` (rev-3 split-rail + F2 LP + F3 DCB removal)
-- `plugins/O-Contrabass/Source/BowedContrabassVoice.{h,cpp}` (rev-3 F4 betaScale removal)
-- `plugins/O-Contrabass/Source/OContrabassMPESynthesiser.h`
-- `plugins/O-Contrabass/tests/render-harness/{CMakeLists.txt,main.cpp}`
-- `plugins/O-Contrabass/.planning/parameter-spec.md` (promoted from draft)
-- `plugins/O-Contrabass/.planning/stages/{1-foundation,2-dsp}/*` (CONTEXT/RESEARCH/PLAN/SUMMARY/VERIFICATION/CHECKPOINT)
-- `plugins/O-Contrabass/.planning/STATUS.md` updated post-commit
-
-**Commit message body must explicitly note:**
-- F1+F2+F3+F4 coupled fix (RESEARCH §11 root-cause).
-- F3 deviates from ARCHITECTURE.md §"DC Blocker" — justified per RESEARCH §11.6 (F2 LP correctness obviates in-loop DCB).
-- Gate 1 PASS on bow-on validation; standard harness `pass_rms` FALSE characterised as Phase 2.4 follow-up.
-
-### Part B — Phase 2.1b opening (module extraction, Gate 2)
-
-**Goal:** Extract the friction-junction support classes from O-Bowed into a shared module `modules/synthesis/bow-friction/`. Both O-Bowed (existing source-of-truth) and O-Contrabass (newly-validated consumer) switch to consuming the module simultaneously to avoid duplicate maintenance.
-
-**Module surface (corrected from rev-1):**
-- `HyperbolicFriction` — the friction junction class (lookup/eval; parametrised via `mu_s`, `mu_d`, `v_0`, `R_s`)
-- `BowModel` — bow envelope state (attack/release, velocity ramp, applied bow force)
-
-**Note:** rev-1 CONTEXT named `HyperbolicBowTable`, `BowState`, `SchellengGuard` — these are aspirational names; the actual O-Bowed source-of-truth has only `HyperbolicFriction` (HyperbolicFriction.h, 55 LOC) and `BowModel` (BowModel.h 51 LOC + .cpp 97 LOC). No `SchellengGuard` class exists. Phase 2.1b extracts what actually exists; Schelleng-guard logic (if needed in future) is a Phase 2.3 concern (Slow Bow LFO + Schelleng wedge clamp) and gets added to the module then.
-
-**Gate 2 pass-bar (locked here):**
-1. **O-Bowed bit-exact regression on canonical preset:** Render O-Bowed at one canonical preset (recommended: default A4 sustained, ~5 s at default bow params, INFINITE_SUSTAIN OFF, no detune/vibrato/sub-harmonics) **before** module extraction → save `o-bowed-pre-extraction-canonical.wav` as golden reference. Re-render after switching O-Bowed to consume the module → `o-bowed-post-extraction-canonical.wav`. `cmp` byte-equality required. (Friction module is pure value-class code: deterministic.)
-2. O-Contrabass render-harness (bow-on-only, 65 s, INFINITE_SUSTAIN = 1.0) — must continue to PASS 4/4 invariants byte-identical to the Phase 2.1a-recovery reference (`/tmp/e1-bowon-only.json`).
-3. `auval -v aumu OCbs OuDv` PASS for O-Contrabass.
-4. `pluginval --strictness-level 10 --validate-in-process` PASS for both O-Bowed and O-Contrabass.
-5. Both plugins build clean (no new warnings beyond pre-existing macOS-deprecation on `createWriterFor`).
-6. `modules/registry.yaml` updated with `bow-friction` entry under `synthesis` category, version 1.0.0.
-
-**Gate 2 atomic commit:** R15 (per PLAN rev-3 carry-forward numbering) lands all module-extraction files + both plugin CMakeLists switches + both plugin source switches in one commit, only on Gate 2 PASS.
+**Out of scope (deferred to later Phase 2.x cycles):**
+- A1/D2/G2 strings + per-string M=3/2/1 dispersion table (Phase 2.2)
+- Per-string detune ±1200 cents (Phase 2.2)
+- Vibrato + Slow-Bow LFO + Schelleng wedge clamp (Phase 2.3)
+- Sub-harmonic bias + 108-combo stability matrix (Phase 2.4)
+- Body resonator + bow noise (Phase 2.5)
+- Master saturator/limiter, stereo width, microtonal, MPE (Phase 2.6)
+- ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments (end-of-Stage-2 verify per locked decision)
 
 ---
 
-## Requirements Confirmed (carry-forward from rev-1, scoped to Phase 2.1)
+## Requirements Confirmed (Phase 2.1c-relevant subsets of locked contracts)
 
-These are the Phase-2.1-relevant subsets of the locked contracts:
-
-- **FUNC-02** (sustained tone, no runaway, no NaN): validated for E1 in 2.1a-recovery; carry-forward to 2.1b (module extraction must not regress).
-- **DSP-01** (waveguide string, Lagrange3rd, 8192-sample buffer): implemented for E1 in 2.1a-recovery (split-rail per rev-3); 2.1b does NOT touch `WaveguideString` (saturator differs between O-Bowed `4·tanh(x/4)` and O-Contrabass `x/sqrt(1+x²)`; promoting WaveguideString to module would require saturator-template parameter; deferred indefinitely).
-- **DSP-02** (hyperbolic friction junction, 2× oversampled): component-complete in 2.1a-recovery (inline copy with bass defaults); module-complete after 2.1b.
-- **DSP-03** (cascaded allpass dispersion, M=4 for E-string): out of scope for 2.1b — stays in 2.1c.
-- **DSP-04** (DC blocker R=0.999 + in-loop saturator): **deviation in effect** (F3 removed in-loop DCB); ARCHITECTURE.md §"DC Blocker" amendment deferred to end-of-Stage-2 verify.
-- **PERF-01** (no allocations, no locks, no file I/O in `processBlock`): enforced; 2.1b extraction must not violate.
-- **PERF-02** (< 5% CPU on M1): tracked.
-- **PERF-03** (latency = oversampler only): in effect; 2.1b extraction must not change reported latency.
-- **QUAL-01** (no audible clicks during parameter sweeps): validated for `INFINITE_SUSTAIN` at max in 2.1a-recovery; carry-forward.
-
-Out of scope for this cycle (deferred to later Phase 2.x cycles per ROADMAP):
-- A1/D2/G2 strings + per-string detune (Phase 2.2)
-- Vibrato + Slow-Bow LFO + Schelleng wedge clamp (Phase 2.3)
-- Sub-harmonic bias + 108-combo stability matrix (Phase 2.4) — saturator-tail dissipation re-evaluated here
-- Body resonator + bow noise (Phase 2.5)
-- Master saturator/limiter, stereo width, microtonal, MPE (Phase 2.6)
+- **DSP-03** (cascaded allpass dispersion, M=4 for E-string): primary deliverable of this cycle.
+- **DSP-01** (waveguide string, Lagrange3rd, 8192-sample buffer): in effect; Phase 2.1c does NOT touch the delay-line topology — split-rail bridgeDelay/neckDelay stays exactly as committed in `ef0604d`.
+- **FUNC-02** (sustained tone, no runaway, no NaN): carry-forward from Phase 2.1a-recovery + Phase 2.1b verify; dispersion must not regress.
+- **PERF-01** (no allocations, no locks, no file I/O in `processBlock`): enforced — coefficient computation runs in `BowedContrabassVoice::renderNextBlock` *before* the per-sample loop, on smoothed stiffness; per-sample dispersion processing is 1 multiply + 1 add + 1 state load per section, no allocs.
+- **PERF-02** (< 5 % CPU on M1): tracked — dispersion at M=4 adds ~0.3 % per the architecture's per-component CPU budget table; well within margin.
+- **PERF-03** (latency = oversampler only): in effect; dispersion's group delay is *subtracted* from the base delay-line length in `updateDelayLengths()` (Phase 2.1c R17 plumbing) so reported plugin latency is unchanged.
+- **QUAL-01** (no audible clicks during parameter sweeps): explicit Gate 3 invariant — STRING_STIFFNESS sweep 0→100 % produces continuous timbral change, no clicks.
 
 ---
 
@@ -97,25 +58,28 @@ Out of scope for this cycle (deferred to later Phase 2.x cycles per ROADMAP):
 
 **Locked contracts (do NOT modify in this cycle):**
 - All 29 APVTS parameter IDs, ranges, skews — `parameter-spec.md` (sha256:c47fe736…)
-- DSP architecture (`research/ARCHITECTURE.md`, sha256:3cb26814…) — F3 deviation flagged but amendment deferred to end-of-Stage-2 verify
+- DSP architecture (`research/ARCHITECTURE.md`, sha256:3cb26814…) — F3 deviation flagged in PLAN rev-3 + R7 commit; ARCHITECTURE amendment still deferred to end-of-Stage-2 verify
 - ROADMAP phasing (sha256:106639f6…)
+- `modules/synthesis/bow-friction/` (extracted Phase 2.1b) — module is value-class deterministic; Phase 2.1c does NOT touch friction.
 
 **JUCE 8 critical patterns (auto-loaded `spike-findings-VST-development` + memory):**
-- `getLatencySamples()` is non-virtual — keep using `setLatencySamples()` in `prepareToPlay`.
-- `juce::ScopedNoDenormals` at `processBlock` entry (mandatory).
+- `getLatencySamples()` is non-virtual — keep using `setLatencySamples()` in `prepareToPlay`; dispersion's compensated group delay does not change reported latency.
+- `juce::ScopedNoDenormals` at `processBlock` entry (mandatory). Allpass cascades can produce small persistent state values that benefit from FTZ; rely on the existing scope.
 - `IS_SYNTH TRUE` + output-only `BusesProperties` already in place from Stage 1.
 - Both WebView2 flags already in place from Stage 1.
 
-**Module-extraction constraints:**
-- O-Bowed must show **bit-exact regression on the canonical preset** after switching to the shared `bow-friction` module (Gate 2.1).
-- Both plugins switch simultaneously in the R15 atomic commit (no flag-day window where one consumes the module and the other does not).
-- Module home: `modules/synthesis/bow-friction/` (registry category: `synthesis` — confirmed from rev-1, no registry-schema change required).
-- Module name: `ouaricon_bow_friction` (matches existing `ouaricon_*` convention).
-- Module surface: `HyperbolicFriction` + `BowModel` ONLY. No `WaveguideString`, no saturator, no `BowState`/`SchellengGuard` (don't exist as classes).
+**Phase 2.1c-specific constraints:**
+- **Bridge-rail-only placement** — dispersion lives on the bridge rail's path between `popSample` and the bridge LP (locked Q1 decision). Nut rail remains untouched (no dispersion, no LP, no saturator — `-1` boundary only). Mirrors O-Bowed's bridge-rail-only loop chain.
+- **Identity at stiffness=0** — `B = 1e-4 · STRING_STIFFNESS`; at STRING_STIFFNESS=0, `B → 0`, closed-form `a → 0`, allpass becomes identity. Gate 3 includes a bit-exact regression at STRING_STIFFNESS=0 to prove this.
+- **Coefficient cadence: per-block** — `a` recomputed once per block from `stiffnessSmoothed.getNextValue()` advanced by `numSamples` (skip-ahead). Per-sample `a` modulation is the click-fallback (only invoked if R18 sweep produces clicks).
+- **No mid-stage architecture amendment** — if dispersion behaviour disappoints sonically (e.g., too subtle on E1), address via Phase 2.4 follow-up RESEARCH note, not architecture rework. Q3 prefactor `1e-4` is locked unless R18 reveals an outright bug.
 
-**Phase-2.1a-recovery state preservation:**
-- The R7 commit must land verbatim — no source edits between SUMMARY.md's recorded state and the commit. Working-tree byte-stability already verified (verify-phase reproduction matched execute-phase JSON outputs byte-for-byte).
-- Saturator-tail dissipation parked as Phase 2.4 follow-up + RESEARCH §12 footnote (added during Phase 2.1b research-phase or as a small standalone update — see "Open Questions" #1 below).
+**Working-tree starting state (locked from Phase 2.1b verify):**
+- `WaveguideString.{h,cpp}` rev-3 split-rail (committed `ef0604d`)
+- `BowedContrabassVoice.{h,cpp}` Phase 2.1b extraction-consumer state (committed `ef0604d`)
+- `modules/synthesis/bow-friction/` v1.0.0 (committed `ef0604d`, registry entry at `modules/registry.yaml:292-293`)
+- O-Bowed canonical preset golden render: sha256 `93124fb8…34c8891` (committed at `plugins/O-Bowed/tests/render-harness/golden/canonical-preset.wav.sha256`, harness committed `bd5fae0`)
+- O-Contrabass bow-on-only reference render: sha256 `00431582…d5e60`
 
 ---
 
@@ -123,98 +87,94 @@ Out of scope for this cycle (deferred to later Phase 2.x cycles per ROADMAP):
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Phase 2.1a `pass_rms` resolution | **Option A** — accept Gate 1 on bow-on validation, commit rev-3 verbatim | rev-3 retired B1/B2/B3 + F4 (the rev-3 PLAN's stated failure modes). Bow-on validation directly demonstrates the Phase 2.1a-recovery goal. Saturator-tail decay is a separate, lower-priority phenomenon — addressing it now expands scope beyond the gate-first cycle. |
-| Saturator-tail follow-up parking | **Phase 2.4 follow-up note + RESEARCH §12 footnote** | Capture the analytical derivation (≈10%/s free-decay = x²/2 cubic-loss × 2 rails × 41.2 RTs/s) in a new RESEARCH §12 (Phase 2.4 follow-up tracker). Re-evaluate during Phase 2.4's 108-combo stability matrix if longer free-decay characterisation surfaces a real problem. Defers ARCHITECTURE saturator-choice litigation. |
-| ARCHITECTURE.md §"DC Blocker" amendment | **Defer to end-of-Stage-2 verify** | Avoid mid-stage architecture churn. Amendment can reflect any output-path DCB additions surfacing in 2.4/2.5 once all Phase 2.x cycles complete. F3 deviation tracked in PLAN rev-3 + SUMMARY.md + VERIFICATION.md + R7 commit-message body — sufficient audit trail. |
-| Phase 2.1b cycle scope | **2.1b only** — module extraction + O-Bowed bit-exact regression + both-plugins switch | Phase 2.1c (dispersion) and Phases 2.2–2.6 each get fresh GSD cycles. Matches rev-1 gate-first principle: each sub-phase must verify before the next opens. |
-| Module home / name | **`modules/synthesis/bow-friction/`** + `ouaricon_bow_friction` (rev-1 carry-forward) | Confirmed from rev-1 §"Approach Decisions". Registry has no `dsp` category; `synthesis` is the closest semantic fit. No registry-schema change required. |
-| Module extraction surface | **`HyperbolicFriction` + `BowModel`** (correction from rev-1) | rev-1's `HyperbolicBowTable`/`BowState`/`SchellengGuard` were aspirational; actual O-Bowed source-of-truth has only the two named classes. `WaveguideString` stays per-plugin (saturator differs between plugins). Cleanest surface; minimal coupling. |
-| O-Bowed regression bar | **Bit-exact WAV diff on canonical preset** | Friction module is pure value-class code → deterministic. `cmp` byte-equality is the strongest, cheapest-to-automate regression bar. One canonical preset (default A4 sustained, ~5 s, no detune/vibrato/sub-harmonics, INFINITE_SUSTAIN OFF) is enough at Gate 2; multi-preset matrix can be added in a later cycle if needed. |
-| Logic Pro AU smoke timing | **Post-R7-commit, before Phase 2.1b execute** | R7 lands first (auval/pluginval/harness already PASS — sufficient for engine commit). User auditions in Logic between R7 commit and 2.1b research-phase kick-off. If audition reveals an unexpected sonic issue, file as 2.1a bug and pause 2.1b. Fastest path; commit captures clean engine state. |
-| Both-plugins switch model | **Atomic R15 commit** (both CMakeLists + both source-include switches) | No flag-day window where one plugin consumes the module and the other still has inline copy. Matches rev-1 §"Approach Decisions" intent. Risk: O-Contrabass build needs O-Bowed extraction to land — handled by sequencing R15 as a single commit covering both. |
-| Phase 2.1b primary listening DAW | **Logic Pro (AU)** (rev-1 carry-forward) | Closest to validated O-Lyrica/O-Bowed reference workflow. AU is the stricter validation surface. Manual smoke after R15 commit confirms both plugins still sound right. |
+| **Q1 — Dispersion placement on bridge rail** | **(a) Before bridge LP** — `pop → dispersion → bridge LP → −1 boundary → friction → inject → saturator → push` | Direct match to ARCHITECTURE.md §"Cascaded Allpass Dispersion" (line 417 "immediately before bridge filter on the right-going wave") + §"Processing Order" (line 267 "dispersion → bridge LP → saturator → DC blocker → fractional delay"). Canonical Smith PASP chain `dispersion → loss → nonlinearity → delay`. The placeholder comment at `WaveguideString.cpp:170-171` (which suggests after-saturator placement) is **stale** — written before split-rail rev-3 landed; supersede in Phase 2.1c R17 with the correct (a) placement and update the comment. |
+| **Q2 — M for Phase 2.1c (E1 only)** | **Hardcode M=4 for E1** — do NOT pre-wire the per-string M=4/3/2/1 table | Single-string scope; A/D/G strings come in Phase 2.2 with the per-string bank, which is the natural home for the M-table. Don't pay table-plumbing cost twice. `DispersionFilter<4>` template parameter at compile time; per-string M parameterisation deferred to Phase 2.2. |
+| **Q3 — Inharmonicity B mapping** | **`B = 1e-4 · STRING_STIFFNESS`** verbatim per ARCHITECTURE.md §"String Waveguide Bank" (line 81) | No mid-stage architecture override. Prefactor `1e-4` is the locked E1 value. If R18 sweep reveals the audible range is too subtle/aggressive, file as Phase 2.4 follow-up RESEARCH note (matches the saturator-tail Phase 2.4 parking pattern from rev-2). |
+| **Q4 — Gate 3 invariants** | **Six-item bar:** STRING_STIFFNESS sweep no clicks; 100 %-stiffness affects attack but not steady-state pitch (mode-locking); BRIGHTNESS sweep no clicks; auval + pluginval-10 PASS; bow-on-only 65 s harness 4/4 TRUE (no regression of Gate 1); **bit-exact regression at STRING_STIFFNESS=0** (dispersion identity check). | First five items carry forward verbatim from PLAN rev-3 §"Success Criteria". Sixth item (bit-exact at stiffness=0) is the cheap-strong regression bar that proves the dispersion path correctly degenerates to identity when `B → 0` — same regression-bar philosophy as Phase 2.1b's bit-exact O-Bowed canonical render. |
+| **Q5 — Stiffness-sweep validation harness** | **(a) Extend `tests/render-harness/main.cpp` with `--stiffness-sweep` CLI mode** | Automated, reproducible, matches Gate 1/Gate 2 cadence. ~30 LOC of CLI plumbing — ramp STRING_STIFFNESS 0→1 linearly over 60 s, dump WAV with sha256 + JSON metadata. User auditions in Logic post-render for the "continuous timbral change, no clicks" qualitative invariant; harness mechanically captures the WAV + sha256 for repeatability. |
+| Coefficient cadence | Per-block from smoothed stiffness | Already-wired 20 ms `stiffnessSmoothed` (`WaveguideString.cpp:38`) advances per block in voice's `renderNextBlock` (R17); coefficient `a` recomputed once per block. Per-sample `a` modulation reserved as click-fallback if R18 sweep fails. |
+| DispersionFilter location | **Per-plugin** at `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` — NOT a shared module | O-Bowed has no dispersion filter (verified — `plugins/O-Bowed/Source/DSP/` has no `Dispersion*` files). Module promotion premature with one consumer. Revisit in a future cycle if O-Bowed adds dispersion. Keeps Phase 2.1c surface tight. |
+| Latency compensation | Subtract dispersion group delay from base delay-line length in `updateDelayLengths()` | Standard Smith PASP technique. Group delay at the fundamental frequency `D_disp(f0) = M · (1 − a²) / |1 + a·e^{-j·2π·f0/sr}|²` (closed-form per Rauhala/Välimäki paper §III.B). Base length stays bit-exact when `a=0` (M·(1−0)/1 = M ≈ 4 samples, but at `a=0` group delay = M, so subtract 4 samples; at `a=0` the allpass IS identity so the subtraction is exactly compensated by the M unit-delays it inserts — net delay unchanged). Research-phase derives the exact subtraction formula. |
+| Atomic commit unit | **R20 (Phase 2.1c) atomic commit** lands `DispersionFilter.h` + `WaveguideString.{h,cpp}` edits + `BowedContrabassVoice.{h,cpp}` edits + `tests/render-harness/main.cpp` `--stiffness-sweep` mode + planning artefacts (CONTEXT/RESEARCH/PLAN/SUMMARY/VERIFICATION/STATUS updates) — all in one commit, only on Gate 3 PASS. | Same gate-first principle as R7 / R15. R20 numbering continues the Phase 2.1 task sequence (R1–R7 = 2.1a-recovery, R8–R15 = 2.1b extraction, R16–R20 = 2.1c dispersion). |
+| Phase 2.1c primary listening DAW | **Logic Pro (AU)** (rev-1 / rev-2 carry-forward) | Same validated workflow used through Phase 2.1a/2.1b. AU is the stricter validation surface. Manual smoke after R20 commit on E1 sustained tone with STRING_STIFFNESS at 0 / 50 / 100 % to confirm "attack changes, steady-state pitch locks". |
 
 ---
 
-## Phase 2.1b Test Criteria (locked)
+## Phase 2.1c Test Criteria (locked — Gate 3 exit bar)
 
-These are the exit criteria that Phase 2.1b verify must satisfy (Gate 2):
-
-- [ ] **O-Bowed pre-extraction render captured:** `o-bowed-pre-extraction-canonical.wav` saved before any source edits (golden reference).
-- [ ] **O-Bowed post-extraction render bit-equal:** `cmp o-bowed-pre-extraction-canonical.wav o-bowed-post-extraction-canonical.wav` returns 0 (byte-equal).
-- [ ] **O-Contrabass render-harness bow-on-only PASS:** 4/4 invariants TRUE, JSON byte-identical to `/tmp/e1-bowon-only.json` reference.
+- [ ] **STRING_STIFFNESS 0%→100% sweep** produces continuous timbral change, no audible clicks (validated via `--stiffness-sweep` harness WAV + Logic audition).
+- [ ] **STRING_STIFFNESS = 100 %** audibly affects attack character but **not** steady-state pitch (mode-locking — Helmholtz period dominates after the first ~50 ms).
+- [ ] **BRIGHTNESS sweep 80 Hz → 12 kHz** produces no clicks (regression check — bridge LP path now has dispersion upstream of it).
 - [ ] **`auval -v aumu OCbs OuDv` PASS** for O-Contrabass.
-- [ ] **`auval -v aumu OBow OuDv` PASS** for O-Bowed.
-- [ ] **`pluginval --strictness-level 10 --validate-in-process` PASS** for both O-Bowed and O-Contrabass VST3.
-- [ ] **Build clean** for both plugins (no new warnings beyond pre-existing macOS-deprecation on `createWriterFor`).
-- [ ] **`modules/registry.yaml`** updated with `bow-friction` entry under `synthesis` category, version 1.0.0.
-- [ ] **R15 atomic commit landed** — module + both plugin switches + registry update in one commit.
+- [ ] **`pluginval --strictness-level 10 --validate-in-process` PASS** for O-Contrabass VST3.
+- [ ] **Bow-on-only 65 s render-harness** at INFINITE_SUSTAIN=1.0: 4/4 invariants TRUE (no regression of Gate 1 stability).
+- [ ] **Bit-exact regression at STRING_STIFFNESS=0** — render bow-on-only 65 s with STRING_STIFFNESS=0 *before* R16 (golden) → render same after R19 → `cmp` byte-equal. Proves the dispersion path is identity when `a → 0`.
+- [ ] **R20 atomic commit landed** — module + harness CLI + planning artefacts in one commit.
 
 ---
 
 ## Open Questions (for research phase)
 
-The following five questions remain genuinely-open and are handed to Phase 2.1b research:
+The following questions remain genuinely-open and are handed to Phase 2.1c research:
 
-1. **Saturator-tail RESEARCH §12 update — when?** Add the analytical derivation (≈10%/s free-decay characterisation) to RESEARCH.md as a new §12 ("Phase 2.4 follow-up: saturator-tail dissipation"). Two timings:
-   - (a) During 2.1b research-phase (cleanest — research-phase already opens RESEARCH.md), OR
-   - (b) As a small standalone update with the R7 commit (keeps research-phase scope tight).
-   **Recommend (a)** — research-phase naturally documents follow-ups; no need for a special-purpose commit.
+1. **Closed-form `a` coefficient — exact paper constants.** ARCHITECTURE.md §"Cascaded Allpass Dispersion" gives the structural form (`I = log2(f0/440)·12 + 49`, `lB = log(B)`, `lM = log(M)`, `C = m1·lB + m2·lM + m3·lB·lM + m4`, `k = k1 + k2·I + k3·I²`, `a = clamp(-C/k, -0.99, 0.99)`) but does NOT pin the literal `m1..m4, k1..k3` values. Research-phase must extract them from Rauhala/Välimäki 2006 IEEE SP Letters Table 1 (or the equivalent published table) and pin them in `DispersionFilter.h` as `constexpr` values with a citation comment.
 
-2. **Module CMakeLists pattern selection.** rev-1 RESEARCH §1 confirmed two extant patterns:
-   - Pattern A: `ouaricon_add_module(...)` (used by `note-expression` — per-format routing required)
-   - Pattern B: explicit file refs (used by `scala-tuning-engine` — sibling-plugin convention)
-   Phase 2.1b research must pick one and pattern-confirm against an existing module's CMakeLists structure. **Recommend Pattern A** (`ouaricon_add_module`) — friction module is single-format, no per-format routing complexity; matches the convention used by the lighter-weight `note-expression`.
+2. **Group-delay subtraction formula in `updateDelayLengths()`.** What is the exact closed-form for `D_disp(f0)` of an M-section first-order allpass cascade at the fundamental? Two candidates from the literature:
+   - (a) Per-section group delay at DC: `D_section(f=0) = (1 − a²) / (1 + a)² = (1 − a) / (1 + a)`; total = M · D_section. Cheap; correct only at DC.
+   - (b) Per-section group delay at `f0`: `D_section(f0) = (1 − a²) / |1 + a·e^{-j·2π·f0/sr}|²`; total = M · D_section. Slightly more expensive; matches the actual phase delay at the fundamental.
+   Research-phase picks (a) or (b) and pins the formula. **Recommend (b)** — accuracy at `f0` is what mode-locking cares about; cost is negligible (one block-rate computation).
 
-3. **Header layout / public-API surface.** What headers does the module expose? Options:
-   - `bow-friction/include/bow-friction/HyperbolicFriction.h` + `bow-friction/include/bow-friction/BowModel.h` (two headers, `bow-friction/HyperbolicFriction.h` namespace-qualified include path)
-   - `bow-friction/include/bow-friction/bow-friction.h` (single umbrella header re-exporting both)
-   - Mirror existing modules (`note-expression`, `scala-tuning-engine`) — research-phase pattern-confirms.
-   **Recommend:** mirror existing modules' header convention — Phase 2.1b research-phase confirms.
+3. **Per-sample setter API on `WaveguideString` for dispersion coefficient.** Two shapes:
+   - (a) `setDispersionCoefficient(float a)` — voice computes `a` from smoothed stiffness once per block, calls setter. Symmetric with existing `setBrightness(cutoffHz)` etc.
+   - (b) `setDispersionStiffness(float stiffness01)` — voice forwards smoothed stiffness; `WaveguideString` computes `a` internally. Encapsulates the `a` math inside the waveguide.
+   **Recommend (a)** — the closed-form computation depends on `f0` (the per-note fundamental), which is voice-state, not waveguide-state. Voice computes once per block; waveguide accepts the result. Clean separation.
 
-4. **Plugin-side include-switch mechanics.** When both plugins switch from `#include "DSP/HyperbolicFriction.h"` → module include, does the inline-copy header file remain (as a thin shim re-including the module header for source-compatibility), or is it deleted entirely from the plugin source tree?
-   **Recommend:** delete entirely. Cleaner state; no risk of include shadowing. Plugin sources change `#include` lines + lose two files; CMakeLists drops the corresponding `target_sources`.
+4. **DispersionFilter.h template/class shape.** Three shapes:
+   - (a) `template <int MaxSections> class DispersionFilter` — fixed cascade depth at compile time (M=4 for E1 here).
+   - (b) `class DispersionFilter` with runtime `int M` parameter — dynamic depth, configurable at `prepare()` time.
+   - (c) `template <int MaxSections> class DispersionFilter` with runtime `int activeSections ≤ MaxSections` — both compile-time max and runtime active count.
+   **Recommend (c)** — Phase 2.1c uses M=4 for E1 hard-locked; Phase 2.2 will introduce per-string M (4/3/2/1) and benefits from a runtime `activeSections` selector without changing the template. Pre-allocates state for the worst case (M=4) at compile time.
 
-5. **Bass-default propagation.** O-Contrabass currently sets `mu_s=0.85`, `mu_d=0.25`, `v_0=0.05 m/s` via `HyperbolicFriction.h` init list (verbatim port + 3 init-list edits per SUMMARY.md). After extraction, the module's `HyperbolicFriction` exposes default-construction defaults (likely O-Bowed's tighter values). Three options:
-   - (a) Module exposes ctor / setter API; O-Contrabass voice calls setters in `prepareToPlay` to restore bass tuning.
-   - (b) Module exposes a `BassPreset` factory (`HyperbolicFriction::createBassDefaults()`); O-Contrabass voice consumes the factory.
-   - (c) Module ctor takes a `Defaults` struct; both plugins pass their own.
-   **Recommend (a) — setter API:** smallest module surface change; reuses existing patterns (parameters get applied per-block anyway, so `prepareToPlay` setter is the natural injection point).
+5. **`--stiffness-sweep` harness output format.** The existing harness writes `e1-max-sustain.wav` + `e1-max-sustain.json`. Should `--stiffness-sweep` emit:
+   - (a) Single WAV `e1-stiffness-sweep.wav` (60 s mono float, MIDI E1, STRING_STIFFNESS ramps 0→1 linearly over duration, all other params at defaults), plus JSON metadata documenting ramp params + sha256.
+   - (b) Three discrete WAVs at STRING_STIFFNESS = 0 / 50 / 100 % (5 s each, separate files).
+   **Recommend (a)** — single file is easier to listen-test continuously in Logic; ramp-discontinuity audibility is the actual click-detection invariant. (b) is captured implicitly by listening to specific time-windows of the (a) WAV.
 
 ---
 
-## Files / Artefacts to Produce in Phase 2.1b
+## Files / Artefacts to Produce in Phase 2.1c
 
-**Module (new):**
-- `modules/synthesis/bow-friction/CMakeLists.txt`
-- `modules/synthesis/bow-friction/include/bow-friction/HyperbolicFriction.h` (extracted from `plugins/O-Bowed/Source/DSP/HyperbolicFriction.h`)
-- `modules/synthesis/bow-friction/include/bow-friction/BowModel.h` (extracted)
-- `modules/synthesis/bow-friction/src/BowModel.cpp` (extracted)
-- (Optional umbrella) `modules/synthesis/bow-friction/include/bow-friction/bow-friction.h`
-- `modules/synthesis/bow-friction/registry-entry.yaml` (or equivalent — match existing module convention)
+**Source (new):**
+- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` — Rauhala/Välimäki 2006 closed-form, `template<int MaxSections=4> class DispersionFilter`, `prepare`, `reset`, `setCoefficient(float a)`, `processSample(float x)`, `getGroupDelaySamples(float f0, float sr) const`.
 
-**Registry (updated):**
-- `modules/registry.yaml` — add `bow-friction` entry under `synthesis` category, version 1.0.0.
-
-**Plugin source changes (both plugins):**
-- `plugins/O-Bowed/CMakeLists.txt` — add `bow-friction` module dependency, drop friction `target_sources`.
-- `plugins/O-Bowed/Source/DSP/HyperbolicFriction.h` — DELETED.
-- `plugins/O-Bowed/Source/DSP/BowModel.{h,cpp}` — DELETED.
-- `plugins/O-Bowed/Source/**/*.{h,cpp}` — `#include` line updates.
-- `plugins/O-Contrabass/CMakeLists.txt` — add `bow-friction` module dependency, drop friction `target_sources`.
-- `plugins/O-Contrabass/Source/DSP/HyperbolicFriction.h` — DELETED.
-- `plugins/O-Contrabass/Source/DSP/BowModel.{h,cpp}` — DELETED.
-- `plugins/O-Contrabass/Source/**/*.{h,cpp}` — `#include` line updates + `prepareToPlay` setter calls for bass defaults (per Open Question #5 recommendation).
+**Source (modified):**
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.h` — add `DispersionFilter<4> bridgeDispersion` member; add `setDispersionCoefficient(float a)` setter; update `processSample` to insert dispersion BEFORE bridge LP on the bridge rail; update `updateDelayLengths()` to subtract dispersion group delay from base length.
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` — corresponding implementations; update the stale "Phase 2.1c placeholder" comment at line 170-171 to reflect the (a)-placement decision (before bridge LP, not before saturator).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` — in `renderNextBlock`, advance `stiffnessSmoothed` per block, compute `a` from current smoothed stiffness via `DispersionFilter::computeCoefficient(f0, B, M)` static helper, push to `waveguideString.setDispersionCoefficient(a)`.
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` — add `--stiffness-sweep` CLI flag; ramp STRING_STIFFNESS 0→1 over 60 s; emit `e1-stiffness-sweep.wav` + `.json` with sha256.
 
 **Test artefacts:**
-- `o-bowed-pre-extraction-canonical.wav` — golden reference (captured BEFORE any source edits).
-- `o-bowed-post-extraction-canonical.wav` — Gate 2.1 verification render.
-- `cmp` invocation logged in SUMMARY.md.
+- `e1-stiffness-sweep.wav` + `.json` (Phase 2.1c R18 validation render).
+- `e1-bowon-only-stiffness-zero-pre.wav` (golden — captured BEFORE R16 source edits).
+- `e1-bowon-only-stiffness-zero-post.wav` (Gate 3 verification — bit-exact match to golden required).
 
 **Verification artefacts:**
-- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` — append §12 (saturator-tail Phase 2.4 follow-up) + §13 (Phase 2.1b module-extraction research).
-- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` — append rev-4 (R8–R15 module-extraction tasks; carries forward verbatim from rev-3 §Phase 2.1b task bodies).
-- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — append "Phase 2.1b verify" section with Gate 2 pass-bar evidence.
+- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` — append §14 (Phase 2.1c dispersion research) resolving the 5 Open Questions above.
+- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` — append rev-5 (R16–R20 task bodies authored fresh; the rev-1/rev-2/rev-3 references to "Tasks 17–20 carry forward verbatim" were placeholders — actual task bodies need to be written in this rev because the prior PLANs only described scope, not execution detail).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` — append "Phase 2.1c execute" section after R20 lands.
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — append "Phase 2.1c verify" section with Gate 3 pass-bar evidence.
+- `plugins/O-Contrabass/.planning/STATUS.md` — flip `next_action` to `phase_2_2_discuss` after Gate 3 PASS.
+
+---
+
+## Risks
+
+1. **Dispersion produces audible clicks under STRING_STIFFNESS automation.** Mitigation: per-block coefficient cadence with 20 ms `stiffnessSmoothed` is the first defence; if R18 sweep produces clicks, fall back to per-sample `a` interpolation (cubic interp between block-boundary `a` values, ~5 LOC change in `WaveguideString::processSample`). Research-phase confirms per-sample fallback is a known O-Bells/O-Lyrica pattern.
+2. **Group-delay subtraction wrong → pitch drifts as STRING_STIFFNESS changes.** Mitigation: bit-exact regression at STRING_STIFFNESS=0 catches the degenerate case (M unit delays + M·D_section subtraction must net to zero). For STRING_STIFFNESS > 0, the "mode-locking" Gate 3 invariant (steady-state pitch unchanged at 100 % stiffness) is the audible regression bar; quantitative check via FFT-bin peak detection on the sustained tone is the harness-level fallback if the audible test is ambiguous.
+3. **Bridge LP recurrence regression after dispersion is inserted upstream.** Mitigation: F2 LP form (`y = g·(1−p)·x + p·y_prev + leak`, locked Phase 2.1a-recovery) is independent of dispersion — dispersion only changes the input `x`. Bow-on-only 65 s harness invariants (4/4 TRUE) catches any LP regression. The bit-exact regression at STRING_STIFFNESS=0 is the strongest possible bar — any LP-touching change shows as byte-difference.
+4. **Coefficient overflow / NaN at extreme STRING_STIFFNESS.** Mitigation: `a = clamp(-C/k, -0.99, 0.99)` is in the closed form; values outside `(-1, 1)` would make the allpass unstable. Research-phase confirms the clamp range matches the paper's stated stability bounds.
+5. **Per-string M-table absence makes Phase 2.2 wiring non-trivial.** Acknowledged but acceptable: Phase 2.1c's `DispersionFilter<4>` template-max + runtime `activeSections` (Q4 (c) recommendation) lets Phase 2.2 wire per-string M without re-templating — `activeSections` becomes the per-string variable.
+6. **Harness `--stiffness-sweep` adds CLI complexity.** Acceptable: ~30 LOC, isolated to harness, no production-code coupling. Pattern matches the existing CLI structure (already accepts `--note`, `--velocity`, `--sustain` flags per Phase 2.1b R8 implementation).
 
 ---
 
@@ -222,43 +182,42 @@ The following five questions remain genuinely-open and are handed to Phase 2.1b 
 
 Ready for: **research** phase — `/plugin-research O-Contrabass 2-dsp`
 
-Research focus (rev-2):
+Research focus (Phase 2.1c):
 
-1. **First action: R7 atomic commit lands.** Phase 2.1a-recovery work + Stage 1 carry-forward + parameter-spec promotion → single commit per CLAUDE.md commit conventions. Commit-message body explicitly notes F3 ARCHITECTURE deviation + saturator-tail Phase 2.4 follow-up. (Mechanical; could be done before research-phase opens, but cleaner to bundle with the research-phase scoping pass.)
-2. **RESEARCH §12 update:** Document saturator-tail dissipation as Phase 2.4 follow-up (analytical derivation: x²/2 cubic-loss × 2 rails × 41.2 RTs/s ≈ 10%/s free-decay; expected impact in Phase 2.4's 108-combo matrix).
-3. **Pattern-confirm module extraction** against `note-expression` (Pattern A — `ouaricon_add_module`) — confirm CMakeLists structure, registry-entry YAML schema, header layout convention.
-4. **Resolve Open Questions #2–#5** (CMakeLists pattern, header layout, include-switch mechanics, bass-default propagation).
-5. **Pre-flight bit-exact rendering test on O-Bowed CURRENT state** — render `o-bowed-pre-extraction-canonical.wav` BEFORE any source edits (this is the golden reference that R15's Gate 2.1 compares against). Log render command + JSON metadata + WAV checksum.
-6. **Confirm O-Bowed canonical preset** — research-phase locks the exact preset (default A4 sustained, ~5 s, no detune/vibrato/sub-harmonics, INFINITE_SUSTAIN OFF) and renders the golden reference.
+1. **Pin Rauhala/Välimäki 2006 closed-form constants** (`m1..m4, k1..k3`) — extract from the IEEE SP Letters paper Table 1 (or the equivalent table in `research/O-Contrabass-bass-waveguide-stability.md`) and lock as `constexpr` values in the planned `DispersionFilter.h`.
+2. **Resolve Open Question #2** — pick the group-delay formula (recommend `D_section(f0) = (1 − a²) / |1 + a·e^{-j·2π·f0/sr}|²`) and document the closed-form derivation.
+3. **Resolve Open Questions #3–#5** — setter API shape (recommend `setDispersionCoefficient(float a)`), `DispersionFilter.h` template/class shape (recommend (c) — fixed `MaxSections` + runtime `activeSections`), harness output format (recommend single WAV ramp).
+4. **Pre-flight bit-exact baseline render** — capture `e1-bowon-only-stiffness-zero-pre.wav` BEFORE any R16 source edits, log sha256. This is the Gate 3 STRING_STIFFNESS=0 regression-bar golden reference.
+5. **Pattern-confirm `--stiffness-sweep` against existing harness CLI** — confirm the existing CLI parser shape, note any required `getopt`-style flag handling that needs new branches.
+6. **Update RESEARCH.md** — append §14 documenting the resolutions above. (No §12/§13 changes; those are Phase 2.4 follow-up + 2.1b history.)
 
-After research: plan-phase (PLAN.md rev-4) writes R8–R15 task breakdown verbatim against this CONTEXT + research findings; execute-phase performs the extraction + R15 atomic commit; verify-phase confirms Gate 2 invariants + Logic AU smoke.
+After research: plan-phase (PLAN.md rev-5) writes R16–R20 task breakdown verbatim against this CONTEXT + research findings; execute-phase performs the implementation + R20 atomic commit; verify-phase confirms Gate 3 invariants + Logic AU smoke.
 
 ---
 
-## Audit Trail (rev-2 supersedes rev-1)
+## Audit Trail (rev-3 supersedes rev-2)
 
-**rev-1 (earlier 2026-04-26):** Phase 2.1 broad discuss. Cycle scope = Phase 2.1 only (sub-phases a/b/c). 7 approach decisions, 5 open questions. Plan/research/execute consumed rev-1 directly through Phase 2.1a-recovery (rev-3 PLAN). Verify returned ⚠️ PARTIAL.
+**rev-1 (earlier 2026-04-26):** Phase 2.1 broad discuss. Cycle scope = Phase 2.1 (sub-phases a/b/c).
 
-**rev-2 (this document):** Continuation discuss after Phase 2.1a-recovery verify. Closes Phase 2.1a (Option A, R7 commit, saturator-tail parked) + opens Phase 2.1b (module extraction, Gate 2). Phase 2.1c dispersion stays out of scope for the next research/plan/execute pass and gets its own fresh discuss after 2.1b verifies.
+**rev-2 (later 2026-04-26):** Phase 2.1a closure (Option A, R7 commit) + Phase 2.1b opening (module extraction, Gate 2). 9 approach decisions, 5 open questions. Phase 2.1b verified 2026-04-27 (R8a `bd5fae0` + R15 `ef0604d` atomic commits, Gate 2 PASS bit-exact).
 
-**Inherited verbatim from rev-1 (not re-litigated):**
-- Cycle-scope gate-first principle
-- Module home: `modules/synthesis/bow-friction/`
-- Module name: `ouaricon_bow_friction`
-- Phase 2.1 stability fallback strategy
-- Phase 2.1 MIDI trigger model (real note-on → E1 voice)
-- Stability test harness pattern (automated render-to-WAV + invariant checks)
+**rev-3 (this document, 2026-04-27):** Phase 2.1c opening — cascaded allpass dispersion (Rauhala/Välimäki 2006), bridge-rail-only on E-string, Gate 3 exit bar. 5 approach decisions (Q1–Q5 all confirmed by user as recommendations: placement before bridge LP, M=4 hardcoded, B=1e-4·stiffness verbatim, six-item Gate 3 bar with bit-exact regression at stiffness=0, harness `--stiffness-sweep` mode). 5 open questions handed to research-phase: closed-form constants, group-delay formula, setter API shape, template/class shape, harness output format.
+
+**Inherited verbatim from rev-2 (not re-litigated):**
+- All Phase 2.1a-recovery contracts (split-rail topology, F2 LP form, F3 no in-loop DCB, F4 betaScale removed)
+- All Phase 2.1b contracts (bow-friction module v1.0.0 at `modules/synthesis/bow-friction/`, both plugins consume)
+- ARCH §"DC Blocker" + §"In-loop saturator" amendments deferred to end-of-Stage-2 verify
+- Saturator-tail Phase 2.4 follow-up parking + RESEARCH §12 footnote
 - Primary listening DAW: Logic Pro (AU)
 - Sample-rate strategy: internal 88.2 / 96 kHz at friction junction
-- All 9 Phase 2.1 test criteria (carried into Gate 2 + Gate 3 as appropriate)
+- Atomic-commit gate-first principle (R7 → R15 → R20)
 
-**Corrected from rev-1:**
-- Module extraction surface: `HyperbolicFriction` + `BowModel` (NOT `HyperbolicBowTable`/`BowState`/`SchellengGuard` — those aren't real classes in the O-Bowed source-of-truth).
-
-**New in rev-2:**
-- Option A locked for Phase 2.1a closure
-- Saturator-tail Phase 2.4 follow-up + RESEARCH §12 destination
-- ARCH §"DC Blocker" amendment deferred to end-of-Stage-2 verify
-- O-Bowed regression bar locked at bit-exact WAV diff on canonical preset
-- Logic AU smoke timing locked at post-R7 / pre-2.1b-execute
-- Both-plugins atomic R15 switch model
+**New in rev-3:**
+- Q1 dispersion placement locked: before bridge LP on bridge rail (overrides stale `WaveguideString.cpp:170-171` placeholder comment)
+- Q2 M=4 hardcoded for E1; per-string M-table deferred to Phase 2.2
+- Q3 `B = 1e-4 · STRING_STIFFNESS` locked verbatim per ARCHITECTURE
+- Q4 Gate 3 bar = six items including bit-exact regression at STRING_STIFFNESS=0
+- Q5 `--stiffness-sweep` CLI mode added to render-harness
+- DispersionFilter location: per-plugin (not extracted to shared module)
+- Latency compensation: subtract dispersion group delay from base length in `updateDelayLengths()`
+- Atomic commit: R20 lands all Phase 2.1c work in one commit on Gate 3 PASS

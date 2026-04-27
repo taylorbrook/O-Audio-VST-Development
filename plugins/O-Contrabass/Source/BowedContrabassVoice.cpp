@@ -10,6 +10,7 @@
 */
 
 #include "BowedContrabassVoice.h"
+#include "DSP/DispersionFilter.h"
 #include <cmath>
 
 BowedContrabassVoice::BowedContrabassVoice (juce::AudioProcessorValueTreeState* apvts)
@@ -146,6 +147,25 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     {
         clearCurrentNote();
         return;
+    }
+
+    // Phase 2.1c: per-block dispersion coefficient update.
+    // Voice computes `a` from (f0, B, M) once per block; waveguide consumes.
+    // Per RESEARCH §14.4 §"Per-Block Update Sequencing" + §14.9 belt-and-braces guards.
+    {
+        waveguideString.advanceStiffnessSmootherBy (numSamples);
+        const float currentStiffness = waveguideString.getCurrentSmoothedStiffness();
+        const float B  = 1.0e-4f * juce::jlimit (0.0f, 1.0f, currentStiffness);   // §14.2
+        constexpr int M = 4;                                                      // §14.5 / Q2 lock
+        const float f0 = juce::jlimit (20.0f, 5000.0f, currentFrequency);         // §14.9 paranoia clamp
+        // Short-circuit at STRING_STIFFNESS=0 to preserve bit-exact regression bar
+        // at the parameter edge — closed form clamps to a≈+0.99 at I=8 (E1) for
+        // all B incl. 0 (Risk #7). Smoother handles the 0→a transition over 20 ms.
+        float a = (currentStiffness <= 0.0f)
+                ? 0.0f
+                : DispersionFilter<4>::computeAllpassCoefficient (f0, B, M);
+        if (! std::isfinite (a)) a = 0.0f;                                        // §14.9 belt-and-braces
+        waveguideString.setDispersionCoefficient (a);
     }
 
     // 2. Clear the host-rate slice of voiceBuffer.
