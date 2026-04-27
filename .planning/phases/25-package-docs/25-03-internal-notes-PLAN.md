@@ -2,50 +2,51 @@
 phase: 25-package-docs
 plan: 03
 type: execute
-wave: 3
-depends_on: [25-01, 25-02]
+wave: 2
+depends_on: [25-01-author-and-plumbing-PLAN.md]
 files_modified:
   - research/microtonal-dorico-integration.md
 autonomous: true
 requirements: [DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05]
 must_haves:
   truths:
-    - "research/microtonal-dorico-integration.md exists as a new single combined file under research/ per CLAUDE.md convention (DOCS-05)"
-    - "The file has exactly 4 H2 sections covering all 4 DOCS topics, in this order: '## Module Architecture' (DOCS-01), '## Canonical Dorico Setup Procedure' (DOCS-02), '## Host-Side Behavior Quirks' (DOCS-03), '## Troubleshooting Signatures' (DOCS-04)"
-    - "Tone is developer-facing technical reference, NOT end-user marketing copy — DOCS-05 boundary explicitly honored"
-    - "Notes describe what was actually shipped in Plans 25-01 and 25-02 (the canonical .doricoexpmap, the module-side install rules, the per-platform PKG/EXE dual-write logic, the install-time Dorico version probe) — they are written AFTER plans 25-01/02 land so they describe shipped behavior accurately, not anticipated behavior"
-    - "DOCS-02 is structured for direct translation into future website manual/quickstart copy (FUT-06) — uses Dorico's exact menu paths verbatim, screenshots/numbered steps, host-version pinned"
-    - "DOCS-04 is symptoms-vs-cause table format covering the expression-map-skipped UX trap (Spike 002 reference) plus regression signatures from Phases 23/24 (AU-link Steinberg-symbol leak, per-plugin propagation patterns)"
+    - "Single combined research file exists at research/microtonal-dorico-integration.md (D-19)"
+    - "File contains exactly 4 H2 sections: Module Architecture (DOCS-01), Canonical Dorico Setup Procedure (DOCS-02 reframed for Playback Template apply flow), Host-Side Behavior Quirks (DOCS-03 extended), Troubleshooting Signatures (DOCS-04 extended)"
+    - "File honors DOCS-05 boundary: developer-facing only, no end-user marketing copy (D-20)"
+    - "DOCS-02 names exact menu paths for the Playback Template apply flow AND the manual-import fallback (D-19 Pattern E)"
+    - "DOCS-03 extends with NEW quirks: Default Library Additions does not exist by default; macOS-vs-Windows directory-name spaces variance; dev-vs-prod CID variance + configure_file @ONLY mitigation (D-19, S-3)"
+    - "DOCS-04 extends with NEW signatures: missing-plugin warnings on template apply (graceful, NOT failure); silent template non-appearance after install (wrong Dorico version dir or wrong subdirectory name)"
+    - "All references to module source code (DOCS-01) point to current paths: modules/tuning/note-expression/cpp/NoteExpression.h + modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp"
   artifacts:
     - path: "research/microtonal-dorico-integration.md"
-      provides: "Single combined developer-reference document with 4 H2 sections covering DOCS-01..04. Source material for FUT-06 website authoring."
-      min_lines: 250
+      provides: "Internal-developer technical reference (4 H2 sections covering DOCS-01..04)"
       contains: "## Module Architecture"
+      min_lines: 200
   key_links:
-    - from: "research/microtonal-dorico-integration.md ## Module Architecture"
+    - from: "research/microtonal-dorico-integration.md DOCS-01 section"
       to: "modules/tuning/note-expression/cpp/NoteExpression.h + cpp/vst3/NoteExpression_VST3.cpp"
-      via: "code-reference cross-links to the actual module API surface"
-      pattern: "modules/tuning/note-expression"
-    - from: "research/microtonal-dorico-integration.md ## Canonical Dorico Setup Procedure"
-      to: "modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap"
-      via: "documents the canonical asset's install paths and Dorico's import workflow"
-      pattern: "Ouaricon-VST3-NoteExpression.doricoexpmap"
-    - from: "research/microtonal-dorico-integration.md ## Host-Side Behavior Quirks"
-      to: "spike-findings Patterns 1-5 and Landmines 1-5"
-      via: "summary references with cross-links into spike-findings skill"
-      pattern: "noteId"
-    - from: "research/microtonal-dorico-integration.md ## Troubleshooting Signatures"
-      to: "spike-findings Landmine 3 + Phase 23 D-23-04-A AU-link defect"
-      via: "symptoms-vs-cause table"
-      pattern: "Symptom"
+      via: "Direct file path references; module's public API surface (Ouaricon::NoteExpression::*)"
+      pattern: "modules/tuning/note-expression/cpp"
+    - from: "research/microtonal-dorico-integration.md DOCS-02 section"
+      to: "Plan 25-01's modules/tuning/note-expression/resources/ tree + Plan 25-02's installer dual-write logic"
+      via: "Step-by-step Playback Template apply flow with exact menu paths"
+      pattern: "Play -> Playback Template"
+    - from: "research/microtonal-dorico-integration.md DOCS-03 section"
+      to: "PATTERNS.md S-3 (dev/prod CID variance) + Naming Variance Catalog (lines 795-803)"
+      via: "Concrete examples of CID divergence + dir-name asymmetry across platforms"
+      pattern: "DefaultLibraryAdditions"
+    - from: "research/microtonal-dorico-integration.md DOCS-04 section"
+      to: "RESEARCH.md Pitfall 1-6 + Plan 25-01 v1 finding (FINDING-playback-template-pivot.md)"
+      via: "Symptoms-vs-cause table; lessons learned from the v1 wrong-distribution-mechanism attempt"
+      pattern: "Symptoms"
 ---
 
 <objective>
-Author `research/microtonal-dorico-integration.md` as a single combined developer-reference document with 4 H2 sections covering DOCS-01..04. Tone is technical reference (not end-user marketing — DOCS-05 boundary). The document captures the shipped state of the v1.5 microtonal cohort: the module architecture (DOCS-01), the canonical Dorico setup procedure derived from what Plans 25-01/02 made automatic (DOCS-02), the Dorico/VST3 host-side quirks the implementation had to navigate (DOCS-03), and the symptoms-vs-cause troubleshooting table for the expression-map-skipped UX trap and known regression signatures (DOCS-04).
+Author a single combined internal-developer technical reference (`research/microtonal-dorico-integration.md`) covering all four DOCS-01..04 topics, REFRAMED for the v2 Playback Template architecture. The doc serves as source material for the future website manual/quickstart authoring pass (FUT-06), but is not user-facing in v1.5 (DOCS-05 boundary).
 
-Purpose: Close DOCS-01..05 with a single source-material document that future website authoring (FUT-06) translates into end-user-facing manual/quickstart copy. The notes describe shipped behavior accurately because Plan 25-03 runs AFTER Plans 25-01 and 25-02 land.
+Purpose: Capture v1.5's accumulated knowledge — module architecture, canonical Dorico setup, host-side quirks, troubleshooting — in a form a future developer (or Claude in a future improve cycle) can consult to debug, extend, or document the suite.
 
-Output: One new file at `research/microtonal-dorico-integration.md`, ~250-400 lines, 4 H2 sections, fully cross-referenced to source files and spike findings.
+Output: 1 NEW file (`research/microtonal-dorico-integration.md`) with 4 H2 sections.
 </objective>
 
 <execution_context>
@@ -54,282 +55,175 @@ Output: One new file at `research/microtonal-dorico-integration.md`, ~250-400 li
 </execution_context>
 
 <context>
-@.planning/STATE.md
+@.planning/PROJECT.md
 @.planning/ROADMAP.md
+@.planning/STATE.md
 @.planning/REQUIREMENTS.md
+
 @.planning/phases/25-package-docs/25-CONTEXT.md
-@.planning/phases/25-package-docs/25-01-author-and-plumbing-PLAN.md
-@.planning/phases/25-package-docs/25-02-installer-bundling-sweep-PLAN.md
-@.planning/phases/24-propagate/24-CONTEXT.md
-@.planning/phases/24-propagate/24-08-final-sweep-PLAN.md
+@.planning/phases/25-package-docs/25-RESEARCH.md
+@.planning/phases/25-package-docs/25-PATTERNS.md
+@.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md
+@.planning/phases/25-package-docs/25-01-SUMMARY.md
+
 @.planning/phases/23-extract/23-CONTEXT.md
-@.planning/notes/dorico-microtonal-vst-research.md
-@.claude/skills/spike-findings-VST-development/SKILL.md
-@.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md
+@.planning/phases/24-propagate/24-CONTEXT.md
+
 @modules/tuning/note-expression/cpp/NoteExpression.h
 @modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp
-@modules/tuning/note-expression/cpp/NoteExpression.cpp
 @modules/tuning/note-expression/README.md
-@modules/tuning/note-expression/module.cmake
-@modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap
+
 @research/microtonality-implementation-juce.md
 @research/microtonality-theory-formats.md
-@research/microtonality-comprehensive-database.md
-</context>
+@.planning/notes/dorico-microtonal-vst-research.md
+
+@.claude/skills/spike-findings-VST-development/SKILL.md
+@.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md
 
 <interfaces>
-<!-- Key contracts the executor needs. Use these directly. -->
+PATTERNS.md Pattern K (lines 647-705) provides the front-matter shape and TOC structure.
 
-The 4 H2 section titles are FIXED by D-13 (CONTEXT.md) — use these verbatim, in this order:
+RESEARCH.md provides full content for DOCS-03 (host-side quirks — Patterns 1-6 + Pitfalls 1-6) and DOCS-04 (troubleshooting signatures from the same Pitfalls + the Plan 25-01 v1 finding).
 
-1. `## Module Architecture` (DOCS-01)
-2. `## Canonical Dorico Setup Procedure` (DOCS-02)
-3. `## Host-Side Behavior Quirks` (DOCS-03)
-4. `## Troubleshooting Signatures` (DOCS-04)
-
-The 5 propagation patterns catalogued in Phase 24 (referenced in DOCS-01 per D-13):
-1. classic-Synthesiser-multi-osc (O-Prism)
-2. classic-Synthesiser-physical-period (O-Bells, O-Wind)
-3. classic-Synthesiser-multi-sub-voice (O-IntonationPad — multiplicative neRatio)
-4. MPE-helper-based (O-Reed 3 sites, O-Bowed 2 sites)
-5. MPE-per-call-site (O-Formant)
-
-Spike-findings invariants the document MUST cite (from `.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md`):
-- Pattern 1: JUCE patch uses Approach 2 (side-channel queue), `JUCE-NE-PATCH` marker
-- Pattern 2: Plugin advertises NEC via `VST3ClientExtensions::queryIEditController` (kept for Cubase/Nuendo even though Dorico ignores it — Landmine 1)
-- Pattern 3: Processor drains queue at top of `processBlock` before `renderNextBlock`
-- Pattern 4: Voice consumes tuning with `exchange(0.0)` BEFORE DSP trigger (Landmine 4)
-- Pattern 5: Measurement math: `plain_semitones = 240.0 * (normalized - 0.5)`
-- Landmine 1: Dorico does NOT use the NEC handshake — sends NE based solely on expression-map Microtonality setting
-- Landmine 2: Dorico represents quarter-sharp C4 as `pitch=C#4, NE=-50¢` (NEVER pitch=60, NE=+50¢) — correlate by noteId, never pitch
-- Landmine 3: Default expression maps route microtones to VST2 detune / pitch bend; users MUST select Microtonality = "VST3 Note Expression" — THE invariant the canonical .doricoexpmap encodes
-- Landmine 4: Voice-side drain MUST happen BEFORE DSP trigger (attack zipper signature)
-- Landmine 5: Spike diagnostic logging stripped before module extraction
-
-Phase 23 architectural defect to reference in DOCS-04 (D-23-04-A from Phase 23 CONTEXT):
-- `JucePlugin_Build_VST3` guards in headers leak Steinberg symbols into SharedCode → AU/Standalone link fails with `Undefined symbols: Steinberg::Vst::INoteExpressionController::iid, …`
-- Resolution: per-format module-source convention (`cpp/<format>/`) auto-routes Steinberg-touching code into `${TARGET}_VST3` only
-
-Module API surface (from `modules/tuning/note-expression/cpp/NoteExpression.h` — referenced by DOCS-01):
-- `Ouaricon::NoteExpression::PendingTuningTable` = `std::array<std::atomic<double>, 128>`
-- `Ouaricon::NoteExpression::applyPendingTuning(table, midi, freq) → double`
-- `Ouaricon::NoteExpression::VST3Extensions` (subclass of `juce::VST3ClientExtensions`)
-- `Ouaricon::NoteExpression::Controller` (NEC for `kTuningTypeID`)
-- `Ouaricon::NoteExpression::updatePendingFromEvents(events, table)` (free function)
-
-Dorico setup procedure (DOCS-02 — describes what's automatic post-Plan-25-02 vs what user still does manually):
-- Auto-installed by plugin installer: .doricoexpmap lands at `~/Library/Application Support/Ouaricon/Expression Maps/` AND `~/Library/Application Support/Steinberg/Dorico [N]/Expression Maps/User/` (macOS) / `%APPDATA%\Ouaricon\Expression Maps\` AND `%APPDATA%\Steinberg\Dorico [N]\Expression Maps\User\` (Windows)
-- Auto-discovered: appears in Dorico's `Library → Expression Maps…` picker without manual import (when Dorico-scan write succeeded)
-- Manual step still required: assign the expression map to the plugin's channel via `Play → Endpoint Setup → expression-map dropdown`
-- Dorico version targeted: latest detected at install time (probe order: 6 → 5 → 4)
+The 4 H2 sections must each address its specific REQ-ID:
+- DOCS-01: module architecture (NEC advertisement flow, raw-event queue semantics, voice-routing logic, composition with TuningEngine analogs)
+- DOCS-02: canonical Dorico Playback Template apply flow + manual-import fallback (REFRAMED — v1 was standalone .doricoexpmap import; v2 is .dorico_pt + .doricolib auto-discovery)
+- DOCS-03: host-side behavior quirks (EXTENDED — adds Default Library Additions caveat, macOS-vs-Windows asymmetry, dev/prod CID variance)
+- DOCS-04: troubleshooting signatures (EXTENDED — adds missing-plugin warnings, silent template non-appearance)
 </interfaces>
+</context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Author research/microtonal-dorico-integration.md with all 4 H2 sections (DOCS-01..04 in single combined file per D-13)</name>
-  <files>research/microtonal-dorico-integration.md</files>
+  <name>Task 1: Author research/microtonal-dorico-integration.md (single combined doc, 4 H2 sections)</name>
   <read_first>
-    - .planning/phases/25-package-docs/25-CONTEXT.md (D-13, D-14 — single combined file, exact H2 section titles, developer-facing tone, source material for FUT-06)
-    - .claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md (entire file — Patterns 1-5, Landmines 1-5 source material for DOCS-01 + DOCS-03)
-    - .planning/notes/dorico-microtonal-vst-research.md (background — Dorico's 3 wire mechanisms, source for DOCS-02 setup procedure + DOCS-03 quirks)
-    - modules/tuning/note-expression/cpp/NoteExpression.h (concrete API for DOCS-01 architecture references)
-    - modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp (concrete VST3-only TU for DOCS-01 — Controller body, queryIEditController dispatch)
-    - modules/tuning/note-expression/cpp/NoteExpression.cpp (SharedCode TU for DOCS-01 — drainAndUpdate, dispatch slot)
-    - modules/tuning/note-expression/README.md (existing consumer docs — DOCS-02 cross-references the user-side surface)
-    - modules/tuning/note-expression/module.cmake (Plan 25-01's install rules — DOCS-02 documents what's automatic)
-    - modules/tuning/note-expression/resources/Ouaricon-VST3-NoteExpression.doricoexpmap (the asset DOCS-02 describes)
-    - .planning/phases/24-propagate/24-08-final-sweep-PLAN.md (cross-references the 5 propagation patterns for DOCS-01)
-    - .planning/phases/23-extract/23-CONTEXT.md sections D-20..D-32 (AU-link Steinberg-symbol leak fix — DOCS-04 troubleshooting reference)
-    - research/microtonality-implementation-juce.md (cross-reference for DOCS-01 architecture)
-    - research/microtonality-theory-formats.md (cross-reference for DOCS-03 — positions VST3 NE among alternatives)
+    - .planning/phases/25-package-docs/25-PATTERNS.md Pattern K (lines 647-705) — front-matter shape + TOC structure
+    - .planning/phases/25-package-docs/25-RESEARCH.md sections: Pattern 1-6 (lines 146-300), Pitfall 1-6 (lines 330-365), "Code Examples" lines 374-530, Q1-Q7 answers (lines 558-714)
+    - .planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md (full file — what was tried, why it failed)
+    - .planning/phases/25-package-docs/25-CONTEXT.md (D-19 + D-20 — section structure + DOCS-05 boundary)
+    - modules/tuning/note-expression/cpp/NoteExpression.h (Ouaricon::NoteExpression public API surface)
+    - modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp (Steinberg-touching code split)
+    - .planning/notes/dorico-microtonal-vst-research.md (background — Dorico's 3 wire mechanisms, source for DOCS-02 + DOCS-03)
+    - .claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md (validated patterns 1-5, landmines 1-5; Landmine 3 is the kVST3NoteExpression invariant)
+    - research/microtonality-implementation-juce.md (lines 1-40 — front-matter + TOC structure for the research/microtonality-*.md family)
   </read_first>
   <action>
-    Create `research/microtonal-dorico-integration.md` (NEW file). Single combined Markdown file with exactly 4 H2 sections per D-13.
+    Author NEW file `research/microtonal-dorico-integration.md`. Use Pattern K's v2 target front-matter (PATTERNS.md lines 671-691) verbatim.
 
-    Use this exact structure (the H2 titles are non-negotiable per D-13; the content under each is the executor's responsibility, but the depth and topic coverage MUST match the per-section spec below).
+    File structure (in order):
 
-    Document header:
-    ```markdown
-    # Microtonal Dorico Integration — Internal Technical Notes
-
-    **Status:** Internal developer reference (DOCS-05 boundary — NOT end-user-facing this milestone; source material for future website manual/quickstart authoring per FUT-06).
-    **Audience:** Ouaricon developers, future contributors maintaining the `note-expression` module or Dorico integration.
-    **Scope:** Covers the v1.5 milestone deliverable — the shared `note-expression` module, its consumer integration shape across all 8 v1.5 cohort plugins (O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant), the canonical pre-configured Dorico expression map shipped in their installers, and the host-side behavior the implementation navigates.
-    **Cohort plugins:** 8 (see [Module Architecture](#module-architecture) for per-plugin composition pattern).
-    **Last updated:** 2026-04-26 (Phase 25 closeout).
-    **Cross-references:**
-      - Spike findings: `.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md`
-      - Module README (consumer integration): `modules/tuning/note-expression/README.md`
-      - Background research: `.planning/notes/dorico-microtonal-vst-research.md`
-      - Phase decisions: Phase 23 CONTEXT (extraction), Phase 24 CONTEXT (propagation), Phase 25 CONTEXT (packaging + docs).
-
+    **1. YAML front-matter** (per Pattern K v2 target):
+    ```yaml
+    ---
+    title: "Microtonal Dorico Integration: Module Architecture, Setup, Quirks, Troubleshooting"
+    created: 2026-04-26
+    last_verified: 2026-04-26
+    juce_version: "8.0.4"
+    dorico_version: "6.1.0"
+    summary: "Internal-developer reference for the v1.5 microtonal cohort's Dorico integration: VST3 Note Expression module architecture, Playback Template apply procedure, host-side behavioral quirks, and troubleshooting signatures."
+    domain: dsp
+    type: reference
+    keywords:
+      - dorico
+      - vst3-note-expression
+      - playback-template
+      - microtuning
+      - integration-notes
+    stages: [3, 4]
+    audience: internal-dev-only
+    agents: [dsp, integration]
     ---
     ```
 
-    ── Section 1: `## Module Architecture` (DOCS-01) ──
+    **2. Title (H1)** + 1-paragraph intro stating the doc is internal developer reference (DOCS-05) and is source material for future end-user manual authoring (FUT-06).
 
-    Coverage requirements:
-    - NEC advertisement flow: how `Ouaricon::NoteExpression::Controller` (in the VST3-only TU `cpp/vst3/NoteExpression_VST3.cpp`) advertises `kTuningTypeID` via `queryIEditController` to hosts; how the dispatch slot pattern (function-pointer registered at static-init) keeps the SharedCode TU Steinberg-free
-    - Raw-event queue semantics: how the local JUCE patch (`JUCE-NE-PATCH` marker) routes raw `kNoteExpressionValueEvent` and noteId-tagged NoteOn/NoteOff events to `VST3ClientExtensions::onVst3RawEvent` BEFORE `MidiEventList::toMidiBuffer` drops them; the 128-slot `PendingTuningTable` (`std::array<std::atomic<double>, 128>`) ownership on `VST3Extensions`
-    - Voice-routing logic: the `applyPendingTuning(table, midi, freq) → double` voice-side helper, `exchange(0.0)` consume semantic, multiplicative composition with any base-frequency source
-    - Composition with each plugin's TuningEngine analog: NE delta is always 12-TET semitones; multiplicative compose is mathematically correct for any base tuning; references the 5 propagation patterns Phase 24 catalogued
-    - Per-format module-source convention: `cpp/<format>/` (e.g., `cpp/vst3/`) auto-routes by `OuariconModules.cmake` to `${TARGET}_<FORMAT>`; SharedCode TU stays Steinberg-free; resolution to D-23-04-A
-    - Module asset ownership extension (Phase 25 D-04): module owns canonical `.doricoexpmap` at `resources/`; consumer plugins inherit install via `module.cmake` install() rules
-
-    Subsections (use H3):
-    - `### Wire Diagram` — short ASCII diagram showing data flow: Dorico → JUCE patched wrapper → VST3Extensions raw-event queue → drainAndUpdate() → updatePendingFromEvents() → PendingTuningTable[pitch] → voice startNote → applyPendingTuning() → DSP trigger
-    - `### Two-TU Split (Phase 23 D-20..D-22)` — the SharedCode-bound TU vs VST3-only TU split, custom function-pointer deleter pimpl, dispatch slot for NE correlation
-    - `### Per-Format Source Convention (Phase 23 D-24..D-29)` — how `cpp/vst3/` content auto-routes; why this is structural-not-conditional (preprocessor guards leak symbols into SharedCode); the macro extension in `OuariconModules.cmake`
-    - `### Per-Plugin Composition Patterns (Phase 24 catalog)` — name and one-paragraph each: classic-Synthesiser-multi-osc (O-Prism), classic-Synthesiser-physical-period (O-Bells/O-Wind), classic-Synthesiser-multi-sub-voice (O-IntonationPad with multiplicative neRatio), MPE-helper-based (O-Reed/O-Bowed), MPE-per-call-site (O-Formant). One-line code snippet per pattern showing the integration shape.
-    - `### Module Asset Ownership (Phase 25 D-04)` — the canonical .doricoexpmap lives at `modules/tuning/note-expression/resources/`; module.cmake install() rules fire per-consumer; PKG/EXE installers replicate the dual-write logic at distribution time
-
-    ── Section 2: `## Canonical Dorico Setup Procedure` (DOCS-02) ──
-
-    Coverage requirements:
-    - Step-by-step procedure suitable for direct translation into website manual/quickstart copy — pinned to specific Dorico major version (use whichever is current on the user's machine; pin in writing here)
-    - Names exact Dorico menu paths verbatim (`Dorico → Library → Expression Maps…`, `Dorico → Play → Endpoint Setup`, etc.)
-    - Splits "automatic" steps (what the plugin installer does for the user) from "manual" steps (what the user still must do)
-    - Documents the install paths the plugin installer writes to (per Plan 25-02's bundled behavior)
-    - Specifies the verification step (quarter-sharp C4 → +50¢ ≈ 269.29 Hz) that confirms the setup worked
-
-    Subsections (use H3):
-    - `### What the Plugin Installer Does (Automatic)`
-      Bulleted list of the dual-write paths per platform; the install-time Dorico version probe; the auto-discovery via Dorico's user expression-maps scan path
-    - `### What the User Must Still Do (Manual — One-Time)`
-      Numbered procedure (Steinberg's exact menu paths). Concretely:
-      1. Open Dorico → `Library → Expression Maps…`
-      2. Confirm `Ouaricon VST3 Note Expression` appears in the list (auto-discovered if Dorico-scan write succeeded)
-      3. If not present: click the import (folder) icon, navigate to `~/Library/Application Support/Ouaricon/Expression Maps/Ouaricon-VST3-NoteExpression.doricoexpmap` (macOS) or `%APPDATA%\Ouaricon\Expression Maps\Ouaricon-VST3-NoteExpression.doricoexpmap` (Windows), import
-      4. Open `Play → Endpoint Setup`
-      5. For each Ouaricon v1.5 plugin's channel, set the Expression Map dropdown to `Ouaricon VST3 Note Expression`
-      6. Save the project
-    - `### Verification`
-      Write a quarter-sharp accidental on C4. Playback should land at C4 + 50¢ ≈ 269.29 Hz (vs standard C4 = 261.63 Hz). If the note plays at standard 261.63 Hz, either (a) the expression map is not assigned to that channel or (b) Microtonality in the assigned map is set to "Auto" instead of "VST3 Note Expression" — see [Troubleshooting Signatures](#troubleshooting-signatures).
-    - `### Dorico Version Targeting`
-      Phase 25 installer probes for Dorico 6, 5, 4 in that order; writes to the first detected. Future Dorico versions (7+) require an installer update — see Host-Side Behavior Quirks below for the maintenance touchpoint. Also: simultaneously installed Dorico 5 + 6 — installer writes to 6 only; user can manually copy to other versions if needed.
-
-    ── Section 3: `## Host-Side Behavior Quirks` (DOCS-03) ──
-
-    Coverage requirements:
-    - Dorico's neighbor-semitone + NE-delta representation (Landmine 2 from spike-findings): quarter-sharp C4 arrives as `pitch=C#4, NE=-50¢` (NEVER `pitch=60, NE=+50¢`). Frequency is correct either way, but: never derive direction from NE sign; never correlate NE to NoteOn by pitch; ALWAYS correlate by `noteId`.
-    - NEC handshake ignored by Dorico (Landmine 1): Dorico never queries `INoteExpressionController::iid`; sends NE solely based on expression-map Microtonality setting. Cubase/Nuendo do use the handshake. The Controller class is dead code for Dorico but kept for other VST3 hosts.
-    - Sample-offset timing: NE events arrive in the same processing block as their corresponding NoteOn (block-locality assumption); spike validated this on Dorico 6; other hosts may emit mid-note NE requiring a persistent `noteId → voice` map (FUT-04).
-    - VST3 `kTuningTypeID` measurement math (Pattern 5): `plain_semitones = 240.0 * (normalized - 0.5)`; full-scale span is 240 semitones (±10 octaves); table mapping for common Dorico accidentals.
-    - Multi-Dorico-version installer caveat (D-07 from Phase 25 CONTEXT): installer probes 6/5/4 descending; first hit wins; future Dorico versions require installer config update; user can post-hoc copy to other version directories manually.
-    - JUCE 8 patch dependency: every JUCE upgrade requires re-applying `scripts/juce-patches/note-expression-juce-8.0.4.patch`; CMake-time `JUCE-NE-PATCH` marker check fatal-errors at configure time if missing.
-    - AU/VST3 platform asymmetry: Note Expression is VST3-only; AU has no equivalent (Dorico falls back to pitch bend for AU per upstream research); the per-format module-source convention auto-handles this — AU/Standalone targets get NO Steinberg references and link cleanly without microtonal capability.
-
-    Subsections (use H3):
-    - `### Dorico's Pitch Representation`
-    - `### NEC Handshake Asymmetry`
-    - `### Sample-Offset Timing Assumption`
-    - `### `kTuningTypeID` Measurement Math`
-      | Dorico accidental | NE normalized | Semitones | Cents | Hz at C4 |
-      |---|---|---|---|---|
-      | quarter-sharp | 0.497917 | -0.5 | -50 | (display Pattern 3 240-semi math; Hz = 269.29) |
-      | natural | 0.5 | 0 | 0 | 261.63 |
-      | quarter-flat (likely) | 0.502083 | +0.5 | +50 | (note: spike validated quarter-sharp only; quarter-flat unverified per FUT-05) |
-    - `### Multi-Dorico-Version Maintenance`
-    - `### JUCE Patch Dependency`
-    - `### VST3-Only Capability`
-
-    ── Section 4: `## Troubleshooting Signatures` (DOCS-04) ──
-
-    Coverage requirements:
-    - Symptoms-vs-cause table for the expression-map-skipped UX trap (Spike 002 reference) — by far the most common failure mode users will hit
-    - Known regression signatures from Phase 23 (AU-link Steinberg-symbol leak — D-23-04-A) and Phase 24 (per-plugin propagation failures, e.g., O-Bowed missing `isBusesLayoutSupported`, O-Formant missing `OuariconModules.cmake` include)
-    - Diagnostic checklist for "Dorico shows microtonal accidentals but plugin plays 12-TET"
-
-    Subsections (use H3):
-    - `### Primary Symptoms-vs-Cause Table` — Markdown table format:
-      | Observed Symptom | Likely Cause | Diagnostic Step | Fix |
-      |---|---|---|---|
-      | Quarter-sharp C4 plays at 261.63 Hz (12-TET) | Expression map's Microtonality not set to "VST3 Note Expression" | `Library → Expression Maps…` → check assigned map's Microtonality dropdown | Set to `VST3 Note Expression` and save |
-      | "Ouaricon VST3 Note Expression" doesn't appear in Dorico's picker | Installer's Dorico-scan-path write skipped (Dorico version not detected at install time, or installed AFTER plugin installer ran) | Check `~/Library/Application Support/Steinberg/Dorico [N]/Expression Maps/User/` | Manually import from `~/Library/Application Support/Ouaricon/Expression Maps/Ouaricon-VST3-NoteExpression.doricoexpmap` |
-      | Microtonal accidentals work in Cubase but not Dorico | Cubase uses NEC handshake; Dorico ignores NEC and routes via expression map (Landmine 1) | Verify expression map assignment in `Play → Endpoint Setup` | Assign Ouaricon VST3 Note Expression map to the plugin's channel |
-      | Quarter-sharp note has audible attack glide/sweep | Voice's `applyPendingTuning` running AFTER DSP trigger (Landmine 4 / Pattern 4 violated) | Read voice's `startNote`; confirm `applyPendingTuning` runs BEFORE `<dsp_model>.trigger(...)` | Reorder: applyPendingTuning then trigger |
-      | Polyphonic chord — wrong note detuned | NE correlated to NoteOn by pitch instead of `noteId` (Landmine 2) | Read `updatePendingFromEvents` — confirm `noteId → pitch` map built from NoteOns first, then NE events looked up by `noteId` | Use the module's `updatePendingFromEvents` helper as-is; do not roll plugin-local correlation |
-      | macOS AU build link fails: `Undefined symbols: Steinberg::Vst::INoteExpressionController::iid` | Steinberg-touching code leaked into SharedCode TU (D-23-04-A regression class) | `nm` the AU link line; check for any `cpp/*.cpp` (top-level) including `<pluginterfaces/...>` | Move Steinberg-touching code to `cpp/vst3/` per per-format convention; let `OuariconModules.cmake` route it correctly |
-      | `cmake configure` fails: `[note-expression] JUCE patch marker 'JUCE-NE-PATCH' not found` | Local JUCE fork was upgraded without re-applying the NE patch | Run `./scripts/apply-juce-patches.sh` or regenerate the patch for the new JUCE version | After re-apply, `grep -rn "JUCE-NE-PATCH" /Users/taylorbrook/JUCE/modules/` should return ≥4 hits |
-    - `### "Dorico shows microtones but plugin plays 12-TET" Diagnostic Tree`
-      Step-by-step decision tree starting from the most common cause (expression map's Microtonality setting) and descending to rarer causes (NEC dispatch failure, voice-side composition order, JUCE patch missing).
-    - `### Known Regression Signatures`
-      Brief one-paragraph each:
-      - D-23-04-A AU-link Steinberg-symbol leak (Phase 23 fix via two-TU split + per-format convention)
-      - O-Bowed `isBusesLayoutSupported` missing override (Phase 24 inline fix)
-      - O-Formant `OuariconModules.cmake` include missing (Phase 24 inline fix)
-      - O-IntonationPad missing `juce::juce_audio_utils` + `juce::juce_audio_devices` link (Phase 24 inline fix; blocked Standalone build)
-      - O-Lyrica auval parameter-meta-flag (DEF-24-01 [DOWNGRADED] — benign tool-static-check artifact, NOT a defect)
-    - `### Per-Plugin Smoke-Test Quick Reference`
-      One-line per cohort plugin: `<Plugin>: Dorico 3-point gate ran <date>; result <PASS/FAIL>; CHANGELOG entry: "adds VST3 Note Expression microtonal support for Dorico" at v<X.Y.Z>`. Source: Phase 24 verification artifacts.
-
-    ── Document footer ──
-
+    **3. Table of Contents** with the 4 H2 sections (per Pattern K lines 696-702):
     ```markdown
-    ---
-
-    *Document produced as Phase 25 deliverable closing DOCS-01..05. The internal-only constraint (DOCS-05) is honored: this is a developer-reference document, not end-user-facing copy. Future website authoring (FUT-06) translates each section to chapter-style prose suitable for the Ouaricon Audio sales site.*
-
-    *Source plans: `.planning/phases/25-package-docs/25-01-author-and-plumbing-PLAN.md`, `25-02-installer-bundling-sweep-PLAN.md`, `25-03-internal-notes-PLAN.md`.*
+    1. [Module Architecture](#module-architecture) — DOCS-01
+    2. [Canonical Dorico Setup Procedure](#canonical-dorico-setup-procedure) — DOCS-02 (REFRAMED for Playback Template flow)
+    3. [Host-Side Behavior Quirks](#host-side-behavior-quirks) — DOCS-03 (EXTENDED)
+    4. [Troubleshooting Signatures](#troubleshooting-signatures) — DOCS-04 (EXTENDED)
     ```
 
-    Style guide:
-    - Tone is technical reference: declarative, present-tense, concrete file/line references over generic descriptions.
-    - When referencing a code construct, give its full namespaced name AND the file path: `Ouaricon::NoteExpression::applyPendingTuning(...)` in `modules/tuning/note-expression/cpp/NoteExpression.h`.
-    - Cross-link section headings using GitHub-flavored anchor links (`[Troubleshooting Signatures](#troubleshooting-signatures)`).
-    - Code snippets use ` ```cpp ` / ` ```bash ` / ` ```cmake ` fencing as appropriate.
-    - Tables use Markdown pipe syntax with header separator row.
-    - No emojis (per CLAUDE.md).
-    - Target ~250-400 lines total (each H2 section ~60-100 lines).
+    **4. ## Module Architecture** (DOCS-01) — required content:
+    - **NEC advertisement flow**: how `Ouaricon::NoteExpression::Controller` advertises `kTuningTypeID` to the host via VST3's IInfoListener, the queryIEditController dispatch from VST3Extensions to Controller (Phase 23 D-23 two-TU split: cpp/NoteExpression.cpp Steinberg-free body + cpp/vst3/NoteExpression_VST3.cpp VST3-only TU). Cite spike-findings Pattern 1 + Phase 23 Plan 05 SUMMARY.md decision.
+    - **Raw-event queue semantics**: the local JUCE patch (scripts/juce-patches/note-expression-juce-8.0.4.patch) adds `VST3ClientExtensions::onVst3RawEvent` so kNoteExpressionValueEvent and noteId-tagged NoteOn/NoteOff reach the plugin BEFORE MidiEventList::toMidiBuffer drops them. The VST3Extensions subclass owns the raw-event queue + 128-slot std::array<std::atomic<double>> PendingTuningTable.
+    - **Voice-routing logic**: `applyPendingTuning(pendingSource, midiNote, currentFrequency)` — header-only voice helper applied BEFORE the DSP model's trigger() to prevent attack zipper (Landmine 4). Each consumer plugin's `startNote` calls this in one line.
+    - **Composition with TuningEngine analogs**: each cohort plugin's existing TuningEngine (e.g., O-Lyrica's TuningEngine, O-Bells' applyPendingTuning at root with multiplicative ratio derivation per Phase 24's catalogued 5 propagation patterns). NE delta composes multiplicatively with base-frequency lookup — NO raw pow() bypass (LYR-02 invariant).
+    - **5 propagation patterns** discovered in Phase 24 (briefly enumerated): classic-Synthesiser-multi-osc (Prism), classic-Synthesiser-physical-period (Bells/Wind), classic-Synthesiser-multi-sub-voice (IntonationPad), MPE-helper-based (Reed/Bowed), MPE-per-call-site (Formant). Reference Phase 24 STATE.md for narrative depth.
+    - **NEW (Phase 25 v2): module owns 2 distributable resources**: .dorico_pt + .doricolib. Owned by `module.cmake` per-consumer hook firing (Pattern A + S-2). `ouaricon_extract_vst3_cids` helper extracts CIDs from each consumer's built moduleinfo.json (Pattern B + S-3 — dev/prod variance mitigation).
+
+    **5. ## Canonical Dorico Setup Procedure** (DOCS-02 — REFRAMED for Playback Template flow):
+    - **Auto-discovery flow** (the v2 default — installer writes to Dorico auto-scan dirs):
+      1. Install any Ouaricon cohort plugin (PKG on macOS, EXE on Windows). Installer writes both Microtonal Suite resources to `~/Library/Application Support/Steinberg/Dorico [N]/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/` and `.../Default Library Additions/Ouaricon-VST3-NoteExpression.doricolib` (macOS) or `%APPDATA%\Steinberg\Dorico [N]\PlaybackTemplateSpecs\Ouaricon Microtonal Suite\` and `...\DefaultLibraryAdditions\` (Windows).
+      2. Restart Dorico. At startup, Dorico scans `PlaybackTemplateSpecs/*/` (binary symbol "Loading PlaybackTemplateSpec:" — see RESEARCH.md Q6) AND calls `loadDefaultLibraryAdditions` to merge any `.doricolib` in `Default Library Additions/` into the in-memory default library.
+      3. Verify: `Library -> Expression Maps` shows "Ouaricon VST3 Note Expression"; `Play -> Playback Template` shows "Ouaricon Microtonal Suite".
+      4. Apply: `Play -> Playback Template -> Ouaricon Microtonal Suite -> Apply and Close`.
+      5. Quarter-sharp C4 verifies routing: write a quarter-sharp accidental on C4 -> playback at approximately 269.29 Hz (vs 12-TET 261.63 Hz). +50¢ confirmed.
+    - **Manual-import fallback** (if auto-discovery missed the directory — D-13):
+      1. Playback Template: `Play -> Playback Template -> Import...` -> select `Ouaricon-Microtonal-Suite.dorico_pt` from `~/Library/Application Support/Ouaricon/Microtonal Suite/` (macOS) or `%APPDATA%\Ouaricon\Microtonal Suite\` (Windows).
+      2. Expression Map library: `Library -> Import Library...` -> select `Ouaricon-VST3-NoteExpression.doricolib` from the same shared directory.
+      3. Apply the template per step 4 above.
+    - **Stage gate (3-point smoke from Phase 24 D-07)**: quarter-sharp C4 = +50¢; no attack zipper on first sample of tuned note; polyphonic chord with quarter-sharp C4 + natural E4 + natural G4 shows ONLY C4 detuned (NE-correlation by noteId).
+    - **NOTE on legacy v1 flow**: the standalone `.doricoexpmap` -> `Expression Maps/User/` drop flow (Plan 25-01 v1) does NOT work. Dorico does not auto-ingest `.doricoexpmap` files (verified empirically + by Dorico 6 binary `strings` — see FINDING-playback-template-pivot.md). The v2 Playback Template flow is the canonical mechanism.
+
+    **6. ## Host-Side Behavior Quirks** (DOCS-03 — EXTENDED):
+    - **Dorico's neighbor-semitone + NE-delta representation** (carry forward from v1): quarter-sharp C4 is sent as MIDI C#4 + NE delta of -50¢. The plugin must compose the delta with the MIDI-note base frequency. Cite Landmine 1.
+    - **NEC handshake ignored by Dorico but kept for other hosts** (carry forward): Dorico does not call queryIEditController; the NEC advertises kTuningTypeID for hosts that DO call it. Don't remove just because Dorico ignores it.
+    - **Sample-offset timing** (carry forward): NE events arrive in the same processBlock as the corresponding NoteOn; same-block correlation by noteId is sufficient (FUT-04 cross-block tracking deferred).
+    - **Multiple-Dorico-version installer caveat** (D-12): installer probes 6 -> 5 -> 4 and writes to first found. Future Dorico 7 release requires installer config update (foreach extends to 7 5 4). Document as known maintenance touchpoint.
+    - **NEW: `Default Library Additions` directory does not exist by default on user systems**. Dorico does not auto-create it. Installer must `ForceDirectories` (Inno) or `mkdir -p` (PKG postinstall). If the dir is missing, .doricolib auto-discovery silently fails. Cite Pitfall 3.
+    - **NEW: Directory name asymmetry across platforms (Pitfall 3)**:
+      - macOS: `Default Library Additions` (with SPACES)
+      - Windows: `DefaultLibraryAdditions` (NO spaces)
+      Verified: macOS binary string `Default Library Additions`; Windows binary string `DefaultLibraryAdditions`. Conflating the two breaks the install on the wrong platform.
+    - **NEW: Dev vs prod CID variance** (S-3 + Pitfall 2):
+      - Dev manufacturer code `OuDv` -> CID middle bytes `4F754476` (e.g. O-Lyrica dev: `ABCDEF019182FAEB4F7544764F4C7972`)
+      - Prod manufacturer code `OuAu` -> CID middle bytes `4F754175` (e.g. O-Lyrica prod: `ABCDEF019182FAEB4F7541754F4C7972`)
+      Hard-coding dev CIDs into a prod-shipped template breaks routing. Mitigation: `ouaricon_extract_vst3_cids` reads each plugin's actually-built `Contents/Resources/moduleinfo.json` at packaging time + `configure_file @ONLY` substitutes per-flavor tokens.
+    - **NEW: Dorico's `<entries>` model handles missing-plugin gracefully** (D-04 / Q4): a Playback Template with 8 slots applied on a system with only 1 Ouaricon plugin installed produces 7 missing-plugin warnings + 1 successfully-loaded slot. Template apply does NOT block on missing plugins.
+
+    **7. ## Troubleshooting Signatures** (DOCS-04 — EXTENDED):
+    Authored as a symptoms-vs-cause table where applicable. Required entries:
+
+    | Symptom | Likely cause | Fix |
+    |---------|--------------|-----|
+    | Plugin plays 12-TET despite Dorico sending microtones (Landmine 3 + the v1.5 spike's UX trap) | Expression map's microtonalPlaybackMethod is `kAuto` or `kPitchBend` instead of `kVST3NoteExpression` | Confirm `Ouaricon-VST3-NoteExpression.doricolib` was installed AND the applied Playback Template references its entityID `xmap.ouaricon.vst3_note_expression`. Inspect installed `endpointconfig.xml` for `<expressionMapID>xmap.ouaricon.vst3_note_expression</expressionMapID>`. |
+    | Template does NOT appear in `Play -> Playback Template` after install | Wrong Dorico version directory (installer wrote to Dorico 5 but user runs Dorico 6, or vice versa) | Inspect installer log for `[Ouaricon] Microtonal Suite installed for Dorico N`. Compare N to the actual Dorico version the user is running. Manual fix: `Play -> Playback Template -> Import...` from `~/Library/Application Support/Ouaricon/Microtonal Suite/`. |
+    | Expression map does NOT appear in `Library -> Expression Maps` after install | `.doricolib` written to wrong subdirectory (e.g. macOS-style `Default Library Additions` on Windows where the dir name has NO spaces) | Verify exact path on disk: macOS `~/Library/Application Support/Steinberg/Dorico N/Default Library Additions/`; Windows `%APPDATA%\Steinberg\Dorico N\DefaultLibraryAdditions\`. Pitfall 3. |
+    | Template applies but no plugins load | Dev CID baked into prod installer (Pitfall 2) | Inspect installed `endpointconfig.xml` for CIDs containing the bytes `4F7544 76` (`OuDv` dev) when production plugins use `4F754175` (`OuAu`). Rebuild installer against prod artifacts. |
+    | Template applies but only some plugins load (others produce warnings) | Expected (D-04) — Dorico graceful missing-plugin behavior | NOT a failure. Install missing plugins to populate other slots, OR apply a smaller template via custom edit. |
+    | Plugin loads but quarter-sharp C4 plays at wrong pitch | NE delta not composed with TuningEngine base frequency, OR raw pow() bypass (regression of LYR-02) | Audit each consumer plugin's `startNote` for the `applyPendingTuning(...)` call; confirm composition is multiplicative with the TuningEngine base. |
+    | Plugin attack zipper (audible pitch sweep at start of tuned note) | NE delta applied AFTER trigger() instead of BEFORE | Audit each consumer plugin's voice helper: `applyPendingTuning` MUST be called BEFORE the DSP model's `trigger(...)` (Landmine 4). |
+    | First-time install: nothing happens after restart, no errors | `.doricoexpmap` legacy attempt re-introduced (Plan 25-01 v1 distribution mechanism — does not work) | Verify the installed file is `.dorico_pt` + `.doricolib` (current asset names), NOT `.doricoexpmap` (deprecated). Dorico binary strings do not recognize `.doricoexpmap` as an extension. See FINDING-playback-template-pivot.md. |
+    | Installer reports success but Dorico did not pick up the template | `Default Library Additions` directory was not created (Dorico does not auto-create it) | Verify the installer log line `[Ouaricon] Microtonal Suite installed for Dorico N` appeared. If the dir was missing pre-install, installer creates it (Pattern G + Pattern H both call `mkdir -p` / `ForceDirectories`). If still missing, inspect installer log for any silent failure. |
+    | `.dorico_pt` zipped with parent dir wrapping (Pitfall 5) | Build invocation used wrong WORKING_DIRECTORY for `cmake -E tar cf` | Verify `unzip -l Ouaricon-Microtonal-Suite.dorico_pt | head` — first non-zero entries should be `PlaybackTemplateSpecs/Ouaricon Microtonal Suite/...` and `EndpointConfigs/Ouaricon Microtonal Suite/...` (no parent dir prefix). If wrong, `module.cmake`'s `add_custom_command` WORKING_DIRECTORY is wrong. |
+
+    **8. Closing footer**: signature line "Internal developer reference. Source material for FUT-06 (end-user manual on the sales website). Last verified against Dorico 6.1.0 + JUCE 8.0.4."
+
+    **Tone**: technical, concise, factual. NO marketing copy. NO end-user-style "Quick Start" or "Get Started" phrasing. Honor DOCS-05 (D-20) — this is for developers debugging the integration, not for users learning Dorico.
+
+    **Length target**: 200-400 lines. Heavy use of tables + bullet lists for scannability. Code references as inline backticks; multi-line code in fenced blocks.
   </action>
   <verify>
-    <automated>
-      test -f research/microtonal-dorico-integration.md &&
-      [ "$(wc -l < research/microtonal-dorico-integration.md)" -ge 250 ] &&
-      grep -q '^## Module Architecture' research/microtonal-dorico-integration.md &&
-      grep -q '^## Canonical Dorico Setup Procedure' research/microtonal-dorico-integration.md &&
-      grep -q '^## Host-Side Behavior Quirks' research/microtonal-dorico-integration.md &&
-      grep -q '^## Troubleshooting Signatures' research/microtonal-dorico-integration.md &&
-      [ "$(grep -c '^## ' research/microtonal-dorico-integration.md)" -eq 4 ] &&
-      grep -q 'DOCS-05 boundary' research/microtonal-dorico-integration.md &&
-      grep -q 'kTuningTypeID' research/microtonal-dorico-integration.md &&
-      grep -q 'noteId' research/microtonal-dorico-integration.md &&
-      grep -q 'applyPendingTuning' research/microtonal-dorico-integration.md &&
-      grep -q 'JUCE-NE-PATCH' research/microtonal-dorico-integration.md &&
-      grep -q 'Ouaricon-VST3-NoteExpression.doricoexpmap' research/microtonal-dorico-integration.md &&
-      grep -q 'cpp/vst3/' research/microtonal-dorico-integration.md &&
-      grep -q 'O-Lyrica' research/microtonal-dorico-integration.md &&
-      grep -q 'O-Bells' research/microtonal-dorico-integration.md &&
-      grep -q 'O-Prism' research/microtonal-dorico-integration.md &&
-      grep -q 'O-Wind' research/microtonal-dorico-integration.md &&
-      grep -q 'O-Reed' research/microtonal-dorico-integration.md &&
-      grep -q 'O-Bowed' research/microtonal-dorico-integration.md &&
-      grep -q 'O-Formant' research/microtonal-dorico-integration.md &&
-      grep -q 'O-IntonationPad' research/microtonal-dorico-integration.md &&
-      grep -q 'Symptom' research/microtonal-dorico-integration.md &&
-      grep -q '269.29' research/microtonal-dorico-integration.md &&
-      grep -q 'D-23-04-A' research/microtonal-dorico-integration.md &&
-      grep -q 'Library → Expression Maps' research/microtonal-dorico-integration.md &&
-      grep -q 'Play → Endpoint Setup' research/microtonal-dorico-integration.md &&
-      ! grep -iE '\b(amazing|powerful|you.?ll love|industry.?leading|revolutionary|stunning)\b' research/microtonal-dorico-integration.md
-    </automated>
+    <automated>F=research/microtonal-dorico-integration.md && test -f "$F" && grep -q "^## Module Architecture" "$F" && grep -q "^## Canonical Dorico Setup Procedure" "$F" && grep -q "^## Host-Side Behavior Quirks" "$F" && grep -q "^## Troubleshooting Signatures" "$F" && grep -q "audience: internal-dev-only" "$F" && grep -q "modules/tuning/note-expression/cpp/NoteExpression.h" "$F" && grep -q "modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp" "$F" && grep -q "Default Library Additions" "$F" && grep -q "DefaultLibraryAdditions" "$F" && grep -q "kVST3NoteExpression" "$F" && grep -q "Play -> Playback Template" "$F" && grep -q "Library -> Import Library\|Library -> Expression Maps" "$F" && grep -q "OuDv\|4F754476" "$F" && grep -q "OuAu\|4F754175" "$F" && grep -q "moduleinfo.json" "$F" && grep -q "configure_file" "$F" && grep -q "missing-plugin\|missing plugin" "$F" && grep -q "doricoexpmap\|FINDING-playback-template-pivot" "$F" && [ "$(wc -l < "$F")" -ge 200 ]</automated>
   </verify>
   <acceptance_criteria>
-    - File `research/microtonal-dorico-integration.md` exists.
-    - File length ≥250 lines (substantive content per H2 section, not stubs).
-    - Exactly 4 H2 sections, in this order: `## Module Architecture`, `## Canonical Dorico Setup Procedure`, `## Host-Side Behavior Quirks`, `## Troubleshooting Signatures`. Verify with `grep -c '^## ' research/microtonal-dorico-integration.md` returns exactly 4.
-    - Document declares the DOCS-05 boundary in its header (grep `DOCS-05 boundary` returns ≥1 match — proves internal-only intent is explicit).
-    - All 8 cohort plugins are named at least once each (grep each plugin name, expect ≥1 match each — proves the cohort coverage is complete).
-    - Load-bearing technical terms are referenced: `kTuningTypeID`, `noteId`, `applyPendingTuning`, `JUCE-NE-PATCH`, `Ouaricon-VST3-NoteExpression.doricoexpmap`, `cpp/vst3/` (the per-format convention directory). Each grep returns ≥1 match.
-    - DOCS-02 references the exact Dorico menu paths verbatim: `Library → Expression Maps`, `Play → Endpoint Setup` (each grep returns ≥1 match).
-    - DOCS-03 contains the `kTuningTypeID` math reference (`240.0 * (normalized - 0.5)` or equivalent — grep `240` returns ≥1 match).
-    - DOCS-04 contains a Symptoms-vs-Cause table (grep `Symptom` returns ≥1 match for the table header) AND references the verification frequency 269.29 Hz (grep returns ≥1 match) AND the Phase 23 D-23-04-A regression class (grep returns ≥1 match).
-    - No end-user-marketing tone (CONCRETE NEGATIVE GREP per WARNING #9 from checker review): the document MUST NOT contain marketing-tone phrases. Automated gate: `! grep -iE '\b(amazing|powerful|you.?ll love|industry.?leading|revolutionary|stunning)\b' research/microtonal-dorico-integration.md` returns exit 0 (i.e., no match). This is grep-enforced, not just author commitment.
+    - File exists at canonical path
+    - All 4 H2 section headers present with correct names
+    - Front-matter contains `audience: internal-dev-only` (DOCS-05 honored)
+    - DOCS-01 references both module source files (Steinberg-free + VST3-only TUs)
+    - DOCS-03 documents BOTH `Default Library Additions` (macOS, spaces) AND `DefaultLibraryAdditions` (Windows, NO spaces)
+    - File contains `kVST3NoteExpression` (Landmine 3 invariant explicitly named)
+    - DOCS-02 names exact menu paths `Play -> Playback Template` AND a Library import path
+    - DOCS-03 documents dev vs prod CID variance (`OuDv`/`4F754476` AND `OuAu`/`4F754175` referenced)
+    - DOCS-03 references `moduleinfo.json` + `configure_file` mitigation
+    - DOCS-04 covers missing-plugin warning scenario AND legacy `.doricoexpmap` failure mode (with reference to FINDING)
+    - File length >= 200 lines
   </acceptance_criteria>
-  <done>
-    `research/microtonal-dorico-integration.md` exists as a single combined developer-reference document with exactly 4 H2 sections covering DOCS-01..04. Tone is technical reference (DOCS-05 honored). Document describes shipped behavior from Plans 25-01/02 (the canonical .doricoexpmap, the module-side install rules, the per-platform PKG/EXE dual-write, the install-time Dorico version probe). All 8 cohort plugins are referenced; spike-findings landmines are cited; Phase 23 D-23-04-A regression class is documented in DOCS-04 troubleshooting.
-  </done>
+  <done>4-section internal reference doc authored at research/microtonal-dorico-integration.md, satisfies DOCS-01..05 with REFRAMED + EXTENDED content per D-19.</done>
+  <files>See plan frontmatter `files_modified` and `<read_first>` block above.</files>
 </task>
 
 </tasks>
@@ -339,37 +233,48 @@ Dorico setup procedure (DOCS-02 — describes what's automatic post-Plan-25-02 v
 
 | Boundary | Description |
 |----------|-------------|
-| repo→public visibility | `research/microtonal-dorico-integration.md` is committed to the repo. If the repo is public (sales site uses GitHub-hosted source material), the document's content becomes externally visible. Per DOCS-05 boundary the tone is internal-developer; no secrets or licensing-sensitive code embedded. |
+| Documentation file -> developer reading it | Doc is internal-only (DOCS-05); not deployed; not user-facing. No runtime trust boundary. |
 
 ## STRIDE Threat Register
 
 | Threat ID | Category | Component | Disposition | Mitigation Plan |
 |-----------|----------|-----------|-------------|-----------------|
-| T-25-03-01 | I (Information disclosure) | Document contains system path references like `~/Library/Application Support/...` and `%APPDATA%\...` | accept | These are platform-standard user-scope paths, not personal information. The example path on macOS is from the user's CLAUDE.md memory (`/Users/taylorbrook/JUCE`) — but that path is already public knowledge in the existing module README and CMake error messages. No new disclosure. |
-| T-25-03-02 | T (Tampering) | Document is the future website source material | accept | Document is in `research/` (per CLAUDE.md convention); commits go through standard git review. Future website team translates with explicit mapping (DOCS → website chapter); document edits don't deploy to website automatically. |
+| T-25-03-01 | Information disclosure | Doc reveals dev CIDs (`4F754476`) and module internals | accept | Repo is private; CIDs are public-after-build anyway (every shipped VST3 bundle exposes them in `moduleinfo.json`). Module internals are open implementation detail. No secrets disclosed. |
+| T-25-03-02 | Repudiation / staleness | Doc becomes stale after future Dorico release or JUCE upgrade | mitigate | Front-matter `last_verified: 2026-04-26` + `dorico_version: "6.1.0"` + `juce_version: "8.0.4"` makes staleness detectable. DOCS-03 explicitly names "future Dorico 7 release requires installer config update" as a known maintenance touchpoint. |
+| T-25-03-03 | Tampering | Doc instructs developer toward wrong distribution mechanism (regression to v1) | mitigate | DOCS-04 explicitly enumerates the legacy `.doricoexpmap` failure mode + references FINDING-playback-template-pivot.md. Future developer reading the doc cannot accidentally regress. |
+| T-25-03-04 | Path traversal | N/A — doc, not code | not applicable | |
+| T-25-03-05 | Privilege escalation | N/A — doc, not code | not applicable | |
+| T-25-03-06 | Idempotency | N/A — doc, not deployment payload | not applicable | |
+| T-25-03-07 | Stale-asset | Doc references file paths that may move in future refactors | accept | Path references (`modules/tuning/note-expression/cpp/...`) are in repo and move-tracked by git. If a future phase moves the module, the doc gets updated in that phase's plan. |
 </threat_model>
 
 <verification>
-1. `research/microtonal-dorico-integration.md` exists with the exact 4 H2 sections in the prescribed order.
-2. Document is ≥250 lines of substantive content.
-3. All grep gates from Task 1 acceptance criteria pass.
-4. Self-review for tone: no end-user-marketing copy (the document reads as technical reference suitable for FUT-06 translation, NOT for direct publication).
+- Single-task plan; all gates are inside the one task's `<acceptance_criteria>` block.
+- DOCS-05 boundary verified by `audience: internal-dev-only` front-matter check.
+- DOCS-01..04 each gated by section-header presence + content-keyword presence.
+- Pitfall 3 (directory-name asymmetry) verified by both spelling variants present.
+- Landmine 3 (kVST3NoteExpression invariant) explicitly named.
+- Plan 25-01 v1 finding (legacy `.doricoexpmap` failure) explicitly referenced — prevents future regression.
 </verification>
 
 <success_criteria>
-Plan 25-03 succeeds when:
-- DOCS-01 satisfied: Module Architecture section covers NEC advertisement flow, raw-event queue semantics, voice-routing logic, composition with each plugin's TuningEngine analog, per-format source convention, the 5 propagation patterns from Phase 24.
-- DOCS-02 satisfied: Canonical Dorico Setup Procedure section names exact Dorico menu paths, splits automatic vs manual steps, names install paths, includes verification step (quarter-sharp C4 → 269.29 Hz), notes Dorico version targeting per D-07.
-- DOCS-03 satisfied: Host-Side Behavior Quirks section covers Dorico's neighbor-semitone representation (Landmine 2), NEC handshake asymmetry (Landmine 1), sample-offset timing (block-locality), kTuningTypeID measurement math (Pattern 5), multi-Dorico-version maintenance, JUCE patch dependency, VST3-only capability.
-- DOCS-04 satisfied: Troubleshooting Signatures section has symptoms-vs-cause table covering the expression-map-skipped UX trap (Landmine 3) plus regression signatures (D-23-04-A AU-link, Phase 24 per-plugin Rule-3 fixes, DEF-24-01 downgraded item).
-- DOCS-05 satisfied: Document declares internal-only intent in the header; tone is developer-reference; structured for FUT-06 translation but not consumed as end-user copy this milestone.
-- File at canonical path `research/microtonal-dorico-integration.md` per CLAUDE.md research/ convention.
+- research/microtonal-dorico-integration.md exists
+- All 4 H2 sections present and named per D-19
+- DOCS-01..04 content satisfies their respective requirements (REFRAMED for Playback Template flow per D-17)
+- DOCS-05 boundary honored (audience: internal-dev-only; no marketing copy)
+- File length >= 200 lines (substantive content)
+- All NEW quirks/signatures from D-19 EXTENDED list are present
+- File integrates with existing `research/microtonality-*.md` family conventions (Pattern K)
 </success_criteria>
 
 <output>
-After completion, create `.planning/phases/25-package-docs/25-03-internal-notes-SUMMARY.md` with:
-- File created (path, line count, H2 section list)
-- Cross-reference inventory (which spike-findings, which Phase 23/24 decisions, which research/ files were cited)
-- DOCS-01..05 satisfaction summary (one-line each linking section → coverage)
-- Hand-off note: this completes Phase 25 and milestone v1.5. The document is now the source-of-truth for FUT-06 website manual/quickstart authoring in the next milestone.
+After completion, create `.planning/phases/25-package-docs/25-03-SUMMARY.md` documenting:
+- File path and line count of the authored doc
+- Mapping of DOCS-01..05 -> sections in the file
+- Cross-references to RESEARCH.md sources used (which Patterns + Pitfalls + Q&A informed each H2 section)
+- Any deferred content (e.g., articulation switches, MTS-ESP path) explicitly NOT covered with rationale
+- "Phase 25 complete" closing line (this is the last plan in Wave 2; Plans 25-02 and 25-03 close concurrently)
+
+Update `.planning/STATE.md` with Plan 25-03 completion timestamp.
 </output>
+</content>

@@ -115,16 +115,21 @@ Plans:
 - [x] 24-08-final-sweep-PLAN.md — Rebuild + freshly install all 8 affected plugins; registry audit; aggregate Dorico smoke results (TRACK-05; re-claims PROP-01..07 via post-sweep regression smoke).
 
 ### Phase 25 (C): Package & Internal Technical Notes
-**Goal**: A canonical pre-configured Dorico expression map file is authored once, stored as single source of truth in the microtonal module's resources, and bundled into every affected plugin's installer — with internal developer-reference notes (not end-user manuals) captured under `research/` to serve as source material for future website manual/quickstart authoring.
+**Goal** (v2 — Playback Template pivot 2026-04-26): A canonical Dorico Microtonal Suite asset pair (`Ouaricon-Microtonal-Suite.dorico_pt` + `Ouaricon-VST3-NoteExpression.doricolib`) is authored once at `modules/tuning/note-expression/resources/`, owned by the module via CMake `install()` rules, and bundled into every affected plugin's installer (PKG on macOS, EXE on Windows). Both resources auto-discover into Dorico's user-side scan directories (`PlaybackTemplateSpecs/` + `Default Library Additions/`) so users open Dorico after installing any Ouaricon plugin and the Microtonal Suite is wired up — no manual import step. Internal developer-reference notes (not end-user manuals) captured at `research/microtonal-dorico-integration.md` to serve as source material for future website authoring.
 **Depends on**: Phase 24 (installer/docs reflect the completed set of 8 integrated plugins)
 **Requirements**: INST-01, INST-02, INST-03, INST-04, DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05
-**Success Criteria** (what must be TRUE):
-  1. A canonical `Ouaricon-VST3-NoteExpression.doricoexpmap` (or similarly named) exists at `modules/[microtonal-module]/resources/` with Microtonality explicitly set to "VST3 Note Expression" — confirmed as the single source of truth referenced by all 8 plugin installers.
-  2. All 8 affected plugins' installers (PKG on macOS, EXE on Windows per existing `build-installer` / `package` workflows) bundle the `.doricoexpmap` file, and at least one dry-run install + Dorico quarter-sharp test validates the bundled expression map produces correct microtonal playback.
-  3. Internal technical notes live under `research/microtonal-dorico-integration.md` (or per-topic sub-files) and cover all four required topics: module architecture (DOCS-01), canonical Dorico expression-map setup procedure (DOCS-02), host-side behavior quirks (DOCS-03), and troubleshooting signatures for the expression-map-skipped UX trap (DOCS-04).
-  4. Notes are developer-facing only — no end-user manual or quickstart copy is published this milestone; DOCS-01..04 are structured to translate cleanly into future website authoring (DOCS-05 constraint honored).
-  5. Installed `.doricoexpmap` lands at a discoverable location for end users, or the installer emits a README pointing to the file's install path with a one-line Dorico import instruction.
-**Plans**: 8 plans
+**Success Criteria** (what must be TRUE — v2 reframed):
+  1. Canonical asset pair (`.dorico_pt` zip + `.doricolib`) exists at `modules/tuning/note-expression/resources/{playback-template,library}/` as the single source of truth. Both files share the byte-exact `<entityID>xmap.ouaricon.vst3_note_expression</entityID>` and the load-bearing `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>` (recovered XML body from commit cd2c2c6).
+  2. All 8 affected plugins' installers (PKG on macOS, EXE on Windows) bundle BOTH files. Cross-platform validation gate: 1 representative install on each platform proves the Microtonal Suite auto-discovers, applies cleanly via `Play -> Playback Template -> Ouaricon Microtonal Suite`, and the Phase 24 3-point gate (quarter-sharp C4 = +50¢, no attack zipper, NE correlated by noteId) passes.
+  3. Internal technical notes live under `research/microtonal-dorico-integration.md` (single combined doc with 4 H2 sections) covering: module architecture (DOCS-01), canonical Dorico Playback Template setup procedure (DOCS-02 — REFRAMED for the apply flow), host-side behavior quirks (DOCS-03 — EXTENDED with Default Library Additions caveat + macOS/Windows dir-name asymmetry + dev/prod CID variance), troubleshooting signatures (DOCS-04 — EXTENDED with missing-plugin warnings + silent template non-appearance).
+  4. Notes are developer-facing only — no end-user manual or quickstart copy this milestone; DOCS-01..04 structured to translate cleanly into future website authoring (DOCS-05 constraint honored).
+  5. Installed assets land at the auto-discovery directories (`~/Library/Application Support/Steinberg/Dorico [N]/PlaybackTemplateSpecs/Ouaricon Microtonal Suite/` + `Default Library Additions/`); fallback `README-microtonal-suite.txt` documents the manual `Play -> Playback Template -> Import` and `Library -> Import Library` flow if auto-discovery missed.
+**Plans:** 3 plans
+
+Plans:
+- [ ] 25-01-author-and-plumbing-PLAN.md — Wave 0 A2/A4 verifications + recover XML from cd2c2c6 + author playback-template/ source tree + standalone .doricolib + ouaricon_extract_vst3_cids helper + module.cmake packing/install rules + bump module 1.0.0->1.1.0 + O-Lyrica canary install (INST-01, INST-02, INST-04)
+- [ ] 25-02-installer-bundling-sweep-PLAN.md — Atomic shared-skill edit (pkg-creation.md + inno-template.iss + inno-setup-creation.md) propagates dual-resource bundling to all 8 plugins + cross-platform Dorico validation matrix (INST-03, INST-04)
+- [ ] 25-03-internal-notes-PLAN.md — Author research/microtonal-dorico-integration.md (4 H2 sections, REFRAMED + EXTENDED for Playback Template flow) (DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05)
 
 ## Progress
 
@@ -140,7 +145,7 @@ Phases execute in numeric order: 23 → 24 → 25
 | 18-22 | v1.4 | 13/13 | Complete | 2026-03-07 |
 | 23 (A) | v1.5 | 5/5 | Complete    | 2026-04-25 |
 | 24 (B) | v1.5 | 8/8 | Complete   | 2026-04-26 |
-| 25 (C) | v1.5 | 0/TBD | Not started | - |
+| 25 (C) | v1.5 | 0/3 | Planning complete (replan v2) | - |
 
 **Cumulative: 22 phases complete, 65 plans complete, 5 milestones shipped. v1.5 = 3 phases planned (23-25), 33 requirements mapped. Phase 24 Plan 24-01 (O-Bells canary) complete — Dorico 3-point smoke gate 3/3 PASS.**
 
