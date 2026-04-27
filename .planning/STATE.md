@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Microtonal Shared Module & Suite Propagation
 status: executing
-stopped_at: Phase 25 v2 context locked (Playback Template pivot) — ready to replan
-last_updated: "2026-04-27T04:34:47.222Z"
-last_activity: 2026-04-27 -- Phase 25 execution started
+stopped_at: Phase 25 v2 (Playback Template) superseded by Path B finding — replan needed
+last_updated: "2026-04-27T07:20:00.000Z"
+last_activity: 2026-04-27 -- Phase 25 v2 paused; Path B (standalone .doricolib) validated end-to-end
 progress:
   total_phases: 20
   completed_phases: 19
@@ -26,20 +26,30 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 ## Current Position
 
 Milestone: v1.5 Microtonal Shared Module & Suite Propagation -- ACTIVE
-Phase: 25 (package-docs) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 25
-Last activity: 2026-04-27 -- Phase 25 execution started
+Phase: 25 (package-docs) — REPLAN NEEDED (Plan 25-01 v2 deterministic work merged at 819b2b4 but architecturally superseded mid-checkpoint)
+Plan: 0 of 3 (v2 work merged but invalidated; Plans 02–03 also need replan)
+Status: Paused at A2 checkpoint — Path B validated, v2 superseded
+Last activity: 2026-04-27 -- Plan 25-01 v2 deterministic work merged (819b2b4); A2 checkpoint surfaced two bugs in v2 + invalidated the .dorico_pt architecture; Path B (standalone .doricolib) tested end-to-end and PASSED (quarter-sharp playback at ~269 Hz via O-Lyrica-dev with Dorico-valid wrapped .doricolib).
 
 Progress: [██████████] 99%
 
-Discovery: Plan 25-01's distribution mechanism (drop .doricoexpmap into Dorico's User/ scan path) does not work — Dorico does not auto-ingest standalone .doricoexpmap files. The XML asset is valid; the plumbing approach was wrong. Pivot: ship a Dorico Playback Template (Option B) instead of a standalone expression map.
+History (Phase 25):
+- v1: drop .doricoexpmap into Dorico's User/ → reverted at d2c86c5 (Dorico does not recognize .doricoexpmap extension). See `25-FINDING-playback-template-pivot.md`.
+- v2: ship .dorico_pt Playback Template + .doricolib → merged at 819b2b4 BUT three blocking issues found at A2 checkpoint:
+  1. .doricolib lacks Dorico's required 48-container kScoreLibrary skeleton (cd2c2c6 recovery is a fragment, not a library)
+  2. endpointconfig.xml.in has hardcoded prod plugin names but dev/prod CIDs → silent slot drop on dev installs
+  3. Playback Template architecture is over-engineered for v1.5 use case
+- Path B (validated 2026-04-27): ship single Dorico-valid .doricolib only; user assigns expression map manually in Play → Endpoints → Expression Map dropdown after loading their plugin. Verified end-to-end with quarter-sharp C4 playback at ~269 Hz on O-Lyrica-dev.
 
-Reverted: cd2c2c6, 496d4c4, 029b12b — combined revert at d2c86c5.
+Finding docs:
+- `.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md` (v1 → v2)
+- `.planning/phases/25-package-docs/25-FINDING-path-b-validation.md` (v2 → v3, NEW)
 
-Finding doc: `.planning/phases/25-package-docs/25-FINDING-playback-template-pivot.md`
+Test log: `.planning/phases/25-package-docs/25-01-WAVE-0-VERIFICATION.md` (full A2 + Path B trace)
 
-Next: `/clear` then `/gsd-discuss-phase 25 --replan` to capture the Playback Template approach, OR `/gsd-research-phase 25` first if more Dorico-format research is needed before discuss.
+Reference asset: `/tmp/Ouaricon-VST3-NoteExpression-v2.doricolib` (6,431 B, Dorico-valid skeleton, import-confirmed)
+
+Next: `/clear` then `/gsd-discuss-phase 25 --replan` to lock Path B as v3 architecture; surface open questions (auto-discovery vs explicit import, <pluginNames> schema, Plan 25-02/03 simplification, whether to revert 819b2b4 or amend forward).
 
 ## Performance Metrics
 
