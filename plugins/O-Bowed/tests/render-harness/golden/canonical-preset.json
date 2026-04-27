@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "midiNote": 69,
+  "velocity": 0.699999988079071,
+  "sustainSeconds": 5.0,
+  "releaseSeconds": 0.0,
+  "totalSamples": 220500,
+  "peak": 0.052906461060047,
+  "nanCount": 0,
+  "infCount": 0,
+  "blockMicros_median": 37.084000000000003,
+  "blockMicros_max": 56.125,
+  "blockTime_max_over_median": 1.51345593787078,
+  "pass_nan": true,
+  "pass_peak": true,
+  "pass_blockTime": true,
+  "outputWav": "/tmp/o-bowed-pre-extraction-canonical.wav"
+}

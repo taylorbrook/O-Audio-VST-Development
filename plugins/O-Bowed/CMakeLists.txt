@@ -116,3 +116,12 @@ target_compile_definitions(O-Bowed
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# ----------------------------------------------------------------------------
+# Phase 2.1b render-harness binary (module-extraction regression baseline).
+# Off by default; enable with -DOUARICON_BUILD_TESTS=ON.
+# ----------------------------------------------------------------------------
+option(OUARICON_BUILD_TESTS "Build test harness binaries (e.g. O-Bowed-render-test)" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()
