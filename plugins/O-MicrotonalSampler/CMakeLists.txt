@@ -1,0 +1,121 @@
+cmake_minimum_required(VERSION 3.15)
+
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
+# O-MicrotonalSampler - Microtonal Sample Engine (varispeed retune via VST3 NE)
+# Stage 1 (Foundation): silent shell. APVTS + headless TuningEngine + NE drain
+# + sample-map shared_ptr surface + SampleLoader skeleton. First audio: Phase 2.1.
+juce_add_plugin(O-MicrotonalSampler
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
+    PLUGIN_CODE OMtS
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "O-MicrotonalSampler${OUARICON_DEV_SUFFIX}"
+    PLUGIN_VERSION "1.0.0"
+    IS_SYNTH TRUE
+    NEEDS_MIDI_INPUT TRUE
+    NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE
+    NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
+    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+)
+
+# Source files
+target_sources(O-MicrotonalSampler
+    PRIVATE
+        Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp
+        Source/MicrotonalSamplerSound.h
+        Source/MicrotonalSamplerVoice.h
+        Source/MicrotonalSamplerVoice.cpp
+        Source/SampleMap.h
+        Source/SampleLoader.h
+        Source/SampleLoader.cpp
+        # Tuning module files (referenced from shared module)
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/EmbeddedTunings.cpp
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningExporter.cpp
+)
+
+# VST3 Note Expression microtonal support (Dorico) — D-5: ouaricon_add_module ONLY
+ouaricon_add_module(O-MicrotonalSampler note-expression)
+
+# Include paths
+target_include_directories(O-MicrotonalSampler
+    PRIVATE
+        Source
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp
+)
+
+# Required JUCE modules
+target_link_libraries(O-MicrotonalSampler
+    PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_devices
+        juce::juce_audio_formats
+        juce::juce_audio_plugin_client
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_dsp
+        juce::juce_events
+        juce::juce_graphics
+        juce::juce_gui_basics
+        juce::juce_gui_extra
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+# Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
+juce_generate_juce_header(O-MicrotonalSampler)
+
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(O-MicrotonalSampler licensing)
+    target_compile_definitions(O-MicrotonalSampler PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(O-MicrotonalSampler PRIVATE juce::juce_cryptography)
+endif()
+
+# Compile definitions
+target_compile_definitions(O-MicrotonalSampler
+    PUBLIC
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+        JUCE_USE_CURL=0
+)
+
+# Phase 2.1 in-memory test fixture toggle.
+# ON: PluginProcessor::prepareToPlay builds an 88-note sine-burst SampleMap so
+# the voice DSP can be exercised before Phase 2.2 wires the real loader.
+# Phase 2.2 will flip this OFF (real folder load supersedes the fixture).
+option(OMTS_PHASE_2_1_TEST_FIXTURE
+    "Enable Phase 2.1 in-memory sine-burst SampleMap for early audio testing" ON)
+if(OMTS_PHASE_2_1_TEST_FIXTURE)
+    target_compile_definitions(O-MicrotonalSampler PRIVATE
+        O_MICROTONAL_SAMPLER_PHASE_2_1_TEST_FIXTURE=1)
+endif()
+
+# Phase 2.1 aliasing measurement driver (RQ-1).
+# Standalone executable, EXCLUDE_FROM_ALL — manual run by developer to verify
+# +50c retune null-test residual is below -60 dBFS above 8 kHz. Threshold
+# breach → conditionally insert juce::dsp::IIR::Filter pre-filter.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/aliasing_check.cpp")
+    add_executable(O-MicrotonalSampler_AliasingCheck EXCLUDE_FROM_ALL
+        Source/tests/aliasing_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_AliasingCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_formats
+        juce::juce_core
+        juce::juce_dsp
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_compile_definitions(O-MicrotonalSampler_AliasingCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()

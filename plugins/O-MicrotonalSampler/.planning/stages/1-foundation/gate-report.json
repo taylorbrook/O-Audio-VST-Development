@@ -1,0 +1,20 @@
+{
+  "gate": "gate-1-to-2",
+  "plugin": "O-MicrotonalSampler",
+  "fromStage": "1-foundation",
+  "toStage": "2-dsp",
+  "timestamp": "2026-04-28T01:10:05Z",
+  "checks": {
+    "critical": [{"name":"schema","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"No handoff file found\n"},{"name":"build","status":"passed","duration":0,"attempts":1,"output":"[0/2] Re-checking globbed directories...\nninja: no work to do.\n","error":"\n"},{"name":"pluginval","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"VST3 plugin not found at /Users/taylorbrook/Dev/VST-development/build/plugins/O-MicrotonalSampler/O-MicrotonalSampler_artefacts/Release/VST3/O-MicrotonalSampler.vst3\n"}],
+    "advisory": [{"name":"style","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"naming","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"docs","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"}]
+  },
+  "overallStatus": "PASSED",
+  "totalDuration": 0
+,
+  "review": {
+    "status": "skipped",
+    "notes": "\n",
+    "skipped": true
+,    "skipJustification": "No justification provided\n"
+  }
+}
