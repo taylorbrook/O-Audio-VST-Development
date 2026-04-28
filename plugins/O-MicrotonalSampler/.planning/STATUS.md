@@ -1,16 +1,18 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 2-dsp
-phase: plan
-status: plan_complete
+phase: execute
+status: phase_2_2_gate_2_pass
 last_updated: 2026-04-27
 ---
 
 # Resume Point
 
-## Current State: Stage 2 Plan Complete — Ready for Execute
+## Current State: Phase 2.2 Gate 2 PASS — Ready for Phase 2.3
 
-Stage 2 (DSP) plan phase complete. PLAN.md decomposes Stage 2 into 5 sequential sub-stages (2.1 voice DSP → 2.2 loader → 2.3 vel crossfade → 2.4 voice-steal → 2.5 loop-detect) with 33 numbered tasks, file-level scope per task, dependency graph, per-sub-stage Gate verification (build + pluginval + functional test + atomic commit), and a final acceptance checklist mapping back to all 15 Stage-2 requirements. No new module deps — both shared modules and `juce_audio_formats`/`juce_dsp` already wired in Stage 1.
+Background sample loader + filename parser + SR conversion landed and validated. `auval` clean, `pluginval --strictness 5` clean. Voice DSP (Phase 2.1) untouched. Commit: `cacffda`.
+
+Stage 2 progress: **2 of 5 sub-stages complete** (2.1 ✓, 2.2 ✓, 2.3 next, 2.4, 2.5).
 
 ## Completed So Far
 
@@ -19,6 +21,8 @@ Stage 2 (DSP) plan phase complete. PLAN.md decomposes Stage 2 into 5 sequential 
 **Stage 2 Discuss:** ✓ Complete (CONTEXT.md, 2026-04-27)
 **Stage 2 Research:** ✓ Complete (RESEARCH.md, 2026-04-27)
 **Stage 2 Plan:** ✓ Complete (PLAN.md, 2026-04-27)
+**Stage 2 Phase 2.1:** ✓ Gate 1 PASS — cubic-Hermite varispeed voice + ADSR + NE (commit `bb0e7f7`)
+**Stage 2 Phase 2.2:** ✓ Gate 2 PASS — background loader + filename parser + SR conversion (commit `cacffda`)
 
 ## Stage 2 Locked Decisions (D2-1..D2-12)
 
@@ -44,8 +48,20 @@ FUNC-01..04, FUNC-07, DSP-01..05, DSP-07, DSP-08, PERF-01..04, COMPAT-02, QUAL-0
 - `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/CONTEXT.md`
 - `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/RESEARCH.md`
 - `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PLAN.md`
+- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PHASE-2.1-SUMMARY.md`
+- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PHASE-2.2-SUMMARY.md`
+
+## Source Files Touched (Phase 2.2)
+
+Created: `Source/FilenameParser.{h,cpp}`
+Modified: `Source/SampleLoader.{h,cpp}`, `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.{h,cpp}`, `CMakeLists.txt`
+
+## Known Issue Flagged for Phase 2.3 Pickup
+
+`MicrotonalSamplerVoice.cpp:138` uses plain `shared_ptr` deref+copy rather than `std::atomic_load(sampleMapSource)`. Practical risk near-zero on x86-64/ARM64 but TSan would flag it. Phase 2.3 modifies voice members anyway → fix can ride along.
 
 ## Next Steps
 
-1. **Stage 2 Execute (next)** — `/plugin-execute O-MicrotonalSampler 2-dsp`
-2. UI mockup (parallelizable any time before Stage 3) — `/ui-mockup O-MicrotonalSampler`
+1. **Phase 2.3 Execute (next)** — `/plugin-execute O-MicrotonalSampler 2-dsp` (continues to Phase 2.3: velocity-layer crossfade, Tasks 16–20, Gate 3)
+2. Remaining sub-stages: 2.3 → 2.4 → 2.5 → full Stage 2 verify
+3. UI mockup (parallelizable any time before Stage 3) — `/ui-mockup O-MicrotonalSampler`
