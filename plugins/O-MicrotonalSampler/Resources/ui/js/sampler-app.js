@@ -226,8 +226,7 @@ function handleSampleMapSnapshot(payloadOrJson) {
 
     if (!snap) return;
 
-    // Phase 3.1: minimal handler. Update the issues disclosure if there are
-    // skipped files; the grid is a placeholder until 3.2.
+    // ---- Issues disclosure ----
     const issues = document.getElementById('issues-disclosure');
     const issuesList = document.getElementById('issues-list');
     if (issues && issuesList) {
@@ -247,17 +246,309 @@ function handleSampleMapSnapshot(payloadOrJson) {
         }
     }
 
-    // Stub grid update — confirms the data flow is alive.
-    const grid = document.getElementById('sample-map-grid');
-    if (grid) {
-        const slotCount = Array.isArray(snap.slots) ? snap.slots.length : 0;
-        const txt = grid.querySelector('.grid-placeholder-text');
-        if (txt) {
-            txt.textContent = (slotCount > 0)
-                ? `${slotCount} slot${slotCount === 1 ? '' : 's'} loaded · grid renders in Phase 3.2`
-                : `Sample-mapping grid arrives in Phase 3.2 (snapshot v${snap.version || 0})`;
+    // ---- Grid render (Phase 3.2) ----
+    renderGrid(snap);
+
+    // Re-publish the cell-layout shadow now that DOM has settled. Defer one
+    // frame so the browser has computed final geometry.
+    requestAnimationFrame(() => publishCellLayout());
+}
+
+// ============================================================================
+// Sample-mapping grid (Phase 3.2 — Tasks 15–17)
+// ============================================================================
+//
+// Layout per PLAN Task 15:
+//   - 88 columns (MIDI 21..108), 4 rows (velocity layers).
+//   - Rows top→bottom = layer 3..0 so the loudest layer reads at the top.
+//   - data-note + data-layer attributes for hit-testing.
+//   - cell-loaded / cell-empty / cell-loading / cell-active classes.
+//   - title attribute = filename for loaded cells (tooltip).
+//   - octave-separator marker (data-octave-start) every 12 cells.
+//
+// Mid-session replace metric (PLAN Task 18 gate): the time from FileChooser
+// close → DOM update is logged via performance.now() in handleCellAction.
+//
+// The grid is rebuilt on every snapshot. With 352 cells (88 × 4), full
+// rebuild is < 5 ms and avoids stateful diff bookkeeping.
+
+const MIDI_LOW  = 21;   // A0
+const MIDI_HIGH = 108;  // C8
+const NUM_LAYERS = 4;
+
+function renderGrid(snap) {
+    const container = document.getElementById('sample-map-grid');
+    if (!container) return;
+
+    // Build fast — clear via innerHTML then assemble in a fragment.
+    container.innerHTML = '';
+    const inner = document.createElement('div');
+    inner.id = 'sample-grid-inner';
+
+    // Slot lookup map: key = `${midi}_${layer}` → slot.
+    const slotMap = new Map();
+    if (Array.isArray(snap?.slots)) {
+        for (const s of snap.slots) {
+            slotMap.set(`${s.midiNote}_${s.velocityLayer}`, s);
         }
     }
+
+    const frag = document.createDocumentFragment();
+
+    // Rows are layer 3 (top) → layer 0 (bottom) so loudest-on-top.
+    for (let row = 0; row < NUM_LAYERS; ++row) {
+        const layer = (NUM_LAYERS - 1) - row;
+        for (let midi = MIDI_LOW; midi <= MIDI_HIGH; ++midi) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.note = String(midi);
+            cell.dataset.layer = String(layer);
+
+            // Mark octave starts (C notes — midi % 12 === 0) for the octave
+            // separator border. Always also include MIDI 21 (lowest in range).
+            if (midi % 12 === 0 || midi === MIDI_LOW) {
+                cell.dataset.octaveStart = '1';
+            }
+
+            const slot = slotMap.get(`${midi}_${layer}`);
+            if (slot) {
+                cell.classList.add('cell-loaded');
+                cell.title = slot.filename
+                    ? `${slot.filename} — MIDI ${midi}, layer ${layer}`
+                    : `MIDI ${midi}, layer ${layer}`;
+            } else {
+                cell.classList.add('cell-empty');
+                cell.title = `Empty — MIDI ${midi}, layer ${layer}`;
+            }
+
+            frag.appendChild(cell);
+        }
+    }
+
+    inner.appendChild(frag);
+    container.appendChild(inner);
+
+    // Wire interactions on the inner container (single delegated listener).
+    bindGridInteractions(inner);
+}
+
+// ============================================================================
+// Cell interactions (Phase 3.2 Task 16 — RP3-1 resolution)
+// ============================================================================
+//
+//   - Single-click EMPTY  → loadSingleSampleDialog(midi, vel)
+//   - Single-click LOADED → openLoopEditor(midi, vel)  (3.4 placeholder; logs)
+//   - Double-click LOADED → loadSingleSampleDialog(midi, vel)  (replace)
+//   - Right-click any     → context menu (Replace / Open Loop Editor / Clear)
+//
+// The 250 ms double-click discrimination is implemented via setTimeout — when
+// a single-click fires we delay the action by 250 ms; if a second click
+// arrives in that window we cancel the timer and fire the dblclick action
+// instead. The browser's native `dblclick` event fires on the second click
+// so we use it directly and rely on the timer to defer the single-click.
+
+let pendingClickTimer = null;
+let lastReplaceTimestamp = 0;
+
+function bindGridInteractions(innerEl) {
+    if (!innerEl || innerEl.dataset.bound === '1') return;
+    innerEl.dataset.bound = '1';
+
+    innerEl.addEventListener('click', (e) => {
+        const cell = e.target.closest('.grid-cell');
+        if (!cell) return;
+        const midi  = parseInt(cell.dataset.note, 10);
+        const layer = parseInt(cell.dataset.layer, 10);
+        if (!Number.isFinite(midi) || !Number.isFinite(layer)) return;
+
+        // Defer single-click so a follow-up dblclick can cancel it.
+        if (pendingClickTimer) clearTimeout(pendingClickTimer);
+        pendingClickTimer = setTimeout(() => {
+            pendingClickTimer = null;
+            handleCellSingleClick(cell, midi, layer);
+        }, 250);
+    });
+
+    innerEl.addEventListener('dblclick', (e) => {
+        const cell = e.target.closest('.grid-cell');
+        if (!cell) return;
+        // Cancel the pending single-click action.
+        if (pendingClickTimer) {
+            clearTimeout(pendingClickTimer);
+            pendingClickTimer = null;
+        }
+        const midi  = parseInt(cell.dataset.note, 10);
+        const layer = parseInt(cell.dataset.layer, 10);
+        if (!Number.isFinite(midi) || !Number.isFinite(layer)) return;
+
+        // Double-click on a loaded cell → replace path. Empty cells route
+        // to the same FileChooser as single-click; behaviour is consistent.
+        replaceCellSample(cell, midi, layer);
+    });
+
+    innerEl.addEventListener('contextmenu', (e) => {
+        const cell = e.target.closest('.grid-cell');
+        if (!cell) return;
+        e.preventDefault();
+        showContextMenu(cell, e.clientX, e.clientY);
+    });
+}
+
+function handleCellSingleClick(cell, midi, layer) {
+    const isLoaded = cell.classList.contains('cell-loaded');
+    if (isLoaded) {
+        // 3.2 placeholder — full loop editor lands in 3.4.
+        console.log(`[sampler-app] openLoopEditor placeholder: midi=${midi} vel=${layer}`);
+    } else {
+        replaceCellSample(cell, midi, layer);
+    }
+}
+
+async function replaceCellSample(cell, midi, layer) {
+    if (!window.__JUCE__) return;
+
+    cell.classList.add('cell-loading');
+    const t0 = performance.now();
+    lastReplaceTimestamp = t0;
+
+    try {
+        const fn = Juce.getNativeFunction('loadSingleSampleDialog');
+        const ok = await fn(midi, layer);
+        if (!ok) {
+            // User cancelled or selection invalid — drop the loading shimmer.
+            cell.classList.remove('cell-loading');
+            return;
+        }
+        // The sampleMapUpdated push event will trigger renderGrid which
+        // rebuilds the cell. Log timing for the gate metric.
+        const t1 = performance.now();
+        console.log(`[sampler-app] FileChooser close → load dispatch: ${(t1 - t0).toFixed(1)} ms`);
+    } catch (e) {
+        console.error('[sampler-app] replaceCellSample failed:', e);
+        cell.classList.remove('cell-loading');
+    }
+}
+
+// ---- Context menu ----
+let contextMenuCell = null;
+
+function showContextMenu(cell, clientX, clientY) {
+    const menu = document.getElementById('cell-context-menu');
+    if (!menu) return;
+
+    const isLoaded = cell.classList.contains('cell-loaded');
+    contextMenuCell = cell;
+
+    // Disable "Open Loop Editor" on empty cells; "Clear" is always disabled in v1.0.
+    const openBtn = menu.querySelector('button[data-action="open-loop-editor"]');
+    if (openBtn) openBtn.disabled = !isLoaded;
+
+    menu.style.left = `${clientX}px`;
+    menu.style.top  = `${clientY}px`;
+    menu.hidden = false;
+
+    // Wire actions once.
+    if (menu.dataset.bound !== '1') {
+        menu.dataset.bound = '1';
+        menu.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn || btn.disabled) return;
+            const action = btn.dataset.action;
+            const cellEl = contextMenuCell;
+            if (cellEl) {
+                const midi  = parseInt(cellEl.dataset.note, 10);
+                const layer = parseInt(cellEl.dataset.layer, 10);
+                if (action === 'replace') {
+                    replaceCellSample(cellEl, midi, layer);
+                } else if (action === 'open-loop-editor') {
+                    console.log(`[sampler-app] context: openLoopEditor midi=${midi} vel=${layer} (Phase 3.4)`);
+                } else if (action === 'clear') {
+                    /* disabled in v1.0 */
+                }
+            }
+            hideContextMenu();
+        });
+    }
+}
+
+function hideContextMenu() {
+    const menu = document.getElementById('cell-context-menu');
+    if (menu) menu.hidden = true;
+    contextMenuCell = null;
+}
+
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('cell-context-menu');
+    if (!menu || menu.hidden) return;
+    if (!menu.contains(e.target)) hideContextMenu();
+});
+
+// ============================================================================
+// Layout shadow publish (Phase 3.2 Task 17 — reportCellLayout)
+// ============================================================================
+//
+// The C++ side hit-tests file drops against a JS-published cell rectangle map.
+// We re-publish on:
+//   - every sampleMapUpdated event (after the grid renders),
+//   - ResizeObserver callbacks on document.body (rAF-throttled — RESEARCH §9
+//     risk register: too-frequent calls cause WebView main-thread thrash).
+//
+// The shadow is JSON: {cells: [{midiNote, velocityLayer, x, y, w, h}], folderZone: {...}}.
+// Coordinates are in WebView client space (page-relative), which is what the
+// C++ FileDragAndDropTarget expects.
+
+let layoutPublishScheduled = false;
+
+function publishCellLayout() {
+    if (layoutPublishScheduled || !window.__JUCE__) return;
+    layoutPublishScheduled = true;
+
+    requestAnimationFrame(() => {
+        layoutPublishScheduled = false;
+
+        try {
+            const cells = [];
+            document.querySelectorAll('.grid-cell').forEach(el => {
+                const r = el.getBoundingClientRect();
+                cells.push({
+                    midiNote:      parseInt(el.dataset.note, 10),
+                    velocityLayer: parseInt(el.dataset.layer, 10),
+                    x: Math.round(r.left),
+                    y: Math.round(r.top),
+                    w: Math.round(r.width),
+                    h: Math.round(r.height)
+                });
+            });
+
+            let folderZone = { x: 0, y: 0, w: 0, h: 0 };
+            const fz = document.getElementById('folder-drop-zone');
+            if (fz) {
+                const r = fz.getBoundingClientRect();
+                folderZone = {
+                    x: Math.round(r.left),
+                    y: Math.round(r.top),
+                    w: Math.round(r.width),
+                    h: Math.round(r.height)
+                };
+            }
+
+            const payload = JSON.stringify({ cells, folderZone });
+            const fn = Juce.getNativeFunction('reportCellLayout');
+            fn(payload);
+        } catch (e) {
+            console.warn('[sampler-app] publishCellLayout failed:', e);
+        }
+    });
+}
+
+function bindResizeObserver() {
+    if (typeof ResizeObserver !== 'function') {
+        // Fallback to window resize listener.
+        window.addEventListener('resize', () => publishCellLayout());
+        return;
+    }
+    const obs = new ResizeObserver(() => publishCellLayout());
+    obs.observe(document.body);
 }
 
 // ============================================================================
@@ -269,4 +560,5 @@ document.addEventListener('DOMContentLoaded', () => {
     subscribeSampleMapUpdates();
     pullInitialSampleMap();
     refreshTuningReadout();
+    bindResizeObserver();
 });

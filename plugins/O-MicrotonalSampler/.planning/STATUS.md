@@ -1,14 +1,31 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 3-gui
-phase: 3.1
-status: phase_3.1_gate_pass
+phase: 3.2
+status: phase_3.2_gate_pass
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 3.1 GATE PASS — Ready for Phase 3.2
+## Current State: Phase 3.2 GATE PASS — Ready for Phase 3.3
+
+`/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.2 produced
+`.planning/stages/3-gui/PHASE-3.2-SUMMARY.md` and overwrote
+`gate-report.json` (phase 3.2). Tasks 12–18 implemented.
+
+**Phase 3.2 deliverables:**
+- `SampleLoader::loadSingleSlot` worker (SR-convert + loop-detect + async completion)
+- `OMicrotonalSamplerAudioProcessor::loadSingleSample` full impl (atomic deep-copy + version bump + callback)
+- `loadSingleSampleDialog` native function (FileChooser launch)
+- `renderGrid` JS — 88×4 CSS grid, cell-loaded/empty/loading classes
+- Cell interactions (RP3-1): single-click empty → FileChooser; single-click loaded → loop-editor placeholder; double-click loaded → replace; right-click → context menu
+- 250 ms double-click discrimination
+- `publishCellLayout` (ResizeObserver + rAF-throttled) → `reportCellLayout` native function
+
+**Gate:** triple build green, cache-clear+install per CLAUDE.md, pluginval --strictness 5 SUCCESS, auval AU VALIDATION SUCCEEDED.
+
+## Previous State: Phase 3.1 GATE PASS
 
 `/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.1 produced
 `.planning/stages/3-gui/PHASE-3.1-SUMMARY.md` and `gate-report.json`.

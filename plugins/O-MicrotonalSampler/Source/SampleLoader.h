@@ -34,6 +34,10 @@ public:
                                                   juce::StringArray skippedFiles)>;
     using FailureCallback    = std::function<void(const juce::String&)>;
 
+    // Phase 3.2 — per-cell load completion. `slot.midiNote == -1` signals
+    // failure; `skipReason` is human-readable when non-empty.
+    using SingleSlotCallback = std::function<void(SampleSlot, juce::String /*skipReason*/)>;
+
     SampleLoader();
     ~SampleLoader() override;
 
@@ -42,10 +46,26 @@ public:
                      CompletionCallback onComplete,
                      FailureCallback    onFailure = nullptr);
 
+    // Phase 3.2 — single-slot async load (mirror of run()'s per-file pipeline:
+    // open reader → SR-convert via LagrangeInterpolator → mono→stereo → loop
+    // detect → assemble SampleSlot). On error, dispatches completion with an
+    // empty slot (midiNote = -1) and a non-empty `skipReason`. Always invokes
+    // the completion on the message thread via juce::MessageManager::callAsync.
+    void loadSingleSlot (const juce::File&    file,
+                         int                  midiPitch,
+                         int                  velocityLayer,
+                         double               targetSampleRate,
+                         SingleSlotCallback   onComplete);
+
     void cancelLoad();
 
 private:
     void run() override;
+
+    // Mode discriminator — `run()` switches on this to decide between
+    // folder enumeration and single-slot processing.
+    enum class Mode { Folder, SingleSlot };
+    Mode               mode                = Mode::Folder;
 
     juce::File         pendingFolder;
     double             targetSampleRate    = 48000.0;
@@ -53,6 +73,13 @@ private:
     FailureCallback    failureCallback;
     juce::StringArray  skippedFiles;     // touched only by run() then captured
                                          // by message-thread callback
+
+    // Phase 3.2 single-slot state — touched only between loadSingleSlot()
+    // and the run() worker; the worker captures + dispatches via callAsync.
+    juce::File           singleFile;
+    int                  singleMidi          = 0;
+    int                  singleVelLayer      = 0;
+    SingleSlotCallback   singleSlotCallback;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleLoader)
 };

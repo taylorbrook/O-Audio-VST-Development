@@ -340,15 +340,168 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
 }
 
 //==============================================================================
-// Phase 3.1: per-cell sample load (skeleton — full impl in 3.2).
+// Phase 3.2: per-cell sample load (full impl).
+//
+// Pipeline (RESEARCH §RQ3-3 + Phase 3.2 PLAN Task 13):
+//   1. Validate (midi, vel, ext, file existence).
+//   2. Spawn SampleLoader::loadSingleSlot worker → SR-convert + loop-detect.
+//   3. Completion callback runs on the message thread:
+//        a. atomic_load currentSampleMap (snapshot).
+//        b. Deep-copy header + slots, dropping any prior (midi, vel) match.
+//        c. Push the new slot.
+//        d. Update lowestNote/highestNote/numVelocityLayers if extended.
+//        e. version = prev + 1.
+//        f. atomic_store currentSampleMap.
+//        g. Append skip reason to lastSkippedFiles if non-empty.
+//        h. Fire sampleMapChangedCallback.
+//
+// Active-voice retention (Stage 2 EC-3): voices snapshot the SampleMap
+// shared_ptr in startNote (lock-free refcount inc) and hold it for the
+// note duration. Replacing a slot allocates a fresh SampleMap; held voices
+// keep their old buffer alive transitively until the note releases.
 void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                                                           int velocityLayer,
                                                           const juce::File& file)
 {
-    DBG ("loadSingleSample (skeleton): midi=" << midiPitch
-         << " vel=" << velocityLayer
-         << " file=" << file.getFullPathName());
-    juce::ignoreUnused (midiPitch, velocityLayer, file);
+    if (sampleLoader == nullptr)
+        return;
+
+    // ------------------------ Validation guards ------------------------
+    if (midiPitch < 0 || midiPitch > 127)
+    {
+        DBG ("loadSingleSample: midi out of range (" << midiPitch << ")");
+        return;
+    }
+
+    // velocityLayer must fit within the *current* map's layer count, OR the
+    // expansion target (we cap at 4 layers map-wide). A vel layer up to 3 is
+    // always permissible — the map's numVelocityLayers grows automatically.
+    if (velocityLayer < 0 || velocityLayer > 3)
+    {
+        DBG ("loadSingleSample: velocityLayer out of range (" << velocityLayer
+             << ") — must be 0..3");
+        return;
+    }
+
+    if (! file.existsAsFile())
+    {
+        DBG ("loadSingleSample: file does not exist (" << file.getFullPathName() << ")");
+        return;
+    }
+
+    const juce::String ext = file.getFileExtension().toLowerCase();
+    if (ext != ".wav" && ext != ".aif" && ext != ".aiff" && ext != ".flac")
+    {
+        DBG ("loadSingleSample: unsupported extension (" << ext << ")");
+        return;
+    }
+
+    const double sr = (getSampleRate() > 0.0) ? getSampleRate() : 48000.0;
+
+    // ------------------------ Async load ------------------------
+    sampleLoader->loadSingleSlot (
+        file,
+        midiPitch,
+        velocityLayer,
+        sr,
+        [this, midiPitch, velocityLayer] (SampleSlot newSlot, juce::String skipReason)
+        {
+            // Failure path — newSlot.midiNote == -1 (default) signals failure.
+            if (newSlot.midiNote < 0 || newSlot.audio == nullptr)
+            {
+                if (skipReason.isNotEmpty())
+                {
+                    lastSkippedFiles.add (skipReason);
+                    DBG ("loadSingleSample failed: " << skipReason);
+                }
+                else
+                {
+                    DBG ("loadSingleSample failed (no reason supplied)");
+                }
+                // Still notify the editor so the UI can surface the new
+                // skipped file even when no map change happened.
+                if (sampleMapChangedCallback)
+                    sampleMapChangedCallback();
+                return;
+            }
+
+            // Success — the loader already populated newSlot with the right
+            // midi/vel coordinates, but be explicit to defend against any
+            // future loader-API drift.
+            newSlot.midiNote      = midiPitch;
+            newSlot.velocityLayer = velocityLayer;
+
+            // Snapshot the current map (atomic_load).
+           #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+            auto currentMap = std::atomic_load (&currentSampleMap);
+           #else
+            auto currentMap = currentSampleMap;
+           #endif
+
+            // Deep-copy header + filter old (midi, vel) match out, then push
+            // the new slot. The vector copy is cheap because each slot's
+            // audio is a shared_ptr (Phase 3.1 invariant addition — RQ3-3).
+            auto next = std::make_shared<SampleMap>();
+            if (currentMap != nullptr)
+            {
+                next->slots.reserve (currentMap->slots.size() + 1);
+                for (const auto& s : currentMap->slots)
+                {
+                    if (s.midiNote == midiPitch && s.velocityLayer == velocityLayer)
+                        continue;   // drop the old slot at this cell
+                    next->slots.push_back (s);  // shared_ptr copy = pointer copy
+                }
+                next->lowestNote        = currentMap->lowestNote;
+                next->highestNote       = currentMap->highestNote;
+                next->numVelocityLayers = currentMap->numVelocityLayers;
+                next->version           = currentMap->version;
+            }
+            else
+            {
+                next->lowestNote        = 127;
+                next->highestNote       = 0;
+                next->numVelocityLayers = 1;
+                next->version           = 0;
+            }
+            next->slots.push_back (std::move (newSlot));
+
+            // Extend header to cover the inserted cell.
+            next->lowestNote  = juce::jmin (next->lowestNote,  midiPitch);
+            next->highestNote = juce::jmax (next->highestNote, midiPitch);
+            next->numVelocityLayers = juce::jlimit (1, 4,
+                juce::jmax (next->numVelocityLayers, velocityLayer + 1));
+
+            // First-load corner case — if the map was empty, lowestNote/highestNote
+            // were both midiPitch and that's correct. Reset bounds defensively
+            // when slots becomes the inserted note in isolation.
+            if (next->slots.size() == 1)
+            {
+                next->lowestNote  = midiPitch;
+                next->highestNote = midiPitch;
+            }
+
+            // Bump version (every atomic-store).
+            next->version = (currentMap != nullptr ? currentMap->version : 0) + 1;
+
+            // Atomic-store. Voices snapshot via shared_ptr copy at startNote
+            // (refcount inc — RT-safe). Already-held voices continue with
+            // their snapshot of the OLD map, keeping the old buffer alive
+            // for the duration of the note (Stage 2 EC-3 invariant).
+           #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+            std::atomic_store (&currentSampleMap, next);
+           #else
+            currentSampleMap = next;
+           #endif
+
+            DBG ("loadSingleSample success: midi=" << midiPitch
+                 << " vel=" << velocityLayer
+                 << " slots=" << (int) next->slots.size()
+                 << " v" << next->version);
+
+            // Notify editor (push event to JS via emitEventIfBrowserIsVisible).
+            if (sampleMapChangedCallback)
+                sampleMapChangedCallback();
+        });
 }
 
 //==============================================================================

@@ -41,8 +41,15 @@
           <span class="drop-zone-sep">·</span>
           <button id="load-folder-btn" disabled title="Available in Phase 3.3">Load Folder…</button>
         </div>
-        <div id="sample-map-grid" class="grid-placeholder">
-          <span class="grid-placeholder-text">Sample-mapping grid arrives in Phase 3.2</span>
+        <div id="sample-map-grid">
+          <!-- Populated dynamically by sampler-app.js renderGrid() (Phase 3.2). -->
+        </div>
+        <!-- CSS-only context menu — surfaced by JS on right-click; positioned
+             via inline style and hidden by default. Cleared on document click. -->
+        <div id="cell-context-menu" hidden>
+          <button data-action="replace">Replace…</button>
+          <button data-action="open-loop-editor">Open Loop Editor</button>
+          <button data-action="clear" disabled title="Disabled in v1.0">Clear</button>
         </div>
         <details id="issues-disclosure" hidden>
           <summary>Issues</summary>

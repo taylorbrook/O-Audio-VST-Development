@@ -195,17 +195,116 @@ body {
     border-radius: 6px;
     padding: var(--gap-md);
     min-height: 200px;
+    /* Allow horizontal scroll when 88 columns × 8 px min-width exceeds
+       container width (RP3-5: scroll over octave grouping for v1.0). */
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
-.grid-placeholder {
+/* The actual CSS grid lives inside the container so its intrinsic width
+   can be wider than the container (triggering horizontal scroll). */
+#sample-grid-inner {
+    display: grid;
+    grid-template-columns: repeat(88, minmax(8px, 1fr));
+    grid-template-rows: repeat(4, 1fr);
+    gap: 1px;
+    /* Min width is 88 × 8 px = 704 px — the parent's overflow-x kicks in
+       below this size (matches the 720×480 minimum window per D3-14). */
+    min-width: 704px;
+    width: 100%;
+    /* Fill available height of the grid container minus padding. The Sample
+       Map tab body provides the outer scroll; the grid itself stays compact. */
+    aspect-ratio: 88 / 4;
+    max-height: 240px;
+}
+
+.grid-cell {
+    /* Replaced-element trap (memory): explicit width/height NOT needed
+       because <div> grid items size to their grid track. */
+    border: 1px solid var(--border-warm);
+    border-radius: 2px;
+    background: rgba(245, 230, 211, 0.4);
+    cursor: pointer;
+    transition: background 100ms ease, border-color 100ms ease, transform 80ms ease;
+    /* Keep tooltips small + readable. */
+    font-size: 0;  /* Hide any text inside the cell — title attr handles tooltips. */
+    position: relative;
+    user-select: none;
+}
+
+.grid-cell:hover {
+    border-color: var(--accent-gold);
+    transform: translateY(-1px);
+}
+
+.grid-cell.cell-empty {
+    background: rgba(245, 230, 211, 0.3);
+}
+
+.grid-cell.cell-loaded {
+    background: rgba(184, 134, 11, 0.55);
+    border-color: var(--accent-gold);
+}
+
+.grid-cell.cell-loading {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(184, 134, 11, 0.4),
+        rgba(184, 134, 11, 0.4) 4px,
+        rgba(184, 134, 11, 0.6) 4px,
+        rgba(184, 134, 11, 0.6) 8px);
+    cursor: wait;
+}
+
+.grid-cell.cell-active {
+    /* Reserved for note-on highlight (deferred — Stage 3.5 if it lands). */
+    background: var(--accent-rust);
+    border-color: var(--accent-rust);
+}
+
+/* Octave separators — a thicker left border every 12 columns helps the eye
+   parse 88 cells. Applied via nth-child counting from the start of each row. */
+.grid-cell[data-octave-start="1"] {
+    border-left: 2px solid var(--text-muted);
+}
+
+/* CSS-only context menu */
+#cell-context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-cream);
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    padding: 4px 0;
+    min-width: 160px;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
 }
 
-.grid-placeholder-text {
+#cell-context-menu[hidden] {
+    display: none;
+}
+
+#cell-context-menu button {
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-body);
+    cursor: pointer;
+}
+
+#cell-context-menu button:hover:not([disabled]) {
+    background: rgba(184, 134, 11, 0.15);
+}
+
+#cell-context-menu button[disabled] {
     color: var(--text-muted);
-    font-style: italic;
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 #issues-disclosure {

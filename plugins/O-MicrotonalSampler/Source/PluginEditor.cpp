@@ -223,14 +223,78 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     complete (juce::var (false));
                 })
 
+            // ---- loadSingleSampleDialog (Phase 3.2 — FileChooser per cell) ----
+            //
+            // JS calls: await Juce.getNativeFunction('loadSingleSampleDialog')(midi, vel).
+            // Resolves true on a successful selection (file passed to processor),
+            // false on cancel or invalid args. The actual load is async — the
+            // sampleMapUpdated event fires when the map has been atomic-stored.
             .withNativeFunction ("loadSingleSampleDialog",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
                 {
-                    DBG ("loadSingleSampleDialog (skeleton — Phase 3.2): args="
-                         << args.size());
-                    juce::ignoreUnused (args);
-                    complete (juce::var (false));
+                    if (args.size() < 2)
+                    {
+                        DBG ("loadSingleSampleDialog: expected (midi, vel), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int midi = static_cast<int> (args[0]);
+                    const int vel  = static_cast<int> (args[1]);
+
+                    // Heap-allocate the FileChooser via shared_ptr so the
+                    // launchAsync lambda can keep it alive until the user
+                    // picks / cancels (JUCE 8 idiom — FileChooser must
+                    // outlive the launchAsync call).
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Choose sample for MIDI " + juce::String (midi)
+                            + " (layer " + juce::String (vel) + ")",
+                        juce::File{},
+                        "*.wav;*.aif;*.aiff;*.flac");
+
+                    auto flags = juce::FileBrowserComponent::openMode
+                               | juce::FileBrowserComponent::canSelectFiles;
+
+                    // The launchAsync completion runs on the message thread.
+                    // Capture chooser by value so its lifetime extends past
+                    // the launch returning. Capture `complete` so JS resolves.
+                    chooser->launchAsync (flags,
+                        [this, chooser, midi, vel, complete]
+                            (const juce::FileChooser& fc) mutable
+                        {
+                            const auto results = fc.getResults();
+                            if (results.isEmpty())
+                            {
+                                DBG ("loadSingleSampleDialog: cancelled");
+                                complete (juce::var (false));
+                                return;
+                            }
+
+                            const juce::File file = results.getFirst();
+                            if (! file.existsAsFile())
+                            {
+                                DBG ("loadSingleSampleDialog: selected file does not exist: "
+                                     << file.getFullPathName());
+                                complete (juce::var (false));
+                                return;
+                            }
+
+                            DBG ("loadSingleSampleDialog: midi=" << midi
+                                 << " vel=" << vel
+                                 << " file=" << file.getFullPathName());
+
+                            // Kick off the async per-cell load. The processor
+                            // will fire sampleMapChangedCallback on completion
+                            // (which we forward as the sampleMapUpdated WebView
+                            // event in the editor's setSampleMapChangedCallback
+                            // lambda). JS resolves immediately with `true` to
+                            // unblock the await — the visual update arrives
+                            // via the push event.
+                            processorRef.loadSingleSample (midi, vel, file);
+                            complete (juce::var (true));
+                        });
                 })
 
             .withNativeFunction ("getSkippedFiles",
