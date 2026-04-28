@@ -38,7 +38,20 @@
         Each slot advances its own pos cursor at its own playRate. EC-4 handled
         per slot independently.
 
-    Phase 2.4 will add voice-steal tail-ramp scratch buffers.
+    Phase 2.4 implementation (this file):
+      - Per-voice steal-tail scratch buffers (`stealTailBufferL/R`) sized in
+        `prepareToPlay` to ceil(0.005 * sampleRate) + 16 samples (D2-3, PERF-01).
+      - `renderTailRamp(int rampSamples)` private helper renders OLD-note
+        audio (preserving dual-slot crossfade) × linear-down ramp from
+        last ADSR env to 0, into the scratch buffers. Allocation-free.
+      - `startNote` self-detects active steal via `adsr.isActive() && slotLow`
+        and calls `renderTailRamp` BEFORE wiping state for the new note.
+      - `renderNextBlock` mixes the captured tail additively (out.addFrom)
+        BEFORE the early-out check — so EC-1/EC-2 (no slot for new note)
+        still play out the captured tail cleanly.
+      - JUCE's default findVoiceToSteal kept (R1, D2-2 satisfied by default).
+        `synthesiser.setNoteStealingEnabled(true)` already set in processor.
+
     Phase 2.5 will activate the loop-wrap branch of cubicInterp + 8-sample
     boundary crossfade.
 
@@ -157,6 +170,13 @@ void MicrotonalSamplerVoice::prepareToPlay (double sampleRate, int /*samplesPerB
     adsr.setSampleRate (sampleRate);
     adsr.setParameters ({ 0.005f, 0.1f, 1.0f, 0.3f });
     adsr.reset();
+
+    // Phase 2.4: voice-steal tail-ramp scratch (5 ms + 16-sample safety margin).
+    // Pre-allocated on message thread; never resized in render path (PERF-01).
+    kMaxStealRamp = (int) std::ceil (0.005 * sampleRate) + 16;
+    stealTailBufferL.assign ((size_t) kMaxStealRamp, 0.0f);
+    stealTailBufferR.assign ((size_t) kMaxStealRamp, 0.0f);
+    stealTailSamplesRemaining = 0;
 }
 
 void MicrotonalSamplerVoice::setCurrentPlaybackSampleRate (double newRate)
@@ -167,11 +187,153 @@ void MicrotonalSamplerVoice::setCurrentPlaybackSampleRate (double newRate)
 }
 
 //==============================================================================
+// Phase 2.4: render OLD-note audio × linear-down ramp into the steal-tail
+// scratch buffers. Called from startNote BEFORE state reset, when the voice
+// is already active. Mirrors the dual-slot read pattern of renderNextBlock
+// (deliberate duplication — keeps the Phase 2.3 verified path untouched).
+//
+// Allocation-free, lock-free, deterministic. rampSamples is clamped at the
+// call site to <= kMaxStealRamp <= stealTailBufferL.size().
+//
+// One-sample ADSR advance via getNextSample() at entry: harmless because the
+// caller will reset the ADSR for the new note immediately after this returns.
+void MicrotonalSamplerVoice::renderTailRamp (int rampSamples) noexcept
+{
+    // Defensive bounds — caller already clamps, but guard against degenerate
+    // state (slotLow nullptr should never happen here since caller checked).
+    if (rampSamples <= 0
+        || slotLow == nullptr
+        || stealTailBufferL.empty()
+        || stealTailBufferR.empty())
+    {
+        // Zero out whatever portion we were asked to fill (defensive).
+        const int n = juce::jmin (rampSamples,
+                                  (int) stealTailBufferL.size(),
+                                  (int) stealTailBufferR.size());
+        for (int i = 0; i < n; ++i)
+        {
+            stealTailBufferL[(size_t) i] = 0.0f;
+            stealTailBufferR[(size_t) i] = 0.0f;
+        }
+        return;
+    }
+
+    // Snapshot env at entry; ramp linearly to 0 across rampSamples.
+    const float lastEnv = adsr.getNextSample();
+
+    // ---- Resolve per-slot read pointers (mirrors renderNextBlock) ----
+    const int    slotLowN        = slotLow->audio.getNumSamples();
+    const int    slotLowChannels = slotLow->audio.getNumChannels();
+    const float* readLowL        = (slotLowChannels > 0)
+                                       ? slotLow->audio.getReadPointer (0)
+                                       : nullptr;
+    const float* readLowR        = (slotLowChannels > 1)
+                                       ? slotLow->audio.getReadPointer (1)
+                                       : readLowL;  // mono → duplicate (D2-10)
+
+    if (readLowL == nullptr || slotLowN <= 0)
+    {
+        for (int i = 0; i < rampSamples; ++i)
+        {
+            stealTailBufferL[(size_t) i] = 0.0f;
+            stealTailBufferR[(size_t) i] = 0.0f;
+        }
+        return;
+    }
+
+    const int slotLowLoopStart = slotLow->loopStart;
+    const int slotLowLoopEnd   = slotLow->loopEnd;
+
+    // High slot (optional, dual-slot crossfade preserved during the tail).
+    const bool         haveHigh         = (slotHigh != nullptr);
+    const int          slotHighN        = haveHigh ? slotHigh->audio.getNumSamples()  : 0;
+    const int          slotHighChannels = haveHigh ? slotHigh->audio.getNumChannels() : 0;
+    const float* const readHighL        = (haveHigh && slotHighChannels > 0)
+                                              ? slotHigh->audio.getReadPointer (0)
+                                              : nullptr;
+    const float* const readHighR        = (haveHigh && slotHighChannels > 1)
+                                              ? slotHigh->audio.getReadPointer (1)
+                                              : readHighL;
+    const int          slotHighLoopStart = haveHigh ? slotHigh->loopStart : 0;
+    const int          slotHighLoopEnd   = haveHigh ? slotHigh->loopEnd   : 0;
+    const bool         highValid         = haveHigh && (readHighL != nullptr) && (slotHighN > 0);
+
+    for (int i = 0; i < rampSamples; ++i)
+    {
+        // Linear ramp lastEnv → 0 across rampSamples. At i=0 → lastEnv;
+        // at i=rampSamples-1 → lastEnv * (1/rampSamples) (last non-zero step).
+        const float ramp = lastEnv * (1.0f - (float) i / (float) rampSamples);
+
+        // ---- Low slot read (EC-4 hold per renderNextBlock) ----
+        const double readPosLow = (slotLowLoopEnd == 0)
+                                      ? juce::jmin (posLow, (double) (slotLowN - 1))
+                                      : posLow;
+        const float lLow = cubicInterp (readLowL, slotLowN, readPosLow,
+                                        slotLowLoopStart, slotLowLoopEnd);
+        const float rLow = (slotLowChannels > 1)
+                               ? cubicInterp (readLowR, slotLowN, readPosLow,
+                                              slotLowLoopStart, slotLowLoopEnd)
+                               : lLow;
+
+        // ---- High slot read (optional, EC-4 per slot) ----
+        float lHigh = 0.0f;
+        float rHigh = 0.0f;
+        if (highValid)
+        {
+            const double readPosHigh = (slotHighLoopEnd == 0)
+                                           ? juce::jmin (posHigh, (double) (slotHighN - 1))
+                                           : posHigh;
+            lHigh = cubicInterp (readHighL, slotHighN, readPosHigh,
+                                 slotHighLoopStart, slotHighLoopEnd);
+            rHigh = (slotHighChannels > 1)
+                        ? cubicInterp (readHighR, slotHighN, readPosHigh,
+                                       slotHighLoopStart, slotHighLoopEnd)
+                        : lHigh;
+        }
+
+        // ---- Equal-power mix × ramp (no env multiply — env is folded into ramp) ----
+        const float yL = (lLow * layerWeightLow + lHigh * layerWeightHigh) * ramp;
+        const float yR = (rLow * layerWeightLow + rHigh * layerWeightHigh) * ramp;
+
+        stealTailBufferL[(size_t) i] = yL;
+        stealTailBufferR[(size_t) i] = yR;
+
+        // ---- Advance per-slot cursors ----
+        posLow += playRateLow;
+        if (highValid)
+            posHigh += playRateHigh;
+    }
+}
+
+//==============================================================================
 void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
                                         float velocity,
                                         juce::SynthesiserSound* /*sound*/,
                                         int /*currentPitchWheelPosition*/)
 {
+    // ---------- 0. Voice-steal detection (Phase 2.4) ----------
+    // If the voice is currently active (ADSR running on a previous note's slot),
+    // capture a 5 ms linear-down tail of the OLD note's audio into the steal-
+    // tail scratch buffers BEFORE we wipe state for the new note. The renderer
+    // will mix this tail additively on top of the new note's render in
+    // subsequent processBlock calls.
+    if (adsr.isActive() && slotLow != nullptr)
+    {
+        const int rampSamples = juce::jmin (kMaxStealRamp,
+                                            (int) stealTailBufferL.size());
+        if (rampSamples > 0)
+        {
+            renderTailRamp (rampSamples);
+            stealTailSamplesRemaining = rampSamples;
+        }
+    }
+    else
+    {
+        // Voice was idle — no tail to capture. Clear remaining counter (defensive;
+        // would already be 0 if previous tail completed cleanly).
+        stealTailSamplesRemaining = 0;
+    }
+
     // ---------- 1. Snapshot SampleMap (lifetime owner) ----------
     // RESEARCH pitfall #4: shared_ptr copy is the single atomic op. Phase 2.3
     // upgrades from plain deref to std::atomic_load to match the producer-side
@@ -363,6 +525,36 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
                                               int numSamples)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    // ---------- Phase 2.4: mix steal tail (additive) ----------
+    // stealTailBufferL/R contain OLD-note audio × linear-down ramp captured at
+    // startNote time. Mix the still-pending portion additively on top of the
+    // caller's buffer before the new-note render runs below. This must run
+    // BEFORE the early-out check: even if the new note failed to acquire a
+    // slot (slotLow == nullptr after startNote returned on EC-1/EC-2), the
+    // captured tail still needs to play out cleanly.
+    if (stealTailSamplesRemaining > 0
+        && ! stealTailBufferL.empty()
+        && ! stealTailBufferR.empty())
+    {
+        const int n      = juce::jmin (stealTailSamplesRemaining, numSamples);
+        const int offset = kMaxStealRamp - stealTailSamplesRemaining;
+        if (n > 0 && offset >= 0
+            && offset + n <= (int) stealTailBufferL.size())
+        {
+            const int outChans = out.getNumChannels();
+            if (outChans > 0)
+                out.addFrom (0, startSample, stealTailBufferL.data() + offset, n);
+            if (outChans > 1)
+                out.addFrom (1, startSample, stealTailBufferR.data() + offset, n);
+            stealTailSamplesRemaining -= n;
+        }
+        else
+        {
+            // Defensive: shouldn't happen; reset to recover gracefully.
+            stealTailSamplesRemaining = 0;
+        }
+    }
 
     // Inactive voice → nothing to render. Both slots may be null or ADSR done.
     if (slotLow == nullptr || ! adsr.isActive())

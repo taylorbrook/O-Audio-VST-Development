@@ -8,7 +8,8 @@
 
     Phase 2.1 surface: cubic-Hermite varispeed read + ADSR + NE consumption.
     Phase 2.3: dual-slot equal-power velocity-layer crossfade.
-    Voice-steal ramp (2.4), loop wrap (2.5) land later.
+    Phase 2.4: voice-steal tail-ramp scratch buffers (5 ms linear-down).
+    Loop wrap (2.5) lands later.
 
   ==============================================================================
 */
@@ -16,6 +17,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include <memory>
+#include <vector>
 #include "TuningEngine.h"          // global namespace (D-4)
 #include "NoteExpression.h"        // resolved via ouaricon_add_module include path
 #include "SampleMap.h"
@@ -82,6 +84,18 @@ private:
     double                      posHigh            = 0.0;
     double                      playRateLow        = 1.0;
     double                      playRateHigh       = 1.0;
+
+    // Phase 2.4: voice-steal tail-ramp scratch buffers. When startNote detects
+    // an already-active voice, renderTailRamp captures kMaxStealRamp samples
+    // of OLD-note audio × linear-down ramp into these buffers; renderNextBlock
+    // then mixes them additively on top of the new note for stealTailSamplesRemaining
+    // blocks. Sized in prepareToPlay (message-thread alloc, RESEARCH pitfall #6).
+    std::vector<float> stealTailBufferL;
+    std::vector<float> stealTailBufferR;
+    int                stealTailSamplesRemaining = 0;
+    int                kMaxStealRamp             = 0;
+
+    void renderTailRamp (int rampSamples) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MicrotonalSamplerVoice)
 };
