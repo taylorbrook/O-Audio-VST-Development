@@ -7,7 +7,8 @@
     Developer: Taylor Brook
 
     Phase 2.1 surface: cubic-Hermite varispeed read + ADSR + NE consumption.
-    Layer crossfade (2.3), voice-steal ramp (2.4), loop wrap (2.5) land later.
+    Phase 2.3: dual-slot equal-power velocity-layer crossfade.
+    Voice-steal ramp (2.4), loop wrap (2.5) land later.
 
   ==============================================================================
 */
@@ -61,14 +62,26 @@ private:
     Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
     std::shared_ptr<SampleMap>*                   sampleMapSource     = nullptr;
 
-    // Per-voice DSP state (Phase 2.1)
+    // Per-voice DSP state (Phase 2.1 + 2.3 dual-slot crossfade)
     juce::ADSR                  adsr;
-    double                      pos                = 0.0;
-    double                      playRate           = 1.0;
     double                      currentFrequency   = 0.0;
     int                         currentMidiNote    = -1;
-    const SampleSlot*           currentSlot        = nullptr;
     std::shared_ptr<SampleMap>  currentMap;  // lifetime owner snapshot (RESEARCH pitfall #5)
+
+    // Phase 2.3: dual-slot equal-power velocity-layer crossfade.
+    // When slotHigh == nullptr the voice plays slotLow at full weight (single-
+    // layer path, identical to Phase 2.1). When both are set, the renderer
+    // mixes them per cubicInterp(slotLow,...) * wLow + cubicInterp(slotHigh,...) * wHigh.
+    // posLow/posHigh and playRateLow/playRateHigh are independent because the
+    // two slots may differ in sourceSampleRate (defensive — usually identical).
+    const SampleSlot*           slotLow            = nullptr;
+    const SampleSlot*           slotHigh           = nullptr;
+    float                       layerWeightLow     = 1.0f;
+    float                       layerWeightHigh    = 0.0f;
+    double                      posLow             = 0.0;
+    double                      posHigh            = 0.0;
+    double                      playRateLow        = 1.0;
+    double                      playRateHigh       = 1.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MicrotonalSamplerVoice)
 };

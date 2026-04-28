@@ -2,7 +2,7 @@
   ==============================================================================
 
     MicrotonalSamplerVoice.cpp
-    Microtonal Sample Engine - Synthesiser Voice (Phase 2.1)
+    Microtonal Sample Engine - Synthesiser Voice (Phase 2.1 + 2.3)
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -15,18 +15,30 @@
         ONCE at startNote (RESEARCH pitfall #2).
       - SampleMap acquired by std::shared_ptr copy from the processor's slot at
         startNote (RESEARCH pitfall #4); held for note duration (pitfall #5).
+        Phase 2.3: now uses std::atomic_load for the snapshot (TSan-clean).
       - Microtonal pitch: TuningEngine::getFrequency with ET fallback for
         Standalone (no host tuning table), then NE delta consumption via
         Ouaricon::NoteExpression::applyPendingTuning (D2-12, R6).
       - Varispeed:
             playRate = (currentFrequency / refFreqOfSlotNote) * (slotSR / hostSR)
-        where the slot was recorded at MIDI `slot.midiNote`. In Phase 2.1 the
-        in-memory test fixture has slot.midiNote == played note, so refFreq is
-        the ET pitch of the played note and (currentFrequency / refFreq) is the
-        microtonal speed factor.
+        where the slot was recorded at MIDI `slot.midiNote`.
 
-    Phase 2.3 will replace the single-slot path with two-slot equal-power layer
-    crossfade. Phase 2.4 will add voice-steal tail-ramp scratch buffers.
+    Phase 2.3 implementation (this file):
+      - Equal-power velocity-layer crossfade (RQ-7 Site 1). At startNote:
+          1. Read `velocity_crossfade` once from APVTS.
+          2. Compute layerIdx, layerCenter, distanceCenter, fadeWidthSamples.
+          3. If within fade region AND adjacent layer exists:
+               - Pick adjacent layer (idx-1 if distanceCenter<0, idx+1 if >0).
+               - Compute equalPowerWeights(x) where x∈[0,1] across the fade.
+               - Set slotHigh / wLow / wHigh / playRateHigh accordingly.
+             Else slotHigh = nullptr; wLow=1; wHigh=0.
+          4. EC-5 (vel exactly at boundary): naturally yields wLow=wHigh=0.707.
+      - renderNextBlock mixes two slots when slotHigh != nullptr:
+          (cubicInterp(slotLow,...) * wLow + cubicInterp(slotHigh,...) * wHigh) * env
+        Each slot advances its own pos cursor at its own playRate. EC-4 handled
+        per slot independently.
+
+    Phase 2.4 will add voice-steal tail-ramp scratch buffers.
     Phase 2.5 will activate the loop-wrap branch of cubicInterp + 8-sample
     boundary crossfade.
 
@@ -35,6 +47,7 @@
 
 #include "MicrotonalSamplerVoice.h"
 
+#include <atomic>
 #include <cmath>
 #include <utility>
 
@@ -50,6 +63,20 @@ namespace
     }
 
     //==============================================================================
+    // Equal-power crossfade weights (RQ-7). x ∈ [0,1] is the fade position.
+    //   x = 0 → (1, 0)        — slotLow only
+    //   x = 0.5 → (0.707, 0.707) — equal energy contribution (EC-5 at boundary)
+    //   x = 1 → (0, 1)        — slotHigh only
+    // Sum-of-squares = cos²(t) + sin²(t) = 1 → constant power, no notch dip.
+    // Inlined trig is cheap at note-rate (called once per startNote, not per
+    // sample).
+    static inline std::pair<float, float> equalPowerWeights (float x) noexcept
+    {
+        const float t = juce::jlimit (0.0f, 1.0f, x) * juce::MathConstants<float>::halfPi;
+        return { std::cos (t), std::sin (t) };
+    }
+
+    //==============================================================================
     // Cubic-Hermite (Catmull-Rom) interpolation, random-access.
     //
     // Returns the interpolated sample value at fractional position `pos` within
@@ -59,7 +86,7 @@ namespace
     // Loop semantics:
     //   - If loopEnd > 0: wrap indices via loopStart + ((idx - loopStart) mod
     //     loopLen). Active in Phase 2.5.
-    //   - Else: clamp to [0, N-1]. Active in Phase 2.1.
+    //   - Else: clamp to [0, N-1]. Active in Phase 2.1+2.3.
     //
     // Body matches JUCE's CatmullRomTraits::valueAtOffset (juce_Interpolators.h
     // lines 118-131) modulo the fact that JUCE's variant uses a circular
@@ -99,6 +126,21 @@ namespace
                   + (offset * (((y0 + 2.0f * y2) - (halfY3 + 2.5f * y1))
                   + (offset * ((halfY3 + 1.5f * y1) - (halfY0 + 1.5f * y2))))));
     }
+
+    //==============================================================================
+    // Compute playRate for a given slot at the desired output frequency.
+    //   playRate = (desiredFreq / slotRecordedFreq) * (slotSR / hostSR)
+    // Slot is assumed non-null (caller must check).
+    static inline double computePlayRateForSlot (const SampleSlot& slot,
+                                                 double            desiredFreq,
+                                                 double            hostSR) noexcept
+    {
+        const double slotRefFreq = referenceFrequencyForNote (slot.midiNote);
+        const double slotSR      = slot.sourceSampleRate > 0.0
+                                       ? slot.sourceSampleRate
+                                       : hostSR;
+        return (desiredFreq / slotRefFreq) * (slotSR / hostSR);
+    }
 } // namespace
 
 //==============================================================================
@@ -131,32 +173,46 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
                                         int /*currentPitchWheelPosition*/)
 {
     // ---------- 1. Snapshot SampleMap (lifetime owner) ----------
-    // RESEARCH pitfall #4: shared_ptr copy is the single atomic op. The
-    // processor side will atomic_store from the message thread (Phase 2.2);
-    // the simple deref here is acceptable because pointer assignment in the
-    // processor is wrapped in std::atomic_store on its side.
-    currentMap = (sampleMapSource != nullptr) ? *sampleMapSource : nullptr;
+    // RESEARCH pitfall #4: shared_ptr copy is the single atomic op. Phase 2.3
+    // upgrades from plain deref to std::atomic_load to match the producer-side
+    // std::atomic_store in PluginProcessor (TSan-clean). Both sides are guarded
+    // by __cpp_lib_atomic_shared_ptr; the fallback (plain copy) is safe in
+    // practice for aligned-pointer reads on x86-64/ARM64.
+    if (sampleMapSource != nullptr)
+    {
+       #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+        currentMap = std::atomic_load (sampleMapSource);
+       #else
+        currentMap = *sampleMapSource;
+       #endif
+    }
+    else
+    {
+        currentMap.reset();
+    }
 
     if (currentMap == nullptr || currentMap->slots.empty())
     {
         // EC-2: no map loaded. Clear and bail.
-        currentSlot     = nullptr;
+        slotLow         = nullptr;
+        slotHigh        = nullptr;
         currentMidiNote = -1;
         clearCurrentNote();
         return;
     }
 
-    // ---------- 2. Velocity → layer index ----------
+    // ---------- 2. Velocity → primary layer index ----------
     const int vel        = juce::jlimit (1, 127, (int) std::round (velocity * 127.0f));
     const int numLayers  = juce::jmax (1, currentMap->numVelocityLayers);
     const int layerWidth = juce::jmax (1, 128 / numLayers);
     const int layerIdx   = juce::jlimit (0, numLayers - 1, (vel - 1) / layerWidth);
 
-    // ---------- 3. findSlot lookup ----------
-    currentSlot = currentMap->findSlot (midiNoteNumber, layerIdx);
-    if (currentSlot == nullptr)
+    // ---------- 3. findSlot lookup (primary / "low" layer) ----------
+    slotLow = currentMap->findSlot (midiNoteNumber, layerIdx);
+    if (slotLow == nullptr)
     {
         // EC-1: note out of range / layer empty.
+        slotHigh        = nullptr;
         currentMidiNote = -1;
         clearCurrentNote();
         return;
@@ -172,27 +228,90 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
                            : referenceFrequencyForNote (midiNoteNumber);
 
     // ---------- 5. Apply Note Expression delta (D2-12, R6) ----------
-    // applyPendingTuning is a free function returning the new frequency
-    // (header-inline, Steinberg-free). Caller passes the post-tuning-engine
-    // frequency per the docstring's composition rule.
     if (pendingTuningSource != nullptr)
         currentFrequency = Ouaricon::NoteExpression::applyPendingTuning (
             *pendingTuningSource, midiNoteNumber, currentFrequency);
 
-    // ---------- 6. Compute varispeed ratio ----------
-    //   playRate = (desiredFreq / slotRecordedFreq) × (slotSR / hostSR)
-    // The slot was recorded at MIDI `currentSlot->midiNote`; its recorded
-    // pitch is the ET frequency of that note. In Phase 2.1's test fixture the
-    // slot's MIDI note equals the played note, so the ratio collapses to the
-    // microtonal cents factor times the SR ratio.
-    const double slotRefFreq = referenceFrequencyForNote (currentSlot->midiNote);
-    const double hostSR      = getSampleRate();
-    const double slotSR      = currentSlot->sourceSampleRate > 0.0
-                                   ? currentSlot->sourceSampleRate
-                                   : hostSR;
-    playRate = (currentFrequency / slotRefFreq) * (slotSR / hostSR);
+    // ---------- 6. Compute layer crossfade geometry (Phase 2.3, RQ-7 Site 1) ----------
+    // Geometry (intent per PLAN Gate 3 / RQ-7):
+    //   - At deep layer center (|d| small) → primary at full weight (1, 0).
+    //   - At layer boundary (|d| → halfWidth) → equal-power split (0.707, 0.707).
+    //   - velocity_crossfade=0 → no fade region, hard switch at boundaries.
+    //   - velocity_crossfade=1 → fade region = entire half-layer (max overlap).
+    //
+    // Definitions:
+    //   halfWidth = layerWidth / 2
+    //   d         = vel - layerCenter          // signed, |d| ≤ halfWidth
+    //   fw        = velocity_crossfade * halfWidth   // fade region size on each side
+    //
+    // Inside fade region (|d| ≥ halfWidth - fw):
+    //   x = 0.5 * (|d| - (halfWidth - fw)) / fw   // ∈ [0, 0.5]
+    //   (wPrim, wAdj) = equalPowerWeights(x)
+    //
+    // Outer edge (|d| = halfWidth, the layer boundary): x = 0.5 → (0.707, 0.707).
+    // Inner edge (|d| = halfWidth - fw): x = 0 → (1, 0). Smooth onset.
+    //
+    // RESEARCH RQ-7 pseudocode reads "if |d|<fw" but that geometry crossfades
+    // at LAYER CENTERS — opposite of the PLAN Gate 3 intent ("Velocity exactly
+    // at 64 → both adjacent layers contribute"). RQ-7 was inverted; this site
+    // corrects to the boundary-fade geometry the gate verifies.
+    //
+    // velocity_crossfade is consumed ONCE per note (not smoothed) — the value
+    // bakes into wLow/wHigh and persists for the note's lifetime.
+    float velCrossfade = 1.0f;
+    if (parameters != nullptr)
+    {
+        if (auto* xfp = parameters->getRawParameterValue ("velocity_crossfade"))
+            velCrossfade = juce::jlimit (0.0f, 1.0f, xfp->load());
+    }
 
-    // ---------- 7. Read APVTS ADSR values ONCE (RESEARCH pitfall #2) ----------
+    slotHigh        = nullptr;
+    layerWeightLow  = 1.0f;
+    layerWeightHigh = 0.0f;
+    posHigh         = 0.0;
+    playRateHigh    = 1.0;
+
+    if (numLayers >= 2 && velCrossfade > 0.0f)
+    {
+        const float halfWidth    = (float) layerWidth * 0.5f;
+        const float layerCenter  = ((float) layerIdx + 0.5f) * (float) layerWidth;
+        const float d            = (float) vel - layerCenter;                 // signed
+        const float absD         = std::abs (d);
+        const float fw           = velCrossfade * halfWidth;                  // fade extent on each side
+        const float innerEdge    = halfWidth - fw;                            // 0 at xfade=1, halfWidth at xfade=0
+
+        if (fw > 0.0f && absD >= innerEdge)
+        {
+            // Pick the adjacent layer in the direction d points (positive d
+            // → upper neighbour layerIdx+1; negative d → lower neighbour
+            // layerIdx-1).
+            const int adjacentIdx = (d < 0.0f) ? layerIdx - 1
+                                               : layerIdx + 1;
+
+            if (adjacentIdx >= 0 && adjacentIdx < numLayers)
+            {
+                if (auto* slotAdj = currentMap->findSlot (midiNoteNumber, adjacentIdx))
+                {
+                    // x ∈ [0, 0.5]. At inner edge of fade: x=0 → (1, 0);
+                    // at boundary: x=0.5 → (0.707, 0.707).
+                    const float x  = 0.5f * (absD - innerEdge) / fw;
+                    const auto  ws = equalPowerWeights (x);
+
+                    slotHigh        = slotAdj;
+                    layerWeightLow  = ws.first;   // primary (in-layer)
+                    layerWeightHigh = ws.second;  // adjacent
+                }
+            }
+        }
+    }
+
+    // ---------- 7. Compute per-slot playRates ----------
+    const double hostSR = getSampleRate();
+    playRateLow  = computePlayRateForSlot (*slotLow, currentFrequency, hostSR);
+    if (slotHigh != nullptr)
+        playRateHigh = computePlayRateForSlot (*slotHigh, currentFrequency, hostSR);
+
+    // ---------- 8. Read APVTS ADSR values ONCE (RESEARCH pitfall #2) ----------
     if (parameters != nullptr)
     {
         const float a = parameters->getRawParameterValue ("attack")->load();
@@ -202,8 +321,9 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
         adsr.setParameters ({ a, d, s, r });
     }
 
-    // ---------- 8. Reset cursor and trigger ADSR ----------
-    pos = 0.0;
+    // ---------- 9. Reset cursors and trigger ADSR ----------
+    posLow  = 0.0;
+    posHigh = 0.0;
     adsr.reset();
     adsr.noteOn();
 }
@@ -218,7 +338,8 @@ void MicrotonalSamplerVoice::stopNote (float /*velocity*/, bool allowTailOff)
     else
     {
         adsr.reset();
-        currentSlot     = nullptr;
+        slotLow         = nullptr;
+        slotHigh        = nullptr;
         currentMidiNote = -1;
         clearCurrentNote();
     }
@@ -228,12 +349,12 @@ void MicrotonalSamplerVoice::stopNote (float /*velocity*/, bool allowTailOff)
 void MicrotonalSamplerVoice::pitchWheelMoved (int /*newPitchWheelValue*/)
 {
     // Phase 2.1: no-op. (Pitch bend handled via TuningEngine if/when wired by
-    // the processor; not part of Phase 2.1 scope.)
+    // the processor; not part of Phase 2.x scope.)
 }
 
 void MicrotonalSamplerVoice::controllerMoved (int /*controllerNumber*/, int /*newControllerValue*/)
 {
-    // Phase 2.1: no-op.
+    // Phase 2.x: no-op.
 }
 
 //==============================================================================
@@ -241,69 +362,121 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
                                               int startSample,
                                               int numSamples)
 {
-    // Inactive voice → nothing to render.
-    if (currentSlot == nullptr || ! adsr.isActive())
+    juce::ScopedNoDenormals noDenormals;
+
+    // Inactive voice → nothing to render. Both slots may be null or ADSR done.
+    if (slotLow == nullptr || ! adsr.isActive())
     {
-        if (currentSlot != nullptr && ! adsr.isActive())
+        if (slotLow != nullptr && ! adsr.isActive())
         {
             // ADSR finished a release tail; release per-note state.
-            currentSlot     = nullptr;
+            slotLow         = nullptr;
+            slotHigh        = nullptr;
             currentMidiNote = -1;
             clearCurrentNote();
         }
         return;
     }
 
-    const int   slotN          = currentSlot->audio.getNumSamples();
-    const int   slotChannels   = currentSlot->audio.getNumChannels();
-    const float* readL         = (slotChannels > 0)
-                                     ? currentSlot->audio.getReadPointer (0)
-                                     : nullptr;
-    const float* readR         = (slotChannels > 1)
-                                     ? currentSlot->audio.getReadPointer (1)
-                                     : readL;  // mono → duplicate (D2-10)
+    // ---------- Resolve per-slot read pointers ----------
+    const int    slotLowN        = slotLow->audio.getNumSamples();
+    const int    slotLowChannels = slotLow->audio.getNumChannels();
+    const float* readLowL        = (slotLowChannels > 0)
+                                       ? slotLow->audio.getReadPointer (0)
+                                       : nullptr;
+    const float* readLowR        = (slotLowChannels > 1)
+                                       ? slotLow->audio.getReadPointer (1)
+                                       : readLowL;  // mono → duplicate (D2-10)
 
-    if (readL == nullptr || slotN <= 0)
+    if (readLowL == nullptr || slotLowN <= 0)
     {
-        currentSlot     = nullptr;
+        slotLow         = nullptr;
+        slotHigh        = nullptr;
         currentMidiNote = -1;
         clearCurrentNote();
         return;
     }
 
-    const int loopStart = currentSlot->loopStart;
-    const int loopEnd   = currentSlot->loopEnd;  // 0 = no loop in Phase 2.1
-    const int outChans  = out.getNumChannels();
+    const int    slotLowLoopStart = slotLow->loopStart;
+    const int    slotLowLoopEnd   = slotLow->loopEnd;  // 0 = no loop in 2.3
+
+    // High slot is optional (Phase 2.3 dual-slot crossfade).
+    const bool         haveHigh         = (slotHigh != nullptr);
+    const int          slotHighN        = haveHigh ? slotHigh->audio.getNumSamples()  : 0;
+    const int          slotHighChannels = haveHigh ? slotHigh->audio.getNumChannels() : 0;
+    const float* const readHighL        = (haveHigh && slotHighChannels > 0)
+                                              ? slotHigh->audio.getReadPointer (0)
+                                              : nullptr;
+    const float* const readHighR        = (haveHigh && slotHighChannels > 1)
+                                              ? slotHigh->audio.getReadPointer (1)
+                                              : readHighL;
+    const int          slotHighLoopStart = haveHigh ? slotHigh->loopStart : 0;
+    const int          slotHighLoopEnd   = haveHigh ? slotHigh->loopEnd   : 0;
+
+    // If the high slot pointer is degenerate, gracefully fall back to single-slot.
+    const bool highValid = haveHigh && (readHighL != nullptr) && (slotHighN > 0);
+
+    const int outChans = out.getNumChannels();
 
     for (int i = 0; i < numSamples; ++i)
     {
         const float env = adsr.getNextSample();
 
-        // EC-4: end-of-sample with no loop → hold the last sample value × env.
-        // (cubicInterp clamps via wrap when loopEnd == 0; positions beyond N-1
-        // produce buf[N-1] × env which decays cleanly under ADSR release.)
-        const double readPos = (loopEnd == 0)
-                                   ? juce::jmin (pos, (double) (slotN - 1))
-                                   : pos;
+        // ---- Low slot read (always present at this point) ----
+        // EC-4 per slot: end-of-sample with no loop → hold last sample value
+        // × env (cubicInterp clamps via its wrap when loopEnd == 0; clamping
+        // posLow to slotLowN-1 produces buf[N-1] which decays cleanly under
+        // ADSR release).
+        const double readPosLow = (slotLowLoopEnd == 0)
+                                      ? juce::jmin (posLow, (double) (slotLowN - 1))
+                                      : posLow;
 
-        const float lSamp = cubicInterp (readL, slotN, readPos, loopStart, loopEnd);
-        const float rSamp = (slotChannels > 1)
-                                ? cubicInterp (readR, slotN, readPos, loopStart, loopEnd)
-                                : lSamp;
+        const float lLow = cubicInterp (readLowL, slotLowN, readPosLow,
+                                        slotLowLoopStart, slotLowLoopEnd);
+        const float rLow = (slotLowChannels > 1)
+                               ? cubicInterp (readLowR, slotLowN, readPosLow,
+                                              slotLowLoopStart, slotLowLoopEnd)
+                               : lLow;
 
-        const float yL = lSamp * env;
-        const float yR = rSamp * env;
+        // ---- High slot read (Phase 2.3, optional) ----
+        float lHigh = 0.0f;
+        float rHigh = 0.0f;
+        if (highValid)
+        {
+            // EC-4 per slot — independently of low.
+            const double readPosHigh = (slotHighLoopEnd == 0)
+                                           ? juce::jmin (posHigh, (double) (slotHighN - 1))
+                                           : posHigh;
+
+            lHigh = cubicInterp (readHighL, slotHighN, readPosHigh,
+                                 slotHighLoopStart, slotHighLoopEnd);
+            rHigh = (slotHighChannels > 1)
+                        ? cubicInterp (readHighR, slotHighN, readPosHigh,
+                                       slotHighLoopStart, slotHighLoopEnd)
+                        : lHigh;
+        }
+
+        // ---- Equal-power mix and envelope ----
+        // Single-slot path: layerWeightLow = 1, layerWeightHigh = 0 → lHigh
+        // contribution is exactly zero (and lHigh is also 0.0 because
+        // !highValid skipped its read).
+        const float yL = (lLow * layerWeightLow + lHigh * layerWeightHigh) * env;
+        const float yR = (rLow * layerWeightLow + rHigh * layerWeightHigh) * env;
 
         if (outChans > 0) out.addSample (0, startSample + i, yL);
         if (outChans > 1) out.addSample (1, startSample + i, yR);
 
-        // Advance fractional cursor.
-        pos += playRate;
+        // ---- Advance fractional cursors (per-slot) ----
+        posLow += playRateLow;
+        if (highValid)
+            posHigh += playRateHigh;
 
-        // If the ADSR has finished and we've passed end-of-sample, stop.
+        // If the ADSR has finished, stop. Both slot pointers are reset so
+        // subsequent blocks early-out at the top.
         if (! adsr.isActive())
         {
-            currentSlot     = nullptr;
+            slotLow         = nullptr;
+            slotHigh        = nullptr;
             currentMidiNote = -1;
             clearCurrentNote();
             return;
