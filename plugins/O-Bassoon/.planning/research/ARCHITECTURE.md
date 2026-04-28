@@ -929,3 +929,27 @@ if (lfoPhase >= juce::MathConstants<float>::twoPi)
 - ❌ Multi-output routing
 - ❌ Sample playback layer
 - ❌ Visualization / VU meters / spectrum displays
+
+---
+
+## rev-note: Phase 2.2 As-Shipped (2026-04-27)
+
+**Cycle:** GSD Phase 2.2 — Spectral Tuning + Tone Control. Atomic commit subject:
+`feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`.
+
+**As-shipped state matches §"Bassoon Partial Table" verbatim** — partial-ratio values,
+formant centre (475 Hz), bandwidth (200 Hz), per-mode amplitude formula
+`formantWeight × rollOff = exp(-0.5 × ((f_k - 475) / 200)²) × 1 / (1 + 0.5k)`, and
+tone T60 scale `mix(0.3, 1.5, tone)` for upper modes (k > 4, zero-indexed → modes 5–15)
+all shipped as specified. No iteration-driven deviations.
+
+**One in-cycle tuning constant deviation** (RESEARCH-rev-2 §1 OQ#5-rev-2):
+`processSample` output scaler relaxed from `1 / NUM_MODES` (= 1/16) to `1 / 8` (+6 dB)
+to compensate for the formant-Gaussian + 1/k roll-off attenuation vs. Phase 2.1's
+flat-amplitude baseline. Phase 2.3 wiring of `output_gain` APVTS read replaces this
+with a user-controllable scaler.
+
+**Verification:** Gate 2 PASS — see
+`plugins/O-Bassoon/.planning/stages/2-dsp/VERIFICATION.md` (rev-2). A/B-vs-reference
+listening + Logic Channel EQ Analyzer overlay (peak in 400-600 Hz at C3) +
+8-voice CPU < 20 % + tone sweep clean.

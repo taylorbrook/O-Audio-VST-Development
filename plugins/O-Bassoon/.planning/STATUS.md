@@ -7,9 +7,9 @@ last_updated: 2026-04-27
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: atomic_commit_then_phase_2_2_discuss
+next_action: phase_2_2_atomic_commit
 next_stage: 2
-phase_cycle: "Phase 2.1 — Core Modal Voice + First Audio (verified, atomic commit pending)"
+phase_cycle: "Phase 2.2 — Bassoon Spectral Tuning + Tone Control (verify complete, Gate 2 PASS, rev-3 strike() patch absorbed within ceiling, atomic commit pending user trigger; next: Phase 2.3 expression)"
 contract_checksums:
   brief: sha256:4989e5389e14e7bf29ae16b3923e9a70438fd3b0b0e0a6405be9f6983763265f
   parameter_spec: sha256:708ecb2bf2a49fcc5b8f4a8b745859d652edc81aff53ef55071b69ca62b6b875
@@ -21,9 +21,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — **Phase 2.1 / ✅ VERIFIED (Gate 1 9/9 PASS, item 10 dropped, atomic commit pending)**
-Status: Phase 2.1 verified — Gate 1 items 1-6, 7, 8, 9 PASS (auto + user-confirmed Logic-AU); item 10 (SPAN PNG) dropped from gate by user authority; VERIFICATION.md written with ✅ VERIFIED verdict. Atomic commit `feat(O-Bassoon): Phase 2.1 first audio - Gate 1 PASS` pending explicit user trigger.
-Progress: [#############.......] 65%
+Stage: 2 of 4 (DSP) — **Phase 2.2 / ✅ VERIFY COMPLETE (Gate 2 10/10 PASS, rev-3 strike() patch absorbed within ceiling, atomic commit pending)**
+Status: Phase 2.2 verify-phase complete. Automated subset (12-item invariant battery + auval AU VALIDATION SUCCEEDED + pluginval-5 SUCCESS) PASS. Manual Gate 2 (10 items) reported PASS by user via Standalone + Logic-AU 2026-04-27 — bassoon-like timbre at C3, visible 400-600 Hz spectrum peak, audible woody↔bright tone-slider character change, no zipper/clicks/NaN on tone sweep, 8-voice CPU < 20%, 1-voice CPU < 5%, C1-C6 sweep clean (expected C5+ Nyquist thinning), ≥10s long-tone stable. Required rev-3 in-cycle iteration: added `ModeBank::strike()` invoked from `BassoonVoice::startNote` to inject modal state (`y1 = amp·sinθ, y2 = 0` per non-muted mode) that launches the canonical `y[n] = amp·sin((n+1)θ)·R^n` free-decay sinusoid. Without `strike()`, the pole-only resonator's IR peak `b0/sin(θ) ≈ (1-R)·amp/sin(θ)` was ~50 dB below `amp` for high-Q low-frequency modes — sustain inaudible. Diagnostic process also revealed Phase 2.1's Gate 1 PASS was recorded based on incorrect manual testing (brief click rather than press-and-hold); the underlying audibility defect was masked. Rev-3 patch retroactively corrects both Phase 2.1 and Phase 2.2 audible behavior. RT-safety preserved (allocation-free strike loop with cached sinTheta). Verdict ✅ VERIFIED. REQUIREMENTS.md updates: FUNC-01/DSP-01/DSP-03/QUAL-01 promoted partial → complete; FUNC-04/PERF-02/QUAL-02 unchanged at partial (Phase 2.3 / Phase 2.4 deliverables); COMPAT-01 unchanged at partial (Stage 4); FUNC-03/DSP-07/PERF-01 carry-forward complete. Atomic commit `feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS` PENDING explicit user trigger per CLAUDE.md commit protocol. Iteration ceiling rev-3 burned but goal achieved within ceiling — next phase (Phase 2.3) starts fresh.
+Progress: [##################..] 90%
 
 ## Completed So Far
 
@@ -47,10 +47,10 @@ Progress: [#############.......] 65%
 
 ## Next Steps
 
-1. **Atomic Phase 2.1 commit** — `feat(O-Bassoon): Phase 2.1 first audio - Gate 1 PASS`. Lands sources (ModeBank, Exciter, BassoonVoice, PluginProcessor, CMakeLists) + reference recordings + planning artefacts in one commit on `main`. Pending explicit user trigger per CLAUDE.md commit protocol.
-2. **Phase 2.2 kickoff (after commit lands)** — `/clear` then `/plugin-discuss O-Bassoon 2-dsp` to open Phase 2.2 (bassoon partial-table tuning + `tone` parameter; A/B listening vs. archived VSCO-2-CE C3 sustain). Item 10 SPAN baseline dropped — Phase 2.2 A/B uses ear + reference WAV.
+1. **Phase 2.2 atomic commit** — pending user "commit it"/"land it"/"ship it" trigger. Locked subject: `feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`. Single commit lands rev-2 sources + rev-3 strike() patch + ARCHITECTURE rev-note + planning artefacts (CONTEXT/RESEARCH/PLAN/SUMMARY/VERIFICATION rev-2) on `main`.
+2. **Phase 2.3 cycle** — `/clear` then `/plugin-discuss O-Bassoon 2-dsp`. Scope: vibrato + breath/dynamics (CC2 + velocity) + attack-character morph + ADSR APVTS wiring (attack_time, release_time) + output_gain. Phase 2.3 introduces continuous breath excitation (CC2 → modeBank input) that converts current struck-modal architecture into true sustained-tone behavior. Phase 2.3 verifies: FUNC-04 complete (ADSR param 0-2000/0-3000 ms ranges), DSP-02/04/05 complete (vibrato + breath + attack-character), QUAL-02 complete (60s stability), PERF-02 final.
 3. UI mockup pass (parallel-eligible with Stage 2) — required to unblock Stage 3
-4. Remaining Stage 2 phases: Phase 2.2 (bassoon partial-table tuning + tone) → 2.3 (Expression: vibrato/breath/attack/release/output APVTS) → 2.4 (Polyphony cap + attack-character morph + NE/MPE consumption)
+4. Remaining Stage 2 phases after 2.3: 2.4 (Polyphony cap + voice stealing + NE/MPE per-voice consumption + TuningEngine call)
 
 ## Context to Preserve
 
@@ -145,7 +145,16 @@ Progress: [#############.......] 65%
 - Gate 1 manual subset (items 1–6, 9): ✅ **PASS** (user-confirmed Logic-AU verification 2026-04-27 — pitch ±2c on C3, no clicks, no NaN, >10s sustain stable, 1-voice CPU <5%, C1-C6 sweep clean, AU smoke PASS)
 - Gate 1 item 10 (SPAN baseline PNG): 🚫 **DROPPED** from gate per user authority 2026-04-27 — SPAN not installed; Phase 2.2 A/B will use ear + archived reference WAV instead. Non-blocking deviation.
 - **Final Gate 1 score: 9/9 PASS**
-- Atomic commit (Task 9): **PENDING** explicit user trigger, per CLAUDE.md commit protocol (orchestrator does NOT auto-commit)
+- Atomic commit landed at `d1b3370` on `main` (`feat(O-Bassoon): Phase 2.1 first audio - Gate 1 PASS`)
+
+**Files Updated (Stage 2 / Phase 2.2 discuss — 2026-04-27):**
+- `plugins/O-Bassoon/.planning/stages/2-dsp/CONTEXT.md` (rev-2 addendum) — 9 user-confirmed defaults locking Phase 2.2 cycle scope (single-cycle: partial-table replacement + formant-Gaussian amplitude shaping + `tone` APVTS wiring + A/B-vs-reference listening), strict-ROADMAP `tone`-only wiring at processor level, processor-level `SmoothedValue<float, Linear>` 50 ms ramp + throttled-epsilon dispatch (ε = 0.001) at processor dispatch site, Gate 2 bar = ear-only A/B + Logic Channel EQ Analyzer overlay (peak in 400-600 Hz at held C3), inline iteration with rev-3 ceiling, v1 WAV canonical / v2 secondary, 8-voice CPU early signal (hold 8 keys in Logic-AU, < 20 % bar), atomic commit pattern (`feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`). 10 open questions handed to research-phase (SmoothedValue block-rate idiom, lazy-vs-explicit `setTone` recompute, partial-ratio source verification, formant-Gaussian peak normalisation across f0, `1/N` scaler retention/relaxation, Logic EQ Analyzer protocol, tone descriptor verification, reference WAV pitch audition (D4 carry-forward), 8-voice CPU protocol, ARCHITECTURE.md backfill format). 8 risks documented with mitigations.
+
+**Files Updated (Stage 2 / Phase 2.2 research — 2026-04-27):**
+- `plugins/O-Bassoon/.planning/stages/2-dsp/RESEARCH.md` (rev-2 addendum) — all 10 OQs resolved with JUCE 8.0.4 source-line cites + family precedent (O-Bass `PluginProcessor.cpp:230` for `skip(numSamples)` block-rate dispatch, O-Contrabass `WaveguideString.cpp:275` for `jmax(0, numSamples)` defensive idiom). Key locks: explicit `applyToneChange()` over lazy recompute (preserves tone-slider responsiveness on held notes; cached `cosTheta` + `amp` per-mode); `1/N` scaler relaxed from `1/16` to `1/8` (+6 dB lift; quantitative justification — Phase 2.2 amp-sum at C3 ≈ 1.79 vs. Phase 2.1's 16, projecting -43 dBFS without relax → -37 dBFS with `1/8`, polyphony + C5 clip-safe); per-note loudness normalisation deferred to v1.1+ (accepts ~18 dB natural pitch-induced variation); ARCHITECTURE partial-ratio table acknowledged as author-curated synthesis (no single primary source); Logic Channel EQ Analyzer Pre-EQ-mode protocol documented; 8-note chord (C3-Bb4 spread) for 8-voice CPU early-signal; ARCHITECTURE.md backfill template (append-rev-note default, as-shipped subsection iteration-case). 6 discrepancies surfaced (D1-D6 rev-2); none block planning. Implementation skeletons for ModeBank rev-2 + BassoonVoice rev-2 single addition + PluginProcessor rev-2 smoother+dispatch+ordering ready for plan-phase verbatim consumption.
+
+**Files Updated (Stage 2 / Phase 2.2 plan — 2026-04-27):**
+- `plugins/O-Bassoon/.planning/stages/2-dsp/PLAN.md` (rev-2 addendum) — 9-task single-Wave plan appended to existing rev-1 (Phase 2.1) plan. Tasks: (1) ModeBank.h rev-2 surface, (2) ModeBank.cpp rev-2 implementation, (3) BassoonVoice.{h,cpp} setTone forwarder, (4) PluginProcessor.h toneSmoother members, (5) PluginProcessor.cpp prepareToPlay reset + processBlock dispatch BEFORE NE drain, (6) ARCHITECTURE.md as-shipped rev-note (append default), (7) build + install + 8 static-check grep gates (RT-safety, NE drain ordering, mode-index, scaler, throttle epsilon, DSP-07, AU validation, pluginval-5), (8) manual Gate 2 verification (10-item checklist: pitch audition, A/B listen, spectrum overlay, tone sweep, descriptors, 8-voice CPU, 1-voice CPU, C1-C6 sweep, ≥10s sustain, VERIFICATION write), (9) atomic commit. Lifts RESEARCH-rev-2 §3 implementation skeletons verbatim. Atomic commit subject locked: `feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`. 0 CMakeLists edits. 8 risks carried with mitigations. Inline iteration ceiling at rev-3 (CONTEXT-rev-2 Q6-rev-2).
 
 **REQUIREMENTS.md updates (verify-phase 2026-04-27):**
 - PERF-01 (Real-time safe): pending → **complete** (RT-safety grep + pluginval-5 fuzz/state PASS)

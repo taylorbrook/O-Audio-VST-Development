@@ -62,6 +62,12 @@ private:
     TuningEngine                              tuningEngine;     // D2: global namespace
     Ouaricon::NoteExpression::VST3Extensions  vst3Extensions;
 
+    // Phase 2.2: tone smoother + dispatch throttle (CONTEXT-rev-2 Q3/Q4-rev-2).
+    // Sentinel -1.0f forces first dispatch on next processBlock (any valid
+    // tone ∈ [0, 1] differs from -1 by > 0.001).
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> toneSmoother;
+    float                                                          lastDispatchedTone = -1.0f;
+
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

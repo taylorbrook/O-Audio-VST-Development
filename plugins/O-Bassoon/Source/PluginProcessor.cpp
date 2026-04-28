@@ -144,6 +144,10 @@ void OBassoonAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     for (int v = 0; v < synthesiser.getNumVoices(); ++v)
         if (auto* bv = dynamic_cast<BassoonVoice*> (synthesiser.getVoice (v)))
             bv->prepareToPlay (sampleRate, samplesPerBlock);
+
+    // Phase 2.2: tone smoother + dispatch throttle (CONTEXT-rev-2 Q3-rev-2).
+    toneSmoother.reset (sampleRate, 0.050);   // 50 ms ramp
+    lastDispatchedTone = -1.0f;               // force first dispatch on next processBlock
 }
 
 void OBassoonAudioProcessor::releaseResources()
@@ -172,14 +176,31 @@ void OBassoonAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // Synth: clear all channels (no input; voices add to buffer).
     buffer.clear();
 
+    const int numSamples = buffer.getNumSamples();
+
+    // Phase 2.2: tone smoother advance + voice dispatch (CONTEXT-rev-2 Q3/Q4-rev-2).
+    // Sits BEFORE the NE drain — same principle as the Phase 2.1 NE-drain-BEFORE-
+    // renderNextBlock invariant: voice state is fully up-to-date when JUCE iterates
+    // voice events. Throttle epsilon = 0.001 keeps quiescent dispatch off the hot path.
+    const float toneTarget   = parameters.getRawParameterValue ("tone")->load();
+    toneSmoother.setTargetValue (toneTarget);
+    const float toneSmoothed = toneSmoother.skip (juce::jmax (0, numSamples));
+
+    if (std::abs (toneSmoothed - lastDispatchedTone) > 0.001f)
+    {
+        for (int v = 0; v < synthesiser.getNumVoices(); ++v)
+            if (auto* bv = dynamic_cast<BassoonVoice*> (synthesiser.getVoice (v)))
+                bv->setTone (toneSmoothed);
+        lastDispatchedTone = toneSmoothed;
+    }
+
     // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
     // correlate tuning deltas to their NoteOn's MIDI pitch.
     // MUST run BEFORE renderNextBlock so per-voice startNote sees pending NE deltas.
     vst3Extensions.drainAndUpdate();
 
     // Render all voices via synthesiser (handles MIDI routing + voice allocation).
-    // Stage 1: BassoonVoice::renderNextBlock is a silent no-op — output stays clear.
-    synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
+    synthesiser.renderNextBlock (buffer, midiMessages, 0, numSamples);
 }
 
 //==============================================================================

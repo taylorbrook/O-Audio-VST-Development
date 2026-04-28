@@ -46,6 +46,10 @@ public:
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                           int startSample, int numSamples) override;
 
+    // Phase 2.2: tone dispatch from processor (throttled at the processor side).
+    // Forwards to modeBank.setTone + applyToneChange. No APVTS read in voice.
+    void setTone (float tone01) noexcept;
+
     // Wiring setters (called once per voice from PluginProcessor ctor).
     // Stage 1 stores raw pointers but never dereferences them; Phase 2.1+ consumes.
     void setAPVTS               (juce::AudioProcessorValueTreeState* p) { parameters = p; }

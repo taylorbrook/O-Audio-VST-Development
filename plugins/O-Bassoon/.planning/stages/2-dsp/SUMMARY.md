@@ -162,3 +162,93 @@ The build succeeds and both static-validators (auval / pluginval-5) confirm the 
 ## Next
 
 Verify phase: `/plugin-verify O-Bassoon 2-dsp` (consumes this SUMMARY + PLAN, and prompts for Gate 1 manual-verification evidence — items 1–6, 9, 10 — or accepts a pre-captured Logic-AU smoke + SPAN screenshot).
+
+---
+
+# O-Bassoon Stage 2 / Phase 2.2 — Execution Summary
+
+**Phase:** 2.2 — Bassoon Spectral Tuning + Tone Control
+**Executed:** 2026-04-27
+**Inputs:** PLAN-rev-2 (9 tasks, single Wave) + RESEARCH-rev-2 §3 implementation skeletons (lifted verbatim) + ARCHITECTURE.md §"Bassoon Partial Table" / §"Tone / Brightness Control"
+**Working tree start:** Phase 2.1 atomic commit `d1b3370` on `main`
+
+## What Was Built
+
+### Modified Source Files
+
+| Op  | Path | Change |
+|-----|------|--------|
+| MOD | `plugins/O-Bassoon/Source/ModeBank.h`         | Added `FORMANT_F1` (475 Hz) + `FORMANT_BW` (200 Hz); replaced placeholder integer `PARTIAL_RATIOS` with bassoon-tuned 16-element near-integer ratio table; replaced inline `setTone` no-op with real `setTone` + `applyToneChange` declarations + private `computeModeAmplitude`; extended `ModeBiquad` with cached `cosTheta` + `amp`; added `currentTone` member (default 0.5f). |
+| MOD | `plugins/O-Bassoon/Source/ModeBank.cpp`       | Rewrote `setFundamental` to compute formant-Gaussian × 1/k roll-off amplitude per mode, cache `cosTheta`/`amp`, apply `mix(0.3, 1.5, tone)` T60 scale to upper modes (k > 4) only; mute-path zeros cached state too; new `setTone` (jlimit clamp + currentTone cache); new `applyToneChange` (tone-scaled T60 recompute for k = 5..15, skip muted via `m.amp == 0.0f`); new private static `computeModeAmplitude`; relaxed processSample headroom scaler `1/16 → 1/8` (+6 dB). |
+| MOD | `plugins/O-Bassoon/Source/BassoonVoice.h`     | Added public `void setTone (float tone01) noexcept;` declaration after `renderNextBlock`. |
+| MOD | `plugins/O-Bassoon/Source/BassoonVoice.cpp`   | Added thin forwarder body — calls `modeBank.setTone` then `modeBank.applyToneChange`. No throttling here (gate is at processor dispatch site). |
+| MOD | `plugins/O-Bassoon/Source/PluginProcessor.h`  | Added private `juce::SmoothedValue<float, ValueSmoothingTypes::Linear> toneSmoother;` + `float lastDispatchedTone = -1.0f;` (sentinel forces first dispatch). |
+| MOD | `plugins/O-Bassoon/Source/PluginProcessor.cpp`| `prepareToPlay`: `toneSmoother.reset(sampleRate, 0.050)` + reset sentinel. `processBlock`: insert tone advance + voice dispatch BEFORE `vst3Extensions.drainAndUpdate()`; throttle gate `std::abs(toneSmoothed - lastDispatchedTone) > 0.001f`; switched `synthesiser.renderNextBlock(...)` to use cached `numSamples` local. |
+| MOD | `plugins/O-Bassoon/.planning/research/ARCHITECTURE.md` | Appended `## rev-note: Phase 2.2 As-Shipped` per RESEARCH-rev-2 OQ#10-rev-2 default (append-rev-note, partial-table values shipped verbatim). Documents the one in-cycle deviation (1/16 → 1/8 scaler). |
+
+### No New Source Files
+No new files in Phase 2.2; all edits are MODIFY of existing rev-1 files. CMakeLists.txt is unchanged (no new translation units).
+
+## Build + Static-Check Gate Status
+
+| # | Gate | Status |
+|---|------|--------|
+| 1 | RT-safety grep — zero new hot-path matches in ModeBank/BassoonVoice; PluginProcessor matches are pre-existing setup-time only (createParameterLayout, ctor `new BassoonVoice/BassoonSound`, factories) | ✅ PASS |
+| 2 | NE drain ordering preserved — `drainAndUpdate()` precedes `renderNextBlock()` in processBlock; new tone-dispatch block precedes BOTH | ✅ PASS |
+| 3 | Mode-index zero-indexed convention — single match `for (int k = 5; k < NUM_MODES` in `applyToneChange` | ✅ PASS |
+| 4 | Headroom scaler relaxation locked — `1.0f / 8.0f` present in `processSample`; `1.0f / NUM_MODES` and `1.0f / 16.0f` zero matches | ✅ PASS |
+| 5 | Throttle epsilon locked — `0.001f` present at the dispatch comparator (PluginProcessor.cpp:189) | ✅ PASS |
+| 6 | DSP-07 (no O-Reed dependency) regress — zero matches | ✅ PASS |
+| 7 | AU validation — `auval -v aumu OBsn OuDv` SUCCEEDED | ✅ PASS |
+| 8 | pluginval --strictness 5 — exit 0 SUCCESS | ✅ PASS |
+| — | Build clean (VST3 + AU + Standalone, ad-hoc signed) — zero compile warnings | ✅ PASS |
+| — | Install fresh per CLAUDE.md cache-clearing protocol | ✅ DONE |
+
+## Manual Gate 2 Bar (handed to user — Task 8 of PLAN-rev-2)
+
+10-item Logic-AU verification checklist. **Items 2, 3, 4, 8, 9 must PASS clean; items 1, 5, 6, 7 may be PARTIAL with documented deviation per CONTEXT-rev-2 Q6-rev-2 inline iteration.**
+
+1. **Pre-flight: reference WAV pitch audition** — load `bassoon-c3-sustain-v1.wav` on an audio track, insert Logic Tuner. PASS bar: tuner reads C3 (130.8 Hz ± 30 cents). If v1 fails, switch to v2; document in VERIFICATION if both fail.
+2. **A/B listening — held C3 timbre** — insert O-Bassoon-dev (AU), `tone = 0.5`, hold C3, loop reference WAV adjacent. PASS bar: ear judgment "yes, that's bassoon-like". *Inline rev-3 trigger if FAIL.*
+3. **Spectrum overlay** — insert Logic Channel EQ post-O-Bassoon, set Pre-EQ Analyzer mode, all bands disabled. Hold C3. PASS bar: visible peak in 400–600 Hz region. Save screenshot to `plugins/O-Bassoon/research/reference-recordings/phase-2.2-as-shipped-c3-spectrum.png`.
+4. **Tone-sweep cleanliness** — hold C3, sweep `tone` 0.0 → 1.0 → 0.0 over ~3 s. PASS bar: no zipper / clicks / pops / NaN; audible character change.
+5. **Tone descriptor verification** — `tone = 0`/C3 → "woody, dark"; `tone = 1`/C3 → "brighter, present". PASS bar: clearly audible difference; both ends musical.
+6. **8-voice CPU early signal** — Logic CPU meter / Process bar. Hold 8-note chord **C3 + E3 + G3 + Bb3 + C4 + E4 + G4 + Bb4**, sustain ≥ 3 s. PASS bar: < 20 %.
+7. **1-voice CPU regress** — hold single C3. PASS bar: Process bar < 5 %.
+8. **Pitch range C1–C6 regress** — sweep MIDI C1 → C6, sustained ~1 s each. PASS bar: all notes track pitch, no glitches/NaN/muting. C5+ thinning expected (Nyquist-muted upper modes).
+9. **Long-tone stability** — hold C3 ≥ 10 s. PASS bar: no dropouts, no NaN, no exponential drift, no DC bias.
+10. **Write VERIFICATION-rev-2** mapping items 1–9 to PASS / PARTIAL / DEVIATION + Phase 2.1 invariant regression confirmation.
+
+**Iteration ceiling:** rev-3 (CONTEXT-rev-2 Q6-rev-2). After rev-3, ship and document v1.0 gap as v1.1 partial-table refinement candidate ("bassoon-inspired" framing per ARCHITECTURE Risk #2 Fallback 2).
+
+## Files for Atomic Commit (Task 9 of PLAN-rev-2)
+
+```
+M plugins/O-Bassoon/Source/ModeBank.h
+M plugins/O-Bassoon/Source/ModeBank.cpp
+M plugins/O-Bassoon/Source/BassoonVoice.h
+M plugins/O-Bassoon/Source/BassoonVoice.cpp
+M plugins/O-Bassoon/Source/PluginProcessor.h
+M plugins/O-Bassoon/Source/PluginProcessor.cpp
+M plugins/O-Bassoon/.planning/research/ARCHITECTURE.md
+M plugins/O-Bassoon/.planning/STATUS.md
+M plugins/O-Bassoon/.planning/stages/2-dsp/CONTEXT.md     (rev-2 — discuss-phase)
+M plugins/O-Bassoon/.planning/stages/2-dsp/RESEARCH.md    (rev-2 — research-phase)
+M plugins/O-Bassoon/.planning/stages/2-dsp/PLAN.md        (rev-2 — plan-phase)
+M plugins/O-Bassoon/.planning/stages/2-dsp/SUMMARY.md     (this addendum)
+M plugins/O-Bassoon/.planning/stages/2-dsp/VERIFICATION.md (rev-2 — written at verify-phase)
+?? plugins/O-Bassoon/research/reference-recordings/phase-2.2-as-shipped-c3-spectrum.png (captured at item 3)
+```
+
+**Locked atomic-commit subject** (CONTEXT-rev-2 Q9-rev-2): `feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`. Commit lands at verify-phase only on Gate 2 PASS green.
+
+## Deferred to User Verification Step
+
+- Logic-AU manual checklist items 1–9 (above) — user runs in their DAW
+- `phase-2.2-as-shipped-c3-spectrum.png` capture (item 3)
+- VERIFICATION-rev-2.md write (item 10)
+- Atomic commit (verify-phase, on Gate 2 PASS green)
+
+## Next
+
+Verify phase: `/plugin-verify O-Bassoon 2-dsp` — consumes this SUMMARY + PLAN-rev-2, prompts for the 10-item Gate 2 evidence in Logic-AU, writes VERIFICATION-rev-2, and lands the atomic commit on green.

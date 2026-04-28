@@ -47,7 +47,8 @@ void BassoonVoice::startNote (int midiNoteNumber, float /*velocity*/,
 
     const float fBent = currentFrequencyBase * std::pow (2.0f, pitchBendSemitones / 12.0f);
     modeBank.setFundamental (fBent);
-    exciter.start();
+    modeBank.strike();           // rev-3: inject modal sustain energy (state init)
+    exciter.start();             // exciter still fires for attack-transient flavor
     adsr.noteOn();
 }
 
@@ -88,11 +89,18 @@ void BassoonVoice::controllerMoved (int /*controllerNumber*/, int /*newControlle
     // Phase 2.1: no-op. Phase 2.3 wires CC2 -> breath parameter routing.
 }
 
+void BassoonVoice::setTone (float tone01) noexcept
+{
+    // Phase 2.2: throttle gate is at the processor dispatch site, not here.
+    modeBank.setTone (tone01);
+    modeBank.applyToneChange();
+}
+
 void BassoonVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                     int startSample, int numSamples)
 {
     if (! adsr.isActive())
-        return;   // nothing to do; voice is silent
+        return;
 
     const int numChannels = outputBuffer.getNumChannels();
 

@@ -193,7 +193,7 @@ After research: plan-phase writes Phase 2.1 task breakdown verbatim against this
 
 ## Audit Trail
 
-**rev-1 (this document, 2026-04-27):** Phase 2.1 opening — Core Modal Voice + First Audio. 8 user-confirmed approach decisions (Q1 single Phase 2.1 cycle, Q2 strict-ROADMAP minimal wiring, Q3 on-note-on/pitch-bend coefficient cadence, Q4 reference recording sourced during Phase 2.1, Q5 atomic commit on Gate 1 PASS, Q6 DAW + tuner only, Q7 ten-item Gate 1 bar, Q8 centered mono-to-stereo write) plus 4 derived (exciter onset-buffer storage = class-level `std::array`, voice exit path via `clearCurrentNote` + `modeBank.reset()`, pitch-bend wired even without MPE testing, ADSR-exit mode-bank reset). 10 open questions handed to research-phase: ADSR API, voice-output convention, biquad numerical stability, exciter impulse shape, Nyquist muting policy, MidiMessage::getMidiNoteInHertz signature, reference recording sourcing, Logic CPU meter protocol, pitchWheelMoved raw value range, spectrum-analyzer install recommendation. 8 risks documented with mitigations.
+**rev-1 (2026-04-27):** Phase 2.1 opening — Core Modal Voice + First Audio. 8 user-confirmed approach decisions (Q1 single Phase 2.1 cycle, Q2 strict-ROADMAP minimal wiring, Q3 on-note-on/pitch-bend coefficient cadence, Q4 reference recording sourced during Phase 2.1, Q5 atomic commit on Gate 1 PASS, Q6 DAW + tuner only, Q7 ten-item Gate 1 bar, Q8 centered mono-to-stereo write) plus 4 derived (exciter onset-buffer storage = class-level `std::array`, voice exit path via `clearCurrentNote` + `modeBank.reset()`, pitch-bend wired even without MPE testing, ADSR-exit mode-bank reset). 10 open questions handed to research-phase: ADSR API, voice-output convention, biquad numerical stability, exciter impulse shape, Nyquist muting policy, MidiMessage::getMidiNoteInHertz signature, reference recording sourcing, Logic CPU meter protocol, pitchWheelMoved raw value range, spectrum-analyzer install recommendation. 8 risks documented with mitigations.
 
 **Inherited verbatim from Stage 1 (not re-litigated):**
 - All 10 APVTS parameter IDs, ranges, defaults
@@ -214,3 +214,215 @@ After research: plan-phase writes Phase 2.1 task breakdown verbatim against this
 - 10-item Gate 1 PASS bar (6 ROADMAP + auval + pluginval-5 + Logic AU smoke + spectrum baseline capture)
 - Centered equal L+R per-sample voice write (matches O-Lyrica / O-Wind precedent)
 - Single Phase 2.1 atomic commit with subject `feat(O-Bassoon): Phase 2.1 first audio - Gate 1 PASS`
+
+---
+
+## rev-2 — Phase 2.2 Opening (2026-04-27)
+
+**Cycle Scope (rev-2):** **Phase 2.2 — Bassoon Spectral Tuning + Tone Control.** Replaces Phase 2.1's placeholder integer-harmonic ratios + flat amplitudes with bassoon-tuned near-integer ratios + first-formant-Gaussian × 1/k roll-off amplitude shaping, and wires the `tone` APVTS parameter (per-mode T60 scaling for upper modes k > 4) end-to-end. A/B-vs-archived-reference-WAV listening loop is the primary acceptance signal. All other 9 APVTS parameters, vibrato, breath, polyphony, and NE/MPE remain deferred to Phases 2.3-2.4.
+
+Phase 2.1 atomic commit landed at `d1b3370` (`feat(O-Bassoon): Phase 2.1 first audio - Gate 1 PASS`). Working tree starts from that commit on `main`. Reference WAVs are already archived at `plugins/O-Bassoon/research/reference-recordings/bassoon-c3-sustain-v{1,2}.wav` (sourced during Phase 2.1 per locked Q4-rev-1).
+
+### Cycle Scope (rev-2)
+
+**Goal:** Voice produces a recognizable bassoon-like timbre at C3 (130 Hz) with energy concentrated in the 400-600 Hz region (first formant). `tone` parameter audibly sweeps dark↔bright across [0, 1] with no zipper noise, no clicks, and no NaN/inf. CPU at 8-voice / 48 k / 256 stays under 20 % (ROADMAP test criterion, early signal — voice cap not in place yet, simulated by holding 8 keys in Logic-AU).
+
+**In scope:**
+
+- `Source/ModeBank.h` — replace `PARTIAL_RATIOS` with bassoon-tuned near-integer ratios `{1.000, 2.005, 3.010, 4.018, 5.024, 6.032, 7.041, 8.052, 9.064, 10.078, 11.092, 12.108, 13.125, 14.144, 15.164, 16.186}` (verbatim from ARCHITECTURE.md §"Bassoon Partial Table"). Add `static constexpr float FORMANT_F1 = 475.0f` and `FORMANT_BW = 200.0f` constants. Add private `static float computeModeAmplitude(int k, float f0)` helper. Replace `setTone(float /*tone01*/) noexcept {}` stub with a real implementation: store the smoothed tone value, mark coefficients dirty, recompute upper-half (k > 4) `R_k` next time `setFundamental` or a tone-driven recompute fires. Drop the `1 / NUM_MODES` headroom scaler in `processSample` (formant-Gaussian + 1/k roll-off naturally constrains peak gain — verify empirically; if peaks > -3 dBFS, retain a tighter scaler informed by measured peak).
+- `Source/ModeBank.cpp` — `setFundamental` calls `computeModeAmplitude(k, f0)` per mode; `setTone(toneSmoothed)` recomputes upper-half `R_k` only (mode indices 5-15 by zero-indexed convention, i.e., `k > 4`); add a `setToneAndFundamental(float tone01, float f0)` convenience for the note-on path so both fire in one pass.
+- `Source/PluginProcessor.{h,cpp}` — add a single processor-level `juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>` for `tone` (50 ms ramp), `reset(sampleRate, 0.050)` in `prepareToPlay`. In `processBlock`, BEFORE the NE drain, read `*params.getRawParameterValue("tone")`, `setTargetValue` on the smoother, advance the smoother once per block (using `getNextValue()` after `skip(numSamples - 1)` or equivalent — confirm exact pattern in research-phase), call `voice->setTone(toneSmoothed)` on every active voice with throttled-epsilon dispatch (`if (std::abs(newTone - lastDispatchedTone) > 0.001f)`).
+- `Source/BassoonVoice.{h,cpp}` — new public method `void setTone(float tone01) noexcept` that forwards to `modeBank.setTone(tone01)`. No new APVTS reads inside the voice itself; the value is pushed in by the processor (locked Q3-rev-2 (a) processor-level smoother).
+- `plugins/O-Bassoon/.planning/research/ARCHITECTURE.md` — backfill the **final** partial-table values (whatever they end up as after the listening loop, even if the rev-2 starting set is shipped unchanged — document the rev that was shipped). Append a rev note at the end documenting "as-shipped Phase 2.2".
+
+**Out of scope (deferred per ROADMAP):**
+
+- All other 9 APVTS reads in voice DSP (vibrato_*, breath, attack_character, attack_time, release_time, voice_count, output_gain) — Phase 2.3 / 2.4 (locked Q2-rev-2 strict-ROADMAP)
+- The `1/N` placeholder headroom scaler stays in place if measured peaks make it necessary; replacement by `output_gain` APVTS read is Phase 2.3
+- Vibrato LFO + onset envelope — Phase 2.3
+- Sustain noise component in `Exciter` — Phase 2.4 (Phase 2.1 stub remains: impulse-only)
+- Attack-character morph — Phase 2.4
+- Voice manager / `voice_count` enforcement — Phase 2.4 (Phase 2.2 hold-8-keys CPU measurement runs against `juce::Synthesiser` default behaviour: 16 pre-allocated voices, oldest stealing already enabled at Stage 1)
+- VST3 NE consumption per-voice / `applyPendingTuning` — Phase 2.4
+- MPE pitch-bend path: pitch-bend mode-bank recompute is already wired at Phase 2.1; no change needed at Phase 2.2
+- TuningEngine `getFrequency()` call in startNote — Phase 2.4
+- Two-register-table fallback (ARCHITECTURE Risk #2 Fallback 1) — only invoked if rev-3 listening fails the bar
+- pluginval `--strictness 10` + Windows VST3 build — Stage 4
+
+---
+
+### Requirements Confirmed (Phase 2.2-relevant subsets of locked contracts)
+
+- **DSP-01** (modal-synthesis voice, tuned to bassoon spectrum): Phase 2.2 satisfies the **spectral** half left open after Phase 2.1's structural verification. Final acceptance is the qualitative "bassoon-like" judgment (locked Q5-rev-2 (d): ear-only A/B + Logic Channel EQ Analyzer overlay confirming peak in 400-600 Hz region).
+- **DSP-03** (tone control, dark↔bright): Phase 2.2's primary new wiring. Acceptance: `tone = 0` audibly woody, `tone = 1` audibly brighter; smooth sweep across [0, 1] click-free.
+- **FUNC-01** (sustained bassoon-like tones): Phase 2.2 closes this requirement (Phase 2.1 satisfied "sustained" only).
+- **PERF-01** (no allocations in `processBlock`): regression check carries forward — no new allocations in `setTone`, `computeModeAmplitude`, or the SmoothedValue dispatch.
+- **QUAL-01** (no clicks during parameter sweeps): newly testable now that `tone` is the first APVTS-driven coefficient update. 50 ms ramp + throttled-epsilon dispatch is the smoothing budget.
+- **PERF-02** (8-voice CPU < 25 %): early signal at Phase 2.2 against the ROADMAP-tighter 20 % bar (Phase 2.2 test criterion). Voice cap is Phase 2.4; this measurement uses 8 simultaneously-held notes in Logic-AU as a proxy.
+
+**Deferred to Phases 2.3-2.4 / Stage 4:**
+- DSP-02 (vibrato) — Phase 2.3
+- DSP-04 (breath/dynamics with CC2) — Phase 2.3
+- DSP-05 (attack-character morph) — Phase 2.4
+- DSP-06 (NE + MPE pitch consumption) — Phase 2.4
+- FUNC-02 (1-16 polyphony with cap), FUNC-04 (envelope wiring), FUNC-05 (voice stealing) — Phase 2.3-2.4
+- QUAL-02 (60 s long-tone stability) — Phase 2.3 (after envelope wired)
+- COMPAT-01 strict-10 + Windows / COMPAT-02 Dorico parity — Stage 4
+
+---
+
+### Constraints Identified (rev-2)
+
+**Locked contracts (do NOT modify in this cycle):**
+
+- All 10 APVTS parameter IDs, ranges, defaults — `parameter-spec-draft.md` and `PluginProcessor.cpp:25-99`. Phase 2.2 reads ONE (`tone`) from APVTS at processor level; voice DSP still reads NONE directly (locked Q2-rev-2 strict-ROADMAP, Q3-rev-2 (a) processor-level smoother).
+- DSP architecture (`research/ARCHITECTURE.md`) — Phase 2.2 implements §"Bassoon Partial Table" + §"Tone / Brightness Control" verbatim; ARCHITECTURE.md is appended to (rev note + as-shipped values), not modified.
+- ROADMAP Phase 2.2 spec (lines 124-152) — components, test criteria, requirements verified.
+- Phase 2.1 wiring contracts that carry forward unchanged:
+  - `PluginProcessor::processBlock` runs `vst3Extensions.drainAndUpdate()` BEFORE `synthesiser.renderNextBlock` (PluginProcessor.cpp:178, 182). Phase 2.2 inserts the `tone` smoother advance + voice dispatch in the same processBlock prologue; ordering stays: tone-dispatch → NE drain → renderNextBlock.
+  - `BassoonVoice` member layout (parameters / tuningEngine / pendingTuningSource raw pointers, modeBank, exciter, adsr, currentFrequency, currentSampleRate). Phase 2.2 adds a new private `float currentTone = 0.5f;` member and a public `void setTone(float)` method — both additive.
+  - Per-sample render-loop ordering: `exciter → modeBank → adsr → addSample(L) + addSample(R)` (BassoonVoice.cpp). Phase 2.2 doesn't touch this.
+  - Mode-bank coefficient-update cadence: on note-on + on pitch-bend (locked Q3-rev-1). Phase 2.2 ADDS a third trigger: tone change > epsilon. No per-block recompute introduced.
+  - Reference WAV archive (`research/reference-recordings/bassoon-c3-sustain-v{1,2}.wav` + LICENSE.md + README.md) — read-only at Phase 2.2; Phase 2.2 listens against, doesn't re-source.
+- Stage 1 build flags + CMakeLists structure — Phase 2.2 only edits `Source/ModeBank.{h,cpp}` + `Source/BassoonVoice.{h,cpp}` + `Source/PluginProcessor.{h,cpp}`. CMakeLists `target_sources` already lists the affected files; no source-list edit needed.
+- DSP-07 (no O-Reed dependency) — verified at Stage 1, re-grepped at Phase 2.1 verify, carries forward.
+
+**JUCE 8 critical patterns (auto-loaded `spike-findings-VST-development` + memory):**
+
+- `juce::ScopedNoDenormals` at `processBlock` entry — already in place. Mode bank IIR state benefits from FTZ. Phase 2.2's tone-driven recompute changes `R_k` for upper modes; the G-normalisation form `(1 - R) * amp_k` continues to prevent sub-LSB accumulation.
+- `juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>` — `reset(sampleRate, rampDurationSec)` in `prepareToPlay`, `setTargetValue(target)` once per block, `getNextValue()` per sample OR `skip(numSamples)` once per block. For block-rate smoothing of a coefficient-driving parameter, the canonical pattern is one `getNextValue()` at block start + dispatch — confirm exact JUCE 8 idiom in research-phase. O-Wind / O-Lyrica precedent applies.
+- Allocation-free `processBlock`: SmoothedValue is stack-only state. `computeModeAmplitude` is a pure function returning float — no allocation. Phase 2.2 mandatory grep stays the same: `new`, `make_unique`, `make_shared`, `push_back`, `resize`, `malloc` zero hits in all touched files.
+
+**Phase 2.2-specific constraints:**
+
+- **Strict ROADMAP — only `tone` wired this cycle** (locked Q2-rev-2). The other 9 APVTS parameters stay unread in voice DSP. The `1/N` placeholder headroom scaler in `ModeBank::processSample` remains the operative loudness control until Phase 2.3 wires `output_gain` + `breath`. **Exception:** if formant-Gaussian + 1/k roll-off measurably reduces peak energy enough that `1/N` becomes overcorrected (audibly quiet), the scaler may be relaxed to `1/8` or `1/4` as an in-cycle tuning constant (NOT an APVTS read — still Phase 2.3's job to wire `output_gain`). Document the chosen scaler in code comment.
+- **Processor-level tone smoother** (locked Q3-rev-2 (a)) — single `juce::SmoothedValue<float>` in `PluginProcessor`, 50 ms ramp, advanced once per block, dispatched to all active voices via `voice->setTone(...)` only when the dispatched delta exceeds `0.001f` (locked Q4-rev-2 (b) throttled epsilon). Recomputes upper-half (k > 4) `R_k` for the dispatched voice's mode bank.
+- **Tone coefficient cadence** (locked Q4-rev-2 (b)) — `ModeBank::setTone` stores the value, marks dirty; recompute fires lazily on next `setFundamental` OR explicitly via a new `applyToneChange()` call from the dispatch path. Decision deferred to research-phase: lazy-on-next-setFundamental is cleaner but couples tone updates to pitch updates; explicit-`applyToneChange` is more responsive on the slider sweep but doubles the recompute path. Research-phase locks.
+- **A/B verification protocol** (locked Q5-rev-2 (d)) — primary: ear-only A/B between O-Bassoon held C3 + reference WAV looped in adjacent Logic audio track; secondary: Logic stock Channel EQ in Analyzer mode confirms peak in 400-600 Hz on held C3. SPAN remains uninstalled (item-10-rev-1 dropped from Gate 1; Gate 2 inherits the drop).
+- **Iteration budget** (locked Q6-rev-2 (a)+(b)) — iterate at verify-phase inline (no replan); ceiling at rev-3. After rev-3, ship and document gap as v1.1 partial-table refinement candidate (ARCHITECTURE Risk #2 Fallback 2 framing: "bassoon-inspired").
+- **Reference WAV canonical** (locked Q7-rev-2 default) — `bassoon-c3-sustain-v1.wav` is canonical primary; `bassoon-c3-sustain-v2.wav` is secondary cross-check. If v1's pitch / clip quality is unsuitable, fall back to v2 (recorded both versions for exactly this reason — Phase 2.1 sourced both). README at `research/reference-recordings/README.md` documents the audition checklist.
+- **8-voice CPU early signal** (locked Q8-rev-2) — hold 8 keys simultaneously in Logic-AU during verify, capture Logic CPU-meter reading. Bar: < 20 % (ROADMAP Phase 2.2 test criterion). If exceeded, trigger ARCHITECTURE Risk #1 Fallback 1 (drop to 8 modes per voice) BEFORE finalising the partial table — cheaper to swap pre-tune than post-tune.
+- **Atomic commit on Gate 2 PASS** (locked Q9-rev-2) — single commit lands `Source/ModeBank.{h,cpp}` + `Source/BassoonVoice.{h,cpp}` + `Source/PluginProcessor.{h,cpp}` edits + `research/ARCHITECTURE.md` rev-note backfill + 5 planning artefacts (CONTEXT-rev-2 / RESEARCH-rev-2 / PLAN-rev-2 / SUMMARY-rev-2 / VERIFICATION-rev-2 / STATUS update) on Gate 2 PASS only. Subject pattern: `feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`.
+
+**Working-tree starting state (locked from Phase 2.1 atomic commit `d1b3370` on `main`):**
+
+- `Source/ModeBank.{h,cpp}` — 16-mode pole-only resonator bank, integer-harmonic placeholder ratios, flat amplitudes, `setTone` no-op stub, `1/N` headroom scaler, isfinite NaN guard, Nyquist muting at `0.45 × fs`.
+- `Source/Exciter.{h,cpp}` — 5 ms half-sine × exp impulse, peak-normalised, class-level `std::array<float, 1024>` storage, no allocation at runtime. Phase 2.2 leaves untouched.
+- `Source/BassoonVoice.{h,cpp}` — per-sample render loop (`exciter → modeBank → adsr → addSample(L,R)`), pitch-bend ±2 semis (raw 14-bit), full state-reset on voice exit, NO APVTS reads / NO TuningEngine call. Phase 2.2 adds `setTone(float)` public method only.
+- `Source/PluginProcessor.{h,cpp}` — APVTS (10 params), 16-voice `juce::Synthesiser`, headless TuningEngine, NE drain BEFORE renderNextBlock at PluginProcessor.cpp:178 → :182. Phase 2.2 inserts tone smoother + voice dispatch BEFORE the NE drain.
+- `CMakeLists.txt` — sources unchanged at Phase 2.2 (no new files).
+- Build state: `O-Bassoon_VST3` + `O-Bassoon_AU` + `O-Bassoon_Standalone` install fresh post-Phase-2.1 commit; `auval -v aumu OBsn OuDv` SUCCESS; `pluginval --strictness 5` SUCCESS.
+
+---
+
+### Approach Decisions (rev-2)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Q1-rev-2 — Cycle scope** | **Phase 2.2 only** (single GSD cycle): partial-ratio replacement + formant-Gaussian amplitude shaping + `tone` APVTS wiring + A/B-vs-reference listening loop. Defers envelope/breath/vibrato/polyphony/NE to Phases 2.3-2.4. | A/B-vs-recording listening loop is the highest-uncertainty step Stage 0 staged into a dedicated phase. Merging with Phase 2.3 would dilute the listening signal (envelope + breath shape would confound timbre judgment). Single-cycle scope matches Phase 2.1 / O-Contrabass / O-Wind precedent. User-confirmed (all defaults). |
+| **Q2-rev-2 — APVTS wiring scope** | **Strict ROADMAP — only `tone` wired this cycle.** All other 9 APVTS parameters stay unread in voice DSP. `1/N` headroom scaler stays as in-cycle tuning constant (may be relaxed to 1/8 or 1/4 if formant + 1/k roll-off measurably reduces peak energy, but **not** replaced by an APVTS read). | Keeps the listening loop unconfounded by amplitude / envelope state. `output_gain` wiring at Phase 2.3 is the right home — at Phase 2.2 we're listening for timbre, not loudness. User-confirmed. |
+| **Q3-rev-2 — `tone` smoothing & dispatch** | **(a) Processor-level smoother.** Single `juce::SmoothedValue<float, ValueSmoothingTypes::Linear>` in `PluginProcessor`, 50 ms ramp, advanced once per block. Dispatched to every active voice via `voice->setTone(toneSmoothed)`. | Single source of truth for tone state across all voices. No per-voice phase drift on rapid sweeps. Cheaper (one smoother vs. 16). Matches O-Wind / O-Lyrica processor-level smoother precedent. User-confirmed. |
+| **Q4-rev-2 — Coefficient cadence for `tone`** | **(b) Throttled epsilon.** Recompute upper-half (k > 4) `R_k` only when `\|toneSmoothed - lastDispatchedTone\| > 0.001f` (epsilon roughly = 0.1 % of tone range). Throttle gate is at the processor dispatch site (skip the `voice->setTone` call when within epsilon). | Saves ~12 cos/exp evaluations per block when tone is static (the 99 % case during sustained playback). Empirically inaudible at the chosen epsilon — 0.1 % tone change = sub-cent T60 shift in upper modes. Matches family pattern; lazy-vs-eager recompute internal to ModeBank deferred to research-phase. User-confirmed. |
+| **Q5-rev-2 — Gate 2 PASS bar** | **(d) Ear-only A/B + Logic Channel EQ Analyzer.** Primary: hold C3 in Logic, switch between O-Bassoon and looped reference WAV, listen for "same neighborhood" timbre. Secondary: Logic stock Channel EQ in Analyzer mode overlay confirms peak in 400-600 Hz region on held C3. SPAN stays uninstalled. | Belt-and-braces. Ear catches timbre quality the spectrum misses; spectrum catches first-formant location quantitatively. Logic EQ Analyzer is free, already installed, and adequate for peak-region check. User-confirmed. |
+| **Q6-rev-2 — Iteration budget** | **(a) + (b).** Iterate inline at verify-phase (no replan loop). Ceiling at rev-3 — after that, ship with current partial table and document gap as v1.1 candidate per ARCHITECTURE Risk #2 Fallback 2 framing ("bassoon-inspired"). | ROADMAP says "2-3 iterations". Inline iteration matches Phase 2.1 manual-subset pattern (verify is where the listening happens; if it fails, tweak partials inline rather than reopen plan). rev-3 ceiling prevents endless polish — partial-table refinement is exactly the kind of work that's better served by a v1.1 dedicated phase if the v1.0 ear bar fails. User-confirmed. |
+| **Q7-rev-2 — Reference WAV canonical** | **`bassoon-c3-sustain-v1.wav` canonical primary;** `bassoon-c3-sustain-v2.wav` secondary cross-check. | Default to v1 (lower numbered, sourced first). Both files were archived in Phase 2.1 specifically as backup for each other. If v1's pitch/clip quality is unsuitable on first audition, fall back to v2. README at `research/reference-recordings/README.md` documents the audition checklist (octave-convention check D4 from Phase 2.1 RESEARCH still applies). User-confirmed (default — assumes v1 is canonical until first audition reveals otherwise). |
+| **Q8-rev-2 — 8-voice CPU early signal** | **Hold 8 keys in Logic-AU during verify.** Capture Logic CPU-meter reading, bar < 20 %. If exceeded, trigger ARCHITECTURE Risk #1 Fallback 1 (drop to 8 modes per voice) BEFORE finalising the partial table. | Free measurement (Logic CPU meter), early signal lets us swap to 8 modes pre-tune (cheap) rather than post-tune (expensive — partial table would need re-tuning for the reduced mode count). Voice cap (Phase 2.4) not in place yet, but `juce::Synthesiser` default polyphony allocates up to 16 voices on 16 simultaneous note-ons, and Logic-AU sends MIDI per held key. User-confirmed. |
+| **Q9-rev-2 — Atomic commit unit** | **Single Phase 2.2 atomic commit on Gate 2 PASS.** Subject: `feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`. Lands ModeBank + BassoonVoice + PluginProcessor edits + ARCHITECTURE.md rev-note backfill + 6 planning artefacts in ONE commit. | Mirrors Phase 2.1 / O-Contrabass / O-Lyrica precedent. Per-task commits break the gate-first principle (intermediate commits would land mid-tone-wiring with audible tone-sweep zipper noise — fails QUAL-01 mid-flight). User-confirmed. |
+| Throttle-gate location | **At the processor dispatch site** (skip `voice->setTone` when within epsilon), NOT inside `ModeBank::setTone`. | Keeps ModeBank's `setTone` unconditional — simpler invariant, easier unit-testing if we add tests later. Throttle is a transport-layer concern. |
+| `setTone` recompute path | **Lazy-on-next-setFundamental OR explicit-`applyToneChange`** — research-phase locks. Default fallback: explicit `applyToneChange()` called from the throttle-gate dispatch path, recomputes upper-half `R_k` immediately. | Deferred to research-phase to verify which form composes cleanly with Phase 2.1's pitch-bend-driven `setFundamental` re-trigger (don't want a latent tone update to surprise-fire mid-bend). |
+| Tone amplitude vs. T60 scope | **T60 scaling only** at Phase 2.2 (ARCHITECTURE.md spec). Per-mode amplitude `computeModeAmplitude(k, f0)` is f0-driven (formant-Gaussian + 1/k roll-off), NOT tone-driven. | Locks the architecture. `tone` controls damping (ring time of upper modes), not the spectral envelope shape. Spectral envelope is fundamental-frequency-dependent only. |
+| Mode-index convention for "k > 4" | **Zero-indexed:** mode indices 5-15 (i.e., k > 4 means k ∈ {5, 6, ..., 15}). Modes 0-4 (the formant-region modes) are NOT tone-scaled. | ARCHITECTURE.md uses zero-indexed `k` throughout (lines 374-382 `computeModeAmplitude(int k, ...)` is zero-indexed). Lock here to avoid off-by-one when implementing. |
+
+---
+
+### Open Questions (handed to research-phase) — rev-2
+
+1. **`juce::SmoothedValue<float, ValueSmoothingTypes::Linear>` block-rate advance idiom.** What's the canonical JUCE 8.0.4 pattern for advancing once per block when the smoothed value is consumed at block start (not per-sample)? Options: (a) `getNextValue()` then `skip(numSamples - 1)`, (b) explicit loop calling `getNextValue()` numSamples times and using the last, (c) `skip(numSamples)` then `getCurrentValue()`. Confirm the no-allocation form. Lookup: `/Users/taylorbrook/JUCE/modules/juce_audio_basics/utilities/juce_SmoothedValue.h`. Output: cite line numbers; pick the cheapest correct form for processor-level dispatch. Cross-check O-Wind `Source/PluginProcessor.cpp` SmoothedValue usage for family precedent.
+
+2. **Tone recompute path inside ModeBank — lazy vs. explicit.** Two designs:
+   - (lazy) `setTone(t)` stores the value, marks dirty; next `setFundamental(f0)` reads dirty + tone and recomputes everything together. Tone changes alone never trigger a recompute.
+   - (explicit) `setTone(t)` stores the value AND immediately recomputes upper-half `R_k` (modes 5-15) using cached f0 and Q (no exp/cos for theta — those depend on f0 only). `setFundamental(f0)` does a full recompute. Two recompute paths; tone alone fires the cheaper one.
+   
+   The (lazy) form is simpler but couples tone responsiveness to pitch updates — a tone slider sweep on a held note (no pitch change) would not retake effect until the next `setFundamental` trigger (i.e., next note-on or pitch-bend). User-perceptible lag. Recommend (explicit). Research-phase verifies the recompute decomposition is correct (specifically: `R_k = exp(-1/(tau_k * fs))` only depends on tau_k and fs; theta depends on f_k = f0 × ratio; G = (1-R) × amp depends on R and amp). At Phase 2.2 the per-mode `amp` is f0-dependent (formant-Gaussian) so changing R also forces a G recompute — but that's still cheaper than a full theta recompute. Output: lock the design, write the per-mode update sequence verbatim into the implementation skeleton.
+
+3. **Bassoon partial-ratio table verification.** ARCHITECTURE.md §"Bassoon Partial Table" (lines 357-362) gives the 16-element ratio table verbatim. Source for these specific values (Bassoon Operator blog? Kopp Reeds? Carillon DAFx? Author's curated set?) — verify the source and whether there's a "more correct" table from any of the references. If the table is the author's curated synthesis, document that explicitly. Output: RESEARCH.md notes the source + any candidate alternative table.
+
+4. **Formant-Gaussian peak normalisation across f0.** The amplitude weight `formantWeight = exp(-0.5 * dist^2)` peaks at `f_k == FORMANT_F1 == 475 Hz`. For a held C3 (130 Hz), the harmonic closest to 475 Hz is the 4th (520 Hz) — modest distance, modest weight. For a held C5 (523 Hz), the 1st partial IS the formant — full unity weight. For a held C1 (32.7 Hz), the closest partial is the 14th-15th — weight is ~0.3. Net effect: voice loudness varies with played pitch (low notes quieter, formant-peaking notes louder). Is this acceptable, or do we need per-note normalisation (sum of all `formantWeight × rollOff` over modes, then scale so the total equals a constant)? ARCHITECTURE.md is silent. Research-phase recommends a path: (a) accept the natural loudness variation (mirrors real bassoon, where low notes are physically quieter); (b) per-note total-weight normalisation; (c) hybrid — normalise within ±1 octave of formant, accept variation outside. Output: recommend (a) for v1.0; document; revisit at Phase 2.3 when `breath` provides user-controllable loudness.
+
+5. **`1/N` headroom scaler retention vs. relaxation.** With formant-Gaussian + 1/k roll-off, peak amplitude per voice is bounded by max single-mode peak gain × per-mode amp at formant. Empirically: at C3, the 3rd-4th harmonic falls at 390-520 Hz with formant-weight ≈ 0.97-0.99 × roll-off ≈ 0.5-0.4 = effective amp 0.4-0.49. The biquad has unity peak gain by construction (G = (1-R)×amp), so peak voice output ≈ ~0.5 single-mode + smaller contributions from neighbors ≈ 0.6-0.7 mono peak, which means 16-mode sum is far from `NUM_MODES`-times-unity. The `1/16` scaler is overcorrected by ~6-10 dB once the partial table is tuned. Relax to `1/8` or `1/4`? Or leave alone and let Phase 2.3's `output_gain` (default 0 dB) pull loudness up via `breath`-default-0.7? Research-phase: estimate the empirical peak, recommend the scaler value (or stay at `1/N`), and document reasoning. Output: locked scaler value or "stay 1/16, Phase 2.3 wiring fixes loudness".
+
+6. **Logic Channel EQ Analyzer — peak-region readout protocol.** Logic's stock Channel EQ has an Analyzer mode that overlays the input spectrum on the EQ curve. To verify "peak in 400-600 Hz at held C3", the protocol is: insert Channel EQ post-O-Bassoon, set EQ to flat (or bypass — confirm Analyzer works in bypass), hold C3 sustained, observe spectrum overlay, confirm visible peak in 400-600 Hz region. Verify the Analyzer's frequency-axis reads in Hz with sufficient resolution to read 400-600 Hz peaks (vs. log-axis with cluttered low-end labels). Document the procedure including screenshot capture for archival (mirrors Phase 2.1 dropped item 10 — Phase 2.2 captures one for the as-shipped state). Output: RESEARCH.md notes the exact protocol + any Analyzer-mode caveats.
+
+7. **`tone = 0` woody / `tone = 1` bright — qualitative descriptors clarification.** ARCHITECTURE.md says `mix(0.3, 1.5, tone)` for upper-mode T60 scaling. At `tone = 0`, upper modes decay 3× faster (T60 × 0.3) — they damp out almost immediately, leaving only the formant-region modes ringing → "woody, dark." At `tone = 1`, upper modes decay 50 % slower (T60 × 1.5) — sustained brightness from upper harmonics. Verify the math: at BASE_T60[8] = 0.8 s × 0.3 = 0.24 s ring at tone=0; × 1.5 = 1.2 s ring at tone=1. Audibility of T60 differences at the ~250 ms scale is well-documented (ear sensitivity for ringing decay differences is high). Confirm the descriptors map to listener perception, not a bug in the spec. Output: research-phase predicts the audible character at extremes; verify in plan-phase by checking O-Wind / O-Bowed precedents (similar T60-modulation tone controls).
+
+8. **Reference WAV pre-flight audition (D4 carry-forward).** Phase 2.1 RESEARCH flagged D4: VSCO C3 octave-convention check (the WAV may be labelled C3 but actually be C2 or C4 depending on source-library convention). Phase 2.1 dropped this from Gate 1 (item 10 + dropped) but Phase 2.2 needs it resolved. Audition the v1 WAV — what fundamental does it actually play? Use a tuner against a sustained section. If it's not C3 (130.8 Hz), update the README pitch annotation and re-source if needed. Output: RESEARCH.md confirms actual pitch + updates README if mismatch.
+
+9. **8-voice CPU measurement protocol in Logic-AU.** Phase 2.1 verified 1-voice CPU < 5 % via Logic CPU meter (Phase 2.1 Q8 + locked). For 8 voices, hold 8 keys simultaneously: Logic spawns 8 voices in O-Bassoon (since voice cap is 16 default). Logic CPU meter reads aggregate process-level CPU. Confirm the 20 % bar is measured against the same meter mode (System Performance Meter / Process bar — Phase 2.1 RESEARCH locked). Document the exact key combination (e.g., C3 chord-clusters across two octaves to ensure no voice-stealing). Output: RESEARCH.md notes the key set + reading method + any "8 voices vs. 8 simultaneous note-ons" subtlety.
+
+10. **ARCHITECTURE.md backfill format.** Phase 2.2 lands the bassoon-tuned partial table verbatim from ARCHITECTURE.md §"Bassoon Partial Table". If the partial values are shipped unchanged (rev-1 ratios), the backfill is just an append-rev-note "as-shipped Phase 2.2 — partial table values match §Bassoon Partial Table verbatim". If iteration revs the table (rev-2 / rev-3 listening loop changes any value), the backfill writes the new values into a §"Phase 2.2 As-Shipped Partial Table" subsection adjacent to the original spec. Decide format upfront so the verify-phase commit doesn't have to invent it. Output: RESEARCH.md locks the backfill template (filename, section heading, expected diff size).
+
+---
+
+### Risks (Phase 2.2-specific)
+
+1. **Partial table doesn't sound bassoon-like at rev-1 listening.** Highest-likelihood risk per ARCHITECTURE.md §"Implementation Risks" Risk #2 (MEDIUM). The partial values + formant location are research-derived hypotheses, not measured-from-recording. Mitigation: locked Q6-rev-2 inline iteration ceiling at rev-3; ARCHITECTURE Risk #2 Fallback 1 (two-register tables) is a structural option for rev-2/3; Fallback 2 (ship as "bassoon-inspired") is the soft-landing if rev-3 still fails the bar.
+
+2. **Tone sweep introduces zipper noise / clicks.** Phase 2.2 is the first APVTS-driven coefficient update — the smoothing and throttling are both new code paths. Mitigation: 50 ms `Linear` smoother (locked Q3-rev-2) + throttled-epsilon dispatch (locked Q4-rev-2 (b)); QUAL-01 verification at Gate 2 is a parameter-sweep listen-test. If zipper persists, fall back to per-block lerp between current and target coefficients (more code, but eliminates the throttle's discrete-step character).
+
+3. **8-voice CPU exceeds 20 %.** ARCHITECTURE.md estimates 16 % at 8 voices on M1 (within budget). Phase 2.2 adds formant-Gaussian + per-mode amp computation — modest per-voice cost, but the 16-mode coefficient recompute on every `setFundamental` (16 × ~10 flops) was already in Phase 2.1's budget. Phase 2.2's tone recompute (12 modes × ~3 flops if `R_k`-only path) is throttled. Mitigation: locked Q8-rev-2 early measurement; ARCHITECTURE Risk #1 Fallback 1 (8 modes per voice) BEFORE finalising the partial table if exceeded.
+
+4. **Loudness regression vs. Phase 2.1.** Phase 2.1's 16-flat-amplitude modes summed to peak ~3-5 (before `1/N` scaler), giving a roughly even-loudness output. Phase 2.2's formant-Gaussian + 1/k roll-off attenuates most modes — the post-`1/N` voice peak likely drops 6-10 dB below Phase 2.1's level. If the user perceives Phase 2.2 as "quieter than Phase 2.1," that's a regression even if technically expected. Mitigation: locked Q5-rev-2 (relax `1/N` to `1/8` or `1/4` if measured peak post-tuning is too low — research-phase Open Question #5 locks the value).
+
+5. **Tone `mix(0.3, 1.5, tone)` extremes sound artificial.** At `tone = 0`, T60 × 0.3 = 0.24 s for mode 8 — that's "thunk" decay, not "woody." If the upper-half modes damp too aggressively, the voice loses harmonic richness and starts to sound like a band-limited fundamental + formant only. Mitigation: research-phase Open Question #7 (qualitative descriptor clarification) flags this for ear-check at verify-phase rev-1; if confirmed, narrow the mix range (e.g., `mix(0.5, 1.3, tone)`) — small ARCHITECTURE.md deviation, document as Phase 2.2 deviation.
+
+6. **`tone` smoothing & dispatch latency.** 50 ms ramp + throttled-epsilon dispatch means a UI tone change takes ~50 ms to fully apply. For most users this is imperceptible (they're sweeping the knob over hundreds of ms). For DAW automation, 50 ms is sub-block-rate and fine. For a user expecting instant feedback, 50 ms could feel "soggy." Mitigation: 50 ms is the ARCHITECTURE.md spec — don't deviate without listening evidence. If post-listen the response feels too slow, reduce to 25 ms (likely zipper-prone) and re-verify.
+
+7. **Reference WAV pitch mismatch (D4 carry-forward).** v1 WAV may not actually play C3 (130.8 Hz) if the source library uses a non-standard octave convention. Mitigation: locked research-phase Open Question #8 — audition with tuner; re-annotate or re-source if mismatch.
+
+8. **ARCHITECTURE.md backfill drift from as-shipped values.** If iteration revs the partial table, ARCHITECTURE.md must reflect the as-shipped state OR explicitly document the deviation. Risk: backfill is forgotten and ARCHITECTURE.md ends up out-of-sync with code. Mitigation: locked research-phase Open Question #10 + plan-phase task explicitly lists `research/ARCHITECTURE.md` as a Phase 2.2 atomic-commit deliverable; verify-phase grep checks the partial-ratio block in `Source/ModeBank.h` matches the values in ARCHITECTURE.md §"Bassoon Partial Table" (or its as-shipped subsection).
+
+---
+
+### Next Phase
+
+Ready for: **research** phase — `/plugin-research O-Bassoon 2-dsp`
+
+Research focus (Phase 2.2):
+
+1. **Resolve Open Questions #1–#10** — SmoothedValue block-rate idiom, ModeBank tone recompute path (lazy vs. explicit), bassoon partial-ratio source verification, formant-Gaussian peak normalisation, `1/N` scaler retention/relaxation, Logic EQ Analyzer protocol, tone descriptor verification, reference WAV pitch audition, 8-voice CPU protocol, ARCHITECTURE.md backfill format.
+2. **Pattern-confirm against O-Wind + O-Lyrica** — processor-level SmoothedValue dispatch loop pattern (cite `Source/PluginProcessor.cpp` exact lines for both); throttled-epsilon dispatch precedent if any (likely O-Wind for `breath` / `output_gain`).
+3. **Verify ARCHITECTURE.md §"Bassoon Partial Table" math** — `computeModeAmplitude(k, f0)` formula (lines 374-382), peak amplitude across MIDI 24-84 range, formant-weight × roll-off product at extreme f0 values; surface any latent issue before plan-phase commits to the implementation skeleton.
+4. **Pre-flight reference WAV audition** — load v1 in Logic, sustain a section, tuner-check fundamental, confirm C3 (or document the actual pitch + plan re-source if mismatch).
+5. **Append RESEARCH.md** at `plugins/O-Bassoon/.planning/stages/2-dsp/RESEARCH.md` (rev-2) with §1 (Open Questions resolved), §2 (Pattern Confirmations), §3 (Implementation Skeletons — ModeBank `setTone` + `computeModeAmplitude` + processor smoother dispatch), §4 (Discrepancies — anything that contradicts CONTEXT-rev-2 or ARCHITECTURE.md).
+
+After research: plan-phase writes Phase 2.2 task breakdown verbatim against this CONTEXT-rev-2 + research findings; execute-phase performs the implementation; verify-phase confirms Gate 2 listening + EQ-Analyzer protocol + 8-voice CPU + atomic commit.
+
+---
+
+### Audit Trail (rev-2 addendum)
+
+**rev-2 (this addendum, 2026-04-27):** Phase 2.2 opening — Bassoon Spectral Tuning + Tone Control. 9 user-confirmed approach decisions (Q1 Phase 2.2-only cycle, Q2 strict-ROADMAP `tone`-only wiring, Q3 processor-level smoother, Q4 throttled-epsilon coefficient cadence, Q5 ear + Logic EQ Analyzer Gate 2 bar, Q6 inline iteration with rev-3 ceiling, Q7 v1 WAV canonical, Q8 hold-8-keys CPU early signal, Q9 atomic commit on Gate 2 PASS) plus 4 derived (throttle gate at processor dispatch site, lazy-vs-explicit setTone recompute deferred to research, T60-only scope for tone, zero-indexed k > 4 convention). 10 open questions handed to research-phase: SmoothedValue idiom, setTone recompute decomposition, partial-ratio source, formant-peak normalisation across f0, `1/N` scaler relaxation, Logic EQ Analyzer protocol, tone descriptor verification, reference WAV pitch audition, 8-voice CPU protocol, ARCHITECTURE.md backfill format. 8 risks documented with mitigations.
+
+**Inherited verbatim from Phase 2.1 (not re-litigated):**
+- Per-sample render loop ordering (`exciter → modeBank → adsr → addSample`)
+- Centered equal L+R per-sample voice write
+- Mode-bank coefficient cadence trigger on note-on + pitch-bend (Phase 2.2 ADDS tone-change > epsilon as a third trigger)
+- NE drain BEFORE renderNextBlock at PluginProcessor.cpp:178 → :182
+- DSP-07 (no O-Reed dependency) verified at Stage 1
+- Reference WAVs archived at `research/reference-recordings/` (sourced during Phase 2.1)
+- Atomic-commit gate-first principle
+- Primary listening DAW: Logic Pro (AU)
+- DAW + tuner verification (no CLI render harness)
+
+**New in rev-2:**
+- Cycle scope = Phase 2.2 only (partial-table replacement + formant-Gaussian amplitudes + `tone` wiring + A/B listening)
+- One APVTS read added to processor (`tone`); voice DSP still reads zero APVTS directly
+- Processor-level `juce::SmoothedValue<float, ValueSmoothingTypes::Linear>` for `tone`, 50 ms ramp
+- Throttled-epsilon dispatch with epsilon = 0.001 (gate at processor dispatch site, NOT inside ModeBank)
+- Mode-index convention "k > 4" = zero-indexed modes 5-15
+- Gate 2 PASS bar: ear-only A/B (primary) + Logic Channel EQ Analyzer overlay (secondary)
+- Inline iteration at verify-phase, ceiling at rev-3
+- Reference WAV canonical = v1; v2 = secondary cross-check
+- 8-voice CPU early signal (hold 8 keys in Logic-AU, < 20 % bar)
+- Atomic commit on Gate 2 PASS with subject `feat(O-Bassoon): Phase 2.2 spectral tuning + tone control - Gate 2 PASS`
+- ARCHITECTURE.md backfill (as-shipped partial table) is a Phase 2.2 atomic-commit deliverable
