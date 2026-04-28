@@ -24,6 +24,10 @@
         --string <E|A|D|G>                (Phase 2.2 R23; overrides --note to open-string MIDI 28/33/38/43)
         --detune-sweep <E|A|D|G>          (Phase 2.2 R23; ramps DETUNE_<X> from −1200→+1200¢ across the sustain phase)
         --note-sequence "MIDI:dur,..."    (Phase 2.2 R23; pre-built sequence, e.g. "28:1.5,33:1.5,38:1.5,43:1.5,28:1.5")
+        --vibrato                         (Phase 2.3 R29; MIDI 28 + VIBRATO_DEPTH=12¢ + VIBRATO_RATE=5 Hz + VIBRATO_ONSET=600 ms; sustain 2 s)
+        --slow-lfo                        (Phase 2.3 R29; MIDI 33 + SLOW_LFO_DEPTH=0.5 + SLOW_LFO_RATE=0.3 Hz; sustain 60 s)
+        --schelleng-stress                (Phase 2.3 R29; MIDI 28 + BOW_PRESSURE=7.0 + BOW_SPEED=0.05 + SLOW_LFO_DEPTH=1.0; sustain 30 s)
+        --macro-sweep                     (Phase 2.3 R29; MIDI 38 + EXPRESSION_MACRO ramps 0→1 across sustain; sustain 20 s)
         --out <wav=e1-max-sustain.wav>
         --json <json=e1-max-sustain.json>
 
@@ -31,13 +35,37 @@
       --string <X>            : string-<X>.wav / string-<X>.json
       --detune-sweep <X>      : detune-sweep-<X>.wav / detune-sweep-<X>.json
       --note-sequence ...     : note-sequence.wav / note-sequence.json
+      --vibrato               : vibrato.wav / vibrato.json
+      --slow-lfo              : slow-lfo.wav / slow-lfo.json
+      --schelleng-stress      : schelleng-stress.wav / schelleng-stress.json
+      --macro-sweep           : macro-sweep.wav / macro-sweep.json
+
+    Mode mutual-exclusion (Phase 2.3 R29 — pin #10): when multiple modes are
+    passed, precedence is macro-sweep > schelleng-stress > vibrato > slow-lfo
+    > Phase 2.2 modes (stiffness-sweep / detune-sweep / note-sequence / string).
+    Lower-priority flags are cleared with a warning.
 
     Pass-conditions (exit 0):
-      - sustained / stiffness-sweep: pass_nan && pass_peak && pass_blockTime && pass_rms.
-      - detune-sweep:                pass_nan && pass_peak && pass_blockTime && pass_rmsContinuity (≥0.90).
-      - note-sequence:               pass_nan && pass_peak && pass_blockTime
-                                     && pass_allSegmentsAudible (per-segment RMS > 1e-3)
-                                     && pass_rmsContinuityAtTransitions (≥0.50, 256-sample symmetric window).
+      - sustained / stiffness-sweep:  pass_nan && pass_peak && pass_blockTime && pass_rms.
+      - detune-sweep:                 pass_nan && pass_peak && pass_blockTime && pass_rmsContinuity (≥0.90).
+      - note-sequence:                pass_nan && pass_peak && pass_blockTime
+                                      && pass_allSegmentsAudible (per-segment RMS > 1e-3)
+                                      && pass_rmsContinuityAtTransitions (≥0.50, 256-sample window).
+      - vibrato:                      pass_nan && pass_peak && pass_blockTime
+                                      && pass_vibratoDepthInRange (peakDepthCents ∈ [10, 14])
+                                      && pass_onsetWindow (∈ [800, 1000] ms)
+                                      && pass_rateHzInRange (∈ [4.5, 5.5] Hz)
+                                      && pass_rmsContinuity (≥0.90).
+      - slow-lfo:                     pass_nan && pass_peak && pass_blockTime
+                                      && pass_breathingAudible (rmsByDecadePeakToPeakPct ≥ 0.05 — v1.0;
+                                         20% Phase 2.4 calibration target)
+                                      && pass_rmsContinuity (≥0.90)
+                                      && pass_clampEngagement (clampedDepthMean > 0.0).
+      - schelleng-stress:             pass_nan && pass_peak && pass_blockTime
+                                      && pass_noNaN && pass_clampEngaged (clampedDepthMean < 0.5).
+      - macro-sweep:                  pass_nan && pass_peak && pass_blockTime
+                                      && pass_rmsContinuity (≥0.85 — looser per macro-lift design)
+                                      && pass_rmsRampDirection (rmsRampPct ∈ [0.10, 0.30]).
 
   ==============================================================================
 */
@@ -48,12 +76,14 @@
 #include <juce_core/juce_core.h>
 
 #include "PluginProcessor.h"
+#include "BowedContrabassVoice.h"     // Phase 2.3 R29 — getActiveVoice() return type
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -76,6 +106,13 @@ struct Args
     char  stringOverride    = ' ';     // Phase 2.2 R23: 'E','A','D','G' or ' '
     char  detuneSweepString = ' ';     // Phase 2.2 R23: 'E','A','D','G' or ' '
     juce::String noteSequence;         // Phase 2.2 R23: "MIDI:dur,..." or empty
+
+    // Phase 2.3 R29 — modulator + macro modes (presence flags; mutually-exclusive
+    // ladder: macro-sweep > schelleng-stress > vibrato > slow-lfo > Phase 2.2 modes).
+    bool  vibratoMode       = false;
+    bool  slowLfoMode       = false;
+    bool  schellengStress   = false;
+    bool  macroSweep        = false;
 
     bool         outWavSet   = false;
     bool         outJsonSet  = false;
@@ -113,6 +150,14 @@ bool parseArgs (int argc, char** argv, Args& args)
     for (int i = 1; i < argc; ++i)
     {
         juce::String key (argv[i]);
+
+        // Phase 2.3 R29 — presence flags (no value). Detect BEFORE the value-
+        // consume gate so e.g. `--vibrato` at end of argv doesn't error out.
+        if      (key == "--vibrato")          { args.vibratoMode     = true; continue; }
+        else if (key == "--slow-lfo")         { args.slowLfoMode     = true; continue; }
+        else if (key == "--schelleng-stress") { args.schellengStress = true; continue; }
+        else if (key == "--macro-sweep")      { args.macroSweep      = true; continue; }
+
         if (i + 1 >= argc)
         {
             std::fprintf (stderr, "Missing value for %s\n", argv[i]);
@@ -194,8 +239,68 @@ int main (int argc, char** argv)
         if (! args.releaseSet) args.releaseSeconds = 2.0f;
     }
 
-    // Auto-rewrite default WAV/JSON filenames per mode (Phase 2.1c R18 + Phase 2.2 R23).
-    if (args.stiffnessSweep)
+    // Phase 2.3 R29 — Mode mutual-exclusion (pin #10 ladder). Precedence:
+    //   macro-sweep > schelleng-stress > vibrato > slow-lfo > Phase 2.2 modes.
+    // First-set wins; lower-priority flags are cleared with a warning so the
+    // harness is deterministic when the user combines multiple modes.
+    {
+        const bool any23Mode = args.vibratoMode || args.slowLfoMode
+                            || args.schellengStress || args.macroSweep;
+        if (any23Mode)
+        {
+            if (args.macroSweep)
+            {
+                if (args.schellengStress) std::fprintf (stderr, "warning: --macro-sweep takes precedence over --schelleng-stress\n");
+                if (args.vibratoMode)     std::fprintf (stderr, "warning: --macro-sweep takes precedence over --vibrato\n");
+                if (args.slowLfoMode)     std::fprintf (stderr, "warning: --macro-sweep takes precedence over --slow-lfo\n");
+                args.schellengStress = false;
+                args.vibratoMode     = false;
+                args.slowLfoMode     = false;
+            }
+            else if (args.schellengStress)
+            {
+                if (args.vibratoMode) std::fprintf (stderr, "warning: --schelleng-stress takes precedence over --vibrato\n");
+                if (args.slowLfoMode) std::fprintf (stderr, "warning: --schelleng-stress takes precedence over --slow-lfo\n");
+                args.vibratoMode = false;
+                args.slowLfoMode = false;
+            }
+            else if (args.vibratoMode)
+            {
+                if (args.slowLfoMode) std::fprintf (stderr, "warning: --vibrato takes precedence over --slow-lfo\n");
+                args.slowLfoMode = false;
+            }
+
+            // Phase 2.2 modes downgraded so Phase 2.3 modes always win.
+            if (args.stiffnessSweep)             { std::fprintf (stderr, "warning: Phase 2.3 mode disables --stiffness-sweep\n");  args.stiffnessSweep    = false; }
+            if (args.detuneSweepString != ' ')   { std::fprintf (stderr, "warning: Phase 2.3 mode disables --detune-sweep\n");      args.detuneSweepString = ' ';   }
+            if (args.noteSequence.isNotEmpty())  { std::fprintf (stderr, "warning: Phase 2.3 mode disables --note-sequence\n");     args.noteSequence.clear();        }
+            if (args.stringOverride != ' ')      { std::fprintf (stderr, "warning: Phase 2.3 mode disables --string\n");            args.stringOverride    = ' ';   }
+        }
+    }
+
+    // Auto-rewrite default WAV/JSON filenames per mode (Phase 2.1c R18 + Phase 2.2 R23
+    // + Phase 2.3 R29).
+    if (args.vibratoMode)
+    {
+        if (! args.outWavSet)  args.outWav  = "vibrato.wav";
+        if (! args.outJsonSet) args.outJson = "vibrato.json";
+    }
+    else if (args.slowLfoMode)
+    {
+        if (! args.outWavSet)  args.outWav  = "slow-lfo.wav";
+        if (! args.outJsonSet) args.outJson = "slow-lfo.json";
+    }
+    else if (args.schellengStress)
+    {
+        if (! args.outWavSet)  args.outWav  = "schelleng-stress.wav";
+        if (! args.outJsonSet) args.outJson = "schelleng-stress.json";
+    }
+    else if (args.macroSweep)
+    {
+        if (! args.outWavSet)  args.outWav  = "macro-sweep.wav";
+        if (! args.outJsonSet) args.outJson = "macro-sweep.json";
+    }
+    else if (args.stiffnessSweep)
     {
         if (! args.outWavSet)  args.outWav  = "e1-stiffness-sweep.wav";
         if (! args.outJsonSet) args.outJson = "e1-stiffness-sweep.json";
@@ -251,6 +356,56 @@ int main (int argc, char** argv)
             const float norm = static_cast<float> (args.activeStrings - 1) / 3.0f;
             p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
         }
+    }
+
+    // Phase 2.3 R29 — per-mode pre-build APVTS overrides. Each mode pins a
+    // canonical MIDI note + sustain/release defaults (user can still override
+    // via --note / --sustain / --release) plus the parameter values that
+    // exercise the modulator path under test.
+    auto setNorm = [&] (const char* paramId, float norm)
+    {
+        if (auto* p = proc.parameters.getParameter (paramId))
+            p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+    };
+
+    if (args.vibratoMode)
+    {
+        if (! args.noteSet)    args.midiNote        = 28;            // E1
+        if (! args.sustainSet) args.sustainSeconds  = 2.0f;
+        if (! args.releaseSet) args.releaseSeconds  = 1.0f;
+        setNorm ("VIBRATO_DEPTH", 12.0f / 50.0f);                    // 12¢
+        setNorm ("VIBRATO_RATE",  (5.0f - 0.1f) / 11.9f);            // 5 Hz
+        // VIBRATO_ONSET 600 ms with 0.5 skew (range 0–3000 ms): the skew
+        // mapping for AudioParameterFloat with skew k means
+        // norm = (val/range)^k → for skew=0.5 (square-root), norm = (val/range)^2.
+        setNorm ("VIBRATO_ONSET", std::pow (600.0f / 3000.0f, 1.0f / 0.5f));
+    }
+    else if (args.slowLfoMode)
+    {
+        if (! args.noteSet)    args.midiNote        = 33;            // A1
+        if (! args.sustainSet) args.sustainSeconds  = 60.0f;
+        if (! args.releaseSet) args.releaseSeconds  = 2.0f;
+        setNorm ("SLOW_LFO_DEPTH", 0.5f);
+        setNorm ("SLOW_LFO_RATE",  (0.3f - 0.05f) / 1.95f);          // 0.3 Hz
+    }
+    else if (args.schellengStress)
+    {
+        if (! args.noteSet)    args.midiNote        = 28;
+        if (! args.sustainSet) args.sustainSeconds  = 30.0f;
+        if (! args.releaseSet) args.releaseSeconds  = 2.0f;
+        // BOW_PRESSURE 7.0 (range 0.05–8.0, skew 0.5): norm = ((val-min)/range)^(1/skew)
+        setNorm ("BOW_PRESSURE",   std::pow ((7.0f - 0.05f) / 7.95f, 1.0f / 0.5f));
+        // BOW_SPEED 0.05 (range 0.02–1.5, skew 0.5).
+        setNorm ("BOW_SPEED",      std::pow ((0.05f - 0.02f) / 1.48f, 1.0f / 0.5f));
+        setNorm ("SLOW_LFO_DEPTH", 1.0f);
+    }
+    else if (args.macroSweep)
+    {
+        if (! args.noteSet)    args.midiNote        = 38;            // D2
+        if (! args.sustainSet) args.sustainSeconds  = 20.0f;
+        if (! args.releaseSet) args.releaseSeconds  = 2.0f;
+        // EXPRESSION_MACRO ramped per-block in render loop below (start at 0).
+        setNorm ("EXPRESSION_MACRO", 0.0f);
     }
 
     proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
@@ -331,6 +486,13 @@ int main (int argc, char** argv)
     int nanCount = 0;
     int infCount = 0;
 
+    // Phase 2.3 R29 — clampedDepthMean accumulator (--slow-lfo + --schelleng-stress modes).
+    // The voice's `lastSafeDepth` atomic is written each block at the top of
+    // step 2 (HR-4 unconditional) and updated to safeDepth post-clamp; the
+    // harness drains it once per block during the sustain phase.
+    double clampedDepthSum   = 0.0;
+    int    clampedDepthCount = 0;
+
     int sampleCursor = 0;
     bool noteOnSent  = false;
     bool noteOffSent = false;
@@ -366,6 +528,16 @@ int main (int argc, char** argv)
                                        :                                    "DETUNE_G";
             if (auto* p = proc.parameters.getParameter (paramId))
                 p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+        }
+
+        // Phase 2.3 R29 — per-block macro-sweep ramp (linear 0→1 across sustain phase).
+        if (args.macroSweep)
+        {
+            const float fraction = juce::jlimit (0.0f, 1.0f,
+                                                 static_cast<float> (sampleCursor)
+                                                 / static_cast<float> (juce::jmax (1, sustainSamples)));
+            if (auto* p = proc.parameters.getParameter ("EXPRESSION_MACRO"))
+                p->setValueNotifyingHost (fraction);
         }
 
         juce::MidiBuffer midi;
@@ -432,6 +604,18 @@ int main (int argc, char** argv)
                             ? static_cast<float> (std::sqrt (sumSq / static_cast<double> (count)))
                             : 0.0f;
             blockRmsHistory.push_back (rms);
+        }
+
+        // Phase 2.3 R29 — drain the voice's lastSafeDepth instrumentation atom
+        // for slow-LFO + Schelleng-stress modes. Read AFTER processBlock so the
+        // value reflects the wedge state computed during this block.
+        if ((args.slowLfoMode || args.schellengStress) && sampleCursor < sustainSamples)
+        {
+            if (auto* voice = proc.getActiveVoice())
+            {
+                clampedDepthSum += static_cast<double> (voice->getLastSafeDepth());
+                ++clampedDepthCount;
+            }
         }
 
         sampleCursor += thisBlock;
@@ -538,7 +722,12 @@ int main (int argc, char** argv)
                           / juce::jmax (juce::jmax (a, b), 1.0e-9f);
         rmsContinuityRatio = juce::jmin (rmsContinuityRatio, ratio);
     }
-    const bool passRmsContinuity = (rmsContinuityRatio >= 0.90f);
+    // Phase 2.3 R29 — per-mode rmsContinuity threshold: macro-sweep gets 0.85
+    // (looser; macro intentionally lifts loudness so adjacent-window ratios
+    // can drift slightly more than a steady-state sustained tone). All other
+    // modes use the unified 0.90 threshold (RESEARCH §16.7.4 + PLAN R31 step 5).
+    const float rmsContinuityThreshold = args.macroSweep ? 0.85f : 0.90f;
+    const bool  passRmsContinuity      = (rmsContinuityRatio >= rmsContinuityThreshold);
 
     // Mono sustain-phase view (channel 0) for note-sequence transition + segment audits.
     auto rmsOverMono = [&] (int s, int e) -> float
@@ -579,17 +768,231 @@ int main (int argc, char** argv)
             passAllSegmentsAudible = false;
     }
 
+    // ─── Phase 2.3 R29 — vibrato autocorrelation pitch-tracking (RESEARCH §16.7.1) ───
+    //
+    // Bass register requires sub-bin resolution that FFT bin-shift cannot achieve
+    // at the available window sizes; autocorrelation with parabolic interpolation
+    // around the peak τ delivers ~1¢ precision at MIDI 28 (E1, ~41.20 Hz).
+    float peakDepthCents        = 0.0f;
+    float vibratoRateHzMeasured = 0.0f;
+    int   onsetTimeMs           = 0;
+    juce::Array<juce::var> perCycleDeltaCents;
+
+    if (args.vibratoMode)
+    {
+        constexpr int    kAcWindowSize = 4096;
+        constexpr int    kAcHopSize    =  256;
+        constexpr int    kTauMin       =  400;        // pin #5 — covers ~110 Hz at sr=44100
+        constexpr int    kTauMax       = 1500;        // pin #5 — covers ~29 Hz at sr=44100
+        constexpr double kF0           = 41.20;       // E1 reference
+
+        const int analysisStart = static_cast<int> (1.0 * sampleRate);   // skip 1 s onset window
+        const int analysisEnd   = juce::jmin (totalSamples - kAcWindowSize - kTauMax,
+                                              sustainSamples);
+
+        std::vector<float> deltaCentsTrace;
+        const auto* mono = output.getReadPointer (0);
+
+        for (int sStart = analysisStart; sStart < analysisEnd; sStart += kAcHopSize)
+        {
+            // Energy of the base window (denominator term).
+            double energyBase = 0.0;
+            for (int i = 0; i < kAcWindowSize; ++i)
+                energyBase += static_cast<double> (mono[sStart + i]) * mono[sStart + i];
+            const double energyBaseSqrt = std::sqrt (juce::jmax (1.0e-12, energyBase));
+
+            // Find argmax R(τ) over [kTauMin, kTauMax].
+            double bestR    = -1.0;
+            int    bestTau  = kTauMin;
+            for (int tau = kTauMin; tau <= kTauMax; ++tau)
+            {
+                double sum = 0.0;
+                double e2  = 0.0;
+                for (int i = 0; i < kAcWindowSize; ++i)
+                {
+                    const double a = static_cast<double> (mono[sStart + i]);
+                    const double b = static_cast<double> (mono[sStart + i + tau]);
+                    sum += a * b;
+                    e2  += b * b;
+                }
+                const double r = sum / juce::jmax (1.0e-12, energyBaseSqrt * std::sqrt (e2));
+                if (r > bestR) { bestR = r; bestTau = tau; }
+            }
+
+            // Parabolic interpolation around bestTau for sub-sample resolution.
+            double tauPeak = static_cast<double> (bestTau);
+            if (bestTau > kTauMin && bestTau < kTauMax)
+            {
+                double y[3] = { 0.0, bestR, 0.0 };
+                for (int delta = -1; delta <= 1; delta += 2)
+                {
+                    const int tau = bestTau + delta;
+                    double sum = 0.0, e2 = 0.0;
+                    for (int i = 0; i < kAcWindowSize; ++i)
+                    {
+                        const double a = static_cast<double> (mono[sStart + i]);
+                        const double b = static_cast<double> (mono[sStart + i + tau]);
+                        sum += a * b;
+                        e2  += b * b;
+                    }
+                    const double r = sum / juce::jmax (1.0e-12, energyBaseSqrt * std::sqrt (e2));
+                    y[1 + delta] = r;
+                }
+                const double denom  = (y[0] - 2.0 * y[1] + y[2]);
+                const double tauOff = (std::abs (denom) > 1.0e-12) ? 0.5 * (y[0] - y[2]) / denom : 0.0;
+                tauPeak = static_cast<double> (bestTau) + tauOff;
+            }
+
+            const double freq  = sampleRate / juce::jmax (1.0, tauPeak);
+            const double cents = 1200.0 * std::log2 (freq / kF0);
+            deltaCentsTrace.push_back (static_cast<float> (cents));
+        }
+
+        // Peak-to-trough swing across the last ~3 vibrato cycles (≈600 ms at 5 Hz,
+        // 36 hops at hop=256).
+        if (deltaCentsTrace.size() >= 36)
+        {
+            const auto endIt   = deltaCentsTrace.end();
+            const auto startIt = endIt - 36;
+            const auto mm      = std::minmax_element (startIt, endIt);
+            peakDepthCents = 0.5f * (*mm.second - *mm.first);
+        }
+
+        // Onset time: first hop where |deltaCents| ≥ 80 % of peakDepthCents (pin #6).
+        if (peakDepthCents > 0.0f)
+        {
+            for (size_t hop = 0; hop < deltaCentsTrace.size(); ++hop)
+            {
+                if (std::abs (deltaCentsTrace[hop]) >= 0.8f * peakDepthCents)
+                {
+                    onsetTimeMs = static_cast<int> (1000.0f
+                        * (analysisStart + static_cast<int> (hop) * kAcHopSize)
+                        / static_cast<float> (sampleRate));
+                    break;
+                }
+            }
+        }
+
+        // Per-cycle delta-cents — sample at ~5 Hz cycle period (200 ms = 28 hops).
+        for (size_t hop = 0; hop < deltaCentsTrace.size(); hop += 28)
+            perCycleDeltaCents.add (juce::var (static_cast<double> (deltaCentsTrace[hop])));
+
+        // Crude rate estimate: zero-crossings of deltaCentsTrace over the analysis window.
+        int zc = 0;
+        for (size_t hop = 1; hop < deltaCentsTrace.size(); ++hop)
+            if ((deltaCentsTrace[hop - 1] >= 0.0f) != (deltaCentsTrace[hop] >= 0.0f))
+                ++zc;
+        const float analysisWindowSec = static_cast<float> (deltaCentsTrace.size())
+                                      * static_cast<float> (kAcHopSize) / static_cast<float> (sampleRate);
+        vibratoRateHzMeasured = (analysisWindowSec > 0.0f)
+                              ? 0.5f * static_cast<float> (zc) / analysisWindowSec
+                              : 0.0f;
+    }
+
+    // ─── Phase 2.3 R29 — rmsByDecade-derived metrics + clampedDepthMean ──────
+    auto computeRmsByDecade23 = [&] () -> juce::Array<juce::var>
+    {
+        juce::Array<juce::var> decades;
+        const int decileSamples = juce::jmax (1, sustainSamples / 10);
+        for (int d = 0; d < 10; ++d)
+        {
+            const int s0 = d * decileSamples;
+            const int s1 = juce::jmin (sustainSamples, (d + 1) * decileSamples);
+            double sumSq = 0.0;
+            int    count = 0;
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const auto* p = output.getReadPointer (ch);
+                for (int i = s0; i < s1; ++i)
+                {
+                    sumSq += static_cast<double> (p[i]) * p[i];
+                    ++count;
+                }
+            }
+            const double rms = (count > 0) ? std::sqrt (sumSq / static_cast<double> (count)) : 0.0;
+            decades.add (juce::var (rms));
+        }
+        return decades;
+    };
+
+    const float clampedDepthMean = (clampedDepthCount > 0)
+                                 ? static_cast<float> (clampedDepthSum / clampedDepthCount)
+                                 : 0.0f;
+
+    float rmsByDecadePeakToPeakPct = 0.0f;
+    float rmsRampPct               = 0.0f;
+    if (args.slowLfoMode || args.schellengStress || args.macroSweep)
+    {
+        const auto decades = computeRmsByDecade23();
+        float minD = std::numeric_limits<float>::max();
+        float maxD = 0.0f;
+        float sumD = 0.0f;
+        for (const auto& d : decades)
+        {
+            const float v = static_cast<float> (static_cast<double> (d));
+            if (v < minD) minD = v;
+            if (v > maxD) maxD = v;
+            sumD += v;
+        }
+        const float meanD = sumD / juce::jmax (1.0f, static_cast<float> (decades.size()));
+        rmsByDecadePeakToPeakPct = (meanD > 1.0e-9f) ? (maxD - minD) / meanD : 0.0f;
+
+        if (decades.size() >= 10)
+        {
+            const float first = static_cast<float> (static_cast<double> (decades[0]));
+            const float last  = static_cast<float> (static_cast<double> (decades[9]));
+            rmsRampPct = (first > 1.0e-9f) ? (last - first) / first : 0.0f;
+        }
+    }
+
+    // Phase 2.3 R29 — per-mode pass-condition flags.
+    const bool passVibratoDepthInRange = args.vibratoMode
+                                      && (peakDepthCents >= 10.0f && peakDepthCents <= 14.0f);
+    const bool passOnsetWindow         = args.vibratoMode
+                                      && (onsetTimeMs >= 800 && onsetTimeMs <= 1000);
+    const bool passRateHzInRange       = args.vibratoMode
+                                      && (vibratoRateHzMeasured >= 4.5f && vibratoRateHzMeasured <= 5.5f);
+
+    // pin #2 — v1.0 threshold softened from CONTEXT 20% → 5% to accommodate
+    // bass-register Schelleng wedge clamp behaviour. 20% deferred to Phase 2.4.
+    const bool passBreathingAudible = args.slowLfoMode && (rmsByDecadePeakToPeakPct >= 0.05f);
+    const bool passClampEngagement  = args.slowLfoMode && (clampedDepthMean > 0.0f);
+
+    const bool passSchellengPeak = args.schellengStress && (peak <= 1.0f);
+    const bool passNoNaN         = (nanCount == 0 && infCount == 0);
+    const bool passClampEngaged  = args.schellengStress && (clampedDepthMean < 0.5f);
+
+    const bool passRmsRampDirection = args.macroSweep
+                                   && (rmsRampPct >= 0.10f && rmsRampPct <= 0.30f);
+
     // Mode resolution + overall PASS criterion per mode.
     const bool isStiffnessSweep = args.stiffnessSweep;
     const bool isDetuneSweep    = (args.detuneSweepString != ' ');
     const bool isNoteSequence   = (! sequenceEvents.empty());
-    const char* modeStr = isStiffnessSweep ? "stiffness-sweep"
-                        : isDetuneSweep    ? "detune-sweep"
-                        : isNoteSequence   ? "note-sequence"
-                                           : "sustained";
+    const char* modeStr = args.macroSweep      ? "macro-sweep"
+                        : args.schellengStress ? "schelleng-stress"
+                        : args.vibratoMode     ? "vibrato"
+                        : args.slowLfoMode     ? "slow-lfo"
+                        : isStiffnessSweep     ? "stiffness-sweep"
+                        : isDetuneSweep        ? "detune-sweep"
+                        : isNoteSequence       ? "note-sequence"
+                                               : "sustained";
 
     bool overallPass;
-    if (isDetuneSweep)
+    if (args.vibratoMode)
+        overallPass = passNan && passPeak && passBlockTime
+                   && passVibratoDepthInRange && passOnsetWindow
+                   && passRateHzInRange && passRmsContinuity;
+    else if (args.slowLfoMode)
+        overallPass = passNan && passPeak && passBlockTime
+                   && passBreathingAudible && passRmsContinuity && passClampEngagement;
+    else if (args.schellengStress)
+        overallPass = passNan && passSchellengPeak && passBlockTime
+                   && passNoNaN && passClampEngaged;
+    else if (args.macroSweep)
+        overallPass = passNan && passPeak && passBlockTime
+                   && passRmsContinuity && passRmsRampDirection;
+    else if (isDetuneSweep)
         overallPass = passNan && passPeak && passBlockTime && passRmsContinuity;
     else if (isNoteSequence)
         overallPass = passNan && passPeak && passBlockTime
@@ -738,6 +1141,59 @@ int main (int argc, char** argv)
             decades.add (juce::var (static_cast<double> (rms)));
         }
         summary->setProperty ("rmsByDecade", juce::var (decades));
+    }
+
+    // ─── Phase 2.3 R29 — per-mode JSON schema additions (RESEARCH §16.7) ──────
+    if (args.vibratoMode)
+    {
+        summary->setProperty ("vibratoDepthSetting",      12.0);
+        summary->setProperty ("vibratoRateSetting",       5.0);
+        summary->setProperty ("vibratoOnsetMsSetting",    600);
+        summary->setProperty ("peakDepthCents",           static_cast<double> (peakDepthCents));
+        summary->setProperty ("vibratoRateHzMeasured",    static_cast<double> (vibratoRateHzMeasured));
+        summary->setProperty ("onsetTimeMs",              onsetTimeMs);
+        summary->setProperty ("perCycleDeltaCents",       juce::var (perCycleDeltaCents));
+        summary->setProperty ("rmsContinuityRatio",       static_cast<double> (rmsContinuityRatio));
+        summary->setProperty ("pass_vibratoDepthInRange", passVibratoDepthInRange);
+        summary->setProperty ("pass_onsetWindow",         passOnsetWindow);
+        summary->setProperty ("pass_rateHzInRange",       passRateHzInRange);
+        summary->setProperty ("pass_rmsContinuity",       passRmsContinuity);
+    }
+    else if (args.slowLfoMode)
+    {
+        summary->setProperty ("slowLfoDepthSetting",      0.5);
+        summary->setProperty ("slowLfoRateHzSetting",     0.3);
+        summary->setProperty ("rmsByDecade",              juce::var (computeRmsByDecade23()));
+        summary->setProperty ("rmsByDecadePeakToPeakPct", static_cast<double> (rmsByDecadePeakToPeakPct));
+        summary->setProperty ("clampedDepthMean",         static_cast<double> (clampedDepthMean));
+        summary->setProperty ("rmsContinuityRatio",       static_cast<double> (rmsContinuityRatio));
+        summary->setProperty ("pass_breathingAudible",    passBreathingAudible);
+        summary->setProperty ("pass_rmsContinuity",       passRmsContinuity);
+        summary->setProperty ("pass_clampEngagement",     passClampEngagement);
+    }
+    else if (args.schellengStress)
+    {
+        summary->setProperty ("bowPressureSetting",       7.0);
+        summary->setProperty ("bowSpeedSetting",          0.05);
+        summary->setProperty ("slowLfoDepthSetting",      1.0);
+        summary->setProperty ("peakPostMaster",           static_cast<double> (peak));
+        summary->setProperty ("clampedDepthMean",         static_cast<double> (clampedDepthMean));
+        summary->setProperty ("pass_peak",                passSchellengPeak);
+        summary->setProperty ("pass_noNaN",               passNoNaN);
+        summary->setProperty ("pass_clampEngaged",        passClampEngaged);
+    }
+    else if (args.macroSweep)
+    {
+        juce::DynamicObject::Ptr ramp (new juce::DynamicObject());
+        ramp->setProperty ("start", 0.0);
+        ramp->setProperty ("end",   1.0);
+        ramp->setProperty ("shape", "linear");
+        summary->setProperty ("macroRamp",                juce::var (ramp.get()));
+        summary->setProperty ("rmsByDecade",              juce::var (computeRmsByDecade23()));
+        summary->setProperty ("rmsRampPct",               static_cast<double> (rmsRampPct));
+        summary->setProperty ("rmsContinuityRatio",       static_cast<double> (rmsContinuityRatio));
+        summary->setProperty ("pass_rmsContinuity",       passRmsContinuity);
+        summary->setProperty ("pass_rmsRampDirection",    passRmsRampDirection);
     }
 
     juce::var summaryVar (summary.get());

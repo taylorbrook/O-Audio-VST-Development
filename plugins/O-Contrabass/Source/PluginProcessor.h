@@ -12,6 +12,8 @@
 #include <JuceHeader.h>
 #include "OContrabassMPESynthesiser.h"
 
+class BowedContrabassVoice;     // Phase 2.3 R29 forward decl — used by getActiveVoice()
+
 class OContrabassAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -46,6 +48,11 @@ public:
     //==============================================================================
     // APVTS — public so editor (and Stage 2 voice) can attach.
     juce::AudioProcessorValueTreeState parameters;
+
+    // Phase 2.3 R29 — accessor for harness clampedDepthMean instrumentation read.
+    // Returns the first (currently only) bowed voice; nullptr if synth is empty.
+    // Defined in PluginProcessor.cpp where BowedContrabassVoice is fully visible.
+    BowedContrabassVoice* getActiveVoice() noexcept;
 
     // NOTE: Do NOT declare getLatencySamples() here — it is non-virtual in JUCE 8.
     // Use setLatencySamples(N) inside prepareToPlay() instead.

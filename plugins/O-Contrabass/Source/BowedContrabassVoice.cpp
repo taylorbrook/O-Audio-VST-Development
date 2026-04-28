@@ -20,6 +20,16 @@ namespace
     constexpr float kBOpen[4]                 = { 1.0e-4f, 7.0e-5f, 5.0e-5f, 3.0e-5f };
     constexpr int   kMPerString[4]            = { 4, 3, 2, 1 };
     constexpr const char* kDetuneParamIds[4]  = { "DETUNE_E", "DETUNE_A", "DETUNE_D", "DETUNE_G" };
+
+    // Phase 2.3 locked constants (PLAN rev-7 preamble + RESEARCH §16).
+    constexpr float kVibratoRampSec      = 0.3f;                       // architecture line 125
+    constexpr float kVibratoFadeOutSec   = 0.150f;                     // architecture line 127
+    constexpr float kPressureLagRad      = 0.4014f;                    // 23° in radians
+    constexpr float kSchellengZ          = 0.5f;                       // dimensionless (RESEARCH §16.3)
+    constexpr float kSchellengR          = 0.5f;
+    constexpr float kSchellengDMu        = 0.60f;                      // bass μ_s − μ_d
+    constexpr float kAntiCorrPerDepth    = 0.13f;                      // Q5 anti-correlation guard
+    constexpr float kVibFactorScale      = -0.69314718056f / 1200.0f;  // -ln(2)/1200
 }
 
 BowedContrabassVoice::BowedContrabassVoice (juce::AudioProcessorValueTreeState* apvts)
@@ -77,6 +87,12 @@ void BowedContrabassVoice::noteStarted()
     // 5. Engage bow.
     bowModel.startBow (velocity);
     oversampling.reset();
+
+    // Phase 2.3 — re-arm vibrato S-curve onset; exit any prior fade-out (Q3).
+    // vibratoPhase NOT reset (sine-phase-carry contract); only the per-note
+    // onset envelope re-arms.
+    vibratoOnsetTimerSeconds   = 0.0f;
+    noteOffFadeOutTimerSeconds = -1.0f;
 }
 
 void BowedContrabassVoice::noteStopped (bool allowTailOff)
@@ -85,6 +101,11 @@ void BowedContrabassVoice::noteStopped (bool allowTailOff)
     {
         // Bow lifts; release ramp begins, voice stays active until energy decays.
         bowModel.stopBow();
+
+        // Phase 2.3 — start vibrato 150 ms linear fade-out. The
+        // `vibratoOnsetGateAtNoteOff` snapshot is captured one-shot in the
+        // per-sample loop the first time it sees the timer at 0.0f (pin #8).
+        noteOffFadeOutTimerSeconds = 0.0f;
     }
     else
     {
@@ -96,6 +117,12 @@ void BowedContrabassVoice::noteStopped (bool allowTailOff)
         oversampling.reset();
         previousStringIndex       = -1;
         crossfadeRemainingSamples = 0;
+
+        // Phase 2.3 — reset modulator state on hard stop.
+        vibratoOnsetTimerSeconds   = 0.0f;
+        vibratoOnsetGateAtNoteOff  = 0.0f;
+        noteOffFadeOutTimerSeconds = -1.0f;
+        lastSafeDepth.store (0.0f, std::memory_order_relaxed);
     }
 }
 
@@ -186,6 +213,28 @@ void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSiz
     activeStringIndex         = -1;
     previousStringIndex       = -1;
     crossfadeRemainingSamples = 0;
+
+    // ─── Phase 2.3 — modulator + macro state + smoothers ──────────────────────
+    // pin #4 — fresh notes get full onset envelope (per-note semantics; first
+    // note after prepareToPlay sees the configured VIBRATO_ONSET delay).
+    vibratoPhase                  = 0.0f;
+    vibratoOnsetTimerSeconds      = 0.0f;
+    vibratoOnsetGateAtNoteOff     = 0.0f;
+    noteOffFadeOutTimerSeconds    = -1.0f;          // sentinel: not in fade
+    slowLfoPhase                  = 0.0f;
+
+    // pin #9 — three SmoothedValues init at currentValue == targetValue == 0.0
+    // so getNextValue() returns 0.0f exactly until any non-zero target lands.
+    // This is the HR-3 IEEE 754 identity-arithmetic invariant: at modulators-
+    // off, x + 0.0 == x and x * 1.0 == x bit-exactly for all finite x.
+    macroSmoothed.reset (sr_internal, 0.020);
+    macroSmoothed.setCurrentAndTargetValue (0.0f);
+    slowLfoSpeedSmoothed.reset (sr_internal, 0.020);
+    slowLfoSpeedSmoothed.setCurrentAndTargetValue (0.0f);
+    slowLfoPressureSmoothed.reset (sr_internal, 0.020);
+    slowLfoPressureSmoothed.setCurrentAndTargetValue (0.0f);
+
+    lastSafeDepth.store (0.0f, std::memory_order_relaxed);
 }
 
 //==============================================================================
@@ -217,6 +266,103 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
             return;
         }
     }
+
+    // ─── Phase 2.3 — 7-Step Per-Block Evaluation Order (RESEARCH §16.6) ──────
+    //
+    // Step 1 — read raw APVTS atomics for the modulator + macro layer. The
+    // existing updateParametersFromAPVTS() already cached MPE position and
+    // configured frictionModel/strings; the 10 reads below feed the new
+    // modulator math without interfering with the existing cached state.
+    const float rawVibratoDepth   = parameters->getRawParameterValue ("VIBRATO_DEPTH")->load();
+    const float rawVibratoRate    = parameters->getRawParameterValue ("VIBRATO_RATE")->load();
+    const float rawVibratoOnsetMs = parameters->getRawParameterValue ("VIBRATO_ONSET")->load();
+    const float rawSlowLfoRate    = parameters->getRawParameterValue ("SLOW_LFO_RATE")->load();
+    const float rawSlowLfoDepth   = parameters->getRawParameterValue ("SLOW_LFO_DEPTH")->load();
+    const float rawMacro          = parameters->getRawParameterValue ("EXPRESSION_MACRO")->load();
+    const float rawBowSpeed       = parameters->getRawParameterValue ("BOW_SPEED")->load();
+    const float rawBowPressure    = parameters->getRawParameterValue ("BOW_PRESSURE")->load();
+    const float rawBowPos         = parameters->getRawParameterValue ("BOW_POSITION")->load();
+    const float rawBrightness     = parameters->getRawParameterValue ("BRIGHTNESS")->load();
+
+    // Step 2 — Schelleng wedge fMin/fMax/headroom/safeDepth/vibAntiCorr.
+    // pin #4 — write lastSafeDepth UNCONDITIONALLY before the HR-4 gate so the
+    // harness read view is well-defined every block.
+    lastSafeDepth.store (0.0f, std::memory_order_relaxed);
+
+    float safeDepth   = 0.0f;
+    float vibAntiCorr = 0.0f;
+    if (rawSlowLfoDepth > 0.0f)                                              // HR-4 gate
+    {
+        // Z = R = R_s = 0.5 dimensionless collapse (Euphonics §9.3.1; see
+        // RESEARCH §16.3 wedge formula derivation). β clamped to APVTS range.
+        const float beta = juce::jlimit (0.02f, 0.25f, rawBowPos);
+        const float fMax = (2.0f * kSchellengZ * rawBowSpeed)
+                         / juce::jmax (1.0e-6f, beta * kSchellengDMu);
+        const float fMin = (kSchellengZ * kSchellengZ * rawBowSpeed)
+                         / juce::jmax (1.0e-6f, 2.0f * kSchellengR * beta * beta * kSchellengDMu);
+        const float hUp  = (fMax - rawBowPressure) / juce::jmax (1.0e-6f, fMax);
+        const float hLo  = (rawBowPressure - fMin) / juce::jmax (1.0e-6f, fMin);
+        const float headroom = juce::jmin (hUp, hLo);
+        safeDepth   = juce::jlimit (0.0f, rawSlowLfoDepth, 0.8f * juce::jmax (0.0f, headroom));
+        vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;                   // Q5
+        lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+    }
+
+    // Step 3 — Slow-LFO phase advance + sin (HR-2 gate).
+    float slowLfoSpeedMod = 0.0f, slowLfoPressureMod = 0.0f;
+    if (rawSlowLfoDepth > 0.0f)                                              // HR-2 gate
+    {
+        slowLfoPhase += juce::MathConstants<float>::twoPi * rawSlowLfoRate
+                      * (static_cast<float> (numSamples) / static_cast<float> (sr_internal));
+        if (slowLfoPhase > juce::MathConstants<float>::twoPi)
+            slowLfoPhase -= juce::MathConstants<float>::twoPi;
+
+        slowLfoSpeedMod    = safeDepth * std::sin (slowLfoPhase);
+        slowLfoPressureMod = safeDepth * std::sin (slowLfoPhase + kPressureLagRad);
+    }
+
+    // Step 4 — apply slow-LFO multiplicatively to bow speed/pressure.
+    // At HR-2 zero depth, both mods are 0 → IEEE 754 identity-arithmetic.
+    const float bowSpeedAfterLfo    = rawBowSpeed    * (1.0f + 0.6f * slowLfoSpeedMod);
+    const float bowPressureAfterLfo = rawBowPressure * (1.0f + 0.5f * slowLfoPressureMod);
+
+    // Step 5 — layer EXPRESSION_MACRO multiplicatively (HR-3 IEEE 754 identity).
+    // pin #11 — setTargetValue UNCONDITIONAL each block (avoids state-machine
+    // complexity; covers 0=0 case via x+0=x exact / x*1=x exact).
+    // pin #7 — getNextValue() advances by one sample-tick; skip(jmax(0, n-1))
+    // catches up the rest of the block. jmax(0,...) guards numSamples==1
+    // (skip(-1) would underflow the smoother counter).
+    macroSmoothed.setTargetValue (rawMacro);
+    const float macroNow = macroSmoothed.getNextValue();
+    macroSmoothed.skip (juce::jmax (0, numSamples - 1));
+
+    const float effectiveBowSpeed        = bowSpeedAfterLfo    * (1.0f + 0.4f * macroNow);
+    const float effectiveBowPressure     = bowPressureAfterLfo * (1.0f + 0.6f * macroNow);
+    const float effectiveVibratoDepth    = rawVibratoDepth     * (1.0f + 0.3f * macroNow);
+    const float effectiveBrightnessHz    = rawBrightness + 500.0f * macroNow;
+    const float effectiveVibratoRate     = rawVibratoRate + vibAntiCorr;
+    const float effectiveVibratoOnsetSec = 0.001f * rawVibratoOnsetMs;
+
+    // Step 6 — push to bowModel + all-strings brightness. MPE pressure/timbre
+    // is consumed here (not in updateParametersFromAPVTS) so the macro layer
+    // is the single source of truth for the bowModel's setBowSpeed/Pressure
+    // pushes. At modulators-off this is byte-identical to Phase 2.2:
+    //   effectiveBowSpeed * mpeExpression == rawBowSpeed * mpeExpression
+    //   effectiveBowPressure * (0.5 + p*1.5) == rawBowPressure * (0.5 + p*1.5)
+    //   effectiveBrightnessHz == rawBrightness
+    {
+        const auto note = getCurrentlyPlayingNote();
+        const float mpePressure = note.pressure.asUnsignedFloat();
+        bowModel.setBowSpeed    (effectiveBowSpeed * mpeExpression);
+        bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f));
+        for (auto& s : strings)
+            s.setBrightness (effectiveBrightnessHz);
+    }
+
+    // Suppress unused-variable warnings for fields not consumed at this stage
+    // (Step 7 per-sample loop uses effectiveVibratoDepth / effectiveVibratoRate /
+    //  effectiveVibratoOnsetSec).
+    juce::ignoreUnused (rawVibratoOnsetMs);
 
     // 2. Per-block dispersion + detune update sequence (RESEARCH §15.4).
     const float stringStiffness = parameters->getRawParameterValue ("STRING_STIFFNESS")->load();
@@ -276,11 +422,76 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     // 6. Per-sample friction + 4-string bank loop at 2× rate.
     //    HARD RULE §15.9.5: use early-return on activeStringIndex (NOT
     //    unconditional sum) to preserve slot-0 bit-exact mix path.
+    //
+    //    Phase 2.3 — Step 7 of the 7-step evaluation order. Active-string-only
+    //    vibrato modulation per Q2 (idle strings cold-decoupled). HR-1 gates
+    //    the cents write at zero depth → modulators-off codepath byte-identical
+    //    to Phase 2.2. Vibrato phase counter + onset timer ALWAYS advance
+    //    (Q3 sine-phase-carry contract; HR-1 only gates the mix-write).
+    const float kVibPhaseDelta = juce::MathConstants<float>::twoPi
+                               * effectiveVibratoRate / static_cast<float> (sr_internal);
+    const float kPiOverRamp    = juce::MathConstants<float>::pi / kVibratoRampSec;
+    const float kInvSrInternal = 1.0f / static_cast<float> (sr_internal);
+
     for (int i = 0; i < numUp; ++i)
     {
         bowModel.updateEnvelope();
         const float v_bow = bowModel.getBowVelocity();
         const float F_bow = bowModel.getBowForce();
+
+        // ─── Step 7a — vibrato cents (active string only; HR-1 gated) ────────
+        float vibCents = 0.0f;
+        if (effectiveVibratoDepth > 0.0f)                                    // HR-1 gate
+        {
+            // pin #8 — one-shot capture of onset gate at fade-entry. The
+            // capture happens the first per-sample iteration the timer is
+            // exactly 0.0f (set by noteStopped(allowTailOff=true)). After
+            // capture the timer advances each sample; subsequent iterations
+            // use the linear-fade branch.
+            float gate;
+            if (noteOffFadeOutTimerSeconds == 0.0f)
+            {
+                // Compute current onset gate FIRST so the snapshot is correct.
+                const float elapsed = vibratoOnsetTimerSeconds - effectiveVibratoOnsetSec;
+                if      (elapsed <= 0.0f)              gate = 0.0f;
+                else if (elapsed >= kVibratoRampSec)   gate = 1.0f;
+                else                                   gate = 0.5f - 0.5f
+                                                            * std::cos (kPiOverRamp * elapsed);
+                vibratoOnsetGateAtNoteOff = gate;
+            }
+            else if (noteOffFadeOutTimerSeconds > 0.0f
+                  && noteOffFadeOutTimerSeconds < kVibratoFadeOutSec)
+            {
+                // Linear 150 ms fade-out from snapshot value to 0.
+                const float k = juce::jlimit (0.0f, 1.0f,
+                                              noteOffFadeOutTimerSeconds / kVibratoFadeOutSec);
+                gate = vibratoOnsetGateAtNoteOff * (1.0f - k);
+            }
+            else if (noteOffFadeOutTimerSeconds >= kVibratoFadeOutSec)
+            {
+                // Fade complete — vibrato silenced until next note-on re-arm.
+                gate = 0.0f;
+            }
+            else
+            {
+                // Standard onset path (sentinel −1 / not in fade).
+                const float elapsed = vibratoOnsetTimerSeconds - effectiveVibratoOnsetSec;
+                if      (elapsed <= 0.0f)              gate = 0.0f;
+                else if (elapsed >= kVibratoRampSec)   gate = 1.0f;
+                else                                   gate = 0.5f - 0.5f
+                                                            * std::cos (kPiOverRamp * elapsed);
+            }
+
+            vibCents = effectiveVibratoDepth * gate * std::sin (vibratoPhase);
+        }
+
+        // Phase counter + timers ALWAYS advance regardless of HR-1 gate.
+        vibratoPhase += kVibPhaseDelta;
+        if (vibratoPhase > juce::MathConstants<float>::twoPi)
+            vibratoPhase -= juce::MathConstants<float>::twoPi;
+        vibratoOnsetTimerSeconds += kInvSrInternal;
+        if (noteOffFadeOutTimerSeconds >= 0.0f)
+            noteOffFadeOutTimerSeconds += kInvSrInternal;
 
         float mixedSample = 0.0f;
 
@@ -292,15 +503,29 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
             const float oldGain = gains.first;
             const float newGain = gains.second;
 
-            // Per-sample setDelay BEFORE processSample (matches vibrato pattern).
-            // Gate on isSmoothing() to avoid steady-state delay-line state churn
-            // that could shift bit-exact regression for idle slots (§15.4 caveat).
+            // Phase 2.3 — vibrato modulates active slot in delay-samples space.
+            // Structure mirrors Phase 2.2: vibrato branch first (early-out at
+            // vibCents==0 keeps idle slots on the carry-forward isSmoothing
+            // path); branches DO NOT call getNextValue twice per iteration
+            // (HR-1 bit-exact: each branch consumes the smoother counter
+            // exactly once, matching Phase 2.2 verbatim at modulators-off).
             for (int s = 0; s < 4; ++s)
             {
-                if (detuneSmoothed[s].isSmoothing())
+                if (s == activeStringIndex && vibCents != 0.0f)
+                {
+                    const float detuneSamples  = detuneSmoothed[s].getNextValue();
+                    const float vibFactor      = std::exp (vibCents * kVibFactorScale);
+                    const float modulatedDelay = detuneSamples * vibFactor;
+                    strings[s].setDelaySamples (modulatedDelay);
+                }
+                else if (detuneSmoothed[s].isSmoothing())
+                {
                     strings[s].setDelaySamples (detuneSmoothed[s].getNextValue());
+                }
                 else
-                    detuneSmoothed[s].getNextValue();   // advance ramp without writing
+                {
+                    detuneSmoothed[s].getNextValue();
+                }
             }
 
             float oldOut = 0.0f, newOut = 0.0f;
@@ -321,14 +546,27 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
         }
         else
         {
-            // Standard path. Slot-0 bit-exact mix path: when activeStringIndex==0,
-            // mixedSample = strings[0].processSample(v_bow, F_bow, friction) verbatim.
+            // Standard path — slot-0 bit-exact mix path: when activeStringIndex==0
+            // AND vibCents==0 (HR-1 short-circuit) AND idle slots not smoothing,
+            // mixedSample = strings[0].processSample(v_bow, F_bow, friction)
+            // verbatim against Phase 2.2 regression bar.
             for (int s = 0; s < 4; ++s)
             {
-                if (detuneSmoothed[s].isSmoothing())
+                if (s == activeStringIndex && vibCents != 0.0f)
+                {
+                    const float detuneSamples  = detuneSmoothed[s].getNextValue();
+                    const float vibFactor      = std::exp (vibCents * kVibFactorScale);
+                    const float modulatedDelay = detuneSamples * vibFactor;
+                    strings[s].setDelaySamples (modulatedDelay);
+                }
+                else if (detuneSmoothed[s].isSmoothing())
+                {
                     strings[s].setDelaySamples (detuneSmoothed[s].getNextValue());
+                }
                 else
-                    detuneSmoothed[s].getNextValue();   // advance ramp without writing
+                {
+                    detuneSmoothed[s].getNextValue();
+                }
 
                 if (s == activeStringIndex)
                     mixedSample = strings[s].processSample (v_bow, F_bow, frictionModel);
@@ -367,34 +605,33 @@ void BowedContrabassVoice::updateParametersFromAPVTS()
     if (parameters == nullptr)
         return;
 
+    // Phase 2.3 NOTE: bow speed / pressure pushes to bowModel and brightness
+    // push to strings have moved into renderNextBlock Step 6 (after the 7-step
+    // modulator + macro evaluation order is run). This helper now reads the
+    // raw APVTS values that don't participate in the macro layering, plus the
+    // MPE-driven `effectivePosition` field still consumed by all 4 strings.
+
     // UPPER_SNAKE_CASE per parameter-spec.md (frozen contract).
-    float bowSpeed     = parameters->getRawParameterValue ("BOW_SPEED")->load();
-    float bowPressure  = parameters->getRawParameterValue ("BOW_PRESSURE")->load();
     float bowPos       = parameters->getRawParameterValue ("BOW_POSITION")->load();
     float rosin        = parameters->getRawParameterValue ("ROSIN")->load();
-    float brightness   = parameters->getRawParameterValue ("BRIGHTNESS")->load();
     float infSustain   = parameters->getRawParameterValue ("INFINITE_SUSTAIN")->load();
     float outputLevel  = parameters->getRawParameterValue ("OUTPUT_GAIN")->load();
 
-    // MPE pressure modulates pressure (Z); CC74 timbre modulates Y.
+    // MPE timbre modulates Y (bow position offset). MPE pressure (Z) is
+    // consumed in renderNextBlock Step 6 alongside macro-lifted bow pressure.
     auto note = getCurrentlyPlayingNote();
-    float mpePressure = note.pressure.asUnsignedFloat();
-    float mpeTimbre   = note.timbre.asSignedFloat();
+    float mpeTimbre = note.timbre.asSignedFloat();
 
-    float effectivePressure = bowPressure * (0.5f + mpePressure * 1.5f);
-    effectivePosition       = juce::jlimit (0.02f, 0.25f, bowPos + mpeTimbre * 0.05f);
-    float effectiveSpeed    = bowSpeed * mpeExpression;
+    effectivePosition = juce::jlimit (0.02f, 0.25f, bowPos + mpeTimbre * 0.05f);
 
-    bowModel.setBowSpeed (effectiveSpeed);
-    bowModel.setBowPressure (effectivePressure);
     frictionModel.setRosin (rosin);
 
-    // Push bow / brightness / sustain to all 4 strings — global parameters.
-    // STRING_STIFFNESS push happens in renderNextBlock (Step A) for clarity.
+    // Push bow position + sustain to all 4 strings — global parameters not
+    // touched by the macro layer. Brightness is pushed in renderNextBlock
+    // Step 6 (macro lifts it via +500·m Hz offset).
     for (auto& s : strings)
     {
         s.setBowPosition (effectivePosition);
-        s.setBrightness (brightness);
         s.setInfiniteSustain (infSustain);
     }
 

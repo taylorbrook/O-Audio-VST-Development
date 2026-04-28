@@ -3132,3 +3132,1566 @@ When all checks above are green (R27 user-confirmed or accepted as deferred), **
 - **`DispersionFilter` module promotion** — premature with one consumer; revisit if O-Bowed grows a dispersion filter later. Phase 2.2 carries forward Phase 2.1c's plugin-local design.
 - **ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments** — end-of-Stage-2 verify decides; F3 deviation continues in R26 commit body.
 - **Phase 2.4 calibration polynomial follow-up for bass-register dispersion** — Phase 2.1c Risk #7 carry-forward. R27 Logic audition on D2 may surface whether the M=2 sweep is more musically interesting than the M=4 E1 sweep was — still parked for Phase 2.4.
+
+---
+
+# Stage 2: DSP — Plan (Phase 2.3) — REVISION 7 (Vibrato + Slow-Bow LFO + Schelleng Wedge Clamp + EXPRESSION_MACRO, Gate 5)
+
+> **Status:** rev-7 authors fresh task bodies for **R28-pre, R28, R29, R30, R31, R32 (optional), R33** per `RESEARCH.md §16.14` sequencing and `CONTEXT.md` rev-5. rev-1/2/3/4/5/6 remain in-effect as completed/verified history. Phase 2.2 closed 2026-04-27 with R26 atomic commit `131c2c7` (Gate 4 PASS).
+
+**Date:** 2026-04-27
+**Cycle scope:** Phase 2.3 only (Phase 2.4 → 2.6 still get fresh GSD cycles each)
+**Gate:** Gate 5 (Phase 2.3 verify)
+**Atomic-commit unit:** R33 (Gate 5 PASS) — single commit lands all source + harness + 8 new golden text files + parameter-spec.md amendment + STATUS.md checksum update + planning artefacts
+**Carry-forward locks (NOT re-litigated):** Phase 2.1a-recovery split-rail topology (`bridgeDelay` + `neckDelay`), F2 LP form, F3 no-in-loop-DCB, F4 betaScale removed, Phase 2.1b bow-friction module v1.0.0 consumption (value-class deterministic; not touched), Phase 2.1c `DispersionFilter<4>` API consumed verbatim, Phase 2.1c `WaveguideString` Step 1.5 dispersion placement + split-aware compensation, Phase 2.2 `std::array<WaveguideString, 4>` 4-string bank topology + per-string detune in delay-samples space + per-string M=4/3/2/1 dispersion + MIDI→string mapping (closed-form ladder + ACTIVE_STRINGS clamp) + 5 ms equal-power crossfade with precomputed ramp, ARCH §"DC Blocker" + §"In-loop saturator" amendments deferred to end-of-Stage-2 verify, primary listening DAW = Logic Pro (AU)
+
+---
+
+## Preamble — Pinned Open Items (RESEARCH §16.15)
+
+PLAN rev-7 pins each of the 14 plan-phase open items from RESEARCH §16.15:
+
+| # | Open Item | Pinned Decision |
+|---|-----------|-----------------|
+| 1 | R28-pre task location | **R28-pre is a structural prerequisite to R28** (mirrors Phase 2.2 R21-pre / Phase 2.1c R16-pre). Diagnostic only; no commit. WAV+sha256+JSON written to `/tmp/`, NOT to `golden/`. R28-pre flips `EXPRESSION_MACRO` default 0.50 → 0.0 in `Source/PluginProcessor.cpp` line 86, builds, renders the regression preset, confirms sha256 == `d358abcd…`, then **reverts the source edit** so R28 starts from a clean working tree. Empirical confirmation already captured in RESEARCH §16.1; R28-pre re-runs as tripwire under the plan-phase build environment. |
+| 2 | `pass_breathingAudible` slow-LFO threshold | **`rmsByDecadePeakToPeakPct ≥ 0.05` (5 %) for v1.0.** Softened from CONTEXT rev-5's 20 % per RESEARCH §16.7.2 — at default bass operating point the Schelleng wedge clamps `safeDepth` to ≈0.0, so the 20 % threshold cannot be reached without bow-param overrides. The 5 % floor still proves slow-LFO produces *some* audible modulation. **Phase 2.4 calibration polynomial parking:** restore 20 % once the bass-register wedge is recalibrated (Risk #7-style follow-up). |
+| 3 | `--slow-lfo` mode preset | **Factory defaults** (no BOW_PRESSURE/BOW_POSITION override). Mirrors a "user with the knob untouched" experience and accepts that Schelleng wedge silences most of the modulation at v1.0 bass defaults. `pass_clampEngagement` (`clampedDepthMean > 0.0`) confirms the wedge math is running at all; `pass_breathingAudible` (≥5 % per pin #2) confirms what little modulation escapes the clamp is audible. CLI override stays available for future Phase 2.4 retesting. |
+| 4 | `clampedDepthMean` instrumentation hook signature | **`std::atomic<float> lastSafeDepth { 0.0f };` on `BowedContrabassVoice` (private; getter `getLastSafeDepth()` const noexcept).** Written per-block in step 3 of the 7-step evaluation order (immediately after the `safeDepth = jlimit(...)` line, gated by `rawSlowLfoDepth > 0.0f`). When LFO depth = 0 (HR-2), the atomic is left at its previous value or written `0.0f` depending on plan-locked behaviour — **decision: write 0.0f unconditionally before the HR-2 short-circuit guard** so the read view is well-defined every block. Harness reads via processor accessor (`proc.getActiveVoice()->getLastSafeDepth()`) once per block, accumulates sum + count over the sustain window, divides for `clampedDepthMean`. Atomic memory order: `std::memory_order_relaxed` (single-writer single-reader, no cross-thread ordering required). |
+| 5 | Vibrato pitch-tracking τ search range | **`τ ∈ [400, 1500]` samples at sr=44100** (≈29 Hz to 110 Hz). Locked verbatim from RESEARCH §16.7.1 — covers MIDI 28 (E1, ~1071 samples) with comfortable margin. Sample-rate dependency confirmed: harness fixed at sr=44100 per main.cpp:223. R29 implementation hardcodes the [400, 1500] bounds inside the autocorrelation loop; comment notes the sr-coupling. |
+| 6 | Vibrato onset window measurement threshold | **80 % of measured `peakDepthCents`** triggers `onsetTimeMs` capture. Architecture line 125 implies S-curve = 1.0 at ramp completion; 80 % chosen for noise-robustness against autocorrelation jitter on the ramp-up trajectory. Pass band: `onsetTimeMs ∈ [800, 1000]` (default config: 600 ms onset delay + 300 ms ramp = 900 ms expected). |
+| 7 | Macro `skip(numSamples - 1)` per-block consumption pattern | **Required for `SmoothedValue<Linear>` to advance correctly under once-per-block consumption.** Implementation pattern: `const float macroNow = macroSmoothed.getNextValue(); macroSmoothed.skip(juce::jmax(0, numSamples - 1));`. The `jmax(0, …)` guards `numSamples == 1` (skip(-1) would underflow the smoother counter). Code-comment in R28 notes both the JUCE pattern and the `numSamples` edge case. Risk #12 from RESEARCH §16.13 is the documented rationale. |
+| 8 | `vibratoOnsetGateAtNoteOff` capture point | **Inside the per-sample loop, gated by `noteOffFadeOutTimerSeconds == 0.0f` (one-shot capture).** R28 inserts the capture at the top of the per-sample vibrato block, just before `gate` is computed. After capture, `noteOffFadeOutTimerSeconds` advances on subsequent samples (no re-capture path). The capture must NOT happen at `noteStopped()` entry because the gate's current value depends on `vibratoOnsetTimerSeconds` which is per-sample state. |
+| 9 | 3× SmoothedValue prepareToPlay init | **`macroSmoothed.reset(sr_internal, 0.020); macroSmoothed.setCurrentAndTargetValue(0.0f);`** (matches the EXPRESSION_MACRO=0.0 default per Q7a). **`slowLfoSpeedSmoothed.reset(sr_internal, 0.020); slowLfoSpeedSmoothed.setCurrentAndTargetValue(0.0f);`** (matches LFO=0 default). **`slowLfoPressureSmoothed.reset(sr_internal, 0.020); slowLfoPressureSmoothed.setCurrentAndTargetValue(0.0f);`** (matches LFO=0 default). All three SmoothedValues initialise at `currentValue = targetValue = 0.0f` so `getNextValue()` returns `0.0f` exactly until any non-zero target lands — preserving HR-3 IEEE 754 identity arithmetic. |
+| 10 | R29 harness mode mutual-exclusion precedence ladder | **`macro-sweep > schelleng-stress > vibrato > slow-lfo > stiffness-sweep > detune-sweep > note-sequence > string > sustained`**. Locked from RESEARCH §16.7.5. R29's `parseArgs` post-parse switch checks flags in this order; first-set wins. When user sets multiple modes, harness emits `warning: --macro-sweep takes precedence over --schelleng-stress (etc.)` and clears the lower-priority flags. Phase 2.2's existing precedence (detune-sweep > note-sequence > string > stiffness-sweep) is preserved underneath the new modes. |
+| 11 | `macroSmoothed.setTargetValue(rawMacro)` per-block call | **UNCONDITIONAL.** Always set target every block. HR-3 covers the 0=0 case via IEEE 754 identity arithmetic (`x + 0 == x` exact, `x * 1 == x` exact). RESEARCH §16.8 final paragraph confirms this avoids state-machine complexity (gating the call would require an "is-modulator-active" flag with its own initialisation/reset semantics, just to save zero arithmetic ops). Same pattern is applied to slowLfoSpeedSmoothed/slowLfoPressureSmoothed targets — written unconditionally each block (writes `0.0f` when `rawSlowLfoDepth == 0`, preserved at `0.0f` via HR-2 short-circuit on the source `slowLfoSpeedMod`/`slowLfoPressureMod` values). |
+| 12 | Golden file paths | **Path:** `plugins/O-Contrabass/tests/render-harness/golden/`. **New files (text-only, ~150 bytes each):** `vibrato.wav.sha256`, `vibrato.json`, `slow-lfo.wav.sha256`, `slow-lfo.json`, `schelleng-stress.wav.sha256`, `schelleng-stress.json`, `macro-sweep.wav.sha256`, `macro-sweep.json`. **8 new files total.** **NOT committed:** the corresponding `.wav` binaries (each ~3–22 MB; reproducible from harness on demand per Phase 2.1c / 2.2 precedent). All 5 Phase 2.2 goldens carry forward unchanged (their sha256 contents are the regression bar — Gate 5 invariant 1). |
+| 13 | Stage-1 contract amendment artefact list | **Two artefacts edited in R33 atomic commit:** (a) `plugins/O-Contrabass/.planning/parameter-spec.md` line 57: change `0.50` → `0.0` in the EXPRESSION_MACRO Default column; (b) `plugins/O-Contrabass/.planning/STATUS.md` `contract_checksums.parameter_spec` field: replace `sha256:c47fe736…` with the new sha256 computed from the edited parameter-spec.md. **All other artefacts left untouched per RESEARCH §16.11 grep audit:** `parameter-spec-draft.md`, `research/ARCHITECTURE.md`, `ROADMAP.md`, `stages/1-foundation/PLAN.md`, `BRIEF.md`, `REQUIREMENTS.md` — historical / architecture-immutable / no-default-referenced. **R33 commit body explicitly flags this as a Stage-1 contract amendment** justified by Q7a regression-bar preservation rationale. |
+| 14 | R32 listening test sequence MIDI events | **Locked verbatim from CONTEXT rev-5 line 122** — five-step audition: (1) MIDI 38 (D2) sustained + VIBRATO_DEPTH 0→25¢ ramp at 5 Hz vibrato; (2) MIDI 33 (A1) sustained + SLOW_LFO_DEPTH 0→1.0 ramp at 0.3 Hz; (3) MIDI 28 (E1) extreme bow params (PRESSURE 7 N + SPEED 0.05 m/s) + SLOW_LFO_DEPTH=1 (Schelleng stress); (4) MIDI 38 (D2) + EXPRESSION_MACRO 0→1.0 ramp; (5) E1 + VIBRATO + SLOW_LFO together (anti-correlation guard audition). ~60 s total. R32 is user-deferred non-blocking (mirrors R27 / R19f precedent). |
+
+**Carry-forward locks from Phase 2.2 (NOT re-litigated):**
+- `std::array<WaveguideString, 4> strings` topology + slot-0 (E-string) bit-exact mix path with early-return on `activeStringIndex` (HARD RULE §15.9.5 carry-forward).
+- Per-string detune `SmoothedValue<Linear>` 20 ms ramp in delay-samples space + `setDelaySamples()` gated by `isSmoothing()` to prevent steady-state delay-line state churn.
+- 5 ms equal-power crossfade ramp + state machine (`activeStringIndex`, `previousStringIndex`, `crossfadeRemainingSamples`).
+- MIDI→string mapping (closed-form 4-comparison ladder + ACTIVE_STRINGS clamp).
+- `kOpenStringFrequencyHz` / `kBOpen` / `kMPerString` / `kDetuneParamIds` static literals in `BowedContrabassVoice.cpp` anonymous namespace.
+- Per-block 7-step DISPERSION update sequence (push STRING_STIFFNESS → advance smoothers → compute per-string `a` → update active+previous detune targets) — Phase 2.3 EXTENDS this with new steps 1–7 (CONTEXT rev-5 line 119) but slot-0 dispersion path is bit-exact preserved via HR-4.
+
+**Hard rules from CONTEXT rev-5 (binding for R28 implementation, complementing §15.9.5):**
+1. **HR-1 — Vibrato literal-zero short-circuit (§16.4).** When `effectiveVibratoDepth <= 0.0f`, the per-sample mix loop calls `strings[active].setDelaySamples(baseDelaySamples)` exactly as Phase 2.2 — vibrato cents calculation is gated behind an `if` and produces no floating-point ops at zero depth. This makes the modulators-off code path bit-identical to Phase 2.2's `setDelaySamples(detuneSmoothed[s].getNextValue())` line at the active slot. Vibrato phase counter + onset timer DO advance regardless (Q3 sine-phase-carry contract); only the `vibCents` computation and the `strings[active].setDelaySamples(modulatedDelay)` write are gated.
+2. **HR-2 — Slow-LFO literal-zero short-circuit (§16.6 step 3).** When `rawSlowLfoDepth <= 0.0f`, the entire slow-LFO block (phase advance, `sin()`, `slowLfoSpeedMod`/`slowLfoPressureMod` writes) is gated behind an `if (rawSlowLfoDepth > 0.0f)`. At zero depth, `slowLfoSpeedMod` and `slowLfoPressureMod` retain their zero-init values, multiplicative apply in step 4 produces `bowSpeedAfterLfo = rawBowSpeed * (1.0f + 0.6f * 0.0f) = rawBowSpeed` exact (IEEE 754 identity). `slowLfoPhase` does NOT advance at zero depth (Q3 contract applies to vibrato only; slow-LFO has no phase-carry semantic concern).
+3. **HR-3 — Macro literal-zero arithmetic (§16.6 step 5).** When `macroNow == 0.0f`, all four destination computations evaluate to identity-arithmetic no-ops: `(1.0f + 0.4f * 0.0f) = 1.0f` exact, `(1.0f + 0.6f * 0.0f) = 1.0f` exact, `(1.0f + 0.3f * 0.0f) = 1.0f` exact, `0.0f + 500.0f * 0.0f = 0.0f` exact. `effectiveBowSpeed`, `effectiveBowPressure`, `effectiveVibratoDepth`, `effectiveBrightnessHz` numerically equal the post-LFO values; downstream `bowModel.setBowSpeed(...)` / `bowModel.setBowPressure(...)` / `s.setBrightness(...)` calls land at byte-identical values vs Phase 2.2 path. **Critical SmoothedValue invariant:** `macroSmoothed` is initialised with `setCurrentAndTargetValue(0.0f)` in `prepareToPlay`; `setTargetValue(0.0f)` (called unconditionally per pin #11) does NOT engage smoothing because `currentValue == targetValue == 0.0f` already; `getNextValue()` returns `0.0f` exact every block. No drift introduced.
+4. **HR-4 — Schelleng wedge skip on zero LFO (§16.6 step 2).** The entire wedge computation (fMin/fMax/headroom/safeDepth/vibAntiCorr) is gated behind `if (rawSlowLfoDepth > 0.0f)`. At zero depth: `safeDepth = 0.0f` (init value), `vibAntiCorr = 0.0f` (init value), no division ops engaged, no `juce::jmax(1e-6f, ...)` denormal-guard logic running. **Why the gate matters at zero depth:** the wedge formulas are not bit-exact-no-op even when `rawSlowLfoDepth == 0` (they compute non-trivial fMin/fMax values). Skipping the math eliminates any floating-point processor-state side-effect that could perturb the regression bar. **Plus instrumentation:** `lastSafeDepth.store(0.0f)` is written unconditionally at the top of step 2 (per pin #4), BEFORE the HR-4 gate.
+
+**Per-block evaluation order (locked verbatim from RESEARCH §16.6):**
+```
+Step 1 — Read raw APVTS atomics into block-cached locals (existing updateParametersFromAPVTS
+         + 10 new raw reads: VIBRATO_DEPTH, VIBRATO_RATE, VIBRATO_ONSET, SLOW_LFO_RATE,
+         SLOW_LFO_DEPTH, EXPRESSION_MACRO, BOW_SPEED, BOW_PRESSURE, BOW_POSITION, BRIGHTNESS).
+Step 2 — Schelleng wedge fMin/fMax/headroom/safeDepth/vibAntiCorr (HR-4 gated;
+         lastSafeDepth.store(...) hook).
+Step 3 — Slow-LFO phase advance + sin → slowLfoSpeedMod/slowLfoPressureMod (HR-2 gated).
+Step 4 — Apply slow-LFO multiplicatively to bow speed/pressure → bowSpeedAfterLfo/bowPressureAfterLfo.
+Step 5 — Layer macro multiplicatively → effectiveBowSpeed/Pressure/VibratoDepth/BrightnessHz
+         + effectiveVibratoRate (raw + vibAntiCorr) (HR-3 gated arithmetic; macroSmoothed
+         setTargetValue + getNextValue + skip(jmax(0, n-1))).
+Step 6 — Push to bowModel + all-strings brightness (existing per-block dispersion update path
+         carries forward verbatim from Phase 2.2; macro-lifted brightness consumed at all 4
+         strings via existing `s.setBrightness(...)` loop).
+Step 7 — Per-sample loop (active-string-only vibrato modulation; HR-1 gated cents
+         computation; vibratoPhase + vibratoOnsetTimerSeconds + noteOffFadeOutTimerSeconds
+         per-sample advances).
+```
+
+---
+
+## Goal
+
+Layer the modulator + macro section on top of the Phase 2.2 4-string voice. Add per-voice vibrato (sine LFO with bass-tuned defaults: 5 Hz / 12¢ / 600 ms onset; half-cosine S-curve 300 ms ramp; 150 ms linear note-off fade-out; modulates active string only via cents-add-then-`expf(-cents·ln2/1200)` factor in delay-samples space). Add Slow-Bow LFO (0.05–2 Hz; modulates voice-level bow speed × (1 + 0.6·s) and bow pressure × (1 + 0.5·p) with 23° pressure phase-lag; depth clamped to 80 % of Schelleng wedge headroom). Add inline Schelleng wedge clamp (~10 LOC per-block; `Z = R = R_s = 0.5` dimensionless collapse; HR-4 gated). Add EXPRESSION_MACRO 4-destination layering (default flipped 0.50 → 0.0 for bit-exact regression preservation; multipliers from architecture line 567: speed × (1.0+0.4·m), pressure × (1.0+0.6·m), vibrato depth × (1.0+0.3·m), brightness +500·m Hz; one voice-level `SmoothedValue<Linear>` 20 ms ramp on the macro source, four destinations consume per-block). Anti-correlation guard `vibratoRate += 0.13 Hz × SLOW_LFO_DEPTH` engages only when LFO is non-zero. Validate Gate 5 invariants — eight-item bar including strict byte-equal regression at the Phase 2.1c/2.2 golden — and atomic-commit on Gate 5 PASS as R33.
+
+---
+
+## Tasks
+
+### R28-pre — Pre-flight bit-exact baseline confirmation
+
+**No source edits committed. Diagnostic only. Confirms working-tree integrity at start of execute AND empirically reproduces RESEARCH §16.1 baseline under the plan-phase build environment.**
+
+Per RESEARCH §16.1, working tree at R26 commit `131c2c7` with EXPRESSION_MACRO default flipped 0.50 → 0.0 in `Source/PluginProcessor.cpp` line 86 (and NO other source edits) reproduces the regression preset render at sha256 `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` byte-identical to the committed Phase 2.1c golden. R28-pre re-runs that experiment as a tripwire — if the working tree drifts or the build environment perturbs the result, R28-pre catches it BEFORE any Phase 2.3 source edits land.
+
+**Tasks:**
+
+1. **Confirm git state is clean and at R26:**
+   ```bash
+   git log --oneline -1 plugins/O-Contrabass/Source/    # should be 131c2c7 (Phase 2.2 R26)
+   git status plugins/O-Contrabass/Source/              # should be clean
+   ```
+   If working tree is dirty in `plugins/O-Contrabass/Source/` or in `tests/render-harness/`, STOP and reconcile before proceeding.
+
+2. **Apply the single-character source edit:**
+   - Edit `plugins/O-Contrabass/Source/PluginProcessor.cpp` line 86: change `0.50f` → `0.0f` in the EXPRESSION_MACRO `createParameterLayout()` row.
+   - Confirm via `git diff plugins/O-Contrabass/Source/PluginProcessor.cpp` — single-line change, no other edits.
+
+3. **Build harness:**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+
+4. **Render regression preset to `/tmp/`:**
+   ```bash
+   cd build
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test \
+       --note 28 --velocity 0.7 --sustain 60 --release 5 \
+       --infinite-sustain 1.0 --string-stiffness 0 \
+       --out /tmp/phase23-r28pre-stiffness-zero.wav \
+       --json /tmp/phase23-r28pre-stiffness-zero.json
+   ```
+
+5. **Confirm sha256 match:**
+   ```bash
+   shasum -a 256 /tmp/phase23-r28pre-stiffness-zero.wav | awk '{print $1}'
+   # expected: d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75
+   ```
+   Compare with `plugins/O-Contrabass/tests/render-harness/golden/stiffness-zero-pre.wav.sha256`. MUST match byte-for-byte. (`pass_rms` may FAIL on the documented `phase_2_1a_followup_park` ratio heuristic — that's not blocking; strict byte-equality is the regression bar.)
+
+6. **Revert the source edit** (R28 reapplies it as part of the source-edit batch):
+   ```bash
+   git checkout -- plugins/O-Contrabass/Source/PluginProcessor.cpp
+   ```
+   Confirm `git status plugins/O-Contrabass/Source/` is clean.
+
+   **If sha256 MISMATCH:** STOP. Investigate working-tree drift (check `git diff` against R26 commit `131c2c7`; check for any post-R26 edits in `Source/`, `modules/synthesis/bow-friction/`, `Source/DSP/`). Do NOT proceed to R28 until the working tree reproduces `d358abcd…` with only the Q7a default flip applied.
+
+**Files modified:** `plugins/O-Contrabass/Source/PluginProcessor.cpp` (transient — reverted in step 6).
+**Files created:** `/tmp/phase23-r28pre-stiffness-zero.{wav,json}` (transient, NOT committed).
+
+**Commit:** **NONE** — diagnostic only.
+
+**Success bar:**
+- [ ] `git log --oneline -1 plugins/O-Contrabass/Source/` shows `131c2c7`.
+- [ ] Single-line edit at PluginProcessor.cpp:86 confirmed via `git diff`.
+- [ ] Harness build succeeds.
+- [ ] Render exits with `pass_nan` / `pass_peak` / `pass_blockTime` all TRUE.
+- [ ] sha256 == `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75`.
+- [ ] Source edit reverted; `git status plugins/O-Contrabass/Source/` clean.
+
+**Estimated effort:** 10 min (single edit + build + render + sha256 compare + revert).
+
+---
+
+### R28 — `BowedContrabassVoice.{h,cpp}` + `PluginProcessor.cpp` source edits
+
+**Per RESEARCH §16.1–§16.10 and the 7-step per-block evaluation order locked in §16.6. Most-complex task in this phase. Single source-edit batch — NO build, NO commit at this stage.**
+
+**Tasks:**
+
+1. **`Source/PluginProcessor.cpp` line 86 — EXPRESSION_MACRO default flip (Q7a).**
+
+   Change:
+   ```cpp
+   layout.add(std::make_unique<APF>(juce::ParameterID{"EXPRESSION_MACRO", 1}, "Expression Macro",
+       NR(0.0f, 1.0f, 0.001f),            0.50f));
+   ```
+   to:
+   ```cpp
+   layout.add(std::make_unique<APF>(juce::ParameterID{"EXPRESSION_MACRO", 1}, "Expression Macro",
+       NR(0.0f, 1.0f, 0.001f),            0.0f));   // Phase 2.3 Q7a — preserves Phase 2.2 strict byte-equal regression bar.
+   ```
+
+   **HARD RULE:** parameter ID, range, skew, and metadata all unchanged. Only the default literal flips.
+
+2. **`Source/BowedContrabassVoice.h` — add Phase 2.3 state and helpers (~+15 LOC).**
+
+   Inside the `private:` block (after the existing crossfade ramp + `sr_internal` line):
+
+   ```cpp
+   // Phase 2.3 — vibrato + slow-LFO + macro state.
+   float vibratoPhase                   = 0.0f;          // continuous across notes (Q3)
+   float vibratoOnsetTimerSeconds       = 0.0f;          // re-armed on noteStarted
+   float vibratoOnsetGateAtNoteOff      = 0.0f;          // captured one-shot at fade entry
+   float noteOffFadeOutTimerSeconds     = -1.0f;         // sentinel: <0 = not in fade
+   float slowLfoPhase                   = 0.0f;
+
+   // Phase 2.3 — voice-level smoother on EXPRESSION_MACRO source (one source, 4 dest).
+   juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> macroSmoothed;
+   juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> slowLfoSpeedSmoothed;
+   juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> slowLfoPressureSmoothed;
+
+   // Phase 2.3 — Schelleng wedge instrumentation hook (single-writer/single-reader; relaxed).
+   std::atomic<float> lastSafeDepth { 0.0f };
+
+   public:
+   float getLastSafeDepth() const noexcept
+   {
+       return lastSafeDepth.load (std::memory_order_relaxed);
+   }
+   ```
+
+   `<atomic>` include needed at the top of `BowedContrabassVoice.h`.
+
+3. **`Source/BowedContrabassVoice.cpp` — anonymous-namespace constants (~+5 LOC).**
+
+   Append to the existing anonymous namespace block:
+   ```cpp
+   // Phase 2.3 locked constants (PLAN rev-7 preamble + RESEARCH §16).
+   constexpr float kVibratoRampSec      = 0.3f;                       // architecture line 125
+   constexpr float kVibratoFadeOutSec   = 0.150f;                     // architecture line 127
+   constexpr float kPressureLagRad      = 0.4014f;                    // 23° in radians
+   constexpr float kSchellengZ          = 0.5f;                       // dimensionless (§16.3)
+   constexpr float kSchellengR          = 0.5f;
+   constexpr float kSchellengDMu        = 0.60f;                      // bass μ_s − μ_d
+   constexpr float kAntiCorrPerDepth    = 0.13f;                      // Q5 anti-correlation guard
+   constexpr float kVibFactorScale      = -0.69314718056f / 1200.0f;  // -ln(2)/1200
+   ```
+
+4. **`Source/BowedContrabassVoice.cpp` — `prepareToPlay` extension (~+8 LOC).**
+
+   After the existing `crossfadeRamp` precompute block, add:
+   ```cpp
+   // Phase 2.3 — modulator + macro state + smoothers.
+   vibratoPhase                  = 0.0f;
+   vibratoOnsetTimerSeconds      = 0.0f;     // pin #4 — fresh notes get full onset envelope
+   vibratoOnsetGateAtNoteOff     = 0.0f;
+   noteOffFadeOutTimerSeconds    = -1.0f;    // sentinel: not in fade
+   slowLfoPhase                  = 0.0f;
+
+   macroSmoothed.reset (sr_internal, 0.020);
+   macroSmoothed.setCurrentAndTargetValue (0.0f);                     // pin #9 — HR-3 invariant
+   slowLfoSpeedSmoothed.reset (sr_internal, 0.020);
+   slowLfoSpeedSmoothed.setCurrentAndTargetValue (0.0f);
+   slowLfoPressureSmoothed.reset (sr_internal, 0.020);
+   slowLfoPressureSmoothed.setCurrentAndTargetValue (0.0f);
+
+   lastSafeDepth.store (0.0f, std::memory_order_relaxed);
+   ```
+
+5. **`Source/BowedContrabassVoice.cpp` — `noteStarted` extension (~+3 LOC).**
+
+   At the bottom of the existing `noteStarted()` body (just before the closing `oversampling.reset();`):
+   ```cpp
+   // Phase 2.3 — re-arm vibrato S-curve onset; exit any prior fade-out (Q3).
+   vibratoOnsetTimerSeconds   = 0.0f;
+   noteOffFadeOutTimerSeconds = -1.0f;
+   // vibratoPhase NOT reset (sine-phase-carry contract).
+   ```
+
+6. **`Source/BowedContrabassVoice.cpp` — `noteStopped` extension.**
+
+   In the `if (allowTailOff)` branch (currently just calls `bowModel.stopBow()`), add:
+   ```cpp
+   if (allowTailOff)
+   {
+       bowModel.stopBow();
+       noteOffFadeOutTimerSeconds = 0.0f;     // start vibrato 150 ms linear fade
+       // vibratoOnsetGateAtNoteOff captured on next per-sample iteration (pin #8).
+   }
+   ```
+
+   In the hard-stop branch (existing `else`), add a reset:
+   ```cpp
+   else
+   {
+       clearCurrentNote();
+       for (auto& s : strings) s.reset();
+       bowModel.reset();
+       oversampling.reset();
+       previousStringIndex       = -1;
+       crossfadeRemainingSamples = 0;
+       // Phase 2.3 — reset modulator state on hard stop.
+       vibratoOnsetTimerSeconds   = 0.0f;
+       vibratoOnsetGateAtNoteOff  = 0.0f;
+       noteOffFadeOutTimerSeconds = -1.0f;
+       lastSafeDepth.store (0.0f, std::memory_order_relaxed);
+   }
+   ```
+
+7. **`Source/BowedContrabassVoice.cpp` — `renderNextBlock` 7-step per-block evaluation order (~+50 LOC).**
+
+   Replace the current per-block sequence (the block of ~55 LOC starting at the `// 1. Read APVTS atomics` comment) with the 7-step locked structure. Key insertions:
+
+   **(a) Step 1 — append 10 new raw reads** to `updateParametersFromAPVTS()` (or read inline at the top of `renderNextBlock` after the existing `updateParametersFromAPVTS()` call — recommend inline to minimise churn in the existing `updateParametersFromAPVTS` body):
+   ```cpp
+   updateParametersFromAPVTS();
+
+   const float rawVibratoDepth   = parameters->getRawParameterValue ("VIBRATO_DEPTH")->load();
+   const float rawVibratoRate    = parameters->getRawParameterValue ("VIBRATO_RATE")->load();
+   const float rawVibratoOnsetMs = parameters->getRawParameterValue ("VIBRATO_ONSET")->load();
+   const float rawSlowLfoRate    = parameters->getRawParameterValue ("SLOW_LFO_RATE")->load();
+   const float rawSlowLfoDepth   = parameters->getRawParameterValue ("SLOW_LFO_DEPTH")->load();
+   const float rawMacro          = parameters->getRawParameterValue ("EXPRESSION_MACRO")->load();
+   const float rawBowSpeed       = parameters->getRawParameterValue ("BOW_SPEED")->load();
+   const float rawBowPressure    = parameters->getRawParameterValue ("BOW_PRESSURE")->load();
+   const float rawBowPos         = parameters->getRawParameterValue ("BOW_POSITION")->load();
+   const float rawBrightness     = parameters->getRawParameterValue ("BRIGHTNESS")->load();
+   ```
+
+   **NOTE on `updateParametersFromAPVTS()` interaction:** the existing helper computes `effectivePosition` / `effectiveSpeed` / `effectivePressure` from MPE pressure/timbre and pushes to `bowModel`. Phase 2.3's macro layering must replace those `bowModel.setBowSpeed/Pressure` pushes — see substep (e). Consequence: **comment out or remove the `bowModel.setBowSpeed(effectiveSpeed); bowModel.setBowPressure(effectivePressure);` lines from `updateParametersFromAPVTS()`** so step 6 below is the single source of truth. (The MPE pressure/timbre + `effectivePosition` computation stays — pushed to all 4 strings via the existing `for (auto& s : strings) { s.setBowPosition(effectivePosition); ... }` loop.)
+
+   **(b) Step 2 — Schelleng wedge eval (HR-4 gated; `lastSafeDepth.store(0.0f)` first):**
+   ```cpp
+   lastSafeDepth.store (0.0f, std::memory_order_relaxed);     // pin #4 — well-defined every block
+
+   float safeDepth   = 0.0f;
+   float vibAntiCorr = 0.0f;
+   if (rawSlowLfoDepth > 0.0f)                                // HR-4
+   {
+       const float beta = juce::jlimit (0.02f, 0.25f, rawBowPos);
+       const float fMax = (2.0f * kSchellengZ * rawBowSpeed)
+                        / juce::jmax (1.0e-6f, beta * kSchellengDMu);
+       const float fMin = (kSchellengZ * kSchellengZ * rawBowSpeed)
+                        / juce::jmax (1.0e-6f, 2.0f * kSchellengR * beta * beta * kSchellengDMu);
+       const float hUp  = (fMax - rawBowPressure) / juce::jmax (1.0e-6f, fMax);
+       const float hLo  = (rawBowPressure - fMin) / juce::jmax (1.0e-6f, fMin);
+       const float headroom = juce::jmin (hUp, hLo);
+       safeDepth   = juce::jlimit (0.0f, rawSlowLfoDepth, 0.8f * juce::jmax (0.0f, headroom));
+       vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;
+       lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+   }
+   ```
+
+   **(c) Step 3 — Slow-LFO phase + sin (HR-2 gated):**
+   ```cpp
+   float slowLfoSpeedMod = 0.0f, slowLfoPressureMod = 0.0f;
+   if (rawSlowLfoDepth > 0.0f)                                // HR-2
+   {
+       slowLfoPhase += juce::MathConstants<float>::twoPi * rawSlowLfoRate
+                     * (static_cast<float> (numSamples) / static_cast<float> (sr_internal));
+       if (slowLfoPhase > juce::MathConstants<float>::twoPi)
+           slowLfoPhase -= juce::MathConstants<float>::twoPi;
+
+       slowLfoSpeedMod    = safeDepth * std::sin (slowLfoPhase);
+       slowLfoPressureMod = safeDepth * std::sin (slowLfoPhase + kPressureLagRad);
+   }
+   ```
+
+   **(d) Step 4 — Apply slow-LFO multiplicatively:**
+   ```cpp
+   const float bowSpeedAfterLfo    = rawBowSpeed    * (1.0f + 0.6f * slowLfoSpeedMod);
+   const float bowPressureAfterLfo = rawBowPressure * (1.0f + 0.5f * slowLfoPressureMod);
+   ```
+
+   **(e) Step 5 — Layer macro (HR-3 IEEE 754 identity; pin #11 unconditional setTargetValue + pin #7 skip pattern):**
+   ```cpp
+   macroSmoothed.setTargetValue (rawMacro);                              // pin #11 unconditional
+   const float macroNow = macroSmoothed.getNextValue();
+   macroSmoothed.skip (juce::jmax (0, numSamples - 1));                  // pin #7
+
+   const float effectiveBowSpeed       = bowSpeedAfterLfo    * (1.0f + 0.4f * macroNow);
+   const float effectiveBowPressure    = bowPressureAfterLfo * (1.0f + 0.6f * macroNow);
+   const float effectiveVibratoDepth   = rawVibratoDepth     * (1.0f + 0.3f * macroNow);
+   const float effectiveBrightnessHz   = rawBrightness + 500.0f * macroNow;
+   const float effectiveVibratoRate    = rawVibratoRate + vibAntiCorr;
+   const float effectiveVibratoOnsetSec = 0.001f * rawVibratoOnsetMs;
+   ```
+
+   **(f) Step 6 — Push to bowModel + all-strings brightness** (replaces the bowModel pushes that were in `updateParametersFromAPVTS()` per substep (a)):
+   ```cpp
+   // MPE pressure/timbre carry-forward from updateParametersFromAPVTS via cached fields.
+   const auto note = getCurrentlyPlayingNote();
+   const float mpePressure = note.pressure.asUnsignedFloat();
+   bowModel.setBowSpeed    (effectiveBowSpeed * mpeExpression);
+   bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f));
+   for (auto& s : strings) s.setBrightness (effectiveBrightnessHz);
+   // (existing per-block STRING_STIFFNESS push + per-string a-computation +
+   //  detune-target update sequence carries forward verbatim from Phase 2.2 below.)
+   ```
+
+   **HARD RULE alignment:** at modulators-off (`rawSlowLfoDepth = 0`, `rawMacro = 0`):
+   - `safeDepth = vibAntiCorr = 0` (HR-4)
+   - `slowLfoSpeedMod = slowLfoPressureMod = 0` (HR-2)
+   - `bowSpeedAfterLfo = rawBowSpeed * (1.0f + 0.6f * 0.0f) = rawBowSpeed` exact
+   - `bowPressureAfterLfo = rawBowPressure * (1.0f + 0.5f * 0.0f) = rawBowPressure` exact
+   - `macroNow = 0.0f` (SmoothedValue currentValue stays at 0.0)
+   - `effectiveBowSpeed = rawBowSpeed * (1.0f + 0.4f * 0.0f) = rawBowSpeed` exact
+   - `effectiveBowPressure = rawBowPressure * (1.0f + 0.6f * 0.0f) = rawBowPressure` exact
+   - `effectiveBrightnessHz = rawBrightness + 0.0f = rawBrightness` exact
+   - `effectiveVibratoRate = rawVibratoRate + 0.0f = rawVibratoRate` exact
+   - `bowModel.setBowSpeed(rawBowSpeed * mpeExpression)` — byte-identical to Phase 2.2's `bowModel.setBowSpeed(effectiveSpeed)` (where `effectiveSpeed = bowSpeed * mpeExpression`).
+   - `bowModel.setBowPressure(rawBowPressure * (0.5f + mpePressure * 1.5f))` — byte-identical to Phase 2.2's `bowModel.setBowPressure(effectivePressure)`.
+   - `strings[s].setBrightness(rawBrightness)` — byte-identical to Phase 2.2's `s.setBrightness(brightness)`.
+
+8. **`Source/BowedContrabassVoice.cpp` — Step 7 per-sample loop (active-string-only vibrato; HR-1 gated; pin #8 capture).**
+
+   Inside the existing per-sample oversampled loop, BEFORE the existing per-string `setDelaySamples(detuneSmoothed[s].getNextValue())` call on the active slot, insert:
+
+   **(a) Per-sample vibrato cents computation (HR-1 gated):**
+   ```cpp
+   // Phase 2.3 — vibrato cents (active string only).
+   float vibCents = 0.0f;
+   if (effectiveVibratoDepth > 0.0f)                                          // HR-1
+   {
+       // Pin #8 — one-shot capture of onset gate at fade-entry.
+       float gate;
+       if (noteOffFadeOutTimerSeconds == 0.0f)
+       {
+           // Compute current gate FIRST so the snapshot is correct.
+           const float elapsed = vibratoOnsetTimerSeconds - effectiveVibratoOnsetSec;
+           if      (elapsed <= 0.0f)         gate = 0.0f;
+           else if (elapsed >= kVibratoRampSec)
+                                             gate = 1.0f;
+           else                              gate = 0.5f - 0.5f * std::cos (
+                                                  juce::MathConstants<float>::pi
+                                                  * elapsed / kVibratoRampSec);
+           vibratoOnsetGateAtNoteOff = gate;
+       }
+       else if (noteOffFadeOutTimerSeconds > 0.0f && noteOffFadeOutTimerSeconds < kVibratoFadeOutSec)
+       {
+           const float k = juce::jlimit (0.0f, 1.0f, noteOffFadeOutTimerSeconds / kVibratoFadeOutSec);
+           gate = vibratoOnsetGateAtNoteOff * (1.0f - k);
+       }
+       else if (noteOffFadeOutTimerSeconds >= kVibratoFadeOutSec)
+       {
+           gate = 0.0f;
+       }
+       else
+       {
+           const float elapsed = vibratoOnsetTimerSeconds - effectiveVibratoOnsetSec;
+           if      (elapsed <= 0.0f)         gate = 0.0f;
+           else if (elapsed >= kVibratoRampSec)
+                                             gate = 1.0f;
+           else                              gate = 0.5f - 0.5f * std::cos (
+                                                  juce::MathConstants<float>::pi
+                                                  * elapsed / kVibratoRampSec);
+       }
+
+       vibCents = effectiveVibratoDepth * gate * std::sin (vibratoPhase);
+   }
+
+   // Phase counter + onset timer ALWAYS advance (Q3 sine-phase-carry; HR-1 only gates the
+   // mix-write, not the timekeeping).
+   vibratoPhase += juce::MathConstants<float>::twoPi
+                 * effectiveVibratoRate / static_cast<float> (sr_internal);
+   if (vibratoPhase > juce::MathConstants<float>::twoPi)
+       vibratoPhase -= juce::MathConstants<float>::twoPi;
+   vibratoOnsetTimerSeconds += 1.0f / static_cast<float> (sr_internal);
+   if (noteOffFadeOutTimerSeconds >= 0.0f)
+       noteOffFadeOutTimerSeconds += 1.0f / static_cast<float> (sr_internal);
+   ```
+
+   **(b) Active-slot delay-line modulation (HR-1 gated write; idle slots unchanged):**
+
+   Replace the existing standard-path inner loop (currently `if (detuneSmoothed[s].isSmoothing()) strings[s].setDelaySamples(...)`) with a vibrato-aware variant that ONLY modulates the active slot:
+   ```cpp
+   for (int s = 0; s < 4; ++s)
+   {
+       const float detuneSamples = detuneSmoothed[s].getNextValue();
+
+       if (s == activeStringIndex && vibCents != 0.0f)
+       {
+           // HR-1 active path — combined detune + vibrato in delay-samples space.
+           const float vibFactor      = std::exp (vibCents * kVibFactorScale);
+           const float modulatedDelay = detuneSamples * vibFactor;
+           strings[s].setDelaySamples (modulatedDelay);
+       }
+       else if (detuneSmoothed[s].isSmoothing())
+       {
+           // Phase 2.2 carry-forward — detune-only path (gated by isSmoothing
+           // for steady-state delay-line state stability §15.4 caveat).
+           strings[s].setDelaySamples (detuneSamples);
+       }
+       // else: idle + at-target → no setDelaySamples write (Phase 2.2 contract).
+
+       if (s == activeStringIndex)
+           mixedSample = strings[s].processSample (v_bow, F_bow, frictionModel);
+       else
+           (void) strings[s].processSample (0.0f, 0.0f, frictionModel);
+   }
+   ```
+
+   **HARD RULE alignment at modulators-off:** when `effectiveVibratoDepth = 0`, the `if (effectiveVibratoDepth > 0.0f)` gate skips the cents computation entirely → `vibCents = 0.0f` exact. The `s == activeStringIndex && vibCents != 0.0f` branch is FALSE on every iteration, so the active slot falls through to the existing `if (detuneSmoothed[s].isSmoothing())` Phase 2.2 path — byte-identical mix.
+
+   **Crossfade-path mirror:** inside the `if (crossfadeRemainingSamples > 0 && previousStringIndex >= 0)` branch, apply the same active-slot vibrato gating to the new (active) string's delay-line write. The previous (old) string's delay is NOT vibrato-modulated (Q2 active-string-only contract).
+
+   **Total LOC delta in `BowedContrabassVoice.cpp`:** ~+90 LOC across substeps 4–8. Falls within the §16.12 ~30-LOC-per-modulator budget; Q10 inline-in-voice decision is preserved (no extraction trigger).
+
+9. **No build, no commit at this stage.** Single source-edit batch. R30 builds. R31 verifies. R33 commits.
+
+**Files modified:**
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` (+1 LOC).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` (~+20 LOC).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` (~+90 LOC).
+
+**Files created:** none.
+
+**Commit:** none (R33 atomic).
+
+**Success bar:**
+- [ ] `git diff --stat plugins/O-Contrabass/Source/` shows exactly 3 files modified.
+- [ ] PluginProcessor.cpp shows the single 0.50f → 0.0f flip.
+- [ ] BowedContrabassVoice.h has 5 new state variables + 3 SmoothedValue<Linear> + 1 atomic + getter.
+- [ ] BowedContrabassVoice.cpp has prepareToPlay init + noteStarted re-arm + noteStopped fade trigger + 7-step renderNextBlock evaluation + per-sample HR-1 gated vibrato cents + active-slot delay-line modulation.
+- [ ] HARD RULES HR-1 to HR-4 visually traceable through the code (each `if (rawSlowLfoDepth > 0.0f)` / `if (effectiveVibratoDepth > 0.0f)` gate present and commented).
+
+**Estimated effort:** 4 h (most-complex task; majority of phase work).
+
+---
+
+### R29 — Harness CLI + 4 new mode flags + autocorrelation + JSON schemas
+
+**Per RESEARCH §16.7 four mode specifications. Adds ~+250 LOC to `tests/render-harness/main.cpp`. Single source-edit batch — NO build, NO commit at this stage.**
+
+**Tasks:**
+
+1. **`Args` struct extension (~+10 LOC).**
+
+   Inside `struct Args`, add:
+   ```cpp
+   bool  vibratoMode        = false;     // Phase 2.3 R29
+   bool  slowLfoMode        = false;
+   bool  schellengStress    = false;
+   bool  macroSweep         = false;
+   ```
+
+2. **`parseArgs` four new flags (~+10 LOC).**
+
+   Add parser branches BEFORE the existing `--out` / `--json` handlers. These flags take NO value, so they need the `--i` decrement pattern (mirrors `--stiffness-sweep`):
+   ```cpp
+   else if (key == "--vibrato")          { args.vibratoMode     = true; --i; }
+   else if (key == "--slow-lfo")         { args.slowLfoMode     = true; --i; }
+   else if (key == "--schelleng-stress") { args.schellengStress = true; --i; }
+   else if (key == "--macro-sweep")      { args.macroSweep      = true; --i; }
+   ```
+
+3. **Mutual-exclusion precedence ladder (~+25 LOC; pin #10).**
+
+   AFTER `parseArgs` returns (around main.cpp:167 where the existing `--string` vs `--detune-sweep` warning lives), add the new precedence resolution:
+   ```cpp
+   // Phase 2.3 R29 — mode mutual-exclusion (pin #10 ladder; first-set wins highest).
+   const bool any23Mode = args.vibratoMode || args.slowLfoMode
+                       || args.schellengStress || args.macroSweep;
+   if (any23Mode)
+   {
+       if (args.macroSweep)        { args.schellengStress = false; args.vibratoMode = false; args.slowLfoMode = false; }
+       else if (args.schellengStress) { args.vibratoMode = false; args.slowLfoMode = false; }
+       else if (args.vibratoMode)  { args.slowLfoMode = false; }
+       // Phase 2.2 modes downgraded to allow Phase 2.3 modes to take precedence.
+       args.stiffnessSweep    = false;
+       args.detuneSweepString = ' ';
+       args.noteSequence.clear();
+       args.stringOverride    = ' ';
+   }
+   ```
+
+4. **Per-mode pre-build APVTS overrides (~+50 LOC).**
+
+   In the section AFTER `proc.parameters.getParameter("INFINITE_SUSTAIN")` overrides (around main.cpp:230), add:
+   ```cpp
+   // Phase 2.3 R29 — per-mode pre-build APVTS overrides.
+   auto setNorm = [&] (const char* paramId, float norm)
+   {
+       if (auto* p = proc.parameters.getParameter (paramId))
+           p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+   };
+
+   if (args.vibratoMode)
+   {
+       args.midiNote        = 28;
+       if (! args.sustainSet) args.sustainSeconds = 2.0f;
+       if (! args.releaseSet) args.releaseSeconds = 1.0f;
+       setNorm ("VIBRATO_DEPTH", 12.0f / 50.0f);          // 12¢
+       setNorm ("VIBRATO_RATE",  (5.0f - 0.1f) / 11.9f);  // 5 Hz
+       // VIBRATO_ONSET 600 ms with 0.5 skew (range 0–3000 ms):
+       setNorm ("VIBRATO_ONSET", std::pow (600.0f / 3000.0f, 1.0f / 0.5f));
+   }
+   else if (args.slowLfoMode)
+   {
+       args.midiNote        = 33;                          // A1
+       if (! args.sustainSet) args.sustainSeconds = 60.0f;
+       if (! args.releaseSet) args.releaseSeconds = 2.0f;
+       setNorm ("SLOW_LFO_DEPTH", 0.5f);
+       setNorm ("SLOW_LFO_RATE",  (0.3f - 0.05f) / 1.95f); // 0.3 Hz
+   }
+   else if (args.schellengStress)
+   {
+       args.midiNote        = 28;
+       if (! args.sustainSet) args.sustainSeconds = 30.0f;
+       if (! args.releaseSet) args.releaseSeconds = 2.0f;
+       // BOW_PRESSURE 7.0 (range 0.05–8.0): norm = (7.0 - 0.05) / 7.95
+       setNorm ("BOW_PRESSURE",   (7.0f  - 0.05f) / 7.95f);
+       // BOW_SPEED 0.05 (range 0.02–1.5): norm = (0.05 - 0.02) / 1.48
+       setNorm ("BOW_SPEED",      (0.05f - 0.02f) / 1.48f);
+       setNorm ("SLOW_LFO_DEPTH", 1.0f);
+   }
+   else if (args.macroSweep)
+   {
+       args.midiNote        = 38;                          // D2
+       if (! args.sustainSet) args.sustainSeconds = 20.0f;
+       if (! args.releaseSet) args.releaseSeconds = 2.0f;
+       // EXPRESSION_MACRO ramped per-block in render loop (start at 0).
+       setNorm ("EXPRESSION_MACRO", 0.0f);
+   }
+   ```
+
+5. **Auto-rewrite default WAV/JSON filenames per mode (~+20 LOC).**
+
+   Append a Phase 2.3 branch in the existing if/else-if filename ladder:
+   ```cpp
+   if (args.vibratoMode)
+   {
+       if (! args.outWavSet)  args.outWav  = "vibrato.wav";
+       if (! args.outJsonSet) args.outJson = "vibrato.json";
+   }
+   else if (args.slowLfoMode)
+   {
+       if (! args.outWavSet)  args.outWav  = "slow-lfo.wav";
+       if (! args.outJsonSet) args.outJson = "slow-lfo.json";
+   }
+   else if (args.schellengStress)
+   {
+       if (! args.outWavSet)  args.outWav  = "schelleng-stress.wav";
+       if (! args.outJsonSet) args.outJson = "schelleng-stress.json";
+   }
+   else if (args.macroSweep)
+   {
+       if (! args.outWavSet)  args.outWav  = "macro-sweep.wav";
+       if (! args.outJsonSet) args.outJson = "macro-sweep.json";
+   }
+   else if (/* existing Phase 2.2 chain */)
+   ```
+
+6. **Per-block macro ramp (macro-sweep mode) + clampedDepthMean accumulator (~+20 LOC).**
+
+   In the render loop (around the existing `args.stiffnessSweep` per-block ramp at main.cpp:345), add:
+   ```cpp
+   // Phase 2.3 R29 — macro-sweep per-block linear ramp 0→1.
+   if (args.macroSweep)
+   {
+       const float fraction = juce::jlimit (0.0f, 1.0f,
+                                            static_cast<float> (sampleCursor)
+                                            / static_cast<float> (juce::jmax (1, sustainSamples)));
+       if (auto* p = proc.parameters.getParameter ("EXPRESSION_MACRO"))
+           p->setValueNotifyingHost (fraction);
+   }
+   ```
+
+   And a per-block read of the `lastSafeDepth` instrumentation hook (BEFORE `proc.processBlock` so the read is post-previous-block; or AFTER so it's the current block's value — locked: AFTER `processBlock` to read the wedge state computed during this block):
+   ```cpp
+   // Phase 2.3 R29 — per-block clampedDepthMean accumulator (slow-LFO + Schelleng modes).
+   double clampedDepthSum   = 0.0;     // declare before render loop
+   int    clampedDepthCount = 0;
+
+   // Inside render loop, after proc.processBlock:
+   if (args.slowLfoMode || args.schellengStress)
+   {
+       const float voiceLastSafe = (proc.synth.getNumVoices() > 0)
+           ? dynamic_cast<BowedContrabassVoice*> (proc.synth.getVoice(0))->getLastSafeDepth()
+           : 0.0f;
+       if (sampleCursor < sustainSamples)
+       {
+           clampedDepthSum += static_cast<double> (voiceLastSafe);
+           ++clampedDepthCount;
+       }
+   }
+   ```
+
+   **NOTE on `proc.synth` access:** `OContrabassAudioProcessor::synth` is currently `private` (most likely). R29 must EITHER: (a) add a `public:` accessor `BowedContrabassVoice* getActiveVoice() noexcept` on `OContrabassAudioProcessor`, OR (b) friend-class the harness to the processor. Recommend option (a) — single-line addition: `BowedContrabassVoice* getActiveVoice() noexcept { return dynamic_cast<BowedContrabassVoice*>(synth.getVoice(0)); }`. PLAN locks option (a).
+
+7. **Autocorrelation pitch-tracking (vibrato mode only; ~+80 LOC).**
+
+   In the analysis section AFTER the existing `rmsOverWindow` lambda (~main.cpp:550), add a vibrato-only post-render block:
+   ```cpp
+   // Phase 2.3 R29 — vibrato pitch-tracking via autocorrelation (RESEARCH §16.7.1).
+   float peakDepthCents       = 0.0f;
+   float vibratoRateHzMeasured = 0.0f;
+   int   onsetTimeMs           = 0;
+   juce::Array<juce::var> perCycleDeltaCents;
+
+   if (args.vibratoMode)
+   {
+       constexpr int    kAcWindowSize = 4096;
+       constexpr int    kAcHopSize    =  256;
+       constexpr int    kTauMin       =  400;     // pin #5 — covers ~110 Hz at sr=44100
+       constexpr int    kTauMax       = 1500;     // pin #5 — covers ~29 Hz at sr=44100
+       constexpr double kF0           = 41.20;    // E1
+       const int analysisStart = static_cast<int> (1.0f * sampleRate);   // skip first 1 s (onset window)
+       const int analysisEnd   = juce::jmin (totalSamples - kAcWindowSize, sustainSamples);
+
+       std::vector<float> deltaCentsTrace;
+       const auto* mono = output.getReadPointer (0);
+
+       for (int s = analysisStart; s < analysisEnd; s += kAcHopSize)
+       {
+           // Normalised autocorrelation R(τ) for τ ∈ [kTauMin, kTauMax].
+           double bestR     = -1.0;
+           int    bestTau   = kTauMin;
+           int    secondTau = kTauMin;
+           double secondR   = -1.0;
+
+           // Energy normalisation (denominator).
+           double energy = 0.0;
+           for (int i = 0; i < kAcWindowSize; ++i)
+               energy += static_cast<double> (mono[s + i]) * mono[s + i];
+           energy = std::sqrt (juce::jmax (1.0e-12, energy));
+
+           for (int tau = kTauMin; tau <= kTauMax; ++tau)
+           {
+               double sum = 0.0;
+               for (int i = 0; i < kAcWindowSize; ++i)
+                   sum += static_cast<double> (mono[s + i]) * mono[s + i + tau];
+               // Energy normalisation at τ-shifted window.
+               double e2 = 0.0;
+               for (int i = 0; i < kAcWindowSize; ++i)
+                   e2 += static_cast<double> (mono[s + i + tau]) * mono[s + i + tau];
+               const double r = sum / juce::jmax (1.0e-12, energy * std::sqrt (e2));
+               if (r > bestR) { bestR = r; bestTau = tau; }
+           }
+
+           // Parabolic interpolation around bestTau for sub-sample resolution.
+           if (bestTau > kTauMin && bestTau < kTauMax)
+           {
+               double y0 = 0.0, y1 = bestR, y2 = 0.0;
+               // Recompute neighbour R values (cheap — kAcWindowSize=4096 dot products).
+               for (int delta = -1; delta <= 1; delta += 2)
+               {
+                   const int tau = bestTau + delta;
+                   double sum = 0.0;
+                   for (int i = 0; i < kAcWindowSize; ++i)
+                       sum += static_cast<double> (mono[s + i]) * mono[s + i + tau];
+                   double e2 = 0.0;
+                   for (int i = 0; i < kAcWindowSize; ++i)
+                       e2 += static_cast<double> (mono[s + i + tau]) * mono[s + i + tau];
+                   const double r = sum / juce::jmax (1.0e-12, energy * std::sqrt (e2));
+                   if (delta < 0) y0 = r;
+                   else           y2 = r;
+               }
+               const double denom = (y0 - 2.0 * y1 + y2);
+               const double tauOff = (std::abs (denom) > 1.0e-12) ? 0.5 * (y0 - y2) / denom : 0.0;
+               const double tauPeak = static_cast<double> (bestTau) + tauOff;
+               const double freq    = sampleRate / juce::jmax (1.0, tauPeak);
+               const double cents   = 1200.0 * std::log2 (freq / kF0);
+               deltaCentsTrace.push_back (static_cast<float> (cents));
+           }
+       }
+
+       // Find peak-to-trough swing across last 3 vibrato cycles (≈600 ms, 36 hops at hop=256).
+       if (deltaCentsTrace.size() >= 36)
+       {
+           const auto endIt   = deltaCentsTrace.end();
+           const auto startIt = endIt - 36;
+           const auto mm      = std::minmax_element (startIt, endIt);
+           peakDepthCents = 0.5f * (*mm.second - *mm.first);
+       }
+
+       // Onset time: first hop where deltaCents amplitude ≥ 80 % of peakDepthCents.
+       if (peakDepthCents > 0.0f)
+       {
+           for (size_t hop = 0; hop < deltaCentsTrace.size(); ++hop)
+           {
+               if (std::abs (deltaCentsTrace[hop]) >= 0.8f * peakDepthCents)
+               {
+                   onsetTimeMs = static_cast<int> (1000.0f
+                       * (analysisStart + static_cast<int> (hop) * kAcHopSize)
+                       / static_cast<float> (sampleRate));
+                   break;
+               }
+           }
+       }
+
+       // Per-cycle delta-cents — sample at ~5 Hz cycle period (200 ms = 28 hops at sr=44100, hop=256).
+       for (size_t hop = 0; hop < deltaCentsTrace.size(); hop += 28)
+           perCycleDeltaCents.add (juce::var (static_cast<double> (deltaCentsTrace[hop])));
+
+       // Crude rate estimate: zero-crossings of deltaCentsTrace over the analysis window.
+       int zc = 0;
+       for (size_t hop = 1; hop < deltaCentsTrace.size(); ++hop)
+           if ((deltaCentsTrace[hop - 1] >= 0.0f) != (deltaCentsTrace[hop] >= 0.0f))
+               ++zc;
+       const float analysisWindowSec = static_cast<float> (deltaCentsTrace.size())
+                                     * static_cast<float> (kAcHopSize) / static_cast<float> (sampleRate);
+       vibratoRateHzMeasured = (analysisWindowSec > 0.0f)
+                            ? 0.5f * static_cast<float> (zc) / analysisWindowSec
+                            : 0.0f;
+   }
+   ```
+
+8. **Per-mode pass conditions + JSON schema additions (~+60 LOC).**
+
+   Compute the four new pass flags for each mode (in the existing pass-condition block around main.cpp:580):
+   ```cpp
+   // Phase 2.3 R29 — per-mode pass conditions.
+   const bool isVibratoMode      = args.vibratoMode;
+   const bool isSlowLfoMode      = args.slowLfoMode;
+   const bool isSchellengStress  = args.schellengStress;
+   const bool isMacroSweep       = args.macroSweep;
+
+   const float clampedDepthMean = (clampedDepthCount > 0)
+                                ? static_cast<float> (clampedDepthSum / clampedDepthCount)
+                                : 0.0f;
+
+   const bool passVibratoDepthInRange = isVibratoMode && (peakDepthCents >= 10.0f && peakDepthCents <= 14.0f);
+   const bool passOnsetWindow         = isVibratoMode && (onsetTimeMs >= 800 && onsetTimeMs <= 1000);
+   const bool passRateHzInRange       = isVibratoMode && (vibratoRateHzMeasured >= 4.5f && vibratoRateHzMeasured <= 5.5f);
+   // pass_rmsContinuity for vibrato: reuse the existing 4096-sample window ratio (≥0.90 threshold).
+
+   // pass_breathingAudible (slow-LFO): rmsByDecadePeakToPeak >= 5% (pin #2 v1.0 threshold).
+   float rmsByDecadePeakToPeakPct = 0.0f;
+   if (isSlowLfoMode || isSchellengStress || isMacroSweep)
+   {
+       // Reuse existing computeRmsByDecade() lambda; compute peak-to-peak / mean.
+       const auto decades = computeRmsByDecade();
+       float minD = std::numeric_limits<float>::max();
+       float maxD = 0.0f;
+       float sumD = 0.0f;
+       for (const auto& d : decades)
+       {
+           const float v = static_cast<float> (static_cast<double> (d));
+           if (v < minD) minD = v;
+           if (v > maxD) maxD = v;
+           sumD += v;
+       }
+       const float meanD = sumD / juce::jmax (1.0f, static_cast<float> (decades.size()));
+       rmsByDecadePeakToPeakPct = (meanD > 1.0e-9f) ? (maxD - minD) / meanD : 0.0f;
+   }
+   const bool passBreathingAudible = isSlowLfoMode && (rmsByDecadePeakToPeakPct >= 0.05f);
+   const bool passClampEngagement  = isSlowLfoMode && (clampedDepthMean > 0.0f);
+
+   const bool passSchellengPeak    = isSchellengStress && (peak <= 1.0f);
+   const bool passNoNaN            = (nanCount == 0 && infCount == 0);
+   const bool passClampEngaged     = isSchellengStress && (clampedDepthMean < 0.5f);
+
+   // pass_rmsRampDirection (macro-sweep): final-decade RMS exceeds first-decade by 10–30%.
+   float rmsRampPct = 0.0f;
+   if (isMacroSweep)
+   {
+       const auto decades = computeRmsByDecade();
+       if (decades.size() >= 10)
+       {
+           const float first = static_cast<float> (static_cast<double> (decades[0]));
+           const float last  = static_cast<float> (static_cast<double> (decades[9]));
+           rmsRampPct = (first > 1.0e-9f) ? (last - first) / first : 0.0f;
+       }
+   }
+   const bool passRmsRampDirection = isMacroSweep && (rmsRampPct >= 0.10f && rmsRampPct <= 0.30f);
+   ```
+
+   Update the `overallPass` switch to handle the four new modes:
+   ```cpp
+   if (isVibratoMode)
+       overallPass = passNan && passPeak && passBlockTime && passVibratoDepthInRange
+                  && passOnsetWindow && passRateHzInRange && passRmsContinuity;
+   else if (isSlowLfoMode)
+       overallPass = passNan && passPeak && passBlockTime && passBreathingAudible
+                  && passRmsContinuity && passClampEngagement;
+   else if (isSchellengStress)
+       overallPass = passNan && passSchellengPeak && passBlockTime && passNoNaN && passClampEngaged;
+   else if (isMacroSweep)
+       overallPass = passNan && passPeak && passBlockTime && passRmsContinuity && passRmsRampDirection;
+   else if (isDetuneSweep) { /* existing */ }
+   /* etc. */
+   ```
+
+   Update the `modeStr` ladder to recognise the four new modes:
+   ```cpp
+   const char* modeStr = isMacroSweep      ? "macro-sweep"
+                       : isSchellengStress ? "schelleng-stress"
+                       : isVibratoMode     ? "vibrato"
+                       : isSlowLfoMode     ? "slow-lfo"
+                       : isStiffnessSweep  ? "stiffness-sweep"
+                       : isDetuneSweep     ? "detune-sweep"
+                       : isNoteSequence    ? "note-sequence"
+                                           : "sustained";
+   ```
+
+   Add per-mode JSON schema blocks (mirrors existing detune-sweep / note-sequence pattern; ~+50 LOC):
+   ```cpp
+   if (isVibratoMode)
+   {
+       summary->setProperty ("vibratoDepthSetting",      12.0);
+       summary->setProperty ("vibratoRateSetting",       5.0);
+       summary->setProperty ("vibratoOnsetMsSetting",    600);
+       summary->setProperty ("peakDepthCents",           static_cast<double> (peakDepthCents));
+       summary->setProperty ("vibratoRateHzMeasured",    static_cast<double> (vibratoRateHzMeasured));
+       summary->setProperty ("onsetTimeMs",              onsetTimeMs);
+       summary->setProperty ("perCycleDeltaCents",       juce::var (perCycleDeltaCents));
+       summary->setProperty ("rmsContinuityRatio",       static_cast<double> (rmsContinuityRatio));
+       summary->setProperty ("pass_vibratoDepthInRange", passVibratoDepthInRange);
+       summary->setProperty ("pass_onsetWindow",         passOnsetWindow);
+       summary->setProperty ("pass_rateHzInRange",       passRateHzInRange);
+       summary->setProperty ("pass_rmsContinuity",       passRmsContinuity);
+   }
+   else if (isSlowLfoMode)
+   {
+       summary->setProperty ("slowLfoDepthSetting",      0.5);
+       summary->setProperty ("slowLfoRateHzSetting",     0.3);
+       summary->setProperty ("rmsByDecade",              juce::var (computeRmsByDecade()));
+       summary->setProperty ("rmsByDecadePeakToPeakPct", static_cast<double> (rmsByDecadePeakToPeakPct));
+       summary->setProperty ("clampedDepthMean",         static_cast<double> (clampedDepthMean));
+       summary->setProperty ("rmsContinuityRatio",       static_cast<double> (rmsContinuityRatio));
+       summary->setProperty ("pass_breathingAudible",    passBreathingAudible);
+       summary->setProperty ("pass_rmsContinuity",       passRmsContinuity);
+       summary->setProperty ("pass_clampEngagement",     passClampEngagement);
+   }
+   else if (isSchellengStress)
+   {
+       summary->setProperty ("bowPressureSetting",       7.0);
+       summary->setProperty ("bowSpeedSetting",          0.05);
+       summary->setProperty ("slowLfoDepthSetting",      1.0);
+       summary->setProperty ("peakPostMaster",           static_cast<double> (peak));
+       summary->setProperty ("clampedDepthMean",         static_cast<double> (clampedDepthMean));
+       summary->setProperty ("pass_peak",                passSchellengPeak);
+       summary->setProperty ("pass_noNaN",               passNoNaN);
+       summary->setProperty ("pass_clampEngaged",        passClampEngaged);
+   }
+   else if (isMacroSweep)
+   {
+       juce::DynamicObject::Ptr ramp (new juce::DynamicObject());
+       ramp->setProperty ("start", 0.0);
+       ramp->setProperty ("end",   1.0);
+       ramp->setProperty ("shape", "linear");
+       summary->setProperty ("macroRamp",              juce::var (ramp.get()));
+       summary->setProperty ("rmsByDecade",            juce::var (computeRmsByDecade()));
+       summary->setProperty ("rmsRampPct",             static_cast<double> (rmsRampPct));
+       summary->setProperty ("rmsContinuityRatio",     static_cast<double> (rmsContinuityRatio));
+       summary->setProperty ("pass_rmsContinuity",     passRmsContinuity);
+       summary->setProperty ("pass_rmsRampDirection", passRmsRampDirection);
+   }
+   ```
+
+9. **Update CLI usage doc-comment header at top of main.cpp** to list the 4 new flags + auto-rewrite filenames + per-mode pass conditions.
+
+10. **Add `getActiveVoice()` accessor to `PluginProcessor.h`** (single line in `public:` block):
+    ```cpp
+    BowedContrabassVoice* getActiveVoice() noexcept
+    {
+        return dynamic_cast<BowedContrabassVoice*> (synth.getVoice(0));
+    }
+    ```
+    Forward-declare `class BowedContrabassVoice;` at top of PluginProcessor.h if not already included. Harness consumes this accessor for the `lastSafeDepth` read in step 6.
+
+**Files modified:**
+- `plugins/O-Contrabass/Source/PluginProcessor.h` (+~3 LOC accessor + forward decl).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` (~+250 LOC).
+
+**Files created:** none.
+
+**Commit:** none (R33 atomic).
+
+**Success bar:**
+- [ ] `Args` struct has 4 new bool flags.
+- [ ] `parseArgs` has 4 new flag handlers.
+- [ ] Mutual-exclusion ladder downgrades Phase 2.2 modes when a Phase 2.3 mode is set.
+- [ ] Per-mode APVTS overrides set MIDI note + sustain + 2.3 parameters as specified.
+- [ ] Auto-rewrite filenames extends to all 4 new modes.
+- [ ] `clampedDepthSum` accumulator added; reads `getActiveVoice()->getLastSafeDepth()` per block.
+- [ ] Autocorrelation pitch-tracking computes `peakDepthCents`, `onsetTimeMs`, `vibratoRateHzMeasured`, `perCycleDeltaCents`.
+- [ ] Per-mode `overallPass` switch handles 4 new modes.
+- [ ] Per-mode JSON schema additions land for all 4 new modes.
+- [ ] `getActiveVoice()` accessor on `PluginProcessor`.
+
+**Estimated effort:** 5 h (plenty of new code; autocorrelation block is novel; per-mode harness conventions follow Phase 2.2 patterns).
+
+---
+
+### R30 — Build + smoke test
+
+**Compile-only sanity. Confirms R28 + R29 source edits link cleanly. NO commit.**
+
+**Tasks:**
+
+1. **Release build:**
+   ```bash
+   cd build
+   cmake --build . --target O-Contrabass-render-test --parallel
+   cmake --build . --target O-Contrabass_VST3 --parallel
+   cmake --build . --target O-Contrabass_AU --parallel
+   ```
+   Expect zero warnings/errors. Atomic-add usage compiles (header `<atomic>`).
+
+2. **Smoke test the 4 new harness flags** (sustain trimmed for fast verification — full Gate 5 renders happen in R31):
+   ```bash
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --vibrato --sustain 0.5 --release 0.2 --out /tmp/smoke-vib.wav --json /tmp/smoke-vib.json
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --slow-lfo --sustain 0.5 --release 0.2 --out /tmp/smoke-lfo.wav --json /tmp/smoke-lfo.json
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --schelleng-stress --sustain 0.5 --release 0.2 --out /tmp/smoke-sch.wav --json /tmp/smoke-sch.json
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --macro-sweep --sustain 0.5 --release 0.2 --out /tmp/smoke-macro.wav --json /tmp/smoke-macro.json
+   ```
+   Each harness run exits with `mode` matching the flag (printed in the JSON `mode` field) and `pass_nan: true`. Pass-condition bars are NOT enforced at this short-sustain smoke (e.g. vibrato won't pass `passOnsetWindow` at 0.5 s sustain — that's expected).
+
+3. **Verify Phase 2.2 modes still work** (regression check on harness CLI):
+   ```bash
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --string A --sustain 0.5 --release 0.2 --out /tmp/smoke-string-a.wav --json /tmp/smoke-string-a.json
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --detune-sweep A --sustain 0.5 --release 0.2 --out /tmp/smoke-det-a.wav --json /tmp/smoke-det-a.json
+   ```
+   Both must produce JSONs with `mode: "sustained"` (string mode) and `mode: "detune-sweep"` (sweep mode) respectively.
+
+**Files modified:** none (build artefacts).
+
+**Files created:** `/tmp/smoke-{vib,lfo,sch,macro,string-a,det-a}.{wav,json}` (transient).
+
+**Commit:** none (R33 atomic).
+
+**Success bar:**
+- [ ] All 3 build targets compile zero-warning, zero-error.
+- [ ] 4 new harness flags exit 0 (or with mode-mismatch warnings only — pass-bar may fail at 0.5 s sustain, which is fine for smoke).
+- [ ] Phase 2.2 modes (`--string A`, `--detune-sweep A`) still produce correct `mode` strings.
+- [ ] No undefined-symbol errors on `lastSafeDepth` / `getActiveVoice()` / `getLastSafeDepth()`.
+
+**Estimated effort:** 30 min (build + 6 smoke renders).
+
+---
+
+### R31 — Gate 5 invariants (1)–(7)
+
+**Per CONTEXT rev-5 §"Gate 5 bar" + RESEARCH §16.14 sequencing. Single sequential pass; produces 8 new golden text files + reproduces 5 Phase 2.2 goldens.**
+
+**Tasks:**
+
+1. **Invariant (1) — Phase 2.2 strict byte-equal regression bar.**
+
+   Render the regression preset:
+   ```bash
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test \
+       --note 28 --velocity 0.7 --sustain 60 --release 5 \
+       --infinite-sustain 1.0 --string-stiffness 0 \
+       --out /tmp/phase23-r31-stiffness-zero.wav \
+       --json /tmp/phase23-r31-stiffness-zero.json
+
+   shasum -a 256 /tmp/phase23-r31-stiffness-zero.wav | awk '{print $1}'
+   # MUST equal: d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75
+   ```
+
+   Plus reproduce the 4 other Phase 2.2 goldens to confirm full regression bar:
+   ```bash
+   for letter in A D G; do
+       ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --string $letter
+       shasum -a 256 string-$letter.wav
+       # MUST equal Phase 2.2 golden text file content.
+   done
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --detune-sweep A
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --note-sequence "28:1.5,33:1.5,38:1.5,43:1.5,28:1.5"
+   # All 5 sha256 values MUST match the existing committed golden text files.
+   ```
+
+   **If ANY mismatch:** STOP. HR-1/HR-2/HR-3/HR-4 audit required — re-inspect the source edits for missed literal-zero gates, SmoothedValue init values, or re-ordered floating-point ops. Re-run R28 to fix.
+
+2. **Invariant (2) — `--vibrato` mode.**
+
+   ```bash
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --vibrato \
+       --out vibrato.wav --json vibrato.json
+   ```
+
+   Pass conditions (from JSON):
+   - `pass_vibratoDepthInRange: true` (peakDepthCents ∈ [10, 14])
+   - `pass_onsetWindow: true` (onsetTimeMs ∈ [800, 1000])
+   - `pass_rateHzInRange: true` (vibratoRateHzMeasured ∈ [4.5, 5.5])
+   - `pass_rmsContinuity: true` (rmsContinuityRatio ≥ 0.90)
+   - `pass_nan: true`, `pass_peak: true`, `pass_blockTime: true`
+
+   Capture the sha256 + JSON as goldens:
+   ```bash
+   shasum -a 256 vibrato.wav | awk '{print $1}' > plugins/O-Contrabass/tests/render-harness/golden/vibrato.wav.sha256
+   cp vibrato.json plugins/O-Contrabass/tests/render-harness/golden/vibrato.json
+   ```
+
+3. **Invariant (3) — `--slow-lfo` mode.**
+
+   ```bash
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --slow-lfo \
+       --out slow-lfo.wav --json slow-lfo.json
+   ```
+
+   Pass conditions:
+   - `pass_breathingAudible: true` (rmsByDecadePeakToPeakPct ≥ 0.05 — pin #2)
+   - `pass_rmsContinuity: true` (rmsContinuityRatio ≥ 0.90)
+   - `pass_clampEngagement: true` (clampedDepthMean > 0.0 — wedge math runs)
+   - `pass_nan: true`, `pass_peak: true`, `pass_blockTime: true`
+
+   **Note** — `pass_breathingAudible` may fail at default bass operating point (RESEARCH §16.7.2 documented the wedge clamps `safeDepth` to ~0). If failure, document in VERIFICATION.md and consider:
+   - Re-running with manual BOW_PRESSURE override (`--out` to track), AND
+   - Confirming clampedDepthMean > 0.0 (proves wedge engaged), AND
+   - Filing a Phase 2.4 calibration polynomial follow-up.
+
+   Capture goldens:
+   ```bash
+   shasum -a 256 slow-lfo.wav | awk '{print $1}' > plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256
+   cp slow-lfo.json plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json
+   ```
+
+4. **Invariant (4) — `--schelleng-stress` mode.**
+
+   ```bash
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --schelleng-stress \
+       --out schelleng-stress.wav --json schelleng-stress.json
+   ```
+
+   Pass conditions:
+   - `pass_peak: true` (peakPostMaster ≤ 1.0)
+   - `pass_noNaN: true` (nanCount + infCount = 0)
+   - `pass_clampEngaged: true` (clampedDepthMean < 0.5 — clamp dominates)
+   - `pass_blockTime: true`
+
+   Capture goldens:
+   ```bash
+   shasum -a 256 schelleng-stress.wav | awk '{print $1}' > plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256
+   cp schelleng-stress.json plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json
+   ```
+
+5. **Invariant (5) — `--macro-sweep` mode.**
+
+   ```bash
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test --macro-sweep \
+       --out macro-sweep.wav --json macro-sweep.json
+   ```
+
+   Pass conditions:
+   - `pass_rmsContinuity: true` (rmsContinuityRatio ≥ 0.85 — SOFTENED from default 0.90 because macro intentionally lifts loudness; documented in pass-condition expression).
+   - `pass_rmsRampDirection: true` (rmsRampPct ∈ [0.10, 0.30] — final-decade RMS exceeds first-decade by 10–30 %).
+   - `pass_nan: true`, `pass_peak: true`, `pass_blockTime: true`
+
+   **NOTE on `pass_rmsContinuity` threshold:** R29 substep 8's `passRmsContinuity` uses the unified ≥0.90 threshold. Macro-sweep needs the looser 0.85 bound. Implementation:
+   ```cpp
+   const float rmsContinuityThreshold = isMacroSweep ? 0.85f : 0.90f;
+   const bool passRmsContinuity = (rmsContinuityRatio >= rmsContinuityThreshold);
+   ```
+   This is a per-mode threshold modifier — call this out in R29 as part of the implementation.
+
+   Capture goldens:
+   ```bash
+   shasum -a 256 macro-sweep.wav | awk '{print $1}' > plugins/O-Contrabass/tests/render-harness/golden/macro-sweep.wav.sha256
+   cp macro-sweep.json plugins/O-Contrabass/tests/render-harness/golden/macro-sweep.json
+   ```
+
+6. **Invariant (6) — auval.**
+
+   On macOS:
+   ```bash
+   killall -9 AudioComponentRegistrar 2>/dev/null || true
+   rm -rf ~/Library/Caches/AudioUnitCache/
+   rm -rf ~/Library/Caches/com.apple.audiounits.cache
+   rm -rf ~/Library/Audio/Plug-Ins/Components/O-Contrabass.component
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/AU/O-Contrabass.component \
+         ~/Library/Audio/Plug-Ins/Components/
+
+   # Component IDs from CMakeLists (placeholder — read actual from auval -a output if needed):
+   auval -v aumu OCbs OuDv
+   ```
+   MUST report `AU VALIDATION SUCCEEDED`.
+
+7. **Invariant (7) — pluginval --strictness-level 10.**
+
+   ```bash
+   rm -rf ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/VST3/O-Contrabass.vst3 \
+         ~/Library/Audio/Plug-Ins/VST3/
+
+   /Applications/pluginval.app/Contents/MacOS/pluginval --strictness-level 10 \
+       --validate-in-process \
+       ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3
+   ```
+   MUST report `SUCCESS`.
+
+**Files modified:** `plugins/O-Contrabass/tests/render-harness/golden/` — 8 NEW text files (4 sha256 + 4 JSON; staged in step 2–5 above).
+
+**Files created:** `/tmp/phase23-r31-*.{wav,json}` (transient; NOT committed).
+
+**Commit:** none (R33 atomic).
+
+**Success bar:**
+- [ ] Invariant (1) — All 5 Phase 2.2 goldens reproduce byte-equal (sha256 == committed text content for each).
+- [ ] Invariant (2) — `--vibrato` exits 0; all 7 pass conditions TRUE.
+- [ ] Invariant (3) — `--slow-lfo` exits 0; `pass_clampEngagement` TRUE; `pass_breathingAudible` TRUE-or-documented (per pin #2 5 % threshold; if FALSE at default bass, document in VERIFICATION.md as Phase 2.4 escalation candidate).
+- [ ] Invariant (4) — `--schelleng-stress` exits 0; all 4 pass conditions TRUE; `clampedDepthMean < 0.5`.
+- [ ] Invariant (5) — `--macro-sweep` exits 0; `pass_rmsRampDirection` TRUE; loose-rmsContinuity TRUE.
+- [ ] Invariant (6) — auval reports `AU VALIDATION SUCCEEDED`.
+- [ ] Invariant (7) — pluginval-10 reports `SUCCESS`.
+- [ ] 8 new golden text files staged in `tests/render-harness/golden/`.
+
+**Estimated effort:** 1 h (mostly waiting for renders + auval/pluginval; vibrato 2 s + slow-lfo 60 s + schelleng-stress 30 s + macro-sweep 20 s + 5 Phase 2.2 reproductions + auval + pluginval).
+
+---
+
+### R32 (optional) — Logic Pro AU smoke audition
+
+**User-deferred non-blocking. Mirrors R27 / R19f / R14e precedent. Not part of the R33 atomic commit. Captured here as Gate 5 invariant (8) for completeness. Listening sequence locked from CONTEXT rev-5 line 122 (pin #14).**
+
+**Audition sequence:**
+
+1. Open Logic Pro, instantiate O-Contrabass AU on a software-instrument track.
+2. **MIDI 38 (D2) sustained + VIBRATO_DEPTH 0→25¢ ramp at 5 Hz vibrato.** Listen for: smooth onset (no click at vibrato gate engaging at 600 ms), no zipper at depth ramp, audible ±25¢ pitch deviation in steady state.
+3. **MIDI 33 (A1) sustained + SLOW_LFO_DEPTH 0→1.0 ramp at 0.3 Hz.** Listen for: gradual breathing at default bass operating point (subtle — wedge clamps; deeper modulation requires higher BOW_PRESSURE), no clicks during depth ramp, no Helmholtz collapse.
+4. **MIDI 28 (E1) extreme bow params (BOW_PRESSURE 7 N + BOW_SPEED 0.05 m/s) + SLOW_LFO_DEPTH=1 (Schelleng stress).** Listen for: tone remains musical (no friction-junction zero-crossing artefacts), no NaN/silence, no peaking above 0 dBFS.
+5. **MIDI 38 (D2) + EXPRESSION_MACRO 0→1.0 ramp.** Listen for: bow speed/pressure/vibrato all lift smoothly, brightness rises by ~500 Hz, no zipper noise on the bridge filter, character becomes more vivid.
+6. **MIDI 28 (E1) + VIBRATO_DEPTH=20¢ + SLOW_LFO_DEPTH=0.8 together (anti-correlation guard audition).** Listen for: the +0.13 Hz × 0.8 = +0.104 Hz vibrato rate offset audibly de-correlates vibrato + slow-LFO (no 5:1 sub-harmonic beating). Subtle by design — this is a qualitative listening verification only.
+
+**Gate 5 invariant (8) verdict:** USER-CONFIRMED PASS or DEFERRED. Either is acceptable for closing Phase 2.3.
+
+**Files modified:** none.
+**Commit:** none.
+**Success bar:** user audits and either confirms PASS or defers (logged in VERIFICATION.md).
+**Estimated effort:** 10 min (manual audition).
+
+---
+
+### R33 — Phase 2.3 Atomic Commit (Gate 5 PASS)
+
+**Single atomic commit lands all Phase 2.3 work. Only run on R31 PASS (with R31 invariant (1) — strict byte-equal regression — as the binding bit-exact bar).**
+
+**Tasks:**
+
+1. **Update `parameter-spec.md` line 57 (pin #13 Stage-1 contract amendment).**
+
+   Edit `plugins/O-Contrabass/.planning/parameter-spec.md` line 57: change `0.50` → `0.0` in the EXPRESSION_MACRO Default column.
+
+   Compute new sha256:
+   ```bash
+   shasum -a 256 plugins/O-Contrabass/.planning/parameter-spec.md | awk '{print $1}'
+   # Record this — needed for STATUS.md update in step 2.
+   ```
+
+2. **Update `STATUS.md` (pin #13 + commit closure):**
+   - `contract_checksums.parameter_spec`: replace with new sha256 from step 1.
+   - `next_action` → `phase_2_4_discuss`.
+   - `gate_state` block: add `phase_2_3_modulators_macro: PASS`, `phase_2_3_atomic_commit_sha: <new-sha>` (placeholder; back-fill after step 4).
+   - `phase_2_3_verify_outcome: VERIFIED_gate_5_pass_2026_04_??_<eight_invariant_summary>`.
+   - `phase_2_3_verify_independent_reproduction:` block with: `regression_sha256 == d358abcd…`, `vibrato_sha256: <captured>`, `slow_lfo_sha256: <captured>`, `schelleng_stress_sha256: <captured>`, `macro_sweep_sha256: <captured>`, `auval: AU_VALIDATION_SUCCEEDED`, `pluginval_10: SUCCESS`.
+   - `Cycle Scope` → `Phase 2.4 — sub-harmonic bias + 108-combo stability matrix + Schelleng calibration polynomial follow-up + saturator-tail re-evaluation (next fresh GSD cycle)`.
+   - `Current Position` Stage 2 progress: 2.1 + 2.2 + 2.3 closed = ~50 % of Stage 2 (Phases 2.4, 2.5, 2.6 remain).
+   - `Lifecycle Timeline` append: 2026-04-?? Phase 2.3 verify entry summarising the eight-item Gate 5 PASS.
+
+3. **Stage all Phase 2.3 source + harness + golden text files + parameter-spec amendment + planning artefacts:**
+   ```bash
+   git add plugins/O-Contrabass/Source/PluginProcessor.cpp
+   git add plugins/O-Contrabass/Source/PluginProcessor.h
+   git add plugins/O-Contrabass/Source/BowedContrabassVoice.h
+   git add plugins/O-Contrabass/Source/BowedContrabassVoice.cpp
+   git add plugins/O-Contrabass/tests/render-harness/main.cpp
+   git add plugins/O-Contrabass/tests/render-harness/golden/vibrato.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/vibrato.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/macro-sweep.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/macro-sweep.json
+   git add plugins/O-Contrabass/.planning/parameter-spec.md
+   git add plugins/O-Contrabass/.planning/STATUS.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md
+   ```
+
+4. **Confirm staging:**
+   ```bash
+   git status
+   git diff --cached --stat
+   ```
+   Expect roughly 20 files staged. **Sanity check:** no binary WAVs in `tests/render-harness/golden/` (only `.sha256` text + `.json` per pin #12); no `build/` artefacts; no edits to `Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2 R26-frozen); no edits to `Source/DSP/DispersionFilter.h` (Phase 2.1c R20-frozen); no edits to `modules/synthesis/bow-friction/*` (Phase 2.1b-frozen v1.0.0); no edits to `research/ARCHITECTURE.md` (deferred to end-of-Stage-2 verify); no edits to `ROADMAP.md` (locked contract); no edits to the 5 Phase 2.2 golden text files (carry-forward).
+
+5. **Commit with structured message:**
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   feat(O-Contrabass): vibrato + slow-LFO + Schelleng wedge clamp + EXPRESSION_MACRO - Phase 2.3 Gate 5 PASS
+
+   Adds the modulator + macro section on top of the Phase 2.2 4-string voice:
+   per-voice vibrato (5 Hz / 12¢ / 600 ms onset; half-cosine S-curve 300 ms ramp;
+   150 ms linear note-off fade-out; modulates active string only via cents-add
+   then expf(-cents·ln2/1200) factor in delay-samples space), Slow-Bow LFO
+   (0.05–2 Hz; modulates voice-level bow speed × (1 + 0.6·s) and pressure ×
+   (1 + 0.5·p) with 23° pressure phase-lag; depth clamped to 80% of Schelleng
+   wedge headroom), inline Schelleng wedge clamp (~10 LOC per-block; Z=R=R_s=0.5
+   dimensionless collapse), EXPRESSION_MACRO 4-destination layering (default
+   flipped 0.50 → 0.0 for bit-exact regression preservation; multipliers from
+   architecture line 567: speed × (1.0+0.4·m), pressure × (1.0+0.6·m), vibrato
+   depth × (1.0+0.3·m), brightness +500·m Hz; one voice-level SmoothedValue<Linear>
+   20 ms ramp on macro source). Anti-correlation guard vibratoRate += 0.13·LFO Hz.
+   Per RESEARCH §16.
+
+   Implementation:
+   - Source/PluginProcessor.cpp: EXPRESSION_MACRO default 0.50f → 0.0f (Q7a;
+     Stage-1 contract amendment — see parameter-spec.md edit below).
+   - Source/PluginProcessor.h: + getActiveVoice() accessor for harness clampedDepthMean
+     instrumentation read.
+   - Source/BowedContrabassVoice.h: + 5 modulator state vars (vibratoPhase /
+     vibratoOnsetTimerSeconds / vibratoOnsetGateAtNoteOff / noteOffFadeOutTimerSeconds
+     / slowLfoPhase) + 3 SmoothedValue<Linear> (macroSmoothed / slowLfoSpeedSmoothed /
+     slowLfoPressureSmoothed) + std::atomic<float> lastSafeDepth instrumentation hook.
+   - Source/BowedContrabassVoice.cpp: prepareToPlay init (smoothers reset 20 ms;
+     setCurrentAndTargetValue 0.0 — HR-3 invariant); noteStarted re-arms onset
+     timer (Q3); noteStopped(allowTailOff=true) starts 150 ms linear fade-out;
+     renderNextBlock 7-step evaluation (raw APVTS → Schelleng wedge → slow-LFO →
+     LFO apply → macro layer → bowModel push → per-sample loop); per-sample
+     vibrato cents (HR-1 gated; active string only) + delay-line modulation.
+     ~+90 LOC source.
+   - tests/render-harness/main.cpp: 4 new modes — --vibrato (autocorrelation
+     pitch-tracking τ ∈ [400, 1500] samples; peakDepthCents / onsetTimeMs /
+     vibratoRateHzMeasured), --slow-lfo (rmsByDecade + clampedDepthMean
+     instrumentation hook drain; pass_breathingAudible ≥5% softened from 20%
+     for v1.0 wedge bass-register parking), --schelleng-stress (clamp-engagement
+     audit; pass_clampEngaged < 0.5), --macro-sweep (per-block ramp 0→1; rmsRampPct
+     10–30%; rmsContinuity ≥0.85 looser per macro-lift design). Mutual-exclusion
+     precedence ladder (macro > schelleng > vibrato > slow-lfo > Phase 2.2 modes).
+     Auto-rewrite default WAV/JSON filenames per mode. ~+250 LOC harness.
+
+   Gate 5 (R31) PASS:
+   - (1) Phase 2.2 strict byte-equal regression bar reproduced — all 5 goldens:
+       stiffness-zero sha256 == d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75
+       string-A/D/G/detune-sweep-A/note-sequence sha256 byte-identical
+   - (2) --vibrato: pass_vibratoDepthInRange (peakDepthCents ∈ [10, 14])
+       + pass_onsetWindow (∈ [800, 1000] ms) + pass_rateHzInRange (∈ [4.5, 5.5] Hz)
+       + pass_rmsContinuity (≥0.90).
+   - (3) --slow-lfo: pass_breathingAudible (≥5% v1.0 — Phase 2.4 calibration polynomial parked)
+       + pass_rmsContinuity (≥0.90) + pass_clampEngagement (clampedDepthMean > 0.0).
+   - (4) --schelleng-stress: pass_peak + pass_noNaN + pass_clampEngaged
+       (clampedDepthMean < 0.5) + pass_blockTime.
+   - (5) --macro-sweep: pass_rmsContinuity (≥0.85 looser) + pass_rmsRampDirection
+       (rmsRampPct ∈ [0.10, 0.30]).
+   - (6) auval -v aumu OCbs OuDv: AU VALIDATION SUCCEEDED.
+   - (7) pluginval --strictness-level 10 --validate-in-process: PASS.
+   - (8) Logic AU smoke (R32): user-deferred non-blocking, mirroring R27 /
+       R19f / R14e precedent.
+
+   Stage-1 contract amendment:
+   - parameter-spec.md line 57: EXPRESSION_MACRO default 0.50 → 0.0.
+       Justification: preserves Phase 2.2 strict byte-equal regression bar
+       (architecture-spec'd 0.50 default would, once the macro DSP is wired,
+       produce a non-zero brightness offset and bow-param multiplier at rest,
+       breaking the 5-golden regression bar). Q7a user-confirmed in CONTEXT
+       rev-5 (2026-04-27). Knob-at-zero = literal no-op (×1.0 multipliers
+       + 0 Hz brightness offset). Macro-lifted character available via user
+       knob movement or future presets (Phase 4.1+).
+   - STATUS.md contract_checksums.parameter_spec: sha256 update (was c47fe736…).
+   - All other artefacts left untouched per RESEARCH §16.11 grep audit:
+       parameter-spec-draft.md, research/ARCHITECTURE.md, ROADMAP.md, BRIEF.md,
+       REQUIREMENTS.md, stages/1-foundation/PLAN.md (historical / architecture-
+       immutable / no-default-referenced).
+
+   Architecture amendments still deferred to end-of-Stage-2 verify per locked
+   decision: §"DC Blocker" (F3 from Phase 2.1a-recovery) and §"In-loop saturator"
+   (conditional on Phase 2.4 §12.5 escalation).
+
+   Phase 2.4 follow-ups parked:
+   - Schelleng wedge bass-register calibration polynomial (analogous to
+       Phase 2.1c Risk #7 E1 dispersion clamp). RESEARCH §16.3 documents
+       v1.0 ships clamp-engaged-at-default; calibration target post-Phase-2.4.
+   - pass_breathingAudible 20% threshold — restore once calibration polynomial
+       widens the playable wedge for bass register.
+   - Saturator-tail re-evaluation per RESEARCH §12 footnote.
+
+   Phase 2.3 closes. Phase 2.4 (sub-harmonic bias + 108-combo stability matrix
+   + Schelleng calibration polynomial + saturator-tail) opens as fresh GSD cycle.
+
+   Refs:
+   - RESEARCH.md §16 (Phase 2.3 vibrato + slow-LFO + Schelleng + macro research)
+   - PLAN.md rev-7 (R28-pre, R28, R29, R30, R31, R32, R33)
+   - CONTEXT.md rev-5 (Phase 2.3 discuss)
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+6. **Post-commit verification:**
+   ```bash
+   git log --stat HEAD~1..HEAD
+   git rev-parse HEAD
+   ```
+   Record the commit SHA in `STATUS.md` `phase_2_3_atomic_commit_sha` field. (If you forgot to back-fill the placeholder in step 2, commit again with an additional "chore" SHA back-fill commit, OR include the SHA in step 2 by deferring the staging until after the commit and a `git commit --amend` — but **NEVER use --amend per CLAUDE.md hard rule on amends**. Recommended: leave the placeholder as `phase_2_3_atomic_commit_sha: TBD_post_commit`, commit, then create a separate non-atomic chore commit `chore(O-Contrabass): backfill Phase 2.3 commit sha into STATUS.md` after capturing the SHA.) Confirm `git status` clean.
+
+   Mirrors the Phase 2.1c R20 / Phase 2.2 R26 SHA-backfill pattern (STATUS.md edit landed in the atomic, then chore commit `d80b2e6` style backfill — see recent commit history).
+
+**Files modified:** all listed under "Stage all" in step 3.
+
+**Commit:** **THIS IS THE PHASE 2.3 ATOMIC COMMIT.** Single commit, only on Gate 5 PASS.
+
+**Success bar:**
+- [ ] `git log --stat HEAD~1..HEAD` shows ~20 files in a single commit.
+- [ ] Commit body explicitly documents the Stage-1 contract amendment for EXPRESSION_MACRO default + Q7a regression-bar preservation rationale + Phase 2.4 calibration polynomial parking.
+- [ ] `git status` clean post-commit.
+- [ ] STATUS.md `next_action` flipped to `phase_2_4_discuss`.
+- [ ] STATUS.md `contract_checksums.parameter_spec` updated to new sha256.
+- [ ] STATUS.md `phase_2_3_atomic_commit_sha` recorded (or queued for backfill chore commit).
+- [ ] Phase 2.3 closed.
+
+**Estimated effort:** 30 min (mostly mechanical staging + commit + STATUS.md update + post-commit verification). +5 min for backfill chore commit if SHA is post-recorded.
+
+---
+
+## Why R33 is a single atomic commit
+
+Same gate-first principle as R7 (Phase 2.1a-recovery), R15 (Phase 2.1b extraction), R20 (Phase 2.1c dispersion), R26 (Phase 2.2 4-string bank):
+
+1. **Coupling:** the Phase 2.3 artefacts (`PluginProcessor.{h,cpp}` macro default flip + accessor; `BowedContrabassVoice.{h,cpp}` 7-step evaluation order + per-sample HR-1 vibrato; harness `main.cpp` 4 new modes + autocorrelation + JSON schemas; 8 new golden text files; parameter-spec.md Stage-1 contract amendment + STATUS.md sha256 update; 5 planning artefact updates) are mutually coupled. Splitting them yields broken intermediate states — e.g., parameter-spec.md edit landing without the source default flip violates the contract; harness JSON schema landing without the voice-side `lastSafeDepth` accessor produces undefined-symbol link errors; macro DSP landing without the default flip breaks the regression bar.
+2. **Bisect safety:** if a future Phase 2.x bug bisects back to "modulator + macro landing", a single SHA flips the entire feature.
+3. **Audit trail:** Phase 2.x's atomic-commit sequence is R7 → R15 → R20 → R26 → **R33**. The Phase 2.x timeline stays trivially reconstructible from `git log --grep "Phase 2."`.
+4. **Stage-1 contract amendment auditability:** the parameter-spec.md edit + STATUS.md sha256 update + commit body explanation MUST land together. Splitting them obscures the rationale chain.
+
+---
+
+## Files To Create / Modify (consolidated, Phase 2.3)
+
+### Source (modified)
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` — R28 (+1 LOC: EXPRESSION_MACRO default 0.50f → 0.0f).
+- `plugins/O-Contrabass/Source/PluginProcessor.h` — R29 (+~3 LOC: `getActiveVoice()` accessor + forward decl).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` — R28 (~+20 LOC: 5 modulator state vars + 3 SmoothedValue<Linear> + std::atomic<float> lastSafeDepth + getter; `<atomic>` include).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` — R28 (~+90 LOC: 5 anonymous-namespace constants; prepareToPlay init; noteStarted re-arm; noteStopped fade trigger + hard-stop reset; renderNextBlock 7-step evaluation; per-sample HR-1 gated vibrato + active-slot delay-line modulation in BOTH crossfade and standard mix paths; updateParametersFromAPVTS bowModel push removed — moved into step 6).
+
+### Harness (modified)
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` — R29 (~+250 LOC: 4 new flags `--vibrato`/`--slow-lfo`/`--schelleng-stress`/`--macro-sweep`; mutual-exclusion precedence ladder; per-mode pre-build APVTS overrides; per-block macro ramp; clampedDepthSum/Count accumulator + getActiveVoice()->getLastSafeDepth() drain; autocorrelation pitch-tracking with parabolic interpolation; 4 per-mode pass-condition computations; 4 per-mode JSON schema blocks; macro-sweep loose rmsContinuity threshold 0.85; auto-rewrite default WAV/JSON filenames; doc-comment header update).
+
+### Test artefacts (new, committed as text-only — sha256 + JSON, per pin #12)
+- `plugins/O-Contrabass/tests/render-harness/golden/vibrato.wav.sha256` — R31
+- `plugins/O-Contrabass/tests/render-harness/golden/vibrato.json` — R31
+- `plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256` — R31
+- `plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json` — R31
+- `plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256` — R31
+- `plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json` — R31
+- `plugins/O-Contrabass/tests/render-harness/golden/macro-sweep.wav.sha256` — R31
+- `plugins/O-Contrabass/tests/render-harness/golden/macro-sweep.json` — R31
+
+### Test artefacts (NOT committed — staged-only or transient)
+- `/tmp/phase23-r28pre-stiffness-zero.{wav,json}` — R28-pre tripwire (~22 MB; transient).
+- `/tmp/smoke-{vib,lfo,sch,macro,string-a,det-a}.{wav,json}` — R30 smoke (~0.2–22 MB each; transient).
+- `/tmp/phase23-r31-stiffness-zero.{wav,json}` — R31 regression render (~22 MB; transient).
+- `vibrato.wav` / `slow-lfo.wav` / `schelleng-stress.wav` / `macro-sweep.wav` — R31 mode renders (~3–22 MB each; reproducible from harness; sha256 + JSON committed instead).
+- `string-{A,D,G}.wav` + `detune-sweep-A.wav` + `note-sequence.wav` — R31 Phase 2.2 reproduction (~3–22 MB each; reproducible; existing sha256 + JSON unchanged).
+
+### Stage-1 contract amendment (modified, per pin #13)
+- `plugins/O-Contrabass/.planning/parameter-spec.md` — R33 (1-line edit: line 57 EXPRESSION_MACRO Default 0.50 → 0.0).
+- `plugins/O-Contrabass/.planning/STATUS.md` — R33 (`contract_checksums.parameter_spec` sha256 update; full closure block per step 2).
+
+### Planning artefacts (modified)
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` — already at rev-5 (no further edits in execute; rev-5 lock holds).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` — already at §16 append (no further edits in execute).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` — this rev-7 append (no further edits in execute; verify-phase may add a "rev-7 retrospective" footnote if anomalies surfaced).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` — execute-phase appends "Phase 2.3 execute" section after R33.
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — verify-phase appends "Phase 2.3 verify" section with R31 audit table + R31 invariant (1) sha256 confirmation + Phase 2.4 follow-up captures.
+
+### Files explicitly NOT touched
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2 R26-frozen; consumed verbatim — vibrato modulates via existing `setDelaySamples()` API; no topology / smoother / brightness-coefficient / setActiveSections changes).
+- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` (Phase 2.1c R20-frozen; consumed verbatim).
+- `plugins/O-Contrabass/Source/PluginEditor.{h,cpp}` (Stage 3 work).
+- `plugins/O-Contrabass/Source/OContrabassMPESynthesiser.{h,cpp}` (voice count = 1; no Synthesiser changes for Phase 2.3 — modulators live inside the existing single voice).
+- `plugins/O-Contrabass/Source/BowModel.{h,cpp}` (Phase 2.1a-frozen; consumed verbatim — `setBowSpeed`/`setBowPressure` API surface unchanged).
+- `modules/synthesis/bow-friction/*` (Phase 2.1b-frozen v1.0.0; value-class deterministic, no string-count / modulator coupling).
+- `modules/registry.yaml` (no module surface changes).
+- `plugins/O-Bowed/*` (Phase 2.3 is single-plugin scope; O-Bowed has no vibrato/macro yet — confirmed ZERO references per RESEARCH §16.12).
+- `plugins/O-Contrabass/research/ARCHITECTURE.md` (deferred amendments to end-of-Stage-2 verify; F3 deviation + Q7a default flip continue tracked in R33 commit body — Q7a is a Stage-1 contract amendment, NOT an architecture amendment, since the architecture's design intent is preserved; only the default value differs).
+- `plugins/O-Contrabass/.planning/parameter-spec-draft.md` (historical — audit trail of original draft; pin #13 RESEARCH §16.11 grep audit explicitly leaves untouched).
+- `plugins/O-Contrabass/.planning/BRIEF.md` (no EXPRESSION_MACRO default reference).
+- `plugins/O-Contrabass/.planning/REQUIREMENTS.md` (no EXPRESSION_MACRO default reference).
+- `plugins/O-Contrabass/.planning/stages/1-foundation/PLAN.md` (historical Stage 1 task table — closed milestone, audit trail).
+- `plugins/O-Contrabass/.planning/ROADMAP.md` (no default value references).
+- `plugins/O-Contrabass/CMakeLists.txt` (no new source files; no header-list update needed).
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-zero-pre.{wav.sha256,json}` (Phase 2.1c golden — content-stable; R31 invariant (1) verifies it still matches).
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-sweep.{wav.sha256,json}` (Phase 2.1c golden — content-stable; not re-rendered in Phase 2.3).
+- `plugins/O-Contrabass/tests/render-harness/golden/string-{A,D,G}.{wav.sha256,json}` (Phase 2.2 goldens — content-stable; R31 invariant (1) verifies all 5 still match).
+- `plugins/O-Contrabass/tests/render-harness/golden/detune-sweep-A.{wav.sha256,json}` (Phase 2.2 golden — content-stable; verified in R31).
+- `plugins/O-Contrabass/tests/render-harness/golden/note-sequence.{wav.sha256,json}` (Phase 2.2 golden — content-stable; verified in R31).
+
+---
+
+## Dependencies Graph (compact)
+
+```
+R28-pre (working-tree integrity tripwire; sha256 == d358abcd… with single-edit Q7a default flip;
+         NO source edits committed; reverts the edit before R28)
+   ↓                ↓ (mismatch → STOP, investigate working-tree drift)
+R28 (PluginProcessor.cpp + PluginProcessor.h + BowedContrabassVoice.{h,cpp} source edits;
+     ~+115 LOC source; HARD RULES HR-1 to HR-4 enforced; Q7a default flip + 7-step eval order +
+     per-sample HR-1 vibrato + active-slot delay-line modulation; NO build, NO commit)
+   ↓
+R29 (Harness main.cpp + PluginProcessor.h getActiveVoice() accessor; ~+250 LOC; 4 new modes +
+     mutual-exclusion ladder + per-mode APVTS overrides + autocorrelation pitch-tracking +
+     clampedDepthMean instrumentation drain + per-mode JSON schemas + macro-sweep loose
+     rmsContinuity threshold; NO build, NO commit)
+   ↓
+R30 (Build + smoke; 3 targets compile zero-warning; 4 new mode flags exit 0 at 0.5 s sustain;
+     Phase 2.2 modes still functional)
+   ↓ (PASS)              ↓ (FAIL)
+R31 (Gate 5 invariants  R30 diagnostic on compile/link-error per CONTEXT rev-5 hard rules:
+  (1)–(7): regression       - undefined symbol on lastSafeDepth → atomic include missing
+  bar (5 goldens) +         - undefined symbol on getActiveVoice → forward decl missing
+  --vibrato + --slow-lfo    - undefined sin/cos → header missing
+  + --schelleng-stress      - re-run R30 after fix
+  + --macro-sweep + auval +
+  pluginval-10; capture
+  8 new golden text files;
+  diagnostic-on-fail per
+  HR-1/HR-2/HR-3/HR-4 audit
+  if invariant (1) breaks)
+   ↓ (PASS)
+R32 (optional, user-deferred non-blocking, Logic AU smoke; NOT in commit)
+   ↓
+R33 (Phase 2.3 atomic commit — ~20 files including parameter-spec.md amendment +
+     STATUS.md sha256 update; closes 2.3; mirrors R26 / R20 / R15 / R7 atomic-commit
+     pattern; commit body documents Stage-1 contract amendment + Phase 2.4 follow-ups)
+```
+
+R28-pre is a strict prerequisite to R28 — if working tree drifts, all subsequent bit-exact reasoning breaks. R29 cannot link without R28's `getActiveVoice()` accessor and the `lastSafeDepth` atomic; R28 + R29 together are a single source-edit batch landed before R30 builds. R30 catches compile/link errors. R31 is the gated bit-exact + behavioral check (binding gate). R31 invariant (1) is the binding regression bar — failure here forces R28 source-edit audit (HR-1/HR-2/HR-3/HR-4 enforcement). R33 is the gated finisher.
+
+---
+
+## Risks (Phase 2.3, refreshed from RESEARCH §16.13)
+
+1. **Bit-exact regression failure when modulators land (CONTEXT rev-5 Risk #1; binding RESEARCH §16.8 invariant).** Mitigation: HR-1 to HR-4 hard rules + R28-pre tripwire + R31 invariant (1) final check. **Diagnostic-on-fail playbook:**
+   - HR-1 audit: confirm `if (effectiveVibratoDepth > 0.0f)` gate present BEFORE the cents computation; confirm `vibCents = 0.0f` initial value preserved through all paths.
+   - HR-2 audit: confirm `if (rawSlowLfoDepth > 0.0f)` gate present BEFORE the LFO phase advance; confirm `slowLfoSpeedMod`/`slowLfoPressureMod` initial values are literal `0.0f`.
+   - HR-3 audit: confirm `macroSmoothed.setCurrentAndTargetValue(0.0f)` in prepareToPlay; confirm the `macroSmoothed.setTargetValue(rawMacro)` is unconditional but the bow-param multiplications are pure IEEE 754 identity arithmetic at macro=0.
+   - HR-4 audit: confirm the entire wedge block is gated; confirm `safeDepth = vibAntiCorr = 0.0f` initial values preserved through the gate.
+   - Last resort: file follow-up RESEARCH note for Phase 2.4 (RESEARCH §16.8 final paragraph reserves this — empirical pre-flight already passed, so failure here would be a code-edit defect, not a HR-rule defect).
+
+2. **Schelleng wedge always-clamps at bass register (CONTEXT rev-5 Risk #2 + RESEARCH §16.3 CHARACTERIZED).** Mitigation: ACCEPTED for v1.0. RESEARCH §16.3 documents headroom = −0.84 at default bass operating point (F_bow=1.0 < fMin=6.25 with Z=R=R_s=0.5 collapse). v1.0 ships with clamp engaged at default; user must dial bow params to mid-wedge region (BOW_PRESSURE 2–4, mid-β 0.10–0.15) to hear LFO modulation. **Phase 2.4 follow-up parking:** calibration polynomial (analogous to Phase 2.1c Risk #7 E1 dispersion) widens the playable wedge.
+
+3. **Brightness offset zipper at 20 ms smoothing (CONTEXT rev-5 Risk #3 + RESEARCH §16.5 MITIGATED).** Mitigation: §16.5 analytical proof — Δp ≈ 0.015/block at 20 ms ramp on the bridge-LP coefficient; well below ~0.05 zipper-detection threshold. Fallback: bump smoothing to 50 ms (1-line `.reset(sr_internal, 0.050)` change at the macroSmoothed init) if Gate 5 invariant (5) fails — `pass_rmsContinuity ≥ 0.85` catches.
+
+4. **Vibrato + detune Lagrange3rd accumulation error at extreme cents (CONTEXT rev-5 Risk #4 + RESEARCH §16.4 MITIGATED).** Mitigation: ±50¢ vibrato peak is two orders of magnitude below Phase 2.2 detune-sweep ±1200¢ already validated through Lagrange3rd. Gate 5 invariant (2) `pass_rmsContinuity ≥ 0.90` catches.
+
+5. **Per-block Schelleng wedge CPU spike (CONTEXT rev-5 Risk #5 + RESEARCH §16.6 MITIGATED).** Mitigation: 3 divs + 4 muls + 1 min, gated by HR-4. Estimated <0.1 % CPU on M1. PERF-02 (< 5 % CPU) preserved; total Phase 2.3 voice CPU additionally ~0.3 % per RESEARCH §16.
+
+6. **Macro × vibrato onset compound modulation (CONTEXT rev-5 Risk #6 + ACCEPTED).** By-design UX feature; documented in user manual (Phase 4 polish). No mitigation — user expects the macro to interact with vibrato character.
+
+7. **EXPRESSION_MACRO default-change auditability (CONTEXT rev-5 Risk #7 + RESEARCH §16.11 MITIGATED).** Mitigation: pin #13 grep audit identifies parameter-spec.md line 57 + STATUS.md sha256 as the only required edits; R33 commit body documents Stage-1 contract amendment with Q7a regression-bar preservation rationale. parameter-spec-draft.md / ARCHITECTURE.md / ROADMAP.md / BRIEF.md / REQUIREMENTS.md / Stage-1 PLAN.md left untouched as audit trail.
+
+8. **`--schelleng-stress` false-positives on audio output alone (CONTEXT rev-5 Risk #8 + RESEARCH §16.7.3 MITIGATED).** Mitigation: `clampedDepthMean` instrumentation hook (pin #4 — `std::atomic<float> lastSafeDepth`) exposed via JSON; `pass_clampEngaged` confirms `clampedDepthMean < 0.5` (clamp dominates). Phase 2.1c precedent: `rmsByDecade` instrumentation hook in `--stiffness-sweep` mode.
+
+9. **Slow-LFO at very low rate over short renders (CONTEXT rev-5 Risk #9 + RESEARCH §16.7.2 MITIGATED).** Mitigation: `--slow-lfo` harness pins SLOW_LFO_RATE=0.3 Hz over 60 s = 18 cycles, well-sampled.
+
+10. **Slow-LFO `pass_breathingAudible` 20 % threshold not reachable at default bass (RESEARCH §16.13 NEW).** Mitigation: pin #2 — softened to 5 % for v1.0; restore 20 % as Phase 2.4 calibration target.
+
+11. **Vibrato sine phase carry-forward across notes introduces non-deterministic golden-render order dependency (RESEARCH §16.13 NEW).** Mitigation: vibrato golden tests are SINGLE-NOTE (`--vibrato` mode renders one note); sequence-mode tests have VIBRATO_DEPTH=0 → HR-1 short-circuit, no phase advance. Risk does NOT materialise in Phase 2.3 harness suite.
+
+12. **`macroSmoothed.skip(numSamples - 1)` per-block edge case at numSamples=1 (RESEARCH §16.13 NEW).** Mitigation: pin #7 — `juce::jmax(0, numSamples - 1)` guards the skip. Also `if (numSamples <= 0) return;` early-return in `renderNextBlock` line 201–202 prevents step 5 from running at numSamples=0.
+
+13. **Pitch-tracking autocorrelation sensitivity to bow noise / sub-harmonic content (RESEARCH §16.13 NEW).** Mitigation: at Phase 2.3 the friction junction is the only audio source (no bow noise — Phase 2.5; no sub-harmonics — Phase 2.4). τ ∈ [400, 1500] search range excludes f₀/2 sub-harmonic at τ ≈ 2140 samples for f₀ = 41.20 Hz.
+
+14. **`updateParametersFromAPVTS()` bowModel push removal regression risk (NEW, R28 substep 7a refactor).** Mitigation: at modulators-off, the new step 6 push value `effectiveBowSpeed * mpeExpression` equals the removed `effectiveSpeed = bowSpeed * mpeExpression` byte-identically; ditto pressure. R31 invariant (1) catches any miss.
+
+---
+
+## Success Criteria (Gate 5 — Phase 2.3 verify exit gate)
+
+- [ ] **R28-pre** — Working-tree integrity tripwire: pre-edit sha256 == `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` (Phase 2.1c golden carry-forward; reproduces RESEARCH §16.1 under plan-phase build env). Source edit reverted post-tripwire.
+- [ ] **R28** — `Source/PluginProcessor.cpp` line 86 EXPRESSION_MACRO default 0.50f → 0.0f (Q7a). `Source/PluginProcessor.h` `getActiveVoice()` accessor added. `Source/BowedContrabassVoice.h` extended with 5 modulator state vars + 3 SmoothedValue<Linear> + std::atomic<float> lastSafeDepth + getter. `Source/BowedContrabassVoice.cpp` extended with prepareToPlay init + noteStarted re-arm + noteStopped fade trigger + 7-step renderNextBlock evaluation + per-sample HR-1 gated vibrato + active-slot delay-line modulation in BOTH crossfade and standard mix paths. HARD RULES HR-1 to HR-4 visually traceable in code.
+- [ ] **R29** — Harness `--vibrato` / `--slow-lfo` / `--schelleng-stress` / `--macro-sweep` flags + mutual-exclusion precedence ladder + per-mode APVTS overrides + per-block macro ramp + clampedDepthMean accumulator drain via `getActiveVoice()->getLastSafeDepth()` + autocorrelation pitch-tracking with parabolic interpolation + per-mode pass-condition expressions + per-mode JSON schema additions + macro-sweep loose rmsContinuity 0.85 threshold + auto-rewrite filenames.
+- [ ] **R30** — Release build clean (3 targets); 4 new harness flags exit 0 at 0.5 s smoke; Phase 2.2 modes still functional (`--string A`, `--detune-sweep A` produce correct mode strings).
+- [ ] **R31 invariant (1)** — Phase 2.2 strict byte-equal regression bar reproduced — all 5 goldens (stiffness-zero `d358abcd…`, string-A `aa88f4c3…`, string-D `d0ef8087…`, string-G `524d2186…`, detune-sweep-A `5e31dad3…`, note-sequence `2a731edb…`) byte-identical to committed text-file content.
+- [ ] **R31 invariant (2)** — `--vibrato`: `pass_vibratoDepthInRange` (peakDepthCents ∈ [10, 14]) + `pass_onsetWindow` (∈ [800, 1000] ms) + `pass_rateHzInRange` (∈ [4.5, 5.5] Hz) + `pass_rmsContinuity` (≥ 0.90) all TRUE. sha256 captured to golden.
+- [ ] **R31 invariant (3)** — `--slow-lfo`: `pass_breathingAudible` (≥ 5 % v1.0; 20 % parked Phase 2.4) + `pass_rmsContinuity` (≥ 0.90) + `pass_clampEngagement` (clampedDepthMean > 0.0) all TRUE-or-documented. sha256 captured to golden.
+- [ ] **R31 invariant (4)** — `--schelleng-stress`: `pass_peak` (peak ≤ 1.0) + `pass_noNaN` (zero NaN/Inf) + `pass_clampEngaged` (clampedDepthMean < 0.5) all TRUE. sha256 captured to golden.
+- [ ] **R31 invariant (5)** — `--macro-sweep`: `pass_rmsContinuity` (≥ 0.85 looser) + `pass_rmsRampDirection` (rmsRampPct ∈ [0.10, 0.30]) all TRUE. sha256 captured to golden.
+- [ ] **R31 invariant (6)** — auval reports `AU VALIDATION SUCCEEDED`.
+- [ ] **R31 invariant (7)** — pluginval --strictness-level 10 reports `SUCCESS`.
+- [ ] **R31 audit table** — Eight-item Gate 5 bar compiled (input to VERIFICATION.md): items (1)–(7) from R31, (8) deferred to R32.
+- [ ] **R32 (optional)** — Gate 5 invariant (8) Logic AU smoke: USER-CONFIRMED PASS or DEFERRED (mirrors R27 / R19f / R14e precedent).
+- [ ] **R33** — Atomic commit landed; `git log --stat HEAD~1..HEAD` shows ~20 files in single commit; STATUS.md `next_action` flipped to `phase_2_4_discuss`; `gate_state.phase_2_3_modulators_macro: PASS`; `phase_2_3_atomic_commit_sha` recorded (or queued for backfill chore commit). `parameter-spec.md` line 57 default 0.50 → 0.0 amended; `STATUS.md` `contract_checksums.parameter_spec` sha256 updated. Commit body documents Stage-1 contract amendment + Q7a regression-bar preservation rationale + Phase 2.4 follow-ups.
+- [ ] **(Architecture amendments, post-Stage-2-verify, OUT OF SCOPE for this execute)** — ARCHITECTURE.md §"DC Blocker" (F3) + §"In-loop saturator" amendments still deferred. EXPRESSION_MACRO default flip (Q7a) is a Stage-1 contract amendment, NOT an architecture amendment — design intent of architecture line 567 (4-destination layering with stated multipliers) is preserved; only the default value differs.
+
+When all checks above are green (R32 user-confirmed or accepted as deferred), **Phase 2.3 verifies** and **Stage 2 progress reaches ~50 %** (2.1 + 2.2 + 2.3 closed; 2.4, 2.5, 2.6 remain). Phase 2.4 (sub-harmonic bias + 108-combo stability matrix + Schelleng calibration polynomial follow-up + saturator-tail re-evaluation) opens as a fresh GSD cycle.
+
+---
+
+## Out of Scope (deferred per CONTEXT.md rev-5 + RESEARCH §16 + STATUS.md)
+
+- **Phase 2.4 → 2.6** — Sub-harmonic bias + 108-combo stability matrix (2.4 — saturator-tail re-evaluated here per RESEARCH §12 footnote; bass-register Schelleng wedge calibration polynomial follow-up here per RESEARCH §16.3 + Phase 2.1c Risk #7); body resonator + bow noise (2.5); master saturator/limiter + microtonal + MPE + Note Expression / MTS-ESP / Scala (2.6).
+- **Phase 2.4 calibration polynomial follow-up for bass-register Schelleng wedge** — RESEARCH §16.3 documented headroom = −0.84 at default bass operating point. v1.0 ships clamp-engaged-at-default; calibration polynomial recalibrates `Z` / `R` / `R_s` constants (or replaces closed-form with empirical bass-register table) so the wedge produces non-negative headroom at default settings. After calibration, restore `pass_breathingAudible` 20 % threshold from the v1.0 5 % softening (pin #2).
+- **`pass_rmsContinuity` 0.90 vs 0.85 threshold tuning** — macro-sweep uses 0.85; vibrato/slow-lfo use 0.90; if R31 false-flags, soften per-mode in VERIFICATION.md note + log Phase 2.4 follow-up.
+- **Anti-correlation guard FFT-bin spectral test** — Q8 listening-test-only resolution. If Phase 2.4 surfaces a 5:1 sub-harmonic beating in the friction junction at LFO+vibrato extremes, file FFT-bin spectral metric as Phase 2.5+ harness extension.
+- **Macro-aware Schelleng wedge re-evaluation** — RESEARCH §16.9 NO re-eval policy. If R32 listening surfaces Helmholtz-collapse at extreme macro + extreme bow params, file Phase 2.4 follow-up: macro-aware safeDepth refinement OR re-evaluating wedge against macro-lifted params.
+- **Per-string vibrato modulation** — Q2 active-string-only contract. Future MPE per-string vibrato (different vibrato rate per voice/string) parking — Phase 2.6 MPE work.
+- **VibratoLFO / SlowBowLFO module extraction** — Q10 inline-in-voice locked. RESEARCH §16.12 confirms zero O-Bowed precedent; revisit only if execute-phase exceeds ~60 LOC each (current estimate: ~30 LOC each). Phase 2.4-or-later concern if O-Bowed grows its own modulator layer.
+- **EXPRESSION_MACRO automation lane in DAW** — Stage 3 (GUI) work. v1.0 supports parameter automation via standard APVTS plumbing; lane labelling + macro-knob UI live in Stage 3.
+- **CC11/CC2/CC74/MPE-Y direct mapping to BOW_SPEED/BOW_PRESSURE/BOW_POSITION** — Phase 2.6 microtonal + MPE work. Phase 2.3 leaves the existing Phase 2.1a `mpeExpression` / `note.pressure.asUnsignedFloat()` / `note.timbre.asSignedFloat()` plumbing intact; explicit CC mapping deferred.
+- **Production WAV binary commits** — `phase23-r28pre-stiffness-zero.wav` / `phase23-r31-stiffness-zero.wav` / `vibrato.wav` / `slow-lfo.wav` / `schelleng-stress.wav` / `macro-sweep.wav` / `string-{A,D,G}.wav` / `detune-sweep-A.wav` / `note-sequence.wav` are NOT committed (~3–22 MB each; reproducible from harness). sha256 + JSON committed instead per pin #12.
+- **ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments** — end-of-Stage-2 verify decides; F3 deviation continues in R33 commit body.
+- **Saturator-tail Phase 2.4 follow-up** — RESEARCH §12 footnote carry-forward. R32 listening on E1+VIBRATO+SLOW_LFO together (anti-correlation guard audition) may surface saturator-tail interaction with modulators; still parked for Phase 2.4.

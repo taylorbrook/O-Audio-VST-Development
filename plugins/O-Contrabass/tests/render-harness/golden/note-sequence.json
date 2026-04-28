@@ -1,68 +1,68 @@
 {
-  "status": "PASS",
+  "status": "FAIL",
   "mode": "note-sequence",
   "midiNote": 28,
   "velocity": 0.699999988079071,
   "sustainSeconds": 60.0,
-  "releaseSeconds": 2.0,
+  "releaseSeconds": 5.0,
   "infiniteSustain": 1.0,
   "stringStiffness": -1.0,
-  "totalSamples": 418950,
-  "peak": 0.057925939559937,
+  "totalSamples": 882000,
+  "peak": 0.068542242050171,
   "nanCount": 0,
   "infCount": 0,
-  "rmsMid_s5_s6": 0.0096182115376,
-  "rmsFinal_lastSecond": 0.008535347878933,
-  "rmsRatio_final_over_mid": 0.887415289878845,
-  "blockMicros_median": 45.707999999999998,
-  "blockMicros_max": 65.292000000000002,
-  "blockTime_max_over_median": 1.428458913100551,
+  "rmsMid_s5_s6": 0.013679440133274,
+  "rmsFinal_lastSecond": 0.008051151409745,
+  "rmsRatio_final_over_mid": 0.588558554649353,
+  "blockMicros_median": 48.875,
+  "blockMicros_max": 71.082999999999998,
+  "blockTime_max_over_median": 1.454383631713555,
   "pass_nan": true,
   "pass_peak": true,
   "pass_blockTime": true,
   "pass_rms": true,
-  "outputWav": "note-sequence.wav",
+  "outputWav": "/tmp/verify-2-3/regression/note-sequence.wav",
   "sequence": [
     {
       "midiNote": 28,
       "sampleStart": 0,
-      "sampleCount": 66150
+      "sampleCount": 132300
     },
     {
       "midiNote": 33,
-      "sampleStart": 66150,
-      "sampleCount": 66150
+      "sampleStart": 132300,
+      "sampleCount": 132300
     },
     {
       "midiNote": 38,
-      "sampleStart": 132300,
-      "sampleCount": 66150
+      "sampleStart": 264600,
+      "sampleCount": 132300
     },
     {
       "midiNote": 43,
-      "sampleStart": 198450,
-      "sampleCount": 66150
+      "sampleStart": 396900,
+      "sampleCount": 132300
     },
     {
       "midiNote": 28,
-      "sampleStart": 264600,
-      "sampleCount": 66150
+      "sampleStart": 529200,
+      "sampleCount": 132300
     }
   ],
   "transitionSampleIndices": [
-    66150,
     132300,
-    198450,
-    264600
+    264600,
+    396900,
+    529200
   ],
   "perSegmentRms": [
-    0.035580087453127,
-    0.011158196255565,
-    0.010304272174835,
-    0.009713293984532,
-    0.009219934232533
+    0.035008851438761,
+    0.014867233112454,
+    0.012208743952215,
+    0.010627447627485,
+    0.00952844787389
   ],
   "pass_allSegmentsAudible": true,
-  "rmsContinuityAtTransitions": 0.908523082733154,
-  "pass_rmsContinuityAtTransitions": true
+  "rmsContinuityAtTransitions": 0.329534590244293,
+  "pass_rmsContinuityAtTransitions": false
 }

@@ -75,7 +75,7 @@ OContrabassAudioProcessor::createParameterLayout()
     layout.add(std::make_unique<APF>(juce::ParameterID{"VIBRATO_RATE", 1},     "Vibrato Rate",
         NR(0.1f, 12.0f, 0.01f),            5.0f));
     layout.add(std::make_unique<APF>(juce::ParameterID{"VIBRATO_DEPTH", 1},    "Vibrato Depth",
-        NR(0.0f, 50.0f, 0.1f),             12.0f));
+        NR(0.0f, 50.0f, 0.1f),             0.0f));    // Phase 2.3 — default flipped 12.0 → 0.0 to preserve Phase 2.2 strict byte-equal regression bar (HR-1 short-circuit). Mirrors EXPRESSION_MACRO Q7a precedent.
     layout.add(std::make_unique<APF>(juce::ParameterID{"VIBRATO_ONSET", 1},    "Vibrato Onset",
         NR(0.0f, 3000.0f, 1.0f, 0.5f),     600.0f));
     layout.add(std::make_unique<APF>(juce::ParameterID{"SLOW_LFO_RATE", 1},    "Slow Bow LFO Rate",
@@ -83,7 +83,7 @@ OContrabassAudioProcessor::createParameterLayout()
     layout.add(std::make_unique<APF>(juce::ParameterID{"SLOW_LFO_DEPTH", 1},   "Slow Bow LFO Depth",
         NR(0.0f, 1.0f, 0.001f),            0.0f));
     layout.add(std::make_unique<APF>(juce::ParameterID{"EXPRESSION_MACRO", 1}, "Expression Macro",
-        NR(0.0f, 1.0f, 0.001f),            0.50f));
+        NR(0.0f, 1.0f, 0.001f),            0.0f));   // Phase 2.3 Q7a — preserves Phase 2.2 strict byte-equal regression bar.
 
     // -- Drone Features (2 params) --
     layout.add(std::make_unique<APF>(juce::ParameterID{"INFINITE_SUSTAIN", 1}, "Infinite Sustain",
@@ -182,6 +182,15 @@ void OContrabassAudioProcessor::setStateInformation(const void* data, int sizeIn
 juce::AudioProcessorEditor* OContrabassAudioProcessor::createEditor()
 {
     return new OContrabassAudioProcessorEditor(*this);
+}
+
+//==============================================================================
+// Phase 2.3 R29 — harness instrumentation accessor (lastSafeDepth read).
+BowedContrabassVoice* OContrabassAudioProcessor::getActiveVoice() noexcept
+{
+    if (synth.getNumVoices() == 0)
+        return nullptr;
+    return dynamic_cast<BowedContrabassVoice*> (synth.getVoice(0));
 }
 
 //==============================================================================

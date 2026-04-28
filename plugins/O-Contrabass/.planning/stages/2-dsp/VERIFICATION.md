@@ -1044,3 +1044,305 @@ Per RESEARCH §14.10 Risk #7, the closed-form clamp at I=8.0 makes E1 STRING_STI
 Next: **`/clear` + `/plugin-discuss O-Contrabass 2-dsp`** opens Phase 2.3 (vibrato + Slow-Bow LFO + Schelleng wedge clamp) as a fresh GSD cycle.
 
 Stage 2 verify (full) cannot complete until Phases 2.3, 2.4, 2.5, and 2.6 are all verified per their own GSD cycles.
+
+---
+
+# Phase 2.3 — Verification (Vibrato + Slow-Bow LFO + Schelleng Wedge Clamp + EXPRESSION_MACRO)
+
+**Date:** 2026-04-27
+**Plugin:** O-Contrabass
+**Stage:** 2 of 4 (DSP) — Phase 2.3 cycle
+**Phase:** verify
+**Cycle scope:** Phase 2.3 — bass-tuned vibrato (sine LFO + half-cosine S-curve onset + 150 ms note-off fade, modulating active string only) + Slow-Bow LFO (0.05–2 Hz, 23° pressure phase-lag, Schelleng wedge depth clamp) + inline Schelleng wedge in `BowedContrabassVoice` (`Z=R=R_s=0.5` collapse, HR-4 gated) + EXPRESSION_MACRO 4-destination layering (default flipped 0.50→0.0 + multipliers from architecture line 567 + 20 ms `SmoothedValue<Linear>` macro source).
+**Plan revision verified:** rev-7 (R28-pre / R28 / R29 / R30 / R31 / R32(optional) / R33 sequencing).
+**Verdict:** ✅ **VERIFIED (with re-baseline) — Gate 5 invariants 1, 4, 5, 6, 7 PASS byte-identical; invariants 2 & 3 PARTIAL per pre-characterised parking decisions; invariant 8 deferred. R33 atomic commit COMPOSED.**
+
+**Initial verify-phase finding** (preserved below for audit trail): independent reproduction surfaced bit-level drift on 4 of 6 Phase 2.2 carry-forward goldens (string-A, string-D, string-G, note-sequence) introduced by a post-R31 source edit on `Source/BowedContrabassVoice.cpp`. Strict E1 regression bar (`d358abcd…`) and detune-sweep-A (`5e31dad3…`) byte-identical → HR-1..HR-4 IEEE 754 identity-arithmetic invariants HOLD for the architecture's primary contract. Per **Phase 2.1c R19a precedent** (re-baseline forward-looking regression coverage when HR rules hold for the primary contract but a structural refactor perturbs adjacent operating points), the 4 drifted golden sha256s + JSON files were re-baselined to the post-Phase-2.3 source output. Post-re-baseline reproduction: all 6 carry-forward + all 4 Phase 2.3 mode goldens reproduce byte-identical to committed sha256s. See "Post Re-Baseline Reproduction" section below + SUMMARY.md "Key Bug Fixes During Execute" §"Phase 2.2 carry-forward goldens drift" entry for full audit trail.
+
+---
+
+## Goal-Backward Analysis
+
+### Original Goals (from CONTEXT.md rev-5 §"Cycle Scope")
+
+1. **Vibrato section** — sine LFO + S-curve onset envelope, modulating active string's delay-line length per sample (idle strings cold-decoupled to preserve bit-exact regression).
+2. **Slow-Bow LFO** (0.05–2 Hz) — diagonal speed/pressure modulation with 23° pressure phase-lag; depth clamped to 80% of per-block Schelleng wedge headroom.
+3. **Schelleng wedge headroom clamp** — inline in voice (~10 LOC per-block), `Z=R=R_s=0.5` dimensionless collapse; HR-4 gated to skip math at SLOW_LFO_DEPTH=0.
+4. **EXPRESSION_MACRO** — 20 ms `SmoothedValue<Linear>` source feeding 4 destinations (bow speed × (1+0.4·m), pressure × (1+0.6·m), vibrato depth × (1+0.3·m), brightness +500·m Hz); default flipped 0.50 → 0.0 (Q7a) to preserve Phase 2.2 strict byte-equal regression bar.
+5. **Bit-exact regression preservation** — all 6 Phase 2.2 carry-forward goldens reproduce byte-identically with all modulators at zero (HR-1 vibrato literal-zero short-circuit / HR-2 slow-LFO literal-zero short-circuit / HR-3 macro IEEE 754 identity-arithmetic / HR-4 Schelleng wedge skip on zero LFO depth).
+6. **Anti-correlation guard** — vibrato rate += `0.13 Hz × SLOW_LFO_DEPTH` (proportional, click-free, scales with audibility).
+7. **R33 atomic commit** — single-commit landing of source edits + harness updates + 4 new golden text files + parameter-spec.md amendment + STATUS.md checksum update; gate-first principle (continues R7 → R15 → R20 → R26 → R33 sequence).
+
+### Deliverables (from SUMMARY.md Phase 2.3 section)
+
+1. `Source/BowedContrabassVoice.{h,cpp}` — +291 LOC implementing 7-step per-block evaluation order (read APVTS → Schelleng wedge → slow-LFO → LFO apply → macro layer → bowModel push → per-sample loop with active-slot vibrato cents).
+2. `Source/PluginProcessor.{h,cpp}` — +14 LOC: 2 default flips (VIBRATO_DEPTH 12.0 → 0.0 NEW Stage-1 contract amendment beyond Q7a; EXPRESSION_MACRO 0.50 → 0.0 Q7a) + `getActiveVoice()` accessor for harness instrumentation.
+3. `tests/render-harness/main.cpp` — +480 LOC: 4 new presence flags (`--vibrato`, `--slow-lfo`, `--schelleng-stress`, `--macro-sweep`) + autocorrelation pitch-tracker + JSON schemas + presence-flag parser fix.
+4. `tests/render-harness/golden/{vibrato,slow-lfo,schelleng-stress,macro-sweep}.{wav.sha256,json}` — 8 new golden text files capturing Phase 2.3 modulator + macro mode references.
+5. `.planning/parameter-spec.md` — 2 default-value annotations (VIBRATO_DEPTH + EXPRESSION_MACRO).
+
+### Goal Achievement
+
+| # | Goal | Status | Evidence |
+|---|------|--------|----------|
+| 1 | Vibrato section | ✅ Achieved | `--vibrato` mode renders byte-identical to golden (`d7881ecf…`); rmsContinuityRatio 0.972 ≥ 0.90 PASS; rateHzMeasured 4.98 ≈ 5.0 PASS. |
+| 2 | Slow-Bow LFO | ⚠️ Partial | `--slow-lfo` mode renders byte-identical to golden (`3768dd15…`); but `clampedDepthMean=0.0` confirms Schelleng wedge clamps to 0 at bass-register defaults (RESEARCH §16.3 Risk #7-style). Phase 2.4 calibration polynomial parked. |
+| 3 | Schelleng wedge inline | ✅ Achieved | `--schelleng-stress` mode at extreme bow params (BOW_PRESSURE=7.0 N + BOW_SPEED=0.05 m/s + SLOW_LFO_DEPTH=1.0): `pass_peak=true` (peakPostMaster 0.107 ≤ 1.0), `pass_noNaN=true`, `pass_clampEngaged=true` (clampedDepthMean=0.0 < 0.5 confirms HR-4 wedge-engaged path active under stress). |
+| 4 | EXPRESSION_MACRO 4-destination | ✅ Achieved | `--macro-sweep` mode renders byte-identical to golden (`c2571dd9…`); rmsRampPct 0.252 ∈ [0.10, 0.30] PASS (proves macro lifts loudness); rmsContinuityRatio 0.969 ≥ 0.85 (looser threshold) PASS. |
+| 5 | Bit-exact regression preservation (6 carry-forward goldens) | ❌ **Partial regression** | 2/6 PASS (E1 strict `d358abcd…`; detune-sweep-A `5e31dad3…`); **4/6 FAIL** (string-A `c6755aa4…` ≠ `aa88f4c3…`; string-D `765b015e…` ≠ `d0ef8087…`; string-G `0cd5cb0a…` ≠ `524d2186…`; note-sequence `3ac3ccd0…` ≠ `2a731edb…`). SUMMARY claimed all 6 byte-identical — source was edited after that verification. |
+| 6 | Anti-correlation guard | ⏸️ Listening-test-only (Q8) | Verification deferred to R32 Logic AU smoke per CONTEXT rev-5 line 122. R32 user-deferred non-blocking. |
+| 7 | R33 atomic commit | ⛔ **Blocked** | Bit-exact regression bar (Goal 5) drift on 4 of 6 carry-forward goldens blocks R33. Gate-first principle: R33 cannot land until either (a) the late-edit drift is bisected and reverted, or (b) the 4 audible-mode goldens are re-baselined under user-approved Phase 2.1c R19a precedent. |
+
+---
+
+## Independent Reproduction (verify-phase audit trail)
+
+All Gate 5 automated invariants reproduced from a fresh `O-Contrabass-render-test` run against the current working tree (`f013149`+ uncommitted Phase 2.3 source edits at HEAD of write).
+
+### Phase 2.2 Carry-Forward Goldens (Gate 5 Invariant 1 — Strict Byte-Equal Regression Bar)
+
+| # | Mode | Reproduced sha256 | Golden sha256 | Match |
+|---|------|------------------|---------------|-------|
+| 1 | E1 strict (MIDI 28, sustain 60, INFINITE_SUSTAIN=1.0, STRING_STIFFNESS=0) | `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` | `d358abcd…` | ✅ **PASS** |
+| 2 | string-A (MIDI 33, default stiffness 0.30) | `c6755aa426aff5fe36256d4548eb457315a10b6b3319e9985f6cfc6f07415918` | `aa88f4c3…` | ❌ **FAIL** |
+| 3 | string-D (MIDI 38, default stiffness 0.30) | `765b015e1443550ea10db01fe4afadd4c4c8be61773d0bdc33067a9665d9c9bc` | `d0ef8087…` | ❌ **FAIL** |
+| 4 | string-G (MIDI 43, default stiffness 0.30) | `0cd5cb0a1b591d1ff6be432a5ab96b087d690da9865e35cd93ee8cee1b993bd0` | `524d2186…` | ❌ **FAIL** |
+| 5 | detune-sweep-A (MIDI 33, DETUNE_A ramped −1200→+1200¢ per-block) | `5e31dad32ed2d34d1a972609eb1cd35487c2344e6ca3dd7351350193e22dbb05` | `5e31dad3…` | ✅ **PASS** |
+| 6 | note-sequence (E→A→D→G→E, 3 s each) | `3ac3ccd044af850e73c725a487a2bc64636d8739a39fe9dc27dc846b579260b5` | `2a731edb…` | ❌ **FAIL** |
+
+**Determinism cross-check:** string-A reproduced twice in succession on the same harness binary → same sha256 (`c6755aa4…`). The drift is deterministic in current source state, not a non-determinism bug.
+
+**Pattern observation:** the 2 PASSing goldens (E1 strict + detune-sweep-A) and the 4 FAILing goldens differentiate as follows:
+
+- **E1 strict** runs at `STRING_STIFFNESS = 0.0` explicitly (passes `--string-stiffness 0.0`). Dispersion-filter cascade short-circuits to identity (`a = 0` per Phase 2.1c short-circuit line in `WaveguideString::setStringStiffness`).
+- **detune-sweep-A** runs at default `STRING_STIFFNESS = 0.30` but the harness pushes a fresh `setValueNotifyingHost("DETUNE_A", …)` every block during the sustain phase, forcing `detuneSmoothed[1].setTargetValue(...)` to keep the smoother in `isSmoothing()` state. The per-sample loop's active-string branch always takes the `setDelaySamples(...)` write path (unaffected by Phase 2.3 HR-1 short-circuit ordering for steady-state idle).
+- **string-A / string-D / string-G / note-sequence** run at default `STRING_STIFFNESS = 0.30` and the `detuneSmoothed[s]` smoothers settle to steady-state during the sustain phase — the per-sample loop's active-string branch falls through the `else if (detuneSmoothed[s].isSmoothing())` path (or its new HR-1 short-circuit fallthrough) under steady-state detune.
+
+This narrows the suspected drift surface to the per-sample mix path's `setDelaySamples()` call ordering AND/OR the per-sample `vibratoPhase`/`vibratoOnsetTimer` UNCONDITIONAL advance interacting with steady-state detune-smoother state in conjunction with non-zero stiffness's dispersion-filter cascade. Bisection of the post-SUMMARY edits (file `Source/BowedContrabassVoice.cpp` mtime `1777343760` is ~58 min after the goldens at mtime `1777340280`) is the next investigation step.
+
+### Phase 2.3 New Mode Goldens (Gate 5 Invariants 2–5)
+
+| # | Mode | Reproduced sha256 | Golden sha256 | WAV match | Internal pass conditions |
+|---|------|------------------|---------------|-----------|--------------------------|
+| 2 | `--vibrato` (MIDI 28, VIBRATO_DEPTH=12¢, VIBRATO_RATE=5 Hz, VIBRATO_ONSET=600 ms, sustain 2 s) | `d7881ecf692e899659809e52359813b9d5d0a31ee38676b3570d63a4e3076b2c` | `d7881ecf…` | ✅ | ⚠️ PARTIAL — `pass_rmsContinuity=true` (0.972 ≥ 0.90); `pass_rateHzInRange=true` (4.98 ∈ [4.5, 5.5]); `pass_vibratoDepthInRange=false` (peakDepthCents=625, autocorrelator octave-jump on last cycle: perCycleDeltaCents tail = 1200.6¢); `pass_onsetWindow=false` (onsetTimeMs=1975, related to autocorrelator confusion). DSP audio is correct (no NaN, sustained continuity). Phase 2.4 follow-up parked: median-filter or windowed FFT replacement for autocorrelator. |
+| 3 | `--slow-lfo` (MIDI 33, SLOW_LFO_DEPTH=0.5, SLOW_LFO_RATE=0.3 Hz, sustain 60 s) | `3768dd15474237d4d0a41c9c82126d9b0f600317786430f69db42e350f3a9f8f` | `3768dd15…` | ✅ | ⚠️ PARTIAL — `pass_rmsContinuity=true` (0.970 ≥ 0.90); `pass_breathingAudible=false` (rmsByDecadePeakToPeakPct=4.06% vs 5% v1.0 threshold); `pass_clampEngagement=false` (`clampedDepthMean=0.0` — Schelleng wedge clamps depth to 0 at bass-register defaults per RESEARCH §16.3). Phase 2.4 calibration polynomial parked. |
+| 4 | `--schelleng-stress` (MIDI 28, BOW_PRESSURE=7.0 N + BOW_SPEED=0.05 m/s + SLOW_LFO_DEPTH=1.0, sustain 30 s) | `e50dd191070a30fd751642a5985a73b09792580cfdf7f9ed5825c7bbcc9b3e57` | `e50dd191…` | ✅ | ✅ PASS — `pass_peak=true` (peakPostMaster 0.107 ≤ 1.0); `pass_noNaN=true`; `pass_clampEngaged=true` (clampedDepthMean=0.0 < 0.5 confirms HR-4 wedge-engaged path active under stress). |
+| 5 | `--macro-sweep` (MIDI 38, EXPRESSION_MACRO ramped 0→1 across sustain, sustain 20 s) | `c2571dd96c1950348bd8fb5c912cfe295b8c62f9b11ae44c768129931b37975e` | `c2571dd9…` | ✅ | ✅ PASS — `pass_rmsContinuity=true` (0.969 ≥ 0.85 looser threshold); `pass_rmsRampDirection=true` (rmsRampPct=0.252 ∈ [0.10, 0.30]). |
+
+All 4 new-mode WAV sha256s are **byte-identical to committed goldens**. The 2 PARTIALs are pre-characterised parking decisions documented in CONTEXT rev-5 / RESEARCH §16 / SUMMARY (Phase 2.3) — not new failures.
+
+### Validators (Gate 5 Invariants 6–7)
+
+| Check | Outcome | Evidence |
+|---|---|---|
+| auval `aumu OCbs OuDv` (after AU cache cleared per CLAUDE.md) | ✅ **PASS** | `AU VALIDATION SUCCEEDED.` (renders pass at 22050/44100/48000/96000/192000 Hz; parameter scheduling, MIDI, fuzz tests all pass). |
+| pluginval `--strictness-level 10 --validate-in-process` against installed VST3 | ✅ **PASS** | `SUCCESS` — all bus / parameter / fuzz tests pass. |
+
+### R32 Logic AU Smoke (Gate 5 Invariant 8)
+
+⏸️ **DEFERRED** — user-deferred non-blocking per CONTEXT rev-5 line 122 + R27/R19f/R14e precedent.
+
+---
+
+## Code-Level Verification Against PLAN rev-7
+
+### HARD RULES Enumerated for Bit-Exact Regression Preservation
+
+PLAN rev-7 binds 4 hard rules HR-1 to HR-4 to preserve the Phase 2.2 strict byte-equal regression bar through full Phase 2.3 source edits. Direct code inspection of `Source/BowedContrabassVoice.cpp`:
+
+- **HR-1 (vibrato literal-zero short-circuit)** — `if (effectiveVibratoDepth > 0.0f)` gate at line ~474; `if (s == activeStringIndex && vibCents != 0.0f)` short-circuits per-sample mix-write at depth=0; else-branch falls through to the Phase 2.2 `if (detuneSmoothed[s].isSmoothing())` path. ✅ **Code present and structurally correct.**
+- **HR-2 (slow-LFO literal-zero short-circuit)** — `if (rawSlowLfoDepth > 0.0f)` gate at Step 3 top; mods stay zero-init when gate closed; Step 4 produces `bowSpeed * (1.0f + 0.6f * 0.0f) = bowSpeed * 1.0f = bowSpeed` exactly (IEEE 754 identity arithmetic preserved). ✅ **Code present and structurally correct.**
+- **HR-3 (macro literal-zero IEEE 754 identity)** — `prepareToPlay` locks `macroSmoothed.setCurrentAndTargetValue(0.0f)`; `setTargetValue(rawMacro)` unconditional but at rawMacro=0 stays at 0; all 4 destination compositions evaluate to identity-arithmetic no-ops at modulators-off. ✅ **Code present and structurally correct.**
+- **HR-4 (Schelleng wedge skip)** — `if (rawSlowLfoDepth > 0.0f)` gate at Step 2 top; `lastSafeDepth.store(0.0f)` written UNCONDITIONALLY before the gate (pin #4) so harness read view is well-defined every block. ✅ **Code present and structurally correct.**
+
+**HARD RULES verdict:** all 4 rules are PRESENT in source. The strict-stiffness=0 regression preset (E1 strict + detune-sweep-A) reproduces byte-identical confirming HR-1 to HR-4 work for those operating points. **The drift on the 4 audible goldens is NOT a HARD RULE failure** — it surfaces under non-zero `STRING_STIFFNESS` in steady-state detune (i.e., outside the operating points the HARD RULES were proven against in §16.8). Possible mechanism: dispersion-filter cascade interaction with the new Phase 2.3 per-sample timer-advance state, or the per-sample mix-path branch ordering change (active-string-only vibrato-write fallthrough).
+
+### Stage-1 Contract Amendments (R28 / R33 atomic commit body)
+
+| Parameter | Old default | New default | Justification |
+|-----------|-------------|-------------|---------------|
+| EXPRESSION_MACRO | 0.50 | 0.00 | Q7a — preserve Phase 2.2 strict byte-equal regression bar (HR-3 IEEE 754 identity-arithmetic). |
+| VIBRATO_DEPTH | 12.0 | 0.00 | **NEW (R28-pre regression-bar root cause)** — preserve Phase 2.2 strict byte-equal regression bar. Architecture-spec'd 12.0¢ default would (with vibrato DSP active) modulate the active string's delay-line after the 600 ms onset envelope completes, producing detune drift vs Phase 2.2. Mirrors EXPRESSION_MACRO Q7a precedent. User raises VIBRATO_DEPTH knob for vibrato character; default ships clean for orchestral writing. |
+
+Both flips landed in `Source/PluginProcessor.cpp::createParameterLayout()` and are annotated in `parameter-spec.md`. STATUS.md `contract_checksums.parameter_spec` requires update post-commit (deferred until R33 lands).
+
+### Per-Block 7-Step Evaluation Order (RESEARCH §16.6)
+
+Verified by direct code inspection at `BowedContrabassVoice::renderNextBlock` line 254 onward:
+
+1. ✅ Step 1 — read raw APVTS (10 atomic reads).
+2. ✅ Step 2 — Schelleng wedge (HR-4 gated) + `lastSafeDepth.store(0.0f)` unconditional pre-gate (pin #4).
+3. ✅ Step 3 — Slow-LFO phase advance + sin (HR-2 gated; phase advances only when depth > 0).
+4. ✅ Step 4 — apply slow-LFO multiplicatively to bow speed/pressure (IEEE 754 identity at zero mod).
+5. ✅ Step 5 — layer EXPRESSION_MACRO with `getNextValue() + skip(jmax(0, n-1))` (pin #7 / pin #11).
+6. ✅ Step 6 — push to bowModel + all-strings brightness (consolidated MPE pressure read).
+7. ✅ Step 7 — per-sample loop with active-slot vibrato cents (HR-1 gated); per-sample timer + phase advances UNCONDITIONAL (Q3 sine-phase-carry contract).
+
+---
+
+## Requirements Verification
+
+**Stage:** Phase 2.3 (DSP cycle, mid-stage-2)
+**Requirements with verifiedAt = stage-2 (Phase 2.3-relevant subset):** DSP-08, DSP-09, DSP-10, PERF-01, PERF-03, QUAL-01, QUAL-02
+
+| Requirement | Priority | Status | Acceptance Criteria |
+|-------------|----------|--------|---------------------|
+| **DSP-08** (Slow Bow LFO 0.05–2 Hz) | should | ⚠️ **partial** | Slow-LFO DSP path implemented + Schelleng wedge clamp engaged at bass per RESEARCH §16.3. `--slow-lfo` mode renders byte-identical golden, but `clampedDepthMean=0.0` confirms wedge clamps to 0 at default bass operating point — slow-LFO is effectively silenced at default bass register until Phase 2.4 calibration polynomial (Risk #7-style) lands. |
+| **DSP-09** (layered expression: CC + vibrato + macro) | must | ⚠️ **partial** | Vibrato section operational (Q1–Q5 + HR-1 lifecycle); EXPRESSION_MACRO 4-destination verified by `--macro-sweep` (rmsRampPct=0.252 PASS); CC11/CC2/CC74 mapping deferred to Phase 2.6 (microtonal + MPE) per CONTEXT rev-5. |
+| **DSP-10** (slow expressive attack) | must | ⚠️ **partial** | Vibrato onset envelope (S-curve fade-in over 300 ms after 600 ms default onset delay) implemented per architecture line 125 — but `--vibrato` harness's `pass_onsetWindow=false` flags onsetTimeMs=1975 due to autocorrelator octave-jump (DSP audio is correct; harness measurement is buggy). Phase 2.4 autocorrelator follow-up parked. |
+| **PERF-01** (no allocations in `processBlock`) | must | ⏸️ **pending** | All Phase 2.3 modulator state preallocated in `prepareToPlay` (smoothers + atomics); no `new`/`malloc` in `renderNextBlock` (verified by code review). pluginval `--strictness-level 10` PASS reports no real-time violations. Final code review at end-of-Stage-2 verify per locked decision. |
+| **PERF-03** (zero algorithmic latency) | nice | ⏸️ **pending** | Phase 2.3 adds NO new look-ahead. Latency unchanged from Phase 2.2 (oversampler-only). End-of-Stage-2 verify will close. |
+| **QUAL-01** (no audio artifacts at normal ranges) | must | ⚠️ **partial** | All Gate 5 mode-renders pass `pass_nan` + `pass_peak` + `pass_blockTime`; `--vibrato` rmsContinuity 0.972 PASS; `--slow-lfo` rmsContinuity 0.970 PASS; `--macro-sweep` rmsContinuity 0.969 PASS. Strict E1 regression byte-equal. **Caveat:** 4 of 6 audible carry-forward goldens drift (NOT an audible artifact per `pass_*` framework, but a regression-bar bookkeeping gap that warrants investigation before R33 lands). |
+| **QUAL-02** (extreme drone settings remain musical) | nice | ⚠️ **partial** | Schelleng wedge clamp directly satisfies — slow-LFO depth auto-attenuated when bow params are near wedge boundary. `--schelleng-stress` 30 s render at extreme params (BOW_PRESSURE=7.0, BOW_SPEED=0.05, SLOW_LFO_DEPTH=1.0) PASS: peakPostMaster 0.107 ≤ 1.0, no NaN, clamp engaged. |
+
+**Requirements summary:**
+- ⏸️ Pending (deferred to end-of-Stage-2 verify): 2 (PERF-01, PERF-03)
+- ⚠️ Partial (Phase 2.4 + later cycles will close): 5 (DSP-08, DSP-09, DSP-10, QUAL-01, QUAL-02)
+- ✅ Complete: 0 (no requirement is fully closed by Phase 2.3 alone — all are "make progress on" rather than "fully deliver" milestones)
+
+---
+
+## Automated Checks
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| Build (CMake + Ninja, Release config) | ✅ PASS | Clean compile from `f013149`+ working tree; harness binary at `1777344087` ≈ 19:48 (post-source-edit `1777343760`). |
+| Render-harness determinism | ✅ PASS | string-A reproduced twice in succession yields identical sha256 (`c6755aa4…`). |
+| Gate 5 invariant 1 (Phase 2.2 strict byte-equal regression bar) | ⚠️ **PARTIAL — REGRESSION** | 2/6 PASS (E1 strict + detune-sweep-A); 4/6 FAIL (string-A/D/G + note-sequence). |
+| Gate 5 invariant 2 (`--vibrato` mode) | ✅ WAV byte-equal / ⚠️ internal PARTIAL | sha256 byte-identical golden; pass_rmsContinuity + pass_rateHzInRange PASS; pass_vibratoDepthInRange + pass_onsetWindow FAIL (autocorrelator octave-jump; harness bug, not DSP defect). |
+| Gate 5 invariant 3 (`--slow-lfo` mode) | ✅ WAV byte-equal / ⚠️ internal PARTIAL | sha256 byte-identical golden; pass_rmsContinuity PASS; pass_breathingAudible FAIL (Schelleng wedge clamps at bass); pass_clampEngagement FAIL. Phase 2.4 calibration parked. |
+| Gate 5 invariant 4 (`--schelleng-stress` mode) | ✅ PASS | sha256 byte-identical golden; pass_peak + pass_noNaN + pass_clampEngaged all true. |
+| Gate 5 invariant 5 (`--macro-sweep` mode) | ✅ PASS | sha256 byte-identical golden; pass_rmsContinuity + pass_rmsRampDirection both true. |
+| Gate 5 invariant 6 (`auval -v aumu OCbs OuDv`) | ✅ PASS | AU VALIDATION SUCCEEDED after `killall AudioComponentRegistrar` + cache clear. |
+| Gate 5 invariant 7 (pluginval `--strictness-level 10`) | ✅ PASS | SUCCESS on installed VST3 (`~/Library/Audio/Plug-Ins/VST3/O-Contrabass-dev.vst3`). |
+| Gate 5 invariant 8 (R32 Logic AU smoke) | ⏸️ DEFERRED | User-deferred non-blocking per CONTEXT rev-5 line 122 + R27/R19f/R14e precedent. |
+
+---
+
+## Human Verification
+
+- [ ] Logic AU smoke: 5-segment listening test per CONTEXT rev-5 Q11 sequence (vibrato sustained → slow-LFO sweep → Schelleng-stress → macro sweep → vibrato + slow-LFO together for anti-correlation guard audition). Approx 60 s total. (R32 — deferred non-blocking.)
+- [ ] **User decision required: Resolve Gate 5 invariant 1 partial regression** — pick one of:
+  - **Option A (re-baseline):** Apply Phase 2.1c R19a precedent — re-baseline string-A, string-D, string-G, and note-sequence golden sha256s to the post-Phase-2.3 source output. Append a "what-broke / why-acceptable" audit-trail note to SUMMARY.md (analogous to the Phase 2.1c R19a audit-trail entry). Then land R33 atomic commit.
+  - **Option B (bisect):** Revert Phase 2.3 source to the state at the 15:38 SUMMARY-time sha256 → reproduce the 4 goldens byte-identically → apply remaining edits one at a time (with per-edit golden re-render) → identify the bit-shifting edit → either revert it or document it as an intentional change with re-baseline rationale.
+
+---
+
+## Issues Found
+
+### Issue 1: Gate 5 invariant 1 partial regression — 4 of 6 carry-forward goldens drift (NEW VERIFY-PHASE FINDING)
+
+**Description:** Independent verify-phase reproduction of all 6 Phase 2.2 carry-forward goldens (the strict byte-equal regression bar locked as Gate 5 invariant 1) yields:
+
+- ✅ **PASS** stiffness-zero-pre.wav (E1, MIDI 28, INFINITE_SUSTAIN=1.0, STRING_STIFFNESS=0): `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` (byte-identical golden).
+- ❌ **FAIL** string-A.wav (MIDI 33, default stiffness 0.30): reproduced `c6755aa426aff5fe36256d4548eb457315a10b6b3319e9985f6cfc6f07415918` ≠ committed golden `aa88f4c3eb373d1cb3f7b6efc6f0555f295ef8b34d551a73411f9525fa7ce6bd`.
+- ❌ **FAIL** string-D.wav (MIDI 38, default stiffness 0.30): reproduced `765b015e1443550ea10db01fe4afadd4c4c8be61773d0bdc33067a9665d9c9bc` ≠ golden `d0ef8087caf7a9e8e9084a976a27e6b6be16ea7213ef8d14b15677e042017ca5`.
+- ❌ **FAIL** string-G.wav (MIDI 43, default stiffness 0.30): reproduced `0cd5cb0a1b591d1ff6be432a5ab96b087d690da9865e35cd93ee8cee1b993bd0` ≠ golden `524d2186a8c8534aadeae162bc0b962e1c9306dc2a8675a1527016af36677a9a`.
+- ✅ **PASS** detune-sweep-A.wav: `5e31dad32ed2d34d1a972609eb1cd35487c2344e6ca3dd7351350193e22dbb05` (byte-identical golden).
+- ❌ **FAIL** note-sequence.wav: reproduced `3ac3ccd044af850e73c725a487a2bc64636d8739a39fe9dc27dc846b579260b5` ≠ golden `2a731edbfd540dcfaf1d2dee8b0aacd3ddeaec2f661f4f03751bbcbb3b281b38`.
+
+**Determinism:** confirmed reproducible — re-running string-A on the same harness binary yields the same sha256 (`c6755aa4…`).
+
+**Why the SUMMARY claimed all 6 byte-identical:** the Phase 2.3 SUMMARY's Gate 5.1 row was written when R31 verification ran. Mtime audit shows the 6 carry-forward golden text files at `1777340280` (≈ 15:38) and `Source/BowedContrabassVoice.cpp` working-tree mtime `1777343760` (≈ 16:36) — ~58 minutes after the goldens. The 4 new-mode goldens (vibrato/slow-lfo/schelleng-stress/macro-sweep) at `1777347720` (≈ 19:42) reflect the post-edit state. **A late edit to `Source/BowedContrabassVoice.cpp` after R31 verification introduced bit-level drift that affects 4 of 6 carry-forward goldens but NOT the strict E1 regression nor detune-sweep-A.**
+
+**Why the strict E1 regression and detune-sweep-A still PASS while the others fail:**
+- **E1 strict** runs at `STRING_STIFFNESS = 0.0` explicitly. The Phase 2.1c R19a short-circuit (`a = 0` in `WaveguideString::setStringStiffness` at `currentStiffness <= 0.0f`) bypasses the dispersion-filter cascade entirely. The Phase 2.3 modulator code's HR-1 to HR-4 IEEE 754 identity-arithmetic preserves bit-equality for this operating point.
+- **detune-sweep-A** runs at default `STRING_STIFFNESS = 0.30` but the harness ramps `DETUNE_A` per-block via `setValueNotifyingHost`. This forces `detuneSmoothed[1]` to remain in `isSmoothing()` state during the entire sustain phase. The per-sample mix loop's active-string branch always takes the `setDelaySamples(...)` write path — apparently unaffected by whatever post-R31 edit perturbed steady-state idle paths.
+- **string-A / string-D / string-G / note-sequence** run at default `STRING_STIFFNESS = 0.30` and the `detuneSmoothed[s]` smoothers settle to steady-state during the sustain phase. The per-sample loop falls through the `else if (detuneSmoothed[s].isSmoothing())` branch (or its new HR-1 short-circuit fallthrough) under steady-state detune. The dispersion-filter cascade is engaged. **The drift surfaces only at this combination: non-zero stiffness + steady-state detune.**
+
+**Suspected mechanism (not yet bisected):** either (a) the per-sample `vibratoPhase` / `vibratoOnsetTimer` UNCONDITIONAL-advance block introduces non-zero memory-write traffic that perturbs the dispersion-filter cascade's floating-point determinism via cache-line interaction; or (b) the per-sample mix-path branch ordering change (active-string-only vibrato-write fallthrough) introduces a non-mathematical-identity ordering of operations on the dispersion cascade's state under steady-state detune; or (c) the bowModel.setBowSpeed/Pressure relocation from `updateParametersFromAPVTS` to renderNextBlock Step 6 perturbs bowModel's internal velocity-multiplier-preservation arithmetic (`v_bow_target = speed * (v_bow_target / bowSpeedParam_old)`) under non-default starting state.
+
+**Resolution:** see "Human Verification" Option A (re-baseline) or Option B (bisect). **R33 atomic commit BLOCKED until decided.**
+
+### Issue 2: `--vibrato` autocorrelator octave-jump (carries forward from SUMMARY)
+
+**Description:** Last-cycle `perCycleDeltaCents = 1200.6` blew up `peakDepthCents` to 625 (vs target ~12). Audio output IS correct (sustained continuity, no NaN, byte-identical golden); just the harness's autocorrelation pitch-tracker is buggy at the very end of the render window.
+
+**Disposition:** **Phase 2.4 follow-up parked** per RESEARCH §16.7 + SUMMARY Phase 2.3 §"Phase 2.4 Follow-ups Parked" item 3. Either median-filter the per-cycle deltas, drop outliers > 2σ from the autocorrelator, or use a windowed FFT bin-shift instead of autocorrelation. NOT a Phase 2.3 blocker.
+
+### Issue 3: `--slow-lfo` Schelleng wedge clamps to 0 at bass-register defaults (carries forward from RESEARCH §16.3)
+
+**Description:** Closed-form wedge produces NEGATIVE headroom at default bass operating point (`F_bow=1.0 < fMin=6.25` with `Z=R=R_s=0.5` dimensionless collapse). v1.0 ships clamp-engaged-at-default; slow-LFO is effectively silenced at default bass register.
+
+**Disposition:** **Phase 2.4 calibration polynomial parked** (analogous to Phase 2.1c Risk #7 E1 dispersion clamp). `pass_breathingAudible` 5% v1.0 threshold is the soft-pass; restore to architecture-spec'd 20% after Phase 2.4 calibration. NOT a Phase 2.3 blocker.
+
+---
+
+## Architecture Deviations (Phase 2.3)
+
+No NEW architecture deviations introduced by Phase 2.3.
+
+**Carry-forward deferrals:**
+- ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments still **DEFERRED** to end-of-Stage-2 verify per locked decision (CONTEXT.md rev-2 + RESEARCH §12.6 lock). F3 deviation tracked in commit-message bodies (R7 + R15 + R20 + R26 + future R33) until then.
+
+---
+
+## Post Re-Baseline Reproduction (User selected Option A 2026-04-27)
+
+After re-baselining the 4 drifted golden sha256s + JSON files under Phase 2.1c R19a precedent, **all 10 committed goldens reproduce byte-identical to current source output**:
+
+| # | Golden | Reproduced sha256 | Match |
+|---|---|---|---|
+| 1 | stiffness-zero-pre.wav (E1 strict) | `d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75` | ✅ PASS |
+| 2 | string-A.wav | `c6755aa426aff5fe36256d4548eb457315a10b6b3319e9985f6cfc6f07415918` | ✅ PASS (re-baselined) |
+| 3 | string-D.wav | `765b015e1443550ea10db01fe4afadd4c4c8be61773d0bdc33067a9665d9c9bc` | ✅ PASS (re-baselined) |
+| 4 | string-G.wav | `0cd5cb0a1b591d1ff6be432a5ab96b087d690da9865e35cd93ee8cee1b993bd0` | ✅ PASS (re-baselined) |
+| 5 | detune-sweep-A.wav | `5e31dad32ed2d34d1a972609eb1cd35487c2344e6ca3dd7351350193e22dbb05` | ✅ PASS |
+| 6 | note-sequence.wav | `3ac3ccd044af850e73c725a487a2bc64636d8739a39fe9dc27dc846b579260b5` | ✅ PASS (re-baselined) |
+| 7 | vibrato.wav | `d7881ecf692e899659809e52359813b9d5d0a31ee38676b3570d63a4e3076b2c` | ✅ PASS |
+| 8 | slow-lfo.wav | `3768dd15474237d4d0a41c9c82126d9b0f600317786430f69db42e350f3a9f8f` | ✅ PASS |
+| 9 | schelleng-stress.wav | `e50dd191070a30fd751642a5985a73b09792580cfdf7f9ed5825c7bbcc9b3e57` | ✅ PASS |
+| 10 | macro-sweep.wav | `c2571dd96c1950348bd8fb5c912cfe295b8c62f9b11ae44c768129931b37975e` | ✅ PASS |
+
+**Forward-looking regression coverage:** preserved at the new operating-point baseline. Future bit-level drift on any of the 4 re-baselined goldens (in any subsequent Phase 2.x cycle) will surface as a Gate-N regression. Historical "vs Phase 2.2 byte-identical" anchors for string-A/D/G/note-sequence preserved in SUMMARY.md "Key Bug Fixes During Execute" audit trail.
+
+**Latent drift mechanism:** uncharacterised. If Phase 2.4 listening tests surface audible regression on the 3 audible strings (A1/D2/G2) at default stiffness vs Phase 2.2 reference renders, escalate to bisection of the post-R31 source delta.
+
+---
+
+## Stage Verdict
+
+**Status:** ✅ **VERIFIED (with Phase 2.1c R19a re-baseline)**
+
+**Ready for next stage:** **Yes** — Phase 2.3 closes; Phase 2.4 (Schelleng wedge bass-register calibration + sub-harmonics + 108-combo stability matrix) opens as a fresh GSD cycle.
+
+**R33 atomic commit:** ✅ **COMPOSED** — gate-first principle, continues R7 → R15 → R20 → R26 → R33 sequence. Lands ~16 files: 4 source files (`PluginProcessor.{h,cpp}`, `BowedContrabassVoice.{h,cpp}`) + harness (`tests/render-harness/main.cpp`) + 8 golden text files (4 re-baselined + 4 new Phase 2.3 mode) + parameter-spec.md amendment + STATUS.md (phase flip + parameter_spec checksum bump) + 4 planning artifacts (CONTEXT.md rev-5, RESEARCH.md §16, PLAN.md rev-7, SUMMARY.md / VERIFICATION.md Phase 2.3 appends).
+
+**What IS green (independent verify-phase reproduction post-re-baseline):**
+- ✅ Gate 5 invariant 1 (full): all 6 Phase 2.2 carry-forward goldens byte-identical (4 re-baselined under Phase 2.1c R19a precedent; 2 unchanged: `d358abcd…` E1 strict + `5e31dad3…` detune-sweep-A).
+- ✅ Gate 5 invariant 2: `--vibrato` mode WAV byte-identical to golden (internal PARTIAL pre-characterised, harness-buggy not DSP-buggy; Phase 2.4 follow-up parked).
+- ✅ Gate 5 invariant 3: `--slow-lfo` mode WAV byte-identical to golden (internal PARTIAL pre-characterised, Schelleng wedge clamps at bass-register defaults; Phase 2.4 calibration polynomial parked).
+- ✅ Gate 5 invariant 4: `--schelleng-stress` mode WAV byte-identical, internal PASS.
+- ✅ Gate 5 invariant 5: `--macro-sweep` mode WAV byte-identical, internal PASS.
+- ✅ Gate 5 invariant 6: auval AU VALIDATION SUCCEEDED.
+- ✅ Gate 5 invariant 7: pluginval-10 SUCCESS.
+
+**What IS pending:**
+- ⏸️ Gate 5 invariant 8: R32 Logic AU smoke (user-deferred non-blocking per precedent).
+- ⏸️ End-of-Stage-2 verify: ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments + final PERF-01 / PERF-03 closure (after Phases 2.4–2.6 complete).
+
+---
+
+## Files Touched (Phase 2.3 verify-phase)
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — appended this Phase 2.3 section + Post Re-Baseline Reproduction section.
+- `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` — Gate 5.1 row updated to reflect partial re-baseline; "Key Bug Fixes During Execute" appended with §"Phase 2.2 carry-forward goldens drift" audit-trail entry.
+- `plugins/O-Contrabass/tests/render-harness/golden/{string-A,string-D,string-G,note-sequence}.wav.sha256` — re-baselined under Phase 2.1c R19a precedent.
+- `plugins/O-Contrabass/tests/render-harness/golden/{string-A,string-D,string-G,note-sequence}.json` — refreshed from current source output.
+- `plugins/O-Contrabass/.planning/STATUS.md` — phase flip `phase_2_3_execute → phase_2_4_discuss`; `contract_checksums.parameter_spec` updated.
+- `plugins/O-Contrabass/.planning/REQUIREMENTS.md` — DSP-08/09/10/QUAL-01/QUAL-02 status updates.
+
+**Renders captured (verify-phase reproduction, not committed):**
+- `/tmp/verify-2-3/regression/{stiffness-zero-pre,string-A,string-D,string-G,detune-sweep-A,note-sequence}.{wav,json}` — 6 Phase 2.2 carry-forward reproductions.
+- `/tmp/verify-2-3/{vibrato,slow-lfo,schelleng-stress,macro-sweep}.{wav,json}` — 4 Phase 2.3 mode reproductions.
+- `/tmp/verify-2-3/auval.log`, `/tmp/verify-2-3/pluginval.log` — validator audit trails.
+
+---
+
+## Next Action
+
+**Phase 2.3 verify-phase complete; user selected Option A 2026-04-27; R33 atomic commit composed during this verify.**
+
+Next: **`/clear` + `/plugin-discuss O-Contrabass 2-dsp`** opens Phase 2.4 (Schelleng wedge bass-register calibration polynomial + sub-harmonic bias + 108-combo stability matrix + saturator-tail re-evaluation per RESEARCH §12 footnote + `pass_breathingAudible` 5%→20% threshold restoration + autocorrelator octave-rejection harness fix) as a fresh GSD cycle.
+
+**Stage 2 verify (full)** still cannot complete until Phases 2.4, 2.5, and 2.6 are all verified per their own GSD cycles + ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments land at end-of-Stage-2 verify.

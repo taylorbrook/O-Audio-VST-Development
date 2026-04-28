@@ -38,9 +38,9 @@ lastUpdated: 2026-04-27
 | DSP-05 | Per-string detuning (+/- 1200 cents) supports scordatura and just-intoned drone tunings | must | complete | stage-2 |
 | DSP-06 | Infinite Sustain control reduces damping toward zero for endless drone resonance | must | pending | stage-2 |
 | DSP-07 | Sub-Harmonic generator (nonlinear feedback) extends bass below string fundamental musically | should | pending | stage-2 |
-| DSP-08 | Slow Bow LFO (0.05-2 Hz) modulates bow speed/pressure for evolving drones | should | pending | stage-2 |
-| DSP-09 | Layered expression: intrinsic CC mapping (CC11 speed, CC2 pressure, CC74 position) + dedicated vibrato section (rate/depth/onset) + Expression Macro knob | must | pending | stage-2 |
-| DSP-10 | Slow expressive attack characteristic — bow-on-string transient is long and natural for legato playing | must | pending | stage-2 |
+| DSP-08 | Slow Bow LFO (0.05-2 Hz) modulates bow speed/pressure for evolving drones | should | partial | stage-2 |
+| DSP-09 | Layered expression: intrinsic CC mapping (CC11 speed, CC2 pressure, CC74 position) + dedicated vibrato section (rate/depth/onset) + Expression Macro knob | must | partial | stage-2 |
+| DSP-10 | Slow expressive attack characteristic — bow-on-string transient is long and natural for legato playing | must | partial | stage-2 |
 
 ### UI (UI)
 
@@ -68,8 +68,8 @@ lastUpdated: 2026-04-27
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts (clicks, denormals, NaN, runaway feedback) at normal parameter ranges including drone settings (high infinite sustain, sub-harmonics) | must | pending | stage-2 |
-| QUAL-02 | Self-oscillation under extreme drone settings remains musical, not destructive — output protection / soft limiter on master | nice | pending | stage-2 |
+| QUAL-01 | No audio artifacts (clicks, denormals, NaN, runaway feedback) at normal parameter ranges including drone settings (high infinite sustain, sub-harmonics) | must | partial | stage-2 |
+| QUAL-02 | Self-oscillation under extreme drone settings remains musical, not destructive — output protection / soft limiter on master | nice | partial | stage-2 |
 
 ## Acceptance Criteria Details
 

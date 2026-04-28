@@ -50,11 +50,11 @@ Source: extracted from `BRIEF.md` (2026-04-25). Refine into full `parameter-spec
 | ID | Name | Type | Range | Default | Unit | Description |
 |----|------|------|-------|---------|------|-------------|
 | VIBRATO_RATE | Vibrato Rate | Float | 0.1 - 12.0 | 5.0 | Hz | Dedicated vibrato section frequency (Mick 2025 bass mean: 5.17 Hz). |
-| VIBRATO_DEPTH | Vibrato Depth | Float | 0.0 - 50.0 | 12.0 | cents | Vibrato pitch deviation. |
+| VIBRATO_DEPTH | Vibrato Depth | Float | 0.0 - 50.0 | 0.0 | cents | Vibrato pitch deviation. (Phase 2.3 Stage-1 contract amendment: default flipped 12.0 → 0.0 to preserve Phase 2.2 strict byte-equal regression bar — HR-1 short-circuit; mirrors EXPRESSION_MACRO Q7a precedent. User raises knob for vibrato character.) |
 | VIBRATO_ONSET | Vibrato Onset | Float | 0.0 - 3000.0 | 600.0 | ms | Delay before vibrato fades in (orchestral realism). |
 | SLOW_LFO_RATE | Slow Bow LFO Rate | Float | 0.05 - 2.0 | 0.3 | Hz | Drone modulation — slow swell rate. |
 | SLOW_LFO_DEPTH | Slow Bow LFO Depth | Float | 0.0 - 1.0 | 0.0 | - | Depth — modulates bow speed/pressure for evolving drones (Schelleng-aware). |
-| EXPRESSION_MACRO | Expression Macro | Float | 0.0 - 1.0 | 0.50 | - | Single-knob layered expression — bow speed + pressure + vibrato + body brightness. |
+| EXPRESSION_MACRO | Expression Macro | Float | 0.0 - 1.0 | 0.0 | - | Single-knob layered expression — bow speed + pressure + vibrato + body brightness. (Phase 2.3 Q7a Stage-1 contract amendment: default flipped 0.50 → 0.0 to preserve Phase 2.2 strict byte-equal regression bar; architecture-spec'd 0.50 default would, once macro DSP lands, produce a non-zero brightness offset and bow-param multiplier at rest.) |
 
 ### Drone Features
 

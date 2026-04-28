@@ -22,6 +22,7 @@
 
 #pragma once
 #include <array>
+#include <atomic>
 #include <utility>
 #include <vector>
 #include <juce_audio_basics/juce_audio_basics.h>
@@ -58,6 +59,14 @@ public:
     // CC11 expression macro — set by OContrabassMPESynthesiser. Cached now,
     // wired into the bow envelope in Phase 2.6 alongside Note Expression.
     void setExpression (float value) noexcept { mpeExpression = value; }
+
+    // Phase 2.3 R29 — Schelleng wedge instrumentation hook (single-writer audio
+    // thread / single-reader harness; relaxed memory order — no cross-thread
+    // ordering required for this scalar audit value).
+    float getLastSafeDepth() const noexcept
+    {
+        return lastSafeDepth.load (std::memory_order_relaxed);
+    }
 
 private:
     void updateParametersFromAPVTS();
@@ -106,4 +115,42 @@ private:
     float effectivePosition = 0.10f;
     float outputGainLinear = 1.0f;
     float mpeExpression = 1.0f;
+
+    // ─── Phase 2.3 — Vibrato + Slow-LFO + EXPRESSION_MACRO state ───────────────
+    //
+    // Vibrato sine-LFO phase counter — continuous across notes (Q3 sine-phase-
+    // carry contract; HR-1 short-circuits the cents write at zero depth but
+    // ALWAYS advances the phase to keep timekeeping monotonic across re-arms).
+    float vibratoPhase                = 0.0f;
+    // Per-note onset timer — re-armed in noteStarted() so every fresh note
+    // sees the configured VIBRATO_ONSET delay before the half-cosine S-curve
+    // ramp engages.
+    float vibratoOnsetTimerSeconds    = 0.0f;
+    // One-shot snapshot of `vibratoOnsetGate` at the moment note-off fade
+    // engages (pin #8) — captured on the per-sample iteration that first
+    // sees `noteOffFadeOutTimerSeconds == 0.0f`. Used as the fade-out start
+    // value for the 150 ms linear ramp.
+    float vibratoOnsetGateAtNoteOff   = 0.0f;
+    // Note-off linear fade-out timer — sentinel −1 means "not in fade".
+    // Set to 0 by noteStopped(allowTailOff=true); advances per-sample once
+    // engaged.
+    float noteOffFadeOutTimerSeconds  = -1.0f;
+    // Slow-Bow LFO sine phase counter — voice-level (single phase across the
+    // 4-string bank; HR-2 gates phase advance at zero depth so the regression
+    // bar is unaffected when SLOW_LFO_DEPTH=0).
+    float slowLfoPhase                = 0.0f;
+
+    // Phase 2.3 — voice-level macro source smoother (one source, four
+    // destinations: bow speed, bow pressure, vibrato depth, brightness offset).
+    // 20 ms linear ramp per RESEARCH §16.5 (Δp ≈ 0.015/block on the bridge-LP
+    // pole — well below zipper threshold).
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> macroSmoothed;
+    // Slow-LFO output smoothers (architecture line 112 — 20 ms each).
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> slowLfoSpeedSmoothed;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> slowLfoPressureSmoothed;
+
+    // Phase 2.3 — Schelleng wedge instrumentation atom. Written per-block in
+    // step 2 of the 7-step evaluation order (always written, even at zero LFO
+    // depth, so the harness read view is well-defined every block — pin #4).
+    std::atomic<float> lastSafeDepth { 0.0f };
 };
