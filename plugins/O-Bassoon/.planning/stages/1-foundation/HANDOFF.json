@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../../.planning/workflow/schemas/handoff-1-to-2.schema.json",
+  "schemaVersion": "1.0.0",
+  "plugin": "O-Bassoon",
+  "timestamp": "2026-04-27T18:30:00Z",
+  "summary": "Buildable JUCE 8 modal-synthesis bassoon shell with all 10 APVTS parameters, silent-stub voice, headless TuningEngine + NE drain wired, AU validated (auval) and VST3 pluginval strictness 5 SUCCESS on macOS.",
+  "stateSnapshot": {
+    "stage": "1-foundation",
+    "phase": "complete",
+    "parameterCount": 10,
+    "buildVerified": true,
+    "source": [
+      "SUMMARY.md",
+      "VERIFICATION.md"
+    ]
+  },
+  "artifacts": {
+    "required": [
+      { "path": "CMakeLists.txt", "exists": true, "type": "config", "note": "juce_add_plugin synth config (IS_SYNTH TRUE, NEEDS_MIDI_INPUT TRUE), NEEDS_WEB_BROWSER TRUE, NEEDS_WEBVIEW2 TRUE + JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1, scala-tuning-engine via direct target_sources, note-expression via ouaricon_add_module" },
+      { "path": "Source/PluginProcessor.h", "exists": true, "type": "header", "note": "OBassoonAudioProcessor declaration; public APVTS; juce::Synthesiser + headless TuningEngine + Ouaricon::NoteExpression::VST3Extensions members; getVST3ClientExtensions returns &vst3Extensions" },
+      { "path": "Source/PluginProcessor.cpp", "exists": true, "type": "implementation", "note": "All 10 APVTS params (vibrato_rate/depth/onset, breath, tone, attack_character, attack_time, release_time, voice_count, output_gain), 16 voices pre-allocated in ctor, processBlock runs vst3Extensions.drainAndUpdate() BEFORE synthesiser.renderNextBlock, APVTS XML state save/restore, createPluginFilter() entry point" },
+      { "path": "Source/BassoonVoice.h", "exists": true, "type": "header", "note": "Silent-stub juce::SynthesiserVoice; three setter wires (APVTS, TuningEngine*, PendingTuningTable*); Phase 2.1 will extend with ModeBank/Exciter/ADSR members" },
+      { "path": "Source/BassoonVoice.cpp", "exists": true, "type": "implementation", "note": "Silent-stub renderNextBlock (empty); will be replaced in Phase 2.1 Task 4" },
+      { "path": "Source/BassoonSound.h", "exists": true, "type": "header", "note": "Header-only juce::SynthesiserSound catch-all (appliesToNote/Channel return true)" },
+      { "path": "Source/PluginEditor.h", "exists": true, "type": "header", "note": "Editor placeholder declaration (juce::GenericAudioProcessorEditor)" },
+      { "path": "Source/PluginEditor.cpp", "exists": true, "type": "implementation", "note": "500x480 GenericAudioProcessorEditor placeholder; no WebView (Stage 3)" }
+    ],
+    "optional": [
+      { "path": ".planning/stages/1-foundation/SUMMARY.md", "exists": true, "type": "doc", "note": "Stage 1 execute summary" },
+      { "path": ".planning/stages/1-foundation/VERIFICATION.md", "exists": true, "type": "doc", "note": "Goal-backward verification verdict" }
+    ],
+    "validation": {
+      "allRequiredPresent": true,
+      "checkedAt": "2026-04-27T18:30:00Z"
+    }
+  },
+  "decisions": [
+    {
+      "id": "FND-01",
+      "decision": "TuningEngine declared in global namespace (no Ouaricon:: prefix) in voice + processor",
+      "rationale": "Matches how scala-tuning-engine module exposes the class via Pattern B (direct target_sources) — class is declared at global scope in TuningEngine.h. The Ouaricon:: prefix would force a forward-declaration mismatch.",
+      "date": "2026-04-27",
+      "alternatives": ["Wrap in Ouaricon namespace alias (forces module header changes)"],
+      "supersedes": null
+    },
+    {
+      "id": "FND-02",
+      "decision": "ouaricon_add_module(O-Bassoon note-expression) only; no target_link_libraries(... PRIVATE Ouaricon::note_expression) line",
+      "rationale": "ouaricon_add_module() applies the JUCE-NE-PATCH and adds sources directly to the target; an additional target_link_libraries call would double-link and trigger duplicate symbol errors.",
+      "date": "2026-04-27",
+      "alternatives": ["Use target_link_libraries pattern (would duplicate sources)"],
+      "supersedes": null
+    },
+    {
+      "id": "FND-03",
+      "decision": "Both NEEDS_WEBVIEW2 TRUE and JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1 set at Stage 1",
+      "rationale": "Avoids the WebView silent-blank-page bug on Windows (CLAUDE.md memory: dynamic loader looks for WebView2Loader.dll which is not distributed). Stage 3 GUI will use WebView; baking the flags in early prevents a Stage 3 build-system regression.",
+      "date": "2026-04-27",
+      "alternatives": ["Defer flags to Stage 3 (risks shipping a blank-page WebView build)"],
+      "supersedes": null
+    },
+    {
+      "id": "FND-04",
+      "decision": "16 voices pre-allocated in OBassoonAudioProcessor ctor (not on first noteOn)",
+      "rationale": "JUCE 8 allows allocating Synthesiser voices in constructor; doing this once eliminates first-note allocation latency and matches O-Wind/O-Lyrica precedent.",
+      "date": "2026-04-27",
+      "alternatives": ["Lazy voice allocation in prepareToPlay (more complex bookkeeping)"],
+      "supersedes": null
+    }
+  ],
+  "contextForNextStage": {
+    "receivingStage": "2-dsp",
+    "keyInformation": [
+      "10 APVTS parameters fully registered: vibrato_rate, vibrato_depth, vibrato_onset, breath, tone, attack_character, attack_time, release_time, voice_count, output_gain",
+      "AU 4-char triplet: aumu OBsn OuDv (instrument / OBsn / Ouaricon Audio Development)",
+      "Build verified macOS: ninja O-Bassoon_VST3 O-Bassoon_AU O-Bassoon_Standalone (zero errors)",
+      "auval -v aumu OBsn OuDv: AU VALIDATION SUCCEEDED",
+      "pluginval --strictness-level 5 --validate <vst3>: SUCCESS (exit 0)",
+      "synthesiser has 16 voices pre-allocated in constructor",
+      "NE drain ordering locked at PluginProcessor.cpp:170 — vst3Extensions.drainAndUpdate() BEFORE synthesiser.renderNextBlock at :174",
+      "scala-tuning-engine sources at CMakeLists.txt:33-36 (Pattern B); note-expression via ouaricon_add_module at :40",
+      "Phase 2.1 cycle scope only: replace silent voice stub with first-audio modal synth (16-mode pole-only resonator + 5ms half-sine exciter + juce::ADSR). Phases 2.2-2.4 each get fresh GSD cycles after 2.1 verifies.",
+      "PLAN.md (Stage 2 rev-1) locks Phase 2.1 minimal wiring: NO APVTS reads in voice, NO TuningEngine call (plain MIDI for f_base), NO vibrato/breath/CC2/voice manager — all deferred per ROADMAP",
+      "BassoonVoice has three setter wires (APVTS, TuningEngine*, PendingTuningTable*) carried verbatim from Stage 1 — DO NOT touch in Phase 2.1"
+    ],
+    "continueCommand": "/plugin-execute O-Bassoon 2-dsp",
+    "alternativeCommands": [
+      "/plugin-status O-Bassoon",
+      "/plugin-discuss O-Bassoon 2-dsp"
+    ]
+  }
+}
