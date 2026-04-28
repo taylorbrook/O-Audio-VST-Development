@@ -4695,3 +4695,1557 @@ When all checks above are green (R32 user-confirmed or accepted as deferred), **
 - **Production WAV binary commits** — `phase23-r28pre-stiffness-zero.wav` / `phase23-r31-stiffness-zero.wav` / `vibrato.wav` / `slow-lfo.wav` / `schelleng-stress.wav` / `macro-sweep.wav` / `string-{A,D,G}.wav` / `detune-sweep-A.wav` / `note-sequence.wav` are NOT committed (~3–22 MB each; reproducible from harness). sha256 + JSON committed instead per pin #12.
 - **ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments** — end-of-Stage-2 verify decides; F3 deviation continues in R33 commit body.
 - **Saturator-tail Phase 2.4 follow-up** — RESEARCH §12 footnote carry-forward. R32 listening on E1+VIBRATO+SLOW_LFO together (anti-correlation guard audition) may surface saturator-tail interaction with modulators; still parked for Phase 2.4.
+
+---
+
+# Stage 2: DSP — Plan (Phase 2.4a) — REVISION 8 (Schelleng Calibration Polynomial + 108-Combo Stability Matrix + `pass_breathingAudible` Threshold Restoration, Gate 6a)
+
+> **Status:** rev-8 authors fresh task bodies for **R34-pre, R34a, R34b, R34c, R34d, R34e, R34f, R34g, R34h, R34** per `RESEARCH.md §17.11` sequencing and `CONTEXT.md` rev-6. rev-1/2/3/4/5/6/7 remain in-effect as completed/verified history. Phase 2.3 closed 2026-04-27 with R33 atomic commit `af54571` (Gate 5 PASS with rebaseline of 4 audible carry-forward goldens; strict E1 + detune-sweep-A unchanged; HR-1..HR-4 IEEE 754 identity-arithmetic preserved for primary contract).
+
+**Date:** 2026-04-28
+**Cycle scope:** Phase 2.4a only (Phase 2.4b sub-harmonic bias + Phase 2.4c autocorrelator harness fix + saturator-tail O-Bowed comparison still get fresh GSD cycles each)
+**Gate:** Gate 6a (Phase 2.4a verify)
+**Atomic-commit unit:** R34 (Gate 6a PASS) — single commit lands Phase 2.4a source + harness + 1 new header + 2 new golden text files + 4 re-baselined golden text files + reproduce-goldens.sh script + tools/schelleng-fit/ Python tool + planning artefacts. **NO Stage-1 contract amendment** (parameter-spec.md unchanged; STATUS.md `contract_checksums.parameter_spec` carries forward `77638e25…`). **NO ARCHITECTURE.md amendment** (calibration polynomial is implementation detail of architecture-spec'd Schelleng wedge clamp; closed-form §"Slow-Bow LFO" stays as conceptual reference).
+**Carry-forward locks (NOT re-litigated):** Phase 2.1a-recovery split-rail topology, F2 LP form, F3 no-in-loop-DCB, F4 betaScale removed, Phase 2.1b bow-friction module v1.0.0 consumption, Phase 2.1c `DispersionFilter<4>` API consumed verbatim, Phase 2.1c per-string M=4/3/2/1 dispersion table, Phase 2.2 4-string bank topology + per-string detune + 5 ms equal-power crossfade + MIDI→string mapping, Phase 2.3 modulator-layer surface (vibratoPhase / vibratoOnsetTimer / slowLfoPhase / 4 macro SmoothedValues / 7-step per-block evaluation order / HR-1..HR-4 hard rules / `lastSafeDepth.store(0.0f)` unconditional pre-gate at top of step 2 / EXPRESSION_MACRO default 0.0f / VIBRATO_DEPTH default 0.0f), ARCH §"DC Blocker" + §"In-loop saturator" amendments deferred to end-of-Stage-2 verify, primary listening DAW = Logic Pro (AU). Phase 2.4a swaps **only** the inline Schelleng wedge math at Step 2 of the 7-step order, behind the existing HR-4 gate. All other modulator code unchanged.
+
+---
+
+## Preamble — Pinned Open Items (RESEARCH §17.12)
+
+PLAN rev-8 pins each of the 11 plan-phase open items from RESEARCH §17.12:
+
+| # | Open Item | Pinned Decision |
+|---|-----------|-----------------|
+| 1 | CLI flag spelling for matrix-stability mode | **`--matrix-stability`** (matches CONTEXT rev-6 wording + RESEARCH §17.5 schema). NOT `--matrix` (collides with potential future MIDI matrix modes) NOT `--stability-matrix` (lexical noise). Harness `parseArgs` adds `--matrix-stability` flag; mutual-exclusion precedence ladder slots it ABOVE `--macro-sweep` (highest precedence; overrides all other modes when set). |
+| 2 | 108-combo iteration mode | **In-process loop** (single harness invocation iterates all 108 combos). ~10 s wall-clock total per RESEARCH §17.2 single-combo pre-flight extrapolation (108 × 0.04 s + ~5 s JUCE init). Mode iterates `for (s = 0..3) for (i = 0..2) for (j = 0..2) for (k = 0..2)` in canonical order (§17.5); resets DSP state via `processor.releaseResources(); processor.prepareToPlay(...)` between combos to prevent state bleed across combos; concatenates 108 stereo WAV chunks (5 s sustain + 0.5 s silence buffer = 5.5 s per combo) into a single output WAV. JSON aggregate emits per-combo entries in canonical order plus aggregate `pass_all_108`. Separate-invocation mode (~30 s wall-clock; one harness invocation per combo) deferred unless in-process mode surfaces state-bleed issues at R30 smoke. |
+| 3 | Wedge-math bypass during matrix-stability render | **Process-time CLI flag.** R34a adds `if (args.matrixStabilityMode) safeDepth = rawSlowLfoDepth;` inside the existing HR-4 gate body of `renderNextBlock`, ABOVE the existing closed-form math (which becomes dead code in matrix mode). The bypass is reachable ONLY when the harness is invoked with `--matrix-stability`. Production plugin builds (VST3 / AU shipped to users) NEVER invoke the harness binary; the bypass code path is unreachable in any user-facing render. **CRITICAL:** the flag is read from a process-side `static std::atomic<bool> g_matrixStabilityMode` set in `main()` BEFORE `processor.prepareToPlay()`; voice-side reads it from a free function `bool isMatrixStabilityModeActive() noexcept` (defined in the harness translation unit, declared `extern` in BowedContrabassVoice.cpp). NO compile-time `#define` (would require harness vs production conditional builds; unnecessary complexity). At R34d source edits, the bypass conditional is preserved verbatim — it ALWAYS evaluates to `false` outside the harness because no other binary defines `isMatrixStabilityModeActive()`. **Production-side stub:** PluginProcessor.cpp adds a weak default `bool __attribute__((weak)) isMatrixStabilityModeActive() noexcept { return false; }` so the plugin links cleanly without the harness symbol. (Alternative: weak symbol on the harness side; pin selects production-side weak default for Linux/macOS portability.) |
+| 4 | `reproduce-goldens.sh` canonical content | **Bash script committed at `plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh`** (~50 LOC). Locked invocations from RESEARCH §17.1 pre-flight table (sustain 60 / release 5 default for sustained modes; 3-s notes for note-sequence; mode-locked sustain for vibrato + macro-sweep; mode-locked sustain for slow-lfo + schelleng-stress). Script renders all 8 currently-committed goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep) AND the 2 re-baselined goldens (slow-lfo + schelleng-stress) into `/tmp/repro/`, computes sha256, prints diff vs committed `.wav.sha256` text files, exits non-zero on any mismatch. Future verify-phase reproductions invoke this script verbatim, eliminating the duration-dependence trap (§17.10 Risk #10). **NEW golden:** matrix-stability is rendered separately (its own R34b invocation; not in the reproduce-goldens.sh canonical 10-golden bar because re-rendering matrix-stability requires the wedge-math bypass which is harness-private). Commit body documents this asymmetry. Script content pinned in §"R34-pre" task body below. |
+| 5 | `emit_table.py` output formatting | **Generated `SchellengCalibration.h` includes a header comment block** with: (a) timestamp of generation, (b) sha256 of input `matrix.json`, (c) source-truth note ("DO NOT EDIT BY HAND — regenerate via `python3 tools/schelleng-fit/emit_table.py`"), (d) `pass_all_108` status from input JSON. Each per-string `kSafeDepth[s]` block has a comment naming the string (E1/A1/D2/G2). The constexpr array uses one row per `pressIdx`, three columns per `posIdx`, three rows per `speedIdx` — formatted for human readability. emit_table.py uses Python f-strings with explicit width specifiers; no automatic clang-format pass needed. Generated file is committed verbatim by R34c; CI never re-invokes the tool. |
+| 6 | SLOW_LFO_RATE for matrix-stability mode (Open Q7 cycle count) | **0.5 Hz × sustain=5 s = 2.5 cycles** per RESEARCH §17.7. NOT 0.3 Hz (1.5 cycles, borderline phase coverage) NOT 1.0 Hz (5 cycles, but architecture-tail-of-range; rate is bounded ∈ [0.05, 2.0] Hz so 1.0 Hz is fine but 0.5 Hz hits the same cycle count threshold with more headroom against rate-clamping). Existing `--slow-lfo` mode keeps SLOW_LFO_RATE=0.3 Hz (its sustain is 60 s = 18 cycles; cycle count is not a concern there). Harness `--matrix-stability` mode sets SLOW_LFO_RATE=0.5f via `setNorm("SLOW_LFO_RATE", (0.5f - 0.05f) / 1.95f)` per existing parameter-norm convention at main.cpp:389. |
+| 7 | BOW_POSITION=0.05 sul-tasto pre-flight | **R34-pre includes a single sul-tasto pre-flight render** with `--schelleng-stress --sustain 5 --release 1 --bow-position 0.05` (or equivalent extreme-combo path) to confirm `rmsContinuity ≥ 0.85` margin holds at the tightest position (loop-gain margins shrink at sul-tasto). If margin fails, plan-phase escalates: either tighten threshold to 0.80 (logged as soft-pass; Phase 2.4-bis recalibrates) OR identify which combo failed (matrix.json triage). R34-pre logs the result to `/tmp/phase24a-r34pre/sul-tasto-preflight.json`; output is diagnostic-only (NOT committed). Pre-flight is informational; outcome doesn't gate execute (§17.8 already confirmed default-position margin is ample at 1.71 blockTimeRatio + 0.94 rmsContinuity). |
+| 8 | `pass_combo` aggregation logic | **`pass_combo = pass_noNaN && pass_peak && pass_clickFree && pass_blockTime`** (4-way AND). Each of the 4 sub-passes is a JSON boolean per-combo; `pass_combo` is the per-combo verdict. Aggregate `passCount = sum(pass_combo == true over all 108)`; `pass_all_108 = (passCount == 108)`. Failed combos still emit complete JSON entries (peak / rmsContinuity / blockTimeRatio / clampedDepthMean values populated) for triage; a single failed combo flips `status: "FAIL"` but does NOT abort the render loop — all 108 combos render through to completion regardless. Trivial; pin documents for completeness. |
+| 9 | Matrix WAV concatenation strategy | **Single concatenated stereo WAV** at default sr=44100. Per-combo: 5 s sustain + 0.5 s silence buffer = 5.5 s × 108 combos = ~10 min total audio. Combos rendered in canonical iteration order (§17.5: stringIdx → speedIdx → pressIdx → posIdx). Silence buffer is a flat 0.0f write into the harness output buffer between combos; ensures manual auditioning is tractable + sha256 captures combo-boundary determinism. Single sha256 covers all 108 combos; aggregate JSON sha256 is the per-combo truth-table (the file emit_table.py reads). **Both `matrix-stability.wav.sha256` AND `matrix-stability.json.sha256`** committed as new goldens in R34b. Per-combo separate WAV files alternative (108 × 5 s files) rejected — clutters `/tests/render-harness/` and breaks the existing one-WAV-per-mode harness convention. |
+| 10 | Open-string MIDI for matrix-stability | **MIDI 28 / 33 / 38 / 43** per `stringIdx ∈ {0,1,2,3}` per RESEARCH §17.6 + CONTEXT rev-6 Q15. Hardcoded constant array `static constexpr int kMatrixStabilityMidi[4] = {28, 33, 38, 43};` in main.cpp (anonymous namespace, mirrors existing `kBOpen` pattern in BowedContrabassVoice.cpp:20). Harness `--matrix-stability` mode injects `MidiBuffer::addEvent(MidiMessage::noteOn(1, kMatrixStabilityMidi[s], 0.7f), 0)` at start of each combo; `noteOff` at start of release window. NO mid-range / fingered-position alternative (§17.6 rationale: friction-junction wedge math doesn't change with finger position; only the open-string period does). |
+| 11 | reproduce-goldens.sh placement | **Per-plugin** at `plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh`. Matches existing harness scope (per-plugin `tests/render-harness/main.cpp` + `golden/` directory). NOT cross-plugin shared at `tests/` repo-root (other plugins have their own harness setups; cross-plugin script would couple O-Contrabass golden invocations to O-Bowed / future-plugin canonical durations). Future cross-plugin reproducer can wrap the per-plugin scripts if needed; out-of-scope for Phase 2.4a. Script is `chmod +x` and self-contained (sources only `cmake --build` + `shasum -a 256` + bash builtins; no project-level helper functions). |
+| 12 | tools/schelleng-fit/ placement | **Repo-root** at `tools/schelleng-fit/{emit_table.py,README.md}`. Matches RESEARCH §17.4 invocation form (`python3 tools/schelleng-fit/emit_table.py matrix.json --out plugins/O-Contrabass/Source/DSP/SchellengCalibration.h`). Although the calibration data is per-plugin-specific (currently O-Contrabass-only; O-Bowed has no Schelleng wedge per §17.9), the emit_table.py tool itself is generic JSON→constexpr-array transcription; future plugins with wedge calibration could reuse the tool with different `--out` paths and matrix schemas. Per-plugin alternative (`plugins/O-Contrabass/tools/`) rejected to avoid Python-tool fragmentation across plugins. **Tool dependency footprint:** Python 3.14 + numpy 2.4 (already installed and confirmed at `/Library/Frameworks/Python.framework/Versions/3.14/`); NO scipy. Tool is offline (developer-machine-only); CI never invokes it. |
+
+**Carry-forward locks from Phase 2.3 (NOT re-litigated):**
+- HARD RULES HR-1 / HR-2 / HR-3 / HR-4 verbatim from PLAN rev-7 preamble. R34d preserves all 4 — calibration polynomial is invoked ONLY inside the existing HR-4 `if (rawSlowLfoDepth > 0.0f)` gate, behind the existing `lastSafeDepth.store(0.0f)` unconditional pre-gate.
+- 7-step per-block evaluation order verbatim (Step 2 wedge math is the ONLY swap target; Steps 1 / 3 / 4 / 5 / 6 / 7 unchanged).
+- `std::atomic<float> lastSafeDepth { 0.0f };` instrumentation hook signature (Phase 2.3 PLAN rev-7 pin #4) carries forward unchanged. Calibration polynomial writes the *new* safeDepth value to lastSafeDepth at the same call site.
+- 5 ms equal-power crossfade + `activeStringIndex` / `previousStringIndex` state machine. Calibration lookup at the post-crossfade `activeStringIndex` is correct (per RESEARCH §17.10 Risk #11; crossfade transition is per-sample-loop space, not Step 2 wedge math space).
+- 6 carry-forward goldens: E1 strict (`d358abcd…`) + detune-sweep-A (`5e31dad3…`) + per-string A (`c6755aa4…`) + per-string D (`765b015e…`) + per-string G (`0cd5cb0a…`) + note-sequence (`3ac3ccd0…`) + vibrato (`d7881ecf…`) + macro-sweep (`c2571dd9…`). All 8 reproduce byte-identical at HEAD per RESEARCH §17.1 pre-flight. HR-2 + HR-4 gates ensure SchellengCalibration.h never executes in any of these renders.
+- Atomic-commit gate-first principle: R7 → R15 → R20 → R26 → R33 → **R34** sequence.
+
+**Hard rules unique to Phase 2.4a (binding for R34d implementation):**
+1. **HR-5 — SchellengCalibration.h header-only `inline` linkage.** All array constants use `inline constexpr` (C++17); the trilinear interpolation function is `inline float safeDepthForString (...) noexcept` defined in the header. Header guarded with `#pragma once`. Same pattern as Phase 2.1c `Source/DSP/DispersionFilter.h` precedent. ODR-safe across translation units.
+2. **HR-6 — Calibration polynomial invoked behind HR-4 gate ONLY.** Inside the `if (rawSlowLfoDepth > 0.0f)` gate, the call site is `safeDepth = jlimit(0.0f, rawSlowLfoDepth, schelleng::safeDepthForString(activeStringIndex, rawBowSpeed, rawBowPressure, beta));`. The polynomial is NEVER evaluated outside the gate. At SLOW_LFO_DEPTH=0, the entire wedge block (and the polynomial) is skipped → strict E1 (`d358abcd…`) + 6 modulators-off goldens preserve bit-exact regression.
+3. **HR-7 — Matrix-stability bypass conditional.** In R34a, the harness mode adds `if (isMatrixStabilityModeActive()) { safeDepth = rawSlowLfoDepth; lastSafeDepth.store(safeDepth, ...); ... }` inside the HR-4 gate, AT THE TOP of the gate body (before the polynomial call). Outside the harness binary, the weak symbol returns `false`, so the conditional is never taken — the polynomial path runs as written. **R34d enforces this ordering:** R34a adds the bypass conditional in the same source-edit batch as R34d's polynomial swap-in.
+4. **HR-8 — IEEE 754 identity arithmetic for trilinear.** Trilinear interpolation: `result = c000 * w000 + c100 * w100 + ... + c111 * w111`, where `w` are barycentric weights ∈ [0, 1] with `Σw = 1`. At grid sample points (where one weight is 1 and the rest are 0), trilinear returns the corresponding `c` exactly via IEEE 754 identity arithmetic (`x * 1 = x`, `x + 0 = x`). This is critical for emit_table.py's correctness assumption: the generated table is the empirical truth at sample points, never smeared by interpolation rounding.
+
+**Per-block evaluation order (locked verbatim from RESEARCH §16.6, modified Step 2 only):**
+```
+Step 1 — Read raw APVTS atomics (10 raw reads; UNCHANGED).
+Step 2 — Schelleng wedge:
+         lastSafeDepth.store(0.0f, relaxed)   [pin #4 unconditional]
+         if (rawSlowLfoDepth > 0.0f)          [HR-4 gate]
+             if (isMatrixStabilityModeActive())     [HR-7 bypass]
+                 safeDepth = rawSlowLfoDepth
+             else                                    [PRODUCTION PATH]
+                 beta = jlimit(0.02, 0.25, rawBowPos)
+                 safeDepth = jlimit(0.0, rawSlowLfoDepth,
+                                    schelleng::safeDepthForString(activeStringIndex,
+                                                                  rawBowSpeed,
+                                                                  rawBowPressure,
+                                                                  beta))     [Phase 2.4a]
+             vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth
+             lastSafeDepth.store(safeDepth, relaxed)
+Step 3 — Slow-LFO phase advance + sin (HR-2 gate; UNCHANGED).
+Step 4 — Apply slow-LFO multiplicatively (UNCHANGED).
+Step 5 — Layer macro multiplicatively (HR-3 gated; UNCHANGED).
+Step 6 — Push to bowModel + all-strings brightness (UNCHANGED).
+Step 7 — Per-sample loop (HR-1 gated vibrato; UNCHANGED).
+```
+
+---
+
+## Goal
+
+Replace the Phase 2.3 architecture-verbatim closed-form Schelleng wedge math (`Z=R=R_s=0.5` dimensionless collapse — produces `clampedDepthMean=0.0` at default bass operating points, silencing the slow-LFO at MIDI 28-43) with an empirically-derived per-string trilinear lookup table (`Source/DSP/SchellengCalibration.h`; 27-point grid over BOW_SPEED × BOW_PRESSURE × BOW_POSITION axes per string; 108 floats total). Calibration data is derived from a 108-combo bass-register stability matrix render (`--matrix-stability` harness mode at SLOW_LFO_DEPTH=1.0 with wedge-math BYPASSED via HR-7); each grid point gets `safeDepth=1.0` if the combo passes all 4 sub-passes (`pass_noNaN + pass_peak + pass_clickFree + pass_blockTime`) or `safeDepth=0.5` as v1.0 fallback if any sub-pass fails. Re-baseline `--slow-lfo` + `--schelleng-stress` goldens against the calibrated wedge (Phase 2.1c R19a / Phase 2.3 4-golden re-baseline precedent). Restore `pass_breathingAudible ≥ 20%` threshold (architecture-spec'd RESEARCH §16.7.2) — at default bass operating point post-calibration, the lookup returns the grid-point value at speedIdx=1 (0.15) / pressIdx=0 (1.0) / posIdx=1 (0.10), expected to be `1.0` (stable combo at default settings) → full LFO breathing → `rmsByDecadePeakToPeakPct ≥ 20%`. Validate Gate 6a invariants — five-item bar including bit-exact reproduction of all 8 carry-forward goldens — and atomic-commit on Gate 6a PASS as R34. Continue the R7 → R15 → R20 → R26 → R33 → **R34** atomic-commit sequence.
+
+---
+
+## Tasks
+
+### R34-pre — Pre-flight bit-exact baseline confirmation + canonical reproduction script + sul-tasto pre-flight
+
+**No source edits committed except `tests/render-harness/reproduce-goldens.sh` (NEW; staged for inclusion in R34 atomic). Diagnostic + script-creation. Confirms working-tree integrity at start of execute AND empirically reproduces RESEARCH §17.1 pre-flight under the plan-phase build environment AND locks canonical golden invocations against the duration-dependence trap (§17.10 Risk #10).**
+
+Per RESEARCH §17.1, working tree at HEAD `af54571` reproduces all 8 currently-committed goldens byte-identical when invoked with canonical default-duration arguments. Per RESEARCH §17.2, single-combo extreme-settings render takes ~0.04 s wall-clock with ample stability margin (peak 0.107 / blockTimeRatio 1.71). R34-pre re-runs that experiment as a tripwire AND captures the canonical invocations into a committed shell script.
+
+**Tasks:**
+
+1. **Confirm git state is clean and at R33 atomic commit:**
+   ```bash
+   git log --oneline -1                                  # should be af54571 or descendant (chore backfill)
+   git status plugins/O-Contrabass/                      # should be clean
+   ```
+   If working tree is dirty, STOP and reconcile before proceeding.
+
+2. **Build harness:**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+   Expect `ninja: no work to do` if R33 build artefacts persist; otherwise clean rebuild.
+
+3. **Render all 8 currently-committed goldens to `/tmp/phase24a-r34pre/`** using canonical invocations from RESEARCH §17.1:
+
+   ```bash
+   mkdir -p /tmp/phase24a-r34pre
+   cd build
+   HARNESS=./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test
+
+   # 1. Strict E1 (regression bar)
+   $HARNESS --note 28 --velocity 0.7 --sustain 60 --release 5 \
+            --infinite-sustain 1.0 --string-stiffness 0 \
+            --out /tmp/phase24a-r34pre/stiffness-zero-pre.wav \
+            --json /tmp/phase24a-r34pre/stiffness-zero-pre.json
+
+   # 2-4. Per-string A/D/G (defaults: sustain 60 / release 5)
+   $HARNESS --string A --out /tmp/phase24a-r34pre/string-A.wav \
+                       --json /tmp/phase24a-r34pre/string-A.json
+   $HARNESS --string D --out /tmp/phase24a-r34pre/string-D.wav \
+                       --json /tmp/phase24a-r34pre/string-D.json
+   $HARNESS --string G --out /tmp/phase24a-r34pre/string-G.wav \
+                       --json /tmp/phase24a-r34pre/string-G.json
+
+   # 5. Detune-sweep-A
+   $HARNESS --detune-sweep A --out /tmp/phase24a-r34pre/detune-sweep-A.wav \
+                             --json /tmp/phase24a-r34pre/detune-sweep-A.json
+
+   # 6. Note-sequence (3 s notes)
+   $HARNESS --note-sequence "28:3,33:3,38:3,43:3,28:3" \
+            --out /tmp/phase24a-r34pre/note-sequence.wav \
+            --json /tmp/phase24a-r34pre/note-sequence.json
+
+   # 7. Vibrato (mode-locked: MIDI 28 + 12¢ + 5 Hz + 600 ms onset, sustain 2 s)
+   $HARNESS --vibrato --out /tmp/phase24a-r34pre/vibrato.wav \
+                      --json /tmp/phase24a-r34pre/vibrato.json
+
+   # 8. Macro-sweep (mode-locked: MIDI 38, EXPRESSION_MACRO 0→1, sustain 20 s)
+   $HARNESS --macro-sweep --out /tmp/phase24a-r34pre/macro-sweep.wav \
+                          --json /tmp/phase24a-r34pre/macro-sweep.json
+   cd -
+   ```
+
+4. **Confirm sha256 byte-identical to committed goldens:**
+   ```bash
+   for g in stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence vibrato macro-sweep; do
+       computed=$(shasum -a 256 /tmp/phase24a-r34pre/$g.wav | awk '{print $1}')
+       expected=$(awk '{print $1}' plugins/O-Contrabass/tests/render-harness/golden/$g.wav.sha256)
+       if [ "$computed" = "$expected" ]; then
+           echo "[PASS] $g.wav  $computed"
+       else
+           echo "[FAIL] $g.wav  computed=$computed  expected=$expected"
+       fi
+   done
+   ```
+   **All 8 must PASS.** If any FAIL, STOP and investigate working-tree drift (re-confirm HEAD == `af54571`; check `git status` for stray edits in `plugins/O-Contrabass/Source/`, `tests/render-harness/`, `modules/synthesis/bow-friction/`). Do NOT proceed to R34a until all 8 reproduce.
+
+5. **Sul-tasto pre-flight (pin #7) — informational only:**
+   ```bash
+   # Render single combo at tightest BOW_POSITION (0.05 sul-tasto) + extreme stress
+   # to confirm rmsContinuity ≥ 0.85 margin holds at the corner of the 108-combo box.
+   # NOTE: requires --bow-position CLI flag (already plumbed in main.cpp; if missing,
+   # use existing --schelleng-stress mode which sets BOW_POSITION=0.10 by default,
+   # then rerun matrix-stability extreme-corner combo manually post-R34a).
+   $HARNESS --schelleng-stress --sustain 5 --release 1 \
+            --out /tmp/phase24a-r34pre/sul-tasto-preflight.wav \
+            --json /tmp/phase24a-r34pre/sul-tasto-preflight.json
+
+   jq '.rmsContinuity, .blockTime_max_over_median, .peak, .pass_nan' \
+      /tmp/phase24a-r34pre/sul-tasto-preflight.json
+   ```
+   Record the values in PLAN-execution-log notes; if `rmsContinuity < 0.85`, log as Phase 2.4a verify risk + recommend threshold tuning to 0.80 (R34b decision; not blocking R34-pre). If `rmsContinuity ≥ 0.85`, confirms ample margin → CONTEXT-rev-6 thresholds carry forward verbatim. **Sul-tasto-corner-combo dedicated render (BOW_POSITION=0.05 + BOW_PRESSURE=7.0 + BOW_SPEED=0.05) defers to R34b** when the harness `--matrix-stability` mode renders all 108 combos including this corner.
+
+6. **Author `tests/render-harness/reproduce-goldens.sh`** (~50 LOC bash script, locked content per pin #4):
+
+   ```bash
+   #!/usr/bin/env bash
+   # Phase 2.4a R34-pre — canonical reproduction of all 10 O-Contrabass render goldens.
+   # Locks invocations against duration-dependence trap (§17.10 Risk #10).
+   # Usage: ./reproduce-goldens.sh           — render to /tmp/repro/, diff vs committed
+   #        ./reproduce-goldens.sh --quiet   — exit code only, no stdout
+   set -euo pipefail
+
+   QUIET="${1:-}"
+   REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+   GOLDEN_DIR="$REPO_ROOT/plugins/O-Contrabass/tests/render-harness/golden"
+   HARNESS="$REPO_ROOT/build/plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test_artefacts/Release/O-Contrabass-render-test"
+   OUTDIR="/tmp/repro"
+
+   mkdir -p "$OUTDIR"
+   cd "$REPO_ROOT/build"
+
+   # Build harness if missing.
+   if [ ! -x "$HARNESS" ]; then
+       cmake --build . --target O-Contrabass-render-test --parallel >/dev/null
+   fi
+
+   # Canonical invocations (sustain 60 / release 5 default for sustained modes;
+   # 3-s notes for note-sequence; mode-locked sustain for vibrato/macro/slow/schelleng).
+   declare -A INVOC
+   INVOC[stiffness-zero-pre]="--note 28 --velocity 0.7 --sustain 60 --release 5 --infinite-sustain 1.0 --string-stiffness 0"
+   INVOC[string-A]="--string A"
+   INVOC[string-D]="--string D"
+   INVOC[string-G]="--string G"
+   INVOC[detune-sweep-A]="--detune-sweep A"
+   INVOC[note-sequence]="--note-sequence 28:3,33:3,38:3,43:3,28:3"
+   INVOC[vibrato]="--vibrato"
+   INVOC[macro-sweep]="--macro-sweep"
+   INVOC[slow-lfo]="--slow-lfo"
+   INVOC[schelleng-stress]="--schelleng-stress"
+
+   FAIL=0
+   for g in "${!INVOC[@]}"; do
+       wav="$OUTDIR/$g.wav"
+       json="$OUTDIR/$g.json"
+       $HARNESS ${INVOC[$g]} --out "$wav" --json "$json" >/dev/null
+       computed=$(shasum -a 256 "$wav" | awk '{print $1}')
+       expected=$(awk '{print $1}' "$GOLDEN_DIR/$g.wav.sha256")
+       if [ "$computed" = "$expected" ]; then
+           [ -z "$QUIET" ] && echo "[PASS] $g  $computed"
+       else
+           [ -z "$QUIET" ] && echo "[FAIL] $g  computed=$computed  expected=$expected"
+           FAIL=$((FAIL + 1))
+       fi
+   done
+
+   if [ "$FAIL" -gt 0 ]; then
+       [ -z "$QUIET" ] && echo "FAILED: $FAIL of 10 goldens drifted"
+       exit 1
+   fi
+   [ -z "$QUIET" ] && echo "OK: all 10 goldens reproduce byte-identical"
+   exit 0
+   ```
+
+   ```bash
+   chmod +x plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+   ```
+
+7. **Stage `reproduce-goldens.sh`** (do NOT commit yet — included in R34 atomic):
+   ```bash
+   git add plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+   git status   # should show 1 new file staged
+   ```
+
+**Files created:**
+- `plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh` (NEW, ~70 LOC, staged for R34 atomic).
+- `/tmp/phase24a-r34pre/*.{wav,json}` (transient; deleted post-R34h or end of execute session; NOT committed).
+
+**Files modified:** none committed.
+
+**Commit:** **NONE** — diagnostic + script-staging only. R34 atomic commit lands the staged file alongside the rest of Phase 2.4a.
+
+**Success bar:**
+- [ ] `git log --oneline -1` shows `af54571` or descendant chore commit.
+- [ ] Harness build succeeds (`ninja: no work to do` or clean rebuild).
+- [ ] All 8 sha256 reproductions PASS byte-identical to committed `.wav.sha256` files.
+- [ ] Sul-tasto pre-flight `rmsContinuity` ≥ 0.85 OR escalated as Phase 2.4a verify risk.
+- [ ] `reproduce-goldens.sh` authored, `chmod +x`, staged for R34.
+
+**Estimated effort:** 25 min (build + 9 renders + 8 sha256 diffs + 1 sul-tasto check + script authoring + chmod + stage).
+
+---
+
+### R34a — Harness `--matrix-stability` mode + HR-7 wedge-math bypass
+
+**Per RESEARCH §17.5 schema + §17.6 MIDI selection + §17.7 SLOW_LFO_RATE 0.5 Hz + pins #1, #2, #3, #6, #8, #9, #10. Adds the 108-combo iteration mode + per-combo JSON + concatenated WAV + the HR-7 production-side weak-symbol bypass. NO source-side calibration polynomial yet — that's R34c+R34d.**
+
+**Tasks:**
+
+1. **`tests/render-harness/main.cpp` — add `--matrix-stability` CLI flag (~+200 LOC).**
+
+   In the anonymous namespace at the top of main.cpp, add the canonical iteration grids:
+   ```cpp
+   constexpr int   kMatrixStabilityMidi[4] = { 28, 33, 38, 43 };
+   constexpr float kMatrixSpeedAxis[3]     = { 0.05f, 0.15f, 0.5f };
+   constexpr float kMatrixPressAxis[3]     = { 1.0f,  3.0f,  7.0f };
+   constexpr float kMatrixPosAxis[3]       = { 0.05f, 0.10f, 0.20f };
+   constexpr float kMatrixSlowLfoRate      = 0.5f;          // pin #6 — 0.5 Hz × 5 s = 2.5 cycles
+   constexpr float kMatrixSustainSec       = 5.0f;
+   constexpr float kMatrixSilenceSec       = 0.5f;          // pin #9 — silence buffer between combos
+   ```
+
+   In `parseArgs`, add `--matrix-stability` flag handling. Slot in mutual-exclusion ladder ABOVE `--macro-sweep` (highest precedence; `args.matrixStabilityMode = true` clears all other mode flags + emits warning if multiple modes set).
+
+   Add process-side bypass flag declaration at top of file:
+   ```cpp
+   // Phase 2.4a HR-7 — process-side wedge-math bypass for --matrix-stability mode.
+   // Voice-side reads via extern free function (declared in BowedContrabassVoice.cpp).
+   static std::atomic<bool> g_matrixStabilityMode { false };
+
+   extern "C" bool isMatrixStabilityModeActive() noexcept
+   {
+       return g_matrixStabilityMode.load (std::memory_order_relaxed);
+   }
+   ```
+
+2. **`tests/render-harness/main.cpp` — add `runMatrixStabilityMode()` 108-combo iteration loop (~+150 LOC).**
+
+   ```cpp
+   static int runMatrixStabilityMode (const Args& args)
+   {
+       g_matrixStabilityMode.store (true, std::memory_order_relaxed);
+
+       // Single shared processor across all 108 combos — releaseResources/prepareToPlay
+       // reset between combos to clear DSP state without rebuilding APVTS.
+       OContrabassAudioProcessor processor;
+       processor.setRateAndBufferSizeDetails (kSampleRate, kBlockSize);
+
+       const int totalCombos     = 4 * 3 * 3 * 3;            // 108
+       const int sustainSamples  = static_cast<int> (kMatrixSustainSec  * kSampleRate);
+       const int silenceSamples  = static_cast<int> (kMatrixSilenceSec  * kSampleRate);
+       const int comboTotalSamples = sustainSamples + silenceSamples;
+       const int totalOutputSamples = comboTotalSamples * totalCombos;
+
+       juce::AudioBuffer<float> outputAccum (2, totalOutputSamples);
+       outputAccum.clear();
+       std::vector<juce::DynamicObject::Ptr> comboEntries;
+       int passCount = 0;
+
+       for (int s = 0; s < 4; ++s)
+       for (int i = 0; i < 3; ++i)
+       for (int j = 0; j < 3; ++j)
+       for (int k = 0; k < 3; ++k)
+       {
+           // Inject combo-specific APVTS overrides BEFORE prepareToPlay.
+           setNorm (processor, "BOW_SPEED",       paramNorm ("BOW_SPEED",       kMatrixSpeedAxis[i]));
+           setNorm (processor, "BOW_PRESSURE",    paramNorm ("BOW_PRESSURE",    kMatrixPressAxis[j]));
+           setNorm (processor, "BOW_POSITION",    paramNorm ("BOW_POSITION",    kMatrixPosAxis[k]));
+           setNorm (processor, "INFINITE_SUSTAIN", 1.0f);
+           setNorm (processor, "SLOW_LFO_DEPTH",   1.0f);
+           setNorm (processor, "SLOW_LFO_RATE",   paramNorm ("SLOW_LFO_RATE", kMatrixSlowLfoRate));
+           setNorm (processor, "VIBRATO_DEPTH",    0.0f);     // HR-1 short-circuit (vibrato off in matrix mode)
+           setNorm (processor, "EXPRESSION_MACRO", 0.0f);     // HR-3 short-circuit (macro off)
+
+           processor.releaseResources();
+           processor.prepareToPlay (kSampleRate, kBlockSize);
+
+           // Inject MIDI noteOn for this combo's open string.
+           const int   midiNote     = kMatrixStabilityMidi[s];
+           const int   comboOffset  = (s * 27 + i * 9 + j * 3 + k) * comboTotalSamples;
+           juce::MidiBuffer noteOn;
+           noteOn.addEvent (juce::MidiMessage::noteOn (1, midiNote, 0.7f), 0);
+           noteOn.addEvent (juce::MidiMessage::noteOff (1, midiNote, 0.0f), sustainSamples);
+
+           // Render sustainSamples + silenceSamples = comboTotalSamples per combo.
+           PerComboMetrics metrics = renderComboBlocks (processor, noteOn,
+                                                        comboTotalSamples, kBlockSize,
+                                                        outputAccum, comboOffset);
+
+           const bool pass_noNaN     = (metrics.nanCount == 0);
+           const bool pass_peak      = (metrics.peak <= 1.0f);
+           const bool pass_clickFree = (metrics.rmsContinuity >= 0.85f);
+           const bool pass_blockTime = (metrics.blockTimeRatio <= 5.0f);
+           const bool pass_combo     = pass_noNaN && pass_peak && pass_clickFree && pass_blockTime;
+           if (pass_combo) ++passCount;
+
+           juce::DynamicObject::Ptr e = new juce::DynamicObject();
+           e->setProperty ("stringIdx",                s);
+           e->setProperty ("openStringMidi",           midiNote);
+           e->setProperty ("bowSpeed",                 kMatrixSpeedAxis[i]);
+           e->setProperty ("bowPressure",              kMatrixPressAxis[j]);
+           e->setProperty ("bowPosition",              kMatrixPosAxis[k]);
+           e->setProperty ("sustainSeconds",           kMatrixSustainSec);
+           e->setProperty ("totalSamples",             metrics.totalSamples);
+           e->setProperty ("peak",                     metrics.peak);
+           e->setProperty ("rmsMid_s2_s3",             metrics.rmsMidpoint);
+           e->setProperty ("rmsContinuity",            metrics.rmsContinuity);
+           e->setProperty ("blockMicros_median",       metrics.blockMicrosMedian);
+           e->setProperty ("blockMicros_max",          metrics.blockMicrosMax);
+           e->setProperty ("blockTimeRatio",           metrics.blockTimeRatio);
+           e->setProperty ("clampedDepthMean",         metrics.clampedDepthMean);
+           e->setProperty ("rmsByDecadePeakToPeakPct", metrics.rmsByDecadePctPP);
+           e->setProperty ("pass_noNaN",     pass_noNaN);
+           e->setProperty ("pass_peak",      pass_peak);
+           e->setProperty ("pass_clickFree", pass_clickFree);
+           e->setProperty ("pass_blockTime", pass_blockTime);
+           e->setProperty ("pass_combo",     pass_combo);
+           comboEntries.push_back (e);
+       }
+
+       g_matrixStabilityMode.store (false, std::memory_order_relaxed);
+
+       // Aggregate JSON.
+       juce::DynamicObject::Ptr summary = new juce::DynamicObject();
+       summary->setProperty ("status",        passCount == totalCombos ? juce::String ("PASS") : juce::String ("FAIL"));
+       summary->setProperty ("mode",          juce::String ("matrix-stability"));
+       summary->setProperty ("totalCombos",   totalCombos);
+       summary->setProperty ("passCount",     passCount);
+       summary->setProperty ("failCount",     totalCombos - passCount);
+       summary->setProperty ("pass_all_108",  passCount == totalCombos);
+
+       juce::Array<juce::var> arr;
+       for (auto& e : comboEntries) arr.add (juce::var (e.get()));
+       summary->setProperty ("combos", arr);
+
+       writeJsonFile (args.jsonPath, summary);
+       writeWavFile  (args.wavPath, outputAccum, kSampleRate);
+       return 0;
+   }
+   ```
+
+   `paramNorm()`, `setNorm()`, `renderComboBlocks()`, `PerComboMetrics`, `writeJsonFile()`, `writeWavFile()` are existing harness helpers (extracted as needed; reuse main.cpp:380+ existing patterns from `--schelleng-stress` mode).
+
+3. **`Source/BowedContrabassVoice.cpp` — declare extern bypass + add HR-7 conditional inside HR-4 gate.**
+
+   At top of file (anonymous namespace OK):
+   ```cpp
+   // Phase 2.4a HR-7 — harness-side wedge-math bypass for --matrix-stability mode.
+   // Production builds: weak default returns false (defined in PluginProcessor.cpp).
+   // Harness binary: real definition in main.cpp returns g_matrixStabilityMode.load().
+   extern "C" bool isMatrixStabilityModeActive() noexcept;
+   ```
+
+   Inside the existing HR-4 gate body in `renderNextBlock()` (after `lastSafeDepth.store(0.0f, ...)`), insert the bypass conditional ABOVE the closed-form math (which becomes the production path; R34d will replace it with the calibration polynomial call):
+   ```cpp
+   if (rawSlowLfoDepth > 0.0f)                                              // HR-4 gate
+   {
+       if (isMatrixStabilityModeActive())                                   // HR-7 bypass
+       {
+           safeDepth   = rawSlowLfoDepth;
+           vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;
+           lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+       }
+       else
+       {
+           // Z = R = R_s = 0.5 dimensionless collapse (Phase 2.3 closed-form;
+           // replaced by calibration polynomial in R34d).
+           const float beta = juce::jlimit (0.02f, 0.25f, rawBowPos);
+           const float fMax = (2.0f * kSchellengZ * rawBowSpeed)
+                            / juce::jmax (1.0e-6f, beta * kSchellengDMu);
+           const float fMin = (kSchellengZ * kSchellengZ * rawBowSpeed)
+                            / juce::jmax (1.0e-6f, 2.0f * kSchellengR * beta * beta * kSchellengDMu);
+           const float hUp  = (fMax - rawBowPressure) / juce::jmax (1.0e-6f, fMax);
+           const float hLo  = (rawBowPressure - fMin) / juce::jmax (1.0e-6f, fMin);
+           const float headroom = juce::jmin (hUp, hLo);
+           safeDepth   = juce::jlimit (0.0f, rawSlowLfoDepth, 0.8f * juce::jmax (0.0f, headroom));
+           vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;                   // Q5
+           lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+       }
+   }
+   ```
+
+   **R34d will replace the `else` branch body** with the calibration polynomial call. The bypass `if` branch is preserved verbatim through R34d.
+
+4. **`Source/PluginProcessor.cpp` — add weak default for `isMatrixStabilityModeActive()`** so production builds link without the harness symbol:
+
+   At top of file (anonymous namespace OK):
+   ```cpp
+   // Phase 2.4a HR-7 — production-side weak default for harness wedge-math bypass.
+   // Harness binary overrides this with strong symbol in main.cpp.
+   extern "C" __attribute__((weak)) bool isMatrixStabilityModeActive() noexcept
+   {
+       return false;
+   }
+   ```
+
+   **Critical:** weak symbols on macOS/Linux behave correctly with the harness's strong symbol via `extern "C"` linkage. Windows MSVC requires `__declspec(selectany)` — not Phase 2.4a concern (O-Contrabass is currently macOS-AU primary).
+
+**Files modified:**
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` (~+350 LOC: --matrix-stability flag + g_matrixStabilityMode + isMatrixStabilityModeActive() strong def + runMatrixStabilityMode() + paramNorm/setNorm/PerComboMetrics extensions).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` (~+10 LOC: extern decl + HR-7 conditional inside HR-4 gate).
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` (~+5 LOC: weak default `isMatrixStabilityModeActive()`).
+
+**Commit:** **NONE** — source-edit batch; landed in R34 atomic.
+
+**Success bar:**
+- [ ] `--matrix-stability` flag added to harness; mutual-exclusion ladder slots it at top.
+- [ ] `g_matrixStabilityMode` atomic + `isMatrixStabilityModeActive()` strong def in main.cpp.
+- [ ] `runMatrixStabilityMode()` iterates 4×3×3×3=108 combos in canonical order.
+- [ ] Per-combo JSON entry matches RESEARCH §17.5 schema verbatim.
+- [ ] Aggregate JSON includes status / totalCombos / passCount / failCount / pass_all_108 / combos[].
+- [ ] HR-7 bypass conditional landed in BowedContrabassVoice.cpp inside HR-4 gate; closed-form math preserved in `else` branch (R34d replaces).
+- [ ] PluginProcessor.cpp weak default `isMatrixStabilityModeActive()` returns false.
+
+**Estimated effort:** 90 min (mostly main.cpp expansion; reuse of existing harness helpers minimises new infrastructure).
+
+---
+
+### R34b — Render 108-combo matrix + commit golden text files
+
+**Per RESEARCH §17.2 wall-clock budget + §17.8 thresholds. After R34a source edits compile (R30-equivalent smoke check pre-R34b is recommended; see "Pre-R34b smoke" below). Captures empirical stability evidence at SLOW_LFO_DEPTH=1.0 with HR-7 bypass active. NO calibration polynomial yet — R34b's matrix.json IS the input that R34c's emit_table.py reads.**
+
+**Pre-R34b smoke (~3 min):**
+```bash
+cmake --build build --target O-Contrabass-render-test --parallel
+cd build
+./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test \
+    --schelleng-stress --sustain 5 --release 1 \
+    --out /tmp/phase24a-r34b-smoke.wav --json /tmp/phase24a-r34b-smoke.json
+# Expect: pass_nan + pass_peak + pass_blockTime all TRUE; clampedDepthMean ≈ 0.0
+# (production wedge math still active via the else branch — R34c+R34d swap in calibration).
+```
+Smoke confirms R34a HR-7 conditional doesn't perturb the production-path else branch. If FAIL, debug R34a edits before R34b matrix render.
+
+**Tasks:**
+
+1. **Render the 108-combo matrix:**
+   ```bash
+   cd build
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test \
+       --matrix-stability \
+       --out plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav \
+       --json plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json
+   ```
+   Expected wall-clock: ~10 s (per RESEARCH §17.2). Output: ~10 min stereo audio (108 × 5.5 s) + JSON aggregate.
+
+2. **Validate `pass_all_108=true`:**
+   ```bash
+   jq '.status, .pass_all_108, .passCount, .failCount' \
+      plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json
+   # Expected: "PASS", true, 108, 0
+   ```
+
+   **If `pass_all_108=false`:**
+   - Identify failing combos: `jq '.combos | map(select(.pass_combo == false))' matrix-stability.json`
+   - For each failing combo, log the (stringIdx, speedIdx, pressIdx, posIdx) tuple + which sub-pass failed (peak / rmsContinuity / blockTimeRatio / NaN).
+   - Phase 2.4a v1.0 fallback path: emit_table.py (R34c) sets `kSafeDepth[s][i][j][k] = 0.5f` for failing combos (per §17.4). The matrix-stability render proceeds even with fail-combos; v1.0 ships with depth-clamped wedge at those points.
+   - **If `passCount < 108 - 4` (>4 failed):** STOP. Phase 2.4a v1.0 design assumption (most combos are stable) is broken; escalate to Phase 2.4-bis or Phase 2.4a remediation (downstream defense tightening). This is the §17.10 Risk #6 path.
+   - **If `passCount ≥ 104` (≤4 failed):** PROCEED. v1.0 fallback `0.5f` is the design path; document failing combos in PLAN-execution-log + R34 commit body.
+
+3. **Compute sha256 of matrix-stability outputs + commit golden text files:**
+   ```bash
+   shasum -a 256 plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav \
+       > plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256
+
+   # JSON sha256 captured separately so emit_table.py output reproducibility is auditable.
+   shasum -a 256 plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json \
+       > plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json.sha256
+   ```
+
+   Both `.wav.sha256` and `.json.sha256` text files committed (the `.json` itself is the truth-table input to emit_table.py; its sha256 anchors the audit trail).
+
+4. **Stage the 3 new golden text files** (do NOT commit; included in R34 atomic):
+   ```bash
+   git add plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json.sha256
+   git status
+   ```
+
+   The matrix-stability.wav binary itself (~200 MB at sr=44100 stereo × 10 min) is **NOT committed** (reproducible from harness on demand; sha256 + JSON committed instead, mirroring Phase 2.2 / 2.3 precedent).
+
+**Files created (committed via R34 atomic):**
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256` (NEW; ~80 bytes).
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json` (NEW; ~50–100 KB; the truth-table).
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json.sha256` (NEW; ~80 bytes).
+
+**Files created (NOT committed):**
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav` (~200 MB; reproducible).
+- `/tmp/phase24a-r34b-smoke.{wav,json}` (transient; pre-R34b smoke).
+
+**Commit:** **NONE** — golden text files staged for R34 atomic.
+
+**Success bar:**
+- [ ] Pre-R34b smoke: `--schelleng-stress` PASS (production wedge math unaffected by HR-7 conditional).
+- [ ] `--matrix-stability` invocation completes in <30 s wall-clock (under §17.2 budget).
+- [ ] `pass_all_108=true` OR `failCount ≤ 4` (Phase 2.4a v1.0 fallback acceptable).
+- [ ] 3 new golden text files staged.
+
+**Estimated effort:** 20 min (3 min smoke + ~10 s matrix render + sha256 + jq triage + stage).
+
+---
+
+### R34c — Generate `Source/DSP/SchellengCalibration.h` via emit_table.py
+
+**Per RESEARCH §17.3 + §17.4 + pin #5 + pin #12. emit_table.py reads R34b's matrix.json, emits the 108-float constexpr array with 1.0 for passing combos and 0.5 for failing combos. Generated header is committed verbatim by R34 atomic.**
+
+**Tasks:**
+
+1. **Author `tools/schelleng-fit/emit_table.py`** at repo-root (~80 LOC Python; pin #12 placement):
+
+   ```python
+   #!/usr/bin/env python3
+   """
+   Phase 2.4a R34c — emit SchellengCalibration.h from --matrix-stability JSON.
+
+   NO actual fitting. Trilinear over the 27-point grid is an exact interpolant;
+   this tool transcribes per-combo pass/fail into a constexpr array with
+   safeDepth = 1.0 for passing combos, 0.5 for failing combos (v1.0 fallback).
+
+   Usage:
+       python3 tools/schelleng-fit/emit_table.py matrix.json --out path/SchellengCalibration.h
+   """
+   import argparse, hashlib, json, pathlib, sys, time
+
+   def main():
+       p = argparse.ArgumentParser()
+       p.add_argument("matrix_json", type=pathlib.Path)
+       p.add_argument("--out", type=pathlib.Path, required=True)
+       args = p.parse_args()
+
+       json_bytes = args.matrix_json.read_bytes()
+       json_sha   = hashlib.sha256(json_bytes).hexdigest()
+       data       = json.loads(json_bytes)
+
+       assert data.get("mode") == "matrix-stability", "input is not matrix-stability JSON"
+       assert data.get("totalCombos") == 108, "expected 108 combos"
+       combos = data["combos"]
+       assert len(combos) == 108
+
+       # Build [4][3][3][3] table in canonical iteration order.
+       table = [[[[0.0]*3 for _ in range(3)] for _ in range(3)] for _ in range(4)]
+       for s in range(4):
+           for i in range(3):
+               for j in range(3):
+                   for k in range(3):
+                       idx = s*27 + i*9 + j*3 + k
+                       e   = combos[idx]
+                       assert e["stringIdx"]   == s
+                       table[s][i][j][k] = 1.0 if e["pass_combo"] else 0.5
+
+       # Emit header.
+       out = []
+       out.append("// AUTO-GENERATED by tools/schelleng-fit/emit_table.py — DO NOT EDIT BY HAND.")
+       out.append(f"// Generated: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
+       out.append(f"// Source: matrix.json sha256: {json_sha}")
+       out.append(f"// Status: {data.get('status', 'UNKNOWN')}  passCount: {data.get('passCount')}/{data.get('totalCombos')}")
+       out.append("// Regenerate via: python3 tools/schelleng-fit/emit_table.py matrix.json --out <path>")
+       out.append("")
+       out.append("#pragma once")
+       out.append("")
+       out.append("#include <juce_core/juce_core.h>")
+       out.append("")
+       out.append("namespace ouaricon::contrabass::schelleng {")
+       out.append("")
+       out.append("inline constexpr int   kStrings   = 4;")
+       out.append("inline constexpr int   kGridN     = 3;")
+       out.append("inline constexpr float kSpeedAxis [3] = { 0.05f, 0.15f, 0.5f  };")
+       out.append("inline constexpr float kPressAxis [3] = { 1.0f,  3.0f,  7.0f  };")
+       out.append("inline constexpr float kPosAxis   [3] = { 0.05f, 0.10f, 0.20f };")
+       out.append("")
+       out.append("// safeDepth lookup table — indexed [stringIdx][speedIdx][pressIdx][posIdx].")
+       out.append("// 1.0 = combo verified stable at SLOW_LFO_DEPTH=1.0; 0.5 = v1.0 fallback for failing combos.")
+       out.append("inline constexpr float kSafeDepth[4][3][3][3] = {")
+       string_names = ["E1", "A1", "D2", "G2"]
+       for s in range(4):
+           out.append(f"    /* {string_names[s]} (stringIdx={s}) */ {{")
+           for i in range(3):
+               out.append(f"        /* speedIdx={i} (v_b={ {0.05,0.15,0.5}[i] }) */ {{")
+               # render the i-th speed plane as 3 press rows × 3 pos cols
+               for j in range(3):
+                   row = ", ".join(f"{table[s][i][j][k]:.1f}f" for k in range(3))
+                   out.append(f"            {{ {row} }}{',' if j < 2 else ''}    // pressIdx={j}")
+               out.append("        }" + ("," if i < 2 else ""))
+           out.append("    }" + ("," if s < 3 else ""))
+       out.append("};")
+       out.append("")
+       out.append("// Trilinear interpolation lookup. Out-of-grid clamps to nearest edge (no extrapolation).")
+       out.append("// Always returns ∈ [0.0, 1.0]. Evaluation cost: 8 mul + 7 add + bounds.")
+       out.append("inline float safeDepthForString (int stringIdx, float v_b, float F_bow, float beta) noexcept")
+       out.append("{")
+       out.append("    auto interp_axis = [] (float x, const float (&axis)[3], int& lo, float& t) {")
+       out.append("        if (x <= axis[0])      { lo = 0; t = 0.0f; }")
+       out.append("        else if (x >= axis[2]) { lo = 1; t = 1.0f; }")
+       out.append("        else if (x <= axis[1]) { lo = 0; t = (x - axis[0]) / (axis[1] - axis[0]); }")
+       out.append("        else                   { lo = 1; t = (x - axis[1]) / (axis[2] - axis[1]); }")
+       out.append("    };")
+       out.append("    int sIdx = juce::jlimit (0, 3, stringIdx);")
+       out.append("    int iLo, jLo, kLo; float ti, tj, tk;")
+       out.append("    interp_axis (v_b,   kSpeedAxis, iLo, ti);")
+       out.append("    interp_axis (F_bow, kPressAxis, jLo, tj);")
+       out.append("    interp_axis (beta,  kPosAxis,   kLo, tk);")
+       out.append("    const float c000 = kSafeDepth[sIdx][iLo  ][jLo  ][kLo  ];")
+       out.append("    const float c001 = kSafeDepth[sIdx][iLo  ][jLo  ][kLo+1];")
+       out.append("    const float c010 = kSafeDepth[sIdx][iLo  ][jLo+1][kLo  ];")
+       out.append("    const float c011 = kSafeDepth[sIdx][iLo  ][jLo+1][kLo+1];")
+       out.append("    const float c100 = kSafeDepth[sIdx][iLo+1][jLo  ][kLo  ];")
+       out.append("    const float c101 = kSafeDepth[sIdx][iLo+1][jLo  ][kLo+1];")
+       out.append("    const float c110 = kSafeDepth[sIdx][iLo+1][jLo+1][kLo  ];")
+       out.append("    const float c111 = kSafeDepth[sIdx][iLo+1][jLo+1][kLo+1];")
+       out.append("    const float c00 = c000 * (1.0f - tk) + c001 * tk;")
+       out.append("    const float c01 = c010 * (1.0f - tk) + c011 * tk;")
+       out.append("    const float c10 = c100 * (1.0f - tk) + c101 * tk;")
+       out.append("    const float c11 = c110 * (1.0f - tk) + c111 * tk;")
+       out.append("    const float c0  = c00  * (1.0f - tj) + c01  * tj;")
+       out.append("    const float c1  = c10  * (1.0f - tj) + c11  * tj;")
+       out.append("    return juce::jlimit (0.0f, 1.0f, c0 * (1.0f - ti) + c1 * ti);")
+       out.append("}")
+       out.append("")
+       out.append("} // namespace ouaricon::contrabass::schelleng")
+       out.append("")
+
+       args.out.write_text("\n".join(out))
+       print(f"wrote {args.out} ({len(out)} lines)")
+
+   if __name__ == "__main__":
+       main()
+   ```
+
+2. **Author `tools/schelleng-fit/README.md`** (~30 LOC):
+
+   ```markdown
+   # tools/schelleng-fit
+
+   Offline transcription tool: reads `--matrix-stability` JSON output from the
+   O-Contrabass render harness and emits `SchellengCalibration.h` constexpr table.
+
+   ## Usage
+
+       python3 tools/schelleng-fit/emit_table.py path/to/matrix-stability.json \
+           --out plugins/O-Contrabass/Source/DSP/SchellengCalibration.h
+
+   ## Re-run conditions
+
+   Re-invoke ONLY if the matrix-stability render is re-rendered (e.g., Phase
+   2.4-bis remediation if v1.0 fallback `0.5` proves inadequate at some combo,
+   or future plugin recompiles change the underlying friction-junction physics).
+   The generated header is committed to git; CI never invokes this tool.
+
+   ## Dependencies
+
+   - Python 3.11+ (tested with 3.14.2)
+   - numpy (NOT actually used by emit_table.py for trilinear; reserved for
+     future polynomial-fit modes)
+
+   ## Architecture
+
+   Trilinear interpolation over the 27-point grid (3×3×3 per string × 4 strings).
+   v1.0 design: assigns 1.0 to passing combos, 0.5 to failing combos (binary
+   pass/fail derived from --matrix-stability sub-pass conditions). Trilinear
+   is exact at sample points, monotonically bounded off-grid by the 8-corner
+   box. See RESEARCH.md §17.3-§17.4 for the design rationale.
+   ```
+
+3. **Generate `Source/DSP/SchellengCalibration.h`:**
+   ```bash
+   chmod +x tools/schelleng-fit/emit_table.py
+   python3 tools/schelleng-fit/emit_table.py \
+       plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json \
+       --out plugins/O-Contrabass/Source/DSP/SchellengCalibration.h
+   # Expected: "wrote plugins/O-Contrabass/Source/DSP/SchellengCalibration.h (~150 lines)"
+   ```
+
+4. **Inspect generated header:**
+   ```bash
+   head -10 plugins/O-Contrabass/Source/DSP/SchellengCalibration.h
+   # Expected: header comment with timestamp + matrix.json sha256 + status PASS
+
+   grep -c "1.0f" plugins/O-Contrabass/Source/DSP/SchellengCalibration.h
+   grep -c "0.5f" plugins/O-Contrabass/Source/DSP/SchellengCalibration.h
+   # Total 1.0f + 0.5f count should equal 108 (one per grid point) plus
+   # boilerplate constants in the trilinear function (extra ~6 from the 1.0f-tk
+   # weight terms — quick visual scan confirms 108 grid entries are correct).
+   ```
+
+5. **Stage the 3 new files** (do NOT commit; included in R34 atomic):
+   ```bash
+   git add tools/schelleng-fit/emit_table.py
+   git add tools/schelleng-fit/README.md
+   git add plugins/O-Contrabass/Source/DSP/SchellengCalibration.h
+   git status
+   ```
+
+**Files created (committed via R34 atomic):**
+- `tools/schelleng-fit/emit_table.py` (NEW, ~80 LOC).
+- `tools/schelleng-fit/README.md` (NEW, ~30 LOC).
+- `plugins/O-Contrabass/Source/DSP/SchellengCalibration.h` (NEW, ~150 LOC; auto-generated; HR-5 `inline constexpr` linkage).
+
+**Commit:** **NONE** — staged for R34 atomic.
+
+**Success bar:**
+- [ ] `tools/schelleng-fit/emit_table.py` authored + chmod +x.
+- [ ] `tools/schelleng-fit/README.md` authored.
+- [ ] Python invocation succeeds → SchellengCalibration.h generated.
+- [ ] Generated header has timestamp + matrix.json sha256 in comment block.
+- [ ] Grid entry count (1.0f + 0.5f literals) ≥ 108.
+- [ ] All 3 files staged.
+
+**Estimated effort:** 45 min (~30 min Python authoring + ~5 min execution + ~10 min visual sanity-check of generated header).
+
+---
+
+### R34d — Replace closed-form Schelleng wedge with calibration polynomial call
+
+**Per RESEARCH §17.3 + HR-5/HR-6/HR-8. Single source-edit batch in `BowedContrabassVoice.cpp`. Production-path else-branch from R34a swaps closed-form math for `schelleng::safeDepthForString(...)` call. NO build, NO commit at this stage; R34e + R34f follow before build.**
+
+**Tasks:**
+
+1. **`Source/BowedContrabassVoice.cpp` — add `#include "DSP/SchellengCalibration.h"` (~+1 LOC).**
+
+   At top of file, in the existing `#include` block:
+   ```cpp
+   #include "DSP/SchellengCalibration.h"
+   ```
+
+2. **`Source/BowedContrabassVoice.cpp` — replace the production-path else-branch body inside HR-4 gate (~−10 LOC + ~+3 LOC).**
+
+   The R34a-landed conditional is currently:
+   ```cpp
+   if (rawSlowLfoDepth > 0.0f)                                              // HR-4 gate
+   {
+       if (isMatrixStabilityModeActive())                                   // HR-7 bypass
+       {
+           safeDepth   = rawSlowLfoDepth;
+           ...
+       }
+       else
+       {
+           // Z = R = R_s = 0.5 dimensionless collapse (Phase 2.3 closed-form;
+           // replaced by calibration polynomial in R34d).
+           const float beta = juce::jlimit (0.02f, 0.25f, rawBowPos);
+           const float fMax = (2.0f * kSchellengZ * rawBowSpeed)
+                            / juce::jmax (1.0e-6f, beta * kSchellengDMu);
+           const float fMin = (kSchellengZ * kSchellengZ * rawBowSpeed)
+                            / juce::jmax (1.0e-6f, 2.0f * kSchellengR * beta * beta * kSchellengDMu);
+           const float hUp  = (fMax - rawBowPressure) / juce::jmax (1.0e-6f, fMax);
+           const float hLo  = (rawBowPressure - fMin) / juce::jmax (1.0e-6f, fMin);
+           const float headroom = juce::jmin (hUp, hLo);
+           safeDepth   = juce::jlimit (0.0f, rawSlowLfoDepth, 0.8f * juce::jmax (0.0f, headroom));
+           vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;                   // Q5
+           lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+       }
+   }
+   ```
+
+   **Replace the production-path else-branch body (the 11-line closed-form math block) with:**
+   ```cpp
+       else
+       {
+           // Phase 2.4a — empirical calibration table (RESEARCH §17.3).
+           // 27-point grid trilinear interpolation per string; values populated by
+           // tools/schelleng-fit/emit_table.py from --matrix-stability render data.
+           const float beta = juce::jlimit (0.02f, 0.25f, rawBowPos);
+           safeDepth   = juce::jlimit (0.0f, rawSlowLfoDepth,
+                                       schelleng::safeDepthForString (activeStringIndex,
+                                                                      rawBowSpeed,
+                                                                      rawBowPressure,
+                                                                      beta));
+           vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;                   // Q5 carry-forward
+           lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+       }
+   ```
+
+   **HR-6 enforced:** the polynomial call site is INSIDE the existing HR-4 gate; never invoked at SLOW_LFO_DEPTH=0. Bit-exact regression for the 6 modulators-off goldens preserved.
+
+3. **`Source/BowedContrabassVoice.cpp` — remove obsolete constants (~−4 LOC).**
+
+   Inside the anonymous namespace block, remove the 3 closed-form constants (no longer referenced after R34d):
+   ```cpp
+   // REMOVE:
+   constexpr float kSchellengZ          = 0.5f;
+   constexpr float kSchellengR          = 0.5f;
+   constexpr float kSchellengDMu        = 0.60f;
+   ```
+
+   **Keep:** `kPressureLagRad`, `kAntiCorrPerDepth`, `kVibratoRampSec`, `kVibratoFadeOutSec`, `kVibFactorScale` — these remain referenced by Step 3 / Step 5 / Step 7 / vibrato + slow-LFO path.
+
+   **Activity check (R34d substep guard):** before deletion, grep:
+   ```bash
+   grep -n "kSchellengZ\|kSchellengR\|kSchellengDMu" plugins/O-Contrabass/Source/BowedContrabassVoice.cpp
+   ```
+   Expect ONLY the 3 declarations + the closed-form math block (which was already removed in step 2). If any other reference appears, STOP and audit before deleting.
+
+4. **(NO change to `BowedContrabassVoice.h`.)** No new members; no new methods. The header was Phase 2.3-locked at R28; R34d is a `.cpp`-only refactor.
+
+5. **(NO change to `PluginProcessor.{h,cpp}` outside the R34a weak-default added in step 4.)**
+
+**Files modified:**
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` (~−10 LOC closed-form math + ~+3 LOC polynomial call + ~−4 LOC removed constants + ~+1 LOC `#include` = net ~−10 LOC).
+
+**Commit:** **NONE** — source-edit batch; landed in R34 atomic (after R34e + R34f + R34g + R34h).
+
+**Success bar:**
+- [ ] `#include "DSP/SchellengCalibration.h"` added.
+- [ ] HR-4 gate else-branch body replaced with `schelleng::safeDepthForString(...)` call.
+- [ ] `kSchellengZ` / `kSchellengR` / `kSchellengDMu` constants removed.
+- [ ] No remaining grep hits for the 3 removed constants.
+- [ ] HR-7 if-branch (matrix-stability bypass) preserved verbatim from R34a.
+
+**Estimated effort:** 20 min (mostly verifying HR-6 + HR-4 ordering preservation + grep audit).
+
+---
+
+### R34e — Restore `pass_breathingAudible` 20% threshold
+
+**Per RESEARCH §16.7.2 architecture-spec'd value + CONTEXT rev-6 Q17 user-confirmed restoration. Single-line constant edit in harness.**
+
+**Tasks:**
+
+1. **`tests/render-harness/main.cpp` line 958 — change `0.05f` → `0.20f`.**
+
+   ```cpp
+   // BEFORE (Phase 2.3 v1.0 soft-pass — softened from architecture-spec 20% to 5%
+   // because Schelleng wedge clamps depth to 0.0 at default bass operating point):
+   const bool passBreathingAudible = args.slowLfoMode && (rmsByDecadePeakToPeakPct >= 0.05f);
+
+   // AFTER (Phase 2.4a — calibration polynomial restores audible breathing at default
+   // bass operating point; 20% architecture-spec'd threshold becomes the audible regression bar):
+   const bool passBreathingAudible = args.slowLfoMode && (rmsByDecadePeakToPeakPct >= 0.20f);
+   ```
+
+2. **Update inline doc-comment in `--slow-lfo` mode JSON schema** (main.cpp around line 60 `pass_breathingAudible (rmsByDecadePeakToPeakPct ≥ 0.05 — v1.0;` text):
+   ```cpp
+   // BEFORE:
+   //                                       && pass_breathingAudible (rmsByDecadePeakToPeakPct ≥ 0.05 — v1.0;
+   //                                       softened from architecture-spec 20% — see RESEARCH §16.7.2)
+   // AFTER:
+   //                                       && pass_breathingAudible (rmsByDecadePeakToPeakPct ≥ 0.20 — Phase 2.4a
+   //                                       calibration polynomial restored architecture-spec 20% — see RESEARCH §17.10)
+   ```
+
+   This is a doc-comment correction; bit-exact regression unaffected (comments are not compiled).
+
+**Files modified:**
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` (1-LOC functional edit + ~3-LOC comment edit).
+
+**Commit:** **NONE** — landed in R34 atomic.
+
+**Success bar:**
+- [ ] Line 958 (or current location of the `0.05f` constant) flipped to `0.20f`.
+- [ ] Inline doc-comment updated to reference §17.10 / Phase 2.4a / 20% threshold.
+- [ ] `git diff` confirms exactly 2 lines changed (1 functional + 1 comment block; comment block may span 2 lines).
+
+**Estimated effort:** 5 min.
+
+---
+
+### R34f — Build + re-baseline `--slow-lfo` + `--schelleng-stress` goldens
+
+**After R34a + R34d + R34e source edits land, build the harness and re-render the 2 goldens that change because the wedge math changes. Capture new sha256s + JSON. Old `3768dd15…` (slow-lfo) + `e50dd191…` (schelleng-stress) are RETIRED (overwritten with new sha256 text files).**
+
+**Tasks:**
+
+1. **Build harness with R34a/c/d/e edits:**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+   Expect zero warnings, zero errors. If build fails:
+   - Undefined `schelleng::safeDepthForString` → confirm `Source/DSP/SchellengCalibration.h` exists + R34c executed + namespace matches.
+   - Undefined `isMatrixStabilityModeActive` → confirm R34a weak default landed in PluginProcessor.cpp + extern decl in BowedContrabassVoice.cpp.
+   - Linker duplicate-symbol on `isMatrixStabilityModeActive` → confirm one weak (PluginProcessor.cpp) + one strong (main.cpp) linkage.
+
+2. **Re-render `--slow-lfo` golden:**
+   ```bash
+   cd build
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test \
+       --slow-lfo \
+       --out /tmp/phase24a-r34f-slow-lfo.wav \
+       --json /tmp/phase24a-r34f-slow-lfo.json
+
+   jq '.pass_breathingAudible, .pass_rmsContinuity, .pass_clampEngagement, .rmsByDecadePeakToPeakPct, .clampedDepthMean' \
+      /tmp/phase24a-r34f-slow-lfo.json
+
+   # Expected: pass_breathingAudible=true (≥ 20%), pass_rmsContinuity=true (≥ 0.90),
+   # pass_clampEngagement=true (clampedDepthMean > 0.0 — calibration polynomial returns
+   # 1.0 at default bass operating point, full LFO depth fed through). Specifically:
+   # rmsByDecadePeakToPeakPct ≥ 0.20 (architecture-spec'd threshold restored)
+   # clampedDepthMean ≥ 0.95 (close to 1.0; slight drift due to LFO sin trajectory averaging)
+   ```
+
+   **If `pass_breathingAudible=false` (rmsByDecadePeakToPeakPct < 20%):** the calibration polynomial under-shoots at the default bass operating point. Phase 2.4a verify risk #5 path: investigate which grid combo's `kSafeDepth` value applies at the default operating point (BOW_SPEED=0.15 ≈ speedIdx=1; BOW_PRESSURE=1.0 ≈ pressIdx=0; BOW_POSITION=0.10 ≈ posIdx=1; activeStringIndex per default MIDI). If that combo got `0.5` in the matrix render (R34b), v1.0 fallback is the culprit; remediation = Phase 2.4-bis (binary-search-over-depth refinement; out of scope for Phase 2.4a v1.0). Document failure + escalate; STOP R34f.
+
+3. **Compute new sha256 + overwrite committed goldens:**
+   ```bash
+   shasum -a 256 /tmp/phase24a-r34f-slow-lfo.wav | awk '{print $1"  slow-lfo.wav"}' \
+       > plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256
+   cp /tmp/phase24a-r34f-slow-lfo.json \
+      plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json
+   ```
+
+4. **Re-render `--schelleng-stress` golden:**
+   ```bash
+   cd build
+   ./plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test \
+       --schelleng-stress \
+       --out /tmp/phase24a-r34f-schelleng-stress.wav \
+       --json /tmp/phase24a-r34f-schelleng-stress.json
+
+   jq '.pass_peak, .pass_nan, .pass_clampEngaged, .pass_blockTime, .clampedDepthMean, .peak' \
+      /tmp/phase24a-r34f-schelleng-stress.json
+
+   # Expected: pass_peak=true (≤ 1.0), pass_nan=true (zero NaN), pass_blockTime=true.
+   # pass_clampEngaged: at extreme bow params (BOW_PRESSURE=7.0 + BOW_SPEED=0.05),
+   # the calibration grid point [s][i=0][j=2][k=1] returns 0.5 v1.0 fallback if R34b
+   # matrix flagged it as failing → clampedDepthMean ≈ 0.5 (clamp engaged at fallback,
+   # NOT at zero). pass_clampEngaged threshold currently `clampedDepthMean < 0.5`;
+   # if calibration returns exactly 0.5, threshold may need adjustment to `< 0.7` or
+   # similar — flag in Phase 2.4a verify if pass fires false-positive.
+   ```
+
+5. **Compute new sha256 + overwrite committed goldens:**
+   ```bash
+   shasum -a 256 /tmp/phase24a-r34f-schelleng-stress.wav | awk '{print $1"  schelleng-stress.wav"}' \
+       > plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256
+   cp /tmp/phase24a-r34f-schelleng-stress.json \
+      plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json
+   ```
+
+6. **Stage re-baselined goldens** (4 files; included in R34 atomic):
+   ```bash
+   git add plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json
+   ```
+
+**Files modified (committed via R34 atomic):**
+- `plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256` (RE-BASELINED; old `3768dd15…` retired).
+- `plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json` (RE-BASELINED).
+- `plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256` (RE-BASELINED; old `e50dd191…` retired).
+- `plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json` (RE-BASELINED).
+
+**Commit:** **NONE** — staged for R34 atomic.
+
+**Success bar:**
+- [ ] Harness build succeeds zero warnings.
+- [ ] `--slow-lfo` reports `pass_breathingAudible=true` (rmsByDecade ≥ 20%) + `pass_rmsContinuity=true` + `pass_clampEngagement=true`.
+- [ ] `--schelleng-stress` reports `pass_peak + pass_nan + pass_blockTime` all TRUE; `pass_clampEngaged` per-combo behavior documented.
+- [ ] 4 golden text files re-baselined; new sha256s captured.
+- [ ] All 4 staged.
+
+**Estimated effort:** 20 min (build + 2 renders + 4 sha256 captures + stage).
+
+---
+
+### R34g — Bit-exact regression bar verification
+
+**Re-run `reproduce-goldens.sh` (authored in R34-pre) to confirm 6 carry-forward goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep) reproduce byte-identical post-R34a/c/d/e/f source edits. The HR-2 + HR-4 + HR-6 gates are the technical defence — wedge math (closed-form OR calibration polynomial) never executes in any of these renders. R34g is the verification gate confirming HR rules held through the full Phase 2.4a source-edit batch.**
+
+**Tasks:**
+
+1. **Run the canonical reproduction script:**
+   ```bash
+   plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+   # Expected exit code: 0
+   # Expected output: 10 [PASS] lines — 8 carry-forward (byte-identical) + 2 re-baselined (byte-identical to NEW sha256s captured in R34f)
+   ```
+
+   **If any FAIL:**
+   - For the 6 carry-forward goldens (E1 strict / per-string / detune-sweep / note-sequence / vibrato / macro-sweep) failing: HR-1 / HR-2 / HR-3 / HR-4 / HR-6 audit (see Risks #1 below). HR-2 + HR-4 ensure SchellengCalibration.h is never invoked at SLOW_LFO_DEPTH=0; if any of these break, the source edit perturbed something unrelated to calibration. STOP and bisect.
+   - For slow-lfo / schelleng-stress failing: the just-captured sha256s in R34f should match the NEW committed sha256s. If they don't, the harness build is non-deterministic (rare) — re-run R34f before proceeding.
+
+2. **Capture R34g audit for VERIFICATION.md** (verify-phase consumes; R34g logs):
+   ```bash
+   plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh > /tmp/phase24a-r34g-audit.log 2>&1
+   echo "Exit code: $?" >> /tmp/phase24a-r34g-audit.log
+   ```
+   The log file is transient (NOT committed); content cited verbatim in VERIFICATION.md.
+
+**Files modified:** none.
+
+**Commit:** **NONE** — verification step.
+
+**Success bar:**
+- [ ] `reproduce-goldens.sh` exits 0.
+- [ ] All 8 carry-forward goldens reproduce byte-identical.
+- [ ] slow-lfo + schelleng-stress reproduce against R34f re-baselined sha256s.
+
+**Estimated effort:** 5 min (single script run + audit log capture).
+
+---
+
+### R34h — auval + pluginval-10
+
+**Standard Gate 6a invariant 5. Mirrors Phase 2.3 R31 invariant (6) + (7).**
+
+**Tasks:**
+
+1. **Build the AU + VST3 plugin targets:**
+   ```bash
+   cmake --build build --target O-Contrabass_AU --parallel
+   cmake --build build --target O-Contrabass_VST3 --parallel
+   ```
+
+2. **macOS AU cache clear + install:**
+   ```bash
+   killall -9 AudioComponentRegistrar 2>/dev/null || true
+   rm -rf ~/Library/Caches/AudioUnitCache/
+   rm -rf ~/Library/Caches/com.apple.audiounits.cache
+   rm -rf ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3
+   rm -rf ~/Library/Audio/Plug-Ins/Components/O-Contrabass.component
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/VST3/O-Contrabass.vst3 \
+         ~/Library/Audio/Plug-Ins/VST3/
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/AU/O-Contrabass.component \
+         ~/Library/Audio/Plug-Ins/Components/
+   ```
+
+3. **auval:**
+   ```bash
+   auval -v aumu OCbs OuDv
+   # Expected: AU VALIDATION SUCCEEDED.
+   # If FAIL: per CLAUDE.md, investigate AU registration / cache / parameter-spec mismatch
+   # before R34 atomic.
+   ```
+
+4. **pluginval --strictness-level 10:**
+   ```bash
+   /Applications/pluginval.app/Contents/MacOS/pluginval \
+       --strictness-level 10 --validate-in-process \
+       ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3
+   # Expected: SUCCESS.
+   ```
+
+**Files modified:** none.
+
+**Commit:** **NONE** — verification step.
+
+**Success bar:**
+- [ ] AU build + install succeed.
+- [ ] auval reports `AU VALIDATION SUCCEEDED`.
+- [ ] pluginval --strictness-level 10 reports `SUCCESS`.
+
+**Estimated effort:** 15 min (build + install + auval + pluginval).
+
+---
+
+### R34 — Phase 2.4a Atomic Commit (Gate 6a PASS)
+
+**Single atomic commit lands all Phase 2.4a work. Only run on R34g (regression bar) + R34h (auval + pluginval-10) PASS.**
+
+**Tasks:**
+
+1. **Update `STATUS.md`:**
+   - `next_action` → `phase_2_4b_discuss`.
+   - `phase` → `verify_complete` (or current verify state).
+   - `gate_state` block: add `phase_2_4a_schelleng_calibration: PASS`, `phase_2_4a_atomic_commit_sha: <new-sha>` (placeholder; back-fill in chore commit per R33 precedent).
+   - `phase_2_4a_verify_outcome: VERIFIED_gate_6a_pass_2026_04_??_<five_invariant_summary>`.
+   - `phase_2_4a_verify_independent_reproduction:` block: `regression_sha256s_8_carry_forward: byte_identical`, `matrix_stability_pass_all_108: <true|partial>`, `slow_lfo_breathingAudible: ≥0.20`, `auval: AU_VALIDATION_SUCCEEDED`, `pluginval_10: SUCCESS`.
+   - `Cycle Scope` → `Phase 2.4b — Sub-harmonic bias DSP-07 (next fresh GSD cycle)`.
+   - `Current Position` Stage 2 progress: 2.1 + 2.2 + 2.3 + 2.4a closed = ~67% of Stage 2 (Phases 2.4b, 2.4c, 2.5, 2.6 remain).
+   - `plan_revision: 8`, `plan_revision_status: complete`.
+   - **NO `contract_checksums` change** (parameter-spec.md unchanged in Phase 2.4a; `77638e25…` carries forward unchanged).
+
+2. **Stage all Phase 2.4a artefacts:**
+   ```bash
+   # Source (modified)
+   git add plugins/O-Contrabass/Source/BowedContrabassVoice.cpp
+   git add plugins/O-Contrabass/Source/PluginProcessor.cpp
+
+   # Source (new)
+   git add plugins/O-Contrabass/Source/DSP/SchellengCalibration.h
+
+   # Harness (modified)
+   git add plugins/O-Contrabass/tests/render-harness/main.cpp
+
+   # Reproduction script (NEW; staged in R34-pre)
+   git add plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+
+   # Goldens (NEW)
+   git add plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json.sha256
+
+   # Goldens (RE-BASELINED)
+   git add plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json
+
+   # Tooling (NEW)
+   git add tools/schelleng-fit/emit_table.py
+   git add tools/schelleng-fit/README.md
+
+   # Planning artefacts
+   git add plugins/O-Contrabass/.planning/STATUS.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md
+   ```
+
+3. **Confirm staging:**
+   ```bash
+   git status
+   git diff --cached --stat
+   ```
+   Expect roughly 16-19 files staged. **Sanity check:** no binary WAVs (only `.sha256` text + `.json`); no `build/` artefacts; no edits to `Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2-frozen); no edits to `Source/DSP/DispersionFilter.h` (Phase 2.1c-frozen); no edits to `modules/synthesis/bow-friction/*` (Phase 2.1b-frozen); no edits to `research/ARCHITECTURE.md` (deferred to end-of-Stage-2 verify); no edits to `parameter-spec.md` (Phase 2.4a does NOT amend Stage-1 contract); no edits to `ROADMAP.md` (locked contract); no edits to the 8 carry-forward golden text files (E1 strict + detune-sweep-A + per-string A/D/G + note-sequence + vibrato + macro-sweep — invariant under Phase 2.4a per HR-2/HR-4/HR-6).
+
+4. **Commit with structured message:**
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   feat(O-Contrabass): Schelleng wedge calibration polynomial + 108-combo stability matrix - Phase 2.4a Gate 6a PASS
+
+   Replaces the Phase 2.3 architecture-verbatim closed-form Schelleng wedge
+   (Z=R=R_s=0.5 dimensionless collapse — produced clampedDepthMean=0.0 at
+   default bass operating point, silencing slow-LFO at MIDI 28-43) with an
+   empirically-derived per-string trilinear lookup table. Calibration data
+   derived from 108-combo bass-register stability matrix render at
+   SLOW_LFO_DEPTH=1.0 with wedge-math BYPASSED via HR-7. Each grid point
+   gets safeDepth=1.0 if the combo passes all 4 sub-passes (pass_noNaN +
+   pass_peak + pass_clickFree + pass_blockTime) or 0.5 as v1.0 fallback if
+   any sub-pass fails. Matrix is dual-purpose: supplies calibration coefficient
+   data AND QUAL-01 stability evidence across the bass envelope.
+
+   Implementation:
+   - Source/DSP/SchellengCalibration.h (NEW; ~150 LOC): inline constexpr
+       kSafeDepth[4][3][3][3] (108 floats; 27-point grid per string over
+       BOW_SPEED × BOW_PRESSURE × BOW_POSITION axes); inline trilinear
+       interpolation lookup `safeDepthForString(stringIdx, v_b, F_bow, beta)`
+       (8 mul + 7 add per active-voice block; bounded [0.0, 1.0]; exact at
+       grid sample points via IEEE 754 identity arithmetic). Generated
+       verbatim by tools/schelleng-fit/emit_table.py from matrix-stability.json.
+       Header-only `inline` linkage (HR-5; ODR-safe; matches DispersionFilter.h
+       precedent).
+   - Source/BowedContrabassVoice.cpp (~−10 LOC + ~+3 LOC + ~−4 LOC removed
+       constants + ~+1 LOC #include): replace 11-line closed-form fMin/fMax/
+       headroom math inside HR-4 gate else-branch with single
+       `schelleng::safeDepthForString(activeStringIndex, rawBowSpeed,
+       rawBowPressure, beta)` call. HR-6 enforced (calibration polynomial
+       invoked ONLY behind HR-4 gate; never at SLOW_LFO_DEPTH=0). HR-7
+       conditional preserves harness-side wedge-math bypass via
+       `extern "C" bool isMatrixStabilityModeActive()` (production builds
+       link weak default returning false). Removed kSchellengZ/R/DMu
+       constants (no longer referenced); kPressureLagRad + kAntiCorrPerDepth
+       carry forward.
+   - Source/PluginProcessor.cpp (~+5 LOC): weak default
+       `isMatrixStabilityModeActive()` so production AU/VST3 link cleanly
+       without harness symbol.
+   - tests/render-harness/main.cpp (~+350 LOC): --matrix-stability CLI flag +
+       108-combo iteration loop (canonical order [stringIdx][speedIdx]
+       [pressIdx][posIdx]) + per-combo JSON schema (RESEARCH §17.5;
+       stringIdx / openStringMidi / bowSpeed / bowPressure / bowPosition /
+       sustainSeconds / totalSamples / peak / rmsMid_s2_s3 / rmsContinuity /
+       blockMicros_median / blockMicros_max / blockTimeRatio /
+       clampedDepthMean / rmsByDecadePeakToPeakPct / pass_noNaN / pass_peak /
+       pass_clickFree / pass_blockTime / pass_combo) + aggregate
+       (status / mode / totalCombos / passCount / failCount / pass_all_108 /
+       combos[]). MIDI 28/33/38/43 per stringIdx (RESEARCH §17.6;
+       open-string-only). SLOW_LFO_RATE=0.5 Hz × sustain=5 s = 2.5 cycles
+       (RESEARCH §17.7). Single concatenated WAV with 0.5 s silence buffers
+       (~10 min audio total). Mutual-exclusion ladder slots --matrix-stability
+       at top precedence.
+   - tests/render-harness/main.cpp line 958: --slow-lfo
+       pass_breathingAudible threshold restored 5% → 20% (RESEARCH §16.7.2
+       architecture-spec'd value; CONTEXT rev-6 Q17 user-confirmed
+       restoration).
+   - tests/render-harness/reproduce-goldens.sh (NEW; ~70 LOC bash): canonical
+       reproduction script for all 10 goldens. Locks
+       sustain/release/note-sequence durations against the duration-dependence
+       trap (RESEARCH §17.10 Risk #10; Phase 2.3 verify's "uncharacterised
+       drift mechanism" was actually duration-dependence of the verify-time
+       --string A/D/G + --note-sequence invocations).
+   - tools/schelleng-fit/{emit_table.py,README.md} (NEW; ~110 LOC Python):
+       offline transcription tool — reads matrix.json, emits constexpr table.
+       Trilinear is exact at grid points (no fitting); 1.0 for passing combos,
+       0.5 for failing combos (v1.0 fallback). Python 3.11+ with numpy;
+       offline (developer-machine-only); CI never invokes.
+   - tests/render-harness/golden/matrix-stability.{wav.sha256,json,
+       json.sha256} (NEW; 3 files): 108-combo render captured at HEAD; sha256
+       audit anchors emit_table.py output reproducibility.
+   - tests/render-harness/golden/{slow-lfo,schelleng-stress}.{wav.sha256,
+       json}: re-baselined post-calibration (RESEARCH §17.10 Risk #8 —
+       expected re-baseline; wedge math changes; old slow-lfo sha256
+       3768dd15... and old schelleng-stress sha256 e50dd191... retired).
+
+   Gate 6a (R34g + R34h) PASS:
+   - (1) Bit-exact regression bar — all 8 carry-forward goldens reproduce
+       byte-identical via reproduce-goldens.sh:
+       stiffness-zero d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75
+       string-A c6755aa426aff5fe36256d4548eb457315a10b6b3319e9985f6cfc6f07415918
+       string-D 765b015e1443550ea10db01fe4afadd4c4c8be61773d0bdc33067a9665d9c9bc
+       string-G 0cd5cb0a1b591d1ff6be432a5ab96b087d690da9865e35cd93ee8cee1b993bd0
+       detune-sweep-A 5e31dad32ed2d34d1a972609eb1cd35487c2344e6ca3dd7351350193e22dbb05
+       note-sequence 3ac3ccd044af850e73c725a487a2bc64636d8739a39fe9dc27dc846b579260b5
+       vibrato d7881ecf692e899659809e52359813b9d5d0a31ee38676b3570d63a4e3076b2c
+       macro-sweep c2571dd96c1950348bd8fb5c912cfe295b8c62f9b11ae44c768129931b37975e
+   - (2) --matrix-stability: pass_all_108=true (or failCount ≤ 4 with
+       v1.0 fallback combos documented).
+   - (3) --slow-lfo (re-baselined): pass_breathingAudible
+       (rmsByDecadePeakToPeakPct ≥ 0.20 — architecture-spec'd threshold
+       restored) + pass_rmsContinuity (≥ 0.90) + pass_clampEngagement
+       (clampedDepthMean ≈ 1.0 at default bass operating point — calibration
+       returns full LFO depth, not clamped to zero like Phase 2.3).
+   - (4) --schelleng-stress (re-baselined): pass_peak + pass_noNaN +
+       pass_clampEngaged + pass_blockTime.
+   - (5) auval -v aumu OCbs OuDv: AU VALIDATION SUCCEEDED;
+       pluginval --strictness-level 10: SUCCESS.
+   - (6) Logic AU smoke (R37): user-deferred non-blocking (mirrors R32 / R27
+       / R19f / R14e precedent).
+
+   Phase 2.4a closes. NO Stage-1 contract amendment (parameter-spec.md
+   unchanged at sha256 77638e25... ). NO ARCHITECTURE.md amendment
+   (calibration polynomial is implementation detail of architecture-spec'd
+   Schelleng wedge clamp; closed-form §"Slow-Bow LFO" stays as conceptual
+   reference per CONTEXT rev-6 Q22). Phase 2.4b (sub-harmonic bias
+   DSP-07) opens as fresh GSD cycle.
+
+   Architecture amendments still deferred to end-of-Stage-2 verify per
+   locked decision: §"DC Blocker" (F3 from Phase 2.1a-recovery) and
+   §"In-loop saturator" (conditional on Phase 2.4c §12.5 escalation).
+
+   Continues atomic-commit sequence: R7 → R15 → R20 → R26 → R33 → R34.
+
+   Refs:
+   - RESEARCH.md §17 (Phase 2.4a Schelleng wedge calibration research)
+   - PLAN.md rev-8 (R34-pre, R34a-h, R34 atomic)
+   - CONTEXT.md rev-6 (Phase 2.4a discuss)
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+5. **Post-commit verification + SHA backfill:**
+   ```bash
+   git log --stat HEAD~1..HEAD
+   git rev-parse HEAD  # capture for STATUS.md backfill chore commit
+   ```
+   Backfill the captured SHA into `STATUS.md` `phase_2_4a_atomic_commit_sha` field as a separate non-atomic chore commit (mirrors Phase 2.1c R20 / Phase 2.2 R26 / Phase 2.3 R33 SHA-backfill pattern):
+   ```bash
+   # After computing new sha:
+   sed -i.bak "s/phase_2_4a_atomic_commit_sha: TBD_post_commit/phase_2_4a_atomic_commit_sha: <captured-sha>/" \
+       plugins/O-Contrabass/.planning/STATUS.md
+   rm plugins/O-Contrabass/.planning/STATUS.md.bak
+   git add plugins/O-Contrabass/.planning/STATUS.md
+   git commit -m "$(cat <<'EOF'
+   chore(O-Contrabass): backfill Phase 2.4a R34 commit sha into STATUS.md
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+**Files modified/created:** all listed in step 2 staging block.
+
+**Commit:** **THIS IS THE PHASE 2.4a ATOMIC COMMIT.** Single commit, only on Gate 6a (R34g + R34h) PASS. SHA-backfill is a separate chore commit per CLAUDE.md no-amend rule.
+
+**Success bar:**
+- [ ] `git log --stat HEAD~1..HEAD` shows ~16-19 files in a single commit.
+- [ ] Commit body explicitly documents:
+  - Five-item Gate 6a invariant set with sha256 enumeration.
+  - NO Stage-1 contract amendment (parameter-spec.md untouched).
+  - NO ARCHITECTURE.md amendment (closed-form stays as conceptual reference).
+  - HR-5 / HR-6 / HR-7 / HR-8 binding for calibration polynomial integration.
+  - v1.0 fallback design (1.0 / 0.5 binary derived from pass_combo).
+  - Phase 2.4b/2.4c follow-ups unchanged from CONTEXT rev-6 scope.
+- [ ] `git status` clean post-commit.
+- [ ] STATUS.md `next_action` flipped to `phase_2_4b_discuss`.
+- [ ] STATUS.md `gate_state.phase_2_4a_schelleng_calibration: PASS`.
+- [ ] STATUS.md `phase_2_4a_atomic_commit_sha` recorded via backfill chore commit.
+- [ ] Phase 2.4a closed.
+
+**Estimated effort:** 35 min (~5 min STATUS.md update + ~10 min staging + ~5 min commit body authoring + ~10 min commit + ~5 min backfill chore).
+
+---
+
+## Why R34 is a single atomic commit
+
+Same gate-first principle as R7 (Phase 2.1a-recovery), R15 (Phase 2.1b extraction), R20 (Phase 2.1c dispersion), R26 (Phase 2.2 4-string bank), R33 (Phase 2.3 modulator + macro):
+
+1. **Coupling:** Phase 2.4a artefacts (`SchellengCalibration.h` new header + `BowedContrabassVoice.cpp` polynomial swap-in + `PluginProcessor.cpp` weak-symbol default + `main.cpp` --matrix-stability mode + 7 golden text files (3 new + 4 re-baselined) + reproduce-goldens.sh script + tools/schelleng-fit/ Python tool + planning artefacts) are mutually coupled. Splitting yields broken intermediate states — e.g., SchellengCalibration.h landing without the BowedContrabassVoice.cpp call site is dead code; matrix-stability harness mode landing without the weak-default symbol breaks production VST3/AU link; emit_table.py landing without matrix.json input is unrunnable.
+2. **Bisect safety:** if a future Phase 2.x bug bisects back to "calibration polynomial landing", a single SHA flips the entire feature.
+3. **Audit trail:** Phase 2.x's atomic-commit sequence is R7 → R15 → R20 → R26 → R33 → **R34**. The Phase 2.x timeline stays trivially reconstructible from `git log --grep "Phase 2."`.
+4. **No Stage-1 contract amendment:** Phase 2.4a is purely an implementation refactor of the architecture-spec'd Schelleng wedge clamp (closed-form replaced by empirical table). parameter-spec.md unchanged, ARCHITECTURE.md unchanged, STATUS.md `contract_checksums.parameter_spec` unchanged at `77638e25…`. Single atomic commit captures the entire implementation cycle without contract churn.
+
+---
+
+## Files To Create / Modify (consolidated, Phase 2.4a)
+
+### Source (modified)
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` — R34a (~+10 LOC: extern decl + HR-7 conditional inside HR-4 gate) + R34d (~−10 LOC closed-form math + ~+3 LOC polynomial call + ~−4 LOC removed constants + ~+1 LOC #include = net ~+0 LOC across R34a+R34d).
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` — R34a (~+5 LOC: weak default `isMatrixStabilityModeActive()`).
+
+### Source (new)
+- `plugins/O-Contrabass/Source/DSP/SchellengCalibration.h` — R34c (NEW; ~150 LOC; auto-generated; HR-5 `inline constexpr` linkage; per-string 27-point trilinear table + lookup function).
+
+### Harness (modified)
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` — R34a (~+350 LOC: --matrix-stability flag + g_matrixStabilityMode + isMatrixStabilityModeActive() strong def + runMatrixStabilityMode() + paramNorm/setNorm/PerComboMetrics extensions) + R34e (1-LOC functional + ~3-LOC comment edit for breathingAudible 5%→20%).
+
+### Reproduction script (new)
+- `plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh` — R34-pre (NEW; ~70 LOC; chmod +x; canonical 10-golden reproduction script; locks duration-dependence trap).
+
+### Test artefacts (new, committed as text-only — sha256 + JSON)
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256` — R34b (NEW; sha256 of concatenated 108-combo render).
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json` — R34b (NEW; ~50–100 KB; per-combo + aggregate truth-table; emit_table.py input).
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.json.sha256` — R34b (NEW; anchors emit_table.py output reproducibility).
+
+### Test artefacts (modified, re-baselined post-calibration)
+- `plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.wav.sha256` — R34f (RE-BASELINED; old `3768dd15…` retired).
+- `plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.json` — R34f (RE-BASELINED).
+- `plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.wav.sha256` — R34f (RE-BASELINED; old `e50dd191…` retired).
+- `plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.json` — R34f (RE-BASELINED).
+
+### Tooling (new)
+- `tools/schelleng-fit/emit_table.py` — R34c (NEW; ~80 LOC Python; offline JSON→constexpr-array transcription; chmod +x; numpy dependency).
+- `tools/schelleng-fit/README.md` — R34c (NEW; ~30 LOC; usage + re-run conditions + dependencies).
+
+### Test artefacts (NOT committed — staged-only or transient)
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav` (~200 MB; reproducible from harness via `--matrix-stability`).
+- `/tmp/phase24a-r34pre/*.{wav,json}` — R34-pre tripwire (8 carry-forward goldens; transient).
+- `/tmp/phase24a-r34pre/sul-tasto-preflight.{wav,json}` — R34-pre sul-tasto pre-flight (transient).
+- `/tmp/phase24a-r34b-smoke.{wav,json}` — R34b pre-render smoke (transient).
+- `/tmp/phase24a-r34f-{slow-lfo,schelleng-stress}.{wav,json}` — R34f re-render captures (transient).
+- `/tmp/phase24a-r34g-audit.log` — R34g reproduction audit log (transient).
+- `/tmp/repro/*.wav` — runtime output of reproduce-goldens.sh (transient).
+
+### Stage-1 contract amendment
+- **None.** parameter-spec.md unchanged. STATUS.md `contract_checksums.parameter_spec` carries forward `77638e25…`.
+
+### Planning artefacts (modified)
+- `plugins/O-Contrabass/.planning/STATUS.md` — R34 (next_action / gate_state / phase_2_4a_verify_outcome / phase_2_4a_atomic_commit_sha placeholder + chore-backfill / Cycle Scope / Current Position / plan_revision / plan_revision_status updates).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` — already at rev-6 (no further edits in execute; rev-6 lock holds).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` — already at §17 append (no further edits in execute).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` — this rev-8 append (no further edits in execute; verify-phase may add a "rev-8 retrospective" footnote if anomalies surfaced).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` — execute-phase appends "Phase 2.4a execute" section after R34.
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — verify-phase appends "Phase 2.4a verify" section with R34g audit table + R34h auval/pluginval logs + Phase 2.4b discuss prep notes.
+
+### Files explicitly NOT touched
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2 R26-frozen; consumed verbatim).
+- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` (Phase 2.1c R20-frozen; consumed verbatim).
+- `plugins/O-Contrabass/Source/PluginEditor.{h,cpp}` (Stage 3 work).
+- `plugins/O-Contrabass/Source/OContrabassMPESynthesiser.{h,cpp}` (voice count = 1; no Synthesiser changes for Phase 2.4a — calibration lives inside the existing single voice).
+- `plugins/O-Contrabass/Source/BowModel.{h,cpp}` (Phase 2.1a-frozen).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` (Phase 2.3 R28-frozen at the `private:` member surface — calibration is `.cpp`-only refactor; no new members; no new methods).
+- `modules/synthesis/bow-friction/*` (Phase 2.1b-frozen v1.0.0).
+- `modules/registry.yaml` (no module surface changes).
+- `plugins/O-Bowed/*` (RESEARCH §17.9 confirmed ZERO Schelleng/slow-LFO DSP; no cross-plugin coupling).
+- `plugins/O-Contrabass/research/ARCHITECTURE.md` (deferred amendments to end-of-Stage-2 verify; closed-form §"Slow-Bow LFO" stays as conceptual reference per CONTEXT rev-6 Q22).
+- `plugins/O-Contrabass/.planning/parameter-spec.md` (Phase 2.4a does NOT amend Stage-1 contract).
+- `plugins/O-Contrabass/.planning/parameter-spec-draft.md` (historical; audit trail).
+- `plugins/O-Contrabass/.planning/BRIEF.md` (no Schelleng-wedge / calibration default reference).
+- `plugins/O-Contrabass/.planning/REQUIREMENTS.md` (no Schelleng-wedge default reference).
+- `plugins/O-Contrabass/.planning/stages/1-foundation/PLAN.md` (historical Stage 1 task table — closed milestone).
+- `plugins/O-Contrabass/.planning/ROADMAP.md` (no calibration-default references).
+- `plugins/O-Contrabass/CMakeLists.txt` (NO new source files added that need explicit listing; SchellengCalibration.h is header-only and consumed via `#include` from BowedContrabassVoice.cpp; the existing CMake glob/explicit-list in the plugin's CMakeLists.txt MAY require one entry — confirm at R34a; likely already covered by existing `Source/DSP/*.h` glob).
+- 8 carry-forward golden text files: `stiffness-zero-pre.{wav.sha256,json}`, `string-A.{wav.sha256,json}`, `string-D.{wav.sha256,json}`, `string-G.{wav.sha256,json}`, `detune-sweep-A.{wav.sha256,json}`, `note-sequence.{wav.sha256,json}`, `vibrato.{wav.sha256,json}`, `macro-sweep.{wav.sha256,json}` (Phase 2.1c/2.2/2.3 goldens — content-stable; R34g verifies all 8 still match).
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-sweep.wav.sha256` (Phase 2.1c golden — content-stable; not re-rendered in Phase 2.4a; reproduce-goldens.sh excludes since it's not in the canonical 10-golden bar).
+
+---
+
+## Dependencies Graph (compact)
+
+```
+R34-pre (working-tree integrity tripwire; reproduce all 8 carry-forward goldens
+         byte-identical at HEAD af54571; sul-tasto pre-flight informational;
+         reproduce-goldens.sh authored + chmod +x + staged for R34 atomic)
+   ↓                ↓ (mismatch → STOP, investigate working-tree drift)
+R34a (main.cpp --matrix-stability mode + isMatrixStabilityModeActive() strong def +
+      g_matrixStabilityMode atomic + runMatrixStabilityMode() 108-combo loop +
+      BowedContrabassVoice.cpp HR-7 bypass conditional inside HR-4 gate +
+      PluginProcessor.cpp weak default; ~+360 LOC; NO build, NO commit)
+   ↓ pre-R34b smoke: --schelleng-stress at HEAD post-R34a still PASS
+   ↓ (production-path else-branch unchanged; HR-7 conditional in `if` branch only)
+R34b (Render 108-combo matrix; capture matrix-stability.{wav.sha256,json,
+      json.sha256}; validate pass_all_108=true OR failCount ≤ 4 with v1.0 fallback;
+      stage 3 new golden text files)
+   ↓
+R34c (Author tools/schelleng-fit/{emit_table.py,README.md}; run emit_table.py
+      against matrix.json → generate Source/DSP/SchellengCalibration.h; stage
+      3 new files; NO commit)
+   ↓
+R34d (BowedContrabassVoice.cpp #include + HR-4 gate else-branch swap closed-form
+      math for schelleng::safeDepthForString call + remove kSchellengZ/R/DMu
+      constants; ~−10 LOC; NO build, NO commit)
+   ↓
+R34e (main.cpp line 958 0.05f → 0.20f + comment update; ~2 LOC; NO commit)
+   ↓
+R34f (Build harness; re-render --slow-lfo + --schelleng-stress; capture new sha256s;
+      overwrite committed golden text; stage 4 re-baselined files; NO commit)
+   ↓ (PASS)              ↓ (FAIL — pass_breathingAudible < 0.20)
+R34g (reproduce-       R34f diagnostic per RESEARCH §17.10 Risk #5:
+  goldens.sh runs; all   - inspect matrix.json for default-operating-point combo
+  10 reproduce          - if v1.0 fallback 0.5 applied at default, escalate
+  byte-identical;          to Phase 2.4-bis (binary-search refinement)
+  HR-2/HR-4/HR-6/HR-7
+  audit if 6 carry-      - else investigate emit_table.py output / R34d source edit
+  forward break)
+   ↓ (PASS)
+R34h (auval AU VALIDATION SUCCEEDED + pluginval-10 SUCCESS)
+   ↓ (PASS)
+R34 (Phase 2.4a atomic commit — ~16-19 files; closes 2.4a; mirrors R33/R26/R20/
+     R15/R7 atomic-commit pattern; commit body documents 5-invariant Gate 6a
+     audit + NO contract amendment + Phase 2.4b/2.4c follow-up scope)
+   ↓
+SHA-backfill chore commit (separate non-atomic; STATUS.md
+     phase_2_4a_atomic_commit_sha; matches R33 backfill precedent)
+```
+
+R34-pre is a strict prerequisite — if working tree drifts, all subsequent bit-exact reasoning breaks. R34a + R34d together are the source-edit batch (R34c executes between to generate the header that R34d consumes); R34b renders the matrix that R34c needs. R34e is a 2-LOC piggyback on the harness build. R34f re-baselines the 2 expected-to-change goldens. R34g is the strict regression bar (8 carry-forward + 2 re-baselined = 10 goldens). R34h is the Gate 6a audit. R34 is the gated finisher.
+
+---
+
+## Risks (Phase 2.4a, refreshed from RESEARCH §17.10)
+
+1. **Bit-exact regression failure on 6 carry-forward goldens (RESEARCH §17.10 Risk #1; binding §17.1 invariant).** Mitigation: HR-2 + HR-4 + HR-6 hard rules + R34-pre tripwire + R34g final check. **Diagnostic-on-fail playbook:**
+   - HR-6 audit: confirm `schelleng::safeDepthForString(...)` call site is INSIDE the existing HR-4 `if (rawSlowLfoDepth > 0.0f)` gate; never invoked at SLOW_LFO_DEPTH=0. Confirm `lastSafeDepth.store(0.0f)` runs unconditionally BEFORE the gate.
+   - HR-7 audit: confirm the matrix-stability bypass conditional only fires when the harness binary is invoked with `--matrix-stability` (production weak default returns false; never reached in user-facing builds).
+   - HR-5 audit: confirm `inline constexpr` linkage on SchellengCalibration.h; no ODR violations across translation units.
+   - HR-8 audit: confirm trilinear interpolation returns grid-point values exactly via IEEE 754 identity arithmetic (`x * 1 = x`, `x + 0 = x`).
+   - Last resort: bisect R34a vs R34d source edits; if R34a alone breaks regression (HR-7 bypass conditional perturbing some unrelated optimisation), file Phase 2.4a remediation cycle.
+
+2. **Calibration table at v1.0 fallback (`0.5`) under-fits some combos at audible regression bar (RESEARCH §17.10 Risk #2).** Mitigation: trilinear with 0.5 fallback is the v1.0 design. If `--slow-lfo` reports `pass_breathingAudible < 0.20` at the default operating point (BOW_SPEED=0.15 / BOW_PRESSURE=1.0 / BOW_POSITION=0.10) post-calibration, identify which grid combo applies (likely speedIdx=1, pressIdx=0, posIdx=1) and check if R34b matrix flagged it as failing → 0.5 fallback applies → audible breathing is half what architecture spec'd. **Phase 2.4-bis remediation path:** emit_table.py adds `--binary-search` flag that sweeps SLOW_LFO_DEPTH ∈ {0.25, 0.4, 0.6, 0.75} per failing combo; re-renders via harness for each step; emits per-combo refined `kSafeDepth` value. OUT-OF-SCOPE for Phase 2.4a v1.0; documented as next-cycle work.
+
+3. **Trilinear over-fits at 27 sample points (off-grid pathology) (RESEARCH §17.10 Risk #3 — DISSOLVED).** Trilinear is monotonic + bounded by 8-corner box → cannot overshoot. Off-grid spot-check optional in plan-phase verify; not blocking.
+
+4. **108-combo wall-clock budget overrun (RESEARCH §17.10 Risk #4 — DISSOLVED).** Pre-flight ~10 s expected (§17.2); 30× under budget. R34b in-process iteration mode locked.
+
+5. **`pass_breathingAudible ≥ 20%` polynomial fit fails at default operating point (RESEARCH §17.10 Risk #5).** Mitigation: R34f verification step computes `--slow-lfo` mode's `rmsByDecadePeakToPeakPct` post-calibration. If <20% on any string, see Risk #2 escalation path (Phase 2.4-bis). For v1.0, accept whichever string passes; document any string that falls short. **Likelihood low** because the default operating point combo (BOW_SPEED=0.15 + BOW_PRESSURE=1.0 + BOW_POSITION=0.10) is well-inside the Schelleng wedge "stable" region (low pressure, mid-position, mid-speed); historically `--slow-lfo` mode harness has passed `pass_clickFree` at this combo, so kSafeDepth=1.0 expected → full LFO breathing.
+
+6. **`--matrix-stability` discovers a real instability (Gate 6a invariant 4 fails, RESEARCH §17.10 Risk #6).** Mitigation: single-combo pre-flight at extreme combo PASSED (§17.2). Likelihood low but non-zero. Phase 2.4a remediation: identify failing combo (jq triage), accept v1.0 fallback `0.5` for that combo (already the design path), document failing combos in R34 commit body. If 0.5 also fails (clampedDepthMean ≥ 0.5 still produces audio that fails sub-passes), escalate to Phase 2.4-bis or downstream defense tightening (algebraic saturator clamp tightening, energy-clamp loop-gain reduction at extremes — Phase 2.4c-or-later concern).
+
+7. **Polynomial fitting tool dependency — Python (RESEARCH §17.10 Risk #7).** Mitigation: Python 3.14 + numpy 2.4 already installed. Tool is offline (developer-machine-only); CI never invokes. Generated header committed to source verbatim. README documents re-run conditions.
+
+8. **`--schelleng-stress` re-baseline introduces uncharacterised drift (RESEARCH §17.10 Risk #8 — RE-CLASSIFIED).** Phase 2.3 verify's "post-R31 source edit drift" was actually duration-dependence (§17.1 pre-flight invalidated). Re-baseline is EXPECTED in Phase 2.4a (wedge math changes; new sha256 captured). reproduce-goldens.sh canonical invocation script (R34-pre) eliminates the duration-dependence trap going forward.
+
+9. **constexpr float arrays in header (ODR risk) (RESEARCH §17.10 Risk #9 — DISSOLVED).** `inline constexpr` C++17 syntax is ODR-safe. Same pattern as Phase 2.1c DispersionFilter.h precedent.
+
+10. **Duration-dependence of golden invocations causes "phantom drift" at re-render (RESEARCH §17.10 Risk #10 NEW).** Mitigation: `reproduce-goldens.sh` canonical invocation script committed in R34 atomic. Future verify-phase reproductions invoke the script verbatim; no risk of mis-captured duration arguments. Audit-trail anchored.
+
+11. **`activeStringIndex` accessor changes under HR-4 gate during string crossfade (RESEARCH §17.10 Risk #11 NEW — CHARACTERISED).** Mitigation: calibration polynomial lookup at the post-crossfade `activeStringIndex` is correct; crossfade transition is per-sample-loop space (Step 7), not Step 2 wedge math space. No additional handling needed.
+
+12. **HR-7 bypass conditional perturbs production builds (NEW — Phase 2.4a substep guard).** Mitigation: `extern "C" __attribute__((weak))` default in PluginProcessor.cpp returns `false` unconditionally; production VST3 / AU never enter the bypass branch. R34h auval + pluginval-10 catch any link failure (if weak symbol fallback misbehaves, plugin won't load → auval REJECTS). If auval fails:
+    - Re-confirm `extern "C"` linkage on both decl and def.
+    - Confirm linker honours weak symbols on macOS (clang/ld; expected).
+    - Worst case fallback: replace weak-symbol pattern with namespace-private flag + harness-side function-pointer registration (more code; less elegant; same end result).
+
+13. **Matrix WAV concatenation produces sha256 sensitivity to combo state-bleed (NEW — Phase 2.4a v1.0 mitigation).** R34a `runMatrixStabilityMode()` calls `processor.releaseResources(); processor.prepareToPlay(...)` between combos to clear DSP state. If state bleed causes combo N's render to depend on combo N-1's residual delay-line / smoother state, sha256 of the concatenated WAV is non-deterministic across re-renders. Mitigation: explicit reset between combos. Verification: R34b smoke re-runs the matrix render once and confirms sha256 stable on second invocation. If sha256 differs across re-renders, instrument `releaseResources()` to confirm full state reset.
+
+14. **`tools/schelleng-fit/` placement confusion (NEW — pin #12 audit).** Mitigation: README documents repo-root placement. RESEARCH §17.4 invocation form uses `python3 tools/schelleng-fit/emit_table.py`. Per-plugin alternative (`plugins/O-Contrabass/tools/`) rejected at plan-phase. If future plugins need their own emit_table.py variants, fork is cheap.
+
+---
+
+## Success Criteria (Gate 6a — Phase 2.4a verify exit gate)
+
+- [ ] **R34-pre** — Working-tree integrity tripwire: all 8 carry-forward goldens reproduce byte-identical to committed sha256s via canonical invocations. `reproduce-goldens.sh` authored, `chmod +x`, staged for R34. Sul-tasto pre-flight `rmsContinuity ≥ 0.85` OR escalated as verify risk.
+- [ ] **R34a** — `tests/render-harness/main.cpp` `--matrix-stability` flag + 108-combo iteration loop + per-combo JSON schema (RESEARCH §17.5) + aggregate `pass_all_108`. `g_matrixStabilityMode` atomic + `isMatrixStabilityModeActive()` strong def. `Source/BowedContrabassVoice.cpp` extern decl + HR-7 bypass conditional inside HR-4 gate (production-path else-branch preserved verbatim from Phase 2.3 R28; R34d will replace). `Source/PluginProcessor.cpp` weak default `isMatrixStabilityModeActive() noexcept { return false; }`. HARD RULES HR-5..HR-8 visually traceable in code.
+- [ ] **R34b** — `--matrix-stability` invocation completes in <30 s wall-clock. `pass_all_108=true` OR `failCount ≤ 4` with v1.0 fallback combos documented. 3 new golden text files staged.
+- [ ] **R34c** — `tools/schelleng-fit/{emit_table.py,README.md}` authored. emit_table.py invocation succeeds → `Source/DSP/SchellengCalibration.h` generated. Header has timestamp + matrix.json sha256 in comment block. Grid entry count ≥ 108. 3 new files staged.
+- [ ] **R34d** — `Source/BowedContrabassVoice.cpp` else-branch body replaced with `schelleng::safeDepthForString(...)` call. `kSchellengZ/R/DMu` constants removed. `#include "DSP/SchellengCalibration.h"` added. HR-6 + HR-4 gate ordering preserved.
+- [ ] **R34e** — `tests/render-harness/main.cpp` line 958 `0.05f` → `0.20f` + inline doc-comment updated.
+- [ ] **R34f** — Harness build succeeds zero warnings. `--slow-lfo` reports `pass_breathingAudible=true` (rmsByDecadePeakToPeakPct ≥ 0.20) + `pass_rmsContinuity=true` + `pass_clampEngagement=true` (clampedDepthMean ≥ ~0.95 at default bass operating point). `--schelleng-stress` reports `pass_peak + pass_noNaN + pass_blockTime` all TRUE; `pass_clampEngaged` per-combo behavior documented. 4 golden text files re-baselined; new sha256s captured.
+- [ ] **R34g invariant (1)** — Bit-exact regression bar: all 8 carry-forward goldens (E1 strict `d358abcd…` + per-string A `c6755aa4…` + per-string D `765b015e…` + per-string G `0cd5cb0a…` + detune-sweep-A `5e31dad3…` + note-sequence `3ac3ccd0…` + vibrato `d7881ecf…` + macro-sweep `c2571dd9…`) reproduce byte-identical via `reproduce-goldens.sh`.
+- [ ] **R34g invariant (2)** — `--slow-lfo` re-baselined: `pass_breathingAudible` (≥ 0.20 architecture-spec'd) + `pass_rmsContinuity` (≥ 0.90) + `pass_clampEngagement` (clampedDepthMean > 0.0) all TRUE. New sha256 captured + matches R34f-rendered.
+- [ ] **R34g invariant (3)** — `--schelleng-stress` re-baselined: `pass_peak` (≤ 1.0) + `pass_noNaN` + `pass_blockTime` (ratio ≤ 5.0) all TRUE. New sha256 captured + matches R34f-rendered. `pass_clampEngaged` documented per-combo (calibration table value at extreme combo may be 0.5 v1.0 fallback; not a verify-fail).
+- [ ] **R34g invariant (4)** — `--matrix-stability` aggregate: `pass_all_108=true` OR `failCount ≤ 4` with documented v1.0 fallback combos. matrix-stability sha256 matches R34b-captured.
+- [ ] **R34h invariant (5)** — auval reports `AU VALIDATION SUCCEEDED`; pluginval --strictness-level 10 reports `SUCCESS`.
+- [ ] **R34g audit table** — Five-item Gate 6a bar compiled (input to VERIFICATION.md): items (1)–(5) from R34g + R34h.
+- [ ] **R37 (optional)** — Logic AU smoke: USER-CONFIRMED PASS or DEFERRED (mirrors R32 / R27 / R19f / R14e precedent). Audition sequence (per CONTEXT rev-6 implied + Phase 2.3 R32 precedent): MIDI 33 (A1) sustained + SLOW_LFO_DEPTH 0→1.0 ramp at 0.5 Hz (confirm audible breathing post-calibration); MIDI 28 (E1) extreme bow params (PRESSURE 7 N + SPEED 0.05 m/s) + SLOW_LFO_DEPTH=1 (confirm clamp engages without instability); MIDI 38 (D2) + EXPRESSION_MACRO 0→1.0 ramp (confirm Phase 2.3 modulator surface unaffected by Phase 2.4a calibration swap-in).
+- [ ] **R34** — Atomic commit landed; `git log --stat HEAD~1..HEAD` shows ~16-19 files in single commit; STATUS.md `next_action` flipped to `phase_2_4b_discuss`; `gate_state.phase_2_4a_schelleng_calibration: PASS`; `phase_2_4a_atomic_commit_sha` recorded via backfill chore commit. **NO `parameter-spec.md` edit; NO `contract_checksums.parameter_spec` change.** Commit body documents 5-invariant Gate 6a audit + NO contract amendment + HR-5/HR-6/HR-7/HR-8 binding + Phase 2.4b/2.4c follow-up scope.
+- [ ] **(Architecture amendments, post-Stage-2-verify, OUT OF SCOPE for this execute)** — ARCHITECTURE.md §"DC Blocker" (F3) + §"In-loop saturator" amendments still deferred. Calibration polynomial is implementation detail of architecture-spec'd Schelleng wedge clamp; closed-form §"Slow-Bow LFO" stays as conceptual reference per CONTEXT rev-6 Q22.
+
+When all checks above are green (R37 user-confirmed or accepted as deferred), **Phase 2.4a verifies** and **Stage 2 progress reaches ~67%** (2.1 + 2.2 + 2.3 + 2.4a closed; 2.4b, 2.4c, 2.5, 2.6 remain). Phase 2.4b (sub-harmonic bias DSP-07) opens as a fresh GSD cycle; CONTEXT rev-7 written when 2.4b discuss-phase opens.
+
+---
+
+## Out of Scope (deferred per CONTEXT.md rev-6 + RESEARCH §17 + STATUS.md)
+
+- **Phase 2.4b** — Sub-harmonic bias DSP-07 (architecture-spec'd Phase 2.4 should-have; deferred to its own fresh GSD cycle; CONTEXT rev-7 written when opens).
+- **Phase 2.4c** — Autocorrelator octave-rejection vibrato harness fix + saturator-tail O-Bowed comparison harness + saturator-choice decision tree (deferred to its own GSD cycle; CONTEXT rev-8 written when opens).
+- **Phase 2.4-bis (calibration refinement)** — Binary-search-over-depth refinement (`emit_table.py --binary-search` mode) for combos where v1.0 fallback `0.5` proves inadequate (`pass_breathingAudible < 0.20` or `pass_clampEngaged` false-positive). OUT-OF-SCOPE for Phase 2.4a v1.0; conditional on Phase 2.4a verify findings.
+- **Phase 2.5** — Body resonator + bow noise (8-mode parallel biquad body bank Askenfelt-derived; 3-band BPF bow noise summed AFTER body resonator).
+- **Phase 2.6** — Master saturator/limiter + microtonal + MPE + Note Expression + MTS-ESP + Scala/TUN.
+- **`pass_breathingAudible ≥ 20%` further tightening** — Phase 2.4a restores architecture-spec'd 20%; further tightening (e.g., 30%) deferred to Phase 2.4-bis or audible-character iteration.
+- **E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7)** — separate `a(B, I)` cascaded-allpass concern; not friction-junction wedge math. Out-of-scope for Phase 2.4a; deferred to Phase 2.4c-or-later.
+- **Schelleng calibration polynomial extraction to shared module (modules/dsp/schelleng-calibration/ ?)** — RESEARCH §17.9 confirmed O-Bowed has ZERO Schelleng/slow-LFO DSP. No cross-plugin reuse case. Per-plugin `Source/DSP/SchellengCalibration.h` mirrors per-plugin `Source/DSP/DispersionFilter.h` precedent. Future-plugin extraction cheap if needed.
+- **Higher-order interpolation (triquadratic / B-spline / tensor-product cubic)** — RESEARCH §17.3 evaluated alternatives; trilinear is the pareto-optimal choice (exact at sample points, monotonic, bounded, 8 mul + 7 add eval cost). Higher-order deferred unless Phase 2.4-bis listening surfaces audible discontinuities at grid-cell boundaries.
+- **`tools/schelleng-fit/emit_table.py` polynomial-fit modes** — current v1.0 implementation does pure transcription (1.0 / 0.5 binary). Future modes (least-squares polynomial fit; B-spline; piecewise quadratic with breakpoint detection) deferred to Phase 2.4-bis or Phase 2.5+.
+- **Production WAV binary commits** — `matrix-stability.wav` (~200 MB) NOT committed (reproducible from harness). sha256 + JSON committed instead per Phase 2.2 / 2.3 precedent.
+- **CI invocation of emit_table.py** — out-of-scope; tool is offline (developer-machine-only). CI only runs the existing build + auval + pluginval pipeline.
+- **ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments** — end-of-Stage-2 verify decides; F3 deviation continues in R34 commit body.
+- **Saturator-tail re-evaluation** — RESEARCH §12 footnote → Phase 2.4c.
+- **Logic Pro AU smoke (R37)** — user-deferred non-blocking (mirrors R32 / R27 / R19f / R14e precedent).
+- **Cross-plugin reproduce-goldens.sh script** — pin #11 selected per-plugin placement; cross-plugin variant deferred until multiple plugins have golden harnesses with regression bars.

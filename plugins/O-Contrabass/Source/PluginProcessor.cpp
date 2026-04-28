@@ -17,6 +17,19 @@
 #include "BowedContrabassVoice.h"
 #include <cmath>
 
+// Phase 2.4a HR-7 — production-side weak default for harness wedge-math bypass.
+// Harness binary overrides this with a strong symbol in tests/render-harness/main.cpp.
+// Outside the harness this returns false unconditionally, leaving the production
+// Schelleng wedge / calibration-polynomial path always live.
+//
+// macOS / Linux: weak symbols compose with extern "C" linkage so the harness
+// strong symbol takes precedence at link time. Windows MSVC would require
+// __declspec(selectany) — out of scope for Phase 2.4a (O-Contrabass macOS-AU first).
+extern "C" __attribute__((weak)) bool isMatrixStabilityModeActive() noexcept
+{
+    return false;
+}
+
 //==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout
 OContrabassAudioProcessor::createParameterLayout()

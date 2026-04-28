@@ -11,7 +11,15 @@
 
 #include "BowedContrabassVoice.h"
 #include "DSP/DispersionFilter.h"
+#include "DSP/SchellengCalibration.h"
 #include <cmath>
+
+namespace schelleng = ouaricon::contrabass::schelleng;
+
+// Phase 2.4a HR-7 — harness-side wedge-math bypass for --matrix-stability mode.
+// Production builds: weak default returns false (defined in PluginProcessor.cpp).
+// Harness binary:    strong override in main.cpp returns g_matrixStabilityMode.
+extern "C" bool isMatrixStabilityModeActive() noexcept;
 
 namespace
 {
@@ -22,12 +30,11 @@ namespace
     constexpr const char* kDetuneParamIds[4]  = { "DETUNE_E", "DETUNE_A", "DETUNE_D", "DETUNE_G" };
 
     // Phase 2.3 locked constants (PLAN rev-7 preamble + RESEARCH §16).
+    // Phase 2.4a R34d removed kSchellengZ / kSchellengR / kSchellengDMu — closed-form
+    // wedge math replaced by schelleng::safeDepthForString trilinear lookup.
     constexpr float kVibratoRampSec      = 0.3f;                       // architecture line 125
     constexpr float kVibratoFadeOutSec   = 0.150f;                     // architecture line 127
     constexpr float kPressureLagRad      = 0.4014f;                    // 23° in radians
-    constexpr float kSchellengZ          = 0.5f;                       // dimensionless (RESEARCH §16.3)
-    constexpr float kSchellengR          = 0.5f;
-    constexpr float kSchellengDMu        = 0.60f;                      // bass μ_s − μ_d
     constexpr float kAntiCorrPerDepth    = 0.13f;                      // Q5 anti-correlation guard
     constexpr float kVibFactorScale      = -0.69314718056f / 1200.0f;  // -ln(2)/1200
 }
@@ -293,19 +300,32 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     float vibAntiCorr = 0.0f;
     if (rawSlowLfoDepth > 0.0f)                                              // HR-4 gate
     {
-        // Z = R = R_s = 0.5 dimensionless collapse (Euphonics §9.3.1; see
-        // RESEARCH §16.3 wedge formula derivation). β clamped to APVTS range.
-        const float beta = juce::jlimit (0.02f, 0.25f, rawBowPos);
-        const float fMax = (2.0f * kSchellengZ * rawBowSpeed)
-                         / juce::jmax (1.0e-6f, beta * kSchellengDMu);
-        const float fMin = (kSchellengZ * kSchellengZ * rawBowSpeed)
-                         / juce::jmax (1.0e-6f, 2.0f * kSchellengR * beta * beta * kSchellengDMu);
-        const float hUp  = (fMax - rawBowPressure) / juce::jmax (1.0e-6f, fMax);
-        const float hLo  = (rawBowPressure - fMin) / juce::jmax (1.0e-6f, fMin);
-        const float headroom = juce::jmin (hUp, hLo);
-        safeDepth   = juce::jlimit (0.0f, rawSlowLfoDepth, 0.8f * juce::jmax (0.0f, headroom));
-        vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;                   // Q5
-        lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+        if (isMatrixStabilityModeActive())                                   // HR-7 bypass
+        {
+            // Phase 2.4a — harness matrix-stability render bypasses wedge math
+            // entirely (safeDepth = rawSlowLfoDepth) so per-combo stability is
+            // measured at full LFO amplitude. Production builds: weak default
+            // returns false; this branch is unreachable.
+            safeDepth   = rawSlowLfoDepth;
+            vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;
+            lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+        }
+        else
+        {
+            // Phase 2.4a — empirical calibration table (RESEARCH §17.3 / §17.10).
+            // 27-point grid trilinear interpolation per string; values populated by
+            // tools/schelleng-fit/emit_table.py from --matrix-stability render data.
+            // Architecture-spec'd pass_breathingAudible (rmsByDecadePeakToPeakPct ≥ 0.20)
+            // restored at R34e.
+            const float beta = juce::jlimit (0.02f, 0.25f, rawBowPos);
+            safeDepth   = juce::jlimit (0.0f, rawSlowLfoDepth,
+                                        schelleng::safeDepthForString (activeStringIndex,
+                                                                       rawBowSpeed,
+                                                                       rawBowPressure,
+                                                                       beta));
+            vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;                   // Q5 carry-forward
+            lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
+        }
     }
 
     // Step 3 — Slow-LFO phase advance + sin (HR-2 gate).
