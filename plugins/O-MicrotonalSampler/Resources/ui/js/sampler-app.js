@@ -343,6 +343,21 @@ async function refreshTuningReadout() {
     }
 }
 
+async function refreshAboutVersion() {
+    const el = document.getElementById('about-version');
+    if (!el || !window.__JUCE__) return;
+
+    try {
+        const getVersion = Juce.getNativeFunction('getPluginVersion');
+        const value = await getVersion();
+        if (typeof value === 'string' && value.length > 0) {
+            el.textContent = 'v' + value;
+        }
+    } catch (e) {
+        // Silent — leave pill empty if native function unavailable.
+    }
+}
+
 // ============================================================================
 // Sample-map snapshot — initial pull + push subscription
 // ============================================================================
@@ -1311,6 +1326,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindFolderDropZone();
     pullInitialSampleMap();
     refreshTuningReadout();
+    refreshAboutVersion();
     bindResizeObserver();
     bindLoopEditorEvents();
     bindLoopEditorResize();

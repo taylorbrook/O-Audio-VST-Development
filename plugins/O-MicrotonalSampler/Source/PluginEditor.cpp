@@ -134,6 +134,13 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                                              : 0.0f));
                 })
 
+            .withNativeFunction ("getPluginVersion",
+                [] (const juce::Array<juce::var>&,
+                    std::function<void(juce::var)> complete)
+                {
+                    complete (juce::var (JucePlugin_VersionString));
+                })
+
             .withNativeFunction ("getEmbeddedTuningList",
                 [] (const juce::Array<juce::var>&,
                     std::function<void(juce::var)> complete)

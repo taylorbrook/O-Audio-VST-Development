@@ -1,0 +1,55 @@
+{
+  "plugin": "O-MicrotonalSampler",
+  "stage": "4-polish",
+  "phase": "4.1",
+  "phase_title": "Version-pill plumbing",
+  "verdict": "PASS",
+  "timestamp": "2026-04-28",
+  "checks": {
+    "triple_build": {
+      "verdict": "PASS",
+      "targets": [
+        "O-MicrotonalSampler_VST3",
+        "O-MicrotonalSampler_AU",
+        "O-MicrotonalSampler_Standalone"
+      ],
+      "branding": "dev (-dev suffix, OuDv code)",
+      "warnings": "pre-existing VST3 SDK + NoteExpression_VST3 only; zero new"
+    },
+    "cache_clear_install": {
+      "verdict": "PASS",
+      "actions": [
+        "killall AudioComponentRegistrar",
+        "rm AudioUnitCache + com.apple.audiounits.cache",
+        "rm prior -dev VST3 + component bundles",
+        "cp fresh -dev VST3 + component to system folders"
+      ]
+    },
+    "invariant_grep_v010": {
+      "verdict": "PASS",
+      "command": "grep -rn 'v0\\.1\\.0' Resources/ Source/",
+      "hits": 0
+    },
+    "pluginval_strictness_5_skip_gui": {
+      "verdict": "PASS",
+      "command": "pluginval --strictness-level 5 --validate-in-process --skip-gui-tests",
+      "result": "SUCCESS"
+    },
+    "auval": {
+      "verdict": "PASS",
+      "command": "auval -v aumu OMtS OuDv",
+      "result": "AU VALIDATION SUCCEEDED"
+    },
+    "visual_confirm_v100_pill": {
+      "verdict": "DEFERRED",
+      "owner": "user",
+      "note": "Single human-eyes step; deferred to user (Phase 4.2 setup or /show-standalone)."
+    }
+  },
+  "files_modified": [
+    "Source/PluginEditor.cpp",
+    "Resources/ui/index.html",
+    "Resources/ui/js/sampler-app.js"
+  ],
+  "next_phase": "4.2 — PERF-02 Logic Pro CPU-meter measurement (user-driven)"
+}
