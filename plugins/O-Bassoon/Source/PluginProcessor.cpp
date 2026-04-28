@@ -131,11 +131,19 @@ OBassoonAudioProcessor::OBassoonAudioProcessor()
 OBassoonAudioProcessor::~OBassoonAudioProcessor() = default;
 
 //==============================================================================
-void OBassoonAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/)
+void OBassoonAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Modal synthesis is feed-forward; latency = 0 — do NOT call setLatencySamples.
     // (getLatencySamples is non-virtual in JUCE 8; default returns 0.)
     synthesiser.setCurrentPlaybackSampleRate (sampleRate);
+
+    // Phase 2.1: dispatch per-voice prepare hook.
+    // juce::SynthesiserVoice has no virtual prepareToPlay in JUCE 8; we add a
+    // non-virtual custom method on BassoonVoice and iterate voices here.
+    // Mirrors O-Wind FluteSynthVoice / O-Lyrica HarpSynthVoice precedent.
+    for (int v = 0; v < synthesiser.getNumVoices(); ++v)
+        if (auto* bv = dynamic_cast<BassoonVoice*> (synthesiser.getVoice (v)))
+            bv->prepareToPlay (sampleRate, samplesPerBlock);
 }
 
 void OBassoonAudioProcessor::releaseResources()

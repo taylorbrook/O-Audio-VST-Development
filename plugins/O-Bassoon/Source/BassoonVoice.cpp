@@ -2,13 +2,14 @@
   ==============================================================================
 
     BassoonVoice.cpp
-    Modal Synthesis Bassoon - Synthesiser Voice (Stage 1 silent stub)
+    Modal Synthesis Bassoon - Synthesiser Voice (Phase 2.1 first audio)
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 1: silent voice stub — full SynthesiserVoice method surface, no DSP.
-    Wiring (APVTS, TuningEngine, PendingTuningTable) stored but not consumed
-    until Phase 2.1+ (first audio + DSP).
+    Phase 2.1: working modal-synthesis voice — sustained, in-tune tone for any
+    single MIDI note (C1-C6). NO bassoon-specific timbre yet (placeholder
+    integer harmonics + flat amplitudes), NO APVTS reads, NO TuningEngine call,
+    NO vibrato/breath/voice manager — strict ROADMAP minimal wiring.
 
   ==============================================================================
 */
@@ -20,32 +21,101 @@ bool BassoonVoice::canPlaySound (juce::SynthesiserSound* sound)
     return dynamic_cast<BassoonSound*> (sound) != nullptr;
 }
 
-void BassoonVoice::startNote (int /*midiNoteNumber*/, float /*velocity*/,
-                              juce::SynthesiserSound* /*sound*/, int /*currentPitchWheelPosition*/)
+void BassoonVoice::prepareToPlay (double sampleRate, int /*maxBlockSize*/)
 {
-    // Stage 1: no-op. Phase 2.1 wires modal voice (mode bank + exciter + ADSR).
+    setCurrentPlaybackSampleRate (sampleRate);   // JUCE bookkeeping
+    modeBank.prepare (sampleRate);
+    exciter.prepare  (sampleRate);
+
+    // CRITICAL: setSampleRate MUST be called BEFORE setParameters
+    // (JUCE 8 ADSR contract — juce_ADSR.h:115-119; recalculateRates uses
+    // the stored sample rate, defaulted to 44100.0 if setSampleRate not called).
+    adsr.setSampleRate (sampleRate);
+    adsr.setParameters (juce::ADSR::Parameters { 0.010f, 0.0f, 1.0f, 0.200f });
 }
 
-void BassoonVoice::stopNote (float /*velocity*/, bool /*allowTailOff*/)
+void BassoonVoice::startNote (int midiNoteNumber, float /*velocity*/,
+                              juce::SynthesiserSound*, int currentPitchWheelPosition)
 {
-    // Stage 1: clear current note immediately so juce::Synthesiser can reuse the slot.
-    clearCurrentNote();
+    pitchWheelValue       = currentPitchWheelPosition;
+    pitchBendSemitones    = ((static_cast<float> (pitchWheelValue) - 8192.0f) / 8192.0f)
+                            * PITCH_BEND_RANGE_SEMITONES;
+
+    // Phase 2.1: plain MIDI A=440 12-TET frequency (NOT TuningEngine — locked Q2).
+    // Phase 2.4 will replace this with tuningEngine->getFrequency() per-voice.
+    currentFrequencyBase  = static_cast<float> (juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber));
+
+    const float fBent = currentFrequencyBase * std::pow (2.0f, pitchBendSemitones / 12.0f);
+    modeBank.setFundamental (fBent);
+    exciter.start();
+    adsr.noteOn();
 }
 
-void BassoonVoice::pitchWheelMoved (int /*newPitchWheelValue*/)
+void BassoonVoice::stopNote (float /*velocity*/, bool allowTailOff)
 {
-    // Stage 1: no-op. Phase 2.1+ wires per-voice pitch-bend coefficient recompute.
+    if (allowTailOff)
+    {
+        adsr.noteOff();
+    }
+    else
+    {
+        clearCurrentNote();
+        adsr.reset();
+        modeBank.reset();
+        exciter.reset();
+        currentFrequencyBase = 0.0f;
+    }
+}
+
+void BassoonVoice::pitchWheelMoved (int newPitchWheelValue)
+{
+    pitchWheelValue    = newPitchWheelValue;
+    pitchBendSemitones = ((static_cast<float> (pitchWheelValue) - 8192.0f) / 8192.0f)
+                         * PITCH_BEND_RANGE_SEMITONES;
+
+    // Guard: only recompute coefficients if a note is currently sounding.
+    // Pitch-wheel events arriving before the first note-on must not mutate
+    // the mode bank with f0 = 0.
+    if (currentFrequencyBase > 0.0f)
+    {
+        const float fBent = currentFrequencyBase * std::pow (2.0f, pitchBendSemitones / 12.0f);
+        modeBank.setFundamental (fBent);
+    }
 }
 
 void BassoonVoice::controllerMoved (int /*controllerNumber*/, int /*newControllerValue*/)
 {
-    // Stage 1: no-op. Phase 2.3 wires CC2 -> breath parameter routing.
+    // Phase 2.1: no-op. Phase 2.3 wires CC2 -> breath parameter routing.
 }
 
-void BassoonVoice::renderNextBlock (juce::AudioBuffer<float>& /*outputBuffer*/,
-                                    int /*startSample*/, int /*numSamples*/)
+void BassoonVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
+                                    int startSample, int numSamples)
 {
-    // Stage 1: silent stub. Output buffer is left untouched (host clears it before
-    // synthesiser.renderNextBlock; voices SUM into the buffer at Phase 2.1+).
-    // First audio lands at Phase 2.1.
+    if (! adsr.isActive())
+        return;   // nothing to do; voice is silent
+
+    const int numChannels = outputBuffer.getNumChannels();
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float ex    = exciter.getNextSample();
+        const float voice = modeBank.processSample (ex);
+        const float env   = adsr.getNextSample();
+        const float out   = voice * env;
+
+        // Voices SUM into the buffer — host's processBlock clears the buffer
+        // BEFORE synthesiser.renderNextBlock (PluginProcessor.cpp:165).
+        // juce::Synthesiser::renderVoices does NOT zero the buffer.
+        for (int ch = numChannels; --ch >= 0;)
+            outputBuffer.addSample (ch, startSample + i, out);
+
+        if (! adsr.isActive())
+        {
+            clearCurrentNote();
+            modeBank.reset();
+            exciter.reset();
+            currentFrequencyBase = 0.0f;
+            return;
+        }
+    }
 }

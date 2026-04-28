@@ -1,10 +1,10 @@
 # O-Bassoon - Requirements
 
 ---
-version: 1.0.0
+version: 1.0.2
 plugin: O-Bassoon
 created: 2026-04-27
-lastUpdated: 2026-04-27
+lastUpdated: 2026-04-27 (Phase 2.1 verify ✅ VERIFIED — PERF-01 + FUNC-03 complete; FUNC-01/04, DSP-01, QUAL-01/02 partial)
 ---
 
 ## Overview
@@ -19,23 +19,23 @@ lastUpdated: 2026-04-27
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Plays sustained bassoon-like tones via modal synthesis | must | pending | stage-2 |
+| FUNC-01 | Plays sustained bassoon-like tones via modal synthesis | must | partial | stage-2 |
 | FUNC-02 | Polyphonic playback with 1-16 voice cap (default 8) | must | pending | stage-2 |
-| FUNC-03 | Extended pitch range C1-C6 supported | must | pending | stage-2 |
-| FUNC-04 | Long-tone-friendly amplitude envelope (attack, sustain, release) | must | pending | stage-2 |
+| FUNC-03 | Extended pitch range C1-C6 supported | must | complete | stage-2 |
+| FUNC-04 | Long-tone-friendly amplitude envelope (attack, sustain, release) | must | partial | stage-2 |
 | FUNC-05 | Voice stealing when polyphony exceeded (oldest-note priority) | should | pending | stage-2 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Modal-synthesis voice: bank of damped resonators tuned to bassoon spectrum | must | pending | stage-2 |
+| DSP-01 | Modal-synthesis voice: bank of damped resonators tuned to bassoon spectrum | must | partial | stage-2 |
 | DSP-02 | Vibrato: rate 0-10 Hz, depth 0-100 cents, onset delay 0-2000 ms | must | pending | stage-2 |
 | DSP-03 | Tone / brightness control via modal damping (0-1 normalized) | must | pending | stage-2 |
 | DSP-04 | Breath / dynamics control reads CC2 and velocity, scales loudness 0-1 | must | pending | stage-2 |
 | DSP-05 | Attack-character control morphs onset between soft pad and tongued articulation | should | pending | stage-2 |
 | DSP-06 | Microtonal pitch: VST3 Note Expression (pitch ID 0x00000003) + MPE channel pitch-bend | must | pending | stage-2 |
-| DSP-07 | Does NOT depend on or reuse code from O-Reed | must | pending | stage-1 |
+| DSP-07 | Does NOT depend on or reuse code from O-Reed | must | complete | stage-1 |
 
 ### UI (UI)
 
@@ -48,22 +48,22 @@ lastUpdated: 2026-04-27
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe processing (no allocations in processBlock) | must | pending | stage-2 |
+| PERF-01 | Real-time safe processing (no allocations in processBlock) | must | complete | stage-2 |
 | PERF-02 | 8-voice polyphony at 48 kHz / 256 buffer stays under 25% CPU on M-series Mac | should | pending | stage-2 |
 
 ### Compatibility (COMPAT)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU on macOS, VST3 on Windows) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU on macOS, VST3 on Windows) | must | partial | stage-1 |
 | COMPAT-02 | Dorico microtonal playback via Note Expression, on par with O-Lyrica | must | pending | stage-4 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts (clicks, NaN/inf, aliasing) at normal parameter ranges | must | pending | stage-2 |
-| QUAL-02 | Stable long-tone behavior — no drift, runaway resonance, or denormal slowdown over 60-second hold | nice | pending | stage-2 |
+| QUAL-01 | No audio artifacts (clicks, NaN/inf, aliasing) at normal parameter ranges | must | partial | stage-2 |
+| QUAL-02 | Stable long-tone behavior — no drift, runaway resonance, or denormal slowdown over 60-second hold | nice | partial | stage-2 |
 
 ## Acceptance Criteria Details
 

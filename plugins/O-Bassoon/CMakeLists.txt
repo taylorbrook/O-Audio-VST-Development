@@ -29,6 +29,10 @@ target_sources(O-Bassoon
         Source/BassoonSound.h
         Source/BassoonVoice.h
         Source/BassoonVoice.cpp
+        Source/ModeBank.h
+        Source/ModeBank.cpp
+        Source/Exciter.h
+        Source/Exciter.cpp
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
