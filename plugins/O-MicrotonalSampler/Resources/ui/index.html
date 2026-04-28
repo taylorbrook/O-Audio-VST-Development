@@ -95,42 +95,117 @@
       <!-- About -->
       <section id="tab-about" class="tab-body">
         <div id="about-content">
-          <!-- Populated in Phase 3.5 (RP3-4). Empty in 3.1. -->
+          <div class="about-card">
+            <h2 class="about-title">O-MicrotonalSampler</h2>
+            <div class="about-version">v0.1.0</div>
+            <p class="about-tagline">
+              Microtonal sample engine for Dorico microtonal playback.
+            </p>
+            <p class="about-blurb">
+              Per-key, per-velocity-layer sample mapping with offline loop
+              auto-detection, manual loop editing, and the Ouaricon
+              tuning-system family. Built on JUCE 8.
+            </p>
+            <div class="about-meta">
+              <span>Made by</span>
+              <a class="about-link"
+                 href="https://ouaricon.com"
+                 target="_blank"
+                 rel="noopener noreferrer">Ouaricon</a>
+            </div>
+          </div>
         </div>
       </section>
 
     </main>
 
     <!-- ============== BOTTOM CONTROL STRIP ============== -->
-    <!-- Always visible across tabs. Sliders bind via WebSliderRelay
-         identifiers matching APVTS parameter IDs.  -->
+    <!-- Always visible across tabs. Each knob wraps a hidden
+         <input type="range"> so the existing WebSliderRelay binding (keyed on
+         element id) stays intact — the SVG arc is a visual + interaction
+         layer that mirrors the input's normalised value via input events. -->
     <footer id="control-strip">
-      <div class="ctrl">
-        <label for="ctrl-attack">Attack</label>
+      <div class="ouaricon-knob" data-knob-id="ctrl-attack">
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="ctrl-attack">Attack</label>
+        <span class="ouaricon-knob-value"></span>
         <input type="range" id="ctrl-attack" min="0" max="1" step="0.001" />
       </div>
-      <div class="ctrl">
-        <label for="ctrl-decay">Decay</label>
+
+      <div class="ouaricon-knob" data-knob-id="ctrl-decay">
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="ctrl-decay">Decay</label>
+        <span class="ouaricon-knob-value"></span>
         <input type="range" id="ctrl-decay" min="0" max="1" step="0.001" />
       </div>
-      <div class="ctrl">
-        <label for="ctrl-sustain">Sustain</label>
+
+      <div class="ouaricon-knob" data-knob-id="ctrl-sustain">
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="ctrl-sustain">Sustain</label>
+        <span class="ouaricon-knob-value"></span>
         <input type="range" id="ctrl-sustain" min="0" max="1" step="0.001" />
       </div>
-      <div class="ctrl">
-        <label for="ctrl-release">Release</label>
+
+      <div class="ouaricon-knob" data-knob-id="ctrl-release">
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="ctrl-release">Release</label>
+        <span class="ouaricon-knob-value"></span>
         <input type="range" id="ctrl-release" min="0" max="1" step="0.001" />
       </div>
-      <div class="ctrl">
-        <label for="ctrl-polyphony">Poly</label>
+
+      <div class="ouaricon-knob" data-knob-id="ctrl-polyphony">
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="ctrl-polyphony">Poly</label>
+        <span class="ouaricon-knob-value"></span>
         <input type="range" id="ctrl-polyphony" min="0" max="1" step="0.001" />
       </div>
-      <div class="ctrl">
-        <label for="ctrl-velocity-crossfade">Vel-XF</label>
+
+      <div class="ouaricon-knob" data-knob-id="ctrl-velocity-crossfade">
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="ctrl-velocity-crossfade">Vel-XF</label>
+        <span class="ouaricon-knob-value"></span>
         <input type="range" id="ctrl-velocity-crossfade" min="0" max="1" step="0.001" />
       </div>
-      <div class="ctrl">
-        <label for="ctrl-output-gain">Out Gain</label>
+
+      <div class="ouaricon-knob" data-knob-id="ctrl-output-gain">
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="ctrl-output-gain">Out Gain</label>
+        <span class="ouaricon-knob-value"></span>
         <input type="range" id="ctrl-output-gain" min="0" max="1" step="0.001" />
       </div>
     </footer>

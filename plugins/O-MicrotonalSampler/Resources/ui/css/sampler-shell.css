@@ -533,44 +533,224 @@ body.le-open #tab-samplemap {
     padding: var(--gap-md);
 }
 
-/* About tab — empty in 3.1 */
+/* About tab — Phase 3.5 (RP3-4) */
 #about-content {
     color: var(--text-secondary);
     font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: var(--gap-lg) 0;
+}
+
+.about-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-warm);
+    border-radius: 8px;
+    padding: var(--gap-lg);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+    max-width: 520px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+
+.about-title {
+    font-family: 'Garamond', 'Times New Roman', serif;
+    font-size: 22px;
+    font-weight: normal;
+    color: var(--text-body);
+    letter-spacing: 0.02em;
+    margin: 0;
+}
+
+.about-version {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    color: var(--accent-gold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: var(--gap-sm);
+}
+
+.about-tagline {
+    font-size: 14px;
+    color: var(--text-body);
+    font-style: italic;
+    margin: 0;
+}
+
+.about-blurb {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin-top: var(--gap-sm);
+    margin-bottom: 0;
+}
+
+.about-meta {
+    display: flex;
+    gap: var(--gap-sm);
+    align-items: baseline;
+    margin-top: var(--gap-md);
+    padding-top: var(--gap-md);
+    border-top: 1px solid var(--border-warm);
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.about-link {
+    color: var(--accent-gold);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--accent-gold);
+    cursor: pointer;
+    transition: color 150ms ease, border-color 150ms ease;
+}
+
+.about-link:hover {
+    color: var(--accent-rust);
+    border-bottom-color: var(--accent-rust);
 }
 
 /* ============== BOTTOM CONTROL STRIP ============== */
+/* Lifted from O-Bells .knob / .knob-visual / .knob-vine pattern (RESEARCH
+   §1.4) — SVG arc knob with relative-drag interaction. The native
+   <input type="range"> remains in DOM (visually hidden) so the existing
+   WebSliderRelay binding (keyed on element id, not DOM hierarchy) is
+   preserved verbatim from Phase 3.1. */
 #control-strip {
     display: flex;
     flex-direction: row;
-    align-items: stretch;
+    align-items: center;
     justify-content: space-around;
     padding: var(--gap-md) var(--gap-lg);
     border-top: 1px solid var(--border-warm);
     background: var(--bg-card);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
     flex-shrink: 0;
     gap: var(--gap-md);
 }
 
-.ctrl {
+.ouaricon-knob {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
     flex: 1 1 0;
-    min-width: 60px;
-}
-
-.ctrl label {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-.ctrl input[type="range"] {
-    width: 100%;
-    accent-color: var(--accent-gold);
+    min-width: 56px;
     cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+/* Hide the native range input — the SVG arc is the visual + interaction
+   layer, but the <input> stays in DOM so existing bindings (#ctrl-* element
+   lookups) keep working. */
+.ouaricon-knob input[type="range"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.ouaricon-knob-visual {
+    width: 44px;
+    height: 44px;
+    position: relative;
+    transition: transform 120ms ease, filter 120ms ease;
+}
+
+.ouaricon-knob:hover .ouaricon-knob-visual {
+    transform: translateY(-1px);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+}
+
+.ouaricon-knob.dragging .ouaricon-knob-visual {
+    transform: translateY(0);
+    filter: drop-shadow(0 0 4px rgba(184, 134, 11, 0.55));
+}
+
+.ouaricon-knob-visual svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-135deg);
+    overflow: visible;
+}
+
+.ouaricon-knob .knob-track {
+    fill: none;
+    stroke: rgba(139, 115, 85, 0.30);
+    stroke-width: 2;
+}
+
+.ouaricon-knob .knob-vine {
+    fill: none;
+    stroke: var(--accent-gold);
+    stroke-width: 3;
+    stroke-linecap: round;
+    /* dasharray + dashoffset are set by JS based on radius so the arc
+       sweep is 270 degrees (135 to 405) — matches O-Bells convention. */
+    transition: stroke 150ms ease;
+}
+
+.ouaricon-knob:hover .knob-vine {
+    stroke: #D9A210;
+}
+
+.ouaricon-knob-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    cursor: pointer;
+}
+
+.ouaricon-knob-value {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 1em;
+    letter-spacing: 0.02em;
+}
+
+/* ============================================================================
+   Phase 3.5 polish — narrow-window guard + responsive grid
+   ========================================================================== */
+
+/* When window narrows below 900 px while loop editor is open, the JS layer
+   auto-closes the panel and toasts. The CSS below handles the static layout
+   case (no loop editor open) — drop zone gets compact, grid relies on its
+   own overflow-x for very narrow widths. */
+@media (max-width: 900px) {
+    body.le-open #tab-samplemap {
+        /* Don't reserve panel space if it's auto-closed at this width. */
+        padding-right: var(--gap-lg);
+    }
+
+    #folder-drop-zone {
+        flex-wrap: wrap;
+        gap: var(--gap-sm);
+        padding: var(--gap-md);
+    }
+}
+
+/* Keep the control strip readable when the window is narrow — labels + value
+   readouts wrap below the SVG without overlapping. */
+@media (max-width: 780px) {
+    #control-strip {
+        gap: var(--gap-sm);
+        padding: var(--gap-sm) var(--gap-md);
+    }
+    .ouaricon-knob {
+        min-width: 50px;
+    }
 }

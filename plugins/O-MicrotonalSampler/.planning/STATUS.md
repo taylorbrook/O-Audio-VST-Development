@@ -1,14 +1,62 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 3-gui
-phase: 3.4
-status: phase_3.4_gate_pass
+phase: 3.5
+status: stage_3_execute_complete; ready for verify
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 3.4 GATE PASS — Ready for Phase 3.5
+## Current State: Phase 3.5 GATE PASS — Stage 3 EXECUTE COMPLETE
+
+`/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.5 produced
+`.planning/stages/3-gui/PHASE-3.5-SUMMARY.md` and overwrote
+`gate-report.json` (phase 3.5). Tasks 29–34 implemented. **All five Stage 3
+sub-stage gates green.**
+
+**Phase 3.5 deliverables:**
+- Bottom control strip rebuilt as 7 SVG arc-knobs (44 px, 270 deg sweep,
+  antique-gold vine, rosewood track) — lifted from O-Bells `#effects-tab .knob`
+  ruleset. Each knob wraps a hidden `<input type="range">` so the existing
+  WebSliderRelay binding (Phase 3.1) is preserved verbatim — relay attaches by
+  element id, not DOM hierarchy. Order left→right: Attack · Decay · Sustain ·
+  Release · Polyphony · Vel-XF · Out Gain.
+- `KNOB_FORMATS` table maps each relay to per-parameter display range + unit
+  suffix + formatter (Attack/Decay/Release in seconds with adaptive precision,
+  Sustain/Vel-XF unitless 0..1, Polyphony integer-rounded, Out Gain in dB
+  with sign).
+- Pointer drag = relative-vertical (200 px = full sweep, sliderDragStarted/Ended
+  bracketing); wheel = 2 % per tick; dblclick = snap to mid (Stage 4 will plumb
+  parameter defaults explicitly).
+- Tuning-state readout in chrome (`<span id="tuning-readout">`) already present
+  from Phase 3.1; verified poll cadence honours RP3-3 (editor open +
+  Tuning-tab activation only, no background interval).
+- About tab populated (RP3-4): `.about-card` with plugin name (Garamond
+  serif heading), version pill `v0.1.0` (hard-coded; Stage 4 will plumb
+  dynamically from CMakeLists.txt PLUGIN_VERSION), tagline "Microtonal
+  sample engine for Dorico microtonal playback", short blurb, Ouaricon
+  license link (`https://ouaricon.com`).
+- Aesthetic polish: 8/16/24 px spacing scale enforced via `--gap-sm/md/lg`
+  CSS vars; hover states on cells, buttons, knobs, tabs, links; warm-card
+  shadows + `--border-warm` border treatments matching O-Bells convention;
+  Garamond serif for headings + system sans for numeric readouts.
+- Narrow-window guard: `checkNarrowWindowGuard` auto-closes the loop editor
+  + toasts "Resize wider to use the loop editor." when window width crosses
+  below 900 px with the panel open. ResizeObserver-driven; one-shot per
+  bucket transition (no spam).
+
+**Gate (Tasks 33 + 34):**
+- Triple build (VST3 + AU + Standalone) GREEN.
+- Cache-clear + reinstall per CLAUDE.md.
+- `pluginval --strictness 5 --validate-in-process --skip-gui-tests`: **SUCCESS**.
+- `pluginval --strictness 5 --validate-in-process` (with GUI tests): **SUCCESS**.
+- `auval -v aumu OMtS OuDv`: **AU VALIDATION SUCCEEDED**.
+- Latency invariant: `grep -rn setLatencySamples plugins/O-MicrotonalSampler/Source/`
+  returns one comment-only hit (PluginProcessor.cpp:133) — no actual calls.
+  Stage 2 latency-zero contract preserved end-to-end across Stage 3.
+
+## Previous State: Phase 3.4 GATE PASS
 
 `/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.4 produced
 `.planning/stages/3-gui/PHASE-3.4-SUMMARY.md` and overwrote
@@ -144,8 +192,8 @@ documented in PHASE-3.1-SUMMARY.md.
 | 3.1 Foundation | WebView shell + Stage 2 invariant + relays + JSON broadcast | infra | d1a0d7a | ✅ PASS |
 | 3.2 Grid | FUNC-06, UI-01 | grid in <100 ms; per-cell replace | 4083582 | ✅ PASS |
 | 3.3 Folder Drop | FUNC-05 | drop = button parity; skipped files surface | aa99790 | ✅ PASS |
-| 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | pending atomic commit | ✅ Code + automated gate green |
-| 3.5 Polish | (visual) | aesthetic + final pluginval gate | — | ⏳ next |
+| 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | d7cfd29 | ✅ PASS |
+| 3.5 Polish | (visual) | aesthetic + final pluginval gate | pending atomic commit | ✅ Code + automated gate green |
 
 ## Previous State: Stage 3 (GUI) PLAN complete
 

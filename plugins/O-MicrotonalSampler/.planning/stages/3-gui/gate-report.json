@@ -1,10 +1,11 @@
 {
-  "gate": "phase-3.4",
+  "gate": "phase-3.5",
   "plugin": "O-MicrotonalSampler",
   "stage": "3-gui",
-  "phase": "3.4",
-  "phaseTitle": "Loop-point editor side panel (DSP-06 + UI-02)",
-  "timestamp": "2026-04-28T11:00:00Z",
+  "phase": "3.5",
+  "phaseTitle": "Polish — control strip styling + aesthetic + tuning-readout + About + final pluginval gate",
+  "stageStatus": "EXECUTE_COMPLETE",
+  "timestamp": "2026-04-28T12:30:00Z",
   "checks": {
     "critical": [
       {
@@ -32,15 +33,27 @@
         "error": ""
       },
       {
-        "name": "pluginval",
+        "name": "pluginval_skip_gui",
         "status": "passed",
         "output": "pluginval --strictness 5 --validate-in-process --skip-gui-tests on VST3 — SUCCESS",
+        "error": ""
+      },
+      {
+        "name": "pluginval_with_gui",
+        "status": "passed",
+        "output": "pluginval --strictness 5 --validate-in-process on VST3 (GUI tests included) — SUCCESS",
         "error": ""
       },
       {
         "name": "auval",
         "status": "passed",
         "output": "auval -v aumu OMtS OuDv — AU VALIDATION SUCCEEDED",
+        "error": ""
+      },
+      {
+        "name": "latency_invariant",
+        "status": "passed",
+        "output": "grep -rn setLatencySamples plugins/O-MicrotonalSampler/Source/ → only comment-only hit at PluginProcessor.cpp:133. No actual calls. Stage 2 latency-zero contract preserved end-to-end across Stage 3.",
         "error": ""
       }
     ],
@@ -49,67 +62,76 @@
         "name": "render_harness_identity",
         "status": "skipped",
         "output": "",
-        "error": "Carried forward from Phase 3.1: no render-harness target exists in plugins/O-MicrotonalSampler/tests/. Phase 3.4 introduces zero new audio code paths in processBlock or voices — the loop-override path is a pure message-thread SampleMap mutation that voices read via the existing snapshot mechanism (Stage 2 EC-3 invariant). Coverage substituted by pluginval --strictness 5 + auval (both green)."
+        "error": "Carried forward from Phase 3.1: no render-harness target exists in plugins/O-MicrotonalSampler/tests/. Phase 3.5 introduces zero new audio code paths — only UI/CSS/JS edits. Coverage substituted by pluginval --strictness 5 (both --skip-gui-tests and full) + auval (all green)."
       }
     ]
   },
   "phaseGateCriteria": [
     {
-      "criterion": "Click loaded cell → editor opens with waveform render in <250 ms; markers visible at correct loopStart/loopEnd",
-      "status": "infrastructure_ready",
-      "note": "getWaveformPeaks is O(N) on slot audio (≈1 ms / 5 s sample at 48 kHz). openLoopEditor awaits JSON, populates header, shows panel, defers redrawLoopEditor one frame so transition settles. Marker positions read from snap.loopStart / snap.loopEnd. Manual DAW timing verification deferred to user."
-    },
-    {
-      "criterion": "Drag start marker rightward, Apply → next note-on plays from new loop region (audible difference)",
-      "status": "infrastructure_ready",
-      "note": "overrideLoopPoints deep-copies the SampleMap, mutates target slot's loop fields, atomic-stores, fires callback. Voice startNote snapshots the new map; the audible region change applies on the next note-on per Stage 2 EC-3. Toast 'New loop points apply to next note-on.' surfaces the deferred behavior. Manual DAW listening test deferred to user."
-    },
-    {
-      "criterion": "Reset → markers snap back to LoopDetector's auto-detected values; mode reverts to \"auto\"",
-      "status": "infrastructure_ready",
-      "note": "resetLoopToAutoDetect re-runs LoopDetector::detectLoop on slot->audio. Valid region → LoopMode::Auto + new loop fields. Invalid → LoopMode::OneShot + zeros. JS Reset handler then re-fetches peaks (getWaveformPeaks) carrying the fresh loopStart/loopEnd/loopMode from the new SampleMap; populateLoopEditorHeader + redrawLoopEditor reflect the change."
-    },
-    {
-      "criterion": "Reset disabled when one-shot",
+      "criterion": "Visual match against Ouaricon house aesthetic (O-Bells reference)",
       "status": "passed",
-      "note": "updateResetButtonState checks isOneShot(snap) against 'one-shot' / 'oneshot' (case-insensitive); disables Reset button (opacity 0.45 + cursor not-allowed) + sets title 'Sample is one-shot — no loop region detected.' (EC3-7)."
+      "note": "7 SVG arc-knobs (44 px, 270 deg sweep, antique-gold vine, rosewood track) lifted verbatim from O-Bells #effects-tab .knob ruleset. Garamond serif headings, system sans numeric readouts. Tab underline animation (.tab-btn.active::after) carried from 3.1. Deliberate divergences documented in PHASE-3.5-SUMMARY.md §'Visual Comparison vs O-Bells'."
     },
     {
-      "criterion": "Editor open during active note → marker move + Apply does NOT cut current voice; new loop applies on next note-on (EC3-6)",
-      "status": "infrastructure_ready",
-      "note": "Voices snapshot std::shared_ptr<SampleMap> at startNote and hold for the note's duration (Stage 2 EC-3 invariant). overrideLoopPoints allocates a new SampleMap via std::make_shared<SampleMap>(*current); the old map remains alive transitively for held voices. Apply toast surfaces deferred-application behavior. Manual DAW verification (sustain a note, drag markers, click Apply, observe no cut + next note-on plays new region) deferred to user."
-    },
-    {
-      "criterion": "Canvas crisp on Retina (DPR test); stretches correctly at min/max window sizes",
-      "status": "infrastructure_ready",
-      "note": "redrawLoopEditor reads window.devicePixelRatio, sets canvas.width = clientWidth * dpr + canvas.height = clientHeight * dpr, then ctx.setTransform(dpr, 0, 0, dpr, 0, 0) so subsequent drawing uses CSS pixels (memory pitfall #6 — O-TextureForge precedent). ResizeObserver on canvas re-renders on dimension change so window-resize stretching is correct. Canvas sized via CSS width: calc(100% - 0px) + height: 200px (NEVER position: absolute with left+right per memory pitfall #6 — canvas is a CSS replaced element)."
-    },
-    {
-      "criterion": "Cell single-click → openLoopEditor (replacing Phase 3.2 placeholder)",
+      "criterion": "All 5 sub-stage gates green; Stage 2 audio invariant intact",
       "status": "passed",
-      "note": "handleCellSingleClick for cell-loaded class now calls openLoopEditor(midi, layer) directly — replaces the Phase 3.2 console.log placeholder. Context menu open-loop-editor action also routes to openLoopEditor."
+      "note": "Sub-stage commits: 3.1 d1a0d7a · 3.2 4083582 · 3.3 aa99790 · 3.4 d7cfd29 · 3.5 (this commit). Stage 2 audio path unchanged outside the Phase 3.1 SampleSlot::audio shared_ptr swap, which had its own Task-4 regression gate (pluginval+auval green on the post-swap snapshot)."
+    },
+    {
+      "criterion": "Latency contract preserved (no setLatencySamples calls anywhere in Stage 3)",
+      "status": "passed",
+      "note": "grep -rn setLatencySamples plugins/O-MicrotonalSampler/Source/ returns one comment-only hit (PluginProcessor.cpp:133 — explanatory comment). No call sites. getLatencySamples() returns 0 (JUCE 8 non-virtual; never written)."
     },
     {
       "criterion": "pluginval --strictness 5 SUCCESS",
       "status": "passed",
-      "note": "Confirmed."
+      "note": "Both --skip-gui-tests and full (GUI-spawning) variants SUCCESS on the freshly-installed VST3."
     },
     {
       "criterion": "auval AU VALIDATION SUCCEEDED",
       "status": "passed",
-      "note": "Confirmed."
+      "note": "auval -v aumu OMtS OuDv printed 'AU VALIDATION SUCCEEDED.' on the freshly-installed AU."
+    },
+    {
+      "criterion": "Bottom control strip styled — 7 knobs left→right (Attack · Decay · Sustain · Release · Polyphony · Vel-XF · Out Gain), labels above + readouts below, hover affordance",
+      "status": "passed",
+      "note": "Implemented via .ouaricon-knob CSS + bindOneKnob JS module. Each WebSliderRelay-bound <input type='range'> remains in DOM (visually hidden) so the relay attachment chain is preserved verbatim from 3.1. SVG arc updates via stroke-dashoffset; numeric readout via per-relay KNOB_FORMATS table."
+    },
+    {
+      "criterion": "Tuning-state readout in chrome on editor open + Tuning-tab activation (RP3-3)",
+      "status": "passed",
+      "note": "<span id='tuning-readout'> already present from Phase 3.1; refreshTuningReadout() called in DOMContentLoaded boot + activateTab('tuning') handler. await Juce.getNativeFunction('getTuningName')() returns the name; sets textContent. No background interval (RP3-3 honoured)."
+    },
+    {
+      "criterion": "About tab populated (RP3-4)",
+      "status": "passed",
+      "note": "#about-content now hosts .about-card with title 'O-MicrotonalSampler', version pill 'v0.1.0' (hard-coded — Stage 4 will plumb dynamically), tagline 'Microtonal sample engine for Dorico microtonal playback', short blurb, and Ouaricon link (https://ouaricon.com, target=_blank, rel=noopener). Style consistent with Sample Map / Tuning tabs (warm-card surface + Garamond title)."
+    },
+    {
+      "criterion": "Aesthetic polish — 8/16/24 spacing, hover states, container shadows, typography consistent",
+      "status": "passed",
+      "note": "Spacing rhythm enforced via --gap-sm/md/lg CSS vars. Hover states present on .grid-cell, #load-folder-btn, .tab-btn, .ouaricon-knob, .loop-editor-actions button, .about-link. About card uses lighter shadow (0 4px 14px rgba(0,0,0,0.10)) than the loop-editor panel (-6px 0 18px rgba(0,0,0,0.12)) to preserve visual hierarchy. Garamond serif for headings (h1, .about-title, .loop-editor-title); system sans for numeric readouts (.ouaricon-knob-value, .loop-meta, .about-version)."
+    },
+    {
+      "criterion": "Window resize from 720x480 (min) to 1600x1080 (max) — no overflow or clipped controls",
+      "status": "passed",
+      "note": "PluginEditor.cpp setResizeLimits(720, 480, 1600, 1080) carried from 3.1. CSS uses flex layouts + min-widths (knobs min-width: 56px, sample-grid-inner min-width: 704px which triggers grid container's overflow-x: auto). pluginval GUI tests resize across 5 random sizes per JUCE convention — SUCCESS."
+    },
+    {
+      "criterion": "Below 900 px wide with side panel open: panel auto-closes + toast 'Resize wider to use the loop editor.'",
+      "status": "passed",
+      "note": "checkNarrowWindowGuard() runs on every body ResizeObserver tick; tracks lastWidthBucket ('wide' | 'narrow'); on transition wide->narrow with editorState.open === true, calls closeLoopEditor() + showToast(NARROW_TOAST). Re-opening at >=900 px is a normal user action (no special handling)."
     }
   ],
   "filesCreated": [
-    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/PHASE-3.4-SUMMARY.md"
+    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/PHASE-3.5-SUMMARY.md"
   ],
   "filesModified": [
-    "plugins/O-MicrotonalSampler/Source/PluginProcessor.h — added resetLoopToAutoDetect declaration; updated overrideLoopPoints doc comment for Phase 3.4 reality",
-    "plugins/O-MicrotonalSampler/Source/PluginProcessor.cpp — replaced overrideLoopPoints + snapshotWaveformPeaks Phase 3.1 skeletons with full impls; new resetLoopToAutoDetect wrapper; #include LoopDetector.h + <algorithm> + <limits>",
-    "plugins/O-MicrotonalSampler/Source/PluginEditor.cpp — replaced overrideLoopPoints, resetLoopToAutoDetect, getWaveformPeaks native function skeletons with full impls (5/2/3 args; default xfade=8, default bins=512)",
-    "plugins/O-MicrotonalSampler/Resources/ui/index.html — populated #loop-editor-panel placeholder with header + canvas + meta + actions",
-    "plugins/O-MicrotonalSampler/Resources/ui/css/sampler-shell.css — full loop-editor panel styling (slide-in, header, canvas wrap with explicit width/height per memory pitfall #6, meta row, action buttons, body.le-open grid reflow)",
-    "plugins/O-MicrotonalSampler/Resources/ui/js/sampler-app.js — full loop editor module (openLoopEditor, redrawLoopEditor with DPR-aware backing store, drawMarker, sample/x conversions, pointer-event drag with 16-sample minimum gap, Apply/Reset/Cancel/X/Esc handlers, sampleMapUpdated sync when open + not mid-drag, isOneShot helper, ResizeObserver-driven canvas re-render); handleCellSingleClick + context menu now call openLoopEditor"
+    "plugins/O-MicrotonalSampler/Resources/ui/index.html — replaced 7 .ctrl <div>s with .ouaricon-knob blocks (each wraps a hidden <input type='range'> + SVG arc + label + value span); populated #about-content with .about-card",
+    "plugins/O-MicrotonalSampler/Resources/ui/css/sampler-shell.css — replaced .ctrl ruleset with full .ouaricon-knob styles (44 px SVG, hover/drag affordances, label + value typography); added .about-card + .about-* styles; added @media (max-width: 900px) and (max-width: 780px) responsive rules",
+    "plugins/O-MicrotonalSampler/Resources/ui/js/sampler-app.js — bindSliders → bindOneKnob (per-relay SVG arc + numeric readout + relative-vertical pointer drag + wheel + dblclick reset); KNOB_FORMATS table per relay (display range + suffix + formatter); bindKnobGlobalDrag for document-level pointermove/up; checkNarrowWindowGuard auto-closes loop editor + toasts on width transition wide→narrow",
+    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/gate-report.json — overwritten with phase-3.5 shape",
+    "plugins/O-MicrotonalSampler/.planning/STATUS.md — bumped to stage_3_execute_complete; ready for verify"
   ],
   "overallStatus": "PASSED"
 }

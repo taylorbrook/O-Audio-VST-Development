@@ -40,45 +40,201 @@ const SLIDER_BINDINGS = [
     { domId: 'ctrl-output-gain',         relayId: 'output_gain' }
 ];
 
+// Phase 3.5 — display formatting per parameter. Maps relayId → {min, max,
+// suffix, format(value)}. Values shown next to each knob mirror the C++
+// NormalisableRange + AudioParameterFloat conventions in PluginProcessor.
+//
+// All sliders are 0..1 normalised on the JS side; we map to display ranges
+// here purely for UI text. The actual APVTS value is what the host sees.
+const KNOB_FORMATS = {
+    'attack':              { min: 0.001, max: 5.0, suffix: ' s',
+                             format: v => v < 0.1 ? v.toFixed(3) : v.toFixed(2) },
+    'decay':               { min: 0.001, max: 5.0, suffix: ' s',
+                             format: v => v < 0.1 ? v.toFixed(3) : v.toFixed(2) },
+    'sustain':             { min: 0.0,   max: 1.0, suffix: '',
+                             format: v => v.toFixed(2) },
+    'release':             { min: 0.001, max: 5.0, suffix: ' s',
+                             format: v => v < 0.1 ? v.toFixed(3) : v.toFixed(2) },
+    'polyphony':           { min: 1,     max: 32, suffix: '',
+                             format: v => Math.round(v).toString() },
+    'velocity_crossfade':  { min: 0.0,   max: 1.0, suffix: '',
+                             format: v => v.toFixed(2) },
+    'output_gain':         { min: -24.0, max: 12.0, suffix: ' dB',
+                             format: v => (v >= 0 ? '+' : '') + v.toFixed(1) },
+};
+
+// SVG arc geometry (matches O-Bells: 270 degree sweep over r=18). The arc
+// is drawn via stroke-dasharray + stroke-dashoffset on a circle; the
+// transform: rotate(-135deg) on the SVG places the gap at the bottom.
+const KNOB_RADIUS = 18;
+const KNOB_ARC_LENGTH = 2 * Math.PI * KNOB_RADIUS * 0.75;
+
+// Global drag state for the SVG knobs (shared across all 7 — only one drag
+// at a time, matches O-Bells convention so we don't fight pointer-capture).
+const knobDrag = {
+    active: false,
+    knob: null,            // .ouaricon-knob root element
+    state: null,           // Juce slider state
+    input: null,           // hidden <input type="range">
+    fmt: null,             // KNOB_FORMATS entry
+    valueEl: null,         // .ouaricon-knob-value span
+    vineEl: null,          // .knob-vine SVG circle
+    startY: 0,
+    startNorm: 0,
+    pointerId: -1,
+};
+
+function knobUpdateVisual(vineEl, valueEl, fmt, norm) {
+    // Arc sweep
+    if (vineEl) {
+        const offset = KNOB_ARC_LENGTH * (1 - Math.max(0, Math.min(1, norm)));
+        vineEl.style.strokeDasharray  = KNOB_ARC_LENGTH.toFixed(2);
+        vineEl.style.strokeDashoffset = offset.toFixed(2);
+    }
+    // Numeric readout
+    if (valueEl && fmt) {
+        const real = fmt.min + norm * (fmt.max - fmt.min);
+        valueEl.textContent = fmt.format(real) + fmt.suffix;
+    }
+}
+
+function bindOneKnob({ domId, relayId }) {
+    const input = document.getElementById(domId);
+    if (!input) {
+        console.warn(`[sampler-app] DOM element #${domId} not found`);
+        return;
+    }
+
+    const knob = input.closest('.ouaricon-knob');
+    if (!knob) {
+        console.warn(`[sampler-app] no .ouaricon-knob wrapper for #${domId}`);
+        return;
+    }
+
+    const vineEl  = knob.querySelector('.knob-vine');
+    const valueEl = knob.querySelector('.ouaricon-knob-value');
+    const fmt = KNOB_FORMATS[relayId] || null;
+
+    let state = null;
+    try {
+        state = Juce.getSliderState(relayId);
+    } catch (e) {
+        console.error(`[sampler-app] Failed to bind slider ${relayId}:`, e);
+        return;
+    }
+
+    // Initial pull
+    const init = state.getNormalisedValue();
+    if (typeof init === 'number') {
+        input.value = init;
+        knobUpdateVisual(vineEl, valueEl, fmt, init);
+    }
+
+    // C++ -> DOM (automation, preset load, DAW change)
+    state.valueChangedEvent.addListener(() => {
+        const v = state.getNormalisedValue();
+        if (typeof v === 'number') {
+            input.value = v;
+            knobUpdateVisual(vineEl, valueEl, fmt, v);
+        }
+    });
+
+    // DOM -> C++ (defensive — input only changes if external code sets
+    // .value and dispatches event; the SVG drag updates state directly).
+    input.addEventListener('input', () => {
+        const v = parseFloat(input.value);
+        if (!Number.isNaN(v)) {
+            state.setNormalisedValue(v);
+            knobUpdateVisual(vineEl, valueEl, fmt, v);
+        }
+    });
+
+    // Pointer drag — relative-vertical 200 px = full sweep (matches the
+    // O-Reed sensitivity from agent memory; feels natural for 44 px knobs).
+    knob.addEventListener('pointerdown', (e) => {
+        if (knobDrag.active) return;
+        knobDrag.active     = true;
+        knobDrag.knob       = knob;
+        knobDrag.state      = state;
+        knobDrag.input      = input;
+        knobDrag.fmt        = fmt;
+        knobDrag.valueEl    = valueEl;
+        knobDrag.vineEl     = vineEl;
+        knobDrag.startY     = e.clientY;
+        knobDrag.startNorm  = state.getNormalisedValue();
+        knobDrag.pointerId  = e.pointerId;
+        knob.classList.add('dragging');
+        try { knob.setPointerCapture(e.pointerId); } catch (_) {}
+        state.sliderDragStarted();
+        e.preventDefault();
+    });
+
+    // Wheel — 2 % per tick (matches O-Bells fxKnob convention).
+    knob.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const cur = state.getNormalisedValue();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        const next = Math.max(0, Math.min(1, cur + delta));
+        state.setNormalisedValue(next);
+        input.value = next;
+        knobUpdateVisual(vineEl, valueEl, fmt, next);
+    }, { passive: false });
+
+    // Double-click resets to default (per APVTS default — pull from C++).
+    knob.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        // Most natural reset: snap to mid-range. Stage 4 polish will plumb
+        // the parameter's default explicitly via a native function.
+        const mid = 0.5;
+        state.sliderDragStarted();
+        state.setNormalisedValue(mid);
+        state.sliderDragEnded();
+        input.value = mid;
+        knobUpdateVisual(vineEl, valueEl, fmt, mid);
+    });
+}
+
+function bindKnobGlobalDrag() {
+    document.addEventListener('pointermove', (e) => {
+        if (!knobDrag.active || e.pointerId !== knobDrag.pointerId) return;
+        const deltaY = knobDrag.startY - e.clientY;          // up = increase
+        const sensitivity = 1 / 200;                          // 200 px = full sweep
+        const next = Math.max(0, Math.min(1, knobDrag.startNorm + deltaY * sensitivity));
+        knobDrag.state.setNormalisedValue(next);
+        if (knobDrag.input) knobDrag.input.value = next;
+        knobUpdateVisual(knobDrag.vineEl, knobDrag.valueEl, knobDrag.fmt, next);
+    });
+
+    const endDrag = (e) => {
+        if (!knobDrag.active) return;
+        if (e && e.pointerId !== knobDrag.pointerId) return;
+        try {
+            if (knobDrag.knob && knobDrag.knob.hasPointerCapture && knobDrag.knob.hasPointerCapture(knobDrag.pointerId)) {
+                knobDrag.knob.releasePointerCapture(knobDrag.pointerId);
+            }
+        } catch (_) {}
+        if (knobDrag.state) knobDrag.state.sliderDragEnded();
+        if (knobDrag.knob) knobDrag.knob.classList.remove('dragging');
+        knobDrag.active = false;
+        knobDrag.knob = null;
+        knobDrag.state = null;
+        knobDrag.input = null;
+        knobDrag.fmt = null;
+        knobDrag.valueEl = null;
+        knobDrag.vineEl = null;
+        knobDrag.pointerId = -1;
+    };
+    document.addEventListener('pointerup',     endDrag);
+    document.addEventListener('pointercancel', endDrag);
+}
+
 function bindSliders() {
     if (!window.__JUCE__) {
         console.warn('[sampler-app] __JUCE__ not available — running outside plugin host');
         return;
     }
-
-    SLIDER_BINDINGS.forEach(({ domId, relayId }) => {
-        const el = document.getElementById(domId);
-        if (!el) {
-            console.warn(`[sampler-app] DOM element #${domId} not found`);
-            return;
-        }
-
-        try {
-            const state = Juce.getSliderState(relayId);
-
-            // Initial pull
-            const init = state.getNormalisedValue();
-            if (typeof init === 'number') el.value = init;
-
-            // DOM → C++
-            el.addEventListener('input', () => {
-                const v = parseFloat(el.value);
-                if (!Number.isNaN(v)) {
-                    state.setNormalisedValue(v);
-                    state.sliderDragStarted();
-                    state.sliderDragEnded();
-                }
-            });
-
-            // C++ → DOM (automation, preset load, DAW change)
-            state.valueChangedEvent.addListener(() => {
-                const v = state.getNormalisedValue();
-                if (typeof v === 'number') el.value = v;
-            });
-        } catch (e) {
-            console.error(`[sampler-app] Failed to bind slider ${relayId}:`, e);
-        }
-    });
+    SLIDER_BINDINGS.forEach(bindOneKnob);
+    bindKnobGlobalDrag();
 }
 
 // ============================================================================
@@ -588,14 +744,38 @@ function publishCellLayout() {
     });
 }
 
+// Phase 3.5 Task 33 — auto-close loop editor + toast when window narrows
+// below 900 px while it's open (panel + grid would otherwise overlap).
+const NARROW_BREAKPOINT_PX = 900;
+const NARROW_TOAST = 'Resize wider to use the loop editor.';
+let lastWidthBucket = null;  // 'wide' | 'narrow'
+
+function checkNarrowWindowGuard() {
+    const w = window.innerWidth || document.documentElement.clientWidth || 0;
+    const bucket = w < NARROW_BREAKPOINT_PX ? 'narrow' : 'wide';
+    if (bucket === lastWidthBucket) return;
+    lastWidthBucket = bucket;
+
+    if (bucket === 'narrow' && editorState.open) {
+        closeLoopEditor();
+        showToast(NARROW_TOAST);
+    }
+}
+
 function bindResizeObserver() {
+    const onResize = () => {
+        publishCellLayout();
+        checkNarrowWindowGuard();
+    };
     if (typeof ResizeObserver !== 'function') {
         // Fallback to window resize listener.
-        window.addEventListener('resize', () => publishCellLayout());
+        window.addEventListener('resize', onResize);
         return;
     }
-    const obs = new ResizeObserver(() => publishCellLayout());
+    const obs = new ResizeObserver(onResize);
     obs.observe(document.body);
+    // Seed initial bucket so the very first transition fires correctly.
+    checkNarrowWindowGuard();
 }
 
 // ============================================================================
