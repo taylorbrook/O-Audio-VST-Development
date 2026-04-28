@@ -59,6 +59,17 @@ public:
     // VST3 Note Expression (kTuningTypeID) - Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
 
+    // Phase 2.2: drag-drop folder load entry point (called from PluginEditor).
+    // Spawns the background SampleLoader; on completion (message thread) the
+    // new SampleMap is atomic-stored into currentSampleMap and any skipped
+    // files are recorded in lastSkippedFiles for Stage-3 UI surfacing.
+    void loadSampleFolder (const juce::File& folder);
+
+    // Read-only accessor for Stage-3 UI: list of files the loader skipped
+    // (unparseable filenames, unreadable files, etc.). Refreshed on each
+    // loadSampleFolder completion; cleared on failure.
+    const juce::StringArray& getLastSkippedFiles() const noexcept { return lastSkippedFiles; }
+
 private:
     juce::AudioProcessorValueTreeState        parameters;
     juce::Synthesiser                         synthesiser;
@@ -74,6 +85,11 @@ private:
     // Output gain smoothing (RESEARCH R7, pitfall #8 — 10 ms ramp prevents
     // zipper noise on parameter changes). Initialized in prepareToPlay.
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGainSmoother;
+
+    // Phase 2.2: list of filenames the most recent loader pass could not
+    // parse / read. Populated on completion callback (message thread); read
+    // by Stage-3 UI. Cleared on failure.
+    juce::StringArray lastSkippedFiles;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

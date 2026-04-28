@@ -32,6 +32,8 @@ target_sources(O-MicrotonalSampler
         Source/SampleMap.h
         Source/SampleLoader.h
         Source/SampleLoader.cpp
+        Source/FilenameParser.h
+        Source/FilenameParser.cpp
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
@@ -93,9 +95,10 @@ target_compile_definitions(O-MicrotonalSampler
 # Phase 2.1 in-memory test fixture toggle.
 # ON: PluginProcessor::prepareToPlay builds an 88-note sine-burst SampleMap so
 # the voice DSP can be exercised before Phase 2.2 wires the real loader.
-# Phase 2.2 will flip this OFF (real folder load supersedes the fixture).
+# Phase 2.2 flipped this OFF (real folder load via SampleLoader supersedes the
+# fixture); the macro-gated code remains in source as a regression safety net.
 option(OMTS_PHASE_2_1_TEST_FIXTURE
-    "Enable Phase 2.1 in-memory sine-burst SampleMap for early audio testing" ON)
+    "Enable Phase 2.1 in-memory sine-burst SampleMap for early audio testing" OFF)
 if(OMTS_PHASE_2_1_TEST_FIXTURE)
     target_compile_definitions(O-MicrotonalSampler PRIVATE
         O_MICROTONAL_SAMPLER_PHASE_2_1_TEST_FIXTURE=1)

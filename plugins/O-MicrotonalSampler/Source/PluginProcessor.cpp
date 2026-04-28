@@ -276,6 +276,46 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 }
 
 //==============================================================================
+void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folder)
+{
+    if (sampleLoader == nullptr)
+        return;
+
+    // Capture `this` by raw pointer — folder load is short-lived and the
+    // processor outlives the loader (sampleLoader is a unique_ptr member;
+    // ~SampleLoader joins the thread before the processor finishes destruction).
+    sampleLoader->loadFolder (
+        folder,
+        getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
+
+        // Completion callback — runs on the message thread.
+        [this](std::shared_ptr<SampleMap> newMap, juce::StringArray skipped)
+        {
+            lastSkippedFiles = std::move (skipped);
+
+            // Atomic-store into the processor's slot. Voices snapshot via
+            // shared_ptr copy at startNote (refcount inc — RT-safe). Use the
+            // same C++20 feature guard already established in prepareToPlay.
+           #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+            std::atomic_store (&currentSampleMap, newMap);
+           #else
+            currentSampleMap = newMap;
+           #endif
+
+            DBG ("SampleLoader complete: " << (int) currentSampleMap->slots.size()
+                 << " slot(s), " << lastSkippedFiles.size() << " skipped");
+        },
+
+        // Failure callback — runs on the message thread.
+        [this](const juce::String& reason)
+        {
+            DBG ("SampleLoader failure: " << reason);
+            juce::ignoreUnused (reason);
+            lastSkippedFiles.clear();
+        });
+}
+
+//==============================================================================
 juce::AudioProcessorEditor* OMicrotonalSamplerAudioProcessor::createEditor()
 {
     return new OMicrotonalSamplerAudioProcessorEditor (*this);
