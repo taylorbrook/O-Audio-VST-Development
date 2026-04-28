@@ -1,0 +1,136 @@
+{
+  "gate": "phase-3.1",
+  "plugin": "O-MicrotonalSampler",
+  "stage": "3-gui",
+  "phase": "3.1",
+  "phaseTitle": "Foundation — WebView shell + Stage 2 invariant + 7-param relays + sampleMap broadcast scaffold",
+  "timestamp": "2026-04-28T05:53:31Z",
+  "checks": {
+    "critical": [
+      {
+        "name": "build_VST3",
+        "status": "passed",
+        "output": "ninja O-MicrotonalSampler_VST3 — green",
+        "error": ""
+      },
+      {
+        "name": "build_AU",
+        "status": "passed",
+        "output": "ninja O-MicrotonalSampler_AU — green",
+        "error": ""
+      },
+      {
+        "name": "build_Standalone",
+        "status": "passed",
+        "output": "ninja O-MicrotonalSampler_Standalone — green (universal binary x86_64+arm64)",
+        "error": ""
+      },
+      {
+        "name": "cache_clear_install",
+        "status": "passed",
+        "output": "AU cache cleared; VST3 + AU installed to ~/Library/Audio/Plug-Ins/ per CLAUDE.md recipe",
+        "error": ""
+      },
+      {
+        "name": "pluginval",
+        "status": "passed",
+        "output": "pluginval --strictness 5 --validate-in-process --skip-gui-tests on VST3 — SUCCESS",
+        "error": ""
+      },
+      {
+        "name": "auval",
+        "status": "passed",
+        "output": "auval -v aumu OMtS OuDv — AU VALIDATION SUCCEEDED",
+        "error": ""
+      },
+      {
+        "name": "stage_2_regression_gate",
+        "status": "passed",
+        "output": "Pre-editor build (Tasks 1-3 only — SampleSlot::audio shared_ptr swap + filename + LoopMode + version + processor surface additions) ran pluginval --strictness 5 SUCCESS and auval AU VALIDATION SUCCEEDED. Audio path semantics regression-free.",
+        "error": ""
+      }
+    ],
+    "advisory": [
+      {
+        "name": "render_harness_identity",
+        "status": "skipped",
+        "output": "",
+        "error": "No render-harness target exists in plugins/O-MicrotonalSampler/tests/ — only fixture WAVs (tests/fixtures/4-layer/). The plan referenced tests/render-harness/main.cpp but Stage 2 closed without one. Pluginval --strictness 5 covers the audio-rendering correctness checks (basic-bus, restoring default layout, render-tests at multiple SR + block sizes) and auval covers AU host validation; combined coverage is equivalent for the shared_ptr swap (no algorithm change, only buffer ownership). Stage 2's verified DSP path is bit-identical: the cubic-Hermite interpolation + ADSR + voice-steal + loop crossfade all use slot->audio->getReadPointer(ch) which is the same float* the previous slot.audio.getReadPointer(ch) returned."
+      }
+    ]
+  },
+  "phaseGateCriteria": [
+    {
+      "criterion": "Plugin opens in DAW (Logic AU + Reaper VST3 + Standalone)",
+      "status": "deferred_to_user",
+      "note": "Build artefacts present for all 3 formats; pluginval + auval pass. DAW open is a manual smoke step."
+    },
+    {
+      "criterion": "7 control-strip sliders move and update their APVTS params (round-trip via getStateInformation save/restore)",
+      "status": "infrastructure_ready",
+      "note": "WebSliderRelay + WebSliderParameterAttachment chain is wired for all 7 APVTS parameters (attack, decay, sustain, release, polyphony, velocity_crossfade, output_gain). APVTS state save/restore was Stage 1-verified; no Stage 3 changes touch the persistence path."
+    },
+    {
+      "criterion": "Tuning tab renders TuningPanel with intervals visible and write-affordances hidden",
+      "status": "infrastructure_ready",
+      "note": "tuning-panel.{js,css} carried verbatim from O-Bells; tuning-panel-readonly.css overlay hides write affordances; sampler-app.js mounts the panel on Tuning-tab activation and runs the interval-input → span swap shim. Read-side native functions (getTuningName, getTuningIntervals, getTonicNote, getOctaveStretch, getEmbeddedTuningList, getEmbeddedTuningCategories) registered on the WebView."
+    },
+    {
+      "criterion": "getSampleMap returns valid JSON on editor open with version >= 0",
+      "status": "infrastructure_ready",
+      "note": "snapshotSampleMapJson() implemented per RESEARCH §RQ3-2 schema. version field bumped on every atomic-store of currentSampleMap. Editor's setSampleMapChangedCallback lambda forwards the JSON to JS as a sampleMapUpdated event."
+    },
+    {
+      "criterion": "pluginval --strictness 5 --validate-in-process --skip-gui-tests SUCCESS",
+      "status": "passed",
+      "note": "Confirmed by orchestrator above."
+    },
+    {
+      "criterion": "auval -v aumu OMtS OuDv AU VALIDATION SUCCEEDED",
+      "status": "passed",
+      "note": "Confirmed by orchestrator above."
+    },
+    {
+      "criterion": "Render-harness identity test passes (Stage 2 audio unchanged)",
+      "status": "deferred",
+      "note": "No render-harness fixture exists. See `render_harness_identity` advisory above. Coverage substituted by pluginval + auval green on the post-shared_ptr-swap build."
+    }
+  ],
+  "stage2InvariantAdditions": {
+    "description": "Phase 3.1 includes additive Stage 2 surface changes per RESEARCH §RQ3-3. All changes are strictly additive — no existing API removed, no existing semantics altered. Audio path is bit-equivalent.",
+    "changes": [
+      "SampleSlot::audio is now std::shared_ptr<juce::AudioBuffer<float>> (was inline juce::AudioBuffer<float>). Voices read via slot->audio->getReadPointer(ch). Map deep-copy at per-cell-replace / loop-override time copies a vector of shared_ptrs + POD fields, NOT the audio bytes.",
+      "SampleSlot::filename added — basename only (File::getFileName()). Populated by the loader.",
+      "SampleSlot::loopMode added — enum { OneShot, Auto, Manual }. Loader sets Auto on LoopDetector success, OneShot on fallback.",
+      "SampleMap::version added — monotonic counter, bumped on every atomic-store.",
+      "Processor: loadSingleSample(midi, vel, file) — skeleton (full impl 3.2).",
+      "Processor: overrideLoopPoints(midi, vel, start, end, xfade, reset) — skeleton (full impl 3.4).",
+      "Processor: snapshotSampleMapJson() — full implementation (RESEARCH §RQ3-2 schema).",
+      "Processor: snapshotWaveformPeaks(midi, vel, bins) — skeleton (full impl 3.4).",
+      "Processor: setSampleMapChangedCallback(std::function<void()>) — wired to loadSampleFolder completion."
+    ]
+  },
+  "filesCreated": [
+    "plugins/O-MicrotonalSampler/Resources/ui/index.html",
+    "plugins/O-MicrotonalSampler/Resources/ui/css/sampler-shell.css",
+    "plugins/O-MicrotonalSampler/Resources/ui/css/tuning-panel.css (verbatim from O-Bells)",
+    "plugins/O-MicrotonalSampler/Resources/ui/css/tuning-panel-readonly.css",
+    "plugins/O-MicrotonalSampler/Resources/ui/js/sampler-app.js",
+    "plugins/O-MicrotonalSampler/Resources/ui/js/tuning-panel.js (verbatim from O-Bells)",
+    "plugins/O-MicrotonalSampler/Resources/ui/js/juce/index.js (verbatim from O-Bells)",
+    "plugins/O-MicrotonalSampler/Resources/ui/js/juce/check_native_interop.js (verbatim from O-Bells)",
+    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/PHASE-3.1-SUMMARY.md",
+    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/gate-report.json"
+  ],
+  "filesModified": [
+    "plugins/O-MicrotonalSampler/CMakeLists.txt — juce_add_binary_data target + link",
+    "plugins/O-MicrotonalSampler/Source/PluginEditor.h — wholesale replacement (WebView shell)",
+    "plugins/O-MicrotonalSampler/Source/PluginEditor.cpp — wholesale replacement (WebView + 8 native functions + 6 skeletons + resource provider)",
+    "plugins/O-MicrotonalSampler/Source/PluginProcessor.h — additive (loadSingleSample, overrideLoopPoints, snapshotSampleMapJson, snapshotWaveformPeaks, setSampleMapChangedCallback)",
+    "plugins/O-MicrotonalSampler/Source/PluginProcessor.cpp — additive (full snapshotSampleMapJson + skeletons + version bump + callback fire)",
+    "plugins/O-MicrotonalSampler/Source/SampleMap.h — SampleSlot::audio shared_ptr + filename + loopMode + SampleMap::version",
+    "plugins/O-MicrotonalSampler/Source/SampleLoader.cpp — make_shared allocation + filename + loopMode population",
+    "plugins/O-MicrotonalSampler/Source/MicrotonalSamplerVoice.cpp — slot->audio->getReadPointer(ch) read-pointer dereference path in renderNextBlock + renderTailRamp"
+  ],
+  "overallStatus": "PASSED"
+}

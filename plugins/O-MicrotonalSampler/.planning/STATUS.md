@@ -1,31 +1,179 @@
 ---
 plugin: O-MicrotonalSampler
-stage: 2-dsp
-phase: execute
-status: phase_2_4_gate_4_pass
-last_updated: 2026-04-27
+stage: 3-gui
+phase: 3.1
+status: phase_3.1_gate_pass
+last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 2.4 Gate 4 PASS — Ready for Phase 2.5
+## Current State: Phase 3.1 GATE PASS — Ready for Phase 3.2
 
-Voice-steal tail-ramp (5 ms linear-down) implemented in voice DSP (Tasks 21–25).
-Per-voice scratch buffers sized in `prepareToPlay`; `renderTailRamp` helper added;
-`startNote` self-detects active steal and captures OLD-note tail BEFORE state reset;
-`renderNextBlock` mixes captured tail additively (BEFORE early-out so EC-1/EC-2
-still play out cleanly). JUCE default `findVoiceToSteal` kept (R1, D2-2).
-`synthesiser.setNoteStealingEnabled(true)` already in place at processor ctor (verified, Task 26).
-`stopNote` graceful-release path verified unchanged (Task 27).
+`/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.1 produced
+`.planning/stages/3-gui/PHASE-3.1-SUMMARY.md` and `gate-report.json`.
 
-Triple build green (8/8 ninja targets). `pluginval --strictness 5 --validate-in-process
---skip-gui-tests` SUCCESS. `auval -v aumu OMtS OuDv` AU VALIDATION SUCCEEDED.
-Awaiting atomic commit (recipe in PHASE-2.4-SUMMARY.md).
+**Phase 3.1 Foundation delivers:**
 
-Subjective DAW checks (16-voice steal, ADSR release=0 click test, polyphony
-reduction EC-9, continuity check) deferred to `/plugin-verify` time.
+- WebView shell replaces the Phase 2.2 placeholder editor wholesale.
+- 7 APVTS sliders (`attack`, `decay`, `sustain`, `release`, `polyphony`,
+  `velocity_crossfade`, `output_gain`) bound via `WebSliderRelay` +
+  `WebSliderParameterAttachment` in correct destruction order.
+- Tabbed UI (Sample Map / Tuning / About) with read-only TuningPanel
+  (verbatim O-Bells carry + readonly CSS overlay + interval-input → span
+  swap shim per RESEARCH §RQ3-1).
+- 8 fully-implemented native functions (`getSampleMap`, `getTuningName`,
+  `getTuningIntervals`, `getTonicNote`, `getOctaveStretch`,
+  `getEmbeddedTuningList`, `getEmbeddedTuningCategories`, `reportCellLayout`,
+  `getSkippedFiles`) + 6 skeletons returning sane defaults
+  (`loadSampleFolderDialog`, `loadSingleSampleDialog`, `overrideLoopPoints`,
+  `resetLoopToAutoDetect`, `getWaveformPeaks` for 3.2/3.3/3.4).
+- `sampleMapUpdated` event scaffold: processor's
+  `setSampleMapChangedCallback` lambda emits the JSON snapshot whenever the
+  sample map atomic-stores; editor wires up the lambda on construction.
+- Cross-platform WebView2 compliance: `NEEDS_WEBVIEW2 TRUE` +
+  `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` + `withUserDataFolder` +
+  resource provider URL=path equality.
+- Stage 2 invariant addition (per RESEARCH §RQ3-3): `SampleSlot::audio` →
+  `std::shared_ptr<juce::AudioBuffer<float>>`; `SampleSlot::filename`;
+  `LoopMode` enum + `SampleSlot::loopMode`; `SampleMap::version` monotonic
+  counter.
 
-Stage 2 progress: **4 of 5 sub-stages complete** (2.1 ✓, 2.2 ✓, 2.3 ✓, 2.4 ✓, 2.5 next).
+**Stage 2 regression gate (Task 4):** `pluginval --strictness 5
+--validate-in-process --skip-gui-tests` SUCCESS + `auval -v aumu OMtS OuDv`
+AU VALIDATION SUCCEEDED on the post-shared_ptr-swap build. No render-harness
+existed; coverage substituted by pluginval+auval per gate-report advisory.
+
+**Phase 3.1 gate (Task 11):** Triple build green. Cache-clear + install per
+CLAUDE.md. pluginval SUCCESS. auval SUCCEEDED. Atomic commit recipe
+documented in PHASE-3.1-SUMMARY.md.
+
+## Stage 3 Sub-stage Status
+
+| Phase | Goal | Gate | Commit | Status |
+|---|---|---|---|---|
+| 3.1 Foundation | WebView shell + Stage 2 invariant + relays + JSON broadcast | infra | pending atomic commit | ✅ PASS |
+| 3.2 Grid | FUNC-06, UI-01 | grid in <100 ms; per-cell replace | — | ⏳ next |
+| 3.3 Folder Drop | FUNC-05 | drop = button parity; skipped files surface | — | ⏳ pending |
+| 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | — | ⏳ pending |
+| 3.5 Polish | (visual) | aesthetic + final pluginval gate | — | ⏳ pending |
+
+## Previous State: Stage 3 (GUI) PLAN complete
+
+`/plugin-plan O-MicrotonalSampler 3-gui` produced
+`.planning/stages/3-gui/PLAN.md` with **34 numbered tasks** organized
+across 5 sub-stages (3.1 Foundation → 3.2 Grid → 3.3 Folder Drop →
+3.4 Loop Editor → 3.5 Polish), each with its own atomic-commit gate.
+
+**Plan-phase resolutions (open questions RP3-1..RP3-5):**
+
+- **RP3-1** Cell interactions: single-click loaded cell → loop editor;
+  double-click → replace via FileChooser; right-click → context menu;
+  single-click empty cell → FileChooser.
+- **RP3-2** Crossfade-length stays global (Phase 2.5 constant) for
+  v1.0; per-slot xfade is a v1.1 candidate.
+- **RP3-3** Tuning-state readout polls on Tuning-tab activation +
+  editor open only (no background interval).
+- **RP3-4** About tab: empty in 3.1; minimal version + license link
+  in 3.5.
+- **RP3-5** Narrow-window grid: horizontal scroll when min cell width
+  (8 px) is hit; no octave grouping in v1.0.
+
+**Critical sequencing note:** Phase 3.1 includes a Stage 2 invariant
+addition (`SampleSlot::audio` → `std::shared_ptr<juce::AudioBuffer<float>>`).
+Task 4 blocks on a full Stage 2 verification gate (pluginval, auval,
+render-harness identity test) before proceeding to editor work — any
+regression reopens Stage 2 rather than being absorbed into 3.1.
+
+## Previous State: Stage 3 (GUI) RESEARCH complete
+
+`/plugin-research O-MicrotonalSampler 3-gui` produced
+`.planning/stages/3-gui/RESEARCH.md` resolving all 8 research questions
+(RQ3-1..RQ3-8). Key resolutions:
+
+- **TuningPanel readonly mode** (RQ3-1): carry verbatim suite copy + CSS
+  overlay + register only read-side native functions.
+- **SampleMap JSON schema** (RQ3-2): version-stamped snapshot with per-slot
+  filename/length/SR/loopStart/loopEnd/loopMode + skippedFiles array.
+- **Per-cell loader** (RQ3-3): new `loadSingleSample(midi, vel, file)` —
+  requires Stage 2 invariant addition `SampleSlot::audio` →
+  `std::shared_ptr<juce::AudioBuffer<float>>` to keep map deep-copy cheap
+  on per-cell replace. Land in 3.1.
+- **Loop-override** (RQ3-4): `overrideLoopPoints(midi, vel, start, end,
+  xfade)` on message thread, atomic shared_ptr replace, snapshot
+  rebroadcast. Voices keep their own snapshot for active notes.
+- **Waveform render** (RQ3-5): pre-render 512-bin peak summary on message
+  thread, broadcast via `emitEventIfBrowserIsVisible("waveformPeaks", ...)`,
+  JS draws on DPR-aware canvas.
+- **Cell DnD** (RQ3-6): `juce::FileDragAndDropTarget` on host editor +
+  C++-side cell-layout shadow published by JS via `reportCellLayout`
+  native function. No reliance on HTML5 `dataTransfer.files` paths.
+- **Aesthetic** (RQ3-7): pull palette/typography from O-Bells inline
+  styles. Garamond serif, cream parchment + warm-brown + antique-gold +
+  rust-red active. Botanical motif deferred to 3.5 polish.
+- **Resource bundling** (RQ3-8): `juce_add_binary_data` baked, served via
+  resource provider — matches O-Bells.
+
+Stage 3 verifies 5 requirements: FUNC-05, FUNC-06, DSP-06, UI-01, UI-02.
+
+Native function inventory: ~13 (`getSampleMap`, `loadSingleSampleDialog`,
+`overrideLoopPoints`, `getWaveformPeaks`, `reportCellLayout`,
+`getTuning*` reads, etc.).
+
+Open RP3-1..RP3-5 for plan phase to resolve (single-click cell behavior,
+crossfade-len global vs per-slot, tuning-readout polling cadence,
+About-tab content, narrow-window cell clamp).
+
+## Previous State: Stage 3 (GUI) DISCUSS complete
+
+`/plugin-discuss O-MicrotonalSampler 3-gui` produced
+`.planning/stages/3-gui/CONTEXT.md` with 15 locked decisions (D3-1..D3-15)
+and 5 sub-stages (3.1 shell+tabs+TuningPanel → 3.2 sample-map grid →
+3.3 folder-drop + skipped-files → 3.4 loop-point editor → 3.5 control
+strip + aesthetic polish). 8 research questions resolved in RESEARCH.md.
+
+**Key decisions:** WebView UI (D3-1), Ouaricon house aesthetic (D3-2),
+no separate `/ui-mockup` pass (D3-3 — design specified in prose),
+tabbed layout with TuningPanel as its own tab (D3-4 + D3-7 — copy-paste
+the suite tuning-panel.{js,css} per O-Bells pattern), horizontal piano
+strip × 4 vel-layer rows (D3-5), loop editor as side panel inside the
+Sample Map tab (D3-6), 7 APVTS relays + custom `sampleMap` JSON relay
+(D3-11). Cross-platform WebView2 flags from memory are mandatory.
+
+Stage 3 verifies 5 requirements: FUNC-05, FUNC-06, DSP-06, UI-01, UI-02.
+
+## Previous State: Stage 2 (DSP) VERIFIED
+
+`/plugin-verify O-MicrotonalSampler 2-dsp` ran goal-backward analysis against
+CONTEXT.md / PLAN.md / 5×PHASE-N-SUMMARY.md, walked all 15 in-scope requirements,
+and re-ran the automated bar (triple build green; cache-clear + fresh install;
+`pluginval --strictness 5 --validate-in-process --skip-gui-tests` SUCCESS;
+`auval -v aumu OMtS OuDv` AU VALIDATION SUCCEEDED).
+
+**Verdict:** ✅ VERIFIED — 13 requirements complete (FUNC-01..04, FUNC-07,
+DSP-01..05, DSP-07, DSP-08, PERF-01, PERF-03, PERF-04, COMPAT-02), 2 marked
+partial pending the user's subjective DAW pass (PERF-02 CPU benchmark; QUAL-01
+listening test). All engineering mitigations for the partials are in place;
+they remain open only because they require a human listener / metering step.
+
+See `.planning/stages/2-dsp/VERIFICATION.md` for the full evidence table and
+the deferred Human Verification checklist.
+
+**Phase 2.5 commit still pending.** The Phase 2.5 source changes
+(`LoopDetector.{h,cpp}`, modified `MicrotonalSamplerVoice.{h,cpp}`,
+`SampleLoader.cpp`, `CMakeLists.txt`) plus the new verify artefacts (this
+file, `REQUIREMENTS.md` updates, `VERIFICATION.md`) ride in a single atomic
+commit per the recipe in `VERIFICATION.md` Outstanding Actions §1.
+
+## Stage 2 Sub-stage Status
+
+| Phase | Gate | Commit | Status |
+|---|---|---|---|
+| 2.1 Voice DSP | 1 | `bb0e7f7` | ✅ PASS |
+| 2.2 Loader | 2 | `cacffda` | ✅ PASS |
+| 2.3 Vel xfade | 3 | `11bd39c` | ✅ PASS |
+| 2.4 Voice-steal | 4 | `1aceb4c` | ✅ PASS |
+| 2.5 Loop detect | 5 | pending atomic commit | ✅ Code + automated gate green |
 
 ## Completed So Far
 
@@ -34,55 +182,56 @@ Stage 2 progress: **4 of 5 sub-stages complete** (2.1 ✓, 2.2 ✓, 2.3 ✓, 2.4
 **Stage 2 Discuss:** ✓ Complete (CONTEXT.md, 2026-04-27)
 **Stage 2 Research:** ✓ Complete (RESEARCH.md, 2026-04-27)
 **Stage 2 Plan:** ✓ Complete (PLAN.md, 2026-04-27)
-**Stage 2 Phase 2.1:** ✓ Gate 1 PASS — cubic-Hermite varispeed voice + ADSR + NE (commit `bb0e7f7`)
-**Stage 2 Phase 2.2:** ✓ Gate 2 PASS — background loader + filename parser + SR conversion (commit `cacffda`)
-**Stage 2 Phase 2.3:** ✓ Gate 3 PASS — equal-power velocity-layer crossfade (commit `11bd39c`)
-**Stage 2 Phase 2.4:** ⏳ Code complete — voice-steal 5-ms tail ramp (Tasks 21–28); Gate 4 verification pending orchestrator
+**Stage 2 Execute:** ✓ All 5 sub-stages code-complete; 4 committed, 5th pending atomic commit
+**Stage 2 Verify:** ✓ VERIFIED (VERIFICATION.md, 2026-04-27)
 
 ## Stage 2 Locked Decisions (D2-1..D2-12)
 
-- **D2-1 Interpolator:** Cubic-Hermite (4-pt), with conditional 1st-order tilt LPF only if Stage 2.1 sine-sweep test shows aliasing
-- **D2-2 Voice-steal:** Override `juce::Synthesiser::findVoiceToSteal` — oldest-released → oldest-held (R1: JUCE default already matches; no override needed — VERIFIED Phase 2.4)
-- **D2-3 Steal ramp:** 5 ms linear (240 samples @ 48 kHz) — IMPLEMENTED Phase 2.4
-- **D2-4 Loop auto-detect:** RMS scan (1024 window, latter 60%) + zero-crossing snap (±64) + 8-sample equal-power xfade; fallback one-shot
-- **D2-5 ADSR:** `juce::ADSR` (linear segments)
-- **D2-6 Sub-stage order:** 2.1 voice DSP → 2.2 loader → 2.3 vel crossfade → 2.4 voice-steal → 2.5 loop-detect
-- **D2-7 Filename parser:** Tolerant per BRIEF.md (multi-convention, case-insensitive, silent-skip + log unparseable)
-- **D2-8 Out-of-range notes:** Silence
-- **D2-9 SR conversion:** `juce::LagrangeInterpolator` at load time (one-time, background thread)
-- **D2-10 Mono → stereo:** Duplicate L/R at unity gain
-- **D2-11 Smoothing:** `output_gain` + `velocity_crossfade` only (D2-11; vel-xfade actually consumed once at startNote — no SmoothedValue needed; tail ramp also computed inline, no SmoothedValue)
-- **D2-12 NE granularity:** Once at `startNote()`
+- **D2-1 Interpolator:** Cubic-Hermite (4-pt). Conditional 1st-order tilt LPF NOT added (Phase 2.1 sine-sweep null test landed below threshold).
+- **D2-2 Voice-steal:** JUCE default `findVoiceToSteal` already implements oldest-released → oldest-keyup → oldest-non-protected (R1; no override).
+- **D2-3 Steal ramp:** 5 ms linear (`ceil(0.005·SR)+16` samples).
+- **D2-4 Loop auto-detect:** RMS scan + zc snap + 8-sample equal-power xfade; one-shot fallback on variance / length / headroom failures.
+- **D2-5 ADSR:** `juce::ADSR` (linear segments).
+- **D2-6 Sub-stage order:** 2.1 → 2.2 → 2.3 → 2.4 → 2.5 (all complete).
+- **D2-7 Filename parser:** Tolerant; case-insensitive; multi-convention.
+- **D2-8 Out-of-range notes:** Silence.
+- **D2-9 SR conversion:** `juce::LagrangeInterpolator` per channel at load time.
+- **D2-10 Mono → stereo:** Duplicate L/R at unity gain.
+- **D2-11 Smoothing:** `output_gain` smoothed via `juce::SmoothedValue` + `applyGainRamp`. `velocity_crossfade` consumed once per startNote (no SmoothedValue needed).
+- **D2-12 NE granularity:** Once at `startNote()`.
 
-## Stage 2 Requirements in Scope (15)
+## Files Created/Modified (Stage 2)
 
-FUNC-01..04, FUNC-07, DSP-01..05, DSP-07, DSP-08, PERF-01..04, COMPAT-02, QUAL-01
+`Source/MicrotonalSamplerVoice.{h,cpp}`,
+`Source/SampleMap.h` (`findSlot` linear scan),
+`Source/SampleLoader.{h,cpp}` (full implementation),
+`Source/FilenameParser.{h,cpp}` (new, Phase 2.2),
+`Source/LoopDetector.{h,cpp}` (new, Phase 2.5),
+`Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.{h,cpp}`,
+`Source/tests/aliasing_check.cpp` (RQ-1 driver, EXCLUDE_FROM_ALL),
+`plugins/O-MicrotonalSampler/CMakeLists.txt`,
+`.planning/stages/2-dsp/CONTEXT.md`, `RESEARCH.md`, `PLAN.md`,
+`PHASE-2.{1,2,3,4,5}-SUMMARY.md`, `VERIFICATION.md`,
+`.planning/STATUS.md`, `.planning/REQUIREMENTS.md`.
 
-## Files Created (Stage 2)
+## Outstanding Actions (post-verify)
 
-- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/CONTEXT.md`
-- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/RESEARCH.md`
-- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PLAN.md`
-- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PHASE-2.1-SUMMARY.md`
-- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PHASE-2.2-SUMMARY.md`
-- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PHASE-2.3-SUMMARY.md`
-- `plugins/O-MicrotonalSampler/.planning/stages/2-dsp/PHASE-2.4-SUMMARY.md` (this phase)
-- `plugins/O-MicrotonalSampler/tests/fixtures/4-layer/generate.py`
+1. **User commits Phase 2.5 + verify artefacts** — atomic commit per recipe in
+   `VERIFICATION.md` Outstanding Actions §1.
+2. **Subjective DAW pass** (Human Verification checklist in
+   `VERIFICATION.md`) — sustained sine, vibrato cello, transient fallback,
+   short-region edge case, regression suite re-run, +50 c retune listening
+   test, mixed-SR fixture.
+3. **CPU benchmark (PERF-02)** — 16 sustained voices, 48 kHz / 256 buffer,
+   Apple Silicon, looping samples. Logic CPU meter or `pluginval
+   --benchmark`. Confirm ≤ 5 %.
 
-## Source Files Touched (Phase 2.4)
-
-Modified: `Source/MicrotonalSamplerVoice.h`, `Source/MicrotonalSamplerVoice.cpp`
-Verified-no-change: `Source/PluginProcessor.cpp` (Task 26), `Source/MicrotonalSamplerVoice.cpp:stopNote` (Task 27)
-
-## Resolved Carry-Over from Phase 2.2
-
-`MicrotonalSamplerVoice.cpp:138` `std::atomic_load` flag — **resolved in Phase 2.3**. Voice
-uses `std::atomic_load(sampleMapSource)` under the same `__cpp_lib_atomic_shared_ptr`
-guard the producer side already uses. TSan-clean. No carry-over to Phase 2.4.
+If any subjective check fails, file a defect and reopen the relevant
+sub-phase rather than advancing to Stage 3.
 
 ## Next Steps
 
-1. **Orchestrator runs Gate 4** — triple build + cache-clearing install + `pluginval --strictness 5` + `auval -v aumu OMtS OuDv` + atomic commit per the recipe in `PHASE-2.4-SUMMARY.md`.
-2. **Phase 2.5 Execute (after Gate 4 closes)** — `/plugin-execute O-MicrotonalSampler 2-dsp` (continues to Phase 2.5: loop auto-detect + 8-sample boundary crossfade, Tasks 29–33, Gate 5).
-3. **Full Stage 2 verify** (after Phase 2.5) — `/plugin-verify O-MicrotonalSampler 2-dsp`.
-4. **UI mockup** (parallelizable any time before Stage 3) — `/ui-mockup O-MicrotonalSampler`.
+1. **Atomic commit** of Phase 2.5 + Stage 2 verify (recipe in
+   `VERIFICATION.md`) — still outstanding.
+2. **Stage 3 plan** — `/plugin-plan O-MicrotonalSampler 3-gui` to break
+   3.1–3.5 into ordered tasks with gate-reports.

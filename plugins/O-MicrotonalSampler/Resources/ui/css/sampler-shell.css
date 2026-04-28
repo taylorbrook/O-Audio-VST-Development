@@ -1,0 +1,325 @@
+/* ==============================================================================
+   O-MicrotonalSampler — Shell stylesheet (Phase 3.1)
+   Ouaricon house aesthetic — palette + typography lifted from O-Bells
+   (RESEARCH §1.4). Cream parchment + warm-brown body + antique-gold accent
+   + rust-red active. Garamond serif body, system sans for numeric readouts.
+   ============================================================================== */
+
+:root {
+    /* Palette — Ouaricon house */
+    --bg-cream:       #F5E6D3;
+    --bg-warm:        #EBD9C7;
+    --bg-card:        rgba(235, 217, 199, 0.9);
+    --text-body:      #3C2F2F;
+    --text-secondary: #5C4033;
+    --text-muted:     #8B7355;
+    --accent-gold:    #B8860B;
+    --accent-rust:    #C0392B;
+    --border-warm:    rgba(139, 115, 85, 0.35);
+    --shadow-card:    0 10px 40px rgba(0,0,0,0.5);
+
+    /* Spacing rhythm (8 / 16 / 24) */
+    --gap-sm: 8px;
+    --gap-md: 16px;
+    --gap-lg: 24px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    background: linear-gradient(to bottom, var(--bg-warm), var(--bg-cream));
+    color: var(--text-body);
+    font-family: 'Garamond', 'Times New Roman', serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+/* ============== HEADER ============== */
+#header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--gap-md) var(--gap-lg);
+    border-bottom: 1px solid var(--border-warm);
+    background: var(--bg-card);
+    flex-shrink: 0;
+}
+
+.header-left {
+    display: flex;
+    align-items: baseline;
+    gap: var(--gap-md);
+}
+
+#header h1 {
+    font-size: 20px;
+    font-weight: normal;
+    color: var(--text-body);
+    letter-spacing: 0.02em;
+}
+
+.tuning-readout {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+#tab-strip {
+    display: flex;
+    gap: var(--gap-sm);
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s ease;
+}
+
+.tab-btn:hover {
+    color: var(--text-body);
+}
+
+.tab-btn.active {
+    color: var(--accent-gold);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 0;
+    height: 2px;
+    background: var(--accent-gold);
+}
+
+/* ============== TAB BODIES ============== */
+#tab-bodies {
+    flex: 1 1 auto;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+}
+
+.tab-body {
+    position: absolute;
+    inset: 0;
+    padding: var(--gap-lg);
+    overflow: auto;
+    display: none;
+}
+
+.tab-body.active {
+    display: block;
+}
+
+/* Sample Map tab */
+#folder-drop-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap-md);
+    padding: var(--gap-lg);
+    border: 2px dashed var(--border-warm);
+    border-radius: 8px;
+    background: rgba(255, 248, 220, 0.25);
+    margin-bottom: var(--gap-md);
+    color: var(--text-secondary);
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+#folder-drop-zone.drag-over {
+    border-color: var(--accent-gold);
+    background: rgba(184, 134, 11, 0.1);
+}
+
+.drop-zone-text {
+    font-size: 15px;
+}
+
+.drop-zone-sep {
+    color: var(--text-muted);
+    margin: 0 var(--gap-sm);
+}
+
+#load-folder-btn {
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    border: 1px solid var(--border-warm);
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+#load-folder-btn:hover:not([disabled]) {
+    background: #FAF0E6;
+}
+
+#load-folder-btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#sample-map-grid {
+    background: var(--bg-card);
+    border: 1px solid var(--border-warm);
+    border-radius: 6px;
+    padding: var(--gap-md);
+    min-height: 200px;
+}
+
+.grid-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grid-placeholder-text {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+#issues-disclosure {
+    margin-top: var(--gap-md);
+    border: 1px solid var(--border-warm);
+    border-radius: 6px;
+    padding: var(--gap-sm) var(--gap-md);
+    background: rgba(255, 248, 220, 0.4);
+}
+
+#issues-disclosure summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+#issues-list {
+    margin-top: var(--gap-sm);
+    padding-left: var(--gap-lg);
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* Loop editor side panel — closed in 3.1 (full impl in 3.4) */
+#loop-editor-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 360px;
+    background: var(--bg-cream);
+    border-left: 1px solid var(--border-warm);
+    transform: translateX(100%);
+    transition: transform 350ms ease;
+}
+
+#loop-editor-panel:not([hidden]) {
+    transform: translateX(0);
+}
+
+/* Toast region */
+#toast-region {
+    position: absolute;
+    bottom: var(--gap-lg);
+    right: var(--gap-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    pointer-events: none;
+}
+
+.toast {
+    background: var(--text-body);
+    color: var(--bg-cream);
+    padding: var(--gap-sm) var(--gap-md);
+    border-radius: 4px;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Tuning tab — TuningPanel container */
+#tuning-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-warm);
+    border-radius: 6px;
+    padding: var(--gap-md);
+}
+
+/* About tab — empty in 3.1 */
+#about-content {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* ============== BOTTOM CONTROL STRIP ============== */
+#control-strip {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    padding: var(--gap-md) var(--gap-lg);
+    border-top: 1px solid var(--border-warm);
+    background: var(--bg-card);
+    flex-shrink: 0;
+    gap: var(--gap-md);
+}
+
+.ctrl {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1 1 0;
+    min-width: 60px;
+}
+
+.ctrl label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.ctrl input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent-gold);
+    cursor: pointer;
+}

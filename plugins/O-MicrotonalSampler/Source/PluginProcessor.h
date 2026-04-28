@@ -70,6 +70,37 @@ public:
     // loadSampleFolder completion; cleared on failure.
     const juce::StringArray& getLastSkippedFiles() const noexcept { return lastSkippedFiles; }
 
+    // Phase 3.1: per-cell load (full implementation in 3.2). Skeleton logs
+    // and returns. UI calls this when the user single-clicks an empty cell or
+    // double-clicks a loaded cell to replace.
+    void loadSingleSample (int midiPitch, int velocityLayer, const juce::File& file);
+
+    // Phase 3.1: loop-point override (full implementation in 3.4). Skeleton
+    // logs and returns. resetToAutoDetect=true re-runs LoopDetector.
+    void overrideLoopPoints (int midiPitch, int velocityLayer,
+                             int loopStart, int loopEnd,
+                             int crossfadeLen,
+                             bool resetToAutoDetect = false);
+
+    // Phase 3.1: snapshot the current sample map as a JSON string for the
+    // Stage 3 WebView UI (RESEARCH §RQ3-2 schema). Walks `currentSampleMap`
+    // (atomic_load) + `lastSkippedFiles`. Read-only — message thread safe.
+    juce::String snapshotSampleMapJson() const;
+
+    // Phase 3.1: snapshot waveform peaks for a single slot as JSON (RESEARCH
+    // §RQ3-5). Skeleton in 3.1 — full impl in 3.4. Returns empty JSON {} for
+    // now so JS callers don't crash.
+    juce::String snapshotWaveformPeaks (int midiPitch, int velocityLayer,
+                                        int targetBins = 512) const;
+
+    // Phase 3.1: editor subscribes via this setter to receive notifications
+    // after every atomic-store of `currentSampleMap` (folder load, per-cell
+    // replace, loop override). Callback runs on the message thread.
+    void setSampleMapChangedCallback (std::function<void()> cb)
+    {
+        sampleMapChangedCallback = std::move (cb);
+    }
+
 private:
     juce::AudioProcessorValueTreeState        parameters;
     juce::Synthesiser                         synthesiser;
@@ -90,6 +121,11 @@ private:
     // parse / read. Populated on completion callback (message thread); read
     // by Stage-3 UI. Cleared on failure.
     juce::StringArray lastSkippedFiles;
+
+    // Phase 3.1: editor-side callback fired on the message thread after every
+    // atomic-store of `currentSampleMap`. Editor sets this in its constructor
+    // to forward as a `sampleMapUpdated` WebView event.
+    std::function<void()> sampleMapChangedCallback;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

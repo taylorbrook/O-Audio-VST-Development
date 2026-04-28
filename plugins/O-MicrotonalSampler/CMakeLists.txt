@@ -34,6 +34,8 @@ target_sources(O-MicrotonalSampler
         Source/SampleLoader.cpp
         Source/FilenameParser.h
         Source/FilenameParser.cpp
+        Source/LoopDetector.h
+        Source/LoopDetector.cpp
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
@@ -51,9 +53,25 @@ target_include_directories(O-MicrotonalSampler
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp
 )
 
+# Phase 3.1: WebView UI binary resources (carried verbatim from O-Bells +
+# new sampler-shell shell). Served by the WebBrowserComponent's resource
+# provider via explicit URL→BinaryData equality mapping (memory pattern).
+juce_add_binary_data(O-MicrotonalSampler_UIResources
+    SOURCES
+        Resources/ui/index.html
+        Resources/ui/css/sampler-shell.css
+        Resources/ui/css/tuning-panel.css
+        Resources/ui/css/tuning-panel-readonly.css
+        Resources/ui/js/sampler-app.js
+        Resources/ui/js/tuning-panel.js
+        Resources/ui/js/juce/index.js
+        Resources/ui/js/juce/check_native_interop.js
+)
+
 # Required JUCE modules
 target_link_libraries(O-MicrotonalSampler
     PRIVATE
+        O-MicrotonalSampler_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats

@@ -19,26 +19,26 @@ lastUpdated: 2026-04-27
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Plays user-loaded `.wav` / `.aif` samples mapped to MIDI pitches | must | pending | stage-2 |
-| FUNC-02 | Supports up to 4 velocity layers per pitch | must | pending | stage-2 |
-| FUNC-03 | Supports up to 16-voice polyphony | must | pending | stage-2 |
-| FUNC-04 | Auto-detects sampled note range from loaded sample set | must | pending | stage-2 |
+| FUNC-01 | Plays user-loaded `.wav` / `.aif` samples mapped to MIDI pitches | must | complete | stage-2 |
+| FUNC-02 | Supports up to 4 velocity layers per pitch | must | complete | stage-2 |
+| FUNC-03 | Supports up to 16-voice polyphony | must | complete | stage-2 |
+| FUNC-04 | Auto-detects sampled note range from loaded sample set | must | complete | stage-2 |
 | FUNC-05 | Drag-drop folder load with filename-convention auto-mapping (`Note_velocity` style) | should | pending | stage-3 |
 | FUNC-06 | Per-cell manual sample assignment (override path) | should | pending | stage-3 |
-| FUNC-07 | Voice-stealing when polyphony cap exceeded (oldest-released first) | must | pending | stage-2 |
+| FUNC-07 | Voice-stealing when polyphony cap exceeded (oldest-released first) | must | complete | stage-2 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Varispeed playback retunes samples by ±50 cents using fractional read rate `2^(cents/1200)` | must | pending | stage-2 |
-| DSP-02 | Cubic-Hermite (or equivalent ≥3rd-order) interpolation for fractional sample reads | must | pending | stage-2 |
-| DSP-03 | ADSR amplitude envelope applied per voice (attack, decay, sustain, release) | must | pending | stage-2 |
-| DSP-04 | Equal-power crossfade between adjacent velocity layers within boundary region | must | pending | stage-2 |
-| DSP-05 | Auto-detect sustain loop points (low-energy zero-crossing region in latter portion of sample) | should | pending | stage-2 |
+| DSP-01 | Varispeed playback retunes samples by ±50 cents using fractional read rate `2^(cents/1200)` | must | complete | stage-2 |
+| DSP-02 | Cubic-Hermite (or equivalent ≥3rd-order) interpolation for fractional sample reads | must | complete | stage-2 |
+| DSP-03 | ADSR amplitude envelope applied per voice (attack, decay, sustain, release) | must | complete | stage-2 |
+| DSP-04 | Equal-power crossfade between adjacent velocity layers within boundary region | must | complete | stage-2 |
+| DSP-05 | Auto-detect sustain loop points (low-energy zero-crossing region in latter portion of sample) | should | complete | stage-2 |
 | DSP-06 | Manual loop-point override per sample | should | pending | stage-3 |
-| DSP-07 | Consumes VST3 note-expression events for per-note pitch | must | pending | stage-2 |
-| DSP-08 | Consumes suite internal tuning module (Scala/Dorico-compatible) for scale/keyboard mapping | must | pending | stage-2 |
+| DSP-07 | Consumes VST3 note-expression events for per-note pitch | must | complete | stage-2 |
+| DSP-08 | Consumes suite internal tuning module (Scala/Dorico-compatible) for scale/keyboard mapping | must | complete | stage-2 |
 
 ### UI (UI)
 
@@ -51,23 +51,23 @@ lastUpdated: 2026-04-27
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe `processBlock` — no allocations, no file I/O, no locks | must | pending | stage-2 |
-| PERF-02 | 16 voices × varispeed + ADSR + crossfade ≤ 5% CPU on Apple Silicon @ 48 kHz / 256 buffer | should | pending | stage-2 |
-| PERF-03 | Sample loading runs on background thread; never blocks audio thread | must | pending | stage-2 |
-| PERF-04 | Zero added latency (no FFT, no lookahead) | nice | pending | stage-2 |
+| PERF-01 | Real-time safe `processBlock` — no allocations, no file I/O, no locks | must | complete | stage-2 |
+| PERF-02 | 16 voices × varispeed + ADSR + crossfade ≤ 5% CPU on Apple Silicon @ 48 kHz / 256 buffer | should | partial | stage-2 |
+| PERF-03 | Sample loading runs on background thread; never blocks audio thread | must | complete | stage-2 |
+| PERF-04 | Zero added latency (no FFT, no lookahead) | nice | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU on macOS, VST3 on Windows) | must | complete | stage-1 |
-| COMPAT-02 | Accepts 16/24/32-bit AIF and WAV at any sample rate (auto-converts on load) | must | pending | stage-2 |
+| COMPAT-02 | Accepts 16/24/32-bit AIF and WAV at any sample rate (auto-converts on load) | must | complete | stage-2 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts (clicks, zipper noise, aliasing) at ±50c retune across full velocity / polyphony range | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts (clicks, zipper noise, aliasing) at ±50c retune across full velocity / polyphony range | must | partial | stage-2 |
 
 ## Acceptance Criteria Details
 

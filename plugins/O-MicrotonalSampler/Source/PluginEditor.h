@@ -1,37 +1,93 @@
 /*
   ==============================================================================
 
-    O-MicrotonalSampler - Editor (Phase 2.2 placeholder)
+    O-MicrotonalSampler - Editor (Phase 3.1: WebView shell)
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Phase 2.2: minimal editor — a 40-px top strip with a "Load Folder..." button
-    plus an embedded GenericAudioProcessorEditor for the 7 APVTS parameters.
-    Sufficient to drive Phase 2.2 Gate 2 verification (drag a folder, audition
-    the resulting SampleMap). Stage 3 replaces this wholesale with a WebView UI.
+    Phase 3.1 replaces the Phase 2.2 placeholder editor with a WebView-based
+    UI that delivers the Stage 3 surface: tabbed shell (Sample Map / Tuning
+    / About), 7 APVTS sliders bound via WebSliderRelay/Attachment, embedded
+    read-only TuningPanel (carried verbatim from O-Bells), and a sampleMap
+    JSON broadcast scaffold ready for the Phase 3.2 grid.
+
+    ⚠️ MEMBER ORDER ⚠️
+    Members destroy in REVERSE declaration order. Attachments call
+    evaluateJavascript() during destruction, so the WebView must still exist
+    when attachments die. Therefore: relays → webView → attachments.
+
+    Cross-platform WebView (memory):
+      - JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1 must be defined (CMake).
+      - withUserDataFolder() is mandatory on Windows for plugin host hosts.
+      - Resource provider receives PATHS, not URLs — direct equality checks.
+
+    The editor also implements juce::FileDragAndDropTarget. The skeleton
+    in 3.1 returns silently; full routing lands in Phase 3.3.
 
   ==============================================================================
 */
 
 #pragma once
 #include <JuceHeader.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-class OMicrotonalSamplerAudioProcessorEditor : public juce::AudioProcessorEditor
+class OMicrotonalSamplerAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                               public juce::FileDragAndDropTarget
 {
 public:
     explicit OMicrotonalSamplerAudioProcessorEditor (OMicrotonalSamplerAudioProcessor& p);
-    ~OMicrotonalSamplerAudioProcessorEditor() override = default;
+    ~OMicrotonalSamplerAudioProcessorEditor() override;
 
     void paint   (juce::Graphics&) override;
     void resized() override;
 
+    // FileDragAndDropTarget skeletons (full routing in Phase 3.3 per RESEARCH §RQ3-6).
+    bool isInterestedInFileDrag (const juce::StringArray& files) override;
+    void filesDropped           (const juce::StringArray& files, int x, int y) override;
+    void fileDragEnter          (const juce::StringArray& files, int x, int y) override;
+    void fileDragMove           (const juce::StringArray& files, int x, int y) override;
+    void fileDragExit           (const juce::StringArray& files) override;
+
 private:
     OMicrotonalSamplerAudioProcessor& processorRef;
 
-    juce::GenericAudioProcessorEditor genericEditor;
-    juce::TextButton                  loadFolderButton { "Load Folder..." };
-    std::unique_ptr<juce::FileChooser> fileChooser;
+    // ============================================================
+    // 1. RELAYS FIRST  (no dependencies — must outlive attachments)
+    // ============================================================
+    std::unique_ptr<juce::WebSliderRelay> attackRelay;
+    std::unique_ptr<juce::WebSliderRelay> decayRelay;
+    std::unique_ptr<juce::WebSliderRelay> sustainRelay;
+    std::unique_ptr<juce::WebSliderRelay> releaseRelay;
+    std::unique_ptr<juce::WebSliderRelay> polyphonyRelay;
+    std::unique_ptr<juce::WebSliderRelay> velocityCrossfadeRelay;
+    std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
+
+    // ============================================================
+    // 2. WEBVIEW SECOND  (depends on relays via withOptionsFrom)
+    // ============================================================
+    std::unique_ptr<juce::WebBrowserComponent> webView;
+
+    // ============================================================
+    // 3. ATTACHMENTS LAST  (depend on both relays and webView)
+    // ============================================================
+    std::unique_ptr<juce::WebSliderParameterAttachment> attackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> decayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> sustainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> releaseAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> polyphonyAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> velocityCrossfadeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
+
+    // Resource provider — explicit URL→BinaryData mapping (memory pattern,
+    // matches O-Bells PluginEditor.cpp:941-998).
+    std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
+
+    // Phase 3.2-onward — cell layout shadow published by JS via the
+    // reportCellLayout native function. 3.1 stores; 3.3 hit-tests on drop.
+    struct CellRect { int midiNote = 0, velocityLayer = 0, x = 0, y = 0, w = 0, h = 0; };
+    juce::Array<CellRect> cellLayout;
+    juce::Rectangle<int>  folderZoneRect;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OMicrotonalSamplerAudioProcessorEditor)
 };

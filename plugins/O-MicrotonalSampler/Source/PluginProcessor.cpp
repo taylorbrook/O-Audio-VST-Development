@@ -167,8 +167,9 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
             s.sourceSampleRate = hostSR;
             s.loopStart        = 0;
             s.loopEnd          = 0;          // one-shot in 2.1
-            s.audio.setSize (2, numFrames);
-            s.audio.clear();
+            // Phase 3.1: audio held via shared_ptr<AudioBuffer<float>>.
+            s.audio = std::make_shared<juce::AudioBuffer<float>> (2, numFrames);
+            s.audio->clear();
 
             const double freq = 440.0 * std::pow (2.0, (midi - 69) / 12.0);
             const double twoPi = juce::MathConstants<double>::twoPi;
@@ -179,8 +180,8 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
             const int fadeSamples = juce::jmin (numFrames / 4,
                                                 (int) std::floor (0.005 * hostSR));
 
-            float* L = s.audio.getWritePointer (0);
-            float* R = s.audio.getWritePointer (1);
+            float* L = s.audio->getWritePointer (0);
+            float* R = s.audio->getWritePointer (1);
 
             double phase = 0.0;
             for (int n = 0; n < numFrames; ++n)
@@ -207,6 +208,9 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
 
             map->slots.push_back (std::move (s));
         }
+
+        // Phase 3.1: bump version (test fixture path).
+        map->version = 1;
 
         // Atomic-store into the processor's slot. std::atomic_store on
         // shared_ptr is deprecated in C++20; both the deprecated free function
@@ -293,6 +297,19 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
         {
             lastSkippedFiles = std::move (skipped);
 
+            // Phase 3.1: bump version on every map replace. Voices snapshot
+            // the map at startNote; the version field is read by the Stage 3
+            // UI for diff detection (RESEARCH §RQ3-2).
+            if (newMap != nullptr)
+            {
+               #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+                auto prev = std::atomic_load (&currentSampleMap);
+               #else
+                auto prev = currentSampleMap;
+               #endif
+                newMap->version = (prev != nullptr ? prev->version : 0) + 1;
+            }
+
             // Atomic-store into the processor's slot. Voices snapshot via
             // shared_ptr copy at startNote (refcount inc — RT-safe). Use the
             // same C++20 feature guard already established in prepareToPlay.
@@ -303,7 +320,14 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
            #endif
 
             DBG ("SampleLoader complete: " << (int) currentSampleMap->slots.size()
-                 << " slot(s), " << lastSkippedFiles.size() << " skipped");
+                 << " slot(s), " << lastSkippedFiles.size() << " skipped (v"
+                 << currentSampleMap->version << ")");
+
+            // Phase 3.1: notify editor (message thread). Editor's lambda
+            // forwards to webView->emitEventIfBrowserIsVisible("sampleMapUpdated",
+            // snapshotSampleMapJson()). No-op if no editor is open.
+            if (sampleMapChangedCallback)
+                sampleMapChangedCallback();
         },
 
         // Failure callback — runs on the message thread.
@@ -313,6 +337,121 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
             juce::ignoreUnused (reason);
             lastSkippedFiles.clear();
         });
+}
+
+//==============================================================================
+// Phase 3.1: per-cell sample load (skeleton — full impl in 3.2).
+void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
+                                                          int velocityLayer,
+                                                          const juce::File& file)
+{
+    DBG ("loadSingleSample (skeleton): midi=" << midiPitch
+         << " vel=" << velocityLayer
+         << " file=" << file.getFullPathName());
+    juce::ignoreUnused (midiPitch, velocityLayer, file);
+}
+
+//==============================================================================
+// Phase 3.1: loop-point override (skeleton — full impl in 3.4).
+void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
+                                                            int velocityLayer,
+                                                            int loopStart,
+                                                            int loopEnd,
+                                                            int crossfadeLen,
+                                                            bool resetToAutoDetect)
+{
+    DBG ("overrideLoopPoints (skeleton): midi=" << midiPitch
+         << " vel=" << velocityLayer
+         << " start=" << loopStart << " end=" << loopEnd
+         << " xfade=" << crossfadeLen
+         << " reset=" << (resetToAutoDetect ? "1" : "0"));
+    juce::ignoreUnused (midiPitch, velocityLayer, loopStart, loopEnd,
+                        crossfadeLen, resetToAutoDetect);
+}
+
+//==============================================================================
+// Phase 3.1: snapshot the current sample map as a JSON string per RESEARCH
+// §RQ3-2 schema. Read-only — atomic_load on the shared_ptr is the only
+// thread sync; lastSkippedFiles is touched only on the message thread (this
+// path) and the loader completion path which also runs on the message thread.
+juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
+{
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    auto map = std::atomic_load (&currentSampleMap);
+   #else
+    auto map = currentSampleMap;
+   #endif
+
+    auto loopModeToString = [] (LoopMode m) -> const char*
+    {
+        switch (m)
+        {
+            case LoopMode::OneShot: return "one-shot";
+            case LoopMode::Auto:    return "auto";
+            case LoopMode::Manual:  return "manual";
+        }
+        return "one-shot";
+    };
+
+    juce::String json;
+    json.preallocateBytes (1024);
+    json << "{";
+
+    if (map == nullptr)
+    {
+        json << "\"version\":0,\"lowestNote\":0,\"highestNote\":0,"
+             << "\"numVelocityLayers\":1,\"slots\":[],\"skippedFiles\":[]}";
+        return json;
+    }
+
+    json << "\"version\":"           << map->version
+         << ",\"lowestNote\":"       << map->lowestNote
+         << ",\"highestNote\":"      << map->highestNote
+         << ",\"numVelocityLayers\":" << map->numVelocityLayers
+         << ",\"slots\":[";
+
+    bool firstSlot = true;
+    for (const auto& s : map->slots)
+    {
+        if (! firstSlot) json << ",";
+        firstSlot = false;
+
+        const int lengthSamples = (s.audio != nullptr) ? s.audio->getNumSamples() : 0;
+
+        json << "{"
+             << "\"midiNote\":"          << s.midiNote
+             << ",\"velocityLayer\":"    << s.velocityLayer
+             << ",\"filename\":"         << juce::JSON::toString (juce::var (s.filename))
+             << ",\"lengthSamples\":"    << lengthSamples
+             << ",\"sourceSampleRate\":" << juce::String (s.sourceSampleRate, 4)
+             << ",\"loopStart\":"        << s.loopStart
+             << ",\"loopEnd\":"          << s.loopEnd
+             << ",\"loopMode\":\""       << loopModeToString (s.loopMode) << "\""
+             << "}";
+    }
+    json << "],\"skippedFiles\":[";
+
+    bool firstSkip = true;
+    for (const auto& sf : lastSkippedFiles)
+    {
+        if (! firstSkip) json << ",";
+        firstSkip = false;
+        json << juce::JSON::toString (juce::var (sf));
+    }
+    json << "]}";
+
+    return json;
+}
+
+//==============================================================================
+// Phase 3.1: skeleton — full impl in 3.4. Returns empty object so JS callers
+// do not crash on `JSON.parse(await getWaveformPeaks(...))`.
+juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPitch,
+                                                                      int velocityLayer,
+                                                                      int targetBins) const
+{
+    juce::ignoreUnused (midiPitch, velocityLayer, targetBins);
+    return "{}";
 }
 
 //==============================================================================

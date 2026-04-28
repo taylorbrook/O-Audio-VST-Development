@@ -11,6 +11,7 @@
 
 #include "SampleLoader.h"
 #include "FilenameParser.h"
+#include "LoopDetector.h"
 
 #include <cmath>
 #include <utility>
@@ -169,28 +170,49 @@ void SampleLoader::run()
         }
 
         // 5. Mono → stereo promotion (D2-10). All slots stored as stereo.
+        // Phase 3.1: audio is now held via shared_ptr<AudioBuffer<float>> so
+        // future SampleMap deep-copies (per-cell replace, loop override) only
+        // copy a pointer per slot, not the audio bytes (RQ3-3).
         SampleSlot slot;
-        slot.audio.setSize (2, outNumSamples);
-        slot.audio.clear();
+        slot.audio = std::make_shared<juce::AudioBuffer<float>> (2, outNumSamples);
+        slot.audio->clear();
 
         if (srcChannels == 1)
         {
             // Duplicate mono into both channels at unity gain.
-            slot.audio.copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
-            slot.audio.copyFrom (1, 0, workBuf, 0, 0, outNumSamples);
+            slot.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
+            slot.audio->copyFrom (1, 0, workBuf, 0, 0, outNumSamples);
         }
         else
         {
             // Stereo+ → take first two channels.
-            slot.audio.copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
-            slot.audio.copyFrom (1, 0, workBuf, 1, 0, outNumSamples);
+            slot.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
+            slot.audio->copyFrom (1, 0, workBuf, 1, 0, outNumSamples);
         }
 
         slot.sourceSampleRate = targetSampleRate;   // host-SR after resample
         slot.midiNote         = parsed->midiNote;
         slot.velocityLayer    = parsed->velLayer;
-        slot.loopStart        = 0;
-        slot.loopEnd          = 0;                  // Phase 2.5 fills loop fields
+        slot.filename         = displayName;        // Phase 3.1: basename for UI
+
+        // 6. Phase 2.5: detect sustain loop region. Invalid → one-shot fallback.
+        const auto region = LoopDetector::detectLoop (*slot.audio, targetSampleRate);
+        if (region.valid)
+        {
+            slot.loopStart = region.loopStart;
+            slot.loopEnd   = region.loopEnd;
+            slot.loopMode  = LoopMode::Auto;        // Phase 3.1
+            DBG ("SampleLoader: loop detected for " << displayName
+                 << " [" << region.loopStart << ", " << region.loopEnd
+                 << "] (" << (region.loopEnd - region.loopStart) << " samples)");
+        }
+        else
+        {
+            slot.loopStart = 0;
+            slot.loopEnd   = 0;                     // one-shot fallback (EC-7)
+            slot.loopMode  = LoopMode::OneShot;     // Phase 3.1
+            DBG ("SampleLoader: no loop region for " << displayName << " (one-shot)");
+        }
 
         builtSlots.push_back (std::move (slot));
     }

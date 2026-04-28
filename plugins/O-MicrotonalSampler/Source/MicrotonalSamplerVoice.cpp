@@ -2,7 +2,7 @@
   ==============================================================================
 
     MicrotonalSamplerVoice.cpp
-    Microtonal Sample Engine - Synthesiser Voice (Phase 2.1 + 2.3)
+    Microtonal Sample Engine - Synthesiser Voice (Phase 2.1 + 2.3 + 2.4 + 2.5)
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -52,14 +52,32 @@
       - JUCE's default findVoiceToSteal kept (R1, D2-2 satisfied by default).
         `synthesiser.setNoteStealingEnabled(true)` already set in processor.
 
-    Phase 2.5 will activate the loop-wrap branch of cubicInterp + 8-sample
-    boundary crossfade.
+    Phase 2.5 implementation (this file):
+      - 8-entry equal-power crossfade LUT (`loopXfadeLut()`), built once at
+        static-init via an immediately-invoked lambda. Used in the
+        [loopEnd - 8, loopEnd) window of every per-sample read.
+      - `readSlotWithLoop()` consolidates the loop-aware read: standard
+        cubicInterp pre-crossfade region; equal-power blend of
+        outSample (no-wrap natural decay past loopEnd) and inSample
+        (wrapped post-loop head) inside the fade region. One-shot path
+        (loopEnd <= 0) preserves the Phase 2.3 EC-4 hold-last-sample read
+        bit-exact.
+      - `wrapLoopPosition()` advances the integer wrap step at the end of
+        each per-sample iteration so reads always see canonical positions
+        in [0, loopEnd) for looped slots. Uses a while-loop defensively
+        against very high playRate values.
+      - Both `renderNextBlock` and `renderTailRamp` use the same helpers
+        (the steal-tail ramp also crossfades through loop boundaries).
+      - Loop regions are populated by `LoopDetector::detectLoop` on the
+        loader thread (Source/LoopDetector.{h,cpp}); the voice never sees
+        analysis cost.
 
   ==============================================================================
 */
 
 #include "MicrotonalSamplerVoice.h"
 
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <utility>
@@ -87,6 +105,34 @@ namespace
     {
         const float t = juce::jlimit (0.0f, 1.0f, x) * juce::MathConstants<float>::halfPi;
         return { std::cos (t), std::sin (t) };
+    }
+
+    //==============================================================================
+    // Phase 2.5: 8-sample equal-power crossfade LUT for sustain-loop boundary.
+    //
+    // Built once at static-init via an immediately-invoked lambda (std::cos /
+    // std::sin are not yet portably constexpr in JUCE 8's supported toolchains).
+    // Indexed [0..7]; index i corresponds to fade position x = i / 8.
+    //   - kLoopXfadeLUT[0] ≈ (1.000, 0.000) — fully outgoing (pre-wrap material)
+    //   - kLoopXfadeLUT[7] ≈ (0.195, 0.981) — almost fully incoming (post-wrap)
+    // First = outgoing weight (sample read pre-wrap), second = incoming
+    // (sample read from loopStart side).
+    //
+    // The 8-sample crossfade at the loop boundary masks the discontinuity that
+    // a hard wrap would otherwise cause (RESEARCH RQ-2 / D2-4). Eight samples
+    // is enough to suppress the click for typical pitched material while
+    // costing only one extra cubicInterp read per sample inside the fade
+    // region — and only inside that region (PERF-02).
+    static const std::array<std::pair<float, float>, 8>& loopXfadeLut() noexcept
+    {
+        static const std::array<std::pair<float, float>, 8> lut = []()
+        {
+            std::array<std::pair<float, float>, 8> a {};
+            for (int i = 0; i < 8; ++i)
+                a[(size_t) i] = equalPowerWeights ((float) i / 8.0f);
+            return a;
+        }();
+        return lut;
     }
 
     //==============================================================================
@@ -138,6 +184,72 @@ namespace
         return y1 + offset * ((0.5f * y2 - halfY0)
                   + (offset * (((y0 + 2.0f * y2) - (halfY3 + 2.5f * y1))
                   + (offset * ((halfY3 + 1.5f * y1) - (halfY0 + 1.5f * y2))))));
+    }
+
+    //==============================================================================
+    // Phase 2.5: read a single sample from a slot buffer, applying the 8-sample
+    // equal-power loop crossfade if `pos` is inside the boundary region.
+    //
+    //   - One-shot path (loopEnd <= 0): clamp `pos` to N-1 (EC-4 hold-last-sample
+    //     under cubicInterp's no-wrap mode). Bit-exact with the Phase 2.3
+    //     verified path.
+    //   - Looped path, pos < loopEnd - 8: standard cubicInterp with wrap.
+    //   - Looped path, loopEnd - 8 ≤ pos < loopEnd: crossfade between
+    //         outSample = cubicInterp(buf, N, pos, no-wrap)         (natural decay)
+    //         inSample  = cubicInterp(buf, N, pos - loopLen, lpStart, lpEnd)
+    //                                                                (wrapped post-loop head)
+    //     using the static equal-power LUT. The 4-tap context of `outSample` reads
+    //     into [loopEnd, loopEnd+2] — natural source continuation past the loop —
+    //     while `inSample` reads from [loopStart, loopStart+2] — the audio that
+    //     plays AFTER the wrap. Crossfading masks the boundary discontinuity.
+    //
+    // Wrapping `pos >= loopEnd` back into the loop region is the caller's job
+    // (done at end of each per-sample iteration so reads always see canonical
+    // positions in [0, loopEnd) for looped slots).
+    static inline float readSlotWithLoop (const float* buf, int N, double pos,
+                                          int lpStart, int lpEnd) noexcept
+    {
+        if (lpEnd <= 0)
+        {
+            const double clamped = juce::jmin (pos, (double) (N - 1));
+            return cubicInterp (buf, N, clamped, 0, 0);
+        }
+
+        const int lpLen = lpEnd - lpStart;
+        if (lpLen <= 0)
+        {
+            const double clamped = juce::jmin (pos, (double) (N - 1));
+            return cubicInterp (buf, N, clamped, 0, 0);
+        }
+
+        const double fadeStart = (double) (lpEnd - 8);
+        if (pos < fadeStart)
+            return cubicInterp (buf, N, pos, lpStart, lpEnd);
+
+        // Crossfade region: [loopEnd - 8, loopEnd).
+        int xIdx = (int) std::floor (pos - fadeStart);
+        if (xIdx < 0) xIdx = 0;
+        if (xIdx > 7) xIdx = 7;
+
+        const auto& w = loopXfadeLut()[(size_t) xIdx];
+
+        const float outSample = cubicInterp (buf, N, pos,                  0,       0);
+        const float inSample  = cubicInterp (buf, N, pos - (double) lpLen, lpStart, lpEnd);
+
+        return outSample * w.first + inSample * w.second;
+    }
+
+    // Phase 2.5: advance and wrap a position cursor for a looped slot.
+    // Idempotent — wraps zero or more times; while-loop is defensive against
+    // playRate values that exceed the loop length (rare but possible at extreme
+    // pitch shifts). Caller already increments `pos`; this only handles wrap.
+    static inline void wrapLoopPosition (double& pos, int lpStart, int lpEnd) noexcept
+    {
+        if (lpEnd <= 0) return;
+        const int lpLen = lpEnd - lpStart;
+        if (lpLen <= 0) return;
+        while (pos >= (double) lpEnd)
+            pos -= (double) lpLen;
     }
 
     //==============================================================================
@@ -222,13 +334,16 @@ void MicrotonalSamplerVoice::renderTailRamp (int rampSamples) noexcept
     const float lastEnv = adsr.getNextSample();
 
     // ---- Resolve per-slot read pointers (mirrors renderNextBlock) ----
-    const int    slotLowN        = slotLow->audio.getNumSamples();
-    const int    slotLowChannels = slotLow->audio.getNumChannels();
+    // Phase 3.1: slot->audio is now std::shared_ptr<AudioBuffer<float>>. Empty
+    // shared_ptr (nullptr buffer) yields zero-fill defensive path below.
+    const juce::AudioBuffer<float>* lowBuf = slotLow->audio.get();
+    const int    slotLowN        = (lowBuf != nullptr) ? lowBuf->getNumSamples()  : 0;
+    const int    slotLowChannels = (lowBuf != nullptr) ? lowBuf->getNumChannels() : 0;
     const float* readLowL        = (slotLowChannels > 0)
-                                       ? slotLow->audio.getReadPointer (0)
+                                       ? lowBuf->getReadPointer (0)
                                        : nullptr;
     const float* readLowR        = (slotLowChannels > 1)
-                                       ? slotLow->audio.getReadPointer (1)
+                                       ? lowBuf->getReadPointer (1)
                                        : readLowL;  // mono → duplicate (D2-10)
 
     if (readLowL == nullptr || slotLowN <= 0)
@@ -245,14 +360,15 @@ void MicrotonalSamplerVoice::renderTailRamp (int rampSamples) noexcept
     const int slotLowLoopEnd   = slotLow->loopEnd;
 
     // High slot (optional, dual-slot crossfade preserved during the tail).
-    const bool         haveHigh         = (slotHigh != nullptr);
-    const int          slotHighN        = haveHigh ? slotHigh->audio.getNumSamples()  : 0;
-    const int          slotHighChannels = haveHigh ? slotHigh->audio.getNumChannels() : 0;
+    const juce::AudioBuffer<float>* highBuf = (slotHigh != nullptr) ? slotHigh->audio.get() : nullptr;
+    const bool         haveHigh         = (highBuf != nullptr);
+    const int          slotHighN        = haveHigh ? highBuf->getNumSamples()  : 0;
+    const int          slotHighChannels = haveHigh ? highBuf->getNumChannels() : 0;
     const float* const readHighL        = (haveHigh && slotHighChannels > 0)
-                                              ? slotHigh->audio.getReadPointer (0)
+                                              ? highBuf->getReadPointer (0)
                                               : nullptr;
     const float* const readHighR        = (haveHigh && slotHighChannels > 1)
-                                              ? slotHigh->audio.getReadPointer (1)
+                                              ? highBuf->getReadPointer (1)
                                               : readHighL;
     const int          slotHighLoopStart = haveHigh ? slotHigh->loopStart : 0;
     const int          slotHighLoopEnd   = haveHigh ? slotHigh->loopEnd   : 0;
@@ -264,30 +380,24 @@ void MicrotonalSamplerVoice::renderTailRamp (int rampSamples) noexcept
         // at i=rampSamples-1 → lastEnv * (1/rampSamples) (last non-zero step).
         const float ramp = lastEnv * (1.0f - (float) i / (float) rampSamples);
 
-        // ---- Low slot read (EC-4 hold per renderNextBlock) ----
-        const double readPosLow = (slotLowLoopEnd == 0)
-                                      ? juce::jmin (posLow, (double) (slotLowN - 1))
-                                      : posLow;
-        const float lLow = cubicInterp (readLowL, slotLowN, readPosLow,
-                                        slotLowLoopStart, slotLowLoopEnd);
+        // ---- Low slot read (Phase 2.5 loop crossfade if applicable) ----
+        const float lLow = readSlotWithLoop (readLowL, slotLowN, posLow,
+                                             slotLowLoopStart, slotLowLoopEnd);
         const float rLow = (slotLowChannels > 1)
-                               ? cubicInterp (readLowR, slotLowN, readPosLow,
-                                              slotLowLoopStart, slotLowLoopEnd)
+                               ? readSlotWithLoop (readLowR, slotLowN, posLow,
+                                                   slotLowLoopStart, slotLowLoopEnd)
                                : lLow;
 
-        // ---- High slot read (optional, EC-4 per slot) ----
+        // ---- High slot read (optional) ----
         float lHigh = 0.0f;
         float rHigh = 0.0f;
         if (highValid)
         {
-            const double readPosHigh = (slotHighLoopEnd == 0)
-                                           ? juce::jmin (posHigh, (double) (slotHighN - 1))
-                                           : posHigh;
-            lHigh = cubicInterp (readHighL, slotHighN, readPosHigh,
-                                 slotHighLoopStart, slotHighLoopEnd);
+            lHigh = readSlotWithLoop (readHighL, slotHighN, posHigh,
+                                      slotHighLoopStart, slotHighLoopEnd);
             rHigh = (slotHighChannels > 1)
-                        ? cubicInterp (readHighR, slotHighN, readPosHigh,
-                                       slotHighLoopStart, slotHighLoopEnd)
+                        ? readSlotWithLoop (readHighR, slotHighN, posHigh,
+                                            slotHighLoopStart, slotHighLoopEnd)
                         : lHigh;
         }
 
@@ -298,10 +408,14 @@ void MicrotonalSamplerVoice::renderTailRamp (int rampSamples) noexcept
         stealTailBufferL[(size_t) i] = yL;
         stealTailBufferR[(size_t) i] = yR;
 
-        // ---- Advance per-slot cursors ----
+        // ---- Advance + wrap per-slot cursors (Phase 2.5) ----
         posLow += playRateLow;
+        wrapLoopPosition (posLow, slotLowLoopStart, slotLowLoopEnd);
         if (highValid)
+        {
             posHigh += playRateHigh;
+            wrapLoopPosition (posHigh, slotHighLoopStart, slotHighLoopEnd);
+        }
     }
 }
 
@@ -571,13 +685,17 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
     }
 
     // ---------- Resolve per-slot read pointers ----------
-    const int    slotLowN        = slotLow->audio.getNumSamples();
-    const int    slotLowChannels = slotLow->audio.getNumChannels();
+    // Phase 3.1: slot->audio is now std::shared_ptr<AudioBuffer<float>>. The
+    // map snapshot held by `currentMap` keeps the buffer alive for the note
+    // duration even if the map gets replaced mid-note (Stage 2 EC-3).
+    const juce::AudioBuffer<float>* lowBuf = slotLow->audio.get();
+    const int    slotLowN        = (lowBuf != nullptr) ? lowBuf->getNumSamples()  : 0;
+    const int    slotLowChannels = (lowBuf != nullptr) ? lowBuf->getNumChannels() : 0;
     const float* readLowL        = (slotLowChannels > 0)
-                                       ? slotLow->audio.getReadPointer (0)
+                                       ? lowBuf->getReadPointer (0)
                                        : nullptr;
     const float* readLowR        = (slotLowChannels > 1)
-                                       ? slotLow->audio.getReadPointer (1)
+                                       ? lowBuf->getReadPointer (1)
                                        : readLowL;  // mono → duplicate (D2-10)
 
     if (readLowL == nullptr || slotLowN <= 0)
@@ -593,14 +711,15 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
     const int    slotLowLoopEnd   = slotLow->loopEnd;  // 0 = no loop in 2.3
 
     // High slot is optional (Phase 2.3 dual-slot crossfade).
-    const bool         haveHigh         = (slotHigh != nullptr);
-    const int          slotHighN        = haveHigh ? slotHigh->audio.getNumSamples()  : 0;
-    const int          slotHighChannels = haveHigh ? slotHigh->audio.getNumChannels() : 0;
+    const juce::AudioBuffer<float>* highBuf = (slotHigh != nullptr) ? slotHigh->audio.get() : nullptr;
+    const bool         haveHigh         = (highBuf != nullptr);
+    const int          slotHighN        = haveHigh ? highBuf->getNumSamples()  : 0;
+    const int          slotHighChannels = haveHigh ? highBuf->getNumChannels() : 0;
     const float* const readHighL        = (haveHigh && slotHighChannels > 0)
-                                              ? slotHigh->audio.getReadPointer (0)
+                                              ? highBuf->getReadPointer (0)
                                               : nullptr;
     const float* const readHighR        = (haveHigh && slotHighChannels > 1)
-                                              ? slotHigh->audio.getReadPointer (1)
+                                              ? highBuf->getReadPointer (1)
                                               : readHighL;
     const int          slotHighLoopStart = haveHigh ? slotHigh->loopStart : 0;
     const int          slotHighLoopEnd   = haveHigh ? slotHigh->loopEnd   : 0;
@@ -614,20 +733,15 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
     {
         const float env = adsr.getNextSample();
 
-        // ---- Low slot read (always present at this point) ----
-        // EC-4 per slot: end-of-sample with no loop → hold last sample value
-        // × env (cubicInterp clamps via its wrap when loopEnd == 0; clamping
-        // posLow to slotLowN-1 produces buf[N-1] which decays cleanly under
-        // ADSR release).
-        const double readPosLow = (slotLowLoopEnd == 0)
-                                      ? juce::jmin (posLow, (double) (slotLowN - 1))
-                                      : posLow;
-
-        const float lLow = cubicInterp (readLowL, slotLowN, readPosLow,
-                                        slotLowLoopStart, slotLowLoopEnd);
+        // ---- Low slot read ----
+        // Phase 2.5: readSlotWithLoop applies 8-sample equal-power crossfade
+        // in [loopEnd - 8, loopEnd) when loopEnd > 0; otherwise it preserves
+        // the Phase 2.3 EC-4 hold-last-sample path bit-exact (one-shot).
+        const float lLow = readSlotWithLoop (readLowL, slotLowN, posLow,
+                                             slotLowLoopStart, slotLowLoopEnd);
         const float rLow = (slotLowChannels > 1)
-                               ? cubicInterp (readLowR, slotLowN, readPosLow,
-                                              slotLowLoopStart, slotLowLoopEnd)
+                               ? readSlotWithLoop (readLowR, slotLowN, posLow,
+                                                   slotLowLoopStart, slotLowLoopEnd)
                                : lLow;
 
         // ---- High slot read (Phase 2.3, optional) ----
@@ -635,16 +749,11 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
         float rHigh = 0.0f;
         if (highValid)
         {
-            // EC-4 per slot — independently of low.
-            const double readPosHigh = (slotHighLoopEnd == 0)
-                                           ? juce::jmin (posHigh, (double) (slotHighN - 1))
-                                           : posHigh;
-
-            lHigh = cubicInterp (readHighL, slotHighN, readPosHigh,
-                                 slotHighLoopStart, slotHighLoopEnd);
+            lHigh = readSlotWithLoop (readHighL, slotHighN, posHigh,
+                                      slotHighLoopStart, slotHighLoopEnd);
             rHigh = (slotHighChannels > 1)
-                        ? cubicInterp (readHighR, slotHighN, readPosHigh,
-                                       slotHighLoopStart, slotHighLoopEnd)
+                        ? readSlotWithLoop (readHighR, slotHighN, posHigh,
+                                            slotHighLoopStart, slotHighLoopEnd)
                         : lHigh;
         }
 
@@ -658,10 +767,14 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
         if (outChans > 0) out.addSample (0, startSample + i, yL);
         if (outChans > 1) out.addSample (1, startSample + i, yR);
 
-        // ---- Advance fractional cursors (per-slot) ----
+        // ---- Advance + wrap fractional cursors (per-slot) ----
         posLow += playRateLow;
+        wrapLoopPosition (posLow, slotLowLoopStart, slotLowLoopEnd);
         if (highValid)
+        {
             posHigh += playRateHigh;
+            wrapLoopPosition (posHigh, slotHighLoopStart, slotHighLoopEnd);
+        }
 
         // If the ADSR has finished, stop. Both slot pointers are reset so
         // subsequent blocks early-out at the top.

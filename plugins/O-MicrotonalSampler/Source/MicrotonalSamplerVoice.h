@@ -9,7 +9,7 @@
     Phase 2.1 surface: cubic-Hermite varispeed read + ADSR + NE consumption.
     Phase 2.3: dual-slot equal-power velocity-layer crossfade.
     Phase 2.4: voice-steal tail-ramp scratch buffers (5 ms linear-down).
-    Loop wrap (2.5) lands later.
+    Phase 2.5: 8-sample equal-power loop boundary crossfade + position wrap.
 
   ==============================================================================
 */
