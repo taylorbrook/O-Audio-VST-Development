@@ -2,28 +2,25 @@
 plugin: O-MicrotonalSampler
 stage: 2-dsp
 phase: execute
-status: phase_2_3_code_complete_awaiting_build
+status: phase_2_3_gate_3_pass
 last_updated: 2026-04-27
 ---
 
 # Resume Point
 
-## Current State: Phase 2.3 — Code Complete, Awaiting User Build + Verify + Commit
+## Current State: Phase 2.3 Gate 3 PASS — Ready for Phase 2.4
 
 Equal-power velocity-layer crossfade implemented in voice DSP (Tasks 16–19).
 `std::atomic_load` carry-over fix from Phase 2.2 landed alongside.
-Test fixture generator (`tests/fixtures/4-layer/generate.py`) committed.
+Test fixture (`tests/fixtures/4-layer/generate.py` + 4 generated WAVs) committed.
 
-**Gate 3 closure pending user execution** of:
-1. Triple-target build (`ninja O-MicrotonalSampler_VST3 O-MicrotonalSampler_AU O-MicrotonalSampler_Standalone`)
-2. Cache-clear + fresh install per CLAUDE.md
-3. `pluginval --strictness 5` (must be clean — zero allocations in processBlock)
-4. (Optional, recommended) Run `tests/fixtures/4-layer/generate.py` and DAW-load to validate subjective audible crossfade
-5. Atomic commit with message: `feat(O-MicrotonalSampler): equal-power velocity-layer crossfade - Phase 2.3 Gate 3 PASS`
+Triple build green. `pluginval --strictness 5 --validate-in-process --skip-gui-tests` clean. `auval -v aumu OMtS OuDv` succeeded. Commit: `11bd39c`.
 
-Recipe lives in `.planning/stages/2-dsp/PHASE-2.3-SUMMARY.md` "Recipe for User to Close Gate 3" section.
+Subjective DAW checks (audible velocity sweep, hard-switch at xfade=0,
+max overlap at xfade=1, vel=64 dual-contribution at 0.707/0.707) deferred
+to `/plugin-verify` time.
 
-Stage 2 progress: **2 of 5 sub-stages fully closed** (2.1 ✓, 2.2 ✓, 2.3 code-complete, 2.4 next, 2.5).
+Stage 2 progress: **3 of 5 sub-stages complete** (2.1 ✓, 2.2 ✓, 2.3 ✓, 2.4 next, 2.5).
 
 ## Completed So Far
 
@@ -34,7 +31,7 @@ Stage 2 progress: **2 of 5 sub-stages fully closed** (2.1 ✓, 2.2 ✓, 2.3 code
 **Stage 2 Plan:** ✓ Complete (PLAN.md, 2026-04-27)
 **Stage 2 Phase 2.1:** ✓ Gate 1 PASS — cubic-Hermite varispeed voice + ADSR + NE (commit `bb0e7f7`)
 **Stage 2 Phase 2.2:** ✓ Gate 2 PASS — background loader + filename parser + SR conversion (commit `cacffda`)
-**Stage 2 Phase 2.3:** 🟡 Code-complete — equal-power velocity-layer crossfade (no commit yet)
+**Stage 2 Phase 2.3:** ✓ Gate 3 PASS — equal-power velocity-layer crossfade (commit `11bd39c`)
 
 ## Stage 2 Locked Decisions (D2-1..D2-12)
 
@@ -78,7 +75,6 @@ now uses `std::atomic_load(sampleMapSource)` under the same
 
 ## Next Steps
 
-1. **User: Close Phase 2.3 Gate 3** — follow recipe in `PHASE-2.3-SUMMARY.md`. Build + pluginval + commit.
-2. **Phase 2.4 Execute** — `/plugin-execute O-MicrotonalSampler 2-dsp` (continues to Phase 2.4: voice-steal 5-ms ramp, Tasks 21–28, Gate 4)
-3. Remaining sub-stages: 2.4 → 2.5 → full Stage 2 verify
-4. UI mockup (parallelizable any time before Stage 3) — `/ui-mockup O-MicrotonalSampler`
+1. **Phase 2.4 Execute (next)** — `/plugin-execute O-MicrotonalSampler 2-dsp` (continues to Phase 2.4: voice-steal 5-ms ramp, Tasks 21–28, Gate 4)
+2. Remaining sub-stages: 2.4 → 2.5 → full Stage 2 verify
+3. UI mockup (parallelizable any time before Stage 3) — `/ui-mockup O-MicrotonalSampler`

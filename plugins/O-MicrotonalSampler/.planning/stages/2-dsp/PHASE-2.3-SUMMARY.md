@@ -3,23 +3,28 @@ title: "O-MicrotonalSampler Phase 2.3 — Implementation Summary"
 created: 2026-04-27
 stage: 2-dsp
 phase: 2.3
-status: code_complete_awaiting_build
-commit_sha: pending_user_build_and_commit
+status: gate_3_pass
+commit_sha: 11bd39c
 ---
 
 # Phase 2.3 — Implementation Summary
 
 ## Status
 
-**Code-complete; build / pluginval / commit pending user execution.**
+**Gate 3 PASS — committed.**
 
-The DSP agent invoked for this phase has no shell-execution capability in
-its sandbox — it can read/write files but cannot invoke `ninja`, `pluginval`,
-or `git commit`. All code, the test-fixture generator, and this summary
-landed via direct file edits. The remaining gate steps (build triple-target,
-install per CLAUDE.md cache-clearing, run pluginval `--strictness 5`, run
-the WAV generator, atomic commit) are listed at the bottom of this doc as
-a copy-paste recipe for the user.
+Code landed via the dsp-agent (no shell access in its sandbox). The
+orchestrator (main session) ran the remaining gate steps:
+
+- Triple build (`ninja O-MicrotonalSampler_VST3 O-MicrotonalSampler_AU O-MicrotonalSampler_Standalone`) — green.
+- Install per CLAUDE.md cache-clearing protocol.
+- `pluginval --strictness 5 --validate-in-process --skip-gui-tests` — clean (zero failures, zero allocs).
+- `auval -v aumu OMtS OuDv` — `AU VALIDATION SUCCEEDED`.
+- Atomic commit `11bd39c`.
+
+Subjective DAW checks (audible velocity sweep, hard-switch at xfade=0,
+max overlap at xfade=1, vel=64 dual-contribution at 0.707/0.707) are
+deferred to `/plugin-verify` time.
 
 ## Tasks Completed (code level)
 
@@ -29,7 +34,7 @@ a copy-paste recipe for the user.
 | 17 | Equal-power layer-weight computation in `startNote` — reads `velocity_crossfade` from APVTS once at note-on, computes layerCenter / distanceCenter / fadeWidth, picks adjacent layer when in fade region, derives `(wPrim, wAdj)` via `equalPowerWeights`, computes per-slot `playRateLow` / `playRateHigh` independently. EC-5 verified analytically (vel=64 with 4 layers + xfade=1.0 → both layers at 0.707). | `Source/MicrotonalSamplerVoice.cpp` | DONE |
 | 18 | `equalPowerWeights(float x)` helper in anonymous namespace. Returns `(cos(x·π/2), sin(x·π/2))`; clamped via `juce::jlimit`. Inline trig is cheap at note-rate. | `Source/MicrotonalSamplerVoice.cpp` | DONE |
 | 19 | Dual-slot mix in `renderNextBlock` — when `slotHigh != nullptr`, output is `(lLow·wLow + lHigh·wHigh) · env` per channel. Per-slot EC-4 (end-of-sample hold) honoured independently. `juce::ScopedNoDenormals` added at top. Allocation-free, lock-free. | `Source/MicrotonalSamplerVoice.cpp` | DONE |
-| 20 | Phase 2.3 Gate 3 verification — code complete, **awaiting user-side build + pluginval + commit**. | (build artefacts) | PENDING |
+| 20 | Phase 2.3 Gate 3 verification — triple build green, pluginval `--strictness 5` clean, auval succeeded, commit `11bd39c`. | (build artefacts) | DONE |
 
 ## Bonus: std::atomic_load Carry-Over Fix (Phase 2.2 Known Issue)
 
