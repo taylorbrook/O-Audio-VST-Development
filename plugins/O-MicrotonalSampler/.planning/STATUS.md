@@ -1,14 +1,63 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 3-gui
-phase: 3.3
-status: phase_3.3_gate_pass
+phase: 3.4
+status: phase_3.4_gate_pass
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 3.3 GATE PASS — Ready for Phase 3.4
+## Current State: Phase 3.4 GATE PASS — Ready for Phase 3.5
+
+`/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.4 produced
+`.planning/stages/3-gui/PHASE-3.4-SUMMARY.md` and overwrote
+`gate-report.json` (phase 3.4). Tasks 23–28 implemented.
+
+**Phase 3.4 deliverables:**
+- `OMicrotonalSamplerAudioProcessor::overrideLoopPoints` full impl
+  (atomic deep-copy via `std::make_shared<SampleMap>(*current)` + slot
+  mutation + version bump + callback). Manual override sets
+  `LoopMode::Manual`; `resetToAutoDetect=true` re-runs
+  `LoopDetector::detectLoop` and writes `Auto` (valid) or `OneShot`
+  (invalid).
+- New `OMicrotonalSamplerAudioProcessor::resetLoopToAutoDetect(midi, vel)`
+  convenience wrapper.
+- `OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks` full impl —
+  per-bin min/max scan over slot audio, `framesPerBin = numFrames/bins`,
+  sum-of-channels mixdown; emits `juce::DynamicObject` with peaks +
+  meta per RESEARCH §RQ3-5 schema (midiNote, velocityLayer,
+  lengthSamples, sourceSampleRate, loopStart, loopEnd, loopMode,
+  filename, peaks). Single-pass O(N), ≈1 ms / 5 s sample at 48 kHz.
+- Three native function skeletons replaced with full impls in
+  `PluginEditor.cpp`: `getWaveformPeaks(midi, vel, bins=512)`,
+  `overrideLoopPoints(midi, vel, start, end, xfade=8)`,
+  `resetLoopToAutoDetect(midi, vel)`.
+- `Resources/ui/index.html` — `#loop-editor-panel` populated (header
+  with filename · MIDI · L<vel> + close X, canvas wrap, meta row,
+  Reset/Cancel/Apply actions).
+- `Resources/ui/css/sampler-shell.css` — full panel slide-in (350 ms
+  ease, `body.le-open` grid reflow with `padding-right: calc(...
+  + 360px)`); canvas sized via `width: calc(100% - 0px); height: 200px`
+  (memory pitfall #6 — never `position: absolute` with `left+right`).
+- `Resources/ui/js/sampler-app.js` — loop-editor module:
+  `openLoopEditor(midi, vel)` async fetch + render; `redrawLoopEditor`
+  with DPR-aware backing store + warm-brown stroke + antique-gold fill
+  envelope + draggable markers (gold start, rust-red end, 8-px
+  hit-tolerance, 16-sample min gap); pointer-event drag with
+  `setPointerCapture`; Apply emits toast `"New loop points apply to
+  next note-on."` (EC3-6); Reset disabled + tooltip when one-shot
+  (EC3-7); Esc/X/Cancel close; `ResizeObserver` re-renders on canvas
+  size change.
+- `handleCellSingleClick` for cell-loaded now calls `openLoopEditor`
+  (replaces Phase 3.2 placeholder); context menu open-loop-editor
+  routes to same.
+- `handleSampleMapSnapshot` syncs editor state when open + not
+  mid-drag so loop-mode label stays consistent after Apply.
+
+**Gate:** triple build green, cache-clear+install per CLAUDE.md, pluginval --strictness 5 SUCCESS, auval AU VALIDATION SUCCEEDED.
+
+## Previous State: Phase 3.3 GATE PASS
 
 `/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.3 produced
 `.planning/stages/3-gui/PHASE-3.3-SUMMARY.md` and overwrote
@@ -95,8 +144,8 @@ documented in PHASE-3.1-SUMMARY.md.
 | 3.1 Foundation | WebView shell + Stage 2 invariant + relays + JSON broadcast | infra | d1a0d7a | ✅ PASS |
 | 3.2 Grid | FUNC-06, UI-01 | grid in <100 ms; per-cell replace | 4083582 | ✅ PASS |
 | 3.3 Folder Drop | FUNC-05 | drop = button parity; skipped files surface | aa99790 | ✅ PASS |
-| 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | — | ⏳ next |
-| 3.5 Polish | (visual) | aesthetic + final pluginval gate | — | ⏳ pending |
+| 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | pending atomic commit | ✅ Code + automated gate green |
+| 3.5 Polish | (visual) | aesthetic + final pluginval gate | — | ⏳ next |
 
 ## Previous State: Stage 3 (GUI) PLAN complete
 

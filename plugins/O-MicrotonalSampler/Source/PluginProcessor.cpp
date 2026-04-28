@@ -13,9 +13,12 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "LoopDetector.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <limits>
 #include <utility>
 
 //==============================================================================
@@ -505,7 +508,28 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
 }
 
 //==============================================================================
-// Phase 3.1: loop-point override (skeleton — full impl in 3.4).
+// Phase 3.4: loop-point override + reset-to-auto-detect (full implementation).
+//
+// Pipeline (RESEARCH §RQ3-4 + Phase 3.4 PLAN Task 23):
+//   1. atomic_load currentSampleMap (snapshot).
+//   2. Locate (midi, vel) slot via SampleMap::findSlot.
+//   3. If absent: DBG log + return (no-op).
+//   4. Deep-copy header + slots into next = std::make_shared<SampleMap>(*current)
+//      (cheap — slots hold shared_ptrs to audio buffers).
+//   5. Locate the matching slot in `next->slots` (mutable).
+//   6. Override path: set loopStart, loopEnd, loopMode = Manual.
+//      Reset path: run LoopDetector::detectLoop on slot->audio; on valid →
+//        loopStart/loopEnd from detector + Auto; on invalid → loopStart=loopEnd=0
+//        + OneShot.
+//   7. Bump version. atomic_store. Fire callback.
+//
+// Active-voice retention (Stage 2 EC-3): voices already snapshot
+// std::shared_ptr<SampleMap> at startNote — replacing the map after override
+// keeps held voices on their old snapshot for the held note's duration. New
+// loop region applies on the next note-on (EC3-6).
+//
+// crossfadeLen: recorded in DBG log for v1.1 (per RP3-2: per-slot xfade is a
+// v1.1 candidate — global crossfade stays in voices for v1.0).
 void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
                                                             int velocityLayer,
                                                             int loopStart,
@@ -513,13 +537,129 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
                                                             int crossfadeLen,
                                                             bool resetToAutoDetect)
 {
-    DBG ("overrideLoopPoints (skeleton): midi=" << midiPitch
-         << " vel=" << velocityLayer
-         << " start=" << loopStart << " end=" << loopEnd
-         << " xfade=" << crossfadeLen
-         << " reset=" << (resetToAutoDetect ? "1" : "0"));
-    juce::ignoreUnused (midiPitch, velocityLayer, loopStart, loopEnd,
-                        crossfadeLen, resetToAutoDetect);
+    // Snapshot the current map.
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    auto current = std::atomic_load (&currentSampleMap);
+   #else
+    auto current = currentSampleMap;
+   #endif
+
+    if (current == nullptr)
+    {
+        DBG ("overrideLoopPoints: no current map");
+        return;
+    }
+
+    const auto* foundSlot = current->findSlot (midiPitch, velocityLayer);
+    if (foundSlot == nullptr)
+    {
+        DBG ("overrideLoopPoints: slot absent (midi=" << midiPitch
+             << " vel=" << velocityLayer << ")");
+        return;
+    }
+
+    // Deep-copy header + slot vector. Each slot's audio is a shared_ptr so
+    // this is cheap — vector of pointers + POD fields.
+    auto next = std::make_shared<SampleMap> (*current);
+
+    // Locate the matching slot in the COPIED vector (mutable).
+    SampleSlot* targetSlot = nullptr;
+    for (auto& s : next->slots)
+    {
+        if (s.midiNote == midiPitch && s.velocityLayer == velocityLayer)
+        {
+            targetSlot = &s;
+            break;
+        }
+    }
+
+    if (targetSlot == nullptr)
+    {
+        // Should never happen — current->findSlot found one but next's deep
+        // copy didn't. Defensive bail-out.
+        DBG ("overrideLoopPoints: target slot vanished after deep copy");
+        return;
+    }
+
+    if (resetToAutoDetect)
+    {
+        // Run the auto-detector on the slot's audio buffer. On valid → Auto;
+        // on invalid → OneShot (loop disabled).
+        if (targetSlot->audio == nullptr || targetSlot->audio->getNumSamples() == 0)
+        {
+            DBG ("resetLoopToAutoDetect: empty audio buffer (midi=" << midiPitch
+                 << " vel=" << velocityLayer << ")");
+            targetSlot->loopStart = 0;
+            targetSlot->loopEnd   = 0;
+            targetSlot->loopMode  = LoopMode::OneShot;
+        }
+        else
+        {
+            const auto region = LoopDetector::detectLoop (
+                *targetSlot->audio, targetSlot->sourceSampleRate);
+
+            if (region.valid)
+            {
+                targetSlot->loopStart = region.loopStart;
+                targetSlot->loopEnd   = region.loopEnd;
+                targetSlot->loopMode  = LoopMode::Auto;
+                DBG ("resetLoopToAutoDetect: midi=" << midiPitch
+                     << " vel=" << velocityLayer
+                     << " auto loop=[" << region.loopStart << ", " << region.loopEnd << "]");
+            }
+            else
+            {
+                targetSlot->loopStart = 0;
+                targetSlot->loopEnd   = 0;
+                targetSlot->loopMode  = LoopMode::OneShot;
+                DBG ("resetLoopToAutoDetect: midi=" << midiPitch
+                     << " vel=" << velocityLayer
+                     << " auto-detect invalid → one-shot");
+            }
+        }
+    }
+    else
+    {
+        // Manual override. Clamp to the slot's audio length defensively.
+        const int numSamples = (targetSlot->audio != nullptr)
+                                   ? targetSlot->audio->getNumSamples()
+                                   : 0;
+        const int clampedStart = juce::jlimit (0, juce::jmax (0, numSamples - 1), loopStart);
+        const int clampedEnd   = juce::jlimit (clampedStart + 1,
+                                               juce::jmax (clampedStart + 1, numSamples),
+                                               loopEnd);
+
+        targetSlot->loopStart = clampedStart;
+        targetSlot->loopEnd   = clampedEnd;
+        targetSlot->loopMode  = LoopMode::Manual;
+
+        DBG ("overrideLoopPoints: midi=" << midiPitch
+             << " vel=" << velocityLayer
+             << " manual loop=[" << clampedStart << ", " << clampedEnd << "]"
+             << " xfade=" << crossfadeLen << " (recorded for v1.1; ignored in v1.0)");
+        juce::ignoreUnused (crossfadeLen);
+    }
+
+    // Bump version (every atomic-store).
+    next->version = current->version + 1;
+
+    // Atomic-store. Voices snapshot via shared_ptr copy at startNote.
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    std::atomic_store (&currentSampleMap, next);
+   #else
+    currentSampleMap = next;
+   #endif
+
+    // Notify editor.
+    if (sampleMapChangedCallback)
+        sampleMapChangedCallback();
+}
+
+void OMicrotonalSamplerAudioProcessor::resetLoopToAutoDetect (int midiPitch,
+                                                               int velocityLayer)
+{
+    // Reuse override path with the resetToAutoDetect flag set.
+    overrideLoopPoints (midiPitch, velocityLayer, 0, 0, 0, /*resetToAutoDetect*/ true);
 }
 
 //==============================================================================
@@ -597,14 +737,108 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
 }
 
 //==============================================================================
-// Phase 3.1: skeleton — full impl in 3.4. Returns empty object so JS callers
-// do not crash on `JSON.parse(await getWaveformPeaks(...))`.
+// Phase 3.4: walk the slot's audio buffer and emit per-bin (min, max) pairs.
+// Output JSON per RESEARCH.md §RQ3-5 schema:
+//   { midiNote, velocityLayer, lengthSamples, sourceSampleRate,
+//     loopStart, loopEnd, loopMode, peaks: [[min, max], ...] }
+//
+// Per-bin loop walks `framesPerBin = numFrames / targetBins` samples,
+// summing channels per sample (mono mixdown) then dividing by numChannels
+// for normalization. std::minmax tracks the bin extrema in O(N) total —
+// typical 5 s sample at 48 kHz ≈ 240 k samples ≈ 1 ms on Apple Silicon,
+// message-thread acceptable for the click-driven open path.
 juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPitch,
                                                                       int velocityLayer,
                                                                       int targetBins) const
 {
-    juce::ignoreUnused (midiPitch, velocityLayer, targetBins);
-    return "{}";
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    auto map = std::atomic_load (&currentSampleMap);
+   #else
+    auto map = currentSampleMap;
+   #endif
+
+    auto loopModeToString = [] (LoopMode m) -> const char*
+    {
+        switch (m)
+        {
+            case LoopMode::OneShot: return "one-shot";
+            case LoopMode::Auto:    return "auto";
+            case LoopMode::Manual:  return "manual";
+        }
+        return "one-shot";
+    };
+
+    if (map == nullptr)
+        return "{}";
+
+    const auto* slot = map->findSlot (midiPitch, velocityLayer);
+    if (slot == nullptr || slot->audio == nullptr || slot->audio->getNumSamples() == 0)
+        return "{}";
+
+    const int numFrames   = slot->audio->getNumSamples();
+    const int numChannels = juce::jmax (1, slot->audio->getNumChannels());
+    const int bins        = juce::jlimit (1, juce::jmax (1, numFrames),
+                                          juce::jmax (1, targetBins));
+
+    // framesPerBin floor; the tail-bin absorbs any leftover samples.
+    const int framesPerBin = juce::jmax (1, numFrames / bins);
+
+    juce::var peaksArray = juce::var (juce::Array<juce::var>{});
+    auto* peaksArr = peaksArray.getArray();
+
+    // Reuse one juce::var per bin for the (min, max) pair.
+    for (int b = 0; b < bins; ++b)
+    {
+        const int binStart = b * framesPerBin;
+        // Last bin extends to numFrames to absorb the floor remainder.
+        const int binEnd   = (b == bins - 1) ? numFrames
+                                              : juce::jmin (numFrames, binStart + framesPerBin);
+
+        if (binStart >= numFrames)
+        {
+            juce::var pair (juce::Array<juce::var>{});
+            pair.append (0.0);
+            pair.append (0.0);
+            peaksArr->add (pair);
+            continue;
+        }
+
+        float minV =  std::numeric_limits<float>::infinity();
+        float maxV = -std::numeric_limits<float>::infinity();
+
+        for (int n = binStart; n < binEnd; ++n)
+        {
+            float sum = 0.0f;
+            for (int ch = 0; ch < numChannels; ++ch)
+                sum += slot->audio->getReadPointer (ch)[n];
+            const float v = sum / static_cast<float> (numChannels);
+            if (v < minV) minV = v;
+            if (v > maxV) maxV = v;
+        }
+
+        // Defensive — if the bin happened to be empty (binEnd == binStart),
+        // both extrema remain at +/- infinity. Clamp to 0.
+        if (! std::isfinite (minV)) minV = 0.0f;
+        if (! std::isfinite (maxV)) maxV = 0.0f;
+
+        juce::var pair (juce::Array<juce::var>{});
+        pair.append (static_cast<double> (minV));
+        pair.append (static_cast<double> (maxV));
+        peaksArr->add (pair);
+    }
+
+    auto* obj = new juce::DynamicObject();
+    obj->setProperty ("midiNote",         slot->midiNote);
+    obj->setProperty ("velocityLayer",    slot->velocityLayer);
+    obj->setProperty ("lengthSamples",    numFrames);
+    obj->setProperty ("sourceSampleRate", slot->sourceSampleRate);
+    obj->setProperty ("loopStart",        slot->loopStart);
+    obj->setProperty ("loopEnd",          slot->loopEnd);
+    obj->setProperty ("loopMode",         juce::String (loopModeToString (slot->loopMode)));
+    obj->setProperty ("filename",         slot->filename);
+    obj->setProperty ("peaks",            peaksArray);
+
+    return juce::JSON::toString (juce::var (obj), /*allOnOneLine*/ true);
 }
 
 //==============================================================================

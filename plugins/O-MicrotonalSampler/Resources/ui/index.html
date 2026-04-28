@@ -58,7 +58,31 @@
           <ul id="issues-list"></ul>
         </details>
         <aside id="loop-editor-panel" hidden>
-          <!-- Phase 3.4 -->
+          <header class="loop-editor-header">
+            <h3 class="loop-editor-title">
+              <span id="le-filename">—</span>
+              <span class="loop-editor-sep">·</span>
+              <span id="le-midi">—</span>
+              <span class="loop-editor-sep">·</span>
+              <span>L<span id="le-vel">—</span></span>
+            </h3>
+            <button id="loop-close" class="loop-close-btn" type="button" aria-label="Close loop editor">×</button>
+          </header>
+          <div class="loop-editor-canvas-wrap">
+            <canvas id="waveform-canvas"></canvas>
+          </div>
+          <div class="loop-meta">
+            <span>Loop start: <span id="le-loop-start-ms">0</span> ms</span>
+            <span class="loop-editor-sep">·</span>
+            <span>Loop end: <span id="le-loop-end-ms">0</span> ms</span>
+            <span class="loop-editor-sep">·</span>
+            <span>Mode: <span id="le-loop-mode">—</span></span>
+          </div>
+          <div class="loop-editor-actions">
+            <button id="loop-reset" type="button">Reset to auto-detect</button>
+            <button id="loop-cancel" type="button">Cancel</button>
+            <button id="loop-apply" type="button" class="primary">Apply</button>
+          </div>
         </aside>
         <div id="toast-region" aria-live="polite"></div>
       </section>

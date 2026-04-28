@@ -1,10 +1,10 @@
 {
-  "gate": "phase-3.3",
+  "gate": "phase-3.4",
   "plugin": "O-MicrotonalSampler",
   "stage": "3-gui",
-  "phase": "3.3",
-  "phaseTitle": "Folder drop-zone + skipped-files (FUNC-05)",
-  "timestamp": "2026-04-28T09:30:00Z",
+  "phase": "3.4",
+  "phaseTitle": "Loop-point editor side panel (DSP-06 + UI-02)",
+  "timestamp": "2026-04-28T11:00:00Z",
   "checks": {
     "critical": [
       {
@@ -49,50 +49,45 @@
         "name": "render_harness_identity",
         "status": "skipped",
         "output": "",
-        "error": "Carried forward from Phase 3.1: no render-harness target exists in plugins/O-MicrotonalSampler/tests/. Phase 3.3 introduces zero new audio code paths (folder load was already complete in Phase 2.2; this phase wires the folder path to the existing GUI surfaces). Coverage substituted by pluginval --strictness 5 + auval (both green)."
+        "error": "Carried forward from Phase 3.1: no render-harness target exists in plugins/O-MicrotonalSampler/tests/. Phase 3.4 introduces zero new audio code paths in processBlock or voices — the loop-override path is a pure message-thread SampleMap mutation that voices read via the existing snapshot mechanism (Stage 2 EC-3 invariant). Coverage substituted by pluginval --strictness 5 + auval (both green)."
       }
     ]
   },
   "phaseGateCriteria": [
     {
-      "criterion": "Drag a folder onto the drop zone → identical load to button path; grid populates within Stage 2's typical load time",
+      "criterion": "Click loaded cell → editor opens with waveform render in <250 ms; markers visible at correct loopStart/loopEnd",
       "status": "infrastructure_ready",
-      "note": "filesDropped folder-zone + isDirectory branch invokes processorRef.loadSampleFolder(folder) — byte-identical entry point to the button's loadSampleFolderDialog resolution path. sampleMapUpdated push event triggers renderGrid + publishCellLayout. Manual DAW smoke deferred to user."
+      "note": "getWaveformPeaks is O(N) on slot audio (≈1 ms / 5 s sample at 48 kHz). openLoopEditor awaits JSON, populates header, shows panel, defers redrawLoopEditor one frame so transition settles. Marker positions read from snap.loopStart / snap.loopEnd. Manual DAW timing verification deferred to user."
     },
     {
-      "criterion": "Drag a file (not folder) onto the zone → toast \"Drop a folder, not a file\"; no load",
+      "criterion": "Drag start marker rightward, Apply → next note-on plays from new loop region (audible difference)",
       "status": "infrastructure_ready",
-      "note": "filesDropped folder-zone + non-directory branch emits the toast event via webView->emitEventIfBrowserIsVisible(\"toast\", msg); processor not invoked. JS toast subscriber renders the message in #toast-region with 3 s auto-dismiss."
+      "note": "overrideLoopPoints deep-copies the SampleMap, mutates target slot's loop fields, atomic-stores, fires callback. Voice startNote snapshots the new map; the audible region change applies on the next note-on per Stage 2 EC-3. Toast 'New loop points apply to next note-on.' surfaces the deferred behavior. Manual DAW listening test deferred to user."
     },
     {
-      "criterion": "Drag a folder containing intentionally unparseable filenames → load succeeds for parseable files; skipped files appear in disclosure with reasons",
+      "criterion": "Reset → markers snap back to LoopDetector's auto-detected values; mode reverts to \"auto\"",
       "status": "infrastructure_ready",
-      "note": "processorRef.loadSampleFolder populates lastSkippedFiles in its async completion (Phase 2.2 implementation, unchanged). snapshotSampleMapJson serializes skippedFiles array per RESEARCH §RQ3-2 schema. JS handleSampleMapSnapshot populates <ul id=\"issues-list\"> with one <li> per entry; <details id=\"issues-disclosure\"> summary reads \"Issues (N file(s) skipped)\"."
+      "note": "resetLoopToAutoDetect re-runs LoopDetector::detectLoop on slot->audio. Valid region → LoopMode::Auto + new loop fields. Invalid → LoopMode::OneShot + zeros. JS Reset handler then re-fetches peaks (getWaveformPeaks) carrying the fresh loopStart/loopEnd/loopMode from the new SampleMap; populateLoopEditorHeader + redrawLoopEditor reflect the change."
     },
     {
-      "criterion": "Toast appears on completion when skippedFiles.length > 0; hides cleanly after 3 s",
-      "status": "infrastructure_ready",
-      "note": "showToast() arms a 3000 ms setTimeout; CSS .toast.show transition fades opacity + transform; element removed from DOM 300 ms after fade-out begins. Transition tracking via lastSkippedSignature ensures idle re-renders with the same skip set don't re-toast."
+      "criterion": "Reset disabled when one-shot",
+      "status": "passed",
+      "note": "updateResetButtonState checks isOneShot(snap) against 'one-shot' / 'oneshot' (case-insensitive); disables Reset button (opacity 0.45 + cursor not-allowed) + sets title 'Sample is one-shot — no loop region detected.' (EC3-7)."
     },
     {
-      "criterion": "Drag-hover visual feedback works on macOS (Logic AU + Reaper VST3 + Standalone)",
+      "criterion": "Editor open during active note → marker move + Apply does NOT cut current voice; new loop applies on next note-on (EC3-6)",
       "status": "infrastructure_ready",
-      "note": "fileDragMove + fileDragExit emit hostFileDragMove({x,y}) / hostFileDragExit() events to JS; JS bindHostDragEvents listener computes hit-test against folder-drop-zone's getBoundingClientRect() and toggles .drag-over class. CSS provides dashed-border + inset gold-tinted box-shadow on hover. Manual DAW visual verification deferred to user."
+      "note": "Voices snapshot std::shared_ptr<SampleMap> at startNote and hold for the note's duration (Stage 2 EC-3 invariant). overrideLoopPoints allocates a new SampleMap via std::make_shared<SampleMap>(*current); the old map remains alive transitively for held voices. Apply toast surfaces deferred-application behavior. Manual DAW verification (sustain a note, drag markers, click Apply, observe no cut + next note-on plays new region) deferred to user."
     },
     {
-      "criterion": "Cell + audio-file drop → loadSingleSample (per-cell route)",
+      "criterion": "Canvas crisp on Retina (DPR test); stretches correctly at min/max window sizes",
       "status": "infrastructure_ready",
-      "note": "filesDropped iterates cellLayout (populated by Phase 3.2's reportCellLayout); on (x,y) ∈ cell + .wav/.aif/.aiff ext, invokes processorRef.loadSingleSample(midiNote, velocityLayer, file). Same atomic-store + sampleMapUpdated path as Phase 3.2's per-cell FileChooser."
+      "note": "redrawLoopEditor reads window.devicePixelRatio, sets canvas.width = clientWidth * dpr + canvas.height = clientHeight * dpr, then ctx.setTransform(dpr, 0, 0, dpr, 0, 0) so subsequent drawing uses CSS pixels (memory pitfall #6 — O-TextureForge precedent). ResizeObserver on canvas re-renders on dimension change so window-resize stretching is correct. Canvas sized via CSS width: calc(100% - 0px) + height: 200px (NEVER position: absolute with left+right per memory pitfall #6 — canvas is a CSS replaced element)."
     },
     {
-      "criterion": "EC3-3 — Folder dropped onto cell → routing hint toast (no implicit load)",
-      "status": "infrastructure_ready",
-      "note": "filesDropped cell-hit + isDirectory branch emits toast \"Drop a single file on a cell, or a folder on the top zone.\" — disallows the ambiguous gesture and surfaces the discoverable affordance for both modes."
-    },
-    {
-      "criterion": "Out-of-bounds drop → silent reject",
-      "status": "infrastructure_ready",
-      "note": "filesDropped falls through both cell loop and folder-zone hit-test → returns without dispatching any processor call or toast."
+      "criterion": "Cell single-click → openLoopEditor (replacing Phase 3.2 placeholder)",
+      "status": "passed",
+      "note": "handleCellSingleClick for cell-loaded class now calls openLoopEditor(midi, layer) directly — replaces the Phase 3.2 console.log placeholder. Context menu open-loop-editor action also routes to openLoopEditor."
     },
     {
       "criterion": "pluginval --strictness 5 SUCCESS",
@@ -106,13 +101,15 @@
     }
   ],
   "filesCreated": [
-    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/PHASE-3.3-SUMMARY.md"
+    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/PHASE-3.4-SUMMARY.md"
   ],
   "filesModified": [
-    "plugins/O-MicrotonalSampler/Source/PluginEditor.cpp — FileDragAndDropTarget full routing (filesDropped/Enter/Move/Exit) + loadSampleFolderDialog full impl (FileChooser canSelectDirectories) + isAudioFileExt + emitToast helpers",
-    "plugins/O-MicrotonalSampler/Resources/ui/index.html — enabled #load-folder-btn (was disabled in 3.1) + .drop-zone-or separator",
-    "plugins/O-MicrotonalSampler/Resources/ui/css/sampler-shell.css — strengthened .drag-over glow (box-shadow inset) + .drop-zone-or italic-muted style",
-    "plugins/O-MicrotonalSampler/Resources/ui/js/sampler-app.js — bindFolderDropZone (button + dragover preventDefault), bindHostDragEvents (hostFileDragMove/Exit listeners + .drag-over toggle), showToast + bindToastEventListener (3 s single-element queue + backend toast subscription), skipped-files transition tracking via lastSkippedSignature"
+    "plugins/O-MicrotonalSampler/Source/PluginProcessor.h — added resetLoopToAutoDetect declaration; updated overrideLoopPoints doc comment for Phase 3.4 reality",
+    "plugins/O-MicrotonalSampler/Source/PluginProcessor.cpp — replaced overrideLoopPoints + snapshotWaveformPeaks Phase 3.1 skeletons with full impls; new resetLoopToAutoDetect wrapper; #include LoopDetector.h + <algorithm> + <limits>",
+    "plugins/O-MicrotonalSampler/Source/PluginEditor.cpp — replaced overrideLoopPoints, resetLoopToAutoDetect, getWaveformPeaks native function skeletons with full impls (5/2/3 args; default xfade=8, default bins=512)",
+    "plugins/O-MicrotonalSampler/Resources/ui/index.html — populated #loop-editor-panel placeholder with header + canvas + meta + actions",
+    "plugins/O-MicrotonalSampler/Resources/ui/css/sampler-shell.css — full loop-editor panel styling (slide-in, header, canvas wrap with explicit width/height per memory pitfall #6, meta row, action buttons, body.le-open grid reflow)",
+    "plugins/O-MicrotonalSampler/Resources/ui/js/sampler-app.js — full loop editor module (openLoopEditor, redrawLoopEditor with DPR-aware backing store, drawMarker, sample/x conversions, pointer-event drag with 16-sample minimum gap, Apply/Reset/Cancel/X/Esc handlers, sampleMapUpdated sync when open + not mid-drag, isOneShot helper, ResizeObserver-driven canvas re-render); handleCellSingleClick + context menu now call openLoopEditor"
   ],
   "overallStatus": "PASSED"
 }

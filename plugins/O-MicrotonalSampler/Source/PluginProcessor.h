@@ -75,12 +75,20 @@ public:
     // double-clicks a loaded cell to replace.
     void loadSingleSample (int midiPitch, int velocityLayer, const juce::File& file);
 
-    // Phase 3.1: loop-point override (full implementation in 3.4). Skeleton
-    // logs and returns. resetToAutoDetect=true re-runs LoopDetector.
+    // Phase 3.4: loop-point override (full implementation). Atomically
+    // deep-copies the current SampleMap, mutates the (midi, vel) slot's
+    // loop fields, bumps version, atomic-stores, fires callback.
+    // resetToAutoDetect=true re-runs LoopDetector and overrides loopMode.
+    // crossfadeLen is recorded for v1.1 (per RP3-2 — global xfade in v1.0).
     void overrideLoopPoints (int midiPitch, int velocityLayer,
                              int loopStart, int loopEnd,
                              int crossfadeLen,
                              bool resetToAutoDetect = false);
+
+    // Phase 3.4: convenience wrapper — calls overrideLoopPoints with the
+    // resetToAutoDetect flag set. Re-runs LoopDetector::detectLoop on the
+    // slot's audio; valid → Auto, invalid → OneShot.
+    void resetLoopToAutoDetect (int midiPitch, int velocityLayer);
 
     // Phase 3.1: snapshot the current sample map as a JSON string for the
     // Stage 3 WebView UI (RESEARCH §RQ3-2 schema). Walks `currentSampleMap`

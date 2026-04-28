@@ -351,34 +351,90 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     complete (juce::var (json));
                 })
 
+            // ---- overrideLoopPoints (Phase 3.4 — full impl) ----
+            //
+            // JS calls: await Juce.getNativeFunction('overrideLoopPoints')
+            //              (midi, vel, loopStart, loopEnd, crossfadeLen).
+            // Routes to processorRef.overrideLoopPoints(...). The
+            // sampleMapUpdated push event fires automatically via the
+            // processor's atomic-store + sampleMapChangedCallback.
+            // Returns true on dispatch (not on audible application — that
+            // happens on the next note-on per EC3-6).
             .withNativeFunction ("overrideLoopPoints",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
                 {
-                    DBG ("overrideLoopPoints (skeleton — Phase 3.4): args="
-                         << args.size());
-                    juce::ignoreUnused (args);
-                    complete (juce::var (false));
+                    if (args.size() < 4)
+                    {
+                        DBG ("overrideLoopPoints: expected (midi, vel, start, end[, xfade]), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int midi      = static_cast<int> (args[0]);
+                    const int vel       = static_cast<int> (args[1]);
+                    const int loopStart = static_cast<int> (args[2]);
+                    const int loopEnd   = static_cast<int> (args[3]);
+                    const int xfade     = (args.size() >= 5)
+                                             ? static_cast<int> (args[4])
+                                             : 8;  // global default
+
+                    processorRef.overrideLoopPoints (midi, vel, loopStart, loopEnd,
+                                                     xfade, /*resetToAutoDetect*/ false);
+                    complete (juce::var (true));
                 })
 
+            // ---- resetLoopToAutoDetect (Phase 3.4 — full impl) ----
+            //
+            // JS calls: await Juce.getNativeFunction('resetLoopToAutoDetect')(midi, vel).
+            // Routes to processorRef.resetLoopToAutoDetect(...). Push update
+            // arrives via sampleMapUpdated.
             .withNativeFunction ("resetLoopToAutoDetect",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
                 {
-                    DBG ("resetLoopToAutoDetect (skeleton — Phase 3.4): args="
-                         << args.size());
-                    juce::ignoreUnused (args);
-                    complete (juce::var (false));
+                    if (args.size() < 2)
+                    {
+                        DBG ("resetLoopToAutoDetect: expected (midi, vel), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int midi = static_cast<int> (args[0]);
+                    const int vel  = static_cast<int> (args[1]);
+
+                    processorRef.resetLoopToAutoDetect (midi, vel);
+                    complete (juce::var (true));
                 })
 
+            // ---- getWaveformPeaks (Phase 3.4 — full impl) ----
+            //
+            // JS calls: await Juce.getNativeFunction('getWaveformPeaks')(midi, vel, bins).
+            // Returns the JSON snapshot from snapshotWaveformPeaks per
+            // RESEARCH §RQ3-5 schema. Click-driven path (loop-editor open),
+            // so message-thread O(N) scan is acceptable (≈1 ms / 5 s sample).
             .withNativeFunction ("getWaveformPeaks",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
                 {
-                    DBG ("getWaveformPeaks (skeleton — Phase 3.4): args="
-                         << args.size());
-                    juce::ignoreUnused (args);
-                    complete (juce::var (juce::String ("{}")));
+                    if (args.size() < 2)
+                    {
+                        DBG ("getWaveformPeaks: expected (midi, vel[, bins]), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (juce::String ("{}")));
+                        return;
+                    }
+
+                    const int midi = static_cast<int> (args[0]);
+                    const int vel  = static_cast<int> (args[1]);
+                    const int bins = (args.size() >= 3)
+                                        ? static_cast<int> (args[2])
+                                        : 512;
+
+                    complete (juce::var (
+                        processorRef.snapshotWaveformPeaks (midi, vel, bins)));
                 })
     );
 

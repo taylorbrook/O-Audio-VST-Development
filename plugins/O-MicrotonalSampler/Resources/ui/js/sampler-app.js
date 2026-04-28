@@ -276,6 +276,29 @@ function handleSampleMapSnapshot(payloadOrJson) {
     // Re-publish the cell-layout shadow now that DOM has settled. Defer one
     // frame so the browser has computed final geometry.
     requestAnimationFrame(() => publishCellLayout());
+
+    // ---- Loop editor sync (Phase 3.4) ----
+    // If the editor is open and the active cell's loop fields changed (e.g.
+    // user clicked Apply, or external automation altered the map), refresh
+    // the editor's snapshot so the loop-mode label / reset-button enabled
+    // state stay consistent. Marker positions are NOT clobbered if the user
+    // is mid-drag (dragMarker !== null).
+    if (editorState.open && editorState.midi >= 0) {
+        const cellSlot = Array.isArray(snap?.slots)
+            ? snap.slots.find(s => s.midiNote === editorState.midi
+                                && s.velocityLayer === editorState.vel)
+            : null;
+        if (cellSlot && editorState.snap && editorState.dragMarker === null) {
+            editorState.snap.loopMode = cellSlot.loopMode;
+            editorState.snap.loopStart = cellSlot.loopStart;
+            editorState.snap.loopEnd   = cellSlot.loopEnd;
+            editorState.snap.filename  = cellSlot.filename;
+            editorState.loopStart = cellSlot.loopStart;
+            editorState.loopEnd   = cellSlot.loopEnd;
+            populateLoopEditorHeader(editorState.snap);
+            redrawLoopEditor();
+        }
+    }
 }
 
 // ============================================================================
@@ -421,8 +444,8 @@ function bindGridInteractions(innerEl) {
 function handleCellSingleClick(cell, midi, layer) {
     const isLoaded = cell.classList.contains('cell-loaded');
     if (isLoaded) {
-        // 3.2 placeholder — full loop editor lands in 3.4.
-        console.log(`[sampler-app] openLoopEditor placeholder: midi=${midi} vel=${layer}`);
+        // Phase 3.4 — open loop editor side panel.
+        openLoopEditor(midi, layer);
     } else {
         replaceCellSample(cell, midi, layer);
     }
@@ -485,7 +508,7 @@ function showContextMenu(cell, clientX, clientY) {
                 if (action === 'replace') {
                     replaceCellSample(cellEl, midi, layer);
                 } else if (action === 'open-loop-editor') {
-                    console.log(`[sampler-app] context: openLoopEditor midi=${midi} vel=${layer} (Phase 3.4)`);
+                    openLoopEditor(midi, layer);
                 } else if (action === 'clear') {
                     /* disabled in v1.0 */
                 }
@@ -705,6 +728,398 @@ function bindToastEventListener() {
 }
 
 // ============================================================================
+// Loop-point editor (Phase 3.4 — DSP-06 + UI-02)
+// ============================================================================
+//
+// On openLoopEditor(midi, vel):
+//   - await Juce.getNativeFunction('getWaveformPeaks')(midi, vel, 512)
+//   - parse JSON snapshot per RESEARCH §RQ3-5 schema
+//   - render min/max envelope on DPR-aware canvas
+//   - draw two draggable vertical markers (start, end) at sample positions
+//   - Apply → Juce.getNativeFunction('overrideLoopPoints')(midi, vel, start, end, 8)
+//   - Reset → Juce.getNativeFunction('resetLoopToAutoDetect')(midi, vel) → re-fetch
+//   - Cancel / X / Esc → close panel, no writeback
+//   - Reset disabled when loopMode === "one-shot" (EC3-7)
+//
+// Markers are pure JS overlay — drag does NOT re-call getWaveformPeaks; the
+// peak data is cached in `editorState.snap` for the duration of the panel
+// session. Apply persists; Cancel discards.
+
+const LOOP_EDITOR_BINS = 512;
+const MARKER_HIT_PX = 8;       // Within this many CSS px of marker → grab handle
+const APPLY_TOAST = 'New loop points apply to next note-on.';
+const ONE_SHOT_TOOLTIP = 'Sample is one-shot — no loop region detected.';
+
+const editorState = {
+    open: false,
+    midi: -1,
+    vel: -1,
+    snap: null,           // Last fetched JSON snapshot (peaks + meta).
+    loopStart: 0,         // Current marker positions (samples).
+    loopEnd: 0,
+    dragMarker: null,     // 'start' | 'end' | null
+    pointerId: -1,
+};
+
+function isOneShot(snap) {
+    if (!snap || typeof snap.loopMode !== 'string') return false;
+    const m = snap.loopMode.toLowerCase();
+    return m === 'one-shot' || m === 'oneshot';
+}
+
+async function openLoopEditor(midi, vel) {
+    if (!window.__JUCE__) return;
+
+    try {
+        const fn = Juce.getNativeFunction('getWaveformPeaks');
+        const json = await fn(midi, vel, LOOP_EDITOR_BINS);
+        const snap = (typeof json === 'string') ? JSON.parse(json) : json;
+        if (!snap || !Array.isArray(snap.peaks) || snap.peaks.length === 0) {
+            console.warn('[sampler-app] openLoopEditor: empty peaks snapshot', snap);
+            showToast('Unable to load waveform for this cell.');
+            return;
+        }
+        editorState.open = true;
+        editorState.midi = midi;
+        editorState.vel = vel;
+        editorState.snap = snap;
+        editorState.loopStart = Number.isFinite(snap.loopStart) ? snap.loopStart : 0;
+        editorState.loopEnd   = Number.isFinite(snap.loopEnd)   ? snap.loopEnd   : 0;
+
+        populateLoopEditorHeader(snap);
+        showLoopEditorPanel();
+
+        // Defer canvas draw one frame so the panel transition has applied
+        // and clientWidth/clientHeight reflect the open state.
+        requestAnimationFrame(() => {
+            redrawLoopEditor();
+        });
+    } catch (e) {
+        console.error('[sampler-app] openLoopEditor failed:', e);
+    }
+}
+
+function populateLoopEditorHeader(snap) {
+    const fnEl    = document.getElementById('le-filename');
+    const midiEl  = document.getElementById('le-midi');
+    const velEl   = document.getElementById('le-vel');
+    const modeEl  = document.getElementById('le-loop-mode');
+    if (fnEl)   fnEl.textContent   = snap.filename || '(unknown)';
+    if (midiEl) midiEl.textContent = `MIDI ${snap.midiNote}`;
+    if (velEl)  velEl.textContent  = String(snap.velocityLayer);
+    if (modeEl) modeEl.textContent = snap.loopMode || '—';
+    updateLoopMetaLabels();
+    updateResetButtonState(snap);
+}
+
+function updateLoopMetaLabels() {
+    const snap = editorState.snap;
+    if (!snap) return;
+    const sr = snap.sourceSampleRate > 0 ? snap.sourceSampleRate : 48000;
+    const startMs = (editorState.loopStart / sr) * 1000.0;
+    const endMs   = (editorState.loopEnd   / sr) * 1000.0;
+    const sEl = document.getElementById('le-loop-start-ms');
+    const eEl = document.getElementById('le-loop-end-ms');
+    if (sEl) sEl.textContent = startMs.toFixed(1);
+    if (eEl) eEl.textContent = endMs.toFixed(1);
+}
+
+function updateResetButtonState(snap) {
+    const btn = document.getElementById('loop-reset');
+    if (!btn) return;
+    if (isOneShot(snap)) {
+        btn.disabled = true;
+        btn.title = ONE_SHOT_TOOLTIP;
+    } else {
+        btn.disabled = false;
+        btn.title = '';
+    }
+}
+
+function showLoopEditorPanel() {
+    const panel = document.getElementById('loop-editor-panel');
+    if (!panel) return;
+    panel.hidden = false;
+    document.body.classList.add('le-open');
+    // Republish layout shadow — grid width changed.
+    requestAnimationFrame(() => publishCellLayout());
+}
+
+function closeLoopEditor() {
+    const panel = document.getElementById('loop-editor-panel');
+    if (panel) panel.hidden = true;
+    document.body.classList.remove('le-open');
+    editorState.open = false;
+    editorState.snap = null;
+    editorState.dragMarker = null;
+    editorState.pointerId = -1;
+    requestAnimationFrame(() => publishCellLayout());
+}
+
+function redrawLoopEditor() {
+    const canvas = document.getElementById('waveform-canvas');
+    if (!canvas || !editorState.snap) return;
+
+    // DPR-aware backing store (memory pitfall #6).
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = Math.max(1, Math.floor(canvas.clientWidth));
+    const cssH = Math.max(1, Math.floor(canvas.clientHeight));
+    const targetW = Math.round(cssW * dpr);
+    const targetH = Math.round(cssH * dpr);
+    if (canvas.width !== targetW)  canvas.width  = targetW;
+    if (canvas.height !== targetH) canvas.height = targetH;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Background
+    ctx.clearRect(0, 0, cssW, cssH);
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, cssH);
+    bgGrad.addColorStop(0, 'rgba(245, 230, 211, 0.3)');
+    bgGrad.addColorStop(1, 'rgba(235, 217, 199, 0.5)');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    // Centerline
+    ctx.strokeStyle = 'rgba(139, 115, 85, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, cssH / 2);
+    ctx.lineTo(cssW, cssH / 2);
+    ctx.stroke();
+
+    // Min/max envelope
+    const peaks = editorState.snap.peaks;
+    const bins = peaks.length;
+    if (bins === 0) return;
+    const binW = cssW / bins;
+
+    // Filled area
+    ctx.fillStyle = 'rgba(184, 134, 11, 0.35)';  // antique-gold @ 35 %
+    ctx.beginPath();
+    for (let i = 0; i < bins; ++i) {
+        const px = i * binW;
+        const max = peaks[i][1];
+        const y = cssH * 0.5 - max * (cssH * 0.48);
+        if (i === 0) ctx.moveTo(px, y);
+        else ctx.lineTo(px, y);
+    }
+    for (let i = bins - 1; i >= 0; --i) {
+        const px = i * binW;
+        const min = peaks[i][0];
+        const y = cssH * 0.5 - min * (cssH * 0.48);
+        ctx.lineTo(px, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Stroke outline (warm-brown)
+    ctx.strokeStyle = '#5C4033';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < bins; ++i) {
+        const px = i * binW;
+        const max = peaks[i][1];
+        const y = cssH * 0.5 - max * (cssH * 0.48);
+        if (i === 0) ctx.moveTo(px, y);
+        else ctx.lineTo(px, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for (let i = 0; i < bins; ++i) {
+        const px = i * binW;
+        const min = peaks[i][0];
+        const y = cssH * 0.5 - min * (cssH * 0.48);
+        if (i === 0) ctx.moveTo(px, y);
+        else ctx.lineTo(px, y);
+    }
+    ctx.stroke();
+
+    // Markers — only draw if not one-shot (zero-region markers would be at x=0).
+    drawMarker(ctx, cssW, cssH, sampleToX(editorState.loopStart, cssW), 'start');
+    drawMarker(ctx, cssW, cssH, sampleToX(editorState.loopEnd,   cssW), 'end');
+}
+
+function drawMarker(ctx, cssW, cssH, x, which) {
+    if (!Number.isFinite(x)) return;
+    const colour = which === 'start' ? '#B8860B' : '#C0392B';
+    ctx.strokeStyle = colour;
+    ctx.fillStyle = colour;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, cssH);
+    ctx.stroke();
+
+    // Handle triangle at top
+    const handleSize = 6;
+    ctx.beginPath();
+    ctx.moveTo(x - handleSize, 0);
+    ctx.lineTo(x + handleSize, 0);
+    ctx.lineTo(x, handleSize);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function sampleToX(sample, cssW) {
+    const snap = editorState.snap;
+    if (!snap || !snap.lengthSamples) return 0;
+    return (sample / snap.lengthSamples) * cssW;
+}
+
+function xToSample(x, cssW) {
+    const snap = editorState.snap;
+    if (!snap || !snap.lengthSamples) return 0;
+    const s = Math.round((x / cssW) * snap.lengthSamples);
+    return Math.max(0, Math.min(snap.lengthSamples - 1, s));
+}
+
+function bindLoopEditorEvents() {
+    const closeBtn  = document.getElementById('loop-close');
+    const resetBtn  = document.getElementById('loop-reset');
+    const cancelBtn = document.getElementById('loop-cancel');
+    const applyBtn  = document.getElementById('loop-apply');
+    const canvas    = document.getElementById('waveform-canvas');
+
+    if (closeBtn)  closeBtn.addEventListener('click', closeLoopEditor);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeLoopEditor);
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+            if (resetBtn.disabled || !editorState.open) return;
+            try {
+                const fn = Juce.getNativeFunction('resetLoopToAutoDetect');
+                await fn(editorState.midi, editorState.vel);
+                // Re-fetch peaks to get fresh marker positions + mode.
+                const get = Juce.getNativeFunction('getWaveformPeaks');
+                const json = await get(editorState.midi, editorState.vel, LOOP_EDITOR_BINS);
+                const snap = (typeof json === 'string') ? JSON.parse(json) : json;
+                if (snap && Array.isArray(snap.peaks)) {
+                    editorState.snap = snap;
+                    editorState.loopStart = Number.isFinite(snap.loopStart) ? snap.loopStart : 0;
+                    editorState.loopEnd   = Number.isFinite(snap.loopEnd)   ? snap.loopEnd   : 0;
+                    populateLoopEditorHeader(snap);
+                    redrawLoopEditor();
+                }
+            } catch (e) {
+                console.error('[sampler-app] resetLoopToAutoDetect failed:', e);
+            }
+        });
+    }
+
+    if (applyBtn) {
+        applyBtn.addEventListener('click', async () => {
+            if (!editorState.open) return;
+            try {
+                const fn = Juce.getNativeFunction('overrideLoopPoints');
+                await fn(editorState.midi, editorState.vel,
+                         editorState.loopStart, editorState.loopEnd, 8);
+                showToast(APPLY_TOAST);
+                // Don't auto-close — user may want to keep iterating.
+                // The sampleMapUpdated push event will refresh the grid;
+                // editor stays open with current values reflected.
+            } catch (e) {
+                console.error('[sampler-app] overrideLoopPoints failed:', e);
+            }
+        });
+    }
+
+    if (canvas) {
+        canvas.addEventListener('pointerdown', onCanvasPointerDown);
+        canvas.addEventListener('pointermove', onCanvasPointerMove);
+        canvas.addEventListener('pointerup',   onCanvasPointerUp);
+        canvas.addEventListener('pointercancel', onCanvasPointerUp);
+    }
+
+    // Esc closes the editor.
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && editorState.open) {
+            e.preventDefault();
+            closeLoopEditor();
+        }
+    });
+}
+
+function onCanvasPointerDown(e) {
+    if (!editorState.open || !editorState.snap) return;
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const cssW = rect.width;
+
+    // Hit-test against the two markers; prefer the closer one.
+    const startX = sampleToX(editorState.loopStart, cssW);
+    const endX   = sampleToX(editorState.loopEnd,   cssW);
+    const dStart = Math.abs(x - startX);
+    const dEnd   = Math.abs(x - endX);
+    const HIT = MARKER_HIT_PX;
+
+    let target = null;
+    if (dStart <= HIT && dEnd <= HIT) {
+        target = (dStart <= dEnd) ? 'start' : 'end';
+    } else if (dStart <= HIT) {
+        target = 'start';
+    } else if (dEnd <= HIT) {
+        target = 'end';
+    }
+
+    if (target) {
+        editorState.dragMarker = target;
+        editorState.pointerId = e.pointerId;
+        canvas.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    }
+}
+
+function onCanvasPointerMove(e) {
+    if (!editorState.dragMarker || e.pointerId !== editorState.pointerId) return;
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const cssW = rect.width;
+    let s = xToSample(x, cssW);
+
+    // Maintain ordering: start < end with a 16-sample minimum gap (matches
+    // the LoopDetector's defensive guard so we don't allow degenerate loops).
+    const MIN_GAP = 16;
+    const lengthSamples = editorState.snap.lengthSamples;
+    if (editorState.dragMarker === 'start') {
+        s = Math.max(0, Math.min(s, editorState.loopEnd - MIN_GAP));
+        editorState.loopStart = s;
+    } else {
+        s = Math.max(editorState.loopStart + MIN_GAP, Math.min(s, lengthSamples));
+        editorState.loopEnd = s;
+    }
+
+    updateLoopMetaLabels();
+    redrawLoopEditor();
+}
+
+function onCanvasPointerUp(e) {
+    if (e.pointerId !== editorState.pointerId) return;
+    const canvas = e.currentTarget;
+    if (canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
+        try { canvas.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    }
+    editorState.dragMarker = null;
+    editorState.pointerId = -1;
+}
+
+// Re-publish cell layout AND redraw the loop editor on resize. The canvas
+// CSS sizing is fluid (calc(100% - 0px)) so its clientWidth changes with
+// the panel; we need to update the backing store + rerender the envelope.
+function bindLoopEditorResize() {
+    if (typeof ResizeObserver !== 'function') return;
+    const canvas = document.getElementById('waveform-canvas');
+    if (!canvas) return;
+    const obs = new ResizeObserver(() => {
+        if (editorState.open) requestAnimationFrame(() => redrawLoopEditor());
+    });
+    obs.observe(canvas);
+}
+
+// ============================================================================
 // Boot
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -717,4 +1132,6 @@ document.addEventListener('DOMContentLoaded', () => {
     pullInitialSampleMap();
     refreshTuningReadout();
     bindResizeObserver();
+    bindLoopEditorEvents();
+    bindLoopEditorResize();
 });
