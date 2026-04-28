@@ -212,6 +212,11 @@ function subscribeSampleMapUpdates() {
     }
 }
 
+// Track previous skipped-files count so we only toast on transitions
+// (e.g. 0 → N or M → N where the set changed). Toasts are emitted on every
+// fresh load that produces skips; not on idle re-renders.
+let lastSkippedSignature = '';
+
 function handleSampleMapSnapshot(payloadOrJson) {
     let snap;
     try {
@@ -226,15 +231,24 @@ function handleSampleMapSnapshot(payloadOrJson) {
 
     if (!snap) return;
 
-    // ---- Issues disclosure ----
+    // ---- Issues disclosure + toast (Phase 3.3 Task 21) ----
+    //
+    // The disclosure is always reflected (open or closed depending on the
+    // current map's skip set). The toast is emitted only on a *transition* —
+    // i.e. the new skip-set differs from the last one we showed — to avoid
+    // re-toasting on every push event when the set is stable.
     const issues = document.getElementById('issues-disclosure');
     const issuesList = document.getElementById('issues-list');
+    const skipped = Array.isArray(snap.skippedFiles) ? snap.skippedFiles : [];
+    const sig = skipped.join('');  // 0x01 separator — never appears in filenames
+
     if (issues && issuesList) {
-        const skipped = Array.isArray(snap.skippedFiles) ? snap.skippedFiles : [];
         if (skipped.length > 0) {
             issuesList.innerHTML = '';
             skipped.forEach(s => {
                 const li = document.createElement('li');
+                // Each entry is "filename: reason" or just "filename" — render
+                // the raw string; the processor formats consistently.
                 li.textContent = s;
                 issuesList.appendChild(li);
             });
@@ -243,6 +257,16 @@ function handleSampleMapSnapshot(payloadOrJson) {
             issues.hidden = false;
         } else {
             issues.hidden = true;
+        }
+    }
+
+    // Only toast on transition. (Initial pull on editor open: lastSkippedSignature
+    // is '' — if there were skips from a prior session they will toast once.
+    // Subsequent renders with the same set are silent.)
+    if (sig !== lastSkippedSignature) {
+        lastSkippedSignature = sig;
+        if (skipped.length > 0) {
+            showToast(`${skipped.length} file${skipped.length === 1 ? '' : 's'} skipped`);
         }
     }
 
@@ -552,12 +576,144 @@ function bindResizeObserver() {
 }
 
 // ============================================================================
+// Folder drop-zone — button fallback + drag-hover visuals (Phase 3.3 Task 20)
+// ============================================================================
+//
+// File-system drop is consumed by the host editor (juce::FileDragAndDropTarget
+// on OMicrotonalSamplerAudioProcessorEditor). The host emits hostFileDragMove
+// {x,y} and hostFileDragExit events as the cursor moves — we toggle the
+// .drag-over class on #folder-drop-zone based on whether (x,y) is inside the
+// zone's client-rect.
+//
+// The HTML5 dragover handler on the zone calls preventDefault() purely as a
+// belt-and-suspenders measure — without it, some browsers show a "no drop"
+// cursor even though the host editor will receive the actual drop. macOS
+// AU/VST3 hosts always route through juce::FileDragAndDropTarget; the JS
+// dragover never sees real file paths (sandboxing).
+
+function bindFolderDropZone() {
+    const zone = document.getElementById('folder-drop-zone');
+    const button = document.getElementById('load-folder-btn');
+
+    if (button) {
+        button.addEventListener('click', async () => {
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('loadSampleFolderDialog');
+                await fn();
+                // sampleMapUpdated push event drives the rest. Cancel resolves
+                // false — silent.
+            } catch (e) {
+                console.error('[sampler-app] loadSampleFolderDialog failed:', e);
+            }
+        });
+    }
+
+    if (zone) {
+        // Prevent the "no drop" cursor without consuming the drop (host
+        // editor still receives it). Only effective inside the WebView; the
+        // real drop handling is in C++.
+        zone.addEventListener('dragover', (e) => e.preventDefault());
+    }
+}
+
+function bindHostDragEvents() {
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;
+
+    const zone = () => document.getElementById('folder-drop-zone');
+
+    const setHover = (over) => {
+        const z = zone();
+        if (!z) return;
+        z.classList.toggle('drag-over', !!over);
+    };
+
+    try {
+        window.__JUCE__.backend.addEventListener('hostFileDragMove', (payload) => {
+            // Payload arrives parsed: {x, y}.
+            const z = zone();
+            if (!z) return;
+            const r = z.getBoundingClientRect();
+            const inside = payload && typeof payload.x === 'number' && typeof payload.y === 'number'
+                ? (payload.x >= r.left && payload.x < r.right
+                   && payload.y >= r.top && payload.y < r.bottom)
+                : false;
+            setHover(inside);
+        });
+
+        window.__JUCE__.backend.addEventListener('hostFileDragExit', () => {
+            setHover(false);
+        });
+    } catch (e) {
+        console.warn('[sampler-app] host drag event subscription failed:', e);
+    }
+}
+
+// ============================================================================
+// Toast queue (Phase 3.3 Task 21)
+// ============================================================================
+//
+// Single-element queue: each toast displays for 3 s, fades in/out via CSS.
+// New toasts replace the previous one (re-arming the timer). Subscribed to
+// the C++ "toast" event so file-drop routing (filesDropped) can surface
+// invalid-target messages without a custom JS round-trip.
+
+let toastTimer = null;
+
+function showToast(message) {
+    const region = document.getElementById('toast-region');
+    if (!region) return;
+
+    // Replace any existing toast element to keep the queue single-element.
+    region.innerHTML = '';
+
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = message;
+    region.appendChild(el);
+
+    // Trigger entrance transition on next frame.
+    requestAnimationFrame(() => el.classList.add('show'));
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        el.classList.remove('show');
+        // Remove from DOM after the fade-out completes (250 ms — matches
+        // the CSS transition duration plus a small safety margin).
+        setTimeout(() => {
+            if (el.parentNode === region) region.removeChild(el);
+        }, 300);
+        toastTimer = null;
+    }, 3000);
+}
+
+function bindToastEventListener() {
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;
+    try {
+        window.__JUCE__.backend.addEventListener('toast', (payload) => {
+            // Payload may be a parsed string (single arg) or an object; for
+            // file-drop emit we send a bare String.
+            const msg = (typeof payload === 'string') ? payload
+                       : (payload && typeof payload === 'object' && 'message' in payload)
+                            ? payload.message
+                            : String(payload || '');
+            if (msg) showToast(msg);
+        });
+    } catch (e) {
+        console.warn('[sampler-app] toast event subscription failed:', e);
+    }
+}
+
+// ============================================================================
 // Boot
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
     bindTabs();
     bindSliders();
     subscribeSampleMapUpdates();
+    bindHostDragEvents();
+    bindToastEventListener();
+    bindFolderDropZone();
     pullInitialSampleMap();
     refreshTuningReadout();
     bindResizeObserver();

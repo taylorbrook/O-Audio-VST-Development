@@ -1,14 +1,37 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 3-gui
-phase: 3.2
-status: phase_3.2_gate_pass
+phase: 3.3
+status: phase_3.3_gate_pass
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 3.2 GATE PASS — Ready for Phase 3.3
+## Current State: Phase 3.3 GATE PASS — Ready for Phase 3.4
+
+`/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.3 produced
+`.planning/stages/3-gui/PHASE-3.3-SUMMARY.md` and overwrote
+`gate-report.json` (phase 3.3). Tasks 19–22 implemented.
+
+**Phase 3.3 deliverables:**
+- `OMicrotonalSamplerAudioProcessorEditor::filesDropped` full hit-test + routing
+  (cell + audio file → `loadSingleSample`; folder-zone + folder → `loadSampleFolder`;
+  invalid combinations → toast hints; out-of-bounds → silent reject; EC3-3 folder-on-cell disallowed)
+- `fileDragEnter/Move/Exit` emit `hostFileDragMove({x,y})` / `hostFileDragExit({})`
+  events for JS hover visuals
+- `loadSampleFolderDialog` native function full impl (FileChooser canSelectDirectories
+  → `processorRef.loadSampleFolder`)
+- JS `bindHostDragEvents` toggles `.drag-over` class on `#folder-drop-zone` based on (x,y) ∈ rect
+- Folder-button enabled (was disabled placeholder in 3.1) — click → `loadSampleFolderDialog`
+- 3-second single-element toast queue (`showToast` + backend `toast` event subscription)
+- Skipped-files disclosure: `<ul id="issues-list">` rendered from `snapshot.skippedFiles`
+  on every `sampleMapUpdated`; transition-tracked toast `"N files skipped"` on set change
+- CSS `.drag-over` glow strengthened with inset box-shadow
+
+**Gate:** triple build green, cache-clear+install per CLAUDE.md, pluginval --strictness 5 SUCCESS, auval AU VALIDATION SUCCEEDED.
+
+## Previous State: Phase 3.2 GATE PASS
 
 `/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.2 produced
 `.planning/stages/3-gui/PHASE-3.2-SUMMARY.md` and overwrote
@@ -69,10 +92,10 @@ documented in PHASE-3.1-SUMMARY.md.
 
 | Phase | Goal | Gate | Commit | Status |
 |---|---|---|---|---|
-| 3.1 Foundation | WebView shell + Stage 2 invariant + relays + JSON broadcast | infra | pending atomic commit | ✅ PASS |
-| 3.2 Grid | FUNC-06, UI-01 | grid in <100 ms; per-cell replace | — | ⏳ next |
-| 3.3 Folder Drop | FUNC-05 | drop = button parity; skipped files surface | — | ⏳ pending |
-| 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | — | ⏳ pending |
+| 3.1 Foundation | WebView shell + Stage 2 invariant + relays + JSON broadcast | infra | d1a0d7a | ✅ PASS |
+| 3.2 Grid | FUNC-06, UI-01 | grid in <100 ms; per-cell replace | 4083582 | ✅ PASS |
+| 3.3 Folder Drop | FUNC-05 | drop = button parity; skipped files surface | pending atomic commit | ✅ PASS |
+| 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | — | ⏳ next |
 | 3.5 Polish | (visual) | aesthetic + final pluginval gate | — | ⏳ pending |
 
 ## Previous State: Stage 3 (GUI) PLAN complete

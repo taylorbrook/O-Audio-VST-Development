@@ -1,10 +1,10 @@
 {
-  "gate": "phase-3.2",
+  "gate": "phase-3.3",
   "plugin": "O-MicrotonalSampler",
   "stage": "3-gui",
-  "phase": "3.2",
-  "phaseTitle": "Sample-mapping grid + per-cell load (FUNC-06 + UI-01)",
-  "timestamp": "2026-04-28T07:00:00Z",
+  "phase": "3.3",
+  "phaseTitle": "Folder drop-zone + skipped-files (FUNC-05)",
+  "timestamp": "2026-04-28T09:30:00Z",
   "checks": {
     "critical": [
       {
@@ -49,35 +49,50 @@
         "name": "render_harness_identity",
         "status": "skipped",
         "output": "",
-        "error": "Carried forward from Phase 3.1: no render-harness target exists in plugins/O-MicrotonalSampler/tests/. Phase 3.2 audio path is structurally identical to Phase 3.1 (no algorithm changes — only an additional code path for single-slot replace). Coverage substituted by pluginval --strictness 5 + auval (both green)."
+        "error": "Carried forward from Phase 3.1: no render-harness target exists in plugins/O-MicrotonalSampler/tests/. Phase 3.3 introduces zero new audio code paths (folder load was already complete in Phase 2.2; this phase wires the folder path to the existing GUI surfaces). Coverage substituted by pluginval --strictness 5 + auval (both green)."
       }
     ]
   },
   "phaseGateCriteria": [
     {
-      "criterion": "Single-click empty cell → FileChooser → select WAV → cell becomes loaded with correct filename + audio plays at correct pitch on MIDI input",
+      "criterion": "Drag a folder onto the drop zone → identical load to button path; grid populates within Stage 2's typical load time",
       "status": "infrastructure_ready",
-      "note": "loadSingleSampleDialog native function spawns juce::FileChooser::launchAsync; processor.loadSingleSample validates input + dispatches SampleLoader::loadSingleSlot worker; on completion atomic-stores deep-copy of map with new slot + bumps version + invokes sampleMapChangedCallback. JS renderGrid re-renders on sampleMapUpdated event. Manual DAW playback verification deferred to user smoke."
+      "note": "filesDropped folder-zone + isDirectory branch invokes processorRef.loadSampleFolder(folder) — byte-identical entry point to the button's loadSampleFolderDialog resolution path. sampleMapUpdated push event triggers renderGrid + publishCellLayout. Manual DAW smoke deferred to user."
     },
     {
-      "criterion": "Double-click loaded cell → FileChooser → swap → only that note's mapping changes (adjacent loaded notes unaffected)",
+      "criterion": "Drag a file (not folder) onto the zone → toast \"Drop a folder, not a file\"; no load",
       "status": "infrastructure_ready",
-      "note": "Cell event listeners use 250 ms double-click discrimination (setTimeout-based). Double-click fires loadSingleSampleDialog regardless of cell state. Map deep-copy preserves all slots except the matched (midi, vel) pair, so adjacent slots are byte-identical references through the new shared_ptr."
+      "note": "filesDropped folder-zone + non-directory branch emits the toast event via webView->emitEventIfBrowserIsVisible(\"toast\", msg); processor not invoked. JS toast subscriber renders the message in #toast-region with 3 s auto-dismiss."
     },
     {
-      "criterion": "Mid-session replace measured at <100 ms from FileChooser close to grid state-change reflected",
+      "criterion": "Drag a folder containing intentionally unparseable filenames → load succeeds for parseable files; skipped files appear in disclosure with reasons",
       "status": "infrastructure_ready",
-      "note": "SampleLoader::loadSingleSlot does the slow work (read + Lagrange SR-convert + LoopDetector) on a worker thread; the message-thread completion callback only does the atomic deep-copy + store + JS broadcast (sub-millisecond). FileChooser-close → grid-update is bounded by file I/O + SR conversion, not the JUCE message-thread path. performance.now() instrumentation is present in JS but not asserted-on in the gate."
+      "note": "processorRef.loadSampleFolder populates lastSkippedFiles in its async completion (Phase 2.2 implementation, unchanged). snapshotSampleMapJson serializes skippedFiles array per RESEARCH §RQ3-2 schema. JS handleSampleMapSnapshot populates <ul id=\"issues-list\"> with one <li> per entry; <details id=\"issues-disclosure\"> summary reads \"Issues (N file(s) skipped)\"."
     },
     {
-      "criterion": "Grid reflows on window resize without overflow at min size (720×480)",
+      "criterion": "Toast appears on completion when skippedFiles.length > 0; hides cleanly after 3 s",
       "status": "infrastructure_ready",
-      "note": "CSS grid uses repeat(88, minmax(8px, 1fr)). Container has overflow-x:auto so widths < 720 still scroll horizontally rather than overflow. ResizeObserver(document.body) re-publishes the cell layout via rAF-throttled callback."
+      "note": "showToast() arms a 3000 ms setTimeout; CSS .toast.show transition fades opacity + transform; element removed from DOM 300 ms after fade-out begins. Transition tracking via lastSkippedSignature ensures idle re-renders with the same skip set don't re-toast."
     },
     {
-      "criterion": "Active-voice retention: replacing a slot mid-note doesn't kill the held voice (Stage 2 EC-3 invariant)",
-      "status": "preserved_by_design",
-      "note": "Voice startNote snapshots std::shared_ptr<SampleMap> currentMap once per note; the lock-free refcount inc keeps the prior map (and the slot's audio shared_ptr) alive for the held note. loadSingleSample constructs a brand-new SampleMap and atomic-stores it — the voice holding the old snapshot continues reading the old buffer until release."
+      "criterion": "Drag-hover visual feedback works on macOS (Logic AU + Reaper VST3 + Standalone)",
+      "status": "infrastructure_ready",
+      "note": "fileDragMove + fileDragExit emit hostFileDragMove({x,y}) / hostFileDragExit() events to JS; JS bindHostDragEvents listener computes hit-test against folder-drop-zone's getBoundingClientRect() and toggles .drag-over class. CSS provides dashed-border + inset gold-tinted box-shadow on hover. Manual DAW visual verification deferred to user."
+    },
+    {
+      "criterion": "Cell + audio-file drop → loadSingleSample (per-cell route)",
+      "status": "infrastructure_ready",
+      "note": "filesDropped iterates cellLayout (populated by Phase 3.2's reportCellLayout); on (x,y) ∈ cell + .wav/.aif/.aiff ext, invokes processorRef.loadSingleSample(midiNote, velocityLayer, file). Same atomic-store + sampleMapUpdated path as Phase 3.2's per-cell FileChooser."
+    },
+    {
+      "criterion": "EC3-3 — Folder dropped onto cell → routing hint toast (no implicit load)",
+      "status": "infrastructure_ready",
+      "note": "filesDropped cell-hit + isDirectory branch emits toast \"Drop a single file on a cell, or a folder on the top zone.\" — disallows the ambiguous gesture and surfaces the discoverable affordance for both modes."
+    },
+    {
+      "criterion": "Out-of-bounds drop → silent reject",
+      "status": "infrastructure_ready",
+      "note": "filesDropped falls through both cell loop and folder-zone hit-test → returns without dispatching any processor call or toast."
     },
     {
       "criterion": "pluginval --strictness 5 SUCCESS",
@@ -91,16 +106,13 @@
     }
   ],
   "filesCreated": [
-    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/PHASE-3.2-SUMMARY.md"
+    "plugins/O-MicrotonalSampler/.planning/stages/3-gui/PHASE-3.3-SUMMARY.md"
   ],
   "filesModified": [
-    "plugins/O-MicrotonalSampler/Source/SampleLoader.h — loadSingleSlot decl + single-slot state",
-    "plugins/O-MicrotonalSampler/Source/SampleLoader.cpp — loadSingleSlot impl (worker dispatch, SR-convert, loop-detect, async completion)",
-    "plugins/O-MicrotonalSampler/Source/PluginProcessor.cpp — loadSingleSample full impl (validation + atomic deep-copy + version bump + callback)",
-    "plugins/O-MicrotonalSampler/Source/PluginEditor.cpp — loadSingleSampleDialog native function full impl",
-    "plugins/O-MicrotonalSampler/Resources/ui/js/sampler-app.js — renderGrid, cell event handlers, context menu, publishCellLayout, ResizeObserver",
-    "plugins/O-MicrotonalSampler/Resources/ui/css/sampler-shell.css — 88×4 grid + cell states + context menu",
-    "plugins/O-MicrotonalSampler/Resources/ui/index.html — grid container slot"
+    "plugins/O-MicrotonalSampler/Source/PluginEditor.cpp — FileDragAndDropTarget full routing (filesDropped/Enter/Move/Exit) + loadSampleFolderDialog full impl (FileChooser canSelectDirectories) + isAudioFileExt + emitToast helpers",
+    "plugins/O-MicrotonalSampler/Resources/ui/index.html — enabled #load-folder-btn (was disabled in 3.1) + .drop-zone-or separator",
+    "plugins/O-MicrotonalSampler/Resources/ui/css/sampler-shell.css — strengthened .drag-over glow (box-shadow inset) + .drop-zone-or italic-muted style",
+    "plugins/O-MicrotonalSampler/Resources/ui/js/sampler-app.js — bindFolderDropZone (button + dragover preventDefault), bindHostDragEvents (hostFileDragMove/Exit listeners + .drag-over toggle), showToast + bindToastEventListener (3 s single-element queue + backend toast subscription), skipped-files transition tracking via lastSkippedSignature"
   ],
   "overallStatus": "PASSED"
 }

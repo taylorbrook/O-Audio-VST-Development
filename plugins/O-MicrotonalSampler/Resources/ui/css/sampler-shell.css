@@ -156,11 +156,18 @@ body {
 
 #folder-drop-zone.drag-over {
     border-color: var(--accent-gold);
-    background: rgba(184, 134, 11, 0.1);
+    background: rgba(184, 134, 11, 0.18);
+    box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.35) inset;
 }
 
 .drop-zone-text {
     font-size: 15px;
+}
+
+.drop-zone-or {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
 }
 
 .drop-zone-sep {

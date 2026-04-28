@@ -215,12 +215,51 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             // Each returns a sane default so JS callers don't crash.
             // ============================================================
 
+            // ---- loadSampleFolderDialog (Phase 3.3 — folder picker for FUNC-05) ----
+            //
+            // JS calls: await Juce.getNativeFunction('loadSampleFolderDialog')().
+            // Resolves true on a successful folder selection (forwarded to
+            // processor.loadSampleFolder), false on cancel. The actual scan +
+            // load is async — sampleMapUpdated fires when the new map has been
+            // atomic-stored.
             .withNativeFunction ("loadSampleFolderDialog",
-                [] (const juce::Array<juce::var>&,
-                    std::function<void(juce::var)> complete)
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
                 {
-                    DBG ("loadSampleFolderDialog (skeleton — Phase 3.3)");
-                    complete (juce::var (false));
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Choose folder containing sample files",
+                        juce::File{},
+                        juce::String{});
+
+                    auto flags = juce::FileBrowserComponent::openMode
+                               | juce::FileBrowserComponent::canSelectDirectories;
+
+                    chooser->launchAsync (flags,
+                        [this, chooser, complete]
+                            (const juce::FileChooser& fc) mutable
+                        {
+                            const auto results = fc.getResults();
+                            if (results.isEmpty())
+                            {
+                                DBG ("loadSampleFolderDialog: cancelled");
+                                complete (juce::var (false));
+                                return;
+                            }
+
+                            const juce::File folder = results.getFirst();
+                            if (! folder.isDirectory())
+                            {
+                                DBG ("loadSampleFolderDialog: selection is not a directory: "
+                                     << folder.getFullPathName());
+                                complete (juce::var (false));
+                                return;
+                            }
+
+                            DBG ("loadSampleFolderDialog: folder="
+                                 << folder.getFullPathName());
+                            processorRef.loadSampleFolder (folder);
+                            complete (juce::var (true));
+                        });
                 })
 
             // ---- loadSingleSampleDialog (Phase 3.2 — FileChooser per cell) ----
@@ -479,8 +518,45 @@ OMicrotonalSamplerAudioProcessorEditor::getResource (const juce::String& url)
 }
 
 //==============================================================================
-// FileDragAndDropTarget — Phase 3.1 skeletons. Full routing in Phase 3.3
-// per RESEARCH §RQ3-6 (cell-layout shadow + folder-zone hit-test).
+// FileDragAndDropTarget — Phase 3.3 full routing per RESEARCH §RQ3-6.
+//
+// Hit-test sources:
+//   - cellLayout: published by JS via reportCellLayout (Phase 3.2 Task 17).
+//     One CellRect per (midi, velocityLayer) in WebView client space.
+//   - folderZoneRect: same publish path; rect of #folder-drop-zone.
+//
+// Routing matrix (RP3-3 / EC3-3):
+//   Cell hit + .wav/.aif/.aiff       → loadSingleSample(midi, vel, file)
+//   Cell hit + folder                → toast "Drop a single file on a cell, or a folder on the top zone."
+//   Cell hit + other ext             → toast "Drop a .wav/.aif on a cell"
+//   Folder-zone hit + folder         → loadSampleFolder(folder)
+//   Folder-zone hit + non-folder     → toast "Drop a folder, not a file"
+//   Out-of-bounds                    → silent reject
+//
+// Drag visuals are driven from JS by listening to hostFileDragMove /
+// hostFileDragExit events emitted from fileDragMove / fileDragExit.
+//
+// Note: Single-file behaviour — when multiple files are dropped, we route
+// the first one only and skip the rest (consistent with macOS host behaviour
+// where DnD onto a single target is a single-target operation).
+
+namespace
+{
+    inline bool isAudioFileExt (const juce::String& ext)
+    {
+        const auto e = ext.toLowerCase();
+        return e == ".wav" || e == ".aif" || e == ".aiff";
+    }
+
+    // Helper: emit a toast event to JS. Single-string payload becomes the
+    // toast message; JS toast queue dismisses after 3 s.
+    void emitToast (juce::WebBrowserComponent* webView, const juce::String& msg)
+    {
+        if (webView != nullptr)
+            webView->emitEventIfBrowserIsVisible ("toast", juce::var (msg));
+    }
+}
+
 bool OMicrotonalSamplerAudioProcessorEditor::isInterestedInFileDrag (
     const juce::StringArray& files)
 {
@@ -490,24 +566,94 @@ bool OMicrotonalSamplerAudioProcessorEditor::isInterestedInFileDrag (
 void OMicrotonalSamplerAudioProcessorEditor::filesDropped (
     const juce::StringArray& files, int x, int y)
 {
-    juce::ignoreUnused (files, x, y);
-    // Phase 3.3 implements the full hit-test + dispatch.
+    // Always clear hover state, regardless of routing outcome.
+    if (webView != nullptr)
+        webView->emitEventIfBrowserIsVisible ("hostFileDragExit", juce::var());
+
+    if (files.isEmpty())
+        return;
+
+    const juce::File file (files[0]);
+    const bool fileIsDirectory = file.isDirectory();
+    const auto ext = file.getFileExtension();
+
+    // ---- 1. Cell hit-test (highest priority — the grid sits below the zone) ----
+    for (const auto& c : cellLayout)
+    {
+        if (x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h)
+        {
+            // Cell hit. Now branch on payload type.
+            if (fileIsDirectory)
+            {
+                // EC3-3: folder dropped onto a cell → user intent ambiguous;
+                // surface the routing rule explicitly.
+                emitToast (webView.get(),
+                           "Drop a single file on a cell, or a folder on the top zone.");
+                return;
+            }
+
+            if (! isAudioFileExt (ext))
+            {
+                emitToast (webView.get(), "Drop a .wav/.aif on a cell");
+                return;
+            }
+
+            // Audio file on cell → forward to the per-cell loader. The
+            // sampleMapUpdated push event will refresh the grid + skipped-files.
+            DBG ("filesDropped: cell hit midi=" << c.midiNote
+                 << " vel=" << c.velocityLayer
+                 << " file=" << file.getFullPathName());
+            processorRef.loadSingleSample (c.midiNote, c.velocityLayer, file);
+            return;
+        }
+    }
+
+    // ---- 2. Folder-zone hit-test ----
+    if (! folderZoneRect.isEmpty()
+        && x >= folderZoneRect.getX() && x < folderZoneRect.getRight()
+        && y >= folderZoneRect.getY() && y < folderZoneRect.getBottom())
+    {
+        if (fileIsDirectory)
+        {
+            DBG ("filesDropped: folder-zone hit folder=" << file.getFullPathName());
+            processorRef.loadSampleFolder (file);
+        }
+        else
+        {
+            emitToast (webView.get(), "Drop a folder, not a file");
+        }
+        return;
+    }
+
+    // ---- 3. Out-of-bounds — silent reject ----
 }
 
 void OMicrotonalSamplerAudioProcessorEditor::fileDragEnter (
     const juce::StringArray& files, int x, int y)
 {
-    juce::ignoreUnused (files, x, y);
+    juce::ignoreUnused (files);
+    if (webView == nullptr) return;
+    auto payload = new juce::DynamicObject();
+    payload->setProperty ("x", x);
+    payload->setProperty ("y", y);
+    webView->emitEventIfBrowserIsVisible ("hostFileDragMove", juce::var (payload));
 }
 
 void OMicrotonalSamplerAudioProcessorEditor::fileDragMove (
     const juce::StringArray& files, int x, int y)
 {
-    juce::ignoreUnused (files, x, y);
+    juce::ignoreUnused (files);
+    if (webView == nullptr) return;
+    auto payload = new juce::DynamicObject();
+    payload->setProperty ("x", x);
+    payload->setProperty ("y", y);
+    webView->emitEventIfBrowserIsVisible ("hostFileDragMove", juce::var (payload));
 }
 
 void OMicrotonalSamplerAudioProcessorEditor::fileDragExit (
     const juce::StringArray& files)
 {
     juce::ignoreUnused (files);
+    if (webView == nullptr) return;
+    webView->emitEventIfBrowserIsVisible ("hostFileDragExit", juce::var());
 }
