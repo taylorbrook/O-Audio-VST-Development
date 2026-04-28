@@ -94,7 +94,7 @@ documented in PHASE-3.1-SUMMARY.md.
 |---|---|---|---|---|
 | 3.1 Foundation | WebView shell + Stage 2 invariant + relays + JSON broadcast | infra | d1a0d7a | ✅ PASS |
 | 3.2 Grid | FUNC-06, UI-01 | grid in <100 ms; per-cell replace | 4083582 | ✅ PASS |
-| 3.3 Folder Drop | FUNC-05 | drop = button parity; skipped files surface | pending atomic commit | ✅ PASS |
+| 3.3 Folder Drop | FUNC-05 | drop = button parity; skipped files surface | aa99790 | ✅ PASS |
 | 3.4 Loop Editor | DSP-06, UI-02 | edit → audible diff on next note-on | — | ⏳ next |
 | 3.5 Polish | (visual) | aesthetic + final pluginval gate | — | ⏳ pending |
 
