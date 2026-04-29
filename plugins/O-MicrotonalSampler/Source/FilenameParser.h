@@ -18,6 +18,20 @@
 
     Tokenizer splits on `[_\-\s.]+`. Case-insensitive.
 
+    Velocity scan ordering (Phase 2.5 reopen — bug fix):
+      The velocity scan is two-tier to suppress false positives from dynamics
+      letters appearing inside instrument-name substrings.
+
+        Tier 1 — POST-note tokens accept any velocity form (explicit + dynamics).
+        Tier 2 — PRE-note tokens accept ONLY explicit forms (v[1-4]/vel[1-4]/
+                 layer[N]/L[N]/lyr[N]); dynamics letters (p/mp/mf/f) are skipped.
+
+      Why: filenames like `vln_long_mp-D#3-V127-T6N6.aif` previously matched
+      "mp" → velLayer=1 (a layer with no actual slots) and silenced the
+      library below MIDI velocity 65. The new scan returns velLayer=0 for
+      such filenames; conventional `[note]_[dyn]` filenames (e.g.
+      `C4_mp.wav`) still resolve correctly via the post-note tier.
+
     On parse failure: returns std::nullopt; caller (SampleLoader::run()) is
     responsible for logging the skip via `juce::StringArray skippedFiles`.
 

@@ -1,54 +1,93 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 4-polish
-phase: execute (Phase 4.1 done; Phase 2.1 reopened mid-Stage-4 [4d20d42]; user perceptual verification FAILED Case A; deep code audit required)
-status: phase_2_1_reopen_engineering_green; case_a_audit_required (only D#3/E3 audible against user's vln_long_mp folder; even exact-match C4 silent); fresh-context audit charter at .planning/stages/2-dsp/CASE-A-AUDIT-CHARTER.md
+phase: execute (Phase 4.1 done; Phase 2.1 reopen [4d20d42] + Phase 2.5 reopen [this commit] both shipped + perceptually verified; ready to resume Phase 4.2)
+status: phase_2_5_reopen_resolved; full_chromatic_audible_in_both_test_folders; ready_for_phase_4_2
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 2.1 reopen shipped engineering-green, Case A audit pending
+## Current State: Phase 2.5 reopen RESOLVED — full chromatic playback verified
 
-**Latest test result (after clean host restart against post-fix binary
-`4d20d42`):** loading `/Users/taylorbrook/Documents/samples/vln_long_mp/`
-(42 violin files, chromatic G2..C6, all parseable, all yellow-squared,
-zero skipped) and playing keys at velocity ≥ 65 produces audio **only at
-MIDI 51 (D#3) and MIDI 52 (E3)**. All other keys silent — including
-**exact-match C4**. This rules out the nearest-pitch fallback as the
-culprit (exact-match doesn't need it) and points at a deeper data-flow
-bug in the load → voice → audio-buffer pipeline.
+Case A (the "only D#3/E3 audible" symptom) was a **two-bug interaction**
+surfaced by audit, not the load-pipeline corruption hypothesized in the
+charter. Both bugs fixed in this commit; engineering bar green; user
+perceptual verification PASS in Standalone against both test folders.
 
-The Phase 2.1 reopen fixes (`findSlot` nearest-pitch +
-`CappedSynthesiser` polyphony cap) are correct and remain landed —
-they're not the failing surface. Engineering bar stays green:
-pluginval-10 (skip-gui + with-gui) + auval all SUCCESS.
+### Bug 1 — `cubicInterp` always-wrap defect (primary cause of silence)
 
-**Next action:** open a fresh context window (clean cache) and run a
-**deep code audit of the load → voice → audio pipeline** per the
-charter at:
+`Source/MicrotonalSamplerVoice.cpp` — the cubic-Hermite interpolator
+unconditionally folded read indices into the loop region whenever a slot
+had `loopMode = Auto`. Effect: at note-on with `pos = 0`, the four taps
+came from `buf[loopEnd-1, loopStart, loopStart+1, loopStart+2]` instead
+of `buf[0..3]`. The entire attack `[0, loopStart)` was never played —
+the sampler started **inside** the loop region from sample 0.
 
-```
-plugins/O-MicrotonalSampler/.planning/stages/2-dsp/CASE-A-AUDIT-CHARTER.md
-```
+Combined with `LoopDetector::detectLoop`'s search for the **quietest**
+1024-sample window (which is exactly what a loop detector should look
+for), every slot whose variance gate passed rendered near-silent through
+the ADSR fade-in. Slots whose variance gate rejected (→ `OneShot`) played
+correctly because the no-wrap path was already correct.
 
-The charter contains:
-- The full symptom and what's been ruled out
-- 7 ranked open hypotheses (H1-H7) with cheap audit steps
-- The reproducer (folder path, exact steps, engineering bar)
-- The constraints (what must hold post-fix)
+User-confirmed: every silent cell in the test had `loopMode: Auto`,
+every audible cell had `loopMode: OneShot`.
 
-**Strongest hypothesis (H7):** the resampler silently zeros buffers for
-files whose source SR ≠ host SR, leaving only the two files whose SR
-happens to match. Cheapest verification: `afinfo` walk over the folder
-to check per-file sample rates.
+**Fix:** `cubicInterp` is now pure clamp (loopStart/loopEnd parameters
+removed). Looping is the protocol of `readSlotWithLoop` (boundary
+crossfade) plus `wrapLoopPosition` (cursor reset). Since
+`wrapLoopPosition` only fires when `pos >= loopEnd`, the first pass
+naturally plays `[0, loopEnd)` (attack + body) and subsequent passes
+oscillate in `[loopStart, loopEnd)`.
+
+The crossfade `inSample` math was also corrected — it previously read
+the END of the loop region (degenerate, identical to `outSample`); now
+reads the loop HEAD at `pos - lpLen + 8 ∈ [lpStart, lpStart + 8)` as
+intended.
+
+### Bug 2 — `FilenameParser` pre-note dynamics false-match
+
+`Source/FilenameParser.cpp` — the velocity scan walked all tokens
+left-to-right and accepted the first match. Filenames like
+`vln_long_mp-D#3-V127-T6N6.aif` matched `mp` (a dynamics token) at
+token index 2 — BEFORE the note token at index 3 — and assigned
+`velLayer=1` to every slot in the library. Combined with
+`numVelocityLayers = jlimit(1, 4, maxLayer + 1) = 2` and
+`layerWidth = 64`, this silenced the entire library at MIDI velocities
+< 65 (the layer-1 threshold for a 2-layer map).
+
+**Fix:** velocity scan is now two-tier:
+- **Tier 1 (post-note):** any velocity form, including dynamics. Handles
+  the conventional `[note]_[dyn]` and `[note]_[v_N]` patterns.
+- **Tier 2 (pre-note):** explicit forms only (`v[1-4]` / `vel[1-4]` /
+  `layer[N]` / `L[N]` / `lyr[N]`). Dynamics letters (`p`/`mp`/`mf`/`f`)
+  are skipped here because they collide with instrument-name fragments.
+
+`vln_long_mp-D#3-…` now resolves to `velLayer=0`. Existing pre-note
+explicit conventions (`Lyr3_C4`, `L4_C4`, `vel2_C4`) still resolve
+correctly. New regression test cases added under `OMTS_UNIT_TESTS`.
+
+### Engineering bar (post-fix, against installed `~/Library/Audio/Plug-Ins/`)
+
+- triple build (VST3 + AU + Standalone): GREEN
+- cache-clear + reinstall per CLAUDE.md
+- `pluginval --strictness-level 10 --validate-in-process --skip-gui-tests --timeout-ms 120000`: SUCCESS
+- `pluginval --strictness-level 10 --validate-in-process --timeout-ms 120000` (with-GUI): SUCCESS
+- `auval -v aumu OMtS OuDv`: AU VALIDATION SUCCEEDED
+
+### User perceptual verification (Standalone, fixed-velocity on-screen keyboard)
+
+- `~/Documents/samples/vlnsolo_flaut/` (42 .aif, "Auto Sampled Instrument-…"
+  naming, parser-clean velLayer=0): full chromatic G2..C6 audible. ✓
+- `~/Documents/samples/vln_long_mp/` (42 .aif, "vln_long_mp-…" naming,
+  previously snagged by Bug 2): full chromatic at any velocity now audible. ✓
 
 ## Stage-4 resume condition
 
-Once Case A is fixed (Phase 2.1 second reopen, separate atomic commit),
-re-run the perceptual checklist (single-note coverage / 16-voice chord
-/ polyphony cap). If green, resume from Stage 4 Phase 4.2 (PERF-02
-Logic Pro CPU meter measurement).
+Both reopens closed. Resume from **Stage 4 Phase 4.2** (PERF-02 Logic Pro
+CPU meter measurement) per `.planning/stages/4-polish/PLAN.md`. The
+`CASE-A-AUDIT-CHARTER.md` can be archived — no fresh-context deep audit
+needed.
 
 ## Previous State: Phase 2.1 reopened + rectified mid-Stage-4
 

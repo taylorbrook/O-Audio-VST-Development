@@ -56,21 +56,38 @@
       - 8-entry equal-power crossfade LUT (`loopXfadeLut()`), built once at
         static-init via an immediately-invoked lambda. Used in the
         [loopEnd - 8, loopEnd) window of every per-sample read.
-      - `readSlotWithLoop()` consolidates the loop-aware read: standard
-        cubicInterp pre-crossfade region; equal-power blend of
-        outSample (no-wrap natural decay past loopEnd) and inSample
-        (wrapped post-loop head) inside the fade region. One-shot path
-        (loopEnd <= 0) preserves the Phase 2.3 EC-4 hold-last-sample read
-        bit-exact.
+      - `readSlotWithLoop()` consolidates the loop-aware read:
+          - One-shot (loopEnd <= 0): clamp + read; bit-exact with Phase 2.3.
+          - Looped, pos < loopEnd - 8: natural read with clamp. Plays the
+            attack [0, loopStart) and the loop body up to the fade region.
+          - Looped, pos in [loopEnd - 8, loopEnd): equal-power blend of
+            outSample (natural read at pos) and inSample (loop head read at
+            pos - loopLen + 8 ∈ [loopStart, loopStart + 8)).
       - `wrapLoopPosition()` advances the integer wrap step at the end of
-        each per-sample iteration so reads always see canonical positions
-        in [0, loopEnd) for looped slots. Uses a while-loop defensively
-        against very high playRate values.
+        each per-sample iteration. wrap fires only when pos >= loopEnd, so
+        the FIRST pass plays the natural attack [0, loopEnd) and subsequent
+        passes oscillate in [loopStart, loopEnd). Uses a while-loop
+        defensively against very high playRate values.
       - Both `renderNextBlock` and `renderTailRamp` use the same helpers
         (the steal-tail ramp also crossfades through loop boundaries).
       - Loop regions are populated by `LoopDetector::detectLoop` on the
         loader thread (Source/LoopDetector.{h,cpp}); the voice never sees
         analysis cost.
+
+    Phase 2.5 reopen (post-Stage-4 audit):
+      - `cubicInterp` previously folded read indices into the loop region
+        unconditionally when loopEnd > 0, causing playback to start INSIDE
+        the loop region from sample 0 — the entire attack [0, loopStart)
+        was never played. Combined with LoopDetector's "find the quietest
+        1024-sample window" search, slots that passed the variance gate
+        rendered near-silent through ADSR. Symptom: ~50% of MIDI notes
+        silent in any folder where vibrato was uniform enough to let the
+        gate pass for some samples but reject others.
+      - Fix: cubicInterp is now pure clamp; looping is the protocol of
+        readSlotWithLoop + wrapLoopPosition. The crossfade inSample math
+        was also corrected — it previously read the END of the loop region
+        (degenerate, identical to outSample), now reads the loop HEAD as
+        intended.
 
   ==============================================================================
 */
@@ -140,43 +157,35 @@ namespace
     //
     // Returns the interpolated sample value at fractional position `pos` within
     // the buffer `buf` of length `N`. Uses 4 surrounding samples (y0, y1, y2,
-    // y3) at indices (i-1, i, i+1, i+2) where i = floor(pos).
+    // y3) at indices (i-1, i, i+1, i+2) where i = floor(pos), edge-clamped to
+    // [0, N-1].
     //
-    // Loop semantics:
-    //   - If loopEnd > 0: wrap indices via loopStart + ((idx - loopStart) mod
-    //     loopLen). Active in Phase 2.5.
-    //   - Else: clamp to [0, N-1]. Active in Phase 2.1+2.3.
+    // This function is loop-agnostic by design: looping is the responsibility
+    // of `readSlotWithLoop` (boundary crossfade) plus `wrapLoopPosition` (cursor
+    // reset). Folding the read indices into the loop region inside the
+    // interpolator was the Phase 2.5 reopen defect — it caused playback to
+    // start INSIDE the loop region from sample 0, skipping the entire attack
+    // [0, loopStart) and rendering near-silent audio for any slot whose loop
+    // detector picked a low-amplitude sustain region (which is exactly what
+    // LoopDetector::detectLoop is designed to do).
     //
     // Body matches JUCE's CatmullRomTraits::valueAtOffset (juce_Interpolators.h
-    // lines 118-131) modulo the fact that JUCE's variant uses a circular
-    // 4-element ring buffer; ours indexes a flat buffer + wrap function.
-    static inline float cubicInterp (const float* buf,
-                                     int          N,
-                                     double       pos,
-                                     int          loopStart,
-                                     int          loopEnd) noexcept
+    // lines 118-131) modulo JUCE's circular 4-element ring buffer vs. our flat
+    // buffer + clamp.
+    static inline float cubicInterp (const float* buf, int N, double pos) noexcept
     {
         const int  i      = (int) std::floor (pos);
         const auto offset = (float) (pos - (double) i);
 
-        auto wrap = [&] (int idx) noexcept -> int
+        auto clamp = [N] (int idx) noexcept -> int
         {
-            if (loopEnd > 0)
-            {
-                const int loopLen = loopEnd - loopStart;
-                if (loopLen <= 0)
-                    return juce::jlimit (0, N - 1, idx);
-                int rel = (idx - loopStart) % loopLen;
-                if (rel < 0) rel += loopLen;
-                return loopStart + rel;
-            }
             return juce::jlimit (0, N - 1, idx);
         };
 
-        const float y0 = buf[wrap (i - 1)];
-        const float y1 = buf[wrap (i)];
-        const float y2 = buf[wrap (i + 1)];
-        const float y3 = buf[wrap (i + 2)];
+        const float y0 = buf[clamp (i - 1)];
+        const float y1 = buf[clamp (i)];
+        const float y2 = buf[clamp (i + 1)];
+        const float y3 = buf[clamp (i + 2)];
 
         const float halfY0 = 0.5f * y0;
         const float halfY3 = 0.5f * y3;
@@ -187,44 +196,60 @@ namespace
     }
 
     //==============================================================================
-    // Phase 2.5: read a single sample from a slot buffer, applying the 8-sample
-    // equal-power loop crossfade if `pos` is inside the boundary region.
+    // Phase 2.5 (post Phase-2.5-reopen): read a single interpolated sample from
+    // a slot buffer with correct loop semantics.
     //
-    //   - One-shot path (loopEnd <= 0): clamp `pos` to N-1 (EC-4 hold-last-sample
-    //     under cubicInterp's no-wrap mode). Bit-exact with the Phase 2.3
-    //     verified path.
-    //   - Looped path, pos < loopEnd - 8: standard cubicInterp with wrap.
-    //   - Looped path, loopEnd - 8 ≤ pos < loopEnd: crossfade between
-    //         outSample = cubicInterp(buf, N, pos, no-wrap)         (natural decay)
-    //         inSample  = cubicInterp(buf, N, pos - loopLen, lpStart, lpEnd)
-    //                                                                (wrapped post-loop head)
-    //     using the static equal-power LUT. The 4-tap context of `outSample` reads
-    //     into [loopEnd, loopEnd+2] — natural source continuation past the loop —
-    //     while `inSample` reads from [loopStart, loopStart+2] — the audio that
-    //     plays AFTER the wrap. Crossfading masks the boundary discontinuity.
+    // Cursor protocol: the caller (renderNextBlock / renderTailRamp) advances
+    // `pos` by `playRate` per output sample, then calls wrapLoopPosition AFTER
+    // the read. wrapLoopPosition only fires once `pos >= lpEnd`, which means:
     //
-    // Wrapping `pos >= loopEnd` back into the loop region is the caller's job
-    // (done at end of each per-sample iteration so reads always see canonical
-    // positions in [0, loopEnd) for looped slots).
+    //   - First pass through the sample: pos goes 0, 1, ..., lpEnd-1. The slot
+    //     plays its natural attack [0, lpStart) followed by the loop body
+    //     [lpStart, lpEnd) without any wrapping.
+    //   - At the wrap point: wrapLoopPosition subtracts lpLen, dropping pos to
+    //     [lpStart, lpStart + ε). Subsequent passes oscillate in [lpStart, lpEnd).
+    //
+    // This function therefore handles three regimes:
+    //
+    //   - One-shot (lpEnd <= 0): natural read with clamp at N-1; matches the
+    //     Phase 2.3 EC-4 hold-last-sample path bit-exact.
+    //   - Looped, pos < lpEnd - 8: natural read with clamp. Plays the attack on
+    //     first pass and the loop body in steady state. No wrap inside the
+    //     interpolator (was the bug).
+    //   - Looped, pos in [lpEnd - 8, lpEnd): equal-power crossfade between
+    //         outSample = cubicInterp(buf, N, pos)               // natural read
+    //         inSample  = cubicInterp(buf, N, pos - lpLen + 8)   // loop head
+    //     `pos - lpLen + 8` lands in [lpStart, lpStart + 8), so inSample reads
+    //     the START of the loop body with a constant 8-sample offset that aligns
+    //     to the crossfade window. As pos sweeps [lpEnd-8, lpEnd-1], inSample
+    //     sweeps [lpStart, lpStart+7]. After the wrap, the cursor lands at
+    //     lpStart and natural reads continue from there. The 8-sample offset
+    //     means there is a 7-sample backstep at the wrap — inaudible for typical
+    //     pitched material at moderate loopLen, and a known/accepted residual
+    //     for v1.0. (Future: track wrap state to keep the post-wrap pos = old
+    //     inSample read position for fully gapless cycling.)
+    //
+    // LoopDetector guarantees loopLen >= kMinLoopLength (16) and loopEnd <= N-2
+    // when valid, so the inSample 4-tap window stays in-bounds.
     static inline float readSlotWithLoop (const float* buf, int N, double pos,
                                           int lpStart, int lpEnd) noexcept
     {
         if (lpEnd <= 0)
         {
             const double clamped = juce::jmin (pos, (double) (N - 1));
-            return cubicInterp (buf, N, clamped, 0, 0);
+            return cubicInterp (buf, N, clamped);
         }
 
         const int lpLen = lpEnd - lpStart;
         if (lpLen <= 0)
         {
             const double clamped = juce::jmin (pos, (double) (N - 1));
-            return cubicInterp (buf, N, clamped, 0, 0);
+            return cubicInterp (buf, N, clamped);
         }
 
         const double fadeStart = (double) (lpEnd - 8);
         if (pos < fadeStart)
-            return cubicInterp (buf, N, pos, lpStart, lpEnd);
+            return cubicInterp (buf, N, pos);
 
         // Crossfade region: [loopEnd - 8, loopEnd).
         int xIdx = (int) std::floor (pos - fadeStart);
@@ -233,8 +258,8 @@ namespace
 
         const auto& w = loopXfadeLut()[(size_t) xIdx];
 
-        const float outSample = cubicInterp (buf, N, pos,                  0,       0);
-        const float inSample  = cubicInterp (buf, N, pos - (double) lpLen, lpStart, lpEnd);
+        const float outSample = cubicInterp (buf, N, pos);
+        const float inSample  = cubicInterp (buf, N, pos - (double) lpLen + 8.0);
 
         return outSample * w.first + inSample * w.second;
     }
