@@ -2,12 +2,24 @@
 title: "O-MicrotonalSampler Phase 2.1 — Reopen (FUNC-03 + FUNC-04 rectification)"
 created: 2026-04-28
 phase: 2.1-reopen
-status: complete
+status: engineering_bar_green; user_perceptual_verification_failed_case_a; second_reopen_required
 verifies_requirements:
   - FUNC-03   # polyphony cap enforcement (was structurally complete, functionally inert)
   - FUNC-04   # nearest-pitch fallback (spec'd in REQUIREMENTS line 80, never implemented)
 triggered_by: stage-4 user testing (Phase 4.2 prep, after fixture-OFF rebuild surfaced sparse-folder behaviour)
+followup: CASE-A-AUDIT-CHARTER.md — fresh-context deep audit required to resolve "only D#3/E3 sound" Case A symptom
 ---
+
+> **STATUS UPDATE (2026-04-28, post-commit):** Engineering bar (pluginval-10
+> + auval) remains green. User-side perceptual verification **failed** with
+> "Case A": after a clean host restart, only MIDI 51 (D#3) and 52 (E3)
+> produce audio when the user's 42-file violin folder is loaded — even
+> exact-match recorded pitches like C4 are silent. The Phase 2.1 reopen
+> fixes (`findSlot` nearest-pitch + `CappedSynthesiser` polyphony
+> enforcement) remain valid; a separate, deeper bug in the load → voice →
+> audio buffer pipeline needs investigation. See
+> `CASE-A-AUDIT-CHARTER.md` for the audit charter. A second Phase 2.1
+> reopen will land separately once the audit identifies the root cause.
 
 # Phase 2.1 — Reopen (FUNC-03 + FUNC-04 rectification)
 

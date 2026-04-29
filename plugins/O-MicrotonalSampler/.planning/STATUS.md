@@ -1,14 +1,56 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 4-polish
-phase: execute (Phase 4.1 done; Phase 2.1 reopened + rectified mid-Stage-4; awaiting user perceptual verification before Phase 4.2)
-status: phase_2_1_reopen_engineering_green; awaiting_user_perceptual_verification_to_resume_stage_4
+phase: execute (Phase 4.1 done; Phase 2.1 reopened mid-Stage-4 [4d20d42]; user perceptual verification FAILED Case A; deep code audit required)
+status: phase_2_1_reopen_engineering_green; case_a_audit_required (only D#3/E3 audible against user's vln_long_mp folder; even exact-match C4 silent); fresh-context audit charter at .planning/stages/2-dsp/CASE-A-AUDIT-CHARTER.md
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 2.1 reopened + rectified mid-Stage-4
+## Current State: Phase 2.1 reopen shipped engineering-green, Case A audit pending
+
+**Latest test result (after clean host restart against post-fix binary
+`4d20d42`):** loading `/Users/taylorbrook/Documents/samples/vln_long_mp/`
+(42 violin files, chromatic G2..C6, all parseable, all yellow-squared,
+zero skipped) and playing keys at velocity ≥ 65 produces audio **only at
+MIDI 51 (D#3) and MIDI 52 (E3)**. All other keys silent — including
+**exact-match C4**. This rules out the nearest-pitch fallback as the
+culprit (exact-match doesn't need it) and points at a deeper data-flow
+bug in the load → voice → audio-buffer pipeline.
+
+The Phase 2.1 reopen fixes (`findSlot` nearest-pitch +
+`CappedSynthesiser` polyphony cap) are correct and remain landed —
+they're not the failing surface. Engineering bar stays green:
+pluginval-10 (skip-gui + with-gui) + auval all SUCCESS.
+
+**Next action:** open a fresh context window (clean cache) and run a
+**deep code audit of the load → voice → audio pipeline** per the
+charter at:
+
+```
+plugins/O-MicrotonalSampler/.planning/stages/2-dsp/CASE-A-AUDIT-CHARTER.md
+```
+
+The charter contains:
+- The full symptom and what's been ruled out
+- 7 ranked open hypotheses (H1-H7) with cheap audit steps
+- The reproducer (folder path, exact steps, engineering bar)
+- The constraints (what must hold post-fix)
+
+**Strongest hypothesis (H7):** the resampler silently zeros buffers for
+files whose source SR ≠ host SR, leaving only the two files whose SR
+happens to match. Cheapest verification: `afinfo` walk over the folder
+to check per-file sample rates.
+
+## Stage-4 resume condition
+
+Once Case A is fixed (Phase 2.1 second reopen, separate atomic commit),
+re-run the perceptual checklist (single-note coverage / 16-voice chord
+/ polyphony cap). If green, resume from Stage 4 Phase 4.2 (PERF-02
+Logic Pro CPU meter measurement).
+
+## Previous State: Phase 2.1 reopened + rectified mid-Stage-4
 
 While prepping for Phase 4.2 (Logic Pro CPU meter measurement), the
 user loaded a real sparse sample folder (`vln_long_mp-A#2-V127-T6N6.aif`
