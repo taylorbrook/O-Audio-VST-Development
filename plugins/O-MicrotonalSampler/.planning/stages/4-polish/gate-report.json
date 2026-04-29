@@ -1,56 +1,80 @@
 {
   "plugin": "O-MicrotonalSampler",
   "stage": "4-polish",
-  "phase": "4.2",
-  "phase_title": "PERF-02 CPU-meter measurement (methodology deviation)",
-  "verdict": "PASS (conditional on 4.4 pluginval-10 timing PASS)",
+  "phase": "4.3",
+  "phase_title": "QUAL-01 listening pass",
+  "verdict": "PASS",
   "timestamp": "2026-04-28",
   "spec_protocol": {
-    "source": "RESEARCH.md §RQ4-3",
-    "metric": "Logic Pro Performance Meter delta_CPU_pct",
-    "threshold": "<= 5 % at 16 voices / 48 kHz / 256 / Apple Silicon on power",
-    "runs_required": 3
+    "source": "PLAN.md §Phase 4.3 + Stage 2 VERIFICATION.md Human Verification",
+    "metric": "7-item targeted artifact-pass listening checklist",
+    "threshold": "All items free of clicks / zipper / aliasing",
+    "skipped_items_allowed": "yes, at user discretion if engineering mitigation already verified"
   },
-  "deviation": {
-    "reason": "Logic Pro 11.x Performance Meter not surfaceable in user's environment (window restructured / removed in Logic 11; LCD mini-meter not visible).",
-    "substitute_metric_supporting": "Activity Monitor process CPU % (single run, ~30 s steady-state)",
-    "substitute_metric_objective_gate_of_record": "pluginval --strictness-level 10 in Phase 4.4 (timing budget + fuzz + RT constraints)"
-  },
-  "checks": {
-    "activity_monitor_headline": {
-      "verdict": "PASS (supporting only)",
-      "hardware": "Apple M4 Max (laptop), plugged in",
-      "logic_version": "11.x",
-      "sample_rate_buffer": "48 kHz / 256",
-      "voice_count": 16,
-      "loaded_avg_pct_one_core": 16,
-      "approximate_pct_total_system": "~1 % (16 % / 16 cores)",
-      "interpretation": "Well below 5 % spec at the system level; consistent with Stage-2 PERF-01 RT-safety."
+  "checklist_outcomes": {
+    "item_1_sustained_sine": {
+      "verdict": "PASS",
+      "criterion_match": "no clicks / zipper / DC during attack-decay-release",
+      "behavioral_observation": "Default loop fallback rejects sine waves (constant-RMS variance gate) -> OneShot -> playback stops before note-off. Not a QUAL-01 artefact; logged as v1.1 V11-LOOP-FALLBACK. Workaround in v1.0: manual loop points via loop-point editor (DSP-06)."
     },
-    "spec_metric_delta_cpu_pct": {
-      "verdict": "DEFERRED",
-      "reason": "Performance Meter unavailable; gate-of-record substituted with pluginval-10 in 4.4."
+    "item_2_cello_vibrato": {
+      "verdict": "PASS",
+      "notes": "no loop-boundary clicks, vel-xfade discontinuities, voice-steal pops"
     },
-    "rt_safety_precondition": {
-      "verdict": "PASS (already verified)",
-      "source": "Stage 2 PERF-01 — verified at stage-2",
-      "evidence": "RT-safe processBlock; no allocations / no locks / no I/O"
+    "item_3_transient": {
+      "verdict": "PASS",
+      "notes": "OneShot fallback correct on transient material"
+    },
+    "item_4_retune_sweep_50c": {
+      "verdict": "PASS",
+      "notes": "no zipper / alias / pitch-tracking glitch on +/-50 c sweep"
+    },
+    "item_5_voice_steal_stress": {
+      "verdict": "PASS",
+      "notes": "5 ms steal ramp clean at 24-note cluster vs 16-voice cap"
+    },
+    "item_6_mixed_sr_fixture": {
+      "verdict": "SKIPPED",
+      "rationale": "User-discretion skip. Lagrange resample (SampleLoader::loadSingleSlot) + Cubic-Hermite runtime (MicrotonalSamplerVoice::cubicInterp) covered indirectly by items 2 and 5. Logged as v1.1 V11-MIXED-SR-EXPLICIT for explicit fixture-driven retest."
+    },
+    "item_7_short_region_loop": {
+      "verdict": "PASS",
+      "notes": "no buzz / artefact at <1024-sample loop region"
     }
   },
+  "v11_followups": [
+    {
+      "id": "V11-LOOP-FALLBACK",
+      "description": "Default loop fallback should loop entire sample when LoopDetector variance/headroom gates fail but length gate passes",
+      "owner": "Stage 2 sub-phase 2.5",
+      "trigger": "v1.1 milestone or sooner if heuristic feels wrong on real-use samples"
+    },
+    {
+      "id": "V11-PERF-METER",
+      "description": "Capture Logic Pro Performance Meter delta_CPU_pct on a future Logic release or alternative DAW (e.g. Reaper)",
+      "owner": "Stage 4 / metrology",
+      "trigger": "v1.1 milestone"
+    },
+    {
+      "id": "V11-MIXED-SR-EXPLICIT",
+      "description": "Explicit mixed-SR fixture listening pass (item 6, skipped)",
+      "owner": "Stage 4 / verify",
+      "trigger": "v1.1 milestone or pre-public-release if v1.0 stays internal-only"
+    }
+  ],
   "requirements_flip": {
-    "PERF-02": {
+    "QUAL-01": {
       "from": "partial",
       "to": "complete",
       "verified_at": "stage-4",
-      "caveat": "methodology deviation; objective gate-of-record = 4.4 pluginval-10",
-      "rollback_trigger": "4.4 strictness-10 timing regression -> reopen Stage 2 sub-phase 2.4 or 2.5"
+      "qualification": "6/7 unambiguous PASS; item 1 PASS on criterion as written + behavioral v1.1 follow-up; item 6 skipped (engineering-mitigated path) + v1.1 follow-up"
     }
   },
   "files_modified": [
     ".planning/stages/4-polish/VERIFICATION.md",
     ".planning/REQUIREMENTS.md",
-    ".planning/stages/4-polish/PHASE-4.2-SUMMARY.md",
+    ".planning/stages/4-polish/PHASE-4.3-SUMMARY.md",
     ".planning/stages/4-polish/gate-report.json"
   ],
-  "next_phase": "4.3 — QUAL-01 listening checklist (user-driven subjective audit)"
+  "next_phase": "4.4 — final stage gate (pluginval-10, auval, Logic + Dorico smoke, invariant greps, atomic commit)"
 }

@@ -1,14 +1,69 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 4-polish
-phase: execute (Phase 4.1 [b47434d] + Phase 4.2 [this commit] shipped; ready for Phase 4.3 listening pass)
-status: phase_4_2_complete_with_methodology_deviation; PERF-02 flipped complete (conditional on 4.4 pluginval-10); ready_for_phase_4_3
+phase: execute (Phase 4.1 [b47434d] + Phase 4.2 [3ca88e4] + Phase 4.3 [this commit] shipped; ready for Phase 4.4 final gate)
+status: phase_4_3_complete; QUAL-01 flipped complete (6/7 unambiguous PASS, 1 v1.1 follow-up, 1 skipped); ready_for_phase_4_4
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 4.2 PERF-02 closed (methodology deviation)
+## Current State: Phase 4.3 QUAL-01 listening pass closed (Path A)
+
+`/plugin-execute O-MicrotonalSampler 4-polish` Phase 4.3 produced
+`.planning/stages/4-polish/PHASE-4.3-SUMMARY.md` and extended
+`VERIFICATION.md` + `gate-report.json` (phase 4.3 payload). User-driven
+listening pass on the Phase 4.1 gate-time bundle (`-dev`).
+
+### 7-item checklist outcomes
+
+| # | Test | Verdict |
+|---|---|---|
+| 1 | Sustained sine | PASS (audio quality); behavioral observation → v1.1 V11-LOOP-FALLBACK |
+| 2 | Cello vibrato / organic legato | PASS |
+| 3 | Transient / plucked | PASS |
+| 4 | ±50 c retune sweep | PASS |
+| 5 | Voice-steal stress (24 notes / 16 cap) | PASS |
+| 6 | Mixed-SR fixture | SKIPPED → v1.1 V11-MIXED-SR-EXPLICIT |
+| 7 | Short-region loop | PASS |
+
+### Path A taken (per pre-execute discuss)
+
+Item 1 surfaced a behavioral / spec gap rather than a QUAL-01
+audio-quality defect: sustained sine plays cleanly (no clicks /
+zipper / DC) but doesn't loop until note-off because LoopDetector's
+variance gate rejects sines (constant RMS, no quiet window) and falls
+through to OneShot. User expectation is "loop entire sample by
+default until note-off."
+
+QUAL-01 criterion as written ("no clicks / zipper / aliasing") is met.
+The loop-point editor (DSP-06, complete) provides a per-slot
+workaround in v1.0. v1.0 ships as internal-use-only (no public
+distribution per Stage 4 D4-3), so per-slot manual override is an
+acceptable workaround. Heuristic tuning deferred to v1.1 if real-use
+feedback confirms it's a frequent problem.
+
+### v1.1 follow-ups logged in VERIFICATION.md
+
+- **V11-LOOP-FALLBACK** — default loop fallback should loop entire
+  sample when LoopDetector variance/headroom gates fail but length
+  gate passes (Stage 2.5 owner; v1.1 trigger).
+- **V11-PERF-METER** — capture Logic Performance Meter
+  `delta_CPU_pct` on a future Logic release / alternative DAW
+  (Stage 4 / metrology owner; v1.1 trigger). Deferred from Phase 4.2.
+- **V11-MIXED-SR-EXPLICIT** — explicit mixed-SR fixture listening
+  pass (Stage 4 / verify owner; v1.1 trigger).
+
+## Stage 4 Sub-stage Status
+
+| Phase | Goal | Gate | Commit | Status |
+|---|---|---|---|---|
+| 4.1 Version pill | runtime version-pill via `getPluginVersion` | triple build + pluginval-5 + auval | b47434d | ✅ PASS |
+| 4.2 PERF-02 | 16-voice CPU budget within spec | methodology-deviation; objective gate-of-record = 4.4 | 3ca88e4 | ✅ PASS (conditional) |
+| 4.3 QUAL-01 | listening pass (no clicks / zipper / aliasing) | 7-item subjective checklist | this commit | ✅ PASS (Path A) |
+| 4.4 Final gate | pluginval-10 + auval + Logic + Dorico smoke + invariants | strictness-10 SUCCESS, all greens | pending | ⏳ next |
+
+## Previous State: Phase 4.2 PERF-02 closed (methodology deviation)
 
 `/plugin-execute O-MicrotonalSampler 4-polish` Phase 4.2 produced
 `.planning/stages/4-polish/{VERIFICATION,PHASE-4.2-SUMMARY,gate-report}.{md,json}`

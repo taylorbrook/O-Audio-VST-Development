@@ -65,9 +65,10 @@ lastUpdated: 2026-04-28
 
 ### Quality (QUAL)
 
+
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts (clicks, zipper noise, aliasing) at ±50c retune across full velocity / polyphony range | must | partial | stage-2 |
+| QUAL-01 | No audio artifacts (clicks, zipper noise, aliasing) at ±50c retune across full velocity / polyphony range | must | complete | stage-4 (6/7 listening checklist items unambiguous PASS; item 1 PASS on the criterion as written + behavioral observation logged as v1.1 follow-up V11-LOOP-FALLBACK; item 6 skipped at user discretion — Lagrange + Cubic-Hermite paths covered indirectly by items 2 and 5; logged as v1.1 V11-MIXED-SR-EXPLICIT) |
 
 ## Acceptance Criteria Details
 
