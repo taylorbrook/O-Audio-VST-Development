@@ -61,6 +61,17 @@ struct Args
     float releaseSeconds    = 0.0f;
     juce::String outWav     = "o-bowed-pre-extraction-canonical.wav";
     juce::String outJson    = "o-bowed-pre-extraction-canonical.json";
+
+    // Phase 2.4c R36b — Option B value-consume flags (RESEARCH §19.4.3 + PLAN
+    // rev-10 pin #2). Sentinel -1.0f = "unset, use factory APVTS default".
+    // Values are 0..1 normalized (`setValueNotifyingHost` consumes norm form
+    // directly). When ALL four are unset, behaviour is identical to HEAD —
+    // factory defaults consumed verbatim — preserving canonical-preset.wav
+    // sha256 byte-identical (Risk #13 mitigation).
+    float bowSpeedNorm        = -1.0f;
+    float bowPressureNorm     = -1.0f;
+    float bowPositionNorm     = -1.0f;
+    float infiniteSustainNorm = -1.0f;
 };
 
 bool parseArgs (int argc, char** argv, Args& args)
@@ -81,6 +92,12 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--release")          args.releaseSeconds  = val.getFloatValue();
         else if (key == "--out")              args.outWav          = val;
         else if (key == "--json")             args.outJson         = val;
+        // Phase 2.4c R36b — Option B value-consume flags. Mirrors O-Contrabass
+        // --infinite-sustain pattern (O-Contrabass main.cpp:218). 0..1 norm.
+        else if (key == "--bow-speed")        args.bowSpeedNorm        = val.getFloatValue();
+        else if (key == "--bow-pressure")     args.bowPressureNorm     = val.getFloatValue();
+        else if (key == "--bow-position")     args.bowPositionNorm     = val.getFloatValue();
+        else if (key == "--infinite-sustain") args.infiniteSustainNorm = val.getFloatValue();
         else
         {
             std::fprintf (stderr, "Unknown arg: %s\n", argv[i - 1]);
@@ -106,6 +123,21 @@ int main (int argc, char** argv)
 
     proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
     proc.prepareToPlay (sampleRate, blockSize);
+
+    // Phase 2.4c R36b — Option B sentinel-conditional APVTS pinning. When ALL
+    // four flags are unset (sentinel -1.0f), behaviour is identical to HEAD
+    // (factory APVTS defaults consumed verbatim → canonical-preset.wav
+    // byte-identical). When set, pinning happens AFTER prepareToPlay so the
+    // first processBlock observes the override (mirrors O-Contrabass pattern).
+    auto pinNorm = [&proc] (const char* paramId, float norm)
+    {
+        if (auto* p = proc.getAPVTS().getParameter (paramId))
+            p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+    };
+    if (args.bowSpeedNorm        >= 0.0f) pinNorm ("bowSpeed",        args.bowSpeedNorm);
+    if (args.bowPressureNorm     >= 0.0f) pinNorm ("bowPressure",     args.bowPressureNorm);
+    if (args.bowPositionNorm     >= 0.0f) pinNorm ("bowPosition",     args.bowPositionNorm);
+    if (args.infiniteSustainNorm >= 0.0f) pinNorm ("infiniteSustain", args.infiniteSustainNorm);
 
     const int totalSeconds   = static_cast<int> (std::ceil (args.sustainSeconds + args.releaseSeconds));
     const int totalSamples   = static_cast<int> (totalSeconds * sampleRate);

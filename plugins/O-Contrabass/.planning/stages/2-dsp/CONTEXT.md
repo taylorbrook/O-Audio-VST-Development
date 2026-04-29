@@ -1,11 +1,11 @@
-# Stage 2: DSP — Context (rev-7)
+# Stage 2: DSP — Context (rev-8)
 
 **Date:** 2026-04-28
 **Plugin:** O-Contrabass
 **Stage:** 2 of 4 (DSP)
 **Phase:** discuss
-**Cycle Scope:** **Phase 2.4b — Sub-Harmonic Bias DSP-07 (ARCHITECTURE §457 period-doubling friction-junction parameter biasing)**
-**Supersedes:** rev-6 (Phase 2.4a — Schelleng Wedge Bass-Register Calibration Polynomial + 108-Combo Stability Matrix + `pass_breathingAudible` Threshold Restoration, dated 2026-04-27). rev-6 contracts that remain locked are inherited verbatim and not re-litigated. Phase 2.4a closed 2026-04-28 with R34 atomic commit (`4c926bb`, Gate 6a CLEARED — 3 strict-PASS + 2 soft-PASS within v1.0 budgets) + R34-backfill chore (`b64c8c4`).
+**Cycle Scope:** **Phase 2.4c — Autocorrelator octave-rejection harness fix + saturator-tail O-Bowed comparison (research-only)**
+**Supersedes:** rev-7 (Phase 2.4b — Sub-Harmonic Bias DSP-07 per ARCHITECTURE §457, dated 2026-04-28). rev-7 contracts that remain locked are inherited verbatim and not re-litigated. Phase 2.4b closed 2026-04-28 with R35 atomic commit (`3de8b66`, Gate 6b CLEARED — 4 strict-PASS + 1 soft-PASS within RESEARCH §18.6 v1.0 budget) + R35-backfill chore (`0db5fac`).
 
 ---
 
@@ -13,60 +13,47 @@
 
 **Participants:** User, Claude
 
-This discuss cycle opens **Phase 2.4b** — second of three Phase 2.4 sub-cycles (rev-6 Q12 split decision). Phase 2.4b scope = **sub-harmonic bias DSP-07 only**: ARCHITECTURE §457 friction-junction parameter biasing toward Schelleng `F_max` regime, producing audible period-doubling f0/2 content as a musical bass-extension feature. Bias is applied as voice-level pre-friction parameter shift on `F_bow`, `v_0`, `mu_s` — clamped via reuse of the just-landed Phase 2.4a `SchellengCalibration` trilinear table. 30 ms `SmoothedValue` on `SUB_HARMONICS` parameter. Active-string-only (HR-1 vibrato precedent). Chaos detector (lag-2 RMS auto-back-off) + softClampState energy clamp deferred to Phase 2.5/2.6. Phase 2.4-bis backlog (breathingAudible metric refinement + 3 fallback-cell reduction) keeps as separate future cycle.
+This discuss cycle opens **Phase 2.4c** — third (and final) of three Phase 2.4 sub-cycles (rev-6 Q12 split decision). Phase 2.4c scope = **paired audit-debt closeouts**: (a) restore strict `pass_vibratoAudible` invariant by fixing the bass-register autocorrelator octave-jump that forced Phase 2.3 R28 to relax the gate; (b) characterise O-Contrabass's algebraic-saturator (`x/sqrt(1+x²)`) tail-decay envelope versus O-Bowed's choice via a new `--saturator-tail-comparison` harness mode. Both items are **harness-only / research-only by default**; production DSP source is untouched. Cross-comparison verdict in RESEARCH §19 either (a) acknowledges divergence as a Phase 2.5-aware architectural decision (no source change) or (b) escalates to a Phase 2.4c-bis source-change cycle if O-Bowed parity deficit is unambiguous (≥ 2 dB envelope divergence at 5 s mark default — research-phase tunes the threshold against measured data).
 
-**Phase 2.4c** (autocorrelator octave-rejection harness fix + saturator-tail O-Bowed comparison harness) gets fresh CONTEXT rev-8 when 2.4c discuss-phase opens after 2.4b verifies.
-
-After Phase 2.4b verifies (Gate 6b PASS), Phase 2.4c discuss-phase opens.
+This is the **lowest-risk closer of audit-debt before Phase 2.5** (body resonator + bow noise) lands and changes the saturator-tail decay envelope. Phase 2.4-bis backlog (kForceBoost retune, breathingAudible metric refinement, fallback-cell reduction) keeps as a separate future cycle. After Phase 2.4c verifies (Gate 6c PASS), Phase 2.5 discuss-phase opens with fresh CONTEXT rev-9.
 
 ---
 
 ## Cycle Scope
 
-**Goal:** Implement DSP-07 sub-harmonic bias per ARCHITECTURE §457 — at `SUB_HARMONICS = 1.0` on E1 (MIDI 28), produce E(f0/2) / E(f0) ≥ 0.10 spectral energy ratio measured over the last 2 s of a 5 s sustain at default bow params, while preserving QUAL-01 stability across 36 stress-test combos (4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS at default BODY_DAMPING). Bias applied voice-level pre-friction in `BowedContrabassVoice.cpp` HR-9-gated path; F_max ceiling sourced from Phase 2.4a `schelleng::safeDepthForString(...)` table (semantic mapping research-phase to lock — recommended: stable cells (1.0) allow full `kForceBoost=1.8`, fallback cells (0.5) clamp `kForceBoost` to 1.0 effective no-op). All 10 currently-committed goldens MUST reproduce byte-identically because at `SUB_HARMONICS=0` (default) HR-9 IEEE 754 identity arithmetic fires `subAmount=0 → F_bow*=1.0, v_0*=1.0, gap-multiplier=1.0` short-circuit + active-string-only gate.
+**Goal:** Convert the Phase 2.3 `pass_vibratoAudible` soft-relaxation into a strict-PASS by fixing the harness-side autocorrelator that octave-jumped at bass register (period ≈ 1070 samples at sr=44100, vibrato modulation ~0.7% requires sub-sample lag precision); AND produce an O-Bowed-comparable tail-decay characterisation of O-Contrabass's algebraic in-loop saturator (`x / sqrt(1 + x²)`) so the architectural decision to retain it (vs port O-Bowed's choice) is evidence-backed before Phase 2.5 changes the body-side defenses. **Zero production DSP edits**: all 12 carry-forward goldens reproduce byte-identically by construction (HR-11 trivially holds). One golden re-baseline (`vibrato.json{,.sha256}`) and three new goldens (`saturator-tail-comparison.{wav.sha256,json,json.sha256}`) land in R36 atomic.
 
 **In scope:**
 
-- **`Source/BowedContrabassVoice.{h,cpp}`** — add voice-level sub-harmonic bias evaluation in the per-block 7-step order (Phase 2.3 7-step + Phase 2.4a wedge math swap), inserted as Step 2.5 between Step 2 (Schelleng wedge / SchellengCalibration trilinear lookup) and Step 3 (slow-LFO modulation apply). Per-block computes `subAmount = subHarmonicsSmoothed.getNextValue()`; HR-9 short-circuits the entire bias path at `subAmount == 0.0f`. New `juce::SmoothedValue<float, Linear> subHarmonicsSmoothed` member with 30 ms ramp time (architecture §457). New `std::atomic<float> lastSubAmount { 0.0f }` instrumentation hook (mirrors Phase 2.3 `lastSafeDepth` pin #4). Active-string-only bias evaluation gates on `activeStringIndex` (HR-9 mirroring HR-1).
-- **`Source/DSP/SubHarmonicBias.h`** (new, ~80 LOC) — header-only `inline constexpr` bias function `applyBias(float subAmount, int stringIdx, float v_b, float beta, float& F_bow, float& v_0, float& mu_s, float mu_d) noexcept`. Implements ARCHITECTURE §457 verbatim with `kForceBoost = 1.8`, `kV0Reduction = 0.5`, `kGapWiden = 0.25`, `kFmaxScalar = 0.95`. F_max ceiling sourced via `schelleng::safeDepthForString(stringIdx, v_b, F_bow, beta)` lookup mapped to a `kForceBoost` scaling factor (research-phase locks the stable→1.0 / fallback→1.0 effective-no-op mapping). Mirrors Phase 2.4a `SchellengCalibration.h` per-plugin precedent — NOT extracted to shared module per ARCHITECTURE §765 ("O-Contrabass-specific, should NOT bleed back into O-Bowed defaults").
-- **`Source/PluginProcessor.cpp`** — add APVTS attachment for `SUB_HARMONICS` parameter ID (already declared at line 104 with default 0.0 ∈ [0, 1.0]) into voice's `subHarmonicsSmoothed.setTargetValue(...)` per-block. NO Stage-1 contract amendment (parameter-spec.md unchanged at `77638e25…`).
-- **`tests/render-harness/main.cpp`** — add CLI flag `--sub-harmonics` activating audible f0/2 mode: render MIDI 28 (E1 open) at `SUB_HARMONICS = 1.0`, default bow params (BOW_SPEED=0.15, BOW_PRESSURE=3.0, BOW_POSITION=0.10), sustain 5 s. Capture last 2 s and run a `juce::dsp::FFT` (size 65536, Hann window) computing `E(f0) = sum of magnitude² over bins around 41.2 Hz ± 0.5 Hz` and `E(f0/2) = same around 20.6 Hz ± 0.5 Hz`. Emit JSON with `{mode: "sub-harmonics", peak, rmsContinuity, blockTimeRatio, subharmEnergyRatio, pass_noNaN, pass_peak, pass_clickFree, pass_blockTime, pass_subharmAudible}`. `pass_subharmAudible = (subharmEnergyRatio >= 0.10)`. Schema mirrors existing `--slow-lfo` per-mode pattern.
-- **`tests/render-harness/main.cpp`** — add CLI flag `--sub-harmonics-stability` activating 36-combo render mode: 4 strings × 3 INFINITE_SUSTAIN ∈ {0.0, 0.5, 1.0} × 3 SUB_HARMONICS ∈ {0.0, 0.5, 1.0} at default BODY_DAMPING + default bow params, sustain 5 s per combo at MIDI {28, 33, 38, 43} per stringIdx. Per-combo `{stringIdx, infiniteSustain, subHarmonics, peak, rmsContinuity, blockTimeRatio, pass_noNaN, pass_peak, pass_clickFree, pass_blockTime}` + aggregate `pass_all_36` + `failCount`. Single concatenated WAV with 0.5 s silence buffers (mirrors Phase 2.4a `--matrix-stability` precedent). Wall-clock budget ~3-4 min.
-- **`tests/render-harness/golden/`** — add NEW golden text files `sub-harmonics.{wav.sha256,json,json.sha256}` and `sub-harmonics-stability.{wav.sha256,json,json.sha256}`. NO re-baseline of existing 10 goldens (HR-9 IEEE 754 identity arithmetic preserves bit-exact regression at `SUB_HARMONICS=0` default).
-- **`tests/render-harness/reproduce-goldens.sh`** — extend to include 12 goldens (10 carry-forward + 2 new). Continues Phase 2.4a R34-pre tripwire infrastructure.
+- **`tests/render-harness/main.cpp`** — autocorrelator math fix in the existing `--vibrato` mode pitch-tracker. Replace integer-lag peak-search with **(a) parabolic interpolation around lag peak (sub-sample precision)** + **(b) lag-search range bias toward MIDI-derived expected period** (e.g., MIDI 28 / E1 → expected period ≈ 1070 samples at sr=44100; search range ±20% → [856, 1284]). Restores strict `pass_vibratoAudible` gate per Phase 2.3 PLAN rev-7 design intent: rate ∈ [4.5, 5.5] Hz, depth ∈ [10, 14]¢, onsetWindow ∈ [800, 1000] ms. Research-phase locks the precise algorithm (parabolic-interp + range-bias default; YIN / AMDF / cepstrum as fallbacks if pre-flight reveals sub-sample precision is insufficient).
+- **`tests/render-harness/main.cpp`** — NEW CLI flag `--saturator-tail-comparison` activating canonical decay-envelope mode: render MIDI 28 (E1 open) at default bow params (BOW_SPEED=0.15, BOW_PRESSURE=3.0, BOW_POSITION=0.10) with INFINITE_SUSTAIN=1.0, sustain 60 s + release 5 s (mirrors Phase 2.1a R6 protocol). Capture per-decade RMS bins {0–1s, 1–2s, ..., 59–60s, 60–61s, ..., 64–65s} as a 65-element decay envelope. Emit JSON with `{mode: "saturator-tail-comparison", peak, decayEnvelopeDb: [-X, ...], rmsMid, rmsFinal, rmsRatioFinalOverMid, blockTimeRatio, pass_noNaN, pass_peak, pass_blockTime, pass_combo}`. NO `pass_decayMatchesOBowed` predicate at v1.0 — comparison verdict happens in RESEARCH §19, not as a JSON gate. Schema mirrors existing `--sub-harmonics` per-mode pattern.
+- **`tests/render-harness/golden/vibrato.{json,json.sha256}`** — re-baseline JSON only (not WAV). Autocorrelator fix changes measurement output but not WAV (DSP unchanged → `vibrato.wav.sha256 = d7881ecf…` carries forward byte-identical). Updated JSON includes restored strict-gate values for `rateHzInRange`, `depthCentsInRange`, `onsetWindow` predicates.
+- **`tests/render-harness/golden/saturator-tail-comparison.{wav.sha256,json,json.sha256}`** — NEW golden text files; canonical reference for the decay envelope. Wall-clock ~0.5 s for 65 s of audio at default settings.
+- **`tests/render-harness/reproduce-goldens.sh`** — extend 12 → 13 entries for `--saturator-tail-comparison` invocation.
+- **`RESEARCH.md` §19** — document (a) autocorrelator algorithm validation (sub-sample precision benchmark on `vibrato.wav`; octave-jump elimination); (b) O-Bowed saturator topology audit (grep / inspection of `plugins/O-Bowed/Source/DSP/WaveguideString.{h,cpp}` and friction junction); (c) O-Bowed cross-comparison harness availability + parity-mode invocation; (d) measured tail-decay divergence at canonical render; (e) verdict (research-only acknowledged divergence vs Phase 2.4c-bis escalation).
+- **`STATUS.md`** — flip `status` to `phase_2_4c_discuss_complete`, `next_action` to `phase_2_4c_research`, add `phase_2_4c_discuss_carry_forward` block.
 
-**Carry-forward goldens (Gate 6b regression bar — invariant 1):**
-- E1 strict modulators-off `d358abcd…` — bit-exact (HR-9 short-circuit at SUB_HARMONICS=0).
-- Phase 2.2 detune-sweep-A `5e31dad3…` — bit-exact (HR-9).
-- Phase 2.3 modulators-off renders (string-A `c6755aa4…`, string-D `765b015e…`, string-G `0cd5cb0a…`, note-sequence `3ac3ccd0…`) — bit-exact (HR-9).
-- Phase 2.3 `vibrato.wav.sha256` `d7881ecf…` — bit-exact (HR-9).
-- Phase 2.3 `macro-sweep.wav.sha256` — bit-exact (HR-9).
-- Phase 2.4a re-baselined `slow-lfo.wav.sha256` (post-calibration) — bit-exact (HR-9).
-- Phase 2.4a re-baselined `schelleng-stress.wav.sha256` (post-calibration) — bit-exact (HR-9).
-- Phase 2.4a `matrix-stability.wav.sha256` `6db67707…` — bit-exact (HR-9; matrix-stability harness mode renders SUB_HARMONICS=0 across all 108 combos).
+**Out of scope (deferred elsewhere):**
 
-**Out of scope (deferred to Phase 2.4c, 2.5, 2.6, end-of-Stage-2, Phase 2.4-bis):**
-- Chaos detector (lag-2 RMS > lag-1 RMS auto-back-off) — ARCHITECTURE §457 marks as "optional"; deferred to Phase 2.5/2.6 (relies on Schelleng F_max clamp + algebraic saturator + loop-gain ceiling 0.9999999 as v1.0 layered defenses).
-- Energy clamp `softClampState` (threshold 0.85, ceiling 1.0) — ROADMAP §Phase 2.4 deliverable; deferred to Phase 2.5/2.6 (current algebraic saturator `x/sqrt(1+x²)` covers the role at v1.0).
-- Autocorrelator octave-rejection vibrato harness fix (Phase 2.4c).
-- Saturator-tail O-Bowed comparison harness + saturator-choice decision (Phase 2.4c).
-- Body resonator + bow noise (Phase 2.5).
-- Master saturator/limiter, stereo width, microtonal, MPE (Phase 2.6).
-- Phase 2.4-bis backlog (breathingAudible metric refinement OR Step 4 modulation gain tune-up to reach 20% peak-to-peak; reduce 3 v1.0 fallback cells via downstream-defense tightening).
-- ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments (end-of-Stage-2 verify).
-- E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7).
+- **Source-change saturator port from O-Bowed** — escalation-only path; default Phase 2.4c verdict is research-only / acknowledged divergence per Q36. If RESEARCH §19 measures > 2 dB envelope divergence at 5 s mark (default threshold; research-phase tunes against measured data), escalate to **Phase 2.4c-bis** source-change cycle (separate CONTEXT rev-9-bis after Phase 2.4c verify).
+- **Phase 2.4-bis backlog** — kForceBoost retune (0.8 → ~1.0) to push subharmEnergyRatio above 0.40 strict; tune Step 4 modulation gain or refine breathingAudible metric to hit 20% peak-to-peak; reduce 3 v1.0 fallback cells via downstream-defense tightening. Separate Phase 2.4-bis cycle after Phase 2.4c.
+- **Phase 2.5** — body resonator + bow noise.
+- **Phase 2.6** — master saturator/limiter, stereo width, microtonal, MPE.
+- **Chaos detector + softClampState** — Phase 2.5/2.6 (per Phase 2.4b R35 commit-body footnote).
+- **ARCHITECTURE.md amendments** — §"DC Blocker" + §"In-loop saturator" deferred to end-of-Stage-2 verify (carry-forward from rev-2/3/4/5/6/7).
+- **E1 dispersion calibration polynomial** (Phase 2.1c Risk #7) — separate concern.
+- **Logic AU smoke** — deferred non-blocking R37/R32/R27/R19f/R14e precedent (Q43).
+- **YIN / AMDF / cepstrum autocorrelation** — fallback-only path; default is parabolic-interp + range-bias per Q37. Research-phase escalates only if pre-flight reveals sub-sample precision is insufficient.
 
 ---
 
-## Requirements Confirmed (Phase 2.4b-relevant subsets of locked contracts)
+## Requirements Confirmed (Phase 2.4c-relevant subsets of locked contracts)
 
-- **DSP-07** (Sub-Harmonic generator extends bass below string fundamental musically): Phase 2.4b implements ARCHITECTURE §457 bias formula. Acceptance bar = audible f0/2 content at `SUB_HARMONICS=1.0` on E1 with `subharmEnergyRatio = E(f0/2) / E(f0) >= 0.10` measured via FFT over last 2 s of 5 s sustain. ROADMAP §Phase 2.4 "audible f0/2 perceived as 'weight' at 50%" interpreted: 10% energy ratio at 100% gives perceptual headroom; 50% setting need not satisfy a separate threshold (stress tested in 36-combo for stability only). Promotion to "complete" in REQUIREMENTS.md held until end-of-Stage-2 verify.
-- **QUAL-01** (no audible clicks during parameter sweeps, no artifacts at normal ranges including drone settings): 36-combo `--sub-harmonics-stability` matrix is the primary gate. All 36 combos must satisfy `pass_noNaN + pass_peak ≤ 1.0 + pass_clickFree (rmsContinuity ≥ 0.85) + pass_blockTime (ratio ≤ 5.0)`. Aggregate `pass_all_36 = true` OR `failCount ≤ 2` v1.0 fallback budget (mirrors 2.4a 105/108 + failCount≤4 precedent at smaller scale). NO BODY_DAMPING axis — body resonator is Phase 2.5; full 108-combo with BODY_DAMPING revisits at end-of-Stage-2 once Phase 2.5 lands.
-- **QUAL-02** (extreme drone settings remain musical): `--sub-harmonics-stability` includes extreme combos (SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0). F_max clamp via SchellengCalibration table prevents chaotic regime; layered defenses (algebraic saturator + loop-gain ceiling) catch instability.
-- **DSP-06** (Infinite Sustain control): `--sub-harmonics-stability` includes INFINITE_SUSTAIN=1.0 across 12 of 36 combos.
-- **DSP-08** (Slow Bow LFO Schelleng-aware): unchanged — sub-harmonic bias is independent of slow-LFO; both can be active concurrently. Phase 2.4b verify renders all goldens at SLOW_LFO_DEPTH=0 default (HR-2 carry-forward).
-- **PERF-01** (no allocations in `processBlock`): SubHarmonicBias.h is `inline constexpr`; bias evaluation is ~5 multiplies + 1 add + 1 SchellengCalibration table lookup per block. Zero allocations.
-- **PERF-02** (< 5% CPU on M1): bias evaluation <0.1% CPU added on top of Phase 2.4a baseline.
+- **DSP-09 / Layered Expression** (vibrato section): Phase 2.4c restores the strict `pass_vibratoAudible` measurement gate that Phase 2.3 R28 soft-relaxed because the bass-register autocorrelator octave-jumped. Production vibrato DSP is unchanged (Phase 2.3 R29 implementation remains the authoritative source). Promotion to "complete" in REQUIREMENTS.md held until end-of-Stage-2 verify.
+- **DSP-01 / Bass-Range Waveguide Stability**: Phase 2.4c characterises the saturator-tail decay envelope at canonical E1 60s+5s. Research-only verdict either confirms current algebraic saturator is the correct architectural choice (no source change) or escalates to Phase 2.4c-bis source-change cycle.
+- **QUAL-01** (no audio artifacts at normal ranges): no new gates introduced; existing 12 carry-forward goldens (10 from Phase 2.4a + 2 new from Phase 2.4b) MUST reproduce byte-identically (HR-11 trivially holds because no production DSP edits).
+- **PERF-01** (no allocations in `processBlock`): no production DSP edits; carry-forward verbatim.
+- **PERF-02** (< 5% CPU on M1): no production DSP edits; carry-forward verbatim.
 
 ---
 
@@ -74,41 +61,36 @@ After Phase 2.4b verifies (Gate 6b PASS), Phase 2.4c discuss-phase opens.
 
 **Locked contracts (do NOT modify in this cycle):**
 
-- All 29 APVTS parameter IDs, ranges, skews, defaults — `parameter-spec.md` (sha256:`77638e25…`). `SUB_HARMONICS` already declared at PluginProcessor.cpp:104 with default 0.0 ∈ [0, 1.0]. **NO Stage-1 contract amendment in Phase 2.4b.**
-- DSP architecture (`research/ARCHITECTURE.md`, sha256:`3cb26814…`) — §457 sub-harmonic bias formula consumed verbatim; F3 deviation (no in-loop DCB) + saturator-tail tracking carry forward; ARCHITECTURE amendment still deferred to end-of-Stage-2 verify.
+- All 29 APVTS parameter IDs, ranges, skews, defaults — `parameter-spec.md` (sha256:`77638e25…`). **NO Stage-1 contract amendment in Phase 2.4c.**
+- DSP architecture (`research/ARCHITECTURE.md`, sha256:`3cb26814…`). **NO ARCHITECTURE.md amendment in Phase 2.4c.** §"DC Blocker" + §"In-loop saturator" amendments still deferred to end-of-Stage-2 verify; Phase 2.4c saturator-tail comparison feeds the end-of-Stage-2 amendment evidence base but does not amend the architecture itself.
 - ROADMAP phasing (sha256:`106639f6…`).
-- `modules/synthesis/bow-friction/` v1.0.0 (Phase 2.1b) — value-class deterministic; **Phase 2.4b does NOT touch friction module surface** (per Q24: per-plugin in BowedContrabassVoice + new SubHarmonicBias.h).
+- `modules/synthesis/bow-friction/` v1.0.0 (Phase 2.1b) — value-class deterministic; **Phase 2.4c does NOT touch friction module surface**.
 - `Source/DSP/DispersionFilter.h` (Phase 2.1c, R20 commit `5759e5e`) — verbatim consume.
 - `Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2, R26 commit `131c2c7`) — verbatim consume.
-- `Source/DSP/SchellengCalibration.h` (Phase 2.4a, R34 commit `4c926bb`) — verbatim consume; `safeDepthForString(...)` API surface unchanged.
-- Phase 2.3 modulator surface (vibratoPhase / vibratoOnsetTimer / slowLfoPhase / 4 macro SmoothedValues / 7-step per-block evaluation order / HR-1..HR-4) — Phase 2.4b inserts Step 2.5 (sub-harmonic bias evaluation) between Step 2 and Step 3 without disturbing existing 7-step semantics. Existing HR-1..HR-4 + Phase 2.4a HR-5..HR-8 verbatim.
+- `Source/DSP/SchellengCalibration.h` (Phase 2.4a, R34 commit `4c926bb`) — verbatim consume.
+- `Source/DSP/SubHarmonicBias.h` (Phase 2.4b, R35 commit `3de8b66`) — verbatim consume.
+- `Source/BowedContrabassVoice.{h,cpp}` (Phase 2.4b end-state) — verbatim consume; **zero production DSP edits in Phase 2.4c**.
+- `Source/PluginProcessor.{h,cpp}` — 29 APVTS params + Phase 2.4b voice wiring; verbatim consume.
+- Phase 2.3 modulator surface + 7-step + Step 2.5 (Phase 2.4b) + HR-1..HR-10 verbatim carry-forward.
 
-**JUCE 8 critical patterns (auto-loaded `spike-findings-VST-development` + memory):**
+**JUCE 8 critical patterns (auto-loaded `spike-findings-VST-development` + memory):** unchanged. No new JUCE-side patterns introduced in Phase 2.4c.
 
-- `juce::ScopedNoDenormals` at `processBlock` entry — already in place, unchanged.
-- `juce::SmoothedValue<float, Linear>` chain on macro destinations + per-string detune — unchanged. NEW: `subHarmonicsSmoothed` follows same pattern (30 ms ramp time, `setCurrentAndTargetValue(0.0f)` in `prepareToPlay`, `setTargetValue` UNCONDITIONAL each block per Phase 2.3 pin #11 precedent).
-- `juce::dsp::DelayLine<float, Lagrange3rd>` per-sample `setDelaySamples()` — unchanged.
-- `juce::dsp::FFT` size 65536 Hann-windowed for `subharmEnergyRatio` measurement in `--sub-harmonics` harness mode (research-phase locks window choice + bin-selection edge cases).
+**Phase 2.4c-specific constraints:**
 
-**Phase 2.4b-specific constraints:**
-
-- **HR-9 hard rule (NEW): SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate.** At `SUB_HARMONICS=0` (default in all 10 carry-forward goldens), HR-9 short-circuits the entire bias path BEFORE any arithmetic. Implementation: `if (subAmount == 0.0f) { lastSubAmount.store(0.0f); return; }` at Step 2.5 entry. Bias is invoked ONLY for the active string (mirrors HR-1 vibrato) — never for crossfade-shadowed strings. Combined with `subHarmonicsSmoothed.setCurrentAndTargetValue(0.0f)` in `prepareToPlay` AND default APVTS value of 0.0, HR-9 guarantees all 10 carry-forward goldens reproduce byte-identically.
-- **Bias terms are IEEE 754 identity-arithmetic at subAmount=0 BEFORE HR-9 short-circuit reaches them** (defensive belt-and-suspenders): `F_bow *= (1.0f + 0.8f * 0.0f) = F_bow * 1.0f` exact; `v_0 *= (1.0f - 0.5f * 0.0f) = v_0 * 1.0f` exact; `gap *= (1.0f + 0.25f * 0.0f) = gap * 1.0f` exact. Identity arithmetic redundant with HR-9 short-circuit but provides defense if a future refactor removes the short-circuit gate.
-- **F_max ceiling via SchellengCalibration reuse.** Bias's `F_bow` clamp invokes `schelleng::safeDepthForString(activeStringIndex, v_b, F_bow_pre_bias, beta)` — output ∈ {0.5, 1.0}. Mapping to `kForceBoost` scaling: `effectiveBoost = subAmount * 0.8f * safeDepth` (stable cells 1.0 → full bias; fallback cells 0.5 → half-bias). Research-phase locks the precise mapping function and validates against §17 fitting data variance.
-- **Active-string-only bias.** Crossfade window: bias for `crossfadePrevStringIndex` is gated off (not biased), only `activeStringIndex` is biased. 5 ms equal-power crossfade ramp from Phase 2.2 carries forward; bias contributes to active string only during the entire crossfade.
-- **Strict bit-exact regression bar unchanged.** All 10 carry-forward goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo + schelleng-stress) MUST reproduce byte-identically. HR-9 is the technical defence.
+- **HR-11 hard rule (NEW): zero production DSP edits.** Phase 2.4c modifies ONLY `tests/render-harness/main.cpp`, `tests/render-harness/reproduce-goldens.sh`, golden text files, and planning artefacts (CONTEXT/RESEARCH/PLAN/STATUS/SUMMARY/VERIFICATION). Any source edit under `plugins/O-Contrabass/Source/` (including `Source/DSP/*`) is a HARD violation requiring escalation to Phase 2.4c-bis. HR-11 is the technical defence guaranteeing all 12 carry-forward goldens reproduce byte-identically by construction (no IEEE 754 identity arithmetic gymnastics needed; the WAV-producing code paths are not touched).
+- **Autocorrelator fix is harness-side only.** The autocorrelator lives in `tests/render-harness/main.cpp` `--vibrato` mode pitch-tracker (Phase 2.3 §16.7 / R28 §"4 harness modes"). The fix changes measurement output but not WAV output: `vibrato.wav.sha256 = d7881ecf…` carries forward byte-identical; only `vibrato.json` shifts (autocorrelator now reports correct fundamental period rather than octave-jumped half-period; rate / depth / onset metrics tighten back into Phase 2.3 design-intent strict ranges).
+- **Saturator-tail comparison is research-only by default.** RESEARCH §19 documents the O-Bowed cross-comparison; verdict written there is **acknowledged divergence + Phase 2.5-awareness** unless measured envelope divergence at the 5 s mark exceeds the research-phase-tuned threshold (default 2 dB). If escalation triggers, a separate Phase 2.4c-bis cycle (CONTEXT rev-9-bis) opens with source-change scope; Phase 2.4c stays research-only.
+- **O-Bowed harness availability is a research-phase audit prerequisite.** Plan-phase cannot lock R36 task breakdown until research-phase confirms whether O-Bowed has a comparable render harness (`plugins/O-Bowed/tests/render-harness/` candidate path or `modules/synthesis/bow-friction/` cohort harness path from Phase 2.1b precedent) AND what parity-mode invocation produces the canonical E1 60s+5s render at matched bow defaults. If unavailable, plan-phase decides between (a) drop O-Bowed comparison from Phase 2.4c → defer to Phase 2.4c-bis or (b) build a one-shot O-Bowed harness in R36b (scope expansion).
+- **Strict bit-exact regression bar trivially preserved.** All 12 carry-forward WAVs (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo + schelleng-stress + sub-harmonics + sub-harmonics-stability) MUST reproduce byte-identically. No HR-9-style identity-arithmetic pre-flight needed because no DSP source is touched; HR-11 is the technical defence.
 - **NO Stage-1 contract amendment.** parameter-spec.md sha256 `77638e25…` carries forward unchanged. STATUS.md `contract_checksums.parameter_spec` unchanged.
-- **NO ARCHITECTURE.md amendment.** Bias formula is implementation of §457 verbatim; deferred chaos detector + softClampState tracked in commit-message body until end-of-Stage-2 verify.
+- **NO ARCHITECTURE.md amendment.** End-of-Stage-2 verify still owns §"DC Blocker" + §"In-loop saturator" amendments; Phase 2.4c saturator-tail evidence is fed forward as source data for that future amendment cycle.
 
-**Working-tree starting state (locked from Phase 2.4a verify, R34 commit `4c926bb`):**
+**Working-tree starting state (locked from Phase 2.4b verify, R35 commit `3de8b66` + R35-backfill chore `0db5fac`):**
 
-- `Source/BowedContrabassVoice.{h,cpp}` — 4-string voice with Phase 2.3 7-step + Phase 2.4a Step 2 SchellengCalibration trilinear lookup behind HR-4 gate + HR-7 matrix-stability bypass.
-- `Source/DSP/SchellengCalibration.h` (auto-generated from matrix.json sha256 `625505cf…`, 105/108 stable + 3 fallback cells).
-- `Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2 R26).
-- `Source/DSP/DispersionFilter.h` (Phase 2.1c R20).
-- `Source/PluginProcessor.{h,cpp}` — 29 APVTS params (Stage 1 + Phase 2.2 + Phase 2.3 + Phase 2.4a no-op).
-- `modules/synthesis/bow-friction/` v1.0.0 (Phase 2.1b) — verbatim consume.
-- 10 currently-committed goldens + reproduce-goldens.sh (Phase 2.4a infrastructure).
+- All Phase 2.4b end-state source verbatim (BowedContrabassVoice, SubHarmonicBias.h, SchellengCalibration.h, WaveguideString, DispersionFilter, PluginProcessor).
+- 12 currently-committed goldens: E1 strict `d358abcd…` + per-string A/D/G `c6755aa4…/765b015e…/0cd5cb0a…` + detune-sweep-A `5e31dad3…` + note-sequence `3ac3ccd0…` + vibrato `d7881ecf…` + macro-sweep `c2571dd9…` + slow-lfo `c0c2c893…` + schelleng-stress `9d18da86…` + sub-harmonics `bfcaaadc…` + sub-harmonics-stability `8043f659…`. Plus matrix-stability `6db67707…` (Phase 2.4a evidence carry-forward, not in default reproduce-goldens.sh).
+- `reproduce-goldens.sh` (Phase 2.4a R34-pre infrastructure, extended Phase 2.4b R35 from 10→12 entries).
+- `preflight-subharm.sh` (Phase 2.4b R35-pre HR-9 escalation gate).
 
 ---
 
@@ -116,75 +98,75 @@ After Phase 2.4b verifies (Gate 6b PASS), Phase 2.4c discuss-phase opens.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Q23 — Phase 2.4b cycle scope** | **Sub-harmonic bias DSP-07 only** | Tight cycle mirrors Phase 2.4a precedent. Phase 2.4-bis backlog (breathingAudible metric refinement, 3 fallback-cell reduction) keeps as separate Phase 2.4-bis cycle. Chaos detector + softClampState defer to Phase 2.5/2.6. User-confirmed. |
-| **Q24 — Bias application site** | **Per-plugin in `BowedContrabassVoice.cpp` pre-friction + new `Source/DSP/SubHarmonicBias.h` header** | Mirrors Phase 2.4a per-plugin SchellengCalibration.h precedent. Friction module v1.0.0 untouched (zero ABI churn, no module version bump). Architecture §765 says "O-Contrabass-specific, should NOT bleed back into O-Bowed defaults." Header gives clean separation analogous to DispersionFilter.h. User-confirmed. |
-| **Q25 — F_max clamp data source** | **Reuse Phase 2.4a `schelleng::safeDepthForString()` table** | Natural reuse of just-landed work. 108-combo bass-register data already calibrated against `pass_noNaN + pass_peak + pass_clickFree + pass_blockTime`. Stable cells (1.0) allow full bias; fallback cells (0.5) clamp effective boost to half. One less calibration polynomial to fit. User-confirmed. |
-| **Q26 — Stress test matrix scope** | **36-combo `--sub-harmonics-stability` (4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS); chaos detector deferred** | BODY_DAMPING axis blocked by Phase 2.5 dependency; v1.0 ships 36-combo evidence + Phase 2.5 at end-of-Stage-2 picks up full 108. Chaos detector parks to Phase 2.5/2.6 (relies on Schelleng F_max clamp + algebraic saturator + loop-gain ceiling). ~3-4 min wall-clock budget. User-confirmed. |
-| **Q27 — `pass_subharmAudible` measurement** | **FFT energy ratio E(f0/2)/E(f0) ≥ 0.10 at SUB_HARMONICS=1.0 on E1** | Numeric, deterministic, falsifiable. FFT size 65536 Hann-windowed over last 2 s of MIDI 28 sustain at default bow. Architecture §457 "audible f0/2 perceived as weight" interpreted as ≥10% spectral energy at f0/2 (~20.6 Hz) relative to f0 (~41.2 Hz) at full SUB_HARMONICS. Adds ~30 LOC FFT analyzer to harness via `juce::dsp::FFT`. User-confirmed. |
-| **Q28 — Logic AU smoke timing** | **Deferred non-blocking R37 precedent** | Mirrors R32 / R27 / R19f / R14e. Automated Gate 6b invariants gate verify; Logic AU smoke is user-discretion non-blocking (MIDI 28 + SUB_HARMONICS 0→1.0 ramp at 30 s; MIDI 33 + SUB+SUS=1.0 chaos check). User-confirmed. |
-| **Q29 — Golden-file scope** | **Carry-forward 10 + add 2 new** (`--sub-harmonics` + `--sub-harmonics-stability`) | 10 currently-committed goldens MUST reproduce byte-identically (HR-9 IEEE 754 identity arithmetic). 2 new goldens land in R35 atomic commit alongside source delta. Plus matrix-stability `6db67707…` carries forward. User-confirmed. |
-| **Q30 — 30 ms `SmoothedValue` on SUB_HARMONICS** | **Confirmed per architecture §457 implementation note** | New `subHarmonicsSmoothed` member with 30 ms ramp time. Initialised via `setCurrentAndTargetValue(0.0f)` in `prepareToPlay` (HR-9 strict-default precondition). `setTargetValue` UNCONDITIONAL each block per Phase 2.3 pin #11 precedent. |
-| **Q31 — Active-string-only bias** | **Confirmed (HR-1 vibrato precedent)** | Bias evaluated only for `activeStringIndex`; crossfade-shadowed strings unbiased. 5 ms equal-power crossfade window from Phase 2.2 carries forward. Architecture §557 "bias INSIDE the junction" — junction is per-string, bias is per-string-active. |
-| **Q32 — Atomic commit** | **R35 atomic commit on Gate 6b PASS** | Continues sequence: R7 → R15 → R20 → R26 → R33 → R34 → R35. Lands ~12-15 files (2 source: BowedContrabassVoice.{h,cpp} + 1 new header SubHarmonicBias.h + harness CLI flag + 2 new golden text + reproduce-goldens.sh extension + planning artefacts + STATUS.md). R35-backfill chore commit per R34 / R33 precedent. |
-| **Q33 — CONTEXT.md doc scope** | **rev-7 covers Phase 2.4b only** | Phase 2.4c (autocorrelator + saturator-tail) gets rev-8 when discuss-phase opens after 2.4b verify. Mirrors rev-2/rev-3/rev-4/rev-5/rev-6 (Phase 2.1a/b/c, 2.3, 2.4a) precedent. |
-| Per-block evaluation order | **7-step + Step 2.5 inserted (Phase 2.4b)** | Step 2.5 (sub-harmonic bias evaluation) sits between Step 2 (Schelleng wedge / SchellengCalibration trilinear) and Step 3 (slow-LFO modulation apply). HR-9 short-circuits entire Step 2.5 at `subAmount == 0.0f`. Step 2.5 reads pre-bias `F_bow / v_0 / mu_s / mu_d` from Step 1 raw APVTS or smoothed values; writes biased values that feed downstream macro layer + per-sample friction call. |
-| Bias application order | **Bias → Schelleng F_max clamp → friction lookup (architecture §557 verbatim)** | F_max clamp is INSIDE the bias function (post bias-multiply, pre return). Order matches §457 implementation note + §557 "bias INSIDE the junction" wording. SchellengCalibration table read happens once per block per active string. |
+| **Q34 — Phase 2.4c cycle scope** | **Autocorrelator harness fix + saturator-tail O-Bowed comparison paired** | User-confirmed Option A. Closes Phase 2.3 R28 audit-debt (relaxed `pass_vibratoAudible`) AND Phase 2.1a R6 audit-debt (saturator-tail decay characterisation deferred for O-Bowed cross-comparison) in a single low-risk cycle before Phase 2.5 lands body resonator (which alters tail-decay envelope). Phase 2.4-bis backlog stays as separate future cycle. |
+| **Q35 — Pair both items in single R36 atomic commit** | **Pair (single R36 atomic + R36-backfill chore)** | User-confirmed. Both are harness-only with low coupling; single auval/pluginval pass; mirrors R34/R35 atomic-commit precedent. Splitting into R36 (autocorrelator) + R37 (saturator-tail) would double the gate-cycle overhead without coupling benefit. |
+| **Q36 — Saturator-tail comparison default verdict path** | **Research-only by default; escalate to source-change Phase 2.4c-bis if envelope divergence > 2 dB at 5 s mark** | User-confirmed. Default v1.0 verdict is "acknowledged divergence + Phase 2.5-awareness" via RESEARCH §19. Escalation criterion: measured RMS envelope divergence between O-Bowed and O-Contrabass at the 5 s post-bow-off mark exceeds 2 dB (research-phase tunes the threshold against actual measured data). Source-change escalation = separate Phase 2.4c-bis cycle (CONTEXT rev-9-bis), NOT Phase 2.4c scope expansion. |
+| **Q37 — Autocorrelator fix algorithm** | **Parabolic interpolation around lag peak + lag-search range bias toward MIDI-derived expected period** | User-confirmed (fix-autocorr). Default fix: (a) sub-sample precision via 3-point parabolic interpolation around the integer-lag peak; (b) constrain lag-search to ±20% of the MIDI-note-derived expected period (e.g., MIDI 28 / E1 → period ≈ 1070 samples at sr=44100; range [856, 1284]). Eliminates octave-jump pathology where autocorrelator latches onto period/2 or 2·period at harmonic-rich signals. YIN / AMDF / cepstrum reserved as fallback if research-phase pre-flight reveals parabolic-interp precision is insufficient at 12-cent vibrato depth (~0.7% period modulation). |
+| **Q38 — Restore strict `pass_vibratoAudible` post autocorrelator fix** | **Restore Phase 2.3 PLAN rev-7 design-intent strict ranges** | Once autocorrelator no longer octave-jumps, the originally-designed strict ranges apply: rate ∈ [4.5, 5.5] Hz, depth ∈ [10, 14]¢, onsetWindow ∈ [800, 1000] ms. R36c re-baselines `vibrato.json{,.sha256}` only (WAV unchanged because DSP unchanged). Phase 2.3 R28 soft-relaxation retired. |
+| **Q39 — Saturator-tail harness mode shape** | **NEW `--saturator-tail-comparison` flag emitting per-decade decay envelope JSON** | Single new CLI flag mirroring `--sub-harmonics` precedent. Renders canonical E1 60s+5s at default bow / INFINITE_SUSTAIN=1.0 (matches Phase 2.1a R6 protocol). Captures 65 per-second RMS bins as `decayEnvelopeDb: [...]`. NO `pass_decayMatchesOBowed` JSON predicate; comparison verdict is RESEARCH §19, not a golden gate. |
+| **Q40 — O-Bowed cross-comparison protocol** | **Render canonical E1 60s+5s in O-Bowed via its render harness; capture decay envelope; document divergence in RESEARCH §19** | Research-phase audits whether O-Bowed has a comparable render harness (`plugins/O-Bowed/tests/render-harness/` or `modules/synthesis/bow-friction/` cohort path from Phase 2.1b precedent). If unavailable, plan-phase decides between dropping the comparison from Phase 2.4c (defer to 2.4c-bis with O-Bowed harness build) or scope-expanding R36b to build a one-shot O-Bowed harness. Default assumption: O-Bowed harness exists from Phase 2.1b cohort work. |
+| **Q41 — Saturator-tail decision criterion** | **2 dB envelope divergence at 5 s mark = research-only verdict; > 2 dB = escalate to Phase 2.4c-bis** | Research-phase tunes the threshold against actual measured data (the 2 dB default is a pin, not a contract). Threshold sits below typical perceptual-just-noticeable-difference for sustained tones (~3 dB) so any escalation is conservative. |
+| **Q42 — NEW Hard Rule HR-11** | **Zero production DSP edits in Phase 2.4c** | Phase 2.4c is harness-only / research-only by construction. Any edit under `plugins/O-Contrabass/Source/` is a HARD violation requiring escalation to Phase 2.4c-bis. HR-11 is the technical defence guaranteeing 12-of-12 WAV byte-identical regression bar without HR-9-style IEEE 754 gymnastics. |
+| **Q43 — Logic AU smoke timing** | **Deferred non-blocking R37/R32/R27/R19f/R14e precedent** | User-confirmed. No DSP changes → no audible difference for AU smoke to detect. Logic AU smoke remains an end-of-Stage-2 user-discretion non-blocking item. |
+| **Q44 — Atomic commit shape** | **R36 atomic + R36-backfill chore mirrors R34/R35 precedent** | User-confirmed. Continues atomic-commit sequence: R7 → R15 → R20 → R26 → R33 → R34 → R35 → **R36** (Phase 2.4c Gate 6c PASS). R36-backfill chore propagates R36 sha into STATUS.md per R34-backfill / R35-backfill precedent. |
+| **Q45 — CONTEXT.md doc scope** | **rev-8 covers Phase 2.4c only** | Phase 2.5 (body resonator + bow noise) gets fresh CONTEXT rev-9 when its discuss-phase opens. Mirrors rev-2/3/4/5/6/7 precedent. |
+| Per-block evaluation order | **Unchanged from Phase 2.4b end-state** | 7-step + Step 2.5 carry-forward verbatim. Phase 2.4c does NOT modify the per-block evaluation order. |
 
 ---
 
 ## Open Questions (handed to research-phase)
 
-1. **SchellengCalibration→F_max ceiling mapping function.** 2.4a table returns `safeDepth ∈ {0.5, 1.0}` as a slow-LFO depth multiplier; 2.4b needs an `F_bow` ceiling. Recommended mapping: `effectiveBoost = subAmount * 0.8f * safeDepth` (stable→full 0.8, fallback→half 0.4). Alternatives: (a) use `safeDepth` as kForceBoost scalar (`kForceBoost = 1.8f * safeDepth`), (b) treat fallback cells as hard zero (`if (safeDepth < 1.0f) bias=0`), (c) introduce a new fitting pass for `F_bow ceiling = f(stringIdx, v_b, F_bow, beta)` mirroring 2.4a polynomial. Research-phase locks against acceptance criterion (Open Q3 below).
+1. **Autocorrelator algorithm validation.** Pre-flight `--vibrato` mode against canonical `vibrato.wav` at HEAD (`5d95d15` descendant of R35-backfill `0db5fac`) BEFORE source edits — confirm current measurement IS octave-jumped (i.e., Phase 2.3 R28 documented behavior reproduces). Then implement parabolic-interp + range-bias fix in research-side prototype; measure (rate, depthCents, onset) on `vibrato.wav`; verify all three fall into Phase 2.3 PLAN rev-7 strict ranges (rate ∈ [4.5, 5.5] Hz / depth ∈ [10, 14]¢ / onset ∈ [800, 1000] ms). If sub-sample precision insufficient at 12-cent vibrato (~0.7% period modulation), escalate to YIN / AMDF / cepstrum (Open Q1-bis).
 
-2. **FFT analyzer specifics.** FFT size + window + bin selection for `subharmEnergyRatio` measurement. Defaults: size 65536 Hann, bin width 0.673 Hz at sr=44100. f0 (41.2 Hz) bin 61.2; f0/2 (20.6 Hz) bin 30.6. Energy = magnitude² summed over 3 bins centered on each (capture spectral leakage). Open: window choice (Hann vs Blackman-Harris), bin-width tradeoff vs sustain length, log-magnitude vs linear-magnitude energy. Research-phase pre-flights at SUB_HARMONICS=0 baseline (subharmEnergyRatio expected ≈ 0 — system noise floor only) and at SUB_HARMONICS=1.0 against bias formula prediction.
+2. **Lag-search range bound spec.** Default ±20% of MIDI-note-derived expected period. For MIDI 28 / E1 (f0 = 41.2 Hz at sr = 44100): period = 1070.4 samples; range [856, 1284]. Open: should range bias be MIDI-derived or detected-string-derived (the latter handles per-string detune)? Recommend MIDI-derived for v1.0 (simpler; vibrato.wav uses MIDI 28 verbatim; per-string detune is a separate concern).
 
-3. **`pass_subharmAudible` threshold tuning.** Default 0.10 ratio at SUB_HARMONICS=1.0 on E1. Research-phase pre-flights: render at SUB_HARMONICS=1.0 with bias formula coefficients verbatim (`kForceBoost=1.8`, `kV0Reduction=0.5`, `kGapWiden=0.25`, `kFmaxScalar=0.95`); measure resulting subharmEnergyRatio; if measured value < 0.10, escalate (relax threshold to architecture-spec'd "audible" wording OR re-tune coefficients OR escalate to Phase 2.4-bis style soft-pass with documented v1.0 budget).
+3. **O-Bowed saturator topology audit.** Grep `plugins/O-Bowed/Source/DSP/WaveguideString.{h,cpp}` and friction junction sources for in-loop nonlinearity vs output-only saturation. Document where O-Bowed applies saturation, what topology (algebraic vs `tanh` vs lookup), and what constants. Confirms or refutes the design assumption that O-Bowed's saturator is materially different from O-Contrabass's `x/sqrt(1+x²)`.
 
-4. **HR-9 bit-exact pre-flight.** Render all 10 currently-committed goldens BEFORE Phase 2.4b source edits via canonical default-duration invocations (reproduce-goldens.sh from Phase 2.4a R34-pre tripwire). Capture sha256s; verify against committed values. If any drift, escalate before plan-phase. Mirrors §17.1 / §16.1 precedent.
+4. **O-Bowed render harness availability + parity-mode invocation.** Is there a `plugins/O-Bowed/tests/render-harness/` analogous to O-Contrabass's? Or does the Phase 2.1b cohort harness (`modules/synthesis/bow-friction/test-harness/`) cover the canonical E1 60s+5s scenario? Confirm existence + matching CLI invocation that produces the same render-rate / parameter / MIDI configuration as O-Contrabass `--saturator-tail-comparison`. If unavailable, escalate at plan-phase (Q40 alternatives).
 
-5. **`--sub-harmonics-stability` single-combo wall-clock pre-flight.** Render ONE combo at extreme settings (E1, SUB_HARMONICS=1.0, INFINITE_SUSTAIN=1.0) — measure block-time ratio + wall-clock per combo. Extrapolate to 36-combo total wall-clock; revisit matrix size if budget overrun (mirrors §17.2). Initial estimate: 36 × 5 s sustain ≈ 180 s wall-clock at typical block-time ratio ≤ 1.0.
+5. **Saturator-tail measurement protocol.** 65 per-second RMS bins captured during 60 s sustain + 5 s release. Schema: `decayEnvelopeDb: [bin0_db, bin1_db, ..., bin64_db]` where each bin is `20 * log10(rms_per_second / rms_max)`. RMS computed per 1-second window non-overlapping. Open: sample-rate (44100 default; pin for cross-plugin parity); MIDI velocity (default 100; pin for parity); state-init (`processor.releaseResources(); processor.prepareToPlay(...)` per Phase 2.4b R35-pre determinism precedent).
 
-6. **`--sub-harmonics-stability` MIDI note per combo.** Each stringIdx renders at one note. Recommend: open-string MIDI 28/33/38/43 (4 strings), mirroring Phase 2.4a `--matrix-stability` precedent. Research-phase confirms (alternative: middle-of-range per string).
+6. **Saturator-tail divergence threshold tuning.** Default 2 dB at 5 s mark; research-phase reports actual measured divergence and either confirms 2 dB or proposes a tuned value. Below typical perceptual JND for sustained tones (~3 dB).
 
-7. **`--sub-harmonics-stability` pass criteria.** Default thresholds (rmsContinuity ≥ 0.85, blockTimeRatio ≤ 5.0) carry forward from Phase 2.4a. Research-phase pre-flights extreme combo to confirm thresholds are tight enough at SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0.
+7. **Vibrato golden re-baseline scope.** ONLY `vibrato.json` + `vibrato.json.sha256` change (autocorrelator fix changes measurement output but not WAV). `vibrato.wav.sha256 = d7881ecf…` byte-identical (DSP unchanged). Confirm via R36-pre tripwire.
 
-8. **SubHarmonicBias.h API shape.** Recommended single function `applyBias(float subAmount, int stringIdx, float v_b, float beta, float& F_bow, float& v_0, float& mu_s, float mu_d)`. Open: should `mu_d` be const reference (read-only) or non-const (also biased)? Architecture §457 only mutates `mu_s`; gap widening is via `mu_s = mu_d + gap * (1.0f + 0.25 * subAmount)` keeping `mu_d` constant. Research-phase confirms.
+8. **Strict `pass_vibratoAudible` threshold values.** Phase 2.3 PLAN rev-7 design-intent ranges (rate ∈ [4.5, 5.5] Hz, depth ∈ [10, 14]¢, onset ∈ [800, 1000] ms) carry forward verbatim. Confirm measured values against autocorrelator-fix prototype.
 
-9. **Bias evaluation context — voice-level vs per-string.** Active-string-only (Q31) means bias evaluated once per block for `activeStringIndex`. Open: does bias's input `v_b` (bow velocity) and `F_bow` (bow force) come from voice-level smoothed values OR per-string-instance? At v1.0 with single bow-position pipeline, voice-level inputs feed all strings — bias inputs are voice-level. Research-phase locks input wiring.
+9. **R36 task breakdown.** Initial estimate: R36-pre tripwire (12 carry-forward goldens reproduce + autocorrelator pre-flight on `vibrato.wav` confirms octave-jump baseline) + R36a (autocorrelator fix in `main.cpp` `--vibrato` mode) + R36b (NEW `--saturator-tail-comparison` mode + render new golden) + R36c (re-baseline `vibrato.json{,.sha256}` strict) + R36d (RESEARCH §19 O-Bowed audit + cross-comparison rendering + verdict) + R36e (regression bar via `reproduce-goldens.sh` 13 entries: 12 carry-forward WAVs unchanged + 1 new saturator-tail-comparison WAV) + R36f (auval + pluginval-10) + R36 atomic commit + R36-backfill chore. Research-phase locks task body and ordering.
 
-10. **R35 task breakdown.** Initial estimate mirrors R34: R35-pre tripwire + R35a (harness `--sub-harmonics` + `--sub-harmonics-stability` flags + FFT analyzer) + R35b (render new goldens + capture sha256s) + R35c (author SubHarmonicBias.h) + R35d (BowedContrabassVoice integration: Step 2.5 + subHarmonicsSmoothed + lastSubAmount instrumentation) + R35e (regression bar via reproduce-goldens.sh) + R35f (auval + pluginval-10) + R35 atomic commit + R35-backfill chore. Research-phase locks task body and ordering.
+10. **New goldens scope final spec.** 1 changed (`vibrato.json` + `vibrato.json.sha256`) + 3 new (`saturator-tail-comparison.{wav.sha256, json, json.sha256}`). 12 carry-forward WAVs + their JSONs unchanged (HR-11 trivially preserves bit-exact regression).
 
-11. **Per-string SUB_HARMONICS variation.** Architecture §457 specifies a single global `subAmount`. Open: does ROADMAP / BRIEF imply per-string sub-harmonic variation (e.g., E1-only sub bias, others muted)? Research-phase audits BRIEF + ROADMAP. Recommended: single global SUB_HARMONICS applied to active string only via Q31.
+11. **RESEARCH §19 deliverable structure.** §19.1 HR-11 pre-flight (12 carry-forward goldens reproduce). §19.2 autocorrelator algorithm validation + sub-sample precision benchmark. §19.3 O-Bowed saturator topology audit. §19.4 O-Bowed render harness availability + parity-mode invocation. §19.5 saturator-tail measurement protocol. §19.6 cross-comparison findings (measured envelope divergence at 5 s mark). §19.7 verdict (research-only acknowledged divergence vs Phase 2.4c-bis escalation). §19.8 R36 task breakdown (10 plan-phase open items handed to PLAN rev-10).
 
-12. **Architectural footnote on chaos detector deferral.** Track in R35 commit-message body that lag-2 RMS chaos detector + softClampState deferred to Phase 2.5/2.6 per Q26. NOT an ARCHITECTURE.md amendment. Research-phase confirms commit-body wording template.
+12. **`--saturator-tail-comparison` wall-clock budget pre-flight.** 65 s of audio at default settings. Single-combo wall-clock estimate: ~0.5 s (mirrors Phase 2.4a `--matrix-stability` 0.04 s/combo extrapolation). Pre-flight 3 back-to-back renders to confirm sha256 determinism (mirrors §17.2 / §18.2 precedent).
 
 ---
 
-## Risks (Phase 2.4b-specific)
+## Risks (Phase 2.4c-specific)
 
-1. **HR-9 bit-exact regression failure on 10 carry-forward goldens.** Mitigation: pre-flight (Open Q4) captures all 10 currently-committed goldens BEFORE Phase 2.4b source edits. HR-9 short-circuit + IEEE 754 identity arithmetic + active-string-only gate are technical defences. If regression breaks, isolate SubHarmonicBias.h to separate translation unit OR add `__attribute__((noinline))` OR roll back to source structure with bias as pure constexpr swap-in. Phase 2.3 latent-drift risk re-surfacing surface — mitigated by canonical reproduce-goldens.sh invocation pattern.
+1. **HR-11 trivially preserved by construction**, but accidental DSP edit (e.g., during research-phase prototyping) violates the rule. Mitigation: R36-pre tripwire reproduces 12 carry-forward goldens BEFORE R36a edits; R36e re-tripwire confirms 12-of-12 WAV byte-identical post-edits. Any drift = HARD violation requiring escalation to Phase 2.4c-bis (source-change cycle) and reset of R36 to atomic-commit-of-just-harness-changes.
 
-2. **SchellengCalibration→F_max mapping semantic mismatch.** 2.4a table returns slow-LFO depth multiplier; 2.4b needs F_bow ceiling. Mapping research-phase locks (Open Q1). If recommended `effectiveBoost = subAmount * 0.8f * safeDepth` under-clamps at fallback cells (3 of 108 cells where safeDepth=0.5), bias could produce raucous-corner instability at those operating points. Mitigation: 36-combo `--sub-harmonics-stability` exercises these regimes; `failCount ≤ 2` v1.0 budget gives headroom.
+2. **Autocorrelator parabolic-interp + range-bias may be insufficient at 12-cent vibrato.** Period modulation ~0.7% (1070 → 1078 samples peak deviation). Sub-sample precision ~0.1 sample needed. If parabolic-interp prototype shows excess noise, escalate to YIN (cumulative mean normalised difference) or AMDF (average magnitude difference function with octave-bias correction subtracting lag-2× minimum from lag-1×) per Open Q1-bis. Mitigation: research-phase pre-flight catches this BEFORE plan-phase locks R36a algorithm.
 
-3. **`pass_subharmAudible` threshold 0.10 may be too lax or too strict at default coefficients.** Research-phase pre-flights at SUB_HARMONICS=1.0 with `kForceBoost=1.8` etc. — measured ratio either confirms 10% threshold OR informs coefficient adjustment OR informs threshold relaxation (Phase 2.4-bis style soft-pass with v1.0 budget). Mitigation: research-phase Open Q3 + escalation path documented at discuss-phase.
+3. **O-Bowed render harness may be unavailable or non-parity-able.** Plan-phase escalation lane: (a) drop O-Bowed comparison from Phase 2.4c → defer to 2.4c-bis with O-Bowed harness build prerequisite, OR (b) scope-expand R36b to build a one-shot O-Bowed harness (estimate +1 day + cohort-harness regression risk). Research-phase confirms availability before plan-phase commits.
 
-4. **Period-doubling chaotic regime at SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0 on extreme bow params.** No chaos detector at v1.0 (deferred Q26). Layered defences: (a) SchellengCalibration F_max clamp inside bias, (b) algebraic saturator `x/sqrt(1+x²)` per rail, (c) loop-gain ceiling 0.9999999 hard-clamp. Mitigation: 36-combo stability matrix exercises 9 SUB+SUS=high combos; if any combo NaN/peak>1.0/runaway, escalate to chaos detector Phase 2.4-bis OR reduce `kForceBoost` from 1.8 → 1.4 (architecture §661 fallback 1).
+4. **Saturator-tail divergence > 2 dB triggers Phase 2.4c-bis escalation mid-Phase 2.4c.** This is a feature, not a bug — escalation criterion is the design intent. Mitigation: PLAN rev-10 includes explicit escalation lane spec; if escalation triggers, R36 atomic stays harness-only (autocorrelator fix + measurement infrastructure), and Phase 2.4c-bis opens with CONTEXT rev-9-bis specifying source-change scope.
 
-5. **Active-string-only bias under crossfade.** During the 5 ms equal-power crossfade window between strings, bias for `activeStringIndex` fires on the new active string but the previous-active-shadow continues to ring out unbiased. Risk: audible "switch" event when SUB_HARMONICS > 0 mid-note-change (HR-9 active-string gate analogous to HR-1 vibrato — Phase 2.3 verified vibrato gates didn't audibly switch; same expected for bias). Mitigation: bias rampup via `subHarmonicsSmoothed.setTargetValue(...)` 30 ms ramp absorbs the discontinuity; research-phase confirms no audible click via stress-test combos that include note transitions.
+5. **Vibrato pre-flight catches autocorrelator drift unrelated to Phase 2.4c source edits.** Mitigation: `vibrato.wav.sha256` byte-identical pre-flight in R36-pre confirms NO upstream WAV drift; if drift, INVESTIGATE before plan-phase (mirrors §16.1 / §17.1 / §18.1 precedent).
 
-6. **`subHarmonicsSmoothed.setTargetValue` UNCONDITIONAL each block at default 0.0.** Phase 2.3 macroSmoothed pin #11 precedent. If condition guards `setTargetValue` (e.g., `if (newValue != currentTarget) setTargetValue(...)`), denormal accumulation in smoother state can drift over very long sessions. Mitigation: pin into PLAN rev-9 preamble.
+6. **`saturator-tail-comparison.wav.sha256` non-deterministic across re-renders.** State-bleed between sustain + release segments could surface, especially with long INFINITE_SUSTAIN=1.0 buildup. Mitigation: research-phase pre-flights 3 back-to-back renders to confirm determinism; uses `processor.releaseResources(); processor.prepareToPlay(...)` for state reset (Phase 2.4b R35-pre precedent).
 
-7. **SUB_HARMONICS default 0.0 audit.** All 10 current golden render configs MUST use default SUB_HARMONICS=0. Mitigation: research-phase audits each render config in main.cpp — confirm no mode passes a non-zero SUB_HARMONICS to the harness. If any mode passes >0, that golden becomes a re-baseline candidate (escalation to Phase 2.4b R35 atomic commit body).
+7. **JSON `decayEnvelopeDb` array width vs sha256 noise.** 65 floats serialised into JSON could surface rounding noise across runs (similar to Phase 2.4a `--matrix-stability` JSON wall-clock noise issue). Mitigation: serialise floats with fixed-width 6-decimal-place format; strip wall-clock fields; basename-only outputWav path. Research-phase pre-flights determinism.
 
-8. **Bias's F_max clamp interaction with HR-4 (Schelleng wedge skip on SLOW_LFO_DEPTH=0).** Bias's F_max clamp via SchellengCalibration is INDEPENDENT of HR-4 wedge gate. At SLOW_LFO_DEPTH=0 (HR-4 short-circuits wedge math), bias still invokes safeDepthForString — but that lookup is read-only and cheap. No interaction conflict. Mitigation: research-phase confirms HR-4 + HR-9 are independent gates.
+8. **R36 atomic commit interaction with R35-backfill chore.** R35-backfill (`0db5fac`) propagated R35 sha into STATUS.md. R36 atomic lands while R35-backfill is most recent. R36-backfill chore propagates R36 sha after R36 atomic. Mitigation: chore commit follows atomic commit (mirrors R35 / R34 / R33 precedent).
 
-9. **Period-doubling spectral content shifts FFT bin selection.** At SUB_HARMONICS=1.0, period-doubling regime produces broadband transients in addition to f0/2 fundamental. FFT energy at f0/2 ± 0.5 Hz captures fundamental but not the sideband structure. Research-phase pre-flights to confirm `subharmEnergyRatio = E(f0/2_3bins) / E(f0_3bins) >= 0.10` is achievable with bias coefficients verbatim.
+9. **RESEARCH §19 O-Bowed audit surfaces non-saturator divergences** (e.g., bridge LP coefficient choice, friction junction defaults, dispersion topology). Mitigation: research-phase scope is saturator-only; out-of-scope findings are tracked as Phase 2.4c-bis or v1.1 backlog items, NOT folded into Phase 2.4c.
 
-10. **R35 atomic commit interaction with R34-backfill chore.** R34-backfill chore `b64c8c4` propagated R34 sha into STATUS.md per R33 precedent. R35 atomic commit lands while R34-backfill is the most recent in-tree commit. R35-backfill chore propagates R35 sha into STATUS.md. Mitigation: R35-backfill chore commit follows R35 atomic commit (mirrors R34-backfill / R33-backfill / R26 precedent).
+10. **Phase 2.5-awareness might supersede the saturator-tail decision before it lands.** Body resonator (Phase 2.5) changes downstream amplitude envelope; the in-loop saturator-tail decay characterisation might be moot once body modes contribute to the measured envelope. Mitigation: Phase 2.4c verdict explicitly notes "valid for v1.0 pre-Phase-2.5 architecture"; Phase 2.5 verify includes a saturator-tail re-measurement as a regression check.
 
-11. **`kForceBoost = 1.8` cap matches architecture §1.3 default.** Bias formula `F_bow *= 1.0f + 0.8f * subAmount` produces F_bow×1.8 at subAmount=1.0 — matches kForceBoost cap. Research-phase confirms mapping (no separate kForceBoost constant; 0.8 multiplier embedded in bias formula).
+11. **MIDI 28 expected-period range bias may be incorrect for E1 dispersion-warped pitch.** Phase 2.1c dispersion may shift the perceived fundamental slightly (research-phase Risk #7 carry-forward). Mitigation: research-phase pre-flight `vibrato.wav` autocorrelator output reports the actual fundamental period observed in the WAV; range-bias bounds tune against measured data, not theoretical MIDI-derived value.
 
-12. **Phase 2.4-bis backlog crowding.** Phase 2.4-bis open items (breathingAudible metric refinement, 3 fallback-cell reduction) not folded into Phase 2.4b. Risk: if Phase 2.4b verify exposes that a Phase 2.4-bis change would have made bias safer (e.g., 3 fallback cells become bias-affected operating points), escalate to Phase 2.4-bis cycle BEFORE Phase 2.4b R35 atomic commit. Mitigation: research-phase identifies fallback-cell intersection with `--sub-harmonics-stability` 36 combos; if intersection causes failures, Phase 2.4b scope expands or 2.4-bis lifts forward.
+12. **`reproduce-goldens.sh` 12 → 13 entry growth.** Adds `--saturator-tail-comparison` invocation with 60 s sustain + 5 s release (~0.5 s wall-clock). Total reproduce-goldens.sh runtime grows by ~0.5 s. Mitigation: negligible; mirrors Phase 2.4b 10 → 12 growth precedent.
 
 ---
 
@@ -192,20 +174,23 @@ After Phase 2.4b verifies (Gate 6b PASS), Phase 2.4c discuss-phase opens.
 
 Ready for: **research** phase — `/clear` then `/plugin-research O-Contrabass 2-dsp`
 
-Research focus (Phase 2.4b):
+Research focus (Phase 2.4c):
 
-1. **Resolve Open Questions #1–#12** — F_max mapping function, FFT analyzer specifics, threshold tuning, HR-9 pre-flight, wall-clock pre-flight, MIDI per combo, pass criteria, SubHarmonicBias.h API, voice-level vs per-string inputs, R35 task breakdown, per-string variation, commit-body footnote.
-2. **HR-9 bit-exact pre-flight (Open Q4)** — render all 10 currently-committed goldens BEFORE Phase 2.4b source edits via reproduce-goldens.sh; capture sha256s + verify against committed values. If any drift, INVESTIGATE before plan-phase.
-3. **Single-combo wall-clock pre-flight (Open Q5)** — render ONE combo at extreme settings; measure block-time ratio + wall-clock per combo; extrapolate to 36-combo total.
-4. **SUB_HARMONICS=1.0 spectral pre-flight (Open Q2/Q3)** — render baseline at SUB_HARMONICS=0 (system noise floor) and SUB_HARMONICS=1.0 with §457 coefficients verbatim; measure subharmEnergyRatio; confirm 10% threshold OR escalate.
-5. **SchellengCalibration mapping decision (Open Q1)** — analyze 105/108 + 3 fallback cells; lock mapping function; document v1.0 fallback behavior at 3 cells.
-6. **Append RESEARCH §18** — document all resolutions above. (No §17 changes; Phase 2.4a §17 locked.)
+1. **Resolve Open Questions #1–#12** — autocorrelator algorithm validation, lag-search range bounds, O-Bowed saturator topology audit, O-Bowed render harness availability, saturator-tail measurement protocol, divergence threshold tuning, vibrato golden re-baseline scope, strict `pass_vibratoAudible` threshold values, R36 task breakdown, new goldens scope, RESEARCH §19 deliverable structure, wall-clock budget pre-flight.
+2. **HR-11 bit-exact pre-flight** — render all 12 currently-committed goldens BEFORE Phase 2.4c source edits via `reproduce-goldens.sh`; capture sha256s + verify against committed values. If any drift, INVESTIGATE before plan-phase.
+3. **Autocorrelator octave-jump baseline reproduction** — pre-flight `--vibrato` mode against `vibrato.wav` at HEAD; confirm Phase 2.3 R28 documented octave-jump behavior reproduces; document measured rate / depth / onset values.
+4. **Autocorrelator fix prototype + sub-sample precision benchmark** — prototype parabolic-interp + range-bias in research scratch space; measure on `vibrato.wav`; confirm rate / depth / onset fall into Phase 2.3 PLAN rev-7 strict ranges. Escalate to YIN / AMDF / cepstrum only if precision insufficient.
+5. **O-Bowed saturator topology audit** — grep `plugins/O-Bowed/Source/DSP/` for nonlinearity application points; document divergence from O-Contrabass.
+6. **O-Bowed render harness availability + parity invocation** — locate harness path; document parity-mode CLI; pre-flight a canonical render to confirm parity; escalate if unavailable.
+7. **Saturator-tail cross-comparison render** — render canonical E1 60s+5s in BOTH plugins; capture decay envelopes; measure divergence at 5 s mark; document verdict (research-only acknowledged divergence vs Phase 2.4c-bis escalation).
+8. **`--saturator-tail-comparison` wall-clock + sha256 determinism pre-flight** — 3 back-to-back renders confirm determinism; format-tune JSON to eliminate any rounding noise.
+9. **Append RESEARCH §19** — document all resolutions above. (No §17 / §18 changes; Phase 2.4a §17 + Phase 2.4b §18 locked.)
 
-After research: plan-phase (PLAN rev-9) writes R35 task breakdown verbatim against this CONTEXT + research findings; execute-phase performs implementation + new goldens + R35 atomic commit; verify-phase confirms Gate 6b invariants.
+After research: plan-phase (PLAN rev-10) writes R36 task breakdown verbatim against this CONTEXT + research findings; execute-phase performs implementation + new goldens + R36 atomic commit; verify-phase confirms Gate 6c invariants.
 
 ---
 
-## Audit Trail (rev-7 supersedes rev-6)
+## Audit Trail (rev-8 supersedes rev-7)
 
 **rev-1 (2026-04-26):** Phase 2.1 broad discuss. Cycle scope = Phase 2.1 (sub-phases a/b/c).
 
@@ -217,47 +202,49 @@ After research: plan-phase (PLAN rev-9) writes R35 task breakdown verbatim again
 
 **rev-5 (2026-04-27):** Phase 2.3 opening — Vibrato + Slow-Bow LFO + Schelleng wedge clamp + EXPRESSION_MACRO. HR-1..HR-4 binding. Verified 2026-04-27 (R33 `af54571`, Gate 5 PASS with rebaseline of 4 audible carry-forward goldens).
 
-**rev-6 (2026-04-27):** Phase 2.4a opening — Schelleng wedge bass-register calibration polynomial + 108-combo stability matrix dual-purpose render + `pass_breathingAudible` 5%→20% threshold restoration. HR-5..HR-8 binding. Verified 2026-04-28 (R34 `4c926bb`, Gate 6a CLEARED — 3 strict-PASS + 2 soft-PASS within v1.0 budgets) + R34-backfill chore `b64c8c4`. Phase 2.4-bis backlog logged: tune Step 4 modulation gain to hit 20% peak-to-peak OR refine breathingAudible per-cycle metric; reduce v1.0 fallback cells via downstream-defense tightening.
+**rev-6 (2026-04-27):** Phase 2.4a opening — Schelleng wedge bass-register calibration polynomial + 108-combo stability matrix dual-purpose render + `pass_breathingAudible` 5%→20% threshold restoration. HR-5..HR-8 binding. Verified 2026-04-28 (R34 `4c926bb`, Gate 6a CLEARED — 3 strict-PASS + 2 soft-PASS within v1.0 budgets) + R34-backfill chore `b64c8c4`.
 
-**rev-7 (this document, 2026-04-28):** Phase 2.4b opening — Sub-Harmonic Bias DSP-07 (ARCHITECTURE §457). 11 approach decisions Q23–Q33 user-confirmed: scope = bias DSP-07 only (Q23); per-plugin in BowedContrabassVoice + new SubHarmonicBias.h header (Q24); F_max ceiling via Phase 2.4a SchellengCalibration table reuse (Q25); 36-combo `--sub-harmonics-stability` matrix without BODY_DAMPING + chaos detector deferred (Q26); FFT energy ratio E(f0/2)/E(f0) ≥ 0.10 at SUB_HARMONICS=1.0 on E1 (Q27); Logic AU smoke deferred non-blocking R37 (Q28); carry-forward 10 + 2 new goldens (Q29); 30 ms SmoothedValue on SUB_HARMONICS confirmed (Q30); active-string-only bias HR-1 precedent (Q31); R35 atomic commit + R35-backfill chore (Q32); rev-7 covers 2.4b only (Q33). 12 open questions handed to research-phase: SchellengCalibration→F_max mapping, FFT specs, threshold tuning, HR-9 pre-flight, wall-clock pre-flight, MIDI per combo, pass criteria, SubHarmonicBias.h API, voice-level vs per-string inputs, R35 task breakdown, per-string variation, commit-body footnote. NEW Hard Rule HR-9 binding: SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate. Phase 2.4c (autocorrelator + saturator-tail) gets fresh CONTEXT rev-8 when discuss-phase opens after 2.4b verify. Continues atomic-commit sequence R7 → R15 → R20 → R26 → R33 → R34 → R35.
+**rev-7 (2026-04-28):** Phase 2.4b opening — Sub-Harmonic Bias DSP-07 (ARCHITECTURE §457). HR-9 + HR-10 binding. Verified 2026-04-28 (R35 `3de8b66`, Gate 6b CLEARED — 4 strict-PASS + 1 soft-PASS within RESEARCH §18.6 v1.0 budget) + R35-backfill chore `0db5fac`. Phase 2.4-bis backlog grew by 1 item: kForceBoost retune to push `subharmEnergyRatio` above 0.40 strict.
 
-**Inherited verbatim from rev-6 (not re-litigated):**
+**rev-8 (this document, 2026-04-28):** Phase 2.4c opening — autocorrelator octave-rejection harness fix + saturator-tail O-Bowed comparison (research-only). 12 approach decisions Q34–Q45 user-confirmed: scope = autocorrelator + saturator-tail paired (Q34); single R36 atomic commit (Q35); research-only default + Phase 2.4c-bis escalation lane at >2 dB envelope divergence (Q36); parabolic-interp + range-bias autocorrelator fix (Q37); restore Phase 2.3 PLAN rev-7 strict `pass_vibratoAudible` (Q38); NEW `--saturator-tail-comparison` harness flag (Q39); O-Bowed cross-comparison render in O-Bowed harness (Q40); 2 dB divergence threshold default (Q41); NEW Hard Rule HR-11 binding zero production DSP edits (Q42); Logic AU smoke deferred non-blocking (Q43); R36 atomic + R36-backfill chore (Q44); rev-8 covers 2.4c only (Q45). 12 open questions handed to research-phase: autocorrelator algorithm validation, lag-search range bounds, O-Bowed saturator topology audit, O-Bowed render harness availability, saturator-tail measurement protocol, divergence threshold tuning, vibrato golden re-baseline scope, strict threshold values, R36 task breakdown, new goldens scope, RESEARCH §19 deliverable structure, wall-clock budget pre-flight. NEW HR-11 hard rule binding (zero production DSP edits → harness-only / research-only by construction). Phase 2.5 (body resonator + bow noise) gets fresh CONTEXT rev-9 when its discuss-phase opens after Phase 2.4c verify. Continues atomic-commit sequence R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36.
+
+**Inherited verbatim from rev-7 (not re-litigated):**
 
 - All Phase 2.3 modulator surface (vibratoPhase / vibratoOnsetTimer / slowLfoPhase / 4 macro SmoothedValues / 7-step per-block evaluation order)
-- HR-1..HR-4 hard rules (literal-zero short-circuits + IEEE 754 identity-arithmetic + Schelleng skip on zero LFO depth)
-- HR-5..HR-8 hard rules (Phase 2.4a — `inline constexpr` linkage on SchellengCalibration.h; calibration behind HR-4 gate ONLY; matrix-stability bypass via weak-symbol; trilinear IEEE 754 identity arithmetic)
-- `lastSafeDepth.store(...)` instrumentation hook signature (pin #4 from PLAN rev-7)
-- 10 currently-committed goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo re-baselined + schelleng-stress re-baselined)
-- Phase 2.4a `matrix-stability.{wav.sha256,json}` `6db67707…` golden
-- Atomic-commit gate-first principle (R7 → R15 → R20 → R26 → R33 → R34 → R35)
-- Saturator-tail Phase 2.4c follow-up parking
+- All Phase 2.4b end-state (Step 2.5 sub-harmonic bias evaluation between Step 2 and Step 3; subHarmonicsSmoothed 30 ms ramp; lastSubAmount instrumentation; voiceBowForceUpliftThisBlock factor at Step 6)
+- HR-1..HR-4 (Phase 2.3 literal-zero short-circuits + IEEE 754 identity-arithmetic + Schelleng skip on zero LFO depth)
+- HR-5..HR-8 (Phase 2.4a inline constexpr linkage on SchellengCalibration.h + calibration behind HR-4 gate ONLY + matrix-stability bypass via weak-symbol + trilinear IEEE 754 identity arithmetic)
+- HR-9..HR-10 (Phase 2.4b SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate + friction module ABI preservation via ROSIN inverse algebraic identity)
+- 12 currently-committed goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo + schelleng-stress + sub-harmonics + sub-harmonics-stability) + matrix-stability evidence golden
+- Atomic-commit gate-first principle (R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36)
+- Phase 2.4-bis backlog parking (kForceBoost retune; Step 4 modulation gain / breathingAudible metric refinement; 3 fallback-cell reduction)
 - ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments deferred to end-of-Stage-2 verify
 - E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7) — separate concern
 - Primary listening DAW: Logic Pro (AU)
 - Sample-rate strategy: internal 88.2 / 96 kHz at friction junction
 - Bow-friction module v1.0.0 at `modules/synthesis/bow-friction/`
-- Per-plugin `DispersionFilter.h` + `SchellengCalibration.h` (NOT extracted to shared module)
+- Per-plugin `DispersionFilter.h` + `SchellengCalibration.h` + `SubHarmonicBias.h` (NOT extracted to shared module)
 - 29 APVTS parameters; parameter-spec.md sha256 `77638e25…` carries forward unchanged
-- Stage-1 contract NOT amended in Phase 2.4b
-- ARCHITECTURE.md NOT amended in Phase 2.4b
-- Phase 2.4-bis backlog parked (separate future cycle)
+- Stage-1 contract NOT amended in Phase 2.4c
+- ARCHITECTURE.md NOT amended in Phase 2.4c
+- Chaos detector + softClampState deferred to Phase 2.5/2.6 (Phase 2.4b R35 commit-body footnote)
 
-**New in rev-7:**
+**New in rev-8:**
 
-- Q23 Phase 2.4b scope = sub-harmonic bias DSP-07 only
-- Q24 per-plugin in BowedContrabassVoice.cpp + new `Source/DSP/SubHarmonicBias.h` header
-- Q25 SchellengCalibration trilinear table reuse for F_max ceiling
-- Q26 36-combo `--sub-harmonics-stability` (4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS)
-- Q27 FFT energy ratio `E(f0/2)/E(f0) >= 0.10` at SUB_HARMONICS=1.0 on E1
-- Q28 Logic AU smoke deferred non-blocking
-- Q29 carry-forward 10 + 2 new goldens (`--sub-harmonics` + `--sub-harmonics-stability`)
-- Q30 30 ms `subHarmonicsSmoothed` SmoothedValue
-- Q31 active-string-only bias (HR-1 precedent)
-- Q32 R35 atomic commit + R35-backfill chore
-- Q33 rev-7 covers 2.4b only
-- NEW HR-9 hard rule (SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate)
-- New `Source/DSP/SubHarmonicBias.h` header (~80 LOC)
-- New harness CLI flags `--sub-harmonics` + `--sub-harmonics-stability`
-- New goldens `sub-harmonics.{wav.sha256,json,json.sha256}` + `sub-harmonics-stability.{wav.sha256,json,json.sha256}`
-- Step 2.5 (sub-harmonic bias evaluation) inserted into per-block 7-step order
-- Five-item Gate 6b bar: (1) all 10 carry-forward goldens (8 + 2 Phase 2.4a re-baselined) byte-identical via reproduce-goldens.sh; (2) new `--sub-harmonics` golden + `pass_subharmAudible >= 0.10`; (3) new `--sub-harmonics-stability` `pass_all_36 = true` OR `failCount ≤ 2` v1.0 budget; (4) auval AU VALIDATION SUCCEEDED + pluginval-10 SUCCESS; (5) matrix-stability `6db67707…` carries forward byte-identical. R37 Logic AU smoke deferred non-blocking.
+- Q34 Phase 2.4c scope = autocorrelator harness fix + saturator-tail O-Bowed comparison paired
+- Q35 single R36 atomic commit for both items
+- Q36 research-only default verdict + Phase 2.4c-bis escalation lane at >2 dB envelope divergence
+- Q37 parabolic-interp + range-bias autocorrelator fix; YIN / AMDF / cepstrum reserved as fallback
+- Q38 restore Phase 2.3 PLAN rev-7 strict `pass_vibratoAudible` ranges (rate ∈ [4.5, 5.5] Hz / depth ∈ [10, 14]¢ / onset ∈ [800, 1000] ms)
+- Q39 NEW `--saturator-tail-comparison` harness CLI flag with per-decade decay envelope JSON output
+- Q40 O-Bowed cross-comparison via O-Bowed render harness (research-phase confirms availability)
+- Q41 2 dB envelope divergence threshold at 5 s mark (default; research-phase tunes against measured data)
+- Q42 NEW Hard Rule HR-11 binding (zero production DSP edits in Phase 2.4c)
+- Q43 Logic AU smoke deferred non-blocking R37/R32/R27/R19f/R14e precedent
+- Q44 R36 atomic commit + R36-backfill chore
+- Q45 rev-8 covers Phase 2.4c only
+- New harness CLI flag `--saturator-tail-comparison`
+- New goldens `saturator-tail-comparison.{wav.sha256,json,json.sha256}`
+- Re-baselined `vibrato.json{,.sha256}` only (WAV unchanged)
+- `reproduce-goldens.sh` extended 12 → 13 entries
+- Five-item Gate 6c bar: (1) all 12 carry-forward goldens reproduce byte-identical via `reproduce-goldens.sh` (HR-11 trivially satisfied); (2) `--vibrato` strict `pass_vibratoAudible` PASS post autocorrelator fix (rate / depth / onset within Phase 2.3 PLAN rev-7 strict ranges); (3) `--saturator-tail-comparison` golden bit-deterministic across re-renders + RESEARCH §19 verdict written; (4) auval AU VALIDATION SUCCEEDED + pluginval-10 SUCCESS; (5) RESEARCH §19 cross-comparison verdict locked (research-only acknowledged divergence OR Phase 2.4c-bis escalation flag). R37 Logic AU smoke deferred non-blocking.

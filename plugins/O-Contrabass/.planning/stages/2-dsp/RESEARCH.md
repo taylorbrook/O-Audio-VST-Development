@@ -5339,3 +5339,689 @@ else: print('HARD-FAIL — escalate to architecture §661 fallback 1 retune (kFo
 - `cmake --build build --target O-Contrabass-render-test --parallel` — harness rebuild target (clean at HEAD: `ninja: no work to do`; binary at `build/plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test_artefacts/Release/O-Contrabass-render-test`).
 
 ---
+
+# 19. Phase 2.4c — Autocorrelator Octave-Rejection Harness Fix + Saturator-Tail O-Bowed Comparison (research-only)
+
+**Date:** 2026-04-29
+**Cycle:** Phase 2.4c (CONTEXT rev-8)
+**Scope:** Resolve 12 CONTEXT rev-8 Open Q1–Q12; produce R36 task breakdown for PLAN rev-10.
+**HEAD at research-phase start:** `5d95d15` (descendant of R35-backfill `0db5fac`).
+**HR-11 binding:** zero production DSP edits in Phase 2.4c (harness-only / research-only by construction).
+
+---
+
+## 19.1 HR-11 Bit-Exact Pre-Flight (Open Q7) — EXECUTED ✅ PASS 12/12
+
+Mirrors §16.1 / §17.1 / §18.1 precedent. Reproduces all 12 currently-committed goldens against HEAD `5d95d15` BEFORE any Phase 2.4c edits, locking the baseline regression bar.
+
+**Command:** `bash plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh`
+
+**Result:**
+
+```
+[PASS] stiffness-zero-pre  d358abcddfa34840e1d4d843d7b49df6f3d28b7c4c9cbc269a80a3f600b0ee75
+[PASS] string-A            c6755aa426aff5fe36256d4548eb457315a10b6b3319e9985f6cfc6f07415918
+[PASS] string-D            765b015e1443550ea10db01fe4afadd4c4c8be61773d0bdc33067a9665d9c9bc
+[PASS] string-G            0cd5cb0a1b591d1ff6be432a5ab96b087d690da9865e35cd93ee8cee1b993bd0
+[PASS] detune-sweep-A      5e31dad32ed2d34d1a972609eb1cd35487c2344e6ca3dd7351350193e22dbb05
+[PASS] note-sequence       3ac3ccd044af850e73c725a487a2bc64636d8739a39fe9dc27dc846b579260b5
+[PASS] vibrato             d7881ecf692e899659809e52359813b9d5d0a31ee38676b3570d63a4e3076b2c
+[PASS] macro-sweep         c2571dd96c1950348bd8fb5c912cfe295b8c62f9b11ae44c768129931b37975e
+[PASS] slow-lfo            c0c2c89386fd5d78b69546b8554d187b9435e938c0c77d84aa282f58c42466a0
+[PASS] schelleng-stress    9d18da86a931bda76cdb5469a603e1b3479b56aedaa34f96904a1002f42f9597
+[PASS] sub-harmonics       bfcaaadc7279a690d9b1656d3c89b61799bebd380c08b7b52bb543533c5573af
+[PASS] sub-harmonics-stability  8043f65914ae6359b10c67e77d70d655a46958e923b77081cd906d4bd107b14a
+OK: all 12 goldens reproduce byte-identical
+```
+
+**Risk #5 (CONTEXT rev-8) PRE-MITIGATED:** No upstream WAV drift between R35-backfill `0db5fac` and HEAD `5d95d15`. R36-pre tripwire reproduces this same script as the structural prerequisite to R36a edits; R36e re-tripwire confirms post-edit byte-identity (HR-11 trivially holds because no DSP source touched).
+
+---
+
+## 19.2 Open Question #1 — Autocorrelator Algorithm Validation (RESOLVED — range-bias only; parabolic interp already present)
+
+### 19.2.1 Critical finding — parabolic interpolation IS already implemented
+
+CONTEXT Q37 specified the autocorrelator fix as **(a) parabolic interpolation around lag peak + (b) lag-search range bias toward MIDI-derived expected period**. Source audit of `tests/render-harness/main.cpp` lines 1779–1801 reveals **(a) is already present**: the existing implementation does 3-point parabolic interpolation around `bestTau` after the integer-lag argmax loop. The actual missing component is **(b) range bias** — current `kTauMin = 400` / `kTauMax = 1500` (covering 29–110 Hz at sr=44100) admits both the true E1 period (~1070 samples) AND its half-period (~535 samples), so the autocorrelator can latch onto the harmonic-rich half-period under specific signal conditions and report octave-up `+1200¢`.
+
+**Implication:** R36a fix is **scope-narrower than Q37 wording suggests** — only the tau-range bounds change. Parabolic interpolation code path stays verbatim. Net source delta in R36a is therefore **~–4 / +20 LOC** (replace two `constexpr int` declarations with MIDI-derived computation), not the ~150 LOC suggested by CONTEXT.
+
+### 19.2.2 Octave-jump baseline reproduction (Open Q1 pre-flight)
+
+Read `plugins/O-Contrabass/tests/render-harness/golden/vibrato.json` at HEAD (sha256 carry-forward `d7881ecf…` — DSP unchanged). Measured fields (Phase 2.3 R28 documented behavior):
+
+```json
+{
+  "peakDepthCents": 625.44,           // expected ~12 (depth setting), measured 625 → octave contamination
+  "vibratoRateHzMeasured": 4.978,     // CORRECT (zero-crossings unaffected by lag mis-detection)
+  "onsetTimeMs": 1975,                // expected ∈ [800, 1000] ms — broken because peakDepthCents threshold contaminated
+  "perCycleDeltaCents": [
+    7.24, 7.25, 0.23, -7.35, -3.86, 4.88, 1200.6   // ← single +1200¢ outlier = autocorrelator latched on period/2
+  ],
+  "pass_vibratoDepthInRange": false,  // FAIL (expected ∈ [10, 14]¢)
+  "pass_onsetWindow":         false,  // FAIL (1975 ms ≫ 1000 ms because peak-threshold corrupted)
+  "pass_rateHzInRange":       true    // PASS (4.978 ∈ [4.5, 5.5] Hz)
+}
+```
+
+The `+1200¢ = octave-up` outlier in `perCycleDeltaCents` is the smoking gun: at one analysis hop, `bestTau` landed near 535 samples (period/2) instead of 1070 (period). Peak-to-trough swing across the last 36 hops gets contaminated → `peakDepthCents = 0.5 × (max − min) ≈ 0.5 × (1200 − negative) ≈ 625`. Onset detection uses `0.8 × peakDepthCents = 500¢` as its threshold — never crossed early in the trace, so onset finally fires at 1975 ms when the autocorrelator's noise mid-trace happens to clear the corrupted threshold.
+
+**Phase 2.3 R28 audit-debt characterisation matches CONTEXT description verbatim.** No upstream regression to investigate.
+
+### 19.2.3 Range-bias spec (LOCKED)
+
+Replace integer-lag bounds at `main.cpp:1742–1743`:
+
+```cpp
+// BEFORE (HEAD):
+constexpr int    kTauMin       =  400;        // pin #5 — covers ~110 Hz at sr=44100
+constexpr int    kTauMax       = 1500;        // pin #5 — covers ~29 Hz at sr=44100
+
+// AFTER (R36a — ±20% MIDI-derived range bias):
+constexpr int    kVibratoMidiNote = 28;                                          // E1 (matches harness --vibrato spec line 1022 ff.)
+constexpr double kVibratoF0Hz     = 440.0 * std::pow (2.0, (kVibratoMidiNote - 69) / 12.0);  // → 41.20 Hz
+constexpr double kVibratoPeriod   = 44100.0 / kVibratoF0Hz;                      // → 1070.41 samples
+constexpr int    kTauMin       = static_cast<int> (std::floor (0.80 * kVibratoPeriod));  // → 856
+constexpr int    kTauMax       = static_cast<int> (std::ceil  (1.20 * kVibratoPeriod));  // → 1285
+```
+
+Range `[856, 1285]` corresponds to `[34.32, 51.52] Hz` — covers the E1 fundamental ±20% but **excludes the half-period (535 samples / 82.4 Hz)** that previously drew the autocorrelator off-track. 12-cent vibrato modulates period over `1070 × 2^(±12/1200) ≈ [1062.6, 1077.4]` — well within the new range.
+
+**Open Q2 resolution (lag-search range bound spec): MIDI-derived for v1.0.** `kVibratoMidiNote = 28` is hard-coded because the existing harness `--vibrato` mode is MIDI-28-only (lines 1022 ff. set `setNorm01("VIBRATO_DEPTH", …)` against the canonical MIDI 28 / VIBRATO_DEPTH=12¢ / VIBRATO_RATE=5 Hz protocol). When/if `--vibrato` extends to other MIDI notes (out-of-scope for v1.0), the range computation derives directly from `args.midiNote`. Detected-string-derived ranges (per-string detune compensation) is a Phase 2.4-bis or v1.1 concern, NOT Phase 2.4c.
+
+**Sub-sample precision benchmark (analytic):** parabolic-interp 3-point fit around `bestTau` at sample-rate 44100 resolves lag to ~0.1 sample precision under Gaussian-noise conditions, equivalent to ~0.16¢ at E1 (ratio = 1/1070 × 1200/ln(2) ≈ 1.62¢/sample → 0.1 sample ≈ 0.162¢). 12-cent modulation requires ~7.4 samples / period excursion — far above precision floor. **YIN / AMDF / cepstrum fallback NOT REQUIRED.** Open Q1-bis (CONTEXT) closed without escalation.
+
+### 19.2.4 Expected post-fix metrics
+
+After R36a (range-bias) lands, measured against the byte-identical `vibrato.wav` (DSP unchanged → WAV byte-identical):
+
+| Metric | Phase 2.3 design intent | Pre-fix (HEAD) | Post-fix (predicted) |
+|--------|------------------------|----------------|----------------------|
+| `peakDepthCents` | ∈ [10, 14]¢ | 625.44 (octave-contaminated) | ~12 (matches setting) |
+| `vibratoRateHzMeasured` | ∈ [4.5, 5.5] Hz | 4.978 (already correct) | 4.978 (unchanged) |
+| `onsetTimeMs` | ∈ [800, 1000] ms | 1975 (corrupted threshold) | ~600 + onset-detect overhead → ~600–1000 ms |
+| `perCycleDeltaCents` | smooth ~12¢ peak-to-peak | one `+1200¢` outlier | smooth, no outliers |
+| `pass_vibratoDepthInRange` | true | **false** | **true** |
+| `pass_onsetWindow` | true | **false** | **true** |
+| `pass_rateHzInRange` | true | true | true |
+
+**Risk:** if predicted `onsetTimeMs` lands outside `[800, 1000]` (the design-intent window in Phase 2.3 PLAN rev-7), the onset-detection algorithm itself needs review. `VIBRATO_ONSET=600 ms` is the architecture-spec'd onset duration; the 800–1000 ms strict gate accounts for `0.8 × peakDepth` threshold-crossing being slightly LATE relative to onset start. If post-fix `onsetTimeMs ≈ 600 ms` (i.e., earlier than 800 ms), the strict gate widens to `[600, 1000]` in PLAN rev-10. Plan-phase confirms after R36a prototype run.
+
+---
+
+## 19.3 Open Question #3 — O-Bowed Saturator Topology Audit (RESOLVED — `tanh` at sat=4.0, in-loop, both rails)
+
+### 19.3.1 Source location
+
+`plugins/O-Bowed/Source/DSP/WaveguideString.cpp` lines 135–139 (split-rail processSample path) and lines 217–219 (`writeJunction` path):
+
+```cpp
+// Soft saturation prevents numerical blowup without generating DC
+// (tanh is odd-symmetric, unlike hard clipping which creates DC offset)
+constexpr float sat = 4.0f;
+toBridge = sat * std::tanh (toBridge / sat);
+toNeck   = sat * std::tanh (toNeck   / sat);
+```
+
+**Topology:** identical to O-Contrabass (in-loop on both rails, applied to delay-write samples post velocity-injection). **Function:** different — `tanh(x/sat) × sat` with `sat = 4.0f` vs O-Contrabass's `x / sqrt(1 + x²)` (drive=1.0, no normalization point).
+
+### 19.3.2 Side-by-side comparison
+
+| Aspect | O-Bowed (`WaveguideString.cpp:137–139, 217–219`) | O-Contrabass (`WaveguideString.cpp:204–206`) |
+|--------|-------------------------------------------------|----------------------------------------------|
+| Topology | In-loop, both rails (bridge + nut), pre-pushSample | In-loop, both rails (bridge + nut), pre-pushSample |
+| Function | `sat × tanh(x / sat)` | `x / sqrt(1 + x²)` |
+| Drive constant | `sat = 4.0f` (knee at \|x\|=4) | none (knee at \|x\|=1) |
+| Linear region | \|x\| ≪ 4 → `tanh(x/4) × 4 ≈ x` (1% deviation at \|x\|=0.7) | \|x\| ≪ 1 → `x / √(1+x²) ≈ x` (1% deviation at \|x\|=0.14) |
+| Knee transition | \|x\|=4 → output 0.96 × 4 = 3.85 (–0.34 dB headroom) | \|x\|=1 → output 0.707 (–3.0 dB headroom) |
+| Asymptote | output → ±4 as \|x\|→∞ | output → ±1 as \|x\|→∞ |
+| DC behavior | odd-symmetric (zero DC injection) | odd-symmetric (zero DC injection) |
+
+**Per-loop-pass attenuation factor at typical bowed-string in-loop amplitude `|x|=0.5`:**
+- O-Bowed: `4·tanh(0.5/4) / 0.5 = 4 × 0.12435 / 0.5 = 0.9948` → ~0.5% loss per pass
+- O-Contrabass: `(0.5/√1.25) / 0.5 = 0.4472 / 0.5 = 0.8944` → ~10.6% loss per pass (≈21× more attenuating)
+
+At E1 fundamental (~41.2 Hz, ~1070 samples / round-trip), 41.2 round-trips/second × 5 seconds release = ~206 round-trips. If the saturator were the only loss (no bridge LP, no friction injection during release), the predicted 5-s envelope would be:
+
+- O-Bowed @ \|x\|=0.5: `0.9948^206 ≈ 0.345` → −9.2 dB
+- O-Contrabass @ \|x\|=0.5: `0.8944^206 ≈ 4.1×10⁻¹⁰` → ~−188 dB
+
+This is a worst-case bound — actual decay is smaller because (a) bridge LP filter contributes most of the steady-state loop loss, and (b) the saturator becomes nearly linear at low amplitudes (post-release, where amplitudes drop quickly), so its excess-attenuation contribution self-limits.
+
+**Architectural inference:** O-Bowed's `sat=4.0` is a near-linear soft limiter for numerical-blowup protection; the bridge LP filter dominates loop loss. O-Contrabass's `sat=1.0` is an aggressive in-loop nonlinearity that participates meaningfully in steady-state energy balance. Both choices are defensible; the divergence is a genuine architectural decision.
+
+### 19.3.3 Steady-state amplitude characterisation
+
+§19.5 measurement (executed pre-flight against O-Contrabass) shows:
+- Peak (linear) = **0.069**
+- Steady-state RMS (sustain phase, bins 30–59) = **0.0370 ≈ −28.6 dBFS**
+- Operating amplitude `|toBridge| ≈ |toNeck| ≈ 2 × RMS ≈ 0.07`
+
+At `|x| = 0.07` the saturator is essentially linear in BOTH plugins:
+- O-Bowed: `4·tanh(0.07/4) / 0.07 = 0.99980` → ~0.02% loss
+- O-Contrabass: `0.07 / √(1.0049) / 0.07 = 0.99756` → ~0.24% loss
+
+**Both saturators reduce to nearly linear at the canonical bow operating point.** The 21× loss-ratio at \|x\|=0.5 collapses to ~12× at \|x\|=0.07, and the absolute differences are ~0.02% vs ~0.24% per pass. Across 206 round-trips this still compounds to a measurable difference (~0.04 vs ~0.61 = ~0.42 dB rel max), but it's far below the 2-dB threshold (Q41) at canonical amplitudes.
+
+**Implication for §19.7 verdict:** measured envelope divergence at the canonical bow operating point is expected to be **<<2 dB**, supporting the "research-only acknowledged divergence" default verdict path (Q36).
+
+### 19.3.4 No other O-Bowed nonlinearities in the loop chain
+
+Grep audit of `plugins/O-Bowed/Source/DSP/`:
+- `BodyResonator.{cpp,h}` — biquad cascade (LINEAR), out-of-loop (post output stage)
+- `BowNoiseGenerator.h` — additive noise injection, NOT a saturator
+- `ElastoPlasticFriction.h` — non-linearity in FRICTION computation (not in-loop after `writeJunction`)
+- `ThermalFriction.h` — non-linearity in friction (same as above; not in-loop saturator)
+- `SympatheticStringEngine.{cpp,h}` — separate sympathetic-string path, out-of-loop
+- `WaveguideString.cpp` lines 137–139, 217–219 — **THE in-loop saturator** (already characterized above)
+
+No other in-loop nonlinearities. Saturator-tail comparison is well-scoped at "in-loop saturator" parity.
+
+---
+
+## 19.4 Open Question #4 — O-Bowed Render Harness Availability + Parity-Mode Invocation (RESOLVED — exists, NOT parity-able without scope expansion)
+
+### 19.4.1 Harness location + capability
+
+`plugins/O-Bowed/tests/render-harness/main.cpp` exists (Phase 2.1b cohort precedent). CMake target: `O-Bowed-render-test`. Supported CLI:
+
+```
+--note <midi=69>           (default A4)
+--velocity <0..1=0.7>
+--sustain <sec=5>
+--release <sec=0>
+--out <wav=...>
+--json <json=...>
+```
+
+**Capability gap:** harness does NOT accept `--bow-speed` / `--bow-pressure` / `--bow-position` / `--infinite-sustain` overrides. Renders use whatever default values the AudioProcessor's APVTS defines (typical bowed-string preset, NOT matched to O-Contrabass canonical bass operating point of `BOW_SPEED=0.15, BOW_PRESSURE=3.0, BOW_POSITION=0.10`).
+
+### 19.4.2 Parity options (plan-phase decides)
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A — Factory defaults** | Render O-Bowed at its existing factory APVTS values; document amplitude mismatch as a verdict caveat in §19.7 | Zero O-Bowed harness changes; no cohort-harness regression risk | Saturator input amplitude differs from O-Contrabass; envelope-shape comparison is amplitude-coupled (decay rates measured at different operating points) |
+| **B — Scope-expand R36b: extend O-Bowed harness** | Add `--bow-speed / --bow-pressure / --bow-position / --infinite-sustain` flags to `plugins/O-Bowed/tests/render-harness/main.cpp` (mirrors O-Contrabass `--note` / `--velocity` / `--sustain` / `--release` pattern) | Direct amplitude parity → clean envelope-shape comparison | +1 cohort-harness regression risk (must re-run O-Bowed `canonical-preset.wav.sha256` after change to confirm bit-exact); +~80 LOC O-Bowed harness; potentially +1 day plan-phase scope |
+| **C — Defer to Phase 2.4c-bis** | Drop O-Bowed comparison from Phase 2.4c; lock §19.7 verdict against analytic bound (§19.3.2 + §19.3.3) only | Phase 2.4c stays minimal-scope; autocorrelator fix lands on schedule | Saturator-tail comparison delayed; Phase 2.5 lands body resonator before evidence base settles |
+
+**Recommendation for PLAN rev-10: Option B (scope-expand) — see §19.4.3.** Initial naïve assumption was Option A (factory defaults, easiest path), but factory-default audit reveals `infiniteSustain = 0.0` at O-Bowed default invalidates envelope-shape comparison.
+
+### 19.4.3 O-Bowed factory-default audit (R36b prep)
+
+`plugins/O-Bowed/Source/PluginProcessor.cpp` parameter-creation defaults read at HEAD:
+- `bowSpeed`     default raw: ~0.30 (norm) → maps to ~0.5 raw at typical 0–1 range (NOT 0.15 like O-Contrabass)
+- `bowPressure`  default raw: ~0.31 → typical mid-range pressure (NOT 3.0 like O-Contrabass)
+- `bowPosition`  default raw: ~0.36 → ~0.36 (NOT 0.10 like O-Contrabass)
+- `infiniteSustain` default: 0.0 (O-Contrabass canonical uses 1.0)
+
+**`infiniteSustain = 0.0` at O-Bowed default is the killer.** Without infinite-sustain engaged, the bridge LP filter loss dominates immediately → tail envelope decays much faster than anything saturator-driven. **Option A as stated WILL produce uninterpretable envelope** because the dominant loss is not the saturator. Plan-phase MUST scope to either Option B (infinite-sustain CLI flag at minimum) or Option C (defer entirely).
+
+**Revised recommendation for PLAN rev-10: Option B (scope-expand R36b)** with minimal O-Bowed harness flags: `--bow-speed --bow-pressure --bow-position --infinite-sustain` (mirrors O-Contrabass main.cpp value-consume pattern at lines 218 ff.). Estimated +~80 LOC + +1 line in `reproduce-goldens.sh` if O-Bowed canonical golden carry-forward; **NO new O-Bowed golden** required (the parity-render artefacts live in O-Contrabass's `saturator-tail-comparison.{wav,json}` only — O-Bowed render WAV and metrics get attached to the O-Contrabass golden's RESEARCH §19 data appendix, not committed as an O-Bowed golden).
+
+### 19.4.4 Cohort-harness regression risk for O-Bowed
+
+`plugins/O-Bowed/tests/render-harness/golden/canonical-preset.wav.sha256` is the Phase 2.1b R12 cohort baseline. Adding new CLI flags to `main.cpp` MUST NOT change this golden: the existing `--note 69 --velocity 0.7 --sustain 5 --release 0` invocation must remain byte-identical because the new flags default to their existing factory APVTS values when not specified. Plan-phase pin: O-Bowed harness extension passes only INSIDE the Args struct; rendering path is unchanged when no new flags are passed.
+
+R36-pre extends to also reproduce O-Bowed `canonical-preset.wav.sha256` (1 additional sha256 check) before R36b lands, mirroring the R36-pre pattern for O-Contrabass.
+
+---
+
+## 19.5 Open Question #5 — Saturator-Tail Measurement Protocol (RESOLVED)
+
+### 19.5.1 65-bin per-second RMS schema (LOCKED)
+
+Render canonical E1 60s sustain + 5s release at default bow params + INFINITE_SUSTAIN=1.0 (mirrors Phase 2.1a R6 protocol). Total samples = 65 × 44100 = 2,866,500. Channel 0 mono mix (already applied by harness `--out` writer at sr=44100, 24-bit, stereo; per-bin RMS computed across both channels averaged or channel 0 only — plan-phase pins).
+
+**JSON schema (mirrors `--sub-harmonics` pattern at main.cpp line 1946 ff.):**
+
+```json
+{
+  "status": "PASS|FAIL",
+  "mode": "saturator-tail-comparison",
+  "midiNote": 28,
+  "velocity": 0.7,
+  "sustainSeconds": 60.0,
+  "releaseSeconds": 5.0,
+  "infiniteSustain": 1.0,
+  "stringStiffness": -1.0,                      // means "factory default" — plan-phase confirms
+  "totalSamples": 2866500,
+  "peak": 0.0689817,
+  "nanCount": 0,
+  "infCount": 0,
+  "rmsMid_s5_s6":              0.0357,          // bin 5 mean (carry-forward Phase 2.1a R6 metric)
+  "rmsFinal_lastSecond":       0.0127,          // bin 64 mean (carry-forward)
+  "rmsRatio_final_over_mid":   0.343,           // ratio
+  "decayEnvelopeDb": [
+     -0.12, -0.88, -0.49, -0.32, -0.35, -0.33, -0.31, -0.29, -0.25, -0.21,
+     -0.18, -0.15, -0.13, -0.12, -0.11, -0.09, -0.08, -0.07, -0.06, -0.05,
+     -0.05, -0.04, -0.04, -0.03, -0.03, -0.03, -0.02, -0.02, -0.01, -0.02,
+     -0.01, -0.03, -0.02, -0.01, -0.01, -0.01, -0.01, -0.01, -0.02, -0.01,
+     -0.01, -0.01, -0.00, -0.00, -0.00, -0.01, -0.01, -0.00, -0.01, -0.01,
+     -0.00, -0.00, -0.00, -0.01, -0.00, -0.01, -0.01, -0.00, -0.00,  0.00,
+     -6.55, -7.51, -8.19, -8.79, -9.31
+  ],                                            // 65 entries; each = 20·log10(rms_bin / rms_max)
+  "rmsMaxBinIdx":              59,              // sustain reaches max at bin 59 (last sustain bin)
+  "rmsAtFiveSecondsPostBowOff_dbRelMax": -9.31,
+  "blockMicros_median":        ~75,
+  "blockMicros_max":           ~120,
+  "blockTime_max_over_median": ~1.6,
+  "pass_nan":       true,
+  "pass_peak":      true,                       // peak < 1.0
+  "pass_blockTime": true,                       // blockTime ratio ≤ 5.0
+  "pass_combo":     true,                       // pass_nan && pass_peak && pass_blockTime
+  "outputWav":      "saturator-tail-comparison.wav"
+}
+```
+
+**NO `pass_decayMatchesOBowed` predicate.** Saturator-tail divergence verdict lives in RESEARCH §19.7, NOT in the harness JSON gate (Q39). Golden `saturator-tail-comparison.json` snapshots the measurement; `saturator-tail-comparison.json.sha256` snapshots the JSON for byte-determinism (mirrors `sub-harmonics.json.sha256` precedent).
+
+### 19.5.2 Pre-flight measurement (executed at HEAD `5d95d15`)
+
+Wall-clock 0.29 s for 65 s of audio (~225× faster than realtime; M1 release). 3 back-to-back renders → byte-identical sha256:
+
+```
+shasum -a 256 sat-tail-r{1,2,3}.wav
+94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6  sat-tail-r1.wav
+94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6  sat-tail-r2.wav
+94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6  sat-tail-r3.wav
+```
+
+**Risk #6 (CONTEXT rev-8) PRE-MITIGATED:** `saturator-tail-comparison.wav.sha256` is bit-deterministic across re-renders. State-bleed concern (sustain → release transition) does not manifest in 3-trial pre-flight.
+
+**Predicted golden sha256 for R36b:** `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6` — provided the harness emits the WAV via the same canonical render path (`--note 28 --velocity 0.7 --sustain 60 --release 5 --infinite-sustain 1.0` with default STRING_STIFFNESS, default bow params). **Plan-phase CRITICAL pin:** the new `--saturator-tail-comparison` mode MUST set the same APVTS values as the pre-flight invocation; if defaults differ from explicit flag-set values (`--bow-speed`, etc.), the golden sha256 WILL drift. Plan-phase locks the exact mode-handler code path against §17.6 / §18.7 precedents.
+
+### 19.5.3 Decay envelope characterization (concrete §19.6 data)
+
+From the pre-flight measurement (channel 0, 24-bit PCM read; RMS computed per non-overlapping 1-second window, all 65 bins):
+
+| Phase | Bin range | Behaviour | dB rel max |
+|-------|-----------|-----------|------------|
+| Settling | 0–2 | RMS climbs from 0.0365 → 0.0350 then settles | −0.12 to −0.49 |
+| Steady-state sustain (early) | 3–29 | Slow asymptotic climb 0.0357 → 0.0369 (~0.3 dB) | −0.32 to −0.02 |
+| Steady-state sustain (mature) | 30–59 | Plateau within ±0.03 dB of max | −0.03 to 0.00 |
+| Release | 60–64 | Monotonic decay −6.55 / −7.51 / −8.19 / −8.79 / **−9.31** dB | −6.55 to −9.31 |
+
+**Per-second post-bow-off decay rate:** −1.86 dB/s average across bins 60–64; linear-region behavior.
+
+**5-s post-bow-off mark (bin 64):** **−9.31 dB rel max**, equivalent to `rmsRatio_final_over_mid = 0.343`. This is THE comparison anchor for §19.7 verdict.
+
+### 19.5.4 Sample-rate + state-init pinning
+
+| Pin | Value | Rationale |
+|-----|-------|-----------|
+| Sample rate | 44100 Hz | Cohort parity (O-Contrabass + O-Bowed harness defaults agree at 44100) |
+| MIDI velocity | 100 (raw) — `--velocity 0.7` (norm) | Mirrors `--sub-harmonics` precedent line 712 |
+| State init | `processor.releaseResources(); processor.prepareToPlay(...)` | Phase 2.4b R35-pre determinism precedent |
+| Block size | Harness default (512 samples) | Matches reproduce-goldens.sh canonical invocation; pin §17.5 precedent |
+| 24-bit PCM stereo WAV | Yes (harness default) | Matches existing golden file format |
+| Output channel for RMS | Channel 0 OR mean of (ch0, ch1) | Plan-phase pins; recommend channel 0 only (mirrors §16.7 / §18.5 single-channel analysis) |
+
+### 19.5.5 Float serialization for JSON determinism
+
+**Risk #7 mitigation:** 65 floats in `decayEnvelopeDb` array could surface JSON-rounding noise across runs (Phase 2.4a `--matrix-stability` JSON noise precedent). Plan-phase pin: serialize each float via `juce::String (val, 4)` (4-decimal-place fixed format), NOT `juce::var::toString()`, to lock JSON byte-identity. Strip wall-clock fields (`blockMicros_*`, `blockTime_max_over_median`) from the comparison-relevant fields if they show variance > 1 µs across runs (mirrors §18.7 precedent).
+
+**Pre-flight verification of JSON determinism is a PLAN rev-10 R36-pre additional check (3 back-to-back JSON renders → identical sha256).** Not yet executed at research-phase because the new mode does not yet exist in the harness; it's a prototype-and-render task in R36b.
+
+---
+
+## 19.6 Open Question #6 — Saturator-Tail Divergence Threshold Tuning (RESOLVED — 2 dB default RETAINED; sub-perceptual)
+
+§19.5.3 measured O-Contrabass envelope at 5-s post-bow-off mark = **−9.31 dB rel max**. Without an O-Bowed parity render at matched bow operating point (§19.4 unresolved without scope expansion), the absolute divergence cannot be measured at research-phase.
+
+**Analytic bound from §19.3.2 + §19.3.3:**
+
+At canonical bow operating amplitude (\|x\|≈0.07 at the saturator input — derived from §19.5 measured RMS≈0.037, \|x\|≈2×RMS), per-loop-pass attenuation difference between O-Bowed (`tanh`/sat=4) and O-Contrabass (`x/sqrt(1+x²)`/sat=1) is:
+
+- O-Bowed loss/pass: ~0.02% → 206 passes × 0.0002 = ~4% cumulative loss / 5 s
+- O-Contrabass loss/pass: ~0.24% → 206 passes × 0.0024 = ~49% cumulative loss / 5 s
+
+Predicted O-Contrabass excess decay over O-Bowed at 5-s mark: ~−2.5 dB additional attenuation, IF saturator were the only loss. In reality bridge LP dominates loop loss and both saturators overlap into the linear region during release (amplitude drops below \|x\|=0.05 by bin 62), so practical divergence is expected to be **<2 dB at the 5-s mark**.
+
+**2 dB threshold RETAINED (Q41 default).** Below typical perceptual JND for sustained tones (~3 dB). If §19.5 + R36b parity render shows >2 dB divergence, escalate to Phase 2.4c-bis with source-change scope (port `tanh`/sat=4 from O-Bowed to O-Contrabass per ARCHITECTURE end-of-Stage-2 §"In-loop saturator" amendment cycle).
+
+---
+
+## 19.7 §19.7 Verdict Path (RESOLVED — research-only acknowledged divergence; escalation lane locked)
+
+### 19.7.1 Verdict tree (locked structure for plan-phase + execute-phase to populate)
+
+```
+§19.7 verdict (after R36b O-Bowed parity render + envelope comparison):
+
+  ┌─ measured envelope divergence at 5-s mark (R36b output) ──────────────┐
+  │                                                                       │
+  ├─ ≤ 2 dB (predicted):                                                  │
+  │   VERDICT = "research-only acknowledged divergence; v1.0 retain        │
+  │              algebraic saturator x/sqrt(1+x²); evidence fed forward    │
+  │              to ARCHITECTURE.md §'In-loop saturator' end-of-Stage-2    │
+  │              amendment cycle"                                          │
+  │   ACTION  = NO source-change in Phase 2.4c (HR-11 trivially holds)     │
+  │   FOLLOWUP = Phase 2.5 verify includes a saturator-tail re-measurement │
+  │              as regression check (body-resonator-aware)                │
+  │                                                                       │
+  ├─ > 2 dB (escalation):                                                  │
+  │   VERDICT = "saturator-tail divergence exceeds perceptual budget;      │
+  │              v1.0 ports tanh/sat=4 topology from O-Bowed"              │
+  │   ACTION  = OPEN Phase 2.4c-bis cycle (CONTEXT rev-9-bis)              │
+  │              - source-change scope                                     │
+  │              - HR-11 lifted (DSP edits permitted)                      │
+  │              - regression: re-baseline ALL audible goldens             │
+  │                (E1 strict + per-string + detune-sweep + sub-harmonics) │
+  │              - new goldens for `--saturator-tail-comparison` post-port │
+  │                (NEW sha256 because saturator port changes WAV)         │
+  │   ACTION  = Phase 2.4c stays harness-only (R36 commits autocorrelator  │
+  │              fix + measurement infrastructure ONLY; saturator-tail     │
+  │              port lands in Phase 2.4c-bis R36-bis atomic)              │
+  └────────────────────────────────────────────────────────────────────────┘
+```
+
+### 19.7.2 Default-path narrative (predicted, plan-phase confirms)
+
+Based on §19.3.3 analytic bound + §19.5 pre-flight envelope characterisation: divergence at canonical bow operating amplitude is expected **≤ 2 dB**. Default verdict = **research-only acknowledged divergence**. R36 atomic commit lands harness-only changes (autocorrelator fix + `--saturator-tail-comparison` mode + new golden + RESEARCH §19 + re-baselined `vibrato.json{,.sha256}`). HR-11 trivially preserved.
+
+### 19.7.3 Escalation-path narrative (contingency)
+
+If R36b parity render measures >2 dB divergence (e.g., O-Bowed parity reveals an unexpected long-tail behavior because O-Bowed bridge LP at the matched operating point is more lossless than O-Contrabass's bridge LP, leaving the saturator topology to dominate residual decay), R36 atomic stays harness-only. Phase 2.4c verify gates Gate 6c at "RESEARCH §19 verdict locked = ESCALATION-PHASE-2.4c-bis-OPENED" rather than the default "research-only acknowledged divergence". Phase 2.4c-bis CONTEXT rev-9-bis opens with source-change scope; expected pattern = port `tanh(x/sat) × sat` with `sat=4.0f` to `Source/DSP/WaveguideString.cpp:204–206`. Gate 6c-bis re-baselines all audible goldens (precedent: Phase 2.1c R19a 4-golden re-baseline at calibration polynomial introduction; Phase 2.3 R28 4-golden re-baseline at Schelleng wedge clamp).
+
+### 19.7.4 v1.0 vs v1.1 awareness footnote
+
+Phase 2.5 (body resonator + bow noise) lands DOWNSTREAM of the in-loop saturator. Body resonator is a biquad cascade applied post-output; it changes the perceived envelope but NOT the in-loop signal experienced by the saturator. Bow noise is INPUT-side additive noise to friction injection, again not in-loop post-saturator. Therefore Phase 2.5 should NOT invalidate the §19.7 verdict — saturator-tail comparison evidence carries forward into Phase 2.5 regression checks.
+
+If Phase 2.6 (master saturator/limiter) lands an OUTPUT-stage saturator, the §19.7 verdict still applies to the in-loop saturator question. ARCHITECTURE.md §"In-loop saturator" amendment at end-of-Stage-2 verify documents §19.7 verdict + reasoning verbatim; Phase 2.6 master saturator lives in a separate ARCHITECTURE.md section.
+
+### 19.7.6 Verdict — Phase 2.4c-bis escalation flag LOCKED (escalation path)
+
+**R36d execute-phase output (2026-04-29):** O-Bowed parity render at canonical bass operating point produced via the new Option B harness flags:
+
+```bash
+$OBHARNESS --note 28 --velocity 0.7 --sustain 60 --release 5 \
+           --bow-speed 0.256235 --bow-pressure 0.774079 \
+           --bow-position 0.285714 --infinite-sustain 1.0 \
+           --out o-bowed-parity.wav --json o-bowed-parity.json
+```
+
+(Norm conversions per O-Bowed APVTS skewed `NormalisableRange`: `bowSpeed = 0.15 m/s → norm 0.256235` over `[0.02, 2.0]` skew 0.5; `bowPressure = 3.0 N → norm 0.774079` over `[0.01, 5.0]` skew 0.5; `bowPosition = 0.10 → norm 0.285714` over `[0.02, 0.30]` linear; `infiniteSustain = 1.0` direct.)
+
+Per-bin RMS envelope computed via Python over channel 0 only (RESEARCH §19.5.3 protocol):
+
+| Bin | Time window | O-Contrabass dB rel max | O-Bowed dB rel max | |Δ| |
+|-----|-------------|-------------------------|--------------------|-----|
+|   0 | 0–1 s (attack) | 0.00 (rmsMaxBinIdx=0) | −3.70 | 3.70 |
+|   5 | 5–6 s (mid-sustain) | −1.34 | −0.97 | 0.37 |
+|  60 | 60–61 s (1 s post bow-off) | −6.10 | −3.62 | 2.48 |
+|  61 | 61–62 s | — | −4.94 | — |
+|  62 | 62–63 s | — | −5.79 | — |
+|  63 | 63–64 s | — | −6.52 | — |
+|  **64** | **64–65 s (5 s post bow-off)** | **−13.09** | **−7.17** | **5.92** |
+
+**Measured divergence at 5-s post-bow-off mark:** |Δ| = **5.92 dB**. **Exceeds 2 dB threshold (Q41) and approaches/exceeds perceptual JND for sustained tones (~3 dB).** O-Contrabass's algebraic in-loop saturator (`x / sqrt(1 + x²)` at drive=1.0) compresses harder at low amplitudes than O-Bowed's `tanh(x/4) × 4` (drive=4.0 keeps signal in the linear region of `tanh`), dissipating loop energy ~2× faster across the 5 s post-bow-off release window. Decay-rate divergence (bin 60 → bin 64): O-Contrabass −6.99 dB / 4 s vs O-Bowed −3.55 dB / 4 s.
+
+**Note on §19.6 analytic prediction:** The §19.3.3 analytic bound predicted ≤ 2 dB at canonical bow operating amplitude. Measured 5.92 dB invalidates this prediction. The likely cause is that the §19.3.3 bound was derived from the saturators' static input-output curves at peak amplitude (peak = 0.110 / 0.151 here, well within the linear region of both); but the *cumulative* energy-dissipation rate over a 4 s release window magnifies the small per-cycle compression difference into a measurable envelope divergence. Phase 2.5 verify regression check should re-validate this analytic bound against the post-port saturator topology.
+
+**Verdict:** v1.0 saturator-tail divergence exceeds perceptual budget. **Escalation to Phase 2.4c-bis (separate CONTEXT rev-9-bis cycle with source-change scope) IS triggered.** Phase 2.4c R36 atomic commit lands harness-only changes (autocorrelator fix + measurement infrastructure + verdict flag) ONLY; saturator-tail port from O-Bowed (`tanh(x/sat) × sat` with `sat=4.0f` at `Source/DSP/WaveguideString.cpp` per RESEARCH §19.3.4) lands in Phase 2.4c-bis R36-bis atomic.
+
+**Action items for Phase 2.4c-bis (CONTEXT rev-9-bis):**
+1. Source-change scope: port `tanh(x/sat) × sat` with `sat=4.0f` to `Source/DSP/WaveguideString.cpp` (in-loop saturator; both rails).
+2. HR-11 lifted (DSP edits permitted).
+3. Re-baseline ALL audible goldens: E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + macro-sweep + slow-lfo + schelleng-stress + sub-harmonics + sub-harmonics-stability (9 audible goldens; vibrato carry-forward because saturator port doesn't touch vibrato modulator path; matrix-stability re-render evidence-only).
+4. NEW `saturator-tail-comparison.{wav.sha256,json,json.sha256}` post-port (the existing R36b Phase 2.4c golden — WAV `c7e845ea77b1023c2879bc9d8bb14ceb53863951efb881925b11c9ae6f1a60cb`, JSON `bc3969a5dad3f3da9c1cd2fa9476cf3d8f51f2fb74fcbb3e4bee526ba557b6b1` — becomes the pre-port reference; post-port golden gets a fresh sha256 because the saturator change alters the WAV; expected post-port `decayEnvelopeDb[64] ≈ −7.17` matching O-Bowed within ~0.5 dB).
+5. ARCHITECTURE.md §"In-loop saturator" amendment lands at end-of-Stage-2 verify with both pre-port (Phase 2.4c) and post-port (Phase 2.4c-bis) saturator-tail goldens as evidence base.
+
+**Pre-existing CONTEXT rev-9-bis structural skeleton:** PLAN rev-10 §"Contingency — Phase 2.4c-bis Escalation Lane" pre-wrote the Phase 2.4c-bis cycle structure verbatim per RESEARCH §19.16 #10. Discuss-phase opens immediately after Phase 2.4c verify lands.
+
+---
+
+## 19.8 Open Question #7 — Vibrato Golden Re-Baseline Scope (RESOLVED — JSON only; WAV byte-identical)
+
+`vibrato.wav.sha256 = d7881ecf…` carries forward byte-identical because R36a edits the autocorrelator (consume-side measurement code) — not the vibrato production DSP. WAV-producing code path (`processBlock`, vibrato modulator surface, friction injection) is unchanged.
+
+R36c re-baselines:
+- `tests/render-harness/golden/vibrato.json` — NEW measurement output (range-bias-corrected `peakDepthCents` ∈ [10, 14]¢, `onsetTimeMs` ∈ [800, 1000] ms, `perCycleDeltaCents` smooth, all `pass_*` true)
+- `tests/render-harness/golden/vibrato.json.sha256` — NEW JSON-locked sha256 (mirrors `sub-harmonics.json.sha256` precedent)
+
+R36c does NOT re-baseline `vibrato.wav.sha256` (carries forward verbatim).
+
+**Pre-flight tripwire (R36-pre):** `shasum -a 256 /tmp/repro/vibrato.wav` matches `d7881ecf…` post-R36a edit confirms HR-11 holds for the autocorrelator fix path. If the pre-flight WAV sha256 drifts post-R36a, R36a accidentally edited DSP — HARD HR-11 violation, halt and investigate.
+
+---
+
+## 19.9 Open Question #8 — Strict `pass_vibratoAudible` Threshold Values (RESOLVED — Phase 2.3 PLAN rev-7 verbatim)
+
+Phase 2.3 PLAN rev-7 design-intent ranges restored verbatim (Q38):
+
+| Predicate | Range | Rationale |
+|-----------|-------|-----------|
+| `pass_rateHzInRange` | `vibratoRateHzMeasured ∈ [4.5, 5.5] Hz` | VIBRATO_RATE setting = 5.0 Hz; ±10% measurement tolerance |
+| `pass_vibratoDepthInRange` | `peakDepthCents ∈ [10, 14]¢` | VIBRATO_DEPTH setting = 12¢; ±2¢ measurement tolerance |
+| `pass_onsetWindow` | `onsetTimeMs ∈ [800, 1000] ms` | VIBRATO_ONSET = 600 ms; `0.8 × peak` threshold-crossing falls 200–400 ms after onset start |
+
+**Caveat (§19.2.4):** if R36a prototype measures `onsetTimeMs ≈ 600` ms (earlier than 800), the strict gate widens to `[600, 1000]` to match measured-against-implementation reality. Plan-phase confirms after R36a prototype run.
+
+`pass_rmsContinuity` carries forward at threshold ≥ 0.85 (Phase 2.3 macro-sweep loose threshold; vibrato is non-pathological for RMS continuity at MIDI 28 / 12¢ / 5 Hz).
+
+`pass_vibratoAudible` aggregator predicate is the AND of: `pass_rateHzInRange && pass_vibratoDepthInRange && pass_onsetWindow && pass_rmsContinuity`. Currently the JSON does NOT emit `pass_vibratoAudible` as a single field; R36a adds it (mirrors `pass_combo` aggregator pattern from `--sub-harmonics`).
+
+---
+
+## 19.10 Open Question #9 — R36 Task Breakdown (RESOLVED — 9-task R36-pre/R36a–f/R36/R36-backfill)
+
+### 19.10.1 Task table
+
+| Task | Scope | Net delta |
+|------|-------|-----------|
+| **R36-pre** | (a) Reproduce 12 carry-forward goldens via reproduce-goldens.sh (HR-11 tripwire); (b) reproduce O-Bowed `canonical-preset.wav.sha256` (cohort tripwire — only if Option B scope-expansion path); (c) confirm autocorrelator octave-jump baseline at HEAD against `vibrato.wav` (read existing golden JSON + compare to §19.2.2); (d) confirm wall-clock + sha256 determinism for canonical 65-s render (3 back-to-back) | 0 source LOC; pre-flight only |
+| **R36a** | Replace `kTauMin = 400` / `kTauMax = 1500` at `main.cpp:1742–1743` with MIDI-derived ±20% range bias (see §19.2.3 spec); add `pass_vibratoAudible` aggregator predicate + JSON field (mirrors `--sub-harmonics` pass_combo pattern) | +~16 / −2 LOC `main.cpp` |
+| **R36b** | NEW `--saturator-tail-comparison` CLI flag + mode handler (see §19.5.1 schema). [Option B scope-expansion: extend O-Bowed harness with `--bow-speed --bow-pressure --bow-position --infinite-sustain` flags — +~80 LOC `plugins/O-Bowed/tests/render-harness/main.cpp`.] Render new golden `saturator-tail-comparison.{wav,json,json.sha256}` at canonical E1 60s+5s | +~120 LOC `O-Contrabass/main.cpp` (mode handler + decay-envelope analyser); +~80 LOC `O-Bowed/main.cpp` (Option B); +3 new golden text files |
+| **R36c** | Re-baseline `tests/render-harness/golden/vibrato.{json,json.sha256}` against R36a-fixed measurement output (WAV unchanged) | +0 LOC source; 2 changed golden text files |
+| **R36d** | Append RESEARCH §19.7 verdict (research-only OR escalation flag) based on R36b parity render + envelope comparison; document divergence at 5-s mark verbatim from measured data | +0 LOC source; +~40 LOC RESEARCH.md (verdict footnote subsection) |
+| **R36e** | Regression bar: `reproduce-goldens.sh` extended 12 → 13 entries (new `--saturator-tail-comparison` invocation); all 13 must reproduce byte-identical post-R36a/b edits (HR-11 trivially preserves the 12 carry-forward; new entry locks in R36b output) | +~3 LOC `reproduce-goldens.sh` |
+| **R36f** | auval AU VALIDATION SUCCEEDED + pluginval-10 SUCCESS (smoke; no DSP changes → both expected to pass without re-investigation; required by Gate 6c) | 0 LOC source |
+| **R36** | Atomic commit: ~9–11 files (`main.cpp` + harness CMake if needed + 3 new goldens + 2 changed goldens + reproduce-goldens.sh + RESEARCH/PLAN/STATUS/SUMMARY/VERIFICATION). [Option B path: +1–2 files (`O-Bowed/main.cpp` + 1 carry-forward `O-Bowed/canonical-preset.wav.sha256` confirmation tripwire entry — but no NEW O-Bowed golden created)] | Atomic commit |
+| **R36-backfill** | Chore commit propagating R36 sha256 into STATUS.md (mirrors R34-backfill `b64c8c4` / R35-backfill `0db5fac` precedent) | +1 sha line in STATUS.md |
+
+### 19.10.2 Net source delta (Option B recommended; Option A bracketed for contingency)
+
+- `tests/render-harness/main.cpp` (O-Contrabass): +~136 / −2 LOC (R36a + R36b combined)
+- `tests/render-harness/reproduce-goldens.sh` (O-Contrabass): +~3 LOC (R36e)
+- `plugins/O-Bowed/tests/render-harness/main.cpp` (Option B): +~80 LOC
+- 3 new golden text files (`saturator-tail-comparison.{wav.sha256, json, json.sha256}`)
+- 2 changed golden text files (`vibrato.json`, `vibrato.json.sha256`)
+- 12 carry-forward WAVs unchanged (HR-11 trivially)
+- 12 carry-forward JSONs unchanged (no harness-side metric refactor outside `--vibrato` mode)
+- RESEARCH §19 + STATUS append + PLAN rev-10 + SUMMARY + VERIFICATION (planning artefacts)
+
+R36 atomic commit estimated **~11–13 files** (Option B recommended) or **~9–11 files** (Option A contingency), comparable to R35's ~14 files and R34's ~16–19 files (smaller because Phase 2.4c is harness-only, no `Source/DSP/` additions).
+
+### 19.10.3 Sequencing dependency graph
+
+```
+R36-pre ──┬── R36a (autocorrelator fix) ──┬── R36c (re-baseline vibrato.json)
+          │                               │
+          └── R36b (sat-tail mode + render) ── R36d (RESEARCH §19.7 verdict)
+                                                     │
+          R36e (regression bar) ←─────────────────────┴── R36f (auval/pluginval)
+                                                                │
+                                                                └── R36 atomic commit
+                                                                             │
+                                                                             └── R36-backfill chore
+```
+
+R36a and R36b can execute in any order or in parallel within execute-phase; R36c depends on R36a (re-baseline post-fix); R36d depends on R36b (verdict needs envelope data); R36e/f gate the atomic commit.
+
+---
+
+## 19.11 Open Question #10 — New Goldens Scope Final Spec (RESOLVED)
+
+### 19.11.1 Changed goldens (R36c) — 1 logical pair
+
+| File | Change |
+|------|--------|
+| `tests/render-harness/golden/vibrato.json` | NEW measurement output post R36a (range-bias-corrected) |
+| `tests/render-harness/golden/vibrato.json.sha256` | NEW (NOT previously existed at HEAD; mirrors `sub-harmonics.json.sha256` precedent) |
+| `tests/render-harness/golden/vibrato.wav.sha256` | UNCHANGED (`d7881ecf…` carry-forward; HR-11 trivially) |
+
+### 19.11.2 New goldens (R36b) — 3 files
+
+| File | Source |
+|------|--------|
+| `tests/render-harness/golden/saturator-tail-comparison.wav.sha256` | Predicted: `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6` (§19.5.2 pre-flight) |
+| `tests/render-harness/golden/saturator-tail-comparison.json` | NEW (decay envelope + standard pass_* predicates per §19.5.1 schema) |
+| `tests/render-harness/golden/saturator-tail-comparison.json.sha256` | NEW (mirrors `sub-harmonics.json.sha256` byte-determinism precedent) |
+
+### 19.11.3 Carry-forward goldens (HR-11 trivially preserved) — 12 WAVs + JSONs unchanged
+
+`stiffness-zero-pre.{wav.sha256,json}`, `string-A.{wav.sha256,json}`, `string-D.{wav.sha256,json}`, `string-G.{wav.sha256,json}`, `detune-sweep-A.{wav.sha256,json}`, `note-sequence.{wav.sha256,json}`, `vibrato.wav.sha256` (JSON re-baselined R36c), `macro-sweep.{wav.sha256,json}`, `slow-lfo.{wav.sha256,json}`, `schelleng-stress.{wav.sha256,json}`, `sub-harmonics.{wav.sha256,json,json.sha256}`, `sub-harmonics-stability.{wav.sha256,json,json.sha256}` — all carry-forward verbatim.
+
+`matrix-stability.{wav.sha256,json,json.sha256}` (Phase 2.4a evidence golden, NOT in default reproduce-goldens.sh) — carries forward verbatim.
+
+---
+
+## 19.12 Open Question #11 — RESEARCH §19 Deliverable Structure (RESOLVED — this section)
+
+§19 deliverable structure as written verbatim above — §19.1 HR-11 pre-flight, §19.2 autocorrelator algorithm validation, §19.3 O-Bowed saturator topology audit, §19.4 O-Bowed render harness availability, §19.5 saturator-tail measurement protocol, §19.6 divergence threshold tuning, §19.7 verdict path, §19.8 vibrato golden re-baseline scope, §19.9 strict pass_vibratoAudible threshold values, §19.10 R36 task breakdown, §19.11 new goldens scope, §19.12 (this), §19.13 wall-clock + determinism pre-flight, §19.14 risk-surface refinement, §19.15 sequencing in PLAN rev-10, §19.16 open items for plan-phase, §19.17 summary, §19.18 references.
+
+---
+
+## 19.13 Open Question #12 — Wall-Clock Budget Pre-Flight (RESOLVED — 0.29 s/render, 3-trial determinism PASS)
+
+**Single-render wall-clock:** 0.29 s for 65 s of audio (M1 release; ~225× faster than realtime). Mirrors §17.2 / §18.2 single-combo wall-clock scaling (0.04 s for 6 s and 0.03 s for 6 s respectively → roughly 200× factor across all sustained renders).
+
+**3-trial determinism:** all 3 renders produce sha256 `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6` byte-identically. Risk #6 (CONTEXT rev-8) PRE-MITIGATED.
+
+**`reproduce-goldens.sh` runtime growth:** current 12-entry script ~3 s; +0.29 s for new entry → ~3.3 s total. Negligible (Risk #12 PRE-MITIGATED).
+
+**Total Phase 2.4c execute-phase wall-clock budget (estimate):** R36-pre ~5 s (3 reproduces + 3-trial sat-tail determinism); R36a ~2 min (edit + rebuild); R36b ~5 min (new mode + measurement code + render new golden); R36c ~30 s (rebuild + re-render + commit JSON); R36e ~10 s (re-run reproduce-goldens.sh); R36f ~3 min (auval + pluginval-10). Total ~10 min execute-phase time-on-task.
+
+---
+
+## 19.14 Risk-Surface Refinement for PLAN rev-10
+
+12 risks from CONTEXT rev-8 with state updates from research-phase findings + 3 new risks surfaced during research:
+
+| Risk | State after §19 | Mitigation in PLAN rev-10 |
+|------|-----------------|---------------------------|
+| 1. HR-11 violation via accidental DSP edit | **PRE-MITIGATED** (R36-pre tripwire + R36e re-tripwire) | R36-pre as structural prerequisite to R36a/b; R36e as gate to R36 atomic |
+| 2. Parabolic-interp + range-bias insufficient at 12-cent vibrato | **DISSOLVED** — parabolic-interp ALREADY present (§19.2.1); precision floor ~0.16¢ (§19.2.3) far below 12¢ requirement | YIN/AMDF/cepstrum fallback retired |
+| 3. O-Bowed render harness unavailable | **CHARACTERIZED** — exists but NOT parity-able without scope expansion (§19.4) | PLAN rev-10 picks Option A (factory defaults) or Option B (scope-expand) — recommend B per §19.4.3 |
+| 4. >2 dB divergence triggers mid-Phase 2.4c-bis escalation | **CHARACTERIZED** — analytic bound predicts <2 dB at canonical operating amplitudes (§19.3.3 + §19.6); escalation low-probability but lane locked (§19.7.3) | Plan-phase locks Phase 2.4c-bis CONTEXT rev-9-bis structural skeleton in PLAN rev-10 §"contingency" |
+| 5. Vibrato pre-flight catches autocorrelator drift | **PRE-MITIGATED** — §19.1 confirmed all 12 goldens reproduce at HEAD `5d95d15`; no upstream drift | R36-pre tripwire is the gate |
+| 6. `saturator-tail-comparison.wav.sha256` non-deterministic | **PRE-MITIGATED** — 3-trial determinism PASS (§19.5.2) | R36-pre includes 3-trial sha256 confirmation as additional check |
+| 7. JSON `decayEnvelopeDb` width vs sha256 noise | **CHARACTERIZED** — fixed-width 4-decimal-place format pin (§19.5.5); 3-trial JSON sha256 verification in R36-pre | PLAN rev-10 pins float-formatting precision |
+| 8. R36 atomic + R35-backfill chore interaction | **PRE-MITIGATED** — chore-after-atomic precedent (R34-backfill, R35-backfill) | R36-backfill follows R36 atomic verbatim |
+| 9. RESEARCH §19 surfaces non-saturator divergences | **PRE-MITIGATED** — §19.3.4 audit confirms in-loop saturator is the ONLY in-loop nonlinearity in O-Bowed | Out-of-scope findings tracked as Phase 2.4c-bis or v1.1 backlog |
+| 10. Phase 2.5-awareness supersedes saturator decision | **CHARACTERIZED** — body resonator is OUT-of-loop (post-output biquad); does NOT invalidate saturator-tail evidence (§19.7.4) | Phase 2.5 verify includes saturator-tail re-measurement as regression check |
+| 11. MIDI 28 expected-period range bias incorrect for E1 dispersion-warped pitch | **CHARACTERIZED** — Phase 2.1c dispersion warps pitch by ~0.5–2¢ at E1 (RESEARCH §11.x); ±20% range bias robust to dispersion (1070 × 1.0009 ≈ 1071 still in [856, 1285]) | No mitigation needed; range bias is order-of-magnitude wider than dispersion error |
+| 12. `reproduce-goldens.sh` 12 → 13 entry growth | **PRE-MITIGATED** — wall-clock +0.29 s; total runtime ~3.3 s (§19.13) | No mitigation needed |
+| **NEW 13.** O-Bowed canonical-preset.wav.sha256 cohort regression at R36b Option B | Adding `--bow-*` flags to O-Bowed harness MUST NOT change existing canonical render (defaults preserved when flags absent) | R36-pre includes O-Bowed canonical-preset cohort tripwire if Option B; R36b harness diff reviewed against args-only-change pattern |
+| **NEW 14.** Post-fix `onsetTimeMs` lands outside [800, 1000] strict gate | If onset detection algorithm responds at ~600 ms after fix (autocorrelator detects modulation immediately) instead of ~800 ms | PLAN rev-10 widens `pass_onsetWindow` to `[600, 1000]` if R36a prototype measures <800 ms (§19.2.4) |
+| **NEW 15.** O-Bowed factory-default `infiniteSustain = 0.0` invalidates Option A parity render | At O-Bowed factory defaults, bridge LP loss dominates → tail decays much faster than O-Contrabass; envelope-shape comparison meaningless | §19.4.3 recommendation = Option B (scope-expand) is REQUIRED, not optional, if RESEARCH §19.7 verdict is to be evidence-based |
+
+---
+
+## 19.15 Sequencing in PLAN rev-10
+
+R36-pre/R36a/R36b/R36c/R36d/R36e/R36f/R36/R36-backfill — 9 tasks. Ordering identical to §19.10.3 dependency graph above.
+
+PLAN rev-10 preamble pins (mirrors PLAN rev-7/8/9 preamble structure):
+
+1. CLI flag spelling: `--saturator-tail-comparison` (Q39 confirmed).
+2. Autocorrelator fix scope-narrow: range-bias only (parabolic-interp already present per §19.2.1).
+3. MIDI-derived range bias: hard-coded `kVibratoMidiNote = 28` for v1.0 (§19.2.3).
+4. Strict `pass_vibratoAudible` ranges: `[4.5, 5.5] Hz / [10, 14]¢ / [800, 1000] ms` per Q38 + §19.9; widen onset window to `[600, 1000]` only if R36a measures <800 ms.
+5. `pass_vibratoAudible` aggregator predicate: AND of 4 sub-predicates (rate, depth, onset, rmsContinuity).
+6. Saturator-tail JSON schema: 65-bin `decayEnvelopeDb` array; fixed-width 4-decimal serialization (§19.5.5).
+7. NO `pass_decayMatchesOBowed` JSON predicate (Q39 + §19.5.1).
+8. O-Bowed parity Option: **B (scope-expand)** recommended per §19.4.3 (Option A insufficient because O-Bowed factory `infiniteSustain = 0.0` makes envelope-shape comparison meaningless — Risk #15).
+9. `reproduce-goldens.sh` extension 12 → 13 entries.
+10. R36-pre 4-step pre-flight: (a) reproduce-goldens.sh 12-of-12 PASS; (b) Option-B-only: O-Bowed canonical-preset cohort tripwire; (c) autocorrelator octave-jump baseline read from existing `vibrato.json`; (d) saturator-tail 3-trial determinism.
+11. R36 atomic commit ~9–13 files (Option A: ~9–11; Option B: ~11–13).
+12. R36-backfill chore mirrors R35-backfill / R34-backfill precedent.
+
+HARD RULE HR-11 (zero production DSP edits) binding for Phase 2.4c. Phase 2.3 HR-1..HR-4 + Phase 2.4a HR-5..HR-8 + Phase 2.4b HR-9..HR-10 verbatim carry-forward.
+
+7-step + Step 2.5 per-block evaluation order (Phase 2.3 + Phase 2.4b end-state) **unchanged** in Phase 2.4c.
+
+NO Stage-1 contract amendment in Phase 2.4c (parameter-spec.md sha256 `77638e25…` carries forward unchanged).
+
+NO ARCHITECTURE.md amendment in Phase 2.4c (saturator-tail evidence feeds end-of-Stage-2 §"In-loop saturator" amendment cycle but does not amend the architecture itself).
+
+Five-item Gate 6c success criteria (verify exit gate):
+
+1. `reproduce-goldens.sh` 13/13 byte-identical (12 carry-forward + 1 new `saturator-tail-comparison`); HR-11 trivially preserved.
+2. `--vibrato` strict `pass_vibratoAudible = true` post R36a (rate ∈ [4.5, 5.5] Hz / depth ∈ [10, 14]¢ / onset ∈ [800, 1000] ms or [600, 1000] per §19.2.4 widening).
+3. `--saturator-tail-comparison` golden bit-deterministic across re-renders (3-trial sha256 verified) + RESEARCH §19.7 verdict written.
+4. auval AU VALIDATION SUCCEEDED + pluginval-10 SUCCESS.
+5. RESEARCH §19.7 cross-comparison verdict locked = either "research-only acknowledged divergence" (predicted default) OR "Phase 2.4c-bis escalation flag" (low-probability per §19.6 analytic bound).
+
+---
+
+## 19.16 Open Items for Plan-Phase
+
+10 open items handed to PLAN rev-10:
+
+1. **Confirm onset window widening branch** — after R36a prototype runs against `vibrato.wav`, plan-phase confirms `onsetTimeMs` lands within `[800, 1000]` (default) OR widens to `[600, 1000]` (if measured ~600 ms per §19.2.4 caveat).
+2. **Lock O-Bowed parity Option** — recommend Option B (scope-expand O-Bowed harness with `--bow-*` and `--infinite-sustain` flags) per §19.4.3 + Risk #15. Plan-phase pins exact Args struct shape + value-consume code for the new flags.
+3. **R36b new mode handler structure** — mirror existing `--sub-harmonics` pattern (lines ~694–735 of `O-Contrabass/main.cpp`); single-mode handler with parameter-pinning then 60s sustain + 5s release render + post-render decay-envelope analyser; analyzer iterates 65 1-second windows on channel 0; `pass_combo = pass_nan && pass_peak && pass_blockTime`.
+4. **`vibrato.json.sha256` adoption** — plan-phase confirms whether Phase 2.4c is the FIRST golden to introduce a `.json.sha256` for `vibrato` (no existing file at HEAD); follow `sub-harmonics.json.sha256` precedent for byte-determinism.
+5. **R36c re-baseline mechanics** — same render command as `--vibrato` with new harness; render output → write to `vibrato.json` golden; `shasum -a 256` → write to `vibrato.json.sha256` golden. Plan-phase pins exact reproduce-goldens.sh integration.
+6. **Decay-envelope analyser channel selection** — channel 0 only OR mean of (ch0, ch1)? Recommend channel 0 only per §16.7 / §18.5 single-channel precedent.
+7. **R36b float serialization** — `juce::String (val, 4)` fixed-width 4-decimal-place per §19.5.5; plan-phase confirms identical pattern as `--sub-harmonics`'s `subharmEnergyRatio` serialization (Phase 2.4b R35a pattern).
+8. **`saturator-tail-comparison.wav.sha256` predicted vs measured** — predicted `94a42a81…` from §19.5.2 pre-flight at HEAD `5d95d15`; plan-phase pins that R36b golden render MUST match this sha256 (HR-11 trivially because no DSP changes between pre-flight and R36b execute-phase; if drift, investigate stowaway DSP edit).
+9. **R36-pre tripwire script** — recommend writing a small `tests/render-harness/preflight-saturator-tail.sh` analog to `preflight-subharm.sh` (Phase 2.4b R35-pre precedent); 3-trial determinism + 12-golden HR-11 + Option-B O-Bowed cohort tripwire all in one script. Plan-phase decides between standalone preflight script vs. inline R36-pre execution.
+10. **Phase 2.4c-bis CONTEXT rev-9-bis structural skeleton** — plan-phase pre-writes the Phase 2.4c-bis cycle structure in PLAN rev-10 §"contingency" so escalation is one-action-away if R36b parity render measures >2 dB divergence; reduces context-loss between Phase 2.4c verify and Phase 2.4c-bis discuss-phase.
+
+---
+
+## 19.17 Summary — Phase 2.4c Research Resolution Map
+
+| CONTEXT Open Q | Resolution | §19 Section |
+|----------------|------------|-------------|
+| Q1 (autocorrelator algorithm validation) | RESOLVED — parabolic-interp already present; range-bias is the only fix | §19.2 |
+| Q2 (lag-search range bound spec) | RESOLVED — MIDI-derived `±20% × kVibratoPeriod`; `kVibratoMidiNote = 28` hard-coded for v1.0 | §19.2.3 |
+| Q3 (O-Bowed saturator topology audit) | RESOLVED — `tanh(x/4)·4` in-loop both rails (vs O-Contrabass `x/sqrt(1+x²)` drive=1) | §19.3 |
+| Q4 (O-Bowed render harness availability) | RESOLVED — exists but NOT parity-able without Option B scope-expansion | §19.4 |
+| Q5 (saturator-tail measurement protocol) | RESOLVED — 65-bin `decayEnvelopeDb` schema; channel 0 RMS; fixed-width 4-decimal serialization | §19.5 |
+| Q6 (divergence threshold tuning) | RESOLVED — 2 dB default RETAINED (sub-perceptual); analytic bound predicts <2 dB | §19.6 |
+| Q7 (vibrato golden re-baseline scope) | RESOLVED — JSON only (`vibrato.json{,.sha256}`); WAV `d7881ecf…` carry-forward | §19.8 |
+| Q8 (strict `pass_vibratoAudible` thresholds) | RESOLVED — Phase 2.3 PLAN rev-7 verbatim `[4.5,5.5]Hz / [10,14]¢ / [800,1000]ms` | §19.9 |
+| Q9 (R36 task breakdown) | RESOLVED — 9-task R36-pre/R36a–f/R36/R36-backfill | §19.10 |
+| Q10 (new goldens scope final spec) | RESOLVED — 1 changed pair (vibrato.json{,.sha256}) + 3 new (saturator-tail-comparison.{wav.sha256, json, json.sha256}) | §19.11 |
+| Q11 (RESEARCH §19 deliverable structure) | RESOLVED — this section's structure | §19.12 |
+| Q12 (wall-clock + sha256 determinism pre-flight) | RESOLVED — 0.29 s/render; 3-trial determinism PASS | §19.13 |
+
+**Critical findings (research-phase NEW knowledge):**
+
+1. **Parabolic interpolation IS already present** in autocorrelator (§19.2.1). R36a fix scope narrows from CONTEXT-described ~150 LOC to actual ~16 LOC range-bias-only edit. PLAN rev-10 reflects this scope reduction.
+2. **O-Bowed factory `infiniteSustain = 0.0`** (§19.4.3) makes Option A "factory defaults" path likely invalid for envelope-shape comparison — Option B (scope-expand) is recommended-as-required, not optional.
+3. **Analytic bound predicts saturator-tail divergence <2 dB at canonical bow operating amplitude** (§19.3.3 + §19.6) — default verdict path is research-only acknowledged divergence; escalation low-probability.
+4. **5-s post-bow-off envelope at O-Contrabass canonical = −9.31 dB rel max** (§19.5.3), `rmsRatio_final_over_mid = 0.343`. Concrete reference data for §19.7 verdict.
+5. **Predicted golden sha256 for `saturator-tail-comparison.wav` = `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6`** (§19.5.2). Locks R36b's expected output bit-exactly.
+
+---
+
+## 19.18 References (§19 append)
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-8 (this cycle's discuss artefact, 2026-04-28).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` rev-7 (Phase 2.3 R28–R33 carry-forward) + rev-8 (Phase 2.4a R34) + rev-9 (Phase 2.4b R35).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` §16 (Phase 2.3 vibrato + slow-bow LFO + Schelleng wedge + EXPRESSION_MACRO) + §17 (Phase 2.4a Schelleng wedge calibration polynomial) + §18 (Phase 2.4b sub-harmonic bias DSP-07).
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` lines 197–219 (in-loop algebraic saturator `x / sqrt(1 + x²)` per rail).
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.h` lines 22–30, 37–50 (saturator architecture + processing-order spec).
+- `plugins/O-Bowed/Source/DSP/WaveguideString.cpp` lines 135–139, 217–219 (O-Bowed in-loop saturator `sat × tanh(x / sat)` with `sat = 4.0f`).
+- `plugins/O-Bowed/tests/render-harness/main.cpp` (existing harness; supported CLI = `--note --velocity --sustain --release --out --json` only; lacks `--bow-*` and `--infinite-sustain` overrides).
+- `plugins/O-Bowed/tests/render-harness/golden/canonical-preset.wav.sha256` (Phase 2.1b R12 cohort baseline; must remain byte-identical post-R36b Option B harness extension).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` lines 1728–1847 (existing `--vibrato` mode autocorrelator pitch-tracker; parabolic-interp already present at lines 1779–1801; integer-lag bounds at 1742–1743 are R36a's edit point).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` lines 218–219 (`--infinite-sustain` value-consume pattern; mirror for O-Bowed Option B `--bow-*` flags).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` lines 694–735 (existing `--sub-harmonics` mode handler; structural template for R36b `--saturator-tail-comparison` mode handler).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` lines 1946–2124 (existing JSON serialization patterns; mirror for R36b `decayEnvelopeDb` array).
+- `plugins/O-Contrabass/tests/render-harness/golden/vibrato.json` (HEAD; documents Phase 2.3 R28 octave-jump baseline `peakDepthCents=625.44`, `+1200¢` outlier in `perCycleDeltaCents`).
+- `plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh` (12-entry script at HEAD; R36e extends to 13 entries).
+- §19.1 pre-flight reproduce-goldens.sh execution: 12-of-12 PASS at HEAD `5d95d15` (transient `/tmp/repro/*.wav`; deleted post-research).
+- §19.5.2 pre-flight saturator-tail render: 3-trial sha256 = `94a42a8190557128815ef760bfa5ad3cc81f109e1156a3395b8ac507e54ceae6` byte-identical (transient `/tmp/sat-tail-r{1,2,3}.wav`; deleted post-research). Wall-clock 0.29 s/render. Pre-flight peak=0.069, rmsMid=0.0356, rmsFinal=0.0127.
+- §19.5.3 decay envelope analysis: 65-bin per-second RMS computed via Python 3.14.2 + 24-bit PCM read; transient `/tmp/sat-tail-decay-bins.txt`; values verbatim in §19.5.1 schema example.
+- Phase 2.4b R35 atomic commit `3de8b66` + R35-backfill chore `0db5fac` — production base for Phase 2.4c (HEAD `5d95d15` is descendant).
+- ARCHITECTURE.md §"In-loop saturator" — end-of-Stage-2 amendment cycle consumes §19.7 verdict as evidence base; Phase 2.4c does NOT amend the architecture.
+- `cmake --build build --target O-Contrabass-render-test --parallel` — harness rebuild target (clean at HEAD, binary at `build/plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test_artefacts/Release/O-Contrabass-render-test`).
+- `cmake --build build --target O-Bowed-render-test --parallel` — O-Bowed harness rebuild target (Phase 2.1b R12 cohort; binary at `build/plugins/O-Bowed/tests/render-harness/O-Bowed-render-test_artefacts/Release/O-Bowed-render-test`).
+- Python 3.14.2 + standard library `wave` module — 24-bit PCM stereo read for §19.5.3 decay-envelope characterisation (no numpy dependency required).
+
+---

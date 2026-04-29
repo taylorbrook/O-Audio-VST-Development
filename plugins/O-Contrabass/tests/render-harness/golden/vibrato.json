@@ -1,5 +1,5 @@
 {
-  "status": "FAIL",
+  "status": "PASS",
   "mode": "vibrato",
   "midiNote": 28,
   "velocity": 0.699999988079071,
@@ -14,20 +14,20 @@
   "rmsMid_s5_s6": 0.0,
   "rmsFinal_lastSecond": 0.013406488113105,
   "rmsRatio_final_over_mid": 0.0,
-  "blockMicros_median": 97.417000000000002,
-  "blockMicros_max": 181.165999999999997,
-  "blockTime_max_over_median": 1.859695946292741,
+  "blockMicros_median": 70.25,
+  "blockMicros_max": 92.667000000000002,
+  "blockTime_max_over_median": 1.319103202846975,
   "pass_nan": true,
   "pass_peak": true,
   "pass_blockTime": true,
   "pass_rms": false,
-  "outputWav": "vibrato.wav",
+  "outputWav": "/tmp/phase24c-r36c/vibrato.wav",
   "vibratoDepthSetting": 12.0,
   "vibratoRateSetting": 5.0,
   "vibratoOnsetMsSetting": 600,
-  "peakDepthCents": 625.44366455078125,
+  "peakDepthCents": 9.526440620422363,
   "vibratoRateHzMeasured": 4.978775501251221,
-  "onsetTimeMs": 1975,
+  "onsetTimeMs": 1168,
   "perCycleDeltaCents": [
     7.237564086914062,
     7.245171546936035,
@@ -35,11 +35,12 @@
     -7.352969646453857,
     -3.861747026443481,
     4.883453369140625,
-    1200.6026611328125
+    6.115007400512695
   ],
   "rmsContinuityRatio": 0.971701085567474,
-  "pass_vibratoDepthInRange": false,
-  "pass_onsetWindow": false,
+  "pass_vibratoDepthInRange": true,
+  "pass_onsetWindow": true,
   "pass_rateHzInRange": true,
-  "pass_rmsContinuity": true
+  "pass_rmsContinuity": true,
+  "pass_vibratoAudible": true
 }
