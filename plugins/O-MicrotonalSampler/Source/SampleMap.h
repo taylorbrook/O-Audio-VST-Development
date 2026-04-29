@@ -38,6 +38,8 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <cstdlib>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -73,16 +75,37 @@ struct SampleMap
     int                     numVelocityLayers = 1;  // 1..4
     int                     version           = 0;  // Phase 3.1: monotonic counter
 
-    // Phase 2.1: linear scan over slots. Returns the first slot matching
-    // (midiNote, velocityLayer) or nullptr if none found. The `velocityLayer`
-    // parameter is the LAYER INDEX (0..numVelocityLayers-1), NOT a 0-127
-    // velocity value — the caller must derive the layer from velocity first.
-    // ~10 ns over 352 entries (88 notes × 4 layers); trivial.
+    // Linear scan returning the slot in `velocityLayer` whose midiNote is
+    // closest to the requested `midiNote`. Implements REQUIREMENTS §FUNC-04
+    // ("or nearest if N is unsampled") — the voice's repitch path
+    // (computePlayRateForSlot) handles the pitch shift. Returns nullptr only
+    // when the requested layer contains no slots at all.
+    //
+    // Tie-breaking: when two slots are equidistant, prefer the lower midiNote
+    // so the equidistant choice transposes UP — preserves more of the
+    // sample's low-frequency content than a downshift would.
+    //
+    // The `velocityLayer` parameter is the LAYER INDEX (0..numVelocityLayers-1),
+    // NOT a 0-127 velocity value — the caller derives the layer from velocity.
     const SampleSlot* findSlot (int midiNote, int velocityLayer) const noexcept
     {
+        const SampleSlot* best     = nullptr;
+        int               bestDist = std::numeric_limits<int>::max();
+
         for (const auto& s : slots)
-            if (s.midiNote == midiNote && s.velocityLayer == velocityLayer)
-                return &s;
-        return nullptr;
+        {
+            if (s.velocityLayer != velocityLayer)
+                continue;
+
+            const int d = std::abs (s.midiNote - midiNote);
+            if (d < bestDist
+                || (d == bestDist && best != nullptr && s.midiNote < best->midiNote))
+            {
+                best     = &s;
+                bestDist = d;
+            }
+        }
+
+        return best;
     }
 };

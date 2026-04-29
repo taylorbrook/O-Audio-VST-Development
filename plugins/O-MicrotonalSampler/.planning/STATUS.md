@@ -1,14 +1,170 @@
 ---
 plugin: O-MicrotonalSampler
-stage: 3-gui
-phase: 3.5
-status: stage_3_execute_complete; ready for verify
+stage: 4-polish
+phase: execute (Phase 4.1 done; Phase 2.1 reopened + rectified mid-Stage-4; awaiting user perceptual verification before Phase 4.2)
+status: phase_2_1_reopen_engineering_green; awaiting_user_perceptual_verification_to_resume_stage_4
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 3.5 GATE PASS — Stage 3 EXECUTE COMPLETE
+## Current State: Phase 2.1 reopened + rectified mid-Stage-4
+
+While prepping for Phase 4.2 (Logic Pro CPU meter measurement), the
+user loaded a real sparse sample folder (`vln_long_mp-A#2-V127-T6N6.aif`
+× 43 files) into the fixture-OFF binary and surfaced two Stage 2
+defects that the in-memory test fixture had been masking:
+
+- **DEF-2.1-R1 (FUNC-04):** `SampleMap::findSlot` was exact-MIDI-match
+  only — the spec's "or nearest if N is unsampled" clause
+  (`REQUIREMENTS.md:80`) was never implemented. Sparse-folder keys
+  silenced.
+- **DEF-2.1-R2 (FUNC-03):** the `polyphony` APVTS parameter was wired
+  through APVTS + WebSlider but never read by the audio engine. The
+  cap had no effect.
+
+Per the PLAN failure-routing table, Phase 2.1 was reopened. Both
+fixes shipped in one atomic commit. Engineering bar green:
+
+- pluginval `--strictness-level 10 --skip-gui-tests`: SUCCESS (21 tests, 0 fail)
+- pluginval `--strictness-level 10` with-GUI: SUCCESS (25 tests, 0 fail)
+- `auval -v aumu OMtS OuDv`: AU VALIDATION SUCCEEDED
+
+See `.planning/stages/2-dsp/PHASE-2.1-REOPEN-SUMMARY.md` for the full
+defect + fix narrative. REQUIREMENTS rows FUNC-03 and FUNC-04 annotated
+with `(rectified stage-4 phase-2.1 reopen ...)`.
+
+**Next up — user-side perceptual verification** (closes the reopen
+and unblocks Stage 4 Phase 4.2):
+
+- [ ] Single-note coverage across the full range (sparse folder)
+- [ ] 16-note chord rings 16 voices; cap of 4 rings 4 with smooth steals
+- [ ] Voice-steal ramp inaudible at moderate velocity (D2-3 regression)
+
+If all three pass: resume at Stage 4 Phase 4.2 (PERF-02 Logic Pro
+CPU meter run). If any fail: file the defect against the responsible
+sub-phase per PLAN failure-routing table.
+
+## Previous State: Stage 4 PLAN complete — ready for execute
+
+`/plugin-plan O-MicrotonalSampler 4-polish` produced
+`.planning/stages/4-polish/PLAN.md` with **20 numbered tasks** organised
+across the four sub-stages locked in CONTEXT (4.1 version-pill →
+4.2 PERF-02 → 4.3 QUAL-01 → 4.4 final gate). Each sub-stage carries an
+atomic commit + `gate-report.json` + `PHASE-4.N-SUMMARY.md`, matching
+Stage 2/3 cadence.
+
+**Sub-stage breakdown:**
+
+- **4.1 (Tasks 1–4):** insert `getPluginVersion` native function in
+  `PluginEditor.cpp` between `getOctaveStretch` (line 127) and
+  `getEmbeddedTuningList` (line 137); HTML strips hard-coded `v0.1.0`
+  to empty `<div id="about-version">`; JS adds `refreshAboutVersion`
+  modeled on `refreshTuningReadout`, called once at JUCE-init alongside
+  the existing tuning-readout call. Phase 4.1 gate = triple build +
+  cache-clear+install + visual confirmation `v1.0.0` in About pill +
+  no-literal grep + pluginval-5 + auval.
+- **4.2 (Tasks 5–8):** Logic Pro CPU-meter measurement per RQ4-3
+  protocol — Apple Silicon on power, 48 kHz / 256 buffer, 16-voice
+  held chord, 3 runs, delta-from-baseline-with-transport, plus
+  microtonal-stretch confirmatory read. Acceptance:
+  `delta_CPU_pct ≤ 5 %` flips PERF-02 to `complete`.
+- **4.3 (Tasks 9–11):** QUAL-01 listening checklist (sustained sine,
+  cello vibrato, transient, ±50 c retune sweep, voice-steal stress,
+  mixed-SR fixture, short-region loop edge case). All-pass flips
+  QUAL-01 to `complete`; any fail reopens Stage 2 sub-phase.
+- **4.4 (Tasks 12–20):** final stage gate — clean triple build,
+  `pluginval --strictness-level 10 --validate-in-process
+  --skip-gui-tests --random-seed 0xC0FFEE --timeout-ms 120000` then
+  same with-GUI; auval; Logic AU smoke; Dorico microtonal smoke
+  (C4 / ¼♯C4 / C4 / ¼♭C4 with Microtonality="VST3 Note Expression");
+  invariant greps (latency-zero, WebView2 flags, no `v0.1.0`); final
+  VERIFICATION.md + STATUS.md update; atomic commit.
+
+**Strict order: 4.1 → 4.2 → 4.3 → 4.4.** A failure in 4.2 / 4.3
+**reopens** the relevant Stage 2 sub-phase rather than absorbing into
+Stage 4. Only 4.4 closes the stage.
+
+**Dependency graph + failure routing** documented in PLAN.md (per-task
+defect routes back to Stage 2/3 sub-phase ownership).
+
+**Files modified at execute time:**
+`Source/PluginEditor.cpp`, `Resources/ui/index.html`,
+`Resources/ui/js/sampler-app.js`, `.planning/REQUIREMENTS.md`,
+`.planning/STATUS.md`, `.planning/stages/4-polish/{VERIFICATION,
+PHASE-4.{1,2,3,4}-SUMMARY,gate-report}.{md,json}`. **Untouched:**
+all Stage 2 audio-thread paths, CMakeLists.txt, modules.json.
+
+## Previous State: Stage 4 RESEARCH complete — ready for plan
+
+`/plugin-research O-MicrotonalSampler 4-polish` produced
+`.planning/stages/4-polish/RESEARCH.md`, resolving all four open
+questions from CONTEXT (RQ4-1 .. RQ4-4):
+
+- **RQ4-1** — `JucePlugin_VersionString` is a compile-time string-literal
+  macro, available via `<JuceHeader.h>`. Sibling Ouaricon plugins
+  (O-FreqPulse:215, O-DigiDelay:125, O-Tremolo:122) all use the same
+  `withNativeFunction("getPluginVersion", ...)` shape. Pattern to
+  mirror verbatim. Build's actual value confirmed `"1.0.0"` from
+  `Defs.txt` / `CMakeLists.txt:14`.
+- **RQ4-2** — Correct flag is `--strictness-level`, NOT `--strictness`.
+  Prior Stage 3 runs were silent strictness-5 fallback (flag
+  malformed). Strictness-10 unlocks `FuzzParametersTest` + heavier
+  `ParameterThreadSafetyTest` / `BackgroundThreadStateTest`. No prior
+  strictness-10 evidence in this codebase — Stage 4 is first run.
+  Plan to pin `--random-seed` + `--timeout-ms 120000` for
+  reproducibility.
+- **RQ4-3** — Logic Pro per-track CPU is not isolated; PERF-02 measures
+  as **delta from baseline-with-transport** in the aggregate
+  Performance Meter. Apple Silicon must be on power. Specified
+  reproducible 8-step protocol with VERIFICATION fields.
+- **RQ4-4** — Dorico smoke procedure: 11-step manual UI configuration
+  (no `.doricoexpmap` distribution needed for smoke). Critical step:
+  duplicate Default expression map and set Microtonality to **"VST3
+  Note Expression"** — Dorico ignores `INoteExpressionController` and
+  Auto-mode silently routes to pitch-bend. Test passage:
+  C4 / ¼♯C4 / C4 / ¼♭C4 quarter-tone alternation.
+
+**No new module dependencies.** Eight invariants/pitfalls carried
+forward into PLAN.
+
+## Previous State: Stage 4 DISCUSS complete — ready for research
+
+`/plugin-discuss O-MicrotonalSampler 4-polish` produced
+`.planning/stages/4-polish/CONTEXT.md` with **7 locked decisions
+(D4-1..D4-7)** and a **provisional 4-sub-stage plan** (4.1 version
+plumbing → 4.2 PERF-02 benchmark → 4.3 QUAL-01 listening → 4.4 final
+gate).
+
+**Stage 4 scope (intentionally narrow):**
+- Close PERF-02 (16-voice ≤ 5 % CPU) and QUAL-01 (no artifacts) — both
+  carry `partial` from Stage 2.
+- Plumb dynamic version pill via `getPluginVersion()` native function
+  (replaces hard-coded `v0.1.0` in About tab).
+- Final gate: pluginval `--strictness 10` + auval + Logic + Dorico
+  smoke. macOS-only (VST3 + AU + Standalone). Internal use; no signing,
+  no installer, no public release.
+
+**Out of v1.0:** preset system, installers, Windows build, per-slot
+xfade, octave grouping, render-harness target.
+
+**4 open questions (RQ4-1..RQ4-4)** pending research:
+- JucePlugin_VersionString macro source / runtime accessor
+- pluginval `--strictness 10` delta vs strictness-5 for WebView editors
+- Logic CPU-meter measurement protocol (per-track vs delta)
+- Dorico smoke procedure (Playback Template / endpoint mapping)
+
+## Previous State: Stage 3 VERIFIED
+
+`/plugin-verify O-MicrotonalSampler 3-gui` produced
+`.planning/stages/3-gui/VERIFICATION.md`. All five Stage 3 requirements
+(FUNC-05, FUNC-06, DSP-06, UI-01, UI-02) marked **complete** in
+`REQUIREMENTS.md`. All five sub-stage gates green; all 11 Phase 3.5 gate
+criteria green; Stage 2 audio invariant intact end-to-end.
+
+Stage 3 (GUI) is closed.
+
+## Previous State: Phase 3.5 GATE PASS — Stage 3 EXECUTE COMPLETE
 
 `/plugin-execute O-MicrotonalSampler 3-gui` Phase 3.5 produced
 `.planning/stages/3-gui/PHASE-3.5-SUMMARY.md` and overwrote

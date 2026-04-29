@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-MicrotonalSampler
 created: 2026-04-27
-lastUpdated: 2026-04-27
+lastUpdated: 2026-04-28
 ---
 
 ## Overview
@@ -21,10 +21,10 @@ lastUpdated: 2026-04-27
 |----|-------------|----------|--------|-------------|
 | FUNC-01 | Plays user-loaded `.wav` / `.aif` samples mapped to MIDI pitches | must | complete | stage-2 |
 | FUNC-02 | Supports up to 4 velocity layers per pitch | must | complete | stage-2 |
-| FUNC-03 | Supports up to 16-voice polyphony | must | complete | stage-2 |
-| FUNC-04 | Auto-detects sampled note range from loaded sample set | must | complete | stage-2 |
-| FUNC-05 | Drag-drop folder load with filename-convention auto-mapping (`Note_velocity` style) | should | pending | stage-3 |
-| FUNC-06 | Per-cell manual sample assignment (override path) | should | pending | stage-3 |
+| FUNC-03 | Supports up to 16-voice polyphony | must | complete | stage-2 (rectified stage-4 phase-2.1 reopen: `polyphony` APVTS param was wired but never enforced — `CappedSynthesiser::noteOn` added to enforce cap) |
+| FUNC-04 | Auto-detects sampled note range from loaded sample set | must | complete | stage-2 (rectified stage-4 phase-2.1 reopen: `SampleMap::findSlot` was exact-MIDI-match only — nearest-pitch-within-layer fallback added per spec line 80) |
+| FUNC-05 | Drag-drop folder load with filename-convention auto-mapping (`Note_velocity` style) | should | complete | stage-3 |
+| FUNC-06 | Per-cell manual sample assignment (override path) | should | complete | stage-3 |
 | FUNC-07 | Voice-stealing when polyphony cap exceeded (oldest-released first) | must | complete | stage-2 |
 
 ### DSP (DSP)
@@ -36,7 +36,7 @@ lastUpdated: 2026-04-27
 | DSP-03 | ADSR amplitude envelope applied per voice (attack, decay, sustain, release) | must | complete | stage-2 |
 | DSP-04 | Equal-power crossfade between adjacent velocity layers within boundary region | must | complete | stage-2 |
 | DSP-05 | Auto-detect sustain loop points (low-energy zero-crossing region in latter portion of sample) | should | complete | stage-2 |
-| DSP-06 | Manual loop-point override per sample | should | pending | stage-3 |
+| DSP-06 | Manual loop-point override per sample | should | complete | stage-3 |
 | DSP-07 | Consumes VST3 note-expression events for per-note pitch | must | complete | stage-2 |
 | DSP-08 | Consumes suite internal tuning module (Scala/Dorico-compatible) for scale/keyboard mapping | must | complete | stage-2 |
 
@@ -44,8 +44,8 @@ lastUpdated: 2026-04-27
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Sample-mapping grid (pitch × velocity layer) is the primary editing surface | should | pending | stage-3 |
-| UI-02 | Loop-point editor with waveform view and draggable markers (on demand) | nice | pending | stage-3 |
+| UI-01 | Sample-mapping grid (pitch × velocity layer) is the primary editing surface | should | complete | stage-3 |
+| UI-02 | Loop-point editor with waveform view and draggable markers (on demand) | nice | complete | stage-3 |
 
 ### Performance (PERF)
 

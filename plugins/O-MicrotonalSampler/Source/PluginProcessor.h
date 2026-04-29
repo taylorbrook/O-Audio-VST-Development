@@ -13,6 +13,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <atomic>
 #include <memory>
 #include "MicrotonalSamplerSound.h"
 #include "MicrotonalSamplerVoice.h"
@@ -20,6 +21,53 @@
 #include "SampleLoader.h"
 #include "TuningEngine.h"          // global namespace (D-4)
 #include "NoteExpression.h"        // modules/tuning/note-expression (via ouaricon_add_module)
+
+// Polyphony-cap-enforcing Synthesiser. Pre-allocated voice pool stays at the
+// max (16) for PERF-01 (no RT alloc when the user raises the cap), but the
+// runtime cap from the `polyphony` APVTS parameter is enforced here by
+// pre-stealing on every noteOn so the active count never exceeds the cap.
+//
+// FUNC-03 ("up to 16-voice polyphony") was structurally complete in Stage 2
+// (16 voices pre-allocated) but functionally incomplete: the parameter was
+// wired through APVTS + WebSlider but never read by the audio engine, so
+// lowering the cap had no effect. This subclass closes that gap.
+class CappedSynthesiser : public juce::Synthesiser
+{
+public:
+    void setVoiceCap (int cap) noexcept
+    {
+        voiceCap.store (juce::jlimit (1, 16, cap), std::memory_order_relaxed);
+    }
+
+protected:
+    void noteOn (int midiChannel, int midiNoteNumber, float velocity) override
+    {
+        // Called from inside renderNextBlock under the synth's recursive lock.
+        // Counting + steal here is safe (lock is reentrant) and keeps the cap
+        // enforced before the base implementation picks a voice via
+        // findFreeVoice.
+        const int cap = voiceCap.load (std::memory_order_relaxed);
+
+        int active = 0;
+        for (int i = 0; i < getNumVoices(); ++i)
+            if (getVoice (i)->isVoiceActive())
+                ++active;
+
+        if (active >= cap && getNumSounds() > 0)
+        {
+            if (auto sound = getSound (0))
+            {
+                if (auto* steal = findVoiceToSteal (sound.get(), midiChannel, midiNoteNumber))
+                    stopVoice (steal, /*velocity=*/0.0f, /*allowTailOff=*/false);
+            }
+        }
+
+        juce::Synthesiser::noteOn (midiChannel, midiNoteNumber, velocity);
+    }
+
+private:
+    std::atomic<int> voiceCap { 16 };
+};
 
 class OMicrotonalSamplerAudioProcessor : public juce::AudioProcessor
 {
@@ -111,7 +159,7 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState        parameters;
-    juce::Synthesiser                         synthesiser;
+    CappedSynthesiser                         synthesiser;
     TuningEngine                              tuningEngine;       // D-4: global namespace
     Ouaricon::NoteExpression::VST3Extensions  vst3Extensions;
 

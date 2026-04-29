@@ -261,6 +261,12 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // MUST run BEFORE renderNextBlock so per-voice startNote sees pending NE deltas.
     vst3Extensions.drainAndUpdate();
 
+    // FUNC-03: propagate the polyphony APVTS cap into the synth before MIDI is
+    // dispatched, so CappedSynthesiser::noteOn enforces the user's cap on this
+    // block's note-ons.
+    if (auto* pp = parameters.getRawParameterValue ("polyphony"))
+        synthesiser.setVoiceCap ((int) pp->load());
+
     // Render all voices via synthesiser (handles MIDI routing + voice allocation).
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
