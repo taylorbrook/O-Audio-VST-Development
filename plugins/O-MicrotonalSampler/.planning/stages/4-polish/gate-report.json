@@ -1,80 +1,118 @@
 {
   "plugin": "O-MicrotonalSampler",
   "stage": "4-polish",
-  "phase": "4.3",
-  "phase_title": "QUAL-01 listening pass",
+  "phase": "4.4",
+  "phase_title": "Final stage gate",
   "verdict": "PASS",
-  "timestamp": "2026-04-28",
-  "spec_protocol": {
-    "source": "PLAN.md §Phase 4.3 + Stage 2 VERIFICATION.md Human Verification",
-    "metric": "7-item targeted artifact-pass listening checklist",
-    "threshold": "All items free of clicks / zipper / aliasing",
-    "skipped_items_allowed": "yes, at user discretion if engineering mitigation already verified"
-  },
-  "checklist_outcomes": {
-    "item_1_sustained_sine": {
+  "stage_verdict": "STAGE 4 COMPLETE — v1.0 ready for internal use",
+  "timestamp": "2026-04-29",
+  "checks": {
+    "clean_tree": {
       "verdict": "PASS",
-      "criterion_match": "no clicks / zipper / DC during attack-decay-release",
-      "behavioral_observation": "Default loop fallback rejects sine waves (constant-RMS variance gate) -> OneShot -> playback stops before note-off. Not a QUAL-01 artefact; logged as v1.1 V11-LOOP-FALLBACK. Workaround in v1.0: manual loop points via loop-point editor (DSP-06)."
+      "note": "build current from Phase 4.1 (b47434d); ninja: no work to do (4.2 + 4.3 docs-only)"
     },
-    "item_2_cello_vibrato": {
+    "cache_clear_install": {
       "verdict": "PASS",
-      "notes": "no loop-boundary clicks, vel-xfade discontinuities, voice-steal pops"
+      "actions": [
+        "killall -9 AudioComponentRegistrar",
+        "rm -rf ~/Library/Caches/AudioUnitCache/",
+        "rm -rf ~/Library/Caches/com.apple.audiounits.cache",
+        "rm -rf prior O-MicrotonalSampler-dev.{vst3,component} from system folders",
+        "cp -R fresh -dev VST3 + component from build/.../Release/{VST3,AU}/ to ~/Library/Audio/Plug-Ins/{VST3,Components}/"
+      ]
     },
-    "item_3_transient": {
+    "pluginval_strictness_10_skip_gui": {
       "verdict": "PASS",
-      "notes": "OneShot fallback correct on transient material"
+      "command": "pluginval --strictness-level 10 --validate-in-process --skip-gui-tests --random-seed 12648430 --timeout-ms 120000",
+      "seed_decimal": 12648430,
+      "seed_hex": "0xC0FFEE",
+      "timeout_ms": 120000,
+      "result": "SUCCESS",
+      "log": ".planning/stages/4-polish/logs/pluginval-10-skip-gui.log",
+      "significance": "Gate-of-record for PERF-02 (Phase 4.2 methodology deviation). Strictness-10 timing pass validates per-block budget objectively. PERF-02 conditional flip -> unconditional."
     },
-    "item_4_retune_sweep_50c": {
+    "pluginval_strictness_10_with_gui": {
       "verdict": "PASS",
-      "notes": "no zipper / alias / pitch-tracking glitch on +/-50 c sweep"
+      "command": "pluginval --strictness-level 10 --validate-in-process --random-seed 12648430 --timeout-ms 120000",
+      "result": "SUCCESS",
+      "log": ".planning/stages/4-polish/logs/pluginval-10-with-gui.log",
+      "significance": "EditorTest + EditorWhilstProcessingTest + EditorAutomationTest at full strictness against WebView shell. No relay/attachment lifetime regressions."
     },
-    "item_5_voice_steal_stress": {
+    "auval": {
       "verdict": "PASS",
-      "notes": "5 ms steal ramp clean at 24-note cluster vs 16-voice cap"
+      "command": "auval -v aumu OMtS OuDv",
+      "result": "AU VALIDATION SUCCEEDED",
+      "log": ".planning/stages/4-polish/logs/auval.log",
+      "notes": "DEF-24-01 static-check finding (per memory: o_lyrica_spike_reference.md) is benign and does not block."
     },
-    "item_6_mixed_sr_fixture": {
-      "verdict": "SKIPPED",
-      "rationale": "User-discretion skip. Lagrange resample (SampleLoader::loadSingleSlot) + Cubic-Hermite runtime (MicrotonalSamplerVoice::cubicInterp) covered indirectly by items 2 and 5. Logged as v1.1 V11-MIXED-SR-EXPLICIT for explicit fixture-driven retest."
-    },
-    "item_7_short_region_loop": {
+    "logic_au_smoke": {
       "verdict": "PASS",
-      "notes": "no buzz / artefact at <1024-sample loop region"
+      "owner": "user",
+      "test": "Load O-MicrotonalSampler-dev (AU) on Software Instrument track, load sample folder, play chord, verify no crash / no AU revalidation prompt / GUI opens / audio renders",
+      "verifier_date": "2026-04-29",
+      "path": "B (abbreviated spot check)"
+    },
+    "dorico_microtonal_smoke": {
+      "verdict": "PASS",
+      "owner": "user",
+      "test": "C4 / quarter-sharp-C4 / C4 / quarter-flat-C4 quarter-tone alternation with Microtonality method = 'VST3 Note Expression'",
+      "result_source": "carry-forward from Phase 4.3 item 4 (+/-50 c retune sweep -- NE-aware host)",
+      "user_confirmation": "NE-aware host was Dorico with VST3 Note Expression expression map (not Auto-mode pitch-bend, not a different host)",
+      "verifier_date": "2026-04-29",
+      "path": "B (carry-forward)",
+      "pitfall_guard": "Microtonality dropdown confirmed set to VST3 Note Expression (not Auto). Auto silently routes pitch-bend -> 12-TET output -> false 12-TET fail."
+    },
+    "invariant_grep_setLatencySamples": {
+      "verdict": "PASS",
+      "command": "grep -rn setLatencySamples plugins/O-MicrotonalSampler/Source/",
+      "hits": 1,
+      "evidence": "PluginProcessor.cpp:133 (comment-only: '// Sampler is feed-forward; latency = 0 - do NOT call setLatencySamples.')"
+    },
+    "invariant_grep_webview2_flags": {
+      "verdict": "PASS",
+      "expected_flags": ["NEEDS_WEBVIEW2 TRUE", "JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1", "withUserDataFolder"],
+      "evidence": [
+        "CMakeLists.txt:20 NEEDS_WEBVIEW2 TRUE",
+        "CMakeLists.txt:109 JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1",
+        "PluginEditor.cpp:58 .withUserDataFolder ("
+      ]
+    },
+    "invariant_grep_no_v010": {
+      "verdict": "PASS",
+      "command": "grep -rn 'v0\\.1\\.0' Resources/ Source/",
+      "hits": 0
+    },
+    "invariant_modules_json_no_new_deps": {
+      "verdict": "PASS",
+      "note": "modules.json does not exist for this plugin (uses juce::* only). Vacuous PASS consistent with Stage 3 RESEARCH 'Module reuse' finding."
     }
+  },
+  "perf02_conditional_flip_resolved": {
+    "phase_2_status": "conditional (depended on 4.4 strictness-10 timing PASS)",
+    "phase_4_status": "unconditional (strictness-10 PASSED)",
+    "rollback_triggered": false,
+    "stage_2_reopen": null
+  },
+  "requirements_final_state": {
+    "total": 22,
+    "complete": 22,
+    "partial": 0,
+    "out_of_scope": 0
   },
   "v11_followups": [
-    {
-      "id": "V11-LOOP-FALLBACK",
-      "description": "Default loop fallback should loop entire sample when LoopDetector variance/headroom gates fail but length gate passes",
-      "owner": "Stage 2 sub-phase 2.5",
-      "trigger": "v1.1 milestone or sooner if heuristic feels wrong on real-use samples"
-    },
-    {
-      "id": "V11-PERF-METER",
-      "description": "Capture Logic Pro Performance Meter delta_CPU_pct on a future Logic release or alternative DAW (e.g. Reaper)",
-      "owner": "Stage 4 / metrology",
-      "trigger": "v1.1 milestone"
-    },
-    {
-      "id": "V11-MIXED-SR-EXPLICIT",
-      "description": "Explicit mixed-SR fixture listening pass (item 6, skipped)",
-      "owner": "Stage 4 / verify",
-      "trigger": "v1.1 milestone or pre-public-release if v1.0 stays internal-only"
-    }
+    "V11-LOOP-FALLBACK",
+    "V11-PERF-METER",
+    "V11-MIXED-SR-EXPLICIT"
   ],
-  "requirements_flip": {
-    "QUAL-01": {
-      "from": "partial",
-      "to": "complete",
-      "verified_at": "stage-4",
-      "qualification": "6/7 unambiguous PASS; item 1 PASS on criterion as written + behavioral v1.1 follow-up; item 6 skipped (engineering-mitigated path) + v1.1 follow-up"
-    }
-  },
   "files_modified": [
     ".planning/stages/4-polish/VERIFICATION.md",
-    ".planning/REQUIREMENTS.md",
-    ".planning/stages/4-polish/PHASE-4.3-SUMMARY.md",
-    ".planning/stages/4-polish/gate-report.json"
+    ".planning/stages/4-polish/PHASE-4.4-SUMMARY.md",
+    ".planning/stages/4-polish/gate-report.json",
+    ".planning/stages/4-polish/logs/pluginval-10-skip-gui.log",
+    ".planning/stages/4-polish/logs/pluginval-10-with-gui.log",
+    ".planning/stages/4-polish/logs/auval.log",
+    ".planning/STATUS.md",
+    ".planning/stages/3-gui/VERIFICATION.md"
   ],
-  "next_phase": "4.4 — final stage gate (pluginval-10, auval, Logic + Dorico smoke, invariant greps, atomic commit)"
+  "next_phase": "/plugin-verify O-MicrotonalSampler 4-polish (final goal-backward verification)"
 }

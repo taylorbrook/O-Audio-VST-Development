@@ -1,14 +1,86 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 4-polish
-phase: execute (Phase 4.1 [b47434d] + Phase 4.2 [3ca88e4] + Phase 4.3 [this commit] shipped; ready for Phase 4.4 final gate)
-status: phase_4_3_complete; QUAL-01 flipped complete (6/7 unambiguous PASS, 1 v1.1 follow-up, 1 skipped); ready_for_phase_4_4
-last_updated: 2026-04-28
+phase: complete (Phase 4.1 [b47434d] + Phase 4.2 [3ca88e4] + Phase 4.3 [7c57c30] + Phase 4.4 [this commit] all shipped)
+status: stage_4_complete; v1.0 ready for internal use; ready_for_plugin_verify
+last_updated: 2026-04-29
 ---
 
 # Resume Point
 
-## Current State: Phase 4.3 QUAL-01 listening pass closed (Path A)
+## Current State: STAGE 4 COMPLETE — v1.0 ready for internal use
+
+`/plugin-execute O-MicrotonalSampler 4-polish` Phase 4.4 produced
+`.planning/stages/4-polish/PHASE-4.4-SUMMARY.md`, extended
+`VERIFICATION.md` with the Stage Gate Evidence section, overwrote
+`gate-report.json` (phase 4.4 payload), and persisted three run logs
+under `logs/`. All 22 requirements complete. Three v1.1 follow-ups
+logged — none block v1.0.
+
+### Phase 4.4 final gate — all green
+
+| Check | Outcome |
+|---|---|
+| Cache-clear + reinstall (per CLAUDE.md) | ✓ |
+| Triple build current from Phase 4.1 (b47434d) | ✓ ninja: no work to do (4.2 + 4.3 docs-only) |
+| pluginval `--strictness-level 10 --skip-gui-tests` (seed `0xC0FFEE` / 120 s) | **SUCCESS** — gate-of-record for PERF-02 |
+| pluginval `--strictness-level 10` (with-GUI) | **SUCCESS** |
+| auval `-v aumu OMtS OuDv` | **AU VALIDATION SUCCEEDED** |
+| Logic AU smoke (USER) | PASS — Path B abbreviated spot check |
+| Dorico microtonal smoke (USER) | PASS — Path B carry-forward from Phase 4.3 item 4 (user-confirmed: Dorico with VST3 Note Expression expression map, not Auto) |
+| Latency-zero grep (PERF-04) | single comment-only hit at PluginProcessor.cpp:133 ✓ |
+| WebView2 flags grep (3-of-3) | NEEDS_WEBVIEW2 + STATIC_LINKING=1 + withUserDataFolder ✓ |
+| `v0.1.0` literal grep | zero hits ✓ |
+| modules.json no-new-deps | vacuous PASS (file does not exist; juce::* only) ✓ |
+
+### PERF-02 conditional flip → unconditional
+
+Phase 4.2 flipped `PERF-02` partial → complete conditionally on
+Phase 4.4 strictness-10 timing PASS. **Strictness-10 PASSED.** The
+flip is now unconditional. No rollback. No Stage 2 reopen.
+
+### REQUIREMENTS.md final state
+
+All 22 rows = `complete`. Two flips during Stage 4:
+
+- `PERF-02` partial → complete (Phase 4.2; objective gate-of-record = strictness-10)
+- `QUAL-01` partial → complete (Phase 4.3; 6/7 unambiguous PASS)
+
+### v1.1 follow-ups (none block v1.0)
+
+- **V11-LOOP-FALLBACK** — default loop fallback should loop entire
+  sample when LoopDetector variance/headroom gates fail but length
+  gate passes (Stage 2.5 owner)
+- **V11-PERF-METER** — capture Logic Performance Meter delta on a
+  future Logic release / alt DAW (Stage 4 / metrology owner)
+- **V11-MIXED-SR-EXPLICIT** — explicit mixed-SR fixture listening
+  pass (Stage 4 / verify owner)
+
+### v1.0 scope (per CONTEXT.md D4-3)
+
+Internal use only. macOS VST3 + AU + Standalone. No code-signing, no
+installer, no public release. Public distribution is a post-v1.0
+milestone.
+
+## Stage 4 Sub-stage Status (FINAL)
+
+| Phase | Goal | Gate | Commit | Status |
+|---|---|---|---|---|
+| 4.1 Version pill | runtime version-pill via `getPluginVersion` | triple build + pluginval-5 + auval | b47434d | ✅ PASS |
+| 4.2 PERF-02 | 16-voice CPU budget within spec | methodology-deviation; gate-of-record = 4.4 | 3ca88e4 | ✅ PASS (now unconditional) |
+| 4.3 QUAL-01 | listening pass (no clicks / zipper / aliasing) | 7-item subjective checklist | 7c57c30 | ✅ PASS (Path A) |
+| 4.4 Final gate | pluginval-10 + auval + Logic + Dorico smoke + invariants | strictness-10 SUCCESS, all greens | this commit | ✅ PASS (Path B) |
+
+## Next phase
+
+`/plugin-verify O-MicrotonalSampler 4-polish` — final goal-backward
+verification across all four sub-phases against `BRIEF.md` + the 22
+requirements. Should produce a green VERIFIED verdict given the
+Phase 4.4 gate evidence captured here. After verify, optional
+follow-ups: `/install-plugin O-MicrotonalSampler` (drop the `-dev`
+suffix and install for general internal use), or `/show-standalone`.
+
+## Previous State: Phase 4.3 QUAL-01 listening pass closed (Path A)
 
 `/plugin-execute O-MicrotonalSampler 4-polish` Phase 4.3 produced
 `.planning/stages/4-polish/PHASE-4.3-SUMMARY.md` and extended

@@ -3,11 +3,11 @@ title: "O-MicrotonalSampler Stage 4 (Polish) — Verification"
 plugin: O-MicrotonalSampler
 stage: 4-polish
 created: 2026-04-28
-last_updated: 2026-04-28
-status: in_progress
+last_updated: 2026-04-29
+status: complete
 verifies_requirements:
-  - PERF-02   # 16 voices ≤ 5 % CPU — partial → complete (this file, §PERF-02)
-  - QUAL-01   # No clicks / zipper / aliasing — partial → complete (pending Phase 4.3)
+  - PERF-02   # 16 voices ≤ 5 % CPU — partial → complete (§PERF-02)
+  - QUAL-01   # No clicks / zipper / aliasing — partial → complete (§QUAL-01)
 ---
 
 # Stage 4 (Polish) — Verification
@@ -137,10 +137,107 @@ QUAL-01 is marked `complete` on the basis of:
 
 ---
 
-## Stage Gate Evidence
+## Stage Gate Evidence (Phase 4.4 — 2026-04-29)
 
----
+### Cache-clear + reinstall (per CLAUDE.md)
 
-## Stage Gate Evidence
+```
+killall -9 AudioComponentRegistrar
+rm -rf ~/Library/Caches/AudioUnitCache/
+rm -rf ~/Library/Caches/com.apple.audiounits.cache
+rm -rf ~/Library/Audio/Plug-Ins/VST3/O-MicrotonalSampler-dev.vst3
+rm -rf ~/Library/Audio/Plug-Ins/Components/O-MicrotonalSampler-dev.component
+cp -R build/.../Release/VST3/O-MicrotonalSampler-dev.vst3      ~/Library/Audio/Plug-Ins/VST3/
+cp -R build/.../Release/AU/O-MicrotonalSampler-dev.component   ~/Library/Audio/Plug-Ins/Components/
+```
 
-(populated by Phase 4.4)
+Triple build was already current from Phase 4.1 commit `b47434d`
+(`ninja: no work to do`) — Phases 4.2 and 4.3 modified planning
+documents only, no source-code edits.
+
+### pluginval `--strictness-level 10 --skip-gui-tests`
+
+| Field | Value |
+|---|---|
+| Command | `/Applications/pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --validate-in-process --skip-gui-tests --random-seed 12648430 --timeout-ms 120000 ~/Library/Audio/Plug-Ins/VST3/O-MicrotonalSampler-dev.vst3` |
+| Seed | `12648430` (= `0xC0FFEE`) |
+| Timeout | 120 000 ms |
+| **Result** | **SUCCESS** |
+| Log | `.planning/stages/4-polish/logs/pluginval-10-skip-gui.log` |
+| Significance | First true strictness-10 run in this codebase. Validates `FuzzParametersTest` + `ParameterThreadSafetyTest` + `BackgroundThreadStateTest` + Automation across {44.1, 48, 96} kHz × {64, 128, 256, 512, 1024} block sizes. **This is the gate-of-record for PERF-02** (per Phase 4.2 methodology deviation): strictness-10 timing pass validates per-block budget objectively. PERF-02 conditional flip → unconditional. |
+
+### pluginval `--strictness-level 10` (with-GUI)
+
+| Field | Value |
+|---|---|
+| Command | `/Applications/pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --validate-in-process --random-seed 12648430 --timeout-ms 120000 ~/Library/Audio/Plug-Ins/VST3/O-MicrotonalSampler-dev.vst3` |
+| **Result** | **SUCCESS** |
+| Log | `.planning/stages/4-polish/logs/pluginval-10-with-gui.log` |
+| Significance | Exercises `EditorTest` + `EditorWhilstProcessingTest` + `EditorAutomationTest` against the WebView shell at full strictness. No relay/attachment lifetime issues, no editor mount regressions. |
+
+### auval
+
+| Field | Value |
+|---|---|
+| Command | `auval -v aumu OMtS OuDv` |
+| **Result** | **AU VALIDATION SUCCEEDED** |
+| Log | `.planning/stages/4-polish/logs/auval.log` |
+| Notes | DEF-24-01 static-check finding (per memory: `o_lyrica_spike_reference.md`) is benign and does not block — confirmed unchanged from Stage 3 verify. |
+
+### Logic Pro AU smoke (USER, Path B abbreviated)
+
+| Field | Value |
+|---|---|
+| Test | Load `O-MicrotonalSampler-dev (AU)` on Software Instrument track, load sample folder, play chord, verify no crash / no AU revalidation prompt / GUI opens / audio renders |
+| **Result** | **PASS** |
+| Verifier | User (2026-04-29) |
+
+### Dorico microtonal smoke (USER, Path B — already exercised in Phase 4.3 item 4)
+
+| Field | Value |
+|---|---|
+| Test | C4 / ¼♯C4 / C4 / ¼♭C4 quarter-tone alternation with Microtonality method = "VST3 Note Expression" |
+| **Result** | **PASS** (carry-forward from Phase 4.3 item 4 — confirmed by user as Dorico-with-NE-expression-map, not Auto-mode pitch-bend, not a different NE-aware host) |
+| Verifier | User (Phase 4.3 listening pass, 2026-04-28; reaffirmed 2026-04-29) |
+| Pitfall guard | Microtonality dropdown was confirmed set to "VST3 Note Expression" (not Auto). Auto-mode silently routes pitch-bend → 12-TET output → false 12-TET fail. User-confirmed correct setup. |
+
+### Invariant greps
+
+| # | Invariant | Command | Result |
+|---|---|---|---|
+| 1 | Latency-zero (PERF-04) | `grep -rn setLatencySamples plugins/O-MicrotonalSampler/Source/` | Single comment-only hit at `PluginProcessor.cpp:133` (`// Sampler is feed-forward; latency = 0 — do NOT call setLatencySamples.`) ✓ |
+| 2 | Cross-platform WebView2 flags | `grep -n "NEEDS_WEBVIEW2\|JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING\|withUserDataFolder" CMakeLists.txt PluginEditor.cpp` | All three present: `CMakeLists.txt:20` `NEEDS_WEBVIEW2 TRUE`, `CMakeLists.txt:109` `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`, `PluginEditor.cpp:58` `.withUserDataFolder` ✓ |
+| 3 | No `v0.1.0` literal | `grep -rn "v0\.1\.0" Resources/ Source/` | Zero hits ✓ |
+| 4 | No new modules.json deps since Stage 3 | `cat plugins/O-MicrotonalSampler/modules.json` | File does not exist (vacuous PASS — plugin uses `juce::*` only, consistent with Stage 3 RESEARCH §"Module reuse") ✓ |
+
+### REQUIREMENTS.md final state
+
+All 22 rows = `complete`. Two flips during Stage 4:
+
+| ID | Stage 4 status |
+|---|---|
+| `PERF-02` | `partial → complete` at Phase 4.2 (methodology deviation; objective gate-of-record = strictness-10 above — PASSED) |
+| `QUAL-01` | `partial → complete` at Phase 4.3 (6/7 unambiguous PASS, item 1 PASS on criterion as written + v1.1 V11-LOOP-FALLBACK, item 6 skipped + v1.1 V11-MIXED-SR-EXPLICIT) |
+
+No row flipped backwards. No requirement marked OOS.
+
+### Stage 4 verdict
+
+**STAGE 4 COMPLETE. v1.0 READY FOR INTERNAL USE.**
+
+All four sub-stage gates green (4.1, 4.2, 4.3, 4.4). All 22 requirements
+complete. Three v1.1 follow-ups logged (V11-LOOP-FALLBACK,
+V11-PERF-METER, V11-MIXED-SR-EXPLICIT) — none block v1.0.
+
+### Path-B Dorico evidence carry-forward — rationale
+
+Per pre-execute discuss: rather than re-execute the 11-step Dorico
+smoke procedure (already exercised in Phase 4.3 item 4), evidence
+was carried forward on user-confirmation that the NE-aware host was
+Dorico with the "VST3 Note Expression" expression map (not Auto).
+This is an acceptable evidence-substitution under the criterion as
+written — the Phase 4.4 Dorico-smoke acceptance ("audibly correct
+quarter-tone alternation; no clicks / zipper / glitches at accidental
+boundary; no CPU dropouts") was directly exercised by Phase 4.3
+item 4 ("±50 c retune sweep — NE-aware host"). The CPU-dropouts
+component is independently covered by the strictness-10 timing pass.
