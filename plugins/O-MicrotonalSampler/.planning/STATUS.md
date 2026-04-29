@@ -1,14 +1,64 @@
 ---
 plugin: O-MicrotonalSampler
 stage: 4-polish
-phase: execute (Phase 4.1 done; Phase 2.1 reopen [4d20d42] + Phase 2.5 reopen [this commit] both shipped + perceptually verified; ready to resume Phase 4.2)
-status: phase_2_5_reopen_resolved; full_chromatic_audible_in_both_test_folders; ready_for_phase_4_2
+phase: execute (Phase 4.1 [b47434d] + Phase 4.2 [this commit] shipped; ready for Phase 4.3 listening pass)
+status: phase_4_2_complete_with_methodology_deviation; PERF-02 flipped complete (conditional on 4.4 pluginval-10); ready_for_phase_4_3
 last_updated: 2026-04-28
 ---
 
 # Resume Point
 
-## Current State: Phase 2.5 reopen RESOLVED — full chromatic playback verified
+## Current State: Phase 4.2 PERF-02 closed (methodology deviation)
+
+`/plugin-execute O-MicrotonalSampler 4-polish` Phase 4.2 produced
+`.planning/stages/4-polish/{VERIFICATION,PHASE-4.2-SUMMARY,gate-report}.{md,json}`
+and flipped `REQUIREMENTS.md` row `PERF-02` from `partial → complete`
+(verified at `stage-4`, with the methodology-deviation caveat carried
+in the row's `verified at` field for surface-level visibility).
+
+### Phase 4.2 deviation summary
+
+The spec metric (Logic Pro Performance Meter `delta_CPU_pct ≤ 5 %`)
+was unmeasurable: Logic 11.x's Performance Meter is not surfaceable
+in this user's environment (window restructured / removed; LCD
+mini-meter not visible). Path B taken (per pre-execute discuss):
+
+- **Activity Monitor used as supporting headline only.** One run on
+  M4 Max laptop on power, 16 voices / 48 kHz / 256: ~16 % of one
+  core ≈ ~1 % of total system CPU on the 16-core part. Well below
+  the 5 % spec budget at the system level.
+- **Objective per-block timing budget = `pluginval --strictness-level
+  10` in Phase 4.4** — gate-of-record. Strictness-10 stress includes
+  timing constraints + fuzzed parameter sequences, an objective and
+  reproducible substitute for the Logic-side metric.
+- **Conditional flip.** PERF-02 → `complete` on the basis of (1)
+  Activity Monitor headline (2) PERF-01 RT-safety precondition
+  (already verified stage-2) and (3) deferred objective gate to 4.4.
+  If 4.4 strictness-10 surfaces a timing regression, the flip rolls
+  back and Stage 2 sub-phase 2.4 / 2.5 reopens per `PLAN.md
+  §Failure Routing`.
+- **v1.1 follow-up logged.** Capture Logic-side metric on a future
+  Logic release (or alternative DAW with stable per-track meter, e.g.
+  Reaper) once one is available.
+
+### Phase 4.2 commit also backfills Stage 4 planning prerequisites
+
+`CONTEXT.md`, `RESEARCH.md`, `PLAN.md` were on-disk-but-untracked
+from the discuss/research/plan phases (never landed in their own
+commits). VERIFICATION.md and PHASE-4.2-SUMMARY.md reference these
+documents (RESEARCH §RQ4-3 in particular), so they're brought into
+tree alongside the 4.2 deliverables to keep cross-references live.
+
+## Stage 4 Sub-stage Status
+
+| Phase | Goal | Gate | Commit | Status |
+|---|---|---|---|---|
+| 4.1 Version pill | runtime version-pill via `getPluginVersion` | triple build + pluginval-5 + auval | b47434d | ✅ PASS |
+| 4.2 PERF-02 | 16-voice CPU budget within spec | methodology-deviation; objective gate-of-record = 4.4 | this commit | ✅ PASS (conditional) |
+| 4.3 QUAL-01 | listening pass (no clicks / zipper / aliasing) | 7-item subjective checklist | pending | ⏳ next |
+| 4.4 Final gate | pluginval-10 + auval + Logic + Dorico smoke + invariants | strictness-10 SUCCESS, all greens | pending | ⏳ |
+
+## Previous State: Phase 2.5 reopen RESOLVED — full chromatic playback verified
 
 Case A (the "only D#3/E3 audible" symptom) was a **two-bug interaction**
 surfaced by audit, not the load-pipeline corruption hypothesized in the

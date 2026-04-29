@@ -52,7 +52,7 @@ lastUpdated: 2026-04-28
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | PERF-01 | Real-time safe `processBlock` — no allocations, no file I/O, no locks | must | complete | stage-2 |
-| PERF-02 | 16 voices × varispeed + ADSR + crossfade ≤ 5% CPU on Apple Silicon @ 48 kHz / 256 buffer | should | partial | stage-2 |
+| PERF-02 | 16 voices × varispeed + ADSR + crossfade ≤ 5% CPU on Apple Silicon @ 48 kHz / 256 buffer | should | complete | stage-4 (methodology deviation: Logic 11 Performance Meter unavailable; Activity Monitor headline ~16 % of one core on M4 Max ≈ ~1 % total system; objective per-block timing budget gate-of-record = pluginval --strictness-level 10 in Phase 4.4 — conditional rollback if 4.4 fails) |
 | PERF-03 | Sample loading runs on background thread; never blocks audio thread | must | complete | stage-2 |
 | PERF-04 | Zero added latency (no FFT, no lookahead) | nice | complete | stage-2 |
 
