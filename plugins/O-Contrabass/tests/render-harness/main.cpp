@@ -113,6 +113,25 @@ constexpr float kMatrixSlowLfoRate      = 0.5f;
 constexpr float kMatrixSustainSec       = 5.0f;
 constexpr float kMatrixSilenceSec       = 0.5f;
 
+// Phase 2.4b — sub-harmonics constants (RESEARCH §18.5 + §18.7 + PLAN rev-9 pin #2 + #9 + #10).
+constexpr int   kSubharmStabilityMidi[4]        = { 28, 33, 38, 43 };
+constexpr float kSubharmStabilitySustainAxis[3] = { 0.0f, 0.5f, 1.0f }; // INFINITE_SUSTAIN
+constexpr float kSubharmStabilitySubAxis[3]     = { 0.0f, 0.5f, 1.0f }; // SUB_HARMONICS
+constexpr float kSubharmSustainSec              = 5.0f;
+constexpr float kSubharmSilenceSec              = 0.5f;
+constexpr int   kSubharmFftSize                 = 65536;    // RESEARCH §18.5 lock
+constexpr int   kSubharmFftOrder                = 16;       // 2^16 = 65536
+// Bin map at sr=44100, FFT size 65536: bin width ≈ 0.6729 Hz.
+// E1 f0 ≈ 41.20 Hz → bin ~61.2; 3-bin window [60..62].
+// E1 f0/2 ≈ 20.60 Hz → bin ~30.6; 3-bin window [30..32].
+constexpr int   kSubharmF0BinLo                 = 60;
+constexpr int   kSubharmF0BinHi                 = 62;
+constexpr int   kSubharmSubBinLo                = 30;
+constexpr int   kSubharmSubBinHi                = 32;
+// Floor band [22..28 Hz] for subharmPeakOverFloor diagnostic.
+constexpr int   kSubharmFloorBinLo              = 33;
+constexpr int   kSubharmFloorBinHi              = 41;
+
 struct Args
 {
     int   midiNote          = kDefaultNote;
@@ -134,6 +153,8 @@ struct Args
     bool  schellengStress     = false;
     bool  macroSweep          = false;
     bool  matrixStabilityMode = false;   // Phase 2.4a R34a — 108-combo stability render
+    bool  subHarmonicsMode    = false;   // Phase 2.4b R35a — audible f0/2 FFT-analyser render
+    bool  subHarmonicsStability = false; // Phase 2.4b R35a — 36-combo stability render
 
     bool         outWavSet   = false;
     bool         outJsonSet  = false;
@@ -180,6 +201,8 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--schelleng-stress") { args.schellengStress     = true; continue; }
         else if (key == "--macro-sweep")      { args.macroSweep          = true; continue; }
         else if (key == "--matrix-stability") { args.matrixStabilityMode = true; continue; }
+        else if (key == "--sub-harmonics")          { args.subHarmonicsMode      = true; continue; }
+        else if (key == "--sub-harmonics-stability") { args.subHarmonicsStability = true; continue; }
 
         if (i + 1 >= argc)
         {
@@ -271,10 +294,43 @@ int main (int argc, char** argv)
     {
         const bool any23Mode = args.vibratoMode || args.slowLfoMode
                             || args.schellengStress || args.macroSweep
-                            || args.matrixStabilityMode;
+                            || args.matrixStabilityMode
+                            || args.subHarmonicsMode || args.subHarmonicsStability;
         if (any23Mode)
         {
-            if (args.matrixStabilityMode)
+            // Phase 2.4b pin #1 — sub-harmonics modes slot ABOVE matrix-stability.
+            // Within sub-harmonics: --sub-harmonics-stability takes precedence over
+            // --sub-harmonics (matrix mode has broader coverage). Both clear all
+            // other modes with warnings.
+            if (args.subHarmonicsStability)
+            {
+                if (args.subHarmonicsMode)    std::fprintf (stderr, "warning: --sub-harmonics-stability takes precedence over --sub-harmonics\n");
+                if (args.matrixStabilityMode) std::fprintf (stderr, "warning: --sub-harmonics-stability takes precedence over --matrix-stability\n");
+                if (args.macroSweep)          std::fprintf (stderr, "warning: --sub-harmonics-stability takes precedence over --macro-sweep\n");
+                if (args.schellengStress)     std::fprintf (stderr, "warning: --sub-harmonics-stability takes precedence over --schelleng-stress\n");
+                if (args.vibratoMode)         std::fprintf (stderr, "warning: --sub-harmonics-stability takes precedence over --vibrato\n");
+                if (args.slowLfoMode)         std::fprintf (stderr, "warning: --sub-harmonics-stability takes precedence over --slow-lfo\n");
+                args.subHarmonicsMode    = false;
+                args.matrixStabilityMode = false;
+                args.macroSweep          = false;
+                args.schellengStress     = false;
+                args.vibratoMode         = false;
+                args.slowLfoMode         = false;
+            }
+            else if (args.subHarmonicsMode)
+            {
+                if (args.matrixStabilityMode) std::fprintf (stderr, "warning: --sub-harmonics takes precedence over --matrix-stability\n");
+                if (args.macroSweep)          std::fprintf (stderr, "warning: --sub-harmonics takes precedence over --macro-sweep\n");
+                if (args.schellengStress)     std::fprintf (stderr, "warning: --sub-harmonics takes precedence over --schelleng-stress\n");
+                if (args.vibratoMode)         std::fprintf (stderr, "warning: --sub-harmonics takes precedence over --vibrato\n");
+                if (args.slowLfoMode)         std::fprintf (stderr, "warning: --sub-harmonics takes precedence over --slow-lfo\n");
+                args.matrixStabilityMode = false;
+                args.macroSweep          = false;
+                args.schellengStress     = false;
+                args.vibratoMode         = false;
+                args.slowLfoMode         = false;
+            }
+            else if (args.matrixStabilityMode)
             {
                 if (args.macroSweep)      std::fprintf (stderr, "warning: --matrix-stability takes precedence over --macro-sweep\n");
                 if (args.schellengStress) std::fprintf (stderr, "warning: --matrix-stability takes precedence over --schelleng-stress\n");
@@ -317,7 +373,17 @@ int main (int argc, char** argv)
 
     // Auto-rewrite default WAV/JSON filenames per mode (Phase 2.1c R18 + Phase 2.2 R23
     // + Phase 2.3 R29).
-    if (args.matrixStabilityMode)
+    if (args.subHarmonicsStability)
+    {
+        if (! args.outWavSet)  args.outWav  = "sub-harmonics-stability.wav";
+        if (! args.outJsonSet) args.outJson = "sub-harmonics-stability.json";
+    }
+    else if (args.subHarmonicsMode)
+    {
+        if (! args.outWavSet)  args.outWav  = "sub-harmonics.wav";
+        if (! args.outJsonSet) args.outJson = "sub-harmonics.json";
+    }
+    else if (args.matrixStabilityMode)
     {
         if (! args.outWavSet)  args.outWav  = "matrix-stability.wav";
         if (! args.outJsonSet) args.outJson = "matrix-stability.json";
@@ -369,6 +435,535 @@ int main (int argc, char** argv)
 
     constexpr double sampleRate = 44100.0;
     constexpr int    blockSize  = 512;
+
+    // ─── Phase 2.4b R35a — --sub-harmonics-stability mode (36-combo render) ─
+    // 4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS = 36 combos.
+    // Default bow params (BOW_SPEED=0.15, BOW_PRESSURE=3.0, BOW_POSITION=0.10),
+    // default BODY_DAMPING (no axis), default SLOW_LFO_DEPTH=0.0. Sustain 5 s
+    // per combo + 0.5 s silence buffer; concatenated stereo WAV.
+    if (args.subHarmonicsStability)
+    {
+        OContrabassAudioProcessor proc;
+        proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
+
+        auto setRaw = [&proc] (const char* paramId, float raw, float minV,
+                               float maxV, float skew = 1.0f)
+        {
+            if (auto* p = proc.parameters.getParameter (paramId))
+            {
+                const float prop = juce::jlimit (0.0f, 1.0f, (raw - minV) / (maxV - minV));
+                const float norm = (skew == 1.0f) ? prop : std::pow (prop, skew);
+                p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+            }
+        };
+        auto setNorm01 = [&proc] (const char* paramId, float norm)
+        {
+            if (auto* p = proc.parameters.getParameter (paramId))
+                p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+        };
+
+        const int totalCombos        = 4 * 3 * 3;                       // 36
+        const int sustainSamples     = static_cast<int> (kSubharmSustainSec * sampleRate);
+        const int silenceSamples     = static_cast<int> (kSubharmSilenceSec * sampleRate);
+        const int comboTotalSamples  = sustainSamples + silenceSamples;
+        const int totalOutputSamples = comboTotalSamples * totalCombos;
+
+        juce::AudioBuffer<float> output (2, totalOutputSamples);
+        output.clear();
+        juce::AudioBuffer<float> blockBuffer (2, blockSize);
+
+        juce::Array<juce::var> comboArr;
+        int passCount = 0;
+        int comboLinearIdx = 0;
+
+        for (int s = 0; s < 4; ++s)
+        for (int i = 0; i < 3; ++i)
+        for (int k = 0; k < 3; ++k, ++comboLinearIdx)
+        {
+            // Per-combo APVTS overrides (set BEFORE prepareToPlay) — canonical
+            // default bow params per RESEARCH §18 + CONTEXT rev-7; HR-1/HR-3
+            // short-circuits ON. SUB_HARMONICS / INFINITE_SUSTAIN are the swept axes.
+            setRaw    ("BOW_SPEED",        0.15f, 0.02f, 1.5f, 0.5f);
+            setRaw    ("BOW_PRESSURE",     3.0f,  0.05f, 8.0f, 0.5f);
+            setRaw    ("BOW_POSITION",     0.10f, 0.02f, 0.25f);
+            setNorm01 ("INFINITE_SUSTAIN", kSubharmStabilitySustainAxis[i]);
+            setNorm01 ("SUB_HARMONICS",    kSubharmStabilitySubAxis[k]);
+            setNorm01 ("SLOW_LFO_DEPTH",   0.0f);   // HR-2 / HR-4 short-circuit
+            setNorm01 ("VIBRATO_DEPTH",    0.0f);   // HR-1 short-circuit
+            setNorm01 ("EXPRESSION_MACRO", 0.0f);   // HR-3 short-circuit
+
+            proc.releaseResources();
+            proc.prepareToPlay (sampleRate, blockSize);
+
+            const int midiNote    = kSubharmStabilityMidi[s];
+            const int comboOffset = comboLinearIdx * comboTotalSamples;
+            const int velMidi     = juce::jlimit (1, 127,
+                                                  static_cast<int> (std::round (0.7f * 127.0f)));
+
+            std::vector<double> blockMicros;
+            blockMicros.reserve (static_cast<size_t> ((comboTotalSamples / blockSize) + 8));
+            int comboNan = 0;
+            int comboInf = 0;
+            float lastSubAmountSeen = 0.0f;
+
+            int comboCursor  = 0;
+            bool noteOnSent  = false;
+            bool noteOffSent = false;
+
+            while (comboCursor < comboTotalSamples)
+            {
+                const int thisBlock = std::min (blockSize, comboTotalSamples - comboCursor);
+                blockBuffer.setSize (2, thisBlock, /*keep*/ false, /*clear*/ true,
+                                     /*avoidRealloc*/ true);
+                blockBuffer.clear();
+
+                juce::MidiBuffer midi;
+                if (! noteOnSent)
+                {
+                    midi.addEvent (juce::MidiMessage::noteOn (1, midiNote, (juce::uint8) velMidi), 0);
+                    noteOnSent = true;
+                }
+                if (! noteOffSent && comboCursor + thisBlock > sustainSamples)
+                {
+                    const int offOffset = juce::jlimit (0, thisBlock - 1,
+                                                        sustainSamples - comboCursor);
+                    midi.addEvent (juce::MidiMessage::noteOff (1, midiNote), offOffset);
+                    noteOffSent = true;
+                }
+
+                const auto t0 = std::chrono::steady_clock::now();
+                proc.processBlock (blockBuffer, midi);
+                const auto t1 = std::chrono::steady_clock::now();
+                blockMicros.push_back (
+                    std::chrono::duration<double, std::micro> (t1 - t0).count());
+
+                for (int ch = 0; ch < 2; ++ch)
+                {
+                    const auto* src = blockBuffer.getReadPointer (ch);
+                    auto* dst = output.getWritePointer (ch, comboOffset + comboCursor);
+                    for (int n = 0; n < thisBlock; ++n)
+                    {
+                        const float sm = src[n];
+                        if (std::isnan (sm)) ++comboNan;
+                        else if (std::isinf (sm)) ++comboInf;
+                        dst[n] = sm;
+                    }
+                }
+
+                if (comboCursor < sustainSamples)
+                {
+                    if (auto* voice = proc.getActiveVoice())
+                        lastSubAmountSeen = voice->getLastSubAmount();
+                }
+                comboCursor += thisBlock;
+            }
+
+            // Per-combo metrics.
+            float comboPeak = 0.0f;
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const auto* p = output.getReadPointer (ch, comboOffset);
+                for (int n = 0; n < comboTotalSamples; ++n)
+                    comboPeak = std::max (comboPeak, std::abs (p[n]));
+            }
+
+            // RMS continuity over sustain phase (4096-sample windows; 250 ms
+            // attack-skip — mirrors --matrix-stability metric per pin #8).
+            constexpr int kRmsWin = 4096;
+            const int kAttackSkip = static_cast<int> (0.25 * sampleRate);
+            std::vector<float> winRms;
+            for (int sw = kAttackSkip; sw + kRmsWin <= sustainSamples; sw += kRmsWin)
+            {
+                double acc = 0.0;
+                int count = 0;
+                for (int ch = 0; ch < 2; ++ch)
+                {
+                    const auto* p = output.getReadPointer (ch, comboOffset + sw);
+                    for (int n = 0; n < kRmsWin; ++n)
+                    {
+                        acc += static_cast<double> (p[n]) * p[n];
+                        ++count;
+                    }
+                }
+                winRms.push_back ((count > 0)
+                                  ? static_cast<float> (std::sqrt (acc / count))
+                                  : 0.0f);
+            }
+            float rmsContinuity = 1.0f;
+            for (size_t w = 1; w < winRms.size(); ++w)
+            {
+                const float a = winRms[w - 1], b = winRms[w];
+                const float r = juce::jmin (a, b)
+                              / juce::jmax (juce::jmax (a, b), 1.0e-9f);
+                rmsContinuity = juce::jmin (rmsContinuity, r);
+            }
+
+            std::sort (blockMicros.begin(), blockMicros.end());
+            const double medianMicros = blockMicros.empty()
+                                      ? 0.0 : blockMicros[blockMicros.size() / 2];
+            const double maxMicros    = blockMicros.empty()
+                                      ? 0.0 : blockMicros.back();
+            const double btRatio      = (medianMicros > 0.0)
+                                      ? (maxMicros / medianMicros) : 0.0;
+
+            // Pin #8 — 4-way pass_combo for stability mode (no pass_subharmAudible).
+            // Thresholds carry-forward from --matrix-stability (same triage applies).
+            const bool pass_noNaN     = (comboNan == 0 && comboInf == 0);
+            const bool pass_peak      = (comboPeak <= 1.0f);
+            const bool pass_clickFree = (rmsContinuity >= 0.70f);
+            const bool pass_blockTime = (blockMicros.size() < 8) || (btRatio <= 50.0);
+            const bool pass_combo     = pass_noNaN && pass_peak && pass_clickFree
+                                     && pass_blockTime;
+            if (pass_combo) ++passCount;
+
+            juce::DynamicObject::Ptr e (new juce::DynamicObject());
+            e->setProperty ("stringIdx",          s);
+            e->setProperty ("openStringMidi",     midiNote);
+            e->setProperty ("infiniteSustainIdx", i);
+            e->setProperty ("subHarmonicsIdx",    k);
+            e->setProperty ("infiniteSustain",
+                            static_cast<double> (kSubharmStabilitySustainAxis[i]));
+            e->setProperty ("subHarmonics",
+                            static_cast<double> (kSubharmStabilitySubAxis[k]));
+            e->setProperty ("sustainSeconds",     static_cast<double> (kSubharmSustainSec));
+            e->setProperty ("totalSamples",       comboTotalSamples);
+            e->setProperty ("peak",               static_cast<double> (comboPeak));
+            e->setProperty ("rmsContinuity",      static_cast<double> (rmsContinuity));
+            // Wall-clock fields zeroed in JSON for sha256 stability (same rationale
+            // as --matrix-stability per Phase 2.4a R34a).
+            (void) medianMicros; (void) maxMicros; (void) btRatio;
+            e->setProperty ("blockMicros_median", 0.0);
+            e->setProperty ("blockMicros_max",    0.0);
+            e->setProperty ("blockTimeRatio",     0.0);
+            e->setProperty ("lastSubAmount",      static_cast<double> (lastSubAmountSeen));
+            e->setProperty ("nanCount",           comboNan);
+            e->setProperty ("infCount",           comboInf);
+            e->setProperty ("pass_noNaN",         pass_noNaN);
+            e->setProperty ("pass_peak",          pass_peak);
+            e->setProperty ("pass_clickFree",     pass_clickFree);
+            e->setProperty ("pass_blockTime",     pass_blockTime);
+            e->setProperty ("pass_combo",         pass_combo);
+            comboArr.add (juce::var (e.get()));
+        }
+
+        // Aggregate JSON.
+        const bool passAll36 = (passCount == totalCombos);
+        juce::DynamicObject::Ptr summary (new juce::DynamicObject());
+        summary->setProperty ("status",          passAll36 ? "PASS" : "FAIL");
+        summary->setProperty ("mode",            "sub-harmonics-stability");
+        summary->setProperty ("totalCombos",     totalCombos);
+        summary->setProperty ("passCount",       passCount);
+        summary->setProperty ("failCount",       totalCombos - passCount);
+        summary->setProperty ("pass_all_36",     passAll36);
+        summary->setProperty ("infiniteSustainAxis", juce::String ("[0.0, 0.5, 1.0]"));
+        summary->setProperty ("subHarmonicsAxis",    juce::String ("[0.0, 0.5, 1.0]"));
+        summary->setProperty ("midiPerString",   juce::String ("[28, 33, 38, 43]"));
+        summary->setProperty ("sustainSeconds",  static_cast<double> (kSubharmSustainSec));
+        summary->setProperty ("silenceSeconds",  static_cast<double> (kSubharmSilenceSec));
+        summary->setProperty ("combos",          juce::var (comboArr));
+        summary->setProperty ("outputWav",       juce::File (args.outWav).getFileName());
+
+        juce::File wavOut (juce::File::getCurrentWorkingDirectory()
+                              .getChildFile (args.outWav));
+        wavOut.deleteFile();
+        juce::WavAudioFormat wav;
+        if (auto stream = std::unique_ptr<juce::FileOutputStream> (wavOut.createOutputStream()))
+        {
+            if (auto* writer = wav.createWriterFor (stream.get(), sampleRate, 2, 24, {}, 0))
+            {
+                stream.release();
+                std::unique_ptr<juce::AudioFormatWriter> w (writer);
+                w->writeFromAudioSampleBuffer (output, 0, totalOutputSamples);
+            }
+        }
+
+        juce::var summaryVar (summary.get());
+        juce::File jsonOut (juce::File::getCurrentWorkingDirectory()
+                              .getChildFile (args.outJson));
+        jsonOut.replaceWithText (juce::JSON::toString (summaryVar, /*allOnOneLine*/ false));
+
+        std::printf ("[render-harness] %s  sub-harmonics-stability  passCount=%d/%d  failCount=%d\n",
+                     passAll36 ? "PASS" : "FAIL", passCount, totalCombos,
+                     totalCombos - passCount);
+        return passAll36 ? 0 : 1;
+    }
+    // ─── End Phase 2.4b R35a sub-harmonics-stability branch ───────────────
+
+    // ─── Phase 2.4b R35a — --sub-harmonics mode (audible f0/2 FFT analyser) ─
+    // MIDI 28 (E1), velocity 0.7, sustain 5 s + release 1 s, SUB_HARMONICS=1.0,
+    // default bow params (BOW_SPEED=0.15, BOW_PRESSURE=3.0, BOW_POSITION=0.10),
+    // default SLOW_LFO_DEPTH=0.0, default INFINITE_SUSTAIN=0.0. FFT size 65536
+    // Hann-windowed over the last 2 s of sustain; 3-bin energy windows at
+    // f0=41.20 Hz / f0/2=20.60 Hz; subharmEnergyRatio = E(f0/2)/E(f0).
+    // Pass: pass_noNaN && pass_peak && pass_clickFree && pass_blockTime &&
+    //       (subharmEnergyRatio >= 0.40 strict OR ∈ [0.30, 0.40) soft v1.0 budget).
+    if (args.subHarmonicsMode)
+    {
+        OContrabassAudioProcessor proc;
+        proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
+
+        // setRaw mirrors --matrix-stability convention: skew-aware norm encoding.
+        auto setRaw = [&proc] (const char* paramId, float raw, float minV,
+                               float maxV, float skew = 1.0f)
+        {
+            if (auto* p = proc.parameters.getParameter (paramId))
+            {
+                const float prop = juce::jlimit (0.0f, 1.0f, (raw - minV) / (maxV - minV));
+                const float norm = (skew == 1.0f) ? prop : std::pow (prop, skew);
+                p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+            }
+        };
+        auto setNorm01 = [&proc] (const char* paramId, float norm)
+        {
+            if (auto* p = proc.parameters.getParameter (paramId))
+                p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+        };
+
+        // Canonical "default bow params" per CONTEXT rev-7 + RESEARCH §18:
+        // BOW_SPEED=0.15, BOW_PRESSURE=3.0, BOW_POSITION=0.10 (bass operating point).
+        // SUB_HARMONICS=1.0 exercises the bias path. INFINITE_SUSTAIN=1.0 mirrors
+        // RESEARCH §18.3 baseline render config — period-doubling requires sustained
+        // friction-junction oscillation to settle into the bifurcated regime.
+        // Other modulator paths zeroed to keep the spectral measurement clean.
+        setRaw    ("BOW_SPEED",        0.15f, 0.02f, 1.5f, 0.5f);
+        setRaw    ("BOW_PRESSURE",     3.0f,  0.05f, 8.0f, 0.5f);
+        setRaw    ("BOW_POSITION",     0.10f, 0.02f, 0.25f);
+        setNorm01 ("SUB_HARMONICS",    1.0f);
+        setNorm01 ("INFINITE_SUSTAIN", 1.0f);
+        setNorm01 ("SLOW_LFO_DEPTH",   0.0f);
+        setNorm01 ("VIBRATO_DEPTH",    0.0f);
+        setNorm01 ("EXPRESSION_MACRO", 0.0f);
+
+        proc.releaseResources();
+        proc.prepareToPlay (sampleRate, blockSize);
+
+        constexpr float releaseSec = 1.0f;
+        const int sustainSamples = static_cast<int> (kSubharmSustainSec * sampleRate);
+        const int totalSamples   = static_cast<int> ((kSubharmSustainSec + releaseSec)
+                                                     * sampleRate);
+
+        juce::AudioBuffer<float> output (2, totalSamples);
+        output.clear();
+        juce::AudioBuffer<float> blockBuffer (2, blockSize);
+
+        const int midiNote = 28;        // E1
+        const int velMidi  = juce::jlimit (1, 127,
+                                           static_cast<int> (std::round (0.7f * 127.0f)));
+
+        std::vector<double> blockMicros;
+        blockMicros.reserve (static_cast<size_t> ((totalSamples / blockSize) + 8));
+        int nanCount = 0;
+        int infCount = 0;
+
+        int sampleCursor = 0;
+        bool noteOnSent  = false;
+        bool noteOffSent = false;
+
+        while (sampleCursor < totalSamples)
+        {
+            const int thisBlock = std::min (blockSize, totalSamples - sampleCursor);
+            blockBuffer.setSize (2, thisBlock, /*keep*/ false, /*clear*/ true,
+                                 /*avoidRealloc*/ true);
+            blockBuffer.clear();
+
+            juce::MidiBuffer midi;
+            if (! noteOnSent)
+            {
+                midi.addEvent (juce::MidiMessage::noteOn (1, midiNote,
+                                                          (juce::uint8) velMidi), 0);
+                noteOnSent = true;
+            }
+            if (! noteOffSent && sampleCursor + thisBlock > sustainSamples)
+            {
+                const int offOffset = juce::jlimit (0, thisBlock - 1,
+                                                    sustainSamples - sampleCursor);
+                midi.addEvent (juce::MidiMessage::noteOff (1, midiNote), offOffset);
+                noteOffSent = true;
+            }
+
+            const auto t0 = std::chrono::steady_clock::now();
+            proc.processBlock (blockBuffer, midi);
+            const auto t1 = std::chrono::steady_clock::now();
+            blockMicros.push_back (
+                std::chrono::duration<double, std::micro> (t1 - t0).count());
+
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const auto* src = blockBuffer.getReadPointer (ch);
+                auto* dst = output.getWritePointer (ch, sampleCursor);
+                for (int n = 0; n < thisBlock; ++n)
+                {
+                    const float sm = src[n];
+                    if (std::isnan (sm)) ++nanCount;
+                    else if (std::isinf (sm)) ++infCount;
+                    dst[n] = sm;
+                }
+            }
+            sampleCursor += thisBlock;
+        }
+
+        // Aggregate metrics.
+        float peak = 0.0f;
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            const auto* p = output.getReadPointer (ch);
+            for (int n = 0; n < totalSamples; ++n)
+                peak = std::max (peak, std::abs (p[n]));
+        }
+
+        // RMS continuity (4096-sample windows over sustain phase, 250 ms attack-skip).
+        constexpr int kRmsWin = 4096;
+        const int kAttackSkip = static_cast<int> (0.25 * sampleRate);
+        std::vector<float> winRms;
+        for (int sw = kAttackSkip; sw + kRmsWin <= sustainSamples; sw += kRmsWin)
+        {
+            double acc = 0.0;
+            int count = 0;
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const auto* p = output.getReadPointer (ch, sw);
+                for (int n = 0; n < kRmsWin; ++n)
+                {
+                    acc += static_cast<double> (p[n]) * p[n];
+                    ++count;
+                }
+            }
+            winRms.push_back ((count > 0)
+                              ? static_cast<float> (std::sqrt (acc / count))
+                              : 0.0f);
+        }
+        float rmsContinuity = 1.0f;
+        for (size_t w = 1; w < winRms.size(); ++w)
+        {
+            const float a = winRms[w - 1], b = winRms[w];
+            const float r = juce::jmin (a, b)
+                          / juce::jmax (juce::jmax (a, b), 1.0e-9f);
+            rmsContinuity = juce::jmin (rmsContinuity, r);
+        }
+
+        std::sort (blockMicros.begin(), blockMicros.end());
+        const double medianMicros = blockMicros.empty()
+                                  ? 0.0 : blockMicros[blockMicros.size() / 2];
+        const double maxMicros    = blockMicros.empty()
+                                  ? 0.0 : blockMicros.back();
+        const double btRatio      = (medianMicros > 0.0)
+                                  ? (maxMicros / medianMicros) : 0.0;
+
+        // FFT analysis: last 2 s of 5 s sustain. Take 65536 samples starting
+        // at (sustainSec - 2) s. Hann-window mono mix → FFT → 3-bin energy.
+        const int analysisStart = static_cast<int> ((kSubharmSustainSec - 2.0f)
+                                                    * sampleRate);
+        std::vector<float> fftBuf (2 * static_cast<size_t> (kSubharmFftSize), 0.0f);
+        for (int i = 0; i < kSubharmFftSize; ++i)
+        {
+            const int srcIdx = analysisStart + i;
+            const float monoSample = (srcIdx < totalSamples)
+                                   ? 0.5f * (output.getSample (0, srcIdx)
+                                           + output.getSample (1, srcIdx))
+                                   : 0.0f;
+            const float w = 0.5f - 0.5f * std::cos (
+                juce::MathConstants<float>::twoPi
+              * static_cast<float> (i)
+              / static_cast<float> (kSubharmFftSize - 1));
+            fftBuf[static_cast<size_t> (i)] = monoSample * w;
+        }
+
+        juce::dsp::FFT fft (kSubharmFftOrder);
+        fft.performFrequencyOnlyForwardTransform (fftBuf.data());
+
+        auto mag2 = [&fftBuf] (int bin) -> double
+        {
+            const double m = static_cast<double> (fftBuf[static_cast<size_t> (bin)]);
+            return m * m;
+        };
+
+        double E_f0 = 0.0, E_subharm = 0.0;
+        for (int b = kSubharmF0BinLo;  b <= kSubharmF0BinHi;  ++b) E_f0      += mag2 (b);
+        for (int b = kSubharmSubBinLo; b <= kSubharmSubBinHi; ++b) E_subharm += mag2 (b);
+        const double subharmEnergyRatio = E_subharm / std::max (1.0e-12, E_f0);
+
+        // subharmPeakOverFloor diagnostic (no pass criterion).
+        double maxBinSub = 0.0;
+        for (int b = kSubharmSubBinLo; b <= kSubharmSubBinHi; ++b)
+            maxBinSub = std::max (maxBinSub, mag2 (b));
+        std::vector<double> floorVals;
+        for (int b = kSubharmFloorBinLo; b <= kSubharmFloorBinHi; ++b)
+            floorVals.push_back (mag2 (b));
+        // Median of [22..28 Hz] band as floor.
+        const size_t midIdx = floorVals.size() / 2;
+        std::nth_element (floorVals.begin(),
+                          floorVals.begin() + static_cast<long> (midIdx),
+                          floorVals.end());
+        const double medianFloor = floorVals[midIdx];
+        const double subharmPeakOverFloor = std::sqrt (maxBinSub)
+                                          / std::sqrt (std::max (1.0e-12, medianFloor));
+
+        // Pass criteria per RESEARCH §18.6 + pin #8 5-way AND.
+        const bool pass_noNaN          = (nanCount == 0 && infCount == 0);
+        const bool pass_peak           = (peak <= 1.0f);
+        const bool pass_clickFree      = (rmsContinuity >= 0.85f);
+        const bool pass_blockTime      = (blockMicros.size() < 8) || (btRatio <= 5.0);
+        const bool pass_subharmAudible = (subharmEnergyRatio >= 0.40);
+        const bool soft_subharmAudible = (subharmEnergyRatio >= 0.30
+                                          && subharmEnergyRatio < 0.40);
+        const bool pass_combo          = pass_noNaN && pass_peak && pass_clickFree
+                                       && pass_blockTime
+                                       && (pass_subharmAudible || soft_subharmAudible);
+
+        juce::DynamicObject::Ptr summary (new juce::DynamicObject());
+        summary->setProperty ("status",              pass_combo ? "PASS" : "FAIL");
+        summary->setProperty ("mode",                "sub-harmonics");
+        summary->setProperty ("midiNote",            midiNote);
+        summary->setProperty ("subHarmonicsParam",   1.0);
+        summary->setProperty ("sustainSeconds",      static_cast<double> (kSubharmSustainSec));
+        summary->setProperty ("releaseSeconds",      static_cast<double> (releaseSec));
+        summary->setProperty ("totalSamples",        totalSamples);
+        summary->setProperty ("peak",                static_cast<double> (peak));
+        summary->setProperty ("rmsContinuity",       static_cast<double> (rmsContinuity));
+        // Wall-clock fields zeroed for sha256 stability.
+        (void) medianMicros; (void) maxMicros; (void) btRatio;
+        summary->setProperty ("blockMicros_median",  0.0);
+        summary->setProperty ("blockMicros_max",     0.0);
+        summary->setProperty ("blockTimeRatio",      0.0);
+        summary->setProperty ("subharmEnergyRatio",  subharmEnergyRatio);
+        summary->setProperty ("subharmPeakOverFloor", subharmPeakOverFloor);
+        summary->setProperty ("fftBaselineNote",
+                              juce::String ("subharmEnergyRatio at SUB_HARMONICS=0 measured 0.241 per RESEARCH §18.3"));
+        summary->setProperty ("nanCount",            nanCount);
+        summary->setProperty ("infCount",            infCount);
+        summary->setProperty ("pass_noNaN",          pass_noNaN);
+        summary->setProperty ("pass_peak",           pass_peak);
+        summary->setProperty ("pass_clickFree",      pass_clickFree);
+        summary->setProperty ("pass_blockTime",      pass_blockTime);
+        summary->setProperty ("pass_subharmAudible", pass_subharmAudible);
+        summary->setProperty ("soft_subharmAudible", soft_subharmAudible);
+        summary->setProperty ("pass_combo",          pass_combo);
+        summary->setProperty ("outputWav",           juce::File (args.outWav).getFileName());
+
+        juce::File wavOut (juce::File::getCurrentWorkingDirectory()
+                              .getChildFile (args.outWav));
+        wavOut.deleteFile();
+        juce::WavAudioFormat wav;
+        if (auto stream = std::unique_ptr<juce::FileOutputStream> (wavOut.createOutputStream()))
+        {
+            if (auto* writer = wav.createWriterFor (stream.get(), sampleRate, 2, 24, {}, 0))
+            {
+                stream.release();
+                std::unique_ptr<juce::AudioFormatWriter> w (writer);
+                w->writeFromAudioSampleBuffer (output, 0, totalSamples);
+            }
+        }
+
+        juce::var summaryVar (summary.get());
+        juce::File jsonOut (juce::File::getCurrentWorkingDirectory()
+                              .getChildFile (args.outJson));
+        jsonOut.replaceWithText (juce::JSON::toString (summaryVar, /*allOnOneLine*/ false));
+
+        std::printf ("[render-harness] %s  sub-harmonics  subharmEnergyRatio=%.4f peak=%.3f\n",
+                     pass_combo ? "PASS" : "FAIL", subharmEnergyRatio, peak);
+        return pass_combo ? 0 : 1;
+    }
+    // ─── End Phase 2.4b R35a sub-harmonics branch ─────────────────────────
 
     // ─── Phase 2.4a R34a — --matrix-stability mode (108-combo render) ─────
     // Distinct render path; bypasses the existing single-render flow entirely.

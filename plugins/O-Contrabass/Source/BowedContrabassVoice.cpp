@@ -12,9 +12,11 @@
 #include "BowedContrabassVoice.h"
 #include "DSP/DispersionFilter.h"
 #include "DSP/SchellengCalibration.h"
+#include "DSP/SubHarmonicBias.h"
 #include <cmath>
 
-namespace schelleng = ouaricon::contrabass::schelleng;
+namespace schelleng     = ouaricon::contrabass::schelleng;
+namespace sub_harmonics = ouaricon::contrabass::sub_harmonics;
 
 // Phase 2.4a HR-7 — harness-side wedge-math bypass for --matrix-stability mode.
 // Production builds: weak default returns false (defined in PluginProcessor.cpp).
@@ -242,6 +244,16 @@ void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSiz
     slowLfoPressureSmoothed.setCurrentAndTargetValue (0.0f);
 
     lastSafeDepth.store (0.0f, std::memory_order_relaxed);
+
+    // ─── Phase 2.4b — sub-harmonic bias state (HR-9 strict-default) ───────────
+    // 30 ms ramp time per CONTEXT rev-7 Q30 + architecture §457 implementation
+    // note. setCurrentAndTargetValue(0.0f) is the HR-9 strict-default precondition:
+    // at APVTS default 0.0, getNextValue() returns exact 0.0f → caller-side
+    // short-circuit fires → 10 carry-forward goldens reproduce byte-identical.
+    subHarmonicsSmoothed.reset (sr_internal, 0.030);
+    subHarmonicsSmoothed.setCurrentAndTargetValue (0.0f);
+    voiceBowForceUpliftThisBlock = 1.0f;             // HR-9 reset
+    lastSubAmount.store (0.0f, std::memory_order_relaxed);
 }
 
 //==============================================================================
@@ -274,6 +286,11 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
         }
     }
 
+    // Phase 2.4b HR-9 reset — the F_bow uplift factor MUST be 1.0f at the
+    // start of every block so the HR-9 short-circuit path leaves Step 6's
+    // setBowPressure call bit-exact identical to Phase 2.4a.
+    voiceBowForceUpliftThisBlock = 1.0f;
+
     // ─── Phase 2.3 — 7-Step Per-Block Evaluation Order (RESEARCH §16.6) ──────
     //
     // Step 1 — read raw APVTS atomics for the modulator + macro layer. The
@@ -290,6 +307,8 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     const float rawBowPressure    = parameters->getRawParameterValue ("BOW_PRESSURE")->load();
     const float rawBowPos         = parameters->getRawParameterValue ("BOW_POSITION")->load();
     const float rawBrightness     = parameters->getRawParameterValue ("BRIGHTNESS")->load();
+    const float rawRosin          = parameters->getRawParameterValue ("ROSIN")->load();
+    const float rawSubHarmonics   = parameters->getRawParameterValue ("SUB_HARMONICS")->load();
 
     // Step 2 — Schelleng wedge fMin/fMax/headroom/safeDepth/vibAntiCorr.
     // pin #4 — write lastSafeDepth UNCONDITIONALLY before the HR-4 gate so the
@@ -326,6 +345,70 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
             vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth;                   // Q5 carry-forward
             lastSafeDepth.store (safeDepth, std::memory_order_relaxed);
         }
+    }
+
+    // ─── Phase 2.4b R35d — Step 2.5 — Sub-harmonic bias (HR-9 + HR-10) ───────
+    //
+    // Friction-junction parameter biasing toward Schelleng F_max regime per
+    // ARCHITECTURE §457. HR-9 caller-side short-circuit at subAmount==0.0f or
+    // non-active-string preserves bit-exact regression bar for 10 carry-forward
+    // goldens. HR-10 friction module ABI preservation: bias mutations pushed
+    // back via existing setRosin / setStaticFrictionCoefficient setters.
+    //
+    // setRosin(rawRosin) RELOCATED here from updateParametersFromAPVTS:
+    //   - HR-9 path: setRosin(rawRosin) runs alone → friction state matches
+    //     Phase 2.4a → bit-exact preserved.
+    //   - Bias path: setRosin(rawRosin) runs first; then else-branch overwrites
+    //     with setRosin(rosinEq) via inverse algebraic identity.
+    frictionModel.setRosin (rawRosin);
+
+    subHarmonicsSmoothed.setTargetValue (rawSubHarmonics);              // pin #11 UNCONDITIONAL
+    const float subAmount = subHarmonicsSmoothed.getNextValue();
+    subHarmonicsSmoothed.skip (juce::jmax (0, numSamples - 1));         // pin #7 jmax guard
+
+    lastSubAmount.store (0.0f, std::memory_order_relaxed);              // HR-9 pre-gate (mirrors HR-4)
+
+    if (subAmount != 0.0f && activeStringIndex >= 0 && activeStringIndex < 4)
+    {
+        const auto noteForBias = getCurrentlyPlayingNote();
+        const float mpePressureBlockEntry = noteForBias.pressure.asUnsignedFloat();
+
+        const float v_b_voice = bowModel.getBowVelocity();
+        const float beta_v    = juce::jlimit (0.02f, 0.25f, rawBowPos);
+        // ROSIN→v_0 forward map (architecture-spec'd; mirrors HyperbolicFriction.h
+        // setRosin internals at v1.0).
+        float v_0_pre   = 0.1f * std::exp (-4.6f * rawRosin);
+        float mu_s_pre  = 0.85f;                                         // bass default
+        constexpr float mu_d_const = 0.25f;                              // bass default
+        // F_bow_pre = bow force entering the friction junction at block entry,
+        // matching Step 6's `effectiveBowPressure * (0.5f + mpePressure * 1.5f)`
+        // expression at modulators-off (raw APVTS feeds effectiveBowPressure
+        // unchanged at HR-1/HR-2/HR-3 short-circuits).
+        const float F_bow_baseline = rawBowPressure
+                                   * (0.5f + 1.5f * mpePressureBlockEntry);
+        float F_bow_post = F_bow_baseline;
+
+        const float safeDepthSub = schelleng::safeDepthForString (
+            activeStringIndex, rawBowSpeed, rawBowPressure, beta_v);
+
+        sub_harmonics::applyBias (subAmount, activeStringIndex,
+                                  v_b_voice, beta_v, safeDepthSub,
+                                  F_bow_post, v_0_pre, mu_s_pre, mu_d_const);
+
+        // HR-10 push v_0 via ROSIN inverse algebraic identity.
+        const float rosinEq = juce::jlimit (
+            0.0f, 1.0f,
+            -std::log (10.0f * juce::jmax (1.0e-6f, v_0_pre)) / 4.6f);
+        frictionModel.setRosin (rosinEq);
+        frictionModel.setStaticFrictionCoefficient (mu_s_pre);
+
+        // F_bow uplift factor consumed at Step 6 — RATIO of post-bias to
+        // pre-bias F_bow so that Step 6's existing `* (0.5 + p*1.5)` macro
+        // expression composes correctly: post = pre × uplift.
+        voiceBowForceUpliftThisBlock = F_bow_post
+                                     / juce::jmax (1.0e-6f, F_bow_baseline);
+
+        lastSubAmount.store (subAmount, std::memory_order_relaxed);
     }
 
     // Step 3 — Slow-LFO phase advance + sin (HR-2 gate).
@@ -374,7 +457,10 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
         const auto note = getCurrentlyPlayingNote();
         const float mpePressure = note.pressure.asUnsignedFloat();
         bowModel.setBowSpeed    (effectiveBowSpeed * mpeExpression);
-        bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f));
+        // Phase 2.4b R35d — multiply by voiceBowForceUpliftThisBlock (HR-9 path:
+        // 1.0f → IEEE 754 identity → bit-exact preserved).
+        bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f)
+                                 * voiceBowForceUpliftThisBlock);
         for (auto& s : strings)
             s.setBrightness (effectiveBrightnessHz);
     }
@@ -633,7 +719,6 @@ void BowedContrabassVoice::updateParametersFromAPVTS()
 
     // UPPER_SNAKE_CASE per parameter-spec.md (frozen contract).
     float bowPos       = parameters->getRawParameterValue ("BOW_POSITION")->load();
-    float rosin        = parameters->getRawParameterValue ("ROSIN")->load();
     float infSustain   = parameters->getRawParameterValue ("INFINITE_SUSTAIN")->load();
     float outputLevel  = parameters->getRawParameterValue ("OUTPUT_GAIN")->load();
 
@@ -644,7 +729,10 @@ void BowedContrabassVoice::updateParametersFromAPVTS()
 
     effectivePosition = juce::jlimit (0.02f, 0.25f, bowPos + mpeTimbre * 0.05f);
 
-    frictionModel.setRosin (rosin);
+    // Phase 2.4b R35d — frictionModel.setRosin RELOCATED to renderNextBlock
+    // BEFORE Step 2.5 (HR-10 friction module ABI preservation): bias-path
+    // overwrites with rosinEq via inverse algebraic identity; HR-9 path runs
+    // setRosin(rawRosin) alone → bit-exact preserved.
 
     // Push bow position + sustain to all 4 strings — global parameters not
     // touched by the macro layer. Brightness is pushed in renderNextBlock

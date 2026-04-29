@@ -6249,3 +6249,1382 @@ When all checks above are green (R37 user-confirmed or accepted as deferred), **
 - **Saturator-tail re-evaluation** — RESEARCH §12 footnote → Phase 2.4c.
 - **Logic Pro AU smoke (R37)** — user-deferred non-blocking (mirrors R32 / R27 / R19f / R14e precedent).
 - **Cross-plugin reproduce-goldens.sh script** — pin #11 selected per-plugin placement; cross-plugin variant deferred until multiple plugins have golden harnesses with regression bars.
+
+---
+
+# Stage 2: DSP — Plan (Phase 2.4b) — REVISION 9 (Sub-Harmonic Bias DSP-07 Friction-Junction Period-Doubling Bias + 36-Combo Stability Matrix + Spectral Audibility Gate, Gate 6b)
+
+> **Status:** rev-9 authors fresh task bodies for **R35-pre, R35a, R35b, R35c, R35d, R35e, R35f, R35, R35-backfill chore** per `RESEARCH.md §18.11` sequencing and `CONTEXT.md` rev-7. rev-1/2/3/4/5/6/7/8 remain in-effect as completed/verified history. Phase 2.4a closed 2026-04-28 with R34 atomic commit `4c926bb` (Gate 6a CLEARED — 3 strict-PASS + 2 soft-PASS within v1.0 budgets) + R34-backfill chore `b64c8c4`.
+
+**Date:** 2026-04-28
+**Cycle scope:** Phase 2.4b only (Phase 2.4c autocorrelator harness fix + saturator-tail O-Bowed comparison still get fresh GSD cycles each; Phase 2.4-bis backlog stays parked)
+**Gate:** Gate 6b (Phase 2.4b verify)
+**Atomic-commit unit:** R35 (Gate 6b PASS) — single commit lands Phase 2.4b source + harness + 1 new header (`Source/DSP/SubHarmonicBias.h`) + 6 new golden text files (`sub-harmonics.{wav.sha256,json,json.sha256}` + `sub-harmonics-stability.{wav.sha256,json,json.sha256}`) + `reproduce-goldens.sh` extension (10 → 12 entries) + new `preflight-subharm.sh` script + planning artefacts. **NO Stage-1 contract amendment** (`SUB_HARMONICS` already declared at PluginProcessor.cpp:104 default 0.0 ∈ [0, 1.0] under `parameter-spec.md` sha256 `77638e25…`; STATUS.md `contract_checksums.parameter_spec` carries forward unchanged). **NO ARCHITECTURE.md amendment** (bias formula IS architecture §457 verbatim; chaos detector + softClampState deferred to Phase 2.5/2.6 via R35 commit-body footnote per RESEARCH §18.13; closed-form §"Slow-Bow LFO" / §"DC Blocker" / §"In-loop saturator" amendments remain end-of-Stage-2 concerns).
+**Carry-forward locks (NOT re-litigated):** Phase 2.1a-recovery split-rail topology, F2 LP form, F3 no-in-loop-DCB, F4 betaScale removed; Phase 2.1b bow-friction module v1.0.0 consumption (HR-10 ABI preservation); Phase 2.1c `DispersionFilter<4>` API + per-string M=4/3/2/1 dispersion table; Phase 2.2 4-string bank + per-string detune + 5 ms equal-power crossfade + MIDI→string mapping; Phase 2.3 modulator-layer surface (vibratoPhase / vibratoOnsetTimer / slowLfoPhase / 4 macro SmoothedValues / 7-step per-block evaluation order / HR-1..HR-4 hard rules / `lastSafeDepth.store(0.0f)` unconditional pre-gate at top of step 2 / EXPRESSION_MACRO + VIBRATO_DEPTH default 0.0); Phase 2.4a Schelleng wedge bass-register calibration polynomial (`Source/DSP/SchellengCalibration.h` HR-5/HR-6/HR-7/HR-8 + `safeDepthForString(stringIdx, v_b, F_bow, beta)` API surface verbatim); 10 currently-committed goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo Phase-2.4a-rebaselined + schelleng-stress Phase-2.4a-rebaselined); matrix-stability `6db67707…` Phase-2.4a evidence golden (carry-forward; not in reproduce-goldens.sh per Phase 2.4a CONTEXT rev-6 Q22). Phase 2.4b inserts **Step 2.5** (sub-harmonic bias evaluation) into the per-block 7-step order between Step 2 (Schelleng wedge) and Step 3 (slow-LFO phase advance) — Steps 1/2/3/4/5/6/7 otherwise unchanged; Step 6 modified ONLY to consume the bias-output `voiceBowForceUpliftThisBlock` factor (default 1.0f at HR-9 short-circuit path).
+
+---
+
+## Preamble — Pinned Open Items (RESEARCH §18.16)
+
+PLAN rev-9 pins each of the 12 plan-phase open items from RESEARCH §18.16:
+
+| # | Open Item | Pinned Decision |
+|---|-----------|-----------------|
+| 1 | CLI flag spelling for sub-harmonics modes | **`--sub-harmonics`** (single audible-mode FFT analyser render at SUB_HARMONICS=1.0 on E1) **+ `--sub-harmonics-stability`** (36-combo matrix). Matches CONTEXT rev-7 wording verbatim. Mutual-exclusion ladder: slot ABOVE `--matrix-stability` (highest precedence; either sub-harmonics flag clears all other modes + emits warning if multiple modes set). NOT `--subharm` / `--sub-harm` (lexical inconsistency with `kebab-case` convention). |
+| 2 | In-process iteration mode for `--sub-harmonics-stability` | **In-process loop** (single harness invocation iterates all 36 combos). ~4–5 s wall-clock total per RESEARCH §18.2 single-combo extrapolation (36 × 0.04 s render + ~3 s JUCE init; bias adds <2% CPU). Mode iterates `for (s = 0..3) for (i = 0..2) for (k = 0..2)` (string × INFINITE_SUSTAIN × SUB_HARMONICS) per RESEARCH §18.7 canonical order; resets DSP state via `processor.releaseResources(); processor.prepareToPlay(...)` between combos to prevent state bleed (mirrors Phase 2.4a R34a pattern). Concatenates 36 stereo WAV chunks (5 s sustain + 0.5 s silence buffer = 5.5 s per combo) into single output WAV (~3.3 min audio). Aggregate JSON emits per-combo entries in canonical order plus `pass_all_36`. |
+| 3 | `reproduce-goldens.sh` extension content | **Extend `INVOC` array to 12 entries** (10 carry-forward + 2 new). Append `INVOC[sub-harmonics]="--sub-harmonics"` and `INVOC[sub-harmonics-stability]="--sub-harmonics-stability"` after the existing `INVOC[schelleng-stress]` line. Loop body unchanged. Trailing diagnostic line updated `"OK: all 12 goldens reproduce byte-identical"` (was `all 10`). Matrix-stability `6db67707…` STAYS deferred from reproduce-goldens.sh per Phase 2.4a Q22 (large WAV; not in default tripwire). R35a stages the extension; R35 atomic commit lands. |
+| 4 | `preflight-subharm.sh` content | **Bash script committed at `plugins/O-Contrabass/tests/render-harness/preflight-subharm.sh`** (~30 LOC; `chmod +x`). Verbatim per RESEARCH §18.16 #4 with these refinements: (a) `HARNESS` resolves via `REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"` like reproduce-goldens.sh; (b) builds harness if missing (`cmake --build . --target O-Contrabass-render-test --parallel >/dev/null`); (c) outputs to `/tmp/preflight-subharm.{wav,json}`; (d) exits 0 on STRICT-PASS or SOFT-PASS, exits 1 on HARD-FAIL — gates R35 atomic commit per §18.6 escalation contract. R35-pre runs this script post-R35d source build; output STDOUT line is logged into PLAN-execution-log notes for verify-phase audit. |
+| 5 | `SubHarmonicBias.h` filename + namespace | **`plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h`** + namespace `ouaricon::contrabass::sub_harmonics`. Mirrors Phase 2.4a `SchellengCalibration.h` precedent (per-plugin, per-Q24) at the same `Source/DSP/` folder + sibling `ouaricon::contrabass::schelleng` namespace. NO shared-module extraction (`modules/dsp/sub-harmonics/` rejected per RESEARCH §18.4 + ARCHITECTURE §765 "O-Contrabass-specific, should NOT bleed back into O-Bowed defaults"). Implementation = RESEARCH §18.9 ~120 LOC verbatim. |
+| 6 | F_bow uplift application in Step 6 | **Store as `voiceBowForceUpliftThisBlock` member; multiply at the existing `effectiveBowPressure * (0.5f + mpePressure * 1.5f)` site at `BowedContrabassVoice.cpp:~377`.** New private member `float voiceBowForceUpliftThisBlock { 1.0f };` in `BowedContrabassVoice.h`. Initialised to 1.0 in `prepareToPlay`; reset to 1.0 at the top of every `renderNextBlock` call (BEFORE Step 2.5) so HR-9 short-circuit path leaves it at 1.0 (bit-exact preservation). Step 2.5's else-branch sets `voiceBowForceUpliftThisBlock = F_bow_pre / std::max(1.0e-6f, rawBowPressure)` after `applyBias()` returns; Step 6 multiplies the existing pressure expression by this scalar. At HR-9 path (subAmount=0.0) the factor stays 1.0 → Step 6 is bit-exact identical to Phase 2.4a. |
+| 7 | F_bow_pre snapshot exactness in Step 2.5 | **Block-entry pressure value (block-rate, not per-sample).** Step 2.5 reads `mpePressure` once at block entry from the active voice's MPE pressure (via the same accessor Step 7 uses for per-sample MPE pitch); pre-bias `F_bow = rawBowPressure * (0.5f + 1.5f * mpePressure_block_entry)`. Per-sample MPE pressure variation in Step 7 is preserved (still drives the per-sample friction junction); the bias's safeDepth lookup + uplift factor are computed once per block. Per-sample bias re-evaluation deferred (would multiply CPU 256× per block; out-of-scope at v1.0 per RESEARCH §18.16 #7). |
+| 8 | `pass_subharmAudible` 4-way AND vs hierarchical pass_combo | **`--sub-harmonics` mode: 5-way `pass_combo` AND** = `pass_noNaN && pass_peak && pass_clickFree && pass_blockTime && pass_subharmAudible` (Gate 6b invariant 2 hard-bar). **`--sub-harmonics-stability` mode: 4-way `pass_combo` AND** (no `pass_subharmAudible` — the matrix mode measures stability across 36 combos, NOT spectral content; only stringIdx=0 / SUB_HARMONICS=1.0 combos would have a meaningful f0/2 ratio anyway, and the matrix isn't designed to gate on that). Aggregate `pass_all_36 = (passCount == 36)`; soft-PASS `failCount ≤ 2` v1.0 budget. |
+| 9 | `--sub-harmonics-stability` WAV output | **Single concatenated stereo WAV** at default sr=44100 (24-bit PCM per existing harness convention). Per-combo: 5 s sustain + 0.5 s silence buffer = 5.5 s × 36 combos = ~3.3 min total audio. Combos rendered in canonical iteration order (pin #2: stringIdx → infiniteSustain → subHarmonics). Single sha256 covers all 36 combos; aggregate JSON sha256 captures per-combo truth-table. Both `sub-harmonics-stability.wav.sha256` AND `sub-harmonics-stability.json.sha256` committed as new goldens in R35b. Per-combo separate WAV files alternative rejected (mirrors Phase 2.4a Q9 / Phase 2.4a `--matrix-stability`). |
+| 10 | Bin selection for non-E1 strings | **E1-only (`--sub-harmonics` renders MIDI 28).** RESEARCH §18.5 bin map is hard-coded for f0=41.2 Hz. Per-string variants `--sub-harmonics-A/-D/-G` (with bin shift to f0=55.0/73.4/98.0 Hz) deferred to Phase 2.4-bis or 2.4c expansion per RESEARCH §18.16 #10. v1.0 ships single E1-only audible-mode golden; the 36-combo stability matrix exercises all 4 strings for stability invariants but does NOT compute spectral metrics per combo. |
+| 11 | Risk #4 mitigation hand-back (failing-combo escalation) | **Two-stage escalation script.** If R35-pre `--sub-harmonics-stability` reports `failCount > 2` (exceeds v1.0 budget): (a) jq triage identifies failing combos; (b) confirm whether they cluster on fallback cells (safeDepth=0.5 in Phase 2.4a calibration table — should mechanically apply architecture §661 fallback 1 retune via §18.4 mapping); (c) if cluster matches, document combos in R35 commit body and proceed (mirrors Phase 2.4a 105/108 outcome); (d) if non-cluster, manually retune `kForceBoost` in `SubHarmonicBias.h` from `0.8f` → `0.4f` (architecture §661 fallback 1 explicit retune), rebuild, re-run R35-pre; (e) if 0.4f ALSO fails matrix, escalate to Phase 2.4-bis chaos detector implementation OR downstream-defense tightening (saturator clamp / loop-gain ceiling tightening — Phase 2.5/2.6 concern). Plan-phase commits this escalation logic into PLAN-execution-log notes; verify-phase carries forward as Phase 2.4-bis backlog if invoked. |
+| 12 | R35 atomic commit file count | **Estimated 12–15 files.** Source: 2 modified (`BowedContrabassVoice.{h,cpp}`) + 1 new (`Source/DSP/SubHarmonicBias.h`). Harness: 1 modified (`tests/render-harness/main.cpp`) + 1 modified script (`reproduce-goldens.sh` extended) + 1 new script (`preflight-subharm.sh`). Goldens: 6 new text files (`sub-harmonics.{wav.sha256,json,json.sha256}` + `sub-harmonics-stability.{wav.sha256,json,json.sha256}`); 0 re-baselined (HR-9 IEEE 754 identity arithmetic preserves all 10 carry-forward bit-exact). Planning: 4 modified (`STATUS.md` + `stages/2-dsp/{CONTEXT.md,RESEARCH.md,PLAN.md,SUMMARY.md}`) — CONTEXT/RESEARCH already at rev-7/§18 from discuss/research phases; PLAN gets this rev-9 append; SUMMARY + STATUS get execute-phase appends after R35. Final committed file count: ~14 files. R35-backfill chore lands after R35 atomic commit per R34-backfill / R33-backfill / R26 precedent. |
+
+**Carry-forward HARD RULES from prior phases (NOT re-litigated):**
+- HR-1 (Phase 2.3): Vibrato literal-zero short-circuit + active-string-only — carry-forward.
+- HR-2 (Phase 2.3): Slow-LFO literal-zero short-circuit + phase non-advance at zero depth — carry-forward.
+- HR-3 (Phase 2.3): Macro IEEE 754 identity arithmetic + macroSmoothed setCurrentAndTargetValue(0.0) — carry-forward.
+- HR-4 (Phase 2.3): Schelleng wedge skip on zero LFO depth + lastSafeDepth.store(0.0) unconditional pre-gate — carry-forward.
+- HR-5 (Phase 2.4a): `inline constexpr` linkage on `SchellengCalibration.h` — carry-forward; SubHarmonicBias.h uses identical `inline` pattern (HR-9 implementation).
+- HR-6 (Phase 2.4a): Calibration polynomial behind HR-4 gate ONLY — carry-forward; Phase 2.4b's `safeDepthForString(...)` query in Step 2.5 is INDEPENDENT of HR-6 (Step 2.5 fires regardless of `rawSlowLfoDepth` value, but only if `subAmount > 0.0` per HR-9). HR-6 + HR-9 are independent gates.
+- HR-7 (Phase 2.4a): Matrix-stability bypass via `extern "C" __attribute__((weak)) bool isMatrixStabilityModeActive() noexcept` — carry-forward; Phase 2.4b does NOT replicate this pattern. The new `--sub-harmonics-stability` mode does NOT bypass any wedge math (bias is the unit under test, not a parallel calibration). The existing HR-7 weak symbol stays in PluginProcessor.cpp untouched.
+- HR-8 (Phase 2.4a): Trilinear IEEE 754 identity arithmetic at sample points — carry-forward; SubHarmonicBias.h's `safeDepthForString(...)` lookup inherits the same IEEE 754 identity-at-sample-points guarantee.
+- 7-step per-block evaluation order verbatim (Steps 1/3/4/5/6/7 unchanged); **Phase 2.4b inserts Step 2.5 (sub-harmonic bias evaluation)** between Step 2 (Schelleng wedge) and Step 3 (slow-LFO phase advance).
+- `std::atomic<float> lastSafeDepth { 0.0f };` (Phase 2.3 R28) instrumentation hook signature carries forward unchanged.
+- 5 ms equal-power crossfade + `activeStringIndex` / `previousStringIndex` state machine — carry-forward; bias is active-string-only per HR-9.
+- 10 carry-forward goldens MUST reproduce byte-identical via `reproduce-goldens.sh` post-source-edit.
+- Phase 2.4a `matrix-stability.{wav.sha256,json}` `6db67707…` carries forward byte-identical (108 combos render at SUB_HARMONICS=0; HR-9 short-circuit fires bit-exact). NOT in `reproduce-goldens.sh` default array; verify-phase R35e re-renders manually OR documents matrix-stability as a verify-phase optional invariant per Phase 2.4a precedent.
+- Atomic-commit gate-first principle: R7 → R15 → R20 → R26 → R33 → R34 → **R35** sequence.
+
+**HARD RULES unique to Phase 2.4b (binding for R35d implementation):**
+
+1. **HR-9 — SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate.**
+   - **Caller-side short-circuit (BowedContrabassVoice.cpp Step 2.5 entry):** `if (subAmount == 0.0f || activeStringIndex < 0) { lastSubAmount.store(0.0f, std::memory_order_relaxed); return; }`. The HR-9 short-circuit is **CALLER-side**; SubHarmonicBias.h's `applyBias(...)` does NOT defensively short-circuit (per RESEARCH §18.9 contract: "This function does NOT defensively short-circuit; HR-9 is enforced at the caller for clarity of the bit-exact regression bar").
+   - **`subHarmonicsSmoothed` initialisation:** `subHarmonicsSmoothed.setCurrentAndTargetValue(0.0f)` in `prepareToPlay` (mirrors Phase 2.3 macroSmoothed pin #11 precedent). At APVTS default 0.0, `getNextValue()` returns exact 0.0f → HR-9 caller-side check fires.
+   - **`subHarmonicsSmoothed.setTargetValue(...)` UNCONDITIONAL each block** per Phase 2.3 macroSmoothed pin #11 precedent. NO `if (newValue != currentTarget)` guard — denormal accumulation in smoother state would drift over very long sessions.
+   - **Active-string-only:** Step 2.5 fires bias evaluation only when `activeStringIndex >= 0 && activeStringIndex < 4`. Crossfade-shadowed `previousStringIndex` is NOT biased (mirrors HR-1 vibrato per CONTEXT rev-7 Q31). The 5 ms equal-power crossfade window's residual ring-out from previous string sees the mutated frictionModel state (per RESEARCH §18.10 architectural-correctness analysis), but the 30 ms `subHarmonicsSmoothed` ramp absorbs the discontinuity.
+   - **`voiceBowForceUpliftThisBlock = 1.0f` reset at `renderNextBlock` entry** BEFORE Step 2.5 — guarantees HR-9 short-circuit path leaves Step 6 bit-exact identical to Phase 2.4a.
+   - **`lastSubAmount.store(0.0f)` UNCONDITIONAL pre-gate** at Step 2.5 entry — instrumentation atom always reflects current cycle (mirrors HR-4 `lastSafeDepth.store(0.0f)` pre-gate).
+
+2. **HR-10 — Friction module ABI preservation under bias.**
+   - `SubHarmonicBias.h::applyBias(...)` mutates `F_bow / v_0 / mu_s` by reference. The caller (Step 2.5) pushes mutations back to `frictionModel` via the EXISTING `HyperbolicFriction.h` setter surface — **NO friction module v1.0.0 ABI change.**
+   - **`v_0` push via ROSIN inverse algebraic identity (RESEARCH §18.10):** `rosinEq = -ln(10·v_0_biased) / 4.6f`, clamped `[0.0f, 1.0f]`, pushed via existing `frictionModel.setRosin(rosinEq)`. The clamp is defensive; at `v_0` floor 0.005 (architecture-spec'd), `rosinEq ≈ 0.65` is well within range.
+   - **`mu_s` push via existing setter:** `frictionModel.setStaticFrictionCoefficient(mu_s_biased)` — already in module v1.0.0 surface.
+   - **`mu_d` unchanged** at v1.0 (bass default 0.25f set once in `prepareToPlay`).
+   - **`F_bow` consumed at Step 6** via the `voiceBowForceUpliftThisBlock` factor multiplied into the existing `effectiveBowPressure * (0.5f + mpePressure * 1.5f)` expression at line ~377. **NO new `bowModel` setter; NO module ABI change.**
+   - **At HR-9 short-circuit path:** `frictionModel.setRosin(rawRosin)` runs as Phase 2.4a verbatim (Step 2.5's `else` branch never executes); `frictionModel.setStaticFrictionCoefficient(0.85f)` set once in `prepareToPlay`; `voiceBowForceUpliftThisBlock` stays at 1.0f. Friction module sees identical state → 10 carry-forward goldens reproduce bit-exact.
+
+**Per-block evaluation order (locked verbatim from RESEARCH §18.15, with Step 2.5 inserted):**
+
+```
+voiceBowForceUpliftThisBlock = 1.0f                                    [HR-9 reset]
+
+Step 1 — Read raw APVTS atomics (10 raw reads + add rawSubHarmonics; UNCHANGED otherwise).
+Step 2 — Schelleng wedge:
+         lastSafeDepth.store(0.0f, relaxed)                            [Phase 2.3 pin #4]
+         if (rawSlowLfoDepth > 0.0f)                                    [HR-4]
+             if (isMatrixStabilityModeActive())                          [HR-7]
+                 safeDepth = rawSlowLfoDepth
+             else
+                 beta = jlimit(0.02, 0.25, rawBowPos)
+                 safeDepth = jlimit(0.0, rawSlowLfoDepth,
+                                    schelleng::safeDepthForString(activeStringIndex,
+                                                                  rawBowSpeed,
+                                                                  rawBowPressure,
+                                                                  beta))     [Phase 2.4a]
+             vibAntiCorr = kAntiCorrPerDepth * rawSlowLfoDepth
+             lastSafeDepth.store(safeDepth, relaxed)
+
+Step 2.5 — Sub-harmonic bias (Phase 2.4b R35d; NEW):                    [HR-9 + HR-10]
+         subHarmonicsSmoothed.setTargetValue(rawSubHarmonics)           [pin #11 UNCONDITIONAL]
+         subAmount = subHarmonicsSmoothed.getNextValue()
+         subHarmonicsSmoothed.skip(jmax(0, numSamples - 1))              [pin #7 jmax guard]
+         lastSubAmount.store(0.0f, relaxed)                              [HR-9 pre-gate, mirrors HR-4]
+
+         if (subAmount == 0.0f || activeStringIndex < 0)                 [HR-9 short-circuit]
+             // Step 3 onward sees unbiased frictionModel state — bit-exact.
+             // voiceBowForceUpliftThisBlock stays 1.0f → Step 6 bit-exact.
+         else
+             v_b_voice  = bowModel.getBowVelocity()
+             beta_v     = jlimit(0.02, 0.25, rawBowPos)
+             v_0_pre    = 0.1f * exp(-4.6f * rawRosin)                   // ROSIN→v_0 forward map
+             mu_s_pre   = 0.85f                                          // bass default
+             mu_d_const = 0.25f                                          // bass default
+             F_bow_pre  = rawBowPressure * (0.5f + 1.5f * mpePressure_block_entry)
+             safeDepthSub = schelleng::safeDepthForString(activeStringIndex,
+                                                          rawBowSpeed,
+                                                          rawBowPressure,
+                                                          beta_v)
+             sub_harmonics::applyBias(subAmount, activeStringIndex,
+                                       v_b_voice, beta_v, safeDepthSub,
+                                       F_bow_pre, v_0_pre, mu_s_pre,
+                                       mu_d_const)                       // mutates by ref
+             rosinEq = jlimit(0.0f, 1.0f,
+                              -log(10.0f * jmax(1.0e-6f, v_0_pre)) / 4.6f) // HR-10 inverse
+             frictionModel.setRosin(rosinEq)                              // HR-10 push
+             frictionModel.setStaticFrictionCoefficient(mu_s_pre)         // HR-10 push
+             voiceBowForceUpliftThisBlock = F_bow_pre / jmax(1.0e-6f, rawBowPressure)
+             lastSubAmount.store(subAmount, relaxed)
+
+Step 3 — Slow-LFO phase advance + sin (HR-2 gate; UNCHANGED).
+Step 4 — Apply slow-LFO multiplicatively (UNCHANGED).
+Step 5 — Layer macro multiplicatively (HR-3 gated; UNCHANGED).
+Step 6 — Push to bowModel + all-strings brightness:
+         effectiveBowPressure *= (0.5f + mpePressure * 1.5f)
+                                 * voiceBowForceUpliftThisBlock          [Phase 2.4b: 1.0f at HR-9]
+         bowModel.setBowSpeed(effectiveBowSpeed)
+         bowModel.setBowPressure(effectiveBowPressure)
+         (per-string brightness; UNCHANGED)
+Step 7 — Per-sample loop (HR-1 gated vibrato; UNCHANGED).
+```
+
+**At HR-9 short-circuit path (subAmount==0.0 OR activeStringIndex<0):**
+- `lastSubAmount.store(0.0f)` fires;
+- `voiceBowForceUpliftThisBlock` stays at 1.0f;
+- `frictionModel.setRosin(rawRosin)` continues per Phase 2.4a (Step 2.5 else-branch never executes; existing line 647 setRosin unchanged);
+- Step 6's pressure expression is bit-exact identical to Phase 2.4a (×1.0f is IEEE 754 identity);
+- → 10 carry-forward goldens reproduce byte-identical.
+
+**At biased path (subAmount > 0.0 AND activeStringIndex >= 0):**
+- bias mutates `F_bow / v_0 / mu_s` per architecture §457;
+- `safeDepth` from Phase 2.4a table scales the F_bow uplift only (RESEARCH §18.4 mapping; v_0 + mu_s preserve architecture-§457 verbatim);
+- Schelleng F_max ceiling clamp INSIDE `applyBias()` enforces architecture line 470;
+- friction state push via HR-10 inverse identity preserves module v1.0.0 ABI.
+
+---
+
+## Goal
+
+Implement architecture §457 sub-harmonic bias DSP-07 — friction-junction parameter biasing on `F_bow` / `v_0` / `mu_s − mu_d` toward the Schelleng `F_max` regime to induce period-doubling f0/2 spectral content as a musical bass-extension feature on the SUB_HARMONICS APVTS knob (Float [0, 1] default 0.0 already declared at PluginProcessor.cpp:104). At `SUB_HARMONICS = 1.0` on E1 (MIDI 28), produce `subharmEnergyRatio = E(f0/2_3bins) / E(f0_3bins) ≥ 0.40` (strict-PASS) measured via `juce::dsp::FFT` size 65536 Hann-windowed over the last 2 s of a 5 s sustain at default bow params. Soft-PASS within v1.0 budget at `[0.30, 0.40)` per RESEARCH §18.6; hard-FAIL `< 0.30` escalates to architecture §661 fallback 1 retune (`kForceBoost` 0.8 → 0.4) BEFORE R35 atomic commit. Preserve QUAL-01 stability across 36 stress-test combos (4 strings × 3 INFINITE_SUSTAIN ∈ {0.0, 0.5, 1.0} × 3 SUB_HARMONICS ∈ {0.0, 0.5, 1.0}) at default BODY_DAMPING + default bow params (5 s sustain per combo at MIDI 28/33/38/43). Reuse Phase 2.4a `schelleng::safeDepthForString()` table as the F_bow ceiling source via `effectiveBoost = subAmount · 0.8 · safeDepth` mapping (RESEARCH §18.4): stable cells (105/108) → full 1.8× uplift (architecture default `kForceBoost = 1.8`); fallback cells (3/108) → 1.4× uplift (auto-applies architecture §661 fallback 1). Validate Gate 6b invariants — five-item bar including bit-exact reproduction of 10 carry-forward goldens via `reproduce-goldens.sh` (HR-9 IEEE 754 identity arithmetic guarantee) — and atomic-commit on Gate 6b PASS as R35. Continue R7 → R15 → R20 → R26 → R33 → R34 → **R35** atomic-commit sequence. Phase 2.4b ships **NO Stage-1 contract amendment** + **NO ARCHITECTURE.md amendment**; chaos detector + softClampState deferred to Phase 2.5/2.6 via R35 commit-body footnote per RESEARCH §18.13.
+
+---
+
+## Tasks
+
+### R35-pre — Pre-flight bit-exact baseline confirmation + spectral pre-flight + script staging
+
+**No source edits committed except `tests/render-harness/preflight-subharm.sh` (NEW; staged for R35 atomic). Diagnostic + script-creation. Confirms working-tree integrity at start of execute AND empirically validates RESEARCH §18.1 + §18.3 pre-flights under the plan-phase build environment AND stages the spectral pre-flight script that gates R35 atomic commit per HR-9 escalation contract.**
+
+Per RESEARCH §18.1, working tree at HEAD `b64c8c4` (R34-backfill chore) reproduces all 10 currently-committed goldens byte-identical via `reproduce-goldens.sh`. Per RESEARCH §18.2, single-combo extreme-settings render takes ~0.03 s wall-clock; 36-combo extrapolation ~4 s wall-clock. Per RESEARCH §18.3, baseline `subharmEnergyRatio` at SUB_HARMONICS=0 is 0.241 (noise-floor artefact; threshold MUST be 0.40 strict / 0.30 soft / <0.30 hard-FAIL). R35-pre re-runs the bit-exact pre-flight as a tripwire AND authors the spectral pre-flight script that R35-pre will invoke post-R35d.
+
+**Tasks:**
+
+1. **Confirm git state is clean and at R34 atomic commit / R34-backfill chore:**
+   ```bash
+   git log --oneline -2                                  # should be b64c8c4 + 4c926bb
+   git status plugins/O-Contrabass/                      # should be clean
+   ```
+   If working tree is dirty, STOP and reconcile before proceeding.
+
+2. **Build harness:**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+   Expect `ninja: no work to do` if R34 build artefacts persist; otherwise clean rebuild.
+
+3. **Run `reproduce-goldens.sh` at HEAD (10-golden tripwire):**
+   ```bash
+   bash plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+   # Expect: "OK: all 10 goldens reproduce byte-identical"
+   ```
+   **All 10 must PASS** per RESEARCH §18.1 record (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo Phase-2.4a-rebaselined + schelleng-stress Phase-2.4a-rebaselined). If any FAIL, STOP and investigate working-tree drift (re-confirm HEAD == `b64c8c4` or descendant; `git status` for stray edits in `Source/`, `tests/render-harness/`, `modules/synthesis/bow-friction/`). Do NOT proceed to R35a until all 10 reproduce.
+
+4. **Sanity-check `--matrix-stability` byte-identity (Phase 2.4a evidence golden carry-forward):**
+   ```bash
+   $HARNESS --matrix-stability \
+            --out /tmp/phase24b-r35pre/matrix-stability.wav \
+            --json /tmp/phase24b-r35pre/matrix-stability.json
+   computed=$(shasum -a 256 /tmp/phase24b-r35pre/matrix-stability.wav | awk '{print $1}')
+   expected=$(awk '{print $1}' plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256)
+   [ "$computed" = "$expected" ] && echo "[PASS] matrix-stability $computed" || echo "[FAIL]"
+   # Expect: 6db6770727ab3b433a036f487217bbde70f8cc15de44fa60ac0b99d868176449
+   ```
+   Confirms Phase 2.4a 108-combo matrix golden is reproducible (HR-9 short-circuit + HR-7 wedge bypass interact correctly at SUB_HARMONICS=0 default). Diagnostic only — NOT in default reproduce-goldens.sh per Phase 2.4a Q22.
+
+5. **Author `tests/render-harness/preflight-subharm.sh`** (~30 LOC bash script per RESEARCH §18.16 #4):
+
+   ```bash
+   #!/usr/bin/env bash
+   # Phase 2.4b R35-pre — spectral pre-flight at SUB_HARMONICS=1.0 with bias-active.
+   # Verifies pass_subharmAudible threshold per RESEARCH §18.6 BEFORE R35 atomic commit.
+   # Exit code: 0 on STRICT-PASS or SOFT-PASS; 1 on HARD-FAIL.
+   set -euo pipefail
+   REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+   HARNESS="$REPO_ROOT/build/plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test_artefacts/Release/O-Contrabass-render-test"
+   if [ ! -x "$HARNESS" ]; then
+       cd "$REPO_ROOT/build"
+       cmake --build . --target O-Contrabass-render-test --parallel >/dev/null
+       cd -
+   fi
+   $HARNESS --sub-harmonics \
+            --out /tmp/preflight-subharm.wav \
+            --json /tmp/preflight-subharm.json >/dev/null
+   RATIO=$(python3 -c "import json; print(json.load(open('/tmp/preflight-subharm.json'))['subharmEnergyRatio'])")
+   echo "subharmEnergyRatio = $RATIO"
+   python3 - <<EOF
+import sys
+r = $RATIO
+if r >= 0.40:
+    print("STRICT-PASS — proceed to R35 atomic commit")
+    sys.exit(0)
+elif r >= 0.30:
+    print("SOFT-PASS within v1.0 budget — Phase 2.4-bis remediation flag (track in R35 commit body)")
+    sys.exit(0)
+else:
+    print("HARD-FAIL — escalate to architecture §661 fallback 1 retune (kForceBoost 0.8→0.4 in SubHarmonicBias.h)")
+    sys.exit(1)
+EOF
+   ```
+
+   ```bash
+   chmod +x plugins/O-Contrabass/tests/render-harness/preflight-subharm.sh
+   ```
+
+6. **Stage `preflight-subharm.sh`** (do NOT commit yet — included in R35 atomic):
+   ```bash
+   git add plugins/O-Contrabass/tests/render-harness/preflight-subharm.sh
+   git status   # should show 1 new file staged
+   ```
+
+**Files created:**
+- `plugins/O-Contrabass/tests/render-harness/preflight-subharm.sh` (NEW, ~30 LOC, staged for R35 atomic).
+- `/tmp/phase24b-r35pre/*.{wav,json}` (transient; deleted post-R35; NOT committed).
+
+**Files modified:** none committed.
+
+**Commit:** **NONE** — diagnostic + script-staging only. R35 atomic commit lands the staged file alongside the rest of Phase 2.4b.
+
+**Success bar:**
+- [ ] `git log --oneline -1` shows `b64c8c4` or descendant.
+- [ ] Harness build succeeds.
+- [ ] `reproduce-goldens.sh` reports `OK: all 10 goldens reproduce byte-identical`.
+- [ ] `matrix-stability.wav` sha256 matches committed `6db67707…` (Phase 2.4a evidence golden carry-forward).
+- [ ] `preflight-subharm.sh` authored, `chmod +x`, staged for R35.
+- [ ] R35-pre at this stage does NOT yet invoke `preflight-subharm.sh` — that fires AFTER R35d source build (the script depends on the new `--sub-harmonics` harness mode that R35a authors).
+
+**Estimated effort:** 15 min (build + reproduce-goldens + matrix-stability sanity + script authoring + chmod + stage).
+
+---
+
+### R35a — Harness `--sub-harmonics` + `--sub-harmonics-stability` modes + FFT analyser
+
+**Per RESEARCH §18.5 FFT specs + §18.7 MIDI selection + §18.8 pass criteria + pins #1, #2, #8, #9, #10. Adds the audible-mode FFT analyser + 36-combo iteration mode + per-combo JSON + concatenated WAV. NO source-side bias polynomial yet — that's R35c+R35d.**
+
+**Tasks:**
+
+1. **`tests/render-harness/main.cpp` — add `--sub-harmonics` + `--sub-harmonics-stability` CLI flags (~+50 LOC parsing).**
+
+   In the anonymous namespace at the top of main.cpp, add the canonical iteration constants:
+   ```cpp
+   constexpr int   kSubharmStabilityMidi[4] = { 28, 33, 38, 43 };
+   constexpr float kSubharmStabilitySustainAxis[3] = { 0.0f, 0.5f, 1.0f }; // INFINITE_SUSTAIN
+   constexpr float kSubharmStabilitySubAxis[3]     = { 0.0f, 0.5f, 1.0f }; // SUB_HARMONICS
+   constexpr float kSubharmSustainSec     = 5.0f;
+   constexpr float kSubharmSilenceSec     = 0.5f;     // pin #9 — silence buffer between combos
+   constexpr int   kSubharmFftSize        = 65536;    // RESEARCH §18.5 lock
+   constexpr int   kSubharmFftOrder       = 16;       // 2^16 = 65536
+   constexpr int   kSubharmF0BinLo        = 60;       // RESEARCH §18.5 bin map (E1 f0 ≈ 41.20 Hz)
+   constexpr int   kSubharmF0BinHi        = 62;
+   constexpr int   kSubharmSubBinLo       = 30;       // E1 f0/2 ≈ 20.60 Hz
+   constexpr int   kSubharmSubBinHi       = 32;
+   constexpr int   kSubharmFloorBinLo     = 33;       // [22..28] Hz median floor
+   constexpr int   kSubharmFloorBinHi     = 41;
+   ```
+
+   In `parseArgs`, add `--sub-harmonics` + `--sub-harmonics-stability` flag handling. Slot in mutual-exclusion ladder ABOVE `--matrix-stability` (highest precedence; either flag clears all other modes + emits warning if multiple modes set).
+
+2. **`tests/render-harness/main.cpp` — author `runSubHarmonicsMode()` audible-mode FFT analyser (~+120 LOC).**
+
+   Pseudo-structure (verbatim per RESEARCH §18.5 + §18.6):
+   ```cpp
+   static int runSubHarmonicsMode (const Args& args)
+   {
+       // Setup: render MIDI 28 (E1), velocity 0.7, sustain 5.0 s, release 1.0 s,
+       // SUB_HARMONICS=1.0, default bow params (BOW_SPEED=0.15, BOW_PRESSURE=3.0,
+       // BOW_POSITION=0.10), default SLOW_LFO_DEPTH=0.0, default INFINITE_SUSTAIN=0.0.
+       // Stereo 24-bit WAV out (existing harness convention).
+       processor.releaseResources();
+       processor.prepareToPlay (sampleRate, blockSize);
+       setNorm("SUB_HARMONICS", 1.0f);   // existing parameter-norm pattern at main.cpp:389
+
+       // ... render kSubharmSustainSec + 1.0f release ...
+
+       // FFT analysis: last 2 s of 5 s sustain (88200 samples; first 65536 taken).
+       const int analysisStart = static_cast<int> ((kSubharmSustainSec - 2.0f) * sampleRate);
+       std::vector<float> mono (kSubharmFftSize);
+       for (int i = 0; i < kSubharmFftSize; ++i)
+       {
+           // Mix L+R; existing harness mono-mix pattern.
+           mono[i] = 0.5f * (renderBuf.getSample(0, analysisStart + i)
+                           + renderBuf.getSample(1, analysisStart + i));
+           // Hann window: 0.5 - 0.5*cos(2*pi*k/(N-1))
+           const float w = 0.5f - 0.5f * std::cos (juce::MathConstants<float>::twoPi
+                                                    * static_cast<float>(i)
+                                                    / static_cast<float>(kSubharmFftSize - 1));
+           mono[i] *= w;
+       }
+
+       // FFT (size 65536; in-place, allocate-once buffer).
+       static juce::dsp::FFT fft (kSubharmFftOrder);
+       std::vector<float> fftBuf (2 * kSubharmFftSize, 0.0f);
+       std::copy (mono.begin(), mono.end(), fftBuf.begin());
+       fft.performFrequencyOnlyForwardTransform (fftBuf.data());
+       // fftBuf[0..N/2] now contains magnitudes.
+
+       // Compute mag² for required bins.
+       auto mag2 = [&] (int bin) {
+           const float m = fftBuf[bin];
+           return m * m;
+       };
+
+       float E_f0 = 0.0f, E_subharm = 0.0f;
+       for (int b = kSubharmF0BinLo;  b <= kSubharmF0BinHi;  ++b) E_f0      += mag2(b);
+       for (int b = kSubharmSubBinLo; b <= kSubharmSubBinHi; ++b) E_subharm += mag2(b);
+       const float subharmEnergyRatio = E_subharm / juce::jmax (1.0e-9f, E_f0);
+
+       // Diagnostic: subharmPeakOverFloor (no pass criterion).
+       float maxBinSub = 0.0f;
+       for (int b = kSubharmSubBinLo; b <= kSubharmSubBinHi; ++b)
+           maxBinSub = juce::jmax (maxBinSub, mag2(b));
+       std::vector<float> floorVals;
+       for (int b = kSubharmFloorBinLo; b <= kSubharmFloorBinHi; ++b) floorVals.push_back (mag2(b));
+       std::nth_element (floorVals.begin(), floorVals.begin() + 4, floorVals.end());
+       const float medianFloor = floorVals[4];
+       const float subharmPeakOverFloor =
+           std::sqrt (maxBinSub) / std::sqrt (juce::jmax (1.0e-9f, medianFloor));
+
+       // pass_subharmAudible per RESEARCH §18.6 (5-way pass_combo per pin #8):
+       const bool pass_subharmAudible = (subharmEnergyRatio >= 0.40f);    // strict-PASS
+       const bool soft_subharmAudible = (subharmEnergyRatio >= 0.30f
+                                          && subharmEnergyRatio < 0.40f); // soft-PASS within v1.0
+
+       // ... compute pass_noNaN, pass_peak, pass_clickFree, pass_blockTime as in existing modes ...
+
+       const bool pass_combo = pass_noNaN && pass_peak && pass_clickFree
+                              && pass_blockTime && (pass_subharmAudible || soft_subharmAudible);
+
+       // Emit JSON per §18.5 schema:
+       // status, mode, midiNote=28, subHarmonicsParam=1.0, sustainSeconds=5.0,
+       // totalSamples, peak, rmsContinuity, blockMicros_median, blockMicros_max,
+       // blockTimeRatio, subharmEnergyRatio, subharmPeakOverFloor,
+       // fftBaselineNote ("ratio at SUB_HARMONICS=0 measured 0.241 RESEARCH §18.3"),
+       // pass_noNaN, pass_peak, pass_clickFree, pass_blockTime, pass_subharmAudible, pass_combo.
+
+       // ... write WAV + JSON files (existing harness pattern) ...
+       return pass_combo ? 0 : 1;
+   }
+   ```
+
+   Mirror `--vibrato` autocorrelation mode at lines 1133–1300 for harness boilerplate (rendering, JSON emission, file writing). Replace autocorrelation post-process with the FFT analyser above.
+
+3. **`tests/render-harness/main.cpp` — author `runSubHarmonicsStabilityMode()` 36-combo iteration loop (~+90 LOC).**
+
+   ```cpp
+   static int runSubHarmonicsStabilityMode (const Args& args)
+   {
+       // 36 combos: 4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS, 5 s sustain each
+       // + 0.5 s silence buffer. Default bow params (BOW_SPEED=0.15, BOW_PRESSURE=3.0,
+       // BOW_POSITION=0.10), default BODY_DAMPING (no axis), default SLOW_LFO_DEPTH=0.0.
+       // Concatenated stereo WAV; per-combo + aggregate JSON; iteration order pin #2.
+       PerComboMetrics combos[36];
+       int idx = 0;
+       int passCount = 0;
+       for (int s = 0; s < 4; ++s)
+       {
+           for (int i = 0; i < 3; ++i)
+           {
+               for (int k = 0; k < 3; ++k, ++idx)
+               {
+                   processor.releaseResources();
+                   processor.prepareToPlay (sampleRate, blockSize);
+                   setNorm("INFINITE_SUSTAIN", kSubharmStabilitySustainAxis[i]);
+                   setNorm("SUB_HARMONICS",    kSubharmStabilitySubAxis[k]);
+                   // ... inject MIDI noteOn at kSubharmStabilityMidi[s] velocity 0.7 ...
+                   // ... render kSubharmSustainSec sustain + 1.0f release ...
+                   // ... append silence buffer (kSubharmSilenceSec) ...
+                   // ... compute peak, rmsContinuity, blockMicros, lastSubAmount.load() ...
+                   combos[idx] = { ... };
+                   if (combos[idx].pass_combo) ++passCount;
+               }
+           }
+       }
+       const bool pass_all_36 = (passCount == 36);
+       // Aggregate JSON per §18.8 schema:
+       // status, mode, totalCombos=36, passCount, failCount=36-passCount, pass_all_36, combos[36].
+       // ... write concatenated WAV + aggregate JSON ...
+       return pass_all_36 ? 0 : 1;
+   }
+   ```
+
+   Mirror `runMatrixStabilityMode()` from Phase 2.4a (in main.cpp post-R34a) for the 36-combo iteration boilerplate; differences are 36 combos vs 108, no SLOW_LFO_RATE override (default 0.3 Hz; SLOW_LFO_DEPTH=0 anyway), and per-combo `lastSubAmount` instrumentation field.
+
+4. **`tests/render-harness/main.cpp` — `PerComboMetrics` struct extension (~+5 LOC).**
+   ```cpp
+   struct PerComboMetrics
+   {
+       int   stringIdx, openStringMidi;
+       float infiniteSustain, subHarmonics, sustainSeconds;
+       int   totalSamples;
+       float peak, rmsContinuity, blockMicros_median, blockMicros_max, blockTimeRatio;
+       float lastSubAmount;     // NEW Phase 2.4b — instrumentation atom
+       bool  pass_noNaN, pass_peak, pass_clickFree, pass_blockTime, pass_combo;
+   };
+   ```
+
+   Reuse / extend the existing struct from R34a (`PerComboMetrics` for matrix-stability) — Phase 2.4b adds the `subHarmonics` + `lastSubAmount` fields.
+
+5. **Build harness:**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+   Expect a clean build with zero warnings. **Pre-R35b smoke at HEAD post-R35a (no source-side bias yet — bias evaluation is R35c+R35d):**
+   ```bash
+   $HARNESS --sub-harmonics --out /tmp/phase24b-r35a-smoke.wav --json /tmp/phase24b-r35a-smoke.json
+   jq '.subharmEnergyRatio, .pass_combo' /tmp/phase24b-r35a-smoke.json
+   # Expect: subharmEnergyRatio ≈ 0.241 (RESEARCH §18.3 baseline; HR-9 short-circuit absent
+   # but bias path is also absent → SUB_HARMONICS knob has no DSP effect yet);
+   # pass_combo: false (subharmEnergyRatio < 0.40 strict; bias hasn't been wired in yet).
+   ```
+   This baseline is EXPECTED to fail `pass_subharmAudible` at R35a — it confirms the harness measures correctly. R35d wires in the bias; R35-pre re-runs after R35d source build.
+
+6. **Stage the harness changes** (do NOT commit yet — R35 atomic):
+   ```bash
+   git add plugins/O-Contrabass/tests/render-harness/main.cpp
+   git status   # should show 1 modified file staged
+   ```
+
+**Files created:** none (harness binary is build artefact).
+
+**Files modified:**
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` (~+265 LOC: 50 parsing + 120 sub-harmonics mode + 90 sub-harmonics-stability mode + 5 PerComboMetrics extension).
+
+**Commit:** **NONE** — staged for R35 atomic.
+
+**Success bar:**
+- [ ] Harness builds clean zero warnings.
+- [ ] `--sub-harmonics` mode runs without crashing; emits valid JSON with subharmEnergyRatio field.
+- [ ] `--sub-harmonics-stability` mode runs all 36 combos; emits aggregate JSON.
+- [ ] At HEAD post-R35a (NO source-side bias yet): `--sub-harmonics` reports `subharmEnergyRatio ≈ 0.241` (matches RESEARCH §18.3 baseline measurement). This confirms the FFT analyser is wired correctly.
+- [ ] At HEAD post-R35a (NO source-side bias yet): `--sub-harmonics-stability` reports `pass_all_36 = true` (all 36 combos at SUB_HARMONICS=0/0.5/1.0 produce stable output — but bias has zero DSP effect at any SUB_HARMONICS value because R35c/R35d hasn't landed; this confirms HR-9 path stability across the matrix).
+
+**Estimated effort:** 75 min (parser changes + audible-mode runner + 36-combo runner + struct extension + build + smoke).
+
+---
+
+### R35b — Render new goldens + commit golden text
+
+**After R35d source edits land (NOT yet at this point in execute order — R35b runs as the post-R35d golden-capture step). Sequencing note: R35b is documented HERE in plan order for clarity, but plan-execution order is R35-pre → R35a → R35c → R35d → R35-pre invoke `preflight-subharm.sh` → R35b → R35e → R35f → R35 atomic. R35b CANNOT execute before R35d wires in the bias DSP.**
+
+**Tasks:**
+
+1. **Build harness with R35a + R35c + R35d source edits applied:**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+   Expect a clean build with zero warnings. (R35-pre's `preflight-subharm.sh` MUST have already returned exit-0 — STRICT-PASS or SOFT-PASS — before reaching R35b.)
+
+2. **Render `--sub-harmonics` golden:**
+   ```bash
+   mkdir -p /tmp/phase24b-r35b
+   $HARNESS --sub-harmonics \
+            --out /tmp/phase24b-r35b/sub-harmonics.wav \
+            --json /tmp/phase24b-r35b/sub-harmonics.json
+   shasum -a 256 /tmp/phase24b-r35b/sub-harmonics.wav | awk '{print $1}' \
+       > plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.wav.sha256
+   cp /tmp/phase24b-r35b/sub-harmonics.json \
+      plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json
+   shasum -a 256 plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json | awk '{print $1}' \
+       > plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json.sha256
+   ```
+   Validates `pass_subharmAudible` per RESEARCH §18.6 (strict ≥ 0.40 / soft [0.30, 0.40) / hard < 0.30 escalates). If hard-FAIL: STOP, retune coefficient, return to R35-pre invoke `preflight-subharm.sh`.
+
+3. **Render `--sub-harmonics-stability` golden (~4 s wall-clock):**
+   ```bash
+   $HARNESS --sub-harmonics-stability \
+            --out /tmp/phase24b-r35b/sub-harmonics-stability.wav \
+            --json /tmp/phase24b-r35b/sub-harmonics-stability.json
+   shasum -a 256 /tmp/phase24b-r35b/sub-harmonics-stability.wav | awk '{print $1}' \
+       > plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.wav.sha256
+   cp /tmp/phase24b-r35b/sub-harmonics-stability.json \
+      plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json
+   shasum -a 256 plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json | awk '{print $1}' \
+       > plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json.sha256
+   ```
+   Expects `pass_all_36 = true` (strict-PASS) OR `failCount ≤ 2` (soft-PASS within v1.0 budget). If `failCount > 2`: invoke pin #11 escalation script (jq triage → fallback-cell cluster check → `kForceBoost` 0.8→0.4 retune if needed → re-render).
+
+4. **Smoke-check sha256 stability across re-renders (Phase 2.4a Risk #13 carry-forward):**
+   ```bash
+   # Re-run sub-harmonics-stability and confirm sha256 matches first invocation.
+   $HARNESS --sub-harmonics-stability \
+            --out /tmp/phase24b-r35b/sub-harmonics-stability_v2.wav \
+            --json /tmp/phase24b-r35b/sub-harmonics-stability_v2.json
+   sha1=$(shasum -a 256 /tmp/phase24b-r35b/sub-harmonics-stability.wav    | awk '{print $1}')
+   sha2=$(shasum -a 256 /tmp/phase24b-r35b/sub-harmonics-stability_v2.wav | awk '{print $1}')
+   [ "$sha1" = "$sha2" ] && echo "[PASS] state reset between combos deterministic" \
+                         || echo "[FAIL] state bleed; investigate releaseResources()"
+   ```
+
+5. **Stage 6 new golden text files** (do NOT commit yet — R35 atomic):
+   ```bash
+   git add plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.wav.sha256 \
+           plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json \
+           plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json.sha256 \
+           plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.wav.sha256 \
+           plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json \
+           plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json.sha256
+   git status   # should show 6 new files staged
+   ```
+
+**Files created:**
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.wav.sha256` (NEW; sha256 of audible-mode 5 s render).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json` (NEW; ~3 KB; full JSON per §18.5 schema).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json.sha256` (NEW; anchors JSON reproducibility).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.wav.sha256` (NEW; sha256 of 36-combo concatenated WAV).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json` (NEW; ~30 KB; per-combo + aggregate truth-table).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json.sha256` (NEW; anchors aggregate JSON).
+
+**Files modified:** none.
+
+**Commit:** **NONE** — 6 new files staged for R35 atomic.
+
+**Success bar:**
+- [ ] `--sub-harmonics` JSON `pass_subharmAudible = true` (strict ≥ 0.40) OR `subharmEnergyRatio ∈ [0.30, 0.40)` documented as soft-PASS in PLAN-execution-log.
+- [ ] `--sub-harmonics-stability` aggregate JSON `pass_all_36 = true` OR `failCount ≤ 2` with documented v1.0 fallback combos.
+- [ ] Sha256 stability across re-renders confirmed.
+- [ ] 6 new golden text files staged.
+
+**Estimated effort:** 25 min (build + 2 renders + sha capture + 6 file stages + smoke).
+
+---
+
+### R35c — Author `Source/DSP/SubHarmonicBias.h`
+
+**NEW header (~120 LOC) per RESEARCH §18.9 verbatim. Header-only `inline` linkage; namespace `ouaricon::contrabass::sub_harmonics`. Mirrors Phase 2.4a `SchellengCalibration.h` precedent at the same `Source/DSP/` folder.**
+
+**Tasks:**
+
+1. **Author `plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h`** (verbatim per RESEARCH §18.9):
+
+   File contents (~120 LOC; structure pinned, may receive minor pre-build refinements but coefficients + signature LOCKED):
+
+   ```cpp
+   // Source/DSP/SubHarmonicBias.h
+   //
+   // O-Contrabass Phase 2.4b — sub-harmonic bias DSP-07 (ARCHITECTURE §457).
+   // Friction-junction parameter biasing toward Schelleng F_max regime to
+   // induce period-doubling f0/2 spectral content. Per-plugin (NOT extracted
+   // to shared module per CONTEXT rev-7 Q24 — friction module v1.0.0 untouched).
+   //
+   // HR-9 (Phase 2.4b hard rule): SUB_HARMONICS=0 IEEE 754 identity arithmetic
+   // + active-string-only gate. The caller (BowedContrabassVoice.cpp Step 2.5)
+   // MUST short-circuit BEFORE invoking applyBias() at subAmount==0.0f and
+   // for non-active-string slots. This function does NOT defensively short-
+   // circuit; HR-9 is enforced at the caller for clarity of the bit-exact
+   // regression bar.
+
+   #pragma once
+   #include <algorithm>
+   #include <cmath>
+
+   namespace ouaricon::contrabass::sub_harmonics {
+
+   // Architecture §457 / §661 default coefficients. Phase 2.4b ships verbatim;
+   // Phase 2.4-bis or 2.5/2.6 may retune to fallback 0.4 if Gate 6b spectral
+   // pre-flight (RESEARCH §18.6) returns hard-FAIL.
+   inline constexpr float kForceBoost   = 0.8f;     // F_bow uplift coefficient (architecture §457
+                                                     // line 465 multiplier; ×subAmount factored at
+                                                     // call-site for safeDepth interaction);
+                                                     // architecture §661 fallback 1 → 0.4f.
+   inline constexpr float kV0Reduction  = 0.5f;     // v_0 contraction coefficient (line 466).
+   inline constexpr float kGapWiden     = 0.25f;    // mu_s − mu_d gap widening (line 468).
+   inline constexpr float kFmaxScalar   = 0.95f;    // Schelleng ceiling fraction (line 470).
+   inline constexpr float kV0Floor      = 0.005f;   // architecture-spec'd lower clamp (line 466).
+
+   // Schelleng F_max formula (architecture §490 — slow-LFO wedge, with
+   // Z=0.5, R=0.5, mu_s−mu_d ≈ 0.6 dimensionless collapse):
+   //   fMax = (2·Z · v_b) / (beta · (mu_s − mu_d))
+   // Same closed form Phase 2.3 used pre-calibration. Re-used here for the
+   // final F_bow ceiling clamp; SchellengCalibration table provides the
+   // stable-cell vs fallback-cell scaling on the uplift, NOT the hard ceiling.
+   inline float schellengFmax (float beta, float v_b, float mu_gap) noexcept
+   {
+       constexpr float Z2  = 1.0f;                  // 2·Z = 2·0.5 = 1.0
+       return (Z2 * v_b) / (std::max (1.0e-6f, beta * std::max (1.0e-6f, mu_gap)));
+   }
+
+   // applyBias mutates F_bow / v_0 / mu_s in-place per architecture §457.
+   // See header banner for HR-9 caller-side short-circuit contract.
+   inline void applyBias (float       subAmount,
+                          int         stringIdx,
+                          float       v_b,
+                          float       beta,
+                          float       safeDepth,
+                          float&      F_bow,
+                          float&      v_0,
+                          float&      mu_s,
+                          float       mu_d) noexcept
+   {
+       // F_bow uplift, scaled by Phase 2.4a empirical safeDepth (RESEARCH §18.4 mapping).
+       const float effectiveBoost = subAmount * kForceBoost * safeDepth;
+       F_bow *= 1.0f + effectiveBoost;
+
+       // v_0 contraction (architecture §457 line 466 verbatim, NOT scaled by
+       // safeDepth per §18.4 rationale — v_0 sharpens stick-slip nonlinearity,
+       // NOT the F_bow ceiling).
+       v_0 = std::max (kV0Floor, v_0 * (1.0f - kV0Reduction * subAmount));
+
+       // mu_s gap widen (architecture §457 line 468 verbatim).
+       const float gap = mu_s - mu_d;
+       mu_s = mu_d + gap * (1.0f + kGapWiden * subAmount);
+
+       // Schelleng F_max ceiling (architecture line 470). Mu_gap from POST-bias
+       // mu_s for accurate post-bias wedge computation.
+       const float muGapPost = mu_s - mu_d;
+       F_bow = std::min (F_bow, kFmaxScalar * schellengFmax (beta, v_b, muGapPost));
+
+       // stringIdx ignored at v1.0 (CONTEXT rev-7 Q11 per-string variation deferred).
+       (void) stringIdx;
+   }
+
+   } // namespace ouaricon::contrabass::sub_harmonics
+   ```
+
+2. **Stage the new header** (do NOT commit yet — R35 atomic):
+   ```bash
+   git add plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h
+   git status   # should show 1 new file staged
+   ```
+
+3. **Verify CMake picks up the header.** Phase 2.4a precedent (`SchellengCalibration.h`) showed CMakeLists.txt globbing or explicit listing already covers `Source/DSP/*.h`; confirm:
+   ```bash
+   grep -n "Source/DSP/" plugins/O-Contrabass/CMakeLists.txt
+   ```
+   If `Source/DSP/SubHarmonicBias.h` requires explicit listing alongside `Source/DSP/SchellengCalibration.h` / `DispersionFilter.h`, append it. Otherwise (header-only `#include` from BowedContrabassVoice.cpp adds it transparently), no CMakeLists edit needed. Phase 2.4a precedent: NO CMakeLists edit was required (SchellengCalibration.h consumed via #include only). Same expected for Phase 2.4b.
+
+**Files created:**
+- `plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h` (NEW; ~120 LOC; HR-5-mirror `inline constexpr` + `inline` linkage; HR-10 friction-module-ABI-preserving signature).
+
+**Files modified:** none (CMakeLists conditional — only if Phase 2.4a SchellengCalibration.h required explicit listing, which it didn't).
+
+**Commit:** **NONE** — 1 new file staged for R35 atomic.
+
+**Success bar:**
+- [ ] `Source/DSP/SubHarmonicBias.h` authored verbatim per RESEARCH §18.9.
+- [ ] Header `#pragma once` guarded; `inline constexpr` on coefficients + `inline` on `schellengFmax` / `applyBias`.
+- [ ] Namespace `ouaricon::contrabass::sub_harmonics` mirrors `ouaricon::contrabass::schelleng` Phase 2.4a precedent.
+- [ ] Coefficients verbatim: `kForceBoost = 0.8f`, `kV0Reduction = 0.5f`, `kGapWiden = 0.25f`, `kFmaxScalar = 0.95f`, `kV0Floor = 0.005f`.
+- [ ] Function signature verbatim: `applyBias(float subAmount, int stringIdx, float v_b, float beta, float safeDepth, float& F_bow, float& v_0, float& mu_s, float mu_d) noexcept`.
+- [ ] File staged.
+
+**Estimated effort:** 20 min (author + paste from RESEARCH §18.9 + sanity check + stage).
+
+---
+
+### R35d — `BowedContrabassVoice` integration: Step 2.5 + subHarmonicsSmoothed + lastSubAmount + voiceBowForceUpliftThisBlock + HR-10 friction pushes
+
+**Per RESEARCH §18.15 Step 2.5 pseudo-code + HR-9 short-circuit + HR-10 friction module ABI preservation. NO friction module edits (modules/synthesis/bow-friction/ untouched per HR-10).**
+
+**Tasks:**
+
+1. **`Source/BowedContrabassVoice.h` — add 3 new private members + 1 accessor (~+5 LOC).**
+
+   In the modulator-surface block (Phase 2.3 `private:` lines 119–155 region), append:
+   ```cpp
+   // Phase 2.4b sub-harmonic bias state (HR-9 + HR-10).
+   juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> subHarmonicsSmoothed;
+   std::atomic<float> lastSubAmount { 0.0f };          // instrumentation atom (mirrors lastSafeDepth)
+   float              voiceBowForceUpliftThisBlock { 1.0f };  // HR-9 reset each block; consumed at Step 6
+   ```
+
+   Add public accessor (mirrors Phase 2.3 `getLastSafeDepth()` precedent):
+   ```cpp
+   float getLastSubAmount() const noexcept { return lastSubAmount.load (std::memory_order_relaxed); }
+   ```
+
+2. **`Source/BowedContrabassVoice.cpp` — `prepareToPlay` initialisation (~+3 LOC).**
+
+   Insert after the existing `macroSmoothed.setCurrentAndTargetValue(0.0f)` line (Phase 2.3 R28):
+   ```cpp
+   subHarmonicsSmoothed.reset (sampleRate, 0.030);                // 30 ms ramp time per CONTEXT rev-7 Q30
+   subHarmonicsSmoothed.setCurrentAndTargetValue (0.0f);          // HR-9 strict-default precondition
+   voiceBowForceUpliftThisBlock = 1.0f;                            // HR-9 reset
+   ```
+
+3. **`Source/BowedContrabassVoice.cpp` — Step 2.5 insertion (~+30 LOC).**
+
+   In `renderNextBlock` (Phase 2.3 7-step layout lines 277–330), at the very top of the function (BEFORE Step 1 raw APVTS reads), reset the uplift factor:
+   ```cpp
+   voiceBowForceUpliftThisBlock = 1.0f;                            // HR-9 reset BEFORE Step 2.5
+   ```
+
+   In Step 1 (raw APVTS atomic reads block), add:
+   ```cpp
+   const float rawSubHarmonics = parameters.getRawParameterValue ("SUB_HARMONICS")->load (std::memory_order_relaxed);
+   ```
+
+   Insert **Step 2.5** between the existing Step 2 (Schelleng wedge ending at `lastSafeDepth.store(...)`) and Step 3 (slow-LFO phase advance):
+   ```cpp
+   // ─────────────────────────────────────────────────────────────────────
+   // Step 2.5 — Sub-harmonic bias (Phase 2.4b R35d).
+   // HR-9: at subAmount=0.0f or non-active-string, bias path is BIT-EXACTLY no-op.
+   // HR-10: friction module ABI preserved via existing setRosin / setStaticFrictionCoefficient
+   //        setters; no module v1.0.0 surface change.
+   // ─────────────────────────────────────────────────────────────────────
+   subHarmonicsSmoothed.setTargetValue (rawSubHarmonics);          // pin #11 UNCONDITIONAL
+   const float subAmount = subHarmonicsSmoothed.getNextValue();
+   subHarmonicsSmoothed.skip (juce::jmax (0, numSamples - 1));     // pin #7 jmax guard
+
+   lastSubAmount.store (0.0f, std::memory_order_relaxed);           // HR-9 pre-gate (mirrors HR-4)
+
+   if (subAmount != 0.0f && activeStringIndex >= 0 && activeStringIndex < 4)
+   {
+       const float v_b_voice  = bowModel.getBowVelocity();
+       const float beta_v     = juce::jlimit (0.02f, 0.25f, rawBowPos);
+       float       v_0_pre    = 0.1f * std::exp (-4.6f * rawRosin);          // ROSIN→v_0 forward map
+       float       mu_s_pre   = 0.85f;                                       // bass default
+       constexpr float mu_d_const = 0.25f;                                   // bass default
+       float       F_bow_pre  = rawBowPressure * (0.5f + 1.5f * mpePressureBlockEntry);
+
+       const float safeDepthSub = ouaricon::contrabass::schelleng::safeDepthForString (
+           activeStringIndex, rawBowSpeed, rawBowPressure, beta_v);
+
+       ouaricon::contrabass::sub_harmonics::applyBias (
+           subAmount, activeStringIndex, v_b_voice, beta_v, safeDepthSub,
+           F_bow_pre, v_0_pre, mu_s_pre, mu_d_const);
+
+       // HR-10 push v_0 via ROSIN inverse algebraic identity.
+       const float rosinEq = juce::jlimit (
+           0.0f, 1.0f,
+           -std::log (10.0f * juce::jmax (1.0e-6f, v_0_pre)) / 4.6f);
+       frictionModel.setRosin (rosinEq);
+       frictionModel.setStaticFrictionCoefficient (mu_s_pre);
+
+       // F_bow uplift factor consumed at Step 6.
+       voiceBowForceUpliftThisBlock = F_bow_pre / juce::jmax (1.0e-6f, rawBowPressure);
+
+       // Instrumentation atom.
+       lastSubAmount.store (subAmount, std::memory_order_relaxed);
+   }
+   ```
+
+   `mpePressureBlockEntry` is the block-entry MPE pressure value per pin #7 — sampled once at the same place Step 7's per-sample MPE pressure is sampled (typically `currentlyPlayingNote.pressure.asUnsignedFloat()` at the active voice). At v1.0, if `mpePressure` isn't already cached at block entry, add a single block-entry read at the top of `renderNextBlock` (before Step 2.5).
+
+4. **`Source/BowedContrabassVoice.cpp` — Step 6 modification (~−1/+1 LOC at line ~377).**
+
+   Locate the existing Step 6 expression `effectiveBowPressure * (0.5f + mpePressure * 1.5f)` and modify ONLY by multiplying by `voiceBowForceUpliftThisBlock`:
+   ```cpp
+   // BEFORE Phase 2.4b:
+   //   bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f));
+   // AFTER Phase 2.4b (HR-9 path: voiceBowForceUpliftThisBlock = 1.0f → bit-exact preserved):
+   bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f) * voiceBowForceUpliftThisBlock);
+   ```
+
+   At HR-9 path the factor is 1.0f (IEEE 754 identity) → byte-exact regression preserved. At biased path the factor scales pressure correctly.
+
+5. **`Source/BowedContrabassVoice.cpp` — `frictionModel.setRosin(rosin)` at line 647 (~+1 conditional).**
+
+   The existing line `frictionModel.setRosin(rosin);` runs unconditionally from rawRosin per Phase 2.3. With HR-10 in effect, this still runs — the bias path's `frictionModel.setRosin(rosinEq)` overwrites it earlier in Step 2.5 (Step 2.5 runs BEFORE the line at 647, which is in Step 6/7 territory; the order in the existing source is `Step 2.5 setRosin(rosinEq) → Step 7's setRosin(rawRosin)` — this would clobber the bias).
+
+   **CRITICAL ordering decision:** Step 7 / line 647 setRosin must NOT clobber the bias-pushed rosinEq. Two options:
+   - **Option A (recommended):** move the existing `frictionModel.setRosin(rawRosin)` call BEFORE Step 2.5 (so bias-side `setRosin(rosinEq)` overwrites for the biased path). At HR-9 path the original `setRosin(rawRosin)` runs alone → byte-exact.
+   - **Option B:** guard the line-647 call with `if (subAmount == 0.0f) frictionModel.setRosin(rawRosin);` — protects bias path but adds a branch on the bit-exact path.
+
+   **Plan-phase pin: Option A.** Move `frictionModel.setRosin(rawRosin)` to immediately BEFORE Step 2.5 entry. This way:
+   - HR-9 path: `setRosin(rawRosin)` runs; Step 2.5 short-circuits (no second setRosin call); `frictionModel` ends block with `rosin=rawRosin` exactly as Phase 2.4a → bit-exact preserved.
+   - Bias path: `setRosin(rawRosin)` runs first; then Step 2.5's else-branch overwrites with `setRosin(rosinEq)` → friction model ends block with biased rosin.
+
+   Line 647's existing `setRosin` site becomes the relocated line; the original line 647 becomes a no-op or is deleted (delete it; no need for placeholder).
+
+   **Net diff:**
+   - Line ~205 (`prepareToPlay`): unchanged (`mu_s = 0.85f`, `mu_d = 0.25f` setters carry-forward).
+   - Line ~277 (Step 1 raw reads): add `const float rawSubHarmonics = ...`.
+   - Move existing `frictionModel.setRosin(rawRosin)` from line ~647 to immediately before Step 2.5 entry (~line 320 region).
+   - Line ~330 (after Step 2 `lastSafeDepth.store(...)`): insert Step 2.5 (~30 LOC).
+   - Line ~377 (Step 6 setBowPressure call): multiply by `voiceBowForceUpliftThisBlock`.
+   - Line ~647 (old setRosin site): delete (relocated above).
+
+6. **Build:**
+   ```bash
+   cmake --build build --target O-Contrabass --parallel
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+   Expect a clean build with zero warnings. If warnings or errors surface (e.g., `safeDepthForString` namespace mismatch, unused `stringIdx`), debug.
+
+7. **R35-pre invoke `preflight-subharm.sh`** (HR-9 spectral pre-flight gate):
+   ```bash
+   bash plugins/O-Contrabass/tests/render-harness/preflight-subharm.sh
+   ```
+   - **STRICT-PASS** (exit 0; subharmEnergyRatio ≥ 0.40): proceed to R35b.
+   - **SOFT-PASS** (exit 0; subharmEnergyRatio ∈ [0.30, 0.40)): proceed to R35b but log Phase 2.4-bis remediation flag.
+   - **HARD-FAIL** (exit 1; subharmEnergyRatio < 0.30): STOP, retune `kForceBoost` 0.8 → 0.4 in `Source/DSP/SubHarmonicBias.h`, rebuild, re-invoke `preflight-subharm.sh`. If 0.4 also fails, escalate to Phase 2.4-bis chaos detector OR threshold relaxation BEFORE R35 atomic commit.
+
+8. **Stage the source changes** (do NOT commit yet — R35 atomic):
+   ```bash
+   git add plugins/O-Contrabass/Source/BowedContrabassVoice.h \
+           plugins/O-Contrabass/Source/BowedContrabassVoice.cpp
+   git status
+   ```
+
+**Files created:** none (SubHarmonicBias.h created in R35c).
+
+**Files modified:**
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` (~+5 LOC: 3 new members + 1 accessor).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` (~+30 LOC: Step 2.5 + ROSIN inverse + frictionModel setters + voiceBowForceUpliftThisBlock; ~−1 LOC: relocated setRosin line; ~+1 LOC: Step 6 multiplication).
+
+**Commit:** **NONE** — staged for R35 atomic.
+
+**Success bar:**
+- [ ] BowedContrabassVoice.h has 3 new members + 1 accessor.
+- [ ] prepareToPlay initialises subHarmonicsSmoothed to 0.0 with 30 ms ramp + voiceBowForceUpliftThisBlock to 1.0.
+- [ ] Step 2.5 inserted between Step 2 and Step 3 with HR-9 short-circuit + HR-10 friction module pushes.
+- [ ] Step 6 setBowPressure multiplied by voiceBowForceUpliftThisBlock.
+- [ ] frictionModel.setRosin call relocated to BEFORE Step 2.5 entry (line 647 site removed).
+- [ ] Plugin + harness build clean zero warnings.
+- [ ] `preflight-subharm.sh` returns exit 0 (STRICT-PASS or SOFT-PASS).
+
+**Estimated effort:** 90 min (header edits + .cpp edits + build + preflight-subharm + debug if needed).
+
+---
+
+### R35e — Bit-exact regression bar verification
+
+**No source edits committed; verification step. Re-runs `reproduce-goldens.sh` post-source-edit; confirms 10 carry-forward goldens byte-identical (HR-9 IEEE 754 identity arithmetic + active-string-only gate).**
+
+**Tasks:**
+
+1. **Run `reproduce-goldens.sh` (10-golden tripwire):**
+   ```bash
+   bash plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+   ```
+   **All 10 must PASS** byte-identical. If any FAIL, STOP — investigate per RESEARCH §18.14 Risk #1 diagnostic-on-fail playbook:
+   - **HR-9 audit:** confirm Step 2.5 short-circuit at `subAmount == 0.0f`; confirm `subHarmonicsSmoothed.setCurrentAndTargetValue(0.0f)` in prepareToPlay; confirm SUB_HARMONICS APVTS default 0.0; confirm `voiceBowForceUpliftThisBlock` reset to 1.0f at top of `renderNextBlock`.
+   - **HR-10 audit:** confirm relocated `frictionModel.setRosin(rawRosin)` runs at HR-9 path (Step 2.5's else-branch never executes); confirm Step 7 / per-sample loop sees `rosin = rawRosin` exactly.
+   - **Step 6 audit:** confirm `voiceBowForceUpliftThisBlock = 1.0f` IEEE 754 identity (`x * 1.0f = x` exact).
+   - **Active-string-only audit:** confirm `activeStringIndex < 0` short-circuit fires at note-off / pre-attack (no spurious bias evaluation when no string is active).
+   - **Last resort:** isolate `SubHarmonicBias.h` to a separate translation unit (rare; trigger if header inlining surfaces ODR pathology) OR roll back Step 2.5 to verify the issue.
+
+2. **Re-render `--matrix-stability` for Phase 2.4a evidence golden carry-forward:**
+   ```bash
+   $HARNESS --matrix-stability \
+            --out /tmp/phase24b-r35e/matrix-stability.wav \
+            --json /tmp/phase24b-r35e/matrix-stability.json
+   computed=$(shasum -a 256 /tmp/phase24b-r35e/matrix-stability.wav | awk '{print $1}')
+   expected=$(awk '{print $1}' plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256)
+   [ "$computed" = "$expected" ] && echo "[PASS] matrix-stability $computed" \
+                                 || echo "[FAIL] regression"
+   ```
+   **Expected:** `6db6770727ab3b433a036f487217bbde70f8cc15de44fa60ac0b99d868176449`. HR-9 short-circuit fires across all 108 combos (SUB_HARMONICS=0 throughout the matrix-stability harness mode); HR-7 wedge-math bypass continues to fire for Phase 2.4a calibration coverage; bit-exact regression preserved.
+
+3. **Audit log to PLAN-execution-log:**
+   ```text
+   R35e regression bar audit (10 carry-forward + 1 evidence):
+   [PASS] stiffness-zero-pre  d358abcd…
+   [PASS] string-A            c6755aa4…
+   [PASS] string-D            765b015e…
+   [PASS] string-G            0cd5cb0a…
+   [PASS] detune-sweep-A      5e31dad3…
+   [PASS] note-sequence       3ac3ccd0…
+   [PASS] vibrato             d7881ecf…
+   [PASS] macro-sweep         c2571dd9…
+   [PASS] slow-lfo            c0c2c893…
+   [PASS] schelleng-stress    9d18da86…
+   [PASS] matrix-stability    6db67707…  (Phase 2.4a evidence carry-forward)
+   ```
+
+**Files created:** none.
+
+**Files modified:** none.
+
+**Commit:** **NONE** — verification step.
+
+**Success bar:**
+- [ ] `reproduce-goldens.sh` reports `OK: all 10 goldens reproduce byte-identical` (still 10 at this point — pin #3 extension to 12 is staged in R35a but the script body's `OK: all 12` line update lands with R35a's stage; the iteration loop diff vs committed has a known +2 entries that ALSO need to PASS for the script to print `all 12 …`; sequencing pin: extend the INVOC array in R35a, but only AFTER R35d wires bias the new `--sub-harmonics` + `--sub-harmonics-stability` invocations PASS — so R35e is the gating step where the 12-entry script reports `OK: all 12 reproduce byte-identical`).
+- [ ] `matrix-stability.wav` sha256 matches Phase 2.4a `6db67707…` carry-forward.
+- [ ] R35e audit log compiled.
+
+**Sequencing clarification on `reproduce-goldens.sh`:** R35a stages the script's INVOC array extension (10 → 12 entries). R35b populates the 2 new goldens. R35e is the FIRST execution where all 12 entries can succeed. Until R35b runs, the 2 new entries' `expected` sha256s don't exist. So R35a's stage commits the 12-entry array; R35b's stage commits the 2 new sha256 files; R35e is the FIRST verification step that runs the 12-entry script with both halves of the contract present.
+
+**Estimated effort:** 15 min (run script + matrix-stability re-render + audit log).
+
+---
+
+### R35f — auval + pluginval-10
+
+**No source edits; standard Gate 6b invariant 4 audit (mirrors Phase 2.4a R34h precedent).**
+
+**Tasks:**
+
+1. **Build production plugin (Release VST3 + AU):**
+   ```bash
+   cmake --build build --target O-Contrabass_VST3 O-Contrabass_AU --parallel
+   ```
+   Expect zero warnings.
+
+2. **Clear macOS AU cache + install fresh:**
+   ```bash
+   killall -9 AudioComponentRegistrar 2>/dev/null || true
+   rm -rf ~/Library/Caches/AudioUnitCache/
+   rm -rf ~/Library/Caches/com.apple.audiounits.cache
+   rm -rf ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3
+   rm -rf ~/Library/Audio/Plug-Ins/Components/O-Contrabass.component
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/VST3/O-Contrabass.vst3 \
+       ~/Library/Audio/Plug-Ins/VST3/
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/AU/O-Contrabass.component \
+       ~/Library/Audio/Plug-Ins/Components/
+   ```
+
+3. **auval audit:**
+   ```bash
+   auval -a | grep -i contrabass
+   # Expect: "Ouar  OBass - Ouaricon: O-Contrabass"
+   auval -v aumu OBass Ouar
+   # Expect: "AU VALIDATION SUCCEEDED"
+   ```
+
+4. **pluginval level 10 audit:**
+   ```bash
+   pluginval --strictness-level 10 --validate-in-process \
+       ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3
+   # Expect: "ALL TESTS PASSED" / "Plugin valid"
+   ```
+
+5. **Audit log to PLAN-execution-log:**
+   ```text
+   R35f auval / pluginval audit:
+   auval AU VALIDATION SUCCEEDED              [PASS]
+   pluginval --strictness-level 10 SUCCESS    [PASS]
+   ```
+
+**Files created:** none.
+
+**Files modified:** none.
+
+**Commit:** **NONE** — verification step.
+
+**Success bar:**
+- [ ] Production plugin builds clean zero warnings.
+- [ ] AU cache cleared; fresh install succeeded.
+- [ ] auval reports `AU VALIDATION SUCCEEDED`.
+- [ ] pluginval --strictness-level 10 reports `SUCCESS`.
+
+**Estimated effort:** 20 min (build + cache clear + install + auval + pluginval).
+
+---
+
+### R35 — Atomic commit (Gate 6b PASS)
+
+**Single git commit lands all R35a–R35f staged files. Continues R7 → R15 → R20 → R26 → R33 → R34 → **R35** sequence.**
+
+**Tasks:**
+
+1. **Confirm staged files match expected manifest:**
+   ```bash
+   git status
+   # Expect ~14 staged files:
+   # plugins/O-Contrabass/Source/BowedContrabassVoice.h                                       (modified)
+   # plugins/O-Contrabass/Source/BowedContrabassVoice.cpp                                     (modified)
+   # plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h                                        (new)
+   # plugins/O-Contrabass/tests/render-harness/main.cpp                                       (modified)
+   # plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh                           (modified)
+   # plugins/O-Contrabass/tests/render-harness/preflight-subharm.sh                           (new)
+   # plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.wav.sha256                (new)
+   # plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json                      (new)
+   # plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json.sha256               (new)
+   # plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.wav.sha256      (new)
+   # plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json            (new)
+   # plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json.sha256     (new)
+   # plugins/O-Contrabass/.planning/STATUS.md                                                 (modified, R35 fields)
+   # plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md                                       (modified, this rev-9 append + verify-phase footnote optional)
+   # plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md                                    (modified, execute append)
+   ```
+
+2. **Commit message body** (per RESEARCH §18.13 footnote template + Phase 2.4a R34 precedent):
+
+   ```
+   feat(O-Contrabass): Phase 2.4b sub-harmonic bias DSP-07 (architecture §457) + 36-combo stability matrix - Gate 6b PASS
+
+   Implements ARCHITECTURE.md §457 sub-harmonic bias verbatim — friction-junction
+   parameter biasing on F_bow / v_0 / mu_s − mu_d toward Schelleng F_max regime
+   to induce period-doubling f0/2 spectral content as a musical bass-extension
+   feature on the SUB_HARMONICS APVTS knob (Float [0, 1] default 0.0).
+
+   Gate 6b 5-invariant audit:
+   1. reproduce-goldens.sh — 10 carry-forward goldens byte-identical (HR-9 IEEE
+      754 identity arithmetic + active-string-only gate guarantee preserved)
+   2. --sub-harmonics — pass_subharmAudible PASS (subharmEnergyRatio ≥ 0.40 strict
+      / [0.30, 0.40) soft within v1.0 budget per RESEARCH §18.6)
+   3. --sub-harmonics-stability — pass_all_36 = true OR failCount ≤ 2 v1.0 budget
+   4. auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS
+   5. matrix-stability — 6db67707… byte-identical (Phase 2.4a evidence carry-forward)
+
+   Implementation:
+   - Source/DSP/SubHarmonicBias.h (NEW) — header-only inline namespace
+     ouaricon::contrabass::sub_harmonics; coefficients architecture §457 verbatim
+     (kForceBoost=0.8, kV0Reduction=0.5, kGapWiden=0.25, kFmaxScalar=0.95);
+     applyBias() mutates F_bow/v_0/mu_s in-place; mu_d const-by-value; HR-9 caller-side
+     short-circuit; HR-10 friction module ABI preserved (no module v1.0.0 edits).
+   - F_bow uplift scaled by Phase 2.4a SchellengCalibration safeDepth per RESEARCH
+     §18.4: stable cells (105/108) → full 1.8× uplift (architecture default);
+     fallback cells (3/108) → 1.4× uplift (auto-applies architecture §661 fallback
+     1 retune). v_0 + mu_s preserve architecture §457 verbatim (NOT safeDepth-scaled).
+   - BowedContrabassVoice.{h,cpp} — Step 2.5 inserted between Step 2 (Schelleng wedge)
+     and Step 3 (slow-LFO phase advance); subHarmonicsSmoothed (30 ms ramp);
+     lastSubAmount instrumentation atom; voiceBowForceUpliftThisBlock factor
+     consumed at Step 6 setBowPressure call (HR-9: 1.0f at default → bit-exact
+     regression preserved). frictionModel.setRosin(rawRosin) relocated to BEFORE
+     Step 2.5 (preserves bit-exact at HR-9 path; bias path overwrites with rosinEq
+     via inverse algebraic identity rosinEq = -ln(10·v_0_biased)/4.6f).
+   - tests/render-harness/main.cpp — --sub-harmonics + --sub-harmonics-stability
+     CLI flags + juce::dsp::FFT size 65536 Hann-windowed analyser per RESEARCH
+     §18.5 (3-bin energy windows at f0=41.2 Hz / f0/2=20.6 Hz; subharmEnergyRatio
+     + subharmPeakOverFloor diagnostic).
+   - tests/render-harness/reproduce-goldens.sh — extended from 10 → 12 goldens.
+   - tests/render-harness/preflight-subharm.sh (NEW) — spectral pre-flight gates
+     R35 atomic per HR-9 escalation contract (RESEARCH §18.6).
+
+   Phase 2.4b Sub-Harmonic Bias DSP-07 — chaos detector + softClampState deferral
+   ─────────────────────────────────────────────────────────────────────────────
+
+   This commit ships ARCHITECTURE.md §457 sub-harmonic bias verbatim with the
+   following architecture-spec'd deferments to Phase 2.5/2.6:
+
+   1. Chaos detector (architecture §457 line 476 "optional"):
+      "Optional control-rate (~100 Hz) check: lag-2 RMS > lag-1 RMS *and*
+      non-periodic → back off bias by 20%."
+      Deferred — v1.0 relies on Schelleng F_max clamp (architecture line 470,
+      kFmaxScalar=0.95) + algebraic saturator (x/sqrt(1+x²) per architecture
+      §"Master Saturator") + bridge filter loop-gain ceiling 0.9999999
+      (architecture §"Bridge Filter") as layered stability defences. Reopen
+      in Phase 2.5/2.6 if 36-combo --sub-harmonics-stability matrix surfaces
+      any failing combo at the 0.5 fallback safeDepth.
+
+   2. softClampState energy clamp (ROADMAP §Phase 2.4 deliverable, threshold
+      0.85 ceiling 1.0):
+      Deferred — current architecture-spec'd algebraic saturator covers the
+      role at v1.0; energy clamp adds redundancy without measured benefit at
+      default operating points. Reopen in Phase 2.5/2.6 alongside body
+      resonator integration where peak amplitudes can compound.
+
+   3. Phase 2.4-bis backlog items (carry-forward from Phase 2.4a R34 commit
+      body, NOT addressed in this commit):
+      - Tune Step 4 modulation gain to hit 20% peak-to-peak OR refine
+        breathingAudible per-cycle metric.
+      - Reduce 3 v1.0 fallback cells via downstream-defense tightening.
+
+   Both deferments preserve architecture intent without amending
+   ARCHITECTURE.md (per discuss-phase Q33). Phase 2.4c (autocorrelator +
+   saturator-tail O-Bowed comparison) gets fresh CONTEXT rev-8 when its
+   discuss-phase opens after Phase 2.4b verifies (Gate 6b PASS).
+
+   NO Stage-1 contract amendment (parameter-spec.md sha256 77638e25… unchanged;
+   STATUS.md contract_checksums.parameter_spec carries forward).
+   NO ARCHITECTURE.md amendment (bias formula IS architecture §457 verbatim).
+
+   Continues atomic-commit sequence R7 → R15 → R20 → R26 → R33 → R34 → R35.
+   R37 Logic AU smoke deferred non-blocking (mirrors R32/R27/R19f/R14e precedent).
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   ```
+
+3. **Commit:**
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   feat(O-Contrabass): Phase 2.4b sub-harmonic bias DSP-07 (architecture §457) + 36-combo stability matrix - Gate 6b PASS
+
+   ... (full body above) ...
+   EOF
+   )"
+   ```
+
+4. **Verify:**
+   ```bash
+   git log --stat HEAD~1..HEAD
+   # Expect: ~14 files in single commit; net +~440 LOC source/tooling + 1 new header + 6 new goldens.
+   git log --oneline -1
+   # Expect: <new sha> feat(O-Contrabass): Phase 2.4b sub-harmonic bias DSP-07 ...
+   ```
+
+5. **Capture R35 sha for STATUS.md backfill (R35-backfill chore commit lands separately):**
+   ```bash
+   R35_SHA=$(git log --oneline -1 | awk '{print $1}')
+   echo "R35 atomic commit sha: $R35_SHA"
+   ```
+
+**Files created:** none in this step (all staged from R35a–R35f).
+
+**Files modified:** STATUS.md execute-phase update (next_action / gate_state / phase_2_4b_atomic_commit_sha placeholder / Cycle Scope / Current Position / plan_revision_status), SUMMARY.md "Phase 2.4b execute" append (~20–30 LOC), VERIFICATION.md UNCHANGED at this step (verify-phase appends post-R35).
+
+**Commit:** **YES — R35 atomic commit.** Single commit lands the entire Phase 2.4b cycle.
+
+**Success bar:**
+- [ ] `git status` clean post-commit.
+- [ ] `git log --stat HEAD~1..HEAD` shows ~14 files in single commit.
+- [ ] R35 sha captured for backfill chore.
+- [ ] Commit-body footnote includes chaos detector + softClampState deferral notes per RESEARCH §18.13.
+- [ ] STATUS.md `next_action` flipped to `phase_2_4b_verify` (or `phase_2_4c_discuss` if verify is auto-completed inline).
+- [ ] STATUS.md `gate_state.phase_2_4b_subharmonic_bias_dsp07: PASS_gate_6b_<strict|soft>`.
+
+**Estimated effort:** 30 min (verify staging + author commit body + commit + verify log).
+
+---
+
+### R35-backfill chore — STATUS.md sha propagation
+
+**Separate non-atomic chore commit; mirrors R34-backfill (`b64c8c4`) / R33-backfill / R26 precedent.**
+
+**Tasks:**
+
+1. **Edit STATUS.md `phase_2_4b_atomic_commit_sha` field:**
+   Replace placeholder with R35 sha captured above:
+   ```yaml
+   phase_2_4b_atomic_commit_sha: <R35_SHA>  # R35 atomic commit landed during execute YYYY-MM-DD ...
+   ```
+
+2. **Commit:**
+   ```bash
+   git add plugins/O-Contrabass/.planning/STATUS.md
+   git commit -m "$(cat <<'EOF'
+   chore(O-Contrabass): backfill Phase 2.4b R35 commit sha (<short-sha>) into STATUS.md
+
+   Propagates R35 atomic commit sha into STATUS.md phase_2_4b_atomic_commit_sha
+   field per R34-backfill (b64c8c4) / R33-backfill precedent. Gate 6b CLEARED
+   during execute-phase; this chore commit completes the audit trail without
+   amending the atomic R35 commit body.
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+3. **Verify:**
+   ```bash
+   git log --oneline -2
+   # Expect: <chore sha>  chore(O-Contrabass): backfill Phase 2.4b R35 commit sha ...
+   #         <R35 sha>    feat(O-Contrabass): Phase 2.4b sub-harmonic bias DSP-07 ...
+   ```
+
+**Files created:** none.
+
+**Files modified:**
+- `plugins/O-Contrabass/.planning/STATUS.md` (1 field).
+
+**Commit:** **YES — R35-backfill chore commit (separate from R35 atomic).**
+
+**Success bar:**
+- [ ] STATUS.md `phase_2_4b_atomic_commit_sha` field populated with R35 sha.
+- [ ] Chore commit lands cleanly.
+- [ ] Audit-trail anchored: `git log --grep "Phase 2.4b"` returns 2 commits (R35 + R35-backfill chore).
+
+**Estimated effort:** 10 min (edit + commit + verify).
+
+---
+
+## Why R35 is a single atomic commit
+
+Same gate-first principle as R7 (Phase 2.1a-recovery), R15 (Phase 2.1b extraction), R20 (Phase 2.1c dispersion), R26 (Phase 2.2 4-string bank), R33 (Phase 2.3 modulator + macro), R34 (Phase 2.4a Schelleng calibration):
+
+1. **Coupling:** Phase 2.4b artefacts (`SubHarmonicBias.h` new header + `BowedContrabassVoice.{h,cpp}` Step 2.5 integration + `main.cpp` --sub-harmonics + --sub-harmonics-stability modes + 6 new golden text files + `reproduce-goldens.sh` extension + `preflight-subharm.sh` script + planning artefacts) are mutually coupled. Splitting yields broken intermediate states — e.g., SubHarmonicBias.h landing without the BowedContrabassVoice integration is dead code; harness modes landing without the bias DSP produce baseline subharmEnergyRatio ≈ 0.241 → pass_subharmAudible permanently FAIL; preflight-subharm.sh landing without the harness mode is unrunnable.
+2. **Bisect safety:** if a future Phase 2.x bug bisects back to "sub-harmonic bias landing", a single SHA flips the entire feature.
+3. **Audit trail:** Phase 2.x's atomic-commit sequence is R7 → R15 → R20 → R26 → R33 → R34 → **R35**. The Phase 2.x timeline stays trivially reconstructible from `git log --grep "Phase 2."`.
+4. **No Stage-1 contract amendment:** Phase 2.4b is a pure DSP feature implementation against an already-declared APVTS parameter (`SUB_HARMONICS` at PluginProcessor.cpp:104 carries forward unchanged from Stage-1). parameter-spec.md unchanged, ARCHITECTURE.md unchanged, STATUS.md `contract_checksums.parameter_spec` unchanged at `77638e25…`. Single atomic commit captures the entire implementation cycle without contract churn.
+5. **HR-9 + HR-10 atomic rollback:** if an unforeseen regression bisects to R35, the entire Phase 2.4b feature can be reverted by a single `git revert R35_SHA` — friction module v1.0.0 ABI is preserved, the only changes are caller-side per HR-10. No cross-module fallout.
+
+---
+
+## Files To Create / Modify (consolidated, Phase 2.4b)
+
+### Source (modified)
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` — R35d (~+5 LOC: 3 new private members `subHarmonicsSmoothed` / `lastSubAmount` / `voiceBowForceUpliftThisBlock` + 1 public accessor `getLastSubAmount()`).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` — R35d (~+30 LOC Step 2.5 + ROSIN inverse + frictionModel pushes + voiceBowForceUpliftThisBlock; ~−1 LOC `setRosin(rawRosin)` line 647 deleted (relocated above Step 2.5); ~+1 LOC Step 6 multiplication; ~+1 LOC raw `rawSubHarmonics` read in Step 1; ~+3 LOC `prepareToPlay` initialisation; net ~+34 LOC).
+
+### Source (new)
+- `plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h` — R35c (NEW; ~120 LOC; HR-5-mirror `inline constexpr` + `inline` linkage; HR-10 friction-module-ABI-preserving signature; namespace `ouaricon::contrabass::sub_harmonics`).
+
+### Harness (modified)
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` — R35a (~+265 LOC: --sub-harmonics + --sub-harmonics-stability mode handling + FFT analyser + 36-combo iteration loop + PerComboMetrics extension).
+
+### Reproduction script (modified)
+- `plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh` — R35a (~+10 LOC: extend INVOC array from 10 to 12 entries; trailing diagnostic `OK: all 12 …`).
+
+### Pre-flight script (new)
+- `plugins/O-Contrabass/tests/render-harness/preflight-subharm.sh` — R35-pre (NEW; ~30 LOC; chmod +x; spectral pre-flight gates R35 atomic per HR-9 escalation).
+
+### Test artefacts (new, committed as text-only — sha256 + JSON)
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.wav.sha256` — R35b (NEW).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json` — R35b (NEW; ~3 KB).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.json.sha256` — R35b (NEW).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.wav.sha256` — R35b (NEW; sha256 of 36-combo concatenated WAV).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json` — R35b (NEW; ~30 KB; per-combo + aggregate truth-table).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.json.sha256` — R35b (NEW).
+
+### Test artefacts (NOT committed — staged-only or transient)
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.wav` (~30 MB stereo 24-bit PCM ~3.3 min audio; reproducible from harness via `--sub-harmonics-stability`).
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.wav` (~1 MB; reproducible via `--sub-harmonics`).
+- `/tmp/phase24b-r35pre/*.{wav,json}` (R35-pre tripwire; transient; deleted post-R35).
+- `/tmp/preflight-subharm.{wav,json}` (preflight-subharm.sh output; transient).
+- `/tmp/phase24b-r35a-smoke.{wav,json}` (R35a baseline smoke; transient).
+- `/tmp/phase24b-r35b/*.{wav,json}` (R35b render captures; transient).
+- `/tmp/phase24b-r35e/*.{wav,json}` (R35e regression bar audit; transient).
+
+### Test artefacts (modified, re-baselined)
+- **None.** HR-9 IEEE 754 identity arithmetic preserves bit-exact regression on all 10 carry-forward goldens. NO re-baseline in Phase 2.4b.
+
+### Stage-1 contract amendment
+- **None.** parameter-spec.md unchanged at `77638e25…` (SUB_HARMONICS already declared in Stage 1). STATUS.md `contract_checksums.parameter_spec` carries forward.
+
+### Planning artefacts (modified)
+- `plugins/O-Contrabass/.planning/STATUS.md` — R35 (next_action / gate_state.phase_2_4b_subharmonic_bias_dsp07 / phase_2_4b_verify_outcome / phase_2_4b_atomic_commit_sha placeholder + chore-backfill / Cycle Scope / Current Position / plan_revision / plan_revision_status updates).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` — already at rev-7 (no further edits in execute; rev-7 lock holds).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` — already at §18 append (no further edits in execute).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` — this rev-9 append (no further edits in execute; verify-phase may add a "rev-9 retrospective" footnote if anomalies surfaced).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` — execute-phase appends "Phase 2.4b execute" section after R35.
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — verify-phase appends "Phase 2.4b verify" section with R35e regression bar audit table + R35f auval/pluginval logs + Phase 2.4c discuss prep notes.
+
+### Files explicitly NOT touched
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2 R26-frozen).
+- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` (Phase 2.1c R20-frozen).
+- `plugins/O-Contrabass/Source/DSP/SchellengCalibration.h` (Phase 2.4a R34-frozen; consumed verbatim via `safeDepthForString` lookup).
+- `plugins/O-Contrabass/Source/PluginProcessor.{h,cpp}` (Phase 2.4a R34-frozen at HR-7 weak-symbol surface; SUB_HARMONICS APVTS at line 104 declared in Stage 1, consumed without amendment).
+- `plugins/O-Contrabass/Source/PluginEditor.{h,cpp}` (Stage 3 work).
+- `plugins/O-Contrabass/Source/OContrabassMPESynthesiser.{h,cpp}` (voice count = 1; bias lives inside the existing single voice).
+- `plugins/O-Contrabass/Source/BowModel.{h,cpp}` (Phase 2.1a-frozen; consumed via `getBowVelocity()` accessor only).
+- `modules/synthesis/bow-friction/*` (Phase 2.1b-frozen v1.0.0; HR-10 ABI preservation; `setRosin` + `setStaticFrictionCoefficient` setters consumed without module surface change).
+- `modules/registry.yaml` (no module surface changes).
+- `plugins/O-Bowed/*` (zero cross-plugin coupling; bias is per-plugin per CONTEXT rev-7 Q24).
+- `plugins/O-Contrabass/research/ARCHITECTURE.md` (deferred amendments to end-of-Stage-2 verify; closed-form §"Slow-Bow LFO" / §"DC Blocker" / §"In-loop saturator" stays as conceptual reference; chaos detector + softClampState deferral tracked in R35 commit-body footnote per RESEARCH §18.13).
+- `plugins/O-Contrabass/.planning/parameter-spec.md` (Phase 2.4b does NOT amend Stage-1 contract).
+- `plugins/O-Contrabass/.planning/parameter-spec-draft.md` (historical; audit trail).
+- `plugins/O-Contrabass/.planning/BRIEF.md` / `REQUIREMENTS.md` / `ROADMAP.md` (no SUB_HARMONICS-default-changing references).
+- `plugins/O-Contrabass/.planning/stages/1-foundation/*` (closed milestone).
+- `plugins/O-Contrabass/CMakeLists.txt` (NO new explicit listing required; Phase 2.4a precedent showed `Source/DSP/SchellengCalibration.h` consumed via `#include` only — same expected for `SubHarmonicBias.h`).
+- `tools/schelleng-fit/*` (Phase 2.4a-frozen; Phase 2.4b reuses calibration table via `safeDepthForString`).
+- 10 carry-forward golden text files (HR-9 IEEE 754 identity arithmetic preserves byte-identity; NOT re-baselined).
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.{wav.sha256,json,json.sha256}` (Phase 2.4a evidence carry-forward; HR-9 short-circuit + HR-7 wedge bypass continue to fire byte-exactly).
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-sweep.wav.sha256` (Phase 2.1c-only; not in canonical 10-golden bar).
+
+---
+
+## Dependencies Graph (compact)
+
+```
+R35-pre (working-tree integrity tripwire; reproduce-goldens.sh 10/10 PASS at HEAD
+         b64c8c4; matrix-stability sanity at 6db67707…; preflight-subharm.sh
+         authored + chmod +x + staged for R35 atomic; preflight script invocation
+         deferred to post-R35d build)
+   ↓                ↓ (mismatch → STOP, investigate working-tree drift)
+R35a (main.cpp --sub-harmonics + --sub-harmonics-stability flags + FFT analyser +
+      36-combo iteration loop + PerComboMetrics extension; reproduce-goldens.sh
+      INVOC array extended from 10 → 12 entries; ~+275 LOC across 2 files;
+      NO build dependency on bias DSP — R35a's audible-mode renders return
+      baseline 0.241 ratio; staged for R35 atomic; build smoke validates harness
+      compiles + parses flags but pass_subharmAudible expected FALSE without bias)
+   ↓ pre-R35c smoke: harness builds clean; --sub-harmonics returns subharmEnergyRatio ≈ 0.241
+R35c (Source/DSP/SubHarmonicBias.h authored verbatim per RESEARCH §18.9; HR-5
+      `inline constexpr` linkage; HR-10 friction-module-ABI-preserving signature;
+      ~120 LOC; staged for R35 atomic; NO build dependency on integration —
+      header is unused until R35d wires the call site)
+   ↓
+R35d (BowedContrabassVoice.{h,cpp}: 3 new private members + accessor +
+      prepareToPlay init + Step 2.5 integration + Step 6 multiplication +
+      relocated frictionModel.setRosin(rawRosin); ~+34 LOC across 2 files;
+      build O-Contrabass + O-Contrabass-render-test; staged for R35 atomic)
+   ↓ post-R35d build clean → invoke preflight-subharm.sh
+R35-pre→preflight-subharm (HR-9 escalation gate)
+   ↓ STRICT-PASS or SOFT-PASS              ↓ HARD-FAIL
+                                            ↓ retune kForceBoost 0.8→0.4 in
+                                              SubHarmonicBias.h; rebuild;
+                                              re-invoke preflight-subharm; if
+                                              0.4 also fails, escalate to
+                                              Phase 2.4-bis chaos detector
+R35b (Render --sub-harmonics + --sub-harmonics-stability goldens; capture sha256s;
+      validate pass_subharmAudible + pass_all_36/failCount≤2; sha256 stability
+      smoke; stage 6 new golden text files)
+   ↓ (PASS)              ↓ (FAIL stability — failCount > 2)
+                           ↓ pin #11 escalation: jq triage → fallback-cell cluster
+                             check → kForceBoost retune if needed → re-render
+R35e (reproduce-goldens.sh runs 12-entry; matrix-stability sanity at 6db67707…;
+      audit log compiled; HR-9 + HR-10 audit if 10 carry-forward break)
+   ↓ (PASS)
+R35f (Production build; auval AU VALIDATION SUCCEEDED; pluginval-10 SUCCESS)
+   ↓ (PASS)
+R35 (Phase 2.4b atomic commit — ~14 files; closes 2.4b; mirrors R34/R33/R26/
+     R20/R15/R7 atomic-commit pattern; commit body documents 5-invariant Gate
+     6b audit + chaos detector + softClampState deferral footnote per RESEARCH
+     §18.13 + NO contract amendment + Phase 2.4c follow-up scope)
+   ↓
+R35-backfill chore (separate non-atomic; STATUS.md phase_2_4b_atomic_commit_sha;
+                    matches R34-backfill / R33-backfill precedent)
+```
+
+R35-pre is a strict prerequisite — if working tree drifts, all subsequent bit-exact reasoning breaks. R35a + R35c are independent (harness vs source); R35a's smoke baseline confirms FFT analyser correctness BEFORE bias DSP lands; R35c is pure header authoring. R35d is the integration step — the build dependency is `SubHarmonicBias.h` from R35c. R35-pre's `preflight-subharm.sh` invocation (HR-9 escalation gate) fires BETWEEN R35d and R35b — R35b's golden capture is contingent on the spectral pre-flight returning STRICT-PASS or SOFT-PASS. R35e is the bit-exact regression bar (10 carry-forward + 1 evidence). R35f is the Gate 6b audit. R35 is the gated finisher.
+
+---
+
+## Risks (Phase 2.4b, refreshed from RESEARCH §18.14)
+
+| # | Risk | Current state | Mitigation |
+|---|---|---|---|
+| 1 | HR-9 bit-exact regression failure on 10 carry-forward goldens | **PRE-FLIGHT PASS at HEAD** (RESEARCH §18.1); reproduce-goldens.sh 10/10 byte-identical | HR-9 short-circuit + IEEE 754 identity arithmetic + active-string-only gate are technical defences. R35-pre re-runs `reproduce-goldens.sh` at HEAD; R35e re-runs post-source-edit. If FAIL, isolate per RESEARCH §18.14 Risk #1 diagnostic-on-fail playbook (HR-9 audit / HR-10 audit / Step 6 audit / active-string audit / last-resort isolate SubHarmonicBias.h to separate translation unit OR roll back). |
+| 2 | SchellengCalibration→F_max mapping semantic mismatch | **RESOLVED RESEARCH §18.4** — `effectiveBoost = subAmount · 0.8 · safeDepth` preserves architecture §457 verbatim at stable cells (105/108) + auto-applies architecture §661 fallback 1 retune at fallback cells (3/108) | DISSOLVED. PLAN rev-9 commits §18.9 SubHarmonicBias.h verbatim. |
+| 3 | `pass_subharmAudible` threshold 0.10 too lax | **CONFIRMED LAX RESEARCH §18.3** — baseline at SUB_HARMONICS=0 already returns ratio 0.241; threshold MUST be raised | PLAN rev-9 locks RESEARCH §18.6 thresholds: 0.40 strict / 0.30 soft / <0.30 hard-FAIL. R35-pre invokes `preflight-subharm.sh` post-R35d build; hard-FAIL escalates to `kForceBoost` 0.8→0.4 retune BEFORE R35 atomic commit. |
+| 4 | Period-doubling chaotic regime at SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0 | Layered defences: SchellengCalibration F_max clamp inside bias (§18.4 / §18.9), algebraic saturator, loop-gain ceiling 0.9999999 | Risk reduced. R35b 36-combo `--sub-harmonics-stability` exercises 12 SUB+SUS=high combos (4 strings × 3 SUB ∈ {0,0.5,1.0} × stringIdx-specific MIDI). If any combo NaN/peak>1.0/runaway, pin #11 escalation (jq triage → fallback-cell cluster check → coefficient retune). failCount ≤ 2 v1.0 budget. |
+| 5 | Active-string-only bias under crossfade — audible "switch" mid-note-change | 30 ms `subHarmonicsSmoothed` ramp absorbs discontinuity; HR-9 active-string gate analogous to HR-1 vibrato (Phase 2.3 verified vibrato gates didn't audibly switch); v1.0 doesn't include automated note-transition test | PLAN rev-9 locks `subHarmonicsSmoothed.setCurrentAndTargetValue(0.0f)` in prepareToPlay + `setTargetValue` UNCONDITIONAL each block per Phase 2.3 pin #11. R37 Logic AU smoke (deferred non-blocking) suggests verifying with MIDI 28→33 transition + SUB_HARMONICS=1.0 ramp; if user-confirmed audible click, escalate to Phase 2.4-bis crossfade-aware bias ramp. |
+| 6 | `subHarmonicsSmoothed.setTargetValue` UNCONDITIONAL each block — denormal accumulation | Phase 2.3 macroSmoothed pin #11 precedent | PLAN rev-9 preamble pins UNCONDITIONAL each block; `juce::ScopedNoDenormals` already in place at processBlock entry from Stage 1 (carries forward). |
+| 7 | SUB_HARMONICS default 0.0 audit | All 10 current golden render configs use default SUB_HARMONICS=0 (verified by RESEARCH §18.1 — no source change required, parameter at PluginProcessor.cpp:104 default 0.0; all goldens reproduce byte-identical at HEAD) | DISSOLVED. R35-pre confirms via reproduce-goldens.sh. |
+| 8 | Bias's F_max clamp interaction with HR-4 (Schelleng wedge skip on SLOW_LFO_DEPTH=0) | Bias's F_max clamp via SchellengCalibration is INDEPENDENT of HR-4 wedge gate — read-only lookup, cheap; Step 2.5 fires regardless of `rawSlowLfoDepth` value (bias is independent of slow-LFO) | DISSOLVED. R35b `--sub-harmonics` mode runs at SLOW_LFO_DEPTH=0 default; HR-4 short-circuits wedge math at Step 2; bias's F_max clamp at Step 2.5 fires from §18.9 schellengFmax() helper independently. R35b `--sub-harmonics-stability` 36-combo does NOT vary SLOW_LFO_DEPTH (kept at default 0.0); independence preserved. |
+| 9 | Period-doubling spectral content shifts FFT bin selection | **CONFIRMED at RESEARCH §18.3** — current bin choice (3-bin ±0.5 Hz at f0/2 and f0) captures period-doubling fundamental cleanly; broadband transient sidebands minor at default bow params | Mitigated — RESEARCH §18.5 bin selection locked. R35-pre `preflight-subharm.sh` validates against measured threshold. If post-R35d ratio falls within bin-selection ambiguity (e.g., if peak shifts to bin 33 outside the f0/2 ±0.5 Hz window), escalate to RESEARCH §18.16 #10 (E1-only bin map at v1.0; per-string variants deferred to Phase 2.4-bis). |
+| 10 | R35 atomic commit interaction with R34-backfill chore | R34-backfill chore `b64c8c4` propagated R34 sha; R35 atomic commit lands while R34-backfill is HEAD; R35-backfill chore propagates R35 sha | DISSOLVED. R35-backfill chore commit follows R35 atomic commit per R34-backfill / R33-backfill / R26 precedent. |
+| 11 | `kForceBoost = 1.8` cap matches architecture §1.3 default | Bias formula `F_bow *= 1.0f + 0.8f * subAmount` produces F_bow×1.8 at subAmount=1.0 — matches kForceBoost cap | RESOLVED RESEARCH §18.4 — `kForceBoost` is the 0.8 coefficient (NOT a separate constant); architecture §661 fallback 1 (kForceBoost 1.8 → 1.4) maps to coefficient 0.8 → 0.4 in SubHarmonicBias.h. PLAN rev-9 hard-FAIL escalation contract lands at coefficient 0.4. |
+| 12 | Phase 2.4-bis backlog crowding | RESEARCH §18.4 mapping uses `safeDepth` to AUTOMATICALLY apply architecture §661 fallback 1 retune at the 3 fallback cells — bypasses the crowding concern at v1.0 | Risk reduced. If Gate 6b reveals additional fallback-cell intersection problems, escalation lane is Phase 2.4-bis post-2.4b verify. PLAN rev-9 commits Phase 2.4-bis backlog continuation in R35 commit-body footnote per RESEARCH §18.13. |
+| 13 | **NEW (RESEARCH §18.14)** — friction module ABI preservation under v_0 mutation | Q24 says module v1.0.0 untouched; bias mutates v_0 by reference but caller pushes via ROSIN inverse algebraic identity (HR-10) | Mitigated — RESEARCH §18.10 documents `rosinEq = -ln(10·v_0_biased)/4.6f` inverse; ~30 ns per block; clamped `[0,1]` for safety. Friction module surface unchanged. R35e reproduce-goldens.sh confirms HR-10 path preserves bit-exact regression at HR-9 short-circuit. |
+| 14 | **NEW (RESEARCH §18.14)** — bias's mu_s push interacts with idle/crossfade-shadow strings | All 4 strings share single frictionModel instance; idle strings' processSample(0,0,frictionModel) sees mutated mu_s but excitation is 0 → no audible effect; crossfade-shadow string's 5 ms decay sees mutated mu_s but ramp absorbs discontinuity | Mitigated — architectural correctness preserved per RESEARCH §18.10. PLAN rev-9 preamble pins Step 2.5 ordering: bias state push to frictionModel happens ONCE per block AFTER Step 2.5, BEFORE Step 6 per-sample loop; all 4 strings consume biased state consistently for that block. |
+| 15 | **NEW** — sha256 stability across re-renders for 36-combo concatenated WAV | Phase 2.4a Risk #13 carry-forward; matrix-stability state-bleed concern revisited at smaller scale | R35b smoke step re-renders `--sub-harmonics-stability` and confirms sha256 matches first invocation. If FAIL, instrument `releaseResources()` between combos (Phase 2.4a R34a precedent). Mitigation: explicit `processor.releaseResources(); processor.prepareToPlay(...)` between combos in `runSubHarmonicsStabilityMode()`. |
+| 16 | **NEW** — Step 6 multiplication by `voiceBowForceUpliftThisBlock` may interact with Phase 2.3 macro layer | Step 6 expression is `effectiveBowPressure * (0.5f + mpePressure * 1.5f) * voiceBowForceUpliftThisBlock`; macro layer applied at Step 5 already; uplift is a multiplicative scalar applied AFTER macro | At HR-9 path uplift = 1.0f (IEEE 754 identity) → bit-exact preserved. At biased path uplift scales pressure POST-macro — desired behaviour (architecture §457 specifies bias on F_bow regardless of macro). If user surfaces unexpected interaction (e.g., EXPRESSION_MACRO + SUB_HARMONICS combined produces inflection), document in Phase 2.4-bis. PLAN rev-9 commits this ordering as the locked behaviour. |
+| 17 | **NEW** — `mpePressureBlockEntry` snapshot may not exist as a named variable at line ~377 in current source | Pin #7 sampling specifies block-entry MPE pressure (not per-sample); current source reads MPE per-sample inside Step 7 loop | At R35d implementation, add a single block-entry MPE pressure read at `renderNextBlock` entry: `mpePressureBlockEntry = currentlyPlayingNote.pressure.asUnsignedFloat();` (or equivalent accessor). This is a 1-line addition; per-sample MPE inside Step 7 carries forward unchanged. PLAN rev-9 commits the variable-name pin: `mpePressureBlockEntry`. |
+
+---
+
+## Success Criteria (Gate 6b — Phase 2.4b verify exit gate)
+
+- [ ] **R35-pre** — Working-tree integrity tripwire: `reproduce-goldens.sh` reports `OK: all 10 goldens reproduce byte-identical`; `matrix-stability.wav` sha256 matches `6db67707…`; `preflight-subharm.sh` authored + `chmod +x` + staged for R35.
+- [ ] **R35a** — `tests/render-harness/main.cpp` `--sub-harmonics` + `--sub-harmonics-stability` CLI flags + FFT analyser per RESEARCH §18.5 + 36-combo iteration loop per §18.7. `PerComboMetrics` extended with `subHarmonics` + `lastSubAmount` fields. `reproduce-goldens.sh` INVOC array extended from 10 to 12 entries. Smoke at HEAD post-R35a (no bias DSP yet): `--sub-harmonics` reports `subharmEnergyRatio ≈ 0.241` (RESEARCH §18.3 baseline measurement); `--sub-harmonics-stability` reports `pass_all_36 = true`.
+- [ ] **R35c** — `Source/DSP/SubHarmonicBias.h` authored verbatim per RESEARCH §18.9. Header `#pragma once`-guarded; `inline constexpr` on coefficients; `inline` on `schellengFmax` + `applyBias`; namespace `ouaricon::contrabass::sub_harmonics`. Coefficients verbatim: `kForceBoost = 0.8f`, `kV0Reduction = 0.5f`, `kGapWiden = 0.25f`, `kFmaxScalar = 0.95f`, `kV0Floor = 0.005f`. Function signature verbatim: `applyBias(float subAmount, int stringIdx, float v_b, float beta, float safeDepth, float& F_bow, float& v_0, float& mu_s, float mu_d) noexcept`.
+- [ ] **R35d** — `BowedContrabassVoice.h` 3 new private members + 1 accessor + `voiceBowForceUpliftThisBlock`. `BowedContrabassVoice.cpp` `prepareToPlay` initialisation + Step 2.5 inserted between Step 2 and Step 3 + Step 6 multiplication by uplift factor + relocated `frictionModel.setRosin(rawRosin)` to BEFORE Step 2.5. HR-9 + HR-10 visually traceable in code. Plugin + harness build clean zero warnings.
+- [ ] **R35-pre→preflight-subharm.sh** — HR-9 escalation gate: STRICT-PASS (`subharmEnergyRatio ≥ 0.40`) OR SOFT-PASS (`[0.30, 0.40)` within v1.0 budget); HARD-FAIL (`< 0.30`) STOPs and triggers `kForceBoost` 0.8→0.4 retune.
+- [ ] **R35b invariant (1)** — `--sub-harmonics` golden: `pass_subharmAudible = true` (subharmEnergyRatio ≥ 0.40 strict-PASS) OR soft-PASS within v1.0 budget. New WAV/JSON/JSON-sha256 sha256s captured; 3 new golden text files staged.
+- [ ] **R35b invariant (2)** — `--sub-harmonics-stability` golden: `pass_all_36 = true` (strict-PASS) OR `failCount ≤ 2` (soft-PASS within v1.0 budget per pin #8). Sha256 stability across re-renders confirmed (Risk #15 mitigation). 3 new golden text files staged.
+- [ ] **R35e invariant (3)** — Bit-exact regression bar: `reproduce-goldens.sh` reports `OK: all 12 goldens reproduce byte-identical` post-R35d source edits. 10 carry-forward goldens + 2 new (sub-harmonics + sub-harmonics-stability) byte-identical to R35b-captured.
+- [ ] **R35e invariant (4)** — `--matrix-stability` carry-forward: WAV sha256 matches Phase 2.4a `6db67707…` byte-identical. HR-9 short-circuit + HR-7 wedge bypass interact correctly at SUB_HARMONICS=0 across all 108 combos.
+- [ ] **R35f invariant (5)** — auval reports `AU VALIDATION SUCCEEDED`; pluginval --strictness-level 10 reports `SUCCESS`.
+- [ ] **R35e + R35f audit table** — Five-item Gate 6b bar compiled (input to VERIFICATION.md): items (1)–(5) above.
+- [ ] **R37 (optional)** — Logic AU smoke: USER-CONFIRMED PASS or DEFERRED (mirrors R32 / R27 / R19f / R14e / R34h precedent). Audition sequence per CONTEXT rev-7 Q28: MIDI 28 (E1) sustained + SUB_HARMONICS 0→1.0 ramp at 30 s (confirm audible f0/2 emergence post-bias); MIDI 33 (A1) + SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0 (chaos check; no audible runaway); MIDI 38 (D2) + EXPRESSION_MACRO 0→1.0 ramp at SUB_HARMONICS=0.5 (confirm Phase 2.3 modulator surface unaffected by Phase 2.4b bias swap-in).
+- [ ] **R35** — Atomic commit landed; `git log --stat HEAD~1..HEAD` shows ~14 files in single commit; STATUS.md `next_action` flipped to `phase_2_4b_verify` (or `phase_2_4c_discuss` if verify auto-completed); `gate_state.phase_2_4b_subharmonic_bias_dsp07: PASS`; `phase_2_4b_atomic_commit_sha` recorded via R35-backfill chore commit. Commit body documents 5-invariant Gate 6b audit + chaos detector + softClampState deferral footnote per RESEARCH §18.13 + NO contract amendment + Phase 2.4c follow-up scope. **NO `parameter-spec.md` edit; NO `contract_checksums.parameter_spec` change.**
+- [ ] **(ARCHITECTURE.md amendments, post-Stage-2-verify, OUT OF SCOPE for this execute)** — §"DC Blocker" + §"In-loop saturator" amendments still deferred. §"Sub-Harmonic Bias" stays as conceptual reference verbatim — bias formula IS architecture §457 verbatim. Chaos detector + softClampState deferred via R35 commit-body footnote (NOT a §457 amendment).
+
+When all checks above are green (R37 user-confirmed or accepted as deferred), **Phase 2.4b verifies** and **Stage 2 progress reaches ~70%** (2.1 + 2.2 + 2.3 + 2.4a + 2.4b closed; 2.4c, 2.5, 2.6 remain). Phase 2.4c (autocorrelator octave-rejection harness fix + saturator-tail O-Bowed comparison) opens as a fresh GSD cycle; CONTEXT rev-8 written when 2.4c discuss-phase opens.
+
+---
+
+## Out of Scope (deferred per CONTEXT.md rev-7 + RESEARCH §18 + STATUS.md)
+
+- **Phase 2.4c** — Autocorrelator octave-rejection vibrato harness fix + saturator-tail O-Bowed comparison harness + saturator-choice decision tree (deferred to its own GSD cycle; CONTEXT rev-8 written when opens).
+- **Phase 2.4-bis** — Coefficient retune for additional fallback cells / breathingAudible metric refinement / 3 v1.0 fallback cell reduction via downstream-defense tightening (carry-forward from Phase 2.4a R34 commit body; not addressed in Phase 2.4b).
+- **Chaos detector (architecture §457 line 476 "optional")** — control-rate ~100 Hz lag-2 RMS check with 20% bias back-off; deferred to Phase 2.5/2.6 per RESEARCH §18.13. v1.0 relies on Schelleng F_max clamp + algebraic saturator + loop-gain ceiling 0.9999999 as layered defences.
+- **softClampState energy clamp** — ROADMAP §Phase 2.4 deliverable (threshold 0.85 ceiling 1.0); deferred to Phase 2.5/2.6 alongside body resonator integration per RESEARCH §18.13.
+- **Phase 2.5** — Body resonator + bow noise (8-mode parallel biquad body bank Askenfelt-derived; 3-band BPF bow noise summed AFTER body resonator). Phase 2.4b 36-combo matrix does NOT include BODY_DAMPING axis — full 108-combo with BODY_DAMPING revisits at end-of-Stage-2 once Phase 2.5 lands.
+- **Phase 2.6** — Master saturator/limiter + microtonal + MPE + Note Expression + MTS-ESP + Scala/TUN.
+- **Per-string SUB_HARMONICS variation** — single global APVTS knob at v1.0 per RESEARCH §18.12; per-string sub bias (e.g., E1-only) deferred to Phase 3+.
+- **Per-string `--sub-harmonics-A/-D/-G` audible-mode goldens** — RESEARCH §18.5 bin map is E1-only (f0=41.2 Hz); per-string variants with bin shift deferred to Phase 2.4-bis or 2.4c.
+- **Per-sample bias re-evaluation in Step 7** — block-entry pressure value used as bias input at v1.0 per pin #7; per-sample re-evaluation would multiply CPU 256× per block; deferred unless Phase 2.4-bis surfaces audible per-sample pressure variation conflict.
+- **`SubHarmonicBias.h` extraction to shared module (`modules/dsp/sub-harmonics/`)** — per CONTEXT rev-7 Q24 + ARCHITECTURE §765 ("O-Contrabass-specific, should NOT bleed back into O-Bowed defaults"). Per-plugin `Source/DSP/SubHarmonicBias.h` mirrors per-plugin `Source/DSP/SchellengCalibration.h` precedent. Future-plugin extraction cheap if needed.
+- **Higher-order interpolation in `safeDepthForString` lookup** — Phase 2.4a evaluated alternatives; trilinear is the pareto-optimal choice. Phase 2.4b does NOT touch the calibration lookup surface.
+- **Coefficient autotuning** — `kForceBoost` / `kV0Reduction` / `kGapWiden` / `kFmaxScalar` are architecture §457 / §661 verbatim constants at v1.0. Per-string or per-bow-position tuning deferred to Phase 2.4-bis or audible-character iteration.
+- **Production WAV binary commits** — `sub-harmonics-stability.wav` (~30 MB) NOT committed (reproducible from harness). sha256 + JSON committed instead per Phase 2.4a / Phase 2.3 / Phase 2.2 precedent.
+- **CI invocation of `--sub-harmonics-stability`** — out-of-scope; matrix is offline (developer-machine-only). CI runs the existing build + auval + pluginval pipeline.
+- **ARCHITECTURE.md amendments** — end-of-Stage-2 verify decides; chaos detector + softClampState deferral continues in R35 commit body per RESEARCH §18.13. F3 deviation continues from Phase 2.1c onward.
+- **Saturator-tail re-evaluation** — RESEARCH §12 footnote → Phase 2.4c.
+- **Logic Pro AU smoke (R37)** — user-deferred non-blocking (mirrors R32 / R27 / R19f / R14e / R34h precedent).
+- **E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7)** — separate `a(B, I)` cascaded-allpass concern; not friction-junction sub-harmonic bias. Out-of-scope for Phase 2.4b; deferred to Phase 2.4c-or-later.

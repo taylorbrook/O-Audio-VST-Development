@@ -1,11 +1,11 @@
-# Stage 2: DSP — Context (rev-6)
+# Stage 2: DSP — Context (rev-7)
 
-**Date:** 2026-04-27
+**Date:** 2026-04-28
 **Plugin:** O-Contrabass
 **Stage:** 2 of 4 (DSP)
 **Phase:** discuss
-**Cycle Scope:** **Phase 2.4a — Schelleng Wedge Bass-Register Calibration Polynomial + 108-Combo Stability Matrix + `pass_breathingAudible` 5%→20% Threshold Restoration**
-**Supersedes:** rev-5 (Phase 2.3 — Vibrato + Slow-Bow LFO + Schelleng Wedge Clamp + EXPRESSION_MACRO, dated 2026-04-27). rev-5 contracts that remain locked are inherited verbatim and not re-litigated. Phase 2.3 closed 2026-04-27 with R33 atomic commit (`af54571`, Gate 5 PASS with rebaseline of 4 audible carry-forward goldens; strict E1 + detune-sweep-A unchanged; HR-1..HR-4 IEEE 754 identity-arithmetic preserved).
+**Cycle Scope:** **Phase 2.4b — Sub-Harmonic Bias DSP-07 (ARCHITECTURE §457 period-doubling friction-junction parameter biasing)**
+**Supersedes:** rev-6 (Phase 2.4a — Schelleng Wedge Bass-Register Calibration Polynomial + 108-Combo Stability Matrix + `pass_breathingAudible` Threshold Restoration, dated 2026-04-27). rev-6 contracts that remain locked are inherited verbatim and not re-litigated. Phase 2.4a closed 2026-04-28 with R34 atomic commit (`4c926bb`, Gate 6a CLEARED — 3 strict-PASS + 2 soft-PASS within v1.0 budgets) + R34-backfill chore (`b64c8c4`).
 
 ---
 
@@ -13,56 +13,60 @@
 
 **Participants:** User, Claude
 
-This discuss cycle opens **Phase 2.4a** — first of three Phase 2.4 sub-cycles. Phase 2.4 as scoped at end of Phase 2.3 verify bundles 6 heterogeneous items (Schelleng calibration + breathingAudible threshold + sub-harmonic + 108-combo matrix + saturator-tail re-evaluation + autocorrelator harness fix). User selected **split into 2.4a/2.4b/2.4c** mirroring Phase 2.1a/b/c precedent. Each sub-phase is a tight gate-first GSD cycle with its own atomic commit (R34 → R35 → R36 sequence continuing R7 → R15 → R20 → R26 → R33).
+This discuss cycle opens **Phase 2.4b** — second of three Phase 2.4 sub-cycles (rev-6 Q12 split decision). Phase 2.4b scope = **sub-harmonic bias DSP-07 only**: ARCHITECTURE §457 friction-junction parameter biasing toward Schelleng `F_max` regime, producing audible period-doubling f0/2 content as a musical bass-extension feature. Bias is applied as voice-level pre-friction parameter shift on `F_bow`, `v_0`, `mu_s` — clamped via reuse of the just-landed Phase 2.4a `SchellengCalibration` trilinear table. 30 ms `SmoothedValue` on `SUB_HARMONICS` parameter. Active-string-only (HR-1 vibrato precedent). Chaos detector (lag-2 RMS auto-back-off) + softClampState energy clamp deferred to Phase 2.5/2.6. Phase 2.4-bis backlog (breathingAudible metric refinement + 3 fallback-cell reduction) keeps as separate future cycle.
 
-**Phase 2.4a sub-cycle = friction-junction wedge math:** empirical Schelleng wedge calibration polynomial fit per-string from a 108-combo bass-register stability matrix render, plus restoration of the architecture-spec'd `pass_breathingAudible ≥ 20%` threshold (currently softened to 5% v1.0 as Phase 2.3 parking decision). The 108-combo render is **dual-purpose**: (1) supplies coefficient data for per-string `safeDepth(v_b, F_bow, β)` polynomial fit, (2) supplies QUAL-01 click-free / pass_noNaN / pass_peak / pass_blockTime stability evidence across the bass operating envelope. Single render serves both purposes; ~9 min wall-clock budget.
+**Phase 2.4c** (autocorrelator octave-rejection harness fix + saturator-tail O-Bowed comparison harness) gets fresh CONTEXT rev-8 when 2.4c discuss-phase opens after 2.4b verifies.
 
-**Phase 2.4b** (sub-harmonic bias DSP-07 per ARCHITECTURE §457) and **Phase 2.4c** (autocorrelator octave-rejection harness fix + saturator-tail O-Bowed comparison harness) get fresh CONTEXT.md revs (rev-7, rev-8) when they open. This rev-6 documents Phase 2.4a only.
-
-After Phase 2.4a verifies (Gate 6a PASS), Phase 2.4b discuss-phase opens.
+After Phase 2.4b verifies (Gate 6b PASS), Phase 2.4c discuss-phase opens.
 
 ---
 
 ## Cycle Scope
 
-**Goal:** Replace the Phase 2.3 architecture-verbatim closed-form Schelleng wedge (Z=R=R_s=0.5 dimensionless collapse) with an empirically-fit per-string calibration polynomial that produces non-zero `safeDepth` at default bass-register operating points (currently `clampedDepthMean=0.0` silences slow-LFO at MIDI 28-43). Polynomial coefficients fit from 108-combo bass-register stability matrix render (4 strings × 3 BOW_SPEED × 3 BOW_PRESSURE × 3 BOW_POSITION). Same render gates QUAL-01 click-free + pass_noNaN + pass_peak + pass_blockTime stability across the bass envelope. After polynomial lands, restore `pass_breathingAudible ≥ 20%` (architecture-spec'd, RESEARCH §16.7.2) at the new operating-point baseline; re-baseline `--slow-lfo` golden against calibrated wedge (Phase 2.1c R19a / Phase 2.3 4-golden re-baseline precedent).
+**Goal:** Implement DSP-07 sub-harmonic bias per ARCHITECTURE §457 — at `SUB_HARMONICS = 1.0` on E1 (MIDI 28), produce E(f0/2) / E(f0) ≥ 0.10 spectral energy ratio measured over the last 2 s of a 5 s sustain at default bow params, while preserving QUAL-01 stability across 36 stress-test combos (4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS at default BODY_DAMPING). Bias applied voice-level pre-friction in `BowedContrabassVoice.cpp` HR-9-gated path; F_max ceiling sourced from Phase 2.4a `schelleng::safeDepthForString(...)` table (semantic mapping research-phase to lock — recommended: stable cells (1.0) allow full `kForceBoost=1.8`, fallback cells (0.5) clamp `kForceBoost` to 1.0 effective no-op). All 10 currently-committed goldens MUST reproduce byte-identically because at `SUB_HARMONICS=0` (default) HR-9 IEEE 754 identity arithmetic fires `subAmount=0 → F_bow*=1.0, v_0*=1.0, gap-multiplier=1.0` short-circuit + active-string-only gate.
 
 **In scope:**
 
-- **`Source/BowedContrabassVoice.{h,cpp}`** — replace Phase 2.3 inline Schelleng wedge math (RESEARCH §16.3 closed-form `fMin = (Z²·v_b) / (2·R·β²·Δμ)`, `fMax = (2·Z·v_b) / (β·Δμ)` with `Z=R=R_s=0.5` collapse) with `safeDepth = schellengCalibration[stringIdx](v_b, F_bow, β)` table lookup. Per-string polynomial form: piecewise (or polynomial — research-phase to lock final form) coefficient array `constexpr float schellengCoeffs[4][N]` indexed by string. **HR-4 (Schelleng wedge skip on SLOW_LFO_DEPTH=0)** preserved verbatim — calibration polynomial is invoked ONLY when wedge gate fires (rawSlowLfoDepth > 0.0f), so strict E1 (`d358abcd…`) + Phase 2.3 modulators-off goldens reproduce byte-identically. `lastSafeDepth.store(...)` instrumentation hook signature unchanged.
-- **`Source/DSP/SchellengCalibration.h`** (new) — header-only constexpr table + 4 lookup functions `safeDepthForStringE1/A1/D2/G2(v_b, F_bow, β) → float`. ~150 LOC. Per-string lookup table mirrors Phase 2.2 per-string dispersion M-table (M=4/3/2/1) precedent. NOT extracted to shared module (per-plugin per-string bass-register-specific).
-- **`tests/render-harness/main.cpp`** — add CLI flag `--matrix-stability` activating 108-combo render mode. Iterates 4 strings × {BOW_SPEED ∈ [0.05, 0.15, 0.5]} × {BOW_PRESSURE ∈ [1.0, 3.0, 7.0]} × {BOW_POSITION ∈ [0.05, 0.10, 0.20]} at INFINITE_SUSTAIN=1.0, SLOW_LFO_DEPTH=1.0, SLOW_LFO_RATE=0.3 Hz, sustain 5 s per combo. Emit JSON with `mode: "matrix-stability"`, per-combo `{stringIdx, bowSpeed, bowPressure, bowPosition, peak, rmsContinuity, blockTimeRatio, clampedDepthMean, pass_noNaN, pass_peak, pass_clickFree, pass_blockTime}`, plus aggregate `pass_all_108`. Schema mirrors existing `--detune-sweep` per-combo pattern.
-- **`tests/render-harness/main.cpp`** — restore `--slow-lfo` mode `pass_breathingAudible` threshold from 5% (Phase 2.3 v1.0 soft-pass) to 20% (architecture-spec'd RESEARCH §16.7.2). One-line constant change.
-- **`tests/render-harness/golden/`** — re-baseline `slow-lfo.{wav.sha256,json}` against post-calibration wedge (old `3768dd15…` retired; new sha256 captured in R34 atomic commit). Add new golden text file `matrix-stability.{wav.sha256,json}` (sha256 of concatenated 108-combo render output + JSON aggregate).
-- **`Source/DSP/SchellengCalibration.h` polynomial coefficients** — derived offline from 108-combo render data via fitting workflow (Python/Octave/Excel external tool, research-phase to specify). Resulting constexpr arrays land in `SchellengCalibration.h`.
+- **`Source/BowedContrabassVoice.{h,cpp}`** — add voice-level sub-harmonic bias evaluation in the per-block 7-step order (Phase 2.3 7-step + Phase 2.4a wedge math swap), inserted as Step 2.5 between Step 2 (Schelleng wedge / SchellengCalibration trilinear lookup) and Step 3 (slow-LFO modulation apply). Per-block computes `subAmount = subHarmonicsSmoothed.getNextValue()`; HR-9 short-circuits the entire bias path at `subAmount == 0.0f`. New `juce::SmoothedValue<float, Linear> subHarmonicsSmoothed` member with 30 ms ramp time (architecture §457). New `std::atomic<float> lastSubAmount { 0.0f }` instrumentation hook (mirrors Phase 2.3 `lastSafeDepth` pin #4). Active-string-only bias evaluation gates on `activeStringIndex` (HR-9 mirroring HR-1).
+- **`Source/DSP/SubHarmonicBias.h`** (new, ~80 LOC) — header-only `inline constexpr` bias function `applyBias(float subAmount, int stringIdx, float v_b, float beta, float& F_bow, float& v_0, float& mu_s, float mu_d) noexcept`. Implements ARCHITECTURE §457 verbatim with `kForceBoost = 1.8`, `kV0Reduction = 0.5`, `kGapWiden = 0.25`, `kFmaxScalar = 0.95`. F_max ceiling sourced via `schelleng::safeDepthForString(stringIdx, v_b, F_bow, beta)` lookup mapped to a `kForceBoost` scaling factor (research-phase locks the stable→1.0 / fallback→1.0 effective-no-op mapping). Mirrors Phase 2.4a `SchellengCalibration.h` per-plugin precedent — NOT extracted to shared module per ARCHITECTURE §765 ("O-Contrabass-specific, should NOT bleed back into O-Bowed defaults").
+- **`Source/PluginProcessor.cpp`** — add APVTS attachment for `SUB_HARMONICS` parameter ID (already declared at line 104 with default 0.0 ∈ [0, 1.0]) into voice's `subHarmonicsSmoothed.setTargetValue(...)` per-block. NO Stage-1 contract amendment (parameter-spec.md unchanged at `77638e25…`).
+- **`tests/render-harness/main.cpp`** — add CLI flag `--sub-harmonics` activating audible f0/2 mode: render MIDI 28 (E1 open) at `SUB_HARMONICS = 1.0`, default bow params (BOW_SPEED=0.15, BOW_PRESSURE=3.0, BOW_POSITION=0.10), sustain 5 s. Capture last 2 s and run a `juce::dsp::FFT` (size 65536, Hann window) computing `E(f0) = sum of magnitude² over bins around 41.2 Hz ± 0.5 Hz` and `E(f0/2) = same around 20.6 Hz ± 0.5 Hz`. Emit JSON with `{mode: "sub-harmonics", peak, rmsContinuity, blockTimeRatio, subharmEnergyRatio, pass_noNaN, pass_peak, pass_clickFree, pass_blockTime, pass_subharmAudible}`. `pass_subharmAudible = (subharmEnergyRatio >= 0.10)`. Schema mirrors existing `--slow-lfo` per-mode pattern.
+- **`tests/render-harness/main.cpp`** — add CLI flag `--sub-harmonics-stability` activating 36-combo render mode: 4 strings × 3 INFINITE_SUSTAIN ∈ {0.0, 0.5, 1.0} × 3 SUB_HARMONICS ∈ {0.0, 0.5, 1.0} at default BODY_DAMPING + default bow params, sustain 5 s per combo at MIDI {28, 33, 38, 43} per stringIdx. Per-combo `{stringIdx, infiniteSustain, subHarmonics, peak, rmsContinuity, blockTimeRatio, pass_noNaN, pass_peak, pass_clickFree, pass_blockTime}` + aggregate `pass_all_36` + `failCount`. Single concatenated WAV with 0.5 s silence buffers (mirrors Phase 2.4a `--matrix-stability` precedent). Wall-clock budget ~3-4 min.
+- **`tests/render-harness/golden/`** — add NEW golden text files `sub-harmonics.{wav.sha256,json,json.sha256}` and `sub-harmonics-stability.{wav.sha256,json,json.sha256}`. NO re-baseline of existing 10 goldens (HR-9 IEEE 754 identity arithmetic preserves bit-exact regression at `SUB_HARMONICS=0` default).
+- **`tests/render-harness/reproduce-goldens.sh`** — extend to include 12 goldens (10 carry-forward + 2 new). Continues Phase 2.4a R34-pre tripwire infrastructure.
 
-**Carry-forward goldens (regression bar invariant 1 of Gate 6a):**
-- Strict E1 modulators-off (`d358abcd…`) — HR-1..HR-4 preserve bit-exact regardless of calibration polynomial because all modulators evaluate to literal-zero arithmetic at default values.
-- Phase 2.2 detune-sweep-A (`5e31dad3…`) — wedge math never invoked (no slow-LFO).
-- Phase 2.3 modulators-off renders (the 4 audible carry-forward goldens re-baselined in Phase 2.3 verify: string-A `c6755aa4…`, string-D `765b015e…`, string-G `0cd5cb0a…`, note-sequence `3ac3ccd0…`) — wedge math never invoked.
-- Phase 2.3 `vibrato.{wav.sha256,json}` (`d7881ecf…`) — wedge math never invoked (SLOW_LFO_DEPTH=0 in vibrato mode).
-- Phase 2.3 `schelleng-stress.{wav.sha256,json}` — **WILL change** because wedge math IS invoked at SLOW_LFO_DEPTH=1.0 + extreme bow params. Re-baseline alongside `slow-lfo` golden in R34 atomic commit; new sha256 captured.
-- Phase 2.3 `macro-sweep.{wav.sha256,json}` — wedge math never invoked (SLOW_LFO_DEPTH=0 in macro-sweep mode).
+**Carry-forward goldens (Gate 6b regression bar — invariant 1):**
+- E1 strict modulators-off `d358abcd…` — bit-exact (HR-9 short-circuit at SUB_HARMONICS=0).
+- Phase 2.2 detune-sweep-A `5e31dad3…` — bit-exact (HR-9).
+- Phase 2.3 modulators-off renders (string-A `c6755aa4…`, string-D `765b015e…`, string-G `0cd5cb0a…`, note-sequence `3ac3ccd0…`) — bit-exact (HR-9).
+- Phase 2.3 `vibrato.wav.sha256` `d7881ecf…` — bit-exact (HR-9).
+- Phase 2.3 `macro-sweep.wav.sha256` — bit-exact (HR-9).
+- Phase 2.4a re-baselined `slow-lfo.wav.sha256` (post-calibration) — bit-exact (HR-9).
+- Phase 2.4a re-baselined `schelleng-stress.wav.sha256` (post-calibration) — bit-exact (HR-9).
+- Phase 2.4a `matrix-stability.wav.sha256` `6db67707…` — bit-exact (HR-9; matrix-stability harness mode renders SUB_HARMONICS=0 across all 108 combos).
 
-**Out of scope (deferred to Phase 2.4b/2.4c, 2.5, 2.6, end-of-Stage-2):**
-- Sub-harmonic bias (Phase 2.4b, fresh GSD cycle)
-- Autocorrelator octave-rejection vibrato harness fix (Phase 2.4c)
-- Saturator-tail O-Bowed comparison harness + saturator-choice decision (Phase 2.4c)
-- Body resonator + bow noise (Phase 2.5)
-- Master saturator/limiter, stereo width, microtonal, MPE (Phase 2.6)
-- ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments (end-of-Stage-2 verify per locked decision)
-- E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7) — separate concern; this Phase 2.4a touches Schelleng wedge friction-junction math, NOT dispersion-cascade `a(B, I)` math
+**Out of scope (deferred to Phase 2.4c, 2.5, 2.6, end-of-Stage-2, Phase 2.4-bis):**
+- Chaos detector (lag-2 RMS > lag-1 RMS auto-back-off) — ARCHITECTURE §457 marks as "optional"; deferred to Phase 2.5/2.6 (relies on Schelleng F_max clamp + algebraic saturator + loop-gain ceiling 0.9999999 as v1.0 layered defenses).
+- Energy clamp `softClampState` (threshold 0.85, ceiling 1.0) — ROADMAP §Phase 2.4 deliverable; deferred to Phase 2.5/2.6 (current algebraic saturator `x/sqrt(1+x²)` covers the role at v1.0).
+- Autocorrelator octave-rejection vibrato harness fix (Phase 2.4c).
+- Saturator-tail O-Bowed comparison harness + saturator-choice decision (Phase 2.4c).
+- Body resonator + bow noise (Phase 2.5).
+- Master saturator/limiter, stereo width, microtonal, MPE (Phase 2.6).
+- Phase 2.4-bis backlog (breathingAudible metric refinement OR Step 4 modulation gain tune-up to reach 20% peak-to-peak; reduce 3 v1.0 fallback cells via downstream-defense tightening).
+- ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments (end-of-Stage-2 verify).
+- E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7).
 
 ---
 
-## Requirements Confirmed (Phase 2.4a-relevant subsets of locked contracts)
+## Requirements Confirmed (Phase 2.4b-relevant subsets of locked contracts)
 
-- **DSP-08** (Slow Bow LFO 0.05–2 Hz, Schelleng-aware): Phase 2.3 implemented modulator + wedge math; current `clampedDepthMean=0.0` silences slow-LFO at bass register defaults (RESEARCH §16.3 anomaly). Phase 2.4a calibration polynomial restores audible breathing — `pass_breathingAudible ≥ 20%` becomes the audible regression bar.
-- **QUAL-01** (no audible clicks during parameter sweeps, no artifacts at normal ranges): 108-combo matrix is the primary gate. All 108 combos must satisfy `pass_noNaN + pass_peak ≤ 1.0 + pass_clickFree (rmsContinuity ≥ 0.85) + pass_blockTime (ratio ≤ 5.0)`. Aggregate `pass_all_108` becomes Gate 6a invariant 4.
-- **QUAL-02** (extreme drone settings remain musical): `--matrix-stability` includes extreme combos (BOW_PRESSURE=7.0 N + BOW_SPEED=0.05 m/s) at SLOW_LFO_DEPTH=1.0. Calibration polynomial must clamp depth at extremes (`safeDepth < 1.0` near wedge boundary) without driving to literal zero everywhere (which is the Phase 2.3 anomaly). Gate 6a invariant 4 catches both pathologies.
-- **DSP-06** (Infinite Sustain control): smooth-sweep / click-free check against INFINITE_SUSTAIN=1.0 indirectly satisfied by `--matrix-stability` (all 108 combos render at INFINITE_SUSTAIN=1.0 sustain).
-- **PERF-01** (no allocations in `processBlock`): SchellengCalibration.h is constexpr table lookup (4 polynomial evaluations per block, one per string but only active string's wedge math fires per HR-4 gate). Zero allocations.
-- **PERF-02** (< 5% CPU on M1): polynomial evaluation is ~10 multiplies + adds per block. <0.05% CPU added on top of Phase 2.3 baseline.
+- **DSP-07** (Sub-Harmonic generator extends bass below string fundamental musically): Phase 2.4b implements ARCHITECTURE §457 bias formula. Acceptance bar = audible f0/2 content at `SUB_HARMONICS=1.0` on E1 with `subharmEnergyRatio = E(f0/2) / E(f0) >= 0.10` measured via FFT over last 2 s of 5 s sustain. ROADMAP §Phase 2.4 "audible f0/2 perceived as 'weight' at 50%" interpreted: 10% energy ratio at 100% gives perceptual headroom; 50% setting need not satisfy a separate threshold (stress tested in 36-combo for stability only). Promotion to "complete" in REQUIREMENTS.md held until end-of-Stage-2 verify.
+- **QUAL-01** (no audible clicks during parameter sweeps, no artifacts at normal ranges including drone settings): 36-combo `--sub-harmonics-stability` matrix is the primary gate. All 36 combos must satisfy `pass_noNaN + pass_peak ≤ 1.0 + pass_clickFree (rmsContinuity ≥ 0.85) + pass_blockTime (ratio ≤ 5.0)`. Aggregate `pass_all_36 = true` OR `failCount ≤ 2` v1.0 fallback budget (mirrors 2.4a 105/108 + failCount≤4 precedent at smaller scale). NO BODY_DAMPING axis — body resonator is Phase 2.5; full 108-combo with BODY_DAMPING revisits at end-of-Stage-2 once Phase 2.5 lands.
+- **QUAL-02** (extreme drone settings remain musical): `--sub-harmonics-stability` includes extreme combos (SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0). F_max clamp via SchellengCalibration table prevents chaotic regime; layered defenses (algebraic saturator + loop-gain ceiling) catch instability.
+- **DSP-06** (Infinite Sustain control): `--sub-harmonics-stability` includes INFINITE_SUSTAIN=1.0 across 12 of 36 combos.
+- **DSP-08** (Slow Bow LFO Schelleng-aware): unchanged — sub-harmonic bias is independent of slow-LFO; both can be active concurrently. Phase 2.4b verify renders all goldens at SLOW_LFO_DEPTH=0 default (HR-2 carry-forward).
+- **PERF-01** (no allocations in `processBlock`): SubHarmonicBias.h is `inline constexpr`; bias evaluation is ~5 multiplies + 1 add + 1 SchellengCalibration table lookup per block. Zero allocations.
+- **PERF-02** (< 5% CPU on M1): bias evaluation <0.1% CPU added on top of Phase 2.4a baseline.
 
 ---
 
@@ -70,40 +74,41 @@ After Phase 2.4a verifies (Gate 6a PASS), Phase 2.4b discuss-phase opens.
 
 **Locked contracts (do NOT modify in this cycle):**
 
-- All 29 APVTS parameter IDs, ranges, skews, defaults — `parameter-spec.md` (sha256:`77638e25…`, post Phase 2.3 R33 amendment for VIBRATO_DEPTH 12.0→0.0 + EXPRESSION_MACRO 0.50→0.0 default flips). Phase 2.4a does NOT amend Stage-1 contract.
-- DSP architecture (`research/ARCHITECTURE.md`, sha256:`3cb26814…`) — F3 deviation (no in-loop DCB) + saturator-tail tracking carry forward; ARCHITECTURE amendment still deferred to end-of-Stage-2 verify.
+- All 29 APVTS parameter IDs, ranges, skews, defaults — `parameter-spec.md` (sha256:`77638e25…`). `SUB_HARMONICS` already declared at PluginProcessor.cpp:104 with default 0.0 ∈ [0, 1.0]. **NO Stage-1 contract amendment in Phase 2.4b.**
+- DSP architecture (`research/ARCHITECTURE.md`, sha256:`3cb26814…`) — §457 sub-harmonic bias formula consumed verbatim; F3 deviation (no in-loop DCB) + saturator-tail tracking carry forward; ARCHITECTURE amendment still deferred to end-of-Stage-2 verify.
 - ROADMAP phasing (sha256:`106639f6…`).
-- `modules/synthesis/bow-friction/` v1.0.0 (Phase 2.1b) — value-class deterministic; Phase 2.4a does NOT touch friction module surface.
-- `Source/DSP/DispersionFilter.h` (Phase 2.1c, R20 commit `5759e5e`) — Phase 2.4a consumes verbatim; no edits.
-- `Source/DSP/WaveguideString.{h,cpp}` topology + per-instance config surface (Phase 2.2, R26 commit `131c2c7`) — Phase 2.4a consumes verbatim; no edits.
-- Phase 2.3 modulator-layer surface (vibratoPhase / vibratoOnsetTimer / slowLfoPhase / 4 macro SmoothedValues / 7-step per-block evaluation order / HR-1..HR-4) — Phase 2.4a swaps **only** the inline Schelleng wedge math at Step 2 of the 7-step order, behind the existing HR-4 gate. All other modulator code unchanged.
-- E1 dispersion calibration polynomial (Phase 2.1c Risk #7) — out-of-scope; that's a separate `a(B, I)` cascaded-allpass concern, not friction-junction wedge math.
+- `modules/synthesis/bow-friction/` v1.0.0 (Phase 2.1b) — value-class deterministic; **Phase 2.4b does NOT touch friction module surface** (per Q24: per-plugin in BowedContrabassVoice + new SubHarmonicBias.h).
+- `Source/DSP/DispersionFilter.h` (Phase 2.1c, R20 commit `5759e5e`) — verbatim consume.
+- `Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2, R26 commit `131c2c7`) — verbatim consume.
+- `Source/DSP/SchellengCalibration.h` (Phase 2.4a, R34 commit `4c926bb`) — verbatim consume; `safeDepthForString(...)` API surface unchanged.
+- Phase 2.3 modulator surface (vibratoPhase / vibratoOnsetTimer / slowLfoPhase / 4 macro SmoothedValues / 7-step per-block evaluation order / HR-1..HR-4) — Phase 2.4b inserts Step 2.5 (sub-harmonic bias evaluation) between Step 2 and Step 3 without disturbing existing 7-step semantics. Existing HR-1..HR-4 + Phase 2.4a HR-5..HR-8 verbatim.
 
 **JUCE 8 critical patterns (auto-loaded `spike-findings-VST-development` + memory):**
 
 - `juce::ScopedNoDenormals` at `processBlock` entry — already in place, unchanged.
-- `juce::SmoothedValue<float, Linear>` chain on macro destinations + per-string detune — unchanged.
+- `juce::SmoothedValue<float, Linear>` chain on macro destinations + per-string detune — unchanged. NEW: `subHarmonicsSmoothed` follows same pattern (30 ms ramp time, `setCurrentAndTargetValue(0.0f)` in `prepareToPlay`, `setTargetValue` UNCONDITIONAL each block per Phase 2.3 pin #11 precedent).
 - `juce::dsp::DelayLine<float, Lagrange3rd>` per-sample `setDelaySamples()` — unchanged.
+- `juce::dsp::FFT` size 65536 Hann-windowed for `subharmEnergyRatio` measurement in `--sub-harmonics` harness mode (research-phase locks window choice + bin-selection edge cases).
 
-**Phase 2.4a-specific constraints:**
+**Phase 2.4b-specific constraints:**
 
-- **HR-2 + HR-4 preservation paramount.** SchellengCalibration polynomial is invoked ONLY inside the existing HR-4 `if (rawSlowLfoDepth > 0.0f)` gate. At SLOW_LFO_DEPTH=0, polynomial is never evaluated — `lastSafeDepth.store(0.0f)` runs unconditionally (pin #4) before the gate. HR-2 (slow-LFO literal-zero short-circuit + phase non-advance at zero depth) is preserved verbatim from Phase 2.3.
-- **Per-string lookup table form.** 4 separate constexpr coefficient arrays indexed by string, mirroring Phase 2.2 per-string dispersion M-table. Final polynomial degree + breakpoint count derived in research-phase from 108-combo data. Initial guess: 2-piece quadratic per axis, ~20 coefficients per string × 4 strings = 80 constexpr floats. Research-phase to confirm.
-- **108-combo matrix dual-purpose.** Single render serves both calibration coefficient fit AND QUAL-01 stability gate. Wall-clock ~9 min (108 × 5 s sustain ≈ 540 s render time + JSON serialisation). Per-combo render path mirrors existing `--detune-sweep` iteration pattern.
-- **Re-baseline of `--slow-lfo` + `--schelleng-stress` goldens.** Phase 2.1c R19a / Phase 2.3 4-golden precedent. Old `3768dd15…` and current `--schelleng-stress` sha256 retired in R34 atomic commit; new sha256s captured against calibrated wedge. `pass_breathingAudible ≥ 20%` becomes the audible regression bar at the new baseline.
-- **Strict bit-exact regression bar unchanged.** E1 (`d358abcd…`) + detune-sweep-A (`5e31dad3…`) + Phase 2.3 modulators-off goldens (`c6755aa4…`, `765b015e…`, `0cd5cb0a…`, `3ac3ccd0…`) + `vibrato.wav.sha256` (`d7881ecf…`) + `macro-sweep.wav.sha256` MUST reproduce byte-identically. HR-2 + HR-4 gates ensure SchellengCalibration polynomial is never executed in any of these renders.
-- **No Stage-1 contract amendment.** parameter-spec.md sha256 `77638e25…` carries forward unchanged. STATUS.md `contract_checksums.parameter_spec` unchanged.
-- **No ARCHITECTURE.md amendment.** Calibration polynomial is an implementation detail of the architecture-spec'd Schelleng wedge clamp — closed-form formula in §"Slow-Bow LFO" stays as the conceptual reference; per-string polynomial replaces the dimensionless collapse at implementation-time. ARCHITECTURE.md may receive a footnote at end-of-Stage-2 verify documenting the bass-register calibration; not in this Phase 2.4a scope.
-- **108-combo matrix axes locked at discuss-phase** (see Approach Decisions Q15 below). Research-phase does NOT re-litigate axis values; research-phase derives polynomial form + fitting workflow.
+- **HR-9 hard rule (NEW): SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate.** At `SUB_HARMONICS=0` (default in all 10 carry-forward goldens), HR-9 short-circuits the entire bias path BEFORE any arithmetic. Implementation: `if (subAmount == 0.0f) { lastSubAmount.store(0.0f); return; }` at Step 2.5 entry. Bias is invoked ONLY for the active string (mirrors HR-1 vibrato) — never for crossfade-shadowed strings. Combined with `subHarmonicsSmoothed.setCurrentAndTargetValue(0.0f)` in `prepareToPlay` AND default APVTS value of 0.0, HR-9 guarantees all 10 carry-forward goldens reproduce byte-identically.
+- **Bias terms are IEEE 754 identity-arithmetic at subAmount=0 BEFORE HR-9 short-circuit reaches them** (defensive belt-and-suspenders): `F_bow *= (1.0f + 0.8f * 0.0f) = F_bow * 1.0f` exact; `v_0 *= (1.0f - 0.5f * 0.0f) = v_0 * 1.0f` exact; `gap *= (1.0f + 0.25f * 0.0f) = gap * 1.0f` exact. Identity arithmetic redundant with HR-9 short-circuit but provides defense if a future refactor removes the short-circuit gate.
+- **F_max ceiling via SchellengCalibration reuse.** Bias's `F_bow` clamp invokes `schelleng::safeDepthForString(activeStringIndex, v_b, F_bow_pre_bias, beta)` — output ∈ {0.5, 1.0}. Mapping to `kForceBoost` scaling: `effectiveBoost = subAmount * 0.8f * safeDepth` (stable cells 1.0 → full bias; fallback cells 0.5 → half-bias). Research-phase locks the precise mapping function and validates against §17 fitting data variance.
+- **Active-string-only bias.** Crossfade window: bias for `crossfadePrevStringIndex` is gated off (not biased), only `activeStringIndex` is biased. 5 ms equal-power crossfade ramp from Phase 2.2 carries forward; bias contributes to active string only during the entire crossfade.
+- **Strict bit-exact regression bar unchanged.** All 10 carry-forward goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo + schelleng-stress) MUST reproduce byte-identically. HR-9 is the technical defence.
+- **NO Stage-1 contract amendment.** parameter-spec.md sha256 `77638e25…` carries forward unchanged. STATUS.md `contract_checksums.parameter_spec` unchanged.
+- **NO ARCHITECTURE.md amendment.** Bias formula is implementation of §457 verbatim; deferred chaos detector + softClampState tracked in commit-message body until end-of-Stage-2 verify.
 
-**Working-tree starting state (locked from Phase 2.3 verify, R33 commit `af54571`):**
+**Working-tree starting state (locked from Phase 2.4a verify, R34 commit `4c926bb`):**
 
-- `Source/BowedContrabassVoice.{h,cpp}` — 4-string voice with `std::array<WaveguideString, 4>`, vibrato section (active-string-only modulation per HR-1), Slow-Bow LFO with inline closed-form Schelleng wedge (HR-4 gated, RESEARCH §16.3 closed-form `Z=R=R_s=0.5` collapse — TO BE REPLACED in Phase 2.4a), 4× macro SmoothedValues (HR-3 IEEE 754 identity arithmetic), 7-step per-block evaluation order
-- `Source/DSP/WaveguideString.{h,cpp}` — split-rail with M=4/3/2/1 dispersion (Phase 2.1c rev-3 + Phase 2.2 R26)
-- `Source/DSP/DispersionFilter.h` (130 LOC) — public API consumed verbatim
-- `Source/PluginProcessor.{h,cpp}` — 29 APVTS parameters incl. all 4 `DETUNE_*`, ACTIVE_STRINGS, all Phase 2.3 modulator/macro params (Stage 1 + Phase 2.2 + Phase 2.3 R33)
-- `modules/synthesis/bow-friction/` v1.0.0 — module is value-class deterministic
-- 6 carry-forward goldens (E1 strict + detune-sweep-A + per-string A/D/G + note-sequence) + 4 Phase 2.3 mode goldens (vibrato + slow-lfo + schelleng-stress + macro-sweep). 2 of the 4 Phase 2.3 mode goldens (`slow-lfo` + `schelleng-stress`) re-baselined in this Phase 2.4a R34 atomic commit.
+- `Source/BowedContrabassVoice.{h,cpp}` — 4-string voice with Phase 2.3 7-step + Phase 2.4a Step 2 SchellengCalibration trilinear lookup behind HR-4 gate + HR-7 matrix-stability bypass.
+- `Source/DSP/SchellengCalibration.h` (auto-generated from matrix.json sha256 `625505cf…`, 105/108 stable + 3 fallback cells).
+- `Source/DSP/WaveguideString.{h,cpp}` (Phase 2.2 R26).
+- `Source/DSP/DispersionFilter.h` (Phase 2.1c R20).
+- `Source/PluginProcessor.{h,cpp}` — 29 APVTS params (Stage 1 + Phase 2.2 + Phase 2.3 + Phase 2.4a no-op).
+- `modules/synthesis/bow-friction/` v1.0.0 (Phase 2.1b) — verbatim consume.
+- 10 currently-committed goldens + reproduce-goldens.sh (Phase 2.4a infrastructure).
 
 ---
 
@@ -111,67 +116,75 @@ After Phase 2.4a verifies (Gate 6a PASS), Phase 2.4b discuss-phase opens.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Q12 — Phase 2.4 cycle scope** | **Split 2.4a/2.4b/2.4c** | Heterogeneous 6-item bundle. 2.4a = friction-junction wedge math (Schelleng calibration + breathingAudible threshold + 108-combo matrix dual-purpose). 2.4b = sub-harmonic bias (independent DSP feature). 2.4c = harness/test infrastructure (autocorrelator fix + saturator-tail O-Bowed comparison). Mirrors Phase 2.1a/b/c precedent; each sub-phase is tight gate-first commit (R34/R35/R36). User-confirmed. |
-| **Q13 — Schelleng calibration derivation** | **Empirical fit from 108-combo render** | Most rigorous; preserves architecture's safety intent. Couples cleanly with item Q15 (matrix is dual-purpose). Per-string `safeDepth(v_b, F_bow, β)` polynomial replaces the paper's piano-tuned `Z=R=R_s=0.5` closed-form collapse that produced `clampedDepthMean=0.0` at bass register defaults. User-confirmed. |
-| **Q14 — Calibration polynomial form** | **Per-string lookup table** (4 polynomials, one per string E1/A1/D2/G2) | Mirrors Phase 2.2 per-string dispersion M-table (M=4/3/2/1) precedent. Each string has different impedance + register; per-string fit captures bass-vs-low-mid distinction. ~80 constexpr floats total. New header `Source/DSP/SchellengCalibration.h`. NOT extracted to shared module. User-confirmed. |
-| **Q15 — 108-combo matrix axes** | **4 strings × 3 BOW_SPEED × 3 BOW_PRESSURE × 3 BOW_POSITION = 108** | Speed: {0.05, 0.15, 0.5} m/s (low / default / high). Pressure: {1.0, 3.0, 7.0} N (default / mid-stress / extreme). Position: {0.05, 0.10, 0.20} (sul tasto / default / sul ponticello). INFINITE_SUSTAIN=1.0 fixed, SLOW_LFO_DEPTH=1.0 fixed, SLOW_LFO_RATE=0.3 Hz fixed. Each combo renders 5 s sustain at MIDI {28,33,38,43} per string. Total ~9 min wall-clock. Pass: `pass_noNaN + pass_peak ≤ 1.0 + pass_blockTime ratio ≤ 5.0 + pass_clickFree (rmsContinuity ≥ 0.85)` for all 108. User-confirmed at discuss-phase (no research-phase re-litigation). |
-| **Q16 — Matrix render dual-purpose** | **Single render serves calibration + stability gate** | 108-combo render in 2.4a serves BOTH calibration polynomial coefficient fit AND QUAL-01 stability evidence. 2.4a Gate 6a invariants include the matrix pass set. 2.4c reduces to [autocorrelator harness fix + saturator-tail O-Bowed comparison]. Lower wall-clock cost; couples calibration evidence with stability evidence in same artefact. User-confirmed. |
-| **Q17 — `pass_breathingAudible` threshold** | **Restore to 20%** (architecture-spec'd, RESEARCH §16.7.2) | Phase 2.3 softened to 5% as v1.0 soft-pass. After calibration polynomial lands, restore architecture-spec'd 20%. Locked target — if calibration polynomial misses, that's a Phase 2.4a verify failure, not a threshold-relaxation event. User-confirmed. |
-| **Q18 — `--slow-lfo` golden strategy** | **Re-baseline against calibrated wedge** | Phase 2.1c R19a / Phase 2.3 4-golden precedent. Old `3768dd15…` retired; new sha256 captured against post-calibration wedge with `pass_breathingAudible ≥ 20%`. `--schelleng-stress` golden also re-baselines (wedge math IS invoked at SLOW_LFO_DEPTH=1.0). All other goldens (E1 strict + detune-sweep-A + per-string + note-sequence + vibrato + macro-sweep) unchanged because HR-2/HR-4 gates ensure wedge math never executes. User-confirmed. |
-| **Q19 — Atomic commit strategy** | **R34 atomic commit on Gate 6a PASS** | Continues sequence: R7 → R15 → R20 → R26 → R33 → R34. Lands ~10-15 files (2 source: BowedContrabassVoice.{h,cpp} + 1 new header SchellengCalibration.h + harness CLI flag + 2 re-baselined golden text + 1 new matrix-stability golden text + planning artefacts + STATUS.md). Phase 2.4b/2.4c get separate R35/R36 atomic commits. User-confirmed. |
-| **Q20 — Saturator-tail decision tree** | **Defer branch decision to research-phase** (Phase 2.4c) | NOT in this Phase 2.4a scope. Phase 2.4c discuss-phase opens after 2.4a verifies; that cycle's research-phase §17 evaluates O-Bowed comparison data + recommends (i) swap to tanh / (ii) keep current / (iii) move out-of-loop. User-confirmed (deferred to 2.4c). |
-| **Q21 — Logic AU smoke for 2.4a** | **Deferred non-blocking** (R32 / R27 / R19f precedent) | Automated Gate 6a invariants (bit-exact strict + modulators-off goldens + matrix pass set + new `--slow-lfo` golden + `pass_breathingAudible ≥ 20%`) gate the verify. Logic AU smoke is user-discretion non-blocking (5 s slow-LFO audition at MIDI 33 confirms audible breathing). User-confirmed. |
-| **Q22 — CONTEXT.md doc scope** | **rev-6 covers Phase 2.4a only** | Phase 2.4b (sub-harmonic) gets rev-7 when discuss-phase opens after 2.4a verify. Phase 2.4c (autocorrelator + saturator) gets rev-8 when discuss-phase opens after 2.4b verify. Mirrors rev-2/rev-3/rev-4 (Phase 2.1a/b/c) precedent. Each rev is one tight cycle. User-confirmed. |
-| Per-block evaluation order | **Unchanged from Phase 2.3** (7-step locked) | Step 2 (Schelleng wedge) HR-4 gate fires polynomial lookup instead of closed-form math. All other 6 steps unchanged. |
-| Polynomial fitting workflow | **External offline tool** (research-phase to specify Python/Octave/Excel pipeline) | 108-combo render emits per-combo `clampedDepthMean` + `peakPostMaster` + stability data as JSON; offline tool ingests JSON, fits per-string polynomial, emits `constexpr float[]` coefficient arrays as `.h` snippet for paste into SchellengCalibration.h. Research-phase finalises tool choice + fit method (least-squares polynomial regression, B-spline, piecewise quadratic, etc.) |
+| **Q23 — Phase 2.4b cycle scope** | **Sub-harmonic bias DSP-07 only** | Tight cycle mirrors Phase 2.4a precedent. Phase 2.4-bis backlog (breathingAudible metric refinement, 3 fallback-cell reduction) keeps as separate Phase 2.4-bis cycle. Chaos detector + softClampState defer to Phase 2.5/2.6. User-confirmed. |
+| **Q24 — Bias application site** | **Per-plugin in `BowedContrabassVoice.cpp` pre-friction + new `Source/DSP/SubHarmonicBias.h` header** | Mirrors Phase 2.4a per-plugin SchellengCalibration.h precedent. Friction module v1.0.0 untouched (zero ABI churn, no module version bump). Architecture §765 says "O-Contrabass-specific, should NOT bleed back into O-Bowed defaults." Header gives clean separation analogous to DispersionFilter.h. User-confirmed. |
+| **Q25 — F_max clamp data source** | **Reuse Phase 2.4a `schelleng::safeDepthForString()` table** | Natural reuse of just-landed work. 108-combo bass-register data already calibrated against `pass_noNaN + pass_peak + pass_clickFree + pass_blockTime`. Stable cells (1.0) allow full bias; fallback cells (0.5) clamp effective boost to half. One less calibration polynomial to fit. User-confirmed. |
+| **Q26 — Stress test matrix scope** | **36-combo `--sub-harmonics-stability` (4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS); chaos detector deferred** | BODY_DAMPING axis blocked by Phase 2.5 dependency; v1.0 ships 36-combo evidence + Phase 2.5 at end-of-Stage-2 picks up full 108. Chaos detector parks to Phase 2.5/2.6 (relies on Schelleng F_max clamp + algebraic saturator + loop-gain ceiling). ~3-4 min wall-clock budget. User-confirmed. |
+| **Q27 — `pass_subharmAudible` measurement** | **FFT energy ratio E(f0/2)/E(f0) ≥ 0.10 at SUB_HARMONICS=1.0 on E1** | Numeric, deterministic, falsifiable. FFT size 65536 Hann-windowed over last 2 s of MIDI 28 sustain at default bow. Architecture §457 "audible f0/2 perceived as weight" interpreted as ≥10% spectral energy at f0/2 (~20.6 Hz) relative to f0 (~41.2 Hz) at full SUB_HARMONICS. Adds ~30 LOC FFT analyzer to harness via `juce::dsp::FFT`. User-confirmed. |
+| **Q28 — Logic AU smoke timing** | **Deferred non-blocking R37 precedent** | Mirrors R32 / R27 / R19f / R14e. Automated Gate 6b invariants gate verify; Logic AU smoke is user-discretion non-blocking (MIDI 28 + SUB_HARMONICS 0→1.0 ramp at 30 s; MIDI 33 + SUB+SUS=1.0 chaos check). User-confirmed. |
+| **Q29 — Golden-file scope** | **Carry-forward 10 + add 2 new** (`--sub-harmonics` + `--sub-harmonics-stability`) | 10 currently-committed goldens MUST reproduce byte-identically (HR-9 IEEE 754 identity arithmetic). 2 new goldens land in R35 atomic commit alongside source delta. Plus matrix-stability `6db67707…` carries forward. User-confirmed. |
+| **Q30 — 30 ms `SmoothedValue` on SUB_HARMONICS** | **Confirmed per architecture §457 implementation note** | New `subHarmonicsSmoothed` member with 30 ms ramp time. Initialised via `setCurrentAndTargetValue(0.0f)` in `prepareToPlay` (HR-9 strict-default precondition). `setTargetValue` UNCONDITIONAL each block per Phase 2.3 pin #11 precedent. |
+| **Q31 — Active-string-only bias** | **Confirmed (HR-1 vibrato precedent)** | Bias evaluated only for `activeStringIndex`; crossfade-shadowed strings unbiased. 5 ms equal-power crossfade window from Phase 2.2 carries forward. Architecture §557 "bias INSIDE the junction" — junction is per-string, bias is per-string-active. |
+| **Q32 — Atomic commit** | **R35 atomic commit on Gate 6b PASS** | Continues sequence: R7 → R15 → R20 → R26 → R33 → R34 → R35. Lands ~12-15 files (2 source: BowedContrabassVoice.{h,cpp} + 1 new header SubHarmonicBias.h + harness CLI flag + 2 new golden text + reproduce-goldens.sh extension + planning artefacts + STATUS.md). R35-backfill chore commit per R34 / R33 precedent. |
+| **Q33 — CONTEXT.md doc scope** | **rev-7 covers Phase 2.4b only** | Phase 2.4c (autocorrelator + saturator-tail) gets rev-8 when discuss-phase opens after 2.4b verify. Mirrors rev-2/rev-3/rev-4/rev-5/rev-6 (Phase 2.1a/b/c, 2.3, 2.4a) precedent. |
+| Per-block evaluation order | **7-step + Step 2.5 inserted (Phase 2.4b)** | Step 2.5 (sub-harmonic bias evaluation) sits between Step 2 (Schelleng wedge / SchellengCalibration trilinear) and Step 3 (slow-LFO modulation apply). HR-9 short-circuits entire Step 2.5 at `subAmount == 0.0f`. Step 2.5 reads pre-bias `F_bow / v_0 / mu_s / mu_d` from Step 1 raw APVTS or smoothed values; writes biased values that feed downstream macro layer + per-sample friction call. |
+| Bias application order | **Bias → Schelleng F_max clamp → friction lookup (architecture §557 verbatim)** | F_max clamp is INSIDE the bias function (post bias-multiply, pre return). Order matches §457 implementation note + §557 "bias INSIDE the junction" wording. SchellengCalibration table read happens once per block per active string. |
 
 ---
 
 ## Open Questions (handed to research-phase)
 
-1. **Polynomial form + degree.** Per-string lookup table (Q14 locked). Open: degree of polynomial per axis (linear, quadratic, cubic), breakpoint structure (single polynomial vs piecewise), interpolation method between breakpoints (linear, smoothstep, B-spline). Research-phase derives from inspection of 108-combo data scatter. Initial guess: 2-piece quadratic per axis with linear interpolation = ~20 coefficients per string × 4 strings = 80 constexpr floats.
+1. **SchellengCalibration→F_max ceiling mapping function.** 2.4a table returns `safeDepth ∈ {0.5, 1.0}` as a slow-LFO depth multiplier; 2.4b needs an `F_bow` ceiling. Recommended mapping: `effectiveBoost = subAmount * 0.8f * safeDepth` (stable→full 0.8, fallback→half 0.4). Alternatives: (a) use `safeDepth` as kForceBoost scalar (`kForceBoost = 1.8f * safeDepth`), (b) treat fallback cells as hard zero (`if (safeDepth < 1.0f) bias=0`), (c) introduce a new fitting pass for `F_bow ceiling = f(stringIdx, v_b, F_bow, beta)` mirroring 2.4a polynomial. Research-phase locks against acceptance criterion (Open Q3 below).
 
-2. **Polynomial fitting tool + workflow.** Q14 locks per-string table form; Q19 locks external offline tool. Open: which tool (Python `numpy.polyfit` / `scipy.optimize.curve_fit` / Octave `polyfit` / Excel `LINEST`)? What input (108-combo JSON parsed how)? What output format (raw `.h` snippet ready for paste, or `.json` consumed by build-time codegen)? Research-phase recommends tool + commits the offline workflow as a `tools/schelleng-fit/` script.
+2. **FFT analyzer specifics.** FFT size + window + bin selection for `subharmEnergyRatio` measurement. Defaults: size 65536 Hann, bin width 0.673 Hz at sr=44100. f0 (41.2 Hz) bin 61.2; f0/2 (20.6 Hz) bin 30.6. Energy = magnitude² summed over 3 bins centered on each (capture spectral leakage). Open: window choice (Hann vs Blackman-Harris), bin-width tradeoff vs sustain length, log-magnitude vs linear-magnitude energy. Research-phase pre-flights at SUB_HARMONICS=0 baseline (subharmEnergyRatio expected ≈ 0 — system noise floor only) and at SUB_HARMONICS=1.0 against bias formula prediction.
 
-3. **108-combo render output schema.** `--matrix-stability` mode emits per-combo `{stringIdx, bowSpeed, bowPressure, bowPosition, peak, rmsContinuity, blockTimeRatio, clampedDepthMean, pass_*}`. Open: precise field names + JSON aggregate schema. Research-phase finalises against existing `--detune-sweep` per-combo pattern. Also: does aggregate include polynomial-fit-quality metrics (R², residual variance) computed inline, or is fit-quality assessed only by offline tool?
+3. **`pass_subharmAudible` threshold tuning.** Default 0.10 ratio at SUB_HARMONICS=1.0 on E1. Research-phase pre-flights: render at SUB_HARMONICS=1.0 with bias formula coefficients verbatim (`kForceBoost=1.8`, `kV0Reduction=0.5`, `kGapWiden=0.25`, `kFmaxScalar=0.95`); measure resulting subharmEnergyRatio; if measured value < 0.10, escalate (relax threshold to architecture-spec'd "audible" wording OR re-tune coefficients OR escalate to Phase 2.4-bis style soft-pass with documented v1.0 budget).
 
-4. **Fit quality acceptance criteria.** Open: what R² / residual-variance thresholds gate the polynomial as "good enough" to ship? Research-phase derives from inspection of 108-combo data variance. Conservative default: R² ≥ 0.90 per string, max residual ≤ 0.10 in safeDepth space.
+4. **HR-9 bit-exact pre-flight.** Render all 10 currently-committed goldens BEFORE Phase 2.4b source edits via canonical default-duration invocations (reproduce-goldens.sh from Phase 2.4a R34-pre tripwire). Capture sha256s; verify against committed values. If any drift, escalate before plan-phase. Mirrors §17.1 / §16.1 precedent.
 
-5. **Bit-exact regression pre-flight.** Phase 2.3 verify discovered post-R31 source edit caused 4 audible carry-forward goldens to drift bit-for-bit. Mitigation: pre-flight render BEFORE Phase 2.4a source edits captures all 8 currently-committed goldens (E1 strict + detune-sweep-A + per-string A/D/G + note-sequence + vibrato + macro-sweep — the 6 NOT being re-baselined in 2.4a) at current source. If any drift, escalate to bisection BEFORE Phase 2.4a source edits begin. Research-phase runs this pre-flight as RESEARCH §17.1.
+5. **`--sub-harmonics-stability` single-combo wall-clock pre-flight.** Render ONE combo at extreme settings (E1, SUB_HARMONICS=1.0, INFINITE_SUSTAIN=1.0) — measure block-time ratio + wall-clock per combo. Extrapolate to 36-combo total wall-clock; revisit matrix size if budget overrun (mirrors §17.2). Initial estimate: 36 × 5 s sustain ≈ 180 s wall-clock at typical block-time ratio ≤ 1.0.
 
-6. **`--matrix-stability` MIDI note per combo.** Each combo runs at sustain 5 s for one string. Open: which MIDI note per string? Recommend: open string MIDI notes (28/33/38/43) so combo data reflects open-string Schelleng wedge per string. Alternative: middle-of-range per string (E.g. 30/35/40/45). Research-phase locks.
+6. **`--sub-harmonics-stability` MIDI note per combo.** Each stringIdx renders at one note. Recommend: open-string MIDI 28/33/38/43 (4 strings), mirroring Phase 2.4a `--matrix-stability` precedent. Research-phase confirms (alternative: middle-of-range per string).
 
-7. **Wedge math invocation in `--matrix-stability`.** Research-phase confirms: at SLOW_LFO_DEPTH=1.0 + SLOW_LFO_RATE=0.3 Hz, does the 5 s sustain provide enough cycles for `clampedDepthMean` to be representative? 0.3 Hz × 5 s = 1.5 cycles. Borderline. Alternative: SLOW_LFO_RATE=1.0 Hz (5 cycles per combo, wider sample of slow-LFO phase coverage). Research-phase checks clampedDepthMean variance against cycle count.
+7. **`--sub-harmonics-stability` pass criteria.** Default thresholds (rmsContinuity ≥ 0.85, blockTimeRatio ≤ 5.0) carry forward from Phase 2.4a. Research-phase pre-flights extreme combo to confirm thresholds are tight enough at SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0.
 
-8. **Wall-clock budget validation.** 108 combos × 5 s sustain = 540 s render time + JSON serialisation overhead. Block-time ratio ≤ 5.0 means ~2700 s wall-clock = 45 min worst case (vs ~9 min initial estimate at typical block-time ratio ≤ 1.0). Research-phase pre-flights one combo to measure actual block-time ratio at extreme settings; revisits matrix iteration count if ratio is >2x estimate.
+8. **SubHarmonicBias.h API shape.** Recommended single function `applyBias(float subAmount, int stringIdx, float v_b, float beta, float& F_bow, float& v_0, float& mu_s, float mu_d)`. Open: should `mu_d` be const reference (read-only) or non-const (also biased)? Architecture §457 only mutates `mu_s`; gap widening is via `mu_s = mu_d + gap * (1.0f + 0.25 * subAmount)` keeping `mu_d` constant. Research-phase confirms.
 
-9. **Matrix pass criteria threshold tuning.** Currently `pass_clickFree` rmsContinuity ≥ 0.85, `pass_blockTime` ratio ≤ 5.0. Open: are these thresholds tight enough at extreme combos (BOW_PRESSURE=7.0 + BOW_SPEED=0.05 + SLOW_LFO_DEPTH=1.0)? Research-phase pre-flights extreme combo + checks observed values.
+9. **Bias evaluation context — voice-level vs per-string.** Active-string-only (Q31) means bias evaluated once per block for `activeStringIndex`. Open: does bias's input `v_b` (bow velocity) and `F_bow` (bow force) come from voice-level smoothed values OR per-string-instance? At v1.0 with single bow-position pipeline, voice-level inputs feed all strings — bias inputs are voice-level. Research-phase locks input wiring.
 
-10. **`SchellengCalibration.h` API shape.** Open: 4 separate functions `safeDepthForStringE1/A1/D2/G2(v_b, F_bow, β)` vs single function `safeDepthForString(stringIdx, v_b, F_bow, β)` with internal table dispatch? Recommend: single function with `constexpr` table dispatch — cleaner call site in BowedContrabassVoice (`schellengCalibration::safeDepthForString(activeStringIndex, v_b, F_bow, β)`). Research-phase confirms.
+10. **R35 task breakdown.** Initial estimate mirrors R34: R35-pre tripwire + R35a (harness `--sub-harmonics` + `--sub-harmonics-stability` flags + FFT analyzer) + R35b (render new goldens + capture sha256s) + R35c (author SubHarmonicBias.h) + R35d (BowedContrabassVoice integration: Step 2.5 + subHarmonicsSmoothed + lastSubAmount instrumentation) + R35e (regression bar via reproduce-goldens.sh) + R35f (auval + pluginval-10) + R35 atomic commit + R35-backfill chore. Research-phase locks task body and ordering.
 
-11. **Pattern-confirm against O-Bowed.** O-Bowed has its own slow-LFO + Schelleng wedge math (architecture-derived from same paper). Confirm: does O-Bowed exhibit the same `clampedDepthMean=0.0` anomaly at default treble register, or is the bass-register-only? If O-Bowed is unaffected, calibration is bass-specific (good — confirms per-string-table approach). If O-Bowed also exhibits the anomaly, the closed-form is broken everywhere and we may want a shared module. Research-phase checks.
+11. **Per-string SUB_HARMONICS variation.** Architecture §457 specifies a single global `subAmount`. Open: does ROADMAP / BRIEF imply per-string sub-harmonic variation (e.g., E1-only sub bias, others muted)? Research-phase audits BRIEF + ROADMAP. Recommended: single global SUB_HARMONICS applied to active string only via Q31.
+
+12. **Architectural footnote on chaos detector deferral.** Track in R35 commit-message body that lag-2 RMS chaos detector + softClampState deferred to Phase 2.5/2.6 per Q26. NOT an ARCHITECTURE.md amendment. Research-phase confirms commit-body wording template.
 
 ---
 
-## Risks (Phase 2.4a-specific)
+## Risks (Phase 2.4b-specific)
 
-1. **Bit-exact regression failure on the 6 modulators-off / no-wedge goldens.** Mitigation: pre-flight (Open Question #5) captures all 8 currently-committed goldens BEFORE Phase 2.4a source edits. HR-2 + HR-4 gates are the technical defence — wedge math never executes in any of these renders. If regression breaks, it means Phase 2.4a source edits perturbed source structure in an unrelated way (e.g., variable layout, optimisation inlining). Escalate by isolating SchellengCalibration.h source to a separate translation unit; or by adding `__attribute__((noinline))` to polynomial lookup; or by rolling back to Phase 2.3 source structure with calibration as a pure constexpr swap-in.
+1. **HR-9 bit-exact regression failure on 10 carry-forward goldens.** Mitigation: pre-flight (Open Q4) captures all 10 currently-committed goldens BEFORE Phase 2.4b source edits. HR-9 short-circuit + IEEE 754 identity arithmetic + active-string-only gate are technical defences. If regression breaks, isolate SubHarmonicBias.h to separate translation unit OR add `__attribute__((noinline))` OR roll back to source structure with bias as pure constexpr swap-in. Phase 2.3 latent-drift risk re-surfacing surface — mitigated by canonical reproduce-goldens.sh invocation pattern.
 
-2. **Calibration polynomial under-fits at extreme combos.** Mitigation: research-phase Open Question #4 specifies fit-quality acceptance criteria. If R² < 0.90 at any string, escalate to higher-degree polynomial or piecewise-with-more-breakpoints. Worst case: heuristic floor fallback (Q13 alternate) for any string where polynomial under-fits.
+2. **SchellengCalibration→F_max mapping semantic mismatch.** 2.4a table returns slow-LFO depth multiplier; 2.4b needs F_bow ceiling. Mapping research-phase locks (Open Q1). If recommended `effectiveBoost = subAmount * 0.8f * safeDepth` under-clamps at fallback cells (3 of 108 cells where safeDepth=0.5), bias could produce raucous-corner instability at those operating points. Mitigation: 36-combo `--sub-harmonics-stability` exercises these regimes; `failCount ≤ 2` v1.0 budget gives headroom.
 
-3. **Calibration polynomial over-fits at the 27 sampled grid points.** Risk of polynomial doing fine at the 27 (3×3×3) sampled combos per string but pathological at off-grid points. Mitigation: research-phase Open Question #4 includes off-grid spot-checks in fit-quality acceptance — sample at midpoints between grid points, verify polynomial is monotonic and bounded.
+3. **`pass_subharmAudible` threshold 0.10 may be too lax or too strict at default coefficients.** Research-phase pre-flights at SUB_HARMONICS=1.0 with `kForceBoost=1.8` etc. — measured ratio either confirms 10% threshold OR informs coefficient adjustment OR informs threshold relaxation (Phase 2.4-bis style soft-pass with v1.0 budget). Mitigation: research-phase Open Q3 + escalation path documented at discuss-phase.
 
-4. **108-combo wall-clock budget overrun** (Open Question #8). Mitigation: research-phase pre-flights one combo at extreme settings to measure actual block-time ratio. If 9 min estimate is >2x off, either (a) reduce matrix to 81 combos (3×3×3×3) OR (b) parallelise harness invocation across combos (each combo is independent process invocation).
+4. **Period-doubling chaotic regime at SUB_HARMONICS=1.0 + INFINITE_SUSTAIN=1.0 on extreme bow params.** No chaos detector at v1.0 (deferred Q26). Layered defences: (a) SchellengCalibration F_max clamp inside bias, (b) algebraic saturator `x/sqrt(1+x²)` per rail, (c) loop-gain ceiling 0.9999999 hard-clamp. Mitigation: 36-combo stability matrix exercises 9 SUB+SUS=high combos; if any combo NaN/peak>1.0/runaway, escalate to chaos detector Phase 2.4-bis OR reduce `kForceBoost` from 1.8 → 1.4 (architecture §661 fallback 1).
 
-5. **`pass_breathingAudible ≥ 20%` polynomial fit fails on one or more strings.** If calibration polynomial allows audible breathing on E1/A1/D2 but not G2 (or vice versa), Phase 2.4a verify fails. Mitigation: per-string polynomial form (Q14) means per-string fit quality is independently tunable. If one string under-fits, Phase 2.4a remediation path is to re-fit that string with higher polynomial degree (or piecewise-with-more-breakpoints) without disturbing others.
+5. **Active-string-only bias under crossfade.** During the 5 ms equal-power crossfade window between strings, bias for `activeStringIndex` fires on the new active string but the previous-active-shadow continues to ring out unbiased. Risk: audible "switch" event when SUB_HARMONICS > 0 mid-note-change (HR-9 active-string gate analogous to HR-1 vibrato — Phase 2.3 verified vibrato gates didn't audibly switch; same expected for bias). Mitigation: bias rampup via `subHarmonicsSmoothed.setTargetValue(...)` 30 ms ramp absorbs the discontinuity; research-phase confirms no audible click via stress-test combos that include note transitions.
 
-6. **`--matrix-stability` discovers a real instability** (NaN, peak > 1.0, click) at one or more of the 108 combos. This is the `pass_all_108` failure mode. Mitigation: this is a feature, not a bug — matrix is the QUAL-01 click-free / stability gate. Failure escalates to root-cause analysis (which combo, which DSP path, why instability). Phase 2.4a remediation may involve friction-junction guards (algebraic saturator clamp tightening, energy-clamp loop-gain reduction at extremes). Worst case: Phase 2.4a scope expands or 2.4a delivers polynomial only + 2.4a-bis cycle handles instability remediation.
+6. **`subHarmonicsSmoothed.setTargetValue` UNCONDITIONAL each block at default 0.0.** Phase 2.3 macroSmoothed pin #11 precedent. If condition guards `setTargetValue` (e.g., `if (newValue != currentTarget) setTargetValue(...)`), denormal accumulation in smoother state can drift over very long sessions. Mitigation: pin into PLAN rev-9 preamble.
 
-7. **Polynomial fitting tool dependency.** Adding a Python/Octave tool to repo introduces a build-time-but-not-runtime dependency. Mitigation: tool runs offline (developer machine), not in CI. `tools/schelleng-fit/` script + commit-time README explaining how to re-run if matrix is re-rendered. Output (`.h` snippet) is committed to source; tool only re-invoked if calibration data changes.
+7. **SUB_HARMONICS default 0.0 audit.** All 10 current golden render configs MUST use default SUB_HARMONICS=0. Mitigation: research-phase audits each render config in main.cpp — confirm no mode passes a non-zero SUB_HARMONICS to the harness. If any mode passes >0, that golden becomes a re-baseline candidate (escalation to Phase 2.4b R35 atomic commit body).
 
-8. **`--schelleng-stress` golden re-baseline introduces second uncharacterised drift mechanism.** Phase 2.3 verify already had 4 carry-forward goldens drift bit-for-bit (latent drift mechanism uncharacterised). Phase 2.4a re-baselines `--slow-lfo` + `--schelleng-stress` against calibrated wedge — these are EXPECTED to change because wedge math changes. Mitigation: NEW post-calibration sha256s captured in R34 atomic commit; documented as expected re-baseline (not anomalous drift). Phase 2.3's 4 carry-forward goldens (string-A/D/G/note-sequence) MUST reproduce byte-identically against current `c6755aa4…` etc.; if any drift, escalate (Phase 2.3 latent drift mechanism re-surfacing).
+8. **Bias's F_max clamp interaction with HR-4 (Schelleng wedge skip on SLOW_LFO_DEPTH=0).** Bias's F_max clamp via SchellengCalibration is INDEPENDENT of HR-4 wedge gate. At SLOW_LFO_DEPTH=0 (HR-4 short-circuits wedge math), bias still invokes safeDepthForString — but that lookup is read-only and cheap. No interaction conflict. Mitigation: research-phase confirms HR-4 + HR-9 are independent gates.
 
-9. **Polynomial coefficient floats in source vs header.** Constexpr arrays in header introduce ODR risk if header is included in multiple translation units. Mitigation: header guards + `inline constexpr` C++17 syntax. Phase 2.2 dispersion table uses same pattern; precedent confirmed.
+9. **Period-doubling spectral content shifts FFT bin selection.** At SUB_HARMONICS=1.0, period-doubling regime produces broadband transients in addition to f0/2 fundamental. FFT energy at f0/2 ± 0.5 Hz captures fundamental but not the sideband structure. Research-phase pre-flights to confirm `subharmEnergyRatio = E(f0/2_3bins) / E(f0_3bins) >= 0.10` is achievable with bias coefficients verbatim.
+
+10. **R35 atomic commit interaction with R34-backfill chore.** R34-backfill chore `b64c8c4` propagated R34 sha into STATUS.md per R33 precedent. R35 atomic commit lands while R34-backfill is the most recent in-tree commit. R35-backfill chore propagates R35 sha into STATUS.md. Mitigation: R35-backfill chore commit follows R35 atomic commit (mirrors R34-backfill / R33-backfill / R26 precedent).
+
+11. **`kForceBoost = 1.8` cap matches architecture §1.3 default.** Bias formula `F_bow *= 1.0f + 0.8f * subAmount` produces F_bow×1.8 at subAmount=1.0 — matches kForceBoost cap. Research-phase confirms mapping (no separate kForceBoost constant; 0.8 multiplier embedded in bias formula).
+
+12. **Phase 2.4-bis backlog crowding.** Phase 2.4-bis open items (breathingAudible metric refinement, 3 fallback-cell reduction) not folded into Phase 2.4b. Risk: if Phase 2.4b verify exposes that a Phase 2.4-bis change would have made bias safer (e.g., 3 fallback cells become bias-affected operating points), escalate to Phase 2.4-bis cycle BEFORE Phase 2.4b R35 atomic commit. Mitigation: research-phase identifies fallback-cell intersection with `--sub-harmonics-stability` 36 combos; if intersection causes failures, Phase 2.4b scope expands or 2.4-bis lifts forward.
 
 ---
 
@@ -179,63 +192,72 @@ After Phase 2.4a verifies (Gate 6a PASS), Phase 2.4b discuss-phase opens.
 
 Ready for: **research** phase — `/clear` then `/plugin-research O-Contrabass 2-dsp`
 
-Research focus (Phase 2.4a):
+Research focus (Phase 2.4b):
 
-1. **Resolve Open Questions #1–#11** — polynomial form/degree, fitting tool/workflow, JSON schema, fit quality acceptance, bit-exact pre-flight (RESEARCH §17.1), MIDI note per combo, wedge cycle count adequacy, wall-clock budget validation, matrix pass-criteria thresholds, SchellengCalibration.h API shape, O-Bowed pattern confirm.
-2. **Bit-exact pre-flight (Open Question #5)** — render all 8 currently-committed goldens BEFORE Phase 2.4a source edits; capture sha256s + verify against committed values. If any drift, INVESTIGATE before plan-phase. This is the equivalent of Phase 2.3 RESEARCH §16.1 pre-flight that discovered `d358abcd…` was byte-identical with EXPRESSION_MACRO default flipped.
-3. **108-combo single-combo wall-clock pre-flight (Open Question #8)** — render ONE combo at extreme settings (BOW_PRESSURE=7.0, BOW_SPEED=0.05, SLOW_LFO_DEPTH=1.0, MIDI 28); measure block-time ratio + wall-clock per combo. Extrapolate to 108-combo total wall-clock; revisit matrix size if budget overrun.
-4. **Polynomial fitting tool selection** — Python `numpy.polyfit` is the default recommendation; research-phase commits `tools/schelleng-fit/fit.py` (or equivalent) + README + sample output.
-5. **Pattern-confirm against O-Bowed** Schelleng wedge implementation; document whether bass-register anomaly is shared across plugins.
-6. **Update RESEARCH.md** — append §17 documenting all the resolutions above. (No §16 changes; Phase 2.3 §16 is locked.)
+1. **Resolve Open Questions #1–#12** — F_max mapping function, FFT analyzer specifics, threshold tuning, HR-9 pre-flight, wall-clock pre-flight, MIDI per combo, pass criteria, SubHarmonicBias.h API, voice-level vs per-string inputs, R35 task breakdown, per-string variation, commit-body footnote.
+2. **HR-9 bit-exact pre-flight (Open Q4)** — render all 10 currently-committed goldens BEFORE Phase 2.4b source edits via reproduce-goldens.sh; capture sha256s + verify against committed values. If any drift, INVESTIGATE before plan-phase.
+3. **Single-combo wall-clock pre-flight (Open Q5)** — render ONE combo at extreme settings; measure block-time ratio + wall-clock per combo; extrapolate to 36-combo total.
+4. **SUB_HARMONICS=1.0 spectral pre-flight (Open Q2/Q3)** — render baseline at SUB_HARMONICS=0 (system noise floor) and SUB_HARMONICS=1.0 with §457 coefficients verbatim; measure subharmEnergyRatio; confirm 10% threshold OR escalate.
+5. **SchellengCalibration mapping decision (Open Q1)** — analyze 105/108 + 3 fallback cells; lock mapping function; document v1.0 fallback behavior at 3 cells.
+6. **Append RESEARCH §18** — document all resolutions above. (No §17 changes; Phase 2.4a §17 locked.)
 
-After research: plan-phase (PLAN rev-8) writes R34 task breakdown verbatim against this CONTEXT + research findings; execute-phase performs the implementation + 108-combo render + polynomial fit + R34 atomic commit; verify-phase confirms Gate 6a invariants (1–5) + R37 Logic AU smoke (deferred non-blocking per Q21).
+After research: plan-phase (PLAN rev-9) writes R35 task breakdown verbatim against this CONTEXT + research findings; execute-phase performs implementation + new goldens + R35 atomic commit; verify-phase confirms Gate 6b invariants.
 
 ---
 
-## Audit Trail (rev-6 supersedes rev-5)
+## Audit Trail (rev-7 supersedes rev-6)
 
-**rev-1 (earlier 2026-04-26):** Phase 2.1 broad discuss. Cycle scope = Phase 2.1 (sub-phases a/b/c).
+**rev-1 (2026-04-26):** Phase 2.1 broad discuss. Cycle scope = Phase 2.1 (sub-phases a/b/c).
 
-**rev-2 (later 2026-04-26):** Phase 2.1a closure (Option A, R7 commit) + Phase 2.1b opening (module extraction, Gate 2). Phase 2.1b verified 2026-04-27 (R8a `bd5fae0` + R15 `ef0604d` atomic commits, Gate 2 PASS bit-exact).
+**rev-2 (2026-04-26):** Phase 2.1a closure (Option A, R7) + Phase 2.1b opening (module extraction, Gate 2). Phase 2.1b verified 2026-04-27 (R8a `bd5fae0` + R15 `ef0604d`, Gate 2 PASS).
 
-**rev-3 (2026-04-27):** Phase 2.1c opening — cascaded allpass dispersion, Gate 3. Phase 2.1c verified 2026-04-27 (R20 atomic commit `5759e5e`, Gate 3 PASS).
+**rev-3 (2026-04-27):** Phase 2.1c opening — cascaded allpass dispersion. Verified 2026-04-27 (R20 `5759e5e`, Gate 3 PASS).
 
-**rev-4 (2026-04-27):** Phase 2.2 opening — 4-string EADG bank + per-string detune + per-string M=4/3/2/1 dispersion table + MIDI→string mapping + ACTIVE_STRINGS + 5 ms string-switching crossfade. Phase 2.2 verified 2026-04-27 (R26 atomic commit `131c2c7`, Gate 4 PASS).
+**rev-4 (2026-04-27):** Phase 2.2 opening — 4-string EADG + per-string detune + per-string M-table. Verified 2026-04-27 (R26 `131c2c7`, Gate 4 PASS).
 
-**rev-5 (2026-04-27):** Phase 2.3 opening — Vibrato + Slow-Bow LFO + Schelleng wedge clamp + EXPRESSION_MACRO. 11 approach decisions (Q1–Q11), 4 hard rules HR-1..HR-4 binding. Phase 2.3 verified 2026-04-27 (R33 atomic commit `af54571`, Gate 5 PASS with re-baseline of 4 audible carry-forward goldens).
+**rev-5 (2026-04-27):** Phase 2.3 opening — Vibrato + Slow-Bow LFO + Schelleng wedge clamp + EXPRESSION_MACRO. HR-1..HR-4 binding. Verified 2026-04-27 (R33 `af54571`, Gate 5 PASS with rebaseline of 4 audible carry-forward goldens).
 
-**rev-6 (this document, 2026-04-27):** Phase 2.4a opening — Schelleng wedge bass-register calibration polynomial + 108-combo stability matrix dual-purpose render + `pass_breathingAudible` 5%→20% threshold restoration. 11 approach decisions (Q12–Q22 user-confirmed: split 2.4a/2.4b/2.4c; empirical fit from 108-combo render; per-string lookup table polynomial form; 4×3×3×3 matrix axes locked at discuss-phase; single render dual-purpose; 20% threshold restoration; re-baseline `slow-lfo` + `schelleng-stress` goldens; R34 atomic commit; saturator-tail decision deferred to Phase 2.4c; Logic AU smoke deferred non-blocking; rev-6 covers 2.4a only). 11 open questions handed to research-phase: polynomial form/degree, fitting tool/workflow, JSON schema, fit quality criteria, bit-exact pre-flight (RESEARCH §17.1), MIDI note per combo, wedge cycle count, wall-clock budget, matrix pass thresholds, SchellengCalibration.h API, O-Bowed pattern confirm.
+**rev-6 (2026-04-27):** Phase 2.4a opening — Schelleng wedge bass-register calibration polynomial + 108-combo stability matrix dual-purpose render + `pass_breathingAudible` 5%→20% threshold restoration. HR-5..HR-8 binding. Verified 2026-04-28 (R34 `4c926bb`, Gate 6a CLEARED — 3 strict-PASS + 2 soft-PASS within v1.0 budgets) + R34-backfill chore `b64c8c4`. Phase 2.4-bis backlog logged: tune Step 4 modulation gain to hit 20% peak-to-peak OR refine breathingAudible per-cycle metric; reduce v1.0 fallback cells via downstream-defense tightening.
 
-**Inherited verbatim from rev-5 (not re-litigated):**
+**rev-7 (this document, 2026-04-28):** Phase 2.4b opening — Sub-Harmonic Bias DSP-07 (ARCHITECTURE §457). 11 approach decisions Q23–Q33 user-confirmed: scope = bias DSP-07 only (Q23); per-plugin in BowedContrabassVoice + new SubHarmonicBias.h header (Q24); F_max ceiling via Phase 2.4a SchellengCalibration table reuse (Q25); 36-combo `--sub-harmonics-stability` matrix without BODY_DAMPING + chaos detector deferred (Q26); FFT energy ratio E(f0/2)/E(f0) ≥ 0.10 at SUB_HARMONICS=1.0 on E1 (Q27); Logic AU smoke deferred non-blocking R37 (Q28); carry-forward 10 + 2 new goldens (Q29); 30 ms SmoothedValue on SUB_HARMONICS confirmed (Q30); active-string-only bias HR-1 precedent (Q31); R35 atomic commit + R35-backfill chore (Q32); rev-7 covers 2.4b only (Q33). 12 open questions handed to research-phase: SchellengCalibration→F_max mapping, FFT specs, threshold tuning, HR-9 pre-flight, wall-clock pre-flight, MIDI per combo, pass criteria, SubHarmonicBias.h API, voice-level vs per-string inputs, R35 task breakdown, per-string variation, commit-body footnote. NEW Hard Rule HR-9 binding: SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate. Phase 2.4c (autocorrelator + saturator-tail) gets fresh CONTEXT rev-8 when discuss-phase opens after 2.4b verify. Continues atomic-commit sequence R7 → R15 → R20 → R26 → R33 → R34 → R35.
+
+**Inherited verbatim from rev-6 (not re-litigated):**
+
 - All Phase 2.3 modulator surface (vibratoPhase / vibratoOnsetTimer / slowLfoPhase / 4 macro SmoothedValues / 7-step per-block evaluation order)
 - HR-1..HR-4 hard rules (literal-zero short-circuits + IEEE 754 identity-arithmetic + Schelleng skip on zero LFO depth)
+- HR-5..HR-8 hard rules (Phase 2.4a — `inline constexpr` linkage on SchellengCalibration.h; calibration behind HR-4 gate ONLY; matrix-stability bypass via weak-symbol; trilinear IEEE 754 identity arithmetic)
 - `lastSafeDepth.store(...)` instrumentation hook signature (pin #4 from PLAN rev-7)
-- 6 carry-forward goldens (E1 strict + detune-sweep-A + per-string A/D/G + note-sequence)
-- 4 Phase 2.3 mode goldens (vibrato + slow-lfo + schelleng-stress + macro-sweep) — `slow-lfo` + `schelleng-stress` re-baseline in 2.4a R34
-- Atomic-commit gate-first principle (R7 → R15 → R20 → R26 → R33 → R34)
-- Saturator-tail Phase 2.4c follow-up parking + RESEARCH §12 footnote (now scoped to 2.4c, not 2.4a)
+- 10 currently-committed goldens (E1 strict + per-string A/D/G + detune-sweep-A + note-sequence + vibrato + macro-sweep + slow-lfo re-baselined + schelleng-stress re-baselined)
+- Phase 2.4a `matrix-stability.{wav.sha256,json}` `6db67707…` golden
+- Atomic-commit gate-first principle (R7 → R15 → R20 → R26 → R33 → R34 → R35)
+- Saturator-tail Phase 2.4c follow-up parking
 - ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments deferred to end-of-Stage-2 verify
-- E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7) — separate concern from Phase 2.4a Schelleng wedge calibration; that's `a(B, I)` cascaded-allpass math, this is friction-junction wedge math
+- E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7) — separate concern
 - Primary listening DAW: Logic Pro (AU)
 - Sample-rate strategy: internal 88.2 / 96 kHz at friction junction
-- Bow-friction module v1.0.0 at `modules/synthesis/bow-friction/` (Phase 2.1b)
-- Per-plugin `DispersionFilter.h` (NOT extracted to shared module)
-- 29 APVTS parameters incl. all Phase 2.3 modulator/macro params; parameter-spec.md sha256:`77638e25…` carries forward unchanged
-- Stage-1 contract NOT amended in Phase 2.4a (no parameter-spec.md edit, no contract_checksums update)
+- Bow-friction module v1.0.0 at `modules/synthesis/bow-friction/`
+- Per-plugin `DispersionFilter.h` + `SchellengCalibration.h` (NOT extracted to shared module)
+- 29 APVTS parameters; parameter-spec.md sha256 `77638e25…` carries forward unchanged
+- Stage-1 contract NOT amended in Phase 2.4b
+- ARCHITECTURE.md NOT amended in Phase 2.4b
+- Phase 2.4-bis backlog parked (separate future cycle)
 
-**New in rev-6:**
-- Q12 Phase 2.4 split into 2.4a/2.4b/2.4c sub-cycles (mirrors 2.1a/b/c)
-- Q13 empirical fit from 108-combo render (most rigorous)
-- Q14 per-string lookup table polynomial form (4 polys, mirrors per-string M-table)
-- Q15 108-combo matrix axes locked: 4 strings × 3 BOW_SPEED × 3 BOW_PRESSURE × 3 BOW_POSITION at INFINITE_SUSTAIN=1.0, SLOW_LFO_DEPTH=1.0, SLOW_LFO_RATE=0.3 Hz
-- Q16 single 108-combo render dual-purpose (calibration + stability gate)
-- Q17 `pass_breathingAudible` 5%→20% threshold restoration (architecture-spec'd)
-- Q18 re-baseline `slow-lfo` + `schelleng-stress` goldens against calibrated wedge
-- Q19 R34 atomic commit on Gate 6a PASS (continues R7→R15→R20→R26→R33→R34)
-- Q20 saturator-tail decision deferred to Phase 2.4c
-- Q21 Logic AU smoke deferred non-blocking (R32 / R27 / R19f precedent)
-- Q22 rev-6 covers Phase 2.4a only (rev-7 / rev-8 written when 2.4b / 2.4c open)
-- New `Source/DSP/SchellengCalibration.h` header with per-string constexpr coefficient arrays
-- New harness CLI flag `--matrix-stability` for 108-combo render
-- New golden text file `matrix-stability.{wav.sha256,json}`
-- Five-item Gate 6a bar: (1) all 8 carry-forward goldens (E1 strict + detune-sweep-A + per-string A/D/G + note-sequence + vibrato + macro-sweep) byte-identical; (2) re-baselined `--slow-lfo` golden + `pass_breathingAudible ≥ 20%`; (3) re-baselined `--schelleng-stress` golden; (4) `--matrix-stability` `pass_all_108=true`; (5) auval + pluginval-10. R37 Logic AU smoke deferred non-blocking.
+**New in rev-7:**
+
+- Q23 Phase 2.4b scope = sub-harmonic bias DSP-07 only
+- Q24 per-plugin in BowedContrabassVoice.cpp + new `Source/DSP/SubHarmonicBias.h` header
+- Q25 SchellengCalibration trilinear table reuse for F_max ceiling
+- Q26 36-combo `--sub-harmonics-stability` (4 strings × 3 INFINITE_SUSTAIN × 3 SUB_HARMONICS)
+- Q27 FFT energy ratio `E(f0/2)/E(f0) >= 0.10` at SUB_HARMONICS=1.0 on E1
+- Q28 Logic AU smoke deferred non-blocking
+- Q29 carry-forward 10 + 2 new goldens (`--sub-harmonics` + `--sub-harmonics-stability`)
+- Q30 30 ms `subHarmonicsSmoothed` SmoothedValue
+- Q31 active-string-only bias (HR-1 precedent)
+- Q32 R35 atomic commit + R35-backfill chore
+- Q33 rev-7 covers 2.4b only
+- NEW HR-9 hard rule (SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate)
+- New `Source/DSP/SubHarmonicBias.h` header (~80 LOC)
+- New harness CLI flags `--sub-harmonics` + `--sub-harmonics-stability`
+- New goldens `sub-harmonics.{wav.sha256,json,json.sha256}` + `sub-harmonics-stability.{wav.sha256,json,json.sha256}`
+- Step 2.5 (sub-harmonic bias evaluation) inserted into per-block 7-step order
+- Five-item Gate 6b bar: (1) all 10 carry-forward goldens (8 + 2 Phase 2.4a re-baselined) byte-identical via reproduce-goldens.sh; (2) new `--sub-harmonics` golden + `pass_subharmAudible >= 0.10`; (3) new `--sub-harmonics-stability` `pass_all_36 = true` OR `failCount ≤ 2` v1.0 budget; (4) auval AU VALIDATION SUCCEEDED + pluginval-10 SUCCESS; (5) matrix-stability `6db67707…` carries forward byte-identical. R37 Logic AU smoke deferred non-blocking.

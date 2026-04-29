@@ -68,6 +68,14 @@ public:
         return lastSafeDepth.load (std::memory_order_relaxed);
     }
 
+    // Phase 2.4b R35d — sub-harmonic bias instrumentation hook (mirrors HR-4
+    // lastSafeDepth pattern; written per-block at top of Step 2.5 — pre-gate
+    // store(0.0) then post-bias store(subAmount) for active-string biased path).
+    float getLastSubAmount() const noexcept
+    {
+        return lastSubAmount.load (std::memory_order_relaxed);
+    }
+
 private:
     void updateParametersFromAPVTS();
 
@@ -153,4 +161,16 @@ private:
     // step 2 of the 7-step evaluation order (always written, even at zero LFO
     // depth, so the harness read view is well-defined every block — pin #4).
     std::atomic<float> lastSafeDepth { 0.0f };
+
+    // ─── Phase 2.4b — Sub-harmonic bias state (HR-9 + HR-10) ──────────────────
+    // 30 ms ramp; HR-9 strict-default precondition: setCurrentAndTargetValue(0)
+    // in prepareToPlay; UNCONDITIONAL setTargetValue per block (pin #11 precedent).
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> subHarmonicsSmoothed;
+    // Instrumentation atom (mirrors lastSafeDepth pattern — pre-gate store(0)
+    // then optional post-bias store(subAmount)).
+    std::atomic<float> lastSubAmount { 0.0f };
+    // F_bow uplift factor consumed at Step 6 setBowPressure call.
+    // HR-9 reset to 1.0f at top of every renderNextBlock (BEFORE Step 2.5) so
+    // short-circuit path leaves Step 6 bit-exact identical to Phase 2.4a.
+    float voiceBowForceUpliftThisBlock { 1.0f };
 };
