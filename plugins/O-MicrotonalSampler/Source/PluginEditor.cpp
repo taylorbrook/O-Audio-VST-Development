@@ -13,6 +13,21 @@
 #include "TuningEngine.h"
 #include "ScaleGenerator.h"
 #include "EmbeddedTunings.h"
+#include "TuningExporter.h"
+// v1.0.3: drag-drop is handled at the JS layer (see sampler-app.js
+// bindWebViewFileDrop) and forwarded to this editor's filesDropped()
+// routing via the handleWebViewFileDrop native function below. The C++
+// FileDragAndDropTarget overrides remain as defence-in-depth in case JUCE
+// surfaces a drag over a non-WebView region of the editor in the future.
+//
+// Why JS-side: the WKWebView (and its internal content subviews) consume
+// OS-level drag events at the AppKit layer before JUCE's parent
+// FileDragAndDropTarget can route them. v1.0.1 tried -unregisterDraggedTypes
+// (no effect — WebKit re-registers internally); v1.0.2 tried a transparent
+// JUCE Component overlay (no effect — WebView OS rendering sits above
+// regular JUCE Components). Per the JUCE forum thread on this issue, the
+// validated approach is to handle drops in JavaScript, where WKWebView
+// reliably fires DOM drop events for files dragged from Finder.
 
 namespace
 {
@@ -269,6 +284,257 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                         });
                 })
 
+            // ---- dropSessionStart (v1.0.4 — content-streaming drag-drop) ----
+            //
+            // The user dragged a file or folder onto the WebView. WKWebView
+            // exposes a FileSystemEntry to JS but strips absolute paths
+            // (sandbox), so we cannot forward paths to filesDropped(). The
+            // JS layer instead enumerates the entry tree, reads each audio
+            // file via FileReader, and base64-streams the bytes to this
+            // editor via dropSessionAddFile. We materialise them in a
+            // session-scoped temp dir so the existing loadSampleFolder /
+            // loadSingleSample paths consume the result as if the user had
+            // picked it from a native FileChooser.
+            //
+            // args[0] = sessionId (opaque string from JS, used to scope
+            //           the temp dir and validate subsequent calls)
+            //
+            // Returns true if the temp dir was created.
+            .withNativeFunction ("dropSessionStart",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const auto sessionId = args[0].toString();
+                    if (sessionId.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    cleanupStaleDropSessions();
+
+                    auto dir = juce::File::getSpecialLocation (
+                                   juce::File::tempDirectory)
+                                       .getChildFile (
+                                           "o-microtonalsampler-drop-" + sessionId);
+                    const auto result = dir.createDirectory();
+                    if (! result.wasOk())
+                    {
+                        DBG ("dropSessionStart: createDirectory failed: "
+                             << result.getErrorMessage());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    currentDropSessionId  = sessionId;
+                    currentDropSessionDir = dir;
+                    DBG ("dropSessionStart: " << dir.getFullPathName());
+                    complete (juce::var (true));
+                })
+
+            // ---- dropSessionAddFile (v1.0.4) ----
+            //
+            // args[0] = sessionId  (must match currentDropSessionId)
+            // args[1] = relativePath inside the session dir (forward slashes,
+            //           never backslashes — JS controls the delimiter)
+            // args[2] = base64-encoded file content
+            //
+            // Returns true on successful write.
+            .withNativeFunction ("dropSessionAddFile",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 3)
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const auto sessionId = args[0].toString();
+                    const auto relPath   = args[1].toString();
+                    const auto base64    = args[2].toString();
+
+                    if (sessionId != currentDropSessionId
+                        || ! currentDropSessionDir.isDirectory())
+                    {
+                        DBG ("dropSessionAddFile: session mismatch / dir gone");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    // STANDARD base64 decode via juce::Base64. Note: do NOT
+                    // use MemoryBlock::fromBase64Encoding — that is JUCE's
+                    // own non-standard "<size>.<altAlphabet>" format and
+                    // will reject JS btoa() output silently.
+                    juce::MemoryBlock mb;
+                    {
+                        juce::MemoryOutputStream stream (mb, false);
+                        if (! juce::Base64::convertFromBase64 (stream, base64))
+                        {
+                            DBG ("dropSessionAddFile: base64 decode failed for "
+                                 << relPath << " (input length " << base64.length()
+                                 << ", first 32 chars: '"
+                                 << base64.substring (0, 32) << "')");
+                            complete (juce::var (false));
+                            return;
+                        }
+                        stream.flush();
+                    }
+
+                    auto target = currentDropSessionDir.getChildFile (relPath);
+                    target.getParentDirectory().createDirectory();
+                    if (! target.replaceWithData (mb.getData(), mb.getSize()))
+                    {
+                        DBG ("dropSessionAddFile: write failed: "
+                             << target.getFullPathName());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    DBG ("dropSessionAddFile: wrote " << mb.getSize()
+                         << " bytes to " << target.getFullPathName());
+                    complete (juce::var (true));
+                })
+
+            // ---- dropSessionCommitFolder (v1.0.4) ----
+            //
+            // Calls processorRef.loadSampleFolder on the session temp dir.
+            // The async SampleLoader thread reads the dir in the background
+            // and posts the new SampleMap via sampleMapChangedCallback. The
+            // temp dir is left in place; it will be cleaned up at the start
+            // of the next drop session (cleanupStaleDropSessions).
+            //
+            // args[0] = sessionId (must match)
+            .withNativeFunction ("dropSessionCommitFolder",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty()
+                        || args[0].toString() != currentDropSessionId
+                        || ! currentDropSessionDir.isDirectory())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    DBG ("dropSessionCommitFolder: "
+                         << currentDropSessionDir.getFullPathName());
+                    processorRef.loadSampleFolder (currentDropSessionDir);
+                    complete (juce::var (true));
+                })
+
+            // ---- dropSessionCommitFile (v1.0.4) ----
+            //
+            // args[0] = sessionId (must match)
+            // args[1] = relativePath of the single file inside the session dir
+            // args[2] = midi note (0..127)
+            // args[3] = velocity layer (0..numVelocityLayers-1)
+            .withNativeFunction ("dropSessionCommitFile",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 4
+                        || args[0].toString() != currentDropSessionId)
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const auto relPath = args[1].toString();
+                    const int  midi    = static_cast<int> (args[2]);
+                    const int  vel     = static_cast<int> (args[3]);
+
+                    const auto file = currentDropSessionDir.getChildFile (relPath);
+                    if (! file.existsAsFile())
+                    {
+                        DBG ("dropSessionCommitFile: file missing: "
+                             << file.getFullPathName());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    DBG ("dropSessionCommitFile: midi=" << midi << " vel=" << vel
+                         << " file=" << file.getFullPathName());
+                    processorRef.loadSingleSample (midi, vel, file);
+                    complete (juce::var (true));
+                })
+
+            // ---- handleWebViewFileDrop (v1.0.3 — JS-side drag-drop entry point) ----
+            //
+            // JS calls this from a document-level 'drop' listener on the
+            // WebView. The C++ FileDragAndDropTarget overrides never fire
+            // because WKWebView consumes OS-level drag events at the AppKit
+            // layer (v1.0.1 -unregisterDraggedTypes and v1.0.2 overlay both
+            // failed); see the comment block at the top of this file.
+            //
+            // args[0] = JSON-style array of absolute file paths
+            //           (extracted from dataTransfer 'text/uri-list' or
+            //           'public.file-url' on the JS side, or filename-only
+            //           when the host doesn't expose paths)
+            // args[1] = x in WebView client coords (= editor local coords)
+            // args[2] = y in WebView client coords (= editor local coords)
+            //
+            // Forwards directly to filesDropped() so the existing Phase 3.3
+            // routing matrix (cell hit / folder-zone hit / out-of-bounds /
+            // toasts) is reused unchanged.
+            .withNativeFunction ("handleWebViewFileDrop",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 3)
+                    {
+                        DBG ("handleWebViewFileDrop: expected (paths, x, y), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    juce::StringArray paths;
+                    if (auto* arr = args[0].getArray())
+                    {
+                        for (const auto& pathVar : *arr)
+                        {
+                            const auto pathStr = pathVar.toString();
+                            if (pathStr.isNotEmpty())
+                                paths.add (pathStr);
+                        }
+                    }
+
+                    const int x = static_cast<int> (args[1]);
+                    const int y = static_cast<int> (args[2]);
+
+                    DBG ("handleWebViewFileDrop: " << paths.size()
+                         << " path(s) at (" << x << ", " << y << ")");
+
+                    if (paths.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    // Reuse the FileDragAndDropTarget routing (cell hit,
+                    // folder-zone hit, toasts, out-of-bounds reject).
+                    filesDropped (paths, x, y);
+                    complete (juce::var (true));
+                })
+
+            // ---- clearSampleMap (v1.0.2 — destructive: empties the current map) ----
+            //
+            // JS calls: await Juce.getNativeFunction('clearSampleMap')(). The JS
+            // side is responsible for surfacing a confirmation dialog before
+            // invoking this — the native function performs the clear
+            // unconditionally. Resolves true once the map has been atomic-stored
+            // and the sampleMapUpdated push event has fired.
+            .withNativeFunction ("clearSampleMap",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    processorRef.clearSampleMap();
+                    complete (juce::var (true));
+                })
+
             // ---- loadSingleSampleDialog (Phase 3.2 — FileChooser per cell) ----
             //
             // JS calls: await Juce.getNativeFunction('loadSingleSampleDialog')(midi, vel).
@@ -443,6 +709,335 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     complete (juce::var (
                         processorRef.snapshotWaveformPeaks (midi, vel, bins)));
                 })
+
+            // ============================================================
+            // v1.2.0: TUNING WRITE-SIDE BRIDGES
+            // The Stage 3 read-only design (§RQ3-1) is reversed in v1.2.0:
+            // the panel is now editable. All write-side native functions
+            // forward to the shared scala-tuning-engine module, the same
+            // single-source-of-truth that VST3 Note Expression overrides
+            // at note-on time, so Dorico microtonal playback is preserved.
+            // ============================================================
+
+            // ---- setSingleInterval(index, cents) ----
+            .withNativeFunction ("setSingleInterval",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 2)
+                    {
+                        engine->setSingleInterval (static_cast<int>    (args[0]),
+                                                   static_cast<double> (args[1]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                })
+
+            // ---- setTonicNote(0..11) ----
+            .withNativeFunction ("setTonicNote",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        engine->setTonicNote (static_cast<int> (args[0]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                })
+
+            // ---- setOctaveStretch(stretch) ----
+            .withNativeFunction ("setOctaveStretch",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        engine->setOctaveStretch (static_cast<float> (args[0]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                })
+
+            // ---- setMasterTune(hz) ----
+            .withNativeFunction ("setMasterTune",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        engine->setMasterTune (static_cast<double> (args[0]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                })
+
+            // ---- loadEmbeddedTuning(id) — apply a factory preset by ID ----
+            .withNativeFunction ("loadEmbeddedTuning",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        const auto idStr = args[0].toString().toStdString();
+                        if (auto* t = EmbeddedTunings::getTuningById (idStr))
+                        {
+                            // EmbeddedTuning.intervals exclude the period; the
+                            // engine expects intervals INCLUDING the closing
+                            // period (matches setBuiltInPreset behaviour).
+                            std::vector<double> withPeriod = t->intervals;
+                            withPeriod.push_back (t->period);
+                            engine->setCustomIntervals (withPeriod, juce::String (t->name));
+                            complete (juce::var (true));
+                            return;
+                        }
+                    }
+                    complete (juce::var (false));
+                })
+
+            // ---- loadScalaFile() — open .scl file picker, return scale name on success ----
+            .withNativeFunction ("loadScalaFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Load Scala Scale (.scl)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                        "*.scl");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                          | juce::FileBrowserComponent::canSelectFiles,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* engine = processorRef.getTuningEngine();
+                            if (engine != nullptr && file.existsAsFile()
+                                && engine->loadScalaFile (file))
+                            {
+                                complete (juce::var (engine->getActiveTuningName()));
+                                return;
+                            }
+                            complete (juce::var());  // empty → JS treats as cancel/fail
+                        });
+                })
+
+            // ---- loadKBMFile() — open .kbm file picker ----
+            .withNativeFunction ("loadKBMFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Load Keyboard Mapping (.kbm)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                        "*.kbm");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                          | juce::FileBrowserComponent::canSelectFiles,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* engine = processorRef.getTuningEngine();
+                            const bool ok = (engine != nullptr && file.existsAsFile()
+                                             && engine->loadKBMFile (file));
+                            complete (juce::var (ok));
+                        });
+                })
+
+            // ---- saveScalaFile() — write current intervals as .scl ----
+            .withNativeFunction ("saveScalaFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine == nullptr) { complete (juce::var (false)); return; }
+
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Save Scala Scale (.scl)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile (engine->getActiveTuningName() + ".scl"),
+                        "*.scl");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* eng = processorRef.getTuningEngine();
+                            if (eng != nullptr && file != juce::File())
+                            {
+                                file.replaceWithText (eng->generateScalaFileContent());
+                                complete (juce::var (true));
+                                return;
+                            }
+                            complete (juce::var (false));
+                        });
+                })
+
+            // ---- saveKBMFile() — write current keyboard mapping as .kbm ----
+            .withNativeFunction ("saveKBMFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine == nullptr) { complete (juce::var (false)); return; }
+
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Save Keyboard Mapping (.kbm)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile ("mapping.kbm"),
+                        "*.kbm");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* eng = processorRef.getTuningEngine();
+                            if (eng != nullptr && file != juce::File())
+                            {
+                                file.replaceWithText (eng->generateKBMFileContent());
+                                complete (juce::var (true));
+                                return;
+                            }
+                            complete (juce::var (false));
+                        });
+                })
+
+            // ---- generateEDO(divisions, period) → JSON intervals ----
+            .withNativeFunction ("generateEDO",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.size() >= 2)
+                    {
+                        auto intervals = ScaleGenerator::generateEDO (
+                            static_cast<int>    (args[0]),
+                            static_cast<double> (args[1]));
+                        juce::String json = "[";
+                        for (size_t i = 0; i < intervals.size(); ++i)
+                        {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                        json += "]";
+                        complete (juce::var (json));
+                        return;
+                    }
+                    complete (juce::var());
+                })
+
+            // ---- generateHarmonicSeries(start, end) → JSON intervals ----
+            .withNativeFunction ("generateHarmonicSeries",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.size() >= 2)
+                    {
+                        auto intervals = ScaleGenerator::generateHarmonicSeries (
+                            static_cast<int> (args[0]),
+                            static_cast<int> (args[1]));
+                        juce::String json = "[";
+                        for (size_t i = 0; i < intervals.size(); ++i)
+                        {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                        json += "]";
+                        complete (juce::var (json));
+                        return;
+                    }
+                    complete (juce::var());
+                })
+
+            // ---- generateRank2(generator, period, count) → JSON intervals ----
+            .withNativeFunction ("generateRank2",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.size() >= 3)
+                    {
+                        auto intervals = ScaleGenerator::generateRank2 (
+                            static_cast<double> (args[0]),
+                            static_cast<double> (args[1]),
+                            static_cast<int>    (args[2]));
+                        juce::String json = "[";
+                        for (size_t i = 0; i < intervals.size(); ++i)
+                        {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                        json += "]";
+                        complete (juce::var (json));
+                        return;
+                    }
+                    complete (juce::var());
+                })
+
+            // ---- applyGeneratedScale(intervalsJson, name) ----
+            .withNativeFunction ("applyGeneratedScale",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 2)
+                    {
+                        auto parsed = juce::JSON::parse (args[0].toString());
+                        if (auto* arr = parsed.getArray())
+                        {
+                            std::vector<double> cents;
+                            cents.reserve (static_cast<size_t> (arr->size()));
+                            for (const auto& v : *arr)
+                                cents.push_back (static_cast<double> (v));
+                            engine->setCustomIntervals (cents, args[1].toString());
+                            complete (juce::var (true));
+                            return;
+                        }
+                    }
+                    complete (juce::var (false));
+                })
+
+            // ---- exportTuningHTML() — write current tuning to HTML doc ----
+            .withNativeFunction ("exportTuningHTML",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine == nullptr) { complete (juce::var (false)); return; }
+
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Export Tuning Documentation",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile (engine->getActiveTuningName() + ".html"),
+                        "*.html");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* eng = processorRef.getTuningEngine();
+                            if (eng != nullptr && file != juce::File())
+                            {
+                                auto html = TuningExporter::toHTML (*eng, "O-MicrotonalSampler");
+                                file.replaceWithText (html);
+                                complete (juce::var (true));
+                                return;
+                            }
+                            complete (juce::var (false));
+                        });
+                })
     );
 
     // ----------------------------------------------------------------
@@ -510,6 +1105,30 @@ void OMicrotonalSamplerAudioProcessorEditor::resized()
 {
     if (webView != nullptr)
         webView->setBounds (getLocalBounds());
+}
+
+//==============================================================================
+// v1.0.4: deletes any prior `o-microtonalsampler-drop-*` temp dirs that
+// are older than 5 minutes (a window comfortably larger than typical
+// SampleLoader read times). Called at the start of every new drop
+// session so disk usage doesn't accumulate across many drops in one
+// running instance. macOS reclaims its tempDirectory contents
+// independently; this call is just bookkeeping.
+void OMicrotonalSamplerAudioProcessorEditor::cleanupStaleDropSessions()
+{
+    auto temp = juce::File::getSpecialLocation (juce::File::tempDirectory);
+    auto matches = temp.findChildFiles (
+        juce::File::findDirectories, false,
+        "o-microtonalsampler-drop-*");
+
+    const auto now = juce::Time::getCurrentTime();
+    for (auto& d : matches)
+    {
+        if ((now - d.getCreationTime()).inMinutes() < 5.0)
+            continue;
+        d.deleteRecursively();
+        DBG ("cleanupStaleDropSessions: deleted " << d.getFullPathName());
+    }
 }
 
 //==============================================================================

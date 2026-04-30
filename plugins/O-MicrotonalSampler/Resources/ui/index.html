@@ -9,12 +9,11 @@
        sampler-app.js so window.__JUCE__ is populated. -->
   <script type="module" src="js/juce/check_native_interop.js"></script>
 
-  <!-- App stylesheets. tuning-panel.css is loaded statically; the
-       readonly overlay rides on top to hide write affordances per
-       RESEARCH §RQ3-1. -->
+  <!-- App stylesheets. v1.2.0: the read-only overlay is removed — the
+       Tuning tab is now an editable authoring surface (selectable
+       library, .scl/.kbm load, scale generator, interval editing). -->
   <link rel="stylesheet" href="css/sampler-shell.css" />
   <link rel="stylesheet" href="css/tuning-panel.css" />
-  <link rel="stylesheet" href="css/tuning-panel-readonly.css" />
 </head>
 <body>
   <div id="app">
@@ -42,9 +41,22 @@
           <span class="drop-zone-or">or</span>
           <span class="drop-zone-sep">·</span>
           <button id="load-folder-btn" type="button">Load Folder…</button>
+          <span class="drop-zone-sep">·</span>
+          <button id="clear-samples-btn" type="button" disabled>Clear samples</button>
         </div>
-        <div id="sample-map-grid">
-          <!-- Populated dynamically by sampler-app.js renderGrid() (Phase 3.2). -->
+        <!-- v1.1.0: Grid with axis labels.
+             Layout: 2-column outer wrapper.
+               • #sample-grid-vel-labels (left)  → velocity-range labels per row
+                 (stays visible during horizontal scroll).
+               • #sample-map-grid (right, scrollable) → contains the cell grid
+                 plus the C-note column labels which scroll horizontally with it. -->
+        <div id="sample-map-grid-wrapper">
+          <div id="sample-grid-vel-labels" aria-hidden="true">
+            <!-- Populated by renderGrid(): one <div> per row, top→bottom L3..L0. -->
+          </div>
+          <div id="sample-map-grid">
+            <!-- Populated dynamically by sampler-app.js renderGrid() (Phase 3.2). -->
+          </div>
         </div>
         <!-- CSS-only context menu — surfaced by JS on right-click; positioned
              via inline style and hidden by default. Cleared on document click. -->
@@ -85,6 +97,42 @@
           </div>
         </aside>
         <div id="toast-region" aria-live="polite"></div>
+
+        <!-- v1.0.2: in-WebView confirmation modal for destructive actions
+             (currently only Clear samples). JUCE does not wire JS confirm()
+             through WKWebView's UIDelegate, so we render our own dialog. -->
+        <div id="confirm-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="confirm-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 id="confirm-dialog-title" class="confirm-dialog-title">Are you sure?</h3>
+            <p id="confirm-dialog-message" class="confirm-dialog-message"></p>
+            <div class="confirm-dialog-actions">
+              <button id="confirm-cancel-btn" type="button">Cancel</button>
+              <button id="confirm-confirm-btn" type="button">Confirm</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.0.3 diagnostic modal for failed drops. Auto-copies the
+             diagnostic text to the clipboard on open; the <pre> is
+             selectable as a fallback so the user can copy manually. -->
+        <div id="diagnostic-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="diagnostic-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content diagnostic-dialog-content">
+            <h3 id="diagnostic-dialog-title" class="confirm-dialog-title">Diagnostic</h3>
+            <p id="diagnostic-dialog-hint" class="confirm-dialog-message">
+              Auto-copied to clipboard. Select the text below and ⌘C if it
+              wasn't.
+            </p>
+            <pre id="diagnostic-dialog-text" class="diagnostic-pre"></pre>
+            <div class="confirm-dialog-actions">
+              <button id="diagnostic-copy-btn" type="button">Copy again</button>
+              <button id="diagnostic-close-btn" type="button">Close</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Tuning -->

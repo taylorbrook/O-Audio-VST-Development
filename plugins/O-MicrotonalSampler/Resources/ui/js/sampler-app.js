@@ -255,6 +255,11 @@ function activateTab(tabName) {
         ensureTuningPanelMounted();
         refreshTuningReadout();
     }
+    // v1.1.0: re-sync vel-labels height when returning to Sample Map
+    // (getBoundingClientRect returns 0 on hidden tab; values may be stale).
+    if (tabName === 'samplemap') {
+        requestAnimationFrame(syncVelLabelsHeight);
+    }
 }
 
 function bindTabs() {
@@ -264,7 +269,17 @@ function bindTabs() {
 }
 
 // ============================================================================
-// TuningPanel — lazy mount + readonly span swap (RESEARCH §RQ3-1)
+// TuningPanel — lazy mount (v1.2.0: editable authoring surface)
+//
+// v1.0–v1.1 mounted the panel in display-only mode (per Stage 3 RESEARCH
+// §RQ3-1) by layering tuning-panel-readonly.css on top of the editable
+// HTML and span-swapping each interval-input into a read-only label.
+// v1.2.0 reverses that decision: the panel is now fully editable —
+// users can select factory tunings from the library, load .scl/.kbm
+// files, generate scales, and edit individual intervals. The shared
+// scala-tuning-engine remains the single source of truth that VST3
+// Note Expression overrides at note-on time, so Dorico microtonal
+// playback is preserved.
 // ============================================================================
 let tuningPanelMounted = false;
 let tuningPanelInstance = null;
@@ -287,44 +302,34 @@ async function ensureTuningPanelMounted() {
             return;
         }
 
-        tuningPanelInstance = new TuningPanel(container, window.__JUCE__);
+        // tuning-panel.js calls juceApi.getNativeFunction(name) — that method
+        // lives on the ES-module namespace `Juce`, NOT on window.__JUCE__
+        // (which is the low-level postMessage handler). Passing the wrong
+        // object is a pre-existing v1.0–v1.1 latent bug that silently
+        // swallowed every backend call inside tuning-panel.js's try/catch
+        // blocks (intervals never loaded, library never populated, etc.).
+        tuningPanelInstance = new TuningPanel(container, Juce);
         await tuningPanelInstance.init();
 
-        // Readonly span-swap shim: walk every .interval-input and replace
-        // with a <span class="interval-display"> showing the cents value.
-        // The CSS overlay (tuning-panel-readonly.css) hides the inputs as
-        // a belt-and-suspenders measure but the shim ensures the value is
-        // still visible to the user as a static label.
-        applyIntervalReadonlyShim(container);
+        // v1.2.0: auto-expand the Tuning Library and pull the factory
+        // preset list so the right column shows selectable tunings on
+        // first open (instead of just the category dropdown). Same goes
+        // for the Scale Generator section, which the panel renders
+        // collapsed by default.
+        const libContent = container.querySelector('#library-content');
+        const libToggle  = container.querySelector('#library-toggle');
+        libContent?.classList.add('expanded');
+        libToggle?.classList.add('expanded');
+        await tuningPanelInstance.loadEmbeddedTunings();
 
-        // Re-apply the shim if the panel re-renders its interval list.
-        // Most TuningPanel implementations re-render on intervals change;
-        // observe the DOM as a defensive net.
-        const obs = new MutationObserver(() => applyIntervalReadonlyShim(container));
-        obs.observe(container, { childList: true, subtree: true });
+        const genContent = container.querySelector('#generator-content');
+        const genToggle  = container.querySelector('#generator-toggle');
+        genContent?.classList.add('expanded');
+        genToggle?.classList.add('expanded');
     } catch (e) {
         console.error('[sampler-app] TuningPanel mount failed:', e);
         container.innerHTML = '<div style="color:var(--text-muted); padding:16px; font-style:italic;">Tuning panel unavailable.</div>';
     }
-}
-
-function applyIntervalReadonlyShim(container) {
-    container.querySelectorAll('.tuning-panel .interval-input').forEach(input => {
-        // Skip if already swapped (shim re-runs on mutations).
-        if (input.dataset.swapped === '1') return;
-        input.dataset.swapped = '1';
-
-        const cents = input.value || input.placeholder || '';
-        const span = document.createElement('span');
-        span.className = 'interval-display';
-        span.textContent = cents;
-        // Keep the input in DOM (CSS hides it) so the panel's logic that
-        // reads .value still works for any internal book-keeping. We
-        // simply place a visible read-only label next to it.
-        if (input.parentNode) {
-            input.parentNode.insertBefore(span, input);
-        }
-    });
 }
 
 // ============================================================================
@@ -444,6 +449,16 @@ function handleSampleMapSnapshot(payloadOrJson) {
     // ---- Grid render (Phase 3.2) ----
     renderGrid(snap);
 
+    // ---- Clear-samples button enable/disable (v1.0.2) ----
+    // Only meaningful when the map has at least one loaded slot — otherwise
+    // there is nothing to clear and the button stays disabled to avoid
+    // accidental clicks (and a no-op confirmation roundtrip).
+    const clearBtn = document.getElementById('clear-samples-btn');
+    if (clearBtn) {
+        const hasSlots = Array.isArray(snap?.slots) && snap.slots.length > 0;
+        clearBtn.disabled = !hasSlots;
+    }
+
     // Re-publish the cell-layout shadow now that DOM has settled. Defer one
     // frame so the browser has computed final geometry.
     requestAnimationFrame(() => publishCellLayout());
@@ -494,6 +509,24 @@ const MIDI_LOW  = 21;   // A0
 const MIDI_HIGH = 108;  // C8
 const NUM_LAYERS = 4;
 
+// v1.1.0: Velocity-layer ranges (matches MicrotonalSamplerVoice.cpp:
+// layerWidth = 128/4 = 32, layerIdx = (vel-1)/32 with vel ∈ [1,127]).
+//   L0 → 1..32, L1 → 33..64, L2 → 65..96, L3 → 97..127
+function velocityLayerToRange(layer) {
+    const lo = layer === 0 ? 1 : layer * 32 + 1;
+    const hi = layer === 3 ? 127 : (layer + 1) * 32;
+    return { lo, hi, label: `${lo}–${hi}` };
+}
+
+const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+
+// MIDI 0 = C-1, MIDI 12 = C0, MIDI 24 = C1, … (Yamaha/standard convention).
+function midiToNoteName(midi) {
+    const pitchClass = ((midi % 12) + 12) % 12;
+    const octave = Math.floor(midi / 12) - 1;
+    return `${NOTE_NAMES[pitchClass]}${octave}`;
+}
+
 function renderGrid(snap) {
     const container = document.getElementById('sample-map-grid');
     if (!container) return;
@@ -516,6 +549,7 @@ function renderGrid(snap) {
     // Rows are layer 3 (top) → layer 0 (bottom) so loudest-on-top.
     for (let row = 0; row < NUM_LAYERS; ++row) {
         const layer = (NUM_LAYERS - 1) - row;
+        const velRange = velocityLayerToRange(layer);
         for (let midi = MIDI_LOW; midi <= MIDI_HIGH; ++midi) {
             const cell = document.createElement('div');
             cell.className = 'grid-cell';
@@ -528,15 +562,17 @@ function renderGrid(snap) {
                 cell.dataset.octaveStart = '1';
             }
 
+            // v1.1.0: Tooltip = "<filename | Empty> · <NoteName>(<midi>) · Vel <lo>–<hi>"
+            const noteLabel = `${midiToNoteName(midi)} (${midi})`;
+            const velLabel  = `Vel ${velRange.label}`;
             const slot = slotMap.get(`${midi}_${layer}`);
             if (slot) {
                 cell.classList.add('cell-loaded');
-                cell.title = slot.filename
-                    ? `${slot.filename} — MIDI ${midi}, layer ${layer}`
-                    : `MIDI ${midi}, layer ${layer}`;
+                const head = slot.filename ? slot.filename : 'Loaded';
+                cell.title = `${head} · ${noteLabel} · ${velLabel}`;
             } else {
                 cell.classList.add('cell-empty');
-                cell.title = `Empty — MIDI ${midi}, layer ${layer}`;
+                cell.title = `Empty · ${noteLabel} · ${velLabel}`;
             }
 
             frag.appendChild(cell);
@@ -546,8 +582,71 @@ function renderGrid(snap) {
     inner.appendChild(frag);
     container.appendChild(inner);
 
+    // v1.1.0: Render C-note column labels below the grid (inside scroll
+    // container, so they pan horizontally with it).
+    const colLabels = document.createElement('div');
+    colLabels.id = 'sample-grid-col-labels';
+    const colFrag = document.createDocumentFragment();
+    for (let midi = MIDI_LOW; midi <= MIDI_HIGH; ++midi) {
+        const lbl = document.createElement('span');
+        lbl.className = 'col-label';
+        if (midi % 12 === 0) {
+            lbl.dataset.c = '1';
+            lbl.textContent = midiToNoteName(midi);   // "C1", "C2", … "C8"
+        }
+        colFrag.appendChild(lbl);
+    }
+    colLabels.appendChild(colFrag);
+    container.appendChild(colLabels);
+
+    // v1.1.0: Render velocity row labels in the sidebar wrapper (outside
+    // scroll container so they stay visible while user scrolls horizontally).
+    const velLabels = document.getElementById('sample-grid-vel-labels');
+    if (velLabels) {
+        velLabels.innerHTML = '';
+        const vFrag = document.createDocumentFragment();
+        for (let row = 0; row < NUM_LAYERS; ++row) {
+            const layer = (NUM_LAYERS - 1) - row;
+            const v = velocityLayerToRange(layer);
+            const el = document.createElement('div');
+            el.className = 'vel-label';
+            el.dataset.layer = String(layer);
+            el.textContent = v.label;
+            el.title = `Velocity layer ${layer}: MIDI velocity ${v.label}`;
+            vFrag.appendChild(el);
+        }
+        velLabels.appendChild(vFrag);
+    }
+
     // Wire interactions on the inner container (single delegated listener).
     bindGridInteractions(inner);
+
+    // v1.1.0: Sync vel-labels' top-padding + height to the inner grid's
+    // actual rendered position. Run on next frame so layout is settled.
+    requestAnimationFrame(syncVelLabelsHeight);
+}
+
+// v1.1.0: Align vel-labels rows to the rendered inner grid.
+//   topOffset = inner.top - wrapper.top  → matches scroll container's
+//                                          top-padding offset.
+//   height    = topOffset + inner.height → bottom edge meets inner-grid bottom.
+// The vel-labels' grid-template-rows: repeat(4, 1fr) then fills the area
+// between (topOffset, topOffset+innerHeight), aligning row-for-row with
+// the cells.
+function syncVelLabelsHeight() {
+    const inner   = document.getElementById('sample-grid-inner');
+    const vel     = document.getElementById('sample-grid-vel-labels');
+    const wrapper = document.getElementById('sample-map-grid-wrapper');
+    if (!inner || !vel || !wrapper) return;
+
+    const innerRect   = inner.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const topOffset   = Math.max(0, innerRect.top - wrapperRect.top);
+
+    vel.style.paddingTop    = topOffset + 'px';
+    vel.style.paddingBottom = '0px';
+    vel.style.height        = (topOffset + innerRect.height) + 'px';
+    vel.style.boxSizing     = 'border-box';
 }
 
 // ============================================================================
@@ -781,6 +880,7 @@ function bindResizeObserver() {
     const onResize = () => {
         publishCellLayout();
         checkNarrowWindowGuard();
+        syncVelLabelsHeight();   // v1.1.0: keep vel-labels aligned on resize
     };
     if (typeof ResizeObserver !== 'function') {
         // Fallback to window resize listener.
@@ -794,45 +894,539 @@ function bindResizeObserver() {
 }
 
 // ============================================================================
-// Folder drop-zone — button fallback + drag-hover visuals (Phase 3.3 Task 20)
+// Folder drop-zone — Load Folder… button (Phase 3.3 Task 20)
 // ============================================================================
-//
-// File-system drop is consumed by the host editor (juce::FileDragAndDropTarget
-// on OMicrotonalSamplerAudioProcessorEditor). The host emits hostFileDragMove
-// {x,y} and hostFileDragExit events as the cursor moves — we toggle the
-// .drag-over class on #folder-drop-zone based on whether (x,y) is inside the
-// zone's client-rect.
-//
-// The HTML5 dragover handler on the zone calls preventDefault() purely as a
-// belt-and-suspenders measure — without it, some browsers show a "no drop"
-// cursor even though the host editor will receive the actual drop. macOS
-// AU/VST3 hosts always route through juce::FileDragAndDropTarget; the JS
-// dragover never sees real file paths (sandboxing).
 
 function bindFolderDropZone() {
-    const zone = document.getElementById('folder-drop-zone');
     const button = document.getElementById('load-folder-btn');
+    if (!button) return;
 
-    if (button) {
-        button.addEventListener('click', async () => {
-            if (!window.__JUCE__) return;
+    button.addEventListener('click', async () => {
+        if (!window.__JUCE__) return;
+        try {
+            const fn = Juce.getNativeFunction('loadSampleFolderDialog');
+            await fn();
+            // sampleMapUpdated push event drives the rest. Cancel resolves
+            // false — silent.
+        } catch (e) {
+            console.error('[sampler-app] loadSampleFolderDialog failed:', e);
+        }
+    });
+}
+
+// ============================================================================
+// WebView file drag-drop (v1.0.3) — JS-level interception
+// ============================================================================
+//
+// The C++ FileDragAndDropTarget overrides on the editor never fire because
+// WKWebView (and its internal content subviews) consume OS drag events at
+// the AppKit layer before JUCE peer can route them. Two prior attempts
+// failed:
+//
+//   v1.0.1: -unregisterDraggedTypes on the outer WKWebView NSView. No
+//           effect — WebKit re-registers internally.
+//   v1.0.2: transparent JUCE Component overlay sitting on top of the
+//           WebView. No effect — WebView's OS rendering paints over JUCE
+//           Components, and AppKit hit-tests prefer the WebView's own
+//           drag-destination registration.
+//
+// v1.0.3 handles drag-drop in the WebView's own JS layer. WKWebView fires
+// DOM 'dragenter' / 'dragover' / 'drop' events for files dragged from
+// Finder. On drop we extract absolute file paths from the DataTransfer
+// (text/uri-list is reliably populated for Finder-source drags on modern
+// WebKit) and forward to the C++ handleWebViewFileDrop native function,
+// which calls the existing FileDragAndDropTarget::filesDropped routing
+// (cell hit-test, folder-zone hit-test, toast feedback for mismatched
+// payloads, out-of-bounds reject) unchanged.
+//
+// Hover visuals (.drag-over class on #folder-drop-zone) are now driven
+// purely from JS — the previous C++→JS hostFileDragMove/Exit channel is
+// dead and its listener can stay (it's a no-op now since C++ never
+// receives drag events to forward).
+
+function extractDroppedFilePaths (dataTransfer) {
+    if (!dataTransfer) return { paths: [], diagnostics: 'no dataTransfer' };
+
+    const types = Array.from(dataTransfer.types || []);
+    const files = Array.from(dataTransfer.files || []);
+    const items = Array.from(dataTransfer.items || []);
+    const tried = [];
+
+    // Strategy 1: text/uri-list — populated for Finder-source drags on
+    // modern WebKit. Lines starting with '#' are comments per RFC 2483.
+    if (types.includes('text/uri-list')) {
+        const raw = dataTransfer.getData('text/uri-list');
+        tried.push(`uri-list:${raw.length}b`);
+        const paths = raw
+            .split(/\r?\n/)
+            .map(s => s.trim())
+            .filter(s => s.length > 0 && !s.startsWith('#'))
+            .filter(s => s.startsWith('file:'))
+            .map(uri => uriToPath(uri));
+        if (paths.length > 0) return { paths, diagnostics: tried.join(', ') };
+    }
+
+    // Strategy 2: Apple-specific public.file-url (UTI), sometimes exposed.
+    if (types.includes('public.file-url')) {
+        const raw = dataTransfer.getData('public.file-url');
+        tried.push(`public.file-url:${raw.length}b`);
+        const path = uriToPath(raw.trim());
+        if (path) return { paths: [path], diagnostics: tried.join(', ') };
+    }
+
+    // Strategy 3: File.path — non-standard property exposed by some WebView
+    // hosts (Electron, certain WKWebView configurations) for OS-source drags.
+    if (files.length > 0) {
+        const filesWithPath = files
+            .map(f => (typeof f.path === 'string' && f.path.length > 0) ? f.path : null)
+            .filter(p => p !== null);
+        tried.push(`file.path:${filesWithPath.length}/${files.length}`);
+        if (filesWithPath.length > 0) {
+            return { paths: filesWithPath, diagnostics: tried.join(', ') };
+        }
+    }
+
+    // Strategy 4: text/plain — last-resort, may contain a single path.
+    if (types.includes('text/plain')) {
+        const raw = dataTransfer.getData('text/plain');
+        tried.push(`text/plain:${raw.length}b`);
+        const trimmed = raw.trim();
+        if (trimmed.startsWith('file:')) {
+            const p = uriToPath(trimmed);
+            if (p) return { paths: [p], diagnostics: tried.join(', ') };
+        }
+        if (trimmed.startsWith('/')) {
+            return { paths: [trimmed], diagnostics: tried.join(', ') };
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // No path-bearing type. Build a comprehensive diagnostic dump so the
+    // next iteration can pick a fallback strategy with full ground-truth
+    // about what WKWebView exposes in this host (DAW, standalone, etc.).
+    // ------------------------------------------------------------------
+    let dump = `types=[${types.join('|')}]`;
+
+    if (files.length > 0) {
+        const head = files[0];
+        dump += `; files=${files.length} (first: name="${head.name}", size=${head.size}, type="${head.type || ''}", path=${typeof head.path === 'string' ? '"' + head.path + '"' : 'undefined'}, webkitRelativePath="${head.webkitRelativePath || ''}")`;
+    } else {
+        dump += `; files=0`;
+    }
+
+    if (items.length > 0) {
+        const itemDescs = items.map(it => {
+            let desc = `${it.kind}:${it.type || '?'}`;
             try {
-                const fn = Juce.getNativeFunction('loadSampleFolderDialog');
-                await fn();
-                // sampleMapUpdated push event drives the rest. Cancel resolves
-                // false — silent.
-            } catch (e) {
-                console.error('[sampler-app] loadSampleFolderDialog failed:', e);
-            }
+                const entry = (typeof it.webkitGetAsEntry === 'function') ? it.webkitGetAsEntry() : null;
+                if (entry) {
+                    desc += `,entry=${entry.isDirectory ? 'dir' : 'file'}:${entry.fullPath || entry.name}`;
+                }
+            } catch (_) { /* webkitGetAsEntry unavailable */ }
+            return desc;
         });
+        dump += `; items=${items.length} (${itemDescs.join(' / ')})`;
+    } else {
+        dump += `; items=0`;
     }
 
-    if (zone) {
-        // Prevent the "no drop" cursor without consuming the drop (host
-        // editor still receives it). Only effective inside the WebView; the
-        // real drop handling is in C++.
-        zone.addEventListener('dragover', (e) => e.preventDefault());
+    dump += `; tried: ${tried.join(', ') || 'none'}`;
+
+    return { paths: [], diagnostics: dump };
+}
+
+function uriToPath (uri) {
+    if (!uri || !uri.startsWith('file:')) return '';
+    // Accept both file:///path and file://localhost/path forms.
+    let pathPart = uri.replace(/^file:\/\/(localhost)?/, '');
+    try {
+        return decodeURI(pathPart);
+    } catch (e) {
+        // Malformed percent-encoding — fall back to raw.
+        return pathPart;
     }
+}
+
+// Track folder-drop-zone hover state purely from JS; the previous C++→JS
+// hostFileDragMove channel is dead under v1.0.3.
+function setFolderDropZoneHover (over) {
+    const z = document.getElementById('folder-drop-zone');
+    if (z) z.classList.toggle('drag-over', !!over);
+}
+
+function pointInClientRect (x, y, rect) {
+    return x >= rect.left && x < rect.right
+        && y >= rect.top  && y < rect.bottom;
+}
+
+function bindWebViewFileDrop () {
+    // Document-level listeners — guarantees we see the events regardless of
+    // which descendant element is under the cursor.
+    document.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        const z = document.getElementById('folder-drop-zone');
+        if (!z) return;
+        const r = z.getBoundingClientRect();
+        setFolderDropZoneHover(pointInClientRect(e.clientX, e.clientY, r));
+    });
+
+    document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        // Tell the OS we accept a Copy-style drop so the user sees the
+        // green '+' cursor instead of the 'no-drop' cursor.
+        try { e.dataTransfer.dropEffect = 'copy'; } catch (_) { /* read-only in some hosts */ }
+        const z = document.getElementById('folder-drop-zone');
+        if (!z) return;
+        const r = z.getBoundingClientRect();
+        setFolderDropZoneHover(pointInClientRect(e.clientX, e.clientY, r));
+    });
+
+    document.addEventListener('dragleave', (e) => {
+        // dragleave fires when the cursor leaves a child element too — only
+        // clear when leaving the document entirely.
+        if (e.relatedTarget === null) setFolderDropZoneHover(false);
+    });
+
+    document.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        setFolderDropZoneHover(false);
+
+        if (!window.__JUCE__) return;
+
+        // Fast path (v1.0.3): if the host happens to expose absolute paths
+        // (Linux/Win, certain WebKit configs), forward straight to the C++
+        // filesDropped router. WKWebView strips paths so this almost never
+        // fires in practice — but it's free defence-in-depth.
+        const probe = extractDroppedFilePaths(e.dataTransfer);
+        if (probe.paths.length > 0) {
+            try {
+                const fn = Juce.getNativeFunction('handleWebViewFileDrop');
+                await fn(probe.paths, Math.round(e.clientX), Math.round(e.clientY));
+            } catch (err) {
+                console.error('[sampler-app] handleWebViewFileDrop failed:', err);
+            }
+            return;
+        }
+
+        // Slow path (v1.0.4): WKWebView gives us a FileSystemEntry but no
+        // absolute path. Stream the entry tree's content through the
+        // bridge into a session-scoped temp dir; the C++ side then runs
+        // the existing loadSampleFolder / loadSingleSample paths against
+        // that temp dir as if it had been chosen via FileChooser.
+        const items = Array.from(e.dataTransfer?.items || []);
+        const firstEntry = items.length > 0
+            && typeof items[0].webkitGetAsEntry === 'function'
+            ? items[0].webkitGetAsEntry()
+            : null;
+
+        if (!firstEntry) {
+            // Neither paths nor a usable FileSystemEntry — surface the
+            // diagnostic dump so we can decide a fallback for this host.
+            console.warn('[sampler-app] WebView drop with no path and no entry.',
+                         probe.diagnostics);
+            showDiagnosticDialog(
+                'Drop diagnostic — no path and no FileSystemEntry',
+                probe.diagnostics
+            );
+            return;
+        }
+
+        // DOM hit-test the drop point so we can route exactly like the
+        // C++ filesDropped() routing matrix.
+        const target  = document.elementFromPoint(e.clientX, e.clientY);
+        const cellEl  = target ? target.closest('[data-note]') : null;
+        const zoneEl  = target ? target.closest('#folder-drop-zone') : null;
+
+        try {
+            if (firstEntry.isDirectory) {
+                if (cellEl) {
+                    showToast('Drop a single file on a cell, or a folder on the top zone.');
+                    return;
+                }
+                if (!zoneEl) {
+                    // Out-of-bounds — silent reject (matches C++ behaviour).
+                    return;
+                }
+                await streamFolderEntryToCpp(firstEntry);
+            } else if (firstEntry.isFile) {
+                const isAudio = /\.(wav|aif|aiff)$/i.test(firstEntry.name);
+                if (cellEl) {
+                    if (!isAudio) { showToast('Drop a .wav/.aif on a cell'); return; }
+                    const midi = parseInt(cellEl.dataset.note,  10);
+                    const vel  = parseInt(cellEl.dataset.layer, 10);
+                    if (!Number.isFinite(midi) || !Number.isFinite(vel)) return;
+                    await streamSingleFileEntryToCpp(firstEntry, midi, vel);
+                } else if (zoneEl) {
+                    showToast('Drop a folder, not a file');
+                }
+                // else: out-of-bounds silent reject
+            }
+        } catch (err) {
+            console.error('[sampler-app] drop streaming failed:', err);
+            showToast(`Drop failed: ${err && err.message ? err.message : err}`);
+        }
+    });
+}
+
+// ============================================================================
+// Drop content streaming (v1.0.4)
+// ============================================================================
+//
+// WKWebView provides a FileSystemEntry per dropped item but strips the
+// underlying absolute path from JS (sandbox), so we cannot tell C++ "load
+// this folder from disk". Instead we walk the FileSystemEntry tree, read
+// each audio file via FileReader, base64-encode it, and stream the bytes
+// through the bridge into a session-scoped temp dir on the C++ side. The
+// existing PluginProcessor::loadSampleFolder / loadSingleSample paths then
+// consume the temp dir as if it had been picked via juce::FileChooser.
+//
+// Performance note: base64 has ~33% size overhead. For a ~250 MB folder
+// (typical instrument library), expect a few seconds of streaming on the
+// JS message thread before the SampleLoader background thread starts. The
+// existing toast region surfaces a "Loading X of N…" progress message
+// that is updated synchronously on each file commit.
+
+const AUDIO_EXTENSIONS_RE = /\.(wav|aif|aiff)$/i;
+
+async function streamFolderEntryToCpp (dirEntry) {
+    const sessionId = newDropSessionId();
+
+    showToast('Scanning folder…');
+    const all = [];
+    await collectAudioFilesFromDir(dirEntry, '', all);
+
+    if (all.length === 0) {
+        showToast('No .wav/.aif/.aiff files in folder');
+        return;
+    }
+
+    const startOk = await Juce.getNativeFunction('dropSessionStart')(sessionId);
+    if (!startOk) { showToast('Drop session start failed'); return; }
+
+    for (let i = 0; i < all.length; i++) {
+        const { entry, relativePath } = all[i];
+        showToast(`Loading ${i + 1} of ${all.length}: ${entry.name}`);
+        try {
+            const base64 = await readFileEntryAsBase64(entry);
+            const ok = await Juce.getNativeFunction('dropSessionAddFile')(
+                sessionId, relativePath, base64);
+            if (!ok) {
+                console.warn(`[sampler-app] addFile rejected: ${relativePath}`);
+            }
+        } catch (e) {
+            console.error(`[sampler-app] file stream failed for ${relativePath}:`, e);
+        }
+    }
+
+    showToast(`Loading ${all.length} sample${all.length === 1 ? '' : 's'}…`);
+    await Juce.getNativeFunction('dropSessionCommitFolder')(sessionId);
+    // sampleMapUpdated push event drives the grid refresh + final state.
+}
+
+async function streamSingleFileEntryToCpp (fileEntry, midi, vel) {
+    const sessionId = newDropSessionId();
+
+    const startOk = await Juce.getNativeFunction('dropSessionStart')(sessionId);
+    if (!startOk) { showToast('Drop session start failed'); return; }
+
+    showToast(`Loading ${fileEntry.name}…`);
+    const base64 = await readFileEntryAsBase64(fileEntry);
+
+    const addOk = await Juce.getNativeFunction('dropSessionAddFile')(
+        sessionId, fileEntry.name, base64);
+    if (!addOk) { showToast('File transfer failed'); return; }
+
+    await Juce.getNativeFunction('dropSessionCommitFile')(
+        sessionId, fileEntry.name, midi, vel);
+}
+
+function newDropSessionId () {
+    return `s${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function collectAudioFilesFromDir (dirEntry, prefix, out) {
+    const reader = dirEntry.createReader();
+    // FileSystemDirectoryReader.readEntries returns batches; keep reading
+    // until an empty batch arrives (terminator).
+    while (true) {
+        const batch = await new Promise((resolve, reject) =>
+            reader.readEntries(resolve, reject));
+        if (!batch || batch.length === 0) break;
+
+        for (const entry of batch) {
+            if (entry.name.startsWith('.')) continue;  // skip hidden / .DS_Store
+            const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+            if (entry.isFile) {
+                if (AUDIO_EXTENSIONS_RE.test(entry.name)) {
+                    out.push({ entry, relativePath: rel });
+                }
+            } else if (entry.isDirectory) {
+                await collectAudioFilesFromDir(entry, rel, out);
+            }
+        }
+    }
+}
+
+async function readFileEntryAsBase64 (fileEntry) {
+    const file = await new Promise((resolve, reject) =>
+        fileEntry.file(resolve, reject));
+    const buf = await file.arrayBuffer();
+    return arrayBufferToBase64(buf);
+}
+
+function arrayBufferToBase64 (buf) {
+    const bytes = new Uint8Array(buf);
+    // String.fromCharCode.apply has an arg-count limit; chunk to stay
+    // safely under it for large files (50+ MB samples).
+    const chunkSize = 0x8000;  // 32K bytes per chunk
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(
+            null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+}
+
+// ============================================================================
+// Clear-samples button + in-WebView confirmation modal (v1.0.2)
+// ============================================================================
+//
+// JUCE does not wire the JavaScript window.confirm() through WKWebView's
+// UIDelegate, so we render our own dialog (CSS in sampler-shell.css, markup
+// at the end of #tab-samplemap). showConfirmDialog returns nothing — it
+// invokes onConfirm on the Confirm button click, hides the dialog on Cancel
+// or Escape, and supports Enter as a confirm shortcut. One-shot listeners
+// are detached on every dialog close so subsequent opens do not double-fire.
+
+function showConfirmDialog ({ title, message, confirmLabel, destructive, onConfirm }) {
+    const dialog    = document.getElementById('confirm-dialog');
+    const titleEl   = document.getElementById('confirm-dialog-title');
+    const messageEl = document.getElementById('confirm-dialog-message');
+    const confirmEl = document.getElementById('confirm-confirm-btn');
+    const cancelEl  = document.getElementById('confirm-cancel-btn');
+    if (!dialog || !titleEl || !messageEl || !confirmEl || !cancelEl) return;
+
+    titleEl.textContent   = title   || 'Are you sure?';
+    messageEl.textContent = message || '';
+    confirmEl.textContent = confirmLabel || 'Confirm';
+    confirmEl.classList.toggle('destructive', !!destructive);
+
+    const cleanup = () => {
+        dialog.hidden = true;
+        confirmEl.removeEventListener('click', onYes);
+        cancelEl.removeEventListener('click', onNo);
+        document.removeEventListener('keydown', onKey, true);
+    };
+    const onYes = async () => { cleanup(); if (onConfirm) await onConfirm(); };
+    const onNo  = () => cleanup();
+    const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); onNo(); }
+        else if (e.key === 'Enter') { e.preventDefault(); onYes(); }
+    };
+
+    confirmEl.addEventListener('click', onYes);
+    cancelEl.addEventListener('click', onNo);
+    document.addEventListener('keydown', onKey, true);
+
+    dialog.hidden = false;
+    cancelEl.focus();
+}
+
+// v1.0.3: diagnostic dialog used by the failed-drop path. Auto-copies the
+// dump to the clipboard on open so the user doesn't have to chase a toast,
+// and exposes a selectable <pre> fallback for hosts where the clipboard API
+// is gated.
+async function showDiagnosticDialog (title, text) {
+    const dialog   = document.getElementById('diagnostic-dialog');
+    const titleEl  = document.getElementById('diagnostic-dialog-title');
+    const hintEl   = document.getElementById('diagnostic-dialog-hint');
+    const textEl   = document.getElementById('diagnostic-dialog-text');
+    const copyBtn  = document.getElementById('diagnostic-copy-btn');
+    const closeBtn = document.getElementById('diagnostic-close-btn');
+    if (!dialog || !titleEl || !textEl || !copyBtn || !closeBtn) return;
+
+    titleEl.textContent = title || 'Diagnostic';
+    textEl.textContent  = text  || '';
+    copyBtn.textContent = 'Copy again';
+
+    const writeClipboard = async () => {
+        // Primary: async Clipboard API (requires user activation, which the
+        // drop event provides).
+        if (navigator?.clipboard?.writeText) {
+            try { await navigator.clipboard.writeText(text); return true; }
+            catch (_) { /* fall through to execCommand fallback */ }
+        }
+        // Fallback: select the <pre> contents and execCommand('copy').
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(textEl);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            const ok = document.execCommand('copy');
+            sel.removeAllRanges();
+            return ok;
+        } catch (_) { return false; }
+    };
+
+    const autoCopied = await writeClipboard();
+    if (hintEl) {
+        hintEl.textContent = autoCopied
+            ? 'Auto-copied to clipboard. (Select below + ⌘C if you need it again.)'
+            : 'Clipboard write blocked — select the text below and ⌘C to copy.';
+    }
+
+    const cleanup = () => {
+        dialog.hidden = true;
+        copyBtn.removeEventListener('click', onCopy);
+        closeBtn.removeEventListener('click', onClose);
+        document.removeEventListener('keydown', onKey, true);
+    };
+    const onCopy = async () => {
+        const ok = await writeClipboard();
+        copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+        setTimeout(() => { copyBtn.textContent = 'Copy again'; }, 1400);
+    };
+    const onClose = () => cleanup();
+    const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
+
+    copyBtn.addEventListener('click', onCopy);
+    closeBtn.addEventListener('click', onClose);
+    document.addEventListener('keydown', onKey, true);
+
+    dialog.hidden = false;
+    closeBtn.focus();
+}
+
+function bindClearSamplesButton() {
+    const btn = document.getElementById('clear-samples-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        showConfirmDialog({
+            title:        'Clear all samples?',
+            message:      'All loaded samples will be removed from the sample map. '
+                        + 'Active notes will finish playing, but new note-ons will '
+                        + 'produce silence until samples are loaded again. This '
+                        + 'cannot be undone.',
+            confirmLabel: 'Clear',
+            destructive:  true,
+            onConfirm:    async () => {
+                if (!window.__JUCE__) return;
+                try {
+                    const fn = Juce.getNativeFunction('clearSampleMap');
+                    await fn();
+                    // sampleMapUpdated push event drives grid + button state
+                    // refresh — no further work needed here.
+                } catch (e) {
+                    console.error('[sampler-app] clearSampleMap failed:', e);
+                }
+            },
+        });
+    });
 }
 
 function bindHostDragEvents() {
@@ -1324,6 +1918,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bindHostDragEvents();
     bindToastEventListener();
     bindFolderDropZone();
+    bindWebViewFileDrop();
+    bindClearSamplesButton();
     pullInitialSampleMap();
     refreshTuningReadout();
     refreshAboutVersion();

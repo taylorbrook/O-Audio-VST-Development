@@ -11,7 +11,7 @@ juce_add_plugin(O-MicrotonalSampler
     PLUGIN_CODE OMtS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-MicrotonalSampler${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "1.0.0"
+    PLUGIN_VERSION "1.2.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -36,6 +36,11 @@ target_sources(O-MicrotonalSampler
         Source/FilenameParser.cpp
         Source/LoopDetector.h
         Source/LoopDetector.cpp
+        # v1.0.3: drag-drop is now handled at the JS layer (sampler-app.js
+        # bindWebViewFileDrop) and forwarded to the C++ filesDropped router
+        # via the handleWebViewFileDrop native function. The v1.0.1 helper
+        # (-unregisterDraggedTypes) and v1.0.2 NSView overlay both failed —
+        # see CHANGELOG.md and Source/PluginEditor.cpp top-of-file note.
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
