@@ -11,7 +11,7 @@ juce_add_plugin(O-MicrotonalSampler
     PLUGIN_CODE OMtS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-MicrotonalSampler${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "1.3.0"
+    PLUGIN_VERSION "1.4.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -34,8 +34,6 @@ target_sources(O-MicrotonalSampler
         Source/SampleLoader.cpp
         Source/FilenameParser.h
         Source/FilenameParser.cpp
-        Source/LoopDetector.h
-        Source/LoopDetector.cpp
         # v1.0.3: drag-drop is now handled at the JS layer (sampler-app.js
         # bindWebViewFileDrop) and forwarded to the C++ filesDropped router
         # via the handleWebViewFileDrop native function. The v1.0.1 helper

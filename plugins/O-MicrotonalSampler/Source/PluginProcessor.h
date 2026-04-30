@@ -133,16 +133,16 @@ public:
     // Phase 3.4: loop-point override (full implementation). Atomically
     // deep-copies the current SampleMap, mutates the (midi, vel) slot's
     // loop fields, bumps version, atomic-stores, fires callback.
-    // resetToAutoDetect=true re-runs LoopDetector and overrides loopMode.
-    // crossfadeLen is recorded for v1.1 (per RP3-2 — global xfade in v1.0).
+    // resetToAutoDetect=true snaps the slot back to whole-file loop default
+    // (v1.4.0 behavior). crossfadeLen is recorded for v1.1 (per RP3-2).
     void overrideLoopPoints (int midiPitch, int velocityLayer,
                              int loopStart, int loopEnd,
                              int crossfadeLen,
                              bool resetToAutoDetect = false);
 
     // Phase 3.4: convenience wrapper — calls overrideLoopPoints with the
-    // resetToAutoDetect flag set. Re-runs LoopDetector::detectLoop on the
-    // slot's audio; valid → Auto, invalid → OneShot.
+    // resetToAutoDetect flag set. v1.4.0: resets to whole-file loop
+    // (loopStart=0, loopEnd=N-2, mode=Auto).
     void resetLoopToAutoDetect (int midiPitch, int velocityLayer);
 
     // Phase 3.1: snapshot the current sample map as a JSON string for the

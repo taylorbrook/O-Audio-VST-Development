@@ -1,5 +1,47 @@
 # O-MicrotonalSampler Changelog
 
+## [1.4.0] - 2026-04-30
+
+### Changed
+- **Loaded samples now loop the entire file by default.** Each slot is
+  initialized with `loopStart = 0`, `loopEnd = N - 2`, `loopMode = Auto`
+  on load. The renderer's existing 8-sample equal-power crossfade at
+  the wrap handles click prevention. Replaces the v1.0–v1.3 RMS-based
+  auto-detector that searched for a quiet sustain region in the latter
+  60% of the file.
+- **"Reset" in the loop-point editor** now snaps the slot back to
+  whole-file loop instead of re-running auto-detect.
+
+### Fixed
+- **V11-LOOP-FALLBACK** (deferred from Stage 4 verification): sustained
+  material with constant RMS (sine waves, drones, organ samples) used
+  to fall through the auto-detector's variance gate and silently revert
+  to one-shot, going silent before note-off. With whole-file loop as
+  the default, these samples now sustain correctly.
+
+### Removed
+- `Source/LoopDetector.{h,cpp}` (Phase 2.5 RMS scan + variance gate +
+  zero-crossing snap module — ~230 LOC) and the include sites in
+  `SampleLoader.cpp` and `PluginProcessor.cpp`. The detector's
+  defensive constraints (`loopEnd <= N - 2`, min loop length 16) are
+  preserved as inline guards in the new whole-file path.
+
+### Migration notes
+- **Behavior change, not breaking.** v1.3.0 sessions/presets load
+  cleanly. State persistence is unaffected (no parameter changes, no
+  state schema changes). Audio output for one-shot percussive samples
+  may differ — they now loop the whole file by default. Use the
+  per-slot loop-point editor (Stage 3 UI) to set Manual loop points
+  if a particular sample needs different behavior.
+
+### Root cause notes
+- The original auto-detector was tuned for sustained instrumental
+  material with a clear noise-floor sustain region (e.g. piano
+  release tails). On constant-RMS or transient material it
+  conservatively rejected and fell back to one-shot — surprising
+  default behavior for "load a sample and play it as a sustained
+  pitched instrument," which is what the plugin is for.
+
 ## [1.3.0] - 2026-04-29
 
 ### Added

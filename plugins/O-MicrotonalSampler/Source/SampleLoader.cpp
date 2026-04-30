@@ -11,7 +11,6 @@
 
 #include "SampleLoader.h"
 #include "FilenameParser.h"
-#include "LoopDetector.h"
 
 #include <cmath>
 #include <utility>
@@ -186,23 +185,22 @@ namespace
         outSlot.velocityLayer    = velocityLayer;
         outSlot.filename         = displayName;
 
-        // Loop detection (Phase 2.5).
-        const auto region = LoopDetector::detectLoop (*outSlot.audio, targetSR);
-        if (region.valid)
+        // v1.4.0: default to whole-file loop. loopEnd = N - 2 leaves headroom
+        // for the cubic 4-tap interpolator context (renderer reads up to
+        // pos + 2). The 8-sample equal-power crossfade at the wrap handles
+        // click prevention. Closes V11-LOOP-FALLBACK.
+        const int N = outSlot.audio->getNumSamples();
+        if (N >= 18)   // need >= kMinLoopLength (16) + 2 headroom
         {
-            outSlot.loopStart = region.loopStart;
-            outSlot.loopEnd   = region.loopEnd;
+            outSlot.loopStart = 0;
+            outSlot.loopEnd   = N - 2;
             outSlot.loopMode  = LoopMode::Auto;
-            DBG ("SampleLoader: loop detected for " << displayName
-                 << " [" << region.loopStart << ", " << region.loopEnd
-                 << "] (" << (region.loopEnd - region.loopStart) << " samples)");
         }
         else
         {
             outSlot.loopStart = 0;
             outSlot.loopEnd   = 0;
             outSlot.loopMode  = LoopMode::OneShot;
-            DBG ("SampleLoader: no loop region for " << displayName << " (one-shot)");
         }
 
         outSkipReason.clear();

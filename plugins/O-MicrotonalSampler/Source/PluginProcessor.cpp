@@ -13,7 +13,6 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "LoopDetector.h"
 
 #include <algorithm>
 #include <atomic>
@@ -534,9 +533,9 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
 //      (cheap — slots hold shared_ptrs to audio buffers).
 //   5. Locate the matching slot in `next->slots` (mutable).
 //   6. Override path: set loopStart, loopEnd, loopMode = Manual.
-//      Reset path: run LoopDetector::detectLoop on slot->audio; on valid →
-//        loopStart/loopEnd from detector + Auto; on invalid → loopStart=loopEnd=0
-//        + OneShot.
+//      Reset path (v1.4.0): set loopStart=0, loopEnd=N-2, loopMode=Auto
+//        (whole-file loop default). Falls back to OneShot only when audio
+//        is too short (< 18 samples).
 //   7. Bump version. atomic_store. Fire callback.
 //
 // Active-voice retention (Stage 2 EC-3): voices already snapshot
@@ -599,39 +598,29 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
 
     if (resetToAutoDetect)
     {
-        // Run the auto-detector on the slot's audio buffer. On valid → Auto;
-        // on invalid → OneShot (loop disabled).
-        if (targetSlot->audio == nullptr || targetSlot->audio->getNumSamples() == 0)
+        // v1.4.0: "Reset" snaps loop points back to whole-file default
+        // (loopStart = 0, loopEnd = N - 2). Mirror SampleLoader::processOneFile.
+        const int numSamples = (targetSlot->audio != nullptr)
+                                   ? targetSlot->audio->getNumSamples()
+                                   : 0;
+
+        if (numSamples >= 18)
         {
-            DBG ("resetLoopToAutoDetect: empty audio buffer (midi=" << midiPitch
-                 << " vel=" << velocityLayer << ")");
             targetSlot->loopStart = 0;
-            targetSlot->loopEnd   = 0;
-            targetSlot->loopMode  = LoopMode::OneShot;
+            targetSlot->loopEnd   = numSamples - 2;
+            targetSlot->loopMode  = LoopMode::Auto;
+            DBG ("resetLoopToAutoDetect: midi=" << midiPitch
+                 << " vel=" << velocityLayer
+                 << " whole-file loop=[0, " << (numSamples - 2) << "]");
         }
         else
         {
-            const auto region = LoopDetector::detectLoop (
-                *targetSlot->audio, targetSlot->sourceSampleRate);
-
-            if (region.valid)
-            {
-                targetSlot->loopStart = region.loopStart;
-                targetSlot->loopEnd   = region.loopEnd;
-                targetSlot->loopMode  = LoopMode::Auto;
-                DBG ("resetLoopToAutoDetect: midi=" << midiPitch
-                     << " vel=" << velocityLayer
-                     << " auto loop=[" << region.loopStart << ", " << region.loopEnd << "]");
-            }
-            else
-            {
-                targetSlot->loopStart = 0;
-                targetSlot->loopEnd   = 0;
-                targetSlot->loopMode  = LoopMode::OneShot;
-                DBG ("resetLoopToAutoDetect: midi=" << midiPitch
-                     << " vel=" << velocityLayer
-                     << " auto-detect invalid → one-shot");
-            }
+            targetSlot->loopStart = 0;
+            targetSlot->loopEnd   = 0;
+            targetSlot->loopMode  = LoopMode::OneShot;
+            DBG ("resetLoopToAutoDetect: midi=" << midiPitch
+                 << " vel=" << velocityLayer
+                 << " buffer too short → one-shot");
         }
     }
     else

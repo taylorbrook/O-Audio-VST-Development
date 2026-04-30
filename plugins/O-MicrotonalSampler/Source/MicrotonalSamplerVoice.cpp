@@ -70,19 +70,19 @@
         defensively against very high playRate values.
       - Both `renderNextBlock` and `renderTailRamp` use the same helpers
         (the steal-tail ramp also crossfades through loop boundaries).
-      - Loop regions are populated by `LoopDetector::detectLoop` on the
-        loader thread (Source/LoopDetector.{h,cpp}); the voice never sees
-        analysis cost.
+      - Loop regions are populated by `SampleLoader::processOneFile` on the
+        loader thread. v1.4.0 default is whole-file loop (loopStart=0,
+        loopEnd=N-2); user can override via the Stage 3 loop-point editor.
 
     Phase 2.5 reopen (post-Stage-4 audit):
       - `cubicInterp` previously folded read indices into the loop region
         unconditionally when loopEnd > 0, causing playback to start INSIDE
         the loop region from sample 0 — the entire attack [0, loopStart)
-        was never played. Combined with LoopDetector's "find the quietest
-        1024-sample window" search, slots that passed the variance gate
-        rendered near-silent through ADSR. Symptom: ~50% of MIDI notes
-        silent in any folder where vibrato was uniform enough to let the
-        gate pass for some samples but reject others.
+        was never played. With the v1.0 auto-detect picking a quiet sustain
+        region, slots rendered near-silent through ADSR. Symptom: ~50% of
+        MIDI notes silent in folders where the heuristic accepted some
+        samples and rejected others. (v1.4.0 removed auto-detect in favor
+        of whole-file loop default, but cubicInterp must stay pure clamp.)
       - Fix: cubicInterp is now pure clamp; looping is the protocol of
         readSlotWithLoop + wrapLoopPosition. The crossfade inSample math
         was also corrected — it previously read the END of the loop region
@@ -165,9 +165,7 @@ namespace
     // reset). Folding the read indices into the loop region inside the
     // interpolator was the Phase 2.5 reopen defect — it caused playback to
     // start INSIDE the loop region from sample 0, skipping the entire attack
-    // [0, loopStart) and rendering near-silent audio for any slot whose loop
-    // detector picked a low-amplitude sustain region (which is exactly what
-    // LoopDetector::detectLoop is designed to do).
+    // [0, loopStart). Kept as pure clamp.
     //
     // Body matches JUCE's CatmullRomTraits::valueAtOffset (juce_Interpolators.h
     // lines 118-131) modulo JUCE's circular 4-element ring buffer vs. our flat
@@ -229,7 +227,7 @@ namespace
     //     for v1.0. (Future: track wrap state to keep the post-wrap pos = old
     //     inSample read position for fully gapless cycling.)
     //
-    // LoopDetector guarantees loopLen >= kMinLoopLength (16) and loopEnd <= N-2
+    // SampleLoader/PluginProcessor guarantee loopLen >= 16 and loopEnd <= N-2
     // when valid, so the inSample 4-tap window stays in-bounds.
     static inline float readSlotWithLoop (const float* buf, int N, double pos,
                                           int lpStart, int lpEnd) noexcept

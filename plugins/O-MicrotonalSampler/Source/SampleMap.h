@@ -22,9 +22,11 @@
         mid-note does not invalidate the held buffer (Stage 2 EC-3).
       - SampleSlot::filename is the basename (File::getFileName()) populated
         by the loader. Used for Stage 3 UI cell tooltip / loop editor header.
-      - SampleSlot::loopMode is set to Auto on LoopDetector success, OneShot
-        on fallback, and Manual when the user overrides loop points via the
-        Stage 3 loop editor.
+      - SampleSlot::loopMode defaults to Auto with whole-file loop points
+        (loopStart=0, loopEnd=N-2) since v1.4.0. Falls back to OneShot only
+        when the buffer is too short for the cubic-context headroom (< 18
+        samples). Manual mode is set when the user overrides loop points via
+        the Stage 3 loop editor.
       - SampleMap::version is monotonic; bumped by the processor on every
         atomic-store. Stage 3 JS uses it for diff detection / stale-data
         guards in the async cell-replace queue (EC3-5).
@@ -45,8 +47,8 @@
 
 enum class LoopMode
 {
-    OneShot = 0,    // No loop region detected (LoopDetector returned invalid)
-    Auto    = 1,    // Loop region from LoopDetector::detectLoop
+    OneShot = 0,    // Buffer too short for whole-file loop (< 18 samples)
+    Auto    = 1,    // Default whole-file loop (loopStart=0, loopEnd=N-2)
     Manual  = 2     // User-overridden via Stage 3 loop editor
 };
 
