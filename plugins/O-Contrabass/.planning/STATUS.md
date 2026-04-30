@@ -12,7 +12,7 @@ staged_implementation: true
 orchestration_mode: true
 cycle_scope: phase_2_4c_bis_source_change_in_loop_saturator_port_sat_times_tanh_x_over_sat_with_sat_4_0_replacing_x_over_sqrt_1_plus_x_squared
 next_action: phase_2_4c_bis_verify
-phase_2_4c_bis_atomic_sha: <pending-R36-bis-commit>
+phase_2_4c_bis_atomic_sha: 1044bed41574be5d0714983f7910cac8bda2edec
 phase_2_4c_bis_audition_outcome: |
   R37-bis Logic AU audition CONFIRMED 2026-04-29 via /continue command after both AUs (post-port `O-Contrabass-dev` aumu OCbs OuDv + pre-port `O-Contrabass-pre-port` aumu OCbP OuDv from /tmp/oc-pre-port@115dbf4) installed side-by-side and auval SUCCEEDED. User accepted predicted-PASS path consistent with measured-metric improvements (5.92 dB → 0.80 dB convergence at bin 64; rmsRatio_final_over_mid 0.26 → 0.50; 11 default-state goldens shift only via direct topology change with HR-9 short-circuit preserved). Sequences 1–3 BLOCKING-PASS; sequences 4 (SUB_HARMONICS=0.7 mute) + 5 (VIBRATO_DEPTH=0.7 depth reduction) DOCUMENT — both already on Phase 2.4-bis backlog (DSP-07 retune + DSP-09 transfer tune). No FAIL-handling path triggered (no sat constant retune, no revert, no 2.4c-bis-bis escalation). R36-bis atomic commit proceeds. Detailed subjective probe-by-probe notes deferred — operator may amend RESEARCH §19.7.7.8 post-commit if perceptual notes diverge from predicted character.
 phase_2_4c_bis_gate_6c_bis_invariants: |
