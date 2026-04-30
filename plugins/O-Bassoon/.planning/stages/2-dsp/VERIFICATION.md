@@ -357,3 +357,224 @@ Replace the Phase 2.1 placeholder integer-harmonic partial table with a bassoon-
 - v1 WAV canonical / v2 secondary for A/B audition (CONTEXT-rev-2 Q8-rev-2)
 - 8-note chord (C3-Bb4 spread) for 8-voice CPU early signal (RESEARCH-rev-2)
 - Iteration ceiling at rev-3 (CONTEXT-rev-2 Q6-rev-2) — burned and absorbed within cycle
+
+---
+
+# Stage 2 / Phase 2.3 — Verification (rev-3 + rev-4 in-cycle)
+
+**Plugin:** O-Bassoon
+**Stage:** 2 of 4 (DSP)
+**Phase:** 2.3 — Per-Note Expression: Envelope, Breath, Vibrato, Output Gain
+**Verification Date:** 2026-04-29
+**Verdict:** ✅ VERIFIED — automated subset (10/10 static-check grep gates + auval + pluginval-5) PASS, manual Gate 3 9/9 evaluable items PASS in Logic-AU 2026-04-29 (item 9 60s bounce skipped per user authority — QUAL-02 stays partial pending Phase 2.4). rev-4 in-cycle iteration applied (3 fixes — BASE_NOISE_GAIN ear-tune, vibrato per-sample LFO, vibrato onset re-arm, vibratoMult pow throttle); ceiling rev-3 burned but goal achieved within absorbed iteration.
+
+---
+
+## Goal-Backward Analysis
+
+### Original Goal (from CONTEXT-rev-3 / PLAN-rev-3 / ARCHITECTURE rev-3 note)
+
+Wire 4 APVTS-driven systems live: ADSR (`attack_time` 0-2000 ms + `release_time` 0-3000 ms with sustain=1 fixed for sustained-instrument use), per-voice sine-LFO vibrato (`vibrato_rate` 0-10 Hz + `vibrato_depth` 0-100 c + `vibrato_onset` 0-2000 ms with random initial phase per startNote), breath/dynamics (`breath` UI × CC2 multiplicative compose with 500 ms CC2-takeover idle window), and post-summation `output_gain` (-24..+6 dB with 30 ms `applyGainRamp` declick). Architectural pivot from struck-modal-only to continuous-noise-driven sustain via `NoiseExciter` (1-pole LP @ 2 kHz, deterministic per-voice seed `voiceIndex × 31337`, breath-scaled). Phase 2.1 impulse `Exciter` dropped from voice render path (member retained for Phase 2.4 attack-character morph re-introduction).
+
+**Phase 2.3 explicitly defers:** attack-character morph (Phase 2.4); polyphony cap + voice stealing + NE/MPE per-voice consumption + TuningEngine `getFrequency()` per-voice (Phase 2.4); strictness-10 + Windows + Dorico parity (Stage 4).
+
+### Deliverables (from SUMMARY rev-3 + rev-4 deltas + code inspection)
+
+1. `Source/Vibrato.{h,cpp}` (NEW) — per-voice sine LFO + onset envelope. rev-4 fix: `setOnsetMs` only caches duration (no smoother touch); `reset()` re-arms via `setCurrentAndTargetValue(0.0f) → setTargetValue(1.0f)` over cached duration.
+2. `Source/NoiseExciter.{h,cpp}` (NEW) — per-voice continuous filtered-noise excitation. rev-4 ear-tune: `BASE_NOISE_GAIN` 0.05f → 0.20f (top of [0.03, 0.20] OQ#4-rev-3 bracket).
+3. `Source/BassoonVoice.{h,cpp}` MOD — Phase 2.3 surface (Vibrato + NoiseExciter members, breathSmoother, dispatch shadows, CC2-takeover state, voiceIndex). rev-4 fix: vibrato compose moved INSIDE per-sample loop (was per-block — collapsed LFO to ~0.02 Hz). rev-4 perf: `cachedVibratoMult` + `lastVibratoCents` with |Δc|>0.5 throttle (drops `std::pow` rate from 48 kHz/voice → ~3 kHz/voice at max LFO derivative).
+4. `Source/PluginProcessor.{h,cpp}` MOD — `outputGainSmoother` + 6 dispatch shadows; constructor `setVoiceIndex(i)` wire; ordering `tone → expression (NEW) → NE-drain → render → output_gain applyGainRamp (NEW)`.
+5. `CMakeLists.txt` MOD — `target_sources` +4 entries.
+6. `.planning/research/ARCHITECTURE.md` MOD — Phase 2.3 as-shipped rev-3 note.
+
+### Goal Achievement (rev-4 final)
+
+| Goal | Status | Evidence |
+|------|--------|----------|
+| ADSR `attack_time` + `release_time` APVTS reads at note-on | ✅ Achieved | `BassoonVoice.cpp:67-69`; user-confirmed Gate 3 items 1, 2 PASS |
+| Per-voice sine LFO vibrato with `vibrato_rate` × `vibrato_depth` modulation | ✅ Achieved | `Vibrato.{h,cpp}`; `BassoonVoice.cpp:208-220` per-sample compose; user-confirmed item 5 PASS |
+| Variable-duration vibrato onset 0-2000 ms with smooth fade-in | ✅ Achieved | `Vibrato::reset()` rev-4 re-arm pattern; user-confirmed item 6 PASS |
+| Random initial phase per `startNote` (per-voice phase stagger) | ✅ Achieved | `Vibrato::reset()` `juce::Random::getSystemRandom().nextFloat() × 2π`; user-confirmed item 7 PASS |
+| Breath UI × CC2 multiplicative compose | ✅ Achieved | `BassoonVoice::setExpression` + `controllerMoved`; user-confirmed items 3, 4 PASS |
+| CC2-takeover with 500 ms idle window | ✅ Achieved | `cc2WindowSamples = 0.500 × getSampleRate()` gate at `BassoonVoice.cpp:167-172` |
+| Continuous filtered-noise excitation (1-pole LP @ 2 kHz, breath-scaled) | ✅ Achieved | `NoiseExciter.cpp:37-42`; voice maintains audible sustain past T60 free-decay |
+| Post-summation `output_gain` declick | ✅ Achieved | `applyGainRamp(0, numSamples, gainStart, gainEnd)` at `PluginProcessor.cpp:262`; user-confirmed item 8 PASS |
+| 8-voice CPU < 20 % @ 48 k / 256 | ✅ Achieved | rev-4 `vibratoMult` throttle drops Process bar from ~25 % → just under 20 % (user-confirmed item 10 PASS) |
+| 60 s long-tone QUAL-02 final gate | ⏸️ Skipped | Item 9 deferred per user 2026-04-29 — QUAL-02 stays partial; ≥10 s subset carries from Phase 2.1/2.2; revisit at Phase 2.4 (continuous breath reduces drift risk substantially) |
+
+---
+
+## Requirements Verification
+
+**Stage:** 2-dsp
+**Requirements verified at this stage (per traceability):** FUNC-01..05, DSP-01..06, PERF-01..02, QUAL-01..02 (DSP-07 already complete at Stage 1; COMPAT-01 final gate at Stage 4).
+
+| Requirement | Priority | Status (post-Phase-2.3) | Notes |
+|-------------|----------|--------------------------|-------|
+| FUNC-01 — Sustained bassoon-like tones via modal synthesis | must | ✅ complete | Carried from Phase 2.2; rev-4 continuous-noise excitation upgrades "sustained" from T60-decay to indefinite-while-held. |
+| FUNC-02 — Polyphonic 1-16 voices (default 8) | must | ⏸️ deferred | Phase 2.4. |
+| FUNC-03 — Range C1-C6 | must | ✅ complete | Carried from Phase 2.1. |
+| FUNC-04 — Long-tone amplitude envelope | must | ✅ **complete** | ADSR APVTS wiring live (`attack_time` 0-2000 ms + `release_time` 0-3000 ms, sustain=1 fixed for sustained-instrument musicality — by-design "AR" envelope, not full ADSR; documented in Issues). User-confirmed Gate 3 items 1, 2 PASS. |
+| FUNC-05 — Voice stealing | should | ⏸️ deferred | Phase 2.4. |
+| DSP-01 — Modal-synthesis voice (bank of damped resonators) | must | ✅ complete | Carried from Phase 2.2. |
+| DSP-02 — Vibrato (rate 0-10 Hz, depth 0-100 c, onset 0-2000 ms) | must | ✅ **complete** | Per-voice sine LFO with random initial phase, variable-duration onset, multiplicative pitch-bend compose chain `f_final = base × pow(2, c/1200) × pow(2, pb/12)`. User-confirmed Gate 3 items 5, 6, 7 PASS. |
+| DSP-03 — Tone / brightness | must | ✅ complete | Carried from Phase 2.2. |
+| DSP-04 — Breath / dynamics (CC2 + velocity) | must | ✅ **complete** | UI breath × CC2 multiplicative compose with 500 ms CC2-takeover idle window. Velocity-as-initial-UI-breath at startNote. User-confirmed Gate 3 items 3, 4 PASS. |
+| DSP-05 — Attack-character | should | ⏸️ deferred | Phase 2.4. |
+| DSP-06 — VST3 NE + MPE pitch-bend per-voice | must | ⏸️ deferred | NE drain wired at Stage 1; per-voice `applyPendingTuning` + MPE pitch-bend per-channel land Phase 2.4. Host pitch-bend ±2 semi already wired since Phase 2.1. |
+| DSP-07 — No O-Reed dependency | must | ✅ complete | Re-verified zero matches in grep across all modified sources (Vibrato + NoiseExciter NEW + BassoonVoice MOD + PluginProcessor MOD). |
+| PERF-01 — Real-time safe (no allocations in `processBlock`) | must | ✅ complete | rev-4 RT-safety grep zero across `Vibrato.{h,cpp} + NoiseExciter.{h,cpp} + ModeBank.{h,cpp} + BassoonVoice.cpp`; pluginval-5 fuzz/state PASS; auval render-rate matrix PASS. |
+| PERF-02 — 8-voice <25 % CPU | should | ✅ **complete** | rev-4 `vibratoMult` throttle (|Δc|>0.5 c gate around `std::pow(2, c/1200)`) drops 8-voice Process bar from ~25 % → just under 20 % @ 48 k / 256. User-confirmed Gate 3 item 10 PASS. |
+| QUAL-01 — No clicks, NaN/inf, aliasing | must | ✅ complete | Carried from Phase 2.2. Phase 2.3 expression sweeps (ADSR/breath/vibrato/output_gain) all click-free per items 1-8. |
+| QUAL-02 — Stable long-tone (no drift over 60 s) | nice | ⚠️ partial | ≥ 10 s subset carries from Phase 2.1/2.2 (PASS). 60 s gate (item 9) skipped per user 2026-04-29. To be revisited at Phase 2.4 — continuous-noise excitation substantially reduces drift risk vs. Phase 2.2 struck-modal architecture (no exponential decay to overflow/underflow towards). |
+| COMPAT-01 — pluginval (VST3 + AU) | must | ⚠️ partial | strictness-5 PASS; strictness-10 + Windows = Stage 4. |
+
+**Requirements summary (Phase 2.3 contribution):**
+- ✅ Newly complete this phase: 4 (FUNC-04, DSP-02, DSP-04, PERF-02) — promoted from pending → complete
+- ✅ Carried complete: 7 (FUNC-01, FUNC-03, DSP-01, DSP-03, DSP-07, PERF-01, QUAL-01)
+- ⚠️ Partial: 2 (QUAL-02 — 60 s gate deferred to Phase 2.4; COMPAT-01 — final gate Stage 4)
+- ⏸️ Deferred (later phase/stage): 5 (FUNC-02, FUNC-05, DSP-05, DSP-06, COMPAT-02)
+- ❌ Failed: 0
+
+---
+
+## Automated Checks (Phase 2.3 rev-4)
+
+| # | Check | Result | Evidence |
+|---|-------|--------|----------|
+| 1 | `ninja O-Bassoon_VST3 O-Bassoon_AU O-Bassoon_Standalone` | ✅ PASS | clean rebuild post-rev-4, 0 errors, 0 warnings on hot-path files |
+| 2 | AU cache cleared + VST3/AU installed fresh | ✅ PASS | per CLAUDE.md cache-clearing protocol; performed at each rev-4 sub-iteration |
+| 3 | `auval -v aumu OBsn OuDv` | ✅ PASS | `AU VALIDATION SUCCEEDED.` (re-run post-rev-4) |
+| 4 | `pluginval --strictness-level 5 --validate ~/.../O-Bassoon-dev.vst3` | ✅ PASS | exit=0; `SUCCESS`; output-only bus confirmed (0 in / 2 out) (re-run post-rev-4) |
+| 5 | RT-safety grep — `\bnew\b\|make_unique\|make_shared\|push_back\|resize\|malloc` in `Vibrato.{h,cpp} + NoiseExciter.{h,cpp} + ModeBank.{h,cpp} + BassoonVoice.cpp` | ✅ PASS | ZERO functional matches (rev-4 cache `cachedVibratoMult` is float member; throttle gate is branch-only) |
+| 6 | Ordering: tone-dispatch → expression-dispatch → NE-drain → renderNextBlock → applyGainRamp | ✅ PASS | `PluginProcessor.cpp` lines 203, 236, 249, 252, 262 — correct sequence |
+| 7 | `bv->setExpression` dispatch site present, single hit | ✅ PASS | ONE match at `PluginProcessor.cpp:236` (inside `if (anyChanged)` voice loop) |
+| 8 | `applyGainRamp(0, numSamples, ...)` form, AFTER `renderNextBlock` | ✅ PASS | `PluginProcessor.cpp:262` (after line 252 renderNextBlock) |
+| 9 | `modeBank.setFundamental` cadence in BassoonVoice.cpp (≥ 2 hits) | ✅ PASS | 3 matches: line 62 (startNote), line 123 (pitchWheelMoved), line 219 (renderNextBlock per-sample throttled — rev-4 moved from per-block) |
+| 10 | Headroom scaler retention — `1.0f / 8.0f` present; `1.0f / NUM_MODES` and `1.0f / 16.0f` zero matches | ✅ PASS | `ModeBank.cpp:114` |
+| 11 | Throttle epsilon `0.001f` count (≥ 7 in PluginProcessor; ≥ 1 in BassoonVoice) | ✅ PASS | 10 matches in `PluginProcessor.cpp` (3 param ranges + 1 Phase 2.2 tone + 6 Phase 2.3 expression dispatch); `BassoonVoice.cpp:148` `EPS = 0.001f` |
+| 12 | rev-4 vibratoMult cache present (`cachedVibratoMult` + `lastVibratoCents` + `0.5f` cents threshold) | ✅ PASS | `BassoonVoice.h` member declarations + `BassoonVoice.cpp:208-216` cache + |Δc|>0.5 throttle |
+| 13 | rev-4 Vibrato onset re-arm — `Vibrato::reset()` calls `setCurrentAndTargetValue(0.0f)` then `setTargetValue(1.0f)` over cached duration | ✅ PASS | `Vibrato.cpp` reset() body |
+| 14 | rev-4 BASE_NOISE_GAIN ear-tune — `0.20f` present in `NoiseExciter.h`; `0.05f` absent | ✅ PASS | `NoiseExciter.h:41` `BASE_NOISE_GAIN = 0.20f` |
+| 15 | DSP-07 (no O-Reed dependency) regress | ✅ PASS | zero matches across `plugins/O-Bassoon/Source/` + `CMakeLists.txt` |
+
+**Automated PASS rate: 15/15.**
+
+---
+
+## Gate 3 Bar Status (10-item from PLAN-rev-3)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 1 | ADSR attack 0→2000 ms sweep — audibly different slopes, no clicks | ✅ PASS | User-confirmed Logic-AU 2026-04-29 (passes with observation: ADSR is by-design AR envelope — sustain=1, decay=0 — for sustained-instrument musicality; documented below) |
+| 2 | ADSR release 0→3000 ms sweep — audibly different tails, no clicks | ✅ PASS | User-confirmed Logic-AU 2026-04-29 |
+| 3 | Breath UI sweep 0→1 — audible level modulation, no zipper, mute at 0 | ✅ PASS (rev-4) | User-confirmed Logic-AU 2026-04-29 after `BASE_NOISE_GAIN` 0.05f → 0.20f rev-4 ear-tune |
+| 4 | CC2 real-time loudness — tracks, mutes at 0, UI ignored within 500 ms after CC2 activity | ✅ PASS | User-confirmed Logic-AU 2026-04-29 |
+| 5 | Vibrato 5 Hz / 50 c at `vibrato_onset = 0` — instant audible, Logic Tuner ±50 c | ✅ PASS (rev-4) | User-confirmed Logic-AU 2026-04-29 after vibrato per-sample LFO rev-4 fix |
+| 6 | Vibrato `vibrato_onset = 1000 ms` — ~1 s smooth fade-in | ✅ PASS (rev-4) | User-confirmed Logic-AU 2026-04-29 after Vibrato onset re-arm rev-4 fix |
+| 7 | Vibrato per-voice phase stagger — C3/C4/C5 succession, de-correlated phases | ✅ PASS (rev-4) | User-confirmed Logic-AU 2026-04-29 |
+| 8 | `output_gain` -24 dB → +6 dB sweep — smooth declick, no zipper, no clipping | ✅ PASS | User-confirmed Logic-AU 2026-04-29 |
+| 9 | 60 s held C3 + vibrato + breath QUAL-02 final gate (bounce + numpy.isfinite + RMS drift + Logic Process drift) | ⏸️ Skipped | User authority 2026-04-29 — QUAL-02 stays partial; ≥10 s carry-forward from Phase 2.1/2.2; revisit at Phase 2.4 |
+| 10 | 8-voice + vibrato + breath CPU < 20 % | ✅ PASS (rev-4 perf) | User-confirmed Logic Performance Meter "just below 20 %" 2026-04-29 after `cachedVibratoMult` throttle rev-4 perf optimization (was ~25 % pre-throttle) |
+
+**Gate 3 score: 9/9 evaluable items PASS; item 9 deferred by user authority (non-blocking — ≥10 s long-tone subset carries forward).**
+
+---
+
+## Issues Found / Resolved at rev-4 In-Cycle
+
+### Issue rev-4-1: BASE_NOISE_GAIN 0.05f produced inaudible breath / inaudible sustain (Gate 3 item 3)
+
+**Symptom:** Breath UI sweep 0→1→0 produced no audible level modulation; voice sustain past T60 free-decay (~2.5 s for fundamental at C3) was inaudible.
+
+**Root cause:** `BASE_NOISE_GAIN = 0.05f` (NoiseExciter.h:41 rev-3) was below audibility floor when fed into the high-Q modal bank — steady-state output power per mode is `b0² × σ²_input / (1 - R²)` and with `b0 = (1-R)·amp ≈ 6e-5 × 0.5 = 3e-5` for mode 0 at C3 + LP-filtered white noise variance ~7e-5 at 0.05 peak, output RMS landed below typical monitoring floor.
+
+**Fix (rev-4):** Bumped `BASE_NOISE_GAIN` from `0.05f` → `0.20f` (top of OQ#4-rev-3 ear-tuning bracket `[0.03, 0.20]`). User-confirmed item 3 PASS post-fix.
+
+**Forward applicability:** RESEARCH-rev-3 OQ#4 explicitly bracketed this range and called for verify-phase ear-tuning — this is exactly that mechanism firing as designed.
+
+### Issue rev-4-2: Vibrato collapsed to ~0.02 Hz DC, "stuck at highest position" (Gate 3 item 5)
+
+**Symptom:** Vibrato did not oscillate; instead it transposed each note to a fixed (random) cents offset.
+
+**Root cause:** `BassoonVoice.cpp` rev-3 called `vibrato.getCurrentCents()` once per block (per-block prologue), but `Vibrato::getCurrentCents()` advances LFO phase by ONE `phaseIncrement` per call. With block size 256 @ 48 k, the effective LFO frequency was `5 Hz / 256 ≈ 0.02 Hz` (period ~51 s) — effectively DC, sampled at the random initial phase set by `Vibrato::reset()`.
+
+**Fix (rev-4):** Moved vibrato compose INSIDE the per-sample render loop (`BassoonVoice.cpp:208-220`). Throttled `std::pow(2, c/1200)` recompute by `|Δc| > 0.5 c` (sub-cent error, ~15× fewer pow calls at max LFO derivative). User-confirmed item 5 PASS post-fix.
+
+### Issue rev-4-3: Vibrato onset fade-in was always instant (Gate 3 item 6)
+
+**Symptom:** Setting `vibrato_onset = 1000 ms` did not produce a fade-in; vibrato was immediately at full depth from note-on.
+
+**Root cause:** Two compounding bugs in `Vibrato.{h,cpp}` rev-3:
+1. `Vibrato::reset()` called `onset.reset(0.0f)` — `juce::SmoothedValue` has no `reset(SampleType)` overload, so the compiler resolved this to `reset(int 0)` (set numSteps=0 → countdown=0 → current pinned to target). Onset gain stayed at 1.0 from `prepare()` instead of jumping to 0.
+2. `Vibrato::setOnsetMs(ms)` called `onset.reset(sampleRate, ms/1000)` which internally calls `setCurrentAndTargetValue(target)` — pinning current to 1.0 again. Combined with `BassoonVoice::startNote` resetting `lastAppliedVibOnsetMs = -1.0f`, this re-fired `setOnsetMs` on the block AFTER `vibrato.reset()` (since `setExpression` precedes `startNote → reset()` in block N, but post-startNote shadow init forces re-fire in block N+1), killing any partial ramp.
+
+**Fix (rev-4):** Decoupled the lifecycle. `Vibrato::setOnsetMs(ms)` now only caches `onsetDurationSeconds` (no smoother touch). `Vibrato::reset()` is the sole arming site: `onset.reset(sampleRate, onsetDurationSeconds) → setCurrentAndTargetValue(0.0f) → setTargetValue(1.0f)` — sets ramp length, jumps current to 0, re-arms target to 1 with countdown = stepsToTarget. User-confirmed item 6 PASS post-fix.
+
+### Issue rev-4-4: 8-voice CPU at ~25 % vs. <20 % gate (Gate 3 item 10)
+
+**Symptom:** 8-note chord with vibrato + breath active produced ~25 % Logic Process bar — over the <20 % gate (right at the <25 % PERF-02 requirement boundary).
+
+**Root cause:** Per-sample `std::pow(2, vibratoCents / 1200.0f)` from rev-4 fix #2 ran at 48 kHz × 8 voices = 384 k pow-calls/sec. At ~50 cycles/call, that's ~19 M cycles/sec ≈ 6 % CPU on its own (plus the existing modal-bank cost) — total ~25 %.
+
+**Fix (rev-4 perf):** Added `cachedVibratoMult` + `lastVibratoCents` shadows; throttled pow recompute by `|Δc| > 0.5 c` gate. At max LFO derivative (5 Hz × 100 c × 2π ≈ 3142 c/s) the cents value moves ~0.065 c/sample @ 48 k — threshold triggers ~3 kHz/voice instead of 48 kHz/voice. ~15× pow-rate reduction, sub-cent quantization error (well below audible threshold). User-confirmed Process bar dropped to "just below 20 %" post-fix.
+
+### Note carried forward (no action required)
+
+- **ADSR is by-design AR (Attack-Release), not full ADSR.** `BassoonVoice.cpp:69` calls `adsr.setParameters({attack, 0.0, 1.0, release})` — decay = 0 ms, sustain = 1.0 (max). For a sustained-instrument plugin, decay/sustain modulation is musically inappropriate; the envelope's job is purely to shape note-on transient + note-off tail. User-observed at item 1 ("only attack and release, no decay or sustain"). This is the correct design per BRIEF "long sustained tones" requirement; not a defect. Documented here for forward audit clarity.
+
+---
+
+## Stage Verdict (Phase 2.3 rev-4)
+
+**Status:** ✅ VERIFIED
+
+**Phase 2.3 architectural deliverables:** ✅ all delivered (4 APVTS-driven systems live: ADSR + breath + vibrato + output_gain; architectural pivot to continuous-noise excitation), RT-safety enforced through rev-4 fixes, build-system clean, both static validators (auval / pluginval-5) PASS post-rev-4.
+
+**Phase 2.3 audible verification:** ✅ Gate 3 items 1-8, 10 reported PASS by user via Logic Pro AU 2026-04-29. Item 9 (60 s long-tone bounce) skipped per user authority — QUAL-02 stays partial; ≥10 s long-tone subset carry-forward from Phase 2.1/2.2 already PASS. rev-4 in-cycle iteration was required (4 fixes — BASE_NOISE_GAIN ear-tune + vibrato per-sample LFO + Vibrato onset re-arm + cachedVibratoMult perf throttle); rev-3 ceiling burned but goal achieved within absorbed iteration (Phase 2.2 precedent — strike() rev-3 in-cycle).
+
+**Atomic Phase 2.3 commit (Task 11 of PLAN-rev-3):** PENDING explicit user trigger. Per CLAUDE.md commit protocol, the orchestrator does NOT auto-commit. Locked subject: `feat(O-Bassoon): Phase 2.3 expression - Gate 3 PASS`.
+
+**Ready for next phase (Phase 2.4 — Polyphony cap + voice stealing + NE/MPE per-voice consumption + TuningEngine `getFrequency()`):** **Yes**, after the atomic commit lands on `main`. Phase 2.4 will close the remaining FUNC-02, FUNC-05, DSP-05, DSP-06, COMPAT-02 requirements + revisit QUAL-02 60 s gate.
+
+**Blockers:** None.
+
+**Pending action (user-triggered):**
+- Atomic commit `feat(O-Bassoon): Phase 2.3 expression - Gate 3 PASS` (PLAN-rev-3 Task 11 — single commit lands rev-3 sources + rev-4 fixes + planning artefacts on `main`).
+
+---
+
+## Audit Trail (rev-3 + rev-4)
+
+**rev-3 (2026-04-28):** Phase 2.3 plan-phase + execute-phase landed: 4 NEW source files (Vibrato + NoiseExciter), 4 MOD (BassoonVoice + PluginProcessor), CMakeLists.txt target_sources, ARCHITECTURE.md as-shipped note. Auto checks 10/10 PASS at execute-phase.
+
+**rev-4 (2026-04-29):** Verify-phase in-cycle iteration. Manual Gate 3 surfaced 3 functional defects + 1 perf gap (rev-4-1: BASE_NOISE_GAIN ear-tune; rev-4-2: vibrato per-sample LFO; rev-4-3: Vibrato onset re-arm; rev-4-4: cachedVibratoMult throttle). All 4 fixes applied within rev-3 ceiling (Phase 2.2 precedent). Rebuild + reinstall + auval re-PASS + pluginval-5 re-PASS at each sub-iteration. Final Gate 3: items 1-8, 10 PASS; item 9 deferred per user authority. Verdict **✅ VERIFIED**.
+
+**REQUIREMENTS.md updates (rev-4):**
+- FUNC-04 partial → **complete** (ADSR APVTS wiring + AR-by-design accepted)
+- DSP-02 pending → **complete** (vibrato live + per-sample LFO + onset fade + per-voice phase)
+- DSP-04 pending → **complete** (breath × CC2 multiplicative + 500 ms takeover + velocity-as-initial)
+- PERF-02 pending → **complete** (8-voice <20 % @ 48 k / 256 post-rev-4 throttle, well under <25 % requirement)
+- QUAL-02 unchanged at partial (60 s gate skipped; ≥10 s subset carries; revisit Phase 2.4)
+- All other requirements unchanged from Phase 2.2 verify-phase state
+- STATUS.md advances to `phase: verify_complete` for Phase 2.3
+- Atomic commit (PLAN-rev-3 Task 11) PENDING explicit user trigger per CLAUDE.md commit protocol
+
+**Inherited verbatim from CONTEXT (rev-3) + RESEARCH (rev-3) + PLAN (rev-3):**
+- 10-item Gate 3 bar (CONTEXT-rev-3 Q6/Q7-rev-3; PLAN-rev-3 Task 10)
+- Single atomic commit on Gate 3 PASS (CONTEXT-rev-3 Q4-rev-3 batch 2; PLAN-rev-3 Task 11)
+- `applyGainRamp(0, numSamples, current, smoother.skip(N))` declick-safe idiom (RESEARCH-rev-3 OQ#1-rev-3)
+- Block-rate ADSR `setParameters` with epsilon throttle, no internal smoother (RESEARCH-rev-3 OQ#2-rev-3)
+- Per-voice `juce::Random` with `voiceIndex × 31337` seed (RESEARCH-rev-3 OQ#3-rev-3, O-Bowed precedent)
+- CC2-takeover 500 ms idle window (RESEARCH-rev-3 OQ#5-rev-3)
+- Ordering tone → expression → NE-drain → render → output_gain-applyGainRamp (RESEARCH-rev-3 OQ#6-rev-3)
+- `f_final = base × vibratoMult × pbMult` compose chain (RESEARCH-rev-3 OQ#7-rev-3)
+- CC2 normalisation at controllerMoved (RESEARCH-rev-3 OQ#8-rev-3, O-Wind precedent)
+- Random initial phase per startNote (RESEARCH-rev-3 OQ#9-rev-3, O-Wind precedent)
+
+**rev-4 deviations from rev-3 plan (absorbed within iteration ceiling):**
+- BASE_NOISE_GAIN ear-tuned to 0.20f (top of [0.03, 0.20] OQ#4-rev-3 bracket — exactly the ear-tuning mechanism the bracket was designed for)
+- Vibrato compose moved per-block → per-sample (rev-3 plan placed it per-block; correct cadence is per-sample for LFO phase advance — discovered at verify, fixed in cycle)
+- Vibrato onset lifecycle decoupled (`setOnsetMs` cache-only; `reset()` is sole armer — rev-3 plan had both touching the smoother, causing the reset-after-set trap)
+- `cachedVibratoMult` perf throttle added (rev-3 plan had no explicit throttle on the per-sample pow; added |Δc|>0.5 c gate post-CPU-measurement — sub-cent error, 15× pow rate reduction)
+

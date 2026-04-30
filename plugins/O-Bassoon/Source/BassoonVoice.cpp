@@ -6,10 +6,17 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Phase 2.1: working modal-synthesis voice — sustained, in-tune tone for any
-    single MIDI note (C1-C6). NO bassoon-specific timbre yet (placeholder
-    integer harmonics + flat amplitudes), NO APVTS reads, NO TuningEngine call,
-    NO vibrato/breath/voice manager — strict ROADMAP minimal wiring.
+    Phase 2.3: Per-Note Expression — Envelope, Breath, Vibrato, Output Gain.
+    Architectural pivot: continuous breath-driven sustain via NoiseExciter
+    replaces struck-modal-only sustain. Phase 2.2 rev-3 strike() retained at
+    startNote for attack transient; Phase 2.1 impulse Exciter member retained
+    (D6-rev-3) but NOT called from renderNextBlock — Phase 2.4 re-wires for
+    attack-character morph.
+
+    Phase 2.1 carry-forward: 16-mode parallel pole-only resonator bank,
+    raw-14-bit pitch-bend ±2 semitones, equal L+R per-sample voice write.
+    Phase 2.2 carry-forward: bassoon partial table + formant Gaussian, tone
+    SmoothedValue dispatch, 1/8 headroom scaler.
 
   ==============================================================================
 */
@@ -25,16 +32,22 @@ void BassoonVoice::prepareToPlay (double sampleRate, int /*maxBlockSize*/)
 {
     setCurrentPlaybackSampleRate (sampleRate);   // JUCE bookkeeping
     modeBank.prepare (sampleRate);
-    exciter.prepare  (sampleRate);
+    exciter.prepare  (sampleRate);                // D6-rev-3 retention
 
     // CRITICAL: setSampleRate MUST be called BEFORE setParameters
     // (JUCE 8 ADSR contract — juce_ADSR.h:115-119; recalculateRates uses
     // the stored sample rate, defaulted to 44100.0 if setSampleRate not called).
     adsr.setSampleRate (sampleRate);
     adsr.setParameters (juce::ADSR::Parameters { 0.010f, 0.0f, 1.0f, 0.200f });
+
+    // Phase 2.3 systems
+    vibrato.prepare (sampleRate);
+    noiseExciter.prepare (sampleRate, voiceIndex);
+    breathSmoother.reset (sampleRate, 0.020);   // 20 ms ramp (CONTEXT-rev-3 line 521)
+    breathSmoother.setCurrentAndTargetValue (0.7f);
 }
 
-void BassoonVoice::startNote (int midiNoteNumber, float /*velocity*/,
+void BassoonVoice::startNote (int midiNoteNumber, float velocity,
                               juce::SynthesiserSound*, int currentPitchWheelPosition)
 {
     pitchWheelValue       = currentPitchWheelPosition;
@@ -48,8 +61,35 @@ void BassoonVoice::startNote (int midiNoteNumber, float /*velocity*/,
     const float fBent = currentFrequencyBase * std::pow (2.0f, pitchBendSemitones / 12.0f);
     modeBank.setFundamental (fBent);
     modeBank.strike();           // rev-3: inject modal sustain energy (state init)
-    exciter.start();             // exciter still fires for attack-transient flavor
+    exciter.start();             // D6-rev-3 retention — kept for Phase 2.4 re-wire safety
+
+    // Phase 2.3: ADSR APVTS reads at note-on (one-shot)
+    const float attackMs  = parameters->getRawParameterValue ("attack_time")->load();
+    const float releaseMs = parameters->getRawParameterValue ("release_time")->load();
+    adsr.setParameters ({ attackMs / 1000.0f, 0.0f, 1.0f, releaseMs / 1000.0f });
     adsr.noteOn();
+
+    // Phase 2.3: reset Phase 2.3 systems
+    vibrato.reset();
+    noiseExciter.reset();
+    breathSmoother.setCurrentAndTargetValue (velocity);  // velocity-as-initial-UI-breath
+    lastUiBreath = velocity;
+
+    // Phase 2.3: CC2 state reset on every note-on
+    cc2EverActive      = false;
+    lastCC2SampleCount = 0;
+
+    // Phase 2.3: shadow init — force first setExpression dispatch
+    lastAppliedAttackMs   = -1.0f;
+    lastAppliedReleaseMs  = -1.0f;
+    lastAppliedVibRate    = -1.0f;
+    lastAppliedVibDepth   = -1.0f;
+    lastAppliedVibOnsetMs = -1.0f;
+    lastDispatchedFrequency = 0.0f;
+
+    // rev-4: force first vibratoMult recompute on first per-sample iteration
+    lastVibratoCents  = 1.0e9f;
+    cachedVibratoMult = 1.0f;
 }
 
 void BassoonVoice::stopNote (float /*velocity*/, bool allowTailOff)
@@ -84,9 +124,18 @@ void BassoonVoice::pitchWheelMoved (int newPitchWheelValue)
     }
 }
 
-void BassoonVoice::controllerMoved (int /*controllerNumber*/, int /*newControllerValue*/)
+void BassoonVoice::controllerMoved (int controllerNumber, int newControllerValue)
 {
-    // Phase 2.1: no-op. Phase 2.3 wires CC2 -> breath parameter routing.
+    if (controllerNumber == 2)  // CC2: MIDI breath controller
+    {
+        const float cc2Normalised = juce::jlimit (0.0f, 1.0f,
+                                                   static_cast<float> (newControllerValue) / 127.0f);
+        cc2EverActive       = true;
+        lastCC2SampleCount  = currentSampleCount;
+        // Multiplicative compose: breath_voice = ui_breath × cc2_normalised
+        breathSmoother.setTargetValue (lastUiBreath * cc2Normalised);
+    }
+    // CC1 / aftertouch deferred to v1.1 per Stage 0 D4.
 }
 
 void BassoonVoice::setTone (float tone01) noexcept
@@ -96,34 +145,101 @@ void BassoonVoice::setTone (float tone01) noexcept
     modeBank.applyToneChange();
 }
 
+void BassoonVoice::setExpression (float attackMs, float releaseMs,
+                                   float vibRateHz, float vibDepthCents, float vibOnsetMs,
+                                   float uiBreath) noexcept
+{
+    constexpr float EPS = 0.001f;
+
+    // ADSR — re-shape only when changed
+    if (std::abs (attackMs  - lastAppliedAttackMs)  > EPS
+     || std::abs (releaseMs - lastAppliedReleaseMs) > EPS)
+    {
+        adsr.setParameters ({ attackMs / 1000.0f, 0.0f, 1.0f, releaseMs / 1000.0f });
+        lastAppliedAttackMs  = attackMs;
+        lastAppliedReleaseMs = releaseMs;
+    }
+
+    if (std::abs (vibRateHz     - lastAppliedVibRate)    > EPS) { vibrato.setRateHz (vibRateHz);     lastAppliedVibRate    = vibRateHz; }
+    if (std::abs (vibDepthCents - lastAppliedVibDepth)   > EPS) { vibrato.setDepthCents (vibDepthCents); lastAppliedVibDepth = vibDepthCents; }
+    if (std::abs (vibOnsetMs    - lastAppliedVibOnsetMs) > EPS) { vibrato.setOnsetMs (vibOnsetMs);   lastAppliedVibOnsetMs = vibOnsetMs; }
+
+    // Breath UI shadow (always update — small cost; CC2-takeover gate decides effective target)
+    lastUiBreath = uiBreath;
+
+    // CC2-takeover gate: only apply UI breath if CC2 idle for >500 ms
+    const juce::int64 cc2WindowSamples = static_cast<juce::int64> (0.500 * getSampleRate());
+    const bool cc2RecentlyActive = cc2EverActive
+                                && (currentSampleCount - lastCC2SampleCount) < cc2WindowSamples;
+    if (! cc2RecentlyActive)
+        breathSmoother.setTargetValue (uiBreath);
+    // else: CC2 is the active source; controllerMoved sets the smoother target
+}
+
 void BassoonVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                     int startSample, int numSamples)
 {
     if (! adsr.isActive())
         return;
 
-    const int numChannels = outputBuffer.getNumChannels();
+    // pitchBend is block-rate (pitchWheelMoved fires at MIDI cadence); compute once.
+    const float pbMult = std::pow (2.0f, pitchBendSemitones / 12.0f);
 
+    // Per-sample render: vibrato → f_final dispatch (throttled) → continuous noise
+    // → modeBank → ADSR → output.
+    //
+    // rev-4 fix: vibrato.getCurrentCents() advances LFO phase by ONE step per call,
+    // so it MUST run per-sample. Previously called once per block, which collapsed
+    // the 5 Hz LFO to (5 / blockSize) Hz ≈ 0.02 Hz — effectively DC, stuck at the
+    // random initial phase set in Vibrato::reset(). Throttle |Δf|>0.1 Hz keeps
+    // modeBank coefficient recompute to <1 kHz worst-case at max excursion
+    // derivative (5 Hz × 100 cents → ~120 Hz/s).
+    //
+    // Phase 2.1 impulse Exciter call dropped (D6-rev-3 — file/member retained
+    // for Phase 2.4 attack-character morph re-introduction).
+    // Voices SUM into the buffer — host's processBlock clears it BEFORE
+    // synthesiser.renderNextBlock (PluginProcessor.cpp).
     for (int i = 0; i < numSamples; ++i)
     {
-        const float ex    = exciter.getNextSample();
-        const float voice = modeBank.processSample (ex);
-        const float env   = adsr.getNextSample();
-        const float out   = voice * env;
-
-        // Voices SUM into the buffer — host's processBlock clears the buffer
-        // BEFORE synthesiser.renderNextBlock (PluginProcessor.cpp:165).
-        // juce::Synthesiser::renderVoices does NOT zero the buffer.
-        for (int ch = numChannels; --ch >= 0;)
-            outputBuffer.addSample (ch, startSample + i, out);
-
-        if (! adsr.isActive())
+        // rev-4 fix: vibrato phase MUST advance per sample (LFO is per-sample);
+        // the std::pow recompute is throttled by |Δc| > 0.5 c (sub-cent
+        // resolution, well below audible threshold). Item 10 8-voice CPU
+        // dropped from ~25 % → target <20 % by collapsing pow rate from
+        // 48 kHz/voice → ~3 kHz/voice at max LFO derivative.
+        const float vibratoCents = vibrato.getCurrentCents();
+        if (std::abs (vibratoCents - lastVibratoCents) > 0.5f)
         {
-            clearCurrentNote();
-            modeBank.reset();
-            exciter.reset();
-            currentFrequencyBase = 0.0f;
-            return;
+            cachedVibratoMult = std::pow (2.0f, vibratoCents / 1200.0f);
+            lastVibratoCents  = vibratoCents;
         }
+        const float f_final = currentFrequencyBase * cachedVibratoMult * pbMult;
+
+        if (std::abs (f_final - lastDispatchedFrequency) > 0.1f)
+        {
+            modeBank.setFundamental (f_final);
+            lastDispatchedFrequency = f_final;
+        }
+
+        const float breath     = breathSmoother.getNextValue();
+        const float excitation = noiseExciter.getNextSample (breath);
+        const float voice      = modeBank.processSample (excitation);
+        const float env        = adsr.getNextSample();
+        const float sample     = voice * env;
+
+        outputBuffer.addSample (0, startSample + i, sample);
+        outputBuffer.addSample (1, startSample + i, sample);
+    }
+
+    // Phase 2.3: advance sample-count for CC2-takeover state machine
+    currentSampleCount += numSamples;
+
+    // ADSR-idle exit (Phase 2.1 invariant preserved — moved to post-loop
+    // because per-sample early-return would skip currentSampleCount advance).
+    if (! adsr.isActive())
+    {
+        clearCurrentNote();
+        modeBank.reset();
+        noiseExciter.reset();
+        currentFrequencyBase = 0.0f;
     }
 }

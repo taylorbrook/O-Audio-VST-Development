@@ -31,8 +31,12 @@ target_sources(O-Bassoon
         Source/BassoonVoice.cpp
         Source/ModeBank.h
         Source/ModeBank.cpp
-        Source/Exciter.h
-        Source/Exciter.cpp
+        Source/Exciter.h         # Phase 2.4 retention (D6-rev-3) — Phase 2.3 voice does not call,
+        Source/Exciter.cpp       # but member declared for attack-character morph re-introduction.
+        Source/Vibrato.h         # Phase 2.3 — per-voice sine LFO + onset envelope
+        Source/Vibrato.cpp
+        Source/NoiseExciter.h    # Phase 2.3 — per-voice continuous filtered-noise excitation
+        Source/NoiseExciter.cpp
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp

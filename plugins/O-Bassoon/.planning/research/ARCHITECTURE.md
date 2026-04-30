@@ -953,3 +953,93 @@ with a user-controllable scaler.
 `plugins/O-Bassoon/.planning/stages/2-dsp/VERIFICATION.md` (rev-2). A/B-vs-reference
 listening + Logic Channel EQ Analyzer overlay (peak in 400-600 Hz at C3) +
 8-voice CPU < 20 % + tone sweep clean.
+
+---
+
+## rev-note: Phase 2.3 As-Shipped (2026-04-28)
+
+**Cycle:** GSD Phase 2.3 — Per-Note Expression: Envelope, Breath, Vibrato, Output Gain. Atomic commit subject:
+`feat(O-Bassoon): Phase 2.3 expression - Gate 3 PASS`.
+
+**Architectural pivot (Phase 2.3 only):** Voice excitation source pivoted from
+struck-modal-only (Phase 2.1 impulse `Exciter` + Phase 2.2 rev-3 `strike()`) to
+**continuous breath-driven sustain** via new per-voice `NoiseExciter` class. Phase
+2.1 `Exciter::getNextSample()` call dropped from `BassoonVoice::renderNextBlock`
+(file retained verbatim for Phase 2.4 attack-character morph re-introduction).
+Phase 2.2 rev-3 `strike()` retained at `BassoonVoice::startNote` as the attack
+transient.
+
+**As-shipped continuous-noise excitation spec:**
+- Per-voice `juce::Random` seeded `voiceIndex × 31337` (deterministic, family-
+  consistent — O-Bowed `BowNoiseGenerator.h:23` precedent).
+- 1-pole low-pass filter, cutoff **2 kHz**, coefficient
+  `alpha = 1 - exp(-2π × 2000 / sampleRate)`.
+- Output: `lpState × BASE_NOISE_GAIN × breath_voice`.
+- `BASE_NOISE_GAIN = 0.05f` as-shipped (verify-phase rev-1 ear-tuning bracket
+  was `[0.03f, 0.20f]`; ship value to be confirmed on Gate 3 PASS).
+
+**Breath / dynamics state machine (CC2 takeover):**
+- Composition: `breath_voice = ui_breath × cc2_normalised`.
+- Velocity sets initial UI breath at `startNote` (`lastUiBreath = velocity`).
+- On first CC2 event (controllerNumber == 2): `cc2EverActive = true`,
+  `lastCC2SampleCount = currentSampleCount`,
+  `breathSmoother.setTargetValue(lastUiBreath × cc2Normalised)`.
+- CC2-takeover window: **500 ms** of CC2-idle samples before UI breath value
+  resumes targeting the smoother.
+- CC2 = 0 mutes the voice (audible silence; ADSR may still be active).
+- Per-voice 20 ms `Linear` smoother sampled per-sample.
+
+**Vibrato compose-order (`f_final` chain — Phase 2.3 + Phase 2.4 future-compatible):**
+```
+f_final = (NE-tuned base) × pow(2, vibratoCents / 1200) × pow(2, pitchBendSemitones / 12)
+```
+Phase 2.3 ships with `NE-tuned base = currentFrequencyBase` (12-TET fallback —
+TuningEngine `getFrequency()` consumption deferred to Phase 2.4). Phase 2.4 will
+plug NE-tuned base into the same multiplicative chain — vibrato + pitch-bend
+operate on the NE-tuned base, not the 12-TET base. Block-rate `setFundamental`
+dispatch fires when `|Δf_final| > 0.1 Hz` (sub-perceptual at C3 — 1.3 cents).
+
+**Per-voice sine LFO vibrato spec:**
+- Random initial phase per `startNote`:
+  `phase = juce::Random::getSystemRandom().nextFloat() × twoPi` (O-Wind
+  `FluteSynthVoice.cpp:114-116` precedent).
+- Variable-duration onset `juce::SmoothedValue<float, Linear>` ramp 0→1 over
+  `vibrato_onset` ms (0 ms = instant target).
+- Output: `depthCents × onsetGain × std::sin(phase)`; advance phase by
+  `2π × rateHz / sampleRate` per sample.
+- No smoothing on rate/depth — LFO modulation masks zipper.
+
+**Throttled-epsilon expression dispatch (processor-scope, BEFORE NE drain):**
+Six APVTS reads (`attack_time`, `release_time`, `vibrato_rate`, `vibrato_depth`,
+`vibrato_onset`, `breath`); single aggregated `BassoonVoice::setExpression(...)`
+call per voice per block ONLY when any sub-param changes > 0.001. Per-voice
+sub-param epsilon throttling inside `setExpression`. CC2 routing via
+`controllerMoved` is independent of this dispatch path.
+
+**Post-summation `output_gain` declick:**
+30 ms `Linear` `juce::SmoothedValue<float>` at processor scope; per-block
+`buffer.applyGainRamp(0, numSamples, smoother.getCurrentValue(),
+smoother.skip(numSamples))` — JUCE 8 canonical declick-safe idiom for
+`SmoothedValue`-driven buffer-level gain (deviation from O-Bowed/O-Lyrica's
+plain `applyGain(decibelsToGain(level))` precedent in favour of explicit
+DAW-automation declick guarantee — D4-rev-3).
+
+**ADSR cadence:** block-rate `juce::ADSR::setParameters({attack/1000, 0, 1.0,
+release/1000})` with epsilon throttle inside `setExpression`. No internal
+SmoothedValue around attack/release params (JUCE ADSR re-shapes envelope
+smoothly mid-note — locked OQ#2-rev-3).
+
+**Ordering invariant (locked OQ#6-rev-3):**
+1. `juce::ScopedNoDenormals noDenormals;`
+2. `buffer.clear()`
+3. Tone dispatch (Phase 2.2 — `toneSmoother.skip` + per-voice `setTone`)
+4. **Phase 2.3 NEW:** Expression dispatch (6 APVTS reads + epsilon throttle + `setExpression`)
+5. `vst3Extensions.drainAndUpdate()` (NE drain)
+6. `synthesiser.renderNextBlock(buffer, midiMessages, 0, numSamples)`
+7. **Phase 2.3 NEW:** `output_gain` post-summation `applyGainRamp`
+
+**Verification:** Gate 3 PASS — see
+`plugins/O-Bassoon/.planning/stages/2-dsp/VERIFICATION.md` (rev-3). 10-item
+manual checklist (3 ADSR + 1 breath + 1 CC2 + 3 vibrato + 1 output_gain +
+1 long-tone-60s + 1 polyphony-CPU) + automated invariant battery. Closes
+FUNC-04, DSP-02, DSP-04, QUAL-02, QUAL-01.

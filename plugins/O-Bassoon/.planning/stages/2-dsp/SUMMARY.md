@@ -252,3 +252,126 @@ M plugins/O-Bassoon/.planning/stages/2-dsp/VERIFICATION.md (rev-2 — written at
 ## Next
 
 Verify phase: `/plugin-verify O-Bassoon 2-dsp` — consumes this SUMMARY + PLAN-rev-2, prompts for the 10-item Gate 2 evidence in Logic-AU, writes VERIFICATION-rev-2, and lands the atomic commit on green.
+
+---
+
+# O-Bassoon Stage 2 / Phase 2.3 — Execution Summary (rev-3, 2026-04-28)
+
+**Phase:** 2.3 — Per-Note Expression: Envelope, Breath, Vibrato, Output Gain
+**Execute-phase completed:** 2026-04-28
+**Templates:** O-Wind FluteSynthVoice (random vibrato phase per startNote, CC2 normalisation site), O-Bowed BowNoiseGenerator (deterministic per-voice noise seed `voiceIndex × 31337`)
+**Agent:** orchestrator-direct (PLAN-rev-3 Tasks 1-9 executed inline; lifted RESEARCH-rev-3 §3 implementation skeletons verbatim)
+
+## What Was Built
+
+### New Source Files
+
+- `Source/Vibrato.{h,cpp}` (NEW) — per-voice sine LFO + onset envelope
+  - Public API: `prepare(double) noexcept`, `reset() noexcept`, `setRateHz(float) noexcept`, `setDepthCents(float) noexcept`, `setOnsetMs(float) noexcept`, `getCurrentCents() noexcept`
+  - Random initial phase per `startNote`: `phase = juce::Random::getSystemRandom().nextFloat() × twoPi` (locked OQ#9-rev-3, O-Wind `FluteSynthVoice.cpp:114-116` precedent — overrides CONTEXT-rev-3 default instant-zero per D2-rev-3)
+  - Variable-duration onset `juce::SmoothedValue<float, Linear>` ramp 0→1 over `vibrato_onset` ms (0 ms = instant target, D5-rev-3 confirmed safe)
+  - Output: `depthCents × onsetGain × std::sin(phase)`; advance phase by `2π × rateHz / sampleRate` per sample
+  - No smoothing on rate/depth — LFO modulation masks zipper (locked CONTEXT-rev-3 line 526)
+  - Zero allocation in any method; `noexcept` on every public method
+
+- `Source/NoiseExciter.{h,cpp}` (NEW) — per-voice continuous filtered-noise excitation (architectural pivot)
+  - Public API: `prepare(double, int voiceIndex) noexcept`, `reset() noexcept`, `getNextSample(float breathScaled) noexcept`
+  - Deterministic per-voice seed: `rng.setSeed(static_cast<juce::int64>(voiceIndex) * 31337)` (locked OQ#3-rev-3, O-Bowed `BowNoiseGenerator.h:23` precedent — overrides CONTEXT-rev-3 default `Time::currentTimeMillis() ^ voiceIndex` per D3-rev-3)
+  - 1-pole low-pass: `lpCoeff = 1 - exp(-2π × 2000 / sampleRate)`; cutoff **2 kHz**
+  - Output: `lpState × BASE_NOISE_GAIN × breathScaled` where `BASE_NOISE_GAIN = 0.05f` (OQ#4-rev-3 starting point; verify-phase rev-1 ear-tunes within `[0.03f, 0.20f]` if needed)
+  - Per-voice `juce::Random` instance (no shared mutable state)
+
+### Modified Source Files
+
+- `Source/BassoonVoice.h` — Phase 2.3 surface
+  - Added includes: `Vibrato.h`, `NoiseExciter.h`
+  - Added public: `setExpression(float attackMs, float releaseMs, float vibRateHz, float vibDepthCents, float vibOnsetMs, float uiBreath) noexcept`, `setVoiceIndex(int idx) noexcept`
+  - Added private: `Vibrato vibrato; NoiseExciter noiseExciter; juce::SmoothedValue<float, Linear> breathSmoother {0.0f}; float lastDispatchedFrequency = 0.0f;` + 5 expression dispatch shadows (`lastApplied{AttackMs,ReleaseMs,VibRate,VibDepth,VibOnsetMs}` initialised `-1.0f`) + CC2 takeover state (`cc2EverActive = false; lastCC2SampleCount = 0; currentSampleCount = 0; lastUiBreath = 0.7f;`) + `int voiceIndex = 0;`
+  - Phase 2.1/2.2 public API unchanged; `Exciter exciter;` member retained verbatim (D6-rev-3 — Phase 2.4 re-wires for attack-character morph)
+
+- `Source/BassoonVoice.cpp` — Phase 2.3 deltas
+  - `prepareToPlay`: appended `vibrato.prepare(sr); noiseExciter.prepare(sr, voiceIndex); breathSmoother.reset(sr, 0.020); breathSmoother.setCurrentAndTargetValue(0.7f);`
+  - `startNote`: APVTS reads of `attack_time` + `release_time` at note-on; `adsr.setParameters({attack/1000, 0, 1.0, release/1000})`; `vibrato.reset(); noiseExciter.reset(); breathSmoother.setCurrentAndTargetValue(velocity); lastUiBreath = velocity;` (velocity-as-initial-UI-breath); CC2 state reset (`cc2EverActive = false; lastCC2SampleCount = 0;`); shadow init forces first dispatch
+  - `controllerMoved`: replaced no-op stub with CC2 routing (`controllerNumber == 2` → `cc2Normalised = limit(0,1, value/127)`; `cc2EverActive = true; lastCC2SampleCount = currentSampleCount; breathSmoother.setTargetValue(lastUiBreath × cc2Normalised)`); CC2 normalisation site (locked OQ#8-rev-3, O-Wind `FluteSynthVoice.cpp:227` precedent)
+  - `setExpression` (NEW): per-voice sub-param epsilon throttle (`EPS = 0.001f`); ADSR re-shape only when changed; vibrato setters epsilon-throttled; CC2-takeover gate decides whether `uiBreath` is applied (`cc2RecentlyActive = cc2EverActive && (currentSampleCount - lastCC2SampleCount) < 0.500 × sampleRate`)
+  - `renderNextBlock`: per-block prologue computes `vibratoCents = vibrato.getCurrentCents()`, `vibratoMult = pow(2, c/1200)`, `pbMult = pow(2, pb/12)`, `f_final = currentFrequencyBase × vibratoMult × pbMult`; throttled `modeBank.setFundamental(f_final)` when `|Δf| > 0.1 Hz`; per-sample loop pivot — `breath = breathSmoother.getNextValue(); excitation = noiseExciter.getNextSample(breath); voice = modeBank.processSample(excitation); env = adsr.getNextSample(); sample = voice × env;` equal L+R `addSample`; `currentSampleCount += numSamples` (CC2 state machine clock); ADSR-idle exit moved to post-loop (preserves clock advance)
+  - **Phase 2.1 `Exciter::getNextSample()` call dropped** from per-sample loop; `Exciter exciter;` member retained per D6-rev-3 (Phase 2.4 re-wires); `exciter.prepare(sr)` call retained in `prepareToPlay`; `exciter.start()` call retained in `startNote` (D6-rev-3 retention — `Exciter::start()` is single state assignment, zero CPU when `getNextSample` not called)
+
+- `Source/PluginProcessor.h` — Phase 2.3 surface
+  - Added private: `juce::SmoothedValue<float, Linear> outputGainSmoother {1.0f};` + 6 dispatch shadows (`lastDispatched{AttackMs, ReleaseMs, VibRate, VibDepth, VibOnsetMs, UiBreath}` initialised `-1.0f`)
+
+- `Source/PluginProcessor.cpp` — Phase 2.3 wire-up
+  - **Constructor**: per-voice `setVoiceIndex(i)` wire after voice-creation loop (Phase 2.3 noise-seed deterministic per-voice)
+  - `prepareToPlay`: `outputGainSmoother.reset(sampleRate, 0.030); outputGainSmoother.setCurrentAndTargetValue(1.0f);` + reset all 6 processor-scope shadows to `-1.0f`
+  - `processBlock` ordering (locked OQ#6-rev-3): `ScopedNoDenormals → buffer.clear() → tone-dispatch (Phase 2.2) → expression-dispatch (Phase 2.3 NEW) → drainAndUpdate (NE) → renderNextBlock → output_gain applyGainRamp (Phase 2.3 NEW)`
+  - Expression dispatch: 6 APVTS reads (`attack_time`, `release_time`, `vibrato_rate`, `vibrato_depth`, `vibrato_onset`, `breath`); single aggregated `bv->setExpression(...)` per voice ONLY when any sub-param changes > `0.001f` (saves ~96 virtual hops/block in quiescent state)
+  - `output_gain` declick: `gainStart = outputGainSmoother.getCurrentValue(); outputGainSmoother.setTargetValue(decibelsToGain(outDb)); gainEnd = outputGainSmoother.skip(jmax(0, numSamples)); buffer.applyGainRamp(0, numSamples, gainStart, gainEnd);` (canonical declick-safe idiom — locked OQ#1-rev-3)
+
+- `CMakeLists.txt` — added 4 entries to `target_sources` (`Vibrato.h`, `Vibrato.cpp`, `NoiseExciter.h`, `NoiseExciter.cpp`); existing Stage 1 build flags + `juce_generate_juce_header` ordering + `ouaricon_add_module` + `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` untouched; commented `Exciter.{h,cpp}` lines as Phase 2.4 retention
+
+- `.planning/research/ARCHITECTURE.md` — appended Phase 2.3 rev-3 as-shipped note (architectural pivot, continuous-noise excitation spec, breath/dynamics CC2-takeover state machine, vibrato compose chain `f_final = base × pow(2, c/1200) × pow(2, pb/12)`, throttled-epsilon expression dispatch, post-summation `output_gain` declick, ADSR cadence, ordering invariant)
+
+## Build + Install
+
+- `cmake --build build --target O-Bassoon_VST3 O-Bassoon_AU O-Bassoon_Standalone`: **SUCCESS**, clean (12/12 targets built; zero warnings on Phase 2.3 source files; no `-Wunused-private-field` on retained `Exciter exciter;` member — D6-rev-3 mitigation not needed)
+- AU cache cleared (`AudioComponentRegistrar` killed; `~/Library/Caches/AudioUnitCache/` + `com.apple.audiounits.cache` removed)
+- VST3 + AU installed fresh to `~/Library/Audio/Plug-Ins/{VST3, Components}/`
+
+## Auto-Verified Static Checks (10/10 PASS)
+
+| # | Gate | Result |
+|---|------|--------|
+| 1 | RT-safety grep across 8 touched source files | ✅ Zero render-path matches (all hits are construction-time `make_unique` for param layout + factory `new` — not in render path) |
+| 2 | Ordering: tone-dispatch → expression-dispatch → NE-drain → renderNextBlock → applyGainRamp | ✅ PluginProcessor.cpp lines 203, 236, 249, 252, 262 — correct sequence |
+| 3 | `bv->setExpression` dispatch site present | ✅ ONE match at PluginProcessor.cpp:236 (inside `if (anyChanged)` voice loop) |
+| 4 | `applyGainRamp(0, numSamples,` form locked, AFTER `renderNextBlock` | ✅ PluginProcessor.cpp:262 (after line 252 renderNextBlock) |
+| 5 | `modeBank.setFundamental` cadence in BassoonVoice.cpp (≥ 2 hits) | ✅ 3 matches: line 62 (startNote), line 119 (pitchWheelMoved carry-forward), line 192 (renderNextBlock per-block compose — Phase 2.3 NEW) |
+| 6 | Phase 2.2 1/8 scaler retention; 1/16 absent | ✅ ModeBank.cpp:114 `1.0f / 8.0f`; zero `1.0f / NUM_MODES` matches |
+| 7 | Throttle epsilon `0.001f` count (≥ 7 in PluginProcessor; ≥ 1 in BassoonVoice) | ✅ 10 matches in PluginProcessor.cpp (3 param ranges + 1 Phase 2.2 tone + 6 Phase 2.3 expression dispatch); BassoonVoice.cpp:148 `EPS = 0.001f` |
+| 8 | DSP-07 (no O-Reed dependency) | ✅ Zero matches in `plugins/O-Bassoon/Source` + `CMakeLists.txt` |
+| 9 | `auval -v aumu OBsn OuDv` | ✅ AU VALIDATION SUCCEEDED |
+| 10 | `pluginval --strictness-level 5 --validate ~/Library/Audio/Plug-Ins/VST3/O-Bassoon-dev.vst3` | ✅ exit 0; SUCCESS; 0 in / 2 out bus confirmed |
+
+## Discrepancies Found / Resolved at Execute-Phase
+
+- **D-exec-1 (RESEARCH-rev-3 plan typo):** RESEARCH-rev-3 §3 BassoonVoice.cpp skeleton (and PLAN-rev-3 Task 4(e)) shows `modeBank.setFundamental(f_final, getSampleRate())` with two args. Existing Phase 2.1 `ModeBank::setFundamental(float f0)` API takes ONE arg (sample rate is cached at `prepare()`, juce_ModeBank.h:41 + ModeBank.cpp:20). Implementation matches actual API: `modeBank.setFundamental(f_final)`. **Non-blocking — plan typo, not design defect.**
+- **D-exec-2 (clangd advisory pre-existing):** clangd reports `unused-includes` on `BassoonSound.h` + `BassoonVoice.h` in `PluginProcessor.h`. Both ARE used in `PluginProcessor.cpp` (`new BassoonSound()`, `new BassoonVoice()`, `dynamic_cast<BassoonVoice*>`). Header-only forward declarations would suffice but match Phase 2.1/2.2 pattern (existing convention). **Non-regression — pre-existing pattern; not introduced by Phase 2.3.**
+
+## Files Touched at Execute-Phase
+
+```
+?? plugins/O-Bassoon/Source/Vibrato.h
+?? plugins/O-Bassoon/Source/Vibrato.cpp
+?? plugins/O-Bassoon/Source/NoiseExciter.h
+?? plugins/O-Bassoon/Source/NoiseExciter.cpp
+M  plugins/O-Bassoon/Source/BassoonVoice.h
+M  plugins/O-Bassoon/Source/BassoonVoice.cpp
+M  plugins/O-Bassoon/Source/PluginProcessor.h
+M  plugins/O-Bassoon/Source/PluginProcessor.cpp
+M  plugins/O-Bassoon/CMakeLists.txt
+M  plugins/O-Bassoon/.planning/research/ARCHITECTURE.md
+M  plugins/O-Bassoon/.planning/stages/2-dsp/SUMMARY.md     (this addendum)
+```
+
+**Locked atomic-commit subject** (CONTEXT-rev-3 Q4-rev-3 batch 2): `feat(O-Bassoon): Phase 2.3 expression - Gate 3 PASS`. Commit lands at verify-phase only on Gate 3 PASS green.
+
+## Deferred to User Verification Step (Manual Gate 3)
+
+10-item Logic-AU checklist (PLAN-rev-3 Task 10):
+
+1. ADSR attack 0→2000 ms sweep (audibly different slopes; no clicks)
+2. ADSR release 0→3000 ms sweep (audibly different tails; no clicks)
+3. Breath UI sweep 0→1 (audible level modulation; no zipper; mute at 0)
+4. CC2 real-time loudness (CC2 controller tracks; CC2=0 mutes; UI ignored within 500 ms after CC2 activity)
+5. Vibrato 5 Hz / 50 cents at `vibrato_onset = 0` — instant audible (Logic Tuner verifiable ±50 cents)
+6. Vibrato `vibrato_onset = 1000 ms` fade-in measurable (~1 s smooth ramp)
+7. Vibrato `vibrato_onset = 0` instant + per-voice phase stagger across C3/C4/C5 succession (random phase O-Wind precedent)
+8. **60 s held C3 + vibrato + breath QUAL-02 final gate** — bounce `phase-2.3-60s-c3-vibrato-breath.wav` (16-bit / 44.1 kHz stereo); Python `numpy.isfinite True`; 1-s-window RMS drift < 1 dB; Logic Process bar drift < 2 %; ear-stable
+9. `output_gain` -24 dB → +6 dB sweep — smooth declick, no zipper, no clipping at +6 dB
+10. 8-voice + vibrato + breath CPU < 20 % (Logic Process bar; locked 8-note chord C3+E3+G3+Bb3+C4+E4+G4+Bb4)
+
+Plus VERIFICATION-rev-3.md write (item 11) with results table mapping items 1-10 to PASS/PARTIAL/DEVIATION + regression confirmation that Phase 2.1/2.2 invariants still hold + final `BASE_NOISE_GAIN` value as-shipped.
+
+## Next
+
+Verify phase: `/plugin-verify O-Bassoon 2-dsp` — consumes this SUMMARY + PLAN-rev-3, prompts for the 10-item Gate 3 evidence in Logic-AU, writes VERIFICATION-rev-3, and lands the atomic commit on Gate 3 PASS green.

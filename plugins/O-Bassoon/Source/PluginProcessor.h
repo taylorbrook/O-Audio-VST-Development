@@ -68,6 +68,17 @@ private:
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> toneSmoother;
     float                                                          lastDispatchedTone = -1.0f;
 
+    // Phase 2.3: output_gain post-summation smoother (30 ms Linear)
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGainSmoother { 1.0f };
+
+    // Phase 2.3: expression dispatch shadows (processor scope; separate from per-voice shadows)
+    float lastDispatchedAttackMs   = -1.0f;
+    float lastDispatchedReleaseMs  = -1.0f;
+    float lastDispatchedVibRate    = -1.0f;
+    float lastDispatchedVibDepth   = -1.0f;
+    float lastDispatchedVibOnsetMs = -1.0f;
+    float lastDispatchedUiBreath   = -1.0f;
+
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

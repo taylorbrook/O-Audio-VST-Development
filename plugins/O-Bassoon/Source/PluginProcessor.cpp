@@ -124,6 +124,11 @@ OBassoonAudioProcessor::OBassoonAudioProcessor()
         synthesiser.addVoice (voice);
     }
 
+    // Phase 2.3: per-voice noise-seed wire (NoiseExciter uses voiceIndex × 31337)
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+        if (auto* bv = dynamic_cast<BassoonVoice*> (synthesiser.getVoice (i)))
+            bv->setVoiceIndex (i);
+
     // Single shared sound (accepts all notes / all channels)
     synthesiser.addSound (new BassoonSound());
 }
@@ -148,6 +153,17 @@ void OBassoonAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     // Phase 2.2: tone smoother + dispatch throttle (CONTEXT-rev-2 Q3-rev-2).
     toneSmoother.reset (sampleRate, 0.050);   // 50 ms ramp
     lastDispatchedTone = -1.0f;               // force first dispatch on next processBlock
+
+    // Phase 2.3: output_gain smoother + processor-scope dispatch shadows
+    outputGainSmoother.reset (sampleRate, 0.030);   // 30 ms ramp
+    outputGainSmoother.setCurrentAndTargetValue (1.0f);
+
+    lastDispatchedAttackMs   = -1.0f;
+    lastDispatchedReleaseMs  = -1.0f;
+    lastDispatchedVibRate    = -1.0f;
+    lastDispatchedVibDepth   = -1.0f;
+    lastDispatchedVibOnsetMs = -1.0f;
+    lastDispatchedUiBreath   = -1.0f;
 }
 
 void OBassoonAudioProcessor::releaseResources()
@@ -194,6 +210,39 @@ void OBassoonAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         lastDispatchedTone = toneSmoothed;
     }
 
+    // Phase 2.3: expression dispatch (BEFORE NE drain — locked OQ#6-rev-3).
+    // Reads 6 APVTS values; dispatches single aggregated setExpression(...) per voice
+    // only when ANY sub-param changes > epsilon (saves ~6 × 16 = 96 virtual hops/block
+    // when expression is static, the 99 % case during sustained playback).
+    const float attackMs   = parameters.getRawParameterValue ("attack_time")->load();
+    const float releaseMs  = parameters.getRawParameterValue ("release_time")->load();
+    const float vibRate    = parameters.getRawParameterValue ("vibrato_rate")->load();
+    const float vibDepth   = parameters.getRawParameterValue ("vibrato_depth")->load();
+    const float vibOnsetMs = parameters.getRawParameterValue ("vibrato_onset")->load();
+    const float uiBreath   = parameters.getRawParameterValue ("breath")->load();
+
+    const bool anyChanged =
+           std::abs (attackMs   - lastDispatchedAttackMs)   > 0.001f
+        || std::abs (releaseMs  - lastDispatchedReleaseMs)  > 0.001f
+        || std::abs (vibRate    - lastDispatchedVibRate)    > 0.001f
+        || std::abs (vibDepth   - lastDispatchedVibDepth)   > 0.001f
+        || std::abs (vibOnsetMs - lastDispatchedVibOnsetMs) > 0.001f
+        || std::abs (uiBreath   - lastDispatchedUiBreath)   > 0.001f;
+
+    if (anyChanged)
+    {
+        for (int v = 0; v < synthesiser.getNumVoices(); ++v)
+            if (auto* bv = dynamic_cast<BassoonVoice*> (synthesiser.getVoice (v)))
+                bv->setExpression (attackMs, releaseMs, vibRate, vibDepth, vibOnsetMs, uiBreath);
+
+        lastDispatchedAttackMs   = attackMs;
+        lastDispatchedReleaseMs  = releaseMs;
+        lastDispatchedVibRate    = vibRate;
+        lastDispatchedVibDepth   = vibDepth;
+        lastDispatchedVibOnsetMs = vibOnsetMs;
+        lastDispatchedUiBreath   = uiBreath;
+    }
+
     // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
     // correlate tuning deltas to their NoteOn's MIDI pitch.
     // MUST run BEFORE renderNextBlock so per-voice startNote sees pending NE deltas.
@@ -201,6 +250,16 @@ void OBassoonAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // Render all voices via synthesiser (handles MIDI routing + voice allocation).
     synthesiser.renderNextBlock (buffer, midiMessages, 0, numSamples);
+
+    // Phase 2.3: output_gain post-summation declick-safe applyGainRamp
+    // (locked OQ#1-rev-3: applyGainRamp(0, numSamples, current, smoother.skip(N))
+    // is JUCE 8 canonical idiom for SmoothedValue-driven buffer-level gain).
+    const float outDb     = parameters.getRawParameterValue ("output_gain")->load();
+    const float linearTgt = juce::Decibels::decibelsToGain (outDb);
+    const float gainStart = outputGainSmoother.getCurrentValue();
+    outputGainSmoother.setTargetValue (linearTgt);
+    const float gainEnd   = outputGainSmoother.skip (juce::jmax (0, numSamples));
+    buffer.applyGainRamp (0, numSamples, gainStart, gainEnd);
 }
 
 //==============================================================================
