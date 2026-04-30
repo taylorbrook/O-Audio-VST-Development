@@ -1625,19 +1625,20 @@ function updateResetButtonState(snap) {
     }
 }
 
+// v1.5.0 — panel is inline + always visible. show/close just toggle the
+// .no-selection class which swaps between placeholder and full editor.
 function showLoopEditorPanel() {
     const panel = document.getElementById('loop-editor-panel');
     if (!panel) return;
-    panel.hidden = false;
-    document.body.classList.add('le-open');
-    // Republish layout shadow — grid width changed.
+    panel.classList.remove('no-selection');
+    // No grid-width change anymore (panel doesn't overlap the grid), but
+    // republish layout in case the panel's appearance shifts cell rects.
     requestAnimationFrame(() => publishCellLayout());
 }
 
 function closeLoopEditor() {
     const panel = document.getElementById('loop-editor-panel');
-    if (panel) panel.hidden = true;
-    document.body.classList.remove('le-open');
+    if (panel) panel.classList.add('no-selection');
     editorState.open = false;
     editorState.snap = null;
     editorState.dragMarker = null;

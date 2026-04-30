@@ -1,5 +1,28 @@
 # O-MicrotonalSampler Changelog
 
+## [1.5.0] - 2026-04-30
+
+### Changed
+- **Loop editor panel is now inline** below the sample-map grid instead of
+  sliding in from the right edge as a 360-px drawer. The panel is always
+  visible — when no slot is selected it shows the placeholder text
+  "Select a loaded sample slot to edit loop points"; selecting a loaded
+  slot swaps in the waveform canvas, loop-point readouts, and action
+  buttons. Reuses the existing blank space between the grid and the
+  bottom knob row, so the waveform editor is reachable without any
+  horizontal layout shift of the grid.
+- **Close button (×)** now deselects the current slot (returns the panel
+  to its placeholder state) instead of dismissing the entire editor.
+
+### Removed
+- `body.le-open` right-padding shift on `#tab-samplemap` (no longer
+  needed — the inline panel doesn't overlap the grid).
+- Slide-in transform/transition CSS on `#loop-editor-panel`.
+
+### Migration notes
+- **No breaking changes.** No parameter, state, or preset format changes.
+  v1.4.0 sessions/presets load identically. Pure UI/UX layout change.
+
 ## [1.4.0] - 2026-04-30
 
 ### Changed

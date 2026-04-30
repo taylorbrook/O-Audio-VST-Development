@@ -572,32 +572,44 @@ body {
     font-size: 13px;
 }
 
-/* Loop editor side panel — Phase 3.4 (DSP-06 + UI-02). 360-px slide-in
-   anchored to the right of the Sample Map tab. The grid container narrows
-   when body has .le-open so the grid + drop-zone re-flow rather than being
-   covered. */
+/* v1.5.0 — Inline loop editor panel.
+   Flows in normal document order beneath #sample-map-grid-wrapper inside the
+   Sample Map tab body. Always visible; uses .no-selection state to render a
+   placeholder when no slot is currently being edited. (Pre-v1.5 was a 360-px
+   slide-in drawer anchored to the right edge.) */
 #loop-editor-panel {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 360px;
+    margin-top: var(--gap-md);
     background: var(--bg-cream);
-    border-left: 1px solid var(--border-warm);
-    box-shadow: -6px 0 18px rgba(0, 0, 0, 0.12);
-    transform: translateX(100%);
-    transition: transform 350ms ease;
+    border: 1px solid var(--border-warm);
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
     display: flex;
     flex-direction: column;
     padding: var(--gap-md);
     gap: var(--gap-md);
-    z-index: 50;
     overflow: hidden;
 }
 
-#loop-editor-panel:not([hidden]) {
-    transform: translateX(0);
+/* Placeholder mode (no slot selected) — only the placeholder text renders. */
+.loop-editor-placeholder {
+    display: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-style: italic;
+    text-align: center;
+    padding: var(--gap-lg) var(--gap-md);
+}
+
+#loop-editor-panel.no-selection .loop-editor-placeholder {
+    display: block;
+}
+
+#loop-editor-panel.no-selection .loop-editor-header,
+#loop-editor-panel.no-selection .loop-editor-canvas-wrap,
+#loop-editor-panel.no-selection .loop-meta,
+#loop-editor-panel.no-selection .loop-editor-actions {
+    display: none;
 }
 
 .loop-editor-header {
@@ -661,7 +673,10 @@ body {
 #waveform-canvas {
     display: block;
     width: calc(100% - 0px);
-    height: 200px;
+    /* v1.5.0 inline-panel — reduced from 200px (slide-in drawer) to 90px so
+       the meta row + Reset/Cancel/Apply buttons remain visible without
+       scrolling inside a typical plugin window height. */
+    height: 90px;
     cursor: crosshair;
     touch-action: none;
     /* Backing store dimensions are set in JS via DPR multiplication. */
@@ -722,17 +737,9 @@ body {
     cursor: not-allowed;
 }
 
-/* When the side panel is open, narrow the grid container so it doesn't
-   sit underneath the panel. The Sample Map tab's drop-zone + grid live
-   inside .tab-body which we shrink via right-padding equal to panel width. */
-body.le-open #tab-samplemap {
-    padding-right: calc(var(--gap-lg) + 360px);
-    transition: padding-right 350ms ease;
-}
-
-#tab-samplemap {
-    transition: padding-right 350ms ease;
-}
+/* v1.5.0 — Loop editor is now inline (flows below the grid), so no
+   tab-body padding adjustment is needed. (Pre-v1.5 narrowed the grid
+   container with right-padding when the slide-in drawer was open.) */
 
 /* Toast region */
 #toast-region {
