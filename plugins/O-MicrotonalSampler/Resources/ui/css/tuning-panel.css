@@ -43,11 +43,15 @@
     flex-direction: column;
 }
 
-/* Center column: Viz toggle + visualization stacked */
+/* Center column: Viz toggle + visualization stacked.
+   min-width: 0 prevents the grid item from expanding to its min-content width
+   when wide tables (matrix/rotation) are visible — without it, those tables
+   blow past the right edge of the column. */
 .tuning-center-column {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
 }
 
 
@@ -60,7 +64,7 @@
     border: 1px solid var(--tuning-border);
     border-radius: 6px;
     padding: 8px;
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
 }
 
@@ -207,6 +211,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
+    overflow: auto;
 }
 
 .viz-view {
@@ -217,7 +222,7 @@
 
 .viz-view.active {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
 }
 

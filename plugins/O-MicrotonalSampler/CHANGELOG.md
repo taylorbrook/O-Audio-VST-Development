@@ -1,5 +1,45 @@
 # O-MicrotonalSampler Changelog
 
+## [1.5.2] - 2026-04-30
+
+### Changed
+- **Tuning tab — intervals table is taller.** Reclaimed the empty vertical
+  space below the intervals list by raising `.interval-list` `max-height`
+  from `300px` to `400px` in `Resources/ui/css/tuning-panel.css`. Lets more
+  degrees stay in view at once before scrolling kicks in. Editor default
+  is 900×640 so 400 px still fits comfortably (62% of editor height) and
+  scales down with the responsive layout.
+
+### Migration notes
+- **No breaking changes.** Pure CSS-only edit (one property). No parameter,
+  state, preset, or layout-grid changes. v1.5.1 sessions/presets load
+  identically.
+
+## [1.5.1] - 2026-04-30
+
+### Fixed
+- **Tuning tab — visualization area top-justified.** The Circle / Polar /
+  Matrix / True Keys / Rotation views in the center column are now
+  anchored to the top of the viz container instead of vertically
+  centered, eliminating the dead space between the viz-mode buttons and
+  the visualization content. (`align-items: center` →
+  `align-items: flex-start` on `.viz-view.active`.)
+- **Tuning tab — wide tables no longer overflow the right edge.** The
+  Matrix and Rotation tables previously expanded the center grid column
+  past its allotted `1fr` width, pushing past the right boundary of the
+  Controls panel. Root cause: CSS Grid items default to `min-width: auto`
+  (= min-content), so any descendant wider than `1fr` blows the column
+  out. Fix: `min-width: 0` on `.tuning-center-column` makes the column
+  respect its track size, and `overflow: auto` on `.viz-container`
+  scrolls wide content within the middle section instead of pushing
+  past the right edge.
+
+### Migration notes
+- **No breaking changes.** Pure CSS-only fix in
+  `Resources/ui/css/tuning-panel.css` (3 rule edits). No parameter,
+  state, preset, or layout-grid changes. v1.5.0 sessions/presets load
+  identically.
+
 ## [1.5.0] - 2026-04-30
 
 ### Changed
