@@ -123,6 +123,13 @@ public:
     // double-clicks a loaded cell to replace.
     void loadSingleSample (int midiPitch, int velocityLayer, const juce::File& file);
 
+    // v1.0.2: destructive — replaces currentSampleMap with a fresh empty
+    // SampleMap (version bumped). Active voices keep their previously
+    // snapshotted map alive transitively until release (Stage 2 EC-3); new
+    // note-ons after the clear find an empty map and produce silence. Caller
+    // (UI) is responsible for confirmation dialog. Message-thread only.
+    void clearSampleMap();
+
     // Phase 3.4: loop-point override (full implementation). Atomically
     // deep-copies the current SampleMap, mutates the (midi, vel) slot's
     // loop fields, bumps version, atomic-stores, fires callback.
@@ -157,6 +164,38 @@ public:
         sampleMapChangedCallback = std::move (cb);
     }
 
+    // ------------------------------------------------------------------
+    // v1.3.0 — state persistence (project reopen + Save/Load presets)
+    // ------------------------------------------------------------------
+
+    // Returns the absolute path of the most recently loaded sample folder,
+    // or an empty File if none has been loaded this session. Persisted via
+    // getStateInformation so projects reopen with the folder restored.
+    juce::File getCurrentSampleFolder() const noexcept { return currentSampleFolder; }
+
+    // Path that setStateInformation tried to restore but no longer exists
+    // on disk. Empty when no missing-folder restore is outstanding. Editor
+    // queries this on attach (covers cases where the project was loaded
+    // before the WebView was ready to receive the folderMissing event).
+    juce::String getPendingMissingFolderPath() const noexcept { return pendingMissingFolderPath; }
+    void clearPendingMissingFolder() noexcept { pendingMissingFolderPath.clear(); }
+
+    // Editor subscribes to surface a "Locate folder?" modal in the WebView
+    // when setStateInformation discovers a saved folder that no longer
+    // exists. Callback fires on the message thread; payload is the saved
+    // absolute path.
+    void setMissingFolderCallback (std::function<void(const juce::String&)> cb)
+    {
+        missingFolderCallback = std::move (cb);
+    }
+
+    // .omspreset save/load — captures and restores everything that
+    // getStateInformation does, but as standalone XML text so users can
+    // share preset bundles across projects on the same machine. (Per Q1=A:
+    // sample data is referenced by path, not embedded.)
+    juce::String capturePresetXml();
+    bool restorePresetXml (const juce::String& xmlText);
+
 private:
     juce::AudioProcessorValueTreeState        parameters;
     CappedSynthesiser                         synthesiser;
@@ -182,6 +221,31 @@ private:
     // atomic-store of `currentSampleMap`. Editor sets this in its constructor
     // to forward as a `sampleMapUpdated` WebView event.
     std::function<void()> sampleMapChangedCallback;
+
+    // v1.3.0: last folder passed to loadSampleFolder. Persisted across DAW
+    // sessions (via getStateInformation) so reopening a project restores
+    // the same sample bank.
+    juce::File currentSampleFolder;
+
+    // v1.3.0: setStateInformation parked here when the saved folder no
+    // longer exists on disk. Editor reads it on attach (or via callback)
+    // to surface a "Locate folder?" modal. Cleared by clearPendingMissingFolder
+    // once the user dismisses or relocates.
+    juce::String pendingMissingFolderPath;
+
+    // v1.3.0: editor surfaces a missing-folder modal via this callback.
+    // Fires on the message thread; payload is the saved absolute path.
+    std::function<void(const juce::String&)> missingFolderCallback;
+
+    // v1.3.0: build a complete root ValueTree (APVTS state + SampleFolder
+    // + TuningState children) for save/persist. Used by both
+    // getStateInformation and the .omspreset path.
+    juce::ValueTree captureStateValueTree();
+
+    // v1.3.0: inverse of captureStateValueTree — restore APVTS, queue async
+    // folder reload (or surface missing-folder), restore tuning. Used by
+    // both setStateInformation and the .omspreset path.
+    void restoreStateValueTree (const juce::ValueTree& root);
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

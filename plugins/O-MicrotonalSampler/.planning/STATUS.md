@@ -1,14 +1,30 @@
 ---
 plugin: O-MicrotonalSampler
-stage: 4-polish
-phase: complete (Phase 4.1 [b47434d] + Phase 4.2 [3ca88e4] + Phase 4.3 [7c57c30] + Phase 4.4 [this commit] all shipped)
-status: stage_4_complete; v1.0 ready for internal use; ready_for_plugin_verify
+stage: improve
+phase: v1.3.0 — full state persistence (sample folder + tuning) + .omspreset save/load
+status: improvement_v1.3.0_implemented; ready_for_build
 last_updated: 2026-04-29
+version: 1.3.0
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0
 ---
 
 # Resume Point
 
-## Current State: STAGE 4 COMPLETE — v1.0 ready for internal use
+## Current State: STAGE 4 VERIFIED — plugin v1.0 complete
+
+`/plugin-verify O-MicrotonalSampler 4-polish` walked the goal-backward
+analysis across Phases 4.1–4.4, re-confirmed all invariant greps and
+gate-log SUCCESS lines, and appended the **Goal-Backward Roll-up**
+section to `.planning/stages/4-polish/VERIFICATION.md`. All 22
+requirements `complete`; final verdict ✅ VERIFIED. Three v1.1
+follow-ups (V11-LOOP-FALLBACK, V11-PERF-METER, V11-MIXED-SR-EXPLICIT)
+logged — none block v1.0.
+
+Next: `/install-plugin O-MicrotonalSampler` (drop the `-dev` suffix
+and install for general internal use), or `/show-standalone` for a
+visual inspection pass.
+
+## Previous State: STAGE 4 COMPLETE (execute) — v1.0 ready for internal use
 
 `/plugin-execute O-MicrotonalSampler 4-polish` Phase 4.4 produced
 `.planning/stages/4-polish/PHASE-4.4-SUMMARY.md`, extended

@@ -294,6 +294,12 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
     if (sampleLoader == nullptr)
         return;
 
+    // v1.3.0: record the folder so getStateInformation can persist it.
+    // Captured before kicking off the async load — even if the load fails,
+    // the path is what the user attempted, which is useful for save-time
+    // forensics. Cleared by the failure callback below.
+    currentSampleFolder = folder;
+
     // Capture `this` by raw pointer — folder load is short-lived and the
     // processor outlives the loader (sampleLoader is a unique_ptr member;
     // ~SampleLoader joins the thread before the processor finishes destruction).
@@ -345,6 +351,10 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
             DBG ("SampleLoader failure: " << reason);
             juce::ignoreUnused (reason);
             lastSkippedFiles.clear();
+            // v1.3.0: drop the recorded folder so a failed reload doesn't
+            // get re-persisted. (clearSampleMap leaves currentSampleFolder
+            // untouched on purpose — only an explicit load-failure clears.)
+            currentSampleFolder = juce::File();
         });
 }
 
@@ -669,6 +679,39 @@ void OMicrotonalSamplerAudioProcessor::resetLoopToAutoDetect (int midiPitch,
 }
 
 //==============================================================================
+// v1.0.2: clearSampleMap — atomic-store an empty SampleMap, bumping the
+// version counter. Active voices retain their previously snapshotted map
+// (Stage 2 EC-3) so in-flight notes finish naturally; new note-ons after the
+// clear find an empty map and produce silence. Skipped-file list is also
+// cleared so the Issues disclosure resets. Fires the sample-map change
+// callback so the WebView grid refreshes to its empty state.
+void OMicrotonalSamplerAudioProcessor::clearSampleMap()
+{
+    auto fresh = std::make_shared<SampleMap>();
+
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    auto prev = std::atomic_load (&currentSampleMap);
+   #else
+    auto prev = currentSampleMap;
+   #endif
+
+    fresh->version = (prev != nullptr ? prev->version : 0) + 1;
+
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    std::atomic_store (&currentSampleMap, fresh);
+   #else
+    currentSampleMap = fresh;
+   #endif
+
+    lastSkippedFiles.clear();
+
+    DBG ("clearSampleMap: cleared (v" << fresh->version << ")");
+
+    if (sampleMapChangedCallback)
+        sampleMapChangedCallback();
+}
+
+//==============================================================================
 // Phase 3.1: snapshot the current sample map as a JSON string per RESEARCH
 // §RQ3-2 schema. Read-only — atomic_load on the shared_ptr is the only
 // thread sync; lastSkippedFiles is touched only on the message thread (this
@@ -854,21 +897,252 @@ juce::AudioProcessorEditor* OMicrotonalSamplerAudioProcessor::createEditor()
 }
 
 //==============================================================================
+// v1.3.0 — full-state persistence.
+//
+// Pre-v1.3.0 only round-tripped APVTS parameters, so reopening a project
+// dropped the loaded sample folder and any tuning edits the user had made.
+// v1.3.0 wraps the APVTS state ValueTree with two extra sibling children:
+//
+//   <APVTS>
+//     <PARAM .../>             ← existing knob params (untouched)
+//     <SampleFolder path="..."/>  ← absolute path of last-loaded folder
+//     <TuningState ...>           ← masterTune, octaveStretch, mode, tonic,
+//                                    intervals, generated SCL/KBM content
+//   </APVTS>
+//
+// Backward compatibility: v1.2.0 sessions loaded in v1.3.0 simply lack the
+// new children — sampler starts empty, tuning falls back to 12-TET. v1.3.0
+// sessions loaded in v1.2.0 silently drop the new children (APVTS only
+// reads PARAM children).
+//
+// The custom .omspreset file uses the same ValueTree, just serialized as
+// plain XML text instead of JUCE's `copyXmlToBinary` framing — so users can
+// share preset bundles across projects on the same machine. (Per Q1=A:
+// sample data is referenced by path, not embedded.)
+
+namespace
+{
+    constexpr const char* kSampleFolderTag = "SampleFolder";
+    constexpr const char* kTuningStateTag  = "TuningState";
+
+    // Capture every accessible bit of TuningEngine state into a ValueTree.
+    // The shared scala-tuning-engine module exposes enough getters for
+    // round-trip without modifying the module itself: settings come from
+    // direct getters; intervals come from getIntervals(); SCL/KBM round-trip
+    // via the engine's own generate*FileContent helpers.
+    juce::ValueTree captureTuningValueTree (TuningEngine& engine)
+    {
+        juce::ValueTree t (kTuningStateTag);
+        t.setProperty ("masterTune",     engine.getMasterTune(),                       nullptr);
+        t.setProperty ("octaveStretch",  static_cast<double> (engine.getOctaveStretch()), nullptr);
+        t.setProperty ("mode",           static_cast<int>    (engine.getMode()),       nullptr);
+        t.setProperty ("tonic",          engine.getTonicNote(),                        nullptr);
+        t.setProperty ("preset",         static_cast<int>    (engine.getBuiltInPreset()), nullptr);
+        t.setProperty ("name",           engine.getActiveTuningName(),                 nullptr);
+
+        // Intervals as a comma-separated cents list (compact + human-readable).
+        const auto intervals = engine.getIntervals();
+        juce::String csv;
+        for (size_t i = 0; i < intervals.size(); ++i)
+        {
+            if (i > 0) csv << ",";
+            csv << juce::String (intervals[i], 6);
+        }
+        t.setProperty ("intervals", csv, nullptr);
+
+        // Embed the engine's own SCL/KBM round-trip text. On restore we
+        // write these to temp files and call loadScalaFile/loadKBMFile —
+        // that path captures every non-getter-exposed bit of state (kbm
+        // mapping, scaleName, scaleDegrees, etc.) without forking the module.
+        t.setProperty ("scl", engine.generateScalaFileContent(), nullptr);
+        t.setProperty ("kbm", engine.generateKBMFileContent(),   nullptr);
+        return t;
+    }
+
+    void restoreTuningFromValueTree (TuningEngine& engine, const juce::ValueTree& t)
+    {
+        if (! t.isValid()) return;
+
+        // Apply settings first — setMasterTune et al. recompute the
+        // frequency table internally.
+        if (t.hasProperty ("masterTune"))
+            engine.setMasterTune (static_cast<double> (t.getProperty ("masterTune")));
+        if (t.hasProperty ("octaveStretch"))
+            engine.setOctaveStretch (static_cast<float>  (t.getProperty ("octaveStretch")));
+        if (t.hasProperty ("preset"))
+            engine.setBuiltInPreset (static_cast<TuningEngine::BuiltInPreset> (
+                                         static_cast<int> (t.getProperty ("preset"))));
+
+        // Restore intervals via setCustomIntervals (the engine's standard
+        // entry point used by every UI write path — same code path as
+        // applyGeneratedScale / loadEmbeddedTuning).
+        if (t.hasProperty ("intervals"))
+        {
+            const auto csv  = t.getProperty ("intervals").toString();
+            const auto name = t.hasProperty ("name") ? t.getProperty ("name").toString()
+                                                     : juce::String ("Restored");
+            std::vector<double> cents;
+            cents.reserve (16);
+            int start = 0;
+            for (int i = 0; i <= csv.length(); ++i)
+            {
+                if (i == csv.length() || csv[i] == ',')
+                {
+                    if (i > start)
+                        cents.push_back (csv.substring (start, i).getDoubleValue());
+                    start = i + 1;
+                }
+            }
+            if (! cents.empty())
+                engine.setCustomIntervals (cents, name);
+        }
+
+        // KBM mapping — write to a temp .kbm file and load. The engine's
+        // KBM parser is the only path to repopulate kbmMapping[], kbmFirstNote,
+        // etc. (no public setters), and the round-trip is lossless because
+        // we serialised via the engine's own generateKBMFileContent.
+        if (t.hasProperty ("kbm"))
+        {
+            const auto kbm = t.getProperty ("kbm").toString();
+            if (kbm.isNotEmpty())
+            {
+                auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                               .getChildFile ("o-microtonalsampler-restore-" +
+                                              juce::String (juce::Time::currentTimeMillis()) + ".kbm");
+                if (tmp.replaceWithText (kbm))
+                {
+                    engine.loadKBMFile (tmp);
+                    tmp.deleteFile();
+                }
+            }
+        }
+
+        // SCL — only reload if Mode was Scala at save time. setBuiltInPreset
+        // above already applied the active intervals for non-Scala modes.
+        if (t.hasProperty ("mode")
+            && static_cast<TuningEngine::Mode> (static_cast<int> (t.getProperty ("mode")))
+                   == TuningEngine::Mode::Scala
+            && t.hasProperty ("scl"))
+        {
+            const auto scl = t.getProperty ("scl").toString();
+            if (scl.isNotEmpty())
+            {
+                auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                               .getChildFile ("o-microtonalsampler-restore-" +
+                                              juce::String (juce::Time::currentTimeMillis()) + ".scl");
+                if (tmp.replaceWithText (scl))
+                {
+                    engine.loadScalaFile (tmp);
+                    tmp.deleteFile();
+                }
+            }
+        }
+
+        // Tonic last — affects the rotated cache, which depends on intervals
+        // already being in place.
+        if (t.hasProperty ("tonic"))
+            engine.setTonicNote (static_cast<int> (t.getProperty ("tonic")));
+    }
+}
+
+juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
+{
+    auto root = parameters.copyState();   // <APVTS> with all <PARAM> children
+
+    // Strip any prior persistence siblings before re-adding — defensive
+    // against repeated save-without-load cycles polluting the tree.
+    for (int i = root.getNumChildren() - 1; i >= 0; --i)
+    {
+        auto child = root.getChild (i);
+        if (child.hasType (kSampleFolderTag) || child.hasType (kTuningStateTag))
+            root.removeChild (i, nullptr);
+    }
+
+    // SampleFolder — absolute path. Empty if no folder loaded this session.
+    juce::ValueTree folder (kSampleFolderTag);
+    folder.setProperty ("path",
+                        currentSampleFolder == juce::File()
+                            ? juce::String()
+                            : currentSampleFolder.getFullPathName(),
+                        nullptr);
+    root.appendChild (folder, nullptr);
+
+    // TuningState — full engine snapshot.
+    root.appendChild (captureTuningValueTree (tuningEngine), nullptr);
+    return root;
+}
+
+void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueTree& root)
+{
+    if (! root.isValid() || ! root.hasType (parameters.state.getType()))
+        return;
+
+    // 1. APVTS replaceState. Non-PARAM children are preserved on the
+    // returned tree but APVTS itself only walks PARAM nodes — no harm.
+    parameters.replaceState (root);
+
+    // 2. Tuning — restore synchronously. In-memory operation, fast.
+    auto tuningTree = root.getChildWithName (kTuningStateTag);
+    if (tuningTree.isValid())
+        restoreTuningFromValueTree (tuningEngine, tuningTree);
+
+    // 3. SampleFolder — async via SampleLoader. If the folder no longer
+    // exists, park the path so the editor can prompt the user to relocate.
+    pendingMissingFolderPath.clear();
+    auto folderTree = root.getChildWithName (kSampleFolderTag);
+    if (folderTree.isValid())
+    {
+        const auto path = folderTree.getProperty ("path").toString();
+        if (path.isNotEmpty())
+        {
+            juce::File f (path);
+            if (f.isDirectory())
+            {
+                loadSampleFolder (f);
+            }
+            else
+            {
+                pendingMissingFolderPath = path;
+                if (missingFolderCallback)
+                    missingFolderCallback (path);
+            }
+        }
+    }
+}
+
 void OMicrotonalSamplerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // Standard APVTS XML round-trip.
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml (state.createXml());
-    if (xml != nullptr)
+    auto root = captureStateValueTree();
+    if (auto xml = root.createXml())
         copyXmlToBinary (*xml, destData);
 }
 
 void OMicrotonalSamplerAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
+    if (auto xmlState = getXmlFromBinary (data, sizeInBytes))
+    {
+        if (xmlState->hasTagName (parameters.state.getType()))
+            restoreStateValueTree (juce::ValueTree::fromXml (*xmlState));
+    }
+}
 
-    if (xmlState != nullptr && xmlState->hasTagName (parameters.state.getType()))
-        parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+juce::String OMicrotonalSamplerAudioProcessor::capturePresetXml()
+{
+    auto root = captureStateValueTree();
+    if (auto xml = root.createXml())
+        return xml->toString();
+    return {};
+}
+
+bool OMicrotonalSamplerAudioProcessor::restorePresetXml (const juce::String& xmlText)
+{
+    if (xmlText.isEmpty())
+        return false;
+    auto xml = juce::parseXML (xmlText);
+    if (xml == nullptr || ! xml->hasTagName (parameters.state.getType()))
+        return false;
+    restoreStateValueTree (juce::ValueTree::fromXml (*xml));
+    return true;
 }
 
 //==============================================================================

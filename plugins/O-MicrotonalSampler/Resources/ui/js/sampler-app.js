@@ -1909,18 +1909,174 @@ function bindLoopEditorResize() {
 }
 
 // ============================================================================
+// v1.3.0 — Save/Load preset buttons + missing-folder modal
+// ============================================================================
+//
+// The plugin already round-trips full state (params + sample folder + tuning)
+// through DAW project save/load via PluginProcessor::get/setStateInformation.
+// The Save/Load preset buttons surface that same ValueTree as a portable
+// .omspreset file so users can share configurations across projects on the
+// same machine (path-only — sample data is referenced, not embedded).
+//
+// Missing-folder modal: when DAW project reopen tries to restore a folder
+// path that no longer exists, the C++ side fires a `folderMissing` WebView
+// event AND parks the path in the processor for the boot-time race case
+// (state restore happens before the WebView attaches its listener). On boot
+// we register the listener first, then pull any pending state — covers both.
+
+function bindPresetButtons () {
+    const saveBtn = document.getElementById('save-preset-btn');
+    const loadBtn = document.getElementById('load-preset-btn');
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('saveCurrentPreset');
+                const ok = await fn();
+                if (ok === true) showToast('Preset saved');
+                // Cancel resolves false — silent (user dismissed the picker).
+            } catch (e) {
+                console.error('[sampler-app] saveCurrentPreset failed:', e);
+                showToast('Save preset failed');
+            }
+        });
+    }
+
+    if (loadBtn) {
+        loadBtn.addEventListener('click', async () => {
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('loadPreset');
+                const ok = await fn();
+                if (ok === true) {
+                    showToast('Preset loaded');
+                    // The processor's sampleMapUpdated push covers the grid;
+                    // refresh the tuning readout (tab-tuning lazy-mounts the
+                    // panel, but the header readout polls on demand).
+                    refreshTuningReadout();
+                    if (tuningPanelInstance && typeof tuningPanelInstance.refresh === 'function') {
+                        try { await tuningPanelInstance.refresh(); } catch (_) { /* ignore */ }
+                    }
+                } else if (ok === false) {
+                    // false from a non-cancel path means parse/restore failed;
+                    // cancel also resolves false, so don't toast on that.
+                }
+            } catch (e) {
+                console.error('[sampler-app] loadPreset failed:', e);
+                showToast('Load preset failed');
+            }
+        });
+    }
+}
+
+function showMissingFolderDialog (savedPath) {
+    const dialog   = document.getElementById('missing-folder-dialog');
+    const messageEl = document.getElementById('missing-folder-dialog-message');
+    const pathEl   = document.getElementById('missing-folder-saved-path');
+    const skipBtn  = document.getElementById('missing-folder-skip-btn');
+    const locateBtn = document.getElementById('missing-folder-locate-btn');
+    if (!dialog || !messageEl || !pathEl || !skipBtn || !locateBtn) return;
+
+    // Derive a friendly folder name from the saved path for the message.
+    const safePath = (typeof savedPath === 'string') ? savedPath : '';
+    const sep = safePath.lastIndexOf('/') >= 0 ? '/' : '\\';
+    const idx = safePath.lastIndexOf(sep);
+    const folderName = idx >= 0 ? safePath.substring(idx + 1) : safePath;
+
+    messageEl.textContent = folderName
+        ? `The sample folder "${folderName}" was not found at its saved location. Locate it now, or skip and load samples manually.`
+        : 'The saved sample folder was not found. Locate it now, or skip and load samples manually.';
+    pathEl.textContent = safePath || '(empty path)';
+
+    const cleanup = () => {
+        dialog.hidden = true;
+        skipBtn.removeEventListener('click', onSkip);
+        locateBtn.removeEventListener('click', onLocate);
+        document.removeEventListener('keydown', onKey, true);
+    };
+    const onSkip = async () => {
+        cleanup();
+        if (!window.__JUCE__) return;
+        try {
+            const fn = Juce.getNativeFunction('dismissMissingFolder');
+            await fn();
+        } catch (e) {
+            console.warn('[sampler-app] dismissMissingFolder failed:', e);
+        }
+    };
+    const onLocate = async () => {
+        cleanup();
+        if (!window.__JUCE__) return;
+        try {
+            const fn = Juce.getNativeFunction('locateMissingFolder');
+            const ok = await fn();
+            // Cancel resolves false — leave the pending state intact so the
+            // user can try again from the next setStateInformation event or
+            // by manually using "Load Folder…".
+            if (ok === true) showToast('Folder located — loading…');
+        } catch (e) {
+            console.error('[sampler-app] locateMissingFolder failed:', e);
+            showToast('Locate folder failed');
+        }
+    };
+    const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); onSkip(); }
+        else if (e.key === 'Enter') { e.preventDefault(); onLocate(); }
+    };
+
+    skipBtn.addEventListener('click', onSkip);
+    locateBtn.addEventListener('click', onLocate);
+    document.addEventListener('keydown', onKey, true);
+    dialog.hidden = false;
+    locateBtn.focus();
+}
+
+function subscribeFolderMissingEvent () {
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;
+    try {
+        window.__JUCE__.backend.addEventListener('folderMissing', (payload) => {
+            // Payload is the saved absolute path string (or {} on JSON parse
+            // round-trip — guard accordingly).
+            const path = (typeof payload === 'string') ? payload : '';
+            showMissingFolderDialog(path);
+        });
+    } catch (e) {
+        console.warn('[sampler-app] folderMissing subscription failed:', e);
+    }
+}
+
+async function pullPendingMissingFolder () {
+    // Boot-time race: setStateInformation may have run before this listener
+    // was registered. Pull the parked path (if any) and surface the modal.
+    if (!window.__JUCE__) return;
+    try {
+        const fn = Juce.getNativeFunction('getPendingMissingFolder');
+        const path = await fn();
+        if (typeof path === 'string' && path.length > 0) {
+            showMissingFolderDialog(path);
+        }
+    } catch (e) {
+        // Silent — older builds may lack the function (defence-in-depth).
+    }
+}
+
+// ============================================================================
 // Boot
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
     bindTabs();
     bindSliders();
     subscribeSampleMapUpdates();
+    subscribeFolderMissingEvent();   // v1.3.0 — register before pull
     bindHostDragEvents();
     bindToastEventListener();
     bindFolderDropZone();
     bindWebViewFileDrop();
     bindClearSamplesButton();
+    bindPresetButtons();             // v1.3.0
     pullInitialSampleMap();
+    pullPendingMissingFolder();      // v1.3.0 — covers boot-time race
     refreshTuningReadout();
     refreshAboutVersion();
     bindResizeObserver();

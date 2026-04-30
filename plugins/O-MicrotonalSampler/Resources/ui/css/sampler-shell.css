@@ -119,6 +119,54 @@ body {
     background: var(--accent-gold);
 }
 
+/* v1.3.0 — header preset actions (Save / Load .omspreset). Sits flush
+   right of the tab strip. Match the load-folder-btn visual language so
+   the header reads as a single coherent toolbar. */
+.header-actions {
+    display: flex;
+    gap: var(--gap-sm);
+    margin-left: var(--gap-md);
+}
+
+.header-action-btn {
+    background: transparent;
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 5px 10px;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.header-action-btn:hover {
+    color: var(--text-body);
+    border-color: var(--accent-gold);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.header-action-btn:active {
+    background: rgba(0, 0, 0, 0.30);
+}
+
+/* Missing-folder modal — saved-path readout. Monospace + faint border so
+   the user can read long absolute paths without ambiguity. */
+.missing-folder-path {
+    background: var(--bg-page, rgba(0, 0, 0, 0.25));
+    border: 1px solid var(--border-warm);
+    border-radius: 3px;
+    color: var(--text-secondary);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11px;
+    margin: var(--gap-md) 0;
+    max-height: 80px;
+    overflow: auto;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
 /* ============== TAB BODIES ============== */
 #tab-bodies {
     flex: 1 1 auto;
@@ -196,16 +244,205 @@ body {
     cursor: not-allowed;
 }
 
+/* v1.0.2: Clear samples — destructive accent. Disabled state hides it from
+   accidental clicks before any samples are loaded. */
+#clear-samples-btn {
+    font-family: inherit;
+    font-size: 14px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-warm);
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#clear-samples-btn:hover:not([disabled]) {
+    background: rgba(184, 47, 47, 0.10);
+    color: #b22f2f;
+    border-color: #b22f2f;
+}
+
+#clear-samples-btn[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* v1.0.2: confirmation modal — overlays the entire app. Backdrop dims the
+   underlying UI; the content card matches the rest of the warm palette. */
+.confirm-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirm-dialog[hidden] {
+    display: none;
+}
+
+.confirm-dialog-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 14, 6, 0.55);
+}
+
+.confirm-dialog-content {
+    position: relative;
+    z-index: 1;
+    background: var(--bg-card, #fffaf2);
+    border: 1px solid var(--border-warm);
+    border-radius: 8px;
+    padding: 20px 24px;
+    max-width: 380px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.30);
+    color: var(--text-body);
+}
+
+.confirm-dialog-title {
+    margin: 0 0 8px 0;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.confirm-dialog-message {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.confirm-dialog-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.confirm-dialog-actions button {
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    border: 1px solid var(--border-warm);
+    padding: 7px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.confirm-dialog-actions button:hover {
+    background: #FAF0E6;
+}
+
+.confirm-dialog-actions button.destructive {
+    background: #b22f2f;
+    color: #fff;
+    border-color: #94221d;
+}
+
+.confirm-dialog-actions button.destructive:hover {
+    background: #94221d;
+}
+
+/* v1.0.3 diagnostic dialog — wider content card to fit long type lists,
+   and a selectable monospace block for the dump text. */
+.diagnostic-dialog-content {
+    max-width: 640px;
+    min-width: 420px;
+}
+
+.diagnostic-pre {
+    user-select: text;
+    -webkit-user-select: text;
+    background: var(--bg-cream, #fffaf2);
+    border: 1px solid var(--border-warm);
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-body);
+    max-height: 260px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 10px 0;
+}
+
+/* v1.1.0: Two-column wrapper — velocity row labels (left, fixed) +
+   scrollable grid + bottom column labels.
+   align-items:start so vel-labels doesn't stretch through the col-labels
+   area. Vel-labels height is JS-synced to #sample-grid-inner so the 4 rows
+   align cell-for-cell. */
+#sample-map-grid-wrapper {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 6px;
+    align-items: start;
+}
+
+#sample-grid-vel-labels {
+    display: grid;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 1px;
+    box-sizing: border-box;
+    font-size: 10px;
+    color: var(--text-muted);
+    user-select: none;
+    /* padding-top + height set inline by syncVelLabelsHeight() so the
+       vel-label rows track the actual rendered inner-grid rows. */
+}
+.vel-label {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 4px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
 #sample-map-grid {
     background: var(--bg-card);
     border: 1px solid var(--border-warm);
     border-radius: 6px;
     padding: var(--gap-md);
-    min-height: 200px;
+    /* No min-height — let scroll container shrink to fit
+       (inner grid + col-labels). */
     /* Allow horizontal scroll when 88 columns × 8 px min-width exceeds
        container width (RP3-5: scroll over octave grouping for v1.0). */
     overflow-x: auto;
     overflow-y: hidden;
+}
+
+/* v1.1.0: C-note column labels — share the same column template + min-width
+   as #sample-grid-inner so they align cell-for-cell, and live INSIDE the
+   scroll container so they pan horizontally with the grid. */
+#sample-grid-col-labels {
+    display: grid;
+    grid-template-columns: repeat(88, minmax(8px, 1fr));
+    gap: 1px;
+    min-width: 704px;
+    width: 100%;
+    margin-top: 6px;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--text-muted);
+    user-select: none;
+}
+.col-label {
+    text-align: center;
+    overflow: visible;          /* allow "C4" to spill over adjacent empty cells */
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
+}
+.col-label[data-c="1"] {
+    color: var(--text-body);
 }
 
 /* The actual CSS grid lives inside the container so its intrinsic width

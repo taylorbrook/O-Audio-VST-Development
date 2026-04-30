@@ -1,5 +1,52 @@
 # O-MicrotonalSampler Changelog
 
+## [1.3.0] - 2026-04-29
+
+### Added
+- **Full state persistence across DAW sessions.** Reopening a project
+  now restores the loaded sample folder, tuning state (intervals, A4
+  master tune, octave stretch, tonic, mode, KBM mapping), and all
+  parameter values exactly as they were when the project was saved.
+  Pre-v1.3.0 only persisted parameters — folder and tuning were lost.
+- **Save/Load preset (`.omspreset`)** buttons in the header. Captures
+  the same state used for project save/load (params + folder path +
+  tuning) as a portable XML file. Per design Q1=A: paths only — sample
+  audio is referenced, not embedded, so presets stay small but require
+  matching folder structure across machines.
+- **Missing-folder modal.** When DAW project reopen finds the saved
+  folder no longer exists at its original path, a modal surfaces the
+  path and offers "Locate folder…" (file picker, reuses
+  `loadSampleFolder`) or "Skip" (clears pending state, sampler stays
+  empty).
+
+### Changed
+- `PluginProcessor::getStateInformation` / `setStateInformation` now
+  serialize a wrapped `ValueTree`: APVTS state plus `<SampleFolder>`
+  and `<TuningState>` sibling children. Backward-compatible — v1.2.0
+  sessions load cleanly (children absent → defaults), v1.3.0 sessions
+  in v1.2.0 silently drop the new children.
+- Tuning state is captured via the engine's existing accessors plus
+  `generateScalaFileContent` / `generateKBMFileContent` round-trips,
+  so no fork of the shared `scala-tuning-engine` module is required.
+- Added 5 native functions to the WebView bridge:
+  `saveCurrentPreset`, `loadPreset`, `locateMissingFolder`,
+  `dismissMissingFolder`, `getPendingMissingFolder` — the last covers
+  the boot-time race where state restore runs before the WebView has
+  registered its `folderMissing` listener.
+
+### Technical notes
+- **Root cause** (pre-v1.3.0): `getStateInformation` only emitted
+  `parameters.copyState()`, which is APVTS-only. The `currentSampleMap`
+  was rebuilt from a folder reference held in memory but never written
+  to the persisted state.
+- **Threading**: `setStateInformation` runs on the message thread.
+  Tuning restore is in-memory and synchronous; folder reload reuses
+  the existing async `SampleLoader`. Missing-folder detection is
+  synchronous (`File::isDirectory()`); the modal is surfaced via
+  `emitEventIfBrowserIsVisible` plus a parked-path pull on WebView
+  attach to cover the boot-time race.
+- **Backup**: `backups/O-MicrotonalSampler/v1.2.0/` (rollback path).
+
 ## [1.2.0] - 2026-04-29
 
 ### Added

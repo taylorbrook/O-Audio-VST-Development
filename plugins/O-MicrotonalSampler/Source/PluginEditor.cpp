@@ -1007,6 +1007,141 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     complete (juce::var (false));
                 })
 
+            // ============================================================
+            // v1.3.0: STATE PERSISTENCE — preset save/load + missing-folder
+            // recovery. The plugin already round-trips full state through
+            // get/setStateInformation (DAW project save/load), so the
+            // .omspreset format simply re-uses that ValueTree as plain XML
+            // text written to a user-chosen file. Missing-folder recovery
+            // surfaces the saved path in a modal so the user can either
+            // relocate or skip without re-loading the entire bank.
+            // ============================================================
+
+            // ---- saveCurrentPreset() — write current state to .omspreset ----
+            //
+            // Captures the same ValueTree that getStateInformation persists
+            // (APVTS params + SampleFolder path + full TuningState) and writes
+            // it as XML text to a user-chosen file. Path-only per Q1=A — the
+            // .omspreset is small and shareable across projects on the same
+            // machine, but breaks across machines without matching folder
+            // structure. JS resolves true on success, false on cancel/fail.
+            .withNativeFunction ("saveCurrentPreset",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Save Preset",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile ("O-MicrotonalSampler.omspreset"),
+                        "*.omspreset");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        {
+                            auto file = fc.getResult();
+                            if (file == juce::File())
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            const auto xml = processorRef.capturePresetXml();
+                            if (xml.isEmpty() || ! file.replaceWithText (xml))
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            complete (juce::var (true));
+                        });
+                })
+
+            // ---- loadPreset() — read .omspreset and restore state ----
+            //
+            // Replaces APVTS, tuning, and the loaded folder. If the saved
+            // folder path no longer exists, surfaces the standard missing-
+            // folder modal (same pathway used during DAW project reopen).
+            .withNativeFunction ("loadPreset",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Load Preset",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                        "*.omspreset");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                          | juce::FileBrowserComponent::canSelectFiles,
+                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        {
+                            auto file = fc.getResult();
+                            if (! file.existsAsFile())
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            const auto xml = file.loadFileAsString();
+                            const bool ok  = processorRef.restorePresetXml (xml);
+                            complete (juce::var (ok));
+                        });
+                })
+
+            // ---- locateMissingFolder() — folder picker for missing-folder modal ----
+            //
+            // JS surfaces this from the modal's "Locate folder…" button.
+            // Reuses the existing loadSampleFolder pathway, which clears the
+            // pending missing-folder slot via setStateInformation's normal
+            // success flow. JS resolves true if a folder was selected (and
+            // forwarded to the processor), false on cancel.
+            .withNativeFunction ("locateMissingFolder",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Locate sample folder",
+                        juce::File{},
+                        juce::String{});
+                    auto flags = juce::FileBrowserComponent::openMode
+                               | juce::FileBrowserComponent::canSelectDirectories;
+
+                    chooser->launchAsync (flags,
+                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        {
+                            const auto results = fc.getResults();
+                            if (results.isEmpty() || ! results.getFirst().isDirectory())
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            processorRef.clearPendingMissingFolder();
+                            processorRef.loadSampleFolder (results.getFirst());
+                            complete (juce::var (true));
+                        });
+                })
+
+            // ---- dismissMissingFolder() — user chose Skip on the modal ----
+            .withNativeFunction ("dismissMissingFolder",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    processorRef.clearPendingMissingFolder();
+                    complete (juce::var (true));
+                })
+
+            // ---- getPendingMissingFolder() — covers boot-time race ----
+            //
+            // setStateInformation may run before the WebView has registered
+            // its folderMissing event listener (DAW project reopen → state
+            // restore happens before editor attach). JS calls this once on
+            // boot to recover any missed event. Returns the saved path or
+            // an empty string.
+            .withNativeFunction ("getPendingMissingFolder",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    complete (juce::var (processorRef.getPendingMissingFolderPath()));
+                })
+
             // ---- exportTuningHTML() — write current tuning to HTML doc ----
             .withNativeFunction ("exportTuningHTML",
                 [this] (const juce::Array<juce::var>&,
@@ -1074,6 +1209,19 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     juce::var (processorRef.snapshotSampleMapJson()));
         });
 
+    // v1.3.0: subscribe to missing-folder callback. setStateInformation
+    // fires this when a saved folder path no longer exists on disk; the JS
+    // handler renders the "Locate folder?" modal. Boot-time race (state
+    // restore before WebView attach) is covered by the JS-side
+    // getPendingMissingFolder pull on first ready.
+    processorRef.setMissingFolderCallback (
+        [this] (const juce::String& savedPath)
+        {
+            if (webView != nullptr)
+                webView->emitEventIfBrowserIsVisible (
+                    "folderMissing", juce::var (savedPath));
+        });
+
     // Navigate to the resource provider's root (cross-platform — never
     // hard-code juce:// vs https://juce.backend/).
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
@@ -1086,8 +1234,9 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
 
 OMicrotonalSamplerAudioProcessorEditor::~OMicrotonalSamplerAudioProcessorEditor()
 {
-    // Detach the processor's callback to prevent post-destruction calls.
+    // Detach the processor's callbacks to prevent post-destruction calls.
     processorRef.setSampleMapChangedCallback (nullptr);
+    processorRef.setMissingFolderCallback (nullptr);
     // unique_ptr members destroy in reverse declaration order:
     //   attachments (each calls evaluateJavascript on webView during dtor)
     //   webView

@@ -28,6 +28,14 @@
         <button class="tab-btn" data-tab="tuning">Tuning</button>
         <button class="tab-btn" data-tab="about">About</button>
       </nav>
+      <!-- v1.3.0 — preset save/load (full plugin state including the
+           loaded sample folder reference and current tuning). -->
+      <div class="header-actions">
+        <button id="save-preset-btn" type="button" class="header-action-btn"
+                title="Save plugin state to .omspreset">Save Preset…</button>
+        <button id="load-preset-btn" type="button" class="header-action-btn"
+                title="Load plugin state from .omspreset">Load Preset…</button>
+      </div>
     </header>
 
     <!-- ============== TAB BODIES ============== -->
@@ -130,6 +138,27 @@
             <div class="confirm-dialog-actions">
               <button id="diagnostic-copy-btn" type="button">Copy again</button>
               <button id="diagnostic-close-btn" type="button">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.3.0: missing-folder modal. Surfaced when setStateInformation
+             tries to restore a folder path that no longer exists on disk
+             (project reopened on a different machine, folder moved, etc.).
+             "Locate folder…" reuses the standard folder picker; "Skip"
+             leaves the sampler empty and clears the pending state. -->
+        <div id="missing-folder-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="missing-folder-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 id="missing-folder-dialog-title" class="confirm-dialog-title">
+              Sample folder not found
+            </h3>
+            <p id="missing-folder-dialog-message" class="confirm-dialog-message"></p>
+            <pre id="missing-folder-saved-path" class="missing-folder-path"></pre>
+            <div class="confirm-dialog-actions">
+              <button id="missing-folder-skip-btn" type="button">Skip</button>
+              <button id="missing-folder-locate-btn" type="button">Locate folder…</button>
             </div>
           </div>
         </div>
