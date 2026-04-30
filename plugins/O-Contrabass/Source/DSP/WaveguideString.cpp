@@ -201,9 +201,12 @@ float WaveguideString::processSample (float v_bow, float F_bow,
     float toBridge = nutReflection    + newVelocity;
     float toNeck   = bridgeReflection + newVelocity;
 
-    // Step 7: In-loop algebraic saturator on each rail (RESEARCH §1.3).
-    toBridge = toBridge / std::sqrt (1.0f + toBridge * toBridge);
-    toNeck   = toNeck   / std::sqrt (1.0f + toNeck   * toNeck);
+    // Step 7: In-loop tanh saturator on each rail (Phase 2.4c-bis R36-bis port from
+    //   O-Bowed WaveguideString.cpp:218-219 writeJunction; closes Phase 2.4c §19.7.6
+    //   escalation flag locked at 5.92 dB envelope divergence; see RESEARCH §20.4).
+    constexpr float sat = 4.0f;
+    toBridge = sat * std::tanh (toBridge / sat);
+    toNeck   = sat * std::tanh (toNeck   / sat);
 
     // Step 8: F3 — NO in-loop DC blocker. (If long-form drone surfaces DC
     //  drift in Phase 2.4/2.5, an output-path DCB at
