@@ -33,7 +33,8 @@
 #include "PluginProcessor.h"
 
 class OMicrotonalSamplerAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                               public juce::FileDragAndDropTarget
+                                               public juce::FileDragAndDropTarget,
+                                               private juce::Timer
 {
 public:
     explicit OMicrotonalSamplerAudioProcessorEditor (OMicrotonalSamplerAudioProcessor& p);
@@ -48,6 +49,12 @@ public:
     void fileDragEnter          (const juce::StringArray& files, int x, int y) override;
     void fileDragMove           (const juce::StringArray& files, int x, int y) override;
     void fileDragExit           (const juce::StringArray& files) override;
+
+    // v1.7.1: 30 Hz tick — diff the synth's active-notes bitmask against the
+    // previous snapshot and push tuningNoteOn / tuningNoteOff events plus a
+    // tuningHeldNotes payload (notes + frequencies) to the WebView so the
+    // TuningPanel Circle / Polar / TrueKeys views can highlight in real time.
+    void timerCallback() override;
 
 private:
     OMicrotonalSamplerAudioProcessor& processorRef;
@@ -104,6 +111,13 @@ private:
     struct CellRect { int midiNote = 0, velocityLayer = 0, x = 0, y = 0, w = 0, h = 0; };
     juce::Array<CellRect> cellLayout;
     juce::Rectangle<int>  folderZoneRect;
+
+    // v1.7.1: previous active-notes bitmask snapshot (MIDI 0..63 / 64..127).
+    // The 30 Hz timerCallback diffs the current snapshot against these to
+    // emit per-note on/off events. Initialised to zero so the first tick
+    // emits note-ons for any notes already held at editor open.
+    juce::uint64 prevActiveNotesLow  = 0;
+    juce::uint64 prevActiveNotesHigh = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OMicrotonalSamplerAudioProcessorEditor)
 };

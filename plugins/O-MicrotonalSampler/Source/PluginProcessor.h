@@ -72,6 +72,17 @@ public:
         voiceCap.store (juce::jlimit (1, 16, cap), std::memory_order_relaxed);
     }
 
+    // v1.7.1: lock-free snapshot of currently held MIDI notes (0..127) as a
+    // pair of 64-bit bitmasks. Bit n in `low` = note n; bit n in `high` =
+    // note n+64. Read on the message thread by the editor's 30 Hz timer to
+    // diff against the previous snapshot and emit per-note events to the
+    // tuning panel. Writes happen on the audio thread inside noteOn/noteOff.
+    void getActiveNotes (juce::uint64& low, juce::uint64& high) const noexcept
+    {
+        low  = activeNotesLow .load (std::memory_order_relaxed);
+        high = activeNotesHigh.load (std::memory_order_relaxed);
+    }
+
 protected:
     void noteOn (int midiChannel, int midiNoteNumber, float velocity) override
     {
@@ -95,11 +106,39 @@ protected:
             }
         }
 
+        // v1.7.1: track held note (audio-thread safe — atomic OR).
+        if (juce::isPositiveAndBelow (midiNoteNumber, 128))
+            setHeldBit (midiNoteNumber, true);
+
         juce::Synthesiser::noteOn (midiChannel, midiNoteNumber, velocity);
     }
 
+    void noteOff (int midiChannel, int midiNoteNumber, float velocity, bool allowTailOff) override
+    {
+        // v1.7.1: clear held bit. We treat note-off as the user releasing the
+        // key (matches O-Bells convention) — the tuning panel highlights are
+        // about which keys are *being played*, not whether the voice is still
+        // in its release tail. ADSR release continues independently below.
+        if (juce::isPositiveAndBelow (midiNoteNumber, 128))
+            setHeldBit (midiNoteNumber, false);
+
+        juce::Synthesiser::noteOff (midiChannel, midiNoteNumber, velocity, allowTailOff);
+    }
+
 private:
-    std::atomic<int> voiceCap { 16 };
+    void setHeldBit (int midi, bool on) noexcept
+    {
+        const juce::uint64 mask = (juce::uint64) 1 << (midi & 63);
+        auto& target = (midi < 64) ? activeNotesLow : activeNotesHigh;
+        if (on)
+            target.fetch_or  (mask, std::memory_order_relaxed);
+        else
+            target.fetch_and (~mask, std::memory_order_relaxed);
+    }
+
+    std::atomic<int>          voiceCap         { 16 };
+    std::atomic<juce::uint64> activeNotesLow   { 0 };  // MIDI 0..63
+    std::atomic<juce::uint64> activeNotesHigh  { 0 };  // MIDI 64..127
 };
 
 class OMicrotonalSamplerAudioProcessor : public juce::AudioProcessor
@@ -237,6 +276,23 @@ public:
     // sample data is referenced by path, not embedded.)
     juce::String capturePresetXml();
     bool restorePresetXml (const juce::String& xmlText);
+
+    // v1.7.1: read the synth's lock-free active-notes bitmask. Used by the
+    // editor's 30 Hz timer to diff and emit tuningNoteOn / tuningNoteOff
+    // events to the WebView. Message-thread accessor (the load itself is
+    // lock-free atomic, so the call is safe from any thread, but the
+    // intended caller is the message thread).
+    void getActiveNotesAtomic (juce::uint64& low, juce::uint64& high) const noexcept
+    {
+        synthesiser.getActiveNotes (low, high);
+    }
+
+    // v1.7.1: snapshot held notes + their tuned frequencies for the
+    // TrueKeys interval display. Walks the bitmask and queries
+    // TuningEngine::getFrequency per held note. Cleared output, then
+    // appended in MIDI order (low → high). Message-thread only.
+    void getHeldNotesData (std::vector<int>& notes,
+                           std::vector<double>& freqs);
 
 private:
     juce::AudioProcessorValueTreeState        parameters;

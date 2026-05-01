@@ -11,7 +11,7 @@ juce_add_plugin(O-MicrotonalSampler
     PLUGIN_CODE OMtS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-MicrotonalSampler${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "1.7.0"
+    PLUGIN_VERSION "1.7.1"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE

@@ -158,6 +158,32 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     complete (juce::var (JucePlugin_VersionString));
                 })
 
+            // v1.7.1: catch-up pull for the TuningPanel. The 30 Hz timer
+            // only emits tuningHeldNotes on change, so a panel that mounts
+            // (lazy — first Tuning-tab activation) while notes are already
+            // held would otherwise see no event until the next change.
+            // Returns the same payload shape as the tuningHeldNotes event:
+            // `{"notes":[...],"freqs":[...]}` JSON string.
+            .withNativeFunction ("getHeldNotesJson",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    std::vector<int>    notes;
+                    std::vector<double> freqs;
+                    processorRef.getHeldNotesData (notes, freqs);
+
+                    juce::String notesArr = "[", freqsArr = "[";
+                    for (size_t i = 0; i < notes.size(); ++i)
+                    {
+                        if (i > 0) { notesArr += ","; freqsArr += ","; }
+                        notesArr += juce::String (notes[i]);
+                        freqsArr += juce::String (freqs[i], 4);
+                    }
+                    notesArr += "]"; freqsArr += "]";
+                    complete (juce::var ("{\"notes\":" + notesArr
+                                       + ",\"freqs\":" + freqsArr + "}"));
+                })
+
             .withNativeFunction ("getEmbeddedTuningList",
                 [] (const juce::Array<juce::var>&,
                     std::function<void(juce::var)> complete)
@@ -1282,10 +1308,21 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
     setResizable (true, true);
     setSize (900, 640);
     setResizeLimits (720, 480, 1600, 1080);
+
+    // v1.7.1: 30 Hz tuning-note polling. Diffs the synth's lock-free
+    // active-notes bitmask against prevActiveNotes* and emits per-note
+    // events to the WebView so the TuningPanel views (Circle / Polar /
+    // TrueKeys) can highlight in real time. Cheap — at most 16 voices and
+    // bit ops are branch-free.
+    startTimerHz (30);
 }
 
 OMicrotonalSamplerAudioProcessorEditor::~OMicrotonalSamplerAudioProcessorEditor()
 {
+    // Stop the tuning-note timer before any of our members go away — the
+    // callback touches webView and processorRef.
+    stopTimer();
+
     // Detach the processor's callbacks to prevent post-destruction calls.
     processorRef.setSampleMapChangedCallback (nullptr);
     processorRef.setMissingFolderCallback (nullptr);
@@ -1293,6 +1330,81 @@ OMicrotonalSamplerAudioProcessorEditor::~OMicrotonalSamplerAudioProcessorEditor(
     //   attachments (each calls evaluateJavascript on webView during dtor)
     //   webView
     //   relays
+}
+
+//==============================================================================
+// v1.7.1: 30 Hz tuning-note polling.
+//
+// Reads the synth's lock-free active-notes bitmask, diffs against the previous
+// snapshot, and emits three event types to the WebView:
+//
+//   tuningNoteOn  : { midi: <int> }     — fired once per new note-on this tick
+//   tuningNoteOff : { midi: <int> }     — fired once per new note-off this tick
+//   tuningHeldNotes: { notes:[...], freqs:[...] } — fired only on changes
+//
+// sampler-app.js subscribes to all three and forwards to the TuningPanel
+// instance so the Circle / Polar views highlight active scale degrees and
+// TrueKeys can compute interval cents from the live tuning frequencies.
+//
+// Cost is negligible — at most 16 voices, branch-free bit ops, plus one
+// std::vector population per tick when the held set changes.
+void OMicrotonalSamplerAudioProcessorEditor::timerCallback()
+{
+    if (webView == nullptr)
+        return;
+
+    juce::uint64 low = 0, high = 0;
+    processorRef.getActiveNotesAtomic (low, high);
+
+    if (low == prevActiveNotesLow && high == prevActiveNotesHigh)
+        return; // No change — skip event emission entirely.
+
+    const juce::uint64 turnedOnLow   = low  & ~prevActiveNotesLow;
+    const juce::uint64 turnedOnHigh  = high & ~prevActiveNotesHigh;
+    const juce::uint64 turnedOffLow  = prevActiveNotesLow  & ~low;
+    const juce::uint64 turnedOffHigh = prevActiveNotesHigh & ~high;
+
+    // Note-on events — base offset 0 for low half, 64 for high half.
+    for (int i = 0; i < 64; ++i)
+    {
+        const juce::uint64 mask = (juce::uint64) 1 << i;
+        if (turnedOnLow  & mask)
+            webView->emitEventIfBrowserIsVisible ("tuningNoteOn",  juce::var (i));
+        if (turnedOnHigh & mask)
+            webView->emitEventIfBrowserIsVisible ("tuningNoteOn",  juce::var (i + 64));
+    }
+    for (int i = 0; i < 64; ++i)
+    {
+        const juce::uint64 mask = (juce::uint64) 1 << i;
+        if (turnedOffLow  & mask)
+            webView->emitEventIfBrowserIsVisible ("tuningNoteOff", juce::var (i));
+        if (turnedOffHigh & mask)
+            webView->emitEventIfBrowserIsVisible ("tuningNoteOff", juce::var (i + 64));
+    }
+
+    // TrueKeys payload — full held set + tuned frequencies. JSON-stringify
+    // here so the JS side can pass it to TuningPanel.updateHeldNotes(...)
+    // without further parsing.
+    std::vector<int>    heldNotes;
+    std::vector<double> heldFreqs;
+    processorRef.getHeldNotesData (heldNotes, heldFreqs);
+
+    juce::String notesArr = "[";
+    juce::String freqsArr = "[";
+    for (size_t i = 0; i < heldNotes.size(); ++i)
+    {
+        if (i > 0) { notesArr += ","; freqsArr += ","; }
+        notesArr += juce::String (heldNotes[i]);
+        freqsArr += juce::String (heldFreqs[i], 4);
+    }
+    notesArr += "]";
+    freqsArr += "]";
+
+    juce::String payload = "{\"notes\":" + notesArr + ",\"freqs\":" + freqsArr + "}";
+    webView->emitEventIfBrowserIsVisible ("tuningHeldNotes", juce::var (payload));
+
+    prevActiveNotesLow  = low;
+    prevActiveNotesHigh = high;
 }
 
 //==============================================================================

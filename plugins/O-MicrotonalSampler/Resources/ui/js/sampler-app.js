@@ -289,6 +289,46 @@ function bindTabs() {
 let tuningPanelMounted = false;
 let tuningPanelInstance = null;
 
+// v1.7.1: subscribe to C++ tuning-note events ONCE, at module init time, NOT
+// inside ensureTuningPanelMounted (which is gated on first Tuning-tab click).
+// Events that arrive before the panel is mounted are simply dropped; the
+// catch-up pull inside ensureTuningPanelMounted brings the panel up to date
+// with whatever is held at that moment, and subsequent events flow live.
+function bindTuningNoteEvents() {
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;
+
+    const backend = window.__JUCE__.backend;
+
+    backend.addEventListener('tuningNoteOn', (midiVar) => {
+        if (!tuningPanelInstance) return;
+        const midi = typeof midiVar === 'number' ? midiVar : parseInt(midiVar, 10);
+        if (Number.isFinite(midi)) {
+            try { tuningPanelInstance.noteOn(midi); } catch (_) { /* ignore */ }
+        }
+    });
+
+    backend.addEventListener('tuningNoteOff', (midiVar) => {
+        if (!tuningPanelInstance) return;
+        const midi = typeof midiVar === 'number' ? midiVar : parseInt(midiVar, 10);
+        if (Number.isFinite(midi)) {
+            try { tuningPanelInstance.noteOff(midi); } catch (_) { /* ignore */ }
+        }
+    });
+
+    backend.addEventListener('tuningHeldNotes', (payloadVar) => {
+        if (!tuningPanelInstance) return;
+        try {
+            const payload = typeof payloadVar === 'string'
+                ? JSON.parse(payloadVar) : payloadVar;
+            if (payload && Array.isArray(payload.notes) && Array.isArray(payload.freqs)) {
+                tuningPanelInstance.updateHeldNotes(payload.notes, payload.freqs);
+            }
+        } catch (_) { /* ignore — malformed payload is non-fatal */ }
+    });
+}
+// Run once on module load.
+bindTuningNoteEvents();
+
 async function ensureTuningPanelMounted() {
     if (tuningPanelMounted) return;
     tuningPanelMounted = true;
@@ -315,6 +355,24 @@ async function ensureTuningPanelMounted() {
         // blocks (intervals never loaded, library never populated, etc.).
         tuningPanelInstance = new TuningPanel(container, Juce);
         await tuningPanelInstance.init();
+
+        // v1.7.1: catch-up pull. The 30 Hz timer in C++ only emits
+        // tuningHeldNotes on bitmask change, so a panel that mounts while
+        // notes are already held would otherwise sit empty until the next
+        // change. Pulling once at mount fixes that.
+        try {
+            const json = await Juce.getNativeFunction('getHeldNotesJson')();
+            const payload = JSON.parse(json);
+            if (Array.isArray(payload.notes) && Array.isArray(payload.freqs)) {
+                tuningPanelInstance.updateHeldNotes(payload.notes, payload.freqs);
+                // Replay note-ons so Circle / Polar highlights catch up too
+                // (updateHeldNotes only feeds TrueKeys; activeScaleDegrees is
+                // populated through noteOn).
+                for (const midi of payload.notes) {
+                    try { tuningPanelInstance.noteOn(midi); } catch (_) { /* ignore */ }
+                }
+            }
+        } catch (_) { /* ignore — empty held set or backend unavailable */ }
 
         // v1.2.0: auto-expand the Tuning Library and pull the factory
         // preset list so the right column shows selectable tunings on

@@ -1,5 +1,51 @@
 # O-MicrotonalSampler Changelog
 
+## [1.7.1] - 2026-05-01
+
+### Fixed
+- **Tuning panel note highlights now appear when notes are played.** The
+  Circle and Polar visualizations and the True Keys interval display were
+  silent: pressing keys never lit up scale degrees and True Keys never
+  showed intervals. **Root cause:** the C++ side was not publishing any
+  MIDI activity to the WebView. There was no active-note tracking on the
+  synth, no editor timer, and no JavaScript handlers for the events the
+  TuningPanel expects (`tuningNoteOn` / `tuningNoteOff` / `updateHeldNotes`).
+  In short, the wiring between the audio engine and the panel was missing
+  end-to-end. (This was a latent gap from Phase 3.1 — the panel was
+  designed to receive these events but the producer side was never built.)
+
+- **Polar view now highlights active scale degrees.** Even with the wiring
+  fixed above, the polar plot would still not respond to held notes —
+  `drawPolarPlot()` ignored `activeScaleDegrees` entirely (every dot was
+  drawn with the same fill colour) and `updateSpokeHighlights()`
+  short-circuited for any mode other than Circle. Both have been fixed:
+  active dots now render in the same red (`#C0392B`) the Circle view uses,
+  with a slightly larger radius for emphasis.
+
+### Implementation notes
+- **Audio thread:** `CappedSynthesiser` now keeps two `std::atomic<uint64>`
+  bitmasks (low = MIDI 0–63, high = 64–127) updated via lock-free
+  `fetch_or` / `fetch_and` inside the existing `noteOn` override and a new
+  `noteOff` override. No allocations, branch-free bit ops, no impact on
+  `processBlock` cost.
+- **Message thread:** `PluginEditor` now inherits `juce::Timer` and runs
+  at 30 Hz. Each tick reads the bitmask, diffs against the previous
+  snapshot, and emits per-note `tuningNoteOn` / `tuningNoteOff` events
+  for new transitions plus a `tuningHeldNotes` payload (`{notes,freqs}`)
+  for True Keys. Early-out when no bits changed — typical idle cost is
+  one atomic load per tick.
+- **TrueKeys frequencies:** the held-notes payload calls
+  `TuningEngine::getFrequency(midi)` per note so the cents readout
+  reflects the active microtonal tuning, not 12-TET.
+- **Late mount catch-up:** the TuningPanel is mounted lazily on first
+  Tuning-tab activation. A new native function `getHeldNotesJson` lets
+  the panel pull current state at mount, so notes already held when the
+  user clicks the Tuning tab show up immediately. Subsequent updates
+  flow through the timer-driven events.
+- **Polar redraw:** `updateSpokeHighlights()` now falls through to
+  `drawPolarPlot()` when in polar mode. The cost is 12 dots redrawn at
+  up to 30 Hz — well below any perf threshold.
+
 ## [1.7.0] - 2026-04-30
 
 ### Added

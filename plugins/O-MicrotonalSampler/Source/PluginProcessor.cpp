@@ -352,6 +352,33 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 }
 
 //==============================================================================
+// v1.7.1: held-notes snapshot for the TuningPanel TrueKeys / Circle / Polar
+// visualizations. Walks the synth's active-notes bitmask in MIDI order and
+// queries TuningEngine::getFrequency per held note so TrueKeys can compute
+// real interval cents from the active tuning (not just 12-TET).
+void OMicrotonalSamplerAudioProcessor::getHeldNotesData (std::vector<int>& notes,
+                                                          std::vector<double>& freqs)
+{
+    notes.clear();
+    freqs.clear();
+
+    juce::uint64 low = 0, high = 0;
+    synthesiser.getActiveNotes (low, high);
+
+    // 128-bit bitmask → ordered MIDI list. At most 16 simultaneous voices
+    // (polyphony cap), so the inner work is tiny.
+    for (int midi = 0; midi < 128; ++midi)
+    {
+        const juce::uint64 mask = (juce::uint64) 1 << (midi & 63);
+        const bool held = (midi < 64 ? (low & mask) : (high & mask)) != 0;
+        if (! held) continue;
+
+        notes.push_back (midi);
+        freqs.push_back (tuningEngine.getFrequency (midi));
+    }
+}
+
+//==============================================================================
 // v1.6.0: folder load with explicit velocity-layer assignment.
 //
 // User-triggered loads (Load Folder… button, drag-drop, missing-folder

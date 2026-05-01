@@ -469,13 +469,11 @@ export class TuningPanel {
             ctx.stroke();
         }
 
-        // Plot intervals
+        // Plot intervals (v1.7.1: active scale degrees highlighted in red,
+        // matching the Circle view's coloring so the two views feel like a
+        // single visualization at different angles).
         const count = this.intervals.length - 1;
         const period = this.intervals[this.intervals.length - 1] || 1200;
-
-        ctx.fillStyle = '#8B7355';
-        ctx.strokeStyle = '#5C4033';
-        ctx.lineWidth = 1;
 
         for (let i = 0; i < count; i++) {
             const cents = this.intervals[i];
@@ -485,8 +483,11 @@ export class TuningPanel {
             const x = cx + Math.cos(angle) * r;
             const y = cy + Math.sin(angle) * r;
 
+            const isActive = this.activeScaleDegrees.has(i);
+            ctx.fillStyle = isActive ? '#C0392B' : '#8B7355';
+
             ctx.beginPath();
-            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.arc(x, y, isActive ? 6 : 4, 0, Math.PI * 2);
             ctx.fill();
         }
     }
@@ -663,16 +664,27 @@ export class TuningPanel {
 
     /**
      * Fast in-place spoke color update without full redraw.
+     *
+     * Circle view: mutates SVG line/dot attributes in place — no redraw.
+     * Polar view (v1.7.1): falls through to a full canvas redraw, since the
+     * polar dots are not tracked individually. 12 dots × 30 Hz at most, so
+     * the cost is negligible.
      */
     updateSpokeHighlights() {
-        if (!this.spokeElements || this.currentVizMode !== 'circle') return;
+        if (this.currentVizMode === 'circle') {
+            if (!this.spokeElements) return;
+            for (const { line, dot, degree } of this.spokeElements) {
+                const isActive = this.activeScaleDegrees.has(degree);
+                line.setAttribute('stroke', isActive ? '#C0392B' : '#5C4033');
+                line.setAttribute('stroke-width', isActive ? '2.5' : '1.5');
+                dot.setAttribute('fill', isActive ? '#C0392B' : '#8B7355');
+                dot.setAttribute('r', isActive ? '6' : '5');
+            }
+            return;
+        }
 
-        for (const { line, dot, degree } of this.spokeElements) {
-            const isActive = this.activeScaleDegrees.has(degree);
-            line.setAttribute('stroke', isActive ? '#C0392B' : '#5C4033');
-            line.setAttribute('stroke-width', isActive ? '2.5' : '1.5');
-            dot.setAttribute('fill', isActive ? '#C0392B' : '#8B7355');
-            dot.setAttribute('r', isActive ? '6' : '5');
+        if (this.currentVizMode === 'polar') {
+            this.drawPolarPlot();
         }
     }
 
