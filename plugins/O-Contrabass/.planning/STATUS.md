@@ -13,7 +13,7 @@ orchestration_mode: true
 cycle_scope: phase_2_6a_output_chain_master_saturator_polynomial_x_minus_x_cubed_third_plus_zero_latency_feedforward_limiter_plus_stereo_width_first_sub_cycle_of_phase_2_6_umbrella_phase_2_6b_microtonal_phase_2_6c_note_expression_authored_at_later_sub_cycles
 next_action: phase_2_6a_bis_follow_up_then_phase_2_6a_verify
 phase_2_5_atomic_sha: 907a7c3409b1c2e74734f7d835ab3a934bb123fa
-phase_2_6a_atomic_sha: <R39_ATOMIC_SHA_BACKFILLED_AT_R39_BACKFILL_CHORE>
+phase_2_6a_atomic_sha: 74b3f83e6d10162b3c28ef966aa79d4adf8e62f0
 phase_2_6a_execute_carry_forward: |  # rev-22 STATUS append for audit trail
   Phase 2.6a R39 atomic execute complete 2026-05-01. Gate 8a SOFT-PASS (3 of 5 invariants strict-PASS; #1/#2 deferred to Phase 2.6a-bis follow-up commit per Option 2 LOCK).
 
