@@ -1,16 +1,145 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.3.0 — full state persistence (sample folder + tuning) + .omspreset save/load
-status: improvement_v1.3.0_implemented; ready_for_build
-last_updated: 2026-04-29
-version: 1.3.0
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0
+phase: v1.9.0 — layer-as-round-robin load mode (IMPLEMENTED, awaiting build + DAW test)
+status: improvement_v1.9.0_implemented
+last_updated: 2026-05-01
+version: 1.9.0
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0
 ---
 
 # Resume Point
 
-## Current State: STAGE 4 VERIFIED — plugin v1.0 complete
+## v1.9.0 Implementation Complete (2026-05-01)
+
+**Status:** code complete, awaiting build verification and user DAW smoke test.
+
+### What landed
+
+- **`Source/PluginProcessor.h`** — `LoadMode::MergeRR = 3` added with docstring. `loadSingleSample` gains optional `mergeAsRr` parameter (default false).
+- **`Source/PluginProcessor.cpp`** — `applyFolderLoad` per-cell collision branches on mode: `MergeRR` calls the new `applyMergeRrCell` helper; other modes keep replace semantics. `loadSingleSample` completion callback honours `mergeAsRr` — appends to existing cell's variants vector instead of replacing. Variant cap (64) enforced via `lastSkippedFiles` on overflow. RR counter reset on every touched cell. `loadModeToString`/`loadModeFromString` add `"merge_rr"` (round-trip safe in saved presets).
+- **`Source/SampleMap.h`** — new `applyMergeRrCell` pure helper (header-only): inserts new cell or appends variants on collision, enforces cap, records skipped overflow filenames. Used by both folder-load `MergeRR` and the per-cell merge path; isolates merge contract for unit tests.
+- **`Source/PluginEditor.cpp`** — `loadSingleSampleDialog` native fn accepts optional 3rd arg `mergeAsRr`, forwards to `processorRef.loadSingleSample(midi, vel, file, mergeAsRr)`.
+- **`Resources/ui/index.html`** — folder-load modal grows a 4th radio (`merge_rr` / "Layer as round-robin"). New `#per-cell-merge-dialog` markup with three buttons (Cancel, Replace cell, Add as round-robin).
+- **`Resources/ui/js/sampler-app.js`** — `showFolderLoadOptionsModal` handles new mode + explanation copy. New `showPerCellMergeDialog(existingCount, midi, layer)` returning `'merge'` / `'replace'` / `null`. `replaceCellSample` surfaces the prompt for non-empty cells before calling `loadSingleSampleDialog` with the chosen flag. Cap-reached state disables the merge button.
+- **`Source/tests/merge_rr_check.cpp`** — six unit tests over `applyMergeRrCell` (no-collision insert, collision merge order, variant cap, cap-already-reached, layer-aware key, multi-call shape).
+- **`CMakeLists.txt`** — `PLUGIN_VERSION` 1.8.0 → 1.9.0. New `O-MicrotonalSampler_MergeRrCheck` test target (EXCLUDE_FROM_ALL).
+- **`CHANGELOG.md`** — `[1.9.0] - 2026-05-01` entry with Added/Changed/Implementation notes/Test surface sections.
+
+### Backups
+
+- `backups/O-MicrotonalSampler/v1.8.0/` (pre-improvement; created from working tree since v1.8.0 was uncommitted)
+- Older history: v1.0.0 through v1.7.1 (already on disk)
+
+### Outstanding
+
+1. **Build verification** — triple build (VST3 + AU + Standalone) + `O-MicrotonalSampler_MergeRrCheck` exit code 0.
+2. **User-side DAW smoke test** — exercise the new "Layer as round-robin" radio with two folders that share notes; exercise per-cell merge prompt via dblclick on a loaded cell.
+3. **Atomic commit** of v1.8.0 + v1.9.0 work (currently both sets are uncommitted in the working tree).
+
+### Resume command
+
+`/improve O-MicrotonalSampler --discuss` to plan v1.9.x (drag-drop merge prompt, cross-cell RR group tagging, per-variant velocity sub-layering).
+
+---
+
+## Previous: v1.8.0 — Round-Robin Samples (IMPLEMENTED 2026-05-01)
+
+**Status:** built, installed, pluginval-5 SUCCESS, auval AU VALIDATION SUCCEEDED.
+Awaiting user commit + DAW smoke test.
+
+### v1.8.0 What landed
+
+- **`Source/SampleMap.h`** — introduced `SampleVariant` (audio + per-take loop fields) and renamed `SampleSlot` → `SampleCell` (the addressing wrapper holding a `std::vector<SampleVariant>`). `findSlot` → `findCell`. `slots` → `cells`.
+- **`Source/FilenameParser.{h,cpp}`** — added `rrIndex` to `ParsedName`. New `parseAsRrIndex` recognises `rr[N]` / `take[N]` / `tk[N]` (1-based, capped at 64). New unit-test cases cover all three forms in pre- and post-note positions plus rejection of `round[N]` / `var[N]`.
+- **`Source/SampleLoader.{h,cpp}`** — `loadSingleSlot` → `loadSingleVariant`. Folder-mode `run()` groups parsed files by `(midi, layer)`; explicit RR tokens flow silently into multi-variant cells, bare duplicates surface as `AmbiguousDuplicate` entries in the new 3-arg `CompletionCallback`. Stable-sort puts explicit-RR entries first by `rrIndex` then load-order.
+- **`Source/PluginProcessor.{h,cpp}`** — new `rr_mode` `AudioParameterChoice` (Cycle / Random No-Repeat / Random; default RandomNoRepeat). 512-entry `std::array<std::atomic<uint8_t>, 128*4>` per-cell counter array (deviation from 352 spec — 0.16 KB more for index-bound safety). `confirmRoundRobinLoad(bool)` applies or discards the staged ambiguous-duplicate map; chains correctly through state-restore replay queue. Counters reset on `ReplaceAll`, per-layer wipe on `ReplaceLayer`, per-cell on collision. `loadSingleSample` now replaces a cell with a single-variant cell. `overrideLoopPoints` / `resetLoopToAutoDetect` / `snapshotWaveformPeaks` gain a `variantIndex` parameter (default = primary).
+- **`Source/MicrotonalSamplerVoice.{h,cpp}`** — `slotLow/slotHigh` → `cellLow/cellHigh` + `variantLow/variantHigh`. New `selectVariantIndex(cell, mode)` called twice in `startNote` (primary + crossfade-adjacent). Pure atomic ops + integer math + per-voice xorshift32 PRNG (seeded from `this` ptr ⊕ sample rate). Render path reads from the selected variant's audio buffer + loop fields.
+- **`Source/PluginEditor.cpp`** — `ambiguousDuplicateCallback` wired in ctor, emits `ambiguousDuplicates` event with JSON payload to JS. New `confirmRoundRobinLoad` native fn forwards the user's decision. Existing `overrideLoopPoints` / `resetLoopToAutoDetect` / `getWaveformPeaks` natives forward optional `variantIndex` arg.
+- **`Resources/ui/js/sampler-app.js`** — multi-variant cell tooltip lists every variant filename + dot glyph for visual scan. Loop editor `editorState` gains `variantIndex` / `variantCount`. New `renderVariantTabStrip()` renders pill tabs when `variantCount > 1`. New `subscribeAmbiguousDuplicatesEvent` + `showAmbiguousDuplicatesDialog` modal flow forwards user decision via `confirmRoundRobinLoad` native.
+- **`Resources/ui/index.html`** — `<div id="le-variant-tabs">` between loop-editor header and canvas; full `<div id="rr-confirm-dialog">` modal markup.
+- **`Resources/ui/css/sampler-shell.css`** *(spec named `sampler.css` — no such file exists; appended to `sampler-shell.css`)* — `.cell-multivariant::after` antique-gold dot glyph; `.le-variant-tabs` strip styling; `.rr-confirm-dialog-content` + `.rr-confirm-list` modal styling.
+- **`CMakeLists.txt`** — `PLUGIN_VERSION` 1.7.1 → 1.8.0.
+- **`CHANGELOG.md`** — `[1.8.0] - 2026-05-01` entry.
+
+### Build / validation
+
+- Triple build (VST3 + AU + Standalone): GREEN
+- AU cache cleared + reinstalled per CLAUDE.md
+- `pluginval --strictness-level 5 --validate-in-process --skip-gui-tests --timeout-ms 120000`: **SUCCESS**
+- `auval -v aumu OMtS OuDv`: **AU VALIDATION SUCCEEDED**
+
+### Backups
+
+- `backups/O-MicrotonalSampler/v1.7.1/` (pre-improvement; verify-backup.sh PASS)
+- Older history: v1.0.0 through v1.7.0 (already on disk)
+
+### Outstanding
+
+1. **User-side DAW smoke test** — exercise round-robin selection in Logic / Standalone with a real RR sample folder (rr/take/tk filenames) plus the bare-duplicate modal flow.
+2. **Atomic commit** of all v1.8.0 files (10 sources + status + changelog) per gsd convention.
+
+### Resume command
+
+`/improve O-MicrotonalSampler --discuss` to plan v1.9 follow-ups (per-variant velocity sub-layering, cross-cell RR group tagging, per-cell algorithm override).
+
+---
+
+## Previous Active Improvement Plan: v1.8.0 — Round-Robin Samples (APPROVED 2026-05-01)
+
+**Mode**: `/improve --discuss` — plan approved, awaiting implementation kickoff.
+
+### Design decisions (user-confirmed)
+
+- **Q1 — Detection**: Recognize explicit `rr[N]` / `take[N]` / `tk[N]` filename tokens AND fall back to duplicate detection. When duplicates are detected *without* explicit RR tokens, fire a WebView modal to confirm intent before treating as variants. Explicit tokens load silently.
+- **Q2 — Selection algorithm**: User-selectable via dropdown — Cycle / Random No-Repeat / Random. Default = **Random No-Repeat** (industry standard).
+- **Q3 — UI exposure**: No surface badge on cells. Tooltip (`title` attr) lists all variant filenames on hover. Loop editor side panel gains a variant-tab strip when `variants.length > 1` so loop points can be set per variant.
+- **Q4 — Version bump**: MINOR → v1.8.0.
+
+### Files touched (10)
+
+- `Source/SampleMap.h` — `SampleSlot` → `SampleCell` with `std::vector<SampleVariant>`; loop fields move to variant.
+- `Source/FilenameParser.{h,cpp}` — add `rrIndex` to `ParsedName`; recognize `rr[N]`/`take[N]`/`tk[N]` tokens.
+- `Source/SampleLoader.{h,cpp}` — group parsed files by `(midi, layer)`; explicit RR → silent variants; ambiguous duplicates → modal payload.
+- `Source/PluginProcessor.{h,cpp}` — new APVTS `rr_mode` choice param; processor-level `std::array<std::atomic<uint8_t>, 352>` per-cell RR state (cycle counter + last-variant); new native fn `confirmRoundRobinLoad`; preset-load migration for old slot format.
+- `Source/MicrotonalSamplerVoice.{h,cpp}` — `slotLow/slotHigh` → `variantLow/variantHigh`; new `selectVariant()` helper called twice in `startNote` (primary + crossfade-adjacent).
+- `Source/PluginEditor.cpp` — variant-list JSON pushed to JS; modal-trigger event on ambiguous duplicates.
+- `Resources/ui/js/sampler-app.js` — multi-line variant tooltips; loop editor variant-tab strip; modal dialog component.
+- `Resources/ui/css/sampler.css` — variant-tab + modal styling.
+- `CMakeLists.txt` — bump VERSION 1.7.1 → 1.8.0.
+- `CHANGELOG.md` — `[1.8.0]` entry.
+
+### RT-safety contract
+
+- No allocations in `startNote` or `renderNextBlock` — variant selection is pure index math + atomic ops.
+- SampleMap atomic-swap semantics preserved — voices in flight finish on captured snapshot.
+- Per-cell RR counter survives map swaps (lives in processor, not map). Reset only on `LoadMode::ReplaceAll`.
+
+### Test surface
+
+- **Render-harness identity**: single-variant library produces bit-identical output vs v1.7.1 (proves zero overhead in common case).
+- **New unit tests**: filename parser RR tokens; variant selection (cycle / no-repeat / random) edge cases at N=1/2/N; counter persistence across map swaps.
+- **Manual DAW pass**: explicit RR tokens (silent load), pure duplicates (modal fires), no duplicates (regression-free).
+
+### Risks called out
+
+1. Preset compatibility — old format migration on load (additive, non-breaking).
+2. Loop editor UX — must default to variant 0 with clear "Variant 1 of N" indicator.
+3. Render-harness identity test must pass before merge.
+
+### Out of scope (deferred to v1.9)
+
+- Per-variant velocity sub-layering
+- Cross-cell RR group tagging
+- Per-cell RR algorithm override
+
+### Resume command
+
+`/improve O-MicrotonalSampler` (without `--discuss`) — picks up from approved plan, runs Phase 0.9 (backup) → Phase 1 (version) → Phase 3 (implement) onwards.
+
+---
+
+## Previous State: STAGE 4 VERIFIED — plugin v1.0 complete
 
 `/plugin-verify O-MicrotonalSampler 4-polish` walked the goal-backward
 analysis across Phases 4.1–4.4, re-confirmed all invariant greps and

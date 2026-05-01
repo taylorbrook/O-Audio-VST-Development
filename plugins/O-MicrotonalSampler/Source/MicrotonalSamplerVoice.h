@@ -7,15 +7,20 @@
     Developer: Taylor Brook
 
     Phase 2.1 surface: cubic-Hermite varispeed read + ADSR + NE consumption.
-    Phase 2.3: dual-slot equal-power velocity-layer crossfade.
+    Phase 2.3: dual-cell equal-power velocity-layer crossfade.
     Phase 2.4: voice-steal tail-ramp scratch buffers (5 ms linear-down).
     Phase 2.5: 8-sample equal-power loop boundary crossfade + position wrap.
+    v1.8.0: per-cell variant selection (round-robin) at startNote — pure
+            atomic-counter + integer math; no allocation in audio path.
 
   ==============================================================================
 */
 
 #pragma once
 #include <JuceHeader.h>
+#include <array>
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include "TuningEngine.h"          // global namespace (D-4)
@@ -26,6 +31,23 @@
 class MicrotonalSamplerVoice : public juce::SynthesiserVoice
 {
 public:
+    // v1.8.0: round-robin selection mode. Mirrors the choice param indices in
+    // PluginProcessor's APVTS (rr_mode). Default = RandomNoRepeat (industry
+    // standard).
+    enum class RoundRobinMode : int
+    {
+        Cycle           = 0,
+        RandomNoRepeat  = 1,
+        Random          = 2
+    };
+
+    // v1.8.0: per-cell counter array. 128 notes × 4 layers = 512 entries.
+    // Index = midi * 4 + layer. Sentinel value 0xFF = "no variant yet"
+    // (cleared by processor on ReplaceAll); both Cycle and RandomNoRepeat
+    // interpret it as a no-exclusion start.
+    static constexpr int kRrCounterSize = 128 * 4;
+    using RrCounterArray = std::array<std::atomic<uint8_t>, (size_t) kRrCounterSize>;
+
     MicrotonalSamplerVoice() = default;
     ~MicrotonalSamplerVoice() override = default;
 
@@ -43,12 +65,8 @@ public:
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                           int startSample, int numSamples) override;
 
-    // Phase 2.1: prepare ADSR sample-rate before audio runs (RESEARCH pitfall #1).
-    // Called from OMicrotonalSamplerAudioProcessor::prepareToPlay.
     void prepareToPlay (double sampleRate, int samplesPerBlock);
 
-    // JUCE's Synthesiser may also reset the playback sample rate via this hook.
-    // Override to keep ADSR's sample rate synchronized (RESEARCH pitfall #1).
     void setCurrentPlaybackSampleRate (double newRate) override;
 
     // Wiring setters (called once per voice from PluginProcessor ctor).
@@ -56,28 +74,27 @@ public:
     void setTuningEngine        (TuningEngine* engine)                  { tuningEngine = engine; }
     void setPendingTuningSource (Ouaricon::NoteExpression::PendingTuningTable* src) { pendingTuningSource = src; }
     void setSampleMapSource     (std::shared_ptr<SampleMap>* src)       { sampleMapSource = src; }
+    void setRrCounterArray      (RrCounterArray* a)                     { rrCounters = a; }
 
 private:
-    // Wiring (from setters)
     juce::AudioProcessorValueTreeState*           parameters          = nullptr;
-    TuningEngine*                                 tuningEngine        = nullptr;  // D-4: global namespace
+    TuningEngine*                                 tuningEngine        = nullptr;
     Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
     std::shared_ptr<SampleMap>*                   sampleMapSource     = nullptr;
+    RrCounterArray*                               rrCounters          = nullptr;
 
-    // Per-voice DSP state (Phase 2.1 + 2.3 dual-slot crossfade)
     juce::ADSR                  adsr;
     double                      currentFrequency   = 0.0;
     int                         currentMidiNote    = -1;
-    std::shared_ptr<SampleMap>  currentMap;  // lifetime owner snapshot (RESEARCH pitfall #5)
+    std::shared_ptr<SampleMap>  currentMap;
 
-    // Phase 2.3: dual-slot equal-power velocity-layer crossfade.
-    // When slotHigh == nullptr the voice plays slotLow at full weight (single-
-    // layer path, identical to Phase 2.1). When both are set, the renderer
-    // mixes them per cubicInterp(slotLow,...) * wLow + cubicInterp(slotHigh,...) * wHigh.
-    // posLow/posHigh and playRateLow/playRateHigh are independent because the
-    // two slots may differ in sourceSampleRate (defensive — usually identical).
-    const SampleSlot*           slotLow            = nullptr;
-    const SampleSlot*           slotHigh           = nullptr;
+    // v1.8.0: dual-cell crossfade — each cell has a selected variant for the
+    // duration of the note. Variant pointers reference into the cell's
+    // variants vector (held alive transitively through `currentMap`).
+    const SampleCell*           cellLow            = nullptr;
+    const SampleCell*           cellHigh           = nullptr;
+    const SampleVariant*        variantLow         = nullptr;
+    const SampleVariant*        variantHigh        = nullptr;
     float                       layerWeightLow     = 1.0f;
     float                       layerWeightHigh    = 0.0f;
     double                      posLow             = 0.0;
@@ -85,17 +102,21 @@ private:
     double                      playRateLow        = 1.0;
     double                      playRateHigh       = 1.0;
 
-    // Phase 2.4: voice-steal tail-ramp scratch buffers. When startNote detects
-    // an already-active voice, renderTailRamp captures kMaxStealRamp samples
-    // of OLD-note audio × linear-down ramp into these buffers; renderNextBlock
-    // then mixes them additively on top of the new note for stealTailSamplesRemaining
-    // blocks. Sized in prepareToPlay (message-thread alloc, RESEARCH pitfall #6).
     std::vector<float> stealTailBufferL;
     std::vector<float> stealTailBufferR;
     int                stealTailSamplesRemaining = 0;
     int                kMaxStealRamp             = 0;
 
+    // v1.8.0: per-voice xorshift32 RNG state for the Random / RandomNoRepeat
+    // selection modes. Seeded in prepareToPlay from the voice's identity hash;
+    // advanced inline in selectVariantIndex (RT-safe — pure integer ops).
+    uint32_t rngState = 0x12345678u;
+
     void renderTailRamp (int rampSamples) noexcept;
+
+    // v1.8.0: pick a variant index for `cell` using mode + counter. Pure
+    // index math + atomic ops. RT-safe. cell.variants must be non-empty.
+    int selectVariantIndex (const SampleCell& cell, RoundRobinMode mode) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MicrotonalSamplerVoice)
 };

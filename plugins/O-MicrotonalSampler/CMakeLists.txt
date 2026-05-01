@@ -11,7 +11,7 @@ juce_add_plugin(O-MicrotonalSampler
     PLUGIN_CODE OMtS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-MicrotonalSampler${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "1.7.1"
+    PLUGIN_VERSION "1.9.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -140,6 +140,25 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/aliasing_check.cpp")
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
     target_compile_definitions(O-MicrotonalSampler_AliasingCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.9.0 — round-robin merge unit tests (covers applyMergeRrCell helper used
+# by LoadMode::MergeRR and the per-cell single-file merge path). Standalone
+# executable, EXCLUDE_FROM_ALL. Build with:
+#     ninja O-MicrotonalSampler_MergeRrCheck
+# Returns exit code = number of failed assertions.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/merge_rr_check.cpp")
+    add_executable(O-MicrotonalSampler_MergeRrCheck EXCLUDE_FROM_ALL
+        Source/tests/merge_rr_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_MergeRrCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_formats
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_compile_definitions(O-MicrotonalSampler_MergeRrCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()

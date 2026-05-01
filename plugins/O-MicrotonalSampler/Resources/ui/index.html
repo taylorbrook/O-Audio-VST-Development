@@ -91,6 +91,8 @@
             </h3>
             <button id="loop-close" class="loop-close-btn" type="button" aria-label="Close loop editor">×</button>
           </header>
+          <!-- v1.8.0: variant tab strip — visible only when cell has > 1 variant. -->
+          <div id="le-variant-tabs" class="le-variant-tabs" style="display:none"></div>
           <div class="loop-editor-canvas-wrap">
             <canvas id="waveform-canvas"></canvas>
           </div>
@@ -166,6 +168,33 @@
           </div>
         </div>
 
+        <!-- v1.8.0: round-robin confirmation modal. Surfaced when a folder
+             load contained multiple files for the same (note, velocity layer)
+             but no rr/take/tk filename tokens. User decides: treat as
+             round-robin variants, or cancel the load. -->
+        <div id="rr-confirm-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="rr-confirm-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content rr-confirm-dialog-content">
+            <h3 id="rr-confirm-dialog-title" class="confirm-dialog-title">
+              Multiple samples for the same note
+            </h3>
+            <p class="confirm-dialog-message">
+              The folder contains more than one sample for the same note and
+              velocity layer, without explicit <code>rr</code> / <code>take</code>
+              / <code>tk</code> tokens in the filenames. Treat them as
+              round-robin variants?
+            </p>
+            <ul id="rr-confirm-list" class="rr-confirm-list"></ul>
+            <div class="confirm-dialog-actions">
+              <button id="rr-confirm-cancel" type="button">Cancel load</button>
+              <button id="rr-confirm-accept" type="button" class="primary">
+                Treat as variants
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- v1.6.0: folder-load options modal. Surfaced before the file
              picker (button) and before drag-drop file streaming so the
              user can route the incoming folder to a specific velocity
@@ -203,6 +232,10 @@
                   <input type="radio" name="flo-mode" value="replace_all" />
                   <span>Replace all samples</span>
                 </label>
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="merge_rr" />
+                  <span>Layer as round-robin</span>
+                </label>
               </div>
             </div>
 
@@ -216,6 +249,25 @@
             <div class="confirm-dialog-actions">
               <button id="flo-cancel-btn" type="button">Cancel</button>
               <button id="flo-confirm-btn" type="button" class="flo-primary">Load…</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.9.0: per-cell merge prompt. Surfaced when the user triggers a
+             per-cell single-file load on a cell that already has samples. The
+             user picks merge-as-RR (append the new file as a variant) or
+             replace (current v1.8.0 behaviour). Resolves to 'merge', 'replace',
+             or null on cancel. See showPerCellMergeDialog in sampler-app.js. -->
+        <div id="per-cell-merge-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="per-cell-merge-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 id="per-cell-merge-title" class="confirm-dialog-title">Cell already has samples</h3>
+            <p id="per-cell-merge-message" class="confirm-dialog-message"></p>
+            <div class="confirm-dialog-actions">
+              <button id="per-cell-merge-cancel-btn" type="button">Cancel</button>
+              <button id="per-cell-merge-replace-btn" type="button">Replace cell</button>
+              <button id="per-cell-merge-merge-btn"   type="button" class="flo-primary">Add as round-robin</button>
             </div>
           </div>
         </div>

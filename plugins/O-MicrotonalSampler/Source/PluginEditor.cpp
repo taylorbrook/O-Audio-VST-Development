@@ -613,10 +613,16 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
 
             // ---- loadSingleSampleDialog (Phase 3.2 — FileChooser per cell) ----
             //
-            // JS calls: await Juce.getNativeFunction('loadSingleSampleDialog')(midi, vel).
+            // JS calls: await Juce.getNativeFunction('loadSingleSampleDialog')
+            //              (midi, vel, mergeAsRr=false).
             // Resolves true on a successful selection (file passed to processor),
             // false on cancel or invalid args. The actual load is async — the
             // sampleMapUpdated event fires when the map has been atomic-stored.
+            //
+            // v1.9.0: optional mergeAsRr arg. true = append to existing cell's
+            // variants vector instead of replacing the cell (per-cell round-
+            // robin layering). The JS UI is responsible for surfacing the
+            // merge prompt before calling — see showPerCellMergeDialog.
             .withNativeFunction ("loadSingleSampleDialog",
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
@@ -629,8 +635,9 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                         return;
                     }
 
-                    const int midi = static_cast<int> (args[0]);
-                    const int vel  = static_cast<int> (args[1]);
+                    const int  midi      = static_cast<int> (args[0]);
+                    const int  vel       = static_cast<int> (args[1]);
+                    const bool mergeAsRr = args.size() > 2 && static_cast<bool> (args[2]);
 
                     // Heap-allocate the FileChooser via shared_ptr so the
                     // launchAsync lambda can keep it alive until the user
@@ -649,7 +656,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     // Capture chooser by value so its lifetime extends past
                     // the launch returning. Capture `complete` so JS resolves.
                     chooser->launchAsync (flags,
-                        [this, chooser, midi, vel, complete]
+                        [this, chooser, midi, vel, mergeAsRr, complete]
                             (const juce::FileChooser& fc) mutable
                         {
                             const auto results = fc.getResults();
@@ -671,6 +678,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
 
                             DBG ("loadSingleSampleDialog: midi=" << midi
                                  << " vel=" << vel
+                                 << " mergeAsRr=" << (int) mergeAsRr
                                  << " file=" << file.getFullPathName());
 
                             // Kick off the async per-cell load. The processor
@@ -680,7 +688,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                             // lambda). JS resolves immediately with `true` to
                             // unblock the await — the visual update arrives
                             // via the push event.
-                            processorRef.loadSingleSample (midi, vel, file);
+                            processorRef.loadSingleSample (midi, vel, file, mergeAsRr);
                             complete (juce::var (true));
                         });
                 })
@@ -727,10 +735,14 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     const int loopEnd   = static_cast<int> (args[3]);
                     const int xfade     = (args.size() >= 5)
                                              ? static_cast<int> (args[4])
-                                             : 8;  // global default
+                                             : 8;
+                    const int variantIdx = (args.size() >= 6)
+                                              ? static_cast<int> (args[5])
+                                              : -1;   // v1.8.0: -1 = primary
 
                     processorRef.overrideLoopPoints (midi, vel, loopStart, loopEnd,
-                                                     xfade, /*resetToAutoDetect*/ false);
+                                                     xfade, /*resetToAutoDetect*/ false,
+                                                     variantIdx);
                     complete (juce::var (true));
                 })
 
@@ -753,8 +765,11 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
 
                     const int midi = static_cast<int> (args[0]);
                     const int vel  = static_cast<int> (args[1]);
+                    const int variantIdx = (args.size() >= 3)
+                                              ? static_cast<int> (args[2])
+                                              : -1;   // v1.8.0: -1 = primary
 
-                    processorRef.resetLoopToAutoDetect (midi, vel);
+                    processorRef.resetLoopToAutoDetect (midi, vel, variantIdx);
                     complete (juce::var (true));
                 })
 
@@ -781,9 +796,31 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     const int bins = (args.size() >= 3)
                                         ? static_cast<int> (args[2])
                                         : 512;
+                    const int variantIdx = (args.size() >= 4)
+                                              ? static_cast<int> (args[3])
+                                              : 0;   // v1.8.0: default to primary
 
                     complete (juce::var (
-                        processorRef.snapshotWaveformPeaks (midi, vel, bins)));
+                        processorRef.snapshotWaveformPeaks (midi, vel, bins, variantIdx)));
+                })
+
+            // ---- v1.8.0: confirmRoundRobinLoad(accept) ----
+            //
+            // JS calls await Juce.getNativeFunction('confirmRoundRobinLoad')(true)
+            // when the user accepts ambiguous duplicates as RR variants, or
+            // (false) to discard the staged map.
+            .withNativeFunction ("confirmRoundRobinLoad",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1)
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const bool accept = static_cast<bool> (args[0]);
+                    processorRef.confirmRoundRobinLoad (accept);
+                    complete (juce::var (true));
                 })
 
             // ============================================================
@@ -1300,6 +1337,35 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     "folderMissing", juce::var (savedPath));
         });
 
+    // v1.8.0: subscribe to ambiguous-duplicate callback. The folder loader
+    // detected (midi, layer) groups with > 1 file but no rr/take/tk tokens —
+    // surface a confirmation modal in the WebView. Payload is a JSON array
+    // of { midiNote, velocityLayer, filenames: [...] } entries.
+    processorRef.setAmbiguousDuplicateCallback (
+        [this] (const std::vector<SampleLoader::AmbiguousDuplicate>& dups)
+        {
+            if (webView == nullptr)
+                return;
+
+            juce::var arr (juce::Array<juce::var>{});
+            auto* a = arr.getArray();
+            for (const auto& d : dups)
+            {
+                auto* obj = new juce::DynamicObject();
+                obj->setProperty ("midiNote",      d.midiNote);
+                obj->setProperty ("velocityLayer", d.velocityLayer);
+                juce::var fnArr (juce::Array<juce::var>{});
+                auto* fa = fnArr.getArray();
+                for (const auto& s : d.filenames)
+                    fa->add (juce::var (s));
+                obj->setProperty ("filenames", fnArr);
+                a->add (juce::var (obj));
+            }
+            webView->emitEventIfBrowserIsVisible (
+                "ambiguousDuplicates",
+                juce::var (juce::JSON::toString (arr, /*allOnOneLine*/ true)));
+        });
+
     // Navigate to the resource provider's root (cross-platform — never
     // hard-code juce:// vs https://juce.backend/).
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
@@ -1326,6 +1392,7 @@ OMicrotonalSamplerAudioProcessorEditor::~OMicrotonalSamplerAudioProcessorEditor(
     // Detach the processor's callbacks to prevent post-destruction calls.
     processorRef.setSampleMapChangedCallback (nullptr);
     processorRef.setMissingFolderCallback (nullptr);
+    processorRef.setAmbiguousDuplicateCallback (nullptr);   // v1.8.0
     // unique_ptr members destroy in reverse declaration order:
     //   attachments (each calls evaluateJavascript on webView during dtor)
     //   webView

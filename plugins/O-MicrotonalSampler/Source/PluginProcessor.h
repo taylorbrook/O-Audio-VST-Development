@@ -34,6 +34,13 @@
 //                  untouched.
 //   Append       - merge the new slots into the existing map. (midi, layer)
 //                  collisions are overwritten by the new slot.
+//   MergeRR      - v1.9.0. Like Append, but on (midi, layer) collisions the
+//                  new cell's variants are appended to the existing cell's
+//                  variants vector instead of replacing it. Used to layer
+//                  multiple recordings as round-robin alternates on the same
+//                  notes. Per-cell variant count is capped at kMaxVariants
+//                  (64); excess variants are skipped. RR counter for every
+//                  affected cell is reset to the sentinel.
 //
 // Each successful load appends one LoadOp to loadOpHistory; clearSampleMap
 // truncates the history. getStateInformation persists the history so a
@@ -44,7 +51,8 @@ enum class LoadMode
 {
     ReplaceAll   = 0,
     ReplaceLayer = 1,
-    Append       = 2
+    Append       = 2,
+    MergeRR      = 3
 };
 
 struct LoadOp
@@ -202,7 +210,42 @@ public:
     // Phase 3.1: per-cell load (full implementation in 3.2). Skeleton logs
     // and returns. UI calls this when the user single-clicks an empty cell or
     // double-clicks a loaded cell to replace.
-    void loadSingleSample (int midiPitch, int velocityLayer, const juce::File& file);
+    //
+    // v1.8.0 semantics: replaces the cell with a single-variant cell. Existing
+    // multi-variant cells (built via folder load with rr/take/tk tokens) are
+    // collapsed to a single variant on user replace — explicit override of any
+    // RR setup at that coordinate. To build a multi-variant cell, use folder
+    // load.
+    //
+    // v1.9.0: when `mergeAsRr` is true and the target cell already exists, the
+    // new variant is appended to the existing variants vector (capped at 64)
+    // instead of replacing the cell. The UI surfaces a confirm prompt for
+    // non-empty cells; default value preserves v1.8.0 behaviour for legacy
+    // callers.
+    void loadSingleSample (int midiPitch, int velocityLayer, const juce::File& file,
+                           bool mergeAsRr = false);
+
+    // v1.8.0: confirm or reject a folder load that surfaced ambiguous
+    // duplicate (midi, layer) groups (no explicit rr/take/tk tokens).
+    // accept=true commits the staged map (treats duplicates as round-robin
+    // variants); accept=false discards the staged map without applying.
+    // No-op when no map is staged. Message-thread only.
+    void confirmRoundRobinLoad (bool accept);
+
+    // v1.8.0: read-only accessor — true while a folder-load result is staged
+    // pending user confirmation. The editor can use this on attach to re-emit
+    // the modal if it missed the initial event.
+    bool hasPendingRoundRobinConfirmation() const noexcept
+    {
+        return pendingDuplicateMap != nullptr;
+    }
+
+    // v1.8.0: snapshot of staged ambiguous duplicates for the editor's modal.
+    // Returns empty when no confirmation is pending.
+    const std::vector<SampleLoader::AmbiguousDuplicate>& getPendingAmbiguousDuplicates() const noexcept
+    {
+        return pendingAmbiguousDuplicates;
+    }
 
     // v1.0.2: destructive — replaces currentSampleMap with a fresh empty
     // SampleMap (version bumped). Active voices keep their previously
@@ -212,30 +255,35 @@ public:
     void clearSampleMap();
 
     // Phase 3.4: loop-point override (full implementation). Atomically
-    // deep-copies the current SampleMap, mutates the (midi, vel) slot's
-    // loop fields, bumps version, atomic-stores, fires callback.
-    // resetToAutoDetect=true snaps the slot back to whole-file loop default
-    // (v1.4.0 behavior). crossfadeLen is recorded for v1.1 (per RP3-2).
+    // deep-copies the current SampleMap, mutates the (midi, vel) cell's
+    // selected variant, bumps version, atomic-stores, fires callback.
+    //
+    // v1.8.0: variantIndex selects which variant to override within the cell.
+    // -1 (default) = primary variant (index 0) for back-compat with single-
+    // variant cells. resetToAutoDetect=true snaps the variant back to
+    // whole-file loop default. crossfadeLen recorded for v1.1.
     void overrideLoopPoints (int midiPitch, int velocityLayer,
                              int loopStart, int loopEnd,
                              int crossfadeLen,
-                             bool resetToAutoDetect = false);
+                             bool resetToAutoDetect = false,
+                             int variantIndex = -1);
 
     // Phase 3.4: convenience wrapper — calls overrideLoopPoints with the
-    // resetToAutoDetect flag set. v1.4.0: resets to whole-file loop
-    // (loopStart=0, loopEnd=N-2, mode=Auto).
-    void resetLoopToAutoDetect (int midiPitch, int velocityLayer);
+    // resetToAutoDetect flag set. variantIndex defaults to primary (0).
+    void resetLoopToAutoDetect (int midiPitch, int velocityLayer,
+                                int variantIndex = -1);
 
     // Phase 3.1: snapshot the current sample map as a JSON string for the
     // Stage 3 WebView UI (RESEARCH §RQ3-2 schema). Walks `currentSampleMap`
     // (atomic_load) + `lastSkippedFiles`. Read-only — message thread safe.
     juce::String snapshotSampleMapJson() const;
 
-    // Phase 3.1: snapshot waveform peaks for a single slot as JSON (RESEARCH
-    // §RQ3-5). Skeleton in 3.1 — full impl in 3.4. Returns empty JSON {} for
-    // now so JS callers don't crash.
+    // Phase 3.1: snapshot waveform peaks for a single variant as JSON
+    // (RESEARCH §RQ3-5). v1.8.0: variantIndex selects which variant; defaults
+    // to primary (0) for single-variant cells.
     juce::String snapshotWaveformPeaks (int midiPitch, int velocityLayer,
-                                        int targetBins = 512) const;
+                                        int targetBins = 512,
+                                        int variantIndex = 0) const;
 
     // Phase 3.1: editor subscribes via this setter to receive notifications
     // after every atomic-store of `currentSampleMap` (folder load, per-cell
@@ -302,6 +350,32 @@ private:
 
     // Sample-map storage (atomic-swap target — Stage 2.2 background loader writes here)
     std::shared_ptr<SampleMap>                currentSampleMap;
+
+    // v1.8.0: per-cell round-robin counter array. Indexed by `midi * 4 + layer`.
+    // Atomic uint8 per cell so the audio thread can advance counters at
+    // startNote without locks. Sentinel 0xFF = "no last variant" (cleared on
+    // ReplaceAll). Wired to every voice in the constructor.
+    MicrotonalSamplerVoice::RrCounterArray rrCounters;
+
+    // v1.8.0: a folder load that surfaced ambiguous (midi, layer) duplicates
+    // (no rr/take/tk tokens) is staged here pending user confirmation via
+    // confirmRoundRobinLoad. Non-null iff a confirmation modal is in flight.
+    std::shared_ptr<SampleMap>                pendingDuplicateMap;
+    std::vector<SampleLoader::AmbiguousDuplicate> pendingAmbiguousDuplicates;
+    juce::StringArray                         pendingDuplicateSkippedFiles;
+    LoadOp                                    pendingDuplicateOp;
+    std::function<void()>                     pendingDuplicateChainContinuation;
+    std::function<void(const std::vector<SampleLoader::AmbiguousDuplicate>&)>
+                                              ambiguousDuplicateCallback;
+public:
+    // v1.8.0: editor subscribes to surface a confirmation modal when a
+    // folder load surfaces ambiguous duplicates. Fires on the message thread
+    // with the list of conflicting (midi, layer) groups.
+    void setAmbiguousDuplicateCallback (std::function<void(const std::vector<SampleLoader::AmbiguousDuplicate>&)> cb)
+    {
+        ambiguousDuplicateCallback = std::move (cb);
+    }
+private:
 
     // Background sample loader (owns juce::Thread)
     std::unique_ptr<SampleLoader>             sampleLoader;

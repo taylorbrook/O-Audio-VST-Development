@@ -1112,3 +1112,108 @@ body {
         min-width: 50px;
     }
 }
+
+/* ============================================================================
+   v1.8.0 — Round-robin variants
+   ========================================================================== */
+
+/* Multi-variant cell glyph — small antique-gold dot in the upper-right corner
+   so multi-variant cells are scannable at a glance (tooltip carries the
+   filename list). One-variant cells render unchanged from v1.7.x. */
+.grid-cell.cell-multivariant {
+    position: relative;
+}
+.grid-cell.cell-multivariant::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent-gold, #c9a647);
+    box-shadow: 0 0 1px rgba(0,0,0,0.4);
+    pointer-events: none;
+}
+
+/* Variant tab strip in the loop editor. Visible only when cell has > 1
+   variant. One pill-shaped button per variant + a leading label. */
+.le-variant-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--surface-warm, rgba(120, 76, 40, 0.06));
+    border-bottom: 1px solid var(--border-warm, rgba(120, 76, 40, 0.18));
+    flex-wrap: wrap;
+}
+.le-variant-tabs .le-variant-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-right: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.le-variant-tabs .le-variant-tab {
+    min-width: 26px;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid var(--border-warm, rgba(120, 76, 40, 0.3));
+    border-radius: 11px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.le-variant-tabs .le-variant-tab:hover {
+    background: var(--accent-gold-soft, rgba(201, 166, 71, 0.18));
+}
+.le-variant-tabs .le-variant-tab.active {
+    background: var(--accent-gold, #c9a647);
+    color: var(--bg-deep, #2a1810);
+    border-color: var(--accent-gold, #c9a647);
+}
+
+/* Round-robin confirmation modal — same chrome as missing-folder modal,
+   plus a list of (midi, layer) groups with their conflicting filenames. */
+.rr-confirm-dialog-content {
+    max-width: 540px;
+}
+.rr-confirm-list {
+    margin: 12px 0;
+    padding: 0;
+    list-style: none;
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid var(--border-warm, rgba(120, 76, 40, 0.18));
+    border-radius: 4px;
+    background: var(--surface-warm, rgba(120, 76, 40, 0.04));
+}
+.rr-confirm-list > li {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-warm, rgba(120, 76, 40, 0.1));
+}
+.rr-confirm-list > li:last-child {
+    border-bottom: none;
+}
+.rr-confirm-cell-head {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin-bottom: 4px;
+}
+.rr-confirm-filename-list {
+    margin: 0;
+    padding-left: 18px;
+    list-style: disc;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+.rr-confirm-filename-list > li {
+    padding: 1px 0;
+}

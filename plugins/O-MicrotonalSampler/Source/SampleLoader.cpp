@@ -2,7 +2,7 @@
   ==============================================================================
 
     SampleLoader.cpp
-    Microtonal Sample Engine - Background sample loader (Phase 2.2)
+    Microtonal Sample Engine - Background sample loader
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -12,6 +12,7 @@
 #include "SampleLoader.h"
 #include "FilenameParser.h"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -32,7 +33,6 @@ void SampleLoader::loadFolder (const juce::File& folder,
                                CompletionCallback onComplete,
                                FailureCallback    onFailure)
 {
-    // Drain any in-flight load defensively before mutating shared state.
     stopThread (500);
 
     mode               = Mode::Folder;
@@ -42,28 +42,26 @@ void SampleLoader::loadFolder (const juce::File& folder,
     completionCallback = std::move (onComplete);
     failureCallback    = std::move (onFailure);
     skippedFiles.clear();
-    singleSlotCallback = nullptr;
+    singleVariantCallback = nullptr;
 
     startThread();
 }
 
-void SampleLoader::loadSingleSlot (const juce::File&    file,
-                                   int                  midiPitch,
-                                   int                  velocityLayer,
-                                   double               sr,
-                                   SingleSlotCallback   onComplete)
+void SampleLoader::loadSingleVariant (const juce::File&     file,
+                                      int                   midiPitch,
+                                      int                   velocityLayer,
+                                      double                sr,
+                                      SingleVariantCallback onComplete)
 {
-    // Drain any in-flight load defensively before mutating shared state.
     stopThread (500);
 
-    mode               = Mode::SingleSlot;
-    singleFile         = file;
-    singleMidi         = midiPitch;
-    singleVelLayer     = velocityLayer;
-    targetSampleRate   = sr;
-    singleSlotCallback = std::move (onComplete);
+    mode                  = Mode::SingleVariant;
+    singleFile            = file;
+    singleMidi            = midiPitch;
+    singleVelLayer        = velocityLayer;
+    targetSampleRate      = sr;
+    singleVariantCallback = std::move (onComplete);
 
-    // Folder-mode state cleared so a stale callback can't fire.
     completionCallback = nullptr;
     failureCallback    = nullptr;
     skippedFiles.clear();
@@ -77,24 +75,17 @@ void SampleLoader::cancelLoad()
 }
 
 // ----------------------------------------------------------------------
-// Per-file processing helper. Extracted from run() so the single-slot path
-// shares the same SR-convert + mono→stereo + loop-detect pipeline. Returns
-// true on success (slot populated); false on parse/read failure (skipReason
-// populated). midiPitch/velocityLayer are explicit overrides — the folder
-// path supplies them from the FilenameParser; the single-slot path supplies
-// the user-provided cell coordinates.
-//
-// Local-only juce::AudioFormatManager (RESEARCH pitfall #9 — never a member).
-// Caller is responsible for cancellation polling.
+// Per-file processing helper. Loads a file from disk, SR-converts, mono→stereo
+// promotes, and populates a SampleVariant (audio + filename + loop fields).
+// midiPitch/velocityLayer/rrIndex are resolved by the caller — this helper
+// produces the variant only; cell-level addressing is the caller's concern.
 // ----------------------------------------------------------------------
 namespace
 {
     bool processOneFile (const juce::File& file,
-                         int               midiPitch,
-                         int               velocityLayer,
                          double            targetSR,
                          juce::AudioFormatManager& formatManager,
-                         SampleSlot&       outSlot,
+                         SampleVariant&    outVariant,
                          juce::String&     outSkipReason)
     {
         const juce::String displayName = file.getFileName();
@@ -123,7 +114,6 @@ namespace
             return false;
         }
 
-        // Allocate temp buffer (loader thread; not RT-critical) and read.
         juce::AudioBuffer<float> sourceBuf (srcChannels, srcSamples);
         if (! reader->read (&sourceBuf, 0, srcSamples, 0, true, true))
         {
@@ -131,8 +121,6 @@ namespace
             return false;
         }
 
-        // SR conversion (D2-9, RQ-6). srcRatio = srcSR / targetSR.
-        // > 1.0 → source is faster than target → output has fewer samples.
         const bool needsResample = std::abs (srcSR - targetSR) > 0.1;
         juce::AudioBuffer<float> workBuf;
         int outNumSamples = srcSamples;
@@ -147,7 +135,6 @@ namespace
             workBuf.setSize (srcChannels, outNumSamples);
             workBuf.clear();
 
-            // Per-channel separate LagrangeInterpolator (RESEARCH pitfall #10).
             for (int ch = 0; ch < srcChannels; ++ch)
             {
                 juce::LagrangeInterpolator interp;
@@ -167,80 +154,75 @@ namespace
             workBuf = std::move (sourceBuf);
         }
 
-        // Mono → stereo promotion (D2-10).
-        outSlot.audio = std::make_shared<juce::AudioBuffer<float>> (2, outNumSamples);
-        outSlot.audio->clear();
+        outVariant.audio = std::make_shared<juce::AudioBuffer<float>> (2, outNumSamples);
+        outVariant.audio->clear();
 
         if (srcChannels == 1)
         {
-            outSlot.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
-            outSlot.audio->copyFrom (1, 0, workBuf, 0, 0, outNumSamples);
+            outVariant.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
+            outVariant.audio->copyFrom (1, 0, workBuf, 0, 0, outNumSamples);
         }
         else
         {
-            outSlot.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
-            outSlot.audio->copyFrom (1, 0, workBuf, 1, 0, outNumSamples);
+            outVariant.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
+            outVariant.audio->copyFrom (1, 0, workBuf, 1, 0, outNumSamples);
         }
 
-        outSlot.sourceSampleRate = targetSR;     // host-SR after resample
-        outSlot.midiNote         = midiPitch;
-        outSlot.velocityLayer    = velocityLayer;
-        outSlot.filename         = displayName;
+        outVariant.sourceSampleRate = targetSR;
+        outVariant.filename         = displayName;
 
-        // v1.4.0: default to whole-file loop. loopEnd = N - 2 leaves headroom
-        // for the cubic 4-tap interpolator context (renderer reads up to
-        // pos + 2). The 8-sample equal-power crossfade at the wrap handles
-        // click prevention. Closes V11-LOOP-FALLBACK.
-        const int N = outSlot.audio->getNumSamples();
-        if (N >= 18)   // need >= kMinLoopLength (16) + 2 headroom
+        const int N = outVariant.audio->getNumSamples();
+        if (N >= 18)
         {
-            outSlot.loopStart = 0;
-            outSlot.loopEnd   = N - 2;
-            outSlot.loopMode  = LoopMode::Auto;
+            outVariant.loopStart = 0;
+            outVariant.loopEnd   = N - 2;
+            outVariant.loopMode  = LoopMode::Auto;
         }
         else
         {
-            outSlot.loopStart = 0;
-            outSlot.loopEnd   = 0;
-            outSlot.loopMode  = LoopMode::OneShot;
+            outVariant.loopStart = 0;
+            outVariant.loopEnd   = 0;
+            outVariant.loopMode  = LoopMode::OneShot;
         }
 
         outSkipReason.clear();
         return true;
     }
+
+    // v1.8.0: per-file scratch struct used during folder enumeration. Holds
+    // the variant payload + addressing key + RR token (or -1 sentinel).
+    struct LoadedFile
+    {
+        int           midiNote      = -1;
+        int           velocityLayer = 0;
+        int           rrIndex       = -1;
+        SampleVariant variant;
+    };
 }
 
 void SampleLoader::run()
 {
-    // Local-only AudioFormatManager (RESEARCH pitfall #9 — never a member).
     juce::AudioFormatManager formatManager;
     formatManager.registerBasicFormats();
 
     // ------------------------------------------------------------------
-    // Phase 3.2: single-slot mode — process one file with explicit
-    // (midiPitch, velocityLayer) provided by the caller. Skip the
-    // FilenameParser path entirely.
+    // Single-variant mode (per-cell load)
     // ------------------------------------------------------------------
-    if (mode == Mode::SingleSlot)
+    if (mode == Mode::SingleVariant)
     {
-        SampleSlot slot;
-        juce::String skipReason;
+        SampleVariant variant;
+        juce::String  skipReason;
 
-        if (! processOneFile (singleFile,
-                              singleMidi,
-                              singleVelLayer,
-                              targetSampleRate,
-                              formatManager,
-                              slot,
-                              skipReason))
+        if (! processOneFile (singleFile, targetSampleRate, formatManager,
+                              variant, skipReason))
         {
-            // Failure — empty slot (midiNote == -1 by default ctor) + reason.
-            SampleSlot empty;
-            auto cb     = singleSlotCallback;
+            auto cb     = singleVariantCallback;
             auto reason = skipReason;
-            juce::MessageManager::callAsync ([cb, empty, reason]()
+            const int midi = singleMidi;
+            const int vel  = singleVelLayer;
+            juce::MessageManager::callAsync ([cb, midi, vel, reason]()
             {
-                if (cb) cb (empty, reason);
+                if (cb) cb (midi, vel, SampleVariant{}, reason);
             });
             return;
         }
@@ -248,19 +230,19 @@ void SampleLoader::run()
         if (threadShouldExit())
             return;
 
-        // Success — slot populated. Empty skipReason signals success.
-        auto cb       = singleSlotCallback;
-        auto loadedSlot = std::move (slot);
-        juce::MessageManager::callAsync ([cb, loadedSlot]() mutable
+        auto cb       = singleVariantCallback;
+        auto loaded   = std::move (variant);
+        const int midi = singleMidi;
+        const int vel  = singleVelLayer;
+        juce::MessageManager::callAsync ([cb, midi, vel, loaded]() mutable
         {
-            if (cb) cb (std::move (loadedSlot), {});
+            if (cb) cb (midi, vel, std::move (loaded), {});
         });
         return;
     }
 
     // ------------------------------------------------------------------
-    // Folder mode (Phase 2.2 path — unchanged behaviour, refactored to
-    // share the per-file pipeline with single-slot mode).
+    // Folder mode
     // ------------------------------------------------------------------
     if (! pendingFolder.isDirectory())
     {
@@ -274,8 +256,8 @@ void SampleLoader::run()
         return;
     }
 
-    std::vector<SampleSlot> builtSlots;
-    builtSlots.reserve (128);
+    std::vector<LoadedFile> loaded;
+    loaded.reserve (128);
 
     const juce::String wildcards = "*.wav;*.aif;*.aiff;*.flac";
 
@@ -284,13 +266,12 @@ void SampleLoader::run()
                                                             wildcards,
                                                             juce::File::findFiles))
     {
-        if (threadShouldExit())   // RESEARCH pitfall #11 — cancellation point
+        if (threadShouldExit())
             return;
 
-        const juce::File file = entry.getFile();
+        const juce::File   file        = entry.getFile();
         const juce::String displayName = file.getFileName();
 
-        // 1. Parse filename → (midi, velLayer). Folder-mode only.
         auto parsed = FilenameParser::parse (file.getFileNameWithoutExtension());
         if (! parsed.has_value())
         {
@@ -299,38 +280,30 @@ void SampleLoader::run()
             continue;
         }
 
-        // v1.6.0: with overrideTokens, the parser's velLayer is discarded
-        // and every slot lands on the caller-supplied targetLayer. Without
-        // override, the filename token wins (legacy v1.5.x behaviour).
         const int effectiveVelLayer = folderOptions.overrideTokens
             ? juce::jlimit (0, 3, folderOptions.targetLayer)
             : parsed->velLayer;
 
-        // 2. Run the shared per-file pipeline (open → SR-convert → mono→stereo
-        //    → loop-detect). Failures are recorded in skippedFiles.
-        SampleSlot slot;
-        juce::String skipReason;
-        if (! processOneFile (file,
-                              parsed->midiNote,
-                              effectiveVelLayer,
-                              targetSampleRate,
-                              formatManager,
-                              slot,
-                              skipReason))
+        SampleVariant variant;
+        juce::String  skipReason;
+        if (! processOneFile (file, targetSampleRate, formatManager,
+                              variant, skipReason))
         {
             skippedFiles.add (displayName);
             DBG ("SampleLoader: skipped (" << skipReason << ") " << displayName);
             continue;
         }
 
-        builtSlots.push_back (std::move (slot));
+        loaded.push_back ({ parsed->midiNote,
+                            effectiveVelLayer,
+                            parsed->rrIndex,
+                            std::move (variant) });
     }
 
     if (threadShouldExit())
         return;
 
-    // No usable samples → report failure rather than empty completion.
-    if (builtSlots.empty())
+    if (loaded.empty())
     {
         auto fcb = failureCallback;
         const int  skipCount = skippedFiles.size();
@@ -344,30 +317,105 @@ void SampleLoader::run()
         return;
     }
 
-    // Derive map metadata.
+    // ----------------------------------------------------------------
+    // v1.8.0: group by (midiNote, velocityLayer) — each group becomes one
+    // cell. Detect ambiguity: groups with > 1 file AND zero rr/take/tk
+    // tokens surface as AmbiguousDuplicate entries.
+    // ----------------------------------------------------------------
+    auto encodeKey = [] (int midi, int layer) -> int
+    {
+        return (juce::jlimit (0, 127, midi) << 4) | juce::jlimit (0, 3, layer);
+    };
+
+    std::vector<int> groupKeys;
+    groupKeys.reserve (loaded.size());
+    for (const auto& lf : loaded)
+        groupKeys.push_back (encodeKey (lf.midiNote, lf.velocityLayer));
+
+    std::vector<int> uniqueKeys = groupKeys;
+    std::sort (uniqueKeys.begin(), uniqueKeys.end());
+    uniqueKeys.erase (std::unique (uniqueKeys.begin(), uniqueKeys.end()),
+                      uniqueKeys.end());
+
     SampleMap built;
     built.lowestNote        = 127;
     built.highestNote       = 0;
     int maxLayer            = 0;
 
-    for (const auto& s : builtSlots)
-    {
-        built.lowestNote  = juce::jmin (built.lowestNote,  s.midiNote);
-        built.highestNote = juce::jmax (built.highestNote, s.midiNote);
-        maxLayer          = juce::jmax (maxLayer,          s.velocityLayer);
-    }
-    built.numVelocityLayers = juce::jlimit (1, 4, maxLayer + 1);
-    built.slots             = std::move (builtSlots);
+    std::vector<AmbiguousDuplicate> ambiguous;
 
-    // Wrap in shared_ptr — std::make_shared exactly once at the end (PLAN spec).
+    for (int key : uniqueKeys)
+    {
+        // Collect indices of all loaded files that match this key.
+        std::vector<int> idxs;
+        for (int i = 0; i < (int) loaded.size(); ++i)
+            if (groupKeys[(size_t) i] == key)
+                idxs.push_back (i);
+
+        if (idxs.empty())
+            continue;
+
+        const int midi  = loaded[(size_t) idxs[0]].midiNote;
+        const int layer = loaded[(size_t) idxs[0]].velocityLayer;
+
+        // Detect explicit RR vs ambiguous.
+        bool anyExplicitRr = false;
+        for (int i : idxs)
+            if (loaded[(size_t) i].rrIndex >= 0)
+            {
+                anyExplicitRr = true;
+                break;
+            }
+
+        if (idxs.size() > 1 && ! anyExplicitRr)
+        {
+            // Ambiguous duplicate group — record for modal confirmation.
+            // The cell is still BUILT with all variants; the processor stages
+            // it as `pendingDuplicateMap` until the user confirms.
+            AmbiguousDuplicate dup;
+            dup.midiNote      = midi;
+            dup.velocityLayer = layer;
+            for (int i : idxs)
+                dup.filenames.add (loaded[(size_t) i].variant.filename);
+            ambiguous.push_back (std::move (dup));
+        }
+
+        // Sort: explicit-RR entries first by rrIndex; -1 entries after, in
+        // load order. Stable sort preserves enumeration order for ties.
+        std::stable_sort (idxs.begin(), idxs.end(),
+                          [&loaded] (int a, int b)
+                          {
+                              const int ra = loaded[(size_t) a].rrIndex;
+                              const int rb = loaded[(size_t) b].rrIndex;
+                              const int ka = (ra < 0) ? 1000 + a : ra;
+                              const int kb = (rb < 0) ? 1000 + b : rb;
+                              return ka < kb;
+                          });
+
+        SampleCell cell;
+        cell.midiNote      = midi;
+        cell.velocityLayer = layer;
+        cell.variants.reserve (idxs.size());
+        for (int i : idxs)
+            cell.variants.push_back (std::move (loaded[(size_t) i].variant));
+
+        built.lowestNote  = juce::jmin (built.lowestNote,  midi);
+        built.highestNote = juce::jmax (built.highestNote, midi);
+        maxLayer          = juce::jmax (maxLayer,          layer);
+
+        built.cells.push_back (std::move (cell));
+    }
+
+    built.numVelocityLayers = juce::jlimit (1, 4, maxLayer + 1);
+
     auto map = std::make_shared<SampleMap> (std::move (built));
 
-    // Dispatch via message thread (RESEARCH pitfall #12).
-    auto cb      = completionCallback;
-    auto skipped = skippedFiles;
-    juce::MessageManager::callAsync ([cb, map, skipped]()
+    auto cb        = completionCallback;
+    auto skipped   = skippedFiles;
+    auto ambigCopy = ambiguous;
+    juce::MessageManager::callAsync ([cb, map, skipped, ambigCopy]() mutable
     {
         if (cb)
-            cb (map, skipped);
+            cb (map, skipped, std::move (ambigCopy));
     });
 }

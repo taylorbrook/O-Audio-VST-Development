@@ -231,6 +231,47 @@ namespace
     }
 
     //==============================================================================
+    // v1.8.0: parse a round-robin index token. Recognised:
+    //   rr[N]    — 1-based, common in commercial libraries (Spitfire, OT)
+    //   take[N]  — common in indie / sound-design libraries
+    //   tk[N]    — short form
+    // [N] may be 1..2 digits. Returns the 0-based index (rr1 → 0, take7 → 6),
+    // capped at 63. Returns nullopt for unrecognised tokens.
+    //
+    // Case-insensitive. Forms like "round1" / "var1" intentionally NOT recognised
+    // — the user signalled rr/take/tk specifically; we don't widen the surface.
+    std::optional<int> parseAsRrIndex (const juce::String& token)
+    {
+        const auto lc = token.toLowerCase();
+
+        auto extractTrailingDigits = [] (const juce::String& s) -> std::optional<int>
+        {
+            if (s.isEmpty())
+                return std::nullopt;
+            auto* p = s.toRawUTF8();
+            const int len = (int) s.getNumBytesAsUTF8();
+            if (len < 1 || len > 2)
+                return std::nullopt;
+            for (int k = 0; k < len; ++k)
+                if (p[k] < '0' || p[k] > '9')
+                    return std::nullopt;
+            const int n = s.getIntValue();
+            if (n < 1 || n > 64)
+                return std::nullopt;
+            return n - 1;   // 0-based index
+        };
+
+        if (lc.startsWith ("rr"))
+            return extractTrailingDigits (lc.substring (2));
+        if (lc.startsWith ("take"))
+            return extractTrailingDigits (lc.substring (4));
+        if (lc.startsWith ("tk"))
+            return extractTrailingDigits (lc.substring (2));
+
+        return std::nullopt;
+    }
+
+    //==============================================================================
     // Same as parseAsVelocity but rejects bare dynamics tokens (p/mp/mf/f).
     // Used for the PRE-note pass of the velocity scan in `parse()` below.
     //
@@ -344,7 +385,20 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
         }
     }
 
-    return ParsedName { *midiNote, velLayer };
+    // v1.8.0: round-robin index scan. Independent of position relative to
+    // the note token (rr/take/tk has no token-name collision risk like
+    // dynamics letters). First token that matches wins; -1 means no token.
+    int rrIndex = -1;
+    for (int i = 0; i < tokens.size(); ++i)
+    {
+        if (auto rr = parseAsRrIndex (tokens[i]))
+        {
+            rrIndex = *rr;
+            break;
+        }
+    }
+
+    return ParsedName { *midiNote, velLayer, rrIndex };
 }
 
 } // namespace FilenameParser
@@ -366,6 +420,7 @@ namespace FilenameParser
             const char* input;
             std::optional<int> expectedMidi;     // nullopt = expect parse failure
             std::optional<int> expectedVelLayer; // ignored if expectedMidi == nullopt
+            int                expectedRrIndex = -1;  // v1.8.0
         };
     }
 
@@ -373,49 +428,54 @@ namespace FilenameParser
     {
         const std::vector<TestCase> cases = {
             // Scientific pitch + velocity (case-insensitive)
-            { "C4_v1",         60,        0      },
-            { "c4_v1",         60,        0      },
-            { "F#3_v2",        54,        1      },
-            { "Gb5_vel3",      78,        2      },
-            { "A-1_v1",         9,        0      },
+            { "C4_v1",         60,        0,        -1 },
+            { "c4_v1",         60,        0,        -1 },
+            { "F#3_v2",        54,        1,        -1 },
+            { "Gb5_vel3",      78,        2,        -1 },
+            { "A-1_v1",         9,        0,        -1 },
             // MIDI form
-            { "MIDI60_v1",     60,        0      },
-            { "midi72_layer2", 72,        1      },
+            { "MIDI60_v1",     60,        0,        -1 },
+            { "midi72_layer2", 72,        1,        -1 },
             // Bare-integer fallback
-            { "60_v1",         60,        0      },
+            { "60_v1",         60,        0,        -1 },
             // Unparseable
-            { "weird-name",    std::nullopt, std::nullopt },
+            { "weird-name",    std::nullopt, std::nullopt, -1 },
             // Default vel (no velocity token)
-            { "C4",            60,        0      },
+            { "C4",            60,        0,        -1 },
             // Dynamics tokens
-            { "C4_p",          60,        0      },
-            { "C4_mp",         60,        1      },
-            { "C4_mf",         60,        2      },
-            { "C4_f",          60,        3      },
+            { "C4_p",          60,        0,        -1 },
+            { "C4_mp",         60,        1,        -1 },
+            { "C4_mf",         60,        2,        -1 },
+            { "C4_f",          60,        3,        -1 },
             // Order-independent parse
-            { "Lyr3_C4",       60,        2      },
-            { "C4_L4",         60,        3      },
+            { "Lyr3_C4",       60,        2,        -1 },
+            { "C4_L4",         60,        3,        -1 },
             // Extra leading token (filler)
-            { "Sample_C4_v1",  60,        0      },
+            { "Sample_C4_v1",  60,        0,        -1 },
             // Mixed separators
-            { "C4-v2.something", 60,      1      },
+            { "C4-v2.something", 60,      1,        -1 },
 
             // Phase 2.5 reopen — pre-note dynamics must NOT match.
-            // Real-world filename from the user's `vln_long_mp` library —
-            // previously matched "mp" → velLayer=1 (silenced the library
-            // below MIDI vel 65). Now resolves to velLayer=0.
-            { "vln_long_mp-D#3-V127-T6N6", 51, 0 },
-            { "vln_long_mp-C4-V127-EHGV",  60, 0 },
-            // ...and the new-style "Auto Sampled Instrument" form (parser-clean).
-            { "Auto Sampled Instrument-D#3-V127-RJHU", 51, 0 },
-            // Dynamics token in PRE-note position is now skipped.
-            { "mp_C4",     60, 0 },
-            // Dynamics token in POST-note position still works.
-            { "C4_mp",     60, 1 },
-            // Explicit forms in PRE-note position still work (regression guard
-            // for the existing `Lyr3_C4` / `L4_C4` conventions).
-            { "L3_C4",     60, 2 },
-            { "vel2_C4",   60, 1 },
+            { "vln_long_mp-D#3-V127-T6N6", 51, 0,   -1 },
+            { "vln_long_mp-C4-V127-EHGV",  60, 0,   -1 },
+            { "Auto Sampled Instrument-D#3-V127-RJHU", 51, 0, -1 },
+            { "mp_C4",     60, 0,   -1 },
+            { "C4_mp",     60, 1,   -1 },
+            { "L3_C4",     60, 2,   -1 },
+            { "vel2_C4",   60, 1,   -1 },
+
+            // v1.8.0 — round-robin tokens.
+            { "C4_v1_rr1",       60, 0, 0 },
+            { "C4_v1_rr2",       60, 0, 1 },
+            { "C4_rr03",         60, 0, 2 },
+            { "C4_take1",        60, 0, 0 },
+            { "C4_take7",        60, 0, 6 },
+            { "C4_tk1",          60, 0, 0 },
+            { "RR2_C4_v1",       60, 0, 1 },     // pre-note RR also fine
+            { "C4_v1_rr0",       60, 0, -1 },    // 0 rejected (1-based input)
+            { "C4_rr",           60, 0, -1 },    // bare prefix rejected
+            { "C4_round2",       60, 0, -1 },    // not in recognised set
+            { "C4_var3",         60, 0, -1 },    // not in recognised set
         };
 
         int passed = 0, failed = 0;
@@ -426,7 +486,8 @@ namespace FilenameParser
                 (! tc.expectedMidi.has_value() && ! result.has_value())
                 || ( tc.expectedMidi.has_value() &&  result.has_value()
                     && result->midiNote == *tc.expectedMidi
-                    && result->velLayer == *tc.expectedVelLayer);
+                    && result->velLayer == *tc.expectedVelLayer
+                    && result->rrIndex  == tc.expectedRrIndex);
 
             if (ok) { ++passed; }
             else
@@ -435,13 +496,15 @@ namespace FilenameParser
                 std::cout << "FAIL: '" << tc.input << "' -> ";
                 if (result.has_value())
                     std::cout << "(midi=" << result->midiNote
-                              << ", vel=" << result->velLayer << ")";
+                              << ", vel=" << result->velLayer
+                              << ", rr=" << result->rrIndex << ")";
                 else
                     std::cout << "<none>";
                 std::cout << "  expected ";
                 if (tc.expectedMidi.has_value())
                     std::cout << "(midi=" << *tc.expectedMidi
-                              << ", vel=" << *tc.expectedVelLayer << ")";
+                              << ", vel=" << *tc.expectedVelLayer
+                              << ", rr=" << tc.expectedRrIndex << ")";
                 else
                     std::cout << "<none>";
                 std::cout << "\n";

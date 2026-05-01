@@ -6,40 +6,57 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Phase 2.1: findSlot implemented as a linear scan over slots.
+    Phase 2.1: findCell implemented as a linear scan over cells.
 
     Lifetime model: held by PluginProcessor as std::shared_ptr<SampleMap>.
     Background loader produces a new shared_ptr; message thread atomic-stores
     it into the processor's slot. Voices snapshot the shared_ptr in startNote
     (lock-free refcount inc) and hold for the note's duration.
 
-    Phase 3.1 invariant addition (RQ3-3 / RQ3-2):
-      - SampleSlot::audio is now std::shared_ptr<juce::AudioBuffer<float>> so
-        per-cell replace can deep-copy SampleMap's slot vector cheaply (we
-        copy a vector of shared_ptrs + POD fields, not the audio data itself).
-        Voices read via slot->audio->getReadPointer(ch). Active-note voices
-        keep their snapshot map alive (transitive ref) so a slot replacement
+    v1.8.0 — Round-Robin Samples
+    ----------------------------
+    The structure was refactored to support multiple SAMPLE VARIANTS per
+    (midiNote, velocityLayer) coordinate ("cell"). Detection happens at load:
+
+      - Filenames with explicit `rr[N]`, `take[N]`, or `tk[N]` tokens grouping
+        the same (midi, layer) become silent variants of one cell.
+      - Bare duplicates (same (midi, layer) without RR tokens) trigger a
+        WebView confirmation modal — see PluginProcessor::pendingAmbiguousDuplicates.
+
+    Voices select a variant per startNote via PluginProcessor's RR mode +
+    per-cell counter (RT-safe atomic ops; no allocation in the audio path).
+
+    The single-variant case is bit-identical to v1.7.1 — render-harness
+    identity test (single-variant library) verifies zero overhead.
+
+    Phase 3.1 invariant carried forward (per-variant):
+      - SampleVariant::audio is std::shared_ptr<juce::AudioBuffer<float>> so
+        per-cell replace can deep-copy SampleMap's cell vector cheaply.
+        Voices read via variant->audio->getReadPointer(ch). Active-note voices
+        keep their snapshot map alive (transitive ref) so a cell replacement
         mid-note does not invalidate the held buffer (Stage 2 EC-3).
-      - SampleSlot::filename is the basename (File::getFileName()) populated
+      - SampleVariant::filename is the basename (File::getFileName()) populated
         by the loader. Used for Stage 3 UI cell tooltip / loop editor header.
-      - SampleSlot::loopMode defaults to Auto with whole-file loop points
+      - SampleVariant::loopMode defaults to Auto with whole-file loop points
         (loopStart=0, loopEnd=N-2) since v1.4.0. Falls back to OneShot only
         when the buffer is too short for the cubic-context headroom (< 18
         samples). Manual mode is set when the user overrides loop points via
-        the Stage 3 loop editor.
+        the Stage 3 loop editor — now per-variant (each variant has its own
+        loop region).
       - SampleMap::version is monotonic; bumped by the processor on every
         atomic-store. Stage 3 JS uses it for diff detection / stale-data
         guards in the async cell-replace queue (EC3-5).
-
-    All additions are STRICTLY ADDITIVE — Stage 2 audio path semantics are
-    unchanged after Phase 3.1 (verified via render-harness identity test in
-    PLAN Task 4).
 
   ==============================================================================
 */
 
 #pragma once
-#include <JuceHeader.h>
+// Specific JUCE module headers (instead of the build-system-generated
+// <JuceHeader.h>) so this header is consumable by standalone test executables
+// that don't go through juce_add_plugin (e.g. merge_rr_check.cpp).
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_core/juce_core.h>
+#include <algorithm>
 #include <cstdlib>
 #include <limits>
 #include <memory>
@@ -74,58 +91,69 @@ struct LoadOptions
     bool overrideTokens = false;
 };
 
-struct SampleSlot
+// v1.8.0: a single audio "take" within a cell. A cell holds one variant in the
+// common (single-variant) case — bit-identical to v1.7.1. Multiple variants
+// surface from explicit rr[N]/take[N]/tk[N] filename tokens or from
+// user-confirmed bare duplicates (modal flow).
+struct SampleVariant
 {
-    // Phase 3.1: audio held via shared_ptr so SampleMap deep-copies are cheap
-    // (vector of pointers + POD fields). Voices read through one extra
-    // indirection: slot->audio->getReadPointer(ch). Lifetime is owned by the
-    // map snapshot held by the active voice (Stage 2 EC-3 invariant).
     std::shared_ptr<juce::AudioBuffer<float>> audio;
-
     juce::String filename;                   // Basename only (File::getFileName())
     double       sourceSampleRate = 0.0;
-    int          midiNote         = -1;
-    int          velocityLayer    = 0;       // 0..3
     int          loopStart        = 0;
     int          loopEnd          = 0;       // 0 = no loop (one-shot)
     LoopMode     loopMode         = LoopMode::OneShot;
 };
 
+// v1.8.0: a cell is the (midiNote, velocityLayer) coordinate. It holds one or
+// more SampleVariants. variants is never empty when the cell is present in
+// SampleMap::cells — the loader filters out failed loads.
+struct SampleCell
+{
+    int                        midiNote      = -1;
+    int                        velocityLayer = 0;       // 0..3
+    std::vector<SampleVariant> variants;                // size >= 1 when populated
+
+    // Convenience: the primary (first) variant. Used in legacy code paths
+    // that haven't been variant-aware updated. RT-safe (no alloc, no throw).
+    const SampleVariant& primary() const noexcept { return variants.front(); }
+};
+
 struct SampleMap
 {
-    std::vector<SampleSlot> slots;
+    std::vector<SampleCell> cells;
     int                     lowestNote        = 127;
     int                     highestNote       = 0;
     int                     numVelocityLayers = 1;  // 1..4
     int                     version           = 0;  // Phase 3.1: monotonic counter
 
-    // Linear scan returning the slot in `velocityLayer` whose midiNote is
+    // Linear scan returning the cell in `velocityLayer` whose midiNote is
     // closest to the requested `midiNote`. Implements REQUIREMENTS §FUNC-04
     // ("or nearest if N is unsampled") — the voice's repitch path
-    // (computePlayRateForSlot) handles the pitch shift. Returns nullptr only
-    // when the requested layer contains no slots at all.
+    // (computePlayRateForVariant) handles the pitch shift. Returns nullptr only
+    // when the requested layer contains no cells at all.
     //
-    // Tie-breaking: when two slots are equidistant, prefer the lower midiNote
+    // Tie-breaking: when two cells are equidistant, prefer the lower midiNote
     // so the equidistant choice transposes UP — preserves more of the
     // sample's low-frequency content than a downshift would.
     //
     // The `velocityLayer` parameter is the LAYER INDEX (0..numVelocityLayers-1),
     // NOT a 0-127 velocity value — the caller derives the layer from velocity.
-    const SampleSlot* findSlot (int midiNote, int velocityLayer) const noexcept
+    const SampleCell* findCell (int midiNote, int velocityLayer) const noexcept
     {
-        const SampleSlot* best     = nullptr;
+        const SampleCell* best     = nullptr;
         int               bestDist = std::numeric_limits<int>::max();
 
-        for (const auto& s : slots)
+        for (const auto& c : cells)
         {
-            if (s.velocityLayer != velocityLayer)
+            if (c.velocityLayer != velocityLayer)
                 continue;
 
-            const int d = std::abs (s.midiNote - midiNote);
+            const int d = std::abs (c.midiNote - midiNote);
             if (d < bestDist
-                || (d == bestDist && best != nullptr && s.midiNote < best->midiNote))
+                || (d == bestDist && best != nullptr && c.midiNote < best->midiNote))
             {
-                best     = &s;
+                best     = &c;
                 bestDist = d;
             }
         }
@@ -133,3 +161,57 @@ struct SampleMap
         return best;
     }
 };
+
+//==============================================================================
+// v1.9.0 — round-robin merge helper.
+//
+// Inserts `newCell` into `targetCells`. If a cell with matching (midiNote,
+// velocityLayer) already exists, the new cell's variants are appended onto
+// the existing cell's variants vector instead of replacing the cell — used
+// by LoadMode::MergeRR and the per-cell single-file merge path.
+//
+// Variant cap: each cell holds at most `maxVariantsPerCell` (64). Excess
+// variants from `newCell.variants` past the cap are skipped; their filenames
+// are appended to `outSkipped` (prefixed with "variant cap reached: ") so
+// the UI can surface them in the existing skipped-files toast.
+//
+// Returns true if the merge produced any visible change (cell added or
+// variants appended), false if the cap rejected every variant.
+//
+// This helper is pure: no atomic ops, no callbacks, no RR-counter access. The
+// processor wraps it with the atomic-store + counter reset for live cells.
+inline bool applyMergeRrCell (std::vector<SampleCell>& targetCells,
+                              const SampleCell&        newCell,
+                              int                      maxVariantsPerCell,
+                              juce::StringArray&       outSkipped)
+{
+    auto it = std::find_if (targetCells.begin(), targetCells.end(),
+        [&newCell] (const SampleCell& c)
+        {
+            return c.midiNote      == newCell.midiNote
+                && c.velocityLayer == newCell.velocityLayer;
+        });
+
+    if (it == targetCells.end())
+    {
+        targetCells.push_back (newCell);
+        return true;
+    }
+
+    const int existing = (int) it->variants.size();
+    const int room     = std::max (0, maxVariantsPerCell - existing);
+    const int incoming = (int) newCell.variants.size();
+    const int toAdd    = std::min (room, incoming);
+
+    for (int i = toAdd; i < incoming; ++i)
+        outSkipped.add ("variant cap reached: "
+            + newCell.variants[(size_t) i].filename);
+
+    if (toAdd <= 0)
+        return false;
+
+    it->variants.reserve ((size_t) (existing + toAdd));
+    for (int i = 0; i < toAdd; ++i)
+        it->variants.push_back (newCell.variants[(size_t) i]);
+    return true;
+}

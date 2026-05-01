@@ -105,6 +105,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
         " dB"
     ));
 
+    // ========== v1.8.0 Round-Robin Mode (1) ==========
+    //
+    // 0 = Cycle (sequential 0..N-1, wraps)
+    // 1 = Random No-Repeat (default; uniform from {0..N-1} \ {last})
+    // 2 = Random (uniform; may repeat)
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "rr_mode", 1 },
+        "Round-Robin Mode",
+        juce::StringArray { "Cycle", "Random No-Repeat", "Random" },
+        /*default*/ 1
+    ));
+
     return layout;
 }
 
@@ -115,8 +127,13 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     , parameters (*this, nullptr, "Parameters", createParameterLayout())
 {
     // Initialize sample-map slot with an empty SampleMap so audio-thread reads
-    // see a valid (findSlot-returns-nullptr) target before any folder is loaded.
+    // see a valid (findCell-returns-nullptr) target before any folder is loaded.
     currentSampleMap = std::make_shared<SampleMap>();
+
+    // v1.8.0: zero out RR counters with sentinel 0xFF (no-last). Atomic stores
+    // here are safe — no voices are running yet.
+    for (auto& c : rrCounters)
+        c.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
 
     // Pre-allocate 16 voices (matches max polyphony cap). Voice manager will
     // enforce the runtime cap; pre-allocating prevents processBlock allocations
@@ -128,6 +145,7 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
         voice->setTuningEngine        (&tuningEngine);                          // D-4: global namespace
         voice->setPendingTuningSource (&vst3Extensions.getPendingTable());      // module-owned table
         voice->setSampleMapSource     (&currentSampleMap);                      // shared_ptr slot
+        voice->setRrCounterArray      (&rrCounters);                            // v1.8.0
         synthesiser.addVoice (voice);
     }
 
@@ -184,34 +202,29 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
         const int    numFrames = (int) std::floor (0.25 * hostSR);
 
         auto map = std::make_shared<SampleMap>();
-        map->slots.reserve (108 - 21 + 1);
+        map->cells.reserve (108 - 21 + 1);
         map->lowestNote        = 21;
         map->highestNote       = 108;
         map->numVelocityLayers = 1;
 
         for (int midi = 21; midi <= 108; ++midi)
         {
-            SampleSlot s;
-            s.midiNote         = midi;
-            s.velocityLayer    = 0;
-            s.sourceSampleRate = hostSR;
-            s.loopStart        = 0;
-            s.loopEnd          = 0;          // one-shot in 2.1
-            // Phase 3.1: audio held via shared_ptr<AudioBuffer<float>>.
-            s.audio = std::make_shared<juce::AudioBuffer<float>> (2, numFrames);
-            s.audio->clear();
+            SampleVariant v;
+            v.sourceSampleRate = hostSR;
+            v.loopStart        = 0;
+            v.loopEnd          = 0;          // one-shot in 2.1
+            v.audio = std::make_shared<juce::AudioBuffer<float>> (2, numFrames);
+            v.audio->clear();
 
             const double freq = 440.0 * std::pow (2.0, (midi - 69) / 12.0);
             const double twoPi = juce::MathConstants<double>::twoPi;
             const double phaseInc = twoPi * freq / hostSR;
-            const float  amp  = 0.25f;       // -12 dBFS to leave plenty of headroom
-            // 5 ms cosine fade-in / fade-out to keep the burst click-free; the
-            // ADSR will further shape, but a clean source matters.
+            const float  amp  = 0.25f;
             const int fadeSamples = juce::jmin (numFrames / 4,
                                                 (int) std::floor (0.005 * hostSR));
 
-            float* L = s.audio->getWritePointer (0);
-            float* R = s.audio->getWritePointer (1);
+            float* L = v.audio->getWritePointer (0);
+            float* R = v.audio->getWritePointer (1);
 
             double phase = 0.0;
             for (int n = 0; n < numFrames; ++n)
@@ -229,14 +242,18 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
                                        * (double) k / (double) fadeSamples));
                     }
                 }
-                const float v = amp * w * (float) std::sin (phase);
-                L[n] = v;
-                R[n] = v;
+                const float val = amp * w * (float) std::sin (phase);
+                L[n] = val;
+                R[n] = val;
                 phase += phaseInc;
                 if (phase > twoPi) phase -= twoPi;
             }
 
-            map->slots.push_back (std::move (s));
+            SampleCell c;
+            c.midiNote      = midi;
+            c.velocityLayer = 0;
+            c.variants.push_back (std::move (v));
+            map->cells.push_back (std::move (c));
         }
 
         // Phase 3.1: bump version (test fixture path).
@@ -409,8 +426,23 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
         LoadOptions { clampedLayer, overrideTokens },
 
         // Completion callback — runs on the message thread.
-        [this, op](std::shared_ptr<SampleMap> newMap, juce::StringArray skipped)
+        [this, op](std::shared_ptr<SampleMap> newMap,
+                   juce::StringArray skipped,
+                   std::vector<SampleLoader::AmbiguousDuplicate> ambig)
         {
+            // v1.8.0: ambiguous duplicates → stage the map and surface the
+            // confirmation modal instead of applying immediately.
+            if (! ambig.empty())
+            {
+                pendingDuplicateMap            = std::move (newMap);
+                pendingDuplicateSkippedFiles   = std::move (skipped);
+                pendingAmbiguousDuplicates     = std::move (ambig);
+                pendingDuplicateOp             = op;
+                pendingDuplicateChainContinuation = nullptr;
+                if (ambiguousDuplicateCallback)
+                    ambiguousDuplicateCallback (pendingAmbiguousDuplicates);
+                return;
+            }
             applyFolderLoad (std::move (newMap), skipped, op);
         },
 
@@ -450,54 +482,80 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
 
     if (op.mode == LoadMode::ReplaceAll || prev == nullptr)
     {
-        // Wipe the existing map; truncate history to a single op.
-        merged->slots = newSlotsMap->slots;
+        merged->cells = newSlotsMap->cells;
         loadOpHistory.clear();
+        // v1.8.0: ReplaceAll resets every RR counter to the sentinel.
+        for (auto& c : rrCounters)
+            c.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
     }
     else
     {
-        // Start from the existing map's slots; mutate per mode.
-        merged->slots = prev->slots;
+        merged->cells = prev->cells;
 
         if (op.mode == LoadMode::ReplaceLayer)
         {
             const int target = juce::jlimit (0, 3, op.targetLayer);
-            merged->slots.erase (
-                std::remove_if (merged->slots.begin(), merged->slots.end(),
-                    [target] (const SampleSlot& s)
+            merged->cells.erase (
+                std::remove_if (merged->cells.begin(), merged->cells.end(),
+                    [target] (const SampleCell& c)
                     {
-                        return s.velocityLayer == target;
+                        return c.velocityLayer == target;
                     }),
-                merged->slots.end());
+                merged->cells.end());
+            // v1.8.0: drop counters for the wiped layer.
+            for (int midi = 0; midi < 128; ++midi)
+                rrCounters[(size_t) (midi * 4 + target)].store (
+                    (uint8_t) 0xFFu, std::memory_order_relaxed);
         }
 
-        // Append (or finish ReplaceLayer) — for any (midi, layer) collision,
-        // the new slot wins.
-        for (const auto& newSlot : newSlotsMap->slots)
+        // Per-cell collision behaviour depends on mode:
+        //   Append / ReplaceLayer — new cell replaces the old one entirely.
+        //   MergeRR (v1.9.0)       — concatenate new variants onto the existing
+        //                            cell's variants vector (capped at
+        //                            kMaxVariantsPerCell). Cells with no
+        //                            existing match are added as today.
+        // Counter for every touched cell is reset so the first note-on doesn't
+        // pick a now-out-of-range index.
+        constexpr int kMaxVariantsPerCell = 64;
+
+        for (const auto& newCell : newSlotsMap->cells)
         {
-            merged->slots.erase (
-                std::remove_if (merged->slots.begin(), merged->slots.end(),
-                    [&newSlot] (const SampleSlot& s)
-                    {
-                        return s.midiNote      == newSlot.midiNote
-                            && s.velocityLayer == newSlot.velocityLayer;
-                    }),
-                merged->slots.end());
-            merged->slots.push_back (newSlot);
+            const int counterIdx = juce::jlimit (0, 511,
+                newCell.midiNote * 4 + newCell.velocityLayer);
+
+            if (op.mode == LoadMode::MergeRR)
+            {
+                applyMergeRrCell (merged->cells, newCell,
+                                  kMaxVariantsPerCell, lastSkippedFiles);
+            }
+            else
+            {
+                merged->cells.erase (
+                    std::remove_if (merged->cells.begin(), merged->cells.end(),
+                        [&newCell] (const SampleCell& c)
+                        {
+                            return c.midiNote      == newCell.midiNote
+                                && c.velocityLayer == newCell.velocityLayer;
+                        }),
+                    merged->cells.end());
+                merged->cells.push_back (newCell);
+            }
+
+            rrCounters[(size_t) counterIdx].store ((uint8_t) 0xFFu,
+                                                    std::memory_order_relaxed);
         }
     }
 
-    // Recompute metadata over the merged slot list.
     merged->lowestNote        = 127;
     merged->highestNote       = 0;
     int maxLayer              = 0;
-    for (const auto& s : merged->slots)
+    for (const auto& c : merged->cells)
     {
-        merged->lowestNote  = juce::jmin (merged->lowestNote,  s.midiNote);
-        merged->highestNote = juce::jmax (merged->highestNote, s.midiNote);
-        maxLayer            = juce::jmax (maxLayer,            s.velocityLayer);
+        merged->lowestNote  = juce::jmin (merged->lowestNote,  c.midiNote);
+        merged->highestNote = juce::jmax (merged->highestNote, c.midiNote);
+        maxLayer            = juce::jmax (maxLayer,            c.velocityLayer);
     }
-    if (merged->slots.empty())
+    if (merged->cells.empty())
     {
         merged->lowestNote  = 127;
         merged->highestNote = 0;
@@ -517,11 +575,48 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
     DBG ("loadSampleFolder applied: mode=" << (int) op.mode
          << " layer=" << op.targetLayer
          << " override=" << (int) op.overrideTokens
-         << " merged slots=" << (int) merged->slots.size()
+         << " merged cells=" << (int) merged->cells.size()
          << " (v" << merged->version << ")");
 
     if (sampleMapChangedCallback)
         sampleMapChangedCallback();
+}
+
+//==============================================================================
+// v1.8.0: confirm or reject a staged folder load with ambiguous duplicates.
+// accept=true → apply the staged map (treats duplicates as variants).
+// accept=false → discard staged map; no map change.
+void OMicrotonalSamplerAudioProcessor::confirmRoundRobinLoad (bool accept)
+{
+    if (pendingDuplicateMap == nullptr)
+        return;
+
+    auto map      = std::move (pendingDuplicateMap);
+    auto skipped  = std::move (pendingDuplicateSkippedFiles);
+    auto op       = pendingDuplicateOp;
+    auto chain    = std::move (pendingDuplicateChainContinuation);
+
+    pendingDuplicateMap.reset();
+    pendingDuplicateSkippedFiles.clear();
+    pendingAmbiguousDuplicates.clear();
+    pendingDuplicateChainContinuation = nullptr;
+
+    if (accept)
+    {
+        applyFolderLoad (std::move (map), skipped, op);
+    }
+    else
+    {
+        DBG ("confirmRoundRobinLoad: user declined; discarding staged map");
+        // Surface the skipped files anyway so the UI can hint about what was
+        // dropped.
+        lastSkippedFiles = skipped;
+        if (sampleMapChangedCallback)
+            sampleMapChangedCallback();
+    }
+
+    // Continue any chained replay sequence (state-restore path).
+    if (chain) chain();
 }
 
 //==============================================================================
@@ -555,8 +650,23 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
             f,
             getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
             LoadOptions { op.targetLayer, op.overrideTokens },
-            [this, op] (std::shared_ptr<SampleMap> newMap, juce::StringArray skipped)
+            [this, op] (std::shared_ptr<SampleMap> newMap,
+                        juce::StringArray skipped,
+                        std::vector<SampleLoader::AmbiguousDuplicate> ambig)
             {
+                if (! ambig.empty())
+                {
+                    // v1.8.0: stage the map and surface the modal; chain the
+                    // next replay op once the user confirms/rejects.
+                    pendingDuplicateMap            = std::move (newMap);
+                    pendingDuplicateSkippedFiles   = std::move (skipped);
+                    pendingAmbiguousDuplicates     = std::move (ambig);
+                    pendingDuplicateOp             = op;
+                    pendingDuplicateChainContinuation = [this]() { kickNextReplayOp(); };
+                    if (ambiguousDuplicateCallback)
+                        ambiguousDuplicateCallback (pendingAmbiguousDuplicates);
+                    return;
+                }
                 applyFolderLoad (std::move (newMap), skipped, op);
                 kickNextReplayOp();   // chain to next op
             },
@@ -592,7 +702,8 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
 // keep their old buffer alive transitively until the note releases.
 void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                                                           int velocityLayer,
-                                                          const juce::File& file)
+                                                          const juce::File& file,
+                                                          bool mergeAsRr)
 {
     if (sampleLoader == nullptr)
         return;
@@ -630,57 +741,85 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
     const double sr = (getSampleRate() > 0.0) ? getSampleRate() : 48000.0;
 
     // ------------------------ Async load ------------------------
-    sampleLoader->loadSingleSlot (
+    sampleLoader->loadSingleVariant (
         file,
         midiPitch,
         velocityLayer,
         sr,
-        [this, midiPitch, velocityLayer] (SampleSlot newSlot, juce::String skipReason)
+        [this, mergeAsRr] (int targetMidi, int targetVel,
+                           SampleVariant newVariant, juce::String skipReason)
         {
-            // Failure path — newSlot.midiNote == -1 (default) signals failure.
-            if (newSlot.midiNote < 0 || newSlot.audio == nullptr)
+            if (newVariant.audio == nullptr)
             {
                 if (skipReason.isNotEmpty())
                 {
                     lastSkippedFiles.add (skipReason);
                     DBG ("loadSingleSample failed: " << skipReason);
                 }
-                else
-                {
-                    DBG ("loadSingleSample failed (no reason supplied)");
-                }
-                // Still notify the editor so the UI can surface the new
-                // skipped file even when no map change happened.
                 if (sampleMapChangedCallback)
                     sampleMapChangedCallback();
                 return;
             }
 
-            // Success — the loader already populated newSlot with the right
-            // midi/vel coordinates, but be explicit to defend against any
-            // future loader-API drift.
-            newSlot.midiNote      = midiPitch;
-            newSlot.velocityLayer = velocityLayer;
-
-            // Snapshot the current map (atomic_load).
            #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
             auto currentMap = std::atomic_load (&currentSampleMap);
            #else
             auto currentMap = currentSampleMap;
            #endif
 
-            // Deep-copy header + filter old (midi, vel) match out, then push
-            // the new slot. The vector copy is cheap because each slot's
-            // audio is a shared_ptr (Phase 3.1 invariant addition — RQ3-3).
-            auto next = std::make_shared<SampleMap>();
+            constexpr int kMaxVariantsPerCell = 64;
+
+            // v1.9.0: detect collision with an existing cell. mergeAsRr=true
+            // appends to the cell's variants; mergeAsRr=false (default) keeps
+            // v1.8.0 semantics — replace the cell with a fresh single-variant.
+            const SampleCell* existingCell = nullptr;
             if (currentMap != nullptr)
             {
-                next->slots.reserve (currentMap->slots.size() + 1);
-                for (const auto& s : currentMap->slots)
+                for (const auto& c : currentMap->cells)
+                    if (c.midiNote == targetMidi && c.velocityLayer == targetVel)
+                    {
+                        existingCell = &c;
+                        break;
+                    }
+            }
+
+            const bool doMerge = mergeAsRr && existingCell != nullptr
+                && (int) existingCell->variants.size() < kMaxVariantsPerCell;
+
+            if (mergeAsRr && existingCell != nullptr
+                && (int) existingCell->variants.size() >= kMaxVariantsPerCell)
+            {
+                lastSkippedFiles.add ("variant cap reached: " + newVariant.filename);
+                DBG ("loadSingleSample: variant cap (" << kMaxVariantsPerCell
+                     << ") reached at midi=" << targetMidi << " vel=" << targetVel
+                     << " — skipping " << newVariant.filename);
+                if (sampleMapChangedCallback)
+                    sampleMapChangedCallback();
+                return;
+            }
+
+            // Build a fresh map: copy all cells (modifying the matching one
+            // in place when merging) and push the new variant.
+            auto next = std::make_shared<SampleMap>();
+            bool placed = false;
+            if (currentMap != nullptr)
+            {
+                next->cells.reserve (currentMap->cells.size() + 1);
+                for (const auto& c : currentMap->cells)
                 {
-                    if (s.midiNote == midiPitch && s.velocityLayer == velocityLayer)
-                        continue;   // drop the old slot at this cell
-                    next->slots.push_back (s);  // shared_ptr copy = pointer copy
+                    if (c.midiNote == targetMidi && c.velocityLayer == targetVel)
+                    {
+                        if (doMerge)
+                        {
+                            SampleCell mergedCell = c;
+                            mergedCell.variants.push_back (newVariant);
+                            next->cells.push_back (std::move (mergedCell));
+                            placed = true;
+                        }
+                        // mergeAsRr=false → drop the old cell (replace path).
+                        continue;
+                    }
+                    next->cells.push_back (c);
                 }
                 next->lowestNote        = currentMap->lowestNote;
                 next->highestNote       = currentMap->highestNote;
@@ -694,42 +833,49 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                 next->numVelocityLayers = 1;
                 next->version           = 0;
             }
-            next->slots.push_back (std::move (newSlot));
 
-            // Extend header to cover the inserted cell.
-            next->lowestNote  = juce::jmin (next->lowestNote,  midiPitch);
-            next->highestNote = juce::jmax (next->highestNote, midiPitch);
-            next->numVelocityLayers = juce::jlimit (1, 4,
-                juce::jmax (next->numVelocityLayers, velocityLayer + 1));
-
-            // First-load corner case — if the map was empty, lowestNote/highestNote
-            // were both midiPitch and that's correct. Reset bounds defensively
-            // when slots becomes the inserted note in isolation.
-            if (next->slots.size() == 1)
+            if (! placed)
             {
-                next->lowestNote  = midiPitch;
-                next->highestNote = midiPitch;
+                SampleCell freshCell;
+                freshCell.midiNote      = targetMidi;
+                freshCell.velocityLayer = targetVel;
+                freshCell.variants.push_back (std::move (newVariant));
+                next->cells.push_back (std::move (freshCell));
             }
 
-            // Bump version (every atomic-store).
+            next->lowestNote  = juce::jmin (next->lowestNote,  targetMidi);
+            next->highestNote = juce::jmax (next->highestNote, targetMidi);
+            next->numVelocityLayers = juce::jlimit (1, 4,
+                juce::jmax (next->numVelocityLayers, targetVel + 1));
+
+            if (next->cells.size() == 1)
+            {
+                next->lowestNote  = targetMidi;
+                next->highestNote = targetMidi;
+            }
+
             next->version = (currentMap != nullptr ? currentMap->version : 0) + 1;
 
-            // Atomic-store. Voices snapshot via shared_ptr copy at startNote
-            // (refcount inc — RT-safe). Already-held voices continue with
-            // their snapshot of the OLD map, keeping the old buffer alive
-            // for the duration of the note (Stage 2 EC-3 invariant).
            #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
             std::atomic_store (&currentSampleMap, next);
            #else
             currentSampleMap = next;
            #endif
 
-            DBG ("loadSingleSample success: midi=" << midiPitch
-                 << " vel=" << velocityLayer
-                 << " slots=" << (int) next->slots.size()
+            // v1.8.0: per-cell replace resets the RR counter — the old cell
+            // may have had multiple variants; the new cell has exactly one.
+            // v1.9.0: merge path also resets so the next note-on doesn't
+            // index past the just-grown variants vector with a stale value.
+            const int counterIdx = juce::jlimit (0, 511, targetMidi * 4 + targetVel);
+            rrCounters[(size_t) counterIdx].store ((uint8_t) 0xFFu,
+                                                    std::memory_order_relaxed);
+
+            DBG ("loadSingleSample success: midi=" << targetMidi
+                 << " vel=" << targetVel
+                 << " mode=" << (doMerge ? "merge_rr" : "replace")
+                 << " cells=" << (int) next->cells.size()
                  << " v" << next->version);
 
-            // Notify editor (push event to JS via emitEventIfBrowserIsVisible).
             if (sampleMapChangedCallback)
                 sampleMapChangedCallback();
         });
@@ -763,9 +909,9 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
                                                             int loopStart,
                                                             int loopEnd,
                                                             int crossfadeLen,
-                                                            bool resetToAutoDetect)
+                                                            bool resetToAutoDetect,
+                                                            int variantIndex)
 {
-    // Snapshot the current map.
    #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
     auto current = std::atomic_load (&currentSampleMap);
    #else
@@ -778,106 +924,106 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
         return;
     }
 
-    const auto* foundSlot = current->findSlot (midiPitch, velocityLayer);
-    if (foundSlot == nullptr)
+    const auto* foundCell = current->findCell (midiPitch, velocityLayer);
+    if (foundCell == nullptr || foundCell->variants.empty())
     {
-        DBG ("overrideLoopPoints: slot absent (midi=" << midiPitch
+        DBG ("overrideLoopPoints: cell absent (midi=" << midiPitch
              << " vel=" << velocityLayer << ")");
         return;
     }
 
-    // Deep-copy header + slot vector. Each slot's audio is a shared_ptr so
-    // this is cheap — vector of pointers + POD fields.
     auto next = std::make_shared<SampleMap> (*current);
 
-    // Locate the matching slot in the COPIED vector (mutable).
-    SampleSlot* targetSlot = nullptr;
-    for (auto& s : next->slots)
+    SampleCell* targetCell = nullptr;
+    for (auto& c : next->cells)
     {
-        if (s.midiNote == midiPitch && s.velocityLayer == velocityLayer)
+        if (c.midiNote == midiPitch && c.velocityLayer == velocityLayer)
         {
-            targetSlot = &s;
+            targetCell = &c;
             break;
         }
     }
 
-    if (targetSlot == nullptr)
+    if (targetCell == nullptr || targetCell->variants.empty())
     {
-        // Should never happen — current->findSlot found one but next's deep
-        // copy didn't. Defensive bail-out.
-        DBG ("overrideLoopPoints: target slot vanished after deep copy");
+        DBG ("overrideLoopPoints: target cell vanished after deep copy");
         return;
     }
 
+    // v1.8.0: variantIndex selects which variant to mutate. -1 = primary (0).
+    const int vIdx = (variantIndex < 0) ? 0
+                                        : juce::jlimit (0, (int) targetCell->variants.size() - 1,
+                                                        variantIndex);
+    SampleVariant& targetVariant = targetCell->variants[(size_t) vIdx];
+
     if (resetToAutoDetect)
     {
-        // v1.4.0: "Reset" snaps loop points back to whole-file default
-        // (loopStart = 0, loopEnd = N - 2). Mirror SampleLoader::processOneFile.
-        const int numSamples = (targetSlot->audio != nullptr)
-                                   ? targetSlot->audio->getNumSamples()
+        const int numSamples = (targetVariant.audio != nullptr)
+                                   ? targetVariant.audio->getNumSamples()
                                    : 0;
 
         if (numSamples >= 18)
         {
-            targetSlot->loopStart = 0;
-            targetSlot->loopEnd   = numSamples - 2;
-            targetSlot->loopMode  = LoopMode::Auto;
+            targetVariant.loopStart = 0;
+            targetVariant.loopEnd   = numSamples - 2;
+            targetVariant.loopMode  = LoopMode::Auto;
             DBG ("resetLoopToAutoDetect: midi=" << midiPitch
                  << " vel=" << velocityLayer
+                 << " variant=" << vIdx
                  << " whole-file loop=[0, " << (numSamples - 2) << "]");
         }
         else
         {
-            targetSlot->loopStart = 0;
-            targetSlot->loopEnd   = 0;
-            targetSlot->loopMode  = LoopMode::OneShot;
+            targetVariant.loopStart = 0;
+            targetVariant.loopEnd   = 0;
+            targetVariant.loopMode  = LoopMode::OneShot;
             DBG ("resetLoopToAutoDetect: midi=" << midiPitch
                  << " vel=" << velocityLayer
+                 << " variant=" << vIdx
                  << " buffer too short → one-shot");
         }
     }
     else
     {
-        // Manual override. Clamp to the slot's audio length defensively.
-        const int numSamples = (targetSlot->audio != nullptr)
-                                   ? targetSlot->audio->getNumSamples()
+        const int numSamples = (targetVariant.audio != nullptr)
+                                   ? targetVariant.audio->getNumSamples()
                                    : 0;
         const int clampedStart = juce::jlimit (0, juce::jmax (0, numSamples - 1), loopStart);
         const int clampedEnd   = juce::jlimit (clampedStart + 1,
                                                juce::jmax (clampedStart + 1, numSamples),
                                                loopEnd);
 
-        targetSlot->loopStart = clampedStart;
-        targetSlot->loopEnd   = clampedEnd;
-        targetSlot->loopMode  = LoopMode::Manual;
+        targetVariant.loopStart = clampedStart;
+        targetVariant.loopEnd   = clampedEnd;
+        targetVariant.loopMode  = LoopMode::Manual;
 
         DBG ("overrideLoopPoints: midi=" << midiPitch
              << " vel=" << velocityLayer
+             << " variant=" << vIdx
              << " manual loop=[" << clampedStart << ", " << clampedEnd << "]"
              << " xfade=" << crossfadeLen << " (recorded for v1.1; ignored in v1.0)");
         juce::ignoreUnused (crossfadeLen);
     }
 
-    // Bump version (every atomic-store).
     next->version = current->version + 1;
 
-    // Atomic-store. Voices snapshot via shared_ptr copy at startNote.
    #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
     std::atomic_store (&currentSampleMap, next);
    #else
     currentSampleMap = next;
    #endif
 
-    // Notify editor.
     if (sampleMapChangedCallback)
         sampleMapChangedCallback();
 }
 
 void OMicrotonalSamplerAudioProcessor::resetLoopToAutoDetect (int midiPitch,
-                                                               int velocityLayer)
+                                                               int velocityLayer,
+                                                               int variantIndex)
 {
-    // Reuse override path with the resetToAutoDetect flag set.
-    overrideLoopPoints (midiPitch, velocityLayer, 0, 0, 0, /*resetToAutoDetect*/ true);
+    overrideLoopPoints (midiPitch, velocityLayer, 0, 0, 0,
+                        /*resetToAutoDetect*/ true,
+                        variantIndex);
 }
 
 //==============================================================================
@@ -911,6 +1057,10 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
     // state. (currentSampleFolder is intentionally left alone — same comment
     // as v1.3.0.)
     loadOpHistory.clear();
+
+    // v1.8.0: clear all RR counters.
+    for (auto& cnt : rrCounters)
+        cnt.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
 
     DBG ("clearSampleMap: cleared (v" << fresh->version << ")");
 
@@ -949,7 +1099,7 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
     if (map == nullptr)
     {
         json << "\"version\":0,\"lowestNote\":0,\"highestNote\":0,"
-             << "\"numVelocityLayers\":1,\"slots\":[],\"skippedFiles\":[]}";
+             << "\"numVelocityLayers\":1,\"cells\":[],\"slots\":[],\"skippedFiles\":[]}";
         return json;
     }
 
@@ -957,25 +1107,64 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
          << ",\"lowestNote\":"       << map->lowestNote
          << ",\"highestNote\":"      << map->highestNote
          << ",\"numVelocityLayers\":" << map->numVelocityLayers
-         << ",\"slots\":[";
+         << ",\"cells\":[";
+
+    bool firstCell = true;
+    for (const auto& c : map->cells)
+    {
+        if (! firstCell) json << ",";
+        firstCell = false;
+
+        json << "{"
+             << "\"midiNote\":"      << c.midiNote
+             << ",\"velocityLayer\":" << c.velocityLayer
+             << ",\"variants\":[";
+
+        bool firstVar = true;
+        for (const auto& v : c.variants)
+        {
+            if (! firstVar) json << ",";
+            firstVar = false;
+
+            const int lengthSamples = (v.audio != nullptr) ? v.audio->getNumSamples() : 0;
+            json << "{"
+                 << "\"filename\":"         << juce::JSON::toString (juce::var (v.filename))
+                 << ",\"lengthSamples\":"    << lengthSamples
+                 << ",\"sourceSampleRate\":" << juce::String (v.sourceSampleRate, 4)
+                 << ",\"loopStart\":"        << v.loopStart
+                 << ",\"loopEnd\":"          << v.loopEnd
+                 << ",\"loopMode\":\""       << loopModeToString (v.loopMode) << "\""
+                 << "}";
+        }
+        json << "]}";
+    }
+
+    // Back-compat: also emit a flat `slots` array of primary-variant entries
+    // for any v1.7.x consumer that hasn't been variant-aware updated. Mirrors
+    // the old schema exactly (one entry per cell, variants[0] = primary).
+    json << "],\"slots\":[";
 
     bool firstSlot = true;
-    for (const auto& s : map->slots)
+    for (const auto& c : map->cells)
     {
+        if (c.variants.empty()) continue;
+        const auto& v = c.primary();
+
         if (! firstSlot) json << ",";
         firstSlot = false;
 
-        const int lengthSamples = (s.audio != nullptr) ? s.audio->getNumSamples() : 0;
+        const int lengthSamples = (v.audio != nullptr) ? v.audio->getNumSamples() : 0;
 
         json << "{"
-             << "\"midiNote\":"          << s.midiNote
-             << ",\"velocityLayer\":"    << s.velocityLayer
-             << ",\"filename\":"         << juce::JSON::toString (juce::var (s.filename))
+             << "\"midiNote\":"          << c.midiNote
+             << ",\"velocityLayer\":"    << c.velocityLayer
+             << ",\"filename\":"         << juce::JSON::toString (juce::var (v.filename))
              << ",\"lengthSamples\":"    << lengthSamples
-             << ",\"sourceSampleRate\":" << juce::String (s.sourceSampleRate, 4)
-             << ",\"loopStart\":"        << s.loopStart
-             << ",\"loopEnd\":"          << s.loopEnd
-             << ",\"loopMode\":\""       << loopModeToString (s.loopMode) << "\""
+             << ",\"sourceSampleRate\":" << juce::String (v.sourceSampleRate, 4)
+             << ",\"loopStart\":"        << v.loopStart
+             << ",\"loopEnd\":"          << v.loopEnd
+             << ",\"loopMode\":\""       << loopModeToString (v.loopMode) << "\""
+             << ",\"variantCount\":"     << (int) c.variants.size()
              << "}";
     }
     json << "],\"skippedFiles\":[";
@@ -1005,7 +1194,8 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
 // message-thread acceptable for the click-driven open path.
 juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPitch,
                                                                       int velocityLayer,
-                                                                      int targetBins) const
+                                                                      int targetBins,
+                                                                      int variantIndex) const
 {
    #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
     auto map = std::atomic_load (&currentSampleMap);
@@ -1027,12 +1217,18 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
     if (map == nullptr)
         return "{}";
 
-    const auto* slot = map->findSlot (midiPitch, velocityLayer);
-    if (slot == nullptr || slot->audio == nullptr || slot->audio->getNumSamples() == 0)
+    const auto* cell = map->findCell (midiPitch, velocityLayer);
+    if (cell == nullptr || cell->variants.empty())
         return "{}";
 
-    const int numFrames   = slot->audio->getNumSamples();
-    const int numChannels = juce::jmax (1, slot->audio->getNumChannels());
+    const int vIdx = juce::jlimit (0, (int) cell->variants.size() - 1,
+                                   variantIndex >= 0 ? variantIndex : 0);
+    const auto& variant = cell->variants[(size_t) vIdx];
+    if (variant.audio == nullptr || variant.audio->getNumSamples() == 0)
+        return "{}";
+
+    const int numFrames   = variant.audio->getNumSamples();
+    const int numChannels = juce::jmax (1, variant.audio->getNumChannels());
     const int bins        = juce::jlimit (1, juce::jmax (1, numFrames),
                                           juce::jmax (1, targetBins));
 
@@ -1066,10 +1262,10 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
         {
             float sum = 0.0f;
             for (int ch = 0; ch < numChannels; ++ch)
-                sum += slot->audio->getReadPointer (ch)[n];
-            const float v = sum / static_cast<float> (numChannels);
-            if (v < minV) minV = v;
-            if (v > maxV) maxV = v;
+                sum += variant.audio->getReadPointer (ch)[n];
+            const float val = sum / static_cast<float> (numChannels);
+            if (val < minV) minV = val;
+            if (val > maxV) maxV = val;
         }
 
         // Defensive — if the bin happened to be empty (binEnd == binStart),
@@ -1084,14 +1280,16 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
     }
 
     auto* obj = new juce::DynamicObject();
-    obj->setProperty ("midiNote",         slot->midiNote);
-    obj->setProperty ("velocityLayer",    slot->velocityLayer);
+    obj->setProperty ("midiNote",         cell->midiNote);
+    obj->setProperty ("velocityLayer",    cell->velocityLayer);
+    obj->setProperty ("variantIndex",     vIdx);
+    obj->setProperty ("variantCount",     (int) cell->variants.size());
     obj->setProperty ("lengthSamples",    numFrames);
-    obj->setProperty ("sourceSampleRate", slot->sourceSampleRate);
-    obj->setProperty ("loopStart",        slot->loopStart);
-    obj->setProperty ("loopEnd",          slot->loopEnd);
-    obj->setProperty ("loopMode",         juce::String (loopModeToString (slot->loopMode)));
-    obj->setProperty ("filename",         slot->filename);
+    obj->setProperty ("sourceSampleRate", variant.sourceSampleRate);
+    obj->setProperty ("loopStart",        variant.loopStart);
+    obj->setProperty ("loopEnd",          variant.loopEnd);
+    obj->setProperty ("loopMode",         juce::String (loopModeToString (variant.loopMode)));
+    obj->setProperty ("filename",         variant.filename);
     obj->setProperty ("peaks",            peaksArray);
 
     return juce::JSON::toString (juce::var (obj), /*allOnOneLine*/ true);
@@ -1143,6 +1341,7 @@ namespace
             case LoadMode::Append:       return "append";
             case LoadMode::ReplaceLayer: return "replace_layer";
             case LoadMode::ReplaceAll:   return "replace_all";
+            case LoadMode::MergeRR:      return "merge_rr";
         }
         return "replace_all";
     }
@@ -1151,6 +1350,7 @@ namespace
     {
         if (s == "append")        return LoadMode::Append;
         if (s == "replace_layer") return LoadMode::ReplaceLayer;
+        if (s == "merge_rr")      return LoadMode::MergeRR;
         return LoadMode::ReplaceAll;
     }
 

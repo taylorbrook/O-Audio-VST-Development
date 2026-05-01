@@ -599,7 +599,17 @@ function renderGrid(snap) {
     const inner = document.createElement('div');
     inner.id = 'sample-grid-inner';
 
-    // Slot lookup map: key = `${midi}_${layer}` → slot.
+    // v1.8.0: prefer cells (multi-variant aware) but accept legacy slots
+    // for back-compat in case any consumer is still feeding the old shape.
+    // Cells emit `{midiNote, velocityLayer, variants: [{filename, ...}]}`.
+    // Slots emit `{midiNote, velocityLayer, filename, variantCount?, ...}`
+    // with `variantCount` carrying the cell's variant count (v1.8.0+).
+    const cellMap = new Map();
+    if (Array.isArray(snap?.cells)) {
+        for (const c of snap.cells) {
+            cellMap.set(`${c.midiNote}_${c.velocityLayer}`, c);
+        }
+    }
     const slotMap = new Map();
     if (Array.isArray(snap?.slots)) {
         for (const s of snap.slots) {
@@ -626,13 +636,37 @@ function renderGrid(snap) {
             }
 
             // v1.1.0: Tooltip = "<filename | Empty> · <NoteName>(<midi>) · Vel <lo>–<hi>"
+            // v1.8.0: multi-variant cells list every variant filename.
             const noteLabel = `${midiToNoteName(midi)} (${midi})`;
             const velLabel  = `Vel ${velRange.label}`;
+            const cellEntry = cellMap.get(`${midi}_${layer}`);
             const slot = slotMap.get(`${midi}_${layer}`);
-            if (slot) {
+
+            if (cellEntry && Array.isArray(cellEntry.variants) && cellEntry.variants.length > 0) {
+                cell.classList.add('cell-loaded');
+                const variantCount = cellEntry.variants.length;
+                if (variantCount > 1) {
+                    cell.classList.add('cell-multivariant');
+                    const head = `${variantCount} variants:`;
+                    const list = cellEntry.variants
+                        .map((v, i) => `  ${i + 1}. ${v.filename || '(unnamed)'}`)
+                        .join('\n');
+                    cell.title = `${head}\n${list}\n${noteLabel} · ${velLabel}`;
+                    cell.dataset.variantCount = String(variantCount);
+                } else {
+                    const head = cellEntry.variants[0].filename || 'Loaded';
+                    cell.title = `${head} · ${noteLabel} · ${velLabel}`;
+                }
+            } else if (slot) {
                 cell.classList.add('cell-loaded');
                 const head = slot.filename ? slot.filename : 'Loaded';
-                cell.title = `${head} · ${noteLabel} · ${velLabel}`;
+                if (slot.variantCount && slot.variantCount > 1) {
+                    cell.classList.add('cell-multivariant');
+                    cell.title = `${head} (+${slot.variantCount - 1} more) · ${noteLabel} · ${velLabel}`;
+                    cell.dataset.variantCount = String(slot.variantCount);
+                } else {
+                    cell.title = `${head} · ${noteLabel} · ${velLabel}`;
+                }
             } else {
                 cell.classList.add('cell-empty');
                 cell.title = `Empty · ${noteLabel} · ${velLabel}`;
@@ -787,13 +821,27 @@ function handleCellSingleClick(cell, midi, layer) {
 async function replaceCellSample(cell, midi, layer) {
     if (!window.__JUCE__) return;
 
+    // v1.9.0: when the target cell is non-empty, prompt the user to choose
+    // between merging the new sample as a round-robin variant or replacing
+    // the cell. Empty cells skip straight to the file picker (v1.8.0 path).
+    let mergeAsRr = false;
+    const isLoaded = cell.classList.contains('cell-loaded');
+    if (isLoaded) {
+        const existingCount = parseInt(cell.dataset.variantCount, 10);
+        const count = Number.isFinite(existingCount) && existingCount > 0
+            ? existingCount : 1;
+        const choice = await showPerCellMergeDialog(count, midi, layer);
+        if (choice === null) return;
+        mergeAsRr = (choice === 'merge');
+    }
+
     cell.classList.add('cell-loading');
     const t0 = performance.now();
     lastReplaceTimestamp = t0;
 
     try {
         const fn = Juce.getNativeFunction('loadSingleSampleDialog');
-        const ok = await fn(midi, layer);
+        const ok = await fn(midi, layer, mergeAsRr);
         if (!ok) {
             // User cancelled or selection invalid — drop the loading shimmer.
             cell.classList.remove('cell-loading');
@@ -802,7 +850,7 @@ async function replaceCellSample(cell, midi, layer) {
         // The sampleMapUpdated push event will trigger renderGrid which
         // rebuilds the cell. Log timing for the gate metric.
         const t1 = performance.now();
-        console.log(`[sampler-app] FileChooser close → load dispatch: ${(t1 - t0).toFixed(1)} ms`);
+        console.log(`[sampler-app] FileChooser close → load dispatch: ${(t1 - t0).toFixed(1)} ms (mergeAsRr=${mergeAsRr})`);
     } catch (e) {
         console.error('[sampler-app] replaceCellSample failed:', e);
         cell.classList.remove('cell-loading');
@@ -1379,8 +1427,12 @@ function arrayBufferToBase64 (buf) {
 // and macOS drag-drop streaming (so cancel doesn't waste 5s of base64 work).
 //
 //   layer:    0..3 — target velocity layer
-//   mode:     'append' | 'replace_layer' | 'replace_all'
+//   mode:     'append' | 'replace_layer' | 'replace_all' | 'merge_rr' (v1.9.0)
 //   override: boolean — true = ignore filename velocity tokens (v1, ff, …)
+//
+// v1.9.0: 'merge_rr' adds the new samples as round-robin variants on top of
+// any existing cells they collide with (per (note, layer)) — useful for
+// layering multiple takes/recordings as RR alternates.
 function showFolderLoadOptionsModal () {
     return new Promise((resolve) => {
         const dialog     = document.getElementById('folder-load-options-dialog');
@@ -1421,6 +1473,10 @@ function showFolderLoadOptionsModal () {
                 txt = overrideOn
                     ? `Replace existing samples; new ones land on ${layerStr}.`
                     : `Replace existing samples; filename tokens decide layer.`;
+            } else if (mode === 'merge_rr') {
+                txt = overrideOn
+                    ? `Layer onto ${layerStr}: collisions become round-robin variants (cap 64 per cell).`
+                    : `Layer existing notes: collisions become round-robin variants. Filename tokens decide layer.`;
             }
             explainEl.textContent = txt;
         };
@@ -1469,6 +1525,60 @@ function showFolderLoadOptionsModal () {
 
         dialog.hidden = false;
         confirmBtn.focus();
+    });
+}
+
+// v1.9.0: per-cell merge prompt. Surfaced when the user attempts a per-cell
+// single-file load on a non-empty cell. Resolves to:
+//   'merge'   — append the new sample as a round-robin variant.
+//   'replace' — drop the cell's variants and replace with this single sample
+//               (v1.8.0 behaviour, current default for explicit replace).
+//   null      — user cancelled.
+function showPerCellMergeDialog (existingCount, midi, layer) {
+    return new Promise((resolve) => {
+        const dialog    = document.getElementById('per-cell-merge-dialog');
+        const messageEl = document.getElementById('per-cell-merge-message');
+        const mergeBtn  = document.getElementById('per-cell-merge-merge-btn');
+        const replBtn   = document.getElementById('per-cell-merge-replace-btn');
+        const cancelBtn = document.getElementById('per-cell-merge-cancel-btn');
+        if (!dialog || !messageEl || !mergeBtn || !replBtn || !cancelBtn) {
+            resolve(null);
+            return;
+        }
+
+        const noteName = (typeof midiToNoteName === 'function')
+            ? midiToNoteName(midi) : `MIDI ${midi}`;
+        const variantWord = existingCount === 1 ? '1 variant' : `${existingCount} variants`;
+        const capHit = existingCount >= 64;
+        messageEl.textContent = capHit
+            ? `${noteName} layer L${layer} already holds the maximum ${variantWord}. Replace the cell, or cancel.`
+            : `${noteName} layer L${layer} already holds ${variantWord}. Add this sample as round-robin variant ${existingCount + 1}, or replace the cell?`;
+        mergeBtn.disabled = capHit;
+        mergeBtn.style.opacity = capHit ? '0.4' : '';
+        mergeBtn.style.cursor  = capHit ? 'not-allowed' : '';
+
+        const cleanup = () => {
+            dialog.hidden = true;
+            mergeBtn.removeEventListener('click', onMerge);
+            replBtn.removeEventListener('click', onReplace);
+            cancelBtn.removeEventListener('click', onCancel);
+            document.removeEventListener('keydown', onKey, true);
+        };
+        const onMerge   = () => { if (capHit) return; cleanup(); resolve('merge'); };
+        const onReplace = () => { cleanup(); resolve('replace'); };
+        const onCancel  = () => { cleanup(); resolve(null); };
+        const onKey = (e) => {
+            if (e.key === 'Escape')      { e.preventDefault(); onCancel(); }
+            else if (e.key === 'Enter')  { e.preventDefault(); capHit ? onReplace() : onMerge(); }
+        };
+
+        mergeBtn.addEventListener('click', onMerge);
+        replBtn.addEventListener('click', onReplace);
+        cancelBtn.addEventListener('click', onCancel);
+        document.addEventListener('keydown', onKey, true);
+
+        dialog.hidden = false;
+        (capHit ? replBtn : mergeBtn).focus();
     });
 }
 
@@ -1722,6 +1832,8 @@ const editorState = {
     loopEnd: 0,
     dragMarker: null,     // 'start' | 'end' | null
     pointerId: -1,
+    variantIndex: 0,      // v1.8.0: which variant we're currently editing.
+    variantCount: 1,      // v1.8.0: total variants in the cell.
 };
 
 function isOneShot(snap) {
@@ -1730,12 +1842,12 @@ function isOneShot(snap) {
     return m === 'one-shot' || m === 'oneshot';
 }
 
-async function openLoopEditor(midi, vel) {
+async function openLoopEditor(midi, vel, variantIndex = 0) {
     if (!window.__JUCE__) return;
 
     try {
         const fn = Juce.getNativeFunction('getWaveformPeaks');
-        const json = await fn(midi, vel, LOOP_EDITOR_BINS);
+        const json = await fn(midi, vel, LOOP_EDITOR_BINS, variantIndex);
         const snap = (typeof json === 'string') ? JSON.parse(json) : json;
         if (!snap || !Array.isArray(snap.peaks) || snap.peaks.length === 0) {
             console.warn('[sampler-app] openLoopEditor: empty peaks snapshot', snap);
@@ -1749,7 +1861,12 @@ async function openLoopEditor(midi, vel) {
         editorState.loopStart = Number.isFinite(snap.loopStart) ? snap.loopStart : 0;
         editorState.loopEnd   = Number.isFinite(snap.loopEnd)   ? snap.loopEnd   : 0;
 
+        // v1.8.0: variant tab strip surfaces when the cell has > 1 variant.
+        editorState.variantIndex = Number.isFinite(snap.variantIndex) ? snap.variantIndex : variantIndex;
+        editorState.variantCount = Number.isFinite(snap.variantCount) ? snap.variantCount : 1;
+
         populateLoopEditorHeader(snap);
+        renderVariantTabStrip();
         showLoopEditorPanel();
 
         // Defer canvas draw one frame so the panel transition has applied
@@ -1759,6 +1876,42 @@ async function openLoopEditor(midi, vel) {
         });
     } catch (e) {
         console.error('[sampler-app] openLoopEditor failed:', e);
+    }
+}
+
+// v1.8.0: variant tab strip — one tab per variant. Shown only when cell
+// has > 1 variant. Click switches the active variant; the snapshot reload
+// happens via openLoopEditor with the selected index. Loop points are
+// per-variant in v1.8.0, so each tab carries its own state on the C++ side.
+function renderVariantTabStrip() {
+    const wrap = document.getElementById('le-variant-tabs');
+    if (!wrap) return;
+
+    wrap.innerHTML = '';
+    if (editorState.variantCount <= 1) {
+        wrap.style.display = 'none';
+        return;
+    }
+    wrap.style.display = '';
+
+    const label = document.createElement('span');
+    label.className = 'le-variant-label';
+    label.textContent = `Variant ${editorState.variantIndex + 1} of ${editorState.variantCount}`;
+    wrap.appendChild(label);
+
+    for (let i = 0; i < editorState.variantCount; ++i) {
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'le-variant-tab';
+        if (i === editorState.variantIndex) tab.classList.add('active');
+        tab.textContent = String(i + 1);
+        tab.title = `Switch to variant ${i + 1}`;
+        tab.addEventListener('click', () => {
+            if (i === editorState.variantIndex) return;
+            // Re-open with the chosen variant — fresh peaks + loop points.
+            openLoopEditor(editorState.midi, editorState.vel, i);
+        });
+        wrap.appendChild(tab);
     }
 }
 
@@ -1954,10 +2107,11 @@ function bindLoopEditorEvents() {
             if (resetBtn.disabled || !editorState.open) return;
             try {
                 const fn = Juce.getNativeFunction('resetLoopToAutoDetect');
-                await fn(editorState.midi, editorState.vel);
+                await fn(editorState.midi, editorState.vel, editorState.variantIndex);
                 // Re-fetch peaks to get fresh marker positions + mode.
                 const get = Juce.getNativeFunction('getWaveformPeaks');
-                const json = await get(editorState.midi, editorState.vel, LOOP_EDITOR_BINS);
+                const json = await get(editorState.midi, editorState.vel,
+                                       LOOP_EDITOR_BINS, editorState.variantIndex);
                 const snap = (typeof json === 'string') ? JSON.parse(json) : json;
                 if (snap && Array.isArray(snap.peaks)) {
                     editorState.snap = snap;
@@ -1978,7 +2132,8 @@ function bindLoopEditorEvents() {
             try {
                 const fn = Juce.getNativeFunction('overrideLoopPoints');
                 await fn(editorState.midi, editorState.vel,
-                         editorState.loopStart, editorState.loopEnd, 8);
+                         editorState.loopStart, editorState.loopEnd, 8,
+                         editorState.variantIndex);
                 showToast(APPLY_TOAST);
                 // Don't auto-close — user may want to keep iterating.
                 // The sampleMapUpdated push event will refresh the grid;
@@ -2221,6 +2376,90 @@ function subscribeFolderMissingEvent () {
     }
 }
 
+// v1.8.0: ambiguous-duplicates modal. Fired when a folder load contained
+// multiple files for the same (midi, layer) without rr/take/tk tokens.
+// User decides: treat as round-robin variants OR cancel the load.
+function showAmbiguousDuplicatesDialog (dups) {
+    const dialog  = document.getElementById('rr-confirm-dialog');
+    const listEl  = document.getElementById('rr-confirm-list');
+    const okBtn   = document.getElementById('rr-confirm-accept');
+    const noBtn   = document.getElementById('rr-confirm-cancel');
+    if (!dialog || !listEl || !okBtn || !noBtn) {
+        // Fallback: send a quick confirm via window.confirm so the user is
+        // never blocked by a missing modal element.
+        const summary = dups.map(d => `MIDI ${d.midiNote}/L${d.velocityLayer}: ${(d.filenames || []).join(', ')}`).join('\n');
+        const accept = window.confirm(`Multiple files share the same note/layer:\n\n${summary}\n\nTreat as round-robin variants?`);
+        sendRrConfirmation(accept);
+        return;
+    }
+
+    listEl.innerHTML = '';
+    for (const d of dups) {
+        const item = document.createElement('li');
+        const head = document.createElement('div');
+        head.className = 'rr-confirm-cell-head';
+        head.textContent = `MIDI ${d.midiNote} · Layer ${d.velocityLayer + 1}`;
+        item.appendChild(head);
+        const fns = document.createElement('ul');
+        fns.className = 'rr-confirm-filename-list';
+        for (const fn of (d.filenames || [])) {
+            const li = document.createElement('li');
+            li.textContent = fn;
+            fns.appendChild(li);
+        }
+        item.appendChild(fns);
+        listEl.appendChild(item);
+    }
+
+    const cleanup = () => {
+        dialog.hidden = true;
+        okBtn.removeEventListener('click', onAccept);
+        noBtn.removeEventListener('click', onCancel);
+        document.removeEventListener('keydown', onKey, true);
+    };
+    const onAccept = () => { cleanup(); sendRrConfirmation(true); };
+    const onCancel = () => { cleanup(); sendRrConfirmation(false); };
+    const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+        if (e.key === 'Enter')  { e.preventDefault(); onAccept(); }
+    };
+
+    okBtn.addEventListener('click', onAccept);
+    noBtn.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKey, true);
+    dialog.hidden = false;
+    okBtn.focus();
+}
+
+async function sendRrConfirmation (accept) {
+    if (!window.__JUCE__) return;
+    try {
+        const fn = Juce.getNativeFunction('confirmRoundRobinLoad');
+        await fn(!!accept);
+    } catch (e) {
+        console.warn('[sampler-app] confirmRoundRobinLoad failed:', e);
+    }
+}
+
+function subscribeAmbiguousDuplicatesEvent () {
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;
+    try {
+        window.__JUCE__.backend.addEventListener('ambiguousDuplicates', (payload) => {
+            let dups = [];
+            if (typeof payload === 'string') {
+                try { dups = JSON.parse(payload); } catch (_) { dups = []; }
+            } else if (Array.isArray(payload)) {
+                dups = payload;
+            }
+            if (Array.isArray(dups) && dups.length > 0) {
+                showAmbiguousDuplicatesDialog(dups);
+            }
+        });
+    } catch (e) {
+        console.warn('[sampler-app] ambiguousDuplicates subscription failed:', e);
+    }
+}
+
 async function pullPendingMissingFolder () {
     // Boot-time race: setStateInformation may have run before this listener
     // was registered. Pull the parked path (if any) and surface the modal.
@@ -2244,6 +2483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindSliders();
     subscribeSampleMapUpdates();
     subscribeFolderMissingEvent();   // v1.3.0 — register before pull
+    subscribeAmbiguousDuplicatesEvent();   // v1.8.0
     bindHostDragEvents();
     bindToastEventListener();
     bindFolderDropZone();

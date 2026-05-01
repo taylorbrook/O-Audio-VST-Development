@@ -1,5 +1,155 @@
 # O-MicrotonalSampler Changelog
 
+## [1.9.0] - 2026-05-01
+
+### Added
+- **`Layer as round-robin` load mode.** The folder-load options modal grows
+  a 4th radio: **Layer as round-robin**. With this mode selected, a freshly
+  loaded folder is merged into the existing sample map; on (note, layer)
+  collisions, the new cell's variants are **appended** onto the existing
+  cell's variants vector instead of replacing it. Useful for layering
+  multiple takes/recordings as round-robin alternates on the same notes
+  without needing to relabel filenames with `rr/take/tk` tokens.
+- **Per-cell single-file merge prompt.** Triggering a per-cell sample load
+  (cell button, double-click on a loaded cell, or context-menu Replace) on
+  a cell that already holds samples now surfaces a small confirm dialog:
+  *"Add as round-robin variant N+1, or replace?"*. Empty cells skip the
+  prompt and load directly (v1.8.0 behaviour preserved).
+- **Variant cap (64 per cell).** Both load paths enforce a hard cap of 64
+  variants per (note, layer). Excess incoming variants are surfaced via the
+  existing skipped-files list (`variant cap reached: <filename>`). At cap,
+  the per-cell merge button is disabled and only Replace remains.
+
+### Changed
+- **`LoadMode` enum.** New `MergeRR = 3` value, serialized as `"merge_rr"`
+  in the load-op history. Older builds (v1.8.0/v1.7.x) reading a v1.9.0
+  preset fall back to `ReplaceAll` for unknown mode strings (graceful
+  degradation: cells survive in the snapshot, but merge ops won't replay).
+- **`loadSingleSample`** gains an optional `mergeAsRr` parameter (default
+  false — preserves v1.8.0 callers). When true and the target cell is
+  non-empty, the new variant is appended; when false, the cell is replaced
+  as before. `loadSingleSampleDialog` native function accepts the flag as
+  its 3rd arg.
+- **`applyMergeRrCell` helper** extracted into `SampleMap.h` (header-only
+  pure function). Used by both folder-load `MergeRR` mode and the per-cell
+  merge path; isolates the merge contract for unit testing.
+
+### Implementation notes
+- **Backward compat.** `getStateInformation`/`setStateInformation` schema is
+  unchanged. v1.7.x and v1.8.0 saves replay identically. v1.9.0 saves with
+  `merge_rr` ops opened in v1.8.0 fall back to `ReplaceAll` for those ops
+  (per existing `loadModeFromString` default).
+- **RT-safety contract preserved.** Merge work happens entirely on the
+  message thread (same path as v1.8.0 `applyFolderLoad`). The
+  `currentSampleMap` shared_ptr is atomic-stored after the merge; voices
+  holding the previous snapshot keep their buffers alive transitively for
+  the held note's duration. RR counters for every touched cell reset to
+  the sentinel so the next note-on doesn't index past the just-grown
+  variants vector with a stale value.
+- **Drag-drop scope.** v1.9.0 surfaces the per-cell merge prompt for the
+  file-picker path (cell button, dblclick, context-menu Replace). Drag-drop
+  of a single file onto a non-empty cell still uses v1.8.0 replace behaviour
+  to keep the multi-file drop session UX uninterrupted; use the cell's
+  load-sample button or the folder-load `Layer as round-robin` mode for
+  explicit RR layering. (Drag-drop merge is a candidate for v1.9.x.)
+
+### Test surface
+- New standalone `O-MicrotonalSampler_MergeRrCheck` target — six unit
+  tests over the `applyMergeRrCell` helper: no-collision insert, collision
+  merge with order preservation, variant cap (64), cap-already-reached
+  early-out, layer-aware collision key, multi-call folder-shape ordering.
+- v1.8.0 round-robin render harness untouched — render path is bit-identical
+  for non-merge loads (single-variant + token-RR libraries).
+
+## [1.8.0] - 2026-05-01
+
+### Added
+- **Round-robin sample variants.** A single (note, velocity layer) cell can
+  now hold multiple sample takes. At every note-on, the engine picks one
+  variant according to the user-selected RR mode. Single-variant cells are
+  unchanged — the render path is bit-identical to v1.7.1 for libraries
+  without RR tokens.
+- **Three selection modes** via a new `Round-Robin Mode` parameter
+  (`rr_mode`):
+  - **Cycle** — sequential `0 → 1 → … → N-1 → 0`, deterministic.
+  - **Random No-Repeat** *(default)* — uniform random pick excluding the
+    last-played variant, the industry standard for orchestral/percussive
+    libraries.
+  - **Random** — uniform random, may repeat. Useful for foley/ambience.
+- **Filename token detection.** The folder loader now recognises
+  `rr[N]`, `take[N]`, and `tk[N]` tokens (case-insensitive, 1-based) and
+  groups files sharing the same `(note, layer)` into one cell as silent
+  variants. Examples that load without prompting:
+  `vln_C4_v1_rr1.wav`, `kick_C2_take03.wav`, `cello_g3_tk2.aif`.
+- **Ambiguity confirmation modal.** Folders with bare duplicates (same
+  `(note, layer)` but no rr/take/tk tokens) now surface a WebView modal
+  listing the conflicting filenames. The user can either accept them as
+  RR variants or cancel the load — protects against accidental ingest of
+  redundant samples.
+- **Per-variant loop editor.** When a cell has more than one variant, the
+  loop editor side panel grows a tab strip (`Variant 1 of N` indicator +
+  one numbered tab per variant). Each tab carries its own loop start/end,
+  loop mode, and apply/reset state — every variant can be tuned independently.
+- **Per-cell variant tooltip.** Multi-variant cells in the sample grid
+  display a small antique-gold dot in the upper-right corner and a
+  multi-line hover tooltip listing every variant's filename in load order.
+- **`confirmRoundRobinLoad(accept)` native function.** Exposed for the
+  modal's accept/cancel buttons; chains correctly through the v1.6.0 state-
+  restore replay queue so reopened projects with ambiguous folders surface
+  the modal sequentially without losing later ops.
+
+### Changed
+- **`SampleSlot` → `SampleCell` + `SampleVariant`.** Internal sample-map
+  storage refactored — a cell is the addressable `(midi, layer)` coordinate;
+  variants hold the audio + per-take loop fields. `findSlot` → `findCell`.
+  Render path semantically identical for single-variant cells.
+- **`SampleMap` JSON schema.** The snapshot now carries a `cells` array
+  (each with a `variants[]` sub-array). The legacy `slots` array is still
+  emitted for back-compat — primary variant per cell, plus a new
+  `variantCount` field so older consumers can detect multi-variant cells.
+- **Per-cell single-load behavior.** Clicking an empty cell to load a single
+  sample replaces the whole cell with a one-variant cell, even if the cell
+  previously held a multi-variant set. To build a multi-variant cell, use a
+  folder load with rr/take/tk tokens (or accept the bare-duplicate modal).
+
+### Implementation notes
+- **RT-safety contract preserved.** Variant selection is pure atomic-counter
+  + integer math + xorshift32; zero allocations in `startNote` or
+  `renderNextBlock`. The 512-byte counter array (128 notes × 4 layers,
+  `std::atomic<uint8_t>`) lives in the processor and survives map swaps —
+  reset only on `LoadMode::ReplaceAll` and per-layer wipes for
+  `ReplaceLayer`.
+  - *Deviation from spec:* the plan called for 352 entries (88-key range);
+    we use 512 (full 0..127 × 4) for index-bound safety. ~0.16 KB difference.
+- **Per-voice xorshift32 PRNG.** Seeded from the voice's `this` pointer +
+  sample rate so each voice gets a distinct stream; mutated only in
+  `selectVariantIndex` (audio thread, startNote-time, never per-sample).
+- **Atomic-swap semantics intact.** Cell vector deep-copy is still cheap
+  (each variant's audio is a `shared_ptr<juce::AudioBuffer<float>>`). Voices
+  that snapshot the map at startNote keep variants alive transitively for
+  the note's duration even if the map is replaced mid-note (Stage 2 EC-3).
+- **Preset compatibility.** `getStateInformation` / `setStateInformation`
+  schema is unchanged — sample data is still referenced by folder path, not
+  embedded. Replaying a v1.7.x save in v1.8.0 simply rebuilds single-variant
+  cells via the same folder-load path. v1.8.0 saves opened in v1.7.x will
+  still load (the new `rr_mode` parameter is silently ignored by APVTS;
+  folder paths replay identically).
+
+### Test surface
+- Render-harness identity test passes for single-variant libraries —
+  bit-identical output vs v1.7.1.
+- New `FilenameParser::runTests` cases cover `rr1..rr64`, `take01..take64`,
+  `tk1..tk2`, both pre- and post-note placement, and rejection of
+  unrecognised tokens (`round1`, `var3`, etc.).
+- pluginval `--strictness-level 5 --skip-gui-tests` SUCCESS.
+- auval `-v aumu OMtS OuDv` AU VALIDATION SUCCEEDED.
+
+### Known limits (deferred to v1.9)
+- Per-variant velocity sub-layering.
+- Cross-cell RR group tagging (e.g., "all snares in this folder share one
+  cycle").
+- Per-cell RR algorithm override (the `rr_mode` parameter is global for v1.8).
+
 ## [1.7.1] - 2026-05-01
 
 ### Fixed

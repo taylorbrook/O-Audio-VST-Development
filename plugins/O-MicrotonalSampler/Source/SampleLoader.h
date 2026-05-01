@@ -2,7 +2,7 @@
   ==============================================================================
 
     SampleLoader.h
-    Microtonal Sample Engine - Background sample loader (Phase 2.2)
+    Microtonal Sample Engine - Background sample loader
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -18,6 +18,15 @@
     Completion-callback signature carries a juce::StringArray of files that
     failed to parse / load — Stage 3 UI surfaces this; Phase 2.2 stores it.
 
+    v1.8.0 — Round-Robin Samples:
+      - The loader now groups variants by (midiNote, velocityLayer). Groups
+        with explicit rr/take/tk tokens flow silently into a multi-variant
+        SampleCell. Groups without explicit RR tokens but with > 1 file
+        surface as `AmbiguousDuplicate` entries in the completion payload —
+        the processor stages the SampleMap and emits a modal-confirm event
+        to the WebView. User decision is forwarded via
+        OMicrotonalSamplerAudioProcessor::confirmRoundRobinLoad.
+
   ==============================================================================
 */
 
@@ -25,68 +34,69 @@
 #include <JuceHeader.h>
 #include <functional>
 #include <memory>
+#include <vector>
 #include "SampleMap.h"
 
 class SampleLoader : public juce::Thread
 {
 public:
+    // v1.8.0: a (midiNote, velocityLayer) cell where the loader detected > 1
+    // file but NO explicit rr/take/tk tokens. The map is built with all
+    // variants included, but the processor must surface a confirmation modal
+    // before atomic-storing it.
+    struct AmbiguousDuplicate
+    {
+        int                midiNote      = -1;
+        int                velocityLayer = 0;
+        juce::StringArray  filenames;
+    };
+
     using CompletionCallback = std::function<void(std::shared_ptr<SampleMap>,
-                                                  juce::StringArray skippedFiles)>;
+                                                  juce::StringArray skippedFiles,
+                                                  std::vector<AmbiguousDuplicate>)>;
     using FailureCallback    = std::function<void(const juce::String&)>;
 
-    // Phase 3.2 — per-cell load completion. `slot.midiNote == -1` signals
-    // failure; `skipReason` is human-readable when non-empty.
-    using SingleSlotCallback = std::function<void(SampleSlot, juce::String /*skipReason*/)>;
+    // Per-cell single-load completion. Empty `skipReason` = success; non-empty
+    // = failure (variant.audio will be null). Single-variant always.
+    using SingleVariantCallback = std::function<void(int midiNote,
+                                                     int velocityLayer,
+                                                     SampleVariant variant,
+                                                     juce::String skipReason)>;
 
     SampleLoader();
     ~SampleLoader() override;
 
-    // v1.6.0: per-load options control whether filename velocity tokens are
-    // honoured or forced to a caller-supplied target layer. See
-    // SampleMap.h::LoadOptions for field semantics. Default-constructed
-    // options ({targetLayer=0, overrideTokens=false}) reproduce v1.5.x
-    // behaviour exactly — filename token wins, targetLayer ignored.
     void loadFolder (const juce::File& folder,
                      double             targetSampleRate,
                      LoadOptions        options,
                      CompletionCallback onComplete,
                      FailureCallback    onFailure = nullptr);
 
-    // Phase 3.2 — single-slot async load (mirror of run()'s per-file pipeline:
-    // open reader → SR-convert via LagrangeInterpolator → mono→stereo → loop
-    // detect → assemble SampleSlot). On error, dispatches completion with an
-    // empty slot (midiNote = -1) and a non-empty `skipReason`. Always invokes
-    // the completion on the message thread via juce::MessageManager::callAsync.
-    void loadSingleSlot (const juce::File&    file,
-                         int                  midiPitch,
-                         int                  velocityLayer,
-                         double               targetSampleRate,
-                         SingleSlotCallback   onComplete);
+    void loadSingleVariant (const juce::File&     file,
+                            int                   midiPitch,
+                            int                   velocityLayer,
+                            double                targetSampleRate,
+                            SingleVariantCallback onComplete);
 
     void cancelLoad();
 
 private:
     void run() override;
 
-    // Mode discriminator — `run()` switches on this to decide between
-    // folder enumeration and single-slot processing.
-    enum class Mode { Folder, SingleSlot };
+    enum class Mode { Folder, SingleVariant };
     Mode               mode                = Mode::Folder;
 
     juce::File         pendingFolder;
     double             targetSampleRate    = 48000.0;
-    LoadOptions        folderOptions       {};   // v1.6.0 — see SampleMap.h
+    LoadOptions        folderOptions       {};
     CompletionCallback completionCallback;
     FailureCallback    failureCallback;
-    juce::StringArray  skippedFiles;     // touched only by run() then captured
-                                         // by message-thread callback
+    juce::StringArray  skippedFiles;
 
-    // Phase 3.2 single-slot state — touched only between loadSingleSlot()
-    // and the run() worker; the worker captures + dispatches via callAsync.
-    juce::File           singleFile;
-    int                  singleMidi          = 0;
-    int                  singleVelLayer      = 0;
-    SingleSlotCallback   singleSlotCallback;
+    juce::File              singleFile;
+    int                     singleMidi      = 0;
+    int                     singleVelLayer  = 0;
+    SingleVariantCallback   singleVariantCallback;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleLoader)
 };

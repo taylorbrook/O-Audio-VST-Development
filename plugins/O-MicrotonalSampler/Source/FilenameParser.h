@@ -48,10 +48,16 @@ namespace FilenameParser
     {
         int midiNote;   // 0..127
         int velLayer;   // 0..3 (0 = pp/v1, 3 = ff/v4); default 0 if no velocity token
+        // v1.8.0: round-robin index from explicit rr[N] / take[N] / tk[N]
+        // tokens. -1 = no explicit RR token (caller may treat duplicates as
+        // ambiguous and surface the modal-confirm flow). 0-based: rr1 → 0,
+        // take2 → 1, tk03 → 2, etc. Capped at 0..63 (way over any realistic
+        // RR set size; defends against malicious filenames).
+        int rrIndex;
     };
 
     // Parse a filename (without extension). Returns nullopt if no MIDI note
     // can be recovered from the tokens. Velocity defaults to 0 if no velocity
-    // token is found.
+    // token is found. RR index defaults to -1 if no rr/take/tk token is found.
     std::optional<ParsedName> parse (const juce::String& filenameNoExtension);
 }
