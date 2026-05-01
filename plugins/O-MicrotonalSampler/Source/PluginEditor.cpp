@@ -1577,6 +1577,29 @@ OMicrotonalSamplerAudioProcessorEditor::getResource (const juce::String& url)
             juce::String ("text/javascript") };
     }
 
+    // v1.10.0: Naturalist aesthetic overlay — antique anatomical engraving
+    if (url == "/images/brains.png")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::brains_png, BinaryData::brains_pngSize),
+            juce::String ("image/png") };
+    }
+
+    // v1.11.0: paper textures — page (paper1) + card surfaces (paper2)
+    if (url == "/images/paper1.jpg")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::paper1_jpg, BinaryData::paper1_jpgSize),
+            juce::String ("image/jpeg") };
+    }
+
+    if (url == "/images/paper2.jpg")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::paper2_jpg, BinaryData::paper2_jpgSize),
+            juce::String ("image/jpeg") };
+    }
+
     juce::Logger::writeToLog ("O-MicrotonalSampler: Resource not found: " + url);
     return std::nullopt;
 }

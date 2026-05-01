@@ -17,6 +17,17 @@
 </head>
 <body>
   <div id="app">
+    <!-- v1.10.0: Naturalist aesthetic — antique anatomical brain engraving.
+         Anchored to right edge of #app, behind all interactive content via
+         z-index: 0. pointer-events: none so it never blocks clicks. Tab
+         switching applies position classes (samplemap-position / tuning-
+         position / about-position) for subtle parallax-style movement. -->
+    <img src="/images/brains.png"
+         class="anatomy-overlay samplemap-position"
+         id="anatomyOverlay"
+         alt=""
+         aria-hidden="true">
+
     <!-- ============== HEADER ============== -->
     <header id="header">
       <div class="header-left">
@@ -295,7 +306,7 @@
             <div class="about-meta">
               <span>Made by</span>
               <a class="about-link"
-                 href="https://ouaricon.com"
+                 href="https://oaudio.io/"
                  target="_blank"
                  rel="noopener noreferrer">Ouaricon</a>
             </div>

@@ -256,6 +256,15 @@ function activateTab(tabName) {
         body.classList.toggle('active', body.id === `tab-${tabName}`);
     });
 
+    // v1.10.0: anatomy overlay parallax — swap position class per tab so the
+    // engraving slides subtly between tabs (samplemap = peeking right edge,
+    // tuning = retreats further right, about = swings into view as a feature).
+    const overlay = document.getElementById('anatomyOverlay');
+    if (overlay) {
+        overlay.classList.remove('samplemap-position', 'tuning-position', 'about-position');
+        overlay.classList.add(`${tabName}-position`);
+    }
+
     if (tabName === 'tuning') {
         ensureTuningPanelMounted();
         refreshTuningReadout();

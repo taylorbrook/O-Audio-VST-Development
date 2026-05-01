@@ -40,7 +40,15 @@ html, body {
 }
 
 body {
-    background: linear-gradient(to bottom, var(--bg-warm), var(--bg-cream));
+    /* v1.11.0: paper texture replaces the solid cream/warm gradient. A faint
+       warm tint sits on top so existing palette tokens (text-body, accent-gold,
+       border-warm) retain their intended contrast against the parchment grain.
+       Fallback color matches the original cream in case the resource provider
+       fails to serve the image. */
+    background: linear-gradient(rgba(245, 230, 211, 0.35),
+                                rgba(235, 217, 199, 0.35)),
+                url('/images/paper1.jpg') center/cover no-repeat fixed,
+                var(--bg-cream);
     color: var(--text-body);
     font-family: 'Garamond', 'Times New Roman', serif;
     font-size: 14px;
@@ -52,6 +60,50 @@ body {
     flex-direction: column;
     width: 100%;
     height: 100%;
+    position: relative;  /* v1.10.0: anchor for .anatomy-overlay */
+}
+
+/* ============== v1.10.0: ANATOMY OVERLAY ============== */
+/* Antique anatomical brain engraving (Naturalist aesthetic). Mirrors
+   O-Lyrica's botanical-overlay pattern — absolutely positioned, low opacity,
+   pointer-events disabled, behind all interactive content via z-index: 0.
+   Per-tab position classes give a subtle parallax effect on tab switch. */
+.anatomy-overlay {
+    position: absolute;
+    right: -60px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 110%;
+    max-height: 720px;
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
+    transition: right 0.45s ease-out, opacity 0.45s ease-out;
+    /* Slight sepia warm-up to lock into the cream/brown palette */
+    filter: sepia(0.15) saturate(0.85);
+}
+
+.anatomy-overlay.samplemap-position {
+    right: -60px;
+    opacity: 0.18;
+}
+
+.anatomy-overlay.tuning-position {
+    right: -120px;
+    opacity: 0.13;
+}
+
+.anatomy-overlay.about-position {
+    right: 40px;
+    opacity: 0.32;
+}
+
+/* Header / main / footer must sit above the overlay. */
+#header,
+#tab-bodies,
+#control-strip {
+    position: relative;
+    z-index: 1;
 }
 
 /* ============== HEADER ============== */
@@ -61,7 +113,13 @@ body {
     justify-content: space-between;
     padding: var(--gap-md) var(--gap-lg);
     border-bottom: 1px solid var(--border-warm);
-    background: var(--bg-card);
+    /* v1.11.0: paper2 texture for card surfaces, with the original
+       --bg-card cream overlaid at ~70% so the parchment grain reads
+       through but contrast/text legibility match v1.10.0. */
+    background: linear-gradient(rgba(235, 217, 199, 0.78),
+                                rgba(235, 217, 199, 0.78)),
+                url('/images/paper2.jpg') center/cover no-repeat,
+                var(--bg-card);
     flex-shrink: 0;
 }
 
@@ -885,7 +943,12 @@ body {
 
 /* Tuning tab — TuningPanel container */
 #tuning-container {
-    background: var(--bg-card);
+    /* v1.11.0: paper2 texture under translucent cream tint (matches header /
+       about-card). */
+    background: linear-gradient(rgba(235, 217, 199, 0.78),
+                                rgba(235, 217, 199, 0.78)),
+                url('/images/paper2.jpg') center/cover no-repeat,
+                var(--bg-card);
     border: 1px solid var(--border-warm);
     border-radius: 6px;
     padding: var(--gap-md);
@@ -902,7 +965,12 @@ body {
 }
 
 .about-card {
-    background: var(--bg-card);
+    /* v1.11.0: paper2 texture on the about card, matching header /
+       tuning-container surface treatment. */
+    background: linear-gradient(rgba(235, 217, 199, 0.78),
+                                rgba(235, 217, 199, 0.78)),
+                url('/images/paper2.jpg') center/cover no-repeat,
+                var(--bg-card);
     border: 1px solid var(--border-warm);
     border-radius: 8px;
     padding: var(--gap-lg);

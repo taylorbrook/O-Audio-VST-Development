@@ -1,5 +1,71 @@
 # O-MicrotonalSampler Changelog
 
+## [1.11.0] - 2026-05-01
+
+### Added
+- **Paper-texture backgrounds.** The page background and all card surfaces
+  (header, About card, Tuning panel container) now ride on antique paper
+  textures instead of solid cream/warm fills. `paper1.jpg` (964×598) drives
+  the page body via `center/cover` with a faint warm-tint overlay so the
+  existing palette tokens (text, accent-gold, border-warm) keep their
+  intended contrast. `paper2.jpg` (516×885) drives the card surfaces under
+  a translucent `--bg-card` overlay so the parchment grain reads through
+  without sacrificing legibility.
+
+### Changed
+- **About → "Ouaricon" link** now points to `https://oaudio.io/` (was
+  `https://ouaricon.com`).
+
+### Fixed
+- **About-tab version pill was hardwired to v1.0.0 across every release.**
+  Plugin `CMakeLists.txt` used `PLUGIN_VERSION "x.y.z"`, which is **not** a
+  recognized `juce_add_plugin` keyword — JUCE silently dropped it and fell
+  back to `PROJECT_VERSION` from the root `project(JUCEPlugins VERSION
+  1.0.0)` declaration. The About tab's `getPluginVersion` native function
+  returns `JucePlugin_VersionString`, which was therefore stuck at
+  `"1.0.0"` for every shipped version (v1.0.0–v1.10.0). Renamed the arg to
+  the correct `VERSION "1.11.0"` so future bumps wire through to the About
+  pill and the bundle plist (`CFBundleShortVersionString`) automatically.
+
+### Notes
+- Implementation: paper textures embedded via `juce_add_binary_data` in
+  `CMakeLists.txt` and served by `PluginEditor.cpp` resource provider at
+  `/images/paper1.jpg` and `/images/paper2.jpg`. CSS uses layered
+  `background` (tint gradient + image + solid fallback) so the resource
+  provider failing degrades gracefully to the previous v1.10.0 cream.
+- Pure visual + housekeeping change. No DSP, parameter, sample-map, or
+  preset-format changes.
+- v1.10.0 backup created at `backups/O-MicrotonalSampler/v1.10.0/` (was
+  missing — every prior release backed up its own predecessor except this
+  one).
+
+## [1.10.0] - 2026-05-01
+
+### Added
+- **Naturalist aesthetic — anatomical brain overlay.** Antique anatomical
+  engraving (cerebrum + central nervous system) layered behind the UI as a
+  subtle decorative overlay, matching the Ouaricon Naturalist aesthetic
+  established in O-Lyrica (botanical fern overlay). Image is sepia-tinted
+  to lock into the cream/warm-brown palette, sits behind all interactive
+  content (z-index: 0) with `pointer-events: none` so it never blocks
+  input.
+- **Tab-aware parallax positioning.** Overlay slides subtly between tabs:
+  - **Sample Map** — peeks from right edge (right: -60px, opacity 0.18)
+  - **Tuning** — retreats further right (right: -120px, opacity 0.13)
+  - **About** — swings into full view as a feature image (right: 40px,
+    opacity 0.32)
+  Transitions are 0.45s ease-out for both `right` and `opacity`.
+
+### Notes
+- Pure visual addition. No DSP, parameter, or behavior changes — the
+  v1.9.1 sample-map / round-robin / merge-rr surface is untouched.
+- Implementation pattern lifted verbatim from O-Lyrica v1.4.0
+  (`.botanical-overlay`): single `<img>` element absolutely positioned
+  inside `#app`, served via the existing WebView resource provider, tab
+  switcher swaps a position class. Image is embedded as `BinaryData`
+  via `juce_add_binary_data` in `CMakeLists.txt`.
+- File: `Resources/ui/images/brains.png` (~334 KB).
+
 ## [1.9.1] - 2026-05-01
 
 ### Fixed
