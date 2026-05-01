@@ -294,6 +294,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     LoadMode mode = LoadMode::ReplaceAll;
                     if (modeStr == "append")        mode = LoadMode::Append;
                     else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
 
                     auto chooser = std::make_shared<juce::FileChooser> (
                         "Choose folder containing sample files",
@@ -491,6 +492,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     LoadMode mode = LoadMode::ReplaceAll;
                     if (modeStr == "append")        mode = LoadMode::Append;
                     else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
 
                     DBG ("dropSessionCommitFolder: "
                          << currentDropSessionDir.getFullPathName()

@@ -1,5 +1,31 @@
 # O-MicrotonalSampler Changelog
 
+## [1.9.1] - 2026-05-01
+
+### Fixed
+- **`Layer as round-robin` load mode silently fell back to `ReplaceAll`,
+  wiping the entire sample map.** The JS folder-load modal correctly emits
+  `"merge_rr"` for the new v1.9.0 mode, but the C++ string→`LoadMode`
+  translation in `PluginEditor.cpp` only handled `"append"` and
+  `"replace_layer"` — every other string (including `"merge_rr"`) hit the
+  `LoadMode mode = LoadMode::ReplaceAll;` default, so picking the new mode
+  replaced the existing map instead of merging. Affected both load paths:
+  `loadSampleFolderDialog` (file-chooser, line 294) and
+  `dropSessionCommitFolder` (drag-drop folder, line 491). Added the
+  missing `else if (modeStr == "merge_rr") mode = LoadMode::MergeRR;`
+  branch in both blocks.
+
+### Notes
+- v1.9.0 backend (`applyMergeRrCell`, `LoadMode::MergeRR`,
+  `loadModeToString`/`loadModeFromString`) was already correct — the bug
+  was purely at the WebView→C++ translation boundary, so the
+  `O-MicrotonalSampler_MergeRrCheck` standalone test target kept passing
+  even with the bug live.
+- Behaviour after fix (verified in DAW): load folder A as ReplaceAll, then
+  load folder B with "Layer as round-robin" — folder A's cells outside
+  B's range persist; cells where A and B overlap gain B's variants
+  appended onto A's existing variant vectors.
+
 ## [1.9.0] - 2026-05-01
 
 ### Added

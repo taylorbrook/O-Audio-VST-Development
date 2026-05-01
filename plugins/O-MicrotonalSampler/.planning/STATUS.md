@@ -1,11 +1,11 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.9.0 — layer-as-round-robin load mode (IMPLEMENTED, awaiting build + DAW test)
-status: improvement_v1.9.0_implemented
+phase: v1.9.1 — fix MergeRR LoadMode translation in PluginEditor (PATCH)
+status: improvement_v1.9.1_implemented
 last_updated: 2026-05-01
-version: 1.9.0
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0
+version: 1.9.1
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0
 ---
 
 # Resume Point
