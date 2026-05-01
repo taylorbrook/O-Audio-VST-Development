@@ -12,7 +12,7 @@ staged_implementation: true
 orchestration_mode: true
 cycle_scope: phase_2_5_body_resonator_eight_mode_static_q_biquad_bank_plus_bow_noise_three_band_bpf_plus_slip_bursts_v1_zero_wolf_region_suppression_deferred_to_v1_1
 next_action: phase_2_5_verify
-phase_2_5_atomic_sha: pending_backfill_chore  # populated by R37-backfill chore commit immediately after R37 atomic
+phase_2_5_atomic_sha: 907a7c3409b1c2e74734f7d835ab3a934bb123fa
 phase_2_5_execute_carry_forward: |  # rev-17 STATUS append for audit trail
   Phase 2.5 execute complete 2026-04-30. R37-pre tripwire PASS (13/13 reproduce-goldens + clean source diff + pre-edit greps + saturator carry-forward). R37a/R37b/R37c source implementation: 3 NEW files (BodyResonator.h/cpp + BowNoiseGenerator.h, ~454 LOC NEW) + 2 M files (BowedContrabassVoice.h/cpp, +93 LOC M / -1 LOC) + 2 CMake (plugin +1, harness +1 — harness CMake is plan deviation; PLAN omitted because target uses explicit source list). PluginProcessor.{h,cpp} = 0 LOC M (existing voice→updateParametersFromAPVTS pull pattern covers BODY_SIZE/DAMPING/MIX/BOW_NOISE reads).
 
