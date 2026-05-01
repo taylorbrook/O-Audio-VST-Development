@@ -57,6 +57,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
     releaseRelay            = std::make_unique<juce::WebSliderRelay> ("release");
     polyphonyRelay          = std::make_unique<juce::WebSliderRelay> ("polyphony");
     velocityCrossfadeRelay  = std::make_unique<juce::WebSliderRelay> ("velocity_crossfade");
+    expressionRelay         = std::make_unique<juce::WebSliderRelay> ("expression");      // v1.7.0
     outputGainRelay         = std::make_unique<juce::WebSliderRelay> ("output_gain");
 
     // ----------------------------------------------------------------
@@ -85,6 +86,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             .withOptionsFrom (*releaseRelay)
             .withOptionsFrom (*polyphonyRelay)
             .withOptionsFrom (*velocityCrossfadeRelay)
+            .withOptionsFrom (*expressionRelay)        // v1.7.0
             .withOptionsFrom (*outputGainRelay)
 
             // ============================================================
@@ -1240,6 +1242,8 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
         *apvts.getParameter ("polyphony"), *polyphonyRelay, nullptr);
     velocityCrossfadeAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
         *apvts.getParameter ("velocity_crossfade"), *velocityCrossfadeRelay, nullptr);
+    expressionAttachment = std::make_unique<juce::WebSliderParameterAttachment> (    // v1.7.0
+        *apvts.getParameter ("expression"), *expressionRelay, nullptr);
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
         *apvts.getParameter ("output_gain"), *outputGainRelay, nullptr);
 

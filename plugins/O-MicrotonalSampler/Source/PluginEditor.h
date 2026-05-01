@@ -61,6 +61,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> releaseRelay;
     std::unique_ptr<juce::WebSliderRelay> polyphonyRelay;
     std::unique_ptr<juce::WebSliderRelay> velocityCrossfadeRelay;
+    std::unique_ptr<juce::WebSliderRelay> expressionRelay;       // v1.7.0
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
 
     // ============================================================
@@ -77,6 +78,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> releaseAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> polyphonyAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> velocityCrossfadeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> expressionAttachment;     // v1.7.0
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
 
     // v1.0.2 attempted a JUCE-Component drag overlay here; it failed

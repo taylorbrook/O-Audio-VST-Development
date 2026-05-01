@@ -76,6 +76,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
         1.0f
     ));
 
+    // ========== Expression (1) — v1.7.0 ==========
+    //
+    // Real-time dynamics control. Independent of velocity-layer selection:
+    // velocity (note-on velocity) still selects which layer plays; expression
+    // scales the post-mix output. Driven by MIDI CC 11 (Expression Controller,
+    // industry-standard for orchestral mockups) AND by host automation —
+    // last-touched wins. Squared curve (CC²) and 10 ms smoothing applied at
+    // gain time in processBlock.
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "expression", 1 },
+        "Expression",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f),
+        1.0f,
+        " %",
+        juce::AudioProcessorParameter::genericParameter,
+        [] (float v, int)         { return juce::String (juce::roundToInt (v * 100.0f)); },
+        [] (const juce::String& s){ return juce::jlimit (0.0f, 1.0f, s.getFloatValue() / 100.0f); }
+    ));
+
     // ========== Output (1) ==========
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -145,6 +164,15 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
     if (auto* gp = parameters.getRawParameterValue ("output_gain"))
         outputGainSmoother.setCurrentAndTargetValue (
             juce::Decibels::decibelsToGain (gp->load()));
+
+    // v1.7.0: expression smoothing — same 10 ms ramp; target stores the
+    // squared curve so the ramp moves through final linear gain space.
+    expressionSmoother.reset (sampleRate, 0.01);
+    if (auto* ep = parameters.getRawParameterValue ("expression"))
+    {
+        const float v = ep->load();
+        expressionSmoother.setCurrentAndTargetValue (v * v);
+    }
 
    #ifdef O_MICROTONAL_SAMPLER_PHASE_2_1_TEST_FIXTURE
     // Phase 2.1 in-memory test fixture: build a SampleMap with one slot per
@@ -260,6 +288,21 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // MUST run BEFORE renderNextBlock so per-voice startNote sees pending NE deltas.
     vst3Extensions.drainAndUpdate();
 
+    // v1.7.0: scan MIDI for CC 11 (Expression Controller). Last-value-wins
+    // within the block — sample-accurate splitting was deemed unnecessary
+    // (10 ms smoothing on the gain side covers per-block jumps without zipper).
+    // setValueNotifyingHost forwards to host automation lanes AND triggers
+    // the WebSliderRelay valueChangedEvent so the UI knob tracks the CC.
+    for (const auto meta : midiMessages)
+    {
+        const auto msg = meta.getMessage();
+        if (msg.isController() && msg.getControllerNumber() == 11)
+        {
+            if (auto* ep = parameters.getParameter ("expression"))
+                ep->setValueNotifyingHost (msg.getControllerValue() / 127.0f);
+        }
+    }
+
     // FUNC-03: propagate the polyphony APVTS cap into the synth before MIDI is
     // dispatched, so CappedSynthesiser::noteOn enforces the user's cap on this
     // block's note-ons.
@@ -269,13 +312,34 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // Render all voices via synthesiser (handles MIDI routing + voice allocation).
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
+    const int numSamples = buffer.getNumSamples();
+
+    // v1.7.0: expression (dynamics) gain — squared curve, applied post-mix
+    // before output_gain. Independent of velocity-layer selection (velocity
+    // chooses the layer at note-on; expression scales the mix). Same
+    // start/end ramp pattern as output_gain (RESEARCH pitfall #9).
+    if (auto* ep = parameters.getRawParameterValue ("expression"))
+    {
+        const float v = ep->load();
+        expressionSmoother.setTargetValue (v * v);
+    }
+
+    const float startExp = expressionSmoother.getCurrentValue();
+    expressionSmoother.skip (numSamples);
+    const float endExp   = expressionSmoother.getCurrentValue();
+
+    if (! juce::approximatelyEqual (startExp, 1.0f) || ! juce::approximatelyEqual (endExp, 1.0f))
+    {
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+            buffer.applyGainRamp (ch, 0, numSamples, startExp, endExp);
+    }
+
     // Output-gain smoothing (RESEARCH pitfall #8 / R7). Read parameter atomically,
     // convert to linear, drive the smoother target. Apply via applyGainRamp using
     // start/end snapshots (RESEARCH pitfall #9 — single ramp per block, no zipper).
     if (auto* gp = parameters.getRawParameterValue ("output_gain"))
         outputGainSmoother.setTargetValue (juce::Decibels::decibelsToGain (gp->load()));
 
-    const int numSamples = buffer.getNumSamples();
     const float startGain = outputGainSmoother.getCurrentValue();
     outputGainSmoother.skip (numSamples);
     const float endGain   = outputGainSmoother.getCurrentValue();

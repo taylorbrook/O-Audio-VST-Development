@@ -254,6 +254,12 @@ private:
     // zipper noise on parameter changes). Initialized in prepareToPlay.
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGainSmoother;
 
+    // v1.7.0: expression (dynamics) smoothing. Squared curve applied at the
+    // smoother target (target = expression²) so the smoother itself ramps the
+    // final linear gain — no double-smoothing of the curve. CC 11 writes the
+    // raw 0..1 expression parameter; the squaring happens here in processBlock.
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> expressionSmoother;
+
     // Phase 2.2: list of filenames the most recent loader pass could not
     // parse / read. Populated on completion callback (message thread); read
     // by Stage-3 UI. Cleared on failure.

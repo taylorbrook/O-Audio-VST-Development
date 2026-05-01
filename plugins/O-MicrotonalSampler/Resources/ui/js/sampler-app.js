@@ -3,8 +3,9 @@
  * O-MicrotonalSampler — Phase 3.1 entry point.
  *
  * Wires:
- *   - 7 APVTS sliders ↔ DOM range inputs via Juce.getSliderState() (relay
+ *   - 8 APVTS sliders ↔ DOM range inputs via Juce.getSliderState() (relay
  *     identifiers must match the C++ WebSliderRelay names exactly).
+ *     (v1.7.0 added 'expression' — CC 11 dynamics.)
  *   - Tab activation (Sample Map / Tuning / About).
  *   - Lazy mount of the TuningPanel on first Tuning-tab activation, plus a
  *     read-only interval-input → span swap shim per RESEARCH §RQ3-1.
@@ -37,6 +38,7 @@ const SLIDER_BINDINGS = [
     { domId: 'ctrl-release',             relayId: 'release' },
     { domId: 'ctrl-polyphony',           relayId: 'polyphony' },
     { domId: 'ctrl-velocity-crossfade',  relayId: 'velocity_crossfade' },
+    { domId: 'ctrl-expression',          relayId: 'expression' },          // v1.7.0
     { domId: 'ctrl-output-gain',         relayId: 'output_gain' }
 ];
 
@@ -59,6 +61,9 @@ const KNOB_FORMATS = {
                              format: v => Math.round(v).toString() },
     'velocity_crossfade':  { min: 0.0,   max: 1.0, suffix: '',
                              format: v => v.toFixed(2) },
+    // v1.7.0: expression as 0-100% (squared curve handled C++ side).
+    'expression':          { min: 0.0,   max: 100.0, suffix: ' %',
+                             format: v => Math.round(v).toString() },
     'output_gain':         { min: -24.0, max: 12.0, suffix: ' dB',
                              format: v => (v >= 0 ? '+' : '') + v.toFixed(1) },
 };

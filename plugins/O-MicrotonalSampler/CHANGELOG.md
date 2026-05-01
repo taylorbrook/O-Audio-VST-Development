@@ -1,5 +1,42 @@
 # O-MicrotonalSampler Changelog
 
+## [1.7.0] - 2026-04-30
+
+### Added
+- **Expression control for dynamics (MIDI CC 11).** New `expression` APVTS
+  parameter (0–100 %, default 100 %) wired to MIDI Continuous Controller 11
+  (the industry-standard "Expression" controller for orchestral mockups).
+  Incoming CC 11 messages drive the parameter via `setValueNotifyingHost`
+  so DAW automation lanes mirror live controller input — last-touched wins.
+- **Expression knob on the bottom control strip.** Bound to the new
+  parameter via `WebSliderRelay` / `WebSliderParameterAttachment`, so
+  knob, host automation, and CC 11 stay synchronised.
+
+### Behaviour
+- Expression is **independent of velocity-layer selection.** Velocity
+  (note-on velocity) still selects which layer plays at note-on; the
+  expression knob scales the post-mix output afterwards. Mid-note
+  expression changes therefore change loudness without retriggering or
+  crossfading layers — matching Kontakt / Spitfire convention.
+- **Curve:** squared (final gain = expression²). Sampler convention; gives
+  smoother fades and a more "natural" feel than a linear curve.
+- **Smoothing:** 10 ms per-block linear ramp (mirrors the existing
+  `output_gain` smoother — RESEARCH R7, pitfall #8). Sample-accurate
+  per-event smoothing was deemed unnecessary; the 10 ms ramp covers
+  per-block CC jumps without zipper noise.
+- **Signal chain:** voices → expression gain → output gain → output. The
+  two stages multiply, so global trim and dynamics are independent.
+
+### Implementation notes
+- `processBlock` scans the MIDI buffer for CC 11 (last-value-wins per
+  block) before `renderNextBlock`. The CC's 0–127 value maps directly
+  to the parameter's 0..1 normalised range. The squaring happens at
+  gain-application time, not at parameter-write time, so host automation
+  and the knob both expose a clean linear 0–100 % surface.
+- New parameter is added at the end of the layout (between
+  `velocity_crossfade` and `output_gain`). Existing presets / sessions
+  load with expression at its default (100 %) — no breaking change.
+
 ## [1.6.0] - 2026-04-30
 
 ### Added
