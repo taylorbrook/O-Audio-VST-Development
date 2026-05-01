@@ -132,6 +132,14 @@ void BowedContrabassVoice::noteStopped (bool allowTailOff)
         vibratoOnsetGateAtNoteOff  = 0.0f;
         noteOffFadeOutTimerSeconds = -1.0f;
         lastSafeDepth.store (0.0f, std::memory_order_relaxed);
+
+        // Phase 2.5 — reset body resonator + bow noise generator state on hard
+        // stop (filter state continues across blocks during sustain; only
+        // resets on voice-stop per ARCHITECTURE §"Body Resonator" "Filter
+        // state continues across blocks (no per-block reset)" intent).
+        bodyResonator.reset();
+        bowNoiseGenerator.reset();
+        lastFundamentalHz = 0.0f;
     }
 }
 
@@ -254,6 +262,25 @@ void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSiz
     subHarmonicsSmoothed.setCurrentAndTargetValue (0.0f);
     voiceBowForceUpliftThisBlock = 1.0f;             // HR-9 reset
     lastSubAmount.store (0.0f, std::memory_order_relaxed);
+
+    // ─── Phase 2.5 — Body resonator + bow noise generator ─────────────────────
+    // Body runs at host rate (post 2× downsample); noise generator likewise
+    // operates at host rate. 30 ms ramps (CONTEXT line 152 + ARCHITECTURE §152).
+    // Defaults match parameter-spec.md (SIZE=0.75 / DAMPING=0.40 / MIX=0.80 /
+    // NOISE=0.35).
+    bodyResonator.prepare (hostSampleRate, maxBlockSize);
+    bowNoiseGenerator.prepare (hostSampleRate, /*voiceIndex=*/ 0); // monophonic (RESEARCH §21.6)
+
+    bodySizeSmoothed.reset    (hostSampleRate, 0.030);
+    bodyDampingSmoothed.reset (hostSampleRate, 0.030);
+    bodyMixSmoothed.reset     (hostSampleRate, 0.030);
+    bowNoiseSmoothed.reset    (hostSampleRate, 0.030);
+    bodySizeSmoothed.setCurrentAndTargetValue    (0.75f);
+    bodyDampingSmoothed.setCurrentAndTargetValue (0.40f);
+    bodyMixSmoothed.setCurrentAndTargetValue     (0.80f);
+    bowNoiseSmoothed.setCurrentAndTargetValue    (0.35f);
+
+    lastFundamentalHz = 0.0f;
 }
 
 //==============================================================================
@@ -687,7 +714,62 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     // 7. Downsample back to host rate (writes into `block` which aliases voiceBuffer).
     oversampling.processSamplesDown (block);
 
-    // 8. Mix host-rate voiceBuffer into the output buffer (mono → stereo split).
+    // === PHASE 2.5 NEW Step 8: Body resonator (8-mode parallel bandpass + 35 Hz HP dry path + wet/dry mix) ===
+    // Skip-bump SmoothedValue: advance smoother by numSamples and read the
+    // end-of-block value (per-block recompute pattern; coefficients re-derived
+    // once per block via recomputeCoefficients() inside processBlock).
+    // jmax guard handles numSamples==1 (skip(0) is a no-op return of current).
+    {
+        const float sz = bodySizeSmoothed.skip    (juce::jmax (1, numSamples - 1));
+        const float dp = bodyDampingSmoothed.skip (juce::jmax (1, numSamples - 1));
+        const float mx = bodyMixSmoothed.skip     (juce::jmax (1, numSamples - 1));
+        bodyResonator.setSize    (sz);
+        bodyResonator.setDamping (dp);
+        bodyResonator.setMix     (mx);
+        bodyResonator.processBlock (voiceBuffer.getWritePointer (0), numSamples);
+    }
+
+    // === PHASE 2.5 NEW Step 9: Bow noise (3-band BPF + period-heuristic slip bursts; sums after body) ===
+    {
+        // bowEnergy = clamp(0, 1, |v_bow| · F_bow / (v_ref · F_ref)) per
+        // ARCHITECTURE §164 (v_ref = 0.3 m/s, F_ref = 2.0 N).
+        constexpr float kVRef = 0.3f;
+        constexpr float kFRef = 2.0f;
+        const float vBow = std::abs (bowModel.getBowVelocity());
+        const float fBow = bowModel.getBowForce();
+        const float bowEnergyVal = juce::jlimit (0.0f, 1.0f,
+                                                 (vBow * fBow) / (kVRef * kFRef));
+        bowNoiseGenerator.setBowEnergy (bowEnergyVal);
+
+        // Push active-string fundamental on note-start or > 5 cent change
+        // (period-heuristic slip trigger). currentFrequency is the played
+        // freq for the active string (post-MPE-bend); idle slot has
+        // activeStringIndex < 0 so we skip the push entirely until a note
+        // arrives.
+        if (activeStringIndex >= 0)
+        {
+            const float f0 = juce::jlimit (20.0f, 5000.0f, currentFrequency);
+            const float cents = (lastFundamentalHz > 0.0f)
+                              ? 1200.0f * std::log2 (f0 / lastFundamentalHz)
+                              : 0.0f;
+            if (lastFundamentalHz <= 0.0f || std::abs (cents) > 5.0f)
+            {
+                bowNoiseGenerator.setFundamentalHz (f0);
+                lastFundamentalHz = f0;
+            }
+        }
+
+        // BOW_NOISE smoothed level (skip-bump end-of-block read).
+        const float noiseLvl = bowNoiseSmoothed.skip (juce::jmax (1, numSamples - 1));
+        bowNoiseGenerator.setNoiseLevel (noiseLvl);
+
+        float* mono = voiceBuffer.getWritePointer (0);
+        for (int i = 0; i < numSamples; ++i)
+            mono[i] += bowNoiseGenerator.processSample();
+    }
+    // === END PHASE 2.5 ===
+
+    // 10. Mix host-rate voiceBuffer into the output buffer (mono → stereo split).
     constexpr float kVoiceNorm = 0.35f;
     const int numOutChans = outputBuffer.getNumChannels();
 
@@ -744,6 +826,14 @@ void BowedContrabassVoice::updateParametersFromAPVTS()
     }
 
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
+
+    // Phase 2.5 — push body + bow-noise smoother targets. The smoothers ramp
+    // at 30 ms; per-block recompute pattern (BodyResonator.recomputeCoefficients
+    // is called inside processBlock).
+    bodySizeSmoothed.setTargetValue    (parameters->getRawParameterValue ("BODY_SIZE")   ->load());
+    bodyDampingSmoothed.setTargetValue (parameters->getRawParameterValue ("BODY_DAMPING")->load());
+    bodyMixSmoothed.setTargetValue     (parameters->getRawParameterValue ("BODY_MIX")    ->load());
+    bowNoiseSmoothed.setTargetValue    (parameters->getRawParameterValue ("BOW_NOISE")   ->load());
 }
 
 //==============================================================================

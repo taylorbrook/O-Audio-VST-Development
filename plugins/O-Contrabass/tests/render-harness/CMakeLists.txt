@@ -26,6 +26,7 @@ target_sources(O-Contrabass-render-test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginEditor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/BowedContrabassVoice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/WaveguideString.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/BodyResonator.cpp
 )
 
 target_include_directories(O-Contrabass-render-test PRIVATE

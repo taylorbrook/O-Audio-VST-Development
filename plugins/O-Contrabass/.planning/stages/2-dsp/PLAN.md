@@ -9767,3 +9767,1139 @@ R36-bis-backfill  (chore commit — propagate R36-bis sha into STATUS.md)
 - **O-Bowed `--saturator-tail-comparison` mirror mode** — Phase 2.4c-bis does NOT add a `--saturator-tail-comparison` mode to the O-Bowed harness (carry-forward from Phase 2.4c PLAN rev-10 deferral). Comparison is one-sided; deferred to v1.1.
 - **R36-bis atomic split into multiple commits** — REJECTED per CONTEXT Q52 + atomic-commit precedent. Single atomic + backfill chore shape (R34/R35/R36 precedent).
 
+---
+
+# Stage 2: DSP — Plan (Phase 2.5) — REVISION 12 (Body Resonator 8-Mode Static-Q Bank + Bow Noise Generator 3-Band BPF + Period-Heuristic Slip Bursts, Gate 7)
+
+> **Status:** rev-12 authors fresh task bodies for **R37-pre, R37a, R37b, R37c, R37d, R37e, R37f, R38, R37 atomic, R37-backfill chore** per `RESEARCH.md §21` sequencing and `CONTEXT.md` rev-10. rev-1/2/3/4/5/6/7/8/9/10/11 remain in-effect as completed/verified history. Phase 2.4c-bis closed 2026-04-29 with R36-bis atomic commit `1044bed41574be5d0714983f7910cac8bda2edec` (Gate 6c-bis SOFT-PASS at bin 64 = −7.97 dB / `|Δ| = 0.80 dB` vs O-Bowed reference) + R36-bis-backfill chore `1dfca9d`.
+
+**Date:** 2026-04-30
+**Cycle scope:** Phase 2.5 only — body resonator (8-mode parallel biquad bank, static-Q, bass-tuned modes per Askenfelt 1982 / Rossing 2010) + bow noise generator (3-band BPF at 700/1500/3000 Hz + period-heuristic slip bursts, decay 0.999) as NEW Steps 8 + 9 in per-block evaluation order, AFTER waveguide downsample, BEFORE (Phase 2.6) master chain. Closes BRIEF.md DSP-03 (must) + DSP-04 (should). Phase 2.4-bis backlog (kForceBoost retune for tanh, Step 4 / breathingAudible refinement, VIBRATO_DEPTH transfer tune, click-free heuristic threshold tune, DSP-07 sub-harmonics retune for tanh) stays parked. Wolf-region suppression deferred to v1.1 (CONTEXT Q55 + ARCHITECTURE deviation flagged).
+**Gate:** Gate 7 (Phase 2.5 verify)
+**Atomic-commit unit:** R37 (Gate 7 PASS) — single commit lands 4 production source files (2 NEW + 2 modified per CONTEXT line 156) + 1 CMakeLists.txt source-list addition + 13 re-baselined `*.wav.sha256` files (per RESEARCH §21.5 deferred to execute-phase) + matrix-stability evidence-only re-render archived under `.planning/evidence/phase-2-5/` (NOT committed as updated regression golden) + saturator-tail-comparison post-body re-baseline + sub-harmonics post-body re-baseline + RESEARCH §21 verdict subsection (12 sub-sections per §21.12; §§21.1–21.16 already present from research-phase; verify-phase fills R38 outcome) + STATUS.md flip to `phase_2_5_complete` + SUMMARY.md + VERIFICATION.md Phase 2.5 sections + this PLAN rev-12 (already in place from plan-phase). **NO Stage-1 contract amendment** (parameter-spec.md sha256 `77638e25…` carries forward unchanged; all 5 body/noise params already declared at PluginProcessor.cpp:52,60,62,64,66). **NO ARCHITECTURE.md amendment in Phase 2.5** (body resonator + bow noise IS architecture verbatim; wolf-region deferral is a CONTEXT-flagged deviation, not an ARCHITECTURE delta; §149 vs §509 size_scalar inconsistency flagged for end-of-Stage-2 amendment per RESEARCH §21.16 ESCALATION-3). `matrix-stability.wav.sha256 = 6db67707…` carries forward verbatim (post-Phase-2.5 evidence archived to `.planning/evidence/phase-2-5/` per Phase 2.4a R34b + Phase 2.4c-bis R36-bis precedent).
+**Carry-forward locks (NOT re-litigated):** Phase 2.1a-recovery split-rail topology, F2 LP form, F3 no-in-loop-DCB, F4 betaScale removed; Phase 2.1b bow-friction module v1.0.0 consumption (HR-10 ABI preservation); Phase 2.1c `DispersionFilter<4>` API + per-string M=4/3/2/1 dispersion table; Phase 2.2 4-string bank + per-string detune + 5 ms equal-power crossfade + MIDI→string mapping; Phase 2.3 modulator-layer surface (HR-1..HR-4); Phase 2.4a Schelleng wedge calibration polynomial (HR-5..HR-8); Phase 2.4b Sub-Harmonic Bias DSP-07 (HR-9..HR-10 + Step 2.5); Phase 2.4c autocorrelator MIDI-derived range bias + `--saturator-tail-comparison` mode + `pass_vibratoAudible` aggregator + Option B O-Bowed harness extension; Phase 2.4c-bis `Source/DSP/WaveguideString.cpp:204–206` post-port `sat·tanh(x/sat)` saturator with `sat = 4.0f` on both rails — verbatim consume. Phase 2.5 modifies the EXACT 4-source-file set: `Source/DSP/BodyResonator.{h,cpp}` NEW + `Source/DSP/BowNoiseGenerator.h` NEW + `Source/BowedContrabassVoice.{h,cpp}` M (Step 8 + Step 9 + body/noise instances + smoothed param ramps + setFundamentalHz + bowEnergy compute) + `Source/PluginProcessor.{h,cpp}` M (voice-side body/noise param routing) + 1 CMakeLists.txt source-list addition.
+
+---
+
+## Preamble — Pinned Open Items (RESEARCH §21.16)
+
+PLAN rev-12 pins each of the open items handed off from research-phase (RESEARCH §21.16 + §21.10/§21.11/§21.13/§21.14):
+
+| # | Open Item | Pinned Decision |
+|---|-----------|-----------------|
+| 1 | **R37 9-task breakdown** | **LOCKED verbatim from RESEARCH §21.10.** Sequence: R37-pre (tripwire) → R37a (BodyResonator NEW + CMakeLists update) → R37b (BowNoiseGenerator NEW) → R37c (voice integration: Step 8 + Step 9 + smoothed param ramps + setFundamentalHz + bowEnergy) → R37d (re-baseline 13 audible goldens + matrix evidence + saturator-tail post-body + sub-harmonics post-body + 3-trial bit-stability pre-flight) → R37e (regression bar via 13-entry reproduce-goldens.sh against NEW sha256s + 4-file source audit hook + 1-file CMake audit hook) → R37f (auval + pluginval-10) → R38 (Logic AU audition, BLOCKING) → R37 (atomic commit) → R37-backfill chore. |
+| 2 | **R38 Logic AU audition protocol** | **LOCKED verbatim from RESEARCH §21.11.** 4-step protocol: build pre-Phase-2.5 reference AU from `/tmp/oc-pre-2-5` worktree at `1044bed` (R36-bis post-port; idempotent across re-creates; rename to `O-Contrabass-pre-2-5` with disambiguated PLUGIN_CODE / CFBundleIdentifier to avoid collision with working-tree variant); build + install post-Phase-2.5 working-tree AU per CLAUDE.md macOS protocol; audition in Logic Pro. 7-probe sequence (BLOCKING): (1) sustained E1 MIDI 28 — body wood color present without obscuring fundamental; (2) per-string A/D/G MIDI 33/38/43 — no string-dependent body discontinuities; (3) sustained G2 MIDI 43 wolf-region check at default damping — subtle bloom acceptable, audible beating documented but NON-BLOCKING (Q55 deferral); (4) bow-direction reversal (note-on/off/on) — audible 5–15 ms wideband slip-burst on each attack; (5) BOW_NOISE 0%→100% sweep — linear loudness ramp, no zipper noise; (6) BODY_SIZE/DAMPING/MIX sweeps — smooth morph, no clicks; (7) orchestral A/B vs reference orchestral library bass at G2 — "in same sonic family" subjective bar per ROADMAP §"Phase 2.5 Test Criteria". |
+| 3 | **VERBATIM-COPY ASSUMPTION BROKEN** (RESEARCH §21.2 + §21.16 ESCALATION-1) | **ACKNOWLEDGED at PLAN rev-12; CONTEXT Q54 deviation flagged; do NOT re-discuss.** O-Bowed BodyResonator is morphable Material+Size+BodyAmount with `makePeakFilter` + stereo + processor-level integration. Bass spec is single-preset Size+Damping+Mix with `makeBandPass` + mono + voice-level integration. Phase 2.5 implementation is **"implement bass spec from ARCHITECTURE using O-Bowed as reference for `juce::dsp::IIR::Filter` + `juce::Random` lifecycle patterns"** — NOT "verbatim copy + bass-substitution". LOC budget revised: **~470 LOC NEW + ~55 LOC M = ~525 LOC total** (vs CONTEXT rev-10 §"Open Q #2" estimate "100–250 per file"). Recommended starting designs locked from RESEARCH §21.2.6 (BodyResonator) + §21.2.7 (BowNoiseGenerator). |
+| 4 | **Slip-burst trigger source — period-heuristic v1.0 substitute** (RESEARCH §21.3 + §21.16 ESCALATION-2) | **LOCKED.** Bow-friction module v1.0.0 + WaveguideString.cpp expose no slip-state accessor; true Helmholtz slip-detection per ARCHITECTURE §165 ("zero-crossing of friction force from stick to slip") would require WaveguideString edit which violates CONTEXT 4-file scope-strict rule. v1.0 substitute: voice tracks active-string fundamental `f0_active`, pushes to BowNoiseGenerator via `setFundamentalHz(f0)` at note-start + on f0 change > 5 cents threshold; BowNoiseGenerator decrements `slipCounter` per-sample, fires burst (envelope = `bowEnergy` at trigger time) on counter zero, resets `slipCounter = sr / f0`. Period-heuristic is bit-deterministic (integer counter math), audibly similar (one burst per fundamental period, decay 0.999/sample → ~70 ms decay envelope at 48 kHz matches ARCHITECTURE §165 spec). True slip-detection deferred to Phase 2.5-bis (Option A: voice-level F_friction reconstruction; Option B: WaveguideString getLastFrictionForce() accessor; Option C: WaveguideString slip-flag accessor). |
+| 5 | **`juce::Random` seed determinism** | **LOCKED per RESEARCH §21.6 verbatim from O-Bowed pattern.** `noiseRandom.setSeed(static_cast<juce::int64>(voiceIndex * 31337))` in BowNoiseGenerator::prepare; O-Contrabass is monophonic (`voiceIndex = 0`; seed = 0). Bit-deterministic across re-renders. R37d 3-trial pre-flight per RESEARCH §21.5 confirms. |
+| 6 | **13 expected post-Phase-2.5 `*.wav.sha256` values** | **DEFERRED to execute-phase R37d** per RESEARCH §21.5 (design-revision blocker; sha256 measurement requires implementation to exist). Pre-flighting 3-trial bit-stability per golden at R37d locks NEW reference values. R37 atomic commit lands the 13 NEW values. Re-baseline scope: all 13 audible goldens (per CONTEXT Q56 + RESEARCH §21.5). |
+| 7 | **Vibrato carry-forward determination** | **DEFAULT = RE-BASELINE** per RESEARCH §21.7. Body coloring shifts output spectrum; `peakDepthCents` autocorrelator metric likely shifts > 0.10¢ tolerance. Already counted in 13-audible re-baseline scope. R37d post-render check: if `vibrato.wav.sha256` byte-identical AND metrics within ±0.05¢ / ±0.005 Hz / ±2 ms tolerance → carry forward (count drops to 12 audible re-baselines); if shift → re-baseline (13 stays). |
+| 8 | **Saturator-tail bin 64 measurement under body coupling** | **DEFERRED to R37d execute-phase pre-flight** per RESEARCH §21.4. Body bank is post-saturator linear filter (no nonlinear backflow); predicted shift ≤ 2 dB at canonical operating point; soft-band [−9, −5] dB rel max acceptable; > 4 dB shift escalates pre-R37-atomic. Phase 2.4c-bis R36-bis baseline = −7.97 dB; verify §19.3.3 analytic bound under body-coupled topology. NOT a Gate 7 BLOCKER unless > 4 dB shift signals body-coupling instability; flags evidence base for end-of-Stage-2 §"In-loop saturator" amendment. |
+| 9 | **Matrix-stability post-Phase-2.5 verdict structure** | **DEFERRED to R37d execute-phase post-implementation** per RESEARCH §21.8. Body bank is L2-bounded BIBO-stable parallel bandpass network; bow noise sums additively; predicted-low probability of NEW raucous corners. Re-render evidence-only (NOT committed as re-baselined golden). Document raucous-corner cells in §21 verdict subsection: stable / unchanged / NEW. If NEW raucous corners surface → block plan-phase (escalate before R37 atomic) pending root-cause investigation. Default-state baseline: Phase 2.4a R34b 3 fails (matrix-stability evidence at `09cbf15f…` per CONTEXT line 176). |
+| 10 | **Sub-harmonics post-body coupling** | **DEFERRED to R37d execute-phase post-implementation** per RESEARCH §21.9. Phase 2.4c-bis landed `subharmEnergyRatio = 0.358` SOFT-PASS at waveguide output (pre-body). Body bank's Mode 1 at 60 Hz / Mode 2 at 98 Hz is bandpass-tilted toward subharmonic preservation. Soft-band [0.30, 0.45] expected (pre-body 0.358 ± body-coupling ≈ 0.05). If drops below 0.30 → flag for Phase 2.4-bis backlog priority bump (NOT a Gate 7 BLOCKER, evidence-only per CONTEXT line 220). |
+| 11 | **CMakeLists.txt source-list update** | **LOCKED per RESEARCH §21.13.** O-Bowed `Source/DSP/BodyResonator.cpp` is real `.cpp` (188 LOC); Phase 2.5 BodyResonator design per §21.2.6 also requires `.cpp` (per-block `recomputeCoefficients` + out-of-line coefficient compute logic too large for inline header). Add `Source/DSP/BodyResonator.cpp` to `target_sources(O-Contrabass PRIVATE …)` block in `plugins/O-Contrabass/CMakeLists.txt` (1 LOC M). `Source/DSP/BowNoiseGenerator.h` is `.h`-only per O-Bowed convention (no CMake update; picked up via include path). |
+| 12 | **`/tmp/oc-pre-2-5` worktree at `1044bed` idempotent + cleanup at verify-phase** | **PINNED per RESEARCH §21.11 reference-build protocol.** `git worktree add /tmp/oc-pre-2-5 1044bed41574be5d0714983f7910cac8bda2edec` is idempotent across re-creates. R37-pre verifies presence (`test -d /tmp/oc-pre-2-5/.git || git worktree add /tmp/oc-pre-2-5 1044bed`). R38 (audition) consumes the worktree to build pre-Phase-2.5 AU variant (`O-Contrabass-pre-2-5.component`, disambiguated PLUGIN_CODE — e.g., `OCb5`). Cleanup at Phase 2.5 verify-phase close via `git worktree remove /tmp/oc-pre-2-5` (NOT during execute — verify-phase needs the worktree for independent reproduction of pre-Phase-2.5 reference). |
+| 13 | **R38 BLOCKING per CONTEXT Q57** | **LOCKED.** First NEW DSP block since Phase 2.4b R35 (and that was minimal); body resonator + bow noise are dramatic audible-character transformations. Mirrors R37-bis Phase 2.4c-bis precedent (audible source-edit → BLOCKING audition). Departs from R37/R32/R27/R19f/R14e/R34h/R35f deferred-non-blocking precedent. |
+| 14 | **No new HR introduced** | **LOCKED per CONTEXT Q59 + RESEARCH §21.16 plan-phase pre-locks.** HR-1..HR-10 carry-forward verbatim; HR-11 retired (Phase 2.4c-only binding preserved in audit history). Body bank + bow noise extend the per-block order with NEW Step 8 + Step 9 but introduce no new IEEE 754 identity arithmetic / zero short-circuit / ABI preservation invariants beyond what exists. |
+| 15 | **Wolf-region suppression deferred to v1.1** | **PINNED per CONTEXT Q55 (ARCHITECTURE deviation flagged).** Mode #2 Q stays at 11 statically. Mode 2 fc=91.16 Hz at default damping; G2 fundamental at 98 Hz is just outside Mode 2 −3 dB band. R38 Probe 3 documents audibility; if audible beating → carry to Phase 2.5-bis backlog (do NOT block R37 atomic). User can mitigate via BODY_DAMPING knob in v1.0. Reactivation path: Phase 2.5-bis or v1.1 cycle restores wolf-suppression with appropriate Hard Rule for fundamental-lock-detection determinism. |
+| 16 | **ARCHITECTURE §149 vs §509 `size_scalar` inconsistency** (RESEARCH §21.16 ESCALATION-3) | **LOCK formula `size_scalar = 0.85 + 0.30·s` per ARCHITECTURE §509** (formula authoritative over commentary). 1.353:1 frequency span at default 60 Hz Mode 1 → 70.6 Hz (s=0.0) ↔ 52 Hz (s=1.0). Plan-phase deviates from ARCHITECTURE-line-149 commentary (1.83:1 claim) but preserves ARCHITECTURE-line-509 formula. Append to deferred ARCHITECTURE.md amendments at end-of-Stage-2 verify (post-Phase-2.6) alongside §"DC Blocker" + §"In-loop saturator" amendments. |
+| 17 | **Phase 2.6 sequencing post-Phase-2.5** | **PINNED — Phase 2.6 opens fresh CONTEXT rev-11 post-Phase-2.5 verify.** Phase 2.5 verify-phase Gate 7 closure + R37 atomic commit + R37-backfill chore is the gate. Phase 2.6 (master saturator + zero-latency feedforward limiter + stereo width + microtonal Scala/TUN/MTS-ESP + MPE + Note Expression) opens with the body-engaged + bow-noise topology in place. End-of-Stage-2 verify (post-Phase-2.6) owns the deferred ARCHITECTURE.md amendments (§"DC Blocker" + §"In-loop saturator" + §"Body Resonator" §149/§509 reconciliation). |
+
+**Carry-forward HARD RULES from prior phases (NOT re-litigated):**
+- HR-1 (Phase 2.3): Vibrato literal-zero short-circuit + active-string-only — carry-forward.
+- HR-2 (Phase 2.3): Slow-LFO literal-zero short-circuit + phase non-advance at zero depth — carry-forward.
+- HR-3 (Phase 2.3): Macro IEEE 754 identity arithmetic + macroSmoothed setCurrentAndTargetValue(0.0) — carry-forward.
+- HR-4 (Phase 2.3): Schelleng wedge skip on zero LFO depth + lastSafeDepth.store(0.0) unconditional pre-gate — carry-forward.
+- HR-5 (Phase 2.4a): `inline constexpr` linkage on `SchellengCalibration.h` — carry-forward.
+- HR-6 (Phase 2.4a): Calibration polynomial behind HR-4 gate ONLY — carry-forward.
+- HR-7 (Phase 2.4a): Matrix-stability bypass via weak-symbol — carry-forward.
+- HR-8 (Phase 2.4a): Trilinear IEEE 754 identity arithmetic — carry-forward.
+- HR-9 (Phase 2.4b): SUB_HARMONICS=0 IEEE 754 identity arithmetic + active-string-only bias gate — carry-forward.
+- HR-10 (Phase 2.4b): Friction module v1.0.0 ABI preservation under bias via ROSIN inverse algebraic identity — carry-forward.
+- **HR-11 (Phase 2.4c): RETIRED** — binding limited to Phase 2.4c only (audit history preserves the rule for that phase). Phase 2.4c-bis source-change scope made HR-11 inapplicable; Phase 2.5 NEW DSP scope makes HR-11 inapplicable by design.
+- 7-step + Step 2.5 per-block evaluation order verbatim — Phase 2.5 ONLY APPENDS new Step 8 (body) + Step 9 (bow noise) AFTER Step 7 downsample (`oversampling.processSamplesDown` at BowedContrabassVoice.cpp:688), BEFORE host-rate output write at lines 694–702.
+- 13 carry-forward goldens (`reproduce-goldens.sh` entries) MUST reproduce 13/13 byte-identical at HEAD descendant of `1dfca9d` BEFORE R37a edit (R37-pre tripwire); MUST reproduce 13/13 byte-identical against NEW post-Phase-2.5 sha256s AFTER R37d re-baseline (R37e regression bar).
+- `matrix-stability.wav.sha256 = 6db67707…` carries forward verbatim (Phase 2.4a evidence; NOT in `reproduce-goldens.sh` default array; NOT re-baselined in Phase 2.5; post-Phase-2.5 evidence WAV archived to `.planning/evidence/phase-2-5/`).
+- Atomic-commit gate-first principle: R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → **R37** sequence.
+
+**No new HARD RULES introduced in Phase 2.5** (per CONTEXT Q59 + Open Item #14 above).
+
+**Per-block evaluation order:** Phase 2.4c-bis end-state Step 1–7 + Step 2.5 carry-forward verbatim. Phase 2.5 ONLY APPENDS:
+- **NEW Step 8** — Body resonator: 8-mode parallel bandpass bank (`makeBandPass`) + 35 Hz HP one-pole on dry path → wet/dry mix. Coefficient recompute at block-start (read SmoothedValue Size/Damping BEFORE compute). Filter state continues across blocks (no per-block reset).
+- **NEW Step 9** — Bow noise: 3-band BPF (700/1500/3000 Hz, Q≈1.0/1.2/1.5) + period-heuristic slip burst driven by `bowEnergy` envelope + `setFundamentalHz(f0_active)` push. Sums into voice output AFTER body wet/dry mix.
+
+---
+
+## Goal
+
+Land Phase 2.5 body resonator (8-mode parallel biquad bank, static-Q, bass-tuned modes 60/98/115/175/235/340/700/1200 Hz × Q × gainDb per Askenfelt 1982 / Rossing 2010) + bow noise generator (3-band BPF at 700/1500/3000 Hz with Q≈1.0/1.2/1.5 + period-heuristic slip bursts at decay 0.999) as NEW Steps 8 (body) + 9 (bow noise) in the per-block evaluation order, AFTER waveguide downsample at `BowedContrabassVoice.cpp:688`, BEFORE host-rate output write at lines 694–702. Closes BRIEF.md DSP-03 (must) + DSP-04 (should) acceptance criteria. Implement bass spec from ARCHITECTURE §"Body Resonator (Parallel Biquad Bank)" + §"Bow Noise Generator" using O-Bowed `Source/DSP/BodyResonator.{h,cpp}` + `BowNoiseGenerator.h` as reference for `juce::dsp::IIR::Filter` + `juce::Random` lifecycle patterns — NOT verbatim copy (RESEARCH §21.2 verbatim-copy assumption BROKEN — too many deltas: filter type `makePeakFilter`→`makeBandPass`, channel topology stereo→mono, integration site processor→voice, parameter set Material+Size+BodyAmount→Size+Damping+Mix, dry-path identity→35 Hz HP, slip-detection mechanism continuous→period-heuristic). Source delta = 4 production source files (2 NEW + 2 modified, ~470 LOC NEW + ~55 LOC M = ~525 LOC) + 1 CMakeLists.txt source-list addition (1 LOC M for `Source/DSP/BodyResonator.cpp`). HR-1..HR-10 carry-forward verbatim; HR-11 retired (Phase 2.4c-only); no new HR introduced. R37 atomic commit lands all source edits + CMake update + 13 audible-golden re-baselines (per RESEARCH §21.5 deferred to execute-phase R37d) + matrix-stability evidence-only re-render (NOT committed as re-baselined golden) + saturator-tail-comparison post-body re-baseline (carried within the 13) + sub-harmonics post-body re-baseline (carried within the 13) + RESEARCH §21 (12-sub-section verdict subsection; §§21.1–21.16 already present from research-phase; verify-phase fills R38 outcome under §21.11) + planning artefacts. **NO Stage-1 contract amendment** (parameter-spec.md sha256 `77638e25…` carries forward unchanged; all 5 body/noise params already declared at PluginProcessor.cpp:52,60,62,64,66). **NO ARCHITECTURE.md amendment in Phase 2.5** itself (wolf-region deferral is CONTEXT-flagged Q55 deviation, NOT amendment; §149/§509 `size_scalar` reconciliation feeds end-of-Stage-2 verify amendment evidence base alongside §"DC Blocker" + §"In-loop saturator"). `matrix-stability.wav.sha256 = 6db67707…` carries forward verbatim (post-Phase-2.5 evidence WAV archived to `.planning/evidence/phase-2-5/`). Period-heuristic slip-burst trigger v1.0 substitute (RESEARCH §21.3.3) in place of true Helmholtz slip-detection (deferred to Phase 2.5-bis or v1.1 — true slip-detection requires WaveguideString edit out of CONTEXT 4-file scope-strict rule). Wolf-region suppression deferred to v1.1 (CONTEXT Q55; ARCHITECTURE §"Body Resonator" wolf default-ON deviation flagged; v1.0 ships static-Q body bank). Validate Gate 7 invariants — five-item bar: (1) bit-deterministic 13-entry `reproduce-goldens.sh` PASS at NEW post-Phase-2.5 sha256s + 4-file source audit hook reports exactly the EXACT 4-file production set at R37-pre + R37e tripwires + 1-file CMake audit hook; (2) DSP-03 + DSP-04 acceptance — body bank impulse response shows 8 spectral peaks at design frequencies with correct relative gains, BODY_SIZE/DAMPING/MIX sweeps zipper-free, BOW_NOISE 0%→100% audible level rise, bow-direction reversal produces 5–15 ms wideband slip-burst, wolf-region G2 audibility documented (NON-BLOCKING per Q55); (3) `auval` AU VALIDATION SUCCEEDED full render-rate matrix + `pluginval --strictness-level 10` SUCCESS full battery; (4) R38 Logic AU audition CONFIRMED — post-Phase-2.5 character is "convincing orchestral arco bass" per BRIEF.md DSP-03 + DSP-04 acceptance bar (BLOCKING — R37 atomic does NOT land until R38 audition CONFIRMED); (5) RESEARCH §21 verdict locked — Phase 2.5 verdict written: WORKED (DSP-03 + DSP-04 CLOSED, Phase 2.6 unblocked) OR WORKED-PARTIALLY (Phase 2.5-bis backlog logged for wolf-suppression / bow-noise recalibration / period-heuristic mechanical-feel) OR REGRESSION (body coupling reveals saturator-tail divergence > 4 dB OR matrix-stability NEW raucous corners; Phase 2.5-bis escalation flag LOCKED before R37 atomic). Continue R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → **R37** atomic-commit sequence. Phase 2.6 (master saturator + zero-latency feedforward limiter + stereo width + microtonal Scala/TUN/MTS-ESP + MPE + Note Expression) opens fresh CONTEXT rev-11 post-Phase-2.5 verify.
+
+---
+
+## Tasks
+
+### R37-pre — Working-tree integrity tripwire + 5-check pre-flight
+
+**No source edits committed. Diagnostic only. Confirms working-tree integrity at start of execute (HEAD descendant of `1dfca9d`), verifies the `/tmp/oc-pre-2-5` worktree is creatable from `1044bed`, and empirically validates RESEARCH §21.1 (13/13 reproduce-goldens.sh PASS at HEAD pre-edit) under the plan-phase build environment.**
+
+Per RESEARCH §21.1, working tree at HEAD descendant of `1dfca9d` (R36-bis-backfill chore; descendant of R36-bis atomic `1044bed`) reproduces all 13 currently-committed goldens byte-identical via `reproduce-goldens.sh`. R37-pre re-confirms.
+
+**Tasks:**
+
+1. **Confirm git state is clean at HEAD descendant of `1dfca9d`:**
+   ```bash
+   git log --oneline -3            # should show 1dfca9d (R36-bis-backfill chore) ancestor + descendant chain
+   git status plugins/O-Contrabass/                      # should be clean
+   git status plugins/O-Bowed/                           # should be clean (read-only reference)
+   git status modules/synthesis/bow-friction/            # should be clean
+   ```
+   If working tree is dirty, STOP and reconcile before proceeding.
+
+2. **Create or confirm `/tmp/oc-pre-2-5` worktree at `1044bed` (idempotent re-create if missing):**
+   ```bash
+   if [ ! -e /tmp/oc-pre-2-5/.git ]; then
+       git worktree add /tmp/oc-pre-2-5 1044bed41574be5d0714983f7910cac8bda2edec
+   fi
+   test -d /tmp/oc-pre-2-5/plugins/O-Contrabass
+   ```
+   `git worktree add` is idempotent (no-op if already exists at that path + ref). Build of the side-by-side AU variant deferred to R38; R37-pre only confirms the worktree path is creatable.
+
+3. **Build O-Contrabass harness at HEAD (working tree):**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+   Define `HARNESS=build/plugins/O-Contrabass/tests/render-harness/O-Contrabass-render-test_artefacts/Release/O-Contrabass-render-test` for subsequent steps. Expect `ninja: no work to do` if R36-bis build artefacts persist.
+
+4. **Pre-flight check (a): `reproduce-goldens.sh` 13-of-13 PASS at HEAD (carry-forward tripwire):**
+   ```bash
+   bash plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+   # Expect: "OK: all 13 goldens reproduce byte-identical"
+   ```
+   **All 13 must PASS** per RESEARCH §21.1 record. If any FAIL, STOP and investigate working-tree drift (re-confirm HEAD descendant of `1dfca9d`; `git status` for stray edits in `Source/`, `tests/render-harness/`, `modules/synthesis/bow-friction/`, `plugins/O-Bowed/`). Do NOT proceed to R37a until all 13 reproduce.
+
+5. **Pre-flight check (b): Source-tree audit hook clean state (zero pre-edit modifications):**
+   ```bash
+   git diff --stat HEAD -- plugins/O-Contrabass/Source/ \
+                            plugins/O-Bowed/Source/ \
+                            modules/synthesis/bow-friction/ \
+                            plugins/O-Contrabass/CMakeLists.txt
+   # Expect: empty output (zero files reported)
+   ```
+   Confirms no stowaway DSP edits at pre-flight. Phase 2.5 4-file scope-strict rule (CONTEXT line 156) demands an exact production-source diff at R37e tripwire; pre-edit baseline = zero diffs.
+
+6. **Pre-flight check (c): Pre-edit grep verification — body resonator + bow noise NOT yet present in voice:**
+   ```bash
+   grep -c "BodyResonator\|BowNoiseGenerator" plugins/O-Contrabass/Source/BowedContrabassVoice.h
+   # Expect: 0
+   grep -c "BodyResonator\|BowNoiseGenerator" plugins/O-Contrabass/Source/BowedContrabassVoice.cpp
+   # Expect: 0
+   test ! -f plugins/O-Contrabass/Source/DSP/BodyResonator.h
+   test ! -f plugins/O-Contrabass/Source/DSP/BodyResonator.cpp
+   test ! -f plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h
+   ```
+   Confirms the canonical pre-Phase-2.5 baseline at HEAD. If any check reports unexpected presence, STOP and investigate.
+
+7. **Pre-flight check (d): Saturator post-port carry-forward (Phase 2.4c-bis state preserved):**
+   ```bash
+   grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp
+   # Expect: 2 (toBridge + toNeck rails per R36-bis)
+   ```
+   Confirms the Phase 2.4c-bis saturator port at lines 204–206 is preserved. Phase 2.5 does NOT touch WaveguideString.cpp.
+
+**Files created:** none committed (worktree at `/tmp/oc-pre-2-5` is git-internal, not source-tree).
+
+**Files modified:** none committed.
+
+**Commit:** **NONE** — diagnostic only.
+
+**Success bar:**
+- [ ] `git log --oneline -3` shows descendant chain rooted at `1dfca9d` (R36-bis-backfill chore).
+- [ ] `/tmp/oc-pre-2-5` worktree exists or is creatable.
+- [ ] O-Contrabass working-tree harness builds clean.
+- [ ] (a) `reproduce-goldens.sh` reports `OK: all 13 goldens reproduce byte-identical`.
+- [ ] (b) `git diff --stat HEAD -- plugins/O-Contrabass/Source/ plugins/O-Bowed/Source/ modules/synthesis/bow-friction/ plugins/O-Contrabass/CMakeLists.txt` reports empty.
+- [ ] (c) Pre-edit grep counts return 0; the 3 NEW source files not yet present.
+- [ ] (d) `grep -c "sat \* std::tanh"` returns 2 (Phase 2.4c-bis carry-forward preserved).
+
+**Estimated effort:** 3–6 min (build no-op + 5 pre-flight checks + worktree create).
+
+---
+
+### R37a — `Source/DSP/BodyResonator.{h,cpp}` NEW + CMakeLists.txt source-list addition
+
+**Per RESEARCH §21.2.6 + §21.13 + §21.10. Implement bass spec from ARCHITECTURE §"Body Resonator (Parallel Biquad Bank)" using `juce::dsp::IIR::Coefficients<float>::makeBandPass` per ARCHITECTURE §134 + RESEARCH §21.2.2 delta. Mono single-bank topology (voice output is mono pre-stereo-split). Per-block coefficient recompute reading current Size/Damping. 35 Hz HP one-pole on dry path. Wet/dry blend `(1−mix)·HP35(in) + mix·wet`. Add `Source/DSP/BodyResonator.cpp` to CMakeLists.txt source-list (1 LOC M).**
+
+**Tasks:**
+
+1. **Create `plugins/O-Contrabass/Source/DSP/BodyResonator.h`** (~90 LOC NEW per RESEARCH §21.2.6 starting design):
+
+   - Public API: `prepare(double sampleRate, int maxBlockSize)`, `reset()`, `setSize(float)`, `setDamping(float)`, `setMix(float)`, `processBlock(float* mono, int numSamples)`.
+   - Private: `static constexpr int kNumModes = 8;` + `kDefaultFreq[]` = `{60, 98, 115, 175, 235, 340, 700, 1200}` Hz + `kDefaultQ[]` = `{14, 11, 9, 8, 7, 6, 5, 2.5}` + `kDefaultGainDb[]` = `{-2, 0, -1, -3, -4, -5, -7, -6}` (zero/negative gains → attenuated bandpass output) per ARCHITECTURE §"Body Resonator (Parallel Biquad Bank)" mode table.
+   - Members: `std::array<juce::dsp::IIR::Filter<float>, kNumModes> modes;` (mono single-bank, NOT L/R duplicated) + `float gainLinear[kNumModes];` + `float hp35_x1, hp35_y1, hp35_a;` (35 Hz HP one-pole state) + `double currentSampleRate;` + `float currentSize = 0.75f, currentDamping = 0.40f, currentMix = 0.80f;` (defaults match parameter-spec.md).
+   - Private method declaration: `void recomputeCoefficients() noexcept;`.
+
+2. **Create `plugins/O-Contrabass/Source/DSP/BodyResonator.cpp`** (~200 LOC NEW per RESEARCH §21.2.6 starting design):
+
+   - `prepare(sr, maxBlockSize)`: store `currentSampleRate = sr`; `juce::dsp::ProcessSpec spec { sr, (uint32) maxBlockSize, 1u };` for each `modes[i].prepare(spec)` + `reset()`. Compute `hp35_a = std::exp(-2.f * juce::MathConstants<float>::pi * 35.f / float(sr))` (≈ 0.99502 at 44.1 kHz; ≈ 0.99544 at 48 kHz; ≈ 0.99772 at 96 kHz). Initialize `hp35_x1 = hp35_y1 = 0.f`. Call `recomputeCoefficients()` once.
+   - `reset()`: for each `modes[i].reset()`; `hp35_x1 = hp35_y1 = 0.f`.
+   - `setSize(float)` / `setDamping(float)` / `setMix(float)`: store `currentSize` / `currentDamping` / `currentMix` (clamped to [0, 1] via `juce::jlimit`). NO lazy-update guard (per-block recompute pattern; coefficients re-derived each block via SmoothedValue ramps from voice-side).
+   - `recomputeCoefficients()` (per-block, called from processBlock):
+     ```cpp
+     const float sizeScalar = 0.85f + 0.30f * currentSize;             // ARCHITECTURE §509
+     const float qScalar    = juce::jmax(0.15f, 1.f - 0.85f * currentDamping); // ARCHITECTURE §150
+     for (int i = 0; i < kNumModes; ++i) {
+         const float fc   = juce::jlimit(20.f,
+                                          (float)(currentSampleRate * 0.45),
+                                          kDefaultFreq[i] / sizeScalar);
+         const float qEff = juce::jmax(0.10f, kDefaultQ[i] * qScalar);
+         const float gDb  = kDefaultGainDb[i] + 1.5f * (currentSize - 0.75f); // ARCHITECTURE §511
+         gainLinear[i]    = juce::Decibels::decibelsToGain(gDb);
+         auto coeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass(
+                           currentSampleRate, fc, qEff);
+         *modes[i].coefficients = *coeffs;
+     }
+     ```
+   - `processBlock(float* mono, int numSamples)`:
+     ```cpp
+     recomputeCoefficients();  // per-block (CONTEXT line 152 + ARCHITECTURE §152)
+     for (int n = 0; n < numSamples; ++n) {
+         const float x = mono[n];
+         const float dry = hp35_a * (hp35_y1 + x - hp35_x1);  // 35 Hz HP one-pole
+         hp35_x1 = x;
+         hp35_y1 = dry;
+         float wet = 0.f;
+         for (int i = 0; i < kNumModes; ++i)
+             wet += gainLinear[i] * modes[i].processSample(x);
+         mono[n] = (1.f - currentMix) * dry + currentMix * wet;
+     }
+     ```
+   - **Drop O-Bowed's `normGain` cross-preset normalization** — single-preset bass design has no morph drift to correct.
+   - **Drop O-Bowed's preset table machinery** — single hard-coded bass mode set.
+
+3. **Edit `plugins/O-Contrabass/CMakeLists.txt`** — add `Source/DSP/BodyResonator.cpp` to `target_sources(O-Contrabass PRIVATE …)` block (1 LOC M):
+   ```cmake
+   target_sources(O-Contrabass PRIVATE
+       Source/PluginProcessor.cpp
+       Source/PluginEditor.cpp
+       Source/BowedContrabassVoice.cpp
+       Source/DSP/WaveguideString.cpp
+       Source/DSP/BodyResonator.cpp                 # Phase 2.5 NEW
+       # ... scala-tuning-engine entries carry-forward verbatim ...
+   )
+   ```
+
+4. **Post-edit verification — file presence + grep:**
+   ```bash
+   test -f plugins/O-Contrabass/Source/DSP/BodyResonator.h
+   test -f plugins/O-Contrabass/Source/DSP/BodyResonator.cpp
+   grep -c "BodyResonator.cpp" plugins/O-Contrabass/CMakeLists.txt   # Expect: 1
+   grep -c "kNumModes = 8" plugins/O-Contrabass/Source/DSP/BodyResonator.h  # Expect: 1
+   grep -c "makeBandPass" plugins/O-Contrabass/Source/DSP/BodyResonator.cpp  # Expect: 1
+   ```
+
+5. **Build smoke — confirm BodyResonator compiles standalone before voice integration:**
+   ```bash
+   cmake --build build --target O-Contrabass --parallel
+   # Expect: clean build (no warnings/errors) — voice will fail to compile until R37c lands the integration; stop the build at the BodyResonator object file and confirm BodyResonator.cpp.o builds clean before proceeding.
+   ```
+   If voice fails to compile due to missing integration, that is expected at this point; verify only that `BodyResonator.cpp.o` artefact builds clean.
+
+**Files created (NOT YET COMMITTED — staged for R37 atomic commit):**
+- `plugins/O-Contrabass/Source/DSP/BodyResonator.h` (~90 LOC NEW).
+- `plugins/O-Contrabass/Source/DSP/BodyResonator.cpp` (~200 LOC NEW).
+
+**Files modified (NOT YET COMMITTED — staged for R37 atomic commit):**
+- `plugins/O-Contrabass/CMakeLists.txt` (1 LOC M; add `Source/DSP/BodyResonator.cpp`).
+
+**Commit:** **NONE** — staged for R37 atomic.
+
+**Success bar:**
+- [ ] `BodyResonator.h` + `BodyResonator.cpp` exist with public API + bass mode table.
+- [ ] `CMakeLists.txt` reports `Source/DSP/BodyResonator.cpp` exactly once.
+- [ ] Standalone `BodyResonator.cpp.o` compiles clean (no warnings).
+- [ ] `git diff --stat HEAD -- plugins/O-Contrabass/Source/DSP/ plugins/O-Contrabass/CMakeLists.txt` reports 3 files: 2 NEW + 1 M.
+
+**Estimated effort:** ~60–90 min (header + cpp + CMake + build smoke).
+
+---
+
+### R37b — `Source/DSP/BowNoiseGenerator.h` NEW (header-only)
+
+**Per RESEARCH §21.2.7 + §21.10. Implement bass spec from ARCHITECTURE §"Bow Noise Generator" using 3-band BPF (700/1500/3000 Hz) + period-heuristic slip-burst trigger (CONTEXT 4-file scope-strict v1.0 substitute per RESEARCH §21.3.3) + `voiceIndex * 31337` deterministic `juce::Random` seed (O-Bowed pattern verbatim per RESEARCH §21.6). Header-only per O-Bowed convention (no CMake update required).**
+
+**Tasks:**
+
+1. **Create `plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h`** (~180 LOC NEW per RESEARCH §21.2.7 starting design):
+
+   - Public API: `prepare(double sampleRate, int voiceIndex) noexcept`, `setNoiseLevel(float) noexcept`, `setBowEnergy(float) noexcept`, `setFundamentalHz(float f0) noexcept`, `processSample() noexcept`, `reset() noexcept`.
+   - Private constants: `static constexpr int kNumBpf = 3;` + `kBpfFc[kNumBpf] = {700.f, 1500.f, 3000.f};` (ARCHITECTURE §163) + `kBpfQ[kNumBpf] = {1.0f, 1.2f, 1.5f};` (research recommendation; tune at execute pre-flight if R38 audition reveals mis-calibration per RESEARCH §21.11 FAIL-handling table).
+   - Private members: `juce::Random noiseRandom;` + `std::array<juce::dsp::IIR::Filter<float>, kNumBpf> bpfs;` + period-heuristic slip-burst state (`int slipPeriodSamples = 0; int slipCounter = 0; float slipEnvelope = 0.f; float kSlipDecayAtSr = 0.999f;`) + `float bowEnergy = 0.f, noiseLevel = 0.f;` + `double sr = 44100.0;`.
+   - Slip-burst decay: `static constexpr float kSlipDecay = 0.999f;` (ARCHITECTURE §165 reference at 48 kHz); rescale per sample-rate at prepare via `kSlipDecayAtSr = std::pow(0.999f, (float)(48000.0 / sampleRate))`.
+
+2. **Implement `prepare(double sampleRate, int voiceIndex)`** (inline header):
+   ```cpp
+   sr = sampleRate;
+   noiseRandom.setSeed(static_cast<juce::int64>(voiceIndex * 31337));  // O-Bowed pattern verbatim
+   juce::dsp::ProcessSpec spec { sampleRate, 1u, 1u };
+   for (int i = 0; i < kNumBpf; ++i) {
+       bpfs[i].prepare(spec);
+       bpfs[i].reset();
+       *bpfs[i].coefficients = *juce::dsp::IIR::Coefficients<float>::makeBandPass(
+           sampleRate, kBpfFc[i], kBpfQ[i]);
+   }
+   kSlipDecayAtSr = std::pow(0.999f, static_cast<float>(48000.0 / sampleRate));
+   slipCounter = 0; slipEnvelope = 0.f; bowEnergy = 0.f;
+   ```
+
+3. **Implement `processSample()`** (inline header):
+   ```cpp
+   if (noiseLevel < 0.001f) return 0.f;
+   // Period-heuristic slip-burst trigger
+   if (slipPeriodSamples > 0 && --slipCounter <= 0) {
+       slipEnvelope = bowEnergy;
+       slipCounter  = slipPeriodSamples;
+   }
+   slipEnvelope *= kSlipDecayAtSr;
+   // 3-band BPF on white noise, averaged
+   const float white = noiseRandom.nextFloat() * 2.f - 1.f;
+   float bandSum = 0.f;
+   for (int i = 0; i < kNumBpf; ++i)
+       bandSum += bpfs[i].processSample(white);
+   bandSum *= (1.f / static_cast<float>(kNumBpf));
+   const float continuous = bandSum * bowEnergy;
+   const float burst      = bandSum * slipEnvelope;
+   return (continuous + burst) * noiseLevel;
+   ```
+
+4. **Implement setters + reset** (inline header):
+   ```cpp
+   inline void setFundamentalHz(float f0) noexcept {
+       if (f0 < 1.f) { slipPeriodSamples = 0; return; }
+       const int newPeriod = juce::roundToInt(sr / f0);
+       slipPeriodSamples = newPeriod;
+       if (slipCounter > newPeriod) slipCounter = newPeriod;
+   }
+   inline void setNoiseLevel(float v) noexcept { noiseLevel = juce::jlimit(0.f, 1.f, v); }
+   inline void setBowEnergy(float v) noexcept  { bowEnergy  = juce::jlimit(0.f, 1.f, v); }
+   inline void reset() noexcept {
+       for (auto& f : bpfs) f.reset();
+       slipCounter = 0; slipEnvelope = 0.f; bowEnergy = 0.f;
+   }
+   ```
+
+5. **Post-edit verification — file presence + grep:**
+   ```bash
+   test -f plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h
+   ! test -f plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.cpp     # NOT created (header-only)
+   grep -c "voiceIndex \* 31337" plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h   # Expect: 1
+   grep -c "kNumBpf = 3" plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h            # Expect: 1
+   grep -c "kSlipDecay" plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h             # Expect: ≥1
+   grep -c "BowNoiseGenerator" plugins/O-Contrabass/CMakeLists.txt                      # Expect: 0 (header-only)
+   ```
+
+6. **Build smoke — header compiles when included** (only validated when voice integrates at R37c; defer end-to-end build to R37c).
+
+**Files created (NOT YET COMMITTED — staged for R37 atomic commit):**
+- `plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h` (~180 LOC NEW).
+
+**Files modified:** none (header-only; CMakeLists already set up via target_include_directories).
+
+**Commit:** **NONE** — staged for R37 atomic.
+
+**Success bar:**
+- [ ] `BowNoiseGenerator.h` exists with full inline implementation.
+- [ ] `BowNoiseGenerator.cpp` does NOT exist (header-only convention).
+- [ ] Grep confirms `voiceIndex * 31337` seed + `kNumBpf = 3` + period-heuristic slip-burst.
+- [ ] CMakeLists has zero references to BowNoiseGenerator (header-only; no source-list addition).
+- [ ] `git diff --stat HEAD -- plugins/O-Contrabass/Source/DSP/` reports 3 NEW files (BodyResonator.h, BodyResonator.cpp, BowNoiseGenerator.h).
+
+**Estimated effort:** ~45 min (header + setters + reset).
+
+---
+
+### R37c — `Source/BowedContrabassVoice.{h,cpp}` integration: Step 8 (body) + Step 9 (bow noise)
+
+**Per RESEARCH §21.10 + §21.2.6/§21.2.7 integration notes + CONTEXT line 156 4-file scope-strict rule. Append NEW Step 8 (body resonator wet/dry mix) + NEW Step 9 (bow noise sum) AFTER Step 7 downsample at `BowedContrabassVoice.cpp:688`, BEFORE host-rate output write at lines 694–702. Voice owns body + noise instances. SmoothedValue<float> ramps (30 ms) for `BODY_SIZE`, `BODY_DAMPING`, `BODY_MIX`, `BOW_NOISE`. `setFundamentalHz(activeStringFundamentalHz)` push for slip-trigger (on note-start + on f0 change > 5 cents threshold). `setBowEnergy(juce::jlimit(0.f, 1.f, std::abs(v_bow) * F_bow / (0.3f * 2.0f)))` per-block. HR-1..HR-10 carry-forward verbatim. `Source/PluginProcessor.{h,cpp}` (M) wires voice-side body/noise APVTS atomic reads.**
+
+**Tasks:**
+
+1. **Edit `plugins/O-Contrabass/Source/BowedContrabassVoice.h`** (~10 LOC M):
+   - Add `#include "DSP/BodyResonator.h"` + `#include "DSP/BowNoiseGenerator.h"` near existing `#include "DSP/WaveguideString.h"`.
+   - Add private members:
+     ```cpp
+     BodyResonator        bodyResonator;
+     BowNoiseGenerator    bowNoiseGenerator;
+     juce::SmoothedValue<float> bodySizeSmoothed;
+     juce::SmoothedValue<float> bodyDampingSmoothed;
+     juce::SmoothedValue<float> bodyMixSmoothed;
+     juce::SmoothedValue<float> bowNoiseSmoothed;
+     float lastFundamentalHz = 0.f;     // for slip-trigger 5-cent change detection
+     ```
+   - No new public methods; voice owns state internally.
+
+2. **Edit `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp`** (~40 LOC M):
+
+   - In `prepare(double sr, int maxBlockSize)`:
+     ```cpp
+     bodyResonator.prepare(sr, maxBlockSize);
+     bowNoiseGenerator.prepare(sr, /*voiceIndex=*/0);  // monophonic (RESEARCH §21.6)
+     bodySizeSmoothed.reset(sr,    0.030);  // 30 ms ramp (CONTEXT line 152 + ARCHITECTURE §152)
+     bodyDampingSmoothed.reset(sr, 0.030);
+     bodyMixSmoothed.reset(sr,     0.030);
+     bowNoiseSmoothed.reset(sr,    0.030);
+     bodySizeSmoothed.setCurrentAndTargetValue(0.75f);
+     bodyDampingSmoothed.setCurrentAndTargetValue(0.40f);
+     bodyMixSmoothed.setCurrentAndTargetValue(0.80f);
+     bowNoiseSmoothed.setCurrentAndTargetValue(0.35f);
+     ```
+
+   - In `updateParametersFromAPVTS()` (extend existing routine to push body/noise params):
+     ```cpp
+     bodySizeSmoothed.setTargetValue   (parameters->getRawParameterValue("BODY_SIZE")    ->load());
+     bodyDampingSmoothed.setTargetValue(parameters->getRawParameterValue("BODY_DAMPING") ->load());
+     bodyMixSmoothed.setTargetValue    (parameters->getRawParameterValue("BODY_MIX")     ->load());
+     bowNoiseSmoothed.setTargetValue   (parameters->getRawParameterValue("BOW_NOISE")    ->load());
+     ```
+
+   - In `renderNextBlock(...)`, INSERT NEW Step 8 + Step 9 between line 688 (`oversampling.processSamplesDown(block);`) and line 690 (`// 8. Mix host-rate voiceBuffer into the output buffer (mono → stereo split).`):
+     ```cpp
+     // 7. Downsample back to host rate (writes into `block` which aliases voiceBuffer).
+     oversampling.processSamplesDown (block);
+
+     // === PHASE 2.5 NEW Step 8: Body resonator (8-mode parallel bandpass + 35 Hz HP dry path + wet/dry mix) ===
+     {
+         // Skip-bump SmoothedValue: read NEXT block's smoothed value
+         // (skip-by-numSamples lands on block-start values; per-block recompute pattern)
+         const float sz = bodySizeSmoothed.skip(numSamples - 1);    // current, advance to end-of-block
+         const float dp = bodyDampingSmoothed.skip(numSamples - 1);
+         const float mx = bodyMixSmoothed.skip(numSamples - 1);
+         bodyResonator.setSize    (sz);
+         bodyResonator.setDamping (dp);
+         bodyResonator.setMix     (mx);
+         bodyResonator.processBlock(voiceBuffer.getWritePointer(0), numSamples);
+     }
+
+     // === PHASE 2.5 NEW Step 9: Bow noise (3-band BPF + period-heuristic slip bursts; sums after body) ===
+     {
+         // bowEnergy = clamp(0, 1, |v_bow| · F_bow / (v_ref · F_ref)) per ARCHITECTURE §164
+         constexpr float kVRef = 0.3f, kFRef = 2.0f;
+         const float vBow = std::abs(bowModel.getBowVelocity());
+         const float fBow = bowModel.getBowForce();
+         const float bowEnergyVal = juce::jlimit(0.f, 1.f, (vBow * fBow) / (kVRef * kFRef));
+         bowNoiseGenerator.setBowEnergy(bowEnergyVal);
+
+         // Push active-string fundamental on note-start or > 5 cent change (period-heuristic slip trigger)
+         const float f0 = strings[activeStringIndex].getFundamentalHz();
+         const float cents = (lastFundamentalHz > 0.f)
+             ? 1200.f * std::log2(f0 / lastFundamentalHz)
+             : 0.f;
+         if (lastFundamentalHz <= 0.f || std::abs(cents) > 5.f) {
+             bowNoiseGenerator.setFundamentalHz(f0);
+             lastFundamentalHz = f0;
+         }
+
+         // BOW_NOISE smoothed level
+         const float noiseLvl = bowNoiseSmoothed.skip(numSamples - 1);
+         bowNoiseGenerator.setNoiseLevel(noiseLvl);
+
+         float* mono = voiceBuffer.getWritePointer(0);
+         for (int i = 0; i < numSamples; ++i)
+             mono[i] += bowNoiseGenerator.processSample();
+     }
+     // === END PHASE 2.5 ===
+
+     // 10. Mix host-rate voiceBuffer into the output buffer (mono → stereo split).
+     // (renumber prior step 8 → 10 in the comments — Phase 2.5 inserts 8 + 9 between downsample and output write.)
+     ```
+
+   - In `stopNote(...)` or equivalent reset path: call `bodyResonator.reset()` + `bowNoiseGenerator.reset()`; reset `lastFundamentalHz = 0.f`. (Filter state continues across blocks during sustain; only resets on note-off / voice-stop per ARCHITECTURE §"Body Resonator" "Filter state continues across blocks (no per-block reset)" intent.)
+
+3. **Edit `plugins/O-Contrabass/Source/PluginProcessor.cpp`** (~5 LOC M; voice-side parameter wiring):
+   - Verify all 5 body/noise APVTS reads are routed to voice. The existing voice-update mechanism (`updateParametersFromAPVTS`) handles this once R37c lands the smoothed-value pulls; processor-side push is identity (raw atomic load handed to voice). If processor currently invokes `voice->updateParametersFromAPVTS(*parameters);` once per `processBlock`, no processor edit is needed beyond confirming the call site is reached.
+   - **Note:** if PluginProcessor.h does not currently declare any new public surface for body/noise routing, no header edit is needed (parameters live in APVTS; voice owns the body+noise instances). Plan-phase confirms 0 LOC M in PluginProcessor.h.
+
+4. **Build smoke — full O-Contrabass + render harness compiles clean post-integration:**
+   ```bash
+   cmake --build build --target O-Contrabass --parallel
+   cmake --build build --target O-Contrabass-render-test --parallel
+   # Both must build clean (no warnings, no errors).
+   ```
+
+5. **Pre-render smoke — confirm voice initializes without crash + matrix-stability evidence renders without NaN/inf:**
+   ```bash
+   $HARNESS --string A --out /tmp/r37c-smoke-A.wav --json /tmp/r37c-smoke-A.json
+   # Confirm WAV exists + no peak-amplitude > 1.0 (clipping):
+   python3 -c "
+   import wave, struct, sys
+   w = wave.open('/tmp/r37c-smoke-A.wav', 'rb')
+   frames = w.readframes(w.getnframes())
+   samples = struct.unpack('<' + 'h' * (len(frames) // 2), frames)
+   peak = max(abs(s) for s in samples) / 32768.0
+   print(f'peak: {peak:.4f}')
+   sys.exit(0 if peak <= 1.0 else 1)
+   "
+   ```
+
+**Files created:** none (carry-forward from R37a + R37b).
+
+**Files modified (NOT YET COMMITTED — staged for R37 atomic commit):**
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` (~10 LOC M).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` (~40 LOC M).
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` (0–5 LOC M; verify-only if existing routing covers body/noise reads).
+- `plugins/O-Contrabass/Source/PluginProcessor.h` (0 LOC M expected).
+
+**Commit:** **NONE** — staged for R37 atomic.
+
+**Success bar:**
+- [ ] `BowedContrabassVoice.h` declares 4 SmoothedValue members + body/noise instances + lastFundamentalHz.
+- [ ] `BowedContrabassVoice.cpp` integrates Step 8 (body) + Step 9 (bow noise) between line 688 (downsample) and the output-write block at 694–702.
+- [ ] Full O-Contrabass plugin + render harness build clean (no warnings).
+- [ ] Pre-render smoke on `--string A` produces WAV with peak ≤ 1.0 (no clipping, no NaN).
+- [ ] `git diff --stat HEAD -- plugins/O-Contrabass/Source/` reports the EXACT 4-file production set: BodyResonator.{h,cpp} NEW + BowNoiseGenerator.h NEW + BowedContrabassVoice.{h,cpp} M + PluginProcessor.{h,cpp} (0–1 files M).
+
+**Estimated effort:** ~90–120 min (voice header + cpp integration + build + smoke render).
+
+---
+
+### R37d — Re-baseline 13 audible goldens + matrix-stability evidence + saturator-tail post-body + sub-harmonics post-body + 3-trial bit-stability pre-flight
+
+**Per RESEARCH §21.4 + §21.5 + §21.7 + §21.8 + §21.9 + §21.10. Build O-Contrabass-render-test post-integration; render 13 audible goldens × 3 trials each → confirm 3-trial DET-PASS bit-stability per golden; lock NEW post-Phase-2.5 sha256s; render `--matrix-stability` evidence-only (NOT committing updated `matrix-stability.wav.sha256`; archive WAV to `.planning/evidence/phase-2-5/`); measure post-body saturator-tail bin 64 + verify §19.3.3 analytic bound; measure post-body `subharmEnergyRatio`; document raucous-corner cell migration.**
+
+**Tasks:**
+
+1. **Build O-Contrabass-render-test post-integration:**
+   ```bash
+   cmake --build build --target O-Contrabass-render-test --parallel
+   ```
+
+2. **3-trial bit-stability pre-flight per golden (RESEARCH §21.5 deterministic bar):**
+   ```bash
+   GOLDENS="stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence macro-sweep slow-lfo schelleng-stress sub-harmonics sub-harmonics-stability saturator-tail-comparison vibrato"
+   for g in $GOLDENS; do
+       for trial in 1 2 3; do
+           $HARNESS --<mode-flag-for-$g> --out /tmp/p25-$g-t$trial.wav --json /tmp/p25-$g-t$trial.json
+           sha=$(shasum -a 256 /tmp/p25-$g-t$trial.wav | awk '{print $1}')
+           echo "$g trial-$trial: $sha"
+       done
+   done
+   # Expect: 3 trials × 13 goldens = 39 sha256s where trial-1 == trial-2 == trial-3 per golden (bit-deterministic across re-renders).
+   ```
+   If ANY golden shows trial-N drift, STOP and investigate (likely `juce::Random` seed nondeterminism — verify R37b setSeed pattern; OR biquad coefficient compute call-site nondeterminism — verify R37a recomputeCoefficients invocation order in processBlock).
+
+3. **Render production goldens (final committed set; trial-1 sha256 from step 2 captured as the locked value):**
+   Use the existing harness CLI flags per Phase 2.4c R36b/R36c + Phase 2.4c-bis R36-bis-b precedent. (Mode-flag mapping carries forward from PLAN rev-11 R36-bis-b table; identical across phases — only the resulting sha256s shift due to body+noise post-waveguide spectral coloring.)
+
+4. **Compute and write per-golden `*.wav.sha256` text files:**
+   ```bash
+   GOLDEN_DIR=plugins/O-Contrabass/tests/render-harness/golden
+   for g in $GOLDENS; do
+       sha=$(shasum -a 256 "$GOLDEN_DIR/$g.wav" | awk '{print $1}')
+       printf '%s  %s.wav\n' "$sha" "$g" > "$GOLDEN_DIR/$g.wav.sha256"
+   done
+   ```
+
+5. **Re-anchor JSON sha256 informational-only files** (vibrato + saturator-tail-comparison; non-deterministic across renders due to wall-clock fields per RESEARCH §20.6 / PLAN rev-11 Open Item #5):
+   ```bash
+   for g in vibrato saturator-tail-comparison; do
+       sha=$(shasum -a 256 "$GOLDEN_DIR/$g.json" | awk '{print $1}')
+       printf '%s  %s\n' "$sha" "$g.json" > "$GOLDEN_DIR/$g.json.sha256"
+   done
+   ```
+
+6. **Saturator-tail post-body measurement (RESEARCH §21.4):**
+   - Render `--saturator-tail-comparison` post-Phase-2.5; extract bin 64 dB rel max from JSON (or compute via Python decode of WAV).
+   - Compare against Phase 2.4c-bis R36-bis baseline (−7.97 dB).
+   - Document `Δ` shift (expected ≤ 2 dB at canonical operating point per RESEARCH §21.4 prediction).
+   - PASS criteria (NOT BLOCKING):
+     - Inside soft-band [−9, −5] dB rel max: pass; document in §21 verdict subsection §21.10 or §21.4 finalize block.
+     - Outside [−9, −5] dB but ≤ 4 dB shift: flag as evidence for end-of-Stage-2 §"In-loop saturator" amendment evidence base; do NOT block R37 atomic.
+     - > 4 dB shift: BLOCK R37 atomic; root-cause body-coupling instability (low-probability — biquads are L2-bounded linear filter post-saturator, no nonlinear backflow).
+
+7. **Sub-harmonics post-body coupling measurement (RESEARCH §21.9):**
+   - Render `--sub-harmonics` + `--sub-harmonics-stability` post-Phase-2.5.
+   - Extract `subharmEnergyRatio` from JSON.
+   - Compare against Phase 2.4c-bis R36-bis pre-body baseline (`0.358`).
+   - Soft-band [0.30, 0.45] expected; document landed value.
+   - If drops below 0.30 → flag for Phase 2.4-bis backlog priority bump (NOT a Gate 7 BLOCKER per CONTEXT line 220).
+
+8. **Matrix-stability evidence-only re-render (RESEARCH §21.8):**
+   ```bash
+   $HARNESS --matrix-stability \
+            --out plugins/O-Contrabass/.planning/evidence/phase-2-5/matrix-stability-post-body.wav \
+            --json plugins/O-Contrabass/.planning/evidence/phase-2-5/matrix-stability-post-body.json
+   ```
+   - Compare 4-cell-failure pattern (Phase 2.4a R34b 3 fails + Phase 2.4c-bis R36-bis 4 NEW raucous corners under tanh saturator) to post-Phase-2.5 cells.
+   - Document raucous-corner cells in §21 verdict subsection: stable / unchanged / NEW.
+   - If NEW raucous corners surface → BLOCK R37 atomic pending root-cause investigation (low-probability per RESEARCH §21.8).
+   - **Evidence-only**: do NOT update `tests/render-harness/golden/matrix-stability.wav.sha256` (carry-forward `6db67707…` verbatim per CONTEXT line 176).
+
+9. **Vibrato carry-forward determination (RESEARCH §21.7):**
+   - Re-render `--vibrato` mode post-Phase-2.5.
+   - Compare JSON metrics: `peakDepthCents`, `vibratoRateHzMeasured`, `onsetTimeMs` against Phase 2.4c-bis R36-bis baseline.
+   - If WAV byte-identical AND metrics within ±0.05¢ / ±0.005 Hz / ±2 ms tolerance → carry forward (count drops to 12 audible re-baselines; do NOT update vibrato.wav.sha256). Default expectation: re-baseline (count stays 13).
+
+**Files created (NOT YET COMMITTED — staged for R37 atomic commit):**
+- 13 × `tests/render-harness/golden/<g>.wav.sha256` (re-baselined per RESEARCH §21.5).
+- 2 × `tests/render-harness/golden/{vibrato,saturator-tail-comparison}.json.sha256` (informational-only re-anchors).
+- 13 × `tests/render-harness/golden/<g>.json` (re-baselined; some have wall-clock fields per PLAN rev-11 Open Item #5).
+- `.planning/evidence/phase-2-5/matrix-stability-post-body.{wav,json}` (evidence-only; NOT committed if too large; track in §21 verdict + STATUS).
+
+**Files modified:** as listed above.
+
+**Commit:** **NONE** — staged for R37 atomic.
+
+**Success bar:**
+- [ ] 3-trial bit-stability: 3 trials × 13 goldens = 39 sha256s; trial-1 == trial-2 == trial-3 per golden (39 == 13 unique values).
+- [ ] All 13 audible `*.wav.sha256` files re-baselined.
+- [ ] 2 informational `*.json.sha256` files re-anchored (vibrato + saturator-tail-comparison).
+- [ ] Saturator-tail bin 64 measurement documented (within [−9, −5] dB rel max OR flagged for amendment evidence base).
+- [ ] `subharmEnergyRatio` post-body documented (within [0.30, 0.45] OR flagged for Phase 2.4-bis priority bump).
+- [ ] Matrix-stability evidence rendered + raucous-corner cell migration documented (no NEW raucous corners surfacing).
+- [ ] Vibrato carry-forward determination documented (default = re-baseline).
+
+**Estimated effort:** ~30–45 min (build + 39 renders × 0.29 s/render baseline = ~12 s renders + matrix-stability ~5 min + sha256 + measurements).
+
+---
+
+### R37e — Regression bar: 13-entry `reproduce-goldens.sh` against NEW post-Phase-2.5 sha256s + 4-file source audit hook + 1-file CMake audit hook
+
+**Per RESEARCH §21.10 R37e + CONTEXT line 156. Confirm all 13 goldens reproduce byte-identical against the R37d-locked NEW sha256s. Confirm `git diff --stat` reports EXACTLY the 4-file production source set (BodyResonator.{h,cpp} NEW + BowNoiseGenerator.h NEW + BowedContrabassVoice.{h,cpp} M + PluginProcessor.{h,cpp} M-or-zero) + 1-file CMakeLists.txt M. NO other production-source diffs.**
+
+**Tasks:**
+
+1. **Run `reproduce-goldens.sh` against R37d-locked sha256s:**
+   ```bash
+   bash plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh
+   # Expect: "OK: all 13 goldens reproduce byte-identical"
+   ```
+   If ANY FAIL, STOP and investigate. Possible root causes: (a) `juce::Random` seed nondeterminism (re-verify R37b setSeed); (b) biquad coefficient compute order nondeterminism (re-verify R37a recomputeCoefficients call site); (c) SmoothedValue ramp state nondeterminism (re-verify R37c skip(numSamples-1) usage).
+
+2. **4-file production-source audit hook:**
+   ```bash
+   git diff --stat HEAD -- plugins/O-Contrabass/Source/
+   # Expect EXACTLY 4 files (NEW additions count as modifications per --stat):
+   #   plugins/O-Contrabass/Source/DSP/BodyResonator.h        | (NEW, ~90 LOC)
+   #   plugins/O-Contrabass/Source/DSP/BodyResonator.cpp      | (NEW, ~200 LOC)
+   #   plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h    | (NEW, ~180 LOC)
+   #   plugins/O-Contrabass/Source/BowedContrabassVoice.h     | (M, ~10 LOC)
+   #   plugins/O-Contrabass/Source/BowedContrabassVoice.cpp   | (M, ~40 LOC)
+   #   plugins/O-Contrabass/Source/PluginProcessor.{h,cpp}    | (M-or-zero, ≤5 LOC)
+   ```
+   ANY production source file outside this set = scope-expansion HARD violation. Investigate + revert before proceeding.
+
+3. **CMakeLists.txt audit hook:**
+   ```bash
+   git diff --stat HEAD -- plugins/O-Contrabass/CMakeLists.txt
+   # Expect: 1 file changed (1 LOC M; Source/DSP/BodyResonator.cpp source-list addition)
+   git diff plugins/O-Contrabass/CMakeLists.txt | grep -c "Source/DSP/BodyResonator.cpp"
+   # Expect: 1 (added line in unified diff)
+   ```
+
+4. **Other-source-tree clean state hook:**
+   ```bash
+   git diff --stat HEAD -- plugins/O-Bowed/ \
+                            modules/synthesis/bow-friction/ \
+                            plugins/O-Contrabass/Source/DSP/WaveguideString.cpp \
+                            plugins/O-Contrabass/Source/DSP/DispersionFilter.h \
+                            plugins/O-Contrabass/Source/DSP/SchellengCalibration.h \
+                            plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h
+   # Expect: empty (all carry-forward verbatim per CONTEXT lines 144–148)
+   ```
+
+5. **Saturator post-port carry-forward verification:**
+   ```bash
+   grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp
+   # Expect: 2 (Phase 2.4c-bis R36-bis post-port preserved; NOT touched by Phase 2.5)
+   ```
+
+**Files created:** none.
+
+**Files modified:** none.
+
+**Commit:** **NONE** — diagnostic only.
+
+**Success bar:**
+- [ ] `reproduce-goldens.sh` reports `OK: all 13 goldens reproduce byte-identical` against R37d-locked NEW sha256s.
+- [ ] `git diff --stat HEAD -- plugins/O-Contrabass/Source/` reports EXACTLY the 4-file production set (3 NEW + 2 M; PluginProcessor optional 0–1 file).
+- [ ] `git diff --stat HEAD -- plugins/O-Contrabass/CMakeLists.txt` reports 1 file changed (1 LOC M).
+- [ ] `git diff --stat HEAD -- plugins/O-Bowed/ modules/synthesis/bow-friction/ <other-DSP-headers>` reports empty.
+- [ ] `grep -c "sat \* std::tanh"` returns 2 (Phase 2.4c-bis carry-forward preserved).
+
+**Estimated effort:** ~5–10 min (audit hooks + reproduce-goldens.sh full pass).
+
+---
+
+### R37f — `auval` AU VALIDATION SUCCEEDED + `pluginval --strictness-level 10` SUCCESS
+
+**Per RESEARCH §21.10 R37f + ROADMAP §"Stage 2 Test Criteria" QUAL-01. Build + install O-Contrabass AU + VST3 to system folders per CLAUDE.md macOS protocol; run `auval` against the AU; run `pluginval --strictness-level 10` against the VST3.**
+
+**Tasks:**
+
+1. **Build O-Contrabass AU + VST3:**
+   ```bash
+   cmake --build build --target O-Contrabass_AU --parallel
+   cmake --build build --target O-Contrabass_VST3 --parallel
+   ```
+
+2. **Clear AU caches + reinstall (CLAUDE.md macOS protocol):**
+   ```bash
+   killall -9 AudioComponentRegistrar 2>/dev/null || true
+   rm -rf ~/Library/Caches/AudioUnitCache/
+   rm -rf ~/Library/Caches/com.apple.audiounits.cache
+   rm -rf ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3
+   rm -rf ~/Library/Audio/Plug-Ins/Components/O-Contrabass.component
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/VST3/O-Contrabass.vst3 ~/Library/Audio/Plug-Ins/VST3/
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/AU/O-Contrabass.component ~/Library/Audio/Plug-Ins/Components/
+   ```
+
+3. **Run `auval` (full render-rate matrix):**
+   ```bash
+   auval -v aumu OCbs Ouar 2>&1 | tee /tmp/auval-r37f.log
+   # Expect: "AU VALIDATION SUCCEEDED" at end of log.
+   ```
+   If FAIL, investigate + escalate before R38.
+
+4. **Run `pluginval --strictness-level 10` (full battery):**
+   ```bash
+   /Applications/pluginval.app/Contents/MacOS/pluginval \
+       --strictness-level 10 \
+       --skip-gui-tests \
+       --validate ~/Library/Audio/Plug-Ins/VST3/O-Contrabass.vst3 \
+       2>&1 | tee /tmp/pluginval-r37f.log
+   # Expect: "ALL TESTS PASSED" at end of log; specifically:
+   #   Editor Automation, Automatable Parameters, Parameter thread safety,
+   #   Background thread state, Bus enable/disable, Restoring default layout,
+   #   Fuzz parameters all complete + SUCCESS.
+   ```
+   If FAIL, investigate (most likely culprit: PERF-01 allocation-in-processBlock — verify `juce::ScopedNoDenormals` + no-alloc hot path).
+
+**Files created:** `/tmp/auval-r37f.log` + `/tmp/pluginval-r37f.log` (transient; NOT committed).
+
+**Files modified:** none.
+
+**Commit:** **NONE** — diagnostic only.
+
+**Success bar:**
+- [ ] `auval -v aumu OCbs Ouar` reports `AU VALIDATION SUCCEEDED`.
+- [ ] `pluginval --strictness-level 10` reports `ALL TESTS PASSED`.
+
+**Estimated effort:** ~5–10 min (auval ~2 min + pluginval-10 ~5–8 min).
+
+---
+
+### R38 — Logic AU audition (BLOCKING per CONTEXT Q57 + Open Item #13)
+
+**Per RESEARCH §21.11 4-step protocol + 7-probe sequence. User A/Bs raw-string from `1044bed` (R36-bis post-port via `/tmp/oc-pre-2-5` worktree) vs body-engaged from working-tree O-Contrabass-dev. Mirrors R37-bis Phase 2.4c-bis precedent (audible source-edit → BLOCKING audition). PASS criteria: post-Phase-2.5 sounds "convincing orchestral arco bass" per BRIEF.md DSP-03 + DSP-04 acceptance.**
+
+**Tasks:**
+
+1. **Build pre-Phase-2.5 reference AU variant from `/tmp/oc-pre-2-5` worktree** (idempotent across re-runs):
+   ```bash
+   cd /tmp/oc-pre-2-5
+   # Edit plugins/O-Contrabass/CMakeLists.txt to disambiguate:
+   #   PLUGIN_CODE OCbs → OCb5
+   #   PRODUCT_NAME "O-Contrabass${OUARICON_DEV_SUFFIX}" → "O-Contrabass-pre-2-5${OUARICON_DEV_SUFFIX}"
+   #   (Plugin name change generates a separate AU bundle to avoid collision with working-tree variant.)
+   cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release \
+       -DSKIP_PLUGINS=O-Orbit -DOUARICON_BUILD_TESTS=OFF
+   cmake --build build --target O-Contrabass_AU --parallel
+
+   # Install pre-2-5 variant
+   killall -9 AudioComponentRegistrar 2>/dev/null || true
+   rm -rf ~/Library/Caches/AudioUnitCache/ ~/Library/Caches/com.apple.audiounits.cache
+   rm -rf ~/Library/Audio/Plug-Ins/Components/O-Contrabass-pre-2-5.component
+   cp -R build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/AU/O-Contrabass-pre-2-5.component \
+       ~/Library/Audio/Plug-Ins/Components/
+   auval -a 2>&1 | grep -i contrabass
+   # Expect: both pre-2-5 (OCb5) + working-tree dev (OCbs) variants resolve.
+   cd /Users/taylorbrook/Dev/VST-development
+   ```
+
+2. **Build post-Phase-2.5 working-tree AU + install per R37f (already done by R37f; re-confirm install path):**
+   ```bash
+   ls ~/Library/Audio/Plug-Ins/Components/O-Contrabass.component  # working-tree post-Phase-2.5 variant
+   ls ~/Library/Audio/Plug-Ins/Components/O-Contrabass-pre-2-5.component  # pre-Phase-2.5 reference variant
+   ```
+
+3. **Open Logic Pro AU + load both variants on adjacent tracks** (single project, two software-instrument tracks). Set both to identical default presets. Routing: each track to its own bus for clean A/B comparison via mute/solo.
+
+4. **Execute 7-probe BLOCKING audition sequence** (per RESEARCH §21.11):
+
+   | Probe | Setup | Pre-2-5 expectation | Post-2-5 expectation | PASS criterion |
+   |-------|-------|---------------------|----------------------|----------------|
+   | **1: Sustained E1 (MIDI 28)** | Default preset, sustained 5 s note | Bare bowed-string (waveguide-only output; no wood resonance) | Wood body resonance present (low-end thickening); BOW_NOISE audible at default 0.35 (subtle hair-on-string texture) | Body adds wood color WITHOUT obscuring fundamental; bow-noise sits under tone |
+   | **2: Per-string A/D/G** | MIDI 33 / 38 / 43, 3 s each | Bare bowed-string per-string | Body wet/dry mix matches across strings; per-string spectral coloring varies subtly | No string-dependent body discontinuities |
+   | **3: Sustained G2 (MIDI 43, wolf-region check)** | MIDI 43 sustained 8 s, default damping (BODY_DAMPING=0.40) | Bare bowed-string | Mode 2 at fc=91.16 Hz (Q_eff=7.26) coexists with G2 fundamental at 98 Hz — ARCHITECTURE §"Body Resonator"-warned wolf-region risk. **Document audibility**: subtle bloom (acceptable) OR audible beating (Phase 2.5-bis backlog flag) | Subtle bloom acceptable; audible beating documented but NOT blocking R37 atomic per CONTEXT line 91/166 |
+   | **4: Bow-direction reversal (MIDI 28 → silence → MIDI 28)** | MIDI on / off / on, ~50 ms gaps | Bare attack-decay envelope | Slip-burst NOISE BURST (5–15 ms wideband) on note-on transient — ROADMAP §"Phase 2.5 Test Criteria" DSP-04 acceptance | Audible 5–15 ms wideband noise burst on each attack |
+   | **5: BOW_NOISE 0% → 100% sweep** | MIDI 28 sustained, knob sweep | n/a | Noise rises from inaudible to overwhelming; no clicks during sweep | Linear-ish loudness ramp; no zipper noise |
+   | **6: BODY_SIZE / DAMPING / MIX sweeps** | MIDI 28 sustained, knob sweep | n/a | Body character morphs smoothly (size = body resonance frequency offset; damping = ring-down time; mix = wet/dry blend) | No clicks during any sweep |
+   | **7: Orchestral A/B vs reference orchestral library bass sustain at G2** | DAW project comparing Phase-2.5 sustained G2 vs (e.g.) Spitfire Audio BBC SO bass sustain at G2 | Bare bowed-string clearly NOT in same sonic family | "In same sonic family" subjective bar per ROADMAP §"Phase 2.5 Test Criteria" | User-confirmed acceptable |
+
+5. **FAIL handling per RESEARCH §21.11:**
+
+   | Subjective failure | Resolution path |
+   |--------------------|-----------------|
+   | Bow-noise level mis-calibrated (too loud / too quiet) | Tweak `kSlipDecay` (0.999 → 0.9985 for shorter bursts; 0.9995 longer) OR `kBpfQ[]` (1.0/1.2/1.5 → 1.5/1.8/2.0 for sharper resonances) OR default `BOW_NOISE` (0.35 → 0.25). Re-render audition; iterate. Stays inside R37 cycle. |
+   | Body bank gain attenuation needed | Adjust `kDefaultGainDb[]` (e.g., −2 → −4 across the board for less prominent body). Re-render audition; iterate. Stays inside R37 cycle. |
+   | Wolf-tone audible at G2 sustained | DOCUMENT (per CONTEXT line 91/166); carry to Phase 2.5-bis backlog. Do NOT block R37 atomic. User can mitigate via BODY_DAMPING knob for now. |
+   | Body-coupling distortion / transient artifacts | ESCALATE pre-R37-atomic. Likely root cause: per-block coefficient swap glitch or 35 Hz HP one-pole DC-residual. Investigate. |
+   | Slip-burst phase feels mechanical (period-heuristic limitation) | DOCUMENT (per RESEARCH §21.3.4); carry to Phase 2.5-bis Option A or B. Do NOT block R37 atomic. |
+   | Catastrophic regression (body bank breaks waveguide stability under any string × INFINITE_SUSTAIN combo) | ESCALATE pre-R37-atomic. Investigate matrix-stability evidence. Most likely culprit: per-block coefficient computation introduces NaN at edge case (BODY_SIZE=1.0 + BODY_DAMPING=0.0 worst case; RESEARCH §21.7 analytic check shows STABLE in float32 but NaN propagation from upstream is possible). |
+
+**Files created:** none committed (worktree at `/tmp/oc-pre-2-5` is git-internal; `O-Contrabass-pre-2-5.component` is install-folder only).
+
+**Files modified:** none committed (CMakeLists in worktree is local-only edit, NOT committed back).
+
+**Commit:** **NONE** — BLOCKING audition only.
+
+**Success bar:**
+- [ ] Pre-Phase-2.5 reference AU (`O-Contrabass-pre-2-5.component`, PLUGIN_CODE `OCb5`) builds + installs.
+- [ ] Post-Phase-2.5 working-tree AU (`O-Contrabass.component`, PLUGIN_CODE `OCbs`) builds + installs.
+- [ ] Both variants resolve in `auval -a | grep -i contrabass`.
+- [ ] Probes 1, 2, 4, 5, 6, 7: PASS criteria CONFIRMED.
+- [ ] Probe 3 (wolf-region G2): subjective audibility DOCUMENTED (subtle bloom acceptable; beating → Phase 2.5-bis backlog).
+- [ ] User-confirmed: post-Phase-2.5 character is "convincing orchestral arco bass" per BRIEF.md DSP-03 + DSP-04 acceptance bar.
+
+**Estimated effort:** ~30–45 min (pre-2-5 build + Logic Pro session + 7-probe audition).
+
+---
+
+### R37 — Phase 2.5 atomic commit (Gate 7 PASS)
+
+**All R37-pre + R37a + R37b + R37c + R37d + R37e + R37f + R38 success bars CONFIRMED. Single atomic commit lands all source edits + CMake update + 13 audible-golden re-baselines + matrix-stability evidence archived to `.planning/evidence/phase-2-5/` + RESEARCH §21 verdict subsection (verify-phase fills R38 outcome) + planning artefacts.**
+
+**Tasks:**
+
+1. **Stage all artefacts:**
+   ```bash
+   # Source — 4-file production set
+   git add plugins/O-Contrabass/Source/DSP/BodyResonator.h
+   git add plugins/O-Contrabass/Source/DSP/BodyResonator.cpp
+   git add plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h
+   git add plugins/O-Contrabass/Source/BowedContrabassVoice.h
+   git add plugins/O-Contrabass/Source/BowedContrabassVoice.cpp
+   git add plugins/O-Contrabass/Source/PluginProcessor.cpp  # if M
+   git add plugins/O-Contrabass/Source/PluginProcessor.h    # if M
+
+   # CMake — 1-file source-list addition
+   git add plugins/O-Contrabass/CMakeLists.txt
+
+   # Goldens — 13 audible re-baselines
+   git add plugins/O-Contrabass/tests/render-harness/golden/*.wav.sha256
+   git add plugins/O-Contrabass/tests/render-harness/golden/*.json
+   git add plugins/O-Contrabass/tests/render-harness/golden/{vibrato,saturator-tail-comparison}.json.sha256
+
+   # Evidence — matrix-stability post-body archive (NOT in default reproduce-goldens.sh; evidence-only)
+   git add plugins/O-Contrabass/.planning/evidence/phase-2-5/  # if WAV ≤ commit threshold; else .json + sha256 only
+
+   # Planning — RESEARCH §21 verdict subsection (already largely filled at research-phase; verify-phase fills R38 outcome)
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md       # rev-11 post-research instantiation if updated
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md          # rev-12 (this document)
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md       # Phase 2.5 section append
+   git add plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md  # Gate 7 + DSP-03/DSP-04 status flip
+   git add plugins/O-Contrabass/.planning/STATUS.md                     # `phase: complete` + `status: phase_2_5_complete` + `next_action: phase_2_6_discuss`
+   ```
+
+2. **Final pre-commit verification:**
+   ```bash
+   git status                                # confirm staged set matches the EXACT scope above
+   git diff --cached --stat                  # human-readable diff summary
+   git diff --cached -- plugins/O-Contrabass/Source/  # spot-check production source diffs
+   ```
+
+3. **Commit (HEREDOC for formatting; follows Phase 2.4c-bis R36-bis precedent):**
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   feat(O-Contrabass): Phase 2.5 — body resonator (8-mode static-Q parallel biquad bank, bass-tuned modes per Askenfelt 1982 / Rossing 2010) + bow noise generator (3-band BPF at 700/1500/3000 Hz + period-heuristic slip bursts, decay 0.999); Gate 7 PASS [verdict-modifier — fill at verify-phase: WORKED / WORKED-PARTIALLY / REGRESSION based on R38 outcome + R37d measurements]
+
+   Closes BRIEF.md DSP-03 (must) + DSP-04 (should). Implements bass spec from
+   ARCHITECTURE §"Body Resonator (Parallel Biquad Bank)" + §"Bow Noise Generator"
+   using O-Bowed Source/DSP/BodyResonator.{h,cpp} + BowNoiseGenerator.h as
+   reference for juce::dsp::IIR::Filter + juce::Random lifecycle patterns —
+   NOT verbatim copy (RESEARCH §21.2 verbatim-copy assumption broken; substantial
+   rewrite required for filter type / channel topology / integration site /
+   parameter set / dry-path / slip-detection deltas).
+
+   Source delta: 4 production files (2 NEW + 2 M) + 1 CMakeLists.txt M
+   (~470 LOC NEW + ~55 LOC M = ~525 LOC). NEW Step 8 (body) + NEW Step 9
+   (bow noise) appended to per-block evaluation order AFTER waveguide downsample,
+   BEFORE host-rate output write. Period-heuristic slip-burst trigger v1.0
+   substitute (RESEARCH §21.3.3) in place of true Helmholtz slip-detection
+   (deferred to Phase 2.5-bis or v1.1).
+
+   Wolf-region suppression deferred to v1.1 (CONTEXT Q55; ARCHITECTURE
+   §"Body Resonator" wolf default-ON deviation flagged); v1.0 ships static-Q.
+
+   13 audible goldens re-baselined (post-body spectral coloring). Matrix-stability
+   evidence archived to .planning/evidence/phase-2-5/ (evidence-only;
+   matrix-stability.wav.sha256 = 6db67707… carries forward verbatim).
+   Saturator-tail-comparison post-body bin 64: [LOCK at verify-phase] dB rel max
+   (Phase 2.4c-bis baseline −7.97 dB; predicted shift ≤ 2 dB per RESEARCH §21.4).
+   Sub-harmonics post-body subharmEnergyRatio: [LOCK at verify-phase]
+   (Phase 2.4c-bis baseline 0.358; soft-band [0.30, 0.45] expected).
+
+   HR-1..HR-10 carry-forward verbatim; HR-11 retired (Phase 2.4c-only binding).
+   No new HR introduced (CONTEXT Q59).
+
+   parameter-spec.md sha256 77638e25… carries forward unchanged (5 body/noise
+   params already declared at PluginProcessor.cpp:52,60,62,64,66; NO Stage-1
+   contract amendment).
+
+   ARCHITECTURE.md NOT amended in Phase 2.5 (wolf-region deferral is CONTEXT-
+   flagged Q55 deviation; §149/§509 size_scalar reconciliation feeds end-of-
+   Stage-2 verify amendment evidence base alongside §"DC Blocker" + §"In-loop
+   saturator").
+
+   Atomic-commit sequence: R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 →
+   R36-bis → R37 (Phase 2.5 Gate 7 PASS).
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+4. **Post-commit verification:**
+   ```bash
+   git log --oneline -3        # confirm R37 atomic at HEAD
+   git show --stat HEAD        # confirm exact-scope file list
+   ```
+
+**Files created:** none beyond R37a/b artefacts.
+
+**Files modified:** none beyond R37a/b/c/d artefacts.
+
+**Commit:** **R37 atomic** — Phase 2.5 Gate 7 PASS.
+
+**Success bar:**
+- [ ] Single atomic commit lands the EXACT 4-file production source set (3 NEW + 2–3 M) + 1 CMakeLists.txt M + 13 audible-golden re-baselines + 2 informational JSON sha256 re-anchors + 13 JSON re-baselines + matrix-stability evidence archive + RESEARCH §21 verdict + planning artefacts.
+- [ ] Commit message follows Phase 2.4c-bis R36-bis precedent template.
+- [ ] `git log --oneline -3` shows R37 at HEAD (descendant of R36-bis-backfill chore `1dfca9d`).
+- [ ] `git show --stat HEAD` confirms expected file list + LOC budget (~525 LOC source + 13 sha256 + JSON + evidence).
+
+**Estimated effort:** ~10 min (stage + commit + verify).
+
+---
+
+### R37-backfill chore — STATUS.md sha propagation
+
+**Per R34/R35/R36/R36-bis precedent. Once R37 atomic commit lands, propagate the sha into STATUS.md `phase_2_5_atomic_sha:` field for audit-trail completeness.**
+
+**Tasks:**
+
+1. **Capture R37 sha:**
+   ```bash
+   R37_SHA=$(git rev-parse HEAD)
+   echo "R37 sha: $R37_SHA"
+   ```
+
+2. **Edit `plugins/O-Contrabass/.planning/STATUS.md`** — populate `phase_2_5_atomic_sha:` field + flip `phase_2_5_status:` to `phase_2_5_atomic_committed`.
+
+3. **Commit chore:**
+   ```bash
+   git add plugins/O-Contrabass/.planning/STATUS.md
+   git commit -m "$(cat <<'EOF'
+   chore(O-Contrabass): backfill Phase 2.5 R37 commit sha (<R37_SHA>) into STATUS.md
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+**Files created:** none.
+
+**Files modified:** `plugins/O-Contrabass/.planning/STATUS.md` (1 LOC M; sha propagation).
+
+**Commit:** **R37-backfill chore**.
+
+**Success bar:**
+- [ ] STATUS.md `phase_2_5_atomic_sha:` populated with R37 commit sha.
+- [ ] R37-backfill chore commit lands as descendant of R37 atomic.
+- [ ] `git log --oneline -3` shows R37-backfill → R37 → R36-bis-backfill.
+
+**Estimated effort:** ~3 min (sha capture + STATUS edit + chore commit).
+
+---
+
+## Why R37 is a single atomic commit
+
+Per Phase 2.4c-bis R36-bis + Phase 2.4b R35 + Phase 2.4a R34 precedent, R37 lands as a single atomic commit because:
+
+1. **Source + golden coupling:** Body resonator + bow noise change the post-waveguide spectrum on every audible signal. The 13 NEW sha256 reference values are computed FROM the integrated body+noise topology; splitting source from goldens would create a transient state where `reproduce-goldens.sh` is wedged between pre-port and post-port references.
+2. **CMake + source coupling:** `Source/DSP/BodyResonator.cpp` requires the `target_sources` source-list addition to compile; splitting the CMake change from the .cpp file creates a transient broken-build state.
+3. **R38 BLOCKING audition is pre-commit:** Audition lands BEFORE the atomic commit (CONTEXT Q57 + Open Item #13); subjective issues escalate to in-cycle iteration (kSlipDecay tweaks, kDefaultGainDb adjustments) without breaking commit hygiene. The atomic shape preserves "every commit on main is releasable."
+4. **Continues R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 sequence:** Each atomic commit corresponds to a verified gate (Gate 1 → Gate 7); single-commit-per-gate is the project's gate-first discipline.
+5. **Backfill chore is bookkeeping-only:** R37-backfill propagates the sha into STATUS.md AFTER R37 lands; it is not part of the gate-PASS payload.
+
+---
+
+## Files To Create / Modify (consolidated, Phase 2.5)
+
+### Source (new)
+- `plugins/O-Contrabass/Source/DSP/BodyResonator.h` (~90 LOC NEW)
+- `plugins/O-Contrabass/Source/DSP/BodyResonator.cpp` (~200 LOC NEW)
+- `plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h` (~180 LOC NEW; header-only)
+
+### Source (modified)
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` (~10 LOC M; instance + setter declarations + lastFundamentalHz)
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` (~40 LOC M; Step 8 + Step 9 integration + bowEnergy compute + setFundamentalHz push + reset path additions + prepare/updateParametersFromAPVTS extensions)
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` (0–5 LOC M; voice-side body/noise param routing — verify-only if existing routing covers body/noise reads)
+- `plugins/O-Contrabass/Source/PluginProcessor.h` (0 LOC M expected; no new public surface)
+
+### Build (modified)
+- `plugins/O-Contrabass/CMakeLists.txt` (1 LOC M; add `Source/DSP/BodyResonator.cpp` to `target_sources`)
+
+### Test artefacts (modified, re-baselined)
+- `plugins/O-Contrabass/tests/render-harness/golden/stiffness-zero-pre.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/string-{A,D,G}.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/detune-sweep-A.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/note-sequence.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/macro-sweep.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/slow-lfo.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/schelleng-stress.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.{wav.sha256,json}`
+- `plugins/O-Contrabass/tests/render-harness/golden/saturator-tail-comparison.{wav.sha256,json,json.sha256}` (json.sha256 informational-only re-anchor)
+- `plugins/O-Contrabass/tests/render-harness/golden/vibrato.{wav.sha256,json,json.sha256}` (json.sha256 informational-only re-anchor; default = re-baseline per RESEARCH §21.7)
+
+### Test artefacts (new, evidence-only — NOT in default reproduce-goldens.sh)
+- `plugins/O-Contrabass/.planning/evidence/phase-2-5/matrix-stability-post-body.{wav,json}` (per RESEARCH §21.8; carry-forward `matrix-stability.wav.sha256 = 6db67707…` verbatim per CONTEXT line 176; archive only — NOT a re-baselined regression golden)
+
+### Test artefacts (NOT committed — staged-only or transient)
+- `/tmp/p25-*-t{1,2,3}.{wav,json}` (3-trial bit-stability pre-flight scratch; deleted post-R37d)
+- `/tmp/auval-r37f.log`, `/tmp/pluginval-r37f.log` (R37f log capture; NOT committed)
+
+### Stage-1 contract amendment
+- **NONE.** parameter-spec.md sha256 `77638e25…` carries forward unchanged. STATUS.md `contract_checksums.parameter_spec` unchanged.
+
+### Planning artefacts (modified)
+- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` (§21 verdict subsection; §§21.1–21.16 already present from research-phase; verify-phase fills R38 outcome)
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` (rev-11 post-research instantiation if updated; rev-10 carries forward as discuss-phase artefact)
+- `plugins/O-Contrabass/.planning/stages/2-dsp/PLAN.md` (rev-12; this document, plan-phase output)
+- `plugins/O-Contrabass/.planning/stages/2-dsp/SUMMARY.md` (Phase 2.5 section append at execute-phase)
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` (Gate 7 + DSP-03 + DSP-04 status flip from "⏸️ Deferred (Phase 2.5)" to "✅ Complete" or "⚠️ Partial" depending on Gate 7 outcome)
+- `plugins/O-Contrabass/.planning/STATUS.md` (`phase` flip + `status` flip + `next_action` flip + `phase_2_5_*` carry-forward block)
+
+### Files explicitly NOT touched
+- `plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` (Phase 2.4c-bis R36-bis post-port carry-forward verbatim; `sat * std::tanh` saturator on both rails preserved at lines 204–206)
+- `plugins/O-Contrabass/Source/DSP/DispersionFilter.h` (Phase 2.1c R20 verbatim consume)
+- `plugins/O-Contrabass/Source/DSP/SchellengCalibration.h` (Phase 2.4a R34 verbatim consume)
+- `plugins/O-Contrabass/Source/DSP/SubHarmonicBias.h` (Phase 2.4b R35 verbatim consume)
+- `plugins/O-Contrabass/Source/BowedMPESynthesiser.{h,cpp}` (verbatim consume)
+- `plugins/O-Bowed/` (read-only reference for `juce::dsp::IIR::Filter` + `juce::Random` lifecycle patterns; NOT modified)
+- `modules/synthesis/bow-friction/` (HR-10 ABI preservation — NOT modified)
+- `tests/render-harness/main.cpp` (no NEW CLI flags; existing 13 modes carry forward unchanged)
+- `tests/render-harness/reproduce-goldens.sh` (13-entry script unchanged in count; only sha256 values inside per-entry comparisons re-baseline)
+
+---
+
+## Dependencies Graph (compact)
+
+```
+R37-pre (tripwire, 13/13 PASS at HEAD)
+   ├── R37a (BodyResonator.{h,cpp} NEW + CMakeLists.txt M)
+   │      └── (compiles standalone)
+   ├── R37b (BowNoiseGenerator.h NEW; header-only)
+   │      └── (compiles when included by voice)
+   └── R37c (BowedContrabassVoice.{h,cpp} M + PluginProcessor.{h,cpp} M-or-zero)
+          └── R37c depends on R37a + R37b (voice instantiates BodyResonator + BowNoiseGenerator)
+              ├── R37d (re-baseline 13 + matrix evidence + saturator-tail post-body + sub-harmonics post-body + 3-trial DET-PASS)
+              │      └── R37d depends on R37c (renders post-integration)
+              │          ├── R37e (regression bar: 13/13 byte-identical against NEW sha256s + 4-file source audit + 1-file CMake audit)
+              │          │      └── R37e depends on R37d (NEW sha256s locked)
+              │          └── R37f (auval + pluginval-10 SUCCESS)
+              │                 └── R37f depends on R37c (full plugin compiles + installs)
+              └── R38 (Logic AU audition, BLOCKING)
+                     └── R38 depends on R37f (post-Phase-2.5 AU installed) + /tmp/oc-pre-2-5 worktree (idempotent re-create from R37-pre)
+                            └── R37 atomic commit (lands all source + goldens + RESEARCH §21 + planning artefacts)
+                                   └── R37-backfill chore (sha propagation into STATUS.md)
+```
+
+---
+
+## Risks (Phase 2.5, refreshed from RESEARCH §21.14)
+
+Carry-forward from CONTEXT rev-10 §"Risks (Phase 2.5-specific)" with research-phase evidence (15 carry-forward + 2 NEW from research = 17 total):
+
+1. **Body bank coefficient instability at low-freq edge (Mode 1 at 52 Hz, Q=14, sr=44.1 kHz)** — **MITIGATED** per RESEARCH §21.7 analytic check (pole radius `r ≈ 0.9997`, 3 ‱ inside unit circle, float32 eps = 1.19e-7 well-resolves). STABLE. `juce::ScopedNoDenormals` already in voice render path. No new mitigation.
+2. **Click-free coefficient updates fail** — Per-block recompute + 30 ms `SmoothedValue` per ARCHITECTURE §152. R37c integrates SmoothedValue<float> for SIZE/DAMPING/MIX/BOW_NOISE; recompute at block start via `skip(numSamples-1)` skip-bump pattern.
+3. **`juce::Random` non-determinism** — **MITIGATED** per RESEARCH §21.6 (O-Bowed `voiceIndex * 31337` constructor-time fixed seed; deterministic per voice). R37b inherits seeding pattern verbatim; R37d 3-trial pre-flight confirms.
+4. **Wolf-region resonance at G2 sustained** — **DOCUMENTED + DEFERRED** per CONTEXT Q55. R38 Probe 3 documents audibility; if audible, carry to Phase 2.5-bis (do NOT block R37 atomic).
+5. **Body coupling shifts saturator-tail bin 64 outside soft-band** — **DEFERRED** to R37d execute-phase pre-flight per RESEARCH §21.4. Predicted shift ≤ 2 dB at canonical operating point. R37d measurement; if outside [−9, −5] dB → flag for §"In-loop saturator" amendment evidence base; > 4 dB shift escalates pre-R37-atomic.
+6. **13-audible-golden re-baseline drift across runs** — **DEFERRED** to R37d 3-trial pre-flight per RESEARCH §21.5.
+7. **Vibrato golden re-baseline** — **DEFERRED + DEFAULT-RE-BASELINE** per RESEARCH §21.7. Already counted in 13-audible scope.
+8. **Matrix-stability NEW raucous corners** — **DEFERRED** to R37d evidence-only re-render per RESEARCH §21.8. Body bank is L2-bounded BIBO-stable; predicted-low probability.
+9. **Sub-harmonics post-body coupling drops `subharmEnergyRatio`** — **DEFERRED** to R37d measurement per RESEARCH §21.9. Body bank's bandpass tilt at 60–115 Hz preserves or boosts subharmonic energy. If drops < 0.30 → flag for Phase 2.4-bis backlog priority bump (NOT Gate 7 BLOCKER).
+10. **R38 BLOCKING audition reveals subjective issue** — **MITIGATED** per RESEARCH §21.11 (5 categorised resolution paths: bow-noise calibration / body gain attenuation / wolf-tone deferral / distortion escalation / period-heuristic mechanical-feel deferral).
+11. **Audit-hook drift mid-cycle** — **MITIGATED** per CONTEXT line 156. R37-pre + R37e enforce exact 4-source-file (+ 1 CMake) diff set.
+12. **`juce::dsp::IIR::Filter<float>` RT-safety** — **MITIGATED** (JUCE biquad processSample is RT-safe; coefficient swap is atomic struct copy). R37f pluginval-10 fuzz + Parameter thread safety re-confirm.
+13. **Phase 2.6-awareness (master chain absent at Phase 2.5 audition)** — **DOCUMENTED** per CONTEXT line 258. R38 audition character will differ from final v1.0 character (post-Phase-2.6 master saturator + limiter). R38 acknowledges explicitly — body+noise character validation, NOT final-output validation.
+14. **BODY_MIX = 0.0 audible mismatch (HP35 attenuates E1 fundamental ~3 dB)** — **DOCUMENTED** per CONTEXT line 260. Architecture-correct; 35 Hz HP prevents sub-A0 phase-comb artifacts during mix. R38 Probe 6 (sweeps) documents; if subjective issue, schedule Phase 2.5-bis (lower HP cutoff or conditional HP).
+15. **Phase 2.5 verify regression on Phase 2.4c-bis Q47 SOFT-PASS contract (bin 64 ∈ [−8.17, −6.17] dB rel max)** — Carry-forward from rev-8 risk #10 / rev-9-bis Phase 2.5-awareness. Body coupling MAY shift bin 64. R37d evidence-only flag; if shift > 1 dB → carry-forward to end-of-Stage-2 §"In-loop saturator" amendment.
+16. **(NEW per RESEARCH §21.16 ESCALATION-1) Verbatim-copy assumption broken** — O-Bowed BodyResonator is morphable+stereo+peakFilter; bass spec is single-preset+mono+bandPass; integration site differs. Phase 2.5 implementation is "implement bass spec from ARCHITECTURE using O-Bowed as reference" — not "verbatim copy + substitution". LOC budget revised upward (~525 LOC source vs CONTEXT estimate). PLAN rev-12 acknowledges in §"Approach Decisions" without re-discuss.
+17. **(NEW per RESEARCH §21.16 ESCALATION-2) No Helmholtz slip-detection accessor available** — Bow-friction module v1.0.0 + WaveguideString.cpp expose no slip-state. True slip-detection requires WaveguideString edit (out of CONTEXT 4-file scope). Period-heuristic substitute locked for v1.0; true slip-detection deferred to Phase 2.5-bis (Option A: voice-level F_friction reconstruction; Option B: WaveguideString getLastFrictionForce() accessor; Option C: WaveguideString slip-flag accessor).
+
+---
+
+## Success Criteria (Gate 7 — Phase 2.5 verify exit gate)
+
+Five-item Gate 7 bar (per CONTEXT rev-10 §"Gate 7 Five-Item Success Criteria" + RESEARCH §21):
+
+1. **Bit-deterministic regression bar:**
+   - All 13 `reproduce-goldens.sh` entries reproduce byte-identical via post-Phase-2.5 sha256s (R37d-locked NEW reference values).
+   - Audit hook reports EXACTLY the 4-file production source set: `Source/DSP/BodyResonator.{h,cpp}` NEW + `Source/DSP/BowNoiseGenerator.h` NEW + `Source/BowedContrabassVoice.{h,cpp}` M + `Source/PluginProcessor.{h,cpp}` M-or-zero (R37-pre + R37e tripwires).
+   - CMakeLists.txt audit hook reports 1 file changed (1 LOC M; `Source/DSP/BodyResonator.cpp` source-list addition).
+   - Phase 2.4c-bis carry-forward verified: `grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` returns 2.
+
+2. **DSP-03 + DSP-04 acceptance:**
+   - **Body bank impulse response** shows 8 spectral peaks at default frequencies (60/98/115/175/235/340/700/1200 Hz) with correct relative gains (post-execute pre-flight or R38 spectral analysis).
+   - **BODY_SIZE / DAMPING / MIX sweeps:** zipper-free; no clicks during 30 ms ramp.
+   - **BOW_NOISE 0% → 100%:** linear-ish loudness ramp; audible at low pressure; fades to silence at zero.
+   - **Bow direction reversal:** 5–15 ms wideband noise burst on each attack (slip-burst trigger validation; period-heuristic v1.0 substitute).
+   - **Wolf region (G2 sustained):** subjective audibility documented at R38 Probe 3 (NOT BLOCKING per Q55 — audible beating → Phase 2.5-bis backlog flag).
+   - **Orchestral character A/B:** R38 Probe 7 confirms "in same sonic family" subjective bar.
+
+3. **`auval` + `pluginval-10` SUCCESS:**
+   - `auval -v aumu OCbs Ouar` reports `AU VALIDATION SUCCEEDED` full render-rate matrix.
+   - `pluginval --strictness-level 10` reports `ALL TESTS PASSED` full battery (Editor Automation, Automatable Parameters, Parameter thread safety, Background thread state, Bus enable/disable, Restoring default layout, Fuzz parameters all complete).
+
+4. **R38 Logic AU audition CONFIRMED (BLOCKING):**
+   - Pre-Phase-2.5 reference (raw-string from `1044bed` worktree) vs post-Phase-2.5 (body-engaged from working-tree) A/B in Logic Pro AU.
+   - 7-probe sequence per RESEARCH §21.11: Probes 1, 2, 4, 5, 6, 7 PASS; Probe 3 (wolf-region G2) DOCUMENTED.
+   - User-confirmed: post-Phase-2.5 sounds "convincing orchestral arco bass" per BRIEF.md DSP-03 + DSP-04 acceptance.
+   - R37 atomic commit does NOT land until R38 audition CONFIRMED.
+
+5. **RESEARCH §21 verdict locked:**
+   - Phase 2.5 verdict written: WORKED (DSP-03 + DSP-04 CLOSED, Phase 2.6 unblocked) OR WORKED-PARTIALLY (Phase 2.5-bis backlog logged for wolf-suppression / bow-noise recalibration / period-heuristic mechanical-feel) OR REGRESSION (body coupling reveals saturator-tail divergence > 4 dB OR matrix-stability NEW raucous corners; Phase 2.5-bis escalation flag LOCKED before R37 atomic).
+   - Saturator-tail post-body bin 64 measurement documented (within [−9, −5] dB rel max OR flagged for end-of-Stage-2 §"In-loop saturator" amendment evidence base).
+   - Sub-harmonics post-body `subharmEnergyRatio` documented (within [0.30, 0.45] OR flagged for Phase 2.4-bis backlog priority bump).
+   - Matrix-stability raucous-corner cell migration documented (no NEW raucous corners surfacing).
+   - VERIFICATION.md DSP-03 + DSP-04 status flipped from "⏸️ Deferred (Phase 2.5)" to "✅ Complete" or "⚠️ Partial".
+
+---
+
+## Out of Scope (deferred per CONTEXT.md rev-10 + RESEARCH §21 + STATUS.md)
+
+- **Phase 2.4-bis backlog** — kForceBoost retune for tanh saturator topology (DSP-07; subharmEnergyRatio above 0.40 strict; Phase 2.4c-bis 0.358 SOFT-PASS post-port; potential further drop post-body); Step 4 modulation gain / breathingAudible metric refinement (DSP-08); VIBRATO_DEPTH→peakDepthCents transfer tune (DSP-09 from 2.4c deviation #6); 3 v1.0 fallback-cell reduction (Phase 2.4a); click-free heuristic threshold tune (4 NEW raucous corners under tanh saturator at high-pressure × β=0.05 corners). **All stay parked.** Strict body+noise scope keeps the source delta unambiguous and the saturator-tail-regression evidence base clean.
+- **Wolf-region suppression** (ARCHITECTURE §"Body Resonator" Mode #2 Q drop on fundamental lock within ±15 cents for >150 ms) — deferred to v1.1 alongside Authentic Arco toggle (CONTEXT Q55). Static-Q body bank in Phase 2.5. **DEVIATION FROM ARCHITECTURE §"Body Resonator" wolf-region default ON** — flagged explicitly in CONTEXT §"Approach Decisions" Q55. If wolf-tone audible at G2 sustained during R38 audition or post-Phase 2.6 user testing, schedule Phase 2.5-bis or v1.1 cycle.
+- **True Helmholtz slip-detection** (ARCHITECTURE §165 "zero-crossing of friction force from stick to slip") — period-heuristic v1.0 substitute per RESEARCH §21.3.3. True slip-detection requires WaveguideString edit (out of CONTEXT 4-file scope-strict rule). Deferred to Phase 2.5-bis or v1.1 (Option A: voice-level F_friction reconstruction; Option B: WaveguideString getLastFrictionForce() accessor; Option C: WaveguideString slip-flag accessor).
+- **Master saturator + zero-latency feedforward limiter + stereo width + output gain** — Phase 2.6.
+- **Microtonal (Scala / TUN / MTS-ESP) + MPE + Note Expression** — Phase 2.6.
+- **Chaos detector + softClampState** — v1.1 (deferred from Phase 2.4b R35 commit-body footnote; Phase 2.4c-bis carried "Phase 2.5/2.6"; now explicitly v1.1 since Phase 2.5 stays scope-strict).
+- **ARCHITECTURE.md amendments** — §"DC Blocker" + §"In-loop saturator" + §"Body Resonator" §149/§509 `size_scalar` reconciliation (RESEARCH §21.16 ESCALATION-3) stay deferred to end-of-Stage-2 verify (post-Phase-2.6). **NO ARCHITECTURE.md amendment in Phase 2.5 cycle itself.** Wolf-region deferral is CONTEXT-flagged, not ARCHITECTURE-amended.
+- **Stage-1 contract amendment** — parameter-spec.md sha256 `77638e25…` carries forward unchanged. STATUS.md `contract_checksums.parameter_spec` unchanged. **NO Stage-1 contract amendment in Phase 2.5.**
+- **HR-12 (any new hard rule)** — REJECTED per CONTEXT Q59. HR-1..HR-10 cover existing invariants. HR-11 (Phase 2.4c) RETIRED at Phase 2.4c-bis cycle open per CONTEXT line 111.
+- **Body Resonator shared-module extraction** (`modules/synthesis/body-resonator/`) — post-v1.0 refactor. v1.0 uses per-plugin `Source/DSP/BodyResonator.{h,cpp}` (DispersionFilter / SchellengCalibration / SubHarmonicBias precedent).
+- **Bow Noise shared-module extraction** (`modules/synthesis/bow-noise/`) — post-v1.0 refactor. v1.0 uses per-plugin `Source/DSP/BowNoiseGenerator.h`.
+- **Verbatim copy from O-Bowed** — REJECTED per RESEARCH §21.2 + §21.16 ESCALATION-1. Deltas too significant; "implement bass spec from ARCHITECTURE using O-Bowed as reference" is the locked approach.
+- **Matrix-stability re-baseline in this cycle** — REJECTED per CONTEXT line 47 + RESEARCH §21.8. Post-Phase-2.5 matrix-stability WAV is evidence-only NOT committed; existing `matrix-stability.wav.sha256 = 6db67707…` carries forward verbatim from Phase 2.4a R34b. Mirrors Phase 2.4a R34b + Phase 2.4c-bis R36-bis "evidence golden, not in default reproduce-goldens.sh" pattern.
+- **`vibrato.json.sha256` + `saturator-tail-comparison.json.sha256` as regression bars** — REJECTED per RESEARCH §20.6 / PLAN rev-11 Open Item #5 carry-forward. Both JSON files contain wall-clock fields → sha256 non-deterministic across renders. Treated as informational/historical one-time anchors only. `reproduce-goldens.sh` only checks `*.wav.sha256`. R37d updates these to NEW one-time post-Phase-2.5 anchors for audit-trail completeness, NOT as regression bars.
+- **R38 deferred-non-blocking** — REJECTED per CONTEXT Q57 + Open Item #13. R38 is BLOCKING for Phase 2.5 (first NEW DSP block since Phase 2.4b R35; user audition catches subjective issues that objective measurements miss). Departs from R37/R32/R27/R19f/R14e/R34h/R35f deferred-non-blocking precedent.
+- **Pre-Phase-2.5 worktree cleanup at execute-phase** — DEFERRED to verify-phase close. `/tmp/oc-pre-2-5` worktree is preserved through Phase 2.5 verify-phase for independent reproduction of pre-Phase-2.5 reference; cleanup via `git worktree remove /tmp/oc-pre-2-5` lands at Phase 2.5 verify-phase close.
+- **Per-string `--vibrato-A/-D/-G` audible-mode goldens** — Phase 2.4-bis or v1.1 (RESEARCH §19.2.3 range-bias hard-codes `kVibratoMidiNote = 28`; carries forward unchanged).
+- **`--saturator-tail-comparison` per-string variants** — bin selection is canonical E1 only at v1.0; per-string sat-tail comparison (e.g., MIDI 33 / 38 / 43) deferred to v1.1.
+- **E1 dispersion calibration polynomial follow-up (Phase 2.1c Risk #7)** — separate `a(B, I)` cascaded-allpass concern; not body+noise scope. Out-of-scope for Phase 2.5; deferred to v1.1 or post-v1.0.
+- **Production WAV binary commits** — `saturator-tail-comparison.wav` (~30 MB), `matrix-stability.wav` (~50 MB), and other large WAVs NOT committed (reproducible from harness). sha256 + JSON committed instead per Phase 2.4a/b/c/c-bis precedent.
+- **CI invocation of `--saturator-tail-comparison` or `--matrix-stability`** — out-of-scope; harness modes are offline (developer-machine-only). CI runs the existing build + auval + pluginval pipeline.
+- **R37 atomic split into multiple commits** — REJECTED per CONTEXT Q60 + atomic-commit precedent. Single atomic + backfill chore shape (R34/R35/R36/R36-bis precedent).
+

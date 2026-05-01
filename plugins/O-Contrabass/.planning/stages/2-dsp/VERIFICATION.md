@@ -2269,3 +2269,228 @@ R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → **R36-bis** (Phas
 **Phase 2.4c-bis execute-phase complete; R36-bis atomic commit pending; verify-phase opens after backfill chore.**
 
 Next: **`/clear` + `/plugin-verify O-Contrabass 2-dsp`** to lock Phase 2.4c-bis verify-phase outcome (re-confirm Gate 6c-bis invariants from clean state; retire `/tmp/oc-pre-port` worktree + 157 MB matrix-stability post-port WAV; route to Phase 2.5 discuss-phase with fresh CONTEXT rev-10).
+
+---
+
+# Phase 2.4c-bis — Verification (Gate 6c-bis SOFT-PASS, verify-phase locked)
+
+**Date:** 2026-04-29
+**Plugin:** O-Contrabass
+**Stage:** 2 of 4 (DSP) — Phase 2.4c-bis verify
+**Phase:** verify
+**Cycle scope verified:** Phase 2.4c-bis source-change escalation cycle (in-loop saturator port `x / sqrt(1 + x²)` → `4 · tanh(x / 4)`, both rails of `Source/DSP/WaveguideString.cpp:204–209`)
+**Verify HEAD:** `1dfca9d` (R36-bis-backfill chore; descendant of R36-bis atomic commit `1044bed4…1c`)
+**Verdict:** ✅ **VERIFIED — Gate 6c-bis SOFT-PASS** (5/5 invariants independently re-confirmed from clean state; saturator-tail bin-64 |Δ| = 0.7975 dB lands inside soft-band [−8.17, −6.17] dB rel max, 0.30 dB outside strict-band [−7.67, −6.67] dB; 87% improvement vs pre-port 5.92 dB divergence; 3 Phase 2.4-bis backlog items logged; HR-11 RETIRED; HR-1..HR-10 carry-forward verbatim).
+
+---
+
+## Goal-Backward Analysis
+
+### Original Goals (CONTEXT rev-9-bis + PLAN rev-11)
+
+1. Replace the in-loop algebraic saturator (`x / sqrt(1 + x²)`) with O-Bowed's hyperbolic-tangent topology (`sat · tanh(x / sat)` with `sat = 4.0f`) on **both rails** of `Source/DSP/WaveguideString.cpp` Step 7 (pre-`pushSample`).
+2. Converge post-port saturator-tail decay envelope at bin 64 to ±0.5 dB strict / ±1.0 dB soft of the O-Bowed reference (−7.17 dB rel max at 5-s post-bow-off mark).
+3. Re-baseline 9 audible goldens (saturator participates in steady-state energy balance for sustained excitation); vibrato carry-forward conditional on upstream-saturator path independence; matrix-stability evidence-only (NOT committed as default reproduce golden).
+4. Lift HR-11 (Phase 2.4c "zero production DSP edits" rule) — retire to Phase 2.4c-only audit binding; preserve HR-1..HR-10 verbatim.
+5. Single R36-bis atomic commit + R36-bis-backfill chore (mirrors R34/R35/R36 + backfill precedent).
+6. R37-bis BLOCKING Logic AU smoke audition (departure from R37/R32/R27/R19f/R14e/R34h/R35 deferred-non-blocking precedent — first audible source-edit since Phase 2.4b R35).
+7. auval + pluginval-10 SUCCESS post-port.
+
+### Deliverables (independently inspected at verify-phase)
+
+1. ✅ `Source/DSP/WaveguideString.cpp:204–209` ports `4 · tanh(x / 4)` on both rails (toBridge + toNeck). Read-back confirms verbatim AFTER-spec match.
+2. ✅ Post-port saturator-tail bin 64 = **−7.9675 dB rel max** measured at canonical bass operating point (BOW_PRESSURE=3.0 N pinned per Phase 2.4c deviation #8); |Δ| vs O-Bowed reference = **0.7975 dB**. SOFT-PASS within ±1.0 dB Q47 widening band.
+3. ✅ 9 audible goldens re-baselined (`stiffness-zero-pre`, `string-A`, `string-D`, `string-G`, `detune-sweep-A`, `note-sequence`, `macro-sweep`, `slow-lfo`, `schelleng-stress`, `sub-harmonics`, `sub-harmonics-stability` — 11 total) with new sha256s; vibrato re-baselined to `df7384e3…` (saturator does subtly shift the vibrato envelope post-port; conditional carry-forward path NOT taken); saturator-tail-comparison re-baselined to `5c45d176…`.
+4. ✅ HR-11 retired post-2.4c (binding limited to Phase 2.4c audit history); HR-1..HR-10 preserved verbatim (no new HR introduced — Q50 stance).
+5. ✅ R36-bis atomic commit `1044bed4…1c` landed 2026-04-29; R36-bis-backfill chore `1dfca9d` propagated sha into STATUS.md.
+6. ✅ R37-bis Logic AU audition CONFIRMED 2026-04-29 (per STATUS.md frontmatter; both AUs `O-Contrabass-dev` post-port + `O-Contrabass-pre-port` pre-port from `/tmp/oc-pre-port@115dbf4` installed side-by-side, both auval SUCCEEDED, sequences 1–3 BLOCKING-PASS).
+7. ✅ auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS independently re-verified 2026-04-29 against post-port VST3 + AU artefacts.
+
+### Goal Achievement
+
+| Goal | Status | Evidence (verify-phase reproduction) |
+|------|--------|--------------------------------------|
+| 1. In-loop tanh saturator port (both rails) | ✅ Achieved | Read-back of `WaveguideString.cpp:204–209` shows `sat = 4.0f; toBridge = sat * std::tanh (toBridge / sat); toNeck = sat * std::tanh (toNeck / sat);`. Source-tree audit hook PASS: `git diff --stat HEAD~2 HEAD -- plugins/O-Contrabass/Source/` reports 1 file (WaveguideString.cpp, 6 ins / 3 del). Grep hooks PASS: 2× `sat * std::tanh` + 0× `std::sqrt (1.0f +`. |
+| 2. Post-port bin 64 ∈ [−8.17, −6.17] dB SOFT-band | ✅ Achieved (SOFT-PASS) | Independent reproduction `/tmp/repro/saturator-tail-comparison.json`: `decayEnvelopeDb[64] = -7.9675`, `rmsAtFiveSecondsPostBowOff_dbRelMax = -7.9675`, peak = 0.1738, rmsRatio_final_over_mid = 0.5036. Strict-band [−7.67, −6.67] missed by 0.30 dB on the dark side (−7.97 < −7.67). Soft-band [−8.17, −6.17] cleared with 0.20 dB margin. |Δ| vs O-Bowed −7.17 dB = 0.80 dB; sub-JND headroom (~3 dB perceptual JND for sustained tones; 87% improvement vs pre-port 5.92 dB). |
+| 3. 11 audible goldens re-baselined; vibrato re-baselined | ✅ Achieved | reproduce-goldens.sh 13/13 PASS byte-identical to committed sha256s. New post-port sha256s for stiffness-zero-pre / string-A/D/G / detune-sweep-A / note-sequence / vibrato / macro-sweep / slow-lfo / schelleng-stress / sub-harmonics / sub-harmonics-stability / saturator-tail-comparison (see "Reproduce-Goldens.sh Independent Reproduction" below). HR-9 IEEE 754 identity arithmetic preserved at SUB_HARMONICS=0 default → 11 default-state goldens shift only via direct topology change, NOT subharmonic-bias differential. |
+| 4. HR-11 retired; HR-1..HR-10 preserved | ✅ Achieved | HR-11 binding scoped to Phase 2.4c only per CONTEXT rev-9-bis. Audit hooks confirm HR-1 (split-rail topology), HR-3 (no in-loop DCB), HR-9 (SUB_HARMONICS=0 short-circuit) preserved; sub-harmonics + sub-harmonics-stability re-baseline only because saturator curvature affects subharmonic energy ratio (post-port sub-harmonics =0.0245 vs pre-port 0.358 = ~33 dB drop; per RESEARCH §20.8 + STATUS phase_2_4c_bis_audition_outcome — Phase 2.4-bis DSP-07 retune backlog). |
+| 5. R36-bis atomic + R36-bis-backfill chore | ✅ Achieved | `git log --oneline -3` shows `1dfca9d` (R36-bis-backfill) + `1044bed` (R36-bis Phase 2.4c-bis feat); R34/R35/R36 + backfill precedent honoured. |
+| 6. R37-bis BLOCKING Logic AU audition | ✅ Achieved | STATUS.md `phase_2_4c_bis_audition_outcome` records user CONFIRM via `/continue` 2026-04-29; both AUs installed side-by-side, both auval SUCCEEDED; sequences 1–3 BLOCKING-PASS; sequences 4–5 DOCUMENT-only (subharmonic mute + vibrato depth reduction — both already on Phase 2.4-bis backlog). No FAIL-handling path triggered. |
+| 7. auval + pluginval-10 PASS post-port | ✅ Achieved | 2026-04-29 verify-phase reproduction: `auval -v aumu OCbs OuDv` → "AU VALIDATION SUCCEEDED."; `pluginval --strictness-level 10 --validate-in-process --skip-gui-tests` on `~/Library/Audio/Plug-Ins/VST3/O-Contrabass-dev.vst3` → SUCCESS full battery (Listing buses / Enabling all buses / Disabling non-main buses / Restoring default layout / Fuzz parameters all complete). |
+
+---
+
+## Gate 6c-bis Five-Item Success Criteria — Independent Verdict
+
+| # | Invariant (CONTEXT rev-9-bis + PLAN rev-11) | Verdict | Evidence (verify-phase reproduction) |
+|---|---------------------------------------------|---------|--------------------------------------|
+| 1 | `reproduce-goldens.sh` 13/13 byte-identical PASS against post-port sha256s | ✅ **STRICT-PASS** | 13/13 PASS — `stiffness-zero-pre ed44cd89…`, `string-A 505ad36e…`, `string-D e0640351…`, `string-G 0e9451b8…`, `detune-sweep-A b51d334b…`, `note-sequence 2b5b8c83…`, `vibrato df7384e3…`, `macro-sweep 231218b4…`, `slow-lfo d27589de…`, `schelleng-stress c5108af5…`, `sub-harmonics 9178b41e…`, `sub-harmonics-stability 2efdea9b…`, `saturator-tail-comparison 5c45d176…`. Reproduction wall-clock <30 s on M1 (Phase 2.4c R36 §19.13 wall-clock budget honoured at 13 entries). |
+| 2 | Source-tree audit hook: 1 file changed; no other plugin/source diffs | ✅ **STRICT-PASS** | `git diff --stat HEAD~2 HEAD -- plugins/O-Contrabass/Source/ modules/synthesis/bow-friction/Source/ plugins/O-Bowed/Source/` → `WaveguideString.cpp \| 9 +++++---` (6 ins / 3 del). Comment-block delta exceeds plan-stated "4 ins" but functional change matches AFTER-spec verbatim; binary identical regardless of comment formatting. NO other source files modified across all 3 source trees. |
+| 3 | Grep audit: 2× `sat * std::tanh` + 0× `std::sqrt (1.0f +` in WaveguideString.cpp | ✅ **STRICT-PASS** | `grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` → **2** (toBridge + toNeck rails ported); `grep -c "std::sqrt (1.0f +" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` → **0** (algebraic saturator fully removed). |
+| 4 | Saturator-tail bin 64 \|Δ\| ≤ 1.0 dB SOFT-band vs O-Bowed reference | ⚠️ **SOFT-PASS** | bin 64 = **−7.9675 dB rel max**; \|Δ\| = **0.7975 dB** (lands inside soft-band [−8.17, −6.17]; 0.30 dB outside strict-band [−7.67, −6.67] per Q47 widening); 87% improvement vs pre-port 5.92 dB; sub-JND headroom (~3 dB perceptual JND for sustained tones). RESEARCH §20.4 + §19.7.7 verdict LOCKED. **3 Phase 2.4-bis backlog items added** (DSP-07 retune for tanh; DSP-09 VIBRATO_DEPTH transfer tune; click-free heuristic high-pressure × β=0.05 corner tune). |
+| 5 | auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS | ✅ **STRICT-PASS** | `auval -v aumu OCbs OuDv` → "AU VALIDATION SUCCEEDED" full render-rate matrix (11025/22050/44100/48000/96000/192000 Hz, Bad Max Frames, parameter setting, ramped scheduling, Test MIDI all PASS) — independently re-verified 2026-04-29. pluginval-10 → SUCCESS full battery on post-port VST3 (Listing buses / Enabling all buses / Disabling non-main buses / Restoring default layout / Fuzz parameters all complete) — independently re-verified 2026-04-29. |
+
+**Overall:** 5/5 invariants cleared (4 strict + 1 soft). **Gate 6c-bis SOFT-PASS** (independent verify-phase reproduction matches execute-phase outcome verbatim).
+
+**Stability invariant (carry-forward from execute-phase, not re-rendered at verify):** 108 matrix-stability combos preserve `pass_noNaN` / `pass_peak` / `pass_blockTime` PASS pre + post (peak max ≈ 0.351 within strict |x| < 1.0; nanCount=0). `std::tanh` bit-deterministic on M1 macOS Xcode 26.3 toolchain (3-trial DET-PASS at research-phase + 13/13 byte-identical re-render at execute-phase + 13/13 byte-identical at verify-phase reproduction = 4-trial determinism honoured).
+
+---
+
+## Independent Reproduction (verify-phase audit trail)
+
+All 5 invariants reproduced independently at verify-phase against the installed binaries / built harness at HEAD `1dfca9d`:
+
+| Check | Execute-phase (SUMMARY) | Verify-phase reproduction | Match |
+|---|---|---|---|
+| Source-tree audit (1 file) | WaveguideString.cpp 6/3 ins/del | `git diff --stat HEAD~2 HEAD --` → `WaveguideString.cpp \| 9 +++++---` (6 ins / 3 del) | ✅ |
+| Grep audit (2× tanh / 0× sqrt) | 2 / 0 | `grep -c` → 2 / 0 | ✅ |
+| reproduce-goldens.sh 13/13 | 13/13 byte-identical | `OK: all 13 goldens reproduce byte-identical` (13× [PASS]) | ✅ |
+| Saturator-tail bin 64 | −7.9675 dB \| \|Δ\| = 0.7975 dB | `decayEnvelopeDb[64] = -7.9675` from `/tmp/repro/saturator-tail-comparison.json` | ✅ |
+| auval AU validation | AU VALIDATION SUCCEEDED | "AU VALIDATION SUCCEEDED." | ✅ |
+| pluginval --strictness-level 10 | SUCCESS | SUCCESS | ✅ |
+
+Reproduction is bit-stable; no nondeterminism observed. Phase 2.4c-bis verify-phase confirms execute-phase outcome verbatim.
+
+---
+
+## Requirements Verification (Phase 2.4c-bis-relevant subsets)
+
+**Stage:** stage-2
+**Requirements touched:** DSP-01, DSP-09, QUAL-01 (Phase 2.4c-bis evidence) + carry-forward DSP-02, DSP-05, DSP-06, DSP-07, DSP-08, DSP-10, FUNC-01, FUNC-02, PERF-01, PERF-03, QUAL-02
+
+| Requirement | Priority | Status | Acceptance Criteria | Phase 2.4c-bis evidence |
+|-------------|----------|--------|---------------------|-------------------------|
+| FUNC-01 (4-string EADG, E1–G3) | must | ✅ Complete (carry-forward) | All MIDI E1–G3 stable, in-tune | reproduce-goldens.sh 13/13 + per-string A/D/G goldens reproduce byte-identical post-port |
+| DSP-01 (waveguide stability E1–G3) | must | ✅ Complete (carry-forward; strengthened) | No NaN, no aliasing, stable across friction params | 13/13 reproduce-goldens.sh + auval + pluginval-10 + R37-bis Logic AU audition sequences 1–3 BLOCKING-PASS confirm post-port stability across all 4 strings |
+| DSP-02 (bass-tuned friction junction) | must | ✅ Complete (carry-forward) | Default produces convincing bass arco (NOT violin-like); reuses bow-friction module | Phase 2.1b module extraction holds; saturator port is Step 7 in-loop topology, NOT friction module surface change. HR-10 trivially preserved (no module ABI touched). |
+| DSP-05 (per-string detune ±1200¢) | must | ✅ Complete (carry-forward) | Detune produces correct pitch offsets; just-intoned drone preset functional; persists across reloads | detune-sweep-A golden `b51d334b…` reproduces byte-identical post-port |
+| DSP-06 (Infinite Sustain) | must | ⚠️ Partial (carry-forward) | Endless resonance at max; no NaN at max + extreme combos | 13/13 reproduce-goldens.sh + auval + pluginval-10 PASS at INFINITE_SUSTAIN=1.0 (used by stiffness-zero-pre + saturator-tail-comparison renders); QUAL-02 carry-forward |
+| DSP-07 (Sub-Harmonic generator) | should | ⚠️ Partial → DEGRADED at engagement | Nonlinear feedback extends bass below fundamental musically | Pre-port subharmEnergyRatio=0.358 SOFT-PASS; post-port=0.0245 (~33 dB drop, subharmonic effectively muted) per RESEARCH §20.8 + R37-bis sequence 4 DOCUMENT. **Phase 2.4-bis backlog item DSP-07 retune for tanh saturator topology** — restore subharmEnergyRatio above 0.30 strict at engagement |
+| DSP-08 (Slow Bow LFO) | should | ⚠️ Partial (carry-forward) | 0.05–2 Hz modulates bow speed/pressure | slow-lfo golden `d27589de…` reproduces byte-identical post-port; 15.7% breathing carry-forward (Phase 2.4a deviation #5 still open) |
+| DSP-09 (Layered expression: vibrato + macro) | must | ⚠️ Partial → vibrato shifts post-port | CC11/CC2/CC74 + vibrato + Expression Macro all functional | Vibrato re-baselined to `df7384e3…` (saturator port subtly shifts vibrato envelope contrary to CONTEXT rev-9-bis pre-flight prediction; carry-forward conditional NOT taken). Phase 2.4c deviation #6 (`pass_vibratoDepthInRange [9, 14]¢`) and #7 (`pass_onsetWindow [800, 1200] ms`) widening still active. R37-bis sequence 5 DOCUMENT (depth 7.95¢ vs 9.53¢ pre-port). **Phase 2.4-bis backlog item DSP-09 transfer tune** (additive — restore peakDepthCents to 10–14¢ strict band post-port). |
+| DSP-10 (slow expressive attack) | must | ⚠️ Partial (carry-forward) | Long bow-on-string transient for legato | R37-bis sequence 1 BLOCKING-PASS ("smoother + more natural tail decay; no bow-on transient artefacts") |
+| PERF-01 (RT-safe processBlock) | must | ⚠️ Partial (strengthened) | No allocations / locks / I/O in processBlock | `std::tanh` is RT-safe (no allocations, no system calls); pluginval-10 fuzz + Parameter thread safety + Background thread state PASS confirm no RT-safety regression. `juce::ScopedNoDenormals` already in place. End-of-Stage-2 verify owns final closure. |
+| PERF-03 (zero algorithmic latency) | nice | ⚠️ Partial (carry-forward) | Causal waveguide | 4-LOC topology swap doesn't introduce delay; Step 7 remains pre-`pushSample` |
+| QUAL-01 (no audio artifacts) | must | ⚠️ Partial (strengthened) | No clicks, denormals, NaN, runaway | matrix-stability post-port WAV preserved as evidence at `plugins/O-Contrabass/.planning/evidence/phase-2-4c-bis/matrix-stability-post-port.wav` (157 MB); auval + pluginval-10 PASS; nanCount=0; peak max ≈ 0.351 within strict \|x\| < 1.0. **Phase 2.4-bis backlog item: click-free heuristic threshold tune for high-pressure × β=0.05 corners (4 NEW raucous corners post-port)** — does NOT block Stage 2 progression. |
+| QUAL-02 (musical self-oscillation) | nice | ⚠️ Partial (carry-forward) | Drone settings remain musical | R37-bis sequence 3 BLOCKING-PASS ("tail energy ~3× higher; no ringing / clicks / DC drift") |
+
+**Requirements Summary (Phase 2.4c-bis verify-phase):**
+- ✅ Complete (no change): 4 (FUNC-01, DSP-01 strengthened, DSP-02, DSP-05)
+- ⚠️ Partial (carry-forward + strengthened): 8 (FUNC-02, DSP-06, DSP-08, DSP-10, PERF-01 strengthened, PERF-03, QUAL-01 strengthened, QUAL-02)
+- ⚠️ Partial → DEGRADED at engagement: 1 (DSP-07; Phase 2.4-bis backlog active)
+- ⚠️ Partial → vibrato re-baselines post-port: 1 (DSP-09; Phase 2.4-bis backlog active)
+- ⏸️ Deferred to later Phase 2.x cycle: 5 (FUNC-05, FUNC-06, FUNC-07, DSP-03, DSP-04)
+- ❌ Failed: 0
+
+**No new requirement statuses promoted to "complete"** — all Phase 2.4c-bis gains are carry-forward strengthening of partials (DSP-01 stability + PERF-01 RT-safety + QUAL-01 no-artifacts) plus 2 explicit degradations (DSP-07 + DSP-09) tracked as Phase 2.4-bis backlog. Full closure held until end-of-Stage-2 verify with Phase 2.5/2.6 evidence + ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments + Phase 2.4-bis backlog resolution (or knowing v1.1 deferral).
+
+---
+
+## Plan Deviations (Phase 2.4c-bis verify-phase confirmation)
+
+Phase 2.4c-bis adds **0 new deviations at verify-phase** (execute-phase landed cleanly per PLAN rev-11; the comment-block 6/3 vs plan-stated "4 ins" is a documentation artefact, not a functional deviation — binary identical regardless of comment formatting).
+
+Phase 2.4c carry-forward deviations (#6, #7, #8, #9) remain active per Phase 2.4c verify-phase. Phase 2.4a/2.4b carry-forward deviations (#1–#5) likewise carry forward.
+
+---
+
+## Risk Surface Audit (Phase 2.4c-bis verify-phase)
+
+CONTEXT rev-9-bis + PLAN rev-11 risks assessed at verify-phase:
+
+| Risk | Description | Status post-verify |
+|------|-------------|--------------------|
+| §19.7.7 #1 | Source-tree audit hook fails (more than 1 file changed) | **DISSOLVED** — `git diff --stat HEAD~2 HEAD --` shows 1 file (WaveguideString.cpp) across all 3 source trees. |
+| §19.7.7 #2 | Post-port bin 64 lands outside strict + soft bands → escalate Phase 2.4c-bis-bis | **MITIGATED via SOFT-PASS** — bin 64 = −7.9675 dB lands inside soft-band [−8.17, −6.17] with 0.20 dB margin; 0.30 dB outside strict-band. NO Phase 2.4c-bis-bis escalation triggered. |
+| §19.7.7 #3 | `std::tanh` non-determinism on M1 macOS Xcode 26.3 | **DISSOLVED** — 4-trial determinism honoured (research-phase 3-trial + execute-phase + verify-phase all reproduce byte-identical). |
+| §19.7.7 #4 | Vibrato carry-forward conditional fails (saturator subtly shifts envelope) | **TRIGGERED → CONDITIONAL not taken** — vibrato re-baselined to `df7384e3…`; tracked as Phase 2.4-bis DSP-09 transfer tune backlog item (additive). |
+| §19.7.7 #5 | sub-harmonics + sub-harmonics-stability degrade at engagement | **TRIGGERED → MITIGATED via Phase 2.4-bis backlog** — post-port subharmEnergyRatio=0.0245 (vs pre-port 0.358); ~33 dB drop. Phase 2.4-bis DSP-07 retune backlog item active; does NOT block Stage 2 progression. |
+| §19.7.7 #6 | NEW raucous corners surface in matrix-stability post-port | **TRIGGERED → MITIGATED via Phase 2.4-bis backlog** — 4 new high-pressure × β=0.05 raucous corners surface post-port (matrix-stability-post-port.wav preserved as evidence at `plugins/O-Contrabass/.planning/evidence/phase-2-4c-bis/`). Phase 2.4-bis click-free heuristic threshold tune backlog item active; matrix-stability NOT in default reproduce-goldens.sh per Phase 2.4a R34b "evidence golden" precedent. |
+| §19.7.7 #7 | R37-bis BLOCKING audition reveals unexpected character change | **DISSOLVED** — sequences 1–3 BLOCKING-PASS (smoother tail + brighter sustain + ~3× higher tail energy with no ringing/clicks/DC drift); sequences 4–5 DOCUMENT-only and already on Phase 2.4-bis backlog. No FAIL-handling path triggered. |
+| §19.7.7 #8 | HR-9 IEEE 754 identity-arithmetic invariant violated by topology change | **DISSOLVED** — HR-9 short-circuit at SUB_HARMONICS=0 default preserved → 11 default-state goldens shift only via direct topology change, NOT subharmonic-bias differential. |
+| §19.7.7 #9 | HR-1 split-rail / HR-3 no-in-loop-DCB topology accidentally violated by edit | **DISSOLVED** — read-back of `WaveguideString.cpp:204–209` confirms saturator port is Step 7 (post-Step 6 symmetric injection, pre-`pushSample`); HR-1 + HR-3 + HR-4 all preserved. |
+| §19.7.7 #10 | Comment-block delta artefacts trigger false-positive audit hook FAIL | **MITIGATED** — comment-block delta is documentation-only; binary identical regardless of comment formatting; verify-phase confirms 1-file scope holds. |
+
+---
+
+## Human Verification
+
+- [x] **R37-bis Logic AU smoke audition** — CONFIRMED 2026-04-29 (per STATUS.md `phase_2_4c_bis_audition_outcome`). Both AUs `O-Contrabass-dev` post-port + `O-Contrabass-pre-port` pre-port from `/tmp/oc-pre-port@115dbf4` installed side-by-side; both auval SUCCEEDED. Sequences 1–3 BLOCKING-PASS; sequences 4–5 DOCUMENT-only (subharmonic mute + vibrato depth reduction — Phase 2.4-bis backlog).
+- [ ] **Subjective probe-by-probe character notes** — non-blocking. Operator may amend RESEARCH §19.7.7.8 post-commit if perceptual notes diverge from predicted character.
+- [ ] **`/tmp/oc-pre-port` worktree retire + 157 MB matrix-stability-post-port.wav cleanup** — non-blocking. Pre-port reference still useful as A/B audition reference until end-of-Stage-2 verify uses both pre-port (Phase 2.4c R36 `c7e845ea…`) + post-port (Phase 2.4c-bis R36-bis `5c45d176…`) saturator-tail goldens as ARCHITECTURE.md §"In-loop saturator" amendment evidence base. Operator may retire at convenience.
+
+---
+
+## Issues Found
+
+### 1. Saturator-tail bin 64 lands SOFT-PASS not STRICT-PASS
+
+|Δ| = 0.7975 dB lands inside soft-band [−8.17, −6.17] with 0.20 dB margin but 0.30 dB outside strict-band [−7.67, −6.67] per Q47 widening. 87% improvement vs pre-port 5.92 dB divergence. Sub-JND headroom (~3 dB perceptual JND for sustained tones).
+
+**Resolution path:** Locked at SOFT-PASS per Q47 widening + R37-bis sequences 1–3 BLOCKING-PASS confirming musical character preserved. No Phase 2.4c-bis-bis escalation. Tightening to strict-band would require sat-constant retune (4.0 → ~3.6 or fitter-derived) — tracked implicitly under DSP-07 retune backlog item which has dependent saturator-curvature concerns.
+
+### 2. Phase 2.4-bis backlog grew by 3 NEW additive items at Phase 2.4c-bis close
+
+1. **DSP-07 retune for tanh saturator topology** — restore `subharmEnergyRatio` above 0.30 strict at engagement (post-port engagement now ~33 dB lower than pre-port; effectively mutes subharmonic effect at SUB_HARMONICS=0.7 / 1.0).
+2. **DSP-09 VIBRATO_DEPTH transfer tune** (additive) — restore `peakDepthCents` to 10–14¢ strict band post-port (post-port peak depth at default ~7.95¢ vs pre-port 9.53¢; further widens Phase 2.4c deviation #6 metric-side mismatch).
+3. **Click-free heuristic threshold tune** for 4 NEW high-pressure × β=0.05 raucous corners surfaced in matrix-stability-post-port.
+
+All 3 are additive to existing Phase 2.4-bis backlog (Phase 2.4a Step 4 modulation gain / breathingAudible refinement; Phase 2.4a 3-cell v1.0 fallback reduction; Phase 2.4b kForceBoost upward retune; Phase 2.4c VIBRATO_DEPTH→peakDepthCents transfer tune). Total Phase 2.4-bis backlog: ≈ 7 items. **Tracked as v1.0/v1.1 follow-ups; not blocking Phase 2.5 or Stage 2 progression.**
+
+### 3. ARCHITECTURE.md §"In-loop saturator" amendment still deferred (carry-forward from 2.1a/2.4c)
+
+End-of-Stage-2 verify will land the §"In-loop saturator" amendment with both pre-port (Phase 2.4c R36 `c7e845ea…`, `decayEnvelopeDb[64] = −13.09 dB`) AND post-port (Phase 2.4c-bis R36-bis `5c45d176…`, `decayEnvelopeDb[64] = −7.9675 dB`) saturator-tail goldens as evidence base. **Tracked as a follow-up; not blocking subsequent phases.**
+
+---
+
+## Stage Verdict (Phase 2.4c-bis only — Stage 2 NOT yet complete)
+
+**Status:** ✅ **VERIFIED — Gate 6c-bis SOFT-PASS** — 5/5 invariants cleared (4 strict + 1 soft); independent verify-phase reproduction matches execute-phase outcome verbatim; HR-11 RETIRED; HR-1..HR-10 carry-forward verbatim; §19.7.6 escalation flag CLOSED via §19.7.7 verdict (port WORKED-PARTIALLY).
+
+**Ready for next sub-phase:** **Yes** — Phase 2.4c-bis closes; Phase 2.5 discuss-phase opens with fresh CONTEXT **rev-10** (per skeleton §"Sequencing post-2.4c-bis"; rev-9 number skipped to preserve rev-9-bis "escalation off rev-8" audit-trail signal).
+
+**R36-bis atomic commit:** ✅ **LANDED** (`1044bed4…1c`, 2026-04-29; R36-bis-backfill chore `1dfca9d` propagated). Sequence R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → **R36-bis**.
+
+**What IS green (independent verify-phase reproduction):**
+- ✅ Gate 6c-bis invariant 1: 13/13 reproduce-goldens.sh byte-identical (post-port sha256s).
+- ✅ Gate 6c-bis invariant 2: source-tree audit 1 file (WaveguideString.cpp 6/3 ins/del; binary identical regardless of comment formatting).
+- ✅ Gate 6c-bis invariant 3: grep audit 2× tanh / 0× sqrt.
+- ⚠️ Gate 6c-bis invariant 4: saturator-tail bin 64 = −7.9675 dB; |Δ| = 0.7975 dB SOFT-PASS within ±1.0 dB band; 87% improvement vs pre-port 5.92 dB.
+- ✅ Gate 6c-bis invariant 5: auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS.
+- ✅ HR-1 + HR-3 + HR-4 + HR-9 + HR-10 carry-forward (verified at audit hooks); HR-11 RETIRED.
+- ✅ R37-bis BLOCKING Logic AU audition CONFIRMED (sequences 1–3 PASS; 4–5 DOCUMENT-only).
+- ✅ Phase 2.4c §19.7.6 escalation flag CLOSED via §19.7.7 verdict.
+
+**What IS pending:**
+- ⏸️ Phase 2.5 (body resonator + bow noise) — fresh CONTEXT rev-10; opens after Phase 2.4c-bis verify locks.
+- ⏸️ Phase 2.6 (master saturator/limiter, stereo width, microtonal, MPE, NE, MTS-ESP).
+- ⏸️ Phase 2.4-bis backlog (≈ 7 items) — tracked as v1.0/v1.1 follow-ups; not blocking Phase 2.5+.
+- ⏸️ End-of-Stage-2 verify: ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments (use BOTH pre-port `c7e845ea…` AND post-port `5c45d176…` saturator-tail goldens as evidence base) + final PERF-01/PERF-03 closure + Phase 2.4-bis backlog resolution (or knowing v1.1 deferral).
+- ⏸️ Stage 3 (UI), Stage 4 (Polish, pluginval-10 strict, Dorico Note Expression COMPAT-02, installer).
+
+---
+
+## Files Touched (Phase 2.4c-bis verify-phase)
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — appended this Phase 2.4c-bis section.
+- `plugins/O-Contrabass/.planning/STATUS.md` — phase flip `phase_2_4c_bis_complete → phase_2_4c_bis_verify_complete`; gate_state addition `inloop_saturator_port_phase_2_4c_bis: PASS_gate_6c_bis_soft_pass_verify_complete`; `next_action` set to `phase_2_5_discuss`.
+- `plugins/O-Contrabass/.planning/REQUIREMENTS.md` — `lastUpdated` bumped 2026-04-29; DSP-07 + DSP-09 evidence notes updated (post-port subharmonic mute + vibrato depth shift; Phase 2.4-bis backlog items active).
+
+**Renders captured (verify-phase reproduction, not committed):**
+- `/tmp/repro/{stiffness-zero-pre,string-A,string-D,string-G,detune-sweep-A,note-sequence,vibrato,macro-sweep,slow-lfo,schelleng-stress,sub-harmonics,sub-harmonics-stability,saturator-tail-comparison}.{wav,json}` — 13 reproduce-goldens.sh outputs.
+
+---
+
+## Atomic-Commit Sequence
+
+R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → **R36-bis** (Phase 2.4c-bis Gate 6c-bis SOFT-PASS verified).
+
+---
+
+## Next Action
+
+**Phase 2.4c-bis verify-phase complete; Gate 6c-bis SOFT-PASS locked from clean state; HR-11 retired.**
+
+Phase 2.4c-bis closes Stage-2 sub-cycle 4. **Phase 2.5 (body resonator + bow noise) opens next** with fresh CONTEXT **rev-10** (rev-9 skipped per skeleton §"Sequencing post-2.4c-bis" to preserve rev-9-bis audit-trail signal).
+
+Stage 2 verify (full) still cannot complete until Phases 2.5 + 2.6 are verified per their own GSD cycles + ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments + Phase 2.4-bis backlog items resolved (or knowingly deferred to v1.1) at end-of-Stage-2 verify.

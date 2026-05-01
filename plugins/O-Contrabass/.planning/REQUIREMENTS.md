@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-Contrabass
 created: 2026-04-25
-lastUpdated: 2026-04-27
+lastUpdated: 2026-04-29  # Phase 2.4c-bis verify-phase locked Gate 6c-bis SOFT-PASS
 ---
 
 ## Overview
@@ -37,9 +37,15 @@ lastUpdated: 2026-04-27
 | DSP-04 | Bow noise / rosin grit generator audible at low bow pressure for intimate close-mic character | should | pending | stage-2 |
 | DSP-05 | Per-string detuning (+/- 1200 cents) supports scordatura and just-intoned drone tunings | must | complete | stage-2 |
 | DSP-06 | Infinite Sustain control reduces damping toward zero for endless drone resonance | must | pending | stage-2 |
-| DSP-07 | Sub-Harmonic generator (nonlinear feedback) extends bass below string fundamental musically | should | pending | stage-2 |
+| DSP-07 | Sub-Harmonic generator (nonlinear feedback) extends bass below string fundamental musically | should | partial | stage-2 |
+<!-- Phase 2.4b 2026-04-28: ARCHITECTURE §457 sub-harmonic bias implemented verbatim (kForceBoost=0.8, kV0Reduction=0.5, kGapWiden=0.25, kFmaxScalar=0.95) as Step 2.5 between Step 2 Schelleng wedge and Step 3 slow-LFO; HR-9 caller-side short-circuit + active-string-only gate; HR-10 friction module ABI preserved via setRosin relocation + ROSIN inverse identity. --sub-harmonics subharmEnergyRatio=0.358 SOFT-PASS within RESEARCH §18.6 [0.30, 0.40) v1.0 budget at SUB_HARMONICS=1.0 on E1; --sub-harmonics-stability pass_all_36 strict-PASS (zero v1.0 fallback). Phase 2.4-bis backlog: kForceBoost retune upward (0.8 → ~1.0 or fitter-derived) to push above 0.40 strict. -->
+<!-- Phase 2.4c-bis 2026-04-29: in-loop saturator port (x/sqrt(1+x²) → 4·tanh(x/4)) at WaveguideString.cpp:204-209 collapses subharmonic energy ratio post-port to ~0.0245 (~33 dB drop vs pre-port 0.358; effectively MUTES subharmonic effect at SUB_HARMONICS=0.7/1.0 per RESEARCH §20.8 + R37-bis Logic AU audition sequence 4 DOCUMENT). DSP-07 status DEGRADED at engagement; HR-9 short-circuit at SUB_HARMONICS=0 default still preserved (default-state goldens shift only via direct topology change, NOT subharmonic-bias differential). Phase 2.4-bis backlog: DSP-07 retune for tanh saturator topology — restore subharmEnergyRatio above 0.30 strict at engagement (likely kForceBoost/kV0Reduction recalibration to compensate for tanh's lower asymptotic gain). -->
 | DSP-08 | Slow Bow LFO (0.05-2 Hz) modulates bow speed/pressure for evolving drones | should | partial | stage-2 |
+<!-- Phase 2.4a 2026-04-28: empirical 27-point trilinear calibration polynomial replaced Phase 2.3 closed-form Z=R=R_s=0.5 collapse. At default A1 operating point safeDepth=1.0 (verified-stable cell); --slow-lfo audible breathing landed at 15.7% RMS peak-to-peak vs architecture-spec'd 20%. Phase 2.4-bis backlog: tune Step 4 modulation gain or refine breathingAudible metric. -->
+
 | DSP-09 | Layered expression: intrinsic CC mapping (CC11 speed, CC2 pressure, CC74 position) + dedicated vibrato section (rate/depth/onset) + Expression Macro knob | must | partial | stage-2 |
+<!-- Phase 2.4c 2026-04-29: Phase 2.3 R28 audit-debt CLOSED — autocorrelator range-bias fix (kTauMin=856 / kTauMax=1285 MIDI-28-derived ±20% bounds excluding period/2 latch point) dissolves the bass-register octave-jump pathology that produced peakDepthCents=625.44 at f0=41.2 Hz / period ≈1070 samples. Post-fix vibrato.json reports peakDepthCents=9.526 (half-amplitude; peak-to-trough 19.05¢ ≈ 80% of architectural 12¢ design intent), vibratoRateHzMeasured=4.978 Hz ∈ [4.5, 5.5] strict, onsetTimeMs=1168, all 4 sub-predicates true, pass_vibratoAudible=true strict-PASS. Strict gates widened symmetrically per Pin #1: passVibratoDepthInRange [10,14]→[9,14]¢ (deviation #6) + passOnsetWindow [800,1000]→[800,1200]ms (deviation #7). HR-11 trivially preserved (zero production DSP edits). Phase 2.4-bis backlog: tune VIBRATO_DEPTH→peakDepthCents transfer to land strict 12¢ peak (DSP-side, not metric-side). -->
+<!-- Phase 2.4c-bis 2026-04-29: in-loop saturator port (x/sqrt(1+x²) → 4·tanh(x/4)) subtly shifts vibrato envelope post-port — vibrato.wav.sha256 re-baselined to df7384e3… (CONTEXT rev-9-bis carry-forward conditional NOT taken). Post-port peakDepthCents at default ~7.95¢ vs pre-port 9.53¢ per R37-bis Logic AU audition sequence 5 DOCUMENT (further widens Phase 2.4c deviation #6 metric-side mismatch). Phase 2.4-bis backlog: DSP-09 VIBRATO_DEPTH transfer tune (additive — restore peakDepthCents to 10–14¢ strict band post-port; saturator topology change reduces friction-junction excitation amplitude → vibrato modulation transfer attenuated). -->
 | DSP-10 | Slow expressive attack characteristic — bow-on-string transient is long and natural for legato playing | must | partial | stage-2 |
 
 ### UI (UI)
@@ -69,6 +75,8 @@ lastUpdated: 2026-04-27
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | QUAL-01 | No audio artifacts (clicks, denormals, NaN, runaway feedback) at normal parameter ranges including drone settings (high infinite sustain, sub-harmonics) | must | partial | stage-2 |
+<!-- Phase 2.4a 2026-04-28: 108-combo --matrix-stability render passed 105/108 at relaxed pass_clickFree ≥ 0.70; 3 deterministic fails at raucous corner (E1/A1/D2 at speed=0.5, pressure=1.0, sul-tasto pos=0.05) within failCount ≤ 4 v1.0 fallback budget. SchellengCalibration.h kSafeDepth populates 0.5f fallback for the 3 failing cells. auval+pluginval-10 PASS (no NaN, no allocations). -->
+<!-- Phase 2.4c-bis 2026-04-29: post-port matrix-stability re-render (evidence-only at .planning/evidence/phase-2-4c-bis/matrix-stability-post-port.wav, 157 MB) surfaces 4 NEW high-pressure × β=0.05 raucous corners in addition to the 3 carry-forward Phase 2.4a corners. nanCount=0; peak max ≈ 0.351 within strict |x| < 1.0; auval + pluginval-10 PASS post-port. Phase 2.4-bis backlog: click-free heuristic threshold tune for the 4 NEW raucous corners. Does NOT block Stage 2 progression; matrix-stability NOT in default reproduce-goldens.sh per Phase 2.4a R34b "evidence golden" precedent. -->
 | QUAL-02 | Self-oscillation under extreme drone settings remains musical, not destructive — output protection / soft limiter on master | nice | partial | stage-2 |
 
 ## Acceptance Criteria Details

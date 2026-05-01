@@ -33,6 +33,7 @@ target_sources(O-Contrabass PRIVATE
     # shared bow-friction module via ouaricon_add_module below.
     Source/BowedContrabassVoice.cpp
     Source/DSP/WaveguideString.cpp
+    Source/DSP/BodyResonator.cpp                 # Phase 2.5 NEW
 
     # scala-tuning-engine — Pattern B (explicit file refs, sibling-plugin convention)
     ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp

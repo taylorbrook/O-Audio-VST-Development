@@ -29,6 +29,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "DSP/WaveguideString.h"
+#include "DSP/BodyResonator.h"
+#include "DSP/BowNoiseGenerator.h"
 #include "BowModel.h"
 #include "HyperbolicFriction.h"
 
@@ -173,4 +175,21 @@ private:
     // HR-9 reset to 1.0f at top of every renderNextBlock (BEFORE Step 2.5) so
     // short-circuit path leaves Step 6 bit-exact identical to Phase 2.4a.
     float voiceBowForceUpliftThisBlock { 1.0f };
+
+    // ─── Phase 2.5 — Body Resonator + Bow Noise Generator ─────────────────────
+    // 8-mode parallel bandpass body resonator (mono single-bank, runs at host
+    // rate AFTER 2× downsample at line 688). 3-band BPF + period-heuristic
+    // slip-burst bow noise generator summed AFTER body. Both per-block-pushed
+    // via 30 ms SmoothedValue<Linear> ramps (CONTEXT line 152 + ARCHITECTURE
+    // §152 + parameter-spec.md defaults: SIZE=0.75 / DAMPING=0.40 / MIX=0.80
+    // / NOISE=0.35).
+    BodyResonator        bodyResonator;
+    BowNoiseGenerator    bowNoiseGenerator;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bodySizeSmoothed;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bodyDampingSmoothed;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bodyMixSmoothed;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bowNoiseSmoothed;
+    // For slip-trigger 5-cent change detection (push setFundamentalHz only on
+    // note-start or > 5 cent change to avoid resetting slip counter every block).
+    float lastFundamentalHz = 0.0f;
 };
