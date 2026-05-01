@@ -237,17 +237,36 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             // Each returns a sane default so JS callers don't crash.
             // ============================================================
 
-            // ---- loadSampleFolderDialog (Phase 3.3 — folder picker for FUNC-05) ----
+            // ---- loadSampleFolderDialog (Phase 3.3 / v1.6.0) ----
             //
-            // JS calls: await Juce.getNativeFunction('loadSampleFolderDialog')().
-            // Resolves true on a successful folder selection (forwarded to
-            // processor.loadSampleFolder), false on cancel. The actual scan +
-            // load is async — sampleMapUpdated fires when the new map has been
-            // atomic-stored.
+            // JS calls: await Juce.getNativeFunction('loadSampleFolderDialog')(
+            //               targetLayer, modeString, overrideTokens).
+            //
+            //   args[0] (optional) = targetLayer 0..3       — default 0
+            //   args[1] (optional) = mode string            — default "replace_all"
+            //                        ("append" | "replace_layer" | "replace_all")
+            //   args[2] (optional) = overrideTokens 0/1     — default 0
+            //
+            // Missing-args path falls back to v1.5.x semantics so any caller
+            // (or stale JS bundle) continues to work. Resolves true on a
+            // successful folder selection (forwarded to processor.loadSampleFolder),
+            // false on cancel. The actual scan + load is async — sampleMapUpdated
+            // fires when the new map has been atomic-stored.
             .withNativeFunction ("loadSampleFolderDialog",
-                [this] (const juce::Array<juce::var>&,
+                [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
                 {
+                    const int  targetLayer = args.size() > 0
+                        ? juce::jlimit (0, 3, static_cast<int> (args[0])) : 0;
+                    const auto modeStr     = args.size() > 1 ? args[1].toString()
+                                                             : juce::String ("replace_all");
+                    const bool overrideTok = args.size() > 2
+                        ? static_cast<int> (args[2]) != 0 : false;
+
+                    LoadMode mode = LoadMode::ReplaceAll;
+                    if (modeStr == "append")        mode = LoadMode::Append;
+                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+
                     auto chooser = std::make_shared<juce::FileChooser> (
                         "Choose folder containing sample files",
                         juce::File{},
@@ -257,7 +276,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                                | juce::FileBrowserComponent::canSelectDirectories;
 
                     chooser->launchAsync (flags,
-                        [this, chooser, complete]
+                        [this, chooser, complete, targetLayer, mode, overrideTok]
                             (const juce::FileChooser& fc) mutable
                         {
                             const auto results = fc.getResults();
@@ -278,8 +297,11 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                             }
 
                             DBG ("loadSampleFolderDialog: folder="
-                                 << folder.getFullPathName());
-                            processorRef.loadSampleFolder (folder);
+                                 << folder.getFullPathName()
+                                 << " layer=" << targetLayer
+                                 << " mode=" << static_cast<int> (mode)
+                                 << " override=" << (int) overrideTok);
+                            processorRef.loadSampleFolder (folder, targetLayer, mode, overrideTok);
                             complete (juce::var (true));
                         });
                 })
@@ -400,7 +422,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     complete (juce::var (true));
                 })
 
-            // ---- dropSessionCommitFolder (v1.0.4) ----
+            // ---- dropSessionCommitFolder (v1.0.4 / v1.6.0) ----
             //
             // Calls processorRef.loadSampleFolder on the session temp dir.
             // The async SampleLoader thread reads the dir in the background
@@ -408,7 +430,17 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             // temp dir is left in place; it will be cleaned up at the start
             // of the next drop session (cleanupStaleDropSessions).
             //
-            // args[0] = sessionId (must match)
+            //   args[0] = sessionId (must match)
+            //   args[1] (optional) = targetLayer 0..3      — default 0
+            //   args[2] (optional) = mode string           — default "replace_all"
+            //   args[3] (optional) = overrideTokens 0/1    — default 0
+            //
+            // NB: drag-drop materialises files into a session temp dir so the
+            // "path" the processor sees is /tmp/o-microtonalsampler-drop-<id>/.
+            // That path is short-lived (cleaned up at the next drop session),
+            // so a Save&Reopen cycle re-records a missing folder. This matches
+            // existing v1.0.4 behaviour — drag-drop loads were never persisted.
+            // Users who need persistence should use the Load Folder… picker.
             .withNativeFunction ("dropSessionCommitFolder",
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
@@ -420,9 +452,25 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                         complete (juce::var (false));
                         return;
                     }
+
+                    const int  targetLayer = args.size() > 1
+                        ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
+                    const auto modeStr     = args.size() > 2 ? args[2].toString()
+                                                             : juce::String ("replace_all");
+                    const bool overrideTok = args.size() > 3
+                        ? static_cast<int> (args[3]) != 0 : false;
+
+                    LoadMode mode = LoadMode::ReplaceAll;
+                    if (modeStr == "append")        mode = LoadMode::Append;
+                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+
                     DBG ("dropSessionCommitFolder: "
-                         << currentDropSessionDir.getFullPathName());
-                    processorRef.loadSampleFolder (currentDropSessionDir);
+                         << currentDropSessionDir.getFullPathName()
+                         << " layer=" << targetLayer
+                         << " mode=" << static_cast<int> (mode)
+                         << " override=" << (int) overrideTok);
+                    processorRef.loadSampleFolder (currentDropSessionDir,
+                                                    targetLayer, mode, overrideTok);
                     complete (juce::var (true));
                 })
 

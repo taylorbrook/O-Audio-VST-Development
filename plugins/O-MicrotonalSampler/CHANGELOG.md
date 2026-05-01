@@ -1,5 +1,70 @@
 # O-MicrotonalSampler Changelog
 
+## [1.6.0] - 2026-04-30
+
+### Added
+- **Explicit velocity-layer assignment for folder loads.** Both the
+  Load Folder… button and macOS folder drag-drop now open a "Load
+  samples" modal before any scan/streaming work begins. The modal
+  exposes three controls:
+  - **Layer (L0–L3):** segmented selector for the target velocity row
+    (4 layers, matching the existing grid).
+  - **When loading:** Add to layer / Replace this layer / Replace all
+    samples (merge mode).
+  - **Ignore filename velocity tokens:** checkbox that forces every
+    incoming sample onto the chosen target layer regardless of
+    `_v1`/`_ff`/`layer3`/etc. in the filename.
+
+  A live explainer below the controls describes the resulting
+  behaviour for the current settings (e.g. _"Add samples to L2,
+  ignoring filename velocity tokens"_) so the user can preview
+  the load before confirming.
+
+- **Multi-folder sample maps.** Append mode merges new samples into
+  the existing map without wiping it, so a single bank can be assembled
+  from several drops (e.g. drop a "soft" folder onto L0, then drop a
+  "loud" folder onto L3 with override on, and both layers play under
+  velocity-crossfade as expected). `(midi, layer)` collisions are
+  overwritten by the most recent drop.
+
+- **Load-op history persisted in plugin state.** Every successful
+  folder load is recorded in `loadOpHistory` and written to plugin
+  state as `<SampleFolders><Op …/>…</SampleFolders>`. On project
+  reopen, the ordered op list is replayed sequentially via the same
+  pipeline so the multi-folder map is faithfully reconstructed —
+  including target layer, merge mode, and override flag.
+
+- **Tolerant state replay for missing folders.** If any persisted op
+  references a folder that no longer exists on disk, the existing
+  missing-folder modal is surfaced for the first one and subsequent
+  ops continue (silently skipped) so a partial reload is still useful.
+
+### Changed
+- **`SampleLoader::loadFolder` signature now takes `LoadOptions`.**
+  When `overrideTokens=true`, every parsed slot is forced onto the
+  caller-supplied target layer; when `false`, filename tokens win
+  (legacy v1.5.x behaviour). Default-constructed options reproduce
+  v1.5.x exactly.
+- **`OMicrotonalSamplerAudioProcessor::loadSampleFolder` signature now
+  takes `(folder, targetLayer, mode, overrideTokens)`** with defaults
+  `(file, 0, LoadMode::ReplaceAll, false)` so the missing-folder
+  relocate path and any internal callers retain v1.5.x semantics
+  without code changes.
+
+### Migration notes
+- **No breaking changes.** Old saved state still loads:
+  `<SampleFolder path="…"/>` from v1.5.x and earlier is detected and
+  replayed as a single ReplaceAll op with target layer 0 and override
+  off, so v1.5.x sessions/presets behave bit-for-bit identically. New
+  saves emit the `<SampleFolders>` op-list container instead — old
+  versions of the plugin loading a v1.6.0 save would simply ignore
+  the unknown sibling and start with no folder loaded (graceful
+  forward incompatibility).
+- **Drag-drop folder loads on macOS materialise into a temp dir and
+  are NOT persisted across save/reopen.** This matches existing
+  v1.0.4 behaviour. Users who need persistence should use the
+  Load Folder… button (which records the original folder path).
+
 ## [1.5.2] - 2026-04-30
 
 ### Changed

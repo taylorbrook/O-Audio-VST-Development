@@ -79,6 +79,20 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> velocityCrossfadeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
 
+    // v1.0.2 attempted a JUCE-Component drag overlay here; it failed
+    // because WebView OS rendering sits above JUCE Components.
+    // v1.0.3 moved drag-drop to the JS layer; v1.0.4 streams file
+    // content through the bridge into a session-scoped temp dir
+    // because WKWebView strips file paths from JS DataTransfer.
+    juce::String currentDropSessionId;
+    juce::File   currentDropSessionDir;
+
+    // Removes prior `o-microtonalsampler-drop-*` temp dirs older than
+    // 5 minutes (a window large enough that an in-flight background
+    // SampleLoader read on the previous session is unlikely to still
+    // need them). Called at the start of every new drop session.
+    void cleanupStaleDropSessions();
+
     // Resource provider — explicit URL→BinaryData mapping (memory pattern,
     // matches O-Bells PluginEditor.cpp:941-998).
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);

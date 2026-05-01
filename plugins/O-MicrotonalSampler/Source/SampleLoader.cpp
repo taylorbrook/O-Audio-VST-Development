@@ -28,6 +28,7 @@ SampleLoader::~SampleLoader()
 
 void SampleLoader::loadFolder (const juce::File& folder,
                                double             sr,
+                               LoadOptions        options,
                                CompletionCallback onComplete,
                                FailureCallback    onFailure)
 {
@@ -37,6 +38,7 @@ void SampleLoader::loadFolder (const juce::File& folder,
     mode               = Mode::Folder;
     pendingFolder      = folder;
     targetSampleRate   = sr;
+    folderOptions      = options;
     completionCallback = std::move (onComplete);
     failureCallback    = std::move (onFailure);
     skippedFiles.clear();
@@ -297,13 +299,20 @@ void SampleLoader::run()
             continue;
         }
 
+        // v1.6.0: with overrideTokens, the parser's velLayer is discarded
+        // and every slot lands on the caller-supplied targetLayer. Without
+        // override, the filename token wins (legacy v1.5.x behaviour).
+        const int effectiveVelLayer = folderOptions.overrideTokens
+            ? juce::jlimit (0, 3, folderOptions.targetLayer)
+            : parsed->velLayer;
+
         // 2. Run the shared per-file pipeline (open → SR-convert → mono→stereo
         //    → loop-detect). Failures are recorded in skippedFiles.
         SampleSlot slot;
         juce::String skipReason;
         if (! processOneFile (file,
                               parsed->midiNote,
-                              parsed->velLayer,
+                              effectiveVelLayer,
                               targetSampleRate,
                               formatManager,
                               slot,

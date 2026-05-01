@@ -22,6 +22,39 @@
 #include "TuningEngine.h"          // global namespace (D-4)
 #include "NoteExpression.h"        // modules/tuning/note-expression (via ouaricon_add_module)
 
+// v1.6.0: explicit velocity-layer assignment for folder loads.
+//
+// LoadMode controls how a freshly loaded folder merges into the current map:
+//   ReplaceAll   - wipe the existing map and load only this folder's slots.
+//                  Truncates loadOpHistory to a single op. Reproduces v1.5.x
+//                  behaviour and is the only path used by legacy state
+//                  (<SampleFolder path>) restores.
+//   ReplaceLayer - drop every existing slot whose velocityLayer equals the
+//                  op's targetLayer, then merge the new slots. Other layers
+//                  untouched.
+//   Append       - merge the new slots into the existing map. (midi, layer)
+//                  collisions are overwritten by the new slot.
+//
+// Each successful load appends one LoadOp to loadOpHistory; clearSampleMap
+// truncates the history. getStateInformation persists the history so a
+// project reopen replays the same sequence of folder loads (subject to the
+// folders still existing on disk; first missing folder triggers the
+// existing missing-folder modal flow).
+enum class LoadMode
+{
+    ReplaceAll   = 0,
+    ReplaceLayer = 1,
+    Append       = 2
+};
+
+struct LoadOp
+{
+    juce::String path;            // Absolute folder path (UTF-8).
+    int          targetLayer    = 0;     // 0..3.
+    LoadMode     mode           = LoadMode::ReplaceAll;
+    bool         overrideTokens = false; // true = ignore filename velocity tokens.
+};
+
 // Polyphony-cap-enforcing Synthesiser. Pre-allocated voice pool stays at the
 // max (16) for PERF-01 (no RT alloc when the user raises the cap), but the
 // runtime cap from the `polyphony` APVTS parameter is enforced here by
@@ -107,11 +140,20 @@ public:
     // VST3 Note Expression (kTuningTypeID) - Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
 
-    // Phase 2.2: drag-drop folder load entry point (called from PluginEditor).
+    // Drag-drop folder load entry point (called from PluginEditor).
     // Spawns the background SampleLoader; on completion (message thread) the
-    // new SampleMap is atomic-stored into currentSampleMap and any skipped
-    // files are recorded in lastSkippedFiles for Stage-3 UI surfacing.
-    void loadSampleFolder (const juce::File& folder);
+    // new slots are merged into currentSampleMap per the supplied LoadMode,
+    // any skipped files are recorded in lastSkippedFiles, and the op is
+    // appended to loadOpHistory for state persistence.
+    //
+    // v1.6.0: targetLayer/mode/overrideTokens replace the old single-folder
+    // behaviour. Call with (folder, 0, LoadMode::ReplaceAll, false) to get
+    // exact v1.5.x semantics — used by the missing-folder relocate flow and
+    // by legacy state restore.
+    void loadSampleFolder (const juce::File& folder,
+                           int               targetLayer    = 0,
+                           LoadMode          mode           = LoadMode::ReplaceAll,
+                           bool              overrideTokens = false);
 
     // Read-only accessor for Stage-3 UI: list of files the loader skipped
     // (unparseable filenames, unreadable files, etc.). Refreshed on each
@@ -222,10 +264,39 @@ private:
     // to forward as a `sampleMapUpdated` WebView event.
     std::function<void()> sampleMapChangedCallback;
 
-    // v1.3.0: last folder passed to loadSampleFolder. Persisted across DAW
-    // sessions (via getStateInformation) so reopening a project restores
-    // the same sample bank.
+    // v1.3.0: last folder passed to loadSampleFolder. Tracks the most
+    // recent successful load — surfaced to UI for "current folder" displays
+    // and used for legacy single-path persistence on save when no v1.6.0
+    // op history is present (defensive only; new saves always write the
+    // <SampleFolders> op list).
     juce::File currentSampleFolder;
+
+    // v1.6.0: ordered list of successful folder-load operations since the
+    // last clearSampleMap() or ReplaceAll load. Persisted by
+    // captureStateValueTree as <SampleFolders><Op …/></SampleFolders> and
+    // replayed sequentially by setStateInformation so a reopened project
+    // reconstructs the same multi-layer sample bank (subject to folders
+    // still existing on disk).
+    //
+    // Append: every successful applyFolderLoad pushes one entry.
+    // ReplaceAll: clears the vector before pushing the new single entry.
+    // clearSampleMap: clears the vector entirely.
+    std::vector<LoadOp> loadOpHistory;
+
+    // v1.6.0: replay queue for setStateInformation. Each entry is dispatched
+    // sequentially via kickNextReplayOp() — completion of op N triggers op
+    // N+1. Missing folders are skipped (first missing path is captured in
+    // pendingMissingFolderPath and surfaced via missingFolderCallback).
+    std::vector<LoadOp> pendingReplayOps;
+    void kickNextReplayOp();
+
+    // v1.6.0: shared completion logic for both user-triggered and replay
+    // folder loads. Performs the merge into currentSampleMap, recomputes
+    // map metadata, appends to loadOpHistory, and fires
+    // sampleMapChangedCallback. Runs on the message thread.
+    void applyFolderLoad (std::shared_ptr<SampleMap> newSlotsMap,
+                          const juce::StringArray&   skipped,
+                          const LoadOp&              op);
 
     // v1.3.0: setStateInformation parked here when the saved folder no
     // longer exists on disk. Editor reads it on attach (or via callback)

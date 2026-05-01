@@ -288,15 +288,25 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 }
 
 //==============================================================================
-void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folder)
+// v1.6.0: folder load with explicit velocity-layer assignment.
+//
+// User-triggered loads (Load Folder… button, drag-drop, missing-folder
+// relocate) flow through here. State-restore replays go through
+// kickNextReplayOp() instead so the merge logic can chain via the same
+// applyFolderLoad helper without contention with this public path.
+void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folder,
+                                                          int      targetLayer,
+                                                          LoadMode mode,
+                                                          bool     overrideTokens)
 {
     if (sampleLoader == nullptr)
         return;
 
-    // v1.3.0: record the folder so getStateInformation can persist it.
-    // Captured before kicking off the async load — even if the load fails,
-    // the path is what the user attempted, which is useful for save-time
-    // forensics. Cleared by the failure callback below.
+    const int  clampedLayer = juce::jlimit (0, 3, targetLayer);
+    const LoadOp op { folder.getFullPathName(), clampedLayer, mode, overrideTokens };
+
+    // Track the most recent loaded folder for any single-path UI display.
+    // Cleared on failure to keep stale paths out of the missing-folder modal.
     currentSampleFolder = folder;
 
     // Capture `this` by raw pointer — folder load is short-lived and the
@@ -305,43 +315,12 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
     sampleLoader->loadFolder (
         folder,
         getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
+        LoadOptions { clampedLayer, overrideTokens },
 
         // Completion callback — runs on the message thread.
-        [this](std::shared_ptr<SampleMap> newMap, juce::StringArray skipped)
+        [this, op](std::shared_ptr<SampleMap> newMap, juce::StringArray skipped)
         {
-            lastSkippedFiles = std::move (skipped);
-
-            // Phase 3.1: bump version on every map replace. Voices snapshot
-            // the map at startNote; the version field is read by the Stage 3
-            // UI for diff detection (RESEARCH §RQ3-2).
-            if (newMap != nullptr)
-            {
-               #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-                auto prev = std::atomic_load (&currentSampleMap);
-               #else
-                auto prev = currentSampleMap;
-               #endif
-                newMap->version = (prev != nullptr ? prev->version : 0) + 1;
-            }
-
-            // Atomic-store into the processor's slot. Voices snapshot via
-            // shared_ptr copy at startNote (refcount inc — RT-safe). Use the
-            // same C++20 feature guard already established in prepareToPlay.
-           #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-            std::atomic_store (&currentSampleMap, newMap);
-           #else
-            currentSampleMap = newMap;
-           #endif
-
-            DBG ("SampleLoader complete: " << (int) currentSampleMap->slots.size()
-                 << " slot(s), " << lastSkippedFiles.size() << " skipped (v"
-                 << currentSampleMap->version << ")");
-
-            // Phase 3.1: notify editor (message thread). Editor's lambda
-            // forwards to webView->emitEventIfBrowserIsVisible("sampleMapUpdated",
-            // snapshotSampleMapJson()). No-op if no editor is open.
-            if (sampleMapChangedCallback)
-                sampleMapChangedCallback();
+            applyFolderLoad (std::move (newMap), skipped, op);
         },
 
         // Failure callback — runs on the message thread.
@@ -350,11 +329,154 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
             DBG ("SampleLoader failure: " << reason);
             juce::ignoreUnused (reason);
             lastSkippedFiles.clear();
-            // v1.3.0: drop the recorded folder so a failed reload doesn't
-            // get re-persisted. (clearSampleMap leaves currentSampleFolder
+            // Drop the recorded folder so a failed reload doesn't get
+            // re-persisted. (clearSampleMap leaves currentSampleFolder
             // untouched on purpose — only an explicit load-failure clears.)
             currentSampleFolder = juce::File();
         });
+}
+
+//==============================================================================
+// v1.6.0: shared completion logic for user-triggered and replay folder loads.
+// Merges newSlotsMap (which contains ONLY the freshly loaded folder's slots)
+// into currentSampleMap per op.mode, updates metadata + history, and fires
+// the sample-map-changed callback. Runs on the message thread.
+void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
+    std::shared_ptr<SampleMap> newSlotsMap,
+    const juce::StringArray&   skipped,
+    const LoadOp&              op)
+{
+    if (newSlotsMap == nullptr)
+        return;
+
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    auto prev = std::atomic_load (&currentSampleMap);
+   #else
+    auto prev = currentSampleMap;
+   #endif
+
+    auto merged = std::make_shared<SampleMap>();
+
+    if (op.mode == LoadMode::ReplaceAll || prev == nullptr)
+    {
+        // Wipe the existing map; truncate history to a single op.
+        merged->slots = newSlotsMap->slots;
+        loadOpHistory.clear();
+    }
+    else
+    {
+        // Start from the existing map's slots; mutate per mode.
+        merged->slots = prev->slots;
+
+        if (op.mode == LoadMode::ReplaceLayer)
+        {
+            const int target = juce::jlimit (0, 3, op.targetLayer);
+            merged->slots.erase (
+                std::remove_if (merged->slots.begin(), merged->slots.end(),
+                    [target] (const SampleSlot& s)
+                    {
+                        return s.velocityLayer == target;
+                    }),
+                merged->slots.end());
+        }
+
+        // Append (or finish ReplaceLayer) — for any (midi, layer) collision,
+        // the new slot wins.
+        for (const auto& newSlot : newSlotsMap->slots)
+        {
+            merged->slots.erase (
+                std::remove_if (merged->slots.begin(), merged->slots.end(),
+                    [&newSlot] (const SampleSlot& s)
+                    {
+                        return s.midiNote      == newSlot.midiNote
+                            && s.velocityLayer == newSlot.velocityLayer;
+                    }),
+                merged->slots.end());
+            merged->slots.push_back (newSlot);
+        }
+    }
+
+    // Recompute metadata over the merged slot list.
+    merged->lowestNote        = 127;
+    merged->highestNote       = 0;
+    int maxLayer              = 0;
+    for (const auto& s : merged->slots)
+    {
+        merged->lowestNote  = juce::jmin (merged->lowestNote,  s.midiNote);
+        merged->highestNote = juce::jmax (merged->highestNote, s.midiNote);
+        maxLayer            = juce::jmax (maxLayer,            s.velocityLayer);
+    }
+    if (merged->slots.empty())
+    {
+        merged->lowestNote  = 127;
+        merged->highestNote = 0;
+    }
+    merged->numVelocityLayers = juce::jlimit (1, 4, maxLayer + 1);
+    merged->version           = (prev != nullptr ? prev->version : 0) + 1;
+
+   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    std::atomic_store (&currentSampleMap, merged);
+   #else
+    currentSampleMap = merged;
+   #endif
+
+    lastSkippedFiles = skipped;
+    loadOpHistory.push_back (op);
+
+    DBG ("loadSampleFolder applied: mode=" << (int) op.mode
+         << " layer=" << op.targetLayer
+         << " override=" << (int) op.overrideTokens
+         << " merged slots=" << (int) merged->slots.size()
+         << " (v" << merged->version << ")");
+
+    if (sampleMapChangedCallback)
+        sampleMapChangedCallback();
+}
+
+//==============================================================================
+// v1.6.0: replay-queue dispatcher. Pops the next op, skips it if its folder
+// is gone (first missing path raises the existing missing-folder modal), and
+// dispatches an async load whose completion chains back here. Stack-safe via
+// JUCE's MessageManager::callAsync — each chained call is a fresh message.
+void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
+{
+    while (! pendingReplayOps.empty())
+    {
+        const LoadOp op = pendingReplayOps.front();
+        pendingReplayOps.erase (pendingReplayOps.begin());
+
+        const juce::File f (op.path);
+        if (! f.isDirectory())
+        {
+            // Surface the FIRST missing folder; subsequent ones are silently
+            // skipped to keep the user's modal interaction simple. They can
+            // re-locate or load fresh after dismissing.
+            if (pendingMissingFolderPath.isEmpty())
+            {
+                pendingMissingFolderPath = op.path;
+                if (missingFolderCallback)
+                    missingFolderCallback (op.path);
+            }
+            continue;   // try the next op
+        }
+
+        sampleLoader->loadFolder (
+            f,
+            getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
+            LoadOptions { op.targetLayer, op.overrideTokens },
+            [this, op] (std::shared_ptr<SampleMap> newMap, juce::StringArray skipped)
+            {
+                applyFolderLoad (std::move (newMap), skipped, op);
+                kickNextReplayOp();   // chain to next op
+            },
+            [this] (const juce::String& reason)
+            {
+                DBG ("SampleLoader replay failure: " << reason);
+                juce::ignoreUnused (reason);
+                kickNextReplayOp();   // continue chain even on failure
+            });
+        return;   // wait for async completion before dispatching next
+    }
 }
 
 //==============================================================================
@@ -694,6 +816,11 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
 
     lastSkippedFiles.clear();
 
+    // v1.6.0: drop the load-op history so the next save reflects the cleared
+    // state. (currentSampleFolder is intentionally left alone — same comment
+    // as v1.3.0.)
+    loadOpHistory.clear();
+
     DBG ("clearSampleMap: cleared (v" << fresh->version << ")");
 
     if (sampleMapChangedCallback)
@@ -911,8 +1038,30 @@ juce::AudioProcessorEditor* OMicrotonalSamplerAudioProcessor::createEditor()
 
 namespace
 {
-    constexpr const char* kSampleFolderTag = "SampleFolder";
-    constexpr const char* kTuningStateTag  = "TuningState";
+    constexpr const char* kSampleFolderTag  = "SampleFolder";   // legacy (v1.5.x and older)
+    constexpr const char* kSampleFoldersTag = "SampleFolders";  // v1.6.0 op-list container
+    constexpr const char* kSampleFolderOpTag = "Op";            // v1.6.0 child element
+    constexpr const char* kTuningStateTag   = "TuningState";
+
+    // v1.6.0: human-readable mode strings in XML so saved presets are
+    // diffable / editable by hand. Unknown values fall back to ReplaceAll.
+    juce::String loadModeToString (LoadMode m) noexcept
+    {
+        switch (m)
+        {
+            case LoadMode::Append:       return "append";
+            case LoadMode::ReplaceLayer: return "replace_layer";
+            case LoadMode::ReplaceAll:   return "replace_all";
+        }
+        return "replace_all";
+    }
+
+    LoadMode loadModeFromString (const juce::String& s) noexcept
+    {
+        if (s == "append")        return LoadMode::Append;
+        if (s == "replace_layer") return LoadMode::ReplaceLayer;
+        return LoadMode::ReplaceAll;
+    }
 
     // Capture every accessible bit of TuningEngine state into a ValueTree.
     // The shared scala-tuning-engine module exposes enough getters for
@@ -1039,22 +1188,32 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
     auto root = parameters.copyState();   // <APVTS> with all <PARAM> children
 
     // Strip any prior persistence siblings before re-adding — defensive
-    // against repeated save-without-load cycles polluting the tree.
+    // against repeated save-without-load cycles polluting the tree. Also
+    // strip the legacy v1.5.x <SampleFolder> child since v1.6.0 always
+    // emits the <SampleFolders> op-list container instead.
     for (int i = root.getNumChildren() - 1; i >= 0; --i)
     {
         auto child = root.getChild (i);
-        if (child.hasType (kSampleFolderTag) || child.hasType (kTuningStateTag))
+        if (child.hasType (kSampleFolderTag)
+            || child.hasType (kSampleFoldersTag)
+            || child.hasType (kTuningStateTag))
             root.removeChild (i, nullptr);
     }
 
-    // SampleFolder — absolute path. Empty if no folder loaded this session.
-    juce::ValueTree folder (kSampleFolderTag);
-    folder.setProperty ("path",
-                        currentSampleFolder == juce::File()
-                            ? juce::String()
-                            : currentSampleFolder.getFullPathName(),
-                        nullptr);
-    root.appendChild (folder, nullptr);
+    // v1.6.0: <SampleFolders><Op …/>…</SampleFolders> — ordered list of
+    // every successful folder load since the last clearSampleMap() or
+    // ReplaceAll load. Empty container when no folders are loaded.
+    juce::ValueTree folders (kSampleFoldersTag);
+    for (const auto& op : loadOpHistory)
+    {
+        juce::ValueTree opTree (kSampleFolderOpTag);
+        opTree.setProperty ("path",     op.path,                            nullptr);
+        opTree.setProperty ("layer",    op.targetLayer,                     nullptr);
+        opTree.setProperty ("mode",     loadModeToString (op.mode),         nullptr);
+        opTree.setProperty ("override", op.overrideTokens ? 1 : 0,          nullptr);
+        folders.appendChild (opTree, nullptr);
+    }
+    root.appendChild (folders, nullptr);
 
     // TuningState — full engine snapshot.
     root.appendChild (captureTuningValueTree (tuningEngine), nullptr);
@@ -1075,28 +1234,56 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     if (tuningTree.isValid())
         restoreTuningFromValueTree (tuningEngine, tuningTree);
 
-    // 3. SampleFolder — async via SampleLoader. If the folder no longer
-    // exists, park the path so the editor can prompt the user to relocate.
+    // 3. Sample folders — async via SampleLoader, sequenced via the replay
+    //    queue so ops 0..N-1 are applied in order (preserves the user's
+    //    original load sequence — Append mode order matters).
+    //
+    //    v1.6.0 path: <SampleFolders><Op …/>…</SampleFolders>.
+    //    Legacy path: <SampleFolder path="…"/> from v1.5.x and older —
+    //    treated as a single ReplaceAll op with default layer/override so
+    //    behaviour is bit-for-bit identical for old saves.
     pendingMissingFolderPath.clear();
-    auto folderTree = root.getChildWithName (kSampleFolderTag);
-    if (folderTree.isValid())
+    pendingReplayOps.clear();
+    loadOpHistory.clear();   // applyFolderLoad will rebuild as ops complete
+
+    auto foldersTree = root.getChildWithName (kSampleFoldersTag);
+    if (foldersTree.isValid())
     {
-        const auto path = folderTree.getProperty ("path").toString();
-        if (path.isNotEmpty())
+        for (int i = 0; i < foldersTree.getNumChildren(); ++i)
         {
-            juce::File f (path);
-            if (f.isDirectory())
+            const auto opTree = foldersTree.getChild (i);
+            if (! opTree.hasType (kSampleFolderOpTag)) continue;
+
+            const auto path = opTree.getProperty ("path").toString();
+            if (path.isEmpty()) continue;
+
+            LoadOp op;
+            op.path           = path;
+            op.targetLayer    = juce::jlimit (0, 3, static_cast<int> (opTree.getProperty ("layer", 0)));
+            op.mode           = loadModeFromString (opTree.getProperty ("mode").toString());
+            op.overrideTokens = static_cast<int> (opTree.getProperty ("override", 0)) != 0;
+            pendingReplayOps.push_back (std::move (op));
+        }
+    }
+    else
+    {
+        auto folderTree = root.getChildWithName (kSampleFolderTag);
+        if (folderTree.isValid())
+        {
+            const auto path = folderTree.getProperty ("path").toString();
+            if (path.isNotEmpty())
             {
-                loadSampleFolder (f);
-            }
-            else
-            {
-                pendingMissingFolderPath = path;
-                if (missingFolderCallback)
-                    missingFolderCallback (path);
+                LoadOp op;
+                op.path           = path;
+                op.targetLayer    = 0;
+                op.mode           = LoadMode::ReplaceAll;
+                op.overrideTokens = false;
+                pendingReplayOps.push_back (std::move (op));
             }
         }
     }
+
+    kickNextReplayOp();
 }
 
 void OMicrotonalSamplerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)

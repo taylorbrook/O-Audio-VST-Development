@@ -165,6 +165,60 @@
             </div>
           </div>
         </div>
+
+        <!-- v1.6.0: folder-load options modal. Surfaced before the file
+             picker (button) and before drag-drop file streaming so the
+             user can route the incoming folder to a specific velocity
+             layer, choose merge mode, and override filename velocity
+             tokens. Resolves to {layer, mode, override} on Load, or null
+             on Cancel — see showFolderLoadOptionsModal in sampler-app.js. -->
+        <div id="folder-load-options-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="folder-load-options-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content folder-load-options-content">
+            <h3 id="folder-load-options-title" class="confirm-dialog-title">Load samples</h3>
+
+            <div class="flo-row">
+              <span class="flo-label">Layer</span>
+              <div class="flo-segmented" role="radiogroup" aria-label="Target velocity layer">
+                <button type="button" data-layer="0" class="flo-seg active">L0</button>
+                <button type="button" data-layer="1" class="flo-seg">L1</button>
+                <button type="button" data-layer="2" class="flo-seg">L2</button>
+                <button type="button" data-layer="3" class="flo-seg">L3</button>
+              </div>
+            </div>
+
+            <div class="flo-row flo-modes">
+              <span class="flo-label">When loading</span>
+              <div class="flo-mode-options">
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="append" checked />
+                  <span>Add to layer</span>
+                </label>
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="replace_layer" />
+                  <span>Replace this layer</span>
+                </label>
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="replace_all" />
+                  <span>Replace all samples</span>
+                </label>
+              </div>
+            </div>
+
+            <label class="flo-override">
+              <input type="checkbox" id="flo-override-checkbox" />
+              <span>Ignore filename velocity tokens (e.g. <code>_v1</code>, <code>_ff</code>)</span>
+            </label>
+
+            <p class="flo-explain" id="flo-explain"></p>
+
+            <div class="confirm-dialog-actions">
+              <button id="flo-cancel-btn" type="button">Cancel</button>
+              <button id="flo-confirm-btn" type="button" class="flo-primary">Load…</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Tuning -->

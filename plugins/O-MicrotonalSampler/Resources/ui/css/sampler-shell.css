@@ -373,6 +373,120 @@ body {
     margin: 10px 0;
 }
 
+/* v1.6.0: folder-load options dialog. Built on top of the standard
+   .confirm-dialog frame; adds layer / mode / override controls. */
+.folder-load-options-content {
+    max-width: 460px;
+    min-width: 360px;
+}
+
+.flo-row {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.flo-row.flo-modes {
+    align-items: flex-start;
+}
+
+.flo-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-width: 96px;
+    font-weight: 500;
+}
+
+.flo-segmented {
+    display: inline-flex;
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-cream);
+}
+
+.flo-seg {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 14px;
+    background: transparent;
+    color: var(--text-body);
+    border: none;
+    border-left: 1px solid var(--border-warm);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.flo-seg:first-child {
+    border-left: none;
+}
+
+.flo-seg:hover {
+    background: rgba(184, 134, 11, 0.10);
+}
+
+.flo-seg.active {
+    background: var(--accent-gold);
+    color: #fff;
+}
+
+.flo-mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.flo-mode {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-body);
+}
+
+.flo-override {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-body);
+}
+
+.flo-override code {
+    background: var(--bg-cream);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.flo-explain {
+    margin: 14px 0 0 0;
+    padding: 8px 10px;
+    border-left: 2px solid var(--accent-gold);
+    background: rgba(184, 134, 11, 0.06);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    font-style: italic;
+    min-height: 32px;
+}
+
+.confirm-dialog-actions button.flo-primary {
+    background: var(--accent-gold);
+    color: #fff;
+    border-color: var(--accent-gold);
+}
+
+.confirm-dialog-actions button.flo-primary:hover {
+    background: #94591f;
+    border-color: #94591f;
+}
+
 /* v1.1.0: Two-column wrapper — velocity row labels (left, fixed) +
    scrollable grid + bottom column labels.
    align-items:start so vel-labels doesn't stretch through the col-labels

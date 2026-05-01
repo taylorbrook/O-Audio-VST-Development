@@ -52,6 +52,28 @@ enum class LoopMode
     Manual  = 2     // User-overridden via Stage 3 loop editor
 };
 
+// v1.6.0: per-folder-load configuration. Passed to SampleLoader::loadFolder so
+// the loader can either honour FilenameParser-derived velocities or force
+// every produced slot onto a caller-specified target layer.
+//
+//   targetLayer     0..3 — which velocity row the new slots populate when
+//                   overrideTokens=true (or when the parser couldn't infer
+//                   a velocity, though current parser default is layer 0
+//                   which we preserve).
+//   overrideTokens  true  → ignore filename velocity tokens; force layer
+//                          = targetLayer for every parsed slot.
+//                   false → filename token wins (legacy v1.5.x behavior),
+//                          targetLayer is ignored by the loader.
+//
+// The processor-level `LoadMode` (Append / ReplaceLayer / ReplaceAll) is
+// orthogonal to this and never reaches the loader — merge semantics are a
+// processor concern, not a loader concern.
+struct LoadOptions
+{
+    int  targetLayer    = 0;
+    bool overrideTokens = false;
+};
+
 struct SampleSlot
 {
     // Phase 3.1: audio held via shared_ptr so SampleMap deep-copies are cheap

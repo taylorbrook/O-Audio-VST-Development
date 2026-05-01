@@ -904,10 +904,15 @@ function bindFolderDropZone() {
     button.addEventListener('click', async () => {
         if (!window.__JUCE__) return;
         try {
+            // v1.6.0: ask for layer / mode / override BEFORE the native file
+            // picker so the user has the controls in front of them while the
+            // OS modal is still latent. Cancel here = silent return.
+            const opts = await showFolderLoadOptionsModal();
+            if (!opts) return;
             const fn = Juce.getNativeFunction('loadSampleFolderDialog');
-            await fn();
-            // sampleMapUpdated push event drives the rest. Cancel resolves
-            // false — silent.
+            await fn(opts.layer, opts.mode, opts.override ? 1 : 0);
+            // sampleMapUpdated push event drives the rest. File-picker cancel
+            // resolves false on the C++ side — silent.
         } catch (e) {
             console.error('[sampler-app] loadSampleFolderDialog failed:', e);
         }
@@ -1189,6 +1194,13 @@ function bindWebViewFileDrop () {
 const AUDIO_EXTENSIONS_RE = /\.(wav|aif|aiff)$/i;
 
 async function streamFolderEntryToCpp (dirEntry) {
+    // v1.6.0: ask for layer / mode / override BEFORE we scan the folder and
+    // start base64-streaming. A 250 MB drop can spend ~5 s on streaming
+    // alone, and it's wasted work if the user changes their mind. Cancel
+    // here = silent abort (no toast — a Cancel was an explicit user action).
+    const opts = await showFolderLoadOptionsModal();
+    if (!opts) return;
+
     const sessionId = newDropSessionId();
 
     showToast('Scanning folder…');
@@ -1219,7 +1231,8 @@ async function streamFolderEntryToCpp (dirEntry) {
     }
 
     showToast(`Loading ${all.length} sample${all.length === 1 ? '' : 's'}…`);
-    await Juce.getNativeFunction('dropSessionCommitFolder')(sessionId);
+    await Juce.getNativeFunction('dropSessionCommitFolder')(
+        sessionId, opts.layer, opts.mode, opts.override ? 1 : 0);
     // sampleMapUpdated push event drives the grid refresh + final state.
 }
 
@@ -1297,6 +1310,104 @@ function arrayBufferToBase64 (buf) {
 // invokes onConfirm on the Confirm button click, hides the dialog on Cancel
 // or Escape, and supports Enter as a confirm shortcut. One-shot listeners
 // are detached on every dialog close so subsequent opens do not double-fire.
+
+// v1.6.0: folder-load options modal. Resolves to {layer, mode, override} on
+// Load, or null on Cancel. Surfaced before BOTH the file picker (button)
+// and macOS drag-drop streaming (so cancel doesn't waste 5s of base64 work).
+//
+//   layer:    0..3 — target velocity layer
+//   mode:     'append' | 'replace_layer' | 'replace_all'
+//   override: boolean — true = ignore filename velocity tokens (v1, ff, …)
+function showFolderLoadOptionsModal () {
+    return new Promise((resolve) => {
+        const dialog     = document.getElementById('folder-load-options-dialog');
+        if (!dialog) { resolve(null); return; }
+
+        const segBtns    = dialog.querySelectorAll('.flo-seg');
+        const modeRadios = dialog.querySelectorAll('input[name="flo-mode"]');
+        const overrideEl = document.getElementById('flo-override-checkbox');
+        const explainEl  = document.getElementById('flo-explain');
+        const confirmBtn = document.getElementById('flo-confirm-btn');
+        const cancelBtn  = document.getElementById('flo-cancel-btn');
+        if (!segBtns.length || !modeRadios.length || !overrideEl
+                || !explainEl || !confirmBtn || !cancelBtn) {
+            resolve(null);
+            return;
+        }
+
+        // Reset to defaults each invocation.
+        let layer = 0;
+        let mode  = 'append';
+        segBtns.forEach((b, i) => b.classList.toggle('active', i === 0));
+        modeRadios.forEach((r) => { r.checked = (r.value === 'append'); });
+        overrideEl.checked = false;
+
+        const updateExplain = () => {
+            const overrideOn = overrideEl.checked;
+            const layerStr   = `L${layer}`;
+            let txt = '';
+            if (mode === 'append') {
+                txt = overrideOn
+                    ? `Add samples to ${layerStr}, ignoring filename velocity tokens.`
+                    : `Add samples; filename tokens (v1–v4, p/mp/mf/f) decide layer.`;
+            } else if (mode === 'replace_layer') {
+                txt = overrideOn
+                    ? `Clear ${layerStr} and add the new samples there.`
+                    : `Clear ${layerStr}; filename tokens decide where new samples land.`;
+            } else if (mode === 'replace_all') {
+                txt = overrideOn
+                    ? `Replace existing samples; new ones land on ${layerStr}.`
+                    : `Replace existing samples; filename tokens decide layer.`;
+            }
+            explainEl.textContent = txt;
+        };
+        updateExplain();
+
+        const segHandler = (e) => {
+            const b = e.target.closest('.flo-seg');
+            if (!b) return;
+            const v = parseInt(b.dataset.layer, 10);
+            if (!Number.isFinite(v)) return;
+            layer = v;
+            segBtns.forEach((x) => x.classList.toggle('active', x === b));
+            updateExplain();
+        };
+        const modeHandler = (e) => {
+            mode = e.target.value;
+            updateExplain();
+        };
+        const overrideHandler = () => updateExplain();
+
+        const cleanup = () => {
+            dialog.hidden = true;
+            segBtns.forEach((b) => b.removeEventListener('click', segHandler));
+            modeRadios.forEach((r) => r.removeEventListener('change', modeHandler));
+            overrideEl.removeEventListener('change', overrideHandler);
+            confirmBtn.removeEventListener('click', onYes);
+            cancelBtn.removeEventListener('click', onNo);
+            document.removeEventListener('keydown', onKey, true);
+        };
+        const onYes = () => {
+            cleanup();
+            resolve({ layer, mode, override: overrideEl.checked });
+        };
+        const onNo  = () => { cleanup(); resolve(null); };
+        const onKey = (e) => {
+            if (e.key === 'Escape')      { e.preventDefault(); onNo(); }
+            else if (e.key === 'Enter')  { e.preventDefault(); onYes(); }
+        };
+
+        segBtns.forEach((b) => b.addEventListener('click', segHandler));
+        modeRadios.forEach((r) => r.addEventListener('change', modeHandler));
+        overrideEl.addEventListener('change', overrideHandler);
+        confirmBtn.addEventListener('click', onYes);
+        cancelBtn.addEventListener('click', onNo);
+        document.addEventListener('keydown', onKey, true);
+
+        dialog.hidden = false;
+        confirmBtn.focus();
+    });
+}
 
 function showConfirmDialog ({ title, message, confirmLabel, destructive, onConfirm }) {
     const dialog    = document.getElementById('confirm-dialog');

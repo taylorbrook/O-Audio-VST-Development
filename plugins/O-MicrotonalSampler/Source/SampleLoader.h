@@ -41,8 +41,14 @@ public:
     SampleLoader();
     ~SampleLoader() override;
 
+    // v1.6.0: per-load options control whether filename velocity tokens are
+    // honoured or forced to a caller-supplied target layer. See
+    // SampleMap.h::LoadOptions for field semantics. Default-constructed
+    // options ({targetLayer=0, overrideTokens=false}) reproduce v1.5.x
+    // behaviour exactly — filename token wins, targetLayer ignored.
     void loadFolder (const juce::File& folder,
                      double             targetSampleRate,
+                     LoadOptions        options,
                      CompletionCallback onComplete,
                      FailureCallback    onFailure = nullptr);
 
@@ -69,6 +75,7 @@ private:
 
     juce::File         pendingFolder;
     double             targetSampleRate    = 48000.0;
+    LoadOptions        folderOptions       {};   // v1.6.0 — see SampleMap.h
     CompletionCallback completionCallback;
     FailureCallback    failureCallback;
     juce::StringArray  skippedFiles;     // touched only by run() then captured
