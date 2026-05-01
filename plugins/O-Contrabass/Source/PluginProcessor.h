@@ -11,6 +11,9 @@
 #pragma once
 #include <JuceHeader.h>
 #include "OContrabassMPESynthesiser.h"
+#include "DSP/MasterSaturator.h"
+#include "DSP/MasterLimiter.h"
+#include "DSP/StereoWidth.h"
 
 class BowedContrabassVoice;     // Phase 2.3 R29 forward decl — used by getActiveVoice()
 
@@ -62,6 +65,14 @@ private:
 
     // Phase 2.1a: single E1 voice. Multi-voice / per-string voicing is Phase 2.2.
     OContrabassMPESynthesiser synth;
+
+    // Phase 2.6a — master output chain (post-voice-summation): Saturator →
+    // Limiter → StereoWidth → OUTPUT_GAIN. OUTPUT_GAIN relocated from voice
+    // per ARCHITECTURE §258 (user volume should not affect saturator color).
+    MasterSaturator              masterSaturator;
+    MasterLimiter                masterLimiter;
+    StereoWidth                  stereoWidth;
+    juce::SmoothedValue<float>   outputGainSmoothed { 1.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OContrabassAudioProcessor)
 };

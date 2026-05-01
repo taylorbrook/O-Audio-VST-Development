@@ -7365,3 +7365,1149 @@ R37 task ordering per §21.10:
 - ARCHITECTURE.md §149 vs §509 size_scalar inconsistency (1.83:1 commentary vs 1.353:1 formula) — flagged in §21.16 ESCALATION-3 for end-of-Stage-2 amendment.
 
 ---
+
+## §22 — Phase 2.6a Output Chain Research (Master Saturator + Zero-Latency Feedforward Limiter + Stereo Width, Gate 8a)
+
+**Author:** research-phase, 2026-05-01.
+**Cycle:** Phase 2.6a (sub-cycle 1 of 3 in Phase 2.6 umbrella). CONTEXT rev-11.
+**Predecessor:** §21 (Phase 2.5 Body Resonator + Bow Noise Generator) closed 2026-04-30 with R37 atomic `907a7c3` Gate 7 SOFT-PASS.
+**Atomic-commit target:** R39 (next source-edit atomic; R38 was non-source Logic AU audition probe).
+**Goal:** Resolve all open questions for Phase 2.6a output chain so PLAN rev-13 can author R39 task bodies without re-litigation. Surface architecture deviations explicitly so plan-phase can decide ARCHITECTURE-amendment vs PLAN-deviation routing per Q3/Q7 LOCKED amendment-count constraints.
+
+§22 is the **first** of three Phase 2.6 sub-research sections. §23 (Phase 2.6b microtonal engine) and §24 (Phase 2.6c Note Expression) author at later sub-cycle research-phases per CONTEXT rev-11 §"Cycle Scope" umbrella plan.
+
+---
+
+## §22.1 Pre-Flight Tripwire — 14 Audible Goldens Reproduce Byte-Identical at HEAD
+
+**Status:** CLEARED — `reproduce-goldens.sh` 14/14 PASS at `1b44efd` (HEAD descendant of R37 atomic `907a7c3` + R37-backfill chore `36b89d2`).
+
+**Scope:** 13 Phase 2.5-baselined audible goldens + 1 saturator-tail-comparison golden = 14 entries (Phase 2.5 R37 added body resonator + bow noise; saturator-tail-comparison carry-forward from Phase 2.4c-bis R36-bis):
+
+```
+detune-sweep-A.wav         (Phase 2.5 sha, post-body)
+macro-sweep.wav            (Phase 2.5 sha, post-body)
+note-sequence.wav          (Phase 2.5 sha, post-body)
+saturator-tail-comparison.wav  (Phase 2.4c-bis sha, carry-forward)
+schelleng-stress.wav       (Phase 2.5 sha)
+slow-lfo.wav               (Phase 2.5 sha, post-body)
+stiffness-sweep.wav        (Phase 2.5 sha)
+stiffness-zero-pre.wav     (Phase 2.5 sha)
+string-A.wav               (Phase 2.5 sha)
+string-D.wav               (Phase 2.5 sha)
+string-G.wav               (Phase 2.5 sha)
+sub-harmonics-stability.wav  (Phase 2.5 sha)
+sub-harmonics.wav          (Phase 2.5 sha)
+vibrato.wav                (Phase 2.4c-bis sha `df7384e3…`, carry-forward)
+```
+
+`matrix-stability.wav.sha256 = 6db67707…` (`6db6770727ab3b433a036f487217bbde70f8cc15de44fa60ac0b99d868176449`) and `matrix-stability.json.sha256 = 625505cf…` carry forward as **evidence-only** goldens (NOT in `reproduce-goldens.sh` per Phase 2.4a R34b "evidence golden" precedent).
+
+**Phase 2.6a tripwire bar:** R39-pre re-runs `reproduce-goldens.sh` against HEAD-at-R39-pre (descendant of `907a7c3 + 36b89d2`) and asserts 14/14 PASS before any source edit. Source-tree clean (`git status` clean against the 5 in-scope source files {`MasterSaturator.h` NEW, `MasterLimiter.h` NEW, `StereoWidth.h` NEW, `PluginProcessor.{h,cpp}` M, `BowedContrabassVoice.cpp` M for OUTPUT_GAIN relocation}). Saturator carry-forward verify (`grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` returns 2 — Phase 2.4c-bis port preserved). BodyResonator + BowNoiseGenerator integration verify (`grep -c BodyResonator plugins/O-Contrabass/Source/BowedContrabassVoice.h` returns 4; `grep -c BowNoiseGenerator plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` returns 7).
+
+---
+
+## §22.2 Master Saturator (`y = x − x³/3`) — Algorithm, Pre-Gain Calibration, Header Design
+
+### §22.2.1 Architecture spec recap
+
+ARCHITECTURE.md §171–179 + §249 + §560:
+
+> Polynomial `y = x − x³/3` with input pre-clamp to [−1.5, +1.5]. ~6 dB gentle warmth above −3 dBFS. … Saturator's soft-clip at ~−3 dBFS limits the work the limiter has to do, allowing 3 ms attack to be sufficient.
+
+CONTEXT rev-11 Q3 LOCKED: `polynomial x − x³/3` per ARCHITECTURE verbatim. NO unification with in-loop `4·tanh(x/4)` (Phase 2.4c-bis port stays untouched at `WaveguideString.cpp:204-209`). Master saturator is at output (post-body), not in feedback loop.
+
+### §22.2.2 Polynomial transfer function characterisation
+
+`f(x) = x − x³/3`:
+
+| input x  | output f(x) | gain at x | comment |
+|----------|-------------|-----------|---------|
+| 0.0      | 0.0         | 1.000     | unity |
+| 0.1      | 0.0997      | 0.997     | ~0 dB compression |
+| 0.5      | 0.458       | 0.917     | −0.75 dB compression |
+| 0.707 (−3 dBFS) | 0.589 | 0.833 | −1.59 dB compression (knee onset) |
+| 1.0 (0 dBFS) | 0.667 | 0.667 | −3.52 dB compression |
+| 1.414 (+3 dBFS) | 0.471 | 0.333 | −9.55 dB; output peak 2/3 = −3.52 dBFS at x=1 |
+| 1.5 (+3.5 dBFS, pre-clamp ceiling) | 0.375 | 0.250 | −12.0 dB; output below peak (curve falls past x=1) |
+
+**Critical property:** `f(x)` peaks at `x = 1.0` with `f(1.0) = 2/3`. For `x > 1.0`, `f(x)` *decreases* (eventually crossing zero at `x = √3 ≈ 1.732`). The pre-clamp to [−1.5, +1.5] prevents the curve from going past its monotone-decreasing region into outright sign-flip or further folding. **Without the pre-clamp**, an input of `x = 1.732` would output zero, and `x = 2.0` would output `−2/3` — phase inversion. The pre-clamp is **load-bearing**.
+
+The ~"6 dB gentle warmth above −3 dBFS" claim in ARCHITECTURE §177 is approximate. Actual numbers per the table: at 0 dBFS input, output drops 3.5 dB (not 6 dB); at +3 dBFS input (pre-clamped to +3.5 dBFS = 1.414), output is 9.55 dB below input, 3.52 dB below 0 dBFS. So the saturator caps absolute output peak at −3.52 dBFS = `2/3` linear regardless of input. The "6 dB warmth" is a colloquialism for the cubic-soft-knee character, not a precise level statement.
+
+**Implication for limiter design:** master saturator output peak ≤ 0.667 (= −3.52 dBFS) **without** any limiter intervention. CONTEXT Q4 LOCKED limiter ceiling −0.3 dBFS = 0.966 linear. With master saturator upstream, the limiter receives a signal that can't exceed −3.52 dBFS — limiter gain reduction is **never engaged on the master saturator's clipped peak**. Limiter gain reduction only engages if (a) MASTER_SAT_AMOUNT < 100% (so user is bypassing the saturator partially, allowing through-signal above 0.667) or (b) the user automates `OUTPUT_GAIN` upward post-saturator (which it isn't, after R39d relocation — see §22.6). The limiter is effectively a safety net for **partial-bypass scenarios + width >1.0 boost** (M/S width=2.0 doubles side-channel = doubles L−R differential = potential L/R peak boost up to 2× with full anti-correlation; rare in practice for a synth voice, more relevant in stereo source material). Limiter still must be in the chain for QUAL-02 / QUAL-01 guarantees.
+
+### §22.2.3 MASTER_SAT_AMOUNT pre-gain mapping (NEW design contract)
+
+ARCHITECTURE does not specify how MASTER_SAT_AMOUNT (0–100%) maps to saturator behavior. Two candidate mappings:
+
+**Option A — pre-gain only (recommended):** MASTER_SAT_AMOUNT linearly drives input pre-gain from `1.0` (at 0%) to `2.0` (at 100%):
+
+```
+preGain = 1.0 + amount  // amount ∈ [0, 1]
+xPre    = preGain * input
+xClamp  = jlimit(-1.5, 1.5, xPre)
+out     = (xClamp - xClamp*xClamp*xClamp / 3.0) / preGain  // post-gain compensates for pre-gain so unity at small signal
+```
+
+At 0% MASTER_SAT_AMOUNT, `preGain = 1.0` and the `pre-clamp + cubic` path is a no-op for `|input| ≤ 1.0` (cubic saturator is unity at `x → 0`; pre-clamp doesn't trigger; post-gain divide is by 1.0). The output is `f(input)/1.0 = input − input³/3`, which differs from raw input by ~0.75 dB at 0.5 amplitude. **This is not a true bypass.** For zero-effect-at-0% behavior, mix-style:
+
+**Option B — wet/dry mix (alternative):** MASTER_SAT_AMOUNT is the wet/dry mix of saturated vs raw signal:
+
+```
+wet = saturate(input)  // always full saturation curve
+out = (1 - amount) * input + amount * wet
+```
+
+At 0%, output = input verbatim (true bypass). At 100%, output = full saturation. **Recommended over Option A** for transparency at 0% and matches user intuition (knob = "amount of saturator effect").
+
+**Option C — variable drive (knob = pre-gain in dB):** MASTER_SAT_AMOUNT maps to pre-gain in dB (e.g., 0% → 0 dB, 100% → +12 dB) with no post-gain compensation:
+
+```
+preGain = decibelsToGain(amount * 12.0)  // 0..+12 dB
+xClamp  = jlimit(-1.5, 1.5, preGain * input)
+out     = xClamp - xClamp*xClamp*xClamp / 3.0
+```
+
+At 0%, preGain=1 → `f(input)`, NOT bypass (~0.75 dB at 0.5 amp). At 100%, preGain=4 → almost everything pre-clamps to ±1.5, output ≈ ±0.375 = aggressive limiting. Closer to a "tape drive" knob.
+
+**Recommendation: Option B (wet/dry mix).**
+
+Reasons:
+- True bypass at 0% (matches user intuition; preserves byte-equality with current Phase 2.5 voice-output state at MASTER_SAT_AMOUNT=0%).
+- Smooth perceptual scaling: 50% gives noticeable warmth, 100% gives full architectural saturator.
+- Default 50% per CONTEXT rev-11 §"Phase 2.6a — Output chain" line 54 (`MASTER_SAT_AMOUNT 0–100%, default 50%`) lands musically: half the saturation curve effect at default voice peak amplitudes, leaving headroom for user-driven character.
+- **Bit-equality test at MASTER_SAT_AMOUNT=0%:** output identical to raw voice → useful golden anchor. Saturator-tail-comparison golden at MASTER_SAT_AMOUNT=0% should reproduce Phase 2.5 sha (modulo limiter + width, both also at default no-op states — see §22.3.4 + §22.4.5).
+
+**Default voice peak vs saturator engagement at 50% mix:** matrix-stability post-body peak ≈ 0.351 linear (per Phase 2.4c-bis carry-forward). At 0.351 input, `f(0.351) = 0.337` = −0.36 dB compression. With 50% mix: `out = 0.5 · 0.351 + 0.5 · 0.337 = 0.344` = −0.18 dB compression. Default 50% is **subtle warmth** at default voice peaks — confirms ARCHITECTURE intent.
+
+**Note-sequence default-state peak** (research-phase pre-flight metric, not yet measured): TBD at R39e re-baseline render. Predicted ≤ 0.50 (well below 0.667 saturator output cap).
+
+### §22.2.4 Header design — `Source/DSP/MasterSaturator.h`
+
+Header-only per BodyResonator / BowNoiseGenerator / SubHarmonicBias / DispersionFilter precedent. Stateless polynomial (no IIR memory) — only the `SmoothedValue<float>` ramp on `amount` carries state.
+
+```cpp
+#pragma once
+#include <juce_dsp/juce_dsp.h>
+
+class MasterSaturator
+{
+public:
+    void prepare (double sampleRate)
+    {
+        amountSmoothed.reset (sampleRate, 0.030);  // 30 ms zipper-free ramp
+    }
+
+    void reset()
+    {
+        amountSmoothed.reset (0);
+    }
+
+    void setAmount (float amount)  // [0, 1]
+    {
+        amountSmoothed.setTargetValue (juce::jlimit (0.0f, 1.0f, amount));
+    }
+
+    // Per-sample wet/dry mix of x − x³/3 saturator with input.
+    float processSample (float in) noexcept
+    {
+        const float a = amountSmoothed.getNextValue();
+        const float xClamp = juce::jlimit (-1.5f, 1.5f, in);
+        const float wet = xClamp - xClamp * xClamp * xClamp / 3.0f;
+        return (1.0f - a) * in + a * wet;
+    }
+
+    // Block API for stereo buffers.
+    void processBlock (juce::AudioBuffer<float>& buffer)
+    {
+        const int numSamples = buffer.getNumSamples();
+        const int numChannels = buffer.getNumChannels();
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float a = amountSmoothed.getNextValue();
+            for (int ch = 0; ch < numChannels; ++ch)
+            {
+                float* data = buffer.getWritePointer (ch);
+                const float in = data[i];
+                const float xClamp = juce::jlimit (-1.5f, 1.5f, in);
+                const float wet = xClamp - xClamp * xClamp * xClamp / 3.0f;
+                data[i] = (1.0f - a) * in + a * wet;
+            }
+        }
+    }
+
+private:
+    juce::SmoothedValue<float> amountSmoothed { 0.0f };
+};
+```
+
+**LOC budget:** ~50 LOC NEW (header-only). Block API loops `getNextValue()` once per sample (not per channel) to keep L and R in sync per-sample-per-block — matches O-Bowed StereoWidthProcessor.h precedent.
+
+**Determinism note:** no `juce::Random`, no IIR state, no cross-block memory. `juce::SmoothedValue<float>` is deterministic per JUCE 8 (linear ramp; no random component). HR-style determinism preserved.
+
+### §22.2.5 Saturator pre-flight render-harness probe
+
+R39 design: `--master-saturator` CLI mode renders 5 probes at MASTER_SAT_AMOUNT ∈ {0%, 25%, 50%, 75%, 100%} with default voice settings + 4-second sustained E1 note (full Helmholtz-cycle saturation curve characterisation). Output: peak amplitude, RMS, harmonic distortion (THD at 41.2 Hz fundamental), spectral tilt (1k Hz - 8k Hz). Acceptance bars:
+
+- MASTER_SAT_AMOUNT=0% peak == voice peak verbatim (bit-identical bypass)
+- MASTER_SAT_AMOUNT=100% peak ≤ 0.667 (= −3.52 dBFS) for any voice peak ≥ 1.0
+- THD monotone increasing in MASTER_SAT_AMOUNT (0% → 100%)
+
+**Folded into `--output-chain` mega-mode** (see §22.7).
+
+---
+
+## §22.3 Zero-Latency Feedforward Limiter — Implementation Choice + Coefficients + Architecture Deviation
+
+### §22.3.1 ARCHITECTURE spec vs CONTEXT Q4 LOCKED — surfaced deviation
+
+**ARCHITECTURE §177–179 + §527–545:**
+
+| Param | Value (ARCHITECTURE) | Source |
+|---|---|---|
+| Topology | Feedforward, no look-ahead | §178, §544 |
+| Attack | 3 ms | §178, §541 |
+| Release | **100 ms** | §178, §541 |
+| Threshold | **−1 dBFS** (linear 0.891) | §178, §542 |
+| Domain | "Run on 2x oversampled signal" | §543 |
+
+**CONTEXT rev-11 Q4 LOCKED:**
+
+| Param | Value (CONTEXT Q4) | Source |
+|---|---|---|
+| Topology | Feedforward, no look-ahead | Q4 LOCKED |
+| Attack | 3 ms | Q4 LOCKED |
+| Release | **50 ms** | Q4 LOCKED, also CONTEXT line 20 + line 50 |
+| Threshold | **−0.3 dBFS** | Q4 LOCKED, also CONTEXT line 50 + line 55 |
+| Domain | (not specified) | — |
+
+**Two divergences:**
+
+1. **Release time:** 100 ms → 50 ms. CONTEXT supersedes ARCHITECTURE.
+2. **Threshold:** −1 dBFS → −0.3 dBFS. CONTEXT supersedes ARCHITECTURE.
+3. **Domain:** ARCHITECTURE says "2x oversampled". This is **wrong for the chosen topology** — the master chain runs at host rate (2x oversampling boundary closes at the friction junction downsample, `BowedContrabassVoice.cpp:267` "Body runs at host rate (post 2× downsample); noise generator likewise"). Master saturator + limiter + width are post-body, post-noise — host-rate. ARCHITECTURE §543 is internally inconsistent with §225–238 chain description.
+
+**ESCALATION-2 (ARCHITECTURE deviation, two amendments needed):**
+
+CONTEXT rev-11 Q3 LOCKS amendment count at 3 (§"DC Blocker" + §"In-loop saturator" + §149/§509 size_scalar). Adding limiter-spec realignment as a 4th amendment **violates Q3 lock**. Plan-phase has three options:
+
+- **Option A — extend §"Master Saturator + Zero-Latency Limiter" amendment-evidence-base** (analogous to in-loop saturator amendment which appended Phase 2.4c R36 + Phase 2.4c-bis R36-bis + Phase 2.5 R37 evidence). NOT a new amendment count — appends "Phase 2.6a evidence: release 100→50 ms + threshold −1 → −0.3 dBFS per CONTEXT rev-11 Q4 lock; oversampling claim §543 corrected to host-rate per §225–238 internal consistency." This is **the recommended path**.
+- **Option B — PLAN rev-13 deviation flag against ARCHITECTURE**: implement CONTEXT-locked values and document deviation in PLAN §"Approach Decisions" without ARCHITECTURE amendment. Defers ARCHITECTURE realignment to v1.1. Cleaner for v1.0 timeline; ARCHITECTURE is **slightly stale** but not blocking.
+- **Option C — re-discuss Q3** to bump amendment count from 3 to 4. Wastes a discuss-phase cycle for a rubber-stamp; not recommended.
+
+**Research-phase recommendation:** **Option A.** Treat the three Phase 2.6 amendments (DC Blocker / in-loop saturator / size_scalar) as **section-anchors** to which evidence is appended — same as how §"In-loop saturator" amendment grew from 1 → 3 evidence entries across Phase 2.4c → Phase 2.4c-bis → Phase 2.5. Phase 2.6a's release-time + threshold + domain corrections become a **fourth evidence-line under the §"Master Saturator + Zero-Latency Limiter" amendment heading**, NOT a fourth amendment-section. Q3 LOCK respected; technical realignment captured.
+
+**Plan-phase action:** Author PLAN rev-13 §"Approach Decisions" with explicit acknowledgment of ARCHITECTURE §177–179 + §540–544 evidence-extension; flag in R39 atomic commit body; defer the actual end-of-Stage-2 amendment-text-write to Phase 2.6c verify-phase amendments task per Q7.
+
+### §22.3.2 Implementation choice — `juce::dsp::Compressor` vs `juce::dsp::BallisticsFilter` vs hand-written
+
+**Option A — `juce::dsp::Compressor` adapted:**
+
+`juce::dsp::Compressor<float>` exposes `setAttack`, `setRelease`, `setThreshold`, `setRatio`. To approximate a hard limiter: `setRatio(100.0f)` (or higher) approximates ratio=∞. **Problems:** (1) `juce::dsp::Compressor` uses log-domain envelope detection (peak in dB), not linear-domain `threshold/envelope` gain reduction; (2) at very high ratios, smoothing artifacts accumulate; (3) threshold semantics differ (compression onset, not hard ceiling). Not a clean fit for ARCHITECTURE §527 algorithm.
+
+**Option B — `juce::dsp::BallisticsFilter<float>` envelope follower + threshold-divide:**
+
+Use `juce::dsp::BallisticsFilter` with `setLevelCalculationType(BallisticsFilterLevelCalculationType::peak)` for envelope detection, then hand-write the `gain = (env > threshold) ? threshold/env : 1.0` reduction. **Pro:** O-Gain precedent (`PluginProcessor.h:94–95` uses BallisticsFilter for VU meters; precedent exists in Ouaricon). **Con:** BallisticsFilter exposes attack/release in seconds via `setAttackTime` / `setReleaseTime`, internally computes the same `exp(-1/(t·sr))` coefficients we'd hand-roll — net code is no shorter, adds a dependency for a 4-line IIR, less direct mapping to ARCHITECTURE §527 formula.
+
+**Option C — hand-written feedforward per ARCHITECTURE §527 verbatim:**
+
+Direct implementation of:
+
+```
+abs_x = |input|
+coeff = (abs_x > envelope) ? attackCoeff : releaseCoeff
+envelope = coeff · envelope + (1 − coeff) · abs_x
+gain = (envelope > threshold) ? threshold / envelope : 1.0
+output = input · gain
+```
+
+with:
+
+```
+attackCoeff  = exp(-1.0 / (0.003 * sampleRate))
+releaseCoeff = exp(-1.0 / (0.050 * sampleRate))   // CONTEXT Q4 LOCKED 50 ms
+threshold    = decibelsToGain(-0.3f) = 0.9661f    // CONTEXT Q4 LOCKED -0.3 dBFS
+```
+
+Pros:
+- Direct mapping to ARCHITECTURE §527 algorithm verbatim (1:1 line correspondence).
+- Stateless except for `envelope` scalar (or 2 scalars for stereo-linked).
+- Header-only ~80 LOC; matches MasterSaturator + DispersionFilter + SubHarmonicBias precedent.
+- No JUCE-API surface dependency (transparent to JUCE version changes).
+- Stereo-link is 1 line of code (`abs_x = max(|L|, |R|); apply same gain to L and R`).
+
+Cons:
+- "Reinventing the wheel" relative to JUCE's BallisticsFilter.
+- Need to test ourselves (BallisticsFilter is JUCE-tested).
+
+**Research-phase recommendation: Option C.** Reasons: ARCHITECTURE §527 is the locked algorithmic spec; literal implementation gives 1:1 traceability; Ouaricon DSP precedent (BodyResonator, BowNoiseGenerator, DispersionFilter, SchellengCalibration, SubHarmonicBias all hand-written headers ≤ 200 LOC); RT-safe (3 multiply-add per sample + 1 conditional + 1 divide-by-envelope only when envelope > threshold).
+
+**Stereo-link decision:** YES, stereo-linked. Reason: M/S decode after limiter could expose stereo image collapse if L and R limiters fire at different times. Linked limiter detects `max(|L|, |R|)` envelope and applies common gain. This is the standard "stereo limiter" pattern.
+
+### §22.3.3 Header design — `Source/DSP/MasterLimiter.h`
+
+```cpp
+#pragma once
+#include <cmath>
+#include <juce_core/juce_core.h>
+#include <juce_audio_basics/juce_audio_basics.h>
+
+class MasterLimiter
+{
+public:
+    void prepare (double sampleRate)
+    {
+        sr = sampleRate;
+        recalcCoefficients();
+        envL = envR = 0.0f;
+        ceilingLinear = juce::Decibels::decibelsToGain (ceilingDb);
+        ceilingSmoothed.reset (sampleRate, 0.030);
+        ceilingSmoothed.setCurrentAndTargetValue (ceilingLinear);
+    }
+
+    void reset()
+    {
+        envL = envR = 0.0f;
+        ceilingSmoothed.reset (ceilingLinear);
+    }
+
+    void setCeilingDb (float dB)  // CONTEXT Q4: −0.3 dBFS default; range [-6, 0]
+    {
+        ceilingDb = juce::jlimit (-6.0f, 0.0f, dB);
+        ceilingLinear = juce::Decibels::decibelsToGain (ceilingDb);
+        ceilingSmoothed.setTargetValue (ceilingLinear);
+    }
+
+    // Process stereo buffer in-place (stereo-linked envelope).
+    void processBlock (juce::AudioBuffer<float>& buffer)
+    {
+        if (buffer.getNumChannels() < 1)
+            return;
+
+        const int numSamples = buffer.getNumSamples();
+        float* L = buffer.getWritePointer (0);
+        float* R = (buffer.getNumChannels() > 1) ? buffer.getWritePointer (1) : L;
+        const bool stereo = (R != L);
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float threshold = ceilingSmoothed.getNextValue();
+            const float absL = std::fabs (L[i]);
+            const float absR = stereo ? std::fabs (R[i]) : absL;
+            const float absMax = juce::jmax (absL, absR);
+
+            // Stereo-linked envelope: max-channel drives both gain reductions.
+            const float coeff = (absMax > envL) ? attackCoeff : releaseCoeff;
+            envL = coeff * envL + (1.0f - coeff) * absMax;
+
+            const float gain = (envL > threshold) ? (threshold / envL) : 1.0f;
+
+            L[i] *= gain;
+            if (stereo)
+                R[i] *= gain;
+        }
+    }
+
+private:
+    void recalcCoefficients()
+    {
+        const double attackS  = 0.003;  // 3 ms — CONTEXT Q4 LOCKED
+        const double releaseS = 0.050;  // 50 ms — CONTEXT Q4 LOCKED
+        attackCoeff  = static_cast<float> (std::exp (-1.0 / (attackS  * sr)));
+        releaseCoeff = static_cast<float> (std::exp (-1.0 / (releaseS * sr)));
+    }
+
+    double sr { 48000.0 };
+    float attackCoeff  { 0.0f };
+    float releaseCoeff { 0.0f };
+    float envL { 0.0f };
+    float envR { 0.0f };  // unused with stereo-link; reserved for per-channel mode
+    float ceilingDb { -0.3f };
+    float ceilingLinear { 1.0f };
+    juce::SmoothedValue<float> ceilingSmoothed { 1.0f };
+};
+```
+
+**LOC budget:** ~80 LOC NEW (header-only).
+
+**State machine:** single `envL` scalar (stereo-linked). `envR` reserved for future per-channel mode (deferred to v1.1 if needed). `ceilingSmoothed` 30 ms ramp prevents zipper noise on `LIMITER_CEILING_DB` automation.
+
+**Determinism:** `std::exp`, `std::fabs`, scalar arithmetic — deterministic.
+
+**RT-safety:** no allocations, no locks, no I/O. Pure math + buffer write. Passes PERF-01.
+
+**Latency:** zero algorithmic latency (no look-ahead, no delay line). Passes PERF-03 nice-to-have.
+
+### §22.3.4 Limiter pre-flight render-harness probe
+
+R39 design: `--master-limiter` CLI mode renders 4 probes with high-amplitude input (synthetic bow-pressure stress at INFINITE_SUSTAIN=1.0 + SUB_HARMONICS=1.0 + EXPRESSION_MACRO=1.0 + BOW_PRESSURE=8.0 + 4-second sustained E1) at LIMITER_CEILING_DB ∈ {-6, -3, -0.3, 0} dBFS. Acceptance bars:
+
+- Output peak ≤ `ceilingLinear + 0.05 dB slop` for all 4 probes (Gate 8a invariant #1).
+- No audible click on transient onset (transient must engage 3 ms attack smoothly).
+- Smooth release tail (50 ms post-peak; verify `releaseCoeff` math).
+
+**Folded into `--output-chain` mega-mode** (see §22.7).
+
+---
+
+## §22.4 Stereo Width — M/S Topology + Mono-Source Decorrelator + ESCALATION
+
+### §22.4.1 ARCHITECTURE spec vs current voice output
+
+ARCHITECTURE §183–190 + §255 spec:
+
+> Custom — M/S encode → side-gain scale → M/S decode. WIDTH ∈ [0, 2] mapped to side-channel gain. … 0.0 = mono (side = 0), 1.0 = stereo (side = 1.0), 2.0 = 200% wide (side = 2.0, mid clamped to prevent overflow). Body Mix is applied separately to M and S (default 5% drier on side channel) to avoid artificial-sounding stereo body thickness. … Mono path until Stereo Width — all internal DSP is single-channel.
+
+**Critical interaction:** O-Contrabass voice output is mono (`BowedContrabassVoice.cpp:778–783` writes the same `s` value to channel 0 AND channel 1 via `addSample` × 2). Result: **post-`renderNextBlock`, the stereo buffer has `L == R` exactly**. Pure M/S width on `L == R`:
+
+```
+mid  = (L + R) / 2 = L = R
+side = (L - R) / 2 = 0   ← always
+side *= w            = 0   ← always
+out_L = mid + side = L
+out_R = mid - side = L
+```
+
+**WIDTH knob is a no-op** if applied directly to `L == R` mono-cloned output. ARCHITECTURE §269 ("Mono path until Stereo Width") confirms voice output is mono, but ARCHITECTURE §183 ("Custom — M/S encode → side-gain scale → M/S decode") doesn't address how non-zero side content is generated from a mono source.
+
+**Two patterns in the Ouaricon precedent:**
+
+1. **O-Bowed `StereoWidthProcessor.h`:** pure M/S, NO decorrelator. Comment line 28: "Input: already has meaningful stereo from per-string panning + body resonator." O-Bowed has stereo body resonator (different per-channel coefficients) → meaningful side content. **Not applicable to O-Contrabass** which has mono body resonator (BodyResonator.h is mono single-channel per Phase 2.5 design).
+2. **O-Wind `StereoWidth.h`:** allpass decorrelator on R (`makeAllPass(sampleRate, 800.0f, 0.7f)` at line 31) + M/S width. Input: mono voice output cloned to L=R, decorrelator delays/filters R relative to L → meaningful side content → M/S width is musically active. **Directly applicable to O-Contrabass** (matching mono-voice → stereo-width topology).
+
+### §22.4.2 ESCALATION-1 — WIDTH topology decision
+
+**Three options:**
+
+- **Option A — O-Wind allpass decorrelator pattern (recommended):** `juce::dsp::IIR::Filter` with allpass coefficients at 800 Hz / Q=0.7 on R channel; M/S width on the resulting decorrelated stereo. Adds ~10 LOC over pure M/S; preserves zero-latency (allpass is causal, IIR memory ≤ ~20 samples for 800 Hz / Q=0.7 at 48 kHz); makes WIDTH knob musically meaningful on mono voice output.
+- **Option B — Pure M/S, accept WIDTH no-op for v1.0 mono voice**, document as deferred to v1.1 stereo body resonator work. WIDTH knob exists in parameter UI but has no effect at default mono voice. **User-visible regression** (Stage 1 contract said WIDTH was a usable parameter).
+- **Option C — Stereo body resonator** (different coefficients per channel) generating natural stereo image upstream. ARCHITECTURE deviation from current Phase 2.5 mono BodyResonator. Significant scope expansion (re-architect BodyResonator into stereo) — defer to v1.1.
+
+**Research-phase recommendation: Option A (O-Wind allpass decorrelator).**
+
+Reasons:
+- Matches O-Wind pattern precedent (validated in shipping plugin).
+- Preserves PERF-03 zero-latency (allpass is delayless in algorithmic sense; IIR transient is a few-sample group delay, not a sample-rate latency report).
+- Transparent at WIDTH=1.0 (M/S decode at side=1.0 reverses M/S encode exactly; identity mapping, modulo allpass on R). At WIDTH=0.0, output reduces to `mid + 0 = mid = (L_decorr + R_decorr) / 2` — mono mix of L and decorrelated R. Slight comb-filter color from the allpass collapse, but musically acceptable for a "mono" knob position.
+- WIDTH=2.0 doubles side: `mid + 2·side` and `mid - 2·side` — exaggerated stereo, expected user behavior.
+- ~15 LOC net additional vs O-Bowed pure M/S (O-Wind 78 LOC vs O-Bowed 56 LOC; 22 LOC delta).
+
+**Side-effect to verify:** allpass on R channel introduces **phase coherence artifact** at WIDTH=0.0 (the "mono" position is no longer mathematically pure mono — it's the M-channel of the decorrelated stereo). Acceptance bar: WIDTH=0.0 must NOT produce audible comb filtering on default voice content. Render-harness `--output-chain` mode includes WIDTH=0.0 probe at default voice; spectral analysis verifies no notch beyond ±2 dB in 20 Hz – 20 kHz band.
+
+**Plan-phase action:** PLAN rev-13 LOCK Option A; cite O-Wind `StereoWidth.h` as reference; document side-effect verification at R39e.
+
+### §22.4.3 Header design — `Source/DSP/StereoWidth.h`
+
+Direct port of O-Wind `StereoWidth.h` (full file in §22 References). Shared module extraction (`modules/effects/stereo-width`) deferred to v1.1 per CONTEXT rev-11 §"Out of scope" line 121.
+
+```cpp
+#pragma once
+#include <juce_dsp/juce_dsp.h>
+
+class StereoWidth
+{
+public:
+    void prepare (double sampleRate, int maxBlockSize)
+    {
+        juce::dsp::ProcessSpec spec {
+            sampleRate,
+            static_cast<juce::uint32> (maxBlockSize),
+            1
+        };
+        decorrelator.prepare (spec);
+        decorrelator.coefficients =
+            juce::dsp::IIR::Coefficients<float>::makeAllPass (sampleRate, 800.0f, 0.7f);
+        widthSmoothed.reset (sampleRate, 0.020);  // 20 ms ramp; matches O-Wind precedent
+    }
+
+    void reset()
+    {
+        decorrelator.reset();
+        widthSmoothed.reset (1.0f);
+    }
+
+    void setWidth (float w)  // [0, 2]; default 1.0
+    {
+        widthSmoothed.setTargetValue (juce::jlimit (0.0f, 2.0f, w));
+    }
+
+    void processBlock (juce::AudioBuffer<float>& buffer)
+    {
+        if (buffer.getNumChannels() < 2)
+            return;
+
+        const int numSamples = buffer.getNumSamples();
+        auto* L = buffer.getWritePointer (0);
+        auto* R = buffer.getWritePointer (1);
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            // Mono voice writes L == R. Decorrelate R via allpass to generate
+            // meaningful side content from mono source.
+            const float mono = L[i];
+            const float left  = mono;
+            const float right = decorrelator.processSample (mono);
+
+            // M/S width.
+            const float w = widthSmoothed.getNextValue();
+            const float mid  = (left + right) * 0.5f;
+            const float side = (left - right) * 0.5f * w;
+
+            L[i] = mid + side;
+            R[i] = mid - side;
+        }
+    }
+
+private:
+    juce::dsp::IIR::Filter<float> decorrelator;
+    juce::SmoothedValue<float> widthSmoothed { 1.0f };
+};
+```
+
+**LOC budget:** ~50 LOC NEW (header-only).
+
+**Determinism:** `juce::dsp::IIR::Filter` is deterministic (verified at Phase 2.5 R37d 3-trial bit-stability for body resonator IIR bank — same JUCE class). `juce::SmoothedValue<float>` deterministic. HR-style determinism preserved.
+
+**Latency:** allpass IIR introduces frequency-dependent group delay (~few samples around 800 Hz center). `setLatencySamples()` should NOT be incremented — allpass group delay is not algorithmic latency in the JUCE/PERF-03 sense (matches O-Wind precedent which reports zero latency).
+
+### §22.4.4 Width pre-flight render-harness probe
+
+R39 design: `--stereo-width` CLI mode renders 5 probes at WIDTH ∈ {0.0, 0.5, 1.0, 1.5, 2.0} with default voice. Acceptance bars:
+
+- WIDTH=1.0: output peak ≤ voice peak + 0.5 dB (decorrelator may slightly boost transient peaks but not catastrophically).
+- WIDTH=0.0: spectral content within ±2 dB of voice spectrum in 20 Hz – 20 kHz (verify allpass-collapse comb is benign).
+- WIDTH=2.0: max(|L|, |R|) ≤ ceiling enforced by limiter upstream (limiter must catch any side-doubling overshoot).
+- Click-free WIDTH automation 0% → 200% (Gate 8a invariant #2).
+
+**Folded into `--output-chain` mega-mode** (see §22.7).
+
+### §22.4.5 ARCHITECTURE §190 "Body Mix applied separately to M and S" — DEFERRED
+
+ARCHITECTURE §190 spec:
+
+> Body Mix is applied separately to M and S (default 5% drier on side channel) to avoid artificial-sounding stereo body thickness.
+
+This requires the body resonator to be aware of M/S decomposition and apply different mix factors per channel. Current Phase 2.5 BodyResonator is mono single-bank — no channel awareness. **Defer to v1.1** as stereo-body-resonator work. Phase 2.6a uses single body-mix path (current Phase 2.5 behavior).
+
+**Plan-phase action:** PLAN rev-13 §"Out of scope" line item: "ARCHITECTURE §190 stereo body-mix splitter — deferred to v1.1 stereo body resonator work."
+
+---
+
+## §22.5 Parameter-spec.md Amendment — `MASTER_SAT_AMOUNT` + `LIMITER_CEILING_DB`; OUTPUT_GAIN/OUTPUT_LEVEL Reconciliation
+
+### §22.5.1 Current parameter-spec.md state
+
+`plugins/O-Contrabass/.planning/parameter-spec.md` actual sha (research-phase computed):
+
+```
+77638e255c2adeefdb85ae3b4d4287eecbc63b1313413573f20664990a2025d1
+```
+
+This matches CONTEXT rev-11 line 246 carry-forward (`77638e25…`). **Confirmed authoritative.**
+
+**STALE-COMMENT FINDING:** `plugins/O-Contrabass/Source/PluginProcessor.cpp:8` claims:
+
+```cpp
+// (sha256:c47fe7361a55e1d64b906ef7194894f4a2490744b35a644c76b6e1a632282d0d).
+```
+
+This sha (`c47fe7361a…`) does NOT match the current parameter-spec.md sha (`77638e25…`). The comment is **stale** — likely the Stage-1-close sha before the Phase 2.3 R28 default flips for `VIBRATO_DEPTH` (12.0→0.0) and `EXPRESSION_MACRO` (0.5→0.0), which were Stage-1-contract amendments documented in REQUIREMENTS.md `<!--` history but not propagated into the source comment.
+
+**Plan-phase action:** R39d updates the comment in `PluginProcessor.cpp:8` to the post-Phase-2.6a sha (computed at R39e). Combined with `MASTER_SAT_AMOUNT` + `LIMITER_CEILING_DB` additions, this is a **single contract-amendment-with-sha-bump** at R39d.
+
+### §22.5.2 Naming reconciliation — OUTPUT_GAIN vs OUTPUT_LEVEL
+
+**Current code (PluginProcessor.cpp:54):** parameter ID is `OUTPUT_GAIN`, display name is `"Output Level"`. Voice consumes via `parameters->getRawParameterValue("OUTPUT_GAIN")` (BowedContrabassVoice.cpp:805).
+
+**Current parameter-spec.md (line 19):** `OUTPUT_GAIN | Output Level | Float | -60.0 - 12.0 | 0.0 | dB`. Matches code.
+
+**CONTEXT rev-11 line 57:** "`OUTPUT_LEVEL` already declared per BRIEF.md (−inf to +12 dB, default 0 dB)". The CONTEXT typo'd `OUTPUT_LEVEL` as the parameter ID; the actual ID is `OUTPUT_GAIN`. This is a CONTEXT-document inconsistency, not a code bug.
+
+**Resolution:** parameter ID stays `OUTPUT_GAIN` (frozen contract per PluginProcessor.cpp:9 "IDs are a frozen contract; renaming breaks DAW automation persistence"). Display name stays "Output Level". CONTEXT-document typo is informational; no code change. **No parameter-spec.md amendment needed for OUTPUT_GAIN/OUTPUT_LEVEL** — only the additions in §22.5.3 and the sha-bump.
+
+### §22.5.3 New parameter additions
+
+Two NEW parameters at Phase 2.6a R39d:
+
+```cpp
+// -- Output Chain (Phase 2.6a additions) --
+layout.add(std::make_unique<APF>(juce::ParameterID{"MASTER_SAT_AMOUNT", 1}, "Master Saturator",
+    NR(0.0f, 1.0f, 0.001f),            0.50f));  // 50% wet/dry default per CONTEXT rev-11 §"Phase 2.6a"
+layout.add(std::make_unique<APF>(juce::ParameterID{"LIMITER_CEILING_DB", 1}, "Limiter Ceiling",
+    NR(-6.0f, 0.0f, 0.01f),            -0.3f));  // -0.3 dBFS per CONTEXT rev-11 Q4 LOCKED
+```
+
+parameter-spec.md amendment authoring (R39d):
+
+1. Add new section `### Output Chain (Phase 2.6a additions)` after `### Output` section (between current line 70 `WIDTH` and line 72 `### Microtonal Tuning`).
+2. Lines:
+   - `MASTER_SAT_AMOUNT | Master Saturator | Float | 0.0 - 1.0 | 0.50 | - | Wet/dry mix of polynomial x − x³/3 saturator (Phase 2.6a). Soft-clip at ~−3 dBFS. Default 50%.`
+   - `LIMITER_CEILING_DB | Limiter Ceiling | Float | -6.0 - 0.0 | -0.3 | dB | Zero-latency feedforward limiter ceiling (Phase 2.6a). 3 ms attack / 50 ms release per CONTEXT rev-11 Q4. Default -0.3 dBFS.`
+3. Update `## Parameter Count Summary`:
+   - `Output Chain (Phase 2.6a): 2` (NEW row between `Output: 1` and `Microtonal: 3`)
+   - `Total: 31` (was 29; +2)
+4. Add `## Audit Trail` (NEW final section, mirroring REQUIREMENTS.md `<!--` precedent):
+
+```
+## Audit Trail
+
+### Stage 1 → Phase 2.6a (parameter-spec contract amendments)
+
+- Phase 2.3 R28 (2026-04-29): VIBRATO_DEPTH default flipped 12.0 → 0.0 (HR-1 short-circuit; Phase 2.2 strict byte-equal regression bar). EXPRESSION_MACRO default flipped 0.50 → 0.0 (Q7a). Sha bump deferred (informally tracked in this section); next sha-bump at Phase 2.6a R39d (next contract amendment).
+- Phase 2.6a R39d (2026-05-XX): NEW MASTER_SAT_AMOUNT + LIMITER_CEILING_DB per CONTEXT rev-11 §"Phase 2.6a — Output chain" + Q4 LOCKED limiter ceiling. Total parameter count 29 → 31.
+```
+
+5. Compute new sha post-edit; update comment in `PluginProcessor.cpp:8` from `c47fe7361a…` to new sha.
+
+**Plan-phase action:** PLAN rev-13 R39d task body specifies the 5-step amendment sequence verbatim.
+
+### §22.5.4 Parameter-spec.md NormalisableRange precedent
+
+`MASTER_SAT_AMOUNT` matches existing 0–1 NR pattern (BOW_NOISE, BODY_MIX precedent — `NR(0.0f, 1.0f, 0.001f)`).
+
+`LIMITER_CEILING_DB` is a dB-range parameter; precedent is `OUTPUT_GAIN` with `NR(-60.0f, 12.0f, 0.1f)` — flat linear. For ceiling, recommended skew=1.0 (linear, no skew) since the [-6, 0] dB range is small enough that perceptual log-skew isn't needed. Step 0.01 dB matches REFERENCE_PITCH precision precedent.
+
+---
+
+## §22.6 PluginProcessor Wire-Up — Master Chain Integration + OUTPUT_GAIN Relocation
+
+### §22.6.1 Current PluginProcessor::processBlock state (Phase 2.5 baseline)
+
+`PluginProcessor.cpp:165–179`:
+
+```cpp
+void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                             juce::MidiBuffer& midiMessages)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
+
+    buffer.clear();
+    synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+}
+```
+
+After `synth.renderNextBlock`, `buffer` contains stereo mono-cloned voice output (channel 0 == channel 1) with `OUTPUT_GAIN` already applied at voice-side (BowedContrabassVoice.cpp:778 `s = voiceBuffer.getSample(0, i) * kVoiceNorm * outputGainLinear`).
+
+### §22.6.2 ARCHITECTURE chain ordering vs current voice-side OUTPUT_GAIN
+
+ARCHITECTURE §249–258 master chain:
+
+```
+[Body Resonator] → [Bow Noise Generator] → [Master Saturator] → [Limiter] → [Stereo Width] → [Output Gain] → Stereo Out
+```
+
+OUTPUT_GAIN is the **final** stage AFTER Stereo Width.
+
+**Current voice-side application** (BowedContrabassVoice.cpp:778) places OUTPUT_GAIN BEFORE saturator/limiter/width. This **inverts** the architectural ordering.
+
+**Musical consequence:** if OUTPUT_GAIN stays voice-side, user lowering OUTPUT_GAIN by −12 dB attenuates the signal **before** the master saturator → saturator never engages → user loses tone color when dimming the volume. User raising OUTPUT_GAIN by +6 dB drives saturator harder → tone gets crunchier as user increases volume. Both behaviors are user-confusing for a "master volume" knob.
+
+**Resolution: relocate OUTPUT_GAIN application to processor-level POST-StereoWidth.** This is a Phase 2.6a sub-task at R39d:
+
+1. Remove `* outputGainLinear` from BowedContrabassVoice.cpp:778 (becomes `s = voiceBuffer.getSample(0, i) * kVoiceNorm`).
+2. Remove `outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);` at BowedContrabassVoice.cpp:828 (no longer voice-side).
+3. Remove `outputLevel = parameters->getRawParameterValue ("OUTPUT_GAIN")->load();` at BowedContrabassVoice.cpp:805 (no longer voice-side).
+4. Remove `outputGainLinear` member variable in BowedContrabassVoice.h.
+5. Add `juce::SmoothedValue<float> outputGainSmoothed { 1.0f };` to PluginProcessor.h.
+6. Initialize `outputGainSmoothed.reset(sampleRate, 0.030);` in `prepareToPlay`.
+7. In `processBlock`, AFTER `stereoWidth.processBlock(buffer);`, set target from APVTS and apply per-sample gain ramp:
+
+```cpp
+const float gainTarget = juce::Decibels::decibelsToGain(
+    parameters.getRawParameterValue("OUTPUT_GAIN")->load());
+outputGainSmoothed.setTargetValue(gainTarget);
+
+const int numSamples = buffer.getNumSamples();
+const int numChans = buffer.getNumChannels();
+for (int i = 0; i < numSamples; ++i)
+{
+    const float g = outputGainSmoothed.getNextValue();
+    for (int ch = 0; ch < numChans; ++ch)
+        buffer.getWritePointer(ch)[i] *= g;
+}
+```
+
+**Golden re-baseline consequence:** moving OUTPUT_GAIN from voice-side to processor-level changes the signal entering the master saturator (voice output now at full amplitude × kVoiceNorm without OUTPUT_GAIN scaling). At default OUTPUT_GAIN=0 dB (linear 1.0), the math is bit-equivalent (multiplying by 1.0 commutes with all upstream linear ops). At non-default OUTPUT_GAIN values, signal differs. **All Phase 2.5 goldens were rendered at OUTPUT_GAIN=0 dB default**, so re-baseline is bit-equivalent for the voice-side relocation alone — golden bytes only change because of the NEW master saturator + limiter + width chain.
+
+**Verification at R39e:** render `note-sequence.wav` with default-state APVTS values BUT with MASTER_SAT_AMOUNT=0.0 + LIMITER_CEILING_DB=0.0 + WIDTH=1.0 (saturator bypass + limiter at 0 dBFS = effectively bypass + width=identity). Expect **bit-identical** to Phase 2.5 `note-sequence.wav.sha256`. If sha matches, OUTPUT_GAIN relocation is bit-clean; non-bit-equality at default would expose a subtle bug.
+
+### §22.6.3 PluginProcessor::processBlock NEW chain (Phase 2.6a target)
+
+Pseudocode:
+
+```cpp
+void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                             juce::MidiBuffer& midiMessages)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
+
+    buffer.clear();
+    synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // Phase 2.6a — Master chain (Steps 10–13 per ARCHITECTURE §249–258):
+
+    // Step 10: Master Saturator (polynomial x − x³/3, wet/dry mix).
+    masterSaturator.setAmount(parameters.getRawParameterValue("MASTER_SAT_AMOUNT")->load());
+    masterSaturator.processBlock(buffer);
+
+    // Step 11: Zero-latency feedforward limiter (3 ms attack / 50 ms release).
+    masterLimiter.setCeilingDb(parameters.getRawParameterValue("LIMITER_CEILING_DB")->load());
+    masterLimiter.processBlock(buffer);
+
+    // Step 12: Stereo width (allpass decorrelator + M/S width).
+    stereoWidth.setWidth(parameters.getRawParameterValue("WIDTH")->load());
+    stereoWidth.processBlock(buffer);
+
+    // Step 13: Output Gain (relocated from voice-side; ARCHITECTURE §258 final stage).
+    const float gainTarget = juce::Decibels::decibelsToGain(
+        parameters.getRawParameterValue("OUTPUT_GAIN")->load());
+    outputGainSmoothed.setTargetValue(gainTarget);
+
+    const int numSamples = buffer.getNumSamples();
+    const int numChans = buffer.getNumChannels();
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float g = outputGainSmoothed.getNextValue();
+        for (int ch = 0; ch < numChans; ++ch)
+            buffer.getWritePointer(ch)[i] *= g;
+    }
+}
+```
+
+**Header additions** (`PluginProcessor.h`):
+
+```cpp
+#include "DSP/MasterSaturator.h"
+#include "DSP/MasterLimiter.h"
+#include "DSP/StereoWidth.h"
+
+// ... in class private section:
+MasterSaturator masterSaturator;
+MasterLimiter masterLimiter;
+StereoWidth stereoWidth;
+juce::SmoothedValue<float> outputGainSmoothed { 1.0f };
+```
+
+**`prepareToPlay` additions:**
+
+```cpp
+masterSaturator.prepare(sampleRate);
+masterLimiter.prepare(sampleRate);
+stereoWidth.prepare(sampleRate, samplesPerBlock);
+outputGainSmoothed.reset(sampleRate, 0.030);
+outputGainSmoothed.setCurrentAndTargetValue(
+    juce::Decibels::decibelsToGain(parameters.getRawParameterValue("OUTPUT_GAIN")->load()));
+```
+
+**`releaseResources` additions:**
+
+```cpp
+masterSaturator.reset();
+masterLimiter.reset();
+stereoWidth.reset();
+outputGainSmoothed.reset(1.0f);
+```
+
+**LOC delta:**
+
+- `PluginProcessor.h`: ~10 LOC NEW (3 includes + 4 member declarations).
+- `PluginProcessor.cpp`: ~30 LOC NEW (prepare + releaseResources + processBlock additions) + ~3 LOC M (header includes already counted in .h).
+- `BowedContrabassVoice.h`: ~3 LOC M (remove `outputGainLinear` member).
+- `BowedContrabassVoice.cpp`: ~5 LOC M (remove OUTPUT_GAIN read + set + apply).
+
+**Total Phase 2.6a source budget: ~370 LOC NEW + ~50 LOC M = ~420 LOC net.**
+
+### §22.6.4 setLatencySamples — PERF-03 invariant verification
+
+PluginProcessor.cpp:155 currently reports oversampler latency from voice. Phase 2.6a master chain components:
+
+- MasterSaturator: 0 latency (memoryless polynomial waveshaper).
+- MasterLimiter: 0 latency (feedforward, no look-ahead per Q4 LOCKED).
+- StereoWidth: 0 latency (allpass decorrelator group delay is not algorithmic latency in JUCE/PERF-03 sense; matches O-Wind precedent).
+- OutputGain: 0 latency (scalar multiply).
+
+**`setLatencySamples` UNCHANGED** from Phase 2.5. PERF-03 invariant holds. Plan-phase R39 acceptance bar: `getLatencySamples()` returns same value pre- and post-Phase-2.6a.
+
+### §22.6.5 RT-safety audit
+
+Per-block operations in NEW master chain:
+
+- 4× `parameters.getRawParameterValue(...)->load()` — atomic read; RT-safe.
+- 4× setter calls (MasterSaturator/Limiter/StereoWidth/outputGainSmoothed) — set target values; RT-safe.
+- 4× `processBlock` calls — pure math on existing buffer; no allocation, no lock; RT-safe.
+
+**No allocations, no locks, no I/O.** PERF-01 invariant preserved. Plan-phase R39 acceptance bar: pluginval-10 `Background thread state` + `Parameter thread safety` PASS.
+
+---
+
+## §22.7 Render-Harness `--output-chain` CLI Mode Design
+
+### §22.7.1 Mode scope
+
+Single `--output-chain` mode covers all four pre-flight probes from §22.2.5 / §22.3.4 / §22.4.4 + the global Gate 8a invariant test. Saves 4 separate CLI modes from cluttering harness `main.cpp`.
+
+**Probes** (concatenated into single output WAV with marker silence):
+
+1. **Saturator amount sweep** (5 sub-probes, ~5 s each = 25 s):
+   - MASTER_SAT_AMOUNT ∈ {0%, 25%, 50%, 75%, 100%} × 4-second sustained E1 default voice. LIMITER_CEILING_DB=-0.3 dBFS, WIDTH=1.0, OUTPUT_GAIN=0 dB.
+2. **Limiter ceiling sweep** (4 sub-probes, ~5 s each = 20 s):
+   - LIMITER_CEILING_DB ∈ {-6, -3, -0.3, 0} dBFS × high-amplitude stress (INFINITE_SUSTAIN=1.0 + SUB_HARMONICS=1.0 + EXPRESSION_MACRO=1.0 + BOW_PRESSURE=8.0 + 4-second sustained E1). MASTER_SAT_AMOUNT=0 (bypass to test limiter alone), WIDTH=1.0, OUTPUT_GAIN=0 dB.
+3. **Width sweep** (5 sub-probes, ~3 s each = 15 s):
+   - WIDTH ∈ {0.0, 0.5, 1.0, 1.5, 2.0} × 2-second sustained E1 default voice. MASTER_SAT_AMOUNT=0, LIMITER_CEILING_DB=0 dBFS (bypass-equivalent), OUTPUT_GAIN=0 dB.
+4. **Click-free automation test** (~10 s):
+   - WIDTH automated 0% → 200% over 5 s with 100 ms hold at endpoints; MASTER_SAT_AMOUNT automated 0% → 100% over 5 s. LIMITER_CEILING_DB=-0.3 dBFS, OUTPUT_GAIN=0 dB. Default voice + 5-second sustained E1.
+5. **Peak-overshoot stress** (~5 s):
+   - High-amplitude stress (per probe 2 settings) + LIMITER_CEILING_DB=-0.3 dBFS, MASTER_SAT_AMOUNT=0% (bypass saturator to test limiter ceiling) + WIDTH=2.0 (max side-amplification stress). 4-second sustained E1.
+
+**Total length:** ~75 s. Render budget: ~75 × 0.29 s/s wall-clock baseline (Phase 2.4c §19.13 reference) = ~22 s wall-clock per render. 3-trial bit-stability = ~66 s × 3 = ~3.5 min total render time per Phase 2.6a sub-cycle.
+
+### §22.7.2 JSON metrics
+
+Per-probe metrics in `output-chain.json`:
+
+```json
+{
+  "metrics": {
+    "saturator_amount_sweep": {
+      "0.0":  { "peak": <float>, "rms": <float>, "thd_at_41hz": <float>, "spectral_tilt_1k_8k_db": <float>, "bit_identical_to_voice": <bool> },
+      "0.25": { "peak": ..., ... },
+      "0.5":  ...,
+      "0.75": ...,
+      "1.0":  ...
+    },
+    "limiter_ceiling_sweep": {
+      "-6":   { "peak": <float>, "ceiling_violation_db": <float, max(0, peak_dBFS - ceiling_dBFS)>, "rms": ... },
+      "-3":   ...,
+      "-0.3": ...,
+      "0":    ...
+    },
+    "width_sweep": {
+      "0.0":  { "peak_l": ..., "peak_r": ..., "side_rms": ..., "spectral_collapse_max_notch_db": <float> },
+      "0.5":  ...,
+      "1.0":  ...,  // expected: spectral identity (within decorrelator transient)
+      "1.5":  ...,
+      "2.0":  ...
+    },
+    "automation_test": {
+      "click_count": <int, threshold = 0>,
+      "max_block_to_block_jump_db": <float, threshold = 1.0 dB>
+    },
+    "peak_overshoot_stress": {
+      "max_peak_db": <float>,
+      "ceiling_dbfs": -0.3,
+      "ceiling_violation_db": <float, must be ≤ 0.05 dB>
+    }
+  }
+}
+```
+
+### §22.7.3 Acceptance bars (Gate 8a invariants)
+
+| Bar | Source | Threshold |
+|-----|--------|-----------|
+| Output peak ≤ ceiling + 0.05 dB | Gate 8a #1 | `peak_overshoot_stress.ceiling_violation_db ≤ 0.05` |
+| Click-free automation | Gate 8a #2 | `automation_test.click_count == 0` AND `max_block_to_block_jump_db ≤ 1.0` |
+| Zero algorithmic latency | Gate 8a #3 | `getLatencySamples()` unchanged from Phase 2.5 |
+| auval + pluginval-10 SUCCESS | Gate 8a #4 | (R39g auditor task) |
+| 14 audible goldens reproduce byte-identical | Gate 8a #5 | (R39f reproduce-goldens.sh PASS at NEW sha256s) |
+
+### §22.7.4 Harness CMakeLists.txt — header-only DSP, no source-list addition
+
+The 3 NEW DSP headers (`MasterSaturator.h`, `MasterLimiter.h`, `StereoWidth.h`) are **header-only** — included by `PluginProcessor.h` and reach the harness via existing `${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp` source-list entry (harness CMakeLists.txt:30–34 already pulls PluginProcessor.cpp in).
+
+`target_include_directories` already includes `${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP` (line 38) — covers the new headers.
+
+**No CMakeLists.txt edits needed for the 3 NEW headers.** This contrasts with Phase 2.5 R37 which had to add `BodyResonator.cpp` to the source list (it had a .cpp file). Phase 2.6a chooses header-only design specifically to avoid Phase 2.5 R37 deviation #1 (harness CMake source-list addition).
+
+**Plan-phase action:** PLAN rev-13 R39e task body documents zero-CMake-edit invariant explicitly.
+
+---
+
+## §22.8 Goldens Strategy — 14 Re-Baseline + 1 NEW + Matrix-Stability Evidence
+
+### §22.8.1 Re-baseline scope (R39e)
+
+All 14 Phase 2.5 audible goldens (per §22.1) **re-baseline** at R39e. Reason: master chain materially shifts every audible signal (saturator wet/dry at 50% default + limiter at -0.3 dBFS + width allpass decorrelator). NEW post-Phase-2.6a sha256s lock at R39e, replace prior-state sha256s in `tests/render-harness/golden/*.wav.sha256`.
+
+**Bit-stability pre-flight** (R39e step 1 of 4): 3-trial render of all 14 goldens; sha256 across trials must match (HR-style determinism on new master chain). If 3-trial bit-stability fails, BLOCK at R39e (investigate determinism bug — likely allpass IIR `juce::Random` mis-seeding or SmoothedValue first-block divergence).
+
+**Saturator-tail-comparison golden re-baseline:** Phase 2.4c-bis R36-bis sha (carry-forward from §21.18) re-baselines at R39e. Bin 64 (or whatever spectral bin saturator-tail tracks) measurement against Phase 2.5 baseline `−25.06 dB` for evidence-extension under §"In-loop saturator" amendment (Phase 2.6a evidence-line: "post-master-chain bin 64 = <X> dB" — does the master saturator + limiter further attenuate or restore the body-coupling tail energy?).
+
+**vibrato.wav re-baseline:** Phase 2.4c-bis sha `df7384e3…` re-baselines. Vibrato is a per-note frequency modulation; master saturator + limiter applied AFTER the vibrato modulation should preserve frequency content (saturator is memoryless polynomial → no time smearing; limiter envelope follower may smear ONLY at limiter engagement points which are absent at default VIBRATO_DEPTH=0.0 → bit-equivalent expected at default).
+
+### §22.8.2 NEW golden — `output-chain.wav` + `.json` + `.json.sha256`
+
+`output-chain.wav` per §22.7.1 (~75 s rendered concatenation of 5 probes + automation test + peak-overshoot stress). `output-chain.json` per §22.7.2 (per-probe metrics).
+
+3-trial bit-stability at R39e step 2 of 4. Lock new sha256 at step 3. `reproduce-goldens.sh` extends from 14 entries to **15 entries** (14 audible + 1 output-chain).
+
+### §22.8.3 Matrix-stability evidence-only re-render
+
+`matrix-stability.wav.sha256 = 6db67707…` and `matrix-stability.json.sha256 = 625505cf…` re-render at R39e step 4 as **evidence-only** (NOT in `reproduce-goldens.sh` per Phase 2.4a R34b precedent). Master chain may shift matrix peaks downward (limiter clamps); zero NEW raucous corners expected (Phase 2.5 baseline 108/108 PASS); HR-style determinism preserved. Evidence archived to `.planning/evidence/phase-2-6a/matrix-stability-post-output-chain.{wav,json}` for ARCHITECTURE-amendment evidence base.
+
+### §22.8.4 13 → 14 → 15 entry reproduce-goldens.sh evolution
+
+| Phase | Entries | Additions |
+|---|---|---|
+| Phase 2.4c | 13 | (existing baseline) |
+| Phase 2.4c-bis R36-bis | 13 | saturator-tail-comparison ADDED → 14 (evidence note: Phase 2.5 carry-forward implicitly drops sha row to use carry-forward — verify at R39-pre tripwire) |
+| Phase 2.5 R37 | 14 | (no entries added; 13 audible + 1 saturator-tail-comparison; 13 of 14 re-baselined) |
+| Phase 2.6a R39 (target) | **15** | + output-chain |
+
+R39e step 5: append `output-chain.wav` row to `reproduce-goldens.sh`.
+
+---
+
+## §22.9 Open Items for Plan-Phase
+
+### §22.9.1 USER-DECISION-REQUIRED escalations
+
+**ESCALATION-1 (§22.4.2 finding — Stereo Width topology):** Recommend Option A (O-Wind allpass decorrelator pattern at 800 Hz / Q=0.7) to make WIDTH knob musically meaningful on mono voice output. Plan-phase action: LOCK Option A in PLAN rev-13 §"Approach Decisions"; cite O-Wind `StereoWidth.h` as reference; require WIDTH=0.0 spectral-collapse comb-notch verification ≤ 2 dB at R39e probe 3 sub-probe `0.0`. **NOT RE-DISCUSSING** — research-phase finding is design-grounded based on existing Ouaricon precedent (O-Wind shipped pattern).
+
+**ESCALATION-2 (§22.3.1 finding — ARCHITECTURE limiter spec divergence):** Recommend Option A (extend §"Master Saturator + Zero-Latency Limiter" amendment-evidence-base with Phase 2.6a evidence). NOT a 4th amendment (Q3 lock respected). Plan-phase action: PLAN rev-13 §"Approach Decisions" acknowledges deviation explicitly; flag in R39 atomic commit body; defer end-of-Stage-2 amendment-text-write to Phase 2.6c verify-phase amendments task per Q7.
+
+**ESCALATION-3 (§22.4.5 finding — ARCHITECTURE §190 stereo body-mix splitter):** ARCHITECTURE §190 ("Body Mix is applied separately to M and S, default 5% drier on side channel") is incompatible with Phase 2.5 mono BodyResonator. Defer to v1.1 stereo-body-resonator work. Plan-phase action: PLAN rev-13 §"Out of scope" line item.
+
+**ESCALATION-4 (§22.5.1 finding — stale parameter-spec sha comment):** `PluginProcessor.cpp:8` comment claims sha `c47fe7361a…`; actual current sha is `77638e25…`. Comment is stale (likely Phase 2.3 R28 default-flip drift). Plan-phase action: R39d updates comment to post-Phase-2.6a sha (computed at R39e amendment).
+
+**ESCALATION-5 (§22.6.2 finding — OUTPUT_GAIN voice-side relocation):** OUTPUT_GAIN currently applied at voice `BowedContrabassVoice.cpp:778` BEFORE master saturator → user volume changes saturator color (musically wrong). Phase 2.6a relocates to processor-level POST-StereoWidth per ARCHITECTURE §258. Bit-equivalent at default OUTPUT_GAIN=0 dB. Plan-phase action: PLAN rev-13 R39d sub-task explicitly lists the 5-line voice-side removal + 7-line processor-side addition.
+
+### §22.9.2 Plan-phase pre-locks (no user intervention needed)
+
+- §22.10 R39 9-task structure verbatim
+- §22.7 `--output-chain` mega-mode design + JSON metrics + acceptance bars
+- §22.4.3 + §22.3.3 + §22.2.4 header designs as starting code (NOT a hard contract — plan-phase may refine signatures, e.g., per-sample API vs block API for MasterSaturator)
+- §22.5.3 parameter-spec.md amendment authoring (5-step sequence)
+- §22.6.3 PluginProcessor::processBlock NEW chain ordering (Steps 10–13)
+- §22.8 goldens strategy (14 re-baseline + 1 NEW + matrix-stability evidence)
+- HR-1..HR-10 carry-forward; NO new HR introduced (HR-12 / HR-13 not required by Phase 2.6a — output chain is downstream of friction junction; no friction-module ABI risk)
+
+### §22.9.3 Plan-phase rev numbering
+
+PLAN rev-13 (supersedes PLAN rev-12 from Phase 2.5).
+
+### §22.9.4 Source-delta budget per R39 tripwire (locked at research-phase)
+
+5 production source files + 0 CMakeLists.txt edits = ~370 LOC NEW + ~50 LOC M = ~420 LOC net:
+
+- `Source/DSP/MasterSaturator.h` (~50 LOC NEW)
+- `Source/DSP/MasterLimiter.h` (~80 LOC NEW)
+- `Source/DSP/StereoWidth.h` (~50 LOC NEW)
+- `Source/PluginProcessor.h` (~10 LOC NEW; 3 includes + 4 member declarations)
+- `Source/PluginProcessor.cpp` (~30 LOC NEW; prepare + releaseResources + processBlock additions; 2 NEW APVTS parameter declarations)
+- `Source/BowedContrabassVoice.h` (~3 LOC M; remove `outputGainLinear` member declaration)
+- `Source/BowedContrabassVoice.cpp` (~5 LOC M; remove OUTPUT_GAIN read + set + apply at lines 805/828/778)
+- `tests/render-harness/main.cpp` (~150 LOC NEW; `--output-chain` mode handler)
+- `plugins/O-Contrabass/.planning/parameter-spec.md` (~30 LOC NEW; 2 parameter rows + Audit Trail section + Total bump 29→31)
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp:8` (1 LOC M; comment sha update)
+
+**No CMakeLists.txt edits** (header-only DSP design; harness CMake unchanged).
+
+---
+
+## §22.10 R39 9-Task Breakdown (LOCKED — verbatim from research-phase)
+
+Pattern: mirrors Phase 2.5 R37 9-task structure (`R37-pre / R37a / R37b / R37c / R37d / R37e / R37f / R38 / R37 atomic` + R37-backfill chore).
+
+### R39-pre (5-check tripwire)
+
+1. `git status` clean against the 8 in-scope source files.
+2. `reproduce-goldens.sh` 14/14 PASS at HEAD (descendant of R37 atomic `907a7c3` + R37-backfill chore `36b89d2`).
+3. Source-tree audit hook clean: no edits in {`O-Bowed/`, `O-Wind/` (except header reference), `modules/synthesis/bow-friction/`, `WaveguideString.cpp`, `DispersionFilter.h`, `SchellengCalibration.h`, `SubHarmonicBias.h`, `BodyResonator.{h,cpp}`, `BowNoiseGenerator.h`}.
+4. Saturator carry-forward verify: `grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` returns `2` (Phase 2.4c-bis port preserved).
+5. Pre-edit grep verification: `MasterSaturator|MasterLimiter|StereoWidth` returns 0 hits in `plugins/O-Contrabass/Source/` (no pre-existing implementations).
+6. Harness builds at HEAD: `cmake --build build --target O-Contrabass-render-test` SUCCESS.
+7. Parameter-spec sha snapshot: `shasum -a 256 plugins/O-Contrabass/.planning/parameter-spec.md` returns `77638e25…` (matches CONTEXT rev-11 line 246).
+
+If any check fails, BLOCK and investigate upstream drift before any source edit.
+
+### R39a (`MasterSaturator.h` NEW per §22.2.4)
+
+- Author header per §22.2.4 design (~50 LOC NEW).
+- Implementation: `processBlock(juce::AudioBuffer<float>&)` block API + `processSample(float)` per-sample API.
+- `setAmount(float)` setter + `juce::SmoothedValue<float>` 30 ms ramp.
+- Wet/dry mix per §22.2.3 Option B.
+- Pre-clamp to [-1.5, +1.5] per ARCHITECTURE §177 verbatim.
+- Build verify: `cmake --build build --target O-Contrabass_VST3` SUCCESS.
+
+### R39b (`MasterLimiter.h` NEW per §22.3.3)
+
+- Author header per §22.3.3 design (~80 LOC NEW).
+- Implementation: ARCHITECTURE §527 algorithm verbatim.
+- Stereo-linked envelope detection (`max(|L|, |R|)`); apply common gain to L and R.
+- 3 ms attack / 50 ms release per CONTEXT Q4 LOCKED.
+- Default ceiling -0.3 dBFS; range [-6, 0] dB.
+- `juce::SmoothedValue<float>` 30 ms ramp on ceiling.
+- Build verify: `cmake --build build --target O-Contrabass_VST3` SUCCESS.
+
+### R39c (`StereoWidth.h` NEW per §22.4.3)
+
+- Author header per §22.4.3 design (~50 LOC NEW).
+- Direct port of O-Wind `StereoWidth.h` pattern.
+- Allpass decorrelator at 800 Hz / Q=0.7 on R channel.
+- M/S width with `juce::SmoothedValue<float>` 20 ms ramp.
+- Default 1.0; range [0, 2].
+- Build verify: `cmake --build build --target O-Contrabass_VST3` SUCCESS.
+
+### R39d (`PluginProcessor.{h,cpp}` M + `BowedContrabassVoice.{h,cpp}` M + parameter-spec.md amendment per §22.5 + §22.6)
+
+- Add 3 `#include "DSP/Master*.h"` + `StereoWidth.h` to PluginProcessor.h.
+- Declare 3 master-chain instances + `outputGainSmoothed` member.
+- Initialize in `prepareToPlay` per §22.6.3 (4 prepare calls + outputGainSmoothed reset/setCurrentAndTargetValue).
+- Reset in `releaseResources`.
+- Wire Steps 10–13 in `processBlock` per §22.6.3 (master saturator → limiter → width → output gain).
+- Add 2 NEW APVTS parameter declarations (`MASTER_SAT_AMOUNT` + `LIMITER_CEILING_DB`) in `createParameterLayout` per §22.5.3.
+- Remove `outputGainLinear` member from BowedContrabassVoice.h.
+- Remove OUTPUT_GAIN read at BowedContrabassVoice.cpp:805 + set at :828 + apply at :778.
+- Update parameter-spec.md per §22.5.3 5-step sequence (NEW Output Chain section + Audit Trail + Total 29→31).
+- Compute new parameter-spec.md sha; update PluginProcessor.cpp:8 comment.
+- Build verify: `cmake --build build --target O-Contrabass_VST3 O-Contrabass_AU` SUCCESS.
+
+### R39e (re-baseline 14 audible goldens + NEW output-chain golden + matrix-stability evidence)
+
+- Step 1: 3-trial bit-stability pre-flight — render all 14 audible goldens 3× ; assert sha256 identical across trials.
+- Step 2: Render `output-chain.wav` per §22.7.1 (5 probes); 3-trial bit-stability; lock NEW sha256.
+- Step 3: Lock 14 NEW post-Phase-2.6a sha256s into `tests/render-harness/golden/*.wav.sha256`.
+- Step 4: Matrix-stability evidence-only re-render → archive to `.planning/evidence/phase-2-6a/matrix-stability-post-output-chain.{wav,json}` (NOT in reproduce-goldens.sh).
+- Step 5: Append `output-chain.wav` row to `reproduce-goldens.sh` (13 → 14 → 15 entries; updated count assertion).
+- Step 6: Saturator-tail-comparison evidence-extension: measure bin 64 post-master-chain; document under §"In-loop saturator" amendment evidence-base (Phase 2.6a evidence-line for end-of-Stage-2 amendment).
+- Step 7: Default-state bit-equality test: render `note-sequence.wav` with MASTER_SAT_AMOUNT=0.0 + LIMITER_CEILING_DB=0.0 + WIDTH=1.0 (effective bypass); expect bit-identical to Phase 2.5 sha (verifies OUTPUT_GAIN relocation is bit-clean).
+
+### R39f (regression bar)
+
+- 15-entry `reproduce-goldens.sh` PASS against NEW post-Phase-2.6a sha256s (14 audible re-baselined + 1 NEW output-chain).
+- 8-file production source audit hook reports EXACTLY {`MasterSaturator.h` NEW + `MasterLimiter.h` NEW + `StereoWidth.h` NEW + `PluginProcessor.{h,cpp}` M + `BowedContrabassVoice.{h,cpp}` M + `tests/render-harness/main.cpp` M}.
+- 0-file CMakeLists.txt audit hook (no CMake edits expected).
+- 1-file parameter-spec.md audit hook (Output Chain section + Audit Trail + Total 31).
+- Saturator carry-forward verify: `grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` returns `2`.
+- BodyResonator + BowNoiseGenerator integration verify: `grep -c BodyResonator plugins/O-Contrabass/Source/BowedContrabassVoice.h` returns `4`; `grep -c BowNoiseGenerator plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` returns `7`.
+- Latency invariant verify: `getLatencySamples()` unchanged from Phase 2.5 (target: still reports oversampler latency from voice).
+
+### R39g (auval + pluginval-10 SUCCESS)
+
+- `auval -v aumu OCbs OuDv` AU VALIDATION SUCCEEDED.
+- `pluginval --strictness-level 10 --validate <O-Contrabass.vst3>` SUCCESS full battery.
+- Specific pluginval probes for Phase 2.6a: `Background thread state` + `Parameter thread safety` (RT-safety on master chain) + `Buffer fuzz tests` + `Click-free automation` (WIDTH 0% → 200% sweep + MASTER_SAT_AMOUNT 0% → 100% sweep).
+
+### R39 atomic commit (single atomic per Phase 2.4c-bis R36-bis precedent)
+
+- All source: 8 files (3 NEW headers + 2 M PluginProcessor + 2 M BowedContrabassVoice + 1 M harness main.cpp).
+- All goldens: 15 sha256 + 15 JSON + 1 informational JSON sha anchor (matrix-stability evidence-only).
+- All planning: parameter-spec.md amendment + RESEARCH §22 verdict + CONTEXT rev-11.a (Phase 2.6a sub-cycle amendment) + PLAN rev-13 + SUMMARY/VERIFICATION/STATUS planning artefacts.
+- Atomic-commit message body: explicit deviation flags for ESCALATION-1 (allpass decorrelator) + ESCALATION-2 (limiter spec evidence-extension under existing amendment) + ESCALATION-5 (OUTPUT_GAIN relocation).
+
+### R39-backfill chore (sha propagation into STATUS.md per R34/R35/R36/R36-bis/R37 precedent)
+
+- Update STATUS.md `phase_2_6a_atomic_sha:` field with R39 atomic commit sha.
+- Append Phase 2.6a verify carry-forward summary to STATUS.md.
+
+**Atomic-commit sequence:** R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 → **R39** (Phase 2.6a) → R40 (Phase 2.6b) → R41 (Phase 2.6c) → Stage 2 verify amendments commit.
+
+**Critical-path note:** R39d (PluginProcessor wire-up + parameter-spec amendment + voice-side OUTPUT_GAIN removal) is the largest scope task (~50 LOC M across 4 files + parameter-spec amendment authoring); plan-phase budgets ~2 hours implementation + 30 min build-verify. R39e render budget: 14 audible × 3 trials × 0.29 s/s wall-clock + matrix-stability 108-combo × 1 trial × ~3 s + output-chain 75 s × 3 trials × 0.29 s/s = ~7 min total. R39g auval/pluginval: ~10 min. R39 atomic commit + R39-backfill: ~10 min.
+
+---
+
+## §22.11 Risk-Surface Refinement for PLAN rev-13
+
+Phase 2.6a starting risk register inherits from CONTEXT rev-11 §"Risk Register" (13 risks; 10 mitigated, 1 expected, 1 expected re-baseline, 1 open). Research-phase adds:
+
+| # | Risk | Trigger | Mitigation | Status |
+|---|------|---------|------------|--------|
+| 14 | WIDTH no-op without decorrelator | Voice writes mono L=R; pure M/S has zero side content | ESCALATION-1 Option A: O-Wind allpass decorrelator pattern; verified at R39e probe 3 sub-probe 0.0 (spectral collapse ≤ 2 dB notch) | Mitigated by Option A LOCK |
+| 15 | ARCHITECTURE limiter spec divergence (release 100→50 ms; threshold −1 → −0.3 dBFS; "2x oversampled" claim incorrect for host-rate chain) | CONTEXT Q4 LOCKED supersedes ARCHITECTURE §177–179 + §540–544 | ESCALATION-2 Option A: extend §"Master Saturator + Zero-Latency Limiter" amendment-evidence-base; NOT a 4th amendment (Q3 lock respected) | Mitigated by Option A LOCK |
+| 16 | OUTPUT_GAIN voice-side application inverts ARCHITECTURE chain ordering | BowedContrabassVoice.cpp:778 applies OUTPUT_GAIN BEFORE master saturator | ESCALATION-5 Option C: relocate to processor-level POST-StereoWidth; bit-equivalent at default 0 dB | Mitigated by R39d relocation |
+| 17 | Stale parameter-spec sha in PluginProcessor.cpp:8 comment (`c47fe7361a…` vs actual `77638e25…`) | Phase 2.3 R28 default-flip drift; never re-synced | ESCALATION-4: R39d updates comment to post-Phase-2.6a sha | Mitigated by R39d |
+| 18 | 14-golden re-baseline scope at R39e | Master chain shifts every audible signal (saturator wet/dry + limiter + decorrelator) | All 14 re-baselined at R39e step 3; 3-trial bit-stability pre-flight; HR-style determinism preserved | Expected (re-baseline planned, not regression) |
+| 19 | Allpass IIR transient at WIDTH=0.0 produces audible comb-filter color | StereoWidth allpass on R channel collapses to L+R/2 differential at WIDTH=0 | R39e probe 3 sub-probe 0.0 spectral verification (max notch ≤ 2 dB) | Open (R39e verification) |
+| 20 | Default voice peak amplitudes overdrive saturator at 50% wet/dry | Matrix-stability post-body peak ≈ 0.351 → saturator-with-Option-B-mix ≈ 0.344 → −0.18 dB, well within budget; but rare drone combos (INFINITE_SUSTAIN=1.0 + SUB_HARMONICS=1.0 + EXPRESSION_MACRO=1.0 + BOW_PRESSURE=8.0) may approach 0.667 saturator output cap | R39e probe 1 + probe 5 verifies; saturator output cap ≤ -3.52 dBFS guarantees ceiling room | Mitigated by saturator output cap math |
+| 21 | parameter-spec.md amendment authoring (FIRST Stage-1 contract amendment in Stage 2) | Phase 2.6a R39d | Q1 LOCKED expected amendment per CONTEXT line 53–57; explicit Audit Trail section + sha-bump audit-trailed | Expected (planned amendment) |
+| 22 | Bit-equivalence at MASTER_SAT_AMOUNT=0 + LIMITER_CEILING_DB=0 + WIDTH=1.0 default-state golden render | If non-bit-equivalent, OUTPUT_GAIN relocation has subtle bug | R39e step 7 explicit bit-equivalence test against Phase 2.5 sha | Open (R39e verification) |
+| 23 | setLatencySamples invariant (PERF-03 zero-latency) | Master chain components all 0-latency by design | R39f explicit `getLatencySamples()` unchanged check | Mitigated by header design |
+| 24 | RT-safety bar at master chain (PERF-01) | NEW master-chain processBlock allocations / locks | All header-only headers; no allocation, no lock, no I/O; pluginval-10 Background thread state + Parameter thread safety verified at R39g | Mitigated by header-only design |
+| 25 | Click-free WIDTH automation 0% → 200% | Gate 8a invariant #2 | 20 ms SmoothedValue ramp on width; 30 ms ramp on MASTER_SAT_AMOUNT + LIMITER_CEILING_DB; pluginval-10 + R39e probe 4 (automation test) verifies | Mitigated by smoothing |
+| 26 | Stereo body-mix splitter ARCHITECTURE §190 deferred | Mono BodyResonator incompatible | ESCALATION-3: defer to v1.1 stereo-body work; NOT in Phase 2.6a scope | Mitigated by deferral |
+
+**26-entry risk register locked** (13 CONTEXT carry-forward + 13 NEW from research). 18 mitigated, 3 expected, 2 open (#19 + #22 — both R39e verification points), 0 deferred-to-execute-phase.
+
+---
+
+## §22.12 Sequencing in PLAN rev-13
+
+PLAN rev-13 supersedes PLAN rev-12 (Phase 2.5). Phase 2.6a sub-cycle plan landing only — Phase 2.6b + Phase 2.6c receive separate PLAN amendments at later sub-cycle plan-phases (PLAN rev-14 / rev-15 OR rev-13 amendments).
+
+**Plan-phase content for PLAN rev-13:**
+
+1. **Preamble** — Phase 2.6a scope, Q1–Q10 LOCKED references, ESCALATION-1..5 acknowledgments.
+2. **Approach Decisions** — explicit design contracts:
+   - MasterSaturator wet/dry mix Option B (§22.2.3)
+   - MasterLimiter Option C hand-written per ARCHITECTURE §527 (§22.3.2)
+   - StereoWidth Option A O-Wind allpass decorrelator (§22.4.2)
+   - OUTPUT_GAIN relocation to processor-level (§22.6.2)
+   - parameter-spec.md amendment 5-step sequence (§22.5.3)
+   - ARCHITECTURE limiter spec evidence-extension under existing amendment (§22.3.1)
+3. **R39 9-Task Breakdown** — verbatim from §22.10.
+4. **Source-Delta Budget** — 8 production source files + 0 CMakeLists.txt edits = ~370 LOC NEW + ~50 LOC M = ~420 LOC net (§22.9.4).
+5. **Goldens Strategy** — 14 re-baseline + 1 NEW + matrix-stability evidence (§22.8).
+6. **Risk Register** — 26 entries (§22.11).
+7. **Gate 8a 5-Invariant Acceptance Bar** — output peak ≤ ceiling + 0.05 dB; click-free WIDTH; PERF-03 zero-latency; auval + pluginval-10 SUCCESS; 14 re-baselined audible goldens reproduce byte-identical.
+8. **Atomic Commit Sequence** — R7 → … → R37 → R39 (Phase 2.6a) → R40 (Phase 2.6b) → R41 (Phase 2.6c).
+9. **Out of Scope** — Phase 2.4-bis backlog (Q2 LOCKED v1.1); ARCHITECTURE §190 stereo body-mix splitter (ESCALATION-3 v1.1); look-ahead limiter (Phase 2.6a-bis if Stage 4 audition reveals harsh transients); chaos detector + softClampState (v1.1).
+10. **References** — §22 References (§22.14).
+
+---
+
+## §22.13 Summary — Phase 2.6a Research Resolution Map
+
+| Open Q | Status | Resolution Path |
+|--------|--------|-----------------|
+| #1 (CONTEXT line 231) Master saturator pre-gain calibration | ✅ RESOLVED | Wet/dry mix Option B (§22.2.3); default 50% lands −0.18 dB at default voice peak; saturator output cap ≤ -3.52 dBFS at any input |
+| #2 (CONTEXT line 231) Limiter implementation choice | ✅ RESOLVED | Option C hand-written per ARCHITECTURE §527 verbatim (§22.3.2); 80 LOC header-only; stereo-linked envelope |
+| #3 (CONTEXT line 231) Stereo width topology | ✅ RESOLVED with ESCALATION | Option A O-Wind allpass decorrelator (§22.4.2); ESCALATION-1 to plan-phase for LOCK |
+| #4 (CONTEXT line 231) R39 task breakdown | ✅ RESOLVED | 9-task structure (R39-pre / R39a..g / R39 atomic / R39-backfill chore) per §22.10 |
+| #5 (CONTEXT line 231) parameter-spec.md amendment author + audit trail | ✅ RESOLVED | 5-step sequence (§22.5.3); MASTER_SAT_AMOUNT + LIMITER_CEILING_DB additions; Audit Trail section NEW; Total 29 → 31 |
+| #6 (research-surfaced) ARCHITECTURE limiter spec divergence | ✅ RESOLVED with ESCALATION | Option A evidence-extension under §"Master Saturator + Zero-Latency Limiter" amendment (§22.3.1); ESCALATION-2 to plan-phase for LOCK |
+| #7 (research-surfaced) Voice writes mono L=R; pure M/S no-op | ✅ RESOLVED via #3 | Allpass decorrelator generates side content from mono (§22.4.1) |
+| #8 (research-surfaced) ARCHITECTURE §190 stereo body-mix splitter | ✅ RESOLVED via deferral | ESCALATION-3 v1.1 stereo-body work (§22.4.5) |
+| #9 (research-surfaced) Stale parameter-spec sha comment | ✅ RESOLVED | ESCALATION-4: R39d updates comment (§22.5.1) |
+| #10 (research-surfaced) OUTPUT_GAIN voice-side ordering inverts ARCHITECTURE | ✅ RESOLVED | ESCALATION-5: relocate to processor-level POST-StereoWidth (§22.6.2); bit-equivalent at default 0 dB |
+| #11 (research-surfaced) Harness CMakeLists.txt source-list | ✅ RESOLVED | Header-only DSP design avoids source-list addition (§22.7.4); contrasts Phase 2.5 R37 deviation #1 |
+| #12 (research-surfaced) Render-harness `--output-chain` mode design | ✅ RESOLVED | 5-probe mega-mode (§22.7.1) + JSON metrics (§22.7.2) + 5 acceptance bars (§22.7.3) |
+| #13 (research-surfaced) 14 → 15 reproduce-goldens.sh evolution | ✅ RESOLVED | R39e step 5 appends `output-chain.wav` row (§22.8.4) |
+
+**13 RESOLVED + 5 ESCALATIONS to plan-phase + 0 DEFERRED-to-execute-phase** = 13/13 questions addressed at research-phase. Five ESCALATIONS are USER-DECISION-REQUIRED routing decisions with research-phase recommendations; plan-phase LOCKS them in PLAN rev-13 §"Approach Decisions" without re-discuss (research findings are design-grounded, not opinion-grounded).
+
+**Plan-phase ready (PLAN rev-13).**
+
+---
+
+## §22.14 References (§22 append)
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/CONTEXT.md` rev-11 (this cycle's discuss artefact, 2026-05-01).
+- `plugins/O-Contrabass/.planning/stages/2-dsp/RESEARCH.md` §21 (Phase 2.5 Body Resonator + Bow Noise Generator; numbering precedent triggering §22 at this append).
+- `plugins/O-Contrabass/.planning/research/ARCHITECTURE.md` §171–180 (§"Master Saturator + Zero-Latency Limiter" — the 3 amendments anchor for end-of-Stage-2 verify).
+- `plugins/O-Contrabass/.planning/research/ARCHITECTURE.md` §183–191 (§"Stereo Width" — M/S spec; §190 stereo body-mix splitter deferred to v1.1).
+- `plugins/O-Contrabass/.planning/research/ARCHITECTURE.md` §249–262 (master chain processing-order diagram).
+- `plugins/O-Contrabass/.planning/research/ARCHITECTURE.md` §527–545 (§"Zero-Latency Feedforward Limiter" algorithm spec).
+- `plugins/O-Contrabass/.planning/parameter-spec.md` (sha `77638e255c2adeefdb85ae3b4d4287eecbc63b1313413573f20664990a2025d1` — Phase 2.6a base; amendment at R39d).
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` lines 8 (stale sha comment `c47fe7361a…`), 54 (OUTPUT_GAIN declaration), 108 (WIDTH declaration), 165–179 (current processBlock baseline).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` lines 778 (OUTPUT_GAIN voice-side application), 805 (OUTPUT_GAIN APVTS read), 828 (outputGainLinear set), 267 ("Body runs at host rate (post 2× downsample)" — confirms master chain at host rate).
+- `plugins/O-Bowed/Source/DSP/StereoWidthProcessor.h` (56 LOC; pure M/S; "Input: already has meaningful stereo from per-string panning + body resonator" — NOT applicable to mono O-Contrabass voice).
+- `plugins/O-Wind/Source/DSP/StereoWidth.h` (78 LOC; allpass decorrelator at 800 Hz / Q=0.7 + M/S width; **APPLICABLE** to O-Contrabass mono voice → Option A LOCK).
+- `plugins/O-Gain/Source/PluginProcessor.h` lines 94–95 (`juce::dsp::BallisticsFilter<float>` precedent; considered as Option B for limiter envelope follower; rejected in favor of Option C hand-written for ARCHITECTURE §527 traceability).
+- `plugins/O-Contrabass/tests/render-harness/CMakeLists.txt` (harness build pattern; reach-back source list; header-only DSP includes covered by `Source/DSP` include path; no Phase 2.6a CMake edit).
+- `plugins/O-Contrabass/tests/render-harness/reproduce-goldens.sh` (14-entry post-Phase-2.5 script; Phase 2.6a evolves to 15 entries at R39e step 5).
+- `plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.{wav,json}.sha256` (`6db67707…` / `625505cf…` — evidence-only goldens; carry-forward; re-render at R39e step 4).
+- HEAD descendant of `1b44efd` (R37 atomic `907a7c3` + R37-backfill `36b89d2`) — production base for Phase 2.6a; tripwire CLEARED at §22.1.
+- ARCHITECTURE.md §190 stereo body-mix splitter deferral — flagged in §22.4.5 / ESCALATION-3 for v1.1 stereo-body work (NOT a Phase 2.6 amendment).
+- ARCHITECTURE.md §177–179 + §540–544 limiter spec divergence — flagged in §22.3.1 / ESCALATION-2 for evidence-extension under §"Master Saturator + Zero-Latency Limiter" amendment at end-of-Stage-2 verify.
+- `plugins/O-Lyrica/Source/HarpSynthVoice.{h,cpp}` (Note Expression integration reference for Phase 2.6c; OUT OF SCOPE for Phase 2.6a — referenced for §23/§24 anchoring).
+
+---

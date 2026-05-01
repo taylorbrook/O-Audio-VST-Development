@@ -775,7 +775,9 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
 
     for (int i = 0; i < numSamples; ++i)
     {
-        float s = voiceBuffer.getSample (0, i) * kVoiceNorm * outputGainLinear;
+        // Phase 2.6a R39d — OUTPUT_GAIN multiplier REMOVED; relocated
+        // processor-side post-StereoWidth (ARCHITECTURE §258 final stage).
+        float s = voiceBuffer.getSample (0, i) * kVoiceNorm;
         s = juce::jlimit (-1.0f, 1.0f, s);
 
         outputBuffer.addSample (0, startSample + i, s);
@@ -802,7 +804,8 @@ void BowedContrabassVoice::updateParametersFromAPVTS()
     // UPPER_SNAKE_CASE per parameter-spec.md (frozen contract).
     float bowPos       = parameters->getRawParameterValue ("BOW_POSITION")->load();
     float infSustain   = parameters->getRawParameterValue ("INFINITE_SUSTAIN")->load();
-    float outputLevel  = parameters->getRawParameterValue ("OUTPUT_GAIN")->load();
+    // Phase 2.6a R39d — OUTPUT_GAIN read REMOVED here; relocated to processor
+    // (ARCHITECTURE §258 final stage; voice writes voice-norm only).
 
     // MPE timbre modulates Y (bow position offset). MPE pressure (Z) is
     // consumed in renderNextBlock Step 6 alongside macro-lifted bow pressure.
@@ -825,7 +828,8 @@ void BowedContrabassVoice::updateParametersFromAPVTS()
         s.setInfiniteSustain (infSustain);
     }
 
-    outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
+    // Phase 2.6a R39d — outputGainLinear set REMOVED; OUTPUT_GAIN is now
+    // applied processor-side post-StereoWidth (ARCHITECTURE §258 final stage).
 
     // Phase 2.5 — push body + bow-noise smoother targets. The smoothers ramp
     // at 30 ms; per-block recompute pattern (BodyResonator.recomputeCoefficients

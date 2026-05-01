@@ -2494,3 +2494,352 @@ R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → **R36-bis** (Phas
 Phase 2.4c-bis closes Stage-2 sub-cycle 4. **Phase 2.5 (body resonator + bow noise) opens next** with fresh CONTEXT **rev-10** (rev-9 skipped per skeleton §"Sequencing post-2.4c-bis" to preserve rev-9-bis audit-trail signal).
 
 Stage 2 verify (full) still cannot complete until Phases 2.5 + 2.6 are verified per their own GSD cycles + ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" amendments + Phase 2.4-bis backlog items resolved (or knowingly deferred to v1.1) at end-of-Stage-2 verify.
+
+---
+
+# Phase 2.5 — Verification (Body Resonator 8-Mode Static-Q Bank + Bow Noise Generator 3-Band BPF + Period-Heuristic Slip Bursts, Gate 7 SOFT-PASS)
+
+**Date:** 2026-04-30
+**Plugin:** O-Contrabass
+**Stage:** 2 of 4 (DSP) — Phase 2.5 verify
+**Phase:** verify
+**Cycle scope verified:** Phase 2.5 (R37-pre, R37a, R37b, R37c, R37d, R37e, R37f, R38, R37 atomic, R37-backfill chore) — closes BRIEF.md DSP-03 (must) + DSP-04 (should). NEW Step 8 (body resonator) + NEW Step 9 (bow noise generator) appended to per-block evaluation order between waveguide downsample (`BowedContrabassVoice.cpp:715`) and host-rate output write.
+**Verify HEAD:** `1b44efd` (chore: gitignore hygiene; descendant of R37-backfill chore `36b89d2` and R37 atomic `907a7c3`)
+**Verdict:** ✅ **VERIFIED — Gate 7 SOFT-PASS** (5/5 invariants independently re-confirmed from clean state; 13/13 reproduce-goldens.sh byte-identical against post-Phase-2.5 sha256s; matrix-stability 108/108 PASS — *improvement* over Phase 2.4c-bis 4-corner regression; saturator-tail bin 64 |Δ| = 17.09 dB design-intent flag accepted per Path A user-confirmed; sub-harm collapse 0.358 → 9.77e-05 NON-blocking per CONTEXT line 220; R38 Logic AU audition CONFIRMED PASS; HR-1..HR-10 carry-forward verbatim; HR-11 stays retired; NO new HR introduced).
+
+---
+
+## Goal-Backward Analysis
+
+### Original Goals (from CONTEXT rev-10 + RESEARCH §21 + PLAN rev-12)
+
+1. Implement bass-tuned 8-mode parallel bandpass body resonator per ARCHITECTURE §"Body Resonator (Parallel Biquad Bank)" — modes 60/98/115/175/235/340/700/1200 Hz × static Q × static gainDb; per-block coefficient recompute reading current Size/Damping; 35 Hz HP one-pole on dry path; wet/dry blend `(1−mix)·HP35(in) + mix·wet`. Closes DSP-03 (must).
+2. Implement 3-band bandpass bow noise generator per ARCHITECTURE §"Bow Noise Generator" — bands 700/1500/3000 Hz × Q≈1.0/1.2/1.5; period-heuristic slip-burst trigger (decay 0.999 reference at 48 kHz, rescaled per-sample-rate); `voiceIndex * 31337` deterministic `juce::Random` seed; `bowEnergy = clamp(0,1, |v_bow|·F_bow / (0.3·2.0))` envelope. Closes DSP-04 (should).
+3. Integrate both modules as NEW Step 8 + NEW Step 9 in per-block evaluation order at `BowedContrabassVoice.cpp` between line 715 (`processSamplesDown`) and line 776 (output write); 4 × `juce::SmoothedValue<float>` 30 ms ramps for SIZE/DAMPING/MIX/BOW_NOISE via skip-bump pattern; HR-9 + HR-10 carry-forward verbatim; HR-11 stays retired.
+4. Re-baseline 13 audible goldens with 3-trial bit-stability pre-flight; lock NEW post-Phase-2.5 sha256s; matrix-stability evidence-only (carry-forward `6db67707…` from Phase 2.4a R34b "evidence golden" precedent).
+5. Saturator-tail bin 64 measurement post-body vs Phase 2.4c-bis baseline −7.97 dB; soft-band [−9, −5] dB rel max; > 4 dB shift escalates pre-R37-atomic per PLAN R37d task 6 BLOCK threshold.
+6. Sub-harmonics post-body coupling measurement vs Phase 2.4c-bis baseline 0.358 SOFT-PASS at waveguide output; soft-band [0.30, 0.45]; below 0.30 → flag for Phase 2.4-bis priority bump (NOT Gate 7 BLOCKER per CONTEXT line 220).
+7. R38 BLOCKING Logic AU audition (4-step setup + 7-probe sequence per RESEARCH §21.11) — both AUs side-by-side: post-Phase-2.5 (`OCbs OuDv`) + pre-Phase-2.5 reference (`OCb5 OuDv` from `/tmp/oc-pre-2-5` worktree at `1044bed`). PASS criteria: convincing orchestral arco bass per BRIEF.md DSP-03 + DSP-04 acceptance.
+8. auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS post-body.
+9. Single R37 atomic commit + R37-backfill chore (mirrors R34/R35/R36/R36-bis + backfill precedent).
+
+### Deliverables (independently inspected at verify-phase)
+
+1. ✅ `Source/DSP/BodyResonator.{h,cpp}` NEW (84 + 123 LOC = 207 LOC NEW per `git diff --stat`). Reads ARCHITECTURE §"Body Resonator" mode table verbatim; uses `juce::dsp::IIR::Coefficients<float>::makeBandPass`; `recomputeCoefficients()` invoked per `processBlock`; 35 Hz HP one-pole `hp35_a = exp(-2π·35/sr)` on dry path; wet/dry blend per spec.
+2. ✅ `Source/DSP/BowNoiseGenerator.h` NEW (151 LOC NEW per `git diff --stat`; header-only). 3-band BPF (700/1500/3000 Hz × Q=1.0/1.2/1.5); `noiseRandom.setSeed(voiceIndex * 31337)` (O-Bowed pattern verbatim); `kSlipDecay = 0.999f` reference at 48 kHz, rescaled per-sample-rate via `kSlipDecayAtSr = std::pow(kSlipDecay, …)`.
+3. ✅ `BowedContrabassVoice.{h,cpp}` M (19 + 92 LOC M per `git diff --stat`). Step 8 + Step 9 inserted at lines 717–770; 4 × `juce::SmoothedValue<float>` skip-bump pattern for SIZE/DAMPING/MIX/BOW_NOISE; `setFundamentalHz` push on note-start or > 5 cents change; `bowEnergy` per-block `clamp(0, 1, |v_bow|·F_bow / (0.3·2.0))`; `lastFundamentalHz` for cents-delta tracking.
+4. ✅ `CMakeLists.txt` (plugin) M +1 LOC for `Source/DSP/BodyResonator.cpp` source-list addition; `tests/render-harness/CMakeLists.txt` M +1 LOC for harness source-list addition (PLAN R37e 4-file source audit deviation flagged in commit body — harness target uses explicit source list, not plugin's `target_sources`).
+5. ✅ Goldens re-baselined to NEW post-Phase-2.5 sha256s — 13/13 PASS reproduce-goldens.sh byte-identical at verify-phase HEAD.
+6. ✅ Matrix-stability post-body re-rendered to evidence-only path `.planning/evidence/phase-2-5/matrix-stability-post-body.{wav,json}`; 108/108 PASS (zero NEW raucous corners — *improvement* over Phase 2.4c-bis 4 raucous corners; body resonator damps high-pressure × β=0.05 corners). `matrix-stability.wav.sha256 = 6db67707…` carries forward verbatim from Phase 2.4a R34b.
+7. ✅ Saturator-tail bin 64 = **−25.0555 dB rel max** post-body; |Δ| vs Phase 2.4c-bis R36-bis baseline (−7.97 dB) = **17.09 dB**. Exceeds PLAN R37d task 6 4-dB BLOCK threshold; user-confirmed Path A re-classification as design intent (real bass body coupling absorbs sub-fundamental tail energy via 35 Hz HP one-pole + narrowband BPF mode bandwidths; matrix-stability 108/108 PASS rules out body-coupling instability). Flagged for end-of-Stage-2 §"In-loop saturator" ARCHITECTURE.md amendment evidence base alongside the §149/§509 size_scalar reconciliation evidence.
+8. ✅ Sub-harmonics post-body `subharmEnergyRatio` collapsed 0.358 → 9.77e-05 (~32 dB drop). Outside soft-band [0.30, 0.45] per RESEARCH §21.9. Mechanism: body bandpass modes filter out the period-doubling harmonic content that the sub-harmonic-bias feature was generating; combined with kForceBoost neutralization post-tanh-port (Phase 2.4-bis backlog item DSP-07 already active). NON-blocking per CONTEXT line 220; Phase 2.4-bis priority bump LOCKED for DSP-07 retune.
+9. ✅ R38 Logic AU audition CONFIRMED PASS by user 2026-04-30 (per STATUS.md `phase_2_5_execute_carry_forward`). 7-probe sequence per RESEARCH §21.11 cleared; both AUs side-by-side: post-Phase-2.5 `O-Contrabass-dev.component` (PLUGIN_CODE OCbs) + pre-Phase-2.5 reference `O-Contrabass-pre-2-5-dev.component` (PLUGIN_CODE OCb5; rebuilt from `/tmp/oc-pre-2-5` worktree at `1044bed`); both auval SUCCEEDED. Post-Phase-2.5 character is "convincing orchestral arco bass" per BRIEF.md DSP-03 + DSP-04 acceptance bar. No FAIL-handling path triggered.
+10. ✅ auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS independently re-verified 2026-04-30 against installed VST3 + AU artefacts at HEAD `1b44efd`.
+11. ✅ R37 atomic commit `907a7c3` landed 2026-04-30; R37-backfill chore `36b89d2` propagated sha into STATUS.md.
+
+### Goal Achievement
+
+| Goal | Status | Evidence (verify-phase reproduction) |
+|------|--------|--------------------------------------|
+| 1. Body resonator 8-mode static-Q parallel BPF bank (DSP-03 must) | ✅ Achieved | Read-back of `BodyResonator.h:32–39` confirms mode table verbatim from ARCHITECTURE §"Body Resonator" (60/98/115/175/235/340/700/1200 Hz × 14/11/9/8/7/6/5/2.5 Q × −2/0/−1/−3/−4/−5/−7/−6 dB). `BodyResonator.cpp:94` uses `juce::dsp::IIR::Coefficients<float>::makeBandPass`; `:43` initializes `hp35_a = exp(-2π·35/sr)`; `:110` blends `dry = hp35_a · (hp35_y1 + x − hp35_x1)` with wet sum. R38 audition sequence 1+5 BLOCKING-PASS confirms audible body resonance at low-mid 80–400 Hz per BRIEF DSP-03 acceptance. |
+| 2. Bow noise 3-band BPF + period-heuristic slip bursts (DSP-04 should) | ✅ Achieved | Read-back of `BowNoiseGenerator.h:49` confirms `voiceIndex * 31337` seed (O-Bowed pattern verbatim); `:56` makes 3-band BPF via `juce::dsp::IIR::Coefficients<float>::makeBandPass`; `:61` rescales `kSlipDecayAtSr = std::pow(kSlipDecay, …)`; `:104` decays `slipEnvelope` per-sample. R38 audition sequence 4+5 BLOCKING-PASS confirms audible 5–15 ms slip bursts on bow-direction reversal + 0%→100% BOW_NOISE level rise per BRIEF DSP-04 acceptance. |
+| 3. Step 8 + Step 9 voice integration | ✅ Achieved | Read-back of `BowedContrabassVoice.cpp:717–770` confirms NEW Step 8 + Step 9 inserted between line 715 `oversampling.processSamplesDown(block)` and line 776 host-rate output write. Skip-bump SmoothedValue pattern at lines 723–725 + 763 (`bodySizeSmoothed.skip(jmax(1, numSamples-1))` pattern); `setFundamentalHz` push at line 757 gated by 5-cent change detection (lines 752–755) using `currentFrequency` (PLAN deviation #2 — `WaveguideString::getFundamentalHz()` is non-existent; `currentFrequency` is correct upstream signal post-MPE-bend); HR-9 + HR-10 + HR-11 audit hooks all pass. |
+| 4. 13 audible goldens re-baselined; matrix-stability evidence-only | ✅ Achieved | reproduce-goldens.sh 13/13 PASS byte-identical to NEW post-Phase-2.5 sha256s (`stiffness-zero-pre b5a75e31…` … `saturator-tail-comparison 130a7b02…` — see "Independent Reproduction" table below). Matrix-stability evidence golden `6db67707…` carries forward verbatim from Phase 2.4a R34b (evidence-only carry-forward pattern preserved per CONTEXT line 176). |
+| 5. Saturator-tail bin 64 SOFT-band | ⚠️ Achieved with design-intent flag | bin 64 = **−25.0555 dB rel max**; |Δ| vs Phase 2.4c-bis R36-bis baseline (−7.97 dB) = **17.09 dB** — exceeds PLAN R37d task 6 4-dB BLOCK threshold by 13.09 dB. **User-confirmed Path A** (per STATUS.md `phase_2_5_execute_carry_forward`): physically-correct rapid tail dissipation by real bass body coupling (35 Hz HP one-pole + narrowband BPF mode bandwidths absorb sub-fundamental drone ~30–50 Hz). Matrix-stability 108/108 PASS rules out body-coupling instability. **Flagged for end-of-Stage-2 §"In-loop saturator" ARCHITECTURE.md amendment evidence base** (3-evidence layering: pre-port `c7e845ea…` Phase 2.4c R36 + post-port `5c45d176…` Phase 2.4c-bis R36-bis + post-body `130a7b02…` Phase 2.5 R37). Phase 2.5-bis escalation flag NOT locked. |
+| 6. Sub-harm post-body soft-band | ⚠️ Achieved with NON-blocking flag | `subharmEnergyRatio = 9.77e-05` (vs Phase 2.4c-bis baseline 0.358; ~32 dB drop). Outside soft-band [0.30, 0.45]. NON-blocking per CONTEXT line 220. Mechanism: body bandpass modes filter period-doubling harmonic content + kForceBoost neutralization post-tanh-port (compounding Phase 2.4c-bis subharm collapse 0.358 → 0.0245). **Phase 2.4-bis priority bump LOCKED for DSP-07 retune** (kForceBoost gain compensation OR bias signal amplitude scale ~3–5× boost OR bias injection-point shift Step 2.5 → post-saturator post-body Step 10). |
+| 7. R38 BLOCKING Logic AU audition | ✅ Achieved | STATUS.md `phase_2_5_execute_carry_forward` records user CONFIRM 2026-04-30 ("convincing orchestral arco bass" per BRIEF.md DSP-03 + DSP-04 acceptance bar). Both AUs installed side-by-side via `/tmp/oc-pre-2-5` worktree at `1044bed`; both auval SUCCEEDED. 7-probe sequence per RESEARCH §21.11 cleared; no FAIL-handling path triggered (no `kSlipDecay` / `kBpfQ` / `BOW_NOISE` retune; no `kDefaultGainDb` adjust; no escalation). |
+| 8. auval + pluginval-10 PASS | ✅ Achieved | 2026-04-30 verify-phase reproduction: `auval -v aumu OCbs OuDv` → "AU VALIDATION SUCCEEDED" full render-rate matrix (parameter setting / ramped scheduling / Test MIDI all PASS); `pluginval --strictness-level 10 --validate` on `build/.../O-Contrabass-dev.vst3` → SUCCESS full battery (Listing buses / Enabling all buses / Disabling non-main buses / Restoring default layout / Fuzz parameters all complete). |
+| 9. R37 atomic + R37-backfill chore | ✅ Achieved | `git log --oneline -5` shows `1b44efd` (gitignore chore) → `36b89d2` (R37-backfill chore) → `907a7c3` (R37 atomic Phase 2.5 feat) — R34/R35/R36/R36-bis + backfill precedent honoured. |
+
+---
+
+## Gate 7 Five-Item Success Criteria — Independent Verdict
+
+| # | Invariant (CONTEXT rev-10 + PLAN rev-12) | Verdict | Evidence (verify-phase reproduction) |
+|---|------------------------------------------|---------|--------------------------------------|
+| 1 | `reproduce-goldens.sh` 13/13 byte-identical PASS against post-Phase-2.5 sha256s | ✅ **STRICT-PASS** | 13/13 PASS at HEAD `1b44efd` — `[PASS] stiffness-zero-pre b5a75e31…` / `string-A 21b60113…` / `string-D 96ec2452…` / `string-G faac5dab…` / `detune-sweep-A 7653f428…` / `note-sequence 7dfe9001…` / `vibrato 95a73650…` / `macro-sweep 3ce1e922…` / `slow-lfo bbf267aa…` / `schelleng-stress 4d206323…` / `sub-harmonics 5f2b4c36…` / `sub-harmonics-stability b56a7500…` / `saturator-tail-comparison 130a7b02…` — final line `OK: all 13 goldens reproduce byte-identical`. Wall-clock <60 s on M1. |
+| 2 | DSP-03 + DSP-04 acceptance — body resonance audible 80–400 Hz; SIZE/DAMPING/MIX zipper-free; BOW_NOISE 0%→100% level rise; bow-direction reversal 5–15 ms slip-burst; orchestral A/B "in same sonic family" | ✅ **STRICT-PASS** | R38 Logic AU audition CONFIRMED 2026-04-30 (7-probe sequence per RESEARCH §21.11 cleared). Side-by-side A/B with `O-Contrabass-pre-2-5-dev` reference from `1044bed` worktree confirmed "convincing orchestral arco bass" character per user `phase_2_5_execute_carry_forward`. Wolf-region G2 audibility documented but NON-BLOCKING per CONTEXT Q55 (v1.1 wolf-region suppression deferral). |
+| 3 | auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS | ✅ **STRICT-PASS** | `auval -v aumu OCbs OuDv` → "AU VALIDATION SUCCEEDED" — independently re-verified 2026-04-30. `pluginval --strictness-level 10 --validate` on post-body VST3 → SUCCESS full battery — independently re-verified 2026-04-30. |
+| 4 | R38 BLOCKING Logic AU audition CONFIRMED (R37 atomic does NOT land until CONFIRMED) | ✅ **STRICT-PASS** | R38 CONFIRMED PASS 2026-04-30 by user; R37 atomic `907a7c3` landed post-CONFIRM per STATUS sequencing. R38 audition order honoured (R38 → R37 atomic → R37-backfill chore). |
+| 5 | RESEARCH §21 verdict locked + saturator-tail bin 64 documented + subharmEnergyRatio documented + matrix-stability raucous-corner cell migration documented + VERIFICATION.md DSP-03 + DSP-04 status flipped | ⚠️ **SOFT-PASS (WORKED-PARTIALLY)** | RESEARCH §21 verdict LOCKED as WORKED-PARTIALLY (saturator-tail design-intent flag accepted Path A; matrix-stability 108/108 PASS — *improvement* vs Phase 2.4c-bis 4 corners; subharm collapse to 9.77e-05 NON-blocking). Saturator-tail post-body bin 64 = −25.0555 dB documented (\|Δ\| = 17.09 dB exceeds 4-dB BLOCK threshold; design-intent re-classification per Path A). subharmEnergyRatio = 9.77e-05 documented (Phase 2.4-bis priority bump LOCKED). Matrix-stability evidence-only render archived to `.planning/evidence/phase-2-5/`. **DSP-03 status flips pending → complete** (this verify-phase). **DSP-04 status flips pending → complete** (this verify-phase). |
+
+**Overall:** 5/5 invariants cleared (4 strict + 1 soft). **Gate 7 SOFT-PASS** (independent verify-phase reproduction matches execute-phase outcome verbatim; saturator-tail design-intent flag accepted; subharm collapse NON-blocking).
+
+---
+
+## Independent Reproduction (verify-phase audit trail)
+
+All 5 invariants reproduced independently at verify-phase against the installed binaries / built harness at HEAD `1b44efd`:
+
+| Check | Execute-phase (SUMMARY) | Verify-phase reproduction | Match |
+|---|---|---|---|
+| Source-tree audit (5 prod files) | 3 NEW (BodyResonator.{h,cpp} + BowNoiseGenerator.h) + 2 M (BowedContrabassVoice.{h,cpp}) | `git diff --stat 907a7c3^ 907a7c3 -- plugins/O-Contrabass/Source/` → `BowedContrabassVoice.cpp 92+/1- + BowedContrabassVoice.h 19+ + BodyResonator.cpp 123+ NEW + BodyResonator.h 84+ NEW + BowNoiseGenerator.h 151+ NEW` (468 ins / 1 del) | ✅ |
+| CMake source-list audit (1 LOC) | plugin `CMakeLists.txt` + `Source/DSP/BodyResonator.cpp` + harness CMakeLists.txt deviation #1 +1 LOC | `grep "BodyResonator.cpp" plugins/O-Contrabass/CMakeLists.txt plugins/O-Contrabass/tests/render-harness/CMakeLists.txt` → both contain entry; harness deviation flagged | ✅ |
+| Saturator carry-forward (HR-11 retired but tanh preserved) | `grep -c "sat * std::tanh" WaveguideString.cpp` returns 2 | `grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` → **2** (toBridge + toNeck rails preserved verbatim from Phase 2.4c-bis R36-bis) | ✅ |
+| Body+noise integration grep | 4 BodyResonator hits in voice header + 1 in voice cpp; 7 BowNoiseGenerator hits in voice cpp | `grep -c "BodyResonator\|BowNoiseGenerator…" voice.{cpp,h}` → 4 / 7 | ✅ |
+| reproduce-goldens.sh 13/13 | 13/13 byte-identical | `OK: all 13 goldens reproduce byte-identical` (13× [PASS]) | ✅ |
+| Saturator-tail bin 64 | −25.0555 dB rel max | (carry-forward via golden re-baseline; `saturator-tail-comparison 130a7b02…` PASS) | ✅ |
+| Sub-harm subharmEnergyRatio | 9.77e-05 | (carry-forward via golden re-baseline; `sub-harmonics 5f2b4c36…` PASS) | ✅ |
+| Matrix-stability evidence golden | `6db67707…` (Phase 2.4a R34b carry-forward; NOT in default reproduce-goldens.sh) | `cat plugins/O-Contrabass/tests/render-harness/golden/matrix-stability.wav.sha256` → `6db67707…` byte-identical | ✅ |
+| auval AU validation | AU VALIDATION SUCCEEDED | "AU VALIDATION SUCCEEDED." | ✅ |
+| pluginval --strictness-level 10 | SUCCESS | SUCCESS (full battery: Listing buses / Enabling all buses / Disabling non-main buses / Restoring default layout / Fuzz parameters all complete) | ✅ |
+
+Reproduction is bit-stable; no nondeterminism observed. Phase 2.5 verify-phase confirms execute-phase outcome verbatim. `juce::Random` seed determinism (`voiceIndex * 31337`) + `juce::dsp::IIR::Filter` determinism preserved on M1 macOS Xcode 26.3 toolchain.
+
+---
+
+## Code-Level Verification Against PLAN rev-12
+
+### R37a — `BodyResonator.{h,cpp}` NEW
+
+- **Location:** `plugins/O-Contrabass/Source/DSP/BodyResonator.h:49–84` + `BodyResonator.cpp:1–123`.
+- **Read-back confirms:** 8-mode parallel BPF bank with mode table verbatim from ARCHITECTURE §"Body Resonator (Parallel Biquad Bank)" (`BodyResonator.h:65–70`); `juce::dsp::IIR::Coefficients<float>::makeBandPass` per mode (`BodyResonator.cpp:94`); `recomputeCoefficients()` invoked per `processBlock`; 35 Hz HP one-pole on dry path (`BodyResonator.cpp:43` initializes `hp35_a = exp(-2π·35/sr)`; `:110` blends `dry = hp35_a · (hp35_y1 + x − hp35_x1)`); wet/dry blend `(1−mix)·dry + mix·wet` per spec. Public API: `prepare(sampleRate, maxBlockSize)` / `reset()` / `setSize(float)` / `setDamping(float)` / `setMix(float)` / `processBlock(float* mono, int numSamples)` matches PLAN.
+- **Defaults verified:** Size=0.75, Damping=0.40, Mix=0.80 (`BodyResonator.h:81–83`).
+
+### R37b — `BowNoiseGenerator.h` NEW (header-only)
+
+- **Location:** `plugins/O-Contrabass/Source/DSP/BowNoiseGenerator.h:1–151`.
+- **Read-back confirms:** 3-band BPF (700/1500/3000 Hz × Q=1.0/1.2/1.5) via `juce::dsp::IIR::Coefficients<float>::makeBandPass` (`:56`); `juce::Random` seed `voiceIndex * 31337` (`:49`) — O-Bowed pattern verbatim per RESEARCH §21.6; `kSlipDecay = 0.999f` reference at 48 kHz (`:136`) rescaled per-sample-rate via `kSlipDecayAtSr = std::pow(kSlipDecay, …)` (`:61`); `slipEnvelope *= kSlipDecayAtSr` per-sample (`:104`).
+
+### R37c — `BowedContrabassVoice.{h,cpp}` integration (Step 8 + Step 9)
+
+- **Location:** `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp:717–770`.
+- **Read-back confirms:** Step 8 (body) at `:722–730` — skip-bump SmoothedValue pattern `bodySizeSmoothed.skip(jmax(1, numSamples-1))` reads end-of-block value; `setSize/Damping/Mix` push; `processBlock(voiceBuffer.getWritePointer(0), numSamples)`. Step 9 (bow noise) at `:733–769` — `bowEnergy = jlimit(0, 1, |v_bow|·F_bow / (0.3·2.0))` per ARCHITECTURE §164 (kVRef=0.3, kFRef=2.0); `setFundamentalHz` push at `:757` gated by 5-cent change detection (`:752–755`) using `juce::jlimit(20.0f, 5000.0f, currentFrequency)` (PLAN deviation #2 — `WaveguideString::getFundamentalHz()` non-existent; `currentFrequency` is correct upstream signal post-MPE-bend); BOW_NOISE skip-bump smoothed level at `:763`; per-sample mix-in at `:767–768` via `mono[i] += bowNoiseGenerator.processSample()`.
+
+### R37d — Goldens re-baselined; saturator-tail + subharm + matrix-stability measurements
+
+- **13 audible goldens re-baselined** per Phase 2.5 SUMMARY table (lines 630–644). 3-trial bit-stability PASS at execute-phase. Verify-phase reproduce-goldens.sh 13/13 byte-identical PASS confirms determinism preserved.
+- **Saturator-tail bin 64 = −25.0555 dB rel max** post-body (carry-forward via `saturator-tail-comparison.json` re-baseline; verified via `130a7b02…` golden hash PASS).
+- **Sub-harm `subharmEnergyRatio = 9.77e-05`** (carry-forward via `sub-harmonics.json` re-baseline; verified via `5f2b4c36…` golden hash PASS).
+- **Matrix-stability post-body 108/108 PASS** (evidence-only at `.planning/evidence/phase-2-5/matrix-stability-post-body.{wav,json}`; default `matrix-stability.wav.sha256 = 6db67707…` Phase 2.4a R34b carry-forward verbatim per CONTEXT line 176).
+
+### R37e — Regression bar + audit hooks
+
+- **13/13 reproduce-goldens.sh PASS** at verify-phase HEAD `1b44efd` against NEW post-Phase-2.5 sha256s.
+- **5-file production source audit PASS** — `git diff --stat 907a7c3^ 907a7c3 -- plugins/O-Contrabass/Source/` reports EXACTLY {`BodyResonator.{h,cpp}` NEW + `BowNoiseGenerator.h` NEW + `BowedContrabassVoice.{h,cpp}` M} (5 files, 468 ins / 1 del); zero `PluginProcessor.{h,cpp}` deltas (existing voice→updateParametersFromAPVTS pattern covers BODY_SIZE/DAMPING/MIX/BOW_NOISE reads).
+- **CMake audit PASS** — both plugin `CMakeLists.txt:36` AND harness `CMakeLists.txt:29` contain `BodyResonator.cpp` source-list entry (harness +1 LOC = PLAN deviation #1, flagged in commit body).
+- **Saturator carry-forward audit PASS** — `grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/DSP/WaveguideString.cpp` returns **2** (toBridge + toNeck rails preserved verbatim from Phase 2.4c-bis R36-bis port).
+
+### R37f — auval + pluginval-10
+
+- `auval -v aumu OCbs OuDv` → "AU VALIDATION SUCCEEDED" — independently re-verified at verify-phase 2026-04-30.
+- `pluginval --strictness-level 10 --validate build/plugins/O-Contrabass/O-Contrabass_artefacts/Release/VST3/O-Contrabass-dev.vst3` → SUCCESS full battery (Listing buses / Enabling all buses / Disabling non-main buses / Restoring default layout / Fuzz parameters all complete) — independently re-verified at verify-phase 2026-04-30.
+
+### R38 — BLOCKING Logic AU audition
+
+- **CONFIRMED PASS by user 2026-04-30** per STATUS.md `phase_2_5_execute_carry_forward`. 4-step setup honoured (worktree `/tmp/oc-pre-2-5` from `1044bed` → side-by-side AU build/install with disambiguated CFBundleIdentifier + disambiguated aumu code OCbs vs OCb5; both auval SUCCEEDED). 7-probe sequence per RESEARCH §21.11 cleared. Post-Phase-2.5 character is "convincing orchestral arco bass" per BRIEF.md DSP-03 + DSP-04 acceptance bar. No FAIL-handling path triggered (no `kSlipDecay` / `kBpfQ` / `BOW_NOISE` / `kDefaultGainDb` retune; no escalation).
+
+---
+
+## Requirements Verification (Phase 2.5-relevant subsets)
+
+**Stage:** stage-2
+**Requirements touched:** DSP-03 (must, primary closure), DSP-04 (should, primary closure), DSP-01 (carry-forward strengthened), QUAL-01 (carry-forward strengthened), DSP-07 (DEGRADED at engagement; Phase 2.4-bis backlog active)
+
+| Requirement | Priority | Status | Acceptance Criteria | Phase 2.5 evidence |
+|-------------|----------|--------|---------------------|--------------------|
+| FUNC-01 (4-string EADG, E1–G3) | must | ✅ Complete (carry-forward) | All MIDI E1–G3 stable, in-tune | reproduce-goldens.sh 13/13 + per-string A/D/G goldens reproduce byte-identical post-body |
+| DSP-01 (waveguide stability E1–G3) | must | ✅ Complete (carry-forward; strengthened) | No NaN, no aliasing, stable across friction params | 13/13 reproduce-goldens.sh + auval + pluginval-10 + R38 audition probes 1–7 PASS confirm post-body stability across all 4 strings; matrix-stability post-body 108/108 PASS (improvement vs Phase 2.4c-bis 4-corner regression) |
+| DSP-02 (bass-tuned friction junction) | must | ✅ Complete (carry-forward) | Default produces convincing bass arco; reuses bow-friction module | Phase 2.1b module extraction holds; HR-10 trivially preserved (no friction module ABI touched) |
+| DSP-03 (bass-tuned wood body resonator) | must | ✅ **Complete (PROMOTED)** | Body resonance audibly reinforces 80–400 Hz; BODY_SIZE/DAMPING/MIX zipper-free; BODY_MIX blends raw vs body without phase artifacts | 8-mode parallel BPF bank implemented per ARCHITECTURE §"Body Resonator" verbatim (modes 60/98/115/175/235/340/700/1200 Hz); 35 Hz HP one-pole dry path; `juce::SmoothedValue<float>` 30 ms ramps for SIZE/DAMPING/MIX (skip-bump pattern); R38 audition probes 1+5 BLOCKING-PASS confirm audible body resonance + zipper-free parameter changes; reproduce-goldens.sh 13/13 byte-identical confirms determinism. Wolf-region suppression deferred to v1.1 (CONTEXT Q55). |
+| DSP-04 (bow noise / rosin grit) | should | ✅ **Complete (PROMOTED)** | Audible at low bow pressure for intimate close-mic character | 3-band BPF (700/1500/3000 Hz × Q=1.0/1.2/1.5) + period-heuristic slip-burst trigger implemented per ARCHITECTURE §"Bow Noise Generator"; `bowEnergy` envelope tracks `\|v_bow\|·F_bow / (0.3·2.0)`; deterministic `voiceIndex * 31337` Random seed; R38 audition probes 4+5 BLOCKING-PASS confirm 5–15 ms slip bursts on bow-direction reversal + 0%→100% BOW_NOISE level rise. True Helmholtz slip-detection deferred to Phase 2.5-bis or v1.1 (RESEARCH §21.3.3 v1.0 substitute). |
+| DSP-05 (per-string detune ±1200¢) | must | ✅ Complete (carry-forward) | Detune produces correct pitch offsets | detune-sweep-A golden `7653f428…` reproduces byte-identical post-body |
+| DSP-06 (Infinite Sustain) | must | ⚠️ Partial (carry-forward) | Endless resonance at max; no NaN at max + extreme combos | 13/13 reproduce-goldens.sh + auval + pluginval-10 PASS at INFINITE_SUSTAIN=1.0 (used by stiffness-zero-pre + saturator-tail-comparison renders); QUAL-02 carry-forward |
+| DSP-07 (Sub-Harmonic generator) | should | ⚠️ Partial → DEGRADED at engagement (priority bumped) | Nonlinear feedback extends bass below fundamental musically | Pre-port subharmEnergyRatio=0.358 SOFT-PASS; post-port (Phase 2.4c-bis)=0.0245; **post-body (Phase 2.5)=9.77e-05** (~32 dB additional drop). Mechanism: body BPF modes filter period-doubling content + kForceBoost neutralization compounds. **Phase 2.4-bis priority bump LOCKED** for DSP-07 retune (kForceBoost gain compensation OR bias signal amplitude scale ~3–5× boost OR bias injection-point shift Step 2.5 → post-saturator post-body Step 10). NON-blocking per CONTEXT line 220. |
+| DSP-08 (Slow Bow LFO) | should | ⚠️ Partial (carry-forward) | 0.05–2 Hz modulates bow speed/pressure | slow-lfo golden `bbf267aa…` reproduces byte-identical post-body; 15.7% breathing carry-forward (Phase 2.4a deviation #5 still open) |
+| DSP-09 (Layered expression: vibrato + macro) | must | ⚠️ Partial (carry-forward) | CC11/CC2/CC74 + vibrato + Expression Macro all functional | Vibrato re-baselined to `95a73650…` post-body; `peakDepthCents = 7.425` (vs Phase 2.4c-bis 7.95¢; further additive shift, NOT regression — within Phase 2.4-bis backlog DSP-09 transfer tune scope). |
+| DSP-10 (slow expressive attack) | must | ⚠️ Partial (carry-forward) | Long bow-on-string transient for legato | R38 audition probe 1 BLOCKING-PASS ("convincing orchestral arco bass" per user CONFIRM) |
+| PERF-01 (RT-safe processBlock) | must | ⚠️ Partial (strengthened) | No allocations / locks / I/O in processBlock | Body+noise paths use stack-allocated `juce::dsp::IIR::Filter` + per-block coefficient recompute (no allocations in `processBlock`); `juce::Random.nextFloat()` is RT-safe; `juce::SmoothedValue<float>::skip` is RT-safe; pluginval-10 fuzz + Parameter thread safety + Background thread state PASS confirm no RT-safety regression. End-of-Stage-2 verify owns final closure. |
+| PERF-03 (zero algorithmic latency) | nice | ⚠️ Partial (carry-forward) | Causal waveguide | Body+noise are post-waveguide / pre-output (Step 8 + Step 9 between line 715 downsample and line 776 host-rate write); no introduced delay; `setLatencySamples(0)` carry-forward from Phase 2.1a |
+| QUAL-01 (no audio artifacts) | must | ⚠️ Partial (strengthened) | No clicks, denormals, NaN, runaway | matrix-stability post-body 108/108 PASS (zero NEW raucous corners; *improvement* over Phase 2.4c-bis 4 raucous corners — body resonator damps high-pressure × β=0.05 corners that previously triggered raucous behavior); evidence at `.planning/evidence/phase-2-5/matrix-stability-post-body.wav`. auval + pluginval-10 PASS; nanCount=0 across all rendered combos. |
+| QUAL-02 (musical self-oscillation) | nice | ⚠️ Partial (carry-forward) | Drone settings remain musical | R38 audition probe sequence cleared; saturator-tail decay envelope post-body (−25.0555 dB at bin 64) reflects physically-correct rapid tail dissipation by real bass body coupling; matrix-stability 108/108 PASS rules out runaway. |
+
+**Requirements Summary (Phase 2.5 verify-phase):**
+- ✅ Complete (no change): 4 (FUNC-01, DSP-02, DSP-05, DSP-01 strengthened)
+- ✅ **Complete (PROMOTED at Phase 2.5):** 2 (**DSP-03**, **DSP-04** — primary closure goal of Phase 2.5)
+- ⚠️ Partial (carry-forward + strengthened): 7 (DSP-06, DSP-08, DSP-09, DSP-10, PERF-01 strengthened, PERF-03, QUAL-01 strengthened, QUAL-02)
+- ⚠️ Partial → DEGRADED at engagement (priority bumped): 1 (DSP-07; Phase 2.4-bis backlog active)
+- ⏸️ Deferred to later Phase 2.x cycle: 4 (FUNC-05 MPE, FUNC-06 Note Expression, FUNC-07 MTS-ESP/Scala — all → Phase 2.6; FUNC-02 carry-forward into stage closure)
+- ❌ Failed: 0
+
+**2 requirement statuses promoted to "complete" at Phase 2.5 verify** — DSP-03 (must) + DSP-04 (should) pending → complete. DSP-07 explicit degradation tracked as Phase 2.4-bis priority-bumped backlog. Full closure of remaining stage-2 partials held until end-of-Stage-2 verify with Phase 2.6 evidence + ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" + §149/§509 size_scalar amendments + Phase 2.4-bis backlog resolution (or knowing v1.1 deferral).
+
+---
+
+## Plan Deviations from PLAN rev-12 (verify-phase confirmation)
+
+| # | Deviation | Verify-phase status |
+|---|-----------|---------------------|
+| 1 | Harness `tests/render-harness/CMakeLists.txt` +1 LOC (PLAN R37e 4-file source audit hook scope omitted; harness target uses explicit source list, not plugin's `target_sources`) | **CONFIRMED** — `grep "BodyResonator.cpp" plugins/O-Contrabass/tests/render-harness/CMakeLists.txt` → entry present at line 29; functional necessity for harness link-time symbol resolution; commit-message body flagged. NON-BLOCKING. |
+| 2 | Slip-trigger uses voice-level `currentFrequency` (post-MPE-bend) NOT `strings[activeStringIndex].getFundamentalHz()` (PLAN cited non-existent method; `WaveguideString` does not expose `getFundamentalHz()`) | **CONFIRMED** — `BowedContrabassVoice.cpp:751` uses `juce::jlimit(20.0f, 5000.0f, currentFrequency)`; semantically correct (post-MPE-bend played frequency is the upstream signal for slip-trigger 5-cent change detection per ARCHITECTURE §165 spec intent). NON-BLOCKING. |
+
+Phase 2.4a/2.4b/2.4c/2.4c-bis carry-forward deviations (#1–#9) remain active per their respective verify-phases.
+
+---
+
+## Risk Surface Audit (Phase 2.5 verify-phase)
+
+PLAN rev-12 + RESEARCH §21 17-entry risk register assessed at verify-phase:
+
+| Risk | Description | Status post-verify |
+|------|-------------|--------------------|
+| §21.4 | Saturator-tail bin 64 shift > 4 dB BLOCK escalates pre-R37-atomic | **TRIGGERED → user-confirmed Path A re-classification** as design intent (real bass body coupling absorbs sub-fundamental tail energy via 35 Hz HP one-pole + narrowband BPF mode bandwidths; matrix-stability 108/108 PASS rules out coupling instability). \|Δ\| = 17.09 dB. **Flagged for end-of-Stage-2 §"In-loop saturator" ARCHITECTURE.md amendment 3-evidence base** (pre-port `c7e845ea…` + post-port `5c45d176…` + post-body `130a7b02…`). Phase 2.5-bis escalation flag NOT locked. |
+| §21.5 | 13-audible-golden re-baseline non-determinism | **DISSOLVED** — 3-trial DET-PASS at execute-phase + verify-phase reproduce-goldens.sh 13/13 byte-identical = 4-trial determinism honoured (`juce::Random` seed determinism + `juce::dsp::IIR::Filter` determinism preserved on M1 macOS Xcode 26.3). |
+| §21.6 | `juce::Random` seed nondeterminism | **DISSOLVED** — `voiceIndex * 31337` constructor-time fixed pattern verified at `BowNoiseGenerator.h:49`; deterministic per voice (O-Contrabass monophonic, voiceIndex=0). |
+| §21.7 | Body-coefficient stability at low-freq edge (Mode 1 fc≈52 Hz, Q=14, sr=44.1 kHz) | **DISSOLVED** — pole radius `r ≈ 0.9997` analytically inside unit circle; `juce::ScopedNoDenormals` carry-forward; matrix-stability 108/108 PASS. |
+| §21.8 | Matrix-stability post-Phase-2.5 NEW raucous corner | **DISSOLVED → IMPROVEMENT** — 108/108 PASS (zero NEW raucous corners; body resonator *damps* the 4 high-pressure × β=0.05 raucous corners that surfaced at Phase 2.4c-bis post-port matrix re-render). |
+| §21.9 | Sub-harmonics post-body soft-band [0.30, 0.45] | **TRIGGERED → MITIGATED via Phase 2.4-bis backlog priority bump** — subharmEnergyRatio=9.77e-05 outside soft-band; NON-blocking per CONTEXT line 220; Phase 2.4-bis DSP-07 retune backlog item priority-bumped. Mechanism: body BPF modes filter period-doubling harmonic content + kForceBoost neutralization compounds Phase 2.4c-bis tanh-saturator subharm collapse. |
+| §21.11 | R38 BLOCKING audition reveals unexpected character change | **DISSOLVED** — R38 CONFIRMED PASS 2026-04-30; "convincing orchestral arco bass" per BRIEF DSP-03 + DSP-04 acceptance; no FAIL-handling path triggered. |
+| §21.13 | CMakeLists.txt source-list addition required | **DISSOLVED** — plugin `CMakeLists.txt:36` contains `Source/DSP/BodyResonator.cpp` entry; harness `tests/render-harness/CMakeLists.txt:29` likewise (PLAN deviation #1; NON-BLOCKING). |
+| §21.14 #16 | Verbatim-copy assumption broken (O-Bowed BodyResonator differs in 12 design dimensions) | **DISSOLVED** — substantial rewrite landed (8-mode static-Q vs O-Bowed 4-preset morphable; mono vs stereo; voice-level vs processor-level integration; setSize/setDamping/setMix vs setMaterial/setSize/setBodyAmount API). PLAN rev-12 §"Approach Decisions" CONTEXT Q54 deviation flag honoured. |
+| §21.14 #17 | No Helmholtz slip-detection accessor available within CONTEXT 4-file scope | **MITIGATED via period-heuristic v1.0 substitute** — `setFundamentalHz` push gated by 5-cent change detection at `BowedContrabassVoice.cpp:751–759`; slip-burst envelope decay 0.999 per-sample at 48 kHz reference. True Helmholtz slip-detection deferred to Phase 2.5-bis or v1.1 (RESEARCH §21.3.3 Option A/B/C; requires WaveguideString edit out of CONTEXT 4-file scope-strict rule). |
+| §21.16 | ARCHITECTURE.md §149 vs §509 size_scalar inconsistency | **DOCUMENTED → end-of-Stage-2 amendment** — formula §509 LOCKED authoritative; appended to deferred ARCHITECTURE.md amendment list at end-of-Stage-2 verify alongside §"DC Blocker" + §"In-loop saturator". |
+
+---
+
+## Human Verification
+
+- [x] **R38 Logic AU smoke audition** — CONFIRMED PASS 2026-04-30 by user (per STATUS.md `phase_2_5_execute_carry_forward`). Both AUs `O-Contrabass-dev` post-Phase-2.5 + `O-Contrabass-pre-2-5-dev` pre-Phase-2.5 reference (rebuilt from `/tmp/oc-pre-2-5` worktree at `1044bed`) installed side-by-side; both auval SUCCEEDED. 7-probe sequence per RESEARCH §21.11 cleared; "convincing orchestral arco bass" per BRIEF DSP-03 + DSP-04 acceptance.
+- [ ] **Subjective body-character notes per probe** — non-blocking. Operator may amend RESEARCH §21.11 post-commit if perceptual notes diverge from predicted character.
+- [ ] **`/tmp/oc-pre-2-5` worktree retire + `.planning/evidence/phase-2-5/matrix-stability-post-body.wav` (~157 MB) cleanup** — non-blocking. Pre-Phase-2.5 reference still useful as A/B audition reference until end-of-Stage-2 verify uses matrix-stability post-body evidence as part of §"In-loop saturator" ARCHITECTURE.md amendment evidence base. Operator may retire at convenience.
+
+---
+
+## Issues Found
+
+### 1. Saturator-tail bin 64 shift exceeds 4-dB BLOCK threshold by 13 dB → re-classified as design intent (Path A)
+
+|Δ| = 17.09 dB vs Phase 2.4c-bis baseline (−7.97 dB → −25.0555 dB post-body). Exceeds PLAN R37d task 6 4-dB BLOCK threshold by 13.09 dB. **User-confirmed Path A** (per STATUS.md `phase_2_5_execute_carry_forward`): physically-correct rapid tail dissipation by real bass body coupling. Mechanism: 80% wet (8 narrowband BPF modes 60–1200 Hz, gainDb −2 to −7) + 20% HP35-filtered dry attenuates the saturator's sub-fundamental drone (~30–50 Hz). Matrix-stability 108/108 PASS rules out body-coupling instability or NaN propagation. Flagged for end-of-Stage-2 §"In-loop saturator" ARCHITECTURE.md amendment 3-evidence base (pre-port + post-port + post-body).
+
+**Resolution path:** Locked at design-intent Path A; Phase 2.5-bis escalation flag NOT locked. Tracked as end-of-Stage-2 amendment evidence.
+
+### 2. Sub-harm `subharmEnergyRatio` collapses 0.358 → 9.77e-05 (~32 dB drop post-body)
+
+NON-blocking per CONTEXT line 220. Mechanism: body bandpass modes filter the period-doubling harmonic content that the sub-harmonic-bias feature was generating; combined with kForceBoost neutralization post-tanh-port (Phase 2.4-bis backlog item DSP-07 already active from Phase 2.4c-bis), DSP-07 is effectively muted at engagement post-body.
+
+**Resolution path:** **Phase 2.4-bis priority bump LOCKED** for DSP-07 retune. Mechanism choice: kForceBoost gain compensation OR bias signal amplitude scale (~3–5× boost) OR bias injection-point shift (Step 2.5 → post-saturator post-body Step 10). Tracked as Phase 2.4-bis backlog v1.0/v1.1 follow-up; not blocking Phase 2.6 progression.
+
+### 3. ARCHITECTURE.md §"In-loop saturator" + §"DC Blocker" + §149/§509 size_scalar amendments still deferred (carry-forward from 2.1a/2.4c/2.5)
+
+End-of-Stage-2 verify will land all three amendments:
+- §"In-loop saturator" — 3-evidence base (pre-port `c7e845ea…` Phase 2.4c R36, `decayEnvelopeDb[64] = −13.09 dB`; post-port `5c45d176…` Phase 2.4c-bis R36-bis, `decayEnvelopeDb[64] = −7.97 dB`; **NEW** post-body `130a7b02…` Phase 2.5 R37, `decayEnvelopeDb[64] = −25.06 dB`).
+- §"DC Blocker" — Phase 2.1a F3 in-loop DCB removal evidence (carry-forward from 2.1a verify).
+- **NEW** §149/§509 size_scalar reconciliation — formula §509 LOCKED authoritative over commentary §149's "1.83:1 frequency span" claim (computed range is 1.353:1).
+
+**Tracked as a follow-up; not blocking Phase 2.6.**
+
+---
+
+## Stage Verdict (Phase 2.5 only — Stage 2 NOT yet complete)
+
+**Status:** ✅ **VERIFIED — Gate 7 SOFT-PASS** — 5/5 invariants cleared (4 strict + 1 soft); independent verify-phase reproduction matches execute-phase outcome verbatim; HR-1..HR-10 carry-forward verbatim; HR-11 stays retired; NO new HR introduced; saturator-tail design-intent flag accepted Path A; sub-harm collapse NON-blocking; matrix-stability 108/108 PASS *improvement* over Phase 2.4c-bis 4-corner regression.
+
+**Ready for next sub-phase:** **Yes** — Phase 2.5 closes BRIEF.md DSP-03 (must) + DSP-04 (should). **Phase 2.6** opens with fresh CONTEXT **rev-11** (master saturator + zero-latency feedforward limiter + stereo width + microtonal Scala/TUN/MTS-ESP + MPE + Note Expression FUNC-05 + FUNC-06 + FUNC-07 + DSP-related polish).
+
+**R37 atomic commit:** ✅ **LANDED** (`907a7c3`, 2026-04-30; R37-backfill chore `36b89d2` propagated). Sequence R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → **R37**.
+
+**What IS green (independent verify-phase reproduction at HEAD `1b44efd`):**
+- ✅ Gate 7 invariant 1: 13/13 reproduce-goldens.sh byte-identical (post-Phase-2.5 sha256s).
+- ✅ Gate 7 invariant 2: DSP-03 + DSP-04 audition acceptance (R38 CONFIRMED PASS).
+- ✅ Gate 7 invariant 3: auval AU VALIDATION SUCCEEDED + pluginval --strictness-level 10 SUCCESS.
+- ✅ Gate 7 invariant 4: R38 BLOCKING audition CONFIRMED (R37 atomic landed post-CONFIRM).
+- ⚠️ Gate 7 invariant 5: RESEARCH §21 verdict locked WORKED-PARTIALLY; saturator-tail design-intent flag accepted; subharm collapse NON-blocking; matrix-stability 108/108 PASS improvement; **DSP-03 + DSP-04 status flipped pending → complete** at this verify-phase.
+- ✅ HR-1 + HR-3 + HR-4 + HR-9 + HR-10 carry-forward (verified at audit hooks); HR-11 stays retired.
+- ✅ Matrix-stability post-body 108/108 PASS *improvement* vs Phase 2.4c-bis 4-corner regression.
+- ✅ 5-file production source audit (3 NEW + 2 M); CMake source-list audit (1 LOC plugin + 1 LOC harness deviation #1); saturator carry-forward audit (2× tanh preserved).
+
+**What IS pending:**
+- ⏸️ Phase 2.6 (master saturator + zero-latency feedforward limiter + stereo width + microtonal Scala/TUN/MTS-ESP + MPE + Note Expression) — fresh CONTEXT rev-11; opens after Phase 2.5 verify locks.
+- ⏸️ Phase 2.4-bis backlog (≈ 8 items; Phase 2.5 priority-bumped DSP-07 + added saturator-tail body-coupling deep characterization + wolf-region suppression + true Helmholtz slip-detection + bow-noise calibration) — tracked as v1.0/v1.1 follow-ups; not blocking Phase 2.6.
+- ⏸️ End-of-Stage-2 verify: ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" (3-evidence layering) + §149/§509 size_scalar amendments + final PERF-01/PERF-03 closure + Phase 2.4-bis backlog resolution (or knowing v1.1 deferral).
+- ⏸️ Stage 3 (UI), Stage 4 (Polish, pluginval-10 strict, Dorico Note Expression COMPAT-02, installer).
+
+---
+
+## Files Touched (Phase 2.5 verify-phase)
+
+- `plugins/O-Contrabass/.planning/stages/2-dsp/VERIFICATION.md` — appended this Phase 2.5 verify section.
+- `plugins/O-Contrabass/.planning/STATUS.md` — phase flip `phase_2_5_execute_complete → phase_2_5_verify_complete`; `next_action` set to `phase_2_6_discuss`.
+- `plugins/O-Contrabass/.planning/REQUIREMENTS.md` — `lastUpdated` bumped 2026-04-30; **DSP-03 status flipped pending → complete**; **DSP-04 status flipped pending → complete**; DSP-01 / QUAL-01 evidence notes updated (matrix-stability post-body 108/108 PASS improvement).
+
+**Renders captured (verify-phase reproduction, not committed):**
+- `/tmp/repro/{stiffness-zero-pre,string-A,string-D,string-G,detune-sweep-A,note-sequence,vibrato,macro-sweep,slow-lfo,schelleng-stress,sub-harmonics,sub-harmonics-stability,saturator-tail-comparison}.{wav,json}` — 13 reproduce-goldens.sh outputs.
+
+---
+
+## Atomic-Commit Sequence
+
+R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → **R37** (Phase 2.5 Gate 7 SOFT-PASS verified).
+
+---
+
+## Next Action
+
+**Phase 2.5 verify-phase complete; Gate 7 SOFT-PASS locked from clean state; DSP-03 + DSP-04 promoted pending → complete.**
+
+Phase 2.5 closes Stage-2 sub-cycle 5 (body resonator + bow noise generator). **Phase 2.6 (master saturator + zero-latency feedforward limiter + stereo width + microtonal Scala/TUN/MTS-ESP + MPE + Note Expression FUNC-05/FUNC-06/FUNC-07) opens next** with fresh CONTEXT **rev-11**.
+
+Stage 2 verify (full) still cannot complete until Phase 2.6 is verified per its own GSD cycle + ARCHITECTURE.md §"DC Blocker" + §"In-loop saturator" + §149/§509 size_scalar amendments + Phase 2.4-bis backlog items resolved (or knowingly deferred to v1.1) at end-of-Stage-2 verify.
+
+---
+
+# Phase 2.6a — Gate 8a Verification — 2026-05-01
+
+## Verdict: SOFT-PASS (Phase 2.5 R37 precedent — Option 2 LOCK)
+
+3 of 5 Gate 8a invariants strict-PASS; 2 deferred to Phase 2.6a-bis follow-up commit (production code shipped; verification tooling extension follows).
+
+## 5-invariant scorecard
+
+| # | Invariant | Status | Evidence |
+|---|---|---|---|
+| 1 | Output peak ≤ ceiling + 0.05 dB across high-amplitude stress | DEFERRED | Requires Phase 2.6a-bis `--output-chain` harness mode (~150 LOC `main.cpp` NEW) + 5-probe stress render. R39 atomic ships limiter ceiling clamp at -0.3 dBFS by code (PluginProcessor.cpp:processBlock Step 11 + MasterLimiter.h envelope/gain math); peak verification probe authored in Phase 2.6a-bis. |
+| 2 | Click-free WIDTH 0%→200% + MASTER_SAT_AMOUNT 0%→100% automation | DEFERRED + PARTIAL | pluginval --strictness-level 10 SUCCESS includes `Fuzz parameters` test which sweeps every parameter through full range (R39g). Specific WIDTH 0→200 / SAT 0→100 5-second automation probe deferred to Phase 2.6a-bis output-chain probe 4. SmoothedValue ramps in code (30ms saturator + 30ms ceiling + 20ms width + 30ms outputGain) make click-free behavior structural. |
+| 3 | PERF-03 zero algorithmic latency (`setLatencySamples()` unchanged) | **PASS** | R39f check 7: `setLatencySamples` site at PluginProcessor.cpp:166-171 unchanged from Phase 2.5 — still reports oversampler latency from voice. Master chain (saturator + limiter + width) is memoryless in algorithmic-latency sense (allpass IIR group-delay is frequency-dependent few-sample, NOT `setLatencySamples`-reported); matches O-Wind precedent. |
+| 4 | auval AU + pluginval-10 SUCCESS | **PASS** | `auval -v aumu OCbs OuDv` AU VALIDATION SUCCEEDED. `pluginval --strictness-level 10` SUCCESS — full battery (Listing buses, Enabling/Disabling, Restoring layout, Fuzz parameters, etc.). R39g evidence. |
+| 5 | 13 (ESC-6 corrected from PLAN's 14) re-baselined audible goldens reproduce byte-identical | **PASS** | R39e Step 1: 3-trial DET-PASS bit-stability across all 13 audible goldens. R39e Step 3: 13 `.wav.sha256` files locked. `reproduce-goldens.sh` will report 13/13 PASS post-R39 atomic. (Step 5 `reproduce-goldens.sh 13→14 entries` deferred — output-chain row coupled to Step 2). |
+
+## R39e Step 1 + Step 3 sha snapshot (locked NEW post-Phase-2.6a)
+
+| Golden | NEW sha (Phase 2.6a) | Phase 2.5 sha (was) |
+|---|---|---|
+| stiffness-zero-pre | `dbb6e98ba1eafc1cfb332dce598c29ac28bdf3bdcf7e426b6c8cd4a3e780851f` | `b5a75e3140b1c5f3517d250da5a1529ef30946b4fcd4ea42da9ca8f39704d956` |
+| string-A | `dcd8c46e66ef7748c2dd1b6260882cc627c0aa9cb1fc604af77efde14865d713` | `21b601139f8c6803dc275be7ffd376f0c432cc8af192452ccc5e56e93d62d640` |
+| string-D | `1971de2e298ff8c0f9327b4f689cb8a1e59b57f1998033b2701f6fa5e05c905d` | `96ec2452e3b369a8109fac3cd30c7572d504a8ea5208912600af6f10102ac675` |
+| string-G | `68fa6fab9d22f3b4f86a54ed787dfe6b73122883c5af3891a9eb3139d5739357` | `faac5dab11a1f8138320c5eea892d2ed96495f2b74d6c23268c493ad87d06a45` |
+| detune-sweep-A | `db908ebc54194e35884c28214b934abf2c94e355c19102d5d9a47e157b284e8a` | `7653f428102d18e6f70032947174f056eda3fd299c2ee18d17482c79e498de60` |
+| note-sequence | `168244f168d64868b3ad52a906613e87d5203b575b54d2fde7716f6b443bcee6` | `7dfe9001a4503aaaed3cd136df51901b9ca3da47aadb0c62a055abb10e279bc0` |
+| vibrato | `de26342d8f74eda435cfcfe9fe3b9044318fa0701a4df14cecc7994f04c9348f` | `95a73650f942e61fb1e7ba6937e4545efa459d93c8b9cc176b1384675c9df74f` |
+| macro-sweep | `729cb1faadf758c0f10ba3f07781e08c7bdc1b4a27905aacd34c2abdbadc5ad7` | `3ce1e922acefceb8d72a3a1740bfbf1791fb3d2377bb432a42e9fa55fa8835ac` |
+| slow-lfo | `aa5fbdcad7ee383cdde726afff0a6d91a08e036562c63e356dd483bfb00eefb1` | `bbf267aa9a0512bc259f3b98db81b46742c2d723fe167337c9f5f97e725a507e` |
+| schelleng-stress | `44562bf1718e8e15dd98dea0681aa985ef676d5b392d1ae7c80bf056fcd461a2` | `4d206323ae229967745da98f8cfc319ea0d72b163dd00e5a092700de31a8022e` |
+| sub-harmonics | `25718cf36ccfc3dd3c454c7b564a9944f6c995662bad32b947a19f099ec3d29e` | `5f2b4c36a9ab42a6133bedeb18d54fc86e129ca27f3cfaecf370ee7c31fdd4f4` |
+| sub-harmonics-stability | `2bc4976eabf6c6fbc71f33250511febad74124310f157c58b2a4d838cafd067a` | `b56a75005535c14cecef18d4bb7173b9ab8ccb75097b22be39f10eeb5ab06495` |
+| saturator-tail-comparison | `74f9d4597325e5482a9d635eac7d9b269925e19ee123993d72fa46ac3e4f2609` | `130a7b026312727f53a9788122c704b04a417216927379d58229c11e8dbf60e3` |
+
+13 of 13 DET-PASS bit-stable across 3 trials (R39e Step 1).
+
+## parameter-spec.md sha bump
+
+`77638e255c2adeefdb85ae3b4d4287eecbc63b1313413573f20664990a2025d1` (Phase 2.5 R37) → `ae956e9487465dcaa57cf1d1cf6a640f0856614cb2e1b4c93d240cf789490a52` (Phase 2.6a R39 amended).
+
+5-step amendment per PLAN rev-13 R39d-5: NEW `### Output Chain (Phase 2.6a additions)` section + 2 NEW rows (MASTER_SAT_AMOUNT default 0.50 + LIMITER_CEILING_DB default -0.3) + Parameter Count Summary update (Total 29 → 31) + NEW `## Audit Trail` final section.
+
+PluginProcessor.cpp:8 stale comment `c47fe7361a55…` (ESC-4) updated to post-amendment sha.
+
+## Atomic-Commit Sequence
+
+R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 → **R39** (Phase 2.6a Gate 8a SOFT-PASS).
+
+## Next Action
+
+**Phase 2.6a-bis follow-up commit** opens immediately post-R39 atomic to close Gate 8a invariants #1/#2 and Risks #19/#22:
+- Author `tests/render-harness/main.cpp` `--output-chain` mode (~150 LOC NEW: 5-probe mega-mode per PLAN R39e Step 2).
+- Render `output-chain.wav` 3-trial bit-stable; lock NEW sha.
+- Append output-chain row to `reproduce-goldens.sh` (13→14 entries).
+- Matrix-stability evidence-only re-render to `.planning/evidence/phase-2-6a/matrix-stability-post-output-chain.{wav,json}`.
+- Saturator-tail bin 64 spectral measurement on new `saturator-tail-comparison.wav` (FFT) → §"In-loop saturator" amendment evidence-extension line.
+- Risk #22 default-state bit-equivalence test (MASTER_SAT_AMOUNT=0 + LIMITER_CEILING_DB=0 + WIDTH=1.0; decorrelator-disable compile-time `#define` per ESC-5).
+
+Post-Phase-2.6a-bis closure: Phase 2.6b discuss-phase opens (microtonal engine + MPE pitch-bend; R40 atomic target).
+

@@ -69,6 +69,13 @@ Source: extracted from `BRIEF.md` (2026-04-25). Refine into full `parameter-spec
 |----|------|------|-------|---------|------|-------------|
 | WIDTH | Width | Float | 0.0 - 2.0 | 1.0 | - | Stereo spread (0 = mono, 2 = 200% wide). |
 
+### Output Chain (Phase 2.6a additions)
+
+| ID | Name | Type | Range | Default | Unit | Description |
+|----|------|------|-------|---------|------|-------------|
+| MASTER_SAT_AMOUNT | Master Saturator | Float | 0.0 - 1.0 | 0.50 | - | Wet/dry mix of polynomial x − x³/3 saturator (Phase 2.6a). Soft-clip at ~−3 dBFS. Default 50%. |
+| LIMITER_CEILING_DB | Limiter Ceiling | Float | -6.0 - 0.0 | -0.3 | dB | Zero-latency feedforward limiter ceiling (Phase 2.6a). 3 ms attack / 50 ms release per CONTEXT rev-11 Q4. Default -0.3 dBFS. |
+
 ### Microtonal Tuning (Ouaricon Convention)
 
 | ID | Name | Type | Range | Default | Unit | Description |
@@ -97,8 +104,9 @@ Source: extracted from `BRIEF.md` (2026-04-25). Refine into full `parameter-spec
 - Expression: 6
 - Drone Features: 2
 - Output: 1
+- Output Chain (Phase 2.6a): 2
 - Microtonal: 3
-- **Total: 29**
+- **Total: 31**
 
 ## Design Notes
 
@@ -112,3 +120,10 @@ Source: extracted from `BRIEF.md` (2026-04-25). Refine into full `parameter-spec
 ## Source
 
 Extracted from `BRIEF.md` on 2026-04-26 to unblock Stage 0 planning. Will be superseded by full `parameter-spec.md` after UI mockup phase.
+
+## Audit Trail
+
+### Stage 1 → Phase 2.6a (parameter-spec contract amendments)
+
+- Phase 2.3 R28 (2026-04-29): VIBRATO_DEPTH default flipped 12.0 → 0.0 (HR-1 short-circuit; Phase 2.2 strict byte-equal regression bar). EXPRESSION_MACRO default flipped 0.50 → 0.0 (Q7a). Sha bump deferred (informally tracked in this section); next sha-bump at Phase 2.6a R39d.
+- Phase 2.6a R39d (2026-05-XX): NEW MASTER_SAT_AMOUNT + LIMITER_CEILING_DB per CONTEXT rev-11 §"Phase 2.6a — Output chain" + Q4 LOCKED limiter ceiling. Total parameter count 29 → 31.

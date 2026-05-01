@@ -5,7 +5,7 @@
     (Stage 1: Foundation — APVTS shell, silent output, no DSP)
 
     Parameter ID convention: UPPER_SNAKE_CASE per parameter-spec.md
-    (sha256:c47fe7361a55e1d64b906ef7194894f4a2490744b35a644c76b6e1a632282d0d).
+    (sha256:ae956e9487465dcaa57cf1d1cf6a640f0856614cb2e1b4c93d240cf789490a52).
     This differs from sibling plugins (which use lowerCamelCase) — IDs are
     a frozen contract; renaming breaks DAW automation persistence.
 
@@ -108,6 +108,12 @@ OContrabassAudioProcessor::createParameterLayout()
     layout.add(std::make_unique<APF>(juce::ParameterID{"WIDTH", 1},            "Width",
         NR(0.0f, 2.0f, 0.001f),            1.0f));
 
+    // -- Output Chain (Phase 2.6a additions) --
+    layout.add(std::make_unique<APF>(juce::ParameterID{"MASTER_SAT_AMOUNT", 1},  "Master Saturator",
+        NR(0.0f, 1.0f, 0.001f),            0.50f));   // 50% wet/dry default
+    layout.add(std::make_unique<APF>(juce::ParameterID{"LIMITER_CEILING_DB", 1}, "Limiter Ceiling",
+        NR(-6.0f, 0.0f, 0.01f),            -0.3f));   // -0.3 dBFS per CONTEXT rev-11 Q4 LOCKED
+
     // -- Microtonal Tuning (3 params, Ouaricon convention) --
     layout.add(std::make_unique<APF>(juce::ParameterID{"REFERENCE_PITCH", 1},  "Reference Pitch",
         NR(220.0f, 880.0f, 0.01f),         440.0f));
@@ -148,6 +154,14 @@ void OContrabassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
         if (auto* v = dynamic_cast<BowedContrabassVoice*>(synth.getVoice(i)))
             v->prepareToPlay(sampleRate, samplesPerBlock);
 
+    // Phase 2.6a — master output chain prepare.
+    masterSaturator.prepare(sampleRate);
+    masterLimiter.prepare(sampleRate);
+    stereoWidth.prepare(sampleRate, samplesPerBlock);
+    outputGainSmoothed.reset(sampleRate, 0.030);
+    outputGainSmoothed.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(parameters.getRawParameterValue("OUTPUT_GAIN")->load()));
+
     // Report oversampler latency to host (RESEARCH §3.1; CLAUDE.md memory:
     // getLatencySamples() is non-virtual in JUCE 8 — never override; always use
     // setLatencySamples in prepareToPlay).
@@ -159,7 +173,11 @@ void OContrabassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
 
 void OContrabassAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2.
+    // Phase 2.6a — master output chain reset.
+    masterSaturator.reset();
+    masterLimiter.reset();
+    stereoWidth.reset();
+    outputGainSmoothed.reset(1.0f);
 }
 
 void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
@@ -176,6 +194,38 @@ void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     buffer.clear();
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // ─── Phase 2.6a — Master Output Chain ──────────────────────────────────
+    // Voice writes mono L=R clone (no per-voice OUTPUT_GAIN applied).
+    // Chain: Saturator → Limiter → StereoWidth → OUTPUT_GAIN.
+
+    // Step 10: Master Saturator (polynomial x − x³/3, wet/dry mix).
+    masterSaturator.setAmount(parameters.getRawParameterValue("MASTER_SAT_AMOUNT")->load());
+    masterSaturator.processBlock(buffer);
+
+    // Step 11: Zero-latency feedforward limiter (3 ms attack / 50 ms release).
+    masterLimiter.setCeilingDb(parameters.getRawParameterValue("LIMITER_CEILING_DB")->load());
+    masterLimiter.processBlock(buffer);
+
+    // Step 12: Stereo width (allpass decorrelator + M/S width).
+    stereoWidth.setWidth(parameters.getRawParameterValue("WIDTH")->load());
+    stereoWidth.processBlock(buffer);
+
+    // Step 13: Output Gain (relocated from voice-side; ARCHITECTURE §258 final stage).
+    const float gainTarget = juce::Decibels::decibelsToGain(
+        parameters.getRawParameterValue("OUTPUT_GAIN")->load());
+    outputGainSmoothed.setTargetValue(gainTarget);
+
+    {
+        const int numSamples = buffer.getNumSamples();
+        const int numChans   = buffer.getNumChannels();
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float g = outputGainSmoothed.getNextValue();
+            for (int ch = 0; ch < numChans; ++ch)
+                buffer.getWritePointer(ch)[i] *= g;
+        }
+    }
 }
 
 //==============================================================================

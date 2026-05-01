@@ -123,7 +123,8 @@ private:
     // Cached per-block state read from APVTS
     float currentFrequency = 41.2f;        // E1 default
     float effectivePosition = 0.10f;
-    float outputGainLinear = 1.0f;
+    // Phase 2.6a R39d — outputGainLinear member REMOVED; OUTPUT_GAIN is now
+    // applied processor-side post-StereoWidth (ARCHITECTURE §258 final stage).
     float mpeExpression = 1.0f;
 
     // ─── Phase 2.3 — Vibrato + Slow-LFO + EXPRESSION_MACRO state ───────────────

@@ -8,20 +8,20 @@
   "infiniteSustain": 1.0,
   "stringStiffness": -1.0,
   "totalSamples": 882000,
-  "peak": 0.055303305387497,
+  "peak": 0.055275112390518,
   "nanCount": 0,
   "infCount": 0,
-  "rmsMid_s5_s6": 0.003239349694923,
-  "rmsFinal_lastSecond": 0.002591006923467,
-  "rmsRatio_final_over_mid": 0.799854040145874,
-  "blockMicros_median": 67.915999999999997,
-  "blockMicros_max": 190.125,
-  "blockTime_max_over_median": 2.799413981977737,
+  "rmsMid_s5_s6": 0.003238028148189,
+  "rmsFinal_lastSecond": 0.002590842777863,
+  "rmsRatio_final_over_mid": 0.800129771232605,
+  "blockMicros_median": 73.417000000000002,
+  "blockMicros_max": 105.75,
+  "blockTime_max_over_median": 1.440402086710163,
   "pass_nan": true,
   "pass_peak": true,
   "pass_blockTime": true,
   "pass_rms": true,
-  "outputWav": "/Users/taylorbrook/Dev/VST-development/plugins/O-Contrabass/tests/render-harness/golden/note-sequence.wav",
+  "outputWav": "/tmp/repro/note-sequence.wav",
   "sequence": [
     {
       "midiNote": 28,
@@ -56,13 +56,13 @@
     529200
   ],
   "perSegmentRms": [
-    0.015633879229426,
-    0.003994738217443,
-    0.003053675638512,
-    0.002873300807551,
-    0.002755940658972
+    0.01563186198473,
+    0.003994551021606,
+    0.003053653519601,
+    0.002873284276575,
+    0.002755927387625
   ],
   "pass_allSegmentsAudible": true,
-  "rmsContinuityAtTransitions": 0.451406836509705,
+  "rmsContinuityAtTransitions": 0.451407551765442,
   "pass_rmsContinuityAtTransitions": false
 }
