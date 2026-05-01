@@ -18,8 +18,24 @@ __pycache__/
 # =============================================================================
 # Backup Directories
 # =============================================================================
-# Prevent large backup folders from being committed
+# Prevent large backup folders from being committed.
+# Backups are local-only safety nets for the /improve workflow; release
+# history is preserved via git tags (e.g. v1.6.0-O-MicrotonalSampler), so
+# committing parallel backup snapshots would just bloat history with
+# duplicates of source already in git.
 backups/
+
+# =============================================================================
+# Render-Harness / Test-Capture Scratch Output
+# =============================================================================
+# Per-plugin render-harness produces JSON status files and binary WAV
+# captures alongside the source tree. The JSON files at repo root are
+# clearly misplaced (harness was run from the wrong cwd) and ignored
+# everywhere; the binary WAV evidence lives in .planning/evidence/ and is
+# regenerable from source — no value committing the binary captures.
+e1-max-sustain.json
+*-pre-extraction-canonical.json
+plugins/*/.planning/evidence/**/*.wav
 
 # =============================================================================
 # macOS System Files
