@@ -255,11 +255,51 @@
               <span>Ignore filename velocity tokens (e.g. <code>_v1</code>, <code>_ff</code>)</span>
             </label>
 
+            <!-- v1.12.0: Embed-audio toggle. When ON, the loaded audio is
+                 serialised inline into the saved project state so the
+                 samples survive folder moves, cross-machine transfer, and
+                 (for drag-drop) WKWebView temp-dir cleanup. The size label
+                 is populated live for drag-drop (where total bytes is known
+                 at modal time) and post-selection for the dialog flow. -->
+            <label class="flo-embed">
+              <input type="checkbox" id="flo-embed-checkbox" />
+              <span>Embed audio in project state</span>
+            </label>
+            <p class="flo-embed-size" id="flo-embed-size"></p>
+
             <p class="flo-explain" id="flo-explain"></p>
 
             <div class="confirm-dialog-actions">
               <button id="flo-cancel-btn" type="button">Cancel</button>
               <button id="flo-confirm-btn" type="button" class="flo-primary">Load…</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.12.0: Embed-size confirmation modal. Surfaced ONLY in the
+             Load Folder dialog flow, AFTER the user picks a folder, when
+             the options modal had embed=ON. Drag-drop already shows the
+             total in the options modal (we have the bytes at scan time),
+             so this confirmation is dialog-flow-only. -->
+        <div id="embed-size-confirm-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="embed-size-confirm-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 id="embed-size-confirm-title" class="confirm-dialog-title">
+              Embed audio in project?
+            </h3>
+            <p id="embed-size-confirm-message" class="confirm-dialog-message"></p>
+            <p class="confirm-dialog-message embed-size-confirm-detail">
+              The audio data will be written into your DAW project file.
+              Project saves and reopens will be slower for large libraries,
+              but the samples will travel with the project across folders
+              and machines.
+            </p>
+            <div class="confirm-dialog-actions">
+              <button id="embed-size-cancel-btn" type="button">Cancel</button>
+              <button id="embed-size-confirm-btn" type="button" class="flo-primary">
+                Embed and load
+              </button>
             </div>
           </div>
         </div>

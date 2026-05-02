@@ -1032,14 +1032,53 @@ function bindFolderDropZone() {
             // v1.6.0: ask for layer / mode / override BEFORE the native file
             // picker so the user has the controls in front of them while the
             // OS modal is still latent. Cancel here = silent return.
-            const opts = await showFolderLoadOptionsModal();
+            //
+            // v1.12.0: dialog flow doesn't know the folder size at modal
+            // time, so we pass null for sizeBytes — the embed checkbox
+            // surfaces a "size confirmed after selection" hint, and a
+            // post-pick confirmation modal shows the real size before
+            // the load commits.
+            const opts = await showFolderLoadOptionsModal(null);
             if (!opts) return;
-            const fn = Juce.getNativeFunction('loadSampleFolderDialog');
-            await fn(opts.layer, opts.mode, opts.override ? 1 : 0);
-            // sampleMapUpdated push event drives the rest. File-picker cancel
-            // resolves false on the C++ side — silent.
+
+            // v1.12.0: pickSampleFolder returns just the folder path
+            // (replaces v1.6.0's combined loadSampleFolderDialog). This
+            // separation lets us interject the embed-size confirmation
+            // between selection and load.
+            const pick = await Juce.getNativeFunction('pickSampleFolder')();
+            if (!pick || pick.cancelled || !pick.path) {
+                return;
+            }
+
+            // v1.12.0: when embed is on, surface the actual byte cost as a
+            // confirmation gate. Cancel = abort the entire load (no half-
+            // committed state on the C++ side, since we haven't called load
+            // yet).
+            if (opts.embedAudio) {
+                let sizeBytes = 0;
+                try {
+                    sizeBytes = await Juce.getNativeFunction(
+                        'estimateFolderAudioSize')(pick.path);
+                } catch (sizeErr) {
+                    console.warn('[sampler-app] estimateFolderAudioSize failed:', sizeErr);
+                }
+                const proceed = await showEmbedSizeConfirmModal(
+                    Number(sizeBytes) || 0, pick.name || '');
+                if (!proceed) return;
+            }
+
+            const ok = await Juce.getNativeFunction('loadSampleFolderByPath')(
+                pick.path,
+                opts.layer,
+                opts.mode,
+                opts.override   ? 1 : 0,
+                opts.embedAudio ? 1 : 0);
+            if (!ok) {
+                showToast('Folder load failed');
+            }
+            // sampleMapUpdated push event drives the rest of the UI.
         } catch (e) {
-            console.error('[sampler-app] loadSampleFolderDialog failed:', e);
+            console.error('[sampler-app] folder load failed:', e);
         }
     });
 }
@@ -1319,15 +1358,10 @@ function bindWebViewFileDrop () {
 const AUDIO_EXTENSIONS_RE = /\.(wav|aif|aiff)$/i;
 
 async function streamFolderEntryToCpp (dirEntry) {
-    // v1.6.0: ask for layer / mode / override BEFORE we scan the folder and
-    // start base64-streaming. A 250 MB drop can spend ~5 s on streaming
-    // alone, and it's wasted work if the user changes their mind. Cancel
-    // here = silent abort (no toast — a Cancel was an explicit user action).
-    const opts = await showFolderLoadOptionsModal();
-    if (!opts) return;
-
-    const sessionId = newDropSessionId();
-
+    // v1.12.0: pre-walk the FileSystemEntry tree to gather entries AND
+    // total file sizes — both needed to populate the embed-size label in
+    // the options modal. Walks read directory metadata only; no file
+    // content is read here.
     showToast('Scanning folder…');
     const all = [];
     await collectAudioFilesFromDir(dirEntry, '', all);
@@ -1337,7 +1371,29 @@ async function streamFolderEntryToCpp (dirEntry) {
         return;
     }
 
-    const startOk = await Juce.getNativeFunction('dropSessionStart')(sessionId);
+    const totalBytes = all.reduce((acc, x) => acc + (x.size || 0), 0);
+
+    // v1.6.0: ask for layer / mode / override BEFORE we start base64-
+    // streaming. A 250 MB drop can spend ~5 s on streaming alone, and it's
+    // wasted work if the user changes their mind. Cancel here = silent
+    // abort (no toast — Cancel was an explicit user action).
+    //
+    // v1.12.0: pass totalBytes so the embed-size label populates live as
+    // the user toggles the embed checkbox — no follow-up confirmation
+    // modal needed for drag-drop (the size is already on screen).
+    const opts = await showFolderLoadOptionsModal(totalBytes);
+    if (!opts) return;
+
+    const sessionId = newDropSessionId();
+
+    // v1.12.0: pass the folder name (from FileSystemEntry::name) to
+    // dropSessionStart so the saved-state missing-folder modal can render
+    // "Samples were drag-dropped from <name>" copy on reload. macOS
+    // WKWebView strips the original disk path; this name is the only
+    // cross-session-stable signal we get.
+    const folderName = dirEntry && dirEntry.name ? dirEntry.name : '';
+    const startOk = await Juce.getNativeFunction('dropSessionStart')(
+        sessionId, folderName);
     if (!startOk) { showToast('Drop session start failed'); return; }
 
     for (let i = 0; i < all.length; i++) {
@@ -1357,7 +1413,11 @@ async function streamFolderEntryToCpp (dirEntry) {
 
     showToast(`Loading ${all.length} sample${all.length === 1 ? '' : 's'}…`);
     await Juce.getNativeFunction('dropSessionCommitFolder')(
-        sessionId, opts.layer, opts.mode, opts.override ? 1 : 0);
+        sessionId,
+        opts.layer,
+        opts.mode,
+        opts.override   ? 1 : 0,
+        opts.embedAudio ? 1 : 0);
     // sampleMapUpdated push event drives the grid refresh + final state.
 }
 
@@ -1396,7 +1456,21 @@ async function collectAudioFilesFromDir (dirEntry, prefix, out) {
             const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
             if (entry.isFile) {
                 if (AUDIO_EXTENSIONS_RE.test(entry.name)) {
-                    out.push({ entry, relativePath: rel });
+                    // v1.12.0: cache the File metadata's size so the embed-
+                    // size label can sum without a second walk. We re-read
+                    // the actual content via FileReader during streaming;
+                    // this entry.file() call is metadata-only and cheap.
+                    let size = 0;
+                    try {
+                        const file = await new Promise((resolve, reject) =>
+                            entry.file(resolve, reject));
+                        size = file.size;
+                    } catch (e) {
+                        // Best-effort: missing size just means a less
+                        // accurate embed estimate — don't block the load.
+                        console.warn('[sampler-app] file() metadata read failed:', e);
+                    }
+                    out.push({ entry, relativePath: rel, size });
                 }
             } else if (entry.isDirectory) {
                 await collectAudioFilesFromDir(entry, rel, out);
@@ -1436,18 +1510,46 @@ function arrayBufferToBase64 (buf) {
 // or Escape, and supports Enter as a confirm shortcut. One-shot listeners
 // are detached on every dialog close so subsequent opens do not double-fire.
 
-// v1.6.0: folder-load options modal. Resolves to {layer, mode, override} on
-// Load, or null on Cancel. Surfaced before BOTH the file picker (button)
-// and macOS drag-drop streaming (so cancel doesn't waste 5s of base64 work).
+// v1.12.0: format byte counts for the embed size label.
+//   formatBytes(0)        → '0 B'
+//   formatBytes(1024)     → '1.0 KB'
+//   formatBytes(1500000)  → '1.4 MB'
+//   formatBytes(2.5e9)    → '2.3 GB'
+function formatBytes (n) {
+    if (!Number.isFinite(n) || n <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0;
+    let v = n;
+    while (v >= 1024 && i < units.length - 1) {
+        v /= 1024;
+        i++;
+    }
+    const decimals = (i === 0 || v >= 100) ? 0 : 1;
+    return `${v.toFixed(decimals)} ${units[i]}`;
+}
+
+// v1.6.0: folder-load options modal. Resolves to {layer, mode, override,
+// embedAudio} on Load, or null on Cancel. Surfaced before BOTH the file
+// picker (button) and macOS drag-drop streaming (so cancel doesn't waste 5s
+// of base64 work).
 //
-//   layer:    0..3 — target velocity layer
-//   mode:     'append' | 'replace_layer' | 'replace_all' | 'merge_rr' (v1.9.0)
-//   override: boolean — true = ignore filename velocity tokens (v1, ff, …)
+//   layer:      0..3 — target velocity layer
+//   mode:       'append' | 'replace_layer' | 'replace_all' | 'merge_rr' (v1.9.0)
+//   override:   boolean — true = ignore filename velocity tokens (v1, ff, …)
+//   embedAudio: boolean — v1.12.0; true = serialise audio inline into the
+//               saved project state so reload doesn't depend on the source
+//               folder existing on disk
 //
 // v1.9.0: 'merge_rr' adds the new samples as round-robin variants on top of
 // any existing cells they collide with (per (note, layer)) — useful for
 // layering multiple takes/recordings as RR alternates.
-function showFolderLoadOptionsModal () {
+//
+// v1.12.0: optional sizeBytes — when known at modal time (drag-drop has
+// already walked the entry tree for size), the embed-size label updates
+// live as the user toggles the embed checkbox. For dialog flows (folder
+// not picked yet) pass null; the size is shown in a follow-up confirmation
+// modal after the file picker resolves.
+function showFolderLoadOptionsModal (sizeBytes) {
     return new Promise((resolve) => {
         const dialog     = document.getElementById('folder-load-options-dialog');
         if (!dialog) { resolve(null); return; }
@@ -1455,10 +1557,13 @@ function showFolderLoadOptionsModal () {
         const segBtns    = dialog.querySelectorAll('.flo-seg');
         const modeRadios = dialog.querySelectorAll('input[name="flo-mode"]');
         const overrideEl = document.getElementById('flo-override-checkbox');
+        const embedEl    = document.getElementById('flo-embed-checkbox');
+        const sizeEl     = document.getElementById('flo-embed-size');
         const explainEl  = document.getElementById('flo-explain');
         const confirmBtn = document.getElementById('flo-confirm-btn');
         const cancelBtn  = document.getElementById('flo-cancel-btn');
         if (!segBtns.length || !modeRadios.length || !overrideEl
+                || !embedEl || !sizeEl
                 || !explainEl || !confirmBtn || !cancelBtn) {
             resolve(null);
             return;
@@ -1470,6 +1575,30 @@ function showFolderLoadOptionsModal () {
         segBtns.forEach((b, i) => b.classList.toggle('active', i === 0));
         modeRadios.forEach((r) => { r.checked = (r.value === 'append'); });
         overrideEl.checked = false;
+        embedEl.checked    = false;
+
+        const updateSizeLabel = () => {
+            // Always-on embed-size telemetry per the v1.12.0 spec — the label
+            // is visible whenever the embed checkbox is on, regardless of
+            // estimated size, so the user always sees the size impact.
+            if (!embedEl.checked) {
+                sizeEl.textContent = '';
+                sizeEl.classList.remove('has-warning');
+                return;
+            }
+            if (typeof sizeBytes === 'number' && sizeBytes > 0) {
+                sizeEl.textContent =
+                    `Project state will grow by ~${formatBytes(sizeBytes)}.`;
+                sizeEl.classList.add('has-warning');
+            } else {
+                // Dialog flow — folder not selected yet. The post-pick
+                // confirmation modal will surface the actual size before
+                // the load commits.
+                sizeEl.textContent =
+                    'Size will be confirmed after folder selection.';
+                sizeEl.classList.remove('has-warning');
+            }
+        };
 
         const updateExplain = () => {
             const overrideOn = overrideEl.checked;
@@ -1495,6 +1624,7 @@ function showFolderLoadOptionsModal () {
             explainEl.textContent = txt;
         };
         updateExplain();
+        updateSizeLabel();
 
         const segHandler = (e) => {
             const b = e.target.closest('.flo-seg');
@@ -1510,19 +1640,26 @@ function showFolderLoadOptionsModal () {
             updateExplain();
         };
         const overrideHandler = () => updateExplain();
+        const embedHandler    = () => updateSizeLabel();
 
         const cleanup = () => {
             dialog.hidden = true;
             segBtns.forEach((b) => b.removeEventListener('click', segHandler));
             modeRadios.forEach((r) => r.removeEventListener('change', modeHandler));
             overrideEl.removeEventListener('change', overrideHandler);
+            embedEl.removeEventListener('change', embedHandler);
             confirmBtn.removeEventListener('click', onYes);
             cancelBtn.removeEventListener('click', onNo);
             document.removeEventListener('keydown', onKey, true);
         };
         const onYes = () => {
             cleanup();
-            resolve({ layer, mode, override: overrideEl.checked });
+            resolve({
+                layer,
+                mode,
+                override:   overrideEl.checked,
+                embedAudio: embedEl.checked,
+            });
         };
         const onNo  = () => { cleanup(); resolve(null); };
         const onKey = (e) => {
@@ -1533,6 +1670,53 @@ function showFolderLoadOptionsModal () {
         segBtns.forEach((b) => b.addEventListener('click', segHandler));
         modeRadios.forEach((r) => r.addEventListener('change', modeHandler));
         overrideEl.addEventListener('change', overrideHandler);
+        embedEl.addEventListener('change', embedHandler);
+        confirmBtn.addEventListener('click', onYes);
+        cancelBtn.addEventListener('click', onNo);
+        document.addEventListener('keydown', onKey, true);
+
+        dialog.hidden = false;
+        confirmBtn.focus();
+    });
+}
+
+// v1.12.0: post-pick embed-size confirmation modal (dialog flow only). Used
+// when the user opted in to embed in the options modal, and the folder
+// they then picked is large enough that they may want to back out. Resolves
+// true on Confirm, false on Cancel/Escape.
+function showEmbedSizeConfirmModal (sizeBytes, displayName) {
+    return new Promise((resolve) => {
+        const dialog     = document.getElementById('embed-size-confirm-dialog');
+        const messageEl  = document.getElementById('embed-size-confirm-message');
+        const confirmBtn = document.getElementById('embed-size-confirm-btn');
+        const cancelBtn  = document.getElementById('embed-size-cancel-btn');
+        if (!dialog || !messageEl || !confirmBtn || !cancelBtn) {
+            // Fallback to a plain confirm so the load never silently
+            // commits without the user seeing the size.
+            const summary = `Embed will add ~${formatBytes(sizeBytes)} `
+                          + `to your project state. Continue?`;
+            resolve(window.confirm(summary));
+            return;
+        }
+
+        const folderLabel = displayName ? `"${displayName}" ` : '';
+        messageEl.textContent =
+            `Embedding folder ${folderLabel}will add `
+            + `~${formatBytes(sizeBytes)} to your project state.`;
+
+        const cleanup = () => {
+            dialog.hidden = true;
+            confirmBtn.removeEventListener('click', onYes);
+            cancelBtn.removeEventListener('click', onNo);
+            document.removeEventListener('keydown', onKey, true);
+        };
+        const onYes = () => { cleanup(); resolve(true); };
+        const onNo  = () => { cleanup(); resolve(false); };
+        const onKey = (e) => {
+            if (e.key === 'Escape')     { e.preventDefault(); onNo(); }
+            else if (e.key === 'Enter') { e.preventDefault(); onYes(); }
+        };
+
         confirmBtn.addEventListener('click', onYes);
         cancelBtn.addEventListener('click', onNo);
         document.addEventListener('keydown', onKey, true);
@@ -2314,24 +2498,61 @@ function bindPresetButtons () {
     }
 }
 
-function showMissingFolderDialog (savedPath) {
-    const dialog   = document.getElementById('missing-folder-dialog');
+// v1.12.0: payload is now an object {path, kind, name} (was a bare string
+// in v1.3.0–v1.11.x). String-form payloads are normalised in
+// `subscribeFolderMissingEvent` and `pullPendingMissingFolder` before
+// reaching this function.
+//
+//   kind="filesystem" — original behaviour: saved disk path is gone. The
+//                       modal shows the path and offers a Locate folder
+//                       picker that delegates to the existing reload flow.
+//   kind="drag-drop"  — v1.12.0: the load was a WebView drag-drop with no
+//                       embed. The temp dir is reaped at next-session-
+//                       start, so we never had a stable path to surface.
+//                       Show the original folder name (lifted from
+//                       FileSystemEntry::name at drop time) and direct the
+//                       user to re-drag or browse.
+function showMissingFolderDialog (info) {
+    const dialog    = document.getElementById('missing-folder-dialog');
+    const titleEl   = document.getElementById('missing-folder-dialog-title');
     const messageEl = document.getElementById('missing-folder-dialog-message');
-    const pathEl   = document.getElementById('missing-folder-saved-path');
-    const skipBtn  = document.getElementById('missing-folder-skip-btn');
+    const pathEl    = document.getElementById('missing-folder-saved-path');
+    const skipBtn   = document.getElementById('missing-folder-skip-btn');
     const locateBtn = document.getElementById('missing-folder-locate-btn');
-    if (!dialog || !messageEl || !pathEl || !skipBtn || !locateBtn) return;
+    if (!dialog || !titleEl || !messageEl || !pathEl || !skipBtn || !locateBtn) return;
 
-    // Derive a friendly folder name from the saved path for the message.
-    const safePath = (typeof savedPath === 'string') ? savedPath : '';
-    const sep = safePath.lastIndexOf('/') >= 0 ? '/' : '\\';
-    const idx = safePath.lastIndexOf(sep);
-    const folderName = idx >= 0 ? safePath.substring(idx + 1) : safePath;
+    const safe      = (info && typeof info === 'object') ? info : {};
+    const path      = typeof safe.path === 'string' ? safe.path : '';
+    const kind      = typeof safe.kind === 'string' ? safe.kind : 'filesystem';
+    const givenName = typeof safe.name === 'string' ? safe.name : '';
 
-    messageEl.textContent = folderName
-        ? `The sample folder "${folderName}" was not found at its saved location. Locate it now, or skip and load samples manually.`
-        : 'The saved sample folder was not found. Locate it now, or skip and load samples manually.';
-    pathEl.textContent = safePath || '(empty path)';
+    if (kind === 'drag-drop') {
+        titleEl.textContent = 'Drag-dropped samples not embedded';
+        const friendly = givenName || 'this folder';
+        messageEl.textContent =
+            `Samples were drag-dropped from "${friendly}" without "Embed audio" `
+            + `enabled, so they could not be re-loaded automatically. `
+            + `Re-drag the folder onto the plugin, or browse to its current location.`;
+        pathEl.textContent = '';   // no path to show; clear the legacy slot
+        pathEl.style.display = 'none';
+        locateBtn.textContent = 'Browse for folder…';
+    } else {
+        titleEl.textContent = 'Sample folder not found';
+        // Derive a friendly folder name from the saved path for the message
+        // (or use the explicit name when provided).
+        let folderName = givenName;
+        if (!folderName && path) {
+            const sep = path.lastIndexOf('/') >= 0 ? '/' : '\\';
+            const idx = path.lastIndexOf(sep);
+            folderName = idx >= 0 ? path.substring(idx + 1) : path;
+        }
+        messageEl.textContent = folderName
+            ? `The sample folder "${folderName}" was not found at its saved location. Locate it now, or skip and load samples manually.`
+            : 'The saved sample folder was not found. Locate it now, or skip and load samples manually.';
+        pathEl.textContent = path || '(empty path)';
+        pathEl.style.display = '';
+        locateBtn.textContent = 'Locate folder…';
+    }
 
     const cleanup = () => {
         dialog.hidden = true;
@@ -2380,10 +2601,18 @@ function subscribeFolderMissingEvent () {
     if (!window.__JUCE__ || !window.__JUCE__.backend) return;
     try {
         window.__JUCE__.backend.addEventListener('folderMissing', (payload) => {
-            // Payload is the saved absolute path string (or {} on JSON parse
-            // round-trip — guard accordingly).
-            const path = (typeof payload === 'string') ? payload : '';
-            showMissingFolderDialog(path);
+            // v1.12.0: payload is now an object {path, kind, name}. Older
+            // string-form payloads are no longer emitted by the plugin, but
+            // we accept them defensively (host could replay an old event).
+            let info;
+            if (payload && typeof payload === 'object') {
+                info = payload;
+            } else if (typeof payload === 'string') {
+                info = { path: payload, kind: 'filesystem', name: '' };
+            } else {
+                info = { path: '', kind: 'filesystem', name: '' };
+            }
+            showMissingFolderDialog(info);
         });
     } catch (e) {
         console.warn('[sampler-app] folderMissing subscription failed:', e);
@@ -2477,13 +2706,23 @@ function subscribeAmbiguousDuplicatesEvent () {
 async function pullPendingMissingFolder () {
     // Boot-time race: setStateInformation may have run before this listener
     // was registered. Pull the parked path (if any) and surface the modal.
+    //
+    // v1.12.0: returns an object {path, kind, name}. Old v1.11.x C++ would
+    // return a bare string — accept both forms defensively in case a stale
+    // host bundle ever round-trips the value.
     if (!window.__JUCE__) return;
     try {
         const fn = Juce.getNativeFunction('getPendingMissingFolder');
-        const path = await fn();
-        if (typeof path === 'string' && path.length > 0) {
-            showMissingFolderDialog(path);
+        const result = await fn();
+        let info = null;
+        if (result && typeof result === 'object') {
+            const hasContent = (typeof result.path === 'string' && result.path.length > 0)
+                            || (typeof result.name === 'string' && result.name.length > 0);
+            if (hasContent) info = result;
+        } else if (typeof result === 'string' && result.length > 0) {
+            info = { path: result, kind: 'filesystem', name: '' };
         }
+        if (info) showMissingFolderDialog(info);
     } catch (e) {
         // Silent — older builds may lack the function (defence-in-depth).
     }

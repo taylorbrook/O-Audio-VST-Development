@@ -402,16 +402,41 @@ void OMicrotonalSamplerAudioProcessor::getHeldNotesData (std::vector<int>& notes
 // relocate) flow through here. State-restore replays go through
 // kickNextReplayOp() instead so the merge logic can chain via the same
 // applyFolderLoad helper without contention with this public path.
+//
+// v1.12.0: legacy 4-arg overload forwards to the full overload with
+// origin="filesystem", displayName=folder.getFileName(), embedAudio=false —
+// preserves v1.11.x behaviour for callers that don't carry origin metadata
+// (missing-folder relocate, legacy state restore via setStateInformation).
 void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folder,
                                                           int      targetLayer,
                                                           LoadMode mode,
                                                           bool     overrideTokens)
 {
+    loadSampleFolder (folder, targetLayer, mode, overrideTokens,
+                      "filesystem", folder.getFileName(), false);
+}
+
+void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folder,
+                                                          int      targetLayer,
+                                                          LoadMode mode,
+                                                          bool     overrideTokens,
+                                                          const juce::String& origin,
+                                                          const juce::String& displayName,
+                                                          bool     embedAudio)
+{
     if (sampleLoader == nullptr)
         return;
 
     const int  clampedLayer = juce::jlimit (0, 3, targetLayer);
-    const LoadOp op { folder.getFullPathName(), clampedLayer, mode, overrideTokens };
+
+    LoadOp op;
+    op.path           = folder.getFullPathName();
+    op.targetLayer    = clampedLayer;
+    op.mode           = mode;
+    op.overrideTokens = overrideTokens;
+    op.origin         = origin.isNotEmpty() ? origin : juce::String ("filesystem");
+    op.displayName    = displayName.isNotEmpty() ? displayName : folder.getFileName();
+    op.embedAudio     = embedAudio;
 
     // Track the most recent loaded folder for any single-path UI display.
     // Cleared on failure to keep stale paths out of the missing-folder modal.
@@ -570,11 +595,24 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
    #endif
 
     lastSkippedFiles = skipped;
-    loadOpHistory.push_back (op);
+
+    // v1.12.0: when embedAudio is on, snapshot the slots produced by THIS op
+    // so captureStateValueTree can serialise per-variant audio later. The
+    // shared_ptr<AudioBuffer>s inside each SampleVariant are also held by
+    // currentSampleMap, so memory cost is metadata only — we are NOT
+    // duplicating the audio data, just keeping a per-op slot manifest alive.
+    LoadOp persistedOp = op;
+    if (persistedOp.embedAudio && newSlotsMap != nullptr)
+        persistedOp.embeddedSlots = newSlotsMap;
+
+    loadOpHistory.push_back (std::move (persistedOp));
 
     DBG ("loadSampleFolder applied: mode=" << (int) op.mode
          << " layer=" << op.targetLayer
          << " override=" << (int) op.overrideTokens
+         << " origin=" << op.origin
+         << " name=" << op.displayName
+         << " embed=" << (int) op.embedAudio
          << " merged cells=" << (int) merged->cells.size()
          << " (v" << merged->version << ")");
 
@@ -624,6 +662,18 @@ void OMicrotonalSamplerAudioProcessor::confirmRoundRobinLoad (bool accept)
 // is gone (first missing path raises the existing missing-folder modal), and
 // dispatches an async load whose completion chains back here. Stack-safe via
 // JUCE's MessageManager::callAsync — each chained call is a fresh message.
+//
+// v1.12.0: extends to three op kinds:
+//   1. Embedded op (op.embeddedSlots != nullptr) — apply slots directly,
+//      no SampleLoader call. Synchronous merge into currentSampleMap;
+//      chain to next op immediately.
+//   2. Drag-drop op (op.origin == "drag-drop") without embed — the temp dir
+//      is gone and never user-meaningful. Surface the missing-folder modal
+//      with kind="drag-drop" so JS can render the "re-drag or browse"
+//      copy. Skip the load and chain.
+//   3. Filesystem op without embed — existing path: walk on disk via
+//      SampleLoader. Surface missing-folder modal with kind="filesystem"
+//      if the path is gone.
 void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
 {
     while (! pendingReplayOps.empty())
@@ -631,17 +681,49 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
         const LoadOp op = pendingReplayOps.front();
         pendingReplayOps.erase (pendingReplayOps.begin());
 
+        // ---- Case 1: embedded audio — synchronous merge, no loader call ----
+        if (op.embeddedSlots != nullptr)
+        {
+            // applyFolderLoad will re-attach embeddedSlots to the persisted
+            // op via its own embedAudio branch (so the next save round-trips
+            // the embed). Pass empty skipped — the embed source is in-memory,
+            // there is nothing for the loader to skip.
+            applyFolderLoad (op.embeddedSlots, juce::StringArray{}, op);
+            continue;   // chain to next op immediately (no async wait)
+        }
+
+        // ---- Case 2: drag-drop without embed — surface drag-drop missing modal ----
+        if (op.origin == "drag-drop")
+        {
+            if (pendingMissingFolderPath.isEmpty()
+                && pendingMissingFolderName.isEmpty())
+            {
+                pendingMissingFolderPath = juce::String();
+                pendingMissingFolderKind = "drag-drop";
+                pendingMissingFolderName = op.displayName;
+                if (missingFolderCallback)
+                    missingFolderCallback (juce::String{}, "drag-drop", op.displayName);
+            }
+            continue;   // try the next op
+        }
+
+        // ---- Case 3: filesystem without embed — existing path ----
         const juce::File f (op.path);
         if (! f.isDirectory())
         {
             // Surface the FIRST missing folder; subsequent ones are silently
             // skipped to keep the user's modal interaction simple. They can
             // re-locate or load fresh after dismissing.
-            if (pendingMissingFolderPath.isEmpty())
+            if (pendingMissingFolderPath.isEmpty()
+                && pendingMissingFolderName.isEmpty())
             {
                 pendingMissingFolderPath = op.path;
+                pendingMissingFolderKind = "filesystem";
+                pendingMissingFolderName = op.displayName.isNotEmpty()
+                                              ? op.displayName
+                                              : f.getFileName();
                 if (missingFolderCallback)
-                    missingFolderCallback (op.path);
+                    missingFolderCallback (op.path, "filesystem", pendingMissingFolderName);
             }
             continue;   // try the next op
         }
@@ -1332,6 +1414,14 @@ namespace
     constexpr const char* kSampleFolderOpTag = "Op";            // v1.6.0 child element
     constexpr const char* kTuningStateTag   = "TuningState";
 
+    // v1.12.0: <Audio><Cell><Variant/></Cell></Audio> sub-tree under each <Op>
+    // when the op was loaded with embedAudio=true. Stores per-variant audio
+    // inline as base64-encoded WAV (24-bit PCM) so projects survive folder
+    // moves, cross-machine transfer, and drag-drop temp-dir cleanup.
+    constexpr const char* kEmbeddedAudioTag    = "Audio";
+    constexpr const char* kEmbeddedCellTag     = "Cell";
+    constexpr const char* kEmbeddedVariantTag  = "Variant";
+
     // v1.6.0: human-readable mode strings in XML so saved presets are
     // diffable / editable by hand. Unknown values fall back to ReplaceAll.
     juce::String loadModeToString (LoadMode m) noexcept
@@ -1352,6 +1442,197 @@ namespace
         if (s == "replace_layer") return LoadMode::ReplaceLayer;
         if (s == "merge_rr")      return LoadMode::MergeRR;
         return LoadMode::ReplaceAll;
+    }
+
+    juce::String loopModeToString (LoopMode m) noexcept
+    {
+        switch (m)
+        {
+            case LoopMode::OneShot: return "one_shot";
+            case LoopMode::Auto:    return "auto";
+            case LoopMode::Manual:  return "manual";
+        }
+        return "auto";
+    }
+
+    LoopMode loopModeFromString (const juce::String& s) noexcept
+    {
+        if (s == "one_shot") return LoopMode::OneShot;
+        if (s == "manual")   return LoopMode::Manual;
+        return LoopMode::Auto;
+    }
+
+    //--------------------------------------------------------------------------
+    // v1.12.0 — per-variant audio (de)serialisation for inline state embed.
+    //
+    // 24-bit PCM WAV (good quality / standard sample-library bit depth) →
+    // base64 string. The user has explicitly opted in to embed via the
+    // folder-load options modal, so the size cost is informed.
+    //
+    // Round-trip lossiness: 24-bit PCM has a -141 dB noise floor (well below
+    // hearing threshold for any reasonable signal level). Float samples
+    // outside [-1, +1) will clip on encode — same constraint as any 24-bit
+    // export pipeline. The plugin's own SampleLoader path produces
+    // post-resample float data that is bit-equivalent to its source, so
+    // typical sample-library content stays well within range.
+    //
+    // Sample rate: stored at the buffer's current rate (which is the host
+    // sample rate at load time, since SampleLoader resamples to host SR).
+    // Restoring at a different host SR will play at a slightly different
+    // rate via the voice's existing repitch path — same outcome as today's
+    // resample-on-load behaviour, just without the source file available.
+
+    juce::String encodeVariantAsBase64Wav (const SampleVariant& v)
+    {
+        if (v.audio == nullptr) return {};
+        const int numChannels = v.audio->getNumChannels();
+        const int numSamples  = v.audio->getNumSamples();
+        if (numChannels <= 0 || numSamples <= 0) return {};
+
+        juce::MemoryBlock memBlock;
+        {
+            // JUCE 8 createWriterFor takes a unique_ptr<OutputStream>& and
+            // transfers ownership on success. memBlock is referenced by the
+            // stream and outlives the writer (writer destructs at scope end →
+            // stream destructs → memBlock retains the written bytes).
+            std::unique_ptr<juce::OutputStream> stream
+                = std::make_unique<juce::MemoryOutputStream> (memBlock, false);
+
+            juce::WavAudioFormat wav;
+            const auto opts = juce::AudioFormatWriterOptions{}
+                .withSampleRate    (v.sourceSampleRate > 0.0 ? v.sourceSampleRate : 48000.0)
+                .withNumChannels   (numChannels)
+                .withBitsPerSample (24);
+
+            auto writer = wav.createWriterFor (stream, opts);
+            if (writer == nullptr)
+                return {};
+
+            writer->writeFromAudioSampleBuffer (*v.audio, 0, numSamples);
+        } // writer destructs → flushes WAV chunks into memBlock
+
+        return juce::Base64::toBase64 (memBlock.getData(), memBlock.getSize());
+    }
+
+    bool decodeVariantFromBase64Wav (const juce::String& base64, SampleVariant& outVariant)
+    {
+        if (base64.isEmpty()) return false;
+
+        juce::MemoryBlock raw;
+        {
+            juce::MemoryOutputStream mos (raw, false);
+            if (! juce::Base64::convertFromBase64 (mos, base64))
+                return false;
+        }
+
+        if (raw.getSize() == 0) return false;
+
+        juce::WavAudioFormat wav;
+        // Reader takes ownership of the InputStream (deleteStreamWhenDestroyed=true).
+        // MemoryInputStream(MemoryBlock&, bool keepInternalCopy) — true so the
+        // stream owns its own copy and survives `raw` going out of scope (it
+        // doesn't here, but guards against future refactors).
+        std::unique_ptr<juce::AudioFormatReader> reader (
+            wav.createReaderFor (new juce::MemoryInputStream (raw, /*keepInternalCopy=*/true),
+                                 /*deleteStreamWhenDestroyed=*/true));
+        if (reader == nullptr) return false;
+
+        const int numChannels = static_cast<int> (reader->numChannels);
+        const int numSamples  = static_cast<int> (reader->lengthInSamples);
+        if (numChannels <= 0 || numSamples <= 0) return false;
+
+        outVariant.audio = std::make_shared<juce::AudioBuffer<float>> (numChannels, numSamples);
+        outVariant.audio->clear();
+        if (! reader->read (outVariant.audio.get(), 0, numSamples, 0, true, true))
+            return false;
+
+        outVariant.sourceSampleRate = reader->sampleRate;
+        return true;
+    }
+
+    juce::ValueTree buildEmbeddedAudioTree (const SampleMap& slots)
+    {
+        juce::ValueTree audioTree (kEmbeddedAudioTag);
+        for (const auto& cell : slots.cells)
+        {
+            juce::ValueTree cellTree (kEmbeddedCellTag);
+            cellTree.setProperty ("midi",  cell.midiNote,      nullptr);
+            cellTree.setProperty ("layer", cell.velocityLayer, nullptr);
+
+            for (const auto& v : cell.variants)
+            {
+                juce::ValueTree vTree (kEmbeddedVariantTag);
+                vTree.setProperty ("filename", v.filename, nullptr);
+                vTree.setProperty ("loopMode", loopModeToString (v.loopMode), nullptr);
+                vTree.setProperty ("loopStart", v.loopStart, nullptr);
+                vTree.setProperty ("loopEnd",   v.loopEnd,   nullptr);
+
+                const auto b64 = encodeVariantAsBase64Wav (v);
+                if (b64.isNotEmpty())
+                    vTree.setProperty ("wav", b64, nullptr);
+
+                cellTree.appendChild (vTree, nullptr);
+            }
+
+            audioTree.appendChild (cellTree, nullptr);
+        }
+        return audioTree;
+    }
+
+    // Returns nullptr when the tree is invalid OR no variants decoded
+    // successfully. Caller falls back to the regular filesystem replay path
+    // when this happens (best-effort recovery).
+    std::shared_ptr<SampleMap> decodeEmbeddedAudioTree (const juce::ValueTree& audioTree)
+    {
+        if (! audioTree.isValid() || ! audioTree.hasType (kEmbeddedAudioTag))
+            return nullptr;
+
+        auto slots = std::make_shared<SampleMap>();
+        slots->cells.reserve (static_cast<size_t> (audioTree.getNumChildren()));
+
+        int maxLayer = 0;
+        for (int ci = 0; ci < audioTree.getNumChildren(); ++ci)
+        {
+            const auto cellTree = audioTree.getChild (ci);
+            if (! cellTree.hasType (kEmbeddedCellTag)) continue;
+
+            SampleCell cell;
+            cell.midiNote      = juce::jlimit (0, 127, static_cast<int> (cellTree.getProperty ("midi", 0)));
+            cell.velocityLayer = juce::jlimit (0, 3,   static_cast<int> (cellTree.getProperty ("layer", 0)));
+
+            for (int vi = 0; vi < cellTree.getNumChildren(); ++vi)
+            {
+                const auto vTree = cellTree.getChild (vi);
+                if (! vTree.hasType (kEmbeddedVariantTag)) continue;
+                if (! vTree.hasProperty ("wav"))           continue;
+
+                SampleVariant variant;
+                variant.filename  = vTree.getProperty ("filename").toString();
+                variant.loopMode  = loopModeFromString (vTree.getProperty ("loopMode").toString());
+                variant.loopStart = static_cast<int> (vTree.getProperty ("loopStart", 0));
+                variant.loopEnd   = static_cast<int> (vTree.getProperty ("loopEnd",   0));
+
+                if (! decodeVariantFromBase64Wav (vTree.getProperty ("wav").toString(), variant))
+                {
+                    DBG ("decodeEmbeddedAudioTree: variant decode failed: " << variant.filename);
+                    continue;
+                }
+
+                cell.variants.push_back (std::move (variant));
+            }
+
+            if (! cell.variants.empty())
+            {
+                slots->lowestNote  = juce::jmin (slots->lowestNote,  cell.midiNote);
+                slots->highestNote = juce::jmax (slots->highestNote, cell.midiNote);
+                maxLayer           = juce::jmax (maxLayer,           cell.velocityLayer);
+                slots->cells.push_back (std::move (cell));
+            }
+        }
+
+        if (slots->cells.empty()) return nullptr;
+        slots->numVelocityLayers = juce::jlimit (1, 4, maxLayer + 1);
+        return slots;
     }
 
     // Capture every accessible bit of TuningEngine state into a ValueTree.
@@ -1494,14 +1775,45 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
     // v1.6.0: <SampleFolders><Op …/>…</SampleFolders> — ordered list of
     // every successful folder load since the last clearSampleMap() or
     // ReplaceAll load. Empty container when no folders are loaded.
+    //
+    // v1.12.0 additive attrs (all optional — old states omit them and decode
+    // identically as filesystem ops with no embed):
+    //   kind   : "filesystem" (default) | "drag-drop"
+    //   name   : human-friendly folder name for the missing-folder modal
+    //   embed  : "1" when an inline <Audio> blob child is present
+    //
+    // For drag-drop ops we DROP the temp path on save (it's not stable
+    // across sessions and re-using it would defeat the new modal copy). The
+    // path attr is omitted; restoreStateValueTree reconstructs an op with an
+    // empty path + drag-drop kind.
     juce::ValueTree folders (kSampleFoldersTag);
     for (const auto& op : loadOpHistory)
     {
         juce::ValueTree opTree (kSampleFolderOpTag);
-        opTree.setProperty ("path",     op.path,                            nullptr);
+
+        // Don't persist the drag-drop temp path — it's session-scoped and
+        // reaped at the next drop session start. Without embed, the op
+        // restores as "drag-drop, missing"; with embed, the audio blob is
+        // self-sufficient and the path is irrelevant.
+        if (op.origin != "drag-drop")
+            opTree.setProperty ("path", op.path, nullptr);
+
         opTree.setProperty ("layer",    op.targetLayer,                     nullptr);
         opTree.setProperty ("mode",     loadModeToString (op.mode),         nullptr);
         opTree.setProperty ("override", op.overrideTokens ? 1 : 0,          nullptr);
+
+        // v1.12.0:
+        opTree.setProperty ("kind",  op.origin.isNotEmpty() ? op.origin : juce::String ("filesystem"), nullptr);
+        if (op.displayName.isNotEmpty())
+            opTree.setProperty ("name", op.displayName, nullptr);
+        if (op.embedAudio)
+            opTree.setProperty ("embed", 1, nullptr);
+
+        // Inline audio blob — only emitted when the user opted in via embed
+        // AND the per-op slot snapshot was attached at load time.
+        if (op.embedAudio && op.embeddedSlots != nullptr)
+            opTree.appendChild (buildEmbeddedAudioTree (*op.embeddedSlots), nullptr);
+
         folders.appendChild (opTree, nullptr);
     }
     root.appendChild (folders, nullptr);
@@ -1534,6 +1846,8 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     //    treated as a single ReplaceAll op with default layer/override so
     //    behaviour is bit-for-bit identical for old saves.
     pendingMissingFolderPath.clear();
+    pendingMissingFolderKind.clear();
+    pendingMissingFolderName.clear();
     pendingReplayOps.clear();
     loadOpHistory.clear();   // applyFolderLoad will rebuild as ops complete
 
@@ -1545,14 +1859,48 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
             const auto opTree = foldersTree.getChild (i);
             if (! opTree.hasType (kSampleFolderOpTag)) continue;
 
+            // v1.12.0: kind defaults to "filesystem" for old states. drag-drop
+            // ops can have empty path (we don't persist their temp dir).
+            const juce::String kind = opTree.hasProperty ("kind")
+                ? opTree.getProperty ("kind").toString()
+                : juce::String ("filesystem");
             const auto path = opTree.getProperty ("path").toString();
-            if (path.isEmpty()) continue;
+            const bool embed = static_cast<int> (opTree.getProperty ("embed", 0)) != 0;
+
+            // Skip ops that have no usable rehydrate path:
+            //   - filesystem with empty path AND no embed → nothing to do
+            //   - drag-drop without embed AND no displayName → no modal copy possible
+            // (A drag-drop op with displayName but no embed is a useful signal
+            //  for the missing-folder modal — keep it.)
+            if (kind == "filesystem" && path.isEmpty() && ! embed)
+                continue;
 
             LoadOp op;
             op.path           = path;
             op.targetLayer    = juce::jlimit (0, 3, static_cast<int> (opTree.getProperty ("layer", 0)));
             op.mode           = loadModeFromString (opTree.getProperty ("mode").toString());
             op.overrideTokens = static_cast<int> (opTree.getProperty ("override", 0)) != 0;
+            op.origin         = kind;
+            op.displayName    = opTree.getProperty ("name").toString();
+            op.embedAudio     = embed;
+
+            // Inline audio blob — when present, deserialise the slots directly
+            // so kickNextReplayOp can apply them synchronously (no SampleLoader
+            // call). On decode failure, fall back to the regular replay path
+            // (filesystem walk if path is set; missing modal otherwise).
+            if (embed)
+            {
+                const auto audioTree = opTree.getChildWithName (kEmbeddedAudioTag);
+                if (audioTree.isValid())
+                {
+                    auto slots = decodeEmbeddedAudioTree (audioTree);
+                    if (slots != nullptr)
+                        op.embeddedSlots = std::move (slots);
+                    else
+                        DBG ("restoreStateValueTree: embedded decode failed, falling back");
+                }
+            }
+
             pendingReplayOps.push_back (std::move (op));
         }
     }
@@ -1569,6 +1917,8 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
                 op.targetLayer    = 0;
                 op.mode           = LoadMode::ReplaceAll;
                 op.overrideTokens = false;
+                op.origin         = "filesystem";
+                op.displayName    = juce::File (path).getFileName();
                 pendingReplayOps.push_back (std::move (op));
             }
         }

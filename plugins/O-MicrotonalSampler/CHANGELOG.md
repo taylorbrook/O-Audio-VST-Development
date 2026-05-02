@@ -1,5 +1,89 @@
 # O-MicrotonalSampler Changelog
 
+## [1.12.0] - 2026-05-02
+
+### Fixed
+- **Drag-dropped folders now persist correctly across project save/reopen.**
+  v1.0.4–v1.11.x recorded the WebView drag-drop temp dir
+  (`/tmp/o-microtonalsampler-drop-<id>/`) as the saved sample-folder path,
+  so on reload the missing-folder modal pointed at a `/tmp/...` path that
+  was reaped at the next drop session. The state format now distinguishes
+  filesystem loads from drag-drop loads and persists the original folder
+  name lifted from `FileSystemEntry::name` at drop time. On reload, drag-
+  dropped sessions surface a friendlier modal: *"Samples were drag-dropped
+  from <name> without 'Embed audio' enabled — re-drag the folder or browse
+  to relocate."* No more dead `/tmp/` paths in the UI.
+
+### Added
+- **Embed audio in project state.** New "Embed audio in project state"
+  checkbox in the Folder Load Options modal (shown for both Load Folder
+  dialog and drag-drop). When ON, the loaded audio is serialised inline
+  into the saved project state as 24-bit PCM WAV. Tradeoffs:
+    - Project survives folder moves, cross-machine transfer, and (for
+      drag-drop) WebView temp-dir cleanup unchanged.
+    - Project file size grows by the audio data size — the modal shows a
+      live size estimate when the checkbox is on so the user always sees
+      the cost.
+    - For drag-drop, total bytes are computed during the entry-tree pre-
+      walk and shown directly in the options modal.
+    - For Load Folder dialog, a follow-up confirmation modal surfaces the
+      actual size after the user picks a folder, before the load commits.
+    - Default is OFF — current behaviour is preserved unless the user
+      explicitly opts in per load.
+- **Drag-drop missing-folder modal variant.** When a drag-drop op without
+  embed is restored from a saved project, the missing-folder modal renders
+  drag-drop-specific copy and a "Browse for folder…" button (vs the
+  filesystem variant's "Locate folder…").
+
+### Changed
+- **State XML schema for `<SampleFolders><Op …/>`** — additive, fully
+  backward-compatible with v1.11.x saves:
+    - New optional attrs: `kind` ("filesystem"|"drag-drop"), `name`
+      (display name for the missing-folder modal), `embed` ("1" iff inline
+      audio).
+    - Drag-drop ops omit the `path` attr (the temp dir is session-scoped).
+    - When `embed=1`, the op carries an `<Audio>` child with
+      `<Cell midi=… layer=…><Variant filename=… loopMode=…
+      loopStart=… loopEnd=… wav="<base64>" /></Cell>` entries.
+    - States saved on v1.11.x and earlier load identically (missing attrs
+      default to filesystem origin, no embed).
+- **`folderMissing` WebView event payload** — now an object
+  `{path, kind, name}` instead of a bare string. JS branches on `kind` to
+  render the appropriate modal copy. Backward-compat for stale string-form
+  payloads is kept defensively in `subscribeFolderMissingEvent`.
+- **Native fn split** — `loadSampleFolderDialog` (v1.6.0) replaced by
+  `pickSampleFolder` + `estimateFolderAudioSize` + `loadSampleFolderByPath`.
+  The split lets JS show the embed-size confirmation between selection and
+  load. New native fns:
+    - `pickSampleFolder()` → `{path, name, cancelled}`
+    - `estimateFolderAudioSize(path)` → `int64` bytes (sum of `*.wav`,
+      `*.aif`, `*.aiff`, `*.flac` files, recursive)
+    - `loadSampleFolderByPath(path, layer, mode, override, embedAudio)`
+- **`dropSessionStart`** — accepts an optional `args[1] = folderName` (from
+  `FileSystemEntry::name`) so drag-drop loads carry a stable, user-meaningful
+  display name into the saved state.
+- **`dropSessionCommitFolder`** — accepts an optional `args[4] = embedAudio`
+  (0/1) so drag-drop loads can opt into inline audio serialisation.
+
+### Notes
+- **State size impact (embed mode)**: 24-bit PCM at host SR × ~33% base64
+  overhead. A 250 MB sample library encoded at 48 kHz / 24-bit / stereo
+  yields a project state on the order of 250–350 MB. Project save/reopen
+  performance scales with state size; users with large libraries should
+  weigh portability against project-file weight.
+- **Audio quality (embed mode)**: 24-bit PCM has a -141 dB noise floor —
+  inaudible artifacts. Float samples outside [-1, +1) clip on encode (same
+  constraint as any 24-bit export pipeline).
+- **No breaking changes.** Saved sessions / presets from v1.11.x reload
+  identically. The new behaviour only activates when (a) the user explicitly
+  opts into embed via the modal, or (b) a new drag-drop load is saved on
+  v1.12.0+.
+- **v1.11.x sessions with drag-drop loads**: those projects will continue
+  to surface the legacy missing-folder modal pointing at the old `/tmp/`
+  path on first reload (no `kind` attr in the saved state means it
+  classifies as filesystem). After the user relocates or skips, the next
+  save records the friendlier drag-drop kind for any new drops.
+
 ## [1.11.3] - 2026-05-02
 
 ### Fixed
