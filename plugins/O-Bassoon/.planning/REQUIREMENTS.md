@@ -41,8 +41,8 @@ lastUpdated: 2026-05-01 (Phase 2.4 verify ⚠️ PARTIAL rev-5 — FUNC-02/FUNC-
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | UI exposes all v1.0 parameters with Ouaricon family visual language | should | pending | stage-3 |
-| UI-02 | UI design approved at execute-phase via in-DAW audition (was: "mockup designed and approved before Stage 3 implementation" — **AMENDED 2026-05-01** per user authority skipping the `/ui-mockup` orchestrator pass; gui-agent now generates HTML directly from CONTEXT.md locked decisions in a single execute pass; iteration loop moves post-build, with audition + revision happening inside Logic-AU) | should | pending | stage-3 |
+| UI-01 | UI exposes all v1.0 parameters with Ouaricon family visual language. Tuning panel accessible via Tuning tab (Sound/Tuning/About tab structure, Sound default). | should | complete | stage-3 |
+| UI-02 | UI design approved at execute-phase via in-DAW audition (was: "mockup designed and approved before Stage 3 implementation" — **AMENDED 2026-05-01** per user authority skipping the `/ui-mockup` orchestrator pass; gui-agent now generates HTML directly from CONTEXT.md locked decisions in a single execute pass; iteration loop moves post-build, with audition + revision happening inside Logic-AU) | should | complete | stage-3 |
 
 ### Performance (PERF)
 

@@ -60,6 +60,7 @@ To be designed in a separate UI mockup pass (`/start O-Bassoon` → option 3). U
 - **Expression mapping:** CC2 → Breath; velocity → initial dynamic + attack character; aftertouch → optional vibrato depth modulation (TBD in Stage 0).
 - **Real-time safety:** No allocations in `processBlock`; all mode banks pre-allocated per voice in `prepareToPlay`.
 - **Explicit non-goals for v1.0:** No reed self-oscillation modeling, no key-click sample layer, no preset browser at v1.0 (deferred to v1.1).
+- ~~**D6 (tuning UI exposure):** v1.0 headless tuning, UI exposure deferred to v1.1~~ — **SUPERSEDED 2026-05-01:** tuning panel exposed as a tab at v1.0 (CONTEXT D7 / Stage 3 plan-phase) per user authority.
 
 ## Next Steps
 

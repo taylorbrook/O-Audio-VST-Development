@@ -57,6 +57,13 @@ public:
     // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
 
+    // Stage 3 / Phase 3.2 — push-channel atomics (audio-thread writer, message-thread reader).
+    // Editor's 30 Hz Timer reads with std::memory_order_relaxed and emits to JS via
+    // emitEventIfBrowserIsVisible (diff-suppressed). Single producer / single consumer.
+    std::atomic<int>   currentActiveVoiceCount { 0 };
+    std::atomic<float> currentEffectiveBreath  { 0.0f };
+    std::atomic<float> currentVibratoEnvelope  { 0.0f };
+
 private:
     juce::AudioProcessorValueTreeState        parameters;
     BassoonSynthesiser                        synthesiser;      // Phase 2.4: subclass for voice cap

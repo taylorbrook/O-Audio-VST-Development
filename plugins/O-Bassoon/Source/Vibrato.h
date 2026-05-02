@@ -36,6 +36,11 @@ public:
     void  setOnsetMs     (float ms) noexcept;
     float getCurrentCents() noexcept;
 
+    // Stage 3 / Phase 3.2 — UI feedback accessor.
+    // Returns the onset envelope value (0..1) for the vibrato pulsing dot.
+    // Header-inline; no .cpp touched.
+    float getEnvelope() const noexcept { return onset.getCurrentValue(); }
+
 private:
     void  recomputeIncrement() noexcept;
 

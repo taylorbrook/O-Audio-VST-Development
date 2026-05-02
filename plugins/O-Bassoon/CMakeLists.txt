@@ -88,6 +88,23 @@ if(OUARICON_LICENSING)
     target_link_libraries(O-Bassoon PRIVATE juce::juce_cryptography)
 endif()
 
+# WebView UI Resources (Stage 3 — Pattern A: tuning-panel.{js,css} referenced from
+# shared module path, NOT copied per-plugin, so upstream fixes propagate without re-copy)
+juce_add_binary_data(O-Bassoon_UIResources
+    SOURCES
+        Resources/ui/index.html
+        Resources/ui/js/juce/index.js
+        Resources/ui/js/juce/check_native_interop.js
+        Resources/ui/img/fern.png
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/js/tuning-panel.js
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/snippets/tuning-panel.css
+)
+
+target_link_libraries(O-Bassoon
+    PRIVATE
+        O-Bassoon_UIResources
+)
+
 # Compile definitions
 target_compile_definitions(O-Bassoon
     PUBLIC
