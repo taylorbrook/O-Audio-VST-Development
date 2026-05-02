@@ -592,10 +592,15 @@ function velocityLayerToRange(layer) {
 
 const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
 
-// MIDI 0 = C-1, MIDI 12 = C0, MIDI 24 = C1, … (Yamaha/standard convention).
+// MIDI 0 = C-2, MIDI 12 = C-1, MIDI 60 = C3 (middle C), … This is the
+// Ableton/Cubase/FL/Logic/Pro Tools/Reaper convention. v1.11.1 switched
+// from C4=60 (Yamaha/JUCE-native) to C3=60 to match the FilenameParser
+// (Source/FilenameParser.cpp) and the dominant DAW labelling. Keep these
+// two formulas in lockstep — drift causes parsed cell midiNotes and UI
+// labels to diverge by 12 semitones.
 function midiToNoteName(midi) {
     const pitchClass = ((midi % 12) + 12) % 12;
-    const octave = Math.floor(midi / 12) - 1;
+    const octave = Math.floor(midi / 12) - 2;
     return `${NOTE_NAMES[pitchClass]}${octave}`;
 }
 

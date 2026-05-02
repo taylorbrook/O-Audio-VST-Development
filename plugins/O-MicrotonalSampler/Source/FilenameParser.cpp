@@ -40,10 +40,13 @@ namespace
     // Try to parse `token` as a scientific-pitch note: [A-G][#b]?(-?[0-9]).
     // Returns the resulting MIDI number (clamped 0..127) or nullopt.
     //
-    // Notation: middle C = C4 = MIDI 60 (Yamaha convention, JUCE's
-    // MidiMessage::getMidiNoteName uses the same: octave-1 means MIDI 0..11).
-    // Therefore: MIDI = (octave + 1) * 12 + semitoneOffset, so:
-    //   C-1 → 0, A-1 → 9, C0 → 12, C4 → 60, A4 → 69, G9 → 127.
+    // Notation: middle C = C3 = MIDI 60 (Ableton/Cubase/FL/Logic/Pro Tools/
+    // Reaper default). v1.11.1 switched from C4=60 (Yamaha/JUCE-native) to
+    // C3=60 to align filename parsing with the dominant DAW labelling — the
+    // previous convention caused samples named in DAW-native form to load
+    // one octave low, audibly transposing playback up an octave.
+    // Therefore: MIDI = (octave + 2) * 12 + semitoneOffset, so:
+    //   C-2 → 0, A-2 → 9, C-1 → 12, C3 → 60, A3 → 69, G8 → 127.
     std::optional<int> parseAsScientificPitch (const juce::String& token)
     {
         if (token.isEmpty())
@@ -96,7 +99,7 @@ namespace
 
         const int octave = octStr.getIntValue();
         const int semiOffset = *baseSemi + accidental;
-        const int midi = (octave + 1) * 12 + semiOffset;
+        const int midi = (octave + 2) * 12 + semiOffset;
 
         if (midi < 0 || midi > 127)
             return std::nullopt;
@@ -426,56 +429,62 @@ namespace FilenameParser
 
     int runTests()
     {
+        // v1.11.1 — convention switched to C3=60 (Ableton/Cubase/FL/Logic/
+        // Pro Tools/Reaper default). C4 now maps to MIDI 72; C3 maps to 60.
+        // Test inputs that previously expected midi=60 for "C4" updated to
+        // expect midi=72; a new "C3" case anchors the new middle-C target.
         const std::vector<TestCase> cases = {
             // Scientific pitch + velocity (case-insensitive)
-            { "C4_v1",         60,        0,        -1 },
-            { "c4_v1",         60,        0,        -1 },
-            { "F#3_v2",        54,        1,        -1 },
-            { "Gb5_vel3",      78,        2,        -1 },
-            { "A-1_v1",         9,        0,        -1 },
-            // MIDI form
+            { "C3_v1",         60,        0,        -1 },     // middle C — new anchor
+            { "C4_v1",         72,        0,        -1 },
+            { "c4_v1",         72,        0,        -1 },
+            { "F#3_v2",        66,        1,        -1 },
+            { "Gb5_vel3",      90,        2,        -1 },
+            { "A-1_v1",        21,        0,        -1 },
+            // MIDI form (raw MIDI numbers — convention-independent)
             { "MIDI60_v1",     60,        0,        -1 },
             { "midi72_layer2", 72,        1,        -1 },
-            // Bare-integer fallback
+            // Bare-integer fallback (raw MIDI — convention-independent)
             { "60_v1",         60,        0,        -1 },
             // Unparseable
             { "weird-name",    std::nullopt, std::nullopt, -1 },
             // Default vel (no velocity token)
-            { "C4",            60,        0,        -1 },
+            { "C3",            60,        0,        -1 },
             // Dynamics tokens
-            { "C4_p",          60,        0,        -1 },
-            { "C4_mp",         60,        1,        -1 },
-            { "C4_mf",         60,        2,        -1 },
-            { "C4_f",          60,        3,        -1 },
+            { "C3_p",          60,        0,        -1 },
+            { "C3_mp",         60,        1,        -1 },
+            { "C3_mf",         60,        2,        -1 },
+            { "C3_f",          60,        3,        -1 },
             // Order-independent parse
-            { "Lyr3_C4",       60,        2,        -1 },
-            { "C4_L4",         60,        3,        -1 },
+            { "Lyr3_C3",       60,        2,        -1 },
+            { "C3_L4",         60,        3,        -1 },
             // Extra leading token (filler)
-            { "Sample_C4_v1",  60,        0,        -1 },
+            { "Sample_C3_v1",  60,        0,        -1 },
             // Mixed separators
-            { "C4-v2.something", 60,      1,        -1 },
+            { "C3-v2.something", 60,      1,        -1 },
 
             // Phase 2.5 reopen — pre-note dynamics must NOT match.
-            { "vln_long_mp-D#3-V127-T6N6", 51, 0,   -1 },
-            { "vln_long_mp-C4-V127-EHGV",  60, 0,   -1 },
-            { "Auto Sampled Instrument-D#3-V127-RJHU", 51, 0, -1 },
-            { "mp_C4",     60, 0,   -1 },
-            { "C4_mp",     60, 1,   -1 },
-            { "L3_C4",     60, 2,   -1 },
-            { "vel2_C4",   60, 1,   -1 },
+            // (D#3 is now MIDI 63 under C3=60; C3 is MIDI 60.)
+            { "vln_long_mp-D#3-V127-T6N6", 63, 0,   -1 },
+            { "vln_long_mp-C3-V127-EHGV",  60, 0,   -1 },
+            { "Auto Sampled Instrument-D#3-V127-RJHU", 63, 0, -1 },
+            { "mp_C3",     60, 0,   -1 },
+            { "C3_mp",     60, 1,   -1 },
+            { "L3_C3",     60, 2,   -1 },
+            { "vel2_C3",   60, 1,   -1 },
 
             // v1.8.0 — round-robin tokens.
-            { "C4_v1_rr1",       60, 0, 0 },
-            { "C4_v1_rr2",       60, 0, 1 },
-            { "C4_rr03",         60, 0, 2 },
-            { "C4_take1",        60, 0, 0 },
-            { "C4_take7",        60, 0, 6 },
-            { "C4_tk1",          60, 0, 0 },
-            { "RR2_C4_v1",       60, 0, 1 },     // pre-note RR also fine
-            { "C4_v1_rr0",       60, 0, -1 },    // 0 rejected (1-based input)
-            { "C4_rr",           60, 0, -1 },    // bare prefix rejected
-            { "C4_round2",       60, 0, -1 },    // not in recognised set
-            { "C4_var3",         60, 0, -1 },    // not in recognised set
+            { "C3_v1_rr1",       60, 0, 0 },
+            { "C3_v1_rr2",       60, 0, 1 },
+            { "C3_rr03",         60, 0, 2 },
+            { "C3_take1",        60, 0, 0 },
+            { "C3_take7",        60, 0, 6 },
+            { "C3_tk1",          60, 0, 0 },
+            { "RR2_C3_v1",       60, 0, 1 },     // pre-note RR also fine
+            { "C3_v1_rr0",       60, 0, -1 },    // 0 rejected (1-based input)
+            { "C3_rr",           60, 0, -1 },    // bare prefix rejected
+            { "C3_round2",       60, 0, -1 },    // not in recognised set
+            { "C3_var3",         60, 0, -1 },    // not in recognised set
         };
 
         int passed = 0, failed = 0;

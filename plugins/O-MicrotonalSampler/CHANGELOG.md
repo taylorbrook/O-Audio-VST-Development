@@ -1,5 +1,48 @@
 # O-MicrotonalSampler Changelog
 
+## [1.11.1] - 2026-05-02
+
+### Fixed
+- **Octave-off bug — sample filenames now parse with C3=60 convention.**
+  Playing a key labelled `G1` in the host DAW produced audio at `G2` pitch
+  (one octave too high). Root cause: `Source/FilenameParser.cpp` parsed
+  scientific-pitch tokens with the C4=60 (Yamaha/JUCE-native) convention
+  via `midi = (octave + 1) * 12 + semitoneOffset`, while every dominant
+  DAW (Ableton Live, Cubase, FL Studio, Logic Pro, Pro Tools, Reaper
+  default) labels middle C as C3 = MIDI 60. A user folder of `G0.wav,
+  G1.wav, G2.wav, …` recorded in DAW-native labelling was therefore
+  stored at cell `midiNote` values one octave below the actual recorded
+  pitch; on playback, `MicrotonalSamplerVoice::computePlayRateForVariant`
+  (Source/MicrotonalSamplerVoice.cpp:113-123) computed a 2× ratio
+  (`desiredFreq / cellRefFreq`) and transposed the sample up an octave.
+  Switched the parser to `midi = (octave + 2) * 12 + semitoneOffset` and
+  updated the matching UI label formula in `Resources/ui/js/sampler-app.js`
+  (`midiToNoteName`) so cell labels stay in lockstep with parsed MIDI
+  numbers. Inline parser tests rebased onto the new convention (C3=60
+  anchor case added; previous C4-based assertions shifted by 12).
+
+### Notes
+- **No state-format / parameter / preset changes.** Sessions saved on
+  v1.11.0 reload identically — `SampleMap` cell `midiNote` values are
+  rebuilt from filenames at folder-load time, not persisted, so the new
+  convention takes effect on next folder load. Existing in-memory
+  sessions stay valid until the user reloads samples.
+- **Label shift visible in the Sample Map grid.** Cells previously
+  labelled `C4` will now read `C3`, `C5` will read `C4`, etc. — pitches
+  unchanged, only the displayed octave numbers move down by one to match
+  the host DAW's ruler.
+- **Compatibility caveat — folders named in C4=60 (Yamaha) convention.**
+  Users whose sample folders were named to match the *previous* parser
+  convention (e.g. samples actually recorded at MIDI 60 named `C4.wav`
+  in JUCE-native form) will see their folders load one octave low after
+  this update. Workaround: rename the folder so each filename's octave
+  digit is one lower (e.g. `C4.wav → C3.wav`), or re-export from the DAW
+  to pick up its native labelling. The C3=60 default matches the vast
+  majority of modern DAW exports.
+- **Files touched:** `Source/FilenameParser.cpp` (formula + comment +
+  inline tests at lines 431-490), `Resources/ui/js/sampler-app.js`
+  (`midiToNoteName` at lines 595-604), `CMakeLists.txt` (VERSION bump).
+
 ## [1.11.0] - 2026-05-01
 
 ### Added
