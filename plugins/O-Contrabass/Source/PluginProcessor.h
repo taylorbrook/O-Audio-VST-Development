@@ -14,14 +14,16 @@
 #include "DSP/MasterSaturator.h"
 #include "DSP/MasterLimiter.h"
 #include "DSP/StereoWidth.h"
+#include "TuningEngine.h"
 
 class BowedContrabassVoice;     // Phase 2.3 R29 forward decl — used by getActiveVoice()
 
-class OContrabassAudioProcessor : public juce::AudioProcessor
+class OContrabassAudioProcessor : public juce::AudioProcessor,
+                                  public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     OContrabassAudioProcessor();
-    ~OContrabassAudioProcessor() override = default;
+    ~OContrabassAudioProcessor() override;
 
     //==============================================================================
     // AudioProcessor overrides
@@ -57,11 +59,27 @@ public:
     // Defined in PluginProcessor.cpp where BowedContrabassVoice is fully visible.
     BowedContrabassVoice* getActiveVoice() noexcept;
 
+    // Phase 2.6b R40a — TuningEngine accessor + Scala/TUN file-load entry
+    // point (ESCALATION-FPK1: harness-only at v1.0; Stage 3 GUI replaces with
+    // FileChooser).
+    TuningEngine* getTuningEngine() noexcept { return &tuningEngine; }
+    bool loadScalaFile (const juce::File& sclFile);
+
+    // Phase 2.6b R40a — APVTS Listener override (TUNING_SYSTEM Choice → mode
+    // dispatch via MessageManager::callAsync; ESCALATION-MTS1).
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
+
     // NOTE: Do NOT declare getLatencySamples() here — it is non-virtual in JUCE 8.
     // Use setLatencySamples(N) inside prepareToPlay() instead.
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Phase 2.6b R40a — TuningEngine member declared BEFORE synth so C++ ctor
+    // init order = declaration order (Risk #32 mitigation). synth.addVoice
+    // passes &tuningEngine to BowedContrabassVoice; pointer must be valid at
+    // construction time.
+    TuningEngine tuningEngine;
 
     // Phase 2.1a: single E1 voice. Multi-voice / per-string voicing is Phase 2.2.
     OContrabassMPESynthesiser synth;

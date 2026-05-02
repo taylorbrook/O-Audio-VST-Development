@@ -131,12 +131,27 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
-    // Phase 2.1a: single E1 voice. Multi-voice / per-string voicing lands in 2.2.
-    synth.addVoice(new BowedContrabassVoice(&parameters));
+    // Phase 2.6b R40a — pass tuningEngine ptr to voice so noteStarted /
+    // notePitchbendChanged can resolve frequency through the engine
+    // (ESCALATION-RP1 voice-side ratio multiplication; cache field Q17).
+    // tuningEngine is declared BEFORE synth in the header → constructed
+    // first → pointer is valid here (Risk #32 mitigation).
+    synth.addVoice(new BowedContrabassVoice(&parameters, &tuningEngine));
 
     // MPE legacy mode for non-MPE DAWs (RESEARCH §5 pitfall #8).
     // Pitchbend range 24 semitones, channels 1..16 — covers omni MIDI input.
     synth.enableLegacyMode(/*pitchbendRange*/ 24, juce::Range<int>(1, 16));
+
+    // Phase 2.6b R40a — APVTS Listener registration for TUNING_SYSTEM Choice.
+    // Initial seed: dispatch parameterChanged once to set initial mode.
+    parameters.addParameterListener ("TUNING_SYSTEM", this);
+    parameterChanged ("TUNING_SYSTEM",
+                      parameters.getRawParameterValue ("TUNING_SYSTEM")->load());
+}
+
+OContrabassAudioProcessor::~OContrabassAudioProcessor()
+{
+    parameters.removeParameterListener ("TUNING_SYSTEM", this);
 }
 
 //==============================================================================
@@ -272,6 +287,46 @@ BowedContrabassVoice* OContrabassAudioProcessor::getActiveVoice() noexcept
     if (synth.getNumVoices() == 0)
         return nullptr;
     return dynamic_cast<BowedContrabassVoice*> (synth.getVoice(0));
+}
+
+//==============================================================================
+// Phase 2.6b R40a — APVTS Listener: TUNING_SYSTEM Choice → TuningEngine::Mode.
+// ESCALATION-MTS1 LOCK: defer the actual setMode call to the message thread
+// via MessageManager::callAsync. setMode briefly holds intervalMutex inside
+// rebuildFrequencyTable — not RT-safe. callAsync is RT-safe to invoke from
+// the audio thread per JUCE docs, so this callback is safe even under
+// audio-thread parameter automation fuzz (pluginval-10 Parameter thread
+// safety). Choice index → module Mode index swap (plugin index 0 "Scala/TUN"
+// = module Mode::Scala; plugin index 2 "12-TET" = module Mode::TwelveTET).
+void OContrabassAudioProcessor::parameterChanged (const juce::String& parameterID,
+                                                  float newValue)
+{
+    if (parameterID != "TUNING_SYSTEM")
+        return;
+
+    const int choiceIdx = static_cast<int> (newValue);
+    TuningEngine::Mode mode;
+    switch (choiceIdx)
+    {
+        case 0:  mode = TuningEngine::Mode::Scala;     break;
+        case 1:  mode = TuningEngine::Mode::MTSESP;    break;
+        case 2:
+        default: mode = TuningEngine::Mode::TwelveTET; break;
+    }
+    juce::MessageManager::callAsync ([this, mode]() { tuningEngine.setMode (mode); });
+}
+
+//==============================================================================
+// Phase 2.6b R40a — Scala/TUN file-load entry point (ESCALATION-FPK1).
+// Public method invoked from the harness `--microtonal --scl <path>` handler
+// on the main thread before render begins; Stage 3 GUI Editor replaces this
+// invocation with juce::FileChooser::launchAsync + AsyncUpdater callback.
+// Module's loadScalaFile briefly holds intervalMutex during
+// setCustomIntervals → rebuildFrequencyTable; main-thread invocation is the
+// design contract.
+bool OContrabassAudioProcessor::loadScalaFile (const juce::File& sclFile)
+{
+    return tuningEngine.loadScalaFile (sclFile);
 }
 
 //==============================================================================

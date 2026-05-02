@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Phase 2.4a R34-pre / Phase 2.4b R35a / Phase 2.4c R36e / Phase 2.6a-bis —
-# canonical reproduction of all 14 O-Contrabass render goldens. Locks
-# invocations against duration-dependence trap (RESEARCH.md §17.10 Risk #10).
+# Phase 2.4a R34-pre / Phase 2.4b R35a / Phase 2.4c R36e / Phase 2.6a-bis /
+# Phase 2.6b R40d — canonical reproduction of all 17 O-Contrabass render
+# goldens. Locks invocations against duration-dependence trap (RESEARCH.md
+# §17.10 Risk #10).
 # Phase 2.4b extension (PLAN rev-9 pin #3): adds `sub-harmonics` +
 # `sub-harmonics-stability` entries; HR-9 IEEE 754 identity arithmetic
 # preserves bit-exact regression for the 10 carry-forward goldens at
@@ -11,6 +12,19 @@
 # Phase 2.6a-bis extension: adds `output-chain` entry covering the master
 # output-chain stress harness (sat sweep / limiter ceiling / width sweep /
 # clickfree fast automation / peak-overshoot stress).
+# Phase 2.6b R40d extension: adds 3 microtonal goldens —
+#   `microtonal-12tet` (TuningEngine wire-up at default 12-TET; bit-equivalent
+#                       to pre-edit getMidiNoteInHertz path per RP1 algebraic
+#                       identity at REFERENCE_PITCH=440)
+#   `microtonal-scala` (19-EDO test fixture loaded via loadScalaFile;
+#                       exercises the engine's calculateCustomFrequency
+#                       lookup → frequencyTable[128] atomic store path)
+#   `microtonal-mpe`   (MPE legacy ±24 semitone pitch-bend tracking on
+#                       channel 2; verifies notePitchbendChanged Site B
+#                       cache re-use per Q17 LOCK)
+# Carry-forward bit-equality at TUNING_SYSTEM=12-TET (Gate 8b inv #1):
+# all 14 prior goldens preserve byte-identity post-R40 source edits via
+# the algebraic identity at default APVTS state (RESEARCH §23.6.6 proof).
 # Usage: ./reproduce-goldens.sh           — render to /tmp/repro/, diff vs committed
 #        ./reproduce-goldens.sh --quiet   — exit code only, no stdout
 # Bash 3.2 compatible (macOS system bash) — uses parallel arrays, not associative.
@@ -33,7 +47,7 @@ fi
 # Parallel arrays (bash 3.2 compatible). Canonical invocations per RESEARCH §17.1:
 # sustain 60 / release 5 default for sustained modes; 3-s notes for note-sequence;
 # mode-locked sustain for vibrato/macro/slow/schelleng.
-NAMES=(stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence vibrato macro-sweep slow-lfo schelleng-stress sub-harmonics sub-harmonics-stability saturator-tail-comparison output-chain)
+NAMES=(stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence vibrato macro-sweep slow-lfo schelleng-stress sub-harmonics sub-harmonics-stability saturator-tail-comparison output-chain microtonal-12tet microtonal-scala microtonal-mpe)
 INVOCS=(
     "--note 28 --velocity 0.7 --sustain 60 --release 5 --infinite-sustain 1.0 --string-stiffness 0"
     "--string A"
@@ -49,6 +63,10 @@ INVOCS=(
     "--sub-harmonics-stability"
     "--saturator-tail-comparison"
     "--output-chain"
+    # Phase 2.6b R40d microtonal goldens (TuningEngine wire-up verification).
+    "--microtonal --tuning-system 12tet"
+    "--microtonal --tuning-system scala --scl ${REPO_ROOT}/plugins/O-Contrabass/tests/render-harness/fixtures/test-19edo.scl"
+    "--mpe-pitch-bend"
 )
 
 FAIL=0

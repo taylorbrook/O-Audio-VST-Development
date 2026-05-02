@@ -27,6 +27,18 @@ target_sources(O-Contrabass-render-test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/BowedContrabassVoice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/WaveguideString.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/BodyResonator.cpp
+
+    # Phase 2.6b R40b — scala-tuning-engine module sources (Pattern B explicit
+    # refs, sibling-plugin convention). Plugin links the same 4 .cpp files at
+    # plugins/O-Contrabass/CMakeLists.txt:39-42; harness mirrors here so the
+    # TuningEngine ctor / setMode / loadScalaFile symbols resolve at link.
+    # PLAN rev-14 deviation: plan stated "0 CMakeLists.txt edits" assuming
+    # include-dir wire-up sufficed, but the harness still required the .cpp
+    # files to satisfy R40a/R40b symbols at link.
+    ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
+    ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
+    ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/EmbeddedTunings.cpp
+    ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningExporter.cpp
 )
 
 target_include_directories(O-Contrabass-render-test PRIVATE

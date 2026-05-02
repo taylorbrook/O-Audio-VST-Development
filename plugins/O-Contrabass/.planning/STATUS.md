@@ -1,8 +1,8 @@
 ---
 plugin: O-Contrabass
 stage: 2
-phase: execute
-status: phase_2_6a_execute_complete_gate_8a_soft_pass
+phase: plan
+status: phase_2_6b_plan_complete_plan_rev_14_authored_4_escalations_locked_rp1_mts1_mpe1_fpk1_36_entry_risk_register_r40_6_task_breakdown_ready_for_execute
 last_updated: 2026-05-01
 complexity_score: 5.0
 complexity_score_raw: 16.0
@@ -10,10 +10,99 @@ complexity_tier: 6
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-cycle_scope: phase_2_6a_output_chain_master_saturator_polynomial_x_minus_x_cubed_third_plus_zero_latency_feedforward_limiter_plus_stereo_width_first_sub_cycle_of_phase_2_6_umbrella_phase_2_6b_microtonal_phase_2_6c_note_expression_authored_at_later_sub_cycles
-next_action: phase_2_6a_bis_follow_up_then_phase_2_6a_verify
+cycle_scope: phase_2_6b_subcycle_microtonal_engine_scala_tun_mts_esp_stub_mpe_pitchbend_24_semitones_dsp05_coexistence_audit_r40_atomic_target
+next_action: phase_2_6b_execute_r40_atomic_microtonal_engine_wireup_tuningengine_plus_scala_tun_plus_mts_esp_stub_plus_24_semi_mpe_legacy_bend
 phase_2_5_atomic_sha: 907a7c3409b1c2e74734f7d835ab3a934bb123fa
 phase_2_6a_atomic_sha: 74b3f83e6d10162b3c28ef966aa79d4adf8e62f0
+phase_2_6b_plan_carry_forward: |  # rev-25 STATUS append for audit trail
+  Phase 2.6b plan complete 2026-05-01. PLAN.md rev-14 authored (~580 LOC append) per RESEARCH §23 6-task breakdown LOCKED verbatim + 4 ESCALATIONs RP1/MTS1/MPE1/FPK1 LOCKED in §"Approach Decisions" section. Cycle scope: TuningEngine member wire-up in PluginProcessor + voice note-on/notePitchbendChanged refactor with REFERENCE_PITCH ratio (Option B) + cached tuningEngineBaseFreqHz (Q17) + 19-EDO Scala fixture authored at R40d + harness `--microtonal` and `--mpe-pitch-bend` modes + 3 NEW goldens + 14 carry-forward bit-equality at 12-TET. Atomic R40.
+
+  **6-task breakdown LOCKED (verbatim from CONTEXT rev-11.b §"R40 6-task breakdown" + RESEARCH §23.12):** R40-pre (7-step tripwire — git clean / 14 audible goldens / output-chain.wav / saturator carry-forward / parameter-spec sha + comment / module link audit / TuningEngine pre-edit grep both processor + voice) → R40a (PluginProcessor.{h,cpp} M ~30 LOC NEW — TuningEngine member declared BEFORE synth + Listener inheritance + ctor listener registration + dtor cleanup + parameterChanged 3-case Choice→Mode + callAsync defer + loadScalaFile public method + getTuningEngine accessor) → R40b (BowedContrabassVoice.{h,cpp} M ~16 LOC NEW+M — TuningEngine* ctor param + tuningEngineBaseFreqHz cache field + Site A noteStarted refactor (TuningEngine.getFrequency × refPitchRatio × bend) + Site B notePitchbendChanged refactor (cache re-use, Q17 no re-poll)) → R40c (tests/render-harness/main.cpp M ~150 LOC NEW — `--microtonal` 3-system mode + `--mpe-pitch-bend` 5s sweep mode with JSON metric summaries; pitch-detection re-uses Phase 2.3 vibrato autocorrelation) → R40d (1 fixture NEW + 12 golden artefacts NEW + reproduce-goldens.sh 14→17 + DSP-05 coexistence test bit-equality on detune-sweep-A.wav at 12-TET + MTS-ESP stub identity ephemeral render sha-match with 12-TET baseline) → R40e (regression bar — 17-entry reproduce + 3-trial bit-stability + 4-file source audit + 0 CMake + 0 parameter-spec amendment + auval AU + pluginval-10 full battery + DSP-05 coexistence audit + MTS-ESP stub identity) → R40 atomic commit (3 source M + 1 fixture NEW + 12 goldens NEW + reproduce script M + RESEARCH §23 + CONTEXT rev-11.b + PLAN rev-14 + STATUS.md/SUMMARY.md/VERIFICATION.md planning artefacts) → R40-backfill chore.
+
+  **4 ESCALATIONS LOCKED at plan-phase (research-grounded, NOT re-discussed):** ESC-RP1 REFERENCE_PITCH range mismatch Option B (voice-side ratio multiplication; module untouched; bit-equivalent at default 440 Hz; honors Stage-1 220–880 Hz contract); ESC-MTS1 MTS-ESP stub site = no plugin-side branching (module's calculateCustomFrequency falls through to 12-TET defaults; APVTS Choice → Mode 3-case switch deferred via callAsync); ESC-MPE1 MPE ±24 semi pitch-bend smoothing = NO new smoother (existing 20 ms detuneSmoothed Linear ramp adequate; verified click-free at vibrato precedent's same ramp velocity order of magnitude); ESC-FPK1 Scala/TUN file-picker stub = public processor.loadScalaFile method + harness `--microtonal --scl <path>` invocation only at v1.0 (Stage 3 Editor FileChooser replaces).
+
+  **Source-delta budget LOCKED:** 3 production source files M (PluginProcessor.{h,cpp} + BowedContrabassVoice.{h,cpp} + render-harness/main.cpp) + 0 CMakeLists.txt edits + 0 NEW source files + 1 fixture NEW (test-19edo.scl) + 12 golden artefacts NEW + 1 reproduce-goldens.sh M = ~190 LOC net production + ~150 LOC NEW harness. Header-only DSP design INTENTIONAL (TuningEngine.h include resolves via Stage-1 module include-dir at CMakeLists.txt:49; avoids Phase 2.5 R37 deviation #1).
+
+  **Gate 8b 5-invariant success bar LOCKED:** (1) 12-TET default state byte-identical to Phase 2.6a 14 audible goldens (HR-style determinism; HR-12 contract verifies; algebraic proof §23.6.6); (2) Scala/TUN file load → expected pitch deviation on 19-EDO test file (algebraic match within ±0.5¢ via harness JSON metrics); (3) MTS-ESP stub returns 12-TET behavior + pluginval-10 Background thread state + Parameter thread safety PASS; (4) MPE pitch-bend ±24 semitones per-note tracking on channel-2 legacy mode (rmsContinuity ≥ 0.85, pitchTracking |delta_cents| < 10); (5) auval AU + pluginval-10 SUCCESS + DSP-05 coexistence audit PASS (bit-equality on detune-sweep-A.wav at TUNING_SYSTEM=12-TET against Phase 2.6a sha256).
+
+  **36-entry risk register LOCKED** (13 CONTEXT carry-forward + 13 Phase 2.6a carry-forward + 6 Phase 2.6b NEW from CONTEXT rev-11.b Q20 #27-#32 + 4 research-surfaced #33-#36): 30 mitigated, 3 expected (#28 acceptable message-thread blocking; #30 D1 lock; #36 Scala-only known limitation v1.1 design), 3 known-limitations (Scala restore + REFERENCE_PITCH precision floor + module-API design-intent), 0 OPEN at plan-phase entry.
+
+  **HR-12 LOCKED** at Phase 2.6b discuss (Q16); effective from R40 execute-phase onwards; promotes to all v1.1 follow-up cycles. Module enforces via std::array<std::atomic<double>, 128> per-slot atomic stores. HR-13 NOT introduced at Phase 2.6b research; slot reserved for Phase 2.6c (raw-event drain) if needed.
+
+  **Atomic-commit sequence:** R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 → R39 → R39-bis (pending user landing) → **R40** (Phase 2.6b atomic; R40-backfill chore follows) → R41 (Phase 2.6c) → Stage 2 verify amendments commit.
+
+  Hand off to /clear + /plugin-execute O-Contrabass 2-dsp for Phase 2.6b execute-phase (R40 atomic landing — TuningEngine wire + harness modes + goldens + reproduce-goldens.sh evolution + auval/pluginval-10/DSP-05 coexistence audit/MTS-ESP stub identity verification).
+phase_2_6b_discuss_carry_forward: |  # rev-24 STATUS append for audit trail
+  Phase 2.6b discuss complete 2026-05-01. CONTEXT rev-11.b sub-cycle amendment authored (~190 LOC append at lines 254-446) per Phase 2.6 umbrella plan Q1 LOCKED 3-sub-cycle scope. User selected "all defaults" — Q11-Q20 + D1-D3 + R40 6-task breakdown + Gate 8b 5-invariant scorecard + 6 NEW risks + HR-12 LOCK all carry without deviation.
+
+  **Live-state discrepancies resolved against rev-11 §22.6b (D1-D3):**
+  - D1 — MPE legacy pitchbend range: live code uses ±24 semitones (PluginProcessor.cpp:139); rev-11 §22.6b text mentioned ±2 (drift). LOCKED ±24 (Stage 1 ground truth; matches BRIEF per-string detune ±1200¢ headroom).
+  - D2 — TuningEngine MTS-ESP path: module v2.1.0 declares Mode::MTSESP placeholder + connectMTSClient() but ships no real MTS-ESP-Client SDK. LOCKED Q11 Option B — no-op stub (returns 12-TET frequencies; APVTS Choice value preserved; v1.1 lights up real client).
+  - D3 — OUTPUT_LEVEL vs OUTPUT_GAIN parameter ID drift: BRIEF says "Output Level"; Phase 2.6a relocation used OUTPUT_GAIN. NOT a 2.6b concern; flagged for Stage 2 full verify audit.
+
+  **Q11-Q20 LOCKED (10 sub-cycle decisions):**
+  - Q11 MTS-ESP scope = Option B no-op stub (ship Choice value, v1.1 real client).
+  - Q12 Scala/TUN file-load UX = Option A message-thread file-picker stub invoked from harness `--microtonal --scl <path>`; Stage 3 GUI replaces stub.
+  - Q13 DSP-05 + microtonal coexistence audit (Q9 resolution) = Option A bit-equality at TUNING_SYSTEM=12-TET on detune-sweep-A.wav; Scala passthrough at 19-EDO = expected algebraic delta (no double-counting since TuningEngine returns absolute Hz, detune is cents offset on top).
+  - Q14 parameter-spec.md amendment at Phase 2.6b = NO amendment. Post-Phase-2.6a sha `ae956e94…` carries forward unchanged (TUNING_SYSTEM + REFERENCE_PITCH already declared at Stage 1, PluginProcessor.cpp:118-121). Q7 keeps Stage-2 amendment count at 3.
+  - Q15 JUCE-NE-PATCH precondition assertion = Option A NO assertion at 2.6b (raw-event drain is 2.6c-scoped).
+  - Q16 HR-12 LOCKED — "Tuning-table updates use only std::atomic<double> per-slot writes (TuningEngine frequencyTable[128]) or atomic-pointer swap; NO mutex / lock / file I/O / allocation on audio thread."
+  - Q17 Per-block tuning recompute (Q8 carry-forward refinement) = Option A note-on resolution only; voice does NOT re-poll TuningEngine per-block; live retuning takes effect at next note-on.
+  - Q18 R40 task breakdown = Option A 6-task (R40-pre → R40a → R40b → R40c → R40d → R40e → R40 atomic → R40-backfill chore). Compressed vs Phase 2.6a 9-task (no NEW source files; only M to PluginProcessor + voice + harness).
+  - Q19 Gate 8b 5-invariant scorecard LOCKED.
+  - Q20 6 NEW risks LOCKED (#27-#32); cumulative 32-entry register (13 rev-11 + 13 Phase 2.6a + 6 Phase 2.6b).
+
+  **R40 6-task breakdown LOCKED:** R40-pre (7-check tripwire — git clean / 14 audible goldens / output-chain.wav golden / saturator carry-forward / parameter-spec sha / module link audit / TuningEngine pre-edit grep) → R40a (PluginProcessor.{h,cpp} M ~30 LOC NEW — TuningEngine member + ctor construction + APVTS reads + MTS-ESP stub + Scala/TUN file-picker stub) → R40b (BowedContrabassVoice.{h,cpp} M ~10 LOC M — note-on f_target resolution refactor; preserve perStringDetune as multiplicative on top) → R40c (tests/render-harness/main.cpp M ~150 LOC NEW — `--microtonal` + `--mpe-pitch-bend` modes with JSON measurement summary) → R40d (3 NEW goldens: microtonal-12tet/scala/mpe + 14 audible goldens carry-forward bit-identical at 12-TET default + 3-trial bit-stability + reproduce-goldens.sh 14→17 entries + DSP-05 coexistence test bit-equality on detune-sweep-A.wav) → R40e (regression bar — 17-entry reproduce-goldens.sh PASS + 3-file source audit hook + 0 CMake + 0 parameter-spec amendment + auval AU + pluginval-10 + Background thread state + Parameter thread safety + Buffer fuzz + DSP-05 audit) → R40 atomic commit (single atomic per Phase 2.4c-bis R36-bis / Phase 2.5 R37 / Phase 2.6a R39 precedent — 3 source M + 3 NEW goldens + reproduce-goldens.sh M + RESEARCH §23 + CONTEXT rev-11.b + PLAN rev-14 + SUMMARY/VERIFICATION/STATUS planning artefacts) → R40-backfill chore (sha propagation per R34/R35/R36/R36-bis/R37/R39 precedent).
+
+  **Source-delta budget LOCKED:** 3 production source files M + 0 CMakeLists.txt edits + 0 NEW source files = ~30 LOC NEW + ~10 LOC M production + ~150 LOC NEW harness = ~190 LOC net. Header-only DSP design INTENTIONAL (no NEW headers; module classes already linked at Stage 1).
+
+  **Gate 8b 5-invariant success bar LOCKED:** (1) 12-TET default state byte-identical to Phase 2.6a 14 audible goldens (HR-style determinism on TuningEngine identity; HR-12 contract verifies); (2) Scala/TUN file load → expected pitch deviation on 19-EDO test file (algebraic match within ±0.5¢); (3) MTS-ESP stub returns 12-TET behavior + pluginval-10 thread-safety PASS; (4) MPE pitch-bend ±24 semitones per-note tracking on channel-2; (5) auval + pluginval-10 SUCCESS + DSP-05 coexistence audit PASS (bit-equality on detune-sweep-A.wav at 12-TET).
+
+  **HR-12 introduced** (first new HR since HR-11 retired at Phase 2.4c-bis; HR-1..HR-10 carry forward). HR-13 not introduced at discuss-phase.
+
+  **Atomic-commit sequence:** R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 → R39 → R39-bis (pending user landing) → **R40** (Phase 2.6b atomic; R40-backfill chore follows) → R41 (Phase 2.6c) → Stage 2 verify amendments commit.
+
+  Hand off to /clear + /plugin-research O-Contrabass 2-dsp for Phase 2.6b research-phase (RESEARCH §23 author — TuningEngine API surface review + MTS-ESP stub implementation site + 19-EDO test Scala file location + per-block MPE pitch-bend smoothing analysis + voice baseFreq replacement site audit + atomic-pointer vs atomic<double>[128] swap pattern). RESEARCH §22 + §22-bis (Phase 2.6a + 2.6a-bis) closed.
+phase_2_6a_bis_verify_carry_forward: |  # rev-23 STATUS append for audit trail
+  Phase 2.6a-bis verify complete 2026-05-01. User-selected Option A — execute-as-verify (Phase 2.6a-bis sub-cycle work folded into verify-phase per STATUS rev-22 line 49 "Hand off to … /plugin-verify O-Contrabass 2-dsp if Phase 2.6a-bis is folded into verify-phase work" path). Gate 8a SOFT-PASS lifts to PASS-with-design-intent-flag: 4 of 5 invariants strict-PASS; Risk #19 documented as design-intent (-4.22 dB measured WIDTH=0 collapse vs ≤ 2 dB speculative target — allpass topology inherent; widened soft-band recommended).
+
+  **Phase 2.6a-bis source delta (R39-bis atomic target — pending user landing):**
+  - 4 source M (all gated by OCBS_DISABLE_DECORRELATOR; production NO-OP):
+    - Source/DSP/StereoWidth.h (+6 LOC M; #if/#else gate around decorrelator.processSample)
+    - Source/DSP/MasterSaturator.h (+6 LOC NEW; setAmountImmediate public method)
+    - Source/DSP/MasterLimiter.h (+10 LOC NEW; setCeilingDbImmediate public method)
+    - Source/PluginProcessor.cpp (+15 LOC NEW gated; force APVTS bypass values + immediate-set seeding)
+  - 1 harness M:
+    - tests/render-harness/main.cpp (+290 LOC NEW; --output-chain CLI mode; 5-probe stress with Gate 8a #1/#2 invariants + Risk #19 measurement + JSON schema)
+  - 1 reproduce-goldens.sh M (13→14 entries; preamble updated)
+  - 4 golden artefacts NEW: output-chain.{wav,json,wav.sha256,json.sha256}
+    - output-chain.wav sha = b5fc1d60b02902f1127b6ec6516b924262dd75b2d2d2d8d8a1a88ff7fec5f9ad (3-trial bit-stable)
+    - output-chain.json sha = 618f672a2d846a84653fa32c25466b913aeaa72fb57cc180ca1bc4a072cf2258 (informational anchor)
+  - 3 evidence artefacts NEW: .planning/evidence/phase-2-6a/matrix-stability-post-output-chain.{wav,json} + matrix-stability.log
+    - matrix-stability-post-output-chain.wav sha = b200208ac7ae7a9967c040a8f379a1569ed025608315cd7f3721947ab0f88fbd (108/108 PASS, zero NEW raucous corners)
+  - 0 ARCHITECTURE.md amendments (Q7 LOCKED → Stage 2 full verify)
+  - 0 REQUIREMENTS.md status flips (Q10 LOCKED → Stage 2 full verify)
+
+  **Gate 8a 5-invariant scorecard (POST-Phase-2.6a-bis):**
+  1. Output peak ≤ ceiling + 0.05 dB — STRICT-PASS (probe 2 -17.41 dB << -0.25 dB ceiling; probe 5 -16.83 dB << -2.95 dB ceiling)
+  2. Click-free WIDTH 0%→200% + MASTER_SAT_AMOUNT 0%→100% automation — STRICT-PASS (max sample-to-sample derivative 0.0179 << 0.20 threshold; factor 11×)
+  3. PERF-03 zero algorithmic latency — PASS (carry-forward from R39 verify; setLatencySamples site unchanged)
+  4. auval AU + pluginval-10 SUCCESS — PASS (carry-forward from R39g)
+  5. 14 (was 13 at R39) re-baselined audible goldens reproduce byte-identical — STRICT-PASS (reproduce-goldens.sh OK: all 14 goldens reproduce byte-identical at locked sha256s)
+
+  **Risk Register closure:**
+  - Risk #19 (WIDTH=0.0 spectral collapse comb-notch ≤ 2 dB) — DESIGN-INTENT FLAG; measured -4.22 dB; widened soft-band ≤ 5 dB recommended. Not a Gate 8a invariant — was a Risk Register entry only. Phase 2.6a-tris (decorrelator topology change) NOT recommended (would re-baseline all 14 goldens for marginal gain).
+  - Risk #22 (default-state bit-equivalence at MASTER_SAT_AMOUNT=0 + LIMITER=0 + WIDTH=1.0) — STRICT-PASS; sha 7dfe9001a4503aaaed3cd136df51901b9ca3da47aadb0c62a055abb10e279bc0 matches Phase 2.5 R37 baseline byte-for-byte under -DOCBS_DISABLE_DECORRELATOR=1 build + APVTS forced to bypass values.
+
+  **§"In-loop saturator" amendment evidence base extended (4 rows):**
+  - Phase 2.4c R36 pre-port: c7e845ea… → -13.09 dB
+  - Phase 2.4c-bis R36-bis post-port: 5c45d176… → -7.97 dB
+  - Phase 2.5 R37 post-body: 130a7b02… → -25.06 dB
+  - Phase 2.6a-bis post-output-chain (re-render at R39 sha 74f9d459…): -25.05 dB (|Δ| ≈ 0.012 dB; saturator-tail-comparison parameter regime is sub-engagement for sat/limiter/width chain)
+
+  Atomic-commit sequence: R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 → R39 → **R39-bis** (Phase 2.6a-bis Gate 8a closure; pending user landing).
+
+  Hand off to /clear + /plugin-discuss O-Contrabass 2-dsp for Phase 2.6b discuss-phase (microtonal engine + MPE pitch-bend; CONTEXT rev-12 supersedes rev-11.a; R40 atomic target). OR: land R39-bis atomic first if user prefers separate commits before opening Phase 2.6b.
 phase_2_6a_execute_carry_forward: |  # rev-22 STATUS append for audit trail
   Phase 2.6a R39 atomic execute complete 2026-05-01. Gate 8a SOFT-PASS (3 of 5 invariants strict-PASS; #1/#2 deferred to Phase 2.6a-bis follow-up commit per Option 2 LOCK).
 
