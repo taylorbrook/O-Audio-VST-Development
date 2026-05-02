@@ -608,6 +608,20 @@ function renderGrid(snap) {
     const container = document.getElementById('sample-map-grid');
     if (!container) return;
 
+    // v1.12.2 (FE-03): cancel any in-flight single-click defer before we
+    // tear down the cell DOM. The 250 ms double-click discriminator (see
+    // bindGridInteractions) closes over a `cell` reference; if a folder
+    // load / sample-map snapshot fires a renderGrid mid-defer, the timer
+    // would later read `dataset.note`/`dataset.layer` off a detached node
+    // and silently no-op (or worse, fire on a re-bound stale cell at the
+    // same grid position with different MIDI/layer values). Clearing the
+    // pending timer is the simplest fix and matches the cleanup the
+    // dblclick branch already performs.
+    if (pendingClickTimer) {
+        clearTimeout(pendingClickTimer);
+        pendingClickTimer = null;
+    }
+
     // Build fast — clear via innerHTML then assemble in a fragment.
     container.innerHTML = '';
     const inner = document.createElement('div');
@@ -1381,7 +1395,17 @@ async function streamFolderEntryToCpp (dirEntry) {
     // v1.12.0: pass totalBytes so the embed-size label populates live as
     // the user toggles the embed checkbox — no follow-up confirmation
     // modal needed for drag-drop (the size is already on screen).
-    const opts = await showFolderLoadOptionsModal(totalBytes);
+    let opts;
+    try {
+        opts = await showFolderLoadOptionsModal(totalBytes);
+    } catch (e) {
+        // v1.12.2 (FE-02): modal promise rejection (DOM tear-down,
+        // unexpected exception in cleanup) — surface and abort instead of
+        // hanging.
+        console.error('[sampler-app] folder-load options modal failed:', e);
+        showToast('Folder load dialog failed — aborted');
+        return;
+    }
     if (!opts) return;
 
     const sessionId = newDropSessionId();
@@ -1392,10 +1416,26 @@ async function streamFolderEntryToCpp (dirEntry) {
     // WKWebView strips the original disk path; this name is the only
     // cross-session-stable signal we get.
     const folderName = dirEntry && dirEntry.name ? dirEntry.name : '';
-    const startOk = await Juce.getNativeFunction('dropSessionStart')(
-        sessionId, folderName);
+    let startOk;
+    try {
+        startOk = await Juce.getNativeFunction('dropSessionStart')(
+            sessionId, folderName);
+    } catch (e) {
+        // v1.12.2 (FE-02): backend native-fn rejection — toast and abort
+        // so the UI doesn't hang waiting for a reply that won't come.
+        console.error('[sampler-app] dropSessionStart failed:', e);
+        showToast('Drop session start failed');
+        return;
+    }
     if (!startOk) { showToast('Drop session start failed'); return; }
 
+    // v1.12.2 (FE-01): per-iteration try/catch around BOTH the FileReader
+    // read AND the native-fn round-trip. A single corrupted .wav (FileReader
+    // reject) or a backend stall (native-fn reject) used to silently log to
+    // console only, leaving the user staring at a stale "Loading X of N"
+    // toast with no idea anything went wrong. Now: per-failure toast + skip
+    // + tally a count for the final summary.
+    let failed = 0;
     for (let i = 0; i < all.length; i++) {
         const { entry, relativePath } = all[i];
         showToast(`Loading ${i + 1} of ${all.length}: ${entry.name}`);
@@ -1405,37 +1445,99 @@ async function streamFolderEntryToCpp (dirEntry) {
                 sessionId, relativePath, base64);
             if (!ok) {
                 console.warn(`[sampler-app] addFile rejected: ${relativePath}`);
+                showToast(`Skipped: ${entry.name} (backend rejected)`);
+                failed++;
             }
         } catch (e) {
             console.error(`[sampler-app] file stream failed for ${relativePath}:`, e);
+            showToast(`Skipped: ${entry.name} (read failed)`);
+            failed++;
         }
     }
 
-    showToast(`Loading ${all.length} sample${all.length === 1 ? '' : 's'}…`);
-    await Juce.getNativeFunction('dropSessionCommitFolder')(
-        sessionId,
-        opts.layer,
-        opts.mode,
-        opts.override   ? 1 : 0,
-        opts.embedAudio ? 1 : 0);
+    const okCount = all.length - failed;
+    if (okCount === 0) {
+        showToast('No samples loaded — all files failed');
+        // Still call commit so the C++ side can clean up the empty session.
+        try {
+            await Juce.getNativeFunction('dropSessionCommitFolder')(
+                sessionId,
+                opts.layer,
+                opts.mode,
+                opts.override   ? 1 : 0,
+                opts.embedAudio ? 1 : 0);
+        } catch (e) {
+            console.error('[sampler-app] dropSessionCommitFolder failed:', e);
+        }
+        return;
+    }
+
+    showToast(failed > 0
+        ? `Loading ${okCount} of ${all.length} sample${all.length === 1 ? '' : 's'} (${failed} skipped)…`
+        : `Loading ${all.length} sample${all.length === 1 ? '' : 's'}…`);
+    try {
+        await Juce.getNativeFunction('dropSessionCommitFolder')(
+            sessionId,
+            opts.layer,
+            opts.mode,
+            opts.override   ? 1 : 0,
+            opts.embedAudio ? 1 : 0);
+    } catch (e) {
+        // v1.12.2 (FE-02): commit-step rejection — without this catch the
+        // UI would never see the "Loading X samples…" toast cleared.
+        console.error('[sampler-app] dropSessionCommitFolder failed:', e);
+        showToast('Folder load failed at commit step');
+    }
     // sampleMapUpdated push event drives the grid refresh + final state.
 }
 
 async function streamSingleFileEntryToCpp (fileEntry, midi, vel) {
+    // v1.12.2 (FE-02): every native-fn await is wrapped so a backend stall
+    // can't hang the UI permanently. Each step toasts its specific failure
+    // mode so the user knows where the drop failed.
     const sessionId = newDropSessionId();
 
-    const startOk = await Juce.getNativeFunction('dropSessionStart')(sessionId);
+    let startOk;
+    try {
+        startOk = await Juce.getNativeFunction('dropSessionStart')(sessionId);
+    } catch (e) {
+        console.error('[sampler-app] dropSessionStart failed:', e);
+        showToast('Drop session start failed');
+        return;
+    }
     if (!startOk) { showToast('Drop session start failed'); return; }
 
     showToast(`Loading ${fileEntry.name}…`);
-    const base64 = await readFileEntryAsBase64(fileEntry);
 
-    const addOk = await Juce.getNativeFunction('dropSessionAddFile')(
-        sessionId, fileEntry.name, base64);
+    let base64;
+    try {
+        base64 = await readFileEntryAsBase64(fileEntry);
+    } catch (e) {
+        // v1.12.2 (FE-01): FileReader reject on a single-file drop — the
+        // .wav was unreadable. Toast and abort cleanly.
+        console.error(`[sampler-app] file read failed for ${fileEntry.name}:`, e);
+        showToast(`Skipped: ${fileEntry.name} (read failed)`);
+        return;
+    }
+
+    let addOk;
+    try {
+        addOk = await Juce.getNativeFunction('dropSessionAddFile')(
+            sessionId, fileEntry.name, base64);
+    } catch (e) {
+        console.error('[sampler-app] dropSessionAddFile failed:', e);
+        showToast('File transfer failed');
+        return;
+    }
     if (!addOk) { showToast('File transfer failed'); return; }
 
-    await Juce.getNativeFunction('dropSessionCommitFile')(
-        sessionId, fileEntry.name, midi, vel);
+    try {
+        await Juce.getNativeFunction('dropSessionCommitFile')(
+            sessionId, fileEntry.name, midi, vel);
+    } catch (e) {
+        console.error('[sampler-app] dropSessionCommitFile failed:', e);
+        showToast('File load failed at commit step');
+    }
 }
 
 function newDropSessionId () {
