@@ -48,6 +48,21 @@ public:
     static constexpr int kRrCounterSize = 128 * 4;
     using RrCounterArray = std::array<std::atomic<uint8_t>, (size_t) kRrCounterSize>;
 
+    // v1.8.0: per-cell variant cap. The counter type above is uint8_t with
+    // 0xFF reserved as "no variant yet" sentinel — therefore the cap MUST be
+    // strictly less than 255 (so all valid indices fit in the lower 254 codes
+    // and the sentinel is never produced as a real selection).
+    //
+    // v1.12.3 (HG-04): hoisted from PluginProcessor.cpp (where it was a
+    // local constexpr in two places) into the same TU as the counter type,
+    // so the static_assert below catches any future bump that would collide
+    // with the sentinel. selectVariantIndex still defensively jlimits the
+    // stored value to 254 — see MicrotonalSamplerVoice.cpp — but the assert
+    // is the contract.
+    static constexpr int kMaxVariantsPerCell = 64;
+    static_assert (kMaxVariantsPerCell < 255,
+                   "variant index must fit in uint8 with 0xFF sentinel reserved");
+
     MicrotonalSamplerVoice() = default;
     ~MicrotonalSamplerVoice() override = default;
 

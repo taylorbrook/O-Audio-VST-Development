@@ -391,13 +391,41 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     // v1.8.0: round-robin index scan. Independent of position relative to
     // the note token (rr/take/tk has no token-name collision risk like
     // dynamics letters). First token that matches wins; -1 means no token.
+    //
+    // v1.12.3 (HG-02): the v1.8.0 form required the index to be glued to
+    // the prefix (e.g. "take1"). DAW-export conventions like
+    //   Piano_C3_take_1.wav  /  Trumpet_F#3_rr_2.aif  /  Bowed_E2_tk_3.flac
+    // tokenise to ["…", "take", "1"] — leaving the prefix bare and
+    // silently dropping RR semantics. We now ALSO detect the split form:
+    // a bare "rr" / "take" / "tk" token whose IMMEDIATE NEXT token is a
+    // 1-2 digit integer in 1..64. Note tokens consumed for note/velocity
+    // are NOT excluded from the scan because the RR digit is always to the
+    // RIGHT of the prefix and the prefix itself never matches note/vel.
     int rrIndex = -1;
     for (int i = 0; i < tokens.size(); ++i)
     {
+        // Glued form (v1.8.0): "rr1", "take7", "tk2", etc.
         if (auto rr = parseAsRrIndex (tokens[i]))
         {
             rrIndex = *rr;
             break;
+        }
+
+        // v1.12.3 (HG-02): split form. Match a bare prefix followed by a
+        // numeric next token. Prefix match is exact (case-insensitive) so
+        // "taken" / "tkr" / "rrm" don't accidentally trip this branch — they
+        // would have already failed parseAsRrIndex above.
+        const auto lc = tokens[i].toLowerCase();
+        if (lc == "rr" || lc == "take" || lc == "tk")
+        {
+            if (i + 1 < tokens.size())
+            {
+                if (auto rr = parseAsRrIndex (juce::String (lc) + tokens[i + 1]))
+                {
+                    rrIndex = *rr;
+                    break;
+                }
+            }
         }
     }
 
@@ -485,6 +513,21 @@ namespace FilenameParser
             { "C3_rr",           60, 0, -1 },    // bare prefix rejected
             { "C3_round2",       60, 0, -1 },    // not in recognised set
             { "C3_var3",         60, 0, -1 },    // not in recognised set
+
+            // v1.12.3 (HG-02) — separator-tokenised RR forms (the DAW-export
+            // convention). Tokeniser splits "Piano_C3_take_1" into
+            // ["Piano","C3","take","1"]; the v1.8.0 path lost RR here.
+            { "Piano_C3_take_1.wav",     60, 0, 0 },
+            { "Piano_C3_take_2",         60, 0, 1 },
+            { "Trumpet_F#3_rr_2.aif",    66, 0, 1 },
+            { "Bowed_E2_tk_3.flac",      40, 0, 2 },
+            { "C3_v1_take_5",            60, 0, 4 },
+            { "C3-take-1",               60, 0, 0 },   // dash separator
+            { "C3 take 12",              60, 0, 11 },  // space separator
+            { "C3_take_99",              60, 0, -1 },  // out of range (>64) → no RR
+            { "C3_take_0",               60, 0, -1 },  // 1-based: 0 invalid
+            { "C3_take_abc",             60, 0, -1 },  // non-numeric next token
+            { "C3_taken_1",              60, 0, -1 },  // "taken" is not a bare prefix
         };
 
         int passed = 0, failed = 0;

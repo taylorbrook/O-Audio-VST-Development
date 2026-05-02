@@ -1,5 +1,71 @@
 # O-MicrotonalSampler Changelog
 
+## [1.12.3] - 2026-05-02
+
+### Fixed
+- **HG-01: replay-queue corruption from cascaded callbacks during state
+  restore.** Two paths could re-enter the queue dispatcher with stale
+  expectations: (1) a synchronous `applyFolderLoad` →
+  `sampleMapChangedCallback` → editor → public `loadSampleFolder` chain
+  could land back inside the still-running outer `kickNextReplayOp`,
+  popping ops out from under its iterator; (2) a chain continuation
+  staged on an ambiguous-duplicate confirmation could fire long after
+  an unrelated state restore or `clearSampleMap` had wiped/rebuilt
+  `pendingReplayOps`, dispatching the previous generation's op against
+  the new queue. `kickNextReplayOp` now carries a single-threaded
+  re-entry guard that rejects synchronous re-entry, and every external
+  mutation of `pendingReplayOps` (`setStateInformation`,
+  `clearSampleMap`) bumps an atomic `replayQueueGeneration` token.
+  Loader callbacks and the `pendingDuplicateChainContinuation` lambda
+  capture the generation at staging time and bail out on mismatch.
+- **HG-02: filename parser silently dropped RR semantics for
+  separator-tokenised conventions.** Filenames following the common
+  DAW-export pattern `Piano_C3_take_1.wav` (or `_rr_2`, `_tk_3`)
+  tokenise to `["Piano","C3","take","1"]`; the v1.8.0 RR scan only
+  matched the glued form `take1` and silently returned `rr=-1` here,
+  defeating round-robin for these files. The parser now also detects a
+  bare `rr`/`take`/`tk` token whose immediately following token is a
+  1–2 digit integer in 1..64, and treats the pair as the RR index.
+  Glued form (`take7`) still wins when present so existing libraries
+  are unaffected. Tokeniser-agnostic across `_`, `-`, `.`, and space
+  separators. Added unit-test coverage for `Piano_C3_take_1.wav`,
+  `Trumpet_F#3_rr_2.aif`, `Bowed_E2_tk_3.flac`, dash/space variants,
+  out-of-range and bare-prefix rejection (`take_99`, `taken_1`).
+- **HG-04: `static_assert` enforces the `kMaxVariantsPerCell` ↔
+  `0xFF`-sentinel invariant.** `selectVariantIndex` clips its uint8
+  RR counter to 254 to keep `0xFF` as the "no variant yet" sentinel.
+  The cap of 64 was a local `constexpr` in two `PluginProcessor.cpp`
+  sites with no compile-time link to the counter type — a future bump
+  above 254 would silently saturate the counter while the returned
+  index kept going, diverging RR behaviour. Hoisted
+  `kMaxVariantsPerCell` into `MicrotonalSamplerVoice.h` next to
+  `RrCounterArray` and added
+  `static_assert(kMaxVariantsPerCell < 255, "variant index must fit
+  in uint8 with 0xFF sentinel reserved")` so any future bump fails
+  the build instead of failing audibly.
+- **HG-05: folder-load callbacks no longer crash when a project closes
+  mid-load.** `loadSampleFolder`, `kickNextReplayOp`'s loader
+  dispatch, and `loadSingleSample` all captured `this` raw into
+  message-thread completion/failure callbacks. `~SampleLoader`'s
+  2-second `stopThread` joins the worker, but JUCE's
+  `MessageManager::callAsync` queue is NOT flushed by
+  `~AudioProcessor`, so callbacks already queued at destruction time
+  ran with a dangling `this`. The processor is now
+  `JUCE_DECLARE_WEAK_REFERENCEABLE`; every loader callback captures a
+  `juce::WeakReference<OMicrotonalSamplerAudioProcessor>` and
+  null-checks on entry. The destructor clears the weak-ref master
+  before any other teardown so the bail-out path activates as soon as
+  destruction begins. pluginval's tear-down stress paths exercise this
+  flow.
+
+### Notes
+- All four fixes are HIGH-severity findings from the v1.11.1 deep
+  code review (REVIEW-cpp-bugs.md). They share one root pattern:
+  lifetime / re-entrancy assumptions that hold under nominal load but
+  break under host quirks (off-thread save in Reaper, project-close
+  mid-load, cascaded UI callbacks during replay). No DSP behaviour
+  changes.
+
 ## [1.12.2] - 2026-05-02
 
 ### Fixed

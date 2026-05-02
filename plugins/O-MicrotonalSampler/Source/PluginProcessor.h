@@ -517,6 +517,32 @@ private:
     std::vector<LoadOp> pendingReplayOps;
     void kickNextReplayOp();
 
+    // v1.12.3 (HG-01) — replay-queue corruption guards.
+    //
+    // Cascaded callbacks can re-enter the replay path through two distinct
+    // doors and each one can corrupt the chain in a different way:
+    //
+    // 1. Synchronous re-entry into kickNextReplayOp via cascading
+    //    sampleMapChangedCallback → editor → loadSampleFolder. The outer kick
+    //    is mid-loop (its iterator into pendingReplayOps is live); a re-entry
+    //    that pops more ops from under that cursor corrupts the sequence.
+    //    `replayKickReentryGuard` rejects the inner call so the outer kick
+    //    completes before any inner kick runs.
+    //
+    // 2. A staged round-robin confirmation produces a chain continuation
+    //    (`pendingDuplicateChainContinuation`) that captures `kickNextReplayOp`.
+    //    Between staging and user confirmation, an unrelated state restore or
+    //    clearSampleMap may rebuild / wipe pendingReplayOps. The deferred
+    //    chain would then dispatch ops from a previous generation against a
+    //    new queue. Each external mutation of pendingReplayOps bumps
+    //    `replayQueueGeneration`; chain continuations capture the generation
+    //    at staging time and abort if it has moved on.
+    //
+    // Both fields are message-thread only; the atomic on the generation just
+    // gives us a clean memory model for the (rare) audit-thread reader.
+    bool                  replayKickReentryGuard { false };
+    std::atomic<uint64_t> replayQueueGeneration  { 0 };
+
     // v1.6.0: shared completion logic for both user-triggered and replay
     // folder loads. Performs the merge into currentSampleMap, recomputes
     // map metadata, appends to loadOpHistory, and fires
@@ -556,6 +582,14 @@ private:
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // v1.12.3 (HG-05) — weak-reference master so message-thread callbacks
+    // posted by SampleLoader can detect post-destructor invocation. Folder /
+    // single-sample loads capture juce::WeakReference<...>(this); each
+    // callback null-checks on entry and bails if the processor is gone (e.g.
+    // the user closed the project mid-load). The master must be cleared in
+    // the destructor before any other member runs down — see ~ctor body.
+    JUCE_DECLARE_WEAK_REFERENCEABLE (OMicrotonalSamplerAudioProcessor)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OMicrotonalSamplerAudioProcessor)
 };
