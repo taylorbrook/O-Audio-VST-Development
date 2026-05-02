@@ -156,6 +156,7 @@ struct Args
     bool  subHarmonicsMode    = false;   // Phase 2.4b R35a — audible f0/2 FFT-analyser render
     bool  subHarmonicsStability = false; // Phase 2.4b R35a — 36-combo stability render
     bool  saturatorTailMode   = false;   // Phase 2.4c R36b — 65-bin per-second decay-envelope render at canonical E1 60s+5s
+    bool  outputChainMode     = false;   // Phase 2.6a-bis — 5-probe master-chain stress (sat sweep / limiter ceiling / width sweep / clickfree automation / peak overshoot)
 
     bool         outWavSet   = false;
     bool         outJsonSet  = false;
@@ -197,7 +198,8 @@ bool parseArgs (int argc, char** argv, Args& args)
         // Phase 2.3 R29 + Phase 2.4a R34a — presence flags (no value). Detect
         // BEFORE the value-consume gate so e.g. `--vibrato` at end of argv
         // doesn't error out.
-        if      (key == "--saturator-tail-comparison") { args.saturatorTailMode = true; continue; }
+        if      (key == "--output-chain")               { args.outputChainMode = true; continue; }
+        else if (key == "--saturator-tail-comparison") { args.saturatorTailMode = true; continue; }
         else if (key == "--vibrato")          { args.vibratoMode         = true; continue; }
         else if (key == "--slow-lfo")         { args.slowLfoMode         = true; continue; }
         else if (key == "--schelleng-stress") { args.schellengStress     = true; continue; }
@@ -298,12 +300,34 @@ int main (int argc, char** argv)
                             || args.schellengStress || args.macroSweep
                             || args.matrixStabilityMode
                             || args.subHarmonicsMode || args.subHarmonicsStability
-                            || args.saturatorTailMode;
+                            || args.saturatorTailMode
+                            || args.outputChainMode;
         if (any23Mode)
         {
+            // Phase 2.6a-bis — --output-chain takes highest precedence (master
+            // output-chain stress is independent of all upstream voice modes).
+            if (args.outputChainMode)
+            {
+                if (args.saturatorTailMode)     std::fprintf (stderr, "warning: --output-chain takes precedence over --saturator-tail-comparison\n");
+                if (args.subHarmonicsStability) std::fprintf (stderr, "warning: --output-chain takes precedence over --sub-harmonics-stability\n");
+                if (args.subHarmonicsMode)      std::fprintf (stderr, "warning: --output-chain takes precedence over --sub-harmonics\n");
+                if (args.matrixStabilityMode)   std::fprintf (stderr, "warning: --output-chain takes precedence over --matrix-stability\n");
+                if (args.macroSweep)            std::fprintf (stderr, "warning: --output-chain takes precedence over --macro-sweep\n");
+                if (args.schellengStress)       std::fprintf (stderr, "warning: --output-chain takes precedence over --schelleng-stress\n");
+                if (args.vibratoMode)           std::fprintf (stderr, "warning: --output-chain takes precedence over --vibrato\n");
+                if (args.slowLfoMode)           std::fprintf (stderr, "warning: --output-chain takes precedence over --slow-lfo\n");
+                args.saturatorTailMode     = false;
+                args.subHarmonicsStability = false;
+                args.subHarmonicsMode      = false;
+                args.matrixStabilityMode   = false;
+                args.macroSweep            = false;
+                args.schellengStress       = false;
+                args.vibratoMode           = false;
+                args.slowLfoMode           = false;
+            }
             // Phase 2.4c pin #3 — saturator-tail-comparison takes highest precedence
             // (slotted ABOVE sub-harmonics-stability per CONTEXT rev-8 + PLAN rev-10).
-            if (args.saturatorTailMode)
+            else if (args.saturatorTailMode)
             {
                 if (args.subHarmonicsStability) std::fprintf (stderr, "warning: --saturator-tail-comparison takes precedence over --sub-harmonics-stability\n");
                 if (args.subHarmonicsMode)      std::fprintf (stderr, "warning: --saturator-tail-comparison takes precedence over --sub-harmonics\n");
@@ -395,7 +419,12 @@ int main (int argc, char** argv)
 
     // Auto-rewrite default WAV/JSON filenames per mode (Phase 2.1c R18 + Phase 2.2 R23
     // + Phase 2.3 R29).
-    if (args.saturatorTailMode)
+    if (args.outputChainMode)
+    {
+        if (! args.outWavSet)  args.outWav  = "output-chain.wav";
+        if (! args.outJsonSet) args.outJson = "output-chain.json";
+    }
+    else if (args.saturatorTailMode)
     {
         if (! args.outWavSet)  args.outWav  = "saturator-tail-comparison.wav";
         if (! args.outJsonSet) args.outJson = "saturator-tail-comparison.json";
@@ -961,6 +990,344 @@ int main (int argc, char** argv)
         return pass_combo ? 0 : 1;
     }
     // ─── End Phase 2.4c R36b saturator-tail-comparison branch ─────────────
+
+    // ─── Phase 2.4b R35a — --output-chain mode (Phase 2.6a-bis 5-probe) ───
+    // Per CONTEXT rev-11.a Phase 2.6a-bis carry-forward + PLAN rev-13 R39e
+    // Step 2 (5 probes locked verbatim). Master-output-chain stress with
+    // contiguous segments concatenated into a single 24-bit stereo WAV.
+    // Each probe is 3 s long; 5 probes total → 15 s WAV. Default sample
+    // rate 44100 Hz, default block size 512.
+    //
+    // Probes (per PLAN R39e Step 2):
+    //   1. saturator amount sweep   — MASTER_SAT_AMOUNT 0→1 ramp, default voice
+    //   2. limiter ceiling stress   — MASTER_SAT_AMOUNT=1.0 + high-amplitude voice + LIMITER_CEILING_DB=-0.3 dBFS
+    //   3. width sweep              — WIDTH 0→2 ramp (Risk #19 spectral collapse measurement)
+    //   4. clickfree fast automation — WIDTH 4-Hz sine [0,2] + MASTER_SAT_AMOUNT 3-Hz sine [0,1] (orthogonal stress)
+    //   5. peak-overshoot stress    — high-amplitude voice + MASTER_SAT_AMOUNT=1.0 + LIMITER_CEILING_DB=-3 dBFS
+    //
+    // Pass invariants (Gate 8a):
+    //   #1 — output peak ≤ ceiling + 0.05 dB across probe 2 (-0.3 dBFS) AND probe 5 (-3 dBFS).
+    //   #2 — clickfree under fast WIDTH + MASTER_SAT_AMOUNT automation: max sample-to-sample
+    //         derivative below threshold (0.20 conservative; default voice peaks ~0.07).
+    //   Risk #19 — WIDTH=0.0 spectral collapse vs WIDTH=1.0: RMS drop ≤ 2 dB.
+    if (args.outputChainMode)
+    {
+        OContrabassAudioProcessor proc;
+        proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
+
+        auto setRaw = [&proc] (const char* paramId, float raw, float minV,
+                               float maxV, float skew = 1.0f)
+        {
+            if (auto* p = proc.parameters.getParameter (paramId))
+            {
+                const float prop = juce::jlimit (0.0f, 1.0f, (raw - minV) / (maxV - minV));
+                const float norm = (skew == 1.0f) ? prop : std::pow (prop, skew);
+                p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+            }
+        };
+        auto setNorm01 = [&proc] (const char* paramId, float norm)
+        {
+            if (auto* p = proc.parameters.getParameter (paramId))
+                p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+        };
+
+        constexpr float kProbeSec     = 3.0f;
+        constexpr int   kNumProbes    = 5;
+        const int       probeSamples  = static_cast<int> (kProbeSec * sampleRate);
+        const int       totalSamples  = probeSamples * kNumProbes;
+
+        juce::AudioBuffer<float> output (2, totalSamples);
+        output.clear();
+        juce::AudioBuffer<float> blockBuffer (2, blockSize);
+
+        const char* kProbeNames[kNumProbes] = {
+            "saturator-amount-sweep",
+            "limiter-ceiling-stress",
+            "width-sweep",
+            "clickfree-automation",
+            "peak-overshoot-stress"
+        };
+
+        // Per-probe peak / rms accumulators (post-output-chain measurement).
+        float probePeak[kNumProbes] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+        double probeSumSq[kNumProbes] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
+        int    probeCount[kNumProbes] = { 0, 0, 0, 0, 0 };
+
+        // Probe 3 — Risk #19 width0/width1 RMS windows for spectral collapse measurement.
+        double probe3Width0SumSq = 0.0; int probe3Width0Count = 0;
+        double probe3Width1SumSq = 0.0; int probe3Width1Count = 0;
+        // Probe 4 — clickfree max sample-to-sample derivative.
+        float probe4MaxJump = 0.0f;
+        // Previous-sample state for derivative (per channel).
+        float prevL = 0.0f, prevR = 0.0f;
+
+        for (int probe = 0; probe < kNumProbes; ++probe)
+        {
+            // Per-probe APVTS overrides (set BEFORE prepareToPlay).
+            setNorm01 ("VIBRATO_DEPTH",    0.0f);   // HR-1 short-circuit
+            setNorm01 ("SLOW_LFO_DEPTH",   0.0f);   // HR-2 / HR-4 short-circuit
+            setNorm01 ("EXPRESSION_MACRO", 0.0f);   // HR-3 short-circuit
+            setNorm01 ("SUB_HARMONICS",    0.0f);   // HR-9 short-circuit
+            setNorm01 ("INFINITE_SUSTAIN", 0.0f);
+
+            int   midiNote      = 28;
+            float velocity      = 0.7f;
+            float bowSpeed      = 0.15f;
+            float bowPressure   = 3.0f;
+            float bowPosition   = 0.10f;
+            float satAmountInit = 0.5f;
+            float limiterCeil   = -0.3f;
+            float widthInit     = 1.0f;
+
+            switch (probe)
+            {
+                case 0:  // saturator amount sweep
+                    satAmountInit = 0.0f;          // ramp begins at 0
+                    break;
+                case 1:  // limiter ceiling stress
+                    bowPressure   = 7.0f;
+                    bowSpeed      = 0.5f;
+                    velocity      = 1.0f;
+                    satAmountInit = 1.0f;
+                    limiterCeil   = -0.3f;
+                    break;
+                case 2:  // width sweep — default voice; WIDTH ramps 0→2 inside the inner loop
+                    widthInit     = 0.0f;
+                    break;
+                case 3:  // clickfree automation — default voice; WIDTH + MASTER_SAT_AMOUNT both modulate
+                    break;
+                case 4:  // peak-overshoot stress
+                    bowPressure   = 8.0f;
+                    bowSpeed      = 1.0f;
+                    velocity      = 1.0f;
+                    satAmountInit = 1.0f;
+                    limiterCeil   = -3.0f;
+                    break;
+                default: break;
+            }
+
+            setRaw    ("BOW_SPEED",          bowSpeed,    0.02f, 1.5f, 0.5f);
+            setRaw    ("BOW_PRESSURE",       bowPressure, 0.05f, 8.0f, 0.5f);
+            setRaw    ("BOW_POSITION",       bowPosition, 0.02f, 0.25f);
+            setNorm01 ("MASTER_SAT_AMOUNT",  satAmountInit);
+            setRaw    ("LIMITER_CEILING_DB", limiterCeil, -6.0f, 0.0f);
+            setRaw    ("WIDTH",              widthInit,    0.0f, 2.0f);
+
+            proc.releaseResources();
+            proc.prepareToPlay (sampleRate, blockSize);
+            prevL = 0.0f; prevR = 0.0f;   // reset cross-block derivative state at probe boundary
+
+            const int velMidi = juce::jlimit (1, 127,
+                static_cast<int> (std::round (velocity * 127.0f)));
+
+            const int probeOffset = probe * probeSamples;
+            int probeCursor   = 0;
+            bool noteOnSent   = false;
+
+            while (probeCursor < probeSamples)
+            {
+                const int thisBlock = std::min (blockSize, probeSamples - probeCursor);
+                blockBuffer.setSize (2, thisBlock, /*keep*/ false, /*clear*/ true,
+                                     /*avoidRealloc*/ true);
+                blockBuffer.clear();
+
+                juce::MidiBuffer midi;
+                if (! noteOnSent)
+                {
+                    midi.addEvent (juce::MidiMessage::noteOn (1, midiNote, (juce::uint8) velMidi), 0);
+                    noteOnSent = true;
+                }
+
+                // Per-block APVTS automation for sweep / oscillation probes.
+                // Linear progress 0..1 across the probe is `probeT`.
+                const float probeT = static_cast<float> (probeCursor)
+                                   / static_cast<float> (probeSamples);
+                if (probe == 0)  // sat amount 0 → 1 linear
+                    setNorm01 ("MASTER_SAT_AMOUNT", probeT);
+                else if (probe == 2)  // width 0 → 2 linear (norm01 = w/2)
+                    setNorm01 ("WIDTH", probeT);
+                else if (probe == 3)
+                {
+                    // Phase 2.6a-bis Risk #2 — fast automation stress at 4 Hz / 3 Hz sines.
+                    // Block-rate (every 512 samples ≈ 86 Hz at 44.1k); coarser than per-
+                    // sample but sufficient to expose smoother-discontinuity artefacts.
+                    const float t  = static_cast<float> (probeCursor) / static_cast<float> (sampleRate);
+                    const float wRaw   = 1.0f + std::sin (2.0f * juce::MathConstants<float>::pi * 4.0f * t);  // [0, 2]
+                    const float satRaw = 0.5f + 0.5f * std::sin (2.0f * juce::MathConstants<float>::pi * 3.0f * t);  // [0, 1]
+                    setRaw    ("WIDTH",             wRaw,   0.0f, 2.0f);
+                    setNorm01 ("MASTER_SAT_AMOUNT", satRaw);
+                }
+
+                proc.processBlock (blockBuffer, midi);
+
+                for (int ch = 0; ch < 2; ++ch)
+                {
+                    const auto* src = blockBuffer.getReadPointer (ch);
+                    auto*       dst = output.getWritePointer (ch, probeOffset + probeCursor);
+                    for (int i = 0; i < thisBlock; ++i)
+                    {
+                        const float v = src[i];
+                        dst[i] = v;
+                        const float a = std::abs (v);
+                        if (a > probePeak[probe])  probePeak[probe] = a;
+                        probeSumSq[probe] += static_cast<double> (v) * v;
+                        ++probeCount[probe];
+                    }
+                }
+
+                // Probe 3 Risk #19 — accumulate width=0 (first 200 ms post-attack) and
+                // width=1 (mid-probe ±50 ms) RMS windows on channel 0.
+                if (probe == 2)
+                {
+                    const int probeAttackSkip = static_cast<int> (0.5f * sampleRate); // skip 500 ms attack
+                    const int probeWidth0Lo   = probeAttackSkip;
+                    const int probeWidth0Hi   = probeWidth0Lo + static_cast<int> (0.2f * sampleRate);
+                    const int probeMidpoint   = probeSamples / 2;
+                    const int probeWidth1Lo   = probeMidpoint - static_cast<int> (0.05f * sampleRate);
+                    const int probeWidth1Hi   = probeMidpoint + static_cast<int> (0.05f * sampleRate);
+                    const auto* p0 = output.getReadPointer (0);
+                    for (int i = probeCursor; i < probeCursor + thisBlock; ++i)
+                    {
+                        const float v = p0[probeOffset + i];
+                        if (i >= probeWidth0Lo && i < probeWidth0Hi)
+                        { probe3Width0SumSq += static_cast<double> (v) * v; ++probe3Width0Count; }
+                        if (i >= probeWidth1Lo && i < probeWidth1Hi)
+                        { probe3Width1SumSq += static_cast<double> (v) * v; ++probe3Width1Count; }
+                    }
+                }
+
+                // Probe 4 Gate 8a #2 — sample-to-sample derivative magnitude on both
+                // channels (skip the first 200 ms of probe to ignore attack transient).
+                if (probe == 3)
+                {
+                    const int probeAttackSkip = static_cast<int> (0.2f * sampleRate);
+                    const auto* L = output.getReadPointer (0);
+                    const auto* R = output.getReadPointer (1);
+                    for (int i = probeCursor; i < probeCursor + thisBlock; ++i)
+                    {
+                        const float curL = L[probeOffset + i];
+                        const float curR = R[probeOffset + i];
+                        if (i >= probeAttackSkip)
+                        {
+                            const float dL = std::abs (curL - prevL);
+                            const float dR = std::abs (curR - prevR);
+                            const float dM = juce::jmax (dL, dR);
+                            if (dM > probe4MaxJump) probe4MaxJump = dM;
+                        }
+                        prevL = curL; prevR = curR;
+                    }
+                }
+
+                probeCursor += thisBlock;
+            }
+
+            // Send note-off and let the chain settle for last 100 ms (covered by
+            // probe-end naturally; no separate release phase per Phase 2.6a-bis spec).
+        }
+
+        // ── Compute pass invariants ──────────────────────────────────────
+        const float ceilingP2Linear = juce::Decibels::decibelsToGain (-0.3f);  // probe 2 ceiling
+        const float ceilingP4Linear = juce::Decibels::decibelsToGain (-3.0f);  // probe 5 ceiling
+        const float slopLinear      = juce::Decibels::decibelsToGain (-0.3f + 0.05f) - ceilingP2Linear;
+        const bool passProbe2Peak = (probePeak[1] <= ceilingP2Linear + slopLinear);
+        const bool passProbe5Peak = (probePeak[4] <= ceilingP4Linear
+                                                    + (juce::Decibels::decibelsToGain (-3.0f + 0.05f)
+                                                     - ceilingP4Linear));
+        const bool pass_invariant_1_peak_under_ceiling = passProbe2Peak && passProbe5Peak;
+
+        // Gate 8a #2 — clickfree threshold (conservative; voice peaks ~0.07 default).
+        constexpr float kClickfreeThreshold = 0.20f;
+        const bool pass_invariant_2_clickfree = (probe4MaxJump < kClickfreeThreshold);
+
+        // Risk #19 — WIDTH=0 RMS collapse vs WIDTH=1 RMS.
+        const double probe3Width0Rms = (probe3Width0Count > 0)
+            ? std::sqrt (probe3Width0SumSq / probe3Width0Count) : 0.0;
+        const double probe3Width1Rms = (probe3Width1Count > 0)
+            ? std::sqrt (probe3Width1SumSq / probe3Width1Count) : 0.0;
+        const double width0CollapseDb = (probe3Width0Rms > 1e-9 && probe3Width1Rms > 1e-9)
+            ? 20.0 * std::log10 (probe3Width0Rms / probe3Width1Rms) : 0.0;
+        const bool pass_risk_19_width0_collapse = (width0CollapseDb >= -2.0);
+
+        const bool overallPass = pass_invariant_1_peak_under_ceiling
+                              && pass_invariant_2_clickfree
+                              && pass_risk_19_width0_collapse;
+
+        // ── JSON summary ─────────────────────────────────────────────────
+        juce::DynamicObject::Ptr summary (new juce::DynamicObject());
+        summary->setProperty ("status",      overallPass ? "PASS" : "FAIL");
+        summary->setProperty ("mode",        "output-chain");
+        summary->setProperty ("sampleRate",  sampleRate);
+        summary->setProperty ("totalSamples", totalSamples);
+        summary->setProperty ("probeCount",  kNumProbes);
+        summary->setProperty ("probeSeconds", static_cast<double> (kProbeSec));
+
+        juce::Array<juce::var> probesArr;
+        for (int p = 0; p < kNumProbes; ++p)
+        {
+            juce::DynamicObject::Ptr probeObj (new juce::DynamicObject());
+            probeObj->setProperty ("name",      juce::String (kProbeNames[p]));
+            probeObj->setProperty ("startSec",  static_cast<double> (p * kProbeSec));
+            probeObj->setProperty ("endSec",    static_cast<double> ((p + 1) * kProbeSec));
+            probeObj->setProperty ("peak",      static_cast<double> (probePeak[p]));
+            const double rms = (probeCount[p] > 0)
+                ? std::sqrt (probeSumSq[p] / probeCount[p]) : 0.0;
+            probeObj->setProperty ("rms",       rms);
+            probesArr.add (juce::var (probeObj.get()));
+        }
+        summary->setProperty ("probes", juce::var (probesArr));
+
+        // Gate 8a #1 evidence.
+        summary->setProperty ("ceilingDbProbe2",      -0.3);
+        summary->setProperty ("ceilingDbProbe5",      -3.0);
+        summary->setProperty ("peakDbProbe2",         juce::Decibels::gainToDecibels (probePeak[1]));
+        summary->setProperty ("peakDbProbe5",         juce::Decibels::gainToDecibels (probePeak[4]));
+
+        // Gate 8a #2 evidence.
+        summary->setProperty ("probe4MaxSampleJump",  static_cast<double> (probe4MaxJump));
+        summary->setProperty ("clickfreeThreshold",   static_cast<double> (kClickfreeThreshold));
+
+        // Risk #19 evidence.
+        summary->setProperty ("probe3Width0Rms",      probe3Width0Rms);
+        summary->setProperty ("probe3Width1Rms",      probe3Width1Rms);
+        summary->setProperty ("probe3Width0CollapseDb", width0CollapseDb);
+
+        summary->setProperty ("pass_invariant_1_peak_under_ceiling", pass_invariant_1_peak_under_ceiling);
+        summary->setProperty ("pass_invariant_2_clickfree",          pass_invariant_2_clickfree);
+        summary->setProperty ("pass_risk_19_width0_collapse",        pass_risk_19_width0_collapse);
+        summary->setProperty ("outputWav", juce::File (args.outWav).getFileName());
+
+        // Write WAV (24-bit stereo PCM via existing harness convention).
+        juce::File wavOut (juce::File::getCurrentWorkingDirectory()
+                              .getChildFile (args.outWav));
+        wavOut.deleteFile();
+        juce::WavAudioFormat wav;
+        if (auto stream = std::unique_ptr<juce::FileOutputStream> (wavOut.createOutputStream()))
+        {
+            if (auto* writer = wav.createWriterFor (stream.get(), sampleRate, 2, 24, {}, 0))
+            {
+                stream.release();
+                std::unique_ptr<juce::AudioFormatWriter> w (writer);
+                w->writeFromAudioSampleBuffer (output, 0, totalSamples);
+            }
+        }
+
+        juce::var summaryVar (summary.get());
+        juce::File jsonOut (juce::File::getCurrentWorkingDirectory()
+                              .getChildFile (args.outJson));
+        jsonOut.replaceWithText (juce::JSON::toString (summaryVar, /*allOnOneLine*/ false));
+
+        std::printf ("[render-harness] %s  output-chain  inv1=%s inv2=%s risk19=%s "
+                     "peakP2=%.3fdB peakP5=%.3fdB maxJump=%.4f w0coll=%.2fdB\n",
+                     overallPass ? "PASS" : "FAIL",
+                     pass_invariant_1_peak_under_ceiling ? "PASS" : "FAIL",
+                     pass_invariant_2_clickfree          ? "PASS" : "FAIL",
+                     pass_risk_19_width0_collapse        ? "PASS" : "FAIL",
+                     juce::Decibels::gainToDecibels (probePeak[1]),
+                     juce::Decibels::gainToDecibels (probePeak[4]),
+                     probe4MaxJump, width0CollapseDb);
+        return overallPass ? 0 : 1;
+    }
+    // ─── End Phase 2.6a-bis output-chain branch ───────────────────────────
 
     // ─── Phase 2.4b R35a — --sub-harmonics mode (audible f0/2 FFT analyser) ─
     // MIDI 28 (E1), velocity 0.7, sustain 5 s + release 1 s, SUB_HARMONICS=1.0,

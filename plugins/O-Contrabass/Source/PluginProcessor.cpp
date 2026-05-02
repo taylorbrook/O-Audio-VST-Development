@@ -162,6 +162,24 @@ void OContrabassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     outputGainSmoothed.setCurrentAndTargetValue(
         juce::Decibels::decibelsToGain(parameters.getRawParameterValue("OUTPUT_GAIN")->load()));
 
+   #if defined (OCBS_DISABLE_DECORRELATOR)
+    // Phase 2.6a-bis Risk #22 — bit-equivalence build path. Force APVTS to
+    // bypass values (sat=0 / limiter=0 dB / width=1.0) and seed master-chain
+    // smoothers immediately so default-state output matches Phase 2.5 sha256s
+    // byte-for-byte (output chain becomes a mathematical no-op when
+    // decorrelator is off at compile time AND user-set bypass params are
+    // active). Test-only build path; production builds compile this block
+    // out entirely and preserve the post-Phase-2.6a R39 audible-golden bar.
+    if (auto* p = parameters.getParameter("MASTER_SAT_AMOUNT"))
+        p->setValueNotifyingHost(0.0f);                  // norm 0 → raw 0.0
+    if (auto* p = parameters.getParameter("LIMITER_CEILING_DB"))
+        p->setValueNotifyingHost(1.0f);                  // norm 1.0 → raw 0.0 dB
+    if (auto* p = parameters.getParameter("WIDTH"))
+        p->setValueNotifyingHost(0.5f);                  // norm 0.5 → raw 1.0
+    masterSaturator.setAmountImmediate(0.0f);
+    masterLimiter.setCeilingDbImmediate(0.0f);
+   #endif
+
     // Report oversampler latency to host (RESEARCH §3.1; CLAUDE.md memory:
     // getLatencySamples() is non-virtual in JUCE 8 — never override; always use
     // setLatencySamples in prepareToPlay).

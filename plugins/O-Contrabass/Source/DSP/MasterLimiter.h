@@ -70,6 +70,16 @@ public:
         ceilingSmoothed.setTargetValue (ceilingLinear);
     }
 
+    // Phase 2.6a-bis Risk #22 — seed both current and target so the smoother
+    // does NOT ramp at first processBlock. Used by OCBS_DISABLE_DECORRELATOR
+    // bit-equivalence build path; safe to call anytime (no allocation).
+    void setCeilingDbImmediate (float dB) noexcept
+    {
+        const float clamped = juce::jlimit (-6.0f, 0.0f, dB);
+        ceilingLinear       = juce::Decibels::decibelsToGain (clamped);
+        ceilingSmoothed.setCurrentAndTargetValue (ceilingLinear);
+    }
+
     void processBlock (juce::AudioBuffer<float>& buffer)
     {
         const int numSamples  = buffer.getNumSamples();
