@@ -13,6 +13,7 @@
 #include "DSP/DispersionFilter.h"
 #include "DSP/SchellengCalibration.h"
 #include "DSP/SubHarmonicBias.h"
+#include "TuningEngine.h"
 #include <cmath>
 
 namespace schelleng     = ouaricon::contrabass::schelleng;
@@ -41,8 +42,9 @@ namespace
     constexpr float kVibFactorScale      = -0.69314718056f / 1200.0f;  // -ln(2)/1200
 }
 
-BowedContrabassVoice::BowedContrabassVoice (juce::AudioProcessorValueTreeState* apvts)
-    : parameters (apvts)
+BowedContrabassVoice::BowedContrabassVoice (juce::AudioProcessorValueTreeState* apvts,
+                                            TuningEngine* engine)
+    : parameters (apvts), tuningEngine (engine)
 {
 }
 
@@ -56,9 +58,26 @@ void BowedContrabassVoice::noteStarted()
     const int   midiNote = note.initialNote;
     const float velocity = note.noteOnVelocity.asUnsignedFloat();
 
-    // 1. Resolve frequency (12-TET + MPE bend).
-    double freq = juce::MidiMessage::getMidiNoteInHertz (midiNote);
+    // 1. Resolve frequency through TuningEngine (Phase 2.6b R40b Site A).
+    //    ESCALATION-RP1 LOCK Option B — voice-side ratio multiplication on top
+    //    of the engine's absolute-Hz return. Engine's internal A4 stays at
+    //    440 Hz (we never call setMasterTune); the REFERENCE_PITCH APVTS slider
+    //    scales the result here, honoring the Stage-1 220–880 Hz contract
+    //    without touching the module clamp (400–480 Hz). At REFERENCE_PITCH
+    //    = 440 Hz the ratio is 1.0 → bit-equivalent to the previous
+    //    getMidiNoteInHertz path (Gate 8b inv #1 algebraic identity at 12-TET
+    //    default; PLAN §23.6.6 proof). Q17 LOCK: cache the post-ratio base
+    //    frequency so notePitchbendChanged re-uses it without re-polling
+    //    TuningEngine mid-sustain. nullptr fallback is defensive only —
+    //    production path always passes a valid pointer (R40a addVoice site).
+    const double tuneFreqHz = (tuningEngine != nullptr)
+                                ? tuningEngine->getFrequency (midiNote)
+                                : juce::MidiMessage::getMidiNoteInHertz (midiNote);
+    const float  refPitchHz = parameters->getRawParameterValue ("REFERENCE_PITCH")->load();
+    tuningEngineBaseFreqHz  = tuneFreqHz * (static_cast<double> (refPitchHz) / 440.0);
+
     const float bend = static_cast<float> (note.totalPitchbendInSemitones);
+    double freq = tuningEngineBaseFreqHz;
     if (std::abs (bend) > 0.001f)
         freq *= std::pow (2.0, bend / 12.0);
     currentFrequency = static_cast<float> (freq);
@@ -146,11 +165,15 @@ void BowedContrabassVoice::noteStopped (bool allowTailOff)
 void BowedContrabassVoice::notePitchbendChanged()
 {
     auto note = getCurrentlyPlayingNote();
-    const int midiNote = note.initialNote;
 
-    // Recompute base frequency + apply current MPE bend.
-    double freq = juce::MidiMessage::getMidiNoteInHertz (midiNote);
+    // Phase 2.6b R40b Site B — Q17 LOCK: re-use cached tuningEngineBaseFreqHz
+    // from noteStarted; do NOT re-poll TuningEngine mid-sustain. Live
+    // retuning takes effect at the NEXT note-on. Bend is multiplicative
+    // pow2(bend/12) on the cached value — ESCALATION-MPE1 ±24 semi range
+    // tracks click-free via the existing 20 ms detuneSmoothed delay-line
+    // ramp; no new smoother on currentFrequency (PLAN §23.5.5 verification).
     const float bend = static_cast<float> (note.totalPitchbendInSemitones);
+    double freq = tuningEngineBaseFreqHz;
     if (std::abs (bend) > 0.001f)
         freq *= std::pow (2.0, bend / 12.0);
     currentFrequency = static_cast<float> (freq);

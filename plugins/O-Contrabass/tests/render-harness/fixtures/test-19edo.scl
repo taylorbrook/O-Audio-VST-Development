@@ -1,0 +1,34 @@
+! test-19edo.scl
+!
+! Phase 2.6b R40d — 19-tone equal temperament test fixture for the
+! microtonal harness mode. 19 equal steps per octave (~63.157895 cents
+! each); period = 1200.000 cents (perfect octave at the 19th degree).
+!
+! Used by tests/render-harness `--microtonal --tuning-system=scala
+! --scl=fixtures/test-19edo.scl` to verify the TuningEngine.loadScalaFile
+! → frequencyTable[128] path produces algebraic-correct deviations from
+! 12-TET (visible as |delta_cents| > 5 ¢ relative to MIDI getMidiNoteInHertz
+! for non-octave intervals at MIDI 60+).
+!
+19-tone equal temperament (Phase 2.6b R40d test fixture)
+ 19
+!
+ 63.157895
+ 126.315789
+ 189.473684
+ 252.631579
+ 315.789474
+ 378.947368
+ 442.105263
+ 505.263158
+ 568.421053
+ 631.578947
+ 694.736842
+ 757.894737
+ 821.052632
+ 884.210526
+ 947.368421
+ 1010.526316
+ 1073.684211
+ 1136.842105
+ 1200.000000

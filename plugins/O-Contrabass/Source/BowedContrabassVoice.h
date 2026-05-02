@@ -34,10 +34,13 @@
 #include "BowModel.h"
 #include "HyperbolicFriction.h"
 
+class TuningEngine;     // Phase 2.6b R40b forward decl — full include in .cpp
+
 class BowedContrabassVoice : public juce::MPESynthesiserVoice
 {
 public:
-    explicit BowedContrabassVoice (juce::AudioProcessorValueTreeState* apvts);
+    explicit BowedContrabassVoice (juce::AudioProcessorValueTreeState* apvts,
+                                   TuningEngine* engine);
     ~BowedContrabassVoice() override = default;
 
     // MPE voice callbacks
@@ -86,6 +89,14 @@ private:
     float computeDelaySamples      (float playedFreqHz, float detuneCents) const noexcept;
 
     juce::AudioProcessorValueTreeState* parameters = nullptr;
+
+    // Phase 2.6b R40b — TuningEngine pointer (constructor-injected by processor)
+    // + cache of the per-note resolved base frequency (post-TuningEngine lookup
+    // × REFERENCE_PITCH ratio, pre-MPE-bend application). Q17 LOCK: voice
+    // resolves f_target ONCE at noteStarted; per-block MPE bend applies as
+    // multiplicative pow2(bend/12) on the cached value — NO re-poll mid-sustain.
+    TuningEngine* tuningEngine        = nullptr;
+    double        tuningEngineBaseFreqHz { 0.0 };
 
     // DSP composition — Phase 2.2 4-string bank (slots 0=E, 1=A, 2=D, 3=G).
     std::array<WaveguideString, 4> strings;
