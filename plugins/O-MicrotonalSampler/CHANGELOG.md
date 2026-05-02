@@ -1,5 +1,54 @@
 # O-MicrotonalSampler Changelog
 
+## [1.11.3] - 2026-05-02
+
+### Fixed
+- **Use-after-free on `cellLow` / `variantLow` raw pointers across SampleMap
+  swap (REVIEW CR-04).** `MicrotonalSamplerVoice::startNote` re-snapshots
+  `currentMap` from `*sampleMapSource` after running steal-tail rendering.
+  The voice's `variantLow` / `cellLow` raw pointers index into the OLD map's
+  variants vector; if no other voice held a snapshot, the swap dropped the
+  prior shared_ptr's last refcount and freed the audio buffers `variantLow`
+  pointed into. v1.11.3 captures `prevMap = currentMap;` at the top of
+  `startNote` so the prior map's refcount stays ≥ 1 for the entire
+  function — including `renderTailRamp` and the small window before
+  `variantLow` is reassigned to the new map's variants.
+- **`renderTailRamp` early-return guard restructured into positive form
+  (REVIEW DSP CRITICAL #1).** The guard at lines 240-254 was logically an
+  OR of error conditions but was flagged by both the DSP and C++ reviewers
+  as ambiguous and a click-on-steal regression risk. v1.11.3 rewrites it
+  as `if (! prereqsMet) { zero+return; }` so the render path is
+  unmistakably reachable.
+- **Ramp coefficient division underflow when `rampSamples < 2`
+  (REVIEW DSP HIGH).** The expression `(float) i / (float) rampSamples` in
+  the per-sample render loop is well-defined for `rampSamples >= 1` but
+  produces a degenerate one-step ramp at `rampSamples == 1` and is fragile
+  at `rampSamples == 0` if the upstream `> 0` guard is ever weakened.
+  v1.11.3 folds `rampSamples >= 2` into the `prereqsMet` predicate so the
+  1-sample (no audible fade) and 0-sample cases take the zero+bail path
+  before the ramp loop runs.
+- **APVTS `getRawParameterValue("attack")->load()` null-deref on note-on
+  (REVIEW DSP CRITICAL #2).** `startNote` previously dereferenced the
+  result of `getRawParameterValue` for each of `attack` / `decay` /
+  `sustain` / `release` without a null check — a typo or APVTS layout
+  change would crash the audio thread on every note-on. v1.11.3 caches
+  `attackParam` / `decayParam` / `sustainParam` / `releaseParam` atomic
+  pointers in `prepareToPlay` (with a `jassert` per pointer in debug
+  builds), and `startNote` only invokes `adsr.setParameters` when all four
+  are non-null.
+
+### Notes
+- **No state-format / parameter / preset / API changes.** Sessions saved
+  on v1.11.2 reload identically — these are pure voice-render correctness
+  fixes living entirely inside `MicrotonalSamplerVoice.{h,cpp}`. CMake
+  `VERSION` bumped to `1.11.3` so the About tab and bundle plist reflect
+  the patch.
+- **Validation:** hammer note-steal patterns (fast repeated notes
+  exceeding the polyphony cap) and confirm clean tail-fades on every
+  steal — no clicks, no silence on the stolen voice's tail. The four fixes
+  are independent; only the renderTailRamp restructure is audible under
+  normal play.
+
 ## [1.11.2] - 2026-05-02
 
 ### Security

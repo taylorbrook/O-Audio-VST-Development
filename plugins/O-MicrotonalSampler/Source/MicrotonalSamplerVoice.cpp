@@ -160,6 +160,26 @@ void MicrotonalSamplerVoice::prepareToPlay (double sampleRate, int /*samplesPerB
     rngState = (uint32_t) (thisPtr ^ (uintptr_t) (sampleRate * 1000.0));
     if (rngState == 0)
         rngState = 0x12345678u;
+
+    // v1.11.3: cache ADSR atomic pointers. getRawParameterValue returns
+    // nullptr on missing/typo'd IDs; resolving once here lets startNote skip
+    // a per-note 4-way null check and avoids the audio-thread crash on
+    // load() against a null pointer. (REVIEW DSP CRITICAL #2.)
+    attackParam  = nullptr;
+    decayParam   = nullptr;
+    sustainParam = nullptr;
+    releaseParam = nullptr;
+    if (parameters != nullptr)
+    {
+        attackParam  = parameters->getRawParameterValue ("attack");
+        decayParam   = parameters->getRawParameterValue ("decay");
+        sustainParam = parameters->getRawParameterValue ("sustain");
+        releaseParam = parameters->getRawParameterValue ("release");
+        jassert (attackParam  != nullptr);
+        jassert (decayParam   != nullptr);
+        jassert (sustainParam != nullptr);
+        jassert (releaseParam != nullptr);
+    }
 }
 
 void MicrotonalSamplerVoice::setCurrentPlaybackSampleRate (double newRate)
@@ -237,14 +257,24 @@ int MicrotonalSamplerVoice::selectVariantIndex (const SampleCell& cell,
 //==============================================================================
 void MicrotonalSamplerVoice::renderTailRamp (int rampSamples) noexcept
 {
-    if (rampSamples <= 0
-        || variantLow == nullptr
-        || stealTailBufferL.empty()
-        || stealTailBufferR.empty())
+    // Restructured to a positive "render iff prereqs met" form so the render
+    // path below is unambiguously reachable. (REVIEW DSP CRITICAL #1.)
+    //
+    // rampSamples >= 2 also guards the ramp coefficient `(float) i / rampSamples`
+    // against precision underflow / NaN-Inf when rampSamples is 0 or 1 — the
+    // 1-sample case has no audible fade anyway, so we treat it as the no-tail
+    // case and zero the buffer. (REVIEW DSP HIGH: ramp coefficient division.)
+    const bool prereqsMet = (rampSamples >= 2)
+                         && (variantLow != nullptr)
+                         && ! stealTailBufferL.empty()
+                         && ! stealTailBufferR.empty();
+
+    if (! prereqsMet)
     {
-        const int n = juce::jmin (rampSamples,
-                                  (int) stealTailBufferL.size(),
-                                  (int) stealTailBufferR.size());
+        const int n = juce::jmax (0,
+                                  juce::jmin (rampSamples,
+                                              (int) stealTailBufferL.size(),
+                                              (int) stealTailBufferR.size()));
         for (int i = 0; i < n; ++i)
         {
             stealTailBufferL[(size_t) i] = 0.0f;
@@ -334,6 +364,13 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
                                         int /*currentPitchWheelPosition*/)
 {
     // ---------- 0. Voice-steal detection ----------
+    // Hold the prior map alive for the duration of this whole startNote call.
+    // renderTailRamp below reads `variantLow` which points into the OLD map's
+    // variants vector; without this local hold, swapping `currentMap` to the
+    // newly-loaded map (step 1) would drop the prior shared_ptr's last refcount
+    // and free the audio buffers `variantLow` indexes into. (REVIEW CR-04.)
+    std::shared_ptr<SampleMap> prevMap = currentMap;
+
     if (adsr.isActive() && variantLow != nullptr)
     {
         const int rampSamples = juce::jmin (kMaxStealRamp,
@@ -481,13 +518,16 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
                                                   currentFrequency, hostSR);
 
     // ---------- 8. Read APVTS ADSR values ONCE ----------
-    if (parameters != nullptr)
+    // v1.11.3: use atomic pointers cached in prepareToPlay to avoid
+    // dereferencing a null getRawParameterValue() return on the audio thread.
+    // (REVIEW DSP CRITICAL #2.)
+    if (attackParam  != nullptr && decayParam   != nullptr
+     && sustainParam != nullptr && releaseParam != nullptr)
     {
-        const float a = parameters->getRawParameterValue ("attack")->load();
-        const float d = parameters->getRawParameterValue ("decay")->load();
-        const float s = parameters->getRawParameterValue ("sustain")->load();
-        const float r = parameters->getRawParameterValue ("release")->load();
-        adsr.setParameters ({ a, d, s, r });
+        adsr.setParameters ({ attackParam->load(),
+                              decayParam->load(),
+                              sustainParam->load(),
+                              releaseParam->load() });
     }
 
     // ---------- 9. Reset cursors and trigger ADSR ----------
