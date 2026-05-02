@@ -66,6 +66,12 @@ public:
     void setTuningEngine        (TuningEngine* engine)                  { tuningEngine = engine; }
     void setPendingTuningSource (Ouaricon::NoteExpression::PendingTuningTable* src) { pendingTuningSource = src; }
 
+    // Stage 3 / Phase 3.2 — UI feedback accessors (header-inline; no .cpp touched).
+    // breathSmoother already composes ui_breath x cc2_normalised per BassoonVoice.cpp:149.
+    // vibrato.getEnvelope() returns the onset progress envelope (0..1).
+    float getEffectiveBreath  () const noexcept { return breathSmoother.getCurrentValue(); }
+    float getVibratoEnvelope  () const noexcept { return vibrato.getEnvelope(); }
+
 private:
     static constexpr float PITCH_BEND_RANGE_SEMITONES = 2.0f;
 

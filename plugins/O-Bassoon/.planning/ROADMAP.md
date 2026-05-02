@@ -55,6 +55,7 @@ agents: [build, dsp, ui, research]
 - Stage 1: Foundation — Next
 - Stage 2: DSP — 4 phases
 - Stage 3: GUI — blocks on UI mockup; 2 phases when unblocked
+  - **D8 amendment (2026-05-01):** Tuning-tab embed added to Phase 3.1 scope (was: 10-param-only) — see Stage 3 CONTEXT D7.
 - Stage 4: Validation — pluginval, Dorico parity test, presets, changelog
 
 ---

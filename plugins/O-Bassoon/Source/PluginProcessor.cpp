@@ -205,6 +205,41 @@ void OBassoonAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         lastDispatchedVoiceCount = requestedVoices;
     }
 
+    // Stage 3 / Phase 3.2 — push-channel snapshots (RT-safe; allocation-free; relaxed memory order).
+    // Single producer (audio thread) / single consumer (editor's 30 Hz Timer on message thread).
+    // No causal dependency between channels — relaxed ordering is sufficient.
+    {
+        // (1) Live active-voice count: 16-iter loop over isVoiceActive() — same cost as
+        // BassoonSynthesiser::findFreeVoice cap-enforce loop (cheap integer flag reads).
+        int active = 0;
+        const int n = synthesiser.getNumVoices();
+        for (int v = 0; v < n; ++v)
+            if (synthesiser.getVoice (v)->isVoiceActive())
+                ++active;
+        currentActiveVoiceCount.store (active, std::memory_order_relaxed);
+
+        // (2) Effective breath snapshot: read first active voice's breathSmoother.
+        // breathSmoother already composes ui_breath x cc2_normalised per BassoonVoice.cpp:149,
+        // so this is exactly the breath value being applied to the audible voice render.
+        // (3) Vibrato envelope snapshot: read first active voice's vibrato.getEnvelope() (0..1).
+        float effBreath = 0.0f;
+        float vibEnv    = 0.0f;
+        for (int v = 0; v < n; ++v)
+        {
+            if (auto* bv = dynamic_cast<BassoonVoice*> (synthesiser.getVoice (v)))
+            {
+                if (bv->isVoiceActive())
+                {
+                    effBreath = bv->getEffectiveBreath();
+                    vibEnv    = bv->getVibratoEnvelope();
+                    break;
+                }
+            }
+        }
+        currentEffectiveBreath.store  (effBreath, std::memory_order_relaxed);
+        currentVibratoEnvelope.store  (vibEnv,    std::memory_order_relaxed);
+    }
+
     // Phase 2.2: tone smoother advance + voice dispatch (CONTEXT-rev-2 Q3/Q4-rev-2).
     // Sits BEFORE the NE drain — same principle as the Phase 2.1 NE-drain-BEFORE-
     // renderNextBlock invariant: voice state is fully up-to-date when JUCE iterates
