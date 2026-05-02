@@ -57,10 +57,42 @@ enum class LoadMode
 
 struct LoadOp
 {
-    juce::String path;            // Absolute folder path (UTF-8).
+    juce::String path;            // Absolute folder path (UTF-8). For drag-drop
+                                  // ops this points at a session temp dir (used
+                                  // for in-session reload only); never persisted
+                                  // to state for drag-drop kind.
     int          targetLayer    = 0;     // 0..3.
     LoadMode     mode           = LoadMode::ReplaceAll;
     bool         overrideTokens = false; // true = ignore filename velocity tokens.
+
+    // v1.12.0 — drag-drop persistence + audio embedding.
+    //
+    // origin classifies the load source:
+    //   "filesystem" — Load Folder dialog (path is stable across sessions).
+    //   "drag-drop"  — WebView drag-drop content streaming. The temp path is
+    //                  short-lived; only the displayName is persisted unless
+    //                  embedAudio is true.
+    //
+    // displayName is the user-visible folder name (e.g. "MyDrumKit"). For
+    // filesystem ops it's File::getFileName(path); for drag-drop ops it comes
+    // from JS (FileSystemEntry::name) since macOS WKWebView sandboxes the
+    // original path.
+    //
+    // embedAudio=true causes captureStateValueTree to serialise the loaded
+    // audio data inline (per-variant base64 WAV) so the project survives folder
+    // moves / cross-machine transfer / drag-drop temp-dir cleanup. Default OFF
+    // (path-reference behaviour, project-state stays small).
+    juce::String origin       { "filesystem" };
+    juce::String displayName;
+    bool         embedAudio   { false };
+
+    // In-memory only — never serialised directly into the LoadOp XML attrs.
+    // When embedAudio=true, this snapshot of the slots produced by this op is
+    // walked at capture time to emit inline audio blobs. Populated by
+    // applyFolderLoad on the live load path, and by restoreStateValueTree
+    // when reading back an <Audio> child. Holds shared_ptr<AudioBuffer>s that
+    // are also held by currentSampleMap, so memory cost is metadata only.
+    std::shared_ptr<SampleMap> embeddedSlots;
 };
 
 // Polyphony-cap-enforcing Synthesiser. Pre-allocated voice pool stays at the
@@ -202,6 +234,20 @@ public:
                            LoadMode          mode           = LoadMode::ReplaceAll,
                            bool              overrideTokens = false);
 
+    // v1.12.0: full-fidelity overload — adds origin classification, a
+    // user-visible displayName for the missing-folder modal, and the
+    // embedAudio opt-in for inline audio serialisation. Used by the WebView
+    // drag-drop streaming path (origin="drag-drop") and by the embed-aware
+    // dialog path. The legacy 4-arg overload above forwards here with
+    // origin="filesystem", displayName=folder.getFileName(), embedAudio=false.
+    void loadSampleFolder (const juce::File& folder,
+                           int               targetLayer,
+                           LoadMode          mode,
+                           bool              overrideTokens,
+                           const juce::String& origin,
+                           const juce::String& displayName,
+                           bool              embedAudio);
+
     // Read-only accessor for Stage-3 UI: list of files the loader skipped
     // (unparseable filenames, unreadable files, etc.). Refreshed on each
     // loadSampleFolder completion; cleared on failure.
@@ -307,13 +353,35 @@ public:
     // queries this on attach (covers cases where the project was loaded
     // before the WebView was ready to receive the folderMissing event).
     juce::String getPendingMissingFolderPath() const noexcept { return pendingMissingFolderPath; }
-    void clearPendingMissingFolder() noexcept { pendingMissingFolderPath.clear(); }
+
+    // v1.12.0: kind ("filesystem" or "drag-drop") and human-friendly name for
+    // the pending missing folder. drag-drop missings have an empty path (the
+    // session temp dir is gone and never user-meaningful) but a name lifted
+    // from FileSystemEntry::name at drop time.
+    juce::String getPendingMissingFolderKind() const noexcept { return pendingMissingFolderKind; }
+    juce::String getPendingMissingFolderName() const noexcept { return pendingMissingFolderName; }
+
+    void clearPendingMissingFolder() noexcept
+    {
+        pendingMissingFolderPath.clear();
+        pendingMissingFolderKind.clear();
+        pendingMissingFolderName.clear();
+    }
 
     // Editor subscribes to surface a "Locate folder?" modal in the WebView
     // when setStateInformation discovers a saved folder that no longer
-    // exists. Callback fires on the message thread; payload is the saved
-    // absolute path.
-    void setMissingFolderCallback (std::function<void(const juce::String&)> cb)
+    // exists (filesystem kind) or a drag-drop op that was never embedded
+    // (drag-drop kind — no path, only displayName).
+    //
+    // Callback args: (path, kind, name). Fires on the message thread.
+    //
+    // v1.12.0: signature widened from (path) to (path, kind, name). drag-drop
+    // payloads have empty path; filesystem payloads carry the saved absolute
+    // path. The webview event payload is constructed by the editor as a
+    // {path, kind, name} JSON object so the JS modal can branch UX.
+    void setMissingFolderCallback (std::function<void (const juce::String& path,
+                                                       const juce::String& kind,
+                                                       const juce::String& name)> cb)
     {
         missingFolderCallback = std::move (cb);
     }
@@ -440,9 +508,18 @@ private:
     // once the user dismisses or relocates.
     juce::String pendingMissingFolderPath;
 
+    // v1.12.0: kind classifies the modal flavour ("filesystem" or "drag-drop").
+    // name is a human-friendly folder name surfaced in the modal copy. Both
+    // populated alongside pendingMissingFolderPath whenever a replay op is
+    // skipped because its source is unreachable.
+    juce::String pendingMissingFolderKind;
+    juce::String pendingMissingFolderName;
+
     // v1.3.0: editor surfaces a missing-folder modal via this callback.
-    // Fires on the message thread; payload is the saved absolute path.
-    std::function<void(const juce::String&)> missingFolderCallback;
+    // v1.12.0: signature widened to (path, kind, name).
+    std::function<void (const juce::String&,
+                        const juce::String&,
+                        const juce::String&)> missingFolderCallback;
 
     // v1.3.0: build a complete root ValueTree (APVTS state + SampleFolder
     // + TuningState children) for save/persist. Used by both

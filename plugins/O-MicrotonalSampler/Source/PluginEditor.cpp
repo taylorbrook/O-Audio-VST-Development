@@ -266,37 +266,22 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             // Each returns a sane default so JS callers don't crash.
             // ============================================================
 
-            // ---- loadSampleFolderDialog (Phase 3.3 / v1.6.0) ----
+            // ---- pickSampleFolder (v1.12.0) ----
             //
-            // JS calls: await Juce.getNativeFunction('loadSampleFolderDialog')(
-            //               targetLayer, modeString, overrideTokens).
+            // Replaces v1.6.0's combined `loadSampleFolderDialog` with a pure
+            // file picker. JS sequences: pickSampleFolder() → maybe
+            // estimateFolderAudioSize() → maybe size-confirm modal →
+            // loadSampleFolderByPath(). The split lets JS show a real
+            // size-warning between selection and load when the user opted
+            // into embedAudio.
             //
-            //   args[0] (optional) = targetLayer 0..3       — default 0
-            //   args[1] (optional) = mode string            — default "replace_all"
-            //                        ("append" | "replace_layer" | "replace_all")
-            //   args[2] (optional) = overrideTokens 0/1     — default 0
-            //
-            // Missing-args path falls back to v1.5.x semantics so any caller
-            // (or stale JS bundle) continues to work. Resolves true on a
-            // successful folder selection (forwarded to processor.loadSampleFolder),
-            // false on cancel. The actual scan + load is async — sampleMapUpdated
-            // fires when the new map has been atomic-stored.
-            .withNativeFunction ("loadSampleFolderDialog",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
+            // Resolves an object: { path: "...", cancelled: false } on success,
+            // { path: "", cancelled: true } when the user dismissed the picker.
+            // (Always returns an object so JS can `await` once and inspect.)
+            .withNativeFunction ("pickSampleFolder",
+                [] (const juce::Array<juce::var>&,
+                    std::function<void(juce::var)> complete)
                 {
-                    const int  targetLayer = args.size() > 0
-                        ? juce::jlimit (0, 3, static_cast<int> (args[0])) : 0;
-                    const auto modeStr     = args.size() > 1 ? args[1].toString()
-                                                             : juce::String ("replace_all");
-                    const bool overrideTok = args.size() > 2
-                        ? static_cast<int> (args[2]) != 0 : false;
-
-                    LoadMode mode = LoadMode::ReplaceAll;
-                    if (modeStr == "append")        mode = LoadMode::Append;
-                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
-                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
-
                     auto chooser = std::make_shared<juce::FileChooser> (
                         "Choose folder containing sample files",
                         juce::File{},
@@ -306,34 +291,128 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                                | juce::FileBrowserComponent::canSelectDirectories;
 
                     chooser->launchAsync (flags,
-                        [this, chooser, complete, targetLayer, mode, overrideTok]
-                            (const juce::FileChooser& fc) mutable
+                        [chooser, complete] (const juce::FileChooser& fc) mutable
                         {
+                            auto* obj = new juce::DynamicObject();
                             const auto results = fc.getResults();
-                            if (results.isEmpty())
+
+                            if (results.isEmpty() || ! results.getFirst().isDirectory())
                             {
-                                DBG ("loadSampleFolderDialog: cancelled");
-                                complete (juce::var (false));
+                                obj->setProperty ("path", juce::String());
+                                obj->setProperty ("cancelled", true);
+                                complete (juce::var (obj));
                                 return;
                             }
 
                             const juce::File folder = results.getFirst();
-                            if (! folder.isDirectory())
-                            {
-                                DBG ("loadSampleFolderDialog: selection is not a directory: "
-                                     << folder.getFullPathName());
-                                complete (juce::var (false));
-                                return;
-                            }
-
-                            DBG ("loadSampleFolderDialog: folder="
-                                 << folder.getFullPathName()
-                                 << " layer=" << targetLayer
-                                 << " mode=" << static_cast<int> (mode)
-                                 << " override=" << (int) overrideTok);
-                            processorRef.loadSampleFolder (folder, targetLayer, mode, overrideTok);
-                            complete (juce::var (true));
+                            obj->setProperty ("path",      folder.getFullPathName());
+                            obj->setProperty ("name",      folder.getFileName());
+                            obj->setProperty ("cancelled", false);
+                            DBG ("pickSampleFolder: " << folder.getFullPathName());
+                            complete (juce::var (obj));
                         });
+                })
+
+            // ---- estimateFolderAudioSize (v1.12.0) ----
+            //
+            // Returns the total size (in bytes) of audio files inside `path`,
+            // recursively. Used by JS to populate the "Embed will add ~X MB"
+            // size-warning modal before the user commits to an embed load.
+            //
+            // Extension set matches SampleLoader's wildcard
+            // (*.wav;*.aif;*.aiff;*.flac). Source-file size is reported (not
+            // post-resample PCM size); this is honest about the disk cost
+            // and acceptable as an order-of-magnitude estimate.
+            //
+            //   args[0] = absolute folder path
+            // Returns: bytes (juce::int64). Returns 0 on invalid path.
+            .withNativeFunction ("estimateFolderAudioSize",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete (juce::var (juce::int64 (0)));
+                        return;
+                    }
+                    const juce::File folder (args[0].toString());
+                    if (! folder.isDirectory())
+                    {
+                        complete (juce::var (juce::int64 (0)));
+                        return;
+                    }
+
+                    juce::int64 totalBytes = 0;
+                    const juce::String wildcards = "*.wav;*.aif;*.aiff;*.flac";
+                    for (const auto& entry : juce::RangedDirectoryIterator (
+                                                  folder, /*recursive=*/true,
+                                                  wildcards,
+                                                  juce::File::findFiles))
+                    {
+                        totalBytes += entry.getFile().getSize();
+                    }
+                    complete (juce::var (totalBytes));
+                })
+
+            // ---- loadSampleFolderByPath (v1.12.0) ----
+            //
+            // Loads a folder by absolute path with full origin/embed metadata.
+            // Used by JS after `pickSampleFolder` (and any embed-confirm
+            // modal). The pre-pick options modal returns layer/mode/override/
+            // embed; this fn stitches them together with the picked path.
+            //
+            //   args[0] = absolute folder path (required)
+            //   args[1] (optional) = targetLayer 0..3       — default 0
+            //   args[2] (optional) = mode string             — default "replace_all"
+            //                        ("append" | "replace_layer" | "replace_all" | "merge_rr")
+            //   args[3] (optional) = overrideTokens 0/1     — default 0
+            //   args[4] (optional) = embedAudio 0/1         — default 0
+            //
+            // Resolves true if the load was dispatched; false if path is
+            // invalid. The actual scan + load is async — sampleMapUpdated
+            // fires when the new map has been atomic-stored.
+            .withNativeFunction ("loadSampleFolderByPath",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const juce::File folder (args[0].toString());
+                    if (! folder.isDirectory())
+                    {
+                        DBG ("loadSampleFolderByPath: not a directory: "
+                             << folder.getFullPathName());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int  targetLayer = args.size() > 1
+                        ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
+                    const auto modeStr     = args.size() > 2 ? args[2].toString()
+                                                             : juce::String ("replace_all");
+                    const bool overrideTok = args.size() > 3
+                        ? static_cast<int> (args[3]) != 0 : false;
+                    const bool embedAudio  = args.size() > 4
+                        ? static_cast<int> (args[4]) != 0 : false;
+
+                    LoadMode mode = LoadMode::ReplaceAll;
+                    if (modeStr == "append")        mode = LoadMode::Append;
+                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
+
+                    DBG ("loadSampleFolderByPath: folder="
+                         << folder.getFullPathName()
+                         << " layer=" << targetLayer
+                         << " mode=" << static_cast<int> (mode)
+                         << " override=" << (int) overrideTok
+                         << " embed=" << (int) embedAudio);
+                    processorRef.loadSampleFolder (folder, targetLayer, mode, overrideTok,
+                                                    "filesystem", folder.getFileName(),
+                                                    embedAudio);
+                    complete (juce::var (true));
                 })
 
             // ---- dropSessionStart (v1.0.4 — content-streaming drag-drop) ----
@@ -350,6 +429,12 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             //
             // args[0] = sessionId (opaque string from JS, used to scope
             //           the temp dir and validate subsequent calls)
+            // args[1] (optional, v1.12.0) = folder name (FileSystemEntry::name).
+            //         The macOS WKWebView sandbox strips the original disk
+            //         path but exposes the dragged folder's display name —
+            //         we lift it here so the missing-folder modal on reload
+            //         can render "Samples were drag-dropped from <name>"
+            //         copy. Single-file drops pass the file's basename.
             //
             // Returns true if the temp dir was created.
             .withNativeFunction ("dropSessionStart",
@@ -367,6 +452,9 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                         complete (juce::var (false));
                         return;
                     }
+                    const auto folderName = args.size() > 1
+                        ? args[1].toString()
+                        : juce::String();
 
                     cleanupStaleDropSessions();
 
@@ -386,7 +474,9 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     currentDropSessionId         = sessionId;
                     currentDropSessionDir        = dir;
                     currentDropSessionTotalBytes = 0;  // v1.11.2: reset 4 GB cap
-                    DBG ("dropSessionStart: " << dir.getFullPathName());
+                    currentDropSessionFolderName = folderName;  // v1.12.0
+                    DBG ("dropSessionStart: " << dir.getFullPathName()
+                         << " name=" << folderName);
                     complete (juce::var (true));
                 })
 
@@ -513,7 +603,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     complete (juce::var (true));
                 })
 
-            // ---- dropSessionCommitFolder (v1.0.4 / v1.6.0) ----
+            // ---- dropSessionCommitFolder (v1.0.4 / v1.6.0 / v1.12.0) ----
             //
             // Calls processorRef.loadSampleFolder on the session temp dir.
             // The async SampleLoader thread reads the dir in the background
@@ -525,13 +615,14 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             //   args[1] (optional) = targetLayer 0..3      — default 0
             //   args[2] (optional) = mode string           — default "replace_all"
             //   args[3] (optional) = overrideTokens 0/1    — default 0
+            //   args[4] (optional, v1.12.0) = embedAudio 0/1 — default 0
             //
-            // NB: drag-drop materialises files into a session temp dir so the
-            // "path" the processor sees is /tmp/o-microtonalsampler-drop-<id>/.
-            // That path is short-lived (cleaned up at the next drop session),
-            // so a Save&Reopen cycle re-records a missing folder. This matches
-            // existing v1.0.4 behaviour — drag-drop loads were never persisted.
-            // Users who need persistence should use the Load Folder… picker.
+            // v1.12.0: drag-drop loads now flow through with origin="drag-drop"
+            // and the folder name lifted at dropSessionStart. When embedAudio=0
+            // (default), the saved state records origin + name so reload
+            // surfaces a friendlier "drag-dropped from <name>" missing modal
+            // (no /tmp/ paths). When embedAudio=1, the audio is serialised
+            // inline and the project survives temp-dir cleanup unchanged.
             .withNativeFunction ("dropSessionCommitFolder",
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
@@ -550,19 +641,31 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                                                              : juce::String ("replace_all");
                     const bool overrideTok = args.size() > 3
                         ? static_cast<int> (args[3]) != 0 : false;
+                    const bool embedAudio  = args.size() > 4
+                        ? static_cast<int> (args[4]) != 0 : false;
 
                     LoadMode mode = LoadMode::ReplaceAll;
                     if (modeStr == "append")        mode = LoadMode::Append;
                     else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
                     else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
 
+                    // v1.12.0: prefer the folder name lifted at dropSessionStart;
+                    // fall back to the temp-dir basename for legacy JS that
+                    // doesn't pass a name.
+                    const auto displayName = currentDropSessionFolderName.isNotEmpty()
+                        ? currentDropSessionFolderName
+                        : currentDropSessionDir.getFileName();
+
                     DBG ("dropSessionCommitFolder: "
                          << currentDropSessionDir.getFullPathName()
                          << " layer=" << targetLayer
                          << " mode=" << static_cast<int> (mode)
-                         << " override=" << (int) overrideTok);
+                         << " override=" << (int) overrideTok
+                         << " embed=" << (int) embedAudio
+                         << " name=" << displayName);
                     processorRef.loadSampleFolder (currentDropSessionDir,
-                                                    targetLayer, mode, overrideTok);
+                                                    targetLayer, mode, overrideTok,
+                                                    "drag-drop", displayName, embedAudio);
                     complete (juce::var (true));
                 })
 
@@ -1310,13 +1413,21 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             // setStateInformation may run before the WebView has registered
             // its folderMissing event listener (DAW project reopen → state
             // restore happens before editor attach). JS calls this once on
-            // boot to recover any missed event. Returns the saved path or
-            // an empty string.
+            // boot to recover any missed event.
+            //
+            // v1.12.0: returns an object {path, kind, name} — string for
+            // legacy v1.11.x JS bundles is no longer compatible. JS must
+            // detect the object form and branch on `kind` ("filesystem" or
+            // "drag-drop"). Empty path + empty name = no pending missing.
             .withNativeFunction ("getPendingMissingFolder",
                 [this] (const juce::Array<juce::var>&,
                         std::function<void(juce::var)> complete)
                 {
-                    complete (juce::var (processorRef.getPendingMissingFolderPath()));
+                    auto* obj = new juce::DynamicObject();
+                    obj->setProperty ("path", processorRef.getPendingMissingFolderPath());
+                    obj->setProperty ("kind", processorRef.getPendingMissingFolderKind());
+                    obj->setProperty ("name", processorRef.getPendingMissingFolderName());
+                    complete (juce::var (obj));
                 })
 
             // ---- exportTuningHTML() — write current tuning to HTML doc ----
@@ -1393,12 +1504,23 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
     // handler renders the "Locate folder?" modal. Boot-time race (state
     // restore before WebView attach) is covered by the JS-side
     // getPendingMissingFolder pull on first ready.
+    //
+    // v1.12.0: payload widened from a bare path string to a {path, kind, name}
+    // object. JS branches on `kind` ("filesystem" or "drag-drop") to render
+    // the appropriate modal copy. drag-drop missings have empty `path` and
+    // a meaningful `name` lifted from the original drop's FileSystemEntry.
     processorRef.setMissingFolderCallback (
-        [this] (const juce::String& savedPath)
+        [this] (const juce::String& savedPath,
+                const juce::String& kind,
+                const juce::String& name)
         {
-            if (webView != nullptr)
-                webView->emitEventIfBrowserIsVisible (
-                    "folderMissing", juce::var (savedPath));
+            if (webView == nullptr) return;
+            auto* obj = new juce::DynamicObject();
+            obj->setProperty ("path", savedPath);
+            obj->setProperty ("kind", kind);
+            obj->setProperty ("name", name);
+            webView->emitEventIfBrowserIsVisible (
+                "folderMissing", juce::var (obj));
         });
 
     // v1.8.0: subscribe to ambiguous-duplicate callback. The folder loader

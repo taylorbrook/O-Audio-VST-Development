@@ -102,6 +102,14 @@ private:
     // (see Source/DropSessionGuard.h::kMaxSessionBytes).
     juce::uint64 currentDropSessionTotalBytes = 0;
 
+    // v1.12.0: human-friendly folder name lifted from JS
+    // (FileSystemEntry::name) at dropSessionStart time. Forwarded to
+    // processor.loadSampleFolder as displayName so the missing-folder modal
+    // can render "Samples were drag-dropped from <name>" copy on reload.
+    // macOS WKWebView sandboxes the original disk path — name is the only
+    // cross-session-stable signal we get.
+    juce::String currentDropSessionFolderName;
+
     // Removes prior `o-microtonalsampler-drop-*` temp dirs older than
     // 5 minutes (a window large enough that an in-flight background
     // SampleLoader read on the previous session is unlikely to still
