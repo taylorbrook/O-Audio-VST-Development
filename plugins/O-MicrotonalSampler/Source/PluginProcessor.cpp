@@ -161,7 +161,14 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     sampleLoader = std::make_unique<SampleLoader>();
 }
 
-OMicrotonalSamplerAudioProcessor::~OMicrotonalSamplerAudioProcessor() = default;
+OMicrotonalSamplerAudioProcessor::~OMicrotonalSamplerAudioProcessor()
+{
+    // v1.12.1 (CR-01): defensively cancel any pending CC 11 forward so the
+    // message thread can't fire handleAsyncUpdate after the processor's APVTS
+    // is gone. AsyncUpdater's own destructor performs this, but doing it
+    // explicitly here documents the intent and runs before APVTS teardown.
+    cancelPendingUpdate();
+}
 
 //==============================================================================
 void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -308,16 +315,27 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // v1.7.0: scan MIDI for CC 11 (Expression Controller). Last-value-wins
     // within the block — sample-accurate splitting was deemed unnecessary
     // (10 ms smoothing on the gain side covers per-block jumps without zipper).
-    // setValueNotifyingHost forwards to host automation lanes AND triggers
-    // the WebSliderRelay valueChangedEvent so the UI knob tracks the CC.
+    //
+    // v1.12.1 (CR-01): the audio thread no longer calls setValueNotifyingHost
+    // — that is a real-time correctness violation (the call dispatches to
+    // listeners that may take host locks, allocate, or block). We stage the
+    // last CC 11 byte of the block into a lock-free atomic and ask the
+    // message thread to forward it to the host via handleAsyncUpdate. The
+    // squared-curve smoothing applied below uses the live "expression"
+    // APVTS atom directly, so audio gain still tracks the CC stream within
+    // ~one message-thread cycle (≈ tens of µs to a few ms — far below the
+    // 10 ms smoother ramp).
+    int latestCC11 = -1;
     for (const auto meta : midiMessages)
     {
         const auto msg = meta.getMessage();
         if (msg.isController() && msg.getControllerNumber() == 11)
-        {
-            if (auto* ep = parameters.getParameter ("expression"))
-                ep->setValueNotifyingHost (msg.getControllerValue() / 127.0f);
-        }
+            latestCC11 = msg.getControllerValue();
+    }
+    if (latestCC11 >= 0)
+    {
+        pendingCC11Value.store (latestCC11, std::memory_order_relaxed);
+        triggerAsyncUpdate();
     }
 
     // FUNC-03: propagate the polyphony APVTS cap into the synth before MIDI is
@@ -366,6 +384,26 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             buffer.applyGainRamp (ch, 0, numSamples, startGain, endGain);
     }
+}
+
+//==============================================================================
+// v1.12.1 (CR-01): drain the pending CC 11 value on the message thread and
+// forward to the host. setValueNotifyingHost dispatches to APVTS listeners
+// (including the WebSliderRelay that updates the UI knob) and to the host's
+// parameter machinery (for automation recording) — both paths are
+// message-thread-safe but illegal from processBlock.
+//
+// Coalescing: if multiple processBlock invocations stage values between
+// scheduled async updates, only the latest value reaches the host. This is
+// fine — last-value-wins is the documented CC 11 contract and matches the
+// pre-fix behaviour at the message-thread granularity.
+void OMicrotonalSamplerAudioProcessor::handleAsyncUpdate()
+{
+    const int v = pendingCC11Value.exchange (-1, std::memory_order_acquire);
+    if (v < 0)
+        return;
+    if (auto* ep = parameters.getParameter ("expression"))
+        ep->setValueNotifyingHost ((float) v / 127.0f);
 }
 
 //==============================================================================
@@ -476,7 +514,11 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
         {
             DBG ("SampleLoader failure: " << reason);
             juce::ignoreUnused (reason);
-            lastSkippedFiles.clear();
+            {
+                // v1.12.1 (HG-08).
+                const juce::ScopedLock persistLock (persistenceLock);
+                lastSkippedFiles.clear();
+            }
             // Drop the recorded folder so a failed reload doesn't get
             // re-persisted. (clearSampleMap leaves currentSampleFolder
             // untouched on purpose — only an explicit load-failure clears.)
@@ -504,6 +546,12 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
    #endif
 
     auto merged = std::make_shared<SampleMap>();
+
+    // v1.12.1 (HG-08): hold persistenceLock across loadOpHistory + lastSkipped
+    // mutations so a Reaper save thread reading captureStateValueTree can't
+    // observe a half-built history vector. The lock is released before the
+    // sampleMapChangedCallback fires so editor work can't deadlock against it.
+    const juce::ScopedLock persistLock (persistenceLock);
 
     if (op.mode == LoadMode::ReplaceAll || prev == nullptr)
     {
@@ -648,7 +696,11 @@ void OMicrotonalSamplerAudioProcessor::confirmRoundRobinLoad (bool accept)
         DBG ("confirmRoundRobinLoad: user declined; discarding staged map");
         // Surface the skipped files anyway so the UI can hint about what was
         // dropped.
-        lastSkippedFiles = skipped;
+        {
+            // v1.12.1 (HG-08).
+            const juce::ScopedLock persistLock (persistenceLock);
+            lastSkippedFiles = skipped;
+        }
         if (sampleMapChangedCallback)
             sampleMapChangedCallback();
     }
@@ -835,7 +887,11 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             {
                 if (skipReason.isNotEmpty())
                 {
-                    lastSkippedFiles.add (skipReason);
+                    {
+                        // v1.12.1 (HG-08).
+                        const juce::ScopedLock persistLock (persistenceLock);
+                        lastSkippedFiles.add (skipReason);
+                    }
                     DBG ("loadSingleSample failed: " << skipReason);
                 }
                 if (sampleMapChangedCallback)
@@ -871,7 +927,11 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             if (mergeAsRr && existingCell != nullptr
                 && (int) existingCell->variants.size() >= kMaxVariantsPerCell)
             {
-                lastSkippedFiles.add ("variant cap reached: " + newVariant.filename);
+                {
+                    // v1.12.1 (HG-08).
+                    const juce::ScopedLock persistLock (persistenceLock);
+                    lastSkippedFiles.add ("variant cap reached: " + newVariant.filename);
+                }
                 DBG ("loadSingleSample: variant cap (" << kMaxVariantsPerCell
                      << ") reached at midi=" << targetMidi << " vel=" << targetVel
                      << " — skipping " << newVariant.filename);
@@ -1133,12 +1193,16 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
     currentSampleMap = fresh;
    #endif
 
-    lastSkippedFiles.clear();
+    {
+        // v1.12.1 (HG-08): synchronise against off-thread getStateInformation.
+        const juce::ScopedLock persistLock (persistenceLock);
+        lastSkippedFiles.clear();
 
-    // v1.6.0: drop the load-op history so the next save reflects the cleared
-    // state. (currentSampleFolder is intentionally left alone — same comment
-    // as v1.3.0.)
-    loadOpHistory.clear();
+        // v1.6.0: drop the load-op history so the next save reflects the
+        // cleared state. (currentSampleFolder is intentionally left alone —
+        // same comment as v1.3.0.)
+        loadOpHistory.clear();
+    }
 
     // v1.8.0: clear all RR counters.
     for (auto& cnt : rrCounters)
@@ -1153,8 +1217,12 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
 //==============================================================================
 // Phase 3.1: snapshot the current sample map as a JSON string per RESEARCH
 // §RQ3-2 schema. Read-only — atomic_load on the shared_ptr is the only
-// thread sync; lastSkippedFiles is touched only on the message thread (this
-// path) and the loader completion path which also runs on the message thread.
+// thread sync needed for the map. lastSkippedFiles is mutated on the message
+// thread (loader completion path) AND read here on the message thread, so
+// these access pairs serialise naturally. The persistenceLock added in v1.12.1
+// (HG-08) is for the off-thread getStateInformation read; this method does
+// not need it. Acquire the lock here too if a future caller invokes this
+// from a worker thread.
 juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
 {
    #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
@@ -1787,34 +1855,49 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
     // path attr is omitted; restoreStateValueTree reconstructs an op with an
     // empty path + drag-drop kind.
     juce::ValueTree folders (kSampleFoldersTag);
-    for (const auto& op : loadOpHistory)
     {
-        juce::ValueTree opTree (kSampleFolderOpTag);
+        // v1.12.1 (HG-08): Reaper can call getStateInformation off the
+        // message thread while applyFolderLoad is mid-mutation. Snapshot the
+        // history under the lock; the embeddedSlots shared_ptrs keep the
+        // audio buffers alive for buildEmbeddedAudioTree, which we run
+        // outside the lock to avoid blocking message-thread mutations on
+        // (potentially expensive) per-variant WAV serialisation. The local
+        // copy is cheap — LoadOps are small POD-ish structs holding
+        // shared_ptrs and short juce::Strings.
+        std::vector<LoadOp> historySnapshot;
+        {
+            const juce::ScopedLock persistLock (persistenceLock);
+            historySnapshot = loadOpHistory;
+        }
+        for (const auto& op : historySnapshot)
+        {
+            juce::ValueTree opTree (kSampleFolderOpTag);
 
-        // Don't persist the drag-drop temp path — it's session-scoped and
-        // reaped at the next drop session start. Without embed, the op
-        // restores as "drag-drop, missing"; with embed, the audio blob is
-        // self-sufficient and the path is irrelevant.
-        if (op.origin != "drag-drop")
-            opTree.setProperty ("path", op.path, nullptr);
+            // Don't persist the drag-drop temp path — it's session-scoped and
+            // reaped at the next drop session start. Without embed, the op
+            // restores as "drag-drop, missing"; with embed, the audio blob is
+            // self-sufficient and the path is irrelevant.
+            if (op.origin != "drag-drop")
+                opTree.setProperty ("path", op.path, nullptr);
 
-        opTree.setProperty ("layer",    op.targetLayer,                     nullptr);
-        opTree.setProperty ("mode",     loadModeToString (op.mode),         nullptr);
-        opTree.setProperty ("override", op.overrideTokens ? 1 : 0,          nullptr);
+            opTree.setProperty ("layer",    op.targetLayer,                     nullptr);
+            opTree.setProperty ("mode",     loadModeToString (op.mode),         nullptr);
+            opTree.setProperty ("override", op.overrideTokens ? 1 : 0,          nullptr);
 
-        // v1.12.0:
-        opTree.setProperty ("kind",  op.origin.isNotEmpty() ? op.origin : juce::String ("filesystem"), nullptr);
-        if (op.displayName.isNotEmpty())
-            opTree.setProperty ("name", op.displayName, nullptr);
-        if (op.embedAudio)
-            opTree.setProperty ("embed", 1, nullptr);
+            // v1.12.0:
+            opTree.setProperty ("kind",  op.origin.isNotEmpty() ? op.origin : juce::String ("filesystem"), nullptr);
+            if (op.displayName.isNotEmpty())
+                opTree.setProperty ("name", op.displayName, nullptr);
+            if (op.embedAudio)
+                opTree.setProperty ("embed", 1, nullptr);
 
-        // Inline audio blob — only emitted when the user opted in via embed
-        // AND the per-op slot snapshot was attached at load time.
-        if (op.embedAudio && op.embeddedSlots != nullptr)
-            opTree.appendChild (buildEmbeddedAudioTree (*op.embeddedSlots), nullptr);
+            // Inline audio blob — only emitted when the user opted in via
+            // embed AND the per-op slot snapshot was attached at load time.
+            if (op.embedAudio && op.embeddedSlots != nullptr)
+                opTree.appendChild (buildEmbeddedAudioTree (*op.embeddedSlots), nullptr);
 
-        folders.appendChild (opTree, nullptr);
+            folders.appendChild (opTree, nullptr);
+        }
     }
     root.appendChild (folders, nullptr);
 
@@ -1849,7 +1932,12 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     pendingMissingFolderKind.clear();
     pendingMissingFolderName.clear();
     pendingReplayOps.clear();
-    loadOpHistory.clear();   // applyFolderLoad will rebuild as ops complete
+    {
+        // v1.12.1 (HG-08): brief lock around loadOpHistory mutation —
+        // applyFolderLoad re-acquires the lock as each replay op completes.
+        const juce::ScopedLock persistLock (persistenceLock);
+        loadOpHistory.clear();   // applyFolderLoad will rebuild as ops complete
+    }
 
     auto foldersTree = root.getChildWithName (kSampleFoldersTag);
     if (foldersTree.isValid())

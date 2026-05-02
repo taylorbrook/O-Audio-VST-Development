@@ -181,7 +181,8 @@ private:
     std::atomic<juce::uint64> activeNotesHigh  { 0 };  // MIDI 64..127
 };
 
-class OMicrotonalSamplerAudioProcessor : public juce::AudioProcessor
+class OMicrotonalSamplerAudioProcessor : public juce::AudioProcessor,
+                                         private juce::AsyncUpdater
 {
 public:
     OMicrotonalSamplerAudioProcessor();
@@ -191,6 +192,14 @@ public:
     void releaseResources() override;
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    // v1.12.1 — CR-01 fix. processBlock stages the latest CC 11 byte into
+    // pendingCC11Value (audio thread, lock-free) and calls
+    // triggerAsyncUpdate(); handleAsyncUpdate runs on the message thread and
+    // forwards to the host via setValueNotifyingHost. Last-value-wins within a
+    // block matches the previous behaviour; the difference is that the host
+    // notification is no longer issued from the audio thread.
+    void handleAsyncUpdate() override;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -461,7 +470,21 @@ private:
     // Phase 2.2: list of filenames the most recent loader pass could not
     // parse / read. Populated on completion callback (message thread); read
     // by Stage-3 UI. Cleared on failure.
+    //
+    // v1.12.1 (HG-08): also read by getStateInformation, which Reaper can call
+    // off the message thread. Mutations and the read path in
+    // captureStateValueTree are guarded by persistenceLock below.
     juce::StringArray lastSkippedFiles;
+
+    // v1.12.1 — CR-01. Last CC 11 (Expression) value seen on the audio thread
+    // pending forward to the host via handleAsyncUpdate. -1 = no pending
+    // value; 0..127 otherwise. Drained atomically on the message thread.
+    std::atomic<int> pendingCC11Value { -1 };
+
+    // v1.12.1 — HG-08. Guards loadOpHistory and lastSkippedFiles across
+    // message-thread mutations and the off-thread getStateInformation read.
+    // Held only briefly; never acquired from the audio thread.
+    mutable juce::CriticalSection persistenceLock;
 
     // Phase 3.1: editor-side callback fired on the message thread after every
     // atomic-store of `currentSampleMap`. Editor sets this in its constructor
