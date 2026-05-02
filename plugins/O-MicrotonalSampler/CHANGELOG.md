@@ -1,5 +1,48 @@
 # O-MicrotonalSampler Changelog
 
+## [1.12.2] - 2026-05-02
+
+### Fixed
+- **FE-01: drag-drop folder streaming no longer silently corrupts on a
+  single bad file.** The base64-streaming loop in
+  `streamFolderEntryToCpp` already had a try/catch around the FileReader
+  read + native-fn call, but only logged to console — the user saw the
+  "Loading X of N" toast freeze on the next file with no indication
+  anything had failed. Each per-file failure now toasts a specific
+  "Skipped: <name> (read failed | backend rejected)" message and the
+  final commit toast counts the skips ("Loading 47 of 50 samples (3
+  skipped)…"). If every file fails, the commit step still runs so the
+  C++ side reaps the empty session. `streamSingleFileEntryToCpp` got
+  the same per-step protection so a corrupted single-file drop fails
+  cleanly with a user-visible toast.
+- **FE-02: backend stalls in drag-drop streaming no longer hang the UI
+  permanently.** Every `Juce.getNativeFunction(…)` await in
+  `streamFolderEntryToCpp` and `streamSingleFileEntryToCpp` is now
+  wrapped — `dropSessionStart`, `dropSessionAddFile`,
+  `dropSessionCommitFolder`, `dropSessionCommitFile`. The
+  `showFolderLoadOptionsModal` await is also wrapped against modal
+  promise rejection (DOM tear-down, cleanup-handler exception). On
+  rejection each step surfaces a distinct toast (start / per-file /
+  commit) and aborts cleanly, leaving the UI responsive. Previously, a
+  C++ deadlock or message-thread stall would leave the user staring at
+  a stale "Loading…" toast with no way to recover short of closing the
+  plugin window.
+- **FE-03: stale-cell race when sample-map snapshots fire mid-click.**
+  The 250 ms double-click discriminator in `bindGridInteractions`
+  schedules a `setTimeout` that closes over a `cell` DOM reference and
+  reads `dataset.note` / `dataset.layer` at fire time. If a folder load
+  or sampleMapUpdated event triggered `renderGrid` between click and
+  fire, the timer would either no-op against a detached node or — if
+  the grid had been re-rendered with a different sample map — fire
+  against a re-bound cell at the same grid position carrying different
+  MIDI/layer values. `renderGrid` now clears `pendingClickTimer` at the
+  top, matching the cleanup the dblclick branch already performs.
+
+### Notes
+- All three fixes are fail-safe: per-iteration error handling in
+  drag-drop loops + UI-recovery toasts on every backend await + cancel
+  the deferred single-click whenever the grid rebuilds.
+
 ## [1.12.1] - 2026-05-02
 
 ### Fixed
