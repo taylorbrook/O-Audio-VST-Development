@@ -1,5 +1,27 @@
 # O-MicrotonalSampler Changelog
 
+## [1.12.1] - 2026-05-02
+
+### Fixed
+- **CR-01: CC11 (Expression) no longer calls `setValueNotifyingHost` from the
+  audio thread.** Per-byte `setValueNotifyingHost` in `processBlock` was a
+  real-time correctness violation — listeners chain back through host
+  parameter machinery, can take locks, allocate, and stall the audio thread
+  in some hosts. Fast CC11 streams now stage the latest 0..127 value into a
+  `std::atomic<int>` on the audio thread; an `AsyncUpdater` drains the
+  atomic on the message thread and forwards to the host. Last-value-wins
+  semantics within a block are unchanged; the audio path is now lock-free.
+- **HG-08: `loadOpHistory` and `lastSkippedFiles` synchronised against
+  off-thread `getStateInformation`.** Reaper (and possibly other hosts) call
+  `getStateInformation` from a save-state worker thread, racing the message-
+  thread mutations from folder-load completion callbacks. A
+  `juce::CriticalSection` now guards both containers across all
+  mutation/read sites (`applyFolderLoad`, `clearSampleMap`,
+  `restoreStateValueTree`, `confirmRoundRobinLoad`, `loadSampleFolder`
+  failure callback, `loadSingleSample`, and `captureStateValueTree`).
+  Project saves during in-flight folder loads can no longer produce
+  truncated XML.
+
 ## [1.12.0] - 2026-05-02
 
 ### Fixed
