@@ -58,6 +58,14 @@ public:
         amountSmoothed.setTargetValue (juce::jlimit (0.0f, 1.0f, amount));
     }
 
+    // Phase 2.6a-bis Risk #22 — seed both current and target so the smoother
+    // does NOT ramp at first processBlock. Used by OCBS_DISABLE_DECORRELATOR
+    // bit-equivalence build path; safe to call anytime (no allocation).
+    void setAmountImmediate (float amount) noexcept
+    {
+        amountSmoothed.setCurrentAndTargetValue (juce::jlimit (0.0f, 1.0f, amount));
+    }
+
     float processSample (float in) noexcept
     {
         const float a      = amountSmoothed.getNextValue();

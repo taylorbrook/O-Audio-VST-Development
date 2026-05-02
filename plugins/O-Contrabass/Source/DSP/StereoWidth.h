@@ -69,6 +69,14 @@ public:
     // Process stereo buffer in-place.
     // Input:  channel 0 has mono voice output, channel 1 = copy of channel 0.
     // Output: decorrelated stereo with M/S width applied.
+    //
+    // Phase 2.6a-bis Risk #22 — when OCBS_DISABLE_DECORRELATOR is defined at
+    // compile time, the allpass decorrelator becomes pass-through (R = mono).
+    // Combined with WIDTH=1.0 default this collapses M/S to (mono, mono) and
+    // makes the output chain a mathematical no-op at default state. Used by
+    // the harness bit-equivalence build to verify default-state byte-equality
+    // against Phase 2.5 sha256s. NOT defined in production builds — leaves
+    // the allpass decorrelator live to fulfil ARCHITECTURE §"Stereo Width".
     void processBlock (juce::AudioBuffer<float>& buffer)
     {
         if (buffer.getNumChannels() < 2)
@@ -85,7 +93,11 @@ public:
 
             // Stereo via allpass decorrelation on R channel.
             const float left  = mono;
+           #if defined (OCBS_DISABLE_DECORRELATOR)
+            const float right = mono;
+           #else
             const float right = decorrelator.processSample (mono);
+           #endif
 
             // Mid-side width.
             const float w     = widthSmoothed.getNextValue();

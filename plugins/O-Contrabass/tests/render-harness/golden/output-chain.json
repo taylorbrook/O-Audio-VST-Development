@@ -1,0 +1,58 @@
+{
+  "status": "FAIL",
+  "mode": "output-chain",
+  "sampleRate": 44100.0,
+  "totalSamples": 661500,
+  "probeCount": 5,
+  "probeSeconds": 3.0,
+  "probes": [
+    {
+      "name": "saturator-amount-sweep",
+      "startSec": 0.0,
+      "endSec": 3.0,
+      "peak": 0.052152547985315,
+      "rms": 0.012811708841191
+    },
+    {
+      "name": "limiter-ceiling-stress",
+      "startSec": 3.0,
+      "endSec": 6.0,
+      "peak": 0.134796336293221,
+      "rms": 0.02594794029315
+    },
+    {
+      "name": "width-sweep",
+      "startSec": 6.0,
+      "endSec": 9.0,
+      "peak": 0.07803401350975,
+      "rms": 0.014014978349457
+    },
+    {
+      "name": "clickfree-automation",
+      "startSec": 9.0,
+      "endSec": 12.0,
+      "peak": 0.068826608359814,
+      "rms": 0.013327007348933
+    },
+    {
+      "name": "peak-overshoot-stress",
+      "startSec": 12.0,
+      "endSec": 15.0,
+      "peak": 0.144037365913391,
+      "rms": 0.025820073964294
+    }
+  ],
+  "ceilingDbProbe2": -0.3,
+  "ceilingDbProbe5": -3.0,
+  "peakDbProbe2": -17.406438827514648,
+  "peakDbProbe5": -16.830497741699219,
+  "probe4MaxSampleJump": 0.01794009283185,
+  "clickfreeThreshold": 0.200000002980232,
+  "probe3Width0Rms": 0.006968413432503,
+  "probe3Width1Rms": 0.011331726337661,
+  "probe3Width0CollapseDb": -4.223243369593738,
+  "pass_invariant_1_peak_under_ceiling": true,
+  "pass_invariant_2_clickfree": true,
+  "pass_risk_19_width0_collapse": false,
+  "outputWav": "output-chain.wav"
+}
