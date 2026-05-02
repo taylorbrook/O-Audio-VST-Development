@@ -163,6 +163,13 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
 
 OMicrotonalSamplerAudioProcessor::~OMicrotonalSamplerAudioProcessor()
 {
+    // v1.12.3 (HG-05): clear the WeakReference master FIRST so any
+    // SampleLoader callback already queued on the message thread sees a null
+    // weak handle and bails on entry. The order matters — clearing before
+    // members run down means later teardown (APVTS, sampleLoader) can't be
+    // observed by a still-pending callback that holds a strong this pointer.
+    masterReference.clear();
+
     // v1.12.1 (CR-01): defensively cancel any pending CC 11 forward so the
     // message thread can't fire handleAsyncUpdate after the processor's APVTS
     // is gone. AsyncUpdater's own destructor performs this, but doing it
@@ -480,49 +487,60 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
     // Cleared on failure to keep stale paths out of the missing-folder modal.
     currentSampleFolder = folder;
 
-    // Capture `this` by raw pointer — folder load is short-lived and the
-    // processor outlives the loader (sampleLoader is a unique_ptr member;
-    // ~SampleLoader joins the thread before the processor finishes destruction).
+    // v1.12.3 (HG-05): capture a WeakReference instead of raw `this`. The
+    // ~SampleLoader 2-second join only flushes the loader's worker thread —
+    // it does NOT cancel callbacks already posted to the message thread via
+    // MessageManager::callAsync. If the user closes the project mid-load,
+    // those queued callbacks would otherwise run with a dangling `this`.
+    juce::WeakReference<OMicrotonalSamplerAudioProcessor> safeThis (this);
+
     sampleLoader->loadFolder (
         folder,
         getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
         LoadOptions { clampedLayer, overrideTokens },
 
         // Completion callback — runs on the message thread.
-        [this, op](std::shared_ptr<SampleMap> newMap,
-                   juce::StringArray skipped,
-                   std::vector<SampleLoader::AmbiguousDuplicate> ambig)
+        [safeThis, op](std::shared_ptr<SampleMap> newMap,
+                       juce::StringArray skipped,
+                       std::vector<SampleLoader::AmbiguousDuplicate> ambig)
         {
+            auto* self = safeThis.get();
+            if (self == nullptr)
+                return;   // processor destroyed before callback ran
+
             // v1.8.0: ambiguous duplicates → stage the map and surface the
             // confirmation modal instead of applying immediately.
             if (! ambig.empty())
             {
-                pendingDuplicateMap            = std::move (newMap);
-                pendingDuplicateSkippedFiles   = std::move (skipped);
-                pendingAmbiguousDuplicates     = std::move (ambig);
-                pendingDuplicateOp             = op;
-                pendingDuplicateChainContinuation = nullptr;
-                if (ambiguousDuplicateCallback)
-                    ambiguousDuplicateCallback (pendingAmbiguousDuplicates);
+                self->pendingDuplicateMap            = std::move (newMap);
+                self->pendingDuplicateSkippedFiles   = std::move (skipped);
+                self->pendingAmbiguousDuplicates     = std::move (ambig);
+                self->pendingDuplicateOp             = op;
+                self->pendingDuplicateChainContinuation = nullptr;
+                if (self->ambiguousDuplicateCallback)
+                    self->ambiguousDuplicateCallback (self->pendingAmbiguousDuplicates);
                 return;
             }
-            applyFolderLoad (std::move (newMap), skipped, op);
+            self->applyFolderLoad (std::move (newMap), skipped, op);
         },
 
         // Failure callback — runs on the message thread.
-        [this](const juce::String& reason)
+        [safeThis](const juce::String& reason)
         {
             DBG ("SampleLoader failure: " << reason);
             juce::ignoreUnused (reason);
+            auto* self = safeThis.get();
+            if (self == nullptr)
+                return;
             {
                 // v1.12.1 (HG-08).
-                const juce::ScopedLock persistLock (persistenceLock);
-                lastSkippedFiles.clear();
+                const juce::ScopedLock persistLock (self->persistenceLock);
+                self->lastSkippedFiles.clear();
             }
             // Drop the recorded folder so a failed reload doesn't get
             // re-persisted. (clearSampleMap leaves currentSampleFolder
             // untouched on purpose — only an explicit load-failure clears.)
-            currentSampleFolder = juce::File();
+            self->currentSampleFolder = juce::File();
         });
 }
 
@@ -589,7 +607,9 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
         //                            existing match are added as today.
         // Counter for every touched cell is reset so the first note-on doesn't
         // pick a now-out-of-range index.
-        constexpr int kMaxVariantsPerCell = 64;
+        // v1.12.3 (HG-04): cap is owned by MicrotonalSamplerVoice, where the
+        // uint8_t / 0xFF-sentinel coupling lives. static_assert there.
+        constexpr int kMaxVariantsPerCell = MicrotonalSamplerVoice::kMaxVariantsPerCell;
 
         for (const auto& newCell : newSlotsMap->cells)
         {
@@ -706,6 +726,9 @@ void OMicrotonalSamplerAudioProcessor::confirmRoundRobinLoad (bool accept)
     }
 
     // Continue any chained replay sequence (state-restore path).
+    // v1.12.3 (HG-01): the chain itself carries a queue-generation token
+    // captured at staging time and bails out internally if the queue has
+    // since been wiped/rebuilt by an unrelated path. We just fire it.
     if (chain) chain();
 }
 
@@ -728,6 +751,23 @@ void OMicrotonalSamplerAudioProcessor::confirmRoundRobinLoad (bool accept)
 //      if the path is gone.
 void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
 {
+    // v1.12.3 (HG-01): re-entry guard. If a synchronous callback chain
+    // (e.g. applyFolderLoad → sampleMapChangedCallback → editor synchronously
+    // triggering another path that lands back here) re-enters while an outer
+    // kick is mid-walk over pendingReplayOps, the inner kick would pop ops
+    // from under the outer iterator and corrupt the chain. The outer kick
+    // either completes synchronously (Case 1: embedded) or returns after
+    // dispatching async work (Case 3: filesystem); the next legitimate kick
+    // arrives on a fresh stack via the loader's message-thread callback.
+    if (replayKickReentryGuard)
+    {
+        DBG ("kickNextReplayOp: re-entry rejected (cascaded callback)");
+        return;
+    }
+    replayKickReentryGuard = true;
+    struct ReentryGuard { bool& flag; ~ReentryGuard() { flag = false; } }
+        guard { replayKickReentryGuard };
+
     while (! pendingReplayOps.empty())
     {
         const LoadOp op = pendingReplayOps.front();
@@ -780,35 +820,80 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
             continue;   // try the next op
         }
 
+        // v1.12.3 (HG-01 + HG-05): WeakReference + queue-generation stamp.
+        // - WeakReference: the loader's message-thread callback may run after
+        //   the processor is gone if the user closes the project mid-load.
+        // - Generation stamp: when the callback stages a chain continuation
+        //   (ambiguous duplicates), the queue may be wiped/rebuilt before the
+        //   user confirms; capture the generation now so the deferred chain
+        //   can detect that and abort.
+        juce::WeakReference<OMicrotonalSamplerAudioProcessor> safeThis (this);
+        const auto kickGeneration = replayQueueGeneration.load (std::memory_order_relaxed);
+
         sampleLoader->loadFolder (
             f,
             getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
             LoadOptions { op.targetLayer, op.overrideTokens },
-            [this, op] (std::shared_ptr<SampleMap> newMap,
+            [safeThis, op, kickGeneration] (std::shared_ptr<SampleMap> newMap,
                         juce::StringArray skipped,
                         std::vector<SampleLoader::AmbiguousDuplicate> ambig)
             {
+                auto* self = safeThis.get();
+                if (self == nullptr)
+                    return;   // processor destroyed mid-replay
+
+                // Generation check — if pendingReplayOps was wiped/rebuilt
+                // (state restore, clearSampleMap) since this op was dispatched,
+                // this callback's op no longer belongs to the live chain.
+                if (self->replayQueueGeneration.load (std::memory_order_relaxed)
+                        != kickGeneration)
+                {
+                    DBG ("SampleLoader replay completion: stale generation, abandoning");
+                    return;
+                }
+
                 if (! ambig.empty())
                 {
                     // v1.8.0: stage the map and surface the modal; chain the
                     // next replay op once the user confirms/rejects.
-                    pendingDuplicateMap            = std::move (newMap);
-                    pendingDuplicateSkippedFiles   = std::move (skipped);
-                    pendingAmbiguousDuplicates     = std::move (ambig);
-                    pendingDuplicateOp             = op;
-                    pendingDuplicateChainContinuation = [this]() { kickNextReplayOp(); };
-                    if (ambiguousDuplicateCallback)
-                        ambiguousDuplicateCallback (pendingAmbiguousDuplicates);
+                    self->pendingDuplicateMap            = std::move (newMap);
+                    self->pendingDuplicateSkippedFiles   = std::move (skipped);
+                    self->pendingAmbiguousDuplicates     = std::move (ambig);
+                    self->pendingDuplicateOp             = op;
+                    // v1.12.3 (HG-01): chain continuation captures the
+                    // generation that staged it; bails on mismatch.
+                    self->pendingDuplicateChainContinuation =
+                        [safeThis, kickGeneration]()
+                        {
+                            auto* s = safeThis.get();
+                            if (s == nullptr)
+                                return;
+                            if (s->replayQueueGeneration.load (std::memory_order_relaxed)
+                                    != kickGeneration)
+                            {
+                                DBG ("chain continuation: stale generation, abandoning");
+                                return;
+                            }
+                            s->kickNextReplayOp();
+                        };
+                    if (self->ambiguousDuplicateCallback)
+                        self->ambiguousDuplicateCallback (self->pendingAmbiguousDuplicates);
                     return;
                 }
-                applyFolderLoad (std::move (newMap), skipped, op);
-                kickNextReplayOp();   // chain to next op
+                self->applyFolderLoad (std::move (newMap), skipped, op);
+                self->kickNextReplayOp();   // chain to next op
             },
-            [this] (const juce::String& reason)
+            [safeThis, kickGeneration] (const juce::String& reason)
             {
                 DBG ("SampleLoader replay failure: " << reason);
                 juce::ignoreUnused (reason);
-                kickNextReplayOp();   // continue chain even on failure
+                auto* self = safeThis.get();
+                if (self == nullptr)
+                    return;
+                if (self->replayQueueGeneration.load (std::memory_order_relaxed)
+                        != kickGeneration)
+                    return;
+                self->kickNextReplayOp();   // continue chain even on failure
             });
         return;   // wait for async completion before dispatching next
     }
@@ -874,38 +959,48 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
 
     const double sr = (getSampleRate() > 0.0) ? getSampleRate() : 48000.0;
 
+    // v1.12.3 (HG-05): WeakReference instead of raw `this`. Single-sample
+    // loads share the SampleLoader thread with folder loads; the same
+    // post-destructor risk applies.
+    juce::WeakReference<OMicrotonalSamplerAudioProcessor> safeThis (this);
+
     // ------------------------ Async load ------------------------
     sampleLoader->loadSingleVariant (
         file,
         midiPitch,
         velocityLayer,
         sr,
-        [this, mergeAsRr] (int targetMidi, int targetVel,
-                           SampleVariant newVariant, juce::String skipReason)
+        [safeThis, mergeAsRr] (int targetMidi, int targetVel,
+                               SampleVariant newVariant, juce::String skipReason)
         {
+            auto* self = safeThis.get();
+            if (self == nullptr)
+                return;
+
             if (newVariant.audio == nullptr)
             {
                 if (skipReason.isNotEmpty())
                 {
                     {
                         // v1.12.1 (HG-08).
-                        const juce::ScopedLock persistLock (persistenceLock);
-                        lastSkippedFiles.add (skipReason);
+                        const juce::ScopedLock persistLock (self->persistenceLock);
+                        self->lastSkippedFiles.add (skipReason);
                     }
                     DBG ("loadSingleSample failed: " << skipReason);
                 }
-                if (sampleMapChangedCallback)
-                    sampleMapChangedCallback();
+                if (self->sampleMapChangedCallback)
+                    self->sampleMapChangedCallback();
                 return;
             }
 
            #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-            auto currentMap = std::atomic_load (&currentSampleMap);
+            auto currentMap = std::atomic_load (&self->currentSampleMap);
            #else
-            auto currentMap = currentSampleMap;
+            auto currentMap = self->currentSampleMap;
            #endif
 
-            constexpr int kMaxVariantsPerCell = 64;
+            // v1.12.3 (HG-04): cap is owned by MicrotonalSamplerVoice.
+            constexpr int kMaxVariantsPerCell = MicrotonalSamplerVoice::kMaxVariantsPerCell;
 
             // v1.9.0: detect collision with an existing cell. mergeAsRr=true
             // appends to the cell's variants; mergeAsRr=false (default) keeps
@@ -929,14 +1024,14 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             {
                 {
                     // v1.12.1 (HG-08).
-                    const juce::ScopedLock persistLock (persistenceLock);
-                    lastSkippedFiles.add ("variant cap reached: " + newVariant.filename);
+                    const juce::ScopedLock persistLock (self->persistenceLock);
+                    self->lastSkippedFiles.add ("variant cap reached: " + newVariant.filename);
                 }
                 DBG ("loadSingleSample: variant cap (" << kMaxVariantsPerCell
                      << ") reached at midi=" << targetMidi << " vel=" << targetVel
                      << " — skipping " << newVariant.filename);
-                if (sampleMapChangedCallback)
-                    sampleMapChangedCallback();
+                if (self->sampleMapChangedCallback)
+                    self->sampleMapChangedCallback();
                 return;
             }
 
@@ -999,9 +1094,9 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             next->version = (currentMap != nullptr ? currentMap->version : 0) + 1;
 
            #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-            std::atomic_store (&currentSampleMap, next);
+            std::atomic_store (&self->currentSampleMap, next);
            #else
-            currentSampleMap = next;
+            self->currentSampleMap = next;
            #endif
 
             // v1.8.0: per-cell replace resets the RR counter — the old cell
@@ -1009,8 +1104,8 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             // v1.9.0: merge path also resets so the next note-on doesn't
             // index past the just-grown variants vector with a stale value.
             const int counterIdx = juce::jlimit (0, 511, targetMidi * 4 + targetVel);
-            rrCounters[(size_t) counterIdx].store ((uint8_t) 0xFFu,
-                                                    std::memory_order_relaxed);
+            self->rrCounters[(size_t) counterIdx].store ((uint8_t) 0xFFu,
+                                                          std::memory_order_relaxed);
 
             DBG ("loadSingleSample success: midi=" << targetMidi
                  << " vel=" << targetVel
@@ -1018,8 +1113,8 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                  << " cells=" << (int) next->cells.size()
                  << " v" << next->version);
 
-            if (sampleMapChangedCallback)
-                sampleMapChangedCallback();
+            if (self->sampleMapChangedCallback)
+                self->sampleMapChangedCallback();
         });
 }
 
@@ -1203,6 +1298,13 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
         // same comment as v1.3.0.)
         loadOpHistory.clear();
     }
+
+    // v1.12.3 (HG-01): bump replay-queue generation. If a state-restore
+    // chain is in flight (rare, but possible if user mashes Clear during
+    // project reopen), the deferred chain continuation will detect the
+    // mismatch and abort instead of replaying ops onto the freshly
+    // cleared map.
+    replayQueueGeneration.fetch_add (1, std::memory_order_relaxed);
 
     // v1.8.0: clear all RR counters.
     for (auto& cnt : rrCounters)
@@ -1932,6 +2034,10 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     pendingMissingFolderKind.clear();
     pendingMissingFolderName.clear();
     pendingReplayOps.clear();
+    // v1.12.3 (HG-01): bump generation BEFORE we rebuild — any deferred
+    // chain continuation captured by a previous restore will see the
+    // mismatch and bail out instead of operating on the rebuilt queue.
+    replayQueueGeneration.fetch_add (1, std::memory_order_relaxed);
     {
         // v1.12.1 (HG-08): brief lock around loadOpHistory mutation —
         // applyFolderLoad re-acquires the lock as each replay op completes.
