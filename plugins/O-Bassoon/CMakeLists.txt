@@ -29,6 +29,8 @@ target_sources(O-Bassoon
         Source/BassoonSound.h
         Source/BassoonVoice.h
         Source/BassoonVoice.cpp
+        Source/BassoonSynthesiser.h     # Phase 2.4 — voice manager subclass with active-cap (FUNC-02)
+        Source/BassoonSynthesiser.cpp   # Header-inline override; .cpp pair per Phase 2.3 convention
         Source/ModeBank.h
         Source/ModeBank.cpp
         Source/Exciter.h         # Phase 2.4 retention (D6-rev-3) — Phase 2.3 voice does not call,

@@ -375,3 +375,114 @@ Plus VERIFICATION-rev-3.md write (item 11) with results table mapping items 1-10
 ## Next
 
 Verify phase: `/plugin-verify O-Bassoon 2-dsp` — consumes this SUMMARY + PLAN-rev-3, prompts for the 10-item Gate 3 evidence in Logic-AU, writes VERIFICATION-rev-3, and lands the atomic commit on Gate 3 PASS green.
+
+---
+
+# O-Bassoon Stage 2 / Phase 2.4 — Execution Summary
+
+**Phase:** 2.4 — Voice Manager + Attack Character + Note Expression Integration
+**Execute-phase completed:** 2026-04-29
+**Inputs:** PLAN-rev-4 (12 tasks, single Wave) + RESEARCH-rev-4 §3 implementation skeletons (lifted verbatim) + ARCHITECTURE.md rev-4 backfill template
+**Working tree start:** Phase 2.3 atomic commit `0a64b77` on `main`
+
+## What Was Built
+
+### New Source Files
+
+- `Source/BassoonSynthesiser.{h,cpp}` (NEW) — voice manager subclass with active-cap
+  - Header-inline `BassoonSynthesiser : public juce::Synthesiser`
+  - Ctor: `setNoteStealingEnabled(true)` (explicit-for-clarity)
+  - `setActiveVoiceCap(int)` clamps via `juce::jlimit(1, 16, cap)`; `getActiveVoiceCap() const`
+  - Override `findFreeVoice` (const, base virtual signature): manual active-voice loop via `getNumVoices() + getVoice(i)->isVoiceActive()` (no `getNumActiveVoices` in JUCE 8.0.4 per OQ#9-rev-4); if `active < cap` delegates to `juce::Synthesiser::findFreeVoice`; else if `stealIfNoneAvailable` returns `findVoiceToSteal` (JUCE-default release-tail-first then oldest-noteOn — juce_Synthesiser.cpp:525-594); else `nullptr`
+  - `.cpp` translation-unit pair contains a single placeholder symbol `touchBassoonSynthesiserTU()` (D1-rev-4 — avoids "no symbols" linker warnings per Phase 2.3 .h+.cpp pair convention)
+
+### Modified Source Files
+
+| Op  | Path | Change |
+|-----|------|--------|
+| MOD | `Source/Exciter.h` | Renamed Phase 2.1 `onsetBuffer` → `softShape` (D3-rev-4); added `tonguedShape` array + `TONGUED_DURATION_MS = 7.5f` + `VELOCITY_BIAS_MAGNITUDE = 0.3f` (OQ#3/4-rev-4); added `startOnset(attackChar01, velocity01) noexcept` (snapshot-and-latch design — `effectiveAttackChar = clamp(attackChar + (vel-0.5)*0.3, 0, 1)`, lifetime of onset window per risk #2 mitigation); retained `start()` as thin wrapper for D6-rev-4 backwards-compat; `getNextSample()` returns `juce::jmap(effectiveAttackChar, softShape[i], tonguedShape[i])`. |
+| MOD | `Source/Exciter.cpp` | Replaced single-shape generation with two-pass: softShape (Phase 2.1 5 ms half-sine × exp, peak-normalised, renamed) + tonguedShape (NEW 7.5 ms `juce::Random rng(12345)` × exp-decay over 4 time-constants, peak-normalised). `onsetSamples = std::max(softN, tonguedN)`; std::array zero-init pads the shorter array (D2-rev-4). |
+| MOD | `Source/BassoonVoice.cpp::startNote` | Replaced 3-line plain MIDI freq block with 9-line compose chain: `tuningEngine->getFrequency` (or `MidiMessage::getMidiNoteInHertz` fallback) → `Ouaricon::NoteExpression::applyPendingTuning` (if `pendingTuningSource` non-null) → `static_cast<float>(f_double)`. O-Lyrica `HarpSynthVoice.cpp:113-147` precedent (OQ#6-rev-4). Replaced `exciter.start()` with `parameters->getRawParameterValue("attack_character")->load()` + `exciter.startOnset(attackChar, velocity)` (DSP-05 dispatch site). |
+| MOD | `Source/BassoonVoice.cpp::renderNextBlock` | Per-sample loop: split single excitation source into `noiseSample = noiseExciter.getNextSample(breath)` + `exciterSample = exciter.getNextSample()` (auto-zeros after onset window) + `excitation = noiseSample + exciterSample` (OQ#8-rev-4 additive composition). |
+| MOD | `Source/PluginProcessor.h` | Added `#include "BassoonSynthesiser.h"`; type-swap `juce::Synthesiser synthesiser` → `BassoonSynthesiser synthesiser` (single-line change; member name preserved); added `int lastDispatchedVoiceCount = -1` (sentinel forces first-block dispatch — OQ#2-rev-4). |
+| MOD | `Source/PluginProcessor.cpp` | Inserted 8-line voice_count snapshot at processBlock prologue head, BEFORE tone-dispatch (OQ#2-rev-4 site lock): `requestedVoices = parameters.getRawParameterValue("voice_count")->load()` + integer-comparison throttle + `synthesiser.setActiveVoiceCap(requestedVoices)`. |
+| MOD | `CMakeLists.txt` | `target_sources` +2 entries (`BassoonSynthesiser.h` + `BassoonSynthesiser.cpp`) inserted between `BassoonVoice.cpp` and `ModeBank.h`. Build flags + `juce_generate_juce_header` ordering + `ouaricon_add_module(O-Bassoon note-expression)` + `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` untouched. |
+| MOD | `.planning/research/ARCHITECTURE.md` | Appended rev-4 as-shipped note: 6 subsections (voice manager + attack-character morph + f_base compose chain + NoiseExciter additive + MPE per-channel routing confirmation + regression invariants list) + augmented ordering invariant (8 steps including Phase 2.4 voice_count snapshot at step 3). |
+
+## Build + Static-Check Gate Status
+
+| # | Gate | Status |
+|---|------|--------|
+| Build | `cmake --build build --target O-Bassoon_VST3 O-Bassoon_AU O-Bassoon_Standalone --parallel` | ✅ **SUCCESS** — clean rebuild, 12/12 targets, ad-hoc signed |
+| Install | AU cache cleared + VST3/AU installed fresh per CLAUDE.md protocol | ✅ DONE |
+| 1 | RT-safety grep across 6 Phase 2.4 source files | ✅ PASS — 3 hits all benign (1 English-comment "new", 2 construction-time editor/processor factories at PluginProcessor.cpp:279/304) |
+| 2 | NE drain BEFORE renderNextBlock | ✅ PASS — `vst3Extensions.drainAndUpdate()` at PluginProcessor.cpp:260, `synthesiser.renderNextBlock` at :263 |
+| 3 | Type swap | ✅ PASS — `BassoonSynthesiser synthesiser` at PluginProcessor.h:62; `juce::Synthesiser synthesiser` zero matches |
+| 4 | voice_count snapshot site (processBlock prologue head) | ✅ PASS — PluginProcessor.cpp:197-205, BEFORE tone-dispatch at :211 |
+| 5 | applyPendingTuning call site | ✅ PASS — BassoonVoice.cpp:65 (inside startNote) |
+| 6 | tuningEngine->getFrequency call site | ✅ PASS — BassoonVoice.cpp:61 (inside startNote) |
+| 7 | exciter.startOnset call site | ✅ PASS — BassoonVoice.cpp:77 (inside startNote) |
+| 8 | Additive composition (exciter + noiseExciter at renderNextBlock) | ✅ PASS — BassoonVoice.cpp:240-241 |
+| 9 | DSP-07 (no O-Reed dependency) | ✅ PASS — zero matches in `Source/` |
+| 10 | 1/8 scaler retention (Phase 2.2) | ✅ PASS — ModeBank.cpp:114 `1.0f / 8.0f` |
+| 11 | Throttle epsilon `0.001f` count | ✅ PASS — exactly 10 hits in PluginProcessor.cpp (≥10 expected) |
+| 12 | setExpression site | ✅ PASS — 2 hits (1 dispatch call at :236 + 1 comment at :215, Phase 2.3 carry-forward) |
+| 13 | applyGainRamp form (AFTER renderNextBlock) | ✅ PASS — `applyGainRamp(0, numSamples, ...)` at :273, AFTER `renderNextBlock` at :263 |
+| 14 | modeBank.setFundamental cadence | ✅ PASS — 3 sites: startNote (:71), pitchWheelMoved (:136), renderNextBlock per-sample throttled (:232) |
+| 15 | onsetBuffer rename grep clean | ✅ PASS — only 2 documentation comment references (Exciter.h:67 + Exciter.cpp:16); zero functional uses |
+| 16 | softShape + tonguedShape both present | ✅ PASS — Exciter.h has 6 ranges, Exciter.cpp has 11 ranges |
+| auval | `auval -v aumu OBsn OuDv` | ✅ PASS — `AU VALIDATION SUCCEEDED.` |
+| pluginval-5 | `pluginval --strictness-level 5 --validate ~/.../O-Bassoon-dev.vst3` | ✅ PASS — exit 0, SUCCESS, output bus 0 in / 2 out |
+
+**16/16 auto static-check gates PASS** (16 grep + auval + pluginval-5 = 18 effective auto-checks).
+
+## Manual Gate 4 Bar (handed to user — Task 9 of PLAN-rev-4)
+
+10-item Logic-AU verification checklist. **Items 1–6, 9, 10 must PASS clean; item 7 PASS or documented Stage 4 deferral; item 8 PASS via synthetic fixture.**
+
+1. **8 simultaneous notes audibly distinct** — Logic-AU, hold C2/E2/G2/Bb2/C3/E3/G3/Bb3, confirm 8 voices ring distinctly.
+2. **Voice cap + stealing** — `voice_count = 3`, play 4 sequential notes; only 3 sound; oldest (or release-tail-first) is stolen.
+3. **Rapid retrigger** — 10 Hz alternating noteOn/noteOff × 30 s with `voice_count = 1`. No stuck notes.
+4. **Attack-character soft + low velocity** — `attack_character = 0.0`, vel ≈ 20, play C3. Audibly soft.
+5. **Attack-character tongued + high velocity** — `attack_character = 1.0`, vel ≈ 120, play C3. Audibly percussive.
+6. **Mid-morph** — `attack_character = 0.5`, vel ≈ 70, play C3. Smooth blend.
+7. **MPE per-channel pitch-bend** — Bitwig + MPE controller; bend one note in a chord. **OR** documented Stage 4 deferral (OQ#10-rev-4 fallback).
+8. **VST3 NE pitch event** — synthetic test fixture (debug TextButton writing `pendingTuningSource[60] = +50 c`). Must remove fixture before atomic commit (Task 11).
+9. **QUAL-02 60 s long-tone** — Logic-AU bounce of held C3 + vibrato 5 Hz / 50 c + breath 0.7 + `attack_character = 0.5`. Python `numpy.isfinite` True; 1-s-window RMS drift < 0.5 dB; CPU drift < 2 % steady-state.
+10. **PERF-02 8-voice CPU** — `voice_count = 8`, 8-note chord C2-Bb3 + vibrato + breath + `attack_character = 0.5`. Process bar < 25 % steady-state.
+
+**Iteration ceiling:** rev-3 (CONTEXT-rev-4 Q3-rev-4 batch 2) per Phase 2.2/2.3 precedent. In-cycle adjustments allowed: velocity-bias bracket [0.2f, 0.4f]; tonguedShape decay bracket [5 ms, 10 ms]; softShape extension to 30 ms with LP filter.
+
+## Files for Atomic Commit (Task 11 of PLAN-rev-4)
+
+```
+?? plugins/O-Bassoon/Source/BassoonSynthesiser.h
+?? plugins/O-Bassoon/Source/BassoonSynthesiser.cpp
+M  plugins/O-Bassoon/Source/Exciter.h
+M  plugins/O-Bassoon/Source/Exciter.cpp
+M  plugins/O-Bassoon/Source/BassoonVoice.cpp
+M  plugins/O-Bassoon/Source/PluginProcessor.h
+M  plugins/O-Bassoon/Source/PluginProcessor.cpp
+M  plugins/O-Bassoon/CMakeLists.txt
+M  plugins/O-Bassoon/.planning/research/ARCHITECTURE.md
+M  plugins/O-Bassoon/.planning/STATUS.md                  (rev-4)
+M  plugins/O-Bassoon/.planning/REQUIREMENTS.md            (rev-4)
+M  plugins/O-Bassoon/.planning/stages/2-dsp/SUMMARY.md    (this addendum)
+M  plugins/O-Bassoon/.planning/stages/2-dsp/VERIFICATION.md (rev-4 — written at verify-phase)
+?? plugins/O-Bassoon/research/reference-recordings/phase-2.4-{60s-c3,8voice-cpu,attack-character-AB}.{wav,png} (optional verification artefacts)
+```
+
+**Locked atomic-commit subject** (CONTEXT-rev-4 Q4-rev-4 batch 2): `feat(O-Bassoon): Phase 2.4 polyphony + NE/MPE + attack-character - Gate 4 PASS`. Commit lands at verify-phase only on Gate 4 PASS green.
+
+## Deferred to User Verification Step
+
+- Logic-AU manual checklist items 1–6, 9, 10 (above) — user runs in their DAW
+- Item 7 — MPE controller test or documented Stage 4 deferral
+- Item 8 — synthetic test fixture (debug TextButton) for VST3 NE pitch event verification, removed before commit
+- Optional verification artefacts: phase-2.4-{60s-c3,8voice-cpu,attack-character-AB}.{wav,png}
+- VERIFICATION-rev-4.md write
+- Atomic commit (verify-phase, on Gate 4 PASS green)
+
+## Next
+
+Verify phase: `/plugin-verify O-Bassoon 2-dsp` — consumes this SUMMARY + PLAN-rev-4, prompts for the 10-item Gate 4 evidence in Logic-AU, writes VERIFICATION-rev-4, and lands the atomic commit on Gate 4 PASS green. **Closes Stage 2** (FUNC-02, FUNC-05, DSP-05, DSP-06, PERF-02, QUAL-02 → complete).

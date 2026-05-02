@@ -578,3 +578,224 @@ Wire 4 APVTS-driven systems live: ADSR (`attack_time` 0-2000 ms + `release_time`
 - Vibrato onset lifecycle decoupled (`setOnsetMs` cache-only; `reset()` is sole armer — rev-3 plan had both touching the smoother, causing the reset-after-set trap)
 - `cachedVibratoMult` perf throttle added (rev-3 plan had no explicit throttle on the per-sample pow; added |Δc|>0.5 c gate post-CPU-measurement — sub-cent error, 15× pow rate reduction)
 
+---
+
+# Stage 2 / Phase 2.4 — Verification (rev-4)
+
+**Plugin:** O-Bassoon
+**Stage:** 2 of 4 (DSP)
+**Phase:** 2.4 — Voice Manager + Attack Character + Note Expression Integration
+**Verification Date:** 2026-05-01
+**Verdict:** ⚠️ PARTIAL — Gate 4 items 1–3, 9, 10 ✅ PASS; items 4–6 (attack-character morph) ⚠️ PARTIAL after rev-5 in-cycle iteration burned the rev-3 ceiling (audibility still subtle); items 7–8 (NE/MPE end-to-end DAW testing) ⏸️ Stage-4 deferral per OQ#10-rev-4 fallback. **Stage 2 closes** — DSP-05 marked v1.1 candidate (`should` priority, non-blocking); DSP-06 properly deferred to Stage 4 Dorico-parity testing.
+
+---
+
+## Goal-Backward Analysis
+
+### Original Goal (from CONTEXT-rev-4 / PLAN-rev-4 / ARCHITECTURE rev-4)
+
+Close FUNC-02 (polyphony 1–16 cap, default 8), FUNC-05 (voice stealing), DSP-05 (attack-character morph re-engages retained Phase 2.1 Exciter member with dual-shape soft↔tongued + velocity bias), DSP-06 (VST3 NE per-voice consumption + MPE pitch-bend per-channel + TuningEngine `getFrequency()` wiring), and revisit QUAL-02 60 s gate (skipped at Phase 2.3 verify per user authority). Final PERF-02 8-voice <25 % CPU measurement under enforced cap.
+
+Single-pass cycle; iteration ceiling rev-3 per Phase 2.2/2.3 precedent.
+
+### Deliverables (from SUMMARY rev-4 + code inspection)
+
+1. `Source/BassoonSynthesiser.{h,cpp}` (NEW) — `juce::Synthesiser` subclass with `setActiveVoiceCap(int)` + `findFreeVoice` override (manual active-voice loop via `getNumVoices() + getVoice(i)->isVoiceActive()` per OQ#9-rev-4; delegates to base `findVoiceToSteal` for JUCE-default release-tail-first stealing).
+2. `Source/Exciter.{h,cpp}` (MOD) — renamed `onsetBuffer` → `softShape` (D3-rev-4); added `tonguedShape` array + `TONGUED_DURATION_MS = 7.5f` + `VELOCITY_BIAS_MAGNITUDE = 0.3f`; new `startOnset(attackChar, velocity)` snapshot-and-latch (effective = clamp(attackChar + (vel − 0.5)·0.3, 0, 1) for onset-window lifetime); `getNextSample()` `juce::jmap` morph between shapes; `start()` retained as thin Phase 2.1 wrapper.
+3. `Source/BassoonVoice.cpp::startNote` — replaced 3-line plain-MIDI freq with 9-line compose chain (`tuningEngine->getFrequency` → `Ouaricon::NoteExpression::applyPendingTuning` → `static_cast<float>` per O-Lyrica `HarpSynthVoice.cpp:113-147` precedent); replaced `exciter.start()` with `parameters->getRawParameterValue("attack_character")->load()` + `exciter.startOnset(attackChar, velocity)`.
+4. `Source/BassoonVoice.cpp::renderNextBlock` — additive composition `excitation = noiseSample + exciterSample` (OQ#8-rev-4); exciter auto-zeros after onset window.
+5. `Source/PluginProcessor.h` — type-swap `juce::Synthesiser synthesiser` → `BassoonSynthesiser synthesiser` (single-line, member name preserved); added `int lastDispatchedVoiceCount = -1` sentinel.
+6. `Source/PluginProcessor.cpp::processBlock` — 8-line `voice_count` snapshot at prologue head, BEFORE tone-dispatch (OQ#2-rev-4 site lock; integer-comparison throttle).
+7. `CMakeLists.txt` — `target_sources` +2 entries (`BassoonSynthesiser.{h,cpp}`).
+8. `.planning/research/ARCHITECTURE.md` — appended rev-4 as-shipped note (6 subsections + augmented 8-step ordering invariant).
+
+### Goal Achievement
+
+| Goal | Status | Evidence |
+|------|--------|----------|
+| Voice manager subclass with active-voice cap (FUNC-02) | ✅ Achieved | `BassoonSynthesiser::findFreeVoice` gates by `setActiveVoiceCap`; user-confirmed Gate 4 items 1, 2 PASS |
+| Voice stealing (release-tail-first then oldest-noteOn — JUCE default) (FUNC-05) | ✅ Achieved | Delegates to `juce::Synthesiser::findVoiceToSteal`; user-confirmed Gate 4 item 2 PASS |
+| Rapid retrigger / no stuck notes | ✅ Achieved | User-confirmed Gate 4 item 3 PASS (10 Hz × 30 s, voice_count = 1) |
+| Dual-shape attack-character morph re-engages retained Exciter (DSP-05) | ⚠️ Partial | rev-4 dual-shape morph + velocity bias built per spec; rev-5 in-cycle iteration extended `softShape` 5→30 ms with 1-pole LP @ 600 Hz; user-reported audibility still subtle at v1.0 — see Issues rev-5-1 |
+| VST3 NE per-voice consumption + MPE pitch-bend per-channel + TuningEngine `getFrequency()` (DSP-06) | ⚠️ Partial | Wiring complete (`tuningEngine->getFrequency` at `BassoonVoice.cpp:61`, `applyPendingTuning` at :65, MPE per-channel routes via `juce::Synthesiser::handlePitchWheel` → per-voice `pitchWheelMoved`); end-to-end DAW verification (Bitwig MPE + Dorico NE) deferred to Stage 4 per OQ#10-rev-4 fallback |
+| QUAL-02 60 s long-tone stability | ✅ Achieved | User-confirmed Gate 4 item 9 PASS — finite, RMS drift < 0.5 dB, CPU drift < 2 % |
+| PERF-02 8-voice <25 % CPU under enforced cap | ✅ Achieved | User-confirmed Gate 4 item 10 PASS |
+| Stage 1 invariants preserved (NE drain, output bus, RT-safety, etc.) | ✅ Achieved | 16/16 static-check gates PASS at execute-phase + verify-phase re-run; auval + pluginval-5 PASS post-rev-5 rebuild |
+
+---
+
+## Requirements Verification
+
+**Stage:** 2-dsp (Phase 2.4 closes Stage 2)
+**Requirements verified at this stage (per traceability):** FUNC-02, FUNC-05, DSP-05, DSP-06, PERF-02, QUAL-02 (per ROADMAP scope); DSP-07 already complete at Stage 1; COMPAT-01 final gate at Stage 4.
+
+| Requirement | Priority | Status (post-Phase-2.4) | Notes |
+|-------------|----------|-------------------------|-------|
+| FUNC-01 — Sustained bassoon-like tones via modal synthesis | must | ✅ complete | Carried from Phase 2.2 + 2.3 |
+| FUNC-02 — Polyphonic 1-16 voices (default 8) | must | ✅ **complete** | `BassoonSynthesiser::findFreeVoice` gates by `activeVoiceCap`; `voice_count` snapshot at processBlock prologue head with integer throttle. User-confirmed Gate 4 item 1 PASS |
+| FUNC-03 — Range C1-C6 | must | ✅ complete | Carried from Phase 2.1 |
+| FUNC-04 — Long-tone amplitude envelope | must | ✅ complete | Carried from Phase 2.3 |
+| FUNC-05 — Voice stealing | should | ✅ **complete** | Delegates to JUCE-default `findVoiceToSteal` (release-tail-first then oldest-noteOn). User-confirmed Gate 4 item 2 PASS |
+| DSP-01 — Modal-synthesis voice (bank of damped resonators) | must | ✅ complete | Carried from Phase 2.2 |
+| DSP-02 — Vibrato (rate / depth / onset) | must | ✅ complete | Carried from Phase 2.3 rev-4 |
+| DSP-03 — Tone / brightness | must | ✅ complete | Carried from Phase 2.2 |
+| DSP-04 — Breath / dynamics (CC2 + velocity) | must | ✅ complete | Carried from Phase 2.3 rev-4 |
+| DSP-05 — Attack-character morph (soft pad ↔ tongued articulation) | should | ⚠️ **partial** | Wiring complete: dual-shape Exciter (softShape 30 ms LP-filtered + tonguedShape 7.5 ms exp-decay × white noise), velocity bias snapshot, `juce::jmap` morph. Rev-5 in-cycle iteration extended `softShape` 5→30 ms + LP @ 600 Hz to widen audibility; user-reported audibility still subtle at v1.0. **v1.1 candidate** — architectural pivot (NoiseExciter onset gate) needed for full audibility per Issues rev-5-1. `should` priority — non-blocking for Stage 2 closure |
+| DSP-06 — VST3 NE + MPE pitch-bend per-voice | must | ⚠️ **partial** | Wiring complete (TuningEngine→applyPendingTuning compose chain at startNote per O-Lyrica precedent; MPE per-channel routes via `juce::Synthesiser::handlePitchWheel` → per-voice `pitchWheelMoved`). End-to-end DAW verification (Bitwig MPE bend per-channel + Dorico NE pitch event) **deferred to Stage 4** per OQ#10-rev-4 fallback. Stage 4 also handles COMPAT-02 Dorico parity test |
+| DSP-07 — No O-Reed dependency | must | ✅ complete | Re-verified zero matches across Phase 2.4 source files + CMakeLists.txt |
+| PERF-01 — Real-time safe | must | ✅ complete | RT-safety grep zero functional matches in render path; pluginval-5 fuzz/state PASS; auval render-rate matrix PASS |
+| PERF-02 — 8-voice <25% CPU | should | ✅ complete | Carried complete from Phase 2.3 rev-4; user-confirmed Gate 4 item 10 PASS at Phase 2.4 verify |
+| QUAL-01 — No clicks, NaN/inf, aliasing | must | ✅ complete | Carried from Phase 2.3 |
+| QUAL-02 — Stable long-tone (no drift over 60 s) | nice | ✅ **complete** | User-confirmed Gate 4 item 9 PASS — `numpy.isfinite True`, RMS drift < 0.5 dB, CPU drift < 2 % steady-state. Promoted partial → complete this phase |
+| COMPAT-01 — pluginval (VST3 + AU) | must | ⚠️ partial | strictness-5 PASS; strictness-10 + Windows = Stage 4 |
+| COMPAT-02 — Dorico microtonal playback | must | ⏸️ deferred | Stage 4 |
+| UI-01 / UI-02 | should | ⏸️ deferred | Stage 3 |
+
+**Requirements summary (Phase 2.4 contribution):**
+- ✅ Newly complete this phase: 3 (FUNC-02, FUNC-05, QUAL-02) — promoted pending → complete
+- ⚠️ Partial this phase: 2 (DSP-05 v1.1 candidate, DSP-06 Stage 4 deferral)
+- ✅ Carried complete: 11 (FUNC-01/03/04, DSP-01/02/03/04/07, PERF-01/02, QUAL-01)
+- ⏸️ Deferred (later stage): 4 (UI-01, UI-02, COMPAT-02, COMPAT-01 final)
+- ❌ Failed: 0
+
+**Stage 2 closure check:**
+- 12 `must` requirements: 10 ✅ complete + 1 ⚠️ partial (DSP-06, Stage 4 deferral) + 1 ⚠️ partial (COMPAT-01, Stage 4 final gate)
+- 5 `should` requirements: 3 ✅ complete (UI-01/02 deferred Stage 3; FUNC-05 + PERF-02 complete) + 1 ⚠️ partial (DSP-05 v1.1 candidate)
+- 1 `nice` requirement: 1 ✅ complete (QUAL-02)
+- Stage 2 closes with **all DSP wiring landed**; outstanding partials are properly deferred (DSP-06/COMPAT-01/02 → Stage 4) or `should` priority (DSP-05 → v1.1)
+
+---
+
+## Automated Checks (Phase 2.4 rev-4 + rev-5)
+
+| # | Check | Result | Evidence |
+|---|-------|--------|----------|
+| 1 | `cmake --build build --target O-Bassoon_VST3 O-Bassoon_AU O-Bassoon_Standalone --parallel` | ✅ PASS | clean rebuild post-rev-5 (Exciter.cpp + Exciter.h only); 0 errors, 0 warnings on hot-path files |
+| 2 | AU cache cleared + VST3/AU installed fresh | ✅ PASS | per CLAUDE.md cache-clearing protocol |
+| 3 | `auval -v aumu OBsn OuDv` | ✅ PASS | `AU VALIDATION SUCCEEDED.` (re-run post-rev-5) |
+| 4 | `pluginval --strictness-level 5 --validate ~/.../O-Bassoon-dev.vst3` | ✅ PASS | exit=0; `SUCCESS`; output-only bus confirmed (0 in / 2 out) (re-run post-rev-5) |
+| 5 | RT-safety grep — `\bnew\b\|make_unique\|make_shared\|push_back\|resize\|malloc` across BassoonSynthesiser + Exciter + BassoonVoice + PluginProcessor | ✅ PASS | 3 hits all benign (1 English-comment "new" in Exciter.h, 2 construction-time editor/processor factories at PluginProcessor.cpp:279/304); 10 createParameterLayout `make_unique` calls — all setup-time |
+| 6 | Type swap — `BassoonSynthesiser synthesiser` at `PluginProcessor.h:62`; `juce::Synthesiser synthesiser` zero matches | ✅ PASS | confirmed at verify-phase re-run |
+| 7 | NE drain BEFORE renderNextBlock | ✅ PASS | `vst3Extensions.drainAndUpdate()` at `PluginProcessor.cpp:260`, `synthesiser.renderNextBlock` at :263 |
+| 8 | `voice_count` snapshot at processBlock prologue head, BEFORE tone-dispatch | ✅ PASS | `PluginProcessor.cpp:197-204`, BEFORE tone-dispatch at :211 |
+| 9 | `tuningEngine->getFrequency` call site (DSP-06 wire) | ✅ PASS | `BassoonVoice.cpp:61` (inside startNote) |
+| 10 | `applyPendingTuning` call site (DSP-06 wire) | ✅ PASS | `BassoonVoice.cpp:65` (inside startNote, per O-Lyrica precedent) |
+| 11 | `exciter.startOnset` call site (DSP-05 wire) | ✅ PASS | `BassoonVoice.cpp:77` (inside startNote, after attack_character APVTS read) |
+| 12 | Additive composition `excitation = noiseSample + exciterSample` (OQ#8-rev-4) | ✅ PASS | `BassoonVoice.cpp:240-242` |
+| 13 | DSP-07 (no O-Reed dependency) regress | ✅ PASS | zero matches across `plugins/O-Bassoon/Source/` + `CMakeLists.txt` |
+| 14 | Headroom scaler retention — `1.0f / 8.0f` present (Phase 2.2) | ✅ PASS | `ModeBank.cpp:114` |
+| 15 | Throttle epsilon `0.001f` count (≥10 in PluginProcessor.cpp) | ✅ PASS | exactly 10 hits |
+| 16 | `applyGainRamp(0, numSamples, ...)` form, AFTER renderNextBlock | ✅ PASS | `PluginProcessor.cpp:273` (after `renderNextBlock` at :263) |
+| 17 | `modeBank.setFundamental` cadence (≥3 sites) | ✅ PASS | 3 matches: `BassoonVoice.cpp:71` (startNote), :136 (pitchWheelMoved), :232 (renderNextBlock per-sample throttled) |
+| 18 | `softShape` + `tonguedShape` both present | ✅ PASS | `Exciter.h:67-68`; rev-5 also adds `SOFT_LP_FREQ_HZ = 600.0f` constant + LP filter pass in `Exciter.cpp` |
+| 19 | rev-5 LP filter present and correct (1-pole, BEFORE peak-normalise) | ✅ PASS | `Exciter.cpp` softShape generation followed by lpCoeff = `1 - exp(-2π·600/fs)` filter pass, then peak-normalise — gain compensation correct |
+| 20 | rev-5 MAX_ONSET_SAMPLES bumped 1024 → 4096 (30 ms @ 96 kHz = 2880 + headroom) | ✅ PASS | `Exciter.h:26` |
+
+**Automated PASS rate: 20/20** (16 from execute-phase + 4 added at rev-5 verify-phase iteration).
+
+---
+
+## Gate 4 Bar Status (10-item from PLAN-rev-4)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 1 | 8 simultaneous notes audibly distinct (C2/E2/G2/Bb2/C3/E3/G3/Bb3) | ✅ PASS | User-confirmed Logic-AU 2026-05-01 |
+| 2 | Voice cap + stealing (voice_count=3, play 4 sequential, only 3 sound, oldest stolen) | ✅ PASS | User-confirmed Logic-AU 2026-05-01 |
+| 3 | Rapid retrigger 10 Hz × 30 s with voice_count=1, no stuck notes | ✅ PASS | User-confirmed Logic-AU 2026-05-01 |
+| 4 | attack_character=0.0 + vel≈20 + C3 — audibly soft | ⚠️ PARTIAL (rev-5) | rev-4 inaudible → rev-5 in-cycle iteration (softShape 5→30 ms + LP @ 600 Hz) → still subtle. v1.1 candidate. See Issues rev-5-1 |
+| 5 | attack_character=1.0 + vel≈120 + C3 — audibly percussive | ⚠️ PARTIAL (rev-5) | Same |
+| 6 | attack_character=0.5 + vel≈70 — smooth blend | ⚠️ PARTIAL (rev-5) | Same |
+| 7 | MPE per-channel pitch-bend (Bitwig + MPE controller) | ⏸️ Deferred | Per OQ#10-rev-4 fallback — Stage 4 Dorico-parity testing batch handles MPE end-to-end DAW verification |
+| 8 | VST3 NE pitch event (synthetic test fixture pendingTuningSource[60] = +50c) | ⏸️ Deferred | Same — Stage 4 |
+| 9 | QUAL-02 60 s long-tone (numpy.isfinite True, RMS drift <0.5 dB, CPU drift <2%) | ✅ PASS | User-confirmed Logic-AU bounce 2026-05-01 |
+| 10 | PERF-02 8-voice CPU + vibrato + breath + attack_character — Logic Process bar <25% steady-state | ✅ PASS | User-confirmed Logic Performance Meter 2026-05-01 |
+
+**Gate 4 score: 5/10 PASS clean (items 1–3, 9, 10) + 3/10 PARTIAL (items 4–6, DSP-05 audibility) + 2/10 properly deferred (items 7–8, Stage 4). Gate 4 verdict: ⚠️ PARTIAL — close-but-blocked-on-DSP-05.** PASS bar required items 1–6, 9, 10 to PASS clean. Items 4–6 fall short; DSP-05 marked partial → v1.1 candidate (`should` priority — non-blocking for Stage 2 closure per ROADMAP gating).
+
+---
+
+## Issues Found / Resolved at rev-5 In-Cycle
+
+### Issue rev-5-1: Attack-character morph audibly subtle (Gate 4 items 4–6)
+
+**Symptom:** User-reported "can't hear the difference in attack character" at rev-4 baseline (softShape 5 ms half-sine × exp; tonguedShape 7.5 ms exp-decay × white noise). Both shapes were peak-normalised and additively summed alongside the always-on `NoiseExciter` (continuous 1-pole LP white noise from sample 0), masking the short transient differential.
+
+**Root cause analysis:**
+1. softShape (5 ms) and tonguedShape (7.5 ms) are very short transients — modal bank's biquad impulse response dominates the perceived attack character regardless of input shape.
+2. Both shapes are peak-normalised to the same magnitude → no amplitude differential.
+3. `NoiseExciter` runs in parallel from sample 0 (additive composition `excitation = noiseSample + exciterSample`) — its broadband noise floor masks the short transient differential.
+
+**Fix attempted (rev-5, in-cycle within rev-3 ceiling, pre-authorized "softShape extension to 30 ms with LP filter" per CONTEXT-rev-4 Q3-rev-4 batch 2):**
+- `Exciter.h`: `MAX_ONSET_SAMPLES` 1024 → 4096 (30 ms @ 96 kHz = 2880 + headroom); `SOFT_DURATION_MS` 5 → 30; `SOFT_TAU_MS` 1.5 → 12; added `SOFT_LP_FREQ_HZ = 600.0f`
+- `Exciter.cpp::prepare`: added 1-pole LP filter pass on softShape (`a = 1 − exp(−2π·600/fs)`, single-state IIR) BEFORE peak-normalise so gain compensates for LP attenuation.
+
+**Outcome:** User audition post-rev-5: "still subtle / not enough." Rev-3 iteration ceiling reached. DSP-05 marked ⚠️ PARTIAL → v1.1 candidate.
+
+**Forward analysis (v1.1 architectural pivot path):** True audibility likely requires NoiseExciter onset gating (ramp NoiseExciter from 0→1 over first ~30 ms so the `Exciter` shape dominates onset, then continuous noise sustains). This is more invasive — touches `NoiseExciter.cpp::getNextSample` (add onset envelope SmoothedValue) + `BassoonVoice.cpp::startNote` (reset NoiseExciter onset envelope) + `BassoonVoice.cpp::renderNextBlock` (no change — additive comp still works). Out-of-scope for v1.0 per `should` priority and rev-3 ceiling burn; documented for v1.1 refinement.
+
+### Note carried forward (Phase 2.3 rev-4)
+
+- ADSR is by-design AR (Attack-Release): sustain=1, decay=0 — correct for sustained-instrument musicality. Documented in Phase 2.3 verify rev-4 Issues, no action.
+
+---
+
+## Stage Verdict (Phase 2.4 rev-4 + rev-5)
+
+**Status:** ⚠️ **PARTIAL** — close-but-blocked on DSP-05 audibility; Stage 2 closes via **acceptable partial-with-deferral** path (DSP-05 `should` priority → v1.1 candidate; DSP-06 properly deferred to Stage 4 per OQ#10-rev-4 fallback).
+
+**Phase 2.4 architectural deliverables:** ✅ all wired (voice manager + active-cap + stealing; attack-character morph chain via dual-shape Exciter + velocity bias; NE per-voice consumption + MPE per-channel pitch-bend + TuningEngine `getFrequency()` compose chain). RT-safety enforced; build clean post-rev-5; both static validators (auval / pluginval-5) PASS post-rev-5.
+
+**Phase 2.4 audible verification:** ✅ Gate 4 items 1–3, 9, 10 PASS. ⚠️ Items 4–6 PARTIAL after rev-5 in-cycle iteration (rev-3 ceiling burned). ⏸️ Items 7–8 properly deferred to Stage 4 (Bitwig MPE + Dorico NE end-to-end DAW verification batched with COMPAT-02 Dorico-parity test per OQ#10-rev-4 fallback).
+
+**Stage 2 closure check:**
+- All `must` requirements with audible deliverables in Stage 2 scope: ✅ complete (FUNC-01/02/03/04, DSP-01/02/03/04/07, PERF-01, QUAL-01) — 11/11
+- `must` requirements properly deferred to Stage 4: 2 (DSP-06 NE/MPE end-to-end DAW; COMPAT-01 strictness-10 + Windows + COMPAT-02 Dorico parity)
+- `should` requirements: 4 ✅ complete (FUNC-05, PERF-02 + UI-01/02 deferred Stage 3) + 1 ⚠️ partial (DSP-05 v1.1 candidate)
+- `nice` requirement: ✅ QUAL-02 complete
+
+**Stage 2 verdict: ✅ CLOSED with 1 acceptable partial (DSP-05 v1.1 candidate, `should` priority) + 3 properly-deferred Stage-4 items (DSP-06 end-to-end + COMPAT-01 final + COMPAT-02).**
+
+**Atomic Phase 2.4 commit (Task 11 of PLAN-rev-4):** PENDING explicit user trigger. Per CLAUDE.md commit protocol, the orchestrator does NOT auto-commit. Locked subject: `feat(O-Bassoon): Phase 2.4 polyphony + NE/MPE + attack-character - Gate 4 PARTIAL (DSP-05 v1.1 candidate)`.
+
+**Ready for next stage (Stage 3 — UI):** **Yes**, after the atomic commit lands on `main`. Stage 3 blocks on UI mockup pass (parallel-eligible — can run before commit).
+
+**Blockers:** None for Stage 2 closure. DSP-05 deferral documented; DSP-06 deferral documented; both have clear paths (v1.1 / Stage 4).
+
+**Pending action (user-triggered):**
+- Atomic commit `feat(O-Bassoon): Phase 2.4 polyphony + NE/MPE + attack-character - Gate 4 PARTIAL (DSP-05 v1.1 candidate)` (PLAN-rev-4 Task 11 — single commit lands rev-4 sources + rev-5 in-cycle Exciter LP-extension + planning artefacts on `main`).
+
+---
+
+## Audit Trail (rev-4 + rev-5)
+
+**rev-4 (2026-04-29):** Phase 2.4 plan-phase + execute-phase landed: 1 NEW translation-unit pair (BassoonSynthesiser), 4 MOD source files (Exciter, BassoonVoice.cpp, PluginProcessor.{h,cpp}), CMakeLists.txt target_sources, ARCHITECTURE.md as-shipped note. 16/16 static-check gates PASS. auval + pluginval-5 PASS. Manual Gate 4: items 1–3, 9, 10 PASS at user audition; items 4–6 reported audibly subtle.
+
+**rev-5 (2026-05-01):** Verify-phase in-cycle iteration triggered by Issue rev-5-1 (attack-character audibility). Pre-authorized rev-3-ceiling adjustment (CONTEXT-rev-4 Q3-rev-4 batch 2: "softShape extension to 30 ms with LP filter"). `Exciter.h`: `MAX_ONSET_SAMPLES` 1024→4096, `SOFT_DURATION_MS` 5→30, `SOFT_TAU_MS` 1.5→12, added `SOFT_LP_FREQ_HZ = 600.0f`. `Exciter.cpp::prepare`: added 1-pole LP filter pass before peak-normalise. Build + install + auval + pluginval-5 PASS. User audition: morph still subtle. Rev-3 ceiling burned. DSP-05 marked ⚠️ partial → v1.1 candidate. Gate 4 items 4–6 stay PARTIAL. Verdict ⚠️ PARTIAL with acceptable Stage-2 closure (DSP-05 `should` priority + clear v1.1 path; DSP-06 Stage-4 deferral path).
+
+**REQUIREMENTS.md updates (Phase 2.4 verify):**
+- FUNC-02 pending → **complete** (`BassoonSynthesiser` active-cap with manual active-voice loop; user-confirmed item 1 PASS)
+- FUNC-05 pending → **complete** (JUCE-default `findVoiceToSteal` release-tail-first then oldest-noteOn; user-confirmed item 2 PASS)
+- DSP-05 pending → ⚠️ **partial** (wiring complete; audibility subtle even after rev-5 LP-extension; **v1.1 candidate** — architectural pivot via NoiseExciter onset gate)
+- DSP-06 pending → ⚠️ **partial** (wiring complete; end-to-end DAW verification deferred to Stage 4 per OQ#10-rev-4 fallback batched with COMPAT-02 Dorico parity)
+- QUAL-02 partial → **complete** (60 s long-tone PASS — finite, RMS drift <0.5 dB, CPU drift <2%)
+- PERF-02 unchanged at complete (carried Phase 2.3 rev-4 + Phase 2.4 verify re-confirms <25% under enforced cap)
+- All other requirements unchanged from Phase 2.3 verify-phase state
+- STATUS.md advances to `phase: verify_complete`; `next_action` → `stage_3_ui_mockup_pass` (UI mockup parallel-eligible) or `stage_4_validation_phase` (after Stage 3)
+- Atomic commit (PLAN-rev-4 Task 11) PENDING explicit user trigger per CLAUDE.md commit protocol
+
+**Inherited verbatim from CONTEXT (rev-4) + RESEARCH (rev-4) + PLAN (rev-4):**
+- 10-item Gate 4 bar (CONTEXT-rev-4 Q3-rev-4 batch 1 / Q3-rev-4 batch 2; PLAN-rev-4 Task 9)
+- Single atomic commit on Gate 4 PASS (CONTEXT-rev-4 Q4-rev-4 batch 2; PLAN-rev-4 Task 11) — subject augmented with "PARTIAL (DSP-05 v1.1 candidate)" tag at rev-5
+- BassoonSynthesiser subclass with manual active-voice loop (RESEARCH-rev-4 OQ#1/9-rev-4)
+- voice_count snapshot at processBlock prologue head (RESEARCH-rev-4 OQ#2-rev-4)
+- softShape + tonguedShape dual-shape morph (RESEARCH-rev-4 OQ#3/4-rev-4)
+- O-Lyrica HarpSynthVoice precedent for f_base compose chain (RESEARCH-rev-4 OQ#5/6-rev-4)
+- MPE per-channel routing via juce::Synthesiser::handlePitchWheel (RESEARCH-rev-4 OQ#7-rev-4)
+- NoiseExciter additive composition during onset (RESEARCH-rev-4 OQ#8-rev-4)
+- Stage 4 deferral for end-to-end MPE/NE DAW verification (RESEARCH-rev-4 OQ#10-rev-4 fallback)
+
+**rev-5 deviations from rev-4 plan (absorbed within iteration ceiling):**
+- `Exciter.h` `MAX_ONSET_SAMPLES` 1024 → 4096 (required for 30 ms softShape @ 96 kHz)
+- `Exciter.h` `SOFT_DURATION_MS` 5 → 30, `SOFT_TAU_MS` 1.5 → 12, added `SOFT_LP_FREQ_HZ = 600.0f` (rev-3 pre-authorized "softShape extension to 30 ms with LP filter")
+- `Exciter.cpp::prepare` added 1-pole LP filter pass on softShape (state-variable IIR, runs once at prepare(); RT-safe — no allocation, no audio-thread cost)
+- DSP-05 ⚠️ partial → v1.1 candidate (rev-3 ceiling burned; architectural pivot needed for full audibility)

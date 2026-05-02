@@ -1043,3 +1043,137 @@ smoothly mid-note — locked OQ#2-rev-3).
 manual checklist (3 ADSR + 1 breath + 1 CC2 + 3 vibrato + 1 output_gain +
 1 long-tone-60s + 1 polyphony-CPU) + automated invariant battery. Closes
 FUNC-04, DSP-02, DSP-04, QUAL-02, QUAL-01.
+
+---
+
+## Architectural rev-4 (Phase 2.4 as-shipped, 2026-04-29)
+
+Phase 2.4 closes the 4 remaining DSP requirements (FUNC-02, FUNC-05, DSP-05,
+DSP-06) plus revisits QUAL-02 60 s long-tone gate and confirms PERF-02
+8-voice CPU under enforced cap.
+
+### 1. Voice manager (`Source/BassoonSynthesiser.{h,cpp}` — NEW)
+
+`BassoonSynthesiser` subclasses `juce::Synthesiser`. Constructor calls
+`setNoteStealingEnabled(true)` (explicit-for-clarity; JUCE 8 default).
+Overrides `findFreeVoice` only:
+
+- Walks active voices via `getNumVoices() + getVoice(i)->isVoiceActive()`
+  (manual loop — no `getNumActiveVoices` in JUCE 8.0.4 per OQ#9-rev-4).
+- If `active < activeVoiceCap`, delegates to `juce::Synthesiser::findFreeVoice`.
+- Otherwise, if `stealIfNoneAvailable`, returns `findVoiceToSteal(...)`
+  (JUCE-default: release-tail-first, then oldest-noteOn — juce_Synthesiser.cpp:525-594).
+- Else returns `nullptr`.
+
+`setActiveVoiceCap(int)` clamps to [1, 16]. `voice_count` APVTS read at
+processBlock prologue head, integer-comparison throttle, applies on next
+note-on (already-active voices unaffected per ROADMAP). `lastDispatchedVoiceCount = -1`
+sentinel forces first-block dispatch.
+
+The 16-voice pool is pre-allocated at Stage 1 PluginProcessor ctor; the cap
+gates which subset of those voices `findFreeVoice` will return. No
+allocations on the audio thread.
+
+### 2. Attack-character morph (`Source/Exciter.{h,cpp}` — MOD)
+
+Phase 2.1 `softShape` carries forward (5 ms half-sine × exp; renamed from
+`onsetBuffer`). NEW `tonguedShape`: 7.5 ms exp-decay × white noise,
+deterministic seed `juce::Random rng(12345)`, peak-normalised, 4 time-constants
+over decay window.
+
+`startOnset(attackChar01, velocity01)` snapshots
+`effectiveAttackChar = clamp(attackChar + (velocity - 0.5) × 0.3, 0, 1)`
+(velocity bias magnitude 0.3 locked OQ#4-rev-4) for the lifetime of the
+onset window. Mid-onset automation does NOT affect the in-flight onset
+(zipper avoidance — risk #2 mitigation). `getNextSample` returns
+`juce::jmap(effectiveAttackChar, softShape[i], tonguedShape[i])` for
+`i < onsetSamples`, else 0 (auto-cleared). `start()` retained as thin
+wrapper for backwards compatibility (D6-rev-4); Phase 2.4 callers use
+`startOnset(...)` directly.
+
+`onsetSamples = max(softN, tonguedN)` covers the longer of the two windows;
+the shorter array is zero-padded by `std::array` zero-init (D2-rev-4).
+
+### 3. f_base compose chain (`Source/BassoonVoice.cpp::startNote`)
+
+Replaces Phase 2.1-2.3 plain `juce::MidiMessage::getMidiNoteInHertz`. New
+chain (O-Lyrica `HarpSynthVoice.cpp:113-147` precedent):
+
+```
+double f_double = (tuningEngine != nullptr)
+    ? tuningEngine->getFrequency (midiNoteNumber)        // double, global namespace
+    : juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
+
+if (pendingTuningSource != nullptr)
+    f_double = Ouaricon::NoteExpression::applyPendingTuning (
+                   *pendingTuningSource, midiNoteNumber, f_double);
+
+currentFrequencyBase = static_cast<float> (f_double);
+```
+
+Bit-identical to Phase 2.3 baseline at default 12-TET A=440 (octaveStretch=1.0f,
+cast preserves the value at default — OQ#5-rev-4 lock). Float-cast precision
+loss is ~7-8 bits, negligible at audio frequencies (<16 µHz error at C4 —
+D4-rev-4). Both pointer null-guards retained (defensive).
+
+Per-block `f_final = currentFrequencyBase × cachedVibratoMult × pbMult`
+(Phase 2.3) carries forward unchanged — operates on the NE-tuned base.
+
+### 4. NoiseExciter additive composition during onset
+
+Per-sample render loop (`Source/BassoonVoice.cpp::renderNextBlock`):
+
+```
+const float breath        = breathSmoother.getNextValue();
+const float noiseSample   = noiseExciter.getNextSample (breath);
+const float exciterSample = exciter.getNextSample();   // 0 after onset window
+const float excitation    = noiseSample + exciterSample;
+```
+
+Both exciters contribute additively during the 5–7.5 ms onset window
+(OQ#8-rev-4 lock). After the window, `Exciter::getNextSample` auto-zeros
+and only `NoiseExciter` sustains. NoiseExciter at low breath-scaled level
+adds air-column hiss texture under the attack transient.
+
+### 5. MPE per-channel pitch-bend routing
+
+Confirmed automatic via `juce::Synthesiser::handlePitchWheel`
+(juce_Synthesiser.cpp:403-410) — per-channel routing dispatches
+`pitchWheelMoved` only to voices on the matching channel via
+`voice->isPlayingChannel(midiChannel)`. No new Phase 2.4 code required;
+Phase 2.1 `pitchWheelMoved` override at `BassoonVoice.cpp:111-125` handles
+the dispatch (OQ#7-rev-4 lock).
+
+### 6. Regression invariants preserved
+
+- Phase 2.1: 16-mode parallel pole-only resonator bank; per-sample mono-to-stereo
+  voice write; raw-14-bit pitch-bend ±2 semitones.
+- Phase 2.2: bassoon-tuned partial table + formant Gaussian × 1/k roll-off;
+  `tone` SmoothedValue (50 ms Linear) + `applyToneChange` cached `cosTheta`/`amp`;
+  1/8 headroom scaler in `processSample`.
+- Phase 2.3: ADSR (0–2000 ms attack / 0–3000 ms release) with block-rate
+  `setParameters` + epsilon throttle inside `setExpression`; breath multiplicative
+  compose `breath_voice = ui_breath × cc2_normalised` + 500 ms CC2-takeover
+  state machine; per-voice sine-LFO Vibrato (random phase per startNote,
+  decoupled onset re-arm via `Vibrato::reset` only); per-voice 20 ms breath
+  smoother + processor-level 30 ms `output_gain` smoother +
+  `applyGainRamp(0, numSamples, current, smoother.skip(N))` declick; continuous
+  filtered-noise excitation as primary sustain source.
+
+### Ordering invariant (locked OQ#6-rev-3, augmented at Phase 2.4)
+
+1. `juce::ScopedNoDenormals noDenormals;`
+2. `buffer.clear()`
+3. **Phase 2.4 NEW:** `voice_count` snapshot (`synthesiser.setActiveVoiceCap`)
+4. Tone dispatch (Phase 2.2 — `toneSmoother.skip` + per-voice `setTone`)
+5. Expression dispatch (Phase 2.3 — 6 APVTS reads + epsilon throttle + `setExpression`)
+6. `vst3Extensions.drainAndUpdate()` (NE drain — Stage 1 invariant)
+7. `synthesiser.renderNextBlock(buffer, midiMessages, 0, numSamples)`
+8. `output_gain` post-summation `applyGainRamp` (Phase 2.3)
+
+**Verification:** Gate 4 PASS bar — see
+`plugins/O-Bassoon/.planning/stages/2-dsp/VERIFICATION.md` (rev-4). 10-item
+manual checklist (1 polyphony + 1 voice cap + 1 retrigger + 3 attack-character +
+1 MPE + 1 NE + 1 QUAL-02 60 s + 1 PERF-02 8-voice CPU) + 16-item static-check
+grep battery + auval + pluginval --strictness 5. Closes Stage 2: FUNC-02,
+FUNC-05, DSP-05, DSP-06, PERF-02, QUAL-02 → complete.

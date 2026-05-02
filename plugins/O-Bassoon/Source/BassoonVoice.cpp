@@ -54,14 +54,27 @@ void BassoonVoice::startNote (int midiNoteNumber, float velocity,
     pitchBendSemitones    = ((static_cast<float> (pitchWheelValue) - 8192.0f) / 8192.0f)
                             * PITCH_BEND_RANGE_SEMITONES;
 
-    // Phase 2.1: plain MIDI A=440 12-TET frequency (NOT TuningEngine — locked Q2).
-    // Phase 2.4 will replace this with tuningEngine->getFrequency() per-voice.
-    currentFrequencyBase  = static_cast<float> (juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber));
+    // Phase 2.4 (DSP-06 + TuningEngine): compose chain TuningEngine → applyPendingTuning.
+    // O-Lyrica precedent — HarpSynthVoice.cpp:113-147. Bit-identical to Phase 2.3
+    // baseline at default 12-TET A=440 (octaveStretch=1.0f cast preserves the value).
+    double f_double = (tuningEngine != nullptr)
+        ? tuningEngine->getFrequency (midiNoteNumber)
+        : juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
+
+    if (pendingTuningSource != nullptr)
+        f_double = Ouaricon::NoteExpression::applyPendingTuning (
+                       *pendingTuningSource, midiNoteNumber, f_double);
+
+    currentFrequencyBase = static_cast<float> (f_double);
 
     const float fBent = currentFrequencyBase * std::pow (2.0f, pitchBendSemitones / 12.0f);
     modeBank.setFundamental (fBent);
     modeBank.strike();           // rev-3: inject modal sustain energy (state init)
-    exciter.start();             // D6-rev-3 retention — kept for Phase 2.4 re-wire safety
+
+    // Phase 2.4 (DSP-05): re-engage Exciter via attack-character morph + velocity bias.
+    // attackChar snapshot at note-on; mid-onset automation does NOT affect in-flight onset.
+    const float attackChar = parameters->getRawParameterValue ("attack_character")->load();
+    exciter.startOnset (attackChar, velocity);
 
     // Phase 2.3: ADSR APVTS reads at note-on (one-shot)
     const float attackMs  = parameters->getRawParameterValue ("attack_time")->load();
@@ -220,11 +233,16 @@ void BassoonVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             lastDispatchedFrequency = f_final;
         }
 
-        const float breath     = breathSmoother.getNextValue();
-        const float excitation = noiseExciter.getNextSample (breath);
-        const float voice      = modeBank.processSample (excitation);
-        const float env        = adsr.getNextSample();
-        const float sample     = voice * env;
+        // Phase 2.4 (DSP-05): additive Exciter contribution during onset window.
+        // exciter.getNextSample() auto-zeros after onset window, so only NoiseExciter
+        // sustains thereafter (OQ#8-rev-4 additive composition).
+        const float breath        = breathSmoother.getNextValue();
+        const float noiseSample   = noiseExciter.getNextSample (breath);
+        const float exciterSample = exciter.getNextSample();
+        const float excitation    = noiseSample + exciterSample;
+        const float voice         = modeBank.processSample (excitation);
+        const float env           = adsr.getNextSample();
+        const float sample        = voice * env;
 
         outputBuffer.addSample (0, startSample + i, sample);
         outputBuffer.addSample (1, startSample + i, sample);

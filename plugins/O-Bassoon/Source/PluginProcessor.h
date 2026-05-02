@@ -15,6 +15,7 @@
 #include <JuceHeader.h>
 #include "BassoonSound.h"
 #include "BassoonVoice.h"
+#include "BassoonSynthesiser.h"    // Phase 2.4: voice manager subclass with active-cap (FUNC-02)
 #include "TuningEngine.h"          // global namespace (D2)
 #include "NoteExpression.h"        // modules/tuning/note-expression (via ouaricon_add_module)
 
@@ -58,9 +59,14 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState        parameters;
-    juce::Synthesiser                         synthesiser;
+    BassoonSynthesiser                        synthesiser;      // Phase 2.4: subclass for voice cap
     TuningEngine                              tuningEngine;     // D2: global namespace
     Ouaricon::NoteExpression::VST3Extensions  vst3Extensions;
+
+    // Phase 2.4 (FUNC-02): voice_count dispatch shadow.
+    // Sentinel -1 forces first dispatch on next processBlock (any valid count ∈ [1, 16]
+    // differs from -1, integer comparison — no float epsilon needed for AudioParameterInt).
+    int lastDispatchedVoiceCount = -1;
 
     // Phase 2.2: tone smoother + dispatch throttle (CONTEXT-rev-2 Q3/Q4-rev-2).
     // Sentinel -1.0f forces first dispatch on next processBlock (any valid

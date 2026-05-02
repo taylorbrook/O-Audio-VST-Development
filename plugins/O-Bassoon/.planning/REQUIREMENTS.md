@@ -1,10 +1,10 @@
 # O-Bassoon - Requirements
 
 ---
-version: 1.0.4
+version: 1.0.5
 plugin: O-Bassoon
 created: 2026-04-27
-lastUpdated: 2026-04-29 (Phase 2.3 verify ✅ VERIFIED rev-4 — FUNC-04/DSP-02/DSP-04/PERF-02 partial→complete; QUAL-02 stays partial — 60s gate skipped, ≥10s carries from Phase 2.1/2.2 — to be revisited Phase 2.4)
+lastUpdated: 2026-05-01 (Phase 2.4 verify ⚠️ PARTIAL rev-5 — FUNC-02/FUNC-05/QUAL-02 pending→complete; DSP-05 pending→partial v1.1 candidate after rev-5 in-cycle softShape 30ms LP-filter extension; DSP-06 pending→partial Stage-4 deferral per OQ#10-rev-4 fallback. **Stage 2 closes** with acceptable partial-with-deferral path)
 ---
 
 ## Overview
@@ -20,10 +20,10 @@ lastUpdated: 2026-04-29 (Phase 2.3 verify ✅ VERIFIED rev-4 — FUNC-04/DSP-02/
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | FUNC-01 | Plays sustained bassoon-like tones via modal synthesis | must | complete | stage-2 |
-| FUNC-02 | Polyphonic playback with 1-16 voice cap (default 8) | must | pending | stage-2 |
+| FUNC-02 | Polyphonic playback with 1-16 voice cap (default 8) | must | complete | stage-2 |
 | FUNC-03 | Extended pitch range C1-C6 supported | must | complete | stage-2 |
 | FUNC-04 | Long-tone-friendly amplitude envelope (attack, sustain, release) | must | complete | stage-2 |
-| FUNC-05 | Voice stealing when polyphony exceeded (oldest-note priority) | should | pending | stage-2 |
+| FUNC-05 | Voice stealing when polyphony exceeded (oldest-note priority) | should | complete | stage-2 |
 
 ### DSP (DSP)
 
@@ -33,8 +33,8 @@ lastUpdated: 2026-04-29 (Phase 2.3 verify ✅ VERIFIED rev-4 — FUNC-04/DSP-02/
 | DSP-02 | Vibrato: rate 0-10 Hz, depth 0-100 cents, onset delay 0-2000 ms | must | complete | stage-2 |
 | DSP-03 | Tone / brightness control via modal damping (0-1 normalized) | must | complete | stage-2 |
 | DSP-04 | Breath / dynamics control reads CC2 and velocity, scales loudness 0-1 | must | complete | stage-2 |
-| DSP-05 | Attack-character control morphs onset between soft pad and tongued articulation | should | pending | stage-2 |
-| DSP-06 | Microtonal pitch: VST3 Note Expression (pitch ID 0x00000003) + MPE channel pitch-bend | must | pending | stage-2 |
+| DSP-05 | Attack-character control morphs onset between soft pad and tongued articulation | should | partial | stage-2 |
+| DSP-06 | Microtonal pitch: VST3 Note Expression (pitch ID 0x00000003) + MPE channel pitch-bend | must | partial | stage-2 |
 | DSP-07 | Does NOT depend on or reuse code from O-Reed | must | complete | stage-1 |
 
 ### UI (UI)
@@ -42,7 +42,7 @@ lastUpdated: 2026-04-29 (Phase 2.3 verify ✅ VERIFIED rev-4 — FUNC-04/DSP-02/
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | UI-01 | UI exposes all v1.0 parameters with Ouaricon family visual language | should | pending | stage-3 |
-| UI-02 | UI mockup designed and approved before Stage 3 implementation | should | pending | stage-3 |
+| UI-02 | UI design approved at execute-phase via in-DAW audition (was: "mockup designed and approved before Stage 3 implementation" — **AMENDED 2026-05-01** per user authority skipping the `/ui-mockup` orchestrator pass; gui-agent now generates HTML directly from CONTEXT.md locked decisions in a single execute pass; iteration loop moves post-build, with audition + revision happening inside Logic-AU) | should | pending | stage-3 |
 
 ### Performance (PERF)
 
@@ -63,7 +63,7 @@ lastUpdated: 2026-04-29 (Phase 2.3 verify ✅ VERIFIED rev-4 — FUNC-04/DSP-02/
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | QUAL-01 | No audio artifacts (clicks, NaN/inf, aliasing) at normal parameter ranges | must | complete | stage-2 |
-| QUAL-02 | Stable long-tone behavior — no drift, runaway resonance, or denormal slowdown over 60-second hold | nice | partial | stage-2 |
+| QUAL-02 | Stable long-tone behavior — no drift, runaway resonance, or denormal slowdown over 60-second hold | nice | complete | stage-2 |
 
 ## Acceptance Criteria Details
 

@@ -194,6 +194,17 @@ void OBassoonAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     const int numSamples = buffer.getNumSamples();
 
+    // Phase 2.4 (FUNC-02): voice_count snapshot at processBlock prologue head.
+    // Applies on next note-on; already-active voices unaffected per ROADMAP.
+    // Integer-comparison throttle (no float epsilon — AudioParameterInt is exact).
+    const int requestedVoices = static_cast<int> (
+        parameters.getRawParameterValue ("voice_count")->load());
+    if (requestedVoices != lastDispatchedVoiceCount)
+    {
+        synthesiser.setActiveVoiceCap (requestedVoices);
+        lastDispatchedVoiceCount = requestedVoices;
+    }
+
     // Phase 2.2: tone smoother advance + voice dispatch (CONTEXT-rev-2 Q3/Q4-rev-2).
     // Sits BEFORE the NE drain — same principle as the Phase 2.1 NE-drain-BEFORE-
     // renderNextBlock invariant: voice state is fully up-to-date when JUCE iterates
