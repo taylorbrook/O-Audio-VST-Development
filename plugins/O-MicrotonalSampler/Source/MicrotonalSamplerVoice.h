@@ -83,6 +83,16 @@ private:
     std::shared_ptr<SampleMap>*                   sampleMapSource     = nullptr;
     RrCounterArray*                               rrCounters          = nullptr;
 
+    // v1.11.3: cached ADSR atomic pointers. Resolved once in prepareToPlay so
+    // startNote does not deref the result of getRawParameterValue without a
+    // null-check. If any param is missing from APVTS at prepareToPlay, all
+    // four are left null and startNote falls back to the prior ADSR setting.
+    // (REVIEW DSP CRITICAL #2.)
+    std::atomic<float>* attackParam  = nullptr;
+    std::atomic<float>* decayParam   = nullptr;
+    std::atomic<float>* sustainParam = nullptr;
+    std::atomic<float>* releaseParam = nullptr;
+
     juce::ADSR                  adsr;
     double                      currentFrequency   = 0.0;
     int                         currentMidiNote    = -1;
