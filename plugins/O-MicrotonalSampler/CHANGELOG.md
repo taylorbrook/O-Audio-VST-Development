@@ -1,5 +1,56 @@
 # O-MicrotonalSampler Changelog
 
+## [1.11.2] - 2026-05-02
+
+### Security
+- **Path traversal in drag-drop streaming surface — fixed.**
+  `dropSessionAddFile` (Source/PluginEditor.cpp) previously forwarded the
+  JS-supplied `relPath` straight to `juce::File::getChildFile` and then to
+  `replaceWithData`. With no validation, a malicious WebView page could
+  pass `../etc/passwd`, an absolute path, or a backslash-escaped Windows
+  path and write outside the session-scoped temp dir
+  (`/tmp/o-microtonalsampler-drop-<id>/`). v1.11.2 introduces
+  `Source/DropSessionGuard.h::validateRelPath` which rejects empty,
+  absolute, backslash-separated, NUL-bearing, or `..`-segment paths
+  *before* any allocation, plus `validateParentChain` which walks the
+  target's existing ancestors and rejects any chain that traverses a
+  symbolic link or exits the session dir. (REVIEW finding **CR-02**.)
+- **Unbounded base64 streaming — capped.**
+  `dropSessionAddFile` had no per-file or per-session size cap; a hostile
+  page could trivially OOM the DAW host with a single multi-GB base64
+  string. v1.11.2 enforces a **256 MB per-file** cap and a **4 GB
+  per-session** cap (`kMaxFileBytes` / `kMaxSessionBytes`). The check
+  uses the projected decoded size (`base64.length() * 3 / 4`) and runs
+  *before* the decode buffer is allocated, so an oversized payload is
+  rejected without ever touching memory. The aggregate counter
+  (`currentDropSessionTotalBytes`) is reset in `dropSessionStart` and
+  incremented only after a successful write. (REVIEW finding **CR-03**.)
+
+### Tests
+- **New regression test: `Source/tests/drop_session_guard_check.cpp`.**
+  Standalone executable (build with `ninja
+  O-MicrotonalSampler_DropSessionGuardCheck`). 24 assertions — including
+  the headline `../etc/passwd` rejection, a >256 MB per-file rejection,
+  a >4 GB session-aggregate rejection, and a real-symlink escape attempt
+  on POSIX. Returns exit code = number of failed cases (0 = all pass).
+
+### Notes
+- **No state-format / parameter / preset / API changes.** Sessions saved
+  on v1.11.1 reload identically — the security fixes live entirely on the
+  drag-drop surface. Existing in-memory sessions, preset banks, and host
+  automation lanes are unaffected.
+- **User-visible behaviour change is rejection-only.** A well-formed
+  drag-drop of a sample folder under 4 GB (the documented 250 MB
+  reference library size leaves ~16× headroom) behaves exactly as in
+  v1.11.1. A malicious or malformed payload now fails fast with a
+  `dropSessionAddFile` DBG line and the JS bridge sees `false`.
+- **Files touched:** new `Source/DropSessionGuard.h`,
+  `Source/PluginEditor.cpp` (3 edits in `dropSessionStart` /
+  `dropSessionAddFile`), `Source/PluginEditor.h` (new
+  `currentDropSessionTotalBytes` member), new
+  `Source/tests/drop_session_guard_check.cpp`, `CMakeLists.txt`
+  (VERSION bump + test target + DropSessionGuard.h listed in source set).
+
 ## [1.11.1] - 2026-05-02
 
 ### Fixed

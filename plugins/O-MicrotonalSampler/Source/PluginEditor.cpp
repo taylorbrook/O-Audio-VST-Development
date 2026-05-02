@@ -10,6 +10,7 @@
 
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#include "DropSessionGuard.h"  // v1.11.2 path-traversal + size-cap guards
 #include "TuningEngine.h"
 #include "ScaleGenerator.h"
 #include "EmbeddedTunings.h"
@@ -382,8 +383,9 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                         return;
                     }
 
-                    currentDropSessionId  = sessionId;
-                    currentDropSessionDir = dir;
+                    currentDropSessionId         = sessionId;
+                    currentDropSessionDir        = dir;
+                    currentDropSessionTotalBytes = 0;  // v1.11.2: reset 4 GB cap
                     DBG ("dropSessionStart: " << dir.getFullPathName());
                     complete (juce::var (true));
                 })
@@ -417,6 +419,40 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                         return;
                     }
 
+                    // v1.11.2 — path-traversal guard (REVIEW CR-02).
+                    // Reject before allocating: empty, absolute, backslash,
+                    // NUL, or any ".." segment in the JS-supplied relPath.
+                    {
+                        const auto reason = ouaricon::dropguard::validateRelPath (relPath);
+                        if (reason.isNotEmpty())
+                        {
+                            DBG ("dropSessionAddFile: relPath rejected (" << reason
+                                 << "): " << relPath);
+                            complete (juce::var (false));
+                            return;
+                        }
+                    }
+
+                    // v1.11.2 — size-cap guard (REVIEW CR-03). Reject the
+                    // payload BEFORE allocating the decode buffer so a
+                    // hostile page cannot OOM the host with a single huge
+                    // base64 string. Per-file 256 MB, per-session 4 GB.
+                    juce::uint64 projectedBytes = 0;
+                    {
+                        const auto reason = ouaricon::dropguard::checkSizeCaps (
+                            base64.length(), currentDropSessionTotalBytes,
+                            projectedBytes);
+                        if (reason.isNotEmpty())
+                        {
+                            DBG ("dropSessionAddFile: size cap (" << reason
+                                 << "): projected=" << (juce::int64) projectedBytes
+                                 << ", session=" << (juce::int64) currentDropSessionTotalBytes
+                                 << ", relPath=" << relPath);
+                            complete (juce::var (false));
+                            return;
+                        }
+                    }
+
                     // STANDARD base64 decode via juce::Base64. Note: do NOT
                     // use MemoryBlock::fromBase64Encoding — that is JUCE's
                     // own non-standard "<size>.<altAlphabet>" format and
@@ -437,6 +473,25 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     }
 
                     auto target = currentDropSessionDir.getChildFile (relPath);
+
+                    // v1.11.2 — symlink-escape guard. Even with a clean
+                    // relPath, a hostile local symlink anywhere in the
+                    // parent chain (e.g. attacker pre-creates a symlink at
+                    // sessionDir/subdir → /etc) would let replaceWithData
+                    // write outside the sandbox. Walk the chain before
+                    // creating any directories.
+                    {
+                        const auto reason = ouaricon::dropguard::validateParentChain (
+                            currentDropSessionDir, target);
+                        if (reason.isNotEmpty())
+                        {
+                            DBG ("dropSessionAddFile: parent chain rejected ("
+                                 << reason << "): " << target.getFullPathName());
+                            complete (juce::var (false));
+                            return;
+                        }
+                    }
+
                     target.getParentDirectory().createDirectory();
                     if (! target.replaceWithData (mb.getData(), mb.getSize()))
                     {
@@ -446,8 +501,15 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                         return;
                     }
 
+                    // Successful write — bump the running session total so
+                    // the next dropSessionAddFile call sees an up-to-date
+                    // 4 GB-cap denominator.
+                    currentDropSessionTotalBytes += (juce::uint64) mb.getSize();
+
                     DBG ("dropSessionAddFile: wrote " << mb.getSize()
-                         << " bytes to " << target.getFullPathName());
+                         << " bytes to " << target.getFullPathName()
+                         << " (session total " << (juce::int64) currentDropSessionTotalBytes
+                         << " B)");
                     complete (juce::var (true));
                 })
 

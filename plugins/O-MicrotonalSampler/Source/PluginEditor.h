@@ -96,6 +96,12 @@ private:
     juce::String currentDropSessionId;
     juce::File   currentDropSessionDir;
 
+    // v1.11.2: aggregate decoded-byte total across dropSessionAddFile calls
+    // in the active session. Reset to 0 in dropSessionStart and incremented
+    // only after a successful write. Used to enforce the 4 GB session cap
+    // (see Source/DropSessionGuard.h::kMaxSessionBytes).
+    juce::uint64 currentDropSessionTotalBytes = 0;
+
     // Removes prior `o-microtonalsampler-drop-*` temp dirs older than
     // 5 minutes (a window large enough that an in-flight background
     // SampleLoader read on the previous session is unlikely to still

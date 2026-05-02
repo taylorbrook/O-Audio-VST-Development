@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.11.1"
+    VERSION "1.11.2"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -39,6 +39,7 @@ target_sources(O-MicrotonalSampler
         Source/SampleLoader.cpp
         Source/FilenameParser.h
         Source/FilenameParser.cpp
+        Source/DropSessionGuard.h          # v1.11.2 — drag-drop security guards
         # v1.0.3: drag-drop is now handled at the JS layer (sampler-app.js
         # bindWebViewFileDrop) and forwarded to the C++ filesDropped router
         # via the handleWebViewFileDrop native function. The v1.0.1 helper
@@ -169,6 +170,26 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/merge_rr_check.cpp")
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
     target_compile_definitions(O-MicrotonalSampler_MergeRrCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.11.2 — drag-drop streaming security regression tests. Covers the
+# dropSessionAddFile path-traversal guard (REVIEW CR-02) and the per-file
+# (256 MB) / per-session (4 GB) size caps (REVIEW CR-03). Standalone
+# executable, EXCLUDE_FROM_ALL. Build with:
+#     ninja O-MicrotonalSampler_DropSessionGuardCheck
+# Returns exit code = number of failed assertions.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/drop_session_guard_check.cpp")
+    add_executable(O-MicrotonalSampler_DropSessionGuardCheck EXCLUDE_FROM_ALL
+        Source/tests/drop_session_guard_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_DropSessionGuardCheck PRIVATE
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_DropSessionGuardCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_DropSessionGuardCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()
