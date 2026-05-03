@@ -1,0 +1,101 @@
+# webview-drop-streaming module
+# macOS WKWebView drag-drop content-streaming workaround
+
+name: webview-drop-streaming
+version: 1.0.0
+description: |
+  Macos WKWebView drag-drop content-streaming pattern for JUCE 8 plugins
+  with WebView UIs. Workaround for the WKWebView sandbox stripping absolute
+  file paths from JS DataTransfer.
+
+  C++ side ships:
+    - SessionManager class (header-only) that owns a per-session temp dir,
+      validates JS-supplied payloads, materialises base64 streams to disk,
+      and forwards folder/single-file commits to host-supplied loader
+      callbacks.
+    - 4 native function handlers (dropSessionStart / dropSessionAddFile /
+      dropSessionCommitFolder / dropSessionCommitFile) ready to merge into
+      the editor's NativeFunction registry.
+    - DropSessionGuard.h validators (path-traversal, parent-chain symlink,
+      per-file 256MB cap, per-session 4GB cap).
+    - 5-min stale-session reaper (per-plugin temp-dir prefix).
+
+  JS side ships:
+    - bindWebViewFileDrop(opts) — document-level drop listener, parameterised
+      via a config object (drop-zone selector, cell selector, toast/modal/
+      hover callbacks).
+    - streamFolderEntryToCpp / streamSingleFileEntryToCpp — streaming
+      pipelines with per-iteration error handling.
+    - readFileEntryAsBase64, arrayBufferToBase64 — primitives, exported for
+      reuse.
+
+category: core
+author: Ouaricon Audio
+
+provides:
+  cpp-header: WebViewDropStreaming.h
+  cpp-header: DropSessionGuard.h
+  js-module: webview-drop-streaming.js
+  native-functions:
+    - dropSessionStart
+    - dropSessionAddFile
+    - dropSessionCommitFolder
+    - dropSessionCommitFile
+
+config: {}
+
+dependencies: []
+
+requirements:
+  juce_modules:
+    - juce_core
+    - juce_gui_extra
+  cpp_standard: 20
+  platforms:
+    - macOS  # primary target — WKWebView sandbox workaround
+    - Windows  # WebView2 also strips paths in some host configs; pattern works there too
+
+sources:
+  cpp:
+    - WebViewDropStreaming.h
+    - DropSessionGuard.h
+  js:
+    - webview-drop-streaming.js
+
+used_by:
+  - plugin: O-MicrotonalSampler
+    version: 1.13.0
+
+# Critical patterns this module bakes in
+patterns:
+  - macos-wkwebview-drag-drop-streaming
+  - base64-content-streaming
+  - session-scoped-temp-dir
+  - path-traversal-defence
+  - size-cap-defence
+
+warning: |
+  CRITICAL — pass `Juce` (the ES-module namespace from `import * as Juce
+  from './juce/index.js'`) as opts.juce. NOT `window.__JUCE__`. The latter
+  has no getNativeFunction method; calls silently throw and get eaten by
+  the streaming pipeline's try/catch.
+
+  CRITICAL — the C++ side decodes via juce::Base64::convertFromBase64
+  (standard base64). MemoryBlock::fromBase64Encoding is JUCE's proprietary
+  "<size>.<altAlphabet>" format and silently rejects btoa() output.
+
+  Each plugin MUST set a unique tempDirPrefix (e.g., "myplugin-drop-") so
+  the stale-session reaper doesn't delete another plugin's in-flight
+  sessions.
+
+changelog:
+  - version: 1.0.0
+    date: 2026-05-02
+    changes:
+      - Initial extraction from O-MicrotonalSampler v1.12.4 (ARCH-02)
+      - C++ SessionManager + DropSessionGuard validators (header-only)
+      - JS bindWebViewFileDrop + streaming helpers (ES module)
+      - Per-plugin tempDirPrefix isolation for the reaper
+      - Bundles v1.11.2 hardening (path traversal, symlink escape, 256MB/4GB caps)
+      - Bundles v1.12.0 friendly missing-folder modal copy (folder-name lift)
+      - Bundles v1.12.2 per-iteration FileReader/native-fn try/catch

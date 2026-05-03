@@ -97,6 +97,61 @@ modules:
     reuse_score: 9
     used_by: []
 
+  - name: webview-drop-streaming
+    path: core/webview-drop-streaming
+    version: 1.0.0
+    description: |
+      macOS WKWebView drag-drop content-streaming workaround for JUCE 8 plugins.
+      WKWebView consumes OS drag events at AppKit AND sandboxes JS DataTransfer
+      so paths are stripped — neither C++ FileDragAndDropTarget nor JS-side
+      File.path work. This module walks the dropped FileSystemEntry tree on
+      the JS side, base64-streams audio file content through 4 native
+      functions, materialises files in a session-scoped temp dir on the C++
+      side, and forwards folder/single-file commits to host-supplied loader
+      callbacks. Bundles path-traversal + symlink + 256MB-per-file +
+      4GB-per-session guards.
+    category: core
+    provides:
+      - cpp-header: WebViewDropStreaming.h
+      - cpp-header: DropSessionGuard.h
+      - js-module: webview-drop-streaming.js
+      - native-functions:
+        - dropSessionStart
+        - dropSessionAddFile
+        - dropSessionCommitFolder
+        - dropSessionCommitFile
+    config:
+      tempDirPrefix:
+        type: string
+        required: true
+        description: |
+          Per-plugin temp-dir name prefix (e.g., "myplugin-drop-"). MUST be
+          unique per plugin so the stale-session reaper doesn't delete
+          another plugin's in-flight sessions.
+      onCommitFolder:
+        type: function
+        required: true
+        description: |
+          (sessionDir, displayName, targetLayer, modeStr, overrideTokens,
+          embedAudio) -> void — invoked from dropSessionCommitFolder.
+      onCommitFile:
+        type: function
+        required: true
+        description: |
+          (sessionFile, midi, vel) -> void — invoked from dropSessionCommitFile.
+      staleSessionRetentionMinutes:
+        type: float
+        default: 5.0
+        description: |
+          Sessions older than this are deleted at the start of each new
+          dropSessionStart.
+    dependencies: []
+    tags: [webview, drag-drop, macos, wkwebview, base64, streaming, security, sandbox]
+    reuse_score: 8
+    used_by:
+      - plugin: O-MicrotonalSampler
+        version: 1.13.0
+
   # ============================================================================
   # PERSISTENCE MODULES
   # ============================================================================

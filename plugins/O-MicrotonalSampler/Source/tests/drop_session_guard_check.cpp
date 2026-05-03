@@ -10,10 +10,11 @@
 
     What this exercises
     -------------------
-    The pure helpers in `Source/DropSessionGuard.h` are the security boundary
-    for the dropSessionAddFile native function (PluginEditor.cpp). They were
-    introduced in v1.11.2 to address two CRITICAL findings from the v1.11.1
-    code review:
+    The pure helpers in modules/core/webview-drop-streaming/cpp/DropSessionGuard.h
+    are the security boundary for the dropSessionAddFile native function
+    (now lives inside the shared module's SessionManager as of v1.13.0).
+    They were introduced in O-MicrotonalSampler v1.11.2 to address two
+    CRITICAL findings from the v1.11.1 code review:
 
       CR-02 path traversal — JS-supplied relPath previously flowed straight
                             into juce::File::getChildFile, allowing
@@ -31,7 +32,11 @@
 
 #include <juce_core/juce_core.h>
 
-#include "../DropSessionGuard.h"
+// v1.13.0: DropSessionGuard.h moved into the shared
+// modules/core/webview-drop-streaming module. The module's cpp/ is on the
+// include path via ouaricon_add_module() in CMakeLists.txt, so a bare
+// include works.
+#include "DropSessionGuard.h"
 #include <iostream>
 #include <string>
 

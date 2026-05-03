@@ -2,18 +2,17 @@
   ==============================================================================
 
     DropSessionGuard.h
-    O-MicrotonalSampler — v1.11.2 drag-drop streaming security guards.
+    webview-drop-streaming module — drag-drop streaming security guards.
 
     Header-only validation helpers used by the dropSessionAddFile native
-    function (PluginEditor.cpp). Split out so the regression test can
+    function in the SessionManager. Split out so plugin regression tests can
     exercise the path-traversal and size-cap checks without spinning up a
     WebView/editor.
 
     Threats addressed
     -----------------
     The drag-drop streaming surface accepts a JS-supplied relative path and
-    a base64-encoded file payload. Two CRITICAL findings from the v1.11.1
-    review:
+    a base64-encoded file payload. Two CRITICAL findings:
 
       CR-02 path traversal — relPath was forwarded to juce::File::getChildFile
                             with no validation; "../etc/passwd" would write
@@ -24,6 +23,11 @@
     These helpers reject both classes before any allocation or filesystem
     write occurs. Each check returns a reason string (empty == accepted) so
     the caller can DBG-log a single line and reply false to JS.
+
+    History
+    -------
+    Originally landed in O-MicrotonalSampler v1.11.2 as Source/DropSessionGuard.h.
+    Promoted to this shared module in O-MicrotonalSampler v1.13.0 (ARCH-02).
 
   ==============================================================================
 */

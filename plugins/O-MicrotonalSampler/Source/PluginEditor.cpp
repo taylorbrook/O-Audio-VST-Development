@@ -10,7 +10,6 @@
 
 #include "PluginEditor.h"
 #include "BinaryData.h"
-#include "DropSessionGuard.h"  // v1.11.2 path-traversal + size-cap guards
 #include "TuningEngine.h"
 #include "ScaleGenerator.h"
 #include "EmbeddedTunings.h"
@@ -60,6 +59,39 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
     velocityCrossfadeRelay  = std::make_unique<juce::WebSliderRelay> ("velocity_crossfade");
     expressionRelay         = std::make_unique<juce::WebSliderRelay> ("expression");      // v1.7.0
     outputGainRelay         = std::make_unique<juce::WebSliderRelay> ("output_gain");
+
+    // ----------------------------------------------------------------
+    // 1.5️⃣ CONSTRUCT DROP-SESSION MANAGER (v1.13.0 — ARCH-02)
+    //      Must outlive the WebView; its native-function lambdas are
+    //      captured into the registry below. Pass per-plugin tempDirPrefix
+    //      so the stale-session reaper doesn't collide with future plugins
+    //      that adopt this module.
+    // ----------------------------------------------------------------
+    {
+        Ouaricon::WebViewDropStreaming::SessionManager::Config cfg;
+        cfg.tempDirPrefix = "o-microtonalsampler-drop-";
+        cfg.onCommitFolder = [this] (const juce::File& dir,
+                                     const juce::String& displayName,
+                                     int targetLayer,
+                                     const juce::String& modeStr,
+                                     bool overrideTokens,
+                                     bool embedAudio)
+        {
+            LoadMode mode = LoadMode::ReplaceAll;
+            if      (modeStr == "append")        mode = LoadMode::Append;
+            else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+            else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
+
+            processorRef.loadSampleFolder (dir, targetLayer, mode, overrideTokens,
+                                           "drag-drop", displayName, embedAudio);
+        };
+        cfg.onCommitFile = [this] (const juce::File& file, int midi, int vel)
+        {
+            processorRef.loadSingleSample (midi, vel, file);
+        };
+        dropSessions = std::make_unique<
+            Ouaricon::WebViewDropStreaming::SessionManager> (std::move (cfg));
+    }
 
     // ----------------------------------------------------------------
     // 2️⃣ CREATE WEBVIEW with options
@@ -316,28 +348,10 @@ void OMicrotonalSamplerAudioProcessorEditor::resized()
 }
 
 //==============================================================================
-// v1.0.4: deletes any prior `o-microtonalsampler-drop-*` temp dirs that
-// are older than 5 minutes (a window comfortably larger than typical
-// SampleLoader read times). Called at the start of every new drop
-// session so disk usage doesn't accumulate across many drops in one
-// running instance. macOS reclaims its tempDirectory contents
-// independently; this call is just bookkeeping.
-void OMicrotonalSamplerAudioProcessorEditor::cleanupStaleDropSessions()
-{
-    auto temp = juce::File::getSpecialLocation (juce::File::tempDirectory);
-    auto matches = temp.findChildFiles (
-        juce::File::findDirectories, false,
-        "o-microtonalsampler-drop-*");
-
-    const auto now = juce::Time::getCurrentTime();
-    for (auto& d : matches)
-    {
-        if ((now - d.getCreationTime()).inMinutes() < 5.0)
-            continue;
-        d.deleteRecursively();
-        DBG ("cleanupStaleDropSessions: deleted " << d.getFullPathName());
-    }
-}
+// v1.13.0 (ARCH-02): cleanupStaleDropSessions() removed. The 5-min reaper
+// for `o-microtonalsampler-drop-*` temp dirs now lives inside the shared
+// modules/core/webview-drop-streaming module's SessionManager, scoped to
+// the per-plugin tempDirPrefix passed at construction.
 
 //==============================================================================
 // Resource provider — direct URL→BinaryData equality, matches O-Bells
@@ -371,6 +385,18 @@ OMicrotonalSamplerAudioProcessorEditor::getResource (const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource {
             makeVector (BinaryData::samplerapp_js, BinaryData::samplerapp_jsSize),
+            juce::String ("text/javascript") };
+    }
+
+    // v1.13.0 (ARCH-02): shared webview-drop-streaming module JS, served
+    // from BinaryData via the module-JS path the import in sampler-app.js
+    // points to ('./modules/webview-drop-streaming.js' — relative to the
+    // sampler-app.js URL, so resolves to '/js/modules/...').
+    if (url == "/js/modules/webview-drop-streaming.js")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::webviewdropstreaming_js,
+                        BinaryData::webviewdropstreaming_jsSize),
             juce::String ("text/javascript") };
     }
 
@@ -576,7 +602,7 @@ void OMicrotonalSamplerAudioProcessorEditor::fileDragExit (
 std::vector<std::pair<juce::Identifier, juce::WebBrowserComponent::NativeFunction>>
 OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
 {
-    return {
+    std::vector<std::pair<juce::Identifier, juce::WebBrowserComponent::NativeFunction>> registry = {
         { "getSampleMap",
                 [this] (const juce::Array<juce::var>&,
                         std::function<void(juce::var)> complete)
@@ -910,298 +936,16 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
-        // ---- dropSessionStart (v1.0.4 — content-streaming drag-drop) ----
+        // ---- dropSession* (4 native fns) ----
         //
-        // The user dragged a file or folder onto the WebView. WKWebView
-        // exposes a FileSystemEntry to JS but strips absolute paths
-        // (sandbox), so we cannot forward paths to filesDropped(). The
-        // JS layer instead enumerates the entry tree, reads each audio
-        // file via FileReader, and base64-streams the bytes to this
-        // editor via dropSessionAddFile. We materialise them in a
-        // session-scoped temp dir so the existing loadSampleFolder /
-        // loadSingleSample paths consume the result as if the user had
-        // picked it from a native FileChooser.
-        //
-        // args[0] = sessionId (opaque string from JS, used to scope
-        //           the temp dir and validate subsequent calls)
-        // args[1] (optional, v1.12.0) = folder name (FileSystemEntry::name).
-        //         The macOS WKWebView sandbox strips the original disk
-        //         path but exposes the dragged folder's display name —
-        //         we lift it here so the missing-folder modal on reload
-        //         can render "Samples were drag-dropped from <name>"
-        //         copy. Single-file drops pass the file's basename.
-        //
-        // Returns true if the temp dir was created.
-        { "dropSessionStart",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.isEmpty())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto sessionId = args[0].toString();
-                    if (sessionId.isEmpty())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto folderName = args.size() > 1
-                        ? args[1].toString()
-                        : juce::String();
-
-                    cleanupStaleDropSessions();
-
-                    auto dir = juce::File::getSpecialLocation (
-                                   juce::File::tempDirectory)
-                                       .getChildFile (
-                                           "o-microtonalsampler-drop-" + sessionId);
-                    const auto result = dir.createDirectory();
-                    if (! result.wasOk())
-                    {
-                        DBG ("dropSessionStart: createDirectory failed: "
-                             << result.getErrorMessage());
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    currentDropSessionId         = sessionId;
-                    currentDropSessionDir        = dir;
-                    currentDropSessionTotalBytes = 0;  // v1.11.2: reset 4 GB cap
-                    currentDropSessionFolderName = folderName;  // v1.12.0
-                    DBG ("dropSessionStart: " << dir.getFullPathName()
-                         << " name=" << folderName);
-                    complete (juce::var (true));
-                }
-        },
-
-        // ---- dropSessionAddFile (v1.0.4) ----
-        //
-        // args[0] = sessionId  (must match currentDropSessionId)
-        // args[1] = relativePath inside the session dir (forward slashes,
-        //           never backslashes — JS controls the delimiter)
-        // args[2] = base64-encoded file content
-        //
-        // Returns true on successful write.
-        { "dropSessionAddFile",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 3)
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto sessionId = args[0].toString();
-                    const auto relPath   = args[1].toString();
-                    const auto base64    = args[2].toString();
-
-                    if (sessionId != currentDropSessionId
-                        || ! currentDropSessionDir.isDirectory())
-                    {
-                        DBG ("dropSessionAddFile: session mismatch / dir gone");
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    // v1.11.2 — path-traversal guard (REVIEW CR-02).
-                    // Reject before allocating: empty, absolute, backslash,
-                    // NUL, or any ".." segment in the JS-supplied relPath.
-                    {
-                        const auto reason = ouaricon::dropguard::validateRelPath (relPath);
-                        if (reason.isNotEmpty())
-                        {
-                            DBG ("dropSessionAddFile: relPath rejected (" << reason
-                                 << "): " << relPath);
-                            complete (juce::var (false));
-                            return;
-                        }
-                    }
-
-                    // v1.11.2 — size-cap guard (REVIEW CR-03). Reject the
-                    // payload BEFORE allocating the decode buffer so a
-                    // hostile page cannot OOM the host with a single huge
-                    // base64 string. Per-file 256 MB, per-session 4 GB.
-                    juce::uint64 projectedBytes = 0;
-                    {
-                        const auto reason = ouaricon::dropguard::checkSizeCaps (
-                            base64.length(), currentDropSessionTotalBytes,
-                            projectedBytes);
-                        if (reason.isNotEmpty())
-                        {
-                            DBG ("dropSessionAddFile: size cap (" << reason
-                                 << "): projected=" << (juce::int64) projectedBytes
-                                 << ", session=" << (juce::int64) currentDropSessionTotalBytes
-                                 << ", relPath=" << relPath);
-                            complete (juce::var (false));
-                            return;
-                        }
-                    }
-
-                    // STANDARD base64 decode via juce::Base64. Note: do NOT
-                    // use MemoryBlock::fromBase64Encoding — that is JUCE's
-                    // own non-standard "<size>.<altAlphabet>" format and
-                    // will reject JS btoa() output silently.
-                    juce::MemoryBlock mb;
-                    {
-                        juce::MemoryOutputStream stream (mb, false);
-                        if (! juce::Base64::convertFromBase64 (stream, base64))
-                        {
-                            DBG ("dropSessionAddFile: base64 decode failed for "
-                                 << relPath << " (input length " << base64.length()
-                                 << ", first 32 chars: '"
-                                 << base64.substring (0, 32) << "')");
-                            complete (juce::var (false));
-                            return;
-                        }
-                        stream.flush();
-                    }
-
-                    auto target = currentDropSessionDir.getChildFile (relPath);
-
-                    // v1.11.2 — symlink-escape guard. Even with a clean
-                    // relPath, a hostile local symlink anywhere in the
-                    // parent chain (e.g. attacker pre-creates a symlink at
-                    // sessionDir/subdir → /etc) would let replaceWithData
-                    // write outside the sandbox. Walk the chain before
-                    // creating any directories.
-                    {
-                        const auto reason = ouaricon::dropguard::validateParentChain (
-                            currentDropSessionDir, target);
-                        if (reason.isNotEmpty())
-                        {
-                            DBG ("dropSessionAddFile: parent chain rejected ("
-                                 << reason << "): " << target.getFullPathName());
-                            complete (juce::var (false));
-                            return;
-                        }
-                    }
-
-                    target.getParentDirectory().createDirectory();
-                    if (! target.replaceWithData (mb.getData(), mb.getSize()))
-                    {
-                        DBG ("dropSessionAddFile: write failed: "
-                             << target.getFullPathName());
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    // Successful write — bump the running session total so
-                    // the next dropSessionAddFile call sees an up-to-date
-                    // 4 GB-cap denominator.
-                    currentDropSessionTotalBytes += (juce::uint64) mb.getSize();
-
-                    DBG ("dropSessionAddFile: wrote " << mb.getSize()
-                         << " bytes to " << target.getFullPathName()
-                         << " (session total " << (juce::int64) currentDropSessionTotalBytes
-                         << " B)");
-                    complete (juce::var (true));
-                }
-        },
-
-        // ---- dropSessionCommitFolder (v1.0.4 / v1.6.0 / v1.12.0) ----
-        //
-        // Calls processorRef.loadSampleFolder on the session temp dir.
-        // The async SampleLoader thread reads the dir in the background
-        // and posts the new SampleMap via sampleMapChangedCallback. The
-        // temp dir is left in place; it will be cleaned up at the start
-        // of the next drop session (cleanupStaleDropSessions).
-        //
-        //   args[0] = sessionId (must match)
-        //   args[1] (optional) = targetLayer 0..3      — default 0
-        //   args[2] (optional) = mode string           — default "replace_all"
-        //   args[3] (optional) = overrideTokens 0/1    — default 0
-        //   args[4] (optional, v1.12.0) = embedAudio 0/1 — default 0
-        //
-        // v1.12.0: drag-drop loads now flow through with origin="drag-drop"
-        // and the folder name lifted at dropSessionStart. When embedAudio=0
-        // (default), the saved state records origin + name so reload
-        // surfaces a friendlier "drag-dropped from <name>" missing modal
-        // (no /tmp/ paths). When embedAudio=1, the audio is serialised
-        // inline and the project survives temp-dir cleanup unchanged.
-        { "dropSessionCommitFolder",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.isEmpty()
-                        || args[0].toString() != currentDropSessionId
-                        || ! currentDropSessionDir.isDirectory())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    const int  targetLayer = args.size() > 1
-                        ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
-                    const auto modeStr     = args.size() > 2 ? args[2].toString()
-                                                             : juce::String ("replace_all");
-                    const bool overrideTok = args.size() > 3
-                        ? static_cast<int> (args[3]) != 0 : false;
-                    const bool embedAudio  = args.size() > 4
-                        ? static_cast<int> (args[4]) != 0 : false;
-
-                    LoadMode mode = LoadMode::ReplaceAll;
-                    if (modeStr == "append")        mode = LoadMode::Append;
-                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
-                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
-
-                    // v1.12.0: prefer the folder name lifted at dropSessionStart;
-                    // fall back to the temp-dir basename for legacy JS that
-                    // doesn't pass a name.
-                    const auto displayName = currentDropSessionFolderName.isNotEmpty()
-                        ? currentDropSessionFolderName
-                        : currentDropSessionDir.getFileName();
-
-                    DBG ("dropSessionCommitFolder: "
-                         << currentDropSessionDir.getFullPathName()
-                         << " layer=" << targetLayer
-                         << " mode=" << static_cast<int> (mode)
-                         << " override=" << (int) overrideTok
-                         << " embed=" << (int) embedAudio
-                         << " name=" << displayName);
-                    processorRef.loadSampleFolder (currentDropSessionDir,
-                                                    targetLayer, mode, overrideTok,
-                                                    "drag-drop", displayName, embedAudio);
-                    complete (juce::var (true));
-                }
-        },
-
-        // ---- dropSessionCommitFile (v1.0.4) ----
-        //
-        // args[0] = sessionId (must match)
-        // args[1] = relativePath of the single file inside the session dir
-        // args[2] = midi note (0..127)
-        // args[3] = velocity layer (0..numVelocityLayers-1)
-        { "dropSessionCommitFile",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 4
-                        || args[0].toString() != currentDropSessionId)
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto relPath = args[1].toString();
-                    const int  midi    = static_cast<int> (args[2]);
-                    const int  vel     = static_cast<int> (args[3]);
-
-                    const auto file = currentDropSessionDir.getChildFile (relPath);
-                    if (! file.existsAsFile())
-                    {
-                        DBG ("dropSessionCommitFile: file missing: "
-                             << file.getFullPathName());
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    DBG ("dropSessionCommitFile: midi=" << midi << " vel=" << vel
-                         << " file=" << file.getFullPathName());
-                    processorRef.loadSingleSample (midi, vel, file);
-                    complete (juce::var (true));
-                }
-        },
+        // v1.13.0 (ARCH-02): the content-streaming drag-drop pattern is
+        // now in modules/core/webview-drop-streaming. The 4 native
+        // function handlers (dropSessionStart / dropSessionAddFile /
+        // dropSessionCommitFolder / dropSessionCommitFile), session
+        // lifecycle, 5-min stale-temp-dir reaper, and DropSessionGuard
+        // validators all live there. We splice the module-supplied entries
+        // into this vector after the brace-initialized list closes (see
+        // bottom of this function).
 
         // ---- handleWebViewFileDrop (v1.0.3 — JS-side drag-drop entry point) ----
         //
@@ -1988,4 +1732,15 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
     };
+
+    // v1.13.0 (ARCH-02): splice the 4 dropSession* native function handlers
+    // supplied by the shared modules/core/webview-drop-streaming module's
+    // SessionManager. These used to be 4 inline registry entries (~290 lines)
+    // owned by this editor; they now live in the module and bridge to
+    // processorRef.loadSampleFolder / loadSingleSample via the commit
+    // callbacks we set up at SessionManager construction.
+    for (auto& entry : dropSessions->getNativeFunctions())
+        registry.push_back (std::move (entry));
+
+    return registry;
 }
