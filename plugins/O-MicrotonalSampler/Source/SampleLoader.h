@@ -44,10 +44,16 @@ public:
     // file but NO explicit rr/take/tk tokens. The map is built with all
     // variants included, but the processor must surface a confirmation modal
     // before atomic-storing it.
+    //
+    // v1.14.0: now keyed on the (midi, layer, technique) triplet. Two
+    // recordings of the same note with the same dynamic but DIFFERENT
+    // techniques (e.g. C3_v1_ord.wav + C3_v1_sp.wav) are NOT ambiguous —
+    // they land in distinct cells.
     struct AmbiguousDuplicate
     {
         int                midiNote      = -1;
         int                velocityLayer = 0;
+        int                technique     = 0;     // v1.14.0
         juce::StringArray  filenames;
     };
 

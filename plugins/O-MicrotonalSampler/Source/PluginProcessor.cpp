@@ -117,6 +117,48 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
         /*default*/ 1
     ));
 
+    // ========== v1.14.0 Playing Techniques (5) ==========
+    //
+    // Adds the technique axis. Back-compat: default state (technique_count=1,
+    // ks_enabled=false) reproduces v1.13.0 behaviour exactly — every cell
+    // lives at technique=0 and the synth never reads anything past slot 0.
+    //
+    // technique_count   1..8 — number of active technique slots
+    // technique_select  0..7 — current technique slot (mirrors keyswitch /
+    //                          CC / PC routing). Audio thread loads this
+    //                          atom at startNote.
+    // ks_enabled        bool — true = scan note-ons in [ks_low..ks_high] on
+    //                          processBlock and absorb them as keyswitches
+    // ks_low_note       0..127 — KS range low edge (default C-2 / MIDI 0)
+    // ks_high_note      0..127 — KS range high edge (default MIDI 9 →
+    //                          covers all 8 default technique slots, one
+    //                          MIDI semitone each)
+    layout.add (std::make_unique<juce::AudioParameterInt> (
+        juce::ParameterID { "technique_count", 1 },
+        "Technique Count",
+        1, 8, 1
+    ));
+    layout.add (std::make_unique<juce::AudioParameterInt> (
+        juce::ParameterID { "technique_select", 1 },
+        "Technique Select",
+        0, 7, 0
+    ));
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "ks_enabled", 1 },
+        "Keyswitch Enabled",
+        false
+    ));
+    layout.add (std::make_unique<juce::AudioParameterInt> (
+        juce::ParameterID { "ks_low_note", 1 },
+        "Keyswitch Low Note",
+        0, 127, 0
+    ));
+    layout.add (std::make_unique<juce::AudioParameterInt> (
+        juce::ParameterID { "ks_high_note", 1 },
+        "Keyswitch High Note",
+        0, 127, 9
+    ));
+
     return layout;
 }
 
@@ -135,17 +177,23 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     for (auto& c : rrCounters)
         c.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
 
+    // v1.14.0: seed the curated default technique vocabulary. The user can
+    // rename slots later; persisted via captureStateValueTree's <Techniques>
+    // child.
+    resetTechniqueNames();
+
     // Pre-allocate 16 voices (matches max polyphony cap). Voice manager will
     // enforce the runtime cap; pre-allocating prevents processBlock allocations
     // when the user raises the cap (PERF-01).
     for (int i = 0; i < 16; ++i)
     {
         auto* voice = new MicrotonalSamplerVoice();
-        voice->setAPVTS               (&parameters);
-        voice->setTuningEngine        (&tuningEngine);                          // D-4: global namespace
-        voice->setPendingTuningSource (&vst3Extensions.getPendingTable());      // module-owned table
-        voice->setSampleMapSource     (&currentSampleMap);                      // shared_ptr slot
-        voice->setRrCounterArray      (&rrCounters);                            // v1.8.0
+        voice->setAPVTS                  (&parameters);
+        voice->setTuningEngine           (&tuningEngine);                          // D-4: global namespace
+        voice->setPendingTuningSource    (&vst3Extensions.getPendingTable());      // module-owned table
+        voice->setSampleMapSource        (&currentSampleMap);                      // shared_ptr slot
+        voice->setRrCounterArray         (&rrCounters);                            // v1.8.0
+        voice->setPendingTechniqueSource (&pendingTechniqueIndex);                 // v1.14.0
         synthesiser.addVoice (voice);
     }
 
@@ -205,6 +253,12 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
         const float v = ep->load();
         expressionSmoother.setCurrentAndTargetValue (v * v);
     }
+
+    // v1.14.0: pre-allocate the keyswitch filter buffer. 2048 bytes covers
+    // any reasonable per-block MIDI density (a worst-case 1024-sample block
+    // with 32-byte SysEx every sample would still fit). Allocation is a
+    // message-thread call here — processBlock's addEvent stays alloc-free.
+    ksFilteredBuffer.ensureSize (2048);
 
    #ifdef O_MICROTONAL_SAMPLER_PHASE_2_1_TEST_FIXTURE
     // Phase 2.1 in-memory test fixture: build a SampleMap with one slot per
@@ -351,8 +405,69 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     if (auto* pp = parameters.getRawParameterValue ("polyphony"))
         synthesiser.setVoiceCap ((int) pp->load());
 
+    // v1.14.0: keyswitch filter. When ks_enabled, note-ons within
+    // [ks_low_note..ks_high_note] are absorbed: their semitone offset from
+    // ks_low_note becomes the active technique (atomic store, audio thread
+    // → voice startNote uses memory_order_acquire to pair). All other MIDI
+    // events forward to the synth unchanged. Note-offs in the KS range are
+    // also absorbed so they never trigger spurious voice activity.
+    //
+    // RT-safety: the filter buffer was pre-sized in prepareToPlay, so
+    // addEvent does not allocate. The filter is skipped entirely when
+    // ks_enabled=false (back-compat fast path for v1.13.0 sessions).
+    bool        ksEnabled  = false;
+    int         ksLowNote  = 0;
+    int         ksHighNote = 0;
+    int         techCount  = 1;
+    if (auto* p = parameters.getRawParameterValue ("ks_enabled"))
+        ksEnabled = (p->load() > 0.5f);
+    if (auto* p = parameters.getRawParameterValue ("ks_low_note"))
+        ksLowNote = juce::jlimit (0, 127, (int) p->load());
+    if (auto* p = parameters.getRawParameterValue ("ks_high_note"))
+        ksHighNote = juce::jlimit (0, 127, (int) p->load());
+    if (auto* p = parameters.getRawParameterValue ("technique_count"))
+        techCount = juce::jlimit (1, 8, (int) p->load());
+
+    const juce::MidiBuffer* dispatchMidi = &midiMessages;
+    bool techniqueChangedThisBlock = false;
+
+    if (ksEnabled && ksHighNote >= ksLowNote)
+    {
+        ksFilteredBuffer.clear();
+        for (const auto meta : midiMessages)
+        {
+            const auto msg = meta.getMessage();
+            if ((msg.isNoteOn() || msg.isNoteOff())
+                && msg.getNoteNumber() >= ksLowNote
+                && msg.getNoteNumber() <= ksHighNote)
+            {
+                if (msg.isNoteOn())
+                {
+                    const int newTech = juce::jlimit (
+                        0, juce::jmin (7, techCount - 1),
+                        msg.getNoteNumber() - ksLowNote);
+                    pendingTechniqueIndex.store (newTech, std::memory_order_release);
+                    techniqueChangedThisBlock = true;
+                }
+                continue;   // absorb (do not forward to synth)
+            }
+            ksFilteredBuffer.addEvent (msg, meta.samplePosition);
+        }
+        dispatchMidi = &ksFilteredBuffer;
+    }
+
     // Render all voices via synthesiser (handles MIDI routing + voice allocation).
-    synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
+    synthesiser.renderNextBlock (buffer, *const_cast<juce::MidiBuffer*> (dispatchMidi),
+                                  0, buffer.getNumSamples());
+
+    if (techniqueChangedThisBlock)
+    {
+        // Hand the message thread a one-shot notification so the UI's
+        // technique tab strip refreshes the active highlight. Last-store-wins
+        // within a block is fine — the cursor is already in the atomic.
+        techniqueStateDirty.store (true, std::memory_order_release);
+        triggerAsyncUpdate();
+    }
 
     const int numSamples = buffer.getNumSamples();
 
@@ -407,10 +522,31 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 void OMicrotonalSamplerAudioProcessor::handleAsyncUpdate()
 {
     const int v = pendingCC11Value.exchange (-1, std::memory_order_acquire);
-    if (v < 0)
-        return;
-    if (auto* ep = parameters.getParameter ("expression"))
-        ep->setValueNotifyingHost ((float) v / 127.0f);
+    if (v >= 0)
+    {
+        if (auto* ep = parameters.getParameter ("expression"))
+            ep->setValueNotifyingHost ((float) v / 127.0f);
+    }
+
+    // v1.14.0: technique cursor / vocab change notification. Coalesced via
+    // techniqueStateDirty — multiple processBlock invocations between
+    // scheduled async updates collapse to one callback. The cursor itself
+    // lives in pendingTechniqueIndex (atomic); the editor reads via
+    // getActiveTechnique().
+    if (techniqueStateDirty.exchange (false, std::memory_order_acquire))
+    {
+        // Mirror the audio-thread cursor onto the APVTS host-facing param so
+        // automation / preset round-trip work and host UIs see the change.
+        if (auto* sp = parameters.getParameter ("technique_select"))
+        {
+            const auto range = parameters.getParameterRange ("technique_select");
+            const int  tech  = pendingTechniqueIndex.load (std::memory_order_acquire);
+            sp->setValueNotifyingHost (range.convertTo0to1 ((float) tech));
+        }
+
+        if (techniqueStateChangedCallback)
+            techniqueStateChangedCallback();
+    }
 }
 
 //==============================================================================
@@ -497,7 +633,8 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
     sampleLoader->loadFolder (
         folder,
         getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
-        LoadOptions { clampedLayer, overrideTokens },
+        LoadOptions { clampedLayer, overrideTokens,
+                      op.targetTechnique, op.overrideTechnique },   // v1.14.0
 
         // Completion callback — runs on the message thread.
         [safeThis, op](std::shared_ptr<SampleMap> newMap,
@@ -593,10 +730,13 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
                         return c.velocityLayer == target;
                     }),
                 merged->cells.end());
-            // v1.8.0: drop counters for the wiped layer.
+            // v1.8.0: drop counters for the wiped layer (across all
+            // techniques as of v1.14.0 — ReplaceLayer wipes the layer
+            // wholesale regardless of technique slot).
             for (int midi = 0; midi < 128; ++midi)
-                rrCounters[(size_t) (midi * 4 + target)].store (
-                    (uint8_t) 0xFFu, std::memory_order_relaxed);
+                for (int tech = 0; tech < 8; ++tech)
+                    rrCounters[(size_t) (midi * 4 * 8 + target * 8 + tech)].store (
+                        (uint8_t) 0xFFu, std::memory_order_relaxed);
         }
 
         // Per-cell collision behaviour depends on mode:
@@ -613,8 +753,10 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
 
         for (const auto& newCell : newSlotsMap->cells)
         {
-            const int counterIdx = juce::jlimit (0, 511,
-                newCell.midiNote * 4 + newCell.velocityLayer);
+            // v1.14.0: collision + counter index are keyed on the triplet.
+            const int counterIdx = juce::jlimit (
+                0, MicrotonalSamplerVoice::kRrCounterSize - 1,
+                newCell.midiNote * 4 * 8 + newCell.velocityLayer * 8 + newCell.technique);
 
             if (op.mode == LoadMode::MergeRR)
             {
@@ -628,7 +770,8 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
                         [&newCell] (const SampleCell& c)
                         {
                             return c.midiNote      == newCell.midiNote
-                                && c.velocityLayer == newCell.velocityLayer;
+                                && c.velocityLayer == newCell.velocityLayer
+                                && c.technique     == newCell.technique;
                         }),
                     merged->cells.end());
                 merged->cells.push_back (newCell);
@@ -683,6 +826,29 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
          << " embed=" << (int) op.embedAudio
          << " merged cells=" << (int) merged->cells.size()
          << " (v" << merged->version << ")");
+
+    // v1.14.0: auto-grow technique_count to fit any populated slot. Without
+    // this, a folder of `_pizz` files (slot 5) would land correctly but the
+    // technique tab strip would stay hidden (count==1, ks_enabled==false →
+    // back-compat collapsed state) and the user would see an empty grid
+    // because the grid filters by active technique. Auto-growing surfaces
+    // the populated slots immediately.
+    int maxTech = 0;
+    for (const auto& c : merged->cells)
+        maxTech = juce::jmax (maxTech, c.technique);
+    const int requiredCount = juce::jlimit (1, 8, maxTech + 1);
+    if (auto* tcParam = parameters.getParameter ("technique_count"))
+    {
+        const int currentCount = juce::jlimit (1, 8,
+            (int) parameters.getRawParameterValue ("technique_count")->load());
+        if (requiredCount > currentCount)
+        {
+            const auto range = parameters.getParameterRange ("technique_count");
+            tcParam->setValueNotifyingHost (range.convertTo0to1 ((float) requiredCount));
+            techniqueStateDirty.store (true, std::memory_order_release);
+            triggerAsyncUpdate();
+        }
+    }
 
     if (sampleMapChangedCallback)
         sampleMapChangedCallback();
@@ -833,7 +999,8 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
         sampleLoader->loadFolder (
             f,
             getSampleRate() > 0.0 ? getSampleRate() : 48000.0,
-            LoadOptions { op.targetLayer, op.overrideTokens },
+            LoadOptions { op.targetLayer, op.overrideTokens,
+                          op.targetTechnique, op.overrideTechnique },   // v1.14.0
             [safeThis, op, kickGeneration] (std::shared_ptr<SampleMap> newMap,
                         juce::StringArray skipped,
                         std::vector<SampleLoader::AmbiguousDuplicate> ambig)
@@ -922,10 +1089,13 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
 void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                                                           int velocityLayer,
                                                           const juce::File& file,
-                                                          bool mergeAsRr)
+                                                          bool mergeAsRr,
+                                                          int technique)
 {
     if (sampleLoader == nullptr)
         return;
+
+    technique = juce::jlimit (0, kMaxTechniques - 1, technique);
 
     // ------------------------ Validation guards ------------------------
     if (midiPitch < 0 || midiPitch > 127)
@@ -970,7 +1140,7 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
         midiPitch,
         velocityLayer,
         sr,
-        [safeThis, mergeAsRr] (int targetMidi, int targetVel,
+        [safeThis, mergeAsRr, technique] (int targetMidi, int targetVel,
                                SampleVariant newVariant, juce::String skipReason)
         {
             auto* self = safeThis.get();
@@ -1005,11 +1175,17 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             // v1.9.0: detect collision with an existing cell. mergeAsRr=true
             // appends to the cell's variants; mergeAsRr=false (default) keeps
             // v1.8.0 semantics — replace the cell with a fresh single-variant.
+            //
+            // v1.14.0: collision is per-(midi, layer, technique) triplet.
+            // Loading a single sample into technique slot 1 leaves slot 0's
+            // cell at the same (midi, layer) untouched.
             const SampleCell* existingCell = nullptr;
             if (currentMap != nullptr)
             {
                 for (const auto& c : currentMap->cells)
-                    if (c.midiNote == targetMidi && c.velocityLayer == targetVel)
+                    if (c.midiNote == targetMidi
+                        && c.velocityLayer == targetVel
+                        && c.technique == technique)
                     {
                         existingCell = &c;
                         break;
@@ -1044,7 +1220,9 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                 next->cells.reserve (currentMap->cells.size() + 1);
                 for (const auto& c : currentMap->cells)
                 {
-                    if (c.midiNote == targetMidi && c.velocityLayer == targetVel)
+                    if (c.midiNote == targetMidi
+                        && c.velocityLayer == targetVel
+                        && c.technique == technique)
                     {
                         if (doMerge)
                         {
@@ -1076,6 +1254,7 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                 SampleCell freshCell;
                 freshCell.midiNote      = targetMidi;
                 freshCell.velocityLayer = targetVel;
+                freshCell.technique     = technique;     // v1.14.0
                 freshCell.variants.push_back (std::move (newVariant));
                 next->cells.push_back (std::move (freshCell));
             }
@@ -1103,15 +1282,38 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             // may have had multiple variants; the new cell has exactly one.
             // v1.9.0: merge path also resets so the next note-on doesn't
             // index past the just-grown variants vector with a stale value.
-            const int counterIdx = juce::jlimit (0, 511, targetMidi * 4 + targetVel);
+            // v1.14.0: counter is now keyed on the (midi, layer, technique)
+            // triplet (4096 entries; layout matches MicrotonalSamplerVoice).
+            const int counterIdx = juce::jlimit (
+                0, MicrotonalSamplerVoice::kRrCounterSize - 1,
+                targetMidi * 4 * 8 + targetVel * 8 + technique);
             self->rrCounters[(size_t) counterIdx].store ((uint8_t) 0xFFu,
                                                           std::memory_order_relaxed);
 
             DBG ("loadSingleSample success: midi=" << targetMidi
                  << " vel=" << targetVel
+                 << " tech=" << technique
                  << " mode=" << (doMerge ? "merge_rr" : "replace")
                  << " cells=" << (int) next->cells.size()
                  << " v" << next->version);
+
+            // v1.14.0: auto-grow technique_count if this single-sample load
+            // landed on a slot beyond the current count. Same rationale as
+            // applyFolderLoad — keeps the technique tab strip visible.
+            const int requiredCount = juce::jlimit (1, 8, technique + 1);
+            auto& apvts = self->parameters;
+            if (auto* tcParam = apvts.getParameter ("technique_count"))
+            {
+                const int currentCount = juce::jlimit (1, 8,
+                    (int) apvts.getRawParameterValue ("technique_count")->load());
+                if (requiredCount > currentCount)
+                {
+                    const auto range = apvts.getParameterRange ("technique_count");
+                    tcParam->setValueNotifyingHost (range.convertTo0to1 ((float) requiredCount));
+                    self->techniqueStateDirty.store (true, std::memory_order_release);
+                    self->triggerAsyncUpdate();
+                }
+            }
 
             if (self->sampleMapChangedCallback)
                 self->sampleMapChangedCallback();
@@ -1147,8 +1349,11 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
                                                             int loopEnd,
                                                             int crossfadeLen,
                                                             bool resetToAutoDetect,
-                                                            int variantIndex)
+                                                            int variantIndex,
+                                                            int technique)
 {
+    technique = juce::jlimit (0, kMaxTechniques - 1, technique);
+
    #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
     auto current = std::atomic_load (&currentSampleMap);
    #else
@@ -1161,11 +1366,15 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
         return;
     }
 
-    const auto* foundCell = current->findCell (midiPitch, velocityLayer);
-    if (foundCell == nullptr || foundCell->variants.empty())
+    // v1.14.0: triplet lookup. The (midi, vel, tech) cell either exists or
+    // it doesn't — overrideLoopPoints does NOT fall through to tech=0 (the
+    // user is editing a specific technique slot's loop region).
+    const auto* foundCell = current->findCell (midiPitch, velocityLayer, technique);
+    if (foundCell == nullptr || foundCell->variants.empty()
+        || foundCell->technique != technique)
     {
         DBG ("overrideLoopPoints: cell absent (midi=" << midiPitch
-             << " vel=" << velocityLayer << ")");
+             << " vel=" << velocityLayer << " tech=" << technique << ")");
         return;
     }
 
@@ -1174,7 +1383,9 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
     SampleCell* targetCell = nullptr;
     for (auto& c : next->cells)
     {
-        if (c.midiNote == midiPitch && c.velocityLayer == velocityLayer)
+        if (c.midiNote == midiPitch
+            && c.velocityLayer == velocityLayer
+            && c.technique == technique)
         {
             targetCell = &c;
             break;
@@ -1256,11 +1467,13 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
 
 void OMicrotonalSamplerAudioProcessor::resetLoopToAutoDetect (int midiPitch,
                                                                int velocityLayer,
-                                                               int variantIndex)
+                                                               int variantIndex,
+                                                               int technique)
 {
     overrideLoopPoints (midiPitch, velocityLayer, 0, 0, 0,
                         /*resetToAutoDetect*/ true,
-                        variantIndex);
+                        variantIndex,
+                        technique);
 }
 
 //==============================================================================
@@ -1370,6 +1583,7 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
         json << "{"
              << "\"midiNote\":"      << c.midiNote
              << ",\"velocityLayer\":" << c.velocityLayer
+             << ",\"technique\":"    << c.technique          // v1.14.0
              << ",\"variants\":[";
 
         bool firstVar = true;
@@ -1447,8 +1661,11 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
 juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPitch,
                                                                       int velocityLayer,
                                                                       int targetBins,
-                                                                      int variantIndex) const
+                                                                      int variantIndex,
+                                                                      int technique) const
 {
+    technique = juce::jlimit (0, kMaxTechniques - 1, technique);
+
    #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
     auto map = std::atomic_load (&currentSampleMap);
    #else
@@ -1469,7 +1686,10 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
     if (map == nullptr)
         return "{}";
 
-    const auto* cell = map->findCell (midiPitch, velocityLayer);
+    // v1.14.0: triplet lookup. Falls back to technique=0 when slot is empty
+    // so the loop-editor preview keeps rendering even after a user clicks
+    // an "ord" cell while a different technique tab is active in the UI.
+    const auto* cell = map->findCell (midiPitch, velocityLayer, technique);
     if (cell == nullptr || cell->variants.empty())
         return "{}";
 
@@ -1548,6 +1768,69 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
 }
 
 //==============================================================================
+// v1.14.0 — technique vocabulary helpers.
+//
+// Names live outside APVTS (string params are clumsy and don't surface to
+// the host nicely). We persist them via the state ValueTree's <Techniques>
+// child instead. Default vocabulary mirrors the curated list from the plan
+// (RF-1 / D2-7) so single-technique back-compat libraries see "ord" as the
+// default name for slot 0.
+juce::StringArray OMicrotonalSamplerAudioProcessor::getTechniqueNames() const
+{
+    return techniqueNames;
+}
+
+void OMicrotonalSamplerAudioProcessor::setTechniqueName (int index, const juce::String& name)
+{
+    if (index < 0 || index >= 8)
+        return;
+    if (name.trim().isEmpty())
+        return;
+
+    while (techniqueNames.size() <= index)
+        techniqueNames.add ("ord");
+
+    techniqueNames.set (index, name.trim());
+
+    techniqueStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+void OMicrotonalSamplerAudioProcessor::resetTechniqueNames()
+{
+    techniqueNames.clearQuick();
+    techniqueNames.add ("ord");
+    techniqueNames.add ("sp");
+    techniqueNames.add ("st");
+    techniqueNames.add ("sv");
+    techniqueNames.add ("cs");
+    techniqueNames.add ("pizz");
+    techniqueNames.add ("harm");
+    techniqueNames.add ("mart");
+
+    techniqueStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+void OMicrotonalSamplerAudioProcessor::setActiveTechnique (int technique)
+{
+    technique = juce::jlimit (0, 7, technique);
+
+    pendingTechniqueIndex.store (technique, std::memory_order_release);
+
+    // Mirror onto APVTS so automation / project save round-trips. Routes
+    // through setValueNotifyingHost so listeners (host UI, sliders) update.
+    if (auto* sp = parameters.getParameter ("technique_select"))
+    {
+        const auto range = parameters.getParameterRange ("technique_select");
+        sp->setValueNotifyingHost (range.convertTo0to1 ((float) technique));
+    }
+
+    techniqueStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+//==============================================================================
 juce::AudioProcessorEditor* OMicrotonalSamplerAudioProcessor::createEditor()
 {
     return new OMicrotonalSamplerAudioProcessorEditor (*this);
@@ -1583,6 +1866,12 @@ namespace
     constexpr const char* kSampleFoldersTag = "SampleFolders";  // v1.6.0 op-list container
     constexpr const char* kSampleFolderOpTag = "Op";            // v1.6.0 child element
     constexpr const char* kTuningStateTag   = "TuningState";
+
+    // v1.14.0: <TechniqueNames><Slot index="0" name="ord"/>…</TechniqueNames>
+    // Sparse child list (only populated slots emitted) so old sessions with no
+    // child decode cleanly back to the default vocab.
+    constexpr const char* kTechniqueNamesTag = "TechniqueNames";
+    constexpr const char* kTechniqueSlotTag  = "Slot";
 
     // v1.12.0: <Audio><Cell><Variant/></Cell></Audio> sub-tree under each <Op>
     // when the op was loaded with embedAudio=true. Stores per-variant audio
@@ -1938,7 +2227,8 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
         auto child = root.getChild (i);
         if (child.hasType (kSampleFolderTag)
             || child.hasType (kSampleFoldersTag)
-            || child.hasType (kTuningStateTag))
+            || child.hasType (kTuningStateTag)
+            || child.hasType (kTechniqueNamesTag))     // v1.14.0
             root.removeChild (i, nullptr);
     }
 
@@ -2005,6 +2295,22 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
 
     // TuningState — full engine snapshot.
     root.appendChild (captureTuningValueTree (tuningEngine), nullptr);
+
+    // v1.14.0 — technique vocabulary. Only the names need persistence — the
+    // count / KS range / active-select are APVTS params and round-trip via
+    // <PARAM> children automatically.
+    {
+        juce::ValueTree names (kTechniqueNamesTag);
+        for (int i = 0; i < techniqueNames.size(); ++i)
+        {
+            juce::ValueTree slot (kTechniqueSlotTag);
+            slot.setProperty ("index", i, nullptr);
+            slot.setProperty ("name",  techniqueNames[i], nullptr);
+            names.appendChild (slot, nullptr);
+        }
+        root.appendChild (names, nullptr);
+    }
+
     return root;
 }
 
@@ -2021,6 +2327,40 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     auto tuningTree = root.getChildWithName (kTuningStateTag);
     if (tuningTree.isValid())
         restoreTuningFromValueTree (tuningEngine, tuningTree);
+
+    // 2b. v1.14.0 — technique vocabulary. Default is already seeded by the
+    // ctor (resetTechniqueNames); only override the slots that the saved
+    // tree actually carries. v1.13.0 sessions have no <TechniqueNames>
+    // child, so the default vocab survives the restore — the back-compat
+    // contract from the plan.
+    auto techNamesTree = root.getChildWithName (kTechniqueNamesTag);
+    if (techNamesTree.isValid())
+    {
+        for (int i = 0; i < techNamesTree.getNumChildren(); ++i)
+        {
+            const auto slot = techNamesTree.getChild (i);
+            if (! slot.hasType (kTechniqueSlotTag)) continue;
+            const int  idx  = juce::jlimit (0, 7,
+                                  static_cast<int> (slot.getProperty ("index", 0)));
+            const auto name = slot.getProperty ("name").toString();
+            if (name.isNotEmpty())
+            {
+                while (techniqueNames.size() <= idx)
+                    techniqueNames.add ("ord");
+                techniqueNames.set (idx, name);
+            }
+        }
+        techniqueStateDirty.store (true, std::memory_order_release);
+        triggerAsyncUpdate();
+    }
+
+    // 2c. v1.14.0 — sync the audio-thread cursor to the restored
+    // technique_select APVTS value. processBlock's atomic mirroring stays
+    // in lockstep with APVTS once a note plays, but we want the cursor
+    // already correct before the very first post-restore note-on.
+    if (auto* tp = parameters.getRawParameterValue ("technique_select"))
+        pendingTechniqueIndex.store (juce::jlimit (0, 7, (int) tp->load()),
+                                     std::memory_order_release);
 
     // 3. Sample folders — async via SampleLoader, sequenced via the replay
     //    queue so ops 0..N-1 are applied in order (preserves the user's

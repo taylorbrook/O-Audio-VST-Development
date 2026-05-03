@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.13.0"
+    VERSION "1.14.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -209,6 +209,65 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/drop_session_guard_check.cpp
         # v1.13.0: DropSessionGuard.h moved to the shared module.
         ${CMAKE_SOURCE_DIR}/modules/core/webview-drop-streaming/cpp)
     target_compile_definitions(O-MicrotonalSampler_DropSessionGuardCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.14.0 — Playing techniques regression tests.
+# Three EXCLUDE_FROM_ALL standalone executables that exercise:
+#   * FilenameParser technique-token recognition (substring rejection,
+#     case-insensitivity, coexistence with note/velocity/RR).
+#   * SampleMap::findCell triplet keying + technique=0 fallback.
+#   * State-migration contract — v1.13.0 sessions decode cleanly,
+#     curated default vocab seeded by the processor ctor survives.
+#
+# Build all three:
+#     ninja O-MicrotonalSampler_TechniqueParseCheck \
+#           O-MicrotonalSampler_FindCellTripletCheck \
+#           O-MicrotonalSampler_StateMigrationCheck
+# Each returns exit code = number of failed assertions.
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/technique_parse_check.cpp")
+    add_executable(O-MicrotonalSampler_TechniqueParseCheck EXCLUDE_FROM_ALL
+        Source/tests/technique_parse_check.cpp
+        Source/FilenameParser.cpp)
+    target_link_libraries(O-MicrotonalSampler_TechniqueParseCheck PRIVATE
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_TechniqueParseCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_TechniqueParseCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/find_cell_triplet_check.cpp")
+    add_executable(O-MicrotonalSampler_FindCellTripletCheck EXCLUDE_FROM_ALL
+        Source/tests/find_cell_triplet_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_FindCellTripletCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_formats
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_compile_definitions(O-MicrotonalSampler_FindCellTripletCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/state_migration_check.cpp")
+    add_executable(O-MicrotonalSampler_StateMigrationCheck EXCLUDE_FROM_ALL
+        Source/tests/state_migration_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_StateMigrationCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_formats
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_events
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_compile_definitions(O-MicrotonalSampler_StateMigrationCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()

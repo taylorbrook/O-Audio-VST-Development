@@ -191,10 +191,13 @@ namespace
 
     // v1.8.0: per-file scratch struct used during folder enumeration. Holds
     // the variant payload + addressing key + RR token (or -1 sentinel).
+    // v1.14.0: technique field added (resolved by the loader from the parser
+    // output + LoadOptions::overrideTechnique).
     struct LoadedFile
     {
         int           midiNote      = -1;
         int           velocityLayer = 0;
+        int           technique     = 0;
         int           rrIndex       = -1;
         SampleVariant variant;
     };
@@ -284,6 +287,16 @@ void SampleLoader::run()
             ? juce::jlimit (0, 3, folderOptions.targetLayer)
             : parsed->velLayer;
 
+        // v1.14.0: technique resolution. overrideTechnique forces every slot
+        // onto LoadOptions::targetTechnique (used by the "assign folder to
+        // technique" UI). Otherwise the parser token wins; missing token
+        // (techniqueIndex == -1) defaults to slot 0 ("ord") so pre-1.14.0
+        // libraries land on the back-compat default.
+        const int parsedTech = (parsed->techniqueIndex < 0) ? 0 : parsed->techniqueIndex;
+        const int effectiveTechnique = folderOptions.overrideTechnique
+            ? juce::jlimit (0, kMaxTechniques - 1, folderOptions.targetTechnique)
+            : juce::jlimit (0, kMaxTechniques - 1, parsedTech);
+
         SampleVariant variant;
         juce::String  skipReason;
         if (! processOneFile (file, targetSampleRate, formatManager,
@@ -296,6 +309,7 @@ void SampleLoader::run()
 
         loaded.push_back ({ parsed->midiNote,
                             effectiveVelLayer,
+                            effectiveTechnique,
                             parsed->rrIndex,
                             std::move (variant) });
     }
@@ -321,16 +335,24 @@ void SampleLoader::run()
     // v1.8.0: group by (midiNote, velocityLayer) — each group becomes one
     // cell. Detect ambiguity: groups with > 1 file AND zero rr/take/tk
     // tokens surface as AmbiguousDuplicate entries.
+    //
+    // v1.14.0: key extended to (midi, layer, technique). Two files at the
+    // same (midi, layer) with DIFFERENT techniques no longer collide — they
+    // land in two distinct cells, one per technique slot. The encoded key
+    // packs `midi[7] | layer[2] | technique[3]` into 12 bits — well within
+    // a signed int.
     // ----------------------------------------------------------------
-    auto encodeKey = [] (int midi, int layer) -> int
+    auto encodeKey = [] (int midi, int layer, int tech) -> int
     {
-        return (juce::jlimit (0, 127, midi) << 4) | juce::jlimit (0, 3, layer);
+        return  (juce::jlimit (0, 127, midi)             << 5)
+              | (juce::jlimit (0, 3,   layer)            << 3)
+              |  juce::jlimit (0, kMaxTechniques - 1, tech);
     };
 
     std::vector<int> groupKeys;
     groupKeys.reserve (loaded.size());
     for (const auto& lf : loaded)
-        groupKeys.push_back (encodeKey (lf.midiNote, lf.velocityLayer));
+        groupKeys.push_back (encodeKey (lf.midiNote, lf.velocityLayer, lf.technique));
 
     std::vector<int> uniqueKeys = groupKeys;
     std::sort (uniqueKeys.begin(), uniqueKeys.end());
@@ -355,8 +377,9 @@ void SampleLoader::run()
         if (idxs.empty())
             continue;
 
-        const int midi  = loaded[(size_t) idxs[0]].midiNote;
-        const int layer = loaded[(size_t) idxs[0]].velocityLayer;
+        const int midi      = loaded[(size_t) idxs[0]].midiNote;
+        const int layer     = loaded[(size_t) idxs[0]].velocityLayer;
+        const int technique = loaded[(size_t) idxs[0]].technique;
 
         // Detect explicit RR vs ambiguous.
         bool anyExplicitRr = false;
@@ -375,6 +398,7 @@ void SampleLoader::run()
             AmbiguousDuplicate dup;
             dup.midiNote      = midi;
             dup.velocityLayer = layer;
+            dup.technique     = technique;     // v1.14.0
             for (int i : idxs)
                 dup.filenames.add (loaded[(size_t) i].variant.filename);
             ambiguous.push_back (std::move (dup));
@@ -395,6 +419,7 @@ void SampleLoader::run()
         SampleCell cell;
         cell.midiNote      = midi;
         cell.velocityLayer = layer;
+        cell.technique     = technique;     // v1.14.0
         cell.variants.reserve (idxs.size());
         for (int i : idxs)
             cell.variants.push_back (std::move (loaded[(size_t) i].variant));

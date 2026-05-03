@@ -1316,3 +1316,148 @@ body {
 .rr-confirm-filename-list > li {
     padding: 1px 0;
 }
+
+/* ====================================================================
+ * v1.14.0 — Playing Techniques tab strip + KS picker
+ * ====================================================================
+ *
+ * Visible only when the user has expanded beyond a single technique slot
+ * (collapsed when technique_count==1 and ks_enabled==false → matches the
+ * v1.13.0 visual contract for back-compat sessions).
+ */
+
+.technique-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+    padding: 8px 10px;
+    margin-bottom: var(--gap-md);
+    background: rgba(255, 248, 220, 0.18);
+    border: 1px solid var(--border-warm);
+    border-radius: 6px;
+}
+
+.technique-bar.hidden {
+    display: none;
+}
+
+.technique-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.tech-tab {
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--bg-cream);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-warm);
+    padding: 4px 12px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+}
+
+.tech-tab:hover {
+    background: #FAF0E6;
+    color: var(--text-primary);
+}
+
+.tech-tab.active {
+    background: var(--accent-gold);
+    color: #FFFFFF;
+    border-color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.tech-tab.empty {
+    opacity: 0.55;
+    font-style: italic;
+}
+
+.technique-control {
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    border: 1px solid var(--border-warm);
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.technique-control:hover:not([disabled]) {
+    background: #FAF0E6;
+}
+
+.technique-control[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.technique-ks-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.ks-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ks-range-sep {
+    color: var(--text-muted);
+}
+
+.ks-range-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+.ks-range-label > input[type="number"] {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    width: 56px;
+    padding: 2px 4px;
+    border: 1px solid var(--border-warm);
+    border-radius: 3px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    font-size: 12px;
+    font-style: normal;
+}
+
+.technique-ks-controls.disabled .ks-range-label {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* Rename modal input. */
+#technique-rename-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    font-family: inherit;
+    font-size: 14px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}

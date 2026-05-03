@@ -45,7 +45,14 @@ public:
     // Index = midi * 4 + layer. Sentinel value 0xFF = "no variant yet"
     // (cleared by processor on ReplaceAll); both Cycle and RandomNoRepeat
     // interpret it as a no-exclusion start.
-    static constexpr int kRrCounterSize = 128 * 4;
+    //
+    // v1.14.0: technique axis. The counter array now holds
+    // 128 × 4 × kMaxTechniques (= 4096) entries to give every
+    // (midi, layer, technique) cell its own RR cursor — counters from
+    // different techniques must not interfere when the user switches
+    // between them mid-session. Index =
+    //     midi * 4 * kMaxTechniques + layer * kMaxTechniques + technique.
+    static constexpr int kRrCounterSize = 128 * 4 * 8;   // 4096
     using RrCounterArray = std::array<std::atomic<uint8_t>, (size_t) kRrCounterSize>;
 
     // v1.8.0: per-cell variant cap. The counter type above is uint8_t with
@@ -91,12 +98,20 @@ public:
     void setSampleMapSource     (std::shared_ptr<SampleMap>* src)       { sampleMapSource = src; }
     void setRrCounterArray      (RrCounterArray* a)                     { rrCounters = a; }
 
+    // v1.14.0: pointer to the processor's atomic technique-select cursor. The
+    // audio thread loads the cursor at startNote (memory_order_acquire) and
+    // pairs that with the SampleMap snapshot to resolve the cell triplet.
+    // KS / CC / PC events on the audio thread store into the same atomic.
+    void setPendingTechniqueSource (std::atomic<int>* src)              { pendingTechniqueSource = src; }
+
 private:
-    juce::AudioProcessorValueTreeState*           parameters          = nullptr;
-    TuningEngine*                                 tuningEngine        = nullptr;
-    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
-    std::shared_ptr<SampleMap>*                   sampleMapSource     = nullptr;
-    RrCounterArray*                               rrCounters          = nullptr;
+    juce::AudioProcessorValueTreeState*           parameters             = nullptr;
+    TuningEngine*                                 tuningEngine           = nullptr;
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource    = nullptr;
+    std::shared_ptr<SampleMap>*                   sampleMapSource        = nullptr;
+    RrCounterArray*                               rrCounters             = nullptr;
+    std::atomic<int>*                             pendingTechniqueSource = nullptr;   // v1.14.0
+    int                                           startTechnique         = 0;         // captured at startNote
 
     // v1.11.3: cached ADSR atomic pointers. Resolved once in prepareToPlay so
     // startNote does not deref the result of getRawParameterValue without a

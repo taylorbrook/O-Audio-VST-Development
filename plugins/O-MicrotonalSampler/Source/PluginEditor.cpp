@@ -197,6 +197,17 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                 "folderMissing", juce::var (obj));
         });
 
+    // v1.14.0: subscribe to technique-state changes (vocab rename, count
+    // change, KS toggle, MIDI keyswitch event). The JS layer polls
+    // getTechniqueState on the resulting event to refresh the tab strip.
+    processorRef.setTechniqueStateChangedCallback (
+        [this]
+        {
+            if (webView != nullptr)
+                webView->emitEventIfBrowserIsVisible (
+                    "techniqueStateUpdated", juce::var (true));
+        });
+
     // v1.8.0: subscribe to ambiguous-duplicate callback. The folder loader
     // detected (midi, layer) groups with > 1 file but no rr/take/tk tokens —
     // surface a confirmation modal in the WebView. Payload is a JSON array
@@ -214,6 +225,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                 auto* obj = new juce::DynamicObject();
                 obj->setProperty ("midiNote",      d.midiNote);
                 obj->setProperty ("velocityLayer", d.velocityLayer);
+                obj->setProperty ("technique",     d.technique);    // v1.14.0
                 juce::var fnArr (juce::Array<juce::var>{});
                 auto* fa = fnArr.getArray();
                 for (const auto& s : d.filenames)
@@ -253,6 +265,7 @@ OMicrotonalSamplerAudioProcessorEditor::~OMicrotonalSamplerAudioProcessorEditor(
     processorRef.setSampleMapChangedCallback (nullptr);
     processorRef.setMissingFolderCallback (nullptr);
     processorRef.setAmbiguousDuplicateCallback (nullptr);   // v1.8.0
+    processorRef.setTechniqueStateChangedCallback (nullptr); // v1.14.0
     // unique_ptr members destroy in reverse declaration order:
     //   attachments (each calls evaluateJavascript on webView during dtor)
     //   webView
@@ -1050,6 +1063,14 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     const int  midi      = static_cast<int> (args[0]);
                     const int  vel       = static_cast<int> (args[1]);
                     const bool mergeAsRr = args.size() > 2 && static_cast<bool> (args[2]);
+                    // v1.14.0: optional technique slot (default = current
+                    // active technique). The active technique mirrors what
+                    // the user sees as the highlighted tab in the UI; if the
+                    // JS layer doesn't pass an explicit slot, we route the
+                    // load to wherever the user is editing.
+                    const int  technique = args.size() > 3
+                        ? juce::jlimit (0, 7, static_cast<int> (args[3]))
+                        : processorRef.getActiveTechnique();
 
                     // Heap-allocate the FileChooser via shared_ptr so the
                     // launchAsync lambda can keep it alive until the user
@@ -1068,7 +1089,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     // Capture chooser by value so its lifetime extends past
                     // the launch returning. Capture `complete` so JS resolves.
                     chooser->launchAsync (flags,
-                        [this, chooser, midi, vel, mergeAsRr, complete]
+                        [this, chooser, midi, vel, mergeAsRr, technique, complete]
                             (const juce::FileChooser& fc) mutable
                         {
                             const auto results = fc.getResults();
@@ -1090,6 +1111,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
 
                             DBG ("loadSingleSampleDialog: midi=" << midi
                                  << " vel=" << vel
+                                 << " tech=" << technique
                                  << " mergeAsRr=" << (int) mergeAsRr
                                  << " file=" << file.getFullPathName());
 
@@ -1100,7 +1122,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             // lambda). JS resolves immediately with `true` to
                             // unblock the await — the visual update arrives
                             // via the push event.
-                            processorRef.loadSingleSample (midi, vel, file, mergeAsRr);
+                            processorRef.loadSingleSample (midi, vel, file, mergeAsRr, technique);
                             complete (juce::var (true));
                         });
                 }
@@ -1153,10 +1175,15 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     const int variantIdx = (args.size() >= 6)
                                               ? static_cast<int> (args[5])
                                               : -1;   // v1.8.0: -1 = primary
+                    // v1.14.0: optional technique slot (default = current
+                    // active technique).
+                    const int technique = (args.size() >= 7)
+                        ? juce::jlimit (0, 7, static_cast<int> (args[6]))
+                        : processorRef.getActiveTechnique();
 
                     processorRef.overrideLoopPoints (midi, vel, loopStart, loopEnd,
                                                      xfade, /*resetToAutoDetect*/ false,
-                                                     variantIdx);
+                                                     variantIdx, technique);
                     complete (juce::var (true));
                 }
         },
@@ -1183,8 +1210,12 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     const int variantIdx = (args.size() >= 3)
                                               ? static_cast<int> (args[2])
                                               : -1;   // v1.8.0: -1 = primary
+                    // v1.14.0: optional technique slot.
+                    const int technique = (args.size() >= 4)
+                        ? juce::jlimit (0, 7, static_cast<int> (args[3]))
+                        : processorRef.getActiveTechnique();
 
-                    processorRef.resetLoopToAutoDetect (midi, vel, variantIdx);
+                    processorRef.resetLoopToAutoDetect (midi, vel, variantIdx, technique);
                     complete (juce::var (true));
                 }
         },
@@ -1215,9 +1246,13 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     const int variantIdx = (args.size() >= 4)
                                               ? static_cast<int> (args[3])
                                               : 0;   // v1.8.0: default to primary
+                    // v1.14.0: optional technique slot.
+                    const int technique = (args.size() >= 5)
+                        ? juce::jlimit (0, 7, static_cast<int> (args[4]))
+                        : processorRef.getActiveTechnique();
 
                     complete (juce::var (
-                        processorRef.snapshotWaveformPeaks (midi, vel, bins, variantIdx)));
+                        processorRef.snapshotWaveformPeaks (midi, vel, bins, variantIdx, technique)));
                 }
         },
 
@@ -1729,6 +1764,171 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             }
                             complete (juce::var (false));
                         });
+                }
+        },
+
+        // ============================================================
+        // v1.14.0 — Playing Techniques bridge (engine + KS slice)
+        // ============================================================
+        //
+        // The technique vocabulary lives in PluginProcessor (string list +
+        // atomic active-cursor + APVTS-mirrored params). These natives
+        // surface read/write access to the WebView UI: tab-strip render,
+        // tab-click selection, slot rename, and KS toggle / range edits.
+        //
+        // The KS toggle / range numbers are APVTS params (ks_enabled,
+        // ks_low_note, ks_high_note) so they round-trip through the
+        // standard parameter machinery — JS reads them via the existing
+        // Juce.getSliderState path; only writes go through native fns
+        // because we want the technique callback to fire for UI repaints.
+
+        // ---- getTechniqueState() — current vocab + active cursor ----
+        // Returns: { names: ["ord","sp",…], active: <int>,
+        //            ksEnabled: bool, ksLow: int, ksHigh: int,
+        //            count: int }
+        { "getTechniqueState",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* obj = new juce::DynamicObject();
+                    juce::var arr (juce::Array<juce::var>{});
+                    auto* a = arr.getArray();
+                    for (const auto& n : processorRef.getTechniqueNames())
+                        a->add (juce::var (n));
+                    obj->setProperty ("names",  arr);
+                    obj->setProperty ("active", processorRef.getActiveTechnique());
+
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* p = apvts.getRawParameterValue ("technique_count"))
+                        obj->setProperty ("count", (int) p->load());
+                    if (auto* p = apvts.getRawParameterValue ("ks_enabled"))
+                        obj->setProperty ("ksEnabled", (p->load() > 0.5f));
+                    if (auto* p = apvts.getRawParameterValue ("ks_low_note"))
+                        obj->setProperty ("ksLow", (int) p->load());
+                    if (auto* p = apvts.getRawParameterValue ("ks_high_note"))
+                        obj->setProperty ("ksHigh", (int) p->load());
+
+                    complete (juce::var (obj));
+                }
+        },
+
+        // ---- setActiveTechnique(index) ----
+        { "setActiveTechnique",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1) { complete (juce::var (false)); return; }
+                    processorRef.setActiveTechnique (static_cast<int> (args[0]));
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- setTechniqueName(index, name) ----
+        { "setTechniqueName",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 2) { complete (juce::var (false)); return; }
+                    processorRef.setTechniqueName (static_cast<int>    (args[0]),
+                                                    args[1].toString());
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- resetTechniqueNames() — reset all 8 to default vocabulary ----
+        { "resetTechniqueNames",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    processorRef.resetTechniqueNames();
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- addTechniqueSlot() — increase technique_count by 1 (cap 8) ----
+        // Routes through the APVTS so the change persists with project state.
+        { "addTechniqueSlot",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* cp = apvts.getParameter ("technique_count"))
+                    {
+                        const auto range = apvts.getParameterRange ("technique_count");
+                        const int  cur   = juce::jlimit (1, 8,
+                            (int) apvts.getRawParameterValue ("technique_count")->load());
+                        const int  next  = juce::jmin (8, cur + 1);
+                        cp->setValueNotifyingHost (range.convertTo0to1 ((float) next));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- removeTechniqueSlot(index) ----
+        // Lowers technique_count by 1 (floor 1). Cells in the dropped slot
+        // are NOT erased — the cell's variants survive in the SampleMap
+        // and the user can recover them by raising the count back. Active
+        // technique is clamped to the new max if necessary.
+        { "removeTechniqueSlot",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* cp = apvts.getParameter ("technique_count"))
+                    {
+                        const auto range = apvts.getParameterRange ("technique_count");
+                        const int  cur   = juce::jlimit (1, 8,
+                            (int) apvts.getRawParameterValue ("technique_count")->load());
+                        const int  next  = juce::jmax (1, cur - 1);
+                        cp->setValueNotifyingHost (range.convertTo0to1 ((float) next));
+                        if (processorRef.getActiveTechnique() >= next)
+                            processorRef.setActiveTechnique (next - 1);
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- setKeyswitchEnabled(bool) / setKeyswitchRange(low, high) ----
+        // Both wrap the APVTS params so changes survive project save. The
+        // first one also re-emits techniqueStateUpdated so the UI panel
+        // reflects the toggle without a separate poll.
+        { "setKeyswitchEnabled",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1) { complete (juce::var (false)); return; }
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* p = apvts.getParameter ("ks_enabled"))
+                    {
+                        p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        { "setKeyswitchRange",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 2) { complete (juce::var (false)); return; }
+                    auto& apvts = processorRef.getAPVTS();
+                    auto setIntParam = [&apvts] (const char* id, int v)
+                    {
+                        if (auto* p = apvts.getParameter (id))
+                        {
+                            const auto range = apvts.getParameterRange (id);
+                            p->setValueNotifyingHost (range.convertTo0to1 ((float) v));
+                        }
+                    };
+                    setIntParam ("ks_low_note",  juce::jlimit (0, 127, static_cast<int> (args[0])));
+                    setIntParam ("ks_high_note", juce::jlimit (0, 127, static_cast<int> (args[1])));
+                    complete (juce::var (true));
                 }
         },
     };

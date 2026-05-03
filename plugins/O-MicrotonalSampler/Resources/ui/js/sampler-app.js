@@ -469,6 +469,10 @@ function subscribeSampleMapUpdates() {
 // fresh load that produces skips; not on idle re-renders.
 let lastSkippedSignature = '';
 
+// v1.14.0: cache the most recent snapshot so technique-tab switches can
+// re-render the grid without a fresh pull from C++.
+let lastSampleMapSnapshot = null;
+
 function handleSampleMapSnapshot(payloadOrJson) {
     let snap;
     try {
@@ -482,6 +486,12 @@ function handleSampleMapSnapshot(payloadOrJson) {
     }
 
     if (!snap) return;
+    lastSampleMapSnapshot = snap;     // v1.14.0
+
+    // v1.14.0: refresh the technique tab strip's per-slot cell counts and
+    // empty-slot dimming whenever the map changes (folder load, single-cell
+    // load, clear). Render is cheap — one DOM rebuild for at most 8 buttons.
+    renderTechniqueBar();
 
     // ---- Issues disclosure + toast (Phase 3.3 Task 21) ----
     //
@@ -633,17 +643,30 @@ function renderGrid(snap) {
 
     // v1.8.0: prefer cells (multi-variant aware) but accept legacy slots
     // for back-compat in case any consumer is still feeding the old shape.
-    // Cells emit `{midiNote, velocityLayer, variants: [{filename, ...}]}`.
+    // Cells emit `{midiNote, velocityLayer, technique, variants: [...]}`.
     // Slots emit `{midiNote, velocityLayer, filename, variantCount?, ...}`
     // with `variantCount` carrying the cell's variant count (v1.8.0+).
+    //
+    // v1.14.0: filter cells by the active technique tab. Cells in other
+    // technique slots exist in the snapshot but are not visible in the
+    // grid until the user switches tabs. Falls back gracefully when the
+    // snapshot has no `technique` field (v1.13.0 in-memory contract).
+    const activeTech = techniqueState.active;
     const cellMap = new Map();
     if (Array.isArray(snap?.cells)) {
         for (const c of snap.cells) {
+            const t = Number.isFinite(c.technique) ? c.technique : 0;
+            if (t !== activeTech) continue;
             cellMap.set(`${c.midiNote}_${c.velocityLayer}`, c);
         }
     }
+    // The legacy `slots` array isn't technique-aware. We only fall through
+    // to it when the cells map is empty AND the active technique is 0 —
+    // that way single-technique back-compat libraries still render via the
+    // legacy path while multi-technique sessions never see ghost slots
+    // bleeding from another technique.
     const slotMap = new Map();
-    if (Array.isArray(snap?.slots)) {
+    if (cellMap.size === 0 && activeTech === 0 && Array.isArray(snap?.slots)) {
         for (const s of snap.slots) {
             slotMap.set(`${s.midiNote}_${s.velocityLayer}`, s);
         }
@@ -669,8 +692,16 @@ function renderGrid(snap) {
 
             // v1.1.0: Tooltip = "<filename | Empty> · <NoteName>(<midi>) · Vel <lo>–<hi>"
             // v1.8.0: multi-variant cells list every variant filename.
+            // v1.14.0: tooltip includes the active technique slot name when
+            // the user has expanded beyond the default single slot — that's
+            // the visible signal that a load auto-routed to a non-`ord` slot.
             const noteLabel = `${midiToNoteName(midi)} (${midi})`;
             const velLabel  = `Vel ${velRange.label}`;
+            const techName  = techniqueState.names[activeTech]
+                              || `slot ${activeTech + 1}`;
+            const techLabel = (techniqueState.count > 1)
+                                ? ` · tech: ${techName}`
+                                : '';
             const cellEntry = cellMap.get(`${midi}_${layer}`);
             const slot = slotMap.get(`${midi}_${layer}`);
 
@@ -683,11 +714,11 @@ function renderGrid(snap) {
                     const list = cellEntry.variants
                         .map((v, i) => `  ${i + 1}. ${v.filename || '(unnamed)'}`)
                         .join('\n');
-                    cell.title = `${head}\n${list}\n${noteLabel} · ${velLabel}`;
+                    cell.title = `${head}\n${list}\n${noteLabel} · ${velLabel}${techLabel}`;
                     cell.dataset.variantCount = String(variantCount);
                 } else {
                     const head = cellEntry.variants[0].filename || 'Loaded';
-                    cell.title = `${head} · ${noteLabel} · ${velLabel}`;
+                    cell.title = `${head} · ${noteLabel} · ${velLabel}${techLabel}`;
                 }
             } else if (slot) {
                 cell.classList.add('cell-loaded');
@@ -2358,12 +2389,258 @@ async function pullPendingMissingFolder () {
 // ============================================================================
 // Boot
 // ============================================================================
+// ============================================================================
+// v1.14.0 — Playing Techniques tab strip + KS picker
+// ============================================================================
+//
+// Single-file feature scope: rendering, native-fn bridging, KS edit, rename
+// modal. State is mirrored from the C++ side — every render reads the
+// authoritative `getTechniqueState()` snapshot and never trusts a stale local
+// copy. The panel hides itself when the user has not opted in (count==1 AND
+// ks_enabled==false) so the v1.13.0 visual contract survives untouched.
+
+const techniqueState = {
+    names: [],
+    active: 0,
+    count: 1,
+    ksEnabled: false,
+    ksLow: 0,
+    ksHigh: 9,
+};
+
+async function pullTechniqueState() {
+    if (!window.__JUCE__) return;
+    try {
+        const fn = Juce.getNativeFunction('getTechniqueState');
+        const result = await fn();
+        const obj = (typeof result === 'string') ? JSON.parse(result) : result;
+        if (!obj) return;
+
+        const prevActive = techniqueState.active;
+
+        techniqueState.names     = Array.isArray(obj.names) ? obj.names.slice() : [];
+        techniqueState.active    = Number.isFinite(obj.active)    ? obj.active    : 0;
+        techniqueState.count     = Number.isFinite(obj.count)     ? obj.count     : 1;
+        techniqueState.ksEnabled = !!obj.ksEnabled;
+        techniqueState.ksLow     = Number.isFinite(obj.ksLow)     ? obj.ksLow     : 0;
+        techniqueState.ksHigh    = Number.isFinite(obj.ksHigh)    ? obj.ksHigh    : 9;
+
+        renderTechniqueBar();
+
+        // Active-technique change → re-render the grid against the cached
+        // snapshot so cells from the new technique slot appear immediately.
+        if (prevActive !== techniqueState.active && lastSampleMapSnapshot) {
+            renderGrid(lastSampleMapSnapshot);
+        }
+    } catch (err) {
+        console.warn('[sampler-app] pullTechniqueState failed', err);
+    }
+}
+
+function subscribeTechniqueStateUpdates() {
+    if (!window.__JUCE__) return;
+    window.__JUCE__.backend.addEventListener('techniqueStateUpdated', () => {
+        pullTechniqueState();
+    });
+}
+
+function renderTechniqueBar() {
+    const bar = document.getElementById('technique-bar');
+    if (!bar) return;
+
+    // Visibility: stay collapsed until the user has either grown beyond a
+    // single technique slot OR enabled keyswitches. Matches the back-compat
+    // contract.
+    const expanded = techniqueState.count > 1 || techniqueState.ksEnabled;
+    bar.classList.toggle('hidden', !expanded);
+
+    // Per-slot cell counts derived from the cached snapshot. Used to
+    // surface "where did my files go?" feedback on the tab strip and to
+    // dim empty slots.
+    const cellCountsByTech = new Array(8).fill(0);
+    if (lastSampleMapSnapshot && Array.isArray(lastSampleMapSnapshot.cells)) {
+        for (const c of lastSampleMapSnapshot.cells) {
+            const t = Number.isFinite(c.technique) ? c.technique : 0;
+            if (t >= 0 && t < 8) cellCountsByTech[t]++;
+        }
+    }
+
+    // Tabs
+    const tabs = document.getElementById('technique-tabs');
+    if (tabs) {
+        tabs.innerHTML = '';
+        for (let i = 0; i < techniqueState.count; ++i) {
+            const name  = techniqueState.names[i] || `slot ${i + 1}`;
+            const count = cellCountsByTech[i];
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'tech-tab';
+            if (i === techniqueState.active) btn.classList.add('active');
+            if (count === 0) btn.classList.add('empty');
+            btn.dataset.tech = String(i);
+            btn.setAttribute('role', 'tab');
+            btn.setAttribute('aria-selected', i === techniqueState.active ? 'true' : 'false');
+            btn.title = count > 0
+                ? `Technique ${i + 1}: ${name} — ${count} cell${count === 1 ? '' : 's'} loaded  (right-click to rename)`
+                : `Technique ${i + 1}: ${name} — empty  (right-click to rename)`;
+            btn.textContent = count > 0 ? `${name} (${count})` : name;
+            tabs.appendChild(btn);
+        }
+    }
+
+    // Add / remove buttons
+    const addBtn = document.getElementById('technique-add');
+    const remBtn = document.getElementById('technique-remove');
+    if (addBtn) addBtn.disabled = techniqueState.count >= 8;
+    if (remBtn) remBtn.disabled = techniqueState.count <= 1;
+
+    // KS controls
+    const ksToggle = document.getElementById('technique-ks-enabled');
+    const ksLow    = document.getElementById('technique-ks-low');
+    const ksHigh   = document.getElementById('technique-ks-high');
+    const ksWrap   = document.getElementById('technique-ks-controls');
+    if (ksToggle) ksToggle.checked = techniqueState.ksEnabled;
+    if (ksLow)    ksLow.value      = String(techniqueState.ksLow);
+    if (ksHigh)   ksHigh.value     = String(techniqueState.ksHigh);
+    if (ksWrap)   ksWrap.classList.toggle('disabled', !techniqueState.ksEnabled);
+}
+
+let techniqueRenameTargetIndex = -1;
+
+function openTechniqueRenameDialog(index) {
+    if (index < 0 || index >= techniqueState.count) return;
+    techniqueRenameTargetIndex = index;
+    const dialog = document.getElementById('technique-rename-dialog');
+    const idxEl  = document.getElementById('technique-rename-index');
+    const input  = document.getElementById('technique-rename-input');
+    if (!dialog || !input) return;
+    if (idxEl) idxEl.textContent = String(index + 1);
+    input.value = techniqueState.names[index] || '';
+    dialog.hidden = false;
+    setTimeout(() => input.focus(), 0);
+}
+
+function closeTechniqueRenameDialog() {
+    const dialog = document.getElementById('technique-rename-dialog');
+    if (dialog) dialog.hidden = true;
+    techniqueRenameTargetIndex = -1;
+}
+
+async function commitTechniqueRename() {
+    const input = document.getElementById('technique-rename-input');
+    if (!input || techniqueRenameTargetIndex < 0) return;
+    const trimmed = input.value.trim();
+    if (!trimmed) {
+        closeTechniqueRenameDialog();
+        return;
+    }
+    if (window.__JUCE__) {
+        try {
+            const fn = Juce.getNativeFunction('setTechniqueName');
+            await fn(techniqueRenameTargetIndex, trimmed);
+        } catch (err) {
+            console.warn('[sampler-app] setTechniqueName failed', err);
+        }
+    }
+    closeTechniqueRenameDialog();
+}
+
+function bindTechniqueBar() {
+    const tabs = document.getElementById('technique-tabs');
+    if (tabs) {
+        tabs.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.tech-tab');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.tech, 10);
+            if (!Number.isFinite(idx)) return;
+            if (window.__JUCE__) {
+                const fn = Juce.getNativeFunction('setActiveTechnique');
+                await fn(idx);
+            } else {
+                techniqueState.active = idx;
+                renderTechniqueBar();
+            }
+        });
+        tabs.addEventListener('contextmenu', (e) => {
+            const btn = e.target.closest('.tech-tab');
+            if (!btn) return;
+            e.preventDefault();
+            const idx = parseInt(btn.dataset.tech, 10);
+            if (Number.isFinite(idx)) openTechniqueRenameDialog(idx);
+        });
+    }
+
+    const addBtn = document.getElementById('technique-add');
+    if (addBtn) {
+        addBtn.addEventListener('click', async () => {
+            if (window.__JUCE__) {
+                const fn = Juce.getNativeFunction('addTechniqueSlot');
+                await fn();
+            }
+        });
+    }
+
+    const remBtn = document.getElementById('technique-remove');
+    if (remBtn) {
+        remBtn.addEventListener('click', async () => {
+            if (window.__JUCE__ && techniqueState.count > 1) {
+                const fn = Juce.getNativeFunction('removeTechniqueSlot');
+                await fn(techniqueState.count - 1);
+            }
+        });
+    }
+
+    const ksToggle = document.getElementById('technique-ks-enabled');
+    if (ksToggle) {
+        ksToggle.addEventListener('change', async () => {
+            if (!window.__JUCE__) return;
+            const fn = Juce.getNativeFunction('setKeyswitchEnabled');
+            await fn(!!ksToggle.checked);
+        });
+    }
+
+    const commitKsRange = async () => {
+        if (!window.__JUCE__) return;
+        const ksLow  = document.getElementById('technique-ks-low');
+        const ksHigh = document.getElementById('technique-ks-high');
+        if (!ksLow || !ksHigh) return;
+        let lo = parseInt(ksLow.value,  10);
+        let hi = parseInt(ksHigh.value, 10);
+        if (!Number.isFinite(lo)) lo = 0;
+        if (!Number.isFinite(hi)) hi = 9;
+        lo = Math.max(0, Math.min(127, lo));
+        hi = Math.max(0, Math.min(127, hi));
+        if (hi < lo) hi = lo;
+        const fn = Juce.getNativeFunction('setKeyswitchRange');
+        await fn(lo, hi);
+    };
+
+    const ksLow  = document.getElementById('technique-ks-low');
+    const ksHigh = document.getElementById('technique-ks-high');
+    if (ksLow)  ksLow.addEventListener('change',  commitKsRange);
+    if (ksHigh) ksHigh.addEventListener('change', commitKsRange);
+
+    // Rename modal — Save / Cancel + Enter / Escape
+    const saveBtn   = document.getElementById('technique-rename-save');
+    const cancelBtn = document.getElementById('technique-rename-cancel');
+    const input     = document.getElementById('technique-rename-input');
+    if (saveBtn)   saveBtn.addEventListener('click',   commitTechniqueRename);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeTechniqueRenameDialog);
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter')      { e.preventDefault(); commitTechniqueRename(); }
+            else if (e.key === 'Escape'){ e.preventDefault(); closeTechniqueRenameDialog(); }
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     bindTabs();
     bindSliders();
     subscribeSampleMapUpdates();
     subscribeFolderMissingEvent();   // v1.3.0 — register before pull
     subscribeAmbiguousDuplicatesEvent();   // v1.8.0
+    subscribeTechniqueStateUpdates();      // v1.14.0
     bindHostDragEvents();
     bindToastEventListener();
     bindFolderDropZone();
@@ -2399,4 +2676,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bindResizeObserver();
     bindLoopEditorEvents();
     bindLoopEditorResize();
+    bindTechniqueBar();              // v1.14.0
+    pullTechniqueState();            // v1.14.0
 });
