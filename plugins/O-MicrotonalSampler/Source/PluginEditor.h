@@ -31,6 +31,7 @@
 #include <JuceHeader.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
+#include "WebViewDropStreaming.h"  // v1.13.0 — shared module (ARCH-02)
 
 class OMicrotonalSamplerAudioProcessorEditor : public juce::AudioProcessorEditor,
                                                public juce::FileDragAndDropTarget,
@@ -58,6 +59,21 @@ public:
 
 private:
     OMicrotonalSamplerAudioProcessor& processorRef;
+
+    // ============================================================
+    // 0. DROP-SESSION MANAGER  (must outlive WebView — its native-function
+    //    lambdas are captured by the WebView's NativeFunction registry)
+    //
+    // v1.13.0: WKWebView drag-drop content-streaming pattern extracted to
+    // the shared modules/core/webview-drop-streaming module. The 4
+    // dropSession* native functions, session lifecycle, 5-min stale-temp-dir
+    // reaper, and DropSessionGuard validators all live there now. This
+    // editor just constructs one SessionManager with two commit callbacks
+    // bridging to processor.loadSampleFolder / loadSingleSample, and
+    // splices its native functions into the registry below.
+    // See REVIEW-architecture.md §"Extract drag-drop streaming → shared module".
+    // ============================================================
+    std::unique_ptr<Ouaricon::WebViewDropStreaming::SessionManager> dropSessions;
 
     // ============================================================
     // 1. RELAYS FIRST  (no dependencies — must outlive attachments)
@@ -93,28 +109,9 @@ private:
     // v1.0.3 moved drag-drop to the JS layer; v1.0.4 streams file
     // content through the bridge into a session-scoped temp dir
     // because WKWebView strips file paths from JS DataTransfer.
-    juce::String currentDropSessionId;
-    juce::File   currentDropSessionDir;
-
-    // v1.11.2: aggregate decoded-byte total across dropSessionAddFile calls
-    // in the active session. Reset to 0 in dropSessionStart and incremented
-    // only after a successful write. Used to enforce the 4 GB session cap
-    // (see Source/DropSessionGuard.h::kMaxSessionBytes).
-    juce::uint64 currentDropSessionTotalBytes = 0;
-
-    // v1.12.0: human-friendly folder name lifted from JS
-    // (FileSystemEntry::name) at dropSessionStart time. Forwarded to
-    // processor.loadSampleFolder as displayName so the missing-folder modal
-    // can render "Samples were drag-dropped from <name>" copy on reload.
-    // macOS WKWebView sandboxes the original disk path — name is the only
-    // cross-session-stable signal we get.
-    juce::String currentDropSessionFolderName;
-
-    // Removes prior `o-microtonalsampler-drop-*` temp dirs older than
-    // 5 minutes (a window large enough that an in-flight background
-    // SampleLoader read on the previous session is unlikely to still
-    // need them). Called at the start of every new drop session.
-    void cleanupStaleDropSessions();
+    // v1.13.0: pattern lives in modules/core/webview-drop-streaming;
+    // session state, the 5-min reaper, and DropSessionGuard validators
+    // are owned by the SessionManager declared above (#0).
 
     // Resource provider — explicit URL→BinaryData mapping (memory pattern,
     // matches O-Bells PluginEditor.cpp:941-998).

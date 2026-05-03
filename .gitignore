@@ -16,6 +16,16 @@ __pycache__/
 *.pyo
 
 # =============================================================================
+# Ouaricon module-system build artifacts
+# =============================================================================
+# OuariconModules.cmake auto-copies module JS into Source/ui/public/modules/
+# at configure time as a fallback for plugins that consume modules through
+# that path. Plugins like O-MicrotonalSampler instead serve module JS via
+# the WebView resource provider, making this directory a build-time leftover
+# that should not be committed.
+plugins/*/Source/ui/public/modules/
+
+# =============================================================================
 # Backup Directories
 # =============================================================================
 # Prevent large backup folders from being committed.

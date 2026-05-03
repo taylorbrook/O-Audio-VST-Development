@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.12.4"
+    VERSION "1.13.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -39,12 +39,15 @@ target_sources(O-MicrotonalSampler
         Source/SampleLoader.cpp
         Source/FilenameParser.h
         Source/FilenameParser.cpp
-        Source/DropSessionGuard.h          # v1.11.2 — drag-drop security guards
         # v1.0.3: drag-drop is now handled at the JS layer (sampler-app.js
         # bindWebViewFileDrop) and forwarded to the C++ filesDropped router
         # via the handleWebViewFileDrop native function. The v1.0.1 helper
         # (-unregisterDraggedTypes) and v1.0.2 NSView overlay both failed —
         # see CHANGELOG.md and Source/PluginEditor.cpp top-of-file note.
+        # v1.13.0 (ARCH-02): the macOS WKWebView content-streaming pattern
+        # (4 dropSession* native fns + DropSessionGuard validators + reaper)
+        # has been promoted to the shared modules/core/webview-drop-streaming
+        # module. Wired below via ouaricon_add_module().
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
@@ -54,6 +57,15 @@ target_sources(O-MicrotonalSampler
 
 # VST3 Note Expression microtonal support (Dorico) — D-5: ouaricon_add_module ONLY
 ouaricon_add_module(O-MicrotonalSampler note-expression)
+
+# v1.13.0 (ARCH-02): WKWebView drag-drop content-streaming pattern.
+# Provides Ouaricon::WebViewDropStreaming::SessionManager (header-only) +
+# the 4 dropSession* native function handlers + DropSessionGuard
+# validators (path-traversal / parent-chain symlink / size caps).
+# JS half (webview-drop-streaming.js) is added to the binary data block
+# below — OuariconModules.cmake's JS-copy step targets Source/ui/public/
+# which this plugin doesn't use.
+ouaricon_add_module(O-MicrotonalSampler webview-drop-streaming)
 
 # Include paths
 target_include_directories(O-MicrotonalSampler
@@ -74,6 +86,12 @@ juce_add_binary_data(O-MicrotonalSampler_UIResources
         Resources/ui/js/tuning-panel.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
+        # v1.13.0: shared webview-drop-streaming module JS, served by
+        # PluginEditor::getResource at /js/modules/webview-drop-streaming.js
+        # so the import in sampler-app.js (./modules/webview-drop-streaming.js)
+        # resolves through the WebView resource provider. Symbol generated
+        # by juce_add_binary_data: BinaryData::webviewdropstreaming_js.
+        ${CMAKE_SOURCE_DIR}/modules/core/webview-drop-streaming/js/webview-drop-streaming.js
         # v1.10.0: Naturalist aesthetic — antique anatomical engraving overlay
         Resources/ui/images/brains.png
         # v1.11.0: paper textures — page (paper1) and card (paper2) backgrounds
@@ -187,7 +205,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/drop_session_guard_check.cpp
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
     target_include_directories(O-MicrotonalSampler_DropSessionGuardCheck PRIVATE
-        Source)
+        Source
+        # v1.13.0: DropSessionGuard.h moved to the shared module.
+        ${CMAKE_SOURCE_DIR}/modules/core/webview-drop-streaming/cpp)
     target_compile_definitions(O-MicrotonalSampler_DropSessionGuardCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)

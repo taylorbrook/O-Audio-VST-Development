@@ -1,5 +1,69 @@
 # O-MicrotonalSampler Changelog
 
+## [1.13.0] - 2026-05-02
+
+### Changed
+- **ARCH-02: extracted WKWebView drag-drop content-streaming pattern to
+  shared module `modules/core/webview-drop-streaming` (v1.0.0).** The 4
+  `dropSession*` native function handlers, session-scoped temp-dir
+  lifecycle, 5-min stale-session reaper, `DropSessionGuard` validators
+  (path traversal, parent-chain symlink, 256 MB-per-file / 4 GB-per-session
+  caps), and the JS-side streaming helpers (`bindWebViewFileDrop`,
+  `streamFolderEntryToCpp`, `streamSingleFileEntryToCpp`,
+  `readFileEntryAsBase64`, `arrayBufferToBase64`) now live in the module.
+  This editor instantiates one `Ouaricon::WebViewDropStreaming::SessionManager`
+  with two commit callbacks (forwarding to `processorRef.loadSampleFolder`
+  / `loadSingleSample`) and splices the module's native functions into
+  `buildNativeFunctionRegistry()`. JS imports `bindWebViewFileDrop` from
+  `./modules/webview-drop-streaming.js` and passes a config object with
+  the plugin-specific glue (selectors, modal/toast/hover callbacks, cell
+  midi/vel extractor). Behaviour is unchanged — every code path
+  (single-file drop, folder drop with options modal, fast-path for hosts
+  exposing absolute paths, no-path-no-entry diagnostic) is preserved
+  verbatim. Per-plugin `tempDirPrefix` (`"o-microtonalsampler-drop-"`)
+  isolates the stale-session reaper so future module adopters don't
+  collide.
+
+### Removed
+- `Source/DropSessionGuard.h` — promoted to the shared module
+  (`modules/core/webview-drop-streaming/cpp/DropSessionGuard.h`).
+- `cleanupStaleDropSessions()` editor method — the reaper now runs
+  inside `SessionManager` scoped to the per-plugin temp-dir prefix.
+- ~290 lines of inline `dropSessionStart` / `dropSessionAddFile` /
+  `dropSessionCommitFolder` / `dropSessionCommitFile` lambdas from
+  `buildNativeFunctionRegistry()`.
+- ~470 lines of inline streaming helpers from `sampler-app.js`
+  (`bindWebViewFileDrop`, the 4 streaming functions, `extractDroppedFilePaths`,
+  `pointInClientRect`, `collectAudioFilesFromDir`, `newDropSessionId`,
+  `AUDIO_EXTENSIONS_RE`).
+
+### Code metrics
+- `Source/PluginEditor.cpp`: ~290 lines of native-fn handlers + 16 lines
+  of `cleanupStaleDropSessions()` removed; ~30 lines of SessionManager
+  construction + splice loop added.
+- `Resources/ui/js/sampler-app.js`: ~470 lines of inline drag-drop code
+  removed; ~25 lines of parameterized `bindWebViewFileDrop({...})` call
+  added.
+- New shared module: ~1100 lines (C++ header-only + JS ES module +
+  README + module.yaml) reusable across O-TextureForge, O-Bells,
+  O-Lyrica, future plugins.
+
+### Notes
+- O-TextureForge and other plugins that re-implement this pattern are
+  **deferred to follow-up improvements** — each will get its own
+  regression-tested PATCH bump after migration.
+- No behavioural change; no parameter or state-format changes; presets
+  and DAW sessions load unchanged.
+- Manual DAW drag-drop test required after install — no automated
+  regression suite covers the WKWebView surface.
+- `Source/tests/drop_session_guard_check.cpp` retains the v1.11.2
+  security regression coverage; its include path now points at the
+  module's `cpp/`.
+
+### Reference
+- REVIEW-architecture.md §"Extract drag-drop streaming → shared module"
+  (lines 100-121, 446-449); SUMMARY.md architecture wins #2.
+
 ## [1.12.4] - 2026-05-02
 
 ### Changed
