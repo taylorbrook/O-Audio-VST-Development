@@ -1,5 +1,111 @@
 # O-MicrotonalSampler Changelog
 
+## [1.14.0] - 2026-05-03
+
+### Added
+- **Playing Techniques (engine + Keyswitches + UI core).** Sample cells now
+  carry a third axis — `technique` — alongside `(midiNote, velocityLayer)`.
+  Each `SampleMap` can hold up to 8 technique slots (default vocabulary:
+  `ord`, `sp`, `st`, `sv`, `cs`, `pizz`, `harm`, `mart`). Filenames carrying
+  any recognised token (delimited, case-insensitive — exact match, never
+  substring) auto-route to their slot at folder-load time. Each slot
+  recognises both the two-letter shorthand and a wider set of orchestral
+  long-forms — e.g. slot 1 (sul ponticello) accepts `sp`, `sulpont`,
+  `sulponticello`, AND the canonical `sul_pont` / `sul_ponticello` two-token
+  forms produced by orchestral-library naming conventions. Same for
+  `sul_tasto` (slot 2), `senza_vib` / `non_vib` / `non_vibrato` (slot 3),
+  `con_sord` / `con_sordino` / `muted` (slot 4), `pizzicato` (slot 5),
+  `harmonic` / `harmonics` (slot 6), `martele` / `martellato` (slot 7),
+  `tremolo` (slot 8), `flautando` / `flautato` (slot 9). Library leads
+  (`sul`, `senza`, `non`, `con`) are NEVER accepted standalone — they
+  require their canonical suffix to avoid over-matching. Two recordings
+  of the same `(midi, velocity)` with different technique tokens (e.g.
+  `C3_v1_ord.wav` + `C3_v1_sp.wav`) now coexist in two distinct cells
+  instead of triggering the round-robin ambiguity modal.
+- **Five new APVTS parameters:** `technique_count` (1–8), `technique_select`
+  (0–7), `ks_enabled` (bool), `ks_low_note` (0–127), `ks_high_note`
+  (0–127). All round-trip through project state and host automation.
+- **Keyswitch routing in `processBlock`.** When `ks_enabled` is on, MIDI
+  note-ons inside `[ks_low_note..ks_high_note]` are absorbed (never reach
+  the synth) and store their semitone offset from `ks_low_note` into the
+  active-technique atomic. Matching note-offs are likewise absorbed so
+  KS notes never trigger spurious voices. A pre-allocated `juce::MidiBuffer`
+  carries the filtered stream into `Synthesiser::renderNextBlock`,
+  preserving real-time safety (`MidiBuffer::ensureSize` runs on the
+  message thread in `prepareToPlay`).
+- **Voice-side technique resolution.** `MicrotonalSamplerVoice::startNote`
+  loads the technique cursor with `memory_order_acquire` and pairs it with
+  the sample-map snapshot to resolve the `(midi, vel, tech)` triplet via
+  the new `SampleMap::findCell(midi, vel, tech)` overload. The triplet
+  lookup falls back to `tech=0` ("ord") when the requested slot is empty,
+  so partially-populated technique sets still play. Crossfade pair MUST
+  share technique (no cross-articulation morphing).
+- **Per-cell round-robin counter expanded** from 512 to 4096 entries
+  (`128 × 4 × 8`). Counters are independent per technique slot — a flip
+  from `ord` to `sp` mid-session no longer disturbs the `ord` slot's RR
+  cursor.
+- **WebView UI: technique tab strip** above the sample-map grid. Tabs are
+  click-to-select (left-click) / right-click-to-rename. `+` / `−` buttons
+  grow / shrink `technique_count`. Inline KS panel — toggle + low/high
+  number inputs — wires through `setKeyswitchEnabled` /
+  `setKeyswitchRange` native functions. Hidden by default; only surfaces
+  once the user has expanded beyond a single technique slot or enabled
+  KS, preserving the v1.13.0 visual contract for legacy sessions.
+- **Six new WebView native functions:** `getTechniqueState`,
+  `setActiveTechnique`, `setTechniqueName`, `resetTechniqueNames`,
+  `addTechniqueSlot`, `removeTechniqueSlot`, plus `setKeyswitchEnabled`
+  / `setKeyswitchRange`. Existing `loadSingleSampleDialog`,
+  `overrideLoopPoints`, `resetLoopToAutoDetect`, and `getWaveformPeaks`
+  gained an optional trailing `technique` arg (defaults to the current
+  active-technique cursor — UI clicks already route correctly).
+- **State persistence:** `<TechniqueNames><Slot index name/></TechniqueNames>`
+  child added to the captured state ValueTree. Sparse — only renamed
+  slots are emitted; the curated default vocab covers absent slots on
+  restore. v1.13.0 sessions decode unchanged (no `<TechniqueNames>`
+  child → default vocab survives, `technique_count=1`, `ks_enabled=false`).
+- **Three new regression tests** (EXCLUDE_FROM_ALL):
+  `O-MicrotonalSampler_TechniqueParseCheck` (24 cases — token recognition,
+  substring rejection, case insensitivity, coexistence with
+  note/velocity/RR), `O-MicrotonalSampler_FindCellTripletCheck` (8 cases
+  — exact match, fallback, disjoint techniques, closest-note within slot,
+  back-compat overload, `applyMergeRrCell` triplet keying),
+  `O-MicrotonalSampler_StateMigrationCheck` (5 cases — empty tree =
+  default vocab, sparse rename leaves untouched slots, `SampleCell`
+  default-init, v1.13.0-shape merge identical to v1.13.0,
+  back-compat `findCell` two-arg overload).
+
+### Changed
+- **`SampleCell` gained `int technique = 0`.** All callers default to 0
+  in v1.13.0-shape sessions. `findCell` two-arg overload is preserved for
+  back-compat and routes to `tech=0`.
+- **`LoadOptions` / `LoadOp` gained `targetTechnique` + `overrideTechnique`.**
+  These thread through `SampleLoader::loadFolder`'s 3D grouping pass; a
+  user-driven "assign folder to technique" override is the v1.15.0 modal
+  surface.
+- **`AmbiguousDuplicate` payload includes `technique`.** WebView's RR
+  confirmation modal now sees the slot a duplicate group lives in (only
+  matters when one technique slot has duplicates — different techniques
+  no longer collide).
+- **`FilenameParser.h` switched from `<JuceHeader.h>` to specific
+  `juce_core` include.** Matches the `SampleMap.h` pattern so standalone
+  test executables (the new triplet/parser/migration checks) compile
+  without going through `juce_add_plugin`.
+
+### Compatibility
+- **MINOR bump (1.13.0 → 1.14.0).** Backward-compatible. v1.13.0 presets
+  load unchanged: `technique_count` defaults to 1, `ks_enabled` defaults
+  to false, every cell defaults to `technique=0` ("ord"), and the
+  technique tab strip stays hidden until the user opts in. Audio output
+  for single-technique libraries is bit-identical to v1.13.0
+  (render-harness identity verified by the test surface). VST3 / AU IDs
+  unchanged.
+
+### Testing
+- Build green: VST3 + AU + Standalone, macOS arm64, Release.
+- pluginval level 5: PASS.
+- auval AU: PASS.
+- Regression tests: 3 new test executables, all assertions PASS.
+
 ## [1.13.0] - 2026-05-02
 
 ### Changed

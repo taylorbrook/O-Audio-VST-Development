@@ -1,14 +1,250 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.9.1 — fix MergeRR LoadMode translation in PluginEditor (PATCH)
-status: improvement_v1.9.1_implemented
-last_updated: 2026-05-01
-version: 1.9.1
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0
+phase: v1.14.0 IMPLEMENTED → v1.15.0 (CC + PC triggers + Dynamics audit) pending
+status: multi_version_plan_v1.14_complete_v1.15_pending_execute
+last_updated: 2026-05-03
+version: 1.14.0
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0
 ---
 
 # Resume Point
+
+## v1.14.0 Implementation Complete (2026-05-03)
+
+**Status:** code complete, build green (VST3 + AU + Standalone macOS), pluginval-5 SUCCESS, auval AU PASS, 3 new test executables pass all assertions (24 + 11 + 10 = 45 cases).
+
+### What landed
+
+- `SampleCell` gained `int technique = 0`; `SampleMap::findCell` triplet overload with `tech=0` fallback; back-compat 2-arg overload preserved.
+- `applyMergeRrCell` triplet-keyed (cells with same `(midi, vel)` but different techniques no longer collide).
+- `FilenameParser::parseAsTechnique` recognises 10 default tokens (`ord`, `sp`, `st`, `sv`, `cs`, `pizz`, `harm`, `mart`, `trem`, `flaut`) — exact match, case-insensitive, never substring; `ParsedName.techniqueIndex` field added.
+- `SampleLoader` 3D grouping (key = `midi*32 + layer*8 + tech`); `LoadOptions::{targetTechnique, overrideTechnique}` honoured by per-file processing.
+- `LoadOp` carries `targetTechnique` + `overrideTechnique` through both user-triggered and replay-queue load paths.
+- `MicrotonalSamplerVoice` reads `pendingTechniqueIndex` atomic with `memory_order_acquire` at startNote; RR counter array expanded to 4096 entries (`midi*4*8 + layer*8 + tech`); crossfade pair shares technique.
+- 5 new APVTS params: `technique_count` (1..8), `technique_select` (0..7), `ks_enabled` (bool), `ks_low_note` (0..127, default 0), `ks_high_note` (0..127, default 9).
+- `processBlock` keyswitch filter: pre-allocated `juce::MidiBuffer` strips note-ons/note-offs in `[ks_low..ks_high]` before forwarding to `Synthesiser::renderNextBlock`; absorbed note-on offset stores into `pendingTechniqueIndex` atom.
+- `<TechniqueNames>` state-tree child (sparse, only renamed slots); curated default vocab seeded by ctor.
+- 8 new WebView native fns (`getTechniqueState`, `setActiveTechnique`, `setTechniqueName`, `resetTechniqueNames`, `addTechniqueSlot`, `removeTechniqueSlot`, `setKeyswitchEnabled`, `setKeyswitchRange`). Existing 4 (loadSingleSampleDialog / overrideLoopPoints / resetLoopToAutoDetect / getWaveformPeaks) gained optional trailing `technique` arg defaulting to active cursor.
+- HTML/CSS/JS technique tab strip + KS picker + rename modal; bar hidden until count > 1 OR ks_enabled (back-compat visual contract).
+- 3 new EXCLUDE_FROM_ALL test execs registered in CMakeLists.txt.
+
+### Files touched (10)
+
+1. `Source/SampleMap.h`
+2. `Source/FilenameParser.{h,cpp}`
+3. `Source/SampleLoader.{h,cpp}`
+4. `Source/PluginProcessor.{h,cpp}`
+5. `Source/MicrotonalSamplerVoice.{h,cpp}`
+6. `Source/PluginEditor.cpp`
+7. `Resources/ui/index.html`
+8. `Resources/ui/css/sampler-shell.css`
+9. `Resources/ui/js/sampler-app.js`
+10. `CMakeLists.txt`
+11. `Source/tests/technique_parse_check.cpp`, `find_cell_triplet_check.cpp`, `state_migration_check.cpp` (NEW)
+12. `CHANGELOG.md`
+
+### Backups
+
+- `backups/O-MicrotonalSampler/v1.13.0/` — full plugin tree, 3.1 MB, created before any source edits.
+
+### Resume command
+
+Next slice in the multi-version plan: `/improve O-MicrotonalSampler` and the skill should pick up the v1.15.0 block (CC + PC triggers + Dynamics audit) directly from "Sequenced Plan" below.
+
+---
+
+## Active Multi-Version Improvement Plan: Playing Techniques + Dorico (2026-05-03)
+
+**Mode:** `/improve --research --discuss` — research and plan complete. v1.14.0 EXECUTED 2026-05-03. v1.15.0 + v1.16.0 still pending.
+
+**Goal (verbatim from user):** Add the capacity for different playing techniques (e.g. *senza vibrato*, *sul pont*, *ordinario*) triggered via keyswitch / CC / program change. Compatible with Dorico playback (via expression mapping) and accessible through DAWs. Also ensure dynamics are correctly mapped from Dorico notation to playback.
+
+### Decisions (user-confirmed)
+
+| # | Decision | Choice |
+|---|---|---|
+| Q1 | Trigger mechanism | Keyswitches **+** MIDI CC **+** Program Change (all three; NE skipped — Dorico does not switch articulations via NE) |
+| Q2 | Sample loading | Filename-token auto-detect **+** option in folder-load modal to assign-folder-to-technique manually |
+| Q3 | Technique vocabulary | Hybrid: ship ~10 curated defaults (ord, sul pont, sul tasto, senza vib, con sord, pizz, harm, mart, trem, flautando) — user can rename / extend |
+| Q4 | Dorico shipping | Expression Map (`.doricolib`) **+** Playback Template (auto-loads plugin) **+** Velocity-vs-CC dynamics audit + docs |
+| Q5 | Workflow | Multiple `/improve` iterations (one per minor version) — research/plan now, execute next |
+| Q6 | Versioning | Backward-compatible MINOR — old presets load as single-technique "ord" libraries, KS off by default until 2nd technique added |
+
+### Research Findings (referenced by versions below)
+
+**RF-1 — Dorico expression-map XML schema** (confirmed via `mhcoffin/go-doricolib` Go schema + existing `modules/tuning/note-expression/resources/library/Ouaricon-VST3-NoteExpression.doricolib`)
+
+- Root: `<kScoreLibrary>` with ~40 entity-list sections; the relevant ones are `<playingTechniques>`, `<expressionMapDefinitions>`, `<playingTechniqueAppearanceCollectionDefinition>`.
+- An `ExpressionMapDefinition` contains `<playingTechniqueCombinations>`. Each combination has: `<baseSwitchID>`, `<techniqueIDs>` (e.g. `pt.sulPonticello`), `<switchOnActions>`, `<switchOffActions>`, `<volumeType>`, `<attackType>`, plus modulators (velocity range, pitch range, transpose, etc.).
+- Action types (the `<type>` field inside `<switchOnAction>` / `<switchOffAction>`):
+  - `kKeySwitch` — params: MIDI note + velocity
+  - `kControlChange` — params: CC# + value
+  - `kProgramChange` — params: PC#
+  - `kAbsoluteChannelChange`, `kRelativeChannelChange`
+- Switch types (3): **Base** (mutually exclusive, e.g. arco↔pizz), **Add-on** (combines with base, e.g. legato), **Init** (sent at playback start).
+- The microtonality bridge already shipped uses `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>` — we will inherit/parent from `xmap.ouaricon.vst3_note_expression` so the new map ALSO gets microtonal pitch routing.
+- Dorico's built-in technique vocabulary maps cleanly to our curated defaults:
+
+| Plugin default | Dorico ID | Notation glyph in Dorico |
+|---|---|---|
+| ord | `pt.natural` | "Ord." text |
+| sul pont | `pt.sulPonticello` | "Sul pont." text |
+| sul tasto | `pt.sulTasto` | "Sul tasto" text |
+| senza vib | `pt.nonVibrato` | "Senza vib." text |
+| con sord | `pt.muted` | mute glyph |
+| pizz | `pt.pizzicato` | "Pizz." text |
+| harm | `pt.naturalHarmonic1` (or `pt.harpHarmonic`) | small circle |
+| mart | `pt.martele` / `pt.martellato` | wedge accent |
+| trem | `pt.tremolo` | tremolo strokes |
+| flautando | `pt.flautando` | "Flaut." text |
+
+Custom user-defined techniques use the `pt.user.<name>` prefix.
+
+**RF-2 — Dorico Playback Template + Endpoint Configuration**
+
+- **User library on disk** (macOS): `~/Library/Application Support/Steinberg/Dorico 6/`
+  - `EndpointConfigs/` — endpoint configurations (VST + exp-map + routing)
+  - `DefaultLibraryAdditions/` — `.doricolib` files auto-merged into every project's library
+  - `PlaybackTemplates/` (or merged into the user library) — saved templates
+- **`.doricolib`** is the only single-file format that Dorico's `Library → Library Manager → Import…` accepts for cross-document distribution. Standalone `.doricoexpmap` is **not** auto-ingested (per existing memory `critical_dorico_distribution_mechanism.md`).
+- **Distribution path for end-users:** ship `O-MicrotonalSampler.doricolib` containing the expression map(s) + Playback Template + Endpoint Configuration. User imports once via Library Manager, the template appears in `Play → Playback Template` dropdown for all subsequent projects.
+- Endpoint Configuration ties together: **VST instance = O-MicrotonalSampler** + **Expression Map = our new map** + **MIDI channel routing**. Saved via `Play → Playback Template → Endpoint Setup → Save Endpoint Configuration`.
+
+**RF-3 — Dorico dynamics path**
+
+- Dorico's expression map has a `<volumeType>` field (the "primary volume control") — its `<type>` can be `kNoteVelocity`, `kCC1`, `kCC11`, `kCC7`, `kAftertouch`, etc.
+- **`kNoteVelocity` only sets the layer at note-on; it does NOT continuously modulate during sustained notes.** This is a critical mismatch for sustained microtonal long-tones (the plugin's primary use case).
+- **`kCC11` (Expression)** continuously modulates volume during sustain — this is what most orchestral exp-maps use as primary.
+- Dorico 3+ adds **secondary volume control** (currently mirrors primary; future-Dorico will allow independent curves). Expected pattern for a layered sampler: **primary = velocity (selects the right layer), secondary = CC11 (smooths volume within the layer)** — but only one curve today.
+- **Plugin already maps CC11 → "Expression" parameter** (verified in audit, `PluginProcessor.cpp` lines 309–394). Ship two exp-map variants: "Velocity Dynamics" (matches our 4 layers, no continuous swell during sustain) and "CC11 Expression" (smooth swell, no layer-crossfade across dynamic shape) — recommend the latter as default in docs.
+
+**RF-4 — Source-code audit (technique-axis impact)**
+
+Full audit in this STATUS.md commit history. Summary of impacted files:
+
+| File | Change scope |
+|---|---|
+| `Source/SampleMap.h` | Add `int technique` to `SampleCell`; extend `findCell(midi, vel, tech)`; extend `applyMergeRrCell` triplet match; pre-size RR counter array to worst-case 4096 (128×4×8) |
+| `Source/FilenameParser.{h,cpp}` | Add `int techniqueIndex = -1` to `ParsedName`; new `parseAsTechnique()` recognizing `_ord`, `_sp`, `_st`, `_sv`, `_cs`, `_pizz`, `_harm`, `_mart`, `_trem`, `_flaut` (case-insensitive, delimited) |
+| `Source/SampleLoader.{h,cpp}` | Group by `(midi, vel, tech)` triplet; extend `LoadOptions` with `targetTechnique` + `overrideTechnique`; `AmbiguousDuplicate` gains `int technique` |
+| `Source/PluginProcessor.{h,cpp}` | New APVTS: `technique_count` (1–8), `technique_select` (current technique), `ks_enabled`, `ks_low_note`, `ks_high_note`, `cc_select_enabled`, `cc_number`, `pc_enabled`. Vocabulary names persisted via state ValueTree (not APVTS — strings). MIDI scan in `processBlock` for KS/CC/PC → atomic `pendingTechniqueIndex`. Extend `LoadOp` with technique fields. State migration: missing fields → defaults |
+| `Source/MicrotonalSamplerVoice.{h,cpp}` | At `startNote`, read `pendingTechniqueIndex.load()` before resolving cell; `findCell(midi, vel, tech)` with fallback to `tech=0` if not present; RR counter index becomes `midi * 4 * 8 + vel * 8 + tech`; crossfade-adjacent cells must match technique (no cross-technique morph) |
+| `Source/PluginEditor.cpp` | Native fns gain optional `technique` arg (default 0): `loadSingleSampleDialog`, `getCellInfo`, `overrideLoopPoints`, `resetLoopToAutoDetect`, `getWaveformPeaks`. New native fns: `setTechniqueName`, `addTechniqueSlot`, `removeTechniqueSlot`, `selectTechniqueForFolderLoad` |
+| `Resources/ui/index.html` | Technique tab strip in main view; technique-rename modal; KS-range picker; CC# picker; PC enable toggle; folder-load modal grows technique dropdown |
+| `Resources/ui/js/sampler-app.js` | Technique state in `editorState`; folder-load modal extension; per-cell click → respects current technique; new modal for "drop folder onto technique" |
+| `Source/tests/` | New: `technique_parse_check.cpp`, `find_cell_triplet_check.cpp`, `technique_state_migration_check.cpp` |
+| `Resources/dorico/` (NEW) | `O-MicrotonalSampler.doricolib` containing exp-map + Playback Template + Endpoint Configuration |
+| `INSTALL-DORICO.md` (NEW) | End-user instructions for importing the .doricolib via Library Manager |
+| `docs/dynamics-mapping.md` (NEW) | Dynamics path documentation (velocity vs CC11; recommended exp-map setting) |
+
+---
+
+## Sequenced Plan
+
+### v1.14.0 — Engine + Keyswitches + UI core (MINOR)
+
+**Goal:** Plugin can hold multiple techniques per cell and switch between them via keyswitches. Standalone-testable. No CC/PC yet, no Dorico shipping yet.
+
+**Files touched (10):**
+
+1. `Source/SampleMap.h` — technique axis on `SampleCell`; `findCell(midi, vel, tech)` with `tech=0` fallback; `applyMergeRrCell` triplet match; counter-array sizing constants.
+2. `Source/FilenameParser.{h,cpp}` — `techniqueIndex` field; `parseAsTechnique()` helper; default vocab token table.
+3. `Source/SampleLoader.{h,cpp}` — 3D grouping; `LoadOptions::{targetTechnique, overrideTechnique}`; `AmbiguousDuplicate::technique`.
+4. `Source/PluginProcessor.{h,cpp}` — new APVTS: `technique_count`, `technique_select`, `ks_enabled`, `ks_low_note`, `ks_high_note`. Vocabulary names persisted via state ValueTree (`<techniqueNames>` child, JSON-encoded array of 8 strings). KS scan in `processBlock` (note-on in [`ks_low_note`..`ks_high_note`] sets `pendingTechniqueIndex` atomic, blocks the note from reaching synth). Extend `LoadOp`. State migration: absent fields → defaults (technique_count=1, ks_enabled=false).
+5. `Source/MicrotonalSamplerVoice.{h,cpp}` — read `pendingTechniqueIndex` at startNote; technique-aware findCell + RR counter (resize to 4096); crossfade pair must share technique.
+6. `Source/PluginEditor.cpp` — native fns extended with technique arg; new natives: `setTechniqueName(idx, name)`, `addTechniqueSlot()`, `removeTechniqueSlot(idx)`.
+7. `Resources/ui/index.html` — technique tab strip above sample grid; rename modal; KS-range picker (two number inputs + on/off toggle).
+8. `Resources/ui/js/sampler-app.js` — `editorState.activeTechnique`, `editorState.techniqueNames`, `editorState.ksEnabled/Low/High`. Folder-load modal grows technique dropdown + override checkbox. Per-cell click respects current technique tab.
+9. `Source/tests/technique_parse_check.cpp`, `find_cell_triplet_check.cpp`, `state_migration_check.cpp` (new).
+10. `CMakeLists.txt` — bump `PLUGIN_VERSION` 1.13.0 → 1.14.0; add new test targets.
+
+**RT-safety contract:**
+
+- No allocations in `processBlock` KS scan (pure atomic store on note-on in KS range).
+- KS notes are absorbed (don't reach the synth) — they only update `pendingTechniqueIndex.store(newTech, std::memory_order_release)`.
+- Voice in flight when technique flips: holds its captured `cellLow/cellHigh` to release; only NEW note-ons see the new technique.
+- RR counter is pre-sized to 4096 (worst case `128 × 4 × 8`); old voices reading old indices remain safe.
+- SampleMap atomic-swap unchanged.
+
+**Test surface:**
+
+1. `parseAsTechnique` recognizes all 10 default tokens, case-insensitive, delimited; rejects false positives like `chord_suspended.wav` matching `sv` substring.
+2. `findCell(midi, vel, tech)` — exact match, fallback to `tech=0`, returns null if neither.
+3. State migration: load v1.13.0 preset → all cells become `technique=0`, `technique_count=1`, `ks_enabled=false`. Audio bit-identical to v1.13.0 reference.
+4. KS detection: note-on in KS range increments `pendingTechniqueIndex`, doesn't reach synth; note-on outside range plays normally and reads current technique.
+5. Round-robin counter indexing: `midi=60, vel=0, tech=0` and `midi=60, vel=0, tech=1` advance independently.
+6. Render-harness identity (single-technique library): bit-identical output vs v1.13.0.
+
+**Acceptance:**
+
+- Build green (VST3 + AU + Standalone, macOS); pluginval-5 SUCCESS; auval AU PASS.
+- Drop a folder of `C4_v1_ord.wav, C4_v1_sp.wav` files; both load into the same cell coordinate, different technique slots.
+- KS C-1 → switches active technique to slot 0; C#-1 → slot 1; etc. Audible.
+- Old presets (v1.13.0) load and play unchanged.
+
+**Resume command (next session):** `/improve O-MicrotonalSampler` — start from this STATUS.md, version block "v1.14.0 — Engine + Keyswitches + UI core".
+
+---
+
+### v1.15.0 — CC + PC triggers + Dynamics audit (MINOR)
+
+**Goal:** Plugin reachable from any DAW via three trigger mechanisms. Velocity-vs-CC11 dynamics path documented and verified.
+
+**Files touched (~7):**
+
+1. `Source/PluginProcessor.{h,cpp}` — APVTS: `cc_select_enabled`, `cc_number` (0–119, default 32), `pc_enabled`. Add CC#-mapping table (state ValueTree: 8 entries, value-range → technique-index, default = equal split 0–127 / N). Add PC-mapping table (8 entries, PC# → technique-index, default 0..7). MIDI scan in `processBlock`: CC value → atomic `pendingTechniqueIndex` if `cc_select_enabled`; PC → atomic if `pc_enabled`. Trigger precedence at note-on: KS > CC > PC > history > 0.
+2. `Resources/ui/index.html` — CC-trigger panel (CC# selector + value-range editor for 8 slots); PC-trigger panel (8 PC# inputs); precedence indicator.
+3. `Resources/ui/js/sampler-app.js` — bindings for the new panels.
+4. `Source/tests/cc_pc_trigger_check.cpp` (new) — verify CC value range routing + PC routing; verify precedence.
+5. `Source/tests/dynamics_layer_check.cpp` (new) — render-harness test verifying that varying note-on velocity hits the correct layer (sanity check existing behavior).
+6. `docs/dynamics-mapping.md` (new) — explains: (a) velocity sets layer at note-on only — does NOT continuously modulate during sustain; (b) CC11 ("Expression" param) continuously modulates volume during sustain; (c) recommended Dorico exp-map setting: **"CC11 Expression" as primary volume**, accept layer crossfade is fixed at note-on; (d) alternative for short notes: "Velocity" as primary; (e) the secondary-volume-control option (Dorico 3+) and what it does today vs future.
+7. `CMakeLists.txt` — bump 1.14.0 → 1.15.0.
+
+**Test surface:** CC value-range table → correct technique; PC# → correct technique; precedence (KS > CC > PC) holds when multiple are active simultaneously; render harness shows correct velocity-layer selection for v0..v127 input.
+
+**Acceptance:** In Logic / Reaper / Cubase, all three triggers verified with a test MIDI clip. `docs/dynamics-mapping.md` reviewed by user.
+
+**Resume command:** `/improve O-MicrotonalSampler` — start from STATUS.md, version block "v1.15.0 — CC + PC triggers + Dynamics audit".
+
+---
+
+### v1.16.0 — Dorico distribution (`.doricolib` + Playback Template) (MINOR)
+
+**Goal:** Dorico user installs one `.doricolib` via Library Manager and gets: (a) plugin auto-loads on new projects, (b) Sul pont./Senza vib./Ord. notation triggers technique switching, (c) dynamics route correctly to playback.
+
+**Files touched (~5):**
+
+1. `Resources/dorico/O-MicrotonalSampler.doricolib` (new) — extends parent `xmap.ouaricon.vst3_note_expression` (microtonal NE preserved). Contains:
+   - One `ExpressionMapDefinition` (entityID `xmap.ouaricon.o_microtonalsampler`) with 10 `playingTechniqueCombinations` — one per default technique. Each combination has `<switchOnActions>` containing a single `<switchOnAction>` of `<type>kKeySwitch</type>` with `<param1>` = MIDI note (C-1 + index, i.e. 0..9) and `<param2>` = 127 (velocity).
+   - `<volumeType><type>kCC11</type></volumeType>` (continuous expression), with a documentation note inside the description that users with "Velocity dynamics" preference can switch to `kNoteVelocity` in Dorico's UI.
+   - `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>` (inherited).
+   - One `EndpointConfiguration` referencing `O-MicrotonalSampler` VST3 + the new exp-map + MIDI channel 1.
+   - One `PlaybackTemplate` referencing the EndpointConfiguration (auto-applies on `New from Template`).
+2. `Resources/dorico/INSTALL-DORICO.md` (new) — end-user import instructions: open Dorico → Library → Library Manager → Import → select `O-MicrotonalSampler.doricolib`. Verify in `Play → Playback Template`. Smoke-test procedure.
+3. `Resources/dorico/SMOKE-TEST.md` (new) — manual smoke procedure: new project from O-MicrotonalSampler template, type pizz./sul pont./senza vib./ord. text on staves, verify each switches the technique audibly (visual: playback-technique panel in Play mode shows technique switching). Reuse procedure from existing `.planning/stages/4-polish/RESEARCH.md` RQ4-4.
+4. `CMakeLists.txt` — bump 1.15.0 → 1.16.0; ensure `Resources/dorico/` ships in installer.
+5. `INSTALLER-NOTES.md` patch — call out the Dorico bundle in the installer post-install message.
+
+**Acceptance:** In Dorico 5/6: user imports `.doricolib`, creates new project from template, types `pizz.` on a staff, hears pizzicato variant. Microtonal pitch (24-EDO) plays correctly (parent-map inheritance verified). Dynamics route via CC11; sustained note swells.
+
+**Resume command:** `/improve O-MicrotonalSampler` — start from STATUS.md, version block "v1.16.0 — Dorico distribution".
+
+---
+
+## Hand-off / Resume Instructions
+
+For the next session: clear context, run `/improve O-MicrotonalSampler`. The skill's Phase 0.45 will detect this completed research block in STATUS.md and skip re-investigation; Phase 0.6 will pick up the v1.14.0 plan above and ask for the version-bump confirmation gate.
+
+Each version is a fresh `/improve` cycle — research has been done up-front so subsequent cycles run lighter (no `--research` flag needed).
+
+**Open questions to revisit before v1.16.0 build:**
+- Confirm the exact path/filename Dorico expects under `~/Library/Application Support/Steinberg/Dorico 6/DefaultLibraryAdditions/` for an auto-discovered `.doricolib`. Spike a manual import first; harden after.
+- Decide whether the bundled `.doricolib` should also re-export the parent NE map (single file = one-step user import) or chain via `parentEntityID` (assumes user has already imported the NE module's library — risky). **Lean toward bundling parent inline.**
+
+---
+
+
 
 ## v1.9.0 Implementation Complete (2026-05-01)
 

@@ -275,6 +275,101 @@ namespace
     }
 
     //==============================================================================
+    // v1.14.0: parse a technique token. Recognised tokens (case-insensitive,
+    // must be the WHOLE token after the [_\-\s.]+ tokeniser splits — never a
+    // substring match):
+    //   slot 0 — ord, ordinario, ordinary
+    //   slot 1 — sp, sulpont, sulponticello
+    //   slot 2 — st, sultasto
+    //   slot 3 — sv, senzavib, senzavibrato, nonvib, nonvibrato
+    //   slot 4 — cs, consord, consordino, muted, mute
+    //   slot 5 — pizz, pizzicato
+    //   slot 6 — harm, harmonic, harmonics
+    //   slot 7 — mart, martele, martellato
+    //   slot 8 — trem, tremolo
+    //   slot 9 — flaut, flautando, flautato      (outside default KS range)
+    //
+    // We deliberately do NOT use prefix-startsWith matching here — `sp` would
+    // collide with `Spitfire`, `st` with `Stradivari`, `cs` with `csharp`, etc.
+    // Each token must match exactly to be accepted.
+    //
+    // The two-token forms (sul pont / sul tasto / senza vib / non vib /
+    // con sord) are recognised separately by parseAsTechniquePair, since the
+    // [_\-\s.]+ tokeniser splits "sul_pont" into ["sul", "pont"].
+    std::optional<int> parseAsTechnique (const juce::String& token)
+    {
+        const auto lc = token.toLowerCase();
+
+        // Slot 0 — ordinario
+        if (lc == "ord" || lc == "ordinario" || lc == "ordinary")     return 0;
+        // Slot 1 — sul ponticello
+        if (lc == "sp" || lc == "sulpont" || lc == "sulponticello")   return 1;
+        // Slot 2 — sul tasto
+        if (lc == "st" || lc == "sultasto")                           return 2;
+        // Slot 3 — senza vibrato / non vibrato
+        if (lc == "sv" || lc == "senzavib" || lc == "senzavibrato"
+                       || lc == "nonvib" || lc == "nonvibrato")       return 3;
+        // Slot 4 — con sordino / muted
+        if (lc == "cs" || lc == "consord" || lc == "consordino"
+                       || lc == "muted" || lc == "mute")              return 4;
+        // Slot 5 — pizzicato
+        if (lc == "pizz" || lc == "pizzicato")                        return 5;
+        // Slot 6 — natural harmonic
+        if (lc == "harm" || lc == "harmonic" || lc == "harmonics")    return 6;
+        // Slot 7 — martelé
+        if (lc == "mart" || lc == "martele" || lc == "martellato")    return 7;
+        // Slot 8 — tremolo
+        if (lc == "trem" || lc == "tremolo")                          return 8;
+        // Slot 9 — flautando
+        if (lc == "flaut" || lc == "flautando" || lc == "flautato")   return 9;
+        return std::nullopt;
+    }
+
+    //==============================================================================
+    // v1.14.0: adjacent-pair technique recognition. The tokeniser splits on
+    // `[_\-\s.]+`, so filenames like `Violin_sul_pont_C3.wav` produce
+    // ["Violin", "sul", "pont", "C3"] — the canonical "sul ponticello"
+    // form is two tokens. We detect this by scanning adjacent pairs after
+    // the single-token pass fails.
+    //
+    // Recognised pairs (case-insensitive on both halves):
+    //   sul + pont        → slot 1
+    //   sul + ponticello  → slot 1
+    //   sul + tasto       → slot 2
+    //   senza + vib       → slot 3
+    //   senza + vibrato   → slot 3
+    //   non + vib         → slot 3
+    //   non + vibrato     → slot 3
+    //   con + sord        → slot 4
+    //   con + sordino     → slot 4
+    //
+    // The first-token leads (sul / senza / non / con) are NEVER accepted as
+    // standalone single-token forms in parseAsTechnique above — they're too
+    // generic and would over-match (e.g. a file accidentally named
+    // `con_a_capo` would land on slot 4 if "con" alone were recognised).
+    std::optional<int> parseAsTechniquePair (const juce::String& a,
+                                             const juce::String& b)
+    {
+        const auto lca = a.toLowerCase();
+        const auto lcb = b.toLowerCase();
+
+        if (lca == "sul")
+        {
+            if (lcb == "pont" || lcb == "ponticello") return 1;
+            if (lcb == "tasto")                       return 2;
+        }
+        if (lca == "senza" || lca == "non")
+        {
+            if (lcb == "vib" || lcb == "vibrato")     return 3;
+        }
+        if (lca == "con")
+        {
+            if (lcb == "sord" || lcb == "sordino")    return 4;
+        }
+        return std::nullopt;
+    }
+
+    //==============================================================================
     // Same as parseAsVelocity but rejects bare dynamics tokens (p/mp/mf/f).
     // Used for the PRE-note pass of the velocity scan in `parse()` below.
     //
@@ -429,7 +524,34 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
         }
     }
 
-    return ParsedName { *midiNote, velLayer, rrIndex };
+    // v1.14.0: technique scan. Independent of position relative to the note
+    // token (technique tokens are exact-match per parseAsTechnique — no
+    // substring collisions). First match wins; -1 means no token.
+    //
+    // Two passes per token-position: first the single-token form, then the
+    // adjacent-pair form (sul + pont, senza + vib, con + sord, non + vib).
+    // The pair form is necessary because the [_\-\s.]+ tokeniser splits
+    // canonical orchestral filenames like `Violin_sul_pont_C3.wav` into
+    // separate tokens.
+    int techniqueIndex = -1;
+    for (int i = 0; i < tokens.size(); ++i)
+    {
+        if (auto t = parseAsTechnique (tokens[i]))
+        {
+            techniqueIndex = *t;
+            break;
+        }
+        if (i + 1 < tokens.size())
+        {
+            if (auto t = parseAsTechniquePair (tokens[i], tokens[i + 1]))
+            {
+                techniqueIndex = *t;
+                break;
+            }
+        }
+    }
+
+    return ParsedName { *midiNote, velLayer, rrIndex, techniqueIndex };
 }
 
 } // namespace FilenameParser

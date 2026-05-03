@@ -86,6 +86,14 @@ struct LoadOp
     juce::String displayName;
     bool         embedAudio   { false };
 
+    // v1.14.0 — technique-axis options (mirror SampleMap.h::LoadOptions).
+    // overrideTechnique=true forces every loaded slot onto targetTechnique
+    // (used by the "assign folder to technique" load modal). overrideTechnique
+    // =false (default) lets filename tokens decide; missing tokens land on
+    // slot 0 ("ord") for back-compat with v1.13.0 single-technique libraries.
+    int          targetTechnique   { 0 };
+    bool         overrideTechnique { false };
+
     // In-memory only — never serialised directly into the LoadOp XML attrs.
     // When embedAudio=true, this snapshot of the slots produced by this op is
     // walked at capture time to emit inline audio blobs. Populated by
@@ -278,7 +286,8 @@ public:
     // non-empty cells; default value preserves v1.8.0 behaviour for legacy
     // callers.
     void loadSingleSample (int midiPitch, int velocityLayer, const juce::File& file,
-                           bool mergeAsRr = false);
+                           bool mergeAsRr = false,
+                           int technique = 0);   // v1.14.0
 
     // v1.8.0: confirm or reject a folder load that surfaced ambiguous
     // duplicate (midi, layer) groups (no explicit rr/take/tk tokens).
@@ -321,12 +330,14 @@ public:
                              int loopStart, int loopEnd,
                              int crossfadeLen,
                              bool resetToAutoDetect = false,
-                             int variantIndex = -1);
+                             int variantIndex = -1,
+                             int technique = 0);   // v1.14.0
 
     // Phase 3.4: convenience wrapper — calls overrideLoopPoints with the
     // resetToAutoDetect flag set. variantIndex defaults to primary (0).
     void resetLoopToAutoDetect (int midiPitch, int velocityLayer,
-                                int variantIndex = -1);
+                                int variantIndex = -1,
+                                int technique = 0);   // v1.14.0
 
     // Phase 3.1: snapshot the current sample map as a JSON string for the
     // Stage 3 WebView UI (RESEARCH §RQ3-2 schema). Walks `currentSampleMap`
@@ -338,7 +349,8 @@ public:
     // to primary (0) for single-variant cells.
     juce::String snapshotWaveformPeaks (int midiPitch, int velocityLayer,
                                         int targetBins = 512,
-                                        int variantIndex = 0) const;
+                                        int variantIndex = 0,
+                                        int technique = 0) const;   // v1.14.0
 
     // Phase 3.1: editor subscribes via this setter to receive notifications
     // after every atomic-store of `currentSampleMap` (folder load, per-cell
@@ -419,6 +431,50 @@ public:
     void getHeldNotesData (std::vector<int>& notes,
                            std::vector<double>& freqs);
 
+    // ------------------------------------------------------------------
+    // v1.14.0 — Playing Techniques (engine + KS slice)
+    // ------------------------------------------------------------------
+
+    // Read-only snapshot of the current technique vocabulary (8 slots). Index
+    // 0 = "ord", 1..7 follow the curated default vocabulary. The user can
+    // rename slots via setTechniqueName; the names live in the state
+    // ValueTree (not APVTS — APVTS strings are clumsy). Message-thread only.
+    juce::StringArray getTechniqueNames() const;
+
+    // Mutate slot `index`'s display name. No-op if `index` is out of range
+    // or if `name` is empty (callers should default-fill in the UI). Bumps
+    // the technique-state callback so the WebView refreshes. Message-thread
+    // only.
+    void setTechniqueName (int index, const juce::String& name);
+
+    // Reset all 8 technique slots to the curated default names
+    // ("ord", "sp", "st", "sv", "cs", "pizz", "harm", "mart"). Used by the
+    // UI's "reset" button and by the constructor.
+    void resetTechniqueNames();
+
+    // Editor subscribes to receive a notification whenever the technique
+    // vocabulary OR the active technique cursor changes (rename, KS toggle,
+    // user click, MIDI KS event). Fires on the message thread. Coalesced
+    // via AsyncUpdater so a flurry of changes (e.g. user dragging across
+    // KS notes) only delivers one final state.
+    void setTechniqueStateChangedCallback (std::function<void()> cb)
+    {
+        techniqueStateChangedCallback = std::move (cb);
+    }
+
+    // Read-only — current technique index. Snapshots the same atomic the
+    // audio thread reads at startNote; the result is exact.
+    int getActiveTechnique() const noexcept
+    {
+        return pendingTechniqueIndex.load (std::memory_order_acquire);
+    }
+
+    // UI / preset / native-fn entry point — set the active technique cursor.
+    // Updates the audio-thread atomic AND the APVTS host-facing parameter so
+    // automation + state round-trip work. Fires the technique callback.
+    // Message-thread only.
+    void setActiveTechnique (int technique);
+
 private:
     juce::AudioProcessorValueTreeState        parameters;
     CappedSynthesiser                         synthesiser;
@@ -432,7 +488,26 @@ private:
     // Atomic uint8 per cell so the audio thread can advance counters at
     // startNote without locks. Sentinel 0xFF = "no last variant" (cleared on
     // ReplaceAll). Wired to every voice in the constructor.
+    //
+    // v1.14.0: index expanded to `midi * 4 * 8 + layer * 8 + technique`.
+    // Layout matches MicrotonalSamplerVoice::kRrCounterSize (4096).
     MicrotonalSamplerVoice::RrCounterArray rrCounters;
+
+    // v1.14.0: active technique cursor. Audio thread loads at startNote
+    // (memory_order_acquire). KS / CC / PC handlers in processBlock store
+    // (memory_order_release). UI clicks store via the message thread.
+    std::atomic<int> pendingTechniqueIndex { 0 };
+
+    // v1.14.0: per-slot user-facing names. Lives outside APVTS (strings) and
+    // round-trips through state ValueTree only. 8 slots, default vocabulary
+    // applied in ctor: "ord", "sp", "st", "sv", "cs", "pizz", "harm", "mart".
+    juce::StringArray techniqueNames;
+
+    // v1.14.0: editor subscribes for vocab + cursor change notifications.
+    // Coalesced via the AsyncUpdater base class (the existing CC11 path
+    // already uses handleAsyncUpdate, so we add an in-flight flag).
+    std::function<void()> techniqueStateChangedCallback;
+    std::atomic<bool>     techniqueStateDirty { false };
 
     // v1.8.0: a folder load that surfaced ambiguous (midi, layer) duplicates
     // (no rr/take/tk tokens) is staged here pending user confirmation via
@@ -485,6 +560,13 @@ private:
     // message-thread mutations and the off-thread getStateInformation read.
     // Held only briefly; never acquired from the audio thread.
     mutable juce::CriticalSection persistenceLock;
+
+    // v1.14.0: pre-allocated MIDI buffer used to strip absorbed keyswitch
+    // notes from the host's MidiBuffer before forwarding to the
+    // Synthesiser. ensureSize() in prepareToPlay reserves room so
+    // processBlock's addEvent calls do not allocate. Cleared at the top of
+    // every processBlock invocation.
+    juce::MidiBuffer ksFilteredBuffer;
 
     // Phase 3.1: editor-side callback fired on the message thread after every
     // atomic-store of `currentSampleMap`. Editor sets this in its constructor

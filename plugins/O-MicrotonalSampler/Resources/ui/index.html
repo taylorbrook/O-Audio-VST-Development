@@ -63,6 +63,37 @@
           <span class="drop-zone-sep">·</span>
           <button id="clear-samples-btn" type="button" disabled>Clear samples</button>
         </div>
+
+        <!-- v1.14.0: Technique tab strip + KS picker. Hidden by default
+             (technique_count=1, ks_enabled=false). Becomes visible the
+             moment the user expands beyond a single technique slot — the
+             back-compat path for v1.13.0 sessions stays visually identical.
+             Tabs: left-click to switch active, right-click to rename. -->
+        <div id="technique-bar" class="technique-bar">
+          <div id="technique-tabs" class="technique-tabs"
+               role="tablist" aria-label="Playing techniques">
+            <!-- Populated by renderTechniqueTabs(). -->
+          </div>
+          <button id="technique-add" type="button"
+                  class="technique-control" title="Add technique slot">+</button>
+          <button id="technique-remove" type="button"
+                  class="technique-control" title="Remove last technique slot">−</button>
+          <div id="technique-ks-controls" class="technique-ks-controls">
+            <label class="ks-toggle-label">
+              <input type="checkbox" id="technique-ks-enabled" />
+              <span>KS</span>
+            </label>
+            <span class="ks-range-sep">·</span>
+            <label class="ks-range-label">low
+              <input type="number" id="technique-ks-low"
+                     min="0" max="127" step="1" value="0" />
+            </label>
+            <label class="ks-range-label">high
+              <input type="number" id="technique-ks-high"
+                     min="0" max="127" step="1" value="9" />
+            </label>
+          </div>
+        </div>
         <!-- v1.1.0: Grid with axis labels.
              Layout: 2-column outer wrapper.
                • #sample-grid-vel-labels (left)  → velocity-range labels per row
@@ -319,6 +350,30 @@
               <button id="per-cell-merge-cancel-btn" type="button">Cancel</button>
               <button id="per-cell-merge-replace-btn" type="button">Replace cell</button>
               <button id="per-cell-merge-merge-btn"   type="button" class="flo-primary">Add as round-robin</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.14.0: technique rename modal. Surfaced from a right-click on
+             a technique tab. Pre-fills the input with the current slot
+             name; Save commits via the setTechniqueName native fn. -->
+        <div id="technique-rename-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="technique-rename-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 id="technique-rename-title" class="confirm-dialog-title">
+              Rename technique
+            </h3>
+            <p class="confirm-dialog-message">
+              Slot <span id="technique-rename-index">—</span>: enter a new
+              name. Names appear in the tab strip and Dorico expression
+              maps.
+            </p>
+            <input type="text" id="technique-rename-input"
+                   maxlength="20" autocomplete="off" spellcheck="false" />
+            <div class="confirm-dialog-actions">
+              <button id="technique-rename-cancel" type="button">Cancel</button>
+              <button id="technique-rename-save" type="button" class="primary">Save</button>
             </div>
           </div>
         </div>

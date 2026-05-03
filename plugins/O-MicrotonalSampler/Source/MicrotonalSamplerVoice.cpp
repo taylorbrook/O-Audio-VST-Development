@@ -211,8 +211,13 @@ int MicrotonalSamplerVoice::selectVariantIndex (const SampleCell& cell,
     if (rrCounters == nullptr)
         return 0;
 
+    // v1.14.0: counter is now keyed on the (midi, layer, technique) triplet
+    // so RR progression is independent per technique slot. Index packing
+    // matches the layout described in MicrotonalSamplerVoice.h
+    // (kRrCounterSize == 128 * 4 * kMaxTechniques).
+    constexpr int kMaxTech = 8;
     const int counterIdx = juce::jlimit (0, kRrCounterSize - 1,
-                                         cell.midiNote * 4 + cell.velocityLayer);
+        cell.midiNote * 4 * kMaxTech + cell.velocityLayer * kMaxTech + cell.technique);
     auto& counter = (*rrCounters)[(size_t) counterIdx];
 
     const uint8_t  last = counter.load (std::memory_order_relaxed);
@@ -417,8 +422,23 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
     const int layerWidth = juce::jmax (1, 128 / numLayers);
     const int layerIdx   = juce::jlimit (0, numLayers - 1, (vel - 1) / layerWidth);
 
+    // ---------- 2b. v1.14.0: capture technique cursor at note-on ----------
+    // The cursor is mutated by KS/CC/PC routing in PluginProcessor::processBlock
+    // (atomic store) before the synth's renderNextBlock dispatches new notes
+    // for this block — so a same-block "switch then play" sequence sees the
+    // newly-stored value. Once captured here it is frozen for the rest of
+    // the note's lifetime; in-flight voices are immune to subsequent
+    // technique flips (RT-safety contract from the v1.14.0 plan).
+    startTechnique = 0;
+    if (pendingTechniqueSource != nullptr)
+        startTechnique = juce::jlimit (0, kMaxTechniques - 1,
+                                       pendingTechniqueSource->load (std::memory_order_acquire));
+
     // ---------- 3. findCell lookup (primary "low" layer) ----------
-    cellLow = currentMap->findCell (midiNoteNumber, layerIdx);
+    // v1.14.0: triplet lookup. SampleMap::findCell falls back to technique=0
+    // ("ord") when the requested slot is empty, so partially-populated
+    // technique sets still play.
+    cellLow = currentMap->findCell (midiNoteNumber, layerIdx, startTechnique);
     if (cellLow == nullptr || cellLow->variants.empty())
     {
         cellLow         = nullptr;
@@ -473,9 +493,16 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
 
             if (adjacentIdx >= 0 && adjacentIdx < numLayers)
             {
-                if (auto* cellAdj = currentMap->findCell (midiNoteNumber, adjacentIdx))
+                // v1.14.0: crossfade partner MUST share technique with cellLow
+                // (the resolved technique — may be `startTechnique` or 0 if
+                // we hit the fallback path). Without this guard, mixing two
+                // different techniques' samples would produce an audibly
+                // wrong articulation crossfade.
+                const int xfadeTech = cellLow->technique;
+                if (auto* cellAdj = currentMap->findCell (midiNoteNumber, adjacentIdx, xfadeTech))
                 {
-                    if (! cellAdj->variants.empty())
+                    if (! cellAdj->variants.empty()
+                        && cellAdj->technique == xfadeTech)
                     {
                         const float x  = 0.5f * (absD - innerEdge) / fw;
                         const auto  ws = equalPowerWeights (x);

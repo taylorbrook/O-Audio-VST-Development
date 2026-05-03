@@ -39,7 +39,11 @@
 */
 
 #pragma once
-#include <JuceHeader.h>
+// Specific juce_core include (instead of the build-system-generated
+// <JuceHeader.h>) so this header is consumable by standalone test
+// executables that don't go through juce_add_plugin (e.g.
+// technique_parse_check.cpp). Pattern matches SampleMap.h.
+#include <juce_core/juce_core.h>
 #include <optional>
 
 namespace FilenameParser
@@ -54,10 +58,32 @@ namespace FilenameParser
         // take2 → 1, tk03 → 2, etc. Capped at 0..63 (way over any realistic
         // RR set size; defends against malicious filenames).
         int rrIndex;
+        // v1.14.0: technique slot inferred from filename. -1 = no technique
+        // token recognised (caller defaults to 0 / "ord"). 0-based, capped
+        // at kMaxTechniques-1.
+        //
+        // Recognised tokens (case-insensitive, must appear as their own
+        // delimited token):
+        //   _ord_      → 0 (ordinario)
+        //   _sp_       → 1 (sul ponticello)
+        //   _st_       → 2 (sul tasto)
+        //   _sv_       → 3 (senza vibrato)
+        //   _cs_       → 4 (con sordino)
+        //   _pizz_     → 5 (pizzicato)
+        //   _harm_     → 6 (natural harmonic)
+        //   _mart_     → 7 (martelé / martellato)
+        //   _trem_     → reserved (8) — outside the 8-slot KS range; only
+        //                surfaces when the user grows the technique count
+        //   _flaut_    → reserved (9) — same caveat as trem
+        // The two reserved tokens map onto slots that exceed the default
+        // KS range; the parser still returns them so a user that has grown
+        // technique_count past 8 can pull them in via filename auto-detect.
+        int techniqueIndex;
     };
 
     // Parse a filename (without extension). Returns nullopt if no MIDI note
     // can be recovered from the tokens. Velocity defaults to 0 if no velocity
     // token is found. RR index defaults to -1 if no rr/take/tk token is found.
+    // Technique index defaults to -1 if no technique token is found.
     std::optional<ParsedName> parse (const juce::String& filenameNoExtension);
 }
