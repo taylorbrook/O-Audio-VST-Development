@@ -1,5 +1,49 @@
 # O-MicrotonalSampler Changelog
 
+## [1.12.4] - 2026-05-02
+
+### Changed
+- **ARCH-01: data-driven native function registry.** Replaced 44 inline
+  `.withNativeFunction(...)` chained calls in the editor constructor
+  (~1400 lines of organic v1.5.0–v1.12.0 growth) with a single registry
+  vector iterated in a `for (auto& [name, handler] : ...)` loop. Each
+  native function moves from a chained builder argument to one entry in
+  `buildNativeFunctionRegistry()` (new private method). Constructor
+  shrinks from ~1500 lines to ~50; the WebView is built via an immediately
+  invoked lambda that returns the fully populated `Options`. Behaviour is
+  unchanged — every entry preserves its original name, capture list, and
+  body verbatim. Pattern is reusable in O-Bells / O-Lyrica which carry
+  similar editor boilerplate (architecture-review §1, HIGH ROI).
+
+### Removed
+- **Dead code: `Resources/ui/css/tuning-panel-readonly.css`.** Embedded
+  as a binary resource since v1.0.0 but no longer applied since the
+  v1.2.0 read-only-tuning-panel rewrite. Removed the file, its
+  `juce_add_binary_data` SOURCES entry, and the corresponding
+  `getResource` URL handler. Frees one binary blob from the plugin's
+  embedded resources (~3 KB) and eliminates a stale referent in the
+  resource provider.
+
+### Code metrics
+- `Source/PluginEditor.cpp` constructor body shrinks from ~1500 → ~50
+  lines (97% reduction in constructor size).
+- `Source/PluginEditor.cpp` total file delta: +61 lines (1930 → 1991)
+  — the 44 lambda bodies move to the new registry method along with
+  surrounding function-decl wrapping; net file growth is small because
+  only the per-entry brackets/commas change vs the original
+  per-call `.withNativeFunction(...)` wrapping.
+
+### Validation
+- Smoke-tested in Logic Pro and Reaper: load folder, drag-drop folder,
+  drag-drop single file, tuning panel (all panels), preset save/load,
+  sample-map clear, MTS-ESP routing.
+- All 44 native function entries verified against the v1.12.3 backup
+  (name + arity + capture list + body bytes match).
+
+### Migration notes
+None — pure structural refactor. APVTS, state format, parameter IDs,
+preset format, and JS-bridge contract are all unchanged.
+
 ## [1.12.3] - 2026-05-02
 
 ### Fixed

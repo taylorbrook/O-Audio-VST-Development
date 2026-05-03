@@ -120,6 +120,16 @@ private:
     // matches O-Bells PluginEditor.cpp:941-998).
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
 
+    // v1.12.4: Data-driven native function registry. Replaces 42 inline
+    // `.withNativeFunction(...)` chained calls in the constructor (~1400
+    // lines of organic v1.5.0–v1.12.0 growth). The constructor iterates
+    // this vector once and forwards each entry to the Options builder.
+    // Behaviour is unchanged — every entry preserves its original name,
+    // capture list, and body verbatim. See REVIEW-architecture.md §1.
+    // Pattern reusable in O-Bells / O-Lyrica (similar editor boilerplate).
+    std::vector<std::pair<juce::Identifier, juce::WebBrowserComponent::NativeFunction>>
+        buildNativeFunctionRegistry();
+
     // Phase 3.2-onward — cell layout shadow published by JS via the
     // reportCellLayout native function. 3.1 stores; 3.3 hit-tests on drop.
     struct CellRect { int midiNote = 0, velocityLayer = 0, x = 0, y = 0, w = 0, h = 0; };
