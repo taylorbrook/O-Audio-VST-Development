@@ -65,1403 +65,45 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
     // 2️⃣ CREATE WEBVIEW with options
     // ----------------------------------------------------------------
     webView = std::make_unique<juce::WebBrowserComponent> (
-        juce::WebBrowserComponent::Options{}
-            .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
-
-            // Windows: explicit user-data folder under temp/ — default
-            // location may be access-denied in DAW plugin hosts (memory).
-            .withWinWebView2Options (
-                juce::WebBrowserComponent::Options::WinWebView2{}
-                    .withUserDataFolder (
-                        juce::File::getSpecialLocation (
-                            juce::File::SpecialLocationType::tempDirectory)
-                                .getChildFile ("OMicrotonalSampler_WebView")))
-
-            .withNativeIntegrationEnabled()
-            .withResourceProvider ([this] (const auto& url) { return getResource (url); })
-
-            // Register all relays so JS can find them via Juce.getSliderState(id).
-            .withOptionsFrom (*attackRelay)
-            .withOptionsFrom (*decayRelay)
-            .withOptionsFrom (*sustainRelay)
-            .withOptionsFrom (*releaseRelay)
-            .withOptionsFrom (*polyphonyRelay)
-            .withOptionsFrom (*velocityCrossfadeRelay)
-            .withOptionsFrom (*expressionRelay)        // v1.7.0
-            .withOptionsFrom (*outputGainRelay)
-
-            // ============================================================
-            // NATIVE FUNCTIONS (full impl in 3.1 + skeletons for later phases)
-            // ============================================================
-
-            // ---- getSampleMap : returns the JSON snapshot ----
-            .withNativeFunction ("getSampleMap",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    complete (juce::var (processorRef.snapshotSampleMapJson()));
-                })
-
-            // ---- Tuning reads (TuningEngine accessors) ----
-            .withNativeFunction ("getTuningName",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    complete (juce::var (engine != nullptr
-                                             ? engine->getActiveTuningName()
-                                             : juce::String ("12-TET")));
-                })
-
-            .withNativeFunction ("getTuningIntervals",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    juce::String json = "[";
-                    if (engine != nullptr)
-                    {
-                        auto intervals = engine->getIntervals();
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                    }
-                    json += "]";
-                    complete (juce::var (json));
-                })
-
-            .withNativeFunction ("getTonicNote",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    complete (juce::var (engine != nullptr
-                                             ? engine->getTonicNote()
-                                             : 60));
-                })
-
-            .withNativeFunction ("getOctaveStretch",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    complete (juce::var (engine != nullptr
-                                             ? engine->getOctaveStretch()
-                                             : 0.0f));
-                })
-
-            .withNativeFunction ("getPluginVersion",
-                [] (const juce::Array<juce::var>&,
-                    std::function<void(juce::var)> complete)
-                {
-                    complete (juce::var (JucePlugin_VersionString));
-                })
-
-            // v1.7.1: catch-up pull for the TuningPanel. The 30 Hz timer
-            // only emits tuningHeldNotes on change, so a panel that mounts
-            // (lazy — first Tuning-tab activation) while notes are already
-            // held would otherwise see no event until the next change.
-            // Returns the same payload shape as the tuningHeldNotes event:
-            // `{"notes":[...],"freqs":[...]}` JSON string.
-            .withNativeFunction ("getHeldNotesJson",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    std::vector<int>    notes;
-                    std::vector<double> freqs;
-                    processorRef.getHeldNotesData (notes, freqs);
-
-                    juce::String notesArr = "[", freqsArr = "[";
-                    for (size_t i = 0; i < notes.size(); ++i)
-                    {
-                        if (i > 0) { notesArr += ","; freqsArr += ","; }
-                        notesArr += juce::String (notes[i]);
-                        freqsArr += juce::String (freqs[i], 4);
-                    }
-                    notesArr += "]"; freqsArr += "]";
-                    complete (juce::var ("{\"notes\":" + notesArr
-                                       + ",\"freqs\":" + freqsArr + "}"));
-                })
-
-            .withNativeFunction ("getEmbeddedTuningList",
-                [] (const juce::Array<juce::var>&,
-                    std::function<void(juce::var)> complete)
-                {
-                    const auto& tunings = EmbeddedTunings::getAllTunings();
-                    juce::String json = "[";
-                    for (size_t i = 0; i < tunings.size(); ++i)
-                    {
-                        if (i > 0) json += ",";
-                        json += "{";
-                        json += "\"id\":\""       + juce::String (tunings[i].id)       + "\",";
-                        json += "\"name\":\""     + juce::String (tunings[i].name)     + "\",";
-                        json += "\"category\":\"" + juce::String (tunings[i].category) + "\",";
-                        json += "\"noteCount\":"  + juce::String (static_cast<int> (tunings[i].intervals.size()));
-                        json += "}";
-                    }
-                    json += "]";
-                    complete (juce::var (json));
-                })
-
-            .withNativeFunction ("getEmbeddedTuningCategories",
-                [] (const juce::Array<juce::var>&,
-                    std::function<void(juce::var)> complete)
-                {
-                    auto categories = EmbeddedTunings::getCategories();
-                    juce::String json = "[";
-                    for (size_t i = 0; i < categories.size(); ++i)
-                    {
-                        if (i > 0) json += ",";
-                        json += "\"" + juce::String (categories[i]) + "\"";
-                    }
-                    json += "]";
-                    complete (juce::var (json));
-                })
-
-            // ---- reportCellLayout : JS publishes grid layout for hit-testing ----
-            .withNativeFunction ("reportCellLayout",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() >= 1)
-                    {
-                        auto parsed = juce::JSON::parse (args[0].toString());
-                        if (auto* obj = parsed.getDynamicObject())
-                        {
-                            cellLayout.clearQuick();
-                            if (auto* cells = obj->getProperty ("cells").getArray())
-                            {
-                                for (const auto& c : *cells)
-                                {
-                                    if (auto* co = c.getDynamicObject())
-                                    {
-                                        CellRect r;
-                                        r.midiNote      = static_cast<int> (co->getProperty ("midiNote"));
-                                        r.velocityLayer = static_cast<int> (co->getProperty ("velocityLayer"));
-                                        r.x             = static_cast<int> (co->getProperty ("x"));
-                                        r.y             = static_cast<int> (co->getProperty ("y"));
-                                        r.w             = static_cast<int> (co->getProperty ("w"));
-                                        r.h             = static_cast<int> (co->getProperty ("h"));
-                                        cellLayout.add (r);
-                                    }
-                                }
-                            }
-                            if (auto* fz = obj->getProperty ("folderZone").getDynamicObject())
-                            {
-                                folderZoneRect = juce::Rectangle<int> (
-                                    static_cast<int> (fz->getProperty ("x")),
-                                    static_cast<int> (fz->getProperty ("y")),
-                                    static_cast<int> (fz->getProperty ("w")),
-                                    static_cast<int> (fz->getProperty ("h")));
-                            }
-                        }
-                    }
-                    complete (juce::var());
-                })
-
-            // ============================================================
-            // SKELETONS — full implementations land in 3.2/3.3/3.4.
-            // Each returns a sane default so JS callers don't crash.
-            // ============================================================
-
-            // ---- pickSampleFolder (v1.12.0) ----
-            //
-            // Replaces v1.6.0's combined `loadSampleFolderDialog` with a pure
-            // file picker. JS sequences: pickSampleFolder() → maybe
-            // estimateFolderAudioSize() → maybe size-confirm modal →
-            // loadSampleFolderByPath(). The split lets JS show a real
-            // size-warning between selection and load when the user opted
-            // into embedAudio.
-            //
-            // Resolves an object: { path: "...", cancelled: false } on success,
-            // { path: "", cancelled: true } when the user dismissed the picker.
-            // (Always returns an object so JS can `await` once and inspect.)
-            .withNativeFunction ("pickSampleFolder",
-                [] (const juce::Array<juce::var>&,
-                    std::function<void(juce::var)> complete)
-                {
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Choose folder containing sample files",
-                        juce::File{},
-                        juce::String{});
-
-                    auto flags = juce::FileBrowserComponent::openMode
-                               | juce::FileBrowserComponent::canSelectDirectories;
-
-                    chooser->launchAsync (flags,
-                        [chooser, complete] (const juce::FileChooser& fc) mutable
-                        {
-                            auto* obj = new juce::DynamicObject();
-                            const auto results = fc.getResults();
-
-                            if (results.isEmpty() || ! results.getFirst().isDirectory())
-                            {
-                                obj->setProperty ("path", juce::String());
-                                obj->setProperty ("cancelled", true);
-                                complete (juce::var (obj));
-                                return;
-                            }
-
-                            const juce::File folder = results.getFirst();
-                            obj->setProperty ("path",      folder.getFullPathName());
-                            obj->setProperty ("name",      folder.getFileName());
-                            obj->setProperty ("cancelled", false);
-                            DBG ("pickSampleFolder: " << folder.getFullPathName());
-                            complete (juce::var (obj));
-                        });
-                })
-
-            // ---- estimateFolderAudioSize (v1.12.0) ----
-            //
-            // Returns the total size (in bytes) of audio files inside `path`,
-            // recursively. Used by JS to populate the "Embed will add ~X MB"
-            // size-warning modal before the user commits to an embed load.
-            //
-            // Extension set matches SampleLoader's wildcard
-            // (*.wav;*.aif;*.aiff;*.flac). Source-file size is reported (not
-            // post-resample PCM size); this is honest about the disk cost
-            // and acceptable as an order-of-magnitude estimate.
-            //
-            //   args[0] = absolute folder path
-            // Returns: bytes (juce::int64). Returns 0 on invalid path.
-            .withNativeFunction ("estimateFolderAudioSize",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
-                {
-                    if (args.isEmpty())
-                    {
-                        complete (juce::var (juce::int64 (0)));
-                        return;
-                    }
-                    const juce::File folder (args[0].toString());
-                    if (! folder.isDirectory())
-                    {
-                        complete (juce::var (juce::int64 (0)));
-                        return;
-                    }
-
-                    juce::int64 totalBytes = 0;
-                    const juce::String wildcards = "*.wav;*.aif;*.aiff;*.flac";
-                    for (const auto& entry : juce::RangedDirectoryIterator (
-                                                  folder, /*recursive=*/true,
-                                                  wildcards,
-                                                  juce::File::findFiles))
-                    {
-                        totalBytes += entry.getFile().getSize();
-                    }
-                    complete (juce::var (totalBytes));
-                })
-
-            // ---- loadSampleFolderByPath (v1.12.0) ----
-            //
-            // Loads a folder by absolute path with full origin/embed metadata.
-            // Used by JS after `pickSampleFolder` (and any embed-confirm
-            // modal). The pre-pick options modal returns layer/mode/override/
-            // embed; this fn stitches them together with the picked path.
-            //
-            //   args[0] = absolute folder path (required)
-            //   args[1] (optional) = targetLayer 0..3       — default 0
-            //   args[2] (optional) = mode string             — default "replace_all"
-            //                        ("append" | "replace_layer" | "replace_all" | "merge_rr")
-            //   args[3] (optional) = overrideTokens 0/1     — default 0
-            //   args[4] (optional) = embedAudio 0/1         — default 0
-            //
-            // Resolves true if the load was dispatched; false if path is
-            // invalid. The actual scan + load is async — sampleMapUpdated
-            // fires when the new map has been atomic-stored.
-            .withNativeFunction ("loadSampleFolderByPath",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.isEmpty())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const juce::File folder (args[0].toString());
-                    if (! folder.isDirectory())
-                    {
-                        DBG ("loadSampleFolderByPath: not a directory: "
-                             << folder.getFullPathName());
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    const int  targetLayer = args.size() > 1
-                        ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
-                    const auto modeStr     = args.size() > 2 ? args[2].toString()
-                                                             : juce::String ("replace_all");
-                    const bool overrideTok = args.size() > 3
-                        ? static_cast<int> (args[3]) != 0 : false;
-                    const bool embedAudio  = args.size() > 4
-                        ? static_cast<int> (args[4]) != 0 : false;
-
-                    LoadMode mode = LoadMode::ReplaceAll;
-                    if (modeStr == "append")        mode = LoadMode::Append;
-                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
-                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
-
-                    DBG ("loadSampleFolderByPath: folder="
-                         << folder.getFullPathName()
-                         << " layer=" << targetLayer
-                         << " mode=" << static_cast<int> (mode)
-                         << " override=" << (int) overrideTok
-                         << " embed=" << (int) embedAudio);
-                    processorRef.loadSampleFolder (folder, targetLayer, mode, overrideTok,
-                                                    "filesystem", folder.getFileName(),
-                                                    embedAudio);
-                    complete (juce::var (true));
-                })
-
-            // ---- dropSessionStart (v1.0.4 — content-streaming drag-drop) ----
-            //
-            // The user dragged a file or folder onto the WebView. WKWebView
-            // exposes a FileSystemEntry to JS but strips absolute paths
-            // (sandbox), so we cannot forward paths to filesDropped(). The
-            // JS layer instead enumerates the entry tree, reads each audio
-            // file via FileReader, and base64-streams the bytes to this
-            // editor via dropSessionAddFile. We materialise them in a
-            // session-scoped temp dir so the existing loadSampleFolder /
-            // loadSingleSample paths consume the result as if the user had
-            // picked it from a native FileChooser.
-            //
-            // args[0] = sessionId (opaque string from JS, used to scope
-            //           the temp dir and validate subsequent calls)
-            // args[1] (optional, v1.12.0) = folder name (FileSystemEntry::name).
-            //         The macOS WKWebView sandbox strips the original disk
-            //         path but exposes the dragged folder's display name —
-            //         we lift it here so the missing-folder modal on reload
-            //         can render "Samples were drag-dropped from <name>"
-            //         copy. Single-file drops pass the file's basename.
-            //
-            // Returns true if the temp dir was created.
-            .withNativeFunction ("dropSessionStart",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.isEmpty())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto sessionId = args[0].toString();
-                    if (sessionId.isEmpty())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto folderName = args.size() > 1
-                        ? args[1].toString()
-                        : juce::String();
-
-                    cleanupStaleDropSessions();
-
-                    auto dir = juce::File::getSpecialLocation (
-                                   juce::File::tempDirectory)
-                                       .getChildFile (
-                                           "o-microtonalsampler-drop-" + sessionId);
-                    const auto result = dir.createDirectory();
-                    if (! result.wasOk())
-                    {
-                        DBG ("dropSessionStart: createDirectory failed: "
-                             << result.getErrorMessage());
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    currentDropSessionId         = sessionId;
-                    currentDropSessionDir        = dir;
-                    currentDropSessionTotalBytes = 0;  // v1.11.2: reset 4 GB cap
-                    currentDropSessionFolderName = folderName;  // v1.12.0
-                    DBG ("dropSessionStart: " << dir.getFullPathName()
-                         << " name=" << folderName);
-                    complete (juce::var (true));
-                })
-
-            // ---- dropSessionAddFile (v1.0.4) ----
-            //
-            // args[0] = sessionId  (must match currentDropSessionId)
-            // args[1] = relativePath inside the session dir (forward slashes,
-            //           never backslashes — JS controls the delimiter)
-            // args[2] = base64-encoded file content
-            //
-            // Returns true on successful write.
-            .withNativeFunction ("dropSessionAddFile",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 3)
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto sessionId = args[0].toString();
-                    const auto relPath   = args[1].toString();
-                    const auto base64    = args[2].toString();
-
-                    if (sessionId != currentDropSessionId
-                        || ! currentDropSessionDir.isDirectory())
-                    {
-                        DBG ("dropSessionAddFile: session mismatch / dir gone");
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    // v1.11.2 — path-traversal guard (REVIEW CR-02).
-                    // Reject before allocating: empty, absolute, backslash,
-                    // NUL, or any ".." segment in the JS-supplied relPath.
-                    {
-                        const auto reason = ouaricon::dropguard::validateRelPath (relPath);
-                        if (reason.isNotEmpty())
-                        {
-                            DBG ("dropSessionAddFile: relPath rejected (" << reason
-                                 << "): " << relPath);
-                            complete (juce::var (false));
-                            return;
-                        }
-                    }
-
-                    // v1.11.2 — size-cap guard (REVIEW CR-03). Reject the
-                    // payload BEFORE allocating the decode buffer so a
-                    // hostile page cannot OOM the host with a single huge
-                    // base64 string. Per-file 256 MB, per-session 4 GB.
-                    juce::uint64 projectedBytes = 0;
-                    {
-                        const auto reason = ouaricon::dropguard::checkSizeCaps (
-                            base64.length(), currentDropSessionTotalBytes,
-                            projectedBytes);
-                        if (reason.isNotEmpty())
-                        {
-                            DBG ("dropSessionAddFile: size cap (" << reason
-                                 << "): projected=" << (juce::int64) projectedBytes
-                                 << ", session=" << (juce::int64) currentDropSessionTotalBytes
-                                 << ", relPath=" << relPath);
-                            complete (juce::var (false));
-                            return;
-                        }
-                    }
-
-                    // STANDARD base64 decode via juce::Base64. Note: do NOT
-                    // use MemoryBlock::fromBase64Encoding — that is JUCE's
-                    // own non-standard "<size>.<altAlphabet>" format and
-                    // will reject JS btoa() output silently.
-                    juce::MemoryBlock mb;
-                    {
-                        juce::MemoryOutputStream stream (mb, false);
-                        if (! juce::Base64::convertFromBase64 (stream, base64))
-                        {
-                            DBG ("dropSessionAddFile: base64 decode failed for "
-                                 << relPath << " (input length " << base64.length()
-                                 << ", first 32 chars: '"
-                                 << base64.substring (0, 32) << "')");
-                            complete (juce::var (false));
-                            return;
-                        }
-                        stream.flush();
-                    }
-
-                    auto target = currentDropSessionDir.getChildFile (relPath);
-
-                    // v1.11.2 — symlink-escape guard. Even with a clean
-                    // relPath, a hostile local symlink anywhere in the
-                    // parent chain (e.g. attacker pre-creates a symlink at
-                    // sessionDir/subdir → /etc) would let replaceWithData
-                    // write outside the sandbox. Walk the chain before
-                    // creating any directories.
-                    {
-                        const auto reason = ouaricon::dropguard::validateParentChain (
-                            currentDropSessionDir, target);
-                        if (reason.isNotEmpty())
-                        {
-                            DBG ("dropSessionAddFile: parent chain rejected ("
-                                 << reason << "): " << target.getFullPathName());
-                            complete (juce::var (false));
-                            return;
-                        }
-                    }
-
-                    target.getParentDirectory().createDirectory();
-                    if (! target.replaceWithData (mb.getData(), mb.getSize()))
-                    {
-                        DBG ("dropSessionAddFile: write failed: "
-                             << target.getFullPathName());
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    // Successful write — bump the running session total so
-                    // the next dropSessionAddFile call sees an up-to-date
-                    // 4 GB-cap denominator.
-                    currentDropSessionTotalBytes += (juce::uint64) mb.getSize();
-
-                    DBG ("dropSessionAddFile: wrote " << mb.getSize()
-                         << " bytes to " << target.getFullPathName()
-                         << " (session total " << (juce::int64) currentDropSessionTotalBytes
-                         << " B)");
-                    complete (juce::var (true));
-                })
-
-            // ---- dropSessionCommitFolder (v1.0.4 / v1.6.0 / v1.12.0) ----
-            //
-            // Calls processorRef.loadSampleFolder on the session temp dir.
-            // The async SampleLoader thread reads the dir in the background
-            // and posts the new SampleMap via sampleMapChangedCallback. The
-            // temp dir is left in place; it will be cleaned up at the start
-            // of the next drop session (cleanupStaleDropSessions).
-            //
-            //   args[0] = sessionId (must match)
-            //   args[1] (optional) = targetLayer 0..3      — default 0
-            //   args[2] (optional) = mode string           — default "replace_all"
-            //   args[3] (optional) = overrideTokens 0/1    — default 0
-            //   args[4] (optional, v1.12.0) = embedAudio 0/1 — default 0
-            //
-            // v1.12.0: drag-drop loads now flow through with origin="drag-drop"
-            // and the folder name lifted at dropSessionStart. When embedAudio=0
-            // (default), the saved state records origin + name so reload
-            // surfaces a friendlier "drag-dropped from <name>" missing modal
-            // (no /tmp/ paths). When embedAudio=1, the audio is serialised
-            // inline and the project survives temp-dir cleanup unchanged.
-            .withNativeFunction ("dropSessionCommitFolder",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.isEmpty()
-                        || args[0].toString() != currentDropSessionId
-                        || ! currentDropSessionDir.isDirectory())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    const int  targetLayer = args.size() > 1
-                        ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
-                    const auto modeStr     = args.size() > 2 ? args[2].toString()
-                                                             : juce::String ("replace_all");
-                    const bool overrideTok = args.size() > 3
-                        ? static_cast<int> (args[3]) != 0 : false;
-                    const bool embedAudio  = args.size() > 4
-                        ? static_cast<int> (args[4]) != 0 : false;
-
-                    LoadMode mode = LoadMode::ReplaceAll;
-                    if (modeStr == "append")        mode = LoadMode::Append;
-                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
-                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
-
-                    // v1.12.0: prefer the folder name lifted at dropSessionStart;
-                    // fall back to the temp-dir basename for legacy JS that
-                    // doesn't pass a name.
-                    const auto displayName = currentDropSessionFolderName.isNotEmpty()
-                        ? currentDropSessionFolderName
-                        : currentDropSessionDir.getFileName();
-
-                    DBG ("dropSessionCommitFolder: "
-                         << currentDropSessionDir.getFullPathName()
-                         << " layer=" << targetLayer
-                         << " mode=" << static_cast<int> (mode)
-                         << " override=" << (int) overrideTok
-                         << " embed=" << (int) embedAudio
-                         << " name=" << displayName);
-                    processorRef.loadSampleFolder (currentDropSessionDir,
-                                                    targetLayer, mode, overrideTok,
-                                                    "drag-drop", displayName, embedAudio);
-                    complete (juce::var (true));
-                })
-
-            // ---- dropSessionCommitFile (v1.0.4) ----
-            //
-            // args[0] = sessionId (must match)
-            // args[1] = relativePath of the single file inside the session dir
-            // args[2] = midi note (0..127)
-            // args[3] = velocity layer (0..numVelocityLayers-1)
-            .withNativeFunction ("dropSessionCommitFile",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 4
-                        || args[0].toString() != currentDropSessionId)
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const auto relPath = args[1].toString();
-                    const int  midi    = static_cast<int> (args[2]);
-                    const int  vel     = static_cast<int> (args[3]);
-
-                    const auto file = currentDropSessionDir.getChildFile (relPath);
-                    if (! file.existsAsFile())
-                    {
-                        DBG ("dropSessionCommitFile: file missing: "
-                             << file.getFullPathName());
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    DBG ("dropSessionCommitFile: midi=" << midi << " vel=" << vel
-                         << " file=" << file.getFullPathName());
-                    processorRef.loadSingleSample (midi, vel, file);
-                    complete (juce::var (true));
-                })
-
-            // ---- handleWebViewFileDrop (v1.0.3 — JS-side drag-drop entry point) ----
-            //
-            // JS calls this from a document-level 'drop' listener on the
-            // WebView. The C++ FileDragAndDropTarget overrides never fire
-            // because WKWebView consumes OS-level drag events at the AppKit
-            // layer (v1.0.1 -unregisterDraggedTypes and v1.0.2 overlay both
-            // failed); see the comment block at the top of this file.
-            //
-            // args[0] = JSON-style array of absolute file paths
-            //           (extracted from dataTransfer 'text/uri-list' or
-            //           'public.file-url' on the JS side, or filename-only
-            //           when the host doesn't expose paths)
-            // args[1] = x in WebView client coords (= editor local coords)
-            // args[2] = y in WebView client coords (= editor local coords)
-            //
-            // Forwards directly to filesDropped() so the existing Phase 3.3
-            // routing matrix (cell hit / folder-zone hit / out-of-bounds /
-            // toasts) is reused unchanged.
-            .withNativeFunction ("handleWebViewFileDrop",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 3)
-                    {
-                        DBG ("handleWebViewFileDrop: expected (paths, x, y), got "
-                             << args.size() << " arg(s)");
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    juce::StringArray paths;
-                    if (auto* arr = args[0].getArray())
-                    {
-                        for (const auto& pathVar : *arr)
-                        {
-                            const auto pathStr = pathVar.toString();
-                            if (pathStr.isNotEmpty())
-                                paths.add (pathStr);
-                        }
-                    }
-
-                    const int x = static_cast<int> (args[1]);
-                    const int y = static_cast<int> (args[2]);
-
-                    DBG ("handleWebViewFileDrop: " << paths.size()
-                         << " path(s) at (" << x << ", " << y << ")");
-
-                    if (paths.isEmpty())
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    // Reuse the FileDragAndDropTarget routing (cell hit,
-                    // folder-zone hit, toasts, out-of-bounds reject).
-                    filesDropped (paths, x, y);
-                    complete (juce::var (true));
-                })
-
-            // ---- clearSampleMap (v1.0.2 — destructive: empties the current map) ----
-            //
-            // JS calls: await Juce.getNativeFunction('clearSampleMap')(). The JS
-            // side is responsible for surfacing a confirmation dialog before
-            // invoking this — the native function performs the clear
-            // unconditionally. Resolves true once the map has been atomic-stored
-            // and the sampleMapUpdated push event has fired.
-            .withNativeFunction ("clearSampleMap",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    processorRef.clearSampleMap();
-                    complete (juce::var (true));
-                })
-
-            // ---- loadSingleSampleDialog (Phase 3.2 — FileChooser per cell) ----
-            //
-            // JS calls: await Juce.getNativeFunction('loadSingleSampleDialog')
-            //              (midi, vel, mergeAsRr=false).
-            // Resolves true on a successful selection (file passed to processor),
-            // false on cancel or invalid args. The actual load is async — the
-            // sampleMapUpdated event fires when the map has been atomic-stored.
-            //
-            // v1.9.0: optional mergeAsRr arg. true = append to existing cell's
-            // variants vector instead of replacing the cell (per-cell round-
-            // robin layering). The JS UI is responsible for surfacing the
-            // merge prompt before calling — see showPerCellMergeDialog.
-            .withNativeFunction ("loadSingleSampleDialog",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 2)
-                    {
-                        DBG ("loadSingleSampleDialog: expected (midi, vel), got "
-                             << args.size() << " arg(s)");
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    const int  midi      = static_cast<int> (args[0]);
-                    const int  vel       = static_cast<int> (args[1]);
-                    const bool mergeAsRr = args.size() > 2 && static_cast<bool> (args[2]);
-
-                    // Heap-allocate the FileChooser via shared_ptr so the
-                    // launchAsync lambda can keep it alive until the user
-                    // picks / cancels (JUCE 8 idiom — FileChooser must
-                    // outlive the launchAsync call).
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Choose sample for MIDI " + juce::String (midi)
-                            + " (layer " + juce::String (vel) + ")",
-                        juce::File{},
-                        "*.wav;*.aif;*.aiff;*.flac");
-
-                    auto flags = juce::FileBrowserComponent::openMode
-                               | juce::FileBrowserComponent::canSelectFiles;
-
-                    // The launchAsync completion runs on the message thread.
-                    // Capture chooser by value so its lifetime extends past
-                    // the launch returning. Capture `complete` so JS resolves.
-                    chooser->launchAsync (flags,
-                        [this, chooser, midi, vel, mergeAsRr, complete]
-                            (const juce::FileChooser& fc) mutable
-                        {
-                            const auto results = fc.getResults();
-                            if (results.isEmpty())
-                            {
-                                DBG ("loadSingleSampleDialog: cancelled");
-                                complete (juce::var (false));
-                                return;
-                            }
-
-                            const juce::File file = results.getFirst();
-                            if (! file.existsAsFile())
-                            {
-                                DBG ("loadSingleSampleDialog: selected file does not exist: "
-                                     << file.getFullPathName());
-                                complete (juce::var (false));
-                                return;
-                            }
-
-                            DBG ("loadSingleSampleDialog: midi=" << midi
-                                 << " vel=" << vel
-                                 << " mergeAsRr=" << (int) mergeAsRr
-                                 << " file=" << file.getFullPathName());
-
-                            // Kick off the async per-cell load. The processor
-                            // will fire sampleMapChangedCallback on completion
-                            // (which we forward as the sampleMapUpdated WebView
-                            // event in the editor's setSampleMapChangedCallback
-                            // lambda). JS resolves immediately with `true` to
-                            // unblock the await — the visual update arrives
-                            // via the push event.
-                            processorRef.loadSingleSample (midi, vel, file, mergeAsRr);
-                            complete (juce::var (true));
-                        });
-                })
-
-            .withNativeFunction ("getSkippedFiles",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    juce::String json = "[";
-                    const auto& sk = processorRef.getLastSkippedFiles();
-                    for (int i = 0; i < sk.size(); ++i)
-                    {
-                        if (i > 0) json += ",";
-                        json += juce::JSON::toString (juce::var (sk[i]));
-                    }
-                    json += "]";
-                    complete (juce::var (json));
-                })
-
-            // ---- overrideLoopPoints (Phase 3.4 — full impl) ----
-            //
-            // JS calls: await Juce.getNativeFunction('overrideLoopPoints')
-            //              (midi, vel, loopStart, loopEnd, crossfadeLen).
-            // Routes to processorRef.overrideLoopPoints(...). The
-            // sampleMapUpdated push event fires automatically via the
-            // processor's atomic-store + sampleMapChangedCallback.
-            // Returns true on dispatch (not on audible application — that
-            // happens on the next note-on per EC3-6).
-            .withNativeFunction ("overrideLoopPoints",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 4)
-                    {
-                        DBG ("overrideLoopPoints: expected (midi, vel, start, end[, xfade]), got "
-                             << args.size() << " arg(s)");
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    const int midi      = static_cast<int> (args[0]);
-                    const int vel       = static_cast<int> (args[1]);
-                    const int loopStart = static_cast<int> (args[2]);
-                    const int loopEnd   = static_cast<int> (args[3]);
-                    const int xfade     = (args.size() >= 5)
-                                             ? static_cast<int> (args[4])
-                                             : 8;
-                    const int variantIdx = (args.size() >= 6)
-                                              ? static_cast<int> (args[5])
-                                              : -1;   // v1.8.0: -1 = primary
-
-                    processorRef.overrideLoopPoints (midi, vel, loopStart, loopEnd,
-                                                     xfade, /*resetToAutoDetect*/ false,
-                                                     variantIdx);
-                    complete (juce::var (true));
-                })
-
-            // ---- resetLoopToAutoDetect (Phase 3.4 — full impl) ----
-            //
-            // JS calls: await Juce.getNativeFunction('resetLoopToAutoDetect')(midi, vel).
-            // Routes to processorRef.resetLoopToAutoDetect(...). Push update
-            // arrives via sampleMapUpdated.
-            .withNativeFunction ("resetLoopToAutoDetect",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 2)
-                    {
-                        DBG ("resetLoopToAutoDetect: expected (midi, vel), got "
-                             << args.size() << " arg(s)");
-                        complete (juce::var (false));
-                        return;
-                    }
-
-                    const int midi = static_cast<int> (args[0]);
-                    const int vel  = static_cast<int> (args[1]);
-                    const int variantIdx = (args.size() >= 3)
-                                              ? static_cast<int> (args[2])
-                                              : -1;   // v1.8.0: -1 = primary
-
-                    processorRef.resetLoopToAutoDetect (midi, vel, variantIdx);
-                    complete (juce::var (true));
-                })
-
-            // ---- getWaveformPeaks (Phase 3.4 — full impl) ----
-            //
-            // JS calls: await Juce.getNativeFunction('getWaveformPeaks')(midi, vel, bins).
-            // Returns the JSON snapshot from snapshotWaveformPeaks per
-            // RESEARCH §RQ3-5 schema. Click-driven path (loop-editor open),
-            // so message-thread O(N) scan is acceptable (≈1 ms / 5 s sample).
-            .withNativeFunction ("getWaveformPeaks",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 2)
-                    {
-                        DBG ("getWaveformPeaks: expected (midi, vel[, bins]), got "
-                             << args.size() << " arg(s)");
-                        complete (juce::var (juce::String ("{}")));
-                        return;
-                    }
-
-                    const int midi = static_cast<int> (args[0]);
-                    const int vel  = static_cast<int> (args[1]);
-                    const int bins = (args.size() >= 3)
-                                        ? static_cast<int> (args[2])
-                                        : 512;
-                    const int variantIdx = (args.size() >= 4)
-                                              ? static_cast<int> (args[3])
-                                              : 0;   // v1.8.0: default to primary
-
-                    complete (juce::var (
-                        processorRef.snapshotWaveformPeaks (midi, vel, bins, variantIdx)));
-                })
-
-            // ---- v1.8.0: confirmRoundRobinLoad(accept) ----
-            //
-            // JS calls await Juce.getNativeFunction('confirmRoundRobinLoad')(true)
-            // when the user accepts ambiguous duplicates as RR variants, or
-            // (false) to discard the staged map.
-            .withNativeFunction ("confirmRoundRobinLoad",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    if (args.size() < 1)
-                    {
-                        complete (juce::var (false));
-                        return;
-                    }
-                    const bool accept = static_cast<bool> (args[0]);
-                    processorRef.confirmRoundRobinLoad (accept);
-                    complete (juce::var (true));
-                })
-
-            // ============================================================
-            // v1.2.0: TUNING WRITE-SIDE BRIDGES
-            // The Stage 3 read-only design (§RQ3-1) is reversed in v1.2.0:
-            // the panel is now editable. All write-side native functions
-            // forward to the shared scala-tuning-engine module, the same
-            // single-source-of-truth that VST3 Note Expression overrides
-            // at note-on time, so Dorico microtonal playback is preserved.
-            // ============================================================
-
-            // ---- setSingleInterval(index, cents) ----
-            .withNativeFunction ("setSingleInterval",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine != nullptr && args.size() >= 2)
-                    {
-                        engine->setSingleInterval (static_cast<int>    (args[0]),
-                                                   static_cast<double> (args[1]));
-                        complete (juce::var (true));
-                        return;
-                    }
-                    complete (juce::var (false));
-                })
-
-            // ---- setTonicNote(0..11) ----
-            .withNativeFunction ("setTonicNote",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine != nullptr && args.size() >= 1)
-                    {
-                        engine->setTonicNote (static_cast<int> (args[0]));
-                        complete (juce::var (true));
-                        return;
-                    }
-                    complete (juce::var (false));
-                })
-
-            // ---- setOctaveStretch(stretch) ----
-            .withNativeFunction ("setOctaveStretch",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine != nullptr && args.size() >= 1)
-                    {
-                        engine->setOctaveStretch (static_cast<float> (args[0]));
-                        complete (juce::var (true));
-                        return;
-                    }
-                    complete (juce::var (false));
-                })
-
-            // ---- setMasterTune(hz) ----
-            .withNativeFunction ("setMasterTune",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine != nullptr && args.size() >= 1)
-                    {
-                        engine->setMasterTune (static_cast<double> (args[0]));
-                        complete (juce::var (true));
-                        return;
-                    }
-                    complete (juce::var (false));
-                })
-
-            // ---- loadEmbeddedTuning(id) — apply a factory preset by ID ----
-            .withNativeFunction ("loadEmbeddedTuning",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine != nullptr && args.size() >= 1)
-                    {
-                        const auto idStr = args[0].toString().toStdString();
-                        if (auto* t = EmbeddedTunings::getTuningById (idStr))
-                        {
-                            // EmbeddedTuning.intervals exclude the period; the
-                            // engine expects intervals INCLUDING the closing
-                            // period (matches setBuiltInPreset behaviour).
-                            std::vector<double> withPeriod = t->intervals;
-                            withPeriod.push_back (t->period);
-                            engine->setCustomIntervals (withPeriod, juce::String (t->name));
-                            complete (juce::var (true));
-                            return;
-                        }
-                    }
-                    complete (juce::var (false));
-                })
-
-            // ---- loadScalaFile() — open .scl file picker, return scale name on success ----
-            .withNativeFunction ("loadScalaFile",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Load Scala Scale (.scl)",
-                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
-                        "*.scl");
-
-                    chooser->launchAsync (juce::FileBrowserComponent::openMode
-                                          | juce::FileBrowserComponent::canSelectFiles,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
-                        {
-                            auto file = fc.getResult();
-                            auto* engine = processorRef.getTuningEngine();
-                            if (engine != nullptr && file.existsAsFile()
-                                && engine->loadScalaFile (file))
-                            {
-                                complete (juce::var (engine->getActiveTuningName()));
-                                return;
-                            }
-                            complete (juce::var());  // empty → JS treats as cancel/fail
-                        });
-                })
-
-            // ---- loadKBMFile() — open .kbm file picker ----
-            .withNativeFunction ("loadKBMFile",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Load Keyboard Mapping (.kbm)",
-                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
-                        "*.kbm");
-
-                    chooser->launchAsync (juce::FileBrowserComponent::openMode
-                                          | juce::FileBrowserComponent::canSelectFiles,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
-                        {
-                            auto file = fc.getResult();
-                            auto* engine = processorRef.getTuningEngine();
-                            const bool ok = (engine != nullptr && file.existsAsFile()
-                                             && engine->loadKBMFile (file));
-                            complete (juce::var (ok));
-                        });
-                })
-
-            // ---- saveScalaFile() — write current intervals as .scl ----
-            .withNativeFunction ("saveScalaFile",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine == nullptr) { complete (juce::var (false)); return; }
-
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Save Scala Scale (.scl)",
-                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                            .getChildFile (engine->getActiveTuningName() + ".scl"),
-                        "*.scl");
-
-                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
-                                          | juce::FileBrowserComponent::canSelectFiles
-                                          | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
-                        {
-                            auto file = fc.getResult();
-                            auto* eng = processorRef.getTuningEngine();
-                            if (eng != nullptr && file != juce::File())
-                            {
-                                file.replaceWithText (eng->generateScalaFileContent());
-                                complete (juce::var (true));
-                                return;
-                            }
-                            complete (juce::var (false));
-                        });
-                })
-
-            // ---- saveKBMFile() — write current keyboard mapping as .kbm ----
-            .withNativeFunction ("saveKBMFile",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine == nullptr) { complete (juce::var (false)); return; }
-
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Save Keyboard Mapping (.kbm)",
-                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                            .getChildFile ("mapping.kbm"),
-                        "*.kbm");
-
-                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
-                                          | juce::FileBrowserComponent::canSelectFiles
-                                          | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
-                        {
-                            auto file = fc.getResult();
-                            auto* eng = processorRef.getTuningEngine();
-                            if (eng != nullptr && file != juce::File())
-                            {
-                                file.replaceWithText (eng->generateKBMFileContent());
-                                complete (juce::var (true));
-                                return;
-                            }
-                            complete (juce::var (false));
-                        });
-                })
-
-            // ---- generateEDO(divisions, period) → JSON intervals ----
-            .withNativeFunction ("generateEDO",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
-                {
-                    if (args.size() >= 2)
-                    {
-                        auto intervals = ScaleGenerator::generateEDO (
-                            static_cast<int>    (args[0]),
-                            static_cast<double> (args[1]));
-                        juce::String json = "[";
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                        json += "]";
-                        complete (juce::var (json));
-                        return;
-                    }
-                    complete (juce::var());
-                })
-
-            // ---- generateHarmonicSeries(start, end) → JSON intervals ----
-            .withNativeFunction ("generateHarmonicSeries",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
-                {
-                    if (args.size() >= 2)
-                    {
-                        auto intervals = ScaleGenerator::generateHarmonicSeries (
-                            static_cast<int> (args[0]),
-                            static_cast<int> (args[1]));
-                        juce::String json = "[";
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                        json += "]";
-                        complete (juce::var (json));
-                        return;
-                    }
-                    complete (juce::var());
-                })
-
-            // ---- generateRank2(generator, period, count) → JSON intervals ----
-            .withNativeFunction ("generateRank2",
-                [] (const juce::Array<juce::var>& args,
-                    std::function<void(juce::var)> complete)
-                {
-                    if (args.size() >= 3)
-                    {
-                        auto intervals = ScaleGenerator::generateRank2 (
-                            static_cast<double> (args[0]),
-                            static_cast<double> (args[1]),
-                            static_cast<int>    (args[2]));
-                        juce::String json = "[";
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                        json += "]";
-                        complete (juce::var (json));
-                        return;
-                    }
-                    complete (juce::var());
-                })
-
-            // ---- applyGeneratedScale(intervalsJson, name) ----
-            .withNativeFunction ("applyGeneratedScale",
-                [this] (const juce::Array<juce::var>& args,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine != nullptr && args.size() >= 2)
-                    {
-                        auto parsed = juce::JSON::parse (args[0].toString());
-                        if (auto* arr = parsed.getArray())
-                        {
-                            std::vector<double> cents;
-                            cents.reserve (static_cast<size_t> (arr->size()));
-                            for (const auto& v : *arr)
-                                cents.push_back (static_cast<double> (v));
-                            engine->setCustomIntervals (cents, args[1].toString());
-                            complete (juce::var (true));
-                            return;
-                        }
-                    }
-                    complete (juce::var (false));
-                })
-
-            // ============================================================
-            // v1.3.0: STATE PERSISTENCE — preset save/load + missing-folder
-            // recovery. The plugin already round-trips full state through
-            // get/setStateInformation (DAW project save/load), so the
-            // .omspreset format simply re-uses that ValueTree as plain XML
-            // text written to a user-chosen file. Missing-folder recovery
-            // surfaces the saved path in a modal so the user can either
-            // relocate or skip without re-loading the entire bank.
-            // ============================================================
-
-            // ---- saveCurrentPreset() — write current state to .omspreset ----
-            //
-            // Captures the same ValueTree that getStateInformation persists
-            // (APVTS params + SampleFolder path + full TuningState) and writes
-            // it as XML text to a user-chosen file. Path-only per Q1=A — the
-            // .omspreset is small and shareable across projects on the same
-            // machine, but breaks across machines without matching folder
-            // structure. JS resolves true on success, false on cancel/fail.
-            .withNativeFunction ("saveCurrentPreset",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Save Preset",
-                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                            .getChildFile ("O-MicrotonalSampler.omspreset"),
-                        "*.omspreset");
-
-                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
-                                          | juce::FileBrowserComponent::canSelectFiles
-                                          | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
-                        {
-                            auto file = fc.getResult();
-                            if (file == juce::File())
-                            {
-                                complete (juce::var (false));
-                                return;
-                            }
-                            const auto xml = processorRef.capturePresetXml();
-                            if (xml.isEmpty() || ! file.replaceWithText (xml))
-                            {
-                                complete (juce::var (false));
-                                return;
-                            }
-                            complete (juce::var (true));
-                        });
-                })
-
-            // ---- loadPreset() — read .omspreset and restore state ----
-            //
-            // Replaces APVTS, tuning, and the loaded folder. If the saved
-            // folder path no longer exists, surfaces the standard missing-
-            // folder modal (same pathway used during DAW project reopen).
-            .withNativeFunction ("loadPreset",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Load Preset",
-                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
-                        "*.omspreset");
-
-                    chooser->launchAsync (juce::FileBrowserComponent::openMode
-                                          | juce::FileBrowserComponent::canSelectFiles,
-                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
-                        {
-                            auto file = fc.getResult();
-                            if (! file.existsAsFile())
-                            {
-                                complete (juce::var (false));
-                                return;
-                            }
-                            const auto xml = file.loadFileAsString();
-                            const bool ok  = processorRef.restorePresetXml (xml);
-                            complete (juce::var (ok));
-                        });
-                })
-
-            // ---- locateMissingFolder() — folder picker for missing-folder modal ----
-            //
-            // JS surfaces this from the modal's "Locate folder…" button.
-            // Reuses the existing loadSampleFolder pathway, which clears the
-            // pending missing-folder slot via setStateInformation's normal
-            // success flow. JS resolves true if a folder was selected (and
-            // forwarded to the processor), false on cancel.
-            .withNativeFunction ("locateMissingFolder",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Locate sample folder",
-                        juce::File{},
-                        juce::String{});
-                    auto flags = juce::FileBrowserComponent::openMode
-                               | juce::FileBrowserComponent::canSelectDirectories;
-
-                    chooser->launchAsync (flags,
-                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
-                        {
-                            const auto results = fc.getResults();
-                            if (results.isEmpty() || ! results.getFirst().isDirectory())
-                            {
-                                complete (juce::var (false));
-                                return;
-                            }
-                            processorRef.clearPendingMissingFolder();
-                            processorRef.loadSampleFolder (results.getFirst());
-                            complete (juce::var (true));
-                        });
-                })
-
-            // ---- dismissMissingFolder() — user chose Skip on the modal ----
-            .withNativeFunction ("dismissMissingFolder",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    processorRef.clearPendingMissingFolder();
-                    complete (juce::var (true));
-                })
-
-            // ---- getPendingMissingFolder() — covers boot-time race ----
-            //
-            // setStateInformation may run before the WebView has registered
-            // its folderMissing event listener (DAW project reopen → state
-            // restore happens before editor attach). JS calls this once on
-            // boot to recover any missed event.
-            //
-            // v1.12.0: returns an object {path, kind, name} — string for
-            // legacy v1.11.x JS bundles is no longer compatible. JS must
-            // detect the object form and branch on `kind` ("filesystem" or
-            // "drag-drop"). Empty path + empty name = no pending missing.
-            .withNativeFunction ("getPendingMissingFolder",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* obj = new juce::DynamicObject();
-                    obj->setProperty ("path", processorRef.getPendingMissingFolderPath());
-                    obj->setProperty ("kind", processorRef.getPendingMissingFolderKind());
-                    obj->setProperty ("name", processorRef.getPendingMissingFolderName());
-                    complete (juce::var (obj));
-                })
-
-            // ---- exportTuningHTML() — write current tuning to HTML doc ----
-            .withNativeFunction ("exportTuningHTML",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    auto* engine = processorRef.getTuningEngine();
-                    if (engine == nullptr) { complete (juce::var (false)); return; }
-
-                    auto chooser = std::make_shared<juce::FileChooser> (
-                        "Export Tuning Documentation",
-                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                            .getChildFile (engine->getActiveTuningName() + ".html"),
-                        "*.html");
-
-                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
-                                          | juce::FileBrowserComponent::canSelectFiles
-                                          | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
-                        {
-                            auto file = fc.getResult();
-                            auto* eng = processorRef.getTuningEngine();
-                            if (eng != nullptr && file != juce::File())
-                            {
-                                auto html = TuningExporter::toHTML (*eng, "O-MicrotonalSampler");
-                                file.replaceWithText (html);
-                                complete (juce::var (true));
-                                return;
-                            }
-                            complete (juce::var (false));
-                        });
-                })
-    );
+        [this]
+        {
+            // v1.12.4: native functions registered via the data-driven
+            // registry below (buildNativeFunctionRegistry) instead of 42
+            // inline chained .withNativeFunction(...) calls (~1400 lines
+            // of organic v1.5.0–v1.12.0 growth). Constructor stays small;
+            // each native function is one vector entry. Behaviour is
+            // unchanged — every entry preserves its original name,
+            // capture list, and body verbatim.
+            auto opts = juce::WebBrowserComponent::Options{}
+                .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+
+                // Windows: explicit user-data folder under temp/ — default
+                // location may be access-denied in DAW plugin hosts (memory).
+                .withWinWebView2Options (
+                    juce::WebBrowserComponent::Options::WinWebView2{}
+                        .withUserDataFolder (
+                            juce::File::getSpecialLocation (
+                                juce::File::SpecialLocationType::tempDirectory)
+                                    .getChildFile ("OMicrotonalSampler_WebView")))
+
+                .withNativeIntegrationEnabled()
+                .withResourceProvider ([this] (const auto& url) { return getResource (url); })
+
+                // Register all relays so JS can find them via Juce.getSliderState(id).
+                .withOptionsFrom (*attackRelay)
+                .withOptionsFrom (*decayRelay)
+                .withOptionsFrom (*sustainRelay)
+                .withOptionsFrom (*releaseRelay)
+                .withOptionsFrom (*polyphonyRelay)
+                .withOptionsFrom (*velocityCrossfadeRelay)
+                .withOptionsFrom (*expressionRelay)        // v1.7.0
+                .withOptionsFrom (*outputGainRelay);
+
+            for (auto& [name, handler] : buildNativeFunctionRegistry())
+                opts = opts.withNativeFunction (name, std::move (handler));
+
+            return opts;
+        }());
 
     // ----------------------------------------------------------------
     // 3️⃣ CREATE ATTACHMENTS LAST
@@ -1725,13 +367,6 @@ OMicrotonalSamplerAudioProcessorEditor::getResource (const juce::String& url)
             juce::String ("text/css") };
     }
 
-    if (url == "/css/tuning-panel-readonly.css")
-    {
-        return juce::WebBrowserComponent::Resource {
-            makeVector (BinaryData::tuningpanelreadonly_css, BinaryData::tuningpanelreadonly_cssSize),
-            juce::String ("text/css") };
-    }
-
     if (url == "/js/sampler-app.js")
     {
         return juce::WebBrowserComponent::Resource {
@@ -1927,4 +562,1430 @@ void OMicrotonalSamplerAudioProcessorEditor::fileDragExit (
     juce::ignoreUnused (files);
     if (webView == nullptr) return;
     webView->emitEventIfBrowserIsVisible ("hostFileDragExit", juce::var());
+}
+
+//==============================================================================
+// v1.12.4: Data-driven native function registry. Replaces 42 inline
+// .withNativeFunction(...) chained calls that lived in the constructor
+// (~1400 lines, organic v1.5.0–v1.12.0 growth). The constructor iterates
+// this vector once and forwards each entry to the Options builder.
+//
+// Behaviour is unchanged — every entry preserves its original name,
+// capture list, and body verbatim. See REVIEW-architecture.md §1.
+// Pattern is reusable in O-Bells / O-Lyrica which carry similar boilerplate.
+std::vector<std::pair<juce::Identifier, juce::WebBrowserComponent::NativeFunction>>
+OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
+{
+    return {
+        { "getSampleMap",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    complete (juce::var (processorRef.snapshotSampleMapJson()));
+                }
+        },
+
+        // ---- Tuning reads (TuningEngine accessors) ----
+        { "getTuningName",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    complete (juce::var (engine != nullptr
+                                             ? engine->getActiveTuningName()
+                                             : juce::String ("12-TET")));
+                }
+        },
+
+        { "getTuningIntervals",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    juce::String json = "[";
+                    if (engine != nullptr)
+                    {
+                        auto intervals = engine->getIntervals();
+                        for (size_t i = 0; i < intervals.size(); ++i)
+                        {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                    }
+                    json += "]";
+                    complete (juce::var (json));
+                }
+        },
+
+        { "getTonicNote",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    complete (juce::var (engine != nullptr
+                                             ? engine->getTonicNote()
+                                             : 60));
+                }
+        },
+
+        { "getOctaveStretch",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    complete (juce::var (engine != nullptr
+                                             ? engine->getOctaveStretch()
+                                             : 0.0f));
+                }
+        },
+
+        { "getPluginVersion",
+                [] (const juce::Array<juce::var>&,
+                    std::function<void(juce::var)> complete)
+                {
+                    complete (juce::var (JucePlugin_VersionString));
+                }
+        },
+
+        // v1.7.1: catch-up pull for the TuningPanel. The 30 Hz timer
+        // only emits tuningHeldNotes on change, so a panel that mounts
+        // (lazy — first Tuning-tab activation) while notes are already
+        // held would otherwise see no event until the next change.
+        // Returns the same payload shape as the tuningHeldNotes event:
+        // `{"notes":[...],"freqs":[...]}` JSON string.
+        { "getHeldNotesJson",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    std::vector<int>    notes;
+                    std::vector<double> freqs;
+                    processorRef.getHeldNotesData (notes, freqs);
+
+                    juce::String notesArr = "[", freqsArr = "[";
+                    for (size_t i = 0; i < notes.size(); ++i)
+                    {
+                        if (i > 0) { notesArr += ","; freqsArr += ","; }
+                        notesArr += juce::String (notes[i]);
+                        freqsArr += juce::String (freqs[i], 4);
+                    }
+                    notesArr += "]"; freqsArr += "]";
+                    complete (juce::var ("{\"notes\":" + notesArr
+                                       + ",\"freqs\":" + freqsArr + "}"));
+                }
+        },
+
+        { "getEmbeddedTuningList",
+                [] (const juce::Array<juce::var>&,
+                    std::function<void(juce::var)> complete)
+                {
+                    const auto& tunings = EmbeddedTunings::getAllTunings();
+                    juce::String json = "[";
+                    for (size_t i = 0; i < tunings.size(); ++i)
+                    {
+                        if (i > 0) json += ",";
+                        json += "{";
+                        json += "\"id\":\""       + juce::String (tunings[i].id)       + "\",";
+                        json += "\"name\":\""     + juce::String (tunings[i].name)     + "\",";
+                        json += "\"category\":\"" + juce::String (tunings[i].category) + "\",";
+                        json += "\"noteCount\":"  + juce::String (static_cast<int> (tunings[i].intervals.size()));
+                        json += "}";
+                    }
+                    json += "]";
+                    complete (juce::var (json));
+                }
+        },
+
+        { "getEmbeddedTuningCategories",
+                [] (const juce::Array<juce::var>&,
+                    std::function<void(juce::var)> complete)
+                {
+                    auto categories = EmbeddedTunings::getCategories();
+                    juce::String json = "[";
+                    for (size_t i = 0; i < categories.size(); ++i)
+                    {
+                        if (i > 0) json += ",";
+                        json += "\"" + juce::String (categories[i]) + "\"";
+                    }
+                    json += "]";
+                    complete (juce::var (json));
+                }
+        },
+
+        // ---- reportCellLayout : JS publishes grid layout for hit-testing ----
+        { "reportCellLayout",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() >= 1)
+                    {
+                        auto parsed = juce::JSON::parse (args[0].toString());
+                        if (auto* obj = parsed.getDynamicObject())
+                        {
+                            cellLayout.clearQuick();
+                            if (auto* cells = obj->getProperty ("cells").getArray())
+                            {
+                                for (const auto& c : *cells)
+                                {
+                                    if (auto* co = c.getDynamicObject())
+                                    {
+                                        CellRect r;
+                                        r.midiNote      = static_cast<int> (co->getProperty ("midiNote"));
+                                        r.velocityLayer = static_cast<int> (co->getProperty ("velocityLayer"));
+                                        r.x             = static_cast<int> (co->getProperty ("x"));
+                                        r.y             = static_cast<int> (co->getProperty ("y"));
+                                        r.w             = static_cast<int> (co->getProperty ("w"));
+                                        r.h             = static_cast<int> (co->getProperty ("h"));
+                                        cellLayout.add (r);
+                                    }
+                                }
+                            }
+                            if (auto* fz = obj->getProperty ("folderZone").getDynamicObject())
+                            {
+                                folderZoneRect = juce::Rectangle<int> (
+                                    static_cast<int> (fz->getProperty ("x")),
+                                    static_cast<int> (fz->getProperty ("y")),
+                                    static_cast<int> (fz->getProperty ("w")),
+                                    static_cast<int> (fz->getProperty ("h")));
+                            }
+                        }
+                    }
+                    complete (juce::var());
+                }
+        },
+
+        // ============================================================
+        // SKELETONS — full implementations land in 3.2/3.3/3.4.
+        // Each returns a sane default so JS callers don't crash.
+        // ============================================================
+
+        // ---- pickSampleFolder (v1.12.0) ----
+        //
+        // Replaces v1.6.0's combined `loadSampleFolderDialog` with a pure
+        // file picker. JS sequences: pickSampleFolder() → maybe
+        // estimateFolderAudioSize() → maybe size-confirm modal →
+        // loadSampleFolderByPath(). The split lets JS show a real
+        // size-warning between selection and load when the user opted
+        // into embedAudio.
+        //
+        // Resolves an object: { path: "...", cancelled: false } on success,
+        // { path: "", cancelled: true } when the user dismissed the picker.
+        // (Always returns an object so JS can `await` once and inspect.)
+        { "pickSampleFolder",
+                [] (const juce::Array<juce::var>&,
+                    std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Choose folder containing sample files",
+                        juce::File{},
+                        juce::String{});
+
+                    auto flags = juce::FileBrowserComponent::openMode
+                               | juce::FileBrowserComponent::canSelectDirectories;
+
+                    chooser->launchAsync (flags,
+                        [chooser, complete] (const juce::FileChooser& fc) mutable
+                        {
+                            auto* obj = new juce::DynamicObject();
+                            const auto results = fc.getResults();
+
+                            if (results.isEmpty() || ! results.getFirst().isDirectory())
+                            {
+                                obj->setProperty ("path", juce::String());
+                                obj->setProperty ("cancelled", true);
+                                complete (juce::var (obj));
+                                return;
+                            }
+
+                            const juce::File folder = results.getFirst();
+                            obj->setProperty ("path",      folder.getFullPathName());
+                            obj->setProperty ("name",      folder.getFileName());
+                            obj->setProperty ("cancelled", false);
+                            DBG ("pickSampleFolder: " << folder.getFullPathName());
+                            complete (juce::var (obj));
+                        });
+                }
+        },
+
+        // ---- estimateFolderAudioSize (v1.12.0) ----
+        //
+        // Returns the total size (in bytes) of audio files inside `path`,
+        // recursively. Used by JS to populate the "Embed will add ~X MB"
+        // size-warning modal before the user commits to an embed load.
+        //
+        // Extension set matches SampleLoader's wildcard
+        // (*.wav;*.aif;*.aiff;*.flac). Source-file size is reported (not
+        // post-resample PCM size); this is honest about the disk cost
+        // and acceptable as an order-of-magnitude estimate.
+        //
+        //   args[0] = absolute folder path
+        // Returns: bytes (juce::int64). Returns 0 on invalid path.
+        { "estimateFolderAudioSize",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete (juce::var (juce::int64 (0)));
+                        return;
+                    }
+                    const juce::File folder (args[0].toString());
+                    if (! folder.isDirectory())
+                    {
+                        complete (juce::var (juce::int64 (0)));
+                        return;
+                    }
+
+                    juce::int64 totalBytes = 0;
+                    const juce::String wildcards = "*.wav;*.aif;*.aiff;*.flac";
+                    for (const auto& entry : juce::RangedDirectoryIterator (
+                                                  folder, /*recursive=*/true,
+                                                  wildcards,
+                                                  juce::File::findFiles))
+                    {
+                        totalBytes += entry.getFile().getSize();
+                    }
+                    complete (juce::var (totalBytes));
+                }
+        },
+
+        // ---- loadSampleFolderByPath (v1.12.0) ----
+        //
+        // Loads a folder by absolute path with full origin/embed metadata.
+        // Used by JS after `pickSampleFolder` (and any embed-confirm
+        // modal). The pre-pick options modal returns layer/mode/override/
+        // embed; this fn stitches them together with the picked path.
+        //
+        //   args[0] = absolute folder path (required)
+        //   args[1] (optional) = targetLayer 0..3       — default 0
+        //   args[2] (optional) = mode string             — default "replace_all"
+        //                        ("append" | "replace_layer" | "replace_all" | "merge_rr")
+        //   args[3] (optional) = overrideTokens 0/1     — default 0
+        //   args[4] (optional) = embedAudio 0/1         — default 0
+        //
+        // Resolves true if the load was dispatched; false if path is
+        // invalid. The actual scan + load is async — sampleMapUpdated
+        // fires when the new map has been atomic-stored.
+        { "loadSampleFolderByPath",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const juce::File folder (args[0].toString());
+                    if (! folder.isDirectory())
+                    {
+                        DBG ("loadSampleFolderByPath: not a directory: "
+                             << folder.getFullPathName());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int  targetLayer = args.size() > 1
+                        ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
+                    const auto modeStr     = args.size() > 2 ? args[2].toString()
+                                                             : juce::String ("replace_all");
+                    const bool overrideTok = args.size() > 3
+                        ? static_cast<int> (args[3]) != 0 : false;
+                    const bool embedAudio  = args.size() > 4
+                        ? static_cast<int> (args[4]) != 0 : false;
+
+                    LoadMode mode = LoadMode::ReplaceAll;
+                    if (modeStr == "append")        mode = LoadMode::Append;
+                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
+
+                    DBG ("loadSampleFolderByPath: folder="
+                         << folder.getFullPathName()
+                         << " layer=" << targetLayer
+                         << " mode=" << static_cast<int> (mode)
+                         << " override=" << (int) overrideTok
+                         << " embed=" << (int) embedAudio);
+                    processorRef.loadSampleFolder (folder, targetLayer, mode, overrideTok,
+                                                    "filesystem", folder.getFileName(),
+                                                    embedAudio);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- dropSessionStart (v1.0.4 — content-streaming drag-drop) ----
+        //
+        // The user dragged a file or folder onto the WebView. WKWebView
+        // exposes a FileSystemEntry to JS but strips absolute paths
+        // (sandbox), so we cannot forward paths to filesDropped(). The
+        // JS layer instead enumerates the entry tree, reads each audio
+        // file via FileReader, and base64-streams the bytes to this
+        // editor via dropSessionAddFile. We materialise them in a
+        // session-scoped temp dir so the existing loadSampleFolder /
+        // loadSingleSample paths consume the result as if the user had
+        // picked it from a native FileChooser.
+        //
+        // args[0] = sessionId (opaque string from JS, used to scope
+        //           the temp dir and validate subsequent calls)
+        // args[1] (optional, v1.12.0) = folder name (FileSystemEntry::name).
+        //         The macOS WKWebView sandbox strips the original disk
+        //         path but exposes the dragged folder's display name —
+        //         we lift it here so the missing-folder modal on reload
+        //         can render "Samples were drag-dropped from <name>"
+        //         copy. Single-file drops pass the file's basename.
+        //
+        // Returns true if the temp dir was created.
+        { "dropSessionStart",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const auto sessionId = args[0].toString();
+                    if (sessionId.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const auto folderName = args.size() > 1
+                        ? args[1].toString()
+                        : juce::String();
+
+                    cleanupStaleDropSessions();
+
+                    auto dir = juce::File::getSpecialLocation (
+                                   juce::File::tempDirectory)
+                                       .getChildFile (
+                                           "o-microtonalsampler-drop-" + sessionId);
+                    const auto result = dir.createDirectory();
+                    if (! result.wasOk())
+                    {
+                        DBG ("dropSessionStart: createDirectory failed: "
+                             << result.getErrorMessage());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    currentDropSessionId         = sessionId;
+                    currentDropSessionDir        = dir;
+                    currentDropSessionTotalBytes = 0;  // v1.11.2: reset 4 GB cap
+                    currentDropSessionFolderName = folderName;  // v1.12.0
+                    DBG ("dropSessionStart: " << dir.getFullPathName()
+                         << " name=" << folderName);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- dropSessionAddFile (v1.0.4) ----
+        //
+        // args[0] = sessionId  (must match currentDropSessionId)
+        // args[1] = relativePath inside the session dir (forward slashes,
+        //           never backslashes — JS controls the delimiter)
+        // args[2] = base64-encoded file content
+        //
+        // Returns true on successful write.
+        { "dropSessionAddFile",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 3)
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const auto sessionId = args[0].toString();
+                    const auto relPath   = args[1].toString();
+                    const auto base64    = args[2].toString();
+
+                    if (sessionId != currentDropSessionId
+                        || ! currentDropSessionDir.isDirectory())
+                    {
+                        DBG ("dropSessionAddFile: session mismatch / dir gone");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    // v1.11.2 — path-traversal guard (REVIEW CR-02).
+                    // Reject before allocating: empty, absolute, backslash,
+                    // NUL, or any ".." segment in the JS-supplied relPath.
+                    {
+                        const auto reason = ouaricon::dropguard::validateRelPath (relPath);
+                        if (reason.isNotEmpty())
+                        {
+                            DBG ("dropSessionAddFile: relPath rejected (" << reason
+                                 << "): " << relPath);
+                            complete (juce::var (false));
+                            return;
+                        }
+                    }
+
+                    // v1.11.2 — size-cap guard (REVIEW CR-03). Reject the
+                    // payload BEFORE allocating the decode buffer so a
+                    // hostile page cannot OOM the host with a single huge
+                    // base64 string. Per-file 256 MB, per-session 4 GB.
+                    juce::uint64 projectedBytes = 0;
+                    {
+                        const auto reason = ouaricon::dropguard::checkSizeCaps (
+                            base64.length(), currentDropSessionTotalBytes,
+                            projectedBytes);
+                        if (reason.isNotEmpty())
+                        {
+                            DBG ("dropSessionAddFile: size cap (" << reason
+                                 << "): projected=" << (juce::int64) projectedBytes
+                                 << ", session=" << (juce::int64) currentDropSessionTotalBytes
+                                 << ", relPath=" << relPath);
+                            complete (juce::var (false));
+                            return;
+                        }
+                    }
+
+                    // STANDARD base64 decode via juce::Base64. Note: do NOT
+                    // use MemoryBlock::fromBase64Encoding — that is JUCE's
+                    // own non-standard "<size>.<altAlphabet>" format and
+                    // will reject JS btoa() output silently.
+                    juce::MemoryBlock mb;
+                    {
+                        juce::MemoryOutputStream stream (mb, false);
+                        if (! juce::Base64::convertFromBase64 (stream, base64))
+                        {
+                            DBG ("dropSessionAddFile: base64 decode failed for "
+                                 << relPath << " (input length " << base64.length()
+                                 << ", first 32 chars: '"
+                                 << base64.substring (0, 32) << "')");
+                            complete (juce::var (false));
+                            return;
+                        }
+                        stream.flush();
+                    }
+
+                    auto target = currentDropSessionDir.getChildFile (relPath);
+
+                    // v1.11.2 — symlink-escape guard. Even with a clean
+                    // relPath, a hostile local symlink anywhere in the
+                    // parent chain (e.g. attacker pre-creates a symlink at
+                    // sessionDir/subdir → /etc) would let replaceWithData
+                    // write outside the sandbox. Walk the chain before
+                    // creating any directories.
+                    {
+                        const auto reason = ouaricon::dropguard::validateParentChain (
+                            currentDropSessionDir, target);
+                        if (reason.isNotEmpty())
+                        {
+                            DBG ("dropSessionAddFile: parent chain rejected ("
+                                 << reason << "): " << target.getFullPathName());
+                            complete (juce::var (false));
+                            return;
+                        }
+                    }
+
+                    target.getParentDirectory().createDirectory();
+                    if (! target.replaceWithData (mb.getData(), mb.getSize()))
+                    {
+                        DBG ("dropSessionAddFile: write failed: "
+                             << target.getFullPathName());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    // Successful write — bump the running session total so
+                    // the next dropSessionAddFile call sees an up-to-date
+                    // 4 GB-cap denominator.
+                    currentDropSessionTotalBytes += (juce::uint64) mb.getSize();
+
+                    DBG ("dropSessionAddFile: wrote " << mb.getSize()
+                         << " bytes to " << target.getFullPathName()
+                         << " (session total " << (juce::int64) currentDropSessionTotalBytes
+                         << " B)");
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- dropSessionCommitFolder (v1.0.4 / v1.6.0 / v1.12.0) ----
+        //
+        // Calls processorRef.loadSampleFolder on the session temp dir.
+        // The async SampleLoader thread reads the dir in the background
+        // and posts the new SampleMap via sampleMapChangedCallback. The
+        // temp dir is left in place; it will be cleaned up at the start
+        // of the next drop session (cleanupStaleDropSessions).
+        //
+        //   args[0] = sessionId (must match)
+        //   args[1] (optional) = targetLayer 0..3      — default 0
+        //   args[2] (optional) = mode string           — default "replace_all"
+        //   args[3] (optional) = overrideTokens 0/1    — default 0
+        //   args[4] (optional, v1.12.0) = embedAudio 0/1 — default 0
+        //
+        // v1.12.0: drag-drop loads now flow through with origin="drag-drop"
+        // and the folder name lifted at dropSessionStart. When embedAudio=0
+        // (default), the saved state records origin + name so reload
+        // surfaces a friendlier "drag-dropped from <name>" missing modal
+        // (no /tmp/ paths). When embedAudio=1, the audio is serialised
+        // inline and the project survives temp-dir cleanup unchanged.
+        { "dropSessionCommitFolder",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty()
+                        || args[0].toString() != currentDropSessionId
+                        || ! currentDropSessionDir.isDirectory())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int  targetLayer = args.size() > 1
+                        ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
+                    const auto modeStr     = args.size() > 2 ? args[2].toString()
+                                                             : juce::String ("replace_all");
+                    const bool overrideTok = args.size() > 3
+                        ? static_cast<int> (args[3]) != 0 : false;
+                    const bool embedAudio  = args.size() > 4
+                        ? static_cast<int> (args[4]) != 0 : false;
+
+                    LoadMode mode = LoadMode::ReplaceAll;
+                    if (modeStr == "append")        mode = LoadMode::Append;
+                    else if (modeStr == "replace_layer") mode = LoadMode::ReplaceLayer;
+                    else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
+
+                    // v1.12.0: prefer the folder name lifted at dropSessionStart;
+                    // fall back to the temp-dir basename for legacy JS that
+                    // doesn't pass a name.
+                    const auto displayName = currentDropSessionFolderName.isNotEmpty()
+                        ? currentDropSessionFolderName
+                        : currentDropSessionDir.getFileName();
+
+                    DBG ("dropSessionCommitFolder: "
+                         << currentDropSessionDir.getFullPathName()
+                         << " layer=" << targetLayer
+                         << " mode=" << static_cast<int> (mode)
+                         << " override=" << (int) overrideTok
+                         << " embed=" << (int) embedAudio
+                         << " name=" << displayName);
+                    processorRef.loadSampleFolder (currentDropSessionDir,
+                                                    targetLayer, mode, overrideTok,
+                                                    "drag-drop", displayName, embedAudio);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- dropSessionCommitFile (v1.0.4) ----
+        //
+        // args[0] = sessionId (must match)
+        // args[1] = relativePath of the single file inside the session dir
+        // args[2] = midi note (0..127)
+        // args[3] = velocity layer (0..numVelocityLayers-1)
+        { "dropSessionCommitFile",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 4
+                        || args[0].toString() != currentDropSessionId)
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const auto relPath = args[1].toString();
+                    const int  midi    = static_cast<int> (args[2]);
+                    const int  vel     = static_cast<int> (args[3]);
+
+                    const auto file = currentDropSessionDir.getChildFile (relPath);
+                    if (! file.existsAsFile())
+                    {
+                        DBG ("dropSessionCommitFile: file missing: "
+                             << file.getFullPathName());
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    DBG ("dropSessionCommitFile: midi=" << midi << " vel=" << vel
+                         << " file=" << file.getFullPathName());
+                    processorRef.loadSingleSample (midi, vel, file);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- handleWebViewFileDrop (v1.0.3 — JS-side drag-drop entry point) ----
+        //
+        // JS calls this from a document-level 'drop' listener on the
+        // WebView. The C++ FileDragAndDropTarget overrides never fire
+        // because WKWebView consumes OS-level drag events at the AppKit
+        // layer (v1.0.1 -unregisterDraggedTypes and v1.0.2 overlay both
+        // failed); see the comment block at the top of this file.
+        //
+        // args[0] = JSON-style array of absolute file paths
+        //           (extracted from dataTransfer 'text/uri-list' or
+        //           'public.file-url' on the JS side, or filename-only
+        //           when the host doesn't expose paths)
+        // args[1] = x in WebView client coords (= editor local coords)
+        // args[2] = y in WebView client coords (= editor local coords)
+        //
+        // Forwards directly to filesDropped() so the existing Phase 3.3
+        // routing matrix (cell hit / folder-zone hit / out-of-bounds /
+        // toasts) is reused unchanged.
+        { "handleWebViewFileDrop",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 3)
+                    {
+                        DBG ("handleWebViewFileDrop: expected (paths, x, y), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    juce::StringArray paths;
+                    if (auto* arr = args[0].getArray())
+                    {
+                        for (const auto& pathVar : *arr)
+                        {
+                            const auto pathStr = pathVar.toString();
+                            if (pathStr.isNotEmpty())
+                                paths.add (pathStr);
+                        }
+                    }
+
+                    const int x = static_cast<int> (args[1]);
+                    const int y = static_cast<int> (args[2]);
+
+                    DBG ("handleWebViewFileDrop: " << paths.size()
+                         << " path(s) at (" << x << ", " << y << ")");
+
+                    if (paths.isEmpty())
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    // Reuse the FileDragAndDropTarget routing (cell hit,
+                    // folder-zone hit, toasts, out-of-bounds reject).
+                    filesDropped (paths, x, y);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- clearSampleMap (v1.0.2 — destructive: empties the current map) ----
+        //
+        // JS calls: await Juce.getNativeFunction('clearSampleMap')(). The JS
+        // side is responsible for surfacing a confirmation dialog before
+        // invoking this — the native function performs the clear
+        // unconditionally. Resolves true once the map has been atomic-stored
+        // and the sampleMapUpdated push event has fired.
+        { "clearSampleMap",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    processorRef.clearSampleMap();
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- loadSingleSampleDialog (Phase 3.2 — FileChooser per cell) ----
+        //
+        // JS calls: await Juce.getNativeFunction('loadSingleSampleDialog')
+        //              (midi, vel, mergeAsRr=false).
+        // Resolves true on a successful selection (file passed to processor),
+        // false on cancel or invalid args. The actual load is async — the
+        // sampleMapUpdated event fires when the map has been atomic-stored.
+        //
+        // v1.9.0: optional mergeAsRr arg. true = append to existing cell's
+        // variants vector instead of replacing the cell (per-cell round-
+        // robin layering). The JS UI is responsible for surfacing the
+        // merge prompt before calling — see showPerCellMergeDialog.
+        { "loadSingleSampleDialog",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 2)
+                    {
+                        DBG ("loadSingleSampleDialog: expected (midi, vel), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int  midi      = static_cast<int> (args[0]);
+                    const int  vel       = static_cast<int> (args[1]);
+                    const bool mergeAsRr = args.size() > 2 && static_cast<bool> (args[2]);
+
+                    // Heap-allocate the FileChooser via shared_ptr so the
+                    // launchAsync lambda can keep it alive until the user
+                    // picks / cancels (JUCE 8 idiom — FileChooser must
+                    // outlive the launchAsync call).
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Choose sample for MIDI " + juce::String (midi)
+                            + " (layer " + juce::String (vel) + ")",
+                        juce::File{},
+                        "*.wav;*.aif;*.aiff;*.flac");
+
+                    auto flags = juce::FileBrowserComponent::openMode
+                               | juce::FileBrowserComponent::canSelectFiles;
+
+                    // The launchAsync completion runs on the message thread.
+                    // Capture chooser by value so its lifetime extends past
+                    // the launch returning. Capture `complete` so JS resolves.
+                    chooser->launchAsync (flags,
+                        [this, chooser, midi, vel, mergeAsRr, complete]
+                            (const juce::FileChooser& fc) mutable
+                        {
+                            const auto results = fc.getResults();
+                            if (results.isEmpty())
+                            {
+                                DBG ("loadSingleSampleDialog: cancelled");
+                                complete (juce::var (false));
+                                return;
+                            }
+
+                            const juce::File file = results.getFirst();
+                            if (! file.existsAsFile())
+                            {
+                                DBG ("loadSingleSampleDialog: selected file does not exist: "
+                                     << file.getFullPathName());
+                                complete (juce::var (false));
+                                return;
+                            }
+
+                            DBG ("loadSingleSampleDialog: midi=" << midi
+                                 << " vel=" << vel
+                                 << " mergeAsRr=" << (int) mergeAsRr
+                                 << " file=" << file.getFullPathName());
+
+                            // Kick off the async per-cell load. The processor
+                            // will fire sampleMapChangedCallback on completion
+                            // (which we forward as the sampleMapUpdated WebView
+                            // event in the editor's setSampleMapChangedCallback
+                            // lambda). JS resolves immediately with `true` to
+                            // unblock the await — the visual update arrives
+                            // via the push event.
+                            processorRef.loadSingleSample (midi, vel, file, mergeAsRr);
+                            complete (juce::var (true));
+                        });
+                }
+        },
+
+        { "getSkippedFiles",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    juce::String json = "[";
+                    const auto& sk = processorRef.getLastSkippedFiles();
+                    for (int i = 0; i < sk.size(); ++i)
+                    {
+                        if (i > 0) json += ",";
+                        json += juce::JSON::toString (juce::var (sk[i]));
+                    }
+                    json += "]";
+                    complete (juce::var (json));
+                }
+        },
+
+        // ---- overrideLoopPoints (Phase 3.4 — full impl) ----
+        //
+        // JS calls: await Juce.getNativeFunction('overrideLoopPoints')
+        //              (midi, vel, loopStart, loopEnd, crossfadeLen).
+        // Routes to processorRef.overrideLoopPoints(...). The
+        // sampleMapUpdated push event fires automatically via the
+        // processor's atomic-store + sampleMapChangedCallback.
+        // Returns true on dispatch (not on audible application — that
+        // happens on the next note-on per EC3-6).
+        { "overrideLoopPoints",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 4)
+                    {
+                        DBG ("overrideLoopPoints: expected (midi, vel, start, end[, xfade]), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int midi      = static_cast<int> (args[0]);
+                    const int vel       = static_cast<int> (args[1]);
+                    const int loopStart = static_cast<int> (args[2]);
+                    const int loopEnd   = static_cast<int> (args[3]);
+                    const int xfade     = (args.size() >= 5)
+                                             ? static_cast<int> (args[4])
+                                             : 8;
+                    const int variantIdx = (args.size() >= 6)
+                                              ? static_cast<int> (args[5])
+                                              : -1;   // v1.8.0: -1 = primary
+
+                    processorRef.overrideLoopPoints (midi, vel, loopStart, loopEnd,
+                                                     xfade, /*resetToAutoDetect*/ false,
+                                                     variantIdx);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- resetLoopToAutoDetect (Phase 3.4 — full impl) ----
+        //
+        // JS calls: await Juce.getNativeFunction('resetLoopToAutoDetect')(midi, vel).
+        // Routes to processorRef.resetLoopToAutoDetect(...). Push update
+        // arrives via sampleMapUpdated.
+        { "resetLoopToAutoDetect",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 2)
+                    {
+                        DBG ("resetLoopToAutoDetect: expected (midi, vel), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int midi = static_cast<int> (args[0]);
+                    const int vel  = static_cast<int> (args[1]);
+                    const int variantIdx = (args.size() >= 3)
+                                              ? static_cast<int> (args[2])
+                                              : -1;   // v1.8.0: -1 = primary
+
+                    processorRef.resetLoopToAutoDetect (midi, vel, variantIdx);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- getWaveformPeaks (Phase 3.4 — full impl) ----
+        //
+        // JS calls: await Juce.getNativeFunction('getWaveformPeaks')(midi, vel, bins).
+        // Returns the JSON snapshot from snapshotWaveformPeaks per
+        // RESEARCH §RQ3-5 schema. Click-driven path (loop-editor open),
+        // so message-thread O(N) scan is acceptable (≈1 ms / 5 s sample).
+        { "getWaveformPeaks",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 2)
+                    {
+                        DBG ("getWaveformPeaks: expected (midi, vel[, bins]), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (juce::String ("{}")));
+                        return;
+                    }
+
+                    const int midi = static_cast<int> (args[0]);
+                    const int vel  = static_cast<int> (args[1]);
+                    const int bins = (args.size() >= 3)
+                                        ? static_cast<int> (args[2])
+                                        : 512;
+                    const int variantIdx = (args.size() >= 4)
+                                              ? static_cast<int> (args[3])
+                                              : 0;   // v1.8.0: default to primary
+
+                    complete (juce::var (
+                        processorRef.snapshotWaveformPeaks (midi, vel, bins, variantIdx)));
+                }
+        },
+
+        // ---- v1.8.0: confirmRoundRobinLoad(accept) ----
+        //
+        // JS calls await Juce.getNativeFunction('confirmRoundRobinLoad')(true)
+        // when the user accepts ambiguous duplicates as RR variants, or
+        // (false) to discard the staged map.
+        { "confirmRoundRobinLoad",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1)
+                    {
+                        complete (juce::var (false));
+                        return;
+                    }
+                    const bool accept = static_cast<bool> (args[0]);
+                    processorRef.confirmRoundRobinLoad (accept);
+                    complete (juce::var (true));
+                }
+        },
+
+        // ============================================================
+        // v1.2.0: TUNING WRITE-SIDE BRIDGES
+        // The Stage 3 read-only design (§RQ3-1) is reversed in v1.2.0:
+        // the panel is now editable. All write-side native functions
+        // forward to the shared scala-tuning-engine module, the same
+        // single-source-of-truth that VST3 Note Expression overrides
+        // at note-on time, so Dorico microtonal playback is preserved.
+        // ============================================================
+
+        // ---- setSingleInterval(index, cents) ----
+        { "setSingleInterval",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 2)
+                    {
+                        engine->setSingleInterval (static_cast<int>    (args[0]),
+                                                   static_cast<double> (args[1]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- setTonicNote(0..11) ----
+        { "setTonicNote",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        engine->setTonicNote (static_cast<int> (args[0]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- setOctaveStretch(stretch) ----
+        { "setOctaveStretch",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        engine->setOctaveStretch (static_cast<float> (args[0]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- setMasterTune(hz) ----
+        { "setMasterTune",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        engine->setMasterTune (static_cast<double> (args[0]));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- loadEmbeddedTuning(id) — apply a factory preset by ID ----
+        { "loadEmbeddedTuning",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 1)
+                    {
+                        const auto idStr = args[0].toString().toStdString();
+                        if (auto* t = EmbeddedTunings::getTuningById (idStr))
+                        {
+                            // EmbeddedTuning.intervals exclude the period; the
+                            // engine expects intervals INCLUDING the closing
+                            // period (matches setBuiltInPreset behaviour).
+                            std::vector<double> withPeriod = t->intervals;
+                            withPeriod.push_back (t->period);
+                            engine->setCustomIntervals (withPeriod, juce::String (t->name));
+                            complete (juce::var (true));
+                            return;
+                        }
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- loadScalaFile() — open .scl file picker, return scale name on success ----
+        { "loadScalaFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Load Scala Scale (.scl)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                        "*.scl");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                          | juce::FileBrowserComponent::canSelectFiles,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* engine = processorRef.getTuningEngine();
+                            if (engine != nullptr && file.existsAsFile()
+                                && engine->loadScalaFile (file))
+                            {
+                                complete (juce::var (engine->getActiveTuningName()));
+                                return;
+                            }
+                            complete (juce::var());  // empty → JS treats as cancel/fail
+                        });
+                }
+        },
+
+        // ---- loadKBMFile() — open .kbm file picker ----
+        { "loadKBMFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Load Keyboard Mapping (.kbm)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                        "*.kbm");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                          | juce::FileBrowserComponent::canSelectFiles,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* engine = processorRef.getTuningEngine();
+                            const bool ok = (engine != nullptr && file.existsAsFile()
+                                             && engine->loadKBMFile (file));
+                            complete (juce::var (ok));
+                        });
+                }
+        },
+
+        // ---- saveScalaFile() — write current intervals as .scl ----
+        { "saveScalaFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine == nullptr) { complete (juce::var (false)); return; }
+
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Save Scala Scale (.scl)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile (engine->getActiveTuningName() + ".scl"),
+                        "*.scl");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* eng = processorRef.getTuningEngine();
+                            if (eng != nullptr && file != juce::File())
+                            {
+                                file.replaceWithText (eng->generateScalaFileContent());
+                                complete (juce::var (true));
+                                return;
+                            }
+                            complete (juce::var (false));
+                        });
+                }
+        },
+
+        // ---- saveKBMFile() — write current keyboard mapping as .kbm ----
+        { "saveKBMFile",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine == nullptr) { complete (juce::var (false)); return; }
+
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Save Keyboard Mapping (.kbm)",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile ("mapping.kbm"),
+                        "*.kbm");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* eng = processorRef.getTuningEngine();
+                            if (eng != nullptr && file != juce::File())
+                            {
+                                file.replaceWithText (eng->generateKBMFileContent());
+                                complete (juce::var (true));
+                                return;
+                            }
+                            complete (juce::var (false));
+                        });
+                }
+        },
+
+        // ---- generateEDO(divisions, period) → JSON intervals ----
+        { "generateEDO",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.size() >= 2)
+                    {
+                        auto intervals = ScaleGenerator::generateEDO (
+                            static_cast<int>    (args[0]),
+                            static_cast<double> (args[1]));
+                        juce::String json = "[";
+                        for (size_t i = 0; i < intervals.size(); ++i)
+                        {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                        json += "]";
+                        complete (juce::var (json));
+                        return;
+                    }
+                    complete (juce::var());
+                }
+        },
+
+        // ---- generateHarmonicSeries(start, end) → JSON intervals ----
+        { "generateHarmonicSeries",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.size() >= 2)
+                    {
+                        auto intervals = ScaleGenerator::generateHarmonicSeries (
+                            static_cast<int> (args[0]),
+                            static_cast<int> (args[1]));
+                        juce::String json = "[";
+                        for (size_t i = 0; i < intervals.size(); ++i)
+                        {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                        json += "]";
+                        complete (juce::var (json));
+                        return;
+                    }
+                    complete (juce::var());
+                }
+        },
+
+        // ---- generateRank2(generator, period, count) → JSON intervals ----
+        { "generateRank2",
+                [] (const juce::Array<juce::var>& args,
+                    std::function<void(juce::var)> complete)
+                {
+                    if (args.size() >= 3)
+                    {
+                        auto intervals = ScaleGenerator::generateRank2 (
+                            static_cast<double> (args[0]),
+                            static_cast<double> (args[1]),
+                            static_cast<int>    (args[2]));
+                        juce::String json = "[";
+                        for (size_t i = 0; i < intervals.size(); ++i)
+                        {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                        json += "]";
+                        complete (juce::var (json));
+                        return;
+                    }
+                    complete (juce::var());
+                }
+        },
+
+        // ---- applyGeneratedScale(intervalsJson, name) ----
+        { "applyGeneratedScale",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine != nullptr && args.size() >= 2)
+                    {
+                        auto parsed = juce::JSON::parse (args[0].toString());
+                        if (auto* arr = parsed.getArray())
+                        {
+                            std::vector<double> cents;
+                            cents.reserve (static_cast<size_t> (arr->size()));
+                            for (const auto& v : *arr)
+                                cents.push_back (static_cast<double> (v));
+                            engine->setCustomIntervals (cents, args[1].toString());
+                            complete (juce::var (true));
+                            return;
+                        }
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ============================================================
+        // v1.3.0: STATE PERSISTENCE — preset save/load + missing-folder
+        // recovery. The plugin already round-trips full state through
+        // get/setStateInformation (DAW project save/load), so the
+        // .omspreset format simply re-uses that ValueTree as plain XML
+        // text written to a user-chosen file. Missing-folder recovery
+        // surfaces the saved path in a modal so the user can either
+        // relocate or skip without re-loading the entire bank.
+        // ============================================================
+
+        // ---- saveCurrentPreset() — write current state to .omspreset ----
+        //
+        // Captures the same ValueTree that getStateInformation persists
+        // (APVTS params + SampleFolder path + full TuningState) and writes
+        // it as XML text to a user-chosen file. Path-only per Q1=A — the
+        // .omspreset is small and shareable across projects on the same
+        // machine, but breaks across machines without matching folder
+        // structure. JS resolves true on success, false on cancel/fail.
+        { "saveCurrentPreset",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Save Preset",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile ("O-MicrotonalSampler.omspreset"),
+                        "*.omspreset");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        {
+                            auto file = fc.getResult();
+                            if (file == juce::File())
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            const auto xml = processorRef.capturePresetXml();
+                            if (xml.isEmpty() || ! file.replaceWithText (xml))
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            complete (juce::var (true));
+                        });
+                }
+        },
+
+        // ---- loadPreset() — read .omspreset and restore state ----
+        //
+        // Replaces APVTS, tuning, and the loaded folder. If the saved
+        // folder path no longer exists, surfaces the standard missing-
+        // folder modal (same pathway used during DAW project reopen).
+        { "loadPreset",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Load Preset",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                        "*.omspreset");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                          | juce::FileBrowserComponent::canSelectFiles,
+                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        {
+                            auto file = fc.getResult();
+                            if (! file.existsAsFile())
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            const auto xml = file.loadFileAsString();
+                            const bool ok  = processorRef.restorePresetXml (xml);
+                            complete (juce::var (ok));
+                        });
+                }
+        },
+
+        // ---- locateMissingFolder() — folder picker for missing-folder modal ----
+        //
+        // JS surfaces this from the modal's "Locate folder…" button.
+        // Reuses the existing loadSampleFolder pathway, which clears the
+        // pending missing-folder slot via setStateInformation's normal
+        // success flow. JS resolves true if a folder was selected (and
+        // forwarded to the processor), false on cancel.
+        { "locateMissingFolder",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Locate sample folder",
+                        juce::File{},
+                        juce::String{});
+                    auto flags = juce::FileBrowserComponent::openMode
+                               | juce::FileBrowserComponent::canSelectDirectories;
+
+                    chooser->launchAsync (flags,
+                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        {
+                            const auto results = fc.getResults();
+                            if (results.isEmpty() || ! results.getFirst().isDirectory())
+                            {
+                                complete (juce::var (false));
+                                return;
+                            }
+                            processorRef.clearPendingMissingFolder();
+                            processorRef.loadSampleFolder (results.getFirst());
+                            complete (juce::var (true));
+                        });
+                }
+        },
+
+        // ---- dismissMissingFolder() — user chose Skip on the modal ----
+        { "dismissMissingFolder",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    processorRef.clearPendingMissingFolder();
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- getPendingMissingFolder() — covers boot-time race ----
+        //
+        // setStateInformation may run before the WebView has registered
+        // its folderMissing event listener (DAW project reopen → state
+        // restore happens before editor attach). JS calls this once on
+        // boot to recover any missed event.
+        //
+        // v1.12.0: returns an object {path, kind, name} — string for
+        // legacy v1.11.x JS bundles is no longer compatible. JS must
+        // detect the object form and branch on `kind` ("filesystem" or
+        // "drag-drop"). Empty path + empty name = no pending missing.
+        { "getPendingMissingFolder",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* obj = new juce::DynamicObject();
+                    obj->setProperty ("path", processorRef.getPendingMissingFolderPath());
+                    obj->setProperty ("kind", processorRef.getPendingMissingFolderKind());
+                    obj->setProperty ("name", processorRef.getPendingMissingFolderName());
+                    complete (juce::var (obj));
+                }
+        },
+
+        // ---- exportTuningHTML() — write current tuning to HTML doc ----
+        { "exportTuningHTML",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    if (engine == nullptr) { complete (juce::var (false)); return; }
+
+                    auto chooser = std::make_shared<juce::FileChooser> (
+                        "Export Tuning Documentation",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile (engine->getActiveTuningName() + ".html"),
+                        "*.html");
+
+                    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                          | juce::FileBrowserComponent::canSelectFiles
+                                          | juce::FileBrowserComponent::warnAboutOverwriting,
+                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        {
+                            auto file = fc.getResult();
+                            auto* eng = processorRef.getTuningEngine();
+                            if (eng != nullptr && file != juce::File())
+                            {
+                                auto html = TuningExporter::toHTML (*eng, "O-MicrotonalSampler");
+                                file.replaceWithText (html);
+                                complete (juce::var (true));
+                                return;
+                            }
+                            complete (juce::var (false));
+                        });
+                }
+        },
+    };
 }

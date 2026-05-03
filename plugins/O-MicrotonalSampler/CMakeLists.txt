@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.12.3"
+    VERSION "1.12.4"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -70,7 +70,6 @@ juce_add_binary_data(O-MicrotonalSampler_UIResources
         Resources/ui/index.html
         Resources/ui/css/sampler-shell.css
         Resources/ui/css/tuning-panel.css
-        Resources/ui/css/tuning-panel-readonly.css
         Resources/ui/js/sampler-app.js
         Resources/ui/js/tuning-panel.js
         Resources/ui/js/juce/index.js
