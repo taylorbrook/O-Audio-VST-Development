@@ -94,6 +94,71 @@
             </label>
           </div>
         </div>
+        <!-- v1.15.0: CC + PC trigger panel. Three trigger mechanisms share
+             one technique cursor with KS > CC > PC > history precedence.
+             KS lives inline in the technique-bar above; CC + PC are gated
+             behind this disclosure so they don't clutter the default UI.
+             Whole panel is hidden when technique_count==1 (matches the
+             technique-bar visibility contract). -->
+        <details id="trigger-panel" class="trigger-panel" hidden>
+          <summary class="trigger-panel-summary">
+            <span>Triggers (CC + PC)</span>
+            <span id="trigger-precedence-indicator"
+                  class="trigger-precedence">KS &gt; CC &gt; PC &gt; history</span>
+          </summary>
+          <div class="trigger-panel-body">
+            <section class="trigger-subpanel" aria-labelledby="cc-trigger-heading">
+              <header class="trigger-subpanel-header">
+                <label class="trigger-toggle-label">
+                  <input type="checkbox" id="cc-trigger-enabled" />
+                  <span id="cc-trigger-heading">CC trigger</span>
+                </label>
+                <label class="trigger-cc-number-label">CC#
+                  <input type="number" id="cc-trigger-number"
+                         min="0" max="119" step="1" value="32" />
+                </label>
+                <span class="trigger-hint">value 0–127 → technique slot</span>
+              </header>
+              <table class="trigger-table" id="cc-trigger-table">
+                <thead>
+                  <tr>
+                    <th scope="col">slot</th>
+                    <th scope="col">low</th>
+                    <th scope="col">high</th>
+                    <th scope="col">tech</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- 8 rows populated by renderTriggerPanel(). -->
+                </tbody>
+              </table>
+            </section>
+            <section class="trigger-subpanel" aria-labelledby="pc-trigger-heading">
+              <header class="trigger-subpanel-header">
+                <label class="trigger-toggle-label">
+                  <input type="checkbox" id="pc-trigger-enabled" />
+                  <span id="pc-trigger-heading">PC trigger</span>
+                </label>
+                <span class="trigger-hint">program # → technique slot</span>
+              </header>
+              <table class="trigger-table" id="pc-trigger-table">
+                <thead>
+                  <tr>
+                    <th scope="col">slot</th>
+                    <th scope="col">PC#</th>
+                    <th scope="col">tech</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- 8 rows populated by renderTriggerPanel(). -->
+                </tbody>
+              </table>
+            </section>
+            <div class="trigger-panel-footer">
+              <button id="trigger-reset" type="button">Reset to defaults</button>
+            </div>
+          </div>
+        </details>
         <!-- v1.1.0: Grid with axis labels.
              Layout: 2-column outer wrapper.
                • #sample-grid-vel-labels (left)  → velocity-range labels per row

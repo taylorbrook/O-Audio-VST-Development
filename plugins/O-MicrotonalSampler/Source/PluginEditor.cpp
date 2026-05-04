@@ -208,6 +208,17 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                     "techniqueStateUpdated", juce::var (true));
         });
 
+    // v1.15.0: subscribe to trigger-state changes (CC mapping slot edit,
+    // PC mapping slot edit, defaults reset, project restore). The JS
+    // layer polls getTriggerState on the resulting event.
+    processorRef.setTriggerStateChangedCallback (
+        [this]
+        {
+            if (webView != nullptr)
+                webView->emitEventIfBrowserIsVisible (
+                    "triggerStateUpdated", juce::var (true));
+        });
+
     // v1.8.0: subscribe to ambiguous-duplicate callback. The folder loader
     // detected (midi, layer) groups with > 1 file but no rr/take/tk tokens —
     // surface a confirmation modal in the WebView. Payload is a JSON array
@@ -266,6 +277,7 @@ OMicrotonalSamplerAudioProcessorEditor::~OMicrotonalSamplerAudioProcessorEditor(
     processorRef.setMissingFolderCallback (nullptr);
     processorRef.setAmbiguousDuplicateCallback (nullptr);   // v1.8.0
     processorRef.setTechniqueStateChangedCallback (nullptr); // v1.14.0
+    processorRef.setTriggerStateChangedCallback (nullptr);   // v1.15.0
     // unique_ptr members destroy in reverse declaration order:
     //   attachments (each calls evaluateJavascript on webView during dtor)
     //   webView
@@ -1928,6 +1940,163 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     };
                     setIntParam ("ks_low_note",  juce::jlimit (0, 127, static_cast<int> (args[0])));
                     setIntParam ("ks_high_note", juce::jlimit (0, 127, static_cast<int> (args[1])));
+                    complete (juce::var (true));
+                }
+        },
+
+        // ====================================================================
+        // v1.15.0 — CC + PC trigger native functions
+        // ====================================================================
+        //
+        // The 8-slot CC + PC mapping tables live outside APVTS (the host UI
+        // wouldn't usefully render 24 numerical slots). Reads use one
+        // bulk-snapshot fn (getTriggerState); writes are per-slot mutators.
+        // The cc_select_enabled / cc_number / pc_enabled GATES are normal
+        // APVTS params so the JS layer can use Juce.getSliderState for them
+        // (matches the technique_count / ks_enabled pattern).
+
+        // ---- getTriggerState() — bulk snapshot of CC + PC tables + gates.
+        // Returns:
+        //   {
+        //     ccEnabled: bool, ccNumber: int,
+        //     ccMapping: [{rangeLow, rangeHigh, tech}, …8],
+        //     pcEnabled: bool,
+        //     pcMapping: [{pc, tech}, …8]
+        //   }
+        { "getTriggerState",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* obj = new juce::DynamicObject();
+                    auto& apvts = processorRef.getAPVTS();
+
+                    if (auto* p = apvts.getRawParameterValue ("cc_select_enabled"))
+                        obj->setProperty ("ccEnabled", (p->load() > 0.5f));
+                    if (auto* p = apvts.getRawParameterValue ("cc_number"))
+                        obj->setProperty ("ccNumber",  (int) p->load());
+                    if (auto* p = apvts.getRawParameterValue ("pc_enabled"))
+                        obj->setProperty ("pcEnabled", (p->load() > 0.5f));
+
+                    {
+                        const auto cc = processorRef.getCcMapping();
+                        juce::var arr (juce::Array<juce::var>{});
+                        auto* a = arr.getArray();
+                        for (const auto& s : cc)
+                        {
+                            auto* slotObj = new juce::DynamicObject();
+                            slotObj->setProperty ("rangeLow",  s.rangeLow);
+                            slotObj->setProperty ("rangeHigh", s.rangeHigh);
+                            slotObj->setProperty ("tech",      s.technique);
+                            a->add (juce::var (slotObj));
+                        }
+                        obj->setProperty ("ccMapping", arr);
+                    }
+                    {
+                        const auto pc = processorRef.getPcMapping();
+                        juce::var arr (juce::Array<juce::var>{});
+                        auto* a = arr.getArray();
+                        for (const auto& s : pc)
+                        {
+                            auto* slotObj = new juce::DynamicObject();
+                            slotObj->setProperty ("pc",   s.pc);
+                            slotObj->setProperty ("tech", s.technique);
+                            a->add (juce::var (slotObj));
+                        }
+                        obj->setProperty ("pcMapping", arr);
+                    }
+
+                    complete (juce::var (obj));
+                }
+        },
+
+        // ---- setCcEnabled(bool) — gate the CC trigger scan.
+        { "setCcEnabled",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1) { complete (juce::var (false)); return; }
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* p = apvts.getParameter ("cc_select_enabled"))
+                    {
+                        p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- setCcNumber(int) — controller number to listen on (0..119).
+        { "setCcNumber",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1) { complete (juce::var (false)); return; }
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* p = apvts.getParameter ("cc_number"))
+                    {
+                        const auto range = apvts.getParameterRange ("cc_number");
+                        const int v = juce::jlimit (0, 119, static_cast<int> (args[0]));
+                        p->setValueNotifyingHost (range.convertTo0to1 ((float) v));
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- setCcMapping(slot, rangeLow, rangeHigh, tech)
+        { "setCcMapping",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 4) { complete (juce::var (false)); return; }
+                    processorRef.setCcMappingSlot (
+                        static_cast<int> (args[0]),
+                        static_cast<int> (args[1]),
+                        static_cast<int> (args[2]),
+                        static_cast<int> (args[3]));
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- setPcEnabled(bool) — gate the PC trigger scan.
+        { "setPcEnabled",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1) { complete (juce::var (false)); return; }
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* p = apvts.getParameter ("pc_enabled"))
+                    {
+                        p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
+                        complete (juce::var (true));
+                        return;
+                    }
+                    complete (juce::var (false));
+                }
+        },
+
+        // ---- setPcMapping(slot, pcNumber, tech)
+        { "setPcMapping",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 3) { complete (juce::var (false)); return; }
+                    processorRef.setPcMappingSlot (
+                        static_cast<int> (args[0]),
+                        static_cast<int> (args[1]),
+                        static_cast<int> (args[2]));
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- resetTriggerMappings() — restore CC + PC defaults.
+        { "resetTriggerMappings",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    processorRef.resetTriggerMappings();
                     complete (juce::var (true));
                 }
         },

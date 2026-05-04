@@ -1,5 +1,93 @@
 # O-MicrotonalSampler Changelog
 
+## [1.15.0] - 2026-05-03
+
+### Added
+- **CC + Program Change technique triggers.** Two new MIDI trigger
+  mechanisms join keyswitches: a configurable Continuous Controller
+  (CC#, default 32) routes its 0..127 byte through an 8-slot
+  value-range table to a target technique slot, and Program Change
+  events route through an 8-slot PC#-to-technique table. Both share
+  one technique cursor with KS — an 8-band cursor that all DAWs can
+  drive without specialised expression-map authoring. Disabled by
+  default for back-compat (v1.14.0 sessions migrate untouched).
+- **KS > CC > PC > history precedence.** When multiple triggers fire
+  in the same audio block (e.g. an automation lane bumps both a
+  keyswitch note and a CC simultaneously) the highest-precedence
+  candidate wins. History ("last technique used") persists across
+  blocks if no trigger fired — eliminates the "phantom default reset"
+  failure mode some sample players exhibit when the last MIDI event
+  was an unrelated CC.
+- **Three new APVTS parameters:** `cc_select_enabled` (bool, default
+  off), `cc_number` (0..119, default 32 — General Purpose 1; not the
+  CC1 modulation, CC11 expression, or bank-select reserved numbers),
+  `pc_enabled` (bool, default off). All round-trip through project
+  state and host automation.
+- **CC + PC mapping tables persist with project state.** New
+  `<CcMapping>` and `<PcMapping>` ValueTree children with sparse 8-slot
+  child lists; v1.14.0 sessions decode cleanly back to the seeded
+  defaults (CC equally splits 0..127 across the active
+  `technique_count`; PC#i → tech i).
+- **Trigger configuration panel in the WebView UI.** Collapsible
+  `<details>` disclosure under the technique-bar with two sub-panels
+  (CC + PC), each showing an 8-row editable table. Slot rows beyond
+  the active technique count are dimmed but remain editable so users
+  can pre-stage values before growing their library. "Reset to
+  defaults" button restores the seeded mapping. Hidden entirely when
+  `technique_count == 1` (matches the technique-bar back-compat
+  contract — single-technique libraries see no v1.15.0 chrome).
+- **`docs/dynamics-mapping.md`.** New doc explains how the plugin
+  routes dynamics: note-on velocity selects the sample layer (locked
+  at note-on, no continuous modulation); CC11 ("Expression") drives
+  smoothed post-mix gain throughout sustain. Recommends
+  `<volumeType><type>kCC11</type></volumeType>` as the Dorico
+  expression-map default for sustained dynamic shaping, with
+  `kNoteVelocity` as an alternative for short / articulated passages.
+  Forward-compat note on Dorico 3+'s secondary-volume-control slot.
+- **Two new EXCLUDE_FROM_ALL test executables:**
+  `O-MicrotonalSampler_CcPcTriggerCheck` (40+ assertions covering
+  defaultCcMapping / defaultPcMapping bucketing, value-range routing,
+  PC routing, the KS>CC>PC>history precedence resolver, and an
+  end-to-end three-block scenario) and
+  `O-MicrotonalSampler_DynamicsLayerCheck` (pins
+  velocity-to-layer-index bucketing for N=1/2/4/8 layers — the
+  formula `MicrotonalSamplerVoice::startNote` uses, the same one
+  documented in `docs/dynamics-mapping.md`).
+
+### Changed
+- **`processBlock` MIDI scan reorganised.** The KS-only walk from
+  v1.14.0 expanded to a single-pass scan that harvests KS / CC / PC
+  candidates simultaneously, then resolves precedence once at block
+  end via `OMtsTrigger::resolveTriggerPrecedence`. RT-safety
+  preserved — CC + PC tables are read via `std::atomic_load` on
+  shared_ptr (the same COW pattern `currentSampleMap` uses), the
+  filter buffer is still pre-allocated in `prepareToPlay`, and the
+  scan walks the host's MidiBuffer exactly once instead of twice
+  when CC + KS are both active.
+- **No-trigger-this-block path is a no-op.** When neither KS, CC,
+  nor PC fired, `pendingTechniqueIndex` is left untouched —
+  v1.14.0's "store same value over and over" behaviour is replaced
+  with a guarded compare-then-store so the AsyncUpdater isn't
+  triggered for null events.
+
+### Architecture
+- **`Source/TriggerMapping.h`** — pure-data header containing the
+  `CcSlot` / `PcSlot` structs, default-builder helpers, and the
+  resolver free functions. Lives outside the audio processor so
+  the unit-test executable can consume the routing logic without
+  pulling in `JuceHeader.h` or instantiating an `AudioProcessor`.
+  Audio thread + message thread + tests share identical resolution
+  code by construction.
+
+### Migration / back-compat
+- v1.14.0 sessions decode cleanly: missing `<CcMapping>` /
+  `<PcMapping>` children → constructor's seeded defaults survive.
+- `cc_select_enabled` and `pc_enabled` default to false so old
+  sessions hear no behavioral change.
+- Single-technique libraries (technique_count=1) see zero new UI
+  chrome — the trigger panel is hidden alongside the existing
+  technique-bar.
+
 ## [1.14.0] - 2026-05-03
 
 ### Added

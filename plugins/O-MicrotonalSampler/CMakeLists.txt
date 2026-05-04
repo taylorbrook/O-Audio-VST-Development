@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.14.0"
+    VERSION "1.15.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -268,6 +268,50 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/state_migration_check.cpp")
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
     target_compile_definitions(O-MicrotonalSampler_StateMigrationCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.15.0 — CC + PC trigger routing + dynamics-mapping sanity tests.
+# Two EXCLUDE_FROM_ALL standalone executables that exercise:
+#   * resolveCcTechnique / resolvePcTechnique / resolveTriggerPrecedence
+#     (the pure-data layer behind PluginProcessor::processBlock's
+#     KS > CC > PC > history routing).
+#   * Velocity-to-layer bucketing — pins the formula documented in
+#     docs/dynamics-mapping.md against future refactors.
+#
+# Build all four (v1.14.0 + v1.15.0):
+#     ninja O-MicrotonalSampler_TechniqueParseCheck \
+#           O-MicrotonalSampler_FindCellTripletCheck \
+#           O-MicrotonalSampler_StateMigrationCheck \
+#           O-MicrotonalSampler_CcPcTriggerCheck \
+#           O-MicrotonalSampler_DynamicsLayerCheck
+# Each returns exit code = number of failed assertions.
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/cc_pc_trigger_check.cpp")
+    add_executable(O-MicrotonalSampler_CcPcTriggerCheck EXCLUDE_FROM_ALL
+        Source/tests/cc_pc_trigger_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_CcPcTriggerCheck PRIVATE
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_CcPcTriggerCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_CcPcTriggerCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/dynamics_layer_check.cpp")
+    add_executable(O-MicrotonalSampler_DynamicsLayerCheck EXCLUDE_FROM_ALL
+        Source/tests/dynamics_layer_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_DynamicsLayerCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_formats
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_compile_definitions(O-MicrotonalSampler_DynamicsLayerCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()
