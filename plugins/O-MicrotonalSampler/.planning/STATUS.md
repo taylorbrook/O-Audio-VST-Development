@@ -1,14 +1,115 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.15.0 IMPLEMENTED → v1.16.0 (Dorico distribution) pending
-status: multi_version_plan_v1.15_complete_v1.16_pending_execute
+phase: v1.16.0 IMPLEMENTED — Multi-Version Plan complete
+status: multi_version_plan_complete_dorico_distribution_shipped
 last_updated: 2026-05-03
-version: 1.15.0
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0
+version: 1.16.0
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0
 ---
 
 # Resume Point
+
+## v1.16.0 Implementation Complete (2026-05-03)
+
+**Status:** distribution-artifacts-only release. No source-code changes;
+binary unchanged from v1.15.0 baseline (VST3 + AU + Standalone macOS).
+Multi-Version Improvement Plan (v1.14.0 + v1.15.0 + v1.16.0) complete.
+
+### What landed
+
+- **`Resources/dorico/`** — three-folder distribution tree authored
+  against the Dorico 6 user-library layout:
+  - `EndpointConfigs/O-MicrotonalSampler/endpointconfig.xml`
+  - `EndpointConfigs/O-MicrotonalSampler/playbacktemplatedeps.doricolib`
+    (10 keyswitch combinations — `pt.natural`, `pt.sulPonticello`,
+    `pt.sulTasto`, `pt.nonVibrato`, `pt.muted`, `pt.pizzicato`,
+    `pt.naturalHarmonic1`, `pt.martele`, `pt.tremolo`, `pt.flautando`
+    on MIDI notes 0..9 vel 127; `microtonalPlaybackMethod
+    = kVST3NoteExpression`; `volumeType = kCC` param1=11)
+  - `PlaybackTemplateSpecs/O-MicrotonalSampler/playbacktemplatespec.xml`
+- **`Resources/dorico/INSTALL-DORICO.md`** — end-user install guide
+  (macOS + Windows paths, dev-vs-release CID caveat).
+- **`Resources/dorico/SMOKE-TEST.md`** — six-step manual verification
+  procedure.
+- **`CMakeLists.txt`** — `VERSION` 1.15.0 → 1.16.0.
+- **`CHANGELOG.md`** — `[1.16.0] - 2026-05-03` entry.
+
+### Spike findings (2026-05-03)
+
+The earlier plan ("ship `O-MicrotonalSampler.doricolib` containing
+exp-map + Playback Template + Endpoint Configuration") was structurally
+incorrect. A spike against the user's installed Dorico 6 user library
+revealed that EndpointConfigs and PlaybackTemplateSpecs are **separate
+top-level folder hierarchies** (not entities within `.doricolib`):
+
+```
+~/Library/Application Support/Steinberg/Dorico 6/
+├── EndpointConfigs/
+│   └── <Name>/
+│       ├── endpointconfig.xml
+│       └── playbacktemplatedeps.doricolib
+├── PlaybackTemplateSpecs/
+│   └── <Name>/
+│       └── playbacktemplatespec.xml
+└── ...
+```
+
+`.doricolib` Library Manager imports register expression-map definitions
+but NOT EndpointConfig or PlaybackTemplate — those entities live in the
+folder structures above. v1.16.0 ships the validated 3-folder layout
+that Dorico itself uses for user-saved templates (modelled on the
+"Test State-less" and "Ample China" references in the user's library).
+
+This unblocks the previously reverted Phase 25 Plan 01 distribution
+mechanism (commit `d2c86c5` rollback in the parent `note-expression`
+module). Per-plugin shipping pattern is now established and reusable
+for the v1.5 microtonal cohort (O-Lyrica, O-Bells, O-IntonationPad,
+O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant) — each gets its own
+`Resources/dorico/EndpointConfigs/<Name>/` + `PlaybackTemplateSpecs/<Name>/`
+tree with its CID and exp-map.
+
+### Schema validation
+
+XML schemas confirmed against:
+- `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/HALion Symphonic Orchestra/expressionMapsDefinitions.xml`
+  — `<switchOnAction><type>kKeySwitch</type><param1>NOTE</param1><param2>127</param2></switchOnAction>`
+- `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/Iconica Sketch/expressionMapsDefinitions.xml`
+  — `<volumeType><type>kCC</type><param1>11</param1></volumeType>`
+  (CC# is in `param1`, type literal is `kCC` not `kCC11`)
+- `~/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Test State-less/`
+  — slot-less EndpointConfig structure + bundled `playbacktemplatedeps.doricolib`
+
+### Open follow-up (deferred to v1.16.x)
+
+- **Release-branding artifact tree.** Current bundle hardcodes the
+  dev-build VST3 CID (`ABCDEF019182FAEB4F7544764F4D7453`, manufacturer
+  `OuDv`). Release builds (manufacturer `OuAu`, no `-dev` suffix)
+  produce a different CID. Track as a v1.16.x patch series — author
+  release-flavor `endpointconfig.xml` from a release-branded
+  `moduleinfo.json` and ship under `Resources/dorico/release/` (or via
+  CMake `configure_file` substitution at build time).
+- **Generalize to v1.5 microtonal cohort.** This same per-plugin
+  template pattern is now ready to ship for O-Lyrica, O-Bells,
+  O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant.
+  A future cross-plugin module (`module-create dorico-distribution`?)
+  could extract the playbacktemplatedeps.doricolib body into a shared
+  authoring template that each plugin parameterises with its CID +
+  technique vocabulary.
+
+### Build / validation gate
+
+- No source-code changes. Build outputs identical to v1.15.0 baseline
+  except for the `<bundleVersion>` field bumped via CMake `VERSION`.
+- Smoke procedure (`Resources/dorico/SMOKE-TEST.md`) requires manual
+  Dorico session — not gated automatically.
+
+### Resume command
+
+Multi-Version Improvement Plan complete. Next improvement cycle starts
+fresh — `/improve O-MicrotonalSampler [new description]`.
+
+---
 
 ## v1.15.0 Implementation Complete (2026-05-03)
 

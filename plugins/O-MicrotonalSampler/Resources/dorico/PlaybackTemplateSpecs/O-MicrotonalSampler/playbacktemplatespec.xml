@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O-MicrotonalSampler Playback Template.
+
+     References the EndpointConfig (configID = endpointconfig.user.o_microtonalsampler)
+     in the EndpointConfigs/O-MicrotonalSampler/ folder. When the user applies this
+     template via Play → Playback Template, Dorico loads the endpoint (which loads
+     the plugin slot, links the expression map, and routes MIDI channel 1).
+-->
+<playbackTemplateSpec>
+    <fileVersion>1.1416</fileVersion>
+    <playbackTemplateSpecID>playbacktemplate.user.o_microtonalsampler</playbackTemplateSpecID>
+    <name>O-MicrotonalSampler</name>
+    <creator>Ouaricon Audio</creator>
+    <description>Loads O-MicrotonalSampler with technique-keyswitch routing (Sul pont., Sul tasto, Senza vib., Con sord., Pizz., Harm., Mart., Trem., Flaut. → keyswitch notes C-1..A-1) and CC11-driven dynamics. Microtonal pitch deltas route via VST3 Note Expression (kTuningTypeID).</description>
+    <version>1</version>
+    <associatedSpaceTemplateID/>
+    <entries array="true">
+        <entry>
+            <instrumentFamilies/>
+            <instruments/>
+            <endpointConfig>
+                <configID>endpointconfig.user.o_microtonalsampler</configID>
+            </endpointConfig>
+        </entry>
+    </entries>
+</playbackTemplateSpec>
