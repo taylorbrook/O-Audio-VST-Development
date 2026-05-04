@@ -1,18 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- O-MicrotonalSampler Dorico expression map. Bundled with the plugin's
-     EndpointConfig (lives next to endpointconfig.xml). Inlines the parent
-     NE map's microtonal settings so a single Dorico import wires both
-     microtonal pitch routing AND technique keyswitching.
-
-     Schema confirmed against:
-       - HALion Symphonic Orchestra factory exp-map (kKeySwitch action)
-       - Iconica Sketch factory exp-map (kCC volumeType)
-       - Test State-less user EndpointConfig (parent NE map structure)
-
-     10 playingTechniqueCombinations match the plugin's curated default
-     technique vocabulary (Source/PluginProcessor.cpp seedDefaultTechniqueNames).
-     Slot index = MIDI keyswitch note (0..9 = C-1 to A-1) = pendingTechniqueIndex.
--->
 <kScoreLibrary>
 	<expressionMapDefinitions>
 		<entities array="true">
@@ -23,7 +9,7 @@
 				<inheritanceMask>0</inheritanceMask>
 				<creator>Ouaricon Audio</creator>
 				<description>O-MicrotonalSampler expression map. Routes Dorico per-note microtonal pitch deltas as VST3 Note Expression (kTuningTypeID — load-bearing for non-Steinberg VST3s; auto routing falls back to pitch-bend and breaks microtonal playback). Maps Dorico's built-in technique notation (Sul pont., Sul tasto, Senza vib., Con sord., Pizz., Harm., Mart., Trem., Flaut.) to the plugin's keyswitch range C-1..A-1 (technique slots 0..9). Dynamics route via CC11 (Expression) — continuously modulates sustained notes. For velocity-only dynamics (short / articulated passages), users can change volumeType to kNoteVelocity in Library → Expression Maps.</description>
-				<version>1</version>
+				<version>4</version>
 				<pluginNames/>
 				<autoMutualExclusion>true</autoMutualExclusion>
 				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>

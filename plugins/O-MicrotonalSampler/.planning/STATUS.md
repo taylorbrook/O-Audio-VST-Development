@@ -1,14 +1,86 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.16.0 IMPLEMENTED — Multi-Version Plan complete
-status: multi_version_plan_complete_dorico_distribution_shipped
-last_updated: 2026-05-03
-version: 1.16.0
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0
+phase: v1.16.1 PATCH SHIPPED — Dorico KS-firing fix pending (v1.16.x)
+status: dorico_distribution_partial_ks_firing_open_follow_up
+last_updated: 2026-05-04
+version: 1.16.1
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1
 ---
 
 # Resume Point
+
+## v1.16.1 Patch Shipped (2026-05-04)
+
+**Status:** distribution-artifacts patch on top of v1.16.0. Two FIX-class
+findings from a Dorico smoke test, plus a documented brief for the
+remaining open follow-up (`improvements/dorico-keyswitch-fix.md`).
+
+### What landed
+
+- **FIX:** Dorico launch crash ("Error opening file: invalid file format").
+  Three XML/`.doricolib` files in v1.16.0 had leading XML comments before
+  the root element; Dorico's strict user-config parsers rejected them.
+  Stripped comments from `endpointconfig.xml`,
+  `playbacktemplatespec.xml`, and `playbacktemplatedeps.doricolib`.
+  (Comment AFTER the root opening tag is fine; comment BEFORE root
+  crashes launch.)
+- **FIX:** Expression map not appearing in Track Inspector dropdown in
+  v1.16.0. Discovered via spike: `playbacktemplatedeps.doricolib` inside
+  `EndpointConfigs/<Name>/` is endpoint-scoped — its exp-map only
+  registers when that endpoint is active. Without an active endpoint
+  (the auto-load template fails — TC-2), the exp-map was invisible.
+  v1.16.1 documents the `DefaultLibraryAdditions/` distribution path
+  (Dorico auto-merges every `.doricolib` placed there into every
+  project's library on launch) as the canonical mechanism for global
+  exp-map registration.
+- **DOC:** `Resources/dorico/INSTALL-DORICO.md` rewritten — three-folder
+  layout (now four with `DefaultLibraryAdditions/`), macOS + Windows
+  install, dev-vs-release CID caveat preserved, known-issue scope, and
+  a troubleshooting section.
+- **NEW:** `improvements/dorico-keyswitch-fix.md` — comprehensive
+  diagnostic brief for the v1.16.x KS-firing patch. Documents what's
+  been tried (and reverted), HSO factory reference, prioritized
+  investigation paths, file map, test loop, and risk envelope.
+
+### Smoke test outcomes (v1.16.0 → v1.16.1)
+
+| TC | Title | Status (after v1.16.1) | Notes |
+|---|---|---|---|
+| TC-1 | Playback Template appears in dropdown | ✓ PASS | |
+| TC-2 | Apply template auto-loads plugin slot | ✗ FAIL | `playbacktemplatespec.xml` `<entries>` need fallback `<generatorSpec>` (modelled on Ample China). Open follow-up. |
+| TC-3 | Expression map appears in Track Inspector | ✓ PASS | Via `DefaultLibraryAdditions/` (NOT via auto-template). |
+| TC-4 | Microtonal pitch (kVST3NoteExpression) | ✓ PASS | LOAD-BEARING. Quarter-sharp accidentals play at +50¢ correctly. |
+| TC-5 | Technique-marking text fires keyswitch | ✗ FAIL | The whole subject of `improvements/dorico-keyswitch-fix.md`. |
+| TC-6 | CC11 dynamics swell | not tested | Skipped to wrap session. |
+
+### Open follow-up
+
+- **v1.16.x patch — Dorico KS-from-notation routing.** See
+  `improvements/dorico-keyswitch-fix.md` for full context. Slash command
+  to spawn investigation in a fresh session:
+
+  ```
+  /improve O-MicrotonalSampler v1.16.x — Fix Dorico keyswitch-from-notation routing (TC-5 FAIL from v1.16.0 smoke test). Read plugins/O-MicrotonalSampler/improvements/dorico-keyswitch-fix.md FIRST for full diagnostic context, what's already been tried (and reverted), the working factory reference (HSO), and suggested investigation paths in priority order. Goal: typing "sul pont." text in Dorico fires the keyswitch and the plugin's WebView technique-tab strip switches accordingly. Microtonal pitch (kVST3NoteExpression) and exp-map registration via DefaultLibraryAdditions/ both work and MUST stay working. The plugin's C++ KS handler is validated from non-Dorico DAW testing — issue is most likely the exp-map XML or Dorico's MIDI routing, not plugin source.
+  ```
+
+- **TC-2 fix** can be folded into the same v1.16.x patch (a
+  fallback `<generatorSpec>` entry in `playbacktemplatespec.xml`) — see
+  brief, Path D.
+
+### Build / validation gate
+
+- No source-code changes. Build outputs identical to v1.16.0 except for
+  the `<bundleVersion>` field bumped via CMake `VERSION` 1.16.0 → 1.16.1.
+- Manual Dorico smoke test (TC-1, TC-3, TC-4) re-verified after redeploy.
+
+### Resume command
+
+Multi-Version Improvement Plan complete. Next improvement cycle starts
+fresh — `/improve O-MicrotonalSampler [new description]`. Open follow-up
+brief at `improvements/dorico-keyswitch-fix.md`.
+
+---
 
 ## v1.16.0 Implementation Complete (2026-05-03)
 
