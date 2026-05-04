@@ -1461,3 +1461,155 @@ body {
     margin-top: 8px;
     margin-bottom: 4px;
 }
+
+/* v1.15.0 — CC + PC trigger panel.
+   Sits directly under the technique-bar. Visually quieter than the bar
+   above (this is configuration, not a per-block control surface). */
+.trigger-panel {
+    margin-top: 4px;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    background: var(--bg-cream);
+    font-size: 12px;
+    color: var(--text-body);
+}
+
+.trigger-panel[hidden] {
+    display: none;
+}
+
+.trigger-panel-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-primary);
+    user-select: none;
+}
+
+.trigger-precedence {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+.trigger-panel-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.trigger-subpanel {
+    border: 1px solid var(--border-warm);
+    border-radius: 3px;
+    padding: 6px 8px;
+    background: var(--bg-paper, #faf6ee);
+}
+
+.trigger-subpanel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    border-bottom: 1px dotted var(--border-warm);
+    flex-wrap: wrap;
+}
+
+.trigger-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.trigger-cc-number-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.trigger-cc-number-label > input[type="number"] {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    width: 56px;
+    padding: 2px 4px;
+    border: 1px solid var(--border-warm);
+    border-radius: 3px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    font-size: 12px;
+    font-style: normal;
+}
+
+.trigger-hint {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 11px;
+    margin-left: auto;
+}
+
+.trigger-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+}
+
+.trigger-table th {
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 2px 4px;
+    border-bottom: 1px solid var(--border-warm);
+}
+
+.trigger-table td {
+    padding: 2px 4px;
+}
+
+.trigger-table input[type="number"] {
+    width: 48px;
+    padding: 1px 4px;
+    border: 1px solid var(--border-warm);
+    border-radius: 2px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    font-family: inherit;
+    font-size: 11px;
+}
+
+.trigger-subpanel.disabled .trigger-table {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.trigger-panel-footer {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.trigger-panel-footer button {
+    font-size: 11px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-warm);
+    border-radius: 3px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    cursor: pointer;
+}
+
+.trigger-panel-footer button:hover {
+    background: var(--bg-paper, #faf6ee);
+}

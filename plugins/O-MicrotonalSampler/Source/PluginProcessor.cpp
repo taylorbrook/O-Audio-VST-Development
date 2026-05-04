@@ -159,6 +159,41 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
         0, 127, 9
     ));
 
+    // ========== v1.15.0 CC + PC triggers (3) ==========
+    //
+    // Three trigger mechanisms share one pendingTechniqueIndex atom with
+    // KS > CC > PC > history precedence in processBlock. Tables for the
+    // CC sub-bands and PC#-to-technique map live outside APVTS in
+    // currentCcMapping / currentPcMapping (8-slot COW shared_ptrs) so we
+    // are not paying for 24 APVTS slots that the host UI cannot cleanly
+    // display. The three knobs below are the per-trigger gate + the CC#
+    // selector — small enough to round-trip through APVTS and through
+    // host automation.
+    //
+    // cc_select_enabled  bool   — true = CC scan active in processBlock
+    // cc_number          0..119 — controller number to listen on
+    //                              (default 32 = General Purpose 1, free
+    //                              of standardised meanings: not CC1
+    //                              modulation, not CC11 expression, not
+    //                              the bank-select pair). The 0..119 cap
+    //                              avoids the channel-mode CCs at 120+.
+    // pc_enabled         bool   — true = PC scan active in processBlock
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "cc_select_enabled", 1 },
+        "CC Select Enabled",
+        false
+    ));
+    layout.add (std::make_unique<juce::AudioParameterInt> (
+        juce::ParameterID { "cc_number", 1 },
+        "CC Number",
+        0, 119, 32
+    ));
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "pc_enabled", 1 },
+        "Program Change Enabled",
+        false
+    ));
+
     return layout;
 }
 
@@ -181,6 +216,18 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     // rename slots later; persisted via captureStateValueTree's <Techniques>
     // child.
     resetTechniqueNames();
+
+    // v1.15.0: seed the CC + PC trigger mapping tables. Defaults: CC splits
+    // 0..127 equally across the current technique_count (1 by default →
+    // entire range routes to tech 0); PC#i routes to tech i.
+    {
+        const int initialCount = juce::jlimit (1, 8,
+            (int) parameters.getRawParameterValue ("technique_count")->load());
+        currentCcMapping = std::make_shared<OMtsTrigger::CcMapping> (
+            OMtsTrigger::defaultCcMapping (initialCount));
+        currentPcMapping = std::make_shared<OMtsTrigger::PcMapping> (
+            OMtsTrigger::defaultPcMapping());
+    }
 
     // Pre-allocate 16 voices (matches max polyphony cap). Voice manager will
     // enforce the runtime cap; pre-allocating prevents processBlock allocations
@@ -405,20 +452,40 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     if (auto* pp = parameters.getRawParameterValue ("polyphony"))
         synthesiser.setVoiceCap ((int) pp->load());
 
-    // v1.14.0: keyswitch filter. When ks_enabled, note-ons within
-    // [ks_low_note..ks_high_note] are absorbed: their semitone offset from
-    // ks_low_note becomes the active technique (atomic store, audio thread
-    // → voice startNote uses memory_order_acquire to pair). All other MIDI
-    // events forward to the synth unchanged. Note-offs in the KS range are
-    // also absorbed so they never trigger spurious voice activity.
+    // v1.14.0 / v1.15.0: KS / CC / PC technique routing.
     //
-    // RT-safety: the filter buffer was pre-sized in prepareToPlay, so
-    // addEvent does not allocate. The filter is skipped entirely when
-    // ks_enabled=false (back-compat fast path for v1.13.0 sessions).
+    // Three trigger mechanisms share one pendingTechniqueIndex atom with
+    // KS > CC > PC > history precedence:
+    //
+    //   * KS: a note-on inside [ks_low..ks_high] is absorbed (never
+    //     forwarded to the synth) and its semitone offset from ks_low
+    //     becomes the candidate technique.
+    //   * CC: a controller event with controllerNumber == cc_number is
+    //     looked up against the 8-slot CC table; the value's containing
+    //     band's technique is the candidate.
+    //   * PC: a program-change event is looked up against the 8-slot PC
+    //     table; the matching slot's technique is the candidate.
+    //
+    // We do NOT overwrite the atomic on every event — that would let a
+    // late-block PC clobber an earlier-block KS. Instead we accumulate
+    // candidate values across the block and resolve precedence once at
+    // the end via OMtsTrigger::resolveTriggerPrecedence. If no trigger
+    // fired, the atomic is left alone (history persists).
+    //
+    // RT-safety: the KS filter buffer was pre-sized in prepareToPlay, so
+    // addEvent does not allocate. CC + PC reads consult atomic_load'd
+    // shared_ptr snapshots of the mapping tables — the COW pattern keeps
+    // the audio thread free of locks. CC + PC scans never modify
+    // midiMessages — they observe only — so no MIDI re-dispatch is
+    // needed for those two triggers (the host's CC/PC bytes still reach
+    // any downstream NE / parameter listeners).
     bool        ksEnabled  = false;
     int         ksLowNote  = 0;
     int         ksHighNote = 0;
     int         techCount  = 1;
+    bool        ccEnabled  = false;
+    int         ccNumber   = 0;
+    bool        pcEnabled  = false;
     if (auto* p = parameters.getRawParameterValue ("ks_enabled"))
         ksEnabled = (p->load() > 0.5f);
     if (auto* p = parameters.getRawParameterValue ("ks_low_note"))
@@ -427,9 +494,30 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         ksHighNote = juce::jlimit (0, 127, (int) p->load());
     if (auto* p = parameters.getRawParameterValue ("technique_count"))
         techCount = juce::jlimit (1, 8, (int) p->load());
+    if (auto* p = parameters.getRawParameterValue ("cc_select_enabled"))
+        ccEnabled = (p->load() > 0.5f);
+    if (auto* p = parameters.getRawParameterValue ("cc_number"))
+        ccNumber = juce::jlimit (0, 119, (int) p->load());
+    if (auto* p = parameters.getRawParameterValue ("pc_enabled"))
+        pcEnabled = (p->load() > 0.5f);
 
     const juce::MidiBuffer* dispatchMidi = &midiMessages;
     bool techniqueChangedThisBlock = false;
+
+    // Snapshot the mapping tables once per block (COW shared_ptr; lock-free
+    // load — std::atomic_load on shared_ptr is RT-safe per the v1.14.0
+    // sample-map pattern).
+   #if (defined(__cplusplus) && __cplusplus >= 202002L)
+    auto ccTable = std::atomic_load (&currentCcMapping);
+    auto pcTable = std::atomic_load (&currentPcMapping);
+   #else
+    auto ccTable = std::atomic_load (&currentCcMapping);
+    auto pcTable = std::atomic_load (&currentPcMapping);
+   #endif
+
+    int ksTechCandidate = -1;
+    int ccTechCandidate = -1;
+    int pcTechCandidate = -1;
 
     if (ksEnabled && ksHighNote >= ksLowNote)
     {
@@ -443,17 +531,78 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
             {
                 if (msg.isNoteOn())
                 {
-                    const int newTech = juce::jlimit (
+                    ksTechCandidate = juce::jlimit (
                         0, juce::jmin (7, techCount - 1),
                         msg.getNoteNumber() - ksLowNote);
-                    pendingTechniqueIndex.store (newTech, std::memory_order_release);
-                    techniqueChangedThisBlock = true;
                 }
                 continue;   // absorb (do not forward to synth)
             }
+
+            // CC + PC scan happens inside this loop too so we only walk
+            // the buffer once. The events are forwarded unchanged to the
+            // filtered buffer.
+            if (ccEnabled && ccTable != nullptr
+                && msg.isController() && msg.getControllerNumber() == ccNumber)
+            {
+                const int t = OMtsTrigger::resolveCcTechnique (
+                    msg.getControllerValue(), *ccTable);
+                if (t >= 0)
+                    ccTechCandidate = juce::jlimit (
+                        0, juce::jmin (7, techCount - 1), t);
+            }
+            if (pcEnabled && pcTable != nullptr && msg.isProgramChange())
+            {
+                const int t = OMtsTrigger::resolvePcTechnique (
+                    msg.getProgramChangeNumber(), *pcTable);
+                if (t >= 0)
+                    pcTechCandidate = juce::jlimit (
+                        0, juce::jmin (7, techCount - 1), t);
+            }
+
             ksFilteredBuffer.addEvent (msg, meta.samplePosition);
         }
         dispatchMidi = &ksFilteredBuffer;
+    }
+    else if (ccEnabled || pcEnabled)
+    {
+        // KS path is disabled but at least one of CC / PC is on, so we
+        // still need to walk the buffer once to harvest candidates. We do
+        // NOT need the filter buffer here — no events are absorbed.
+        for (const auto meta : midiMessages)
+        {
+            const auto msg = meta.getMessage();
+            if (ccEnabled && ccTable != nullptr
+                && msg.isController() && msg.getControllerNumber() == ccNumber)
+            {
+                const int t = OMtsTrigger::resolveCcTechnique (
+                    msg.getControllerValue(), *ccTable);
+                if (t >= 0)
+                    ccTechCandidate = juce::jlimit (
+                        0, juce::jmin (7, techCount - 1), t);
+            }
+            if (pcEnabled && pcTable != nullptr && msg.isProgramChange())
+            {
+                const int t = OMtsTrigger::resolvePcTechnique (
+                    msg.getProgramChangeNumber(), *pcTable);
+                if (t >= 0)
+                    pcTechCandidate = juce::jlimit (
+                        0, juce::jmin (7, techCount - 1), t);
+            }
+        }
+    }
+
+    // Resolve precedence — KS > CC > PC > history. If nothing fired we
+    // leave pendingTechniqueIndex alone (history persists across blocks).
+    if (ksTechCandidate >= 0 || ccTechCandidate >= 0 || pcTechCandidate >= 0)
+    {
+        const int historyTech = pendingTechniqueIndex.load (std::memory_order_acquire);
+        const int newTech = OMtsTrigger::resolveTriggerPrecedence (
+            ksTechCandidate, ccTechCandidate, pcTechCandidate, historyTech);
+        if (newTech != historyTech)
+        {
+            pendingTechniqueIndex.store (newTech, std::memory_order_release);
+            techniqueChangedThisBlock = true;
+        }
     }
 
     // Render all voices via synthesiser (handles MIDI routing + voice allocation).
@@ -546,6 +695,15 @@ void OMicrotonalSamplerAudioProcessor::handleAsyncUpdate()
 
         if (techniqueStateChangedCallback)
             techniqueStateChangedCallback();
+    }
+
+    // v1.15.0: CC/PC trigger-table change notification. Same coalescing
+    // pattern as the technique-state path. The editor uses this to refresh
+    // the CC/PC panel UI after native-fn mutations.
+    if (triggerStateDirty.exchange (false, std::memory_order_acquire))
+    {
+        if (triggerStateChangedCallback)
+            triggerStateChangedCallback();
     }
 }
 
@@ -1831,6 +1989,90 @@ void OMicrotonalSamplerAudioProcessor::setActiveTechnique (int technique)
 }
 
 //==============================================================================
+// v1.15.0 — CC + PC trigger mapping accessors / mutators.
+//
+// Tables live in std::shared_ptr slots that the audio thread snapshots via
+// atomic_load. Mutations build a new table, atomic_store it, and let the
+// old table die when the last audio-thread reference releases. Memory cost
+// is small (each table is < 100 bytes) so the COW pattern's overhead is
+// negligible compared to the lock-free read benefit.
+
+OMtsTrigger::CcMapping OMicrotonalSamplerAudioProcessor::getCcMapping() const
+{
+    auto snapshot = std::atomic_load (&currentCcMapping);
+    return snapshot != nullptr ? *snapshot : OMtsTrigger::defaultCcMapping (1);
+}
+
+OMtsTrigger::PcMapping OMicrotonalSamplerAudioProcessor::getPcMapping() const
+{
+    auto snapshot = std::atomic_load (&currentPcMapping);
+    return snapshot != nullptr ? *snapshot : OMtsTrigger::defaultPcMapping();
+}
+
+void OMicrotonalSamplerAudioProcessor::setCcMappingSlot (int slot,
+                                                          int rangeLow,
+                                                          int rangeHigh,
+                                                          int technique)
+{
+    if (slot < 0 || slot >= OMtsTrigger::kMaxSlots) return;
+
+    auto current = std::atomic_load (&currentCcMapping);
+    auto next = std::make_shared<OMtsTrigger::CcMapping> (
+        current != nullptr ? *current : OMtsTrigger::defaultCcMapping (1));
+
+    int lo = juce::jlimit (0, 127, rangeLow);
+    int hi = juce::jlimit (0, 127, rangeHigh);
+    if (hi < lo) std::swap (lo, hi);
+
+    auto& s = next->at ((size_t) slot);
+    s.rangeLow  = lo;
+    s.rangeHigh = hi;
+    s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1, technique);
+
+    std::atomic_store (&currentCcMapping, next);
+
+    triggerStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+void OMicrotonalSamplerAudioProcessor::setPcMappingSlot (int slot,
+                                                          int pcNumber,
+                                                          int technique)
+{
+    if (slot < 0 || slot >= OMtsTrigger::kMaxSlots) return;
+
+    auto current = std::atomic_load (&currentPcMapping);
+    auto next = std::make_shared<OMtsTrigger::PcMapping> (
+        current != nullptr ? *current : OMtsTrigger::defaultPcMapping());
+
+    auto& s = next->at ((size_t) slot);
+    s.pc        = juce::jlimit (0, 127, pcNumber);
+    s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1, technique);
+
+    std::atomic_store (&currentPcMapping, next);
+
+    triggerStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+void OMicrotonalSamplerAudioProcessor::resetTriggerMappings()
+{
+    const int count = juce::jlimit (1, 8,
+        (int) parameters.getRawParameterValue ("technique_count")->load());
+
+    auto cc = std::make_shared<OMtsTrigger::CcMapping> (
+        OMtsTrigger::defaultCcMapping (count));
+    auto pc = std::make_shared<OMtsTrigger::PcMapping> (
+        OMtsTrigger::defaultPcMapping());
+
+    std::atomic_store (&currentCcMapping, cc);
+    std::atomic_store (&currentPcMapping, pc);
+
+    triggerStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+//==============================================================================
 juce::AudioProcessorEditor* OMicrotonalSamplerAudioProcessor::createEditor()
 {
     return new OMicrotonalSamplerAudioProcessorEditor (*this);
@@ -1872,6 +2114,16 @@ namespace
     // child decode cleanly back to the default vocab.
     constexpr const char* kTechniqueNamesTag = "TechniqueNames";
     constexpr const char* kTechniqueSlotTag  = "Slot";
+
+    // v1.15.0:
+    //   <CcMapping><Slot index="0" lo="0" hi="15" tech="0"/>…</CcMapping>
+    //   <PcMapping><Slot index="0" pc="0" tech="0"/>…</PcMapping>
+    //
+    // Always 8 slots. Old (v1.14.0) sessions have neither child — the
+    // processor constructor pre-seeds defaults so back-compat is automatic.
+    constexpr const char* kCcMappingTag    = "CcMapping";
+    constexpr const char* kPcMappingTag    = "PcMapping";
+    constexpr const char* kTriggerSlotTag  = "Slot";
 
     // v1.12.0: <Audio><Cell><Variant/></Cell></Audio> sub-tree under each <Op>
     // when the op was loaded with embedAudio=true. Stores per-variant audio
@@ -2228,7 +2480,9 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
         if (child.hasType (kSampleFolderTag)
             || child.hasType (kSampleFoldersTag)
             || child.hasType (kTuningStateTag)
-            || child.hasType (kTechniqueNamesTag))     // v1.14.0
+            || child.hasType (kTechniqueNamesTag)      // v1.14.0
+            || child.hasType (kCcMappingTag)           // v1.15.0
+            || child.hasType (kPcMappingTag))          // v1.15.0
             root.removeChild (i, nullptr);
     }
 
@@ -2311,6 +2565,36 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
         root.appendChild (names, nullptr);
     }
 
+    // v1.15.0 — CC + PC mapping tables. The cc_select_enabled / cc_number /
+    // pc_enabled gates round-trip via <PARAM> children automatically; only
+    // the per-slot tables need an explicit XML payload.
+    {
+        const auto cc = getCcMapping();
+        juce::ValueTree ccTree (kCcMappingTag);
+        for (int i = 0; i < OMtsTrigger::kMaxSlots; ++i)
+        {
+            juce::ValueTree slot (kTriggerSlotTag);
+            slot.setProperty ("index", i,                                nullptr);
+            slot.setProperty ("lo",    cc[(size_t) i].rangeLow,          nullptr);
+            slot.setProperty ("hi",    cc[(size_t) i].rangeHigh,         nullptr);
+            slot.setProperty ("tech",  cc[(size_t) i].technique,         nullptr);
+            ccTree.appendChild (slot, nullptr);
+        }
+        root.appendChild (ccTree, nullptr);
+
+        const auto pc = getPcMapping();
+        juce::ValueTree pcTree (kPcMappingTag);
+        for (int i = 0; i < OMtsTrigger::kMaxSlots; ++i)
+        {
+            juce::ValueTree slot (kTriggerSlotTag);
+            slot.setProperty ("index", i,                                nullptr);
+            slot.setProperty ("pc",    pc[(size_t) i].pc,                nullptr);
+            slot.setProperty ("tech",  pc[(size_t) i].technique,         nullptr);
+            pcTree.appendChild (slot, nullptr);
+        }
+        root.appendChild (pcTree, nullptr);
+    }
+
     return root;
 }
 
@@ -2361,6 +2645,62 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     if (auto* tp = parameters.getRawParameterValue ("technique_select"))
         pendingTechniqueIndex.store (juce::jlimit (0, 7, (int) tp->load()),
                                      std::memory_order_release);
+
+    // 2d. v1.15.0 — restore CC + PC mapping tables. v1.14.0 sessions have
+    // neither child; the constructor's defaults survive. v1.15.0 sessions
+    // override the defaults slot-by-slot — sparse trees fall back to the
+    // default for the missing slots.
+    {
+        auto ccTree = root.getChildWithName (kCcMappingTag);
+        if (ccTree.isValid())
+        {
+            const int initialCount = juce::jlimit (1, 8,
+                (int) parameters.getRawParameterValue ("technique_count")->load());
+            auto cc = std::make_shared<OMtsTrigger::CcMapping> (
+                OMtsTrigger::defaultCcMapping (initialCount));
+            for (int i = 0; i < ccTree.getNumChildren(); ++i)
+            {
+                const auto slot = ccTree.getChild (i);
+                if (! slot.hasType (kTriggerSlotTag)) continue;
+                const int idx = juce::jlimit (0, OMtsTrigger::kMaxSlots - 1,
+                    static_cast<int> (slot.getProperty ("index", -1)));
+                if (idx < 0) continue;
+                auto& s = cc->at ((size_t) idx);
+                s.rangeLow  = juce::jlimit (0, 127, static_cast<int> (slot.getProperty ("lo",   s.rangeLow)));
+                s.rangeHigh = juce::jlimit (0, 127, static_cast<int> (slot.getProperty ("hi",   s.rangeHigh)));
+                if (s.rangeHigh < s.rangeLow) std::swap (s.rangeLow, s.rangeHigh);
+                s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1,
+                                            static_cast<int> (slot.getProperty ("tech", s.technique)));
+            }
+            std::atomic_store (&currentCcMapping, cc);
+        }
+
+        auto pcTree = root.getChildWithName (kPcMappingTag);
+        if (pcTree.isValid())
+        {
+            auto pc = std::make_shared<OMtsTrigger::PcMapping> (
+                OMtsTrigger::defaultPcMapping());
+            for (int i = 0; i < pcTree.getNumChildren(); ++i)
+            {
+                const auto slot = pcTree.getChild (i);
+                if (! slot.hasType (kTriggerSlotTag)) continue;
+                const int idx = juce::jlimit (0, OMtsTrigger::kMaxSlots - 1,
+                    static_cast<int> (slot.getProperty ("index", -1)));
+                if (idx < 0) continue;
+                auto& s = pc->at ((size_t) idx);
+                s.pc        = juce::jlimit (0, 127, static_cast<int> (slot.getProperty ("pc",   s.pc)));
+                s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1,
+                                            static_cast<int> (slot.getProperty ("tech", s.technique)));
+            }
+            std::atomic_store (&currentPcMapping, pc);
+        }
+
+        if (ccTree.isValid() || pcTree.isValid())
+        {
+            triggerStateDirty.store (true, std::memory_order_release);
+            triggerAsyncUpdate();
+        }
+    }
 
     // 3. Sample folders — async via SampleLoader, sequenced via the replay
     //    queue so ops 0..N-1 are applied in order (preserves the user's

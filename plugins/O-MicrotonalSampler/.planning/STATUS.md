@@ -1,14 +1,123 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.14.0 IMPLEMENTED → v1.15.0 (CC + PC triggers + Dynamics audit) pending
-status: multi_version_plan_v1.14_complete_v1.15_pending_execute
+phase: v1.15.0 IMPLEMENTED → v1.16.0 (Dorico distribution) pending
+status: multi_version_plan_v1.15_complete_v1.16_pending_execute
 last_updated: 2026-05-03
-version: 1.14.0
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0
+version: 1.15.0
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0
 ---
 
 # Resume Point
+
+## v1.15.0 Implementation Complete (2026-05-03)
+
+**Status:** code complete, build green (VST3 + AU + Standalone macOS),
+pluginval-5 SUCCESS, auval AU PASS (Component Version: 1.15.0), 2 new
+test executables pass all assertions (50 + 56 = 106 cases).
+
+### What landed
+
+- **3 new APVTS params:** `cc_select_enabled` (bool, default false),
+  `cc_number` (0..119, default 32 — General Purpose 1, free of
+  CC1/CC11/bank-select reservations), `pc_enabled` (bool, default
+  false). Round-trip through project state and host automation.
+- **`Source/TriggerMapping.h`** — new pure-data header containing
+  `CcSlot` / `PcSlot` structs, `defaultCcMapping(count)` /
+  `defaultPcMapping()` builders, and three resolver free functions
+  (`resolveCcTechnique`, `resolvePcTechnique`,
+  `resolveTriggerPrecedence`). Audio thread, message thread, and
+  unit tests all share identical resolution code.
+- **`PluginProcessor` private members:**
+  `std::shared_ptr<OMtsTrigger::CcMapping> currentCcMapping` and
+  `std::shared_ptr<OMtsTrigger::PcMapping> currentPcMapping` — COW
+  shared_ptr slots (matches the `currentSampleMap` pattern).
+  `triggerStateChangedCallback` + `triggerStateDirty` for editor
+  notifications. Constructor seeds both tables to plan-defined
+  defaults.
+- **`processBlock` extended** from a single-trigger (KS) walk to a
+  three-trigger candidate harvest with KS > CC > PC > history
+  precedence. Single-pass scan over `midiMessages` collects up to
+  three candidates (each starts at -1) and resolves precedence once
+  at the end via `OMtsTrigger::resolveTriggerPrecedence`. RT-safety
+  preserved: COW shared_ptr reads are lock-free, the KS filter
+  buffer remains pre-allocated, and a no-trigger block leaves
+  `pendingTechniqueIndex` untouched (eliminates spurious
+  AsyncUpdater triggers).
+- **State persistence: `<CcMapping>` + `<PcMapping>`** ValueTree
+  children with sparse 8-slot child lists. Stripped on capture
+  (defensive). v1.14.0 sessions decode cleanly back to seeded
+  defaults — the plan's back-compat contract holds.
+- **7 new WebView native fns** in `PluginEditor.cpp`:
+  `getTriggerState` (bulk snapshot — gates + mappings),
+  `setCcEnabled`, `setCcNumber`, `setCcMapping(slot, lo, hi, tech)`,
+  `setPcEnabled`, `setPcMapping(slot, pc, tech)`,
+  `resetTriggerMappings`. The editor wires
+  `setTriggerStateChangedCallback` to emit `triggerStateUpdated`
+  events to JS.
+- **HTML + CSS + JS trigger panel.** Collapsible `<details>`
+  disclosure under the technique-bar with two sub-panels (CC + PC),
+  each showing an 8-row editable table. CSS mirrors the
+  technique-bar style language (paper-cream backgrounds, monospace
+  numerics). JS state mirrors the C++ COW pattern: a local
+  `triggerState` cache populated by `pullTriggerState`,
+  `subscribeTriggerStateUpdates` for live sync,
+  `renderTriggerPanel` driven by both trigger-state and
+  technique-state changes (count drives slot dimming + visibility).
+  Hidden when `technique_count == 1` (matches the technique-bar
+  back-compat visual contract).
+- **`docs/dynamics-mapping.md`** — new ~150-line doc explaining
+  velocity-vs-CC11 dynamics path, recommended Dorico exp-map
+  setting (`<volumeType><type>kCC11</type></volumeType>`), and the
+  Dorico 3+ secondary-volume-control forward-compat note. Includes
+  a quick-DAW-test procedure.
+- **2 new EXCLUDE_FROM_ALL test execs** registered in
+  CMakeLists.txt: `O-MicrotonalSampler_CcPcTriggerCheck` (50
+  assertions: defaultCcMapping bucketing, defaultPcMapping pairs,
+  resolveCcTechnique band routing + edge cases + overlap
+  precedence, resolvePcTechnique sparse table, precedence
+  resolver, end-to-end three-block scenario) and
+  `O-MicrotonalSampler_DynamicsLayerCheck` (56 assertions:
+  velocity-to-layer bucket boundaries for N=1/2/4/8, edge-case
+  clamping, findCell-respects-layer determinism). All 106
+  assertions pass.
+
+### Files touched (10)
+
+1. `Source/TriggerMapping.h` (NEW)
+2. `Source/PluginProcessor.h`
+3. `Source/PluginProcessor.cpp`
+4. `Source/PluginEditor.cpp`
+5. `Resources/ui/index.html`
+6. `Resources/ui/css/sampler-shell.css`
+7. `Resources/ui/js/sampler-app.js`
+8. `Source/tests/cc_pc_trigger_check.cpp` (NEW)
+9. `Source/tests/dynamics_layer_check.cpp` (NEW)
+10. `docs/dynamics-mapping.md` (NEW)
+11. `CMakeLists.txt`
+12. `CHANGELOG.md`
+
+### Backups
+
+- `backups/O-MicrotonalSampler/v1.14.0/` — full plugin tree, 3.3 MB,
+  created before any source edits.
+
+### Build / validation gate
+
+- `ninja O-MicrotonalSampler_VST3 O-MicrotonalSampler_AU O-MicrotonalSampler_Standalone`: SUCCESS
+- `ninja O-MicrotonalSampler_CcPcTriggerCheck`: SUCCESS — 50/50 assertions PASS
+- `ninja O-MicrotonalSampler_DynamicsLayerCheck`: SUCCESS — 56/56 assertions PASS
+- `pluginval --strictness-level 5 --validate-in-process --skip-gui-tests`: SUCCESS
+- `auval -v aumu OMtS OuDv`: AU VALIDATION SUCCEEDED (Component Version: 1.15.0)
+
+### Resume command
+
+Next slice in the multi-version plan: `/improve O-MicrotonalSampler`
+and the skill should pick up the v1.16.0 block (Dorico distribution
+— `.doricolib` + Playback Template) directly from "Sequenced Plan"
+below.
+
+---
 
 ## v1.14.0 Implementation Complete (2026-05-03)
 

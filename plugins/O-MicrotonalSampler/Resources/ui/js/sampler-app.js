@@ -2427,6 +2427,12 @@ async function pullTechniqueState() {
 
         renderTechniqueBar();
 
+        // v1.15.0: technique count drives the trigger-panel visibility
+        // (single-technique libraries hide it) and slot dimming. Refresh
+        // the panel against the cached trigger snapshot whenever the
+        // technique state changes — cheap, no native fn call.
+        renderTriggerPanel();
+
         // Active-technique change → re-render the grid against the cached
         // snapshot so cells from the new technique slot appear immediately.
         if (prevActive !== techniqueState.active && lastSampleMapSnapshot) {
@@ -2634,6 +2640,276 @@ function bindTechniqueBar() {
     }
 }
 
+// ============================================================================
+// v1.15.0 — CC + PC trigger panel
+// ============================================================================
+//
+// The C++ side owns two 8-slot tables (CC value-range → tech, PC# → tech)
+// plus three APVTS gates (cc_select_enabled, cc_number, pc_enabled). The
+// audio thread reads these to drive technique routing in processBlock with
+// KS > CC > PC > history precedence. The JS layer holds a cached snapshot
+// for rendering — single source of truth always lives in C++.
+
+const triggerState = {
+    ccEnabled: false,
+    ccNumber:  32,
+    ccMapping: [],   // 8 entries: { rangeLow, rangeHigh, tech }
+    pcEnabled: false,
+    pcMapping: [],   // 8 entries: { pc, tech }
+};
+
+async function pullTriggerState() {
+    if (!window.__JUCE__) return;
+    try {
+        const fn = Juce.getNativeFunction('getTriggerState');
+        const raw = await fn();
+        // The native fn returns a juce::DynamicObject which arrives as a
+        // plain JS object (matching the getTechniqueState pattern).
+        const obj = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+
+        triggerState.ccEnabled = !!obj.ccEnabled;
+        triggerState.ccNumber  = Number.isFinite(obj.ccNumber) ? obj.ccNumber : 32;
+        triggerState.pcEnabled = !!obj.pcEnabled;
+
+        triggerState.ccMapping = Array.isArray(obj.ccMapping)
+            ? obj.ccMapping.slice(0, 8).map(s => ({
+                rangeLow:  Number.isFinite(s.rangeLow)  ? s.rangeLow  : 0,
+                rangeHigh: Number.isFinite(s.rangeHigh) ? s.rangeHigh : 127,
+                tech:      Number.isFinite(s.tech)      ? s.tech      : 0,
+            }))
+            : [];
+        triggerState.pcMapping = Array.isArray(obj.pcMapping)
+            ? obj.pcMapping.slice(0, 8).map(s => ({
+                pc:   Number.isFinite(s.pc)   ? s.pc   : 0,
+                tech: Number.isFinite(s.tech) ? s.tech : 0,
+            }))
+            : [];
+
+        renderTriggerPanel();
+    } catch (err) {
+        console.warn('[sampler-app] pullTriggerState failed', err);
+    }
+}
+
+function subscribeTriggerStateUpdates() {
+    if (!window.__JUCE__) return;
+    window.__JUCE__.backend.addEventListener('triggerStateUpdated', () => {
+        pullTriggerState();
+    });
+}
+
+function renderTriggerPanel() {
+    const panel = document.getElementById('trigger-panel');
+    if (!panel) return;
+
+    // Mirror the technique-bar visibility contract: stay hidden until the
+    // user has more than one technique slot, since CC/PC routing is
+    // pointless on a single-technique library.
+    const expanded = techniqueState.count > 1;
+    panel.hidden = !expanded;
+    if (!expanded) return;
+
+    // Top-level fields
+    const ccToggle = document.getElementById('cc-trigger-enabled');
+    const ccNumber = document.getElementById('cc-trigger-number');
+    const pcToggle = document.getElementById('pc-trigger-enabled');
+    if (ccToggle) ccToggle.checked = triggerState.ccEnabled;
+    if (ccNumber) ccNumber.value   = String(triggerState.ccNumber);
+    if (pcToggle) pcToggle.checked = triggerState.pcEnabled;
+
+    const techCount = Math.max(1, Math.min(8, techniqueState.count || 1));
+
+    // CC table — 8 rows. Slots beyond techCount are dimmed (kept editable
+    // but greyed so the user can still pre-stage values for a future grow).
+    const ccTbody = document.querySelector('#cc-trigger-table tbody');
+    if (ccTbody) {
+        ccTbody.innerHTML = '';
+        for (let i = 0; i < 8; ++i) {
+            const slot = triggerState.ccMapping[i] || { rangeLow: 0, rangeHigh: 127, tech: 0 };
+            const tr = document.createElement('tr');
+            tr.dataset.slot = String(i);
+            if (i >= techCount) tr.style.opacity = '0.45';
+
+            const idTd = document.createElement('td');
+            idTd.textContent = String(i + 1);
+            tr.appendChild(idTd);
+
+            const loTd = document.createElement('td');
+            const loInput = document.createElement('input');
+            loInput.type = 'number';
+            loInput.min = '0'; loInput.max = '127'; loInput.step = '1';
+            loInput.value = String(slot.rangeLow);
+            loInput.dataset.field = 'lo';
+            loTd.appendChild(loInput);
+            tr.appendChild(loTd);
+
+            const hiTd = document.createElement('td');
+            const hiInput = document.createElement('input');
+            hiInput.type = 'number';
+            hiInput.min = '0'; hiInput.max = '127'; hiInput.step = '1';
+            hiInput.value = String(slot.rangeHigh);
+            hiInput.dataset.field = 'hi';
+            hiTd.appendChild(hiInput);
+            tr.appendChild(hiTd);
+
+            const techTd = document.createElement('td');
+            const techInput = document.createElement('input');
+            techInput.type = 'number';
+            techInput.min = '1'; techInput.max = '8'; techInput.step = '1';
+            techInput.value = String(slot.tech + 1);   // user-facing 1..8
+            techInput.dataset.field = 'tech';
+            techTd.appendChild(techInput);
+            tr.appendChild(techTd);
+
+            ccTbody.appendChild(tr);
+        }
+    }
+
+    // PC table
+    const pcTbody = document.querySelector('#pc-trigger-table tbody');
+    if (pcTbody) {
+        pcTbody.innerHTML = '';
+        for (let i = 0; i < 8; ++i) {
+            const slot = triggerState.pcMapping[i] || { pc: i, tech: i };
+            const tr = document.createElement('tr');
+            tr.dataset.slot = String(i);
+            if (i >= techCount) tr.style.opacity = '0.45';
+
+            const idTd = document.createElement('td');
+            idTd.textContent = String(i + 1);
+            tr.appendChild(idTd);
+
+            const pcTd = document.createElement('td');
+            const pcInput = document.createElement('input');
+            pcInput.type = 'number';
+            pcInput.min = '0'; pcInput.max = '127'; pcInput.step = '1';
+            pcInput.value = String(slot.pc);
+            pcInput.dataset.field = 'pc';
+            pcTd.appendChild(pcInput);
+            tr.appendChild(pcTd);
+
+            const techTd = document.createElement('td');
+            const techInput = document.createElement('input');
+            techInput.type = 'number';
+            techInput.min = '1'; techInput.max = '8'; techInput.step = '1';
+            techInput.value = String(slot.tech + 1);
+            techInput.dataset.field = 'tech';
+            techTd.appendChild(techInput);
+            tr.appendChild(techTd);
+
+            pcTbody.appendChild(tr);
+        }
+    }
+
+    // Sub-panel disabled visuals (mirror the KS-controls disabled pattern)
+    const ccSubpanel = document.querySelector('#cc-trigger-table')?.closest('.trigger-subpanel');
+    const pcSubpanel = document.querySelector('#pc-trigger-table')?.closest('.trigger-subpanel');
+    if (ccSubpanel) ccSubpanel.classList.toggle('disabled', !triggerState.ccEnabled);
+    if (pcSubpanel) pcSubpanel.classList.toggle('disabled', !triggerState.pcEnabled);
+}
+
+function bindTriggerPanel() {
+    const ccToggle = document.getElementById('cc-trigger-enabled');
+    if (ccToggle) {
+        ccToggle.addEventListener('change', async () => {
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('setCcEnabled');
+                await fn(!!ccToggle.checked);
+            } catch (err) { console.warn('[sampler-app] setCcEnabled failed', err); }
+        });
+    }
+
+    const ccNumber = document.getElementById('cc-trigger-number');
+    if (ccNumber) {
+        ccNumber.addEventListener('change', async () => {
+            if (!window.__JUCE__) return;
+            let v = parseInt(ccNumber.value, 10);
+            if (!Number.isFinite(v)) v = 32;
+            v = Math.max(0, Math.min(119, v));
+            try {
+                const fn = Juce.getNativeFunction('setCcNumber');
+                await fn(v);
+            } catch (err) { console.warn('[sampler-app] setCcNumber failed', err); }
+        });
+    }
+
+    const pcToggle = document.getElementById('pc-trigger-enabled');
+    if (pcToggle) {
+        pcToggle.addEventListener('change', async () => {
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('setPcEnabled');
+                await fn(!!pcToggle.checked);
+            } catch (err) { console.warn('[sampler-app] setPcEnabled failed', err); }
+        });
+    }
+
+    const ccTable = document.getElementById('cc-trigger-table');
+    if (ccTable) {
+        ccTable.addEventListener('change', async (e) => {
+            const input = e.target;
+            if (!input || input.tagName !== 'INPUT') return;
+            const tr = input.closest('tr');
+            if (!tr) return;
+            const slot = parseInt(tr.dataset.slot, 10);
+            if (!Number.isFinite(slot)) return;
+
+            const loInput   = tr.querySelector('input[data-field="lo"]');
+            const hiInput   = tr.querySelector('input[data-field="hi"]');
+            const techInput = tr.querySelector('input[data-field="tech"]');
+            if (!loInput || !hiInput || !techInput) return;
+
+            let lo   = Math.max(0, Math.min(127, parseInt(loInput.value,   10) || 0));
+            let hi   = Math.max(0, Math.min(127, parseInt(hiInput.value,   10) || 0));
+            let tech = Math.max(1, Math.min(8,   parseInt(techInput.value, 10) || 1)) - 1;
+            if (hi < lo) hi = lo;
+
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('setCcMapping');
+                await fn(slot, lo, hi, tech);
+            } catch (err) { console.warn('[sampler-app] setCcMapping failed', err); }
+        });
+    }
+
+    const pcTable = document.getElementById('pc-trigger-table');
+    if (pcTable) {
+        pcTable.addEventListener('change', async (e) => {
+            const input = e.target;
+            if (!input || input.tagName !== 'INPUT') return;
+            const tr = input.closest('tr');
+            if (!tr) return;
+            const slot = parseInt(tr.dataset.slot, 10);
+            if (!Number.isFinite(slot)) return;
+
+            const pcInput   = tr.querySelector('input[data-field="pc"]');
+            const techInput = tr.querySelector('input[data-field="tech"]');
+            if (!pcInput || !techInput) return;
+
+            const pc   = Math.max(0, Math.min(127, parseInt(pcInput.value,   10) || 0));
+            const tech = Math.max(1, Math.min(8,   parseInt(techInput.value, 10) || 1)) - 1;
+
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('setPcMapping');
+                await fn(slot, pc, tech);
+            } catch (err) { console.warn('[sampler-app] setPcMapping failed', err); }
+        });
+    }
+
+    const resetBtn = document.getElementById('trigger-reset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+            if (!window.__JUCE__) return;
+            try {
+                const fn = Juce.getNativeFunction('resetTriggerMappings');
+                await fn();
+            } catch (err) { console.warn('[sampler-app] resetTriggerMappings failed', err); }
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     bindTabs();
     bindSliders();
@@ -2641,6 +2917,7 @@ document.addEventListener('DOMContentLoaded', () => {
     subscribeFolderMissingEvent();   // v1.3.0 — register before pull
     subscribeAmbiguousDuplicatesEvent();   // v1.8.0
     subscribeTechniqueStateUpdates();      // v1.14.0
+    subscribeTriggerStateUpdates();        // v1.15.0
     bindHostDragEvents();
     bindToastEventListener();
     bindFolderDropZone();
@@ -2678,4 +2955,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bindLoopEditorResize();
     bindTechniqueBar();              // v1.14.0
     pullTechniqueState();            // v1.14.0
+    bindTriggerPanel();              // v1.15.0
+    pullTriggerState();              // v1.15.0
 });

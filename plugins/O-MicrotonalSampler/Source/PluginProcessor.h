@@ -19,6 +19,7 @@
 #include "MicrotonalSamplerVoice.h"
 #include "SampleMap.h"
 #include "SampleLoader.h"
+#include "TriggerMapping.h"        // v1.15.0 — CC + PC trigger tables
 #include "TuningEngine.h"          // global namespace (D-4)
 #include "NoteExpression.h"        // modules/tuning/note-expression (via ouaricon_add_module)
 
@@ -475,6 +476,46 @@ public:
     // Message-thread only.
     void setActiveTechnique (int technique);
 
+    // ------------------------------------------------------------------
+    // v1.15.0 — CC + PC trigger mappings
+    // ------------------------------------------------------------------
+
+    // Read-only snapshot of the current CC mapping table (8 slots). Each
+    // slot defines an inclusive [rangeLow..rangeHigh] sub-band over the
+    // 0..127 controller-value range and the technique index that band
+    // should select. Message-thread only.
+    OMtsTrigger::CcMapping getCcMapping() const;
+
+    // Read-only snapshot of the current PC mapping table (8 slots).
+    // Message-thread only.
+    OMtsTrigger::PcMapping getPcMapping() const;
+
+    // Replace one CC mapping slot. `slot` is 0..7. Range edges are clamped
+    // to 0..127 with `low` ≤ `high` enforced; technique is clamped to 0..7.
+    // Performs a copy-on-write atomic_store under persistenceLock so the
+    // audio thread observes a consistent table. Fires triggerStateChanged
+    // callback. Message-thread only.
+    void setCcMappingSlot (int slot, int rangeLow, int rangeHigh, int technique);
+
+    // Replace one PC mapping slot. `slot` is 0..7, pcNumber is clamped to
+    // 0..127, technique to 0..7. Same COW + callback semantics as
+    // setCcMappingSlot. Message-thread only.
+    void setPcMappingSlot (int slot, int pcNumber, int technique);
+
+    // Reset both tables to their plan-defined defaults: CC equally splits
+    // 0..127 across the current `technique_count`; PC#i → tech i.
+    // Fires the trigger-state callback. Message-thread only.
+    void resetTriggerMappings();
+
+    // Editor subscribes to receive notifications whenever the CC/PC
+    // mapping tables OR the cc_select_enabled / cc_number / pc_enabled
+    // APVTS params change via the native-fn path. Coalesced via
+    // AsyncUpdater. Message-thread only.
+    void setTriggerStateChangedCallback (std::function<void()> cb)
+    {
+        triggerStateChangedCallback = std::move (cb);
+    }
+
 private:
     juce::AudioProcessorValueTreeState        parameters;
     CappedSynthesiser                         synthesiser;
@@ -508,6 +549,24 @@ private:
     // already uses handleAsyncUpdate, so we add an in-flight flag).
     std::function<void()> techniqueStateChangedCallback;
     std::atomic<bool>     techniqueStateDirty { false };
+
+    // v1.15.0: CC + PC trigger mapping tables. Copy-on-write via shared_ptr
+    // (matches the currentSampleMap pattern). The audio thread reads via
+    // std::atomic_load at the top of every processBlock; the message thread
+    // builds a new table, swaps it in via atomic_store, and the old table
+    // dies when the last audio-thread snapshot releases its reference.
+    //
+    // Both tables ship with sane defaults seeded by the constructor —
+    // resetTriggerMappings() rebuilds them from the current technique_count
+    // and PC# = tech# convention.
+    std::shared_ptr<OMtsTrigger::CcMapping> currentCcMapping;
+    std::shared_ptr<OMtsTrigger::PcMapping> currentPcMapping;
+
+    // v1.15.0: editor subscribes for trigger-table change notifications.
+    // Coalesced via the same handleAsyncUpdate the technique-state path
+    // already uses.
+    std::function<void()> triggerStateChangedCallback;
+    std::atomic<bool>     triggerStateDirty { false };
 
     // v1.8.0: a folder load that surfaced ambiguous (midi, layer) duplicates
     // (no rr/take/tk tokens) is staged here pending user confirmation via
