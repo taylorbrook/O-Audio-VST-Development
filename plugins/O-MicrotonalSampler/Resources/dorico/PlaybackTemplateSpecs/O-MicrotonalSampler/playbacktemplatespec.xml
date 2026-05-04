@@ -1,11 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- O-MicrotonalSampler Playback Template.
-
-     References the EndpointConfig (configID = endpointconfig.user.o_microtonalsampler)
-     in the EndpointConfigs/O-MicrotonalSampler/ folder. When the user applies this
-     template via Play → Playback Template, Dorico loads the endpoint (which loads
-     the plugin slot, links the expression map, and routes MIDI channel 1).
--->
 <playbackTemplateSpec>
     <fileVersion>1.1416</fileVersion>
     <playbackTemplateSpecID>playbacktemplate.user.o_microtonalsampler</playbackTemplateSpecID>

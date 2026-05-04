@@ -1,5 +1,91 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.1] - 2026-05-04
+
+### Fixed
+- **Dorico launch crash** ("Error opening file: invalid file format" at
+  startup). Root cause: leading XML comments before the root element in
+  `endpointconfig.xml` and `playbacktemplatespec.xml` are rejected by
+  Dorico's strict user-config parsers. Same comment in
+  `playbacktemplatedeps.doricolib` (which uses a different parser path
+  inside `EndpointConfigs/`) was tolerated, but the parser used at
+  `DefaultLibraryAdditions/` is strict — so the doricolib's leading
+  comment also crashed launch when distributed via that path. All three
+  files now have no pre-root comments.
+- **Expression map not appearing in Track Inspector dropdown** in
+  v1.16.0. Root cause: `playbacktemplatedeps.doricolib` inside
+  `EndpointConfigs/<Name>/` is endpoint-scoped — its expression-map
+  definition only registers when that endpoint is active in the project,
+  and Dorico's auto-load template path was failing (separate bug).
+  Without an active endpoint, the exp-map was invisible in the Track
+  Inspector. v1.16.1 documents the `DefaultLibraryAdditions/` path
+  (Dorico auto-merges every `.doricolib` placed there into every project's
+  library on launch) as the canonical mechanism for global exp-map
+  registration. End-users now copy three artifacts (not two) — the two
+  folders plus a single `.doricolib` to `DefaultLibraryAdditions/`.
+
+### Changed
+- **`Resources/dorico/INSTALL-DORICO.md`** — rewritten. Documents the
+  three-folder layout (now four, including `DefaultLibraryAdditions/`),
+  the macOS + Windows install paths, the dev-vs-release CID caveat (kept
+  from v1.16.0), known-issue scope for v1.16.1, and a troubleshooting
+  section covering launch crashes, dropdown-no-show, and stale-cache
+  recovery.
+- **`<version>` in `playbacktemplatedeps.doricolib` bumped 1 → 4** to
+  defeat Dorico's caching when the file is updated in place. Subsequent
+  patches should bump this further on every doricolib content change.
+- **`CMakeLists.txt`** — bump `VERSION` 1.16.0 → 1.16.1.
+
+### Known issues (deferred to v1.16.x patches)
+
+- **Apply Playback Template doesn't auto-load the plugin slot.** Dorico
+  log: `Can't find a template spec or endpoint config for routing this
+  instrument`. The `<entries>` in `playbacktemplatespec.xml` use empty
+  `<instrumentFamilies/>` and `<instruments/>` — Dorico doesn't treat
+  empty as catch-all. Working reference (`EndpointConfigs/Ample China/`)
+  has TWO entries: one endpoint + one fallback `<generatorSpec>`. Workaround:
+  manually load O-MicrotonalSampler in the Mixer.
+- **Typing playing-technique markings (sul pont., pizz., Ord.) does NOT
+  fire the keyswitch.** Plugin's WebView technique-tab strip doesn't
+  switch on playback. Two attempted fixes during the v1.16.0 smoke test
+  (adding `<switchOffActions>` with KS 0 to non-natural slots; adding
+  `<exclusionGroup>1</exclusionGroup>` per combination) both regressed
+  rather than helped. Reverted to original switchOn-only shape. Root
+  cause unclear — possible factors: per-combination fields missing
+  (HSO factory has `<pitchBendRange>`, `<microtonalPlaybackMethod>=kAuto`
+  per combo); Dorico's MIDI router filtering KS notes; or some
+  endpoint-binding requirement we haven't identified. Tracked in
+  `improvements/dorico-keyswitch-fix.md` with full diagnostic context
+  and prioritized investigation paths. Workaround: send keyswitch MIDI
+  notes (C-1..A-1 = MIDI 0..9) directly via a MIDI track or external
+  controller.
+
+### Implementation notes
+
+- **No source-code changes** to the plugin binary. v1.16.1 is a
+  distribution-artifacts and documentation patch only. Build outputs
+  identical to v1.16.0 except for the `<bundleVersion>` field bumped
+  via CMake `VERSION`.
+- **Smoke procedure (`Resources/dorico/SMOKE-TEST.md`) deferred to
+  v1.16.x update** — six TCs from v1.16.0 still apply, but TC-2 (auto-
+  load) and TC-5 (KS firing) are documented FAIL pending the next
+  patch. TC-1 (template visible), TC-3 (exp-map binds — via
+  `DefaultLibraryAdditions/` not auto-template), and TC-4 (microtonal
+  pitch — load-bearing) are validated PASS in v1.16.1.
+
+### Files touched
+
+1. `CMakeLists.txt` — `VERSION` 1.16.0 → 1.16.1.
+2. `CHANGELOG.md` — this entry.
+3. `Resources/dorico/EndpointConfigs/O-MicrotonalSampler/endpointconfig.xml` — leading comment stripped.
+4. `Resources/dorico/EndpointConfigs/O-MicrotonalSampler/playbacktemplatedeps.doricolib` — leading comment stripped, `<version>` 1 → 4.
+5. `Resources/dorico/PlaybackTemplateSpecs/O-MicrotonalSampler/playbacktemplatespec.xml` — leading comment stripped.
+6. `Resources/dorico/INSTALL-DORICO.md` — rewritten for `DefaultLibraryAdditions/` distribution path + known-issue scope.
+7. `improvements/dorico-keyswitch-fix.md` (NEW) — diagnostic brief for the v1.16.x KS-firing patch.
+8. `.planning/STATUS.md` — v1.16.1 patch noted; KS-firing tracked as open follow-up.
+
+---
+
 ## [1.16.0] - 2026-05-03
 
 ### Added
