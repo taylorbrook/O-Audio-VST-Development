@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O-MicrotonalSampler Dorico EndpointConfig.
+
+     Modelled on the validated reference at
+     ~/Library/Application Support/Steinberg/Dorico 6/EndpointConfigs/Test State-less/
+     (slot-less, deps-only — no slotN.pluginstate file required).
+
+     pluginID is the VST3 Audio Module CID extracted from the installed
+     bundle's moduleinfo.json. The current value matches the DEV-branding
+     build (OuDv manufacturer code, "-dev" product-name suffix). Release
+     builds (OuAu manufacturer code, no suffix) will produce a different
+     CID and will need a parallel artifact tree authored from the release
+     bundle's moduleinfo.json. See INSTALL-DORICO.md for the swap path.
+
+     The expressionMapID matches the entityID inside playbacktemplatedeps.doricolib
+     in the same folder — Dorico links the two on import.
+-->
+<endpointConfig>
+    <fileVersion>1.1416</fileVersion>
+    <version>1</version>
+    <name>O-MicrotonalSampler</name>
+    <configID>endpointconfig.user.o_microtonalsampler</configID>
+    <slots array="true">
+        <slotData>
+            <numAudioOutputs>2</numAudioOutputs>
+            <instanceData>
+                <slotID>1</slotID>
+                <pluginID>ABCDEF019182FAEB4F7544764F4D7453</pluginID>
+                <pluginName>O-MicrotonalSampler-dev</pluginName>
+                <pluginPresetLibraryID/>
+                <pluginPresetLibraryIDs/>
+                <enabled>true</enabled>
+                <flags>0</flags>
+                <endpointConfigID>endpointconfig.user.o_microtonalsampler</endpointConfigID>
+                <endpointConfigSlotIndex>0</endpointConfigSlotIndex>
+                <programContents>
+                    <entries array="true">
+                        <entry>
+                            <portIndex>0</portIndex>
+                            <channelNumberRel0>0</channelNumberRel0>
+                            <programName/>
+                            <collectionName/>
+                            <expressionMapID>xmap.ouaricon.o_microtonalsampler</expressionMapID>
+                            <drumkitNoteMapID/>
+                            <flags>0</flags>
+                        </entry>
+                    </entries>
+                </programContents>
+            </instanceData>
+        </slotData>
+    </slots>
+</endpointConfig>

@@ -1,5 +1,101 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.0] - 2026-05-03
+
+### Added
+- **Dorico distribution bundle** (`Resources/dorico/`). Three files
+  authored against Dorico 6's user-library layout that wire
+  O-MicrotonalSampler as a one-click Playback Template:
+  - `EndpointConfigs/O-MicrotonalSampler/endpointconfig.xml` —
+    references the dev-build VST3 plugin ID
+    (`ABCDEF019182FAEB4F7544764F4D7453`), MIDI channel 1, expression-map
+    binding to the bundled exp-map.
+  - `EndpointConfigs/O-MicrotonalSampler/playbacktemplatedeps.doricolib`
+    — the bundled expression map (`xmap.ouaricon.o_microtonalsampler`):
+    `microtonalPlaybackMethod = kVST3NoteExpression` (preserves
+    microtonal pitch via VST3 NE), `volumeType = kCC` param1=11
+    (CC11 Expression for sustained dynamics), and 10
+    `playingTechniqueCombinations` mapping Dorico's notation glyphs
+    (`pt.natural`, `pt.sulPonticello`, `pt.sulTasto`, `pt.nonVibrato`,
+    `pt.muted`, `pt.pizzicato`, `pt.naturalHarmonic1`, `pt.martele`,
+    `pt.tremolo`, `pt.flautando`) to the plugin's keyswitch range
+    (MIDI notes 0..9, technique slots 0..9, full velocity).
+  - `PlaybackTemplateSpecs/O-MicrotonalSampler/playbacktemplatespec.xml`
+    — the user-facing Playback Template
+    (`playbacktemplate.user.o_microtonalsampler`) that references the
+    EndpointConfig.
+- **`Resources/dorico/INSTALL-DORICO.md`.** End-user install guide
+  with macOS + Windows path snippets, the dev-vs-release CID caveat
+  documented, and a verification checklist.
+- **`Resources/dorico/SMOKE-TEST.md`.** Six-step manual smoke procedure
+  covering template visibility, endpoint loading, expression-map
+  binding, microtonal pitch (P0 — load-bearing), technique keyswitch
+  on notation, and CC11 dynamics swell.
+
+### Changed
+- `CMakeLists.txt` — bump `VERSION` 1.15.0 → 1.16.0.
+
+### Implementation notes
+
+- **Distribution mechanism finalised.** A spike against the user's
+  installed Dorico 6 library confirmed that `.doricolib` Library
+  Manager imports register expression-map definitions but **not**
+  EndpointConfig or PlaybackTemplate — those entities live in their
+  own folder structures (`EndpointConfigs/<Name>/` and
+  `PlaybackTemplateSpecs/<Name>/`) at the user-library root. The
+  earlier plan's "single `.doricolib` containing exp-map + Playback
+  Template + Endpoint Configuration" assumption was structurally
+  incorrect; v1.16.0 ships the actual 3-folder layout Dorico itself
+  uses for user-saved templates. This unblocks the previously
+  reverted Phase 25 Plan 01 distribution mechanism (commit `d2c86c5`
+  rollback in the parent `note-expression` module).
+- **Schema validated against factory references.** Action XML
+  confirmed against `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/HALion Symphonic Orchestra/expressionMapsDefinitions.xml`
+  (`<switchOnAction><type>kKeySwitch</type><param1>...</param1><param2>127</param2></switchOnAction>`)
+  and `/Applications/Dorico 6.app/Contents/Resources/playback/PluginPresetLibraries/Iconica Sketch/expressionMapsDefinitions.xml`
+  (`<volumeType><type>kCC</type><param1>11</param1></volumeType>` —
+  the literal string is `kCC` with the CC# in `param1`, NOT `kCC11`
+  as a type name). EndpointConfig + Spec structure modelled on the
+  user's existing "Test State-less" reference pair.
+- **Parent NE map inlined, not chained.** The expression map's
+  `<parentEntityID>` is intentionally empty (rather than referencing
+  `xmap.ouaricon.vst3_note_expression`) so a single template install
+  wires everything — no separate `.doricolib` import required for
+  the parent module. The cost is ~10 KB of duplicated XML; the
+  benefit is one-step install for end-users.
+- **No source-code changes.** v1.16.0 is a distribution-artifacts-only
+  release — pure XML + docs under `Resources/dorico/`. The plugin
+  binary is unchanged from v1.15.0. Build / pluginval / auval status
+  inherits from the v1.15.0 baseline.
+- **Dev-build CID hardcoded.** The `<pluginID>` in
+  `endpointconfig.xml` matches the dev-branded build (manufacturer
+  `OuDv`, suffix `-dev`). Release builds (manufacturer `OuAu`, no
+  suffix) produce a different CID; release CI will need a parallel
+  artifact tree, tracked as a v1.16.x patch series. Documented in
+  `INSTALL-DORICO.md` § "Caveat: dev vs release builds".
+
+### Test surface
+
+- Manual smoke procedure: `Resources/dorico/SMOKE-TEST.md` (six TCs
+  covering template discovery, endpoint loading, expression-map
+  binding, microtonal pitch routing, technique keyswitch on
+  notation, and CC11 dynamics).
+- No new automated test executables — distribution artifacts cannot
+  be exercised without a Dorico session.
+
+### Files touched
+
+1. `CMakeLists.txt`
+2. `CHANGELOG.md`
+3. `Resources/dorico/EndpointConfigs/O-MicrotonalSampler/endpointconfig.xml` (NEW)
+4. `Resources/dorico/EndpointConfigs/O-MicrotonalSampler/playbacktemplatedeps.doricolib` (NEW)
+5. `Resources/dorico/PlaybackTemplateSpecs/O-MicrotonalSampler/playbacktemplatespec.xml` (NEW)
+6. `Resources/dorico/INSTALL-DORICO.md` (NEW)
+7. `Resources/dorico/SMOKE-TEST.md` (NEW)
+8. `.planning/STATUS.md` — v1.16.0 marked implemented; Multi-Version Plan complete.
+
+---
+
 ## [1.15.0] - 2026-05-03
 
 ### Added
