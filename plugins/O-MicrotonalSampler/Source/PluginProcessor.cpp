@@ -136,7 +136,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
     layout.add (std::make_unique<juce::AudioParameterInt> (
         juce::ParameterID { "technique_count", 1 },
         "Technique Count",
-        1, 8, 1
+        1, 8, 8
     ));
     layout.add (std::make_unique<juce::AudioParameterInt> (
         juce::ParameterID { "technique_select", 1 },
@@ -146,7 +146,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
     layout.add (std::make_unique<juce::AudioParameterBool> (
         juce::ParameterID { "ks_enabled", 1 },
         "Keyswitch Enabled",
-        false
+        true
     ));
     layout.add (std::make_unique<juce::AudioParameterInt> (
         juce::ParameterID { "ks_low_note", 1 },

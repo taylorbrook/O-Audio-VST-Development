@@ -1,14 +1,61 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.16.1 PATCH SHIPPED — Dorico KS-firing fix pending (v1.16.x)
-status: dorico_distribution_partial_ks_firing_open_follow_up
+phase: v1.16.2 PATCH SHIPPED — TC-5 Dorico KS-firing fix landed
+status: dorico_distribution_complete_tc2_tc6_open_follow_up
 last_updated: 2026-05-04
-version: 1.16.1
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1
+version: 1.16.2
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2
 ---
 
 # Resume Point
+
+## v1.16.2 Patch Shipped (2026-05-04)
+
+**Status:** primary Dorico-distribution gap (TC-5 keyswitch-from-notation)
+closed. v1.16.0 → v1.16.2 series is now functionally complete for the
+notation→playback path it was designed for — Playback Template loads,
+expression map binds, microtonal pitch routes via VST3 Note Expression,
+and playing-technique markings fire the plugin's keyswitch.
+
+### What landed
+
+- **FIX (plugin source):** `ks_enabled` default flipped `false → true`.
+  Fresh Dorico endpoints now boot with KS scanning armed, so exp-map
+  keyswitches are honored without manual UI toggling. KS range stays
+  0..9 (well below any real instrument) — no risk of accidental fire
+  from normal MIDI.
+- **FIX (plugin source):** `technique_count` default raised `1 → 8`.
+  The KS handler clamps incoming KS notes to `[0, techCount-1]`; with
+  count=1 every KS resolved to slot 0 regardless of the requested
+  technique. Default=8 unlocks all plugin slots for exp-map use.
+- **FIX (distribution artifact):** per-`<playingTechniqueCombination>`
+  `<exclusionGroup>1</exclusionGroup>` added to the doricolib (all 10
+  combos). Matches HSO factory shape; required for Dorico's mutual-
+  exclusion logic to fire `<switchOnAction>` cleanly on technique
+  transitions out of `Ord.`. `<version>` 4 → 7 to defeat Dorico's
+  cache.
+
+### Validation
+
+- Manual Dorico 6 smoke (delete+re-add endpoint required for fresh
+  defaults): TC-1, TC-3, TC-4, TC-5 all PASS.
+- pluginval-5 PASS. auval pre-existing benign DEF-24-01 unchanged.
+
+### Open follow-ups (carried, lower priority)
+
+- **TC-2 (auto-load Playback Template):** still won't fire the
+  endpoint without manual instantiation. Needs `<generatorSpec>`
+  fallback in `playbacktemplatespec.xml`. Bonus item from the v1.16.x
+  brief, deferred from v1.16.2 to keep scope tight.
+- **TC-6 (CC11 dynamics through Dorico):** never tested end-to-end.
+  Wire is in the exp-map; plugin handler validated against non-Dorico
+  DAW. Worth a quick smoke test next session.
+- **8-slot cap vs 10-technique exp-map:** plugin caps at 8 slots
+  internally (`OMtsTrigger::kMaxTech = 8`); exp-map ships 10 KS notes
+  (techniques 0–9). KS 8 (tremolo) and 9 (flautando) clamp to slot 7
+  (martele). Either trim exp-map to 8 or raise `kMaxTech`. None of
+  the user's primary techniques fall in 8–9.
 
 ## v1.16.1 Patch Shipped (2026-05-04)
 
