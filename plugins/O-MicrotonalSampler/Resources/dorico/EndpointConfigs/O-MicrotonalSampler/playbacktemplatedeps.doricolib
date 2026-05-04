@@ -5,11 +5,11 @@
 			<ExpressionMapDefinition>
 				<name>O-MicrotonalSampler</name>
 				<entityID>xmap.ouaricon.o_microtonalsampler</entityID>
-				<parentEntityID/>
+				<parentEntityID>xmap.default</parentEntityID>
 				<inheritanceMask>0</inheritanceMask>
 				<creator>Ouaricon Audio</creator>
 				<description>O-MicrotonalSampler expression map. Routes Dorico per-note microtonal pitch deltas as VST3 Note Expression (kTuningTypeID — load-bearing for non-Steinberg VST3s; auto routing falls back to pitch-bend and breaks microtonal playback). Maps Dorico's built-in technique notation (Sul pont., Sul tasto, Senza vib., Con sord., Pizz., Harm., Mart., Trem., Flaut.) to the plugin's keyswitch range C-1..A-1 (technique slots 0..9). Dynamics route via CC11 (Expression) — continuously modulates sustained notes. For velocity-only dynamics (short / articulated passages), users can change volumeType to kNoteVelocity in Library → Expression Maps.</description>
-				<version>4</version>
+				<version>7</version>
 				<pluginNames/>
 				<autoMutualExclusion>true</autoMutualExclusion>
 				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
@@ -27,6 +27,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -34,9 +35,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -60,6 +58,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -67,9 +66,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -93,6 +89,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -100,9 +97,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -126,6 +120,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -133,9 +128,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -159,6 +151,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -166,9 +159,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -192,6 +182,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -199,9 +190,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -225,6 +213,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -232,9 +221,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -258,6 +244,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -265,9 +252,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -291,6 +275,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -298,9 +283,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -324,6 +306,7 @@
 						<enabled>true</enabled>
 						<flags>0</flags>
 						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
 						<velocityRange>0,127</velocityRange>
 						<pitchRange>0,127</pitchRange>
 						<transpose>0</transpose>
@@ -331,9 +314,6 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
-						<monophonic>false</monophonic>
-						<applyMillisecondsBeforeToEndOffsets>true</applyMillisecondsBeforeToEndOffsets>
-						<applyMillisecondsBeforeToControllers>true</applyMillisecondsBeforeToControllers>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>

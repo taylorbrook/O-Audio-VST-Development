@@ -1,5 +1,128 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.2] - 2026-05-04
+
+### Fixed
+- **TC-5: Dorico keyswitch-from-notation routing now fires.** Typing
+  "sul pont." text in Dorico switches the plugin's WebView technique-tab
+  strip to slot 1; "Ord." returns to slot 0. Pizz., Sul tasto, Senza vib.,
+  Con sord., Harm., Mart. follow the same pattern. Two contributing
+  defects, both load-bearing; either alone left TC-5 broken.
+
+  1. **Plugin source: `ks_enabled` defaulted to `false`.** Fresh plugin
+     instances created by Dorico's Playback Template / Endpoint Setup
+     booted with the keyswitch trigger gate disabled, so even correctly-
+     routed KS notes from the exp-map were ignored. Default flipped to
+     `true` (`PluginProcessor.cpp:149`). KS range stays `0..9` (MIDI
+     C-2..A-2 in the Dorico C3=60 convention) — well below any real
+     instrument's pitch range, so the new default cannot accidentally
+     fire from normal MIDI input.
+  2. **Plugin source: `technique_count` defaulted to `1`.** With the
+     count at 1, the `processBlock` KS handler clamps every incoming KS
+     note to `juce::jmin(7, techCount-1)` = 0 — every KS routed to slot 0
+     regardless of which technique Dorico fired. Default raised to `8`
+     (`PluginProcessor.cpp:139`). All 8 plugin slots are now reachable
+     by exp-map KS notes 0..7. The technique-tab strip now displays
+     8 tabs by default; users wanting a slimmer UI can still reduce
+     `technique_count` per-instance.
+  3. **Distribution artifact: per-combo `<exclusionGroup>1` added.**
+     `playbacktemplatedeps.doricolib` per-`<playingTechniqueCombination>`
+     now carries `<exclusionGroup>1</exclusionGroup>` (matching HSO
+     factory exp-maps). Required for Dorico's mutual-exclusion logic
+     to fire `<switchOnAction>` on technique transitions out of `Ord.`
+     when other techniques are mutually exclusive. `<version>` bumped
+     4 → 7 (intermediate v5/v6 were transient diagnostic shapes — see
+     "Schema iteration" below).
+
+  Both the saved ks_enabled/technique_count values from existing
+  v1.16.0 / v1.16.1 sessions are preserved on project reload (Dorico
+  restores per-instance state). To pick up the new defaults, users must
+  delete + re-add the O-MicrotonalSampler endpoint via Play → Endpoint
+  Setup, or apply the Playback Template again. Documented in the
+  install guide under "Upgrading from v1.16.x".
+
+### Schema iteration (debug history, recorded for the next maintainer)
+
+- **v5 (transient):** Mirrored HSO Cello Solo's full per-combo shape —
+  added `<exclusionGroup>1</exclusionGroup>`, `<pitchBendRange>2</pitchBendRange>`,
+  `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+  per combo. Side effect: also dropped the **top-level** `<pitchBendRange>`
+  and `<microtonalPlaybackMethod>` (HSO doesn't have them at top level
+  — but HSO is 12-TET orchestral, doesn't need NE for microtones). TC-5
+  remained broken (the real cause was plugin-side, not schema). TC-4
+  (microtonal pitch via VST3 NE) regressed because per-combo
+  `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+  did not preserve the routing — Dorico fell back to no NE.
+- **v6 (transient):** Plugin defaults flipped (ks_enabled=true,
+  technique_count=8) — TC-5 fired. Per-combo `<pitchBendRange>` and
+  `<microtonalPlaybackMethod>` removed, but top-level fields were still
+  missing from the v5 rewrite, so TC-4 stayed broken.
+- **v7 (shipped):** Restored top-level `<pitchBendRange>2</pitchBendRange>`
+  and `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+  to match the v1.16.1 baseline. Kept per-combo `<exclusionGroup>1</exclusionGroup>`
+  (the only schema-shape change that's retained from v5). Both TC-4 and
+  TC-5 pass.
+
+  Net schema delta from v1.16.1 → v1.16.2: per-combo `<exclusionGroup>1</exclusionGroup>`
+  added; per-combo `<monophonic>`, `<applyMillisecondsBeforeToEndOffsets>`,
+  `<applyMillisecondsBeforeToControllers>` removed (HSO factory does
+  not ship these — they appear to be from a different Dorico schema
+  version and may have been silently ignored or rejected).
+
+### Changed
+- **`CMakeLists.txt`** — bump `VERSION` 1.16.1 → 1.16.2.
+- **`PluginProcessor.cpp`** — `ks_enabled` default `false` → `true`;
+  `technique_count` default `1` → `8`.
+- **`Resources/dorico/EndpointConfigs/O-MicrotonalSampler/playbacktemplatedeps.doricolib`**
+  — per-combo `<exclusionGroup>1</exclusionGroup>` added to all 10
+  `<playingTechniqueCombination>` entries; `<version>` 4 → 7. Top-level
+  `<pitchBendRange>2</pitchBendRange>` and
+  `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+  preserved unchanged from v1.16.1 (NE routing for TC-4).
+
+### Validation
+
+- pluginval (strictness 5) — PASS.
+- auval — same pre-existing benign DEF-24-01 finding as prior versions
+  (note-expression module's static-check artifact; not a runtime defect).
+- Manual smoke in Dorico 6:
+  - TC-1 Playback Template appears in dropdown — PASS.
+  - TC-3 Expression map binds in Track Inspector — PASS.
+  - TC-4 Microtonal pitch via VST3 NE — PASS (load-bearing; was the
+    primary regression risk during the v5/v6 iteration).
+  - TC-5 Playing-technique text fires keyswitches — PASS (primary fix
+    target). "sul pont." → tab `sp`; "Ord." → tab `ord`.
+
+### Known issues (carried from v1.16.1)
+
+- **TC-2: Apply Playback Template doesn't auto-load the plugin slot.**
+  Workaround unchanged — manually load O-MicrotonalSampler in the Mixer.
+  Tracked as bonus follow-up; deferred from v1.16.2 scope.
+- **TC-6: CC11 dynamics behavior** never tested end-to-end through
+  Dorico in v1.16.x. CC11 wire is in the exp-map; plugin handler validated
+  against direct MIDI in non-Dorico DAWs.
+- **8-slot cap vs 10-technique exp-map.** The exp-map ships 10
+  `<playingTechniqueCombination>` entries (KS notes 0..9), but the
+  plugin caps internally at 8 slots. KS notes 8 (tremolo) and 9
+  (flautando) clamp to slot 7 (martele) at the plugin layer. Two
+  resolutions are open for a future patch: (a) trim the exp-map to 8
+  combinations to match plugin capacity, (b) raise plugin
+  `kMaxTech` to 10. Lower priority — none of the user's primary
+  techniques fall in slots 8–9.
+
+### Files touched
+
+1. `CMakeLists.txt` — `VERSION` 1.16.1 → 1.16.2.
+2. `CHANGELOG.md` — this entry.
+3. `Source/PluginProcessor.cpp` — two parameter defaults flipped (lines
+   139 and 149).
+4. `Resources/dorico/EndpointConfigs/O-MicrotonalSampler/playbacktemplatedeps.doricolib`
+   — per-combo `<exclusionGroup>1</exclusionGroup>`; `<version>` 4 → 7.
+5. `.planning/STATUS.md` — v1.16.2 patch noted; primary follow-up
+   (TC-5) closed; bonus follow-ups (TC-2, TC-6, 8-slot cap) carried.
+
+---
+
 ## [1.16.1] - 2026-05-04
 
 ### Fixed
