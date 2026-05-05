@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-05-02 - Completed quick task 260502-bb5: Research: How VST3 NoteExpression pitch data embeds in MIDI files and DAW (Logic/Ableton) import compatibility
+Last activity: 2026-05-05 - Completed quick task 260505-mri: Wire 6 agents/skills/commands to delegate to dorico-agent
 
 Progress: [██████████] 100%
 
@@ -136,6 +136,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260427-readme | README v1.5 milestone update — Microtonal Dorico Playback subsection + Milestone History table | 2026-04-27 | bd90b8a | [260427-readme-v15-microtonal](./quick/260427-readme-v15-microtonal/) |
 | 260502-bb5 | Research: How VST3 NoteExpression pitch data embeds in MIDI files and DAW (Logic/Ableton) import compatibility | 2026-05-02 | fd7715f | [260502-bb5-research-how-vst3-noteexpression-pitch-d](./quick/260502-bb5-research-how-vst3-noteexpression-pitch-d/) |
 | 260505-ayr | Create Dorico agent (subagent + /dorico slash command + seed memory) for VST instrument integration | 2026-05-05 | 3f744be | [260505-ayr-create-a-dorico-agent-that-helps-with-vs](./quick/260505-ayr-create-a-dorico-agent-that-helps-with-vs/) |
+| 260505-mri | Wire 6 agents/skills/commands (troubleshoot-agent, plugin-improve, plugin-publishing, generalize-microtones, gui-agent, dsp-agent) to delegate to dorico-agent | 2026-05-05 | 0a216af | [260505-mri-wire-6-existing-agents-skills-to-delegat](./quick/260505-mri-wire-6-existing-agents-skills-to-delegat/) |
 
 ## Session Continuity
 
