@@ -164,6 +164,22 @@ This is a focused subset (3 patterns) covering only Stage 2 (DSP) requirements. 
 5. Modern juce::dsp API: Use ProcessSpec/AudioBlock/ProcessContext (not old API)
 </required_reading>
 
+## Dorico Delegation
+
+**Cross-reference (NOT a delegation rule).** When implementing or editing voice-allocation / `startNote` code for plugins that use VST3 Note Expression for microtonal playback, **apply NE tuning to `currentFrequency` BEFORE the DSP model's `trigger(...)` call**. Wrong order = first sample renders at untuned pitch → audible zipper at attack.
+
+**Trigger:** edits to per-voice `startNote` / `triggerVoice` / equivalent that touch `currentFrequency` and any subsequent `model.trigger(...)` / oscillator `setFrequency(...)` call sequence.
+
+**Required pattern (from spike-findings landmine):**
+1. Compute final `currentFrequency` (apply pending NE tuning from `noteId → cents-deviation` map).
+2. THEN call `trigger(...)` / `setFrequency(...)`.
+
+Spike validated this order on O-Lyrica end-to-end. Other plugins consuming the shared `dsp/note-expression` module inherit the constraint.
+
+**When in doubt:** consult `dorico-agent` before re-ordering or refactoring. Do NOT spawn it from dsp-agent — dsp-agent has no Task tool. Return to invoker (plugin-workflow) recommending a separate `Task(subagent_type="dorico-agent", ...)`.
+
+**Reference docs:** `~/.claude/projects/-Users-taylorbrook-Dev-VST-development/memory/project_o_lyrica_spike_reference.md`; `.claude/agents/dorico-agent.md`; `Skill("spike-findings-VST-development")` (Pattern 6 + Landmine 6 — the trigger-order rule).
+
 <complexity_aware>
 ## Complexity-Aware Implementation
 

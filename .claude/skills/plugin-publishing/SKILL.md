@@ -164,6 +164,29 @@ sed -i '' "s/VERSION [0-9]*\.[0-9]*\.[0-9]*/VERSION $NEW_VERSION/" plugins/[Plug
 
 ---
 
+### 4b. Microtonal Cohort SMOKE-TEST (Advisory)
+
+If the plugin being published is in the **microtonal cohort**, run a Dorico smoke-test sweep via `dorico-agent` and surface results as a warning block in the publish summary. **This is advisory — does NOT block release.**
+
+**Cohort:** O-Lyrica, O-Bells, O-Wind, O-Reed, O-Bowed, O-Formant, O-MicrotonalSampler.
+
+**Trigger:** `[PluginName]` matches one of the cohort entries above.
+
+**Handoff:**
+```
+Task(subagent_type="dorico-agent",
+     description="[PluginName] pre-release SMOKE-TEST",
+     prompt="Run TC-1..TC-5 from plugins/[PluginName]/Resources/dorico/SMOKE-TEST.md against the v[NEW_VERSION] build. Report PASS/FAIL per TC. Do not edit anything; this is a validation pass only.")
+```
+
+**Result handling:**
+- **All TC pass** → continue to Step 5, no warning shown.
+- **Any TC fails** → append an "⚠ Dorico SMOKE-TEST advisory" block to the publish summary listing the failing TCs and the agent's diagnosis. **Continue to Step 5 anyway** — release proceeds. User decides follow-up.
+
+**Reference docs:** `.claude/agents/dorico-agent.md` (Output Contract section); per-plugin `Resources/dorico/SMOKE-TEST.md`.
+
+---
+
 ### 5. Commit Changes
 
 **Create release commit:**
