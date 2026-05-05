@@ -278,6 +278,18 @@ Choose (1-4): _
 
 **See**: [references/investigation-tiers.md](references/investigation-tiers.md) for complete tier detection algorithm and protocols for each tier (1: Basic Code Inspection, 2: Root Cause Analysis, 3: Deep Research Delegation).
 
+## Dorico Delegation
+
+After Phase 0.5 tier detection, if the bug report is Dorico-tagged, route directly to `dorico-agent` regardless of tier. Skip the Tier 1/2/3 escalation — `dorico-agent` runs its own graduated protocol scoped to Dorico landmines.
+
+**Triggers (any of):**
+- User report mentions: "Dorico", "microtonal in Dorico", "expression map", "exp map", "playback template", "keyswitch in Dorico", "endpoint config"
+- Plugin-name + Dorico-tagged TC-failure (TC-1..TC-5 from `Resources/dorico/SMOKE-TEST.md`)
+
+**Handoff:** Invoke via `Task(subagent_type="dorico-agent", description="<Plugin> Dorico bug", prompt="<user report + plugin context>")`. Wait for its DIAGNOSIS / ROOT CAUSE / FIX APPLIED report, then resume Phase 0.6 planning around the proposed fix.
+
+**Reference docs:** `.claude/agents/dorico-agent.md`; the agent's own memory at `.claude/agent-memory/dorico-agent.md`.
+
 ## Phase 0.6: Implementation Planning
 
 **Purpose:** Create task breakdown for Tier 2/3 improvements to reduce rework.
