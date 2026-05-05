@@ -142,6 +142,21 @@ This is a focused subset (14 patterns) covering Stage 3 (GUI/WebView) requiremen
 8. **Cross-platform WebView best practices:** `research/cross-platform-webview-best-practices.md` - CRITICAL for Windows compatibility
 </required_reading>
 
+## Dorico Delegation
+
+**Cross-reference (NOT a delegation rule).** When editing `createParameterLayout()` for plugins in the microtonal cohort, the parameter defaults you set are **Layer 2 of the 3-layer Dorico keyswitch routing stack**. Wrong defaults silently absorb correctly-routed Dorico keyswitches with no error.
+
+**Trigger:** any edit to `createParameterLayout()` involving these parameter IDs (or their per-plugin equivalents): `ks_enabled`, `technique_count`, `cc_select_enabled`, `pc_enabled`, KS-range gates.
+
+**Required pattern (from `critical_dorico_keyswitch_routing.md` Layer 2):**
+- `ks_enabled` MUST default `true` (gates that default false silently absorb KS).
+- `technique_count` MUST default to actual technique count, NOT `1` (clamps would route every KS to slot 0).
+- Same rule applies to `cc_select_enabled`, `pc_enabled`.
+
+**When in doubt:** consult `dorico-agent` before changing these defaults. Do NOT spawn it from gui-agent — return to invoker (plugin-workflow) recommending a separate `Task(subagent_type="dorico-agent", ...)` invocation.
+
+**Reference docs:** `~/.claude/projects/-Users-taylorbrook-Dev-VST-development/memory/critical_dorico_keyswitch_routing.md`; `.claude/agents/dorico-agent.md` (Landmine 4).
+
 <template_library>
 ## Template Library
 
