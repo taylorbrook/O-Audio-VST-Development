@@ -1960,11 +1960,11 @@ void OMicrotonalSamplerAudioProcessor::resetTechniqueNames()
     techniqueNames.add ("ord");
     techniqueNames.add ("sp");
     techniqueNames.add ("st");
-    techniqueNames.add ("sv");
+    techniqueNames.add ("stacc");
     techniqueNames.add ("cs");
     techniqueNames.add ("pizz");
     techniqueNames.add ("harm");
-    techniqueNames.add ("mart");
+    techniqueNames.add ("trem");
 
     techniqueStateDirty.store (true, std::memory_order_release);
     triggerAsyncUpdate();
