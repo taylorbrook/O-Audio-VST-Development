@@ -1,5 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <kScoreLibrary>
+	<!--
+	  ============================================================================
+	  CRITICAL — DO NOT REMOVE TOP-LEVEL <pitchBendRange> + <microtonalPlaybackMethod>
+	  ============================================================================
+	  Each <ExpressionMapDefinition> below MUST contain BOTH:
+	    <pitchBendRange>2</pitchBendRange>
+	    <microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
+	  at the TOP LEVEL (between <applyStageTemplateSettings> and <initSwitchData>).
+	  These are LOAD-BEARING for TC-4 microtonal pitch via VST3 Note Expression.
+
+	  Per-combination duplicates of these fields (between <lengthFactor> and
+	  <volumeType>) are kept for HSO-factory-shape parity, but DO NOT substitute
+	  for the top-level fields — Dorico falls back to nearest-12-TET if the
+	  top-level fields are absent, even when per-combination fields are present
+	  AND the plugin advertises kTuningTypeID NoteExpression correctly.
+
+	  Regression history (v1.16.0/v1.16.1 PASS → broken multiple times during
+	  refactors → re-fixed each time): if you "clean up" these top-level fields
+	  thinking they're redundant with per-combination, you will silently break
+	  microtonal playback. TC-3 will still pass (bindings look fine); only TC-4
+	  reveals the failure.
+
+	  See:
+	    plugins/O-MicrotonalSampler/Resources/dorico/SMOKE-TEST.md (TC-4 fail signal)
+	    .claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md
+	    (Pattern 6 + Landmine 6 — exp-map structural requirements)
+	  ============================================================================
+	-->
 	<expressionMapDefinitions>
 		<entities array="true">
 			<ExpressionMapDefinition>
@@ -9,7 +37,7 @@
 				<inheritanceMask>0</inheritanceMask>
 				<creator>Ouaricon Audio</creator>
 				<description>O-MicrotonalSampler Strings expression map. Routes Dorico per-note microtonal pitch deltas as VST3 Note Expression (kTuningTypeID — load-bearing for non-Steinberg VST3s; auto routing falls back to pitch-bend and breaks microtonal playback). Maps Strings techniques (Sul pont., Sul tasto, Stacc., Con sord., Pizz., Harm., Trem.) to keyswitch slots 0..7 (MIDI C-2..G-2 in Dorico's C3=60 convention). Dynamics route via CC11 (Expression). For velocity-only dynamics, change volumeType to kNoteVelocity in Library → Expression Maps.</description>
-				<version>8</version>
+				<version>10</version>
 				<pluginNames/>
 				<autoMutualExclusion>true</autoMutualExclusion>
 				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
@@ -35,6 +63,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -66,6 +96,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -97,6 +129,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -128,6 +162,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -159,6 +195,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -190,6 +228,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -221,6 +261,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -252,6 +294,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -281,7 +325,7 @@
 				<inheritanceMask>0</inheritanceMask>
 				<creator>Ouaricon Audio</creator>
 				<description>O-MicrotonalSampler Winds expression map. Routes microtonal pitch as VST3 Note Expression (kTuningTypeID). Maps wind techniques (Flutter-tongue, Whisper, Multiphonic, Key click, Slap-tongue, Harm., Stacc.) to keyswitch slots 0..7. Dynamics via CC11. Slot 2 (whisper) is the closest catalog match for "breathy/aeolian" — users can re-bind via Library → Expression Maps if needed.</description>
-				<version>1</version>
+				<version>3</version>
 				<pluginNames/>
 				<autoMutualExclusion>true</autoMutualExclusion>
 				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
@@ -307,6 +351,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -338,6 +384,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -369,6 +417,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -400,6 +450,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -431,6 +483,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -462,6 +516,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -493,6 +549,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -524,6 +582,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -553,7 +613,7 @@
 				<inheritanceMask>0</inheritanceMask>
 				<creator>Ouaricon Audio</creator>
 				<description>O-MicrotonalSampler Brass expression map. Routes microtonal pitch as VST3 Note Expression (kTuningTypeID). Maps brass techniques (Mute, Cuivre, Flutter-tongue, Stopped, Growl, Fall) to keyswitch slots 0..7. Dynamics via CC11. Slot 4 (halfvalve) is intentionally unbound — Dorico's catalog has no canonical pt.halfValve; users can manually bind via Library → Expression Maps.</description>
-				<version>1</version>
+				<version>3</version>
 				<pluginNames/>
 				<autoMutualExclusion>true</autoMutualExclusion>
 				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
@@ -579,6 +639,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -610,6 +672,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -641,6 +705,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -672,6 +738,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -703,6 +771,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -734,6 +804,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -765,6 +837,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -796,6 +870,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -825,7 +901,7 @@
 				<inheritanceMask>0</inheritanceMask>
 				<creator>Ouaricon Audio</creator>
 				<description>O-MicrotonalSampler Generic expression map (fallback for percussion / unknown families). Routes microtonal pitch as VST3 Note Expression (kTuningTypeID). Provides 8 unbound keyswitch slots (0..7) — only slot 0 (pt.natural) is bound by default; users assign Dorico techniques to slots 1..7 manually via Library → Expression Maps. Dynamics via CC11. Use this map as a customization seed when the Strings/Winds/Brass defaults don't fit your instrument.</description>
-				<version>1</version>
+				<version>3</version>
 				<pluginNames/>
 				<autoMutualExclusion>true</autoMutualExclusion>
 				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
@@ -851,6 +927,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -882,6 +960,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -913,6 +993,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -944,6 +1026,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -975,6 +1059,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -1006,6 +1092,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -1037,6 +1125,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>
@@ -1068,6 +1158,8 @@
 						<millisecondsBefore>0</millisecondsBefore>
 						<velocityFactor>1.000000</velocityFactor>
 						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
 						<volumeType>
 							<type>kCC</type>
 							<param1>11</param1>

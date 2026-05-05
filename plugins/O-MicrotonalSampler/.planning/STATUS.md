@@ -1,15 +1,92 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.16.5 PATCH SHIPPED — endpoint-config instrument enumeration; TC-2 PASS confirmed in Dorico
-status: v1_16_5_tc2_pass_validated_pending_git_commit
+phase: v1.16.6 PATCH SHIPPED — exp-map top-level microtonal fields restored; full v1.16.x Dorico smoke sweep PASS
+status: v1_16_6_full_smoke_pass_pending_git_commit
 last_updated: 2026-05-05
-version: 1.16.5
-next_brief: (none — TC-2 validated; remaining TC-3..TC-7 re-runs are nice-to-have regression checks)
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4
+version: 1.16.6
+next_brief: (none — v1.16.x Dorico distribution work fully closed: TC-1..TC-7 all PASS)
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5
 ---
 
 # Resume Point
+
+## v1.16.6 Patch Shipped (2026-05-05) — TC-4 microtonal regression fixed
+
+**Status:** recurring regression closed. Top-level `<pitchBendRange>` +
+`<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+restored on every `<ExpressionMapDefinition>` in `playbacktemplatedeps.doricolib`,
+which had silently fallen out of the family-aware structure introduced
+between v1.16.2 and v1.16.5. TC-4 (microtonal pitch via VST3 NE) PASS
+re-verified in Dorico after Cmd-Q + relaunch.
+
+### Root cause
+
+The v1.16.0/v1.16.1/v1.16.2 single-map shape had top-level
+`<pitchBendRange>2</pitchBendRange>` +
+`<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+on the one ExpressionMapDefinition — explicitly flagged as load-bearing in
+the v1.16.2 commit body. v1.16.3's family split into 4 maps preserved them
+on each map, but a subsequent in-session structural exploration during this
+session removed them on the (incorrect) hypothesis that per-combination
+fields would substitute. They don't. Dorico fell back to nearest-12-TET
+silently — TC-3 (binding) still passed, only TC-4 revealed the break.
+
+### What landed (XML-only patch — no C++ rebuild)
+
+- **FIX:** `playbacktemplatedeps.doricolib` — top-level
+  `<pitchBendRange>2</pitchBendRange>` +
+  `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+  restored on all 4 ExpressionMapDefinitions (Strings, Winds, Brass, Generic),
+  between `<applyStageTemplateSettings>` and `<initSwitchData>`. Per-combination
+  copies on all 32 combinations kept (HSO-factory-shape parity, harmless
+  belt-and-suspenders).
+- **FIX:** Versions bumped (Strings → 10, Winds/Brass/Generic → 3 each) to
+  defeat Dorico's library cache.
+- **DOC:** Inline `<!-- LOAD-BEARING -->` warning comment placed inside
+  `<kScoreLibrary>` (after root opening tag — comments BEFORE root crash
+  Dorico per v1.16.1 lesson) explaining why these fields cannot be removed.
+- **DOC:** `Resources/dorico/SMOKE-TEST.md` TC-4 fail-signal section
+  rewritten with prioritized regression-fix checklist and explicit
+  "top-level fields are load-bearing" warning.
+- **DOC:** New global memory file
+  `~/.claude/projects/-Users-taylorbrook-Dev-VST-development/memory/critical_dorico_microtonal_top_level_fields.md`
+  + MEMORY.md index entry, so future sessions catch this before it ships.
+- **DOC:** Pattern 6 (canonical exp-map structure) + Landmine 6 (recurring
+  regression) added to spike-findings reference at
+  `.claude/skills/spike-findings-VST-development/references/vst3-note-expression-dorico.md`
+  (auto-loaded for VST work).
+- **DOC:** CMakeLists `VERSION` 1.16.3 → 1.16.6 (catches up the v1.16.4 +
+  v1.16.5 + v1.16.6 XML-only patch chain in the bundle plist).
+
+### Validation
+
+Full v1.16.x Dorico smoke sweep on Violin / Flute / Trumpet / Marimba:
+
+| TC | Title | Status |
+|----|-------|--------|
+| TC-1 | Playback Template appears in dropdown | ✓ PASS |
+| TC-2 | Family-aware endpoint loads on apply | ✓ PASS (validated v1.16.5) |
+| TC-3 | Per-family expression-map binding | ✓ PASS |
+| TC-4 | Microtonal pitch (kVST3NoteExpression) on all 4 maps | ✓ PASS (regression fixed this patch) |
+| TC-5a | Strings keyswitch on notation | ✓ PASS (validated v1.16.2) |
+| TC-5b | Winds keyswitch on notation | ✓ PASS |
+| TC-5c | Brass keyswitch on notation | ✓ PASS |
+| TC-5d | Generic fallback (direct MIDI) | ✓ PASS |
+| TC-6 | CC11 dynamics on all 4 maps | ✓ PASS |
+| TC-7 | Dropped Strings articulations regression | ✓ PASS |
+
+pluginval / auval unchanged (XML-only patch — binary identical to v1.16.3
+dev build dated May 4). All v1.16.x Dorico-distribution objectives complete:
+template auto-load, per-family exp-map routing, microtonal pitch via VST3 NE,
+per-family keyswitch firing from notation, dynamics swell, dropped-articulation
+regression all green on a fresh Dorico project.
+
+### Detection rule going forward
+
+Before declaring any v1.16.x+ Dorico-distribution patch shipped, run TC-4
+on at least one stave with 24-EDO active. Don't trust TC-3 PASS as proxy
+— TC-3 confirms binding but says nothing about microtonal routing.
 
 ## Session 2026-05-04 — TC-6 verified, v1.16.3 brief authored
 

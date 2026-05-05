@@ -104,10 +104,30 @@ For each of the four staves:
    (50 cents above C4) — NOT at C4 with a separate pitch-bend message.
 
 **Pass:** audible quarter-sharp tuning on all four staves.
-**Fail:** microtonality is silently falling back to pitch-bend on the failing
-family. Check that `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
-and `<pitchBendRange>2</pitchBendRange>` are present in **all four**
-ExpressionMapDefinition blocks in `playbacktemplatedeps.doricolib`.
+**Fail (plays at nearest 12-TET on all 4 staves):** Dorico is silently falling
+back to nearest-12-TET (NOT pitch-bend — Dorico drops microtonal info entirely
+when the exp-map directive is missing/malformed).
+
+This is a recurring regression. Check **in priority order**:
+
+1. **Top-level `<pitchBendRange>2</pitchBendRange>` + `<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+   present in EVERY `<ExpressionMapDefinition>`** in `playbacktemplatedeps.doricolib`,
+   placed between `<applyStageTemplateSettings>` and `<initSwitchData>`. **THESE ARE LOAD-BEARING.**
+   Per-combination copies (between `<lengthFactor>` and `<volumeType>`) are
+   nice-to-have for HSO-factory-shape parity but DO NOT substitute for the
+   top-level fields. If a refactor "cleaned up" the top-level as redundant,
+   restore them — TC-4 will fail without them even when per-combination is set.
+   Bump `<version>` on each map after editing to defeat Dorico's library cache.
+2. **Dorico fully restarted** after editing the doricolib (DefaultLibraryAdditions
+   loads on app startup, not project open). Verify in the log:
+   `grep "Loading Extra Library" ~/Library/Application\ Support/Steinberg/Dorico\ 6/application.log | tail`.
+3. **24-EDO tonality system actually applied** to the project (`Setup → Tonality
+   System → Equal Temperament 24 (Quarter-Tone)`). Without it, quarter-sharp
+   accidentals display but Dorico emits no microtonal pitch info.
+4. **Plugin loaded as VST3, not AU.** Note Expression doesn't exist in AU.
+   Check `<pluginID>` in the EndpointConfig matches the VST3 component UID,
+   and the `-dev` vs production binary matches whichever is installed in
+   `~/Library/Audio/Plug-Ins/VST3/`.
 
 ---
 

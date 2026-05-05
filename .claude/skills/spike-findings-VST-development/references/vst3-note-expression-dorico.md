@@ -66,6 +66,62 @@ if (pendingTuningSource != nullptr && midiNoteNumber >= 0 && midiNoteNumber < 12
 
 `exchange` over `load` + `store` prevents retriggered notes at the same pitch from inheriting a stale offset when a later block's NoteOn arrives without a new NE.
 
+### Pattern 6 — Doricolib exp-map structure: top-level microtonal fields are LOAD-BEARING
+
+When shipping a Dorico Playback Template (`*.doricolib` inside `EndpointConfigs/<Name>/`
+or `DefaultLibraryAdditions/`), each `<ExpressionMapDefinition>` MUST contain
+**at the top level**, between `<applyStageTemplateSettings>` and `<initSwitchData>`:
+
+```xml
+<pitchBendRange>2</pitchBendRange>
+<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
+```
+
+These are the directives Dorico actually consults to decide whether to send
+NE events vs fall back to nearest-12-TET. Per-combination duplicates of the
+same fields (between `<lengthFactor>` and `<volumeType>` inside each
+`<playingTechniqueCombination>`, matching HSO factory shape) are **harmless
+to keep but are NOT a substitute** for the top-level fields.
+
+After editing, bump the `<version>` on each affected ExpressionMapDefinition
+to bust Dorico's library cache (Dorico caches resolved maps by entityID+version)
+and **fully quit + relaunch Dorico** — DefaultLibraryAdditions loads on app
+startup, not project open.
+
+Worked example (canonical structure for an O-* plugin's exp-map):
+
+```xml
+<ExpressionMapDefinition>
+    <name>O-MyPlugin</name>
+    <entityID>xmap.ouaricon.o_myplugin</entityID>
+    <parentEntityID>xmap.default</parentEntityID>
+    <inheritanceMask>0</inheritanceMask>
+    <creator>Ouaricon Audio</creator>
+    <description>...</description>
+    <version>1</version>
+    <pluginNames/>
+    <autoMutualExclusion>true</autoMutualExclusion>
+    <allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
+    <applyStageTemplateSettings>true</applyStageTemplateSettings>
+    <pitchBendRange>2</pitchBendRange>                                          <!-- LOAD-BEARING -->
+    <microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>    <!-- LOAD-BEARING -->
+    <initSwitchData>
+        <enabled>true</enabled>
+        <initActions array="true"/>
+    </initSwitchData>
+    <playingTechniqueCombinations array="true">
+        <playingTechniqueCombination>
+            <!-- ...standard fields up through <lengthFactor>1.000000</lengthFactor>... -->
+            <pitchBendRange>2</pitchBendRange>                                  <!-- belt-and-suspenders, HSO-shape -->
+            <microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
+            <volumeType>...</volumeType>
+            <!-- ... -->
+        </playingTechniqueCombination>
+        <!-- ...more combinations, each with the per-combination duplicate... -->
+    </playingTechniqueCombinations>
+</ExpressionMapDefinition>
+```
+
 ### Pattern 5 — Measurement math
 
 VST3 `kTuningTypeID` normalized value → plain semitones:
@@ -122,6 +178,43 @@ Real build must ship:
 The spike's `startNote` applies tuning to `currentFrequency` *then* calls `stringModel.trigger(currentFrequency, …)`. If a future refactor moves the trigger earlier (or calls a `setFrequency` after trigger), the first sample is rendered at the untuned pitch → audible glide / zipper at every quarter-tone onset.
 
 Code comment on the pattern is mandatory. Test: quarter-sharp note should sound identical to plain note at the attack except for pitch — no click, no sweep.
+
+### Landmine 6 — RECURRING: deleting top-level exp-map microtonal fields silently breaks TC-4
+
+Pattern that's bitten the project multiple times (most recently
+O-MicrotonalSampler v1.16.6, 2026-05-05): a refactor or map-split pass
+"cleans up" the top-level `<pitchBendRange>` + `<microtonalPlaybackMethod>`
+on the assumption they're redundant with HSO's per-combination shape, OR
+restructures the doricolib for new families and forgets to carry them over.
+
+Failure mode is silent on every layer below an end-to-end microtonal
+playback test:
+- `pluginval` passes — plugin is fine.
+- `auval` passes — plugin is fine.
+- TC-1 (Playback Template appears in Dorico): passes.
+- TC-3 (correct family map binding visible in Track Inspector): passes.
+- Plugin advertises kTuningTypeID correctly per Pattern 2: still true.
+- JUCE patch still in place per Pattern 1: still true.
+- Plugin's `application.log` shows no errors.
+- **Only TC-4 reveals the failure** — quarter-sharp note at C4 plays at C4
+  (nearest 12-TET) instead of C4+50¢.
+
+**Detection rule:** before declaring any v1.16.x+ Dorico-distribution patch
+shipped, run TC-4 on at least one stave with 24-EDO active. Don't trust
+TC-3 PASS as proxy.
+
+**Fix when caught:** restore top-level `<pitchBendRange>2</pitchBendRange>` +
+`<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>`
+between `<applyStageTemplateSettings>` and `<initSwitchData>` in every
+ExpressionMapDefinition. Bump each map's `<version>`. Redeploy to
+`~/Library/Application Support/Steinberg/Dorico 6/DefaultLibraryAdditions/`.
+Cmd-Q Dorico, relaunch.
+
+The full guarded canonical structure is in Pattern 6 above. The
+`playbacktemplatedeps.doricolib` source file in any O-* plugin should
+carry an inline `<!-- LOAD-BEARING ... -->` comment (placed AFTER the root
+opening tag — Dorico's strict parser rejects comments BEFORE root) to
+discourage future cleanup passes.
 
 ### Landmine 5 — Diagnostic logging in the spike is NOT production-ready
 
