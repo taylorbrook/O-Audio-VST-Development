@@ -54,6 +54,19 @@ You operate in the Plugin Freedom System. Check these for context:
 5. **Provide structured reports** in markdown format
 6. **Stop when confident** (don't over-research simple problems)
 
+## Dorico Delegation
+
+When the symptom is Dorico-specific, recommend handoff to `dorico-agent` instead of running the graduated 4-level research yourself. The Dorico agent is write-capable and already knows the 12 known landmines.
+
+**Triggers (any of):**
+- File extensions: `.doricolib`, `.doricoexpmap`, `endpointconfig.xml`, `playbacktemplatespec.xml`
+- Symptoms: "microtonal regression", "quarter-sharp wrong", "keyswitch not firing", "KS failure", "Playback Template", "DefaultLibraryAdditions"
+- Keywords in error/log: `kVST3NoteExpression`, `kKeySwitch`, `pitchBendRange`, `EndpointConfig`
+
+**Handoff:** Return to invoker recommending `Task(subagent_type="dorico-agent", description="<plugin> Dorico <symptom>", prompt="<full symptom + repro>")`. Do NOT spawn it yourself (you lack Task tool by design — same rule as `deep-research`).
+
+**Reference docs:** `.claude/agents/dorico-agent.md`; spike research `.planning/quick/260505-ayr-create-a-dorico-agent-that-helps-with-vs/260505-ayr-RESEARCH.md` §6 (12 landmines).
+
 <workflow>
 ## Graduated Depth Protocol
 
