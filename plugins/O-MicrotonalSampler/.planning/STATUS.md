@@ -1,14 +1,25 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.16.2 PATCH SHIPPED — TC-5 Dorico KS-firing fix landed
-status: dorico_distribution_complete_tc2_tc6_open_follow_up
-last_updated: 2026-05-04
-version: 1.16.2
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2
+phase: v1.16.5 PATCH SHIPPED — endpoint-config instrument enumeration; TC-2 PASS confirmed in Dorico
+status: v1_16_5_tc2_pass_validated_pending_git_commit
+last_updated: 2026-05-05
+version: 1.16.5
+next_brief: (none — TC-2 validated; remaining TC-3..TC-7 re-runs are nice-to-have regression checks)
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4
 ---
 
 # Resume Point
+
+## Session 2026-05-04 — TC-6 verified, v1.16.3 brief authored
+
+- **TC-6 (CC11 dynamics through Dorico):** ✅ PASS confirmed this session. Crescendo hairpin pp→ff sweeps the plugin's "Expr" knob continuously; audible swell; co-fires cleanly with technique-tab keyswitches. No work needed.
+- **Slot cap (item #3 from prior STATUS):** decision recorded — **Option A (trim exp-map 10 → 8 combos), no C++ change.** Drops `pt.tremolo` (KS 8) and `pt.flautando` (KS 9). User confirmed neither is a primary technique.
+- **TC-2 (auto-load Playback Template):** still open. Needs `<generatorSpec>` fallback in `playbacktemplatespec.xml` modeled on `~/Library/Application Support/Steinberg/Dorico 6/PlaybackTemplateSpecs/Ample China/playbacktemplatespec.xml`.
+- **`improvements/dorico-keyswitch-fix.md`:** marked ✅ COMPLETE (banner header added).
+- **`improvements/v1.16.3-dorico-cleanup.md`:** new self-contained brief covering both remaining items as a single PATCH bundle. Designed to resume in a fresh context window.
+
+**Resume in fresh context:** `/improve O-MicrotonalSampler` → select brief `v1.16.3-dorico-cleanup` from menu.
 
 ## v1.16.2 Patch Shipped (2026-05-04)
 
@@ -44,18 +55,11 @@ and playing-technique markings fire the plugin's keyswitch.
 
 ### Open follow-ups (carried, lower priority)
 
-- **TC-2 (auto-load Playback Template):** still won't fire the
-  endpoint without manual instantiation. Needs `<generatorSpec>`
-  fallback in `playbacktemplatespec.xml`. Bonus item from the v1.16.x
-  brief, deferred from v1.16.2 to keep scope tight.
-- **TC-6 (CC11 dynamics through Dorico):** never tested end-to-end.
-  Wire is in the exp-map; plugin handler validated against non-Dorico
-  DAW. Worth a quick smoke test next session.
-- **8-slot cap vs 10-technique exp-map:** plugin caps at 8 slots
-  internally (`OMtsTrigger::kMaxTech = 8`); exp-map ships 10 KS notes
-  (techniques 0–9). KS 8 (tremolo) and 9 (flautando) clamp to slot 7
-  (martele). Either trim exp-map to 8 or raise `kMaxTech`. None of
-  the user's primary techniques fall in 8–9.
+> **Update 2026-05-04:** TC-6 verified PASS this session. TC-2 + slot cap consolidated into `improvements/v1.16.3-dorico-cleanup.md` (Option A = trim exp-map, no C++).
+
+- ~~**TC-2 (auto-load Playback Template)**~~ — carried into v1.16.3 brief.
+- ~~**TC-6 (CC11 dynamics through Dorico)**~~ — ✅ PASS verified 2026-05-04.
+- ~~**8-slot cap vs 10-technique exp-map**~~ — carried into v1.16.3 brief (Option A: trim).
 
 ## v1.16.1 Patch Shipped (2026-05-04)
 

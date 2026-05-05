@@ -1,5 +1,9 @@
 # Improvement Brief — Fix Dorico Keyswitch-from-Notation Routing
 
+> **STATUS: ✅ COMPLETE — shipped in v1.16.2** (commit `e8b6a2c`, 2026-05-04).
+> TC-5 PASS. TC-6 also verified PASS in follow-up testing 2026-05-04.
+> Open follow-ups (TC-2, slot cap) carried into `v1.16.3-dorico-cleanup.md`.
+
 **Target version:** v1.16.x patch (likely v1.16.2 or v1.17.0)
 **Severity:** P1 — broken end-to-end feature in v1.16.0 ship
 **Type:** Distribution-artifacts bug. No source-code change to the plugin should be needed.

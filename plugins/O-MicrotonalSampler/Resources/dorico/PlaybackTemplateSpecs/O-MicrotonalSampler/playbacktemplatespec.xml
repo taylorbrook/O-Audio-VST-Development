@@ -4,15 +4,36 @@
     <playbackTemplateSpecID>playbacktemplate.user.o_microtonalsampler</playbackTemplateSpecID>
     <name>O-MicrotonalSampler</name>
     <creator>Ouaricon Audio</creator>
-    <description>Loads O-MicrotonalSampler with technique-keyswitch routing (Sul pont., Sul tasto, Senza vib., Con sord., Pizz., Harm., Mart., Trem., Flaut. → keyswitch notes C-1..A-1) and CC11-driven dynamics. Microtonal pitch deltas route via VST3 Note Expression (kTuningTypeID).</description>
+    <description>Loads O-MicrotonalSampler with family-aware technique-keyswitch routing. Strings staves bind the Strings exp-map (Sul pont., Sul tasto, Stacc., Con sord., Pizz., Harm., Trem.). Woodwinds bind the Winds exp-map (Flutter-tongue, Whisper, Multiphonic, Key click, Slap-tongue, Harm., Stacc.). Brass binds the Brass exp-map (Mute, Cuivre, Flutter-tongue, Stopped, Growl, Fall). All other families fall back to the Generic exp-map. Microtonal pitch deltas route via VST3 Note Expression (kTuningTypeID); dynamics via CC11.</description>
     <version>1</version>
     <associatedSpaceTemplateID/>
     <entries array="true">
         <entry>
-            <instrumentFamilies/>
+            <instrumentFamilies>instrument family.strings</instrumentFamilies>
             <instruments/>
             <endpointConfig>
                 <configID>endpointconfig.user.o_microtonalsampler</configID>
+            </endpointConfig>
+        </entry>
+        <entry>
+            <instrumentFamilies>instrument family.woodwinds</instrumentFamilies>
+            <instruments/>
+            <endpointConfig>
+                <configID>endpointconfig.user.o_microtonalsampler_winds</configID>
+            </endpointConfig>
+        </entry>
+        <entry>
+            <instrumentFamilies>instrument family.brass</instrumentFamilies>
+            <instruments/>
+            <endpointConfig>
+                <configID>endpointconfig.user.o_microtonalsampler_brass</configID>
+            </endpointConfig>
+        </entry>
+        <entry>
+            <instrumentFamilies/>
+            <instruments/>
+            <endpointConfig>
+                <configID>endpointconfig.user.o_microtonalsampler_generic</configID>
             </endpointConfig>
         </entry>
     </entries>

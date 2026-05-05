@@ -1,5 +1,303 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.5] - 2026-05-05
+
+### Fixed
+- **TC-2: Family-aware Dorico Playback Template auto-routing now
+  actually works** (was broken in v1.16.3, partially diagnosed in
+  v1.16.4). Validated in Dorico 6 with a 4-stave project (Solo Violin,
+  Flute, Trumpet, Marimba): apply emits zero "Can't find a template
+  spec…" warnings, four `Loading Plugin into slot` events fire
+  back-to-back, MIDI thru routes to four distinct endpoint slots
+  (1024 / 2048 / 3072 / 4096). Each of the four endpoint configs now declares an
+  `<instruments array="true">` block enumerating the canonical instrument
+  entityIDs from
+  `/Applications/Dorico 6.app/Contents/Resources/instrumentFamiliesDefinitions.xml`:
+
+  | Endpoint config | Family | Instrument IDs |
+  |---|---|---|
+  | `O-MicrotonalSampler` | Strings (`instrument.strings.*`) | 19 |
+  | `O-MicrotonalSampler-Brass` | Brass (`instrument.brass.*`) | 100 |
+  | `O-MicrotonalSampler-Winds` | Woodwinds (`instrument.wind.*`) | 84 |
+  | `O-MicrotonalSampler-Generic` | Pitched-perc, unpitched-perc, keyboards, singers, fretted, orff, electronics, gamelan, sketch | 345 |
+
+  Each `<instrumentData>` is a fixed shape:
+  ```xml
+  <instrumentData>
+      <entityID>instrument.strings.violin</entityID>
+      <index>0</index>
+      <irvIndex>0</irvIndex>
+      <playerType>kSoloPlayer</playerType>
+      <endpoints>0</endpoints>
+  </instrumentData>
+  ```
+  `endpoints>0` points at slot 0 in the same endpoint config (each
+  endpoint config still has exactly one `<slotData>` defining a single
+  `O-MicrotonalSampler-dev` instance template — Dorico instantiates
+  a fresh plugin per stave from that template).
+
+  Aliases (entityIDs containing `.alias.`) are excluded from the
+  enumeration; Dorico resolves alias → canonical at score-load time.
+
+  **Architectural correction.** The v1.16.3 design assumed
+  `<instrumentFamilies>` in `playbacktemplatespec.xml` was the routing
+  filter. It isn't — it's a vestigial / editor-only field. The actual
+  routing filter is `<instruments>` at the endpoint-config level (this
+  matches the Ample China user template's pattern: empty
+  `<instrumentFamilies/>` in spec, ~11 `<instrumentData>` entries in the
+  endpoint config). v1.16.4's entityID-format spec change was harmless
+  but didn't fix routing on its own.
+
+  **Why this was hard to spot:**
+  - The Dorico binary clusters `endpoints / configID / slotData /
+    instrumentData / genSpecID / playbackTemplateSpecID` as the routing
+    schema — `instrumentFamilies` lives only in the editor UI strings
+    (`InstrumentFamiliesEditor.qml`).
+  - The `<instrumentFamilies>` element parses without error when present
+    (so v1.16.3 ingest-test passed) but nothing reads it for routing.
+  - No factory `playbacktemplatespec.xml` ships with populated family
+    filters; only stage-template files use `<id>instrument family.X</id>`.
+
+  **Spec file (`playbacktemplatespec.xml`) is unchanged from v1.16.4** —
+  the entityID format (`instrument family.strings`) stays even though
+  it's now known to be vestigial, because:
+  1. v1.16.4 already shipped the format internally,
+  2. Dorico parses it cleanly,
+  3. If a future Dorico version starts honoring the field, the values
+     are correct.
+
+### Documentation
+- `Resources/dorico/INSTALL-DORICO.md` — "Multi-family routing" section
+  rewritten to document the endpoint-config-level enumeration mechanism.
+- `Resources/dorico/SMOKE-TEST.md` — TC-2/TC-3 troubleshooting note
+  rewritten; references the new endpoint-config schema instead of the
+  spec-level filter.
+
+### Risk envelope
+- The `<instruments array="true">` block schema is **proven to work** in
+  the working Ample China user template (single-vendor case, 11 custom
+  user instruments). It is **inferred to extend** to factory instrument
+  IDs (`instrument.strings.violin` etc.) from the binary symbol cluster
+  and the matching `instrument family.X / instrument.X.Y` ID-space
+  convention. The first end-to-end TC-2 pass confirms the inference;
+  the user is asked to run the smoke test in Dorico after re-install.
+- The Generic endpoint enumerates 345 instrument IDs across 9 families.
+  If Dorico has a routing precedence rule we haven't observed (e.g.
+  "first matching entry wins" vs "most specific family wins"), Generic
+  may shadow Brass/Winds/Strings on overlapping IDs. We've kept the
+  4-entry order Strings → Winds → Brass → Generic in the spec to favor
+  family-specific entries first. No overlap in the IDs themselves
+  (each instrument is in exactly one family).
+- Backup at `backups/O-MicrotonalSampler/v1.16.3/` for one-step
+  rollback (v1.16.4 was uncommitted; v1.16.5 supersedes it before any
+  git tag was placed).
+
+## [1.16.4] - 2026-05-04
+
+> **Diagnostic step, not a complete fix.** v1.16.4 corrected the
+> `<instrumentFamilies>` text content from C++ SDK enum names to Dorico's
+> textual entityIDs. In-Dorico smoke test (post-deploy) still showed the
+> same 4× "Can't find a template spec or endpoint config…" warnings —
+> revealing that `<instrumentFamilies>` is a vestigial/editor-only field
+> and the real routing filter lives at endpoint-config level. v1.16.5
+> ships that real fix. v1.16.4 was never committed or tagged; it's
+> documented here for the diagnostic record.
+
+### Fixed (partial — see v1.16.5 for full TC-2 fix)
+- **`<instrumentFamilies>` entityID format corrected.** The v1.16.3 spec
+  used C++ SDK enum names (`kStrings`, `kWoodwinds`, `kBrass`) which
+  Dorico's XML matcher does not resolve. Replaced with the textual entityIDs Dorico actually registers:
+
+  | Was (v1.16.3, broken) | Now (v1.16.4) |
+  |---|---|
+  | `<instrumentFamilies>kStrings</instrumentFamilies>` | `<instrumentFamilies>instrument family.strings</instrumentFamilies>` |
+  | `<instrumentFamilies>kWoodwinds</instrumentFamilies>` | `<instrumentFamilies>instrument family.woodwinds</instrumentFamilies>` |
+  | `<instrumentFamilies>kBrass</instrumentFamilies>` | `<instrumentFamilies>instrument family.brass</instrumentFamilies>` |
+
+  Single change, single file (`playbacktemplatespec.xml` lines 12, 19, 26).
+  Entry #4 with empty `<instrumentFamilies/>` stays as the Generic fallback.
+
+  **Root cause / evidence:**
+  - `/Applications/Dorico 6.app/Contents/Resources/instrumentFamiliesDefinitions.xml`
+    registers `<entityID>instrument family.brass</entityID>`,
+    `instrument family.strings`, `instrument family.woodwinds`. There is no
+    `kStrings` / `kBrass` / `kWoodwinds` ID anywhere in the Dorico install.
+  - `/Applications/Dorico 6.app/Contents/Resources/playback/StageTemplates/SmallJazz/stagetemplate.xml`
+    references the same family IDs as `<id>instrument family.strings</id>`
+    in a different schema (stage layout) — same ID space, confirming the
+    textual format is what Dorico parses.
+  - The v1.16.3 `application.log` showed clean ingest of the spec and all
+    four endpoint configs, then 4× `Can't find a template spec or endpoint
+    config for routing this instrument` on apply (one per stave: Solo
+    Violin, Flute, Trumpet, Marimba). Consistent with the matcher iterating
+    entries 1–3, failing to resolve `kStrings`/`kWoodwinds`/`kBrass` to any
+    registered family entity, and either skipping those entries or
+    aborting the entries-array walk before reaching entry #4 (which has
+    `<instrumentFamilies/>` and should match Marimba as Generic — but did
+    not in v1.16.3 testing).
+
+  **No source / build / DSP / UI / state changes.** Pure resource fix in
+  `Resources/dorico/PlaybackTemplateSpecs/O-MicrotonalSampler/playbacktemplatespec.xml`.
+  All four expression maps, the C++ label patch, the keyswitch routing,
+  and the dynamics/microtonal paths from v1.16.3 are unchanged and still
+  load-bearing.
+
+### Documentation
+- `Resources/dorico/SMOKE-TEST.md` — TC-2 and TC-3 troubleshooting notes
+  updated to reference the entityID format and point at
+  `instrumentFamiliesDefinitions.xml` for the canonical list.
+- `Resources/dorico/INSTALL-DORICO.md` — "Multi-family routing" table and
+  "Wrong family routing" troubleshooting entry updated to use
+  `instrument family.strings` etc. instead of `kStrings`.
+- `CHANGELOG.md` v1.16.3 "Risk envelope" annotated with what was actually
+  validated post-ship vs what failed.
+
+### Risk envelope
+The entityID format `instrument family.strings` is proven to exist in
+Dorico's family-definition layer and proven to be referenced from at least
+one other schema (`stagetemplate.xml`). It is **unproven** as a filter
+value inside `<entry><instrumentFamilies>` in `playbacktemplatespec.xml`
+specifically — no factory `playbacktemplatespec.xml` ships with populated
+family filters; the closest analog is the working "Ample China" user
+template, which has empty `<instrumentFamilies/>` on every entry.
+
+If TC-2 still fails with "Can't find a template spec or endpoint config…"
+warnings after this patch, the next escalation paths are:
+  1. **Array-of-children variant.** Replace each
+     `<instrumentFamilies>instrument family.X</instrumentFamilies>` with
+     `<instrumentFamilies array="true"><entityID>instrument family.X</entityID></instrumentFamilies>`
+     (matching the Steinberg pattern used by the surrounding `<entries
+     array="true">` wrapper).
+  2. **Single-entry fallback.** Collapse to one entry binding the Strings
+     endpoint config (no family filter); accept that all staves get the
+     Strings exp-map by default and document manual binding via
+     Library → Expression Maps for Brass / Winds / Generic.
+
+Backup at `backups/O-MicrotonalSampler/v1.16.3/` for one-step rollback.
+
+## [1.16.3] - 2026-05-04
+
+### Added
+- **Multi-family Dorico routing.** The Playback Template now ships four
+  expression maps (Strings, Winds, Brass, Generic) and four endpoint-config
+  folders. Dorico routes each stave to the family-correct exp-map
+  automatically based on the stave's instrument family — no manual exp-map
+  swap per stave. Brief: `improvements/v1.16.3-dorico-cleanup.md`.
+
+  - **Winds map** (`xmap.ouaricon.o_microtonalsampler_winds`): ord, flutter
+    (`pt.flutterTongue`), breathy (`pt.whisper` — closest catalog match for
+    the absent `pt.aeolian`), multi (`pt.multiphonic`), keyclick
+    (`pt.keyClick`), slap (`pt.slapTongue`), harm (`pt.naturalHarmonic1`),
+    stacc (`pt.staccato`).
+  - **Brass map** (`xmap.ouaricon.o_microtonalsampler_brass`): ord, mute
+    (`pt.muted`), cuivre (`pt.cuivre`), flutter (`pt.flutterTongue`),
+    halfvalve (unbound — Dorico has no canonical `pt.halfValve`), stopped
+    (`pt.stopped`), growl (`pt.growl` — corrected from `pt.growling`), fall
+    (`pt.fallDrop` — corrected from `pt.fall`).
+  - **Generic map** (`xmap.ouaricon.o_microtonalsampler_generic`): only slot 0
+    (ord) bound; slots 1..7 ship unbound for user customization. Catches
+    percussion, voice, keyboard, and any family not explicitly routed.
+  - All four maps share the same 8-slot keyswitch shape (MIDI 0..7), the
+    same `kVST3NoteExpression` microtonal routing, the same `pitchBendRange=2`,
+    and the same `kCC param1=11` dynamics path. Plugin's `kMaxTech=8` cap
+    is unchanged.
+
+### Fixed
+- **TC-2: Playback Template auto-loads the plugin without "Can't find a
+  template spec" warning.** The Playback Template's `<entries>` now contain
+  per-family `<endpointConfig>` references with `<instrumentFamilies>`
+  filters (`kStrings`, `kWoodwinds`, `kBrass`) plus a fallback entry with
+  no filter routing to the Generic endpoint config. Each entry binds to a
+  separate user-folder endpoint config (`O-MicrotonalSampler`,
+  `-Winds`, `-Brass`, `-Generic`), each containing one `slotData` with
+  the family-correct `<expressionMapID>`. Replaces the v1.16.2 single-entry
+  template that left every non-Strings stave warning-flagged.
+
+  Manual-load workaround from v1.16.2's INSTALL-DORICO.md is no longer
+  required.
+
+### Changed
+- **Strings exp-map slot remap (8 combos, was 10).** The Strings map drops
+  three articulations and reshuffles the kept slots:
+
+  | Slot | v1.16.2 (10-combo) | v1.16.3 (8-combo) | Dorico ID |
+  |------|--------------------|-------------------|-----------|
+  | 0 | ord | ord | `pt.natural` |
+  | 1 | sp  | sp  | `pt.sulPonticello` |
+  | 2 | st  | st  | `pt.sulTasto` |
+  | 3 | sv  | **stacc** | `pt.staccato` *(was `pt.nonVibrato`)* |
+  | 4 | cs  | cs  | `pt.muted` |
+  | 5 | pizz | pizz | `pt.pizzicato` |
+  | 6 | harm | harm | `pt.naturalHarmonic1` |
+  | 7 | mart | **trem** | `pt.tremolo` *(was `pt.martele`)* |
+  | 8 | trem | (dropped — moved to slot 7) | — |
+  | 9 | flaut | (dropped) | — |
+
+  Notations dropped from keyswitch firing: `Senza vib.` (sv), `Mart.`, and
+  `Flaut.`. Existing scores using these markings will see Dorico hold the
+  previously active slot (no audible change at the marking; documented in
+  INSTALL-DORICO.md).
+
+  Doricolib `<version>` bumped 7 → 8 to defeat Dorico's parsed-XML cache.
+
+- **Default technique-tab labels (`PluginProcessor.cpp`).**
+  `resetTechniqueNames()` now produces `ord, sp, st, stacc, cs, pizz, harm, trem`
+  (was `ord, sp, st, sv, cs, pizz, harm, mart`). Pure cosmetic label change
+  in the default array — slot count, RR buffer, threading, APVTS state shape,
+  and `kMaxTech` cap are all unchanged. Existing user presets keep their
+  saved labels (defaults only fire on `Reset Techniques` button or fresh
+  plugin load).
+
+### Documentation
+- `Resources/dorico/INSTALL-DORICO.md` rewritten for the 4-folder
+  installation layout and per-family routing table. New troubleshooting
+  entry for "wrong family routing" symptoms.
+- `Resources/dorico/SMOKE-TEST.md` adds TC-2 (family-aware endpoint
+  loading), TC-5b/c/d (Winds / Brass / Generic keyswitches), TC-7
+  (dropped-articulation regression check). Existing TC-4 (microtonal
+  pitch) extends to test all four staves.
+
+### Risk envelope
+The `<instrumentFamilies>` enum values (`kStrings`, `kWoodwinds`, `kBrass`)
+are inferred from Dorico SDK conventions; no concrete factory or user
+template in the local Dorico install populates this tag with values.
+If TC-2 fails (Dorico ignores the family filter and routes everything to
+the first-listed entry, OR can't find a template spec at all), the
+expected fix is either:
+  1. Replace each `<instrumentFamilies>kFamily</instrumentFamilies>` text
+     content with a child element (e.g. `<instrumentFamily>kFamily</instrumentFamily>`),
+     or
+  2. Drop the family filters entirely and accept that all staves bind the
+     Strings map (matching v1.16.2 behavior + 3 unused exp-maps available
+     for manual binding).
+
+The four exp-maps and the C++ label patch are independently load-bearing
+and tested.
+
+#### Post-ship validation (annotated 2026-05-04, see v1.16.4)
+- **TC-1 (template appears in dropdown):** PASS. Spec + 4 endpoint configs
+  + doricolib all ingested cleanly. `application.log` showed clean
+  `Loading PlaybackTemplateSpec`, `Loading Extra Library`, and 4×
+  `Loading Endpoint Config` lines.
+- **TC-2 (apply auto-loads plugin per family):** FAIL. Apply emitted 4×
+  `Can't find a template spec or endpoint config for routing this
+  instrument` warnings (Solo Violin, Flute, Trumpet, Marimba) and CLEARED
+  any previously-loaded plugins on those staves with no replacement.
+- **TC-3 (per-family exp-map binding):** FAIL (gated on TC-2).
+- **TC-4 (microtonal pitch via VST3 Note Expression):** Validated only on
+  manually-loaded instances — exp-maps themselves are correct.
+- **TC-5a/b/c/d (per-family keyswitch firing):** FAIL (gated on TC-2).
+- **TC-6 (CC11 dynamics):** Validated only on manually-loaded instances.
+- **TC-7 (dropped articulations don't fire):** PASS — but only verifiable
+  on manually-loaded instances since TC-2 blocked auto-load.
+
+**Diagnosed root cause (post-ship):** the `<instrumentFamilies>` filter
+takes Dorico's textual family entityIDs (`instrument family.strings`,
+`instrument family.brass`, `instrument family.woodwinds`), not the C++
+SDK enum names. Risk-envelope option 1 above was the right direction
+but the wrong syntax — fix is text-content replacement, not a child
+element. Patched in v1.16.4.
+
 ## [1.16.2] - 2026-05-04
 
 ### Fixed
