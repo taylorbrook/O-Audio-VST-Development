@@ -37,6 +37,23 @@ Module contents, derived from the spike and **cleaned of diagnostic logging**:
 
 For each plugin: `/module-add` → wire `getVST3ClientExtensions()` → add per-voice tuning source + `applyPendingTuning` in `startNote` → build + install + pluginval → Dorico quarter-sharp smoke test.
 
+### 2a. Dorico Delegation (Phase B per-plugin)
+
+The "Dorico quarter-sharp smoke test" step in the per-plugin loop above delegates to `dorico-agent` rather than re-deriving the smoke-test pattern inline.
+
+**Phase B invocation pattern (sequential — one Task() per plugin, serial):**
+```
+for plugin in [O-Lyrica, O-Bells, O-IntonationPad, O-Prism, O-Wind, O-Reed, O-Bowed, O-Formant]:
+    Task(subagent_type="dorico-agent",
+         description="${plugin} Phase B Dorico bring-up",
+         prompt="Apply Dorico expression-map + endpoint config + playback template entry for ${plugin} based on the O-MicrotonalSampler v1.16.x reference. Run TC-1..TC-5 smoke test. Report status.")
+    # Wait for completion, inspect report, halt-on-failure for triage.
+```
+
+**Why sequential:** one-time propagation — wall-clock cost acceptable; per-plugin failure isolation simpler; clean stop-on-first-failure for debugging.
+
+**Reference docs:** `.claude/agents/dorico-agent.md` (Scope, Capabilities, Output Contract); `plugins/O-MicrotonalSampler/Resources/dorico/` (canonical reference).
+
 ### 3. End-user deliverable
 Ship a pre-configured Dorico expression map file (`.doricoexpmap`) with Microtonality = "VST3 Note Expression" in each plugin's installer. Without this, end users will experience the exact UX trap we hit in Spike 002 (default maps route non-Steinberg VST3s to pitch bend or VST2 detune → no microtones, plugin appears broken). Place canonical copy in `modules/[new-module]/resources/`.
 
