@@ -1,5 +1,37 @@
 # O-Prism Changelog
 
+## v1.18.0 (2026-05-06)
+
+### Added
+- **Factory preset library doubled — 96 → 192 presets.** All 96 new presets are hand-authored, each a deliberate parameter snapshot exploring an idea distinct from the existing library. New per-category counts:
+  - Pads 18 → 26 (+8): Glass Curtain, Stratosphere, Bone Cathedral, Lichen Drift, Hollow Star, Salt Air, Lithium Glow, Snowmelt
+  - Drone 12 → 22 (+10): Continental Plate, Glacier Breath, Stone Choir, Salt Ocean, Bell Forest, Iron Hum, Cathedral Furnace, Coral Tide, Volcanic Throat, Fossil Bell
+  - Lead 15 → 24 (+9): Glass Throat, Phantom Choir, Ember Tongue, Static Halo, Iron Howl, Mantis Cry, Velvet Razor, Solder Burn, Magma Wire
+  - Bass 10 → 20 (+10): Iron Wolf, Tar Pit, Magnet Bass, Bone Saw, Black Tide, Stutter Gut, Velvet Floor, Plasma Trench, Coral Reese, Glass Hammer
+  - Pluck 10 → 20 (+10): Brass Bell, Wire Fence, Gut String, Comb Drop, Solder Drop, Vellum Harp, Shell Click, Frost Bell, Wax Pluck, Spectral Spark
+  - Keys 8 → 20 (+12): Cathedral Pipe, Reed Organ, Vibraphone Cold, Mbira, Music Box, Harmonium, Wood Rhodes, Vox Continental, Toy Piano, Gamelan, Glass Marimba, Choir Organ
+  - Sequence 12 → 22 (+10): Crystal Gate, Mantra Arp, Beam Walk, Marble Step, Solder Loop, Vowel Drift, Strobe Forest, Liquid Counter, Glass Telegraph, Steam Cycle
+  - FX 8 → 20 (+12): Reverse Surge, Solar Flare, Atom Split, Comet Tail, Storm Approach, Bell Rain Backwards, Vapor Trail, Mech Bloom, Pressure Vent, Spectral Fold, Subspace Echo, Static Bloom
+  - Percussion 3 → 18 (+15): Sub Boom, Glass Hat, Wood Knock, FM Tom, Click Snap, Ride Cymbal, Bell Tap, Snare Shimmer, Bongo, Tribal Drum, Synthetic Conga, Glitch Hit, Wind Burst, Tom Floor, Synth Clave
+
+### Wavetable Coverage Improved
+- Filled CRITICAL gaps in the previous library:
+  - `WT_VocalLead`: 1 → 3 osc-A primary uses (Glass Throat, Phantom Choir + existing Phantom Vocal)
+  - `WT_SpectralTilt`: 1 → 3 osc-A primary uses (Stratosphere, Glacier Breath + existing Frozen Drift)
+  - `WT_FormantFilter`: 0 → 8 osc-A primary uses (was osc-B-only)
+  - `WT_OddHarmonics`: 0 → 5 osc-A primary uses (was osc-B-only)
+  - `WT_HarmonicStretch`: 0 → 6 osc-A primary uses (was osc-B-only)
+- All 27 wavetables now have ≥2 osc-A uses across the full 192-preset library; 26/27 have ≥3.
+
+### Tuning Persistence (Hard Constraint)
+- Stepping through any of the 192 presets does **not** modify the user's active tuning. The 7 tuning-related parameters (`tuningPreset`, `tonic`, `masterTune`, `octaveStretch`, `pitchBendRange`, `glideMode`, `glideTime`) remain in `excludedParameterIds` (`PluginProcessor.cpp:474-477`) and are skipped on save / load / applyFactoryDefinition. **No new code touches tuning state** — verified by `grep -cE` against the 7 IDs in `FactoryPresets.cpp` returning 0.
+
+### Technical Notes
+- **Version bump rationale:** MINOR (1.17.4 → 1.18.0) — new feature content, no parameter schema changes, no breaking changes. User-saved presets from v1.17.x load identically.
+- **Files changed:** `Source/FactoryPresets.cpp` (1225 → 2335 lines, +1110), `CMakeLists.txt` (version), `CHANGELOG.md`, `PLUGINS.md`.
+- **No DSP, UI, or parameter changes.** Only preset content was added.
+- **Build:** Clean Release build (macOS VST3 + AU). No new warnings.
+
 ## v1.17.4 (2026-05-06)
 
 ### Fixed
