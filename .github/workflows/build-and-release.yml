@@ -12,11 +12,11 @@ on:
       - '*-v*'  # Matches: PluginName-vX.Y.Z
 
 env:
-  # Pinned to 8.0.9 — matches the local dev JUCE install (the patch was
-  # authored against this version; it references VST3Interface::Id, which
-  # was added to JUCE in 8.0.5+ via juce_VST3Interface.h). Despite the
-  # patch filename saying 8.0.4, the actual context+code are 8.0.9.
-  # See scripts/juce-patches/ + apply-juce-patches.sh.
+  # JUCE 8.0.9 — matches the local dev install. The note-expression module
+  # requires JUCE-NE-PATCH markers in two upstream files (Dorico microtonal
+  # kNoteExpressionValueEvent surfacing). Rather than apply a brittle patch
+  # to vanilla JUCE on each runner, we vendor the two patched files in
+  # vendored/JUCE-overrides/ and copy them over the JUCE download below.
   JUCE_VERSION: '8.0.9'
   BUILD_TYPE: Release
 
@@ -62,10 +62,15 @@ jobs:
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
 
-      - name: Patch JUCE (note-expression — Dorico microtonal)
-        env:
-          JUCE_DIR: ${{ github.workspace }}/JUCE
-        run: bash scripts/apply-juce-patches.sh
+      - name: Apply JUCE overrides (note-expression — Dorico microtonal)
+        run: |
+          # Copy vendored patched files (JUCE-NE-PATCH) over the vanilla download.
+          # cp -R preserves the directory tree under vendored/JUCE-overrides/.
+          cp -R vendored/JUCE-overrides/modules/. JUCE/modules/
+          # Verify markers present after copy (fail fast if not).
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
+          echo "JUCE overrides applied."
 
       - name: Configure CMake
         run: |
@@ -409,11 +414,15 @@ jobs:
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $env:GITHUB_ENV
 
-      - name: Patch JUCE (note-expression — Dorico microtonal)
+      - name: Apply JUCE overrides (note-expression — Dorico microtonal)
         shell: bash
-        env:
-          JUCE_DIR: ${{ github.workspace }}/JUCE
-        run: bash scripts/apply-juce-patches.sh
+        run: |
+          # Copy vendored patched files (JUCE-NE-PATCH) over the vanilla download.
+          cp -R vendored/JUCE-overrides/modules/. JUCE/modules/
+          # Verify markers present after copy (fail fast if not).
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
+          echo "JUCE overrides applied."
 
       - name: Install WebView2 NuGet Package
         run: |
