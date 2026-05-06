@@ -77,6 +77,13 @@ target_link_libraries(O-Prism
 # Generate JuceHeader.h (JUCE 8 requirement — after target_link_libraries)
 juce_generate_juce_header(O-Prism)
 
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(O-Prism licensing)
+    target_compile_definitions(O-Prism PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(O-Prism PRIVATE juce::juce_cryptography)
+endif()
+
 # WebView relay manager module
 ouaricon_add_module(O-Prism webview-relay-manager)
 

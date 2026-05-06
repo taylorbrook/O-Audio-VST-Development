@@ -532,6 +532,11 @@ OPrismAudioProcessor::OPrismAudioProcessor()
     pEqMidGain      = parameters.getRawParameterValue ("eqMidGain");
     pEqMidFreq      = parameters.getRawParameterValue ("eqMidFreq");
     pEqHighGain     = parameters.getRawParameterValue ("eqHighGain");
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-prism", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OPrismAudioProcessor::~OPrismAudioProcessor() = default;

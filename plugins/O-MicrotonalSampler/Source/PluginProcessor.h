@@ -23,6 +23,10 @@
 #include "TuningEngine.h"          // global namespace (D-4)
 #include "NoteExpression.h"        // modules/tuning/note-expression (via ouaricon_add_module)
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
+
 // v1.6.0: explicit velocity-layer assignment for folder loads.
 //
 // LoadMode controls how a freshly loaded folder merges into the current map:
@@ -525,6 +529,10 @@ public:
         triggerStateChangedCallback = std::move (cb);
     }
 
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
+
 private:
     juce::AudioProcessorValueTreeState        parameters;
     CappedSynthesiser                         synthesiser;
@@ -755,6 +763,10 @@ private:
     // the user closed the project mid-load). The master must be cleared in
     // the destructor before any other member runs down — see ~ctor body.
     JUCE_DECLARE_WEAK_REFERENCEABLE (OMicrotonalSamplerAudioProcessor)
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OMicrotonalSamplerAudioProcessor)
 };
