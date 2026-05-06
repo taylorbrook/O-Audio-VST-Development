@@ -43,14 +43,6 @@ OPrismAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (BinaryData::check_native_interop_js,
                                    BinaryData::check_native_interop_jsSize, "application/javascript");
 
-    if (url == "/js/tuning-panel.js")
-        return makeBinaryResource (BinaryData::tuningpanel_js,
-                                   BinaryData::tuningpanel_jsSize, "application/javascript");
-
-    if (url == "/css/tuning-panel.css")
-        return makeBinaryResource (BinaryData::tuningpanel_css,
-                                   BinaryData::tuningpanel_cssSize, "text/css");
-
     if (url == "/js/wavetable-editor.js")
         return makeBinaryResource (BinaryData::wavetableeditor_js,
                                    BinaryData::wavetableeditor_jsSize, "application/javascript");
@@ -93,6 +85,15 @@ static juce::String toJsonFloatArray (const float* data, int count, int stride, 
     return json;
 }
 
+// Forces the "tuningPreset" choice param to the Custom slot for persistence.
+// Called from every native fn that mutates the active tuning out-of-band.
+static void syncTuningPresetToCustom (juce::AudioProcessorValueTreeState& apvts)
+{
+    if (auto* param = apvts.getParameter ("tuningPreset"))
+        param->setValueNotifyingHost (param->convertTo0to1 (
+            static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Native Functions
 // ═══════════════════════════════════════════════════════════════════
@@ -118,9 +119,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         intervals.push_back (static_cast<double> (val));
                     processorRef.getTuningEngine()->setCustomIntervals (intervals, "Custom");
-                    // Sync APVTS to Custom for persistence
-                    if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
+                    syncTuningPresetToCustom (processorRef.getAPVTS());
                     complete (true);
                     return;
                 }
@@ -140,9 +139,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 int index = static_cast<int> (args[0]);
                 double cents = static_cast<double> (args[1]);
                 processorRef.getTuningEngine()->setSingleInterval (index, cents);
-                // Sync APVTS to Custom for persistence
-                if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                    param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
+                syncTuningPresetToCustom (processorRef.getAPVTS());
                 complete (true);
                 return;
             }
@@ -243,9 +240,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                         bool success = processorRef.getTuningEngine()->loadScalaFile (file);
                         if (success)
                         {
-                            // Sync APVTS to Custom for persistence
-                            if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                                param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
+                            syncTuningPresetToCustom (processorRef.getAPVTS());
                         }
                         complete (success ? juce::var (processorRef.getTuningEngine()->getActiveTuningName())
                                          : juce::var());
@@ -398,9 +393,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     intervals.push_back (tuning->period);
                     processorRef.getTuningEngine()->setCustomIntervals (
                         intervals, juce::String (tuning->name));
-                    // Sync APVTS to Custom for persistence
-                    if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
+                    syncTuningPresetToCustom (processorRef.getAPVTS());
                     complete (true);
                     return;
                 }
@@ -420,9 +413,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         intervals.push_back (static_cast<double> (val));
                     processorRef.getTuningEngine()->setCustomIntervals (intervals, "Generated");
-                    // Sync APVTS to Custom for persistence
-                    if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
+                    syncTuningPresetToCustom (processorRef.getAPVTS());
                     complete (true);
                     return;
                 }
@@ -522,7 +513,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
         [this] (const juce::Array<juce::var>&, auto complete) {
             auto names = processorRef.getUserWavetableManager().getTableNames();
             complete (toJsonArray (names, [] (const juce::String& s) {
-                return "\"" + s.replace ("\"", "\\\"") + "\"";
+                return juce::JSON::toString (s);
             }));
         });
 
@@ -546,7 +537,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                         if (name.isNotEmpty())
                         {
                             processorRef.selectUserWavetable (oscIndex, name);
-                            complete ("{\"success\":true,\"name\":\"" + name.replace ("\"", "\\\"") + "\"}");
+                            complete ("{\"success\":true,\"name\":" + juce::JSON::toString (name) + "}");
                             return;
                         }
                     }
@@ -580,7 +571,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             if (name.isNotEmpty())
             {
                 processorRef.selectUserWavetable (oscIndex, name);
-                complete ("{\"success\":true,\"name\":\"" + name.replace ("\"", "\\\"") + "\"}");
+                complete ("{\"success\":true,\"name\":" + juce::JSON::toString (name) + "}");
             }
             else
             {
@@ -644,8 +635,8 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     auto name = processorRef.getActiveUserTableName (oscIndex);
                     auto* table = processorRef.getActiveOscTable (oscIndex);
                     int numFrames = table ? table->numFrames : 0;
-                    complete ("{\"isUser\":true,\"name\":\"" + name.replace ("\"", "\\\"")
-                            + "\",\"numFrames\":" + juce::String (numFrames) + "}");
+                    complete ("{\"isUser\":true,\"name\":" + juce::JSON::toString (name)
+                            + ",\"numFrames\":" + juce::String (numFrames) + "}");
                 }
                 else
                 {
@@ -856,7 +847,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     name, processorRef.getUserWavetableManager());
                 if (success)
                 {
-                    complete ("{\"success\":true,\"name\":\"" + name.replace ("\"", "\\\"") + "\"}");
+                    complete ("{\"success\":true,\"name\":" + juce::JSON::toString (name) + "}");
                     return;
                 }
             }
