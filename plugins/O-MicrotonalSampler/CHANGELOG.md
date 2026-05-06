@@ -1,5 +1,53 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.11] - 2026-05-05
+
+### Changed
+- Phase 3 sweep — MEDIUM-04 (Batch C, the final remaining audit candidate) applied.
+  - **[MEDIUM-04]** Added a unified `bindModal(dialog, buttons, opts)` helper to
+    `sampler-app.js`. Centralises the `addEventListener` / `cleanup` /
+    `removeEventListener` / Esc–Enter dance that previously recurred across 7
+    dialogs (folder-load-options, embed-size-confirm, per-cell-merge, generic
+    confirm, diagnostic, missing-folder, ambiguous-RR confirm). Each dialog
+    converted to a single `bindModal(...)` call site; double-fire and
+    forgotten-listener bug classes are now structurally impossible. Helper
+    supports asymmetric cases via:
+    - Function-form key targets (`opts.keys.Enter: () => capHit ? replBtn : mergeBtn`)
+    - Optional key bindings (diagnostic-dialog has Esc only — no Enter)
+    - `opts.onClose` for non-dismissing extra listeners (folder-load-options
+      live-preview handlers, diagnostic-dialog copy button)
+    - Async button handlers awaited before the modal resolves
+  - The `technique-rename-dialog` is intentionally left untouched — it uses a
+    text-input lifecycle (commit-on-Enter / cancel-on-Esc with input focus),
+    which is not the same shape as the 7 button-driven dialogs the audit
+    targeted.
+
+### Verification
+- Build (macOS VST3 + AU): PASS — clean compile.
+- auval: PASS.
+- Listener-leak greps:
+  - `const cleanup = ` in modal lifecycle code → zero hits (helper owns it).
+  - `removeEventListener(.*onKey` outside the helper → zero hits.
+  - `bindModal` call sites → 7 (folder-load-options, embed-size-confirm,
+    per-cell-merge, confirm-dialog, diagnostic, missing-folder, rr-confirm).
+- Standalone manual smoke (deferred to user-side UAT — MEDIUM-risk gate):
+  - Folder-load options: layer/mode/override/embed live-preview, confirm/cancel/Esc/Enter
+  - Embed-size confirm: appears for large folders, all paths
+  - Per-cell merge: 3-button (merge/replace/cancel); cap-hit disables merge,
+    Enter falls back to replace
+  - Generic confirm (clear samples): destructive style + onConfirm callback
+  - Diagnostic dialog: copy button updates label without dismissing; close + Esc dismiss
+  - Missing-folder: skip = `dismissMissingFolder`, locate = native picker;
+    dialog dismisses synchronously before the OS picker opens
+  - Ambiguous-RR confirm: `sendRrConfirmation(true|false)` based on choice
+
+This commit closes out the SIMPLIFICATION-AUDIT.md backlog — all HIGH and
+MEDIUM candidates from the original audit have now been applied (Phase 1 +
+Phase 2 + Phase 3 Batches A/B/C).
+
+See [SIMPLIFICATION-AUDIT.md](.planning/SIMPLIFICATION-AUDIT.md)
+`## Phase 3 Applied (v1.16.11)` for the per-candidate record.
+
 ## [1.16.10] - 2026-05-05
 
 ### Changed
