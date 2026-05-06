@@ -15,6 +15,49 @@
 #include "dsp/ModulationMatrix.h"
 
 // ═══════════════════════════════════════════════════════════════════
+// Toggle relay/attachment helpers
+//
+// These wrap the 3-step "create relay → withOptionsFrom → make attachment"
+// pattern for any group of WebToggleButton-backed parameters. Used by the
+// LFO sync + free-run vectors below. The bypassRelays / modSlotToggleRelays
+// / delaySyncRelay groups follow the same shape and could fold in here in
+// a future pass — out of scope for this commit.
+// ═══════════════════════════════════════════════════════════════════
+
+namespace
+{
+    void createToggleRelays (const juce::StringArray& ids,
+                             std::vector<std::unique_ptr<juce::WebToggleButtonRelay>>& relays)
+    {
+        for (const auto& id : ids)
+            relays.push_back (std::make_unique<juce::WebToggleButtonRelay> (id));
+    }
+
+    void addRelayOptions (const std::vector<std::unique_ptr<juce::WebToggleButtonRelay>>& relays,
+                          juce::WebBrowserComponent::Options& options)
+    {
+        for (const auto& relay : relays)
+            options = options.withOptionsFrom (*relay);
+    }
+
+    void attachToggleRelays (juce::AudioProcessorValueTreeState& apvts,
+                             const juce::StringArray& ids,
+                             const std::vector<std::unique_ptr<juce::WebToggleButtonRelay>>& relays,
+                             std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>>& attachments)
+    {
+        for (int i = 0; i < ids.size(); ++i)
+        {
+            if (auto* param = apvts.getParameter (ids[i]))
+            {
+                attachments.push_back (
+                    std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                        *param, *relays[static_cast<size_t> (i)], nullptr));
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Resource Provider
 // ═══════════════════════════════════════════════════════════════════
 
@@ -987,6 +1030,15 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     auto bypassIds    = PrismParamIds::bypassToggleIds();
     auto modToggleIds = PrismParamIds::modSlotToggleIds();
 
+    // Build LFO sync + free-run ID lists from the 1..4 convention (used in
+    // the relay/options/attachment phases below).
+    juce::StringArray lfoSyncIds, lfoFreeRunIds;
+    for (int i = 1; i <= 4; ++i)
+    {
+        lfoSyncIds.add ("lfo" + juce::String (i) + "Sync");
+        lfoFreeRunIds.add ("lfo" + juce::String (i) + "FreeRun");
+    }
+
     // Slider relays
     for (const auto& id : sliderIds)
         sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (id));
@@ -994,13 +1046,9 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // 1 toggle relay (delaySync)
     delaySyncRelay = std::make_unique<juce::WebToggleButtonRelay> ("delaySync");
 
-    // LFO sync toggle relays
-    for (int i = 1; i <= 4; ++i)
-        lfoSyncRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> ("lfo" + juce::String (i) + "Sync"));
-
-    // LFO free-run toggle relays
-    for (int i = 1; i <= 4; ++i)
-        lfoFreeRunRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> ("lfo" + juce::String (i) + "FreeRun"));
+    // LFO sync + free-run toggle relays
+    createToggleRelays (lfoSyncIds, lfoSyncRelays);
+    createToggleRelays (lfoFreeRunIds, lfoFreeRunRelays);
 
     // Bypass toggle relays
     for (const auto& id : bypassIds)
@@ -1026,13 +1074,9 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // Add toggle relay
     options = options.withOptionsFrom (*delaySyncRelay);
 
-    // Add LFO sync toggle relays
-    for (const auto& relay : lfoSyncRelays)
-        options = options.withOptionsFrom (*relay);
-
-    // Add LFO free-run toggle relays
-    for (const auto& relay : lfoFreeRunRelays)
-        options = options.withOptionsFrom (*relay);
+    // Add LFO sync + free-run toggle relays
+    addRelayOptions (lfoSyncRelays, options);
+    addRelayOptions (lfoFreeRunRelays, options);
 
     // Add bypass toggle relays
     for (const auto& relay : bypassRelays)
@@ -1080,31 +1124,9 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
             *delaySyncParam, *delaySyncRelay, nullptr);
     }
 
-    // LFO sync toggle attachments
-    for (int i = 0; i < 4; ++i)
-    {
-        auto paramId = "lfo" + juce::String (i + 1) + "Sync";
-        auto* param = processorRef.getAPVTS().getParameter (paramId);
-        if (param != nullptr)
-        {
-            lfoSyncAttachments.push_back (
-                std::make_unique<juce::WebToggleButtonParameterAttachment> (
-                    *param, *lfoSyncRelays[static_cast<size_t> (i)], nullptr));
-        }
-    }
-
-    // LFO free-run toggle attachments
-    for (int i = 0; i < 4; ++i)
-    {
-        auto paramId = "lfo" + juce::String (i + 1) + "FreeRun";
-        auto* param = processorRef.getAPVTS().getParameter (paramId);
-        if (param != nullptr)
-        {
-            lfoFreeRunAttachments.push_back (
-                std::make_unique<juce::WebToggleButtonParameterAttachment> (
-                    *param, *lfoFreeRunRelays[static_cast<size_t> (i)], nullptr));
-        }
-    }
+    // LFO sync + free-run toggle attachments
+    attachToggleRelays (processorRef.getAPVTS(), lfoSyncIds, lfoSyncRelays, lfoSyncAttachments);
+    attachToggleRelays (processorRef.getAPVTS(), lfoFreeRunIds, lfoFreeRunRelays, lfoFreeRunAttachments);
 
     // Bypass toggle attachments
     for (int i = 0; i < bypassIds.size(); ++i)

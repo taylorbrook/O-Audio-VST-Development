@@ -16,6 +16,29 @@
 #include "dsp/WavetableOscillator.h"
 
 // ═══════════════════════════════════════════════════════════════════
+// FX bypass-and-process helper (used by processBlock)
+// ═══════════════════════════════════════════════════════════════════
+
+namespace
+{
+    // Runs an FX block: short-circuits when the bypass param is on, otherwise
+    // hands the FX + AudioBlock to the supplied configure lambda. The lambda
+    // is responsible for setting parameters and (when not also short-circuited
+    // by mix≈0) calling fx.process(block) — the per-FX `mix > 0.001f` gate
+    // is preserved inside the lambda because not every FX `process()` is
+    // RT-safe at mix=0.
+    template <typename FX, typename ConfigureFn>
+    inline void runEffect (std::atomic<float>* pBypass, FX& fx,
+                           juce::dsp::AudioBlock<float>& block,
+                           ConfigureFn&& configure)
+    {
+        if (pBypass->load() > 0.5f)
+            return;
+        configure (fx, block);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Parameter Helper Functions
 // ═══════════════════════════════════════════════════════════════════
 
@@ -482,6 +505,33 @@ OPrismAudioProcessor::OPrismAudioProcessor()
     synthesiser.addSound (new PrismSound());
     lastAssignedTableA = factoryTables[0].get();
     lastAssignedTableB = factoryTables[0].get();
+
+    // Cache APVTS atomic pointers for the FX configure step (read every block).
+    pDistBypass     = parameters.getRawParameterValue ("distBypass");
+    pDistType       = parameters.getRawParameterValue ("distType");
+    pDistDrive      = parameters.getRawParameterValue ("distDrive");
+    pDistMix        = parameters.getRawParameterValue ("distMix");
+    pChorusBypass   = parameters.getRawParameterValue ("chorusBypass");
+    pChorusRate     = parameters.getRawParameterValue ("chorusRate");
+    pChorusDepth    = parameters.getRawParameterValue ("chorusDepth");
+    pChorusMix      = parameters.getRawParameterValue ("chorusMix");
+    pDelayBypass    = parameters.getRawParameterValue ("delayBypass");
+    pDelayTime      = parameters.getRawParameterValue ("delayTime");
+    pDelayFeedback  = parameters.getRawParameterValue ("delayFeedback");
+    pDelayMode      = parameters.getRawParameterValue ("delayMode");
+    pDelayMix       = parameters.getRawParameterValue ("delayMix");
+    pReverbBypass   = parameters.getRawParameterValue ("reverbBypass");
+    pReverbSize     = parameters.getRawParameterValue ("reverbSize");
+    pReverbDamp     = parameters.getRawParameterValue ("reverbDamp");
+    pReverbPredelay = parameters.getRawParameterValue ("reverbPredelay");
+    pReverbMix      = parameters.getRawParameterValue ("reverbMix");
+    pReverbModDepth = parameters.getRawParameterValue ("reverbModDepth");
+    pReverbModRate  = parameters.getRawParameterValue ("reverbModRate");
+    pEqBypass       = parameters.getRawParameterValue ("eqBypass");
+    pEqLowGain      = parameters.getRawParameterValue ("eqLowGain");
+    pEqMidGain      = parameters.getRawParameterValue ("eqMidGain");
+    pEqMidFreq      = parameters.getRawParameterValue ("eqMidFreq");
+    pEqHighGain     = parameters.getRawParameterValue ("eqHighGain");
 }
 
 OPrismAudioProcessor::~OPrismAudioProcessor() = default;
@@ -627,84 +677,66 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     juce::dsp::AudioBlock<float> block (buffer);
 
     // 1. Distortion
-    bool distBypassed = parameters.getRawParameterValue ("distBypass")->load() > 0.5f;
-    if (! distBypassed)
+    runEffect (pDistBypass, distortion, block, [this] (auto& fx, auto& blk)
     {
-        int distType = static_cast<int> (parameters.getRawParameterValue ("distType")->load());
-        float distDrive = parameters.getRawParameterValue ("distDrive")->load();
-        float distMix = parameters.getRawParameterValue ("distMix")->load();
-        distortion.setType (distType);
-        distortion.setDrive (distDrive);
-        distortion.setMix (distMix);
-        if (distMix > 0.001f)
-            distortion.process (block);
-    }
+        fx.setType (static_cast<int> (pDistType->load()));
+        fx.setDrive (pDistDrive->load());
+        const float mix = pDistMix->load();
+        fx.setMix (mix);
+        if (mix > 0.001f)
+            fx.process (blk);
+    });
 
     // 2. Chorus
-    bool chorusBypassed = parameters.getRawParameterValue ("chorusBypass")->load() > 0.5f;
-    if (! chorusBypassed)
+    runEffect (pChorusBypass, chorus, block, [this] (auto& fx, auto& blk)
     {
-        float chorusRate = parameters.getRawParameterValue ("chorusRate")->load();
-        float chorusDepth = parameters.getRawParameterValue ("chorusDepth")->load();
-        float chorusMix = parameters.getRawParameterValue ("chorusMix")->load();
-        chorus.setRate (chorusRate);
-        chorus.setDepth (chorusDepth);
-        chorus.setMix (chorusMix);
-        if (chorusMix > 0.001f)
-            chorus.process (block);
-    }
+        fx.setRate (pChorusRate->load());
+        fx.setDepth (pChorusDepth->load());
+        const float mix = pChorusMix->load();
+        fx.setMix (mix);
+        if (mix > 0.001f)
+            fx.process (blk);
+    });
 
     // 3. Delay
-    bool delayBypassed = parameters.getRawParameterValue ("delayBypass")->load() > 0.5f;
-    if (! delayBypassed)
+    runEffect (pDelayBypass, delay, block, [this] (auto& fx, auto& blk)
     {
-        float delayTime = parameters.getRawParameterValue ("delayTime")->load();
-        float delayFeedback = parameters.getRawParameterValue ("delayFeedback")->load();
-        int delayMode = static_cast<int> (parameters.getRawParameterValue ("delayMode")->load());
-        float delayMix = parameters.getRawParameterValue ("delayMix")->load();
-        delay.setTime (delayTime);
-        delay.setFeedback (delayFeedback);
-        delay.setMode (delayMode);
-        delay.setMix (delayMix);
-        if (delayMix > 0.001f)
-            delay.process (block);
-    }
+        fx.setTime (pDelayTime->load());
+        fx.setFeedback (pDelayFeedback->load());
+        fx.setMode (static_cast<int> (pDelayMode->load()));
+        const float mix = pDelayMix->load();
+        fx.setMix (mix);
+        if (mix > 0.001f)
+            fx.process (blk);
+    });
 
     // 4. Reverb
-    bool reverbBypassed = parameters.getRawParameterValue ("reverbBypass")->load() > 0.5f;
-    if (! reverbBypassed)
+    runEffect (pReverbBypass, reverbProcessor, block, [this] (auto& fx, auto& blk)
     {
-        float reverbSize = parameters.getRawParameterValue ("reverbSize")->load();
-        float reverbDamp = parameters.getRawParameterValue ("reverbDamp")->load();
-        float reverbPredelay = parameters.getRawParameterValue ("reverbPredelay")->load();
-        float reverbMix = parameters.getRawParameterValue ("reverbMix")->load();
-        float reverbModDepth = parameters.getRawParameterValue ("reverbModDepth")->load();
-        float reverbModRate = parameters.getRawParameterValue ("reverbModRate")->load();
-        reverbProcessor.setSize (reverbSize);
-        reverbProcessor.setDamping (reverbDamp);
-        reverbProcessor.setPredelay (reverbPredelay);
-        reverbProcessor.setMix (reverbMix);
-        reverbProcessor.setModDepth (reverbModDepth);
-        reverbProcessor.setModRate (reverbModRate);
-        if (reverbMix > 0.001f)
-            reverbProcessor.process (block);
-    }
+        fx.setSize (pReverbSize->load());
+        fx.setDamping (pReverbDamp->load());
+        fx.setPredelay (pReverbPredelay->load());
+        const float mix = pReverbMix->load();
+        fx.setMix (mix);
+        fx.setModDepth (pReverbModDepth->load());
+        fx.setModRate (pReverbModRate->load());
+        if (mix > 0.001f)
+            fx.process (blk);
+    });
 
     // 5. EQ
-    bool eqBypassed = parameters.getRawParameterValue ("eqBypass")->load() > 0.5f;
-    if (! eqBypassed)
+    runEffect (pEqBypass, eq, block, [this] (auto& fx, auto& blk)
     {
-        float eqLowGain = parameters.getRawParameterValue ("eqLowGain")->load();
-        float eqMidGain = parameters.getRawParameterValue ("eqMidGain")->load();
-        float eqMidFreq = parameters.getRawParameterValue ("eqMidFreq")->load();
-        float eqHighGain = parameters.getRawParameterValue ("eqHighGain")->load();
-        eq.setLowGain (eqLowGain);
-        eq.setMidGain (eqMidGain);
-        eq.setMidFreq (eqMidFreq);
-        eq.setHighGain (eqHighGain);
-        if (std::abs (eqLowGain) > 0.1f || std::abs (eqMidGain) > 0.1f || std::abs (eqHighGain) > 0.1f)
-            eq.process (block);
-    }
+        const float lowGain  = pEqLowGain->load();
+        const float midGain  = pEqMidGain->load();
+        const float highGain = pEqHighGain->load();
+        fx.setLowGain (lowGain);
+        fx.setMidGain (midGain);
+        fx.setMidFreq (pEqMidFreq->load());
+        fx.setHighGain (highGain);
+        if (std::abs (lowGain) > 0.1f || std::abs (midGain) > 0.1f || std::abs (highGain) > 0.1f)
+            fx.process (blk);
+    });
 
     // Stereo width (mid-side processing) + master volume (smoothed per-sample)
     float stereoWidth = parameters.getRawParameterValue ("stereoWidth")->load();

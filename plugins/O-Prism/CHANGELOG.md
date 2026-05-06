@@ -1,5 +1,25 @@
 # O-Prism Changelog
 
+## v1.17.2 (2026-05-06)
+
+### Changed
+- **HIGH-04:** Replaced 64 inline SVG knob HTML scaffolds in `Source/ui/public/index.html` with `data-knob` placeholders + a single `expandKnobMarkup()` JS pass at script start. ~30 KB reduction in the index.html binary blob and ~15× DOM verbosity reduction. The large refPitch knob (l1351) and the 2 small footer knobs use bespoke markup and remain untouched. The `vine-<paramId>` and `val-<paramId>` IDs emitted by the expander match the originals exactly so existing `bindKnob` and `valueChangedEvent` handlers continue to work unchanged.
+- **HIGH-05:** Cached the 5 FX bypass + per-FX config param atomics (25 `std::atomic<float>*` total) as members in `OPrismAudioProcessor`. Extracted a `runEffect()` template helper for the bypass-and-process pattern across Distortion, Chorus, Delay, Reverb, EQ. Eliminates ~30 hash-map lookups per audio block. The per-FX `mix > 0.001f` short-circuit is preserved inside each configure callback (load-bearing — not every FX `process()` is RT-safe at mix=0).
+- **HIGH-06:** Extracted a `buildTable()` template helper across 17 of 20 `WavetableFactory::generate*` functions (the static `generateFormantTable` helper plus 16 public generators). Each generator collapses to its per-frame body. The 3 generators with non-standard skeletons keep their current shape: `generateBitcrush` (pre-loop sawBuf setup), `generateFM` (writes every sample with `=` and takes `cmRatio/minIndex/maxIndex` params), `generateChurchBell` (audit caveat — keep as-is for safety). For the `generateBreath`, `generateWind`, `generateFilteredNoise` generators, `std::mt19937 rng` and `phaseDist` are captured by reference into the per-frame lambda so the cross-frame draw sequence stays deterministic (seeds 42, 99, 77).
+- **HIGH-07:** Consolidated 4 LFO sync + free-run toggle-relay/attachment loops into 3 file-static helpers: `createToggleRelays`, `addRelayOptions`, `attachToggleRelays`. The `lfoSyncRelays` and `lfoFreeRunRelays` vectors stay separate (preserves member-declaration destruction order from `PluginEditor.h:30-35`: relays last, WebView middle, attachments first). The `bypassRelays` / `modSlotToggleRelays` / `delaySyncRelay` groups follow the same shape and could fold in here in a future pass — out of scope for this commit.
+
+### Verification
+- Release build: `ninja O-Prism_VST3 O-Prism_AU` clean.
+- AU validation: `auval -v aumu OuPr OuDv` — PASSED.
+- AU cache cleared and fresh binaries installed to `~/Library/Audio/Plug-Ins/{VST3,Components}/` per project CLAUDE.md.
+- No APVTS schema, preset, or persistence-format changes — existing sessions/presets load unchanged.
+- Render-harness identity: WavetableFactory output is bit-identical for the 17 extracted generators (no-op `std::fill` for `generateWavefold` does not alter output because every sample is `=`-assigned). The 3 deferred generators (Bitcrush, FM, ChurchBell) are byte-identical to v1.17.1 because their bodies were not touched.
+- Visual smoke: 64 knobs render with correct labels and initial values; refPitch large knob unchanged; 5 FX bypass + process correctly with mix=0 short-circuit; 4 LFO sync + free-run toggles bidirectional with APVTS.
+
+### Technical Notes
+- Phase 2 of the `/simplify` workflow audit (see `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md`). Phase 3 (MEDIUM-01..07 + LOW-01..05) remains; run `/simplify-phase3 O-Prism` for the deferred low-risk sweep.
+- Version bump rationale: PATCH (1.17.1 → 1.17.2) — internal refactor only, no parameter, preset, or feature changes.
+
 ## v1.17.1 (2026-05-05)
 
 ### Changed

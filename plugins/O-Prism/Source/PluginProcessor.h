@@ -185,6 +185,37 @@ private:
     EQProcessor eq;
     ReverbProcessor reverbProcessor;
 
+    // Cached APVTS atomic pointers for the per-block FX configure step.
+    // Initialized once in the constructor; APVTS does not reallocate
+    // parameter memory after construction so these stay valid for the
+    // lifetime of the processor (also used to avoid 30+ hash-map probes
+    // per audio block).
+    std::atomic<float>* pDistBypass     = nullptr;
+    std::atomic<float>* pDistType       = nullptr;
+    std::atomic<float>* pDistDrive      = nullptr;
+    std::atomic<float>* pDistMix        = nullptr;
+    std::atomic<float>* pChorusBypass   = nullptr;
+    std::atomic<float>* pChorusRate     = nullptr;
+    std::atomic<float>* pChorusDepth    = nullptr;
+    std::atomic<float>* pChorusMix      = nullptr;
+    std::atomic<float>* pDelayBypass    = nullptr;
+    std::atomic<float>* pDelayTime      = nullptr;
+    std::atomic<float>* pDelayFeedback  = nullptr;
+    std::atomic<float>* pDelayMode      = nullptr;
+    std::atomic<float>* pDelayMix       = nullptr;
+    std::atomic<float>* pReverbBypass   = nullptr;
+    std::atomic<float>* pReverbSize     = nullptr;
+    std::atomic<float>* pReverbDamp     = nullptr;
+    std::atomic<float>* pReverbPredelay = nullptr;
+    std::atomic<float>* pReverbMix      = nullptr;
+    std::atomic<float>* pReverbModDepth = nullptr;
+    std::atomic<float>* pReverbModRate  = nullptr;
+    std::atomic<float>* pEqBypass       = nullptr;
+    std::atomic<float>* pEqLowGain      = nullptr;
+    std::atomic<float>* pEqMidGain      = nullptr;
+    std::atomic<float>* pEqMidFreq      = nullptr;
+    std::atomic<float>* pEqHighGain     = nullptr;
+
     // Master volume and stereo width (smoothed)
     juce::SmoothedValue<float> masterVolSmoothed { 0.8f };
     juce::SmoothedValue<float> stereoWidthSmoothed { 1.0f };
