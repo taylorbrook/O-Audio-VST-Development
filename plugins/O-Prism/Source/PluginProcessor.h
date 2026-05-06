@@ -30,6 +30,10 @@
 #include "OuariconPresetManager.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
+
 class OPrismAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -60,6 +64,10 @@ public:
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
     TuningEngine* getTuningEngine() { return &tuningEngine; }
+
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
 
     // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
@@ -242,6 +250,10 @@ private:
     const WavetableData* resolveActiveTable (int oscIndex) const;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OPrismAudioProcessor)
 };

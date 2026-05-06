@@ -323,6 +323,11 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     // Background sample loader (Stage 1 stub — loadFolder dispatches a failure
     // callback to the message thread; run() is empty until Stage 2.2).
     sampleLoader = std::make_unique<SampleLoader>();
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-microtonal-sampler", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 void OMicrotonalSamplerAudioProcessor::resetAllRrCounters() noexcept
