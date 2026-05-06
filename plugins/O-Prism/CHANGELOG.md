@@ -1,5 +1,15 @@
 # O-Prism Changelog
 
+## v1.18.1 (2026-05-06)
+
+### Added
+- **Ouaricon licensing overlay (compile-flag gated, OFF by default in shipped builds).** Wires `OuariconLicense` + `OuariconLicenseOverlay` into the editor; license manager owned by the processor (persists across editor open/close). When licensing is enabled at build time, the overlay hides the WebView until the plugin is activated. Released builds ship with `OUARICON_LICENSING=OFF` — **no user-facing change vs v1.18.0**.
+
+### Technical Notes
+- **Version bump rationale:** PATCH (1.18.0 → 1.18.1) — integration plumbing only, no behavior change in shipped artifacts.
+- **Files changed:** `CMakeLists.txt` (licensing block + cryptography link), `Source/PluginEditor.{cpp,h}`, `Source/PluginProcessor.{cpp,h}`.
+- **No DSP, UI, parameter, or preset changes.**
+
 ## v1.18.0 (2026-05-06)
 
 ### Added
