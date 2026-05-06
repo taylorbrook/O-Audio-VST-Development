@@ -231,7 +231,8 @@
       "lastActivity": "2026-04-12T02:17:24Z",
       "modules": [],
       "expressMode": false,
-      "blockedBy": null
+      "blockedBy": null,
+      "version": "1.18.0"
     }
   },
   "modules": {
