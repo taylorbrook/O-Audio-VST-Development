@@ -44,6 +44,87 @@ async function invokeNative(name, ...args) {
     catch (err) { console.warn(`[sampler-app] ${name} failed`, err); return undefined; }
 }
 
+// v1.16.11 (MEDIUM-04): unified modal lifecycle. Centralises the
+//   addEventListener / cleanup / removeEventListener / Esc-Enter
+// boilerplate that used to recur across 7 dialogs (folder-load-options,
+// embed-size-confirm, per-cell-merge, confirm, diagnostic, missing-folder,
+// rr-confirm).
+//
+// Usage:
+//   const result = await bindModal(dialog, [
+//       [yesBtn, () => 'yes'],
+//       [noBtn,  () => 'no'],
+//   ], { keys: { Escape: noBtn, Enter: yesBtn }, focus: yesBtn });
+//
+// `buttons` is an array of [HTMLElement, handler] tuples. Clicking any bound
+// button (or pressing its key alias) resolves the promise with the handler's
+// return value. handler may be sync or async; exceptions are swallowed and
+// logged with the same `[sampler-app]` tag invokeNative uses.
+//
+// `opts.keys` maps key names to a button reference. Each entry may be either
+// a static HTMLElement or a `() => HTMLElement` callback (for cases like
+// per-cell-merge where Enter's target depends on dialog state). Missing keys
+// (e.g. diagnostic-dialog has no Enter binding) are simply ignored. The
+// keydown listener is attached on the capture phase so the host's own
+// Esc/Enter handlers don't intercept first — preserves prior behaviour.
+//
+// `opts.focus` is the element to focus after dialog.hidden = false.
+//
+// `opts.onClose` runs once after all bindModal-owned listeners are removed
+// and before the promise resolves. Used by callers that registered their
+// own non-dismissing listeners (folder-load-options live-preview handlers,
+// diagnostic-dialog copy button) so all teardown happens in one path.
+function bindModal(dialog, buttons, opts = {}) {
+    return new Promise((resolve) => {
+        let closed = false;
+        const cleanups = [];
+
+        const close = (result) => {
+            if (closed) return;
+            closed = true;
+            dialog.hidden = true;
+            for (const c of cleanups) c();
+            if (typeof opts.onClose === 'function') {
+                try { opts.onClose(); }
+                catch (err) { console.warn('[sampler-app] modal onClose failed', err); }
+            }
+            resolve(result);
+        };
+
+        for (const [btn, handler] of buttons) {
+            const wrapped = async () => {
+                let result;
+                try { result = await handler(); }
+                catch (err) {
+                    console.warn('[sampler-app] modal button handler failed', err);
+                    result = undefined;
+                }
+                close(result);
+            };
+            btn.addEventListener('click', wrapped);
+            cleanups.push(() => btn.removeEventListener('click', wrapped));
+        }
+
+        const resolveKeyTarget = (entry) =>
+            (typeof entry === 'function') ? entry() : entry;
+
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                const target = resolveKeyTarget(opts.keys?.Escape);
+                if (target) { e.preventDefault(); target.click(); }
+            } else if (e.key === 'Enter') {
+                const target = resolveKeyTarget(opts.keys?.Enter);
+                if (target) { e.preventDefault(); target.click(); }
+            }
+        };
+        document.addEventListener('keydown', onKey, true);
+        cleanups.push(() => document.removeEventListener('keydown', onKey, true));
+
+        dialog.hidden = false;
+        if (opts.focus) opts.focus.focus();
+    });
+}
+
 // ============================================================================
 // Slider relay binding
 // ============================================================================
@@ -1351,41 +1432,34 @@ function showFolderLoadOptionsModal (sizeBytes) {
         const overrideHandler = () => updateExplain();
         const embedHandler    = () => updateSizeLabel();
 
-        const cleanup = () => {
-            dialog.hidden = true;
-            segBtns.forEach((b) => b.removeEventListener('click', segHandler));
-            modeRadios.forEach((r) => r.removeEventListener('change', modeHandler));
-            overrideEl.removeEventListener('change', overrideHandler);
-            embedEl.removeEventListener('change', embedHandler);
-            confirmBtn.removeEventListener('click', onYes);
-            cancelBtn.removeEventListener('click', onNo);
-            document.removeEventListener('keydown', onKey, true);
-        };
-        const onYes = () => {
-            cleanup();
-            resolve({
-                layer,
-                mode,
-                override:   overrideEl.checked,
-                embedAudio: embedEl.checked,
-            });
-        };
-        const onNo  = () => { cleanup(); resolve(null); };
-        const onKey = (e) => {
-            if (e.key === 'Escape')      { e.preventDefault(); onNo(); }
-            else if (e.key === 'Enter')  { e.preventDefault(); onYes(); }
-        };
-
+        // Live-preview handlers (segment / mode / override / embed) don't
+        // dismiss the dialog — they update the explanation text and embed-size
+        // label as the user toggles them. Register them outside bindModal and
+        // tear them down in onClose so all listener removal still happens in
+        // one path.
         segBtns.forEach((b) => b.addEventListener('click', segHandler));
         modeRadios.forEach((r) => r.addEventListener('change', modeHandler));
         overrideEl.addEventListener('change', overrideHandler);
         embedEl.addEventListener('change', embedHandler);
-        confirmBtn.addEventListener('click', onYes);
-        cancelBtn.addEventListener('click', onNo);
-        document.addEventListener('keydown', onKey, true);
 
-        dialog.hidden = false;
-        confirmBtn.focus();
+        bindModal(dialog, [
+            [confirmBtn, () => ({
+                layer,
+                mode,
+                override:   overrideEl.checked,
+                embedAudio: embedEl.checked,
+            })],
+            [cancelBtn,  () => null],
+        ], {
+            keys:    { Escape: cancelBtn, Enter: confirmBtn },
+            focus:   confirmBtn,
+            onClose: () => {
+                segBtns.forEach((b) => b.removeEventListener('click', segHandler));
+                modeRadios.forEach((r) => r.removeEventListener('change', modeHandler));
+                overrideEl.removeEventListener('change', overrideHandler);
+                embedEl.removeEventListener('change', embedHandler);
+            },
+        }).then(resolve);
     });
 }
 
@@ -1413,27 +1487,14 @@ function showEmbedSizeConfirmModal (sizeBytes, displayName) {
             `Embedding folder ${folderLabel}will add `
             + `~${formatBytes(sizeBytes)} to your project state.`;
 
-        const cleanup = () => {
-            dialog.hidden = true;
-            confirmBtn.removeEventListener('click', onYes);
-            cancelBtn.removeEventListener('click', onNo);
-            document.removeEventListener('keydown', onKey, true);
-        };
-        const onYes = () => { cleanup(); resolve(true); };
-        const onNo  = () => { cleanup(); resolve(false); };
-        const onKey = (e) => {
-            if (e.key === 'Escape')     { e.preventDefault(); onNo(); }
-            else if (e.key === 'Enter') { e.preventDefault(); onYes(); }
-        };
-
-        confirmBtn.addEventListener('click', onYes);
-        cancelBtn.addEventListener('click', onNo);
-        document.addEventListener('keydown', onKey, true);
-
-        dialog.hidden = false;
-        confirmBtn.focus();
+        bindModal(dialog, [
+            [confirmBtn, () => true],
+            [cancelBtn,  () => false],
+        ], { keys: { Escape: cancelBtn, Enter: confirmBtn }, focus: confirmBtn })
+            .then(resolve);
     });
 }
+
 
 // v1.9.0: per-cell merge prompt. Surfaced when the user attempts a per-cell
 // single-file load on a non-empty cell. Resolves to:
@@ -1464,28 +1525,20 @@ function showPerCellMergeDialog (existingCount, midi, layer) {
         mergeBtn.style.opacity = capHit ? '0.4' : '';
         mergeBtn.style.cursor  = capHit ? 'not-allowed' : '';
 
-        const cleanup = () => {
-            dialog.hidden = true;
-            mergeBtn.removeEventListener('click', onMerge);
-            replBtn.removeEventListener('click', onReplace);
-            cancelBtn.removeEventListener('click', onCancel);
-            document.removeEventListener('keydown', onKey, true);
-        };
-        const onMerge   = () => { if (capHit) return; cleanup(); resolve('merge'); };
-        const onReplace = () => { cleanup(); resolve('replace'); };
-        const onCancel  = () => { cleanup(); resolve(null); };
-        const onKey = (e) => {
-            if (e.key === 'Escape')      { e.preventDefault(); onCancel(); }
-            else if (e.key === 'Enter')  { e.preventDefault(); capHit ? onReplace() : onMerge(); }
-        };
-
-        mergeBtn.addEventListener('click', onMerge);
-        replBtn.addEventListener('click', onReplace);
-        cancelBtn.addEventListener('click', onCancel);
-        document.addEventListener('keydown', onKey, true);
-
-        dialog.hidden = false;
-        (capHit ? replBtn : mergeBtn).focus();
+        // mergeBtn is disabled when capHit, so its bound handler will not fire
+        // from a mouse click. The dynamic Enter-target callback below routes
+        // Enter to replBtn in that state instead.
+        bindModal(dialog, [
+            [mergeBtn,  () => 'merge'],
+            [replBtn,   () => 'replace'],
+            [cancelBtn, () => null],
+        ], {
+            keys:  {
+                Escape: cancelBtn,
+                Enter:  () => (capHit ? replBtn : mergeBtn),
+            },
+            focus: capHit ? replBtn : mergeBtn,
+        }).then(resolve);
     });
 }
 
@@ -1502,25 +1555,11 @@ function showConfirmDialog ({ title, message, confirmLabel, destructive, onConfi
     confirmEl.textContent = confirmLabel || 'Confirm';
     confirmEl.classList.toggle('destructive', !!destructive);
 
-    const cleanup = () => {
-        dialog.hidden = true;
-        confirmEl.removeEventListener('click', onYes);
-        cancelEl.removeEventListener('click', onNo);
-        document.removeEventListener('keydown', onKey, true);
-    };
-    const onYes = async () => { cleanup(); if (onConfirm) await onConfirm(); };
-    const onNo  = () => cleanup();
-    const onKey = (e) => {
-        if (e.key === 'Escape') { e.preventDefault(); onNo(); }
-        else if (e.key === 'Enter') { e.preventDefault(); onYes(); }
-    };
-
-    confirmEl.addEventListener('click', onYes);
-    cancelEl.addEventListener('click', onNo);
-    document.addEventListener('keydown', onKey, true);
-
-    dialog.hidden = false;
-    cancelEl.focus();
+    bindModal(dialog, [
+        [confirmEl, () => true],
+        [cancelEl,  () => false],
+    ], { keys: { Escape: cancelEl, Enter: confirmEl }, focus: cancelEl })
+        .then(async (yes) => { if (yes && onConfirm) await onConfirm(); });
 }
 
 // v1.0.3: diagnostic dialog used by the failed-drop path. Auto-copies the
@@ -1567,28 +1606,22 @@ async function showDiagnosticDialog (title, text) {
             : 'Clipboard write blocked — select the text below and ⌘C to copy.';
     }
 
-    const cleanup = () => {
-        dialog.hidden = true;
-        copyBtn.removeEventListener('click', onCopy);
-        closeBtn.removeEventListener('click', onClose);
-        document.removeEventListener('keydown', onKey, true);
-    };
+    // Copy button doesn't dismiss — register externally; bindModal's onClose
+    // hook removes it when the user finally closes the dialog.
     const onCopy = async () => {
         const ok = await writeClipboard();
         copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
         setTimeout(() => { copyBtn.textContent = 'Copy again'; }, 1400);
     };
-    const onClose = () => cleanup();
-    const onKey = (e) => {
-        if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-    };
-
     copyBtn.addEventListener('click', onCopy);
-    closeBtn.addEventListener('click', onClose);
-    document.addEventListener('keydown', onKey, true);
 
-    dialog.hidden = false;
-    closeBtn.focus();
+    bindModal(dialog, [
+        [closeBtn, () => undefined],
+    ], {
+        keys:    { Escape: closeBtn },   // no Enter binding — Enter shouldn't dismiss
+        focus:   closeBtn,
+        onClose: () => copyBtn.removeEventListener('click', onCopy),
+    });
 }
 
 function bindClearSamplesButton() {
@@ -2215,7 +2248,7 @@ function bindPresetButtons () {
 //                       Show the original folder name (lifted from
 //                       FileSystemEntry::name at drop time) and direct the
 //                       user to re-drag or browse.
-function showMissingFolderDialog (info) {
+async function showMissingFolderDialog (info) {
     const dialog    = document.getElementById('missing-folder-dialog');
     const titleEl   = document.getElementById('missing-folder-dialog-title');
     const messageEl = document.getElementById('missing-folder-dialog-message');
@@ -2257,18 +2290,17 @@ function showMissingFolderDialog (info) {
         locateBtn.textContent = 'Locate folder…';
     }
 
-    const cleanup = () => {
-        dialog.hidden = true;
-        skipBtn.removeEventListener('click', onSkip);
-        locateBtn.removeEventListener('click', onLocate);
-        document.removeEventListener('keydown', onKey, true);
-    };
-    const onSkip = async () => {
-        cleanup();
+    // Dialog dismisses synchronously on click; the chosen action runs after
+    // bindModal resolves so the modal isn't visually held while the native
+    // OS picker (locate path) is in flight.
+    const action = await bindModal(dialog, [
+        [skipBtn,   () => 'skip'],
+        [locateBtn, () => 'locate'],
+    ], { keys: { Escape: skipBtn, Enter: locateBtn }, focus: locateBtn });
+
+    if (action === 'skip') {
         await invokeNative('dismissMissingFolder');
-    };
-    const onLocate = async () => {
-        cleanup();
+    } else if (action === 'locate') {
         if (!window.__JUCE__) return;
         try {
             const fn = Juce.getNativeFunction('locateMissingFolder');
@@ -2281,17 +2313,7 @@ function showMissingFolderDialog (info) {
             console.error('[sampler-app] locateMissingFolder failed:', e);
             showToast('Locate folder failed');
         }
-    };
-    const onKey = (e) => {
-        if (e.key === 'Escape') { e.preventDefault(); onSkip(); }
-        else if (e.key === 'Enter') { e.preventDefault(); onLocate(); }
-    };
-
-    skipBtn.addEventListener('click', onSkip);
-    locateBtn.addEventListener('click', onLocate);
-    document.addEventListener('keydown', onKey, true);
-    dialog.hidden = false;
-    locateBtn.focus();
+    }
 }
 
 function subscribeFolderMissingEvent () {
@@ -2351,24 +2373,11 @@ function showAmbiguousDuplicatesDialog (dups) {
         listEl.appendChild(item);
     }
 
-    const cleanup = () => {
-        dialog.hidden = true;
-        okBtn.removeEventListener('click', onAccept);
-        noBtn.removeEventListener('click', onCancel);
-        document.removeEventListener('keydown', onKey, true);
-    };
-    const onAccept = () => { cleanup(); sendRrConfirmation(true); };
-    const onCancel = () => { cleanup(); sendRrConfirmation(false); };
-    const onKey = (e) => {
-        if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
-        if (e.key === 'Enter')  { e.preventDefault(); onAccept(); }
-    };
-
-    okBtn.addEventListener('click', onAccept);
-    noBtn.addEventListener('click', onCancel);
-    document.addEventListener('keydown', onKey, true);
-    dialog.hidden = false;
-    okBtn.focus();
+    bindModal(dialog, [
+        [okBtn, () => true],
+        [noBtn, () => false],
+    ], { keys: { Escape: noBtn, Enter: okBtn }, focus: okBtn })
+        .then((accept) => sendRrConfirmation(accept));
 }
 
 async function sendRrConfirmation (accept) {
