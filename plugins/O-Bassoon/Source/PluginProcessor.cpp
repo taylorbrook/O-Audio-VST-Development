@@ -13,6 +13,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "FactoryPresets.h"
 
 //==============================================================================
 // Parameter Layout (frozen 10-parameter spec — see parameter-spec-draft.md)
@@ -111,6 +112,7 @@ OBassoonAudioProcessor::OBassoonAudioProcessor()
     : AudioProcessor (BusesProperties()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
     , parameters (*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager (parameters, "O-Bassoon")
 {
     // Pre-allocate 16 voices (matches max voice_count).
     // Voice manager will enforce the runtime cap; pre-allocating prevents
@@ -131,9 +133,24 @@ OBassoonAudioProcessor::OBassoonAudioProcessor()
 
     // Single shared sound (accepts all notes / all channels)
     synthesiser.addSound (new BassoonSound());
+
+    // Stage 4: write 4 ROADMAP factory presets to disk on first run (idempotent).
+    initializeFactoryPresets();
 }
 
 OBassoonAudioProcessor::~OBassoonAudioProcessor() = default;
+
+//==============================================================================
+void OBassoonAudioProcessor::initializeFactoryPresets()
+{
+    // Idempotency guard: only write if Factory dir doesn't already contain presets.
+    auto factoryDir = presetManager.getFactoryPresetsDirectory();
+    if (factoryDir.isDirectory()
+        && factoryDir.getNumberOfChildFiles (juce::File::findFiles) > 0)
+        return;
+
+    presetManager.initializeFactoryPresets (FactoryPresets::build (parameters));
+}
 
 //==============================================================================
 void OBassoonAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -317,9 +334,8 @@ juce::AudioProcessorEditor* OBassoonAudioProcessor::createEditor()
 //==============================================================================
 void OBassoonAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // Standard APVTS XML round-trip.
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    // Stage 4: delegate to preset manager (XML wrap + currentPreset attr).
+    auto xml = presetManager.getStateAsXml();
     if (xml != nullptr)
         copyXmlToBinary (*xml, destData);
 }
@@ -327,9 +343,8 @@ void OBassoonAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 void OBassoonAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
-
-    if (xmlState != nullptr && xmlState->hasTagName (parameters.state.getType()))
-        parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+    if (xmlState != nullptr)
+        presetManager.setStateFromXml (xmlState.get());
 }
 
 //==============================================================================

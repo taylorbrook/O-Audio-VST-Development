@@ -16,6 +16,7 @@
 #include "BassoonSound.h"
 #include "BassoonVoice.h"
 #include "BassoonSynthesiser.h"    // Phase 2.4: voice manager subclass with active-cap (FUNC-02)
+#include "OuariconPresetManager.h" // Stage 4: factory preset persistence
 #include "TuningEngine.h"          // global namespace (D2)
 #include "NoteExpression.h"        // modules/tuning/note-expression (via ouaricon_add_module)
 
@@ -54,6 +55,9 @@ public:
     // Public access to tuning engine (forward-compat for Phase 2.1+)
     TuningEngine* getTuningEngine() { return &tuningEngine; }
 
+    // Stage 4: preset manager (forward-compat for future preset-browser UI).
+    OuariconPresetManager& getPresetManager() { return presetManager; }
+
     // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
 
@@ -66,6 +70,7 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState        parameters;
+    OuariconPresetManager                     presetManager;    // Stage 4: declared AFTER parameters (member-init order)
     BassoonSynthesiser                        synthesiser;      // Phase 2.4: subclass for voice cap
     TuningEngine                              tuningEngine;     // D2: global namespace
     Ouaricon::NoteExpression::VST3Extensions  vst3Extensions;
@@ -94,6 +99,9 @@ private:
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Stage 4: factory preset initialization (idempotent — only writes if Factory dir empty).
+    void initializeFactoryPresets();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBassoonAudioProcessor)
 };
