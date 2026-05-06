@@ -9,9 +9,22 @@ The codebase is in good shape overall — `FactoryPresets.cpp` is already well-f
 
 ### Phase progress
 
-- **Phase 1 (planned, v1.17.1):** HIGH-01, HIGH-02, HIGH-03 — dead-WebView-files purge + `syncTuningPresetToCustom` helper + `juce::JSON::toString` name escaping. All Risk:LOW + verifiable by build + auval + visual smoke of the tuning tab.
-- **Phase 2 (planned via `/simplify-phase2`):** HIGH-04 (knob HTML scaffold consolidation), HIGH-05 (effect-block param-cache + helper), HIGH-06 (WavetableFactory `buildTable` extraction across 20 generators), HIGH-07 (LFO toggle-relay loop consolidation). All Risk:MEDIUM or with verification-overhead caveats (visual smoke, render-harness identity, generator-by-generator inspection).
+- **Phase 1 (applied v1.17.1, commit c646d0f):** HIGH-01, HIGH-02, HIGH-03 — dead-WebView-files purge + `syncTuningPresetToCustom` helper + `juce::JSON::toString` name escaping. All Risk:LOW + verified by build + auval + visual smoke of the tuning tab.
+- **Phase 2 (applied v1.17.2, commit 1c5f5d0):** HIGH-04 (knob HTML scaffold consolidation), HIGH-05 (effect-block param-cache + `runEffect` helper), HIGH-06 (WavetableFactory `buildTable` extraction across 17 of 20 generators — Bitcrush/FM/ChurchBell kept as-is per audit caveat), HIGH-07 (LFO toggle-relay loop consolidation via 3 file-static helpers). Verified by clean release build, AU validation PASSED, fresh AU cache install.
 - **Phase 3 (planned via `/simplify-phase3`):** MEDIUM-01..07 + LOW-01..05.
+
+---
+
+## Phase 2 Applied (v1.17.2)
+
+Commit: `1c5f5d0 refactor(O-Prism): v1.17.2 — Phase 2 simplification (HIGH-04/05/06/07)`
+
+| ID | Result |
+|----|--------|
+| HIGH-04 | 64 inline SVG knob blocks → `data-knob` placeholders + `expandKnobMarkup()` pass. Large refPitch + 2 small footer knobs untouched. ~30 KB binary reduction. |
+| HIGH-05 | 25 FX param atomics cached as `OPrismAudioProcessor` members. `runEffect()` template extracted. Per-FX `mix > 0.001f` short-circuit preserved in each configure lambda (load-bearing). |
+| HIGH-06 | 17 generators (16 public + `generateFormantTable` static helper) collapsed to per-frame lambdas via `buildTable()`. `generateBitcrush`, `generateFM`, `generateChurchBell` kept in current shape per audit caveat. `rng` + `phaseDist` captured by reference into the lambda for `generateBreath` / `generateWind` / `generateFilteredNoise` so the cross-frame draw sequence stays deterministic. |
+| HIGH-07 | 4 LFO sync/free-run loops consolidated via `createToggleRelays` + `addRelayOptions` + `attachToggleRelays` file-static helpers. `bypassRelays` / `modSlotToggleRelays` / `delaySyncRelay` follow the same shape and could fold in here in a future pass — out of scope for this commit. Member-declaration destruction order in `PluginEditor.h:30-35` preserved. |
 
 ---
 
