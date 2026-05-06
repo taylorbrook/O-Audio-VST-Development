@@ -40,6 +40,25 @@ namespace
         std::atomic_store (&slot, std::move (value));
     }
 
+    // v1.16.10 (MEDIUM-07): COW slot mutation for the trigger CC/PC tables.
+    // The tables are published as shared_ptr through atomicLoad/atomicStore;
+    // every mutation runs the same COW dance (load → make_shared from current
+    // or default → mutate the indexed slot → store). The trigger-state-dirty
+    // notification is intentionally outside this helper — it fires from the
+    // call site so the helper stays purely about the slot transition.
+    template <class T, class DefaultFactory, class Mutator>
+    inline void mutateMappingSlot (std::shared_ptr<T>& slot,
+                                   int slotIndex,
+                                   DefaultFactory&& makeDefault,
+                                   Mutator&& mut)
+    {
+        if (slotIndex < 0 || slotIndex >= OMtsTrigger::kMaxSlots) return;
+        auto current = atomicLoad (slot);
+        auto next = std::make_shared<T> (current != nullptr ? *current : makeDefault());
+        mut (next->at ((size_t) slotIndex));
+        atomicStore (slot, next);
+    }
+
     // v1.16.8: canonical LoopMode → string mappers. Two surfaces, two
     // load-bearing spellings — see SIMPLIFICATION-AUDIT.md HIGH-02:
     //   • JSON UI payloads use HYPHENATED form ("one-shot"). The WebView
@@ -932,7 +951,7 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
             // wholesale regardless of technique slot).
             for (int midi = 0; midi < 128; ++midi)
                 for (int tech = 0; tech < 8; ++tech)
-                    rrCounters[(size_t) (midi * 4 * 8 + target * 8 + tech)].store (
+                    rrCounters[(size_t) MicrotonalSamplerVoice::packRrCounterIndex (midi, target, tech)].store (
                         (uint8_t) 0xFFu, std::memory_order_relaxed);
         }
 
@@ -953,7 +972,7 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
             // v1.14.0: collision + counter index are keyed on the triplet.
             const int counterIdx = juce::jlimit (
                 0, MicrotonalSamplerVoice::kRrCounterSize - 1,
-                newCell.midiNote * 4 * 8 + newCell.velocityLayer * 8 + newCell.technique);
+                MicrotonalSamplerVoice::packRrCounterIndex (newCell.midiNote, newCell.velocityLayer, newCell.technique));
 
             if (op.mode == LoadMode::MergeRR)
             {
@@ -1108,6 +1127,25 @@ void OMicrotonalSamplerAudioProcessor::confirmRoundRobinLoad (bool accept)
 //   3. Filesystem op without embed — existing path: walk on disk via
 //      SampleLoader. Surface missing-folder modal with kind="filesystem"
 //      if the path is gone.
+// v1.16.10 (MEDIUM-08): publish the first missing folder of a replay queue.
+// No-op if either pendingMissingFolder field is non-empty — the modal stays
+// on the first miss until the user dismisses or resolves it.
+void OMicrotonalSamplerAudioProcessor::publishMissingFolderIfNew (const juce::String& kind,
+                                                                   const juce::String& path,
+                                                                   const juce::String& displayName)
+{
+    if (! pendingMissingFolderPath.isEmpty()
+        || ! pendingMissingFolderName.isEmpty())
+        return;
+
+    pendingMissingFolderPath = path;
+    pendingMissingFolderKind = kind;
+    pendingMissingFolderName = displayName;
+
+    if (missingFolderCallback)
+        missingFolderCallback (path, kind, displayName);
+}
+
 void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
 {
     // v1.12.3 (HG-01): re-entry guard. If a synchronous callback chain
@@ -1146,15 +1184,7 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
         // ---- Case 2: drag-drop without embed — surface drag-drop missing modal ----
         if (op.origin == "drag-drop")
         {
-            if (pendingMissingFolderPath.isEmpty()
-                && pendingMissingFolderName.isEmpty())
-            {
-                pendingMissingFolderPath = juce::String();
-                pendingMissingFolderKind = "drag-drop";
-                pendingMissingFolderName = op.displayName;
-                if (missingFolderCallback)
-                    missingFolderCallback (juce::String{}, "drag-drop", op.displayName);
-            }
+            publishMissingFolderIfNew ("drag-drop", juce::String{}, op.displayName);
             continue;   // try the next op
         }
 
@@ -1165,17 +1195,10 @@ void OMicrotonalSamplerAudioProcessor::kickNextReplayOp()
             // Surface the FIRST missing folder; subsequent ones are silently
             // skipped to keep the user's modal interaction simple. They can
             // re-locate or load fresh after dismissing.
-            if (pendingMissingFolderPath.isEmpty()
-                && pendingMissingFolderName.isEmpty())
-            {
-                pendingMissingFolderPath = op.path;
-                pendingMissingFolderKind = "filesystem";
-                pendingMissingFolderName = op.displayName.isNotEmpty()
-                                              ? op.displayName
-                                              : f.getFileName();
-                if (missingFolderCallback)
-                    missingFolderCallback (op.path, "filesystem", pendingMissingFolderName);
-            }
+            const juce::String name = op.displayName.isNotEmpty()
+                                          ? op.displayName
+                                          : f.getFileName();
+            publishMissingFolderIfNew ("filesystem", op.path, name);
             continue;   // try the next op
         }
 
@@ -1471,7 +1494,7 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
             // triplet (4096 entries; layout matches MicrotonalSamplerVoice).
             const int counterIdx = juce::jlimit (
                 0, MicrotonalSamplerVoice::kRrCounterSize - 1,
-                targetMidi * 4 * 8 + targetVel * 8 + technique);
+                MicrotonalSamplerVoice::packRrCounterIndex (targetMidi, targetVel, technique));
             self->rrCounters[(size_t) counterIdx].store ((uint8_t) 0xFFu,
                                                           std::memory_order_relaxed);
 
@@ -1994,22 +2017,17 @@ void OMicrotonalSamplerAudioProcessor::setCcMappingSlot (int slot,
                                                           int rangeHigh,
                                                           int technique)
 {
-    if (slot < 0 || slot >= OMtsTrigger::kMaxSlots) return;
-
-    auto current = std::atomic_load (&currentCcMapping);
-    auto next = std::make_shared<OMtsTrigger::CcMapping> (
-        current != nullptr ? *current : OMtsTrigger::defaultCcMapping (1));
-
-    int lo = juce::jlimit (0, 127, rangeLow);
-    int hi = juce::jlimit (0, 127, rangeHigh);
-    if (hi < lo) std::swap (lo, hi);
-
-    auto& s = next->at ((size_t) slot);
-    s.rangeLow  = lo;
-    s.rangeHigh = hi;
-    s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1, technique);
-
-    std::atomic_store (&currentCcMapping, next);
+    mutateMappingSlot (currentCcMapping, slot,
+        [] { return OMtsTrigger::defaultCcMapping (1); },
+        [&] (auto& s)
+        {
+            int lo = juce::jlimit (0, 127, rangeLow);
+            int hi = juce::jlimit (0, 127, rangeHigh);
+            if (hi < lo) std::swap (lo, hi);
+            s.rangeLow  = lo;
+            s.rangeHigh = hi;
+            s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1, technique);
+        });
 
     triggerStateDirty.store (true, std::memory_order_release);
     triggerAsyncUpdate();
@@ -2019,17 +2037,13 @@ void OMicrotonalSamplerAudioProcessor::setPcMappingSlot (int slot,
                                                           int pcNumber,
                                                           int technique)
 {
-    if (slot < 0 || slot >= OMtsTrigger::kMaxSlots) return;
-
-    auto current = std::atomic_load (&currentPcMapping);
-    auto next = std::make_shared<OMtsTrigger::PcMapping> (
-        current != nullptr ? *current : OMtsTrigger::defaultPcMapping());
-
-    auto& s = next->at ((size_t) slot);
-    s.pc        = juce::jlimit (0, 127, pcNumber);
-    s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1, technique);
-
-    std::atomic_store (&currentPcMapping, next);
+    mutateMappingSlot (currentPcMapping, slot,
+        [] { return OMtsTrigger::defaultPcMapping(); },
+        [&] (auto& s)
+        {
+            s.pc        = juce::jlimit (0, 127, pcNumber);
+            s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1, technique);
+        });
 
     triggerStateDirty.store (true, std::memory_order_release);
     triggerAsyncUpdate();

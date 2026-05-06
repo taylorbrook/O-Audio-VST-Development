@@ -1,5 +1,84 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.10] - 2026-05-05
+
+### Changed
+- Phase 3 sweep — 7 MEDIUM-severity, LOW-risk simplification candidates applied
+  (Batch B from `.planning/SIMPLIFICATION-AUDIT.md`). Net source LOC roughly
+  flat (helpers add depth in one place but each amortises across many call
+  sites — e.g. MEDIUM-06 alone collapses 14 five-line invoke blocks into
+  one-liners). No behaviour change.
+  - **[MEDIUM-02]** Hoisted RR counter index packing into
+    `MicrotonalSamplerVoice::packRrCounterIndex(midi, layer, tech)` constexpr
+    helper. Four call sites (`PluginProcessor.cpp` ReplaceLayer wipe / folder-load
+    apply / single-sample load + `MicrotonalSamplerVoice::selectVariantIndex`)
+    now route through the helper. Layout coupling to `kRrCounterSize` is now
+    expressed in one place; the literal `* 4 * 8 + … * 8 + …` no longer recurs.
+    `kRrCounterSize` itself rewritten as `128 * 4 * kMaxTechniques` (was
+    `128 * 4 * 8`). Local `constexpr int kMaxTech = 8` in voice.cpp removed.
+  - **[MEDIUM-03]** Added `joinJsonArray` template helper in the
+    `PluginEditor.cpp` anonymous namespace. Three native-fn registry sites
+    (`getEmbeddedTuningList`, `getEmbeddedTuningCategories`, `getSkippedFiles`)
+    converted from indexed `for (size_t i = 0; ...)` JSON loops to range-for +
+    first-flag form via the helper. The CSV intervals loop in
+    `captureTuningValueTree` was deliberately left as-is — it emits to a
+    comma-separated string with no `[…]` wrapping (different shape).
+  - **[MEDIUM-05]** Added `num(v, fallback)` JS helper. Replaced 18
+    `Number.isFinite(x) ? x : default` ternaries across snapshot-deserialise
+    paths (loop editor, technique state, trigger state, sample-map snapshot).
+    Sites that use `Number.isFinite` as a control-flow guard
+    (`if (!Number.isFinite(x)) return`) preserved — different intent.
+  - **[MEDIUM-06]** Added `invokeNative(name, ...args)` async wrapper.
+    Replaced 14 `if (!window.__JUCE__) return; try { Juce.getNativeFunction(...)... }
+    catch ...` blocks with single-line `await invokeNative(...)` calls
+    (KS/CC/PC enables, CC/PC mapping setters, technique slot ops, dialog
+    confirms, etc.). Standardised `[sampler-app] {name} failed` error tag.
+    Preserved sites: backend `addEventListener` subscriptions, sites with
+    user-visible toast on catch (saveCurrentPreset / loadPreset / locateMissingFolder),
+    sites with semantic-dependent missing-host fallback (setActiveTechnique).
+  - **[MEDIUM-07]** Extracted generic `mutateMappingSlot` template into the
+    `PluginProcessor.cpp` anonymous namespace. `setCcMappingSlot` and
+    `setPcMappingSlot` collapsed by sharing the COW boilerplate (atomic load →
+    make_shared from current-or-default → mutate slot → atomic store). The
+    `triggerStateDirty.store + triggerAsyncUpdate()` notification is intentionally
+    outside the helper — it fires from each call site so the helper stays
+    purely structural.
+  - **[MEDIUM-08]** Extracted
+    `OMicrotonalSamplerAudioProcessor::publishMissingFolderIfNew(kind, path,
+    displayName)` member helper. Two near-identical "first-missing publish"
+    blocks in `kickNextReplayOp` (drag-drop case + filesystem case) collapsed
+    to one-line helper calls. "First-missing-only" semantics now expressed in
+    one place.
+  - **[MEDIUM-09]** Removed redundant explicit empty default constructor
+    `MicrotonalSamplerSound() {}` in favour of the implicit one. Class is now
+    pure interface overrides.
+
+### Verification
+- Build (macOS VST3 + AU): PASS — clean compile, no new warnings.
+- auval: PASS.
+- Format-stability greps:
+  - `* 4 * 8 +` literal in `PluginProcessor.cpp` / `MicrotonalSamplerVoice.cpp`:
+    zero non-helper hits (only inside the `packRrCounterIndex` definition and
+    the `kRrCounterSize` declaration).
+  - `Number.isFinite` in `sampler-app.js`: drops from 33 → 18 (helper +
+    preserved guard sites; comment lines included).
+  - `window.__JUCE__` in `sampler-app.js`: drops from 49 → 37 (helper +
+    backend event-listener subscriptions + preserved toast-on-catch sites +
+    comments).
+  - `MicrotonalSamplerSound() {}`: zero hits.
+- Standalone smoke (deferred to user-side UAT):
+  - KS / CC / PC enable toggles, CC mapping slot edit + trigger callback,
+    missing-folder toast (fires once on multi-op replay), loop editor
+    deserialise with default fallbacks, scale-generator JSON.
+- RR drift smoke (deferred to user-side UAT): 8× repeat-note cycle,
+  ReplaceLayer wipe reset, single-cell load reset.
+
+Batch C (MEDIUM-04, dialog modal `bindModal` helper) deferred — separate run
+required because of the MEDIUM-risk gate and 7-modal manual smoke surface.
+
+See [SIMPLIFICATION-AUDIT.md](.planning/SIMPLIFICATION-AUDIT.md)
+`## Phase 3 Applied (v1.16.10)` for the full per-candidate record.
+
 ## [1.16.9] - 2026-05-05
 
 ### Changed

@@ -26,6 +26,24 @@ import * as Juce from './juce/index.js';
 // PluginEditor::getResource serves this at /js/modules/webview-drop-streaming.js.
 import { bindWebViewFileDrop } from './modules/webview-drop-streaming.js';
 
+// v1.16.10 (MEDIUM-05): guarded-number coercion for parsed JSON snapshots.
+// Replaces the `Number.isFinite(x) ? x : default` ternary pattern. Sites that
+// use Number.isFinite as a control-flow guard (e.g. `if (!Number.isFinite(x)) return`)
+// keep the bare check — different intent.
+const num = (v, fallback = 0) => (Number.isFinite(v) ? v : fallback);
+
+// v1.16.10 (MEDIUM-06): standardised native-fn invoker. Returns the resolved
+// value on success, undefined when the host is missing or the call throws
+// (matching the prior silent-catch behaviour). Sites that need a user-visible
+// failure path (e.g. presets — toast on catch) keep the explicit try/catch.
+// Sites that subscribe to backend events (window.__JUCE__.backend.addEventListener)
+// stay direct — those are not native-fn invocations.
+async function invokeNative(name, ...args) {
+    if (!window.__JUCE__) return undefined;
+    try { return await Juce.getNativeFunction(name)(...args); }
+    catch (err) { console.warn(`[sampler-app] ${name} failed`, err); return undefined; }
+}
+
 // ============================================================================
 // Slider relay binding
 // ============================================================================
@@ -688,7 +706,7 @@ function renderGrid(snap) {
     const cellMap = new Map();
     if (Array.isArray(snap?.cells)) {
         for (const c of snap.cells) {
-            const t = Number.isFinite(c.technique) ? c.technique : 0;
+            const t = num(c.technique);
             if (t !== activeTech) continue;
             cellMap.set(`${c.midiNote}_${c.velocityLayer}`, c);
         }
@@ -1588,15 +1606,9 @@ function bindClearSamplesButton() {
             confirmLabel: 'Clear',
             destructive:  true,
             onConfirm:    async () => {
-                if (!window.__JUCE__) return;
-                try {
-                    const fn = Juce.getNativeFunction('clearSampleMap');
-                    await fn();
-                    // sampleMapUpdated push event drives grid + button state
-                    // refresh — no further work needed here.
-                } catch (e) {
-                    console.error('[sampler-app] clearSampleMap failed:', e);
-                }
+                // sampleMapUpdated push event drives grid + button state
+                // refresh — no further work needed here.
+                await invokeNative('clearSampleMap');
             },
         });
     });
@@ -1747,12 +1759,12 @@ async function openLoopEditor(midi, vel, variantIndex = 0) {
         editorState.midi = midi;
         editorState.vel = vel;
         editorState.snap = snap;
-        editorState.loopStart = Number.isFinite(snap.loopStart) ? snap.loopStart : 0;
-        editorState.loopEnd   = Number.isFinite(snap.loopEnd)   ? snap.loopEnd   : 0;
+        editorState.loopStart = num(snap.loopStart);
+        editorState.loopEnd   = num(snap.loopEnd);
 
         // v1.8.0: variant tab strip surfaces when the cell has > 1 variant.
-        editorState.variantIndex = Number.isFinite(snap.variantIndex) ? snap.variantIndex : variantIndex;
-        editorState.variantCount = Number.isFinite(snap.variantCount) ? snap.variantCount : 1;
+        editorState.variantIndex = num(snap.variantIndex, variantIndex);
+        editorState.variantCount = num(snap.variantCount, 1);
 
         populateLoopEditorHeader(snap);
         renderVariantTabStrip();
@@ -2004,8 +2016,8 @@ function bindLoopEditorEvents() {
                 const snap = (typeof json === 'string') ? JSON.parse(json) : json;
                 if (snap && Array.isArray(snap.peaks)) {
                     editorState.snap = snap;
-                    editorState.loopStart = Number.isFinite(snap.loopStart) ? snap.loopStart : 0;
-                    editorState.loopEnd   = Number.isFinite(snap.loopEnd)   ? snap.loopEnd   : 0;
+                    editorState.loopStart = num(snap.loopStart);
+                    editorState.loopEnd   = num(snap.loopEnd);
                     populateLoopEditorHeader(snap);
                     redrawLoopEditor();
                 }
@@ -2253,13 +2265,7 @@ function showMissingFolderDialog (info) {
     };
     const onSkip = async () => {
         cleanup();
-        if (!window.__JUCE__) return;
-        try {
-            const fn = Juce.getNativeFunction('dismissMissingFolder');
-            await fn();
-        } catch (e) {
-            console.warn('[sampler-app] dismissMissingFolder failed:', e);
-        }
+        await invokeNative('dismissMissingFolder');
     };
     const onLocate = async () => {
         cleanup();
@@ -2366,13 +2372,7 @@ function showAmbiguousDuplicatesDialog (dups) {
 }
 
 async function sendRrConfirmation (accept) {
-    if (!window.__JUCE__) return;
-    try {
-        const fn = Juce.getNativeFunction('confirmRoundRobinLoad');
-        await fn(!!accept);
-    } catch (e) {
-        console.warn('[sampler-app] confirmRoundRobinLoad failed:', e);
-    }
+    await invokeNative('confirmRoundRobinLoad', !!accept);
 }
 
 function subscribeAmbiguousDuplicatesEvent () {
@@ -2452,11 +2452,11 @@ async function pullTechniqueState() {
         const prevActive = techniqueState.active;
 
         techniqueState.names     = Array.isArray(obj.names) ? obj.names.slice() : [];
-        techniqueState.active    = Number.isFinite(obj.active)    ? obj.active    : 0;
-        techniqueState.count     = Number.isFinite(obj.count)     ? obj.count     : 1;
+        techniqueState.active    = num(obj.active);
+        techniqueState.count     = num(obj.count, 1);
         techniqueState.ksEnabled = !!obj.ksEnabled;
-        techniqueState.ksLow     = Number.isFinite(obj.ksLow)     ? obj.ksLow     : 0;
-        techniqueState.ksHigh    = Number.isFinite(obj.ksHigh)    ? obj.ksHigh    : 9;
+        techniqueState.ksLow     = num(obj.ksLow);
+        techniqueState.ksHigh    = num(obj.ksHigh, 9);
 
         renderTechniqueBar();
 
@@ -2499,7 +2499,7 @@ function renderTechniqueBar() {
     const cellCountsByTech = new Array(8).fill(0);
     if (lastSampleMapSnapshot && Array.isArray(lastSampleMapSnapshot.cells)) {
         for (const c of lastSampleMapSnapshot.cells) {
-            const t = Number.isFinite(c.technique) ? c.technique : 0;
+            const t = num(c.technique);
             if (t >= 0 && t < 8) cellCountsByTech[t]++;
         }
     }
@@ -2573,14 +2573,7 @@ async function commitTechniqueRename() {
         closeTechniqueRenameDialog();
         return;
     }
-    if (window.__JUCE__) {
-        try {
-            const fn = Juce.getNativeFunction('setTechniqueName');
-            await fn(techniqueRenameTargetIndex, trimmed);
-        } catch (err) {
-            console.warn('[sampler-app] setTechniqueName failed', err);
-        }
-    }
+    await invokeNative('setTechniqueName', techniqueRenameTargetIndex, trimmed);
     closeTechniqueRenameDialog();
 }
 
@@ -2612,34 +2605,26 @@ function bindTechniqueBar() {
     const addBtn = document.getElementById('technique-add');
     if (addBtn) {
         addBtn.addEventListener('click', async () => {
-            if (window.__JUCE__) {
-                const fn = Juce.getNativeFunction('addTechniqueSlot');
-                await fn();
-            }
+            await invokeNative('addTechniqueSlot');
         });
     }
 
     const remBtn = document.getElementById('technique-remove');
     if (remBtn) {
         remBtn.addEventListener('click', async () => {
-            if (window.__JUCE__ && techniqueState.count > 1) {
-                const fn = Juce.getNativeFunction('removeTechniqueSlot');
-                await fn(techniqueState.count - 1);
-            }
+            if (techniqueState.count > 1)
+                await invokeNative('removeTechniqueSlot', techniqueState.count - 1);
         });
     }
 
     const ksToggle = document.getElementById('technique-ks-enabled');
     if (ksToggle) {
         ksToggle.addEventListener('change', async () => {
-            if (!window.__JUCE__) return;
-            const fn = Juce.getNativeFunction('setKeyswitchEnabled');
-            await fn(!!ksToggle.checked);
+            await invokeNative('setKeyswitchEnabled', !!ksToggle.checked);
         });
     }
 
     const commitKsRange = async () => {
-        if (!window.__JUCE__) return;
         const ksLow  = document.getElementById('technique-ks-low');
         const ksHigh = document.getElementById('technique-ks-high');
         if (!ksLow || !ksHigh) return;
@@ -2650,8 +2635,7 @@ function bindTechniqueBar() {
         lo = Math.max(0, Math.min(127, lo));
         hi = Math.max(0, Math.min(127, hi));
         if (hi < lo) hi = lo;
-        const fn = Juce.getNativeFunction('setKeyswitchRange');
-        await fn(lo, hi);
+        await invokeNative('setKeyswitchRange', lo, hi);
     };
 
     const ksLow  = document.getElementById('technique-ks-low');
@@ -2701,20 +2685,20 @@ async function pullTriggerState() {
         const obj = (typeof raw === 'string') ? JSON.parse(raw) : raw;
 
         triggerState.ccEnabled = !!obj.ccEnabled;
-        triggerState.ccNumber  = Number.isFinite(obj.ccNumber) ? obj.ccNumber : 32;
+        triggerState.ccNumber  = num(obj.ccNumber, 32);
         triggerState.pcEnabled = !!obj.pcEnabled;
 
         triggerState.ccMapping = Array.isArray(obj.ccMapping)
             ? obj.ccMapping.slice(0, 8).map(s => ({
-                rangeLow:  Number.isFinite(s.rangeLow)  ? s.rangeLow  : 0,
-                rangeHigh: Number.isFinite(s.rangeHigh) ? s.rangeHigh : 127,
-                tech:      Number.isFinite(s.tech)      ? s.tech      : 0,
+                rangeLow:  num(s.rangeLow),
+                rangeHigh: num(s.rangeHigh, 127),
+                tech:      num(s.tech),
             }))
             : [];
         triggerState.pcMapping = Array.isArray(obj.pcMapping)
             ? obj.pcMapping.slice(0, 8).map(s => ({
-                pc:   Number.isFinite(s.pc)   ? s.pc   : 0,
-                tech: Number.isFinite(s.tech) ? s.tech : 0,
+                pc:   num(s.pc),
+                tech: num(s.tech),
             }))
             : [];
 
@@ -2845,36 +2829,24 @@ function bindTriggerPanel() {
     const ccToggle = document.getElementById('cc-trigger-enabled');
     if (ccToggle) {
         ccToggle.addEventListener('change', async () => {
-            if (!window.__JUCE__) return;
-            try {
-                const fn = Juce.getNativeFunction('setCcEnabled');
-                await fn(!!ccToggle.checked);
-            } catch (err) { console.warn('[sampler-app] setCcEnabled failed', err); }
+            await invokeNative('setCcEnabled', !!ccToggle.checked);
         });
     }
 
     const ccNumber = document.getElementById('cc-trigger-number');
     if (ccNumber) {
         ccNumber.addEventListener('change', async () => {
-            if (!window.__JUCE__) return;
             let v = parseInt(ccNumber.value, 10);
             if (!Number.isFinite(v)) v = 32;
             v = Math.max(0, Math.min(119, v));
-            try {
-                const fn = Juce.getNativeFunction('setCcNumber');
-                await fn(v);
-            } catch (err) { console.warn('[sampler-app] setCcNumber failed', err); }
+            await invokeNative('setCcNumber', v);
         });
     }
 
     const pcToggle = document.getElementById('pc-trigger-enabled');
     if (pcToggle) {
         pcToggle.addEventListener('change', async () => {
-            if (!window.__JUCE__) return;
-            try {
-                const fn = Juce.getNativeFunction('setPcEnabled');
-                await fn(!!pcToggle.checked);
-            } catch (err) { console.warn('[sampler-app] setPcEnabled failed', err); }
+            await invokeNative('setPcEnabled', !!pcToggle.checked);
         });
     }
 
@@ -2898,11 +2870,7 @@ function bindTriggerPanel() {
             let tech = Math.max(1, Math.min(8,   parseInt(techInput.value, 10) || 1)) - 1;
             if (hi < lo) hi = lo;
 
-            if (!window.__JUCE__) return;
-            try {
-                const fn = Juce.getNativeFunction('setCcMapping');
-                await fn(slot, lo, hi, tech);
-            } catch (err) { console.warn('[sampler-app] setCcMapping failed', err); }
+            await invokeNative('setCcMapping', slot, lo, hi, tech);
         });
     }
 
@@ -2923,22 +2891,14 @@ function bindTriggerPanel() {
             const pc   = Math.max(0, Math.min(127, parseInt(pcInput.value,   10) || 0));
             const tech = Math.max(1, Math.min(8,   parseInt(techInput.value, 10) || 1)) - 1;
 
-            if (!window.__JUCE__) return;
-            try {
-                const fn = Juce.getNativeFunction('setPcMapping');
-                await fn(slot, pc, tech);
-            } catch (err) { console.warn('[sampler-app] setPcMapping failed', err); }
+            await invokeNative('setPcMapping', slot, pc, tech);
         });
     }
 
     const resetBtn = document.getElementById('trigger-reset');
     if (resetBtn) {
         resetBtn.addEventListener('click', async () => {
-            if (!window.__JUCE__) return;
-            try {
-                const fn = Juce.getNativeFunction('resetTriggerMappings');
-                await fn();
-            } catch (err) { console.warn('[sampler-app] resetTriggerMappings failed', err); }
+            await invokeNative('resetTriggerMappings');
         });
     }
 }

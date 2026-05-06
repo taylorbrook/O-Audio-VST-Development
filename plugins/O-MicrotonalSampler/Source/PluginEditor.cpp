@@ -79,6 +79,25 @@ namespace
         p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
         return true;
     }
+
+    // v1.16.10 (MEDIUM-03): generic JSON-array builder. Each remaining
+    // indexed comma-skip loop in the native-fn registry collapses to one
+    // line via this helper. Format identity to the prior loops is
+    // load-bearing — UI sites parse with JSON.parse / parseFloat.
+    template <class Vec, class Formatter>
+    inline juce::String joinJsonArray (const Vec& v, Formatter&& fmt)
+    {
+        juce::String out = "[";
+        bool first = true;
+        for (const auto& x : v)
+        {
+            if (! first) out += ",";
+            out += fmt (x);
+            first = false;
+        }
+        out += "]";
+        return out;
+    }
 }
 
 //==============================================================================
@@ -750,18 +769,15 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     std::function<void(juce::var)> complete)
                 {
                     const auto& tunings = EmbeddedTunings::getAllTunings();
-                    juce::String json = "[";
-                    for (size_t i = 0; i < tunings.size(); ++i)
+                    auto json = joinJsonArray (tunings, [] (const auto& t)
                     {
-                        if (i > 0) json += ",";
-                        json += "{";
-                        json += "\"id\":\""       + juce::String (tunings[i].id)       + "\",";
-                        json += "\"name\":\""     + juce::String (tunings[i].name)     + "\",";
-                        json += "\"category\":\"" + juce::String (tunings[i].category) + "\",";
-                        json += "\"noteCount\":"  + juce::String (static_cast<int> (tunings[i].intervals.size()));
-                        json += "}";
-                    }
-                    json += "]";
+                        return juce::String ("{")
+                             + "\"id\":\""       + juce::String (t.id)       + "\","
+                             + "\"name\":\""     + juce::String (t.name)     + "\","
+                             + "\"category\":\"" + juce::String (t.category) + "\","
+                             + "\"noteCount\":"  + juce::String (static_cast<int> (t.intervals.size()))
+                             + "}";
+                    });
                     complete (juce::var (json));
                 }
         },
@@ -771,13 +787,10 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     std::function<void(juce::var)> complete)
                 {
                     auto categories = EmbeddedTunings::getCategories();
-                    juce::String json = "[";
-                    for (size_t i = 0; i < categories.size(); ++i)
+                    auto json = joinJsonArray (categories, [] (const auto& c)
                     {
-                        if (i > 0) json += ",";
-                        json += "\"" + juce::String (categories[i]) + "\"";
-                    }
-                    json += "]";
+                        return "\"" + juce::String (c) + "\"";
+                    });
                     complete (juce::var (json));
                 }
         },
@@ -1164,14 +1177,11 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 [this] (const juce::Array<juce::var>&,
                         std::function<void(juce::var)> complete)
                 {
-                    juce::String json = "[";
                     const auto& sk = processorRef.getLastSkippedFiles();
-                    for (int i = 0; i < sk.size(); ++i)
+                    auto json = joinJsonArray (sk, [] (const juce::String& s)
                     {
-                        if (i > 0) json += ",";
-                        json += juce::JSON::toString (juce::var (sk[i]));
-                    }
-                    json += "]";
+                        return juce::JSON::toString (juce::var (s));
+                    });
                     complete (juce::var (json));
                 }
         },
