@@ -39,6 +39,36 @@ namespace
     {
         std::atomic_store (&slot, std::move (value));
     }
+
+    // v1.16.8: canonical LoopMode → string mappers. Two surfaces, two
+    // load-bearing spellings — see SIMPLIFICATION-AUDIT.md HIGH-02:
+    //   • JSON UI payloads use HYPHENATED form ("one-shot"). The WebView
+    //     loop-editor parses this from sampleMapUpdated events and from
+    //     snapshotSampleMapJson() / snapshotWaveformPeaks() results.
+    //   • XML state ValueTree uses UNDERSCORED form ("one_shot"). Saved
+    //     projects from v1.0+ carry this exact spelling; changing it would
+    //     break every existing session-restore.
+    inline juce::String loopModeToJsonString (LoopMode m) noexcept
+    {
+        switch (m)
+        {
+            case LoopMode::OneShot: return "one-shot";
+            case LoopMode::Auto:    return "auto";
+            case LoopMode::Manual:  return "manual";
+        }
+        return "one-shot";
+    }
+
+    inline juce::String loopModeToXmlString (LoopMode m) noexcept
+    {
+        switch (m)
+        {
+            case LoopMode::OneShot: return "one_shot";
+            case LoopMode::Auto:    return "auto";
+            case LoopMode::Manual:  return "manual";
+        }
+        return "auto";
+    }
 }
 
 //==============================================================================
@@ -1677,17 +1707,6 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
 {
     auto map = atomicLoad (currentSampleMap);
 
-    auto loopModeToString = [] (LoopMode m) -> const char*
-    {
-        switch (m)
-        {
-            case LoopMode::OneShot: return "one-shot";
-            case LoopMode::Auto:    return "auto";
-            case LoopMode::Manual:  return "manual";
-        }
-        return "one-shot";
-    };
-
     juce::String json;
     json.preallocateBytes (1024);
     json << "{";
@@ -1730,7 +1749,7 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
                  << ",\"sourceSampleRate\":" << juce::String (v.sourceSampleRate, 4)
                  << ",\"loopStart\":"        << v.loopStart
                  << ",\"loopEnd\":"          << v.loopEnd
-                 << ",\"loopMode\":\""       << loopModeToString (v.loopMode) << "\""
+                 << ",\"loopMode\":\""       << loopModeToJsonString (v.loopMode) << "\""
                  << "}";
         }
         json << "]}";
@@ -1760,7 +1779,7 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
              << ",\"sourceSampleRate\":" << juce::String (v.sourceSampleRate, 4)
              << ",\"loopStart\":"        << v.loopStart
              << ",\"loopEnd\":"          << v.loopEnd
-             << ",\"loopMode\":\""       << loopModeToString (v.loopMode) << "\""
+             << ",\"loopMode\":\""       << loopModeToJsonString (v.loopMode) << "\""
              << ",\"variantCount\":"     << (int) c.variants.size()
              << "}";
     }
@@ -1798,17 +1817,6 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
     technique = juce::jlimit (0, kMaxTechniques - 1, technique);
 
     auto map = atomicLoad (currentSampleMap);
-
-    auto loopModeToString = [] (LoopMode m) -> const char*
-    {
-        switch (m)
-        {
-            case LoopMode::OneShot: return "one-shot";
-            case LoopMode::Auto:    return "auto";
-            case LoopMode::Manual:  return "manual";
-        }
-        return "one-shot";
-    };
 
     if (map == nullptr)
         return "{}";
@@ -1887,7 +1895,7 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
     obj->setProperty ("sourceSampleRate", variant.sourceSampleRate);
     obj->setProperty ("loopStart",        variant.loopStart);
     obj->setProperty ("loopEnd",          variant.loopEnd);
-    obj->setProperty ("loopMode",         juce::String (loopModeToString (variant.loopMode)));
+    obj->setProperty ("loopMode",         loopModeToJsonString (variant.loopMode));
     obj->setProperty ("filename",         variant.filename);
     obj->setProperty ("peaks",            peaksArray);
 
@@ -2124,17 +2132,9 @@ namespace
         return LoadMode::ReplaceAll;
     }
 
-    juce::String loopModeToString (LoopMode m) noexcept
-    {
-        switch (m)
-        {
-            case LoopMode::OneShot: return "one_shot";
-            case LoopMode::Auto:    return "auto";
-            case LoopMode::Manual:  return "manual";
-        }
-        return "auto";
-    }
-
+    // v1.16.8: forward to canonical loopModeToXmlString() in the top-of-file
+    // anonymous namespace. Inverse parser stays here next to its XML codec
+    // siblings (it's not duplicated, only the writer was).
     LoopMode loopModeFromString (const juce::String& s) noexcept
     {
         if (s == "one_shot") return LoopMode::OneShot;
@@ -2243,7 +2243,7 @@ namespace
             {
                 juce::ValueTree vTree (kEmbeddedVariantTag);
                 vTree.setProperty ("filename", v.filename, nullptr);
-                vTree.setProperty ("loopMode", loopModeToString (v.loopMode), nullptr);
+                vTree.setProperty ("loopMode", loopModeToXmlString (v.loopMode), nullptr);
                 vTree.setProperty ("loopStart", v.loopStart, nullptr);
                 vTree.setProperty ("loopEnd",   v.loopEnd,   nullptr);
 

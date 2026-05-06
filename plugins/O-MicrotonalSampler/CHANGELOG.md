@@ -1,5 +1,56 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.8] - 2026-05-05
+
+### Changed
+- **Code simplification — Phase 2 (audit candidates HIGH-02 / HIGH-06).**
+  Pure structural deduplication; no behaviour change.
+  - **[HIGH-02]** `PluginProcessor.cpp`: deduplicated `loopModeToString`. Three
+    copies (two in-function lambdas + one namespace-scope mapper, with
+    inconsistent hyphen-vs-underscore spelling) collapsed into two canonical
+    helpers in the top anonymous namespace:
+    - `loopModeToJsonString()` → hyphenated form (`"one-shot"`, `"auto"`,
+      `"manual"`) for JSON UI payloads — what the WebView loop-editor parses
+      from `sampleMapUpdated` events / `snapshotSampleMapJson()` /
+      `snapshotWaveformPeaks()` results.
+    - `loopModeToXmlString()` → underscored form (`"one_shot"`, `"auto"`,
+      `"manual"`) for the embedded-audio XML state ValueTree, paired with the
+      existing `loopModeFromString()` deserialiser.
+    Both spellings are LOAD-BEARING and are preserved exactly — JS UI relies
+    on hyphens, saved projects from v1.0+ rely on underscores.
+  - **[HIGH-06]** `Resources/ui/index.html` + `Resources/ui/js/sampler-app.js`:
+    consolidated 8 nearly-identical `<div class="ouaricon-knob">` blocks
+    (~99 lines of HTML) into a single JS render driven by `SLIDER_BINDINGS`
+    (now extended with `label` and optional `tooltip` fields). New
+    `renderControlStrip()` helper runs at boot before `bindOneKnob` so
+    `getElementById` lookups still resolve. `<footer id="control-strip">`
+    survives as the JS render target. Future knob additions become a
+    one-line `SLIDER_BINDINGS` entry.
+
+### Verification
+- Build: `ninja O-MicrotonalSampler_VST3 O-MicrotonalSampler_AU` succeeds with
+  no new warnings.
+- AU validation: `auval -v aumu OMtS Ouar` passes.
+- Format stability:
+  - JSON path: `"one-shot"` literal appears only inside
+    `loopModeToJsonString()`; 3 callers reference the helper.
+  - XML path: `"one_shot"` literal appears in `loopModeToXmlString()` writer
+    and the `loopModeFromString()` parser; XML state round-trip works
+    unchanged.
+- Visual smoke (HIGH-06): JS-rendered DOM is structurally equivalent to the
+  prior static HTML — same `<div class="ouaricon-knob">` wrapper, same SVG
+  geometry, same input ids/min/max/step. CSS selector dependency check ran
+  clean. Per-knob standalone verification (drag, value readouts, hover
+  states, expression tooltip) recommended before public release; the
+  refactor is mechanical and the binding contract (`bindOneKnob` → unchanged)
+  is preserved.
+- CSS selector dependency check: zero positional selectors
+  (`:nth-child` / `:first-child` / `:last-child` / `>` direct-child) target
+  `.ouaricon-knob` — JS-rendered DOM is a drop-in match for the static HTML.
+
+See `plugins/O-MicrotonalSampler/.planning/SIMPLIFICATION-AUDIT.md` (Phase 2
+Applied section) for the full candidate spec.
+
 ## [1.16.7] - 2026-05-05
 
 ### Changed
