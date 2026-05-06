@@ -1,5 +1,23 @@
 # O-Prism Changelog
 
+## v1.17.1 (2026-05-05)
+
+### Changed
+- **HIGH-01:** Removed three completely-unused WebView resource files (`Source/ui/public/js/tuning-panel.js`, `Source/ui/public/css/tuning-panel.css`, `Source/ui/public/modules/preset-manager.js` — ~1918 LOC) plus their `juce_add_binary_data` SOURCES entries in `CMakeLists.txt` and their `getResource` URL handlers in `PluginEditor.cpp`. The runtime tuning UI is implemented inline in `index.html`; the bundled files were never `<link>`-ed or `<script>`-ed by any HTML or imported by any JS module. Removes ~30 KB from the plugin binary and eliminates a recurring footgun where editors of `tuning-panel.js` would silently modify dead code.
+- **HIGH-02:** Added a `syncTuningPresetToCustom (juce::AudioProcessorValueTreeState&)` helper near the JSON array helpers and replaced 5 verbatim copies of the `setValueNotifyingHost(... kCustomTuningPresetIndex ...)` block in `PluginEditor.cpp` (`setTuningIntervals`, `setSingleInterval`, `loadScalaFile` success branch, `loadEmbeddedTuning`, `applyGeneratedScale`). One source of truth for the "force `tuningPreset` to Custom for persistence" idiom.
+- **HIGH-03:** Replaced 5 ad-hoc `name.replace("\"", "\\\"")` JSON-string-escapes in `PluginEditor.cpp` (`getUserWavetableList`, `importUserWavetable`, `importUserWavetableData`, `getActiveOscInfo`, `saveEditedWavetable`) with `juce::JSON::toString` calls. Also fixes a latent bug where wavetable names containing backslashes, tabs, or control characters would produce malformed JSON.
+
+### Verification
+- Release build: `ninja O-Prism_VST3 O-Prism_AU` clean.
+- AU validation: `auval -v aumu OuPr OuDv` — PASSED.
+- AU cache cleared and fresh binaries installed to `~/Library/Audio/Plug-Ins/{VST3,Components}/` per project CLAUDE.md.
+- Visual smoke: tuning tab renders, library list, generators, custom-cents editor, Scala load — all functional after dead-WebView purge. Wavetable name display unchanged in dropdown.
+- No APVTS schema changes — existing sessions/presets load unchanged.
+
+### Technical Notes
+- Phase 1 of `/simplify` workflow audit (see `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md`). Phase 2 (HIGH-04..07, MEDIUM-risk) and Phase 3 (MEDIUM/LOW) candidates remain; run `/simplify-phase2 O-Prism` and `/simplify-phase3 O-Prism` for the deferred sweeps.
+- Version bump rationale: PATCH (1.17.0 → 1.17.1) — internal refactor + dead-code purge, no parameter or feature changes.
+
 ## v1.17.0 (2026-04-26)
 
 ### Added
