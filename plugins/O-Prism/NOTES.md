@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.13.5
+- **Version:** 1.17.4
 - **Type:** Synth (Microtonal Wavetable)
 
 ## Lifecycle Timeline
 
+- **2026-05-06 (v1.17.4):** Distribution fix — Logic Pro pinned to v1.17.0 because a stale non-suffixed `O-Prism.component` (legacy dev build, pre-`OUARICON_DEV_SUFFIX`) was shadowing `O-Prism-dev.component` (current). Hardened `scripts/build-and-install.sh` Phase 4 to sweep the dev↔release alternate-variant bundle on every install. No plugin code change.
 - **2026-04-11 (v1.13.5):** Code quality — extracted `PrismParamIds::kCustomTuningPresetIndex` constant to replace hardcoded `10.0f` literal across 5 `setValueNotifyingHost` call sites in `PluginEditor.cpp`. Zero behavior change.
 - **2026-04-11 (v1.13.4):** DSP perf — hoisted per-sample key tracking `std::pow` out of render loop (block-constant multipliers). Zero audible change.
 - **2026-02-16:** Ideated — Creative brief and requirements created

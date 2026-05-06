@@ -18,12 +18,24 @@ killall -9 AudioComponentRegistrar 2>/dev/null || true
 rm -rf ~/Library/Caches/AudioUnitCache/
 rm -rf ~/Library/Caches/com.apple.audiounits.cache
 
-# Remove old and install fresh
+# Remove old AND alternate-variant bundles before install (-dev ↔ unsuffixed)
+# Why: dev branding produces "<Name>-dev.{vst3,component}" while release branding
+# produces "<Name>.{vst3,component}" — same AU triple (type/subtype/manufacturer).
+# Leaving the alternate variant on disk pins Logic's registry slot to whichever
+# was installed first. See O-Prism v1.17.4 CHANGELOG for the regression.
 rm -rf ~/Library/Audio/Plug-Ins/VST3/[PluginName].vst3
+rm -rf ~/Library/Audio/Plug-Ins/VST3/[PluginName]-dev.vst3
 rm -rf ~/Library/Audio/Plug-Ins/Components/[PluginName].component
-cp -R build/plugins/[PluginName]/[PluginName]_artefacts/Release/VST3/[PluginName].vst3 ~/Library/Audio/Plug-Ins/VST3/
-cp -R build/plugins/[PluginName]/[PluginName]_artefacts/Release/AU/[PluginName].component ~/Library/Audio/Plug-Ins/Components/
+rm -rf ~/Library/Audio/Plug-Ins/Components/[PluginName]-dev.component
+
+# Install fresh — substitute the suffix actually produced by your build:
+#   - Dev branding (default local):   [PluginName]-dev
+#   - Release branding (CI only):     [PluginName]
+cp -R build/plugins/[PluginName]/[PluginName]_artefacts/Release/VST3/[PluginName]*.vst3 ~/Library/Audio/Plug-Ins/VST3/
+cp -R build/plugins/[PluginName]/[PluginName]_artefacts/Release/AU/[PluginName]*.component ~/Library/Audio/Plug-Ins/Components/
 ```
+
+**Preferred:** use `./scripts/build-and-install.sh [PluginName]` — its Phase 4 already does the dual-variant sweep automatically and emits a `⚠ Sweeping ALTERNATE-variant` warning when an orphan is found.
 
 ### Windows Plugin Management
 **On Windows, AU is not available. Only VST3 is built and installed.**

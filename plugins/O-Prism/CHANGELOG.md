@@ -1,5 +1,28 @@
 # O-Prism Changelog
 
+## v1.17.4 (2026-05-06)
+
+### Fixed
+- **AU registry stuck on v1.17.0 in Logic Pro:** A stale non-suffixed `O-Prism.component` (dev build, v1.17.0, installed Apr 26) was shadowing the current `O-Prism-dev.component` (v1.17.3) in `~/Library/Audio/Plug-Ins/Components/`. Both bundles registered with the same AU triple `aumu OuPr OuDv`, so Logic's plugin scanner pinned the slot to whichever was installed first — the older v1.17.0. Symptom: Logic showed v1.17.0 in the plugin registry; "O-Prism-dev" never appeared as a separate entry. Same shadowing on VST3 (`O-Prism.vst3` v1.17.0 vs `O-Prism-dev.vst3` v1.17.3).
+
+### Changed (project-wide)
+- **`scripts/build-and-install.sh` — Phase 4 hardening (variant-suffix sweep):** The install pipeline now sweeps both the current `PRODUCT_NAME` *and* its dev/release counterpart bundle (`-dev` ↔ unsuffixed). Prevents legacy bundles from a prior branding configuration from pinning the AU registry slot. Emits a `⚠ Sweeping ALTERNATE-variant` warning when an alternate-variant orphan is found, so the cleanup is visible in build logs. Applies to all 35 plugins, not just O-Prism.
+- **`scripts/build-and-install.sh` — Phase 3 fix (un-expanded CMake variables in PRODUCT_NAME):** The previous Phase 3 grepped `PRODUCT_NAME` from CMakeLists.txt as a literal string, which returned `O-Prism${OUARICON_DEV_SUFFIX}` un-expanded for any plugin using the suffix system. Phases 4–7 then operated on a non-existent path and silently no-op'd (Phase 4 found no old AU/VST3 to remove → orphan accumulation; Phase 5 fell through to a hard error on a literal-`${...}` artefact path). Phase 3 now reads the bare `PRODUCT_NAME` from the actual `*.component` / `*.vst3` filename in `build/plugins/<P>/<P>_artefacts/Release/{AU,VST3}/`, with a CMakeLists.txt fallback that errors out cleanly if it sees an un-expanded variable. The build artefact is the authoritative source of truth. This is the *primary* mechanism that allowed the legacy `O-Prism.component` orphan to survive — Phase 4 was looking for the wrong filename for months.
+
+### Root Cause
+- The `OUARICON_DEV_SUFFIX` system (root `CMakeLists.txt:30-40`) appends `-dev` to `PRODUCT_NAME` only when `OUARICON_RELEASE=OFF` (the local default). Bundles built **before** this suffix existed were installed without the suffix and persisted across the dev-branding transition. The previous Phase 4 (`build-and-install.sh:253-292`) only removed the bundle matching the *current* `PRODUCT_NAME`, never the alternate-variant counterpart. Once the suffix activated, every dev rebuild went to `<Name>-dev.component` while the legacy `<Name>.component` sat undisturbed and continued to claim the `aumu/OuPr/OuDv` registry slot.
+
+### Verification
+- Pre-fix state: `auval -a | grep -i prism` showed two entries with the same `aumu OuPr OuDv` triple, both labeled "O-Prism-dev" — confirming registry collision.
+- Pre-fix `Info.plist` versions: `O-Prism.component` = 1.17.0 (Apr 26), `O-Prism-dev.component` = 1.17.3 (May 6). Identical CFBundleIdentifier `com.Ouaricon Audio Development.O-Prism`, identical factory function `O_Prism_devAUFactory` — i.e. both were dev builds, just from different points in time.
+- Post-fix: `./scripts/build-and-install.sh O-Prism` rebuilds at v1.17.4, sweeps the legacy `O-Prism.{vst3,component}` orphan via the new alternate-variant pass, installs `O-Prism-dev.{vst3,component}` v1.17.4, clears AU cache + kills `AudioComponentRegistrar`. Single clean registry entry remains.
+- No plugin source changes — DSP, parameter schema, preset format, and UI are byte-identical to v1.17.3.
+
+### Technical Notes
+- **Version bump rationale:** PATCH (1.17.3 → 1.17.4) — distribution/install hardening only. Plugin code unchanged. The bump exists to give the install pipeline change a verifiable through-line and a fresh CHANGELOG anchor; existing v1.17.3 sessions and presets load identically.
+- **Manual cleanup template** in root `CLAUDE.md` updated to mirror the dual-removal pattern (sweeps both `<Name>.component` and `<Name>-dev.component` before install), so manual installs follow the same hardened path as the script.
+- **Generalizable to all plugins:** any plugin built locally before the `OUARICON_DEV_SUFFIX` system landed may have an orphan non-suffixed bundle in `~/Library/Audio/Plug-Ins/{VST3,Components}/`. Running `./scripts/build-and-install.sh <PluginName>` once will sweep them as a side effect.
+
 ## v1.17.3 (2026-05-06)
 
 ### Changed
