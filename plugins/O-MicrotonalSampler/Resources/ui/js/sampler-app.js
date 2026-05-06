@@ -35,15 +35,19 @@ import { bindWebViewFileDrop } from './modules/webview-drop-streaming.js';
 // .setNormalisedValue() pushes to the C++ APVTS; valueChangedEvent fires
 // when automation / preset / DAW changes the parameter so we update the
 // DOM control to match.
+// v1.16.8 (HIGH-06): SLIDER_BINDINGS is the single source of truth for the
+// 8 control-strip knobs — order, label, and optional tooltip. Knob DOM is
+// rendered from this array by renderControlStrip() before bindOneKnob runs.
 const SLIDER_BINDINGS = [
-    { domId: 'ctrl-attack',              relayId: 'attack' },
-    { domId: 'ctrl-decay',               relayId: 'decay' },
-    { domId: 'ctrl-sustain',             relayId: 'sustain' },
-    { domId: 'ctrl-release',             relayId: 'release' },
-    { domId: 'ctrl-polyphony',           relayId: 'polyphony' },
-    { domId: 'ctrl-velocity-crossfade',  relayId: 'velocity_crossfade' },
-    { domId: 'ctrl-expression',          relayId: 'expression' },          // v1.7.0
-    { domId: 'ctrl-output-gain',         relayId: 'output_gain' }
+    { domId: 'ctrl-attack',              relayId: 'attack',              label: 'Attack' },
+    { domId: 'ctrl-decay',               relayId: 'decay',               label: 'Decay' },
+    { domId: 'ctrl-sustain',             relayId: 'sustain',             label: 'Sustain' },
+    { domId: 'ctrl-release',             relayId: 'release',             label: 'Release' },
+    { domId: 'ctrl-polyphony',           relayId: 'polyphony',           label: 'Poly' },
+    { domId: 'ctrl-velocity-crossfade',  relayId: 'velocity_crossfade',  label: 'Vel-XF' },
+    { domId: 'ctrl-expression',          relayId: 'expression',          label: 'Expr',
+      tooltip: 'Expression (MIDI CC 11) — dynamics control, independent of velocity layer' },  // v1.7.0
+    { domId: 'ctrl-output-gain',         relayId: 'output_gain',         label: 'Out Gain' }
 ];
 
 // Phase 3.5 — display formatting per parameter. Maps relayId → {min, max,
@@ -237,7 +241,36 @@ function bindKnobGlobalDrag() {
     document.addEventListener('pointercancel', endDrag);
 }
 
+// v1.16.8 (HIGH-06): render the 8 knob blocks from SLIDER_BINDINGS into
+// <footer id="control-strip">. Replaces 8 nearly-identical static HTML
+// blocks. Run unconditionally at boot — the DOM should exist even when
+// the plugin host isn't available (matches pre-refactor behaviour where
+// the static knobs always rendered).
+function renderControlStrip() {
+    const strip = document.getElementById('control-strip');
+    if (!strip) {
+        console.warn('[sampler-app] #control-strip not found — knobs cannot render');
+        return;
+    }
+    strip.innerHTML = SLIDER_BINDINGS.map(b => {
+        const titleAttr = b.tooltip ? ` title="${b.tooltip.replace(/"/g, '&quot;')}"` : '';
+        return `
+      <div class="ouaricon-knob" data-knob-id="${b.domId}"${titleAttr}>
+        <div class="ouaricon-knob-visual">
+          <svg viewBox="0 0 44 44">
+            <circle class="knob-track" cx="22" cy="22" r="18"/>
+            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+          </svg>
+        </div>
+        <label class="ouaricon-knob-label" for="${b.domId}">${b.label}</label>
+        <span class="ouaricon-knob-value"></span>
+        <input type="range" id="${b.domId}" min="0" max="1" step="0.001" />
+      </div>`;
+    }).join('');
+}
+
 function bindSliders() {
+    renderControlStrip();
     if (!window.__JUCE__) {
         console.warn('[sampler-app] __JUCE__ not available — running outside plugin host');
         return;

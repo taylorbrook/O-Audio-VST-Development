@@ -477,109 +477,13 @@
     </main>
 
     <!-- ============== BOTTOM CONTROL STRIP ============== -->
-    <!-- Always visible across tabs. Each knob wraps a hidden
-         <input type="range"> so the existing WebSliderRelay binding (keyed on
-         element id) stays intact — the SVG arc is a visual + interaction
-         layer that mirrors the input's normalised value via input events. -->
+    <!-- Always visible across tabs. Knobs are rendered from SLIDER_BINDINGS
+         in sampler-app.js (renderControlStrip) before bindOneKnob runs — see
+         SIMPLIFICATION-AUDIT.md HIGH-06 (v1.16.8). Each rendered knob wraps a
+         hidden <input type="range"> so the WebSliderRelay binding (keyed on
+         element id) stays intact; the SVG arc is a visual + interaction layer
+         that mirrors the input's normalised value via input events. -->
     <footer id="control-strip">
-      <div class="ouaricon-knob" data-knob-id="ctrl-attack">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-attack">Attack</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-attack" min="0" max="1" step="0.001" />
-      </div>
-
-      <div class="ouaricon-knob" data-knob-id="ctrl-decay">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-decay">Decay</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-decay" min="0" max="1" step="0.001" />
-      </div>
-
-      <div class="ouaricon-knob" data-knob-id="ctrl-sustain">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-sustain">Sustain</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-sustain" min="0" max="1" step="0.001" />
-      </div>
-
-      <div class="ouaricon-knob" data-knob-id="ctrl-release">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-release">Release</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-release" min="0" max="1" step="0.001" />
-      </div>
-
-      <div class="ouaricon-knob" data-knob-id="ctrl-polyphony">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-polyphony">Poly</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-polyphony" min="0" max="1" step="0.001" />
-      </div>
-
-      <div class="ouaricon-knob" data-knob-id="ctrl-velocity-crossfade">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-velocity-crossfade">Vel-XF</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-velocity-crossfade" min="0" max="1" step="0.001" />
-      </div>
-
-      <!-- v1.7.0: Expression (CC 11). Real-time dynamics control —
-           independent of velocity-layer selection. -->
-      <div class="ouaricon-knob" data-knob-id="ctrl-expression"
-           title="Expression (MIDI CC 11) — dynamics control, independent of velocity layer">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-expression">Expr</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-expression" min="0" max="1" step="0.001" />
-      </div>
-
-      <div class="ouaricon-knob" data-knob-id="ctrl-output-gain">
-        <div class="ouaricon-knob-visual">
-          <svg viewBox="0 0 44 44">
-            <circle class="knob-track" cx="22" cy="22" r="18"/>
-            <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-          </svg>
-        </div>
-        <label class="ouaricon-knob-label" for="ctrl-output-gain">Out Gain</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="ctrl-output-gain" min="0" max="1" step="0.001" />
-      </div>
     </footer>
   </div>
 
