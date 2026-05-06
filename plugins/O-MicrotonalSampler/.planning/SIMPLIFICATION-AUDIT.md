@@ -1,0 +1,298 @@
+# O-MicrotonalSampler Simplification Audit (v1.16.6)
+
+## Summary
+- Files audited: 14 (8 C++ source/header, 2 JS, 1 HTML, 2 CSS skim, plus minor headers)
+- Candidates found: 22 (HIGH: 6, MEDIUM: 9, LOW: 7)
+- Estimated LOC reduction if all applied: ~250–350 LOC
+
+The codebase is in good shape overall — visible evidence of multiple cleanup passes (v1.12.4 native-fn registry extraction, v1.13.0 drop-streaming module extraction, v1.12.3 RR-counter constant hoist). The biggest remaining wins are in the C++ atomic-shared-ptr `#if/#else` boilerplate (11 sites in PluginProcessor.cpp) and a handful of JSON-building / dialog-cleanup duplications that have outlived their context.
+
+---
+
+## Candidates
+
+### [HIGH-01] Collapse 11 atomic-shared-ptr `#if/#else` blocks behind a helper
+- **File:** `Source/PluginProcessor.cpp` (lines 383–388, 855–859, 960–964, 1324–1328, 1433–1437, 1515–1519, 1616–1620, 1648–1652, 1656–1660, plus 511–516 and 514–516 for CC/PC tables)
+- **Risk:** LOW
+- **Type:** duplication / verbose-pattern
+- **Current:** Every `currentSampleMap` / `currentCcMapping` / `currentPcMapping` access is wrapped in:
+  ```cpp
+  #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+      auto x = std::atomic_load (&currentSampleMap);
+  #else
+      auto x = currentSampleMap;
+  #endif
+  ```
+  Both branches actually compile cleanly under JUCE 8 + C++20 — the `else` branch is a non-atomic fallback that the project never exercises. The CC/PC version (lines 510–516) even has identical content in both branches, betraying the dead conditional.
+- **Proposed:** Add two file-local helpers in an anonymous namespace at the top of `PluginProcessor.cpp`:
+  ```cpp
+  template <class T> std::shared_ptr<T> atomicLoad (std::shared_ptr<T>& slot)
+                  { return std::atomic_load (&slot); }
+  template <class T> void atomicStore (std::shared_ptr<T>& slot, std::shared_ptr<T> v)
+                  { std::atomic_store (&slot, std::move (v)); }
+  ```
+  Replace every `#if/#else/#endif` site with one-line calls. Removes ~50 lines and eliminates a branch readers always have to mentally evaluate.
+- **Rationale:** The `__cpp_lib_atomic_shared_ptr` branch is a no-op safety net — both arms produce equivalent compiled code on the toolchains this project ships against. Removing the conditional documents the actual contract (shared_ptr atomics) without changing behaviour.
+- **Test impact:** Render-harness identity test, state save/load round-trip, single-cell replace test — all should pass unchanged.
+
+### [HIGH-02] De-duplicate `loopModeToString` (3 copies, 2 inconsistent)
+- **File:** `Source/PluginProcessor.cpp:1707–1716`, `1833–1842`, `2158–2167`
+- **Risk:** MEDIUM
+- **Type:** duplication
+- **Current:** Three separate definitions:
+  - lambda inside `snapshotSampleMapJson()` returns `"one-shot"`/`"auto"`/`"manual"`
+  - lambda inside `snapshotWaveformPeaks()` returns the same hyphenated forms
+  - namespace-scope `loopModeToString` returns `"one_shot"`/`"auto"`/`"manual"` (underscore!)
+- **Proposed:** Promote one canonical mapper into the existing anonymous namespace, then have callers pick the right serialisation per surface:
+  ```cpp
+  // For XML state (round-trip stable):
+  juce::String loopModeToXmlString (LoopMode m) noexcept;   // one_shot / auto / manual
+  // For JSON UI (legacy hyphenated):
+  juce::String loopModeToJsonString (LoopMode m) noexcept;  // one-shot / auto / manual
+  ```
+  The two lambdas in `snapshotSampleMapJson` / `snapshotWaveformPeaks` collapse to one-line calls.
+- **Rationale:** The hyphen-vs-underscore split is a real behaviour difference (the JS UI uses hyphens, XML uses underscores), so the helpers must stay distinct — but the lambdas can become a single shared symbol per surface. Today, a future fix to either spelling is forced to touch three sites and risks drift.
+- **Test impact:** Verify `sampleMapUpdated` event payload still uses `"one-shot"` (UI relies on this string); verify state save/load round-trip uses `"one_shot"` (XML schema).
+
+### [HIGH-03] Extract repeated `notes/freqs` JSON builder
+- **File:** `Source/PluginEditor.cpp:344–356` (timer callback) and `Source/PluginEditor.cpp:715–725` (`getHeldNotesJson` native fn)
+- **Risk:** LOW
+- **Type:** duplication
+- **Current:** Two essentially identical 12-line blocks build `{"notes":[...],"freqs":[...]}` from a parallel pair of `std::vector<int>`/`std::vector<double>`.
+- **Proposed:** Add a file-local helper:
+  ```cpp
+  static juce::String buildNotesFreqsJson (const std::vector<int>& notes,
+                                           const std::vector<double>& freqs)
+  {
+      juce::String n = "[", f = "[";
+      for (size_t i = 0; i < notes.size(); ++i) {
+          if (i > 0) { n += ","; f += ","; }
+          n += juce::String (notes[i]);
+          f += juce::String (freqs[i], 4);
+      }
+      n += "]"; f += "]";
+      return "{\"notes\":" + n + ",\"freqs\":" + f + "}";
+  }
+  ```
+  Both call sites collapse to one line.
+- **Rationale:** Same data, same shape, two places. Saves ~16 lines and locks the format in one spot.
+- **Test impact:** TuningPanel TrueKeys / Circle / Polar visualisations should keep working; payload format is unchanged.
+
+### [HIGH-04] Extract intervals-to-JSON builder used 4× in native-fn registry
+- **File:** `Source/PluginEditor.cpp:651–668` (getTuningIntervals), `1505–1525` (generateEDO), `1529–1550` (generateHarmonicSeries), `1552–1575` (generateRank2)
+- **Risk:** LOW
+- **Type:** duplication
+- **Current:** Each of these four native-fn handlers contains the same shape:
+  ```cpp
+  juce::String json = "[";
+  for (size_t i = 0; i < intervals.size(); ++i)
+  { if (i > 0) json += ","; json += juce::String (intervals[i], 6); }
+  json += "]";
+  complete (juce::var (json));
+  ```
+- **Proposed:** Anonymous-namespace helper:
+  ```cpp
+  static juce::String centsArrayToJson (const std::vector<double>& v)
+  { /* ... loop with comma separator ... */ }
+  ```
+  Each native fn becomes 2–3 lines of arg parsing + one helper call.
+- **Rationale:** Saves ~30 lines and ensures all 4 endpoints emit byte-identical formatting (the 6-digit precision is currently load-bearing — tested in JS via `parseFloat` so any drift is invisible until cents diverge).
+- **Test impact:** Tuning panel intervals readout, scale-generator preview tabs.
+
+### [HIGH-05] Extract trivial setValueNotifyingHost-bool wrapper
+- **File:** `Source/PluginEditor.cpp:1911–1925` (setKeyswitchEnabled), `2013–2027` (setCcEnabled), `2063–2078` (setPcEnabled)
+- **Risk:** LOW
+- **Type:** duplication
+- **Current:** Three native fns all contain:
+  ```cpp
+  if (args.size() < 1) { complete (juce::var (false)); return; }
+  auto& apvts = processorRef.getAPVTS();
+  if (auto* p = apvts.getParameter ("ks_enabled"))
+  { p->setValueNotifyingHost (static_cast<bool>(args[0]) ? 1.0f : 0.0f);
+    complete (juce::var (true)); return; }
+  complete (juce::var (false));
+  ```
+- **Proposed:** Add a file-local helper accepting an APVTS reference, a parameter id, and the args, returning `bool`. Each native fn body collapses to ~3 lines.
+- **Rationale:** ~30 LOC saved. Centralises the "bool-arg → param" idiom — future params (hypothetical e.g. `lfo_enabled`) get one-line handlers.
+- **Test impact:** KS/CC/PC enable toggles in UI.
+
+### [HIGH-06] Consolidate `<div class="ouaricon-knob">…</div>` blocks via JS-driven render
+- **File:** `Resources/ui/index.html:484–582` (8 nearly-identical 11-line knob blocks)
+- **Risk:** MEDIUM
+- **Type:** duplication
+- **Current:** 8 copies of:
+  ```html
+  <div class="ouaricon-knob" data-knob-id="ctrl-XXX">
+    <div class="ouaricon-knob-visual">
+      <svg viewBox="0 0 44 44">
+        <circle class="knob-track" cx="22" cy="22" r="18"/>
+        <circle class="knob-vine"  cx="22" cy="22" r="18"/>
+      </svg>
+    </div>
+    <label class="ouaricon-knob-label" for="ctrl-XXX">LABEL</label>
+    <span class="ouaricon-knob-value"></span>
+    <input type="range" id="ctrl-XXX" min="0" max="1" step="0.001" />
+  </div>
+  ```
+  Differing only in id + label.
+- **Proposed:** Replace the 8 blocks with a single `<footer id="control-strip"></footer>` plus a JS helper at sampler-app.js boot that loops over `SLIDER_BINDINGS` (which already exists, line 38) and renders each knob via `innerHTML`. The expression knob's tooltip can be carried in the binding entry.
+- **Rationale:** Saves ~80 LOC of HTML, single source of truth (`SLIDER_BINDINGS`) controls both binding and DOM, future knob additions become one-line. The static HTML doesn't help anything since these knobs need JS bindings to function anyway.
+- **Test impact:** Visual smoke test (all 8 knobs render + behave); make sure CSS selectors don't depend on the static HTML order.
+
+### [MEDIUM-01] Drop the dead `__cpp_lib_atomic_shared_ptr >= 202002L` check
+- **File:** `Source/PluginProcessor.cpp:510–516`
+- **Risk:** LOW
+- **Type:** dead-code
+- **Current:**
+  ```cpp
+  #if (defined(__cplusplus) && __cplusplus >= 202002L)
+      auto ccTable = std::atomic_load (&currentCcMapping);
+      auto pcTable = std::atomic_load (&currentPcMapping);
+  #else
+      auto ccTable = std::atomic_load (&currentCcMapping);
+      auto pcTable = std::atomic_load (&currentPcMapping);
+  #endif
+  ```
+  Both arms are identical (look closely — same code, no fallback distinction). The `#if` is purely scaffolding.
+- **Proposed:** Drop the conditional entirely:
+  ```cpp
+  auto ccTable = std::atomic_load (&currentCcMapping);
+  auto pcTable = std::atomic_load (&currentPcMapping);
+  ```
+- **Rationale:** Either this was meant to use the C++20 atomic-ref overload in one branch and got mid-refactored, or it's pure boilerplate. Either way the current code is misleading.
+- **Test impact:** None — compiler emits the same code.
+
+### [MEDIUM-02] Hoist the RR counter index packing into a single helper
+- **File:** `Source/PluginProcessor.cpp:896` (in ReplaceLayer wipe), `915–917` (folder-load apply), `1445–1447` (single-sample load), and `MicrotonalSamplerVoice.cpp:218–220` (selectVariantIndex)
+- **Risk:** LOW
+- **Type:** duplication
+- **Current:** Four sites compute the 4096-entry counter index with the literal `midi * 4 * 8 + layer * 8 + tech` (or variants of it). The `8` is the `kMaxTechniques` constant from SampleMap.h, but it's hard-coded as `8` in three of four sites; only `MicrotonalSamplerVoice::selectVariantIndex` uses a named `kMaxTech = 8` local.
+- **Proposed:** Add a `static constexpr` helper next to `kRrCounterSize`:
+  ```cpp
+  static constexpr int packRrCounterIndex (int midi, int layer, int tech) noexcept
+  { return midi * 4 * 8 + layer * 8 + tech; }
+  ```
+  in `MicrotonalSamplerVoice.h`. All four sites become `juce::jlimit (0, kRrCounterSize - 1, packRrCounterIndex(...))`.
+- **Rationale:** The layout coupling to `kRrCounterSize` is currently expressed as a numeric coincidence in four places. Hoisting fixes the drift risk + makes any future technique-axis growth a one-line change.
+- **Test impact:** Round-robin variant selection across folder load, single-cell load, and ReplaceLayer wipe paths. Render-harness identity test should still pass.
+
+### [MEDIUM-03] Replace 8 indexed `for (size_t i = 0; i < .size(); ++i)` JSON loops with range-for + first-flag
+- **File:** `Source/PluginEditor.cpp:660`, `716`, `734`, `755`, `1149`, `1515`, `1539`, `1564`; `Source/PluginProcessor.cpp:2367`
+- **Risk:** LOW
+- **Type:** verbose-pattern
+- **Current:** Each loop indexes for the comma-skip on element 0. The HIGH-04 helper covers the intervals loops; the others (`getEmbeddedTuningList`, `getEmbeddedTuningCategories`, `getSkippedFiles`, the captureTuningValueTree CSV) all have the same structure.
+- **Proposed:** A small `joinJsonArray` helper or two more dedicated builders. Each remaining loop gets a `bool first = true; for (const auto& x : v) { if (!first) out += ","; first = false; ... }` form, or just one helper that takes a callable for the per-element formatter.
+- **Rationale:** The shape is repeated 9× across these two files. Extraction puts the comma logic in one place.
+- **Test impact:** Embedded-tunings list, embedded-tuning categories, skipped-files toast, intervals CSV in saved state.
+
+### [MEDIUM-04] Hoist 7 dialog-modal cleanup/key-handler scaffolds into a `bindModal` helper
+- **File:** `Resources/ui/js/sampler-app.js:1303`, `1365`, `1416`, `1454`, `1519`, `2215`, `2315`
+- **Risk:** MEDIUM
+- **Type:** duplication
+- **Current:** Seven dialogs (`folder-load-options`, `embed-size-confirm`, `per-cell-merge`, `confirm`, `diagnostic`, `missing-folder`, `rr-confirm`) each define a near-identical `cleanup`/`onKey`/`addEventListener`/`removeEventListener` lifecycle around their Yes/No buttons.
+- **Proposed:** Extract a `bindModal({ dialog, buttons: { yes, no, cancel? }, onKey, focus })` helper that returns a Promise resolving to the chosen action. Each dialog becomes 10–15 lines of payload-specific DOM munging + one `bindModal` call.
+- **Rationale:** ~80–100 LOC saved, and the "forgot to remove a listener" bug class becomes structurally impossible. Defaults (Esc=cancel, Enter=confirm) live in one place.
+- **Test impact:** All seven modals — manual smoke test required (folder load, embed confirm, per-cell merge, clear-samples confirm, diagnostic dialog, missing-folder, ambiguous-RR confirm).
+
+### [MEDIUM-05] Extract `Number.isFinite(x) ? x : default` helper
+- **File:** `Resources/ui/js/sampler-app.js:1717`, `1718`, `1721`, `1722`, `1974`, `1975`, `2422`–`2426`, `2671`, `2676`–`2685`
+- **Risk:** LOW
+- **Type:** verbose-pattern
+- **Current:** ~15 sites use `Number.isFinite(x) ? x : default` to coerce a possibly-null/string field from a parsed JSON payload.
+- **Proposed:** One module-level helper:
+  ```js
+  const num = (v, fallback = 0) => Number.isFinite(v) ? v : fallback;
+  ```
+  Usage shrinks to e.g. `editorState.loopStart = num(snap.loopStart);`.
+- **Rationale:** Saves ~25 LOC; readability win — the intent is "guarded number with default" and the helper says exactly that.
+- **Test impact:** Anywhere snapshots are deserialised — loop editor, technique state, trigger state, sample-map snapshot.
+
+### [MEDIUM-06] DRY the `if (!window.__JUCE__) return; try { ... } catch (e) { console.warn }` native-fn invocation pattern
+- **File:** `Resources/ui/js/sampler-app.js` — 25+ sites (lines 446, 885, 1079, 1558, 1702, 2119, 2134, 2336, 2371, 2412, 2447, 2602, 2609, 2662, 2695, 2815, 2826, 2840, 2868, 2893, 2904 + more)
+- **Risk:** LOW
+- **Type:** verbose-pattern
+- **Current:** Almost every async-button handler has the same prologue/epilogue:
+  ```js
+  if (!window.__JUCE__) return;
+  try {
+    const fn = Juce.getNativeFunction('xxxx');
+    await fn(...);
+  } catch (err) { console.warn('[sampler-app] xxxx failed', err); }
+  ```
+- **Proposed:** A thin wrapper:
+  ```js
+  async function invokeNative(name, ...args) {
+    if (!window.__JUCE__) return undefined;
+    try { return await Juce.getNativeFunction(name)(...args); }
+    catch (err) { console.warn(`[sampler-app] ${name} failed`, err); return undefined; }
+  }
+  ```
+  Most call sites collapse to `await invokeNative('setKeyswitchEnabled', !!ksToggle.checked);`.
+- **Rationale:** Cuts ~80 LOC and standardises error logging tag. Some current sites use `console.error`, some use `console.warn`, some are silent — tightening to one consistent path also fixes that drift.
+- **Test impact:** All native-fn-driven UI actions; test that the silent error class for some rarely-fired paths still resolves (compare with current behaviour).
+
+### [MEDIUM-07] Collapse identical CC/PC mapping setter scaffolds in `setCcMappingSlot`/`setPcMappingSlot`
+- **File:** `Source/PluginProcessor.cpp:2012–2056`
+- **Risk:** LOW
+- **Type:** duplication
+- **Current:** `setCcMappingSlot` (45 lines) and `setPcMappingSlot` (19 lines) follow the same template: bounds-check slot, atomic_load → make_shared (or default), mutate, atomic_store, fire callback. The CC version has a few extra fields (rangeLow/High swap), but the COW boilerplate is identical.
+- **Proposed:** Extract a generic `template <class T, class Mut> void mutateMappingSlot(...)` that takes the slot, the shared_ptr slot pointer, the default factory, and a mutator lambda. Each setter becomes ~6 lines.
+- **Rationale:** ~30 LOC saved; a future "add a third mapping table" (notes-to-X say) becomes a 6-line setter instead of 30.
+- **Test impact:** CC/PC mapping slot edits via UI; trigger-state-updated callback should still fire.
+
+### [MEDIUM-08] `kickNextReplayOp` — extract repeated "first-missing-folder publish" block
+- **File:** `Source/PluginProcessor.cpp:1112–1124`, `1127–1145`
+- **Risk:** LOW
+- **Type:** duplication
+- **Current:** Two near-identical blocks check `pendingMissingFolderPath.isEmpty() && pendingMissingFolderName.isEmpty()` then populate the three pending-missing fields and fire the callback. One for drag-drop (kind="drag-drop", empty path) and one for filesystem (kind="filesystem", real path).
+- **Proposed:** Extract `publishMissingFolderIfNew(kind, path, displayName)` that does the empty-check + assignment + callback fire. Each call site becomes one line.
+- **Rationale:** Two paths, one logic. Saves ~15 LOC and makes "first-missing-only" semantics explicit in one place.
+- **Test impact:** Project reopen with missing/relocated folder; drag-drop temp-dir-gone path.
+
+### [MEDIUM-09] Drop the `MicrotonalSamplerSound` empty constructor
+- **File:** `Source/MicrotonalSamplerSound.h:18`
+- **Risk:** LOW
+- **Type:** stale-comment / verbose-pattern
+- **Current:**
+  ```cpp
+  MicrotonalSamplerSound() {}
+  ```
+- **Proposed:** Remove — the implicitly-declared default constructor is fine (no user code depends on the explicit definition).
+- **Rationale:** Trivial readability nit. The class becomes pure interface overrides.
+- **Test impact:** None.
+
+---
+
+### [LOW-01] `Source/PluginProcessor.cpp:212–213` — atomic store via `for` loop
+The constructor loop `for (auto& c : rrCounters) c.store ((uint8_t)0xFFu, ...)` is repeated identically in `clearSampleMap` (line 1681) and inline in `applyFolderLoad` (line 874). Extract `resetAllRrCounters(rrCounters)` helper.
+
+### [LOW-02] `Source/PluginProcessor.cpp:1707–1716` and `1833–1842` — duplicate `loopModeToString` lambdas
+Already covered by HIGH-02; mentioning here just so the LOW count includes it as already-counted.
+
+### [LOW-03] `Resources/ui/js/sampler-app.js:1041–1051` — `lastWidthBucket` could be a boolean
+The `bucket = w < NARROW_BREAKPOINT_PX ? 'narrow' : 'wide'` could be replaced with a plain boolean (`isNarrow`). The string serves no purpose.
+
+### [LOW-04] `Source/PluginProcessor.h:38–43` — comment lists "Append" before "MergeRR" but enum order is `Append=2, MergeRR=3`
+Cosmetic — alphabetise the doc list to match enum order or use enum order in the doc.
+
+### [LOW-05] `Source/PluginEditor.cpp:33–42` — `makeVector` lambda is module-scoped but only referenced inside `getResource`
+Move to file-local helper inside the `getResource` function or to the anonymous namespace it already lives in. Currently it sits awkwardly above the constructor.
+
+### [LOW-06] `Resources/ui/js/sampler-app.js:825` — comment header about "250 ms double-click discrimination" duplicates the inline note at line 843
+Drop one or move both into a single comment block above `bindGridInteractions`.
+
+### [LOW-07] `Source/MicrotonalSamplerVoice.cpp:432` — `startTechnique = 0;` followed by an `if`-update to non-zero
+Replace with `startTechnique = (pendingTechniqueSource != nullptr) ? jlimit(...) : 0;` ternary for symmetry with surrounding code (or make it a helper).
+
+---
+
+## Skipped (false-positive checks)
+
+- **`MicrotonalSamplerVoice` round-robin selection logic** (`selectVariantIndex`, dual-cell crossfade): touched across v1.8–v1.11.3 with multi-bug fixes; on the DO-NOT-TOUCH list; no obvious dead code, only cleanups would risk regression.
+- **WKWebView drag-drop content-streaming functions** (`dropSession*` in shared module + `bindWebViewFileDrop`): explicitly load-bearing per CLAUDE.md memory; left alone.
+- **Resource provider URL handling** (`getResource` direct path comparisons): correct as-is; do NOT switch to URL parsing.
+- **`Juce` namespace vs `window.__JUCE__`**: the `tuningPanelInstance = new TuningPanel(container, Juce)` and `bindWebViewFileDrop({ juce: Juce, ... })` calls are deliberately the ES-module namespace — left alone.
+- **Microtonal note-expression top-level fields** in PluginProcessor / Dorico XML emission: regression-sensitive; not flagged.
+- **WebView2 `#if JUCE_WINDOWS` guards / `withUserDataFolder`**: Windows DAW-host-specific; not flagged.
+- **`jlimit(0, kMaxTechniques - 1, technique)` clamp at the top of every overrideLoopPoints / loadSingleSample / snapshotWaveformPeaks** (lines 1256, 1513, 1825): could be hoisted to a helper, but the redundancy is defensive and message-thread cheap; the consistency of the pattern at every entry-point is a feature, not a bug.
+- **The duplicated "tail-buf zero-fill on early-exit" loop in `MicrotonalSamplerVoice::renderTailRamp`** (lines 283–287, 301–305): ~5 LOC; touching renderTailRamp risks DSP regressions that are hard to test for.

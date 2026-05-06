@@ -20,6 +20,27 @@
 #include <limits>
 #include <utility>
 
+namespace
+{
+    // v1.16.7: thin wrappers around std::atomic_load/atomic_store on shared_ptr.
+    // The atomic free-function overloads are deprecated in C++20 but still
+    // present, and are how this processor publishes COW updates to currentSampleMap
+    // / currentCcMapping / currentPcMapping. Hoisting the calls behind these
+    // templates removes the per-site #if defined(__cpp_lib_atomic_shared_ptr)
+    // boilerplate without changing semantics.
+    template <class T>
+    inline std::shared_ptr<T> atomicLoad (const std::shared_ptr<T>& slot) noexcept
+    {
+        return std::atomic_load (&slot);
+    }
+
+    template <class T>
+    inline void atomicStore (std::shared_ptr<T>& slot, std::shared_ptr<T> value) noexcept
+    {
+        std::atomic_store (&slot, std::move (value));
+    }
+}
+
 //==============================================================================
 // Parameter Layout (frozen 7-parameter spec — PLAN.md §6 / RESEARCH.md §5)
 juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProcessor::createParameterLayout()
@@ -374,17 +395,10 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
         // Phase 3.1: bump version (test fixture path).
         map->version = 1;
 
-        // Atomic-store into the processor's slot. std::atomic_store on
-        // shared_ptr is deprecated in C++20; both the deprecated free function
-        // and a plain assignment are acceptable here because the processor
-        // ctor only ever assigns once at startup before any voice runs.
-        // Voices snapshot via copy at startNote; that copy is the lock-free
-        // refcount inc.
-       #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-        std::atomic_store (&currentSampleMap, map);
-       #else
-        currentSampleMap = map;
-       #endif
+        // Atomic-store into the processor's slot. The processor ctor only ever
+        // assigns once at startup before any voice runs; voices snapshot via
+        // copy at startNote, which is the lock-free refcount inc.
+        atomicStore (currentSampleMap, map);
     }
    #endif
 }
@@ -505,15 +519,10 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     bool techniqueChangedThisBlock = false;
 
     // Snapshot the mapping tables once per block (COW shared_ptr; lock-free
-    // load — std::atomic_load on shared_ptr is RT-safe per the v1.14.0
-    // sample-map pattern).
-   #if (defined(__cplusplus) && __cplusplus >= 202002L)
-    auto ccTable = std::atomic_load (&currentCcMapping);
-    auto pcTable = std::atomic_load (&currentPcMapping);
-   #else
-    auto ccTable = std::atomic_load (&currentCcMapping);
-    auto pcTable = std::atomic_load (&currentPcMapping);
-   #endif
+    // load — atomicLoad on shared_ptr is RT-safe per the v1.14.0 sample-map
+    // pattern).
+    auto ccTable = atomicLoad (currentCcMapping);
+    auto pcTable = atomicLoad (currentPcMapping);
 
     int ksTechCandidate = -1;
     int ccTechCandidate = -1;
@@ -852,11 +861,7 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
     if (newSlotsMap == nullptr)
         return;
 
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    auto prev = std::atomic_load (&currentSampleMap);
-   #else
-    auto prev = currentSampleMap;
-   #endif
+    auto prev = atomicLoad (currentSampleMap);
 
     auto merged = std::make_shared<SampleMap>();
 
@@ -957,11 +962,7 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
     merged->numVelocityLayers = juce::jlimit (1, 4, maxLayer + 1);
     merged->version           = (prev != nullptr ? prev->version : 0) + 1;
 
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    std::atomic_store (&currentSampleMap, merged);
-   #else
-    currentSampleMap = merged;
-   #endif
+    atomicStore (currentSampleMap, merged);
 
     lastSkippedFiles = skipped;
 
@@ -1321,11 +1322,7 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
                 return;
             }
 
-           #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-            auto currentMap = std::atomic_load (&self->currentSampleMap);
-           #else
-            auto currentMap = self->currentSampleMap;
-           #endif
+            auto currentMap = atomicLoad (self->currentSampleMap);
 
             // v1.12.3 (HG-04): cap is owned by MicrotonalSamplerVoice.
             constexpr int kMaxVariantsPerCell = MicrotonalSamplerVoice::kMaxVariantsPerCell;
@@ -1430,11 +1427,7 @@ void OMicrotonalSamplerAudioProcessor::loadSingleSample (int midiPitch,
 
             next->version = (currentMap != nullptr ? currentMap->version : 0) + 1;
 
-           #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-            std::atomic_store (&self->currentSampleMap, next);
-           #else
-            self->currentSampleMap = next;
-           #endif
+            atomicStore (self->currentSampleMap, next);
 
             // v1.8.0: per-cell replace resets the RR counter — the old cell
             // may have had multiple variants; the new cell has exactly one.
@@ -1512,11 +1505,7 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
 {
     technique = juce::jlimit (0, kMaxTechniques - 1, technique);
 
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    auto current = std::atomic_load (&currentSampleMap);
-   #else
-    auto current = currentSampleMap;
-   #endif
+    auto current = atomicLoad (currentSampleMap);
 
     if (current == nullptr)
     {
@@ -1613,11 +1602,7 @@ void OMicrotonalSamplerAudioProcessor::overrideLoopPoints (int midiPitch,
 
     next->version = current->version + 1;
 
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    std::atomic_store (&currentSampleMap, next);
-   #else
-    currentSampleMap = next;
-   #endif
+    atomicStore (currentSampleMap, next);
 
     if (sampleMapChangedCallback)
         sampleMapChangedCallback();
@@ -1645,19 +1630,11 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
 {
     auto fresh = std::make_shared<SampleMap>();
 
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    auto prev = std::atomic_load (&currentSampleMap);
-   #else
-    auto prev = currentSampleMap;
-   #endif
+    auto prev = atomicLoad (currentSampleMap);
 
     fresh->version = (prev != nullptr ? prev->version : 0) + 1;
 
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    std::atomic_store (&currentSampleMap, fresh);
-   #else
-    currentSampleMap = fresh;
-   #endif
+    atomicStore (currentSampleMap, fresh);
 
     {
         // v1.12.1 (HG-08): synchronise against off-thread getStateInformation.
@@ -1698,11 +1675,7 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
 // from a worker thread.
 juce::String OMicrotonalSamplerAudioProcessor::snapshotSampleMapJson() const
 {
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    auto map = std::atomic_load (&currentSampleMap);
-   #else
-    auto map = currentSampleMap;
-   #endif
+    auto map = atomicLoad (currentSampleMap);
 
     auto loopModeToString = [] (LoopMode m) -> const char*
     {
@@ -1824,11 +1797,7 @@ juce::String OMicrotonalSamplerAudioProcessor::snapshotWaveformPeaks (int midiPi
 {
     technique = juce::jlimit (0, kMaxTechniques - 1, technique);
 
-   #if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    auto map = std::atomic_load (&currentSampleMap);
-   #else
-    auto map = currentSampleMap;
-   #endif
+    auto map = atomicLoad (currentSampleMap);
 
     auto loopModeToString = [] (LoopMode m) -> const char*
     {
