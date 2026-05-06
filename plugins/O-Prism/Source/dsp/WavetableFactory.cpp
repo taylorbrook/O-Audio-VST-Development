@@ -42,6 +42,31 @@ void WavetableFactory::addPartial (float* buffer, int size, double freqRatio, do
         buffer[i] += static_cast<float> (amplitude * std::sin (freqRatio * kTwoPi * i / size));
 }
 
+namespace
+{
+    // Build a WavetableData by zero-filling each frame, calling the supplied
+    // per-frame body, normalizing, and finally generating mipmaps. Used by
+    // every generator whose per-frame body accumulates into `buf` (via
+    // addHarmonic/addPartial or a custom += loop). Generators that write
+    // every sample with `=` (FM, Wavefold) or have pre-loop setup state
+    // (Bitcrush) keep their bespoke shape.
+    template <typename Fn>
+    std::unique_ptr<WavetableData> buildTable (int numFrames, Fn&& fillFrame)
+    {
+        auto table = std::make_unique<WavetableData>();
+        table->allocate (numFrames);
+        for (int f = 0; f < numFrames; ++f)
+        {
+            float* buf = table->getFrameData (0, f);
+            std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+            fillFrame (f, buf);
+            WavetableFactory::normalizeFrame (buf, WavetableData::kTableSize);
+        }
+        WavetableGenerator::generateMipmaps (*table);
+        return table;
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Table Info (metadata only)
 // ═══════════════════════════════════════════════════════════════════
@@ -144,26 +169,16 @@ std::vector<FactoryEntry> WavetableFactory::createFactoryLibrary()
 
 std::unique_ptr<WavetableData> WavetableFactory::generatePWMSweep (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = WavetableData::kTableSize / 2;
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        double dutyCycle = 0.50 - static_cast<double> (f) / (numFrames - 1) * 0.45;
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
-
+        const int maxH = WavetableData::kTableSize / 2;
+        const double dutyCycle = 0.50 - static_cast<double> (f) / (numFrames - 1) * 0.45;
         for (int n = 1; n <= maxH; ++n)
         {
             double amp = (2.0 / (n * kPi)) * std::sin (n * kPi * dutyCycle);
             addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -173,19 +188,13 @@ std::unique_ptr<WavetableData> WavetableFactory::generatePWMSweep (int numFrames
 
 std::unique_ptr<WavetableData> WavetableFactory::generateSupersaw (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = WavetableData::kTableSize / 2;
-
     // JP-8000-style offsets (normalized to ±1)
-    const double offsets[7] = { -1.0, -0.58, -0.29, 0.0, 0.29, 0.58, 1.0 };
+    static constexpr double offsets[7] = { -1.0, -0.58, -0.29, 0.0, 0.29, 0.58, 1.0 };
 
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
-
-        double maxDetuneCents = static_cast<double> (f) / (numFrames - 1) * 50.0;
+        const int maxH = WavetableData::kTableSize / 2;
+        const double maxDetuneCents = static_cast<double> (f) / (numFrames - 1) * 50.0;
 
         for (int v = 0; v < 7; ++v)
         {
@@ -201,11 +210,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateSupersaw (int numFrames
                     buf[i] += static_cast<float> (amp * std::sin (phase * i / WavetableData::kTableSize));
             }
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -215,16 +220,10 @@ std::unique_ptr<WavetableData> WavetableFactory::generateSupersaw (int numFrames
 
 std::unique_ptr<WavetableData> WavetableFactory::generateSyncSweep (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
-
-        double slaveRatio = 1.0 + 3.0 * static_cast<double> (f) / (numFrames - 1);
-        int maxH = WavetableData::kTableSize / 2;
+        const double slaveRatio = 1.0 + 3.0 * static_cast<double> (f) / (numFrames - 1);
+        const int maxH = WavetableData::kTableSize / 2;
 
         // Hard sync spectrum: harmonics of the master (fundamental), modulated
         // by the slave frequency relationship
@@ -240,11 +239,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateSyncSweep (int numFrame
 
             addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -283,13 +278,11 @@ std::unique_ptr<WavetableData> WavetableFactory::generateFM (int numFrames, doub
 
 std::unique_ptr<WavetableData> WavetableFactory::generateWavefold (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-
-    for (int f = 0; f < numFrames; ++f)
+    // Body uses `=` assignment (not `+=`), so the prefill from buildTable is a
+    // no-op — every sample gets overwritten before normalize.
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        double gain = 1.0 + 8.0 * static_cast<double> (f) / (numFrames - 1);
-        float* buf = table->getFrameData (0, f);
+        const double gain = 1.0 + 8.0 * static_cast<double> (f) / (numFrames - 1);
 
         for (int i = 0; i < WavetableData::kTableSize; ++i)
         {
@@ -297,11 +290,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateWavefold (int numFrames
             double input = std::sin (phase);
             buf[i] = static_cast<float> (std::sin (gain * input));
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -396,13 +385,10 @@ static std::unique_ptr<WavetableData> generateFormantTable (int numFrames,
     const std::vector<std::pair<int, int>>& vowelPairs,
     double refFreq = 261.63)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = WavetableData::kTableSize / 2;
-
-    // Build a mapping: for each frame, interpolate between two vowels
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames, &vowelPairs, refFreq] (int f, float* buf)
     {
+        const int maxH = WavetableData::kTableSize / 2;
+
         // Determine which vowel pair and blend for this frame
         double frameNorm = static_cast<double> (f) / (numFrames - 1);
         int segIndex = static_cast<int> (frameNorm * vowelPairs.size());
@@ -416,20 +402,13 @@ static std::unique_ptr<WavetableData> generateFormantTable (int numFrames,
         auto vowel = FormantData::lerpVowel (FormantData::vowels[fromIdx],
                                               FormantData::vowels[toIdx], segT);
 
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
-
         for (int n = 1; n <= maxH; ++n)
         {
             double harmonicFreq = n * refFreq;
             double amp = FormantData::computeFormantGain (harmonicFreq, vowel);
             WavetableFactory::addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        WavetableFactory::normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 std::unique_ptr<WavetableData> WavetableFactory::generateVowelMorph (int numFrames)
@@ -456,19 +435,13 @@ std::unique_ptr<WavetableData> WavetableFactory::generateVocalLead (int numFrame
 std::unique_ptr<WavetableData> WavetableFactory::generateFormantFilter (int numFrames)
 {
     // Resonant peak sweep: single formant moving from 200 to 4000 Hz
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = WavetableData::kTableSize / 2;
-    double refFreq = 261.63;
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        double t = static_cast<double> (f) / (numFrames - 1);
-        double centerFreq = 200.0 * std::pow (4000.0 / 200.0, t); // 200 → 4000 Hz
-        double bandwidth = centerFreq * 0.15; // Q ≈ 6.67
-
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const int maxH = WavetableData::kTableSize / 2;
+        const double refFreq = 261.63;
+        const double t = static_cast<double> (f) / (numFrames - 1);
+        const double centerFreq = 200.0 * std::pow (4000.0 / 200.0, t); // 200 → 4000 Hz
+        const double bandwidth = centerFreq * 0.15; // Q ≈ 6.67
 
         for (int n = 1; n <= maxH; ++n)
         {
@@ -477,11 +450,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateFormantFilter (int numF
             double amp = std::exp (-0.5 * dist * dist) / n; // Resonance × saw rolloff
             addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -490,24 +459,13 @@ std::unique_ptr<WavetableData> WavetableFactory::generateFormantFilter (int numF
 
 std::unique_ptr<WavetableData> WavetableFactory::generateHarmonicSeries (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
         // Number of harmonics increases: 1 to 32
-        int numH = 1 + static_cast<int> (31.0 * f / (numFrames - 1));
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
-
+        const int numH = 1 + static_cast<int> (31.0 * f / (numFrames - 1));
         for (int n = 1; n <= numH; ++n)
             addHarmonic (buf, WavetableData::kTableSize, n, 1.0 / n);
-
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -516,16 +474,11 @@ std::unique_ptr<WavetableData> WavetableFactory::generateHarmonicSeries (int num
 
 std::unique_ptr<WavetableData> WavetableFactory::generateSpectralTilt (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = 64; // Use 64 harmonics for clear tilt effect
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
+        const int maxH = 64; // Use 64 harmonics for clear tilt effect
         // Tilt from 0 dB/oct (flat) to -24 dB/oct (very steep)
-        double tiltDbPerOct = -24.0 * static_cast<double> (f) / (numFrames - 1);
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const double tiltDbPerOct = -24.0 * static_cast<double> (f) / (numFrames - 1);
 
         for (int n = 1; n <= maxH; ++n)
         {
@@ -534,11 +487,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateSpectralTilt (int numFr
             double amp = std::pow (10.0, dbAttenuation / 20.0);
             addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -547,25 +496,14 @@ std::unique_ptr<WavetableData> WavetableFactory::generateSpectralTilt (int numFr
 
 std::unique_ptr<WavetableData> WavetableFactory::generateOddHarmonics (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
         // Number of odd harmonics: 1 to 32
-        int numOddH = 1 + static_cast<int> (31.0 * f / (numFrames - 1));
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
-
+        const int numOddH = 1 + static_cast<int> (31.0 * f / (numFrames - 1));
         int count = 0;
         for (int n = 1; count < numOddH; n += 2, ++count)
             addHarmonic (buf, WavetableData::kTableSize, n, 1.0 / n);
-
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -574,15 +512,10 @@ std::unique_ptr<WavetableData> WavetableFactory::generateOddHarmonics (int numFr
 
 std::unique_ptr<WavetableData> WavetableFactory::generateHarmonicStretch (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int numPartials = 32;
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        double stretchFactor = 1.0 + 1.5 * static_cast<double> (f) / (numFrames - 1);
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const int numPartials = 32;
+        const double stretchFactor = 1.0 + 1.5 * static_cast<double> (f) / (numFrames - 1);
 
         for (int n = 1; n <= numPartials; ++n)
         {
@@ -591,11 +524,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateHarmonicStretch (int nu
             double amp = 1.0 / n;
             addPartial (buf, WavetableData::kTableSize, actualFreq, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -604,16 +533,11 @@ std::unique_ptr<WavetableData> WavetableFactory::generateHarmonicStretch (int nu
 
 std::unique_ptr<WavetableData> WavetableFactory::generateCombSweep (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = 64;
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
+        const int maxH = 64;
         // Comb spacing from 2 to 16
-        double spacing = 2.0 + 14.0 * static_cast<double> (f) / (numFrames - 1);
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const double spacing = 2.0 + 14.0 * static_cast<double> (f) / (numFrames - 1);
 
         for (int n = 1; n <= maxH; ++n)
         {
@@ -623,11 +547,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateCombSweep (int numFrame
             double amp = combGain / n;
             addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -638,16 +558,11 @@ std::unique_ptr<WavetableData> WavetableFactory::generateCombSweep (int numFrame
 
 std::unique_ptr<WavetableData> WavetableFactory::generatePrismSpectrum (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = 64;
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        double center = 1.0 + 63.0 * static_cast<double> (f) / (numFrames - 1);
-        double width = 4.0 + 12.0 * static_cast<double> (f) / (numFrames - 1);
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const int maxH = 64;
+        const double center = 1.0 + 63.0 * static_cast<double> (f) / (numFrames - 1);
+        const double width = 4.0 + 12.0 * static_cast<double> (f) / (numFrames - 1);
 
         // Always include fundamental for pitch stability
         addHarmonic (buf, WavetableData::kTableSize, 1, 0.5);
@@ -658,11 +573,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generatePrismSpectrum (int numF
             double amp = std::exp (-0.5 * dist * dist) / std::sqrt (static_cast<double> (n));
             addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -672,24 +583,22 @@ std::unique_ptr<WavetableData> WavetableFactory::generatePrismSpectrum (int numF
 
 std::unique_ptr<WavetableData> WavetableFactory::generateBreath (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = WavetableData::kTableSize / 2;
-    std::mt19937 rng (42); // Deterministic seed
+    // rng + phaseDist live in the enclosing scope so the per-frame lambda can
+    // capture them by reference — the draw sequence across frames must remain
+    // deterministic (seeded at 42) for render-harness identity.
+    std::mt19937 rng (42);
     std::uniform_real_distribution<double> phaseDist (0.0, kTwoPi);
 
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames, &rng, &phaseDist] (int f, float* buf)
     {
-        double t = static_cast<double> (f) / (numFrames - 1);
+        const int maxH = WavetableData::kTableSize / 2;
+        const double t = static_cast<double> (f) / (numFrames - 1);
         // Morph from tonal (saw with formant) to breathy (noise with formant)
-        double noiseAmount = t; // 0 = tonal, 1 = noisy
-        double refFreq = 261.63;
+        const double noiseAmount = t; // 0 = tonal, 1 = noisy
+        const double refFreq = 261.63;
 
         // Use /a/ vowel for breath character
-        auto& vowel = FormantData::vowels[0];
-
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const auto& vowel = FormantData::vowels[0];
 
         for (int n = 1; n <= maxH; ++n)
         {
@@ -703,11 +612,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateBreath (int numFrames)
             for (int i = 0; i < WavetableData::kTableSize; ++i)
                 buf[i] += static_cast<float> (amp * std::sin (n * kTwoPi * i / WavetableData::kTableSize + phase));
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -717,29 +622,20 @@ std::unique_ptr<WavetableData> WavetableFactory::generateBreath (int numFrames)
 
 std::unique_ptr<WavetableData> WavetableFactory::generatePluckedString (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = 128;
-
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const int maxH = 128;
 
         // Frame 0: bright (all harmonics), last frame: dark (steep rolloff)
-        double rolloff = 0.3 + 2.7 * static_cast<double> (f) / (numFrames - 1);
         // rolloff goes from 0.3 (nearly flat) to 3.0 (very steep 1/n³)
+        const double rolloff = 0.3 + 2.7 * static_cast<double> (f) / (numFrames - 1);
 
         for (int n = 1; n <= maxH; ++n)
         {
             double amp = 1.0 / std::pow (static_cast<double> (n), rolloff);
             addHarmonic (buf, WavetableData::kTableSize, n, amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -784,14 +680,11 @@ std::unique_ptr<WavetableData> WavetableFactory::generateChurchBell (int numFram
 
 std::unique_ptr<WavetableData> WavetableFactory::generateOrganSweep (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-
     // Hammond drawbar harmonics: 16', 5⅓', 8', 4', 2⅔', 2', 1⅗', 1⅓', 1'
-    const int drawbarHarmonics[9] = { 1, 3, 2, 4, 6, 8, 10, 12, 16 };
+    static constexpr int drawbarHarmonics[9] = { 1, 3, 2, 4, 6, 8, 10, 12, 16 };
 
     // Classic registrations (drawbar values 0-8, normalized to 0-1)
-    const float registrations[][9] = {
+    static constexpr float registrations[][9] = {
         { 0, 0, 8, 0, 0, 0, 0, 0, 0 }, // Pure 8' flute
         { 0, 0, 8, 4, 0, 0, 0, 0, 0 }, // + 4th harmonic
         { 0, 0, 8, 8, 0, 0, 0, 0, 0 }, // Two footages
@@ -806,11 +699,8 @@ std::unique_ptr<WavetableData> WavetableFactory::generateOrganSweep (int numFram
     };
     constexpr int numRegs = 11;
 
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
-
         // Interpolate between registrations
         double pos = static_cast<double> (f) / (numFrames - 1) * (numRegs - 1);
         int regA = static_cast<int> (pos);
@@ -824,11 +714,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateOrganSweep (int numFram
             if (amp > 0.001)
                 addHarmonic (buf, WavetableData::kTableSize, drawbarHarmonics[d], amp);
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -838,22 +724,19 @@ std::unique_ptr<WavetableData> WavetableFactory::generateOrganSweep (int numFram
 
 std::unique_ptr<WavetableData> WavetableFactory::generateWind (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = 256;
+    // rng + phaseDist captured by reference so the cross-frame draw sequence
+    // remains deterministic (seeded at 99) for render-harness identity.
     std::mt19937 rng (99);
     std::uniform_real_distribution<double> phaseDist (0.0, kTwoPi);
 
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames, &rng, &phaseDist] (int f, float* buf)
     {
-        double t = static_cast<double> (f) / (numFrames - 1);
+        const int maxH = 256;
+        const double t = static_cast<double> (f) / (numFrames - 1);
         // Resonant frequency sweeps 400 → 3000 Hz
-        double centerFreq = 400.0 * std::pow (3000.0 / 400.0, t);
-        double bandwidth = centerFreq * 0.4;
-        double refFreq = 261.63;
-
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const double centerFreq = 400.0 * std::pow (3000.0 / 400.0, t);
+        const double bandwidth = centerFreq * 0.4;
+        const double refFreq = 261.63;
 
         for (int n = 1; n <= maxH; ++n)
         {
@@ -866,11 +749,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateWind (int numFrames)
             for (int i = 0; i < WavetableData::kTableSize; ++i)
                 buf[i] += static_cast<float> (amp * std::sin (n * kTwoPi * i / WavetableData::kTableSize + phase));
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -880,17 +759,15 @@ std::unique_ptr<WavetableData> WavetableFactory::generateWind (int numFrames)
 
 std::unique_ptr<WavetableData> WavetableFactory::generateFilteredNoise (int numFrames)
 {
-    auto table = std::make_unique<WavetableData>();
-    table->allocate (numFrames);
-    int maxH = 256;
+    // rng + phaseDist captured by reference so the cross-frame draw sequence
+    // remains deterministic (seeded at 77) for render-harness identity.
     std::mt19937 rng (77);
     std::uniform_real_distribution<double> phaseDist (0.0, kTwoPi);
 
-    for (int f = 0; f < numFrames; ++f)
+    return buildTable (numFrames, [numFrames, &rng, &phaseDist] (int f, float* buf)
     {
-        double t = static_cast<double> (f) / (numFrames - 1);
-        float* buf = table->getFrameData (0, f);
-        std::fill (buf, buf + WavetableData::kTableSize, 0.0f);
+        const int maxH = 256;
+        const double t = static_cast<double> (f) / (numFrames - 1);
 
         // Frame 0: all harmonics with random phase (noise-like)
         // Last frame: mostly fundamental + a few harmonics (tonal)
@@ -909,9 +786,5 @@ std::unique_ptr<WavetableData> WavetableFactory::generateFilteredNoise (int numF
             for (int i = 0; i < WavetableData::kTableSize; ++i)
                 buf[i] += static_cast<float> (amp * std::sin (n * kTwoPi * i / WavetableData::kTableSize + phase));
         }
-        normalizeFrame (buf, WavetableData::kTableSize);
-    }
-
-    WavetableGenerator::generateMipmaps (*table);
-    return table;
+    });
 }
