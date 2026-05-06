@@ -11,7 +11,7 @@ The codebase is in good shape overall — `FactoryPresets.cpp` is already well-f
 
 - **Phase 1 (applied v1.17.1, commit c646d0f):** HIGH-01, HIGH-02, HIGH-03 — dead-WebView-files purge + `syncTuningPresetToCustom` helper + `juce::JSON::toString` name escaping. All Risk:LOW + verified by build + auval + visual smoke of the tuning tab.
 - **Phase 2 (applied v1.17.2, commit 1c5f5d0):** HIGH-04 (knob HTML scaffold consolidation), HIGH-05 (effect-block param-cache + `runEffect` helper), HIGH-06 (WavetableFactory `buildTable` extraction across 17 of 20 generators — Bitcrush/FM/ChurchBell kept as-is per audit caveat), HIGH-07 (LFO toggle-relay loop consolidation via 3 file-static helpers). Verified by clean release build, AU validation PASSED, fresh AU cache install.
-- **Phase 3 (planned via `/simplify-phase3`):** MEDIUM-01..07 + LOW-01..05.
+- **Phase 3 (applied v1.17.3, commit a90a5bf):** MEDIUM-01, MEDIUM-02, MEDIUM-07, LOW-01, LOW-02 (covers LOW-05). MEDIUM-03 was already resolved as a side effect of HIGH-05 in Phase 2; MEDIUM-04 subsumed by MEDIUM-01; MEDIUM-05, MEDIUM-06, LOW-03 are explicit "keep" no-ops; LOW-04 skipped (audit underestimated `PrismSound` forward-declaration coupling — see Phase 3 Skipped).
 
 ---
 
@@ -25,6 +25,59 @@ Commit: `1c5f5d0 refactor(O-Prism): v1.17.2 — Phase 2 simplification (HIGH-04/
 | HIGH-05 | 25 FX param atomics cached as `OPrismAudioProcessor` members. `runEffect()` template extracted. Per-FX `mix > 0.001f` short-circuit preserved in each configure lambda (load-bearing). |
 | HIGH-06 | 17 generators (16 public + `generateFormantTable` static helper) collapsed to per-frame lambdas via `buildTable()`. `generateBitcrush`, `generateFM`, `generateChurchBell` kept in current shape per audit caveat. `rng` + `phaseDist` captured by reference into the lambda for `generateBreath` / `generateWind` / `generateFilteredNoise` so the cross-frame draw sequence stays deterministic. |
 | HIGH-07 | 4 LFO sync/free-run loops consolidated via `createToggleRelays` + `addRelayOptions` + `attachToggleRelays` file-static helpers. `bypassRelays` / `modSlotToggleRelays` / `delaySyncRelay` follow the same shape and could fold in here in a future pass — out of scope for this commit. Member-declaration destruction order in `PluginEditor.h:30-35` preserved. |
+
+---
+
+## Phase 3 Applied (v1.17.3)
+
+Commit: `a90a5bf refactor(O-Prism): v1.17.3 — Phase 3 sweep (5 candidates from MEDIUM/LOW tier)`
+
+### Batch A — LOW severity (default-bulk-approved)
+
+| ID | Result |
+|----|--------|
+| LOW-01 | Updated stale `60 Hz is plenty` comment in `Source/PluginEditor.cpp` to match the actual `startTimerHz(30)` call. |
+| LOW-02 | Deleted `currentPitchWheel = 8192;` member from `Source/PrismVoice.h:157` and the two assignment sites in `PrismVoice.cpp` (`startNote` line 162, `pitchWheelMoved` line 658). The JUCE-mandated `currentPitchWheelPosition` parameter on the `startNote` override stays in the signature (renamed to `/*currentPitchWheelPosition*/` to silence unused-param warning). Covers LOW-05. |
+
+### Batch B — MEDIUM severity, LOW risk (default-bulk-approved)
+
+| ID | Result |
+|----|--------|
+| MEDIUM-01 | Collapsed 4 ad-hoc JSON-array build loops to the existing `toJsonArray` helper. Sites: `startWavetableEditor` harmonics, `getFrameHarmonics`, `getAllEditorFrameWaveforms` (composed nested call), `getPresetListWithCategories` inner names array. Outer object structure of `getPresetListWithCategories` (per-category `firstCat` flag) preserved — emits `{"cat":[..]}` not a simple array. Covers MEDIUM-04. |
+| MEDIUM-02 | `getEmbeddedTuningList` JSON now emits `,"period":N` (using `juce::String (t.period, 1)` for one decimal place) after `noteCount`. The dead JS branch at `Source/ui/public/index.html:3304` (`tuning.period && tuning.period !== 1200 ? ...`) is now reachable; non-octave tunings (Bohlen-Pierce, Carlos α/β/γ) display "(NNNN¢ period)". |
+
+### Batch C — MEDIUM severity, MEDIUM risk (per-candidate gate)
+
+| ID | Result |
+|----|--------|
+| MEDIUM-07 | Extracted `OPrismAudioProcessor::resolveActiveTable (int oscIndex) const` private helper. `updateWavetableAssignments` (audio-thread voice-assignment path) and `getActiveOscTable` (public accessor, also called from `saveEditedWavetable`) now share the single helper for "user pointer takes priority over factory index" lookup. `std::memory_order_relaxed` on `userTablePtrA/B` load preserved verbatim per audit's "Skipped" caveat on factoryTables atomic ownership. `juce::jlimit` clamping bounds (`0` to `factoryTables.size() - 1`) preserved verbatim. |
+
+### Phase 3 Skipped (audit-suggested but not applied)
+
+| ID | Reason |
+|----|--------|
+| LOW-04 | Audit underestimated this candidate. `PrismSound` is forward-declared in `PrismVoice.h:23`; inlining `canPlaySound` body in the header requires the full type for `dynamic_cast<PrismSound*>`, which would force a new `#include "PrismSound.h"` in `PrismVoice.h` and tighten compile coupling for a 4-line cosmetic refactor. Reverted; `canPlaySound` remains in `PrismVoice.cpp:142-145`. |
+
+### Phase 3 No-Ops (audit candidates flagged "keep as-is")
+
+| ID | Reason |
+|----|--------|
+| MEDIUM-03 | Already resolved as a side effect of HIGH-05 in Phase 2 (the `runEffect` extraction caches all FX param atomics as members; per Phase 2 Applied table — "25 FX param atomics cached"). |
+| MEDIUM-04 | Subsumed by MEDIUM-01 (the nested 2D case in `getAllEditorFrameWaveforms` is handled by composing two `toJsonArray` calls). |
+| MEDIUM-05 | Audit explicitly recommended "keep as-is" — `isNoteOn`/`isNoteOff`/etc. else-if chain is the canonical JUCE pattern. |
+| MEDIUM-06 | Audit explicitly recommended "already well-factored". |
+| LOW-03 | Audit explicitly recommended "keep" — load-bearing destruction-order documentation in `PluginEditor.h`. |
+| LOW-05 | Subsumed by LOW-02 (single member-removal covers both entries). |
+
+### Verification
+
+- Clean Release build (macOS VST3 + AU): `ninja O-Prism_VST3 O-Prism_AU` — no new warnings introduced.
+- AU validation: `auval -v aumu OuPr OuDv` → PASSED.
+- AU cache cleared and fresh binaries installed to `~/Library/Audio/Plug-Ins/{VST3,Components}/` per project CLAUDE.md.
+- Spot-check greps:
+  - `grep -rn "currentPitchWheel\b"` — only `currentPitchWheelPosition` parameter occurrences remain; zero bare-member references.
+  - `grep -n "60 Hz is plenty"` — zero matches.
+  - 4 ad-hoc `if (i > 0) json` / `if (f > 0) json` / `if (s > 0) json` / `if (! firstCat) json` patterns reduced from 9 occurrences to 3 (helper-internal at lines 111/124, plus outer object iteration at 908 in `getPresetListWithCategories`).
 
 ---
 
