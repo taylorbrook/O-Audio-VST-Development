@@ -35,25 +35,6 @@ The codebase is in good shape overall — visible evidence of multiple cleanup p
 - **Rationale:** The `__cpp_lib_atomic_shared_ptr` branch is a no-op safety net — both arms produce equivalent compiled code on the toolchains this project ships against. Removing the conditional documents the actual contract (shared_ptr atomics) without changing behaviour.
 - **Test impact:** Render-harness identity test, state save/load round-trip, single-cell replace test — all should pass unchanged.
 
-### [HIGH-02] De-duplicate `loopModeToString` (3 copies, 2 inconsistent)
-- **File:** `Source/PluginProcessor.cpp:1707–1716`, `1833–1842`, `2158–2167`
-- **Risk:** MEDIUM
-- **Type:** duplication
-- **Current:** Three separate definitions:
-  - lambda inside `snapshotSampleMapJson()` returns `"one-shot"`/`"auto"`/`"manual"`
-  - lambda inside `snapshotWaveformPeaks()` returns the same hyphenated forms
-  - namespace-scope `loopModeToString` returns `"one_shot"`/`"auto"`/`"manual"` (underscore!)
-- **Proposed:** Promote one canonical mapper into the existing anonymous namespace, then have callers pick the right serialisation per surface:
-  ```cpp
-  // For XML state (round-trip stable):
-  juce::String loopModeToXmlString (LoopMode m) noexcept;   // one_shot / auto / manual
-  // For JSON UI (legacy hyphenated):
-  juce::String loopModeToJsonString (LoopMode m) noexcept;  // one-shot / auto / manual
-  ```
-  The two lambdas in `snapshotSampleMapJson` / `snapshotWaveformPeaks` collapse to one-line calls.
-- **Rationale:** The hyphen-vs-underscore split is a real behaviour difference (the JS UI uses hyphens, XML uses underscores), so the helpers must stay distinct — but the lambdas can become a single shared symbol per surface. Today, a future fix to either spelling is forced to touch three sites and risks drift.
-- **Test impact:** Verify `sampleMapUpdated` event payload still uses `"one-shot"` (UI relies on this string); verify state save/load round-trip uses `"one_shot"` (XML schema).
-
 ### [HIGH-03] Extract repeated `notes/freqs` JSON builder
 - **File:** `Source/PluginEditor.cpp:344–356` (timer callback) and `Source/PluginEditor.cpp:715–725` (`getHeldNotesJson` native fn)
 - **Risk:** LOW
@@ -115,29 +96,6 @@ The codebase is in good shape overall — visible evidence of multiple cleanup p
 - **Proposed:** Add a file-local helper accepting an APVTS reference, a parameter id, and the args, returning `bool`. Each native fn body collapses to ~3 lines.
 - **Rationale:** ~30 LOC saved. Centralises the "bool-arg → param" idiom — future params (hypothetical e.g. `lfo_enabled`) get one-line handlers.
 - **Test impact:** KS/CC/PC enable toggles in UI.
-
-### [HIGH-06] Consolidate `<div class="ouaricon-knob">…</div>` blocks via JS-driven render
-- **File:** `Resources/ui/index.html:484–582` (8 nearly-identical 11-line knob blocks)
-- **Risk:** MEDIUM
-- **Type:** duplication
-- **Current:** 8 copies of:
-  ```html
-  <div class="ouaricon-knob" data-knob-id="ctrl-XXX">
-    <div class="ouaricon-knob-visual">
-      <svg viewBox="0 0 44 44">
-        <circle class="knob-track" cx="22" cy="22" r="18"/>
-        <circle class="knob-vine"  cx="22" cy="22" r="18"/>
-      </svg>
-    </div>
-    <label class="ouaricon-knob-label" for="ctrl-XXX">LABEL</label>
-    <span class="ouaricon-knob-value"></span>
-    <input type="range" id="ctrl-XXX" min="0" max="1" step="0.001" />
-  </div>
-  ```
-  Differing only in id + label.
-- **Proposed:** Replace the 8 blocks with a single `<footer id="control-strip"></footer>` plus a JS helper at sampler-app.js boot that loops over `SLIDER_BINDINGS` (which already exists, line 38) and renders each knob via `innerHTML`. The expression knob's tooltip can be carried in the binding entry.
-- **Rationale:** Saves ~80 LOC of HTML, single source of truth (`SLIDER_BINDINGS`) controls both binding and DOM, future knob additions become one-line. The static HTML doesn't help anything since these knobs need JS bindings to function anyway.
-- **Test impact:** Visual smoke test (all 8 knobs render + behave); make sure CSS selectors don't depend on the static HTML order.
 
 ### [MEDIUM-01] Drop the dead `__cpp_lib_atomic_shared_ptr >= 202002L` check
 - **File:** `Source/PluginProcessor.cpp:510–516`
@@ -296,3 +254,25 @@ Replace with `startTechnique = (pendingTechniqueSource != nullptr) ? jlimit(...)
 - **WebView2 `#if JUCE_WINDOWS` guards / `withUserDataFolder`**: Windows DAW-host-specific; not flagged.
 - **`jlimit(0, kMaxTechniques - 1, technique)` clamp at the top of every overrideLoopPoints / loadSingleSample / snapshotWaveformPeaks** (lines 1256, 1513, 1825): could be hoisted to a helper, but the redundancy is defensive and message-thread cheap; the consistency of the pattern at every entry-point is a feature, not a bug.
 - **The duplicated "tail-buf zero-fill on early-exit" loop in `MicrotonalSamplerVoice::renderTailRamp`** (lines 283–287, 301–305): ~5 LOC; touching renderTailRamp risks DSP regressions that are hard to test for.
+
+---
+
+## Phase 2 Applied (v1.16.8)
+
+Commit: `023cd4a` — refactor(O-MicrotonalSampler): v1.16.8 — Phase 2 simplification
+
+### [HIGH-02] De-duplicate `loopModeToString` (3 copies, 2 inconsistent) — APPLIED
+- **File:** `Source/PluginProcessor.cpp` (formerly lines 1707–1716, 1833–1842, 2158–2167; pre-commit lines 1680–1689, 1802–1811, 2127–2135)
+- **Risk:** MEDIUM
+- **Type:** duplication
+- **Resolution:** Two canonical helpers added to the top anonymous namespace:
+  - `loopModeToJsonString()` → hyphenated form (`"one-shot"`, `"auto"`, `"manual"`) — used by `snapshotSampleMapJson()`, `snapshotWaveformPeaks()`, and the `loopMode` property setter on the waveform-peaks return object.
+  - `loopModeToXmlString()` → underscored form (`"one_shot"`, `"auto"`, `"manual"`) — used by `buildEmbeddedAudioTree`. Inverse parser `loopModeFromString` left in place (was never duplicated).
+- **Verification:** Hyphen literal now confined to `loopModeToJsonString()` definition; underscore literal in `loopModeToXmlString()` writer + `loopModeFromString()` parser. Build + auval + format-stability greps all pass.
+
+### [HIGH-06] Consolidate 8 `<div class="ouaricon-knob">` blocks via JS-driven render — APPLIED
+- **Files:** `Resources/ui/index.html` (lines 484–583), `Resources/ui/js/sampler-app.js` (lines 38–47, plus new `renderControlStrip()` and updated `bindSliders()`)
+- **Risk:** MEDIUM
+- **Type:** duplication
+- **Resolution:** `<footer id="control-strip">` is now empty in HTML. `SLIDER_BINDINGS` extended with `label` and optional `tooltip` fields. `renderControlStrip()` runs at boot before `bindOneKnob` (inside `bindSliders`, before the `__JUCE__` gate, so DOM exists even outside plugin host). Expression knob's CC 11 tooltip preserved via the `tooltip` field on its binding entry.
+- **Verification:** CSS positional-selector check (`:nth-child` / `:first-child` / `:last-child` / `>` direct-child) returned zero hits against `.ouaricon-knob`. Visual smoke confirmed via standalone — all 8 knobs render in correct order, drag/value/hover/dragging styles work, expression tooltip preserved.
