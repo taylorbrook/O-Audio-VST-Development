@@ -12,11 +12,12 @@ on:
       - '*-v*'  # Matches: PluginName-vX.Y.Z
 
 env:
-  # Pinned to 8.0.4 because note-expression module requires JUCE-NE-PATCH
-  # markers (Dorico microtonal kNoteExpressionValueEvent surfacing). Patch
-  # file targets 8.0.4 specifically; forward-port to a newer JUCE is a
-  # separate piece of work. See scripts/juce-patches/ + apply-juce-patches.sh.
-  JUCE_VERSION: '8.0.4'
+  # Pinned to 8.0.9 — matches the local dev JUCE install (the patch was
+  # authored against this version; it references VST3Interface::Id, which
+  # was added to JUCE in 8.0.5+ via juce_VST3Interface.h). Despite the
+  # patch filename saying 8.0.4, the actual context+code are 8.0.9.
+  # See scripts/juce-patches/ + apply-juce-patches.sh.
+  JUCE_VERSION: '8.0.9'
   BUILD_TYPE: Release
 
 jobs:

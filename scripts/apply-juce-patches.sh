@@ -50,6 +50,17 @@ if [[ "$FOUND" -ge 2 ]]; then
   exit 0
 fi
 
+# Step 3.5: normalize CRLF → LF on the two target files. The Windows JUCE zip
+# distribution ships with CRLF, but the patch context lines are LF; without
+# this, GNU patch rejects every hunk with "different line endings".
+for f in "$HEADER_FILE" "$CPP_FILE"; do
+  if [[ -f "$f" ]] && head -c 4096 "$f" | grep -q $'\r'; then
+    echo -e "${YELLOW}[apply-juce-patches] Normalizing CRLF → LF in $(basename "$f")${NC}"
+    # Portable sed-in-place: -i.bak works on both BSD/macOS sed and GNU sed.
+    sed -i.bak 's/\r$//' "$f" && rm -f "${f}.bak"
+  fi
+done
+
 # Step 4: apply
 echo -e "${YELLOW}[apply-juce-patches] Applying ${PATCH_FILE}...${NC}"
 ( cd "$JUCE_DIR" && patch -p1 < "$PATCH_FILE" )
