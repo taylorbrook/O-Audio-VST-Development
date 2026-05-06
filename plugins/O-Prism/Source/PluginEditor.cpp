@@ -412,6 +412,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                      + "\",\"name\":\"" + juce::String (t.name)
                      + "\",\"category\":\"" + juce::String (t.category)
                      + "\",\"noteCount\":" + juce::String (static_cast<int> (t.intervals.size()))
+                     + ",\"period\":" + juce::String (t.period, 1)
                      + "}";
             }));
         });
@@ -745,13 +746,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             {
                 int numFrames = editor.getNumFrames();
                 auto harmonics = editor.getFrameHarmonics (0, 128);
-                juce::String harmJson = "[";
-                for (size_t i = 0; i < harmonics.size(); ++i)
-                {
-                    if (i > 0) harmJson += ",";
-                    harmJson += juce::String (harmonics[i], 4);
-                }
-                harmJson += "]";
+                auto harmJson = toJsonArray (harmonics, [] (float v) { return juce::String (v, 4); });
                 complete ("{\"numFrames\":" + juce::String (numFrames)
                         + ",\"harmonics\":" + harmJson + "}");
             }
@@ -797,14 +792,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     .getFrameHarmonics (frameIndex, numBins);
                 if (! harmonics.empty())
                 {
-                    juce::String json = "[";
-                    for (size_t i = 0; i < harmonics.size(); ++i)
-                    {
-                        if (i > 0) json += ",";
-                        json += juce::String (harmonics[i], 4);
-                    }
-                    json += "]";
-                    complete (json);
+                    complete (toJsonArray (harmonics, [] (float v) { return juce::String (v, 4); }));
                     return;
                 }
             }
@@ -903,21 +891,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             auto& editor = processorRef.getWavetableEditor();
             auto allWaveforms = editor.getAllFrameWaveforms (samplesPerFrame);
 
-            juce::String json = "[";
-            for (size_t f = 0; f < allWaveforms.size(); ++f)
-            {
-                if (f > 0) json += ",";
-                json += "[";
-                for (size_t s = 0; s < allWaveforms[f].size(); ++s)
-                {
-                    if (s > 0) json += ",";
-                    json += juce::String (allWaveforms[f][s], 3);
-                }
-                json += "]";
-            }
-            json += "]";
-
-            complete (json);
+            complete (toJsonArray (allWaveforms, [] (const auto& frame) {
+                return toJsonArray (frame, [] (float s) { return juce::String (s, 3); });
+            }));
         });
 
     // ─── Preset Manager ───────────────────────────────────────────────
@@ -931,13 +907,8 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             {
                 if (! firstCat) json += ",";
                 firstCat = false;
-                json += juce::JSON::toString (cat) + ":[";
-                for (int i = 0; i < names.size(); ++i)
-                {
-                    if (i > 0) json += ",";
-                    json += juce::JSON::toString (names[i]);
-                }
-                json += "]";
+                json += juce::JSON::toString (cat) + ":"
+                     + toJsonArray (names, [] (const juce::String& n) { return juce::JSON::toString (n); });
             }
             json += "}";
             complete (json);
@@ -1160,7 +1131,7 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
     setSize (1200, 800);
 
-    // Start polling for active MIDI notes (60 Hz is plenty for UI updates)
+    // Start polling for active MIDI notes (30 Hz is plenty for UI updates)
     startTimerHz (30);
 }
 

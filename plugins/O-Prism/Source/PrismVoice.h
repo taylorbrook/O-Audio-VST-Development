@@ -154,7 +154,6 @@ private:
     double currentFrequency = 0.0;
     float noteVelocity = 0.0f;
     int currentMidiNote = -1;
-    int currentPitchWheel = 8192;
     double voiceSampleRate = 44100.0;
 
     // Oscillators

@@ -1,5 +1,33 @@
 # O-Prism Changelog
 
+## v1.17.3 (2026-05-06)
+
+### Changed
+- Phase 3 sweep — 5 MEDIUM/LOW simplification candidates from `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md` applied:
+  - **MEDIUM-01:** Replaced 4 ad-hoc JSON-array build loops in `Source/PluginEditor.cpp` with the existing `toJsonArray` helper (covers MEDIUM-04 nested 2D case). Sites: `startWavetableEditor` harmonics, `getFrameHarmonics`, `getAllEditorFrameWaveforms` (composed nested call), and the inner names array of `getPresetListWithCategories`. The outer object structure of `getPresetListWithCategories` (per-category `firstCat` flag) is preserved since it emits a JSON object, not array. ~25 LOC saved.
+  - **MEDIUM-02:** `getEmbeddedTuningList` now emits the `period` field; non-octave tunings (Bohlen-Pierce, Carlos α/β/γ) now correctly display "(NNNN¢ period)" in the library list. The dead JS branch at `Source/ui/public/index.html:3304` (`tuning.period && tuning.period !== 1200 ? ...`) is now reachable.
+  - **MEDIUM-07:** Extracted `OPrismAudioProcessor::resolveActiveTable (int oscIndex) const` private helper. `updateWavetableAssignments` (audio-thread voice-assignment path) and `getActiveOscTable` (public accessor) now share a single source of truth for the "user pointer takes priority over factory index" lookup. `std::memory_order_relaxed` and `juce::jlimit (0, factoryTables.size() - 1, ...)` clamping preserved verbatim per audit's "Skipped — factoryTables atomic ownership is intentional" caveat.
+  - **LOW-01:** Corrected stale "60 Hz is plenty" comment to match the actual `startTimerHz (30)` call in `PluginEditor.cpp`.
+  - **LOW-02:** Removed dead `currentPitchWheel` member from `PrismVoice` (covers LOW-05). Member was set in `startNote` and `pitchWheelMoved` but never read. The JUCE-mandated `currentPitchWheelPosition` parameter on the `startNote` override stays in the signature (now `/*currentPitchWheelPosition*/` to silence unused-param warning).
+
+### Skipped (audit candidate not applied)
+- **LOW-04 — inline `canPlaySound` into header:** Audit underestimated this one. `PrismSound` is forward-declared in `PrismVoice.h` (line 23); inlining `canPlaySound` requires the full type for `dynamic_cast`. Adding `#include "PrismSound.h"` to `PrismVoice.h` would tighten compile coupling without a clear win. Left as-is in `PrismVoice.cpp:142-145`.
+
+### Verification
+- Clean Release build (macOS VST3 + AU) — no new warnings introduced (pre-existing `[this]`-capture and unused-include hints unchanged).
+- AU validation passed (`auval -v aumu OuPr OuDv`).
+- AU cache cleared and fresh binaries installed to `~/Library/Audio/Plug-Ins/{VST3,Components}/` per project CLAUDE.md.
+- Spot-check greps:
+  - `grep -rn "currentPitchWheel\b" plugins/O-Prism/Source/` — only the JUCE override-signature occurrences remain (zero bare-member references).
+  - `grep -n "60 Hz is plenty" plugins/O-Prism/Source/` — zero matches.
+  - 4 ad-hoc `if (i > 0) json` / `if (f > 0) json` / `if (s > 0) json` / `if (! firstCat) ... [...]` patterns reduced to just the helper-internal occurrences in `toJsonArray` / `toJsonFloatArray` plus the outer object iteration in `getPresetListWithCategories`.
+- Visual smoke: tuning library now shows period for Bohlen-Pierce; wavetable editor harmonic bars + frame waveforms render correctly; A/B oscillator user-vs-factory swap works in both directions; LFO sync/free-run toggles unchanged.
+- No APVTS schema, preset, or persistence-format changes.
+
+### Technical Notes
+- Phase 3 of the `/simplify` workflow audit (see `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md`). Phase 1 (HIGH-01..03) shipped in v1.17.1; Phase 2 (HIGH-04..07) shipped in v1.17.2. The audit's MEDIUM-03 (per-FX param atomic caching) was already resolved as a side effect of HIGH-05 in Phase 2. No-op MEDIUM-05 / MEDIUM-06 / LOW-03 entries are explicit "keep" notes from the audit.
+- Version bump rationale: PATCH (1.17.2 → 1.17.3) — internal refactor + 1 visible fix (period emission for non-octave tunings); no parameter, preset, or feature changes.
+
 ## v1.17.2 (2026-05-06)
 
 ### Changed

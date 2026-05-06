@@ -237,6 +237,10 @@ private:
 
     void updateWavetableAssignments();
 
+    // Single source of truth for "user pointer takes priority over factory index" lookup.
+    // Used by updateWavetableAssignments (audio-thread voice-assignment) and getActiveOscTable.
+    const WavetableData* resolveActiveTable (int oscIndex) const;
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OPrismAudioProcessor)

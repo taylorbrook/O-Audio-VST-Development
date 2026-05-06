@@ -773,36 +773,8 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 
 void OPrismAudioProcessor::updateWavetableAssignments()
 {
-    int numFactoryTables = static_cast<int> (factoryTables.size());
-
-    // Determine target table for each oscillator (user override takes priority)
-    auto* currentUserA = userTablePtrA.load (std::memory_order_relaxed);
-    auto* currentUserB = userTablePtrB.load (std::memory_order_relaxed);
-
-    const WavetableData* targetA;
-    const WavetableData* targetB;
-
-    if (currentUserA != nullptr)
-    {
-        targetA = currentUserA;
-    }
-    else
-    {
-        int oscATable = juce::jlimit (0, numFactoryTables - 1,
-            static_cast<int> (parameters.getRawParameterValue ("oscATable")->load()));
-        targetA = factoryTables[static_cast<size_t> (oscATable)].get();
-    }
-
-    if (currentUserB != nullptr)
-    {
-        targetB = currentUserB;
-    }
-    else
-    {
-        int oscBTable = juce::jlimit (0, numFactoryTables - 1,
-            static_cast<int> (parameters.getRawParameterValue ("oscBTable")->load()));
-        targetB = factoryTables[static_cast<size_t> (oscBTable)].get();
-    }
+    const WavetableData* targetA = resolveActiveTable (0);
+    const WavetableData* targetB = resolveActiveTable (1);
 
     if (targetA != lastAssignedTableA || targetB != lastAssignedTableB)
     {
@@ -859,24 +831,19 @@ void OPrismAudioProcessor::clearUserWavetableOverride (int oscIndex)
 
 const WavetableData* OPrismAudioProcessor::getActiveOscTable (int oscIndex) const
 {
-    if (oscIndex == 0)
-    {
-        auto* userTable = userTablePtrA.load (std::memory_order_relaxed);
-        if (userTable != nullptr)
-            return userTable;
-        int idx = juce::jlimit (0, static_cast<int> (factoryTables.size()) - 1,
-            static_cast<int> (parameters.getRawParameterValue ("oscATable")->load()));
-        return factoryTables[static_cast<size_t> (idx)].get();
-    }
-    else
-    {
-        auto* userTable = userTablePtrB.load (std::memory_order_relaxed);
-        if (userTable != nullptr)
-            return userTable;
-        int idx = juce::jlimit (0, static_cast<int> (factoryTables.size()) - 1,
-            static_cast<int> (parameters.getRawParameterValue ("oscBTable")->load()));
-        return factoryTables[static_cast<size_t> (idx)].get();
-    }
+    return resolveActiveTable (oscIndex);
+}
+
+const WavetableData* OPrismAudioProcessor::resolveActiveTable (int oscIndex) const
+{
+    const auto& userPtr = (oscIndex == 0) ? userTablePtrA : userTablePtrB;
+    if (auto* userTable = userPtr.load (std::memory_order_relaxed))
+        return userTable;
+
+    const char* paramId = (oscIndex == 0) ? "oscATable" : "oscBTable";
+    int idx = juce::jlimit (0, static_cast<int> (factoryTables.size()) - 1,
+        static_cast<int> (parameters.getRawParameterValue (paramId)->load()));
+    return factoryTables[static_cast<size_t> (idx)].get();
 }
 
 juce::String OPrismAudioProcessor::getActiveUserTableName (int oscIndex) const

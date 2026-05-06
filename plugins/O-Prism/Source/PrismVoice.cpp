@@ -155,11 +155,10 @@ void PrismVoice::setWavetableB (const WavetableData* table)
 }
 
 void PrismVoice::startNote (int midiNoteNumber, float velocity,
-                            juce::SynthesiserSound*, int currentPitchWheelPosition)
+                            juce::SynthesiserSound*, int /*currentPitchWheelPosition*/)
 {
     bool wasActive = getCurrentlyPlayingNote() >= 0;
     currentMidiNote = midiNoteNumber;
-    currentPitchWheel = currentPitchWheelPosition;
 
     // Apply velocity curve transformation
     if (pVelocityCurve != nullptr)
@@ -655,8 +654,6 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
 void PrismVoice::pitchWheelMoved (int newPitchWheelValue)
 {
-    currentPitchWheel = newPitchWheelValue;
-
     if (tuningEngine != nullptr && currentMidiNote >= 0)
     {
         float normalizedBend = (static_cast<float> (newPitchWheelValue) - 8192.0f) / 8192.0f;
