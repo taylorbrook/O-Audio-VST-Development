@@ -1069,15 +1069,15 @@ function publishCellLayout() {
 // below 900 px while it's open (panel + grid would otherwise overlap).
 const NARROW_BREAKPOINT_PX = 900;
 const NARROW_TOAST = 'Resize wider to use the loop editor.';
-let lastWidthBucket = null;  // 'wide' | 'narrow'
+let lastIsNarrow = null;  // null = not yet measured; otherwise boolean
 
 function checkNarrowWindowGuard() {
     const w = window.innerWidth || document.documentElement.clientWidth || 0;
-    const bucket = w < NARROW_BREAKPOINT_PX ? 'narrow' : 'wide';
-    if (bucket === lastWidthBucket) return;
-    lastWidthBucket = bucket;
+    const isNarrow = w < NARROW_BREAKPOINT_PX;
+    if (isNarrow === lastIsNarrow) return;
+    lastIsNarrow = isNarrow;
 
-    if (bucket === 'narrow' && editorState.open) {
+    if (isNarrow && editorState.open) {
         closeLoopEditor();
         showToast(NARROW_TOAST);
     }

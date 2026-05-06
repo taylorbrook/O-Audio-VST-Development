@@ -534,6 +534,12 @@ private:
     // Layout matches MicrotonalSamplerVoice::kRrCounterSize (4096).
     MicrotonalSamplerVoice::RrCounterArray rrCounters;
 
+    // v1.16.9 (LOW-01): resets every RR counter to the 0xFF "no-last"
+    // sentinel. RT-safe relaxed atomic stores; safe to call from any thread
+    // when no voices are running. Used by ctor, ReplaceAll folder loads,
+    // and clearSampleMap.
+    void resetAllRrCounters() noexcept;
+
     // v1.14.0: active technique cursor. Audio thread loads at startNote
     // (memory_order_acquire). KS / CC / PC handlers in processBlock store
     // (memory_order_release). UI clicks store via the message thread.

@@ -31,15 +31,6 @@
 
 namespace
 {
-    // Helper: copy a BinaryData char array into a vector<byte> for the
-    // WebView resource type.
-    auto makeVector = [] (const char* data, int size)
-    {
-        return std::vector<std::byte> (
-            reinterpret_cast<const std::byte*> (data),
-            reinterpret_cast<const std::byte*> (data) + size);
-    };
-
     // v1.16.7 (HIGH-03): JSON payload for held-notes / freezes broadcasts.
     // Format is `{"notes":[i…],"freqs":[f…]}` with 4-digit freq precision —
     // load-bearing for the TuningPanel TrueKeys / Circle / Polar visualisations.
@@ -423,6 +414,16 @@ void OMicrotonalSamplerAudioProcessorEditor::resized()
 std::optional<juce::WebBrowserComponent::Resource>
 OMicrotonalSamplerAudioProcessorEditor::getResource (const juce::String& url)
 {
+    // Helper: copy a BinaryData char array into a vector<byte> for the
+    // WebView resource type. v1.16.9 (LOW-05): scoped to getResource — the
+    // only caller — instead of file-anonymous-namespace.
+    auto makeVector = [] (const char* data, int size)
+    {
+        return std::vector<std::byte> (
+            reinterpret_cast<const std::byte*> (data),
+            reinterpret_cast<const std::byte*> (data) + size);
+    };
+
     if (url == "/" || url == "/index.html")
     {
         return juce::WebBrowserComponent::Resource {

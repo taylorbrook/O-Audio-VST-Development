@@ -260,8 +260,7 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
 
     // v1.8.0: zero out RR counters with sentinel 0xFF (no-last). Atomic stores
     // here are safe — no voices are running yet.
-    for (auto& c : rrCounters)
-        c.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
+    resetAllRrCounters();
 
     // v1.14.0: seed the curated default technique vocabulary. The user can
     // rename slots later; persisted via captureStateValueTree's <Techniques>
@@ -305,6 +304,12 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     // Background sample loader (Stage 1 stub — loadFolder dispatches a failure
     // callback to the message thread; run() is empty until Stage 2.2).
     sampleLoader = std::make_unique<SampleLoader>();
+}
+
+void OMicrotonalSamplerAudioProcessor::resetAllRrCounters() noexcept
+{
+    for (auto& c : rrCounters)
+        c.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
 }
 
 OMicrotonalSamplerAudioProcessor::~OMicrotonalSamplerAudioProcessor()
@@ -906,8 +911,7 @@ void OMicrotonalSamplerAudioProcessor::applyFolderLoad (
         merged->cells = newSlotsMap->cells;
         loadOpHistory.clear();
         // v1.8.0: ReplaceAll resets every RR counter to the sentinel.
-        for (auto& c : rrCounters)
-            c.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
+        resetAllRrCounters();
     }
     else
     {
@@ -1685,8 +1689,7 @@ void OMicrotonalSamplerAudioProcessor::clearSampleMap()
     replayQueueGeneration.fetch_add (1, std::memory_order_relaxed);
 
     // v1.8.0: clear all RR counters.
-    for (auto& cnt : rrCounters)
-        cnt.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
+    resetAllRrCounters();
 
     DBG ("clearSampleMap: cleared (v" << fresh->version << ")");
 
