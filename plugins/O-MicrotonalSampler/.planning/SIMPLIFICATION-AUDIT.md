@@ -10,10 +10,11 @@ The codebase is in good shape overall — visible evidence of multiple cleanup p
 ### Phase progress
 - **Phase 1 (v1.16.7, commit `a6e0a3b`):** HIGH-01, HIGH-03, HIGH-04, HIGH-05 — atomic-shared-ptr / JSON / bool-arg helpers extracted.
 - **Phase 2 (v1.16.8, commit `023cd4a`):** HIGH-02, HIGH-06 — loopMode helpers + JS-driven knob render. (See `## Phase 2 Applied` below.)
-- **Phase 3 (v1.16.9, commit `9293470`):** Batch A only — LOW-01, LOW-03, LOW-05, LOW-07. LOW-04 + LOW-06 re-verified as false positives. Batches B (MEDIUM/LOW-risk dedups) and C (MEDIUM-04 dialog modal helper) deferred. (See `## Phase 3 Applied` and `## Phase 3 Skipped` below.)
+- **Phase 3 Batch A (v1.16.9, commit `9293470`):** LOW-01, LOW-03, LOW-05, LOW-07. LOW-04 + LOW-06 re-verified as false positives. (See `## Phase 3 Applied (v1.16.9)` and `## Phase 3 Skipped` below.)
+- **Phase 3 Batch B (v1.16.10, commit `52711dd`):** MEDIUM-02, MEDIUM-03, MEDIUM-05, MEDIUM-06, MEDIUM-07, MEDIUM-08, MEDIUM-09 — 7 LOW-risk MEDIUM-severity candidates applied. (See `## Phase 3 Applied (v1.16.10)` below.)
 - **Auto-resolved by Phase 1 side-effect:** MEDIUM-01 (the `__cpp_lib_atomic_shared_ptr >= 202002L` dead-code check at former lines 510–516). Folded into the `atomicLoad` helper extraction.
 
-Remaining open candidates: MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05, MEDIUM-06, MEDIUM-07, MEDIUM-08, MEDIUM-09 (all in the Candidates section below). Estimated LOC saved if all applied: ~280 LOC.
+Remaining open candidates: MEDIUM-04 only (Batch C — dialog modal `bindModal` helper across 7 dialogs in `sampler-app.js`). Estimated LOC saved if applied: ~80–100 LOC. Deferred because of MEDIUM-risk gate and the 7-modal manual smoke surface.
 
 ---
 
@@ -128,29 +129,6 @@ Remaining open candidates: MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05, MEDIUM-06
 - **Rationale:** Either this was meant to use the C++20 atomic-ref overload in one branch and got mid-refactored, or it's pure boilerplate. Either way the current code is misleading.
 - **Test impact:** None — compiler emits the same code.
 
-### [MEDIUM-02] Hoist the RR counter index packing into a single helper
-- **File:** `Source/PluginProcessor.cpp:896` (in ReplaceLayer wipe), `915–917` (folder-load apply), `1445–1447` (single-sample load), and `MicrotonalSamplerVoice.cpp:218–220` (selectVariantIndex)
-- **Risk:** LOW
-- **Type:** duplication
-- **Current:** Four sites compute the 4096-entry counter index with the literal `midi * 4 * 8 + layer * 8 + tech` (or variants of it). The `8` is the `kMaxTechniques` constant from SampleMap.h, but it's hard-coded as `8` in three of four sites; only `MicrotonalSamplerVoice::selectVariantIndex` uses a named `kMaxTech = 8` local.
-- **Proposed:** Add a `static constexpr` helper next to `kRrCounterSize`:
-  ```cpp
-  static constexpr int packRrCounterIndex (int midi, int layer, int tech) noexcept
-  { return midi * 4 * 8 + layer * 8 + tech; }
-  ```
-  in `MicrotonalSamplerVoice.h`. All four sites become `juce::jlimit (0, kRrCounterSize - 1, packRrCounterIndex(...))`.
-- **Rationale:** The layout coupling to `kRrCounterSize` is currently expressed as a numeric coincidence in four places. Hoisting fixes the drift risk + makes any future technique-axis growth a one-line change.
-- **Test impact:** Round-robin variant selection across folder load, single-cell load, and ReplaceLayer wipe paths. Render-harness identity test should still pass.
-
-### [MEDIUM-03] Replace 8 indexed `for (size_t i = 0; i < .size(); ++i)` JSON loops with range-for + first-flag
-- **File:** `Source/PluginEditor.cpp:660`, `716`, `734`, `755`, `1149`, `1515`, `1539`, `1564`; `Source/PluginProcessor.cpp:2367`
-- **Risk:** LOW
-- **Type:** verbose-pattern
-- **Current:** Each loop indexes for the comma-skip on element 0. The HIGH-04 helper covers the intervals loops; the others (`getEmbeddedTuningList`, `getEmbeddedTuningCategories`, `getSkippedFiles`, the captureTuningValueTree CSV) all have the same structure.
-- **Proposed:** A small `joinJsonArray` helper or two more dedicated builders. Each remaining loop gets a `bool first = true; for (const auto& x : v) { if (!first) out += ","; first = false; ... }` form, or just one helper that takes a callable for the per-element formatter.
-- **Rationale:** The shape is repeated 9× across these two files. Extraction puts the comma logic in one place.
-- **Test impact:** Embedded-tunings list, embedded-tuning categories, skipped-files toast, intervals CSV in saved state.
-
 ### [MEDIUM-04] Hoist 7 dialog-modal cleanup/key-handler scaffolds into a `bindModal` helper
 - **File:** `Resources/ui/js/sampler-app.js:1303`, `1365`, `1416`, `1454`, `1519`, `2215`, `2315`
 - **Risk:** MEDIUM
@@ -159,73 +137,6 @@ Remaining open candidates: MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05, MEDIUM-06
 - **Proposed:** Extract a `bindModal({ dialog, buttons: { yes, no, cancel? }, onKey, focus })` helper that returns a Promise resolving to the chosen action. Each dialog becomes 10–15 lines of payload-specific DOM munging + one `bindModal` call.
 - **Rationale:** ~80–100 LOC saved, and the "forgot to remove a listener" bug class becomes structurally impossible. Defaults (Esc=cancel, Enter=confirm) live in one place.
 - **Test impact:** All seven modals — manual smoke test required (folder load, embed confirm, per-cell merge, clear-samples confirm, diagnostic dialog, missing-folder, ambiguous-RR confirm).
-
-### [MEDIUM-05] Extract `Number.isFinite(x) ? x : default` helper
-- **File:** `Resources/ui/js/sampler-app.js:1717`, `1718`, `1721`, `1722`, `1974`, `1975`, `2422`–`2426`, `2671`, `2676`–`2685`
-- **Risk:** LOW
-- **Type:** verbose-pattern
-- **Current:** ~15 sites use `Number.isFinite(x) ? x : default` to coerce a possibly-null/string field from a parsed JSON payload.
-- **Proposed:** One module-level helper:
-  ```js
-  const num = (v, fallback = 0) => Number.isFinite(v) ? v : fallback;
-  ```
-  Usage shrinks to e.g. `editorState.loopStart = num(snap.loopStart);`.
-- **Rationale:** Saves ~25 LOC; readability win — the intent is "guarded number with default" and the helper says exactly that.
-- **Test impact:** Anywhere snapshots are deserialised — loop editor, technique state, trigger state, sample-map snapshot.
-
-### [MEDIUM-06] DRY the `if (!window.__JUCE__) return; try { ... } catch (e) { console.warn }` native-fn invocation pattern
-- **File:** `Resources/ui/js/sampler-app.js` — 25+ sites (lines 446, 885, 1079, 1558, 1702, 2119, 2134, 2336, 2371, 2412, 2447, 2602, 2609, 2662, 2695, 2815, 2826, 2840, 2868, 2893, 2904 + more)
-- **Risk:** LOW
-- **Type:** verbose-pattern
-- **Current:** Almost every async-button handler has the same prologue/epilogue:
-  ```js
-  if (!window.__JUCE__) return;
-  try {
-    const fn = Juce.getNativeFunction('xxxx');
-    await fn(...);
-  } catch (err) { console.warn('[sampler-app] xxxx failed', err); }
-  ```
-- **Proposed:** A thin wrapper:
-  ```js
-  async function invokeNative(name, ...args) {
-    if (!window.__JUCE__) return undefined;
-    try { return await Juce.getNativeFunction(name)(...args); }
-    catch (err) { console.warn(`[sampler-app] ${name} failed`, err); return undefined; }
-  }
-  ```
-  Most call sites collapse to `await invokeNative('setKeyswitchEnabled', !!ksToggle.checked);`.
-- **Rationale:** Cuts ~80 LOC and standardises error logging tag. Some current sites use `console.error`, some use `console.warn`, some are silent — tightening to one consistent path also fixes that drift.
-- **Test impact:** All native-fn-driven UI actions; test that the silent error class for some rarely-fired paths still resolves (compare with current behaviour).
-
-### [MEDIUM-07] Collapse identical CC/PC mapping setter scaffolds in `setCcMappingSlot`/`setPcMappingSlot`
-- **File:** `Source/PluginProcessor.cpp:2012–2056`
-- **Risk:** LOW
-- **Type:** duplication
-- **Current:** `setCcMappingSlot` (45 lines) and `setPcMappingSlot` (19 lines) follow the same template: bounds-check slot, atomic_load → make_shared (or default), mutate, atomic_store, fire callback. The CC version has a few extra fields (rangeLow/High swap), but the COW boilerplate is identical.
-- **Proposed:** Extract a generic `template <class T, class Mut> void mutateMappingSlot(...)` that takes the slot, the shared_ptr slot pointer, the default factory, and a mutator lambda. Each setter becomes ~6 lines.
-- **Rationale:** ~30 LOC saved; a future "add a third mapping table" (notes-to-X say) becomes a 6-line setter instead of 30.
-- **Test impact:** CC/PC mapping slot edits via UI; trigger-state-updated callback should still fire.
-
-### [MEDIUM-08] `kickNextReplayOp` — extract repeated "first-missing-folder publish" block
-- **File:** `Source/PluginProcessor.cpp:1112–1124`, `1127–1145`
-- **Risk:** LOW
-- **Type:** duplication
-- **Current:** Two near-identical blocks check `pendingMissingFolderPath.isEmpty() && pendingMissingFolderName.isEmpty()` then populate the three pending-missing fields and fire the callback. One for drag-drop (kind="drag-drop", empty path) and one for filesystem (kind="filesystem", real path).
-- **Proposed:** Extract `publishMissingFolderIfNew(kind, path, displayName)` that does the empty-check + assignment + callback fire. Each call site becomes one line.
-- **Rationale:** Two paths, one logic. Saves ~15 LOC and makes "first-missing-only" semantics explicit in one place.
-- **Test impact:** Project reopen with missing/relocated folder; drag-drop temp-dir-gone path.
-
-### [MEDIUM-09] Drop the `MicrotonalSamplerSound` empty constructor
-- **File:** `Source/MicrotonalSamplerSound.h:18`
-- **Risk:** LOW
-- **Type:** stale-comment / verbose-pattern
-- **Current:**
-  ```cpp
-  MicrotonalSamplerSound() {}
-  ```
-- **Proposed:** Remove — the implicitly-declared default constructor is fine (no user code depends on the explicit definition).
-- **Rationale:** Trivial readability nit. The class becomes pure interface overrides.
-- **Test impact:** None.
 
 ---
 
@@ -304,6 +215,65 @@ User selected Batch A only (LOW-severity items). Batches B (MEDIUM-severity, LOW
 - **Type:** verbose-pattern
 - **Resolution:** `startTechnique = 0; if (pendingTechniqueSource != nullptr) startTechnique = juce::jlimit (...);` → single ternary `startTechnique = (pendingTechniqueSource != nullptr) ? juce::jlimit (..., load(memory_order_acquire)) : 0;`. memory_order_acquire and the jlimit clamp preserved (RT-safety contract from v1.14.0).
 - **Verification:** `startTechnique = 0` line zero hits. Generated code expected to be identical to the previous form.
+
+---
+
+## Phase 3 Applied (v1.16.10)
+
+Commit: `52711dd` — refactor(O-MicrotonalSampler): v1.16.10 — Phase 3 sweep (7 candidates from MEDIUM tier, Batch B)
+
+User selected Batch B only (MEDIUM-severity, LOW-risk dedups). Batch C (MEDIUM-04, dialog modal `bindModal` helper) remains in Candidates above for a future Phase 3 pass — separate run required for the MEDIUM-risk gate and 7-modal manual smoke surface.
+
+### Batch B — MEDIUM severity, LOW risk (7 applied)
+
+#### [MEDIUM-02] Hoist RR counter index packing into a constexpr helper — APPLIED
+- **File:** `Source/MicrotonalSamplerVoice.h:62` (helper definition); call sites at `Source/PluginProcessor.cpp:935` (ReplaceLayer wipe), `956` (folder-load apply, jlimit-wrapped), `1474` (single-sample load, jlimit-wrapped); `Source/MicrotonalSamplerVoice.cpp:219` (selectVariantIndex).
+- **Risk:** LOW
+- **Type:** duplication
+- **Resolution:** Added `static constexpr int packRrCounterIndex (int midi, int layer, int tech) noexcept` to `MicrotonalSamplerVoice` next to `kRrCounterSize`. Helper uses the named `kMaxTechniques` constant (was the literal `8` in 3 of 4 sites, plus a redundant local `constexpr int kMaxTech = 8` in voice.cpp). Also rewrote `kRrCounterSize` from `128 * 4 * 8` to `128 * 4 * kMaxTechniques` for the same reason. The 3 PluginProcessor.cpp sites use `MicrotonalSamplerVoice::packRrCounterIndex (...)` (cross-class scope), the voice.cpp site uses unqualified `packRrCounterIndex (...)` (own class). The `juce::jlimit (0, kRrCounterSize - 1, ...)` clamp + `std::memory_order_relaxed` on the `.store()` are preserved at every site.
+- **Verification:** `* 4 * 8 +` literal zero non-helper hits. 4 `packRrCounterIndex` call sites + 1 helper definition.
+
+#### [MEDIUM-03] joinJsonArray helper for indexed JSON-build loops — APPLIED
+- **File:** `Source/PluginEditor.cpp:88` (helper definition); call sites at `Source/PluginEditor.cpp:772` (`getEmbeddedTuningList`), `790` (`getEmbeddedTuningCategories`), `1181` (`getSkippedFiles`).
+- **Risk:** LOW
+- **Type:** duplication
+- **Resolution:** Added a `template <class Vec, class Formatter> joinJsonArray (const Vec& v, Formatter&& fmt)` helper to the anonymous namespace next to `centsArrayToJson`/`buildNotesFreqsJson`. Helper wraps the per-element formatter callable in `[…]` brackets with comma separation via a `bool first = true` flag. Three native-fn handlers refactored to one-liners that pass per-element JSON shape as a lambda. The CSV intervals loop in `captureTuningValueTree` (`PluginProcessor.cpp:2353`) was deliberately left as-is — it emits a comma-separated string with no `[…]` wrapping (different output shape).
+- **Verification:** 3 `joinJsonArray` call sites + 1 helper definition. Per-element JSON format byte-identical to the original loops (id/name/category quoted strings, integer noteCount, etc.).
+
+#### [MEDIUM-05] num() JS helper for Number.isFinite ternary fallbacks — APPLIED
+- **File:** `Resources/ui/js/sampler-app.js:33` (helper definition); 18 call sites across snapshot-deserialise paths (loop editor at 1755-56 + 2013-14, technique state at 2455-56 + 2458-59, trigger state at 2704 + 2709-11 + 2716-17, sample-map snapshot at 691 + 2502, variantIndex/Count at 1759-60).
+- **Risk:** LOW
+- **Type:** verbose-pattern
+- **Resolution:** Added `const num = (v, fallback = 0) => (Number.isFinite(v) ? v : fallback);` at the top of the module next to other helpers. Replaced 18 `Number.isFinite(x) ? x : default` ternaries. Sites that use `Number.isFinite` as a control-flow guard (`if (!Number.isFinite(x)) return`) are preserved — different intent.
+- **Verification:** `Number.isFinite` count drops from 33 → 18. The 18 remaining are: 3 helper-related lines (definition + 2 doc-comment lines), 15 preserved guards (early-return / branching guards, plus one compound condition at line 933 with extra `&& existingCount > 0`).
+
+#### [MEDIUM-06] invokeNative wrapper for native-fn invocation pattern — APPLIED
+- **File:** `Resources/ui/js/sampler-app.js:41` (helper definition); 14 call sites: `setCcEnabled`, `setCcNumber`, `setPcEnabled`, `setCcMapping`, `setPcMapping`, `resetTriggerMappings`, `setTechniqueName`, `addTechniqueSlot`, `removeTechniqueSlot`, `setKeyswitchEnabled`, `setKeyswitchRange` (commitKsRange), `clearSampleMap`, `dismissMissingFolder`, `confirmRoundRobinLoad`.
+- **Risk:** LOW
+- **Type:** verbose-pattern
+- **Resolution:** Added `async function invokeNative(name, ...args)` that returns the resolved value on success or `undefined` on missing-host / exception (matches the prior silent-catch behaviour). Standardised log tag to `[sampler-app] {name} failed`. Preserved sites: backend `addEventListener` subscriptions (~10 sites — those are not native-fn invocations); sites with user-visible toast on catch (`saveCurrentPreset` / `loadPreset` / `locateMissingFolder` — toasts a "failed" message that invokeNative would swallow); `setActiveTechnique` (has an `else` branch that runs only when host is missing — converting would change semantics for the throw case); `pullTechniqueState` / `pullTriggerState` / `getPendingMissingFolder` / multi-step load paths (multiple sequential native fns + return-value processing — leave to a separate, more careful pass).
+- **Verification:** `window.__JUCE__` count drops from 49 → 37. The 37 remaining are: 4 comments, 1 helper-definition body, 1 module-load warning at line 292 (different message: "running outside plugin host"), 16 backend event-listener subscriptions, ~15 preserved native-fn sites with semantic dependencies.
+
+#### [MEDIUM-07] mutateMappingSlot template for setCcMappingSlot/setPcMappingSlot — APPLIED
+- **File:** `Source/PluginProcessor.cpp:50` (template definition in anonymous namespace next to `atomicLoad`/`atomicStore`); call sites at `Source/PluginProcessor.cpp:2020` (`setCcMappingSlot`), `2040` (`setPcMappingSlot`).
+- **Risk:** LOW
+- **Type:** duplication
+- **Resolution:** Added `template <class T, class DefaultFactory, class Mutator> mutateMappingSlot (slot, slotIndex, makeDefault, mut)` that bounds-checks the index, runs the COW dance (atomic load → make_shared from current-or-default → mutate via callback), then atomic-stores. The `triggerStateDirty.store + triggerAsyncUpdate()` notification stays at each call site — intentionally outside the helper so the helper is purely structural. `OMtsTrigger::defaultCcMapping (1)` vs `OMtsTrigger::defaultPcMapping()` arity asymmetry absorbed by the DefaultFactory lambda. Helper uses the existing v1.16.7 `atomicLoad`/`atomicStore` wrappers for consistency.
+- **Verification:** 2 `mutateMappingSlot` call sites + 1 template definition. CC setter went from 28 lines → 18 lines; PC setter went from 19 lines → 14 lines (savings net of helper definition: small, but the COW boilerplate is now expressed in one place).
+
+#### [MEDIUM-08] publishMissingFolderIfNew helper in kickNextReplayOp — APPLIED
+- **File:** `Source/PluginProcessor.h:672` (declaration); `Source/PluginProcessor.cpp:1133` (definition); call sites at `Source/PluginProcessor.cpp:1187` (drag-drop case) and `1201` (filesystem case).
+- **Risk:** LOW
+- **Type:** duplication
+- **Resolution:** Added `void OMicrotonalSamplerAudioProcessor::publishMissingFolderIfNew (kind, path, displayName)` member helper. Bails if either pending field is non-empty (preserves "first-missing-only" semantics: subsequent missing folders silently skipped within a replay queue), otherwise assigns all three pending-missing fields and fires the `missingFolderCallback`. Drag-drop call site passes empty `juce::String{}` for path; filesystem fallback (`op.displayName.isNotEmpty() ? op.displayName : f.getFileName()`) computed at the call site, NOT inside the helper (which has no `juce::File` to derive from).
+- **Verification:** 2 helper call sites + 1 declaration + 1 definition. Two near-identical 7-line blocks each collapsed to a one-line helper call (filesystem case has one preceding statement to compute the displayName fallback).
+
+#### [MEDIUM-09] Drop empty MicrotonalSamplerSound default ctor — APPLIED
+- **File:** `Source/MicrotonalSamplerSound.h:18` (deleted line)
+- **Risk:** LOW
+- **Type:** stale-comment / verbose-pattern
+- **Resolution:** Deleted `MicrotonalSamplerSound() {}`. Class is now pure interface overrides; the implicitly-declared default constructor is sufficient.
+- **Verification:** `MicrotonalSamplerSound() {}` zero hits. Build clean (no `= delete` overload anywhere required the explicit definition).
 
 ---
 
