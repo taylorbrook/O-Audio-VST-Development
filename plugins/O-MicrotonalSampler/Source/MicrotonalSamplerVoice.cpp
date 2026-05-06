@@ -213,11 +213,10 @@ int MicrotonalSamplerVoice::selectVariantIndex (const SampleCell& cell,
 
     // v1.14.0: counter is now keyed on the (midi, layer, technique) triplet
     // so RR progression is independent per technique slot. Index packing
-    // matches the layout described in MicrotonalSamplerVoice.h
-    // (kRrCounterSize == 128 * 4 * kMaxTechniques).
-    constexpr int kMaxTech = 8;
+    // routes through MicrotonalSamplerVoice::packRrCounterIndex (see
+    // MicrotonalSamplerVoice.h) since v1.16.10 (MEDIUM-02).
     const int counterIdx = juce::jlimit (0, kRrCounterSize - 1,
-        cell.midiNote * 4 * kMaxTech + cell.velocityLayer * kMaxTech + cell.technique);
+        packRrCounterIndex (cell.midiNote, cell.velocityLayer, cell.technique));
     auto& counter = (*rrCounters)[(size_t) counterIdx];
 
     const uint8_t  last = counter.load (std::memory_order_relaxed);

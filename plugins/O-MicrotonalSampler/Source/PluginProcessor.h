@@ -664,6 +664,15 @@ private:
     std::vector<LoadOp> pendingReplayOps;
     void kickNextReplayOp();
 
+    // v1.16.10 (MEDIUM-08): "first-missing-only" publish helper. Used by
+    // kickNextReplayOp to surface the first missing folder of a replay queue
+    // and silently skip subsequent ones (so the user gets a single modal
+    // they can resolve, not one per cell). No-op once any of the pending
+    // fields is non-empty.
+    void publishMissingFolderIfNew (const juce::String& kind,
+                                    const juce::String& path,
+                                    const juce::String& displayName);
+
     // v1.12.3 (HG-01) — replay-queue corruption guards.
     //
     // Cascaded callbacks can re-enter the replay path through two distinct

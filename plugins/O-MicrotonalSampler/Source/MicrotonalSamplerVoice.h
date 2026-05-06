@@ -52,8 +52,17 @@ public:
     // different techniques must not interfere when the user switches
     // between them mid-session. Index =
     //     midi * 4 * kMaxTechniques + layer * kMaxTechniques + technique.
-    static constexpr int kRrCounterSize = 128 * 4 * 8;   // 4096
+    static constexpr int kRrCounterSize = 128 * 4 * kMaxTechniques;   // 4096
     using RrCounterArray = std::array<std::atomic<uint8_t>, (size_t) kRrCounterSize>;
+
+    // v1.16.10 (MEDIUM-02): pack a (midi, layer, technique) triple into the
+    // flat rrCounters index. Layout coupling to kRrCounterSize lives here
+    // and only here — call sites in PluginProcessor.cpp + this voice should
+    // route through this helper instead of repeating the literal arithmetic.
+    static constexpr int packRrCounterIndex (int midi, int layer, int tech) noexcept
+    {
+        return midi * 4 * kMaxTechniques + layer * kMaxTechniques + tech;
+    }
 
     // v1.8.0: per-cell variant cap. The counter type above is uint8_t with
     // 0xFF reserved as "no variant yet" sentinel — therefore the cap MUST be
