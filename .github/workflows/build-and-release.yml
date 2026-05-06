@@ -12,7 +12,11 @@ on:
       - '*-v*'  # Matches: PluginName-vX.Y.Z
 
 env:
-  JUCE_VERSION: '8.0.12'
+  # Pinned to 8.0.4 because note-expression module requires JUCE-NE-PATCH
+  # markers (Dorico microtonal kNoteExpressionValueEvent surfacing). Patch
+  # file targets 8.0.4 specifically; forward-port to a newer JUCE is a
+  # separate piece of work. See scripts/juce-patches/ + apply-juce-patches.sh.
+  JUCE_VERSION: '8.0.4'
   BUILD_TYPE: Release
 
 jobs:
@@ -56,6 +60,11 @@ jobs:
           unzip -q juce.zip
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
+
+      - name: Patch JUCE (note-expression — Dorico microtonal)
+        env:
+          JUCE_DIR: ${{ github.workspace }}/JUCE
+        run: bash scripts/apply-juce-patches.sh
 
       - name: Configure CMake
         run: |
@@ -398,6 +407,12 @@ jobs:
           Expand-Archive -Path juce.zip -DestinationPath .
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $env:GITHUB_ENV
+
+      - name: Patch JUCE (note-expression — Dorico microtonal)
+        shell: bash
+        env:
+          JUCE_DIR: ${{ github.workspace }}/JUCE
+        run: bash scripts/apply-juce-patches.sh
 
       - name: Install WebView2 NuGet Package
         run: |
