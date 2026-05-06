@@ -48,7 +48,7 @@ Ouaricon Plugins:
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
-| O-Prism | 📦 Installed | 1.17.4 | Synth (Microtonal Wavetable) | 2026-05-06 |
+| O-Prism | 📦 Installed | 1.18.0 | Synth (Microtonal Wavetable) | 2026-05-06 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
 | O-Formant | 📦 Installed | 1.24.1 | Synth (Physical Model Vocal) | 2026-04-17 |
 | O-Bowed | 📦 Installed | 1.2.0 | Synth (Physical Model Bowed String) | 2026-04-17 |
@@ -56,7 +56,7 @@ Ouaricon Plugins:
 | O-Wind | 📦 Installed | 1.15.1 | Synth (Physical Model Flute) | 2026-04-13 |
 | O-Contrabass | 🚧 Stage 0 | - | Synth (Physical Model Bowed Bass) | 2026-04-25 |
 | O-Bassoon | 🚧 Stage 0 | - | Synth (Physical Model Bassoon) | 2026-04-27 |
-| O-MicrotonalSampler | 📦 Installed | 1.16.11 | Synth (Microtonal Sampler) | 2026-05-05 |
+| O-MicrotonalSampler | 📦 Installed | 1.17.0 | Synth (Microtonal Sampler) | 2026-05-06 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

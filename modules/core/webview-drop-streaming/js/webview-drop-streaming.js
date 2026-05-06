@@ -283,8 +283,10 @@ export async function streamFolderEntryToCpp (dirEntry, opts) {
                 sessionId,
                 pickedOpts.layer,
                 pickedOpts.mode,
-                pickedOpts.override   ? 1 : 0,
-                pickedOpts.embedAudio ? 1 : 0);
+                pickedOpts.override         ? 1 : 0,
+                pickedOpts.embedAudio       ? 1 : 0,
+                pickedOpts.technique         ?? 0,
+                pickedOpts.overrideTechnique ? 1 : 0);
         } catch (e) {
             console.error('[webview-drop-streaming] dropSessionCommitFolder failed:', e);
         }
@@ -299,8 +301,10 @@ export async function streamFolderEntryToCpp (dirEntry, opts) {
             sessionId,
             pickedOpts.layer,
             pickedOpts.mode,
-            pickedOpts.override   ? 1 : 0,
-            pickedOpts.embedAudio ? 1 : 0);
+            pickedOpts.override         ? 1 : 0,
+            pickedOpts.embedAudio       ? 1 : 0,
+            pickedOpts.technique         ?? 0,
+            pickedOpts.overrideTechnique ? 1 : 0);
     } catch (e) {
         // Commit-step rejection — without this catch the UI never sees
         // the "Loading X samples…" toast cleared.

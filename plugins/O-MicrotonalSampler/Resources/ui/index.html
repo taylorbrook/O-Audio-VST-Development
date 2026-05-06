@@ -316,12 +316,19 @@
 
             <div class="flo-row">
               <span class="flo-label">Layer</span>
-              <div class="flo-segmented" role="radiogroup" aria-label="Target velocity layer">
-                <button type="button" data-layer="0" class="flo-seg active">L0</button>
-                <button type="button" data-layer="1" class="flo-seg">L1</button>
-                <button type="button" data-layer="2" class="flo-seg">L2</button>
-                <button type="button" data-layer="3" class="flo-seg">L3</button>
-              </div>
+              <select id="flo-layer-select" class="flo-select" aria-label="Target velocity layer">
+                <option value="0" selected>L0</option>
+                <option value="1">L1</option>
+                <option value="2">L2</option>
+                <option value="3">L3</option>
+              </select>
+            </div>
+
+            <div class="flo-row">
+              <span class="flo-label">Technique</span>
+              <select id="flo-technique-select" class="flo-select" aria-label="Target technique slot">
+                <!-- Options injected at modal-open from getTechniqueState().names -->
+              </select>
             </div>
 
             <div class="flo-row flo-modes">
@@ -348,7 +355,18 @@
 
             <label class="flo-override">
               <input type="checkbox" id="flo-override-checkbox" />
-              <span>Ignore filename velocity tokens (e.g. <code>_v1</code>, <code>_ff</code>)</span>
+              <span class="flo-override-text">
+                <span class="flo-override-title">Force all samples onto this layer</span>
+                <span class="flo-override-sub">Otherwise filename tokens (<code>_v1</code>, <code>_ff</code>, etc.) decide the layer</span>
+              </span>
+            </label>
+
+            <label class="flo-override">
+              <input type="checkbox" id="flo-override-technique-checkbox" />
+              <span class="flo-override-text">
+                <span class="flo-override-title">Force all samples onto this technique</span>
+                <span class="flo-override-sub">Otherwise filename tokens (<code>_pizz</code>, <code>_harm</code>, etc.) decide the technique</span>
+              </span>
             </label>
 
             <!-- v1.12.0: Embed-audio toggle. When ON, the loaded audio is

@@ -338,6 +338,17 @@ body {
     justify-content: center;
 }
 
+/* v1.17.0: folder-load modal grew taller after the Technique row +
+   force-technique toggle landed; pin it to the upper part of the
+   viewport so the action buttons don't slide under the bottom knob
+   strip on shorter editor heights. Scoped to this one dialog so
+   smaller modals (per-cell-merge, embed-confirm, etc.) keep their
+   vertical centering. */
+#folder-load-options-dialog.confirm-dialog {
+    align-items: flex-start;
+    padding-top: 4vh;
+}
+
 .confirm-dialog[hidden] {
     display: none;
 }
@@ -456,37 +467,33 @@ body {
     font-weight: 500;
 }
 
-.flo-segmented {
-    display: inline-flex;
-    border: 1px solid var(--border-warm);
-    border-radius: 4px;
-    overflow: hidden;
-    background: var(--bg-cream);
-}
-
-.flo-seg {
+.flo-select {
     font-family: inherit;
     font-size: 13px;
-    padding: 6px 14px;
-    background: transparent;
+    padding: 6px 28px 6px 12px;
+    background: var(--bg-cream);
     color: var(--text-body);
-    border: none;
-    border-left: 1px solid var(--border-warm);
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    min-width: 92px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%23B8860B'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
 }
 
-.flo-seg:first-child {
-    border-left: none;
+.flo-select:hover {
+    border-color: var(--accent-gold);
+    background-color: rgba(184, 134, 11, 0.06);
 }
 
-.flo-seg:hover {
-    background: rgba(184, 134, 11, 0.10);
-}
-
-.flo-seg.active {
-    background: var(--accent-gold);
-    color: #fff;
+.flo-select:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.20);
 }
 
 .flo-mode-options {
@@ -507,18 +514,40 @@ body {
 .flo-override {
     margin-top: 16px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     font-size: 13px;
     cursor: pointer;
     color: var(--text-body);
 }
 
+.flo-override input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.flo-override-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.35;
+}
+
+.flo-override-title {
+    color: var(--text-body);
+    font-weight: 500;
+}
+
+.flo-override-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
 .flo-override code {
     background: var(--bg-cream);
     padding: 1px 5px;
     border-radius: 3px;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-secondary);
 }
 

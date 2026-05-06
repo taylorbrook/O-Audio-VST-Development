@@ -1,5 +1,114 @@
 # O-MicrotonalSampler Changelog
 
+## [1.17.0] - 2026-05-06
+
+### Added
+- Folder-load options modal now exposes **technique targeting** alongside
+  the existing layer targeting. Users can:
+  - Pick a **target technique** from a dropdown populated with the user's
+    current technique slot names (renameable via the technique strip:
+    `ord, sp, st, sv, cs, pizz, harm, mart` by default).
+  - Toggle **"Force all samples onto this technique"** to override
+    filename-token routing (`_pizz`, `_harm`, etc.) and force every file
+    in the folder onto the chosen technique slot.
+  - The technique dropdown defaults to the **currently-active technique
+    tab**, so workflows like "select pizz tab → drop pizz folder" land
+    where the user is already looking.
+- Both targeting axes (layer / technique) have **independent force toggles**
+  — you can force technique while letting filenames decide layer, or
+  vice versa. Mirrors how `SampleLoader.cpp` already treats
+  `overrideTokens` (layer) and `overrideTechnique` (technique) as
+  independent flags.
+
+### Changed
+- Folder-load options modal — UX clarity rework for layer targeting:
+  - Replaced the segmented `L0 | L1 | L2 | L3` button group with a
+    `<select>` dropdown. Same payload (`targetLayer 0..3`), clearer
+    affordance for users who prefer a labelled menu over compact pills.
+  - Renamed the `Ignore filename velocity tokens (e.g. _v1, _ff)` checkbox
+    to `Force all samples onto this layer` with a sub-label that explains
+    the alternative (filename tokens decide layer when off). The original
+    label described the *negative* behaviour (what gets ignored); the new
+    label describes the *positive* outcome (every file lands on the chosen
+    layer), which is what the user actually selects this option for.
+
+### Why
+- The technique-override path has existed in the loader since v1.14.0
+  (`LoadOp::targetTechnique` + `LoadOp::overrideTechnique`,
+  `SampleLoader.cpp:296-298`) but was unreachable from the modal — the
+  flags were only set via direct `LoadOp` construction during state
+  rehydrate. This release surfaces that capability through the user-facing
+  load flow.
+- Symmetrically, the "force load on a specific layer" capability has
+  existed since v1.7.0 (`LoadOptions::overrideTokens` —
+  `SampleLoader.cpp:286-288`) but was gated behind an opaque label that
+  described the mechanism, not the intent. The rename + dropdown
+  restructure puts both targeting axes on equal footing in the UI.
+
+### Implementation
+- `Resources/ui/index.html` — segmented Layer buttons → `<select>` dropdown;
+  new Technique row with `<select id="flo-technique-select">` (options
+  injected at modal-open from `getTechniqueState().names`); new
+  `Force all samples onto this technique` checkbox below the layer one.
+- `Resources/ui/js/sampler-app.js` — `showFolderLoadOptionsModal` now
+  `async`; fetches technique names + active index via existing
+  `getTechniqueState` native fn; rebuilds the technique dropdown each open
+  so renames are picked up; defaults dropdown to active tab; payload
+  extended to `{ layer, mode, override, technique, overrideTechnique,
+  embedAudio }`. Old `.flo-segmented` / `.flo-seg` handlers replaced with
+  `change`-event handlers on both `<select>` elements.
+- `Resources/ui/css/sampler-shell.css` — old `.flo-segmented` / `.flo-seg`
+  rules removed; new `.flo-select` (cream bg, warm border, gold focus
+  ring, inline SVG chevron) and `.flo-override-text/-title/-sub` for the
+  two-line override labels.
+- `modules/core/webview-drop-streaming/js/webview-drop-streaming.js` —
+  `dropSessionCommitFolder` call site extended with two trailing args
+  (`technique`, `overrideTechnique`). Old call sites that don't supply
+  them get default 0/false.
+- `modules/core/webview-drop-streaming/cpp/WebViewDropStreaming.h` —
+  `OnCommitFolder` callback signature extended with `int targetTechnique`
+  + `bool overrideTechnique` trailing params. `dropSessionCommitFolder`
+  handler reads `args[5]` / `args[6]` (defaults preserved). Module is
+  consumed only by O-MicrotonalSampler today; no other plugins broken.
+- `Source/PluginEditor.cpp` — drop `onCommitFolder` lambda receives the
+  two new params and forwards to `processorRef.loadSampleFolder`;
+  `loadSampleFolderByPath` native fn handler reads `args[5]` / `args[6]`
+  with the same fallback pattern.
+- `Source/PluginProcessor.h/.cpp` — 7-arg `loadSampleFolder` overload
+  extended to 9 args with defaulted `targetTechnique = 0` /
+  `overrideTechnique = false`. Pre-v1.17.0 callers continue to compile
+  unchanged; the new fields land on `LoadOp::targetTechnique` /
+  `LoadOp::overrideTechnique`, which `SampleLoader.cpp:296-298` already
+  wires to the per-file `effectiveTechnique` decision.
+
+### Persistence (saved-state round-trip)
+- LoadOp serialisation extended with `technique` + `overrideTechnique`
+  properties. Emitted only when non-default to keep clean diffs for the
+  common "filename-tokens decide" case. Pre-v1.17.0 saved states load
+  identically: missing properties default to `0` / `false`, matching
+  pre-v1.17.0 implicit behaviour.
+
+### Verification
+- Visual inspection in Standalone (file-dialog flow + drag-drop flow).
+- Confirmed technique dropdown populates from `getTechniqueState()` and
+  defaults to active tab.
+- Confirmed force-technique toggle independently controls
+  `overrideTechnique`.
+- Confirmed C++ build is clean (no warnings, no errors).
+
+### Backward compatibility
+- Preset / saved-state format: forward-compatible. Old states load with
+  technique=0/override=false (pre-v1.17.0 implicit behaviour). New states
+  written by v1.17.0+ that omit the technique/overrideTechnique
+  properties are equivalent to the default — old plugin builds will read
+  them correctly.
+- Native function `loadSampleFolderByPath`: backward-compatible. New
+  optional args[5]/args[6] default to 0/false when JS callers don't
+  supply them.
+- Shared module `WebViewDropStreaming` callback signature: BREAKING for
+  consumers of the module. Verified only O-MicrotonalSampler uses it
+  today; updated in lockstep.
+
 ## [1.16.11] - 2026-05-05
 
 ### Changed

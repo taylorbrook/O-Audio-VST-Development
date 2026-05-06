@@ -1252,8 +1252,10 @@ function bindFolderDropZone() {
                 pick.path,
                 opts.layer,
                 opts.mode,
-                opts.override   ? 1 : 0,
-                opts.embedAudio ? 1 : 0);
+                opts.override         ? 1 : 0,
+                opts.embedAudio       ? 1 : 0,
+                opts.technique         ?? 0,
+                opts.overrideTechnique ? 1 : 0);
             if (!ok) {
                 showToast('Folder load failed');
             }
@@ -1339,33 +1341,69 @@ function formatBytes (n) {
 // live as the user toggles the embed checkbox. For dialog flows (folder
 // not picked yet) pass null; the size is shown in a follow-up confirmation
 // modal after the file picker resolves.
-function showFolderLoadOptionsModal (sizeBytes) {
+async function showFolderLoadOptionsModal (sizeBytes) {
+    // v1.17.0: technique dropdown options are populated from the user's
+    // current technique names (renameable via the technique strip) and the
+    // active tab is pre-selected. Fetched once at modal open; if names
+    // change while the modal is closed, the next open re-fetches.
+    let techniqueNames = ['ord', 'sp', 'st', 'sv', 'cs', 'pizz', 'harm', 'mart'];
+    let activeTechnique = 0;
+    try {
+        const state = await invokeNative('getTechniqueState');
+        if (state && Array.isArray(state.names) && state.names.length > 0) {
+            techniqueNames = state.names;
+        }
+        if (state && Number.isFinite(state.active)) {
+            activeTechnique = Math.max(0, Math.min(techniqueNames.length - 1, state.active | 0));
+        }
+    } catch (err) {
+        console.warn('[sampler-app] getTechniqueState failed; using default technique names', err);
+    }
+
     return new Promise((resolve) => {
         const dialog     = document.getElementById('folder-load-options-dialog');
         if (!dialog) { resolve(null); return; }
 
-        const segBtns    = dialog.querySelectorAll('.flo-seg');
-        const modeRadios = dialog.querySelectorAll('input[name="flo-mode"]');
-        const overrideEl = document.getElementById('flo-override-checkbox');
-        const embedEl    = document.getElementById('flo-embed-checkbox');
-        const sizeEl     = document.getElementById('flo-embed-size');
-        const explainEl  = document.getElementById('flo-explain');
-        const confirmBtn = document.getElementById('flo-confirm-btn');
-        const cancelBtn  = document.getElementById('flo-cancel-btn');
-        if (!segBtns.length || !modeRadios.length || !overrideEl
+        const layerSelect      = document.getElementById('flo-layer-select');
+        const techniqueSelect  = document.getElementById('flo-technique-select');
+        const modeRadios       = dialog.querySelectorAll('input[name="flo-mode"]');
+        const overrideEl       = document.getElementById('flo-override-checkbox');
+        const overrideTechEl   = document.getElementById('flo-override-technique-checkbox');
+        const embedEl          = document.getElementById('flo-embed-checkbox');
+        const sizeEl           = document.getElementById('flo-embed-size');
+        const explainEl        = document.getElementById('flo-explain');
+        const confirmBtn       = document.getElementById('flo-confirm-btn');
+        const cancelBtn        = document.getElementById('flo-cancel-btn');
+        if (!layerSelect || !techniqueSelect || !modeRadios.length
+                || !overrideEl || !overrideTechEl
                 || !embedEl || !sizeEl
                 || !explainEl || !confirmBtn || !cancelBtn) {
             resolve(null);
             return;
         }
 
-        // Reset to defaults each invocation.
-        let layer = 0;
-        let mode  = 'append';
-        segBtns.forEach((b, i) => b.classList.toggle('active', i === 0));
+        // Repopulate technique dropdown from the user's current names.
+        // Cleared+rebuilt each open so renames are reflected immediately.
+        techniqueSelect.innerHTML = '';
+        techniqueNames.forEach((name, i) => {
+            const opt = document.createElement('option');
+            opt.value       = String(i);
+            opt.textContent = name;
+            techniqueSelect.appendChild(opt);
+        });
+
+        // Reset to defaults each invocation. Technique defaults to the
+        // currently-active tab so workflows like "select pizz tab → drop
+        // pizz folder" land where the user is already looking.
+        let layer     = 0;
+        let mode      = 'append';
+        let technique = activeTechnique;
+        layerSelect.value     = '0';
+        techniqueSelect.value = String(technique);
         modeRadios.forEach((r) => { r.checked = (r.value === 'append'); });
-        overrideEl.checked = false;
-        embedEl.checked    = false;
+        overrideEl.checked     = false;
+        overrideTechEl.checked = false;
+        embedEl.checked        = false;
 
         const updateSizeLabel = () => {
             // Always-on embed-size telemetry per the v1.12.0 spec — the label
@@ -1391,8 +1429,10 @@ function showFolderLoadOptionsModal (sizeBytes) {
         };
 
         const updateExplain = () => {
-            const overrideOn = overrideEl.checked;
-            const layerStr   = `L${layer}`;
+            const overrideOn     = overrideEl.checked;
+            const overrideTechOn = overrideTechEl.checked;
+            const layerStr       = `L${layer}`;
+            const techName       = techniqueNames[technique] || `slot ${technique}`;
             let txt = '';
             if (mode === 'append') {
                 txt = overrideOn
@@ -1411,52 +1451,68 @@ function showFolderLoadOptionsModal (sizeBytes) {
                     ? `Layer onto ${layerStr}: collisions become round-robin variants (cap 64 per cell).`
                     : `Layer existing notes: collisions become round-robin variants. Filename tokens decide layer.`;
             }
+            // Technique line — appended only when the user is forcing a
+            // technique. Filename-token routing is the default path and
+            // doesn't need a callout.
+            if (overrideTechOn) {
+                txt += ` Technique forced to "${techName}".`;
+            }
             explainEl.textContent = txt;
         };
         updateExplain();
         updateSizeLabel();
 
-        const segHandler = (e) => {
-            const b = e.target.closest('.flo-seg');
-            if (!b) return;
-            const v = parseInt(b.dataset.layer, 10);
+        const layerHandler = (e) => {
+            const v = parseInt(e.target.value, 10);
             if (!Number.isFinite(v)) return;
             layer = v;
-            segBtns.forEach((x) => x.classList.toggle('active', x === b));
+            updateExplain();
+        };
+        const techniqueHandler = (e) => {
+            const v = parseInt(e.target.value, 10);
+            if (!Number.isFinite(v)) return;
+            technique = v;
             updateExplain();
         };
         const modeHandler = (e) => {
             mode = e.target.value;
             updateExplain();
         };
-        const overrideHandler = () => updateExplain();
-        const embedHandler    = () => updateSizeLabel();
+        const overrideHandler     = () => updateExplain();
+        const overrideTechHandler = () => updateExplain();
+        const embedHandler        = () => updateSizeLabel();
 
-        // Live-preview handlers (segment / mode / override / embed) don't
-        // dismiss the dialog — they update the explanation text and embed-size
-        // label as the user toggles them. Register them outside bindModal and
-        // tear them down in onClose so all listener removal still happens in
-        // one path.
-        segBtns.forEach((b) => b.addEventListener('click', segHandler));
+        // Live-preview handlers (layer / technique / mode / overrides /
+        // embed) don't dismiss the dialog — they update the explanation
+        // text and embed-size label as the user toggles them. Register
+        // them outside bindModal and tear them down in onClose so all
+        // listener removal still happens in one path.
+        layerSelect.addEventListener('change', layerHandler);
+        techniqueSelect.addEventListener('change', techniqueHandler);
         modeRadios.forEach((r) => r.addEventListener('change', modeHandler));
         overrideEl.addEventListener('change', overrideHandler);
+        overrideTechEl.addEventListener('change', overrideTechHandler);
         embedEl.addEventListener('change', embedHandler);
 
         bindModal(dialog, [
             [confirmBtn, () => ({
                 layer,
                 mode,
-                override:   overrideEl.checked,
-                embedAudio: embedEl.checked,
+                override:           overrideEl.checked,
+                technique,
+                overrideTechnique:  overrideTechEl.checked,
+                embedAudio:         embedEl.checked,
             })],
             [cancelBtn,  () => null],
         ], {
             keys:    { Escape: cancelBtn, Enter: confirmBtn },
             focus:   confirmBtn,
             onClose: () => {
-                segBtns.forEach((b) => b.removeEventListener('click', segHandler));
+                layerSelect.removeEventListener('change', layerHandler);
+                techniqueSelect.removeEventListener('change', techniqueHandler);
                 modeRadios.forEach((r) => r.removeEventListener('change', modeHandler));
                 overrideEl.removeEventListener('change', overrideHandler);
+                overrideTechEl.removeEventListener('change', overrideTechHandler);
                 embedEl.removeEventListener('change', embedHandler);
             },
         }).then(resolve);
