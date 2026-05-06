@@ -429,10 +429,10 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
     // newly-stored value. Once captured here it is frozen for the rest of
     // the note's lifetime; in-flight voices are immune to subsequent
     // technique flips (RT-safety contract from the v1.14.0 plan).
-    startTechnique = 0;
-    if (pendingTechniqueSource != nullptr)
-        startTechnique = juce::jlimit (0, kMaxTechniques - 1,
-                                       pendingTechniqueSource->load (std::memory_order_acquire));
+    startTechnique = (pendingTechniqueSource != nullptr)
+        ? juce::jlimit (0, kMaxTechniques - 1,
+                        pendingTechniqueSource->load (std::memory_order_acquire))
+        : 0;
 
     // ---------- 3. findCell lookup (primary "low" layer) ----------
     // v1.14.0: triplet lookup. SampleMap::findCell falls back to technique=0

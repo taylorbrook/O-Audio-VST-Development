@@ -1,5 +1,57 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.9] - 2026-05-05
+
+### Changed
+- Phase 3 sweep — 4 LOW-severity simplification candidates applied (see
+  `.planning/SIMPLIFICATION-AUDIT.md` for the full audit).
+  - **[LOW-01]** Extracted `OMicrotonalSamplerAudioProcessor::resetAllRrCounters()`
+    helper. Three identical `for (auto& c : rrCounters) c.store ((uint8_t) 0xFFu,
+    std::memory_order_relaxed);` loops in `PluginProcessor.cpp` (constructor,
+    `applyFolderLoad` ReplaceAll branch, `clearSampleMap`) collapsed into
+    single-line calls. Memory order, sentinel value, and `noexcept` contract
+    preserved.
+  - **[LOW-03]** Replaced `lastWidthBucket` string ('wide'/'narrow') with
+    `lastIsNarrow` boolean in `sampler-app.js` narrow-window guard. The string
+    bucket served no purpose — boolean is a more direct match for the predicate
+    `w < NARROW_BREAKPOINT_PX`. No behaviour change (initial `null` preserved
+    so first invocation still proceeds).
+  - **[LOW-05]** Moved the `makeVector` lambda from the file-anonymous namespace
+    at the top of `PluginEditor.cpp` into the body of `getResource()` (its only
+    call site, ~12 invocations). Lambda signature/body byte-identical; only
+    scope changes.
+  - **[LOW-07]** Replaced `startTechnique = 0; if (...) startTechnique = ...;`
+    with a single ternary in `MicrotonalSamplerVoice::startNote` for symmetry
+    with surrounding code. `std::memory_order_acquire` and `juce::jlimit (0,
+    kMaxTechniques - 1, ...)` clamp preserved (RT-safety contract from v1.14.0).
+
+### Verification
+- Build (macOS VST3 + AU): PASS
+- auval: PASS
+- Greps:
+  - `0xFFu` literal in `PluginProcessor.cpp` confined to the `resetAllRrCounters`
+    definition + three remaining single-cell stores in CC/PC counter-index
+    paths (NOT reset-all loops).
+  - `lastWidthBucket`: zero hits in `sampler-app.js`. `lastIsNarrow`: 3 hits
+    (declaration + comparison + assignment).
+  - `makeVector`: all 12 hits inside `getResource()`. Anonymous-namespace
+    definition removed.
+  - `startTechnique = 0` line: zero hits in `MicrotonalSamplerVoice.cpp` (the
+    ternary subsumes both branches).
+- Visual smoke: narrow-window auto-close + toast still triggers on bucket
+  transitions across the 900px boundary.
+- DSP sanity: round-robin selection rotates as expected; technique-freeze on
+  note-start unchanged.
+
+### Note
+Two LOW items from the audit (LOW-04 enum doc order, LOW-06 duplicate
+double-click comment header) re-verified as false positives in current code
+and were excluded from this sweep. The `LoadMode` enum doc already matches
+the enum value order, and the "250 ms double-click" canonical comment lives
+once at `sampler-app.js:854` (the cross-reference at line 659 is load-bearing
+context, not duplication). Both moved to a `## Phase 3 Skipped (re-verified
+false-positive)` section in the audit.
+
 ## [1.16.8] - 2026-05-05
 
 ### Changed
