@@ -134,7 +134,9 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                                      int targetLayer,
                                      const juce::String& modeStr,
                                      bool overrideTokens,
-                                     bool embedAudio)
+                                     bool embedAudio,
+                                     int targetTechnique,
+                                     bool overrideTechnique)
         {
             LoadMode mode = LoadMode::ReplaceAll;
             if      (modeStr == "append")        mode = LoadMode::Append;
@@ -142,7 +144,8 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
             else if (modeStr == "merge_rr")      mode = LoadMode::MergeRR;
 
             processorRef.loadSampleFolder (dir, targetLayer, mode, overrideTokens,
-                                           "drag-drop", displayName, embedAudio);
+                                           "drag-drop", displayName, embedAudio,
+                                           targetTechnique, overrideTechnique);
         };
         cfg.onCommitFile = [this] (const juce::File& file, int midi, int vel)
         {
@@ -932,12 +935,13 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
-        // ---- loadSampleFolderByPath (v1.12.0) ----
+        // ---- loadSampleFolderByPath (v1.12.0; v1.17.0 +technique args) ----
         //
         // Loads a folder by absolute path with full origin/embed metadata.
         // Used by JS after `pickSampleFolder` (and any embed-confirm
         // modal). The pre-pick options modal returns layer/mode/override/
-        // embed; this fn stitches them together with the picked path.
+        // embed/technique/overrideTechnique; this fn stitches them
+        // together with the picked path.
         //
         //   args[0] = absolute folder path (required)
         //   args[1] (optional) = targetLayer 0..3       — default 0
@@ -945,6 +949,8 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
         //                        ("append" | "replace_layer" | "replace_all" | "merge_rr")
         //   args[3] (optional) = overrideTokens 0/1     — default 0
         //   args[4] (optional) = embedAudio 0/1         — default 0
+        //   args[5] (optional) = targetTechnique 0..7   — default 0 (v1.17.0)
+        //   args[6] (optional) = overrideTechnique 0/1  — default 0 (v1.17.0)
         //
         // Resolves true if the load was dispatched; false if path is
         // invalid. The actual scan + load is async — sampleMapUpdated
@@ -967,14 +973,18 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                         return;
                     }
 
-                    const int  targetLayer = args.size() > 1
+                    const int  targetLayer  = args.size() > 1
                         ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
-                    const auto modeStr     = args.size() > 2 ? args[2].toString()
-                                                             : juce::String ("replace_all");
-                    const bool overrideTok = args.size() > 3
+                    const auto modeStr      = args.size() > 2 ? args[2].toString()
+                                                              : juce::String ("replace_all");
+                    const bool overrideTok  = args.size() > 3
                         ? static_cast<int> (args[3]) != 0 : false;
-                    const bool embedAudio  = args.size() > 4
+                    const bool embedAudio   = args.size() > 4
                         ? static_cast<int> (args[4]) != 0 : false;
+                    const int  targetTech   = args.size() > 5
+                        ? juce::jlimit (0, 7, static_cast<int> (args[5])) : 0;
+                    const bool overrideTech = args.size() > 6
+                        ? static_cast<int> (args[6]) != 0 : false;
 
                     LoadMode mode = LoadMode::ReplaceAll;
                     if (modeStr == "append")        mode = LoadMode::Append;
@@ -986,10 +996,12 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                          << " layer=" << targetLayer
                          << " mode=" << static_cast<int> (mode)
                          << " override=" << (int) overrideTok
-                         << " embed=" << (int) embedAudio);
+                         << " embed=" << (int) embedAudio
+                         << " technique=" << targetTech
+                         << " overrideTech=" << (int) overrideTech);
                     processorRef.loadSampleFolder (folder, targetLayer, mode, overrideTok,
                                                     "filesystem", folder.getFileName(),
-                                                    embedAudio);
+                                                    embedAudio, targetTech, overrideTech);
                     complete (juce::var (true));
                 }
         },

@@ -258,13 +258,22 @@ public:
     // drag-drop streaming path (origin="drag-drop") and by the embed-aware
     // dialog path. The legacy 4-arg overload above forwards here with
     // origin="filesystem", displayName=folder.getFileName(), embedAudio=false.
+    //
+    // v1.17.0: targetTechnique / overrideTechnique appended as defaulted
+    // params — surfaces the LoadOp::overrideTechnique path that has
+    // existed since v1.14.0 but was previously only reachable through
+    // direct LoadOp construction. Defaults preserve pre-v1.17.0 callers
+    // (technique=0, overrideTechnique=false → identical SampleLoader
+    // effectiveTechnique decision).
     void loadSampleFolder (const juce::File& folder,
                            int               targetLayer,
                            LoadMode          mode,
                            bool              overrideTokens,
                            const juce::String& origin,
                            const juce::String& displayName,
-                           bool              embedAudio);
+                           bool              embedAudio,
+                           int               targetTechnique   = 0,
+                           bool              overrideTechnique = false);
 
     // Read-only accessor for Stage-3 UI: list of files the loader skipped
     // (unparseable filenames, unreadable files, etc.). Refreshed on each

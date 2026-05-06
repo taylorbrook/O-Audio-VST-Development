@@ -41,11 +41,13 @@
                                    int targetLayer,
                                    const juce::String& mode,
                                    bool overrideTokens,
-                                   bool embedAudio)
+                                   bool embedAudio,
+                                   int targetTechnique,
+                                   bool overrideTechnique)
         {
             p.loadSampleFolder (dir, targetLayer, parseMode (mode),
                                 overrideTokens, "drag-drop", displayName,
-                                embedAudio);
+                                embedAudio, targetTechnique, overrideTechnique);
         };
         cfg.onCommitFile = [&p] (const juce::File& file, int midi, int vel)
         {
@@ -90,24 +92,32 @@ namespace Ouaricon::WebViewDropStreaming
          * Folder-commit callback signature. Invoked from dropSessionCommitFolder
          * once all files in the drop have been streamed into `dir`.
          *
-         *   dir            — the session temp dir containing the streamed files
-         *   displayName    — human-friendly folder name (lifted from
-         *                    FileSystemEntry::name in JS) for missing-folder
-         *                    modal copy on session reload. Falls back to
-         *                    dir.getFileName() if JS didn't supply one.
-         *   targetLayer    — 0..3, args[1] from dropSessionCommitFolder
-         *   mode           — args[2] string ("replace_all" / "append" /
-         *                    "replace_layer" / "merge_rr"). Plugin parses to
-         *                    its own LoadMode enum.
-         *   overrideTokens — args[3], default false
-         *   embedAudio     — args[4], default false
+         *   dir               — the session temp dir containing the streamed files
+         *   displayName       — human-friendly folder name (lifted from
+         *                       FileSystemEntry::name in JS) for missing-folder
+         *                       modal copy on session reload. Falls back to
+         *                       dir.getFileName() if JS didn't supply one.
+         *   targetLayer       — 0..3, args[1] from dropSessionCommitFolder
+         *   mode              — args[2] string ("replace_all" / "append" /
+         *                       "replace_layer" / "merge_rr"). Plugin parses to
+         *                       its own LoadMode enum.
+         *   overrideTokens    — args[3], default false
+         *   embedAudio        — args[4], default false
+         *   targetTechnique   — args[5], default 0 (added 2026-05-06 for
+         *                       O-MicrotonalSampler v1.17.0). Optional —
+         *                       JS callers that don't pass it get 0/false
+         *                       so the callback runs identically to the
+         *                       pre-v1.17.0 5-arg form.
+         *   overrideTechnique — args[6], default false
          */
         using OnCommitFolder = std::function<void (const juce::File& dir,
                                                    const juce::String& displayName,
                                                    int targetLayer,
                                                    const juce::String& mode,
                                                    bool overrideTokens,
-                                                   bool embedAudio)>;
+                                                   bool embedAudio,
+                                                   int targetTechnique,
+                                                   bool overrideTechnique)>;
 
         /**
          * Single-file-commit callback. Invoked from dropSessionCommitFile.
@@ -342,6 +352,8 @@ namespace Ouaricon::WebViewDropStreaming
             //   args[2] (optional) = mode string            — default "replace_all"
             //   args[3] (optional) = overrideTokens 0/1     — default 0
             //   args[4] (optional) = embedAudio 0/1         — default 0
+            //   args[5] (optional) = targetTechnique 0..7   — default 0 (v1.17.0)
+            //   args[6] (optional) = overrideTechnique 0/1  — default 0 (v1.17.0)
             //
             // Forwards the session dir + lifted folder name to onCommitFolder.
             // Temp dir is left in place; cleaned up at next dropSessionStart.
@@ -358,14 +370,18 @@ namespace Ouaricon::WebViewDropStreaming
                         return;
                     }
 
-                    const int  targetLayer = args.size() > 1
+                    const int  targetLayer     = args.size() > 1
                         ? juce::jlimit (0, 3, static_cast<int> (args[1])) : 0;
-                    const auto modeStr     = args.size() > 2
+                    const auto modeStr         = args.size() > 2
                         ? args[2].toString() : juce::String ("replace_all");
-                    const bool overrideTok = args.size() > 3
+                    const bool overrideTok     = args.size() > 3
                         ? static_cast<int> (args[3]) != 0 : false;
-                    const bool embedAudio  = args.size() > 4
+                    const bool embedAudio      = args.size() > 4
                         ? static_cast<int> (args[4]) != 0 : false;
+                    const int  targetTech      = args.size() > 5
+                        ? juce::jlimit (0, 7, static_cast<int> (args[5])) : 0;
+                    const bool overrideTech    = args.size() > 6
+                        ? static_cast<int> (args[6]) != 0 : false;
 
                     const auto displayName = currentSessionFolderName.isNotEmpty()
                         ? currentSessionFolderName
@@ -377,11 +393,13 @@ namespace Ouaricon::WebViewDropStreaming
                          << " mode=" << modeStr
                          << " override=" << (int) overrideTok
                          << " embed=" << (int) embedAudio
+                         << " technique=" << targetTech
+                         << " overrideTech=" << (int) overrideTech
                          << " name=" << displayName);
 
                     config.onCommitFolder (currentSessionDir, displayName,
                                            targetLayer, modeStr, overrideTok,
-                                           embedAudio);
+                                           embedAudio, targetTech, overrideTech);
                     complete (juce::var (true));
                 });
 

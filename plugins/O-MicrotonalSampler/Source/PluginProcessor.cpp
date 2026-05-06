@@ -824,21 +824,30 @@ void OMicrotonalSamplerAudioProcessor::loadSampleFolder (const juce::File& folde
                                                           bool     overrideTokens,
                                                           const juce::String& origin,
                                                           const juce::String& displayName,
-                                                          bool     embedAudio)
+                                                          bool     embedAudio,
+                                                          int      targetTechnique,
+                                                          bool     overrideTechnique)
 {
     if (sampleLoader == nullptr)
         return;
 
     const int  clampedLayer = juce::jlimit (0, 3, targetLayer);
+    // v1.17.0: technique slot count is fixed at compile-time
+    // (kMaxTechniques = 8 in SampleMap.h). Clamp here so out-of-range JS
+    // input can't corrupt LoadOp / LoadOptions before SampleLoader's own
+    // jlimit on line 297.
+    const int  clampedTech  = juce::jlimit (0, kMaxTechniques - 1, targetTechnique);
 
     LoadOp op;
-    op.path           = folder.getFullPathName();
-    op.targetLayer    = clampedLayer;
-    op.mode           = mode;
-    op.overrideTokens = overrideTokens;
-    op.origin         = origin.isNotEmpty() ? origin : juce::String ("filesystem");
-    op.displayName    = displayName.isNotEmpty() ? displayName : folder.getFileName();
-    op.embedAudio     = embedAudio;
+    op.path              = folder.getFullPathName();
+    op.targetLayer       = clampedLayer;
+    op.mode              = mode;
+    op.overrideTokens    = overrideTokens;
+    op.origin            = origin.isNotEmpty() ? origin : juce::String ("filesystem");
+    op.displayName       = displayName.isNotEmpty() ? displayName : folder.getFileName();
+    op.embedAudio        = embedAudio;
+    op.targetTechnique   = clampedTech;          // v1.17.0
+    op.overrideTechnique = overrideTechnique;    // v1.17.0
 
     // Track the most recent loaded folder for any single-path UI display.
     // Cleared on failure to keep stale paths out of the missing-folder modal.
@@ -2516,6 +2525,15 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
             opTree.setProperty ("mode",     loadModeToString (op.mode),         nullptr);
             opTree.setProperty ("override", op.overrideTokens ? 1 : 0,          nullptr);
 
+            // v1.17.0: persist technique-targeting so saved projects round-trip
+            // the user's choice. Only emitted when non-default (slot 0 / off)
+            // to keep diffs clean for the common "filename-tokens decide"
+            // case; absence on load defaults to 0 / false (see deserialise).
+            if (op.targetTechnique != 0)
+                opTree.setProperty ("technique", op.targetTechnique, nullptr);
+            if (op.overrideTechnique)
+                opTree.setProperty ("overrideTechnique", 1, nullptr);
+
             // v1.12.0:
             opTree.setProperty ("kind",  op.origin.isNotEmpty() ? op.origin : juce::String ("filesystem"), nullptr);
             if (op.displayName.isNotEmpty())
@@ -2736,13 +2754,18 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
                 continue;
 
             LoadOp op;
-            op.path           = path;
-            op.targetLayer    = juce::jlimit (0, 3, static_cast<int> (opTree.getProperty ("layer", 0)));
-            op.mode           = loadModeFromString (opTree.getProperty ("mode").toString());
-            op.overrideTokens = static_cast<int> (opTree.getProperty ("override", 0)) != 0;
-            op.origin         = kind;
-            op.displayName    = opTree.getProperty ("name").toString();
-            op.embedAudio     = embed;
+            op.path              = path;
+            op.targetLayer       = juce::jlimit (0, 3, static_cast<int> (opTree.getProperty ("layer", 0)));
+            op.mode              = loadModeFromString (opTree.getProperty ("mode").toString());
+            op.overrideTokens    = static_cast<int> (opTree.getProperty ("override", 0)) != 0;
+            op.origin            = kind;
+            op.displayName       = opTree.getProperty ("name").toString();
+            op.embedAudio        = embed;
+            // v1.17.0: defaults to 0 / false for pre-v1.17.0 states so
+            // existing saved projects rehydrate identically.
+            op.targetTechnique   = juce::jlimit (0, kMaxTechniques - 1,
+                                                 static_cast<int> (opTree.getProperty ("technique", 0)));
+            op.overrideTechnique = static_cast<int> (opTree.getProperty ("overrideTechnique", 0)) != 0;
 
             // Inline audio blob — when present, deserialise the slots directly
             // so kickNextReplayOp can apply them synchronously (no SampleLoader

@@ -1,12 +1,12 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.16.6 PATCH SHIPPED — exp-map top-level microtonal fields restored; full v1.16.x Dorico smoke sweep PASS
-status: v1_16_6_full_smoke_pass_pending_git_commit
-last_updated: 2026-05-05
-version: 1.16.6
-next_brief: (none — v1.16.x Dorico distribution work fully closed: TC-1..TC-7 all PASS)
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5
+phase: v1.17.0 MINOR SHIPPED — folder-load modal: Layer dropdown + Technique dropdown + independent force toggles
+status: v1_17_0_layer_technique_targeting_pending_install_verification
+last_updated: 2026-05-06
+version: 1.17.0
+next_brief: (none — surfaces existing v1.14.0 LoadOp::overrideTechnique through the modal; layer override label clarified)
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.16.7, 1.16.8, 1.16.9, 1.16.10, 1.16.11
 ---
 
 # Resume Point
