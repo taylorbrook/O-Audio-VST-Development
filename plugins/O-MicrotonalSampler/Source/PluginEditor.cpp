@@ -39,6 +39,55 @@ namespace
             reinterpret_cast<const std::byte*> (data),
             reinterpret_cast<const std::byte*> (data) + size);
     };
+
+    // v1.16.7 (HIGH-03): JSON payload for held-notes / freezes broadcasts.
+    // Format is `{"notes":[i…],"freqs":[f…]}` with 4-digit freq precision —
+    // load-bearing for the TuningPanel TrueKeys / Circle / Polar visualisations.
+    inline juce::String buildNotesFreqsJson (const std::vector<int>& notes,
+                                             const std::vector<double>& freqs)
+    {
+        juce::String notesArr = "[", freqsArr = "[";
+        const auto n = std::min (notes.size(), freqs.size());
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (i > 0) { notesArr += ","; freqsArr += ","; }
+            notesArr += juce::String (notes[i]);
+            freqsArr += juce::String (freqs[i], 4);
+        }
+        notesArr += "]";
+        freqsArr += "]";
+        return "{\"notes\":" + notesArr + ",\"freqs\":" + freqsArr + "}";
+    }
+
+    // v1.16.7 (HIGH-04): cents-array → JSON list with 6-digit precision.
+    // Used by the four scale-generator native fns and the tuning-engine
+    // intervals readout. Precision is load-bearing — JS parses with parseFloat
+    // and any drift would silently desync the Rank2/EDO previews.
+    inline juce::String centsArrayToJson (const std::vector<double>& cents)
+    {
+        juce::String json = "[";
+        for (size_t i = 0; i < cents.size(); ++i)
+        {
+            if (i > 0) json += ",";
+            json += juce::String (cents[i], 6);
+        }
+        json += "]";
+        return json;
+    }
+
+    // v1.16.7 (HIGH-05): boolean-arg APVTS setter for the KS / CC / PC enable
+    // toggles. Returns true iff the param was located and updated, matching
+    // the prior {complete(false) on miss, complete(true) on success} contract.
+    inline bool setBoolParamFromArgs (juce::AudioProcessorValueTreeState& apvts,
+                                      juce::StringRef paramId,
+                                      const juce::Array<juce::var>& args)
+    {
+        if (args.size() < 1) return false;
+        auto* p = apvts.getParameter (paramId);
+        if (p == nullptr) return false;
+        p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
+        return true;
+    }
 }
 
 //==============================================================================
@@ -341,19 +390,8 @@ void OMicrotonalSamplerAudioProcessorEditor::timerCallback()
     std::vector<double> heldFreqs;
     processorRef.getHeldNotesData (heldNotes, heldFreqs);
 
-    juce::String notesArr = "[";
-    juce::String freqsArr = "[";
-    for (size_t i = 0; i < heldNotes.size(); ++i)
-    {
-        if (i > 0) { notesArr += ","; freqsArr += ","; }
-        notesArr += juce::String (heldNotes[i]);
-        freqsArr += juce::String (heldFreqs[i], 4);
-    }
-    notesArr += "]";
-    freqsArr += "]";
-
-    juce::String payload = "{\"notes\":" + notesArr + ",\"freqs\":" + freqsArr + "}";
-    webView->emitEventIfBrowserIsVisible ("tuningHeldNotes", juce::var (payload));
+    webView->emitEventIfBrowserIsVisible ("tuningHeldNotes",
+                                          juce::var (buildNotesFreqsJson (heldNotes, heldFreqs)));
 
     prevActiveNotesLow  = low;
     prevActiveNotesHigh = high;
@@ -653,18 +691,9 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                         std::function<void(juce::var)> complete)
                 {
                     auto* engine = processorRef.getTuningEngine();
-                    juce::String json = "[";
-                    if (engine != nullptr)
-                    {
-                        auto intervals = engine->getIntervals();
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                    }
-                    json += "]";
-                    complete (juce::var (json));
+                    complete (juce::var (engine != nullptr
+                                             ? centsArrayToJson (engine->getIntervals())
+                                             : juce::String ("[]")));
                 }
         },
 
@@ -711,17 +740,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     std::vector<int>    notes;
                     std::vector<double> freqs;
                     processorRef.getHeldNotesData (notes, freqs);
-
-                    juce::String notesArr = "[", freqsArr = "[";
-                    for (size_t i = 0; i < notes.size(); ++i)
-                    {
-                        if (i > 0) { notesArr += ","; freqsArr += ","; }
-                        notesArr += juce::String (notes[i]);
-                        freqsArr += juce::String (freqs[i], 4);
-                    }
-                    notesArr += "]"; freqsArr += "]";
-                    complete (juce::var ("{\"notes\":" + notesArr
-                                       + ",\"freqs\":" + freqsArr + "}"));
+                    complete (juce::var (buildNotesFreqsJson (notes, freqs)));
                 }
         },
 
@@ -1508,17 +1527,10 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 {
                     if (args.size() >= 2)
                     {
-                        auto intervals = ScaleGenerator::generateEDO (
-                            static_cast<int>    (args[0]),
-                            static_cast<double> (args[1]));
-                        juce::String json = "[";
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                        json += "]";
-                        complete (juce::var (json));
+                        complete (juce::var (centsArrayToJson (
+                            ScaleGenerator::generateEDO (
+                                static_cast<int>    (args[0]),
+                                static_cast<double> (args[1])))));
                         return;
                     }
                     complete (juce::var());
@@ -1532,17 +1544,10 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 {
                     if (args.size() >= 2)
                     {
-                        auto intervals = ScaleGenerator::generateHarmonicSeries (
-                            static_cast<int> (args[0]),
-                            static_cast<int> (args[1]));
-                        juce::String json = "[";
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                        json += "]";
-                        complete (juce::var (json));
+                        complete (juce::var (centsArrayToJson (
+                            ScaleGenerator::generateHarmonicSeries (
+                                static_cast<int> (args[0]),
+                                static_cast<int> (args[1])))));
                         return;
                     }
                     complete (juce::var());
@@ -1556,18 +1561,11 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 {
                     if (args.size() >= 3)
                     {
-                        auto intervals = ScaleGenerator::generateRank2 (
-                            static_cast<double> (args[0]),
-                            static_cast<double> (args[1]),
-                            static_cast<int>    (args[2]));
-                        juce::String json = "[";
-                        for (size_t i = 0; i < intervals.size(); ++i)
-                        {
-                            if (i > 0) json += ",";
-                            json += juce::String (intervals[i], 6);
-                        }
-                        json += "]";
-                        complete (juce::var (json));
+                        complete (juce::var (centsArrayToJson (
+                            ScaleGenerator::generateRank2 (
+                                static_cast<double> (args[0]),
+                                static_cast<double> (args[1]),
+                                static_cast<int>    (args[2])))));
                         return;
                     }
                     complete (juce::var());
@@ -1912,15 +1910,8 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
                 {
-                    if (args.size() < 1) { complete (juce::var (false)); return; }
-                    auto& apvts = processorRef.getAPVTS();
-                    if (auto* p = apvts.getParameter ("ks_enabled"))
-                    {
-                        p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
-                        complete (juce::var (true));
-                        return;
-                    }
-                    complete (juce::var (false));
+                    complete (juce::var (setBoolParamFromArgs (
+                        processorRef.getAPVTS(), "ks_enabled", args)));
                 }
         },
 
@@ -2014,15 +2005,8 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
                 {
-                    if (args.size() < 1) { complete (juce::var (false)); return; }
-                    auto& apvts = processorRef.getAPVTS();
-                    if (auto* p = apvts.getParameter ("cc_select_enabled"))
-                    {
-                        p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
-                        complete (juce::var (true));
-                        return;
-                    }
-                    complete (juce::var (false));
+                    complete (juce::var (setBoolParamFromArgs (
+                        processorRef.getAPVTS(), "cc_select_enabled", args)));
                 }
         },
 
@@ -2065,15 +2049,8 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
                 {
-                    if (args.size() < 1) { complete (juce::var (false)); return; }
-                    auto& apvts = processorRef.getAPVTS();
-                    if (auto* p = apvts.getParameter ("pc_enabled"))
-                    {
-                        p->setValueNotifyingHost (static_cast<bool> (args[0]) ? 1.0f : 0.0f);
-                        complete (juce::var (true));
-                        return;
-                    }
-                    complete (juce::var (false));
+                    complete (juce::var (setBoolParamFromArgs (
+                        processorRef.getAPVTS(), "pc_enabled", args)));
                 }
         },
 

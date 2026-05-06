@@ -1,5 +1,45 @@
 # O-MicrotonalSampler Changelog
 
+## [1.16.7] - 2026-05-05
+
+### Changed
+- **Code simplification — Phase 1 (audit candidates HIGH-01/03/04/05).** Pure helper
+  extraction; no behaviour change.
+  - `PluginProcessor.cpp`: collapsed 12 `__cpp_lib_atomic_shared_ptr` `#if/#else`
+    blocks behind file-local `atomicLoad` / `atomicStore` template helpers. The
+    site at lines 510–516 was a dead conditional (both arms identical). The
+    deprecated free-function `std::atomic_load`/`atomic_store` overloads are
+    still the underlying implementation.
+  - `PluginEditor.cpp`: extracted three anonymous-namespace helpers:
+    - `buildNotesFreqsJson(notes, freqs)` — replaces 2 duplicated blocks emitting
+      `{"notes":[…],"freqs":[…]}` with 4-digit freq precision (held-notes
+      broadcast, `getHeldNotesJson` native fn).
+    - `centsArrayToJson(cents)` — replaces 4 duplicated 6-digit-precision JSON
+      builders in `getTuningIntervals`, `generateEDO`, `generateHarmonicSeries`,
+      `generateRank2`.
+    - `setBoolParamFromArgs(apvts, paramId, args)` — replaces 3 copies of the
+      bool-arg `setValueNotifyingHost` pattern in `setKeyswitchEnabled`,
+      `setCcEnabled`, `setPcEnabled`. Public contract unchanged
+      (`complete(false)` on bad args / missing param, `complete(true)` on
+      success).
+  - Net diff: −54 LOC (167 deletions, 113 insertions including helper bodies +
+    explanatory comments).
+
+### Verification
+- All four extractions are pure mechanical refactors. Output formats (JSON
+  shape, freq/cents precision, callback ordering) are byte-identical to
+  v1.16.6.
+- Items on the audit's "Skipped (false-positive checks)" list — drag-drop
+  streaming, resource-provider URL handling, `Juce` vs `window.__JUCE__`,
+  microtonal top-level exp-map fields, RR/voice DSP, WebView2 guards — were
+  not touched.
+- Audit report: `plugins/O-MicrotonalSampler/.planning/SIMPLIFICATION-AUDIT.md`.
+
+### Note
+- Missing v1.16.6 changelog entry. Commit `4883886` shipped v1.16.6 ("restore
+  exp-map top-level microtonal fields — TC-4 regression fix") but no CHANGELOG
+  entry was written. Backfill on next pass.
+
 ## [1.16.5] - 2026-05-05
 
 ### Fixed
