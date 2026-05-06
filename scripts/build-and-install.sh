@@ -223,25 +223,54 @@ phase_2_build() {
 # ============================================================================
 # Phase 3: Extract PRODUCT_NAME
 # ============================================================================
+# Reads the actual artifact filename produced by Phase 2 instead of grepping
+# CMakeLists.txt source. This correctly handles plugins whose PRODUCT_NAME
+# contains a CMake variable (e.g. "O-Prism${OUARICON_DEV_SUFFIX}") — grepping
+# the source returns the literal un-expanded string and silently breaks
+# Phases 4-7. The build dir is the authoritative source of truth.
 phase_3_extract_product_name() {
     echo ""
     info "Phase 3: Extract PRODUCT_NAME"
     echo "Phase 3: Extract PRODUCT_NAME" >> "$LOG_FILE"
 
-    # Parse PRODUCT_NAME from CMakeLists.txt
-    info "  - Parsing CMakeLists.txt..."
-    PRODUCT_NAME=$(grep 'PRODUCT_NAME' "plugins/$PLUGIN_NAME/CMakeLists.txt" | \
-                   sed -E 's/.*PRODUCT_NAME[[:space:]]+"([^"]+)".*/\1/' | \
-                   head -1)
+    info "  - Reading PRODUCT_NAME from build artifacts..."
+    local au_artefact_dir="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/AU"
+    local vst3_artefact_dir="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/VST3"
 
-    # Validate extraction succeeded
-    if [ -z "$PRODUCT_NAME" ]; then
-        warning "Could not extract PRODUCT_NAME, using directory name as fallback"
-        PRODUCT_NAME="$PLUGIN_NAME"
-        echo "WARNING: Using fallback PRODUCT_NAME=$PRODUCT_NAME" >> "$LOG_FILE"
+    # Prefer AU; fall back to VST3 (e.g. on Linux)
+    local artefact_path=""
+    if [ -d "$au_artefact_dir" ]; then
+        artefact_path=$(find "$au_artefact_dir" -maxdepth 1 -name '*.component' -type d 2>/dev/null | head -1)
+    fi
+    if [ -z "$artefact_path" ] && [ -d "$vst3_artefact_dir" ]; then
+        artefact_path=$(find "$vst3_artefact_dir" -maxdepth 1 -name '*.vst3' -type d 2>/dev/null | head -1)
+    fi
+
+    if [ -n "$artefact_path" ]; then
+        # Strip directory + extension → bare PRODUCT_NAME (e.g. "O-Prism-dev")
+        local base
+        base=$(basename "$artefact_path")
+        PRODUCT_NAME="${base%.*}"
+        info "  - Product name (from artefact): $PRODUCT_NAME"
+        echo "PRODUCT_NAME (from artefact $artefact_path): $PRODUCT_NAME" >> "$LOG_FILE"
     else
-        info "  - Product name: $PRODUCT_NAME"
-        echo "PRODUCT_NAME: $PRODUCT_NAME" >> "$LOG_FILE"
+        # Fallback: grep CMakeLists.txt (only works when PRODUCT_NAME has no CMake vars)
+        warning "  - No build artefacts found, falling back to CMakeLists.txt parse"
+        PRODUCT_NAME=$(grep 'PRODUCT_NAME' "plugins/$PLUGIN_NAME/CMakeLists.txt" | \
+                       sed -E 's/.*PRODUCT_NAME[[:space:]]+"([^"]+)".*/\1/' | \
+                       head -1)
+        # Detect un-expanded CMake variables and bail clearly
+        if [[ "$PRODUCT_NAME" == *'${'* ]]; then
+            error "PRODUCT_NAME contains un-expanded CMake variable ($PRODUCT_NAME)."
+            error "Build the plugin first so artefacts exist, then re-run."
+            echo "ERROR: PRODUCT_NAME has un-expanded variable: $PRODUCT_NAME" >> "$LOG_FILE"
+            exit 1
+        fi
+        if [ -z "$PRODUCT_NAME" ]; then
+            warning "Could not extract PRODUCT_NAME, using directory name as fallback"
+            PRODUCT_NAME="$PLUGIN_NAME"
+            echo "WARNING: Using fallback PRODUCT_NAME=$PRODUCT_NAME" >> "$LOG_FILE"
+        fi
     fi
 
     success "Product name extracted: $PRODUCT_NAME"
@@ -250,6 +279,11 @@ phase_3_extract_product_name() {
 # ============================================================================
 # Phase 4: Remove Old Versions
 # ============================================================================
+# Sweeps both the current PRODUCT_NAME and its dev/release counterpart.
+# Why: dev branding produces "<Name>-dev.component" while release branding
+# produces "<Name>.component" — same AU (type, subtype, manufacturer) triple.
+# Leaving the alternate variant on disk causes Logic to pin the registry
+# slot to the older bundle (regression seen in O-Prism v1.17.3 → v1.17.4).
 phase_4_remove_old_versions() {
     echo ""
     info "Phase 4: Remove Old Versions"
@@ -258,34 +292,65 @@ phase_4_remove_old_versions() {
     local vst3_dir="$HOME/Library/Audio/Plug-Ins/VST3"
     local au_dir="$HOME/Library/Audio/Plug-Ins/Components"
 
-    # Search for existing VST3
+    # Compute alternate-suffix product name (dev↔release counterpart)
+    local alt_product_name=""
+    if [[ "$PRODUCT_NAME" == *-dev ]]; then
+        alt_product_name="${PRODUCT_NAME%-dev}"
+    else
+        alt_product_name="${PRODUCT_NAME}-dev"
+    fi
+
+    # Helper: remove a bundle if present, log + warn on alternate-variant hits
+    remove_bundle() {
+        local path="$1"
+        local label="$2"
+        local is_alternate="$3"
+
+        if [ ! -d "$path" ]; then
+            return 0
+        fi
+
+        if [ "$DRY_RUN" = true ]; then
+            echo "[DRY-RUN] Would remove: $path"
+            return 0
+        fi
+
+        if [ "$is_alternate" = true ]; then
+            warning "  - Sweeping ALTERNATE-variant $label (would shadow current build): $path"
+            echo "Sweeping alternate-variant $label: $path" >> "$LOG_FILE"
+        else
+            info "  - Removing old $label: $path"
+            echo "Removed old $label: $path" >> "$LOG_FILE"
+        fi
+        rm -rf "$path"
+    }
+
+    # Search for existing VST3 (current variant)
     info "  - Searching for old VST3..."
     if [ -d "$vst3_dir/$PRODUCT_NAME.vst3" ]; then
-        if [ "$DRY_RUN" = true ]; then
-            echo "[DRY-RUN] Would remove: $vst3_dir/$PRODUCT_NAME.vst3"
-        else
-            info "  - Removing old VST3: $vst3_dir/$PRODUCT_NAME.vst3"
-            rm -rf "$vst3_dir/$PRODUCT_NAME.vst3"
-            echo "Removed old VST3: $vst3_dir/$PRODUCT_NAME.vst3" >> "$LOG_FILE"
-        fi
+        remove_bundle "$vst3_dir/$PRODUCT_NAME.vst3" "VST3" false
     else
         info "  - No old VST3 found"
         echo "No old VST3 found" >> "$LOG_FILE"
     fi
 
-    # Search for existing AU
+    # Sweep alternate-variant VST3 (dev↔release counterpart)
+    if [ -d "$vst3_dir/$alt_product_name.vst3" ]; then
+        remove_bundle "$vst3_dir/$alt_product_name.vst3" "VST3" true
+    fi
+
+    # Search for existing AU (current variant)
     info "  - Searching for old AU..."
     if [ -d "$au_dir/$PRODUCT_NAME.component" ]; then
-        if [ "$DRY_RUN" = true ]; then
-            echo "[DRY-RUN] Would remove: $au_dir/$PRODUCT_NAME.component"
-        else
-            info "  - Removing old AU: $au_dir/$PRODUCT_NAME.component"
-            rm -rf "$au_dir/$PRODUCT_NAME.component"
-            echo "Removed old AU: $au_dir/$PRODUCT_NAME.component" >> "$LOG_FILE"
-        fi
+        remove_bundle "$au_dir/$PRODUCT_NAME.component" "AU" false
     else
         info "  - No old AU found"
         echo "No old AU found" >> "$LOG_FILE"
+    fi
+
+    # Sweep alternate-variant AU (dev↔release counterpart)
+    if [ -d "$au_dir/$alt_product_name.component" ]; then
+        remove_bundle "$au_dir/$alt_product_name.component" "AU" true
     fi
 
     success "Old versions removed"
