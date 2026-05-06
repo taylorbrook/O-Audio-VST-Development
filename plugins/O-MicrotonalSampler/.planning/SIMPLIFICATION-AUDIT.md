@@ -12,9 +12,10 @@ The codebase is in good shape overall — visible evidence of multiple cleanup p
 - **Phase 2 (v1.16.8, commit `023cd4a`):** HIGH-02, HIGH-06 — loopMode helpers + JS-driven knob render. (See `## Phase 2 Applied` below.)
 - **Phase 3 Batch A (v1.16.9, commit `9293470`):** LOW-01, LOW-03, LOW-05, LOW-07. LOW-04 + LOW-06 re-verified as false positives. (See `## Phase 3 Applied (v1.16.9)` and `## Phase 3 Skipped` below.)
 - **Phase 3 Batch B (v1.16.10, commit `52711dd`):** MEDIUM-02, MEDIUM-03, MEDIUM-05, MEDIUM-06, MEDIUM-07, MEDIUM-08, MEDIUM-09 — 7 LOW-risk MEDIUM-severity candidates applied. (See `## Phase 3 Applied (v1.16.10)` below.)
+- **Phase 3 Batch C (v1.16.11, commit `03921a2`):** MEDIUM-04 — `bindModal` helper applied across 7 dialogs in `sampler-app.js`. (See `## Phase 3 Applied (v1.16.11)` below.)
 - **Auto-resolved by Phase 1 side-effect:** MEDIUM-01 (the `__cpp_lib_atomic_shared_ptr >= 202002L` dead-code check at former lines 510–516). Folded into the `atomicLoad` helper extraction.
 
-Remaining open candidates: MEDIUM-04 only (Batch C — dialog modal `bindModal` helper across 7 dialogs in `sampler-app.js`). Estimated LOC saved if applied: ~80–100 LOC. Deferred because of MEDIUM-risk gate and the 7-modal manual smoke surface.
+**Audit complete** — all HIGH + MEDIUM candidates from the original v1.16.6 audit are now applied. The remaining items are documented in `## Skipped (false-positive checks)` (intentional non-targets) and `## Phase 3 Skipped (re-verified false-positive)` (LOW-04, LOW-06, re-verified during Phase 3 Batch A as already-correct in current code). To find new wins, regenerate the audit against the current head.
 
 ---
 
@@ -128,15 +129,6 @@ Remaining open candidates: MEDIUM-04 only (Batch C — dialog modal `bindModal` 
   ```
 - **Rationale:** Either this was meant to use the C++20 atomic-ref overload in one branch and got mid-refactored, or it's pure boilerplate. Either way the current code is misleading.
 - **Test impact:** None — compiler emits the same code.
-
-### [MEDIUM-04] Hoist 7 dialog-modal cleanup/key-handler scaffolds into a `bindModal` helper
-- **File:** `Resources/ui/js/sampler-app.js:1303`, `1365`, `1416`, `1454`, `1519`, `2215`, `2315`
-- **Risk:** MEDIUM
-- **Type:** duplication
-- **Current:** Seven dialogs (`folder-load-options`, `embed-size-confirm`, `per-cell-merge`, `confirm`, `diagnostic`, `missing-folder`, `rr-confirm`) each define a near-identical `cleanup`/`onKey`/`addEventListener`/`removeEventListener` lifecycle around their Yes/No buttons.
-- **Proposed:** Extract a `bindModal({ dialog, buttons: { yes, no, cancel? }, onKey, focus })` helper that returns a Promise resolving to the chosen action. Each dialog becomes 10–15 lines of payload-specific DOM munging + one `bindModal` call.
-- **Rationale:** ~80–100 LOC saved, and the "forgot to remove a listener" bug class becomes structurally impossible. Defaults (Esc=cancel, Enter=confirm) live in one place.
-- **Test impact:** All seven modals — manual smoke test required (folder load, embed confirm, per-cell merge, clear-samples confirm, diagnostic dialog, missing-folder, ambiguous-RR confirm).
 
 ---
 
@@ -274,6 +266,33 @@ User selected Batch B only (MEDIUM-severity, LOW-risk dedups). Batch C (MEDIUM-0
 - **Type:** stale-comment / verbose-pattern
 - **Resolution:** Deleted `MicrotonalSamplerSound() {}`. Class is now pure interface overrides; the implicitly-declared default constructor is sufficient.
 - **Verification:** `MicrotonalSamplerSound() {}` zero hits. Build clean (no `= delete` overload anywhere required the explicit definition).
+
+---
+
+## Phase 3 Applied (v1.16.11)
+
+Commit: `03921a2` — refactor(O-MicrotonalSampler): v1.16.11 — Phase 3 sweep (MEDIUM-04, Batch C — bindModal helper)
+
+User selected the final remaining audit candidate. With this commit the original SIMPLIFICATION-AUDIT.md backlog (HIGH + MEDIUM tiers) is fully drained.
+
+### Batch C — MEDIUM severity, MEDIUM risk (1 applied)
+
+#### [MEDIUM-04] Unified bindModal lifecycle helper across 7 dialogs — APPLIED
+- **File:** `Resources/ui/js/sampler-app.js:77` (helper definition); 7 call sites: `1445` (folder-load-options), `1490` (embed-size-confirm), `1531` (per-cell-merge), `1558` (confirm-dialog), `1618` (diagnostic-dialog), `2296` (missing-folder, `await` form), `2376` (rr-confirm).
+- **Risk:** MEDIUM (modals are user-visible — manual smoke required)
+- **Type:** duplication
+- **Resolution:** Added `function bindModal(dialog, buttons, opts)` near `invokeNative`. Buttons passed as `[[btn, handler], ...]` tuples; clicking any bound button (or pressing its key alias) resolves the promise with the handler's return value. `opts.keys` maps `Escape` / `Enter` to a button reference, with each entry accepting either a static element or a `() => element` callback (used by per-cell-merge's `capHit ? replBtn : mergeBtn` Enter target). Either key may be omitted (diagnostic-dialog has no Enter binding). `opts.focus` is the element to focus after the dialog reveals. `opts.onClose` runs after all bindModal-owned listeners are removed and before the promise resolves — used by folder-load-options (4 live-preview handlers stay external) and diagnostic-dialog (copy button doesn't dismiss).
+- **Notable per-dialog adaptations:**
+  - **per-cell-merge:** Enter target is dynamic via `() => (capHit ? replBtn : mergeBtn)`. The defensive `if (capHit) return` inside the old `onMerge` is now unreachable (mergeBtn is `disabled` when capHit, so its bound handler never fires from a click; key fallback to replBtn handled at the helper level).
+  - **diagnostic-dialog:** Copy button registered externally (it doesn't dismiss); `opts.onClose` removes it. `opts.keys.Enter` omitted entirely (Enter shouldn't dismiss this dialog).
+  - **missing-folder:** Function signature changed from sync to `async`. The chosen action runs in the post-await branch (was inside `onSkip` / `onLocate`) so the OS picker isn't held behind a stale modal. `dismissMissingFolder` and `locateMissingFolder` native-fn calls preserved unchanged.
+  - **folder-load-options:** segHandler / modeHandler / overrideHandler / embedHandler stay external (live preview, non-dismissing); `opts.onClose` tears them down so all listener removal still happens in one path.
+  - **technique-rename-dialog:** intentionally NOT converted (text-input lifecycle, different shape — not part of MEDIUM-04's 7 dialogs).
+- **Verification:** Listener-leak greps post-refactor:
+  - `const cleanup = ` in modal lifecycle code → zero hits.
+  - `removeEventListener.*onKey` outside the helper → zero hits.
+  - `bindModal` call sites → 7 (matches the 7 audit-listed dialogs).
+- Build + auval pass. Manual smoke deferred to user-side UAT — MEDIUM-risk gate.
 
 ---
 
