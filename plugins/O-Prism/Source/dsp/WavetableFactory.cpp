@@ -697,7 +697,7 @@ std::unique_ptr<WavetableData> WavetableFactory::generateOrganSweep (int numFram
         { 8, 8, 8, 8, 0, 0, 0, 0, 0 }, // Rock
         { 8, 8, 8, 8, 8, 8, 8, 8, 8 }, // Full organ
     };
-    constexpr int numRegs = 11;
+    static constexpr int numRegs = 11;
 
     return buildTable (numFrames, [numFrames] (int f, float* buf)
     {
