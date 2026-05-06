@@ -1,5 +1,9 @@
 # VST Development Project Guidelines
 
+## Implementation Knowledge (auto-loaded skills)
+
+- **Spike findings for VST-development** (implementation patterns, constraints, gotchas) → `Skill("spike-findings-VST-development")`
+
 ## Build Requirements
 
 ### CRITICAL: Plugin Cache Clearing

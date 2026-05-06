@@ -12,6 +12,20 @@
 - O-TextureForge: DPR-aware canvas rendering requires setting backing store dimensions (canvas.width = clientWidth * dpr) plus ctx.setTransform(dpr, 0, 0, dpr, 0, 0) for crisp Retina display
 - General: O-Bells provides the proven resource provider pattern -- direct equality checks against path strings ("/", "/index.html", etc.) with MIME type detection from file extension
 
+- Error resolved: {"parentUuid":"941c4386-d08b-44c7-9980-9bb4a5899a27","isSidechain":true,"agentId":"aa721dd207d88eca1
+
+- Error resolved: {"parentUuid":"e7e32580-3173-495c-b879-e8b075b8d4b8","isSidechain":true,"promptId":"1af0c0a2-87c0-44
+- Error resolved: {"parentUuid":"7851605e-5263-4bcc-af03-133e6b72b98f","isSidechain":true,"promptId":"1af0c0a2-87c0-44
+- Error resolved: {"parentUuid":"4909afa1-6ddb-4376-8541-e816243156e9","isSidechain":true,"promptId":"1af0c0a2-87c0-44
+- Error resolved: {"parentUuid":"2d788c8d-125f-43d9-b18c-fdccc3f306e6","isSidechain":true,"agentId":"a2ac2d05aeb447215
+- Error resolved: {"parentUuid":"2d7369f6-6eea-43c8-be39-bb7b7972a543","isSidechain":true,"agentId":"a2ac2d05aeb447215
+
+- Error resolved: {"parentUuid":"5ef4bd8b-50ea-459d-ba93-75e41191a297","isSidechain":true,"promptId":"1af0c0a2-87c0-44
+- Error resolved: {"parentUuid":"c62cbb62-662a-49ec-aba8-d3299ea0caca","isSidechain":true,"promptId":"1af0c0a2-87c0-44
+- Error resolved: {"parentUuid":"9be1b1fc-7a7d-459c-9264-04e4b11a759e","isSidechain":true,"agentId":"ad78bc7e2f6001c74
+
+- Error resolved: {"parentUuid":"e8eed1b2-e346-4b2a-a9d0-4df087cc0bb4","isSidechain":true,"promptId":"1af0c0a2-87c0-44
+
 ## Common Issues
 - Blank WebView on Windows: first check static vs dynamic linking flags, then check user data folder permissions, then check if IE fallback occurred
 - WebView resource loading fails silently -- if withResourceProvider returns empty Optional for a path, the page shows "Frame load interrupted" with no console error
@@ -46,5 +60,18 @@
 - O-Reed: For skewed NormalisableRange params (toneHoleCutoff skew=0.3), display formatting must invert the skew: rawValue = min + pow(norm, 1/skew) * (max - min) -- otherwise displayed values won't match DAW automation readout
 - O-Reed: Collapsible sections with max-height transition work well for 28+ knobs -- keeps instrument panel scannable without overwhelming the user
 
+- O-MicrotonalSampler: For per-cell sample replace UX (sampler-style plugins), make SampleSlot::audio a std::shared_ptr<juce::AudioBuffer<float>> at the SampleMap layer -- map deep-copy on cell replace becomes vector-of-pointers (cheap) instead of vector-of-buffers (700MB on full orchestral library). Voices keep currentMap snapshot pinned for active-note duration; transitive ref keeps the buffer alive even if the map gets replaced mid-note.
+- O-MicrotonalSampler: When carrying tuning-panel.{js,css} verbatim from O-Bells in display-only mode, the right approach is (1) selectively register only read-side native functions (the panel's setter calls fail-silently in its own try/catch) + (2) overlay tuning-panel-readonly.css to hide write affordances + (3) JS shim that walks .interval-input nodes after init() and inserts <span class="interval-display"> next to each. Don't fork tuning-panel.js -- the in-flight generalize-microtones extraction relies on verbatim copies.
+- O-MicrotonalSampler: JUCE binary data symbol naming for hyphenated filenames -- "sampler-shell.css" -> samplershell_css (hyphens stripped), "tuning-panel.js" -> tuningpanel_js, "tuning-panel-readonly.css" -> tuningpanelreadonly_css. Verify against the auto-generated BinaryData.h after first build before referencing in PluginEditor.cpp.
+- O-MicrotonalSampler: Stage 2/3 hand-off pattern when a Stage 3 invariant addition modifies Stage 2 source files -- run a Task-4-style regression gate (build + cache-clear + install + pluginval --strictness 5 + auval) on the pre-editor snapshot to isolate any Stage 2 audio regression to the buffer-ownership change. Only then proceed to editor work. The render-harness identity test from the plan can be substituted by pluginval+auval if no harness exists.
+- O-MicrotonalSampler: For sampleMapUpdated push events, the cleanest plumbing is processor::setSampleMapChangedCallback(std::function<void()>) -- the editor's lambda captures `this` and emits webView->emitEventIfBrowserIsVisible("sampleMapUpdated", snapshotJson()). Editor MUST clear the callback in its destructor (processorRef.setSampleMapChangedCallback(nullptr)) to prevent post-destruction calls.
+
+- O-Bassoon: When mockup pass is skipped per user authority, lift O-Wind index.html structure verbatim (palette, knob web-component, tab pattern, lazy tuning mount) -- adapting only the section markup + parameter IDs + push-channel JS receivers takes ~1 file write and produces a working UI on first build. No CSS surprises at 900x600.
+- O-Bassoon: Static-check #17 (no fromFirstOccurrenceOf) is grep-literal -- comment text containing "fromFirstOccurrenceOf" trips the gate. Reword regression-warning comments to avoid the literal substring (e.g. "never strip a scheme/host" instead of "never use fromFirstOccurrenceOf"). Same applies to #21 (window.__JUCE__ in any comment trips the inverse-form check) -- describe the wrong pattern abstractly instead of literally.
+- O-Bassoon: Effective-breath snapshot for UI feedback can come from BassoonVoice::breathSmoother.getCurrentValue() directly (no separate processor-level CC2 atomic needed) -- breathSmoother already composes ui_breath x cc2_normalised in setExpression()/controllerMoved(), so first-active-voice sampling gives the exact value the audio thread is rendering. Add a 1-line const accessor on BassoonVoice and read first active voice in processBlock prologue.
+- O-Bassoon: Vibrato member is named `onset` (SmoothedValue), NOT `onsetEnvelope` -- always check actual source rather than skeleton naming when adding header-inline accessors. Vibrato::getEnvelope() const noexcept { return onset.getCurrentValue(); }
+- O-Bassoon: TuningExporter::toHTML(engine, "PluginName") is the 2-arg signature in O-Wind precedent -- not toHTML(engine) or exportHTML(engine). Lift the lambda body verbatim from O-Wind PluginEditor.cpp:461-481 with only the plugin-name string swapped.
+- O-Bassoon: Ouaricon dev-suffix plugins do not enumerate via `auval -a` reliably (custom registrar quirk on macOS) -- but `auval -v aumu OBsn OuDv` direct validation works and is the load-bearing test. Use OuDv (dev-suffix manufacturer code), NOT Ouar, for any plugin built with OUARICON_DEV_SUFFIX active.
+
 ## Last Updated
-2026-04-06 (O-Reed Stage 3)
+2026-05-01 (auto write-back)

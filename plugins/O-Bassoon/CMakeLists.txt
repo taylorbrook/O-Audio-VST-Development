@@ -11,7 +11,7 @@ juce_add_plugin(O-Bassoon
     PLUGIN_CODE OBsn
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bassoon${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "1.0.0"
+    VERSION "1.0.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -39,6 +39,8 @@ target_sources(O-Bassoon
         Source/Vibrato.cpp
         Source/NoiseExciter.h    # Phase 2.3 — per-voice continuous filtered-noise excitation
         Source/NoiseExciter.cpp
+        Source/FactoryPresets.h  # Stage 4 — 4 ROADMAP factory presets
+        Source/FactoryPresets.cpp
         # Tuning module files (referenced from shared module)
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
@@ -54,6 +56,7 @@ target_include_directories(O-Bassoon
     PRIVATE
         Source
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp
+        ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/cpp
 )
 
 # Required JUCE modules

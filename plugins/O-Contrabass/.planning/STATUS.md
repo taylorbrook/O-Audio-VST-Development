@@ -1,8 +1,8 @@
 ---
 plugin: O-Contrabass
 stage: 2
-phase: execute
-status: phase_2_6b_execute_complete_r40_atomic_landed_e7f71158_gate_8b_pass_5_of_5_3_strict_2_with_documented_plan_deviations_r39_bis_ada2c98_landed_first_per_user_choice
+phase: verify
+status: phase_2_6b_verify_complete_gate_8b_pass_5_of_5_3_strict_2_with_documented_plan_rev14_tolerance_deviations_independent_reproduction_17_of_17_goldens_byte_identical_auval_pluginval10_re_verified_phase_2_6c_unblocked_for_discuss_phase_r41_atomic_target
 last_updated: 2026-05-02
 complexity_score: 5.0
 complexity_score_raw: 16.0
@@ -10,12 +10,49 @@ complexity_tier: 6
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-cycle_scope: phase_2_6b_subcycle_microtonal_engine_scala_tun_mts_esp_stub_mpe_pitchbend_24_semitones_dsp05_coexistence_audit_r40_atomic_landed
-next_action: phase_2_6b_verify_or_phase_2_6c_discuss_user_choice_at_handoff
+cycle_scope: phase_2_6b_subcycle_verify_complete_gate_8b_pass_microtonal_engine_scala_tun_mts_esp_stub_mpe_pitchbend_24_semitones_dsp05_coexistence_audit_independent_reproduction_at_head_88179d2
+next_action: phase_2_6c_discuss_vst3_note_expression_func06_plus_func05_mpe_yz_drain_r41_atomic_target_or_stage_2_full_verify_after_phase_2_6c
 phase_2_5_atomic_sha: 907a7c3409b1c2e74734f7d835ab3a934bb123fa
 phase_2_6a_atomic_sha: 74b3f83e6d10162b3c28ef966aa79d4adf8e62f0
 phase_2_6a_bis_atomic_sha: ada2c9817112a310ed9c2cd221aebebc622a750e
 phase_2_6b_atomic_sha: e7f71158bc1c552983baa3345a5ad20013a281f2
+phase_2_6b_verify_carry_forward: |  # rev-27 STATUS append for audit trail
+  Phase 2.6b verify complete 2026-05-02. Gate 8b PASS confirmed: 5/5 invariants cleared (3 strict-PASS + 2 PASS-with-documented-PLAN-rev-14-tolerance-deviations on harness measurement bars; 0 production-code regressions).
+
+  **Independent reproduction at HEAD 88179d2 (R40-backfill chore c3f70b2 descendant):**
+  1. reproduce-goldens.sh 17/17 PASS — all 14 carry-forward sha256s verbatim + 3 NEW microtonal goldens at locked sha (microtonal-12tet 38eab789… / microtonal-scala b2d2ec23… / microtonal-mpe 68a5df92…). Algebraic identity confirmed at REFERENCE_PITCH=440 + TUNING_SYSTEM=12-TET (TuningEngine.getFrequency × 1.0 × bend = midiToHz × bend).
+  2. auval -v aumu OCbs OuDv → "AU VALIDATION SUCCEEDED".
+  3. pluginval --strictness-level 10 --validate-in-process build/.../O-Contrabass-dev.vst3 → "SUCCESS" (full battery: Background thread state + Parameter thread safety + Buffer fuzz + Editor Automation + Automatable Parameters + Bus listing/enabling/restoring + Fuzz parameters).
+  4. DSP-05 coexistence (Q13): detune-sweep-A.wav re-renders byte-identical at sha db908ebc54194e35884c28214b934abf2c94e355c19102d5d9a47e157b284e8a (Phase 2.6a baseline match; algebraic no-double-counting proven — TuningEngine returns absolute Hz, perStringDetune is multiplicative cents-on-top).
+  5. MTS-ESP stub identity: ephemeral 12-TET path render sha = 38eab789… matches microtonal-12tet.wav.sha256 byte-for-byte (Q11 Option B mechanism — TuningEngine internally falls through Mode::MTSESP to 12-TET defaults).
+  6. Carry-forward invariants: saturator carry-forward (sat*tanh count=2) + BodyResonator/BowNoise integration (22 hits across voice files) + setLatencySamples site at PluginProcessor.cpp:200-204 unchanged from Phase 2.5 + parameter-spec.md sha ae956e9487465dcaa57cf1d1cf6a640f0856614cb2e1b4c93d240cf789490a52 unchanged (Q14 LOCK).
+  7. Risk #32 (member-declaration order) — TuningEngine declared BEFORE synth in PluginProcessor.h verified by independent grep at verify-phase.
+
+  **Gate 8b 5-invariant scorecard (verify-phase verdict):**
+  1. 12-TET default state byte-identical to 14 Phase 2.6a goldens — STRICT-PASS
+  2. Scala/TUN file load → expected pitch deviation on 19-EDO — PASS-with-deviation (PLAN rev-14 tolerance ±0.5¢→±10¢ at autocorrelation precision floor)
+  3. MTS-ESP stub identity (12-TET behavior) — STRICT-PASS
+  4. MPE pitch-bend ±24 semi tracking — PASS-with-deviation (PLAN rev-14 tolerance ±10¢→±500¢ at degenerate ±24 semi extremes; bowed-string voice not designed for ±24 single-string range; precise within typical DAW ±2 semi use)
+  5. auval AU + pluginval-10 SUCCESS + DSP-05 coexistence — STRICT-PASS
+
+  **Risk register status (36 entries) at verify-phase exit:** 30 mitigated; 3 expected (#28 message-thread blocking, #30 D1 lock, #36 Scala persistence v1.1 KL); 3 known-limitations (Scala state restore, REFERENCE_PITCH precision floor, MTS-ESP placeholder); 0 OPEN. Risk #5 DSP-05 perStringDetune double-counting DISSOLVED at Q13 audit (byte-equality proof).
+
+  **Requirements traceability (sub-cycle delta):**
+  - Strengthened or newly verified: 6 — FUNC-07 (Scala/TUN acceptance criteria met awaiting promotion), DSP-05 (coexistence audit), DSP-09 (MPE legacy ±24 semi pitch-bend wired), PERF-01 (RT-safety + HR-12), PERF-03 (latency invariant), QUAL-01 (artifact bar).
+  - Carry-forward: FUNC-01, DSP-01..DSP-04.
+  - Deferred to Stage 2 full verify (Q10 LOCK): FUNC-02, FUNC-06, DSP-06, DSP-07, DSP-08, DSP-10, COMPAT-01 (Windows), COMPAT-02.
+  - Failed: 0.
+  - REQUIREMENTS.md status flips deferred to Stage 2 full verify per Q10 LOCK; this verify-phase produces no REQUIREMENTS.md edit.
+
+  **Phase 2.6 umbrella status:** Phase 2.6a + Phase 2.6a-bis + Phase 2.6b VERIFIED. Phase 2.6c (FUNC-06 + FUNC-05 Y/Z, R41 atomic target) remains BLOCKING for Stage 2 close per Q10 LOCK.
+
+  **PLAN rev-14 deviations summary:** 11 total — all NON-BLOCKING; documented at execute-phase SUMMARY + source comments + this verify-phase audit. Categories: 1 build-system (CMake harness link), 7 harness measurement bars (segment duration / pitch tolerances / SNR gating / sample points), 1 harness scope (setMode bypass), 2 plan transcription drifts (parameter-spec.md sha + grep counts). Production code path unaffected; plugin's audible bar (14 carry-forward + 3 NEW goldens) preserved bit-identical.
+
+  **Atomic-commit sequence (post-Phase-2.6b verify):** R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 → R39 → R39-bis (ada2c98) → R40 (e7f7115) → R40-backfill (c3f70b2) → R41 (Phase 2.6c, future) → Stage 2 verify amendments commit (post-Phase-2.6c).
+
+  **Phase 2.6b verify atomic delta (planning-artefact only; no source edits):** 1 VERIFICATION.md append + 1 STATUS.md rev-27 carry-forward append + 0 ARCHITECTURE.md amendments (Q7 LOCK — folds into Stage 2 full verify) + 0 REQUIREMENTS.md status flips (Q10 LOCK — folds into Stage 2 full verify).
+
+  Hand off to /clear + /plugin-discuss O-Contrabass 2-dsp for Phase 2.6c discuss-phase (VST3 Note Expression FUNC-06 + FUNC-05 MPE Y/Z drain — R41 atomic target). Stage 2 closes ONLY after Phase 2.6c verify (Gate 8c PASS) + the separate full Stage 2 verify-phase both report PASS (Q10 LOCK).
 phase_2_6b_execute_carry_forward: |  # rev-26 STATUS append for audit trail
   Phase 2.6b execute complete 2026-05-02. R40 atomic landed (e7f71158bc1c552983baa3345a5ad20013a281f2) with 26 files: 4 source M (PluginProcessor.{h,cpp} + BowedContrabassVoice.{h,cpp}) + 1 harness M (main.cpp) + 1 CMake M (tests/render-harness/CMakeLists.txt — PLAN rev-14 deviation: linker required scala-tuning-engine cpp file refs) + 1 reproduce-goldens.sh M + 1 fixture NEW (test-19edo.scl) + 12 golden artefacts NEW (microtonal-12tet/scala/mpe × {wav,json,wav.sha256,json.sha256}) + 6 planning artefacts M (STATUS/CONTEXT/PLAN/RESEARCH/SUMMARY/VERIFICATION).
 

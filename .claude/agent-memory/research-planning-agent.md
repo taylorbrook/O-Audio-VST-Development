@@ -64,9 +64,20 @@
 - Error resolved: {"parentUuid":"6eb46d25-702e-4c2b-a1c1-33b5137f25e3","isSidechain":true,"promptId":"c0d08e10-c3a7-41
 - Error resolved: {"parentUuid":"6a5c23ae-5cfe-4850-bb12-72a1f56f5fe3","isSidechain":true,"promptId":"c0d08e10-c3a7-41
 
+- ** A soft magnitude clamp on the delay line state, applied at the friction junction (one location, cheap):\n261\t\n262\t```cpp\n263\t// Soft clamp at friction junction - inside the per-sample tick\n26
+- Error resolved: {"parentUuid":"1a954a73-c87d-433b-8100-7af94ba63f5b","isSidechain":true,"promptId":"051c9843-e6ad-46
+- Error resolved: {"parentUuid":"3dc5440f-739a-4491-b0a8-a09e81e31e4b","isSidechain":true,"promptId":"051c9843-e6ad-46
+
+- O-Bassoon: For polyphonic modal synth voices (16 modes x 8 voices = 128 biquads), always use custom direct-form biquad arrays NOT juce::dsp::IIR::Filter -- ProcessSpec/AudioBlock overhead is unacceptable at scale (matches O-Formant's filter-bank precedent)
+- O-Bassoon: Modal synthesis is a clean architectural choice for sustained-tone instruments -- no feedback loop, no oversampling, no iterative solver; CPU and stability are predictable, much simpler than waveguide approaches
+- O-Bassoon: Bassoon's first formant at ~450-500 Hz is the dominant spectral feature -- implement per-mode amplitude weighting via Gaussian centered on FORMANT_F1 = 475 Hz; the strongest perceived partial is whichever harmonic falls closest to the formant peak, not the fundamental
+- O-Bassoon: For modal-synth coefficient updates with vibrato, block-rate (not per-sample) coefficient recomputation is sufficient for vibrato rates up to 10 Hz at 256-sample buffers (~188 Hz update rate >> 10 Hz vibrato)
+- O-Bassoon: When the brief excludes one plugin (here: O-Reed) as a dependency, document this as a Stage 1 acceptance test (verify via grep -rn for the excluded plugin name in CMake + sources)
+- O-Bassoon: Wiring TuningEngine in headless at v1.0 (no UI, 12-TET default) costs ~50 lines but eliminates an invasive v1.1 refactor -- always favor seam-first when shared modules exist
+
 ## Common Issues
 - WebSearch returns outdated JUCE 6 docs; always verify JUCE API by reading local JUCE source at /Users/taylorbrook/JUCE/modules/
 - JUCE getLatencySamples() is NOT virtual in JUCE 8 -- must use setLatencySamples() instead
 
 ## Last Updated
-2026-04-04 (auto write-back)
+2026-04-26 (auto write-back)

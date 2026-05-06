@@ -42,9 +42,14 @@ def parse_parameter_spec(spec_path: Path) -> Dict[str, Dict]:
     parameters = {}
 
     # Format 1: Markdown table format
-    # Format: | paramID | Type | Range | Default | ...
-    table_pattern = r'\|\s*(\w+)\s*\|\s*(Float|Bool|Choice)\s*\|'
-    for match in re.finditer(table_pattern, content):
+    # Anchored to start-of-line (multiline). ID is UPPER_SNAKE_CASE so Name-column
+    # words ("Brightness", "Rosin") never get picked up. Accepts any intermediate
+    # columns (Name, Range, Default, Unit, Description) between ID and Type.
+    table_pattern = re.compile(
+        r'^\|\s*([A-Z][A-Z0-9_]*)\s*\|.*?\|\s*(Float|Bool|Choice|Int)\s*\|',
+        re.MULTILINE,
+    )
+    for match in table_pattern.finditer(content):
         param_id = match.group(1)
         param_type = match.group(2)
         parameters[param_id] = {"type": param_type}
@@ -52,7 +57,7 @@ def parse_parameter_spec(spec_path: Path) -> Dict[str, Dict]:
     # Format 2: Section-based format (e.g., "### paramID" followed by "- **Type:** Float")
     # This format is used when parameters have detailed descriptions
     section_pattern = r'^###\s+(\w+)\s*$'
-    type_pattern = r'^\s*-\s*\*\*Type:\*\*\s*(Float|Bool|Choice)'
+    type_pattern = r'^\s*-\s*\*\*Type:\*\*\s*(Float|Bool|Choice|Int)'
 
     lines = content.split('\n')
     current_param = None
@@ -80,14 +85,36 @@ def parse_plugin_processor(processor_path: Path) -> Dict[str, Dict]:
     content = processor_path.read_text()
     parameters = {}
 
-    # Match JUCE 8 parameter declarations with ParameterID
-    # Handles both direct construction and std::make_unique<juce::AudioParameterFloat>(...)
-    param_pattern = r'AudioParameter(Float|Bool|Choice)[\s\S]*?ParameterID\s*\{\s*"(\w+)"'
+    # Build alias map from `using APF = juce::AudioParameterFloat;` style declarations.
+    alias_pattern = re.compile(
+        r'using\s+(\w+)\s*=\s*(?:juce::)?AudioParameter(Float|Bool|Choice|Int)\s*;'
+    )
+    alias_map = {m.group(1): m.group(2) for m in alias_pattern.finditer(content)}
+
+    # Match parameter declarations: full type or alias inside make_unique<...>
+    # Combined with ParameterID{"NAME", n}.
+    type_options = ["AudioParameter(?:Float|Bool|Choice|Int)"] + list(alias_map.keys())
+    type_alt = "|".join(f"(?:{t})" for t in type_options)
+    param_pattern = re.compile(
+        rf'make_unique\s*<\s*(?:juce::)?({type_alt})\s*>\s*\([\s\S]*?'
+        rf'ParameterID\s*\{{\s*"(\w+)"'
+    )
 
     for match in re.finditer(param_pattern, content):
-        param_type = match.group(1)
+        type_tok = match.group(1)
         param_id = match.group(2)
+        if type_tok in alias_map:
+            param_type = alias_map[type_tok]
+        else:
+            # Strip "AudioParameter" prefix to get bare type name.
+            param_type = type_tok.replace("AudioParameter", "")
         parameters[param_id] = {"type": param_type}
+
+    # Fallback: legacy style (direct AudioParameterFloat constructor without make_unique).
+    if not parameters:
+        legacy_pattern = r'AudioParameter(Float|Bool|Choice|Int)[\s\S]*?ParameterID\s*\{\s*"(\w+)"'
+        for match in re.finditer(legacy_pattern, content):
+            parameters[match.group(2)] = {"type": match.group(1)}
 
     return parameters
 
