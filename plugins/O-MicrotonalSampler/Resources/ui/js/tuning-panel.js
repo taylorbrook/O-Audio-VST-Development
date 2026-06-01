@@ -32,7 +32,6 @@ export class TuningPanel {
         this.embeddedTunings = [];
         this.libraryFilter = 'all';
         this.generatorType = 'edo';
-        this.heldNotes = new Set();
         this.heldNotesMidi = [];   // v3.1.0: MIDI note numbers from C++ backend
         this.heldNotesFreqs = [];  // v3.1.0: Actual frequencies from TuningEngine
         this.activeScaleDegrees = new Set(); // Track which scale degrees are currently sounding
@@ -56,9 +55,10 @@ export class TuningPanel {
             <div class="tuning-panel">
                 <!-- LEFT: Interval List -->
                 <div class="tuning-intervals-column">
-                    <div class="interval-list" id="interval-list">
-                        <div class="interval-list-header">Intervals (<span id="interval-count">12</span> notes)</div>
-                    </div>
+                    <!-- v1.17.1 (TUN-H2): empty shell — updateIntervalList()
+                         always rebuilds the header + rows on first load, so the
+                         static header here was created then immediately discarded. -->
+                    <div class="interval-list" id="interval-list"></div>
                 </div>
 
                 <!-- CENTER: Viz Toggle + Visualization -->
@@ -284,7 +284,7 @@ export class TuningPanel {
                 <div class="interval-item ${isOctave ? 'octave' : ''}">
                     <span class="interval-degree">${degreeLabel}</span>
                     <input type="text" class="interval-input" data-index="${i}"
-                           value="${cents.toFixed(isOctave ? 1 : 1)}" ${isOctave ? 'readonly' : ''}>
+                           value="${cents.toFixed(1)}" ${isOctave ? 'readonly' : ''}>
                     <span class="interval-unit">c</span>
                 </div>
             `;
@@ -632,7 +632,6 @@ export class TuningPanel {
     updateHeldNotes(notes, freqs) {
         this.heldNotesMidi = notes || [];
         this.heldNotesFreqs = freqs || [];
-        this.heldNotes = new Set(notes || []);
         if (this.currentVizMode === 'truekeys') {
             this.drawTrueKeys();
         }

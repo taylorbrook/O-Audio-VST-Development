@@ -732,12 +732,6 @@ body {
     cursor: wait;
 }
 
-.grid-cell.cell-active {
-    /* Reserved for note-on highlight (deferred — Stage 3.5 if it lands). */
-    background: var(--accent-rust);
-    border-color: var(--accent-rust);
-}
-
 /* Octave separators — a thicker left border every 12 columns helps the eye
    parse 88 cells. Applied via nth-child counting from the start of each row. */
 .grid-cell[data-octave-start="1"] {

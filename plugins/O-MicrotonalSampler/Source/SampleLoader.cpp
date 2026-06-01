@@ -122,27 +122,50 @@ namespace
         }
 
         const bool needsResample = std::abs (srcSR - targetSR) > 0.1;
-        juce::AudioBuffer<float> workBuf;
-        int outNumSamples = srcSamples;
+        double srcRatio    = 1.0;
+        int outNumSamples  = srcSamples;
 
         if (needsResample)
         {
-            const double srcRatio = srcSR / targetSR;
+            srcRatio = srcSR / targetSR;
             outNumSamples = (int) std::ceil ((double) srcSamples / srcRatio);
             if (outNumSamples < 1)
                 outNumSamples = 1;
+        }
 
-            workBuf.setSize (srcChannels, outNumSamples);
-            workBuf.clear();
+        // v1.17.1 (LOAD-E3): build the 2-channel variant directly. Only the
+        // first two source channels survive (mono is duplicated), so we never
+        // resample/copy channels that would be discarded, and the previous
+        // intermediate workBuf is gone — resampling writes straight into the
+        // output. Decoded output is bit-identical to the pre-v1.17.1 path.
+        const int srcCh1 = (srcChannels >= 2) ? 1 : 0;   // mono → reuse ch0
 
-            for (int ch = 0; ch < srcChannels; ++ch)
+        outVariant.audio = std::make_shared<juce::AudioBuffer<float>> (2, outNumSamples);
+        outVariant.audio->clear();
+
+        if (needsResample)
+        {
+            // A fresh interpolator per channel (matches the pre-v1.17.1 loop).
+            juce::LagrangeInterpolator interpL;
+            interpL.reset();
+            interpL.process (srcRatio,
+                             sourceBuf.getReadPointer (0),
+                             outVariant.audio->getWritePointer (0),
+                             outNumSamples);
+
+            if (srcChannels >= 2)
             {
-                juce::LagrangeInterpolator interp;
-                interp.reset();
-                interp.process (srcRatio,
-                                sourceBuf.getReadPointer (ch),
-                                workBuf.getWritePointer (ch),
-                                outNumSamples);
+                juce::LagrangeInterpolator interpR;
+                interpR.reset();
+                interpR.process (srcRatio,
+                                 sourceBuf.getReadPointer (srcCh1),
+                                 outVariant.audio->getWritePointer (1),
+                                 outNumSamples);
+            }
+            else
+            {
+                // Mono: duplicate the resampled channel.
+                outVariant.audio->copyFrom (1, 0, *outVariant.audio, 0, 0, outNumSamples);
             }
 
             DBG ("SampleLoader: resampled " << displayName
@@ -151,21 +174,8 @@ namespace
         }
         else
         {
-            workBuf = std::move (sourceBuf);
-        }
-
-        outVariant.audio = std::make_shared<juce::AudioBuffer<float>> (2, outNumSamples);
-        outVariant.audio->clear();
-
-        if (srcChannels == 1)
-        {
-            outVariant.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
-            outVariant.audio->copyFrom (1, 0, workBuf, 0, 0, outNumSamples);
-        }
-        else
-        {
-            outVariant.audio->copyFrom (0, 0, workBuf, 0, 0, outNumSamples);
-            outVariant.audio->copyFrom (1, 0, workBuf, 1, 0, outNumSamples);
+            outVariant.audio->copyFrom (0, 0, sourceBuf, 0,      0, outNumSamples);
+            outVariant.audio->copyFrom (1, 0, sourceBuf, srcCh1, 0, outNumSamples);
         }
 
         outVariant.sourceSampleRate = targetSR;
@@ -349,15 +359,46 @@ void SampleLoader::run()
               |  juce::jlimit (0, kMaxTechniques - 1, tech);
     };
 
-    std::vector<int> groupKeys;
-    groupKeys.reserve (loaded.size());
-    for (const auto& lf : loaded)
-        groupKeys.push_back (encodeKey (lf.midiNote, lf.velocityLayer, lf.technique));
+    // v1.17.1 (LOAD-E4): group loaded files into cells with a single sort
+    // instead of an O(n^2) per-unique-key full scan. We sort an index array by
+    // (encodeKey, rr-sort-token, load-order). This reproduces BOTH the previous
+    // ascending-key cell order AND the previous within-cell variant order — the
+    // old code collected each group's indices in load order, then stable_sorted
+    // them by the same token, which is equivalent to a single total order with a
+    // load-order tiebreak. We then walk one linear pass, emitting a cell per
+    // contiguous key run. encodeKey/token semantics are unchanged, so the built
+    // map is identical to the pre-v1.17.1 output.
+    const int numLoaded = (int) loaded.size();
 
-    std::vector<int> uniqueKeys = groupKeys;
-    std::sort (uniqueKeys.begin(), uniqueKeys.end());
-    uniqueKeys.erase (std::unique (uniqueKeys.begin(), uniqueKeys.end()),
-                      uniqueKeys.end());
+    std::vector<int> groupKeys ((size_t) numLoaded);
+    for (int i = 0; i < numLoaded; ++i)
+        groupKeys[(size_t) i] = encodeKey (loaded[(size_t) i].midiNote,
+                                           loaded[(size_t) i].velocityLayer,
+                                           loaded[(size_t) i].technique);
+
+    // rr-sort token: explicit rrIndex sorts first (ascending); -1 entries sort
+    // after all explicit ones, in load order (matches the old `1000 + index`).
+    auto rrToken = [&loaded] (int i) -> int
+    {
+        const int rr = loaded[(size_t) i].rrIndex;
+        return (rr < 0) ? 1000 + i : rr;
+    };
+
+    std::vector<int> order ((size_t) numLoaded);
+    for (int i = 0; i < numLoaded; ++i)
+        order[(size_t) i] = i;
+
+    std::sort (order.begin(), order.end(),
+               [&] (int a, int b)
+               {
+                   if (groupKeys[(size_t) a] != groupKeys[(size_t) b])
+                       return groupKeys[(size_t) a] < groupKeys[(size_t) b];
+                   const int ta = rrToken (a);
+                   const int tb = rrToken (b);
+                   if (ta != tb)
+                       return ta < tb;
+                   return a < b;   // stable tiebreak = enumeration (load) order
+               });
 
     SampleMap built;
     built.lowestNote        = 127;
@@ -366,31 +407,29 @@ void SampleLoader::run()
 
     std::vector<AmbiguousDuplicate> ambiguous;
 
-    for (int key : uniqueKeys)
+    for (int runStart = 0; runStart < numLoaded; )
     {
-        // Collect indices of all loaded files that match this key.
-        std::vector<int> idxs;
-        for (int i = 0; i < (int) loaded.size(); ++i)
-            if (groupKeys[(size_t) i] == key)
-                idxs.push_back (i);
+        const int key   = groupKeys[(size_t) order[(size_t) runStart]];
+        int       runEnd = runStart + 1;
+        while (runEnd < numLoaded && groupKeys[(size_t) order[(size_t) runEnd]] == key)
+            ++runEnd;
 
-        if (idxs.empty())
-            continue;
-
-        const int midi      = loaded[(size_t) idxs[0]].midiNote;
-        const int layer     = loaded[(size_t) idxs[0]].velocityLayer;
-        const int technique = loaded[(size_t) idxs[0]].technique;
+        const int count     = runEnd - runStart;
+        const int first     = order[(size_t) runStart];
+        const int midi      = loaded[(size_t) first].midiNote;
+        const int layer     = loaded[(size_t) first].velocityLayer;
+        const int technique = loaded[(size_t) first].technique;     // v1.14.0
 
         // Detect explicit RR vs ambiguous.
         bool anyExplicitRr = false;
-        for (int i : idxs)
-            if (loaded[(size_t) i].rrIndex >= 0)
+        for (int k = runStart; k < runEnd; ++k)
+            if (loaded[(size_t) order[(size_t) k]].rrIndex >= 0)
             {
                 anyExplicitRr = true;
                 break;
             }
 
-        if (idxs.size() > 1 && ! anyExplicitRr)
+        if (count > 1 && ! anyExplicitRr)
         {
             // Ambiguous duplicate group — record for modal confirmation.
             // The cell is still BUILT with all variants; the processor stages
@@ -399,36 +438,26 @@ void SampleLoader::run()
             dup.midiNote      = midi;
             dup.velocityLayer = layer;
             dup.technique     = technique;     // v1.14.0
-            for (int i : idxs)
-                dup.filenames.add (loaded[(size_t) i].variant.filename);
+            for (int k = runStart; k < runEnd; ++k)
+                dup.filenames.add (loaded[(size_t) order[(size_t) k]].variant.filename);
             ambiguous.push_back (std::move (dup));
         }
-
-        // Sort: explicit-RR entries first by rrIndex; -1 entries after, in
-        // load order. Stable sort preserves enumeration order for ties.
-        std::stable_sort (idxs.begin(), idxs.end(),
-                          [&loaded] (int a, int b)
-                          {
-                              const int ra = loaded[(size_t) a].rrIndex;
-                              const int rb = loaded[(size_t) b].rrIndex;
-                              const int ka = (ra < 0) ? 1000 + a : ra;
-                              const int kb = (rb < 0) ? 1000 + b : rb;
-                              return ka < kb;
-                          });
 
         SampleCell cell;
         cell.midiNote      = midi;
         cell.velocityLayer = layer;
         cell.technique     = technique;     // v1.14.0
-        cell.variants.reserve (idxs.size());
-        for (int i : idxs)
-            cell.variants.push_back (std::move (loaded[(size_t) i].variant));
+        cell.variants.reserve ((size_t) count);
+        for (int k = runStart; k < runEnd; ++k)
+            cell.variants.push_back (std::move (loaded[(size_t) order[(size_t) k]].variant));
 
         built.lowestNote  = juce::jmin (built.lowestNote,  midi);
         built.highestNote = juce::jmax (built.highestNote, midi);
         maxLayer          = juce::jmax (maxLayer,          layer);
 
         built.cells.push_back (std::move (cell));
+
+        runStart = runEnd;
     }
 
     built.numVelocityLayers = juce::jlimit (1, 4, maxLayer + 1);

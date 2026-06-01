@@ -254,14 +254,18 @@ export async function streamFolderEntryToCpp (dirEntry, opts) {
     }
     if (!startOk) { opts.showToast('Drop session start failed'); return; }
 
+    // v1.17.1 (DROP-E1): resolve the per-file native function ONCE instead of
+    // re-binding it on every loop iteration — a 250-file folder otherwise
+    // rebinds it 250× during the most expensive path in the app.
+    const addFile = opts.juce.getNativeFunction('dropSessionAddFile');
+
     let failed = 0;
     for (let i = 0; i < all.length; i++) {
         const { entry, relativePath } = all[i];
         opts.showToast(`Loading ${i + 1} of ${all.length}: ${entry.name}`);
         try {
             const base64 = await readFileEntryAsBase64(entry);
-            const ok = await opts.juce.getNativeFunction('dropSessionAddFile')(
-                sessionId, relativePath, base64);
+            const ok = await addFile(sessionId, relativePath, base64);
             if (!ok) {
                 console.warn(`[webview-drop-streaming] addFile rejected: ${relativePath}`);
                 opts.showToast(`Skipped: ${entry.name} (backend rejected)`);

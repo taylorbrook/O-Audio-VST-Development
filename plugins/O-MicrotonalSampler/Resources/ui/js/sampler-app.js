@@ -713,12 +713,9 @@ function handleSampleMapSnapshot(payloadOrJson) {
 //   - 88 columns (MIDI 21..108), 4 rows (velocity layers).
 //   - Rows top→bottom = layer 3..0 so the loudest layer reads at the top.
 //   - data-note + data-layer attributes for hit-testing.
-//   - cell-loaded / cell-empty / cell-loading / cell-active classes.
+//   - cell-loaded / cell-empty / cell-loading classes.
 //   - title attribute = filename for loaded cells (tooltip).
 //   - octave-separator marker (data-octave-start) every 12 cells.
-//
-// Mid-session replace metric (PLAN Task 18 gate): the time from FileChooser
-// close → DOM update is logged via performance.now() in handleCellAction.
 //
 // The grid is rebuilt on every snapshot. With 352 cells (88 × 4), full
 // rebuild is < 5 ms and avoids stateful diff bookkeeping.
@@ -957,7 +954,6 @@ function syncVelLabelsHeight() {
 // so we use it directly and rely on the timer to defer the single-click.
 
 let pendingClickTimer = null;
-let lastReplaceTimestamp = 0;
 
 function bindGridInteractions(innerEl) {
     if (!innerEl || innerEl.dataset.bound === '1') return;
@@ -1031,8 +1027,6 @@ async function replaceCellSample(cell, midi, layer) {
     }
 
     cell.classList.add('cell-loading');
-    const t0 = performance.now();
-    lastReplaceTimestamp = t0;
 
     try {
         const fn = Juce.getNativeFunction('loadSingleSampleDialog');
@@ -1043,9 +1037,7 @@ async function replaceCellSample(cell, midi, layer) {
             return;
         }
         // The sampleMapUpdated push event will trigger renderGrid which
-        // rebuilds the cell. Log timing for the gate metric.
-        const t1 = performance.now();
-        console.log(`[sampler-app] FileChooser close → load dispatch: ${(t1 - t0).toFixed(1)} ms (mergeAsRr=${mergeAsRr})`);
+        // rebuilds the cell.
     } catch (e) {
         console.error('[sampler-app] replaceCellSample failed:', e);
         cell.classList.remove('cell-loading');
