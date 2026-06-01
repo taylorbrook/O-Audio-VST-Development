@@ -5,8 +5,9 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 1 (Foundation): silent shell. APVTS + headless TuningEngine + NE drain
-    + sample-map shared_ptr surface + SampleLoader skeleton. First audio: Phase 2.1.
+    Microtonal multi-sample instrument: APVTS parameters, TuningEngine
+    (Scala/EDO), VST3 Note Expression for Dorico, a background SampleLoader, a
+    round-robin / velocity-layer / technique sample map, and a WebView UI.
 
   ==============================================================================
 */
@@ -273,6 +274,11 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
     , parameters (*this, nullptr, "Parameters", createParameterLayout())
 {
+    // v1.17.1 (EF-1): resolve the audio-thread parameter pointers once. Safe
+    // here — `parameters` is fully constructed by the initializer list above,
+    // and processBlock cannot run during construction.
+    cacheAudioParamPointers();
+
     // Initialize sample-map slot with an empty SampleMap so audio-thread reads
     // see a valid (findCell-returns-nullptr) target before any folder is loaded.
     currentSampleMap = std::make_shared<SampleMap>();
@@ -320,8 +326,8 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     // RESEARCH R1 — D2-2 satisfied by JUCE default findVoiceToSteal).
     synthesiser.setNoteStealingEnabled (true);
 
-    // Background sample loader (Stage 1 stub — loadFolder dispatches a failure
-    // callback to the message thread; run() is empty until Stage 2.2).
+    // Background sample loader (owns a juce::Thread; loadFolder/loadSingleVariant
+    // dispatch work off the message thread and fire completion callbacks back on it).
     sampleLoader = std::make_unique<SampleLoader>();
 
 #if OUARICON_LICENSING_ENABLED
@@ -334,6 +340,25 @@ void OMicrotonalSamplerAudioProcessor::resetAllRrCounters() noexcept
 {
     for (auto& c : rrCounters)
         c.store ((uint8_t) 0xFFu, std::memory_order_relaxed);
+}
+
+// v1.17.1 (EF-1): cache the std::atomic<float>* for every parameter the audio
+// thread reads in processBlock. getRawParameterValue hashes the string ID and
+// walks the APVTS map; resolving once here keeps processBlock free of per-block
+// string lookups. The returned pointers are owned by the APVTS and stable for
+// its lifetime.
+void OMicrotonalSamplerAudioProcessor::cacheAudioParamPointers() noexcept
+{
+    pPolyphony       = parameters.getRawParameterValue ("polyphony");
+    pKsEnabled       = parameters.getRawParameterValue ("ks_enabled");
+    pKsLowNote       = parameters.getRawParameterValue ("ks_low_note");
+    pKsHighNote      = parameters.getRawParameterValue ("ks_high_note");
+    pTechniqueCount  = parameters.getRawParameterValue ("technique_count");
+    pCcSelectEnabled = parameters.getRawParameterValue ("cc_select_enabled");
+    pCcNumber        = parameters.getRawParameterValue ("cc_number");
+    pPcEnabled       = parameters.getRawParameterValue ("pc_enabled");
+    pExpression      = parameters.getRawParameterValue ("expression");
+    pOutputGain      = parameters.getRawParameterValue ("output_gain");
 }
 
 OMicrotonalSamplerAudioProcessor::~OMicrotonalSamplerAudioProcessor()
@@ -522,8 +547,8 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // FUNC-03: propagate the polyphony APVTS cap into the synth before MIDI is
     // dispatched, so CappedSynthesiser::noteOn enforces the user's cap on this
     // block's note-ons.
-    if (auto* pp = parameters.getRawParameterValue ("polyphony"))
-        synthesiser.setVoiceCap ((int) pp->load());
+    if (pPolyphony != nullptr)
+        synthesiser.setVoiceCap ((int) pPolyphony->load());
 
     // v1.14.0 / v1.15.0: KS / CC / PC technique routing.
     //
@@ -559,20 +584,13 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     bool        ccEnabled  = false;
     int         ccNumber   = 0;
     bool        pcEnabled  = false;
-    if (auto* p = parameters.getRawParameterValue ("ks_enabled"))
-        ksEnabled = (p->load() > 0.5f);
-    if (auto* p = parameters.getRawParameterValue ("ks_low_note"))
-        ksLowNote = juce::jlimit (0, 127, (int) p->load());
-    if (auto* p = parameters.getRawParameterValue ("ks_high_note"))
-        ksHighNote = juce::jlimit (0, 127, (int) p->load());
-    if (auto* p = parameters.getRawParameterValue ("technique_count"))
-        techCount = juce::jlimit (1, 8, (int) p->load());
-    if (auto* p = parameters.getRawParameterValue ("cc_select_enabled"))
-        ccEnabled = (p->load() > 0.5f);
-    if (auto* p = parameters.getRawParameterValue ("cc_number"))
-        ccNumber = juce::jlimit (0, 119, (int) p->load());
-    if (auto* p = parameters.getRawParameterValue ("pc_enabled"))
-        pcEnabled = (p->load() > 0.5f);
+    if (pKsEnabled       != nullptr) ksEnabled  = (pKsEnabled->load() > 0.5f);
+    if (pKsLowNote       != nullptr) ksLowNote  = juce::jlimit (0, 127, (int) pKsLowNote->load());
+    if (pKsHighNote      != nullptr) ksHighNote = juce::jlimit (0, 127, (int) pKsHighNote->load());
+    if (pTechniqueCount  != nullptr) techCount  = juce::jlimit (1, 8, (int) pTechniqueCount->load());
+    if (pCcSelectEnabled != nullptr) ccEnabled  = (pCcSelectEnabled->load() > 0.5f);
+    if (pCcNumber        != nullptr) ccNumber   = juce::jlimit (0, 119, (int) pCcNumber->load());
+    if (pPcEnabled       != nullptr) pcEnabled  = (pPcEnabled->load() > 0.5f);
 
     const juce::MidiBuffer* dispatchMidi = &midiMessages;
     bool techniqueChangedThisBlock = false;
@@ -692,9 +710,9 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // before output_gain. Independent of velocity-layer selection (velocity
     // chooses the layer at note-on; expression scales the mix). Same
     // start/end ramp pattern as output_gain (RESEARCH pitfall #9).
-    if (auto* ep = parameters.getRawParameterValue ("expression"))
+    if (pExpression != nullptr)
     {
-        const float v = ep->load();
+        const float v = pExpression->load();
         expressionSmoother.setTargetValue (v * v);
     }
 
@@ -711,8 +729,8 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // Output-gain smoothing (RESEARCH pitfall #8 / R7). Read parameter atomically,
     // convert to linear, drive the smoother target. Apply via applyGainRamp using
     // start/end snapshots (RESEARCH pitfall #9 — single ramp per block, no zipper).
-    if (auto* gp = parameters.getRawParameterValue ("output_gain"))
-        outputGainSmoother.setTargetValue (juce::Decibels::decibelsToGain (gp->load()));
+    if (pOutputGain != nullptr)
+        outputGainSmoother.setTargetValue (juce::Decibels::decibelsToGain (pOutputGain->load()));
 
     const float startGain = outputGainSmoother.getCurrentValue();
     outputGainSmoother.skip (numSamples);

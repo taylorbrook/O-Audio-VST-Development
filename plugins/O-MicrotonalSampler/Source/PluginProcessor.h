@@ -5,8 +5,9 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 1 (Foundation): silent shell. APVTS + headless TuningEngine + NE drain
-    + sample-map shared_ptr surface + SampleLoader skeleton. First audio: Phase 2.1.
+    Microtonal multi-sample instrument: APVTS parameters, TuningEngine
+    (Scala/EDO), VST3 Note Expression for Dorico, a background SampleLoader, a
+    round-robin / velocity-layer / technique sample map, and a WebView UI.
 
   ==============================================================================
 */
@@ -221,7 +222,7 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }  // Stage 1: silent stub
+    double getTailLengthSeconds() const override { return 0.0; }  // No fixed tail reported to the host
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -535,6 +536,24 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState        parameters;
+
+    // v1.17.1 (EF-1): cached raw APVTS parameter pointers for the audio thread.
+    // getRawParameterValue returns a std::atomic<float>* that is stable for the
+    // lifetime of the APVTS, so the processBlock parameters are resolved ONCE in
+    // the constructor (cacheAudioParamPointers) instead of hashing the string IDs
+    // on every block. Audio thread reads via ->load(); never written after ctor.
+    void cacheAudioParamPointers() noexcept;
+    std::atomic<float>* pPolyphony       = nullptr;
+    std::atomic<float>* pKsEnabled       = nullptr;
+    std::atomic<float>* pKsLowNote       = nullptr;
+    std::atomic<float>* pKsHighNote      = nullptr;
+    std::atomic<float>* pTechniqueCount  = nullptr;
+    std::atomic<float>* pCcSelectEnabled = nullptr;
+    std::atomic<float>* pCcNumber        = nullptr;
+    std::atomic<float>* pPcEnabled       = nullptr;
+    std::atomic<float>* pExpression      = nullptr;
+    std::atomic<float>* pOutputGain      = nullptr;
+
     CappedSynthesiser                         synthesiser;
     TuningEngine                              tuningEngine;       // D-4: global namespace
     Ouaricon::NoteExpression::VST3Extensions  vst3Extensions;

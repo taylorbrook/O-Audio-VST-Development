@@ -867,8 +867,8 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
         },
 
         // ============================================================
-        // SKELETONS — full implementations land in 3.2/3.3/3.4.
-        // Each returns a sane default so JS callers don't crash.
+        // Sample-management native functions (folder/single-sample load,
+        // loop-point override, waveform peaks). Full implementations.
         // ============================================================
 
         // ---- pickSampleFolder (v1.12.0) ----

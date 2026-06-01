@@ -1,5 +1,82 @@
 # O-MicrotonalSampler Changelog
 
+## [1.17.1] - 2026-06-01
+
+Internal efficiency + simplification pass from a full code audit. **No
+user-facing behaviour change** — no parameters, state format, or audio-render
+output altered. All changes are behaviour-preserving cleanups.
+
+### Changed (efficiency)
+- **Audio thread: cached APVTS parameter pointers (EF-1).** `processBlock` was
+  resolving 10 parameters by string ID every block (`polyphony`, `ks_enabled`,
+  `ks_low_note`, `ks_high_note`, `technique_count`, `cc_select_enabled`,
+  `cc_number`, `pc_enabled`, `expression`, `output_gain`) — each call hashing
+  the ID and walking the APVTS map. These `std::atomic<float>*` pointers are now
+  resolved ONCE in the constructor (`cacheAudioParamPointers`) and read directly
+  on the audio thread. The pointers are stable for the processor's lifetime.
+- **SampleLoader: removed per-file triple-buffering (LOAD-E3).** `processOneFile`
+  no longer allocates an intermediate `workBuf`; resampling writes straight into
+  the 2-channel output buffer, and source channels beyond the first two (which
+  were discarded anyway) are no longer resampled. Decoded output is bit-identical.
+- **SampleLoader: O(n²) → O(n log n) cell grouping (LOAD-E4).** Folder grouping
+  replaced the per-unique-key full scan with a single sort of an index array by
+  `(encodeKey, rr-sort-token, load-order)` + one linear pass. The comparator
+  reproduces the previous cell order AND within-cell variant order exactly, so
+  the built `SampleMap` is identical — only large-library load time improves.
+- **FilenameParser: lower-case each token once (PARSE-S1).** `parse()` now
+  pre-lower-cases tokens into `lcTokens` and passes them to the case-insensitive
+  helpers (MIDI form / velocity / RR / technique), which previously each
+  re-allocated a lower-cased copy per call (4–6× per token). `parseAsScientificPitch`
+  deliberately keeps the ORIGINAL token — it is case-SENSITIVE (`'b'`=flat vs
+  `'B'`=note letter); lower-casing it would change pitch parsing.
+- **WebView drag-drop: hoisted native-fn binding out of the streaming loop
+  (DROP-E1).** `streamFolderEntryToCpp` resolved `getNativeFunction('dropSessionAddFile')`
+  on every file (250× for a 250-file folder); it is now bound once before the
+  loop. Applied in the shared `webview-drop-streaming` module (O-MicrotonalSampler
+  is its only current consumer).
+
+### Removed (dead code / stale comments)
+- Dead CSS rule `.grid-cell.cell-active` (note-on highlight that was never wired;
+  the class is never applied in JS). (CSS-M5)
+- Dead gate-metric instrumentation in `sampler-app.js`: the `performance.now()`
+  `t0`/`t1` capture, the per-load `console.log` timing line, and the write-only
+  `lastReplaceTimestamp`. (APP-S2)
+- `tuning-panel.js`: write-only `heldNotes` Set (TUN-L6); no-op
+  `toFixed(isOctave ? 1 : 1)` → `toFixed(1)` (TUN-L5); the static
+  `interval-list-header` in `render()` that `updateIntervalList()` always
+  overwrote on first load (TUN-H2).
+- Refreshed stale "Stage 1 / silent shell / SKELETONS" banners and member
+  comments in `PluginProcessor.{h,cpp}` and `PluginEditor.cpp` to describe the
+  shipping plugin rather than scaffolding state.
+
+### Notes
+- **Shared-module note:** TUN-L5/L6/H2 were applied to this plugin's local copy
+  of `Resources/ui/js/tuning-panel.js`, which has **forked** from the
+  `scala-tuning-engine` module (currently v2.1.0). These fixes are
+  O-MicrotonalSampler-specific and are **deliberately NOT propagated upstream**:
+  - **L6** (remove `heldNotes`) — `heldNotes` is dead here only because this
+    plugin's v3.1.0 `drawTrueKeys()` rewrite uses `heldNotesMidi`/`heldNotesFreqs`
+    instead. The module's `drawTrueKeys()` still *reads* `heldNotes`, so removing
+    it upstream would break the module and O-Formant.
+  - **L5** (`toFixed(1)`) — a local display choice (1-decimal cents). The module
+    uses `toFixed(2)`; upstreaming would change precision for O-Bells / O-Formant
+    / O-IntonationPad.
+  - **H2** (drop redundant static `interval-list-header`) — the only genuinely
+    shared cleanup, left un-upstreamed (cosmetic dead markup only).
+  Because this panel is a fork, a naive `module-upgrade` would already overwrite
+  far more than these three edits (the v3.1.0 `drawTrueKeys`, the 1-decimal
+  display), so the module-upgrade customization warning — not upstreaming — is
+  the right guard.
+- **Verified-safe (left intact):** the back-compat `slots` JSON array and
+  `SampleCell::primary()` (both still consumed by the JS grid / snapshot path),
+  the OFF-by-default Phase-2.1 sine-burst test fixture, and the
+  intentionally-disabled `clear` context-menu button.
+- **Testing:** TechniqueParseCheck (62 cases) + MergeRr / FindCellTriplet /
+  DynamicsLayer / CcPcTrigger / StateMigration / DropSessionGuard standalone
+  suites all pass; `auval` AU validation succeeds. Manual DAW verification of a
+  real folder load (LOAD-E3/E4 path) is recommended as the loader grouping/resample
+  paths have no standalone unit test.
+
 ## [1.17.0] - 2026-05-06
 
 ### Added

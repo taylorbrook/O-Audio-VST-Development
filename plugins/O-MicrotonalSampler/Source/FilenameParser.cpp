@@ -109,9 +109,13 @@ namespace
     //==============================================================================
     // Try to parse `token` as a MIDI form: ^[Mm][Ii][Dd][Ii]?[0-9]{1,3}$
     // Returns the MIDI number (clamped 0..127) or nullopt.
-    std::optional<int> parseAsMidiForm (const juce::String& token)
+    // v1.17.1 (PARSE-S1): `lc` is the already-lower-cased token. parse()
+    // lower-cases each token once into lcTokens and passes it here, so the
+    // case-insensitive helpers no longer re-allocate a lower-cased copy per
+    // call. parseAsScientificPitch is the deliberate exception — it is
+    // case-SENSITIVE ('b'=flat vs 'B'=note letter) and still takes the original.
+    std::optional<int> parseAsMidiForm (const juce::String& lc)
     {
-        const auto lc = token.toLowerCase();
         if (! lc.startsWith ("midi"))
             return std::nullopt;
 
@@ -157,10 +161,8 @@ namespace
     //   p, mp, mf, f           → 0, 1, 2, 3
     //   layer1..4, L1..4, Lyr1..4 → 0..3
     // Returns nullopt if not recognised.
-    std::optional<int> parseAsVelocity (const juce::String& token)
+    std::optional<int> parseAsVelocity (const juce::String& lc)
     {
-        const auto lc = token.toLowerCase();
-
         // Dynamics first (exact-match).
         if (lc == "p")  return 0;
         if (lc == "mp") return 1;
@@ -243,10 +245,8 @@ namespace
     //
     // Case-insensitive. Forms like "round1" / "var1" intentionally NOT recognised
     // — the user signalled rr/take/tk specifically; we don't widen the surface.
-    std::optional<int> parseAsRrIndex (const juce::String& token)
+    std::optional<int> parseAsRrIndex (const juce::String& lc)
     {
-        const auto lc = token.toLowerCase();
-
         auto extractTrailingDigits = [] (const juce::String& s) -> std::optional<int>
         {
             if (s.isEmpty())
@@ -296,10 +296,8 @@ namespace
     // The two-token forms (sul pont / sul tasto / senza vib / non vib /
     // con sord) are recognised separately by parseAsTechniquePair, since the
     // [_\-\s.]+ tokeniser splits "sul_pont" into ["sul", "pont"].
-    std::optional<int> parseAsTechnique (const juce::String& token)
+    std::optional<int> parseAsTechnique (const juce::String& lc)
     {
-        const auto lc = token.toLowerCase();
-
         // Slot 0 — ordinario
         if (lc == "ord" || lc == "ordinario" || lc == "ordinary")     return 0;
         // Slot 1 — sul ponticello
@@ -347,12 +345,9 @@ namespace
     // standalone single-token forms in parseAsTechnique above — they're too
     // generic and would over-match (e.g. a file accidentally named
     // `con_a_capo` would land on slot 4 if "con" alone were recognised).
-    std::optional<int> parseAsTechniquePair (const juce::String& a,
-                                             const juce::String& b)
+    std::optional<int> parseAsTechniquePair (const juce::String& lca,
+                                             const juce::String& lcb)
     {
-        const auto lca = a.toLowerCase();
-        const auto lcb = b.toLowerCase();
-
         if (lca == "sul")
         {
             if (lcb == "pont" || lcb == "ponticello") return 1;
@@ -381,12 +376,11 @@ namespace
     // at MIDI velocity ≥ 65. Explicit forms (v[1-4]/vel[1-4]/layer[N]/L[N]/
     // lyr[N]) don't have this collision risk because they require a digit
     // immediately after the prefix.
-    std::optional<int> parseAsExplicitVelocity (const juce::String& token)
+    std::optional<int> parseAsExplicitVelocity (const juce::String& lc)
     {
-        const auto lc = token.toLowerCase();
         if (lc == "p" || lc == "mp" || lc == "mf" || lc == "f")
             return std::nullopt;
-        return parseAsVelocity (token);
+        return parseAsVelocity (lc);
     }
 } // namespace
 
@@ -403,6 +397,16 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     if (tokens.isEmpty())
         return std::nullopt;
 
+    // v1.17.1 (PARSE-S1): lower-case every token ONCE. The case-insensitive
+    // helpers (MIDI form / velocity / RR / technique) take these directly
+    // instead of re-allocating a lower-cased copy on each call. The note scan
+    // keeps using the ORIGINAL tokens for parseAsScientificPitch (case-sensitive
+    // 'b'=flat vs 'B'=note letter) and parseAsBareInteger (digits only).
+    juce::StringArray lcTokens;
+    lcTokens.ensureStorageAllocated (tokens.size());
+    for (const auto& t : tokens)
+        lcTokens.add (t.toLowerCase());
+
     // First pass: try to find a NOTE token (scientific pitch first, then MIDI form).
     // We do NOT accept bare integer in this first pass — the bare-integer fallback
     // only fires if NO scientific-pitch / MIDI-form token is present (RESEARCH R4).
@@ -410,13 +414,13 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     int  noteTokenIndex = -1;
     for (int i = 0; i < tokens.size(); ++i)
     {
-        if (auto m = parseAsScientificPitch (tokens[i]))
+        if (auto m = parseAsScientificPitch (tokens[i]))   // original case (case-sensitive)
         {
             midiNote = *m;
             noteTokenIndex = i;
             break;
         }
-        if (auto m = parseAsMidiForm (tokens[i]))
+        if (auto m = parseAsMidiForm (lcTokens[i]))
         {
             midiNote = *m;
             noteTokenIndex = i;
@@ -463,7 +467,7 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     bool foundVel = false;
     for (int i = noteTokenIndex + 1; i < tokens.size(); ++i)
     {
-        if (auto v = parseAsVelocity (tokens[i]))
+        if (auto v = parseAsVelocity (lcTokens[i]))
         {
             velLayer = *v;
             foundVel = true;
@@ -475,7 +479,7 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     {
         for (int i = 0; i < noteTokenIndex; ++i)
         {
-            if (auto v = parseAsExplicitVelocity (tokens[i]))
+            if (auto v = parseAsExplicitVelocity (lcTokens[i]))
             {
                 velLayer = *v;
                 break;
@@ -500,7 +504,7 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     for (int i = 0; i < tokens.size(); ++i)
     {
         // Glued form (v1.8.0): "rr1", "take7", "tk2", etc.
-        if (auto rr = parseAsRrIndex (tokens[i]))
+        if (auto rr = parseAsRrIndex (lcTokens[i]))
         {
             rrIndex = *rr;
             break;
@@ -510,12 +514,12 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
         // numeric next token. Prefix match is exact (case-insensitive) so
         // "taken" / "tkr" / "rrm" don't accidentally trip this branch — they
         // would have already failed parseAsRrIndex above.
-        const auto lc = tokens[i].toLowerCase();
+        const auto& lc = lcTokens[i];
         if (lc == "rr" || lc == "take" || lc == "tk")
         {
             if (i + 1 < tokens.size())
             {
-                if (auto rr = parseAsRrIndex (juce::String (lc) + tokens[i + 1]))
+                if (auto rr = parseAsRrIndex (lc + lcTokens[i + 1]))
                 {
                     rrIndex = *rr;
                     break;
@@ -536,14 +540,14 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     int techniqueIndex = -1;
     for (int i = 0; i < tokens.size(); ++i)
     {
-        if (auto t = parseAsTechnique (tokens[i]))
+        if (auto t = parseAsTechnique (lcTokens[i]))
         {
             techniqueIndex = *t;
             break;
         }
         if (i + 1 < tokens.size())
         {
-            if (auto t = parseAsTechniquePair (tokens[i], tokens[i + 1]))
+            if (auto t = parseAsTechniquePair (lcTokens[i], lcTokens[i + 1]))
             {
                 techniqueIndex = *t;
                 break;
