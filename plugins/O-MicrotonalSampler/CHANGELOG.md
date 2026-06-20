@@ -1,5 +1,57 @@
 # O-MicrotonalSampler Changelog
 
+## [1.18.0] - 2026-06-20
+
+Two sample-management features: a **batch loop-point** control that sets one
+loop region across every loaded sample at once, and **granular deletion** —
+remove a single cell or clear a whole velocity layer instead of only being able
+to wipe the entire map.
+
+### Added
+- **Batch loop points (`applyLoopPointsToAll`).** A new "Batch loop…" button
+  (next to "Clear samples") opens a modal that applies one loop region to
+  **every variant of every cell** in a single action. Two unit modes:
+  - **Proportional (%)** — loop start/end as a percentage of *each* sample's
+    own length (e.g. 0–100 %), scaled per-sample. Best for a mixed-length
+    library where one absolute position can't fit all samples.
+  - **Milliseconds** — loop start/end in ms from the file start, converted
+    per-variant via its own `sourceSampleRate` (falls back to 48 kHz when the
+    rate is unknown).
+  Each variant is clamped exactly like the per-cell loop editor
+  (`overrideLoopPoints`), set to `LoopMode::Manual`, and one-shot buffers
+  (< 18 samples) are skipped untouched. A toast reports how many samples were
+  updated. Applies on the next note-on, like the per-cell editor.
+- **Delete a single sample (`deleteSampleCell` → `removeCell`).** The
+  right-click cell menu's previously-disabled "Clear" entry is now an enabled
+  **"Delete sample"** action. It removes just that (note, velocity layer) cell
+  on the **active technique**, leaving the rest of the map intact. Disabled on
+  empty cells; behind the standard confirm dialog.
+- **Clear a whole velocity layer (`clearVelocityLayer`).** **Right-click a
+  velocity-row label** to remove every sample in that layer across **all
+  techniques** (mirrors the existing `LoadMode::ReplaceLayer` semantics). The
+  row-label tooltip advertises the gesture; behind the confirm dialog; reports
+  the count cleared.
+
+### Implementation notes
+- All three operations follow the established deep-copy → mutate → version-bump
+  → `atomicStore` → `sampleMapChangedCallback` pattern used by
+  `overrideLoopPoints` / `clearSampleMap`, so active voices keep their prior
+  map snapshot and in-flight notes finish naturally (Stage 2 EC-3).
+- `removeCell` / `clearVelocityLayer` recompute note bounds + velocity-layer
+  count via a shared `recomputeMapBounds` helper (mirrors `applyFolderLoad`)
+  and reset the affected round-robin counters.
+
+### Known limitation (reload persistence)
+- The sample map is persisted as a **replay of load-ops**, not as a serialized
+  map. Like the existing per-cell loop editor, these new operations mutate the
+  live map only — they are **not recorded as load-ops**, so **deletes,
+  layer-clears, and batch loop overrides apply for the session but are undone
+  when a project reloads and replays its op history** (re-loading the source
+  folder restores deleted cells). This matches current loop-editor behaviour
+  and introduces no regression. Making these survive reload would require
+  recording delete/override ops (or a freeze-to-embedded-snapshot) — deferred
+  to a follow-up to avoid touching the working save/load path.
+
 ## [1.17.2] - 2026-06-19
 
 Fixes pre-note velocity-layer parsing so dynamics that appear **before** the

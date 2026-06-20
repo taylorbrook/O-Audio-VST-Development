@@ -61,6 +61,8 @@
           <span class="drop-zone-sep">·</span>
           <button id="load-folder-btn" type="button">Load Folder…</button>
           <span class="drop-zone-sep">·</span>
+          <button id="batch-loop-btn" type="button" disabled>Batch loop…</button>
+          <span class="drop-zone-sep">·</span>
           <button id="clear-samples-btn" type="button" disabled>Clear samples</button>
         </div>
 
@@ -178,7 +180,7 @@
         <div id="cell-context-menu" hidden>
           <button data-action="replace">Replace…</button>
           <button data-action="open-loop-editor">Open Loop Editor</button>
-          <button data-action="clear" disabled title="Disabled in v1.0">Clear</button>
+          <button data-action="delete-cell" class="context-menu-destructive">Delete sample</button>
         </div>
         <details id="issues-disclosure" hidden>
           <summary>Issues</summary>
@@ -230,6 +232,54 @@
             <div class="confirm-dialog-actions">
               <button id="confirm-cancel-btn" type="button">Cancel</button>
               <button id="confirm-confirm-btn" type="button">Confirm</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.18.0: batch loop-point modal. Applies one loop region to every
+             loaded variant at once — proportional (% of each sample) or
+             milliseconds-from-start. See openBatchLoopDialog in sampler-app.js. -->
+        <div id="batch-loop-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="batch-loop-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content batch-loop-content">
+            <h3 id="batch-loop-title" class="confirm-dialog-title">Batch loop points</h3>
+            <p class="confirm-dialog-message">
+              Apply one loop region to every loaded sample at once. One-shot
+              samples (too short to loop) are left untouched.
+            </p>
+
+            <div class="bl-row bl-modes">
+              <span class="bl-label">Units</span>
+              <div class="bl-mode-options">
+                <label class="bl-mode">
+                  <input type="radio" name="bl-mode" value="0" checked />
+                  <span>Proportional (%)</span>
+                </label>
+                <label class="bl-mode">
+                  <input type="radio" name="bl-mode" value="1" />
+                  <span>Milliseconds</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="bl-row">
+              <label class="bl-label" for="bl-start">Loop start</label>
+              <input type="number" id="bl-start" class="bl-input" value="0" min="0" max="100" step="1" />
+              <span id="bl-start-unit" class="bl-unit">%</span>
+            </div>
+
+            <div class="bl-row">
+              <label class="bl-label" for="bl-end">Loop end</label>
+              <input type="number" id="bl-end" class="bl-input" value="100" min="0" max="100" step="1" />
+              <span id="bl-end-unit" class="bl-unit">%</span>
+            </div>
+
+            <p id="bl-error" class="bl-error" hidden></p>
+
+            <div class="confirm-dialog-actions">
+              <button id="bl-cancel-btn" type="button">Cancel</button>
+              <button id="bl-apply-btn" type="button" class="primary">Apply to all</button>
             </div>
           </div>
         </div>

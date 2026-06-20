@@ -1300,6 +1300,92 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
+        // ---- applyLoopPointsToAll (v1.18.0 — batch loop override) ----
+        //
+        // JS calls: await Juce.getNativeFunction('applyLoopPointsToAll')
+        //              (mode, startVal, endVal[, xfade]).
+        //   mode 0 = proportional (startVal/endVal are fractions 0..1)
+        //   mode 1 = milliseconds (startVal/endVal are ms from file start)
+        // Resolves to the number of variants updated (0 if the map is empty or
+        // every buffer is one-shot). The JS UI surfaces its own modal before
+        // calling — the native fn applies unconditionally.
+        { "applyLoopPointsToAll",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 3)
+                    {
+                        DBG ("applyLoopPointsToAll: expected (mode, start, end[, xfade]), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (0));
+                        return;
+                    }
+
+                    const int    mode  = static_cast<int>    (args[0]);
+                    const double start = static_cast<double> (args[1]);
+                    const double end   = static_cast<double> (args[2]);
+                    const int    xfade = (args.size() >= 4)
+                                            ? static_cast<int> (args[3])
+                                            : 8;
+
+                    const int updated = processorRef.applyLoopPointsToAll (mode, start, end, xfade);
+                    complete (juce::var (updated));
+                }
+        },
+
+        // ---- deleteSampleCell (v1.18.0 — delete a single cell) ----
+        //
+        // JS calls: await Juce.getNativeFunction('deleteSampleCell')
+        //              (midi, vel[, technique]). The JS UI surfaces a
+        //              confirmation before calling. Resolves true when a cell
+        //              was removed, false when none matched.
+        { "deleteSampleCell",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 2)
+                    {
+                        DBG ("deleteSampleCell: expected (midi, vel[, tech]), got "
+                             << args.size() << " arg(s)");
+                        complete (juce::var (false));
+                        return;
+                    }
+
+                    const int midi = static_cast<int> (args[0]);
+                    const int vel  = static_cast<int> (args[1]);
+                    // v1.18.0: technique defaults to the active technique slot
+                    // (what the user sees) when JS omits it.
+                    const int technique = (args.size() >= 3)
+                        ? juce::jlimit (0, 7, static_cast<int> (args[2]))
+                        : processorRef.getActiveTechnique();
+
+                    const bool removed = processorRef.removeCell (midi, vel, technique);
+                    complete (juce::var (removed));
+                }
+        },
+
+        // ---- clearVelocityLayer (v1.18.0 — clear a whole layer) ----
+        //
+        // JS calls: await Juce.getNativeFunction('clearVelocityLayer')(layer).
+        // Erases every cell in the layer across all techniques (matches the
+        // ReplaceLayer load mode). Resolves to the number of cells removed.
+        { "clearVelocityLayer",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 1)
+                    {
+                        DBG ("clearVelocityLayer: expected (layer), got 0 args");
+                        complete (juce::var (0));
+                        return;
+                    }
+
+                    const int layer   = static_cast<int> (args[0]);
+                    const int removed = processorRef.clearVelocityLayer (layer);
+                    complete (juce::var (removed));
+                }
+        },
+
         // ---- getWaveformPeaks (Phase 3.4 — full impl) ----
         //
         // JS calls: await Juce.getNativeFunction('getWaveformPeaks')(midi, vel, bins).
