@@ -1708,6 +1708,222 @@ void OMicrotonalSamplerAudioProcessor::resetLoopToAutoDetect (int midiPitch,
                         technique);
 }
 
+namespace
+{
+    // v1.18.0: recompute note bounds + velocity-layer count after a structural
+    // edit (cell delete / layer clear). Mirrors the recompute in
+    // applyFolderLoad so the snapshot exposed to the UI stays consistent.
+    void recomputeMapBounds (SampleMap& map) noexcept
+    {
+        map.lowestNote  = 127;
+        map.highestNote = 0;
+        int maxLayer    = 0;
+        for (const auto& c : map.cells)
+        {
+            map.lowestNote  = juce::jmin (map.lowestNote,  c.midiNote);
+            map.highestNote = juce::jmax (map.highestNote, c.midiNote);
+            maxLayer        = juce::jmax (maxLayer,        c.velocityLayer);
+        }
+        if (map.cells.empty())
+        {
+            map.lowestNote  = 127;
+            map.highestNote = 0;
+        }
+        map.numVelocityLayers = juce::jlimit (1, 4, maxLayer + 1);
+    }
+}
+
+//==============================================================================
+// v1.18.0: batch loop-point override. Walks every variant of every cell and
+// applies one loop region — proportional (mode 0, fractions of each variant's
+// length) or milliseconds (mode 1, ms-from-start via per-variant sample rate).
+// One-shot buffers (< 18 samples) are skipped untouched. Clamping mirrors
+// overrideLoopPoints exactly. Returns the number of variants updated.
+int OMicrotonalSamplerAudioProcessor::applyLoopPointsToAll (int mode,
+                                                            double startVal,
+                                                            double endVal,
+                                                            int crossfadeLen)
+{
+    juce::ignoreUnused (crossfadeLen);   // recorded for v1.1; ignored in v1.0
+
+    auto current = atomicLoad (currentSampleMap);
+    if (current == nullptr || current->cells.empty())
+    {
+        DBG ("applyLoopPointsToAll: no current map / empty");
+        return 0;
+    }
+
+    auto next = std::make_shared<SampleMap> (*current);
+
+    int updated = 0;
+
+    for (auto& cell : next->cells)
+    {
+        for (auto& variant : cell.variants)
+        {
+            const int numSamples = (variant.audio != nullptr)
+                                       ? variant.audio->getNumSamples()
+                                       : 0;
+
+            // Skip buffers too short to loop — leave them one-shot. This
+            // matches the loader's >= 18-sample threshold for Auto loops.
+            if (numSamples < 18)
+                continue;
+
+            int ls = 0;
+            int le = 0;
+
+            if (mode == 1)
+            {
+                // Milliseconds-from-start. Use the variant's own source rate so
+                // a fixed ms region maps to the same musical position on every
+                // sample regardless of its recorded sample rate.
+                const double sr = (variant.sourceSampleRate > 0.0)
+                                      ? variant.sourceSampleRate
+                                      : 48000.0;
+                ls = juce::roundToInt ((startVal / 1000.0) * sr);
+                le = juce::roundToInt ((endVal   / 1000.0) * sr);
+            }
+            else
+            {
+                // Proportional — fractions of THIS variant's length.
+                const double sf = juce::jlimit (0.0, 1.0, startVal);
+                const double ef = juce::jlimit (0.0, 1.0, endVal);
+                ls = juce::roundToInt (sf * (double) numSamples);
+                le = juce::roundToInt (ef * (double) numSamples);
+            }
+
+            // Clamp identically to overrideLoopPoints: start in [0, N-1],
+            // end in [start+1, N].
+            const int clampedStart = juce::jlimit (0, juce::jmax (0, numSamples - 1), ls);
+            const int clampedEnd   = juce::jlimit (clampedStart + 1,
+                                                   juce::jmax (clampedStart + 1, numSamples),
+                                                   le);
+
+            variant.loopStart = clampedStart;
+            variant.loopEnd   = clampedEnd;
+            variant.loopMode  = LoopMode::Manual;
+            ++updated;
+        }
+    }
+
+    if (updated == 0)
+    {
+        DBG ("applyLoopPointsToAll: nothing to update (all one-shot?)");
+        return 0;
+    }
+
+    next->version = current->version + 1;
+    atomicStore (currentSampleMap, next);
+
+    DBG ("applyLoopPointsToAll: mode=" << mode
+         << " start=" << startVal << " end=" << endVal
+         << " updated " << updated << " variant(s) (v" << next->version << ")");
+
+    if (sampleMapChangedCallback)
+        sampleMapChangedCallback();
+
+    return updated;
+}
+
+//==============================================================================
+// v1.18.0: delete a single (midi, vel, technique) cell — granular counterpart
+// to clearSampleMap(). Deep-copies, erases the matching cell, recomputes note
+// bounds + velocity-layer count, resets that cell's RR counter, bumps version.
+bool OMicrotonalSamplerAudioProcessor::removeCell (int midiPitch,
+                                                   int velocityLayer,
+                                                   int technique)
+{
+    technique = juce::jlimit (0, kMaxTechniques - 1, technique);
+
+    auto current = atomicLoad (currentSampleMap);
+    if (current == nullptr || current->cells.empty())
+        return false;
+
+    auto next = std::make_shared<SampleMap> (*current);
+
+    const auto before = next->cells.size();
+    next->cells.erase (
+        std::remove_if (next->cells.begin(), next->cells.end(),
+            [midiPitch, velocityLayer, technique] (const SampleCell& c)
+            {
+                return c.midiNote == midiPitch
+                    && c.velocityLayer == velocityLayer
+                    && c.technique == technique;
+            }),
+        next->cells.end());
+
+    if (next->cells.size() == before)
+    {
+        DBG ("removeCell: no cell at (midi=" << midiPitch
+             << " vel=" << velocityLayer << " tech=" << technique << ")");
+        return false;
+    }
+
+    recomputeMapBounds (*next);
+
+    // Drop the RR counter for the removed cell so a later reload of the same
+    // slot starts its round-robin from the top.
+    rrCounters[(size_t) MicrotonalSamplerVoice::packRrCounterIndex (
+        midiPitch, velocityLayer, technique)].store ((uint8_t) 0xFFu,
+                                                     std::memory_order_relaxed);
+
+    next->version = current->version + 1;
+    atomicStore (currentSampleMap, next);
+
+    DBG ("removeCell: removed (midi=" << midiPitch << " vel=" << velocityLayer
+         << " tech=" << technique << ") (v" << next->version << ")");
+
+    if (sampleMapChangedCallback)
+        sampleMapChangedCallback();
+
+    return true;
+}
+
+//==============================================================================
+// v1.18.0: clear an entire velocity layer across ALL techniques (matches
+// LoadMode::ReplaceLayer). Returns the number of cells removed.
+int OMicrotonalSamplerAudioProcessor::clearVelocityLayer (int velocityLayer)
+{
+    const int target = juce::jlimit (0, 3, velocityLayer);
+
+    auto current = atomicLoad (currentSampleMap);
+    if (current == nullptr || current->cells.empty())
+        return 0;
+
+    auto next = std::make_shared<SampleMap> (*current);
+
+    const auto before = next->cells.size();
+    next->cells.erase (
+        std::remove_if (next->cells.begin(), next->cells.end(),
+            [target] (const SampleCell& c) { return c.velocityLayer == target; }),
+        next->cells.end());
+
+    const int removed = (int) (before - next->cells.size());
+    if (removed == 0)
+        return 0;
+
+    recomputeMapBounds (*next);
+
+    // Reset RR counters for the wiped layer across all notes + techniques
+    // (mirrors the ReplaceLayer path in applyFolderLoad).
+    for (int midi = 0; midi < 128; ++midi)
+        for (int tech = 0; tech < 8; ++tech)
+            rrCounters[(size_t) MicrotonalSamplerVoice::packRrCounterIndex (midi, target, tech)]
+                .store ((uint8_t) 0xFFu, std::memory_order_relaxed);
+
+    next->version = current->version + 1;
+    atomicStore (currentSampleMap, next);
+
+    DBG ("clearVelocityLayer: layer " << target << " removed " << removed
+         << " cell(s) (v" << next->version << ")");
+
+    if (sampleMapChangedCallback)
+        sampleMapChangedCallback();
+
+    return removed;
+}
+
 //==============================================================================
 // v1.0.2: clearSampleMap — atomic-store an empty SampleMap, bumping the
 // version counter. Active voices retain their previously snapshotted map

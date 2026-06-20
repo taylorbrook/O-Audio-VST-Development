@@ -672,9 +672,14 @@ function handleSampleMapSnapshot(payloadOrJson) {
     // there is nothing to clear and the button stays disabled to avoid
     // accidental clicks (and a no-op confirmation roundtrip).
     const clearBtn = document.getElementById('clear-samples-btn');
+    const hasSlots = Array.isArray(snap?.slots) && snap.slots.length > 0;
     if (clearBtn) {
-        const hasSlots = Array.isArray(snap?.slots) && snap.slots.length > 0;
         clearBtn.disabled = !hasSlots;
+    }
+    // v1.18.0: batch loop button follows the same has-samples gate.
+    const batchLoopBtn = document.getElementById('batch-loop-btn');
+    if (batchLoopBtn) {
+        batchLoopBtn.disabled = !hasSlots;
     }
 
     // Re-publish the cell-layout shadow now that DOM has settled. Defer one
@@ -901,7 +906,8 @@ function renderGrid(snap) {
             el.className = 'vel-label';
             el.dataset.layer = String(layer);
             el.textContent = v.label;
-            el.title = `Velocity layer ${layer}: MIDI velocity ${v.label}`;
+            // v1.18.0: right-click clears the whole layer (across techniques).
+            el.title = `Velocity layer ${layer}: MIDI velocity ${v.label} — right-click to clear this layer`;
             vFrag.appendChild(el);
         }
         velLabels.appendChild(vFrag);
@@ -1054,9 +1060,11 @@ function showContextMenu(cell, clientX, clientY) {
     const isLoaded = cell.classList.contains('cell-loaded');
     contextMenuCell = cell;
 
-    // Disable "Open Loop Editor" on empty cells; "Clear" is always disabled in v1.0.
+    // Disable "Open Loop Editor" and "Delete sample" on empty cells (v1.18.0).
     const openBtn = menu.querySelector('button[data-action="open-loop-editor"]');
     if (openBtn) openBtn.disabled = !isLoaded;
+    const deleteBtn = menu.querySelector('button[data-action="delete-cell"]');
+    if (deleteBtn) deleteBtn.disabled = !isLoaded;
 
     menu.style.left = `${clientX}px`;
     menu.style.top  = `${clientY}px`;
@@ -1077,8 +1085,8 @@ function showContextMenu(cell, clientX, clientY) {
                     replaceCellSample(cellEl, midi, layer);
                 } else if (action === 'open-loop-editor') {
                     openLoopEditor(midi, layer);
-                } else if (action === 'clear') {
-                    /* disabled in v1.0 */
+                } else if (action === 'delete-cell') {
+                    deleteCellWithConfirm(midi, layer);   // v1.18.0
                 }
             }
             hideContextMenu();
@@ -1097,6 +1105,182 @@ document.addEventListener('click', (e) => {
     if (!menu || menu.hidden) return;
     if (!menu.contains(e.target)) hideContextMenu();
 });
+
+// ============================================================================
+// Single-cell delete + clear-layer (v1.18.0)
+// ============================================================================
+//
+// Granular counterparts to "Clear samples" (which wipes the whole map):
+//   - Right-click a loaded cell → "Delete sample" removes that (note, layer)
+//     cell on the ACTIVE technique only.
+//   - Right-click a velocity-row label → clears that velocity layer across
+//     ALL techniques (matches the ReplaceLayer load mode).
+//
+// Both go through the shared confirm dialog. The grid refreshes via the
+// sampleMapUpdated push event fired by the processor's atomic-store.
+
+function deleteCellWithConfirm(midi, layer) {
+    const noteName = (typeof midiToNoteName === 'function')
+        ? midiToNoteName(midi) : `MIDI ${midi}`;
+    const techName = techniqueState.names[techniqueState.active];
+    const techStr = (techniqueState.count > 1 && techName)
+        ? ` (technique “${techName}”)` : '';
+    showConfirmDialog({
+        title: 'Delete this sample?',
+        message: `Remove the sample on ${noteName}, velocity layer L${layer}${techStr}.`,
+        confirmLabel: 'Delete',
+        destructive: true,
+        onConfirm: async () => {
+            const ok = await invokeNative('deleteSampleCell', midi, layer, techniqueState.active);
+            if (!ok) showToast('Nothing to delete on that cell.');
+            // On success the sampleMapUpdated push triggers renderGrid.
+        },
+    });
+}
+
+function clearLayerWithConfirm(layer) {
+    showConfirmDialog({
+        title: `Clear velocity layer L${layer}?`,
+        message: `Remove every sample in velocity layer L${layer}, across all techniques. This cannot be undone.`,
+        confirmLabel: 'Clear layer',
+        destructive: true,
+        onConfirm: async () => {
+            const removed = await invokeNative('clearVelocityLayer', layer);
+            const n = Number.isFinite(removed) ? removed : 0;
+            showToast(n > 0
+                ? `Cleared ${n} sample${n === 1 ? '' : 's'} from layer L${layer}.`
+                : `Layer L${layer} was already empty.`);
+        },
+    });
+}
+
+// Delegated contextmenu listener on the persistent vel-labels container.
+// renderGrid rebuilds the child labels but the container element survives, so
+// binding once here is safe.
+function bindVelLabelInteractions() {
+    const velLabels = document.getElementById('sample-grid-vel-labels');
+    if (!velLabels || velLabels.dataset.bound === '1') return;
+    velLabels.dataset.bound = '1';
+    velLabels.addEventListener('contextmenu', (e) => {
+        const label = e.target.closest('.vel-label');
+        if (!label) return;
+        e.preventDefault();
+        const layer = parseInt(label.dataset.layer, 10);
+        if (!Number.isFinite(layer)) return;
+        clearLayerWithConfirm(layer);
+    });
+}
+
+// ============================================================================
+// Batch loop-point modal (v1.18.0)
+// ============================================================================
+//
+// Applies one loop region to EVERY loaded variant at once. Two unit modes:
+//   mode 0 — Proportional: inputs are 0–100 %, sent to C++ as fractions 0..1.
+//   mode 1 — Milliseconds: inputs are ms-from-start, sent as-is.
+// The Apply button is disabled while inputs are invalid (end must exceed
+// start; % capped at 100) so bindModal's apply handler can assume validity.
+
+function bindBatchLoopButton() {
+    const btn = document.getElementById('batch-loop-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => { openBatchLoopDialog(); });
+}
+
+function openBatchLoopDialog() {
+    const dialog     = document.getElementById('batch-loop-dialog');
+    if (!dialog) return;
+    const startEl    = document.getElementById('bl-start');
+    const endEl      = document.getElementById('bl-end');
+    const startUnit  = document.getElementById('bl-start-unit');
+    const endUnit    = document.getElementById('bl-end-unit');
+    const errEl      = document.getElementById('bl-error');
+    const applyBtn   = document.getElementById('bl-apply-btn');
+    const cancelBtn  = document.getElementById('bl-cancel-btn');
+    const modeRadios = Array.from(dialog.querySelectorAll('input[name="bl-mode"]'));
+    if (!startEl || !endEl || !startUnit || !endUnit || !applyBtn
+            || !cancelBtn || !modeRadios.length) return;
+
+    const getMode = () => {
+        const checked = modeRadios.find(r => r.checked);
+        return checked ? parseInt(checked.value, 10) : 0;
+    };
+
+    const applyModeUI = (mode) => {
+        if (mode === 1) {
+            startUnit.textContent = 'ms';
+            endUnit.textContent   = 'ms';
+            startEl.min = '0'; startEl.removeAttribute('max'); startEl.step = '1';
+            endEl.min   = '0'; endEl.removeAttribute('max');   endEl.step = '1';
+            startEl.value = '0';
+            endEl.value   = '1000';
+        } else {
+            startUnit.textContent = '%';
+            endUnit.textContent   = '%';
+            startEl.min = '0'; startEl.max = '100'; startEl.step = '1';
+            endEl.min   = '0'; endEl.max   = '100'; endEl.step = '1';
+            startEl.value = '0';
+            endEl.value   = '100';
+        }
+    };
+
+    const validate = () => {
+        const mode  = getMode();
+        const start = parseFloat(startEl.value);
+        const end   = parseFloat(endEl.value);
+        const ok = Number.isFinite(start) && Number.isFinite(end)
+                && start >= 0 && end > start
+                && (mode !== 0 || end <= 100);
+        applyBtn.disabled = !ok;
+        if (errEl) {
+            if (ok || startEl.value === '' || endEl.value === '') {
+                errEl.hidden = true;
+            } else {
+                errEl.textContent = (mode === 0)
+                    ? 'Start and end must be 0–100 %, with end greater than start.'
+                    : 'Start and end must be in ms, with end greater than start.';
+                errEl.hidden = false;
+            }
+        }
+        return ok;
+    };
+
+    // Reset to proportional defaults each open.
+    modeRadios.forEach(r => { r.checked = (r.value === '0'); });
+    applyModeUI(0);
+    validate();
+
+    const onModeChange = (e) => { applyModeUI(parseInt(e.target.value, 10)); validate(); };
+    const onInput = () => validate();
+    modeRadios.forEach(r => r.addEventListener('change', onModeChange));
+    startEl.addEventListener('input', onInput);
+    endEl.addEventListener('input', onInput);
+
+    bindModal(dialog, [
+        [applyBtn, async () => {
+            const mode  = getMode();
+            const start = parseFloat(startEl.value);
+            const end   = parseFloat(endEl.value);
+            const sVal  = (mode === 0) ? start / 100.0 : start;
+            const eVal  = (mode === 0) ? end   / 100.0 : end;
+            const updated = await invokeNative('applyLoopPointsToAll', mode, sVal, eVal, 8);
+            const n = Number.isFinite(updated) ? updated : 0;
+            showToast(n > 0
+                ? `Loop points applied to ${n} sample${n === 1 ? '' : 's'}. ${APPLY_TOAST}`
+                : 'No loopable samples to update.');
+            return true;
+        }],
+        [cancelBtn, () => false],
+    ], {
+        keys:    { Escape: cancelBtn, Enter: applyBtn },
+        focus:   startEl,
+        onClose: () => {
+            modeRadios.forEach(r => r.removeEventListener('change', onModeChange));
+            startEl.removeEventListener('input', onInput);
+            endEl.removeEventListener('input', onInput);
+        },
+    });
+}
 
 // ============================================================================
 // Layout shadow publish (Phase 3.2 Task 17 — reportCellLayout)
@@ -2995,6 +3179,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     });
     bindClearSamplesButton();
+    bindBatchLoopButton();           // v1.18.0
+    bindVelLabelInteractions();      // v1.18.0
     bindPresetButtons();             // v1.3.0
     pullInitialSampleMap();
     pullPendingMissingFolder();      // v1.3.0 — covers boot-time race

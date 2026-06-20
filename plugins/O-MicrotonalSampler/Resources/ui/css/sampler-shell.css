@@ -496,6 +496,92 @@ body {
     box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.20);
 }
 
+/* v1.18.0: batch loop-point modal. Reuses the confirm-dialog shell; these
+   rules style the units toggle + numeric inputs. */
+.batch-loop-content {
+    max-width: 420px;
+    min-width: 340px;
+}
+
+.bl-row {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.bl-row.bl-modes {
+    align-items: flex-start;
+}
+
+.bl-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-width: 84px;
+    font-weight: 500;
+}
+
+.bl-mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bl-mode {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-body);
+}
+
+.bl-input {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    width: 90px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.bl-input:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.20);
+}
+
+.bl-unit {
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-width: 24px;
+}
+
+.bl-error {
+    margin-top: 12px;
+    margin-bottom: 0;
+    font-size: 12px;
+    color: #b22f2f;
+}
+
+.confirm-dialog-actions button.primary {
+    background: var(--accent-gold);
+    color: #2a1f12;
+    border-color: var(--accent-gold);
+}
+
+.confirm-dialog-actions button.primary:hover:not([disabled]) {
+    background: #c89a1e;
+}
+
+.confirm-dialog-actions button.primary[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .flo-mode-options {
     display: flex;
     flex-direction: column;
@@ -775,6 +861,16 @@ body {
     color: var(--text-muted);
     cursor: not-allowed;
     opacity: 0.55;
+}
+
+/* v1.18.0: destructive "Delete sample" entry — warm red, matching the
+   confirm-dialog destructive button palette. */
+#cell-context-menu button.context-menu-destructive {
+    color: #b22f2f;
+}
+
+#cell-context-menu button.context-menu-destructive:hover:not([disabled]) {
+    background: rgba(178, 47, 47, 0.14);
 }
 
 #issues-disclosure {

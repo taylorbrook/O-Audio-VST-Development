@@ -354,6 +354,49 @@ public:
                                 int variantIndex = -1,
                                 int technique = 0);   // v1.14.0
 
+    // v1.18.0: batch loop-point override — applies one loop region to EVERY
+    // variant of EVERY cell in the current map at once (the per-cell editor
+    // generalised across the whole library). Deep-copies the map, walks all
+    // cells/variants, sets loopMode = Manual, bumps version, atomic-stores,
+    // fires the change callback. Returns the number of variants updated.
+    //
+    //   mode 0 (Proportional): startVal/endVal are fractions in [0, 1] of each
+    //          variant's own length. ls = round(startVal * N),
+    //          le = round(endVal * N).
+    //   mode 1 (Milliseconds): startVal/endVal are milliseconds from the file
+    //          start. ls = round(startVal/1000 * sourceSampleRate),
+    //          le = round(endVal/1000 * sourceSampleRate). Falls back to
+    //          48 kHz when a variant's sourceSampleRate is unknown (0).
+    //
+    // Both modes clamp per-variant exactly like overrideLoopPoints and SKIP
+    // one-shot buffers (< 18 samples), leaving them untouched. crossfadeLen is
+    // recorded for v1.1 parity (currently ignored). Message-thread only.
+    //
+    // NB (v1.18.0 known limitation): like overrideLoopPoints, this mutates the
+    // live map only — it is NOT recorded as a load-op, so the override does not
+    // survive a project reload that replays the op history. See CHANGELOG.
+    int applyLoopPointsToAll (int mode, double startVal, double endVal,
+                              int crossfadeLen = 8);
+
+    // v1.18.0: delete a single (midi, vel, technique) cell from the current
+    // map — the granular counterpart to clearSampleMap(). Deep-copies the map,
+    // erases the matching cell, recomputes note bounds, resets that cell's RR
+    // counter, bumps version, atomic-stores, fires the change callback. No-op
+    // (returns false) when the cell is absent. Active voices keep their
+    // previously snapshotted map (Stage 2 EC-3). Message-thread only.
+    //
+    // NB (v1.18.0 known limitation): not recorded as a load-op — a deleted cell
+    // reappears on project reload (folder re-load / op replay). See CHANGELOG.
+    bool removeCell (int midiPitch, int velocityLayer, int technique = 0);
+
+    // v1.18.0: clear an entire velocity layer — erases every cell whose
+    // velocityLayer matches, across ALL techniques (matches the existing
+    // LoadMode::ReplaceLayer semantics). Recomputes note bounds, resets RR
+    // counters for the wiped layer, bumps version, atomic-stores, fires the
+    // change callback. Returns the number of cells removed. Message-thread
+    // only. Same reload caveat as removeCell.
+    int clearVelocityLayer (int velocityLayer);
+
     // Phase 3.1: snapshot the current sample map as a JSON string for the
     // Stage 3 WebView UI (RESEARCH §RQ3-2 schema). Walks `currentSampleMap`
     // (atomic_load) + `lastSkippedFiles`. Read-only — message thread safe.
