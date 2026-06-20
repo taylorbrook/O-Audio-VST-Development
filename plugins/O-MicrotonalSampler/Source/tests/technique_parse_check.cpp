@@ -134,6 +134,15 @@ int main()
     assertParse ("Violin_C3_martellato",      60, 0, -1, 7);
     assertParse ("Violin_C3_ordinario",       60, 0, -1, 0);
     assertParse ("Violin_C3_ordinary",        60, 0, -1, 0);
+    // v1.17.2: norm/normale/normal aliases for slot 0 (ord). Dynamic token
+    // pre-note is honoured (v1.17.2 PARSE-DYN), so vel resolves correctly too.
+    assertParse ("Violin_norm_mf_C3",         60, 2, -1, 0);
+    assertParse ("Cello_normale_C3_v2",       60, 1, -1, 0);
+    assertParse ("Viola_C3_normal",           60, 0, -1, 0);
+    // The user's exact library filename: A#2 = midi 58, pre-note "mf" → layer 2,
+    // "norm" → slot 0, and the "V127" recorded-velocity token is correctly
+    // IGNORED (3 digits, not a v1–4 layer tag).
+    assertParse ("vln_norm_mf-A#2-V127-JXRO", 58, 2, -1, 0);
     assertParse ("Violin_C3_sulpont",         60, 0, -1, 1);
     assertParse ("Violin_C3_sulponticello",   60, 0, -1, 1);
     assertParse ("Violin_C3_sultasto",        60, 0, -1, 2);

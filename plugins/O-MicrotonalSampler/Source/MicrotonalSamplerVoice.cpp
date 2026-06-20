@@ -437,7 +437,12 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
     // v1.14.0: triplet lookup. SampleMap::findCell falls back to technique=0
     // ("ord") when the requested slot is empty, so partially-populated
     // technique sets still play.
-    cellLow = currentMap->findCell (midiNoteNumber, layerIdx, startTechnique);
+    // v1.17.2: layer-tolerant lookup — if the velocity-bucketed layer is empty
+    // (e.g. a single-dynamic library that landed every slot on one non-zero
+    // layer), fall back to the NEAREST populated layer instead of going silent.
+    // The crossfade-partner lookup below stays exact (findCell), so an empty
+    // adjacent layer correctly means "no crossfade".
+    cellLow = currentMap->findCellNearestLayer (midiNoteNumber, layerIdx, startTechnique);
     if (cellLow == nullptr || cellLow->variants.empty())
     {
         cellLow         = nullptr;
