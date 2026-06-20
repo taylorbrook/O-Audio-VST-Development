@@ -18,19 +18,25 @@
 
     Tokenizer splits on `[_\-\s.]+`. Case-insensitive.
 
-    Velocity scan ordering (Phase 2.5 reopen — bug fix):
-      The velocity scan is two-tier to suppress false positives from dynamics
-      letters appearing inside instrument-name substrings.
+    Velocity scan ordering (v1.17.2 — pre-note dynamics honoured):
+      The velocity scan is two-tier by POSITION only — both tiers accept any
+      velocity form, including dynamics (p/mp/mf/f).
 
-        Tier 1 — POST-note tokens accept any velocity form (explicit + dynamics).
-        Tier 2 — PRE-note tokens accept ONLY explicit forms (v[1-4]/vel[1-4]/
-                 layer[N]/L[N]/lyr[N]); dynamics letters (p/mp/mf/f) are skipped.
+        Tier 1 — POST-note: first velocity token AFTER the note wins.
+        Tier 2 — PRE-note:  if no post-note match, first velocity token BEFORE
+                 the note wins (dynamics included).
 
-      Why: filenames like `vln_long_mp-D#3-V127-T6N6.aif` previously matched
-      "mp" → velLayer=1 (a layer with no actual slots) and silenced the
-      library below MIDI velocity 65. The new scan returns velLayer=0 for
-      such filenames; conventional `[note]_[dyn]` filenames (e.g.
-      `C4_mp.wav`) still resolve correctly via the post-note tier.
+      Why pre-note dynamics matter: the dominant orchestral naming convention
+      places the dynamic immediately before the pitch, e.g.
+      `vln_norm_mf-A#2-V127-JXRO.aif` → velLayer=2 (mf).
+
+      History: v1.14.0–v1.17.1 suppressed dynamics in the PRE-note tier to
+      stop a single-dynamic library (e.g. all `mp`) from landing every slot on
+      a non-zero layer and silencing the bottom of the velocity range — the
+      voice bailed to silence on an empty layer. That guard now lives at the
+      voice instead: SampleMap::findCellNearestLayer falls back to the nearest
+      populated layer, so honouring pre-note dynamics can no longer silence a
+      library. Pre/post-note dynamics are therefore symmetric again.
 
     On parse failure: returns std::nullopt; caller (SampleLoader::run()) is
     responsible for logging the skip via `juce::StringArray skippedFiles`.

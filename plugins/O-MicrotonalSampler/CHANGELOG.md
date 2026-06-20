@@ -1,5 +1,52 @@
 # O-MicrotonalSampler Changelog
 
+## [1.17.2] - 2026-06-19
+
+Fixes pre-note velocity-layer parsing so dynamics that appear **before** the
+pitch token (the dominant orchestral naming convention) are honoured, and adds
+a playback safety net so this can never silence a library.
+
+### Fixed
+- **Pre-note dynamics (`p`/`mp`/`mf`/`f`) are now parsed as velocity layers
+  (PARSE-DYN).** Filenames like `vln_norm_mf-A#2-V127-JXRO.aif` place the
+  dynamic immediately before the pitch. The velocity scan previously **skipped**
+  dynamics tokens in the pre-note region (only explicit `v1–4`/`vel1–4`/`L[N]`/
+  `layer[N]`/`lyr[N]` forms were accepted there), so `mf` was ignored and the
+  sample defaulted to **velocity layer 0** instead of **layer 2**.
+  - **Root cause:** the pre-note tier used `parseAsExplicitVelocity`, which
+    explicitly rejected `p`/`mp`/`mf`/`f`. That suppression was added in v1.14.0
+    to stop a single-dynamic library (e.g. all `mp`) from landing every slot on
+    a non-zero layer — which silenced the bottom of the velocity range because
+    `MicrotonalSamplerVoice::startNote` bailed to silence when the resolved
+    layer's cell was empty. Pre-note `mf` (a real dynamic) and a pre-note
+    name-fragment are structurally identical, so position alone can't tell them
+    apart — the suppression was throwing out valid dynamics.
+  - **Fix:** the pre-note tier now accepts any velocity form, including
+    dynamics. Pre/post-note dynamics are symmetric again.
+
+### Changed
+- **Velocity layer lookup falls back to the nearest populated layer
+  (`SampleMap::findCellNearestLayer`).** The voice's PRIMARY cell lookup now
+  expands outward by layer distance when the velocity-bucketed layer is empty,
+  instead of going silent. This is the safety net that makes honouring pre-note
+  dynamics safe: a single-dynamic library (every slot on one non-zero layer)
+  now plays across the entire velocity range. Equidistant layers prefer the
+  lower (quieter) layer. The crossfade-partner lookup stays **exact** (an empty
+  adjacent layer still means "no crossfade"), and fully-populated multi-layer
+  libraries never reach the expansion loop, so they are bit-identical.
+- **`norm` / `normale` / `normal` recognised as technique slot 0 (`ord`).**
+  Previously these only landed on slot 0 by the missing-token default; they are
+  now explicit aliases for the plain articulation.
+
+### Testing
+- `FilenameParser` inline tests updated: pre-note `mp`/`mf` cases now assert
+  their dynamic layer (flipped from 0); added the user's exact filename
+  (`vln_norm_mf-A#2-V127-JXRO` → midi 58, layer 2) and `norm`/`normale` cases.
+- `technique_parse_check.cpp`: added `norm`/`normale`/`normal` → slot 0 cases.
+- `dynamics_layer_check.cpp`: added `findCellNearestLayer` cases — single-layer
+  fallback, equidistant lower-layer tie-break, full-velocity-sweep
+  no-silence, and a fully-populated-library no-op (nearest == exact).
+
 ## [1.17.1] - 2026-06-01
 
 Internal efficiency + simplification pass from a full code audit. **No

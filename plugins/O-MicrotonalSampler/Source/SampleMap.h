@@ -191,6 +191,51 @@ struct SampleMap
         return findCell (midiNote, velocityLayer, 0);
     }
 
+    // v1.17.2: layer-tolerant lookup for the voice's PRIMARY cell selection.
+    // Tries the requested `velocityLayer` first (with the technique→0 fallback
+    // of findCell). If that layer has no cell, it expands OUTWARD by layer
+    // distance and returns the cell in the nearest POPULATED layer instead of
+    // nullptr.
+    //
+    // Why: filename parsing can land a whole library on a single non-zero
+    // velocity layer (e.g. an all-`mf` library → layer 2). Without this
+    // fallback the voice goes silent at any note-on velocity that buckets to
+    // an empty layer. This is the safety net that lets the parser honour
+    // pre-note dynamics (v1.17.2 PARSE-DYN) without re-introducing that
+    // silence. A fully-populated multi-layer library never reaches the
+    // expansion loop (the exact layer always hits), so existing libraries are
+    // unaffected.
+    //
+    // Tie-break: equidistant layers prefer the LOWER (quieter) layer. RT-safe:
+    // no allocation, no throw — pure linear scans over `cells`.
+    //
+    // NOTE: deliberately NOT used for the crossfade-partner lookup in the
+    // voice — that path must stay exact (an empty adjacent layer means "no
+    // crossfade", not "borrow a distant layer").
+    const SampleCell* findCellNearestLayer (int midiNote, int velocityLayer,
+                                            int technique) const noexcept
+    {
+        if (auto* hit = findCell (midiNote, velocityLayer, technique))
+            return hit;
+
+        // Expand outward: distance 1, 2, 3, … up to the full layer span.
+        // At each distance prefer the lower layer (down before up).
+        for (int delta = 1; delta <= 4; ++delta)
+        {
+            const int lo = velocityLayer - delta;
+            if (lo >= 0)
+                if (auto* hit = findCell (midiNote, lo, technique))
+                    return hit;
+
+            const int hi = velocityLayer + delta;
+            if (hi <= 3)
+                if (auto* hit = findCell (midiNote, hi, technique))
+                    return hit;
+        }
+
+        return nullptr;
+    }
+
 private:
     const SampleCell* findCellExact (int midiNote, int velocityLayer,
                                      int technique) const noexcept

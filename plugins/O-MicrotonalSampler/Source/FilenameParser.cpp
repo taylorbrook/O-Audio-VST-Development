@@ -298,8 +298,11 @@ namespace
     // [_\-\s.]+ tokeniser splits "sul_pont" into ["sul", "pont"].
     std::optional<int> parseAsTechnique (const juce::String& lc)
     {
-        // Slot 0 — ordinario
-        if (lc == "ord" || lc == "ordinario" || lc == "ordinary")     return 0;
+        // Slot 0 — ordinario / normale. "norm"/"normale"/"normal" are the
+        // common orchestral-library spelling for the plain/un-effected
+        // articulation (v1.17.2) — they map onto the same slot as "ord".
+        if (lc == "ord" || lc == "ordinario" || lc == "ordinary"
+                        || lc == "norm" || lc == "normale" || lc == "normal") return 0;
         // Slot 1 — sul ponticello
         if (lc == "sp" || lc == "sulpont" || lc == "sulponticello")   return 1;
         // Slot 2 — sul tasto
@@ -364,24 +367,6 @@ namespace
         return std::nullopt;
     }
 
-    //==============================================================================
-    // Same as parseAsVelocity but rejects bare dynamics tokens (p/mp/mf/f).
-    // Used for the PRE-note pass of the velocity scan in `parse()` below.
-    //
-    // Why: dynamics letters collide with instrument-name substrings — the most
-    // common collision is sample libraries with names like "vln_long_mp-D#3-…"
-    // where "mp" is part of the library name, not a velocity tag. The unguarded
-    // pre-note scan would silently match "mp" and assign velLayer=1 to every
-    // file in the library, putting all slots on a layer that's only reachable
-    // at MIDI velocity ≥ 65. Explicit forms (v[1-4]/vel[1-4]/layer[N]/L[N]/
-    // lyr[N]) don't have this collision risk because they require a digit
-    // immediately after the prefix.
-    std::optional<int> parseAsExplicitVelocity (const juce::String& lc)
-    {
-        if (lc == "p" || lc == "mp" || lc == "mf" || lc == "f")
-            return std::nullopt;
-        return parseAsVelocity (lc);
-    }
 } // namespace
 
 //==============================================================================
@@ -454,12 +439,20 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     //   because the post-note region is by convention where velocity tags
     //   live.
     //
-    // Tier 2 — PRE-note (explicit forms only): if no post-note match was
-    //   found, fall back to scanning tokens BEFORE the note for explicit
-    //   velocity forms. Dynamics tokens are deliberately skipped because they
-    //   collide with instrument-name fragments — `vln_long_mp-D#3-V127-T6N6`
-    //   would otherwise match "mp" and assign velLayer=1 to every slot,
-    //   silencing the library at MIDI velocities < 65.
+    // Tier 2 — PRE-note (any velocity form): if no post-note match was found,
+    //   fall back to scanning tokens BEFORE the note for ANY velocity form,
+    //   including dynamics (p/mp/mf/f). This is the dominant orchestral naming
+    //   convention — `vln_norm_mf-A#2-V127-…` puts the dynamic immediately
+    //   before the pitch — so the dynamic MUST be honoured here.
+    //
+    // v1.17.2 (PARSE-DYN): this used to skip dynamics pre-note
+    // (`parseAsExplicitVelocity`) to avoid assigning a single-dynamic library
+    // (e.g. all `mp`) to a non-zero layer and silencing the bottom of the
+    // velocity range — the voice bailed to silence when the resolved layer's
+    // cell was empty. That guard now lives where it belongs: the voice's
+    // primary cell lookup falls back to the NEAREST populated layer
+    // (SampleMap::findCellNearestLayer), so honouring pre-note dynamics can no
+    // longer cause silence. Pre/post-note dynamics are therefore symmetric.
     //
     // Default if nothing matches: velLayer = 0.
     int velLayer = 0;
@@ -479,7 +472,7 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     {
         for (int i = 0; i < noteTokenIndex; ++i)
         {
-            if (auto v = parseAsExplicitVelocity (lcTokens[i]))
+            if (auto v = parseAsVelocity (lcTokens[i]))
             {
                 velLayer = *v;
                 break;
@@ -617,15 +610,25 @@ namespace FilenameParser
             // Mixed separators
             { "C3-v2.something", 60,      1,        -1 },
 
-            // Phase 2.5 reopen — pre-note dynamics must NOT match.
-            // (D#3 is now MIDI 63 under C3=60; C3 is MIDI 60.)
-            { "vln_long_mp-D#3-V127-T6N6", 63, 0,   -1 },
-            { "vln_long_mp-C3-V127-EHGV",  60, 0,   -1 },
-            { "Auto Sampled Instrument-D#3-V127-RJHU", 63, 0, -1 },
-            { "mp_C3",     60, 0,   -1 },
+            // v1.17.2 (PARSE-DYN) — pre-note dynamics ARE now honoured
+            // (reversed from the Phase 2.5 suppression). Pre/post-note dynamics
+            // are symmetric; the empty-layer silence that the old suppression
+            // guarded against is now handled by SampleMap::findCellNearestLayer
+            // at the voice. (D#3 is MIDI 63 under C3=60; C3 is MIDI 60.)
+            { "vln_long_mp-D#3-V127-T6N6", 63, 1,   -1 },   // pre-note "mp" → layer 1
+            { "vln_long_mp-C3-V127-EHGV",  60, 1,   -1 },
+            { "vln_norm_mf-A#2-V127-JXRO", 58, 2,   -1 },   // user's library: pre-note "mf" → layer 2
+            { "Auto Sampled Instrument-D#3-V127-RJHU", 63, 0, -1 },  // no dynamics token → default 0
+            { "mp_C3",     60, 1,   -1 },                    // pre-note "mp" → layer 1
             { "C3_mp",     60, 1,   -1 },
             { "L3_C3",     60, 2,   -1 },
             { "vel2_C3",   60, 1,   -1 },
+
+            // v1.17.2 — "norm"/"normale" recognised as technique slot 0 (ord).
+            // (techniqueIndex isn't asserted by this harness, but these pin
+            //  that the dynamic still parses correctly alongside a norm token.)
+            { "Cello_normale_mf_C3",       60, 2,   -1 },
+            { "Cello_norm_p_C3",           60, 0,   -1 },
 
             // v1.8.0 — round-robin tokens.
             { "C3_v1_rr1",       60, 0, 0 },

@@ -210,6 +210,79 @@ int main()
                "findCell is deterministic — no expression-driven layer drift");
     }
 
+    // ----------------------------------------------------------------
+    // 8. v1.17.2 — findCellNearestLayer: single-dynamic library safety net.
+    //    A library where the parser landed every slot on ONE non-zero layer
+    //    (e.g. an all-`mf` library → layer 2) must still play across the whole
+    //    velocity range instead of going silent at velocities that bucket to
+    //    an empty layer. findCellNearestLayer falls back to the nearest
+    //    populated layer; the exact findCell would return nullptr.
+    // ----------------------------------------------------------------
+    {
+        SampleMap map;
+        map.numVelocityLayers = 4;
+        map.cells.push_back (makeCell (60, 2, "C3_mf.wav"));  // only layer 2 populated
+
+        // Exact lookups for the empty layers return nullptr…
+        check (map.findCell (60, 0) == nullptr, "exact findCell(layer 0) is empty");
+        check (map.findCell (60, 1) == nullptr, "exact findCell(layer 1) is empty");
+        check (map.findCell (60, 3) == nullptr, "exact findCell(layer 3) is empty");
+
+        // …but the nearest-layer lookup always resolves to the populated cell.
+        for (int layer = 0; layer < 4; ++layer)
+        {
+            const auto* cell = map.findCellNearestLayer (60, layer, 0);
+            check (cell != nullptr && cell->velocityLayer == 2,
+                   "findCellNearestLayer(layer " + std::to_string (layer)
+                       + ") → populated layer 2");
+        }
+
+        // Sweeping a full velocity range never goes silent.
+        for (int vel = 1; vel <= 127; vel += 8)
+        {
+            const int layer = velocityToLayer (4, vel);
+            const auto* cell = map.findCellNearestLayer (60, layer, 0);
+            check (cell != nullptr,
+                   "vel=" + std::to_string (vel) + " → nearest-layer cell present");
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // 9. v1.17.2 — equidistant tie-break prefers the LOWER (quieter) layer.
+    //    Requested layer 1 is empty; layers 0 and 2 are both populated and
+    //    equidistant → must pick layer 0.
+    // ----------------------------------------------------------------
+    {
+        SampleMap map;
+        map.numVelocityLayers = 4;
+        map.cells.push_back (makeCell (60, 0, "C3_p.wav"));
+        map.cells.push_back (makeCell (60, 2, "C3_mf.wav"));
+
+        const auto* cell = map.findCellNearestLayer (60, 1, 0);
+        check (cell != nullptr && cell->velocityLayer == 0,
+               "equidistant tie-break prefers lower layer 0");
+    }
+
+    // ----------------------------------------------------------------
+    // 10. v1.17.2 — fully-populated library is UNAFFECTED: nearest-layer
+    //     lookup returns the exact layer (never expands).
+    // ----------------------------------------------------------------
+    {
+        SampleMap map;
+        map.numVelocityLayers = 4;
+        for (int layer = 0; layer < 4; ++layer)
+            map.cells.push_back (makeCell (60, layer,
+                "C3_v" + std::to_string (layer + 1) + ".wav"));
+
+        for (int layer = 0; layer < 4; ++layer)
+        {
+            const auto* cell = map.findCellNearestLayer (60, layer, 0);
+            check (cell != nullptr && cell->velocityLayer == layer,
+                   "fully-populated: nearest == exact layer "
+                       + std::to_string (layer));
+        }
+    }
+
     std::cout << "== dynamics_layer_check: "
               << (failed == 0 ? "ALL PASS" : "FAIL")
               << " (" << failed << " failures) ==\n";
