@@ -281,7 +281,12 @@ body {
     margin: 0 var(--gap-sm);
 }
 
-#load-folder-btn {
+/* v1.18.2: #batch-loop-btn shares the neutral primary-action style with
+   #load-folder-btn so the drop-zone row reads as one consistent button set.
+   Previously batch-loop-btn had no rule and fell back to the default
+   browser button chrome. */
+#load-folder-btn,
+#batch-loop-btn {
     font-family: inherit;
     font-size: 14px;
     background: var(--bg-cream);
@@ -293,11 +298,13 @@ body {
     transition: background 0.15s ease;
 }
 
-#load-folder-btn:hover:not([disabled]) {
+#load-folder-btn:hover:not([disabled]),
+#batch-loop-btn:hover:not([disabled]) {
     background: #FAF0E6;
 }
 
-#load-folder-btn[disabled] {
+#load-folder-btn[disabled],
+#batch-loop-btn[disabled] {
     opacity: 0.4;
     cursor: not-allowed;
 }

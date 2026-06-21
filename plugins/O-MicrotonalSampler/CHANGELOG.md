@@ -1,5 +1,20 @@
 # O-MicrotonalSampler Changelog
 
+## [1.18.2] - 2026-06-20
+
+Cosmetic UI fix: the **Batch loop…** button in the Sample Map drop-zone now
+matches the other buttons in that row (Load Folder…, Clear samples).
+
+### Fixed
+- **Batch loop button styling.** `#batch-loop-btn` had no CSS rule, so it
+  rendered with the default browser button chrome (grey bevel, system font)
+  while its row neighbors used the warm cream/`border-warm` plugin style. Root
+  cause: the button was added in v1.18.0 without a matching style rule. Fix:
+  grouped `#batch-loop-btn` into the existing `#load-folder-btn` selectors
+  (base, `:hover:not([disabled])`, and `[disabled]`) so the two share the
+  neutral primary-action style and the disabled/hover states stay in sync.
+  No audio, parameter, or state changes.
+
 ## [1.18.1] - 2026-06-20
 
 Cosmetic UI relabel: the Sample Map's velocity layers now read as **dynamic
