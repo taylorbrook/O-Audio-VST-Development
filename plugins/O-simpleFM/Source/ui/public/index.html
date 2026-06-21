@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-simpleFM</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Botanical overlay (insect — buzzing/sideband character of FM) -->
+  <img src="img/insects.png" class="botanical-overlay" alt="" />
+
+  <div class="frame">
+    <!-- ─── Header ─────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">FM</span></h1>
+        <p class="subtitle">Two-Operator Phase-Modulation Synthesizer &#183; A Field Guide</p>
+      </div>
+      <div class="fleuron-row">&#10086;</div>
+    </header>
+
+    <!-- ─── Visualization (headline) ───────────────────────────── -->
+    <section class="viz-panel">
+      <div class="viz-block">
+        <div class="viz-label">Spectrum &#183; <span class="viz-hint">discrete sidebands bloom as Mod Index rises</span></div>
+        <div class="canvas-wrap"><canvas id="spectrumCanvas"></canvas></div>
+      </div>
+      <div class="viz-block">
+        <div class="viz-label">Waveform &#183; <span class="viz-hint">the resulting carrier shape</span></div>
+        <div class="canvas-wrap scope-wrap"><canvas id="scopeCanvas"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ─── Operator routing diagram ───────────────────────────── -->
+    <section class="routing-panel" data-tip="routing">
+      <div class="routing-label">Signal Path</div>
+      <svg id="routingSvg" viewBox="0 0 320 86" preserveAspectRatio="xMidYMid meet">
+        <!-- self-feedback loop on MOD -->
+        <path id="fbArc" class="route-arc" d="M 70 30 C 70 4, 26 4, 26 30" fill="none" />
+        <polygon id="fbHead" class="route-head" points="22,24 30,24 26,33" />
+        <!-- MOD -> CAR arrow -->
+        <line id="modToCar" class="route-line" x1="96" y1="43" x2="190" y2="43" />
+        <polygon id="modToCarHead" class="route-head" points="190,38 190,48 200,43" />
+        <!-- CAR -> OUT arrow -->
+        <line class="route-line route-line-out" x1="262" y1="43" x2="296" y2="43" />
+        <polygon class="route-head" points="296,38 296,48 306,43" />
+        <!-- operator nodes -->
+        <circle id="opMod" class="op-node op-mod" cx="48" cy="43" r="24" />
+        <text class="op-text" x="48" y="47" text-anchor="middle">MOD</text>
+        <circle id="opCar" class="op-node op-car" cx="226" cy="43" r="24" />
+        <text class="op-text" x="226" y="47" text-anchor="middle">CAR</text>
+        <text class="op-out" x="312" y="47" text-anchor="end">&#9834;</text>
+      </svg>
+      <div class="routing-readout"><span id="routeRatioRead">1.00 : 1</span> &#183; I&#8202;=&#8202;<span id="routeIndexRead">0.0</span></div>
+    </section>
+
+    <!-- ─── Control groups ─────────────────────────────────────── -->
+    <main class="controls">
+      <section class="group">
+        <h2 class="group-title">Operators</h2>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="ratio">
+            <div class="knob" id="knob-ratio"><div class="knob-stem"></div></div>
+            <div class="knob-label">Ratio C:M</div>
+            <div class="knob-value" id="val-ratio">1.00</div>
+          </div>
+          <div class="knob-cell" data-tip="modIndex">
+            <div class="knob" id="knob-modIndex"><div class="knob-stem"></div></div>
+            <div class="knob-label">Mod Index</div>
+            <div class="knob-value" id="val-modIndex">0.00</div>
+          </div>
+          <div class="knob-cell" data-tip="feedback">
+            <div class="knob" id="knob-feedback"><div class="knob-stem"></div></div>
+            <div class="knob-label">Feedback</div>
+            <div class="knob-value" id="val-feedback">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="modFixedHz">
+            <div class="knob" id="knob-modFixedHz"><div class="knob-stem"></div></div>
+            <div class="knob-label">Fixed Hz</div>
+            <div class="knob-value" id="val-modFixedHz">220 Hz</div>
+          </div>
+          <div class="knob-cell" data-tip="modEnvToIndex">
+            <div class="knob" id="knob-modEnvToIndex"><div class="knob-stem"></div></div>
+            <div class="knob-label">Env&#8594;Index</div>
+            <div class="knob-value" id="val-modEnvToIndex">100%</div>
+          </div>
+          <div class="knob-cell" data-tip="velToIndex">
+            <div class="knob" id="knob-velToIndex"><div class="knob-stem"></div></div>
+            <div class="knob-label">Vel&#8594;Index</div>
+            <div class="knob-value" id="val-velToIndex">0%</div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <button class="toggle" id="toggle-ratioSnap" data-tip="ratioSnap">
+            <span class="fleuron-corner">&#10086;</span>Ratio Snap
+          </button>
+          <button class="toggle" id="toggle-modFixedMode" data-tip="modFixedMode">
+            <span class="fleuron-corner">&#10086;</span>Fixed Mode
+          </button>
+        </div>
+      </section>
+
+      <div class="env-pair">
+        <section class="group group-env">
+          <h2 class="group-title">Modulator Envelope</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="modAttack">
+              <div class="knob knob-sm" id="knob-modAttack"><div class="knob-stem"></div></div>
+              <div class="knob-label">Attack</div>
+              <div class="knob-value" id="val-modAttack">10 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="modDecay">
+              <div class="knob knob-sm" id="knob-modDecay"><div class="knob-stem"></div></div>
+              <div class="knob-label">Decay</div>
+              <div class="knob-value" id="val-modDecay">300 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="modSustain">
+              <div class="knob knob-sm" id="knob-modSustain"><div class="knob-stem"></div></div>
+              <div class="knob-label">Sustain</div>
+              <div class="knob-value" id="val-modSustain">0%</div>
+            </div>
+            <div class="knob-cell" data-tip="modRelease">
+              <div class="knob knob-sm" id="knob-modRelease"><div class="knob-stem"></div></div>
+              <div class="knob-label">Release</div>
+              <div class="knob-value" id="val-modRelease">300 ms</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="group group-env">
+          <h2 class="group-title">Amplitude Envelope</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="ampAttack">
+              <div class="knob knob-sm" id="knob-ampAttack"><div class="knob-stem"></div></div>
+              <div class="knob-label">Attack</div>
+              <div class="knob-value" id="val-ampAttack">10 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="ampDecay">
+              <div class="knob knob-sm" id="knob-ampDecay"><div class="knob-stem"></div></div>
+              <div class="knob-label">Decay</div>
+              <div class="knob-value" id="val-ampDecay">300 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="ampSustain">
+              <div class="knob knob-sm" id="knob-ampSustain"><div class="knob-stem"></div></div>
+              <div class="knob-label">Sustain</div>
+              <div class="knob-value" id="val-ampSustain">80%</div>
+            </div>
+            <div class="knob-cell" data-tip="ampRelease">
+              <div class="knob knob-sm" id="knob-ampRelease"><div class="knob-stem"></div></div>
+              <div class="knob-label">Release</div>
+              <div class="knob-value" id="val-ampRelease">300 ms</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="group group-output">
+        <h2 class="group-title">Output</h2>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="outputLevel">
+            <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label">Level</div>
+            <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── Preset tour ────────────────────────────────────────── -->
+    <section class="preset-tour">
+      <div class="tour-label">Lesson Presets</div>
+      <div class="tour-buttons">
+        <button class="tour-btn" data-preset="epiano">E-Piano</button>
+        <button class="tour-btn" data-preset="tubular">Tubular Bell</button>
+        <button class="tour-btn" data-preset="brass">Brass</button>
+        <button class="tour-btn" data-preset="clarinet">Clarinet</button>
+        <button class="tour-btn" data-preset="clang">Clang Bell</button>
+      </div>
+      <div class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a lesson to hear a concept.</div>
+    </section>
+  </div>
+
+  <!-- Floating tooltip -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <!-- JUCE native-interop guard (must load before app.js as a module) -->
+  <script type="module" src="js/juce/check_native_interop.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
