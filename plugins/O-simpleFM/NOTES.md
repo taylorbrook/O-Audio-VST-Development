@@ -1,18 +1,20 @@
 # O-simpleFM Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 0 (Research & Planning complete)
-- **Version:** N/A
+- **Current Status:** ✅ Working
+- **Version:** 1.0.1
 - **Type:** Synth (Pedagogical 2-Operator FM/PM)
 
 ## Lifecycle Timeline
 
 - **2026-06-20:** Ideated — creative brief + requirements (pedagogical 2-op FM synth).
 - **2026-06-20 (Stage 0):** Research & Planning complete — ARCHITECTURE.md + ROADMAP.md documented. Complexity 5.0 (raw 11.0), staged implementation.
+- **2026-06-20 (Stages 1–4):** Implemented & shipped v1.0.0 — DSP voice, WebView field-guide UI, preset manager.
+- **2026-06-20 (v1.0.1):** UI fix — frame made scrollable, sections de-overlapped (`.controls` no longer shrinks below content), editor grown 760×720 → 760×860.
 
 ## Known Issues
 
-None (no implementation yet).
+None.
 
 ## Additional Notes
 

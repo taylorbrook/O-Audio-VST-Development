@@ -3,6 +3,25 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.1] — 2026-06-20
+
+### Fixed
+- **UI overlap / clipping.** At the 760×720 editor size the field-guide content
+  (~880px tall) exceeded the window. `.frame` was a `height:100%` flex column and
+  `.controls` had `flex:1; min-height:0`, so the controls block shrank *below* its
+  intrinsic height; its children (Output knob) overflowed the collapsed box and
+  collided with the **Lesson Presets** row that follows it. With `html,body`
+  clipping (`overflow:hidden`), nothing could scroll.
+
+### Changed
+- `.frame` is now the scroll container (`overflow-y:auto`); the decorative border
+  stays fixed framing the window while content scrolls. All direct sections are
+  `flex-shrink:0` so they keep their natural height instead of squishing together.
+- Added an aged-paper styled scrollbar (`::-webkit-scrollbar`).
+- Editor window grown 760×720 → **760×860** so the full layout seats without
+  scrolling on a normal desktop; the frame scroll handles shorter screens / hosts
+  that clamp window height.
+
 ## [1.0.0] — 2026-06-20
 
 First release. A pedagogical 2-operator FM / phase-modulation synthesizer with a

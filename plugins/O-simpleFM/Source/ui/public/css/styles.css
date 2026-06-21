@@ -88,7 +88,27 @@ body {
   gap: 10px;
   border: 3px solid var(--brown-frame);
   border-image: linear-gradient(160deg, #6b5340, #5C4033) 1;
+  /* Scroll inside the fixed frame: the border stays put framing the window,
+     the field-guide content scrolls when it exceeds the editor height. */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+/* Direct sections keep their natural height — no shrink-to-overlap. The frame
+   scrolls instead of collapsing the Output / Lesson-Presets rows together. */
+.frame > * { flex-shrink: 0; }
+
+/* Aged-paper scrollbar */
+.frame::-webkit-scrollbar { width: 11px; }
+.frame::-webkit-scrollbar-track {
+  background: rgba(92, 64, 51, 0.06);
+  border-radius: 4px;
+}
+.frame::-webkit-scrollbar-thumb {
+  background: var(--brown-border);
+  border-radius: 6px;
+  border: 2px solid var(--bg-paper);
+}
+.frame::-webkit-scrollbar-thumb:hover { background: var(--brown-frame); }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .header {
@@ -190,11 +210,10 @@ body {
 
 /* ── Controls ───────────────────────────────────────────────────────────── */
 .controls {
-  flex: 1;
+  flex: 0 0 auto;          /* natural height — never shrink below content */
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 0;
 }
 .group {
   background: rgba(250, 240, 230, 0.45);
