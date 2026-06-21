@@ -732,10 +732,16 @@ const NUM_LAYERS = 4;
 // v1.1.0: Velocity-layer ranges (matches MicrotonalSamplerVoice.cpp:
 // layerWidth = 128/4 = 32, layerIdx = (vel-1)/32 with vel ∈ [1,127]).
 //   L0 → 1..32, L1 → 33..64, L2 → 65..96, L3 → 97..127
+// v1.18.1: dynamic markings replace the numeric layer labels in the UI.
+//   L0 → p (softest) · L1 → mp · L2 → mf · L3 → f (loudest).
+// The numeric `label` is retained for tooltips; `mark` is the visible label.
+const VELOCITY_MARKS = ['p', 'mp', 'mf', 'f'];
+
 function velocityLayerToRange(layer) {
     const lo = layer === 0 ? 1 : layer * 32 + 1;
     const hi = layer === 3 ? 127 : (layer + 1) * 32;
-    return { lo, hi, label: `${lo}–${hi}` };
+    const mark = VELOCITY_MARKS[layer] || `L${layer}`;
+    return { lo, hi, mark, label: `${lo}–${hi}` };
 }
 
 const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
@@ -830,7 +836,7 @@ function renderGrid(snap) {
             // the user has expanded beyond the default single slot — that's
             // the visible signal that a load auto-routed to a non-`ord` slot.
             const noteLabel = `${midiToNoteName(midi)} (${midi})`;
-            const velLabel  = `Vel ${velRange.label}`;
+            const velLabel  = `Vel ${velRange.mark} (${velRange.label})`;
             const techName  = techniqueState.names[activeTech]
                               || `slot ${activeTech + 1}`;
             const techLabel = (techniqueState.count > 1)
@@ -905,9 +911,9 @@ function renderGrid(snap) {
             const el = document.createElement('div');
             el.className = 'vel-label';
             el.dataset.layer = String(layer);
-            el.textContent = v.label;
+            el.textContent = v.mark;
             // v1.18.0: right-click clears the whole layer (across techniques).
-            el.title = `Velocity layer ${layer}: MIDI velocity ${v.label} — right-click to clear this layer`;
+            el.title = `Dynamic ${v.mark} (layer ${layer}): MIDI velocity ${v.label} — right-click to clear this layer`;
             vFrag.appendChild(el);
         }
         velLabels.appendChild(vFrag);
@@ -1125,9 +1131,10 @@ function deleteCellWithConfirm(midi, layer) {
     const techName = techniqueState.names[techniqueState.active];
     const techStr = (techniqueState.count > 1 && techName)
         ? ` (technique “${techName}”)` : '';
+    const mark = velocityLayerToRange(layer).mark;
     showConfirmDialog({
         title: 'Delete this sample?',
-        message: `Remove the sample on ${noteName}, velocity layer L${layer}${techStr}.`,
+        message: `Remove the sample on ${noteName}, velocity layer ${mark}${techStr}.`,
         confirmLabel: 'Delete',
         destructive: true,
         onConfirm: async () => {
@@ -1139,17 +1146,18 @@ function deleteCellWithConfirm(midi, layer) {
 }
 
 function clearLayerWithConfirm(layer) {
+    const mark = velocityLayerToRange(layer).mark;
     showConfirmDialog({
-        title: `Clear velocity layer L${layer}?`,
-        message: `Remove every sample in velocity layer L${layer}, across all techniques. This cannot be undone.`,
+        title: `Clear velocity layer ${mark}?`,
+        message: `Remove every sample in velocity layer ${mark}, across all techniques. This cannot be undone.`,
         confirmLabel: 'Clear layer',
         destructive: true,
         onConfirm: async () => {
             const removed = await invokeNative('clearVelocityLayer', layer);
             const n = Number.isFinite(removed) ? removed : 0;
             showToast(n > 0
-                ? `Cleared ${n} sample${n === 1 ? '' : 's'} from layer L${layer}.`
-                : `Layer L${layer} was already empty.`);
+                ? `Cleared ${n} sample${n === 1 ? '' : 's'} from layer ${mark}.`
+                : `Layer ${mark} was already empty.`);
         },
     });
 }
@@ -1607,7 +1615,7 @@ async function showFolderLoadOptionsModal (sizeBytes) {
         const updateExplain = () => {
             const overrideOn     = overrideEl.checked;
             const overrideTechOn = overrideTechEl.checked;
-            const layerStr       = `L${layer}`;
+            const layerStr       = velocityLayerToRange(layer).mark;
             const techName       = techniqueNames[technique] || `slot ${technique}`;
             let txt = '';
             if (mode === 'append') {
@@ -1750,9 +1758,10 @@ function showPerCellMergeDialog (existingCount, midi, layer) {
             ? midiToNoteName(midi) : `MIDI ${midi}`;
         const variantWord = existingCount === 1 ? '1 variant' : `${existingCount} variants`;
         const capHit = existingCount >= 64;
+        const mark = velocityLayerToRange(layer).mark;
         messageEl.textContent = capHit
-            ? `${noteName} layer L${layer} already holds the maximum ${variantWord}. Replace the cell, or cancel.`
-            : `${noteName} layer L${layer} already holds ${variantWord}. Add this sample as round-robin variant ${existingCount + 1}, or replace the cell?`;
+            ? `${noteName} layer ${mark} already holds the maximum ${variantWord}. Replace the cell, or cancel.`
+            : `${noteName} layer ${mark} already holds ${variantWord}. Add this sample as round-robin variant ${existingCount + 1}, or replace the cell?`;
         mergeBtn.disabled = capHit;
         mergeBtn.style.opacity = capHit ? '0.4' : '';
         mergeBtn.style.cursor  = capHit ? 'not-allowed' : '';
@@ -2088,7 +2097,7 @@ function populateLoopEditorHeader(snap) {
     const modeEl  = document.getElementById('le-loop-mode');
     if (fnEl)   fnEl.textContent   = snap.filename || '(unknown)';
     if (midiEl) midiEl.textContent = `MIDI ${snap.midiNote}`;
-    if (velEl)  velEl.textContent  = String(snap.velocityLayer);
+    if (velEl)  velEl.textContent  = velocityLayerToRange(snap.velocityLayer).mark;
     if (modeEl) modeEl.textContent = snap.loopMode || '—';
     updateLoopMetaLabels();
     updateResetButtonState(snap);
@@ -2592,7 +2601,7 @@ function showAmbiguousDuplicatesDialog (dups) {
         const item = document.createElement('li');
         const head = document.createElement('div');
         head.className = 'rr-confirm-cell-head';
-        head.textContent = `MIDI ${d.midiNote} · Layer ${d.velocityLayer + 1}`;
+        head.textContent = `MIDI ${d.midiNote} · ${velocityLayerToRange(d.velocityLayer).mark}`;
         item.appendChild(head);
         const fns = document.createElement('ul');
         fns.className = 'rr-confirm-filename-list';

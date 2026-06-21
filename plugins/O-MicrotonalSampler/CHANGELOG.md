@@ -1,5 +1,38 @@
 # O-MicrotonalSampler Changelog
 
+## [1.18.1] - 2026-06-20
+
+Cosmetic UI relabel: the Sample Map's velocity layers now read as **dynamic
+markings** (`p` / `mp` / `mf` / `f`) instead of numeric MIDI-velocity ranges or
+`L0`–`L3` indices. Matches the `p/mp/mf/f` tokens the filename parser already
+recognizes. No audio, parameter, or state changes.
+
+### Changed
+- **Velocity-row labels (sidebar).** The four `.vel-label` rows now show
+  `f` / `mf` / `mp` / `p` (loudest-on-top) instead of the MIDI-velocity range
+  (`97–127`, `65–96`, …). Mapping: L0→`p` (softest), L1→`mp`, L2→`mf`,
+  L3→`f` (loudest) — driven by a new `VELOCITY_MARKS = ['p','mp','mf','f']`
+  table feeding a `mark` field on `velocityLayerToRange()`.
+- **Cell tooltips** now read `Vel f (97–127)` — the dynamic mark first, with the
+  numeric MIDI range retained in parentheses for reference.
+- **Loop-editor header** shows the mark (`f`) instead of `L3`; the static `L`
+  prefix was removed from `index.html` (`<span id="le-vel">`).
+- **Confirm dialogs / toasts** for delete-cell, clear-layer, and the
+  round-robin merge prompt now refer to layers by mark (e.g. "Clear velocity
+  layer `mf`?") instead of `L2`.
+- **Round-robin duplicate-confirm header** shows the mark instead of
+  `Layer N`.
+
+### Implementation notes
+- Single source of truth: `velocityLayerToRange(layer).mark` is reused at every
+  call site, so the soft→loud order and labels can never drift between the grid,
+  tooltips, sidebar, and dialogs.
+- The numeric `label` (MIDI range) is unchanged and still available — only its
+  visible placement moved into the tooltip parentheses.
+- Pure presentation change in `Resources/ui/js/sampler-app.js` +
+  `Resources/ui/index.html`; no C++, DSP, parameter, or saved-state changes, so
+  existing sessions and presets load identically.
+
 ## [1.18.0] - 2026-06-20
 
 Two sample-management features: a **batch loop-point** control that sets one
