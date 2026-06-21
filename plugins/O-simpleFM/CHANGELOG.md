@@ -3,6 +3,50 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.0] — 2026-06-21
+
+A teaching-and-cleanup release: an on-screen keyboard so the plugin makes sound
+without external MIDI, two new live readouts, and a round of code de-duplication.
+
+### Added
+- **On-screen keyboard** (C3–C5). Click/glide with the mouse or play the computer
+  keyboard (A S D F G H J K naturals, W E T Y U sharps → C4–C5). Notes are queued
+  through a `juce::MidiMessageCollector` and merged into `processBlock`'s MIDI
+  stream, so the Standalone build (and any host) makes sound — and the live
+  spectrum/scope respond — without an external MIDI source. Keys light up on play.
+- **Spectrum frequency-axis labels** (100 Hz / 1k / 10k) drawn on the log-frequency
+  axis, so peaks read against actual pitch. Sample rate is pulled from C++ via a new
+  `getSampleRate` native function.
+- **Harmonic / inharmonic + sideband-count readout** under the Signal Path numbers:
+  flags whether the current C:M ratio is harmonic, and shows Carson's rule estimate
+  of significant sidebands (≈ I + 1).
+
+### Changed
+- **Lesson Presets now load the factory presets by name** instead of carrying a second
+  hand-maintained copy of the five sounds in JS. `FactoryPresets.cpp` is the single
+  source of truth; the JS only holds the teaching captions. Picking a lesson now also
+  updates the preset-bar name. (Removes a silent-divergence hazard between the tour and
+  the same-named factory preset.)
+
+### Fixed
+- **Index-ceiling code path was dead and self-contradicting.** `FMVoice::renderNextBlock`
+  computed the Carson anti-alias index ceiling once per block (per the comment) but then
+  re-armed the smoother's target *every sample*, overwriting it — so the documented
+  per-block optimization never took effect. Consolidated into a single
+  `computeIndexCeiling()` helper armed once per block, and snapped via
+  `setCurrentAndTargetValue` on note-on so the ceiling is enforced from sample 0 (it
+  previously inited to 1e9 and only ramped down over ~10 ms, briefly under-clamping the
+  first note / large pitch jumps).
+
+### Internal
+- De-duplicated the knob wheel/arrow-key fine-adjust into a shared `nudge()` helper and
+  consolidated two `resize` listeners into one (resize backing store + redraw). Removed a
+  dead empty `dblclick` handler.
+
+### Validation
+- Render harness 7/7, `pluginval --strictness-level 10` (VST3), and `auval` (AU) re-run
+  after the changes (see build log).
+
 ## [1.0.2] — 2026-06-20
 
 ### Added

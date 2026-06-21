@@ -64,7 +64,10 @@
         <text class="op-text" x="226" y="47" text-anchor="middle">CAR</text>
         <text class="op-out" x="312" y="47" text-anchor="end">&#9834;</text>
       </svg>
-      <div class="routing-readout" data-tip="readout" tabindex="0"><span id="routeRatioRead">1.00 : 1</span> &#183; I&#8202;=&#8202;<span id="routeIndexRead">0.0</span></div>
+      <div class="routing-readout-col">
+        <div class="routing-readout" data-tip="readout" tabindex="0"><span id="routeRatioRead">1.00 : 1</span> &#183; I&#8202;=&#8202;<span id="routeIndexRead">0.0</span></div>
+        <div class="routing-meta" id="routeMeta">harmonic &#183; &#8776; 1 sideband</div>
+      </div>
     </section>
 
     <!-- ─── Control groups ─────────────────────────────────────── -->
@@ -190,6 +193,12 @@
         <button class="tour-btn" data-preset="clang">Clang Bell</button>
       </div>
       <div class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a lesson to hear a concept.</div>
+    </section>
+
+    <!-- ─── On-screen keyboard (play without external MIDI) ─────── -->
+    <section class="keyboard-panel">
+      <div class="keyboard-label">Play &#183; <span class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
     </section>
   </div>
 

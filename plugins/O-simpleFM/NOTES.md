@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** ✅ Working
-- **Version:** 1.0.2
+- **Version:** 1.1.0
 - **Type:** Synth (Pedagogical 2-Operator FM/PM)
 
 ## Lifecycle Timeline
@@ -12,6 +12,7 @@
 - **2026-06-20 (Stages 1–4):** Implemented & shipped v1.0.0 — DSP voice, WebView field-guide UI, preset manager.
 - **2026-06-20 (v1.0.1):** UI fix — frame made scrollable, sections de-overlapped (`.controls` no longer shrinks below content), editor grown 760×720 → 760×860.
 - **2026-06-20 (v1.0.2):** Added a dedicated tooltip for the Signal Path readout (`C:M ratio` + modulation index `I`); fixed `focusin` bubbling so nested `[data-tip]` tips aren't overridden by their ancestor.
+- **2026-06-21 (v1.1.0):** Teaching + cleanup release. Added an on-screen keyboard (mouse + computer keyboard, MIDI injected via `MidiMessageCollector`) so the Standalone build makes sound without external MIDI; spectrum frequency-axis labels (100/1k/10k via new `getSampleRate` native fn); live harmonic/inharmonic + Carson sideband-count readout. Fixed the dead/self-contradicting index-ceiling code in `FMVoice` (single `computeIndexCeiling()` armed per block + snapped on note-on). De-duplicated the Lesson Presets (now load the factory presets by name; captions only in JS). Window grown 760×860 → 760×980. Validation: harness 7/7, auval + pluginval L10 green.
 
 ## Known Issues
 

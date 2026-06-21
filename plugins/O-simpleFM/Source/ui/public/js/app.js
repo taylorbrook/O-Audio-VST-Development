@@ -84,6 +84,15 @@ function updateKnobVisual(id) {
   }
 }
 
+// One-shot fine adjust shared by the wheel + arrow-key paths (full drag gesture).
+function nudge(st, delta, id) {
+  const n = Math.max(0, Math.min(1, st.getNormalisedValue() + delta));
+  st.sliderDragStarted();
+  st.setNormalisedValue(n);
+  st.sliderDragEnded();
+  updateKnobVisual(id);
+}
+
 // ── Knob binding (relative vertical drag) ──────────────────────────────────
 function bindKnob(id) {
   const st = Juce.getSliderState(id);
@@ -104,11 +113,7 @@ function bindKnob(id) {
     if (e.key === "ArrowUp" || e.key === "ArrowRight") delta = 0.02;
     else if (e.key === "ArrowDown" || e.key === "ArrowLeft") delta = -0.02;
     else return;
-    const n = Math.max(0, Math.min(1, st.getNormalisedValue() + delta));
-    st.sliderDragStarted();
-    st.setNormalisedValue(n);
-    st.sliderDragEnded();
-    updateKnobVisual(id);
+    nudge(st, delta, id);
     e.preventDefault();
   });
 
@@ -143,20 +148,9 @@ function bindKnob(id) {
     e.preventDefault();
   });
 
-  // Double-click resets to a sensible default via mouse wheel-free nudge:
-  knob.addEventListener("dblclick", () => {
-    // No backend default query; nudge to mid for index/feedback feel only when 0.
-    // (Left intentionally minimal — host has full automation control.)
-  });
-
   // Mouse wheel fine adjust.
   knob.addEventListener("wheel", (e) => {
-    let n = st.getNormalisedValue() + (e.deltaY < 0 ? 0.02 : -0.02);
-    n = Math.max(0, Math.min(1, n));
-    st.sliderDragStarted();
-    st.setNormalisedValue(n);
-    st.sliderDragEnded();
-    updateKnobVisual(id);
+    nudge(st, e.deltaY < 0 ? 0.02 : -0.02, id);
     e.preventDefault();
   }, { passive: false });
 }
@@ -212,6 +206,15 @@ function updateRouting() {
   if (rRead) rRead.textContent = `${ratioVal.toFixed(2)} : 1`;
   const iRead = document.getElementById("routeIndexRead");
   if (iRead) iRead.textContent = idx.getScaledValue().toFixed(1);
+
+  // Teaching meta: harmonic when the ratio is (near) a whole number; Carson's
+  // rule puts ~I+1 significant sideband pairs either side of the carrier.
+  const meta = document.getElementById("routeMeta");
+  if (meta) {
+    const harmonic = Math.abs(ratioVal - Math.round(ratioVal)) < 0.02 && Math.round(ratioVal) >= 1;
+    const nSb = Math.max(1, Math.round(idx.getScaledValue()) + 1);
+    meta.textContent = `${harmonic ? "harmonic" : "inharmonic"} · ≈ ${nSb} sideband${nSb === 1 ? "" : "s"}`;
+  }
 }
 
 // ── Tooltips ────────────────────────────────────────────────────────────────
@@ -264,85 +267,32 @@ function setupTooltips() {
 }
 
 // ── Preset tour ─────────────────────────────────────────────────────────────
-// Each preset is a snapshot of *scaled* values per param id + toggle booleans.
-// concept = one-line caption shown after applying.
-const PRESETS = {
-  epiano: {
-    caption: "E-Piano — ratio 1:1 + a fast mod-envelope makes a bright pluck that mellows to a sine.",
-    s: { ratio: 1, modIndex: 5.5, feedback: 0, modFixedHz: 220, modEnvToIndex: 1, velToIndex: 0.6,
-         modAttack: 0.001, modDecay: 0.45, modSustain: 0, modRelease: 0.3,
-         ampAttack: 0.002, ampDecay: 1.2, ampSustain: 0, ampRelease: 0.4, outputLevel: -3 },
-    t: { ratioSnap: true, modFixedMode: false },
-  },
-  tubular: {
-    caption: "Tubular Bell — an inharmonic ratio (1.41) sprays non-integer sidebands → metallic ring.",
-    s: { ratio: 1.41, modIndex: 8.0, feedback: 0, modFixedHz: 220, modEnvToIndex: 1, velToIndex: 0,
-         modAttack: 0.001, modDecay: 2.5, modSustain: 0, modRelease: 2.0,
-         ampAttack: 0.001, ampDecay: 3.0, ampSustain: 0, ampRelease: 3.0, outputLevel: -4 },
-    t: { ratioSnap: false, modFixedMode: false },
-  },
-  brass: {
-    caption: "Brass — ratio 1:1, index rises with the amp envelope; sustained, vowel-bright.",
-    s: { ratio: 1, modIndex: 4.0, feedback: 0, modFixedHz: 220, modEnvToIndex: 0.8, velToIndex: 0.4,
-         modAttack: 0.08, modDecay: 0.2, modSustain: 0.7, modRelease: 0.15,
-         ampAttack: 0.06, ampDecay: 0.1, ampSustain: 0.85, ampRelease: 0.2, outputLevel: -4 },
-    t: { ratioSnap: true, modFixedMode: false },
-  },
-  clarinet: {
-    caption: "Clarinet — ratio 2:1 + low index emphasises odd harmonics → hollow, woody tone.",
-    s: { ratio: 2, modIndex: 2.2, feedback: 0, modFixedHz: 220, modEnvToIndex: 0.3, velToIndex: 0.2,
-         modAttack: 0.04, modDecay: 0.1, modSustain: 0.9, modRelease: 0.1,
-         ampAttack: 0.03, ampDecay: 0.1, ampSustain: 0.9, ampRelease: 0.12, outputLevel: -3 },
-    t: { ratioSnap: true, modFixedMode: false },
-  },
-  clang: {
-    caption: "Clang Bell — high index + feedback smears the spectrum into a dense, noisy strike.",
-    s: { ratio: 3.46, modIndex: 14.0, feedback: 0.6, modFixedHz: 220, modEnvToIndex: 1, velToIndex: 0,
-         modAttack: 0.001, modDecay: 1.8, modSustain: 0.1, modRelease: 1.5,
-         ampAttack: 0.001, ampDecay: 2.2, ampSustain: 0, ampRelease: 2.2, outputLevel: -6 },
-    t: { ratioSnap: false, modFixedMode: false },
-  },
+// The five lessons ARE the factory presets — single source of truth lives in
+// FactoryPresets.cpp. The tour buttons load them by name through the preset
+// manager (which pushes every param via setValueNotifyingHost, so the knobs,
+// toggles, and routing diagram all sync automatically). Only the teaching
+// captions live here.
+const LESSONS = {
+  epiano:   { name: "E-Piano",      caption: "E-Piano — ratio 1:1 + a fast mod-envelope makes a bright pluck that mellows to a sine." },
+  tubular:  { name: "Tubular Bell", caption: "Tubular Bell — an inharmonic ratio (1.41) sprays non-integer sidebands → metallic ring." },
+  brass:    { name: "Brass",        caption: "Brass — ratio 1:1, index rises with the amp envelope; sustained, vowel-bright." },
+  clarinet: { name: "Clarinet",     caption: "Clarinet — ratio 2:1 + low index emphasises odd harmonics → hollow, woody tone." },
+  clang:    { name: "Clang Bell",   caption: "Clang Bell — high index + feedback smears the spectrum into a dense, noisy strike." },
 };
 
-// scaled -> normalised inversion using the live properties of the slider state.
-function scaledToNorm(st, scaled) {
-  const p = st.properties;
-  const span = (p.end - p.start) || 1;
-  let lin = (scaled - p.start) / span;
-  lin = Math.max(0, Math.min(1, lin));
-  return Math.pow(lin, p.skew || 1);
-}
-
-function applyPreset(name) {
-  const preset = PRESETS[name];
-  if (!preset) return;
-  for (const [id, scaled] of Object.entries(preset.s)) {
-    const st = sliderState[id];
-    if (!st) continue;
-    st.sliderDragStarted();
-    st.setNormalisedValue(scaledToNorm(st, scaled));
-    st.sliderDragEnded();
-    updateKnobVisual(id);
-  }
-  for (const [id, val] of Object.entries(preset.t)) {
-    const st = toggleState[id];
-    if (!st) continue;
-    st.setValue(val);
-    const el = document.getElementById(`toggle-${id}`);
-    if (el) el.classList.toggle("active", val);
-  }
-  updateFixedModeVisibility(toggleState.modFixedMode ? toggleState.modFixedMode.getValue() : false);
-  updateRouting();
-
+async function applyLesson(key) {
+  const lesson = LESSONS[key];
+  if (!lesson) return;
+  if (presetManager) await presetManager.loadPreset(lesson.name);
   const cap = document.getElementById("tourCaption");
-  if (cap) cap.textContent = preset.caption;
+  if (cap) cap.textContent = lesson.caption;
   document.querySelectorAll(".tour-btn").forEach((b) =>
-    b.classList.toggle("active", b.getAttribute("data-preset") === name));
+    b.classList.toggle("active", b.getAttribute("data-preset") === key));
 }
 
 function setupPresets() {
   document.querySelectorAll(".tour-btn").forEach((btn) => {
-    btn.addEventListener("click", () => applyPreset(btn.getAttribute("data-preset")));
+    btn.addEventListener("click", () => applyLesson(btn.getAttribute("data-preset")));
   });
 }
 
@@ -453,13 +403,18 @@ function makeCanvas(id) {
     canvas.height = Math.max(1, Math.round(h * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
-  resize();
-  window.addEventListener("resize", resize);
+  resize();   // single window 'resize' handler lives in rewireResize() (resizes + redraws)
   return { canvas, ctx, resize };
 }
 
 let spec = null, scope = null;
 let lastSpectrum = null, lastScope = null;
+
+// Spectrum x-axis is log-frequency 20 Hz → Nyquist (matches FmVizAnalyzer).
+// nyquistHz comes from C++ (getSampleRate); 22.05 kHz is a safe pre-fetch default.
+let nyquistHz = 22050;
+const FREQ_TICKS = [100, 1000, 10000];
+const fmtTickHz = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 
 function drawSpectrum(arr) {
   lastSpectrum = arr;
@@ -486,6 +441,19 @@ function drawSpectrum(arr) {
     const hue = 90 - norm * 40;   // green -> yellow-green with intensity
     ctx.fillStyle = `hsl(${hue}, 55%, ${35 + norm * 30}%)`;
     ctx.fillRect(x, h - barH, Math.max(1, bw - 0.5), barH);
+  }
+
+  // Frequency-axis ticks (log scale, matching the analyzer's 20 Hz → Nyquist map).
+  const logRange = Math.log(nyquistHz / 20);
+  ctx.strokeStyle = "rgba(139,115,85,0.22)";
+  ctx.fillStyle = "rgba(210,190,150,0.7)";
+  ctx.font = "9px Garamond, 'Times New Roman', serif";
+  ctx.textAlign = "center";
+  for (const f of FREQ_TICKS) {
+    if (f >= nyquistHz) continue;
+    const x = (Math.log(f / 20) / logRange) * w;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h - 11); ctx.stroke();
+    ctx.fillText(fmtTickHz(f), x, h - 2);
   }
 }
 
@@ -525,12 +493,124 @@ function setupVizEvents() {
   }
 }
 
-// redraw on canvas resize (preserve last frame)
+// Single resize handler: re-fit both canvas backing stores, then redraw the
+// last frame (preserves the visible image across an editor resize).
 function rewireResize() {
   window.addEventListener("resize", () => {
+    if (spec) spec.resize();
+    if (scope) scope.resize();
     if (lastSpectrum) drawSpectrum(lastSpectrum);
     if (lastScope) drawScope(lastScope);
   });
+}
+
+// ── On-screen keyboard (play without external MIDI) ──────────────────────────
+// Notes are injected into the synth via the C++ `uiMidi` native function (queued
+// through a MidiMessageCollector, merged into processBlock). Mouse is monophonic
+// with glide; the computer keyboard is polyphonic over one octave (C4–C5).
+const KB_LOW = 48, KB_HIGH = 72;              // C3 … C5 inclusive
+const BLACK_OFFSETS = new Set([1, 3, 6, 8, 10]);
+const QWERTY = { a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66, g: 67, y: 68, h: 69, u: 70, j: 71, k: 72 };
+
+let uiMidiFn = null;
+const keyEls = {};                  // midi note -> key element
+const heldNotes = new Set();
+
+function noteOn(note, vel = 0.8) {
+  if (note < 0 || note > 127 || heldNotes.has(note)) return;
+  heldNotes.add(note);
+  if (uiMidiFn) uiMidiFn(note, true, vel);
+  const el = keyEls[note];
+  if (el) el.classList.add("active");
+}
+function noteOff(note) {
+  if (!heldNotes.has(note)) return;
+  heldNotes.delete(note);
+  if (uiMidiFn) uiMidiFn(note, false, 0);
+  const el = keyEls[note];
+  if (el) el.classList.remove("active");
+}
+
+function setupKeyboard() {
+  const kb = document.getElementById("keyboard");
+  if (!kb) return;
+  try { uiMidiFn = Juce.getNativeFunction("uiMidi"); } catch (e) { uiMidiFn = null; }
+
+  const qFor = (n) => Object.keys(QWERTY).find((k) => QWERTY[k] === n);
+  const blacks = [];
+  for (let n = KB_LOW; n <= KB_HIGH; n++) {
+    const isBlack = BLACK_OFFSETS.has(((n % 12) + 12) % 12);
+    const el = document.createElement("div");
+    el.className = "key " + (isBlack ? "key-black" : "key-white");
+    el.dataset.note = String(n);
+    const q = qFor(n);
+    if (q) {
+      const lab = document.createElement("span");
+      lab.className = "key-label";
+      lab.textContent = q.toUpperCase();
+      el.appendChild(lab);
+    }
+    keyEls[n] = el;
+    if (isBlack) blacks.push(el);
+    else kb.appendChild(el);          // white keys flow in the flex row
+  }
+  blacks.forEach((el) => kb.appendChild(el));   // black keys overlay (absolute)
+
+  // Position each black key straddling the boundary of the white key below it.
+  const positionBlacks = () => {
+    for (const el of blacks) {
+      const n = +el.dataset.note;
+      const leftWhite = keyEls[n - 1];
+      if (!leftWhite) continue;
+      el.style.left = (leftWhite.offsetLeft + leftWhite.offsetWidth - el.offsetWidth / 2) + "px";
+    }
+  };
+  requestAnimationFrame(positionBlacks);
+  window.addEventListener("resize", positionBlacks);
+
+  // Mouse / touch — monophonic with glide while the button is held.
+  let pointerNote = null;
+  const noteAt = (target) => {
+    const k = target.closest ? target.closest(".key") : null;
+    return k ? +k.dataset.note : null;
+  };
+  kb.addEventListener("pointerdown", (e) => {
+    const n = noteAt(e.target);
+    if (n == null) return;
+    pointerNote = n;
+    noteOn(n);
+    e.preventDefault();
+  });
+  kb.addEventListener("pointerover", (e) => {
+    if (pointerNote == null) return;
+    const n = noteAt(e.target);
+    if (n != null && n !== pointerNote) { noteOff(pointerNote); noteOn(n); pointerNote = n; }
+  });
+  window.addEventListener("pointerup", () => {
+    if (pointerNote != null) { noteOff(pointerNote); pointerNote = null; }
+  });
+
+  // Computer keyboard — polyphonic, auto-repeat suppressed.
+  window.addEventListener("keydown", (e) => {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    const n = QWERTY[e.key.toLowerCase()];
+    if (n == null) return;
+    noteOn(n);
+    e.preventDefault();
+  });
+  window.addEventListener("keyup", (e) => {
+    const n = QWERTY[e.key.toLowerCase()];
+    if (n != null) noteOff(n);
+  });
+}
+
+// Pull the host sample rate for the spectrum frequency-axis labels.
+async function fetchSampleRate() {
+  try {
+    const sr = await Juce.getNativeFunction("getSampleRate")();
+    if (sr > 0) nyquistHz = sr / 2;
+    if (lastSpectrum) drawSpectrum(lastSpectrum);   // relabel once we know the real rate
+  } catch (e) { /* keep the default */ }
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────
@@ -551,8 +631,10 @@ function boot() {
   setupTooltips();
   setupPresets();
   setupPresetManager();
+  setupKeyboard();
   setupVizEvents();
   rewireResize();
+  fetchSampleRate();
 
   // initial empty frames so the canvases aren't black
   drawSpectrum(new Array(256).fill(-100));

@@ -101,6 +101,10 @@ public:
         pitchWheelPos = pitchWheel;
         updateCarrierFrequency();
 
+        // Snap the index ceiling to its target so it is enforced from sample 0
+        // (it persists across notes and otherwise ramps down from a stale value).
+        ceilSmoothed.setCurrentAndTargetValue (computeIndexCeiling());
+
         velLevel = juce::jlimit (0.0f, 1.0f, velocity);
 
         // Reset feedback history ONLY — never reset carrier/mod phase mid-life.
@@ -135,20 +139,14 @@ public:
         if (! ampEnv.isActive())
             return;
 
-        const double twoPi   = juce::MathConstants<double>::twoPi;
-        const double nyquist = 0.5 * sampleRate;
-        const int    numCh   = out.getNumChannels();
+        const double twoPi = juce::MathConstants<double>::twoPi;
+        const int    numCh = out.getNumChannels();
 
         // Key-tracked index ceiling (Carson): highest component
         // fc + (I+1)*fm <= 0.9*Nyquist  =>  I <= (0.9*Nyq - fc)/fm - 1.
-        // Computed once per render call (target ~constant within a block) so the
+        // Armed ONCE per render call (target ~constant within a block) so the
         // smoother ramps toward it instead of being re-armed every sample.
-        const double fmCeil = fixedMode ? (double) fixedHz
-                                        : (carrierHz * (double) ratioSmoothed.getTargetValue());
-        float ceilTarget = 1.0e9f;
-        if (fmCeil > 1.0e-6)
-            ceilTarget = (float) juce::jmax (0.0, (0.9 * nyquist - carrierHz) / fmCeil - 1.0);
-        ceilSmoothed.setTargetValue (ceilTarget);
+        ceilSmoothed.setTargetValue (computeIndexCeiling());
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -175,12 +173,7 @@ public:
             const float velFactor = (1.0f - velToIndex) + velToIndex * velLevel;
             const float iInst = baseIndex * ((1.0f - envDepth) + envDepth * modEnvVal) * velFactor;
 
-            // Key-tracked index ceiling (Carson): highest component
-            // fc + (I+1)*fm <= 0.9*Nyquist  =>  I <= (0.9*Nyq - fc)/fm - 1
-            float ceil = 1.0e9f;
-            if (fm > 1.0e-6)
-                ceil = (float) ((0.9 * nyquist - carrierHz) / fm - 1.0);
-            ceilSmoothed.setTargetValue (juce::jmax (0.0f, ceil));
+            // Clamp to the per-block Carson ceiling (armed above; smoother ramps).
             const float effIndex = juce::jmin (iInst, ceilSmoothed.getNextValue());
 
             // --- Carrier ----------------------------------------------------
@@ -210,6 +203,19 @@ private:
                                * 2.0; // +-2 semitone bend range
         const double base = juce::MidiMessage::getMidiNoteInHertz (currentNote);
         carrierHz = base * std::pow (2.0, bendSemis / 12.0);
+    }
+
+    // Carson key-tracked index ceiling: hold the highest sideband fc+(I+1)*fm
+    // under 0.9*Nyquist  =>  I <= (0.9*Nyq - fc)/fm - 1. Returns a huge value when
+    // fm collapses (no modulation). Used both to arm the smoother per block and to
+    // snap it on note-on.
+    float computeIndexCeiling() const noexcept
+    {
+        const double nyquist = 0.5 * sampleRate;
+        const double fmCeil  = fixedMode ? (double) fixedHz
+                                         : (carrierHz * (double) ratioSmoothed.getTargetValue());
+        if (fmCeil <= 1.0e-6) return 1.0e9f;
+        return (float) juce::jmax (0.0, (0.9 * nyquist - carrierHz) / fmCeil - 1.0);
     }
 
     double sampleRate = 44100.0;

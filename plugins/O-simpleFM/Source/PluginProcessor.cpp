@@ -130,6 +130,10 @@ void OSimpleFMAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     currentSampleRate = sampleRate;
     maxBlockSize      = juce::jmax (1, samplesPerBlock);
 
+    // On-screen-keyboard MIDI runs in HOST sample space (collected before
+    // oversampling), so reset the collector at the host rate.
+    midiCollector.reset (sampleRate);
+
     const int    osFactor = 1 << kOsFactorLog2;            // 2
     const double osRate   = sampleRate * osFactor;
 
@@ -204,6 +208,15 @@ void OSimpleFMAudioProcessor::pushParamsToVoices()
             fv->setParams (ratioV, snapV, indexV, fbV, fixedV, fixedHzV, depthV, velIdxV, ampP, modP);
 }
 
+void OSimpleFMAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, float velocity)
+{
+    auto msg = noteOn
+        ? juce::MidiMessage::noteOn  (1, noteNumber, juce::jlimit (0.0f, 1.0f, velocity))
+        : juce::MidiMessage::noteOff (1, noteNumber);
+    msg.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);   // MidiMessageCollector wants seconds
+    midiCollector.addMessageToQueue (msg);
+}
+
 void OSimpleFMAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                             juce::MidiBuffer& midiMessages)
 {
@@ -212,6 +225,10 @@ void OSimpleFMAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const int numSamples = buffer.getNumSamples();
     const int numCh      = buffer.getNumChannels();
     buffer.clear();                              // synth voices ADD into a cleared buffer
+
+    // Merge any on-screen-keyboard notes into the host MIDI stream (before the
+    // per-chunk oversampling rebase below picks them up).
+    midiCollector.removeNextBlockOfMessages (midiMessages, numSamples);
 
     pushParamsToVoices();
 
