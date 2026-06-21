@@ -43,7 +43,9 @@ agents: [dsp, ui, build, research]
 - **Headline DSP decision:** Build **phase modulation (PM), not true FM** — every commercial "FM" synth is PM. PM adds the modulator to phase *after* integration, so DC offset (from feedback/asymmetry) produces only a fixed inaudible phase offset instead of integrating into audible pitch drift. This is what makes feedback and cascaded operators stable.
 - **Modulation-index semantics decision:** Expose the **raw radian modulation index `I`** (the Bessel argument), range **0–20**, perceptual taper, displayed linearly. Most pedagogically transparent — it maps 1:1 to the sideband theory the plugin teaches. Optional read-only secondary readout `Δf = I·f_m` (Hz deviation).
 - **Polyphony decision:** **16 voices** (Ouaricon suite norm; brief's 8–16 range). Voice lifetime gated by amp-envelope activity.
-- **Anti-aliasing decision:** sine LUT operators + **key-tracked index ceiling** (Carson's rule) + **2× polyphase-IIR oversampling always-on**. Escalate to 4× + band-limited additive wavetables only when non-sine operator waveforms are enabled (opt-in `should`). Do NOT use PolyBLEP — it does not compose with hard FM.
+- **Modulator frequency-mode decision (v1.0 scope confirmed):** ship **both ratio and fixed-frequency modes** (`modFixedMode` toggle + `modFixedHz`). Ratio mode key-tracks (`f_m = f_c·ratio`); fixed mode holds the modulator at a constant Hz that does NOT track pitch — the cleanest way to teach inharmonic/clangorous timbres (the modulator stays put while the carrier moves). Fine detune (`fineCents`) and master tune (`masterTune`) are **deferred to v1.1**.
+- **Operator-waveform decision (v1.0 scope confirmed):** **sine-only operators in v1.0** — DSP-04 (selectable tri/saw/square) is **deferred to v1.1**. Keeps the FM math clean for teaching and removes the heaviest anti-aliasing cost.
+- **Anti-aliasing decision:** sine LUT operators + **key-tracked index ceiling** (Carson's rule) + **2× polyphase-IIR oversampling always-on**. Because v1.0 is sine-only, **2× OS + index ceiling is the complete v1.0 story**; the 4× + band-limited additive wavetable escalation is the v1.1 plan for when non-sine operators land. Do NOT use PolyBLEP — it does not compose with hard FM.
 
 ---
 
@@ -52,11 +54,11 @@ agents: [dsp, ui, build, research]
 ### FM Voice (FMVoice)
 - **JUCE Class:** Custom `FMVoice : juce::SynthesiserVoice` (carrier + modulator phase accumulators; two `juce::ADSR`; feedback history).
 - **Purpose:** Render one polyphonic 2-operator PM voice: modulator (with self-feedback) phase-modulates the carrier; carrier shaped by amp envelope.
-- **Parameters Affected:** `ratio`, `ratioSnap`, `modIndex`, `feedback`, `modEnvToIndex`, `velToIndex`, `carWave`, `modWave`, all mod/amp ADSR params, `modFixedMode`/`modFixedHz`, `fineCents`, `masterTune`.
+- **Parameters Affected:** `ratio`, `ratioSnap`, `modIndex`, `feedback`, `modEnvToIndex`, `velToIndex`, `modFixedMode`, `modFixedHz`, all mod/amp ADSR params. (Operators are sine-only in v1.0; `fineCents`/`masterTune` deferred to v1.1.)
 - **Configuration:**
   - **PM core (radians convention — committed; do NOT mix with normalized-turns):**
     ```cpp
-    double fm     = fc * ratio;                                       // C:M ratio (snapped if enabled)
+    double fm     = modFixedMode ? modFixedHz : (fc * ratio);        // fixed Hz (no key-track) OR C:M ratio (snapped if enabled)
     double modEnv = modEnvelope.getNextSample();                      // ADSR ∈ [0,1]
     double I_inst = baseIndex * ((1.0 - envDepth) + envDepth*modEnv); // mod env → index (default depth 1.0)
 
@@ -76,8 +78,8 @@ agents: [dsp, ui, build, research]
 
 ### Sine Operator (fastSine)
 - **JUCE Class:** `juce::dsp::LookupTableTransform<float>` (header `juce_dsp/maths/juce_LookupTable.h`, verified present).
-- **Purpose:** Allocation-free band-clean sine for both operators.
-- **Parameters Affected:** none directly (waveform select chooses table).
+- **Purpose:** Allocation-free band-clean sine for both operators (v1.0 is sine-only).
+- **Parameters Affected:** none directly.
 - **Configuration:**
   - Single-cycle, **1024 points, linear interpolation** (~97 dB SNR — cubic unnecessary, inaudible floor).
   - **Mandatory `floor`-modulo phase wrap** before lookup — the PM argument swings to many multiples of 2π at high index:
@@ -117,11 +119,11 @@ agents: [dsp, ui, build, research]
 - **Parameters Affected:** `modAttack`, `modDecay`, `modSustain`, `modRelease`, `modEnvToIndex` (depth, default 1.0).
 - **Configuration:** **Multiplicative** application: `I_inst = baseIndex·((1−depth)+depth·modEnv)`. Default depth 1.0 ⇒ `I_inst = baseIndex·modEnv` so sustain 0 yields a pure-sine tail (carrier-null reachable, "knob = max brightness"). Additive is rejected as default (muddies the mental model).
 
-### Operator Waveforms (Non-Sine — DSP-04, `should`)
-- **JUCE Class:** Custom additive **band-limited wavetables**, one table per octave band, read by phase.
-- **Purpose:** Optional tri/saw/square operators (sine default).
-- **Parameters Affected:** `carWave`, `modWave`.
-- **Configuration:** When any non-sine operator is active, **escalate to 4× oversampling**. **Do NOT use PolyBLEP/BLIT** — their discontinuity correction assumes a steady phase increment, which hard FM violates. Sine remains the always-clean default.
+### Operator Waveforms (Non-Sine — DSP-04) — DEFERRED to v1.1
+- **Status:** **OUT OF SCOPE for v1.0** (decision: sine-only operators). Documented here as the v1.1 implementation plan; no `carWave`/`modWave` parameters ship in v1.0.
+- **JUCE Class (v1.1):** Custom additive **band-limited wavetables**, one table per octave band, read by phase.
+- **Purpose (v1.1):** Optional tri/saw/square operators (sine default).
+- **Configuration (v1.1):** When any non-sine operator is active, **escalate to 4× oversampling**. **Do NOT use PolyBLEP/BLIT** — their discontinuity correction assumes a steady phase increment, which hard FM violates. Sine remains the always-clean default.
 
 ### Anti-Aliasing — Index Ceiling + Oversampling
 - **JUCE Class:** `juce::dsp::Oversampling<float>` with `filterHalfBandPolyphaseIIR` (verified `juce_dsp/processors/juce_Oversampling.h:69`). Index ceiling is custom.
@@ -129,8 +131,8 @@ agents: [dsp, ui, build, research]
 - **Parameters Affected:** implicitly all (driven by `modIndex` × `ratio` × pitch × `feedback`).
 - **Configuration:**
   1. **Key-tracked index ceiling** (per-note, near-free): `indexCeil = (0.9·Nyquist − f_c)/f_m − 1; effIndex = min(userIndex, indexCeil)`. Crossfade/smooth the ceiling (it is a timbral change — bright patches dull when played high).
-  2. **2× polyphase-IIR oversampling, always-on**, wrapping the whole voice-sum render (low latency, catch-all). Report added latency via `setLatencySamples()` (NB: `getLatencySamples()` is non-virtual in JUCE 8).
-  3. **4× only while non-sine operators active.**
+  2. **2× polyphase-IIR oversampling, always-on**, wrapping the whole voice-sum render (low latency, catch-all). Report added latency via `setLatencySamples()` (NB: `getLatencySamples()` is non-virtual in JUCE 8). **This is the complete v1.0 AA chain (sine-only).**
+  3. **(v1.1) 4× only while non-sine operators active** — deferred with DSP-04.
 
 ### Output Stage
 - **JUCE Class:** `juce::SmoothedValue<float>` gain + final block NaN scrub.
@@ -154,14 +156,15 @@ MIDI in
 juce::Synthesiser (16 × FMVoice)
   │   per voice, per sample (PM core, radians):
   │     MOD: modOut = sine(modPhase + feedbackCoeff·½(prev1+prev2))   ← feedback
-  │          modPhase += 2π·(fc·ratio)/fs
+  │          f_m = modFixedMode ? modFixedHz : (fc·ratio)            ← ratio vs fixed-Hz mode
+  │          modPhase += 2π·f_m/fs
   │     INDEX: I_inst = baseIndex·((1−depth)+depth·modEnv)            ← modEnvToIndex
   │            effIndex = min(I_inst, keyTrackedCeil)                 ← anti-alias ceiling
   │     CAR: carOut = sine(carPhase + effIndex·modOut)
   │          carPhase += 2π·fc/fs
   │     voiceOut = carOut · ampEnv                                    ← ampEnvToLifetime
   ↓ (sum of active voices)
-2× Oversampling wrapper (filterHalfBandPolyphaseIIR, always-on; 4× when non-sine op)
+2× Oversampling wrapper (filterHalfBandPolyphaseIIR, always-on; v1.0 sine-only — 4× path deferred to v1.1)
   ↓
 Output gain (SmoothedValue, dB→lin)  ← outputLevel
   ↓
@@ -181,7 +184,8 @@ Audio out (stereo, mono signal duplicated)
 **Routing notes:**
 - **Feedback loop:** modulator-internal only (self-feedback), one-sample-delayed two-sample average. No global feedback path.
 - **Two parallel envelopes:** amp ADSR (carrier amplitude + voice lifetime) and mod ADSR (index scaling) are fully independent.
-- **Conditional oversampling factor:** 2× default, 4× when any operator waveform ≠ sine.
+- **Modulator frequency mode:** `f_m = fc·ratio` (ratio mode, key-tracks) or `f_m = modFixedHz` (fixed mode, constant — does not track pitch).
+- **Oversampling factor:** **2× always-on (v1.0 sine-only)**; the conditional 4× for non-sine operators is deferred to v1.1 with DSP-04.
 - **Visualization is a read-only tap**, never in the audio return path.
 
 ---
@@ -230,6 +234,8 @@ Audio out (stereo, mono signal duplicated)
 | `ratioSnap` | Bool | off / on | off | integer-snap toggle (`round(ratio)`) | DSP-05 |
 | `modIndex` | Float | 0 – 20 | 0 | skew ~0.3, displayed linearly; `I = 20·norm^1.7` | sideband richness/brightness (DSP-02) |
 | `feedback` | Float | 0 – 100% (0–1) | 0 | skew ~0.5; → coeff max ≈ π, `x^1.5` taper | modulator self-feedback (FUNC-03) |
+| `modFixedMode` | Bool | Ratio / Fixed | Ratio (off) | when on, `f_m = modFixedHz` (no key-track) | modulator freq mode (inharmonic teaching) |
+| `modFixedHz` | Float | 1 – 8000 Hz | 220 | log skew; active only when `modFixedMode` on | fixed modulator frequency |
 | `modEnvToIndex` | Float | 0 – 100% (0–1) | **1.0** | multiplicative depth (headline ON) | mod env → index amount (FUNC-04, DSP-06) |
 | `velToIndex` | Float | 0 – 100% (0–1) | 0 | opt-in | velocity → index (DSP-06) |
 | `modAttack` | Float | 0.001 – 5 s | 0.01 | skew 0.35 | Mod ADSR |
@@ -240,13 +246,11 @@ Audio out (stereo, mono signal duplicated)
 | `ampDecay` | Float | 0.001 – 5 s | 0.3 | skew 0.35 | Amp ADSR |
 | `ampSustain` | Float | 0 – 100% (0–1) | 0.8 | linear | Amp ADSR |
 | `ampRelease` | Float | 0.001 – 5 s | 0.3 | skew 0.35 | Amp ADSR |
-| `carWave` | Choice | Sine/Tri/Saw/Square | Sine | DSP-04 (`should`) | carrier operator waveform |
-| `modWave` | Choice | Sine/Tri/Saw/Square | Sine | DSP-04 (`should`) | modulator operator waveform |
 | `outputLevel` | Float | −inf – 0 dB | 0 | dB→lin, 20 ms smooth | master trim |
 
-**Optional / deferred additions (DSP-06, `should`/`nice` — confirm during mockup):** `modFixedMode` (bool ratio-vs-fixed), `modFixedHz` (float), `fineCents` (carrier detune), `masterTune` (A4 Hz). These are documented but **out of the core parameter count** unless the mockup adopts them.
+**v1.1-deferred additions (NOT in v1.0):** `carWave`/`modWave` (non-sine operators, DSP-04), `fineCents` (carrier detune), `masterTune` (A4 Hz). Documented for future scope; not implemented in v1.0.
 
-**Core parameter count for complexity: 17** (the table rows above).
+**Core parameter count for complexity: 17** (the table rows above — net unchanged: dropped `carWave`/`modWave`, added `modFixedMode`/`modFixedHz`).
 
 ---
 
@@ -262,6 +266,9 @@ Three equivalent exposures exist: (a) raw radian index `I` (= the Bessel argumen
 
 ### C:M ratio → harmonic vs inharmonic
 Sidebands land at `f_c·(1 ± n·ratio)`. Integer/simple-rational C:M → harmonic; irrational C:M → inharmonic/bell. Negative-frequency lower sidebands fold through 0 Hz with phase inversion (enriches low ratios).
+
+### Fixed-frequency modulator mode (teaching note)
+When `modFixedMode` is on, the modulator runs at a constant `modFixedHz` independent of the played note. The C:M relationship therefore *changes with pitch* — a fixed 110 Hz modulator against a swept carrier produces ever-shifting inharmonic spectra (classic metallic/clangorous DX behavior). This is the most direct way to demonstrate that "inharmonicity = modulator not locked to carrier." At very low `modFixedHz` (≈1–10 Hz) the effect degrades gracefully toward vibrato/tremolo, illustrating the FM↔vibrato continuum.
 
 | C:M | Character |
 |-----|-----------|
@@ -292,16 +299,17 @@ ADSR = (A, D, S 0–1, R). **Star** = the concept each isolates.
 
 ### Feature Dependency Graph
 ```
-ratio ─┐
-        ├─► modPhase increment ─► MOD operator ─┐
-modWave ┘                                        │
-feedback ─► feedback coeff ─► MOD self-feedback ─┤
-                                                  ▼
+ratio ───────┐
+modFixedMode ─┤ (select f_m: fc·ratio OR modFixedHz)
+modFixedHz ───┤
+              ├─► modPhase increment ─► MOD operator (sine) ─┐
+feedback ─► feedback coeff ─► MOD self-feedback ─────────────┤
+                                                              ▼
 modIndex ─┐                                   carrier phase modulation
 modEnvToIndex ─► I_inst ─────────────────────► (effIndex after ceiling)
 modEnv (Mod ADSR) ┘            ▲                        │
 velToIndex ───────────────────┘                        ▼
-                                              CAR operator (carWave)
+                                              CAR operator (sine)
                                                         │
 ampEnv (Amp ADSR) ─────────────────────────► amplitude + voice lifetime
                                                         │
@@ -340,7 +348,7 @@ ampEnv (Amp ADSR) ────────────────────�
 | 3 | Anti-aliasing | **HIGH** | Audible aliasing at high index/feedback/pitch (QUAL-01 fail) | **Tiered fallback:** (a) sine + index ceiling + 2× OS is the v1.0 floor; if still audible, (b) raise to 4× globally; (c) tighten ceiling to 0.85·Nyquist. Non-sine waveforms stay opt-in. |
 | 4 | Real-time-safe viz | MEDIUM | Allocation/FFT on audio thread (PERF-01 fail); in-place FFT clobbers scope | Audio thread copy-only into pre-allocated `AbstractFifo`; FFT on message-thread Timer; **copy scope window before FFT**. |
 | 5 | Spectrum legibility | MEDIUM | Sidebands blurred together → teaching value lost | 4096 FFT + Blackman-Harris window + rise-fast/fall-slow smoothing; log-freq axis. |
-| 6 | Non-sine operators | MEDIUM | PolyBLEP doesn't compose with FM; naive saw/square alias badly | Band-limited additive wavetables + 4× OS while active; ship **sine-only** if schedule-constrained (it's a `should`). |
+| 6 | Non-sine operators | — | (DEFERRED to v1.1) PolyBLEP doesn't compose with FM; naive saw/square alias badly | **v1.0 ships sine-only** (decision) — risk removed from v1.0. v1.1 plan: band-limited additive wavetables + 4× OS while active. |
 | 7 | Cross-platform WebView | LOW | Silent IE fallback → blank UI on Windows | `NEEDS_WEBVIEW2 TRUE` + static-linking define + `withUserDataFolder` (project memory). |
 | 8 | Voice lifetime | LOW | Long mod release keeps silent voices alive → voice starvation | Gate lifetime on **amp** envelope activity only. |
 
@@ -370,7 +378,7 @@ ampEnv (Amp ADSR) ────────────────────�
 
 ## Design Sync Check
 
-**No UI mockup YAML exists** (`plugins/O-simpleFM/.planning/mockups/` is empty). No parameter conflicts to resolve at this stage. When the mockup is created it becomes the source of truth for the final parameter set; the optional DSP-06 additions (`modFixedMode`, `modFixedHz`, `fineCents`, `masterTune`) should be confirmed or dropped there.
+**No UI mockup YAML exists** (`plugins/O-simpleFM/.planning/mockups/` is empty). When the mockup is created it becomes the source of truth for the final parameter set. **Scope decisions locked at planning (2026-06-20):** `modFixedMode`/`modFixedHz` are **adopted in v1.0**; `fineCents`, `masterTune`, and non-sine operator waveforms (`carWave`/`modWave`, DSP-04) are **deferred to v1.1**. The mockup must surface the 17 core params (incl. the modulator Ratio/Fixed toggle + fixed-Hz control) and must NOT add operator-waveform selectors.
 
 ---
 

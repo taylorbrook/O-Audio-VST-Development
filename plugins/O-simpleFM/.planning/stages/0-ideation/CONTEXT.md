@@ -25,7 +25,9 @@ A deliberately simple **2-operator FM (really phase-modulation) synthesizer buil
 
 5. **Polyphony = 16 voices.** Suite norm; comfortable for chordal classroom use; cheap at 2× oversampling. Voice lifetime gated on **amp** envelope activity only (so a long mod release can't keep a silent voice alive).
 
-6. **Anti-aliasing floor = sine LUT + key-tracked index ceiling + 2× polyphase-IIR oversampling (always-on).** For a teaching tool, transparency and CPU predictability beat brute oversampling. Index ceiling (`(0.9·Nyq−fc)/fm − 1`) is near-free and textbook. Escalate to 4× + band-limited additive wavetables only when non-sine operators are enabled (opt-in `should`). **Do NOT use PolyBLEP** — it doesn't compose with hard FM. This is the single HIGH-risk area; ARCHITECTURE.md documents a tiered fallback.
+6. **Anti-aliasing floor = sine LUT + key-tracked index ceiling + 2× polyphase-IIR oversampling (always-on).** For a teaching tool, transparency and CPU predictability beat brute oversampling. Index ceiling (`(0.9·Nyq−fc)/fm − 1`) is near-free and textbook. **v1.0 ships sine-only operators (decision), so 2× OS + index ceiling is the complete v1.0 AA chain.** The 4× + band-limited additive wavetable escalation is the v1.1 plan for when non-sine operators land. **Do NOT use PolyBLEP** — it doesn't compose with hard FM. This is the single HIGH-risk area; ARCHITECTURE.md documents a tiered fallback.
+
+7b. **Modulator frequency mode = Ratio + Fixed, both in v1.0 (decision).** `modFixedMode` toggle + `modFixedHz`: ratio mode key-tracks (`f_m = f_c·ratio`), fixed mode holds a constant Hz that doesn't track pitch — the cleanest demonstration of inharmonicity (modulator not locked to carrier). Fine detune (`fineCents`) and master tune (`masterTune`) deferred to v1.1.
 
 7. **Visualization is real-time-safe by construction.** Audio thread does copy-only into a pre-allocated `juce::AbstractFifo` ring (no alloc, no FFT, no locks). The editor `Timer` (30 Hz) runs the FFT (**4096 / Blackman-Harris** for crisply separated sidebands) and builds the scope frame on the message thread, then pushes via `emitEventIfBrowserIsVisible`. Intentional deviation from O-MultiBandCompressor (which FFTs in `processBlock`). Critical gotcha: `performFrequencyOnlyForwardTransform` overwrites in place — copy the scope window before the FFT.
 
@@ -43,11 +45,14 @@ A deliberately simple **2-operator FM (really phase-modulation) synthesizer buil
 
 ---
 
-## Open questions for the user (non-blocking — confirm at mockup)
+## Scope decisions (resolved by user, 2026-06-20)
 
-1. **DSP-06 optional params** — adopt or drop `modFixedMode`/`modFixedHz` (fixed-freq modulator), `fineCents`, `masterTune`? They're documented but excluded from the core 17-param count. Recommendation: defer `modFixedMode` + tuning to v1.1 unless the mockup wants them; keep the synth lean for teaching.
-2. **Non-sine operator waveforms (DSP-04)** — ship in v1.0 or defer? They're a `should` and carry the heaviest AA cost (band-limited wavetables + 4× OS). Recommendation: ship **sine-only** at v1.0 if schedule-constrained; add waveforms as a fast follow.
-3. **Index ceiling visibility** — should the key-tracked dulling-at-high-pitch be surfaced to the student (it's itself teachable) or silent? Recommendation: surface it as an optional "anti-alias" annotation in the spectrum.
+1. **Fixed-freq modulator → ADOPTED in v1.0.** `modFixedMode` (Ratio/Fixed) + `modFixedHz` (1–8000 Hz, default 220, log) are part of the core 17-param set. `fineCents` and `masterTune` → **deferred to v1.1**.
+2. **Operator waveforms → SINE-ONLY in v1.0.** Non-sine (DSP-04) deferred to v1.1; this also removes the 4× OS / band-limited-wavetable escalation from v1.0 (2× OS + index ceiling is the complete v1.0 AA chain).
+3. **Parameter-ID drift → reconciled.** Final v1.0 IDs are settled across ARCHITECTURE.md / ROADMAP.md / parameter-spec-draft.md; the `carWave`/`modWave` naming drift is moot (those params are not in v1.0). The mockup-finalized `parameter-spec.md` remains the eventual authority.
+
+### Still open (non-blocking — confirm at mockup)
+- **Index ceiling visibility** — surface the key-tracked dulling-at-high-pitch to the student (itself teachable) or keep silent? Recommendation: optional "anti-alias" annotation in the spectrum.
 
 None of these block Stage 1.
 
