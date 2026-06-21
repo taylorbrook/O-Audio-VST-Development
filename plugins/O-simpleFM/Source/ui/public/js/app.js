@@ -55,6 +55,7 @@ const TIPS = {
   ratioSnap:    ["Ratio Snap", "Quantises the C:M ratio to whole numbers — instantly snaps an inharmonic tone to a harmonic one."],
   modFixedMode: ["Fixed Mode", "Switches the modulator from tracking the note (Ratio) to a fixed frequency in Hz (set by Fixed Hz)."],
   routing:      ["Signal Path", "MOD modulates the phase of CAR; MOD's self-loop is Feedback. Arrow thickness reflects Mod Index and Feedback amount."],
+  readout:      ["Live FM Readout", "The two numbers that define the tone, updating as you play. Left — the C : M ratio: the modulator's frequency relative to the played note, which sets <em>which</em> harmonics appear (whole numbers = pitched, irrational = bell-like). Right — I, the modulation index: how hard the modulator bends the carrier, which sets the <em>brightness</em> (more index = more sidebands)."],
 };
 
 // ── Knob geometry ──────────────────────────────────────────────────────────
@@ -249,7 +250,9 @@ function setupTooltips() {
     el.addEventListener("pointerleave", hide);
     el.addEventListener("pointerdown", hide);
     // focusin/out bubbles from a focusable child knob up to its [data-tip] cell.
-    el.addEventListener("focusin", () => showAtEl(key, el));
+    // stopPropagation so a nested [data-tip] (e.g. the readout inside the routing
+    // panel) isn't overridden by its ancestor's focusin handler on the bubble.
+    el.addEventListener("focusin", (e) => { e.stopPropagation(); showAtEl(key, el); });
     el.addEventListener("focusout", hide);
   });
 

@@ -3,6 +3,22 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.2] — 2026-06-20
+
+### Added
+- **Explanatory tooltip for the Signal Path readout** (`1.00 : 1 · I = 0.0`). The
+  numbers at the right of the routing row now have their own hover/focus tooltip
+  explaining that the left value is the **C : M ratio** (modulator frequency vs. the
+  played note → which harmonics appear) and the right value is **I**, the modulation
+  index (→ brightness / number of sidebands). Previously the readout inherited the
+  generic "Signal Path" tip, which didn't explain the numbers. Added a `cursor:help`
+  affordance to signal it's hoverable.
+
+### Fixed
+- `focusin` handlers now `stopPropagation`, so a nested `[data-tip]` element (the new
+  readout inside the routing panel) isn't overridden by its ancestor's tooltip on the
+  event bubble — keyboard focus shows the correct tip.
+
 ## [1.0.1] — 2026-06-20
 
 ### Fixed
