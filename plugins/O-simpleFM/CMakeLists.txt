@@ -39,9 +39,21 @@ target_include_directories(O-simpleFM
         Source
 )
 
+# WebView UI resources (embedded as BinaryData) — Stage 3 GUI.
+juce_add_binary_data(O-simpleFM_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/insects.png
+)
+
 # Required JUCE modules
 target_link_libraries(O-simpleFM
     PRIVATE
+        O-simpleFM_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats

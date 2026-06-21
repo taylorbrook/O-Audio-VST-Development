@@ -1,15 +1,15 @@
 ---
 plugin: O-simpleFM
-stage: 2
+stage: 3
 phase: verify
-status: stage_2_complete
+status: stage_3_complete
 workflow_mode: express
 last_updated: 2026-06-20
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: implement_stage_3_gui
-next_stage: 3
+next_action: implement_stage_4_polish
+next_stage: 4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:86cfcfb5ebf9181fd4d3c889a15931df918833295b8d5446d044e27db855dd81
@@ -22,9 +22,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — ✅ complete (all 5 phases + critic gate). Next: Stage 3 (GUI).
-Status: Polyphonic 2-op PM synth renders audio; auval + pluginval(s10) PASS; FM math proven (carrier null I≈2.405 ratio 0.0001); feedback stable @100%; 2× OS; viz data path live.
-Progress: [##########..........] 50%
+Stage: 3 of 4 (GUI) — ✅ complete (all phases + critic gate). Next: Stage 4 (Polish).
+Status: Ouaricon-Naturalist WebView UI integrated; all 17 params two-way bound; live spectrum + scope (30 Hz emit); routing diagram + tooltips + 5-preset tour. Builds VST3/AU/Standalone; auval SUCCEEDED; render-harness 5/5; critic 0 blockers (4 warnings folded in). One manual visual gate remains (see VERIFICATION.md).
+Progress: [###############.....] 75%
 
 ## Stage 2 Phase Progress (express mode)
 | Phase | Status | Notes |
@@ -64,11 +64,20 @@ Progress: [##########..........] 50%
 - Strategy: Staged implementation (3 DSP phases + 3 GUI phases)
 - ARCHITECTURE.md, ROADMAP.md, CONTEXT.md documented; upstream research doc folded in
 
+## Stage 3 Phase Progress (express mode)
+| Phase | Status | Notes |
+|-------|--------|-------|
+| context | ✓ | CONTEXT.md (direct-integration decision; param inventory; layout) |
+| research | ✓ | RESEARCH.md (O-Prism WebView wiring + O-Marimba emit cues) |
+| plan | ✓ | PLAN.md (3.1 scaffold/bind, 3.2 viz, 3.3 pedagogy) |
+| execute | ✓ | WebView UI built (HTML/CSS/JS) + editor rewrite + binary data; all 17 bound; spectrum/scope emit; routing/tooltips/presets. auval SUCCEEDED, harness 5/5, Standalone error-free. SUMMARY.md written. |
+| critic | ✓ | UI + architecture critics — 0 blockers; UI-001/002/006 + ARCH-002 folded in (overlay opacity, routing copy, "220 Hz", null-param jassert), rebuilt + confirmed in binary. |
+| verify | ✓ | VERIFICATION.md — auval SUCCEEDED, harness 5/5 post-editor, all 17 bound, critic clean. 1 manual visual gate carried to pre-install sign-off. |
+
 ## Next Steps
 
-1. Stage 3: GUI — `/clear` then `/implement O-simpleFM`. WebView UI: replace GenericAudioProcessorEditor body, emit `vizAnalyzer.getSpectrum()/getScope()` from the existing 30 Hz `timerCallback` via `emitEventIfBrowserIsVisible`, wire 17 relays/attachments. (3 GUI sub-phases per ROADMAP.)
-2. (Non-blocking) UI mockup first via `/design-ui O-simpleFM` if a visual system isn't chosen yet.
-3. (Stage 4) Critical-listening aliasing audit; factory presets (preset tour); changelog.
+1. Stage 3 verify — `/clear` then `/plugin-verify O-simpleFM`. Confirm UI visually (Standalone/DAW): sidebands bloom w/ Mod Index, Ratio harmonic↔inharmonic snap, Feedback smear, scope morphs, all knobs/toggles two-way, 5 presets load + sound.
+2. (Stage 4) Critical-listening aliasing audit; factory presets; changelog.
 
 **Stage 2 carryover hooks for Stage 3:**
 - Editor already a `juce::Timer`; `timerCallback` pumps `FmVizAnalyzer` (ring→FFT/scope) — just add the WebView emit.

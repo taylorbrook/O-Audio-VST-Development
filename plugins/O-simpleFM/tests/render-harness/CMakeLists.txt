@@ -31,7 +31,10 @@ target_include_directories(O-simpleFM-render-test PRIVATE
 target_compile_definitions(O-simpleFM-render-test PRIVATE
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
-    JUCE_WEB_BROWSER=0
+    # Stage 3: the editor is now a WebView. PluginEditor.cpp is compiled here only
+    # so createEditor() resolves at link time, so the WebView path must be enabled
+    # and the embedded UI BinaryData target linked (below).
+    JUCE_WEB_BROWSER=1
     JucePlugin_Build_Standalone=1
 
     # Minimal JucePlugin_* macros the processor references at compile time
@@ -52,6 +55,8 @@ target_compile_definitions(O-simpleFM-render-test PRIVATE
 
 target_link_libraries(O-simpleFM-render-test
     PRIVATE
+        # Embedded UI resources — supplies BinaryData::* used by PluginEditor.cpp.
+        O-simpleFM_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
