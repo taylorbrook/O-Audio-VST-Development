@@ -49,8 +49,9 @@
 **Components:**
 - `FMSound`, `FMSynthesiser` (16-voice cap), `FMVoice : juce::SynthesiserVoice` (copy O-Bassoon skeleton).
 - `Operator.h` phase-accumulator helper + `fastSine` via `juce::dsp::LookupTableTransform` (1024 pts, linear, **floor-modulo wrap**).
-- PM core in **radians** convention: `carOut = fastSine(carPhase + I·modOut)`; `modPhase += 2π·(fc·ratio)/fs`.
-- `ratio` (with `ratioSnap` at read site), `modIndex` (`I = 20·norm^1.7`), `outputLevel`.
+- PM core in **radians** convention: `carOut = fastSine(carPhase + I·modOut)`; `modPhase += 2π·f_m/fs`.
+- Modulator frequency mode: `f_m = modFixedMode ? modFixedHz : (fc·ratio)` — Ratio (key-tracks) vs Fixed-Hz (constant, inharmonic teaching).
+- `ratio` (with `ratioSnap` at read site), `modFixedMode`/`modFixedHz`, `modIndex` (`I = 20·norm^1.7`), `outputLevel`.
 - Amp `juce::ADSR` (voice lifetime = `ampEnv.isActive()`); velocity→amplitude.
 - Processor reads APVTS once/block → `voice->setParams(...)`; `ScopedNoDenormals`; `SmoothedValue` on index/output, Multiplicative (or snap+ramp) on ratio.
 
@@ -58,6 +59,7 @@
 - [ ] Plugin loads in DAW as an **instrument**, MIDI routes, plays polyphonically (no crash).
 - [ ] Index 0 = pure sine; raising index audibly adds sidebands (no zipper).
 - [ ] Integer ratio = harmonic; non-integer (e.g. 1:1.414) = inharmonic/bell.
+- [ ] Fixed-mode modulator holds constant Hz while carrier tracks pitch (inharmonic shifts with note); Ratio mode key-tracks.
 - [ ] Amp ADSR shapes notes; long sustains hold, release tails cleanly; no stuck/silent voices.
 - [ ] No clicks on note-on/off; no denormal CPU stalls on long releases.
 
@@ -79,20 +81,20 @@
 - [ ] Velocity→index responds only when `velToIndex` > 0.
 - [ ] No zipper on feedback/index automation.
 
-#### Phase 2.3: Anti-Aliasing + Non-Sine Operators (QUAL-01, DSP-04, PERF-01 tap)
+#### Phase 2.3: Anti-Aliasing + Visualization Tap (QUAL-01, PERF-01 tap)
 
-**Goal:** Hit QUAL-01 across the full range and add the audio-thread visualization tap.
+**Goal:** Hit QUAL-01 across the full range (sine-only operators) and add the audio-thread visualization tap.
 
 **Components:**
-- Key-tracked index ceiling: `effIndex = min(I_inst, (0.9·Nyq − fc)/fm − 1)`, smoothed/crossfaded.
-- `juce::dsp::Oversampling<float>` (`filterHalfBandPolyphaseIIR`) **2× always-on** around the voice sum; `setLatencySamples()`.
-- Optional non-sine operators (`carWave`/`modWave`): band-limited additive wavetables (one per octave), **4× OS while active**. (Ship sine-only if schedule-constrained — `should`.)
+- Key-tracked index ceiling: `effIndex = min(I_inst, (0.9·Nyq − fc)/fm − 1)` (uses current `f_m`, incl. fixed mode), smoothed/crossfaded.
+- `juce::dsp::Oversampling<float>` (`filterHalfBandPolyphaseIIR`) **2× always-on** around the voice sum; `setLatencySamples()`. **This is the complete v1.0 AA chain (sine-only).**
+- **(v1.1 — DEFERRED)** non-sine operators (`carWave`/`modWave`) + band-limited additive wavetables + 4× OS. Not in v1.0 (decision: sine-only).
 - Visualization **tap**: mono-sum post-gain → pre-allocated `juce::AbstractFifo` ring (no alloc, no FFT, no locks). Block-level `isfinite` scrub.
 
 **Test Criteria:**
 - [ ] High index + high feedback + high pitch: no objectionable aliasing (QUAL-01).
+- [ ] Fixed-mode modulator at high `modFixedHz` + high index stays within aliasing budget (ceiling uses `f_m`).
 - [ ] Index ceiling dulls extreme highs smoothly (no zipper at the crossfade).
-- [ ] Non-sine operators (if shipped) don't alias worse than sine baseline; 4× engages only when active.
 - [ ] `processBlock` is allocation-free under profiler; latency reported correctly to host.
 
 ### Stage 3: GUI Phases
@@ -106,7 +108,7 @@
 - PluginEditor member order: **relays → WebView → attachments**; `WebSliderRelay`/`WebComboBoxRelay`/`WebToggleButtonRelay` + matching attachments (3-arg, `nullptr` undoManager).
 - Resource provider with **explicit bare-path** mapping; `type="module"` scripts; `import * as Juce`.
 - CMake: `IS_SYNTH TRUE`, `NEEDS_MIDI_INPUT TRUE`, `NEEDS_WEB_BROWSER TRUE`, `NEEDS_WEBVIEW2 TRUE`; defs `JUCE_WEB_BROWSER=1`, `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`; Windows `withUserDataFolder(tempDir)`.
-- Groups: Operators (Ratio/Index/Feedback) | Mod Env | Amp Env | Waveforms/Output.
+- Groups: Operators (Ratio/Index/Feedback + Modulator Ratio/Fixed mode) | Mod Env | Amp Env | Output.
 
 **Test Criteria:**
 - [ ] WebView opens, single-page layout renders, classroom-readable.
@@ -172,7 +174,7 @@ Each phase = one git commit with its test criteria met.
 
 ### Performance
 - 16 voices × (2 sine LUT lookups + feedback) — trivial.
-- 2× polyphase-IIR oversampling around the voice sum is the dominant cost (modest); 4× only when non-sine operators active.
+- 2× polyphase-IIR oversampling around the voice sum is the dominant cost (modest). v1.0 is sine-only so 2× is fixed; the 4× non-sine path is deferred to v1.1.
 - 4096 FFT @ 30 Hz on message thread — cheap. Estimated well under one core at 48 kHz.
 
 ### Latency
