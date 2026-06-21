@@ -98,6 +98,16 @@ public:
     VizRing& getVizRing() noexcept { return vizRing; }
     double   getCurrentSampleRate() const noexcept { return currentSampleRate; }
 
+    // Carrier frequency of the most-recently-started note, for the spectrum's
+    // FM sideband markers (viz only — no effect on audio). Returns 0 when nothing
+    // is sounding, so the editor skips the markers. Written audio-thread-side in
+    // processBlock (relaxed atomics), read on the message-thread Timer.
+    double getCarrierHz() const noexcept
+    {
+        return carrierSounding.load (std::memory_order_relaxed)
+             ? lastNoteHz.load (std::memory_order_relaxed) : 0.0;
+    }
+
     // On-screen keyboard: editor injects note on/off from the WebView (any thread).
     // Queued via a MidiMessageCollector and merged into processBlock's MIDI stream.
     void handleUiMidi (int noteNumber, bool noteOn, float velocity);
@@ -135,6 +145,12 @@ private:
 
     // Real-time-safe visualization tap (audio-thread copy-only writer).
     VizRing vizRing;
+
+    // Carrier tracking for the spectrum sideband markers (viz only). lastNoteHz =
+    // pitch of the most-recent note-on; carrierSounding = any voice still audible.
+    // Both written in processBlock (audio thread), read via getCarrierHz().
+    std::atomic<double> lastNoteHz      { 0.0 };
+    std::atomic<bool>   carrierSounding { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleFMAudioProcessor)
 };

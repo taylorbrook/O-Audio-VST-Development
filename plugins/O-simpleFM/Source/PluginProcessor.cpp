@@ -230,6 +230,18 @@ void OSimpleFMAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // per-chunk oversampling rebase below picks them up).
     midiCollector.removeNextBlockOfMessages (midiMessages, numSamples);
 
+    // Carrier tracking for the spectrum sideband markers (viz only — no audio
+    // effect). Capture the most-recently-started note's pitch from the merged
+    // stream (covers both host MIDI and the on-screen keyboard). "Sounding" is
+    // decided post-render below from the live voices.
+    for (const auto meta : midiMessages)
+    {
+        const auto m = meta.getMessage();
+        if (m.isNoteOn())
+            lastNoteHz.store (juce::MidiMessage::getMidiNoteInHertz (m.getNoteNumber()),
+                              std::memory_order_relaxed);
+    }
+
     pushParamsToVoices();
 
     const int osFactor = 1 << kOsFactorLog2;
@@ -279,6 +291,13 @@ void OSimpleFMAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     {
         synth.renderNextBlock (buffer, midiMessages, 0, numSamples);   // fallback (unprepared)
     }
+
+    // A note is "sounding" while any voice is still active (covers release tails);
+    // the editor skips the sideband markers when nothing rings. Viz only.
+    bool anyVoiceActive = false;
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (synth.getVoice (v)->isVoiceActive()) { anyVoiceActive = true; break; }
+    carrierSounding.store (anyVoiceActive, std::memory_order_relaxed);
 
     // Master output trim (dB->lin, smoothed).
     const float outDb = parameters.getRawParameterValue (OSimpleFM::ParamIDs::outputLevel)->load();
