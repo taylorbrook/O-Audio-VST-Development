@@ -213,6 +213,50 @@ int main()
                juce::String ("peak=") + juce::String (pk, 4) + " rms=" + juce::String (r, 4));
     }
 
+    // --- 6: aliasing audit — high pitch + max index + feedback (QUAL-01) ------
+    // The 2x polyphase-IIR oversampling + key-tracked Carson index ceiling must
+    // keep alias products (energy at NON-integer multiples of f0) well below the
+    // legitimate harmonic energy, and the output finite/bounded.
+    {
+        const int    hiNote = 96;                                          // C7
+        const double hf0    = juce::MidiMessage::getMidiNoteInHertz (hiNote); // ~2093 Hz
+        resetDefaults (apvts);
+        setParam (apvts, OSimpleFM::ParamIDs::ratio, 1.0f);
+        setParam (apvts, OSimpleFM::ParamIDs::modSustain, 1.0f);
+        setParam (apvts, OSimpleFM::ParamIDs::modEnvToIndex, 1.0f);
+        setParam (apvts, OSimpleFM::ParamIDs::modIndex, 20.0f);            // max (ceiling clamps)
+        setParam (apvts, OSimpleFM::ParamIDs::feedback, 0.8f);
+        auto y = render (proc, hiNote, 1.5, fs);
+
+        double harm = 0.0;
+        for (int k = 1; k <= 4 && k * hf0 < 0.45 * fs; ++k)
+            harm += binAmplitude (y, aOff, aLen, k * hf0, fs);
+        double alias = 0.0;
+        for (double m : { 0.5, 1.37, 2.4, 3.3 })                          // inter-harmonic probes
+            if (m * hf0 < 0.45 * fs)
+                alias += binAmplitude (y, aOff, aLen, m * hf0, fs);
+
+        check ("aa-highpitch", allFinite (y) && peakAbs (y) < 4.0 && alias < harm * 0.35 + 1.0e-4,
+               juce::String ("harm=") + juce::String (harm, 4)
+                 + " alias=" + juce::String (alias, 4)
+                 + " ratio=" + juce::String (harm > 0 ? alias / harm : 0.0, 4));
+    }
+
+    // --- 7: fixed-mode modulator at high Hz + max index stays bounded ---------
+    {
+        resetDefaults (apvts);
+        setParam (apvts, OSimpleFM::ParamIDs::modFixedMode, 1.0f);
+        setParam (apvts, OSimpleFM::ParamIDs::modFixedHz, 8000.0f);        // clamps to range max
+        setParam (apvts, OSimpleFM::ParamIDs::modSustain, 1.0f);
+        setParam (apvts, OSimpleFM::ParamIDs::modEnvToIndex, 1.0f);
+        setParam (apvts, OSimpleFM::ParamIDs::modIndex, 20.0f);
+        auto y = render (proc, note, 1.5, fs);
+
+        check ("aa-fixed-highHz", allFinite (y) && peakAbs (y) < 4.0 && rms (y, aOff, aLen) > 0.0005,
+               juce::String ("peak=") + juce::String (peakAbs (y), 4)
+                 + " rms=" + juce::String (rms (y, aOff, aLen), 4));
+    }
+
     proc.releaseResources();
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);

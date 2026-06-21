@@ -1,15 +1,15 @@
 ---
 plugin: O-simpleFM
-stage: 3
+stage: 4
 phase: verify
-status: stage_3_complete
+status: stage_4_complete
 workflow_mode: express
 last_updated: 2026-06-20
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: implement_stage_4_polish
-next_stage: 4
+next_action: install_plugin
+next_stage: done
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:86cfcfb5ebf9181fd4d3c889a15931df918833295b8d5446d044e27db855dd81
@@ -22,9 +22,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — ✅ complete (all phases + critic gate). Next: Stage 4 (Polish).
-Status: Ouaricon-Naturalist WebView UI integrated; all 17 params two-way bound; live spectrum + scope (30 Hz emit); routing diagram + tooltips + 5-preset tour. Builds VST3/AU/Standalone; auval SUCCEEDED; render-harness 5/5; critic 0 blockers (4 warnings folded in). One manual visual gate remains (see VERIFICATION.md).
-Progress: [###############.....] 75%
+Stage: 4 of 4 (Polish) — ✅ complete (all phases + critic gate). Implementation DONE.
+Status: Suite preset manager integrated (6 factory + user JSON presets, in-UI browser panel, Lesson tour kept); 3 deferred Stage-3 critic fixes (keyboard tooltips/knobs, Windows glyph fallback, UTF-8 charset); aliasing-budget audit added to harness; CHANGELOG v1.0.0. Builds VST3/AU/Standalone; auval SUCCEEDED; pluginval strictness-10 SUCCESS; render-harness 7/7; critic 0 blockers (W1/N2 folded in). One inherited manual visual gate remains for pre-install sign-off (see 4-polish/VERIFICATION.md).
+Progress: [####################] 100% — ready for `/install-plugin`
 
 ## Stage 2 Phase Progress (express mode)
 | Phase | Status | Notes |

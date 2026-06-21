@@ -9,6 +9,7 @@
 // ============================================================================
 
 import * as Juce from "./juce/index.js";
+import { PresetManager } from "../modules/preset-manager.js";
 
 // ── Parameter inventory (must match OSimpleFM::ParamIDs exactly) ───────────
 const KNOB_IDS = [
@@ -93,6 +94,22 @@ function bindKnob(id) {
 
   const knob = document.getElementById(`knob-${id}`);
   if (!knob) { console.error(`Missing knob element: knob-${id}`); return; }
+
+  // Keyboard operable (accessibility): focusable + arrow-key fine adjust.
+  knob.setAttribute("tabindex", "0");
+  knob.setAttribute("role", "slider");
+  knob.addEventListener("keydown", (e) => {
+    let delta = 0;
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") delta = 0.02;
+    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") delta = -0.02;
+    else return;
+    const n = Math.max(0, Math.min(1, st.getNormalisedValue() + delta));
+    st.sliderDragStarted();
+    st.setNormalisedValue(n);
+    st.sliderDragEnded();
+    updateKnobVisual(id);
+    e.preventDefault();
+  });
 
   let dragging = false;
   let startY = 0;
@@ -218,6 +235,12 @@ function setupTooltips() {
     tip.style.top = `${Math.max(8, ny)}px`;
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
+  // Keyboard path: anchor the tooltip under the focused control's box.
+  const showAtEl = (key, el) => {
+    const r = el.getBoundingClientRect();
+    active = key;
+    show(key, r.left + r.width / 2, r.bottom);
+  };
 
   document.querySelectorAll("[data-tip]").forEach((el) => {
     const key = el.getAttribute("data-tip");
@@ -225,7 +248,16 @@ function setupTooltips() {
     el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
     el.addEventListener("pointerleave", hide);
     el.addEventListener("pointerdown", hide);
+    // focusin/out bubbles from a focusable child knob up to its [data-tip] cell.
+    el.addEventListener("focusin", () => showAtEl(key, el));
+    el.addEventListener("focusout", hide);
   });
+
+  // The routing panel has no focusable child — make it itself focusable.
+  const routing = document.querySelector(".routing-panel[data-tip]");
+  if (routing && !routing.hasAttribute("tabindex")) routing.setAttribute("tabindex", "0");
+
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
 }
 
 // ── Preset tour ─────────────────────────────────────────────────────────────
@@ -309,6 +341,102 @@ function setupPresets() {
   document.querySelectorAll(".tour-btn").forEach((btn) => {
     btn.addEventListener("click", () => applyPreset(btn.getAttribute("data-preset")));
   });
+}
+
+// ── Preset manager (persistent factory/user JSON presets) ────────────────────
+// Backed by the suite OuariconPresetManager via 10 JUCE native functions. The
+// in-UI "Lesson Presets" tour above is the pedagogical layer; this bar is the
+// persistent, save/load-able layer that also survives DAW session reloads.
+let presetManager = null;
+
+function closeDropdown() {
+  const dd = document.getElementById("presetDropdown");
+  const nameBtn = document.getElementById("presetName");
+  if (dd) dd.classList.remove("show");
+  if (nameBtn) nameBtn.setAttribute("aria-expanded", "false");
+}
+
+async function buildPresetDropdown() {
+  const dd = document.getElementById("presetDropdown");
+  if (!dd || !presetManager) return;
+  // Pull a fresh list+current from C++ first, so the very first open can't race
+  // the async init cache and render empty.
+  await presetManager.refresh();
+  const list = presetManager.getPresetList();
+  const current = presetManager.getCurrentPreset();
+  // Classify factory vs user (async) so the list groups cleanly.
+  const flags = await Promise.all(list.map((n) => presetManager.isFactoryPreset(n)));
+
+  dd.innerHTML = "";
+  const addGroup = (names, label) => {
+    if (!names.length) return;
+    const hdr = document.createElement("div");
+    hdr.className = "preset-group-label";
+    hdr.textContent = label;
+    dd.appendChild(hdr);
+    names.forEach((n) => {
+      const item = document.createElement("div");
+      item.className = "preset-dropdown-item" + (n === current ? " active" : "");
+      item.setAttribute("role", "option");
+      item.tabIndex = 0;
+      item.textContent = n;
+      const choose = () => { presetManager.loadPreset(n); closeDropdown(); };
+      item.addEventListener("click", choose);
+      item.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(); }
+      });
+      dd.appendChild(item);
+    });
+  };
+  addGroup(list.filter((_, i) => flags[i]), "Factory");
+  addGroup(list.filter((_, i) => !flags[i]), "User");
+}
+
+function toggleDropdown() {
+  const dd = document.getElementById("presetDropdown");
+  const nameBtn = document.getElementById("presetName");
+  if (!dd) return;
+  if (dd.classList.contains("show")) { closeDropdown(); return; }
+  buildPresetDropdown();
+  dd.classList.add("show");
+  if (nameBtn) nameBtn.setAttribute("aria-expanded", "true");
+}
+
+// Factory presets can't be deleted — disable the button so the click isn't a silent no-op.
+async function updateDeleteButtonState() {
+  const delBtn = document.getElementById("presetDelete");
+  if (!delBtn || !presetManager) return;
+  delBtn.disabled = await presetManager.isFactoryPreset(presetManager.getCurrentPreset());
+}
+
+function setupPresetManager() {
+  const nameBtn = document.getElementById("presetName");
+
+  presetManager = new PresetManager({
+    displayElement: nameBtn,
+    prevButton: document.getElementById("presetPrev"),
+    nextButton: document.getElementById("presetNext"),
+    saveButton: document.getElementById("presetSave"),  // → native save dialog
+    getNativeFunction: Juce.getNativeFunction,           // ES-module namespace, NOT window.__JUCE__
+    onPresetChanged: () => { updateRouting(); updateDeleteButtonState(); closeDropdown(); },
+  });
+  presetManager.initialize().then(updateDeleteButtonState);   // disable Delete on the initial (factory) preset
+
+  if (nameBtn) nameBtn.addEventListener("click", toggleDropdown);
+
+  // Delete current preset (deletePreset is a no-op on factory presets).
+  const delBtn = document.getElementById("presetDelete");
+  if (delBtn) delBtn.addEventListener("click", async () => {
+    const ok = await presetManager.deletePreset(presetManager.getCurrentPreset());
+    if (ok) closeDropdown();
+  });
+
+  // Dismiss the dropdown on outside click / Escape.
+  document.addEventListener("pointerdown", (e) => {
+    const bar = document.getElementById("presetBar");
+    if (bar && !bar.contains(e.target)) closeDropdown();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDropdown(); });
 }
 
 // ── Canvases (DPR-aware) ─────────────────────────────────────────────────────
@@ -419,6 +547,7 @@ function boot() {
 
   setupTooltips();
   setupPresets();
+  setupPresetManager();
   setupVizEvents();
   rewireResize();
 

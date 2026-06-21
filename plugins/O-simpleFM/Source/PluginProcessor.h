@@ -18,6 +18,7 @@
 #include <JuceHeader.h>
 #include "FMVoice.h"
 #include "FmVizAnalyzer.h"
+#include "OuariconPresetManager.h"   // suite preset-manager module (added Stage 4)
 
 //==============================================================================
 // Parameter identifiers — single source of truth for APVTS IDs.
@@ -90,6 +91,9 @@ public:
     // Public access to APVTS for the editor.
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    // Preset manager (factory/user JSON presets) — editor wires the WebView native fns to this.
+    OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
+
     // Visualization tap — editor reads these on its message-thread Timer.
     VizRing& getVizRing() noexcept { return vizRing; }
     double   getCurrentSampleRate() const noexcept { return currentSampleRate; }
@@ -97,6 +101,10 @@ public:
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;
+
+    // Preset persistence (factory/user JSON). Declared AFTER parameters so it is
+    // constructed second (it holds an APVTS reference). Stage 4.
+    OuariconPresetManager presetManager;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

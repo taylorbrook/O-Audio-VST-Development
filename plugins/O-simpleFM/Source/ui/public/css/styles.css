@@ -38,6 +38,8 @@
   --shadow-heavy: rgba(0, 0, 0, 0.5);
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
+  /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -396,3 +398,95 @@ body {
   color: var(--green-light);
   margin-bottom: 3px;
 }
+
+/* ── Symbol glyph fallback (❦ fleurons, ♪ note) ──────────────────────────── */
+.fleuron-row, .fleuron-corner, .preset-fleuron, .op-out {
+  font-family: var(--symbol-font);
+}
+
+/* ── Keyboard focus visibility (accessibility) ───────────────────────────── */
+.knob:focus-visible,
+.toggle:focus-visible,
+.routing-panel:focus-visible,
+.tour-btn:focus-visible,
+.preset-bar button:focus-visible,
+.preset-dropdown-item:focus-visible {
+  outline: 2px solid var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* ── Preset bar (header, right) ──────────────────────────────────────────── */
+.preset-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preset-fleuron { font-size: 18px; color: var(--fleuron-color); }
+.preset-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  position: relative;   /* dropdown anchor */
+}
+.preset-bar button {
+  font-family: inherit;
+  color: var(--green-darkest);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.preset-bar button:hover { background: var(--green-light); color: #1f2b08; }
+.preset-bar button:active { transform: translateY(1px); }
+.preset-bar button:disabled { opacity: 0.4; cursor: default; background: var(--bg-paper-light); color: var(--green-darkest); transform: none; }
+.preset-nav { width: 22px; height: 24px; font-size: 10px; line-height: 1; }
+.preset-name {
+  min-width: 116px;
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  letter-spacing: 0.4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.preset-act { height: 24px; padding: 0 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+/* Dropdown — escapes the header stacking context via :has() below. */
+.preset-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 5px;
+  min-width: 180px;
+  max-height: 230px;
+  overflow-y: auto;
+  background: rgba(250, 240, 230, 0.99);
+  border: 1.5px solid var(--brown-frame);
+  border-radius: 5px;
+  box-shadow: 2px 6px 16px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  padding: 4px;
+}
+.preset-dropdown.show { display: block; }
+.header:has(.preset-dropdown.show) { z-index: 9999; position: relative; }
+.preset-group-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--brown-border);
+  padding: 5px 8px 2px;
+  border-bottom: 1px dotted rgba(139, 115, 85, 0.4);
+  margin-bottom: 2px;
+}
+.preset-dropdown-item {
+  padding: 5px 9px;
+  font-size: 11.5px;
+  color: var(--brown-text);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.preset-dropdown-item:hover { background: rgba(139, 168, 112, 0.35); }
+.preset-dropdown-item.active { background: rgba(107, 142, 35, 0.32); font-weight: 600; }

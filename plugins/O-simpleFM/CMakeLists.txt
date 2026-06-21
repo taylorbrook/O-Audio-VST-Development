@@ -31,6 +31,8 @@ target_sources(O-simpleFM
         Source/Operator.h
         Source/FMVoice.h
         Source/FmVizAnalyzer.h
+        Source/FactoryPresets.cpp
+        Source/FactoryPresets.h
 )
 
 # Include paths
@@ -39,7 +41,12 @@ target_include_directories(O-simpleFM
         Source
 )
 
-# WebView UI resources (embedded as BinaryData) — Stage 3 GUI.
+# Preset manager module (Stage 4 Polish): adds OuariconPresetManager.h to the
+# include path and copies preset-manager.js into Source/ui/public/modules/.
+# MUST precede juce_add_binary_data below (which embeds the copied JS).
+ouaricon_add_module(O-simpleFM preset-manager)
+
+# WebView UI resources (embedded as BinaryData) — Stage 3 GUI + Stage 4 preset UI.
 juce_add_binary_data(O-simpleFM_UIResources
     SOURCES
         Source/ui/public/index.html
@@ -47,6 +54,7 @@ juce_add_binary_data(O-simpleFM_UIResources
         Source/ui/public/js/app.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/insects.png
 )
 
