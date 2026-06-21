@@ -213,7 +213,7 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
-    setSize (760, 720);
+    setSize (760, 860);   // tall enough to seat the full field guide; frame scrolls on shorter screens
     startTimerHz (30);
 }
 
