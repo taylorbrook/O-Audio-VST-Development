@@ -212,25 +212,60 @@ struct SampleMap
     // NOTE: deliberately NOT used for the crossfade-partner lookup in the
     // voice — that path must stay exact (an empty adjacent layer means "no
     // crossfade", not "borrow a distant layer").
+    //
+    // v1.18.3: TECHNIQUE fidelity now wins over velocity-layer fidelity. We
+    // search the REQUESTED technique across ALL velocity layers first, and only
+    // fall back to technique 0 ("ord") once we have proven the requested slot is
+    // entirely empty on every layer. Previously this called findCell(), whose
+    // per-layer technique→0 fallback fired at the requested layer BEFORE the
+    // cross-layer expansion ran — so an articulation populated on fewer velocity
+    // layers than ord (e.g. a single-dynamic pizz vs a 4-layer ord) was shadowed
+    // by ord for any note velocity that bucketed to a layer it didn't cover. The
+    // technique cursor stayed on pizz but the note sounded ord. Now pizz is
+    // always pizz, relayered/repitched as needed.
     const SampleCell* findCellNearestLayer (int midiNote, int velocityLayer,
                                             int technique) const noexcept
     {
-        if (auto* hit = findCell (midiNote, velocityLayer, technique))
+        // Phase 1 — requested technique, requested layer then expand outward
+        // (distance 1,2,3,…; prefer the lower layer at each distance). No ord
+        // fallback here: findCellExact never substitutes technique 0.
+        if (auto* hit = findCellExact (midiNote, velocityLayer, technique))
             return hit;
 
-        // Expand outward: distance 1, 2, 3, … up to the full layer span.
-        // At each distance prefer the lower layer (down before up).
         for (int delta = 1; delta <= 4; ++delta)
         {
             const int lo = velocityLayer - delta;
             if (lo >= 0)
-                if (auto* hit = findCell (midiNote, lo, technique))
+                if (auto* hit = findCellExact (midiNote, lo, technique))
                     return hit;
 
             const int hi = velocityLayer + delta;
             if (hi <= 3)
-                if (auto* hit = findCell (midiNote, hi, technique))
+                if (auto* hit = findCellExact (midiNote, hi, technique))
                     return hit;
+        }
+
+        // Phase 2 — requested technique slot is empty on every layer; fall back
+        // to technique 0 ("ord") with the same layer-tolerant outward search.
+        // Preserves the existing "empty technique slot plays ord" contract,
+        // deferred until the slot is proven empty.
+        if (technique != 0)
+        {
+            if (auto* hit = findCellExact (midiNote, velocityLayer, 0))
+                return hit;
+
+            for (int delta = 1; delta <= 4; ++delta)
+            {
+                const int lo = velocityLayer - delta;
+                if (lo >= 0)
+                    if (auto* hit = findCellExact (midiNote, lo, 0))
+                        return hit;
+
+                const int hi = velocityLayer + delta;
+                if (hi <= 3)
+                    if (auto* hit = findCellExact (midiNote, hi, 0))
+                        return hit;
+            }
         }
 
         return nullptr;

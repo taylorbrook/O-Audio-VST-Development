@@ -173,6 +173,37 @@ int main()
                "applyMergeRrCell merges variants when triplet matches");
     }
 
+    // 9. findCellNearestLayer — requested technique on a DIFFERENT velocity
+    //    layer beats an ord cell sitting on the requested layer (v1.18.3
+    //    regression guard for the pizz-reverts-to-ord bug).
+    {
+        // pizz (tech=5) exists only at layer 1; ord (tech=0) exists at layer 0.
+        // Requesting (60, layer=0, tech=5) must expand to layer 1 and return the
+        // pizz cell — NOT fall back to the ord cell on layer 0.
+        const auto* c = map.findCellNearestLayer (60, 0, 5);
+        check (c != nullptr && c->technique == 5
+                            && c->variants.front().filename == "C3_v2_pizz.wav",
+               "findCellNearestLayer: technique on other layer beats ord on requested layer");
+    }
+
+    // 10. findCellNearestLayer — genuinely empty technique slot still falls back
+    //     to ord (the "empty slot plays ord" contract is preserved).
+    {
+        // tech=3 has no cells on any layer → Phase 2 falls back to ord (tech=0).
+        const auto* c = map.findCellNearestLayer (60, 0, 3);
+        check (c != nullptr && c->technique == 0,
+               "findCellNearestLayer: empty technique slot falls back to ord");
+    }
+
+    // 11. findCellNearestLayer — exact (layer, technique) still hits directly,
+    //     no behavioural change for fully-populated lookups.
+    {
+        const auto* c = map.findCellNearestLayer (60, 0, 1);
+        check (c != nullptr && c->technique == 1
+                            && c->variants.front().filename == "C3_sp.wav",
+               "findCellNearestLayer: exact layer+technique hit unchanged");
+    }
+
     std::cout << "== find_cell_triplet_check: "
               << (failed == 0 ? "ALL PASS" : "FAIL")
               << " (" << failed << " failures) ==\n";

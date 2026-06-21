@@ -1,5 +1,48 @@
 # O-MicrotonalSampler Changelog
 
+## [1.18.3] - 2026-06-20
+
+Bug fix: a selected playing technique (e.g. **pizz**) now always plays that
+technique instead of silently reverting to **ord** when a note's velocity falls
+on a layer the articulation doesn't cover. Surfaced during Dorico keyswitch
+playback. No parameter, state, or preset changes — fully backward-compatible.
+
+### Fixed
+- **Velocity-layer/technique sample-lookup fallback (`SampleMap::findCellNearestLayer`).**
+  When an articulation was populated on fewer velocity layers than ord — e.g. a
+  single-dynamic `pizz` (1 layer) against a 4-layer `norm`/ord set — any note
+  whose velocity bucketed to a layer the articulation didn't cover played the
+  **ord** sample, even though the technique cursor (and the UI technique-tab
+  highlight) stayed on the selected articulation. Symptom in Dorico: a pizz
+  passage "played pizz at first then reverted to ord," highlight unchanged.
+  - **Root cause:** `findCellNearestLayer` called `findCell()`, whose per-layer
+    technique→0 ("ord") fallback fired at the *requested* velocity layer
+    **before** the cross-layer expansion ran. So the lookup returned the ord
+    cell sitting on the requested layer instead of expanding outward to find the
+    requested technique on its actual (populated) layer.
+  - **Fix:** search the requested technique across **all** velocity layers first
+    (via `findCellExact`, no ord substitution), expanding outward by layer
+    distance; only fall back to technique 0 — again layer-tolerant — once the
+    requested slot is proven empty on every layer. Technique fidelity now wins
+    over velocity-layer fidelity: pizz is always pizz, relayered/repitched as
+    needed.
+  - **Regression safety:** fully-populated multi-layer libraries still hit the
+    exact (layer, technique) cell first (unchanged); single-technique (ord-only)
+    libraries take Phase 1 only (equivalent to prior behaviour); a genuinely
+    empty technique slot (e.g. con sord with no samples) still falls back to ord
+    via Phase 2 — the "empty slot plays ord" contract is preserved. The
+    crossfade-partner path is unaffected (its `cellAdj->technique == xfadeTech`
+    guard already rejected fallback ord cells).
+
+### Known issues (not addressed in this patch)
+- Filename auto-detect maps `trem`→slot 8 and `flaut`→slot 9, outside the 8-slot
+  keyswitch range, so an auto-detected tremolo folder never reaches the Dorico
+  tremolo keyswitch slot (7). Use the load modal's **Force all samples onto this
+  technique** targeting the correct slot as a workaround.
+- The load modal's **target technique** dropdown is a no-op unless **Force** is
+  also checked: when override is off and a filename carries no technique token,
+  the loader defaults to slot 0 rather than the chosen target slot.
+
 ## [1.18.2] - 2026-06-20
 
 Cosmetic UI fix: the **Batch loop…** button in the Sample Map drop-zone now

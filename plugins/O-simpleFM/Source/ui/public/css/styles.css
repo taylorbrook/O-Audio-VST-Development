@@ -206,6 +206,7 @@ body {
   letter-spacing: 0.5px;
   margin-left: auto;
   white-space: nowrap;
+  cursor: help;   /* hoverable: explains the C:M ratio and modulation index */
 }
 
 /* ── Controls ───────────────────────────────────────────────────────────── */
