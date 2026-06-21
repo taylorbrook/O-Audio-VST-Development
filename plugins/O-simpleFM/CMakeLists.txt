@@ -28,6 +28,9 @@ target_sources(O-simpleFM
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        Source/Operator.h
+        Source/FMVoice.h
+        Source/FmVizAnalyzer.h
 )
 
 # Include paths
@@ -78,3 +81,10 @@ target_compile_definitions(O-simpleFM
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Stage 2 DSP correctness gate (offline render harness). Off by default;
+# enable with -DOUARICON_BUILD_TESTS=ON.
+option(OUARICON_BUILD_TESTS "Build O-simpleFM render-test harness" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()

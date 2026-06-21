@@ -1,15 +1,15 @@
 ---
 plugin: O-simpleFM
-stage: 1
+stage: 2
 phase: verify
-status: stage_1_complete
-workflow_mode: manual
+status: stage_2_complete
+workflow_mode: express
 last_updated: 2026-06-20
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: implement_stage_2_dsp
-next_stage: 2
+next_action: implement_stage_3_gui
+next_stage: 3
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:86cfcfb5ebf9181fd4d3c889a15931df918833295b8d5446d044e27db855dd81
@@ -22,9 +22,19 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — ✅ complete (all 5 phases). Next: Stage 2 (DSP).
-Status: Silent synth shell builds + auval PASS + 17-param APVTS + state persistence.
-Progress: [#####...............] 25%
+Stage: 2 of 4 (DSP) — ✅ complete (all 5 phases + critic gate). Next: Stage 3 (GUI).
+Status: Polyphonic 2-op PM synth renders audio; auval + pluginval(s10) PASS; FM math proven (carrier null I≈2.405 ratio 0.0001); feedback stable @100%; 2× OS; viz data path live.
+Progress: [##########..........] 50%
+
+## Stage 2 Phase Progress (express mode)
+| Phase | Status | Notes |
+|-------|--------|-------|
+| discuss | ✓ | CONTEXT.md (auto-derived; scope locked at Stage 0) |
+| research | ✓ | RESEARCH.md (exact suite reference code: O-Bassoon voice, O-Marimba ring, OS/FFT/LUT call sites) |
+| plan | ✓ | PLAN.md (3 DSP sub-phases; file map; goal-backward criteria) |
+| execute | ✓ | Operator.h + FMVoice.h + FmVizAnalyzer.h; synth/OS/viz wired; render harness; zero warnings |
+| critic | ✓ | Adversarial DSP review — no blockers; W1/W2 fixed (fixed-ch OS + chunked render) |
+| verify | ✓ | VERIFICATION.md — auval SUCCEEDED, pluginval s10 SUCCESS, harness 5/5 PASS |
 
 ## Stage 1 Phase Progress
 | Phase | Status | Notes |
@@ -56,9 +66,15 @@ Progress: [#####...............] 25%
 
 ## Next Steps
 
-1. Stage 1: Foundation — create build system (IS_SYNTH + WebView2 flags) and APVTS parameters → run `/implement O-simpleFM`
-2. Review ARCHITECTURE.md and ROADMAP.md
-3. (Non-blocking) Confirm DSP-06 optional params + non-sine operators at mockup phase
+1. Stage 3: GUI — `/clear` then `/implement O-simpleFM`. WebView UI: replace GenericAudioProcessorEditor body, emit `vizAnalyzer.getSpectrum()/getScope()` from the existing 30 Hz `timerCallback` via `emitEventIfBrowserIsVisible`, wire 17 relays/attachments. (3 GUI sub-phases per ROADMAP.)
+2. (Non-blocking) UI mockup first via `/design-ui O-simpleFM` if a visual system isn't chosen yet.
+3. (Stage 4) Critical-listening aliasing audit; factory presets (preset tour); changelog.
+
+**Stage 2 carryover hooks for Stage 3:**
+- Editor already a `juce::Timer`; `timerCallback` pumps `FmVizAnalyzer` (ring→FFT/scope) — just add the WebView emit.
+- `FmVizAnalyzer::getSpectrum()` (256 log-freq dB bins) + `getScope()` (128 pts) ready to serialize.
+- Optional `Δf = I·f_m` readout + on-screen keyboard MIDI injection (nice-only).
+- Render harness (`-DOUARICON_BUILD_TESTS=ON`) is a permanent regression gate.
 
 ## Context to Preserve
 
