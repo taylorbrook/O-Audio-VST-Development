@@ -15,6 +15,8 @@ target_sources(O-simpleFM-render-test PRIVATE
     # PluginEditor.cpp is included so createEditor() resolves at link time.
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginEditor.cpp
+    # Stage 4: processor ctor builds factory presets — share the source.
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/FactoryPresets.cpp
 )
 
 target_include_directories(O-simpleFM-render-test PRIVATE

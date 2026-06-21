@@ -32,21 +32,27 @@ namespace
 std::optional<juce::WebBrowserComponent::Resource>
 OSimpleFMAudioProcessorEditor::getResource (const juce::String& url)
 {
+    // charset=utf-8 on text resources — the page relies on UTF-8 entities
+    // (♪, fleurons, en-dashes); a missing charset can mojibake them on some hosts.
     if (url == "/" || url == "/index.html")
-        return makeBinaryResource (BinaryData::index_html, BinaryData::index_htmlSize, "text/html");
+        return makeBinaryResource (BinaryData::index_html, BinaryData::index_htmlSize, "text/html; charset=utf-8");
 
     if (url == "/css/styles.css")
-        return makeBinaryResource (BinaryData::styles_css, BinaryData::styles_cssSize, "text/css");
+        return makeBinaryResource (BinaryData::styles_css, BinaryData::styles_cssSize, "text/css; charset=utf-8");
 
     if (url == "/js/app.js")
-        return makeBinaryResource (BinaryData::app_js, BinaryData::app_jsSize, "application/javascript");
+        return makeBinaryResource (BinaryData::app_js, BinaryData::app_jsSize, "application/javascript; charset=utf-8");
 
     if (url == "/js/juce/index.js")
-        return makeBinaryResource (BinaryData::index_js, BinaryData::index_jsSize, "application/javascript");
+        return makeBinaryResource (BinaryData::index_js, BinaryData::index_jsSize, "application/javascript; charset=utf-8");
 
     if (url == "/js/juce/check_native_interop.js")
         return makeBinaryResource (BinaryData::check_native_interop_js,
-                                   BinaryData::check_native_interop_jsSize, "application/javascript");
+                                   BinaryData::check_native_interop_jsSize, "application/javascript; charset=utf-8");
+
+    if (url == "/modules/preset-manager.js")
+        return makeBinaryResource (BinaryData::presetmanager_js,
+                                   BinaryData::presetmanager_jsSize, "application/javascript; charset=utf-8");
 
     if (url == "/img/insects.png")
         return makeBinaryResource (BinaryData::insects_png, BinaryData::insects_pngSize, "image/png");
@@ -86,6 +92,90 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
         options = options.withOptionsFrom (*relay);
     for (const auto& relay : toggleRelays)
         options = options.withOptionsFrom (*relay);
+
+    // ── Preset manager native functions (WebView ↔ OuariconPresetManager) ──
+    // Loading a preset calls setValueNotifyingHost on each param, which the
+    // relays/attachments propagate back to the JS knobs — no extra UI wiring.
+    options = options
+        .withNativeFunction ("savePreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+                complete (processorRef.getPresetManager().savePreset (args[0].toString()));
+            else
+                complete (false);
+        })
+        .withNativeFunction ("savePresetWithDialog", [this] (auto&, auto complete) {
+            fileChooser = std::make_unique<juce::FileChooser> (
+                "Save Preset", processorRef.getPresetManager().getUserPresetsDirectory(), "*.json");
+            fileChooser->launchAsync (
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete] (const juce::FileChooser& fc) {
+                    auto* result = new juce::DynamicObject();
+                    auto results = fc.getResults();
+                    if (results.isEmpty()) {
+                        result->setProperty ("success", false);
+                        result->setProperty ("name", juce::String());
+                    } else {
+                        auto name = results.getFirst().getFileNameWithoutExtension();
+                        bool ok = processorRef.getPresetManager().savePreset (name);
+                        result->setProperty ("success", ok);
+                        result->setProperty ("name", ok ? name : juce::String());
+                    }
+                    complete (juce::var (result));
+                });
+        })
+        .withNativeFunction ("loadPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+                complete (processorRef.getPresetManager().loadPreset (args[0].toString()));
+            else
+                complete (false);
+        })
+        .withNativeFunction ("loadPresetFromFile", [this] (auto&, auto complete) {
+            fileChooser = std::make_unique<juce::FileChooser> (
+                "Load Preset", processorRef.getPresetManager().getPresetsDirectory(), "*.json");
+            fileChooser->launchAsync (
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete] (const juce::FileChooser& fc) {
+                    auto* result = new juce::DynamicObject();
+                    auto results = fc.getResults();
+                    if (results.isEmpty()) {
+                        result->setProperty ("success", false);
+                        result->setProperty ("name", juce::String());
+                    } else {
+                        auto file = results.getFirst();
+                        bool ok = processorRef.getPresetManager().loadPresetFromFile (file);
+                        result->setProperty ("success", ok);
+                        result->setProperty ("name", ok ? file.getFileNameWithoutExtension() : juce::String());
+                    }
+                    complete (juce::var (result));
+                });
+        })
+        .withNativeFunction ("getPresetList", [this] (auto&, auto complete) {
+            juce::Array<juce::var> arr;
+            for (const auto& name : processorRef.getPresetManager().getPresetList())
+                arr.add (name);
+            complete (juce::var (arr));
+        })
+        .withNativeFunction ("getCurrentPreset", [this] (auto&, auto complete) {
+            complete (processorRef.getPresetManager().getCurrentPresetName());
+        })
+        .withNativeFunction ("selectNextPreset", [this] (auto&, auto complete) {
+            complete (processorRef.getPresetManager().getNextPreset());
+        })
+        .withNativeFunction ("selectPreviousPreset", [this] (auto&, auto complete) {
+            complete (processorRef.getPresetManager().getPreviousPreset());
+        })
+        .withNativeFunction ("deletePreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+                complete (processorRef.getPresetManager().deletePreset (args[0].toString()));
+            else
+                complete (false);
+        })
+        .withNativeFunction ("isFactoryPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+                complete (processorRef.getPresetManager().isFactoryPreset (args[0].toString()));
+            else
+                complete (false);
+        });
 
    #if JUCE_WINDOWS
     options = options.withWinWebView2Options (

@@ -55,5 +55,8 @@ private:
     std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>>       sliderAttachments;
     std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> toggleAttachments;
 
+    // Preset save/load native file dialogs (held while the async chooser is open).
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleFMAudioProcessorEditor)
 };

@@ -11,6 +11,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "FactoryPresets.h"
 
 namespace
 {
@@ -105,7 +106,8 @@ OSimpleFMAudioProcessor::createParameterLayout()
 OSimpleFMAudioProcessor::OSimpleFMAudioProcessor()
     : AudioProcessor (BusesProperties()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      parameters (*this, nullptr, "PARAMETERS", createParameterLayout())
+      parameters (*this, nullptr, "PARAMETERS", createParameterLayout()),
+      presetManager (parameters, "O-simpleFM")
 {
     // Pre-allocate all voices up front (no audio-thread allocation later).
     for (int i = 0; i < kNumVoices; ++i)
@@ -113,6 +115,11 @@ OSimpleFMAudioProcessor::OSimpleFMAudioProcessor()
 
     synth.addSound (new FMSound());          // single shared sound, all notes/channels
     synth.setNoteStealingEnabled (true);
+
+    // Materialize the 6 factory presets to ~/Library/O-simpleFM/Presets/Factory/ on first
+    // construction. The shared module writes idempotently (replaceWithText); unconditional
+    // init matches the suite norm (O-AnalogEQ) and is safe under AU validation.
+    presetManager.initializeFactoryPresets (FactoryPresets::build (parameters));
 }
 
 OSimpleFMAudioProcessor::~OSimpleFMAudioProcessor() = default;
@@ -306,16 +313,16 @@ juce::AudioProcessorEditor* OSimpleFMAudioProcessor::createEditor()
 //==============================================================================
 void OSimpleFMAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    if (auto state = parameters.copyState(); state.isValid())
-        if (auto xml = state.createXml())
-            copyXmlToBinary (*xml, destData);
+    // Route through the preset manager so the current-preset name is persisted
+    // alongside the APVTS tree (getStateAsXml falls back to the plain APVTS XML).
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary (*xml, destData);
 }
 
 void OSimpleFMAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
-        if (xml->hasTagName (parameters.state.getType()))
-            parameters.replaceState (juce::ValueTree::fromXml (*xml));
+        presetManager.setStateFromXml (xml.get());
 }
 
 //==============================================================================

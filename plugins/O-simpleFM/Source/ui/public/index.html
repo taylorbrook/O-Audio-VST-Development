@@ -17,7 +17,19 @@
         <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">FM</span></h1>
         <p class="subtitle">Two-Operator Phase-Modulation Synthesizer &#183; A Field Guide</p>
       </div>
-      <div class="fleuron-row">&#10086;</div>
+
+      <!-- Preset bar (factory + user JSON presets via OuariconPresetManager) -->
+      <div class="preset-bar-container">
+        <span class="preset-fleuron">&#10086;</span>
+        <div class="preset-bar" id="presetBar">
+          <button class="preset-nav" id="presetPrev" type="button" title="Previous preset" aria-label="Previous preset">&#9664;</button>
+          <button class="preset-name" id="presetName" type="button" title="Browse presets" aria-haspopup="listbox" aria-expanded="false">Default</button>
+          <button class="preset-nav" id="presetNext" type="button" title="Next preset" aria-label="Next preset">&#9654;</button>
+          <button class="preset-act" id="presetSave" type="button" title="Save current settings as a user preset">Save</button>
+          <button class="preset-act" id="presetDelete" type="button" title="Delete the current user preset">Delete</button>
+          <div class="preset-dropdown" id="presetDropdown" role="listbox" aria-label="Presets"></div>
+        </div>
+      </div>
     </header>
 
     <!-- ─── Visualization (headline) ───────────────────────────── -->
