@@ -14,7 +14,8 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
-class OSimpleFMAudioProcessorEditor : public juce::AudioProcessorEditor
+class OSimpleFMAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                      private juce::Timer
 {
 public:
     explicit OSimpleFMAudioProcessorEditor (OSimpleFMAudioProcessor&);
@@ -24,7 +25,13 @@ public:
     void resized() override;
 
 private:
+    // Message-thread viz pump (ARCHITECTURE.md: FFT on the editor Timer, 30 Hz).
+    // Stage 3 will emit analyzer output to the WebView; Stage 2 just runs the path.
+    void timerCallback() override;
+
     OSimpleFMAudioProcessor& processorRef;
+
+    FmVizAnalyzer vizAnalyzer;
 
     // Temporary generic parameter view (replaced by WebView in Stage 3).
     juce::GenericAudioProcessorEditor genericEditor;

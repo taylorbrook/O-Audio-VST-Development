@@ -17,9 +17,21 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
 {
     addAndMakeVisible (genericEditor);
     setSize (520, 640);
+    startTimerHz (30);
 }
 
-OSimpleFMAudioProcessorEditor::~OSimpleFMAudioProcessorEditor() = default;
+OSimpleFMAudioProcessorEditor::~OSimpleFMAudioProcessorEditor()
+{
+    stopTimer();
+}
+
+void OSimpleFMAudioProcessorEditor::timerCallback()
+{
+    // Pull the latest audio window, run the FFT + scope downsample. In Stage 3
+    // this is followed by webView->emitEventIfBrowserIsVisible(...) for both
+    // "spectrumUpdate" and "scopeUpdate".
+    vizAnalyzer.process (processorRef.getVizRing(), processorRef.getCurrentSampleRate());
+}
 
 void OSimpleFMAudioProcessorEditor::paint (juce::Graphics& g)
 {

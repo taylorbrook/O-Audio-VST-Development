@@ -107,6 +107,12 @@ OSimpleFMAudioProcessor::OSimpleFMAudioProcessor()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
+    // Pre-allocate all voices up front (no audio-thread allocation later).
+    for (int i = 0; i < kNumVoices; ++i)
+        synth.addVoice (new FMVoice());
+
+    synth.addSound (new FMSound());          // single shared sound, all notes/channels
+    synth.setNoteStealingEnabled (true);
 }
 
 OSimpleFMAudioProcessor::~OSimpleFMAudioProcessor() = default;
@@ -114,13 +120,43 @@ OSimpleFMAudioProcessor::~OSimpleFMAudioProcessor() = default;
 //==============================================================================
 void OSimpleFMAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Stage 1: nothing to prepare yet (no voices/DSP). Stage 2 wires the
-    // Synthesiser, ADSRs, oversampling and smoothers here.
-    juce::ignoreUnused (sampleRate, samplesPerBlock);
+    currentSampleRate = sampleRate;
+    maxBlockSize      = juce::jmax (1, samplesPerBlock);
+
+    const int    osFactor = 1 << kOsFactorLog2;            // 2
+    const double osRate   = sampleRate * osFactor;
+
+    // 2x polyphase-IIR oversampling. Built for the FIXED max channel count
+    // (mono/stereo) so a runtime layout change can never exceed the internal
+    // buffer width. The synth renders at osRate; processSamplesDown applies the
+    // half-band decimation filter that suppresses FM aliasing images.
+    oversampler = std::make_unique<juce::dsp::Oversampling<float>> (
+        (size_t) kMaxChannels, (size_t) kOsFactorLog2,
+        juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
+        true /*max quality*/, false /*no gain normalise*/);
+    oversampler->initProcessing ((size_t) maxBlockSize);   // chunked if a host exceeds this
+    oversampler->reset();
+    setLatencySamples ((int) std::round (oversampler->getLatencyInSamples()));
+
+    scaledMidi.ensureSize (4096);
+
+    // Synthesiser + per-voice prepare AT THE OVERSAMPLED RATE. juce::SynthesiserVoice
+    // has no virtual prepareToPlay in JUCE 8 — dispatch the custom one via dynamic_cast.
+    synth.setCurrentPlaybackSampleRate (osRate);
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* fv = dynamic_cast<FMVoice*> (synth.getVoice (v)))
+            fv->prepareToPlay (osRate, samplesPerBlock * osFactor);
+
+    outputGain.reset (sampleRate, 0.02);
+    const float outDb = parameters.getRawParameterValue (OSimpleFM::ParamIDs::outputLevel)->load();
+    outputGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
 }
 
 void OSimpleFMAudioProcessor::releaseResources()
 {
+    if (oversampler != nullptr)
+        oversampler->reset();
+    synth.allNotesOff (0, false);
 }
 
 bool OSimpleFMAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -139,15 +175,126 @@ bool OSimpleFMAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
     return true;
 }
 
+void OSimpleFMAudioProcessor::pushParamsToVoices()
+{
+    using namespace OSimpleFM::ParamIDs;
+    auto get = [this] (const char* id) { return parameters.getRawParameterValue (id)->load(); };
+
+    const float ratioV     = get (ratio);
+    const bool  snapV      = get (ratioSnap)    > 0.5f;
+    const float indexV     = get (modIndex) / 20.0f;          // 0..20 stored -> 0..1 norm for taper
+    const float fbV        = get (feedback);
+    const bool  fixedV     = get (modFixedMode) > 0.5f;
+    const float fixedHzV   = get (modFixedHz);
+    const float depthV     = get (modEnvToIndex);
+    const float velIdxV    = get (velToIndex);
+
+    const juce::ADSR::Parameters ampP { get (ampAttack), get (ampDecay), get (ampSustain), get (ampRelease) };
+    const juce::ADSR::Parameters modP { get (modAttack), get (modDecay), get (modSustain), get (modRelease) };
+
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* fv = dynamic_cast<FMVoice*> (synth.getVoice (v)))
+            fv->setParams (ratioV, snapV, indexV, fbV, fixedV, fixedHzV, depthV, velIdxV, ampP, modP);
+}
+
 void OSimpleFMAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                             juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Stage 1: silent shell. Clear any garbage in the output buffer; the synth
-    // voices that consume MIDI arrive in Stage 2.
-    juce::ignoreUnused (midiMessages);
-    buffer.clear();
+    const int numSamples = buffer.getNumSamples();
+    const int numCh      = buffer.getNumChannels();
+    buffer.clear();                              // synth voices ADD into a cleared buffer
+
+    pushParamsToVoices();
+
+    const int osFactor = 1 << kOsFactorLog2;
+
+    // Render the synth at the oversampled rate, then decimate. Chunked into
+    // <= maxBlockSize slices so a host sending a larger-than-prepared block can
+    // never overrun the oversampler's internal buffer. processSamplesUp returns
+    // the internal 2N block (upsampled silence); we render the voices INTO it,
+    // then processSamplesDown applies the half-band decimation (the AA step for
+    // the generated FM sidebands). Filter state carries across chunks correctly.
+    if (oversampler != nullptr)
+    {
+        auto* const* writePtrs = buffer.getArrayOfWritePointers();
+        int pos = 0;
+        while (pos < numSamples)
+        {
+            const int n = juce::jmin (maxBlockSize, numSamples - pos);
+
+            // Per-chunk MIDI: events in [pos, pos+n), rebased to 0, scaled x2.
+            scaledMidi.clear();
+            for (const auto meta : midiMessages)
+            {
+                const int sp = meta.samplePosition;
+                if (sp >= pos && sp < pos + n)
+                    scaledMidi.addEvent (meta.getMessage(), (sp - pos) * osFactor);
+            }
+
+            juce::AudioBuffer<float> sub (writePtrs, numCh, pos, n);
+            juce::dsp::AudioBlock<float> subBlock (sub);
+
+            auto osBlock = oversampler->processSamplesUp (subBlock);
+            const int osNumCh   = juce::jmin ((int) osBlock.getNumChannels(), kMaxChannels);
+            const int osNumSamp = (int) osBlock.getNumSamples();
+            float* chans[kMaxChannels] = { nullptr, nullptr };
+            for (int c = 0; c < osNumCh; ++c)
+                chans[c] = osBlock.getChannelPointer ((size_t) c);
+
+            juce::AudioBuffer<float> osBuf (chans, osNumCh, osNumSamp);
+            osBuf.clear();
+            synth.renderNextBlock (osBuf, scaledMidi, 0, osNumSamp);
+
+            oversampler->processSamplesDown (subBlock);
+            pos += n;
+        }
+    }
+    else
+    {
+        synth.renderNextBlock (buffer, midiMessages, 0, numSamples);   // fallback (unprepared)
+    }
+
+    // Master output trim (dB->lin, smoothed).
+    const float outDb = parameters.getRawParameterValue (OSimpleFM::ParamIDs::outputLevel)->load();
+    outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
+    const float g0 = outputGain.getCurrentValue();
+    const float g1 = outputGain.skip (numSamples);
+    buffer.applyGainRamp (0, numSamples, g0, g1);
+
+    // Suite-wide NaN insurance.
+    for (int ch = 0; ch < numCh; ++ch)
+    {
+        auto* d = buffer.getWritePointer (ch);
+        for (int i = 0; i < numSamples; ++i)
+            if (! std::isfinite (d[i])) d[i] = 0.0f;
+    }
+
+    // Visualization tap: post-gain mono sum -> lock-free ring (copy-only, no alloc).
+    if (numCh == 1)
+    {
+        vizRing.write (buffer.getReadPointer (0), numSamples);
+    }
+    else if (numCh > 1)
+    {
+        constexpr int kChunk = 4096;
+        float mono[kChunk];
+        int done = 0;
+        while (done < numSamples)
+        {
+            const int n = juce::jmin (kChunk, numSamples - done);
+            for (int i = 0; i < n; ++i)
+            {
+                float s = 0.0f;
+                for (int ch = 0; ch < numCh; ++ch)
+                    s += buffer.getReadPointer (ch)[done + i];
+                mono[i] = s / (float) numCh;
+            }
+            vizRing.write (mono, n);
+            done += n;
+        }
+    }
 }
 
 //==============================================================================

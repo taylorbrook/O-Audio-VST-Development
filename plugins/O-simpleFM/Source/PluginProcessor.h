@@ -16,6 +16,8 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include "FMVoice.h"
+#include "FmVizAnalyzer.h"
 
 //==============================================================================
 // Parameter identifiers — single source of truth for APVTS IDs.
@@ -71,7 +73,7 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; } // Stage 1: silent stub
+    double getTailLengthSeconds() const override { return 5.0; } // max amp release
 
     //==========================================================================
     int getNumPrograms() override { return 1; }
@@ -88,11 +90,36 @@ public:
     // Public access to APVTS for the editor.
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    // Visualization tap — editor reads these on its message-thread Timer.
+    VizRing& getVizRing() noexcept { return vizRing; }
+    double   getCurrentSampleRate() const noexcept { return currentSampleRate; }
+
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    //==========================================================================
+    // DSP (Stage 2)
+    static constexpr int kNumVoices = 16;
+
+    juce::Synthesiser synth;
+    void pushParamsToVoices();
+
+    // Anti-aliasing: 2x polyphase-IIR oversampling, always-on (v1.0 sine-only).
+    // The synth renders at the OVERSAMPLED rate; we decimate via the down filter.
+    static constexpr int kOsFactorLog2 = 1;           // 2^1 = 2x
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
+    juce::MidiBuffer scaledMidi;                       // MIDI offsets scaled x2 (reused, no alloc)
+
+    static constexpr int kMaxChannels = 2;            // synth output is mono/stereo
+    juce::SmoothedValue<float> outputGain { 1.0f };   // dB->lin, 20 ms
+    double currentSampleRate = 44100.0;
+    int    maxBlockSize = 512;                        // OS buffer is sized to this; chunk if exceeded
+
+    // Real-time-safe visualization tap (audio-thread copy-only writer).
+    VizRing vizRing;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleFMAudioProcessor)
 };
