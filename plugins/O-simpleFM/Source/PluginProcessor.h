@@ -98,6 +98,10 @@ public:
     VizRing& getVizRing() noexcept { return vizRing; }
     double   getCurrentSampleRate() const noexcept { return currentSampleRate; }
 
+    // On-screen keyboard: editor injects note on/off from the WebView (any thread).
+    // Queued via a MidiMessageCollector and merged into processBlock's MIDI stream.
+    void handleUiMidi (int noteNumber, bool noteOn, float velocity);
+
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;
@@ -114,6 +118,9 @@ private:
 
     juce::Synthesiser synth;
     void pushParamsToVoices();
+
+    // On-screen-keyboard MIDI: thread-safe queue drained into processBlock.
+    juce::MidiMessageCollector midiCollector;
 
     // Anti-aliasing: 2x polyphase-IIR oversampling, always-on (v1.0 sine-only).
     // The synth renders at the OVERSAMPLED rate; we decimate via the down filter.

@@ -200,13 +200,26 @@ body {
 .route-line, .route-arc { stroke: var(--green-dark); stroke-width: 2.5; }
 .route-line-out { stroke: var(--brown-border); }
 .route-head { fill: var(--green-dark); }
+.routing-readout-col {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
 .routing-readout {
   font-size: 13px;
   color: var(--brown-text);
   letter-spacing: 0.5px;
-  margin-left: auto;
   white-space: nowrap;
   cursor: help;   /* hoverable: explains the C:M ratio and modulation index */
+}
+.routing-meta {
+  font-size: 10px;
+  font-style: italic;
+  letter-spacing: 0.3px;
+  color: var(--green-mid);
+  white-space: nowrap;
 }
 
 /* ── Controls ───────────────────────────────────────────────────────────── */
@@ -390,6 +403,81 @@ body {
   max-width: 48%;
   text-align: right;
 }
+
+/* ── On-screen keyboard ─────────────────────────────────────────────────── */
+.keyboard-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 14px 4px;
+  border-top: 1px solid rgba(139, 115, 85, 0.4);
+}
+.keyboard-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--brown-border);
+}
+.kbd-hint {
+  text-transform: none;
+  letter-spacing: 0.3px;
+  font-style: italic;
+  color: var(--green-mid);
+  opacity: 0.85;
+}
+.keyboard {
+  position: relative;
+  height: 96px;
+  display: flex;
+  touch-action: none;          /* let pointer events drive note on/off, not scroll */
+  border: 1px solid var(--brown-frame);
+  border-radius: 0 0 5px 5px;
+  box-shadow: inset 0 2px 6px rgba(92, 64, 51, 0.25);
+}
+.key { position: relative; cursor: pointer; }
+.key-white {
+  flex: 1 1 0;
+  height: 100%;
+  background: linear-gradient(180deg, var(--bg-paper-light) 0%, var(--knob-core) 72%, #e6d4ba 100%);
+  border: 1px solid var(--brown-border);
+  border-top: none;
+  margin-right: -1px;          /* collapse shared vertical borders */
+  box-shadow: inset 0 -4px 6px rgba(92, 64, 51, 0.12);
+}
+.key-white:last-of-type { margin-right: 0; }
+.key-black {
+  position: absolute;
+  top: 0;
+  width: 24px;
+  height: 60%;
+  background: linear-gradient(180deg, #4a3a2c 0%, var(--brown-frame) 100%);
+  border: 1px solid #261a12;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  z-index: 2;
+  box-shadow: inset 0 -3px 4px rgba(0, 0, 0, 0.45), 1px 2px 4px rgba(0, 0, 0, 0.4);
+}
+.key-white:hover { background: linear-gradient(180deg, #fbf4e6 0%, var(--knob-core) 72%, #e6d4ba 100%); }
+.key-black:hover { background: linear-gradient(180deg, #5a4636 0%, #4a3a2c 100%); }
+.key-white.active {
+  background: linear-gradient(180deg, var(--green-light) 0%, var(--green-mid) 100%);
+  border-color: var(--green-darkest);
+}
+.key-black.active {
+  background: linear-gradient(180deg, var(--green-mid) 0%, var(--green-dark) 100%);
+  border-color: var(--green-darkest);
+}
+.key-label {
+  position: absolute;
+  bottom: 4px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: var(--brown-border);
+  pointer-events: none;
+}
+.key-black .key-label { color: rgba(245, 230, 211, 0.7); }
 
 /* ── Tooltip ────────────────────────────────────────────────────────────── */
 .tooltip {

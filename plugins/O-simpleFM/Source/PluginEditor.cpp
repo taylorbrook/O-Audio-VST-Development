@@ -175,6 +175,17 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
                 complete (processorRef.getPresetManager().isFactoryPreset (args[0].toString()));
             else
                 complete (false);
+        })
+        // On-screen keyboard → synth. args: [noteNumber, isNoteOn, velocity?].
+        .withNativeFunction ("uiMidi", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+                processorRef.handleUiMidi ((int) args[0], (bool) args[1],
+                                           args.size() >= 3 ? (float) args[2] : 0.8f);
+            complete (juce::var());
+        })
+        // Sample rate for the spectrum's frequency-axis labels (log-Hz mapping).
+        .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
+            complete (processorRef.getCurrentSampleRate());
         });
 
    #if JUCE_WINDOWS
@@ -213,7 +224,7 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
-    setSize (760, 860);   // tall enough to seat the full field guide; frame scrolls on shorter screens
+    setSize (760, 980);   // tall enough to seat the full field guide + keyboard; frame scrolls on shorter screens
     startTimerHz (30);
 }
 
