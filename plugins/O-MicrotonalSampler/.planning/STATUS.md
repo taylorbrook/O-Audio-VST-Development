@@ -1,15 +1,36 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.17.0 MINOR SHIPPED — folder-load modal: Layer dropdown + Technique dropdown + independent force toggles
-status: v1_17_0_layer_technique_targeting_pending_install_verification
-last_updated: 2026-05-06
-version: 1.17.0
-next_brief: (none — surfaces existing v1.14.0 LoadOp::overrideTechnique through the modal; layer override label clarified)
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.16.7, 1.16.8, 1.16.9, 1.16.10, 1.16.11
+phase: v1.18.3 PATCH SHIPPED — technique sample lookup no longer reverts to ord on a missing velocity layer (pizz stays pizz)
+status: v1_18_3_velocity_layer_technique_fallback_fixed_installed_verified
+last_updated: 2026-06-21
+version: 1.18.3
+next_brief: (none — two known follow-ups: FilenameParser maps trem→slot 8 / flaut→slot 9 outside the 8-slot KS range; load-modal target-technique dropdown is a no-op unless "Force" is checked)
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.16.7, 1.16.8, 1.16.9, 1.16.10, 1.16.11, 1.17.0, 1.17.1, 1.17.2, 1.18.0, 1.18.1, 1.18.2
 ---
 
 # Resume Point
+
+## v1.18.3 Patch Shipped (2026-06-21) — technique lookup no longer reverts to ord on missing velocity layer
+
+**Status:** built, installed (VST3 + AU dev variants, AU registered `aumu OMtS OuDv`), unit tests green, **user-verified working in Dorico**. Backup `backups/O-MicrotonalSampler/v1.18.2/` created pre-edit. Staged, not yet committed.
+
+**Symptom (Dorico keyswitch playback):** a pizz passage "played pizz at first then reverted to ord," while the plugin's technique-tab highlight stayed on pizz. Surfaced during a long Dorico diagnostic — keyswitch routing, expression-map binding, and playback-template application were all confirmed correct first (the highlight tracking correctly proved KS interpretation was fine). Root cause was downstream in the sampler.
+
+### Root cause
+`SampleMap::findCellNearestLayer` (the voice's primary lookup, `MicrotonalSamplerVoice.cpp:445`) called `findCell()`, whose per-layer technique→0 ("ord") fallback fired **at the requested velocity layer before** the cross-layer expansion ran. When an articulation is populated on fewer velocity layers than ord (user's single-dynamic `vln_pizz` on 1 layer vs 4-layer `vln_norm_*`), any note whose velocity bucketed to a layer the articulation didn't cover returned the ord cell on that layer instead of expanding to find the articulation on its actual layer. Cursor stayed on pizz; sound was ord.
+
+### What landed (C++ only — no params/state/preset change, fully back-compat)
+- **FIX:** `Source/SampleMap.h` `findCellNearestLayer` rewritten as two phases — Phase 1 searches the **requested technique across all velocity layers** (via `findCellExact`, no ord substitution), expanding outward by layer distance; Phase 2 falls back to technique 0 (same layer-tolerant search) **only when the requested slot is empty on every layer**. Technique fidelity now wins over velocity-layer fidelity. Crossfade-partner path untouched (its `cellAdj->technique == xfadeTech` guard already rejected fallback ord cells).
+- **TEST:** `Source/tests/find_cell_triplet_check.cpp` +3 cases (now 14/14 PASS): technique-on-other-layer beats ord-on-requested-layer (the bug); empty slot still falls back to ord; exact layer+technique hit unchanged.
+- **VERSION:** CMakeLists `VERSION` 1.18.2 → 1.18.3. CHANGELOG `[1.18.3]` entry. PLUGINS.md row → 1.18.3.
+
+### Known follow-ups (NOT in this patch — separate `/improve` candidates)
+1. **FilenameParser slot mismatch:** `trem`→slot 8, `flaut`→slot 9 (`FilenameParser.cpp:323-325`) are outside the 8-slot keyswitch range, so an auto-detected tremolo folder never reaches Dorico's tremolo keyswitch slot (7). Workaround: load with **Force** onto slot 7.
+2. **Load-modal target-technique dropdown is a no-op without Force:** `SampleLoader.cpp:305` defaults to slot 0 (not `targetTechnique`) when `overrideTechnique=false` and the filename carries no recognized token.
+
+### Resume command
+Next improvement cycle starts fresh — `/improve O-MicrotonalSampler [description]`. The two follow-ups above are the most likely next targets (they'd make the load workflow behave as the UI implies).
 
 ## v1.16.6 Patch Shipped (2026-05-05) — TC-4 microtonal regression fixed
 
