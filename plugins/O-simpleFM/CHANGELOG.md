@@ -3,6 +3,37 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.0] — 2026-06-21
+
+Two teaching visuals that make the FM math legible on the live spectrum. No DSP
+or parameter changes — viz-only overlays driven from the message thread.
+
+### Added
+- **Sideband markers on the spectrum.** The spectrum now overlays the predicted FM
+  component frequencies — the carrier f_c (solid amber, labelled) and the sidebands
+  f_c ± k·f_m for k = 1..8 (faint dashed sage) — so peaks visibly land where
+  Chowning's math says. f_m mirrors the engine exactly: the fixed Hz in Fixed Mode,
+  otherwise f_c·ratio with integer snap applied. Markers are mapped onto the existing
+  log-frequency axis (20 Hz → Nyquist) and only drawn while a note is sounding;
+  anything below 20 Hz or above Nyquist is skipped.
+  - **New plumbing:** the carrier frequency reaches JS via a `carrierUpdate` event
+    emitted from the editor's 30 Hz timer, *just before* `spectrumUpdate`, so the
+    markers stay in sync with the frame they annotate. The processor tracks the
+    most-recently-started note's pitch (from the merged host + on-screen-keyboard MIDI
+    stream) and whether any voice is still audible (`getCarrierHz()` returns 0 when
+    silent). All marker math runs on the message thread — the audio thread only does
+    two relaxed atomic stores, preserving the PERF-01 real-time-safety model.
+- **Carrier-null indicator.** A green "carrier null" badge lights next to the Signal
+  Path I readout when the modulation index reaches the first Bessel J₀ zero. It is
+  gated on the *effective* radian index β = 20·(I/20)^1.7 (the perceptual taper the
+  DSP applies), matching the render-harness `carrier-null@2.405` test — so the badge
+  fires exactly when the carrier marker sits on a nulled peak (≈ readout I 5.75), not
+  at a literal readout value of 2.405 (which would contradict the spectrum).
+
+### Validation
+- Render harness 7/7 (incl. `carrier-null@2.405`), `pluginval --strictness-level 10`
+  (VST3), and `auval` (AU) re-run after the changes (see build log).
+
 ## [1.1.0] — 2026-06-21
 
 A teaching-and-cleanup release: an on-screen keyboard so the plugin makes sound

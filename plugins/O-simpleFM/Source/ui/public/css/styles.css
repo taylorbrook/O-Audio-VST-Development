@@ -221,6 +221,24 @@ body {
   color: var(--green-mid);
   white-space: nowrap;
 }
+/* Carrier-null teaching badge — lights when the effective index ≈ Bessel J₀
+   zero (β ≈ 2.405) and the carrier collapses into the sidebands. */
+.carrier-null-badge {
+  display: none;
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #f5f0e6;
+  background: var(--green-mid);
+  border: 1px solid var(--green-darkest);
+  border-radius: 8px;
+  vertical-align: middle;
+  cursor: help;
+  box-shadow: 0 0 5px rgba(107, 142, 35, 0.55);
+}
+.carrier-null-badge.show { display: inline-block; }
 
 /* ── Controls ───────────────────────────────────────────────────────────── */
 .controls {

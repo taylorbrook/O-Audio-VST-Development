@@ -215,6 +215,18 @@ function updateRouting() {
     const nSb = Math.max(1, Math.round(idx.getScaledValue()) + 1);
     meta.textContent = `${harmonic ? "harmonic" : "inharmonic"} · ≈ ${nSb} sideband${nSb === 1 ? "" : "s"}`;
   }
+
+  // Carrier-null teaching badge: the carrier (Bessel J₀) collapses to zero when
+  // the EFFECTIVE radian index reaches the first J₀ zero, β ≈ 2.405. The readout's
+  // I is the raw control value; the DSP applies a perceptual taper
+  // (FMVoice::setParams → baseIndex = 20·(I/20)^1.7), and the render-harness
+  // "carrier-null@2.405" test sets I so baseIndex == 2.405. Match that here so the
+  // badge lights exactly when the carrier marker sits on a nulled peak (≈ I 5.75).
+  const badge = document.getElementById("carrierNullBadge");
+  if (badge) {
+    const effIndex = 20 * Math.pow(idx.getScaledValue() / 20, 1.7);
+    badge.classList.toggle("show", Math.abs(effIndex - 2.405) <= 0.15);
+  }
 }
 
 // ── Tooltips ────────────────────────────────────────────────────────────────
@@ -416,6 +428,10 @@ let nyquistHz = 22050;
 const FREQ_TICKS = [100, 1000, 10000];
 const fmtTickHz = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 
+// Carrier frequency of the most-recently-started note, pushed from C++ on the
+// `carrierUpdate` event (0 = nothing sounding). Drives the FM sideband markers.
+let carrierHz = 0;
+
 function drawSpectrum(arr) {
   lastSpectrum = arr;
   if (!spec) return;
@@ -455,6 +471,59 @@ function drawSpectrum(arr) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h - 11); ctx.stroke();
     ctx.fillText(fmtTickHz(f), x, h - 2);
   }
+
+  drawSidebandMarkers(ctx, w, h, logRange);
+}
+
+// ── FM sideband markers (predicted f_c ± k·f_m) ────────────────────────────
+// Teaching overlay: the discrete FM spectrum lands at the carrier and at
+// f_c ± k·f_m. Drawing the predicted positions lets the eye confirm that the
+// live peaks sit exactly where Chowning's math says. f_m mirrors the DSP
+// (FMVoice): the fixed Hz in Fixed Mode, else f_c·ratio (snap-rounded). Carrier
+// (k = 0) is coloured distinctly from the sidebands. Skipped when no note sounds.
+function drawSidebandMarkers(ctx, w, h, logRange) {
+  if (carrierHz <= 20) return;
+
+  let ratioVal = sliderState.ratio ? sliderState.ratio.getScaledValue() : 1;
+  if (toggleState.ratioSnap && toggleState.ratioSnap.getValue()) ratioVal = Math.round(ratioVal);
+  ratioVal = Math.max(0.001, ratioVal);
+
+  const fixedOn = toggleState.modFixedMode && toggleState.modFixedMode.getValue();
+  const fm = fixedOn
+    ? (sliderState.modFixedHz ? sliderState.modFixedHz.getScaledValue() : 0)
+    : carrierHz * ratioVal;
+
+  const freqToX = (f) => (Math.log(f / 20) / logRange) * w;
+  const top = 0, bottom = h - 11;
+
+  // Sidebands first (under the carrier): faint dashed sage ticks, k = 1..8.
+  if (fm > 0) {
+    ctx.strokeStyle = "rgba(158, 196, 111, 0.42)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    for (let k = 1; k <= 8; k++) {
+      for (const f of [carrierHz - k * fm, carrierHz + k * fm]) {
+        if (f <= 20 || f >= nyquistHz) continue;
+        const x = freqToX(f);
+        ctx.moveTo(x, top); ctx.lineTo(x, bottom);
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Carrier (k = 0): solid amber, labelled — distinct from the sidebands.
+  if (carrierHz < nyquistHz) {
+    const xc = freqToX(carrierHz);
+    ctx.strokeStyle = "rgba(232, 176, 74, 0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(xc, top); ctx.lineTo(xc, bottom); ctx.stroke();
+    ctx.fillStyle = "rgba(236, 188, 104, 0.95)";
+    ctx.font = "9px Garamond, 'Times New Roman', serif";
+    ctx.textAlign = "center";
+    ctx.fillText("fc", xc, 9);   // carrier (played note); sidebands sit at fc ± k·fm
+  }
 }
 
 function drawScope(arr) {
@@ -486,6 +555,11 @@ function setupVizEvents() {
   // The spectrum/scope are pushed from C++ via emitEventIfBrowserIsVisible.
   // These arrive on the low-level backend (window.__JUCE__.backend), NOT Juce.*.
   if (window.__JUCE__ && window.__JUCE__.backend) {
+    // carrierUpdate is emitted just BEFORE spectrumUpdate each frame, so storing
+    // it here lands in time for the same frame's sideband markers.
+    window.__JUCE__.backend.addEventListener("carrierUpdate", (hz) => {
+      carrierHz = (typeof hz === "number" && hz > 0) ? hz : 0;
+    });
     window.__JUCE__.backend.addEventListener("spectrumUpdate", (arr) => drawSpectrum(arr));
     window.__JUCE__.backend.addEventListener("scopeUpdate", (arr) => drawScope(arr));
   } else {

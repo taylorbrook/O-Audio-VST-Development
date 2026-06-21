@@ -251,6 +251,9 @@ void OSimpleFMAudioProcessorEditor::timerCallback()
     for (float v : spec)  specArr.add (v);
     for (float v : scope) scopeArr.add (v);
 
+    // Carrier Hz FIRST (0 = nothing sounding) so the spectrum frame below draws
+    // its FM sideband markers against the current note, not last frame's.
+    webView->emitEventIfBrowserIsVisible ("carrierUpdate",  juce::var (processorRef.getCarrierHz()));
     webView->emitEventIfBrowserIsVisible ("spectrumUpdate", juce::var (std::move (specArr)));
     webView->emitEventIfBrowserIsVisible ("scopeUpdate",    juce::var (std::move (scopeArr)));
 }
