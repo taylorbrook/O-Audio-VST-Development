@@ -7,14 +7,18 @@
 
     Pedagogical 16-voice additive / wavetable-scan synthesizer.
 
-    Stage 2 — Phase 2.1 (Core Additive Voice): a polyphonic, MIDI-playable
-    additive voice. 16 drawbars (Frame A) are summed into a per-note
-    band-limited single-cycle table, read by phase, shaped by the amp ADSR.
+    Stage 2 — additive voice, complete. 16 drawbars (Frame A) morph toward a
+    preset (Frame B) via scan/LFO/mod-env (2.2), tilt darker over the note via
+    the spectral-decay macro, and quantize via the bit-depth choice (2.3). The
+    summed single-cycle table is read by phase and shaped by the amp ADSR.
     Zero latency (additive band-limits exactly → setLatencySamples(0)).
 
-    Not yet wired (later Stage 2 phases): Frame A→B scan/morph + scan LFO +
-    mod-env (2.2); spectral-decay + bit-depth + viz tap (2.3). The APVTS holds
-    all 33 params; the voice currently consumes only Frame A + amp ADSR.
+    Phase 2.3 also adds the real-time-safe visualization tap: a lock-free VizRing
+    (post-gain mono sum, copy-only on the audio thread — the FFT runs on the
+    editor Timer in Stage 3) and an atomic 16-element active-spectrum snapshot
+    (the morphed + decayed amplitudes of the newest sounding voice) feeding the
+    Stage-3 drawbar display. The APVTS holds all 33 params; the voice now
+    consumes every DSP parameter.
 
   ==============================================================================
 */
@@ -22,7 +26,11 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <array>
+#include <atomic>
+#include <vector>
 #include "AdditiveVoice.h"
+#include "AdditiveVizAnalyzer.h"   // VizRing (audio-thread tap) + AdditiveVizAnalyzer (Stage 3 FFT)
 
 //==============================================================================
 // Parameter identifiers — single source of truth for APVTS IDs.
@@ -115,6 +123,22 @@ public:
     // Public access to APVTS for the editor.
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    //==========================================================================
+    // Visualization access for the Stage-3 editor.
+    //  - getVizRing: the lock-free audio→message ring (the editor's Timer feeds
+    //    it to an AdditiveVizAnalyzer for the scope + FFT overlay).
+    //  - readActiveSpectrum: copies the 16 atomic active-spectrum amplitudes (the
+    //    morphed + decayed bars of the newest sounding voice) into dest16 for the
+    //    exact drawbar display. Idle holds the last sounded spectrum (Stage 3
+    //    fades/handles idle). Safe from the message thread (relaxed atomics).
+    const VizRing& getVizRing() const noexcept { return viz; }
+
+    void readActiveSpectrum (float* dest16) const noexcept
+    {
+        for (int k = 0; k < AdditiveVoice::kNumPartials; ++k)
+            dest16[k] = activeSpectrumSnapshot[(size_t) k].load (std::memory_order_relaxed);
+    }
+
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;
@@ -135,6 +159,19 @@ private:
 
     juce::SmoothedValue<float> outputGain { 1.0f };   // dB->lin, 20 ms
     double currentSampleRate = 44100.0;
+
+    //==========================================================================
+    // Visualization tap (Phase 2.3). PERF-01: audio thread is COPY-ONLY.
+    //  - viz: lock-free overwrite ring; the post-gain mono sum is written here.
+    //  - monoScratch: pre-allocated (prepareToPlay) mono down-mix buffer so the
+    //    block sum needs NO audio-thread allocation.
+    //  - activeSpectrumSnapshot: 16 atomic amplitudes of the primary (newest
+    //    sounding) voice's morphed + decayed spectrum, published post-render for
+    //    the message-thread drawbar display. Producer = audio thread (same thread
+    //    that renders the voices), consumer = editor Timer via readActiveSpectrum.
+    VizRing             viz;
+    std::vector<float>  monoScratch;
+    std::array<std::atomic<float>, (size_t) AdditiveVoice::kNumPartials> activeSpectrumSnapshot {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleAdditiveAudioProcessor)
 };

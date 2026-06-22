@@ -3,10 +3,12 @@
 
     O-simpleAdditive - Audio Processor (implementation)
 
-    Stage 2 — Phase 2.1 (Core Additive Voice): 16-voice additive Synthesiser.
-    Per block: read Frame A drawbars + amp ADSR from APVTS → push to voices →
-    render → smoothed output trim → NaN scrub. Zero latency — no oversampling
-    (each voice band-limits its single-cycle table exactly).
+    Stage 2 (complete): 16-voice additive Synthesiser. Per block: read all 33
+    APVTS params → resolve Frame B + the global scan LFO + spectral-decay sources
+    + the bit-depth choice → push to voices → render → smoothed output trim → NaN
+    scrub → visualization tap (mono-sum into the lock-free VizRing + publish the
+    newest sounding voice's active-spectrum snapshot). Zero latency — no
+    oversampling (each voice band-limits its single-cycle table exactly).
 
   ==============================================================================
 */
@@ -160,6 +162,11 @@ void OSimpleAdditiveAudioProcessor::prepareToPlay (double sampleRate, int sample
     const float outDb = parameters.getRawParameterValue (OSimpleAdditive::ParamIDs::outputLevel)->load();
     outputGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
 
+    // Pre-allocate the viz mono down-mix scratch so the audio-thread tap needs no
+    // allocation (PERF-01). Sized to the host's max block; the tap copies only the
+    // live numSamples each block.
+    monoScratch.assign ((size_t) juce::jmax (1, samplesPerBlock), 0.0f);
+
     // No oversampling — additive band-limits exactly (partials k>Kmax omitted per
     // voice). getLatencySamples() is non-virtual in JUCE 8; set the stored value.
     setLatencySamples (0);
@@ -222,6 +229,18 @@ void OSimpleAdditiveAudioProcessor::pushParamsToVoices (int numSamples)
 
     const float scanEnvAmt = get (scanEnvAmount);
 
+    // Spectral-decay sources (2.3). The voice combines these with its own velocity
+    // into an effective per-partial rate; pushed raw so the rate tracks live edits.
+    const float spectralDecayV = get (spectralDecay);
+    const float velToDecayV     = get (velToDecay);
+
+    // Bit-depth choice → bit count (0 = Off). Resolve the choice INDEX here so the
+    // voice receives a plain int. Layout: {Off, 12, 10, 8, 6, 4, 2}.
+    static constexpr int kBitTable[] = { 0, 12, 10, 8, 6, 4, 2 };
+    const int bitIdx  = juce::jlimit (0, (int) std::size (kBitTable) - 1,
+                                      (int) std::round (get (bitDepth)));
+    const int bitBits = kBitTable[bitIdx];
+
     const juce::ADSR::Parameters ampP { get (ampAttack), get (ampDecay),
                                         get (ampSustain), get (ampRelease) };
     const juce::ADSR::Parameters modP { get (modAttack), get (modDecay),
@@ -229,7 +248,8 @@ void OSimpleAdditiveAudioProcessor::pushParamsToVoices (int numSamples)
 
     for (int v = 0; v < synth.getNumVoices(); ++v)
         if (auto* av = dynamic_cast<AdditiveVoice*> (synth.getVoice (v)))
-            av->setParams (frameA, frameB, scanBase, scanEnvAmt, ampP, modP);
+            av->setParams (frameA, frameB, scanBase, scanEnvAmt,
+                           spectralDecayV, velToDecayV, bitBits, ampP, modP);
 }
 
 void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
@@ -245,6 +265,31 @@ void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
     pushParamsToVoices (numSamples);          // advances the global scan LFO by the block
     synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
 
+    // Active-spectrum snapshot (2.3) — pick the ACTIVE voice with the largest
+    // noteAge (the newest sounding note) and publish its morphed + decayed 16
+    // amplitudes for the message-thread drawbar display. This read of voice state
+    // runs on the audio thread (same thread as renderNextBlock above) → no
+    // voice→processor atomics needed; only the snapshot crosses to the editor.
+    // If nothing is sounding the snapshot is left unchanged (Stage 3 handles idle).
+    {
+        const AdditiveVoice* primary = nullptr;
+        std::uint64_t bestAge = 0;
+        for (int v = 0; v < synth.getNumVoices(); ++v)
+            if (auto* av = dynamic_cast<AdditiveVoice*> (synth.getVoice (v)))
+                if (av->isAmpActive() && av->getNoteAge() >= bestAge)
+                {
+                    bestAge = av->getNoteAge();
+                    primary = av;
+                }
+
+        if (primary != nullptr)
+        {
+            const float* spec = primary->getActiveSpectrum();
+            for (int k = 0; k < AdditiveVoice::kNumPartials; ++k)
+                activeSpectrumSnapshot[(size_t) k].store (spec[k], std::memory_order_relaxed);
+        }
+    }
+
     // Master output trim (dB->lin, smoothed).
     const float outDb = parameters.getRawParameterValue (OSimpleAdditive::ParamIDs::outputLevel)->load();
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
@@ -258,6 +303,29 @@ void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
         auto* d = buffer.getWritePointer (ch);
         for (int i = 0; i < numSamples; ++i)
             if (! std::isfinite (d[i])) d[i] = 0.0f;
+    }
+
+    // Visualization tap (2.3) — post-gain, post-scrub mono sum → lock-free ring
+    // (copy-only, NO alloc/FFT/locks on the audio thread; PERF-01). monoScratch is
+    // pre-allocated in prepareToPlay; guard against a host block larger than the
+    // prepared size (clamp the copy length — never reallocate on the audio thread).
+    if (numCh == 1)
+    {
+        viz.write (buffer.getReadPointer (0), numSamples);
+    }
+    else if (numCh > 1)
+    {
+        const int n        = juce::jmin (numSamples, (int) monoScratch.size());
+        const float invCh  = 1.0f / (float) numCh;
+        float* const mono  = monoScratch.data();
+        for (int i = 0; i < n; ++i)
+        {
+            float s = 0.0f;
+            for (int ch = 0; ch < numCh; ++ch)
+                s += buffer.getReadPointer (ch)[i];
+            mono[i] = s * invCh;
+        }
+        viz.write (mono, n);
     }
 }
 
