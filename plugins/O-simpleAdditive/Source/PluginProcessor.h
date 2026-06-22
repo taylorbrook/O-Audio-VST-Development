@@ -127,7 +127,11 @@ private:
     static constexpr int kNumVoices = 16;
 
     juce::Synthesiser synth;
-    void pushParamsToVoices();
+    void pushParamsToVoices (int numSamples);
+
+    // Global scan LFO phase [0,1) — one sine shared by all voices (advanced once
+    // per block in pushParamsToVoices so all notes morph in phase).
+    float lfoPhase = 0.0f;
 
     juce::SmoothedValue<float> outputGain { 1.0f };   // dB->lin, 20 ms
     double currentSampleRate = 44100.0;

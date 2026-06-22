@@ -7,7 +7,7 @@ complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 stage_2_mode: incremental_dsp_builds
-next_action: implement_phase_2_2_scan_morph
+next_action: implement_phase_2_3_spectral_decay_bitdepth_viz
 next_stage: 2
 ready_for_implementation: true
 contract_checksums:
@@ -22,18 +22,20 @@ contract_checksums:
 ## Current Position
 
 Stage: 2 of 4 (DSP) — in progress (incremental-DSP-builds mode)
-Status: Phase 2.1 (Core Additive Voice) built + auval-validated. **First sound.** Ready for Phase 2.2 (scan/morph).
-Progress: [########............] 40%
+Status: Phase 2.2 (Scan/Morph + Mod-Env + LFO) built + auval-validated. **Wavetable dimension live.** Ready for Phase 2.3 (spectral-decay + bit-depth + viz tap).
+Progress: [############........] 60%
 
 ## Stage 2 (DSP) Phase Progress — incremental builds (build + auval per sub-phase)
 
 | Phase | Status | Artifact / Gate |
 |-------|--------|-----------------|
 | 2.1 Core additive voice | ✓ | stages/2-dsp/SUMMARY-2.1.md — build clean + **auval SUCCEEDED** |
-| 2.2 Scan/morph + mod-env + LFO | ▶ next | — |
-| 2.3 Spectral-decay + bit-depth + viz tap | ○ | — |
+| 2.2 Scan/morph + mod-env + LFO | ✓ | stages/2-dsp/SUMMARY-2.2.md — build clean + **auval SUCCEEDED** |
+| 2.3 Spectral-decay + bit-depth + viz tap | ▶ next | — |
 
-**Phase 2.1 result:** `AdditiveVoice.h` (new) — 16-partial band-limited single-cycle table (2048-pt), per-note `Kmax` band-limit + raised-cosine taper, headroom-normalized sum, amp ADSR + velocity, control-rate dirty-refill. Synthesiser wired (16 voices). VST3 + AU clean; `auval` SUCCEEDED incl. MIDI test at 11k–192k Hz. Frame A drawbars only — morph/decay/bit/viz APVTS params present but not yet consumed.
+**Phase 2.1 result:** `AdditiveVoice.h` (new) — 16-partial band-limited single-cycle table (2048-pt), per-note `Kmax` band-limit + raised-cosine taper, headroom-normalized sum, amp ADSR + velocity, control-rate dirty-refill. Synthesiser wired (16 voices). VST3 + AU clean; `auval` SUCCEEDED incl. MIDI test at 11k–192k Hz.
+
+**Phase 2.2 result:** Wavetable dimension. Frame B presets (Sine/Saw/Square/Odd) + per-partial spectral morph `lerp(A_k, B_k, scan)` in `refillTable`. Per-voice mod-env (2nd ADSR) + global sine scan LFO; scan = `clamp(scanPosition + lfo·depth + modEnv·envAmount)` → 20 ms smoother → control-rate refill (refill only when scan moves > 1e-4). VST3 + AU clean; `auval` SUCCEEDED incl. MIDI test. Default patch (scan=0) bit-identical to 2.1 — no regression. `spectralDecay`/`bitDepth`/`velToDecay`/viz APVTS params present but not yet consumed (2.3).
 
 ## Stage 1 Phase Progress (express mode) — ✓ complete
 
@@ -64,10 +66,9 @@ Progress: [########............] 40%
 
 ## Next Steps
 
-1. **Phase 2.2: Scan/morph + mod-env + LFO** — Frame A→B spectral morph driven by manual scan + global sine LFO + mod-envelope; zipper-free. Composes into `AdditiveVoice::refillTable()` morph extension point. → `/clear` then `/implement O-simpleAdditive`
-2. Phase 2.3: Spectral-decay + bit-depth + viz tap
-3. Stage 3: GUI (3 phases) · Stage 4: Validation/Polish
-4. Pause here
+1. **Phase 2.3: Spectral-decay + bit-depth + viz tap** — per-partial exponential tilt `D_k = exp(−rate·k·tau)` (composes into `refillTable()` after morph, before band-limit), discrete bit-depth quantizer at read time, and the lock-free `VizRing` + active-spectrum snapshot tap. → `/clear` then `/implement O-simpleAdditive`
+2. Stage 3: GUI (3 phases) · Stage 4: Validation/Polish
+3. Pause here
 
 ## Context to Preserve
 

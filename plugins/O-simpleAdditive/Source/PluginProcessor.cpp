@@ -186,7 +186,7 @@ bool OSimpleAdditiveAudioProcessor::isBusesLayoutSupported (const BusesLayout& l
     return true;
 }
 
-void OSimpleAdditiveAudioProcessor::pushParamsToVoices()
+void OSimpleAdditiveAudioProcessor::pushParamsToVoices (int numSamples)
 {
     using namespace OSimpleAdditive::ParamIDs;
     auto get = [this] (const char* id) { return parameters.getRawParameterValue (id)->load(); };
@@ -203,12 +203,33 @@ void OSimpleAdditiveAudioProcessor::pushParamsToVoices()
     for (int k = 0; k < AdditiveVoice::kNumPartials; ++k)
         frameA[k] = get (partialIds[k]);
 
+    // Frame B — resolve the selected preset vector once for all voices (the
+    // per-voice dirty-check absorbs the unchanged-block case).
+    float frameB[AdditiveVoice::kNumPartials];
+    OSimpleAdditive::fillFrameB ((int) get (frameBSource), frameB);
+
+    // Global scan LFO — one sine shared by all voices so notes morph in phase
+    // (ARCHITECTURE.md §Scan LFO: global, sine, advanced once per block). Bipolar
+    // [-1,1] × depth swings the scan around the manual position.
+    const float lfoVal   = std::sin (lfoPhase * juce::MathConstants<float>::twoPi);
+    const float scanBase = get (scanPosition) + lfoVal * get (scanLfoDepth);
+
+    if (currentSampleRate > 0.0)
+    {
+        lfoPhase += (float) (get (scanLfoRate) * (double) numSamples / currentSampleRate);
+        lfoPhase -= std::floor (lfoPhase);     // wrap to [0,1)
+    }
+
+    const float scanEnvAmt = get (scanEnvAmount);
+
     const juce::ADSR::Parameters ampP { get (ampAttack), get (ampDecay),
                                         get (ampSustain), get (ampRelease) };
+    const juce::ADSR::Parameters modP { get (modAttack), get (modDecay),
+                                        get (modSustain), get (modRelease) };
 
     for (int v = 0; v < synth.getNumVoices(); ++v)
         if (auto* av = dynamic_cast<AdditiveVoice*> (synth.getVoice (v)))
-            av->setParams (frameA, ampP);
+            av->setParams (frameA, frameB, scanBase, scanEnvAmt, ampP, modP);
 }
 
 void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
@@ -221,7 +242,7 @@ void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
 
     buffer.clear();                           // voices ADD into a cleared buffer
 
-    pushParamsToVoices();
+    pushParamsToVoices (numSamples);          // advances the global scan LFO by the block
     synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
 
     // Master output trim (dB->lin, smoothed).
