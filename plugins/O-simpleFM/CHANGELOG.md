@@ -3,6 +3,28 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.1] — 2026-06-21
+
+A small teaching-copy addition: hover explanations on the Lesson Preset buttons.
+No DSP, parameter, or mechanism changes.
+
+### Added
+- **Hover tooltips on the five Lesson Preset buttons** (E-Piano, Tubular Bell, Brass,
+  Clarinet, Clang Bell). Each explains *how that voice is built* in FM terms — the
+  carrier:modulator ratio (harmonic vs inharmonic), the modulation index and how the
+  envelope drives it, feedback, and the resulting spectrum — so the buttons teach the
+  synthesis rather than just loading a sound. Copy mirrors the actual values in
+  `FactoryPresets.cpp` (e.g. E-Piano 1:1 with a fast index sweep; Tubular Bell's
+  inharmonic 1.41; Clang Bell's index-14 + 60% feedback smear).
+- **Implementation:** reuses the existing `setupTooltips()` engine — each `.tour-btn`
+  gained a `data-tip="lesson…"` attribute and a matching entry in the `TIPS` table in
+  `app.js`. No new tooltip mechanism, so the buttons inherit the same pointer-hover,
+  keyboard-focus, and Escape-to-dismiss behaviour as every other annotated control.
+
+### Validation
+- WebView-only change (HTML `data-tip` + JS `TIPS` copy); no C++, DSP, or parameter
+  surface touched. Verified the build and `auval`/`pluginval` still pass (see build log).
+
 ## [1.2.0] — 2026-06-21
 
 Two teaching visuals that make the FM math legible on the live spectrum. No DSP
