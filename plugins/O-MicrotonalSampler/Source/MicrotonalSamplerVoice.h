@@ -151,6 +151,32 @@ private:
     double                      playRateLow        = 1.0;
     double                      playRateHigh       = 1.0;
 
+    // v1.21.0: CC Crossfade dynamics. When `ccDynamicsActive`, ALL populated
+    // velocity layers for (midi, technique) advance in lockstep each sample
+    // (time-synced → click-free bracket entry) but only the two layers
+    // bracketing the live, smoothed CC 11 dynamic position are summed into the
+    // output. Independent of the velocity-crossfade path above — that path is
+    // used only in Dynamics Mode = Velocity (back-compat, bit-identical).
+    static constexpr int kMaxDynLayers = 4;   // SampleMap::numVelocityLayers <= 4
+
+    struct DynLayer
+    {
+        const SampleVariant* variant  = nullptr;  // into currentMap (held for note)
+        double               pos      = 0.0;
+        double               playRate = 1.0;
+    };
+    std::array<DynLayer, (size_t) kMaxDynLayers> dynLayers {};
+    int                        dynLayerCount    = 0;
+    bool                       ccDynamicsActive = false;     // captured at note-on
+    juce::SmoothedValue<float> dynamicsSmoother;             // d ∈ [0,1], per-sample
+
+    // v1.21.0: cached param atoms (resolved in prepareToPlay, like the ADSR
+    // pointers below). dynamicsModeParam: 0=Velocity, 1=CC Crossfade.
+    // expressionParam: the CC 11 / Expression value (0..1) that drives the
+    // dynamic crossfade position in CC mode.
+    std::atomic<float>* dynamicsModeParam = nullptr;
+    std::atomic<float>* expressionParam   = nullptr;
+
     std::vector<float> stealTailBufferL;
     std::vector<float> stealTailBufferR;
     int                stealTailSamplesRemaining = 0;
@@ -162,6 +188,14 @@ private:
     uint32_t rngState = 0x12345678u;
 
     void renderTailRamp (int rampSamples) noexcept;
+
+    // v1.21.0: CC Crossfade render + its voice-steal tail. renderCcCrossfade
+    // advances every `dynLayers` entry per sample but sums only the two
+    // bracketing the live dynamic position. renderTailRampCc is the CC analogue
+    // of renderTailRamp (frozen dynamic position over the 5 ms steal ramp).
+    void renderCcCrossfade (juce::AudioBuffer<float>& out,
+                            int startSample, int numSamples) noexcept;
+    void renderTailRampCc  (int rampSamples) noexcept;
 
     // v1.8.0: pick a variant index for `cell` using mode + counter. Pure
     // index math + atomic ops. RT-safe. cell.variants must be non-empty.

@@ -180,6 +180,20 @@ void MicrotonalSamplerVoice::prepareToPlay (double sampleRate, int /*samplesPerB
         jassert (sustainParam != nullptr);
         jassert (releaseParam != nullptr);
     }
+
+    // v1.21.0: cache the CC-crossfade param atoms (same null-safe pattern as
+    // the ADSR pointers above) and prepare the per-voice dynamic smoother.
+    // 20 ms ramp keeps the timbre/loudness morph zipper-free as CC 11 moves,
+    // while staying responsive on fast hairpins. Seeded per-note in startNote.
+    dynamicsModeParam = nullptr;
+    expressionParam   = nullptr;
+    if (parameters != nullptr)
+    {
+        dynamicsModeParam = parameters->getRawParameterValue ("dynamics_mode");
+        expressionParam   = parameters->getRawParameterValue ("expression");
+    }
+    dynamicsSmoother.reset (sampleRate, 0.02);
+    dynamicsSmoother.setCurrentAndTargetValue (1.0f);
 }
 
 void MicrotonalSamplerVoice::setCurrentPlaybackSampleRate (double newRate)
@@ -375,13 +389,24 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
     // and free the audio buffers `variantLow` indexes into. (REVIEW CR-04.)
     std::shared_ptr<SampleMap> prevMap = currentMap;
 
-    if (adsr.isActive() && variantLow != nullptr)
+    // v1.21.0: the prior note may have been a CC-crossfade note (rendered from
+    // `dynLayers`, with `variantLow` unused) or a legacy velocity note. Pick
+    // the matching tail-ramp renderer so voice-stealing stays click-free in
+    // both modes. ccDynamicsActive / dynLayers still hold the OLD note's state
+    // here (the new note's stack is resolved later, in step 7b).
+    const bool priorHadContent = (ccDynamicsActive && dynLayerCount > 0)
+                              || (variantLow != nullptr);
+
+    if (adsr.isActive() && priorHadContent)
     {
         const int rampSamples = juce::jmin (kMaxStealRamp,
                                             (int) stealTailBufferL.size());
         if (rampSamples > 0)
         {
-            renderTailRamp (rampSamples);
+            if (ccDynamicsActive && dynLayerCount > 0)
+                renderTailRampCc (rampSamples);
+            else
+                renderTailRamp (rampSamples);
             stealTailSamplesRemaining = rampSamples;
         }
     }
@@ -548,6 +573,69 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
         playRateHigh = computePlayRateForVariant (*variantHigh, cellHigh->midiNote,
                                                   currentFrequency, hostSR);
 
+    // ---------- 7b. v1.21.0: CC Crossfade dynamics resolution ----------
+    // When Dynamics Mode = CC Crossfade, ignore velocity for the dynamic axis
+    // and instead resolve EVERY populated velocity layer for this note's
+    // resolved technique into `dynLayers`. CC 11 then morphs across them at
+    // render time. The velocity-path state (cellLow/High etc.) computed above
+    // is left intact but unused while ccDynamicsActive — it provides the
+    // "any cell at all?" guard already passed (cellLow != nullptr) and the
+    // resolved technique (cellLow->technique).
+    ccDynamicsActive = false;
+    dynLayerCount    = 0;
+
+    const bool ccMode = (dynamicsModeParam != nullptr)
+                     && (dynamicsModeParam->load() > 0.5f);
+    if (ccMode)
+    {
+        // Gather sharing ONE technique (no articulation mixing across the
+        // loudness axis). cellLow->technique is what actually resolved — the
+        // requested startTechnique, or technique 0 if findCellNearestLayer
+        // fell back to "ord". gatherLayerCells does not itself fall back.
+        const int resolvedTech = cellLow->technique;
+        const SampleCell* gathered[(size_t) kMaxDynLayers] = { nullptr };
+        const int n = currentMap->gatherLayerCells (midiNoteNumber, resolvedTech,
+                                                     gathered, kMaxDynLayers);
+
+        for (int k = 0; k < n; ++k)
+        {
+            const SampleCell* c = gathered[k];
+            if (c == nullptr || c->variants.empty())
+                continue;
+
+            const int            idx = selectVariantIndex (*c, rrMode);
+            const SampleVariant* var =
+                &c->variants[(size_t) juce::jlimit (0, (int) c->variants.size() - 1, idx)];
+
+            // Skip degenerate (empty-buffer) variants so the render path never
+            // brackets a silent layer — keeps the dynamic morph continuous.
+            if (var->audio == nullptr || var->audio->getNumSamples() <= 0)
+                continue;
+
+            auto& dl   = dynLayers[(size_t) dynLayerCount];
+            dl.variant  = var;
+            dl.pos      = 0.0;
+            dl.playRate = computePlayRateForVariant (*var, c->midiNote,
+                                                     currentFrequency, hostSR);
+            ++dynLayerCount;
+        }
+
+        // Active whenever we have at least one valid layer. With exactly one
+        // populated layer there is nothing to crossfade — the render path
+        // falls back to a squared CC gain on that layer so CC 11 still shapes
+        // dynamics (a single-dynamic library is otherwise flat in CC mode,
+        // which would be a regression vs the Velocity-mode post-mix gain).
+        ccDynamicsActive = (dynLayerCount >= 1);
+
+        // Seed the dynamic position from the CURRENT Expression / CC 11 value
+        // (NOT velocity — design contract). setCurrentAndTargetValue so the
+        // first block doesn't ramp up from a stale position.
+        const float d0 = (expressionParam != nullptr)
+                           ? juce::jlimit (0.0f, 1.0f, expressionParam->load())
+                           : 1.0f;
+        dynamicsSmoother.setCurrentAndTargetValue (d0);
+    }
+
     // ---------- 8. Read APVTS ADSR values ONCE ----------
     // v1.11.3: use atomic pointers cached in prepareToPlay to avoid
     // dereferencing a null getRawParameterValue() return on the audio thread.
@@ -578,11 +666,13 @@ void MicrotonalSamplerVoice::stopNote (float /*velocity*/, bool allowTailOff)
     else
     {
         adsr.reset();
-        cellLow         = nullptr;
-        cellHigh        = nullptr;
-        variantLow      = nullptr;
-        variantHigh     = nullptr;
-        currentMidiNote = -1;
+        cellLow          = nullptr;
+        cellHigh         = nullptr;
+        variantLow       = nullptr;
+        variantHigh      = nullptr;
+        ccDynamicsActive = false;   // v1.21.0
+        dynLayerCount    = 0;       // v1.21.0
+        currentMidiNote  = -1;
         clearCurrentNote();
     }
 }
@@ -619,6 +709,19 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
         {
             stealTailSamplesRemaining = 0;
         }
+    }
+
+    // v1.21.0: CC Crossfade dynamics path. Drives the smoother target from the
+    // live Expression / CC 11 value (per-block; per-sample ramp inside) and
+    // renders the equal-power layer morph. Returns before the legacy
+    // velocity-path render below (which stays bit-identical for Velocity mode).
+    if (ccDynamicsActive)
+    {
+        if (expressionParam != nullptr)
+            dynamicsSmoother.setTargetValue (juce::jlimit (0.0f, 1.0f,
+                                                           expressionParam->load()));
+        renderCcCrossfade (out, startSample, numSamples);
+        return;
     }
 
     if (variantLow == nullptr || ! adsr.isActive())
@@ -718,6 +821,229 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
             currentMidiNote = -1;
             clearCurrentNote();
             return;
+        }
+    }
+}
+
+//==============================================================================
+// v1.21.0: CC Crossfade dynamics render. Every populated layer in `dynLayers`
+// advances each sample (time-synced → click-free bracket entry); only the two
+// layers bracketing the live, smoothed dynamic position `d` are summed with
+// equal-power weights. With a single layer there is nothing to crossfade, so
+// `d²` scales that layer instead (CC 11 still shapes dynamics — otherwise a
+// single-dynamic library would be flat in CC mode). ADSR `env` applies to the
+// mix; the post-mix Expression gain is bypassed in the processor for this mode
+// so dynamics are never double-attenuated (the original Dorico pp problem).
+void MicrotonalSamplerVoice::renderCcCrossfade (juce::AudioBuffer<float>& out,
+                                                int startSample,
+                                                int numSamples) noexcept
+{
+    if (dynLayerCount <= 0 || ! adsr.isActive())
+    {
+        if (! adsr.isActive())
+        {
+            cellLow          = nullptr;
+            cellHigh         = nullptr;
+            variantLow       = nullptr;
+            variantHigh      = nullptr;
+            ccDynamicsActive = false;
+            dynLayerCount    = 0;
+            currentMidiNote  = -1;
+            clearCurrentNote();
+        }
+        return;
+    }
+
+    // Hoist per-layer read state once (mirrors the legacy path's caching).
+    const float* readL  [kMaxDynLayers] = { nullptr };
+    const float* readR  [kMaxDynLayers] = { nullptr };
+    int          bufN   [kMaxDynLayers] = { 0 };
+    int          lpS    [kMaxDynLayers] = { 0 };
+    int          lpE    [kMaxDynLayers] = { 0 };
+    bool         stereo [kMaxDynLayers] = { false };
+
+    for (int k = 0; k < dynLayerCount; ++k)
+    {
+        const SampleVariant* var = dynLayers[(size_t) k].variant;
+        const juce::AudioBuffer<float>* buf = (var != nullptr) ? var->audio.get() : nullptr;
+        const int n  = (buf != nullptr) ? buf->getNumSamples()  : 0;
+        const int ch = (buf != nullptr) ? buf->getNumChannels() : 0;
+        readL [k] = (ch > 0) ? buf->getReadPointer (0) : nullptr;
+        readR [k] = (ch > 1) ? buf->getReadPointer (1) : readL[k];
+        bufN  [k] = n;
+        lpS   [k] = (var != nullptr) ? var->loopStart : 0;
+        lpE   [k] = (var != nullptr) ? var->loopEnd   : 0;
+        stereo[k] = (ch > 1);
+    }
+
+    const int  outChans = out.getNumChannels();
+    const int  lastIdx  = dynLayerCount - 1;
+    const bool single   = (dynLayerCount == 1);
+
+    auto readLayer = [&] (int k, bool right) noexcept -> float
+    {
+        const float* p = right ? readR[k] : readL[k];
+        if (p == nullptr) return 0.0f;
+        return readVariantWithLoop (p, bufN[k], dynLayers[(size_t) k].pos,
+                                    lpS[k], lpE[k]);
+    };
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float env = adsr.getNextSample();
+        const float d   = juce::jlimit (0.0f, 1.0f, dynamicsSmoother.getNextValue());
+
+        int   ia = 0, ib = 0;
+        float wA = 1.0f, wB = 0.0f;
+        if (! single)
+        {
+            const float p    = d * (float) lastIdx;
+            ia               = juce::jlimit (0, lastIdx, (int) std::floor (p));
+            ib               = juce::jmin (ia + 1, lastIdx);
+            const float frac = p - (float) ia;
+            const auto  w    = equalPowerWeights (frac);
+            wA = w.first;
+            wB = w.second;
+        }
+
+        const float dynGain = single ? (d * d) : 1.0f;
+
+        const float lA = readLayer (ia, false);
+        const float rA = stereo[ia] ? readLayer (ia, true) : lA;
+
+        float lB = 0.0f, rB = 0.0f;
+        if (ib != ia)
+        {
+            lB = readLayer (ib, false);
+            rB = stereo[ib] ? readLayer (ib, true) : lB;
+        }
+
+        const float yL = (lA * wA + lB * wB) * env * dynGain;
+        const float yR = (rA * wA + rB * wB) * env * dynGain;
+
+        if (outChans > 0) out.addSample (0, startSample + i, yL);
+        if (outChans > 1) out.addSample (1, startSample + i, yR);
+
+        // Advance EVERY layer so the bracket can change mid-note without a
+        // discontinuity (the newly-entered layer is already time-aligned).
+        for (int k = 0; k < dynLayerCount; ++k)
+        {
+            dynLayers[(size_t) k].pos += dynLayers[(size_t) k].playRate;
+            wrapLoopPosition (dynLayers[(size_t) k].pos, lpS[k], lpE[k]);
+        }
+
+        if (! adsr.isActive())
+        {
+            cellLow          = nullptr;
+            cellHigh         = nullptr;
+            variantLow       = nullptr;
+            variantHigh      = nullptr;
+            ccDynamicsActive = false;
+            dynLayerCount    = 0;
+            currentMidiNote  = -1;
+            clearCurrentNote();
+            return;
+        }
+    }
+}
+
+//==============================================================================
+// v1.21.0: CC-crossfade voice-steal tail. The CC analogue of renderTailRamp —
+// renders a 5 ms linear-down ramp of the current bracketed mix into the steal
+// buffers. The dynamic position is FROZEN at the smoother's current value (the
+// ramp is far too short for CC motion to matter), matching renderTailRamp's
+// single-`lastEnv` snapshot model.
+void MicrotonalSamplerVoice::renderTailRampCc (int rampSamples) noexcept
+{
+    const bool prereqsMet = (rampSamples >= 2)
+                         && (dynLayerCount > 0)
+                         && ! stealTailBufferL.empty()
+                         && ! stealTailBufferR.empty();
+
+    if (! prereqsMet)
+    {
+        const int n = juce::jmax (0,
+                                  juce::jmin (rampSamples,
+                                              (int) stealTailBufferL.size(),
+                                              (int) stealTailBufferR.size()));
+        for (int i = 0; i < n; ++i)
+        {
+            stealTailBufferL[(size_t) i] = 0.0f;
+            stealTailBufferR[(size_t) i] = 0.0f;
+        }
+        return;
+    }
+
+    const float lastEnv = adsr.getNextSample();
+    const float d       = juce::jlimit (0.0f, 1.0f, dynamicsSmoother.getCurrentValue());
+    const int   lastIdx = dynLayerCount - 1;
+    const bool  single  = (dynLayerCount == 1);
+
+    int   ia = 0, ib = 0;
+    float wA = 1.0f, wB = 0.0f;
+    if (! single)
+    {
+        const float p    = d * (float) lastIdx;
+        ia               = juce::jlimit (0, lastIdx, (int) std::floor (p));
+        ib               = juce::jmin (ia + 1, lastIdx);
+        const float frac = p - (float) ia;
+        const auto  w    = equalPowerWeights (frac);
+        wA = w.first;
+        wB = w.second;
+    }
+    const float dynGain = single ? (d * d) : 1.0f;
+
+    const float* readL  [kMaxDynLayers] = { nullptr };
+    const float* readR  [kMaxDynLayers] = { nullptr };
+    int          bufN   [kMaxDynLayers] = { 0 };
+    int          lpS    [kMaxDynLayers] = { 0 };
+    int          lpE    [kMaxDynLayers] = { 0 };
+    bool         stereo [kMaxDynLayers] = { false };
+    for (int k = 0; k < dynLayerCount; ++k)
+    {
+        const SampleVariant* var = dynLayers[(size_t) k].variant;
+        const juce::AudioBuffer<float>* buf = (var != nullptr) ? var->audio.get() : nullptr;
+        const int n  = (buf != nullptr) ? buf->getNumSamples()  : 0;
+        const int ch = (buf != nullptr) ? buf->getNumChannels() : 0;
+        readL [k] = (ch > 0) ? buf->getReadPointer (0) : nullptr;
+        readR [k] = (ch > 1) ? buf->getReadPointer (1) : readL[k];
+        bufN  [k] = n;
+        lpS   [k] = (var != nullptr) ? var->loopStart : 0;
+        lpE   [k] = (var != nullptr) ? var->loopEnd   : 0;
+        stereo[k] = (ch > 1);
+    }
+
+    auto readLayer = [&] (int k, bool right) noexcept -> float
+    {
+        const float* p = right ? readR[k] : readL[k];
+        if (p == nullptr) return 0.0f;
+        return readVariantWithLoop (p, bufN[k], dynLayers[(size_t) k].pos,
+                                    lpS[k], lpE[k]);
+    };
+
+    for (int i = 0; i < rampSamples; ++i)
+    {
+        const float ramp = lastEnv * (1.0f - (float) i / (float) rampSamples);
+
+        const float lA = readLayer (ia, false);
+        const float rA = stereo[ia] ? readLayer (ia, true) : lA;
+        float lB = 0.0f, rB = 0.0f;
+        if (ib != ia)
+        {
+            lB = readLayer (ib, false);
+            rB = stereo[ib] ? readLayer (ib, true) : lB;
+        }
+
+        const float yL = (lA * wA + lB * wB) * ramp * dynGain;
+        const float yR = (rA * wA + rB * wB) * ramp * dynGain;
+
+        stealTailBufferL[(size_t) i] = yL;
+        stealTailBufferR[(size_t) i] = yR;
+
+        for (int k = 0; k < dynLayerCount; ++k)
+        {
+            dynLayers[(size_t) k].pos += dynLayers[(size_t) k].playRate;
+            wrapLoopPosition (dynLayers[(size_t) k].pos, lpS[k], lpE[k]);
         }
     }
 }

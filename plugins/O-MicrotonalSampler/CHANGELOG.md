@@ -1,5 +1,52 @@
 # O-MicrotonalSampler Changelog
 
+## [1.21.0] - 2026-06-22
+
+Add the **CC Crossfade dynamics engine** — the structural fix for the Dorico
+`pp` double-attenuation problem deferred in v1.20.2. A new **Dynamics Mode**
+chooses how MIDI CC 11 / Expression shapes dynamics.
+
+### Added
+- **`dynamics_mode` parameter** (choice: `Velocity` / `CC Crossfade`).
+  Automatable; exposed in the WebView control strip as a segmented toggle next
+  to the Expression knob, and in the host generic editor.
+- **CC Crossfade engine** (`MicrotonalSamplerVoice`). At note-on the voice
+  resolves **every populated velocity layer** for the note's resolved technique
+  into a layer stack (new `SampleMap::gatherLayerCells`, single-technique — no
+  articulation mixing across the loudness axis). All layers advance in lockstep
+  each sample (time-synced → click-free bracket entry); only the two layers
+  bracketing the live, smoothed CC 11 position `d∈[0,1]` are summed with
+  equal-power weights (`p = d·(N−1)`). The result is a true timbre + loudness
+  morph on hairpins, like professional sustain patches — not just a volume
+  trim. 20 ms per-voice smoothing keeps the morph zipper-free; voice-stealing
+  has a matching CC-aware tail ramp.
+
+### Changed
+- **Default Dynamics Mode is `CC Crossfade`.** New instances — and existing
+  projects/presets that predate this parameter — adopt CC Crossfade on load.
+  To restore exact v1.20.x playback, switch Dynamics Mode to **Velocity**.
+- **Post-mix Expression gain is bypassed in CC Crossfade mode.** CC 11 is the
+  dynamics axis in that mode; the voice already crossfades layers by it, so the
+  old squared post-mix gain would double-attenuate quiet passages (the original
+  Dorico `pp` problem). Velocity mode is unchanged — the post-mix gain still
+  applies and the render path is bit-identical to v1.20.2.
+
+### Notes
+- **Why this is the right fix (per v1.20.2 research):** the industry model
+  separates *dynamics* (a continuous CC that crossfades recorded layers,
+  changing timbre AND loudness) from *expression* (a secondary volume trim).
+  The reverted v1.20.1 gain-floor guessed at sample loudness; crossfading real
+  layers does not.
+- **Single-dynamic libraries:** with only one populated layer there is nothing
+  to crossfade, so CC 11 drives a squared gain on that layer instead — CC still
+  shapes dynamics rather than going flat.
+- **No Dorico expression-map change needed** — the maps already send dynamics
+  on CC 11 (`volumeType` `kCC` `param1=11`).
+- **Testing:** built Release (VST3 + AU), `auval` pass, installed. Velocity mode
+  verified bit-identical to v1.20.2 baseline; CC Crossfade verified on a
+  multi-layer library (hairpin morph) and a single-layer library (squared-gain
+  fallback).
+
 ## [1.20.2] - 2026-06-22
 
 Revert: **roll back the v1.20.1 layer-adaptive Expression floor.** It
