@@ -1,0 +1,79 @@
+{
+  "critic": "architecture-critic",
+  "plugin": "O-simpleFM",
+  "stage": "3-gui",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-06-20T00:00:00Z",
+  "scores": {
+    "lifetime_safety": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "Member order relays->webView->attachments matches the documented JUCE-safe reverse-destruction pattern. Editor runs on the message thread so stopTimer() in the dtor body precludes a mid-callback teardown race; timerCallback members (vizAnalyzer, webView) are alive when stopTimer runs. Resource-provider lambda capturing this is safe; makeBinaryResource copies static BinaryData."
+    },
+    "binding_correctness": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "Relays registered via withOptionsFrom before WebView construction; attachment indices align (sliderRelays[i] <-> sliderIds[i]); 3-arg attachment form with nullptr undoManager. Null-param guard cannot desync indices, only silently disable a knob if an ID ever goes missing."
+    },
+    "build_wiring": {
+      "score": 10,
+      "threshold": 7,
+      "passed": true,
+      "details": "juce_add_binary_data target linked PRIVATE; all 6 SOURCES match getResource() paths and exist on disk; NEEDS_WEB_BROWSER + NEEDS_WEBVIEW2 TRUE; static-link WebView2 flag set; juce_gui_extra linked; Windows withUserDataFolder gated #if JUCE_WINDOWS."
+    },
+    "rt_safety": {
+      "score": 10,
+      "threshold": 7,
+      "passed": true,
+      "details": "timerCallback runs analyzer + builds var arrays on the message thread; webView null-guarded; no audio-thread allocation introduced by Stage 3."
+    }
+  },
+  "overallStatus": "PASSED",
+  "overallScore": 9.5,
+  "issues": [
+    {
+      "id": "ARCH-001",
+      "severity": "warning",
+      "category": "lifetime_safety",
+      "location": "PluginEditor.h:37",
+      "description": "vizAnalyzer is declared above the relay/WebView/attachment cluster, so the load-bearing ordering comment (lines 39-45) only documents three of the lifetime-sensitive members. Harmless today (timer stopped before teardown), but a future tidy/refactor could reorder without realizing vizAnalyzer must outlive the WebView triad.",
+      "fixSuggestion": "Move vizAnalyzer declaration below the attachments so the lifetime-sensitive cluster is contiguous, or extend the comment to state vizAnalyzer must be declared before the triad. No behavioral change."
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "warning",
+      "category": "binding_correctness",
+      "location": "PluginEditor.cpp:103",
+      "description": "The attachment loop skips any param whose getParameter() returns null with no diagnostic. Index alignment is preserved (relay i is still paired by index), so no desync, but a future param rename that compiles fine would yield a silently dead knob (no automation, no feedback). All 17 IDs are present today.",
+      "fixSuggestion": "Add jassert(param != nullptr) in both the slider and toggle binding loops so a missing/renamed ID fails loudly in debug instead of producing a silent dead control."
+    },
+    {
+      "id": "ARCH-003",
+      "severity": "note",
+      "category": "lifetime_safety",
+      "location": "PluginEditor.cpp:122",
+      "description": "stopTimer() in the dtor body is correct for the current synchronous timerCallback (single message thread = no mid-callback race), but the safety relies on the work staying synchronous. A future move to async dispatch (CallbackMessage) could outlive stopTimer().",
+      "fixSuggestion": "Defensive only: if viz work ever becomes async, add an alive flag set false before stopTimer() and early-return from timerCallback(). Not required now."
+    },
+    {
+      "id": "ARCH-004",
+      "severity": "note",
+      "category": "build_wiring",
+      "location": "PluginEditor.cpp:95",
+      "description": "Windows WebView2 user-data folder is named \"OsimpleFM_WebView\" while the product is O-simpleFM; minor casing/convention drift (PluginName_WebView). Temp dir, never user-visible.",
+      "fixSuggestion": "Rename to \"O-simpleFM_WebView\" for grep-ability and convention consistency across plugin temp dirs."
+    },
+    {
+      "id": "ARCH-005",
+      "severity": "note",
+      "category": "build_wiring",
+      "location": "PluginEditor.cpp:36",
+      "description": "Resource MIME types omit charset (e.g. text/html without ; charset=utf-8). WebView2/WKWebView default to UTF-8 so Unicode header glyphs render correctly today; purely defensive.",
+      "fixSuggestion": "Optionally append \"; charset=utf-8\" to the html/css/js MIME strings."
+    }
+  ],
+  "nextAction": "gate_pass"
+}
