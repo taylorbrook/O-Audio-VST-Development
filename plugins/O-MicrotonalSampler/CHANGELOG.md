@@ -1,6 +1,29 @@
 # O-MicrotonalSampler Changelog
 
-## [1.18.3] - 2026-06-20
+## [1.19.0] - 2026-06-21
+
+Enhancement: the **Output Gain** parameter now boosts up to **+24 dB** (was
++12 dB). The minimum (−24 dB) and default (0 dB) are unchanged. Useful for
+quiet sample libraries that need more makeup gain than the previous ceiling
+allowed.
+
+### Changed
+- **Output Gain range raised from −24…+12 dB to −24…+24 dB.**
+  - C++: `output_gain` `NormalisableRange` max `12.0f → 24.0f`
+    (`PluginProcessor.cpp`).
+  - UI: `output_gain` knob display max `12.0 → 24.0`
+    (`Resources/ui/js/sampler-app.js`) so the readout and drag travel cover the
+    full new range.
+- **Compatibility:** non-breaking for stored values — every saved/preset value
+  in the old −24…+12 range is still valid and restores to the same dB
+  (APVTS persists the denormalised value). Parameter ID, type, default, and
+  state format are unchanged. **Caveat:** host *automation lanes* are stored
+  normalised, so an existing lane written at the old top (1.0 = +12 dB) now
+  resolves to +24 dB; re-scale any output-gain automation written before this
+  version. No MAJOR bump taken because the range was *expanded*, not shifted or
+  shrunk (no value clamps, no preset breakage).
+
+
 
 Bug fix: a selected playing technique (e.g. **pizz**) now always plays that
 technique instead of silently reverting to **ord** when a note's velocity falls

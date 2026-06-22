@@ -171,7 +171,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "output_gain", 1 },
         "Output Gain",
-        juce::NormalisableRange<float> (-24.0f, 12.0f, 0.1f),
+        juce::NormalisableRange<float> (-24.0f, 24.0f, 0.1f),
         0.0f,
         " dB"
     ));

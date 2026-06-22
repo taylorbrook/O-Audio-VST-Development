@@ -171,7 +171,7 @@ const KNOB_FORMATS = {
     // v1.7.0: expression as 0-100% (squared curve handled C++ side).
     'expression':          { min: 0.0,   max: 100.0, suffix: ' %',
                              format: v => Math.round(v).toString() },
-    'output_gain':         { min: -24.0, max: 12.0, suffix: ' dB',
+    'output_gain':         { min: -24.0, max: 24.0, suffix: ' dB',
                              format: v => (v >= 0 ? '+' : '') + v.toFixed(1) },
 };
 
