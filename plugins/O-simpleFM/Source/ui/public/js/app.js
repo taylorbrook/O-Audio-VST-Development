@@ -56,6 +56,12 @@ const TIPS = {
   modFixedMode: ["Fixed Mode", "Switches the modulator from tracking the note (Ratio) to a fixed frequency in Hz (set by Fixed Hz)."],
   routing:      ["Signal Path", "MOD modulates the phase of CAR; MOD's self-loop is Feedback. Arrow thickness reflects Mod Index and Feedback amount."],
   readout:      ["Live FM Readout", "The two numbers that define the tone, updating as you play. Left — the C : M ratio: the modulator's frequency relative to the played note, which sets <em>which</em> harmonics appear (whole numbers = pitched, irrational = bell-like). Right — I, the modulation index: how hard the modulator bends the carrier, which sets the <em>brightness</em> (more index = more sidebands)."],
+  // Lesson presets — how each factory voice is built (values mirror FactoryPresets.cpp).
+  lessonEpiano:   ["E-Piano · how it's built", "Carrier:modulator <strong>1:1</strong> (harmonic). A fast mod-envelope (decay 0.45 s &rarr; zero sustain) sweeps the index down from 5.5, so a bright pluck attack collapses to a near-pure sine as it rings. Velocity adds index — strike harder, sound brighter."],
+  lessonTubular:  ["Tubular Bell · how it's built", "<strong>Inharmonic</strong> ratio <strong>1.41</strong> (&asymp;&radic;2, snap off) puts sidebands at non-integer multiples, so the partials never fuse into a pitch — that's the metallic ring. High index (8) plus long &asymp;3 s decays let it shimmer out."],
+  lessonBrass:    ["Brass · how it's built", "Carrier:modulator <strong>1:1</strong> (harmonic). The index (4) swells in with the attack and <em>holds</em> at sustain — brightness tracks loudness, the way a blown brass note brightens as it gets louder."],
+  lessonClarinet: ["Clarinet · how it's built", "Carrier:modulator <strong>2:1</strong>. A <strong>low index</strong> (2.2) keeps the spectrum sparse, and the 2:1 ratio emphasises <strong>odd harmonics</strong> &rarr; the hollow, stopped-pipe woody tone. High sustain, so it speaks steadily like a reed."],
+  lessonClang:    ["Clang Bell · how it's built", "<strong>Inharmonic</strong> ratio 3.46 plus a <strong>very high index</strong> (14) throw a dense thicket of non-integer sidebands; 60% <strong>feedback</strong> bends the modulator toward noise. The spectrum smears into an atonal clang rather than a pitch."],
 };
 
 // ── Knob geometry ──────────────────────────────────────────────────────────
