@@ -3,9 +3,10 @@
 
     O-simpleAdditive - Audio Processor (implementation)
 
-    Stage 1 (Foundation): silent synth shell. Builds the full 33-parameter APVTS
-    and persists it. processBlock clears the buffer and applies a smoothed output
-    trim (no audio until Stage 2). Zero latency — no oversampling.
+    Stage 2 — Phase 2.1 (Core Additive Voice): 16-voice additive Synthesiser.
+    Per block: read Frame A drawbars + amp ADSR from APVTS → push to voices →
+    render → smoothed output trim → NaN scrub. Zero latency — no oversampling
+    (each voice band-limits its single-cycle table exactly).
 
   ==============================================================================
 */
@@ -132,7 +133,12 @@ OSimpleAdditiveAudioProcessor::OSimpleAdditiveAudioProcessor()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
-    // No voice allocation at Foundation — the additive Synthesiser arrives in Stage 2.
+    // Pre-allocate all voices up front (no audio-thread allocation later).
+    for (int i = 0; i < kNumVoices; ++i)
+        synth.addVoice (new AdditiveVoice());
+
+    synth.addSound (new AdditiveSound());     // single shared sound, all notes/channels
+    synth.setNoteStealingEnabled (true);
 }
 
 OSimpleAdditiveAudioProcessor::~OSimpleAdditiveAudioProcessor() = default;
@@ -140,23 +146,28 @@ OSimpleAdditiveAudioProcessor::~OSimpleAdditiveAudioProcessor() = default;
 //==============================================================================
 void OSimpleAdditiveAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused (samplesPerBlock);
-
     currentSampleRate = sampleRate;
+
+    // Synthesiser + per-voice prepare. juce::SynthesiserVoice has no virtual
+    // prepareToPlay in JUCE 8 — dispatch the custom one via dynamic_cast.
+    synth.setCurrentPlaybackSampleRate (sampleRate);
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* av = dynamic_cast<AdditiveVoice*> (synth.getVoice (v)))
+            av->prepareToPlay (sampleRate, samplesPerBlock);
 
     // Smoothed dB->lin output trim, seeded from the current parameter value (20 ms).
     outputGain.reset (sampleRate, 0.02);
     const float outDb = parameters.getRawParameterValue (OSimpleAdditive::ParamIDs::outputLevel)->load();
     outputGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
 
-    // No oversampling — additive band-limits exactly (omit partials k>Kmax in Stage 2).
-    // getLatencySamples() is non-virtual in JUCE 8; set the stored value instead.
+    // No oversampling — additive band-limits exactly (partials k>Kmax omitted per
+    // voice). getLatencySamples() is non-virtual in JUCE 8; set the stored value.
     setLatencySamples (0);
 }
 
 void OSimpleAdditiveAudioProcessor::releaseResources()
 {
-    // Nothing to release yet (voices/DSP arrive in Stage 2).
+    synth.allNotesOff (0, false);
 }
 
 bool OSimpleAdditiveAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -175,27 +186,52 @@ bool OSimpleAdditiveAudioProcessor::isBusesLayoutSupported (const BusesLayout& l
     return true;
 }
 
+void OSimpleAdditiveAudioProcessor::pushParamsToVoices()
+{
+    using namespace OSimpleAdditive::ParamIDs;
+    auto get = [this] (const char* id) { return parameters.getRawParameterValue (id)->load(); };
+
+    // Frame A — the 16 harmonic drawbars (stored 0–1).
+    static const char* const partialIds[AdditiveVoice::kNumPartials] = {
+        partial1,  partial2,  partial3,  partial4,
+        partial5,  partial6,  partial7,  partial8,
+        partial9,  partial10, partial11, partial12,
+        partial13, partial14, partial15, partial16
+    };
+
+    float frameA[AdditiveVoice::kNumPartials];
+    for (int k = 0; k < AdditiveVoice::kNumPartials; ++k)
+        frameA[k] = get (partialIds[k]);
+
+    const juce::ADSR::Parameters ampP { get (ampAttack), get (ampDecay),
+                                        get (ampSustain), get (ampRelease) };
+
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* av = dynamic_cast<AdditiveVoice*> (synth.getVoice (v)))
+            av->setParams (frameA, ampP);
+}
+
 void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                   juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    juce::ignoreUnused (midiMessages); // MIDI accepted but unused until Stage 2
 
     const int numSamples = buffer.getNumSamples();
     const int numCh      = buffer.getNumChannels();
 
-    // Silent shell: no voices render yet. Clear the buffer (Stage 2 voices ADD into it).
-    buffer.clear();
+    buffer.clear();                           // voices ADD into a cleared buffer
 
-    // Master output trim (dB->lin, smoothed). Applied to silence now; in place so the
-    // ramp infrastructure is already wired when voices arrive in Stage 2.
+    pushParamsToVoices();
+    synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
+
+    // Master output trim (dB->lin, smoothed).
     const float outDb = parameters.getRawParameterValue (OSimpleAdditive::ParamIDs::outputLevel)->load();
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
     const float g0 = outputGain.getCurrentValue();
     const float g1 = outputGain.skip (numSamples);
     buffer.applyGainRamp (0, numSamples, g0, g1);
 
-    // Suite-wide NaN insurance (finite scrub).
+    // Suite-wide NaN insurance (finite scrub) after summing voices.
     for (int ch = 0; ch < numCh; ++ch)
     {
         auto* d = buffer.getWritePointer (ch);

@@ -24,14 +24,15 @@ juce_add_plugin(O-simpleAdditive
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 )
 
-# Source files (Foundation: the 4 Source files only — no binary data, no preset
-# module, no tests/ subdir; those arrive in later stages).
+# Source files. Stage 2 (DSP) adds the additive voice header; binary data,
+# preset module, and tests/ arrive in later stages.
 target_sources(O-simpleAdditive
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        Source/AdditiveVoice.h
 )
 
 # Include paths
