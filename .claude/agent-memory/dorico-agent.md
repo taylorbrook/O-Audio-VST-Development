@@ -6,12 +6,18 @@
 - General: Dorico keyswitches not firing = check 3 layers in PARALLEL: (1) per-combo <exclusionGroup>1</exclusionGroup> in .doricolib; (2) plugin trigger gates not defaulting false (ks_enabled, technique_count, etc.); (3) FRESH plugin instance (saved project state shadows new defaults). HSO factory map is the KS reference, NOT NotePerformer (which uses kControlChange).
 - O-Lyrica: validated spike/reference. auval DEF-24-01 (parameter-meta-flag annotation gap) is benign — NOT a runtime defect. Do not propose fixes unless explicitly requested.
 
+- O-MicrotonalSampler: KS "not reaching plugin" / tab strip never moves, but binding chain is byte-perfect → check `application.log` for `Applying playback template playbacktemplate.noteperformer`. If the active project template is NotePerformer (not O-MicrotonalSampler), the exp-map that emits kKeySwitch notes 0..7 is loaded but NOT bound to any stave. NotePerformer routes plain note-ons (it uses kControlChange, not KS). Fix = Play → Playback Templates → tick O-MicrotonalSampler → Apply. One-step confirm: grep log for the apply line. (v1.18.2, 2026-06-20.)
+- General: `Loading PlaybackTemplateSpec` / `Loading Endpoint Config` / `Loading Extra Library` in the log only mean INGEST succeeded — NOT that the template is applied to the project. "Loaded" ≠ "applied". Always grep `Applying playback template` to see what's actually bound.
+- General: The apply line has a SUFFIX — `(full)` vs `(incremental)`. Only `(full)` re-routes staves (user clicked Apply and Close in the Playback Template dialog). `(incremental)` is Dorico's auto re-assert on project-open / state-sync and only fills EMPTY slots; it does NOT replace existing stave routing. Diagnosing "did the apply take" requires finding the `(full)` line for THAT project, not just any apply line. Auto re-applies on reopen are always `(incremental)` even when the template is correctly bound. (O-MicrotonalSampler Psychography project, 2026-06-20.)
+- General: `Updating project Expression Map from library version N -> M, <map name>` in the log PROVES the project's staves are bound to that exp-map (Dorico only version-bumps maps that are actually referenced by the project). If you see all 4 O-MicrotonalSampler maps version-bumping on open, the binding is live — push diagnosis downstream to the plugin instance (Layer 3 / samples), not the binding chain.
+- O-MicrotonalSampler: CURRENT binary defaults (v1.18.x, PluginProcessor.cpp:207-221) are technique_count=8, ks_enabled=true. The inline comment at line 194 ("default state technique_count=1, ks_enabled=false") is STALE — do not trust it. Fresh instances are KS-ready. auto-grow technique_count (line 1074-1095) only fires inside applyFolderLoad, so a freshly-applied EMPTY instance has 8 slots / KS on but no samples → technique switch is inaudible and looks like "nothing changed". Distinguish "KS not firing" from "no per-slot samples in THIS instance".
+
 ## Common Issues
 - Microtonal pitch wrong in Dorico but plugin tests fine: TC-4 of SMOKE-TEST.md (quarter-sharp at C4 with 24-EDO) is the only test that reveals top-level-fields regression. TC-1..TC-3 will all still pass.
 - Dorico log shows "Error opening file: invalid file format": .doricolib XML is structurally invalid. Diff against last-known-good in git.
 - Dorico Library Manager has no "Import Expression Map" command — only "Import Library" (.doricolib) and "Import Cubase Expression Map". This is by design.
 
 ## Last Updated
-2026-05-05 (seeded from critical_dorico_*.md and v1.16.6 incident)
+2026-06-20 (added (full)-vs-(incremental) apply distinction, exp-map-version-bump = binding-live signal, stale technique_count comment + empty-instance Layer-3 trap)
 </content>
 </invoke>

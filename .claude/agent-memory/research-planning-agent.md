@@ -17,8 +17,6 @@
 - O-Gain: BS.1770 K-weight coefficients are published only for 48kHz; pre-calculate for common sample rates (44100, 48000, 88200, 96000) as a lookup table rather than runtime bilinear transform
 - O-Gain: juce::dsp::Oversampling adds latency to the signal path -- do NOT use for true peak detection in zero-latency plugins; use custom polyphase FIR instead (measurement side-chain only)
 
-- \n   120→> \"Thanks to the fact that streaming services like Spotify and Apple Music are now normalizing songs so that the level is the same from tune to tune, there's no real benefit for compressing 
-- Error resolved: {"parentUuid":"ba734643-0e49-44b1-a285-b3be4854ed55","isSidechain":true,"userType":"external","cwd":
 
 - O-Formant: juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass(sampleRate, freq, Q) returns std::array<float,6> -- use for custom biquad coefficient computation while keeping state management lightweight
 - O-Formant: For polyphonic synths with many filter instances (5 x 16 = 80), use custom biquad structs (32 bytes each) instead of juce::dsp::IIR::Filter -- ProcessSpec/AudioBlock overhead unacceptable at that scale
@@ -27,10 +25,6 @@
 - O-Formant: For source-filter vocal synths, Shepard interpolation (modified IDW) with tunable power beats barycentric/RBF when you have only 5 anchor points -- power parameter doubles as a musical "Focus" control
 - O-Formant: When research docs and parameter-spec disagree on parameter count (22 vs 21), always follow the parameter-spec as the contract -- research docs are informational, not authoritative
 
-- Error resolved: {"parentUuid":"690cb47e-3db7-4f8f-93f5-b93f6ef12e01","isSidechain":true,"promptId":"7a00c0a2-35ea-46
-- Error resolved: {"parentUuid":"f88251d3-4138-460e-889e-4d2f5b3258ab","isSidechain":true,"promptId":"7a00c0a2-35ea-46
-- Error resolved: {"parentUuid":"ae7ddd90-dd6c-4e26-868a-70c1d0908052","isSidechain":true,"promptId":"7a00c0a2-35ea-46
-- Error resolved: {"parentUuid":"3f20c288-0c8f-4ee3-82d0-7db4c7462943","isSidechain":true,"promptId":"7a00c0a2-35ea-46
 
 - O-Bowed: For physical modeling bowed strings, the friction model is the highest-risk component -- always implement memoryless core tier first (STK-style bow table) and validate basic bowed sound before adding NR-solved enhanced/quality tiers
 - O-Bowed: juce::dsp::DelayLine with Thiran interpolation provides built-in allpass fractional delay -- use this for waveguide strings (flat magnitude response, critical for bowed string harmonics)
@@ -38,8 +32,6 @@
 - O-Bowed: For body resonator morphing, recalculate biquad coefficients from interpolated freq/Q/gain via makePeakFilter() rather than raw coefficient lerp -- raw lerp can produce unstable filters
 - O-Bowed: O-Lyrica WaveguideString + HarpSynthVoice + SympatheticResonanceEngine are directly reusable architectural patterns for any waveguide-based physical model synth
 
-- Error resolved: {"parentUuid":"21be624b-7d8e-4a38-a06f-c005e81a318b","isSidechain":true,"promptId":"85f17ffb-4012-47
-- Error resolved: {"parentUuid":"4db04bfc-5bf8-4fcf-bf37-d3e12ba9d36a","isSidechain":true,"promptId":"85f17ffb-4012-47
 
 - O-Wind: For jet-drive flute models, use tanh saturation over STK's cubic (x-x^3) -- tanh is bounded for all inputs, cubic diverges for |x|>1 requiring additional clamping
 - O-Wind: Flute jet excitation is one-directional (reads bore output from PREVIOUS sample) -- no circular dependency, no iterative solver needed. This is the key simplification vs bowed string friction junctions.
@@ -47,11 +39,6 @@
 - O-Wind: Use Lagrange3rd (not Thiran) for jet delay line because it's continuously modulated by embouchure. JUCE docs explicitly warn Thiran "is unsuitable for applications requiring fast delay modulation."
 - O-Wind: Flute vibrato should modulate breath pressure (not pitch) -- produces correlated pitch+amplitude variation matching real flute physics. All serious implementations (SWAM, STK) use this approach.
 
-- the nonlinear solver (Newton-Raphson for enhanced/quality tiers).\n287\t- O-Wind Flute: Jet excitation reads the bore output from the previous sample and injects new energy. No simultaneous coupling -
-- Error resolved: {"parentUuid":"e11cfef1-2ff2-44a0-84eb-0dba5ad0c3ba","isSidechain":true,"promptId":"0f0ee55a-caee-47
-- Error resolved: {"parentUuid":"92d2dd8f-d6d1-4bd5-a062-9279e258fc21","isSidechain":true,"promptId":"0f0ee55a-caee-47
-- Error resolved: {"parentUuid":"97590c88-51c7-4fb3-a2e9-0832560c3ce0","isSidechain":true,"promptId":"0f0ee55a-caee-47
-- Error resolved: {"parentUuid":"79a977b6-dc74-4703-a786-b48be19d3b4f","isSidechain":true,"promptId":"0f0ee55a-caee-47
 
 - O-Reed: Guillemain Psi parameter (confined jet loss) is a single-term denominator addition to the Bernoulli flow equation -- computationally trivial but acoustically transformative for single-to-double-reed morphing
 - O-Reed: For reed wind PM, use Strategy B (cylindrical waveguide + conical correction filter) initially -- Strategy C (true conical sections) has junction instabilities at taper transitions that add risk without proportional quality gain for v1.0
@@ -59,14 +46,7 @@
 - O-Reed: sqrt() in Bernoulli flow requires epsilon guard: sqrt(max(|dp|, 1e-10)) -- zero pressure difference causes denormals and NaN propagation
 - O-Reed: Tone hole scattering junctions cost ~5-10 multiplies each per sample -- use 4 virtual holes + register hole (not full 24-hole clarinet lattice) for production quality at acceptable CPU
 
-- ** SWAM for solos, Spitfire/CSS for sections.\n392\t**Pain points:** SWAM's learning curve. Cost of full woodwind coverage. No non-Western winds for ethnic scoring cues.\n393\t**O-Reed angle:** Quick-
-- Error resolved: {"parentUuid":"34bfe99a-3c4e-4285-af48-eb30a13abdd9","isSidechain":true,"promptId":"c0d08e10-c3a7-41
-- Error resolved: {"parentUuid":"6eb46d25-702e-4c2b-a1c1-33b5137f25e3","isSidechain":true,"promptId":"c0d08e10-c3a7-41
-- Error resolved: {"parentUuid":"6a5c23ae-5cfe-4850-bb12-72a1f56f5fe3","isSidechain":true,"promptId":"c0d08e10-c3a7-41
 
-- ** A soft magnitude clamp on the delay line state, applied at the friction junction (one location, cheap):\n261\t\n262\t```cpp\n263\t// Soft clamp at friction junction - inside the per-sample tick\n26
-- Error resolved: {"parentUuid":"1a954a73-c87d-433b-8100-7af94ba63f5b","isSidechain":true,"promptId":"051c9843-e6ad-46
-- Error resolved: {"parentUuid":"3dc5440f-739a-4491-b0a8-a09e81e31e4b","isSidechain":true,"promptId":"051c9843-e6ad-46
 
 - O-Bassoon: For polyphonic modal synth voices (16 modes x 8 voices = 128 biquads), always use custom direct-form biquad arrays NOT juce::dsp::IIR::Filter -- ProcessSpec/AudioBlock overhead is unacceptable at scale (matches O-Formant's filter-bank precedent)
 - O-Bassoon: Modal synthesis is a clean architectural choice for sustained-tone instruments -- no feedback loop, no oversampling, no iterative solver; CPU and stability are predictable, much simpler than waveguide approaches
@@ -74,6 +54,16 @@
 - O-Bassoon: For modal-synth coefficient updates with vibrato, block-rate (not per-sample) coefficient recomputation is sufficient for vibrato rates up to 10 Hz at 256-sample buffers (~188 Hz update rate >> 10 Hz vibrato)
 - O-Bassoon: When the brief excludes one plugin (here: O-Reed) as a dependency, document this as a Stage 1 acceptance test (verify via grep -rn for the excluded plugin name in CMake + sources)
 - O-Bassoon: Wiring TuningEngine in headless at v1.0 (no UI, 12-TET default) costs ~50 lines but eliminates an invasive v1.1 refactor -- always favor seam-first when shared modules exist
+
+- O-simpleFM: For FM synths ALWAYS spec phase modulation (PM) not true FM -- PM adds the modulator after phase integration so DC offset (feedback/asymmetry) becomes a fixed inaudible phase offset, not integrated pitch drift. Every commercial "FM" synth (DX7/Operator/FM8) is PM. Commit to ONE phase convention (radians, 1:1 with Bessel math); never mix with normalized-turns.
+- O-simpleFM: Pedagogically transparent modulation index = raw radian index I (the Bessel argument), 0-20 perceptual taper. Carrier-null J0 zeros at I~=2.405/5.520/8.654 are marquee teaching annotations ("fundamental vanishes").
+- O-simpleFM: DX7 self-feedback REQUIRES two-sample average (Tomisawa anti-hunting, US Pat 4,249,447) -- single-sample feedback hunts into a Nyquist limit-cycle screech. Clamp the feedback HISTORY (not just output), NaN-scrub at source, reset history on note-on. Max coeff ~= pi rad with x^1.5 taper.
+- O-simpleFM: PolyBLEP/BLIT do NOT compose with hard FM (correction assumes steady phase increment). FM anti-aliasing = key-tracked index ceiling (Carson: (0.9*Nyq-fc)/fm - 1) + oversampling. polyBLEP is still fine for classic-waveform sub-oscillators, just not FM operators.
+- O-simpleFM: Real-time-safe spectrum/scope = audio thread copy-only into pre-allocated juce::AbstractFifo ring; FFT on message-thread editor Timer (30 Hz). performFrequencyOnlyForwardTransform overwrites its buffer IN PLACE -- copy the scope window BEFORE the FFT. 4096-pt FFT + Blackman-Harris separates discrete sidebands clearly (Hann is blurrier).
+- O-simpleFM: juce::dsp::LookupTableTransform sine needs explicit floor-modulo phase wrap (phase -= twoPi*floor(phase/twoPi)) before lookup -- the PM argument swings to many multiples of 2pi at high index. 1024 pts linear interp ~= 97 dB SNR (cubic unnecessary).
+- O-simpleFM: Mod-env->index should be MULTIPLICATIVE (I_inst = base*((1-depth)+depth*modEnv)) default depth 1.0 -- at depth 1.0 + sustain 0 the tail is pure sine (carrier null reachable). Additive default muddies the mental model. Voice lifetime gates on AMP envelope only (long mod release must not keep silent voice alive).
+- GENERAL: When Stage 0 deliverables already exist from a prior /plugin-research+plan pass, VERIFY their JUCE-class claims against local source (/Users/taylorbrook/JUCE/modules/) rather than regenerating, then finalize STATUS.md (often still says stage:ideation) + commit. Stage untracked .planning files from ideation together so the full contract set lands in git.
+- GENERAL: research/ docs REQUIRE the 10-field YAML frontmatter or they're invisible to the resource manifest. Upstream docs created by a /plugin-research command often lack it -- add frontmatter when folding them into Stage 0. PLUGINS.md Stage-0 plugins use only the registry-table row (no per-plugin ### entry) -- don't fabricate one.
 
 ## Common Issues
 - WebSearch returns outdated JUCE 6 docs; always verify JUCE API by reading local JUCE source at /Users/taylorbrook/JUCE/modules/
