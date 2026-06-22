@@ -1,5 +1,46 @@
 # O-MicrotonalSampler Changelog
 
+## [1.20.0] - 2026-06-21
+
+Feature: **technique naming presets**. A new "Technique preset" dropdown above
+the technique strip renames all eight technique slots to match a Dorico
+instrument family in one action — so non-string instruments no longer require
+renaming each slot by hand. Slot order follows the keyswitch (baseSwitchID)
+order of the matching O-MicrotonalSampler expression map, so sampler slot *N*
+lines up with keyswitch *N* in Dorico.
+
+### Added
+- **`Technique preset` selector** (always visible, above the technique bar).
+  Four families mirror the four expression maps in
+  `Resources/dorico/EndpointConfigs/O-MicrotonalSampler/playbacktemplatedeps.doricolib`:
+  - **Strings** — `ord, sp, st, stacc, cs, pizz, harm, trem` (= existing default)
+  - **Winds** — `ord, flz, whis, mult, key, slap, harm, stacc`
+    (natural, flutter-tongue, whisper, multiphonic, key click, slap-tongue,
+    nat. harmonic, staccato)
+  - **Brass** — `ord, mute, cuiv, flz, spare, stop, growl, fall`
+    (natural, muted, cuivré, flutter-tongue, spare/open, stopped, growl,
+    fall/drop — slot 4 is intentionally a spare, matching the unbound keyswitch
+    in the Dorico Brass map, so slots 5–7 stay aligned)
+  - **Generic** — `ord, t2…t8` (ord + 7 open slots; percussion / unknown
+    families — a customization seed)
+- **`applyTechniqueNames(name0…)` native function** (`PluginEditor.cpp`):
+  bulk-renames slots and grows `technique_count` to the supplied count (1–8) in
+  one synchronous pass, firing a single `techniqueStateUpdated`.
+
+### Notes
+- **Non-destructive.** Applying a preset only renames slots and (if needed)
+  grows the technique count to 8. Loaded samples are keyed by slot *index* and
+  are not moved or deleted; the preset dropdown snaps back to its placeholder
+  after applying, since slots remain freely renameable.
+- **Always visible.** The selector sits above the technique bar (which stays
+  hidden at `technique_count == 1`) so a fresh, single-technique instance can
+  be switched to a full family layout in one click — wind/brass sample
+  filenames are not auto-detected by the string-oriented filename router, so
+  the count would not otherwise grow on its own.
+- **Filename routing unchanged.** Slot names are cosmetic labels; the
+  filename-token → slot router (`FilenameParser`) remains fixed to the string
+  layout and is unaffected by renames.
+
 ## [1.19.0] - 2026-06-21
 
 Enhancement: the **Output Gain** parameter now boosts up to **+24 dB** (was

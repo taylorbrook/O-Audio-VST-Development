@@ -2827,6 +2827,58 @@ async function commitTechniqueRename() {
     closeTechniqueRenameDialog();
 }
 
+// ============================================================================
+// v1.20.0 — Technique naming presets
+// ============================================================================
+//
+// Each preset maps a Dorico instrument family to the 8 technique slot names in
+// keyswitch (baseSwitchID) order, so sampler slot N lines up with keyswitch N
+// in the matching O-MicrotonalSampler expression map (see Resources/dorico/…/
+// playbacktemplatedeps.doricolib). Applying a preset is non-destructive: it
+// only renames slots and grows technique_count to 8 — loaded samples are keyed
+// by slot index and stay put. Names are cosmetic; filename auto-routing is
+// fixed to the string layout in C++ (FilenameParser) and is unaffected.
+//
+// Labels reuse the terse vocabulary of the string defaults.
+const TECHNIQUE_PRESETS = {
+    // ord, sul pont, sul tasto, staccato, con sord (muted), pizz, nat. harmonic, tremolo
+    strings: ['ord', 'sp', 'st', 'stacc', 'cs', 'pizz', 'harm', 'trem'],
+    // ord, flutter-tongue, whisper, multiphonic, key click, slap-tongue, nat. harmonic, staccato
+    winds:   ['ord', 'flz', 'whis', 'mult', 'key', 'slap', 'harm', 'stacc'],
+    // ord, muted, cuivré, flutter-tongue, (spare — unbound in Dorico), stopped, growl, fall/drop
+    brass:   ['ord', 'mute', 'cuiv', 'flz', 'spare', 'stop', 'growl', 'fall'],
+    // ord + 7 open slots — percussion / unknown families; a customization seed
+    generic: ['ord', 't2', 't3', 't4', 't5', 't6', 't7', 't8'],
+};
+
+const TECHNIQUE_PRESET_LABELS = {
+    strings: 'Strings', winds: 'Winds', brass: 'Brass', generic: 'Generic',
+};
+
+async function applyTechniquePreset(key) {
+    const names = TECHNIQUE_PRESETS[key];
+    if (!names) return;
+    // Variadic native fn: each name is a positional arg. C++ sets
+    // technique_count = arg count and writes each slot, firing a single
+    // techniqueStateUpdated that re-pulls + re-renders the strip (and reveals
+    // the technique bar, which stays hidden at count==1).
+    await invokeNative('applyTechniqueNames', ...names);
+    showToast(`Applied ${TECHNIQUE_PRESET_LABELS[key] || key} technique names`);
+}
+
+function bindTechniquePresets() {
+    const select = document.getElementById('technique-preset-select');
+    if (!select) return;
+    select.addEventListener('change', async () => {
+        const key = select.value;
+        // Snap back to the placeholder so the same family can be re-applied
+        // and the control never implies a sticky "current preset" (slots are
+        // freely renameable afterwards, which would make a held selection lie).
+        select.value = '';
+        if (key) await applyTechniquePreset(key);
+    });
+}
+
 function bindTechniqueBar() {
     const tabs = document.getElementById('technique-tabs');
     if (tabs) {
@@ -3199,6 +3251,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindLoopEditorEvents();
     bindLoopEditorResize();
     bindTechniqueBar();              // v1.14.0
+    bindTechniquePresets();          // v1.20.0
     pullTechniqueState();            // v1.14.0
     bindTriggerPanel();              // v1.15.0
     pullTriggerState();              // v1.15.0

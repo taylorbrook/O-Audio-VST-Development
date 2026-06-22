@@ -1468,6 +1468,37 @@ body {
     display: none;
 }
 
+/* v1.20.0: technique naming presets. Slim, always-visible row above the
+   technique bar so a family can be applied even from the collapsed
+   single-technique default. */
+.technique-preset-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: var(--gap-sm);
+}
+
+.technique-preset-row label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.technique-preset-select {
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    border: 1px solid var(--border-warm);
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.technique-preset-select:hover {
+    background: #FAF0E6;
+}
+
 .technique-tabs {
     display: flex;
     flex: 1 1 auto;

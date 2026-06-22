@@ -1990,6 +1990,33 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
+        // ---- applyTechniqueNames(name0, name1, …) — v1.20.0 ----
+        // Bulk-renames slots from a family preset in one pass: sets
+        // technique_count to the number of names supplied (clamped 1..8) and
+        // writes each slot name. The whole lambda runs synchronously on the
+        // message thread, so JS sees a single consistent techniqueStateUpdated
+        // (the last setTechniqueName marks the dirty flag). Slot index N maps
+        // to Dorico keyswitch N, so callers pass names in baseSwitchID order.
+        { "applyTechniqueNames",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.isEmpty()) { complete (juce::var (false)); return; }
+
+                    const int n = juce::jlimit (1, 8, args.size());
+                    auto& apvts = processorRef.getAPVTS();
+                    if (auto* cp = apvts.getParameter ("technique_count"))
+                    {
+                        const auto range = apvts.getParameterRange ("technique_count");
+                        cp->setValueNotifyingHost (range.convertTo0to1 ((float) n));
+                    }
+                    for (int i = 0; i < n; ++i)
+                        processorRef.setTechniqueName (i, args[i].toString());
+
+                    complete (juce::var (true));
+                }
+        },
+
         // ---- addTechniqueSlot() — increase technique_count by 1 (cap 8) ----
         // Routes through the APVTS so the change persists with project state.
         { "addTechniqueSlot",
