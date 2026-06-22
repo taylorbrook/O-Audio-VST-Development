@@ -71,6 +71,21 @@
              moment the user expands beyond a single technique slot — the
              back-compat path for v1.13.0 sessions stays visually identical.
              Tabs: left-click to switch active, right-click to rename. -->
+        <!-- v1.20.0: technique naming presets. Always visible (the bar below
+             hides at count==1) so a non-string instrument can be set up in one
+             action — picking a family renames all 8 slots in Dorico keyswitch
+             order and grows the technique count to 8. -->
+        <div id="technique-preset-row" class="technique-preset-row">
+          <label for="technique-preset-select">Technique preset</label>
+          <select id="technique-preset-select" class="technique-preset-select"
+                  title="Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)">
+            <option value="" selected>Choose family…</option>
+            <option value="strings">Strings</option>
+            <option value="winds">Winds</option>
+            <option value="brass">Brass</option>
+            <option value="generic">Generic</option>
+          </select>
+        </div>
         <div id="technique-bar" class="technique-bar">
           <div id="technique-tabs" class="technique-tabs"
                role="tablist" aria-label="Playing techniques">
