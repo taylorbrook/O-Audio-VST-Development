@@ -7,8 +7,8 @@ complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 stage_2_mode: incremental_dsp_builds
-next_action: implement_phase_2_3_spectral_decay_bitdepth_viz
-next_stage: 2
+next_action: begin_stage_3_gui
+next_stage: 3
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:2270ef614ef3fbac3778fc7157e8c2ce62d2d04a8dcc0b1348b07278b2803435
@@ -21,17 +21,19 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — in progress (incremental-DSP-builds mode)
-Status: Phase 2.2 (Scan/Morph + Mod-Env + LFO) built + auval-validated. **Wavetable dimension live.** Ready for Phase 2.3 (spectral-decay + bit-depth + viz tap).
-Progress: [############........] 60%
+Stage: 2 of 4 (DSP) — ✓ COMPLETE (incremental-DSP-builds mode). Next: Stage 3 (GUI).
+Status: Phase 2.3 (Spectral-Decay + Bit-Depth + Viz Tap) built + auval-validated. **All 33 params consumed; full DSP engine complete.** Ready for Stage 3 (WebView GUI).
+Progress: [##############......] 70%
 
-## Stage 2 (DSP) Phase Progress — incremental builds (build + auval per sub-phase)
+## Stage 2 (DSP) Phase Progress — incremental builds (build + auval per sub-phase) — ✓ COMPLETE
 
 | Phase | Status | Artifact / Gate |
 |-------|--------|-----------------|
 | 2.1 Core additive voice | ✓ | stages/2-dsp/SUMMARY-2.1.md — build clean + **auval SUCCEEDED** |
 | 2.2 Scan/morph + mod-env + LFO | ✓ | stages/2-dsp/SUMMARY-2.2.md — build clean + **auval SUCCEEDED** |
-| 2.3 Spectral-decay + bit-depth + viz tap | ▶ next | — |
+| 2.3 Spectral-decay + bit-depth + viz tap | ✓ | stages/2-dsp/SUMMARY-2.3.md — build clean + **auval SUCCEEDED** |
+
+**Phase 2.3 result:** Spectral-decay macro (per-partial `D_k = exp(−rate·k·tau)`, control-rate `tau` ramp 0→1 over the note, `kDecayRateMax=0.35`), read-time bit-depth quantizer (`{Off,12,10,8,6,4,2}`, mid-tread), and the lock-free viz tap — `VizRing` (lifted from O-simpleFM `FmVizAnalyzer.h` → new `AdditiveVizAnalyzer.h`) fed by the post-gain mono sum + a 16-element atomic active-spectrum snapshot (primary = newest sounding voice by `noteAge`). VST3 + AU clean; `auval` SUCCEEDED incl. MIDI test. Default patch (spectralDecay=0, bitDepth=Off) bit-identical to 2.2 — no regression. Fixed an accidental `isVoiceActive` override of a JUCE virtual (renamed `isAmpActive`). `getVizRing()` + `readActiveSpectrum()` exposed for the Stage-3 editor.
 
 **Phase 2.1 result:** `AdditiveVoice.h` (new) — 16-partial band-limited single-cycle table (2048-pt), per-note `Kmax` band-limit + raised-cosine taper, headroom-normalized sum, amp ADSR + velocity, control-rate dirty-refill. Synthesiser wired (16 voices). VST3 + AU clean; `auval` SUCCEEDED incl. MIDI test at 11k–192k Hz.
 
@@ -66,8 +68,8 @@ Progress: [############........] 60%
 
 ## Next Steps
 
-1. **Phase 2.3: Spectral-decay + bit-depth + viz tap** — per-partial exponential tilt `D_k = exp(−rate·k·tau)` (composes into `refillTable()` after morph, before band-limit), discrete bit-depth quantizer at read time, and the lock-free `VizRing` + active-spectrum snapshot tap. → `/clear` then `/implement O-simpleAdditive`
-2. Stage 3: GUI (3 phases) · Stage 4: Validation/Polish
+1. **Stage 3: GUI (3 phases)** — Phase 3.1 layout + 16 drawbars + controls + cross-platform WebView wiring; Phase 3.2 live drawbar spectrum (from `readActiveSpectrum`) + oscilloscope (from `getVizRing` → `AdditiveVizAnalyzer`); Phase 3.3 tooltips + preset tour. → `/clear` then `/implement O-simpleAdditive`
+2. Stage 4: Validation/Polish (pluginval, preset sweep, aliasing audit, changelog)
 3. Pause here
 
 ## Context to Preserve
