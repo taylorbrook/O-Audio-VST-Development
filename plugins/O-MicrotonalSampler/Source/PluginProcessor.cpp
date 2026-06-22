@@ -41,6 +41,47 @@ namespace
         std::atomic_store (&slot, std::move (value));
     }
 
+    // v1.20.1: layer-adaptive Expression (CC11) gain — fixes Dorico pp double-
+    // attenuation. A quiet dynamic in Dorico sends BOTH a low note-on velocity
+    // (which picks the inherently-quieter pp velocity-layer sample) AND a low
+    // CC11 (which scales post-mix gain). The pre-v1.20.1 curve was `v*v`, which
+    // floors to ZERO at CC11=0 — so a multi-layer library got the loudness drop
+    // counted TWICE (quiet sample × heavy gain cut) and pp played far too quiet.
+    //
+    // Fix: the gain at expression=0 (the "floor") rises with the velocity-layer
+    // count. With N layers the recorded samples already encode ~(N-1)/N of the
+    // pp→ff loudness range, so CC11 only needs to supply the remaining 1/N:
+    //
+    //     depthDb(N) = kExpressionBaseDepthDb / N      // 30, 15, 10, 7.5, …
+    //     floor(N)   = dbToGain(-depthDb(N))           // 0.032, 0.18, 0.32, 0.42…
+    //
+    // The full curve keeps the familiar squared shape but is remapped into
+    // [floor, 1] so it still reaches EXACTLY unity at expression=1 for every N
+    // (default sessions, expression=1.0, stay bit-identical):
+    //
+    //     gain = floor + (1 - floor) * (v * v)
+    //
+    // N=1 (no dynamic layers available) → floor ≈ −30 dB, i.e. CC11 keeps a full
+    // expressive range because it is the ONLY dynamics source. See
+    // docs/dynamics-mapping.md.
+    constexpr float kExpressionBaseDepthDb = 30.0f;
+
+    inline float expressionGainFloor (int numVelocityLayers) noexcept
+    {
+        const int   n       = juce::jlimit (1, 8, numVelocityLayers);
+        const float depthDb = kExpressionBaseDepthDb / (float) n;
+        return juce::Decibels::decibelsToGain (-depthDb);
+    }
+
+    // Map the raw expression parameter (0..1, = CC11/127 or host automation) to
+    // post-mix linear gain for a library with `numVelocityLayers` layers.
+    inline float expressionGainTarget (float v, int numVelocityLayers) noexcept
+    {
+        const float floorGain = expressionGainFloor (numVelocityLayers);
+        const float shaped     = v * v;                 // familiar squared feel
+        return floorGain + (1.0f - floorGain) * shaped; // == 1.0 exactly at v==1
+    }
+
     // v1.16.10 (MEDIUM-07): COW slot mutation for the trigger CC/PC tables.
     // The tables are published as shared_ptr through atomicLoad/atomicStore;
     // every mutation runs the same COW dance (load → make_shared from current
@@ -397,13 +438,18 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
         outputGainSmoother.setCurrentAndTargetValue (
             juce::Decibels::decibelsToGain (gp->load()));
 
-    // v1.7.0: expression smoothing — same 10 ms ramp; target stores the
-    // squared curve so the ramp moves through final linear gain space.
+    // v1.7.0: expression smoothing — same 10 ms ramp; target stores the final
+    // linear gain so the ramp moves through gain space.
+    // v1.20.1: seed with the layer-adaptive target so the very first block after
+    // prepare matches the steady-state curve (no startup ramp from a stale v*v).
     expressionSmoother.reset (sampleRate, 0.01);
     if (auto* ep = parameters.getRawParameterValue ("expression"))
     {
+        const auto map       = atomicLoad (currentSampleMap);
+        const int  numLayers = (map != nullptr) ? juce::jmax (1, map->numVelocityLayers)
+                                                 : 1;
         const float v = ep->load();
-        expressionSmoother.setCurrentAndTargetValue (v * v);
+        expressionSmoother.setCurrentAndTargetValue (expressionGainTarget (v, numLayers));
     }
 
     // v1.14.0: pre-allocate the keyswitch filter buffer. 2048 bytes covers
@@ -706,14 +752,23 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 
     const int numSamples = buffer.getNumSamples();
 
-    // v1.7.0: expression (dynamics) gain — squared curve, applied post-mix
-    // before output_gain. Independent of velocity-layer selection (velocity
-    // chooses the layer at note-on; expression scales the mix). Same
-    // start/end ramp pattern as output_gain (RESEARCH pitfall #9).
+    // v1.7.0: expression (dynamics) gain — applied post-mix before output_gain.
+    // Independent of velocity-layer SELECTION (velocity chooses the layer at
+    // note-on; expression scales the mix). Same start/end ramp pattern as
+    // output_gain (RESEARCH pitfall #9).
+    //
+    // v1.20.1: the gain DEPTH now adapts to the velocity-layer count so a quiet
+    // Dorico dynamic is not attenuated twice (quiet sample × heavy CC11 cut).
+    // One atomic_load of the published map per block reads the live layer count
+    // — the same audio-thread shared_ptr snapshot pattern voices use in
+    // startNote. See expressionGainTarget() / docs/dynamics-mapping.md.
     if (pExpression != nullptr)
     {
+        const auto map       = atomicLoad (currentSampleMap);
+        const int  numLayers = (map != nullptr) ? juce::jmax (1, map->numVelocityLayers)
+                                                 : 1;
         const float v = pExpression->load();
-        expressionSmoother.setTargetValue (v * v);
+        expressionSmoother.setTargetValue (expressionGainTarget (v, numLayers));
     }
 
     const float startExp = expressionSmoother.getCurrentValue();

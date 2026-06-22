@@ -1,6 +1,6 @@
 # O-MicrotonalSampler — Dynamics Mapping
 
-**Version:** 1.15.0
+**Version:** 1.20.1
 **Audience:** Composers using O-MicrotonalSampler in a DAW or in Dorico,
 plus anyone setting up an expression-map for orchestral mockups.
 
@@ -18,7 +18,7 @@ expect.
 | Path | What it controls | When it acts |
 |------|------------------|--------------|
 | **Note-on velocity** | Which velocity *layer* plays (sample selection). | Only at note-on. Locked for the lifetime of the note. |
-| **CC 11 ("Expression")** | Continuous post-mix gain. Wired to the `Expression` APVTS parameter (squared curve, 10 ms smoothing). | Continuously — modulates volume during sustain. |
+| **CC 11 ("Expression")** | Continuous post-mix gain. Wired to the `Expression` APVTS parameter (squared curve into a **layer-adaptive floor**, 10 ms smoothing). | Continuously — modulates volume during sustain. |
 | **Output Gain** | Master output trim, post-expression. | Continuously, but typically a static knob. |
 
 **Recommended Dorico exp-map setting: `<volumeType><type>kCC11</type></volumeType>` ("CC11 Expression").**
@@ -74,14 +74,47 @@ audio thread:
    `processBlock`.
 2. Forwards it to the host (via `handleAsyncUpdate`) so automation
    recording and parameter listeners see the change.
-3. Applies a **squared curve** (`gain = expression²`) — this is the
-   industry-standard expression-pedal response; equal-step CC values
-   feel equal-perceptual at the listener.
-4. Runs the squared target through a **10 ms linear smoother** before
+3. Applies a **squared curve** (`expression²`) for the familiar
+   expression-pedal feel, then remaps it into a **layer-adaptive
+   floor** (see below) so the curve still reaches exactly unity at
+   `expression = 1` but no longer drops to silence at the bottom.
+4. Runs that target through a **10 ms linear smoother** before
    applying it to the post-mix buffer with `applyGainRamp`.
 
 The result is continuous, click-free volume control during a sustained
 note, independent of the velocity layer that is currently playing.
+
+### Layer-adaptive depth (v1.20.1) — fixes the Dorico `pp` double-cut
+
+A quiet dynamic in Dorico sends **two** signals at once: a low note-on
+velocity (which selects the inherently-quieter `pp` velocity-layer
+sample) **and** a low CC 11 (which scales post-mix gain). Before
+v1.20.1 the gain curve was a bare `expression²` that floored to **zero**
+at CC 11 = 0 — so on a multi-layer library the pp→ff loudness drop was
+counted **twice** (quiet sample × heavy gain cut) and `pp` played far
+too quiet relative to `ff`.
+
+The fix makes the **depth** of the CC 11 cut depend on how many velocity
+layers the loaded library has:
+
+```
+depthDb(N) = 30 / N           # 30, 15, 10, 7.5 dB for N = 1, 2, 3, 4
+floor(N)   = dbToGain(-depthDb(N))
+gain       = floor(N) + (1 - floor(N)) * expression²
+```
+
+- **N = 1 (no dynamic layers):** floor ≈ −30 dB. CC 11 keeps a full
+  expressive range because it is the *only* dynamics source — single
+  sample, all dynamics come from gain.
+- **N = 4 (standard multi-layer):** floor ≈ −7.5 dB. The samples already
+  encode most of the pp→ff loudness drop, so CC 11 only trims a little
+  on top instead of re-applying the whole range.
+
+Rationale: with `N` layers the recorded samples carry roughly `(N-1)/N`
+of the dynamic range, so CC 11 only needs to supply the remaining `1/N`.
+At `expression = 1` the gain is exactly `1.0` for **every** `N`, so a
+project left at the default (`expression = 1.0`) is unchanged.
+Implementation: `expressionGainTarget()` in `PluginProcessor.cpp`.
 
 ---
 

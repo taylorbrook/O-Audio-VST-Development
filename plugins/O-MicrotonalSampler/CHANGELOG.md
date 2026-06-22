@@ -1,5 +1,55 @@
 # O-MicrotonalSampler Changelog
 
+## [1.20.1] - 2026-06-21
+
+Fix: **quiet dynamics in Dorico are no longer attenuated twice.** On a
+multi-layer library, a `pp` marking played far too quiet relative to `ff`.
+
+### Fixed
+- **Layer-adaptive Expression (CC11) gain depth.** A quiet dynamic in Dorico
+  sends two signals at once: a low note-on velocity (which selects the
+  inherently-quieter `pp` velocity-layer *sample*) **and** a low CC11 (which
+  scales post-mix gain). The pre-1.20.1 curve was a bare `expression²` that
+  floored to **zero** at CC11 = 0, so the pp→ff loudness drop was counted
+  **twice** (quiet sample × heavy gain cut) → `pp` was ~−37 dB below `ff`.
+
+  **Root cause** (`PluginProcessor.cpp::processBlock`): the expression gain
+  target was `v*v` regardless of how many velocity layers the library carried.
+  Velocity-layer selection already encodes the recorded loudness drop, so the
+  full-range gain cut double-counted it.
+
+  **Fix:** the depth of the CC11 cut now scales with the velocity-layer count.
+  With `N` layers the samples carry ~`(N-1)/N` of the dynamic range, so CC11
+  supplies only the remaining `1/N`:
+
+  ```
+  depthDb(N) = 30 / N                         # 30, 15, 10, 7.5 dB for N = 1..4
+  gain       = dbToGain(-depthDb(N)) * ...    # remapped squared curve
+             = floor(N) + (1 - floor(N)) * expression²
+  ```
+
+  - **N = 1 (no dynamic layers available):** floor ≈ −30 dB → CC11 keeps a full
+    expressive range, because it is the *only* dynamics source. Directly handles
+    the "sometimes dynamic layers will not be available" case.
+  - **N = 4 (standard multi-layer):** floor ≈ −7.5 dB → a `pp` note lands at
+    roughly −19 dB below `ff` (sample −12 dB + gain −7.5 dB) instead of −37 dB.
+
+  The layer count is read on the audio thread via one `atomic_load` of the
+  published `SampleMap` per block (the same snapshot pattern voices use in
+  `startNote`).
+
+### Notes
+- **Not a breaking change.** No parameter IDs, ranges, or state format changed.
+  At `expression = 1` the gain is **exactly 1.0 for every layer count**, so any
+  project left at the default (`expression = 1.0`) is bit-identical to v1.20.0.
+  Only the *bottom* of the CC11 range is raised, and only for multi-layer
+  libraries.
+- **Regression coverage:** `tests/dynamics_layer_check.cpp` gains a section
+  pinning the unity-at-full-expression invariant, the monotonic floor-vs-layers
+  relationship, and the pp-louder-than-old-curve scenario.
+- **Docs:** `docs/dynamics-mapping.md` updated with the layer-adaptive depth
+  formula and rationale.
+
 ## [1.20.0] - 2026-06-21
 
 Feature: **technique naming presets**. A new "Technique preset" dropdown above
