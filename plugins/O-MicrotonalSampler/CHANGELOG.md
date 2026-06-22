@@ -1,5 +1,37 @@
 # O-MicrotonalSampler Changelog
 
+## [1.20.2] - 2026-06-22
+
+Revert: **roll back the v1.20.1 layer-adaptive Expression floor.** It
+over-corrected — `pp`→`ff` dynamic contrast became too small on many libraries.
+
+### Reverted
+- **v1.20.1's `30/N` Expression-gain floor is removed.** The CC11 Expression
+  curve is restored to the v1.20.0 baseline (`gain = expression²`).
+
+  **Why it was wrong:** v1.20.1 assumed that with `N` velocity layers the
+  recorded samples already encode ~`(N-1)/N` of the `pp`→`ff` loudness drop, so
+  it raised the CC11 gain floor (to ~−7.5 dB at N=4) to avoid double-attenuation.
+  Research into how Kontakt / orchestral libraries / NotePerformer handle
+  dynamics showed that assumption is unreliable: baked-in dynamic range varies
+  enormously and is usually *small* or normalized (e.g. Cinebrass `pp`→`ff`
+  ≈ 0–6 dB; "most libraries have only ~25% of the dynamic range they should").
+  When a library's layers carry little loudness difference, raising the CC11
+  floor collapses the usable dynamic range → flat playback.
+
+### Notes
+- **Back to a known-good baseline.** With the floor removed, behaviour matches
+  v1.20.0 exactly. The original "Dorico `pp` is too quiet" issue is real but is
+  best solved structurally (see below), not by guessing at sample loudness.
+- **Planned proper fix — continuous CC dynamic crossfade.** The industry model
+  separates *dynamics* (a continuous CC that crossfades between recorded layers,
+  changing timbre AND loudness) from *expression* (CC11 as a secondary volume
+  trim). The follow-up adds a `Dynamics` mode where CC11 drives a real-time
+  equal-power crossfade across all velocity layers mid-note (defaulting to that
+  mode for this plugin's Dorico-centric use), so hairpins morph timbre and
+  loudness like pro sustain patches. Tracked separately so it can be A/B'd
+  against this restored baseline.
+
 ## [1.20.1] - 2026-06-21
 
 Fix: **quiet dynamics in Dorico are no longer attenuated twice.** On a

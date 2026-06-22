@@ -71,25 +71,6 @@ namespace
         return juce::jlimit (0, n - 1, (v - 1) / width);
     }
 
-    // v1.20.1: mirror PluginProcessor.cpp's expressionGainTarget / floor so the
-    // layer-adaptive Expression (CC11) curve is pinned here the same way the
-    // velocity bucketing is. Keep IN SYNC with the anonymous-namespace helpers
-    // in PluginProcessor.cpp (kExpressionBaseDepthDb = 30 dB).
-    constexpr float kExpressionBaseDepthDb = 30.0f;
-
-    float expressionFloor (int numLayers)
-    {
-        const int   n       = juce::jlimit (1, 8, numLayers);
-        const float depthDb = kExpressionBaseDepthDb / (float) n;
-        return juce::Decibels::decibelsToGain (-depthDb);
-    }
-
-    float expressionGain (float v, int numLayers)
-    {
-        const float f = expressionFloor (numLayers);
-        return f + (1.0f - f) * (v * v);
-    }
-
     SampleVariant makeVariant (const juce::String& filename)
     {
         SampleVariant v;
@@ -300,44 +281,6 @@ int main()
                    "fully-populated: nearest == exact layer "
                        + std::to_string (layer));
         }
-    }
-
-    // ----------------------------------------------------------------
-    // 11. v1.20.1 — layer-adaptive Expression (CC11) gain. Fixes the Dorico
-    //     pp double-attenuation: a quiet dynamic sends BOTH a low velocity
-    //     (quiet sample layer) AND a low CC11 (gain cut). The cut DEPTH now
-    //     shrinks as velocity layers grow, so multi-layer libraries are not
-    //     attenuated twice. Single-layer libraries keep the full CC11 range.
-    // ----------------------------------------------------------------
-    {
-        // Unity invariant: at expression = 1 the gain is EXACTLY 1.0 for every
-        // layer count → default sessions (expression = 1.0) are bit-identical.
-        for (int n = 1; n <= 8; ++n)
-            check (juce::approximatelyEqual (expressionGain (1.0f, n), 1.0f),
-                   "N=" + std::to_string (n) + ", expr=1.0 → unity gain");
-
-        // Floor rises monotonically with layer count (more layers → less cut at
-        // CC11 = 0). This is the whole fix: the pp sample is not double-cut.
-        for (int n = 1; n < 8; ++n)
-            check (expressionFloor (n + 1) > expressionFloor (n),
-                   "floor(" + std::to_string (n + 1) + ") > floor("
-                       + std::to_string (n) + ")");
-
-        // The reported bug scenario: Dorico pp ≈ CC11 30/127 ≈ 0.236. A 4-layer
-        // library must be MUCH louder at pp than the old bare-squared curve.
-        const float vPP       = 30.0f / 127.0f;
-        const float oldGain   = vPP * vPP;                 // pre-1.20.1: v*v
-        const float newGain4  = expressionGain (vPP, 4);   // standard multi-layer
-        check (newGain4 > oldGain * 3.0f,
-               "N=4, expr=pp → >3x louder than the old squared curve");
-
-        // Single-layer libraries keep a wide range (floor ≈ -30 dB), so CC11 is
-        // still the dynamics source when no layers exist.
-        check (expressionFloor (1) < juce::Decibels::decibelsToGain (-20.0f),
-               "N=1 floor stays below -20 dB (full CC11 range preserved)");
-        // Standard 4-layer floor is gentle (above -10 dB) so pp is audible.
-        check (expressionFloor (4) > juce::Decibels::decibelsToGain (-10.0f),
-               "N=4 floor stays above -10 dB (pp no longer over-attenuated)");
     }
 
     std::cout << "== dynamics_layer_check: "
