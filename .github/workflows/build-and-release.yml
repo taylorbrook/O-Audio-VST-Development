@@ -77,11 +77,8 @@ jobs:
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-            -DOUARICON_LICENSING=ON \
             -DOUARICON_RELEASE=ON \
-            -DSKIP_PLUGINS="O-Orbit" \
-            -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
-            -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+            -DSKIP_PLUGINS="O-Orbit"
 
       - name: Resolve CMake Target
         id: resolve
@@ -432,7 +429,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_LICENSING=ON -DOUARICON_RELEASE=ON -DSKIP_PLUGINS="O-Orbit" -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_RELEASE=ON -DSKIP_PLUGINS="O-Orbit"
 
       - name: Resolve CMake Target
         id: resolve
