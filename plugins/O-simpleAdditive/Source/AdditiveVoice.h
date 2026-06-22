@@ -16,11 +16,15 @@
     clicks. No oversampling → zero latency.
 
     Stage 2 build-out:
-      • Phase 2.1 (THIS FILE): core voice — Frame A drawbars + amp ADSR only.
+      • Phase 2.1: core voice — Frame A drawbars + amp ADSR only.
       • Phase 2.2: Frame A→B spectral morph + scan LFO + mod-env → scan.
-      • Phase 2.3: spectral-decay tilt + bit-depth quantizer + viz snapshot.
-    The refillTable()/active-spectrum pipeline below is deliberately staged so
-    2.2/2.3 slot in at the marked extension points without reshaping the voice.
+      • Phase 2.3 (THIS FILE): spectral-decay tilt (per-partial exp(-rate·k·tau)
+        composed into refillTable BEFORE band-limit) + bit-depth quantizer
+        (read-time, post-table pre-amp) + active-spectrum snapshot (16 morphed +
+        decayed amplitudes published to the editor's drawbar display) + per-voice
+        noteAge (primary-voice selection for the snapshot).
+    The refillTable()/active-spectrum pipeline was deliberately staged so 2.2/2.3
+    slot in at the marked extension points without reshaping the voice.
 
     JUCE 8: SynthesiserVoice has NO virtual prepareToPlay — this declares a
     NON-VIRTUAL custom prepareToPlay(double,int) dispatched by the processor via
@@ -32,7 +36,9 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 
 namespace OSimpleAdditive
 {
@@ -141,15 +147,19 @@ public:
     }
 
     //==========================================================================
-    // Block param-push from the processor (once per block). Phase 2.2 adds the
-    // wavetable dimension: Frame B target vector, the GLOBAL scan base (manual +
-    // LFO, resolved once in the processor), the bipolar mod-env→scan depth, and
-    // the mod-ADSR shape. Marks the table dirty only when the spectrum sources
-    // (Frame A / Frame B) actually moved; scan motion is detected per-block in
+    // Block param-push from the processor (once per block). Phase 2.2 added the
+    // wavetable dimension (Frame B vector, the GLOBAL scan base, bipolar mod-env
+    // depth, mod-ADSR shape). Phase 2.3 adds the spectral-decay sources
+    // (`spectralDecay` knob + `velToDecay` amount, combined with this voice's
+    // velocity into an effective per-partial decay `rate` inside renderNextBlock)
+    // and the resolved bit-depth quantizer count (`bitDepthBits`, 0 = Off).
+    // Marks the table dirty only when the spectrum SOURCES (Frame A / Frame B)
+    // actually moved; scan motion AND decay motion are detected per-block in
     // renderNextBlock, so a fully static patch still refills once per note.
     void setParams (const float (&frameA)[kNumPartials],
                     const float (&frameB)[kNumPartials],
                     float scanBaseIn, float scanEnvAmountIn,
+                    float spectralDecayIn, float velToDecayIn, int bitDepthBitsIn,
                     const juce::ADSR::Parameters& ap,
                     const juce::ADSR::Parameters& mp) noexcept
     {
@@ -172,6 +182,14 @@ public:
         scanBase      = scanBaseIn;          // global: scanPosition + lfo·depth (pre-clamp)
         scanEnvAmount = scanEnvAmountIn;      // bipolar mod-env → scan depth (−1..+1)
 
+        // Decay sources. A change in either source moves the *effective* rate, so
+        // the next block recomputes it (and re-dirties the table while tau<1).
+        // Exact compares avoid -Wfloat-equal; harmless if the recompute is a no-op.
+        spectralDecay = spectralDecayIn;     // 0..1 knob
+        velToDecay    = velToDecayIn;        // 0..1 opt-in velocity→decay amount
+
+        bitDepthBits  = bitDepthBitsIn;       // 0 = Off (passthrough), else bit count
+
         ampParams = ap;
         ampEnv.setParameters (ampParams);
         modParams = mp;
@@ -189,7 +207,13 @@ public:
         velLevel = juce::jlimit (0.0f, 1.0f, velocity);
 
         phase = 0.0f;                 // restart the single-cycle read at zero phase
+        tau   = 0.0f;                 // restart the spectral-decay ramp at note-on (2.3)
         computeKmax();                // per-note band-limit
+
+        // Monotonic note-age stamp for primary-voice selection (the editor draws
+        // the active-spectrum snapshot of the NEWEST sounding voice). One shared
+        // atomic counter across all voices → strictly increasing per note-on.
+        noteAge = ++sNoteCounter;
 
         // Seed the scan pointer at the note's starting position (mod-env just
         // retriggered → value ≈ 0), with no smoother ramp from a stale value.
@@ -224,6 +248,23 @@ public:
     void controllerMoved  (int, int) override {}
 
     //==========================================================================
+    // Active-spectrum accessors (2.3) — read by the processor on the AUDIO thread
+    // (same thread as renderNextBlock), which then publishes the chosen voice's
+    // 16 amplitudes into an atomic snapshot for the message-thread drawbar display.
+    // No atomics needed voice→processor (same thread); the snapshot crosses the
+    // thread boundary, not these getters.
+    //   getActiveSpectrum : post-morph, post-decay, pre-band-limit, pre-norm
+    //                       amplitudes — the exact bars the engine is summing.
+    //   isAmpActive       : amp-env activity (the voice's audible lifetime). NB:
+    //                       deliberately NOT named isVoiceActive — that is a
+    //                       juce::SynthesiserVoice virtual used internally for
+    //                       voice-stealing; shadowing it would hijack allocation.
+    //   getNoteAge        : monotonic note-on stamp → newest sounding voice wins.
+    const float* getActiveSpectrum() const noexcept { return activeSpectrum; }
+    bool isAmpActive() const noexcept                { return ampEnv.isActive(); }
+    std::uint64_t getNoteAge() const noexcept        { return noteAge; }
+
+    //==========================================================================
     void renderNextBlock (juce::AudioBuffer<float>& out, int startSample, int numSamples) override
     {
         if (! ampEnv.isActive())
@@ -246,14 +287,40 @@ public:
             spectrumDirty = true;
         }
 
+        // --- Spectral-decay ramp (2.3 — ARCHITECTURE.md §"Spectral-Decay Macro").
+        // tau ramps 0→1 from note-on over a fixed musical time at CONTROL rate
+        // (once per block). The per-partial multiplier D_k = exp(-rate·k·tau) is
+        // applied inside refillTable; here we advance tau and compute the effective
+        // rate so we can decide whether the active spectrum is still moving.
+        currentDecayRate = effectiveDecayRate();
+        if (currentDecayRate > 0.0f && tau < 1.0f)
+        {
+            tau = juce::jmin (1.0f, tau + (float) numSamples / (kTauRampSeconds * (float) sampleRate));
+            // While decaying with a non-zero rate the active spectrum changes every
+            // block → the table MUST refill every block. When rate==0 (default:
+            // spectralDecay=0 && velToDecay=0) this branch never runs, so the
+            // Phase-2.2 once-per-note / scan-driven refill cadence is preserved.
+            spectrumDirty = true;
+        }
+
         if (spectrumDirty)
             refillTable (currentScan);
 
         const int numCh = out.getNumChannels();
 
+        // Bit-depth quantizer level, precomputed once per block (NOT per sample).
+        // bitDepthBits == 0 → Off (passthrough). Else mid-tread: q = round(s·L)/L
+        // with L = 2^(bits-1) — the staircase IS the lesson (no dither). DSP-05.
+        const bool  quantOn = (bitDepthBits > 0);
+        const float qLevel  = quantOn ? std::exp2 ((float) (bitDepthBits - 1)) : 1.0f;
+        const float qInv    = quantOn ? 1.0f / qLevel : 1.0f;
+
         for (int i = 0; i < numSamples; ++i)
         {
-            const float s        = readTableLinear (phase);
+            float s = readTableLinear (phase);
+            if (quantOn)
+                s = std::round (s * qLevel) * qInv;          // bit-depth grit (post-table, pre-amp)
+
             const float ampVal   = ampEnv.getNextSample();
             lastModEnv           = modEnv.getNextSample();   // advance mod-env in time
             const float sample   = s * ampVal * velLevel;
@@ -298,22 +365,53 @@ private:
     }
 
     //==========================================================================
+    // Effective per-partial decay rate for this block (2.3 — ARCHITECTURE.md
+    // §"Spectral-Decay Macro"). rate = (spectralDecay + velLevel·velToDecay)·
+    // kDecayRateMax, clamped ≥ 0. At full decay (tau=1) the steepest harmonic
+    // (k=15, the 16th) reaches D_15 = exp(-kDecayRateMax·15) ≈ exp(-5.25) ≈ 0.005
+    // (≈ −46 dB) — a strong, clearly audible/visible darkening. Default sources
+    // (spectralDecay=0 && velToDecay=0) → rate=0 → D_k=1 ∀k (no-regression).
+    float effectiveDecayRate() const noexcept
+    {
+        const float r = (spectralDecay + velLevel * velToDecay) * kDecayRateMax;
+        return juce::jmax (0.0f, r);
+    }
+
+    //==========================================================================
     // Fill the single-cycle table from the active spectrum. Phase 2.2: the active
     // spectrum is the per-partial morph between Frame A (drawbars) and Frame B
     // (preset), `active_k = lerp(A_k, B_k, scan)` — linear *spectral* interpolation,
-    // phase-coherent and zipper-free (ARCHITECTURE.md §Morph, DSP-03). (Phase 2.3
-    // inserts spectral-decay here too — also BEFORE the sum, so the table is always
-    // exactly what is heard and, later, displayed.)
+    // phase-coherent and zipper-free (ARCHITECTURE.md §Morph, DSP-03). Phase 2.3
+    // multiplies in the spectral-decay tilt `D_k = exp(-rate·k·tau)` here too —
+    // also BEFORE band-limit + sum, so the table is always exactly what is heard
+    // AND what the drawbar display shows (the post-decay amplitudes are snapshotted
+    // into activeSpectrum[] for the editor; QUAL-02).
     void refillTable (float scan) noexcept
     {
         float band[kNumPartials];
         float sumA = 0.0f;
 
+        const float rate = currentDecayRate;   // effective decay rate for this block
+
         for (int k = 0; k < kNumPartials; ++k)
         {
-            // Morph (2.2): per-partial lerp A→B. --- 2.3 spectral-decay composes here ---
-            const float activeK = frameASpectrum[k]
-                                + scan * (frameBSpectrum[k] - frameASpectrum[k]);
+            // Morph (2.2): per-partial lerp A→B.
+            const float morphedK = frameASpectrum[k]
+                                 + scan * (frameBSpectrum[k] - frameASpectrum[k]);
+
+            // --- 2.3 spectral-decay composes here ---
+            // D_k = exp(-rate·k·tau), k 0-based: k=0 (fundamental) → D=1 (never
+            // decays); higher k decays faster. rate==0 → D_k=1 ∀k → bit-identical
+            // to Phase 2.2 (no-regression guarantee). std::exp(0)==1 exactly.
+            const float decayK = (rate > 0.0f)
+                               ? std::exp (-rate * (float) k * tau)
+                               : 1.0f;
+            const float activeK = morphedK * decayK;
+
+            // Snapshot the post-morph, post-decay, PRE-band-limit, PRE-norm
+            // amplitude — the conceptual "what the engine is summing" bar the
+            // Stage-3 drawbar display reads via getActiveSpectrum().
+            activeSpectrum[k] = activeK;
 
             band[k] = activeK * nyquistGain (k + 1, Kmax);   // exact band-limit
             sumA   += band[k];
@@ -377,6 +475,36 @@ private:
     // Below this smoothed-scan delta we skip the refill — bounds static-patch work
     // to once per note while staying well under the morph's audible step threshold.
     static constexpr float kScanRefillEps = 1.0e-4f;
+
+    //--- Spectral-decay state (2.3) ------------------------------------------
+    // tau: internal 0→1 ramp from note-on, advanced at control rate. The decay
+    // tilt grows over the note even on a sustained note (the "spectrum darkens
+    // over time" motion, DSP-04). kTauRampSeconds ≈ 2 s gives a musical sweep.
+    // kDecayRateMax scales the knob: at 100% decay, tau=1, the 16th harmonic
+    // drops to ≈ −46 dB (see effectiveDecayRate).
+    static constexpr float kTauRampSeconds = 2.0f;
+    static constexpr float kDecayRateMax   = 0.35f;
+    float tau              = 0.0f;     // 0→1 over kTauRampSeconds from note-on
+    float spectralDecay    = 0.0f;     // 0..1 knob (pushed each block)
+    float velToDecay       = 0.0f;     // 0..1 opt-in velocity→decay amount
+    float currentDecayRate = 0.0f;     // effective rate for the current block
+
+    //--- Bit-depth quantizer (2.3) ------------------------------------------
+    int bitDepthBits = 0;             // 0 = Off (passthrough); else bit count {12,10,8,6,4,2}
+
+    //--- Active-spectrum snapshot (2.3) -------------------------------------
+    // The post-morph, post-decay, pre-band-limit, pre-norm 16 amplitudes — the
+    // exact bars the engine is summing. Filled each refillTable(); read by the
+    // processor (audio thread) which publishes the primary voice's copy to the
+    // editor. Seeded to a pure fundamental so a freshly prepared voice is benign.
+    float activeSpectrum[kNumPartials] = { 1.0f };
+
+    //--- Primary-voice selection (2.3) --------------------------------------
+    // noteAge: per-voice monotonic stamp set in startNote from the shared counter.
+    // The processor picks the ACTIVE voice with the largest noteAge as the one
+    // whose active spectrum drives the drawbar display (newest sounding note wins).
+    std::uint64_t noteAge = 0;
+    static inline std::atomic<std::uint64_t> sNoteCounter { 0 };
 
     alignas (16) float table[kTableSize] = { 0.0f };
 
