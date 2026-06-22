@@ -1,13 +1,13 @@
 ---
 plugin: O-simpleAdditive
-stage: 0
+stage: 1
 status: complete
 last_updated: 2026-06-22
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
-next_stage: 1
+next_action: implement_stage_2_dsp
+next_stage: 2
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:2270ef614ef3fbac3778fc7157e8c2ce62d2d04a8dcc0b1348b07278b2803435
@@ -20,9 +20,21 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Ideation / Research & Planning) — complete
-Status: Research & Planning complete, ready for implementation
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation) — complete
+Status: Silent synth shell built + auval-validated; ready for Stage 2 (DSP)
+Progress: [#####...............] 25%
+
+## Stage 1 Phase Progress (express mode)
+
+| Phase | Status | Artifact |
+|-------|--------|----------|
+| discuss | ✓ | stages/1-foundation/CONTEXT.md |
+| research | ✓ | stages/1-foundation/RESEARCH.md |
+| plan | ✓ | stages/1-foundation/PLAN.md |
+| execute | ✓ | stages/1-foundation/SUMMARY.md (foundation-shell-agent) |
+| verify | ✓ | stages/1-foundation/VERIFICATION.md — **PASS** |
+
+**Stage 1 result:** VST3 + AU build clean; `auval` SUCCEEDED (aumu/OSiA/OuDv); **33 Global Scope Parameters**; zero latency (`setLatencySamples(0)`); state persistence wired; `GenericAudioProcessorEditor` placeholder. Port of O-simpleFM minus oversampling/voices/viz/preset.
 
 ## Completed So Far
 
@@ -41,8 +53,8 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. Stage 1: Foundation (CMake synth shell + 33-param APVTS + state persistence) — Run `/implement O-simpleAdditive`
-2. Review `research/ARCHITECTURE.md` and `ROADMAP.md`
+1. Stage 2: DSP (3 phases — 2.1 core additive voice, 2.2 scan/morph + mod-env + LFO, 2.3 spectral-decay + bit-depth + viz tap) — `/clear` then `/implement O-simpleAdditive`
+2. Stage 3: GUI (3 phases) · Stage 4: Validation/Polish
 3. Pause here
 
 ## Context to Preserve
