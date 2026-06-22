@@ -1,0 +1,132 @@
+{
+  "stage": "3-gui",
+  "plugin": "O-simpleFM",
+  "timestamp": "2026-06-21T04:39:15Z",
+  "critics_run": [
+    "ui-critic",
+    "architecture-critic"
+  ],
+  "unified_issues": [
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-001",
+      "category": "theme_fidelity",
+      "location": "styles.css:71",
+      "description": "Botanical overlay opacity is 0.16, roughly half the aesthetic contract of ~0.35 (0.3-0.4). The signature insect illustration is nearly invisible, weakening the one-illustration-per-plugin brand pillar.",
+      "fixSuggestion": "Raise overlay opacity to ~0.22-0.25; overlay sits at z-index 0 behind controls (z-index 1) so it will not crowd readouts. Re-check visually that it does not compete with the right-side knob column."
+    },
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-002",
+      "category": "pedagogy",
+      "location": "app.js:56",
+      "description": "TIPS.routing tooltip says \"CAR's self-loop is Feedback\" but the SVG diagram, updateRouting (drives opMod brightness), and the DSP all put feedback on MOD (modulator self-feedback). In a pedagogy plugin the explanation contradicts the diagram.",
+      "fixSuggestion": "Change the routing tooltip text to \"MOD's self-loop is Feedback\" so the copy matches the diagram and the DSP."
+    },
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-006",
+      "category": "theme_fidelity",
+      "location": "index.html:81",
+      "description": "Static value cell for modFixedHz shows bare \"220\" without a unit, unlike every other cell which carries units in static HTML (e.g. \"10 ms\", \"0%\"). FORMAT.modFixedHz renders \"220 Hz\". Confirmed: APVTS default IS 220 Hz (PluginProcessor.cpp:65), so only the missing unit is wrong for ~1 frame before first repaint.",
+      "fixSuggestion": "Change index.html:81 static text to \"220 Hz\" so the pre-bind frame matches the formatter."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-001",
+      "category": "lifetime_safety",
+      "location": "PluginEditor.h:37",
+      "description": "vizAnalyzer is declared above the relay/WebView/attachment cluster, so the load-bearing ordering comment (lines 39-45) only documents three of the lifetime-sensitive members. Harmless today (timer stopped before teardown), but a future tidy/refactor could reorder without realizing vizAnalyzer must outlive the WebView triad.",
+      "fixSuggestion": "Move vizAnalyzer declaration below the attachments so the lifetime-sensitive cluster is contiguous, or extend the comment to state vizAnalyzer must be declared before the triad. No behavioral change."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-002",
+      "category": "binding_correctness",
+      "location": "PluginEditor.cpp:103",
+      "description": "The attachment loop skips any param whose getParameter() returns null with no diagnostic. Index alignment is preserved (relay i is still paired by index), so no desync, but a future param rename that compiles fine would yield a silently dead knob (no automation, no feedback). All 17 IDs are present today.",
+      "fixSuggestion": "Add jassert(param != nullptr) in both the slider and toggle binding loops so a missing/renamed ID fails loudly in debug instead of producing a silent dead control."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-003",
+      "category": "experience_design",
+      "location": "app.js:224",
+      "description": "Tooltips are pointer-only (pointerenter/move/leave/down). No focus/blur handlers and controls are not focusable (EDITOR_WANTS_KEYBOARD_FOCUS FALSE). The role=tooltip / aria-hidden markup implies accessibility intent not delivered; the field-guide layer is mouse-only.",
+      "fixSuggestion": "Acceptable for a plugin, but either drop the unused ARIA attributes or add title/aria-label fallbacks on controls if accessibility is desired. Track as a verify-phase note, not a blocker."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-004",
+      "category": "experience_design",
+      "location": "app.js:129",
+      "description": "dblclick knob handler is a registered no-op. Users habitually double-click a knob to reset to default; here it silently does nothing while ns-resize cursor sets a drag expectation.",
+      "fixSuggestion": "Remove the inert listener (JUCE WebSliderState exposes no default-query, so reset is not trivially supported) or implement reset via a per-id default map. Removing is the honest minimal choice."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-005",
+      "category": "theme_fidelity",
+      "location": "index.html:20",
+      "description": "Fleuron ornament uses U+2766 (the floral heart) at title and toggle corners. Some Windows WebView2 font fallback chains (Garamond/Times) may lack the glyph and render tofu (missing-glyph box) on a cross-platform target.",
+      "fixSuggestion": "Verify rendering on Windows WebView2; if it tofus, switch to a more widely supported ornament (U+2726 or U+2767) or ship as an inline SVG/icon."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-007",
+      "category": "pedagogy",
+      "location": "app.js:355",
+      "description": "Spectrum bar hue mapping (hue = 90 - norm*40, HSL 90->50) reaches a saturated chartreuse at high intensity that is brighter/more modern than the muted earth palette. Cosmetic, data-display only.",
+      "fixSuggestion": "Optionally bias the high-intensity hue toward --green-mid/sage for on-brand cohesion; not required."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-008",
+      "category": "experience_design",
+      "location": "app.js:135",
+      "description": "Wheel handler brackets every notch in its own sliderDragStarted/Ended pair; rapid scroll spams host automation-write/undo entries.",
+      "fixSuggestion": "Acceptable common pattern; optionally debounce the drag-end after wheel activity stops. Note-level."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-003",
+      "category": "lifetime_safety",
+      "location": "PluginEditor.cpp:122",
+      "description": "stopTimer() in the dtor body is correct for the current synchronous timerCallback (single message thread = no mid-callback race), but the safety relies on the work staying synchronous. A future move to async dispatch (CallbackMessage) could outlive stopTimer().",
+      "fixSuggestion": "Defensive only: if viz work ever becomes async, add an alive flag set false before stopTimer() and early-return from timerCallback(). Not required now."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-004",
+      "category": "build_wiring",
+      "location": "PluginEditor.cpp:95",
+      "description": "Windows WebView2 user-data folder is named \"OsimpleFM_WebView\" while the product is O-simpleFM; minor casing/convention drift (PluginName_WebView). Temp dir, never user-visible.",
+      "fixSuggestion": "Rename to \"O-simpleFM_WebView\" for grep-ability and convention consistency across plugin temp dirs."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-005",
+      "category": "build_wiring",
+      "location": "PluginEditor.cpp:36",
+      "description": "Resource MIME types omit charset (e.g. text/html without ; charset=utf-8). WebView2/WKWebView default to UTF-8 so Unicode header glyphs render correctly today; purely defensive.",
+      "fixSuggestion": "Optionally append \"; charset=utf-8\" to the html/css/js MIME strings."
+    }
+  ],
+  "progression_allowed": true,
+  "blocking_count": 0,
+  "warning_count": 5,
+  "note_count": 8
+}

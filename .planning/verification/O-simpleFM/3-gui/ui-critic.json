@@ -1,0 +1,103 @@
+{
+  "critic": "ui-critic",
+  "plugin": "O-simpleFM",
+  "stage": "3-gui",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-06-20T00:00:00Z",
+  "scores": {
+    "silent_failure_surface": {
+      "score": 10,
+      "threshold": 7,
+      "passed": true,
+      "details": "Resource provider bare-path equality, Juce ES-module namespace, 17/17 param-ID coverage, DPR canvases, BinaryData symbols, boot call graph all verified clean. No blank-page or dead-control risk."
+    },
+    "theme_fidelity": {
+      "score": 8,
+      "threshold": 7,
+      "passed": true,
+      "details": "Garamond, aged-paper palette, 10-segment seed-knob conic-gradient, green toggles, fleurons, wide-tracked labels all on-brand. CSS vars match aesthetic.md char-for-char. Botanical overlay opacity 0.16 is under the ~0.35 spec."
+    },
+    "pedagogy": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "All 17 params + routing have tooltips; 5 presets write plausible normalised values via correct scaledToNorm (no centre-skew present); routing diagram reflects ratio/index/feedback state. One tooltip text contradicts the diagram (MOD vs CAR feedback)."
+    },
+    "experience_design": {
+      "score": 7,
+      "threshold": 6,
+      "passed": true,
+      "details": "Live viz, reactive routing, presets, tooltips present. Dead dblclick no-op and pointer-only tooltips (no keyboard/touch) are minor UX gaps."
+    }
+  },
+  "overallStatus": "PASSED",
+  "overallScore": 8.5,
+  "issues": [
+    {
+      "id": "UI-001",
+      "severity": "warning",
+      "category": "theme_fidelity",
+      "location": "styles.css:71",
+      "description": "Botanical overlay opacity is 0.16, roughly half the aesthetic contract of ~0.35 (0.3-0.4). The signature insect illustration is nearly invisible, weakening the one-illustration-per-plugin brand pillar.",
+      "fixSuggestion": "Raise overlay opacity to ~0.22-0.25; overlay sits at z-index 0 behind controls (z-index 1) so it will not crowd readouts. Re-check visually that it does not compete with the right-side knob column."
+    },
+    {
+      "id": "UI-002",
+      "severity": "warning",
+      "category": "pedagogy",
+      "location": "app.js:56",
+      "description": "TIPS.routing tooltip says \"CAR's self-loop is Feedback\" but the SVG diagram, updateRouting (drives opMod brightness), and the DSP all put feedback on MOD (modulator self-feedback). In a pedagogy plugin the explanation contradicts the diagram.",
+      "fixSuggestion": "Change the routing tooltip text to \"MOD's self-loop is Feedback\" so the copy matches the diagram and the DSP."
+    },
+    {
+      "id": "UI-003",
+      "severity": "note",
+      "category": "experience_design",
+      "location": "app.js:224",
+      "description": "Tooltips are pointer-only (pointerenter/move/leave/down). No focus/blur handlers and controls are not focusable (EDITOR_WANTS_KEYBOARD_FOCUS FALSE). The role=tooltip / aria-hidden markup implies accessibility intent not delivered; the field-guide layer is mouse-only.",
+      "fixSuggestion": "Acceptable for a plugin, but either drop the unused ARIA attributes or add title/aria-label fallbacks on controls if accessibility is desired. Track as a verify-phase note, not a blocker."
+    },
+    {
+      "id": "UI-004",
+      "severity": "note",
+      "category": "experience_design",
+      "location": "app.js:129",
+      "description": "dblclick knob handler is a registered no-op. Users habitually double-click a knob to reset to default; here it silently does nothing while ns-resize cursor sets a drag expectation.",
+      "fixSuggestion": "Remove the inert listener (JUCE WebSliderState exposes no default-query, so reset is not trivially supported) or implement reset via a per-id default map. Removing is the honest minimal choice."
+    },
+    {
+      "id": "UI-005",
+      "severity": "note",
+      "category": "theme_fidelity",
+      "location": "index.html:20",
+      "description": "Fleuron ornament uses U+2766 (the floral heart) at title and toggle corners. Some Windows WebView2 font fallback chains (Garamond/Times) may lack the glyph and render tofu (missing-glyph box) on a cross-platform target.",
+      "fixSuggestion": "Verify rendering on Windows WebView2; if it tofus, switch to a more widely supported ornament (U+2726 or U+2767) or ship as an inline SVG/icon."
+    },
+    {
+      "id": "UI-006",
+      "severity": "warning",
+      "category": "theme_fidelity",
+      "location": "index.html:81",
+      "description": "Static value cell for modFixedHz shows bare \"220\" without a unit, unlike every other cell which carries units in static HTML (e.g. \"10 ms\", \"0%\"). FORMAT.modFixedHz renders \"220 Hz\". Confirmed: APVTS default IS 220 Hz (PluginProcessor.cpp:65), so only the missing unit is wrong for ~1 frame before first repaint.",
+      "fixSuggestion": "Change index.html:81 static text to \"220 Hz\" so the pre-bind frame matches the formatter."
+    },
+    {
+      "id": "UI-007",
+      "severity": "note",
+      "category": "pedagogy",
+      "location": "app.js:355",
+      "description": "Spectrum bar hue mapping (hue = 90 - norm*40, HSL 90->50) reaches a saturated chartreuse at high intensity that is brighter/more modern than the muted earth palette. Cosmetic, data-display only.",
+      "fixSuggestion": "Optionally bias the high-intensity hue toward --green-mid/sage for on-brand cohesion; not required."
+    },
+    {
+      "id": "UI-008",
+      "severity": "note",
+      "category": "experience_design",
+      "location": "app.js:135",
+      "description": "Wheel handler brackets every notch in its own sliderDragStarted/Ended pair; rapid scroll spams host automation-write/undo entries.",
+      "fixSuggestion": "Acceptable common pattern; optionally debounce the drag-end after wheel activity stops. Note-level."
+    }
+  ],
+  "nextAction": "gate_pass"
+}
