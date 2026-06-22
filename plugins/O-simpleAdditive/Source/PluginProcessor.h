@@ -123,6 +123,25 @@ public:
     // Public access to APVTS for the editor.
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    // Host sample rate (Stage 3: the editor's AdditiveVizAnalyzer needs it for the
+    // scope/FFT; also reset on the on-screen-keyboard MIDI collector).
+    double getCurrentSampleRate() const noexcept { return currentSampleRate; }
+
+    // True while any voice is sounding. The editor uses this so the drawbar
+    // live-glow snaps back to each drawbar's set level when nothing plays,
+    // instead of holding the last note's (now stale) active-spectrum snapshot.
+    bool isSounding() const noexcept { return anyVoiceSounding.load (std::memory_order_relaxed); }
+
+    // On-screen keyboard: the editor injects note on/off from the WebView (any
+    // thread). Queued via a MidiMessageCollector and merged into processBlock.
+    void handleUiMidi (int noteNumber, bool noteOn, float velocity);
+
+    // Lesson preset tour (Stage 3): apply a full APVTS snapshot by name. Sets every
+    // parameter via setValueNotifyingHost, so the relays/attachments propagate the
+    // change back to the WebView controls automatically. Persistent user-preset
+    // save/load (OuariconPresetManager) is a Stage-4 concern.
+    void applyFactoryPreset (const juce::String& name);
+
     //==========================================================================
     // Visualization access for the Stage-3 editor.
     //  - getVizRing: the lock-free audio→message ring (the editor's Timer feeds
@@ -153,6 +172,10 @@ private:
     juce::Synthesiser synth;
     void pushParamsToVoices (int numSamples);
 
+    // On-screen-keyboard MIDI: thread-safe queue drained into processBlock so the
+    // WebView keyboard plays the synth alongside (and merged with) host MIDI.
+    juce::MidiMessageCollector midiCollector;
+
     // Global scan LFO phase [0,1) — one sine shared by all voices (advanced once
     // per block in pushParamsToVoices so all notes morph in phase).
     float lfoPhase = 0.0f;
@@ -172,6 +195,10 @@ private:
     VizRing             viz;
     std::vector<float>  monoScratch;
     std::array<std::atomic<float>, (size_t) AdditiveVoice::kNumPartials> activeSpectrumSnapshot {};
+
+    // True when any voice was sounding in the last block (drives the editor's
+    // idle handling of the drawbar live-glow). Written on the audio thread.
+    std::atomic<bool> anyVoiceSounding { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleAdditiveAudioProcessor)
 };

@@ -24,8 +24,8 @@ juce_add_plugin(O-simpleAdditive
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 )
 
-# Source files. Stage 2 (DSP) adds the additive voice header; binary data,
-# preset module, and tests/ arrive in later stages.
+# Source files. Stage 2 (DSP) added the additive voice + viz analyzer headers;
+# Stage 3 (GUI) adds the WebView editor (already listed) + the binary-data target below.
 target_sources(O-simpleAdditive
     PRIVATE
         Source/PluginProcessor.cpp
@@ -33,6 +33,7 @@ target_sources(O-simpleAdditive
         Source/PluginEditor.cpp
         Source/PluginEditor.h
         Source/AdditiveVoice.h
+        Source/AdditiveVizAnalyzer.h
 )
 
 # Include paths
@@ -41,9 +42,22 @@ target_include_directories(O-simpleAdditive
         Source
 )
 
+# WebView UI resources (embedded as BinaryData) — Stage 3 GUI. The persistent
+# preset-manager module is a Stage 4 concern (lesson presets ship as C++ snapshots).
+juce_add_binary_data(O-simpleAdditive_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/insects.png
+)
+
 # Required JUCE modules
 target_link_libraries(O-simpleAdditive
     PRIVATE
+        O-simpleAdditive_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats

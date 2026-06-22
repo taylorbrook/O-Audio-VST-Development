@@ -1,14 +1,14 @@
 ---
 plugin: O-simpleAdditive
-stage: 2
+stage: 3
 status: in_progress
 last_updated: 2026-06-22
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 stage_2_mode: incremental_dsp_builds
-next_action: begin_stage_3_gui
-next_stage: 3
+next_action: begin_stage_4_validation
+next_stage: 4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:2270ef614ef3fbac3778fc7157e8c2ce62d2d04a8dcc0b1348b07278b2803435
@@ -21,9 +21,19 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — ✓ COMPLETE (incremental-DSP-builds mode). Next: Stage 3 (GUI).
-Status: Phase 2.3 (Spectral-Decay + Bit-Depth + Viz Tap) built + auval-validated. **All 33 params consumed; full DSP engine complete.** Ready for Stage 3 (WebView GUI).
-Progress: [##############......] 70%
+Stage: 3 of 4 (GUI) — ✓ COMPLETE. Next: Stage 4 (Validation / Polish).
+Status: WebView "Additive Field Guide" UI built, installed, **auval SUCCEEDED**, Standalone render verified. All 33 params two-way bound; 16 drawbars double as the live spectrum; oscilloscope, tooltips, 6 lesson presets, on-screen keyboard all wired.
+Progress: [##################..] 90%
+
+## Stage 3 (GUI) — ✓ COMPLETE (single coherent pass, build directly + show running plugin)
+
+| Phase | Status | Artifact / Gate |
+|-------|--------|-----------------|
+| 3.1 Layout + drawbars + controls + cross-platform wiring | ✓ | stages/3-gui/SUMMARY.md — build clean (VST3+AU) |
+| 3.2 Live drawbar-spectrum + oscilloscope | ✓ | drawbarSpectrumUpdate (active-spectrum snapshot) + scopeUpdate |
+| 3.3 Tooltips + lesson preset tour | ✓ | tooltips on every control; 6 C++ snapshot lessons via applyFactoryPreset |
+
+**Stage 3 result:** Field Guide WebView UI (sibling of O-simpleFM). 31 `WebSliderRelay` (16 drawbars + 15 knobs) + 2 `WebComboBoxRelay` (frameBSource, bitDepth), two-way bound. Drawbars = brass set-level + green live-glow (morphed+decayed active-spectrum snapshot; QUAL-02). 30 Hz Timer drives scope (`AdditiveVizAnalyzer`) + drawbar spectrum. Processor gained on-screen-keyboard MIDI (`MidiMessageCollector` + `handleUiMidi` + drain), `getCurrentSampleRate()`, `isSounding()`. CMake `juce_add_binary_data`. VST3+AU clean; **auval SUCCEEDED** (incl. MIDI). Default patch unchanged (pure sine) — no DSP regression. **Deferred to Stage 4:** persistent OuariconPresetManager save/load bar.
 
 ## Stage 2 (DSP) Phase Progress — incremental builds (build + auval per sub-phase) — ✓ COMPLETE
 
