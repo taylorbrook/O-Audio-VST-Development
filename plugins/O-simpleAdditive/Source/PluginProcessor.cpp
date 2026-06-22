@@ -150,6 +150,10 @@ void OSimpleAdditiveAudioProcessor::prepareToPlay (double sampleRate, int sample
 {
     currentSampleRate = sampleRate;
 
+    // On-screen-keyboard MIDI queue: timestamps are converted from the host clock
+    // against this rate when drained in processBlock.
+    midiCollector.reset (sampleRate);
+
     // Synthesiser + per-voice prepare. juce::SynthesiserVoice has no virtual
     // prepareToPlay in JUCE 8 — dispatch the custom one via dynamic_cast.
     synth.setCurrentPlaybackSampleRate (sampleRate);
@@ -262,6 +266,10 @@ void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
 
     buffer.clear();                           // voices ADD into a cleared buffer
 
+    // Merge any on-screen-keyboard notes into the host MIDI stream before rendering
+    // (covers both host MIDI and the WebView keyboard from one path).
+    midiCollector.removeNextBlockOfMessages (midiMessages, numSamples);
+
     pushParamsToVoices (numSamples);          // advances the global scan LFO by the block
     synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
 
@@ -288,6 +296,10 @@ void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
             for (int k = 0; k < AdditiveVoice::kNumPartials; ++k)
                 activeSpectrumSnapshot[(size_t) k].store (spec[k], std::memory_order_relaxed);
         }
+
+        // Drives the editor's idle handling: when nothing sounds, the drawbar
+        // live-glow snaps to each drawbar's set level rather than the stale snapshot.
+        anyVoiceSounding.store (primary != nullptr, std::memory_order_relaxed);
     }
 
     // Master output trim (dB->lin, smoothed).
@@ -326,6 +338,91 @@ void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
             mono[i] = s * invCh;
         }
         viz.write (mono, n);
+    }
+}
+
+//==============================================================================
+void OSimpleAdditiveAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, float velocity)
+{
+    auto msg = noteOn
+        ? juce::MidiMessage::noteOn  (1, noteNumber, juce::jlimit (0.0f, 1.0f, velocity))
+        : juce::MidiMessage::noteOff (1, noteNumber);
+    msg.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);   // collector wants seconds
+    midiCollector.addMessageToQueue (msg);
+}
+
+//==============================================================================
+// Lesson preset tour — full APVTS snapshots applied via setValueNotifyingHost so
+// the WebView controls update through their relays. Real (scaled) values are passed
+// through convertTo0to1; choices pass their index. Each lesson resets to defaults
+// first so it reproduces regardless of the prior state.
+void OSimpleAdditiveAudioProcessor::applyFactoryPreset (const juce::String& name)
+{
+    using namespace OSimpleAdditive::ParamIDs;
+
+    for (auto* p : getParameters())
+        p->setValueNotifyingHost (p->getDefaultValue());
+
+    auto setReal = [this] (const char* id, float real) {
+        if (auto* p = parameters.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 (real));
+    };
+    auto setChoice = [this] (const char* id, int index) {
+        if (auto* p = parameters.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 ((float) index));
+    };
+    auto drawbars = [&setReal] (std::initializer_list<float> levels) {
+        static const char* const ids[16] = {
+            partial1,  partial2,  partial3,  partial4,  partial5,  partial6,
+            partial7,  partial8,  partial9,  partial10, partial11, partial12,
+            partial13, partial14, partial15, partial16 };
+        int k = 0;
+        for (float v : levels) { if (k < 16) setReal (ids[k], juce::jlimit (0.0f, 1.0f, v)); ++k; }
+    };
+    const auto inv = [] (float k) { return 1.0f / k; };   // 1/k harmonic amplitude
+
+    if (name == "Pure Sine")
+    {
+        drawbars ({ 1.0f });                              // defaults are already a pure sine
+    }
+    else if (name == "Sawtooth")                          // every harmonic at 1/k
+    {
+        drawbars ({ inv(1), inv(2), inv(3), inv(4),  inv(5),  inv(6),  inv(7),  inv(8),
+                    inv(9), inv(10), inv(11), inv(12), inv(13), inv(14), inv(15), inv(16) });
+    }
+    else if (name == "Square")                            // odd harmonics only, 1/k — hollow
+    {
+        drawbars ({ inv(1), 0, inv(3), 0, inv(5), 0, inv(7), 0,
+                    inv(9), 0, inv(11), 0, inv(13), 0, inv(15), 0 });
+    }
+    else if (name == "Organ")                             // Hammond-style registration
+    {
+        drawbars ({ 1.0f, 0.85f, 0.6f, 0.45f, 0.2f, 0.3f, 0.0f, 0.25f });
+        setReal (ampSustain, 1.0f);
+        setReal (ampRelease, 0.08f);
+    }
+    else if (name == "Morph Pad")                         // evolving pad: LFO morph A→Square
+    {
+        drawbars ({ 1.0f, 0.5f, 0.3f, 0.2f, 0.12f, 0.08f });
+        setChoice (frameBSource, 2);                      // Square
+        setReal (scanPosition, 0.15f);
+        setReal (scanLfoRate, 0.25f);
+        setReal (scanLfoDepth, 0.7f);
+        setReal (ampAttack, 0.6f);
+        setReal (ampDecay, 1.0f);
+        setReal (ampSustain, 0.85f);
+        setReal (ampRelease, 1.2f);
+    }
+    else if (name == "Lo-Fi Bells")                       // bell spectrum + spectral-decay + bit-crush
+    {
+        drawbars ({ 1.0f, 0.2f, 0.0f, 0.6f, 0.0f, 0.3f, 0.0f, 0.0f, 0.4f, 0.0f, 0.0f, 0.0f, 0.25f });
+        setReal (spectralDecay, 0.6f);
+        setChoice (bitDepth, 3);                          // "8"
+        setReal (velToDecay, 0.3f);
+        setReal (ampAttack, 0.002f);
+        setReal (ampDecay, 1.5f);
+        setReal (ampSustain, 0.0f);
+        setReal (ampRelease, 1.0f);
     }
 }
 
