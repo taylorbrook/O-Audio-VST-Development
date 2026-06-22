@@ -271,6 +271,33 @@ struct SampleMap
         return nullptr;
     }
 
+    // v1.21.0: gather, in ASCENDING velocity-layer order (= ascending loudness),
+    // the nearest-midi populated cell in each layer for the given technique.
+    // Used by the voice's CC-crossfade dynamics mode to build the layer stack
+    // it morphs across.
+    //
+    // Deliberately uses findCellExact (NO technique→0 fallback) so every cell
+    // written to `outCells` shares ONE technique — mixing articulations across
+    // the loudness axis would be audibly wrong. The caller handles the ord
+    // fallback at the technique level (gather requested technique; if empty,
+    // gather technique 0).
+    //
+    // Writes at most `maxOut` pointers and returns the count written. Empty
+    // layers are skipped (no null gaps in the output). RT-safe: pure linear
+    // scans over `cells`, no allocation, no throw.
+    int gatherLayerCells (int midiNote, int technique,
+                          const SampleCell** outCells, int maxOut) const noexcept
+    {
+        int count = 0;
+        // velocityLayer is 0..3 (numVelocityLayers <= 4); iterate the full
+        // range and let findCellExact return null for unpopulated layers.
+        for (int layer = 0; layer < 4 && count < maxOut; ++layer)
+            if (auto* hit = findCellExact (midiNote, layer, technique))
+                outCells[count++] = hit;
+
+        return count;
+    }
+
 private:
     const SampleCell* findCellExact (int midiNote, int velocityLayer,
                                      int technique) const noexcept

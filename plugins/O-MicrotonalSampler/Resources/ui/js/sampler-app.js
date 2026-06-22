@@ -351,7 +351,7 @@ function renderControlStrip() {
         console.warn('[sampler-app] #control-strip not found — knobs cannot render');
         return;
     }
-    strip.innerHTML = SLIDER_BINDINGS.map(b => {
+    const knobsHtml = SLIDER_BINDINGS.map(b => {
         const titleAttr = b.tooltip ? ` title="${b.tooltip.replace(/"/g, '&quot;')}"` : '';
         return `
       <div class="ouaricon-knob" data-knob-id="${b.domId}"${titleAttr}>
@@ -366,6 +366,59 @@ function renderControlStrip() {
         <input type="range" id="${b.domId}" min="0" max="1" step="0.001" />
       </div>`;
     }).join('');
+
+    // v1.21.0: Dynamics Mode segmented toggle (choice param "dynamics_mode").
+    // Sits in the control strip next to Expression. Bound to the WebComboBox
+    // relay in bindDynamicsMode(). CC Crossfade is the default — see
+    // PluginProcessor::createParameterLayout.
+    const dynamicsHtml = `
+      <div class="dynamics-mode-control"
+           title="Dynamics Mode — how MIDI CC 11 shapes dynamics. Velocity: note-on velocity picks the layer, CC 11 is a post-mix volume trim (v1.20 behaviour). CC Crossfade: CC 11 morphs across all velocity layers mid-note (timbre + loudness, like pro sustain patches).">
+        <span class="dynamics-mode-title">Dynamics</span>
+        <div class="seg-toggle" id="dynamics-mode-seg" role="group" aria-label="Dynamics Mode">
+          <button type="button" class="seg-btn" data-idx="0">Velocity</button>
+          <button type="button" class="seg-btn" data-idx="1">CC&nbsp;Crossfade</button>
+        </div>
+      </div>`;
+
+    strip.innerHTML = knobsHtml + dynamicsHtml;
+}
+
+// v1.21.0: bind the Dynamics Mode segmented toggle to the "dynamics_mode"
+// WebComboBoxRelay. getChoiceIndex()/setChoiceIndex() mirror the choice param;
+// valueChangedEvent/propertiesChangedEvent keep the UI in sync with host
+// automation / preset loads (and with the choices arriving asynchronously
+// after the initial-update request).
+function bindDynamicsMode() {
+    const seg = document.getElementById('dynamics-mode-seg');
+    if (!seg) {
+        console.warn('[sampler-app] #dynamics-mode-seg not found — dynamics toggle cannot bind');
+        return;
+    }
+    const buttons = Array.from(seg.querySelectorAll('.seg-btn'));
+
+    let state = null;
+    try {
+        state = Juce.getComboBoxState('dynamics_mode');
+    } catch (e) {
+        console.error('[sampler-app] Failed to bind dynamics_mode:', e);
+        return;
+    }
+
+    const refresh = () => {
+        const idx = Math.max(0, Math.min(buttons.length - 1, state.getChoiceIndex()));
+        buttons.forEach(b => b.classList.toggle('active', Number(b.dataset.idx) === idx));
+    };
+    refresh();
+    state.valueChangedEvent.addListener(refresh);
+    if (state.propertiesChangedEvent) state.propertiesChangedEvent.addListener(refresh);
+
+    buttons.forEach(b => {
+        b.addEventListener('click', () => {
+            state.setChoiceIndex(Number(b.dataset.idx));
+            refresh();
+        });
+    });
 }
 
 function bindSliders() {
@@ -376,6 +429,7 @@ function bindSliders() {
     }
     SLIDER_BINDINGS.forEach(bindOneKnob);
     bindKnobGlobalDrag();
+    bindDynamicsMode();   // v1.21.0
 }
 
 // ============================================================================

@@ -166,6 +166,31 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
         [] (const juce::String& s){ return juce::jlimit (0.0f, 1.0f, s.getFloatValue() / 100.0f); }
     ));
 
+    // ========== Dynamics Mode (1) — v1.21.0 ==========
+    //
+    // Selects how the Expression axis (MIDI CC 11 / "expression" param) shapes
+    // dynamics:
+    //   0 = Velocity      — exactly the v1.20.0 model. Note-on velocity picks
+    //                       the layer; Expression is a post-mix gain (squared
+    //                       curve) applied in processBlock. Back-compat.
+    //   1 = CC Crossfade  — DEFAULT. Velocity is ignored for the dynamic axis;
+    //                       at note-on the voice resolves ALL populated velocity
+    //                       layers and CC 11 drives a real-time equal-power
+    //                       crossfade across them mid-note (timbre + loudness
+    //                       morph on hairpins). The post-mix Expression gain is
+    //                       BYPASSED in this mode (CC 11 is the dynamics axis;
+    //                       applying it twice would re-create the pp double-cut).
+    //
+    // The voice reads this choice + the "expression" atom directly (cached
+    // pointers, RT-safe). No Dorico exp-map change needed — the maps already
+    // send dynamics on CC 11 (volumeType kCC param1=11).
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "dynamics_mode", 1 },
+        "Dynamics Mode",
+        juce::StringArray { "Velocity", "CC Crossfade" },
+        /*default*/ 1
+    ));
+
     // ========== Output (1) ==========
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -358,6 +383,7 @@ void OMicrotonalSamplerAudioProcessor::cacheAudioParamPointers() noexcept
     pCcNumber        = parameters.getRawParameterValue ("cc_number");
     pPcEnabled       = parameters.getRawParameterValue ("pc_enabled");
     pExpression      = parameters.getRawParameterValue ("expression");
+    pDynamicsMode    = parameters.getRawParameterValue ("dynamics_mode");   // v1.21.0
     pOutputGain      = parameters.getRawParameterValue ("output_gain");
 }
 
@@ -710,6 +736,16 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // before output_gain. Independent of velocity-layer selection (velocity
     // chooses the layer at note-on; expression scales the mix). Same
     // start/end ramp pattern as output_gain (RESEARCH pitfall #9).
+    //
+    // v1.21.0: BYPASS this post-mix gain when Dynamics Mode = CC Crossfade.
+    // In that mode CC 11 is the dynamics axis — the voice already crossfades
+    // velocity layers by the live "expression" value, so applying expression
+    // again as a post-mix gain would double-cut quiet passages (the original
+    // Dorico pp problem). We still advance the smoother (skip) so its current
+    // value is correct if the user switches back to Velocity mode mid-stream.
+    const bool ccCrossfade = (pDynamicsMode != nullptr)
+                          && (pDynamicsMode->load() > 0.5f);
+
     if (pExpression != nullptr)
     {
         const float v = pExpression->load();
@@ -720,7 +756,8 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     expressionSmoother.skip (numSamples);
     const float endExp   = expressionSmoother.getCurrentValue();
 
-    if (! juce::approximatelyEqual (startExp, 1.0f) || ! juce::approximatelyEqual (endExp, 1.0f))
+    if (! ccCrossfade
+        && (! juce::approximatelyEqual (startExp, 1.0f) || ! juce::approximatelyEqual (endExp, 1.0f)))
     {
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             buffer.applyGainRamp (ch, 0, numSamples, startExp, endExp);

@@ -595,6 +595,7 @@ private:
     std::atomic<float>* pCcNumber        = nullptr;
     std::atomic<float>* pPcEnabled       = nullptr;
     std::atomic<float>* pExpression      = nullptr;
+    std::atomic<float>* pDynamicsMode    = nullptr;   // v1.21.0: 0=Velocity, 1=CC Crossfade
     std::atomic<float>* pOutputGain      = nullptr;
 
     CappedSynthesiser                         synthesiser;

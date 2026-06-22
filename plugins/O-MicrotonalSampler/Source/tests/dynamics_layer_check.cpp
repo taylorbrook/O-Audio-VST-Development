@@ -283,6 +283,91 @@ int main()
         }
     }
 
+    // ----------------------------------------------------------------
+    // 11. v1.21.0 — gatherLayerCells: the CC Crossfade engine's layer-stack
+    //     builder. Must return every populated layer for ONE technique, in
+    //     ASCENDING velocity-layer order, with no null gaps, capped at maxOut.
+    // ----------------------------------------------------------------
+    {
+        // (a) Fully-populated 4-layer library → 4 cells, ascending order.
+        {
+            SampleMap map;
+            map.numVelocityLayers = 4;
+            for (int layer = 0; layer < 4; ++layer)
+                map.cells.push_back (makeCell (60, layer,
+                    "C3_v" + std::to_string (layer + 1) + ".wav"));
+
+            const SampleCell* out[4] = { nullptr };
+            const int n = map.gatherLayerCells (60, 0, out, 4);
+            check (n == 4, "gather: full 4-layer → count 4");
+            bool ascending = true;
+            for (int k = 0; k < n; ++k)
+                if (out[k] == nullptr || out[k]->velocityLayer != k)
+                    ascending = false;
+            check (ascending, "gather: layers returned ascending 0,1,2,3");
+        }
+
+        // (b) Sparse library (layers 0 and 2 only) → 2 cells, no gap, ascending.
+        {
+            SampleMap map;
+            map.numVelocityLayers = 4;
+            map.cells.push_back (makeCell (60, 0, "C3_p.wav"));
+            map.cells.push_back (makeCell (60, 2, "C3_mf.wav"));
+
+            const SampleCell* out[4] = { nullptr };
+            const int n = map.gatherLayerCells (60, 0, out, 4);
+            check (n == 2, "gather: sparse {0,2} → count 2 (compacted, no gap)");
+            check (n == 2 && out[0] != nullptr && out[0]->velocityLayer == 0
+                          && out[1] != nullptr && out[1]->velocityLayer == 2,
+                   "gather: sparse stack is [layer 0, layer 2]");
+        }
+
+        // (c) Single layer → exactly one cell (CC mode falls back to a gain).
+        {
+            SampleMap map;
+            map.numVelocityLayers = 4;
+            map.cells.push_back (makeCell (60, 1, "C3_mf.wav"));
+
+            const SampleCell* out[4] = { nullptr };
+            const int n = map.gatherLayerCells (60, 0, out, 4);
+            check (n == 1 && out[0] != nullptr && out[0]->velocityLayer == 1,
+                   "gather: single populated layer → count 1");
+        }
+
+        // (d) Technique isolation — gather(tech=1) must NOT mix in tech-0 cells
+        //     (no articulation mixing across the loudness axis; the voice does
+        //     the ord fallback at the technique level, not gatherLayerCells).
+        {
+            SampleMap map;
+            map.numVelocityLayers = 4;
+            map.cells.push_back (makeCell (60, 0, "C3_ord_p.wav"));   // tech 0
+            map.cells.push_back (makeCell (60, 1, "C3_ord_mf.wav"));  // tech 0
+            SampleCell pizz = makeCell (60, 3, "C3_pizz.wav");        // tech 1
+            pizz.technique = 1;
+            map.cells.push_back (pizz);
+
+            const SampleCell* out[4] = { nullptr };
+            const int n = map.gatherLayerCells (60, 1, out, 4);
+            check (n == 1 && out[0] != nullptr && out[0]->technique == 1,
+                   "gather(tech 1): only tech-1 cells, no ord mixing");
+
+            const int n0 = map.gatherLayerCells (60, 0, out, 4);
+            check (n0 == 2, "gather(tech 0): two ord layers, pizz excluded");
+        }
+
+        // (e) maxOut cap honoured — never writes past the caller's buffer.
+        {
+            SampleMap map;
+            map.numVelocityLayers = 4;
+            for (int layer = 0; layer < 4; ++layer)
+                map.cells.push_back (makeCell (60, layer, "v.wav"));
+
+            const SampleCell* out[2] = { nullptr };
+            const int n = map.gatherLayerCells (60, 0, out, 2);
+            check (n == 2, "gather: maxOut=2 caps the returned count");
+        }
+    }
+
     std::cout << "== dynamics_layer_check: "
               << (failed == 0 ? "ALL PASS" : "FAIL")
               << " (" << failed << " failures) ==\n";
