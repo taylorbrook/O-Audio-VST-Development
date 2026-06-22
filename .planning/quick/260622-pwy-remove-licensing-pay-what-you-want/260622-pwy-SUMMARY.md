@@ -7,6 +7,8 @@ started: 2026-06-22T22:47:39Z
 completed: 2026-06-22T22:47:39Z
 duration: ~1m
 task_count: 1
+commits:
+  - 155f34c  # Path A: remove CI licensing/Supabase flags
 files_modified:
   - .github/workflows/build-and-release.yml
 deferred_followup: Path B — full physical removal (module + 16 guarded plugins + 8 dead CMake blocks + root CMake option + registry block + add-licensing skill + Supabase secrets). See PLAN.md "Deferred".

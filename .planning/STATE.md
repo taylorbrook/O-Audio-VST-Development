@@ -137,7 +137,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260502-bb5 | Research: How VST3 NoteExpression pitch data embeds in MIDI files and DAW (Logic/Ableton) import compatibility | 2026-05-02 | fd7715f | [260502-bb5-research-how-vst3-noteexpression-pitch-d](./quick/260502-bb5-research-how-vst3-noteexpression-pitch-d/) |
 | 260505-ayr | Create Dorico agent (subagent + /dorico slash command + seed memory) for VST instrument integration | 2026-05-05 | 3f744be | [260505-ayr-create-a-dorico-agent-that-helps-with-vs](./quick/260505-ayr-create-a-dorico-agent-that-helps-with-vs/) |
 | 260505-mri | Wire 6 agents/skills/commands (troubleshoot-agent, plugin-improve, plugin-publishing, generalize-microtones, gui-agent, dsp-agent) to delegate to dorico-agent | 2026-05-05 | 0a216af | [260505-mri-wire-6-existing-agents-skills-to-delegat](./quick/260505-mri-wire-6-existing-agents-skills-to-delegat/) |
-| 260622-pwy | Move to pay-what-you-want — Path A: flip CI licensing switch (remove licensing/Supabase flags from build-and-release.yml). Path B full removal deferred & scoped | 2026-06-22 | pending | [260622-pwy-remove-licensing-pay-what-you-want](./quick/260622-pwy-remove-licensing-pay-what-you-want/) |
+| 260622-pwy | Move to pay-what-you-want — Path A: flip CI licensing switch (remove licensing/Supabase flags from build-and-release.yml). Path B full removal deferred & scoped | 2026-06-22 | 155f34c | [260622-pwy-remove-licensing-pay-what-you-want](./quick/260622-pwy-remove-licensing-pay-what-you-want/) |
 
 ## Session Continuity
 
