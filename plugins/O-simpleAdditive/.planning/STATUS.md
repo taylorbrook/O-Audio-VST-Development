@@ -1,12 +1,13 @@
 ---
 plugin: O-simpleAdditive
-stage: 1
-status: complete
+stage: 2
+status: in_progress
 last_updated: 2026-06-22
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: implement_stage_2_dsp
+stage_2_mode: incremental_dsp_builds
+next_action: implement_phase_2_2_scan_morph
 next_stage: 2
 ready_for_implementation: true
 contract_checksums:
@@ -20,11 +21,21 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — complete
-Status: Silent synth shell built + auval-validated; ready for Stage 2 (DSP)
-Progress: [#####...............] 25%
+Stage: 2 of 4 (DSP) — in progress (incremental-DSP-builds mode)
+Status: Phase 2.1 (Core Additive Voice) built + auval-validated. **First sound.** Ready for Phase 2.2 (scan/morph).
+Progress: [########............] 40%
 
-## Stage 1 Phase Progress (express mode)
+## Stage 2 (DSP) Phase Progress — incremental builds (build + auval per sub-phase)
+
+| Phase | Status | Artifact / Gate |
+|-------|--------|-----------------|
+| 2.1 Core additive voice | ✓ | stages/2-dsp/SUMMARY-2.1.md — build clean + **auval SUCCEEDED** |
+| 2.2 Scan/morph + mod-env + LFO | ▶ next | — |
+| 2.3 Spectral-decay + bit-depth + viz tap | ○ | — |
+
+**Phase 2.1 result:** `AdditiveVoice.h` (new) — 16-partial band-limited single-cycle table (2048-pt), per-note `Kmax` band-limit + raised-cosine taper, headroom-normalized sum, amp ADSR + velocity, control-rate dirty-refill. Synthesiser wired (16 voices). VST3 + AU clean; `auval` SUCCEEDED incl. MIDI test at 11k–192k Hz. Frame A drawbars only — morph/decay/bit/viz APVTS params present but not yet consumed.
+
+## Stage 1 Phase Progress (express mode) — ✓ complete
 
 | Phase | Status | Artifact |
 |-------|--------|----------|
@@ -53,9 +64,10 @@ Progress: [#####...............] 25%
 
 ## Next Steps
 
-1. Stage 2: DSP (3 phases — 2.1 core additive voice, 2.2 scan/morph + mod-env + LFO, 2.3 spectral-decay + bit-depth + viz tap) — `/clear` then `/implement O-simpleAdditive`
-2. Stage 3: GUI (3 phases) · Stage 4: Validation/Polish
-3. Pause here
+1. **Phase 2.2: Scan/morph + mod-env + LFO** — Frame A→B spectral morph driven by manual scan + global sine LFO + mod-envelope; zipper-free. Composes into `AdditiveVoice::refillTable()` morph extension point. → `/clear` then `/implement O-simpleAdditive`
+2. Phase 2.3: Spectral-decay + bit-depth + viz tap
+3. Stage 3: GUI (3 phases) · Stage 4: Validation/Polish
+4. Pause here
 
 ## Context to Preserve
 

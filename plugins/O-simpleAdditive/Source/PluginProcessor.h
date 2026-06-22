@@ -7,13 +7,14 @@
 
     Pedagogical 16-voice additive / wavetable-scan synthesizer.
 
-    Stage 1 (Foundation): silent synth shell. Full 33-parameter APVTS +
-    state persistence, zero latency. No audio rendering yet (first sound:
-    Stage 2), no WebView UI yet (Stage 3 — GenericAudioProcessorEditor for now).
+    Stage 2 — Phase 2.1 (Core Additive Voice): a polyphonic, MIDI-playable
+    additive voice. 16 drawbars (Frame A) are summed into a per-note
+    band-limited single-cycle table, read by phase, shaped by the amp ADSR.
+    Zero latency (additive band-limits exactly → setLatencySamples(0)).
 
-    Port of O-simpleFM with these subtractions: no oversampling (additive
-    band-limits exactly → setLatencySamples(0)), no Synthesiser/voices yet,
-    no viz tap, no on-screen-keyboard MIDI collector, no preset manager.
+    Not yet wired (later Stage 2 phases): Frame A→B scan/morph + scan LFO +
+    mod-env (2.2); spectral-decay + bit-depth + viz tap (2.3). The APVTS holds
+    all 33 params; the voice currently consumes only Frame A + amp ADSR.
 
   ==============================================================================
 */
@@ -21,6 +22,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include "AdditiveVoice.h"
 
 //==============================================================================
 // Parameter identifiers — single source of truth for APVTS IDs.
@@ -120,9 +122,12 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     //==========================================================================
-    // DSP plumbing (voices added Stage 2). Foundation has no Synthesiser/voices:
-    // processBlock is silent (clear + smoothed output gain + NaN scrub).
+    // DSP — Stage 2. 16-voice additive Synthesiser; APVTS is read once per block
+    // and pushed to the voices (voices never touch APVTS). No oversampling.
     static constexpr int kNumVoices = 16;
+
+    juce::Synthesiser synth;
+    void pushParamsToVoices();
 
     juce::SmoothedValue<float> outputGain { 1.0f };   // dB->lin, 20 ms
     double currentSampleRate = 44100.0;
