@@ -171,12 +171,3 @@ if(APPLE)
         endif()
     endforeach()
 endif()
-
-# =============================================================================
-# Licensing module
-# =============================================================================
-if(OUARICON_LICENSING)
-    ouaricon_add_module(${PROJECT_NAME} licensing)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(${PROJECT_NAME} PRIVATE juce::juce_cryptography)
-endif()
