@@ -77,13 +77,6 @@ target_link_libraries(OuariconTextureForge
 
 juce_generate_juce_header(OuariconTextureForge)
 
-# Licensing module
-if(OUARICON_LICENSING)
-    ouaricon_add_module(OuariconTextureForge licensing)
-    target_compile_definitions(OuariconTextureForge PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(OuariconTextureForge PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources
 juce_add_binary_data(OuariconTextureForge_UIResources
     SOURCES
