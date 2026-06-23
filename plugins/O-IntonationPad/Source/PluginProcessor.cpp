@@ -429,11 +429,6 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
 
     // v1.5.0: Initialize enabled intervals (all enabled by default)
     resetEnabledIntervals();
-
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-intonation-pad", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
 }
 
 OIntonationPadAudioProcessor::~OIntonationPadAudioProcessor()

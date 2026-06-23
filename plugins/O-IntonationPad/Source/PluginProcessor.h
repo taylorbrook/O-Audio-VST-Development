@@ -19,9 +19,6 @@
 #include "DSP/ReverbProcessor.h"
 #include "PresetManager.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
-#endif
 
 // Immutable snapshot published by UI thread, read lock-free by audio thread
 struct IntervalSnapshot
@@ -95,10 +92,6 @@ public:
     void checkAndResetForScaleChange();  // Call after tuning changes that may alter degree count
     int getScaleDegreeCount() const;
     std::vector<int> getEnabledDegreeOffsets() const;  // Returns sorted list of enabled degree indices
-
-#if OUARICON_LICENSING_ENABLED
-    OuariconLicense& getLicenseManager() { return *licenseManager; }
-#endif
 
 private:
     // v2.7.0: Preset manager (declare early — no DSP dependency)
@@ -206,10 +199,6 @@ private:
     std::atomic<float>* cachedReverbDamp = nullptr;
     std::atomic<float>* cachedReverbPredelay = nullptr;
     std::atomic<float>* cachedReverbMix = nullptr;
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OIntonationPadAudioProcessor)
 };
