@@ -354,11 +354,6 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
     // Background sample loader (owns a juce::Thread; loadFolder/loadSingleVariant
     // dispatch work off the message thread and fire completion callbacks back on it).
     sampleLoader = std::make_unique<SampleLoader>();
-
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-microtonal-sampler", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
 }
 
 void OMicrotonalSamplerAudioProcessor::resetAllRrCounters() noexcept

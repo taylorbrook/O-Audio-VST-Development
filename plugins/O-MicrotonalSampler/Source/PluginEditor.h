@@ -33,16 +33,9 @@
 #include "PluginProcessor.h"
 #include "WebViewDropStreaming.h"  // v1.13.0 — shared module (ARCH-02)
 
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicenseUI.h"
-#endif
-
 class OMicrotonalSamplerAudioProcessorEditor : public juce::AudioProcessorEditor,
                                                public juce::FileDragAndDropTarget,
                                                private juce::Timer
-#if OUARICON_LICENSING_ENABLED
-                                             , private OuariconLicense::Listener
-#endif
 {
 public:
     explicit OMicrotonalSamplerAudioProcessorEditor (OMicrotonalSamplerAudioProcessor& p);
@@ -148,11 +141,6 @@ private:
     // emits note-ons for any notes already held at editor open.
     juce::uint64 prevActiveNotesLow  = 0;
     juce::uint64 prevActiveNotesHigh = 0;
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
-    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OMicrotonalSamplerAudioProcessorEditor)
 };
