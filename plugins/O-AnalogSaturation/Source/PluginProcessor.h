@@ -14,10 +14,6 @@
 #include <cmath>
 #include <atomic>
 
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
-#endif
-
 class OAnalogSaturationAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -52,10 +48,6 @@ public:
     // Uses peak level like TapeAge (getMagnitude), not RMS
     std::atomic<float> inputLevelDB { -100.0f };   // Peak level in dB
     std::atomic<float> outputLevelDB { -100.0f };  // Peak level in dB
-
-#if OUARICON_LICENSING_ENABLED
-    OuariconLicense& getLicenseManager() { return *licenseManager; }
-#endif
 
 private:
     // Parameter layout creation
@@ -105,10 +97,6 @@ private:
     float processTubeSample(float input, float intensity, int channel);
     float processMagneticSample(float input, float intensity, int channel);
     float langevinFunction(float x);
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OAnalogSaturationAudioProcessor)
 };
