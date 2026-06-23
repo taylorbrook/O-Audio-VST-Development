@@ -84,13 +84,6 @@ target_link_libraries(O-Wind
 # Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
 juce_generate_juce_header(O-Wind)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-Wind licensing)
-    target_compile_definitions(O-Wind PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-Wind PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources
 juce_add_binary_data(O-Wind_UIResources
     SOURCES
