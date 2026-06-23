@@ -177,11 +177,6 @@ OCompAudioProcessor::OCompAudioProcessor()
             { "auto_gain",    0.0f },       // off
         }, {} },
     });
-
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-compressor", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
 }
 
 void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
