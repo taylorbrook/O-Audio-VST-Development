@@ -11,9 +11,6 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "OuariconPresetManager.h"
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
-#endif
 
 class OCompAudioProcessor : public juce::AudioProcessor
 {
@@ -47,10 +44,6 @@ public:
 
     // Preset management
     OuariconPresetManager presetManager;
-
-#if OUARICON_LICENSING_ENABLED
-    OuariconLicense& getLicenseManager() { return *licenseManager; }
-#endif
 
 private:
     // Parameter layout creation
@@ -92,10 +85,6 @@ private:
     float calculateGainReduction(float inputLevel, float thresholdDB,
                                   float ratio, float kneeDB);
     void updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate);
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OCompAudioProcessor)
 };

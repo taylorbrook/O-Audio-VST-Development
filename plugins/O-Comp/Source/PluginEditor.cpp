@@ -158,24 +158,6 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
 
     addAndMakeVisible(*webView);
 
-#if OUARICON_LICENSING_ENABLED
-    // Licensing: activation overlay (visible until licensed)
-    // Native WebView renders on top of JUCE components, so we must
-    // hide the WebView while the overlay is showing.
-    // License manager lives on the processor (persists across editor open/close).
-    auto& license = processorRef.getLicenseManager();
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
-    addChildComponent(licenseOverlay.get());
-
-    license.addListener(this);
-
-    if (! license.isLicensed())
-    {
-        licenseOverlay->setVisible(true);
-        webView->setVisible(false);
-    }
-#endif
-
     // 3️⃣ Create attachments LAST (depend on relays and webView)
     // CRITICAL: JUCE 8 requires THREE parameters (parameter, relay, undoManager)
     // Missing nullptr causes silent failure - knobs compile but don't respond
@@ -208,10 +190,6 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
 
 OCompAudioProcessorEditor::~OCompAudioProcessorEditor()
 {
-#if OUARICON_LICENSING_ENABLED
-    processorRef.getLicenseManager().removeListener(this);
-#endif
-
     // Stop timer before destruction
     stopTimer();
 
@@ -232,11 +210,6 @@ void OCompAudioProcessorEditor::resized()
 {
     // WebView fills entire editor window
     webView->setBounds(getLocalBounds());
-
-#if OUARICON_LICENSING_ENABLED
-    if (licenseOverlay != nullptr)
-        licenseOverlay->setBounds(getLocalBounds());
-#endif
 }
 
 void OCompAudioProcessorEditor::timerCallback()
@@ -322,24 +295,3 @@ OCompAudioProcessorEditor::getResource(const juce::String& url)
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
 }
-
-#if OUARICON_LICENSING_ENABLED
-//==============================================================================
-void OCompAudioProcessorEditor::licenseStatusChanged(
-    OuariconLicense&, OuariconLicense::Status newStatus)
-{
-    juce::MessageManager::callAsync([this, newStatus]()
-    {
-        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
-        webView->setVisible(licensed);
-
-        if (licenseOverlay)
-            licenseOverlay->setVisible(! licensed);
-
-        // Force WebView reload after becoming visible — hidden WebViews
-        // do not load content on WebView2 (Windows) or WKWebView (macOS)
-        if (licensed)
-            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
-    });
-}
-#endif
