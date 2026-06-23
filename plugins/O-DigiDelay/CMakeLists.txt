@@ -52,13 +52,6 @@ target_link_libraries(OuariconDigitalDelay
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconDigitalDelay)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(OuariconDigitalDelay licensing)
-    target_compile_definitions(OuariconDigitalDelay PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(OuariconDigitalDelay PRIVATE juce::juce_cryptography)
-endif()
-
 # Compile definitions
 target_compile_definitions(OuariconDigitalDelay
     PUBLIC
