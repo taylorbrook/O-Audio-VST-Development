@@ -84,13 +84,6 @@ target_link_libraries(O-Bassoon
 # Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
 juce_generate_juce_header(O-Bassoon)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-Bassoon licensing)
-    target_compile_definitions(O-Bassoon PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-Bassoon PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources (Stage 3 — Pattern A: tuning-panel.{js,css} referenced from
 # shared module path, NOT copied per-plugin, so upstream fixes propagate without re-copy)
 juce_add_binary_data(O-Bassoon_UIResources
