@@ -172,24 +172,6 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
     addAndMakeVisible(*webView);
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
-#if OUARICON_LICENSING_ENABLED
-    // Licensing: activation overlay (visible until licensed)
-    // Native WebView renders on top of JUCE components, so we must
-    // hide the WebView while the overlay is showing.
-    // License manager lives on the processor (persists across editor open/close).
-    auto& license = processorRef.getLicenseManager();
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
-    addChildComponent(licenseOverlay.get());
-
-    license.addListener(this);
-
-    if (! license.isLicensed())
-    {
-        licenseOverlay->setVisible(true);
-        webView->setVisible(false);
-    }
-#endif
-
     // Set editor size (from creative brief: 500x350)
     setSize(500, 350);
 
@@ -199,9 +181,6 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
 
 OSimpleReverbAudioProcessorEditor::~OSimpleReverbAudioProcessorEditor()
 {
-#if OUARICON_LICENSING_ENABLED
-    processorRef.getLicenseManager().removeListener(this);
-#endif
     stopTimer();
 }
 
@@ -224,11 +203,6 @@ void OSimpleReverbAudioProcessorEditor::resized()
     // WebView fills entire editor
     if (webView)
         webView->setBounds(getLocalBounds());
-
-#if OUARICON_LICENSING_ENABLED
-    if (licenseOverlay != nullptr)
-        licenseOverlay->setBounds(getLocalBounds());
-#endif
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
@@ -287,24 +261,3 @@ OSimpleReverbAudioProcessorEditor::getResource(const juce::String& url)
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
 }
-
-#if OUARICON_LICENSING_ENABLED
-//==============================================================================
-void OSimpleReverbAudioProcessorEditor::licenseStatusChanged(
-    OuariconLicense&, OuariconLicense::Status newStatus)
-{
-    juce::MessageManager::callAsync([this, newStatus]()
-    {
-        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
-        webView->setVisible(licensed);
-
-        if (licenseOverlay)
-            licenseOverlay->setVisible(! licensed);
-
-        // Force WebView reload after becoming visible — hidden WebViews
-        // do not load content on WebView2 (Windows) or WKWebView (macOS)
-        if (licensed)
-            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
-    });
-}
-#endif

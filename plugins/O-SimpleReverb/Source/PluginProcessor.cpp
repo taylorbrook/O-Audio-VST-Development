@@ -228,11 +228,6 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
         delay.setMaximumDelayInSamples(kMaxAllPassSamples);
     for (auto& delay : allPassR)
         delay.setMaximumDelayInSamples(kMaxAllPassSamples);
-
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-simple-reverb", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
 }
 
 OSimpleReverbAudioProcessor::~OSimpleReverbAudioProcessor() = default;
