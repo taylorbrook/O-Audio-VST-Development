@@ -14,7 +14,7 @@ juce_add_plugin(O-simpleAdditive
     PLUGIN_CODE OSiA
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleAdditive${OUARICON_DEV_SUFFIX}"
-    VERSION "0.1.0"
+    VERSION "1.0.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE

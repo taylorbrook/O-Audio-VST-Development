@@ -1,14 +1,15 @@
 ---
 plugin: O-simpleAdditive
-stage: 3
-status: in_progress
+stage: 4
+status: complete
+version: 1.0.0
 last_updated: 2026-06-22
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 stage_2_mode: incremental_dsp_builds
-next_action: begin_stage_4_validation
-next_stage: 4
+next_action: install_plugin
+next_stage: done
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:2270ef614ef3fbac3778fc7157e8c2ce62d2d04a8dcc0b1348b07278b2803435
@@ -21,9 +22,22 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — ✓ COMPLETE. Next: Stage 4 (Validation / Polish).
-Status: WebView "Additive Field Guide" UI built, installed, **auval SUCCEEDED**, Standalone render verified. All 33 params two-way bound; 16 drawbars double as the live spectrum; oscilloscope, tooltips, 6 lesson presets, on-screen keyboard all wired.
-Progress: [##################..] 90%
+Stage: 4 of 4 (Validation / Polish) — ✓ COMPLETE. **All stages done → v1.0.0 release-ready.** Next: `/install-plugin O-simpleAdditive`.
+Status: pluginval strictness 8 SUCCESS on BOTH VST3 + AU; auval SUCCEEDED; 6 factory presets verified finite/in-range; exact band-limit anti-aliasing confirmed across the keyboard; default patch unregressed. Version bumped 0.1.0 → 1.0.0; CHANGELOG written; PLUGINS.md → ✅ Working. Preset save/load bar deferred to v1.1.
+Progress: [####################] 100%
+
+## Stage 4 (Validation / Polish) — ✓ COMPLETE
+
+| Task | Status | Gate |
+|------|--------|------|
+| Rebuild VST3 + AU | ✓ | ninja clean (exit 0) |
+| pluginval VST3 (strictness 8) | ✓ | SUCCESS |
+| pluginval AU (strictness 8) | ✓ | SUCCESS |
+| Factory-preset sweep (6 lessons) | ✓ | finite/in-range; covered by fuzz pass |
+| Aliasing/artifact audit | ✓ | Kmax band-limit + taper + headroom + finite-phase; clean high-note render/fuzz |
+| Version → 1.0.0 + CHANGELOG + PLUGINS.md | ✓ | stages/4-polish/SUMMARY.md, VERIFICATION.md |
+
+**Stage 4 result:** Validation-only (preset bar deferred to v1.1 per user). Both formats pass pluginval at strictness 8; full parameter space stable under fuzz/automation; anti-aliasing confirmed exact. Released as **v1.0.0**. Next-build picks up the version bump (current on-disk artefacts compiled at 0.1.0; `/install-plugin` rebuilds fresh → 1.0.0).
 
 ## Stage 3 (GUI) — ✓ COMPLETE (single coherent pass, build directly + show running plugin)
 
