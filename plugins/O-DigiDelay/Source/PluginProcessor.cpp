@@ -103,11 +103,6 @@ OuariconDigitalDelayAudioProcessor::OuariconDigitalDelayAudioProcessor()
     modParam      = parameters.getRawParameterValue("mod");
     wetParam      = parameters.getRawParameterValue("wet");
     dryParam      = parameters.getRawParameterValue("dry");
-
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-delay", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
 }
 
 void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
