@@ -56,13 +56,6 @@ juce_generate_juce_header(OuariconChorus)
 # Preset Manager module
 ouaricon_add_module(OuariconChorus preset-manager)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(OuariconChorus licensing)
-    target_compile_definitions(OuariconChorus PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(OuariconChorus PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources
 juce_add_binary_data(OuariconChorus_UIResources
     SOURCES

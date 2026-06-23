@@ -13,10 +13,6 @@
 #include "DSP/ChorusEngine.h"
 #include "OuariconPresetManager.h"
 
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
-#endif
-
 class OChorusAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -48,19 +44,11 @@ public:
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
 
-#if OUARICON_LICENSING_ENABLED
-    OuariconLicense& getLicenseManager() { return *licenseManager; }
-#endif
-
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void initializeFactoryPresets();
 
     ChorusEngine chorusEngine;
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OChorusAudioProcessor)
 };
