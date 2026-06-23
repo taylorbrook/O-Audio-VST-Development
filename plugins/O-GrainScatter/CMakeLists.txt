@@ -47,13 +47,6 @@ target_link_libraries(OuariconGrainScatter
 
 juce_generate_juce_header(OuariconGrainScatter)
 
-# Licensing module
-if(OUARICON_LICENSING)
-    ouaricon_add_module(OuariconGrainScatter licensing)
-    target_compile_definitions(OuariconGrainScatter PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(OuariconGrainScatter PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources
 juce_add_binary_data(OuariconGrainScatter_UIResources
     SOURCES
