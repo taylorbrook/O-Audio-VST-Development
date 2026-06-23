@@ -13,10 +13,6 @@
 #include <juce_dsp/juce_dsp.h>
 #include <array>
 
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
-#endif
-
 class OFreezeAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -46,10 +42,6 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
-
-#if OUARICON_LICENSING_ENABLED
-    OuariconLicense& getLicenseManager() { return *licenseManager; }
-#endif
 
 private:
     // Gate state machine
@@ -122,10 +114,6 @@ private:
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OFreezeAudioProcessor)
 };

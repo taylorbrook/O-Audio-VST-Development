@@ -51,13 +51,6 @@ target_link_libraries(O-Freeze
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-Freeze)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-Freeze licensing)
-    target_compile_definitions(O-Freeze PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-Freeze PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources
 juce_add_binary_data(O-Freeze_UIResources
     SOURCES
