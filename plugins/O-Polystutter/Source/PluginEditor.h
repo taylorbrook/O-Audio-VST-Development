@@ -11,15 +11,9 @@
 #pragma once
 #include "PluginProcessor.h"
 #include <optional>
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicenseUI.h"
-#endif
 
 class OPolystutterAudioProcessorEditor : public juce::AudioProcessorEditor,
                                                 private juce::Timer
-#if OUARICON_LICENSING_ENABLED
-                                              , private OuariconLicense::Listener
-#endif
 {
 public:
     explicit OPolystutterAudioProcessorEditor(OPolystutterAudioProcessor&);
@@ -430,11 +424,6 @@ private:
 
     // Resource provider for serving HTML/CSS/JS from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
-    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OPolystutterAudioProcessorEditor)
 };
