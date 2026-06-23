@@ -62,12 +62,6 @@ target_link_libraries(O-Reed
 
 juce_generate_juce_header(O-Reed)
 
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-Reed licensing)
-    target_compile_definitions(O-Reed PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-Reed PRIVATE juce::juce_cryptography)
-endif()
-
 juce_add_binary_data(O-Reed_UIResources
     SOURCES
         Resources/ui/index.html
