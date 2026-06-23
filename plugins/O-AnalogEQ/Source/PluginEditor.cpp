@@ -175,24 +175,6 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
 
     addAndMakeVisible(*webView);
 
-#if OUARICON_LICENSING_ENABLED
-    // Licensing: activation overlay (visible until licensed)
-    // Native WebView renders on top of JUCE components, so we must
-    // hide the WebView while the overlay is showing.
-    // License manager lives on the processor (persists across editor open/close).
-    auto& license = audioProcessor.getLicenseManager();
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
-    addChildComponent(licenseOverlay.get());
-
-    license.addListener(this);
-
-    if (! license.isLicensed())
-    {
-        licenseOverlay->setVisible(true);
-        webView->setVisible(false);
-    }
-#endif
-
     // 3️⃣ Create attachments LAST (depend on relays and webView)
     // LF Band
     lfFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -251,10 +233,6 @@ OuariconAnalogEQAudioProcessorEditor::~OuariconAnalogEQAudioProcessorEditor()
     // Stop timer before destruction
     stopTimer();
 
-#if OUARICON_LICENSING_ENABLED
-    audioProcessor.getLicenseManager().removeListener(this);
-#endif
-
     // Members destroyed in REVERSE order of declaration:
     // 1. Attachments destroyed FIRST (can safely call webView methods)
     // 2. WebView destroyed SECOND (attachments are gone)
@@ -272,11 +250,6 @@ void OuariconAnalogEQAudioProcessorEditor::resized()
 {
     // WebView fills entire editor window
     webView->setBounds(getLocalBounds());
-
-#if OUARICON_LICENSING_ENABLED
-    if (licenseOverlay != nullptr)
-        licenseOverlay->setBounds(getLocalBounds());
-#endif
 }
 
 //==============================================================================
@@ -353,24 +326,3 @@ void OuariconAnalogEQAudioProcessorEditor::timerCallback()
     const float outputDB = audioProcessor.outputLevelDB.load(std::memory_order_relaxed);
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
-
-#if OUARICON_LICENSING_ENABLED
-//==============================================================================
-void OuariconAnalogEQAudioProcessorEditor::licenseStatusChanged(
-    OuariconLicense&, OuariconLicense::Status newStatus)
-{
-    juce::MessageManager::callAsync([this, newStatus]()
-    {
-        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
-        webView->setVisible(licensed);
-
-        if (licenseOverlay)
-            licenseOverlay->setVisible(! licensed);
-
-        // Force WebView reload after becoming visible — hidden WebViews
-        // do not load content on WebView2 (Windows) or WKWebView (macOS)
-        if (licensed)
-            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
-    });
-}
-#endif

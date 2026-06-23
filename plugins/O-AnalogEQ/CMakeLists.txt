@@ -55,13 +55,6 @@ juce_generate_juce_header(OuariconAnalogEQ)
 # Preset manager module
 ouaricon_add_module(OuariconAnalogEQ preset-manager)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(OuariconAnalogEQ licensing)
-    target_compile_definitions(OuariconAnalogEQ PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(OuariconAnalogEQ PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources
 juce_add_binary_data(OuariconAnalogEQ_UIResources
     SOURCES
