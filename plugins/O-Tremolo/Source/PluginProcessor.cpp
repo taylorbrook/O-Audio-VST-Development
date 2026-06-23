@@ -187,11 +187,6 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
     smoothingParam = parameters.getRawParameterValue("SMOOTHING_PARAM");
     panSyncParam = parameters.getRawParameterValue("PAN_SYNC_PARAM");
     tempoSyncParam = parameters.getRawParameterValue("TEMPO_SYNC_PARAM");
-
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-tremolo", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
 }
 
 OuariconTremoloAudioProcessor::~OuariconTremoloAudioProcessor()
