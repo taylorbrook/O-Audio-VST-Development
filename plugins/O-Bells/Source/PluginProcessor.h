@@ -23,10 +23,6 @@
 #include "EmbeddedTunings.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
-#endif
-
 class OBellsAudioProcessor : public juce::AudioProcessor,
                               public juce::AudioProcessorValueTreeState::Listener
 {
@@ -86,10 +82,6 @@ public:
     // Bitfield: 128 bits for MIDI notes 0-127 (2 x uint64)
     std::atomic<uint64_t> activeNotesLow { 0 };   // notes 0-63
     std::atomic<uint64_t> activeNotesHigh { 0 };   // notes 64-127
-
-#if OUARICON_LICENSING_ENABLED
-    OuariconLicense& getLicenseManager() { return *licenseManager; }
-#endif
 
 private:
     // DSP Components (BEFORE parameters for initialization order)
@@ -206,10 +198,6 @@ private:
 
     // Factory preset initialization (called once on first run)
     void initializeFactoryPresets();
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBellsAudioProcessor)
 };
