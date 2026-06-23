@@ -631,11 +631,6 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
             }
         }
     );
-
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-lyrica", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
 }
 
 OLyricaAudioProcessor::~OLyricaAudioProcessor()

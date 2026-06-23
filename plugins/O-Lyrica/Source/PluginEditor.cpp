@@ -1049,23 +1049,6 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // 4️⃣ SETUP WEBVIEW
     addAndMakeVisible(*webView);
 
-#if OUARICON_LICENSING_ENABLED
-    // Licensing: activation overlay (visible until licensed)
-    // Native WebView renders on top of JUCE components, so we must
-    // hide the WebView while the overlay is showing.
-    // License manager lives on the processor (persists across editor open/close).
-    auto& license = processorRef.getLicenseManager();
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
-    addAndMakeVisible(licenseOverlay.get());
-
-    license.addListener(this);
-
-    if (! license.isLicensed())
-        webView->setVisible(false);
-    else
-        licenseOverlay->setVisible(false);
-#endif
-
     // Navigate to UI (uses resource provider)
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
@@ -1078,10 +1061,6 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
 OLyricaAudioProcessorEditor::~OLyricaAudioProcessorEditor()
 {
-#if OUARICON_LICENSING_ENABLED
-    processorRef.getLicenseManager().removeListener(this);
-#endif
-
     // v1.7.9: Stop timer before destroying UI components
     stopTimer();
 
@@ -1102,11 +1081,6 @@ void OLyricaAudioProcessorEditor::resized()
     // WebView fills entire editor
     if (webView)
         webView->setBounds(getLocalBounds());
-
-#if OUARICON_LICENSING_ENABLED
-    if (licenseOverlay != nullptr)
-        licenseOverlay->setBounds(getLocalBounds());
-#endif
 }
 
 // v1.7.9: Timer callback - poll MIDI events and notify WebView for tuning circle visualization
@@ -1255,19 +1229,3 @@ OLyricaAudioProcessorEditor::getResource(const juce::String& url)
     DBG("Resource not found: " + url);
     return std::nullopt;
 }
-
-#if OUARICON_LICENSING_ENABLED
-//==============================================================================
-void OLyricaAudioProcessorEditor::licenseStatusChanged(
-    OuariconLicense&, OuariconLicense::Status newStatus)
-{
-    juce::MessageManager::callAsync([this, newStatus]()
-    {
-        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
-        webView->setVisible(licensed);
-
-        if (licenseOverlay)
-            licenseOverlay->setVisible(! licensed);
-    });
-}
-#endif
