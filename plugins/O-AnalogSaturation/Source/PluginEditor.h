@@ -13,15 +13,8 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicenseUI.h"
-#endif
-
 class OAnalogSaturationAudioProcessorEditor : public juce::AudioProcessorEditor,
                                                private juce::Timer
-#if OUARICON_LICENSING_ENABLED
-                                             , private OuariconLicense::Listener
-#endif
 {
 public:
     explicit OAnalogSaturationAudioProcessorEditor(OAnalogSaturationAudioProcessor&);
@@ -49,11 +42,6 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> autogainAttachment;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
-    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OAnalogSaturationAudioProcessorEditor)
 };

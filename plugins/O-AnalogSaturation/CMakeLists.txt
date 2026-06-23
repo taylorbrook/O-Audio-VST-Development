@@ -51,13 +51,6 @@ target_link_libraries(O-AnalogSaturation
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL: must come after target_link_libraries)
 juce_generate_juce_header(O-AnalogSaturation)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-AnalogSaturation licensing)
-    target_compile_definitions(O-AnalogSaturation PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-AnalogSaturation PRIVATE juce::juce_cryptography)
-endif()
-
 # WebView UI Resources (Pattern 3: Binary data for embedded HTML/CSS/JS/images)
 juce_add_binary_data(O-AnalogSaturation_UIResources
     SOURCES
