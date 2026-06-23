@@ -800,23 +800,6 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     // Add WebView to editor
     addAndMakeVisible(*webView);
 
-#if OUARICON_LICENSING_ENABLED
-    // Licensing: activation overlay (visible until licensed)
-    // Native WebView renders on top of JUCE components, so we must
-    // hide the WebView while the overlay is showing.
-    // License manager lives on the processor (persists across editor open/close).
-    auto& license = processorRef.getLicenseManager();
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
-    addAndMakeVisible(licenseOverlay.get());
-
-    license.addListener(this);
-
-    if (! license.isLicensed())
-        webView->setVisible(false);
-    else
-        licenseOverlay->setVisible(false);
-#endif
-
     // Navigate to UI
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
@@ -829,10 +812,6 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
 
 OBellsAudioProcessorEditor::~OBellsAudioProcessorEditor()
 {
-#if OUARICON_LICENSING_ENABLED
-    processorRef.getLicenseManager().removeListener(this);
-#endif
-
     // Stop timer before destruction
     stopTimer();
 
@@ -931,11 +910,6 @@ void OBellsAudioProcessorEditor::resized()
     // WebView fills entire editor
     if (webView)
         webView->setBounds(getLocalBounds());
-
-#if OUARICON_LICENSING_ENABLED
-    if (licenseOverlay != nullptr)
-        licenseOverlay->setBounds(getLocalBounds());
-#endif
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
@@ -996,19 +970,3 @@ OBellsAudioProcessorEditor::getResource(const juce::String& url)
     juce::Logger::writeToLog("O-Bells: Resource not found: " + url);
     return std::nullopt;
 }
-
-#if OUARICON_LICENSING_ENABLED
-//==============================================================================
-void OBellsAudioProcessorEditor::licenseStatusChanged(
-    OuariconLicense&, OuariconLicense::Status newStatus)
-{
-    juce::MessageManager::callAsync([this, newStatus]()
-    {
-        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
-        webView->setVisible(licensed);
-
-        if (licenseOverlay)
-            licenseOverlay->setVisible(! licensed);
-    });
-}
-#endif
