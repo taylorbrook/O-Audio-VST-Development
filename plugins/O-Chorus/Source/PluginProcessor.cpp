@@ -51,11 +51,6 @@ OChorusAudioProcessor::OChorusAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-Chorus")
 {
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-chorus", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
-
     initializeFactoryPresets();
 }
 
