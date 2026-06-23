@@ -58,13 +58,6 @@ target_link_libraries(O-Detune
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-Detune)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-Detune licensing)
-    target_compile_definitions(O-Detune PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-Detune PRIVATE juce::juce_cryptography)
-endif()
-
 # Compile definitions
 target_compile_definitions(O-Detune
     PUBLIC
