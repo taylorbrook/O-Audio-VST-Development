@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-05-05 - Completed quick task 260505-mri: Wire 6 agents/skills/commands to delegate to dorico-agent
+Last activity: 2026-06-23 - Completed quick task 260623-bmr: PWYW Path B — physically remove the licensing system from the plugin suite
 
 Progress: [██████████] 100%
 
@@ -120,24 +120,25 @@ v1.5 decisions (to be logged as phase execution progresses):
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 6 | add a new slash command to build a windows exe installer for a vst3 plugin | 2026-02-11 | bf03372 | [6-add-a-new-slash-command-to-build-a-windo](./quick/6-add-a-new-slash-command-to-build-a-windo/) |
-| 7 | Move O-Bells to top of Ouaricon Plugins table in PLUGINS.md | 2026-02-26 | 2efe535 | [7-move-o-bells-up-to-the-top-of-the-produc](./quick/7-move-o-bells-up-to-the-top-of-the-produc/) |
-| 8 | Fix free purchase flow: bundle display, cart clearing, email logging | 2026-02-26 | bfd4368 | [8-fix-free-purchase-flow-products-land-in-](./quick/8-fix-free-purchase-flow-products-land-in-/) |
-| 9 | Fix email confirmation landing page to show thank-you message | 2026-02-26 | 0ebc554 | [9-fix-email-confirmation-landing-page-to-s](./quick/9-fix-email-confirmation-landing-page-to-s/) |
-| 10 | Fix Google OAuth provider not enabled on oaudio.io | 2026-02-26 | -- | [10-fix-google-oauth-provider-not-enabled-on](./quick/10-fix-google-oauth-provider-not-enabled-on/) |
-| 11 | Review manuscript for grammar and spelling | 2026-03-02 | 0df9e01 | [11-review-manuscript-for-grammar-and-spelli](./quick/11-review-manuscript-for-grammar-and-spelli/) |
-| 12 | Reformat manuscript as Word document for Leonardo submission | 2026-03-02 | -- | [12-reformat-manuscript-md-as-word-document-](./quick/12-reformat-manuscript-md-as-word-document-/) |
-| 13 | Codebase refactoring audit (13 opportunities, ~3,200+ lines eliminable) | 2026-03-03 | 386e107 | [13-look-through-this-project-for-opportunit](./quick/13-look-through-this-project-for-opportunit/) |
-| 14 | Full system review of PFS (632K tokens, 15 recommendations, 9 quick wins) | 2026-03-05 | 564c8bd | [14-full-system-review-of-plugin-freedom-sys](./quick/14-full-system-review-of-plugin-freedom-sys/) |
-| e4q | Sweep repo root: remove 24 debug artifacts, add gitignore rules | 2026-03-19 | 523c74e | [260319-e4q-sweep-repo-root-for-misplaced-screenshot](./quick/260319-e4q-sweep-repo-root-for-misplaced-screenshot/) |
-| 260408-vzl | Fix tuning module integration - compare with O-Prism, add container queries | 2026-04-09 | b6df44a | [260408-vzl-fix-tuning-module-integration-compare-wi](./quick/260408-vzl-fix-tuning-module-integration-compare-wi/) |
-| 260427-readme | README v1.5 milestone update — Microtonal Dorico Playback subsection + Milestone History table | 2026-04-27 | bd90b8a | [260427-readme-v15-microtonal](./quick/260427-readme-v15-microtonal/) |
-| 260502-bb5 | Research: How VST3 NoteExpression pitch data embeds in MIDI files and DAW (Logic/Ableton) import compatibility | 2026-05-02 | fd7715f | [260502-bb5-research-how-vst3-noteexpression-pitch-d](./quick/260502-bb5-research-how-vst3-noteexpression-pitch-d/) |
-| 260505-ayr | Create Dorico agent (subagent + /dorico slash command + seed memory) for VST instrument integration | 2026-05-05 | 3f744be | [260505-ayr-create-a-dorico-agent-that-helps-with-vs](./quick/260505-ayr-create-a-dorico-agent-that-helps-with-vs/) |
-| 260505-mri | Wire 6 agents/skills/commands (troubleshoot-agent, plugin-improve, plugin-publishing, generalize-microtones, gui-agent, dsp-agent) to delegate to dorico-agent | 2026-05-05 | 0a216af | [260505-mri-wire-6-existing-agents-skills-to-delegat](./quick/260505-mri-wire-6-existing-agents-skills-to-delegat/) |
-| 260622-pwy | Move to pay-what-you-want — Path A: flip CI licensing switch (remove licensing/Supabase flags from build-and-release.yml). Path B full removal deferred & scoped | 2026-06-22 | 155f34c | [260622-pwy-remove-licensing-pay-what-you-want](./quick/260622-pwy-remove-licensing-pay-what-you-want/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 6 | add a new slash command to build a windows exe installer for a vst3 plugin | 2026-02-11 | bf03372 |  | [6-add-a-new-slash-command-to-build-a-windo](./quick/6-add-a-new-slash-command-to-build-a-windo/) |
+| 7 | Move O-Bells to top of Ouaricon Plugins table in PLUGINS.md | 2026-02-26 | 2efe535 |  | [7-move-o-bells-up-to-the-top-of-the-produc](./quick/7-move-o-bells-up-to-the-top-of-the-produc/) |
+| 8 | Fix free purchase flow: bundle display, cart clearing, email logging | 2026-02-26 | bfd4368 |  | [8-fix-free-purchase-flow-products-land-in-](./quick/8-fix-free-purchase-flow-products-land-in-/) |
+| 9 | Fix email confirmation landing page to show thank-you message | 2026-02-26 | 0ebc554 |  | [9-fix-email-confirmation-landing-page-to-s](./quick/9-fix-email-confirmation-landing-page-to-s/) |
+| 10 | Fix Google OAuth provider not enabled on oaudio.io | 2026-02-26 | -- |  | [10-fix-google-oauth-provider-not-enabled-on](./quick/10-fix-google-oauth-provider-not-enabled-on/) |
+| 11 | Review manuscript for grammar and spelling | 2026-03-02 | 0df9e01 |  | [11-review-manuscript-for-grammar-and-spelli](./quick/11-review-manuscript-for-grammar-and-spelli/) |
+| 12 | Reformat manuscript as Word document for Leonardo submission | 2026-03-02 | -- |  | [12-reformat-manuscript-md-as-word-document-](./quick/12-reformat-manuscript-md-as-word-document-/) |
+| 13 | Codebase refactoring audit (13 opportunities, ~3,200+ lines eliminable) | 2026-03-03 | 386e107 |  | [13-look-through-this-project-for-opportunit](./quick/13-look-through-this-project-for-opportunit/) |
+| 14 | Full system review of PFS (632K tokens, 15 recommendations, 9 quick wins) | 2026-03-05 | 564c8bd |  | [14-full-system-review-of-plugin-freedom-sys](./quick/14-full-system-review-of-plugin-freedom-sys/) |
+| e4q | Sweep repo root: remove 24 debug artifacts, add gitignore rules | 2026-03-19 | 523c74e |  | [260319-e4q-sweep-repo-root-for-misplaced-screenshot](./quick/260319-e4q-sweep-repo-root-for-misplaced-screenshot/) |
+| 260408-vzl | Fix tuning module integration - compare with O-Prism, add container queries | 2026-04-09 | b6df44a |  | [260408-vzl-fix-tuning-module-integration-compare-wi](./quick/260408-vzl-fix-tuning-module-integration-compare-wi/) |
+| 260427-readme | README v1.5 milestone update — Microtonal Dorico Playback subsection + Milestone History table | 2026-04-27 | bd90b8a |  | [260427-readme-v15-microtonal](./quick/260427-readme-v15-microtonal/) |
+| 260502-bb5 | Research: How VST3 NoteExpression pitch data embeds in MIDI files and DAW (Logic/Ableton) import compatibility | 2026-05-02 | fd7715f |  | [260502-bb5-research-how-vst3-noteexpression-pitch-d](./quick/260502-bb5-research-how-vst3-noteexpression-pitch-d/) |
+| 260505-ayr | Create Dorico agent (subagent + /dorico slash command + seed memory) for VST instrument integration | 2026-05-05 | 3f744be |  | [260505-ayr-create-a-dorico-agent-that-helps-with-vs](./quick/260505-ayr-create-a-dorico-agent-that-helps-with-vs/) |
+| 260505-mri | Wire 6 agents/skills/commands (troubleshoot-agent, plugin-improve, plugin-publishing, generalize-microtones, gui-agent, dsp-agent) to delegate to dorico-agent | 2026-05-05 | 0a216af |  | [260505-mri-wire-6-existing-agents-skills-to-delegat](./quick/260505-mri-wire-6-existing-agents-skills-to-delegat/) |
+| 260622-pwy | Move to pay-what-you-want — Path A: flip CI licensing switch (remove licensing/Supabase flags from build-and-release.yml). Path B full removal deferred & scoped | 2026-06-22 | 155f34c |  | [260622-pwy-remove-licensing-pay-what-you-want](./quick/260622-pwy-remove-licensing-pay-what-you-want/) |
+| 260623-bmr | PWYW Path B — physically remove the licensing system (delete module + add-licensing skill, strip guards from 24 plugins, clean root CMake + registry). 28 atomic commits; 4 sample plugins build clean | 2026-06-23 | 77b6b5a | Verified | [260623-bmr-path-b-physically-remove-licensing-syste](./quick/260623-bmr-path-b-physically-remove-licensing-syste/) |
 
 ## Session Continuity
 
