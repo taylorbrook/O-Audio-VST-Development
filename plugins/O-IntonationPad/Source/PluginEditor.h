@@ -11,15 +11,9 @@
 #pragma once
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicenseUI.h"
-#endif
 
 class OIntonationPadAudioProcessorEditor : public juce::AudioProcessorEditor,
                                            private juce::Timer
-#if OUARICON_LICENSING_ENABLED
-                                         , private OuariconLicense::Listener
-#endif
 {
 public:
     explicit OIntonationPadAudioProcessorEditor(OIntonationPadAudioProcessor&);
@@ -172,11 +166,6 @@ private:
     // Helpers
     bool parseAndApplyIntervals(const juce::String& jsonStr, const juce::String& name);
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
-    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OIntonationPadAudioProcessorEditor)
 };
