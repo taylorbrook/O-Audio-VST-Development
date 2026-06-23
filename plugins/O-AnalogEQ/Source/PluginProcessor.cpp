@@ -78,11 +78,6 @@ OuariconAnalogEQAudioProcessor::OuariconAnalogEQAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-AnalogEQ")
 {
-#if OUARICON_LICENSING_ENABLED
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-analog-eq", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-#endif
-
     // Initialize 12 factory presets
     // Values are normalized 0.0-1.0 (as used by setValueNotifyingHost)
     // Gain: normalized = (dB + 12) / 24   (e.g. 0dB=0.5, +6dB=0.75, -6dB=0.25)
