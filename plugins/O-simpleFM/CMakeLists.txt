@@ -84,13 +84,6 @@ target_link_libraries(O-simpleFM
 # Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
 juce_generate_juce_header(O-simpleFM)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-simpleFM licensing)
-    target_compile_definitions(O-simpleFM PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-simpleFM PRIVATE juce::juce_cryptography)
-endif()
-
 # Compile definitions
 # WebView2 flags are set at Foundation so Stage 3 (GUI) inherits a correct cross-platform
 # config; the WebView itself (binary data + editor) is added in Stage 3.
