@@ -53,13 +53,6 @@ target_link_libraries(O-SimpleReverb
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-SimpleReverb)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(O-SimpleReverb licensing)
-    target_compile_definitions(O-SimpleReverb PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(O-SimpleReverb PRIVATE juce::juce_cryptography)
-endif()
-
 # Add Ouaricon Preset Manager module
 ouaricon_add_module(O-SimpleReverb preset-manager)
 
