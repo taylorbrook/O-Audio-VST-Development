@@ -228,23 +228,6 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
     // Add WebView to editor
     addAndMakeVisible (*webView);
 
-#if OUARICON_LICENSING_ENABLED
-    // Licensing: activation overlay (visible until licensed)
-    // Native WebView renders on top of JUCE components, so we must
-    // hide the WebView while the overlay is showing.
-    // License manager lives on the processor (persists across editor open/close).
-    auto& license = processorRef.getLicenseManager();
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
-    addAndMakeVisible(licenseOverlay.get());
-
-    license.addListener(this);
-
-    if (! license.isLicensed())
-        webView->setVisible(false);
-    else
-        licenseOverlay->setVisible(false);
-#endif
-
     // Subscribe to processor's sample-map change callback. Editor lifetime
     // is shorter than processor's — clear the callback in our destructor.
     processorRef.setSampleMapChangedCallback (
@@ -351,10 +334,6 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
 
 OMicrotonalSamplerAudioProcessorEditor::~OMicrotonalSamplerAudioProcessorEditor()
 {
-#if OUARICON_LICENSING_ENABLED
-    processorRef.getLicenseManager().removeListener(this);
-#endif
-
     // Stop the tuning-note timer before any of our members go away — the
     // callback touches webView and processorRef.
     stopTimer();
@@ -446,11 +425,6 @@ void OMicrotonalSamplerAudioProcessorEditor::resized()
 {
     if (webView != nullptr)
         webView->setBounds (getLocalBounds());
-
-#if OUARICON_LICENSING_ENABLED
-    if (licenseOverlay != nullptr)
-        licenseOverlay->setBounds(getLocalBounds());
-#endif
 }
 
 //==============================================================================
@@ -2256,19 +2230,3 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
 
     return registry;
 }
-
-#if OUARICON_LICENSING_ENABLED
-//==============================================================================
-void OMicrotonalSamplerAudioProcessorEditor::licenseStatusChanged(
-    OuariconLicense&, OuariconLicense::Status newStatus)
-{
-    juce::MessageManager::callAsync([this, newStatus]()
-    {
-        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
-        webView->setVisible(licensed);
-
-        if (licenseOverlay)
-            licenseOverlay->setVisible(! licensed);
-    });
-}
-#endif
