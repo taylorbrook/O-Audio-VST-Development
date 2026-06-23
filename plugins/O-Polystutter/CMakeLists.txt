@@ -56,13 +56,6 @@ target_link_libraries(OPolystutter
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OPolystutter)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(OPolystutter licensing)
-    target_compile_definitions(OPolystutter PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(OPolystutter PRIVATE juce::juce_cryptography)
-endif()
-
 # Phase 3.2: WebView UI Resources (BinaryData)
 # Embed HTML/CSS/JS/images into plugin binary
 juce_add_binary_data(OPolystutter_UIResources

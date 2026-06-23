@@ -14,9 +14,6 @@
 #include "DSP/TriggerRouter.h"
 #include "DSP/TapeDegrader.h"
 #include "OPolystutterPresetManager.h"
-#if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
-#endif
 
 class OPolystutterAudioProcessor : public juce::AudioProcessor
 {
@@ -66,10 +63,6 @@ public:
     std::atomic<bool> lane2Active { false };
     std::atomic<bool> lane3Active { false };
     std::atomic<bool> lane4Active { false };
-
-#if OUARICON_LICENSING_ENABLED
-    OuariconLicense& getLicenseManager() { return *licenseManager; }
-#endif
 
 private:
     // DSP Components (BEFORE parameters for initialization order)
@@ -238,10 +231,6 @@ private:
     // Helper functions
     void updateBeatSync(const juce::Optional<juce::AudioPlayHead::PositionInfo>& posInfo);
     double getSubdivisionSamples(int subdivIndex, double bpm, double sampleRate);
-
-#if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OPolystutterAudioProcessor)
 };
