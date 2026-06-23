@@ -56,13 +56,6 @@ target_link_libraries(OuariconTremolo
 # Must come AFTER target_link_libraries, BEFORE target_compile_definitions
 juce_generate_juce_header(OuariconTremolo)
 
-# Licensing module (compile-flag gated, OFF for local dev)
-if(OUARICON_LICENSING)
-    ouaricon_add_module(OuariconTremolo licensing)
-    target_compile_definitions(OuariconTremolo PRIVATE OUARICON_LICENSING_ENABLED=1)
-    target_link_libraries(OuariconTremolo PRIVATE juce::juce_cryptography)
-endif()
-
 # Compile definitions
 target_compile_definitions(OuariconTremolo
     PUBLIC
