@@ -420,10 +420,12 @@ body {
   font-size: 11px;
   font-style: italic;
   color: var(--brown-soft);
-  margin-left: auto;
   opacity: 0.85;
-  max-width: 48%;
+  width: 100%;
   text-align: right;
+  margin-top: 4px;
+  min-height: 1.2em;            /* reserve the line so the bar doesn't reflow */
+  line-height: 1.2;
 }
 
 /* ── On-screen keyboard ─────────────────────────────────────────────────── */
@@ -550,7 +552,9 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;          /* let the lesson caption drop to its own line */
 }
+.preset-bar-container > .tour-caption { flex-basis: 100%; }  /* force caption onto a new row */
 .preset-fleuron { font-size: 18px; color: var(--fleuron-color); }
 .preset-bar {
   display: flex;
