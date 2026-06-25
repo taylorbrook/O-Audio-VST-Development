@@ -55,6 +55,17 @@ Progress: [###############.....] 75%
 | execute (3.1→3.2→3.3) | ✓ | 2026-06-25 |
 | verify | ✓ (human_needed: 7 runtime criteria deferred to DAW listen) | 2026-06-25 |
 
+### Stage 4: Validation / Polish
+| Phase | Status | Date |
+|-------|--------|------|
+| discuss | ✓ | 2026-06-25 |
+| research | → | |
+| plan | | |
+| execute | | |
+| verify | | |
+
+**Stage 4 discuss decisions (locked 2026-06-25):** (1) Automated validation FIRST, then human DAW listen (batched checklist at end). (2) Baseline validation only — no new code unless a defect surfaces. (3) Windows deferred entirely to publish/CI. See `stages/4-polish/CONTEXT.md`.
+
 ## Completed So Far
 
 **Stage 3 (GUI):** ✓ Complete (code+build) — full Ouaricon-Naturalist "Field Guide" WebView UI in 3 sub-phases. **3.1** production `index.html` + adapted FM CSS base (2×2 viz grid + side control rail + 8-button preset bar + drop zone), PluginEditor rewrite (relays→WebView→attachments; **15 WebSliderRelay + 2 WebComboBoxRelay + 1 WebToggleButtonRelay**, 3-arg attach/nullptr undoManager), bare-path resource provider, 5 fixed-name drag-drop/picker native fns wired, CMake UI-resources binary-data (distinct `UIBinaryData` namespace vs `.wav` `BinaryData`) + WebView flags + Windows `withUserDataFolder`. **3.2** 30 Hz editor Timer consuming the Stage-2 taps → grain-cloud scatter (UI-01), source-waveform live playheads/freeze-pin/spray-band (UI-02, + `getSourceThumbnail` fn), scope+spectrum via message-thread FFT (UI-04, scope copied before in-place FFT), window-envelope inset (UI-03, JS recompute), grain/overlap/CPU readout (UI-05). **3.3** plain-language hover tooltips on every control (33 `data-tip`≡33 `TIPS` keys, FUNC-07), `applyFactoryPreset` with 8 distinct concept snapshots writing APVTS + 8 wired tour buttons (HTML≡C++≡JS name parity, FUNC-06), cloud/waveform annotations. Builds VST3+AU+Standalone clean; **auval SUCCEEDED**; **13/13 statically-verifiable criteria PASS, zero defects**. **DEFERRED to human DAW listen + Stage 4:** audio-driven viz animation, audible preset character, live drag-drop, host-automation round-trip (cannot be driven headlessly).
