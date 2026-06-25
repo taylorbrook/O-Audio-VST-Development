@@ -68,12 +68,15 @@ const TIPS = {
   filterAdsr:     ["Filter Envelope → cutoff", "The shape that sweeps the cutoff over time (Attack-Decay-Sustain-Release). The dashed marker shows the envelope's <em>live</em> output as you play — this scale drives brightness, not loudness."],
   ampAdsr:        ["Amp Envelope → level", "The shape that controls loudness over time. The dashed marker shows its live output — an independent scale from the filter envelope, so brightness and volume can move separately."],
   routing:        ["Signal Path", "Oscillator → Filter → Amplifier. The filter envelope routes up into the filter (sweeping cutoff); the amp envelope routes up into the VCA (shaping loudness). Two envelopes, two destinations."],
-  // Lesson presets — wired live; the C++ snapshots land in Stage 4 (FUNC-06).
+  // Lesson presets — wired live (FUNC-06).
+  lessonSawSweep: ["Saw → LP Sweep · how it's built", "The headline move: a bright saw through a 24 dB low-pass with a slow filter envelope. Watch the upper harmonics fall away under the curve as the cutoff opens and closes — the literal subtraction the method is named for."],
   lessonPluck:    ["Pluck · how it's built", "A fast filter envelope (short decay, low sustain) snaps the cutoff bright-then-dark, while a quick amp decay makes a percussive note. Filter env does the timbral work."],
   lessonSweep:    ["Sweep Pad · how it's built", "Slow amp attack swells the level in; a long, deep filter envelope opens the cutoff gradually — you hear the spectrum brighten over seconds. Pads are about slow envelopes."],
   lessonAcid:     ["Acid Bass · how it's built", "High resonance + a snappy filter envelope on a saw through a 24 dB low-pass — the squelchy, ringing peak that defines the acid sound. Mono with a touch of glide."],
   lessonSelfOsc:  ["Self-Oscillation · how it's built", "Resonance pushed to the limit with the oscillators down: the filter rings on its own into a pure sine at the cutoff. The filter becomes the sound source."],
   lessonBrass:    ["Brass Stab · how it's built", "Positive filter-env amount so the cutoff opens with the attack and holds — brightness tracks the note like a blown brass instrument. A short, firm amp envelope gives the stab."],
+  lessonSquareBass: ["Square Bass · how it's built", "A hollow square wave (odd harmonics only) plus the sub-oscillator an octave down for weight, through a 24 dB low-pass. Mono, so it plays as one solid bass voice — a polysynth is just several of these in parallel."],
+  lessonNoiseWind:  ["Filtered Noise · how it's built", "Push the noise source up and band-pass it: with no harmonic source the filter sculpts pitchless air into wind. Slow envelopes swell it in and out — how subtractive synthesis makes breath and percussion, not just notes."],
 };
 
 // ── Knob geometry ──────────────────────────────────────────────────────────
@@ -538,11 +541,14 @@ function setupTooltips() {
 // attachments sync every knob/combo back to the page (no DOM poking). The C++
 // snapshot bodies land in Stage 4 (FUNC-06) — Stage 3 ships the live bridge.
 const LESSONS = {
+  "Saw Sweep":        "Saw → LP Sweep — a bright saw through a 24 dB low-pass with a slow filter envelope. Watch the harmonics fall away under the curve: the subtraction the method is named for.",
   "Pluck":            "Pluck — a fast filter envelope snaps bright-then-dark while the amp decays quickly; the filter envelope does the timbral work.",
-  "Sweep Pad":        "Sweep Pad — slow amp swell + a long, deep filter sweep open the spectrum gradually. Pads live in slow envelopes.",
-  "Acid Bass":        "Acid Bass — high resonance and a snappy filter envelope through a 24 dB low-pass make the squelchy, ringing acid sound.",
-  "Self-Oscillation": "Self-Oscillation — resonance at the limit with the oscillators down: the filter rings into a pure sine. The filter becomes the source.",
   "Brass Stab":       "Brass Stab — positive filter-env amount opens the cutoff with the attack and holds it, so brightness tracks the note like brass.",
+  "Sweep Pad":        "Sweep Pad — slow amp swell + a long, deep filter sweep open the spectrum gradually. Pads live in slow envelopes.",
+  "Acid Bass":        "Acid Bass — high resonance and a snappy filter envelope through a 24 dB low-pass make the squelchy, ringing acid sound. Mono with a touch of glide.",
+  "Square Bass":      "Square Bass — a hollow square plus the sub-oscillator for weight, played mono. The same voice as a polysynth, just one note at a time.",
+  "Noise Wind":       "Noise Wind — band-passed white noise with no harmonic source: the filter sculpts pitchless air into wind. Subtractive synthesis beyond notes.",
+  "Self-Oscillation": "Self-Oscillation — resonance at the limit: the filter rings into a pure sine that plays in tune across the keyboard. The filter becomes the source.",
 };
 
 let applyPresetFn = null;
