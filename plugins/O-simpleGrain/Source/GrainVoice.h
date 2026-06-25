@@ -30,12 +30,14 @@
 #pragma once
 #include <JuceHeader.h>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include "PluginProcessor.h"            // engine constants (kMaxGrainsPerVoice, kRootNote)
 #include "GrainSound.h"
 #include "dsp/Grain.h"
 #include "dsp/WindowLuts.h"
 #include "dsp/LagrangeInterpolation.h"
+#include "dsp/GrainCloudFrame.h"        // Phase 2.3 — grain-event viz tap
 
 //==============================================================================
 // Block-pushed parameter bundle. Defined generously so Phase 2.2 can add
@@ -85,6 +87,11 @@ public:
         for (auto& g : grains) g.active = false;
         nextGrain = 0;
         samplesUntilNextGrain = 0;
+
+        // Drop our viz-count contribution (the processor zeroes the shared atomic
+        // in its prepareToPlay; we forget our last contribution so the next
+        // publishActiveCount() recomputes a clean delta from 0).
+        myActiveCount = 0;
     }
 
     // Shared window-LUT table set (owned by the processor). Set once after
@@ -118,6 +125,21 @@ public:
     void setPlayhead (float posSamples) noexcept { playheadPos = posSamples; }
 
     //==========================================================================
+    // Phase 2.3 viz taps. The processor sets these once per block (like the
+    // playhead seam) so the voice spawn signature stays untouched:
+    //   setGrainCloudFrame : the block's GrainCloudFrame the voice appends a
+    //                        GrainEvent to at each spawn (bounded by kMaxEvents —
+    //                        extras dropped, never grown). Null between blocks.
+    //   setActiveGrainCount: the processor-owned atomic the voice increments on
+    //                        spawn and decrements when a grain finishes (UI-05).
+    //   setBlockStartSample: the global sample offset of this block's render start
+    //                        (for GrainEvent::spawnSample). 0 here since the synth
+    //                        renders the whole block at once (startSample passed to
+    //                        renderNextBlock is the buffer offset).
+    void setGrainCloudFrame  (GrainCloudFrame* frame) noexcept { cloudFrame = frame; }
+    void setActiveGrainCount (std::atomic<int>* counter) noexcept { activeGrainCount = counter; }
+
+    //==========================================================================
     void startNote (int midiNote, float velocity,
                     juce::SynthesiserSound*, int /*pitchWheel*/) override
     {
@@ -144,6 +166,7 @@ public:
             clearCurrentNote();
             ampEnv.reset();
             for (auto& g : grains) g.active = false;
+            publishActiveCount();           // hard stop -> our grains drop to 0 (UI-05)
         }
     }
 
@@ -154,7 +177,16 @@ public:
     void renderNextBlock (juce::AudioBuffer<float>& out, int startSample, int numSamples) override
     {
         if (! ampEnv.isActive())
+        {
+            // If we were contributing grains last block, drop our contribution to
+            // the shared count so a silent voice doesn't pin the readout (UI-05).
+            if (myActiveCount != 0)
+            {
+                for (auto& g : grains) g.active = false;
+                publishActiveCount();
+            }
             return;
+        }
 
         const int numCh = out.getNumChannels();
 
@@ -176,7 +208,7 @@ public:
             // --- Scheduler: fire a grain when the countdown elapses -----------
             if (--samplesUntilNextGrain <= 0)
             {
-                spawnGrain (lenSamp, phaseInc);
+                spawnGrain (lenSamp, phaseInc, startSample + i);
                 // Scatter (RESEARCH §2.6): jitter the period ± scatter% of the
                 // base interval. 0% = constant period (synchronous → discrete
                 // sidebands); 100% = ±full random (asynchronous → noise).
@@ -228,16 +260,25 @@ public:
             }
         }
 
+        // Publish this voice's live grain count to the shared atomic (UI-05).
+        // Recomputed by scanning the pool (O(24)) so steal-oldest / grain-done /
+        // note-clear all stay consistent — robust vs. fragile inc/dec.
+        publishActiveCount();
+
         // Voice lifetime keyed on the amp envelope only.
         if (! ampEnv.isActive())
+        {
+            for (auto& g : grains) g.active = false;
+            publishActiveCount();           // release tail finished -> drop to 0
             clearCurrentNote();
+        }
     }
 
 private:
     //==========================================================================
     // Spawn a grain: find an inactive slot, else steal the oldest (max age).
     // Bounded by kMaxGrainsPerVoice -> never allocates, never xruns (PERF-02).
-    void spawnGrain (float lenSamp, float phaseInc) noexcept
+    void spawnGrain (float lenSamp, float phaseInc, int spawnSample) noexcept
     {
         constexpr int N = OSimpleGrainAudioProcessor::kMaxGrainsPerVoice;
 
@@ -283,6 +324,24 @@ private:
         g.aaState = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
 
         nextGrain = (target + 1) % N;
+
+        // --- Viz tap (Phase 2.3): append a GrainEvent to the block's cloud frame
+        // (UI-01 scatter + UI-02 playheads). Bounded by kMaxEvents — extras are
+        // DROPPED, never grown (RT-safe, copy-only). The processor reset count=0
+        // at block start and publish()es once per block.
+        if (cloudFrame != nullptr && cloudFrame->count < GrainCloudFrame::kMaxEvents)
+        {
+            auto& ev = cloudFrame->events[(size_t) cloudFrame->count++];
+            ev.readPosNorm = (sourceLen > 0)
+                           ? juce::jlimit (0.0f, 1.0f, g.readPos / (float) sourceLen) : 0.0f;
+            ev.sizeMs      = (float) (lenSamp / juce::jmax (1.0, sampleRate) * 1000.0);
+            // Pitch shown relative to the source's recorded pitch: voice key +
+            // global offset + this grain's spray (semitones).
+            const float keySemis = 12.0f * std::log2 (juce::jmax (1.0e-6f, voiceRate));
+            ev.pitchSemis  = keySemis + params.grainPitch + pitchSprayRand;
+            ev.pan         = g.pan;
+            ev.spawnSample = spawnSample;
+        }
     }
 
     // Random-access fractional read into the static source (clamp at bounds —
@@ -322,6 +381,22 @@ private:
         return state;
     }
 
+    // Recompute this voice's active grain count (scan the bounded pool, O(24))
+    // and apply the delta to the shared atomic. Robust vs. steal-oldest /
+    // grain-done / note-clear (which a fragile inc/dec would mishandle). The
+    // atomic is a relaxed running sum across all voices (UI-05).
+    void publishActiveCount() noexcept
+    {
+        int live = 0;
+        for (const auto& g : grains)
+            if (g.active) ++live;
+
+        if (activeGrainCount != nullptr && live != myActiveCount)
+            activeGrainCount->fetch_add (live - myActiveCount, std::memory_order_relaxed);
+
+        myActiveCount = live;
+    }
+
     //==========================================================================
     double sampleRate = 44100.0;
     float  voiceRate  = 1.0f;            // key-tracked read-increment ratio
@@ -333,6 +408,11 @@ private:
 
     // Current playhead (resting point in 2.1; moving/freezable in 2.2).
     float playheadPos = 0.0f;
+
+    // Phase 2.3 viz-tap seams (processor sets per block; null between blocks).
+    GrainCloudFrame*  cloudFrame       = nullptr;   // grain events appended at spawn
+    std::atomic<int>* activeGrainCount = nullptr;   // shared running grain count (UI-05)
+    int               myActiveCount    = 0;         // this voice's last-published contribution
 
     // Preallocated bounded grain pool + scheduler state.
     std::array<Grain, OSimpleGrainAudioProcessor::kMaxGrainsPerVoice> grains {};

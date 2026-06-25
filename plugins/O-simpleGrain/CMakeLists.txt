@@ -37,6 +37,10 @@ target_sources(O-simpleGrain
         Source/dsp/Grain.h
         Source/dsp/WindowLuts.h
         Source/dsp/LagrangeInterpolation.h
+        # Stage 2.3 — viz taps (lock-free SPSC + ring/FFT + cloud frame POD)
+        Source/dsp/TripleBuffer.h
+        Source/dsp/GrainCloudFrame.h
+        Source/VizAnalyzer.h
 )
 
 # Include paths
@@ -47,10 +51,6 @@ target_include_directories(O-simpleGrain
 
 # Stage 3 (GUI): juce_add_binary_data UI resources + ouaricon_add_module here.
 # (No ui/ assets exist yet — adding empty refs would break the build. Deferred.)
-#
-# TODO(Stage 2.3): embed built-in .wav sources (fire/voice/water/piano) via
-# juce_add_binary_data. No .wav blobs exist yet — sourceSample stays a plain
-# choice param for now; loaded-source identity round-trips as custom state.
 
 # Required JUCE modules
 target_link_libraries(O-simpleGrain
@@ -77,6 +77,22 @@ target_link_libraries(O-simpleGrain
 # Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
 juce_generate_juce_header(O-simpleGrain)
 
+# Stage 2.3 — embed the four built-in sources (fire/voice/water/piano) as binary
+# data. MUST come AFTER juce_generate_juce_header. Yields BinaryData::fire_wav /
+# BinaryData::fire_wavSize (filename `fire.wav` -> identifier `fire_wav`), etc.
+# The processor decodes each via createReaderFor(MemoryInputStream(...)) +
+# resamples to the engine rate off the audio thread, then atomic-publishes.
+juce_add_binary_data(O-simpleGrain_Samples
+    NAMESPACE BinaryData
+    HEADER_NAME BinaryData.h
+    SOURCES
+        Source/samples/fire.wav
+        Source/samples/voice.wav
+        Source/samples/water.wav
+        Source/samples/piano.wav)
+
+target_link_libraries(O-simpleGrain PRIVATE O-simpleGrain_Samples)
+
 # Compile definitions
 # WebView2 flags are set at Foundation so Stage 3 (GUI) inherits a correct
 # cross-platform config; the WebView itself (binary data + editor) is added in
@@ -88,3 +104,11 @@ target_compile_definitions(O-simpleGrain
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Stage 2 DSP correctness gate — offline render harness (console app). Verifies
+# the granular engine's audible acceptance criteria without a DAW. Off by
+# default; enable with -DOUARICON_BUILD_TESTS=ON.
+option(OUARICON_BUILD_TESTS "Build O-simpleGrain render-test harness" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()

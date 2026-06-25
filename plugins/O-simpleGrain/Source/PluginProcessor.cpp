@@ -14,6 +14,7 @@
 #include "PluginEditor.h"
 #include "GrainVoice.h"
 #include "GrainSound.h"
+#include "BinaryData.h"      // embedded fire/voice/water/piano .wav (Stage 2.3)
 
 namespace
 {
@@ -186,9 +187,18 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
 
     synth.addSound (new GrainSound());           // single shared sound, all notes/channels
     synth.setNoteStealingEnabled (true);         // steal quietest/oldest voice on overflow
+
+    // Listen for sourceSample selection changes (Stage 2.3). The decode/resample
+    // is dispatched to the message thread via AsyncUpdater (never the audio
+    // thread) — see parameterChanged / handleAsyncUpdate.
+    apvts.addParameterListener (sourceSample, this);
 }
 
-OSimpleGrainAudioProcessor::~OSimpleGrainAudioProcessor() = default;
+OSimpleGrainAudioProcessor::~OSimpleGrainAudioProcessor()
+{
+    apvts.removeParameterListener (OSimpleGrain::ParamIDs::sourceSample, this);
+    cancelPendingUpdate();
+}
 
 //==============================================================================
 void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -205,6 +215,10 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     for (int v = 0; v < synth.getNumVoices(); ++v)
         if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
             gv->prepareToPlay (sampleRate, samplesPerBlock);
+
+    // Reset the shared viz grain count (voices forget their contribution in their
+    // own prepareToPlay, so a clean delta is recomputed on the first render).
+    activeGrainCount.store (0, std::memory_order_relaxed);
 
     // Output trim (dB->lin, 20 ms smoothing).
     outputGain.reset (sampleRate, 0.02);
@@ -225,10 +239,36 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     // the source is decoded below; we re-seed once the source length is known).
     playheadPos = 0.0;
 
-    // Decode + resample the default source to the engine rate, OFF the audio
-    // thread, and publish it via the atomic shared_ptr swap (2.3 reuses this
-    // exact publish path with the embedded BinaryData bytes instead of a file).
-    loadDefaultSource (sampleRate);
+    // Decode + resample the active source to the engine rate, OFF the audio
+    // thread, and publish it via the atomic shared_ptr swap (R8: resample on
+    // every prepareToPlay since the engine rate may change). The active source is
+    // either a restored user file (currentSourceIdentity = a path) or the
+    // selected built-in (currentSourceIdentity = "embedded:<name>").
+    bool loadedUserFile = false;
+    if (currentSourceIdentity.startsWith ("embedded:"))
+    {
+        // Built-in: pick the index matching the identity (falls back to the
+        // sourceSample choice, then fire, if the name is unknown).
+        loadBuiltInSource (builtInIndexForIdentity (currentSourceIdentity), sampleRate);
+    }
+    else
+    {
+        // Restored user file: re-read its path. If missing, fall back to the
+        // default built-in with a notice (the identity reverts to embedded:fire).
+        const juce::File f (currentSourceIdentity);
+        if (f.existsAsFile())
+        {
+            juce::MemoryBlock mb;
+            if (f.loadFileAsData (mb)
+                && decodeAndPublish (mb.getData(), mb.getSize(), sampleRate, currentSourceIdentity))
+                loadedUserFile = true;
+        }
+        if (! loadedUserFile)
+        {
+            currentSourceIdentity = "embedded:fire";
+            loadBuiltInSource (0, sampleRate);
+        }
+    }
 
     // Now the source length is known — seed the playhead at the resting point so
     // the first block starts where `position` points (no jump-from-zero glide).
@@ -241,53 +281,271 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 }
 
 //==============================================================================
-// Decode plugins/O-simpleGrain/Source/samples/fire.wav, resample to engineRate,
-// cap at kMaxSourceSeconds, and atomic-publish. NEVER called on the audio thread.
-// Phase 2.1 reads the file directly via AudioFormatManager::createReaderFor(File);
-// Phase 2.3 replaces the byte source with juce_add_binary_data + MemoryInputStream.
-void OSimpleGrainAudioProcessor::loadDefaultSource (double engineRate)
+// Source decode/resample/publish (Stage 2.3). ALL of this runs OFF the audio
+// thread (prepareToPlay, the AsyncUpdater for sourceSample changes, the drag-drop
+// NativeFunction callbacks, and the FileChooser callback). The audio thread only
+// ever sees a fully-built buffer published via the atomic shared_ptr swap (R6).
+
+// Map embedded BinaryData symbols by built-in index. Index order MUST match the
+// sourceSample AudioParameterChoice: 0=fire, 1=voice, 2=water, 3=piano. JUCE
+// mangles `fire.wav` -> BinaryData::fire_wav / BinaryData::fire_wavSize.
+namespace
 {
+    struct BuiltInBlob { const char* data; int size; };
+
+    BuiltInBlob builtInBlob (int idx) noexcept
+    {
+        switch (idx)
+        {
+            case 0:  return { BinaryData::fire_wav,  BinaryData::fire_wavSize  };
+            case 1:  return { BinaryData::voice_wav, BinaryData::voice_wavSize };
+            case 2:  return { BinaryData::water_wav, BinaryData::water_wavSize };
+            case 3:  return { BinaryData::piano_wav, BinaryData::piano_wavSize };
+            default: return { BinaryData::fire_wav,  BinaryData::fire_wavSize  };
+        }
+    }
+}
+
+int OSimpleGrainAudioProcessor::builtInIndexForIdentity (const juce::String& identity) const
+{
+    if (identity.startsWith ("embedded:"))
+    {
+        const auto name = identity.fromFirstOccurrenceOf ("embedded:", false, false);
+        for (int i = 0; i < kNumBuiltIns; ++i)
+            if (name == kBuiltInNames[i])
+                return i;
+    }
+    // Fall back to the live choice param, then fire.
+    if (sourceSampleParam != nullptr)
+        return juce::jlimit (0, kNumBuiltIns - 1, (int) sourceSampleParam->load());
+    return 0;
+}
+
+// Resample a decoded buffer (srcRate) to engineRate, capped at the source-length
+// cap. Returns a fully-built shared_ptr ready to publish. `truncated` is set when
+// the source exceeded the cap (the UI surfaces a notice in Stage 3).
+std::shared_ptr<juce::AudioBuffer<float>>
+OSimpleGrainAudioProcessor::resampleToEngineRate (const juce::AudioBuffer<float>& src,
+                                                  double srcRate, double engineRate,
+                                                  bool& truncated) const
+{
+    const int    nCh   = juce::jmax (1, src.getNumChannels());
+    const int    nSmp  = src.getNumSamples();
+    const double ratio = (srcRate > 0.0 ? srcRate : engineRate) / engineRate; // speedRatio
+    const int    maxOut = (int) (kMaxSourceSeconds * engineRate);
+
+    int numOut = (int) std::floor ((double) nSmp / ratio);
+    truncated  = (numOut > maxOut);
+    numOut     = juce::jlimit (1, maxOut, numOut);
+
+    auto out = std::make_shared<juce::AudioBuffer<float>> (nCh, numOut);
+    out->clear();
+    for (int ch = 0; ch < nCh; ++ch)
+    {
+        juce::LagrangeInterpolator interp;       // streaming one-shot — correct for a whole-buffer resample
+        interp.reset();
+        interp.process (ratio, src.getReadPointer (ch), out->getWritePointer (ch), numOut);
+    }
+    return out;
+}
+
+// Decode a raw byte block (a complete .wav/.aiff/.flac file in memory) through
+// the format manager, resample to the engine rate, cap, and atomic-publish.
+// Shared by the built-in path, the drag-drop base64 path, and the picker path.
+bool OSimpleGrainAudioProcessor::decodeAndPublish (const void* data, size_t numBytes,
+                                                   double engineRate, const juce::String& identity)
+{
+    if (data == nullptr || numBytes == 0)
+        return false;
+
     juce::AudioFormatManager fmt;
-    fmt.registerBasicFormats();
+    fmt.registerBasicFormats();                  // WAV / AIFF / FLAC
 
-    // Locate the source relative to this translation unit so a dev build finds
-    // the bundled .wav without an install step. (2.3 embeds it; this file read
-    // is the throwaway 2.1 path to get audible quickly.)
-    const juce::File thisFile (juce::String (__FILE__));
-    const juce::File wav = thisFile.getParentDirectory()
-                                   .getChildFile ("samples")
-                                   .getChildFile ("fire.wav");
-
-    std::unique_ptr<juce::AudioFormatReader> reader (fmt.createReaderFor (wav));
+    std::unique_ptr<juce::AudioFormatReader> reader (
+        fmt.createReaderFor (std::make_unique<juce::MemoryInputStream> (data, numBytes, false)));
     if (reader == nullptr)
-        return;                                   // keep silence; processBlock handles a null source
+        return false;                            // unsupported/invalid — caller keeps the previous source
 
     const int    nCh    = juce::jmax (1, (int) reader->numChannels);
     const int    nSmp   = (int) reader->lengthInSamples;
     const double srcRate = reader->sampleRate > 0.0 ? reader->sampleRate : engineRate;
     if (nSmp <= 0)
-        return;
+        return false;
 
-    // Decode into a temp buffer at the source rate.
+    // Decode at the source rate (handles 1–2 channels generally; the engine read
+    // sums/duplicates as needed — see processBlock's mono channel-0 snapshot).
     juce::AudioBuffer<float> tmp (nCh, nSmp);
     reader->read (&tmp, 0, nSmp, 0, true, true);
 
-    // Resample srcRate -> engineRate per channel, capped at kMaxSourceSeconds.
-    const double ratio   = srcRate / engineRate;  // LagrangeInterpolator speedRatio
-    const int    maxOut  = (int) (kMaxSourceSeconds * engineRate);
-    int          numOut  = (int) std::floor ((double) nSmp / ratio);
-    numOut = juce::jlimit (1, maxOut, numOut);
+    bool truncated = false;
+    auto resampled = resampleToEngineRate (tmp, srcRate, engineRate, truncated);
 
-    auto resampled = std::make_shared<juce::AudioBuffer<float>> (nCh, numOut);
-    resampled->clear();
-    for (int ch = 0; ch < nCh; ++ch)
+    lastLoadTruncated.store (truncated, std::memory_order_relaxed);
+    atomicStore (currentSource, std::move (resampled));
+    currentSourceIdentity = identity;
+    return true;
+}
+
+// Decode one embedded built-in by index and publish. OFF the audio thread.
+bool OSimpleGrainAudioProcessor::loadBuiltInSource (int builtInIndex, double engineRate)
+{
+    builtInIndex = juce::jlimit (0, kNumBuiltIns - 1, builtInIndex);
+    const auto blob = builtInBlob (builtInIndex);
+    const juce::String identity = juce::String ("embedded:") + kBuiltInNames[builtInIndex];
+    return decodeAndPublish (blob.data, (size_t) blob.size, engineRate, identity);
+}
+
+// Rebuild the source from the current sourceSample choice (message thread).
+void OSimpleGrainAudioProcessor::rebuildSourceFromChoice()
+{
+    const int idx = (sourceSampleParam != nullptr)
+                  ? juce::jlimit (0, kNumBuiltIns - 1, (int) sourceSampleParam->load()) : 0;
+    loadBuiltInSource (idx, currentSampleRate);
+}
+
+//==============================================================================
+// APVTS listener (message thread, possibly off it depending on host). Never
+// decodes here — defers to the AsyncUpdater so the decode always runs on the
+// message thread (R6 / RT-safety: no decode on the audio thread).
+void OSimpleGrainAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
+{
+    if (parameterID == OSimpleGrain::ParamIDs::sourceSample)
     {
-        juce::LagrangeInterpolator interp;       // streaming/one-shot — correct for a whole-buffer resample
-        interp.reset();
-        interp.process (ratio, tmp.getReadPointer (ch), resampled->getWritePointer (ch), numOut);
+        pendingBuiltInIndex.store (juce::jlimit (0, kNumBuiltIns - 1, (int) newValue),
+                                   std::memory_order_relaxed);
+        triggerAsyncUpdate();
+    }
+}
+
+void OSimpleGrainAudioProcessor::handleAsyncUpdate()
+{
+    const int idx = pendingBuiltInIndex.exchange (-1, std::memory_order_relaxed);
+    if (idx < 0)
+        return;
+
+    // Guard against a state-restore race: replaceState() fires the sourceSample
+    // listener, but if the restored identity is a user/dropped file we must NOT
+    // clobber it with a built-in. Only the user actively turning the choice knob
+    // (which leaves a stale "embedded:" / file identity) should swap to a
+    // built-in — and selecting a built-in is itself an "embedded:" action, so a
+    // pending built-in load always wins UNLESS we are mid-restore of a user file.
+    if (suppressChoiceRebuild)
+        return;
+
+    loadBuiltInSource (idx, currentSampleRate);
+}
+
+//==============================================================================
+// Drag-drop streaming bridge (Stage 2.3). These are the C++ side of the shared
+// webview-drop-streaming.js module; Stage 3 wires the JS that CALLS them via
+// WebBrowserComponent::Options::withNativeFunction. Names are FIXED by the shared
+// module. Single granular source -> the single-file path (Start -> Add -> Commit)
+// is the live path; the folder-commit is registered as a clean no-op so the
+// shared module binds. All on the message thread; decode via convertFromBase64.
+bool OSimpleGrainAudioProcessor::dropSessionStart (const juce::String& sessionId,
+                                                   const juce::String& folderName)
+{
+    if (sessionId.isEmpty())
+        return false;
+
+    dropSessionId         = sessionId;
+    dropSessionFolderName = folderName;
+    dropAccumBase64.clear();
+    dropAccumFilename.clear();
+    return true;
+}
+
+bool OSimpleGrainAudioProcessor::dropSessionAddFile (const juce::String& sessionId,
+                                                     const juce::String& filename,
+                                                     const juce::String& base64)
+{
+    if (sessionId != dropSessionId || base64.isEmpty())
+        return false;
+
+    // Single source: keep only the most recent file's bytes (a later AddFile for
+    // the same session simply replaces it). The commit decodes/publishes.
+    dropAccumFilename = filename;
+    dropAccumBase64   = base64;
+    return true;
+}
+
+bool OSimpleGrainAudioProcessor::dropSessionCommitFile (const juce::String& sessionId,
+                                                        const juce::String& filename,
+                                                        const juce::String& base64)
+{
+    if (sessionId != dropSessionId)
+        return false;
+
+    // Prefer the commit's own base64 (single-file drops send it on commit); fall
+    // back to the accumulated AddFile payload.
+    const juce::String& b64  = base64.isNotEmpty()  ? base64  : dropAccumBase64;
+    const juce::String  name = filename.isNotEmpty() ? filename : dropAccumFilename;
+    if (b64.isEmpty())
+    {
+        endDropSession();
+        return false;
     }
 
-    atomicStore (currentSource, std::move (resampled));
+    // R7 / §9.2: decode standard btoa() base64 with juce::Base64::convertFromBase64
+    // ONLY (MemoryBlock::fromBase64Encoding silently rejects it).
+    juce::MemoryBlock raw;
+    {
+        juce::MemoryOutputStream mos (raw, false);
+        if (! juce::Base64::convertFromBase64 (mos, b64))
+        {
+            endDropSession();
+            return false;
+        }
+    }
+
+    // Identity = the dropped filename (macOS WKWebView strips the disk path, so we
+    // persist the name; on restore a name-only identity falls back to the default
+    // built-in with a notice — handled in setStateInformation/prepareToPlay).
+    const juce::String identity = juce::String ("dropped:") + name;
+    const bool ok = decodeAndPublish (raw.getData(), raw.getSize(), currentSampleRate, identity);
+    endDropSession();
+    return ok;
+}
+
+bool OSimpleGrainAudioProcessor::dropSessionCommitFolder (const juce::String& sessionId)
+{
+    // O-simpleGrain has a single source — a folder drop is not meaningful. Accept
+    // the call so the shared JS binds cleanly, then clean up the session.
+    if (sessionId == dropSessionId)
+        endDropSession();
+    return false;
+}
+
+void OSimpleGrainAudioProcessor::endDropSession() noexcept
+{
+    dropSessionId.clear();
+    dropSessionFolderName.clear();
+    dropAccumBase64.clear();
+    dropAccumFilename.clear();
+}
+
+//==============================================================================
+// File-picker fallback (async, message thread). Stage 3 calls this from a
+// "Load…" button. Same decode/resample/publish path as drag-drop.
+void OSimpleGrainAudioProcessor::loadSourceFromFileChooser()
+{
+    fileChooser = std::make_unique<juce::FileChooser> (
+        "Load a source sound", juce::File{}, "*.wav;*.aif;*.aiff;*.flac");
+
+    const auto flags = juce::FileBrowserComponent::openMode
+                     | juce::FileBrowserComponent::canSelectFiles;
+
+    fileChooser->launchAsync (flags, [this] (const juce::FileChooser& fc)
+    {
+        const juce::File f = fc.getResult();
+        if (f == juce::File{} || ! f.existsAsFile())
+            return;                              // cancelled — keep the current source
+
+        juce::MemoryBlock mb;
+        if (f.loadFileAsData (mb))
+            decodeAndPublish (mb.getData(), mb.getSize(), currentSampleRate,
+                              f.getFullPathName());  // identity = path (re-readable on restore)
+    });
 }
 
 void OSimpleGrainAudioProcessor::releaseResources()
@@ -394,16 +652,40 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         if (playheadPos < 0.0)               playheadPos += (double) srcLenF;
     }
 
+    // --- Grain-event viz frame (Phase 2.3): one frame per block --------------
+    // Reset count=0 here; each voice appends a GrainEvent at spawn (bounded by
+    // kMaxEvents — extras dropped). Filled below + published after render.
+    GrainCloudFrame& frame = grainCloudBuffer.getWriteBuffer();
+    frame.count = 0;
+
     for (int v = 0; v < synth.getNumVoices(); ++v)
         if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
         {
             gv->setParams (p);
             gv->setSource (srcPtr, srcLen);
             gv->setPlayhead (playheadAtBlockStart);
+            gv->setGrainCloudFrame  (&frame);            // viz: grain events
+            gv->setActiveGrainCount (&activeGrainCount); // viz: live grain count (UI-05)
         }
 
     // --- Render the grain voices ---------------------------------------------
     synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
+
+    // Detach the per-block viz pointers so a stale frame is never written between
+    // blocks (the next block re-sets them before render).
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
+            gv->setGrainCloudFrame (nullptr);
+
+    // --- Fill the global read-head fields + publish the grain frame ----------
+    // (playhead/position/spray/freeze are the read-head context for the cloud
+    // scatter (UI-01) + waveform playheads (UI-02).)
+    frame.playheadNorm      = (srcLen > 0)
+                            ? juce::jlimit (0.0f, 1.0f, playheadAtBlockStart / srcLenF) : 0.0f;
+    frame.positionNorm      = juce::jlimit (0.0f, 1.0f, positionParam->load() / 100.0f);
+    frame.positionSprayNorm = juce::jlimit (0.0f, 1.0f, positionSprayParam->load() / 100.0f);
+    frame.frozen            = freezeActive;
+    grainCloudBuffer.publish();
 
     // --- Master output trim (dB->lin, smoothed) + fixed headroom -------------
     // Overlapping grains sum; a fixed headroom factor keeps dense clouds below
@@ -422,6 +704,34 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         auto* d = buffer.getWritePointer (ch);
         for (int i = 0; i < numSamples; ++i)
             if (! std::isfinite (d[i])) d[i] = 0.0f;
+    }
+
+    // --- Output scope/spectrum tap (Phase 2.3, UI-04): post-gain mono sum into
+    // the lock-free ring (copy-only, NO alloc, NO FFT — the FFT is the Stage-3
+    // editor Timer's job). Mirror O-simpleFM PluginProcessor.cpp:317-340: a stack
+    // mono[] in <= 4096 chunks (no audio-thread allocation).
+    if (numCh == 1)
+    {
+        vizRing.write (buffer.getReadPointer (0), numSamples);
+    }
+    else if (numCh > 1)
+    {
+        constexpr int kChunk = 4096;
+        float mono[kChunk];
+        int done = 0;
+        while (done < numSamples)
+        {
+            const int n = juce::jmin (kChunk, numSamples - done);
+            for (int i = 0; i < n; ++i)
+            {
+                float s = 0.0f;
+                for (int ch = 0; ch < numCh; ++ch)
+                    s += buffer.getReadPointer (ch)[done + i];
+                mono[i] = s / (float) numCh;
+            }
+            vizRing.write (mono, n);
+            done += n;
+        }
     }
 }
 
@@ -464,7 +774,45 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
         currentSourceIdentity = sourceChild.getProperty (
             juce::Identifier (kSourceIdProp), currentSourceIdentity).toString();
 
+    // If the restored source is a user/dropped file (not an "embedded:" built-in),
+    // suppress the sourceSample listener's AsyncUpdater so replaceState() does not
+    // clobber the restored file with the built-in choice.
+    const bool restoringUserFile = ! currentSourceIdentity.startsWith ("embedded:");
+    suppressChoiceRebuild = restoringUserFile;
+
     apvts.replaceState (state);
+
+    suppressChoiceRebuild = false;
+
+    // Re-decode the active source at the current engine rate so the restored
+    // session sounds the same. OFF the audio thread (setStateInformation runs on
+    // the message thread). prepareToPlay also does this — but a host can restore
+    // state AFTER prepareToPlay, so reload here too.
+    if (currentSampleRate > 0.0)
+    {
+        if (currentSourceIdentity.startsWith ("embedded:"))
+        {
+            loadBuiltInSource (builtInIndexForIdentity (currentSourceIdentity), currentSampleRate);
+        }
+        else
+        {
+            const juce::File f (currentSourceIdentity);
+            bool ok = false;
+            if (f.existsAsFile())
+            {
+                juce::MemoryBlock mb;
+                ok = f.loadFileAsData (mb)
+                   && decodeAndPublish (mb.getData(), mb.getSize(), currentSampleRate, currentSourceIdentity);
+            }
+            if (! ok)
+            {
+                // Missing user file -> fall back to the default built-in (notice in
+                // Stage 3 via the identity reverting to embedded:fire).
+                currentSourceIdentity = "embedded:fire";
+                loadBuiltInSource (0, currentSampleRate);
+            }
+        }
+    }
 }
 
 //==============================================================================
