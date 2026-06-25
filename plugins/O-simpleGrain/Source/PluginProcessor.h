@@ -153,6 +153,13 @@ public:
     // notice in Stage 3). Cleared on each successful load that did not truncate.
     bool wasLastLoadTruncated() const noexcept { return lastLoadTruncated.load (std::memory_order_relaxed); }
 
+    // A min/max envelope (~`numPairs` pairs) of the currently-published source,
+    // for the UI-02 source-waveform background. Returns a flat vector
+    // [min,max,min,max,…] in [-1,1]; empty if no source is loaded. Read-only
+    // snapshot OFF the audio thread (message thread; the editor calls it on load
+    // + at boot). The audio thread is untouched (PERF-01).
+    std::vector<float> getSourceThumbnail (int numPairs = 512) const;
+
     //==========================================================================
     // Engine constants (declared NOW; consumed by the grain engine in Stage 2).
     static constexpr int kMaxVoices        = 8;     // polyphony
