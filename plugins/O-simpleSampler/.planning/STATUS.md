@@ -1,15 +1,19 @@
 ---
 plugin: O-simpleSampler
-stage: 1
-status: complete
+stage: 2
+status: in_progress
+phase: discuss
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: invoke_dsp_agent
+next_action: run_research_phase
 next_stage: 2
 ready_for_implementation: true
+stage2_decisions:
+  builtins: piano_only_for_now
+  exec_scope: checkpoint_after_phase_2_1
 contract_checksums:
   brief: sha256:96debe9dfd2c5a92362d6ec3a6ba0fb26bf684b33aef76e5d78312690d5ff7ee
   parameter_spec: sha256:72a03b1bf58feeb54960b39e6447779cb3b7b7a03f5849b94b94bd5835a4a2d7
@@ -21,13 +25,13 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — ✅ complete
-Status: Silent 16-voice synth shell builds (VST3 + AU + Standalone), passes pluginval@5 + `auval` (AU VALIDATION SUCCEEDED), exposes the full 21-param APVTS with state persistence. Ready for Stage 2 (DSP).
-Progress: [#####...............] 25%
+Stage: 2 of 4 (DSP) — 🚧 in progress (discuss ✓)
+Status: Stage 2 discuss complete. Decisions: (D1) embed piano.wav only for now — full curated built-in set deferred to Stage 4; (D2) execute checkpoints after Phase 2.1 (first audio) for a DAW play-test before 2.2/2.3. Next: research phase.
+Progress: [######..............] 28%
 
 ## Phase Progress
 
-### Stage 1: Foundation
+### Stage 1: Foundation — ✅ complete
 | Phase | Status | Date |
 |-------|--------|------|
 | discuss | ✓ (auto-compiled CONTEXT.md) | 2026-06-25 |
@@ -35,6 +39,15 @@ Progress: [#####...............] 25%
 | plan | ✓ PLAN.md | 2026-06-25 |
 | execute | ✓ SUMMARY.md | 2026-06-25 |
 | verify | ✓ VERIFICATION.md (PASS 7/7) | 2026-06-25 |
+
+### Stage 2: DSP — 🚧 in progress
+| Phase | Status | Date |
+|-------|--------|------|
+| discuss | ✓ CONTEXT.md (2 decisions resolved) | 2026-06-25 |
+| research | → next | |
+| plan | | |
+| execute | | |
+| verify | | |
 
 ## Completed So Far
 
