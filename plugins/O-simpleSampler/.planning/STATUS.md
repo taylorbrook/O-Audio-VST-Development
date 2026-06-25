@@ -1,17 +1,18 @@
 ---
 plugin: O-simpleSampler
-stage: 0
+stage: 1
 status: complete
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
-next_stage: 1
+workflow_mode: manual
+next_action: invoke_dsp_agent
+next_stage: 2
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:96debe9dfd2c5a92362d6ec3a6ba0fb26bf684b33aef76e5d78312690d5ff7ee
-  parameter_spec: sha256:3d6d4582e204bbd0aa01a2a473604c70df4572827e88773e3b37bc2fe22b5854
+  parameter_spec: sha256:72a03b1bf58feeb54960b39e6447779cb3b7b7a03f5849b94b94bd5835a4a2d7
   architecture: sha256:acbb55e7dd04c8fd1fee401f64f1f1e79858958961d12c57a74f03f1f372212f
   roadmap: sha256:ee2b65d0db577b8324f8340a600cf35fb5537cde7f9efa1358419ce183e32a6b
 ---
@@ -20,56 +21,58 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Ideation / Research & Planning) — complete
-Status: ARCHITECTURE.md + ROADMAP.md produced; Stretch-vs-Repitch engine resolved; ready for Stage 1 (Foundation).
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation) — ✅ complete
+Status: Silent 16-voice synth shell builds (VST3 + AU + Standalone), passes pluginval@5 + `auval` (AU VALIDATION SUCCEEDED), exposes the full 21-param APVTS with state persistence. Ready for Stage 2 (DSP).
+Progress: [#####...............] 25%
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date |
+|-------|--------|------|
+| discuss | ✓ (auto-compiled CONTEXT.md) | 2026-06-25 |
+| research | ✓ RESEARCH.md | 2026-06-25 |
+| plan | ✓ PLAN.md | 2026-06-25 |
+| execute | ✓ SUMMARY.md | 2026-06-25 |
+| verify | ✓ VERIFICATION.md (PASS 7/7) | 2026-06-25 |
 
 ## Completed So Far
 
-**Ideation:** ✓ Complete
-- Core concept: pedagogical keyboard sampler (source → region/loop/reverse → pitch → Vintage → filter → VCA)
-- Scope: classic melodic keyboard sampler only (wk05); slicing/sequencer out of scope
-- 24 requirements extracted (must 16 / should 6 / nice 2)
+**Stage 0 (Ideation + Research/Planning):** ✓ Complete — ARCHITECTURE.md + ROADMAP.md + parameter-spec.md (21 params finalized from the ARCHITECTURE table).
 
-**Stage 0:** ✓ Complete
-- Plugin type: Synth (pedagogical sampler), MIDI-in → audio-out, 16-voice poly, WebView UI
-- Complexity tier 5–6 (synth + file I/O + load-your-own streaming + interactive waveform editor) → research depth DEEP
-- **Stretch algorithm RESOLVED:** synchronous-granular (SOLA) pitch shifter reusing the O-simpleGrain/O-GrainScatter scheduler + overlap-add (Repitch = fractional-read varispeed); phase vocoder rejected for v1.0 (deferred to v1.1 as optional HQ Stretch)
-- Anti-aliasing RESOLVED: 4-pt Lagrange + rate-tracking one-pole (`fc=0.5fs/rate`) on upward transposition
-- Loop RESOLVED: equal-power crossfade + ping-pong + zero-crossing snap; Vintage RESOLVED: S&H decimation + bit-crush, bypass at 0 (SP-1200)
-- Filter: per-voice `juce::dsp::StateVariableTPTFilter` LP + closed-form curve (QUAL-02); full per-voice chain; lead-voice drives the curve
-- Sample loading: embedded `.wav` (2nd binary-data target, distinct NAMESPACE) + reused `webview-drop-streaming.js` (`juce::Base64::convertFromBase64`) + picker fallback
-- Params resolved: keep `tune`+`fine`; defer `velToFilter`; 16 voices; 30 s cap → **21 core parameters**
-- Professional references: SP-1200/MPC, Mellotron/Fairlight, Kontakt/Ableton Sampler/EXS24, Serato/élastique
-- JUCE 8 APIs verified against local source (8.0.9) + shipped siblings; built-in `juce::Sampler` rejected (too limited)
-- Complexity score: **5.0** (capped; raw 12.0)
-- Strategy: **staged** (Stage 2 DSP × 3 phases, Stage 3 GUI × 3 phases)
-- ARCHITECTURE.md + ROADMAP.md + Stage-0 CONTEXT.md documented
+**Stage 1 (Foundation):** ✓ Complete
+- `CMakeLists.txt` — synth (`IS_SYNTH`/`NEEDS_MIDI_INPUT`/`NEEDS_WEB_BROWSER`/`NEEDS_WEBVIEW2`), `PLUGIN_CODE OsSm`, `VERSION 0.1.0`, FORMATS VST3/AU/Standalone, WebView2 + `JUCE_USE_CURL=0` defs. Binary-data targets (samples + UI) deferred with the dual-NAMESPACE (`BinaryData`/`UIBinaryData`) split documented as TODOs.
+- `Source/PluginProcessor.{h,cpp}` — 21-param APVTS (`createParameterLayout`), 21 cached atomics, silent allocation-free `processBlock`, output-only bus layout, `setLatencySamples(0)`, state persistence (APVTS tree + custom `SOURCE/identity` child, default `embedded:piano`), engine constants (`kMaxVoices=16`, `kMaxGrainsPerVoice=4`, `kRootNote=60`, `kMaxSourceSeconds=30`, `kStretchGrainMs=60`, `kNumBuiltIns=4`).
+- `Source/PluginEditor.{h,cpp}` — minimal 720×480 placeholder editor.
+- Validation: `ninja` clean (3 formats); pluginval strictness-5 → SUCCESS; `auval -v aumu OsSm OuDv` → AU VALIDATION SUCCEEDED, **21 Global Scope Parameters**.
+- Deviation: `start`/`end` param-ID C++ identifiers → `regionStart`/`regionEnd` (bare `end` collides with `juce::end`); APVTS string IDs `"start"`/`"end"` unchanged.
 
 ## Next Steps
 
-1. Stage 1: Foundation — CMake (synth + WebView2 flags + dual binary-data NAMESPACE) + 21-param APVTS + state persistence (silent shell). Run `/implement O-simpleSampler` (or invoke foundation-shell-agent).
-2. Review ARCHITECTURE.md (Repitch↔Stretch engine + sample-loading I/O) and ROADMAP.md.
-3. Pause here.
+1. **Stage 2: DSP** (phased — 3 phases). Next: `/clear` then `/implement O-simpleSampler`.
+   - Phase 2.1: Core playable sampler (Repitch fractional-read) + region (start/end) + amp ADSR + built-in `.wav` decode → first audio.
+   - Phase 2.2: Region completion (loop fwd/ping-pong + equal-power crossfade, reverse) + Stretch (synchronous-granular SOLA) + Vintage (S&H + bit-crush) + resonant LP filter.
+   - Phase 2.3: AA hardening + viz taps + voice-stealing + RT-safety + offline render-harness (the Stage-2 correctness gate).
+2. Execute agent: `dsp-agent`. Will embed the built-in `.wav` set (Phase 2.1) and add the second `juce_add_binary_data` target (NAMESPACE `BinaryData`) per the CMake TODO.
 
 ## Context to Preserve
 
-**Key decisions:**
-- Stretch = synchronous-granular SOLA (time 1× + per-grain resample, Hann overlap-add, fixed/hidden grain) reusing O-simpleGrain; Repitch = continuous fractional-read varispeed
-- Anti-alias: 4-pt Lagrange + rate-tracking one-pole; no oversampling; zero latency
-- Loop: equal-power crossfade + ping-pong + zero-cross snap; Vintage: S&H decimation + bit-crush, bypass at 0, before the filter
-- Full per-voice chain (source→region→pitch→Vintage→filter→VCA); lead-voice drives the filter curve
-- Filter: `StateVariableTPTFilter` LP (linear) + closed-form magnitude curve (QUAL-02)
-- Sample loading: 2nd `juce_add_binary_data` distinct NAMESPACE; `webview-drop-streaming.js` + `juce::Base64::convertFromBase64`; picker fallback; 30 s cap
-- 21 core params; `Load…` is a native-fn + custom state, not a param; `velToFilter`/HQ phase-vocoder Stretch deferred to v1.1
-- Highest risk: Stretch + upward-transposition AA (de-risked by shipped O-simpleGrain DSP); no feedback loop
+**Stage-1 carry-forward:**
+- Built-in names (piano/vocal/flute/vinyl) are a working placeholder; finalize curated set + per-sample default roots when `.wav` assets are sourced (Phase 2.1/2.3).
+- New gotcha: APVTS param-ID identifiers must not shadow `juce::` free functions (`begin`/`end`) under `using namespace`.
+- Dual-NAMESPACE binary-data split + render-harness already documented as CMake TODOs.
 
-**Strategy:** complexity 5.0, staged implementation.
+**Key DSP decisions (from Stage 0, unchanged):**
+- Repitch = continuous fractional-read varispeed; Stretch = synchronous-granular SOLA (time 1× + per-grain resample, Hann overlap-add) reusing O-simpleGrain `GrainScheduler`.
+- Anti-alias: 4-pt Lagrange + rate-tracking one-pole; no oversampling; zero latency.
+- Loop: equal-power crossfade + ping-pong + zero-cross snap. Vintage: S&H decimation + bit-crush, bypass at 0, before the filter.
+- Filter: per-voice `StateVariableTPTFilter` LP + closed-form magnitude curve; lead-voice drives the curve.
+- Sample loading: 2nd `juce_add_binary_data` (distinct NAMESPACE); `webview-drop-streaming.js` + `juce::Base64::convertFromBase64`; picker fallback; 30 s cap.
 
-**Files created:**
-- plugins/O-simpleSampler/.planning/research/ARCHITECTURE.md
-- plugins/O-simpleSampler/.planning/ROADMAP.md
-- plugins/O-simpleSampler/.planning/stages/0-ideation/CONTEXT.md
-- plugins/O-simpleSampler/.planning/STATUS.md (this file)
+**Files created (Stage 1):**
+- plugins/O-simpleSampler/.planning/parameter-spec.md (finalized, 21 params)
+- plugins/O-simpleSampler/.planning/stages/1-foundation/{CONTEXT,RESEARCH,PLAN,SUMMARY,VERIFICATION}.md
+- plugins/O-simpleSampler/CMakeLists.txt
+- plugins/O-simpleSampler/Source/{PluginProcessor,PluginEditor}.{h,cpp}
 
-**Sibling references:** O-simpleGrain (PRIMARY reuse), O-simpleSubtractive (filter/ADSR/voice/doc format), O-simpleFM/O-simpleAdditive (voice skeleton + bit-depth lesson), O-MicrotonalSampler (drag-drop + Base64), O-GrainScatter/O-Freeze (overlap-add + loop crossfade).
+**Sibling references:** O-simpleGrain (PRIMARY reuse — foundation pattern mirrored), O-simpleSubtractive (filter/ADSR/voice), O-simpleFM/O-simpleAdditive (voice skeleton + bit-depth lesson), O-MicrotonalSampler (drag-drop + Base64), O-GrainScatter/O-Freeze (overlap-add + loop crossfade).
