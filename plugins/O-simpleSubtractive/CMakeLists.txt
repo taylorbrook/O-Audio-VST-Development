@@ -30,6 +30,10 @@ target_sources(O-simpleSubtractive
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        Source/OscillatorBank.h
+        Source/SvfZDF.h
+        Source/SubVoice.h
+        Source/SubVizAnalyzer.h
 )
 
 # Include paths
@@ -73,3 +77,10 @@ target_compile_definitions(O-simpleSubtractive
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Stage 2 DSP correctness gate (offline render harness). Off by default;
+# enable with -DOUARICON_BUILD_TESTS=ON.
+option(OUARICON_BUILD_TESTS "Build O-simpleSubtractive render-test harness" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()
