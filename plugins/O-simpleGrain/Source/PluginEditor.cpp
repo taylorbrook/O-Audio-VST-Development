@@ -221,11 +221,72 @@ OSimpleGrainAudioProcessorEditor::~OSimpleGrainAudioProcessorEditor()
     stopTimer();
 }
 
-// ── Timer: viz push (Phase 3.2 fills this) ──────────────────────────────────
+// ── Timer (30 Hz): run the analyzer + push the four viz events ───────────────
+// Everything here runs on the MESSAGE thread. The audio thread only copies into
+// the VizRing / fills the GrainCloudFrame (lock-free); the FFT + scope downsample
+// happen inside vizAnalyzer.process below (PERF-01 / invariant 7). The analyzer
+// copies the scope window BEFORE its in-place FFT (invariant 8 — VizAnalyzer.h:88).
 void OSimpleGrainAudioProcessorEditor::timerCallback()
 {
-    // Phase 3.1: empty stub. Phase 3.2 runs the analyzer on the message thread
-    // and emits scopeUpdate / spectrumUpdate / grainCloudUpdate / grainMeterUpdate.
+    vizAnalyzer.process (processorRef.getVizRing(), processorRef.getCurrentSampleRate());
+
+    if (webView == nullptr)
+        return;
+
+    // 1. Scope + spectrum (UI-04) — verbatim FM pattern (256 dB bins / 128 pts).
+    {
+        const auto& spec  = vizAnalyzer.getSpectrum();   // 256 bins, ~[-100, 0] dB
+        const auto& scope = vizAnalyzer.getScope();       // 128 pts, [-1, 1]
+
+        juce::Array<juce::var> specArr, scopeArr;
+        specArr.ensureStorageAllocated ((int) spec.size());
+        scopeArr.ensureStorageAllocated ((int) scope.size());
+        for (float v : spec)  specArr.add (v);
+        for (float v : scope) scopeArr.add (v);
+
+        webView->emitEventIfBrowserIsVisible ("spectrumUpdate", juce::var (std::move (specArr)));
+        webView->emitEventIfBrowserIsVisible ("scopeUpdate",    juce::var (std::move (scopeArr)));
+    }
+
+    // 2. Grain cloud + playheads (UI-01/02) — read the published frame, build a
+    //    DynamicObject { count, grains:[[readPosNorm,sizeMs,pitchSemis,pan,spawn],…],
+    //    playheadNorm, positionNorm, positionSprayNorm, frozen }.
+    {
+        const GrainCloudFrame& f = processorRef.getGrainCloudBuffer().read();
+
+        juce::Array<juce::var> grains;
+        grains.ensureStorageAllocated (f.count);
+        for (int i = 0; i < f.count; ++i)
+        {
+            const GrainEvent& g = f.events[(size_t) i];
+            juce::Array<juce::var> tuple;
+            tuple.ensureStorageAllocated (5);
+            tuple.add (g.readPosNorm);
+            tuple.add (g.sizeMs);
+            tuple.add (g.pitchSemis);
+            tuple.add (g.pan);
+            tuple.add (g.spawnSample);
+            grains.add (juce::var (std::move (tuple)));
+        }
+
+        auto* cloud = new juce::DynamicObject();
+        cloud->setProperty ("count",             f.count);
+        cloud->setProperty ("grains",            juce::var (std::move (grains)));
+        cloud->setProperty ("playheadNorm",      f.playheadNorm);
+        cloud->setProperty ("positionNorm",      f.positionNorm);
+        cloud->setProperty ("positionSprayNorm", f.positionSprayNorm);
+        cloud->setProperty ("frozen",            f.frozen);
+
+        webView->emitEventIfBrowserIsVisible ("grainCloudUpdate", juce::var (cloud));
+    }
+
+    // 3. Grain meter (UI-05) — active grain count over kGlobalGrainCap (192).
+    webView->emitEventIfBrowserIsVisible ("grainMeterUpdate",
+                                          juce::var (processorRef.getActiveGrainCount()));
+
+    // NB: windowInsetUpdate is NOT pushed here — the window only changes on the
+    // windowShape combo, so the inset is recomputed JS-side on that change
+    // (invariant: no per-frame inset push — Pitfall 4).
 }
 
 // ── Layout ──────────────────────────────────────────────────────────────────
