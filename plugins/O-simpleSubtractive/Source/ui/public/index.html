@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-simpleSubtractive</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="frame">
+    <!-- ─── Header ─────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Subtractive</span></h1>
+        <p class="subtitle">Subtractive Synthesizer &#183; Osc &#8594; Filter &#8594; Amp &#183; A Field Guide</p>
+      </div>
+    </header>
+
+    <!-- ─── Visualization (headline: filter curve over spectrum) ── -->
+    <section class="viz-panel">
+      <div class="viz-block">
+        <div class="viz-label">Filter Response over Spectrum &#183;
+          <span class="viz-hint">the curve is the filter; the bars are what it lets through</span></div>
+        <div class="canvas-wrap" data-tip="headline" tabindex="0"><canvas id="headlineCanvas"></canvas></div>
+      </div>
+      <div class="viz-block viz-block-scope">
+        <div class="viz-label">Output Waveform &#183; <span class="viz-hint">morphs with cutoff / res / envelope</span></div>
+        <div class="canvas-wrap scope-wrap" data-tip="scope" tabindex="0"><canvas id="scopeCanvas"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ─── Signal-path diagram ────────────────────────────────── -->
+    <section class="routing-panel" data-tip="routing">
+      <div class="routing-label">Signal Path</div>
+      <svg id="routingSvg" viewBox="0 0 430 128" preserveAspectRatio="xMidYMid meet">
+        <!-- main chain arrows -->
+        <line class="route-line" x1="80"  y1="46" x2="148" y2="46" />
+        <polygon class="route-head" points="148,41 148,51 158,46" />
+        <line class="route-line" x1="208" y1="46" x2="276" y2="46" />
+        <polygon class="route-head" points="276,41 276,51 286,46" />
+        <line class="route-line route-line-out" x1="336" y1="46" x2="392" y2="46" />
+        <polygon class="route-head" points="392,41 392,51 402,46" />
+
+        <!-- envelope routes (from below into FILTER and VCA) -->
+        <line id="arrowFiltEnv" class="route-arc" x1="180" y1="104" x2="180" y2="76" />
+        <polygon id="arrowFiltEnvHead" class="route-head route-head-env" points="175,80 185,80 180,72" />
+        <line id="arrowAmpEnv" class="route-arc" x1="308" y1="104" x2="308" y2="76" />
+        <polygon id="arrowAmpEnvHead" class="route-head route-head-env" points="303,80 313,80 308,72" />
+        <text class="env-route-label" x="180" y="118" text-anchor="middle">filter env &#8594; cutoff</text>
+        <text class="env-route-label" x="308" y="118" text-anchor="middle">amp env &#8594; level</text>
+
+        <!-- nodes -->
+        <circle id="nodeOsc" class="path-node node-osc" cx="52" cy="46" r="26" />
+        <text class="node-text" x="52" y="44" text-anchor="middle">OSC</text>
+        <text id="oscModeText" class="node-sub" x="52" y="56" text-anchor="middle">Saw</text>
+
+        <circle id="nodeFilter" class="path-node node-filter" cx="180" cy="46" r="26" />
+        <text class="node-text" x="180" y="44" text-anchor="middle">FILTER</text>
+        <text id="filterModeText" class="node-sub" x="180" y="56" text-anchor="middle">24 dB LP</text>
+
+        <circle id="nodeVca" class="path-node node-vca" cx="308" cy="46" r="26" />
+        <text class="node-text" x="308" y="49" text-anchor="middle">VCA</text>
+
+        <text class="node-out" x="416" y="52" text-anchor="end">&#9834;</text>
+      </svg>
+      <div class="routing-readout-col">
+        <div class="routing-readout"><span id="readCutoff">2.0 kHz</span> &#183; Res&#8202;<span id="readRes">0.10</span></div>
+        <div class="routing-meta" id="routeMeta">low-pass &#183; 24 dB/oct</div>
+      </div>
+    </section>
+
+    <!-- ─── Control groups (5-column signal path) ──────────────── -->
+    <main class="controls">
+      <!-- OSC / MIX -->
+      <section class="group group-osc">
+        <h2 class="group-title">Oscillator</h2>
+        <div class="select-cell" data-tip="oscWave">
+          <select class="combo" id="combo-oscWave" aria-label="Oscillator wave"></select>
+          <div class="knob-label">Wave</div>
+        </div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="subLevel">
+            <div class="knob" id="knob-subLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label">Sub</div>
+            <div class="knob-value" id="val-subLevel">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="noiseLevel">
+            <div class="knob" id="knob-noiseLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label">Noise</div>
+            <div class="knob-value" id="val-noiseLevel">0%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILTER -->
+      <section class="group group-filter">
+        <h2 class="group-title">Filter</h2>
+        <div class="select-row">
+          <div class="select-cell" data-tip="filterType">
+            <select class="combo combo-sm" id="combo-filterType" aria-label="Filter type"></select>
+            <div class="knob-label">Type</div>
+          </div>
+          <div class="select-cell" data-tip="filterSlope">
+            <select class="combo combo-sm" id="combo-filterSlope" aria-label="Filter slope"></select>
+            <div class="knob-label">Slope</div>
+          </div>
+        </div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="cutoff">
+            <div class="knob" id="knob-cutoff"><div class="knob-stem"></div></div>
+            <div class="knob-label">Cutoff</div>
+            <div class="knob-value" id="val-cutoff">2.0 kHz</div>
+          </div>
+          <div class="knob-cell" data-tip="resonance">
+            <div class="knob" id="knob-resonance"><div class="knob-stem"></div></div>
+            <div class="knob-label">Resonance</div>
+            <div class="knob-value" id="val-resonance">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="filterEnvAmount">
+            <div class="knob" id="knob-filterEnvAmount"><div class="knob-stem"></div></div>
+            <div class="knob-label">Env Amt</div>
+            <div class="knob-value" id="val-filterEnvAmount">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="keyTrack">
+            <div class="knob" id="knob-keyTrack"><div class="knob-stem"></div></div>
+            <div class="knob-label">Key Track</div>
+            <div class="knob-value" id="val-keyTrack">0%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILTER ADSR -->
+      <section class="group group-env">
+        <h2 class="group-title">Filter Envelope <span class="group-route">&#8594; cutoff</span></h2>
+        <div class="adsr-canvas-wrap" data-tip="filterAdsr"><canvas id="filterAdsrCanvas"></canvas></div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="filterAttack">
+            <div class="knob knob-sm" id="knob-filterAttack"><div class="knob-stem"></div></div>
+            <div class="knob-label">Attack</div>
+            <div class="knob-value" id="val-filterAttack">5 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="filterDecay">
+            <div class="knob knob-sm" id="knob-filterDecay"><div class="knob-stem"></div></div>
+            <div class="knob-label">Decay</div>
+            <div class="knob-value" id="val-filterDecay">200 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="filterSustain">
+            <div class="knob knob-sm" id="knob-filterSustain"><div class="knob-stem"></div></div>
+            <div class="knob-label">Sustain</div>
+            <div class="knob-value" id="val-filterSustain">50%</div>
+          </div>
+          <div class="knob-cell" data-tip="filterRelease">
+            <div class="knob knob-sm" id="knob-filterRelease"><div class="knob-stem"></div></div>
+            <div class="knob-label">Release</div>
+            <div class="knob-value" id="val-filterRelease">200 ms</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AMP ADSR -->
+      <section class="group group-env">
+        <h2 class="group-title">Amp Envelope <span class="group-route">&#8594; level</span></h2>
+        <div class="adsr-canvas-wrap" data-tip="ampAdsr"><canvas id="ampAdsrCanvas"></canvas></div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="ampAttack">
+            <div class="knob knob-sm" id="knob-ampAttack"><div class="knob-stem"></div></div>
+            <div class="knob-label">Attack</div>
+            <div class="knob-value" id="val-ampAttack">5 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="ampDecay">
+            <div class="knob knob-sm" id="knob-ampDecay"><div class="knob-stem"></div></div>
+            <div class="knob-label">Decay</div>
+            <div class="knob-value" id="val-ampDecay">200 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="ampSustain">
+            <div class="knob knob-sm" id="knob-ampSustain"><div class="knob-stem"></div></div>
+            <div class="knob-label">Sustain</div>
+            <div class="knob-value" id="val-ampSustain">80%</div>
+          </div>
+          <div class="knob-cell" data-tip="ampRelease">
+            <div class="knob knob-sm" id="knob-ampRelease"><div class="knob-stem"></div></div>
+            <div class="knob-label">Release</div>
+            <div class="knob-value" id="val-ampRelease">300 ms</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VOICE / OUT -->
+      <section class="group group-output">
+        <h2 class="group-title">Voice / Output</h2>
+        <div class="select-cell" data-tip="voiceMode">
+          <select class="combo" id="combo-voiceMode" aria-label="Voice mode"></select>
+          <div class="knob-label">Mode</div>
+        </div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="glide">
+            <div class="knob" id="knob-glide"><div class="knob-stem"></div></div>
+            <div class="knob-label">Glide</div>
+            <div class="knob-value" id="val-glide">0 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="outputLevel">
+            <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label">Level</div>
+            <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── Preset tour (hook now; content Stage 4) ────────────── -->
+    <section class="preset-tour">
+      <div class="tour-label">Lesson Presets</div>
+      <div class="tour-buttons">
+        <button class="tour-btn" data-preset="Pluck" data-tip="lessonPluck">Pluck</button>
+        <button class="tour-btn" data-preset="Sweep Pad" data-tip="lessonSweep">Sweep Pad</button>
+        <button class="tour-btn" data-preset="Acid Bass" data-tip="lessonAcid">Acid Bass</button>
+        <button class="tour-btn" data-preset="Self-Oscillation" data-tip="lessonSelfOsc">Self-Oscillation</button>
+        <button class="tour-btn" data-preset="Brass Stab" data-tip="lessonBrass">Brass Stab</button>
+      </div>
+      <div class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a lesson to hear a concept.</div>
+    </section>
+
+    <!-- ─── On-screen keyboard ─────────────────────────────────── -->
+    <section class="keyboard-panel">
+      <div class="keyboard-label">Play &#183; <span class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+    </section>
+  </div>
+
+  <!-- Floating tooltip -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <!-- JUCE native-interop guard (must load before app.js as a module) -->
+  <script type="module" src="js/juce/check_native_interop.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

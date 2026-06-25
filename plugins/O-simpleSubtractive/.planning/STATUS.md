@@ -1,6 +1,6 @@
 ---
 plugin: O-simpleSubtractive
-stage: 2
+stage: 3
 status: complete
 phase: verify
 workflow_mode: express
@@ -8,8 +8,8 @@ last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_3_gui
-next_stage: 3
+next_action: stage_4_polish
+next_stage: 4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:f9e5eaaafc94bf1f3289806766fe24f609ef2ec9db1ad43cef7295b27694a58c
@@ -22,9 +22,27 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — ✅ complete (all 5 phases, express mode)
-Status: Audible polyphonic subtractive synth. Render-harness 18/18, AU VALIDATION SUCCEEDED, pluginval s10 SUCCESS. Ready for Stage 3 (GUI).
-Progress: [##########..........] 50%
+Stage: 3 of 4 (GUI) — ✅ complete (all 5 phases + critic review, express mode)
+Status: Full WebView teaching UI on the validated synth — 20 params bound (16 sliders + 4 combos), headline filter-curve-over-spectrum + scope + dual-ADSR + signal-path SVG + 30 tooltips + preset hook. AU VALIDATION SUCCEEDED, pluginval s10 SUCCESS, critic NO BLOCKERS. Ready for Stage 4 (Polish).
+Progress: [###############.....] 75%
+
+## Stage 3 (GUI) — ✅ Complete
+
+| Phase | Status | Artifact |
+|-------|--------|----------|
+| discuss | ✓ | stages/3-gui/CONTEXT.md |
+| research | ✓ | stages/3-gui/RESEARCH.md (sibling-pattern extraction: O-simpleFM editor/JS/CSS + O-simpleGrain combos) |
+| plan | ✓ | stages/3-gui/PLAN.md (15 tasks T1–T15 across 3 sub-phases + 9-pt checklist) |
+| execute | ✓ | stages/3-gui/SUMMARY.md (gui-agent; VST3+AU build clean) |
+| critic | ✓ | UI + Foundation critics — NO BLOCKERS (3 native-fns / 4 events / 20 params parity; DSP-untouched invariant holds) |
+| verify | ✓ | stages/3-gui/VERIFICATION.md (PASS — auval SUCCEEDED, pluginval s10 SUCCESS) |
+
+- New: `Source/ui/public/{index.html, css/styles.css, js/app.js, js/juce/index.js, js/juce/check_native_interop.js}`
+- Modified: `Source/PluginEditor.{h,cpp}` (relays→WebView→attachments, 30 Hz Timer emitting 4 viz events), `CMakeLists.txt` (+1 `juce_add_binary_data` UI target, default `BinaryData` namespace — single target, no collision), `Source/PluginProcessor.{h,cpp}` (**T6: `applyFactoryPreset` wiring-only stub** — no DSP touched).
+- **Native fns:** `uiMidi`→handleUiMidi, `getSampleRate`, `applyFactoryPreset` (stub). **Events:** filterCurveUpdate / spectrumUpdate / scopeUpdate / envUpdate.
+- **QUAL-02 by construction:** headline curve = closed-form of the running SVF (`getCurve()`), overlaid on `getSpectrum()` on identical 256-bin log-f axis.
+- Verify polish: **N1 fixed** (QWERTY keydown skipped while a `<select>` is focused).
+- **Carried to Stage 4:** W1 — preset *content* (8 concept snapshots in `applyFactoryPreset`, FUNC-06); name-parity scaffold already in place.
 
 ## Stage 2 (DSP) — ✅ Complete
 
@@ -47,9 +65,10 @@ Progress: [##########..........] 50%
 
 ## Next Steps
 
-1. **Stage 3: GUI** — WebView UI + parameter binding (relays/attachments) + draw the headline filter-curve-over-spectrum, oscilloscope, and dual-ADSR display from the already-built `SubVizAnalyzer` + display atomics + `VizRing`. Phased per ROADMAP (3 phases). Run `/clear` then `/implement O-simpleSubtractive`.
-2. The audio→UI contract is in place and validated: lead-voice `displayCutoffHz`/`displayK`/`displayType`/`displaySlope` atomics, `filterEnvValue`/`ampEnvValue` atomics, `VizRing`, `getCurrentSampleRate()`.
-3. Stage 3 re-introduces a `juce_add_binary_data` (UI resources) — give it a distinct NAMESPACE if a 2nd binary-data target ever appears (O-simpleGrain lesson).
+1. **Stage 4: Polish** — fill `applyFactoryPreset` with the 8 concept presets (FUNC-06: Saw→LP Sweep, Acid Bass 303, Brass Lead, Pluck, Sweep Pad, Self-Oscillation Sine, Hollow Square Bass, Filtered Noise — name-parity scaffold already wired), playability pass (FUNC-07), optional N2/N3/N4 cosmetic sweep, final validation. Run `/clear` then `/implement O-simpleSubtractive`.
+2. **Manual UAT before ship:** eyeball the live UI (`/show-standalone O-simpleSubtractive` or in a DAW) — headline curve tracks sweeps, scope morphs, dual-ADSR moves independently, diagram highlights active stage, tooltips projector-readable. (Wiring/math/validation are objectively green; only the on-screen look/feel is unverifiable by automation.)
+3. The audio→UI contract is in place and validated: lead-voice `displayCutoffHz`/`displayK`/`displayType`/`displaySlope` atomics, `filterEnvValue`/`ampEnvValue` atomics, `VizRing`, `getCurrentSampleRate()`.
+4. UI uses ONE `juce_add_binary_data` target (`O-simpleSubtractive_UIResources`, default `BinaryData` namespace). If Stage 4 embeds presets as a 2nd binary-data target, give it a **distinct NAMESPACE** (O-simpleGrain lesson).
 
 ## Context to Preserve
 
