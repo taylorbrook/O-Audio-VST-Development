@@ -211,10 +211,33 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     const float outDb = outputLevelParam->load();
     outputGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
 
+    // --- Global read-head smoothing (Phase 2.2, ~20 ms ramps) ----------------
+    // scan/position/playheadVelocity are smoothed so automation, freeze toggles,
+    // and source swaps never zipper or hard-jump the playhead (QUAL-01).
+    scanSmoothed.reset     (sampleRate, 0.02);
+    positionSmoothed.reset (sampleRate, 0.02);
+    playheadVelocity.reset (sampleRate, 0.02);
+    scanSmoothed.setCurrentAndTargetValue     (scanParam->load() / 100.0f);
+    positionSmoothed.setCurrentAndTargetValue (positionParam->load());
+    playheadVelocity.setCurrentAndTargetValue (0.0f);
+
+    // Seed the playhead at its resting point (position% * srcLen is unknown until
+    // the source is decoded below; we re-seed once the source length is known).
+    playheadPos = 0.0;
+
     // Decode + resample the default source to the engine rate, OFF the audio
     // thread, and publish it via the atomic shared_ptr swap (2.3 reuses this
     // exact publish path with the embedded BinaryData bytes instead of a file).
     loadDefaultSource (sampleRate);
+
+    // Now the source length is known — seed the playhead at the resting point so
+    // the first block starts where `position` points (no jump-from-zero glide).
+    if (auto src = atomicLoad (currentSource); src != nullptr && src->getNumSamples() > 0)
+    {
+        const int srcLen = src->getNumSamples();
+        playheadPos = (double) (positionParam->load() / 100.0f) * (double) srcLen;
+        playheadPos = juce::jlimit (0.0, (double) (srcLen - 1), playheadPos);
+    }
 }
 
 //==============================================================================
@@ -309,23 +332,74 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // --- Read APVTS atomics once and push to every voice ---------------------
     GrainVoiceParams p;
-    p.grainSizeMs = grainSizeParam->load();
-    p.density     = densityParam->load();
-    p.windowShape = (int) windowShapeParam->load();
-    p.grainPitch  = grainPitchParam->load();
+    p.grainSizeMs    = grainSizeParam->load();
+    p.density        = densityParam->load();
+    p.windowShape    = (int) windowShapeParam->load();
+    p.grainPitch     = grainPitchParam->load();
+    p.positionSpray  = positionSprayParam->load();
+    p.pitchSpray     = pitchSprayParam->load();
+    p.scatter        = scatterParam->load();
+    p.panSpray       = panSprayParam->load();
+    p.velToDensity   = velToDensityParam->load();
     p.amp = juce::ADSR::Parameters {
         ampAttackParam->load(), ampDecayParam->load(),
         ampSustainParam->load(), ampReleaseParam->load() };
 
-    // Static read-head resting point (position-only this phase; scan/freeze 2.2).
-    positionAbsolute = (positionParam->load() / 100.0f) * (float) juce::jmax (1, srcLen);
+    // --- Global read head (Phase 2.2): advance per sample, freeze-pinnable -----
+    // velocity (samples/sample) = (scan/100) * realtime: 100% = forward realtime,
+    // -100% = reverse, ±200% = double speed. Freeze targets velocity -> 0 (pin);
+    // disengage ramps back to the scan-derived velocity. The SmoothedValue ramp on
+    // playheadVelocity makes engage/disengage click-free — the playhead is NEVER
+    // hard-jumped (RESEARCH §4.2). `position` sets the resting point the playhead
+    // eases toward when scan is ~0 (so the Position knob stays live, click-free).
+    const bool  freezeActive = (freezeParam->load() > 0.5f);
+    const float scanFrac     = scanParam->load() / 100.0f;         // [-2 .. +2]
+    const float srcLenF      = (float) juce::jmax (1, srcLen);
+
+    scanSmoothed.setTargetValue     (scanFrac);
+    positionSmoothed.setTargetValue (positionParam->load());
+
+    // Capture the BLOCK-START playhead — this is the snapshot the voices read at
+    // spawn (keeps the 2.1 voice spawn signature unchanged; Sequencing Note 3).
+    const float playheadAtBlockStart = (float) playheadPos;
+
+    // Advance the global playhead across the block (per sample) for read-head
+    // correctness + the Stage-3 waveform-playhead line. Voices snapshot the
+    // block-start value above; the per-sample motion keeps the playhead coherent
+    // block-to-block (and feeds the live playhead position to 2.3's viz tap).
+    constexpr float kRestEpsilon = 1.0e-4f;          // |velocity| below this = "at rest"
+    constexpr float kRestEase    = 0.0008f;           // gentle per-sample ease toward resting point
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float scanNow = scanSmoothed.getNextValue();
+        const float restPct = positionSmoothed.getNextValue();
+
+        // Freeze pins the target velocity to 0; otherwise it is the scan velocity.
+        playheadVelocity.setTargetValue (freezeActive ? 0.0f : scanNow);
+        const float vel = playheadVelocity.getNextValue();
+
+        playheadPos += (double) vel;
+
+        // When effectively at rest (scan ~0, not mid-ramp) and NOT frozen, ease
+        // toward the resting point so the Position knob stays responsive without a
+        // hard jump. Under freeze the playhead holds wherever it was pinned.
+        if (! freezeActive && std::abs (vel) < kRestEpsilon)
+        {
+            const double restTarget = (double) (restPct / 100.0f) * (double) srcLenF;
+            playheadPos += (restTarget - playheadPos) * (double) kRestEase;
+        }
+
+        // Wrap to [0, srcLen) for BOTH directions (negative scan = reverse).
+        if (playheadPos >= (double) srcLenF) playheadPos -= (double) srcLenF;
+        if (playheadPos < 0.0)               playheadPos += (double) srcLenF;
+    }
 
     for (int v = 0; v < synth.getNumVoices(); ++v)
         if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
         {
             gv->setParams (p);
             gv->setSource (srcPtr, srcLen);
-            gv->setPlayhead (positionAbsolute);
+            gv->setPlayhead (playheadAtBlockStart);
         }
 
     // --- Render the grain voices ---------------------------------------------

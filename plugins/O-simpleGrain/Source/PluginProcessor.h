@@ -158,9 +158,23 @@ private:
     // overlapping clouds don't clip before the trim.
     juce::SmoothedValue<float> outputGain { 1.0f };
 
-    // Read-head resting point (in source samples). 2.1 is position-only (no
-    // motion); 2.2 promotes this to a moving/freezable playhead.
-    float positionAbsolute = 0.0f;
+    //==========================================================================
+    // Global read head (processor-owned, Phase 2.2). One playhead shared by all
+    // voices/grains: `position` sets its resting point, `scan` its velocity,
+    // `freeze` pins it. Advanced PER SAMPLE in processBlock (wrapped to
+    // [0, srcLen) for both directions — negative scan = reverse). Voices read the
+    // block-start playhead at spawn (setPlayhead, once per block) so the 2.1 voice
+    // spawn signature is untouched (Sequencing Note 3).
+    //
+    // Click-free (QUAL-01): SmoothedValue ramps on scan / position / playhead
+    // velocity. Freeze targets velocity -> 0 (and disengage ramps back to the
+    // scan-derived velocity) via the velocity SmoothedValue — the playhead is
+    // NEVER hard-jumped (RESEARCH §4.2 "simplest robust approach").
+    double playheadPos = 0.0;                        // current global read point (source samples)
+
+    juce::SmoothedValue<float> scanSmoothed     { 0.0f };   // scan % -> velocity ramp
+    juce::SmoothedValue<float> positionSmoothed { 0.0f };   // resting point % -> samples ramp
+    juce::SmoothedValue<float> playheadVelocity { 0.0f };   // samples/sample, freeze-pinnable
 
     //==========================================================================
     // Custom non-APVTS state: which source is loaded (built-in name or file path).

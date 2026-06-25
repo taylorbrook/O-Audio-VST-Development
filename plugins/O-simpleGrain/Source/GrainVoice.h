@@ -9,10 +9,12 @@
     the grain cloud (key-tracked resample); grains read windowed fragments from
     the shared static source buffer and are overlap-added into the output.
 
-    Phase 2.1 scope: core grain engine + overlap-add + amp ADSR + key resample.
-    The read head is a static resting point the processor pushes per block
-    (setPlayhead); scan/freeze motion lands in 2.2. Spray/scatter/AA are wired as
-    pass-throughs here so 2.2 fills them without re-touching the hot loop.
+    Phase 2.1: core grain engine + overlap-add + amp ADSR + key resample.
+    Phase 2.2 (this file): per-voice spray & scatter via the per-voice juce::Random
+    (position/pitch/period/pan), velToDensity into the effective density, and the
+    anti-aliasing one-pole filled in the grain read loop. The processor advances a
+    moving/freezable global playhead and pushes its block-start value via
+    setPlayhead — the voice spawn signature is unchanged from 2.1.
 
     Real-time safety (every line of renderNextBlock): NO allocation / lock / I/O.
     Preallocated pool; steal-oldest when full (never resize). Per-voice Random.
@@ -47,12 +49,12 @@ struct GrainVoiceParams
     int   windowShape = 4;       // 0=rect .. 4=Hann
     float grainPitch  = 0.0f;    // global transposition in semitones
 
-    // --- Phase 2.2 (declared now, UNUSED in 2.1) -------------------------
-    // float positionSpray = 0.0f;  // % of source length
-    // float pitchSpray    = 0.0f;  // ± semitones
-    // float scatter       = 0.0f;  // % period jitter
-    // float panSpray      = 0.0f;  // % stereo spread
-    // float velToDensity  = 0.0f;  // velocity -> density depth
+    // --- Phase 2.2 spray & scatter (per-grain RNG; processor pushes these) ---
+    float positionSpray = 0.0f;  // 0..100 % of source length — read-start jitter
+    float pitchSpray    = 0.0f;  // 0..12 st — ± per-grain rate jitter
+    float scatter       = 0.0f;  // 0..100 % — scheduler period jitter (sync↔async)
+    float panSpray      = 0.0f;  // 0..100 % — per-grain stereo spread
+    float velToDensity  = 0.0f;  // 0..100 % (stored 0..1) — velocity -> density depth
 
     juce::ADSR::Parameters amp { 0.01f, 0.3f, 0.8f, 0.4f };
 };
@@ -90,7 +92,8 @@ public:
     void setWindowLuts (const WindowLuts* luts) noexcept { windowLuts = luts; }
 
     //==========================================================================
-    // Block param-push from the processor (once per block). 2.1 fields only.
+    // Block param-push from the processor (once per block). Carries the 2.1 core
+    // params + the 2.2 spray/scatter/velToDensity fields. Voices never touch APVTS.
     void setParams (const GrainVoiceParams& p) noexcept
     {
         params = p;
@@ -108,9 +111,10 @@ public:
     }
 
     // Abstract "current playhead value" (in source samples) the processor sets
-    // per block. 2.1 pushes the static resting point (position% * sourceLen);
-    // 2.2 promotes this to a moving/freezable playhead WITHOUT changing the
-    // voice's spawn signature.
+    // per block — the block-start position of the moving/freezable global read
+    // head. Grains spawned this block read from here (± position spray). The
+    // processor advances/freezes the playhead per sample; the voice only reads
+    // this per-block snapshot, so the spawn signature is unchanged from 2.1.
     void setPlayhead (float posSamples) noexcept { playheadPos = posSamples; }
 
     //==========================================================================
@@ -155,8 +159,12 @@ public:
         const int numCh = out.getNumChannels();
 
         // Effective density -> base inter-grain interval (samples). velToDensity
-        // is 2.2; for now effectiveDensity == density.
-        const float effectiveDensity = juce::jlimit (1.0f, 200.0f, params.density);
+        // (0..1 depth) makes harder notes spawn a denser cloud: a note above the
+        // mid-velocity (0.5) thickens, below thins. velLevel is fixed at note-on,
+        // so the base interval is constant across the block; scatter jitters the
+        // ACTUAL interval per spawn (below) — the sync↔async axis (DSP-05).
+        const float effectiveDensity = juce::jlimit (1.0f, 200.0f,
+            params.density * (1.0f + params.velToDensity * (velLevel - 0.5f) * 2.0f));
         const float baseInterval = (float) sampleRate / effectiveDensity;
 
         // Grain length in samples (clamp >= 2 so phaseInc is finite).
@@ -169,8 +177,12 @@ public:
             if (--samplesUntilNextGrain <= 0)
             {
                 spawnGrain (lenSamp, phaseInc);
-                // Scatter jitter is 2.2 — constant period for now (clamp >= 1).
-                samplesUntilNextGrain = juce::jmax (1, (int) baseInterval);
+                // Scatter (RESEARCH §2.6): jitter the period ± scatter% of the
+                // base interval. 0% = constant period (synchronous → discrete
+                // sidebands); 100% = ±full random (asynchronous → noise).
+                const float jitter = (params.scatter * 0.01f) * baseInterval
+                                   * (rng.nextFloat() * 2.0f - 1.0f);
+                samplesUntilNextGrain = juce::jmax (1, (int) (baseInterval + jitter));
             }
 
             // --- Overlap-add the active grains -------------------------------
@@ -183,7 +195,7 @@ public:
 
                 const float env = (windowLuts != nullptr) ? windowLuts->read (g.shape, g.phase) : 0.0f;
                 float src = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
-                src = aaOnePole (src, g.rate, g.aaState);   // 2.1: no-op pass-through (2.2 fills it)
+                src = aaOnePole (src, g.rate, g.aaState);   // band-limit if rate > 1 (DSP-08)
 
                 const float s = src * env;
                 const float panL = std::cos (g.pan * juce::MathConstants<float>::halfPi);
@@ -245,18 +257,30 @@ private:
         g.phase         = 0.0f;
         g.phaseInc      = phaseInc;
         g.lengthSamples = lenSamp;
-        g.aaState       = 0.0f;
+        g.shape         = params.windowShape;
 
-        // Read start = the current playhead (position-only this phase; 2.2 adds
-        // position spray). Grains advance independently from here by their rate.
-        g.readPos = playheadPos;
+        // --- Position spray: scatter the read start ± positionSpray% of the
+        // source length around the current playhead. Under freeze the playhead is
+        // pinned, so spray still scatters reads WITHIN the frozen region → a
+        // frozen pad shimmers rather than buzzing on one grain (FUNC-03).
+        const float posSprayRand = (rng.nextFloat() * 2.0f - 1.0f)
+                                 * (params.positionSpray * 0.01f) * (float) sourceLen;
+        g.readPos = playheadPos + posSprayRand;
 
-        // Combined transposition: key rate * global grainPitch (pitch spray is 2.2).
-        g.rate = voiceRate * std::pow (2.0f, params.grainPitch / 12.0f);
+        // --- Pitch spray: fresh ± pitchSpray semitones per grain, combined with
+        // the key rate and the global grainPitch offset (decision #2 — all three
+        // multiply into the read increment). rate > 1 = up-transposed (the AA
+        // one-pole engages on the read; see aaOnePole).
+        const float pitchSprayRand = (rng.nextFloat() * 2.0f - 1.0f) * params.pitchSpray;
+        g.rate = voiceRate * std::pow (2.0f, (params.grainPitch + pitchSprayRand) / 12.0f);
 
-        // Centred pan (pan spray is 2.2).
-        g.pan   = 0.5f;
-        g.shape = params.windowShape;
+        // --- Pan spray: equal-power pan scattered ± panSpray% around centre.
+        g.pan = juce::jlimit (0.0f, 1.0f,
+            0.5f + (rng.nextFloat() * 2.0f - 1.0f) * (params.panSpray * 0.01f) * 0.5f);
+
+        // AA one-pole state primed to the first read sample so the filter starts
+        // settled (no spurious attack transient on up-transposed grains).
+        g.aaState = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
 
         nextGrain = (target + 1) % N;
     }
@@ -277,13 +301,25 @@ private:
         return lagrangeInterpolate (src[im1], src[ip0], src[ip1], src[ip2], frac);
     }
 
-    // Anti-aliasing one-pole. Phase 2.1: NO-OP pass-through (the call site is
-    // wired in the hot loop so Phase 2.2 Task 8 only fills the body — it will
-    // band-limit when rate > 1 via fc = 0.5*fs/rate). Keeping the signature and
-    // call site fixed avoids re-touching the render loop in 2.2.
-    float aaOnePole (float x, float /*rate*/, float& /*state*/) const noexcept
+    // Anti-aliasing one-pole (RESEARCH §5 / DSP-08). Band-limits up-transposed
+    // grains (rate > 1) before the fractional read crosses Nyquist; bypassed at
+    // rate <= 1 (no down-transposition aliasing). Cutoff tracks playback rate:
+    // fc = 0.5*fs/rate (Nyquist of the source scaled by the read rate). One-pole
+    // y += g*(x - y), g = 1 - exp(-2π*fc/fs). `state` is the per-grain aaState
+    // (primed to the first read sample on spawn). Keeps high pitch-spray grains
+    // clean without global oversampling — zero added latency.
+    float aaOnePole (float x, float rate, float& state) const noexcept
     {
-        return x;
+        if (rate <= 1.0f)
+        {
+            state = x;                          // keep state coherent for the bypass→engage edge
+            return x;
+        }
+
+        const float fc = 0.5f * (float) sampleRate / rate;
+        const float g  = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * fc / (float) sampleRate);
+        state += g * (x - state);
+        return state;
     }
 
     //==========================================================================
