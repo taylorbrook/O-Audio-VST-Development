@@ -17,6 +17,13 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <memory>
+#include "dsp/WindowLuts.h"
+
+// Forward declarations — the voice/sound are pulled in only by the .cpp
+// (GrainVoice.h itself includes this header for the engine constants).
+class GrainVoice;
+class GrainSound;
 
 //==============================================================================
 // Parameter identifiers — single source of truth for APVTS IDs.
@@ -112,9 +119,48 @@ public:
 
 private:
     //==========================================================================
+    // Lock-free atomic shared_ptr swap for the source buffer (RESEARCH §6.3).
+    // The audio thread snapshots the pointer ONCE per block and holds the ref
+    // for the whole block, so a swap mid-block can never free the buffer it is
+    // reading. The decode/resample that builds a new buffer always happens off
+    // the audio thread (construction / prepareToPlay in 2.1; selection in 2.3).
+    template <class T>
+    static std::shared_ptr<T> atomicLoad (const std::shared_ptr<T>& s) noexcept
+    {
+        return std::atomic_load (&s);
+    }
+    template <class T>
+    static void atomicStore (std::shared_ptr<T>& s, std::shared_ptr<T> v) noexcept
+    {
+        std::atomic_store (&s, std::move (v));
+    }
+
+    // Decode + resample the default source (fire.wav) to the engine rate and
+    // publish it via atomicStore. OFF the audio thread (called from prepare).
+    void loadDefaultSource (double engineRate);
+
+    //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    //==========================================================================
+    // Grain engine. Window LUTs built once at construction (declared BEFORE the
+    // synth so they exist when the voices receive their LUT pointer in the ctor).
+    WindowLuts        windowLuts { kWindowLutSize };
+    juce::Synthesiser synth;
+
+    // The resampled source buffer, published to the audio thread via an atomic
+    // shared_ptr swap. Snapshotted once per block in processBlock.
+    std::shared_ptr<juce::AudioBuffer<float>> currentSource;
+
+    // Master output trim (dB->lin, smoothed) + a fixed headroom factor so dense
+    // overlapping clouds don't clip before the trim.
+    juce::SmoothedValue<float> outputGain { 1.0f };
+
+    // Read-head resting point (in source samples). 2.1 is position-only (no
+    // motion); 2.2 promotes this to a moving/freezable playhead.
+    float positionAbsolute = 0.0f;
 
     //==========================================================================
     // Custom non-APVTS state: which source is loaded (built-in name or file path).

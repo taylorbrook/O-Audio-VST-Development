@@ -12,6 +12,8 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "GrainVoice.h"
+#include "GrainSound.h"
 
 namespace
 {
@@ -171,6 +173,19 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     ampSustainParam    = apvts.getRawParameterValue (ampSustain);
     ampReleaseParam    = apvts.getRawParameterValue (ampRelease);
     outputLevelParam   = apvts.getRawParameterValue (outputLevel);
+
+    // Preallocate all grain voices up front (no audio-thread allocation later).
+    // Hand each voice the shared window-LUT table set (built at construction,
+    // before the synth member, so the pointer is valid here).
+    for (int i = 0; i < kMaxVoices; ++i)
+    {
+        auto* v = new GrainVoice();
+        v->setWindowLuts (&windowLuts);
+        synth.addVoice (v);
+    }
+
+    synth.addSound (new GrainSound());           // single shared sound, all notes/channels
+    synth.setNoteStealingEnabled (true);         // steal quietest/oldest voice on overflow
 }
 
 OSimpleGrainAudioProcessor::~OSimpleGrainAudioProcessor() = default;
@@ -179,18 +194,82 @@ OSimpleGrainAudioProcessor::~OSimpleGrainAudioProcessor() = default;
 void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
-    juce::ignoreUnused (samplesPerBlock);
 
     // Granular processing has no inherent latency in this design.
     // NB: getLatencySamples() is non-virtual in JUCE 8 — never override it.
     setLatencySamples (0);
 
-    // Stage 2: grain engine / voice prepare / window-LUT build go here.
+    // Synthesiser + per-voice prepare. juce::SynthesiserVoice has no virtual
+    // prepareToPlay in JUCE 8 — dispatch the custom one via dynamic_cast.
+    synth.setCurrentPlaybackSampleRate (sampleRate);
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
+            gv->prepareToPlay (sampleRate, samplesPerBlock);
+
+    // Output trim (dB->lin, 20 ms smoothing).
+    outputGain.reset (sampleRate, 0.02);
+    const float outDb = outputLevelParam->load();
+    outputGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
+
+    // Decode + resample the default source to the engine rate, OFF the audio
+    // thread, and publish it via the atomic shared_ptr swap (2.3 reuses this
+    // exact publish path with the embedded BinaryData bytes instead of a file).
+    loadDefaultSource (sampleRate);
+}
+
+//==============================================================================
+// Decode plugins/O-simpleGrain/Source/samples/fire.wav, resample to engineRate,
+// cap at kMaxSourceSeconds, and atomic-publish. NEVER called on the audio thread.
+// Phase 2.1 reads the file directly via AudioFormatManager::createReaderFor(File);
+// Phase 2.3 replaces the byte source with juce_add_binary_data + MemoryInputStream.
+void OSimpleGrainAudioProcessor::loadDefaultSource (double engineRate)
+{
+    juce::AudioFormatManager fmt;
+    fmt.registerBasicFormats();
+
+    // Locate the source relative to this translation unit so a dev build finds
+    // the bundled .wav without an install step. (2.3 embeds it; this file read
+    // is the throwaway 2.1 path to get audible quickly.)
+    const juce::File thisFile (juce::String (__FILE__));
+    const juce::File wav = thisFile.getParentDirectory()
+                                   .getChildFile ("samples")
+                                   .getChildFile ("fire.wav");
+
+    std::unique_ptr<juce::AudioFormatReader> reader (fmt.createReaderFor (wav));
+    if (reader == nullptr)
+        return;                                   // keep silence; processBlock handles a null source
+
+    const int    nCh    = juce::jmax (1, (int) reader->numChannels);
+    const int    nSmp   = (int) reader->lengthInSamples;
+    const double srcRate = reader->sampleRate > 0.0 ? reader->sampleRate : engineRate;
+    if (nSmp <= 0)
+        return;
+
+    // Decode into a temp buffer at the source rate.
+    juce::AudioBuffer<float> tmp (nCh, nSmp);
+    reader->read (&tmp, 0, nSmp, 0, true, true);
+
+    // Resample srcRate -> engineRate per channel, capped at kMaxSourceSeconds.
+    const double ratio   = srcRate / engineRate;  // LagrangeInterpolator speedRatio
+    const int    maxOut  = (int) (kMaxSourceSeconds * engineRate);
+    int          numOut  = (int) std::floor ((double) nSmp / ratio);
+    numOut = juce::jlimit (1, maxOut, numOut);
+
+    auto resampled = std::make_shared<juce::AudioBuffer<float>> (nCh, numOut);
+    resampled->clear();
+    for (int ch = 0; ch < nCh; ++ch)
+    {
+        juce::LagrangeInterpolator interp;       // streaming/one-shot — correct for a whole-buffer resample
+        interp.reset();
+        interp.process (ratio, tmp.getReadPointer (ch), resampled->getWritePointer (ch), numOut);
+    }
+
+    atomicStore (currentSource, std::move (resampled));
 }
 
 void OSimpleGrainAudioProcessor::releaseResources()
 {
-    // Stage 2: release grain-engine resources here.
+    synth.allNotesOff (0, false);
 }
 
 bool OSimpleGrainAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -214,12 +293,62 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Silent shell: clear the output buffer (no grain voices yet — Stage 2).
-    buffer.clear();
+    const int numSamples = buffer.getNumSamples();
+    const int numCh      = buffer.getNumChannels();
+    buffer.clear();                              // grain voices ADD into a cleared buffer
 
-    // Consume MIDI so notes don't queue up. Stage 2 routes these to the grain
-    // engine; for now we simply drain the stream. Allocation-free.
-    juce::ignoreUnused (midiMessages);
+    // --- Snapshot the source buffer ONCE (held alive for the whole block) -----
+    auto src = atomicLoad (currentSource);
+    const float* srcPtr = nullptr;
+    int          srcLen = 0;
+    if (src != nullptr && src->getNumSamples() > 0)
+    {
+        srcPtr = src->getReadPointer (0);        // mono read in 2.1 (channel 0)
+        srcLen = src->getNumSamples();
+    }
+
+    // --- Read APVTS atomics once and push to every voice ---------------------
+    GrainVoiceParams p;
+    p.grainSizeMs = grainSizeParam->load();
+    p.density     = densityParam->load();
+    p.windowShape = (int) windowShapeParam->load();
+    p.grainPitch  = grainPitchParam->load();
+    p.amp = juce::ADSR::Parameters {
+        ampAttackParam->load(), ampDecayParam->load(),
+        ampSustainParam->load(), ampReleaseParam->load() };
+
+    // Static read-head resting point (position-only this phase; scan/freeze 2.2).
+    positionAbsolute = (positionParam->load() / 100.0f) * (float) juce::jmax (1, srcLen);
+
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
+        {
+            gv->setParams (p);
+            gv->setSource (srcPtr, srcLen);
+            gv->setPlayhead (positionAbsolute);
+        }
+
+    // --- Render the grain voices ---------------------------------------------
+    synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
+
+    // --- Master output trim (dB->lin, smoothed) + fixed headroom -------------
+    // Overlapping grains sum; a fixed headroom factor keeps dense clouds below
+    // clipping before the user trim (overlap-aware normalization is a 2.x
+    // refinement — the bounded pool already caps the peak).
+    constexpr float kHeadroom = 0.5f;
+    const float outDb = outputLevelParam->load();
+    outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f) * kHeadroom);
+    const float g0 = outputGain.getCurrentValue();
+    const float g1 = outputGain.skip (numSamples);
+    buffer.applyGainRamp (0, numSamples, g0, g1);
+
+    // --- Suite-wide NaN/Inf insurance ----------------------------------------
+    for (int ch = 0; ch < numCh; ++ch)
+    {
+        auto* d = buffer.getWritePointer (ch);
+        for (int i = 0; i < numSamples; ++i)
+            if (! std::isfinite (d[i])) d[i] = 0.0f;
+    }
 }
 
 //==============================================================================
