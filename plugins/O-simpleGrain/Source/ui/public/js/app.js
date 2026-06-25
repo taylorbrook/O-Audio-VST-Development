@@ -755,7 +755,44 @@ function drawGrainReadout(n) {
   }
 }
 
-// ── Tooltips (mechanism wired now; copy filled in 3.3) ──────────────────────
+// ── Concept-preset tour (FUNC-06) ───────────────────────────────────────────
+// Each button is one snapshot applied in C++ (applyFactoryPreset native fn) as a
+// full APVTS write; the relays/attachments sync every knob/combo/toggle back to
+// the page and the viz reacts on the next timer tick. We only set the caption +
+// the active-button highlight here. data-preset MUST match the C++ preset names.
+const LESSONS = {
+  "Single Grain":       "Single Grain — one long grain fired slowly. Density at the floor keeps grains separated: hear a single slice on its own, the atom of granular synthesis.",
+  "Pitched Buzz":       "Pitched Buzz — tiny grains fired fast and perfectly in sync. The grain rate itself becomes an audible pitch (a comb). Granular can make tone, not just texture.",
+  "Fragments":          "Fragments — medium grains, sparse. You still recognise chunks of the source: the middle ground between one grain and a smooth cloud.",
+  "Smooth Cloud":       "Smooth Cloud — many overlapping Hann grains fuse into one continuous, glassy texture. Overlap-add at work: size × density well above 1.",
+  "Frozen Pad":         "Frozen Pad — Freeze pins the read head; Pitch Spray shimmers the frozen instant into a sustained, evolving pad that never moves through the source.",
+  "Asynchronous Cloud": "Asynchronous Cloud — high Scatter randomises grain timing. The pitched comb dissolves and the spectrum smears into broadband noise: the async end of the axis.",
+  "Granular Fire":      "Granular Fire — the worked example on the crackling-fire recording. A lively grain/spray set turns a field recording into a moving granular bed.",
+  "Rect Click":         "Rect Click — the intentional artifact: a rectangular window has no fade, so every grain edge clicks. Sparse grains let each click stand alone. This is why windows matter.",
+};
+
+let applyPresetFn = null;
+
+async function applyLesson(name) {
+  if (applyPresetFn) {
+    try { await applyPresetFn(name); }
+    catch (e) { console.error("[O-simpleGrain] applyFactoryPreset failed:", e); }
+  }
+  const cap = document.getElementById("tourCaption");
+  if (cap) cap.textContent = LESSONS[name] || "";
+  document.querySelectorAll(".tour-btn").forEach((b) =>
+    b.classList.toggle("active", b.getAttribute("data-preset") === name));
+}
+
+function setupPresets() {
+  try { applyPresetFn = Juce.getNativeFunction("applyFactoryPreset"); }
+  catch (e) { applyPresetFn = null; }
+  document.querySelectorAll(".tour-btn").forEach((btn) => {
+    btn.addEventListener("click", () => applyLesson(btn.getAttribute("data-preset")));
+  });
+}
+
+// ── Tooltips ─────────────────────────────────────────────────────────────────
 function setupTooltips() {
   const tip = document.getElementById("tooltip");
   if (!tip) return;
@@ -907,6 +944,7 @@ function boot() {
 
   bindSourceDrop();
   bindLoadButton();
+  setupPresets();
   setupTooltips();
   setupKeyboard();
 
