@@ -1,13 +1,14 @@
 ---
 plugin: O-simpleGrain
-stage: 2
+stage: 3
 status: complete
-last_updated: 2026-06-24
+last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_3_gui_phase_3_1_layout_controls
-next_stage: 3
+next_action: stage_4_validation_polish
+next_stage: 4
+human_checkpoint_pending: live DAW listen of viz animation + 8 presets + drag-drop (7 runtime criteria DEFERRED from Stage 3 verify)
 ready_for_implementation: true
 gate_pre_stage_1: satisfied (parameter-spec.md finalized; UI mockup DEFERRED to Stage 3 per user decision 2026-06-24)
 contract_checksums:
@@ -21,9 +22,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — ✅ complete
-Status: Full granular engine — builds VST3+AU+Standalone, auval SUCCEEDED, 8/8 offline DSP-correctness harness PASS. Audio thread RT-safe, zero latency. Ready for Stage 3 (GUI).
-Progress: [##########..........] 50%
+Stage: 3 of 4 (GUI) — ✅ complete (code+build; 7 runtime criteria pending human DAW listen)
+Status: Full WebView field-guide UI — all 18 params two-way bound, drag-drop+picker source load, four live visualizations + grain/overlap/CPU readout, per-control tooltips, 8 concept presets. Builds VST3+AU+Standalone clean; **auval SUCCEEDED**; **13/13 statically-verifiable Stage-3 criteria PASS, no defects**. Ready for Stage 4 (Validation/Polish).
+Progress: [###############.....] 75%
 
 ## Phase Progress
 
@@ -45,7 +46,20 @@ Progress: [##########..........] 50%
 | execute (2.1→2.2→2.3) | ✓ | 2026-06-24 |
 | verify | ✓ | 2026-06-24 |
 
+### Stage 3: GUI
+| Phase | Status | Date |
+|-------|--------|------|
+| discuss | ✓ | 2026-06-25 |
+| research | ✓ | 2026-06-25 |
+| plan | ✓ | 2026-06-25 |
+| execute (3.1→3.2→3.3) | ✓ | 2026-06-25 |
+| verify | ✓ (human_needed: 7 runtime criteria deferred to DAW listen) | 2026-06-25 |
+
 ## Completed So Far
+
+**Stage 3 (GUI):** ✓ Complete (code+build) — full Ouaricon-Naturalist "Field Guide" WebView UI in 3 sub-phases. **3.1** production `index.html` + adapted FM CSS base (2×2 viz grid + side control rail + 8-button preset bar + drop zone), PluginEditor rewrite (relays→WebView→attachments; **15 WebSliderRelay + 2 WebComboBoxRelay + 1 WebToggleButtonRelay**, 3-arg attach/nullptr undoManager), bare-path resource provider, 5 fixed-name drag-drop/picker native fns wired, CMake UI-resources binary-data (distinct `UIBinaryData` namespace vs `.wav` `BinaryData`) + WebView flags + Windows `withUserDataFolder`. **3.2** 30 Hz editor Timer consuming the Stage-2 taps → grain-cloud scatter (UI-01), source-waveform live playheads/freeze-pin/spray-band (UI-02, + `getSourceThumbnail` fn), scope+spectrum via message-thread FFT (UI-04, scope copied before in-place FFT), window-envelope inset (UI-03, JS recompute), grain/overlap/CPU readout (UI-05). **3.3** plain-language hover tooltips on every control (33 `data-tip`≡33 `TIPS` keys, FUNC-07), `applyFactoryPreset` with 8 distinct concept snapshots writing APVTS + 8 wired tour buttons (HTML≡C++≡JS name parity, FUNC-06), cloud/waveform annotations. Builds VST3+AU+Standalone clean; **auval SUCCEEDED**; **13/13 statically-verifiable criteria PASS, zero defects**. **DEFERRED to human DAW listen + Stage 4:** audio-driven viz animation, audible preset character, live drag-drop, host-automation round-trip (cannot be driven headlessly).
+
+
 
 **Stage 2 (DSP):** ✓ Complete — full granular engine in 3 sub-phases. **2.1** core engine (8-voice `GrainVoice`, preallocated `std::array<Grain,24>`/voice + steal-oldest, density scheduler, 5 window LUTs, Lagrange read, overlap-add, key-tracked resample, amp ADSR). **2.2** read head (scan/time-stretch/freeze, smoothed/click-free) + per-grain spray/scatter + velToDensity + rate-tracking AA one-pole. **2.3** 4 embedded built-ins (`juce_add_binary_data` + decode/resample + atomic hot-swap) + load-your-own (drag-drop `convertFromBase64` C++ handlers + picker + 10 s cap) + three lock-free viz taps (`VizRing` / `TripleBuffer<GrainCloudFrame>` / `atomic<int>` count). Discuss decisions: procedural samples = shipping built-ins; express run. Builds VST3+AU+Standalone clean; **auval SUCCEEDED**; **8/8 offline DSP-correctness harness PASS** (`tests/render-harness/`, `-DOUARICON_BUILD_TESTS=ON`) — incl. exact MIDI key-tracking (C2/C3/C4 within <1% of `130.81·2^((N−60)/12)`). RT-safe, `setLatencySamples(0)`.
 
@@ -67,10 +81,9 @@ Progress: [##########..........] 50%
 
 ## Next Steps
 
-1. **Stage 3 (GUI)** — WebView UI: layout + 18 controls + cross-platform wiring + load-your-own UI (3.1), the four live visualizations consuming the Stage-2 taps + overlap/CPU readout (3.2), tooltips + preset tour (3.3). The UI mockup is produced here (mockup deferred from pre-Stage-1 per the original decision). Run `/clear` then `/implement O-simpleGrain`.
-2. Wire the registered drag-drop native functions (`dropSessionStart`/`AddFile`/`CommitFile`/`CommitFolder` + `loadSourceFromFileChooser`) into the WebBrowserComponent; pass the `Juce` ES-module namespace (not `window.__JUCE__`) to any shared panel.
-3. (Recommended pre-release) DAW manual-listen pass of the subjective grain character (separated→fused, buzz↔fragments, freeze click-freeness, drag-drop load) — mechanisms are harness-verified; only the subjective listen remains.
-4. Optional: `./build/plugins/O-simpleGrain/tests/render-harness/.../O-simpleGrain-render-test` (after `cmake -DOUARICON_BUILD_TESTS=ON`) to re-run the 8 DSP gates after any engine change.
+1. **Human DAW-listen checkpoint (the 7 deferred Stage-3 runtime criteria)** — load `O-simpleGrain-dev` (`aumu OsGr OuDv`) in a DAW/Standalone with a MIDI keyboard and confirm: grain **cloud accumulates** (density thickens, spray widens); **spectrum shows discrete sidebands at scatter=0** and smears toward noise at high scatter; **scope** moves with output; **grain/overlap/CPU readout** counts `N/192`; **freeze pins the playhead** (❄ pin + shaded spray band); **window inset** redraws on Window combo change; **each of the 8 presets** snaps knobs/combos/toggle + caption/active state; **every control** shows its hover tooltip; **drag-drop a .wav AND Load…** both granulate a user source; **host-automation→UI** round-trip. Any miss folds into Stage 4.
+2. **Stage 4 (Validation/Polish)** — pluginval (VST3+AU) strictness sweep, preset audit, artifact/aliasing/freeze listen audit, drag-drop smoke test (macOS + the Windows config-parity check), changelog. Run `/clear` then `/implement O-simpleGrain`.
+3. Optional: `./build/plugins/O-simpleGrain/tests/render-harness/.../O-simpleGrain-render-test` (after `cmake -DOUARICON_BUILD_TESTS=ON`) to re-run the 8 DSP gates after any engine change.
 
 ## Context to Preserve
 
