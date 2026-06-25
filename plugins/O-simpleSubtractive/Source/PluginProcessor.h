@@ -165,6 +165,11 @@ public:
     // On-screen keyboard: editor injects note on/off from the WebView (Stage 3).
     void handleUiMidi (int noteNumber, bool noteOn, float velocity);
 
+    // Concept-preset tour hook (UI-07). Stage 3 wires the WebView bridge only;
+    // this is a wiring-only STUB. The 8 concept snapshots are filled in Stage 4
+    // (FUNC-06). This is NOT a DSP change — it is bridge wiring.
+    void applyFactoryPreset (const juce::String& name);
+
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;

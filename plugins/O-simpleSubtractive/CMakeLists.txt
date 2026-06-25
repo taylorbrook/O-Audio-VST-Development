@@ -42,9 +42,22 @@ target_include_directories(O-simpleSubtractive
         Source
 )
 
+# WebView UI resources (embedded as BinaryData) — Stage 3 GUI.
+# Single binary-data target → the default BinaryData namespace is fine (only a
+# 2nd target would need a distinct NAMESPACE — O-simpleGrain Stage 3.1 lesson).
+juce_add_binary_data(O-simpleSubtractive_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+)
+
 # Required JUCE modules
 target_link_libraries(O-simpleSubtractive
     PRIVATE
+        O-simpleSubtractive_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats

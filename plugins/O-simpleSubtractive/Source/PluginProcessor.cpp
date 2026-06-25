@@ -229,6 +229,18 @@ void OSimpleSubtractiveAudioProcessor::handleUiMidi (int noteNumber, bool noteOn
 }
 
 //==============================================================================
+// Concept-preset tour (UI-07) — Stage 3 WIRING-ONLY STUB.
+// The WebView's "applyFactoryPreset" native fn forwards a button label here so
+// the tour bridge is live now. The 8 concept snapshots (full-APVTS writes via
+// setValueNotifyingHost, which the relays/attachments sync back to the page)
+// land in Stage 4 (FUNC-06). This method touches NO DSP — it is bridge wiring.
+// Model: O-simpleGrain::applyFactoryPreset (PluginProcessor.cpp).
+void OSimpleSubtractiveAudioProcessor::applyFactoryPreset (const juce::String& name)
+{
+    juce::ignoreUnused (name);   // Stage 4 fills the per-concept snapshots.
+}
+
+//==============================================================================
 // Mono / Legato: drive synth voice 0 directly with last-note priority + glide.
 // mode: 1 = Mono (retrigger), 2 = Legato (slur — suppress retrigger while held).
 void OSimpleSubtractiveAudioProcessor::renderMonoLegato (juce::AudioBuffer<float>& buffer,
