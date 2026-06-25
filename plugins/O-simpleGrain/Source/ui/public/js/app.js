@@ -486,6 +486,19 @@ function drawCloud(f) {
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Axis annotations (Task 3.3-4) — name what the scatter means, faintly.
+  ctx.fillStyle = "rgba(139,115,85,0.5)";
+  ctx.font = "8px Garamond, 'Times New Roman', serif";
+  ctx.textBaseline = "bottom";
+  ctx.textAlign = "left";
+  ctx.fillText("← read position →", 4, h - 3);
+  ctx.save();
+  ctx.translate(9, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.fillText("pitch", 0, 0);
+  ctx.restore();
 }
 
 // ── UI-02: source waveform + playhead / freeze pin / spray range ─────────────
@@ -546,12 +559,31 @@ function drawSourceWaveform(f) {
     ctx.moveTo(x1, 0); ctx.lineTo(x1, h); ctx.stroke();
   }
 
+  // Small annotation for the spray band (Task 3.3-4 — labels the spray range).
+  if (spray > 0.02) {
+    const cx = Math.max(0, Math.min(1, pos)) * w;
+    ctx.fillStyle = "rgba(60,92,26,0.6)";
+    ctx.font = "8px Garamond, 'Times New Roman', serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("spray", cx, 2);
+  }
+
   // Playhead (brown vertical line).
   const ph = Math.max(0, Math.min(1, f.playheadNorm ?? 0));
   const phx = ph * w;
   ctx.strokeStyle = f.frozen ? "rgba(180,120,40,0.95)" : "rgba(92,64,51,0.9)";
   ctx.lineWidth = f.frozen ? 2.5 : 1.5;
   ctx.beginPath(); ctx.moveTo(phx, 0); ctx.lineTo(phx, h); ctx.stroke();
+
+  // Playhead annotation (only when NOT frozen — frozen gets the snowflake pin).
+  if (!f.frozen) {
+    ctx.fillStyle = "rgba(92,64,51,0.7)";
+    ctx.font = "8px Garamond, 'Times New Roman', serif";
+    ctx.textAlign = (phx > w - 36) ? "right" : "left";
+    ctx.textBaseline = "bottom";
+    ctx.fillText("playhead", (phx > w - 36) ? phx - 3 : phx + 3, h - 2);
+  }
 
   // Freeze-pin glyph at the top of the playhead.
   if (f.frozen) {
