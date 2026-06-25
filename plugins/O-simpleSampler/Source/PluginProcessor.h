@@ -7,17 +7,28 @@
 
     Pedagogical keyboard sampler.
 
-    Stage 1 (Foundation): silent 16-voice synth shell. Full 21-parameter APVTS +
-    state persistence (incl. a custom, non-APVTS loaded-source identity). No audio
-    rendering yet (sampler voices / Repitch read head / region / loop / Stretch /
-    Vintage / filter / amp ADSR land Stage 2), no WebView UI yet (minimal
-    placeholder editor for now — Stage 3 brings the UI).
+    Stage 2.1 (Core Playable Sampler): a polyphonic, MIDI-playable sampler — the
+    embedded piano.wav read through a fractional-read varispeed ("Repitch") head,
+    isolated by start/end region, anti-aliased, shaped by a per-voice amp ADSR +
+    VCA + velocity sensitivity, tuned relative to the live Root Key. Decode /
+    resample / atomic-publish of the source happens OFF the audio thread
+    (prepareToPlay / AsyncUpdater). Loop / reverse / Stretch / Vintage / filter
+    land Phase 2.2; viz taps + render-harness land Phase 2.3. WebView UI Stage 3.
 
   ==============================================================================
 */
 
 #pragma once
 #include <JuceHeader.h>
+#include <atomic>
+#include <memory>
+
+// Forward declarations — the custom voice/sound are pulled in only by the .cpp.
+// NB: named Sample{Voice,Sound}, NOT Sampler{Voice,Sound} — juce::SamplerVoice /
+// juce::SamplerSound exist and JuceHeader.h does `using namespace juce;`, so the
+// `Sampler`-prefixed names would be ambiguous (cf. regionStart/regionEnd vs juce::end).
+class SampleVoice;
+class SampleSound;
 
 //==============================================================================
 // Parameter identifiers — single source of truth for APVTS IDs.
@@ -66,7 +77,9 @@ namespace OSimpleSampler::ParamIDs
 }
 
 //==============================================================================
-class OSimpleSamplerAudioProcessor : public juce::AudioProcessor
+class OSimpleSamplerAudioProcessor : public juce::AudioProcessor,
+                                     private juce::AudioProcessorValueTreeState::Listener,
+                                     private juce::AsyncUpdater
 {
 public:
     OSimpleSamplerAudioProcessor();
@@ -122,9 +135,85 @@ public:
 
 private:
     //==========================================================================
+    // Lock-free atomic shared_ptr swap for the source buffer (RESEARCH §4). The
+    // audio thread snapshots the pointer ONCE per block and holds the ref for the
+    // whole block, so a swap mid-block can never free the buffer it is reading. The
+    // decode/resample that builds a new buffer always happens off the audio thread
+    // (prepareToPlay / AsyncUpdater / setStateInformation — never processBlock).
+    template <class T>
+    static std::shared_ptr<T> atomicLoad (const std::shared_ptr<T>& s) noexcept
+    {
+        return std::atomic_load (&s);
+    }
+    template <class T>
+    static void atomicStore (std::shared_ptr<T>& s, std::shared_ptr<T> v) noexcept
+    {
+        std::atomic_store (&s, std::move (v));
+    }
+
+    //==========================================================================
+    // Source decode/resample/publish (Phase 2.1) — ALL off the audio thread.
+
+    // Decode one embedded BinaryData .wav (by built-in index), resample to the
+    // engine rate, cap at kMaxSourceSeconds, and atomic-publish. Returns true on
+    // success. OFF the audio thread (prepareToPlay / sourceSample change).
+    bool loadBuiltInSource (int builtInIndex, double engineRate);
+
+    // Map an "embedded:<name>" identity to its built-in index (0..kNumBuiltIns-1).
+    // Falls back to the live sourceSample choice, then 0 (piano), if unknown.
+    int builtInIndexForIdentity (const juce::String& identity) const;
+
+    // Decode a raw byte block (a complete .wav/.aiff/.flac in memory) through the
+    // format manager, resample, cap, atomic-publish. Invalid reader → keep the
+    // previous source (returns false). OFF the audio thread.
+    bool decodeAndPublish (const void* data, size_t numBytes, double engineRate,
+                           const juce::String& identity);
+
+    // Resample a decoded buffer (srcRate) to engineRate, capped at kMaxSourceSeconds.
+    // Returns a fully-built shared_ptr ready to atomic-publish. Sets `truncated`
+    // when the source exceeded the cap.
+    std::shared_ptr<juce::AudioBuffer<float>>
+        resampleToEngineRate (const juce::AudioBuffer<float>& src, double srcRate,
+                              double engineRate, bool& truncated) const;
+
+    // Seed the LIVE rootKey param to the per-source recorded-pitch root (e.g.
+    // piano = 48). The APVTS rootKey DEFAULT stays 60 (frozen contract); this
+    // overwrites the live value. OFF the audio thread.
+    void seedRootForSource (int builtInIndex);
+
+    // APVTS listener: fires on the message thread when `sourceSample` changes. We
+    // do NOT decode here (the host may call it from any thread) — we
+    // triggerAsyncUpdate() so the decode always runs on the message thread.
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
+
+    // AsyncUpdater: message-thread callback that performs the actual built-in
+    // decode/resample/publish + per-source root seed for the pending selection.
+    void handleAsyncUpdate() override;
+
+    //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    //==========================================================================
+    // The sampler synth: kMaxVoices custom SampleVoice + one shared SampleSound
+    // (built in the ctor). The resampled source buffer is published to the audio
+    // thread via the atomic shared_ptr swap and snapshotted once per block.
+    juce::Synthesiser synth;
+    std::shared_ptr<juce::AudioBuffer<float>> currentSource;
+
+    // Master output trim (dB->lin, 20 ms smoothing) — final stage in processBlock.
+    juce::SmoothedValue<float> outputGain { 1.0f };
+
+    // Pending built-in index for the AsyncUpdater (set by the parameter listener,
+    // consumed on the message thread). -1 = nothing pending.
+    std::atomic<int> pendingBuiltInIndex { -1 };
+
+    // Root-seed guards (RESEARCH §6). A FRESH instance seeds the per-source root
+    // once on the first prepareToPlay (rootSeeded); a RESTORED session keeps its
+    // saved rootKey (stateWasRestored gates the prepare-time seed off).
+    bool stateWasRestored = false;
+    bool rootSeeded       = false;
 
     //==========================================================================
     // Custom non-APVTS state: which source is loaded (built-in name or file path).
@@ -134,6 +223,12 @@ private:
     // placeholder set (ARCHITECTURE: ≈4–6 curated found-sounds); finalized with
     // the embedded .wav assets in Stage 2.3.
     static constexpr const char* kBuiltInNames[kNumBuiltIns] = { "piano", "vocal", "flute", "vinyl" };
+
+    // Per-source recorded-pitch root (engine metadata). piano = 48 (probed f0 ≈
+    // 131.25 Hz; root 60 would play an octave flat). vocal/flute/vinyl are the
+    // intended roots once their real assets land (Stage 2.3 — all fall back to the
+    // piano blob for now, but the root table is already correct per source).
+    static constexpr int kBuiltInRoot[kNumBuiltIns] = { 48, 69, 72, 48 };
 
     //==========================================================================
     // Cached raw-param atomic pointers (assigned in the ctor). Established now;

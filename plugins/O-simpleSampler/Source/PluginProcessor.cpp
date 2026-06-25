@@ -3,15 +3,20 @@
 
     O-simpleSampler - Audio Processor (implementation)
 
-    Stage 1 (Foundation): silent 16-voice synth shell. Builds the full 21-parameter
-    APVTS and persists it alongside a custom loaded-source identity. processBlock
-    clears the buffer and consumes MIDI (no audio until Stage 2). Allocation-free.
+    Stage 2.1 (Core Playable Sampler): a 16-voice juce::Synthesiser of custom
+    SampleVoice Repitch read heads playing the embedded piano.wav. Builds the full
+    21-parameter APVTS, decodes/resamples/atomic-publishes the source OFF the audio
+    thread, and pushes the per-block param bundle (root/tune/fine, region, velToAmp,
+    amp ADSR) to every voice before rendering. Allocation-free in processBlock.
 
   ==============================================================================
 */
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "SampleSound.h"
+#include "SampleVoice.h"
+#include "BinaryData.h"      // embedded piano.wav (Source/samples/piano.wav)
 
 namespace
 {
@@ -178,26 +183,78 @@ OSimpleSamplerAudioProcessor::OSimpleSamplerAudioProcessor()
     ampReleaseParam      = apvts.getRawParameterValue (ampRelease);
     velToAmpParam        = apvts.getRawParameterValue (velToAmp);
     outputLevelParam     = apvts.getRawParameterValue (outputLevel);
+
+    // Build the sampler synth: 16 custom Repitch voices + one shared sound.
+    // Preallocated up front (no audio-thread allocation later). The synth takes
+    // ownership of each voice/sound pointer.
+    for (int i = 0; i < kMaxVoices; ++i)
+        synth.addVoice (new SampleVoice());
+
+    synth.addSound (new SampleSound());          // single shared sound, all notes/channels
+    synth.setNoteStealingEnabled (true);         // steal quietest/oldest voice on overflow
+
+    // Listen for sourceSample selection changes. The decode/resample is dispatched
+    // to the message thread via AsyncUpdater (never the audio thread) — see
+    // parameterChanged / handleAsyncUpdate.
+    apvts.addParameterListener (sourceSample, this);
 }
 
-OSimpleSamplerAudioProcessor::~OSimpleSamplerAudioProcessor() = default;
+OSimpleSamplerAudioProcessor::~OSimpleSamplerAudioProcessor()
+{
+    apvts.removeParameterListener (OSimpleSampler::ParamIDs::sourceSample, this);
+    cancelPendingUpdate();
+}
 
 //==============================================================================
 void OSimpleSamplerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
-    juce::ignoreUnused (samplesPerBlock);
 
     // The sampler design adds no inherent latency (no oversampling / lookahead).
     // NB: getLatencySamples() is non-virtual in JUCE 8 — never override it.
     setLatencySamples (0);
 
-    // Stage 2: synth/voice prepare, source decode/resample, filter/ADSR prepare.
+    // Synthesiser + per-voice prepare. juce::SynthesiserVoice has no virtual
+    // prepareToPlay in JUCE 8 — dispatch the custom one via dynamic_cast.
+    synth.setCurrentPlaybackSampleRate (sampleRate);
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* sv = dynamic_cast<SampleVoice*> (synth.getVoice (v)))
+            sv->prepareToPlay (sampleRate, samplesPerBlock);
+
+    // Output trim (dB->lin, 20 ms smoothing).
+    outputGain.reset (sampleRate, 0.02);
+    outputGain.setCurrentAndTargetValue (
+        juce::Decibels::decibelsToGain (outputLevelParam->load(), -60.0f));
+
+    // Decode + resample the active source to the engine rate, OFF the audio thread,
+    // and publish it via the atomic shared_ptr swap (resample on every prepareToPlay
+    // since the engine rate may change). The active source is either the restored
+    // built-in (identity "embedded:<name>") or — for a user-file path, a Stage 2.3
+    // feature — falls back to the embedded piano for Phase 2.1.
+    if (currentSourceIdentity.startsWith ("embedded:"))
+    {
+        loadBuiltInSource (builtInIndexForIdentity (currentSourceIdentity), sampleRate);
+    }
+    else
+    {
+        currentSourceIdentity = "embedded:piano";
+        loadBuiltInSource (0, sampleRate);
+    }
+
+    // Prepare-time guarded root seed (RESEARCH §6). A FRESH instance (state NOT
+    // restored) seeds the per-source root (piano = 48) ONCE so the keyboard plays
+    // in standard tune; a restored session keeps its saved rootKey (stateWasRestored
+    // gates this off). rootSeeded ensures it runs only on the first prepare.
+    if (! stateWasRestored && ! rootSeeded)
+    {
+        seedRootForSource (builtInIndexForIdentity (currentSourceIdentity));
+        rootSeeded = true;
+    }
 }
 
 void OSimpleSamplerAudioProcessor::releaseResources()
 {
-    // Stage 2: release sampler-engine resources here.
+    synth.allNotesOff (0, false);
 }
 
 bool OSimpleSamplerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -216,17 +273,230 @@ bool OSimpleSamplerAudioProcessor::isBusesLayoutSupported (const BusesLayout& la
     return true;
 }
 
+//==============================================================================
+// Source decode/resample/publish (Phase 2.1). ALL of this runs OFF the audio
+// thread (prepareToPlay, the AsyncUpdater for sourceSample changes, and
+// setStateInformation). The audio thread only ever sees a fully-built buffer
+// published via the atomic shared_ptr swap.
+
+// Map embedded BinaryData symbols by built-in index. For Phase 2.1 only piano.wav
+// is embedded (CONTEXT D1); indices 1–3 fall back to the piano blob so no source
+// selection yields silence. JUCE mangles `piano.wav` -> BinaryData::piano_wav /
+// BinaryData::piano_wavSize.
+namespace
+{
+    struct BuiltInBlob { const char* data; int size; };
+
+    BuiltInBlob builtInBlob (int idx) noexcept
+    {
+        switch (idx)
+        {
+            case 0:  return { BinaryData::piano_wav, BinaryData::piano_wavSize };
+            // TODO(Stage 2.3): real vocal/flute/vinyl blobs. Until those assets are
+            // embedded, indices 1–3 fall back to the piano blob (documented) so no
+            // source selection is silent.
+            default: return { BinaryData::piano_wav, BinaryData::piano_wavSize };
+        }
+    }
+}
+
+int OSimpleSamplerAudioProcessor::builtInIndexForIdentity (const juce::String& identity) const
+{
+    if (identity.startsWith ("embedded:"))
+    {
+        const auto name = identity.fromFirstOccurrenceOf ("embedded:", false, false);
+        for (int i = 0; i < kNumBuiltIns; ++i)
+            if (name == kBuiltInNames[i])
+                return i;
+    }
+    // Fall back to the live choice param, then piano.
+    if (sourceSampleParam != nullptr)
+        return juce::jlimit (0, kNumBuiltIns - 1, (int) sourceSampleParam->load());
+    return 0;
+}
+
+// Resample a decoded buffer (srcRate) to engineRate, capped at the source-length
+// cap. Returns a fully-built shared_ptr ready to publish. `truncated` is set when
+// the source exceeded the cap.
+std::shared_ptr<juce::AudioBuffer<float>>
+OSimpleSamplerAudioProcessor::resampleToEngineRate (const juce::AudioBuffer<float>& src,
+                                                    double srcRate, double engineRate,
+                                                    bool& truncated) const
+{
+    const int    nCh    = juce::jmax (1, src.getNumChannels());
+    const int    nSmp   = src.getNumSamples();
+    const double ratio  = (srcRate > 0.0 ? srcRate : engineRate) / engineRate; // speedRatio
+    const int    maxOut = (int) (kMaxSourceSeconds * engineRate);
+
+    int numOut = (int) std::floor ((double) nSmp / ratio);
+    truncated  = (numOut > maxOut);
+    numOut     = juce::jlimit (1, maxOut, numOut);
+
+    auto out = std::make_shared<juce::AudioBuffer<float>> (nCh, numOut);
+    out->clear();
+    for (int ch = 0; ch < nCh; ++ch)
+    {
+        juce::LagrangeInterpolator interp;       // streaming one-shot — correct for a whole-buffer resample
+        interp.reset();
+        interp.process (ratio, src.getReadPointer (ch), out->getWritePointer (ch), numOut);
+    }
+    return out;
+}
+
+// Decode a raw byte block (a complete .wav/.aiff/.flac file in memory) through the
+// format manager, resample to the engine rate, cap, and atomic-publish. An invalid
+// reader keeps the previous source (returns false).
+bool OSimpleSamplerAudioProcessor::decodeAndPublish (const void* data, size_t numBytes,
+                                                     double engineRate, const juce::String& identity)
+{
+    if (data == nullptr || numBytes == 0)
+        return false;
+
+    juce::AudioFormatManager fmt;
+    fmt.registerBasicFormats();                  // WAV / AIFF / FLAC
+
+    std::unique_ptr<juce::AudioFormatReader> reader (
+        fmt.createReaderFor (std::make_unique<juce::MemoryInputStream> (data, numBytes, false)));
+    if (reader == nullptr)
+        return false;                            // unsupported/invalid — keep the previous source
+
+    const int    nCh     = juce::jmax (1, (int) reader->numChannels);
+    const int    nSmp    = (int) reader->lengthInSamples;
+    const double srcRate = reader->sampleRate > 0.0 ? reader->sampleRate : engineRate;
+    if (nSmp <= 0)
+        return false;
+
+    // Decode at the source rate (1–2 channels; the engine reads channel 0 as mono
+    // and duplicates across the output — see processBlock's snapshot).
+    juce::AudioBuffer<float> tmp (nCh, nSmp);
+    reader->read (&tmp, 0, nSmp, 0, true, true);
+
+    bool truncated = false;
+    auto resampled = resampleToEngineRate (tmp, srcRate, engineRate, truncated);
+    juce::ignoreUnused (truncated);              // 2.1 does not surface truncation (Stage 3 UI notice)
+
+    atomicStore (currentSource, std::move (resampled));   // ATOMIC PUBLISH
+    currentSourceIdentity = identity;
+    return true;
+}
+
+// Decode one embedded built-in by index and publish. OFF the audio thread.
+bool OSimpleSamplerAudioProcessor::loadBuiltInSource (int builtInIndex, double engineRate)
+{
+    builtInIndex = juce::jlimit (0, kNumBuiltIns - 1, builtInIndex);
+    const auto blob = builtInBlob (builtInIndex);
+    const juce::String identity = juce::String ("embedded:") + kBuiltInNames[builtInIndex];
+    return decodeAndPublish (blob.data, (size_t) blob.size, engineRate, identity);
+}
+
+// Seed the LIVE rootKey param to the per-source recorded-pitch root (RESEARCH §6).
+// The APVTS rootKey DEFAULT stays 60 (frozen); this overwrites the live value via
+// the parameter object so the host records it + the UI (Stage 3) syncs. OFF the
+// audio thread.
+void OSimpleSamplerAudioProcessor::seedRootForSource (int builtInIndex)
+{
+    builtInIndex = juce::jlimit (0, kNumBuiltIns - 1, builtInIndex);
+    if (auto* p = apvts.getParameter (OSimpleSampler::ParamIDs::rootKey))
+        p->setValueNotifyingHost (p->convertTo0to1 ((float) kBuiltInRoot[builtInIndex]));
+}
+
+//==============================================================================
+// APVTS listener (message thread, possibly off it depending on host). Never
+// decodes here — defers to the AsyncUpdater so the decode always runs on the
+// message thread (RT-safety: no decode on the audio thread).
+void OSimpleSamplerAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
+{
+    if (parameterID == OSimpleSampler::ParamIDs::sourceSample)
+    {
+        pendingBuiltInIndex.store (juce::jlimit (0, kNumBuiltIns - 1, (int) newValue),
+                                   std::memory_order_relaxed);
+        triggerAsyncUpdate();
+    }
+}
+
+void OSimpleSamplerAudioProcessor::handleAsyncUpdate()
+{
+    const int idx = pendingBuiltInIndex.exchange (-1, std::memory_order_relaxed);
+    if (idx < 0)
+        return;
+
+    // A state restore that lands on a source cancels this pending update
+    // (setStateInformation publishes the restored source then cancelPendingUpdate()s),
+    // so reaching here always means a genuine user sourceSample-choice change — seed
+    // the per-source root so an explicit pick retunes the keyboard.
+    loadBuiltInSource (idx, currentSampleRate);
+    seedRootForSource (idx);
+}
+
+//==============================================================================
 void OSimpleSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                  juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Silent shell: clear the output buffer (no sampler voices yet — Stage 2).
-    buffer.clear();
+    const int numSamples = buffer.getNumSamples();
+    const int numCh      = buffer.getNumChannels();
+    buffer.clear();                              // sampler voices ADD into a cleared buffer
 
-    // Consume MIDI so notes don't queue up. Stage 2 routes these to the sampler
-    // voices; for now we simply drain the stream. Allocation-free.
-    juce::ignoreUnused (midiMessages);
+    // --- Snapshot the source buffer ONCE (held alive for the whole block) -----
+    auto src = atomicLoad (currentSource);
+    const float* srcPtr = (src != nullptr && src->getNumSamples() > 0) ? src->getReadPointer (0) : nullptr;
+    const int    srcLen = (src != nullptr) ? src->getNumSamples() : 0;
+
+    // --- Read APVTS atomics once and build the per-voice param push ----------
+    // Voices never touch the APVTS — the processor reads it here and calls
+    // setParams(...). keyRatio uses the LIVE root/tune/fine (not kRootNote).
+    SamplerVoiceParams p;
+    p.rootKey  = (int) rootKeyParam->load();
+    p.tune     = (int) tuneParam->load();
+    p.fine     = fineParam->load();
+    p.velToAmp = velToAmpParam->load();
+    p.amp = juce::ADSR::Parameters {
+        ampAttackParam->load(), ampDecayParam->load(),
+        ampSustainParam->load(), ampReleaseParam->load() };
+
+    // Region: start/end as % of the source length, in the SOURCE frame. Each NEW
+    // note plays [startSamp, endSamp); the voice clamps its reads via
+    // readSourceLagrange. startSamp clamped to [0, srcLen-1] so the endSamp jlimit
+    // lower bound (startSamp+1) never exceeds srcLen even at start = 100 %.
+    if (srcLen > 0)
+    {
+        const float startPct = juce::jlimit (0.0f, 100.0f, startParam->load());
+        const float endPct   = juce::jlimit (0.0f, 100.0f, endParam->load());
+        p.startSamp = juce::jlimit (0, srcLen - 1, (int) (startPct * 0.01f * (float) srcLen));
+        p.endSamp   = (int) (endPct * 0.01f * (float) srcLen);
+        p.endSamp   = juce::jlimit (p.startSamp + 1, srcLen, p.endSamp);
+    }
+    else
+    {
+        p.startSamp = 0;
+        p.endSamp   = 0;
+    }
+
+    // Push params + the source snapshot to every voice.
+    for (int v = 0; v < synth.getNumVoices(); ++v)
+        if (auto* sv = dynamic_cast<SampleVoice*> (synth.getVoice (v)))
+        {
+            sv->setParams (p);
+            sv->setSource (srcPtr, srcLen);
+        }
+
+    // --- Render the sampler voices -------------------------------------------
+    synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
+
+    // --- Master output trim (dB->lin, smoothed) ------------------------------
+    outputGain.setTargetValue (juce::Decibels::decibelsToGain (outputLevelParam->load(), -60.0f));
+    const float g0 = outputGain.getCurrentValue();
+    const float g1 = outputGain.skip (numSamples);
+    buffer.applyGainRamp (0, numSamples, g0, g1);
+
+    // --- Suite-wide NaN/Inf insurance ----------------------------------------
+    for (int ch = 0; ch < numCh; ++ch)
+    {
+        auto* d = buffer.getWritePointer (ch);
+        for (int i = 0; i < numSamples; ++i)
+            if (! std::isfinite (d[i])) d[i] = 0.0f;
+    }
 }
 
 //==============================================================================
@@ -268,7 +538,38 @@ void OSimpleSamplerAudioProcessor::setStateInformation (const void* data, int si
         currentSourceIdentity = sourceChild.getProperty (
             juce::Identifier (kSourceIdProp), currentSourceIdentity).toString();
 
+    // replaceState() fires the sourceSample listener, which queues an AsyncUpdater
+    // to rebuild a built-in source. That update is deferred (it runs AFTER this
+    // method returns), so we publish the correct source below, then
+    // cancelPendingUpdate() to drop the queued rebuild — otherwise a restored source
+    // would be clobbered by the built-in choice (and its root re-seed) a moment later.
     apvts.replaceState (state);
+
+    // Mark the session restored so the prepare-time root seed (Task 5) is skipped —
+    // the saved rootKey wins on a restored session (we do NOT seed the root here).
+    stateWasRestored = true;
+
+    // Re-decode the active source at the current engine rate so the restored session
+    // sounds the same. A host can restore state AFTER prepareToPlay, so reload here
+    // too. Phase 2.1 has built-ins only; a user-file identity falls back to piano.
+    if (currentSampleRate > 0.0)
+    {
+        if (currentSourceIdentity.startsWith ("embedded:"))
+        {
+            loadBuiltInSource (builtInIndexForIdentity (currentSourceIdentity), currentSampleRate);
+        }
+        else
+        {
+            currentSourceIdentity = "embedded:piano";
+            loadBuiltInSource (0, currentSampleRate);
+        }
+    }
+
+    // Drop the sourceSample-rebuild that replaceState() queued above — the restored
+    // source is already published, so letting the pending built-in load (with its
+    // root re-seed) run would only clobber the restored state.
+    cancelPendingUpdate();
+    pendingBuiltInIndex.store (-1, std::memory_order_relaxed);
 }
 
 //==============================================================================

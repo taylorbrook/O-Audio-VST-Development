@@ -2,13 +2,13 @@
 plugin: O-simpleSampler
 stage: 2
 status: in_progress
-phase: discuss
+phase: execute
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: run_research_phase
+next_action: run_verify_phase
 next_stage: 2
 ready_for_implementation: true
 stage2_decisions:
@@ -25,9 +25,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — 🚧 in progress (discuss ✓)
-Status: Stage 2 discuss complete. Decisions: (D1) embed piano.wav only for now — full curated built-in set deferred to Stage 4; (D2) execute checkpoints after Phase 2.1 (first audio) for a DAW play-test before 2.2/2.3. Next: research phase.
-Progress: [######..............] 28%
+Stage: 2 of 4 (DSP) — 🚧 in progress (discuss ✓, research ✓, plan ✓, execute[2.1] ✓)
+Status: **Phase 2.1 execute COMPLETE — first audio.** Embedded piano.wav + 2nd binary-data target, ported Lagrange/AA helpers, SampleSound+SampleVoice (Repitch read head + AA + amp ADSR + velToAmp), decode→resample→atomic-publish, sourceSample listener→AsyncUpdater + piano root-seed=48, 16-voice synth wiring, restore-aware setStateInformation. Build clean (VST3+AU+Standalone), **auval SUCCEEDED (21 params), pluginval@5 SUCCESS**, installed. NEW gotcha: `SamplerVoice`/`SamplerSound` collide with `juce::SamplerVoice/Sound` under `using namespace juce` → renamed to `SampleVoice`/`SampleSound`. **STOP for DAW play-test (CONTEXT D2)** before 2.2 (loop/Stretch/Vintage/filter) + 2.3 (viz/render-harness). Next: verify phase (then 2.2 execute).
+Progress: [##########..........] 50%
 
 ## Phase Progress
 
@@ -44,10 +44,10 @@ Progress: [######..............] 28%
 | Phase | Status | Date |
 |-------|--------|------|
 | discuss | ✓ CONTEXT.md (2 decisions resolved) | 2026-06-25 |
-| research | → next | |
-| plan | | |
-| execute | | |
-| verify | | |
+| research | ✓ RESEARCH.md (6 open items resolved) | 2026-06-25 |
+| plan | ✓ PLAN.md (Phase 2.1 = 8 tasks; 2.2/2.3 forward scope) | 2026-06-25 |
+| execute | ✓ SUMMARY.md (Phase 2.1 — build+auval+pluginval PASS) | 2026-06-25 |
+| verify | → next (after DAW play-test gate, CONTEXT D2) | |
 
 ## Completed So Far
 
