@@ -321,11 +321,6 @@ private:
     // consumed on the message thread). -1 = nothing pending.
     std::atomic<int> pendingBuiltInIndex { -1 };
 
-    // Set true while restoring a user/dropped source from saved state so the
-    // sourceSample listener's AsyncUpdater does not clobber the restored file
-    // with the built-in choice. Cleared once the restore completes.
-    bool suppressChoiceRebuild = false;
-
     //==========================================================================
     // Cached raw-param atomic pointers (assigned in the ctor). Established now;
     // read once per block by the grain engine in Stage 2. Unused while silent.

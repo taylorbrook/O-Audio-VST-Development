@@ -460,15 +460,9 @@ void OSimpleGrainAudioProcessor::handleAsyncUpdate()
     if (idx < 0)
         return;
 
-    // Guard against a state-restore race: replaceState() fires the sourceSample
-    // listener, but if the restored identity is a user/dropped file we must NOT
-    // clobber it with a built-in. Only the user actively turning the choice knob
-    // (which leaves a stale "embedded:" / file identity) should swap to a
-    // built-in — and selecting a built-in is itself an "embedded:" action, so a
-    // pending built-in load always wins UNLESS we are mid-restore of a user file.
-    if (suppressChoiceRebuild)
-        return;
-
+    // A state restore that lands on a user/dropped file cancels this pending update
+    // (setStateInformation publishes the restored source then cancelPendingUpdate()s),
+    // so reaching here always means a genuine sourceSample-choice change.
     loadBuiltInSource (idx, currentSampleRate);
 }
 
@@ -635,7 +629,7 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     p.pitchSpray     = pitchSprayParam->load();
     p.scatter        = scatterParam->load();
     p.panSpray       = panSprayParam->load();
-    p.velToDensity   = velToDensityParam->load();
+    p.velToDensity   = velToDensityParam->load() * 0.01f;   // 0..100 % → 0..1 depth (GrainVoice consumes a 0..1 depth)
     p.amp = juce::ADSR::Parameters {
         ampAttackParam->load(), ampDecayParam->load(),
         ampSustainParam->load(), ampReleaseParam->load() };
@@ -942,15 +936,13 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
         currentSourceIdentity = sourceChild.getProperty (
             juce::Identifier (kSourceIdProp), currentSourceIdentity).toString();
 
-    // If the restored source is a user/dropped file (not an "embedded:" built-in),
-    // suppress the sourceSample listener's AsyncUpdater so replaceState() does not
-    // clobber the restored file with the built-in choice.
-    const bool restoringUserFile = ! currentSourceIdentity.startsWith ("embedded:");
-    suppressChoiceRebuild = restoringUserFile;
-
+    // replaceState() fires the sourceSample listener, which queues an AsyncUpdater
+    // to rebuild a built-in source. That update is deferred (it runs AFTER this
+    // method returns), so a synchronous "suppress" flag can't gate it. Instead we
+    // publish the correct source below, then cancelPendingUpdate() to drop the
+    // queued rebuild — otherwise a restored user/dropped file would be clobbered by
+    // the built-in choice a moment later.
     apvts.replaceState (state);
-
-    suppressChoiceRebuild = false;
 
     // Re-decode the active source at the current engine rate so the restored
     // session sounds the same. OFF the audio thread (setStateInformation runs on
@@ -981,6 +973,12 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
             }
         }
     }
+
+    // Drop the sourceSample-rebuild that replaceState() queued above (see the note
+    // before replaceState) — the restored source is already published, so letting
+    // the pending built-in load run would only clobber it.
+    cancelPendingUpdate();
+    pendingBuiltInIndex.store (-1, std::memory_order_relaxed);
 }
 
 //==============================================================================
