@@ -61,6 +61,7 @@ Ouaricon Plugins:
 | O-simpleAdditive | ✅ Working | 1.0.2 | Synth (Pedagogical Additive + Wavetable) | 2026-06-25 |
 | O-simpleGrain | ✅ Working | 1.0.0 | Synth (Pedagogical Granular) | 2026-06-25 |
 | O-simpleSubtractive | 🚧 Stage 0 | - | Synth (Pedagogical Subtractive) | 2026-06-25 |
+| O-simpleSampler | 💡 Ideated | - | Synth (Pedagogical Sampler) | 2026-06-25 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
