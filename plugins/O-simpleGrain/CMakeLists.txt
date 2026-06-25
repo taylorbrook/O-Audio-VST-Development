@@ -49,12 +49,40 @@ target_include_directories(O-simpleGrain
         Source
 )
 
-# Stage 3 (GUI): juce_add_binary_data UI resources + ouaricon_add_module here.
-# (No ui/ assets exist yet — adding empty refs would break the build. Deferred.)
+# Stage 3 (GUI): WebView UI resources + shared drag-drop streaming JS.
+#
+# webview-drop-streaming module: the C++ drop handlers are HAND-ROLLED in
+# PluginProcessor.cpp (this plugin does NOT use the module's SessionManager), so
+# ouaricon_add_module here just (a) copies webview-drop-streaming.js into
+# Source/ui/public/modules/ and (b) adds the header-only module C++ to the include
+# path (harmless — never #included). The JS is then embedded below and served at
+# /js/modules/webview-drop-streaming.js by PluginEditor::getResource.
+ouaricon_add_module(O-simpleGrain webview-drop-streaming)
+
+# WebView UI resources (embedded as BinaryData). CRITICAL: this target MUST use a
+# distinct NAMESPACE *and* HEADER_NAME (UIBinaryData) so it does NOT collide with
+# the existing O-simpleGrain_Samples target (which uses NAMESPACE BinaryData /
+# BinaryData.h for the embedded built-in .wavs). A distinct HEADER_NAME alone is
+# insufficient — both targets share the `namedResourceListSize` / `getNamedResource`
+# symbols inside the same namespace, which redefines when one TU includes both.
+# The editor uses UIBinaryData::*; the processor uses BinaryData::* (the .wavs).
+juce_add_binary_data(O-simpleGrain_UIResources
+    NAMESPACE UIBinaryData
+    HEADER_NAME UIBinaryData.h
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/webview-drop-streaming.js
+        Source/ui/public/img/insects.png
+)
 
 # Required JUCE modules
 target_link_libraries(O-simpleGrain
     PRIVATE
+        O-simpleGrain_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
