@@ -6,7 +6,7 @@ last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_validation_polish
+next_action: stage_4_verify
 next_stage: 4
 human_checkpoint_pending: live DAW listen of viz animation + 8 presets + drag-drop (7 runtime criteria DEFERRED from Stage 3 verify)
 ready_for_implementation: true
@@ -59,12 +59,16 @@ Progress: [###############.....] 75%
 | Phase | Status | Date |
 |-------|--------|------|
 | discuss | ✓ | 2026-06-25 |
-| research | → | |
-| plan | | |
-| execute | | |
+| research | ✓ | 2026-06-25 |
+| plan | ✓ | 2026-06-25 |
+| execute | ✓ | 2026-06-25 |
 | verify | | |
 
 **Stage 4 discuss decisions (locked 2026-06-25):** (1) Automated validation FIRST, then human DAW listen (batched checklist at end). (2) Baseline validation only — no new code unless a defect surfaces. (3) Windows deferred entirely to publish/CI. See `stages/4-polish/CONTEXT.md`.
+
+**Stage 4 plan (2026-06-25):** PLAN.md created — 8 tasks (build+install → auval → pluginval Tier A → harness 8-gate → preset desk-check → version bump → CHANGELOG → human-listen handover). **User confirmed: bump 0.1.0 → 1.0.0 now** (both `CMakeLists.txt:17` + harness `JucePlugin_Version*`); CHANGELOG = single 1.0.0 initial-release entry; pluginval Tier A is the gate (Tier B best-effort). Tasks 6+7 = the only product-file diff (one commit). See `stages/4-polish/PLAN.md`.
+
+**Stage 4 execute (2026-06-25):** ✅ Complete. All automated gates GREEN — **auval SUCCEEDED**, **pluginval Tier A SUCCESS** (`--skip-gui-tests --strictness-level 10`, exit 0 on installed VST3), **offline harness 8/8** (exit 0), **8 factory presets** desk-checked in-range/finite/denormal-free. Fresh build installed (`O-simpleGrain-dev`, `aumu OsGr OuDv`); AU cache cleared; dual-variant sweep clean (no orphan). **Version bumped 0.1.0 → 1.0.0** (both CMake files); **CHANGELOG.md** authored (single 1.0.0 entry). **One defect found + fixed (D2):** Stage-3 editor's `UIBinaryData::*` refs broke the render-harness link — fixed by linking `O-simpleGrain_UIResources` in the test CMake (test-only; no product code touched), re-gated 8/8. **7-item DAW-listen checklist handed to user; Stage-4 verify = `human_needed`. Windows deferred-to-CI.** See `stages/4-polish/SUMMARY.md`.
 
 ## Completed So Far
 
