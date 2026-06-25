@@ -3,10 +3,15 @@
 
     O-simpleGrain - Plugin Editor
 
-    Stage 1 (Foundation): MINIMAL placeholder editor — a plain
-    juce::AudioProcessorEditor that paints a "Stage 1 shell" label so the
-    instrument is visibly alive in a host. NO WebView yet (Stage 3 brings the
-    Ouaricon-Naturalist WebView UI, relays/attachments, visualizations).
+    Stage 3 (GUI): single-page Ouaricon "Granular Field Guide" WebView UI.
+    Binds all 18 APVTS parameters two-way via Web*Relay / Web*ParameterAttachment
+    (15 sliders + 2 combo boxes + 1 toggle), serves the embedded field-guide page
+    through a bare-path resource provider, and registers the source drag-drop /
+    file-picker native functions (decode is C++-side on the processor).
+
+    Phase 3.1 wires the layout + controls + load-your-own source. The 30 Hz
+    message-thread Timer is declared here but its body is filled in Phase 3.2
+    (the four live visualizations + grain/overlap/CPU readout).
 
   ==============================================================================
 */
@@ -15,7 +20,8 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
-class OSimpleGrainAudioProcessorEditor : public juce::AudioProcessorEditor
+class OSimpleGrainAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                         private juce::Timer
 {
 public:
     explicit OSimpleGrainAudioProcessorEditor (OSimpleGrainAudioProcessor&);
@@ -25,7 +31,43 @@ public:
     void resized() override;
 
 private:
+    void timerCallback() override;
+
+    // Resource provider — serves embedded UI files (bare-path matching).
+    std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
+
     OSimpleGrainAudioProcessor& processorRef;
+
+    // Message-thread FFT + scope downsampler (audio thread is copy-only into the
+    // VizRing). Consumed by the Timer in Phase 3.2.
+    GrainVizAnalyzer vizAnalyzer;
+
+    // Held alive across the async "Load…" file picker (loadSourceFromFileChooser
+    // is fire-and-forget on the processor; the chooser there owns its own state,
+    // but a UI-initiated dialog kept here would also be held — reserved).
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CRITICAL: member declaration order (C++ destroys in REVERSE)
+    //   1. Relays      — declared first  → destroyed last  (safe)
+    //   2. WebView     — declared second → destroyed second
+    //   3. Attachments — declared last   → destroyed first (WebView alive)
+    // Wrong order = release-build crash on plugin reload (an attachment would
+    // outlive the WebView and call into a freed component).
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 1. RELAYS — 15 sliders + 2 combos + 1 toggle
+    std::vector<std::unique_ptr<juce::WebSliderRelay>>       sliderRelays;
+    std::vector<std::unique_ptr<juce::WebComboBoxRelay>>     comboRelays;
+    std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> toggleRelays;
+
+    // 2. WEBVIEW
+    std::unique_ptr<juce::WebBrowserComponent> webView;
+
+    // 3. ATTACHMENTS
+    std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>>       sliderAttachments;
+    std::vector<std::unique_ptr<juce::WebComboBoxParameterAttachment>>     comboAttachments;
+    std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> toggleAttachments;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleGrainAudioProcessorEditor)
 };
