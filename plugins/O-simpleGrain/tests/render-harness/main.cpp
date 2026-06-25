@@ -28,6 +28,10 @@
       8. uptranspose-stable — grainPitch +24 st (4x up) + high pitch spray on a
                               band-limited source stays finite + bounded (the
                               anti-aliasing stability half of DSP-08).
+      9. velToDensity-depth — velToDensity is a graded depth, not a switch: depth
+                              off -> grain count is velocity-independent; depth full
+                              -> a hard note spawns a denser cloud than a soft one
+                              (guards the 0..100 -> 0..1 scaling).
 
     Exit 0 iff all checks pass. Off by default; -DOUARICON_BUILD_TESTS=ON.
 
@@ -305,7 +309,7 @@ static Spectrum analyze (const std::vector<float>& x, int off, double fs, int or
 // `maxGrains` (out) receives the peak active-grain count seen across the render.
 static std::vector<float> render (OSimpleGrainAudioProcessor& proc,
                                   const std::vector<int>& notes, double seconds, double fs,
-                                  int* maxGrains = nullptr)
+                                  int* maxGrains = nullptr, int velocity = 100)
 {
     const int block = 512;
     const int total = (int) (seconds * fs);
@@ -324,7 +328,7 @@ static std::vector<float> render (OSimpleGrainAudioProcessor& proc,
         if (! sentOn)
         {
             for (int nn : notes)
-                midi.addEvent (juce::MidiMessage::noteOn (1, nn, (juce::uint8) 100), 0);
+                midi.addEvent (juce::MidiMessage::noteOn (1, nn, (juce::uint8) velocity), 0);
             sentOn = true;
         }
 
@@ -592,6 +596,41 @@ int main()
                juce::String ("peak=") + juce::String (pk, 3) + " rms=" + juce::String (r, 4));
         setParam (apvts, PID::sourceSample, 0.0f);
         pumpMessages();
+    }
+
+    // --- 9: velToDensity depth makes the grain count track note velocity -------
+    // Guards the 0..100 → 0..1 scaling of velToDensity: the param is exercised by
+    // NO other gate (resetDefaults pins it to 0), and the scaling bug made it a
+    // hard switch instead of a graded depth. With long, dense grains the live grain
+    // count is directly countable. Depth OFF → count ~velocity-independent; depth
+    // ON (full) → a hard note spawns a visibly denser cloud than a soft note.
+    {
+        auto peakAtVel = [&] (int vel)
+        {
+            proc.releaseResources();
+            proc.prepareToPlay (fs, 512);   // clean voice + grain-count state per measurement
+            int pk = 0;
+            render (proc, { root }, 0.6, fs, &pk, vel);
+            return pk;
+        };
+
+        resetDefaults (apvts);
+        setParam (apvts, PID::density,    80.0f);
+        setParam (apvts, PID::grainSize, 100.0f);   // overlap ~8 grains → countable
+
+        setParam (apvts, PID::velToDensity, 0.0f);  // OFF → velocity must not move density
+        const int offHi = peakAtVel (110);
+        const int offLo = peakAtVel (25);
+
+        setParam (apvts, PID::velToDensity, 100.0f); // full depth → graded by velocity
+        const int onHi = peakAtVel (110);
+        const int onLo = peakAtVel (25);
+
+        const bool offFlat  = std::abs (offHi - offLo) <= 3;   // depth off → ~no velocity effect
+        const bool onSpread = onHi >= onLo + 4 && onHi > offLo; // depth on → hard note denser
+        check ("velToDensity-depth", offFlat && onSpread,
+               juce::String ("off[hi=") + juce::String (offHi) + " lo=" + juce::String (offLo)
+                 + "] on[hi=" + juce::String (onHi) + " lo=" + juce::String (onLo) + "]");
     }
 
     proc.releaseResources();

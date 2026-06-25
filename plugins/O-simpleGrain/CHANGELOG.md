@@ -3,6 +3,43 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.1] — 2026-06-25
+
+Code-review fixes — two correctness bugs, two real-time hot-path simplifications,
+and test coverage for the bug that had none. No parameters, IDs, ranges, or state
+format changed (sessions/presets load unchanged).
+
+### Fixed
+- **Velocity → Density was 100× over-scaled** — a hard switch instead of a graded
+  depth. The `velToDensity` parameter is stored 0–100 (%), but `GrainVoice` consumes
+  it as a 0..1 depth; the processor pushed the raw 0–100 value, so any setting above
+  ~1 % slammed the effective density to its rail (1 or 200) for any non-mid velocity.
+  Now scaled ×0.01 at the push site (`PluginProcessor::processBlock`). The control is
+  smooth across its full travel again. *Root cause: missing unit conversion between
+  the 0–100 % param range and the voice's documented 0..1 depth contract; it escaped
+  Stage-2 validation because the render-harness pinned `velToDensity` to 0.*
+- **Restored "load-your-own" source could be clobbered on session reload.** A
+  user/dropped source restored in `setStateInformation` could be overwritten by the
+  built-in chosen by `sourceSample`, because `replaceState()` queues a deferred
+  `AsyncUpdater` rebuild that ran *after* the synchronous `suppressChoiceRebuild`
+  guard had already been cleared. Now the restore publishes the correct source and
+  then `cancelPendingUpdate()`s the queued rebuild; the ineffective guard flag was
+  removed. *Root cause: a synchronous flag cannot gate a deferred async callback.*
+
+### Changed (performance / internal)
+- **No transcendentals in the per-sample grain render loop.** Equal-power pan gains
+  (`cos`/`sin`) and the anti-aliasing one-pole coefficient (`exp`) are constant for a
+  grain's life but were recomputed every sample for every active grain (up to 192).
+  They are now computed once on spawn and stored on `Grain` (`panL`/`panR`,
+  `aaCoeff`/`aaEngaged`); the inner loop is a multiply / branch + multiply-add.
+  Behaviour is equivalent — purely a hot-loop hoist (CPU win scales with cloud
+  density). The AA bypass edge (`state = x` at rate ≤ 1) is preserved.
+
+### Tests
+- Added render-harness gate **9 (`velToDensity-depth`)**: asserts the grain count is
+  velocity-independent at depth 0 and tracks velocity at full depth — guards the
+  scaling fix above from regressing (the param was previously exercised by no gate).
+
 ## [1.0.0] — 2026-06-25
 
 First release. A pedagogical **granular synthesizer** with a field-guide "Naturalist"

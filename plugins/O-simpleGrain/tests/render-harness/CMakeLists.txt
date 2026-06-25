@@ -52,8 +52,8 @@ target_compile_definitions(O-simpleGrain-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon Audio Development"
     JucePlugin_ManufacturerCode=0x4f754476
     JucePlugin_PluginCode=0x4f734772
-    JucePlugin_VersionString="1.0.0"
-    JucePlugin_VersionCode=0x010000
+    JucePlugin_VersionString="1.0.1"
+    JucePlugin_VersionCode=0x010001
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1
     JucePlugin_ProducesMidiOutput=0

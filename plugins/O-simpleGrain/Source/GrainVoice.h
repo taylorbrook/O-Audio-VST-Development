@@ -227,14 +227,12 @@ public:
 
                 const float env = (windowLuts != nullptr) ? windowLuts->read (g.shape, g.phase) : 0.0f;
                 float src = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
-                src = aaOnePole (src, g.rate, g.aaState);   // band-limit if rate > 1 (DSP-08)
+                src = aaOnePole (src, g.aaCoeff, g.aaEngaged, g.aaState);   // band-limit if rate > 1 (DSP-08)
 
                 const float s = src * env;
-                const float panL = std::cos (g.pan * juce::MathConstants<float>::halfPi);
-                const float panR = std::sin (g.pan * juce::MathConstants<float>::halfPi);
-
-                outL += s * panL;
-                outR += s * panR;
+                // Equal-power pan gains were precomputed on spawn (constant per grain).
+                outL += s * g.panL;
+                outR += s * g.panR;
 
                 g.readPos += g.rate;
                 g.phase   += g.phaseInc;
@@ -318,6 +316,20 @@ private:
         // --- Pan spray: equal-power pan scattered ± panSpray% around centre.
         g.pan = juce::jlimit (0.0f, 1.0f,
             0.5f + (rng.nextFloat() * 2.0f - 1.0f) * (params.panSpray * 0.01f) * 0.5f);
+        // Equal-power gains evaluated ONCE here (constant for the grain's life) —
+        // the render loop just multiplies, no per-sample cos/sin.
+        g.panL = std::cos (g.pan * juce::MathConstants<float>::halfPi);
+        g.panR = std::sin (g.pan * juce::MathConstants<float>::halfPi);
+
+        // --- AA one-pole: engage only for up-transposed grains (rate > 1). The
+        // cutoff fc = 0.5*fs/rate and its smoothing coefficient depend only on rate
+        // (constant per grain), so both are computed ONCE here — no per-sample
+        // std::exp in the render loop (RESEARCH §5 / DSP-08).
+        g.aaEngaged = (g.rate > 1.0f);
+        g.aaCoeff   = g.aaEngaged
+                    ? 1.0f - std::exp (-juce::MathConstants<float>::twoPi
+                             * (0.5f * (float) sampleRate / g.rate) / (float) sampleRate)
+                    : 0.0f;
 
         // AA one-pole state primed to the first read sample so the filter starts
         // settled (no spurious attack transient on up-transposed grains).
@@ -361,23 +373,22 @@ private:
     }
 
     // Anti-aliasing one-pole (RESEARCH §5 / DSP-08). Band-limits up-transposed
-    // grains (rate > 1) before the fractional read crosses Nyquist; bypassed at
-    // rate <= 1 (no down-transposition aliasing). Cutoff tracks playback rate:
-    // fc = 0.5*fs/rate (Nyquist of the source scaled by the read rate). One-pole
-    // y += g*(x - y), g = 1 - exp(-2π*fc/fs). `state` is the per-grain aaState
-    // (primed to the first read sample on spawn). Keeps high pitch-spray grains
-    // clean without global oversampling — zero added latency.
-    float aaOnePole (float x, float rate, float& state) const noexcept
+    // grains before the fractional read crosses Nyquist. The cutoff (fc =
+    // 0.5*fs/rate), its smoothing coefficient, and the engage decision (rate > 1)
+    // are all precomputed ON SPAWN (constant per grain — see spawnGrain), so this
+    // hot-path helper is one branch + one multiply-add, NO transcendental. When not
+    // engaged the read passes through and `state` is kept coherent for a later
+    // engage edge. `state` is the per-grain aaState (primed on spawn). Keeps high
+    // pitch-spray grains clean without global oversampling — zero added latency.
+    static float aaOnePole (float x, float coeff, bool engaged, float& state) noexcept
     {
-        if (rate <= 1.0f)
+        if (! engaged)
         {
             state = x;                          // keep state coherent for the bypass→engage edge
             return x;
         }
 
-        const float fc = 0.5f * (float) sampleRate / rate;
-        const float g  = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * fc / (float) sampleRate);
-        state += g * (x - state);
+        state += coeff * (x - state);           // one-pole y += g*(x - y), g precomputed
         return state;
     }
 
