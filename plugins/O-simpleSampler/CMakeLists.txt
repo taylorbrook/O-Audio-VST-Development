@@ -51,11 +51,10 @@ target_include_directories(O-simpleSampler
 # getNamedResource symbols inside the same namespace (O-simpleGrain Stage-3.1
 # duplicate-symbol link lesson, in MEMORY.md).
 #
-# TODO(Stage 2.3): embed built-in .wav sources (piano/vocal/flute/vinyl) via a
-# SECOND juce_add_binary_data target (NAMESPACE BinaryData / HEADER_NAME
-# BinaryData.h), AFTER juce_generate_juce_header. No .wav blobs exist yet —
-# sourceSample stays a plain choice param for now; loaded-source identity
-# round-trips as custom ValueTree state.
+# Stage 2.1: built-in .wav sources are embedded via a SECOND juce_add_binary_data
+# target (NAMESPACE BinaryData / HEADER_NAME BinaryData.h) added AFTER
+# juce_generate_juce_header below. Currently piano.wav only; vocal/flute/vinyl
+# fall back to the piano blob (documented) until the curated set is sourced.
 
 # Required JUCE modules
 target_link_libraries(O-simpleSampler
@@ -81,6 +80,22 @@ target_link_libraries(O-simpleSampler
 
 # Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
 juce_generate_juce_header(O-simpleSampler)
+
+# Stage 2.1 — embed the built-in source(s) as binary data. MUST come AFTER
+# juce_generate_juce_header. Yields BinaryData::piano_wav / BinaryData::piano_wavSize
+# (filename `piano.wav` -> identifier `piano_wav`). The processor decodes via
+# createReaderFor(MemoryInputStream(...)) + resamples to the engine rate off the
+# audio thread, then atomic-publishes. NAMESPACE BinaryData / HEADER_NAME
+# BinaryData.h — the Stage-3 UI-resources target MUST use a DISTINCT namespace
+# (UIBinaryData) to avoid the duplicate getNamedResource symbol collision.
+# TODO(Stage 2.3): add vocal.wav/flute.wav/vinyl.wav once the curated set is sourced.
+juce_add_binary_data(O-simpleSampler_Samples
+    NAMESPACE BinaryData
+    HEADER_NAME BinaryData.h
+    SOURCES
+        Source/samples/piano.wav)
+
+target_link_libraries(O-simpleSampler PRIVATE O-simpleSampler_Samples)
 
 # Compile definitions
 # WebView2 flags are set at Foundation so Stage 3 (GUI) inherits a correct
