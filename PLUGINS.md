@@ -62,6 +62,7 @@ Ouaricon Plugins:
 | O-simpleGrain | 📦 Installed | 1.0.1 | Synth (Pedagogical Granular) | 2026-06-25 |
 | O-simpleSubtractive | 🚧 Stage 0 | - | Synth (Pedagogical Subtractive) | 2026-06-25 |
 | O-simpleSampler | 💡 Ideated | - | Synth (Pedagogical Sampler) | 2026-06-25 |
+| O-simpleBeatmaker | 💡 Ideated | - | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-06-25 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
