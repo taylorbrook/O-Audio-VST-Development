@@ -1,31 +1,13 @@
 # Research-Planning Agent Memory
 
 ## Learned Patterns
-- O-Prism: Wavetable mipmap anti-aliasing (FFT -> zero bins -> IFFT per octave level) is the industry standard approach used by Serum/Vital/Surge -- always prefer over runtime oversampling for polyphonic synths due to CPU scaling
-- O-Prism: JUCE 8 StateVariableTPTFilter only supports LP/BP/HP natively; notch filter must be implemented as LP+HP sum from the same SVF state
-- O-Prism: For 24dB filter slopes, cascade two StateVariableTPTFilter instances; apply resonance to first stage only to prevent excessive resonance buildup
-- O-Prism: The scala-tuning-engine module v2.1.0 exists at modules/tuning/ with full integration checklist -- always check for shared modules before assuming code needs to be written from scratch
-- O-Prism: Complexity score caps at 5.0 but raw scores (O-Prism raw=14.0) should be documented to convey actual implementation weight
-- O-Prism: For synthesizers, always use IS_SYNTH TRUE + NEEDS_MIDI_INPUT TRUE in CMakeLists.txt (juce8-critical-patterns.md #22) -- omitting causes silent plugin in DAW
-- O-Prism: O-Lyrica provides a proven SynthesiserVoice pattern with TuningEngine pointer and APVTS pointer passed to each voice -- reuse this pattern for new synth plugins
-- O-Prism: Wavetable memory is significant (~20MB per table with float mipmaps); need lazy loading strategy for large factory libraries
-- O-Prism: polyBLEP is near-zero-cost anti-aliasing for classic waveforms (saw/square/triangle) -- preferred for sub oscillators
-
-- O-Gain: juce::dsp::IIR::Coefficients<double> supports raw coefficient constructor (b0,b1,b2,a0,a1,a2) -- use this for ITU-R BS.1770 K-weighting filters instead of factory methods
-- O-Gain: juce::dsp::BallisticsFilter has setAttackTime/setReleaseTime in ms and supports RMS level calculation type -- suitable for VU meter ballistics (300ms attack/release)
-- O-Gain: For measurement-only subsystems (LUFS, true peak), use double precision IIR filters to prevent numerical drift during long accumulations (10-30s Learn sessions)
-- O-Gain: BS.1770 K-weight coefficients are published only for 48kHz; pre-calculate for common sample rates (44100, 48000, 88200, 96000) as a lookup table rather than runtime bilinear transform
-- O-Gain: juce::dsp::Oversampling adds latency to the signal path -- do NOT use for true peak detection in zero-latency plugins; use custom polyphase FIR instead (measurement side-chain only)
-
-
-- O-Formant: juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass(sampleRate, freq, Q) returns std::array<float,6> -- use for custom biquad coefficient computation while keeping state management lightweight
-- O-Formant: For polyphonic synths with many filter instances (5 x 16 = 80), use custom biquad structs (32 bytes each) instead of juce::dsp::IIR::Filter -- ProcessSpec/AudioBlock overhead unacceptable at that scale
-- O-Formant: juce::MPESynthesiserVoice has 6 pure virtual methods: noteStarted(), noteStopped(bool), notePressureChanged(), notePitchbendChanged(), noteTimbreChanged(), renderNextBlock() -- plus noteKeyStateChanged()
-- O-Formant: enableLegacyMode() is on MPESynthesiserBase (which MPESynthesiser extends), not on MPESynthesiser directly -- signature: enableLegacyMode(int pitchbendRange = 2, Range<int> channelRange = Range<int>(1, 17))
-- O-Formant: For source-filter vocal synths, Shepard interpolation (modified IDW) with tunable power beats barycentric/RBF when you have only 5 anchor points -- power parameter doubles as a musical "Focus" control
-- O-Formant: When research docs and parameter-spec disagree on parameter count (22 vs 21), always follow the parameter-spec as the contract -- research docs are informational, not authoritative
-
-
+- O-simpleSubtractive: For a teaching subtractive synth the filter-topology choice is decided by the HEADLINE VISUAL: custom Cytomic ZDF SVF wins over Moog ladder because its digital response equals the analog prototype at the prewarped freq Ω=tan(π·f/fs)/g (Ω=1 exactly at cutoff) — so the closed-form magnitude curve matches the running filter sample-for-sample (QUAL-02 by construction). Same g/k math on audio thread and message-thread curve = no drift.
+- O-simpleSubtractive: SVF gives all 4 modes from one state (LP=v2, BP=v1, HP=x−k·v1−v2, Notch=x−k·v1); 6/12/24 dB = 1/2/4 poles of the SAME structure (FirstOrderTPTFilter / one SVF / cascade ×2 with resonance on stage 1). That "one filter, four shapes, three slopes" IS the pedagogy.
+- O-simpleSubtractive: juce::dsp::StateVariableTPTFilter is LINEAR → cannot sustain self-oscillation (a DSP MUST for subtractive). Need the NONLINEAR Cytomic variant (tanh on resonant integrator path) → clean bounded sine at cutoff at k→0; the tanh IS the gain compensation against resonance-sweep blow-up.
+- O-simpleSubtractive: juce::dsp::LadderFilter AND juce::dsp::Oscillator live in juce_dsp/WIDGETS/ (not processors/). Ladder is lowpass-centric (only fixed LPF/HPF/BPF 12/24 modes, NO notch) → reject for a 4-mode teaching filter. dsp::Oscillator is not band-limited → use custom PolyBLEP.
+- O-simpleSubtractive: PolyBLEP/polyBLAMP is the right AA for a SUBTRACTIVE osc (steady phase increment is exactly its assumption) — the opposite of O-simpleFM where hard PM forced rejecting PolyBLEP. Wavetable mipmaps are overkill for 4 classic waveforms; no oversampling, zero latency.
+- O-simpleSubtractive: Headline filter-curve "moves with the envelope" via a single displayCutoffHz/displayK atomic pair updated from the LEAD (most-recently-triggered) voice each block — keeps ONE readable curve despite 16 voices at different env phases.
+- O-simpleSubtractive: A subtractive sibling of O-simpleFM is a near-verbatim port of VizRing/FmVizAnalyzer/Synthesiser-voice/dual-ADSR/CMake/render-harness; the genuinely-new work is (1) self-oscillating multimode SVF + exact curve, (2) Mono/Legato+glide voice modes (O-simpleFM is poly-only). Score 5.0 capped (raw 11.0) mirrors O-simpleFM.
 - O-Bowed: For physical modeling bowed strings, the friction model is the highest-risk component -- always implement memoryless core tier first (STK-style bow table) and validate basic bowed sound before adding NR-solved enhanced/quality tiers
 - O-Bowed: juce::dsp::DelayLine with Thiran interpolation provides built-in allpass fractional delay -- use this for waveguide strings (flat magnitude response, critical for bowed string harmonics)
 - O-Bowed: When extensive pre-existing research exists (4 documents in research/), the research phase becomes primarily a synthesis and JUCE API mapping exercise rather than a full web-search cycle
@@ -76,4 +58,4 @@
 - JUCE getLatencySamples() is NOT virtual in JUCE 8 -- must use setLatencySamples() instead
 
 ## Last Updated
-2026-06-22 (O-simpleAdditive Stage 0)
+2026-06-25 (O-simpleSubtractive Stage 0)

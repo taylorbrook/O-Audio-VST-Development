@@ -1,54 +1,68 @@
 ---
 plugin: O-simpleSubtractive
-stage: ideation
-status: creative_brief_complete
-last_updated: 2026-06-25 00:00:00
+stage: 0
+status: complete
+last_updated: 2026-06-25
+complexity_score: 5.0
+staged_implementation: true
+orchestration_mode: true
+next_action: invoke_foundation_shell_agent
+next_stage: 1
+ready_for_implementation: true
+contract_checksums:
+  brief: sha256:f9e5eaaafc94bf1f3289806766fe24f609ef2ec9db1ad43cef7295b27694a58c
+  parameter_spec: sha256:0ba50c5956d8db980db071f6f9982de71151dd2f84526407e255e91b0f5f8603
+  architecture: sha256:90af107beec7bbd0eb0e6bc9db5533d6f0d97951a45dc422ae24254a0c22fea3
+  roadmap: sha256:a713331a2b77ca7cf8b2dd274a895d6fa22684966604c145297f6c298f97859e
 ---
 
-# Resume Point
+# O-simpleSubtractive Status
 
-## Current State: Creative Brief Complete
+## Current Position
 
-Creative brief has been finalized for O-simpleSubtractive. Ready to proceed to Stage 0 planning (DSP research + architecture) or a UI mockup.
+Stage: 0 of 4 (Ideation / Research & Planning) — complete
+Status: ARCHITECTURE.md + ROADMAP.md produced; filter topology resolved; ready for Stage 1 (Foundation).
+Progress: [##..................] 10%
 
 ## Completed So Far
 
 **Ideation:** ✓ Complete
-- Core concept defined (pedagogical subtractive synth: osc → filter → amp, two ADSRs)
-- Architecture decided via 4 ideation questions
-- Parameters specified
-- UI vision captured (mirrors O-simpleFM / O-simpleAdditive)
-- Use cases identified
-- Requirements extracted with acceptance criteria
+- Core concept: pedagogical subtractive synth (osc→filter→VCA, two independent ADSRs)
+- Architecture decided via ideation; 24 requirements extracted (must 14 / should 8 / nice 2)
 
-## Key Architecture Decisions (from ideation)
-
-- **Voices:** 16-voice poly + Mono/Legato switch (teaches Minimoog mono AND Juno poly; "a polysynth is several subtractive voices in parallel")
-- **Filter slope:** Full 6/12/24 dB/oct (1/2/4-pole) selectable + self-oscillation
-- **Filter modes:** LP + HP + BP + Notch (state-variable)
-- **Oscillator:** 1 waveform-selectable osc (saw/square/triangle/sine) + octave-down sub + white noise
-- **Headline visual:** live filter-response curve overlaid on the oscillator's harmonic spectrum (the class's "before/after filter" figure, made live)
-- **Pedagogical context:** MUSC319 wk06-wed-subtractive session; A2 activity = build + save a bass and a lead
+**Stage 0:** ✓ Complete
+- Plugin type: Synth (pedagogical subtractive), MIDI-in → audio-out, 16-voice poly / mono / legato, WebView UI
+- Complexity tier 4 escalated toward 6 by first-class real-time filter-curve + FFT/scope viz → research depth MODERATE→DEEP
+- **Filter topology RESOLVED:** custom Cytomic ZDF state-variable filter (all 4 modes + 6/12/24 dB + tanh self-osc + exact closed-form magnitude curve); Moog ladder rejected; linear `StateVariableTPTFilter` kept as Fallback A
+- Anti-aliasing: PolyBLEP/polyBLAMP (composes — steady phase increment); `keyTrack` param added; bipolar filter-env in octaves
+- Professional plugins researched: Minimoog/Moog ladder, TB-303, Prophet/Oberheim SEM (SVF lineage), u-he/Arturia VA, Cytomic
+- JUCE 8 APIs verified against local source (8.0.9): Synthesiser, SynthesiserVoice, ADSR, dsp::StateVariableTPTFilter, dsp::FirstOrderTPTFilter, dsp::LadderFilter, dsp::LookupTableTransform, dsp::FFT, dsp::WindowingFunction, SmoothedValue
+- Complexity score: **5.0** (capped; raw 11.0)
+- Strategy: **staged** (Stage 2 DSP × 3 phases, Stage 3 GUI × 3 phases)
+- ARCHITECTURE.md + ROADMAP.md + Stage-0 CONTEXT.md documented
 
 ## Next Steps
 
-1. Start Stage 0 planning / DSP research (recommended): `/plan O-simpleSubtractive`
-2. Create UI mockup to visualize design: `/start O-simpleSubtractive` → option 3
-3. Research filter topology (Moog ladder vs TPT/SVF) before planning
+1. Stage 1: Foundation — CMake (synth + WebView2 flags) + 20-param APVTS + state persistence (silent shell). Run `/implement O-simpleSubtractive` (or invoke foundation-shell-agent).
+2. Review ARCHITECTURE.md (filter-topology decision + magnitude-curve math) and ROADMAP.md.
+3. Pause here.
 
 ## Context to Preserve
 
-**Key Decisions:**
-- Plugin type: Synth (Pedagogical Subtractive / Oscillator→Filter→Amp)
-- Core concept: Strip subtractive synthesis to osc + filter + amp with one envelope each; gesture→visible-consequence; teaching instrument first
+**Key decisions:**
+- Filter: custom Cytomic ZDF SVF; Notch = input − k·BP; cascade ×2 for 24 dB (resonance on stage 1); 1-pole for 6 dB; tanh self-osc + gain compensation
+- Headline visual: closed-form filter magnitude (`Ω = tan(π·f/fs)/g`) over live output spectrum — same g/k as audio → QUAL-02 by construction
+- Anti-aliasing: PolyBLEP/polyBLAMP; no oversampling; zero latency
+- `keyTrack` added (default 0%); bipolar `filterEnvAmount` in octaves; 20 core params
+- Voice modes via Synthesiser + processor-side MonoController (Mono/Legato + glide) — the new-vs-sibling risk area
+- Highest risk: self-oscillating SVF — build linear filter + curve match FIRST, add self-osc second
 
-**Open research questions (Stage 0):**
-- Filter topology: Moog ladder vs zero-delay TPT/SVF (which gives stable self-oscillation + all four modes + correct magnitude curves)
-- Cutoff key-tracking, velocity routing, PWM, anti-aliasing strategy, self-osc gain compensation
+**Strategy:** complexity 5.0, staged implementation.
 
-**Sibling references:** O-simpleFM (1.2.1, installed), O-simpleAdditive (1.0.0, working), O-simpleGrain (Stage 2) — same pedagogical template.
+**Files created:**
+- plugins/O-simpleSubtractive/.planning/research/ARCHITECTURE.md
+- plugins/O-simpleSubtractive/.planning/ROADMAP.md
+- plugins/O-simpleSubtractive/.planning/stages/0-ideation/CONTEXT.md
+- plugins/O-simpleSubtractive/.planning/STATUS.md (this file)
 
-**Files Created:**
-- plugins/O-simpleSubtractive/.planning/BRIEF.md
-- plugins/O-simpleSubtractive/.planning/REQUIREMENTS.md
-- plugins/O-simpleSubtractive/.planning/STATUS.md
+**Sibling references:** O-simpleFM (primary template), O-simpleAdditive, O-Prism (SVF), O-Bassoon, O-simpleGrain.
