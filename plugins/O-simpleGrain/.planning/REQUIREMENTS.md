@@ -4,14 +4,16 @@
 version: 1.0.0
 plugin: O-simpleGrain
 created: 2026-06-24
-lastUpdated: 2026-06-24
+lastUpdated: 2026-06-25
 ---
 
 ## Overview
 
 **Target Milestone:** v1.0
-**Total Requirements:** 24
-**Coverage:** must: 16 | should: 6 | nice: 2
+**Total Requirements:** 26
+**Coverage:** must: 18 | should: 6 | nice: 2
+
+**Stage-4 verification roll-up (2026-06-25):** ✅ complete: **16** (code + automated-verified — offline harness 8/8, auval SUCCEEDED, pluginval Tier A SUCCESS @ strictness 10, 8 presets in-range) · ⏸️ human_needed: **10** (runtime/audible/visual — live viz motion, audible preset character, click-free freeze, WebView render + host-automation round-trip, live drag-drop → 7-item DAW-listen checklist) · ❌ failed: 0. See `stages/4-polish/VERIFICATION.md`.
 
 ## Requirements
 
@@ -19,57 +21,57 @@ lastUpdated: 2026-06-24
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Granulate a source buffer into overlapping windowed grains summed via overlap-add into a continuous sound | must | pending | stage-2 |
-| FUNC-02 | MIDI-playable, polyphonic instrument — each held note transposes the grain cloud to that pitch | must | pending | stage-2 |
-| FUNC-03 | Freeze pins the read head on one instant and sustains it indefinitely (held pad from one moment) | must | pending | stage-2 |
-| FUNC-04 | Ship curated built-in source samples (incl. a "fire" sound for the class's worked example) selectable from the UI | must | pending | stage-2 |
-| FUNC-05 | Load-your-own source: user can supply a short sound via drag-drop and/or file picker | should | pending | stage-2 |
-| FUNC-06 | Concept-isolating preset tour (single grain, pitched buzz, fragments, smooth cloud, frozen pad, asynchronous cloud, granular fire) | should | pending | stage-3 |
-| FUNC-07 | On-hover pedagogical tooltips on every control (plain-language, class-grounded) | should | pending | stage-3 |
+| FUNC-01 | Granulate a source buffer into overlapping windowed grains summed via overlap-add into a continuous sound | must | complete | stage-2 |
+| FUNC-02 | MIDI-playable, polyphonic instrument — each held note transposes the grain cloud to that pitch | must | complete | stage-2 |
+| FUNC-03 | Freeze pins the read head on one instant and sustains it indefinitely (held pad from one moment) | must | complete | stage-2 |
+| FUNC-04 | Ship curated built-in source samples (incl. a "fire" sound for the class's worked example) selectable from the UI | must | complete | stage-2 |
+| FUNC-05 | Load-your-own source: user can supply a short sound via drag-drop and/or file picker | should | human_needed | stage-2 |
+| FUNC-06 | Concept-isolating preset tour (single grain, pitched buzz, fragments, smooth cloud, frozen pad, asynchronous cloud, granular fire) | should | human_needed | stage-3 |
+| FUNC-07 | On-hover pedagogical tooltips on every control (plain-language, class-grounded) | should | human_needed | stage-3 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Grain Size control crosses the buzz↔fragments continuum (audibly pitched buzz at a few ms, recognizable fragments at tens of ms) | must | pending | stage-2 |
-| DSP-02 | Density control sets overlap depth; raising it fuses discrete grains into a continuous cloud | must | pending | stage-2 |
-| DSP-03 | Five selectable window shapes (rectangular, triangular, Welch, Gaussian, Hann); rectangular audibly clicks, smooth windows do not | must | pending | stage-2 |
-| DSP-04 | Pitch spray and position spray apply independent per-grain randomization (texture shimmers, no two grains identical) | must | pending | stage-2 |
-| DSP-05 | Scatter (grain-period randomness) moves the result from synchronous (discrete sidebands/pitched) to asynchronous (noisy cloud) | must | pending | stage-2 |
-| DSP-06 | Scan / Time-Stretch moves the read head through the source faster/slower than realtime, including reverse and hold | should | pending | stage-2 |
-| DSP-07 | Per-voice amplitude ADSR envelope | must | pending | stage-2 |
-| DSP-08 | Upward transposition is band-limited / anti-aliased so high pitch-spray grains stay clean | should | pending | stage-2 |
+| DSP-01 | Grain Size control crosses the buzz↔fragments continuum (audibly pitched buzz at a few ms, recognizable fragments at tens of ms) | must | complete | stage-2 |
+| DSP-02 | Density control sets overlap depth; raising it fuses discrete grains into a continuous cloud | must | complete | stage-2 |
+| DSP-03 | Five selectable window shapes (rectangular, triangular, Welch, Gaussian, Hann); rectangular audibly clicks, smooth windows do not | must | complete | stage-2 |
+| DSP-04 | Pitch spray and position spray apply independent per-grain randomization (texture shimmers, no two grains identical) | must | complete | stage-2 |
+| DSP-05 | Scatter (grain-period randomness) moves the result from synchronous (discrete sidebands/pitched) to asynchronous (noisy cloud) | must | complete | stage-2 |
+| DSP-06 | Scan / Time-Stretch moves the read head through the source faster/slower than realtime, including reverse and hold | should | complete | stage-2 |
+| DSP-07 | Per-voice amplitude ADSR envelope | must | complete | stage-2 |
+| DSP-08 | Upward transposition is band-limited / anti-aliased so high pitch-spray grains stay clean | should | complete | stage-2 |
 
 ### UI (UI)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Grain cloud scatter — accumulating grains plotted over the source (read-position × time) | must | pending | stage-3 |
-| UI-02 | Source waveform + live playheads, freeze point, and shaded position-spray range | must | pending | stage-3 |
-| UI-03 | Grain-envelope inset — live plot of the selected window shape on one grain | must | pending | stage-3 |
-| UI-04 | Output scope / spectrum showing synchronous (sidebands) vs asynchronous (noise) | should | pending | stage-3 |
-| UI-05 | Live grain-count / CPU readout connecting density × grain size × polyphony to CPU cost | nice | pending | stage-3 |
-| UI-06 | Single clear projector-readable page, no deep menus, consistent with O-simpleFM / O-simpleAdditive | must | pending | stage-3 |
+| UI-01 | Grain cloud scatter — accumulating grains plotted over the source (read-position × time) | must | human_needed | stage-3 |
+| UI-02 | Source waveform + live playheads, freeze point, and shaded position-spray range | must | human_needed | stage-3 |
+| UI-03 | Grain-envelope inset — live plot of the selected window shape on one grain | must | human_needed | stage-3 |
+| UI-04 | Output scope / spectrum showing synchronous (sidebands) vs asynchronous (noise) | should | human_needed | stage-3 |
+| UI-05 | Live grain-count / CPU readout connecting density × grain size × polyphony to CPU cost | nice | human_needed | stage-3 |
+| UI-06 | Single clear projector-readable page, no deep menus, consistent with O-simpleFM / O-simpleAdditive | must | human_needed | stage-3 |
 
 ### Performance (PERF)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing — no allocations or locks in processBlock (preallocated grain pool) | must | pending | stage-2 |
-| PERF-02 | Bounded grain count with graceful voice/grain-stealing so high density × size × polyphony cannot xrun | nice | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing — no allocations or locks in processBlock (preallocated grain pool) | must | complete | stage-2 |
+| PERF-02 | Bounded grain count with graceful voice/grain-stealing so high density × size × polyphony cannot xrun | nice | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
-| COMPAT-02 | Windows WebView2 flags set (`NEEDS_WEBVIEW2 TRUE` + `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-4 |
+| COMPAT-02 | Windows WebView2 flags set (`NEEDS_WEBVIEW2 TRUE` + `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`) | must | complete | stage-4 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No unintended audio artifacts (no zipper on param moves, clean freeze/unfreeze, no clicks except the intentional rectangular-window teaching artifact) | must | pending | stage-2 |
+| QUAL-01 | No unintended audio artifacts (no zipper on param moves, clean freeze/unfreeze, no clicks except the intentional rectangular-window teaching artifact) | must | human_needed | stage-2 |
 
 ## Acceptance Criteria Details
 

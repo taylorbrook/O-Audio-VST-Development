@@ -1,14 +1,14 @@
 ---
 plugin: O-simpleGrain
-stage: 3
-status: complete
+stage: 4
+status: human_needed
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_verify
+next_action: human_daw_listen_then_install_or_publish
 next_stage: 4
-human_checkpoint_pending: live DAW listen of viz animation + 8 presets + drag-drop (7 runtime criteria DEFERRED from Stage 3 verify)
+human_checkpoint_pending: 7-item DAW-listen checklist (viz animation + 8 preset character + click-free freeze + drag-drop + host-automation round-trip) — Stage-4 verify recorded human_needed until confirmed
 ready_for_implementation: true
 gate_pre_stage_1: satisfied (parameter-spec.md finalized; UI mockup DEFERRED to Stage 3 per user decision 2026-06-24)
 contract_checksums:
@@ -22,9 +22,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — ✅ complete (code+build; 7 runtime criteria pending human DAW listen)
-Status: Full WebView field-guide UI — all 18 params two-way bound, drag-drop+picker source load, four live visualizations + grain/overlap/CPU readout, per-control tooltips, 8 concept presets. Builds VST3+AU+Standalone clean; **auval SUCCEEDED**; **13/13 statically-verifiable Stage-3 criteria PASS, no defects**. Ready for Stage 4 (Validation/Polish).
-Progress: [###############.....] 75%
+Stage: 4 of 4 (Validation / Polish) — ✅ verify complete at the automated level; **human_needed** for the 7-item DAW listen.
+Status: **v1.0.0** validated. All 8 automated gates re-run live and PASS (auval SUCCEEDED · pluginval Tier A SUCCESS @ strictness 10 · offline harness 8/8 · 8 presets in-range · CHANGELOG authored · fresh `-dev` install, no orphan · D2 held). 16/26 requirements code+automated-verified; 10 runtime/audible/visual deferred to the human DAW-listen checklist. Windows VST3 deferred-to-CI.
+Progress: [###################.] 95% — automated validation done; DAW listen is the final gate.
 
 ## Phase Progress
 
@@ -62,7 +62,9 @@ Progress: [###############.....] 75%
 | research | ✓ | 2026-06-25 |
 | plan | ✓ | 2026-06-25 |
 | execute | ✓ | 2026-06-25 |
-| verify | | |
+| verify | ✓ (human_needed: 7-item DAW listen) | 2026-06-25 |
+
+**Stage 4 verify (2026-06-25):** ✅ All 8 automated gates RE-RUN LIVE and PASS (not trusted from SUMMARY) — **auval SUCCEEDED**, **pluginval Tier A SUCCESS** (exit 0, 0 FAIL, 21 sections, strictness 10, installed VST3), **offline harness 8/8** (exit 0), **8 presets** desk-checked in-range/finite/denormal-free, **v1.0.0** in both CMake files, **CHANGELOG.md** sibling-structured w/ real Validation results, fresh `-dev` bundles installed with **no orphan**, **D2 held** (product diff = CMakeLists version + new CHANGELOG only). Requirements roll-up: **16/26 code+automated-verified, 10 runtime/audible/visual → human DAW listen**. Verdict **⚠️ PARTIAL — human_needed**: the 7-item DAW-listen checklist is the only remaining gate. Windows deferred-to-CI (D3, not a blocker). See `stages/4-polish/VERIFICATION.md`.
 
 **Stage 4 discuss decisions (locked 2026-06-25):** (1) Automated validation FIRST, then human DAW listen (batched checklist at end). (2) Baseline validation only — no new code unless a defect surfaces. (3) Windows deferred entirely to publish/CI. See `stages/4-polish/CONTEXT.md`.
 
