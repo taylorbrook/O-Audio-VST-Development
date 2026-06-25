@@ -1,13 +1,13 @@
 ---
 plugin: O-simpleGrain
-stage: 1
+stage: 2
 status: complete
 last_updated: 2026-06-24
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_dsp_phase_2_1_core_grain_engine
-next_stage: 2
+next_action: stage_3_gui_phase_3_1_layout_controls
+next_stage: 3
 ready_for_implementation: true
 gate_pre_stage_1: satisfied (parameter-spec.md finalized; UI mockup DEFERRED to Stage 3 per user decision 2026-06-24)
 contract_checksums:
@@ -21,9 +21,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation + Shell) — ✅ complete
-Status: Silent synth shell builds + auval-validated (18 params); ready for Stage 2 (DSP)
-Progress: [#####...............] 28%
+Stage: 2 of 4 (DSP) — ✅ complete
+Status: Full granular engine — builds VST3+AU+Standalone, auval SUCCEEDED, 8/8 offline DSP-correctness harness PASS. Audio thread RT-safe, zero latency. Ready for Stage 3 (GUI).
+Progress: [##########..........] 50%
 
 ## Phase Progress
 
@@ -36,7 +36,18 @@ Progress: [#####...............] 28%
 | execute | ✓ | 2026-06-24 |
 | verify | ✓ | 2026-06-24 |
 
+### Stage 2: DSP
+| Phase | Status | Date |
+|-------|--------|------|
+| discuss | ✓ | 2026-06-24 |
+| research | ✓ | 2026-06-24 |
+| plan | ✓ | 2026-06-24 |
+| execute (2.1→2.2→2.3) | ✓ | 2026-06-24 |
+| verify | ✓ | 2026-06-24 |
+
 ## Completed So Far
+
+**Stage 2 (DSP):** ✓ Complete — full granular engine in 3 sub-phases. **2.1** core engine (8-voice `GrainVoice`, preallocated `std::array<Grain,24>`/voice + steal-oldest, density scheduler, 5 window LUTs, Lagrange read, overlap-add, key-tracked resample, amp ADSR). **2.2** read head (scan/time-stretch/freeze, smoothed/click-free) + per-grain spray/scatter + velToDensity + rate-tracking AA one-pole. **2.3** 4 embedded built-ins (`juce_add_binary_data` + decode/resample + atomic hot-swap) + load-your-own (drag-drop `convertFromBase64` C++ handlers + picker + 10 s cap) + three lock-free viz taps (`VizRing` / `TripleBuffer<GrainCloudFrame>` / `atomic<int>` count). Discuss decisions: procedural samples = shipping built-ins; express run. Builds VST3+AU+Standalone clean; **auval SUCCEEDED**; **8/8 offline DSP-correctness harness PASS** (`tests/render-harness/`, `-DOUARICON_BUILD_TESTS=ON`) — incl. exact MIDI key-tracking (C2/C3/C4 within <1% of `130.81·2^((N−60)/12)`). RT-safe, `setLatencySamples(0)`.
 
 **Ideation:** ✓ Complete — BRIEF.md, REQUIREMENTS.md (24 reqs), parameter-spec-draft.md.
 
@@ -56,10 +67,10 @@ Progress: [#####...............] 28%
 
 ## Next Steps
 
-1. **(Gate) Mockup finalization** — produce the full `parameter-spec.md` (only the draft exists). The mockup becomes the source of truth for the final 18-param set.
-2. Stage 1: Foundation (CMake synth + WebView2 flags, APVTS 18 params, state persistence incl. loaded-source identity, embedded-sample binary-data target; silent shell) — run `/implement O-simpleGrain` (or `/plugin-discuss O-simpleGrain` for the next stage in manual mode).
-3. Review ARCHITECTURE.md and ROADMAP.md.
-4. Pause here.
+1. **Stage 3 (GUI)** — WebView UI: layout + 18 controls + cross-platform wiring + load-your-own UI (3.1), the four live visualizations consuming the Stage-2 taps + overlap/CPU readout (3.2), tooltips + preset tour (3.3). The UI mockup is produced here (mockup deferred from pre-Stage-1 per the original decision). Run `/clear` then `/implement O-simpleGrain`.
+2. Wire the registered drag-drop native functions (`dropSessionStart`/`AddFile`/`CommitFile`/`CommitFolder` + `loadSourceFromFileChooser`) into the WebBrowserComponent; pass the `Juce` ES-module namespace (not `window.__JUCE__`) to any shared panel.
+3. (Recommended pre-release) DAW manual-listen pass of the subjective grain character (separated→fused, buzz↔fragments, freeze click-freeness, drag-drop load) — mechanisms are harness-verified; only the subjective listen remains.
+4. Optional: `./build/plugins/O-simpleGrain/tests/render-harness/.../O-simpleGrain-render-test` (after `cmake -DOUARICON_BUILD_TESTS=ON`) to re-run the 8 DSP gates after any engine change.
 
 ## Context to Preserve
 
