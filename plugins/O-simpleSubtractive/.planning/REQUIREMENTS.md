@@ -24,8 +24,8 @@ lastUpdated: 2026-06-25
 | FUNC-03 | Sub-oscillator (octave-down) and white-noise source mixable under the main oscillator | should | pending | stage-2 |
 | FUNC-04 | Filter envelope routed to cutoff through a bipolar env-amount; amp envelope drives the VCA — two independent ADSRs doing two different jobs | must | pending | stage-2 |
 | FUNC-05 | 16-voice polyphony with a Mono/Legato mode and glide (portamento) for classic lead/bass | should | pending | stage-2 |
-| FUNC-06 | Concept-preset tour (Saw→LP Sweep, Acid Bass 303, Brass Lead, Pluck, Sweep Pad, Self-Oscillation Sine, Hollow Square Bass, Filtered Noise) loadable as factory presets | should | pending | stage-2 |
-| FUNC-07 | Playable/musical enough to double as a simple subtractive instrument (bass, lead, pluck, pad) | nice | pending | stage-4 |
+| FUNC-06 | Concept-preset tour (Saw→LP Sweep, Acid Bass 303, Brass Lead, Pluck, Sweep Pad, Self-Oscillation Sine, Hollow Square Bass, Filtered Noise) loadable as factory presets | should | ✅ done | stage-4 |
+| FUNC-07 | Playable/musical enough to double as a simple subtractive instrument (bass, lead, pluck, pad) | nice | ✅ done | stage-4 |
 
 ### DSP (DSP)
 

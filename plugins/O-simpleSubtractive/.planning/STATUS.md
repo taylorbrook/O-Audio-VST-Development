@@ -1,6 +1,6 @@
 ---
 plugin: O-simpleSubtractive
-stage: 3
+stage: 4
 status: complete
 phase: verify
 workflow_mode: express
@@ -8,8 +8,8 @@ last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_polish
-next_stage: 4
+next_action: install_plugin
+next_stage: done
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:f9e5eaaafc94bf1f3289806766fe24f609ef2ec9db1ad43cef7295b27694a58c
@@ -22,9 +22,24 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — ✅ complete (all 5 phases + critic review, express mode)
-Status: Full WebView teaching UI on the validated synth — 20 params bound (16 sliders + 4 combos), headline filter-curve-over-spectrum + scope + dual-ADSR + signal-path SVG + 30 tooltips + preset hook. AU VALIDATION SUCCEEDED, pluginval s10 SUCCESS, critic NO BLOCKERS. Ready for Stage 4 (Polish).
-Progress: [###############.....] 75%
+Stage: 4 of 4 (Polish) — ✅ complete — **v1.0.0 ready to ship**
+Status: All 4 stages complete. Stage 4 filled the 8-preset concept tour (FUNC-06) and confirmed playability (FUNC-07) with ZERO DSP/parameter change. Build clean (VST3+AU), AU VALIDATION SUCCEEDED, pluginval s10 SUCCESS. CHANGELOG v1.0.0 written. Only manual UAT (on-screen look/feel of preset loads) remains before distribution.
+Progress: [####################] 100%
+
+## Stage 4 (Polish) — ✅ Complete
+
+| Phase | Status | Artifact |
+|-------|--------|----------|
+| discuss | ✓ | stages/4-polish/CONTEXT.md (express auto-gen) |
+| research | ✓ | stages/4-polish/RESEARCH.md (8-snapshot value derivation + osc-mix constraint) |
+| plan | ✓ | stages/4-polish/PLAN.md (T1–T6) |
+| execute | ✓ | stages/4-polish/SUMMARY.md |
+| verify | ✓ | stages/4-polish/VERIFICATION.md (PASS — auval SUCCEEDED, pluginval s10 SUCCESS) |
+
+- **FUNC-06:** 8 concept presets wired live — Saw Sweep · Pluck · Brass Stab · Sweep Pad · Acid Bass · Square Bass · Noise Wind · Self-Oscillation. `applyFactoryPreset` fills the snapshots via `setValueNotifyingHost` (host API → relays/attachments → UI; no DOM poking, no DSP touched). 3-way key parity (HTML/JS/C++) verified.
+- **FUNC-07:** playable as bass/lead/pluck/pad; default state usable; no param-default change.
+- **Load-bearing constraint:** main osc can't be silenced (`main + subLevel·sub + noiseLevel·noise`) → Self-Oscillation uses Sine + `cutoff 261.6 Hz` + `keyTrack 1.0` (in-tune whistle); Noise Wind rejects the Sine carrier below a 1.5 kHz band-pass.
+- Modified: `Source/PluginProcessor.cpp` (preset bodies), `Source/ui/public/index.html` + `js/app.js` (3 new buttons/captions/tooltips), **new** `CHANGELOG.md`.
 
 ## Stage 3 (GUI) — ✅ Complete
 
@@ -65,8 +80,8 @@ Progress: [###############.....] 75%
 
 ## Next Steps
 
-1. **Stage 4: Polish** — fill `applyFactoryPreset` with the 8 concept presets (FUNC-06: Saw→LP Sweep, Acid Bass 303, Brass Lead, Pluck, Sweep Pad, Self-Oscillation Sine, Hollow Square Bass, Filtered Noise — name-parity scaffold already wired), playability pass (FUNC-07), optional N2/N3/N4 cosmetic sweep, final validation. Run `/clear` then `/implement O-simpleSubtractive`.
-2. **Manual UAT before ship:** eyeball the live UI (`/show-standalone O-simpleSubtractive` or in a DAW) — headline curve tracks sweeps, scope morphs, dual-ADSR moves independently, diagram highlights active stage, tooltips projector-readable. (Wiring/math/validation are objectively green; only the on-screen look/feel is unverifiable by automation.)
+1. ✅ **Stage 4: Polish — DONE.** 8-preset tour (FUNC-06) + playability (FUNC-07) shipped; auval SUCCEEDED, pluginval s10 SUCCESS, CHANGELOG v1.0.0. **Next: `/install-plugin O-simpleSubtractive`** (or `/show-standalone` for UAT).
+2. **Manual UAT before ship:** eyeball the 8 preset loads + live UI (`/show-standalone O-simpleSubtractive` or in a DAW) — controls/visuals snap on preset load; Self-Oscillation whistles in tune; Noise Wind is noise-dominant; headline curve tracks sweeps, scope morphs, dual-ADSR independent, tooltips projector-readable. (Wiring/math/validation are objectively green; only the on-screen look/feel is unverifiable by automation.)
 3. The audio→UI contract is in place and validated: lead-voice `displayCutoffHz`/`displayK`/`displayType`/`displaySlope` atomics, `filterEnvValue`/`ampEnvValue` atomics, `VizRing`, `getCurrentSampleRate()`.
 4. UI uses ONE `juce_add_binary_data` target (`O-simpleSubtractive_UIResources`, default `BinaryData` namespace). If Stage 4 embeds presets as a 2nd binary-data target, give it a **distinct NAMESPACE** (O-simpleGrain lesson).
 

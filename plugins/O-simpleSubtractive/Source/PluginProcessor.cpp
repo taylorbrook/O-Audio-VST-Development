@@ -229,15 +229,113 @@ void OSimpleSubtractiveAudioProcessor::handleUiMidi (int noteNumber, bool noteOn
 }
 
 //==============================================================================
-// Concept-preset tour (UI-07) — Stage 3 WIRING-ONLY STUB.
-// The WebView's "applyFactoryPreset" native fn forwards a button label here so
-// the tour bridge is live now. The 8 concept snapshots (full-APVTS writes via
-// setValueNotifyingHost, which the relays/attachments sync back to the page)
-// land in Stage 4 (FUNC-06). This method touches NO DSP — it is bridge wiring.
-// Model: O-simpleGrain::applyFactoryPreset (PluginProcessor.cpp).
+// Concept-preset tour (UI-07 / FUNC-06) — the 8 named patches, each isolating
+// ONE subtractive idea. Writes flow through the public host API
+// (setValueNotifyingHost), so the relays/attachments sync every knob/combo back
+// to the page automatically — no DOM poking, and NO DSP touched here.
+// Model: O-simpleGrain::applyFactoryPreset.
+//
+// Range reminders (createParameterLayout): cutoff 20–20 kHz (Hz); resonance,
+// sustains, keyTrack, sub/noiseLevel 0–1; filterEnvAmount −1…+1 (octaves, bipolar);
+// ADSR times in seconds (0–5). Choice indices — oscWave: 0 Saw 1 Square 2 Triangle
+// 3 Sine; filterType: 0 LP 1 HP 2 BP 3 Notch; filterSlope: 0 = 6 1 = 12 2 = 24 dB;
+// voiceMode: 0 Poly 1 Mono 2 Legato. Names MUST match the data-preset keys in
+// index.html / the LESSONS map in app.js (a mismatch silently no-ops the button).
 void OSimpleSubtractiveAudioProcessor::applyFactoryPreset (const juce::String& name)
 {
-    juce::ignoreUnused (name);   // Stage 4 fills the per-concept snapshots.
+    using namespace OSimpleSubtractive::ParamIDs;
+
+    // 1. Reset every parameter to its default — a clean slate per concept.
+    for (auto* p : getParameters())
+        p->setValueNotifyingHost (p->getDefaultValue());
+
+    // 2. Snapshot helpers (real value → normalised; choices by index).
+    auto setReal = [this] (const char* id, float real) {
+        if (auto* p = parameters.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 (real));
+    };
+    auto setChoice = [this] (const char* id, int index) {
+        if (auto* p = parameters.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 ((float) index));
+    };
+
+    // ── Saw → LP Sweep — the headline subtraction: a bright saw through a 24 dB
+    //    low-pass with a slow filter envelope; harmonics fall under the curve.
+    if (name == "Saw Sweep")
+    {
+        setChoice (oscWave, 0);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 600.0f);  setReal (resonance, 0.25f);  setReal (filterEnvAmount, 0.7f);
+        setReal (filterAttack, 0.40f); setReal (filterDecay, 1.50f); setReal (filterSustain, 0.50f); setReal (filterRelease, 0.60f);
+        setReal (ampAttack, 0.02f); setReal (ampSustain, 0.90f); setReal (ampRelease, 0.40f);
+    }
+    // ── Pluck — a fast filter envelope (short decay, zero sustain) snaps the
+    //    cutoff bright-then-dark over a quick amp decay → percussive.
+    else if (name == "Pluck")
+    {
+        setChoice (oscWave, 0);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 400.0f);  setReal (resonance, 0.35f);  setReal (filterEnvAmount, 0.85f);
+        setReal (filterAttack, 0.002f); setReal (filterDecay, 0.18f); setReal (filterSustain, 0.0f); setReal (filterRelease, 0.15f);
+        setReal (ampAttack, 0.002f); setReal (ampDecay, 0.35f); setReal (ampSustain, 0.0f); setReal (ampRelease, 0.18f);
+    }
+    // ── Brass Stab — positive filter-env amount opens the cutoff with the attack
+    //    and holds; key-track makes brightness follow pitch like a blown brass.
+    else if (name == "Brass Stab")
+    {
+        setChoice (oscWave, 0);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 700.0f);  setReal (resonance, 0.20f);  setReal (filterEnvAmount, 0.6f);  setReal (keyTrack, 0.30f);
+        setReal (filterAttack, 0.04f); setReal (filterDecay, 0.25f); setReal (filterSustain, 0.70f); setReal (filterRelease, 0.20f);
+        setReal (ampAttack, 0.02f); setReal (ampDecay, 0.20f); setReal (ampSustain, 0.75f); setReal (ampRelease, 0.15f);
+    }
+    // ── Sweep Pad — slow amp swell + a long, deep filter sweep open the spectrum
+    //    over seconds. Pads live in slow envelopes.
+    else if (name == "Sweep Pad")
+    {
+        setChoice (oscWave, 0);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 350.0f);  setReal (resonance, 0.18f);  setReal (filterEnvAmount, 0.8f);
+        setReal (filterAttack, 1.80f); setReal (filterDecay, 2.50f); setReal (filterSustain, 0.60f); setReal (filterRelease, 1.50f);
+        setReal (ampAttack, 1.20f); setReal (ampDecay, 1.00f); setReal (ampSustain, 0.85f); setReal (ampRelease, 1.40f);
+    }
+    // ── Acid Bass (303) — high resonance + a snappy filter envelope on a saw
+    //    through a 24 dB low-pass; mono with a touch of glide → the squelch.
+    else if (name == "Acid Bass")
+    {
+        setChoice (oscWave, 0);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 300.0f);  setReal (resonance, 0.78f);  setReal (filterEnvAmount, 0.85f);  setReal (keyTrack, 0.15f);
+        setReal (filterAttack, 0.003f); setReal (filterDecay, 0.22f); setReal (filterSustain, 0.10f); setReal (filterRelease, 0.15f);
+        setReal (ampAttack, 0.003f); setReal (ampDecay, 0.40f); setReal (ampSustain, 0.70f); setReal (ampRelease, 0.12f);
+        setChoice (voiceMode, 1);  setReal (glide, 0.06f);
+    }
+    // ── Hollow Square Bass — odd-harmonic square + sub one octave down for
+    //    weight, played mono. The same voice a polysynth stacks in parallel.
+    else if (name == "Square Bass")
+    {
+        setChoice (oscWave, 1);  setReal (subLevel, 0.50f);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 500.0f);  setReal (resonance, 0.20f);  setReal (filterEnvAmount, 0.4f);
+        setReal (filterAttack, 0.005f); setReal (filterDecay, 0.25f); setReal (filterSustain, 0.30f); setReal (filterRelease, 0.15f);
+        setReal (ampAttack, 0.004f); setReal (ampDecay, 0.30f); setReal (ampSustain, 0.85f); setReal (ampRelease, 0.12f);
+        setChoice (voiceMode, 1);
+    }
+    // ── Filtered Noise (wind) — noise source up, band-passed with no harmonic
+    //    source. The osc is a Sine well below the 1.5 kHz pass-band (rejected),
+    //    so the ear hears sculpted air. Slow envelopes swell it like breath.
+    else if (name == "Noise Wind")
+    {
+        setChoice (oscWave, 3);  setReal (noiseLevel, 1.0f);  setChoice (filterType, 2);  setChoice (filterSlope, 2);
+        setReal (cutoff, 1500.0f);  setReal (resonance, 0.45f);  setReal (filterEnvAmount, 0.2f);  setReal (keyTrack, 0.50f);
+        setReal (filterAttack, 0.80f); setReal (filterDecay, 1.20f); setReal (filterSustain, 0.70f); setReal (filterRelease, 1.00f);
+        setReal (ampAttack, 0.60f); setReal (ampDecay, 0.80f); setReal (ampSustain, 0.80f); setReal (ampRelease, 0.90f);
+    }
+    // ── Self-Oscillation Sine — resonance at the limit: the filter rings into a
+    //    pure sine. cutoff = C4 (ref note 60) with keyTrack = 100 % → fcEff tracks
+    //    the keyboard chromatically, so the whistle plays in tune. Env amount 0
+    //    keeps it a steady tone; a Sine source reinforces (osc can't be silenced).
+    else if (name == "Self-Oscillation")
+    {
+        setChoice (oscWave, 3);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 261.63f);  setReal (resonance, 1.0f);  setReal (filterEnvAmount, 0.0f);  setReal (keyTrack, 1.0f);
+        setReal (filterSustain, 1.0f);
+        setReal (ampAttack, 0.05f); setReal (ampDecay, 0.20f); setReal (ampSustain, 0.90f); setReal (ampRelease, 0.40f);
+    }
 }
 
 //==============================================================================
