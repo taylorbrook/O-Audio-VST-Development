@@ -773,6 +773,137 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 }
 
 //==============================================================================
+// Concept-preset tour (Stage 3.3 / FUNC-06). Eight factory snapshots, each
+// isolating ONE granular concept. Every preset resets to defaults first (so it
+// reproduces regardless of prior state), then applies its named snapshot via
+// setValueNotifyingHost — real (scaled) floats through convertTo0to1, choices /
+// bool through their index. The WebView relays/attachments propagate every change
+// back to the page (no DOM poking). Mirrors O-simpleAdditive::applyFactoryPreset.
+//
+// Stored-range reminders (parameter-spec.md): position / *Spray / scatter /
+// velToDensity are 0–100; grainSize 2–200 ms; density 1–200 g/s; scan ±200 %;
+// grainPitch ±24 st; pitchSpray 0–12 st; ampSustain stored 0–1 (NOT %);
+// ADSR times in seconds. Choice indices — sourceSample: 0=fire 1=voice 2=water
+// 3=piano; windowShape: 0=Rect 1=Tri 2=Welch 3=Gauss 4=Hann.
+void OSimpleGrainAudioProcessor::applyFactoryPreset (const juce::String& name)
+{
+    using namespace OSimpleGrain::ParamIDs;
+
+    // 1. Reset every parameter to its default — a clean slate per concept.
+    for (auto* p : getParameters())
+        p->setValueNotifyingHost (p->getDefaultValue());
+
+    // 2. Snapshot helpers (scaled → normalised; choices/bool by index).
+    auto setReal = [this] (const char* id, float real) {
+        if (auto* p = apvts.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 (real));
+    };
+    auto setChoice = [this] (const char* id, int index) {
+        if (auto* p = apvts.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 ((float) index));
+    };
+    auto setBool = [this] (const char* id, bool on) {
+        if (auto* p = apvts.getParameter (id))
+            p->setValueNotifyingHost (on ? 1.0f : 0.0f);
+    };
+
+    // ── Single Grain — isolate ONE grain: a long grain fired once per "tick".
+    //    grainSize huge, density at the floor → the ear hears separated grains,
+    //    not a stream. The atom of granular synthesis.
+    if (name == "Single Grain")
+    {
+        setReal   (grainSize, 60.0f);
+        setReal   (density,   1.0f);          // floor → fully separated grains
+        setChoice (windowShape, 4);           // Hann — clean, click-free grain
+        setReal   (ampAttack, 0.01f);
+        setReal   (ampRelease, 0.6f);
+    }
+    // ── Pitched Buzz — fast, perfectly synchronous, tiny grains. The grain rate
+    //    itself becomes an audible pitch (the comb), scatter=0 keeps it discrete.
+    else if (name == "Pitched Buzz")
+    {
+        setReal   (grainSize, 6.0f);          // very short
+        setReal   (density,   180.0f);        // fast → grain rate = pitch
+        setReal   (scatter,   0.0f);          // synchronous → discrete sidebands
+        setChoice (windowShape, 4);           // Hann
+        setReal   (ampSustain, 1.0f);
+    }
+    // ── Fragments — medium grains, sparse. You still recognise chunks of the
+    //    source — the in-between of single-grain and a smooth cloud.
+    else if (name == "Fragments")
+    {
+        setReal   (grainSize, 90.0f);         // recognisable source chunks
+        setReal   (density,   8.0f);
+        setReal   (positionSpray, 25.0f);     // scatter the reads a little
+        setChoice (windowShape, 4);           // Hann
+        setReal   (ampSustain, 1.0f);
+    }
+    // ── Smooth Cloud — many overlapping Hann grains fuse into one continuous,
+    //    glassy texture. Overlap-add in action (grainSize × density ≫ 1).
+    else if (name == "Smooth Cloud")
+    {
+        setReal   (grainSize, 50.0f);
+        setReal   (density,   140.0f);        // dense overlap → fused, continuous
+        setChoice (windowShape, 4);           // Hann — smooth crossfades
+        setReal   (positionSpray, 12.0f);
+        setReal   (ampAttack, 0.3f);
+        setReal   (ampSustain, 1.0f);
+        setReal   (ampRelease, 0.8f);
+    }
+    // ── Frozen Pad — freeze pins the read head; pitchSpray shimmers it into a
+    //    sustained, evolving pad that never moves through the source.
+    else if (name == "Frozen Pad")
+    {
+        setBool   (freeze,    true);          // pin the read head on one instant
+        setReal   (density,   90.0f);
+        setReal   (grainSize, 55.0f);
+        setReal   (pitchSpray, 4.0f);         // shimmer the frozen instant
+        setReal   (panSpray,  60.0f);         // widen it
+        setChoice (windowShape, 4);
+        setReal   (ampAttack, 0.5f);
+        setReal   (ampSustain, 1.0f);
+        setReal   (ampRelease, 1.5f);
+    }
+    // ── Asynchronous Cloud — high scatter randomises the grain period; the comb
+    //    dissolves and the spectrum smears toward broadband noise (sync→async).
+    else if (name == "Asynchronous Cloud")
+    {
+        setReal   (scatter,   100.0f);        // fully asynchronous → noisy
+        setReal   (density,   130.0f);
+        setReal   (grainSize, 40.0f);
+        setReal   (positionSpray, 40.0f);
+        setChoice (windowShape, 4);
+        setReal   (ampSustain, 1.0f);
+    }
+    // ── Granular Fire — the worked example on the crackling-fire source: a lively
+    //    grain/spray set that turns a field recording into a moving granular bed.
+    else if (name == "Granular Fire")
+    {
+        setChoice (sourceSample, 0);          // fire
+        setReal   (grainSize, 35.0f);
+        setReal   (density,   110.0f);
+        setReal   (position,  30.0f);
+        setReal   (scan,      40.0f);         // slowly travel through the recording
+        setReal   (positionSpray, 30.0f);
+        setReal   (pitchSpray, 2.0f);
+        setReal   (panSpray,  45.0f);
+        setChoice (windowShape, 4);
+        setReal   (ampSustain, 1.0f);
+    }
+    // ── Rect Click — the intentional teaching artifact: a rectangular window has
+    //    no fade, so every grain edge CLICKS. Sparse + medium so each click is
+    //    audible on its own (a feature, not a bug).
+    else if (name == "Rect Click")
+    {
+        setChoice (windowShape, 0);           // Rectangular → hard edges = clicks
+        setReal   (grainSize, 45.0f);
+        setReal   (density,   6.0f);          // sparse → each click stands alone
+        setReal   (ampSustain, 1.0f);
+    }
+    // Unknown name → leave at defaults (already reset above).
+}
+
+//==============================================================================
 juce::AudioProcessorEditor* OSimpleGrainAudioProcessor::createEditor()
 {
     return new OSimpleGrainAudioProcessorEditor (*this);

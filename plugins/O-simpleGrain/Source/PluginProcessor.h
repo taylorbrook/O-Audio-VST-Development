@@ -153,6 +153,17 @@ public:
     // notice in Stage 3). Cleared on each successful load that did not truncate.
     bool wasLastLoadTruncated() const noexcept { return lastLoadTruncated.load (std::memory_order_relaxed); }
 
+    //==========================================================================
+    // Concept-preset tour (Stage 3.3 / FUNC-06). Eight factory snapshots, each
+    // isolating ONE granular concept. Applied as a full APVTS snapshot via
+    // setValueNotifyingHost so (a) the host records automation + state-save, and
+    // (b) the WebView relays/attachments sync every knob/combo/toggle back to the
+    // page automatically — no DOM poking. The editor registers an
+    // "applyFactoryPreset" native fn that forwards the button label here. Message
+    // thread (native-fn callback); the audio thread sees the change via the
+    // parameter atomics like any host automation. Mirrors O-simpleAdditive.
+    void applyFactoryPreset (const juce::String& name);
+
     // A min/max envelope (~`numPairs` pairs) of the currently-published source,
     // for the UI-02 source-waveform background. Returns a flat vector
     // [min,max,min,max,…] in [-1,1]; empty if no source is loaded. Read-only
