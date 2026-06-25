@@ -161,6 +161,14 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
             arr.ensureStorageAllocated ((int) env.size());
             for (float v : env) arr.add (v);
             complete (juce::var (std::move (arr)));
+        })
+        // Concept-preset tour (FUNC-06). Forwards the button label to the
+        // processor's full-APVTS snapshot; the relays/attachments sync every
+        // knob/combo/toggle back to the page automatically (no DOM poking).
+        .withNativeFunction ("applyFactoryPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+                processorRef.applyFactoryPreset (args[0].toString());
+            complete (juce::var (true));
         });
 
    #if JUCE_WINDOWS
