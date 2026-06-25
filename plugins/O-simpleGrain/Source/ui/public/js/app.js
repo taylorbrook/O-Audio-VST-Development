@@ -43,8 +43,94 @@ const FORMAT = {
   outputLevel: (v) => `${v.toFixed(1)} dB`,
 };
 
-// ── Tooltip copy — minimal stubs this phase; full pedagogical copy lands in 3.3
-const TIPS = {};
+// ── Tooltip copy (FUNC-07) — plain-language, class-grounded hover copy for EVERY
+// control + the load action, the drop zone, the four visualizations, the readout,
+// and the eight concept presets. Keyed by the data-tip attribute on each element;
+// each entry is [title, bodyHTML]. Tone = field-guide, not jargon: every tip names
+// the concept AND a concrete consequence you can hear/see.
+const TIPS = {
+  // ── Source ────────────────────────────────────────────────────────────────
+  sourceSample: ["Source Sample",
+    "The short sound the synth chops into grains. Granular synthesis never makes tone from scratch — it sprinkles tiny slices of <em>this</em> recording. Pick fire, voice, water, or piano; or drop your own below."],
+  loadSource: ["Load your own",
+    "Open a file picker to granulate any short <code>.wav</code> / <code>.aif</code> (capped at 10&nbsp;s). The same grain controls then operate on your sound — the engine doesn't care what the source is."],
+  dropZone: ["Drop a source",
+    "Drag a <code>.wav</code> / <code>.aif</code> here to granulate your own sound. Files over 10&nbsp;s are trimmed (you'll see a notice). Try a spoken word or a field recording — granular makes textures out of anything."],
+
+  // ── Grain ─────────────────────────────────────────────────────────────────
+  grainSize: ["Grain Size",
+    "How long each slice is, 2–200&nbsp;ms. This is the buzz&nbsp;&harr;&nbsp;fragments axis: very short grains (a few&nbsp;ms) lose the source and turn to tone; long grains (&gt;60&nbsp;ms) keep recognisable chunks. With Density it sets how deeply grains <strong>overlap</strong> (overlap = size&nbsp;&times;&nbsp;density)."],
+  density: ["Density",
+    "Grains fired per second, 1–200. Sparse = you hear separated grains; dense = they fuse into a continuous cloud. Overlap-add only sounds smooth when many grains overlap, so Density and Size work together (watch the Overlap readout)."],
+  position: ["Position",
+    "Where in the source the read head rests, 0–100&nbsp;%. It's the point grains are sliced from — sweep it to scrub through the recording. Pairs with Scan (which moves the head) and Freeze (which pins it)."],
+  scan: ["Scan / Time-Stretch",
+    "How fast the read head travels, &minus;200…+200&nbsp;%. 0&nbsp;% holds on one instant; below 100&nbsp;% stretches the source in time without changing pitch; negative scans <em>backwards</em>. This is granular time-stretch."],
+  freeze: ["Freeze",
+    "Pins the read head on the current instant and sustains it forever — the grain stream keeps flowing but never advances through the source. Add Pitch Spray for a shimmering frozen pad. The pin crossfades in, so no click."],
+
+  // ── Window ────────────────────────────────────────────────────────────────
+  windowShape: ["Window Shape",
+    "The fade envelope on each grain. Hann/Gauss fade in and out smoothly so overlapping grains crossfade cleanly. <strong>Rectangular has no fade</strong> — every grain edge is a hard step, which clicks. Try Rect to hear <em>why</em> windows exist (it's a lesson, not a bug)."],
+
+  // ── Spray & Scatter ───────────────────────────────────────────────────────
+  pitchSpray: ["Pitch Spray",
+    "Random per-grain transposition, 0–12&nbsp;st. Each grain is nudged up/down by a random amount, so a frozen or static texture starts to shimmer and thicken instead of sitting on one dead pitch."],
+  positionSpray: ["Position Spray",
+    "Random per-grain read position, 0–100&nbsp;%. Scatters where each grain is sliced from around the Position point — turns a tight read into a wash drawn from a whole region of the source (shown as the green band on the waveform)."],
+  scatter: ["Scatter",
+    "Randomises the <em>timing</em> of grains, 0–100&nbsp;%. This is the synchronous&nbsp;&harr;&nbsp;asynchronous axis: at 0&nbsp;% grains fire on a perfect clock (a pitched comb, discrete sidebands); high scatter dissolves the comb into broadband noise. Watch the Spectrum."],
+  grainPitch: ["Grain Pitch",
+    "Global transposition of every grain, &minus;24…+24&nbsp;st. Stacks on top of MIDI key-tracking and Pitch Spray — shift the whole cloud up an octave without touching the keyboard."],
+  panSpray: ["Pan Spray",
+    "Per-grain stereo spread, 0–100&nbsp;%. At 0 every grain is centred; raise it and grains scatter left/right (equal-power), widening a mono source into an immersive stereo cloud."],
+  velToDensity: ["Velocity → Density",
+    "How much your playing velocity drives Density, 0–100&nbsp;%. At 0 density is fixed; raise it and harder keys spawn thicker clouds (loudness already follows velocity through the amp envelope — this adds <em>thickness</em> on top)."],
+
+  // ── Amplitude envelope ─────────────────────────────────────────────────────
+  ampAttack: ["Amp Attack",
+    "How quickly a note fades in, 0–5&nbsp;s. This is the per-<em>voice</em> envelope over the whole grain stream — short for percussive, long for a pad swell. (Each grain has its own tiny Window envelope; this is the bigger one.)"],
+  ampDecay: ["Amp Decay",
+    "How the note falls from its attack peak toward the sustain level, 0–5&nbsp;s. Together with Sustain it shapes the body of a held note."],
+  ampSustain: ["Amp Sustain",
+    "The level a held note settles at after the attack/decay, 0–100&nbsp;%. 100&nbsp;% holds full volume while a key is down; lower it for notes that bloom then back off."],
+  ampRelease: ["Amp Release",
+    "How long the note fades out after you let go, 0–5&nbsp;s. Long release lets clouds ring on and overlap into the next note — granular pads love a generous release."],
+
+  // ── Output ─────────────────────────────────────────────────────────────────
+  outputLevel: ["Output Level",
+    "Master volume trim, &minus;&infin;…0&nbsp;dB. Dense overlapping clouds can pile up energy, so trim here if a thick patch peaks. (Headroom normalisation upstream already tames the worst of it.)"],
+
+  // ── Visualizations ─────────────────────────────────────────────────────────
+  vizCloud: ["Grain Cloud",
+    "Every grain that spawns drops a sepia dot — horizontal = where in the source it was read, vertical = its pitch, dot size = grain length. Raise Density and the cloud thickens; raise the sprays and it spreads out."],
+  vizWave: ["Source Waveform",
+    "The loaded source drawn as a waveform. The brown line is the live read head (Position + Scan), the green band is the Position-Spray range grains are drawn from, and a snowflake pins the head when Freeze is on."],
+  vizScope: ["Output Scope",
+    "The actual audio coming out, plotted as a waveform. Useful for spotting the hard edges of a rectangular window (the clicks) versus the smooth crossfades of Hann."],
+  vizSpectrum: ["Spectrum",
+    "The frequency content of the output. At Scatter&nbsp;0 you'll see discrete spikes (the synchronous grain comb — a pitched sound); push Scatter up and the spikes smear into a continuous noise floor. The sync&nbsp;&rarr;&nbsp;async lesson, made visible."],
+  readout: ["Grain Readout",
+    "Live cost meter. <strong>Grains</strong> = active grains out of the 192 global cap. <strong>Overlap</strong> = grain size &times; density (how many grains sound at once — over ~2&times; they fuse). The <strong>CPU</strong> bar tracks the grain load: density &times; size &times; polyphony is what makes granular expensive."],
+
+  // ── Concept presets (the 8-stop tour) ──────────────────────────────────────
+  lessonSingleGrain: ["Single Grain",
+    "One long grain fired slowly — density at the floor so grains stay separated. Hear a single slice on its own: the atom of granular synthesis."],
+  lessonPitchedBuzz: ["Pitched Buzz",
+    "Tiny grains fired fast and perfectly in sync. The grain <em>rate itself</em> becomes an audible pitch (a comb) — granular can make tone, not just texture."],
+  lessonFragments: ["Fragments",
+    "Medium grains, sparse. You still recognise chunks of the source — the middle ground between one grain and a smooth cloud."],
+  lessonSmoothCloud: ["Smooth Cloud",
+    "Many overlapping Hann grains fuse into one continuous, glassy texture. Overlap-add doing its job: size &times; density well above 1."],
+  lessonFrozenPad: ["Frozen Pad",
+    "Freeze pins the read head; Pitch Spray shimmers the frozen instant into a sustained, evolving pad that never moves through the source."],
+  lessonAsyncCloud: ["Asynchronous Cloud",
+    "High Scatter randomises the grain timing — the pitched comb dissolves and the spectrum smears into broadband noise. The async end of the axis."],
+  lessonGranularFire: ["Granular Fire",
+    "The worked example on the crackling-fire recording: a lively grain/spray set that turns a field recording into a moving granular bed."],
+  lessonRectClick: ["Rect Click",
+    "The intentional artifact: a rectangular window has no fade, so every grain edge clicks. Sparse grains let each click stand alone — this is <em>why</em> windows matter."],
+};
 
 // ── Knob geometry ────────────────────────────────────────────────────────────
 const KNOB_MIN_DEG = -135;   // 0.0 normalised
@@ -693,8 +779,20 @@ function setupTooltips() {
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
 
+  // Strip HTML tags/entities to a plain string for the native title= fallback.
+  const plain = (html) => {
+    const d = document.createElement("div");
+    d.innerHTML = html;
+    return (d.textContent || d.innerText || "").replace(/\s+/g, " ").trim();
+  };
+
   document.querySelectorAll("[data-tip]").forEach((el) => {
     const key = el.getAttribute("data-tip");
+    const entry = TIPS[key];
+    // Native title= as a robust fallback (accessibility + hosts where the custom
+    // floating tooltip might be missed). The floating tooltip is the rich version.
+    if (entry && !el.hasAttribute("title"))
+      el.setAttribute("title", `${entry[0]} — ${plain(entry[1])}`);
     el.addEventListener("pointerenter", (e) => { active = key; show(key, e.clientX, e.clientY); });
     el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
     el.addEventListener("pointerleave", hide);
