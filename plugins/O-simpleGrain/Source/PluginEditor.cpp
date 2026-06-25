@@ -150,6 +150,17 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
         // Sample rate for the spectrum's frequency-axis labels (used in 3.2).
         .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
             complete (processorRef.getCurrentSampleRate());
+        })
+        // Source min/max envelope for the UI-02 waveform background. The JS fetches
+        // it on load + at boot (not per frame); a flat [min,max,…] var array in
+        // [-1,1] (~512 pairs). Read-only message-thread snapshot — audio untouched.
+        .withNativeFunction ("getSourceThumbnail", [this] (const juce::Array<juce::var>& args, auto complete) {
+            const int numPairs = (args.size() > 0 && (int) args[0] > 0) ? (int) args[0] : 512;
+            const auto env = processorRef.getSourceThumbnail (numPairs);
+            juce::Array<juce::var> arr;
+            arr.ensureStorageAllocated ((int) env.size());
+            for (float v : env) arr.add (v);
+            complete (juce::var (std::move (arr)));
         });
 
    #if JUCE_WINDOWS

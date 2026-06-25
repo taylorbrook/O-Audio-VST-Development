@@ -395,6 +395,43 @@ bool OSimpleGrainAudioProcessor::loadBuiltInSource (int builtInIndex, double eng
     return decodeAndPublish (blob.data, (size_t) blob.size, engineRate, identity);
 }
 
+// Min/max envelope of the currently-published source (UI-02 waveform background).
+// Message-thread read: snapshots the atomic shared_ptr (held for the call), then
+// reduces channel 0 to `numPairs` min/max pairs in [-1,1]. The audio thread is
+// untouched. Returns a flat [min,max,…] vector (empty if no source).
+std::vector<float> OSimpleGrainAudioProcessor::getSourceThumbnail (int numPairs) const
+{
+    numPairs = juce::jlimit (1, 4096, numPairs);
+
+    auto src = atomicLoad (currentSource);          // snapshot — held for this call
+    if (src == nullptr || src->getNumSamples() <= 0)
+        return {};
+
+    const float* data = src->getReadPointer (0);    // mono read (channel 0), matches the engine
+    const int    len  = src->getNumSamples();
+
+    std::vector<float> out;
+    out.resize ((size_t) numPairs * 2, 0.0f);
+
+    for (int p = 0; p < numPairs; ++p)
+    {
+        const int a = (int) ((juce::int64) p       * len / numPairs);
+        int       b = (int) ((juce::int64) (p + 1) * len / numPairs);
+        if (b <= a) b = juce::jmin (a + 1, len);
+
+        float mn = 0.0f, mx = 0.0f;
+        for (int i = a; i < b; ++i)
+        {
+            const float s = data[i];
+            if (s < mn) mn = s;
+            if (s > mx) mx = s;
+        }
+        out[(size_t) (p * 2)]     = juce::jlimit (-1.0f, 1.0f, mn);
+        out[(size_t) (p * 2 + 1)] = juce::jlimit (-1.0f, 1.0f, mx);
+    }
+    return out;
+}
+
 // Rebuild the source from the current sourceSample choice (message thread).
 void OSimpleGrainAudioProcessor::rebuildSourceFromChoice()
 {
