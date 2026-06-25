@@ -17,8 +17,12 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <atomic>
 #include <memory>
 #include "dsp/WindowLuts.h"
+#include "dsp/TripleBuffer.h"
+#include "dsp/GrainCloudFrame.h"
+#include "VizAnalyzer.h"
 
 // Forward declarations — the voice/sound are pulled in only by the .cpp
 // (GrainVoice.h itself includes this header for the engine constants).
@@ -64,7 +68,9 @@ namespace OSimpleGrain::ParamIDs
 }
 
 //==============================================================================
-class OSimpleGrainAudioProcessor : public juce::AudioProcessor
+class OSimpleGrainAudioProcessor : public juce::AudioProcessor,
+                                   private juce::AudioProcessorValueTreeState::Listener,
+                                   private juce::AsyncUpdater
 {
 public:
     OSimpleGrainAudioProcessor();
@@ -109,6 +115,45 @@ public:
     void setSourceIdentity (const juce::String& id) { currentSourceIdentity = id; }
 
     //==========================================================================
+    // Stage-3 visualization accessors. The editor reads these on its
+    // message-thread Timer (30 Hz). Audio thread is copy-only / lock-free.
+    //   getVizRing()         -> output scope/spectrum (UI-04; editor runs the FFT)
+    //   getGrainCloudBuffer()-> grain events (cloud scatter UI-01 + playheads UI-02)
+    //   getActiveGrainCount()-> grain-count / CPU readout (UI-05)
+    //   getCurrentSampleRate()-> for the FFT frequency axis + ms<->samples
+    VizRing&                       getVizRing()          noexcept { return vizRing; }
+    TripleBuffer<GrainCloudFrame>& getGrainCloudBuffer() noexcept { return grainCloudBuffer; }
+    int    getActiveGrainCount() const noexcept { return activeGrainCount.load (std::memory_order_relaxed); }
+    double getCurrentSampleRate() const noexcept { return currentSampleRate; }
+
+    //==========================================================================
+    // Source loading (Stage 2.3). The drag-drop streaming handlers below are the
+    // C++ side of the shared webview-drop-streaming.js bridge — Stage 3 wires the
+    // JS that CALLS them (via WebBrowserComponent::Options::withNativeFunction).
+    // The names are FIXED by the shared module — do NOT rename. For a single
+    // source the single-file path suffices, but the full set is registered so the
+    // shared JS module binds cleanly. All decode/resample/publish happens here on
+    // the message thread; the audio thread only ever sees a fully-built buffer
+    // published via the atomic shared_ptr swap.
+    //
+    // Return value semantics (mirrors O-MicrotonalSampler): bool "ok" — the JS
+    // awaits it and toasts on false.
+    bool dropSessionStart       (const juce::String& sessionId, const juce::String& folderName = {});
+    bool dropSessionAddFile     (const juce::String& sessionId, const juce::String& filename,
+                                 const juce::String& base64);
+    bool dropSessionCommitFile  (const juce::String& sessionId, const juce::String& filename,
+                                 const juce::String& base64);
+    bool dropSessionCommitFolder (const juce::String& sessionId);
+
+    // File-picker fallback (always works where drag-drop doesn't). Async, message
+    // thread. Stage 3 calls this from a "Load…" button. Same decode path.
+    void loadSourceFromFileChooser();
+
+    // Whether the last loaded source was truncated to the 10 s cap (UI surfaces a
+    // notice in Stage 3). Cleared on each successful load that did not truncate.
+    bool wasLastLoadTruncated() const noexcept { return lastLoadTruncated.load (std::memory_order_relaxed); }
+
+    //==========================================================================
     // Engine constants (declared NOW; consumed by the grain engine in Stage 2).
     static constexpr int kMaxVoices        = 8;     // polyphony
     static constexpr int kMaxGrainsPerVoice = 24;   // per-voice active grain cap
@@ -135,9 +180,51 @@ private:
         std::atomic_store (&s, std::move (v));
     }
 
-    // Decode + resample the default source (fire.wav) to the engine rate and
-    // publish it via atomicStore. OFF the audio thread (called from prepare).
-    void loadDefaultSource (double engineRate);
+    //==========================================================================
+    // Source decode/resample/publish (Stage 2.3) — ALL off the audio thread.
+    //
+    // Built-in index order MUST match the sourceSample AudioParameterChoice:
+    // 0=fire, 1=voice, 2=water, 3=piano (PluginProcessor.cpp createParameterLayout).
+    static constexpr int kNumBuiltIns = 4;
+
+    // Decode one embedded BinaryData .wav (by built-in index), resample to the
+    // engine rate, cap at kMaxSourceSeconds, and atomic-publish. Returns true on
+    // success. OFF the audio thread (prepareToPlay / sourceSample change).
+    bool loadBuiltInSource (int builtInIndex, double engineRate);
+
+    // Map an "embedded:<name>" identity to its built-in index (0..kNumBuiltIns-1).
+    // Falls back to the live sourceSample choice, then 0 (fire), if unknown.
+    int builtInIndexForIdentity (const juce::String& identity) const;
+
+    // Decode a raw byte block (already in a memory buffer) through the format
+    // manager, resample, cap, atomic-publish. Shared by the built-in path, the
+    // drag-drop base64 path, and the file-picker path. OFF the audio thread.
+    bool decodeAndPublish (const void* data, size_t numBytes, double engineRate,
+                           const juce::String& identity);
+
+    // Resample a decoded buffer (at srcRate) to engineRate, capped at the source
+    // length cap. Returns a fully-built shared_ptr ready to atomic-publish. Sets
+    // `truncated` when the source exceeded the cap.
+    std::shared_ptr<juce::AudioBuffer<float>>
+        resampleToEngineRate (const juce::AudioBuffer<float>& src, double srcRate,
+                              double engineRate, bool& truncated) const;
+
+    // sourceSample-change detection (off the audio thread). processBlock only
+    // reads the choice atomic and stores it; the actual decode happens on an
+    // AsyncUpdater the parameter listener triggers (never on the audio thread).
+    void rebuildSourceFromChoice();
+
+    // Clear the active drag-drop session state (message thread).
+    void endDropSession() noexcept;
+
+    // APVTS listener: fires on the message thread when `sourceSample` changes.
+    // We do NOT decode here directly (the host may call it from any thread) —
+    // we triggerAsyncUpdate() so the decode always runs on the message thread.
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
+
+    // AsyncUpdater: message-thread callback that performs the actual built-in
+    // source decode/resample/publish for the pending sourceSample selection.
+    void handleAsyncUpdate() override;
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
@@ -179,6 +266,47 @@ private:
     //==========================================================================
     // Custom non-APVTS state: which source is loaded (built-in name or file path).
     juce::String currentSourceIdentity { "embedded:fire" };
+
+    // Built-in names, indexed to match the sourceSample choice order.
+    static constexpr const char* kBuiltInNames[kNumBuiltIns] = { "fire", "voice", "water", "piano" };
+
+    //==========================================================================
+    // Visualization taps (Stage 2.3) — lock-free, audio-thread copy-only.
+    //   vizRing          : output samples -> scope/spectrum (UI-04). The audio
+    //                      thread WRITES the post-gain mono sum; the editor Timer
+    //                      runs the FFT (never the audio thread).
+    //   grainCloudBuffer : grain events -> cloud scatter (UI-01) + playheads
+    //                      (UI-02). Filled per block (each voice appends a
+    //                      GrainEvent at spawn), published once per block.
+    //   activeGrainCount : live grain count -> grain-count / CPU readout (UI-05).
+    VizRing                       vizRing;
+    TripleBuffer<GrainCloudFrame> grainCloudBuffer;
+    std::atomic<int>              activeGrainCount { 0 };
+
+    //==========================================================================
+    // Drag-drop streaming session state (Stage 2.3). The shared
+    // webview-drop-streaming.js module streams base64 chunks through
+    // dropSessionStart/AddFile/CommitFile. For a single granular source we keep
+    // ONE active session's accumulated base64; commit decodes + publishes. All on
+    // the message thread (NativeFunction callbacks run there).
+    juce::String dropSessionId;                 // empty = no active session
+    juce::String dropSessionFolderName;         // best-effort, for the restore notice
+    juce::String dropAccumBase64;               // last AddFile payload (single source)
+    juce::String dropAccumFilename;
+
+    std::unique_ptr<juce::FileChooser> fileChooser;   // held alive across the async picker
+
+    // Whether the most recent load was truncated to kMaxSourceSeconds.
+    std::atomic<bool> lastLoadTruncated { false };
+
+    // Pending built-in index for the AsyncUpdater (set by the parameter listener,
+    // consumed on the message thread). -1 = nothing pending.
+    std::atomic<int> pendingBuiltInIndex { -1 };
+
+    // Set true while restoring a user/dropped source from saved state so the
+    // sourceSample listener's AsyncUpdater does not clobber the restored file
+    // with the built-in choice. Cleared once the restore completes.
+    bool suppressChoiceRebuild = false;
 
     //==========================================================================
     // Cached raw-param atomic pointers (assigned in the ctor). Established now;
