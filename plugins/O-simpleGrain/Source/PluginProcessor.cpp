@@ -1,0 +1,272 @@
+/*
+  ==============================================================================
+
+    O-simpleGrain - Audio Processor (implementation)
+
+    Stage 1 (Foundation): silent 8-voice synth shell. Builds the full 18-parameter
+    APVTS and persists it alongside a custom loaded-source identity. processBlock
+    clears the buffer and consumes MIDI (no audio until Stage 2). Allocation-free.
+
+  ==============================================================================
+*/
+
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
+
+namespace
+{
+    // Shared skews (match parameter-spec.md → research-locked ARCHITECTURE.md).
+    constexpr float kAdsrTimeSkew = 0.35f; // perceptual taper for 0–5 s envelope times
+    constexpr float kMinAdsrTime  = 0.0f;
+    constexpr float kMaxAdsrTime  = 5.0f;
+
+    juce::NormalisableRange<float> adsrTimeRange()
+    {
+        return { kMinAdsrTime, kMaxAdsrTime, 0.0001f, kAdsrTimeSkew };
+    }
+
+    // 0–1 normalized "percent" range (stored 0–1; UI scales ×100 in Stage 3).
+    juce::NormalisableRange<float> unitRange()
+    {
+        return { 0.0f, 1.0f, 0.0001f };
+    }
+}
+
+//==============================================================================
+juce::AudioProcessorValueTreeState::ParameterLayout
+OSimpleGrainAudioProcessor::createParameterLayout()
+{
+    using namespace OSimpleGrain::ParamIDs;
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    //--- Source ------------------------------------------------------------
+    // Which built-in short sound is granulated. The "(loaded)" user-file state
+    // is reflected in custom (non-APVTS) state, NOT as a 5th choice. Default fire.
+    params.push_back (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { sourceSample, 1 }, "Source",
+        juce::StringArray { "fire", "voice", "water", "piano" }, 0));
+
+    //--- Grain -------------------------------------------------------------
+    // Grain size 2–200 ms; skew ~0.4 biases control toward the fine low end
+    // (the buzz↔fragments axis lives down there).
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { grainSize, 1 }, "Grain Size",
+        juce::NormalisableRange<float> { 2.0f, 200.0f, 0.01f, 0.4f }, 30.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("ms")));
+
+    // Density 1–200 grains/s, logarithmic feel. setSkewForCentre(20) puts the
+    // musical centre of travel around 20 g/s (fine control at the sparse low end).
+    {
+        juce::NormalisableRange<float> densityRange { 1.0f, 200.0f, 0.01f };
+        densityRange.setSkewForCentre (20.0f);
+        params.push_back (std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID { density, 1 }, "Density", densityRange, 40.0f,
+            juce::AudioParameterFloatAttributes().withLabel ("g/s")));
+    }
+
+    // Position 0–100 % — read-head resting point.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { position, 1 }, "Position",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // Scan / time-stretch −200–+200 %, bipolar (negative = reverse). Default held.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { scan, 1 }, "Scan",
+        juce::NormalisableRange<float> { -200.0f, 200.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // Freeze — pin the read head on the current instant. Off by default.
+    params.push_back (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { freeze, 1 }, "Freeze", false));
+
+    //--- Window Shape ------------------------------------------------------
+    // Per-grain amplitude envelope. Default Hann = index 4. Rectangular
+    // intentionally clicks (teaching artifact, not a bug).
+    params.push_back (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { windowShape, 1 }, "Window",
+        juce::StringArray { "Rectangular", "Triangular", "Welch", "Gaussian", "Hann" }, 4));
+
+    //--- Spray & Scatter ---------------------------------------------------
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { pitchSpray, 1 }, "Pitch Spray",
+        juce::NormalisableRange<float> { 0.0f, 12.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("st")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { positionSpray, 1 }, "Position Spray",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { scatter, 1 }, "Scatter",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { grainPitch, 1 }, "Grain Pitch",
+        juce::NormalisableRange<float> { -24.0f, 24.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("st")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { panSpray, 1 }, "Pan Spray",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { velToDensity, 1 }, "Vel -> Density",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    //--- Amplitude envelope (per-voice ADSR) -------------------------------
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ampAttack, 1 }, "Amp Attack", adsrTimeRange(), 0.01f,
+        juce::AudioParameterFloatAttributes().withLabel ("s")));
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ampDecay, 1 }, "Amp Decay", adsrTimeRange(), 0.3f,
+        juce::AudioParameterFloatAttributes().withLabel ("s")));
+    // Sustain stored 0–1 (UI scales ×100). Default 0.8.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ampSustain, 1 }, "Amp Sustain", unitRange(), 0.8f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ampRelease, 1 }, "Amp Release", adsrTimeRange(), 0.4f,
+        juce::AudioParameterFloatAttributes().withLabel ("s")));
+
+    //--- Output ------------------------------------------------------------
+    // −inf–0 dB master trim. −60 dB floor maps to "−inf" perceptually.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { outputLevel, 1 }, "Output Level",
+        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("dB")));
+
+    return { params.begin(), params.end() };
+}
+
+//==============================================================================
+OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
+    : AudioProcessor (BusesProperties()
+                          .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+      apvts (*this, nullptr, "PARAMETERS", createParameterLayout())
+{
+    using namespace OSimpleGrain::ParamIDs;
+
+    // Cache raw-param atomic pointers. Established now (read once per block by the
+    // grain engine in Stage 2; unused while silent).
+    sourceSampleParam  = apvts.getRawParameterValue (sourceSample);
+    grainSizeParam     = apvts.getRawParameterValue (grainSize);
+    densityParam       = apvts.getRawParameterValue (density);
+    positionParam      = apvts.getRawParameterValue (position);
+    scanParam          = apvts.getRawParameterValue (scan);
+    freezeParam        = apvts.getRawParameterValue (freeze);
+    windowShapeParam   = apvts.getRawParameterValue (windowShape);
+    pitchSprayParam    = apvts.getRawParameterValue (pitchSpray);
+    positionSprayParam = apvts.getRawParameterValue (positionSpray);
+    scatterParam       = apvts.getRawParameterValue (scatter);
+    grainPitchParam    = apvts.getRawParameterValue (grainPitch);
+    panSprayParam      = apvts.getRawParameterValue (panSpray);
+    velToDensityParam  = apvts.getRawParameterValue (velToDensity);
+    ampAttackParam     = apvts.getRawParameterValue (ampAttack);
+    ampDecayParam      = apvts.getRawParameterValue (ampDecay);
+    ampSustainParam    = apvts.getRawParameterValue (ampSustain);
+    ampReleaseParam    = apvts.getRawParameterValue (ampRelease);
+    outputLevelParam   = apvts.getRawParameterValue (outputLevel);
+}
+
+OSimpleGrainAudioProcessor::~OSimpleGrainAudioProcessor() = default;
+
+//==============================================================================
+void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+{
+    currentSampleRate = sampleRate;
+    juce::ignoreUnused (samplesPerBlock);
+
+    // Granular processing has no inherent latency in this design.
+    // NB: getLatencySamples() is non-virtual in JUCE 8 — never override it.
+    setLatencySamples (0);
+
+    // Stage 2: grain engine / voice prepare / window-LUT build go here.
+}
+
+void OSimpleGrainAudioProcessor::releaseResources()
+{
+    // Stage 2: release grain-engine resources here.
+}
+
+bool OSimpleGrainAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+{
+    // Synth: output-only. Accept mono or stereo output, no input bus.
+    const auto& out = layouts.getMainOutputChannelSet();
+
+    if (out != juce::AudioChannelSet::mono()
+        && out != juce::AudioChannelSet::stereo())
+        return false;
+
+    // No input bus on an instrument.
+    if (! layouts.getMainInputChannelSet().isDisabled())
+        return false;
+
+    return true;
+}
+
+void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
+                                               juce::MidiBuffer& midiMessages)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    // Silent shell: clear the output buffer (no grain voices yet — Stage 2).
+    buffer.clear();
+
+    // Consume MIDI so notes don't queue up. Stage 2 routes these to the grain
+    // engine; for now we simply drain the stream. Allocation-free.
+    juce::ignoreUnused (midiMessages);
+}
+
+//==============================================================================
+juce::AudioProcessorEditor* OSimpleGrainAudioProcessor::createEditor()
+{
+    return new OSimpleGrainAudioProcessorEditor (*this);
+}
+
+//==============================================================================
+void OSimpleGrainAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+{
+    // Serialize the APVTS tree PLUS a custom child holding the loaded-source
+    // identity, so a session restores both the params and the active source.
+    auto state = apvts.copyState();
+
+    auto sourceChild = state.getOrCreateChildWithName (
+        juce::Identifier (kSourceStateTag), nullptr);
+    sourceChild.setProperty (juce::Identifier (kSourceIdProp),
+                             currentSourceIdentity, nullptr);
+
+    if (auto xml = state.createXml())
+        copyXmlToBinary (*xml, destData);
+}
+
+void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+{
+    auto xml = getXmlFromBinary (data, sizeInBytes);
+    if (xml == nullptr)
+        return;
+
+    auto state = juce::ValueTree::fromXml (*xml);
+    if (! state.isValid() || state.getType() != apvts.state.getType())
+        return;
+
+    // Restore the custom loaded-source identity (if present) before handing the
+    // tree to the APVTS. Default stays "embedded:fire" when absent (legacy state).
+    auto sourceChild = state.getChildWithName (juce::Identifier (kSourceStateTag));
+    if (sourceChild.isValid())
+        currentSourceIdentity = sourceChild.getProperty (
+            juce::Identifier (kSourceIdProp), currentSourceIdentity).toString();
+
+    apvts.replaceState (state);
+}
+
+//==============================================================================
+// This creates new instances of the plugin.
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new OSimpleGrainAudioProcessor();
+}

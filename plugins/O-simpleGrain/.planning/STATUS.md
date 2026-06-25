@@ -1,14 +1,15 @@
 ---
 plugin: O-simpleGrain
-stage: 0
+stage: 1
 status: complete
 last_updated: 2026-06-24
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: finalize_mockup_then_invoke_foundation_shell_agent
-next_stage: 1
+next_action: stage_2_dsp_phase_2_1_core_grain_engine
+next_stage: 2
 ready_for_implementation: true
+gate_pre_stage_1: satisfied (parameter-spec.md finalized; UI mockup DEFERRED to Stage 3 per user decision 2026-06-24)
 contract_checksums:
   brief: sha256:04e459d5ea7419ee195da953f932401fe006e51f2d73eefae37224566b5afe7a
   parameter_spec_draft: sha256:603ec27bdaca550a5ec2a07f98effcc886a412b9037be13e06fb8507767aeaf7
@@ -20,13 +21,28 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Ideation / Research & Planning) — complete
-Status: Research & Planning complete; ready for mockup finalization → Stage 1
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation + Shell) — ✅ complete
+Status: Silent synth shell builds + auval-validated (18 params); ready for Stage 2 (DSP)
+Progress: [#####...............] 28%
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date |
+|-------|--------|------|
+| discuss | ✓ | 2026-06-24 |
+| research | ✓ | 2026-06-24 |
+| plan | ✓ | 2026-06-24 |
+| execute | ✓ | 2026-06-24 |
+| verify | ✓ | 2026-06-24 |
 
 ## Completed So Far
 
 **Ideation:** ✓ Complete — BRIEF.md, REQUIREMENTS.md (24 reqs), parameter-spec-draft.md.
+
+**Pre-Stage-1 gate:** ✓ Satisfied — parameter-spec.md finalized (18 params, research-locked). UI mockup DEFERRED to Stage 3 per user decision.
+
+**Stage 1 (Foundation):** ✓ Complete — CMake (synth + WebView2 flags, `PLUGIN_CODE OsGr`), 18-param APVTS, custom loaded-source-identity state, silent allocation-free `processBlock`, placeholder editor. Builds VST3+AU+Standalone; **auval SUCCEEDED** (18 Global Scope Parameters). Installed as `O-simpleGrain-dev` (`aumu OsGr OuDv`).
 
 **Stage 0 (Research & Planning):** ✓ Complete
 - Plugin type confirmed: Synth (Pedagogical Granular), MIDI-in poly (8 voices), Freeze mode, WebView UI.
