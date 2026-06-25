@@ -1,13 +1,15 @@
 ---
 plugin: O-simpleSubtractive
-stage: 0
+stage: 1
 status: complete
+phase: verify
+workflow_mode: express
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
-next_stage: 1
+next_action: stage_2_dsp
+next_stage: 2
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:f9e5eaaafc94bf1f3289806766fe24f609ef2ec9db1ad43cef7295b27694a58c
@@ -20,9 +22,24 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Ideation / Research & Planning) — complete
-Status: ARCHITECTURE.md + ROADMAP.md produced; filter topology resolved; ready for Stage 1 (Foundation).
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation) — ✅ complete (all 5 phases, express mode)
+Status: Silent 20-param synth shell built + validated (pluginval SUCCESS + AU VALIDATION SUCCEEDED). Ready for Stage 2 (DSP).
+Progress: [#####...............] 25%
+
+## Stage 1 (Foundation) — ✅ Complete
+
+| Phase | Status | Artifact |
+|-------|--------|----------|
+| discuss | ✓ | stages/1-foundation/CONTEXT.md |
+| research | ✓ | stages/1-foundation/RESEARCH.md |
+| plan | ✓ | stages/1-foundation/PLAN.md |
+| execute | ✓ | stages/1-foundation/SUMMARY.md (foundation-shell-agent) |
+| verify | ✓ | stages/1-foundation/VERIFICATION.md (PASS) |
+
+- Files: `plugins/O-simpleSubtractive/CMakeLists.txt`, `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.{h,cpp}`
+- `PLUGIN_CODE OSiS` (aumu OSiS OuDv), v1.0.0, IS_SYNTH + MIDI + WebView2 flags
+- 20-param APVTS confirmed (auval: "20 Global Scope Parameters"); state round-trips; processBlock = silence
+- Editor: GenericAudioProcessorEditor placeholder (WebView swap in Stage 3)
 
 ## Completed So Far
 
@@ -43,9 +60,9 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. Stage 1: Foundation — CMake (synth + WebView2 flags) + 20-param APVTS + state persistence (silent shell). Run `/implement O-simpleSubtractive` (or invoke foundation-shell-agent).
-2. Review ARCHITECTURE.md (filter-topology decision + magnitude-curve math) and ROADMAP.md.
-3. Pause here.
+1. **Stage 2: DSP** — phased build (3 phases per ROADMAP): 2.1 source + LINEAR filter + dual ADSR + VCA; 2.2 self-oscillation + gain comp + magnitude-curve validation; 2.3 voice modes + glide + offline render-harness gate. Run `/clear` then `/implement O-simpleSubtractive`.
+2. Highest risk lives here: self-oscillating multimode SVF — build linear filter + curve match FIRST, add self-osc second.
+3. Pause here (handoff at Stage 1→2 boundary).
 
 ## Context to Preserve
 
