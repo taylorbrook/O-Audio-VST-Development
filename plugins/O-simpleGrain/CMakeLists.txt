@@ -31,6 +31,12 @@ target_sources(O-simpleGrain
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        # Stage 2.1 — grain engine (header-only voice + DSP primitives)
+        Source/GrainVoice.h
+        Source/GrainSound.h
+        Source/dsp/Grain.h
+        Source/dsp/WindowLuts.h
+        Source/dsp/LagrangeInterpolation.h
 )
 
 # Include paths
