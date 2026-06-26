@@ -21,57 +21,14 @@
 #include <JuceHeader.h>
 #include <array>
 #include <atomic>
+#include <vector>
 
-//==============================================================================
-namespace OSimpleBeatmaker
-{
-    // Voice roster — row order is the grid's row order AND the GM-map order.
-    inline constexpr int kNumVoices = 6;   // Kick Snare Clap ClosedHat OpenHat Tom
-    inline constexpr int kMaxSteps  = 32;  // max columns; patternLength picks 8/16/32
-
-    enum Voice { Kick = 0, Snare, Clap, ClosedHat, OpenHat, Tom };
-
-    // General-MIDI drum note per voice (consumed by the Stage-2 trigger router).
-    inline constexpr std::array<int, (size_t) kNumVoices> kGmNotes { 36, 38, 39, 42, 46, 45 };
-
-    // lowerCamel prefixes used to compose the 36 per-voice parameter IDs.
-    inline constexpr std::array<const char*, (size_t) kNumVoices> kVoicePrefix
-        { "kick", "snare", "clap", "closedHat", "openHat", "tom" };
-
-    // Human-readable names (generic editor / Stage-3 labels).
-    inline constexpr std::array<const char*, (size_t) kNumVoices> kVoiceName
-        { "Kick", "Snare", "Clap", "Closed Hat", "Open Hat", "Tom" };
-
-    //==========================================================================
-    // APVTS identifiers — single source of truth. IDs/ranges/defaults track
-    // parameter-spec.md (which mirrors ARCHITECTURE.md -> Parameter Mapping).
-    namespace ParamIDs
-    {
-        // Sequencer / timing-feel (5)
-        inline constexpr auto swing            = "swing";            // 0-1 (display 0-75%)
-        inline constexpr auto humanize         = "humanize";         // 0-1 (display 0-100%)
-        inline constexpr auto quantizeStrength = "quantizeStrength"; // 0-1 (display 0-100%)
-        inline constexpr auto patternLength    = "patternLength";    // choice 8/16/32
-        inline constexpr auto tempo            = "tempo";            // 40-240 BPM (free-run)
-
-        // Master (1)
-        inline constexpr auto outputLevel      = "outputLevel";      // -60..0 dB
-
-        // Per-voice suffixes — combine with kVoicePrefix for the 36 voice IDs.
-        inline constexpr auto sufTune  = "Tune";   // -12..+12 st
-        inline constexpr auto sufDecay = "Decay";  // 0-1 (per-voice ms mapped in DSP)
-        inline constexpr auto sufTone  = "Tone";   // 0-1 snap/body-noise/brightness
-        inline constexpr auto sufLevel = "Level";  // -60..0 dB
-        inline constexpr auto sufMute  = "Mute";   // bool
-        inline constexpr auto sufSolo  = "Solo";   // bool
-    }
-
-    // Compose a per-voice parameter ID, e.g. voiceParamID (Kick, "Tune") -> "kickTune".
-    inline juce::String voiceParamID (int voice, const char* suffix)
-    {
-        return juce::String (kVoicePrefix[(size_t) voice]) + suffix;
-    }
-}
+#include "BeatmakerIDs.h"
+#include "DrumVoiceEngine.h"
+#include "UnifiedTriggerRouter.h"
+#include "SequencerClock.h"
+#include "TimingFeelEngine.h"
+#include "VizAnalyzer.h"
 
 //==============================================================================
 class OSimpleBeatmakerAudioProcessor : public juce::AudioProcessor
@@ -113,6 +70,27 @@ public:
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
     //==========================================================================
+    // Viz tap access (Stage-3 editor Timer drains this; Stage 2 just feeds it).
+    OSimpleBeatmaker::VizAnalyzer& getVizAnalyzer() noexcept { return viz; }
+
+#if OUARICON_BUILD_TESTS
+    //==========================================================================
+    // Render-harness test hooks (compiled ONLY into the offline render-test —
+    // the shipping plugin target never defines OUARICON_BUILD_TESTS, so there is
+    // no allocation/hook in the real audio path).
+    struct TestEmittedHit
+    {
+        int         voiceIndex, stepIndex, velocity, source;
+        juce::int64 blockStartAbs;          // absolute sample of the emitting block
+        int         finalOffsetInBlock;     // EXACT arg passed to sequencerMidi.addEvent
+        int         appliedOffsetSamples;   // baked Δt
+        juce::int32 nominalSampleInBar, appliedSampleInBar;  // EXACT values pushed to VizEvent
+    };
+    const std::vector<TestEmittedHit>& getTestEmittedHits() const noexcept { return testEmittedHits; }
+    const juce::MidiBuffer&            getLastSequencerMidi() const noexcept { return sequencerMidi; }
+#endif
+
+    //==========================================================================
     // Step-grid API. Cells hold 0 (off) or 1-127 (on at that velocity). The UI
     // (Stage 3) writes on the message thread via native functions; the audio
     // thread (Stage 2) reads via atomic load. Lock-free, allocation-free.
@@ -148,6 +126,57 @@ private:
     void            restorePatternTree (const juce::ValueTree& pattern); // message thread; may allocate
 
     double currentSampleRate = 44100.0;
+
+    //==========================================================================
+    // Stage-2 DSP spine (all audio-thread-owned).
+    OSimpleBeatmaker::DrumVoiceEngine     voices;
+    OSimpleBeatmaker::UnifiedTriggerRouter router;
+    OSimpleBeatmaker::SequencerClock       clock;
+    OSimpleBeatmaker::TimingFeelEngine     feel;
+    OSimpleBeatmaker::VizAnalyzer          viz;
+
+    juce::SmoothedValue<float> outputGain { 1.0f };
+    juce::MidiBuffer           sequencerMidi;          // emitted + merged stream
+
+    // Firing-column scratch (fixed; enumerated once per block, alloc-free).
+    static constexpr int kMaxFiringColumns = 128;
+    std::array<OSimpleBeatmaker::FiringColumn, (size_t) kMaxFiringColumns> firingColumns;
+
+    // Carry-over queue for late (Fallback A) hits that cross the block end.
+    struct PendingHit
+    {
+        juce::int64 absTarget = 0;
+        int         voiceIndex = 0, stepIndex = 0, velocity = 0;
+        juce::int32 nominalSampleInBar = 0, appliedSampleInBar = 0;
+        int         appliedOffsetSamples = 0;
+    };
+    static constexpr int kMaxPending = 64;
+    std::array<PendingHit, (size_t) kMaxPending> pending;
+    int         pendingCount  = 0;
+    juce::int64 absSamplePos  = 0;                     // running absolute sample counter
+
+    // Cached APVTS atomic pointers (read once/block, no String lookup in audio).
+    std::atomic<float>* pSwing = nullptr;
+    std::atomic<float>* pHumanize = nullptr;
+    std::atomic<float>* pQuant = nullptr;
+    std::atomic<float>* pPatternLen = nullptr;
+    std::atomic<float>* pTempo = nullptr;
+    std::atomic<float>* pOutput = nullptr;
+    std::array<std::atomic<float>*, (size_t) kNumVoices> pTune {}, pDecay {}, pTone {}, pLevel {}, pMute {}, pSolo {};
+
+    std::array<bool, (size_t) kNumVoices> muteArr {}, soloArr {};
+
+    void cacheParamPointers();
+    int  patternLengthSteps() const noexcept;          // choice idx -> 8/16/32
+
+    void emitSequencerHit (int voiceIndex, int stepIndex, int offsetInBlock, int finalVel,
+                           juce::int32 nominalSampleInBar, juce::int32 appliedSampleInBar,
+                           int appliedOffsetSamples, juce::int64 blockStartAbs) noexcept;
+    void drainCarryOver (juce::int64 blockStartAbs, int numSamples) noexcept;
+
+#if OUARICON_BUILD_TESTS
+    std::vector<TestEmittedHit> testEmittedHits;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleBeatmakerAudioProcessor)
 };

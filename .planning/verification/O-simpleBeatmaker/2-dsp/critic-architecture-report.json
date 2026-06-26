@@ -1,0 +1,56 @@
+{
+  "critic": "architecture-critic",
+  "plugin": "O-simpleBeatmaker",
+  "stage": "2-dsp",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-06-25T18:05:00Z",
+  "scores": {
+    "contract_alignment": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "Every ARCHITECTURE.md component maps to a source unit: SequencerClock->SequencerClock.h, TimingFeelEngine->TimingFeelEngine.h, DrumVoiceEngine (5 voice structs + HatVoice serving both hats = 6 voices)->DrumVoiceEngine.h, UnifiedTriggerRouter->UnifiedTriggerRouter.h, VizAnalyzer->VizAnalyzer.h. processBlock (PluginProcessor.cpp:240-374) follows the documented per-block processing order exactly: read transport once -> read 42 params once + push to voices/router -> clock enumerate firing columns -> feel compose+emit into sequencerMidi (BEFORE merge) -> host-MIDI viz + merge -> sub-slice render -> master gain -> viz playhead. DSP-04 honored structurally (TimingFeelEngine.h:70-78: dSwing computed as a SEPARATE term, never scaled by q; dtSec = dSwing + dHumanT*(1-q)). QUAL-02 honored by construction (emitSequencerHit PluginProcessor.cpp:187-215 does sequencerMidi.addEvent and viz.push in one call, applied-nominal IS the baked MIDI offset). Zero latency (setLatencySamples(0) at :136, no getLatencySamples override). Grid is std::atomic<uint8_t>[6x32] (PluginProcessor.h:116), persisted via PATTERN ValueTree child, NOT 384 params. APVTS holds exactly 42 params. Minor drift only: the Mixer/Master (ARCH section 5) is not a discrete struct (folded into voice render() summation + an inline master-gain loop), and the host-MIDI viz push is ungated by mute/solo."
+    },
+    "module_usage": {
+      "score": 9,
+      "threshold": 6,
+      "passed": true,
+      "details": "CMakeLists.txt includes modules/cmake/OuariconModules.cmake (line 3) and uses OUARICON_* vars correctly. juce_dsp linked (line 63) for StateVariableTPTFilter + LookupTableTransform. No juce_add_binary_data target at Stage 2 -- correctly deferred to Stage 3 with an explicit comment (lines 9-11) to avoid the O-simpleGrain dual-NAMESPACE collision. WebView2 cross-platform flags pre-set correctly (NEEDS_WEBVIEW2 TRUE line 24 + JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1 line 84), matching the suite Windows-WebView requirement ahead of the GUI stage. fastSine.h is a sanctioned per-plugin copy from O-simpleFM (namespace renamed to OSimpleBeatmaker) as the ARCHITECTURE directs -- not a shared-module duplication. No applicable shared module is bypassed; grid-as-atomics honored. juce_generate_juce_header placed after target_link_libraries."
+    },
+    "naming_conventions": {
+      "score": 10,
+      "threshold": 5,
+      "passed": true,
+      "details": "Plugin folder uses O- prefix. Classes PascalCase (OSimpleBeatmakerAudioProcessor, DrumVoiceEngine, SequencerClock, TimingFeelEngine, UnifiedTriggerRouter, VizAnalyzer). Methods camelCase (processBlock, prepareToPlay, emitSequencerHit, drainCarryOver). Files match class names; BeatmakerIDs.h/fastSine.h are descriptive. Param IDs camelCase and consistent (swing, humanize, quantizeStrength, kickTune...). CRITICAL collision history explicitly avoided: voice structs are suffixed (KickVoice/SnareVoice/ClapVoice/HatVoice/TomVoice) so none collide with the enum Voice (BeatmakerIDs.h:25) or with juce:: types (Random/Synthesiser/SynthesiserVoice/SamplerVoice) -- the O-simpleSampler SamplerVoice/SamplerSound lesson is applied. No bare-`Voice` struct. No ParamID string shadows a juce:: free function (no begin/end/size) -- the O-simpleSampler `end`/juce::end lesson is applied."
+    },
+    "dependency_direction": {
+      "score": 10,
+      "threshold": 7,
+      "passed": true,
+      "details": "Clean acyclic include graph. DSP-spine headers include only <JuceHeader.h> + BeatmakerIDs.h (+ fastSine.h/DrumVoiceEngine.h within the DSP layer) -- zero reverse includes of PluginEditor or any GUI/WebView header (verified via grep; the only 'editor' token in a DSP header is a comment in BeatmakerIDs.h:34). PluginProcessor.h does NOT include PluginEditor.h; PluginProcessor.cpp includes it solely to instantiate the editor in createEditor() -- the canonical, unavoidable JUCE idiom and not a DSP->GUI dependency (the header surface consumed by the render-harness stays GUI-free). PluginEditor.h depends on PluginProcessor.h (correct direction). Shared state is exclusively via atomics: grid std::atomic<uint8_t>[], VizAnalyzer AbstractFifo + std::atomic<float> playhead, APVTS getRawParameterValue() atomics -- no direct cross-thread references. No dependency on other plugins."
+    }
+  },
+  "overallStatus": "PASSED",
+  "overallScore": 9.5,
+  "issues": [
+    {
+      "id": "ARCH-001",
+      "severity": "warning",
+      "category": "contract_alignment",
+      "location": "Source/PluginProcessor.cpp:347-360",
+      "description": "ARCHITECTURE.md section 5 names a 'Mixer / Master' component ('Custom sum + juce::SmoothedValue<float> on output gain'). The implementation satisfies this functionally -- per-voice level is applied inside each voice, voices ADD into a shared cleared buffer (the 'custom sum'), and the master gain is a SmoothedValue applied in an inline per-sample loop -- but there is no discrete Mixer struct/class, so the named component has no one-to-one source mapping. This is acceptable peripheral drift, not a missing component.",
+      "fixSuggestion": "Optional only: extract the inline master-gain loop (PluginProcessor.cpp:350-360) into a small OSimpleBeatmaker::Mixer struct for one-to-one traceability to ARCHITECTURE section 5; the 'custom sum + SmoothedValue' contract is already met so no change is required to pass the gate."
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "warning",
+      "category": "contract_alignment",
+      "location": "Source/PluginProcessor.cpp:328-343",
+      "description": "Host-MIDI note-ons push a VizEvent (source=1) for any GM-mapped note unconditionally, whereas the audio path gates muted/non-soloed voices in UnifiedTriggerRouter::handleTrigger. For a voice played via host MIDI while muted (or while another voice is soloed), the live MIDI readout would show an event with no corresponding audio. QUAL-02 (the sequencer applied-Delta-t truth, which the timing lane depends on) is unaffected because the sequencer path gates before emit (PluginProcessor.cpp:307); this only concerns the host-MIDI live readout. May be intentional, since ARCHITECTURE section 6 frames it as a 'live MIDI note-on readout' of incoming MIDI.",
+      "fixSuggestion": "If the readout should mirror audio under mute/solo, gate the host-MIDI viz push with router.isVoiceAudible(voice) in PluginProcessor.cpp:332; otherwise document in VizAnalyzer.h that the host-MIDI readout intentionally shows incoming MIDI pre-mute. Resolve as a Stage-3 UI decision."
+    }
+  ],
+  "previousIssueIds": [],
+  "nextAction": "gate_pass"
+}

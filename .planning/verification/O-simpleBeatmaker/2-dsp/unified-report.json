@@ -1,0 +1,69 @@
+{
+  "stage": "2-dsp",
+  "plugin": "O-simpleBeatmaker",
+  "timestamp": "2026-06-26T01:05:07Z",
+  "critics_run": [
+    "dsp-critic",
+    "architecture-critic"
+  ],
+  "unified_issues": [
+    {
+      "severity": "warning",
+      "critic": "dsp-critic",
+      "id": "DSP-001",
+      "category": "realtime_safety",
+      "location": "fastSine.h:38",
+      "description": "fastSine() backs its sine lookup with a function-local static SineTable whose juce::dsp::LookupTableTransform::initialise() allocates a 1024-point table. All call sites (DrumVoiceEngine.h:106,157,217) are reached only from processBlock, so on the very first block that renders a tonal voice the static is lazily constructed on the audio thread \u2014 a one-time heap allocation plus a one-time thread-safe-static (__cxa_guard) lock acquisition. Not a per-block hazard, but it is an allocation/lock reachable from the audio thread on the first call.",
+      "fixSuggestion": "Warm up the lookup table off the audio thread by calling fastSine once during prepareToPlay (or constructing the table eagerly as a namespace-scope object) so the static is fully initialized before the first processBlock, eliminating the first-block allocation and guard lock."
+    },
+    {
+      "severity": "warning",
+      "critic": "dsp-critic",
+      "id": "DSP-002",
+      "category": "realtime_safety",
+      "location": "PluginProcessor.cpp:126",
+      "description": "sequencerMidi.ensureSize(4096) preallocates the merged MIDI buffer, but the code permits up to kMaxFiringColumns (128) firing columns per block x 6 voices = ~768 emitted note-ons (plus carry-over and host MIDI). At ~9-12 bytes per MidiBuffer event that worst case can exceed 4096 bytes, in which case MidiBuffer::addEvent would reallocate on the audio thread. The 128-column count is a generous safety cap that is unreachable at realistic block sizes/tempos (a normal block spans 1-3 sixteenths), so this is theoretical, but the reserve is not provably sufficient for the bound the code itself allows.",
+      "fixSuggestion": "Size sequencerMidi.ensureSize for the actual worst-case event count (kMaxFiringColumns * kNumVoices * bytesPerEvent plus host headroom), or clamp the number of emitted events per block to a value the reserve covers, so addEvent can never reallocate."
+    },
+    {
+      "severity": "warning",
+      "critic": "dsp-critic",
+      "id": "DSP-003",
+      "category": "buffer_handling",
+      "location": "PluginProcessor.cpp:246",
+      "description": "processBlock has no explicit early return for an empty buffer (e.g. if (buffer.getNumSamples() == 0) return;). The current code is provably safe with numSamples==0 (clear, clock window, render loop, and gain/scrub loops all no-op), but the defensive zero-length guard is a standard buffer-handling pattern and its absence is the only checklist gap here.",
+      "fixSuggestion": "Add an explicit early-out at the top of processBlock when getNumSamples()==0 to make the empty-buffer contract explicit and guard future edits that might assume numSamples>0."
+    },
+    {
+      "severity": "warning",
+      "critic": "dsp-critic",
+      "id": "DSP-004",
+      "category": "parameter_integration",
+      "location": "PluginProcessor.cpp:274-276",
+      "description": "Per-voice Level (and Tune/Decay/Tone) are pushed to the voices once per block via voices.setParams and applied as a direct multiply/coefficient with no SmoothedValue. Only the master outputLevel is smoothed. Fast host automation of a per-voice Level could produce a small per-block step (zipper) on a sustaining tail. Acceptable for short percussion one-shots, but it is a smoothing gap relative to the master path.",
+      "fixSuggestion": "If per-voice level automation is expected, wrap each voice's level gain in a juce::SmoothedValue (or ramp it across the block) the way outputGain is handled; otherwise document the per-block application as an accepted percussion-one-shot tradeoff."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-001",
+      "category": "contract_alignment",
+      "location": "Source/PluginProcessor.cpp:347-360",
+      "description": "ARCHITECTURE.md section 5 names a 'Mixer / Master' component ('Custom sum + juce::SmoothedValue<float> on output gain'). The implementation satisfies this functionally -- per-voice level is applied inside each voice, voices ADD into a shared cleared buffer (the 'custom sum'), and the master gain is a SmoothedValue applied in an inline per-sample loop -- but there is no discrete Mixer struct/class, so the named component has no one-to-one source mapping. This is acceptable peripheral drift, not a missing component.",
+      "fixSuggestion": "Optional only: extract the inline master-gain loop (PluginProcessor.cpp:350-360) into a small OSimpleBeatmaker::Mixer struct for one-to-one traceability to ARCHITECTURE section 5; the 'custom sum + SmoothedValue' contract is already met so no change is required to pass the gate."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-002",
+      "category": "contract_alignment",
+      "location": "Source/PluginProcessor.cpp:328-343",
+      "description": "Host-MIDI note-ons push a VizEvent (source=1) for any GM-mapped note unconditionally, whereas the audio path gates muted/non-soloed voices in UnifiedTriggerRouter::handleTrigger. For a voice played via host MIDI while muted (or while another voice is soloed), the live MIDI readout would show an event with no corresponding audio. QUAL-02 (the sequencer applied-Delta-t truth, which the timing lane depends on) is unaffected because the sequencer path gates before emit (PluginProcessor.cpp:307); this only concerns the host-MIDI live readout. May be intentional, since ARCHITECTURE section 6 frames it as a 'live MIDI note-on readout' of incoming MIDI.",
+      "fixSuggestion": "If the readout should mirror audio under mute/solo, gate the host-MIDI viz push with router.isVoiceAudible(voice) in PluginProcessor.cpp:332; otherwise document in VizAnalyzer.h that the host-MIDI readout intentionally shows incoming MIDI pre-mute. Resolve as a Stage-3 UI decision."
+    }
+  ],
+  "progression_allowed": true,
+  "blocking_count": 0,
+  "warning_count": 6,
+  "note_count": 0
+}

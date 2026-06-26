@@ -32,6 +32,14 @@ target_sources(O-simpleBeatmaker
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        # Stage 2 DSP spine (header-only voices / clock / feel / router / viz)
+        Source/BeatmakerIDs.h
+        Source/fastSine.h
+        Source/DrumVoiceEngine.h
+        Source/UnifiedTriggerRouter.h
+        Source/SequencerClock.h
+        Source/TimingFeelEngine.h
+        Source/VizAnalyzer.h
 )
 
 # Include paths
@@ -77,9 +85,10 @@ target_compile_definitions(O-simpleBeatmaker
         JUCE_USE_CURL=0
 )
 
-# Stage 2 DSP correctness gate (offline render harness) is added in Stage 2,
-# when tests/render-harness/ exists:
-#   option(OUARICON_BUILD_TESTS "Build O-simpleBeatmaker render-test harness" OFF)
-#   if(OUARICON_BUILD_TESTS)
-#       add_subdirectory(tests/render-harness)
-#   endif()
+# Stage 2 DSP correctness gate (offline render harness). Enable with
+# -DOUARICON_BUILD_TESTS=ON. The harness instantiates the processor directly,
+# injects a synthetic AudioPlayHead, and asserts the 6 timing/voice probes.
+option(OUARICON_BUILD_TESTS "Build O-simpleBeatmaker render-test harness" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()

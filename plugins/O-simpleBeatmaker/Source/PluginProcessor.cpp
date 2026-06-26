@@ -103,14 +103,39 @@ OSimpleBeatmakerAudioProcessor::OSimpleBeatmakerAudioProcessor()
 {
     // std::atomic's default constructor does not zero-initialize — do it explicitly.
     clearGrid();
+    cacheParamPointers();
 }
 
 OSimpleBeatmakerAudioProcessor::~OSimpleBeatmakerAudioProcessor() = default;
 
 //==============================================================================
-void OSimpleBeatmakerAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/)
+void OSimpleBeatmakerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
+
+    // Warm up the shared fastSine LUT on the message thread so its function-local
+    // static (one-time heap alloc + __cxa_guard) never initialises lazily on the
+    // audio thread on the first tonal-voice block (PERF-01: zero alloc/lock in
+    // processBlock). The result is discarded.
+    juce::ignoreUnused (OSimpleBeatmaker::fastSine (0.0f));
+
+    voices.prepareToPlay (sampleRate, samplesPerBlock);
+    clock.prepareToPlay (sampleRate);
+    feel.prepareToPlay (sampleRate);                 // pre-seed per-voice RNG (RT-safe)
+
+    outputGain.reset (sampleRate, 0.02);
+    outputGain.setCurrentAndTargetValue (
+        OSimpleBeatmaker::dbToGain (pOutput != nullptr ? pOutput->load() : 0.0f));
+
+    // Pre-allocate the merged MIDI buffer so processBlock never allocates.
+    sequencerMidi.ensureSize (4096);
+
+    pendingCount = 0;
+    absSamplePos = 0;
+
+#if OUARICON_BUILD_TESTS
+    testEmittedHits.reserve (256);
+#endif
 
     // Zero added latency — the Stage-2 scheduling "lookahead" is bookkeeping, not
     // an output delay line. getLatencySamples() is non-virtual in JUCE 8.
@@ -118,6 +143,35 @@ void OSimpleBeatmakerAudioProcessor::prepareToPlay (double sampleRate, int /*sam
 }
 
 void OSimpleBeatmakerAudioProcessor::releaseResources() {}
+
+//==============================================================================
+void OSimpleBeatmakerAudioProcessor::cacheParamPointers()
+{
+    using namespace OSimpleBeatmaker;
+    using namespace OSimpleBeatmaker::ParamIDs;
+    pSwing      = parameters.getRawParameterValue (swing);
+    pHumanize   = parameters.getRawParameterValue (humanize);
+    pQuant      = parameters.getRawParameterValue (quantizeStrength);
+    pPatternLen = parameters.getRawParameterValue (patternLength);
+    pTempo      = parameters.getRawParameterValue (tempo);
+    pOutput     = parameters.getRawParameterValue (outputLevel);
+
+    for (int v = 0; v < kNumVoices; ++v)
+    {
+        pTune [(size_t) v] = parameters.getRawParameterValue (voiceParamID (v, sufTune));
+        pDecay[(size_t) v] = parameters.getRawParameterValue (voiceParamID (v, sufDecay));
+        pTone [(size_t) v] = parameters.getRawParameterValue (voiceParamID (v, sufTone));
+        pLevel[(size_t) v] = parameters.getRawParameterValue (voiceParamID (v, sufLevel));
+        pMute [(size_t) v] = parameters.getRawParameterValue (voiceParamID (v, sufMute));
+        pSolo [(size_t) v] = parameters.getRawParameterValue (voiceParamID (v, sufSolo));
+    }
+}
+
+int OSimpleBeatmakerAudioProcessor::patternLengthSteps() const noexcept
+{
+    const int idx = pPatternLen != nullptr ? (int) std::lround (pPatternLen->load()) : 1;
+    return idx == 0 ? 8 : (idx == 2 ? 32 : 16);
+}
 
 //==============================================================================
 bool OSimpleBeatmakerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -136,14 +190,193 @@ bool OSimpleBeatmakerAudioProcessor::isBusesLayoutSupported (const BusesLayout& 
 }
 
 //==============================================================================
+void OSimpleBeatmakerAudioProcessor::emitSequencerHit (int voiceIndex, int stepIndex,
+        int offsetInBlock, int finalVel,
+        juce::int32 nominalSampleInBar, juce::int32 appliedSampleInBar,
+        int appliedOffsetSamples, juce::int64 blockStartAbs) noexcept
+{
+    using namespace OSimpleBeatmaker;
+
+    // One emit = one viz push, in the SAME path (QUAL-02 by construction).
+    sequencerMidi.addEvent (
+        juce::MidiMessage::noteOn (1, kGmNotes[(size_t) voiceIndex], (juce::uint8) finalVel),
+        offsetInBlock);
+
+    VizEvent ev;
+    ev.voiceIndex         = (juce::uint8) voiceIndex;
+    ev.stepIndex          = (juce::int16) stepIndex;
+    ev.nominalSampleInBar = nominalSampleInBar;
+    ev.appliedSampleInBar = appliedSampleInBar;
+    ev.velocity           = (juce::uint8) finalVel;
+    ev.source             = 0;                          // sequencer
+    viz.push (ev);
+
+#if OUARICON_BUILD_TESTS
+    testEmittedHits.push_back ({ voiceIndex, stepIndex, finalVel, 0,
+                                 blockStartAbs, offsetInBlock, appliedOffsetSamples,
+                                 nominalSampleInBar, appliedSampleInBar });
+#else
+    juce::ignoreUnused (appliedOffsetSamples, blockStartAbs);
+#endif
+}
+
+void OSimpleBeatmakerAudioProcessor::drainCarryOver (juce::int64 blockStartAbs, int numSamples) noexcept
+{
+    int w = 0;
+    for (int i = 0; i < pendingCount; ++i)
+    {
+        const auto& p = pending[(size_t) i];
+        const juce::int64 rel = p.absTarget - blockStartAbs;
+
+        if (rel < (juce::int64) numSamples)
+        {
+            const int off = (int) juce::jlimit ((juce::int64) 0, (juce::int64) (numSamples - 1), rel);
+            emitSequencerHit (p.voiceIndex, p.stepIndex, off, p.velocity,
+                              p.nominalSampleInBar, p.appliedSampleInBar,
+                              p.appliedOffsetSamples, blockStartAbs);
+        }
+        else
+        {
+            pending[(size_t) w++] = p;                  // still in the future — keep
+        }
+    }
+    pendingCount = w;
+}
+
 void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                    juce::MidiBuffer& midiMessages)
 {
+    using namespace OSimpleBeatmaker;
     juce::ScopedNoDenormals noDenormals;
-    juce::ignoreUnused (midiMessages);
 
-    // Foundation: silent shell. First audio (voices + sequencer) arrives in Stage 2.
-    buffer.clear();
+    const int numSamples = buffer.getNumSamples();
+    const int numCh      = buffer.getNumChannels();
+    buffer.clear();                                     // voices ADD into a cleared buffer
+
+    // --- 1. Read transport once (getPosition() is legal only here) -----------
+    bool   synced  = false;
+    bool   playing = false;
+    double bpm      = (pTempo != nullptr ? (double) pTempo->load() : 120.0);
+    double ppqStart = 0.0;
+    if (auto* ph = getPlayHead())
+        if (auto pos = ph->getPosition())
+        {
+            playing = pos->getIsPlaying();
+            if (playing)
+            {
+                if (auto b = pos->getBpm())         { if (*b > 0.0) bpm = *b; }
+                if (auto p = pos->getPpqPosition()) { ppqStart = *p; synced = true; }
+            }
+        }
+
+    // --- Read the 42 params once / push to voices + router -------------------
+    const double swing01    = pSwing    != nullptr ? (double) pSwing->load()    : 0.0;
+    const double humanize01 = pHumanize != nullptr ? (double) pHumanize->load() : 0.0;
+    const double q          = pQuant    != nullptr ? (double) pQuant->load()    : 1.0;
+    const int    patternLen = patternLengthSteps();
+
+    for (int v = 0; v < kNumVoices; ++v)
+    {
+        voices.setParams (v,
+                          pTune [(size_t) v]->load(), pDecay[(size_t) v]->load(),
+                          pTone [(size_t) v]->load(), pLevel[(size_t) v]->load());
+        muteArr[(size_t) v] = pMute[(size_t) v]->load() > 0.5f;
+        soloArr[(size_t) v] = pSolo[(size_t) v]->load() > 0.5f;
+    }
+    router.setMuteSolo (muteArr, soloArr);
+
+    // --- 2. Enumerate firing step-columns for this block ---------------------
+    float playheadPhase = 0.0f;
+    bool  discontinuity = false;
+    const int nCols = clock.process (firingColumns.data(), kMaxFiringColumns,
+                                     synced, playing, bpm, ppqStart, patternLen, numSamples,
+                                     playheadPhase, discontinuity);
+    if (discontinuity)
+        pendingCount = 0;                               // relocate/loop -> drop stale carry-over
+
+    // --- 3. Feel compose + emit into the sequencer buffer --------------------
+    sequencerMidi.clear();
+#if OUARICON_BUILD_TESTS
+    testEmittedHits.clear();
+#endif
+    const juce::int64 blockStartAbs = absSamplePos;
+
+    drainCarryOver (blockStartAbs, numSamples);         // late hits from prior blocks first
+
+    for (int c = 0; c < nCols; ++c)
+    {
+        const auto& col = firingColumns[(size_t) c];
+        for (int v = 0; v < kNumVoices; ++v)
+        {
+            const int stepVel = getStep (v, col.stepIndex);
+            if (stepVel <= 0)                 continue; // cell off
+            if (! router.isVoiceAudible (v))  continue; // mute/solo gate at emit -> no audio, no viz
+
+            const auto hit = feel.compute (v, col.stepIndex, col.nominalSampleInBar,
+                                           stepVel, bpm, swing01, q, humanize01);
+            const int finalOffset = col.nominalOffsetInBlock + hit.appliedOffsetSamples;
+
+            if (finalOffset < numSamples)
+            {
+                emitSequencerHit (v, col.stepIndex, juce::jmax (0, finalOffset), hit.finalVelocity,
+                                  hit.nominalSampleInBar, hit.appliedSampleInBar,
+                                  hit.appliedOffsetSamples, blockStartAbs);
+            }
+            else if (pendingCount < kMaxPending)        // late: carry to a later block
+            {
+                pending[(size_t) pendingCount++] = {
+                    blockStartAbs + finalOffset, v, col.stepIndex, hit.finalVelocity,
+                    hit.nominalSampleInBar, hit.appliedSampleInBar, hit.appliedOffsetSamples };
+            }
+        }
+    }
+
+    // --- 4. Host-MIDI viz readout (source=1) + merge into the same stream ----
+    for (const auto meta : midiMessages)
+    {
+        const auto m = meta.getMessage();
+        if (m.isNoteOn() && router.voiceForNote (m.getNoteNumber()) >= 0)
+        {
+            VizEvent ev;
+            ev.voiceIndex         = (juce::uint8) router.voiceForNote (m.getNoteNumber());
+            ev.stepIndex          = -1;
+            ev.nominalSampleInBar = meta.samplePosition;
+            ev.appliedSampleInBar = meta.samplePosition;   // host MIDI: Δt = 0
+            ev.velocity           = (juce::uint8) m.getVelocity();
+            ev.source             = 1;
+            viz.push (ev);
+        }
+    }
+    sequencerMidi.addEvents (midiMessages, 0, numSamples, 0);   // host merged, stays sorted
+
+    // --- 5. Sub-slice render on event offsets --------------------------------
+    router.renderMerged (buffer, sequencerMidi, voices);
+
+    // --- 6. Master gain (smoothed) -------------------------------------------
+    outputGain.setTargetValue (dbToGain (pOutput != nullptr ? pOutput->load() : 0.0f));
+    if (numCh > 0)
+    {
+        auto* const* wp = buffer.getArrayOfWritePointers();
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float g = outputGain.getNextValue();
+            for (int ch = 0; ch < numCh; ++ch)
+                wp[ch][i] *= g;
+        }
+    }
+
+    // Block-level NaN/inf scrub (suite-wide insurance).
+    for (int ch = 0; ch < numCh; ++ch)
+    {
+        float* d = buffer.getWritePointer (ch);
+        for (int i = 0; i < numSamples; ++i)
+            if (! std::isfinite (d[i])) d[i] = 0.0f;
+    }
+
+    // --- 7. Viz playhead + bookkeeping ---------------------------------------
+    viz.setPlayheadStepPhase (playheadPhase);
+    viz.bumpFrame();
+    absSamplePos += numSamples;
 }
 
 //==============================================================================
