@@ -1,0 +1,77 @@
+{
+  "critic": "dsp-critic",
+  "plugin": "O-simpleBeatmaker",
+  "stage": "2-dsp",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-06-25T12:00:00Z",
+  "scores": {
+    "realtime_safety": {
+      "score": 9,
+      "threshold": 8,
+      "passed": true,
+      "details": "ScopedNoDenormals at processBlock top (PluginProcessor.cpp:244). No locks/mutex/CriticalSection/callAsync/throw/std::function/file-I/O anywhere in the audio path (grep clean). RNG pre-seeded ONLY in prepareToPlay (TimingFeelEngine.h:57 setSeed, DrumVoiceEngine.h:400-403 NoiseGen::seed) and never reseeded on the audio thread. Grid read is lock-free atomic load with memory_order_relaxed (PluginProcessor.cpp:415). The one test-hook allocation (testEmittedHits.push_back PluginProcessor.cpp:209, reserve:131) is fully guarded by #if OUARICON_BUILD_TESTS, and CMakeLists.txt:91 declares the option OFF by default while only the render-test target defines OUARICON_BUILD_TESTS=1 PRIVATE (tests/render-harness/CMakeLists.txt:41) — confirmed the shipping plugin target never defines it, so the production path is allocation-free. Viz handoff is lock-free AbstractFifo + atomics. Two minor warnings only: lazy fastSine LUT static init and a theoretical sequencerMidi sizing edge — neither reachable at realistic block sizes."
+    },
+    "buffer_handling": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "buffer.clear() at top so voices ADD into a cleared buffer (PluginProcessor.cpp:248). Channel iteration safe: numCh cached, master loop guarded by 'if (numCh > 0)', renderAll mirrors L into R for mono (DrumVoiceEngine.h:438-439), and isBusesLayoutSupported restricts output to mono/stereo so numCh is always 1-2. Sample rate stored in prepareToPlay and propagated to voices/clock/feel. All scratch (sequencerMidi.ensureSize(4096), firingColumns std::array[128], pending std::array[64]) preallocated in prepareToPlay/as members. No explicit numSamples==0 early return, but the code path is provably safe for empty buffers (clear/clock/render/loops all no-op) and pluginval strictness-10 passed."
+    },
+    "parameter_integration": {
+      "score": 9,
+      "threshold": 6,
+      "passed": true,
+      "details": "All 42 APVTS params are cached as atomic pointers (cacheParamPointers) and read once/block via ->load(): swing/humanize/quantizeStrength -> TimingFeelEngine.compute; patternLength -> patternLengthSteps -> clock; tempo -> free-run bpm fallback; outputLevel -> SmoothedValue outputGain (per-sample ramp); per-voice tune/decay/tone/level -> voices.setParams; per-voice mute/solo -> router.setMuteSolo -> isVoiceAudible emit gate. Master gain is smoothed. Minor: per-voice Level/Tune/Decay/Tone are recomputed per-block without SmoothedValue, so fast automation of a per-voice level could zipper — acceptable for percussion one-shots but noted."
+    },
+    "numerical_stability": {
+      "score": 9,
+      "threshold": 6,
+      "passed": true,
+      "details": "ScopedNoDenormals covers all recursive filter (StateVariableTPTFilter bp/hp) and envelope state for the whole block. Exponential amp envelopes flushed to 0.0 below kEnvFloor=1e-6 (KickVoice:115, TomVoice:163, SnareVoice:225, ClapVoice:293, HatVoice:369-371) so decaying tails go idle rather than denormalize. fastSine has an isfinite guard plus the mandatory floor-modulo phase wrap (fastSine.h:40-42) preventing LUT clamp/UB on fast pitch sweeps. Block-level std::isfinite NaN/inf scrub on every output sample (PluginProcessor.cpp:363-368). No feedback loops requiring DC blocking (architecture has none). Output is NaN-scrubbed and empirically bounded (probe peak ~1.1)."
+    },
+    "architecture_alignment": {
+      "score": 10,
+      "threshold": 5,
+      "passed": true,
+      "details": "DSP-04 invariant structurally honored: in TimingFeelEngine.h:70-78 dSwing = ((stepIndex%2)==1) ? (swing01/3.0)*T8 : 0.0 is a SEPARATE additive term, and the compose line dtSec = dSwing + dHumanT*(1.0-q) scales ONLY the humanize term by (1-q); velocity likewise clamp(stepVel + dHumanV*(1-q),1,127). Swing math matches the contract s=0.5+swing01/3. Processing order matches ARCHITECTURE (playhead+params once -> clock enumerate -> feel compose+emit -> merge -> sub-slice render -> master -> viz). Grid is std::atomic<uint8_t>[6*32], NOT 384 params. setLatencySamples(0) called and the non-virtual getLatencySamples() is correctly NOT overridden. Voice structs suffixed (KickVoice/SnareVoice/ClapVoice/HatVoice/TomVoice) avoid bare Voice and juce:: type shadows. GM map 36/38/39/42/46/45 matches. Viz Δt (appliedSampleInBar-nominalSampleInBar) is pushed in the SAME emitSequencerHit call as sequencerMidi.addEvent (QUAL-02 by construction). Fallback A (late-only humanize) is the blessed, documented deviation."
+    }
+  },
+  "overallStatus": "PASSED",
+  "overallScore": 9.2,
+  "issues": [
+    {
+      "id": "DSP-001",
+      "severity": "warning",
+      "category": "realtime_safety",
+      "location": "fastSine.h:38",
+      "description": "fastSine() backs its sine lookup with a function-local static SineTable whose juce::dsp::LookupTableTransform::initialise() allocates a 1024-point table. All call sites (DrumVoiceEngine.h:106,157,217) are reached only from processBlock, so on the very first block that renders a tonal voice the static is lazily constructed on the audio thread — a one-time heap allocation plus a one-time thread-safe-static (__cxa_guard) lock acquisition. Not a per-block hazard, but it is an allocation/lock reachable from the audio thread on the first call.",
+      "fixSuggestion": "Warm up the lookup table off the audio thread by calling fastSine once during prepareToPlay (or constructing the table eagerly as a namespace-scope object) so the static is fully initialized before the first processBlock, eliminating the first-block allocation and guard lock."
+    },
+    {
+      "id": "DSP-002",
+      "severity": "warning",
+      "category": "realtime_safety",
+      "location": "PluginProcessor.cpp:126",
+      "description": "sequencerMidi.ensureSize(4096) preallocates the merged MIDI buffer, but the code permits up to kMaxFiringColumns (128) firing columns per block x 6 voices = ~768 emitted note-ons (plus carry-over and host MIDI). At ~9-12 bytes per MidiBuffer event that worst case can exceed 4096 bytes, in which case MidiBuffer::addEvent would reallocate on the audio thread. The 128-column count is a generous safety cap that is unreachable at realistic block sizes/tempos (a normal block spans 1-3 sixteenths), so this is theoretical, but the reserve is not provably sufficient for the bound the code itself allows.",
+      "fixSuggestion": "Size sequencerMidi.ensureSize for the actual worst-case event count (kMaxFiringColumns * kNumVoices * bytesPerEvent plus host headroom), or clamp the number of emitted events per block to a value the reserve covers, so addEvent can never reallocate."
+    },
+    {
+      "id": "DSP-003",
+      "severity": "warning",
+      "category": "buffer_handling",
+      "location": "PluginProcessor.cpp:246",
+      "description": "processBlock has no explicit early return for an empty buffer (e.g. if (buffer.getNumSamples() == 0) return;). The current code is provably safe with numSamples==0 (clear, clock window, render loop, and gain/scrub loops all no-op), but the defensive zero-length guard is a standard buffer-handling pattern and its absence is the only checklist gap here.",
+      "fixSuggestion": "Add an explicit early-out at the top of processBlock when getNumSamples()==0 to make the empty-buffer contract explicit and guard future edits that might assume numSamples>0."
+    },
+    {
+      "id": "DSP-004",
+      "severity": "warning",
+      "category": "parameter_integration",
+      "location": "PluginProcessor.cpp:274-276",
+      "description": "Per-voice Level (and Tune/Decay/Tone) are pushed to the voices once per block via voices.setParams and applied as a direct multiply/coefficient with no SmoothedValue. Only the master outputLevel is smoothed. Fast host automation of a per-voice Level could produce a small per-block step (zipper) on a sustaining tail. Acceptable for short percussion one-shots, but it is a smoothing gap relative to the master path.",
+      "fixSuggestion": "If per-voice level automation is expected, wrap each voice's level gain in a juce::SmoothedValue (or ramp it across the block) the way outputGain is handled; otherwise document the per-block application as an accepted percussion-one-shot tradeoff."
+    }
+  ],
+  "nextAction": "gate_pass"
+}
