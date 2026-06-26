@@ -3,12 +3,11 @@ cmake_minimum_required(VERSION 3.15)
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # O-simpleBeatmaker - Pedagogical TR-808/909 Step-Sequencer Drum Machine
-# Stage 1 (Foundation): silent synth shell with the full 42-parameter APVTS +
-# a custom 6x32 step-grid persisted in a "PATTERN" ValueTree child. No DSP yet
-# (first audio: Stage 2). WebView UI: Stage 3 — but the WebView2 cross-platform
-# flags are set NOW so the GUI stage inherits a correct config. No binary-data
-# target this stage (avoids the O-simpleGrain dual-namespace collision until a
-# 2nd target genuinely exists in Stage 3).
+# Full plugin (Stages 1-3 complete): 42-parameter APVTS + a custom 6x32 step-grid
+# persisted in a "PATTERN" ValueTree child (Stage 1); the synthesized 6-voice DSP
+# spine + sample-accurate host-synced sequencer + timing-feel engine + lock-free
+# VizAnalyzer (Stage 2); and the single-page WebView teaching UI (Stage 3, the
+# binary-data target below). WebView2 cross-platform flags set since Foundation.
 juce_add_plugin(O-simpleBeatmaker
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
@@ -48,9 +47,23 @@ target_include_directories(O-simpleBeatmaker
         Source
 )
 
+# WebView UI resources (embedded as BinaryData) — Stage 3 GUI.
+# Single binary-data target → the default BinaryData namespace is correct (only a
+# 2nd target — e.g. embedded samples — would need a distinct NAMESPACE; this synth
+# has none, so the O-simpleGrain dual-namespace collision does not apply here).
+juce_add_binary_data(O-simpleBeatmaker_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+)
+
 # Required JUCE modules
 target_link_libraries(O-simpleBeatmaker
     PRIVATE
+        O-simpleBeatmaker_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats

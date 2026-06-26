@@ -1,0 +1,106 @@
+{
+  "stage": "3-gui",
+  "plugin": "O-simpleBeatmaker",
+  "timestamp": "2026-06-26T03:16:14Z",
+  "critics_run": [
+    "ui-critic",
+    "architecture-critic",
+    "foundation-critic"
+  ],
+  "unified_issues": [
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-001",
+      "category": "accessibility",
+      "location": "Source/ui/public/js/app.js:254-264",
+      "description": "The headline 6x32 step grid cells are plain <div>s with click/contextmenu listeners only \u2014 no tabindex, no role (e.g. gridcell/switch), no keyboard handler. The primary interactive surface of the plugin is unreachable and unoperable by keyboard.",
+      "fixSuggestion": "Make cells focusable (tabindex) inside a role=grid/row structure, add an aria-label per cell (voice + step + velocity tier), and support Space/Enter to cycle velocity plus Delete to clear; mirror the existing left-click/right-click semantics."
+    },
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-002",
+      "category": "accessibility",
+      "location": "Source/ui/public/js/app.js:134-135, 199-208",
+      "description": "Knobs set role='slider' but never set aria-valuenow/aria-valuemin/aria-valuemax/aria-valuetext, and mute/solo <button>s never set aria-pressed. Screen readers announce a slider/button with no value or toggle state.",
+      "fixSuggestion": "In updateKnobVisual set aria-valuenow (and a human aria-valuetext from the same formatter used for the visible value) on the knob element; in bindToggle reflect st.getValue() into aria-pressed on each button."
+    },
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-003",
+      "category": "accessibility",
+      "location": "Source/ui/public/css/styles.css:122,200,350,351,422",
+      "description": "Multiple labels render below the 12px legibility floor (knob-label 10.5px, knob-value 10px, cell-mark 9px, tr-label/lane-legend/tour-soon 10.5px), which works against the stated projector-readable goal for low-vision viewers.",
+      "fixSuggestion": "Raise the smallest functional labels toward 12px (or add a viewport/zoom-friendly rem scale), keeping the dense layout by trimming padding rather than shrinking type below 12px."
+    },
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-004",
+      "category": "accessibility",
+      "location": "Source/ui/public/js/app.js:472-479",
+      "description": "The plain-language tooltips \u2014 the core pedagogy of the teaching UI \u2014 are triggered only on pointerenter/pointermove. Keyboard and focus users receive none of the explanatory copy.",
+      "fixSuggestion": "Also show/hide the tooltip on focusin/focusout for the same [data-tip] elements and position it relative to the focused element, so keyboard navigation surfaces the same explanations as hover."
+    },
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-005",
+      "category": "polish",
+      "location": "Source/ui/public/js/app.js:483-492",
+      "description": "Preset-tour buttons toggle an 'armed' active style and rewrite the caption on click, presenting themselves as interactive, but are intentionally non-functional Stage-4 hooks. This risks reading as dead/broken controls to a user.",
+      "fixSuggestion": "Until Stage 4 wires preset content, visually mark the buttons as not-yet-active (disabled/dimmed affordance or a clear 'preview only' state) so the armed styling does not imply a working action; revisit when presets land."
+    },
+    {
+      "severity": "warning",
+      "critic": "ui-critic",
+      "id": "UI-006",
+      "category": "consistency",
+      "location": "Source/ui/public/js/app.js:529-530",
+      "description": "The clearGrid native function is registered in C++ and fetched in JS (clearGridFn) but is never invoked \u2014 there is no whole-grid clear affordance in the UI. Harmless, but it is a registered-but-unused bridge binding (inverse of the usual bridge-gap).",
+      "fixSuggestion": "Either expose a 'Clear pattern' control wired to clearGridFn (with a local gridState reset + repaint) or drop the unused fetch to keep the JS<->C++ surface tight."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-001",
+      "category": "contract_alignment",
+      "location": "plugins/O-simpleBeatmaker/.planning/stages/3-gui/PLAN.md:34 / RESEARCH.md:57-61",
+      "description": "Doc-vs-implementation drift: PLAN T3 and RESEARCH list a getBpm native fn and separate 'playhead'/'triggers' pushed events, but the shipped editor exposes no getBpm native fn and instead pushes a single consolidated 'frame' event (PluginEditor.cpp:204-210) carrying ph/bpm/sync/hits, which app.js consumes via addEventListener('frame'). The implementation is functionally complete and internally consistent (no dead control, no bridge gap); only the planning docs are stale.",
+      "fixSuggestion": "Update PLAN.md T3 and RESEARCH.md pushed-events section to describe the single 'frame' event (bpm embedded) and drop the getBpm native fn reference, so the docs match the shipped bridge surface."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-002",
+      "category": "dependency_direction",
+      "location": "plugins/O-simpleBeatmaker/Source/PluginProcessor.h:74",
+      "description": "getVizAnalyzer() returns a non-const OSimpleBeatmaker::VizAnalyzer& to the message-thread editor, exposing the producer-side push()/setPlayheadStepPhase() and bumpFrame() methods that are intended for the audio thread only. The editor uses just the consumer API (drain/getPlayheadStepPhase), so this is not a live defect, but the interface is broader than the message thread should be able to reach.",
+      "fixSuggestion": "Either return a const reference and add const consumer-side accessors, or expose a narrow message-thread view (e.g. drainViz()/playheadPhase() forwarders on the processor) so the producer methods are not reachable from the editor."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-003",
+      "category": "contract_alignment",
+      "location": "plugins/O-simpleBeatmaker/Source/PluginProcessor.h:138",
+      "description": "currentSampleRate is a plain (non-atomic) double written in prepareToPlay and read by the editor's 60 Hz Timer (getCurrentSampleRate()), whereas the sibling taps lastKnownBpm/hostSynced are std::atomic. The read/write is a theoretical, benign data race (aligned 64-bit, advisory-only UI scale factor) but is inconsistent with the other two taps.",
+      "fixSuggestion": "Promote currentSampleRate to std::atomic<double> with relaxed store/load to match getLastKnownBpm()/isHostSynced() and remove the theoretical race, or document explicitly why a plain double is acceptable for this advisory tap."
+    },
+    {
+      "severity": "warning",
+      "critic": "foundation-critic",
+      "id": "FND-001",
+      "category": "cmake_correctness",
+      "location": "plugins/O-simpleBeatmaker/CMakeLists.txt:5-11",
+      "description": "Stale Stage-1 header comment block states 'No binary-data target this stage (avoids the O-simpleGrain dual-namespace collision until a 2nd target genuinely exists in Stage 3)' and 'No DSP yet', which now contradicts the juce_add_binary_data target added at lines 55-62 and the Stage-2 DSP spine. Documentation-only; does not affect the build.",
+      "fixSuggestion": "Update the top-of-file comment to reflect Stage 3 state: a single binary-data target now exists (default BinaryData namespace is correct because it is the only such target), and the DSP spine landed in Stage 2."
+    }
+  ],
+  "progression_allowed": true,
+  "blocking_count": 0,
+  "warning_count": 10,
+  "note_count": 0
+}

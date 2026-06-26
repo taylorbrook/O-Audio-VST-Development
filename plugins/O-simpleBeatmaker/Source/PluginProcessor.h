@@ -73,6 +73,16 @@ public:
     // Viz tap access (Stage-3 editor Timer drains this; Stage 2 just feeds it).
     OSimpleBeatmaker::VizAnalyzer& getVizAnalyzer() noexcept { return viz; }
 
+    //==========================================================================
+    // Read-only taps for the Stage-3 timing lane (message thread). The lane
+    // renders each hit's applied Δt as a fraction of a 16th-note step, which is
+    // tempo-independent — so it needs the current sample rate + the transport BPM
+    // last seen by the audio thread. `lastKnownBpm` is written once per block as a
+    // relaxed atomic (no extra audio-path cost) and is purely advisory for the UI.
+    double getCurrentSampleRate() const noexcept { return currentSampleRate; }
+    double getLastKnownBpm()      const noexcept { return lastKnownBpm.load (std::memory_order_relaxed); }
+    bool   isHostSynced()         const noexcept { return hostSynced.load (std::memory_order_relaxed); }
+
 #if OUARICON_BUILD_TESTS
     //==========================================================================
     // Render-harness test hooks (compiled ONLY into the offline render-test —
@@ -126,6 +136,8 @@ private:
     void            restorePatternTree (const juce::ValueTree& pattern); // message thread; may allocate
 
     double currentSampleRate = 44100.0;
+    std::atomic<double> lastKnownBpm { 120.0 };   // last transport/free-run BPM (UI lane scale)
+    std::atomic<bool>   hostSynced  { false };    // true when locked to a playing host (UI readout)
 
     //==========================================================================
     // Stage-2 DSP spine (all audio-thread-owned).

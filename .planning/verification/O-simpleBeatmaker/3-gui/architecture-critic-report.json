@@ -1,0 +1,63 @@
+{
+  "critic": "architecture-critic",
+  "plugin": "O-simpleBeatmaker",
+  "stage": "3-gui",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-06-26T03:15:07Z",
+  "scores": {
+    "contract_alignment": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "Every component named in CONTEXT/PLAN/RESEARCH and ARCHITECTURE.md has matching source. Editor responsibilities (WebView UI replacing the Stage-1 generic shell, 29 slider + 1 combo + 12 toggle relays/attachments, step-grid native fns, 60 Hz Timer draining VizAnalyzer) match the docs. The THREE advisory taps are a verified clean read-only addition: getCurrentSampleRate() exposes the prepareToPlay-set rate; getLastKnownBpm()/isHostSynced() are std::atomic written ONCE per block in processBlock (PluginProcessor.cpp:273-274) with memory_order_relaxed and only READ by the editor Timer. The claim 'NO DSP behaviour change' holds: the only new lines in processBlock are the two .store() calls; bpm/synced/playing are computed for the clock regardless of the taps, the taps merely mirror a snapshot into atomics that the DSP never reads back, and no branch keys off the tap values, so voice scheduling and the output path are untouched. Step-grid as std::atomic<uint8_t>[6*32] (NOT APVTS) and PATTERN ValueTree persistence match the documented design (ARCHITECTURE.md State Persistence + Parameter Mapping custom-state table) exactly, including the base64 round-trip using JUCE's own MemoryBlock format symmetrically on save+restore and the saved-column-stride restore that survives a kMaxSteps change. Minor doc drift only: PLAN/RESEARCH named a getBpm native fn and 'playhead'/'triggers' events, but the implementation routes BPM through a single consolidated 'frame' event (functionally complete, internally consistent, arguably cleaner)."
+    },
+    "module_usage": {
+      "score": 9,
+      "threshold": 6,
+      "passed": true,
+      "details": "Exactly ONE juce_add_binary_data target (O-simpleBeatmaker_UIResources) using the default BinaryData namespace; the only 'NAMESPACE' token in CMakeLists is a comment, not an override. The synth has no embedded-sample target, so the known O-simpleGrain dual-BinaryData-namespace collision does NOT apply here. The UI-resources target is linked PRIVATE alongside the standard JUCE modules. Shared JUCE interop module files (js/juce/index.js + check_native_interop.js) are reused verbatim from O-simpleSubtractive per RESEARCH; no duplication. WebView2 cross-platform flags (NEEDS_WEB_BROWSER, NEEDS_WEBVIEW2, JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1, JUCE_WEB_BROWSER=1, JUCE_USE_CURL=0) are present."
+    },
+    "naming_conventions": {
+      "score": 9,
+      "threshold": 5,
+      "passed": true,
+      "details": "O- folder prefix; PascalCase classes (OSimpleBeatmakerAudioProcessor/Editor, DrumVoiceEngine, SequencerClock, TimingFeelEngine, UnifiedTriggerRouter, VizAnalyzer, *Voice structs); camelCase methods (setStep, getGrid, getCurrentSampleRate, timerCallback). Voice structs are deliberately *Voice-suffixed to avoid the documented enum Voice / juce:: type shadowing. Param-ID strings are lowerCamel and consistent across ALL FOUR surfaces with no drift: BeatmakerIDs.h::ParamIDs + voiceParamID() is the single source of truth; PluginProcessor.cpp createParameterLayout, PluginEditor.cpp (sliderIds/comboIds/toggleIds built from the same constants), and app.js (GLOBAL_SLIDERS/VOICE_SLIDER_SUFFIX/VOICE_TOGGLE_SUFFIX + the kick/snare/clap/closedHat/openHat/tom prefix list) all resolve to identical IDs (e.g. closedHatTune, openHatMute). GM notes {36,38,39,42,46,45} match between kGmNotes and the app.js VOICES table. Native-fn names match exactly C++<->JS (setStep/getGrid/clearGrid/getSampleRate) and the 'frame' event name matches emit<->listener."
+    },
+    "dependency_direction": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "DSP layer is fully GUI-independent: PluginProcessor.h includes only BeatmakerIDs/DrumVoiceEngine/UnifiedTriggerRouter/SequencerClock/TimingFeelEngine/VizAnalyzer and NO editor/UI header; a grep of all five DSP headers + BeatmakerIDs.h finds zero PluginEditor/WebBrowser/gui_extra references. PluginProcessor.cpp includes PluginEditor.h ONLY to implement createEditor() — the standard JUCE pattern; the header include graph is acyclic (Editor.h -> Processor.h one-way; Processor.cpp -> Editor.h at TU level), so no circular include. BeatmakerIDs.h is the extracted shared single-source-of-truth that prevents a cycle. The editor reads processor state exclusively through clean public interfaces: step-grid via setStep/getStep/clearGrid (per-cell std::atomic<uint8_t>, relaxed load/store, lock-free, allocation-free, no cross-cell invariant so relaxed is sufficient), advisory taps via the const atomic getters, params via getAPVTS(), and the audio->UI handoff via getVizAnalyzer().drain()/getPlayheadStepPhase() (the documented single-producer/single-consumer AbstractFifo + atomic). The editor holds OSimpleBeatmakerAudioProcessor& processorRef whose lifetime strictly contains the editor's (JUCE guarantee), and stopTimer() in the dtor body runs before member destruction so timerCallback (guarded by webView!=nullptr) can never outlive processorRef. Soft nit only: getVizAnalyzer() returns a mutable reference, exposing producer-side push()/setPlayheadStepPhase() to the message thread even though the editor correctly touches only the consumer API."
+    }
+  },
+  "overallStatus": "PASSED",
+  "overallScore": 9,
+  "issues": [
+    {
+      "id": "ARCH-001",
+      "severity": "warning",
+      "category": "contract_alignment",
+      "location": "plugins/O-simpleBeatmaker/.planning/stages/3-gui/PLAN.md:34 / RESEARCH.md:57-61",
+      "description": "Doc-vs-implementation drift: PLAN T3 and RESEARCH list a getBpm native fn and separate 'playhead'/'triggers' pushed events, but the shipped editor exposes no getBpm native fn and instead pushes a single consolidated 'frame' event (PluginEditor.cpp:204-210) carrying ph/bpm/sync/hits, which app.js consumes via addEventListener('frame'). The implementation is functionally complete and internally consistent (no dead control, no bridge gap); only the planning docs are stale.",
+      "fixSuggestion": "Update PLAN.md T3 and RESEARCH.md pushed-events section to describe the single 'frame' event (bpm embedded) and drop the getBpm native fn reference, so the docs match the shipped bridge surface."
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "warning",
+      "category": "dependency_direction",
+      "location": "plugins/O-simpleBeatmaker/Source/PluginProcessor.h:74",
+      "description": "getVizAnalyzer() returns a non-const OSimpleBeatmaker::VizAnalyzer& to the message-thread editor, exposing the producer-side push()/setPlayheadStepPhase() and bumpFrame() methods that are intended for the audio thread only. The editor uses just the consumer API (drain/getPlayheadStepPhase), so this is not a live defect, but the interface is broader than the message thread should be able to reach.",
+      "fixSuggestion": "Either return a const reference and add const consumer-side accessors, or expose a narrow message-thread view (e.g. drainViz()/playheadPhase() forwarders on the processor) so the producer methods are not reachable from the editor."
+    },
+    {
+      "id": "ARCH-003",
+      "severity": "warning",
+      "category": "contract_alignment",
+      "location": "plugins/O-simpleBeatmaker/Source/PluginProcessor.h:138",
+      "description": "currentSampleRate is a plain (non-atomic) double written in prepareToPlay and read by the editor's 60 Hz Timer (getCurrentSampleRate()), whereas the sibling taps lastKnownBpm/hostSynced are std::atomic. The read/write is a theoretical, benign data race (aligned 64-bit, advisory-only UI scale factor) but is inconsistent with the other two taps.",
+      "fixSuggestion": "Promote currentSampleRate to std::atomic<double> with relaxed store/load to match getLastKnownBpm()/isHostSynced() and remove the theoretical race, or document explicitly why a plain double is acceptable for this advisory tap."
+    }
+  ],
+  "nextAction": "gate_pass"
+}

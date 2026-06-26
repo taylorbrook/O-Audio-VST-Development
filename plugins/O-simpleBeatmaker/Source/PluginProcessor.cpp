@@ -269,6 +269,10 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
             }
         }
 
+    // Advisory taps for the Stage-3 UI (read-only on the message thread).
+    lastKnownBpm.store (bpm, std::memory_order_relaxed);
+    hostSynced.store (synced && playing, std::memory_order_relaxed);
+
     // --- Read the 42 params once / push to voices + router -------------------
     const double swing01    = pSwing    != nullptr ? (double) pSwing->load()    : 0.0;
     const double humanize01 = pHumanize != nullptr ? (double) pHumanize->load() : 0.0;
