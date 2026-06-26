@@ -112,6 +112,12 @@ public:
     int  getStep         (int voice, int step) const noexcept;
     void clearGrid       () noexcept;
 
+    // Concept-isolating factory presets (FUNC-05). Message thread only: sets the
+    // timing-feel APVTS params via setValueNotifyingHost (knobs + host automation
+    // update for free) then stamps the grid via clearGrid()/setStep(). Not noexcept
+    // (setValueNotifyingHost may take the uncontended parameter lock off-audio).
+    void applyConceptPreset (int index);
+
 private:
     //==========================================================================
     // Class-scoped aliases so in-class and member-function bodies can use the
