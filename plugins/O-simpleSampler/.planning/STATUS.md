@@ -2,13 +2,13 @@
 plugin: O-simpleSampler
 stage: 2
 status: in_progress
-phase: execute
+phase: verify
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: run_verify_phase
+next_action: daw_play_test_then_phase_2_2
 next_stage: 2
 ready_for_implementation: true
 stage2_decisions:
@@ -25,7 +25,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — 🚧 in progress (discuss ✓, research ✓, plan ✓, execute[2.1] ✓)
+Stage: 2 of 4 (DSP) — 🚧 in progress (discuss ✓, research ✓, plan ✓, execute[2.1] ✓, verify[2.1] ✓)
 Status: **Phase 2.1 execute COMPLETE — first audio.** Embedded piano.wav + 2nd binary-data target, ported Lagrange/AA helpers, SampleSound+SampleVoice (Repitch read head + AA + amp ADSR + velToAmp), decode→resample→atomic-publish, sourceSample listener→AsyncUpdater + piano root-seed=48, 16-voice synth wiring, restore-aware setStateInformation. Build clean (VST3+AU+Standalone), **auval SUCCEEDED (21 params), pluginval@5 SUCCESS**, installed. NEW gotcha: `SamplerVoice`/`SamplerSound` collide with `juce::SamplerVoice/Sound` under `using namespace juce` → renamed to `SampleVoice`/`SampleSound`. **STOP for DAW play-test (CONTEXT D2)** before 2.2 (loop/Stretch/Vintage/filter) + 2.3 (viz/render-harness). Next: verify phase (then 2.2 execute).
 Progress: [##########..........] 50%
 
@@ -47,7 +47,7 @@ Progress: [##########..........] 50%
 | research | ✓ RESEARCH.md (6 open items resolved) | 2026-06-25 |
 | plan | ✓ PLAN.md (Phase 2.1 = 8 tasks; 2.2/2.3 forward scope) | 2026-06-25 |
 | execute | ✓ SUMMARY.md (Phase 2.1 — build+auval+pluginval PASS) | 2026-06-25 |
-| verify | → next (after DAW play-test gate, CONTEXT D2) | |
+| verify | ✓ VERIFICATION.md (Phase 2.1 PASS — no blockers; DSP critic clean) | 2026-06-25 |
 
 ## Completed So Far
 
@@ -74,6 +74,10 @@ Progress: [##########..........] 50%
 - Built-in names (piano/vocal/flute/vinyl) are a working placeholder; finalize curated set + per-sample default roots when `.wav` assets are sourced (Phase 2.1/2.3).
 - New gotcha: APVTS param-ID identifiers must not shadow `juce::` free functions (`begin`/`end`) under `using namespace`.
 - Dual-NAMESPACE binary-data split + render-harness already documented as CMake TODOs.
+
+**Phase 2.1 carry-forward into 2.2 (from verify/DSP critic):**
+- **Region-end hard cut clicks** (`SampleVoice.h:185-189` does `ampEnv.reset(); break;`) — fold a short declick ramp at region-end into the 2.2 loop/region work (most audible artifact when lowering End).
+- 2.3 hardening backlog (accepted O-simpleGrain-inherited RT patterns): message-thread reclaim queue for the source-swap shared_ptr free; revisit `std::atomic_load/store(shared_ptr)` (deprecated C++20); `setValueNotifyingHost`-in-prepare advisability.
 
 **Key DSP decisions (from Stage 0, unchanged):**
 - Repitch = continuous fractional-read varispeed; Stretch = synchronous-granular SOLA (time 1× + per-grain resample, Hann overlap-add) reusing O-simpleGrain `GrainScheduler`.
