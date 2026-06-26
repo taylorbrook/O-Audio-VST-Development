@@ -1,15 +1,15 @@
 ---
 plugin: O-simpleBeatmaker
 stage: 4
-status: in_progress
-phase: discuss
+status: complete
+phase: verify
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: express
-next_action: stage_4_research
-next_stage: 4
+next_action: install_plugin
+registry_status: working
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:d4c7b23b26982ad7f06c6fff0d7feb960f0877a987097ec7cfcf29941931baf7
@@ -22,9 +22,44 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — complete
-Status: **The teaching UI is live.** Single-page Ouaricon field-guide WebView replaces the generic editor: 6×16 step grid with the velocity cycle (off→normal→accent→ghost) + a live amber playhead; the applied-Δt **timing/groove lane** (QUAL-02 — renders the Δt baked into the audio, not a recompute); a **live MIDI readout** (SEQ + played MIDI, one stream); all 42 params bound two-way (29 knobs + patternLength selector + 12 mute/solo); plain-language tooltips on everything; a Clear-all affordance; concept-preset hook (content → Stage 4). Build clean VST3+AU+Standalone; **auval SUCCEEDED** (incl. MIDI); **pluginval strictness-10 SUCCESS**; UI renders (screenshot-verified, not blank). Critic review: **0 blockers** (ui 7.0, architecture ~9.0, foundation 9.75); 6 of 10 advisory warnings (a11y cluster + doc drift) fixed this stage. Ready for Stage 4 (Polish).
-Progress: [###############.....] 75%
+Stage: 4 of 4 (Polish) — complete → **✅ Working (v1.0.0)**. All four stages done.
+Six concept-isolating factory presets (Straight · Backbeat + Accents · Ghost Notes
+· Triplet Swing · Humanized · Quantize Demo) load real patterns + the timing-feel
+params that isolate each idea, via a lightweight `BeatPresets.h` constexpr table +
+`applyConceptPreset` + one `applyPreset` native fn wired into the tour buttons (no
+new param; 42-param contract frozen). CHANGELOG v1.0.0 authored. Validation sweep
+all green: build clean VST3+AU+Standalone; **render-harness 6/6 probes**;
+**auval `aumu OSiB OuDv` SUCCEEDED**; **pluginval strictness-10 SUCCESS (VST3 + AU)**;
+UI screenshot-verified (not blank). Critic review **0 blockers** (foundation 9.75,
+architecture 9.50, dsp 9.80, ui 8.50; 2 cosmetic warnings deferred). Also restored
+the render-harness build (un-buildable since Stage 3's WebView editor) by guarding
+`createEditor` with `JUCE_WEB_BROWSER` — shipping path byte-for-byte unchanged.
+Progress: [####################] 100%. **Next:** `/install-plugin O-simpleBeatmaker`.
+
+## Stage 4 (Polish) — complete (2026-06-25, express mode)
+
+- **FUNC-05 presets:** `Source/BeatPresets.h` (constexpr `std::array<BeatPreset,6>`)
+  + `applyConceptPreset(int)` (message-thread; `setValueNotifyingHost(convertTo0to1(real))`
+  for the 5 timing-feel params incl. the patternLength choice, then `clearGrid()` +
+  `setStep()`) + `applyPreset` native fn + `initPresetTour()` JS wiring (DOM order ==
+  preset index; null-guarded). Tooltips/index.html copy updated.
+- **FUNC-08 playability:** no default-param change (defaults QUAL-01-verified in
+  Stage 2, sibling-consistent master 0 dB; preset velocities disciplined). Audible
+  clipping check = DAW residual.
+- **CHANGELOG.md v1.0.0** (whole staged build).
+- **Gap closed:** render-harness rebuilt — was broken since Stage 3 (compiled the
+  WebView `PluginEditor.cpp` under `JUCE_WEB_BROWSER=0`). Guarded `createEditor`/
+  include with `#if JUCE_WEB_BROWSER` + dropped `PluginEditor.cpp` from harness
+  sources. Shipping plugin (always =1) unchanged.
+- **Verify:** render-harness 11/11 (6 ROADMAP probes incl. DSP-04 + viz-truth QUAL-02);
+  auval SUCCEEDED; pluginval strictness-10 SUCCESS (VST3+AU); native-fn parity 5=5;
+  UI renders. VERIFICATION.md verdict = PASS.
+- **Critic (0 blockers):** all 4 critics PASSED; 2 cosmetic warnings (FND-001 harness
+  stub code, UI-001 stale `.tour-soon` class name) deferred to the install pass.
+- **All 5 phase artifacts** in `stages/4-polish/` + critic reports in
+  `.planning/verification/O-simpleBeatmaker/4-polish/`.
+- **Residual (hands-on DAW, not goal failures):** audible playability check + QUAL-02
+  audible-vs-visible audit + preset-loaded screenshot — at `/install-plugin` / DAW.
 
 ## Stage 3 (GUI) — complete (2026-06-25, express mode)
 
