@@ -12,7 +12,10 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"   // WebView editor — excluded from the headless render-harness
+#endif
+#include "BeatPresets.h"
 
 namespace
 {
@@ -432,6 +435,44 @@ void OSimpleBeatmakerAudioProcessor::clearGrid() noexcept
 }
 
 //==============================================================================
+// Concept-isolating factory presets (FUNC-05). Message thread only.
+void OSimpleBeatmakerAudioProcessor::applyConceptPreset (int index)
+{
+    if (index < 0 || index >= (int) OSimpleBeatmaker::kBeatPresets.size())
+        return;
+
+    const auto& p = OSimpleBeatmaker::kBeatPresets[(size_t) index];
+    using namespace OSimpleBeatmaker::ParamIDs;
+
+    // 1. Timing-feel params, host-notifying. setValueNotifyingHost takes a
+    //    NORMALISED 0..1 value, so convert each real value through the param's own
+    //    NormalisableRange (convertTo0to1). This updates host automation AND the
+    //    two-way-bound JS knobs/combo for free.
+    auto setReal = [this] (const char* id, float real)
+    {
+        if (auto* prm = parameters.getParameter (id))   // RangedAudioParameter*
+            prm->setValueNotifyingHost (prm->convertTo0to1 (real));
+    };
+
+    setReal (swing,            p.swing01);
+    setReal (humanize,         p.humanize01);
+    setReal (quantizeStrength, p.quantize01);
+    setReal (tempo,            p.tempoBpm);
+
+    // Choice param: normalise the choice index over its {0, numChoices-1, 1} range.
+    if (auto* prm = parameters.getParameter (patternLength))
+        prm->setValueNotifyingHost (prm->convertTo0to1 ((float) p.patternLengthChoice));
+
+    // 2. Grid via the existing thread-safe atomic writers. clearGrid() zeros all
+    //    6×32 cells (so columns 16..31 are silent), then stamp the 16-col preset.
+    clearGrid();
+    for (int v = 0; v < OSimpleBeatmaker::kNumVoices; ++v)
+        for (int s = 0; s < 16; ++s)
+            if (p.grid[(size_t) v][(size_t) s] > 0)
+                setStep (v, s, p.grid[(size_t) v][(size_t) s]);
+}
+
+//==============================================================================
 // PATTERN <-> ValueTree. The grid is encoded as a base64 byte blob (JUCE's own
 // MemoryBlock format, used symmetrically for save+restore — this is NOT
 // JS-interop base64, so the standard-vs-JUCE encoding distinction is moot here).
@@ -480,7 +521,15 @@ void OSimpleBeatmakerAudioProcessor::restorePatternTree (const juce::ValueTree& 
 //==============================================================================
 juce::AudioProcessorEditor* OSimpleBeatmakerAudioProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new OSimpleBeatmakerAudioProcessorEditor (*this);
+#else
+    // Headless render-harness build (JUCE_WEB_BROWSER=0): no WebView editor is
+    // compiled in. The harness never opens an editor; this fallback just gives
+    // the linker a valid createEditor symbol. The shipping plugin always builds
+    // with JUCE_WEB_BROWSER=1, so its behaviour is unchanged.
+    return new juce::GenericAudioProcessorEditor (*this);
+#endif
 }
 
 //==============================================================================

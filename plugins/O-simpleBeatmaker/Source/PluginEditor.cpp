@@ -117,6 +117,14 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
             processorRef.clearGrid();
             complete (juce::var());
         })
+        // applyPreset(index) — load a concept-isolating factory preset (FUNC-05):
+        // sets the timing-feel params (host-notifying → knobs update) + stamps the
+        // grid. JS calls refreshGridFromBackend() after to repaint the velocities.
+        .withNativeFunction ("applyPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+                processorRef.applyConceptPreset ((int) args[0]);
+            complete (juce::var());
+        })
         // Sample rate for the timing lane's tempo-normalised Δt (samples → step fraction).
         .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
             complete (processorRef.getCurrentSampleRate());

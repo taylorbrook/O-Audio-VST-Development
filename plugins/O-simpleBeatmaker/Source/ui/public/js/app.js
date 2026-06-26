@@ -80,13 +80,13 @@ const TIPS = {
   voiceLevel: ["Level", "This voice's volume in the mix, in decibels. −60 dB silences it."],
   voiceMute: ["Mute", "Silences this voice without erasing its pattern — solo a part by muting the rest, or drop a voice out and back in."],
   voiceSolo: ["Solo", "Plays only the soloed voice(s), muting everything else. Great for hearing exactly what one drum is doing in the groove."],
-  presets: ["Lesson Presets", "A guided tour where each preset isolates one idea — straight vs. swung, accents, ghost notes, humanize, quantize. The patterns become playable in the final stage."],
-  lessonStraight:  ["Straight", "A flat, no-feel pattern — every hit dead on the grid at one velocity. The baseline that everything else departs from. (Playable next stage.)"],
-  lessonAccents:   ["Backbeat + Accents", "Snare on 2 and 4 with hard accents, quieter hits between — how velocity alone turns a march into a groove. (Playable next stage.)"],
-  lessonGhost:     ["Ghost Notes", "Quiet snare hits tucked between the backbeats — the secret to a pattern that breathes. (Playable next stage.)"],
-  lessonSwing:     ["Triplet Swing", "The same pattern with swing pushed up — feel the off-beats slide late into a shuffle. (Playable next stage.)"],
-  lessonHumanized: ["Humanized", "A tight pattern loosened with humanize — watch the lane scatter off the grid lines. (Playable next stage.)"],
-  lessonQuantize:  ["Quantize Demo", "Humanize up, then sweep quantize strength to pull the scatter back — the tradeoff made audible and visible. (Playable next stage.)"],
+  presets: ["Lesson Presets", "A guided tour where each preset isolates one idea — straight vs. swung, accents, ghost notes, humanize, quantize. Click one to load it, then tweak a knob to hear the concept."],
+  lessonStraight:  ["Straight", "A flat, no-feel pattern — every hit dead on the grid at one velocity. The baseline that everything else departs from."],
+  lessonAccents:   ["Backbeat + Accents", "Snare on 2 and 4 with hard accents, quieter hits between — how velocity alone turns a march into a groove."],
+  lessonGhost:     ["Ghost Notes", "Quiet snare hits tucked between the backbeats — the secret to a pattern that breathes."],
+  lessonSwing:     ["Triplet Swing", "The same pattern with swing pushed up — feel the off-beats slide late into a shuffle."],
+  lessonHumanized: ["Humanized", "A tight pattern loosened with humanize — watch the lane scatter off the grid lines."],
+  lessonQuantize:  ["Quantize Demo", "Humanize up, then sweep quantize strength to pull the scatter back — the tradeoff made audible and visible."],
 };
 
 // ── Knob geometry (relative vertical drag, matches the simple family) ────────
@@ -293,6 +293,7 @@ function renderGridColumns() {
 
 // Pull the authoritative grid from C++ (boot + after any host state restore).
 let getGridFn = null, clearGridFn = null, gridPollBusy = false;
+let applyPresetFn = null;
 
 // Clear every cell (UI + C++ atomics) via the clearGrid native fn.
 function clearAllSteps() {
@@ -517,14 +518,22 @@ function initTooltips() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
 }
 
-// ── Preset tour (hook only — concept content lands in Stage 4) ───────────────
+// ── Preset tour (concept-isolating factory presets — FUNC-05) ────────────────
+// DOM button order matches the C++ kBeatPresets[] index order (0 Straight … 5
+// Quantize Demo), so the forEach index IS the preset index. applyPreset sets the
+// timing-feel params host-notifying (knobs + length combo auto-update via their
+// attachments); we only need to repaint the grid velocities afterwards.
 function initPresetTour() {
   const caption = document.getElementById("tourCaption");
-  document.querySelectorAll(".tour-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+  document.querySelectorAll(".tour-btn").forEach((btn, index) => {
+    btn.addEventListener("click", async () => {
       document.querySelectorAll(".tour-btn").forEach((b) => b.classList.remove("armed"));
       btn.classList.add("armed");
-      if (caption) caption.textContent = `“${btn.getAttribute("data-preset")}” — this lesson preset becomes playable in the final stage.`;
+      if (applyPresetFn) {
+        try { await applyPresetFn(index); } catch (e) { console.error("applyPreset failed", e); }
+        await refreshGridFromBackend();
+      }
+      if (caption) caption.textContent = `“${btn.getAttribute("data-preset")}” loaded — tweak a knob to hear the concept.`;
     });
   });
 }
@@ -565,6 +574,7 @@ async function boot() {
   try { setStepFn = Juce.getNativeFunction("setStep"); } catch (e) { setStepFn = null; console.error("setStep native fn unavailable", e); }
   try { getGridFn = Juce.getNativeFunction("getGrid"); } catch (e) { getGridFn = null; }
   try { clearGridFn = Juce.getNativeFunction("clearGrid"); } catch (e) { clearGridFn = null; }
+  try { applyPresetFn = Juce.getNativeFunction("applyPreset"); } catch (e) { applyPresetFn = null; console.error("applyPreset native fn unavailable", e); }
   try { sampleRate = await Juce.getNativeFunction("getSampleRate")(); } catch (e) { sampleRate = 44100; }
 
   // bind all params
