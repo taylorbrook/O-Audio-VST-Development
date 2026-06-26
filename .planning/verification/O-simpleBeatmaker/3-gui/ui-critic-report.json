@@ -1,0 +1,81 @@
+{
+  "critic": "ui-critic",
+  "plugin": "O-simpleBeatmaker",
+  "stage": "3-gui",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-06-25T20:14:00Z",
+  "scores": {
+    "polish": {
+      "score": 8,
+      "threshold": 5,
+      "passed": true,
+      "details": "Cohesive Ouaricon field-guide aesthetic (parchment ground, Garamond serif, seed cross-section conic-gradient knobs, amber #E8B04A accent). Per-voice hue coding is carried consistently across grid rows, voice strips and the timing lane. Velocity is encoded three ways (fill height + brightness + ▲/· glyph) so it reads on a projector and is not color-alone. Hover/focus states present (.cell:hover, .tour-btn:hover, knob/toggle/combo/canvas :focus outlines, playhead glow + flash transitions). No placeholder text — the 'arrives next stage' preset caption is an intentional, labeled Stage-4 hook. Thread-safety verified strong (see issues): member order relays->WebView->attachments is correct (PluginEditor.h:50-60); Timer stops in dtor and callback null-guards webView; resource provider uses bare-path equality (PluginEditor.cpp:39-55). Minor: preset-tour buttons present an 'armed' interactive state but are non-functional hooks (UI-005)."
+    },
+    "consistency": {
+      "score": 8,
+      "threshold": 6,
+      "passed": true,
+      "details": "Systematic CSS-variable palette; all 29 knobs share one bindKnob() drag/wheel/keyboard behavior and identical label-below-knob, value-below-label layout; toggles and combo styled uniformly; 4-step beat-group emphasis applied consistently in both the grid and the lane grid lines. Param-ID inventory in app.js is a 1:1 match with BeatmakerIDs::ParamIDs and the PluginEditor relay/attachment lists — NO ID drift. Relay/attachment counts verified: 29 WebSliderRelay + 1 WebComboBoxRelay + 12 WebToggleButtonRelay = 42, all registered via withOptionsFrom loops (PluginEditor.cpp:94-96) and all bound with correct 3-arg attachments (*param, *relay, nullptr) guarded by jassert(param). Native-fn parity exact: C++ {setStep,getGrid,clearGrid,getSampleRate} == JS getNativeFunction set. Grid native fns are bounds-checked in C++ (inRange 0<=voice<6, 0<=step<32; velocity jlimit 0-127) so malicious JS row/col cannot OOB-write the atomic array. Voice hues live only in JS (injected as --voice-hue) — acceptable single-source. Minor: clearGrid native fn is fetched in JS but never invoked (UI-006)."
+    },
+    "accessibility": {
+      "score": 5,
+      "threshold": 5,
+      "passed": true,
+      "details": "Good: main palette contrast is healthy (brown #3C2F2F on parchment #F5E6D3; #E8D5B7 on #2A2118 readout); color is never the sole indicator (velocity glyphs + height, SEQ/MIDI text labels, mute green vs solo amber both also text-labeled); focus outlines exist on knobs, toggles, combo and the lane canvas; knobs are tab-focusable with arrow-key nudging. Gaps that cap the score: the headline 6x32 step grid is built from <div> cells with click/contextmenu only — no tabindex, role or keyboard handler, so it is entirely mouse-driven (UI-001); knobs use role='slider' but omit aria-valuenow/min/max/valuetext and toggles omit aria-pressed, so assistive tech cannot announce state (UI-002); the pedagogical tooltips fire on pointerenter only, giving keyboard users no access to the teaching copy (UI-004); several labels fall below 12px (knob-label 10.5, knob-value 10, cell-mark 9, tr-label/lane-legend 10.5) (UI-003). Not over-penalized given this is a dense teaching plugin, but real keyboard/SR access to the grid and tooltips is absent."
+    }
+  },
+  "overallStatus": "PASSED",
+  "overallScore": 7,
+  "issues": [
+    {
+      "id": "UI-001",
+      "severity": "warning",
+      "category": "accessibility",
+      "location": "Source/ui/public/js/app.js:254-264",
+      "description": "The headline 6x32 step grid cells are plain <div>s with click/contextmenu listeners only — no tabindex, no role (e.g. gridcell/switch), no keyboard handler. The primary interactive surface of the plugin is unreachable and unoperable by keyboard.",
+      "fixSuggestion": "Make cells focusable (tabindex) inside a role=grid/row structure, add an aria-label per cell (voice + step + velocity tier), and support Space/Enter to cycle velocity plus Delete to clear; mirror the existing left-click/right-click semantics."
+    },
+    {
+      "id": "UI-002",
+      "severity": "warning",
+      "category": "accessibility",
+      "location": "Source/ui/public/js/app.js:134-135, 199-208",
+      "description": "Knobs set role='slider' but never set aria-valuenow/aria-valuemin/aria-valuemax/aria-valuetext, and mute/solo <button>s never set aria-pressed. Screen readers announce a slider/button with no value or toggle state.",
+      "fixSuggestion": "In updateKnobVisual set aria-valuenow (and a human aria-valuetext from the same formatter used for the visible value) on the knob element; in bindToggle reflect st.getValue() into aria-pressed on each button."
+    },
+    {
+      "id": "UI-003",
+      "severity": "warning",
+      "category": "accessibility",
+      "location": "Source/ui/public/css/styles.css:122,200,350,351,422",
+      "description": "Multiple labels render below the 12px legibility floor (knob-label 10.5px, knob-value 10px, cell-mark 9px, tr-label/lane-legend/tour-soon 10.5px), which works against the stated projector-readable goal for low-vision viewers.",
+      "fixSuggestion": "Raise the smallest functional labels toward 12px (or add a viewport/zoom-friendly rem scale), keeping the dense layout by trimming padding rather than shrinking type below 12px."
+    },
+    {
+      "id": "UI-004",
+      "severity": "warning",
+      "category": "accessibility",
+      "location": "Source/ui/public/js/app.js:472-479",
+      "description": "The plain-language tooltips — the core pedagogy of the teaching UI — are triggered only on pointerenter/pointermove. Keyboard and focus users receive none of the explanatory copy.",
+      "fixSuggestion": "Also show/hide the tooltip on focusin/focusout for the same [data-tip] elements and position it relative to the focused element, so keyboard navigation surfaces the same explanations as hover."
+    },
+    {
+      "id": "UI-005",
+      "severity": "warning",
+      "category": "polish",
+      "location": "Source/ui/public/js/app.js:483-492",
+      "description": "Preset-tour buttons toggle an 'armed' active style and rewrite the caption on click, presenting themselves as interactive, but are intentionally non-functional Stage-4 hooks. This risks reading as dead/broken controls to a user.",
+      "fixSuggestion": "Until Stage 4 wires preset content, visually mark the buttons as not-yet-active (disabled/dimmed affordance or a clear 'preview only' state) so the armed styling does not imply a working action; revisit when presets land."
+    },
+    {
+      "id": "UI-006",
+      "severity": "warning",
+      "category": "consistency",
+      "location": "Source/ui/public/js/app.js:529-530",
+      "description": "The clearGrid native function is registered in C++ and fetched in JS (clearGridFn) but is never invoked — there is no whole-grid clear affordance in the UI. Harmless, but it is a registered-but-unused bridge binding (inverse of the usual bridge-gap).",
+      "fixSuggestion": "Either expose a 'Clear pattern' control wired to clearGridFn (with a local gridState reset + repaint) or drop the unused fetch to keep the JS<->C++ surface tight."
+    }
+  ],
+  "nextAction": "gate_pass"
+}

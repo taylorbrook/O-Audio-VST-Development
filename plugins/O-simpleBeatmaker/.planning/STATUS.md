@@ -1,14 +1,14 @@
 ---
 plugin: O-simpleBeatmaker
-stage: 2
+stage: 3
 status: complete
 last_updated: 2026-06-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: express
-next_action: invoke_gui_agent
-next_stage: 3
+next_action: stage_4_polish
+next_stage: 4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:d4c7b23b26982ad7f06c6fff0d7feb960f0877a987097ec7cfcf29941931baf7
@@ -21,9 +21,20 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — complete
-Status: **First audio.** Full DSP in 3 sub-phases: 6 synthesized 808/909 voices (MIDI-playable, GM map, hi-hat choke), host-synced sample-accurate SequencerClock, and the swing/humanize/quantize TimingFeelEngine + lock-free VizAnalyzer. **All 6 render-harness probes PASS** (grid ±0 samples, exact swing, DSP-04 swing-survives-quantize, block-boundary, viz-truth/QUAL-02, voices/choke/velocity/aliasing). Build clean VST3+AU+Standalone; pluginval VST3 strictness-10 SUCCESS. Critic review: zero blockers (dsp 9.2, architecture PASS). Ready for Stage 3 (GUI).
-Progress: [##########..........] 50%
+Stage: 3 of 4 (GUI) — complete
+Status: **The teaching UI is live.** Single-page Ouaricon field-guide WebView replaces the generic editor: 6×16 step grid with the velocity cycle (off→normal→accent→ghost) + a live amber playhead; the applied-Δt **timing/groove lane** (QUAL-02 — renders the Δt baked into the audio, not a recompute); a **live MIDI readout** (SEQ + played MIDI, one stream); all 42 params bound two-way (29 knobs + patternLength selector + 12 mute/solo); plain-language tooltips on everything; a Clear-all affordance; concept-preset hook (content → Stage 4). Build clean VST3+AU+Standalone; **auval SUCCEEDED** (incl. MIDI); **pluginval strictness-10 SUCCESS**; UI renders (screenshot-verified, not blank). Critic review: **0 blockers** (ui 7.0, architecture ~9.0, foundation 9.75); 6 of 10 advisory warnings (a11y cluster + doc drift) fixed this stage. Ready for Stage 4 (Polish).
+Progress: [###############.....] 75%
+
+## Stage 3 (GUI) — complete (2026-06-25, express mode)
+
+- **All 3 ROADMAP GUI phases in one express execute:** 3.1 grid + playhead + 42-param binding + cross-platform WebView wiring · 3.2 applied-Δt timing lane + live MIDI readout (QUAL-02) · 3.3 tooltips + single-page scaffolding + preset hook.
+- **Files created:** `Source/ui/public/{index.html, css/styles.css, js/app.js, js/juce/index.js, js/juce/check_native_interop.js}`. **Modified:** `Source/PluginEditor.{h,cpp}` (relays→WebView→attachments; native fns setStep/getGrid/clearGrid/getSampleRate; 60 Hz Timer → one `frame` event), `Source/PluginProcessor.{h,cpp}` (3 read-only advisory taps: sampleRate / lastKnownBpm / hostSynced — no DSP change), `CMakeLists.txt` (single `O-simpleBeatmaker_UIResources` binary-data target → default BinaryData namespace; no O-simpleGrain collision).
+- **Verify:** build clean VST3+AU+Standalone; **auval `aumu OSiB OuDv` SUCCEEDED** (render/1-ch/bad-max-frames/param-set+ramp/**MIDI**); **pluginval strictness-10 SUCCESS**; native-fn JS↔C++ parity exact; UI screenshot-verified (grid+playhead+lane+MIDI+strips+master+clear, not blank). VERIFICATION.md verdict = PASS.
+- **Critic review (0 blockers → progression allowed):** ui gate_pass 7.0, architecture gate_pass ~9.0, foundation gate_pass 9.75. Member/lifecycle order, 3-arg attachments, bare-path resource provider, QUAL-02 lane fidelity, per-frame emit safety, grid native-fn bounds/threading, ID-drift (none), Windows readiness — all CLEAN.
+- **Warnings fixed opportunistically (6/10):** UI-001 grid keyboard access + aria-label/pressed; UI-002 knob aria-value*/toggle aria-pressed; UI-004 focus-driven tooltips; UI-006 Clear-all wired to the clearGrid binding; FND-001 stale CMake comment; ARCH-001 RESEARCH reconciled to the consolidated `frame` event. **Left (benign):** UI-003 (sub-12px secondary labels — layout-regression risk), UI-005 (preset armed-state has a caption), ARCH-002/003 (non-defects).
+- **All 5 phase artifacts** in `stages/3-gui/` (CONTEXT, RESEARCH, PLAN, SUMMARY, VERIFICATION). Critic reports in `.planning/verification/O-simpleBeatmaker/3-gui/`.
+- **Residual (Stage 4, not goal failures):** factory preset *content* (FUNC-05), playability tuning, final validation sweep, hands-on DAW transport-sync + QUAL-02 audible-vs-visible audit, CHANGELOG v1.0.0.
+- **Next:** Stage 4 (Polish) — concept-isolating presets, playability, validation sweep.
 
 ## Stage 2 (DSP) — complete (2026-06-25, express mode)
 
