@@ -1,14 +1,16 @@
 ---
 plugin: O-simplePhysicalModelSynth
-stage: 0
-status: complete
+stage: 1
+phase: discuss
+status: in_progress
 last_updated: 2026-06-26
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
+next_action: run_research_phase
 next_stage: 1
 ready_for_implementation: true
+parameter_spec_finalized: true
 contract_checksums:
   brief: sha256:9c89444693922104f0b3ebb544558857f80ae3c7268937b64f76343ad820190f
   parameter_spec: sha256:4b4dfc92fe74cfabe91c0d9945fe9d97b35f5ae9ae09277db0482c2bf47728dd
@@ -20,9 +22,21 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Ideation / Research & Planning) — complete
-Status: Research & Planning complete, ready for implementation
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation + Shell) — in progress
+Phase: discuss ✓ complete → research next
+Status: parameter-spec.md finalized; CONTEXT.md written; ready for research phase
+Progress: [###.................] 15%
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| discuss | ✓ | 2026-06-26 | parameter-spec.md promoted from draft (17 params locked); CONTEXT.md written |
+| research | → | | Foundation/shell patterns (O-simpleFM analog) |
+| plan | | | |
+| execute | | | foundation-shell-agent |
+| verify | | | pluginval + 17-param check |
 
 ## Completed So Far
 
