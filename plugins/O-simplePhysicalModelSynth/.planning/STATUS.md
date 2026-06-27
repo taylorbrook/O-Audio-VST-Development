@@ -1,14 +1,14 @@
 ---
 plugin: O-simplePhysicalModelSynth
-stage: 1
+stage: 2
 phase: discuss
 status: in_progress
 last_updated: 2026-06-26
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: run_research_phase
-next_stage: 1
+next_action: run_stage_2_research
+next_stage: 2
 ready_for_implementation: true
 parameter_spec_finalized: true
 contract_checksums:
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation + Shell) — in progress
-Phase: discuss ✓ complete → research next
-Status: parameter-spec.md finalized; CONTEXT.md written; ready for research phase
-Progress: [###.................] 15%
+Stage: 2 of 4 (DSP) — discuss ✓ complete
+Phase: discuss ✓ → research next
+Status: Stage 2 scope LOCKED — 3 must-phases (2.1 KS+Pluck, 2.2 Strike+Bow+Material, 2.3 Modal); Waveguide (2.4) DEFERRED to v1.1; Bow = memoryless STK + noise fallback; execute phased + harness-gated per phase. CONTEXT.md written.
+Progress: [###########.........] 53%
 
 ## Phase Progress
 
@@ -33,10 +33,19 @@ Progress: [###.................] 15%
 | Phase | Status | Date | Notes |
 |-------|--------|------|-------|
 | discuss | ✓ | 2026-06-26 | parameter-spec.md promoted from draft (17 params locked); CONTEXT.md written |
-| research | → | | Foundation/shell patterns (O-simpleFM analog) |
+| research | ✓ | 2026-06-26 | RESEARCH.md: O-simpleFM template + 4 divergences (0–100 ranges, no preset mgr, no oversampler, no binary data); PLUGIN_CODE OsPM; harness JUCE_WEB_BROWSER=0 |
+| plan | ✓ | 2026-06-26 | PLAN.md: 8 tasks / 6 files; CMake→Processor.h+Voice.h→Processor.cpp→editor seam→harness→build; inline createEditor (skip PluginEditor at S1); root GLOB auto-discovers (no manual registration) |
+| execute | ✓ | 2026-06-26 | 6 files (CMake, Processor.h/.cpp, Voice.h, harness CMake/main); VST3+AU build clean; pluginval-5 SUCCESS; auval SUCCEEDED (17 params); harness builds+stub passes (silent/finite/state); installed. 0→1 gate build-check force-bypassed (premature). SUMMARY.md written |
+| verify | ✓ | 2026-06-26 | VERIFIED — build clean (0 warn), pluginval-5 SUCCESS, auval SUCCEEDED (17 params), harness ALL PASS (finite/silent/state-roundtrip), D3 0–100 clear, WebView2 flags present. COMPAT-01/02 → complete. VERIFICATION.md written |
+
+### Stage 2: DSP
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| discuss | ✓ | 2026-06-26 | Scope LOCKED: 3 must-phases only; Waveguide (2.4) DEFER→v1.1 (D1); Bow memoryless STK + noise fallback (D2); execute phased + harness-gated per phase (D3). CONTEXT.md written |
+| research | → | | |
 | plan | | | |
-| execute | | | foundation-shell-agent |
-| verify | | | pluginval + 17-param check |
+| execute | | | |
+| verify | | | |
 
 ## Completed So Far
 
