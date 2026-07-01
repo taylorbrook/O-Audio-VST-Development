@@ -98,6 +98,13 @@ private:
     bool applyPresetJson(const juce::var& presetData);
     void rebuildFlatPresetList();
 
+    // Sanitize a user-supplied preset/category name into a safe single path
+    // segment. createLegalFileName() removes path separators (/ \) and other
+    // illegal filename characters, so any "../" traversal collapses into one
+    // harmless literal segment; trim() drops surrounding whitespace. Returns
+    // empty when nothing legal remains — callers treat that as a hard failure.
+    static juce::String sanitizePresetName(const juce::String& name);
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconPresetManager)
 };
 
@@ -132,6 +139,11 @@ inline juce::File OuariconPresetManager::getUserPresetsDirectory() const
     return getPresetsDirectory().getChildFile("User");
 }
 
+inline juce::String OuariconPresetManager::sanitizePresetName(const juce::String& name)
+{
+    return juce::File::createLegalFileName(name).trim();
+}
+
 inline bool OuariconPresetManager::factoryPresetsExist() const
 {
     auto factoryDir = getFactoryPresetsDirectory();
@@ -149,6 +161,10 @@ inline bool OuariconPresetManager::factoryPresetsExist() const
 
 inline bool OuariconPresetManager::isFactoryPreset(const juce::String& presetName) const
 {
+    auto safeName = sanitizePresetName(presetName);
+    if (safeName.isEmpty())
+        return false;
+
     auto factoryDir = getFactoryPresetsDirectory();
     if (!factoryDir.isDirectory())
         return false;
@@ -156,7 +172,7 @@ inline bool OuariconPresetManager::isFactoryPreset(const juce::String& presetNam
     // Search in all category subdirectories
     for (const auto& subdir : factoryDir.findChildFiles(juce::File::findDirectories, false))
     {
-        if (subdir.getChildFile(presetName + ".json").existsAsFile())
+        if (subdir.getChildFile(safeName + ".json").existsAsFile())
             return true;
     }
     return false;
@@ -216,23 +232,24 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
 
 inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
 {
-    if (presetName.isEmpty())
+    auto safeName = sanitizePresetName(presetName);
+    if (safeName.isEmpty())
         return false;
 
-    if (isFactoryPreset(presetName))
+    if (isFactoryPreset(safeName))
     {
-        juce::Logger::writeToLog("[PresetManager] Cannot overwrite factory preset: " + presetName);
+        juce::Logger::writeToLog("[PresetManager] Cannot overwrite factory preset: " + safeName);
         return false;
     }
 
     getUserPresetsDirectory().createDirectory();
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto presetFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
     auto presetJson = createPresetJson();
     auto jsonString = juce::JSON::toString(presetJson, true);
 
     if (presetFile.replaceWithText(jsonString))
     {
-        currentPresetName = presetName;
+        currentPresetName = safeName;
         rebuildFlatPresetList();
         return true;
     }
@@ -241,7 +258,8 @@ inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
 
 inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
 {
-    if (presetName.isEmpty())
+    auto safeName = sanitizePresetName(presetName);
+    if (safeName.isEmpty())
         return false;
 
     // Search factory categories first
@@ -250,14 +268,14 @@ inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
     {
         for (const auto& subdir : factoryDir.findChildFiles(juce::File::findDirectories, false))
         {
-            auto presetFile = subdir.getChildFile(presetName + ".json");
+            auto presetFile = subdir.getChildFile(safeName + ".json");
             if (presetFile.existsAsFile())
             {
                 auto jsonString = presetFile.loadFileAsString();
                 auto presetData = juce::JSON::parse(jsonString);
                 if (applyPresetJson(presetData))
                 {
-                    currentPresetName = presetName;
+                    currentPresetName = safeName;
                     return true;
                 }
             }
@@ -265,14 +283,14 @@ inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
     }
 
     // Then user presets
-    auto userFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto userFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
     if (userFile.existsAsFile())
     {
         auto jsonString = userFile.loadFileAsString();
         auto presetData = juce::JSON::parse(jsonString);
         if (applyPresetJson(presetData))
         {
-            currentPresetName = presetName;
+            currentPresetName = safeName;
             return true;
         }
     }
@@ -283,12 +301,14 @@ inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
 inline bool OuariconPresetManager::loadPresetFromCategory(const juce::String& category,
                                                            const juce::String& presetName)
 {
-    if (category.isEmpty() || presetName.isEmpty())
+    auto safeCategory = sanitizePresetName(category);
+    auto safeName = sanitizePresetName(presetName);
+    if (safeCategory.isEmpty() || safeName.isEmpty())
         return false;
 
     auto presetFile = getFactoryPresetsDirectory()
-        .getChildFile(category)
-        .getChildFile(presetName + ".json");
+        .getChildFile(safeCategory)
+        .getChildFile(safeName + ".json");
 
     if (!presetFile.existsAsFile())
         return false;
@@ -298,7 +318,7 @@ inline bool OuariconPresetManager::loadPresetFromCategory(const juce::String& ca
 
     if (applyPresetJson(presetData))
     {
-        currentPresetName = presetName;
+        currentPresetName = safeName;
         return true;
     }
     return false;
@@ -322,13 +342,14 @@ inline bool OuariconPresetManager::loadPresetFromFile(const juce::File& file)
 
 inline bool OuariconPresetManager::deletePreset(const juce::String& presetName)
 {
-    if (presetName.isEmpty() || isFactoryPreset(presetName))
+    auto safeName = sanitizePresetName(presetName);
+    if (safeName.isEmpty() || isFactoryPreset(safeName))
         return false;
 
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto presetFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
     if (presetFile.existsAsFile() && presetFile.deleteFile())
     {
-        if (currentPresetName == presetName)
+        if (currentPresetName == safeName)
             currentPresetName = "Default";
         rebuildFlatPresetList();
         return true;

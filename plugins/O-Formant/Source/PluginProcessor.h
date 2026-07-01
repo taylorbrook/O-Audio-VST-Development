@@ -84,6 +84,43 @@ private:
     OuariconPresetManager presetManager;
     juce::MPESynthesiser synthesiser;
 
+    // Cached raw-parameter pointers for the effects/output chain (IN-02).
+    // Fetched once in prepareToPlay so processBlock avoids ~22 string-keyed
+    // APVTS hash lookups per block. Pointers are stable for the processor's
+    // lifetime. Grouped by effect to mirror the processBlock stages.
+    struct EffectParamPtrs
+    {
+        std::atomic<float>* chorusBypass  = nullptr;
+        std::atomic<float>* chorusMix     = nullptr;
+        std::atomic<float>* chorusRate    = nullptr;
+        std::atomic<float>* chorusDepth   = nullptr;
+
+        std::atomic<float>* delayBypass   = nullptr;
+        std::atomic<float>* delayMix      = nullptr;
+        std::atomic<float>* delayTime     = nullptr;
+        std::atomic<float>* delayFeedback = nullptr;
+        std::atomic<float>* delayMode     = nullptr;
+
+        std::atomic<float>* reverbBypass   = nullptr;
+        std::atomic<float>* reverbMix      = nullptr;
+        std::atomic<float>* reverbSize     = nullptr;
+        std::atomic<float>* reverbDamp     = nullptr;
+        std::atomic<float>* reverbPredelay = nullptr;
+        std::atomic<float>* reverbMod      = nullptr;
+        std::atomic<float>* reverbShimmer  = nullptr;
+
+        std::atomic<float>* eqBypass   = nullptr;
+        std::atomic<float>* eqLowGain  = nullptr;
+        std::atomic<float>* eqMidGain  = nullptr;
+        std::atomic<float>* eqMidFreq  = nullptr;
+        std::atomic<float>* eqHighGain = nullptr;
+
+        std::atomic<float>* outputGain = nullptr;
+    };
+    EffectParamPtrs fxParams;
+
+    void cacheParamPointers();
+
     // VST3 Note Expression support (module-owned table + raw-event scratch)
     Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
 

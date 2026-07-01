@@ -709,11 +709,46 @@ OFormantAudioProcessor::~OFormantAudioProcessor()
 }
 
 //==============================================================================
+void OFormantAudioProcessor::cacheParamPointers()
+{
+    // Fetch the effects/output raw-parameter pointers once (IN-02). getRawParameterValue
+    // returns a lifetime-stable std::atomic<float>*; processBlock then reads ->load()
+    // directly instead of doing a string-keyed hash lookup per parameter per block.
+    fxParams.chorusBypass  = parameters.getRawParameterValue ("chorusBypass");
+    fxParams.chorusMix     = parameters.getRawParameterValue ("chorusMix");
+    fxParams.chorusRate    = parameters.getRawParameterValue ("chorusRate");
+    fxParams.chorusDepth   = parameters.getRawParameterValue ("chorusDepth");
+
+    fxParams.delayBypass   = parameters.getRawParameterValue ("delayBypass");
+    fxParams.delayMix      = parameters.getRawParameterValue ("delayMix");
+    fxParams.delayTime     = parameters.getRawParameterValue ("delayTime");
+    fxParams.delayFeedback = parameters.getRawParameterValue ("delayFeedback");
+    fxParams.delayMode     = parameters.getRawParameterValue ("delayMode");
+
+    fxParams.reverbBypass   = parameters.getRawParameterValue ("reverbBypass");
+    fxParams.reverbMix      = parameters.getRawParameterValue ("reverbMix");
+    fxParams.reverbSize     = parameters.getRawParameterValue ("reverbSize");
+    fxParams.reverbDamp     = parameters.getRawParameterValue ("reverbDamp");
+    fxParams.reverbPredelay = parameters.getRawParameterValue ("reverbPredelay");
+    fxParams.reverbMod      = parameters.getRawParameterValue ("reverbMod");
+    fxParams.reverbShimmer  = parameters.getRawParameterValue ("reverbShimmer");
+
+    fxParams.eqBypass   = parameters.getRawParameterValue ("eqBypass");
+    fxParams.eqLowGain  = parameters.getRawParameterValue ("eqLowGain");
+    fxParams.eqMidGain  = parameters.getRawParameterValue ("eqMidGain");
+    fxParams.eqMidFreq  = parameters.getRawParameterValue ("eqMidFreq");
+    fxParams.eqHighGain = parameters.getRawParameterValue ("eqHighGain");
+
+    fxParams.outputGain = parameters.getRawParameterValue ("outputGain");
+}
+
 void OFormantAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     synthesiser.setCurrentPlaybackSampleRate (sampleRate);
     setLatencySamples (0);
     outputGainSmoothed.reset (sampleRate, 0.050);
+
+    cacheParamPointers();
 
     // Prepare all voices with current sample rate
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -756,12 +791,12 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     // Chorus
     {
-        bool bypassed = parameters.getRawParameterValue ("chorusBypass")->load() >= 0.5f;
-        float mix = parameters.getRawParameterValue ("chorusMix")->load();
+        bool bypassed = fxParams.chorusBypass->load() >= 0.5f;
+        float mix = fxParams.chorusMix->load();
         if (! bypassed && mix > 0.001f)
         {
-            chorus.setRate (parameters.getRawParameterValue ("chorusRate")->load());
-            chorus.setDepth (parameters.getRawParameterValue ("chorusDepth")->load());
+            chorus.setRate (fxParams.chorusRate->load());
+            chorus.setDepth (fxParams.chorusDepth->load());
             chorus.setMix (mix);
             juce::dsp::ProcessContextReplacing<float> ctx (block);
             chorus.process (ctx);
@@ -770,13 +805,13 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     // Delay
     {
-        bool bypassed = parameters.getRawParameterValue ("delayBypass")->load() >= 0.5f;
-        float mix = parameters.getRawParameterValue ("delayMix")->load();
+        bool bypassed = fxParams.delayBypass->load() >= 0.5f;
+        float mix = fxParams.delayMix->load();
         if (! bypassed && mix > 0.001f)
         {
-            delayProcessor.setTime (parameters.getRawParameterValue ("delayTime")->load());
-            delayProcessor.setFeedback (parameters.getRawParameterValue ("delayFeedback")->load());
-            delayProcessor.setMode (static_cast<int> (parameters.getRawParameterValue ("delayMode")->load()));
+            delayProcessor.setTime (fxParams.delayTime->load());
+            delayProcessor.setFeedback (fxParams.delayFeedback->load());
+            delayProcessor.setMode (static_cast<int> (fxParams.delayMode->load()));
             delayProcessor.setMix (mix);
             delayProcessor.process (block);
         }
@@ -784,36 +819,35 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     // Reverb
     {
-        bool bypassed = parameters.getRawParameterValue ("reverbBypass")->load() >= 0.5f;
-        float mix = parameters.getRawParameterValue ("reverbMix")->load();
+        bool bypassed = fxParams.reverbBypass->load() >= 0.5f;
+        float mix = fxParams.reverbMix->load();
         if (! bypassed && mix > 0.001f)
         {
-            reverbProcessor.setSize (parameters.getRawParameterValue ("reverbSize")->load());
-            reverbProcessor.setDamping (parameters.getRawParameterValue ("reverbDamp")->load());
-            reverbProcessor.setPredelay (parameters.getRawParameterValue ("reverbPredelay")->load());
+            reverbProcessor.setSize (fxParams.reverbSize->load());
+            reverbProcessor.setDamping (fxParams.reverbDamp->load());
+            reverbProcessor.setPredelay (fxParams.reverbPredelay->load());
             reverbProcessor.setMix (mix);
-            reverbProcessor.setMod (parameters.getRawParameterValue ("reverbMod")->load());
-            reverbProcessor.setShimmer (parameters.getRawParameterValue ("reverbShimmer")->load());
+            reverbProcessor.setMod (fxParams.reverbMod->load());
+            reverbProcessor.setShimmer (fxParams.reverbShimmer->load());
             reverbProcessor.process (block);
         }
     }
 
     // EQ
     {
-        bool bypassed = parameters.getRawParameterValue ("eqBypass")->load() >= 0.5f;
+        bool bypassed = fxParams.eqBypass->load() >= 0.5f;
         if (! bypassed)
         {
-            eqProcessor.setLowGain (parameters.getRawParameterValue ("eqLowGain")->load());
-            eqProcessor.setMidGain (parameters.getRawParameterValue ("eqMidGain")->load());
-            eqProcessor.setMidFreq (parameters.getRawParameterValue ("eqMidFreq")->load());
-            eqProcessor.setHighGain (parameters.getRawParameterValue ("eqHighGain")->load());
+            eqProcessor.setLowGain (fxParams.eqLowGain->load());
+            eqProcessor.setMidGain (fxParams.eqMidGain->load());
+            eqProcessor.setMidFreq (fxParams.eqMidFreq->load());
+            eqProcessor.setHighGain (fxParams.eqHighGain->load());
             eqProcessor.process (block);
         }
     }
 
     // Post-synth output gain (dB -> linear, smoothed 50ms)
-    float targetGain = juce::Decibels::decibelsToGain (
-        parameters.getRawParameterValue ("outputGain")->load());
+    float targetGain = juce::Decibels::decibelsToGain (fxParams.outputGain->load());
     outputGainSmoothed.setTargetValue (targetGain);
 
     for (int i = 0; i < buffer.getNumSamples(); ++i)
