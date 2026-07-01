@@ -251,10 +251,6 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     // Store sample rate for calculations
     currentSampleRate = sampleRate;
 
-    // Calculate latency based on sample rate
-    // 50ms delay line = (50 / 1000.0) * sampleRate
-    latencySamples = static_cast<int>((centerDelayMs / 1000.0) * sampleRate);
-
     // Prepare ProcessSpec for all juce::dsp components
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
@@ -270,12 +266,6 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     wobbleDelayR.setMaximumDelayInSamples(maxDelaySamples);
     wobbleDelayL.reset();
     wobbleDelayR.reset();
-
-    // Prepare Wobble LFO (Phase 4.1: Sine wave only)
-    wobbleLFO.prepare(spec);
-    wobbleLFO.initialise([](float x) { return std::sin(x); });  // Sine wave
-    wobbleLFO.setFrequency(2.0f);  // Default 2 Hz
-    wobbleLFO.reset();
 
     // Prepare Unison Engine (all 7 delay lines for future phases)
     for (int i = 0; i < maxUnisonVoices; ++i)
@@ -298,6 +288,11 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     focusLowPassL.reset();
     focusLowPassR.reset();
 
+    // Invalidate cached cutoffs so coefficients are (re)computed on the first
+    // block at this sample rate.
+    lastFocusLow = -1.0f;
+    lastFocusHigh = -1.0f;
+
     // Prepare Dry/Wet Mixer
     dryWetMixer.prepare(spec);
     dryWetMixer.setWetMixProportion(0.5f);  // Default 50% mix
@@ -315,22 +310,13 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     // Initialize parameter smoothing (50ms ramp)
     const double smoothingTime = 0.05;
     smoothedBlend.reset(sampleRate, smoothingTime);
-    smoothedWobbleRate.reset(sampleRate, smoothingTime);
-    smoothedWobbleDepth.reset(sampleRate, smoothingTime);
-    smoothedUnisonDetune.reset(sampleRate, smoothingTime);
     smoothedWidth.reset(sampleRate, smoothingTime);
     smoothedDelay.reset(sampleRate, smoothingTime);
     smoothedFeedback.reset(sampleRate, smoothingTime);
-    smoothedUnisonSpread.reset(sampleRate, smoothingTime);
-    smoothedRandomAmt.reset(sampleRate, smoothingTime);
 
     // Reset LFO state
     lfoPhase = 0.0f;
     noiseHeldValue = 0.0f;
-    noiseLastQuarter = -1;
-    randomRefreshCounter = 0;
-    feedbackStateL = 0.0f;
-    feedbackStateR = 0.0f;
 
     // Reset unison LFO phases (stagger for rich chorusing)
     // Initialize random offsets for Random distribution mode
@@ -359,7 +345,7 @@ void ODetuneAudioProcessor::releaseResources()
 // DSP Helper Functions
 
 // Multi-waveform LFO generator
-float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& noiseHeld, int& lastQuarter, juce::Random& rng)
+float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& noiseHeld, juce::Random& rng)
 {
     switch (shapeType)
     {
@@ -511,28 +497,27 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* mixParam = parameters.getRawParameterValue("mix");
     float mixValue = mixParam->load() / 100.0f;  // Convert to 0.0-1.0
 
-    // Update smoothed values
+    // Update smoothed values (only those consumed per-sample below)
     smoothedBlend.setTargetValue(blendValue);
-    smoothedWobbleRate.setTargetValue(wobbleRate);
-    smoothedWobbleDepth.setTargetValue(wobbleDepth);
-    smoothedUnisonDetune.setTargetValue(unisonDetune);
     // Mono-safe forces width to 0 (mono) - parameter value preserved for restoration
     smoothedWidth.setTargetValue(monoSafe ? 0.0f : widthValue);
     smoothedDelay.setTargetValue(delayMs);
     smoothedFeedback.setTargetValue(feedbackValue);
-    smoothedUnisonSpread.setTargetValue(unisonSpread);
-    smoothedRandomAmt.setTargetValue(randomAmt);
 
-    // Era presets: { depthMultiplier, filterDarkening, driftAmount }
-    struct EraPreset { float depthMult; float darkness; float drift; };
-    const EraPreset eraPresets[] = {
-        { 1.2f, 0.8f, 0.15f },  // 60s: More depth, darker, more drift
-        { 1.0f, 1.0f, 0.08f },  // 70s: Neutral
-        { 0.8f, 1.1f, 0.03f },  // 80s: Less depth, brighter, less drift
+    // Randomization amount (0-100%) → per-voice humanization strength (see unison stage)
+    const float randomAmtNorm = randomAmt / 100.0f;
+
+    // Era selects a wobble-depth character per decade. Only the depth multiplier
+    // is applied — the earlier "darkness"/"drift" fields were never wired to the
+    // DSP and have been removed to match actual behavior.
+    const float eraDepthMult[] = {
+        1.2f,  // 60s: deeper wobble
+        1.0f,  // 70s: neutral
+        0.8f,  // 80s: subtler wobble
     };
 
     // Apply era scaling to wobble depth
-    float scaledWobbleDepth = wobbleDepth * eraPresets[wobbleEra].depthMult;
+    float scaledWobbleDepth = wobbleDepth * eraDepthMult[wobbleEra];
 
     //==============================================================================
     // Calculate effective wobble rate (with tempo sync if enabled)
@@ -584,14 +569,26 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     //==============================================================================
     // 2. Apply Focus Filter (frequency-selective processing)
 
-    // Update focus filter coefficients
-    auto highPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, focusLow);
-    auto lowPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, focusHigh);
+    // Update focus filter coefficients ONLY when a cutoff has changed.
+    // makeHighPass/makeLowPass heap-allocate a Coefficients object, so calling
+    // them every block would allocate on the audio thread. Caching the last
+    // applied cutoffs limits that to the (message-driven) moments the user is
+    // actually moving a Focus control.
+    if (std::abs(focusLow - lastFocusLow) > 0.01f)
+    {
+        auto highPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, focusLow);
+        *focusHighPassL.coefficients = *highPassCoeffs;
+        *focusHighPassR.coefficients = *highPassCoeffs;
+        lastFocusLow = focusLow;
+    }
 
-    *focusHighPassL.coefficients = *highPassCoeffs;
-    *focusHighPassR.coefficients = *highPassCoeffs;
-    *focusLowPassL.coefficients = *lowPassCoeffs;
-    *focusLowPassR.coefficients = *lowPassCoeffs;
+    if (std::abs(focusHigh - lastFocusHigh) > 0.01f)
+    {
+        auto lowPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, focusHigh);
+        *focusLowPassL.coefficients = *lowPassCoeffs;
+        *focusLowPassR.coefficients = *lowPassCoeffs;
+        lastFocusHigh = focusHigh;
+    }
 
     // Process focus filters
     const int numSamples = buffer.getNumSamples();
@@ -669,7 +666,7 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     for (int sample = 0; sample < numSamples; ++sample)
     {
         // Get LFO value (-1 to +1) using multi-waveform generator
-        float lfoValue = generateLFO(lfoPhase, wobbleShape, noiseHeldValue, noiseLastQuarter, random);
+        float lfoValue = generateLFO(lfoPhase, wobbleShape, noiseHeldValue, random);
 
         // Advance phase
         lfoPhase += effectiveRate / static_cast<float>(currentSampleRate);
@@ -752,6 +749,12 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 break;
         }
 
+        // Randomization (random_amt): per-voice humanization of both LFO rate and
+        // modulation depth, layered on top of the chosen distribution. At
+        // random_amt = 0 these factors are 1.0, preserving the original sound.
+        voiceLfoRate *= (1.0f + voiceRandomOffsets[voice] * randomAmtNorm * 0.3f);
+        const float randomDepthFactor = 1.0f + voiceRandomOffsets[voice] * randomAmtNorm * 0.5f;
+
         float phaseIncrement = voiceLfoRate / static_cast<float>(currentSampleRate);
 
         auto* inputDataL = numChannels >= 1 ? buffer.getReadPointer(0) : nullptr;
@@ -764,8 +767,8 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Sine LFO (inherently smooth)
             float lfoValue = std::sin(voiceLfoPhases[voice] * juce::MathConstants<float>::twoPi);
 
-            // Calculate delay time
-            float voiceModDepth = modulationDepthSamples * (1.0f + normalizedPos * 0.2f);
+            // Calculate delay time (voiceModDepth includes random_amt humanization)
+            float voiceModDepth = modulationDepthSamples * (1.0f + normalizedPos * 0.2f) * randomDepthFactor;
             float delayTime = centerDelaySamples + lfoValue * voiceModDepth;
             delayTime = std::max(1.0f, std::min(delayTime, centerDelaySamples * 1.5f));
 

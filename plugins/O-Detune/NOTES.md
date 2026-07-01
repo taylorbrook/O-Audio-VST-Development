@@ -178,7 +178,7 @@ None
 
 **Performance targets:**
 - CPU: <50% single core @ 48kHz (7 voices + all features)
-- Latency: 50ms (2400 samples @ 48kHz)
+- Latency: 0 samples reported (the ~50ms wobble/unison delay is a wet-path effect; dry is undelayed, so no PDC is reported — see v1.5.3)
 - Memory: <50MB
 
 **Critical patterns to remember:**
@@ -196,4 +196,16 @@ None
 
 ---
 
-*Last updated: 2026-02-03*
+## Timeline
+
+- **2026-07-01 — v1.5.3 (code-review follow-ups).** Fixed CR-01 (Focus IIR
+  coefficients no longer heap-allocated every processBlock — cached, recompute on
+  change), WR-01 (`random_amt` now humanizes unison voices; previously a no-op),
+  WR-03 (removed dead non-virtual latency reporting). Cleanup: removed illusory
+  smoothing (WR-02), simplified `wobble_era` (WR-04), swept dead members
+  (`wobbleLFO`, `feedbackStateL/R`, `randomRefreshCounter`, `noiseLastQuarter`).
+  All behavior-preserving except `random_amt` activation. Report: `.planning/REVIEW.md`.
+
+---
+
+*Last updated: 2026-07-01*

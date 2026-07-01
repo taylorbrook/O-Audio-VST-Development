@@ -1,5 +1,53 @@
 # O-Detune Changelog
 
+## [1.5.3] - 2026-07-01
+
+Code-review follow-ups (see `.planning/REVIEW.md`). All changes preserve existing
+audio behavior except WR-01, which activates a control that previously did nothing.
+
+### Fixed
+
+- **CR-01 (RT-safety): Focus filter no longer allocates on the audio thread.**
+  `processBlock` called `IIR::Coefficients::makeHighPass/makeLowPass` — each a heap
+  allocation — every block, unconditionally. Coefficients are now recomputed only
+  when a Focus cutoff actually changes (cached `lastFocusLow`/`lastFocusHigh`),
+  eliminating per-block allocation and wasted CPU when the Focus controls are static.
+  Root cause: coefficient factories were called each block regardless of change.
+- **WR-01: The "Randomization" (`random_amt`) knob now affects the audio.** It was
+  read and target-smoothed but never applied to any DSP. It now scales per-voice
+  unison humanization (LFO rate ±0.3 and modulation depth ±0.5 at full), layered on
+  the selected distribution. At `random_amt = 0` the factors are 1.0, so existing
+  presets/sessions are unchanged.
+- **WR-03: Removed non-functional latency reporting.** `getLatencySamples()` was a
+  non-virtual method in JUCE 8 (never called by the host) and `setLatencySamples()`
+  was never invoked, so the host always saw 0. The ~50 ms wobble/unison delay is a
+  wet-path effect (dry is undelayed), so no PDC latency should be reported; the dead
+  override and `latencySamples` member were removed. Host behavior is unchanged (still 0).
+
+### Changed
+
+- **WR-02: Removed illusory parameter smoothing.** `smoothedWobbleRate`,
+  `smoothedWobbleDepth`, `smoothedUnisonDetune`, `smoothedUnisonSpread`, and
+  `smoothedRandomAmt` set targets every block but were never read — the DSP used the
+  raw atomic values. They were dead code (no audible effect) and have been removed;
+  the four smoothers actually consumed (blend, width, delay, feedback) are retained.
+- **WR-04: Simplified `wobble_era`.** The `EraPreset` struct carried `darkness` and
+  `drift` fields that were never applied — only the depth multiplier had any effect.
+  Replaced with a plain depth-multiplier table and corrected the misleading comments;
+  Era behavior is unchanged (per-decade wobble-depth scaling).
+
+### Removed (dead code sweep)
+
+- Unused `wobbleLFO` (`juce::dsp::Oscillator`) that was prepared but never processed
+  (IN-01); unused members `feedbackStateL/R`, `randomRefreshCounter`, `noiseLastQuarter`
+  and the corresponding `generateLFO` parameter (IN-02).
+
+### Testing
+
+- Rebuilt Release (VST3 + AU), reinstalled with dual-variant cache sweep, `auval` pass.
+- Behavior-preservation verified by construction: all removed smoothers were unread,
+  and every new humanization factor collapses to 1.0 at `random_amt = 0`.
+
 ## [1.5.2] - 2026-02-18
 
 ### Added

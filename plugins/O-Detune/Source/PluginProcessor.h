@@ -41,8 +41,10 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-    // Latency reporting - 50ms delay line (2400 samples @ 48kHz)
-    int getLatencySamples() const { return latencySamples; }
+    // Note: no processing latency is reported. The wobble/unison ~50 ms centre
+    // delay is a wet-path effect, not PDC latency — the dry path is undelayed,
+    // so reporting it would misalign the dry signal. (Previous getLatencySamples()
+    // override was a non-virtual no-op in JUCE 8 and never took effect.)
 
     // APVTS (public for editor access)
     juce::AudioProcessorValueTreeState parameters;
@@ -61,9 +63,6 @@ private:
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> wobbleDelayL;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> wobbleDelayR;
 
-    // LFO for wobble modulation (Phase 4.1: Simple sine only)
-    juce::dsp::Oscillator<float> wobbleLFO;
-
     // Unison Engine (3 voices for Phase 4.1)
     static constexpr int maxUnisonVoices = 7;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> unisonDelaysL[maxUnisonVoices];
@@ -75,6 +74,11 @@ private:
     juce::dsp::IIR::Filter<float> focusLowPassL;
     juce::dsp::IIR::Filter<float> focusLowPassR;
 
+    // Cached Focus cutoffs — recompute IIR coefficients only when they change
+    // (avoids heap-allocating coefficient objects in processBlock every block)
+    float lastFocusLow = -1.0f;
+    float lastFocusHigh = -1.0f;
+
     // Dry/Wet Mixer
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
@@ -84,18 +88,15 @@ private:
 
     // State variables
     double currentSampleRate = 48000.0;
-    int latencySamples = 2400; // 50ms @ 48kHz
     static constexpr float centerDelayMs = 50.0f;
 
     // LFO state (for multi-waveform support)
     float lfoPhase = 0.0f;
     float noiseHeldValue = 0.0f;
-    int noiseLastQuarter = -1;
     juce::Random random;
 
-    // Voice randomization (refresh periodically)
+    // Per-voice random offsets (seeded once in prepareToPlay; scaled by random_amt)
     float voiceRandomOffsets[maxUnisonVoices] = {0};
-    int randomRefreshCounter = 0;
 
     // Per-voice LFO phases for chorus-style unison modulation
     float voiceLfoPhases[maxUnisonVoices] = {0};
@@ -103,26 +104,20 @@ private:
     // Pre-delay lines
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> preDelayL;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> preDelayR;
-    float feedbackStateL = 0.0f;
-    float feedbackStateR = 0.0f;
 
-    // Parameter smoothing (50ms ramp time)
+    // Parameter smoothing (50ms ramp time) — only the values actually consumed
+    // per-sample in processBlock are kept here.
     juce::SmoothedValue<float> smoothedBlend;
-    juce::SmoothedValue<float> smoothedWobbleRate;
-    juce::SmoothedValue<float> smoothedWobbleDepth;
-    juce::SmoothedValue<float> smoothedUnisonDetune;
     juce::SmoothedValue<float> smoothedWidth;
     juce::SmoothedValue<float> smoothedDelay;
     juce::SmoothedValue<float> smoothedFeedback;
-    juce::SmoothedValue<float> smoothedUnisonSpread;
-    juce::SmoothedValue<float> smoothedRandomAmt;
 
     //==============================================================================
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // DSP helper functions
-    float generateLFO(float phase, int shapeType, float& noiseHeld, int& lastQuarter, juce::Random& rng);
+    float generateLFO(float phase, int shapeType, float& noiseHeld, juce::Random& rng);
     void processWidth(float& left, float& right, float widthPercent);
     void processMonoSafe(float& left, float& right);
 
