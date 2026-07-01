@@ -275,8 +275,11 @@ void TuningEngine::setSingleInterval(int index, double cents)
     {
         std::lock_guard<std::mutex> lock(intervalMutex);
 
-        // Initialize to 12-TET if intervals are empty
-        if (scaleIntervals.size() < 2 || scaleIntervals.size() == 12)
+        // Initialize to 12-TET only if intervals are effectively empty
+        // (unison-only or fewer). A scale with exactly 12 stored entries is a
+        // real tuning (e.g. 11-EDO, embedded 12-note scales) — resetting it to
+        // 12-TET here silently wiped the user's scale on the first edit.
+        if (scaleIntervals.size() < 2)
         {
             DBG("  Initializing scaleIntervals to 12-TET");
             scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,

@@ -17,13 +17,16 @@ void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     midPeak.prepare (spec);
     highShelf.prepare (spec);
 
-    *lowShelf.state = *FilterCoeffs::makeLowShelf (
+    // Assign from the stack ArrayCoefficients factory. On the message thread this
+    // also grows each Coefficients array to its full storage, so the in-place
+    // assignments in process() below never reallocate on the audio thread.
+    *lowShelf.state = ArrayCoeffs::makeLowShelf (
         currentSampleRate, 200.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetLowGainDB.load()));
-    *midPeak.state = *FilterCoeffs::makePeakFilter (
+    *midPeak.state = ArrayCoeffs::makePeakFilter (
         currentSampleRate, targetMidFreqHz.load(), 1.0f,
         juce::Decibels::decibelsToGain (targetMidGainDB.load()));
-    *highShelf.state = *FilterCoeffs::makeHighShelf (
+    *highShelf.state = ArrayCoeffs::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetHighGainDB.load()));
 }
@@ -47,9 +50,13 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
     float midFreq = targetMidFreqHz.load (std::memory_order_relaxed);
     float highGain = targetHighGainDB.load (std::memory_order_relaxed);
 
+    // Recompute coefficients in place on the audio thread. ArrayCoeffs::makeXXX
+    // returns a stack std::array<float,6>; assigning it into *state reuses the
+    // storage allocated in prepare() — no ref-counted Coefficients heap alloc
+    // per changed block, unlike FilterCoeffs::makeXXX() (WR-08).
     if (lowGain != prevLowGainDB)
     {
-        *lowShelf.state = *FilterCoeffs::makeLowShelf (
+        *lowShelf.state = ArrayCoeffs::makeLowShelf (
             currentSampleRate, 200.0f, 0.707f,
             juce::Decibels::decibelsToGain (lowGain));
         prevLowGainDB = lowGain;
@@ -57,7 +64,7 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     if (midGain != prevMidGainDB || midFreq != prevMidFreqHz)
     {
-        *midPeak.state = *FilterCoeffs::makePeakFilter (
+        *midPeak.state = ArrayCoeffs::makePeakFilter (
             currentSampleRate, midFreq, 1.0f,
             juce::Decibels::decibelsToGain (midGain));
         prevMidGainDB = midGain;
@@ -66,7 +73,7 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     if (highGain != prevHighGainDB)
     {
-        *highShelf.state = *FilterCoeffs::makeHighShelf (
+        *highShelf.state = ArrayCoeffs::makeHighShelf (
             currentSampleRate, 8000.0f, 0.707f,
             juce::Decibels::decibelsToGain (highGain));
         prevHighGainDB = highGain;

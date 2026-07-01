@@ -556,8 +556,16 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                     auto* tuningData = EmbeddedTunings::getTuningById (tuningId);
                     if (tuningData != nullptr && ! tuningData->intervals.empty())
                     {
+                        // EmbeddedTuning::intervals excludes the period (it lives
+                        // in ->period). setCustomIntervals expects the period as the
+                        // last element and derives scaleDegrees = size()-1, so append
+                        // it — matching the built-in-preset path in
+                        // TuningEngine::setBuiltInPreset. Without this, every embedded
+                        // tuning loads mistuned (scale count off by one).
+                        std::vector<double> intervals = tuningData->intervals;
+                        intervals.push_back (tuningData->period);
                         processorRef.tuningEngine.setCustomIntervals (
-                            tuningData->intervals, tuningData->name);
+                            intervals, tuningData->name);
                         complete (juce::var (true));
                         return;
                     }

@@ -27,6 +27,10 @@ public:
 
 private:
     using FilterCoeffs = juce::dsp::IIR::Coefficients<float>;
+    // Stack-allocating coefficient factory (returns std::array<float,6>, no heap).
+    // Used to recompute coefficients in-place on the audio thread without the
+    // ref-counted Coefficients allocation that makeXXX() would incur (WR-08).
+    using ArrayCoeffs = juce::dsp::IIR::ArrayCoefficients<float>;
     using Filter = juce::dsp::IIR::Filter<float>;
     using StereoFilter = juce::dsp::ProcessorDuplicator<Filter, FilterCoeffs>;
 
