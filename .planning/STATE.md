@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-07-01 - Completed quick task 260701-j3b: Fixed .claude hook wiring + settings hygiene (BUG-02/03/04, IMP-01)
+Last activity: 2026-07-01 - Completed quick task 260701-k0a: Fixed build-script + CI defects (BUG-01/05/06, IMP-03, UPD-01) — shared resolve-target.sh, patch rename, apply preflight, pipefail hardening
 
 Progress: [██████████] 100%
 
@@ -141,6 +141,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260623-bmr | PWYW Path B — physically remove the licensing system (delete module + add-licensing skill, strip guards from 24 plugins, clean root CMake + registry). 28 atomic commits; 4 sample plugins build clean | 2026-06-23 | 77b6b5a | Verified | [260623-bmr-path-b-physically-remove-licensing-syste](./quick/260623-bmr-path-b-physically-remove-licensing-syste/) |
 | 260701-in8 | Read-only PFS system review — 6 bugs, 5 improvements, 6 update recs (REVIEW.md; dead hooks, CI target resolver, registry drift) | 2026-07-01 | -- |  | [260701-in8-complete-a-review-of-this-system-for-cre](./quick/260701-in8-complete-a-review-of-this-system-for-cre/) |
 | 260701-j3b | Hook wiring + settings hygiene: BUG-02 verified valid (review premise stale — SubagentStart/TaskCompleted real in CC ≥2.1.197, instrumented not rewired), BUG-04 matcher 1:1, BUG-03 rm -rf auto-approve removed, IMP-01 2 orphans deleted / 2 CLI utils retained | 2026-07-01 | 71e8fbd, cde44f5 | Verified | [260701-j3b-fix-dead-claude-hook-wiring-and-settings](./quick/260701-j3b-fix-dead-claude-hook-wiring-and-settings/) |
+| 260701-k0a | Build-script + CI defects: BUG-01/IMP-03 shared resolve-target.sh (5 CI call sites, validated vs O-Texture/O-Chorus/O-Gain), UPD-01 patch renamed 8.0.4→8.0.9 (6 refs), BUG-05 --forward --dry-run preflight, BUG-06 set -euo pipefail + eval\|tee rc capture | 2026-07-01 | cf5696b, 1166b2c, 8dd245a | Verified | [260701-k0a-fix-build-script-and-ci-defects-from-the](./quick/260701-k0a-fix-build-script-and-ci-defects-from-the/) |
 
 ## Session Continuity
 
