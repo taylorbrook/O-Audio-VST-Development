@@ -350,6 +350,12 @@ void FormantVoice::noteKeyStateChanged()
 void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                      int startSample, int numSamples)
 {
+    // WR-06: this voice's resonators (r up to ~0.9999) rely on FTZ/DAZ being
+    // active to keep long decaying tails out of denormal range. The guarantee is
+    // provided by juce::ScopedNoDenormals in PluginProcessor::processBlock, which
+    // wraps every renderNextBlock call. Any future caller that drives this voice
+    // directly (e.g. an offline render harness) MUST establish the same scope.
+    // FormantBiquad::processSample also carries a cheap belt-and-suspenders flush.
     if (! voiceActive)
         return;
 
@@ -760,8 +766,16 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         if (! std::isfinite (sample))
         {
             sample = 0.0f;
+            // IN-03: also reset the excitation sources, not just the filters. If a
+            // NaN originates upstream of the banks (glottal oscillator or aspiration
+            // noise), resetting only the filter state leaves the source re-injecting
+            // NaN on the next sample and the guard never clears. fricationBank feeds
+            // the consonant path into `sample`, so reset it too.
+            glottalSource.reset();
+            aspirationNoise.reset();
             filterBank.reset();
             cascadeBank.reset();
+            fricationBank.reset();
             nasalPoleZero.reset();
             consonantEngine.reset();
         }

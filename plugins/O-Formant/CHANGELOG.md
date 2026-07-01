@@ -2,6 +2,19 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.25.2] - 2026-07-01
+
+### Fixed — NaN / denormal robustness in the formant DSP (REVIEW.md WR-03, WR-04, WR-05, WR-06, IN-03, IN-06)
+
+This closes the NaN/denormal robustness chain flagged in the code review (fix-ordering item 6). None of these change the sound on valid input — they harden the voice against the poisoned-state cascade where one bad value silences a formant (or the whole voice) until the next block-rate update.
+
+- **VowelMorpher IDW weight could overflow to Inf → NaN formant frequencies (WR-03).** `compute` did `1.0f / std::pow(dist, focus)` with no lower bound on `dist` and no cap on the weight. Just above the `1e-6` snap epsilon with a large focus, `pow` can underflow toward 0 → weight `Inf` → `weightSum Inf` → `invSum 0` → `weight = Inf*0 = NaN` → NaN formant frequencies, which then poison the biquads (WR-05). Fix: floor `dist` to `1e-3f`, cap each weight to `1e12f`, and guard `weightSum` finite/`> 0` before dividing (equal-blend fallback otherwise). The vowel nearest the cursor still dominates, so near-snap morphing is audibly unchanged.
+- **VowelMorpher assumed a pre-clamped cursor (IN-06).** `compute` now clamps `cursorX`/`cursorY` to `[0,1]` on entry. Lyric syllable targets and the MPE-timbre `vowelY` offset are not guaranteed to pre-clamp, and an out-of-range cursor skews the weights.
+- **LFGlottalSource phase wrap was a single `if` → out-of-bounds wavetable read (WR-04).** `getNextSample` corrected only `[1.0, 2.0)`; if one increment advanced phase ≥ 2.0 (`f0 ≥ sampleRate`, reachable at low sample rates with high notes) the post-wrap phase stayed ≥ 1.0 and `samplePos` over-read the 2049-sample frame. Fix: `while`-loop the wrap **and** clamp `phaseIncrement` to `≤ 0.5` (the wavetable's Nyquist) in `setFrequency` — phase is now guaranteed to stay in `[0,1)`.
+- **FormantBiquad NaN guard left poisoned coefficients → sticky silence (WR-05).** The `processSample` guard reset the state (`z1=z2=0`) but not the coefficients; NaN/Inf `b0..a2` (e.g. from WR-03) re-tripped the guard on every subsequent sample, turning a one-sample transient into a persistent per-formant dropout until the next valid update. Fix: `setCoefficients` now validates all six incoming coefficients with `std::isfinite` and keeps the last-known-good set if any is non-finite.
+- **No denormal flushing in the per-voice feedback state (WR-06).** The resonator tails (`r` up to ~0.9999 in the cascade / nasal banks) relied entirely on the caller's `ScopedNoDenormals`; if a voice ever renders outside that scope, x86 traps on denormals → CPU spike. Fix: documented the guarantee (`juce::ScopedNoDenormals` in `PluginProcessor::processBlock` wraps every `renderNextBlock`; a note at the voice entry warns any future direct caller), and added a cheap add-then-subtract denormal flush to `FormantBiquad::processSample` (covers all five formant banks + nasal pole-zero) and to the `AspirationNoise` tilt one-pole. Normal-range state is unchanged; subnormals round to exactly 0.
+- **Voice NaN guard reset the filters but not the excitation sources (IN-03).** The `renderNextBlock` NaN/Inf guard reset the filter banks but left `glottalSource`/`aspirationNoise` running, so a NaN originating in the source kept re-injecting garbage and the guard never cleared. Fix: the guard now also resets `glottalSource`, `aspirationNoise`, and `fricationBank`.
+
 ## [1.25.1] - 2026-07-01
 
 ### Fixed — Tuning correctness (REVIEW.md CR-03, CR-05)
