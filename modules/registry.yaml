@@ -132,7 +132,7 @@ modules:
 
   - name: preset-manager
     path: persistence/preset-manager
-    version: 1.0.0
+    version: 1.0.2
     description: |
       JSON-based preset persistence with factory/user preset separation.
       Supports APVTS parameter serialization, navigation (next/previous),
