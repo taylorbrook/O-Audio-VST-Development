@@ -224,6 +224,27 @@ void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int sample
     // Gentle warmth: low drive (0.5x) preserves dynamics,
     // 2.0x post-gain compensates for tanh compression
     saturation.functionToUse = [](float x) { return std::tanh(x * 0.5f) * 2.0f; };
+
+    // WR-02: configure the frequency/gain smoothers, then seed them to the current
+    // parameter values so the first blocks don't ramp from zero (which would swoop
+    // every cutoff up from 0 Hz on load).
+    for (auto* sm : { &lfFreqSm, &lfGainSm, &lmfFreqSm, &lmfGainSm,
+                      &hmfFreqSm, &hmfGainSm, &hfFreqSm, &hfGainSm })
+        sm->reset(sampleRate, static_cast<double>(kSmoothingSeconds));
+
+    lfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lf_freq")->load());
+    lfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lf_gain")->load());
+    lmfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lmf_freq")->load());
+    lmfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lmf_gain")->load());
+    hmfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hmf_freq")->load());
+    hmfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hmf_gain")->load());
+    hfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hf_freq")->load());
+    hfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hf_gain")->load());
+
+    // Force a coefficient (re)build on the first block after prepare (also covers a
+    // sample-rate change); Q sentinels reset so the first block rebuilds the bells too.
+    lastLmfQ = lastHmfQ = -1;
+    coeffsInitialised = false;
 }
 
 void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -256,27 +277,87 @@ void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     const float outputGainDB = parameters.getRawParameterValue("output_gain")->load();
     const bool  analogOn     = parameters.getRawParameterValue("analog")->load() > 0.5f;
 
-    // Update filter coefficients
-    auto dBtoGain = [](float dB) { return std::pow(10.0f, dB / 20.0f); };
+    // WR-02: feed the smoothers; their per-chunk values drive the coefficients below.
+    lfFreqSm.setTargetValue(lfFreq);   lfGainSm.setTargetValue(lfGain);
+    lmfFreqSm.setTargetValue(lmfFreq); lmfGainSm.setTargetValue(lmfGain);
+    hmfFreqSm.setTargetValue(hmfFreq); hmfGainSm.setTargetValue(hmfGain);
+    hfFreqSm.setTargetValue(hfFreq);   hfGainSm.setTargetValue(hfGain);
 
-    *lfFilter.state  = *IIRCoefficients::makeLowShelf(currentSampleRate, lfFreq, 0.707f, dBtoGain(lfGain));
-    *lmfFilter.state = *IIRCoefficients::makePeakFilter(currentSampleRate, lmfFreq, qValues[lmfQ], dBtoGain(lmfGain));
-    *hmfFilter.state = *IIRCoefficients::makePeakFilter(currentSampleRate, hmfFreq, qValues[hmfQ], dBtoGain(hmfGain));
-    *hfFilter.state  = *IIRCoefficients::makeHighShelf(currentSampleRate, hfFreq, 0.707f, dBtoGain(hfGain));
+    const bool lmfQChanged = (lmfQ != lastLmfQ);
+    const bool hmfQChanged = (hmfQ != lastHmfQ);
+    lastLmfQ = lmfQ; lastHmfQ = hmfQ;
 
     outputGain.setGainDecibels(outputGainDB);
 
+    // WR-03: keep every cutoff below Nyquist so the biquad math never receives an
+    // out-of-range frequency (degenerate/NaN coefficients at very low sample rates).
+    const float nyquist = static_cast<float>(currentSampleRate) * 0.5f;
+    auto clampFreq = [nyquist](float hz) { return juce::jmin(hz, nyquist * 0.99f); };
+    auto dBtoGain  = [](float dB)        { return std::pow(10.0f, dB / 20.0f); };
+
+    // A band is "moving" while its smoother is ramping, when its Q changed, or on the
+    // forced first build. Bands that aren't moving keep their existing coefficients —
+    // that is CR-01's allocation-free steady-state path. Rebuilds use ArrayCoefficients
+    // (same math as make*, but returns a stack array; assigning into the existing state
+    // reuses its storage, so there is no audio-thread allocation).
+    const bool force     = !coeffsInitialised;
+    const bool lfMoving  = force || lfFreqSm.isSmoothing()  || lfGainSm.isSmoothing();
+    const bool lmfMoving = force || lmfQChanged || lmfFreqSm.isSmoothing() || lmfGainSm.isSmoothing();
+    const bool hmfMoving = force || hmfQChanged || hmfFreqSm.isSmoothing() || hmfGainSm.isSmoothing();
+    const bool hfMoving  = force || hfFreqSm.isSmoothing()  || hfGainSm.isSmoothing();
+
     // Process audio: LF -> LMF -> HMF -> HF -> Saturation -> Output Gain
     juce::dsp::AudioBlock<float> block(buffer);
-    juce::dsp::ProcessContextReplacing<float> context(block);
 
-    if (lfOn)  lfFilter.process(context);
-    if (lmfOn) lmfFilter.process(context);
-    if (hmfOn) hmfFilter.process(context);
-    if (hfOn)  hfFilter.process(context);
+    auto processChunk = [&](size_t start, size_t len)
+    {
+        auto sub = block.getSubBlock(start, len);
+        juce::dsp::ProcessContextReplacing<float> context(sub);
 
-    if (analogOn) saturation.process(context);
-    outputGain.process(context);
+        if (lfOn)  lfFilter.process(context);
+        if (lmfOn) lmfFilter.process(context);
+        if (hmfOn) hmfFilter.process(context);
+        if (hfOn)  hfFilter.process(context);
+
+        if (analogOn) saturation.process(context);
+        outputGain.process(context);
+    };
+
+    const int numSamples = buffer.getNumSamples();
+
+    if (! (lfMoving || lmfMoving || hmfMoving || hfMoving))
+    {
+        // Steady state: coefficients unchanged, run the whole block in a single pass.
+        if (numSamples > 0)
+            processChunk(0, static_cast<size_t>(numSamples));
+    }
+    else
+    {
+        for (int pos = 0; pos < numSamples; pos += kSmoothingBlock)
+        {
+            const int n = juce::jmin(kSmoothingBlock, numSamples - pos);
+
+            // Advance moving bands and rebuild from the end-of-chunk value (skip()
+            // returns the exact target on the final ramp chunk, so no residual offset).
+            if (lfMoving)
+                *lfFilter.state = ArrayCoeffs::makeLowShelf(
+                    currentSampleRate, clampFreq(lfFreqSm.skip(n)), 0.707f, dBtoGain(lfGainSm.skip(n)));
+            if (lmfMoving)
+                *lmfFilter.state = ArrayCoeffs::makePeakFilter(
+                    currentSampleRate, clampFreq(lmfFreqSm.skip(n)), qValues[lmfQ], dBtoGain(lmfGainSm.skip(n)));
+            if (hmfMoving)
+                *hmfFilter.state = ArrayCoeffs::makePeakFilter(
+                    currentSampleRate, clampFreq(hmfFreqSm.skip(n)), qValues[hmfQ], dBtoGain(hmfGainSm.skip(n)));
+            if (hfMoving)
+                *hfFilter.state = ArrayCoeffs::makeHighShelf(
+                    currentSampleRate, clampFreq(hfFreqSm.skip(n)), 0.707f, dBtoGain(hfGainSm.skip(n)));
+
+            processChunk(static_cast<size_t>(pos), static_cast<size_t>(n));
+        }
+    }
+
+    if (numSamples > 0)
+        coeffsInitialised = true;
 
     // VU Meter - peak level after all processing
     float peakLevel = 0.0f;

@@ -1,5 +1,59 @@
 # O-AnalogEQ Changelog
 
+## [1.1.9] - 2026-06-30
+
+### Fixed
+- **WR-02 (zipper noise on automation):** Frequency and gain were read once per block
+  and coefficients jumped straight to the new value, producing audible zipper/clicks when
+  automating or dragging — worst on the skewed frequency ranges where a small knob move is a
+  large Hz jump. Each band's frequency/gain is now a `juce::SmoothedValue` (30 ms linear ramp,
+  seeded to the current parameter in `prepareToPlay` so nothing swoops on load). While a band
+  is ramping, its coefficients are rebuilt every 32 samples so the response glides to the
+  target. Root cause: unsmoothed per-block coefficient steps.
+- **WR-02 / CR-01 (RT-safety preserved):** The per-chunk rebuild uses
+  `juce::dsp::IIR::ArrayCoefficients::make*` (returns a stack `std::array`) assigned into the
+  existing filter state, instead of the allocating `Coefficients::make*` factories. The math is
+  identical (the factories just wrap `ArrayCoefficients` in a heap allocation), so the sound is
+  unchanged, and the audio thread never allocates — even mid-automation. When no band is moving,
+  the block still runs in a single pass with no coefficient recompute (CR-01 steady-state path).
+- **WR-03 (Nyquist clamp):** Every band's cutoff is now clamped to `0.99 × Nyquist` before
+  building coefficients. Previously `hf_freq` (up to 20 kHz) and `hmf_freq` (up to 8 kHz) were
+  passed straight through, producing degenerate/NaN coefficients at host sample rates below
+  ~40 kHz. Verified via `auval` render tests at 22050 Hz and 11025 Hz. Root cause: unbounded
+  cutoff vs. sample rate.
+- **WR-04 (FileChooser use-after-free):** The async save/load `FileChooser` completion lambdas
+  captured `this` and dereferenced the processor. If the editor window closed while the OS
+  dialog was still open, the callback fired against a destroyed editor. Both callbacks now
+  capture a `juce::Component::SafePointer` and bail early if the editor was deleted. Root cause:
+  raw `this` capture across an async native dialog.
+
+### Notes
+- Closes the remaining WARNING items from the 2026-06-30 code review (`.planning/CODE-REVIEW.md`).
+  CR-01 and WR-01 were fixed in 1.1.8. Only the IN-* info items remain (all benign/documented).
+
+## [1.1.8] - 2026-06-30
+
+### Fixed
+- **CR-01 (RT-safety, critical):** `processBlock` rebuilt all four bands' IIR coefficients
+  every block via the allocating `IIRCoefficients::make*` factories, heap-allocating on the
+  audio thread even when no parameter changed. Now each band's coefficients are recomputed
+  only when its frequency/gain/Q inputs actually change (guarded against cached last-seen
+  values), making the steady-state playback path allocation-free. Cached sentinels are reset
+  in `prepareToPlay` so coefficients still rebuild on the first block after prepare and on a
+  sample-rate change. DSP output is unchanged (same `make*` formulas on change).
+  Root cause: unconditional per-block coefficient rebuild.
+- **WR-01 (display correctness):** Frequency tooltips showed wrong Hz because the JS formatters
+  mapped the normalised knob value linearly, ignoring the C++ `NormalisableRange` 0.3 skew
+  (e.g. the 100 Hz LF default displayed as ~301 Hz). Formatters now invert the skew
+  (`hz = min + (max - min) * pow(v, 1/0.3)`) so displayed Hz matches the actual filter
+  frequency across all four bands. Gain readouts were already correct (linear skew) and are
+  unchanged. Root cause: JS display math did not mirror the parameter's frequency skew.
+
+### Notes
+- Both issues from the 2026-06-30 code review (`.planning/CODE-REVIEW.md`). Remaining review
+  items (WR-02 coefficient smoothing, WR-03 Nyquist clamp, WR-04 FileChooser lifetime, and the
+  IN-* info items) are not addressed in this patch.
+
 ## [1.1.7] - 2026-02-09
 
 ### Added

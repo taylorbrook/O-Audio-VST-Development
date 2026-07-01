@@ -705,15 +705,22 @@
       hf_gain: 0.5
     };
 
+    // Frequency parameters use NormalisableRange<float>(min, max, 0.1, 0.3) in C++, so the
+    // normalised value (0..1) is skewed: normalised = pow((hz - min) / (max - min), 0.3).
+    // getNormalisedValue() returns that skewed proportion, so display formatters must invert
+    // the skew — hz = min + (max - min) * pow(v, 1 / skew) — instead of mapping linearly (WR-01).
+    const FREQ_SKEW = 0.3;
+    const toHz = (v, min, max) => min + (max - min) * Math.pow(v, 1 / FREQ_SKEW);
+
     // Parameter ranges for display formatting
     const paramRanges = {
-      lf_freq: { min: 30, max: 500, unit: 'Hz', format: v => Math.round(30 + v * 470) + ' Hz' },
+      lf_freq: { min: 30, max: 500, unit: 'Hz', format: v => Math.round(toHz(v, 30, 500)) + ' Hz' },
       lf_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-      lmf_freq: { min: 100, max: 2000, unit: 'Hz', format: v => Math.round(100 + v * 1900) + ' Hz' },
+      lmf_freq: { min: 100, max: 2000, unit: 'Hz', format: v => Math.round(toHz(v, 100, 2000)) + ' Hz' },
       lmf_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-      hmf_freq: { min: 500, max: 8000, unit: 'Hz', format: v => Math.round(500 + v * 7500) + ' Hz' },
+      hmf_freq: { min: 500, max: 8000, unit: 'Hz', format: v => Math.round(toHz(v, 500, 8000)) + ' Hz' },
       hmf_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-      hf_freq: { min: 2000, max: 20000, unit: 'Hz', format: v => (2000 + v * 18000 >= 10000 ? ((2000 + v * 18000)/1000).toFixed(1) + 'k' : Math.round(2000 + v * 18000)) + ' Hz' },
+      hf_freq: { min: 2000, max: 20000, unit: 'Hz', format: v => { const hz = toHz(v, 2000, 20000); return (hz >= 10000 ? (hz / 1000).toFixed(1) + 'k' : Math.round(hz)) + ' Hz'; } },
       hf_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' }
     };
 
