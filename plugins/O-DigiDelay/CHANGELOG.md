@@ -5,6 +5,15 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.10] - 2026-07-01
+
+### Fixed
+- DSP robustness hardening from code review (findings WR-01, WR-02, WR-06, IN-04)
+  - **WR-02:** NaN/Inf can no longer poison the delay line permanently. `ScopedNoDenormals` does not catch NaN/Inf, so a single non-finite upstream sample used to recirculate through the feedback path forever. Recirculated feedback is now sanitized each sample (`if (!std::isfinite(x)) x = 0.f`) for both channels.
+  - **WR-01:** Delay buffer now has genuine modulation headroom. It was sized `2000ms + 25ms` but spread (15ms) + mod (10ms) consumed that 25ms exactly — zero margin at 48/96/192 kHz. Added a 5ms safety pad so the max read index never reaches `maximumDelayInSamples`.
+  - **WR-06:** Fixed cross-thread data race on the output meter. RMS levels (`LinearSmoothedValue`, not thread-safe) were written on the audio thread and read on the message thread by the 30 Hz editor timer. Meter values are now published through `std::atomic<float>` (relaxed) written at the end of `processBlock` and read in the getters.
+  - **IN-04:** Added `isBusesLayoutSupported` — accepts mono→mono and stereo→stereo, rejects mismatched/other layouts.
+
 ## [1.2.9] - 2026-02-14
 
 ### Fixed

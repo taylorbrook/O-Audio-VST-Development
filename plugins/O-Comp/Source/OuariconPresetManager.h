@@ -435,7 +435,8 @@ inline juce::String OuariconPresetManager::getNextPreset() const
 
     int currentIndex = presets.indexOf(currentPresetName);
     if (currentIndex < 0)
-        return presets[0];
+        return presets[0];  // current preset not in list (e.g. imported/deleted):
+                            // treat as "before the list" so Next lands on the first entry
 
     int nextIndex = (currentIndex + 1) % presets.size();
     return presets[nextIndex];
@@ -449,7 +450,8 @@ inline juce::String OuariconPresetManager::getPreviousPreset() const
 
     int currentIndex = presets.indexOf(currentPresetName);
     if (currentIndex < 0)
-        return presets[0];
+        return presets[presets.size() - 1];  // current preset not in list (e.g. imported/deleted):
+                                             // treat as "before the list" so Prev lands on the last entry
 
     int prevIndex = (currentIndex - 1 + presets.size()) % presets.size();
     return presets[prevIndex];

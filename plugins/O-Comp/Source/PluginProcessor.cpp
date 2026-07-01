@@ -188,6 +188,11 @@ void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
     // Calculate initial coefficients
     updateCoefficients(attackParam->load(), releaseParam->load(), sampleRate);
+
+    // Smooth makeup/output gain over 20 ms; snap to the initial value so the first
+    // block doesn't ramp up from silence.
+    smoothedMakeup.reset(sampleRate, 0.02);
+    smoothedMakeup.setCurrentAndTargetValue(computeMakeupGainLinear());
 }
 
 void OCompAudioProcessor::releaseResources()
@@ -211,24 +216,19 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float attackTimeMs = attackParam->load();
     float releaseTimeMs = releaseParam->load();
     float kneeDB = kneeParam->load();
-    float outputGainDB = outputGainParam->load();
-    bool autoGainEnabled = autoGainParam->load() > 0.5f;
 
     // Update attack/release coefficients (lightweight calculation, real-time safe)
     updateCoefficients(attackTimeMs, releaseTimeMs, currentSampleRate);
 
-    // Calculate makeup gain
-    float autoGainDB = 0.0f;
-    if (autoGainEnabled)
-    {
-        autoGainDB = -thresholdDB * (1.0f - 1.0f / ratio) * 0.5f;
-    }
-    float totalGainDB = autoGainDB + outputGainDB;
-    float makeupGainLinear = juce::Decibels::decibelsToGain(totalGainDB);
+    // Makeup gain (auto-gain + output_gain): smoothed per sample to avoid zipper on
+    // automation / auto-gain toggles. See computeMakeupGainLinear().
+    smoothedMakeup.setTargetValue(computeMakeupGainLinear());
 
     // Process audio (per-sample loop for accurate envelope following)
     const int numSamples = buffer.getNumSamples();
-    const int numChannels = buffer.getNumChannels();
+    // channelPtrs is sized for 2; cap all channel loops to what we actually populated
+    // so a >2-channel layout can never dereference a null pointer.
+    const int numChannels = juce::jmin(buffer.getNumChannels(), 2);
 
     // Track peak levels for metering
     float peakInputLevel = 0.0f;
@@ -266,7 +266,8 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         float gainReductionDBLocal = calculateGainReduction(envelopeDB, thresholdDB, ratio, kneeDB);
         peakGainReduction = std::max(peakGainReduction, gainReductionDBLocal);
 
-        // Convert to linear gain
+        // Convert to linear gain (makeup smoothed per sample to de-zipper automation)
+        float makeupGainLinear = smoothedMakeup.getNextValue();
         float gainLinear = juce::Decibels::decibelsToGain(-gainReductionDBLocal) * makeupGainLinear;
 
         // Apply same gain to all channels (stereo-linked)
@@ -313,6 +314,13 @@ float OCompAudioProcessor::calculateGainReduction(float inputLevel, float thresh
 {
     float x = inputLevel - thresholdDB;
 
+    // Hard knee (or numerically negligible knee): the soft-knee branch divides by
+    // (2 * kneeDB), so a zero/near-zero knee (e.g. the "Parallel Crush" factory preset)
+    // would evaluate 0/0 -> NaN when the envelope lands exactly on the threshold.
+    // Treat it as a hard knee to keep the audio buffer finite.
+    if (kneeDB <= 1.0e-6f)
+        return x > 0.0f ? x - (x / ratio) : 0.0f;
+
     if (x < -kneeDB / 2.0f)
     {
         // Below knee - no compression
@@ -337,6 +345,33 @@ void OCompAudioProcessor::updateCoefficients(float attackTimeMs, float releaseTi
     // coeff = 1 - exp(-1 / (timeMs * sampleRate / 1000))
     attackCoeff = 1.0f - std::exp(-1.0f / (attackTimeMs * static_cast<float>(sampleRate) / 1000.0f));
     releaseCoeff = 1.0f - std::exp(-1.0f / (releaseTimeMs * static_cast<float>(sampleRate) / 1000.0f));
+}
+
+float OCompAudioProcessor::computeMakeupGainLinear() const
+{
+    float thresholdDB = thresholdParam->load();
+    float ratio = ratioParam->load();
+    float outputGainDB = outputGainParam->load();
+    bool autoGainEnabled = autoGainParam->load() > 0.5f;
+
+    float autoGainDB = 0.0f;
+    if (autoGainEnabled)
+        autoGainDB = -thresholdDB * (1.0f - 1.0f / ratio) * 0.5f;
+
+    return juce::Decibels::decibelsToGain(autoGainDB + outputGainDB);
+}
+
+bool OCompAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    // Only mono or stereo main I/O; reject wider layouts so the stereo-linked
+    // detection path can never index past the 2-slot channel-pointer array.
+    const auto& mainOut = layouts.getMainOutputChannelSet();
+    if (mainOut != juce::AudioChannelSet::mono()
+        && mainOut != juce::AudioChannelSet::stereo())
+        return false;
+
+    // Input must match output (in-place stereo-linked processing).
+    return layouts.getMainInputChannelSet() == mainOut;
 }
 
 // Factory function

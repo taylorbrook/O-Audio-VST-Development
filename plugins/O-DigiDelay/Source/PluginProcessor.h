@@ -21,6 +21,7 @@ public:
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
@@ -47,8 +48,9 @@ public:
     OuariconPresetManager presetManager;
 
     // RMS level getters for output meter (returns 0.0-1.0)
-    float getRmsLevelLeft() const { return rmsLevelLeft.getCurrentValue(); }
-    float getRmsLevelRight() const { return rmsLevelRight.getCurrentValue(); }
+    // Read the published atomic snapshot, not the audio-thread smoother state (WR-06).
+    float getRmsLevelLeft() const { return rmsMeterLeft.load(std::memory_order_relaxed); }
+    float getRmsLevelRight() const { return rmsMeterRight.load(std::memory_order_relaxed); }
 
 private:
     // Parameter layout creation
@@ -86,9 +88,13 @@ private:
     std::atomic<float>* wetParam = nullptr;
     std::atomic<float>* dryParam = nullptr;
 
-    // RMS level calculation for output meter
+    // RMS level calculation for output meter (audio-thread only)
     juce::LinearSmoothedValue<float> rmsLevelLeft { 0.0f };
     juce::LinearSmoothedValue<float> rmsLevelRight { 0.0f };
+
+    // Thread-safe meter snapshots published from processBlock, read by the editor timer (WR-06)
+    std::atomic<float> rmsMeterLeft { 0.0f };
+    std::atomic<float> rmsMeterRight { 0.0f };
 
     // Subdivision lookup table (12 values)
     static constexpr float subdivisionFactors[12] = {
