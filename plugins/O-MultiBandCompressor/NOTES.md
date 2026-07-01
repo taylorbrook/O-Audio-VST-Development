@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Type:** Audio Effect (Dynamics Processor - Multiband Compressor)
 - **Complexity:** 5.0 (Maximum complexity - 56 parameters, 10 DSP components)
 
@@ -14,10 +14,16 @@
 - **2026-01-25 (v1.0.0):** Production ready - All stages complete (DSP, crossover network, M/S processing, WebView UI, metering)
 - **2026-01-25 (v1.1.0):** Added draggable crossover controls - click and drag to adjust XOVER1/2/3 frequency split points
 - **2026-01-26 (v1.2.0):** Real-time FFT spectrum analyzer - 2048-sample FFT with lock-free audio→UI communication
+- **2026-07-01 (v1.2.1):** RT-safety pass (CODE-REVIEW.md) - removed all audio-thread allocation/locking (CR-01/02/03, WR-01) + hot-loop/cleanup (IN-01..04). No sonic change (crossover verified bit-identical); pluginval strictness 10 + auval pass.
 
 ## Known Issues
 
-None
+Deferred RT/quality items from the v1.2.0 code review (each changes audible behavior, so
+held for a separate MINOR release):
+- **WR-02:** M/S Mid/Side modes under-detect by ~6 dB (detector averages a silent channel).
+- **WR-03:** Serial crossover has no all-pass compensation → non-flat magnitude sum at unity.
+- **WR-04:** Attack/Release UI readouts use pure-log interp instead of the skew-0.3 mapping.
+- **IN-05/06:** Resource provider matches on basename only; analyzer uses linear bin→X mapping under a log grid.
 
 ## Additional Notes
 

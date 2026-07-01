@@ -24,8 +24,6 @@ public:
     void prepare(double sampleRate, int maxBlockSize, int numChannels)
     {
         currentSampleRate = sampleRate;
-        maxSamplesPerBlock = maxBlockSize;
-        channelCount = numChannels;
 
         // Prepare crossover network
         crossover.prepare(sampleRate, maxBlockSize, numChannels);
@@ -163,8 +161,6 @@ public:
 
 private:
     double currentSampleRate = 44100.0;
-    int maxSamplesPerBlock = 512;
-    int channelCount = 2;
 
     // DSP components
     CrossoverNetwork crossover;

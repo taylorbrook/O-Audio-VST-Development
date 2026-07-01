@@ -12,6 +12,8 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <array>
+#include <algorithm>
 
 class CrossoverNetwork
 {
@@ -22,6 +24,8 @@ public:
     void prepare(double sampleRate, int maxBlockSize, int numChannels)
     {
         currentSampleRate = sampleRate;
+
+        juce::dsp::ProcessSpec spec;
         spec.sampleRate = sampleRate;
         spec.maximumBlockSize = static_cast<juce::uint32>(maxBlockSize);
         spec.numChannels = static_cast<juce::uint32>(numChannels);
@@ -39,7 +43,14 @@ public:
             }
         }
 
-        // Initialize crossover frequencies
+        // Seed every filter's coefficient storage to a full 2nd-order (6-tap) array so
+        // RT updates (updateCoefficients) can overwrite the taps in place, without
+        // reallocating the coefficient Array on the audio thread. (CR-01)
+        seedCoefficientStorage();
+
+        // Force the first real design (cache is invalid).
+        lastXover1 = lastXover2 = lastXover3 = -1.0f;
+        lastSampleRate = 0.0;
         updateCoefficients(200.0f, 2000.0f, 8000.0f);
     }
 
@@ -57,7 +68,11 @@ public:
         }
     }
 
-    // Update crossover frequencies
+    // Update crossover frequencies.
+    // RT-safe: skips all work when the (clamped) frequencies and sample rate are unchanged,
+    // and when they do change it designs into stack-allocated coefficient arrays and writes
+    // the taps in place — no heap allocation and no trig-heavy redesign on the audio thread
+    // when the params are static. (CR-01)
     void updateCoefficients(float xover1Hz, float xover2Hz, float xover3Hz)
     {
         // Validate frequency ordering: xover1 < xover2 < xover3
@@ -65,46 +80,36 @@ public:
         xover2Hz = juce::jlimit(std::max(xover1Hz + 100.0f, 200.0f), 5000.0f, xover2Hz);
         xover3Hz = juce::jlimit(std::max(xover2Hz + 100.0f, 2000.0f), 16000.0f, xover3Hz);
 
-        // Crossover 1: Low/Low-Mid split
-        auto lp1Coeffs = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(
-            xover1Hz, currentSampleRate, 2);
-        auto hp1Coeffs = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(
-            xover1Hz, currentSampleRate, 2);
+        // Early-out when nothing has moved — the common case, every block.
+        if (xover1Hz == lastXover1 && xover2Hz == lastXover2 && xover3Hz == lastXover3
+            && currentSampleRate == lastSampleRate)
+            return;
 
-        // Crossover 2: Low-Mid/High-Mid split
-        auto lp2Coeffs = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(
-            xover2Hz, currentSampleRate, 2);
-        auto hp2Coeffs = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(
-            xover2Hz, currentSampleRate, 2);
+        lastXover1 = xover1Hz;
+        lastXover2 = xover2Hz;
+        lastXover3 = xover3Hz;
+        lastSampleRate = currentSampleRate;
 
-        // Crossover 3: High-Mid/High split
-        auto lp3Coeffs = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(
-            xover3Hz, currentSampleRate, 2);
-        auto hp3Coeffs = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(
-            xover3Hz, currentSampleRate, 2);
+        // ArrayCoefficients::makeXXX returns a std::array<float, 6> on the stack (no heap
+        // allocation). A 2nd-order Butterworth (Q = 1/sqrt(2)) is numerically identical to
+        // the order-2 designIIR...ButterworthMethod used previously, so the sound is unchanged.
+        const float xoverHz[3] = { xover1Hz, xover2Hz, xover3Hz };
 
-        // Apply coefficients to all channels
-        // Note: designIIRLowpassHighOrderButterworthMethod returns ReferenceCountedArray,
-        // need to access [0] for single 2nd order section
-        for (int ch = 0; ch < 2; ++ch)
+        for (int i = 0; i < 3; ++i)
         {
-            // Crossover 1 (both cascades use same coefficients)
-            *lowpass1[0][ch].coefficients = *lp1Coeffs[0];
-            *lowpass2[0][ch].coefficients = *lp1Coeffs[0];
-            *highpass1[0][ch].coefficients = *hp1Coeffs[0];
-            *highpass2[0][ch].coefficients = *hp1Coeffs[0];
+            const auto lp = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
+                currentSampleRate, xoverHz[i], butterworthQ);
+            const auto hp = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+                currentSampleRate, xoverHz[i], butterworthQ);
 
-            // Crossover 2
-            *lowpass1[1][ch].coefficients = *lp2Coeffs[0];
-            *lowpass2[1][ch].coefficients = *lp2Coeffs[0];
-            *highpass1[1][ch].coefficients = *hp2Coeffs[0];
-            *highpass2[1][ch].coefficients = *hp2Coeffs[0];
-
-            // Crossover 3
-            *lowpass1[2][ch].coefficients = *lp3Coeffs[0];
-            *lowpass2[2][ch].coefficients = *lp3Coeffs[0];
-            *highpass1[2][ch].coefficients = *hp3Coeffs[0];
-            *highpass2[2][ch].coefficients = *hp3Coeffs[0];
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                // Both cascades of the Linkwitz-Riley pair use the same Butterworth taps.
+                assignCoeffs(lowpass1[i][ch],  lp);
+                assignCoeffs(lowpass2[i][ch],  lp);
+                assignCoeffs(highpass1[i][ch], hp);
+                assignCoeffs(highpass2[i][ch], hp);
+            }
         }
     }
 
@@ -126,6 +131,12 @@ public:
         for (int ch = 0; ch < numChannels; ++ch)
         {
             const float* inputData = input.getReadPointer(ch);
+
+            // Cache band write pointers once per channel (IN-01) — no per-sample bounds checks.
+            float* lowData   = bandBuffers[0].getWritePointer(ch);   // LOW
+            float* loMidData = bandBuffers[1].getWritePointer(ch);   // LOMID
+            float* hiMidData = bandBuffers[2].getWritePointer(ch);   // HIMID
+            float* highData  = bandBuffers[3].getWritePointer(ch);   // HIGH
 
             // Temporary storage for crossover outputs
             float xover1_low, xover1_high;
@@ -164,17 +175,55 @@ public:
                 xover3_high = highpass2[2][ch].processSample(xover3_high);
 
                 // Write to band buffers
-                bandBuffers[0].setSample(ch, sample, xover1_low);   // LOW
-                bandBuffers[1].setSample(ch, sample, xover2_low);   // LOMID
-                bandBuffers[2].setSample(ch, sample, xover3_low);   // HIMID
-                bandBuffers[3].setSample(ch, sample, xover3_high);  // HIGH
+                lowData[sample]   = xover1_low;    // LOW
+                loMidData[sample] = xover2_low;    // LOMID
+                hiMidData[sample] = xover3_low;    // HIMID
+                highData[sample]  = xover3_high;   // HIGH
             }
         }
     }
 
 private:
+    // Standard 2nd-order Butterworth Q (1/sqrt(2)) — one cascade of the LR-4 pair.
+    static constexpr float butterworthQ = 0.70710678118654752440f;
+
+    // Seed each filter's coefficient Array once at prepare time (allocation OK here). The
+    // std::array assignment routes through Coefficients::assignImpl, which calls
+    // ensureStorageAllocated(>= 8) — so the backing storage is large enough that every later
+    // RT assignment in assignCoeffs() reuses it without reallocating.
+    void seedCoefficientStorage()
+    {
+        const auto lp = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(currentSampleRate, 1000.0f, butterworthQ);
+        const auto hp = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, 1000.0f, butterworthQ);
+
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                assignCoeffs(lowpass1[i][ch],  lp);
+                assignCoeffs(lowpass2[i][ch],  lp);
+                assignCoeffs(highpass1[i][ch], hp);
+                assignCoeffs(highpass2[i][ch], hp);
+            }
+        }
+    }
+
+    // Overwrite a filter's biquad taps with no heap allocation.
+    // IIR::Coefficients::operator=(std::array<float,6>) normalises by a0 and stores the 5-tap
+    // form {b0,b1,b2,a1,a2}; because the backing juce::Array was pre-allocated (capacity >= 8)
+    // in seedCoefficientStorage(), that assignment reuses the storage without reallocating.
+    static void assignCoeffs(juce::dsp::IIR::Filter<float>& filter, const std::array<float, 6>& taps)
+    {
+        *filter.coefficients = taps;
+    }
+
     double currentSampleRate = 44100.0;
-    juce::dsp::ProcessSpec spec;
+
+    // Cached last-applied crossover state for the RT early-out (CR-01).
+    float lastXover1 = -1.0f;
+    float lastXover2 = -1.0f;
+    float lastXover3 = -1.0f;
+    double lastSampleRate = 0.0;
 
     // Linkwitz-Riley 4th order = 2 cascaded 2nd order Butterworth filters
     // [crossover_index][channel]

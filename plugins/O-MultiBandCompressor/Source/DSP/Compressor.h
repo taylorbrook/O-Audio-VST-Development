@@ -61,14 +61,22 @@ public:
 
     void setAttackTime(float attackMs)
     {
+        // IN-02: recompute the (exp-heavy) coefficient only when the value actually changes.
+        if (attackMs == currentAttackMs)
+            return;
+
         currentAttackMs = attackMs;
-        updateAttackReleaseCoefficients();
+        attackCoeff = std::exp(-1.0f / (attackMs * 0.001f * static_cast<float>(currentSampleRate)));
     }
 
     void setReleaseTime(float releaseMs)
     {
+        // IN-02: recompute the (exp-heavy) coefficient only when the value actually changes.
+        if (releaseMs == currentReleaseMs)
+            return;
+
         currentReleaseMs = releaseMs;
-        updateAttackReleaseCoefficients();
+        releaseCoeff = std::exp(-1.0f / (releaseMs * 0.001f * static_cast<float>(currentSampleRate)));
     }
 
     // Process stereo buffer with sidechain filtering and auto-makeup
@@ -100,6 +108,12 @@ public:
             return;
         }
 
+        // Cache channel data pointers once (IN-01) — the band buffers are at most stereo.
+        jassert(numChannels <= 2);
+        float* chanData[2] = { nullptr, nullptr };
+        for (int channel = 0; channel < numChannels; ++channel)
+            chanData[channel] = buffer.getWritePointer(channel);
+
         // Process each sample
         for (int sample = 0; sample < numSamples; ++sample)
         {
@@ -107,7 +121,7 @@ public:
             float detectorInput = 0.0f;
             for (int channel = 0; channel < numChannels; ++channel)
             {
-                detectorInput += buffer.getSample(channel, sample);
+                detectorInput += chanData[channel][sample];
             }
             detectorInput /= static_cast<float>(numChannels);
 
@@ -119,7 +133,7 @@ public:
             {
                 for (int channel = 0; channel < numChannels; ++channel)
                 {
-                    buffer.setSample(channel, sample, filteredSidechain);
+                    chanData[channel][sample] = filteredSidechain;
                 }
                 continue; // Skip compression processing in listen mode
             }
@@ -158,8 +172,7 @@ public:
             // Apply gain to all channels
             for (int channel = 0; channel < numChannels; ++channel)
             {
-                float sample_value = buffer.getSample(channel, sample);
-                buffer.setSample(channel, sample, sample_value * totalGain);
+                chanData[channel][sample] *= totalGain;
             }
         }
 
