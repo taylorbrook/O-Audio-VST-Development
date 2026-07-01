@@ -8,7 +8,7 @@ set -e
 # Behavior:
 #   1. Fail loudly if JUCE_DIR (default /Users/taylorbrook/JUCE) is missing.
 #   2. Skip application if the JUCE-NE-PATCH marker is already present.
-#   3. Apply scripts/juce-patches/note-expression-juce-8.0.4.patch otherwise.
+#   3. Apply scripts/juce-patches/note-expression-juce-8.0.9.patch otherwise.
 # ==============================================================================
 
 GREEN='\033[0;32m'
@@ -19,7 +19,7 @@ NC='\033[0m'
 JUCE_DIR="${JUCE_DIR:-/Users/taylorbrook/JUCE}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PATCH_DIR="$SCRIPT_DIR/juce-patches"
-PATCH_FILE="$PATCH_DIR/note-expression-juce-8.0.4.patch"
+PATCH_FILE="$PATCH_DIR/note-expression-juce-8.0.9.patch"
 MARKER="JUCE-NE-PATCH"
 
 # Step 1: preflight — JUCE tree must exist
@@ -61,8 +61,31 @@ for f in "$HEADER_FILE" "$CPP_FILE"; do
   fi
 done
 
-# Step 4: apply
-echo -e "${YELLOW}[apply-juce-patches] Applying ${PATCH_FILE}...${NC}"
-( cd "$JUCE_DIR" && patch -p1 < "$PATCH_FILE" )
-echo -e "${GREEN}[apply-juce-patches] Patch applied. Verify with:${NC}"
-echo -e "  grep -rn \"$MARKER\" $JUCE_DIR/modules/juce_audio_processors/utilities/ $JUCE_DIR/modules/juce_audio_plugin_client/"
+# Step 4: apply (forward-only, self-verifying).
+# --forward skips already-applied hunks instead of reverse-applying them, so a
+# partial prior application is neither re-applied nor reversed. The script runs
+# under `set -e`; on an already-applied hunk Apple patch prints "Ignoring
+# previously applied (or reversed) patch." and exits 1, so guard with `|| true`
+# and depend on the authoritative marker recount below, not patch's exit code.
+echo -e "${YELLOW}[apply-juce-patches] Preflighting ${PATCH_FILE} (dry-run)...${NC}"
+( cd "$JUCE_DIR" && patch -p1 --forward --dry-run < "$PATCH_FILE" ) || true
+
+echo -e "${YELLOW}[apply-juce-patches] Applying ${PATCH_FILE} (--forward)...${NC}"
+( cd "$JUCE_DIR" && patch -p1 --forward < "$PATCH_FILE" ) || true
+
+# Step 5: authoritative post-apply verification — recount the marker in BOTH
+# target files. Correctness depends on this recount, not on patch's exit code.
+POST=0
+for f in "$HEADER_FILE" "$CPP_FILE"; do
+  if [[ -f "$f" ]] && grep -q "$MARKER" "$f"; then
+    POST=$((POST + 1))
+  fi
+done
+
+if [[ "$POST" -ge 2 ]]; then
+  echo -e "${GREEN}[apply-juce-patches] Patch verified — ${MARKER} present in both target files.${NC}"
+  echo -e "  grep -rn \"$MARKER\" $JUCE_DIR/modules/juce_audio_processors/utilities/ $JUCE_DIR/modules/juce_audio_plugin_client/"
+else
+  echo -e "${RED}[apply-juce-patches] Verification FAILED — ${MARKER} found in $POST/2 target files.${NC}"
+  exit 1
+fi
