@@ -2,6 +2,46 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.1.5] - 2026-06-30
+
+Resolves the remaining open findings from the v1.1.3 deep code review (WR-01…WR-05,
+IN-02, IN-03) plus the MAGNETIC rate-consistency note under CR-01.
+
+### Fixed
+- **WR-01 — Latency reported off the audio thread.** `setLatencySamples()` (which calls
+  `updateHostDisplay()` and can lock/reallocate in the host) was invoked from `processBlock`
+  on a Quality change. The audio thread now stores the new latency and triggers an
+  `AsyncUpdater`; the host notification happens on the message thread in `handleAsyncUpdate()`.
+- **WR-02 — Dry path no longer colored/delayed by the oversampler.** Previously the whole
+  buffer (dry + wet) was up/down-sampled, so the "dry" component picked up the oversampler's
+  FIR anti-imaging/anti-aliasing coloration and latency, and LOW vs MID/HIGH sounded
+  different at low Intensity. The models now output the pure wet signal; a clean base-rate
+  dry copy is kept and mixed back in *after* downsampling, delayed by the oversampler
+  latency (`juce::dsp::DelayLine`) so dry and wet stay phase-aligned. LOW quality (0 latency)
+  bypasses the delay and stays sample-exact.
+- **WR-03 — Auto-gain compensation is smoothed.** The per-block compensation gain was applied
+  as a flat multiply, stepping (zipper/click) at block boundaries once CR-02 made the envelope
+  actually track. It now ramps per sample toward the block target via a per-channel
+  `juce::SmoothedValue` (20 ms), holding unity while disabled so re-enabling ramps cleanly.
+- **WR-04 — Added `isBusesLayoutSupported`.** Accepts only mono or stereo with matching
+  input/output channel sets, instead of relying on the permissive `AudioProcessor` default.
+- **WR-05 — Non-zero tail length.** `getTailLengthSeconds()` now returns 0.05 s (was 0) so
+  hosts don't truncate the IIR ring / hysteresis decay on offline bounce/freeze.
+- **CR-01 addendum — MAGNETIC consistent across Quality.** The Jiles-Atherton `deltaH` clamp
+  was an absolute per-sample limit (±0.3), so a transient split across more oversampled steps
+  was clamped less — MAGNETIC changed character with Quality. The clamp is now scaled by the
+  oversampling factor (±0.3 / 1·2·4) so the realized field slew limit is identical at
+  LOW/MID/HIGH. (The tone-filter half of CR-01 was fixed in v1.1.4.)
+
+### Changed (internal)
+- **IN-02 — Shared Langevin small-argument threshold.** `langevinFunction` and its derivative
+  branch in the magnetic model now use one `LANGEVIN_TAYLOR_THRESHOLD` (1e-4) so L and L′ use
+  matching series/limit forms in the crossover window (also dodges catastrophic cancellation
+  in `coth(x) - 1/x` for small x).
+- **IN-03 — Named tuning constants.** Per-model drive ranges (6.0 / 7.5 / 4.5 / 3.0), diode
+  hardness (0.7) and tube output normalization (1.2) are now named `static constexpr` members;
+  the stale "(was X)" development comments were removed.
+
 ## [1.1.4] - 2026-06-30
 
 ### Fixed
