@@ -24,6 +24,13 @@ public:
     void compute (float cursorX, float cursorY, float focus,
                   float outFreq[5], float outBW[5], float outGain[5]) const noexcept
     {
+        // IN-06: clamp the cursor to the unit square on entry. Callers are not
+        // guaranteed to pre-clamp — lyric syllable targets and the MPE-timbre
+        // vowelY offset can both push the cursor out of [0,1], which skews the
+        // inverse-distance weights. Defend here so every caller is covered.
+        cursorX = std::max (0.0f, std::min (cursorX, 1.0f));
+        cursorY = std::max (0.0f, std::min (cursorY, 1.0f));
+
         float weights[VowelData::kNumVowels];
         float weightSum = 0.0f;
 
@@ -45,14 +52,34 @@ public:
                 return;
             }
 
-            weights[v] = 1.0f / std::pow (dist, focus);
+            // WR-03: floor the distance and cap the weight. Without the floor,
+            // 1/pow(dist, focus) just above the 1e-6 snap epsilon (with large
+            // focus) can underflow pow() toward 0 → weight Inf → weightSum Inf
+            // → invSum 0 → weight = Inf*0 = NaN → NaN formant frequencies, which
+            // then poison the biquads (see WR-05). Flooring dist and capping
+            // keeps every weight finite; the vowel nearest the cursor still
+            // dominates, so the near-snap behaviour is audibly unchanged.
+            dist = std::max (dist, 1e-3f);
+            float w = 1.0f / std::pow (dist, focus);
+            weights[v] = std::min (w, 1.0e12f);
             weightSum += weights[v];
         }
 
-        // Normalize weights
-        float invSum = 1.0f / weightSum;
-        for (int v = 0; v < VowelData::kNumVowels; ++v)
-            weights[v] *= invSum;
+        // WR-03: guard the sum before dividing. After the floor/cap this should
+        // always be finite and > 0, but if it ever is not, fall back to an equal
+        // blend so the output stays finite and the filter never goes silent.
+        if (! std::isfinite (weightSum) || weightSum <= 0.0f)
+        {
+            const float equal = 1.0f / static_cast<float> (VowelData::kNumVowels);
+            for (int v = 0; v < VowelData::kNumVowels; ++v)
+                weights[v] = equal;
+        }
+        else
+        {
+            float invSum = 1.0f / weightSum;
+            for (int v = 0; v < VowelData::kNumVowels; ++v)
+                weights[v] *= invSum;
+        }
 
         // Interpolate: frequencies in log domain, bandwidths and gains linear
         for (int f = 0; f < 5; ++f)

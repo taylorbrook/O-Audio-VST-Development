@@ -93,6 +93,10 @@ public:
         float alpha = std::exp (-juce::MathConstants<float>::twoPi * cutoff
                                 / static_cast<float> (sampleRate));
         float filtered = (1.0f - alpha) * modulatedNoise + alpha * tiltPrev;
+        // WR-06: cheap denormal flush on the one-pole state (defence-in-depth
+        // alongside processBlock's ScopedNoDenormals) — the tilt feedback can
+        // decay into subnormals once the breath source goes quiet on release.
+        filtered += 1.0e-20f; filtered -= 1.0e-20f;
         tiltPrev = filtered;
 
         // Mix: voice/noise crossfade based on breathiness
