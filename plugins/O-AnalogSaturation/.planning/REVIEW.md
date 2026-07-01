@@ -14,11 +14,12 @@ findings:
   warning: 5
   info: 3
   total: 11
-status: criticals_resolved
+status: all_resolved
 resolution:
   fixed_in: v1.1.4
   fixed: [CR-01, CR-02, CR-03, IN-01]
-  open: [WR-01, WR-02, WR-03, WR-04, WR-05, IN-02, IN-03]
+  open: []
+  fixed_in_v1_1_5: [WR-01, WR-02, WR-03, WR-04, WR-05, IN-02, IN-03, "CR-01 MAGNETIC rate addendum"]
 ---
 
 # O-AnalogSaturation: Code Review Report

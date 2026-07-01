@@ -139,14 +139,63 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
     inputRMSEnvelope.assign(numChannels, 0.0f);
     outputRMSEnvelope.assign(numChannels, 0.0f);
 
-    // Report latency to host
-    int latency = 0;
-    if (currentQuality == 1 && oversamplingMid)
-        latency = static_cast<int>(oversamplingMid->getLatencyInSamples());
-    else if (currentQuality == 2 && oversamplingHigh)
-        latency = static_cast<int>(oversamplingHigh->getLatencyInSamples());
+    // WR-03: per-channel smoothers so the auto-gain compensation ramps instead of stepping
+    // at block boundaries. Start at unity so an enable never jumps.
+    autoGainSmoothed.assign(static_cast<size_t>(numChannels), {});
+    for (auto& sm : autoGainSmoothed)
+    {
+        sm.reset(sampleRate, AUTOGAIN_SMOOTHING_SECONDS);
+        sm.setCurrentAndTargetValue(1.0f);
+    }
 
-    setLatencySamples(latency);
+    // WR-02: dry copy + latency-matched delay line. Size the delay for the largest latency
+    // any Quality can request so switching never needs a (non-RT-safe) reallocation.
+    currentLatencySamples = computeLatencyForQuality(currentQuality);
+    const int maxLatency = juce::jmax(computeLatencyForQuality(1), computeLatencyForQuality(2));
+    dryDelay.setMaximumDelayInSamples(maxLatency + 4);
+    juce::dsp::ProcessSpec spec {
+        sampleRate,
+        static_cast<juce::uint32>(samplesPerBlock),
+        static_cast<juce::uint32>(numChannels)
+    };
+    dryDelay.prepare(spec);
+    dryDelay.setDelay(static_cast<float>(currentLatencySamples));
+    dryDelay.reset();
+    dryBuffer.setSize(numChannels, samplesPerBlock);
+    dryBuffer.clear();
+
+    // Report latency to host (prepareToPlay runs on the message thread, so a direct call
+    // is safe here — only the audio-thread Quality-change path defers via AsyncUpdater).
+    setLatencySamples(currentLatencySamples);
+}
+
+bool OAnalogSaturationAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    // WR-04: accept only mono or stereo, and require matching input/output channel sets.
+    const auto& out = layouts.getMainOutputChannelSet();
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
+        return false;
+    return layouts.getMainInputChannelSet() == out;
+}
+
+void OAnalogSaturationAudioProcessor::handleAsyncUpdate()
+{
+    // WR-01: message-thread flush of the latency reported from the audio thread.
+    setLatencySamples(pendingLatencySamples.load(std::memory_order_relaxed));
+}
+
+int OAnalogSaturationAudioProcessor::computeLatencyForQuality(int quality) const
+{
+    if (quality == 1 && oversamplingMid)
+        return static_cast<int>(oversamplingMid->getLatencyInSamples());
+    if (quality == 2 && oversamplingHigh)
+        return static_cast<int>(oversamplingHigh->getLatencyInSamples());
+    return 0;  // LOW quality: no oversampling, no added latency
+}
+
+float OAnalogSaturationAudioProcessor::osFactorForQuality(int quality)
+{
+    return quality == 2 ? 4.0f : quality == 1 ? 2.0f : 1.0f;
 }
 
 void OAnalogSaturationAudioProcessor::releaseResources()
@@ -202,20 +251,22 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
 
         // CR-01: retarget the tone filters at the coefficient set designed for the
         // new oversampling rate (RT-safe Ptr swap; same biquad order preserves state).
+        // Also rescales the MAGNETIC deltaH clamp for the new oversampling factor.
         applyQualityToneCoeffs(currentQuality);
 
-        int latency = 0;
-        if (currentQuality == 1 && oversamplingMid)
-            latency = static_cast<int>(oversamplingMid->getLatencyInSamples());
-        else if (currentQuality == 2 && oversamplingHigh)
-            latency = static_cast<int>(oversamplingHigh->getLatencyInSamples());
+        // WR-02: match the dry delay to the new oversampler latency (RT-safe int update).
+        currentLatencySamples = computeLatencyForQuality(currentQuality);
+        dryDelay.setDelay(static_cast<float>(currentLatencySamples));
 
-        setLatencySamples(latency);
+        // WR-01: defer the (non-RT-safe) host latency notification to the message thread.
+        pendingLatencySamples.store(currentLatencySamples, std::memory_order_relaxed);
+        triggerAsyncUpdate();
 
         if (oversamplingMid)
             oversamplingMid->reset();
         if (oversamplingHigh)
             oversamplingHigh->reset();
+        dryDelay.reset();
     }
 
     // Capture input peak level for VU meter
@@ -224,7 +275,16 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
     // Capture input RMS for auto-gain (before saturation)
     captureInputRMS(buffer);
 
-    // Process based on quality level
+    // WR-02: snapshot a clean, base-rate dry copy BEFORE the oversampled nonlinear path so
+    // the dry component is mixed back in later without the oversampler's FIR coloration.
+    const int numCh = buffer.getNumChannels();
+    const int numSamples = buffer.getNumSamples();
+    if (dryBuffer.getNumSamples() < numSamples || dryBuffer.getNumChannels() < numCh)
+        dryBuffer.setSize(numCh, numSamples, false, false, true);  // fallback if host exceeds prepared size
+    for (int ch = 0; ch < numCh; ++ch)
+        dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
+
+    // Generate the pure WET (fully saturated) signal — models no longer mix dry internally.
     if (quality == 0)
     {
         // LOW quality: No oversampling
@@ -244,6 +304,9 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
             oversampler->processSamplesDown(outputBlock);
         }
     }
+
+    // WR-02: mix the clean dry (delayed to match oversampler latency) with the wet result.
+    mixDryWet(buffer, dryBuffer, intensity);
 
     // Apply auto-gain compensation if enabled
     applyAutoGain(buffer, autoGainEnabled);
@@ -287,6 +350,10 @@ void OAnalogSaturationAudioProcessor::applyQualityToneCoeffs(int quality)
     for (auto& f : tubePresenceFilters)       f.coefficients = tubePresenceCoeffs[q];
     for (auto& f : magneticHeadBumpFilters)   f.coefficients = magneticHeadBumpCoeffs[q];
     for (auto& f : magneticHFRolloffFilters)  f.coefficients = magneticHFRolloffCoeffs[q];
+
+    // CR-01 addendum: scale the MAGNETIC per-sample deltaH clamp by the oversampling factor
+    // so the realized field slew limit (per unit time) is the same at LOW/MID/HIGH.
+    magneticDeltaHClamp = MAGNETIC_DELTAH_CLAMP_BASE / osFactorForQuality(q);
 }
 
 float OAnalogSaturationAudioProcessor::autoGainBlockCoeff(int numSamples) const
@@ -386,6 +453,45 @@ float OAnalogSaturationAudioProcessor::processSample(
     }
 }
 
+void OAnalogSaturationAudioProcessor::mixDryWet(
+    juce::AudioBuffer<float>& wetBuffer, const juce::AudioBuffer<float>& dry, float intensity)
+{
+    // WR-02: apply the dry/wet mix at base rate. INTENSITY sets the wet proportion (the
+    // per-model drive scaling that shapes the wet signal already happened upstream).
+    const float wetMix = juce::jlimit(0.0f, 1.0f, intensity / 100.0f);
+    const float dryMix = 1.0f - wetMix;
+    const int numCh = wetBuffer.getNumChannels();
+    const int numSamples = wetBuffer.getNumSamples();
+
+    if (currentLatencySamples <= 0)
+    {
+        // LOW quality (no oversampler latency): dry and wet are already sample-aligned.
+        for (int ch = 0; ch < numCh; ++ch)
+        {
+            const float* dryData = dry.getReadPointer(ch);
+            float* wetData = wetBuffer.getWritePointer(ch);
+            for (int n = 0; n < numSamples; ++n)
+                wetData[n] = dryMix * dryData[n] + wetMix * wetData[n];
+        }
+    }
+    else
+    {
+        // MID/HIGH: delay the clean dry by the oversampler latency so it stays phase-aligned
+        // with the wet path (which the oversampler delayed by the same amount).
+        for (int ch = 0; ch < numCh; ++ch)
+        {
+            const float* dryData = dry.getReadPointer(ch);
+            float* wetData = wetBuffer.getWritePointer(ch);
+            for (int n = 0; n < numSamples; ++n)
+            {
+                dryDelay.pushSample(ch, dryData[n]);
+                const float dryDelayed = dryDelay.popSample(ch);
+                wetData[n] = dryMix * dryDelayed + wetMix * wetData[n];
+            }
+        }
+    }
+}
+
 void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& buffer, bool enabled)
 {
     const int numChannels = buffer.getNumChannels();
@@ -414,16 +520,22 @@ void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& bu
         if (! std::isfinite(outputRMSEnvelope[channel]) || outputRMSEnvelope[channel] < 1e-8f)
             outputRMSEnvelope[channel] = 0.0f;
 
-        // Apply compensation gain if enabled
+        // WR-03: ramp the compensation gain per sample toward the block target instead of a
+        // flat per-block multiply, so a changing gain doesn't step (zipper) at boundaries.
+        auto& smoothed = autoGainSmoothed[static_cast<size_t>(channel)];
         if (enabled && outputRMSEnvelope[channel] > 1e-6f)
         {
             float compensationGain = inputRMSEnvelope[channel] / outputRMSEnvelope[channel];
             compensationGain = juce::jlimit(0.1f, 10.0f, compensationGain);
+            smoothed.setTargetValue(compensationGain);
 
             for (int sample = 0; sample < numSamples; ++sample)
-            {
-                channelData[sample] *= compensationGain;
-            }
+                channelData[sample] *= smoothed.getNextValue();
+        }
+        else
+        {
+            // Disabled/silent: hold at unity so the next enable ramps cleanly from 1.0.
+            smoothed.setCurrentAndTargetValue(1.0f);
         }
     }
 }
@@ -434,16 +546,14 @@ void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& bu
 
 float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float intensity)
 {
-    // At 0% intensity, return dry signal (no processing)
+    // At 0% intensity there is nothing to saturate; the dry/wet mix (applied downstream in
+    // mixDryWet) weights the wet path to ~0 anyway, so returning the input is transparent.
     if (intensity < 0.1f)
         return input;
 
-    // Dry/wet mix: 0% = dry, 100% = full saturation
+    // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float dryMix = 1.0f - wetMix;
-
-    // Drive increases with intensity: 1.0 to 5.0
-    const float drive = 1.0f + wetMix * 6.0f;  // 1.5x stronger (was 4.0)
+    const float drive = 1.0f + wetMix * DIODE_DRIVE_RANGE;
 
     // Apply input drive
     float x = input * drive;
@@ -452,16 +562,14 @@ float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float int
     // This models the classic TS-style diode clipper sound
     // Formula: x / (1 + |x|)^n where n controls hardness
     // n=1.0 is very soft, n=0.5 is harder (more like real diodes)
-    const float hardness = 0.7f;  // Diode-like response
-    float wetSignal = x / std::pow(1.0f + std::abs(x), hardness);
+    float wetSignal = x / std::pow(1.0f + std::abs(x), DIODE_HARDNESS);
 
     // Add subtle odd harmonics (characteristic of symmetric clipping)
     // Diodes produce primarily odd harmonics due to symmetric clipping
     const float x3 = wetSignal * wetSignal * wetSignal;
     wetSignal = wetSignal * 0.9f + x3 * 0.1f;  // Subtle 3rd harmonic
 
-    // Mix dry and wet signals based on intensity
-    return (dryMix * input) + (wetMix * wetSignal);
+    return wetSignal;  // pure wet; dry mixed in by mixDryWet at base rate
 }
 
 // ============================================================================
@@ -470,18 +578,13 @@ float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float int
 
 float OAnalogSaturationAudioProcessor::processTransformerSample(float input, float intensity, int channel)
 {
-    // At 0% intensity, return dry signal (no processing)
+    // At 0% intensity there is nothing to saturate (mixDryWet weights wet to ~0 anyway).
     if (intensity < 0.1f)
         return input;
 
-    // Dry/wet mix: 0% = dry, 100% = full saturation
+    // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float dryMix = 1.0f - wetMix;
-
-    // INTENSITY parameter mapping: Input gain = 1.0 + wetMix * 5.0
-    // At 0%: gain = 1.0 (unity gain, minimal saturation)
-    // At 100%: gain = 6.0 (maximum drive into saturation)
-    const float intensityGain = 1.0f + wetMix * 7.5f;  // 1.5x stronger (was 5.0)
+    const float intensityGain = 1.0f + wetMix * TRANSFORMER_DRIVE_RANGE;
 
     // Apply input gain
     float driven = input * intensityGain;
@@ -500,8 +603,7 @@ float OAnalogSaturationAudioProcessor::processTransformerSample(float input, flo
     // HF sheen filter (8kHz high shelf, +1.0dB)
     float wetSignal = transformerHFSheenFilters[channel].processSample(lfProcessed);
 
-    // Mix dry and wet signals based on intensity
-    return (dryMix * input) + (wetMix * wetSignal);
+    return wetSignal;  // pure wet; dry mixed in by mixDryWet at base rate
 }
 
 // ============================================================================
@@ -510,16 +612,13 @@ float OAnalogSaturationAudioProcessor::processTransformerSample(float input, flo
 
 float OAnalogSaturationAudioProcessor::processTubeSample(float input, float intensity, int channel)
 {
-    // At 0% intensity, return dry signal (no processing)
+    // At 0% intensity there is nothing to saturate (mixDryWet weights wet to ~0 anyway).
     if (intensity < 0.1f)
         return input;
 
-    // Dry/wet mix: 0% = dry, 100% = full saturation
+    // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float dryMix = 1.0f - wetMix;
-
-    // Drive increases with intensity: 1.0 to 4.0
-    const float drive = 1.0f + wetMix * 4.5f;  // 1.5x stronger (was 3.0)
+    const float drive = 1.0f + wetMix * TUBE_DRIVE_RANGE;
 
     // Apply input drive
     float x = input * drive;
@@ -548,13 +647,12 @@ float OAnalogSaturationAudioProcessor::processTubeSample(float input, float inte
     wetSignal = wetSignal + 0.1f * x2 * (wetSignal > 0 ? 1.0f : -1.0f);
 
     // Normalize output level (asymmetric clipping can reduce average level)
-    wetSignal *= 1.2f;
+    wetSignal *= TUBE_OUTPUT_NORMALIZATION;
 
     // Apply presence filter (3kHz peak, Q=0.7, +1.5dB)
     wetSignal = tubePresenceFilters[static_cast<size_t>(channel)].processSample(wetSignal);
 
-    // Mix dry and wet signals based on intensity
-    return (dryMix * input) + (wetMix * wetSignal);
+    return wetSignal;  // pure wet; dry mixed in by mixDryWet at base rate
 }
 
 // ============================================================================
@@ -564,9 +662,11 @@ float OAnalogSaturationAudioProcessor::processTubeSample(float input, float inte
 float OAnalogSaturationAudioProcessor::langevinFunction(float x)
 {
     // Langevin function: L(x) = coth(x) - 1/x
-    // For |x| < 1e-6, use Taylor series to avoid singularity: L(x) ≈ x/3 - x³/45
+    // IN-02: below LANGEVIN_TAYLOR_THRESHOLD use the Taylor series L(x) ≈ x/3 - x³/45. This
+    // both avoids the 1/x singularity and dodges catastrophic cancellation in coth(x)-1/x
+    // for small x — and shares the exact threshold used by the derivative branch below.
 
-    if (std::abs(x) < 1e-6f)
+    if (std::abs(x) < LANGEVIN_TAYLOR_THRESHOLD)
     {
         // Taylor series approximation for small x
         const float x2 = x * x;
@@ -584,16 +684,13 @@ float OAnalogSaturationAudioProcessor::langevinFunction(float x)
 
 float OAnalogSaturationAudioProcessor::processMagneticSample(float input, float intensity, int channel)
 {
-    // At 0% intensity, return dry signal (no processing)
+    // At 0% intensity there is nothing to saturate (mixDryWet weights wet to ~0 anyway).
     if (intensity < 0.1f)
         return input;
 
-    // Dry/wet mix: 0% = dry, 100% = full saturation
+    // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float dryMix = 1.0f - wetMix;
-
-    // Drive scales with intensity: subtle at low values, heavy at high
-    const float drive = 1.0f + wetMix * 3.0f;  // 1.5x stronger (was 2.0)
+    const float drive = 1.0f + wetMix * MAGNETIC_DRIVE_RANGE;
 
     // Apply input drive
     float H = input * drive;  // Magnetic field (input signal)
@@ -602,9 +699,11 @@ float OAnalogSaturationAudioProcessor::processMagneticSample(float input, float 
     float& M = magneticM[static_cast<size_t>(channel)];
     float& H_prev = magneticHPrev[static_cast<size_t>(channel)];
 
-    // Limit deltaH to prevent initialization transient and reduce noise
+    // Limit deltaH to prevent initialization transient and reduce noise.
+    // CR-01 addendum: magneticDeltaHClamp is scaled by the oversampling factor so the
+    // realized field slew limit is identical across Quality (see applyQualityToneCoeffs).
     float deltaH = H - H_prev;
-    deltaH = juce::jlimit(-0.3f, 0.3f, deltaH);  // Tighter limit = smoother
+    deltaH = juce::jlimit(-magneticDeltaHClamp, magneticDeltaHClamp, deltaH);
 
     // Calculate direction (sign of field change)
     float delta = (deltaH >= 0.0f) ? 1.0f : -1.0f;
@@ -617,8 +716,10 @@ float OAnalogSaturationAudioProcessor::processMagneticSample(float input, float 
     const float Man = MAGNETIC_MS * langevinFunction(arg);
 
     // Calculate derivative of Langevin function
+    // IN-02: same LANGEVIN_TAYLOR_THRESHOLD as langevinFunction so L and L' use matching
+    // approximations across the crossover window.
     float dLdx = 0.0f;
-    if (std::abs(arg) < 1e-4f)
+    if (std::abs(arg) < LANGEVIN_TAYLOR_THRESHOLD)
     {
         dLdx = 1.0f / 3.0f;
     }
@@ -673,8 +774,7 @@ float OAnalogSaturationAudioProcessor::processMagneticSample(float input, float 
     wetSignal = magneticHeadBumpFilters[static_cast<size_t>(channel)].processSample(wetSignal);
     wetSignal = magneticHFRolloffFilters[static_cast<size_t>(channel)].processSample(wetSignal);
 
-    // Mix dry and wet signals based on intensity
-    return (dryMix * input) + (wetMix * wetSignal);
+    return wetSignal;  // pure wet; dry mixed in by mixDryWet at base rate
 }
 
 // Factory function
