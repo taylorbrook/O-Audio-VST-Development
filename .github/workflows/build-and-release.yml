@@ -84,7 +84,7 @@ jobs:
         id: resolve
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          CMAKE_TARGET=$(grep 'juce_add_plugin(' "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*juce_add_plugin(\([^ )]*\).*/\1/')
+          CMAKE_TARGET=$(bash scripts/resolve-target.sh cmake-target "$PLUGIN")
           echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
           echo "Resolved CMake target: $CMAKE_TARGET (from directory: $PLUGIN)"
 
@@ -231,11 +231,8 @@ jobs:
           TARGET="${{ steps.resolve.outputs.cmake_target }}"
           ARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}"
 
-          # Get PRODUCT_NAME from CMakeLists.txt
-          PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/')
-          # Strip CMake variable references like ${OUARICON_DEV_SUFFIX}
-          PRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/\${[^}]*}//g')
-          PRODUCT_NAME="${PRODUCT_NAME:-$PLUGIN}"
+          # Get PRODUCT_NAME via shared resolver
+          PRODUCT_NAME=$(bash scripts/resolve-target.sh product-name "$PLUGIN")
           BUNDLE_ID="io.oaudio.$(echo "$PLUGIN" | tr '[:upper:]' '[:lower:]')"
 
           echo "Building PKG for: $PRODUCT_NAME v$VERSION"
@@ -436,7 +433,7 @@ jobs:
         shell: bash
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          CMAKE_TARGET=$(grep 'juce_add_plugin(' "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*juce_add_plugin(\([^ )]*\).*/\1/')
+          CMAKE_TARGET=$(bash scripts/resolve-target.sh cmake-target "$PLUGIN")
           echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
           echo "Resolved CMake target: $CMAKE_TARGET (from directory: $PLUGIN)"
 
@@ -450,10 +447,8 @@ jobs:
         shell: bash
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          PRODUCT_NAME=$(sed -n 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/p' "plugins/${PLUGIN}/CMakeLists.txt" | head -1)
-          # Strip CMake variable references like ${OUARICON_DEV_SUFFIX}
-          PRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/\${[^}]*}//g')
-          echo "name=${PRODUCT_NAME:-$PLUGIN}" >> $GITHUB_OUTPUT
+          PRODUCT_NAME=$(bash scripts/resolve-target.sh product-name "$PLUGIN")
+          echo "name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
 
       - name: Create Inno Setup Installer
         run: |
@@ -563,9 +558,7 @@ jobs:
         id: product_name
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/' || echo "$PLUGIN")
-          # Strip CMake variable references like ${OUARICON_DEV_SUFFIX}
-          PRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/\${[^}]*}//g')
+          PRODUCT_NAME=$(bash scripts/resolve-target.sh product-name "$PLUGIN")
           echo "name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
           echo "Product name: $PRODUCT_NAME"
 
