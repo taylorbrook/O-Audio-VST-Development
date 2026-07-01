@@ -187,10 +187,12 @@ void MicrotonalSamplerVoice::prepareToPlay (double sampleRate, int /*samplesPerB
     // while staying responsive on fast hairpins. Seeded per-note in startNote.
     dynamicsModeParam = nullptr;
     expressionParam   = nullptr;
+    dynamicRangeParam = nullptr;
     if (parameters != nullptr)
     {
         dynamicsModeParam = parameters->getRawParameterValue ("dynamics_mode");
         expressionParam   = parameters->getRawParameterValue ("expression");
+        dynamicRangeParam = parameters->getRawParameterValue ("dynamic_range"); // v1.22.0
     }
     dynamicsSmoother.reset (sampleRate, 0.02);
     dynamicsSmoother.setCurrentAndTargetValue (1.0f);
@@ -431,11 +433,14 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
 
     if (currentMap == nullptr || currentMap->cells.empty())
     {
-        cellLow         = nullptr;
-        cellHigh        = nullptr;
-        variantLow      = nullptr;
-        variantHigh     = nullptr;
-        currentMidiNote = -1;
+        cellLow          = nullptr;
+        cellHigh         = nullptr;
+        variantLow       = nullptr;
+        variantHigh      = nullptr;
+        ccDynamicsActive = false;   // v1.23.1 (CR-01): match stopNote hard-off — leaving
+        dynLayerCount    = 0;       // these set after a CC note lets renderCcCrossfade read
+                                    // dynLayers[] into a just-freed SampleMap (use-after-free).
+        currentMidiNote  = -1;
         clearCurrentNote();
         return;
     }
@@ -470,11 +475,14 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
     cellLow = currentMap->findCellNearestLayer (midiNoteNumber, layerIdx, startTechnique);
     if (cellLow == nullptr || cellLow->variants.empty())
     {
-        cellLow         = nullptr;
-        cellHigh        = nullptr;
-        variantLow      = nullptr;
-        variantHigh     = nullptr;
-        currentMidiNote = -1;
+        cellLow          = nullptr;
+        cellHigh         = nullptr;
+        variantLow       = nullptr;
+        variantHigh      = nullptr;
+        ccDynamicsActive = false;   // v1.23.1 (CR-01): match stopNote hard-off — leaving
+        dynLayerCount    = 0;       // these set after a CC note lets renderCcCrossfade read
+                                    // dynLayers[] into a just-freed SampleMap (use-after-free).
+        currentMidiNote  = -1;
         clearCurrentNote();
         return;
     }
@@ -543,6 +551,22 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
                 }
             }
         }
+    }
+
+    // ---------- 6a. v1.23.0: per-technique / per-layer loudness trim ----------
+    // Fold the (technique, layer) trim into the equal-power layer weights. This
+    // costs nothing per sample AND is inherited automatically by the voice-steal
+    // tail (renderTailRamp reuses layerWeightLow/High). `resolvedTech` is the
+    // technique that actually sounded — cellLow->technique — which equals
+    // startTechnique unless findCellNearestLayer fell back to "ord". cellHigh
+    // (when present) shares that technique (the xfade guard above enforces it)
+    // but may sit on a different velocity layer, so it gets its own layer trim.
+    if (trimTable != nullptr)
+    {
+        const int velResolvedTech = cellLow->technique;
+        layerWeightLow *= trimTable->gainFor (velResolvedTech, cellLow->velocityLayer);
+        if (cellHigh != nullptr)
+            layerWeightHigh *= trimTable->gainFor (velResolvedTech, cellHigh->velocityLayer);
     }
 
     // ---------- 6b. v1.8.0: variant selection per cell ----------
@@ -617,6 +641,13 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
             dl.pos      = 0.0;
             dl.playRate = computePlayRateForVariant (*var, c->midiNote,
                                                      currentFrequency, hostSR);
+            // v1.23.0: per-(technique,layer) trim for this gathered layer. All
+            // gathered cells share `resolvedTech`; each contributes its own
+            // velocityLayer's trim. Folded once here (note-on), applied per
+            // sample in renderCcCrossfade / renderTailRampCc.
+            dl.trimLin  = (trimTable != nullptr)
+                              ? trimTable->gainFor (resolvedTech, c->velocityLayer)
+                              : 1.0f;
             ++dynLayerCount;
         }
 
@@ -829,11 +860,15 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
 // v1.21.0: CC Crossfade dynamics render. Every populated layer in `dynLayers`
 // advances each sample (time-synced → click-free bracket entry); only the two
 // layers bracketing the live, smoothed dynamic position `d` are summed with
-// equal-power weights. With a single layer there is nothing to crossfade, so
-// `d²` scales that layer instead (CC 11 still shapes dynamics — otherwise a
-// single-dynamic library would be flat in CC mode). ADSR `env` applies to the
-// mix; the post-mix Expression gain is bypassed in the processor for this mode
-// so dynamics are never double-attenuated (the original Dorico pp problem).
+// equal-power weights (a pure timbre morph). v1.22.0: a dB-linear loudness
+// ramp `dynGain = decibelsToGain(rangeDb·(d−1))` is layered on top so CC 11
+// shapes BOTH timbre and loudness — `rangeDb` (the "Dynamic Range" param) is
+// the dB span pp(d=0)→ff(d=1). 0 dB → flat (v1.21.0 behaviour); the default
+// 20 dB restores a musical pp→ff sweep that flat multi-layer crossfade lacked
+// (forte-too-soft / piano-too-loud in Dorico). Applies to single- AND
+// multi-layer alike. ADSR `env` applies to the mix; the post-mix Expression
+// gain is bypassed in the processor for this mode so dynamics are never
+// double-attenuated (the original Dorico pp problem).
 void MicrotonalSamplerVoice::renderCcCrossfade (juce::AudioBuffer<float>& out,
                                                 int startSample,
                                                 int numSamples) noexcept
@@ -880,6 +915,13 @@ void MicrotonalSamplerVoice::renderCcCrossfade (juce::AudioBuffer<float>& out,
     const int  lastIdx  = dynLayerCount - 1;
     const bool single   = (dynLayerCount == 1);
 
+    // v1.22.0: dB-linear loudness ramp on top of the equal-power timbre morph.
+    // `rangeDb` is the dB span pp(d=0)→ff(d=1): dynGain = decibelsToGain
+    // (rangeDb·(d−1)). 0 dB → flat (v1.21.0). Read once per block (RT-safe).
+    const float rangeDb = (dynamicRangeParam != nullptr)
+                            ? juce::jlimit (0.0f, 40.0f, dynamicRangeParam->load())
+                            : 20.0f;
+
     auto readLayer = [&] (int k, bool right) noexcept -> float
     {
         const float* p = right ? readR[k] : readL[k];
@@ -906,7 +948,7 @@ void MicrotonalSamplerVoice::renderCcCrossfade (juce::AudioBuffer<float>& out,
             wB = w.second;
         }
 
-        const float dynGain = single ? (d * d) : 1.0f;
+        const float dynGain = juce::Decibels::decibelsToGain (rangeDb * (d - 1.0f)); // v1.22.0
 
         const float lA = readLayer (ia, false);
         const float rA = stereo[ia] ? readLayer (ia, true) : lA;
@@ -918,8 +960,14 @@ void MicrotonalSamplerVoice::renderCcCrossfade (juce::AudioBuffer<float>& out,
             rB = stereo[ib] ? readLayer (ib, true) : lB;
         }
 
-        const float yL = (lA * wA + lB * wB) * env * dynGain;
-        const float yR = (rA * wA + rB * wB) * env * dynGain;
+        // v1.23.0: per-(technique,layer) trim for the two bracketed layers.
+        // Pre-folded at note-on (technique master × this layer's trim). The
+        // bracket (ia/ib) moves with CC 11, so fetch per sample — a member read.
+        const float gA = dynLayers[(size_t) ia].trimLin;
+        const float gB = dynLayers[(size_t) ib].trimLin;
+
+        const float yL = (lA * gA * wA + lB * gB * wB) * env * dynGain;
+        const float yR = (rA * gA * wA + rB * gB * wB) * env * dynGain;
 
         if (outChans > 0) out.addSample (0, startSample + i, yL);
         if (outChans > 1) out.addSample (1, startSample + i, yR);
@@ -978,6 +1026,9 @@ void MicrotonalSamplerVoice::renderTailRampCc (int rampSamples) noexcept
     const float d       = juce::jlimit (0.0f, 1.0f, dynamicsSmoother.getCurrentValue());
     const int   lastIdx = dynLayerCount - 1;
     const bool  single  = (dynLayerCount == 1);
+    const float rangeDb = (dynamicRangeParam != nullptr)   // v1.22.0 (matches renderCcCrossfade)
+                            ? juce::jlimit (0.0f, 40.0f, dynamicRangeParam->load())
+                            : 20.0f;
 
     int   ia = 0, ib = 0;
     float wA = 1.0f, wB = 0.0f;
@@ -991,7 +1042,9 @@ void MicrotonalSamplerVoice::renderTailRampCc (int rampSamples) noexcept
         wA = w.first;
         wB = w.second;
     }
-    const float dynGain = single ? (d * d) : 1.0f;
+    const float dynGain = juce::Decibels::decibelsToGain (rangeDb * (d - 1.0f)); // v1.22.0
+    const float gA      = dynLayers[(size_t) ia].trimLin;  // v1.23.0 (frozen with ia/ib)
+    const float gB      = dynLayers[(size_t) ib].trimLin;
 
     const float* readL  [kMaxDynLayers] = { nullptr };
     const float* readR  [kMaxDynLayers] = { nullptr };
@@ -1034,8 +1087,8 @@ void MicrotonalSamplerVoice::renderTailRampCc (int rampSamples) noexcept
             rB = stereo[ib] ? readLayer (ib, true) : lB;
         }
 
-        const float yL = (lA * wA + lB * wB) * ramp * dynGain;
-        const float yR = (rA * wA + rB * wB) * ramp * dynGain;
+        const float yL = (lA * gA * wA + lB * gB * wB) * ramp * dynGain;
+        const float yR = (rA * gA * wA + rB * gB * wB) * ramp * dynGain;
 
         stealTailBufferL[(size_t) i] = yL;
         stealTailBufferR[(size_t) i] = yR;

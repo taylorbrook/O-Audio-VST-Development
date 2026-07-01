@@ -1,5 +1,169 @@
 # O-MicrotonalSampler Changelog
 
+## [1.23.1] - 2026-06-30
+
+Patch release fixing the **3 CRITICAL findings** from the 2026-06-30 full-instrument
+code review (`.planning/review/2026-06-30/SUMMARY.md`, C1/C2/C3). No parameters,
+state format, or audio behaviour change on the normal path — this hardens three
+edge cases (a voice use-after-free, silent embedded-state data loss, and a loader
+force-kill), so sessions/presets remain **fully compatible with v1.23.0**.
+
+### Fixed
+
+- **C1 — Audio-thread use-after-free / stuck phantom voice after a failed note-start**
+  (`MicrotonalSamplerVoice.cpp`, `startNote`). The two `startNote` failure early-returns
+  (no cells / no cell for this note) cleared the velocity-path pointers but left
+  `ccDynamicsActive` / `dynLayerCount` set. Because `renderNextBlock` dispatches on
+  `ccDynamicsActive` *before* the `variantLow`/`adsr` guard, a failed note-start right
+  after a CC-crossfade note (e.g. a ReplaceAll whose new map has no cell for the note)
+  left the voice rendering `dynLayers[]` pointers into a just-released `SampleMap` —
+  a use-after-free when this voice held the last reference, or a stuck phantom voice
+  when the old buffers survived. **Root cause:** the CC-mode failure path did not mirror
+  `stopNote`'s hard-off clear. **Fix:** both failure blocks now set
+  `ccDynamicsActive = false; dynLayerCount = 0;`, so `renderCcCrossfade`'s
+  `dynLayerCount <= 0` guard fires and the voice falls through to the shared clear.
+
+- **C2 — Embedded-audio state round-trip silently dropped `SampleCell.technique`**
+  (`PluginProcessor.cpp`, `buildEmbeddedAudioTree` / `decodeEmbeddedAudioTree`).
+  The embedded-library serializer persisted only `midi` + `layer`. Since `technique`
+  is part of the cell key `(midi, layer, technique)`, any embedded folder on a non-zero
+  technique slot (a `pizz` library on slot 5, or any folder loaded with
+  `overrideTechnique`) reloaded with **every cell collapsed onto technique 0 ("ord")** —
+  silent sample-map corruption and possible collisions with real `ord` cells on project
+  reopen. **Fix:** write a `tech` attribute and restore it (jlimited to
+  `0..kMaxTechniques-1`). Older embedded saves lacking `tech` default to 0, so the
+  round-trip is back-compatible.
+
+- **C3 — Loader worker force-killed (`pthread_cancel`) mid-decode → leaked reader + UI hang**
+  (`SampleLoader.cpp`). Every load entry point restarted the worker with `stopThread(500)`;
+  `processOneFile` had no cancellation checkpoint inside its read, so on the large libraries
+  this plugin targets (3–5 s for 250 MB) a second load or project-close mid-decode escalated
+  to `pthread_cancel` — leaking the `AudioFormatReader`, half-mutating `skippedFiles`/`loaded`,
+  and **never firing the completion/failure callback**, so the load spinner hung forever.
+  **Fix:** `processOneFile` now reads in 64 K-sample blocks with a `threadShouldExit()`
+  checkpoint between blocks (and one before the resample); block reads are position-addressed
+  so the decoded buffer is **byte-identical** to the previous single-read path. The load
+  entry points and the destructor now `signalThreadShouldExit()` then join with a generous
+  non-killing timeout (`stopThread(5000)`, `jassertfalse` telemetry on the should-never-happen
+  force-kill fallback). Single-variant loads cancelled by a superseding load return silently
+  instead of firing a spurious "cancelled" failure callback.
+
+### Testing
+
+- New `embedded_technique_check` standalone test (`ninja
+  O-MicrotonalSampler_EmbeddedTechniqueCheck`, exit code = failed assertions):
+  builds a `SampleMap` with the same `(midi, layer)` populated on two different
+  technique slots ("ord" on 0, "pizz" on 5), round-trips it through the embedded
+  cell-key property contract, and drives the **real** `SampleMap::findCell` to
+  assert both cells stay distinct and every `0..kMaxTechniques-1` slot survives.
+  Case 3 reproduces the pre-fix corruption (drop `tech` → both cells collapse to
+  technique 0 and the tech-5 lookup falls back to "ord"), documenting exactly what
+  C2 repairs. (The codec functions are file-local in `PluginProcessor.cpp`, so the
+  test mirrors their property lines — kept in sync per the `state_migration_check`
+  convention.)
+- Backup of the v1.23.0 baseline taken at `backups/O-MicrotonalSampler/v1.23.0/`
+  (verified) before any edit; one-command rollback available.
+
+### Not addressed (deferred)
+
+- The 18 WARNING and 22 INFO findings from the same review (state-race in
+  `captureStateValueTree`, preset-load bleed-through, KS-absorbs-0..9 default, loop-crossfade
+  7/8 LUT click, resampler 1-sample over-read, WebView `SafePointer` gaps, etc.) are **not**
+  in this patch — they are tracked in `.planning/review/2026-06-30/SUMMARY.md` for a follow-up.
+
+## [1.23.0] - 2026-06-29
+
+Add **per-technique and per-dynamic-layer loudness trims** so a library can be
+balanced without re-recording or re-normalising samples — e.g. "make just the
+staccato quieter" or "pull down only the mf layer of ord."
+
+### Added
+
+- **Two-level trim model** (range **−12…+12 dB**, default **0 dB**):
+  - A **per-technique master** trim that scales every layer of one technique.
+  - A **per-(technique, layer)** trim that scales a single dynamic layer of one
+    technique.
+
+  The two combine additively in dB (multiplicatively in linear gain), so the
+  final cell gain is `dbToGain(techniqueTrim[t] + layerTrim[t][layer])`.
+- **"Trims (loudness)" panel** in the WebView (a disclosure below the technique
+  tabs). It targets the **active** technique — a master slider plus four layer
+  sliders (`p / mp / mf / f`), each with a live dB readout. Switching technique
+  tabs retargets the panel; layers with no samples in the active technique are
+  dimmed. Double-click a slider to reset it; "Reset all trims" zeroes the table.
+  The panel reveals itself once a library is loaded.
+- Native-fn bridge: `setTechniqueTrim`, `setLayerTrim`, `resetTrims`, and a
+  `trims` block on `getTechniqueState`.
+- `TrimGainCheck` standalone test pinning the trim gain math (additive combine,
+  unity defaults, out-of-range guard).
+
+### Changed
+
+- The voice folds the trim into its **layer weights** (Velocity mode — covers
+  the render path *and* the voice-steal tail) and into each **DynLayer** gain
+  (CC Crossfade mode — covers `renderCcCrossfade` *and* `renderTailRampCc`).
+  All lookups happen **once at note-on** (RT-safe atomic loads); there is no
+  per-sample cost beyond a multiply.
+
+### State / compatibility
+
+- Trims are **library-balancing metadata, not automation** — they live OUTSIDE
+  the APVTS in a processor-owned `TrimTable` and round-trip through the state
+  ValueTree as a sparse `<CellTrims>` child (only non-zero entries are written),
+  exactly like the technique names. **No new host-automation parameters.**
+- **No breaking changes.** Sessions/presets older than v1.23.0 have no
+  `<CellTrims>` child, so every trim restores to 0 dB → playback is
+  **bit-identical** to v1.22.0 until a trim is touched.
+
+## [1.22.0] - 2026-06-25
+
+Add a tunable **Dynamic Range** knob for **CC Crossfade** mode. Fixes the
+report that in Dorico "forte dynamics are too soft and piano dynamics are too
+loud."
+
+### Root cause
+
+CC Crossfade (the default since v1.21.0, and what Dorico drives via CC 11) was
+a **pure timbre morph with a flat volume envelope**. In `renderCcCrossfade` a
+multi-layer note used `dynGain = 1.0` — so the only loudness difference between
+`pp` and `ff` was the *recorded* amplitude gap between velocity layers. Many
+libraries are peak-normalised (little or no inter-layer level difference), so
+the dynamic range collapsed: `pp` played its lowest layer at full level (too
+loud) and `ff` its highest layer at the same level (too soft). The old squared
+post-mix Expression gain that used to add a wide sweep is correctly **bypassed**
+in CC Crossfade mode (to fix the v1.20 Dorico `pp` double-attenuation), which is
+*why* the range was missing — not a leftover compensation cutting `ff`.
+
+### Added
+
+- **`dynamic_range` parameter** (float, `0–40 dB`, default `20 dB`). The dB
+  span between `pp` (CC 11 = 0) and `ff` (CC 11 = 127). Automatable; exposed as
+  a **Dyn Rng** knob in the WebView control strip (between Expression and Out
+  Gain) and in the host generic editor.
+- The voice now layers a **dB-linear loudness ramp** on top of the equal-power
+  layer crossfade: `dynGain = decibelsToGain(rangeDb · (d − 1))`, where
+  `d ∈ [0,1]` is the live smoothed CC 11 position. CC 11 now shapes **both**
+  timbre (layer morph) **and** loudness — like a real sustain patch. Applied in
+  both `renderCcCrossfade` and the voice-steal tail `renderTailRampCc` so steals
+  match. Read once per block from a cached atom (RT-safe).
+
+### Changed
+
+- **Single-layer CC Crossfade** now uses the same dB-linear ramp instead of the
+  old `d²` curve, so the new knob governs its dynamics consistently. At the
+  default 20 dB a single-dynamic library still responds musically to CC 11; set
+  the knob to **0 dB** for the exact v1.21.0 flat behaviour (timbre morph only,
+  loudness only from recorded layers).
+
+### Notes
+
+- **CC Crossfade only.** Velocity mode is untouched — its post-mix squared
+  Expression gain path is unchanged.
+- No Dorico expression-map change needed; the maps already send dynamics on
+  CC 11.
+- No new automated test; verified via build + offline render and DAW/Dorico
+  check. Rollback baseline: `backups/O-MicrotonalSampler/v1.21.0/`.
+
 ## [1.21.0] - 2026-06-22
 
 Add the **CC Crossfade dynamics engine** — the structural fix for the Dorico

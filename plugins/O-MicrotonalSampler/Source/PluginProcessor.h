@@ -530,6 +530,32 @@ public:
     void setActiveTechnique (int technique);
 
     // ------------------------------------------------------------------
+    // v1.23.0 — per-technique / per-(technique,layer) loudness trims (dB)
+    // ------------------------------------------------------------------
+    //
+    // Library-balancing values ("make staccato quieter", "pull down the mf
+    // layer of ord"), NOT performance automation — so they live OUTSIDE the
+    // APVTS in the processor-owned `cellTrims` TrimTable and round-trip through
+    // the state ValueTree like techniqueNames. The audio thread reads them at
+    // note-on (RT-safe atomic loads, folded into layer weights / DynLayer
+    // gains). All getters/setters are message-thread only.
+    //
+    // Range is clamped to ±kTrimMaxDb (12 dB); 0 dB = unity. Setters mark the
+    // technique-state dirty flag so the editor re-pulls getTechniqueState (which
+    // now carries the trims) on the coalesced techniqueStateUpdated event.
+
+    // Per-technique master trim (applies to every layer of `technique`).
+    float getTechniqueTrim (int technique) const;
+    void  setTechniqueTrim (int technique, float db);
+
+    // Per-(technique, layer) trim (one dynamic layer within one technique).
+    float getLayerTrim (int technique, int layer) const;
+    void  setLayerTrim (int technique, int layer, float db);
+
+    // Reset every technique + layer trim back to 0 dB.
+    void  resetTrims();
+
+    // ------------------------------------------------------------------
     // v1.15.0 — CC + PC trigger mappings
     // ------------------------------------------------------------------
 
@@ -621,6 +647,12 @@ private:
     // round-trips through state ValueTree only. 8 slots, default vocabulary
     // applied in ctor: "ord", "sp", "st", "sv", "cs", "pizz", "harm", "mart".
     juce::StringArray techniqueNames;
+
+    // v1.23.0: per-technique master + per-(technique,layer) loudness trims (dB).
+    // Atomic scalars the audio thread reads at note-on; written by the message-
+    // thread trim setters. Round-trips through the state ValueTree (<CellTrims>),
+    // NOT the APVTS. Each voice gets a `const TrimTable*` to this in the ctor.
+    TrimTable cellTrims;
 
     // v1.14.0: editor subscribes for vocab + cursor change notifications.
     // Coalesced via the AsyncUpdater base class (the existing CC11 path

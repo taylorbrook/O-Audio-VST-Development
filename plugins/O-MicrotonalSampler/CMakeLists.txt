@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.21.0"
+    VERSION "1.23.1"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -245,6 +245,49 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/find_cell_triplet_check.cpp"
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
     target_compile_definitions(O-MicrotonalSampler_FindCellTripletCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.23.0 — per-technique / per-(technique,layer) loudness trim math.
+# Pins TrimTable::gainFor (additive dB combine + unity defaults + range guard)
+# that the voice folds into its layer weights / DynLayer gains.
+#     ninja O-MicrotonalSampler_TrimGainCheck
+# Exit code = number of failed assertions.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/trim_gain_check.cpp")
+    add_executable(O-MicrotonalSampler_TrimGainCheck EXCLUDE_FROM_ALL
+        Source/tests/trim_gain_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_TrimGainCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_compile_definitions(O-MicrotonalSampler_TrimGainCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.23.1 — embedded-audio technique round-trip regression (review C2 / CR-01).
+# Pins the (midi, layer, technique) cell-key contract through the embedded-tree
+# serializer so an embedded library on a non-zero technique slot no longer
+# collapses onto technique 0 on project reopen. Drives the real SampleMap
+# findCell key logic; case 3 reproduces the pre-v1.23.1 collision.
+#     ninja O-MicrotonalSampler_EmbeddedTechniqueCheck
+# Exit code = number of failed assertions.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/embedded_technique_check.cpp")
+    add_executable(O-MicrotonalSampler_EmbeddedTechniqueCheck EXCLUDE_FROM_ALL
+        Source/tests/embedded_technique_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_EmbeddedTechniqueCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_formats
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_events
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_EmbeddedTechniqueCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_EmbeddedTechniqueCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()

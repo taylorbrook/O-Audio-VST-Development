@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <utility>
 #include <vector>
 
@@ -24,7 +25,11 @@ SampleLoader::SampleLoader()
 
 SampleLoader::~SampleLoader()
 {
-    stopThread (2000);
+    // v1.23.1 (CR-01): cooperative cancellation (see processOneFile) lets a large
+    // in-flight load unwind promptly, so this join now completes well before the
+    // timeout instead of escalating to a mid-decode pthread_cancel on shutdown.
+    signalThreadShouldExit();
+    stopThread (5000);
 }
 
 void SampleLoader::loadFolder (const juce::File& folder,
@@ -33,7 +38,14 @@ void SampleLoader::loadFolder (const juce::File& folder,
                                CompletionCallback onComplete,
                                FailureCallback    onFailure)
 {
-    stopThread (500);
+    // v1.23.1 (CR-01): signal + non-killing join. With the cooperative checkpoints
+    // in processOneFile the previous worker unwinds within one read block, so this
+    // returns fast; the generous timeout only bites in a genuinely stuck syscall,
+    // where we prefer a rare assert over a pthread_cancel that leaks the reader and
+    // hangs the UI (no completion callback ever fires after a force-kill).
+    signalThreadShouldExit();
+    if (! stopThread (5000))
+        jassertfalse;
 
     mode               = Mode::Folder;
     pendingFolder      = folder;
@@ -53,7 +65,10 @@ void SampleLoader::loadSingleVariant (const juce::File&     file,
                                       double                sr,
                                       SingleVariantCallback onComplete)
 {
-    stopThread (500);
+    // v1.23.1 (CR-01): signal + non-killing join (see loadFolder).
+    signalThreadShouldExit();
+    if (! stopThread (5000))
+        jassertfalse;
 
     mode                  = Mode::SingleVariant;
     singleFile            = file;
@@ -71,7 +86,10 @@ void SampleLoader::loadSingleVariant (const juce::File&     file,
 
 void SampleLoader::cancelLoad()
 {
-    stopThread (500);
+    // v1.23.1 (CR-01): signal + non-killing join (see loadFolder).
+    signalThreadShouldExit();
+    if (! stopThread (5000))
+        jassertfalse;
 }
 
 // ----------------------------------------------------------------------
@@ -82,11 +100,15 @@ void SampleLoader::cancelLoad()
 // ----------------------------------------------------------------------
 namespace
 {
+    // v1.23.1 (CR-01): `shouldExit` is polled between read blocks (and before the
+    // resample) so a large-file decode is cooperatively cancellable. Empty predicate
+    // = never cancel (kept optional so unit/harness callers need not supply one).
     bool processOneFile (const juce::File& file,
                          double            targetSR,
                          juce::AudioFormatManager& formatManager,
                          SampleVariant&    outVariant,
-                         juce::String&     outSkipReason)
+                         juce::String&     outSkipReason,
+                         const std::function<bool()>& shouldExit = {})
     {
         const juce::String displayName = file.getFileName();
 
@@ -115,10 +137,28 @@ namespace
         }
 
         juce::AudioBuffer<float> sourceBuf (srcChannels, srcSamples);
-        if (! reader->read (&sourceBuf, 0, srcSamples, 0, true, true))
+
+        // v1.23.1 (CR-01): read in blocks with a cancellation checkpoint between them.
+        // A single monolithic reader->read() of a multi-hundred-MB file could not observe
+        // threadShouldExit(), so a second load / project-close forced the 500 ms stopThread()
+        // to escalate to pthread_cancel mid-read — leaking the reader, half-mutating state,
+        // and never firing a callback (UI spinner hangs forever). Block reads are position-
+        // addressed, so `sourceBuf` is byte-identical to the pre-v1.23.1 single read.
+        constexpr int kReadBlockSamples = 1 << 16;   // 65 536 samples/chan
+        for (int pos = 0; pos < srcSamples; pos += kReadBlockSamples)
         {
-            outSkipReason = "read failure: " + displayName;
-            return false;
+            if (shouldExit && shouldExit())
+            {
+                outSkipReason = "cancelled: " + displayName;
+                return false;
+            }
+
+            const int blockLen = juce::jmin (kReadBlockSamples, srcSamples - pos);
+            if (! reader->read (&sourceBuf, pos, blockLen, (juce::int64) pos, true, true))
+            {
+                outSkipReason = "read failure: " + displayName;
+                return false;
+            }
         }
 
         const bool needsResample = std::abs (srcSR - targetSR) > 0.1;
@@ -139,6 +179,13 @@ namespace
         // intermediate workBuf is gone — resampling writes straight into the
         // output. Decoded output is bit-identical to the pre-v1.17.1 path.
         const int srcCh1 = (srcChannels >= 2) ? 1 : 0;   // mono → reuse ch0
+
+        // v1.23.1 (CR-01): bail before the (CPU-bound) resample of a cancelled load.
+        if (shouldExit && shouldExit())
+        {
+            outSkipReason = "cancelled: " + displayName;
+            return false;
+        }
 
         outVariant.audio = std::make_shared<juce::AudioBuffer<float>> (2, outNumSamples);
         outVariant.audio->clear();
@@ -227,8 +274,16 @@ void SampleLoader::run()
         juce::String  skipReason;
 
         if (! processOneFile (singleFile, targetSampleRate, formatManager,
-                              variant, skipReason))
+                              variant, skipReason,
+                              [this] { return threadShouldExit(); }))
         {
+            // v1.23.1 (CR-01): a superseding load cancelled us mid-read — return
+            // silently (a fresh worker is already starting) rather than firing a
+            // spurious "cancelled" failure toast. Genuine decode failures still
+            // report because threadShouldExit() is false for those.
+            if (threadShouldExit())
+                return;
+
             auto cb     = singleVariantCallback;
             auto reason = skipReason;
             const int midi = singleMidi;
@@ -310,7 +365,8 @@ void SampleLoader::run()
         SampleVariant variant;
         juce::String  skipReason;
         if (! processOneFile (file, targetSampleRate, formatManager,
-                              variant, skipReason))
+                              variant, skipReason,
+                              [this] { return threadShouldExit(); }))
         {
             skippedFiles.add (displayName);
             DBG ("SampleLoader: skipped (" << skipReason << ") " << displayName);

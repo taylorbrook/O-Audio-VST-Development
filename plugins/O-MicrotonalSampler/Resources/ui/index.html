@@ -176,6 +176,62 @@
             </div>
           </div>
         </details>
+        <!-- v1.23.0: Articulation & layer loudness trims. A <details>
+             disclosure (like the trigger panel) so it stays out of the way
+             until needed. Sliders target the ACTIVE technique; switching
+             technique tabs retargets them. Master row trims the whole
+             technique; the four layer rows (p/mp/mf/f) trim one dynamic layer
+             of that technique. ±12 dB, double-click a slider to reset. The
+             panel reveals itself whenever a library is loaded. -->
+        <details id="trim-panel" class="trim-panel" hidden>
+          <summary class="trim-panel-summary">
+            <span>Trims (loudness)</span>
+            <span id="trim-active-tech" class="trim-active-tech">ord</span>
+          </summary>
+          <div class="trim-panel-body">
+            <div class="trim-row trim-row-master">
+              <span class="trim-label" id="trim-tech-label">Technique</span>
+              <input type="range" class="trim-slider" id="trim-tech-slider"
+                     min="-12" max="12" step="0.5" value="0"
+                     aria-label="Technique master trim (dB)" />
+              <span class="trim-readout" id="trim-tech-readout">0.0 dB</span>
+            </div>
+            <div class="trim-layer-rows" id="trim-layer-rows">
+              <div class="trim-row trim-row-layer" data-layer="0">
+                <span class="trim-label trim-layer-label" id="trim-layer-label-0">p</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-0"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer p trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-0">0.0 dB</span>
+              </div>
+              <div class="trim-row trim-row-layer" data-layer="1">
+                <span class="trim-label trim-layer-label" id="trim-layer-label-1">mp</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-1"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer mp trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-1">0.0 dB</span>
+              </div>
+              <div class="trim-row trim-row-layer" data-layer="2">
+                <span class="trim-label trim-layer-label" id="trim-layer-label-2">mf</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-2"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer mf trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-2">0.0 dB</span>
+              </div>
+              <div class="trim-row trim-row-layer" data-layer="3">
+                <span class="trim-label trim-layer-label" id="trim-layer-label-3">f</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-3"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer f trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-3">0.0 dB</span>
+              </div>
+            </div>
+            <div class="trim-panel-footer">
+              <span class="trim-hint">Double-click a slider to reset to 0 dB</span>
+              <button id="trim-reset" type="button">Reset all trims</button>
+            </div>
+          </div>
+        </details>
         <!-- v1.1.0: Grid with axis labels.
              Layout: 2-column outer wrapper.
                • #sample-grid-vel-labels (left)  → velocity-range labels per row

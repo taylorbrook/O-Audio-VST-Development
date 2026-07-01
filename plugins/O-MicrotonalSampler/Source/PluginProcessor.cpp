@@ -191,6 +191,31 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
         /*default*/ 1
     ));
 
+    // ========== Dynamic Range (1) — v1.22.0 ==========
+    //
+    // CC Crossfade ONLY. The dB span between pp (CC 11 = 0) and ff (CC 11 =
+    // 127): the voice applies a dB-linear loudness ramp on top of the
+    // equal-power layer morph, so CC 11 shapes BOTH timbre (layer crossfade)
+    // AND loudness — like a real sustain patch. Without this, multi-layer
+    // libraries had a flat volume envelope (dynGain = 1) and the only dynamics
+    // came from the recorded inter-layer amplitude difference (forte too soft,
+    // piano too loud in Dorico). Read directly by the voice (cached atom,
+    // RT-safe); has NO effect in Velocity mode.
+    //
+    //   0 dB  → flat (exact v1.21.0 CC-crossfade behaviour: timbre morph only)
+    //   40 dB → pp sits 40 dB below ff (very wide, near-silent pp)
+    //   20 dB → default; musical orchestral span.
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "dynamic_range", 1 },
+        "Dynamic Range",
+        juce::NormalisableRange<float> (0.0f, 40.0f, 0.1f),
+        20.0f,
+        " dB",
+        juce::AudioProcessorParameter::genericParameter,
+        [] (float v, int)         { return juce::String (v, 1); },
+        [] (const juce::String& s){ return juce::jlimit (0.0f, 40.0f, s.getFloatValue()); }
+    ));
+
     // ========== Output (1) ==========
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -341,6 +366,7 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
         voice->setSampleMapSource        (&currentSampleMap);                      // shared_ptr slot
         voice->setRrCounterArray         (&rrCounters);                            // v1.8.0
         voice->setPendingTechniqueSource (&pendingTechniqueIndex);                 // v1.14.0
+        voice->setTrimTableSource        (&cellTrims);                             // v1.23.0
         synthesiser.addVoice (voice);
     }
 
@@ -2272,6 +2298,67 @@ void OMicrotonalSamplerAudioProcessor::setActiveTechnique (int technique)
 }
 
 //==============================================================================
+// v1.23.0 — per-technique / per-(technique,layer) loudness trim accessors.
+//
+// Stored in the processor-owned `cellTrims` TrimTable (atomic dB scalars the
+// audio thread reads at note-on). Setters clamp to ±kTrimMaxDb, then mark the
+// technique-state dirty flag so the coalesced techniqueStateUpdated event makes
+// the editor re-pull getTechniqueState (which carries the trims). Message-thread
+// only — the dirty-flag + triggerAsyncUpdate() path matches the technique-name
+// setters above.
+
+float OMicrotonalSamplerAudioProcessor::getTechniqueTrim (int technique) const
+{
+    if (technique < 0 || technique >= kMaxTechniques)
+        return 0.0f;
+    return cellTrims.techniqueDb[technique].load (std::memory_order_acquire);
+}
+
+void OMicrotonalSamplerAudioProcessor::setTechniqueTrim (int technique, float db)
+{
+    if (technique < 0 || technique >= kMaxTechniques)
+        return;
+    cellTrims.techniqueDb[technique].store (
+        juce::jlimit (-kTrimMaxDb, kTrimMaxDb, db), std::memory_order_release);
+
+    techniqueStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+float OMicrotonalSamplerAudioProcessor::getLayerTrim (int technique, int layer) const
+{
+    if (technique < 0 || technique >= kMaxTechniques
+        || layer < 0 || layer >= kMaxVelocityLayers)
+        return 0.0f;
+    return cellTrims.layerDb[technique][layer].load (std::memory_order_acquire);
+}
+
+void OMicrotonalSamplerAudioProcessor::setLayerTrim (int technique, int layer, float db)
+{
+    if (technique < 0 || technique >= kMaxTechniques
+        || layer < 0 || layer >= kMaxVelocityLayers)
+        return;
+    cellTrims.layerDb[technique][layer].store (
+        juce::jlimit (-kTrimMaxDb, kTrimMaxDb, db), std::memory_order_release);
+
+    techniqueStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+void OMicrotonalSamplerAudioProcessor::resetTrims()
+{
+    for (int t = 0; t < kMaxTechniques; ++t)
+    {
+        cellTrims.techniqueDb[t].store (0.0f, std::memory_order_release);
+        for (int l = 0; l < kMaxVelocityLayers; ++l)
+            cellTrims.layerDb[t][l].store (0.0f, std::memory_order_release);
+    }
+
+    techniqueStateDirty.store (true, std::memory_order_release);
+    triggerAsyncUpdate();
+}
+
+//==============================================================================
 // v1.15.0 — CC + PC trigger mapping accessors / mutators.
 //
 // Tables live in std::shared_ptr slots that the audio thread snapshots via
@@ -2398,6 +2485,17 @@ namespace
     constexpr const char* kCcMappingTag    = "CcMapping";
     constexpr const char* kPcMappingTag    = "PcMapping";
     constexpr const char* kTriggerSlotTag  = "Slot";
+
+    // v1.23.0:
+    //   <CellTrims>
+    //     <Tech  index="3" db="-4.0"/>           per-technique master trim
+    //     <Layer tech="0" layer="2" db="-2.5"/>  per (technique,layer) trim
+    //   </CellTrims>
+    // Sparse — only non-zero trims are written. Old sessions have no child, so
+    // the TrimTable's 0 dB defaults survive the restore (bit-identical playback).
+    constexpr const char* kCellTrimsTag      = "CellTrims";
+    constexpr const char* kCellTrimTechTag   = "Tech";
+    constexpr const char* kCellTrimLayerTag  = "Layer";
 
     // v1.12.0: <Audio><Cell><Variant/></Cell></Audio> sub-tree under each <Op>
     // when the op was loaded with embedAudio=true. Stores per-variant audio
@@ -2535,6 +2633,7 @@ namespace
             juce::ValueTree cellTree (kEmbeddedCellTag);
             cellTree.setProperty ("midi",  cell.midiNote,      nullptr);
             cellTree.setProperty ("layer", cell.velocityLayer, nullptr);
+            cellTree.setProperty ("tech",  cell.technique,     nullptr);   // v1.23.1 (CR-01)
 
             for (const auto& v : cell.variants)
             {
@@ -2576,6 +2675,10 @@ namespace
             SampleCell cell;
             cell.midiNote      = juce::jlimit (0, 127, static_cast<int> (cellTree.getProperty ("midi", 0)));
             cell.velocityLayer = juce::jlimit (0, 3,   static_cast<int> (cellTree.getProperty ("layer", 0)));
+            // v1.23.1 (CR-01): restore the technique axis. `technique` is part of the cell key
+            // (midi, layer, technique); older embedded saves lacking "tech" default to 0 (back-compat).
+            cell.technique     = juce::jlimit (0, kMaxTechniques - 1,
+                                               static_cast<int> (cellTree.getProperty ("tech", 0)));
 
             for (int vi = 0; vi < cellTree.getNumChildren(); ++vi)
             {
@@ -2748,7 +2851,8 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
             || child.hasType (kTuningStateTag)
             || child.hasType (kTechniqueNamesTag)      // v1.14.0
             || child.hasType (kCcMappingTag)           // v1.15.0
-            || child.hasType (kPcMappingTag))          // v1.15.0
+            || child.hasType (kPcMappingTag)           // v1.15.0
+            || child.hasType (kCellTrimsTag))          // v1.23.0
             root.removeChild (i, nullptr);
     }
 
@@ -2870,6 +2974,38 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
         root.appendChild (pcTree, nullptr);
     }
 
+    // v1.23.0 — per-technique / per-(technique,layer) loudness trims. Sparse:
+    // only non-zero entries are emitted, so an all-default trim table writes an
+    // empty <CellTrims/> and old sessions (no child) restore to 0 dB everywhere.
+    {
+        juce::ValueTree trims (kCellTrimsTag);
+        for (int t = 0; t < kMaxTechniques; ++t)
+        {
+            const float techDb = cellTrims.techniqueDb[t].load (std::memory_order_acquire);
+            if (! juce::approximatelyEqual (techDb, 0.0f))
+            {
+                juce::ValueTree slot (kCellTrimTechTag);
+                slot.setProperty ("index", t,      nullptr);
+                slot.setProperty ("db",    techDb, nullptr);
+                trims.appendChild (slot, nullptr);
+            }
+
+            for (int l = 0; l < kMaxVelocityLayers; ++l)
+            {
+                const float layerDb = cellTrims.layerDb[t][l].load (std::memory_order_acquire);
+                if (! juce::approximatelyEqual (layerDb, 0.0f))
+                {
+                    juce::ValueTree slot (kCellTrimLayerTag);
+                    slot.setProperty ("tech",  t,       nullptr);
+                    slot.setProperty ("layer", l,       nullptr);
+                    slot.setProperty ("db",    layerDb, nullptr);
+                    trims.appendChild (slot, nullptr);
+                }
+            }
+        }
+        root.appendChild (trims, nullptr);
+    }
+
     return root;
 }
 
@@ -2975,6 +3111,50 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
             triggerStateDirty.store (true, std::memory_order_release);
             triggerAsyncUpdate();
         }
+    }
+
+    // 2e. v1.23.0 — per-technique / per-(technique,layer) loudness trims. Reset
+    // the whole table to 0 dB first (so a re-load doesn't accumulate stale trims
+    // from a previously-loaded session), then apply only the sparse entries the
+    // saved tree carries. Sessions older than v1.23.0 have no <CellTrims> child,
+    // so the reset leaves every trim at unity (bit-identical playback).
+    {
+        for (int t = 0; t < kMaxTechniques; ++t)
+        {
+            cellTrims.techniqueDb[t].store (0.0f, std::memory_order_release);
+            for (int l = 0; l < kMaxVelocityLayers; ++l)
+                cellTrims.layerDb[t][l].store (0.0f, std::memory_order_release);
+        }
+
+        auto trimsTree = root.getChildWithName (kCellTrimsTag);
+        if (trimsTree.isValid())
+        {
+            for (int i = 0; i < trimsTree.getNumChildren(); ++i)
+            {
+                const auto slot = trimsTree.getChild (i);
+                const float db = juce::jlimit (-kTrimMaxDb, kTrimMaxDb,
+                                     (float) (double) slot.getProperty ("db", 0.0));
+
+                if (slot.hasType (kCellTrimTechTag))
+                {
+                    const int t = juce::jlimit (0, kMaxTechniques - 1,
+                                      static_cast<int> (slot.getProperty ("index", 0)));
+                    cellTrims.techniqueDb[t].store (db, std::memory_order_release);
+                }
+                else if (slot.hasType (kCellTrimLayerTag))
+                {
+                    const int t = juce::jlimit (0, kMaxTechniques - 1,
+                                      static_cast<int> (slot.getProperty ("tech", 0)));
+                    const int l = juce::jlimit (0, kMaxVelocityLayers - 1,
+                                      static_cast<int> (slot.getProperty ("layer", 0)));
+                    cellTrims.layerDb[t][l].store (db, std::memory_order_release);
+                }
+            }
+        }
+
+        // Refresh the editor's trim sliders after a state/preset load.
+        techniqueStateDirty.store (true, std::memory_order_release);
+        triggerAsyncUpdate();
     }
 
     // 3. Sample folders — async via SampleLoader, sequenced via the replay
