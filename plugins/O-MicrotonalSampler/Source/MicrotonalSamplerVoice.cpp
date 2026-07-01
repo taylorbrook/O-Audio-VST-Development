@@ -15,113 +15,23 @@
 */
 
 #include "MicrotonalSamplerVoice.h"
+#include "VoiceDsp.h"        // v1.23.2: extracted leaf DSP helpers (W9/W11 fixes live here)
+#include "RetiredMapReaper.h" // v1.23.2: W10 message-thread SampleMap reaper
 
 #include <array>
 #include <atomic>
 #include <cmath>
 #include <utility>
 
+// v1.23.2: the pure varispeed-read helpers (referenceFrequencyForNote,
+// equalPowerWeights, cubicInterp, readVariantWithLoop, wrapLoopPosition,
+// computePlayRateForVariant) moved to VoiceDsp.h so a standalone regression
+// test can exercise the REAL implementations. Bring them into scope unqualified
+// so every call site below is unchanged.
+using namespace OMtsVoiceDsp;
+
 namespace
 {
-    inline double referenceFrequencyForNote (int midiNote) noexcept
-    {
-        return 440.0 * std::pow (2.0, (midiNote - 69) / 12.0);
-    }
-
-    static inline std::pair<float, float> equalPowerWeights (float x) noexcept
-    {
-        const float t = juce::jlimit (0.0f, 1.0f, x) * juce::MathConstants<float>::halfPi;
-        return { std::cos (t), std::sin (t) };
-    }
-
-    static const std::array<std::pair<float, float>, 8>& loopXfadeLut() noexcept
-    {
-        static const std::array<std::pair<float, float>, 8> lut = []()
-        {
-            std::array<std::pair<float, float>, 8> a {};
-            for (int i = 0; i < 8; ++i)
-                a[(size_t) i] = equalPowerWeights ((float) i / 8.0f);
-            return a;
-        }();
-        return lut;
-    }
-
-    static inline float cubicInterp (const float* buf, int N, double pos) noexcept
-    {
-        const int  i      = (int) std::floor (pos);
-        const auto offset = (float) (pos - (double) i);
-
-        auto clamp = [N] (int idx) noexcept -> int
-        {
-            return juce::jlimit (0, N - 1, idx);
-        };
-
-        const float y0 = buf[clamp (i - 1)];
-        const float y1 = buf[clamp (i)];
-        const float y2 = buf[clamp (i + 1)];
-        const float y3 = buf[clamp (i + 2)];
-
-        const float halfY0 = 0.5f * y0;
-        const float halfY3 = 0.5f * y3;
-
-        return y1 + offset * ((0.5f * y2 - halfY0)
-                  + (offset * (((y0 + 2.0f * y2) - (halfY3 + 2.5f * y1))
-                  + (offset * ((halfY3 + 1.5f * y1) - (halfY0 + 1.5f * y2))))));
-    }
-
-    static inline float readVariantWithLoop (const float* buf, int N, double pos,
-                                             int lpStart, int lpEnd) noexcept
-    {
-        if (lpEnd <= 0)
-        {
-            const double clamped = juce::jmin (pos, (double) (N - 1));
-            return cubicInterp (buf, N, clamped);
-        }
-
-        const int lpLen = lpEnd - lpStart;
-        if (lpLen <= 0)
-        {
-            const double clamped = juce::jmin (pos, (double) (N - 1));
-            return cubicInterp (buf, N, clamped);
-        }
-
-        const double fadeStart = (double) (lpEnd - 8);
-        if (pos < fadeStart)
-            return cubicInterp (buf, N, pos);
-
-        int xIdx = (int) std::floor (pos - fadeStart);
-        if (xIdx < 0) xIdx = 0;
-        if (xIdx > 7) xIdx = 7;
-
-        const auto& w = loopXfadeLut()[(size_t) xIdx];
-
-        const float outSample = cubicInterp (buf, N, pos);
-        const float inSample  = cubicInterp (buf, N, pos - (double) lpLen + 8.0);
-
-        return outSample * w.first + inSample * w.second;
-    }
-
-    static inline void wrapLoopPosition (double& pos, int lpStart, int lpEnd) noexcept
-    {
-        if (lpEnd <= 0) return;
-        const int lpLen = lpEnd - lpStart;
-        if (lpLen <= 0) return;
-        while (pos >= (double) lpEnd)
-            pos -= (double) lpLen;
-    }
-
-    static inline double computePlayRateForVariant (const SampleVariant& variant,
-                                                    int                  cellMidiNote,
-                                                    double               desiredFreq,
-                                                    double               hostSR) noexcept
-    {
-        const double cellRefFreq = referenceFrequencyForNote (cellMidiNote);
-        const double slotSR      = variant.sourceSampleRate > 0.0
-                                       ? variant.sourceSampleRate
-                                       : hostSR;
-        return (desiredFreq / cellRefFreq) * (slotSR / hostSR);
-    }
-
     // v1.8.0: xorshift32 — RT-safe per-voice PRNG. Tiny and stateful; mutates
     // the seed in place. Called only from selectVariantIndex (audio thread,
     // startNote-time only — never per-sample).
@@ -431,6 +341,21 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
         currentMap.reset();
     }
 
+    // ---------- 1b. v1.23.2 (W10 / REVIEW WR-02): retire the prior map ----------
+    // renderTailRamp above has already fully rendered the steal tail into the
+    // scratch buffers, so nothing reads `prevMap`-backed memory past this point:
+    // `variantLow`/`dynLayers` are dead here and get repointed into `currentMap`
+    // (or nulled on the failure returns below) before their next dereference.
+    // If this voice now holds the last reference to a DIFFERENT map (a reload
+    // boundary — the processor has already atomic-stored the new map), hand it
+    // to the message-thread reaper so the large SampleMap free never runs on the
+    // audio thread. Steady-state playback has prevMap == currentMap (no push);
+    // with no sink wired (unit tests) prevMap just destructs at end of scope, as
+    // before. The reaper defers the actual free to its Timer, so even the
+    // now-stale `variantLow` stays backed by live memory until it is reassigned.
+    if (retiredMapSink != nullptr && prevMap != nullptr && prevMap != currentMap)
+        retiredMapSink->retire (std::move (prevMap));
+
     if (currentMap == nullptr || currentMap->cells.empty())
     {
         cellLow          = nullptr;
@@ -627,6 +552,19 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
             if (c == nullptr || c->variants.empty())
                 continue;
 
+            // v1.23.2 (IN-02): snapshot this cell's RR counter BEFORE selecting.
+            // selectVariantIndex advances the persistent per-cell counter; if the
+            // selected variant is degenerate (empty buffer) and we skip it below,
+            // restore the counter so a failed/empty variant does not consume an
+            // RR step and skew the per-cell progression. The counter is a relaxed
+            // atomic mutated only on the audio thread, so this save/restore is
+            // race-free.
+            const int counterIdx = juce::jlimit (0, kRrCounterSize - 1,
+                packRrCounterIndex (c->midiNote, c->velocityLayer, c->technique));
+            const uint8_t prevCounter = (rrCounters != nullptr)
+                ? (*rrCounters)[(size_t) counterIdx].load (std::memory_order_relaxed)
+                : (uint8_t) 0xFFu;
+
             const int            idx = selectVariantIndex (*c, rrMode);
             const SampleVariant* var =
                 &c->variants[(size_t) juce::jlimit (0, (int) c->variants.size() - 1, idx)];
@@ -634,7 +572,12 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
             // Skip degenerate (empty-buffer) variants so the render path never
             // brackets a silent layer — keeps the dynamic morph continuous.
             if (var->audio == nullptr || var->audio->getNumSamples() <= 0)
+            {
+                if (rrCounters != nullptr)                                    // v1.23.2 (IN-02)
+                    (*rrCounters)[(size_t) counterIdx].store (prevCounter,
+                                                              std::memory_order_relaxed);
                 continue;
+            }
 
             auto& dl   = dynLayers[(size_t) dynLayerCount];
             dl.variant  = var;
@@ -653,9 +596,12 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
 
         // Active whenever we have at least one valid layer. With exactly one
         // populated layer there is nothing to crossfade — the render path
-        // falls back to a squared CC gain on that layer so CC 11 still shapes
-        // dynamics (a single-dynamic library is otherwise flat in CC mode,
-        // which would be a regression vs the Velocity-mode post-mix gain).
+        // (renderCcCrossfade, `single == true`) applies only the v1.22 dB-linear
+        // loudness ramp `dynGain = decibelsToGain(rangeDb·(d−1))` on that layer,
+        // so CC 11 still shapes dynamics (a single-dynamic library is otherwise
+        // flat in CC mode, which would be a regression vs the Velocity-mode
+        // post-mix gain). v1.23.2 (IN-03): comment corrected — the pre-v1.22
+        // "squared CC gain" fallback no longer exists.
         ccDynamicsActive = (dynLayerCount >= 1);
 
         // Seed the dynamic position from the CURRENT Expression / CC 11 value

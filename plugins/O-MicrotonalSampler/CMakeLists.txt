@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.23.1"
+    VERSION "1.23.3"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -161,6 +161,29 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/aliasing_check.cpp")
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
     target_compile_definitions(O-MicrotonalSampler_AliasingCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.23.2 — voice-DSP RT-safety + loop-crossfade regression (REVIEW W9/W11).
+# Drives the REAL VoiceDsp.h helpers (extracted from MicrotonalSamplerVoice.cpp):
+#   * readVariantWithLoop — continuous crossfade phase reaches full incoming
+#     weight at the wrap (no per-cycle click); the old 7/8-capped LUT did not.
+#   * wrapLoopPosition — finite-safe (a non-finite pos no longer spins forever).
+#   * computePlayRateForVariant — hostSR==0 divisor guard (no +Inf playRate).
+#     ninja O-MicrotonalSampler_LoopCrossfadeCheck
+# Exit code = number of failed assertions.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/loop_crossfade_check.cpp")
+    add_executable(O-MicrotonalSampler_LoopCrossfadeCheck EXCLUDE_FROM_ALL
+        Source/tests/loop_crossfade_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_LoopCrossfadeCheck PRIVATE
+        juce::juce_audio_basics
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_LoopCrossfadeCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_LoopCrossfadeCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()
@@ -348,6 +371,25 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/dynamics_layer_check.cpp")
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
     target_compile_definitions(O-MicrotonalSampler_DynamicsLayerCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.23.3 — keyswitch-default regression (review WR-03 / IN-03 / IN-04).
+# Guards the opt-in ks_enabled=false default, the 0..7 default range, and the
+# canonical Dorico-aligned technique vocabulary — all sourced from
+# TechniqueDefaults.h. Pure-data, juce_core only.
+#     ninja O-MicrotonalSampler_KsDefaultCheck
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/ks_default_check.cpp")
+    add_executable(O-MicrotonalSampler_KsDefaultCheck EXCLUDE_FROM_ALL
+        Source/tests/ks_default_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_KsDefaultCheck PRIVATE
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_KsDefaultCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_KsDefaultCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()

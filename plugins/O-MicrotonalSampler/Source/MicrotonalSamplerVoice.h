@@ -28,6 +28,11 @@
 #include "SampleMap.h"
 #include "MicrotonalSamplerSound.h"
 
+// v1.23.2 (W10): forward-declared so the pointer member below needs no
+// juce_events include here — the definition lives in RetiredMapReaper.h,
+// included only by the .cpp.
+class RetiredMapReaper;
+
 class MicrotonalSamplerVoice : public juce::SynthesiserVoice
 {
 public:
@@ -118,6 +123,13 @@ public:
     // folded into the layer weights (velocity mode) / DynLayer gains (CC mode).
     void setTrimTableSource (const TrimTable* t)                         { trimTable = t; }
 
+    // v1.23.2 (W10): pointer to the processor-owned message-thread reaper. When
+    // set, startNote hands a retired `prevMap` (reload-boundary steal) to it so
+    // the big SampleMap free never runs on the audio thread. Null in contexts
+    // that construct a bare voice (e.g. unit tests) → falls back to letting
+    // prevMap destruct in-scope, exactly as before.
+    void setRetiredMapSink (RetiredMapReaper* r)                         { retiredMapSink = r; }
+
 private:
     juce::AudioProcessorValueTreeState*           parameters             = nullptr;
     TuningEngine*                                 tuningEngine           = nullptr;
@@ -127,6 +139,7 @@ private:
     std::atomic<int>*                             pendingTechniqueSource = nullptr;   // v1.14.0
     int                                           startTechnique         = 0;         // captured at startNote
     const TrimTable*                              trimTable              = nullptr;   // v1.23.0
+    RetiredMapReaper*                             retiredMapSink         = nullptr;   // v1.23.2 (W10)
 
     // v1.11.3: cached ADSR atomic pointers. Resolved once in prepareToPlay so
     // startNote does not deref the result of getRawParameterValue without a

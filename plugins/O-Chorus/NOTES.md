@@ -31,6 +31,10 @@ O-Chorus is a lush, analog-inspired multi-voice chorus plugin with 1-8 selectabl
 
 ## Lifecycle Timeline
 
+- **2026-06-30 (v1.2.2):** Code-review fixes (WR-01/WR-02/WR-03) — clamp per-voice delay to a
+  positive range (fixes voice collapse at high Spread), pop/push each delay line exactly once
+  during a voice-count crossfade (fixes 2× pointer advance / doubling glitch), and clamp the tone
+  cutoff to 0.49×Nyquist (fixes filter blow-up at SR ≤ ~40 kHz). No param/state changes. auval PASS.
 - **2026-02-07 (Stage 0):** Research & Planning complete
   - Plugin type defined: Multi-voice BBD-style chorus effect
   - Professional examples researched: Strymon Ola, Boss CE-1, Roland Juno-60, D16 Syntorus 2

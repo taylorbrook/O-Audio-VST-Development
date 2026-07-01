@@ -1,5 +1,51 @@
 # O-Chorus Changelog
 
+## v1.2.3 (2026-06-30)
+
+### Changed
+
+- **UI legibility — darker, slightly larger text.** The knob labels/values and section
+  labels used low-contrast tan/beige tones (`#8B7355`, `#a08870`) on the cream paper
+  background (`#F5E6D3`), making them hard to read. Darkened to the brown family and bumped
+  each text element +1px:
+  - Knob values (`1.00 Hz`, `50%`…): `#a08870` → `#5C4A32`, 9px → 10px (value box 12px → 13px).
+  - Knob labels (Rate/Depth…): `#8B7355` → `#4A3B2A`, 8px → 9px.
+  - Section labels (MODULATION/CHARACTER) + LFO label: `#8B7355` → `#5C4A32`, 7px → 8px, opacity 0.7 → 0.9.
+  - Preset bar (name/Load/Save/nav arrows): `#4A3B2A` → `#3C2F2F`, +1px, opacity → 0.95–1.0.
+  - Title: 15px → 16px.
+- Pure cosmetic CSS change in `Source/ui/public/index.html`; no DSP, parameter, or state
+  changes. Aesthetic (vintage naturalist / paper texture) preserved.
+
+## v1.2.2 (2026-06-30)
+
+### Fixed
+
+- **WR-01 — Per-voice delay collapse at high Spread.** At moderate-to-high Spread the
+  per-voice base delay went negative (voice 0 at Spread 1.0 = base 10ms − spread 15ms =
+  −5ms). JUCE `DelayLine::popSample` silently ignores negative delays (reuses the last
+  clamped value) and `setDelay` clamps to 0, so the affected voice collapsed toward ~0ms
+  and stopped modulating symmetrically — thinner, lopsided chorusing (worst on the factory
+  **Ensemble** preset, voices=8/spread=1.0). Fix: clamp each voice's modulated delay to
+  `[1 sample, maxDelaySamples]` before `popSample`. No crash existed (verified against
+  `juce_DelayLine.cpp` — no OOB read/NaN), so this was a quality/correctness fix.
+- **WR-02 — Double delay-line push during voice-count crossfade.** During the ~50ms
+  voice-count crossfade both the old-count and new-count passes ran `popSample` **and**
+  `pushSample` on each overlapping voice, advancing that delay line's read/write pointers
+  at 2× the real sample rate and writing the input into two adjacent buffer slots — an
+  audible pitch/doubling glitch on every Voices change. Fix: unified the two passes into a
+  single per-voice loop that multi-taps overlapping voices (`popSample(..., updateReadPointer=false)`
+  for the first tap, `true` for the last) and pushes exactly once per voice per sample.
+- **WR-03 — Tone filter unstable at low sample rates.** `updateToneFilter` computed
+  `1/tan(pi·cutoff/fs)` with cutoff up to 20kHz and no Nyquist guard; at sample rates
+  ≤ ~40kHz (e.g. 22.05kHz/32kHz, exercised by pluginval's SR sweep) `tan()` blew up or went
+  negative, pushing the biquad poles outside the unit circle → NaN/Inf output. Fix: clamp
+  cutoff to `0.49 × Nyquist` before computing coefficients.
+
+### Notes
+
+- Root causes from the 2026-06-30 deep code review (`O-Chorus-CODE-REVIEW.md`, 3 warnings).
+- No parameter IDs, ranges, or state format changed — presets and sessions load unchanged.
+
 ## v1.2.1 (2026-02-25)
 
 ### Added

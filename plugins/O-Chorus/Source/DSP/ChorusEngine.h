@@ -71,5 +71,8 @@ private:
 
     double sampleRate = 44100.0;
 
+    // Upper bound for per-voice modulated delay clamp (== delayLine max, set in prepare)
+    float maxDelaySamplesAllocated = 0.0f;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChorusEngine)
 };
