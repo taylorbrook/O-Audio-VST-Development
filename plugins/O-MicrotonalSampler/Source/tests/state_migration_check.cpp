@@ -43,6 +43,7 @@
 #include <juce_data_structures/juce_data_structures.h>
 
 #include "../SampleMap.h"
+#include "../TechniqueDefaults.h"   // canonical default vocabulary (IN-03)
 
 #include <iostream>
 #include <string>
@@ -82,12 +83,12 @@ namespace
         return c;
     }
 
-    // Mirrors the curated default seeded by
-    // OMicrotonalSamplerAudioProcessor::resetTechniqueNames.
+    // The curated default seeded by resetTechniqueNames — pulled from the
+    // shared source of truth so this fixture can never drift from the real
+    // vocabulary again (it previously claimed the stale "sv"/"mart" names).
     juce::StringArray defaultVocab()
     {
-        return juce::StringArray { "ord", "sp", "st", "sv",
-                                   "cs", "pizz", "harm", "mart" };
+        return OMtsTechnique::defaultTechniqueVocabulary();
     }
 
     // Mimics restoreStateValueTree's <TechniqueNames> branch — applies the
@@ -139,7 +140,7 @@ int main()
 
         check (names[0] == "ord", "Slot 0 untouched by sparse rename");
         check (names[1] == "sul pont", "Slot 1 renamed to 'sul pont'");
-        check (names[7] == "mart", "Slot 7 untouched by sparse rename");
+        check (names[7] == "trem", "Slot 7 untouched by sparse rename");
     }
 
     // 3. SampleCell::technique defaults to 0 (POD default-init verified)

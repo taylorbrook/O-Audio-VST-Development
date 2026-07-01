@@ -26,6 +26,7 @@ void ChorusEngine::prepare (double newSampleRate, int samplesPerBlock)
     sampleRate = newSampleRate;
 
     auto maxDelaySamples = static_cast<int> (sampleRate * maxDelayMs / 1000.0);
+    maxDelaySamplesAllocated = static_cast<float> (maxDelaySamples);
 
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
@@ -94,6 +95,13 @@ void ChorusEngine::setVoiceCount (int newCount)
 void ChorusEngine::updateToneFilter (float toneParam)
 {
     float cutoff = mapToneParamToCutoff (toneParam);
+
+    // Clamp cutoff below Nyquist so the bilinear-transform coefficients stay stable.
+    // Without this, at sample rates <= ~40 kHz the 20 kHz max cutoff meets/exceeds
+    // Nyquist, tan(pi*cutoff/fs) blows up or goes negative, and the biquad poles leave
+    // the unit circle (NaN/Inf output). (WR-03)
+    const float nyquist = static_cast<float> (sampleRate) * 0.5f;
+    cutoff = juce::jmin (cutoff, nyquist * 0.49f);
 
     // Butterworth LPF coefficients computed directly (RT-safe, no heap allocation)
     // Replicates JUCE makeLowPass with Q = 1/sqrt(2)
@@ -207,57 +215,94 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
         float wetL = 0.0f;
         float wetR = 0.0f;
 
-        // Process voices for current count
-        auto processVoices = [&] (int count, float gain)
+        // Determine the two voice-count "layers" to blend this sample. Normal operation is
+        // a single layer (oldCount voices at unity gain). During a voice-count change the
+        // old layer fades out while the new layer fades in. Each delay line must be
+        // popped/pushed EXACTLY ONCE per sample no matter how many layers reference it,
+        // otherwise voices shared by both layers advance their read/write pointers at 2x
+        // the real sample rate for the crossfade duration. (WR-02)
+        const bool crossfading = (crossfadeProgress < 1.0f);
+        const int  oldCount    = currentVoiceCount;
+        const int  newCount    = crossfading ? targetVoiceCount : 0;
+        const float oldGain    = crossfading ? (1.0f - crossfadeProgress) : 1.0f;
+        const float newGain    = crossfading ? crossfadeProgress : 0.0f;
+        const int  activeCount = juce::jmax (oldCount, newCount);
+
+        // Per-voice modulated delay in samples for a given layer voice-count, clamped to a
+        // valid positive range. At high Spread the raw per-voice delay can go negative
+        // (e.g. voice 0 at Spread 1.0 → base 10ms − spread 15ms), which the JUCE DelayLine
+        // silently pins to its last-set clamped value, collapsing that voice toward ~0ms
+        // and killing symmetric modulation. Clamping keeps every voice modulating. (WR-01)
+        auto delaySamplesForCount = [&] (size_t v, int count, float lfoValue, float effectiveDepth)
         {
-            for (size_t v = 0; v < static_cast<size_t> (count); ++v)
-            {
-                auto& voice = voices[v];
+            float voiceOffset = 0.0f;
+            if (count > 1)
+                voiceOffset = curSpread * spreadRangeMs
+                              * (2.0f * static_cast<float> (v) / static_cast<float> (count - 1) - 1.0f);
 
-                // Per-voice LFO
-                float voicePhase = lfoPhase + voice.lfoPhaseOffset;
-                float lfoValue = std::sin (voicePhase);
-
-                // Per-voice base delay offset from spread parameter
-                // Distributes voices symmetrically around baseDelayMs: ±spreadRangeMs
-                float voiceOffset = 0.0f;
-                if (count > 1)
-                    voiceOffset = curSpread * spreadRangeMs
-                                  * (2.0f * static_cast<float> (v) / static_cast<float> (count - 1) - 1.0f);
-
-                // Modulated delay time with per-voice spread offset
-                float effectiveDepth = curDepth * voice.depthVariation;
-                float voiceBaseDelayMs = baseDelayMs + voiceOffset;
-                float modulatedDelayMs = voiceBaseDelayMs + (lfoValue * effectiveDepth * delayRangeMs);
-                float modulatedDelaySamples = (modulatedDelayMs / 1000.0f) * static_cast<float> (sampleRate);
-
-                // Read from delay line
-                float delayed = voice.delayLine.popSample (0, modulatedDelaySamples);
-
-                // Write input to delay line
-                voice.delayLine.pushSample (0, monoInput);
-
-                // Saturation (after delay, before tone)
-                float saturated = saturate (delayed, curDrive);
-
-                // Equal-power stereo panning
-                float effectivePan = 0.5f + (voice.panPosition - 0.5f) * curWidth;
-                float panAngle = effectivePan * juce::MathConstants<float>::halfPi;
-                float leftGain = std::cos (panAngle);
-                float rightGain = std::sin (panAngle);
-
-                wetL += saturated * leftGain * gain;
-                wetR += saturated * rightGain * gain;
-            }
+            float voiceBaseDelayMs = baseDelayMs + voiceOffset;
+            float modulatedDelayMs = voiceBaseDelayMs + (lfoValue * effectiveDepth * delayRangeMs);
+            float modulatedDelaySamples = (modulatedDelayMs / 1000.0f) * static_cast<float> (sampleRate);
+            return juce::jlimit (1.0f, maxDelaySamplesAllocated, modulatedDelaySamples);
         };
 
-        // Voice crossfade logic
-        if (crossfadeProgress < 1.0f)
+        for (size_t v = 0; v < static_cast<size_t> (activeCount); ++v)
         {
-            // Blend old and new voice counts
-            processVoices (currentVoiceCount, 1.0f - crossfadeProgress);
-            processVoices (targetVoiceCount, crossfadeProgress);
+            auto& voice = voices[v];
 
+            // Per-voice LFO and pan are independent of the layer voice-count.
+            float voicePhase = lfoPhase + voice.lfoPhaseOffset;
+            float lfoValue = std::sin (voicePhase);
+            float effectiveDepth = curDepth * voice.depthVariation;
+
+            // Equal-power stereo panning (shared by both layers for this voice)
+            float effectivePan = 0.5f + (voice.panPosition - 0.5f) * curWidth;
+            float panAngle = effectivePan * juce::MathConstants<float>::halfPi;
+            float leftGain = std::cos (panAngle);
+            float rightGain = std::sin (panAngle);
+
+            const bool inOld = (static_cast<int> (v) < oldCount);
+            const bool inNew = (static_cast<int> (v) < newCount);
+
+            // Read whichever layer(s) this voice belongs to, then push the input exactly
+            // once. Only the final pop advances the read pointer (updateReadPointer=true);
+            // an earlier multi-tap pop leaves it in place. This keeps read/write pointers
+            // in lockstep at 1x the real sample rate even for voices shared by both layers.
+            if (inOld && inNew)
+            {
+                float oldDelayed = voice.delayLine.popSample (0, delaySamplesForCount (v, oldCount, lfoValue, effectiveDepth), false);
+                float newDelayed = voice.delayLine.popSample (0, delaySamplesForCount (v, newCount, lfoValue, effectiveDepth), true);
+                voice.delayLine.pushSample (0, monoInput);
+
+                float blended = saturate (oldDelayed, curDrive) * oldGain
+                              + saturate (newDelayed, curDrive) * newGain;
+                wetL += blended * leftGain;
+                wetR += blended * rightGain;
+            }
+            else if (inOld)
+            {
+                float delayed = voice.delayLine.popSample (0, delaySamplesForCount (v, oldCount, lfoValue, effectiveDepth), true);
+                voice.delayLine.pushSample (0, monoInput);
+
+                float saturated = saturate (delayed, curDrive) * oldGain;
+                wetL += saturated * leftGain;
+                wetR += saturated * rightGain;
+            }
+            else // inNew only
+            {
+                float delayed = voice.delayLine.popSample (0, delaySamplesForCount (v, newCount, lfoValue, effectiveDepth), true);
+                voice.delayLine.pushSample (0, monoInput);
+
+                float saturated = saturate (delayed, curDrive) * newGain;
+                wetL += saturated * leftGain;
+                wetR += saturated * rightGain;
+            }
+        }
+
+        // Advance the crossfade after all of this sample's voices are processed, so the
+        // voiceScale interpolation below sees the same progress the original code did.
+        if (crossfading)
+        {
             crossfadeProgress += crossfadeIncrement;
             if (crossfadeProgress >= 1.0f)
             {
@@ -265,10 +310,6 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
                 currentVoiceCount = targetVoiceCount;
                 setVoiceCount (currentVoiceCount);
             }
-        }
-        else
-        {
-            processVoices (currentVoiceCount, 1.0f);
         }
 
         // Normalize by voice count (interpolate during crossfade to prevent volume bump)

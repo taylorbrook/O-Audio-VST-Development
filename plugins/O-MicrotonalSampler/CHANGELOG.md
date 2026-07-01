@@ -1,5 +1,156 @@
 # O-MicrotonalSampler Changelog
 
+## [1.23.3] - 2026-06-30
+
+Patch release fixing the fresh-instance keyswitch default that silently ate low
+notes, plus two related technique-axis clean-ups, from the 2026-06-30
+processor/state review (`.planning/review/2026-06-30/REVIEW-processor-state.md`).
+**No parameter IDs, ranges, or state format change** — existing sessions and
+presets keep their stored keyswitch settings and load unchanged. Only the
+*fresh-instance defaults* move, so this is a behaviour change for **new**
+instances only.
+
+### Fixed
+
+- **WR-03 — a fresh instance silently absorbed every note-on in MIDI 0–9.**
+  The shipped defaults were `ks_enabled=true` with the keyswitch range set to
+  MIDI 0–9, so `processBlock` absorbed every note-on in that range as a
+  keyswitch and never forwarded it to the synth. **Root cause:** any library
+  mapped into the low register (microtonal or full-range) lost those notes with
+  no user-visible cause, and the adjacent block comment claimed the *opposite*
+  (`technique_count=1, ks_enabled=false` "reproduces v1.13.0") — inviting a
+  future maintainer to "fix" the defaults straight back into the bug. **Fix:**
+  keyswitches are now **opt-in** — `ks_enabled` defaults to `false`. A new
+  instance forwards all notes; with no KS/CC/PC trigger active the technique
+  cursor stays at slot 0, reproducing v1.13.0 playback exactly. The misleading
+  comment is rewritten to describe the real defaults. Users who want
+  keyswitching flip one toggle in the UI.
+
+- **IN-04 — the default keyswitch range advertised one more slot than exists.**
+  With `ks_high_note=9` and eight techniques, notes 8 and 9 both clamped onto
+  the last technique (slot 7). **Fix:** the default range is now MIDI 0–7 —
+  exactly `kMaxTech` slots wide (`ks_low + kMaxTech - 1`) — so if a user enables
+  keyswitching, one semitone maps to one technique with no collapse; notes 8/9
+  are forwarded to the synth instead of saturating.
+
+- **IN-03 — the default technique vocabulary disagreed across three sites.**
+  `resetTechniqueNames()` seeded the Dorico-aligned
+  `{ord, sp, st, stacc, cs, pizz, harm, trem}` (the canonical set since v1.16.3,
+  matching the shipped Strings expression map), but two `PluginProcessor.h`
+  docstrings and the `state_migration_check` fixture still advertised the stale
+  `sv`/`mart` names for slots 3 and 7. **Fix:** all three now reference the one
+  canonical vocabulary.
+
+### Changed
+
+- **New `Source/TechniqueDefaults.h` — single source of truth for the
+  technique-axis defaults.** The fresh-instance keyswitch defaults
+  (`ks_enabled`, range, `technique_count`), the canonical vocabulary, and the
+  keyswitch→technique mapping now live in one header consumed by
+  `createParameterLayout`, `resetTechniqueNames`, and `processBlock`. This
+  removes the drift class that produced IN-03 in the first place. `processBlock`
+  now computes the keyswitch candidate via the shared
+  `OMtsTechnique::keyswitchTechnique` helper (behaviour-identical to the prior
+  inline math), so the absorption contract is unit-testable.
+
+### Testing
+
+- **New `Source/tests/ks_default_check.cpp` (27 assertions, all pass).** Guards
+  the shipped opt-in defaults (fails loudly if a future edit re-enables the
+  note-eating default), the keyswitch→technique mapping across the default range
+  (notes 8/9 forwarded, no collapse), and the canonical vocabulary.
+- `state_migration_check` (10/10) and `cc_pc_trigger_check` (51/51) re-run
+  green; the migration fixture now pulls its default vocabulary from the shared
+  header instead of a hand-copied literal.
+
+## [1.23.2] - 2026-06-30
+
+Patch release hardening the audio-thread voice render path against the three
+remaining **WARNING**-level findings (plus three **INFO** clean-ups) from the
+2026-06-30 DSP/voice review (`.planning/review/2026-06-30/REVIEW-dsp-voice.md`).
+No parameters, state format, or normal-path audio behaviour change — sessions
+and presets remain **fully compatible with v1.23.1**. The one audible change is
+the removal of a per-cycle click at loop boundaries (W9), which only ever made
+the sustained loop *worse*.
+
+### Fixed
+
+- **W11 (WR-03) — `+Inf` play-rate lockup on a zero host sample rate.**
+  `computePlayRateForVariant` divided by `hostSR = getSampleRate()` with no
+  guard. **Root cause:** if the voice is ever asked for a rate before a playback
+  sample rate is set (`hostSR == 0.0`), `slotSR / hostSR` is `+Inf`; `pos += Inf`
+  becomes `Inf`, and `wrapLoopPosition`'s `while (pos >= lpEnd) pos -= lpLen`
+  never terminates → a hard audio-thread hang (and `cubicInterp`'s
+  `(int) floor(Inf)` is UB). **Fix:** clamp the divisor to 44100 when `hostSR <= 0`,
+  and make `wrapLoopPosition` finite-safe — a non-finite `pos` snaps back to the
+  loop start instead of spinning. JUCE normally sets the rate before `startNote`,
+  so this is defence-in-depth against a hard lockup.
+
+- **W10 (WR-02) — a reload-boundary voice-steal could `free()` a `SampleMap`
+  (and its audio buffers) on the audio thread.** `startNote` snapshots the prior
+  map into a local `prevMap` (keeps the steal-tail source alive, C1/CR-04) then
+  re-points `currentMap` at the freshly loaded map. **Root cause:** right after a
+  background ReplaceAll the processor has already swapped its slot, so only
+  in-flight voices hold the old map; when such a voice re-snapshots, `prevMap`'s
+  destructor — running on the **audio thread** — could drop the last reference and
+  free the entire old `SampleMap` (cell vector + every `SampleVariant` + every
+  `shared_ptr<AudioBuffer>`, potentially hundreds of MB) inside the render
+  callback. **Fix:** a new `RetiredMapReaper` (single-producer/single-consumer
+  ring drained by an 8 Hz message-thread `juce::Timer`). The voice hands a
+  retired `prevMap` to the reaper only when it differs from the new snapshot (a
+  genuine reload boundary), so the big `free()` runs on the message thread;
+  steady-state playback generates zero traffic. Same reload boundary as the
+  shipped C1 use-after-free, different failure mode.
+
+- **W9 (WR-01) — per-cycle click at every loop wrap on sustained samples.**
+  The 8-sample equal-power loop crossfade indexed an 8-entry LUT built at
+  `x = i/8` for `i ∈ 0..7`, so its largest weight was `equalPowerWeights(7/8)` →
+  outgoing ≈ 0.195, incoming ≈ 0.981. **Root cause:** the incoming weight never
+  reached 1.0, so at the wrap the still-~0.195×tail term vanished instantly — an
+  audible `≈ 0.195 × tail` step every loop cycle (the sampler's primary use
+  case), and the fade was quantized to 8 steps. **Fix:** drive the crossfade with
+  a continuous phase `x = (pos - fadeStart) / 8` that reaches 1.0 at the wrap, so
+  hand-off to the post-wrap signal is continuous and un-quantized. The `cos`/`sin`
+  fire only for the final 8 samples of each loop cycle → negligible RT cost.
+
+### Changed (INFO clean-ups)
+
+- **IN-02 — round-robin counter no longer advances on a skipped degenerate
+  layer.** In the CC-crossfade gather loop, `selectVariantIndex` advanced a
+  cell's persistent RR counter *before* the empty-buffer skip, so a failed/empty
+  variant still consumed an RR step and could skew the per-cell progression.
+  The gather now snapshots the counter and restores it when a degenerate variant
+  is skipped (cosmetic — RR ordering only; not audible correctness).
+- **IN-01 / IN-03 — comments corrected.** Documented the deliberate equal-*power*
+  (not equal-gain) crossfade choice and its known ~+3 dB bump for highly
+  correlated content (accepted: layers/CC-morph neighbours are essentially never
+  phase-coherent, and equal-gain would instead dip the common uncorrelated case).
+  Fixed the stale "squared CC gain" single-layer comment to describe the shipped
+  v1.22 dB-linear `dynGain = decibelsToGain(rangeDb·(d−1))` ramp.
+
+### Refactored
+
+- Extracted the pure varispeed-read leaf helpers (`referenceFrequencyForNote`,
+  `equalPowerWeights`, `cubicInterp`, `readVariantWithLoop`, `wrapLoopPosition`,
+  `computePlayRateForVariant`) from `MicrotonalSamplerVoice.cpp`'s anonymous
+  namespace into `Source/VoiceDsp.h` (`inline`, byte-for-byte identical codegen)
+  so the new regression test drives the **real** shipped implementations rather
+  than a mirror copy.
+
+### Testing
+
+- New `loop_crossfade_check` standalone test (`ninja
+  O-MicrotonalSampler_LoopCrossfadeCheck`, exit code = failed assertions, 21/21
+  pass): exercises the real `VoiceDsp.h` helpers — the crossfade reaches full
+  incoming weight at the wrap and the wrap click is `< 0.02` (was ≈ 0.214
+  pre-fix); `wrapLoopPosition` snaps `+Inf`/`-Inf`/NaN to the loop start and
+  still wraps finite positions correctly; `computePlayRateForVariant` stays
+  finite with `hostSR == 0` and matches the explicit-44100 result.
+- Regression sweep of the existing DSP/RR/gather tests all pass (AliasingCheck,
+  DynamicsLayerCheck, MergeRrCheck, FindCellTripletCheck, TrimGainCheck,
+  EmbeddedTechniqueCheck) — the extraction and IN-02 change are behaviour-neutral.
+- VST3 + AU build clean; `auval` validates the AU.
+
 ## [1.23.1] - 2026-06-30
 
 Patch release fixing the **3 CRITICAL findings** from the 2026-06-30 full-instrument

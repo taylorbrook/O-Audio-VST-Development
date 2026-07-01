@@ -28,10 +28,10 @@ Ouaricon Plugins:
 |-------------|--------|---------|------|--------------|
 | O-Bells | 📦 Installed | 4.0.0 | Synth (Physical Modeling Bells) | 2026-04-13 |
 | O-Tremolo | 📦 Installed | 1.4.7 | Audio Effect (Tremolo) | 2026-02-12 |
-| O-AnalogSaturation | 📦 Installed | 1.1.3 | Audio Effect (Saturation) | 2026-02-25 |
+| O-AnalogSaturation | 📦 Installed | 1.1.5 | Audio Effect (Saturation) | 2026-06-30 |
 | O-Marimba | 📦 Installed | 1.12.0 | Synth (Physical Model) | 2026-02-09 |
 | O-Comp | 📦 Installed | 1.4.3 | Audio Effect (Compressor) | 2026-03-06 |
-| O-AnalogEQ | 📦 Installed | 1.1.7 | Audio Effect (EQ) | 2026-02-09 |
+| O-AnalogEQ | 📦 Installed | 1.1.10 | Audio Effect (EQ) | 2026-06-30 |
 | O-DigiDelay | 📦 Installed | 1.2.9 | Audio Effect (Delay) | 2026-02-14 |
 | O-SimpleReverb | 📦 Installed | 1.5.5 | Audio Effect (Reverb) | 2026-02-15 |
 | O-Polystutter | 📦 Installed | 1.12.2 | Audio Effect (Beat Repeater) | 2026-03-06 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
@@ -44,7 +44,7 @@ Ouaricon Plugins:
 | O-FreqPulse | 📦 Installed | 1.16.2 | Audio Effect (Spectral Sequencer) | 2026-03-06 |
 | O-SpectralShaper | 📦 Installed | 1.3.0 | Audio Effect (Spectral Transient Shaper) | 2026-03-08 |
 | O-GrainScatter | 📦 Installed | 2.4.0 | Audio Effect (Granular Stutter Engine) | 2026-03-09 |
-| O-Chorus | 📦 Installed | 1.2.1 | Audio Effect (Chorus) | 2026-02-25 |
+| O-Chorus | 📦 Installed | 1.2.3 | Audio Effect (Chorus) | 2026-06-30 |
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
@@ -56,7 +56,7 @@ Ouaricon Plugins:
 | O-Wind | 📦 Installed | 1.15.1 | Synth (Physical Model Flute) | 2026-04-13 |
 | O-Contrabass | 🚧 Stage 0 | - | Synth (Physical Model Bowed Bass) | 2026-04-25 |
 | O-Bassoon | 🚧 Stage 0 | - | Synth (Physical Model Bassoon) | 2026-04-27 |
-| O-MicrotonalSampler | 📦 Installed | 1.23.1 | Synth (Microtonal Sampler) | 2026-06-30 |
+| O-MicrotonalSampler | 📦 Installed | 1.23.3 | Synth (Microtonal Sampler) | 2026-06-30 |
 | O-simpleFM | 📦 Installed | 1.2.1 | Synth (Pedagogical 2-Op FM) | 2026-06-21 |
 | O-simpleAdditive | ✅ Working | 1.0.2 | Synth (Pedagogical Additive + Wavetable) | 2026-06-25 |
 | O-simpleGrain | 📦 Installed | 1.1.0 | Synth (Pedagogical Granular) | 2026-06-25 |

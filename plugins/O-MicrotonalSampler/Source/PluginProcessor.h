@@ -19,8 +19,10 @@
 #include "MicrotonalSamplerSound.h"
 #include "MicrotonalSamplerVoice.h"
 #include "SampleMap.h"
+#include "RetiredMapReaper.h"      // v1.23.2 (W10) — off-audio-thread map free
 #include "SampleLoader.h"
 #include "TriggerMapping.h"        // v1.15.0 — CC + PC trigger tables
+#include "TechniqueDefaults.h"     // v1.23.3 — canonical technique-axis defaults
 #include "TuningEngine.h"          // global namespace (D-4)
 #include "NoteExpression.h"        // modules/tuning/note-expression (via ouaricon_add_module)
 
@@ -502,8 +504,9 @@ public:
     void setTechniqueName (int index, const juce::String& name);
 
     // Reset all 8 technique slots to the curated default names
-    // ("ord", "sp", "st", "sv", "cs", "pizz", "harm", "mart"). Used by the
-    // UI's "reset" button and by the constructor.
+    // ("ord", "sp", "st", "stacc", "cs", "pizz", "harm", "trem" — the single
+    // source is OMtsTechnique::defaultTechniqueVocabulary in
+    // TechniqueDefaults.h). Used by the UI's "reset" button and the ctor.
     void resetTechniqueNames();
 
     // Editor subscribes to receive a notification whenever the technique
@@ -616,6 +619,12 @@ private:
     std::atomic<float>* pDynamicsMode    = nullptr;   // v1.21.0: 0=Velocity, 1=CC Crossfade
     std::atomic<float>* pOutputGain      = nullptr;
 
+    // v1.23.2 (W10): declared BEFORE `synthesiser` so it is destroyed AFTER the
+    // voices (members tear down in reverse declaration order) — a voice can only
+    // hand off a retired map while the reaper is still alive. Each voice gets a
+    // pointer to this in the constructor.
+    RetiredMapReaper                          retiredMapReaper;
+
     CappedSynthesiser                         synthesiser;
     TuningEngine                              tuningEngine;       // D-4: global namespace
     Ouaricon::NoteExpression::VST3Extensions  vst3Extensions;
@@ -645,7 +654,8 @@ private:
 
     // v1.14.0: per-slot user-facing names. Lives outside APVTS (strings) and
     // round-trips through state ValueTree only. 8 slots, default vocabulary
-    // applied in ctor: "ord", "sp", "st", "sv", "cs", "pizz", "harm", "mart".
+    // applied in ctor from OMtsTechnique::defaultTechniqueVocabulary()
+    // (TechniqueDefaults.h): "ord", "sp", "st", "stacc", "cs", "pizz", "harm", "trem".
     juce::StringArray techniqueNames;
 
     // v1.23.0: per-technique master + per-(technique,layer) loudness trims (dB).

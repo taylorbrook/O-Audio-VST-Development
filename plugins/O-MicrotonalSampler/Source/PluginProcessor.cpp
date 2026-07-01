@@ -240,24 +240,37 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
 
     // ========== v1.14.0 Playing Techniques (5) ==========
     //
-    // Adds the technique axis. Back-compat: default state (technique_count=1,
-    // ks_enabled=false) reproduces v1.13.0 behaviour exactly — every cell
-    // lives at technique=0 and the synth never reads anything past slot 0.
+    // Adds the technique axis. A fresh instance seeds technique_count=8 named
+    // slots, but keyswitches are OPT-IN (ks_enabled=false, v1.23.3 / review
+    // WR-03): with no KS/CC/PC trigger active the technique cursor stays at
+    // slot 0, so playback reproduces v1.13.0 behaviour exactly — every cell is
+    // read at technique=0 and NO note-on is ever absorbed. (The old default
+    // ks_enabled=true over MIDI 0..9 silently ate every note-on in that range;
+    // any library mapped into the low register lost those notes.)
     //
-    // technique_count   1..8 — number of active technique slots
+    // When the user enables keyswitching, note-ons in [ks_low..ks_high] select
+    // a technique instead of sounding. The default range is exactly kMaxTech
+    // slots wide (MIDI 0..7 = ks_low + kMaxTech - 1) so one semitone maps to
+    // one technique — no two notes collapse onto the last slot (review IN-04).
+    //
+    // Defaults live in TechniqueDefaults.h so the param layout,
+    // resetTechniqueNames, processBlock's KS scan, and the ks_default_check
+    // regression test share one source of truth.
+    //
+    // technique_count   1..8 — number of active technique slots (default 8)
     // technique_select  0..7 — current technique slot (mirrors keyswitch /
     //                          CC / PC routing). Audio thread loads this
     //                          atom at startNote.
-    // ks_enabled        bool — true = scan note-ons in [ks_low..ks_high] on
-    //                          processBlock and absorb them as keyswitches
+    // ks_enabled        bool — false by default (opt-in). true = scan note-ons
+    //                          in [ks_low..ks_high] on processBlock and absorb
+    //                          them as keyswitches
     // ks_low_note       0..127 — KS range low edge (default C-2 / MIDI 0)
-    // ks_high_note      0..127 — KS range high edge (default MIDI 9 →
-    //                          covers all 8 default technique slots, one
-    //                          MIDI semitone each)
+    // ks_high_note      0..127 — KS range high edge (default MIDI 7 →
+    //                          ks_low + kMaxTech - 1, one slot per semitone)
     layout.add (std::make_unique<juce::AudioParameterInt> (
         juce::ParameterID { "technique_count", 1 },
         "Technique Count",
-        1, 8, 8
+        1, 8, OMtsTechnique::kDefaultTechniqueCount
     ));
     layout.add (std::make_unique<juce::AudioParameterInt> (
         juce::ParameterID { "technique_select", 1 },
@@ -267,17 +280,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
     layout.add (std::make_unique<juce::AudioParameterBool> (
         juce::ParameterID { "ks_enabled", 1 },
         "Keyswitch Enabled",
-        true
+        OMtsTechnique::kDefaultKsEnabled
     ));
     layout.add (std::make_unique<juce::AudioParameterInt> (
         juce::ParameterID { "ks_low_note", 1 },
         "Keyswitch Low Note",
-        0, 127, 0
+        0, 127, OMtsTechnique::kDefaultKsLowNote
     ));
     layout.add (std::make_unique<juce::AudioParameterInt> (
         juce::ParameterID { "ks_high_note", 1 },
         "Keyswitch High Note",
-        0, 127, 9
+        0, 127, OMtsTechnique::kDefaultKsHighNote
     ));
 
     // ========== v1.15.0 CC + PC triggers (3) ==========
@@ -367,6 +380,7 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
         voice->setRrCounterArray         (&rrCounters);                            // v1.8.0
         voice->setPendingTechniqueSource (&pendingTechniqueIndex);                 // v1.14.0
         voice->setTrimTableSource        (&cellTrims);                             // v1.23.0
+        voice->setRetiredMapSink         (&retiredMapReaper);                      // v1.23.2 (W10)
         synthesiser.addVoice (voice);
     }
 
@@ -664,9 +678,11 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
             {
                 if (msg.isNoteOn())
                 {
-                    ksTechCandidate = juce::jlimit (
-                        0, juce::jmin (7, techCount - 1),
-                        msg.getNoteNumber() - ksLowNote);
+                    // In-range by construction here (see the range test above),
+                    // so keyswitchTechnique never returns -1. Shared with the
+                    // ks_default_check regression test — single source of truth.
+                    ksTechCandidate = OMtsTechnique::keyswitchTechnique (
+                        msg.getNoteNumber(), ksLowNote, ksHighNote, techCount);
                 }
                 continue;   // absorb (do not forward to synth)
             }
@@ -2265,15 +2281,9 @@ void OMicrotonalSamplerAudioProcessor::setTechniqueName (int index, const juce::
 
 void OMicrotonalSamplerAudioProcessor::resetTechniqueNames()
 {
-    techniqueNames.clearQuick();
-    techniqueNames.add ("ord");
-    techniqueNames.add ("sp");
-    techniqueNames.add ("st");
-    techniqueNames.add ("stacc");
-    techniqueNames.add ("cs");
-    techniqueNames.add ("pizz");
-    techniqueNames.add ("harm");
-    techniqueNames.add ("trem");
+    // Single source of truth — Dorico-aligned vocabulary, see
+    // TechniqueDefaults.h and the shipped Strings expression map.
+    techniqueNames = OMtsTechnique::defaultTechniqueVocabulary();
 
     techniqueStateDirty.store (true, std::memory_order_release);
     triggerAsyncUpdate();
