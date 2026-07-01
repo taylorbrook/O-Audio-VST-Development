@@ -90,9 +90,15 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                     audioProcessor.presetManager.getUserPresetsDirectory(),
                     "*.json"
                 );
+                // WR-04: the editor may be destroyed while the OS dialog is still open.
+                // Guard the callback with a SafePointer and bail if so — the WebView that
+                // would receive `complete` (and the processor) are gone.
+                juce::Component::SafePointer<OuariconAnalogEQAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             auto* result = new juce::DynamicObject();
@@ -103,7 +109,7 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                         }
                         auto file = results.getFirst();
                         auto presetName = file.getFileNameWithoutExtension();
-                        bool success = audioProcessor.presetManager.savePreset(presetName);
+                        bool success = safeThis->audioProcessor.presetManager.savePreset(presetName);
                         auto* result = new juce::DynamicObject();
                         result->setProperty("success", success);
                         result->setProperty("name", success ? presetName : juce::String());
@@ -123,9 +129,13 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                     audioProcessor.presetManager.getPresetsDirectory(),
                     "*.json"
                 );
+                // WR-04: bail if the editor was destroyed while the OS dialog was open.
+                juce::Component::SafePointer<OuariconAnalogEQAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             auto* result = new juce::DynamicObject();
@@ -135,7 +145,7 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                             return;
                         }
                         auto file = results.getFirst();
-                        bool success = audioProcessor.presetManager.loadPresetFromFile(file);
+                        bool success = safeThis->audioProcessor.presetManager.loadPresetFromFile(file);
                         auto* result = new juce::DynamicObject();
                         result->setProperty("success", success);
                         result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());

@@ -51,7 +51,9 @@ private:
 
     using IIRFilter = juce::dsp::IIR::Filter<float>;
     using IIRCoefficients = juce::dsp::IIR::Coefficients<float>;
+    using ArrayCoeffs = juce::dsp::IIR::ArrayCoefficients<float>;
     using StereoFilter = juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients>;
+    using SmoothedFloat = juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>;
 
     // EQ Band Filters (4 bands: LF shelf, LMF bell, HMF bell, HF shelf)
     StereoFilter lfFilter, lmfFilter, hmfFilter, hfFilter;
@@ -61,6 +63,22 @@ private:
 
     double currentSampleRate = 44100.0;
 
+    // WR-02: smooth each band's frequency/gain so automation and preset changes ramp
+    // instead of stepping per block (zipper noise). Coefficients are rebuilt per
+    // kSmoothingBlock-sample chunk while a band is moving, using the allocation-free
+    // ArrayCoefficients factory (identical math to Coefficients::make*, which just
+    // wraps it in a heap allocation). This keeps CR-01's steady-state path — when no
+    // band is moving, coefficients are left untouched and the block runs in one pass.
+    SmoothedFloat lfFreqSm,  lfGainSm;
+    SmoothedFloat lmfFreqSm, lmfGainSm;
+    SmoothedFloat hmfFreqSm, hmfGainSm;
+    SmoothedFloat hfFreqSm,  hfGainSm;
+
+    int lastLmfQ = -1, lastHmfQ = -1;   // discrete Q — recompute only on change
+    bool coeffsInitialised = false;     // force first coefficient build after prepareToPlay
+
+    static constexpr int   kSmoothingBlock   = 32;    // coefficient update granularity (samples)
+    static constexpr float kSmoothingSeconds = 0.03f; // 30 ms parameter ramp
     static constexpr float qValues[] = { 0.5f, 1.0f, 2.0f }; // WIDE, MED, TIGHT
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconAnalogEQAudioProcessor)

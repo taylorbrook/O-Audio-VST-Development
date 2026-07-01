@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.1.9
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -29,10 +29,14 @@
 - **2026-01-11 (v1.0.9):** VU meter reduced to 80% (112px); analog button moved right 20px
 - **2026-01-11 (v1.0.10):** VU meter left 40px; analog saturation retuned for warmth without gain boost
 - **2026-01-24 (v1.1.0):** Renamed plugin from OuariconAnalogEQ to O-AnalogEQ
+- **2026-02-05 (v1.1.4):** Licensing module + Windows WebView2 backend support
+- **2026-02-09 (v1.1.7):** Preset system + UI/EQ algorithm improvements
+- **2026-06-30 (v1.1.8):** Code-review fixes — CR-01 (audio-thread coefficient allocation removed via change-gated rebuild) + WR-01 (frequency tooltips now honor the 0.3 skew)
+- **2026-06-30 (v1.1.9):** Remaining code-review warnings — WR-02 (per-band freq/gain SmoothedValue with 32-sample sub-block coefficient rebuild via allocation-free ArrayCoefficients, kills zipper noise while staying RT-safe) + WR-03 (all cutoffs clamped to 0.99×Nyquist; verified via auval at 11025/22050 Hz) + WR-04 (FileChooser callbacks guarded with Component::SafePointer)
 
 ## Known Issues
 
-None
+- Only info-level code-review items remain (see `.planning/CODE-REVIEW.md`): IN-01 hidden `output_gain` (no UI control), IN-02 double-click reset uses 0.5 not the skewed default, IN-03 dead `currentParamName`, IN-04 unbounded `_waitForNative` poll, IN-05 `confirm()` fragility in the (currently unreached) delete path. All benign.
 
 ## Additional Notes
 
@@ -193,6 +197,6 @@ Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Out
 
 ---
 
-**Last Updated:** 2026-01-24
-**Version:** 1.1.0
+**Last Updated:** 2026-06-30
+**Version:** 1.1.8
 **Status:** 📦 Installed
