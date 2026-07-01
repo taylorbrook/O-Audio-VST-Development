@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.9
+- **Version:** 1.1.10
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -33,10 +33,11 @@
 - **2026-02-09 (v1.1.7):** Preset system + UI/EQ algorithm improvements
 - **2026-06-30 (v1.1.8):** Code-review fixes — CR-01 (audio-thread coefficient allocation removed via change-gated rebuild) + WR-01 (frequency tooltips now honor the 0.3 skew)
 - **2026-06-30 (v1.1.9):** Remaining code-review warnings — WR-02 (per-band freq/gain SmoothedValue with 32-sample sub-block coefficient rebuild via allocation-free ArrayCoefficients, kills zipper noise while staying RT-safe) + WR-03 (all cutoffs clamped to 0.99×Nyquist; verified via auval at 11025/22050 Hz) + WR-04 (FileChooser callbacks guarded with Component::SafePointer)
+- **2026-06-30 (v1.1.10):** Code-review info items — IN-01 (documented `output_gain` as intentionally UI-hidden/host-only), IN-02 (double-click reset restores true APVTS freq defaults via skew inverse), IN-03 (removed dead `currentParamName`), IN-04+IN-05 (shared `preset-manager` module → 1.0.1: bounded `_waitForNative` poll + robust `promptDelete` with `onConfirmDelete` hook)
 
 ## Known Issues
 
-- Only info-level code-review items remain (see `.planning/CODE-REVIEW.md`): IN-01 hidden `output_gain` (no UI control), IN-02 double-click reset uses 0.5 not the skewed default, IN-03 dead `currentParamName`, IN-04 unbounded `_waitForNative` poll, IN-05 `confirm()` fragility in the (currently unreached) delete path. All benign.
+- None. All 2026-06-30 code-review findings (CR-01, WR-01..04, IN-01..05) are resolved as of v1.1.10. IN-04/IN-05 fixes live in the shared `preset-manager` module (v1.0.1); the other 10 dependent plugins can adopt them via `/module-upgrade`.
 
 ## Additional Notes
 

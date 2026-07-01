@@ -693,24 +693,28 @@
       console.error("JUCE backend not available");
     }
 
-    // Default normalized values for "center" position (vertical knob)
-    const DEFAULT_VALUES = {
-      lf_freq: 0.5,
-      lf_gain: 0.5,
-      lmf_freq: 0.5,
-      lmf_gain: 0.5,
-      hmf_freq: 0.5,
-      hmf_gain: 0.5,
-      hf_freq: 0.5,
-      hf_gain: 0.5
-    };
-
     // Frequency parameters use NormalisableRange<float>(min, max, 0.1, 0.3) in C++, so the
     // normalised value (0..1) is skewed: normalised = pow((hz - min) / (max - min), 0.3).
-    // getNormalisedValue() returns that skewed proportion, so display formatters must invert
-    // the skew — hz = min + (max - min) * pow(v, 1 / skew) — instead of mapping linearly (WR-01).
+    // Display formatters invert the skew via toHz — hz = min + (max - min) * pow(v, 1/skew) —
+    // instead of mapping linearly (WR-01); reset uses toNorm to turn the C++ Hz defaults back
+    // into normalised values (IN-02).
     const FREQ_SKEW = 0.3;
-    const toHz = (v, min, max) => min + (max - min) * Math.pow(v, 1 / FREQ_SKEW);
+    const toHz   = (v, min, max) => min + (max - min) * Math.pow(v, 1 / FREQ_SKEW);
+    const toNorm = (hz, min, max) => Math.pow((hz - min) / (max - min), FREQ_SKEW);
+
+    // Default normalized values for double-click reset. Frequencies mirror the C++ APVTS
+    // parameter defaults (100/500/2000/8000 Hz) through the skew, so reset restores the true
+    // default rather than the skewed midpoint (IN-02). Gains default to 0 dB = normalised 0.5.
+    const DEFAULT_VALUES = {
+      lf_freq: toNorm(100, 30, 500),
+      lf_gain: 0.5,
+      lmf_freq: toNorm(500, 100, 2000),
+      lmf_gain: 0.5,
+      hmf_freq: toNorm(2000, 500, 8000),
+      hmf_gain: 0.5,
+      hf_freq: toNorm(8000, 2000, 20000),
+      hf_gain: 0.5
+    };
 
     // Parameter ranges for display formatting
     const paramRanges = {
@@ -739,7 +743,6 @@
 
       let isDragging = false;
       let currentState = null;
-      let currentParamName = null;
       let lastY = 0;
 
       const KNOB_RADIUS = 32.5;
@@ -763,10 +766,8 @@
 
         if (normalizedDistance > INNER_THRESHOLD) {
           currentState = outerState;
-          currentParamName = freqParamName;
         } else {
           currentState = innerState;
-          currentParamName = gainParamName;
         }
 
         isDragging = true;
@@ -812,7 +813,6 @@
           currentState.sliderDragEnded();
           isDragging = false;
           currentState = null;
-          currentParamName = null;
           container.classList.remove('dragging');
         }
       });

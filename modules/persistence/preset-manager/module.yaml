@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.0.0
+version: 1.0.1
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,12 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.0.1
+    date: 2026-06-30
+    changes:
+      - "IN-04: _waitForNative() now bounds its poll (100 x 50ms) and logs an error instead of hanging initialize() forever when the JUCE backend never appears"
+      - "IN-05: promptDelete() prefers an options.onConfirmDelete hook (reliable native/in-DOM dialog) and guards the window.confirm() fallback, since confirm() is a silent no-op/throw in some JUCE WebView backends; fail-safe aborts on no confirmation mechanism"
+      - "Non-breaking: existing callers keep the guarded confirm() fallback; new onConfirmDelete option is optional"
   - version: 1.0.0
     date: 2026-01-12
     changes:
