@@ -32,7 +32,7 @@ Ouaricon Plugins:
 | O-Marimba | 📦 Installed | 1.12.0 | Synth (Physical Model) | 2026-02-09 |
 | O-Comp | 📦 Installed | 1.5.0 | Audio Effect (Compressor) | 2026-07-01 |
 | O-AnalogEQ | 📦 Installed | 1.1.10 | Audio Effect (EQ) | 2026-06-30 |
-| O-DigiDelay | 📦 Installed | 1.2.10 | Audio Effect (Delay) | 2026-07-01 |
+| O-DigiDelay | 📦 Installed | 1.2.11 | Audio Effect (Delay) | 2026-07-01 |
 | O-SimpleReverb | 📦 Installed | 1.5.5 | Audio Effect (Reverb) | 2026-02-15 |
 | O-Polystutter | 📦 Installed | 1.12.2 | Audio Effect (Beat Repeater) | 2026-03-06 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
 | O-Lyrica | 📦 Installed | 2.2.2 | Synth (Physical Modeling Harp) | 2026-04-13 |
@@ -50,7 +50,7 @@ Ouaricon Plugins:
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
 | O-Prism | 📦 Installed | 1.18.1 | Synth (Microtonal Wavetable) | 2026-05-06 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
-| O-Formant | 📦 Installed | 1.24.1 | Synth (Physical Model Vocal) | 2026-04-17 |
+| O-Formant | 📦 Installed | 1.25.1 | Synth (Physical Model Vocal) | 2026-07-01 |
 | O-Bowed | 📦 Installed | 1.2.0 | Synth (Physical Model Bowed String) | 2026-04-17 |
 | O-Reed | 📦 Installed | 1.0.12 | Synth (Physical Modeling Reed Wind) | 2026-04-26 |
 | O-Wind | 📦 Installed | 1.15.1 | Synth (Physical Model Flute) | 2026-04-13 |

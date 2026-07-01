@@ -5,6 +5,16 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.11] - 2026-07-01
+
+### Fixed
+- Preset-system fixes from code review (findings WR-03, WR-04, IN-02, IN-03, IN-01)
+  - **WR-03:** The "Save preset" dialog no longer implies a destination it ignores. It was a folder-navigable `FileChooser`, but the chosen folder was discarded — the preset always went to the managed User folder while the UI reported success with the name. Replaced with a name-only prompt, since presets must live in the managed folder to appear in the list and navigate with prev/next.
+  - **WR-04:** Preset names are now sanitized before use as filenames (`replaceCharacters("/\\:", "___")`), applied consistently in `savePreset`/`loadPreset`/`deletePreset`/`isFactoryPreset` so the same name round-trips. Previously a name containing `/` (e.g. "Koto / Harp") was interpreted as a path by `getChildFile()` and the file was silently dropped. (Shared-module regression — see propagation note.)
+  - **IN-02:** Saved preset JSON now records the real plugin version (`JucePlugin_VersionString`) instead of a hard-coded `"1.0.0"`, for both user and factory presets — restores future version-migration capability.
+  - **IN-03:** `getNextPreset`/`getPreviousPreset` no longer snap to index 0 after loading an out-of-list preset from a file. They now resume from the last in-list position (`lastListIndex`).
+  - **IN-01:** Corrected the `OuariconPresetManager` docstring to match the actual preset path (`~/Library/{pluginName}/Presets/`). The path itself was left unchanged to avoid orphaning existing user presets; switching to Application Support would require a one-time migration.
+
 ## [1.2.10] - 2026-07-01
 
 ### Fixed

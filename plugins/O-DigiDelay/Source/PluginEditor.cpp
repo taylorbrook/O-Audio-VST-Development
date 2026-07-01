@@ -49,24 +49,32 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
                     complete(false);
             })
             .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
-                fileChooser = std::make_unique<juce::FileChooser>(
-                    "Save Preset", processorRef.presetManager.getUserPresetsDirectory(), "*.json");
-                fileChooser->launchAsync(
-                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
-                        auto results = fc.getResults();
+                // WR-03: presets always live in the managed User folder (so they appear
+                // in getPresetList() and navigate with prev/next). A folder-navigable
+                // FileChooser implied a destination that savePreset() silently ignored,
+                // so use a name-only prompt instead.
+                auto* aw = new juce::AlertWindow("Save Preset",
+                                                 "Enter a name for this preset:",
+                                                 juce::MessageBoxIconType::NoIcon);
+                aw->addTextEditor("presetName", juce::String(), juce::String());
+                aw->addButton("Save",   1, juce::KeyPress(juce::KeyPress::returnKey));
+                aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+                aw->enterModalState(true,
+                    juce::ModalCallbackFunction::create([this, aw, complete](int choice) {
                         auto* result = new juce::DynamicObject();
-                        if (results.isEmpty()) {
-                            result->setProperty("success", false);
-                            result->setProperty("name", "");
-                        } else {
-                            auto presetName = results.getFirst().getFileNameWithoutExtension();
-                            bool success = processorRef.presetManager.savePreset(presetName);
+                        if (choice == 1) {
+                            auto presetName = aw->getTextEditorContents("presetName").trim();
+                            bool success = presetName.isNotEmpty()
+                                        && processorRef.presetManager.savePreset(presetName);
                             result->setProperty("success", success);
                             result->setProperty("name", success ? presetName : juce::String());
+                        } else {
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
                         }
                         complete(juce::var(result));
-                    });
+                    }),
+                    true);  // deleteWhenDismissed — AlertWindow frees itself after the callback
             })
             .withNativeFunction("loadPreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)
