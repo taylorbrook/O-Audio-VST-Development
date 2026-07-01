@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-07-01 - Completed quick task 260701-in8: Read-only PFS system review — bugs, improvements, update recommendations
+Last activity: 2026-07-01 - Completed quick task 260701-j3b: Fixed .claude hook wiring + settings hygiene (BUG-02/03/04, IMP-01)
 
 Progress: [██████████] 100%
 
@@ -140,6 +140,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260622-pwy | Move to pay-what-you-want — Path A: flip CI licensing switch (remove licensing/Supabase flags from build-and-release.yml). Path B full removal deferred & scoped | 2026-06-22 | 155f34c |  | [260622-pwy-remove-licensing-pay-what-you-want](./quick/260622-pwy-remove-licensing-pay-what-you-want/) |
 | 260623-bmr | PWYW Path B — physically remove the licensing system (delete module + add-licensing skill, strip guards from 24 plugins, clean root CMake + registry). 28 atomic commits; 4 sample plugins build clean | 2026-06-23 | 77b6b5a | Verified | [260623-bmr-path-b-physically-remove-licensing-syste](./quick/260623-bmr-path-b-physically-remove-licensing-syste/) |
 | 260701-in8 | Read-only PFS system review — 6 bugs, 5 improvements, 6 update recs (REVIEW.md; dead hooks, CI target resolver, registry drift) | 2026-07-01 | -- |  | [260701-in8-complete-a-review-of-this-system-for-cre](./quick/260701-in8-complete-a-review-of-this-system-for-cre/) |
+| 260701-j3b | Hook wiring + settings hygiene: BUG-02 verified valid (review premise stale — SubagentStart/TaskCompleted real in CC ≥2.1.197, instrumented not rewired), BUG-04 matcher 1:1, BUG-03 rm -rf auto-approve removed, IMP-01 2 orphans deleted / 2 CLI utils retained | 2026-07-01 | 71e8fbd, cde44f5 | Verified | [260701-j3b-fix-dead-claude-hook-wiring-and-settings](./quick/260701-j3b-fix-dead-claude-hook-wiring-and-settings/) |
 
 ## Session Continuity
 
