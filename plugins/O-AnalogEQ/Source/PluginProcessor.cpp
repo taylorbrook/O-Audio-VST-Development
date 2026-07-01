@@ -62,6 +62,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconAnalogEQAudioProcess
         juce::ParameterID { "hf_on", 1 }, "HF On", true));
 
     // Global Controls
+    // NOTE (IN-01): output_gain is intentionally NOT exposed in the WebView UI — the
+    // output knob was deliberately removed in the v1.0.5 UI simplification. It remains a
+    // host-automatable parameter (default 0 dB, so benign when untouched) and is set by
+    // some factory presets (e.g. "Surgical Cut" = +1 dB). Kept for host automation and
+    // preset fidelity; do NOT add a relay/attachment unless the UI is meant to surface it.
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "output_gain", 1 }, "Output Gain",
         juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));

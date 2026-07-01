@@ -1,5 +1,31 @@
 # O-AnalogEQ Changelog
 
+## [1.1.10] - 2026-06-30
+
+### Fixed (code-review info items)
+- **IN-01 (hidden `output_gain`):** Documented that `output_gain` is intentionally not
+  surfaced in the UI (the output knob was deliberately removed in the v1.0.5 simplification).
+  It stays a host-automatable parameter (default 0 dB) set by some factory presets. Added a
+  code comment so it isn't mistaken for a missing binding. No behavior change. (Kept hidden.)
+- **IN-02 (double-click reset):** Reset now restores each frequency knob's true APVTS default
+  (100 / 500 / 2000 / 8000 Hz) via the skew inverse, instead of normalised 0.5 (which was
+  ~77 Hz for LF, not the real default). Gains already reset correctly (0 dB = 0.5).
+- **IN-03 (dead code):** Removed the unused `currentParamName` variable and its assignments
+  from `setupDualKnob` (`currentState` already carries the reference).
+- **IN-04 (unbounded poll):** `preset-manager` module — `_waitForNative()` now bounds its
+  poll (100 × 50 ms = 5 s) and logs an error instead of hanging preset init forever if the
+  JUCE backend never appears.
+- **IN-05 (fragile `confirm()`):** `preset-manager` module — `promptDelete()` now prefers an
+  optional `onConfirmDelete` hook (reliable native/in-DOM dialog) and guards the
+  `window.confirm()` fallback, which is a silent no-op/throw in some JUCE WebView backends;
+  aborts fail-safe (no accidental delete) and logs when no confirmation mechanism exists.
+
+### Notes
+- Closes all remaining items from the 2026-06-30 code review (`.planning/CODE-REVIEW.md`):
+  CR-01 + WR-01 (1.1.8), WR-02/03/04 (1.1.9), IN-01..IN-05 (this release).
+- IN-04/IN-05 fixes were made in the **shared `preset-manager` module** (bumped to 1.0.1);
+  O-AnalogEQ's copy is synced. The other 10 dependent plugins can adopt it via `/module-upgrade`.
+
 ## [1.1.9] - 2026-06-30
 
 ### Fixed
