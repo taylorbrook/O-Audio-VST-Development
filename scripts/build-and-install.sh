@@ -1,5 +1,10 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+# Source the shared target/product-name resolver (single source of truth,
+# also consumed by the CI workflow).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/resolve-target.sh"
 
 # ============================================================================
 # build-and-install.sh - JUCE Plugin Build & Installation Script
@@ -34,6 +39,7 @@ info() {
 # Global variables
 PLUGIN_NAME=""
 PRODUCT_NAME=""
+CMAKE_TARGET=""   # juce_add_plugin() target (may differ from folder name)
 DRY_RUN=false
 NO_INSTALL=false
 VERBOSE=false
@@ -111,11 +117,13 @@ execute() {
 
     if [ "$VERBOSE" = true ]; then
         eval "$cmd" 2>&1 | tee -a "$LOG_FILE"
+        local rc=${PIPESTATUS[0]}
     else
         eval "$cmd" >> "$LOG_FILE" 2>&1
+        local rc=$?
     fi
 
-    return ${PIPESTATUS[0]}
+    return "$rc"
 }
 
 # ============================================================================
@@ -166,13 +174,27 @@ phase_1_preflight_validation() {
     fi
 
     # Optional: Check JUCE (usually found via CMake)
-    if [ -n "$JUCE_DIR" ]; then
+    if [ -n "${JUCE_DIR:-}" ]; then
         info "  - Using JUCE_DIR: $JUCE_DIR"
         echo "JUCE_DIR: $JUCE_DIR" >> "$LOG_FILE"
     fi
 
     success "Pre-flight validation passed"
     echo "Pre-flight validation: PASS" >> "$LOG_FILE"
+}
+
+# ============================================================================
+# Resolve the CMake target from juce_add_plugin(<TARGET> ...)
+# ============================================================================
+# The JUCE build targets are "<TARGET>_VST3" / "<TARGET>_AU" where <TARGET> is
+# the first argument to juce_add_plugin() — NOT necessarily the plugin folder
+# name or PRODUCT_NAME. E.g. folder "O-Chorus" uses target "OuariconChorus".
+# Handles the target on the same line as "juce_add_plugin(" or on the next line.
+resolve_cmake_target() {
+    # Delegate to the shared resolver (sourced from resolve-target.sh). The
+    # CMAKE_TARGET global contract is preserved so Phases 2/3/5 are unchanged.
+    CMAKE_TARGET="$(resolve_cmake_target_for "$PLUGIN_NAME")"
+    echo "CMake target: $CMAKE_TARGET" >> "$LOG_FILE"
 }
 
 # ============================================================================
@@ -208,9 +230,14 @@ phase_2_build() {
         info "  - Build directory exists, skipping configure (use --reconfigure to force)"
     fi
 
+    # Resolve the actual CMake target (may differ from folder name)
+    resolve_cmake_target
+    info "  - CMake target: ${CMAKE_TARGET} (targets ${CMAKE_TARGET}_VST3, ${CMAKE_TARGET}_AU)"
+    echo "CMake target: $CMAKE_TARGET" >> "$LOG_FILE"
+
     # Build specific plugin using --target flags
     info "  - Building ${PLUGIN_NAME} (VST3 + AU) in parallel..."
-    if ! execute cmake --build "$build_dir" --config Release --target "${PLUGIN_NAME}_VST3" --target "${PLUGIN_NAME}_AU" --parallel; then
+    if ! execute cmake --build "$build_dir" --config Release --target "${CMAKE_TARGET}_VST3" --target "${CMAKE_TARGET}_AU" --parallel; then
         error "Build failed"
         echo "ERROR: Build failed" >> "$LOG_FILE"
         exit 1
@@ -233,9 +260,13 @@ phase_3_extract_product_name() {
     info "Phase 3: Extract PRODUCT_NAME"
     echo "Phase 3: Extract PRODUCT_NAME" >> "$LOG_FILE"
 
+    # Artefacts live under "<CMAKE_TARGET>_artefacts" (the juce_add_plugin target),
+    # which may differ from the folder name (resolved in Phase 2).
+    [ -z "$CMAKE_TARGET" ] && resolve_cmake_target
+
     info "  - Reading PRODUCT_NAME from build artifacts..."
-    local au_artefact_dir="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/AU"
-    local vst3_artefact_dir="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/VST3"
+    local au_artefact_dir="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/AU"
+    local vst3_artefact_dir="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/VST3"
 
     # Prefer AU; fall back to VST3 (e.g. on Linux)
     local artefact_path=""
@@ -364,10 +395,13 @@ phase_5_install_new_versions() {
     info "Phase 5: Install New Versions"
     echo "Phase 5: Install New Versions" >> "$LOG_FILE"
 
+    # Artefacts live under "<CMAKE_TARGET>_artefacts" (may differ from folder name).
+    [ -z "$CMAKE_TARGET" ] && resolve_cmake_target
+
     local vst3_dir="$HOME/Library/Audio/Plug-Ins/VST3"
     local au_dir="$HOME/Library/Audio/Plug-Ins/Components"
-    local vst3_build="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/VST3/$PRODUCT_NAME.vst3"
-    local au_build="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/AU/$PRODUCT_NAME.component"
+    local vst3_build="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/VST3/$PRODUCT_NAME.vst3"
+    local au_build="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/AU/$PRODUCT_NAME.component"
 
     # Verify VST3 artifact exists (skip in dry-run)
     info "  - Locating VST3 build artifact..."
