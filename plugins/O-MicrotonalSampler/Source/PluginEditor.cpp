@@ -118,6 +118,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
     velocityCrossfadeRelay  = std::make_unique<juce::WebSliderRelay> ("velocity_crossfade");
     expressionRelay         = std::make_unique<juce::WebSliderRelay> ("expression");      // v1.7.0
     dynamicsModeRelay       = std::make_unique<juce::WebComboBoxRelay> ("dynamics_mode"); // v1.21.0
+    dynamicRangeRelay       = std::make_unique<juce::WebSliderRelay> ("dynamic_range");   // v1.22.0
     outputGainRelay         = std::make_unique<juce::WebSliderRelay> ("output_gain");
 
     // ----------------------------------------------------------------
@@ -193,6 +194,7 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
                 .withOptionsFrom (*velocityCrossfadeRelay)
                 .withOptionsFrom (*expressionRelay)        // v1.7.0
                 .withOptionsFrom (*dynamicsModeRelay)      // v1.21.0
+                .withOptionsFrom (*dynamicRangeRelay)      // v1.22.0
                 .withOptionsFrom (*outputGainRelay);
 
             for (auto& [name, handler] : buildNativeFunctionRegistry())
@@ -222,6 +224,8 @@ OMicrotonalSamplerAudioProcessorEditor::OMicrotonalSamplerAudioProcessorEditor (
         *apvts.getParameter ("expression"), *expressionRelay, nullptr);
     dynamicsModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment> ( // v1.21.0
         *apvts.getParameter ("dynamics_mode"), *dynamicsModeRelay, nullptr);
+    dynamicRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment> (   // v1.22.0
+        *apvts.getParameter ("dynamic_range"), *dynamicRangeRelay, nullptr);
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
         *apvts.getParameter ("output_gain"), *outputGainRelay, nullptr);
 
@@ -1931,6 +1935,36 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     if (auto* p = apvts.getRawParameterValue ("ks_high_note"))
                         obj->setProperty ("ksHigh", (int) p->load());
 
+                    // v1.23.0: per-technique master + per-(technique,layer)
+                    // loudness trims (dB). Shape:
+                    //   trims: { technique: [8 floats],
+                    //            layers:    [[4],[4],…×8] }
+                    // The UI renders sliders for the ACTIVE technique from this.
+                    {
+                        auto* trimsObj = new juce::DynamicObject();
+
+                        juce::var techArr (juce::Array<juce::var>{});
+                        auto* ta = techArr.getArray();
+                        for (int t = 0; t < kMaxTechniques; ++t)
+                            ta->add (juce::var (processorRef.getTechniqueTrim (t)));
+                        trimsObj->setProperty ("technique", techArr);
+
+                        juce::var layersArr (juce::Array<juce::var>{});
+                        auto* la = layersArr.getArray();
+                        for (int t = 0; t < kMaxTechniques; ++t)
+                        {
+                            juce::var row (juce::Array<juce::var>{});
+                            auto* ra = row.getArray();
+                            for (int l = 0; l < kMaxVelocityLayers; ++l)
+                                ra->add (juce::var (processorRef.getLayerTrim (t, l)));
+                            la->add (row);
+                        }
+                        trimsObj->setProperty ("layers", layersArr);
+                        trimsObj->setProperty ("maxDb", (double) kTrimMaxDb);
+
+                        obj->setProperty ("trims", juce::var (trimsObj));
+                    }
+
                     complete (juce::var (obj));
                 }
         },
@@ -1964,6 +1998,46 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                         std::function<void(juce::var)> complete)
                 {
                     processorRef.resetTechniqueNames();
+                    complete (juce::var (true));
+                }
+        },
+
+        // ---- v1.23.0 trim setters ----
+        // Each fires the technique-state callback (via the processor's dirty
+        // flag), so the coalesced techniqueStateUpdated event re-pulls
+        // getTechniqueState — keeping every editor instance's sliders in sync.
+
+        // setTechniqueTrim(technique, db) — per-technique master trim.
+        { "setTechniqueTrim",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 2) { complete (juce::var (false)); return; }
+                    processorRef.setTechniqueTrim (static_cast<int> (args[0]),
+                                                   (float) (double) args[1]);
+                    complete (juce::var (true));
+                }
+        },
+
+        // setLayerTrim(technique, layer, db) — per (technique,layer) trim.
+        { "setLayerTrim",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    if (args.size() < 3) { complete (juce::var (false)); return; }
+                    processorRef.setLayerTrim (static_cast<int> (args[0]),
+                                               static_cast<int> (args[1]),
+                                               (float) (double) args[2]);
+                    complete (juce::var (true));
+                }
+        },
+
+        // resetTrims() — every technique + layer trim back to 0 dB.
+        { "resetTrims",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    processorRef.resetTrims();
                     complete (juce::var (true));
                 }
         },

@@ -3,9 +3,10 @@
  * O-MicrotonalSampler — Phase 3.1 entry point.
  *
  * Wires:
- *   - 8 APVTS sliders ↔ DOM range inputs via Juce.getSliderState() (relay
+ *   - 9 APVTS sliders ↔ DOM range inputs via Juce.getSliderState() (relay
  *     identifiers must match the C++ WebSliderRelay names exactly).
- *     (v1.7.0 added 'expression' — CC 11 dynamics.)
+ *     (v1.7.0 added 'expression' — CC 11 dynamics; v1.22.0 added
+ *     'dynamic_range' — CC-crossfade pp→ff dB span.)
  *   - Tab activation (Sample Map / Tuning / About).
  *   - Lazy mount of the TuningPanel on first Tuning-tab activation, plus a
  *     read-only interval-input → span swap shim per RESEARCH §RQ3-1.
@@ -135,7 +136,7 @@ function bindModal(dialog, buttons, opts = {}) {
 // when automation / preset / DAW changes the parameter so we update the
 // DOM control to match.
 // v1.16.8 (HIGH-06): SLIDER_BINDINGS is the single source of truth for the
-// 8 control-strip knobs — order, label, and optional tooltip. Knob DOM is
+// 9 control-strip knobs — order, label, and optional tooltip. Knob DOM is
 // rendered from this array by renderControlStrip() before bindOneKnob runs.
 const SLIDER_BINDINGS = [
     { domId: 'ctrl-attack',              relayId: 'attack',              label: 'Attack' },
@@ -146,6 +147,8 @@ const SLIDER_BINDINGS = [
     { domId: 'ctrl-velocity-crossfade',  relayId: 'velocity_crossfade',  label: 'Vel-XF' },
     { domId: 'ctrl-expression',          relayId: 'expression',          label: 'Expr',
       tooltip: 'Expression (MIDI CC 11) — dynamics control, independent of velocity layer' },  // v1.7.0
+    { domId: 'ctrl-dynamic-range',       relayId: 'dynamic_range',       label: 'Dyn Rng',
+      tooltip: 'Dynamic Range (CC Crossfade only) — dB span between pp and ff. 0 dB = flat; higher = louder ff / quieter pp. Fixes "forte too soft, piano too loud" in Dorico.' },  // v1.22.0
     { domId: 'ctrl-output-gain',         relayId: 'output_gain',         label: 'Out Gain' }
 ];
 
@@ -171,6 +174,9 @@ const KNOB_FORMATS = {
     // v1.7.0: expression as 0-100% (squared curve handled C++ side).
     'expression':          { min: 0.0,   max: 100.0, suffix: ' %',
                              format: v => Math.round(v).toString() },
+    // v1.22.0: dynamic range in dB (linear NormalisableRange 0..40 C++ side).
+    'dynamic_range':       { min: 0.0,   max: 40.0, suffix: ' dB',
+                             format: v => v.toFixed(1) },
     'output_gain':         { min: -24.0, max: 24.0, suffix: ' dB',
                              format: v => (v >= 0 ? '+' : '') + v.toFixed(1) },
 };
@@ -678,6 +684,10 @@ function handleSampleMapSnapshot(payloadOrJson) {
     // empty-slot dimming whenever the map changes (folder load, single-cell
     // load, clear). Render is cheap — one DOM rebuild for at most 8 buttons.
     renderTechniqueBar();
+
+    // v1.23.0: refresh the trim panel — its visibility (loaded vs empty) and
+    // per-layer dimming both derive from the current map.
+    renderTrimPanel();
 
     // ---- Issues disclosure + toast (Phase 3.3 Task 21) ----
     //
@@ -2743,6 +2753,8 @@ const techniqueState = {
     ksEnabled: false,
     ksLow: 0,
     ksHigh: 9,
+    // v1.23.0: { technique: [8 dB], layers: [[4 dB]×8], maxDb: 12 }
+    trims: null,
 };
 
 async function pullTechniqueState() {
@@ -2761,8 +2773,10 @@ async function pullTechniqueState() {
         techniqueState.ksEnabled = !!obj.ksEnabled;
         techniqueState.ksLow     = num(obj.ksLow);
         techniqueState.ksHigh    = num(obj.ksHigh, 9);
+        techniqueState.trims     = obj.trims || null;   // v1.23.0
 
         renderTechniqueBar();
+        renderTrimPanel();   // v1.23.0
 
         // v1.15.0: technique count drives the trigger-panel visibility
         // (single-technique libraries hide it) and slot dimming. Refresh
@@ -2846,6 +2860,141 @@ function renderTechniqueBar() {
     if (ksLow)    ksLow.value      = String(techniqueState.ksLow);
     if (ksHigh)   ksHigh.value     = String(techniqueState.ksHigh);
     if (ksWrap)   ksWrap.classList.toggle('disabled', !techniqueState.ksEnabled);
+}
+
+// ============================================================================
+// v1.23.0 — Articulation & layer loudness trims.
+//
+// One compact panel of 1 master + 4 layer sliders that always targets the
+// ACTIVE technique. Switching technique tabs retargets it (renderTrimPanel runs
+// on every techniqueStateUpdated). The DOM is STATIC — renderTrimPanel only
+// writes `.value`/readouts in place and never rebuilds the inputs, so an echoed
+// techniqueStateUpdated mid-drag cannot interrupt a drag. As an extra guard we
+// skip writing the value of a slider the user is actively focused on.
+// ============================================================================
+
+const TRIM_MAX_DB_FALLBACK = 12;
+
+function formatTrimDb(db) {
+    const v = num(db);
+    const s = (v > 0 ? '+' : '') + v.toFixed(1);
+    return `${s} dB`;
+}
+
+// Per-(active technique) layer population: which of layers 0..3 hold cells, so
+// empty layer rows can be dimmed. Pure read of the cached snapshot.
+function activeTechniqueLayerCounts() {
+    const counts = [0, 0, 0, 0];
+    const t = num(techniqueState.active);
+    if (lastSampleMapSnapshot && Array.isArray(lastSampleMapSnapshot.cells)) {
+        for (const c of lastSampleMapSnapshot.cells) {
+            if (num(c.technique) !== t) continue;
+            const l = num(c.velocityLayer);
+            if (l >= 0 && l < 4) counts[l]++;
+        }
+    }
+    return counts;
+}
+
+function renderTrimPanel() {
+    const panel = document.getElementById('trim-panel');
+    if (!panel) return;
+
+    // Visibility: reveal once a library is loaded; otherwise there is nothing
+    // to balance. Matches the "trims are library metadata" model.
+    const hasCells = !!(lastSampleMapSnapshot
+        && Array.isArray(lastSampleMapSnapshot.cells)
+        && lastSampleMapSnapshot.cells.length > 0);
+    panel.hidden = !hasCells;
+    if (!hasCells) return;
+
+    const t = Math.max(0, Math.min(7, num(techniqueState.active)));
+    const name = techniqueState.names[t] || `slot ${t + 1}`;
+
+    const chip = document.getElementById('trim-active-tech');
+    if (chip) chip.textContent = name;
+    const techLabel = document.getElementById('trim-tech-label');
+    if (techLabel) techLabel.title = `Trim the whole "${name}" technique (all layers)`;
+
+    const trims   = techniqueState.trims || {};
+    const techArr = Array.isArray(trims.technique) ? trims.technique : [];
+    const layRows = Array.isArray(trims.layers) ? trims.layers : [];
+    const techDb  = num(techArr[t]);
+    const rowForT = Array.isArray(layRows[t]) ? layRows[t] : [];
+
+    // Helper: write a slider's value + readout unless the user is dragging it.
+    const apply = (slider, readout, db) => {
+        if (slider && document.activeElement !== slider) slider.value = String(db);
+        if (readout) readout.textContent = formatTrimDb(db);
+    };
+
+    apply(document.getElementById('trim-tech-slider'),
+          document.getElementById('trim-tech-readout'), techDb);
+
+    const counts = activeTechniqueLayerCounts();
+    for (let l = 0; l < 4; ++l) {
+        apply(document.getElementById(`trim-layer-slider-${l}`),
+              document.getElementById(`trim-layer-readout-${l}`),
+              num(rowForT[l]));
+        // Dim layers with no samples in the active technique (still adjustable,
+        // just visually de-emphasised so the user knows where the audio is).
+        const row = document.querySelector(`.trim-row-layer[data-layer="${l}"]`);
+        if (row) row.classList.toggle('empty', counts[l] === 0);
+    }
+}
+
+// One-time wiring (called from init). Live-updates the readout on input for
+// responsiveness, pushes to C++ via the native bridge, and supports
+// double-click-to-zero on every slider plus a reset-all button.
+function setupTrimPanel() {
+    const clampDb = (v) => {
+        const max = num(techniqueState.trims && techniqueState.trims.maxDb,
+                        TRIM_MAX_DB_FALLBACK) || TRIM_MAX_DB_FALLBACK;
+        return Math.max(-max, Math.min(max, num(v)));
+    };
+
+    const techSlider  = document.getElementById('trim-tech-slider');
+    const techReadout = document.getElementById('trim-tech-readout');
+    if (techSlider) {
+        techSlider.addEventListener('input', () => {
+            const db = clampDb(parseFloat(techSlider.value));
+            if (techReadout) techReadout.textContent = formatTrimDb(db);
+            invokeNative('setTechniqueTrim',
+                         Math.max(0, Math.min(7, num(techniqueState.active))), db);
+        });
+        techSlider.addEventListener('dblclick', () => {
+            techSlider.value = '0';
+            if (techReadout) techReadout.textContent = formatTrimDb(0);
+            invokeNative('setTechniqueTrim',
+                         Math.max(0, Math.min(7, num(techniqueState.active))), 0);
+        });
+    }
+
+    for (let l = 0; l < 4; ++l) {
+        const slider  = document.getElementById(`trim-layer-slider-${l}`);
+        const readout = document.getElementById(`trim-layer-readout-${l}`);
+        if (!slider) continue;
+        slider.addEventListener('input', () => {
+            const db = clampDb(parseFloat(slider.value));
+            if (readout) readout.textContent = formatTrimDb(db);
+            invokeNative('setLayerTrim',
+                         Math.max(0, Math.min(7, num(techniqueState.active))), l, db);
+        });
+        slider.addEventListener('dblclick', () => {
+            slider.value = '0';
+            if (readout) readout.textContent = formatTrimDb(0);
+            invokeNative('setLayerTrim',
+                         Math.max(0, Math.min(7, num(techniqueState.active))), l, 0);
+        });
+    }
+
+    const resetBtn = document.getElementById('trim-reset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            invokeNative('resetTrims');
+            // The echoed techniqueStateUpdated re-pulls + re-renders the sliders.
+        });
+    }
 }
 
 let techniqueRenameTargetIndex = -1;
@@ -3306,6 +3455,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindLoopEditorResize();
     bindTechniqueBar();              // v1.14.0
     bindTechniquePresets();          // v1.20.0
+    setupTrimPanel();                // v1.23.0
     pullTechniqueState();            // v1.14.0
     bindTriggerPanel();              // v1.15.0
     pullTriggerState();              // v1.15.0

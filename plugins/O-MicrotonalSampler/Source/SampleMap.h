@@ -57,6 +57,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <limits>
 #include <memory>
@@ -146,6 +147,64 @@ struct SampleCell
 // only 8 fit the keyswitch range comfortably and the RR counter is sized
 // accordingly. The user can rename / reduce; addTechniqueSlot caps growth.
 inline constexpr int kMaxTechniques = 8;
+
+// v1.23.0: maximum number of velocity (dynamic) layers per cell. Mirrors
+// SampleMap::numVelocityLayers's documented 1..4 range and the literal `4`
+// used throughout the voice's layer math. Named here so the trim table below
+// stays in lockstep with the layer count.
+inline constexpr int kMaxVelocityLayers = 4;
+
+// v1.23.0: symmetric trim range in dB for the per-technique / per-layer trims.
+// ±12 dB cut/boost, 0 dB = unity. Used to clamp the setters and to scale the
+// WebView sliders.
+inline constexpr float kTrimMaxDb = 12.0f;
+
+// v1.23.0 — per-technique + per-(technique,layer) loudness trim table (dB).
+//
+// Library-balancing metadata ("make just staccato quieter", "pull down the mf
+// layer of ord"), NOT performance automation — so it is deliberately kept OUT
+// of the APVTS and round-trips through the state ValueTree like techniqueNames
+// (see PluginProcessor capture/restoreStateValueTree). Owned by the processor;
+// each voice holds a `const TrimTable*` and snapshots the relevant scalars at
+// note-on (RT-safe atomic loads).
+//
+// Two independent dB axes combine additively, which is exactly multiplicative
+// in linear gain: dbToGain(techDb + layerDb) == dbToGain(techDb)·dbToGain(layerDb).
+// So a single dbToGain per (technique,layer) at note-on yields both the
+// per-technique master trim AND the per-layer trim.
+//
+// Default 0 dB on every slot → gainFor() returns exactly 1.0f → bit-identical
+// to v1.22.0 when the user never touches a trim.
+struct TrimTable
+{
+    std::atomic<float> techniqueDb[kMaxTechniques];                     // master per technique
+    std::atomic<float> layerDb     [kMaxTechniques][kMaxVelocityLayers]; // per (technique,layer)
+
+    TrimTable() noexcept
+    {
+        for (int t = 0; t < kMaxTechniques; ++t)
+        {
+            techniqueDb[t].store (0.0f, std::memory_order_relaxed);
+            for (int l = 0; l < kMaxVelocityLayers; ++l)
+                layerDb[t][l].store (0.0f, std::memory_order_relaxed);
+        }
+    }
+
+    // RT-safe combined linear gain for (technique, layer). One pow() per call —
+    // invoked at note-on only (folded into layer weights / DynLayer trims), never
+    // per-sample. Out-of-range indices return unity so the audio path is never
+    // perturbed by a bad lookup.
+    float gainFor (int technique, int layer) const noexcept
+    {
+        if (technique < 0 || technique >= kMaxTechniques
+            || layer < 0 || layer >= kMaxVelocityLayers)
+            return 1.0f;
+
+        const float db = techniqueDb[technique].load (std::memory_order_acquire)
+                       + layerDb[technique][layer].load (std::memory_order_acquire);
+        return juce::Decibels::decibelsToGain (db);
+    }
+};
 
 struct SampleMap
 {

@@ -1835,3 +1835,114 @@ body {
 .trigger-panel-footer button:hover {
     background: var(--bg-paper, #faf6ee);
 }
+
+/* ==========================================================================
+   v1.23.0 — Articulation & layer loudness trims
+   ========================================================================== */
+.trim-panel {
+    margin-top: 4px;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    background: var(--bg-cream);
+    font-size: 12px;
+    color: var(--text-body);
+}
+
+.trim-panel[hidden] {
+    display: none;
+}
+
+.trim-panel-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-primary);
+    user-select: none;
+}
+
+.trim-active-tech {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+.trim-panel-body {
+    margin-top: 8px;
+}
+
+.trim-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+}
+
+.trim-row-master {
+    padding-bottom: 5px;
+    margin-bottom: 4px;
+    border-bottom: 1px dotted var(--border-warm);
+}
+
+.trim-label {
+    flex: 0 0 60px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.trim-layer-label {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.trim-slider {
+    flex: 1 1 auto;
+    min-width: 80px;
+    accent-color: var(--accent-warm, #b5651d);
+    cursor: pointer;
+}
+
+.trim-readout {
+    flex: 0 0 56px;
+    text-align: right;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    color: var(--text-body);
+}
+
+.trim-row-layer.empty {
+    opacity: 0.5;
+}
+
+.trim-panel-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.trim-hint {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 11px;
+}
+
+.trim-panel-footer button {
+    font-size: 11px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-warm);
+    border-radius: 3px;
+    background: var(--bg-cream);
+    color: var(--text-body);
+    cursor: pointer;
+}
+
+.trim-panel-footer button:hover {
+    background: var(--bg-paper, #faf6ee);
+}

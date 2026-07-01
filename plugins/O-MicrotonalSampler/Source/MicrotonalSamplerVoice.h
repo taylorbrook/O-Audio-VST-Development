@@ -113,6 +113,11 @@ public:
     // KS / CC / PC events on the audio thread store into the same atomic.
     void setPendingTechniqueSource (std::atomic<int>* src)              { pendingTechniqueSource = src; }
 
+    // v1.23.0: pointer to the processor-owned per-technique / per-(technique,
+    // layer) loudness trim table. Read at note-on (RT-safe atomic loads) and
+    // folded into the layer weights (velocity mode) / DynLayer gains (CC mode).
+    void setTrimTableSource (const TrimTable* t)                         { trimTable = t; }
+
 private:
     juce::AudioProcessorValueTreeState*           parameters             = nullptr;
     TuningEngine*                                 tuningEngine           = nullptr;
@@ -121,6 +126,7 @@ private:
     RrCounterArray*                               rrCounters             = nullptr;
     std::atomic<int>*                             pendingTechniqueSource = nullptr;   // v1.14.0
     int                                           startTechnique         = 0;         // captured at startNote
+    const TrimTable*                              trimTable              = nullptr;   // v1.23.0
 
     // v1.11.3: cached ADSR atomic pointers. Resolved once in prepareToPlay so
     // startNote does not deref the result of getRawParameterValue without a
@@ -164,6 +170,7 @@ private:
         const SampleVariant* variant  = nullptr;  // into currentMap (held for note)
         double               pos      = 0.0;
         double               playRate = 1.0;
+        float                trimLin  = 1.0f;      // v1.23.0: technique×layer trim (linear)
     };
     std::array<DynLayer, (size_t) kMaxDynLayers> dynLayers {};
     int                        dynLayerCount    = 0;
@@ -176,6 +183,10 @@ private:
     // dynamic crossfade position in CC mode.
     std::atomic<float>* dynamicsModeParam = nullptr;
     std::atomic<float>* expressionParam   = nullptr;
+    // v1.22.0: CC-crossfade dynamic-range (dB span pp→ff). Read per block in
+    // renderCcCrossfade / renderTailRampCc; drives the dB-linear loudness ramp
+    // layered on top of the equal-power timbre morph. 0 dB = flat (v1.21.0).
+    std::atomic<float>* dynamicRangeParam = nullptr;
 
     std::vector<float> stealTailBufferL;
     std::vector<float> stealTailBufferR;

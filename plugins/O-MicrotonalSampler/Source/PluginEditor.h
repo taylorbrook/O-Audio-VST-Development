@@ -86,6 +86,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> velocityCrossfadeRelay;
     std::unique_ptr<juce::WebSliderRelay> expressionRelay;       // v1.7.0
     std::unique_ptr<juce::WebComboBoxRelay> dynamicsModeRelay;   // v1.21.0 (choice)
+    std::unique_ptr<juce::WebSliderRelay> dynamicRangeRelay;     // v1.22.0
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
 
     // ============================================================
@@ -104,6 +105,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> velocityCrossfadeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> expressionAttachment;     // v1.7.0
     std::unique_ptr<juce::WebComboBoxParameterAttachment> dynamicsModeAttachment; // v1.21.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> dynamicRangeAttachment;   // v1.22.0
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
 
     // v1.0.2 attempted a JUCE-Component drag overlay here; it failed
