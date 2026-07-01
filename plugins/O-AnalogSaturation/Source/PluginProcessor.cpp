@@ -84,82 +84,60 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
     );
     oversamplingHigh->initProcessing(static_cast<size_t>(samplesPerBlock));
 
-    // Initialize TRANSFORMER model filters
+    // Store sample rate for the per-block auto-gain coefficient (CR-02)
+    sampleRateHz = sampleRate;
+
     const int numChannels = getTotalNumOutputChannels();
+
+    // Resize all model tone-filter banks (state is per-channel; coefficients are shared)
     transformerLFBumpFilters.resize(numChannels);
     transformerHFSheenFilters.resize(numChannels);
-
-    // TRANSFORMER frequency response filters
-    // LF bump: Peak filter at 60Hz, Q=0.7, +2.0dB
-    auto lfBumpCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-        sampleRate, 60.0f, 0.7f, juce::Decibels::decibelsToGain(2.0f));
-
-    // HF sheen: High shelf at 8000Hz, Q=0.7, +1.0dB
-    auto hfSheenCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-        sampleRate, 8000.0f, 0.7f, juce::Decibels::decibelsToGain(1.0f));
-
-    // Apply coefficients to all channels
-    for (int ch = 0; ch < numChannels; ++ch)
-    {
-        *transformerLFBumpFilters[ch].coefficients = *lfBumpCoeffs;
-        *transformerHFSheenFilters[ch].coefficients = *hfSheenCoeffs;
-
-        transformerLFBumpFilters[ch].reset();
-        transformerHFSheenFilters[ch].reset();
-    }
-
-    // Initialize TUBE model filters
     tubePresenceFilters.resize(numChannels);
-
-    // TUBE presence filter
-    // Presence boost: Peak filter at 3000Hz, Q=0.7, +1.5dB
-    auto presenceCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-        sampleRate, 3000.0f, 0.7f, juce::Decibels::decibelsToGain(1.5f));
-
-    // Apply coefficients to all channels
-    for (int ch = 0; ch < numChannels; ++ch)
-    {
-        *tubePresenceFilters[ch].coefficients = *presenceCoeffs;
-        tubePresenceFilters[ch].reset();
-    }
-
-    // Initialize MAGNETIC model filters
     magneticHeadBumpFilters.resize(numChannels);
     magneticHFRolloffFilters.resize(numChannels);
-    magneticM.resize(numChannels, 0.0f);      // Initialize magnetization to zero
-    magneticHPrev.resize(numChannels, 0.0f);  // Initialize previous field to zero
+    magneticM.assign(numChannels, 0.0f);      // Initialize magnetization to zero
+    magneticHPrev.assign(numChannels, 0.0f);  // Initialize previous field to zero
 
-    // MAGNETIC frequency response filters
-    // Head bump: Peak filter at 80Hz, Q=0.7, +2.5dB
-    auto headBumpCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-        sampleRate, 80.0f, 0.7f, juce::Decibels::decibelsToGain(2.5f));
-
-    // HF rolloff: Lowpass filter at 12000Hz, Q=0.707
-    auto hfRolloffCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
-        sampleRate, 12000.0f, 0.707f);
-
-    // Apply coefficients to all channels
-    for (int ch = 0; ch < numChannels; ++ch)
+    // CR-01: These tone filters execute INSIDE the oversampled nonlinear path, so a
+    // filter designed for `sampleRate` has its corners halved at 2x / quartered at 4x.
+    // Design one coefficient set per Quality at the rate that path actually runs at
+    // (base * osFactor), then select the active set below and on Quality change.
+    for (int q = 0; q < 3; ++q)
     {
-        *magneticHeadBumpFilters[ch].coefficients = *headBumpCoeffs;
-        *magneticHFRolloffFilters[ch].coefficients = *hfRolloffCoeffs;
+        const double osRate = sampleRate * (q == 2 ? 4.0 : q == 1 ? 2.0 : 1.0);
 
-        magneticHeadBumpFilters[ch].reset();
-        magneticHFRolloffFilters[ch].reset();
+        // TRANSFORMER: LF bump 60Hz Q=0.7 +2.0dB, HF sheen 8kHz high shelf +1.0dB
+        transformerLFBumpCoeffs[q] = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+            osRate, 60.0f, 0.7f, juce::Decibels::decibelsToGain(2.0f));
+        transformerHFSheenCoeffs[q] = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+            osRate, 8000.0f, 0.7f, juce::Decibels::decibelsToGain(1.0f));
+
+        // TUBE: presence boost 3kHz Q=0.7 +1.5dB
+        tubePresenceCoeffs[q] = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+            osRate, 3000.0f, 0.7f, juce::Decibels::decibelsToGain(1.5f));
+
+        // MAGNETIC: head bump 80Hz Q=0.7 +2.5dB, HF rolloff 12kHz lowpass Q=0.707
+        magneticHeadBumpCoeffs[q] = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+            osRate, 80.0f, 0.7f, juce::Decibels::decibelsToGain(2.5f));
+        magneticHFRolloffCoeffs[q] = juce::dsp::IIR::Coefficients<float>::makeLowPass(
+            osRate, 12000.0f, 0.707f);
     }
 
-    // Initialize Auto-Gain system
-    inputRMSEnvelope.resize(numChannels, 0.0f);
-    outputRMSEnvelope.resize(numChannels, 0.0f);
-
-    // Calculate auto-gain time constant coefficient (100ms attack/release)
-    // Formula: coeff = exp(-1.0 / (timeConstant * sampleRate))
-    const float timeConstantSeconds = 0.1f;  // 100ms
-    autoGainCoeff = std::exp(-1.0f / (timeConstantSeconds * static_cast<float>(sampleRate)));
-
-    // Get initial quality setting and report latency
+    // Get initial quality setting BEFORE selecting the active coefficient set
     auto* qualityParam = parameters.getRawParameterValue("QUALITY");
     currentQuality = static_cast<int>(qualityParam->load());
+
+    // Point every filter at its current-quality coefficients, then clear state
+    applyQualityToneCoeffs(currentQuality);
+    for (auto& f : transformerLFBumpFilters)  f.reset();
+    for (auto& f : transformerHFSheenFilters) f.reset();
+    for (auto& f : tubePresenceFilters)       f.reset();
+    for (auto& f : magneticHeadBumpFilters)   f.reset();
+    for (auto& f : magneticHFRolloffFilters)  f.reset();
+
+    // Initialize Auto-Gain system
+    inputRMSEnvelope.assign(numChannels, 0.0f);
+    outputRMSEnvelope.assign(numChannels, 0.0f);
 
     // Report latency to host
     int latency = 0;
@@ -221,6 +199,10 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
     if (quality != currentQuality)
     {
         currentQuality = quality;
+
+        // CR-01: retarget the tone filters at the coefficient set designed for the
+        // new oversampling rate (RT-safe Ptr swap; same biquad order preserves state).
+        applyQualityToneCoeffs(currentQuality);
 
         int latency = 0;
         if (currentQuality == 1 && oversamplingMid)
@@ -294,6 +276,28 @@ void OAnalogSaturationAudioProcessor::setStateInformation(const void* data, int 
 // Helper Methods for processBlock
 // ============================================================================
 
+void OAnalogSaturationAudioProcessor::applyQualityToneCoeffs(int quality)
+{
+    // CR-01: point every tone filter at the precomputed coefficient set for `quality`.
+    // Assigning a Coefficients::Ptr is only a ref-count update (no allocation, no state
+    // reset), so this is safe to call from the audio thread on a Quality change.
+    const int q = juce::jlimit(0, 2, quality);
+    for (auto& f : transformerLFBumpFilters)  f.coefficients = transformerLFBumpCoeffs[q];
+    for (auto& f : transformerHFSheenFilters) f.coefficients = transformerHFSheenCoeffs[q];
+    for (auto& f : tubePresenceFilters)       f.coefficients = tubePresenceCoeffs[q];
+    for (auto& f : magneticHeadBumpFilters)   f.coefficients = magneticHeadBumpCoeffs[q];
+    for (auto& f : magneticHFRolloffFilters)  f.coefficients = magneticHFRolloffCoeffs[q];
+}
+
+float OAnalogSaturationAudioProcessor::autoGainBlockCoeff(int numSamples) const
+{
+    // CR-02: one-pole coefficient for a single per-block update of `numSamples` samples,
+    // so the realized time constant stays ~AUTOGAIN_TIME_CONSTANT_SECONDS independent of
+    // host block size:  coeff = exp(-N / (tau * fs)).
+    const float tcSamples = AUTOGAIN_TIME_CONSTANT_SECONDS * static_cast<float>(sampleRateHz);
+    return std::exp(-static_cast<float>(numSamples) / juce::jmax(1.0f, tcSamples));
+}
+
 float OAnalogSaturationAudioProcessor::calculatePeakDB(const juce::AudioBuffer<float>& buffer)
 {
     float peak = 0.0f;
@@ -309,6 +313,14 @@ void OAnalogSaturationAudioProcessor::captureInputRMS(const juce::AudioBuffer<fl
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
 
+    // CR-03: a zero-length block would make rmsSum/numSamples = 0/0 = NaN, which the
+    // < 1e-8f flush below never clears (NaN < x is false) and then poisons every
+    // subsequent block. Nothing to measure in an empty block, so bail out.
+    if (numSamples <= 0)
+        return;
+
+    const float coeff = autoGainBlockCoeff(numSamples);  // CR-02: per-block time constant
+
     for (int channel = 0; channel < numChannels; ++channel)
     {
         const float* channelData = buffer.getReadPointer(channel);
@@ -320,9 +332,9 @@ void OAnalogSaturationAudioProcessor::captureInputRMS(const juce::AudioBuffer<fl
         }
         const float rms = std::sqrt(rmsSum / static_cast<float>(numSamples));
 
-        inputRMSEnvelope[channel] = autoGainCoeff * inputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * rms;
+        inputRMSEnvelope[channel] = coeff * inputRMSEnvelope[channel] + (1.0f - coeff) * rms;
 
-        if (inputRMSEnvelope[channel] < 1e-8f)
+        if (! std::isfinite(inputRMSEnvelope[channel]) || inputRMSEnvelope[channel] < 1e-8f)
             inputRMSEnvelope[channel] = 0.0f;
     }
 }
@@ -379,6 +391,12 @@ void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& bu
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
 
+    // CR-03: guard against a zero-length block poisoning the output RMS envelope with NaN.
+    if (numSamples <= 0)
+        return;
+
+    const float coeff = autoGainBlockCoeff(numSamples);  // CR-02: per-block time constant
+
     for (int channel = 0; channel < numChannels; ++channel)
     {
         float* channelData = buffer.getWritePointer(channel);
@@ -391,9 +409,9 @@ void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& bu
         }
         const float rms = std::sqrt(rmsSum / static_cast<float>(numSamples));
 
-        outputRMSEnvelope[channel] = autoGainCoeff * outputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * rms;
+        outputRMSEnvelope[channel] = coeff * outputRMSEnvelope[channel] + (1.0f - coeff) * rms;
 
-        if (outputRMSEnvelope[channel] < 1e-8f)
+        if (! std::isfinite(outputRMSEnvelope[channel]) || outputRMSEnvelope[channel] < 1e-8f)
             outputRMSEnvelope[channel] = 0.0f;
 
         // Apply compensation gain if enabled

@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <array>
 #include <cmath>
 #include <atomic>
 
@@ -70,6 +71,19 @@ private:
     // MAGNETIC model (Jiles-Atherton hysteresis)
     std::vector<juce::dsp::IIR::Filter<float>> magneticHeadBumpFilters;
     std::vector<juce::dsp::IIR::Filter<float>> magneticHFRolloffFilters;
+
+    // CR-01: These tone filters run INSIDE the oversampled nonlinear path, so their
+    // coefficients must be designed at the rate that path actually executes at
+    // (base * osFactor). Precompute one immutable coefficient set per Quality
+    // (index 0=LOW/1x, 1=MID/2x, 2=HIGH/4x) and swap the active set when Quality
+    // changes. Assigning a Coefficients::Ptr is a ref-count op (no allocation), so
+    // the swap is real-time safe. Coefficient objects are shared across channels.
+    std::array<juce::dsp::IIR::Coefficients<float>::Ptr, 3> transformerLFBumpCoeffs;
+    std::array<juce::dsp::IIR::Coefficients<float>::Ptr, 3> transformerHFSheenCoeffs;
+    std::array<juce::dsp::IIR::Coefficients<float>::Ptr, 3> tubePresenceCoeffs;
+    std::array<juce::dsp::IIR::Coefficients<float>::Ptr, 3> magneticHeadBumpCoeffs;
+    std::array<juce::dsp::IIR::Coefficients<float>::Ptr, 3> magneticHFRolloffCoeffs;
+    void applyQualityToneCoeffs(int quality);
     std::vector<float> magneticM;
     std::vector<float> magneticHPrev;
     static constexpr float MAGNETIC_MS = 1.0f;
@@ -81,7 +95,12 @@ private:
     // Auto-gain RMS envelopes
     std::vector<float> inputRMSEnvelope;
     std::vector<float> outputRMSEnvelope;
-    float autoGainCoeff = 0.0f;
+    double sampleRateHz = 48000.0;
+    static constexpr float AUTOGAIN_TIME_CONSTANT_SECONDS = 0.1f;  // 100 ms
+    // CR-02: the RMS envelopes update once per block, so the one-pole coefficient
+    // must be derived from the ACTUAL block length (not a per-sample constant),
+    // keeping the realized time constant ~100 ms regardless of host block size.
+    float autoGainBlockCoeff(int numSamples) const;
 
     // Processing helpers
     float calculatePeakDB(const juce::AudioBuffer<float>& buffer);
