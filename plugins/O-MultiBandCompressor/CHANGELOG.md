@@ -1,5 +1,70 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.2.1 (2026-07-01)
+
+Real-time-safety pass from `.planning/CODE-REVIEW.md`. Removes all audio-thread
+allocation, locking, and redundant work. **No intended sonic change** — the crossover
+refactor is verified bit-identical to v1.2.0 (see Verification).
+
+### Fixed (Real-Time Safety)
+
+- **CR-01 — Crossover redesigned every block on the audio thread.**
+  `CrossoverNetwork::updateCoefficients` no longer calls the heap-allocating,
+  trig-heavy `FilterDesign::designIIR...ButterworthMethod` ×6 per block. It now caches
+  the last `xover1/2/3` + sample rate and early-outs when unchanged (the common case),
+  and when they change it designs with stack-only `IIR::ArrayCoefficients` and assigns
+  into pre-allocated coefficient storage — zero heap allocation on the audio thread. The
+  2nd-order Butterworth (Q = 1/√2) is numerically identical to the old order-2 design.
+- **CR-02 — 48 `juce::String` allocations per block.** The per-band parameter IDs are no
+  longer built as runtime strings each block. All 56 `std::atomic<float>*` pointers are
+  resolved once in `prepareToPlay` into a `[band][param]` table and indexed in
+  `processBlock`.
+- **CR-03 — Per-block `AudioBuffer` allocation in M/S Mid/Side modes.** The mono M/S
+  scratch buffer is now pre-allocated in `prepareToPlay` and reused via
+  `setSize(..., avoidReallocating=true)` — no allocation on the audio thread.
+- **WR-01 — `std::mutex` locked on the audio thread for the spectrum publish.** Replaced
+  with a lock-free triple-buffer + atomic slot hand-off. `processBlock` never locks; the
+  UI thread claims the most-recent frame without blocking the audio thread.
+
+### Changed (Minor / Efficiency)
+
+- **IN-01** — Crossover and compressor hot loops use cached `getReadPointer`/
+  `getWritePointer` instead of per-sample bounds-checked `getSample`/`setSample`.
+- **IN-02** — Attack/release ballistics coefficients are recomputed only when the
+  attack/release time actually changes (was ~8 `exp()` per block, unconditionally).
+- **IN-03** — Input/Output `dsp::Gain` now uses a ~20 ms ramp so gain automation no
+  longer zippers.
+- **IN-04** — Removed dead members (`EnvelopeDetector::peakValue`/`rmsValue`,
+  `MultiBandProcessor::maxSamplesPerBlock`/`channelCount`, and the crossover's unused
+  `spec` member).
+
+### Fixed (regression caught during verification)
+
+- The first cut of the CR-01 in-place coefficient write assumed `IIR::Coefficients`
+  stores 6 taps; it actually stores the normalized 5-tap form (`{b0,b1,b2,a1,a2}`).
+  Writing 6 floats overflowed the coefficient array (a heap overrun that produced NaNs
+  under pluginval's parameter fuzz at strictness 10). Fixed by assigning through
+  `IIR::Coefficients::operator=(std::array)`, which normalizes correctly and reuses the
+  pre-allocated storage (RT-safe).
+
+### Out of Scope (deferred — would change the sound)
+
+- **WR-02** (M/S Mid/Side −6 dB detection), **WR-03** (serial-crossover all-pass
+  compensation), **WR-04** (Attack/Release readout skew), **IN-05/06** (resource-provider
+  basename match, log-frequency analyzer mapping) are intentionally *not* addressed here;
+  several change audible behavior and belong in a separate MINOR release.
+
+### Verification
+
+- **Bit-exact A/B:** offline harness ran identical white noise + a swept crossover
+  through the old (`designIIR`) and new (`ArrayCoefficients`) `CrossoverNetwork` for
+  ~4.3 s; max sample difference = `0.000e+00` (bit-identical).
+- **pluginval** strictness 10 — PASS (4 runs, including 3 randomized seeds); the fuzz
+  test exercises M/S modes, solo, and bypass.
+- **auval** (`aufx OMbc`) — PASS at 44.1/11/192 kHz, mono and 1→2-channel.
+
+---
+
 ## Version 1.2.0 (2026-01-26)
 
 ### Added
