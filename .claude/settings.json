@@ -67,7 +67,7 @@
     ],
     "SubagentStart": [
       {
-        "matcher": "troubleshoot-agent|dsp-agent|gui-agent|research-planning-agent|validation-agent|research-lead",
+        "matcher": "troubleshoot-agent|dsp-agent|gui-agent|research-planning-agent|validation-agent|dorico-agent",
         "hooks": [
           {
             "type": "command",
