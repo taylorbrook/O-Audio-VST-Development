@@ -1,5 +1,15 @@
 # O-Bass Changelog
 
+## [1.3.2] - 2026-07-01
+
+### Fixed
+- Preset-manager module sync (`preset-manager` v1.0.2) — fixes from the O-DigiDelay code review:
+  - **WR-04:** preset names are sanitized before use as filenames (`/\\:` → `_`) in save/load/delete/isFactory, so a name containing `/` no longer silently drops the file.
+  - **IN-02:** preset JSON records the real plugin version instead of a hard-coded `"1.0.0"`.
+  - **IN-03:** prev/next resume from the last in-list position instead of snapping to index 0 after loading an out-of-list preset from file.
+  - **IN-01:** corrected the preset-path docstring.
+- Set `VERSION 1.3.2` in CMake (was previously unset, so `JucePlugin_VersionString` reported `1.0.0`).
+
 ## [1.3.1] - 2026-01-28
 
 ### Added

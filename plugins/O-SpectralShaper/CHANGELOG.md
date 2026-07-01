@@ -1,5 +1,14 @@
 # O-SpectralShaper Changelog
 
+## [1.3.1] - 2026-07-01
+
+### Fixed
+- Preset-manager module sync (`preset-manager` v1.0.2) — fixes from the O-DigiDelay code review:
+  - **WR-04:** preset names are sanitized before use as filenames (`/\\:` → `_`) in save/load/delete/isFactory, so a name containing `/` no longer silently drops the file.
+  - **IN-02:** preset JSON records the real plugin version (`JucePlugin_VersionString`) instead of a hard-coded `"1.0.0"`.
+  - **IN-03:** prev/next resume from the last in-list position instead of snapping to index 0 after loading an out-of-list preset from file.
+  - **IN-01:** corrected the preset-path docstring.
+
 ## [1.3.0] - 2026-03-08
 
 ### Added
