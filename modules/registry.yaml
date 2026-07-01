@@ -285,7 +285,7 @@ modules:
       Header-only C++ module under Ouaricon::NoteExpression — provides the NEC,
       the VST3Extensions subclass that owns the 128-slot pending-tuning table,
       a drain+correlate helper, and a voice-side applyPendingTuning helper.
-      Requires a local JUCE patch (scripts/juce-patches/note-expression-juce-8.0.4.patch).
+      Requires a local JUCE patch (scripts/juce-patches/note-expression-juce-8.0.9.patch).
     category: tuning
     provides:
       - cpp-class: Ouaricon::NoteExpression::Controller

@@ -48,7 +48,7 @@ delta with any base frequency (e.g. a `TuningEngine` lookup).
 Upstream JUCE 8.0.4 drops `kNoteExpressionValueEvent` and `noteId`-tagged
 NoteOn/NoteOff events inside `MidiEventList::toMidiBuffer` because they
 have no representation in `juce::MidiMessage`. The local patch at
-`scripts/juce-patches/note-expression-juce-8.0.4.patch` adds
+`scripts/juce-patches/note-expression-juce-8.0.9.patch` adds
 `VST3ClientExtensions::onVst3RawEvent` so the plugin sees the raw events
 before the lossy conversion.
 
