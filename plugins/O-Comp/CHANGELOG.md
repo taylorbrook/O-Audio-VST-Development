@@ -2,6 +2,47 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.5.0] - 2026-07-01
+
+Bundled resolution of code-review findings CR-01 and WR-01/02/03 (see `.planning/REVIEW.md`).
+
+### Fixed
+
+- **CR-01 (critical): Divide-by-zero → NaN in the soft-knee gain formula when `knee == 0`.**
+  `calculateGainReduction()` divided by `2 * kneeDB` in the inside-knee branch. With a
+  zero/near-zero knee — including the shipped **"Parallel Crush"** factory preset — an
+  envelope landing exactly on the threshold evaluated `0/0` → NaN, which flowed into the
+  output buffer (audible click at best, latched-NaN channel at worst). Root cause: the two
+  guard branches (`x < 0`, `x > 0`) leave the else branch reachable at `x == 0` when the
+  knee is zero. Fix: early-return a hard-knee result when `kneeDB <= 1e-6f`.
+- **WR-01: Latent out-of-bounds / null-pointer deref on >2-channel layouts.** The
+  channel-pointer array is sized 2, but the detection and gain-apply loops iterated the raw
+  `getNumChannels()` with no cap. Fix: cap the working channel count to
+  `jmin(getNumChannels(), 2)` and add an `isBusesLayoutSupported()` override that accepts
+  only mono/stereo main I/O (input must match output), so a wider layout can never be
+  negotiated.
+
+### Changed
+
+- **WR-02: Makeup/output gain is now smoothed to remove zipper noise on automation.**
+  Auto-gain + `output_gain` were computed once per block and hard-multiplied per sample, so
+  automating `output_gain` / toggling `auto_gain` / sweeping `threshold`/`ratio` stepped the
+  gain discontinuously at block boundaries. Now wrapped in a `juce::SmoothedValue` (20 ms
+  ramp), initialized in `prepareToPlay()` and advanced per sample. Shared computation
+  factored into `computeMakeupGainLinear()`.
+- **WR-03: Preset Prev/Next no longer jumps to the alphabetically-first preset after loading
+  an imported (or deleted) preset that isn't in the Factory/User list.** When the current
+  name resolves to index -1, `getPreviousPreset()` now returns the last entry (treating the
+  unknown preset as "before the list") instead of the first, matching `getNextPreset()`'s
+  wrap semantics. Note: fix applied to O-Comp's local copy of the shared `preset-manager`
+  module — the module master carries the same latent behavior and can be updated suite-wide
+  via `/modules` separately.
+
+### Testing
+
+- Release build + `pluginval` (strictness 8) via build-and-install; installed to system
+  VST3/AU with cache clear and dual-variant sweep. Verified AU registers via `auval`.
+
 ## [1.4.3] - 2026-03-06
 
 ### Fixed

@@ -113,8 +113,10 @@ void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int sa
     spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
 
     // Calculate maximum delay buffer size (2000ms at up to 192kHz)
-    // Add extra headroom for modulation and spread (25ms total)
-    const double maxDelaySeconds = (2000.0 + 25.0) / 1000.0;
+    // Reserve modulation depth (spread 15ms + mod 10ms = 25ms) PLUS a 5ms safety pad
+    // so the max read index never reaches maximumDelayInSamples. Without the pad the read
+    // lands exactly on the buffer edge at 48/96/192 kHz (WR-01).
+    const double maxDelaySeconds = (2000.0 + 15.0 + 10.0 + 5.0) / 1000.0;
     const int maxDelaySamples = static_cast<int>(std::ceil(maxDelaySeconds * sampleRate));
 
     // Prepare delay lines with maximum size
@@ -150,6 +152,24 @@ void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int sa
 
 void OuariconDigitalDelayAudioProcessor::releaseResources()
 {
+}
+
+bool OuariconDigitalDelayAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    const auto& mainIn  = layouts.getMainInputChannelSet();
+    const auto& mainOut = layouts.getMainOutputChannelSet();
+
+    // Reject disabled/empty buses
+    if (mainIn.isDisabled() || mainOut.isDisabled())
+        return false;
+
+    // Input and output layouts must match (no up/down-mixing)
+    if (mainIn != mainOut)
+        return false;
+
+    // Accept mono->mono and stereo->stereo only
+    return mainIn == juce::AudioChannelSet::mono()
+        || mainIn == juce::AudioChannelSet::stereo();
 }
 
 void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -218,6 +238,7 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             delayLineLeft.pushSample(0, drySample + feedbackLeft);
             float delayedSample = delayLineLeft.popSample(0, leftDelaySamples);
             feedbackLeft = delayedSample * currentFeedback;
+            if (! std::isfinite(feedbackLeft)) feedbackLeft = 0.0f; // break NaN/Inf recirculation (ScopedNoDenormals doesn't catch these)
             leftChannel[sample] = delayedSample * currentWet + drySample * currentDry;
         }
 
@@ -227,6 +248,7 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             delayLineRight.pushSample(0, drySample + feedbackRight);
             float delayedSample = delayLineRight.popSample(0, rightDelaySamples);
             feedbackRight = delayedSample * currentFeedback;
+            if (! std::isfinite(feedbackRight)) feedbackRight = 0.0f; // break NaN/Inf recirculation (ScopedNoDenormals doesn't catch these)
             rightChannel[sample] = delayedSample * currentWet + drySample * currentDry;
         }
     }
@@ -239,6 +261,9 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             sumSquares += leftChannel[i] * leftChannel[i];
         rmsLevelLeft.setTargetValue(std::sqrt(sumSquares / static_cast<float>(numSamples)));
         rmsLevelLeft.skip(numSamples);
+        // Publish smoothed value through an atomic so the message-thread meter getter
+        // never reads the LinearSmoothedValue internals across threads (WR-06).
+        rmsMeterLeft.store(rmsLevelLeft.getCurrentValue(), std::memory_order_relaxed);
     }
 
     if (rightChannel != nullptr)
@@ -248,6 +273,7 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             sumSquares += rightChannel[i] * rightChannel[i];
         rmsLevelRight.setTargetValue(std::sqrt(sumSquares / static_cast<float>(numSamples)));
         rmsLevelRight.skip(numSamples);
+        rmsMeterRight.store(rmsLevelRight.getCurrentValue(), std::memory_order_relaxed);
     }
 }
 

@@ -8,7 +8,7 @@ juce_add_plugin(O-Comp
     PLUGIN_CODE OuCp
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Comp${OUARICON_DEV_SUFFIX}"
-    VERSION 1.4.3
+    VERSION 1.5.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )

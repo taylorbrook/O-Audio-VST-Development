@@ -21,6 +21,7 @@ public:
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -66,6 +67,9 @@ private:
     float attackCoeff = 0.0f;   // Attack time coefficient
     float releaseCoeff = 0.0f;  // Release time coefficient
 
+    // Makeup/output gain smoothing (de-zippers automation and auto-gain toggles)
+    juce::SmoothedValue<float> smoothedMakeup { 1.0f };
+
     // Metering (atomic for thread-safe access from UI)
     std::atomic<float> inputLevelDB { -60.0f };
     std::atomic<float> outputLevelDB { -60.0f };
@@ -85,6 +89,10 @@ private:
     float calculateGainReduction(float inputLevel, float thresholdDB,
                                   float ratio, float kneeDB);
     void updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate);
+
+    // Linear makeup gain (auto-gain + output_gain) from current param values.
+    // Shared by prepareToPlay (initial snap) and processBlock (per-block target).
+    float computeMakeupGainLinear() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OCompAudioProcessor)
 };

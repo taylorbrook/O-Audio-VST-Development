@@ -2,11 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.5.0
 - **Type:** Audio Effect (Compressor)
 
 ## Lifecycle Timeline
 
+- **2026-07-01 (v1.5.0):** Bundled code-review fixes CR-01 + WR-01/02/03 — soft-knee /0→NaN guard (hit "Parallel Crush" preset), channel-loop OOB cap + `isBusesLayoutSupported` (mono/stereo), smoothed makeup gain (de-zipper), preset Prev/Next wrap fix for imported/deleted presets. See `.planning/REVIEW.md`.
+- **2026-03-06 (v1.4.3):** Fixed auto-gain overcompensation (50% makeup-gain scaling)
 - **2026-01-24 (v1.2.0):** Renamed from OuariconComp to O-Comp
 - **2026-01-12 (v1.1.1):** Added preset dropdown menu
 - **2026-01-12 (v1.1.0):** Preset Manager integration, 8 factory presets
