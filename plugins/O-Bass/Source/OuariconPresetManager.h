@@ -21,7 +21,9 @@
  * Generic preset manager for Ouaricon plugins.
  *
  * Presets are stored as JSON files in:
- *   ~/Library/Application Support/{pluginName}/Presets/
+ *   ~/Library/{pluginName}/Presets/
+ * (IN-01: this is the historical location; kept as-is so existing user presets are
+ *  not orphaned. Do not switch to Application Support without a one-time migration.)
  *
  * Subdirectories:
  *   - Factory/ : Read-only presets shipped with plugin
@@ -176,9 +178,22 @@ private:
     juce::String pluginName;
     juce::String currentPresetName { "Default" };
 
+    // IN-03: remember the last position within the preset list so prev/next after a
+    // dialog-loaded (out-of-list) preset resume near the last in-list selection
+    // instead of snapping to index 0. -1 = no in-list selection yet.
+    mutable int lastListIndex { -1 };
+
     // Custom state callbacks
     CustomSaveCallback customSave;
     CustomLoadCallback customLoad;
+
+    // WR-04: strip path separators so a name like "Koto / Harp" cannot be interpreted
+    // as a path by getChildFile() (which silently drops the file). Applied consistently
+    // wherever a preset name is turned into a filename so the same name round-trips.
+    static juce::String sanitizePresetName(const juce::String& name)
+    {
+        return name.replaceCharacters("/\\:", "___");
+    }
 
     // JSON helpers
     juce::var createPresetJson() const;
@@ -223,7 +238,7 @@ inline juce::File OuariconPresetManager::getUserPresetsDirectory() const
 
 inline bool OuariconPresetManager::isFactoryPreset(const juce::String& presetName) const
 {
-    auto factoryFile = getFactoryPresetsDirectory().getChildFile(presetName + ".json");
+    auto factoryFile = getFactoryPresetsDirectory().getChildFile(sanitizePresetName(presetName) + ".json");
     return factoryFile.existsAsFile();
 }
 
@@ -249,8 +264,8 @@ inline juce::var OuariconPresetManager::createPresetJson() const
         preset->setProperty("customState", customSave());
     }
 
-    // Metadata
-    preset->setProperty("version", "1.0.0");
+    // Metadata (IN-02: record the actual plugin version, not a hard-coded literal)
+    preset->setProperty("version", JucePlugin_VersionString);
     preset->setProperty("plugin", pluginName);
 
     return juce::var(preset);
@@ -305,15 +320,17 @@ inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
     // Ensure directory exists (lazy creation)
     getUserPresetsDirectory().createDirectory();
 
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto safeName = sanitizePresetName(presetName);
+    auto presetFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
 
     auto presetJson = createPresetJson();
     auto jsonString = juce::JSON::toString(presetJson, true);
 
     if (presetFile.replaceWithText(jsonString))
     {
-        currentPresetName = presetName;
-        juce::Logger::writeToLog("[PresetManager] Preset saved: " + presetName);
+        // Track the on-disk (sanitized) name so it matches getPresetList() and navigates.
+        currentPresetName = safeName;
+        juce::Logger::writeToLog("[PresetManager] Preset saved: " + safeName);
         return true;
     }
 
@@ -326,15 +343,16 @@ inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
         return false;
 
     // Check factory presets first, then user presets
-    juce::File presetFile = getFactoryPresetsDirectory().getChildFile(presetName + ".json");
+    auto safeName = sanitizePresetName(presetName);
+    juce::File presetFile = getFactoryPresetsDirectory().getChildFile(safeName + ".json");
     if (!presetFile.existsAsFile())
     {
-        presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+        presetFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
     }
 
     if (!presetFile.existsAsFile())
     {
-        juce::Logger::writeToLog("[PresetManager] Preset not found: " + presetName);
+        juce::Logger::writeToLog("[PresetManager] Preset not found: " + safeName);
         return false;
     }
 
@@ -343,8 +361,8 @@ inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
 
     if (applyPresetJson(presetData))
     {
-        currentPresetName = presetName;
-        juce::Logger::writeToLog("[PresetManager] Preset loaded: " + presetName);
+        currentPresetName = safeName;
+        juce::Logger::writeToLog("[PresetManager] Preset loaded: " + safeName);
         return true;
     }
 
@@ -385,12 +403,13 @@ inline bool OuariconPresetManager::deletePreset(const juce::String& presetName)
         return false;
     }
 
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto safeName = sanitizePresetName(presetName);
+    auto presetFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
     if (presetFile.existsAsFile())
     {
         if (presetFile.deleteFile())
         {
-            if (currentPresetName == presetName)
+            if (currentPresetName == safeName)
                 currentPresetName = "Default";
             return true;
         }
@@ -435,11 +454,16 @@ inline juce::String OuariconPresetManager::getNextPreset() const
     if (presets.isEmpty())
         return currentPresetName;
 
+    // IN-03: if the current preset isn't in the list (e.g. loaded from an arbitrary
+    // file), resume from the last in-list position instead of snapping to index 0.
     int currentIndex = presets.indexOf(currentPresetName);
-    if (currentIndex < 0)
-        return presets[0];
+    if (currentIndex >= 0)
+        lastListIndex = currentIndex;
+    else if (lastListIndex < 0)
+        return presets[0];  // no in-list anchor yet — start at the top
 
-    int nextIndex = (currentIndex + 1) % presets.size();
+    int base = juce::jlimit(0, presets.size() - 1, lastListIndex);
+    int nextIndex = (base + 1) % presets.size();
     return presets[nextIndex];
 }
 
@@ -449,11 +473,15 @@ inline juce::String OuariconPresetManager::getPreviousPreset() const
     if (presets.isEmpty())
         return currentPresetName;
 
+    // IN-03: see getNextPreset — fall back to the last in-list position, not index 0.
     int currentIndex = presets.indexOf(currentPresetName);
-    if (currentIndex < 0)
-        return presets[0];
+    if (currentIndex >= 0)
+        lastListIndex = currentIndex;
+    else if (lastListIndex < 0)
+        return presets[0];  // no in-list anchor yet — match legacy behavior
 
-    int prevIndex = (currentIndex - 1 + presets.size()) % presets.size();
+    int base = juce::jlimit(0, presets.size() - 1, lastListIndex);
+    int prevIndex = (base - 1 + presets.size()) % presets.size();
     return presets[prevIndex];
 }
 
@@ -538,8 +566,8 @@ inline void OuariconPresetManager::initializeFactoryPresets(
             presetObj->setProperty("customState", preset.customState);
         }
 
-        // Metadata
-        presetObj->setProperty("version", "1.0.0");
+        // Metadata (IN-02: record the actual plugin version, not a hard-coded literal)
+        presetObj->setProperty("version", JucePlugin_VersionString);
         presetObj->setProperty("plugin", pluginName);
         presetObj->setProperty("factory", true);
 
