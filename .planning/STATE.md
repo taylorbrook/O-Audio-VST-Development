@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-06-23 - Completed quick task 260623-bmr: PWYW Path B — physically remove the licensing system from the plugin suite
+Last activity: 2026-07-01 - Completed quick task 260701-in8: Read-only PFS system review — bugs, improvements, update recommendations
 
 Progress: [██████████] 100%
 
@@ -139,6 +139,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260505-mri | Wire 6 agents/skills/commands (troubleshoot-agent, plugin-improve, plugin-publishing, generalize-microtones, gui-agent, dsp-agent) to delegate to dorico-agent | 2026-05-05 | 0a216af |  | [260505-mri-wire-6-existing-agents-skills-to-delegat](./quick/260505-mri-wire-6-existing-agents-skills-to-delegat/) |
 | 260622-pwy | Move to pay-what-you-want — Path A: flip CI licensing switch (remove licensing/Supabase flags from build-and-release.yml). Path B full removal deferred & scoped | 2026-06-22 | 155f34c |  | [260622-pwy-remove-licensing-pay-what-you-want](./quick/260622-pwy-remove-licensing-pay-what-you-want/) |
 | 260623-bmr | PWYW Path B — physically remove the licensing system (delete module + add-licensing skill, strip guards from 24 plugins, clean root CMake + registry). 28 atomic commits; 4 sample plugins build clean | 2026-06-23 | 77b6b5a | Verified | [260623-bmr-path-b-physically-remove-licensing-syste](./quick/260623-bmr-path-b-physically-remove-licensing-syste/) |
+| 260701-in8 | Read-only PFS system review — 6 bugs, 5 improvements, 6 update recs (REVIEW.md; dead hooks, CI target resolver, registry drift) | 2026-07-01 | -- |  | [260701-in8-complete-a-review-of-this-system-for-cre](./quick/260701-in8-complete-a-review-of-this-system-for-cre/) |
 
 ## Session Continuity
 
