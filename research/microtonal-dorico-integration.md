@@ -16,7 +16,7 @@ keywords:
   - integration-notes
 stages: [3, 4]
 audience: internal-dev-only
-agents: [dsp, integration]
+agents: [dsp]
 related:
   - .planning/phases/23-extract/
   - .planning/phases/24-propagate/

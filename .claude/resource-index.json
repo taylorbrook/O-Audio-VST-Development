@@ -1,7 +1,7 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-04-05T02:51:26Z",
+  "generated": "2026-07-02T18:20:19Z",
   "documents": [
     {
       "path": "research/2d-scatter-plot-concatenative-synthesis.md",
@@ -64,6 +64,133 @@
       ]
     },
     {
+      "path": "research/O-Bowed-acoustic-instrument-research.md",
+      "title": "O-Bowed: Acoustic Instrument Research - Violin, Cello, Erhu, Nyckelharpa",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "physical-modeling",
+        "bowed-string",
+        "waveguide",
+        "violin",
+        "cello",
+        "erhu",
+        "nyckelharpa",
+        "body-resonance",
+        "sympathetic-strings",
+        "bow-friction"
+      ],
+      "summary": "Deep-dive into acoustic properties, physical modeling feasibility, and market analysis for four candidate bowed instruments. Includes string parameters, body resonance data, bow mechanics, and implementation recommendations.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research",
+        "dsp"
+      ]
+    },
+    {
+      "path": "research/O-Bowed-research-synthesis.md",
+      "title": "O-Bowed: Research Synthesis",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research-synthesis",
+      "keywords": [
+        "physical-modeling",
+        "bowed-string",
+        "waveguide",
+        "friction-model",
+        "erhu",
+        "violin",
+        "cello",
+        "o-bowed"
+      ],
+      "summary": "Synthesized findings from 3 parallel Level 3 research agents covering bow-string friction DSP, commercial landscape, and instrument acoustics. General-purpose bowed string synthesizer with continuous body morphing and instrument presets.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research"
+      ]
+    },
+    {
+      "path": "research/O-Contrabass-body-acoustics.md",
+      "title": "O-Contrabass — Bass-Tuned Wood Body Resonator: Acoustics & Synthesis Reference",
+      "created": "2026-04-25",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "contrabass",
+        "double-bass",
+        "body-resonance",
+        "modal-synthesis",
+        "parallel-biquad",
+        "helmholtz",
+        "wolf-tone",
+        "bow-noise",
+        "bridge-hill",
+        "body-size",
+        "body-damping",
+        "body-mix"
+      ],
+      "juce_version": "8.0.4"
+    },
+    {
+      "path": "research/O-Contrabass-drone-and-subharmonics.md",
+      "title": "O-Contrabass: Sub-Harmonics, Infinite Sustain, and Drone-Mode Stability",
+      "created": "2026-04-25",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "subharmonic-generation",
+        "anomalous-low-frequencies",
+        "period-doubling",
+        "infinite-sustain",
+        "self-oscillation",
+        "drone-stability",
+        "bowed-bass",
+        "waveguide",
+        "schelleng-diagram",
+        "slow-bow-lfo",
+        "vibrato",
+        "in-loop-saturation"
+      ],
+      "juce_version": "8.0.4"
+    },
+    {
+      "path": "research/O-Contrabass-research-synthesis.md",
+      "title": "O-Contrabass: Research Synthesis",
+      "created": "2026-04-25",
+      "domain": "dsp",
+      "type": "research-synthesis",
+      "keywords": [
+        "physical-modeling",
+        "bowed-string",
+        "contrabass",
+        "double-bass",
+        "waveguide",
+        "friction-model",
+        "drone",
+        "subharmonics",
+        "infinite-sustain",
+        "inharmonicity",
+        "body-resonator",
+        "microtonal",
+        "mts-esp",
+        "vst3-note-expression"
+      ],
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research"
+      ]
+    },
+    {
       "path": "research/O-Detune-market-research.md",
       "title": "O-Detune Market Research",
       "created": "2026-02-01",
@@ -80,6 +207,97 @@
       ],
       "summary": "Competitive landscape analysis of detuning and pitch thickening plugins, covering Soundtoys MicroShift, Eventide MicroPitch, and identifying market gaps for analog-style wobble with unison detuning.",
       "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research"
+      ]
+    },
+    {
+      "path": "research/O-Formant-deep-research.md",
+      "title": "O-Formant Deep Research: Physical-Model Vocal Synthesizer",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "formant-synthesis",
+        "vocal-modeling",
+        "physical-model",
+        "xy-pad",
+        "glottal-pulse",
+        "consonant-noise",
+        "klatt",
+        "mpe",
+        "juce-dsp"
+      ],
+      "summary": "Comprehensive research synthesis for O-Formant — a playable physical-model vocal synthesizer with XY vowel morph pad, glottal pulse control, and consonant noise injection. Covers market gap, DSP architecture, interpolation geometry, signal flow, and JUCE implementation strategy.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research",
+        "dsp"
+      ]
+    },
+    {
+      "path": "research/O-Reed-acoustic-properties-reed-instruments.md",
+      "title": "O-Reed: Acoustic Properties of Reed Wind Instruments",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "physical-modeling",
+        "reed-instrument",
+        "waveguide",
+        "clarinet",
+        "saxophone",
+        "oboe",
+        "bassoon",
+        "duduk",
+        "zurna",
+        "hichiriki",
+        "bore-geometry",
+        "double-reed",
+        "single-reed",
+        "free-reed",
+        "conical-bore",
+        "cylindrical-bore",
+        "extended-techniques"
+      ],
+      "summary": "Comprehensive acoustic reference for reed wind instrument physical modeling. Covers single reed, double reed, free reed, and non-western instruments with bore dimensions, reed parameters, harmonic behavior, extended techniques, and material effects.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research",
+        "dsp"
+      ]
+    },
+    {
+      "path": "research/O-Reed-research-synthesis.md",
+      "title": "O-Reed: Research Synthesis",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research-synthesis",
+      "keywords": [
+        "physical-modeling",
+        "reed",
+        "waveguide",
+        "clarinet",
+        "saxophone",
+        "oboe",
+        "duduk",
+        "zurna",
+        "shehnai",
+        "suona",
+        "hichiriki",
+        "o-reed"
+      ],
+      "summary": "Synthesized findings from 3 parallel Level 3 research agents covering reed DSP algorithms, commercial landscape, and instrument acoustics. General-purpose reed wind instrument synthesizer with continuous bore/reed morphing and instrument presets.",
       "juce_version": "8.0.4",
       "stages": [
         0
@@ -535,6 +753,88 @@
       ]
     },
     {
+      "path": "research/flute-physical-modeling-synthesis.md",
+      "title": "Flute Physical Modeling Synthesis",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "physical-modeling",
+        "flute",
+        "waveguide",
+        "air-jet",
+        "edge-tone",
+        "jet-drive",
+        "tone-hole",
+        "embouchure",
+        "bore-model",
+        "wind-instrument",
+        "overblowing",
+        "shakuhachi",
+        "recorder"
+      ],
+      "summary": "Comprehensive technical reference for flute physical modeling synthesis using digital waveguides, covering air jet excitation, bore modeling, tone hole lattice filters, embouchure/breath models, flute-specific physics, and real-time implementation considerations for the O-Wind plugin.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research",
+        "dsp"
+      ]
+    },
+    {
+      "path": "research/flute-waveguide-juce8-implementation.md",
+      "title": "Flute Physical Model: JUCE 8 Implementation Research",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "physical-modeling",
+        "flute",
+        "waveguide",
+        "jet-drive",
+        "tone-holes",
+        "wind-instrument",
+        "embouchure",
+        "overblowing"
+      ],
+      "summary": "Comprehensive implementation research for a digital waveguide flute synthesizer in JUCE 8, covering DSP class mapping, signal flow architecture, parameter design, and performance analysis with comparison to O-Bowed architecture.",
+      "juce_version": "8.0.4"
+    },
+    {
+      "path": "research/fm-phase-modulation-synthesis-o-simplefm.md",
+      "title": "FM / Phase-Modulation Synthesis — Research for O-simpleFM",
+      "created": "2026-06-20",
+      "domain": "dsp",
+      "type": "algorithm",
+      "keywords": [
+        "fm-synthesis",
+        "phase-modulation",
+        "2-operator",
+        "modulation-index",
+        "bessel-sidebands",
+        "dx7-feedback",
+        "anti-aliasing",
+        "juce-synthesiser",
+        "lookup-table",
+        "oversampling",
+        "carson-bandwidth",
+        "chowning"
+      ],
+      "summary": "Level-3 deep research on 2-operator phase-modulation synthesis for a pedagogical FM synth. Covers PM-vs-FM math, modulation-index/Bessel semantics, DX7 self-feedback anti-hunting, anti-aliasing strategy, and JUCE 8 Synthesiser/FFT/oversampling architecture grounded in the Ouaricon suite.",
+      "last_verified": "2026-06-20",
+      "juce_version": "8.0.9",
+      "stages": [
+        0,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
+      ]
+    },
+    {
       "path": "research/freeze-spectral-freeze-effects.md",
       "title": "Freeze & Spectral Freeze Effects",
       "created": "2026-03-07",
@@ -612,6 +912,34 @@
         0
       ],
       "agents": [
+        "research"
+      ]
+    },
+    {
+      "path": "research/glottal-pulse-modeling-deep-dive.md",
+      "title": "Advanced Glottal Pulse Modeling for O-Formant",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "glottal-pulse",
+        "lf-model",
+        "rd-parameter",
+        "polyblep",
+        "vocal-synthesis",
+        "formant-synth",
+        "anti-aliasing",
+        "wavetable"
+      ],
+      "summary": "Deep technical reference for LF model implementation, anti-aliased glottal synthesis, musical parameter design, creative sound design, and formant-pitch interaction for a playable vocal synthesizer.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
         "research"
       ]
     },
@@ -699,6 +1027,31 @@
       "agents": [
         "dsp",
         "research"
+      ]
+    },
+    {
+      "path": "research/microtonal-dorico-integration.md",
+      "title": "Microtonal Dorico Integration: Module Architecture, Setup, Quirks, Troubleshooting",
+      "created": "2026-04-27",
+      "domain": "dsp",
+      "type": "reference",
+      "keywords": [
+        "dorico",
+        "vst3-note-expression",
+        "microtuning",
+        "doricolib",
+        "library-manager",
+        "integration-notes"
+      ],
+      "summary": "Internal developer reference for the v1.5 microtonal cohort's Dorico integration via VST3 Note Expression. Covers module architecture, canonical Path B setup procedure (Library Manager Import), host-side behavior quirks, and troubleshooting signatures. Source-of-truth notes; not user-facing manual copy.",
+      "last_verified": "2026-04-27",
+      "juce_version": "8.0.4",
+      "stages": [
+        3,
+        4
+      ],
+      "agents": [
+        "dsp"
       ]
     },
     {
@@ -1053,6 +1406,32 @@
       ],
       "summary": "Analysis of building audio plugins without JUCE, comparing framework-free and lightweight alternatives. Covers binary size trade-offs, raw VST3/AU SDK approaches, single-header libraries (clap, iPlug2, DPF), cross-platform challenges, and when going JUCE-free makes sense vs. when JUCE's ecosystem advantages outweigh the overhead.",
       "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research"
+      ]
+    },
+    {
+      "path": "research/reed-physical-modeling-dsp.md",
+      "title": "O-Reed: Reed Instrument Physical Modeling DSP Research",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "deep-research",
+      "keywords": [
+        "physical-modeling",
+        "reed",
+        "waveguide",
+        "clarinet",
+        "saxophone",
+        "oboe",
+        "wind-instrument",
+        "nonlinear",
+        "o-reed"
+      ],
+      "summary": "Comprehensive DSP research for a general-purpose reed wind instrument synthesizer covering single/double reed excitation, cylindrical and conical bore waveguides, nonlinear reed-bore coupling, tone holes, expressive control, and real-time implementation.",
       "juce_version": "8.0.4",
       "stages": [
         0
