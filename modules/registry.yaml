@@ -8,8 +8,9 @@
 # - Templates: Documentation/patterns (copy-paste with adaptation)
 # - Modules: Working code (CMake import with configuration)
 
-version: 1.0.0
-last_updated: 2026-01-14
+# NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
+version: 1.0.1
+last_updated: 2026-07-02
 schema_version: 1.0.0
 
 # Module categories
@@ -56,7 +57,9 @@ modules:
       - cpp-header: WebViewRelayManager.h
     tags: [webview, relay, attachment, juce8, crash-prevention]
     reuse_score: 10
-    used_by: []
+    used_by:
+      - plugin: O-Prism
+        version: 1.18.1
 
   - name: resource-provider
     path: core/resource-provider
@@ -124,7 +127,11 @@ modules:
     reuse_score: 8
     used_by:
       - plugin: O-MicrotonalSampler
-        version: 1.13.0
+        version: 1.23.6
+      - plugin: O-simpleGrain
+        version: 1.1.0
+      - plugin: O-simpleSampler
+        version: 1.0.0
 
   # ============================================================================
   # PERSISTENCE MODULES
@@ -165,12 +172,48 @@ modules:
     tags: [presets, persistence, json, factory, user]
     reuse_score: 9
     used_by:
-      - plugin: OuariconMarimba
+      - plugin: O-AnalogEQ
+        version: 1.1.10
+      - plugin: O-Bass
+        version: 1.3.2
+      - plugin: O-Bassoon
         version: 1.0.0
-      - plugin: OuariconTremolo
+      - plugin: O-Bells
+        version: 4.1.0
+      - plugin: O-Bowed
         version: 1.3.0
-      - plugin: OFreqPulse
-        version: 1.6.0
+      - plugin: O-Chorus
+        version: 1.2.3
+      - plugin: O-Comp
+        version: 1.5.0
+      - plugin: O-Detune
+        version: 1.0.0
+      - plugin: O-DigiDelay
+        version: 1.2.12
+      - plugin: O-Formant
+        version: 1.25.4
+      - plugin: O-FreqPulse
+        version: 1.16.2
+      - plugin: O-Lyrica
+        version: 2.3.0
+      - plugin: O-Polystutter
+        version: 1.12.3
+      - plugin: O-Prism
+        version: 1.18.1
+      - plugin: O-Reed
+        version: 1.1.0
+      - plugin: O-simpleFM
+        version: 1.2.1
+      - plugin: O-simplePhysicalModelSynth
+        version: 1.0.0
+      - plugin: O-SimpleReverb
+        version: 1.5.5
+      - plugin: O-SpectralShaper
+        version: 1.3.1
+      - plugin: O-Tremolo
+        version: 1.4.7
+      - plugin: O-Wind
+        version: 1.16.0
 
   # ============================================================================
   # METERING MODULES
@@ -211,11 +254,7 @@ modules:
     dependencies: []
     tags: [vu, meter, levels, animation, atomic]
     reuse_score: 9
-    used_by:
-      - plugin: OuariconComp
-        version: 1.0.0
-      - plugin: OuariconAnalogEQ
-        version: 1.0.0
+    used_by: []
 
   # ============================================================================
   # TUNING MODULES
@@ -275,7 +314,31 @@ modules:
     dependencies: []
     tags: [tuning, scala, microtuning, mts-esp, frequency, pitch, visualization, generator, library]
     reuse_score: 10
-    used_by: []
+    used_by:
+      - plugin: O-Bassoon
+        version: 1.0.0
+      - plugin: O-Bells
+        version: 4.1.0
+      - plugin: O-Bowed
+        version: 1.3.0
+      - plugin: O-Contrabass
+        version: 1.0.0
+      - plugin: O-Formant
+        version: 1.25.4
+      - plugin: O-IntonationPad
+        version: 2.8.0
+      - plugin: O-Lyrica
+        version: 2.3.0
+      - plugin: O-Marimba
+        version: 1.11.0
+      - plugin: O-MicrotonalSampler
+        version: 1.23.6
+      - plugin: O-Prism
+        version: 1.18.1
+      - plugin: O-Reed
+        version: 1.1.0
+      - plugin: O-Wind
+        version: 1.16.0
 
   - name: note-expression
     path: tuning/note-expression
@@ -297,22 +360,28 @@ modules:
     tags: [vst3, note-expression, dorico, microtuning, per-note-pitch, header-only]
     reuse_score: 10
     used_by:
-      - plugin: OLyrica
-        version: 2.3.0
+      - plugin: O-Bassoon
+        version: 1.0.0
       - plugin: O-Bells
         version: 4.1.0
-      - plugin: O-Prism
-        version: 1.17.0
-      - plugin: O-Wind
-        version: 1.16.0
-      - plugin: O-IntonationPad
-        version: 2.8.0
-      - plugin: O-Reed
-        version: 1.1.0
       - plugin: O-Bowed
         version: 1.3.0
+      - plugin: O-Contrabass
+        version: 1.0.0
       - plugin: O-Formant
-        version: 1.25.1
+        version: 1.25.4
+      - plugin: O-IntonationPad
+        version: 2.8.0
+      - plugin: O-Lyrica
+        version: 2.3.0
+      - plugin: O-MicrotonalSampler
+        version: 1.23.6
+      - plugin: O-Prism
+        version: 1.18.1
+      - plugin: O-Reed
+        version: 1.1.0
+      - plugin: O-Wind
+        version: 1.16.0
 
   # ============================================================================
   # SYNTHESIS MODULES
@@ -339,6 +408,8 @@ modules:
       - plugin: O-Bowed
         version: 1.3.0
       - plugin: O-Contrabass
+        version: 1.0.0
+      - plugin: O-simplePhysicalModelSynth
         version: 1.0.0
 
   # ============================================================================
@@ -392,8 +463,8 @@ modules:
     tags: [dsp, eq, filter, effects, parametric, analog, saturation, webview]
     reuse_score: 9
     used_by:
-      - plugin: OuariconMarimba
-        version: 1.9.2
+      - plugin: O-Marimba
+        version: 1.11.0
 
   - name: compressor-unit
     path: effects/compressor-unit
@@ -431,8 +502,8 @@ modules:
     tags: [dsp, dynamics, compressor, effects, webview]
     reuse_score: 9
     used_by:
-      - plugin: OuariconMarimba
-        version: 1.9.3
+      - plugin: O-Marimba
+        version: 1.11.0
 
   # ============================================================================
   # UI MODULES
@@ -466,9 +537,7 @@ modules:
     dependencies: []
     tags: [keyboard, midi, piano, touch, interactive]
     reuse_score: 8
-    used_by:
-      - plugin: OuariconMarimba
-        version: 1.0.0
+    used_by: []
 
 # ============================================================================
 # HOW TO USE THIS REGISTRY
