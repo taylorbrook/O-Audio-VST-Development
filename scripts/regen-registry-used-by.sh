@@ -6,8 +6,8 @@
 # For each module, consumers are derived by grepping plugins/*/CMakeLists.txt
 # and plugins/*/Source for the module's own file basenames (the .h/.cpp/.js
 # files under its cpp/ and js/ dirs) as fixed strings, plus the module's
-# registry name as a CMake `ouaricon_add_module(...)` token. plugins/tache_plugins
-# is excluded. Only the `used_by` blocks and the three header lines/comment are
+# registry name as a CMake `ouaricon_add_module(...)` token. Only the `used_by`
+# blocks and the three header lines/comment are
 # rewritten; every other line is preserved byte-for-byte. Deterministic and
 # idempotent: a second run with no disk changes produces zero further diff.
 #
@@ -124,8 +124,6 @@ def plugin_is_consumer(pdir, tokens, name):
 plugins_dir = os.path.join(root, 'plugins')
 candidates = []
 for entry in sorted(os.listdir(plugins_dir)):
-    if entry == 'tache_plugins':
-        continue
     pdir = os.path.join(plugins_dir, entry)
     if os.path.isdir(pdir):
         candidates.append((entry, pdir))
