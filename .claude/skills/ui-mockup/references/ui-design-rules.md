@@ -740,7 +740,7 @@ startTimerHz(16);  // 60ms = ~16 FPS (good for visualizations)
 | Smooth animations | 16ms | 60 FPS | Spectrum analyzer, waveform |
 | Meter updates | 60ms | 16 FPS | VU meters, level displays |
 | Slow polling | 100ms | 10 FPS | Tempo sync, transport state |
-| Rare updates | 1000ms | 1 FPS | License check, version info |
+| Rare updates | 1000ms | 1 FPS | Version info, status readout |
 
 ---
 
