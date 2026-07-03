@@ -113,9 +113,12 @@ public:
             }
             else
             {
-                // Process compressor on this band with sidechain filtering
+                // Process compressor on this band with sidechain filtering.
+                // WR-02: pass the *input* channel count — in mono M/S modes the stereo
+                // band buffers only carry signal on channel 0.
                 compressors[band].processStereo(
                     bandBuffers[band],
+                    numChannels,
                     thresholds[band],
                     ratios[band],
                     knees[band],

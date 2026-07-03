@@ -79,8 +79,12 @@ public:
         releaseCoeff = std::exp(-1.0f / (releaseMs * 0.001f * static_cast<float>(currentSampleRate)));
     }
 
-    // Process stereo buffer with sidechain filtering and auto-makeup
+    // Process stereo buffer with sidechain filtering and auto-makeup.
+    // numActiveChannels: how many channels of `buffer` actually carry signal (WR-02) —
+    // the band buffers are preallocated stereo, but in mono M/S modes only channel 0 is
+    // filled; averaging the silent channel into the detector halves the level (−6 dB).
     void processStereo(juce::AudioBuffer<float>& buffer,
+                      int numActiveChannels,
                       float thresholdDB,
                       float ratio,
                       float kneeDB,
@@ -94,7 +98,7 @@ public:
                       std::atomic<float>& gainReductionMeter)
     {
         const int numSamples = buffer.getNumSamples();
-        const int numChannels = buffer.getNumChannels();
+        const int numChannels = juce::jmin(numActiveChannels, buffer.getNumChannels());
 
         if (numSamples == 0 || numChannels == 0)
             return;

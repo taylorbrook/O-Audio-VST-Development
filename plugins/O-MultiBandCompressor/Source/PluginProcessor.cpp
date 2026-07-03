@@ -245,6 +245,22 @@ void OMultiBandCompressorAudioProcessor::prepareToPlay(double sampleRate, int sa
     // CR-02: resolve all parameter pointers once (no per-block string building / map lookups).
     cacheParameterPointers();
 
+    // IN-06: precompute log-spaced FFT bin edges (20 Hz – 20 kHz) so the spectrum's 64 UI
+    // bins line up with the log frequency axis of the crossover overlay.
+    {
+        constexpr float minFreq = 20.0f;
+        constexpr float maxFreq = 20000.0f;
+
+        for (int k = 0; k <= SPECTRUM_BINS; ++k)
+        {
+            const float freq = minFreq * std::pow(maxFreq / minFreq,
+                                                  static_cast<float>(k) / static_cast<float>(SPECTRUM_BINS));
+            const int bin = static_cast<int>(std::lround(freq * static_cast<float>(FFT_SIZE)
+                                                         / static_cast<float>(sampleRate)));
+            spectrumBinEdges[static_cast<size_t>(k)] = juce::jlimit(1, FFT_SIZE / 2, bin);
+        }
+    }
+
     // Reset components to initial state
     multibandProcessor.reset();
     inputGain.reset();
@@ -560,8 +576,10 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             // Perform FFT
             fft.performFrequencyOnlyForwardTransform(fftWorkBuffer.data());
 
-            // Downsample to SPECTRUM_BINS and convert to normalized dB
-            constexpr int binsPerOutput = (FFT_SIZE / 2) / SPECTRUM_BINS;
+            // Downsample to SPECTRUM_BINS and convert to normalized dB.
+            // IN-06: bin groups are log-spaced (edges precomputed in prepareToPlay) so the
+            // UI's linear bin→X draw lands on the log frequency axis of the grid/overlay.
+            // Peak (not average) within each group so narrowband energy isn't smeared.
             constexpr float minDb = -80.0f;
             constexpr float maxDb = 0.0f;
 
@@ -569,16 +587,16 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
             for (int bin = 0; bin < SPECTRUM_BINS; ++bin)
             {
-                float sum = 0.0f;
-                int startIdx = bin * binsPerOutput;
-                int endIdx = startIdx + binsPerOutput;
+                const int startIdx = spectrumBinEdges[static_cast<size_t>(bin)];
+                const int endIdx = std::max(spectrumBinEdges[static_cast<size_t>(bin + 1)],
+                                            startIdx + 1);
 
+                float peakMag = 0.0f;
                 for (int j = startIdx; j < endIdx; ++j)
-                    sum += fftWorkBuffer[static_cast<size_t>(j)];
+                    peakMag = std::max(peakMag, fftWorkBuffer[static_cast<size_t>(j)]);
 
-                float avgMag = sum / static_cast<float>(binsPerOutput);
-                float db = avgMag > 0.0f
-                    ? juce::jlimit(minDb, maxDb, juce::Decibels::gainToDecibels(avgMag))
+                float db = peakMag > 0.0f
+                    ? juce::jlimit(minDb, maxDb, juce::Decibels::gainToDecibels(peakMag))
                     : minDb;
 
                 // Normalize to 0-1
