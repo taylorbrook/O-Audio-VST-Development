@@ -155,6 +155,14 @@ void ReverbProcessor::applyInputDiffusion (float* channels)
         for (int ch = 0; ch < kNumChannels; ++ch)
         {
             float input = channels[ch];
+            // IN-12 (known tuning inconsistency): reads the raw constant
+            // kDiffusionDelays[stage] while the backing buffer is sized from the
+            // SR-scaled delayLen in prepare(). At >=44.1 kHz the buffer is large
+            // enough that this stays in-bounds (no OOB), but the diffusion time is
+            // effectively fixed in samples rather than seconds — unlike tankDelays,
+            // which use scaledDelays. Reading a stored scaledDiffusionDelays[stage]
+            // would make it SR-consistent, but that shifts the reverb's diffusion
+            // colour at non-44.1 kHz rates, so it is left unchanged here.
             float delayed = diffusionDelays[static_cast<size_t> (stage)][static_cast<size_t> (ch)].readNearest (kDiffusionDelays[stage]);
 
             float v = input - kDiffusionCoeff * diffusionState[static_cast<size_t> (stage)][static_cast<size_t> (ch)];
@@ -215,7 +223,6 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
         int maxDelay = static_cast<int> (static_cast<float> (kBaseDelays[ch]) * srRatio * 2.0f) + 64;
         tankDelays[static_cast<size_t> (ch)].resize (maxDelay);
         tankFilters[static_cast<size_t> (ch)].clear();
-        tankState[static_cast<size_t> (ch)] = 0.0f;
 
         scaledDelays[static_cast<size_t> (ch)] = static_cast<float> (kBaseDelays[ch]) * srRatio;
     }
@@ -234,8 +241,6 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     dryWetMixer.prepare (spec);
 
     prevSizeForDelays = -1.0f;
-    prevSize = -999.0f;
-    prevDamping = -999.0f;
     prevMix = -999.0f;
 }
 
@@ -255,7 +260,6 @@ void ReverbProcessor::reset()
     {
         tankDelays[static_cast<size_t> (ch)].clear();
         tankFilters[static_cast<size_t> (ch)].clear();
-        tankState[static_cast<size_t> (ch)] = 0.0f;
     }
 
     for (int i = 0; i < 4; ++i)

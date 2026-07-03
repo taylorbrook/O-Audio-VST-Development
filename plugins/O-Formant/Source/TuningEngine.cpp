@@ -224,7 +224,6 @@ void TuningEngine::setMode(Mode mode)
                                   600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
                 scaleDegrees = 12;
                 scaleName = "Custom";
-                scalaFileLoaded = true;
             }
         }
 
@@ -249,7 +248,6 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
 
         scaleDegrees = static_cast<int>(scaleIntervals.size()) - 1; // Exclude period from count
         scaleName = name;
-        scalaFileLoaded = true;
 
         // Initialize rotated intervals cache
         rotatedIntervals = scaleIntervals;
@@ -286,7 +284,6 @@ void TuningEngine::setSingleInterval(int index, double cents)
                               600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
             scaleDegrees = 12;
             scaleName = "Custom";
-            scalaFileLoaded = true;
         }
 
         // Update the interval at the specified index
@@ -896,12 +893,21 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
 
 double TuningEngine::applyPitchBend(double baseFreq, float bendAmount) const
 {
+    // IN-17 (benign scalar race): pitchBendRange (like a4Frequency / octaveStretch)
+    // is a plain scalar written on the message thread and read here on the audio
+    // thread. Aligned scalar reads don't tear on the target ISAs, so the worst case
+    // is a one-block-stale value during a live edit — audibly nil. Left as a plain
+    // scalar; making these std::atomic<relaxed> would match the class's discipline.
     const double bendSemitones = static_cast<double>(bendAmount * pitchBendRange);
     return baseFreq * std::pow(2.0, bendSemitones / 12.0);
 }
 
 void TuningEngine::rebuildFrequencyTable()
 {
+    // IN-18 (self-correcting transient): the 128 entries are stored one at a time
+    // (each atomic, but not as a group), so a note started mid-rebuild can read a
+    // table where some notes are already new and some are still old. It is
+    // momentary and self-corrects on the next note — acceptable for this use.
     Mode mode = currentMode.load(std::memory_order_relaxed);
 
     for (int midiNote = 0; midiNote < 128; ++midiNote)

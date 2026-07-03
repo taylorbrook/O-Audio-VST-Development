@@ -2,6 +2,41 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.25.4] - 2026-07-01
+
+### Changed — Low-risk Info-item sweep from REVIEW.md (IN-01, IN-04, IN-05, IN-09, IN-11, IN-12, IN-13, IN-14, IN-15, IN-16, IN-17, IN-18, IN-19)
+
+Mechanical, non-behavioral cleanup pass over the code-review Info items. No change to the emitted audio on valid input; the audio-path items whose "fix" would alter the sound are documented in-place rather than changed (flagged below).
+
+**Applied (mechanical / dead-code / non-behavioral):**
+
+- **IN-04 — include-path casing (Linux/CI safety).** `PluginProcessor.h` included `"DSP/DelayProcessor.h"` / `"DSP/EQProcessor.h"` / `"DSP/ReverbProcessor.h"` (uppercase) while the git-tracked files live under `Source/dsp/`; `CMakeLists.txt` listed the same three sources as `Source/DSP/*.cpp`. Both compile on case-insensitive macOS/Windows but fail to resolve on a case-sensitive filesystem. Normalized to lowercase `dsp/` in both the header includes and the CMake source list, matching every other include.
+- **IN-16 / IN-15 — removed duplicate + unused native-fn registrations.** Deleted the byte-identical `setSingleIntervalEncoded` duplicate of `setSingleInterval` (IN-16) and five further `withNativeFunction` registrations with no JS caller (verified against all `getNativeFunction` sites): `setTuningIntervals`, `getMasterTune`, `setTemperamentPreset`, `getTemperamentPreset`, `getEmbeddedTuningCategories`. No control is affected (the dangerous gap is the reverse — a JS call with no C++ backing — and every JS-called native remains registered).
+- **IN-11 — removed dead `ReverbProcessor` members.** `tankState` (zeroed in prepare/reset, never read), `prevSize` and `prevDamping` (set to `-999` in prepare, never compared — damping recomputes unconditionally; size is gated by the separate `prevSizeForDelays`). `prevMix` is genuinely used and kept.
+- **IN-19 — removed dead `TuningEngine` "future expansion" flags.** `mtsSynthClientConnected` (never written or read) and `scalaFileLoaded` (written in three places, never read), plus the three now-dead assignments.
+- **IN-01 — renamed shadowed local.** In `FormantVoice::noteStarted`, the inner `float midiNote` in the Rd-init block shadowed the outer `int midiNote`; renamed to `midiNoteF` (both held the same note number — behavior unchanged).
+- **IN-13 — corrected a misleading thread comment.** `LyricsEngine::peekCurrent` was labelled "Called from audio thread"; its sole caller is the editor lyrics-poll on the **message thread**. Comment now documents the message-thread-only invariant that makes the lock-free read safe.
+- **IN-14 — guarded the mono delay double-write.** In a mono block `rightData` aliases `leftData`, so `leftData[i]=wetL; rightData[i]=wetR;` clobbered left with the right line's output. Guarded the second write with `getNumChannels() > 1`. Provably non-behavioral today (both lines get identical input/time → `wetL == wetR`); makes the intent explicit.
+
+**Documented in place (behavioral fix deferred to preserve the sound; say the word to apply):**
+
+- **IN-05** — `LFGlottalSource` mipmap uses `floor` + crossfade, leaking mild residual aliasing above Nyquist. Biasing to the safe level would change the source timbre.
+- **IN-09** — `AspirationNoise::reset` seeds breath to `0.1`, so breath ramps `0.1 → target` at every note-on (small attack-time sweep). Resetting to the current target would remove it but alters the onset.
+- **IN-12** — reverb input-diffusion read uses the raw sample constant (fixed in samples, not SR-scaled like the tank delays); SR-scaling it would shift the diffusion colour at non-44.1 kHz rates.
+- **IN-17** — `pitchBendRange` / `a4Frequency` / `octaveStretch` are plain scalars with a benign message↔audio read race (no torn read on target ISAs; worst case one-block-stale). Left non-atomic.
+- **IN-18** — `rebuildFrequencyTable` stores its 128 entries individually, so a note started mid-rebuild can read a transiently mixed table — momentary and self-correcting.
+
+**Testing:** Build (VST3 + AU) + auval + pluginval. All changes are mechanical (casing, dead-code removal, rename, comments) or a provably non-behavioral guard (IN-14); no DSP behavior changes.
+
+## [1.25.3] - 2026-07-01
+
+### Fixed — State round-trip + delay buffer sizing (REVIEW.md WR-01, WR-07)
+
+- **Headless reload rendered in default 12-TET at A=440 (WR-01).** `getStateInformation` persisted the built-in temperament (`"preset"`) and the master-tune / octave-stretch / pitch-bend-range APVTS values, but `setStateInformation` never pushed any of them into `TuningEngine` — they only reached the engine through editor-only WebView native-function callbacks (`PluginEditor.cpp:314-353`). Reloading a session and bouncing offline **without opening the UI** left the engine at its construction defaults (A=440, stretch=1.0, Equal 12-TET), so a project saved with e.g. Werckmeister III at A=442 rendered mistuned. Fix: in `setStateInformation`, after `replaceState`, push the restored `tuning_masterTune` / `tuning_octaveStretch` / `tuning_pitchBendRange` values and the saved built-in preset straight into the engine. The built-in preset is applied **before** the saved custom intervals so a custom `.scl` still wins when one was loaded (`setBuiltInPreset(Custom)` is a no-op on intervals, so the custom-scale path is unaffected). Tuning mode is a derived side effect of the interval/preset setters (the `tuning_tuningMode` param is never wired to `setMode`), so it is restored implicitly — matching the editor-open behaviour exactly.
+- **Delay buffer under-sized for 2.0 s above 96 kHz (WR-07).** `DelayProcessor`'s lines are fixed at 192000 samples but `delayTime` allows up to 2.0 s and `setTime` never clamped, so `seconds * sampleRate` exceeded the buffer above 96 kHz (2.0 s = 211680 samples at 105.84 kHz, > 192000 at 176.4/192 kHz for times above ~1.09/~1.0 s). In JUCE 8.0.9 Release `popSample` masks the read index by `% totalSize` (no OOB read) but the delay **silently aliases to a wrong, much shorter time**, and a Debug `jassert` fires. Fix: `setTime` now clamps the requested delay to `delayL.getMaximumDelayInSamples()`. No change at ≤96 kHz where 2.0 s already fits.
+
+**Testing:** Build (VST3 + AU) + pluginval. The delay clamp is a no-op below 96 kHz; the state fix is only observable on headless/offline reload (no behavioural change when the editor is open, which already pushed these values).
+
 ## [1.25.2] - 2026-07-01
 
 ### Fixed — NaN / denormal robustness in the formant DSP (REVIEW.md WR-03, WR-04, WR-05, WR-06, IN-03, IN-06)

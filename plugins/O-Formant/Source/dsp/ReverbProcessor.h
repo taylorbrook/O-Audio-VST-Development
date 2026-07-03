@@ -102,7 +102,6 @@ private:
 
     std::array<DelayLine, kNumChannels> tankDelays;
     std::array<OnePole, kNumChannels> tankFilters;
-    std::array<float, kNumChannels> tankState {};
 
     std::array<LFO, 4> lfoBank;
 
@@ -121,8 +120,6 @@ private:
     std::atomic<float> targetMod      { 0.2f };
     std::atomic<float> targetShimmer  { 0.0f };
 
-    float prevSize = -999.0f;
-    float prevDamping = -999.0f;
     float prevMix = -999.0f;
 
     void applyHouseholder (float* data);

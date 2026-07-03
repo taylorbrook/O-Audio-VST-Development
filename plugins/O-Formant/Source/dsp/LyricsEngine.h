@@ -85,7 +85,13 @@ public:
         return result;
     }
 
-    // Called from audio thread — peek without advancing
+    // Peek the current syllable without advancing.
+    // IN-13: MESSAGE-THREAD ONLY. This reads syllables[idx] without taking
+    // syllableLock (unlike advanceAndGet/setSyllables). That is safe *only*
+    // because the sole writer (setSyllables, via nativeFunction) and the sole
+    // caller here (PluginEditor lyrics poll) both run on the message thread, so
+    // they never race on the array. Do NOT call this from the audio thread — it
+    // would become a torn read of the SyllableTarget struct.
     SyllableTarget peekCurrent() const
     {
         int count = numSyllables.load (std::memory_order_acquire);

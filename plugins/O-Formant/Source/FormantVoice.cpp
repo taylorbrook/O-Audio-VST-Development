@@ -222,8 +222,10 @@ void FormantVoice::noteStarted()
         float baseRd = pGlottalRd != nullptr ? pGlottalRd->load() : 1.0f;
         float modDepth = pRdModDepth != nullptr ? pRdModDepth->load() : 0.5f;
 
-        float midiNote = static_cast<float> (currentlyPlayingNote.initialNote);
-        float pitchRdOffset = -0.3f * (midiNote - 60.0f) / 12.0f;
+        // IN-01: renamed from midiNote to avoid shadowing the outer int midiNote
+        // declared at note-on above; both hold the same note number.
+        float midiNoteF = static_cast<float> (currentlyPlayingNote.initialNote);
+        float pitchRdOffset = -0.3f * (midiNoteF - 60.0f) / 12.0f;
         float velRdOffset = -0.5f * noteVelocity;
 
         float initRd = juce::jlimit (0.3f, 2.7f,
