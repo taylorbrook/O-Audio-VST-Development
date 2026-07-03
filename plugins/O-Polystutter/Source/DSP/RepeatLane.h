@@ -127,6 +127,11 @@ private:
     int playbackPosition = 0;
     int maxCaptureSamples = 0;  // Maximum capture buffer size
 
+    // v1.12.3: Snapshot of the captured slice, copied at trigger() time.
+    // Playback reads this instead of the circular buffer so the live write
+    // head can't overwrite the slice during long repeat tails (WR-05).
+    juce::AudioBuffer<float> snapshotBuffer;
+
     // Crossfade buffer for click-free looping
     int crossfadeSamples = 0;
 

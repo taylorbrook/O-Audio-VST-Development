@@ -816,9 +816,12 @@ function generateEuclideanPattern(pulses, steps) {
       seqLengths[aIdx] = aLen + bLen;
     }
 
-    // Move remaining (unpaired) sequences to after the paired ones
-    const remaining = totalSeqs - numA - pairs;
-    if (remaining > 0 && numA + pairs < totalSeqs) {
+    // Unpaired sequences of EITHER group become the new remainder group.
+    // Leftover B's at [numA + pairs, ...) move down to [pairs, ...); leftover
+    // A's are already contiguous at [pairs, numA) and only need counting —
+    // the old code counted only leftover B's, dropping pulses for E(3,8) etc.
+    const remaining = Math.max(numA, numB) - pairs;
+    if (numB > numA) {
       for (let i = 0; i < remaining; i++) {
         const srcIdx = numA + pairs + i;
         const dstIdx = pairs + i;
