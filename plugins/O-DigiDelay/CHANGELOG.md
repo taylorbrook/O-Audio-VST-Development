@@ -5,6 +5,13 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.12] - 2026-07-01
+
+### Fixed
+- WebView/editor robustness fixes from code review (findings WR-05, WR-07)
+  - **WR-05:** The Windows WebView2 user-data folder is now plugin-specific (`tempDirectory/O-DigiDelay_WebView`) instead of the bare temp root shared by every Ouaricon plugin. WebView2 places a lock on its user-data folder, so pointing every plugin/instance at the same directory could cause lock contention on Windows — a failed WebView2 construction silently falls back to IE (blank UI, no error). Matches the project-wide convention.
+  - **WR-07:** Renamed the butterfly overlay asset `butterfly2_Black and white.png` → `butterfly2_bw.png` (space-free). The resource provider does an exact-string match on the request path; a filename with spaces breaks if the WebView engine percent-encodes them to `%20` (`getResource` returns 404 → the butterfly overlay and feedback echoes silently disappear). Updated the CSS references (`index.html`), the `getResource` match + `BinaryData` symbol (`PluginEditor.cpp`), and the `juce_add_binary_data` source entry (`CMakeLists.txt`). Butterfly overlay verified rendering on macOS after rebuild.
+
 ## [1.2.11] - 2026-07-01
 
 ### Fixed
