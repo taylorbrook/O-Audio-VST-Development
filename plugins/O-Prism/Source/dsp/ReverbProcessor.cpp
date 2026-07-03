@@ -16,7 +16,12 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 {
     currentSampleRate = static_cast<float> (spec.sampleRate);
 
-    // Pre-delay
+    // Pre-delay: size from the actual sample rate — the compile-time {19200}
+    // capacity only covers 200 ms up to 96 kHz and silently clamps at 192 kHz
+    // (WR-05). 200 ms is the reverbPredelay parameter maximum.
+    const int maxPredelaySamples = static_cast<int> (std::ceil (0.2 * spec.sampleRate)) + 16;
+    preDelayL.setMaximumDelayInSamples (maxPredelaySamples);
+    preDelayR.setMaximumDelayInSamples (maxPredelaySamples);
     preDelayL.prepare (spec);
     preDelayR.prepare (spec);
 
@@ -116,7 +121,7 @@ void ReverbProcessor::setDamping (float damp)
 
 void ReverbProcessor::setPredelay (float ms)
 {
-    preDelaySamples = ms * 0.001f * currentSampleRate;
+    preDelaySamples = std::min (ms, 200.0f) * 0.001f * currentSampleRate;
 }
 
 void ReverbProcessor::setMix (float mix)

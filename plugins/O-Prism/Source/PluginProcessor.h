@@ -30,7 +30,9 @@
 #include "OuariconPresetManager.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
-class OPrismAudioProcessor : public juce::AudioProcessor
+class OPrismAudioProcessor : public juce::AudioProcessor,
+                             private juce::Timer,
+                             private juce::AsyncUpdater
 {
 public:
     OPrismAudioProcessor();
@@ -108,6 +110,15 @@ public:
     /** Check if a user table is active for an oscillator. */
     bool isUserTableActive (int oscIndex) const;
 
+    /** Delete a user wavetable: clears any osc override bound to it, removes
+        it from the manager, and retires the buffer RT-safely. */
+    bool deleteUserWavetable (const juce::String& name);
+
+    /** Save the editor's working table under `name`: writes the .wav,
+        registers the new table, re-publishes osc pointers, and retires any
+        replaced table RT-safely. */
+    bool saveEditedWavetable (const juce::String& name);
+
     // ─── Wavetable Editor API ───
 
     WavetableEditor& getWavetableEditor() { return wavetableEditor; }
@@ -134,6 +145,21 @@ public:
     double getGlobalLfoPhase (int idx) const
     {
         return (idx >= 0 && idx < 4) ? globalLfoPhase[static_cast<size_t> (idx)] : 0.0;
+    }
+
+    /** Frequency of the most recently started note (0.0 if none yet).
+        Seeds glide "Always" mode on fresh voices (WR-06). */
+    double getLastPlayedFrequency() const { return lastPlayedFrequency.load (std::memory_order_relaxed); }
+    void setLastPlayedFrequency (double freq) { lastPlayedFrequency.store (freq, std::memory_order_relaxed); }
+
+    /** True if any MIDI note other than excludeNote is currently held.
+        Gates glide "Legato" mode (WR-06). */
+    bool isAnyNoteHeldExcept (int excludeNote) const
+    {
+        for (int i = 0; i < 128; ++i)
+            if (i != excludeNote && noteStates[static_cast<size_t> (i)].load (std::memory_order_relaxed))
+                return true;
+        return false;
     }
 
     // ─── Preset Manager (factory + user presets) ───
@@ -215,6 +241,54 @@ private:
     std::atomic<float>* pEqMidGain      = nullptr;
     std::atomic<float>* pEqMidFreq      = nullptr;
     std::atomic<float>* pEqHighGain     = nullptr;
+    std::atomic<float>* pDelaySync      = nullptr;
+    std::atomic<float>* pDelayDivision  = nullptr;
+
+    // Cached global-LFO param pointers (CR-06: advanceGlobalLfoPhases was
+    // building ~28 juce::Strings per block for these lookups)
+    std::atomic<float>* pLfoSync[4]  = {};
+    std::atomic<float>* pLfoRate[4]  = {};
+    std::atomic<float>* pLfoDiv[4]   = {};
+    std::atomic<float>* pLfoShape[4] = {};
+
+    // Cached tuning/global param pointers (CR-05 / IN-01)
+    std::atomic<float>* pMasterTune     = nullptr;
+    std::atomic<float>* pOctaveStretch  = nullptr;
+    std::atomic<float>* pPitchBendRange = nullptr;
+    std::atomic<float>* pTuningPreset   = nullptr;
+    std::atomic<float>* pTonic          = nullptr;
+    std::atomic<float>* pStereoWidth    = nullptr;
+    std::atomic<float>* pMasterVol      = nullptr;
+    std::atomic<float>* pOscATable      = nullptr;
+    std::atomic<float>* pOscBTable      = nullptr;
+
+    // ─── Deferred TuningEngine sync (CR-05) ───
+    // processBlock only detects parameter changes; the engine itself (mutex,
+    // heap-allocating Strings/vectors, 128-note table rebuild) is mutated on
+    // the message thread via handleAsyncUpdate.
+    float lastMasterTune = -1.0e9f;
+    float lastOctaveStretch = -1.0e9f;
+    float lastPitchBendRange = -1.0e9f;
+    std::atomic<bool> pendingTuningPresetChange { false };
+    void handleAsyncUpdate() override;
+
+    // ─── FX activity gates (WR-07) ───
+    // When an effect stops processing (bypass or mix -> 0) its buffers are
+    // reset once, so stale audio can't replay when it re-engages.
+    bool distWasActive = false;
+    bool chorusWasActive = false;
+    bool delayWasActive = false;
+    bool reverbWasActive = false;
+    bool eqWasActive = false;
+
+    // ─── Processor-level mod matrix for global FX destinations (WR-02) ───
+    // Sources: global LFOs 1-4, ModWheel, Aftertouch (per-voice sources are 0).
+    // Destinations consumed here: Reverb/Delay/Chorus/Dist Mix, Master Vol.
+    ModulationMatrix fxModMatrix;
+    LFO fxLfo[4];
+
+    // Last started note frequency for glide "Always" seeding (WR-06)
+    std::atomic<double> lastPlayedFrequency { 0.0 };
 
     // Master volume and stereo width (smoothed)
     juce::SmoothedValue<float> masterVolSmoothed { 0.8f };
@@ -236,6 +310,23 @@ private:
     void advanceGlobalLfoPhases (int numSamples, double sampleRate);
 
     void updateWavetableAssignments();
+
+    // ─── Retired-table reaper ───
+    // A WavetableData the audio thread may still be reading is never freed
+    // in place: it is parked here (message thread only) stamped with the
+    // current block generation, and freed by the timer only after the
+    // generation has advanced ≥ 2 — guaranteeing a full processBlock has
+    // started and finished since the pointers were unpublished, so no voice
+    // still references it. Same class of fix as O-MicrotonalSampler v1.23.2.
+    std::atomic<uint64_t> blockGeneration { 0 };
+    struct RetiredTable
+    {
+        std::unique_ptr<WavetableData> table;
+        uint64_t retiredAt = 0;
+    };
+    std::vector<RetiredTable> retiredTables;   // message thread only
+    void retireTable (std::unique_ptr<WavetableData> table);
+    void timerCallback() override;
 
     // Single source of truth for "user pointer takes priority over factory index" lookup.
     // Used by updateWavetableAssignments (audio-thread voice-assignment) and getActiveOscTable.

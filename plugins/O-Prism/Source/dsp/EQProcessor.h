@@ -26,11 +26,11 @@ public:
     void setHighGain (float dB);
 
 private:
-    void updateLowShelf();
-    void updateMidPeak();
-    void updateHighShelf();
-
     using FilterCoeffs = juce::dsp::IIR::Coefficients<float>;
+    // Stack-allocating coefficient factory (returns std::array<float,6>, no heap).
+    // Used to recompute coefficients in-place on the audio thread without the
+    // ref-counted Coefficients allocation that makeXXX() would incur (CR-04).
+    using ArrayCoeffs = juce::dsp::IIR::ArrayCoefficients<float>;
     using Filter = juce::dsp::IIR::Filter<float>;
     using StereoFilter = juce::dsp::ProcessorDuplicator<Filter, FilterCoeffs>;
 
@@ -39,8 +39,14 @@ private:
     StereoFilter highShelf;
 
     float currentSampleRate = 44100.0f;
-    float lowGainDB = 0.0f;
-    float midGainDB = 0.0f;
-    float midFreqHz = 1000.0f;
-    float highGainDB = 0.0f;
+
+    std::atomic<float> targetLowGainDB { 0.0f };
+    std::atomic<float> targetMidGainDB { 0.0f };
+    std::atomic<float> targetMidFreqHz { 1000.0f };
+    std::atomic<float> targetHighGainDB { 0.0f };
+
+    float prevLowGainDB = -999.0f;
+    float prevMidGainDB = -999.0f;
+    float prevMidFreqHz = -999.0f;
+    float prevHighGainDB = -999.0f;
 };

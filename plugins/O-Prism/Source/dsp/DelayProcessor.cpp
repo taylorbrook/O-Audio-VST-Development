@@ -16,6 +16,12 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 {
     currentSampleRate = static_cast<float> (spec.sampleRate);
 
+    // Size from the actual sample rate — the compile-time {192000} capacity
+    // only covers 2 s up to 96 kHz and silently clamps at 192 kHz (WR-05)
+    const int maxDelaySamples = static_cast<int> (std::ceil (kMaxDelaySeconds * spec.sampleRate)) + 8;
+    delayL.setMaximumDelayInSamples (maxDelaySamples);
+    delayR.setMaximumDelayInSamples (maxDelaySamples);
+
     delayL.prepare (spec);
     delayR.prepare (spec);
     feedbackFilterL.prepare (spec);
@@ -27,7 +33,8 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     feedbackFilterL.setCutoffFrequency (8000.0f);
     feedbackFilterR.setCutoffFrequency (8000.0f);
 
-    delaySamples = 0.375f * currentSampleRate;
+    delaySamples.reset (spec.sampleRate, 0.05);
+    delaySamples.setCurrentAndTargetValue (0.375f * currentSampleRate);
 }
 
 void DelayProcessor::reset()
@@ -42,7 +49,7 @@ void DelayProcessor::reset()
 
 void DelayProcessor::setTime (float seconds)
 {
-    delaySamples = seconds * currentSampleRate;
+    delaySamples.setTargetValue (juce::jlimit (0.0f, kMaxDelaySeconds, seconds) * currentSampleRate);
 }
 
 void DelayProcessor::setFeedback (float fb)
@@ -55,19 +62,9 @@ void DelayProcessor::setMode (int mode)
     delayMode = mode;
 }
 
-void DelayProcessor::setSync (bool sync)
-{
-    tempoSync = sync;
-}
-
 void DelayProcessor::setMix (float mix)
 {
     dryWetMixer.setWetMixProportion (mix);
-}
-
-void DelayProcessor::setPlayHead (juce::AudioPlayHead* playHead)
-{
-    audioPlayHead = playHead;
 }
 
 void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
@@ -94,8 +91,9 @@ void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
             delayR.pushSample (0, inputR + feedbackL * feedbackAmount);
         }
 
-        float wetL = delayL.popSample (0, delaySamples);
-        float wetR = delayR.popSample (0, delaySamples);
+        const float delayPos = delaySamples.getNextValue();
+        float wetL = delayL.popSample (0, delayPos);
+        float wetR = delayR.popSample (0, delayPos);
 
         feedbackL = feedbackFilterL.processSample (0, wetL);
         feedbackR = feedbackFilterR.processSample (0, wetR);

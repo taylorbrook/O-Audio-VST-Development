@@ -27,10 +27,20 @@ public:
         currentFreq = targetFreq;
     }
 
-    void setTarget (double freq)
+    /** Force the glide's starting frequency. Used to seed a fresh voice from
+        the processor-level last-played note so "Always" mode actually glides
+        polyphonically (WR-06). */
+    void startFrom (double freq)
+    {
+        currentFreq = freq;
+    }
+
+    /** Set the target. glideIn=false (or mode Off) snaps immediately; the
+        caller decides the legato/always gating (WR-06). */
+    void setTarget (double freq, bool glideIn)
     {
         targetFreq = freq;
-        if (mode == 0 || !wasActive) // Off or no prior note
+        if (mode == 0 || ! glideIn)
             currentFreq = targetFreq;
     }
 
@@ -41,8 +51,6 @@ public:
         glideTime = seconds;
         updateCoefficient();
     }
-
-    void setWasActive (bool active) { wasActive = active; }
 
     double getNextFrequency()
     {
@@ -73,5 +81,4 @@ private:
     double glideTime = 0.1;
     double glideCoeff = 0.0;
     int mode = 0;     // 0=Off, 1=Legato, 2=Always
-    bool wasActive = false;
 };

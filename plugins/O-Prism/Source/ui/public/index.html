@@ -1434,6 +1434,14 @@ body {
                 <span class="dropdown-label">Sync</span>
                 <button id="toggle-delaySync" class="toggle-btn" style="margin-top:3px;">Off</button>
             </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label">Division</span>
+                <select id="select-delayDivision" class="param-select">
+                    <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                    <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                    <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                </select>
+            </div>
             <div class="knob-container" data-knob="delayMix" data-label="Mix" data-initial="0%"></div>
         </div>
     </div>
@@ -1549,6 +1557,18 @@ body {
         <div class="wt-save-modal-buttons">
             <button class="wt-op-btn" id="wt-save-cancel">Cancel</button>
             <button class="wt-op-btn" id="wt-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Preset Save Modal (CR-10: window.prompt is a silent no-op under WKWebView) -->
+<div id="preset-save-modal-overlay" class="wt-save-modal-overlay">
+    <div class="wt-save-modal">
+        <h3>Save Preset</h3>
+        <input type="text" id="preset-save-name-input" placeholder="Preset name...">
+        <div class="wt-save-modal-buttons">
+            <button class="wt-op-btn" id="preset-save-cancel">Cancel</button>
+            <button class="wt-op-btn" id="preset-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
         </div>
     </div>
 </div>
@@ -1776,19 +1796,50 @@ window.switchTab = function(tabName) {
         } catch (err) { console.error('[Presets] prev failed:', err); }
     });
 
+    // CR-10: in-DOM save modal — window.prompt() always returns null under
+    // JUCE's WKWebView (no runJavaScriptTextInputPanel delegate), so the
+    // prompt-based save silently no-oped on macOS.
+    const saveOverlay = document.getElementById('preset-save-modal-overlay');
+    const saveInput = document.getElementById('preset-save-name-input');
+    const saveConfirm = document.getElementById('preset-save-confirm');
+    const saveCancel = document.getElementById('preset-save-cancel');
+
+    function closeSavePresetModal() {
+        if (saveOverlay) saveOverlay.classList.remove('active');
+    }
+
+    async function confirmSavePreset() {
+        const name = saveInput ? saveInput.value.trim() : '';
+        if (!name) return;
+        closeSavePresetModal();
+        try {
+            await savePresetFn(name);
+            await refreshList();
+            await refreshCurrent();
+        } catch (err) { console.error('[Presets] save failed:', err); }
+    }
+
+    if (saveConfirm) saveConfirm.addEventListener('click', (e) => { e.stopPropagation(); confirmSavePreset(); });
+    if (saveCancel) saveCancel.addEventListener('click', (e) => { e.stopPropagation(); closeSavePresetModal(); });
+    if (saveInput) saveInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmSavePreset();
+        else if (e.key === 'Escape') closeSavePresetModal();
+    });
+    if (saveOverlay) saveOverlay.addEventListener('click', (e) => {
+        if (e.target === saveOverlay) closeSavePresetModal();
+    });
+
     saveBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         let defaultName = 'My Preset';
         try {
             if (currentName && !(await isFactoryFn(currentName))) defaultName = currentName;
         } catch (err) {}
-        const name = window.prompt('Save preset as:', defaultName);
-        if (name && name.trim()) {
-            try {
-                await savePresetFn(name.trim());
-                await refreshList();
-                await refreshCurrent();
-            } catch (err) { console.error('[Presets] save failed:', err); }
+        if (saveOverlay && saveInput) {
+            saveInput.value = defaultName;
+            saveOverlay.classList.add('active');
+            saveInput.focus();
+            saveInput.select();
         }
     });
 
@@ -2110,6 +2161,7 @@ bindKnob('reverbModRate',  reverbModRateFmt, 0.43);
 bindKnob('delayTime',     delayTimeFmt, 0.187);
 bindKnob('delayFeedback', feedbackFmt,  0.316);
 bindDropdown(document.getElementById('select-delayMode'), 'delayMode', 2);
+bindDropdown(document.getElementById('select-delayDivision'), 'delayDivision', 18);
 bindKnob('delayMix',      pct,          0.0);
 
 // Chorus
@@ -2213,14 +2265,26 @@ bindKnob('masterVol', pct,     0.8, 'small');
 bindKnob('oscMix',    pct,     0.5, 'small');
 
 // ─── MOD MATRIX UI ───
-(function() {
+(async function() {
     const NUM_SLOTS = 16;
-    const sourceNames = ['None','LFO1','LFO2','LFO3','LFO4','AmpEnv','FilterEnv','Velocity','NoteNum','ModWheel','Aftertouch'];
-    const destNames = ['None','OscA Pos','OscB Pos','FiltA Cut','FiltB Cut','FiltA Res','FiltB Res',
+    // Fallbacks only — the authoritative lists come from the registered
+    // getModSourceNames/getModDestNames native fns, so a future C++ enum
+    // add/reorder can't silently misroute the dropdown->param mapping (WR-20)
+    let sourceNames = ['None','LFO1','LFO2','LFO3','LFO4','AmpEnv','FilterEnv','Velocity','NoteNum','ModWheel','Aftertouch'];
+    let destNames = ['None','OscA Pos','OscB Pos','FiltA Cut','FiltB Cut','FiltA Res','FiltB Res',
         'Osc Mix','Sub Level','Noise Level','LFO1 Rate','LFO2 Rate','LFO3 Rate','LFO4 Rate',
         'OscA Detune','OscB Detune',
         'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol','Pitch',
         'OscA Warp','OscB Warp'];
+
+    try {
+        const src = JSON.parse(await Juce.getNativeFunction('getModSourceNames')());
+        const dst = JSON.parse(await Juce.getNativeFunction('getModDestNames')());
+        if (Array.isArray(src) && src.length) sourceNames = src;
+        if (Array.isArray(dst) && dst.length) destNames = dst;
+    } catch (e) {
+        console.warn('[ModMatrix] native name fetch failed, using fallback lists:', e);
+    }
 
     const container = document.getElementById('mod-matrix-rows');
     if (!container) return;
@@ -2354,8 +2418,20 @@ bindKnob('oscMix',    pct,     0.5, 'small');
 (function() {
     const tuningPresetState = Juce.getSliderState('tuningPreset');
     const tonicState = Juce.getSliderState('tonic');
-    if (tuningPresetState) tuningPresetState.valueChangedEvent.addListener(() => {});
-    if (tonicState) tonicState.valueChangedEvent.addListener(() => {});
+
+    // WR-19: refresh the native-fn-backed tuning UI (intervals table, scale
+    // name, pitch circle) when the params change from a preset load or host
+    // automation. Debounced — a preset load fires several relay events at once.
+    let refreshTimer = null;
+    function scheduleTuningRefresh() {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+            if (window.refreshTuningState) window.refreshTuningState();
+        }, 100);
+    }
+
+    if (tuningPresetState) tuningPresetState.valueChangedEvent.addListener(scheduleTuningRefresh);
+    if (tonicState) tonicState.valueChangedEvent.addListener(scheduleTuningRefresh);
 })();
 
 // ─── DELAY SYNC TOGGLE ───
@@ -3066,7 +3142,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         try {
             const fetchedTonic = await Juce.getNativeFunction('getTonicNote')();
             if (typeof fetchedTonic === 'number' && fetchedTonic >= 0 && fetchedTonic <= 11) currentTonic = fetchedTonic;
-        } catch (e) {}
+        } catch (e) { console.error('[Tuning] Get tonic failed:', e); }
 
         const total = currentIntervals.length;
         let html = `<div class="interval-list-header">Intervals (${total} notes)</div>`;
@@ -3108,22 +3184,29 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         }
     }
 
-    async function onTonicDown() {
-        currentTonic = (currentTonic - 1 + 12) % 12;
-        try { await Juce.getNativeFunction('setTonicNote')(currentTonic); } catch (e) {}
+    // IN-17: apply the tonic change only if the bridge call succeeds —
+    // updating currentTonic/display on a failed call silently desyncs UI vs DSP
+    async function setTonic(newTonic) {
+        const prevTonic = currentTonic;
+        try {
+            await Juce.getNativeFunction('setTonicNote')(newTonic);
+            currentTonic = newTonic;
+        } catch (e) {
+            console.error('[Tuning] Set tonic failed:', e);
+            currentTonic = prevTonic;
+        }
         const d = document.getElementById('tonic-display');
         if (d) d.textContent = noteNames[currentTonic];
         updateVisualization();
         await updateIntervalListUI();
     }
 
+    async function onTonicDown() {
+        await setTonic((currentTonic - 1 + 12) % 12);
+    }
+
     async function onTonicUp() {
-        currentTonic = (currentTonic + 1) % 12;
-        try { await Juce.getNativeFunction('setTonicNote')(currentTonic); } catch (e) {}
-        const d = document.getElementById('tonic-display');
-        if (d) d.textContent = noteNames[currentTonic];
-        updateVisualization();
-        await updateIntervalListUI();
+        await setTonic((currentTonic + 1) % 12);
     }
 
     // ── Load intervals from backend ──
@@ -3401,6 +3484,13 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
     window.refreshTuningState = async function() {
         await loadIntervalsFromBackend();
         await updateScaleNameDisplay();
+    };
+
+    // WR-19: the preset bar calls this after every load; it was previously
+    // undefined so the guarded call sites silently did nothing and the Tuning
+    // tab kept showing the previous scale.
+    window.__refreshAllControls = function() {
+        window.refreshTuningState().catch((e) => console.warn('[Tuning] refresh failed:', e));
     };
 
     // Retry init until ready

@@ -72,6 +72,7 @@ private:
     // Osc A
     std::atomic<float>* pOscACoarse = nullptr;
     std::atomic<float>* pOscAFine = nullptr;
+    std::atomic<float>* pOscAPhase = nullptr;
     std::atomic<float>* pOscAUnison = nullptr;
     std::atomic<float>* pOscADetune = nullptr;
     std::atomic<float>* pOscAWidth = nullptr;
@@ -84,6 +85,7 @@ private:
     // Osc B
     std::atomic<float>* pOscBCoarse = nullptr;
     std::atomic<float>* pOscBFine = nullptr;
+    std::atomic<float>* pOscBPhase = nullptr;
     std::atomic<float>* pOscBUnison = nullptr;
     std::atomic<float>* pOscBDetune = nullptr;
     std::atomic<float>* pOscBWidth = nullptr;

@@ -321,8 +321,12 @@ void WavetableEditor::smoothFrames (const std::vector<int>& frames, float streng
     if (! workingTable)
         return;
 
+    // IN-12: strength 1.0 = maximum smoothing (lowest cutoff), 0.0 = no-op.
+    // The cutoff maps inversely to strength — previously it was inverted
+    // (0.0 kept 1 harmonic), which never surfaced because the only caller
+    // passes the symmetric 0.5.
     strength = juce::jlimit (0.0f, 1.0f, strength);
-    int cutoffHarmonic = std::max (1, static_cast<int> (strength * (kFFTSize / 2)));
+    int cutoffHarmonic = std::max (1, static_cast<int> ((1.0f - strength) * (kFFTSize / 2)));
 
     std::vector<float> fftBuffer (static_cast<size_t> (kFFTSize * 2), 0.0f);
 
@@ -359,8 +363,14 @@ void WavetableEditor::smoothFrames (const std::vector<int>& frames, float streng
     }
 }
 
-bool WavetableEditor::saveAsUserWavetable (const juce::String& name, UserWavetableManager& manager)
+bool WavetableEditor::saveAsUserWavetable (const juce::String& nameIn, UserWavetableManager& manager,
+                                           std::unique_ptr<WavetableData>& replacedOut)
 {
+    replacedOut = nullptr;
+
+    // The name arrives from the WebView — sanitize before it becomes a file
+    // path, or "../../Desktop/x" writes a .wav outside the wavetable dir (WR-10)
+    const auto name = UserWavetableManager::legalTableName (nameIn);
     if (! workingTable || name.isEmpty())
         return false;
 
@@ -381,6 +391,11 @@ bool WavetableEditor::saveAsUserWavetable (const juce::String& name, UserWavetab
 
     auto destFile = dir.getChildFile (name + ".wav");
 
+    // FileOutputStream positions at end-of-file — delete first or an
+    // overwrite appends a second WAV and the re-import below reads the
+    // ORIGINAL header at offset 0, silently discarding this edit.
+    destFile.deleteFile();
+
     auto outputStream = std::make_unique<juce::FileOutputStream> (destFile);
     if (! outputStream->openedOk())
         return false;
@@ -398,9 +413,10 @@ bool WavetableEditor::saveAsUserWavetable (const juce::String& name, UserWavetab
 
     writer.reset();
 
-    // Reload from disk so manager knows about it
-    manager.loadFromDisk();
-    return true;
+    // Register just the saved table with the manager. Never loadFromDisk()
+    // here — that destroys EVERY user WavetableData while the audio thread
+    // may still hold pointers to them (CR-03).
+    return manager.replaceOrInsertFromFile (name, destFile, replacedOut);
 }
 
 int WavetableEditor::getNumFrames() const

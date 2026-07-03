@@ -30,6 +30,10 @@ public:
     /** Release working copy. */
     void clearWorkingTable();
 
+    /** Hand ownership of the working table to the caller (for safe retirement
+        — the audio thread may still be reading it). Leaves no working table. */
+    std::unique_ptr<WavetableData> releaseWorkingTable() { return std::move (workingTable); }
+
     /** Get harmonic magnitudes for a frame (bins 1..numBins). */
     std::vector<float> getFrameHarmonics (int frameIndex, int numBins) const;
 
@@ -57,8 +61,11 @@ public:
     /** Spectral smoothing: 6dB/oct rolloff above cutoff harmonic. */
     void smoothFrames (const std::vector<int>& frames, float strength);
 
-    /** Save working table as user wavetable. Returns true on success. */
-    bool saveAsUserWavetable (const juce::String& name, UserWavetableManager& manager);
+    /** Save working table as user wavetable. Returns true on success. On
+        success `replacedOut` receives the previously-registered table for this
+        name (nullptr if new) so the caller can retire it RT-safely. */
+    bool saveAsUserWavetable (const juce::String& name, UserWavetableManager& manager,
+                              std::unique_ptr<WavetableData>& replacedOut);
 
     /** Get mutable pointer to working table (for oscillator preview). */
     WavetableData* getWorkingTable() { return workingTable.get(); }

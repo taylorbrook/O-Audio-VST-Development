@@ -589,10 +589,13 @@ const WavetableEditor = (() => {
             const wtTab = document.getElementById('wavetable-tab');
             if (!wtTab || !wtTab.classList.contains('active')) return;
 
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            // e.key is 'Z' (uppercase) while Shift is held — compare
+            // case-insensitively or the redo branch is unreachable (WR-18)
+            const key = e.key.toLowerCase();
+            if ((e.ctrlKey || e.metaKey) && key === 'z' && !e.shiftKey) {
                 e.preventDefault();
                 performUndo();
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+            } else if ((e.ctrlKey || e.metaKey) && ((key === 'z' && e.shiftKey) || key === 'y')) {
                 e.preventDefault();
                 performRedo();
             }

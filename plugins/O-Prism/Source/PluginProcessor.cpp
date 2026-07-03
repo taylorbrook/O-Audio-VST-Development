@@ -12,6 +12,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "FactoryPresets.h"
+#include "NoteDivisions.h"
 #include "dsp/ModulationMatrix.h"
 #include "dsp/WavetableOscillator.h"
 
@@ -27,15 +28,18 @@ namespace
     // by mix≈0) calling fx.process(block) — the per-FX `mix > 0.001f` gate
     // is preserved inside the lambda because not every FX `process()` is
     // RT-safe at mix=0.
+    // Returns whether the effect actually processed this block, so the caller
+    // can reset stale FX buffers on the active -> inactive transition (WR-07).
     template <typename FX, typename ConfigureFn>
-    inline void runEffect (std::atomic<float>* pBypass, FX& fx,
+    inline bool runEffect (std::atomic<float>* pBypass, FX& fx,
                            juce::dsp::AudioBlock<float>& block,
                            ConfigureFn&& configure)
     {
         if (pBypass->load() > 0.5f)
-            return;
-        configure (fx, block);
+            return false;
+        return configure (fx, block);
     }
+
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -252,6 +256,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createReverbPara
     return params;
 }
 
+static const juce::StringArray& getLfoDivisionNames();
+
 static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createDelayParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
@@ -266,6 +272,10 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createDelayParam
         juce::NormalisableRange<float> (0.0f, 0.95f, 0.001f), 0.3f));
     params.push_back (std::make_unique<juce::AudioParameterBool> (
         juce::ParameterID { "delaySync", 1 }, "Delay Sync", false));
+    // WR-03: previously referenced by ~20 factory presets but never registered
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "delayDivision", 1 }, "Delay Division",
+        getLfoDivisionNames(), 2)); // default 1/4
     params.push_back (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "delayMode", 1 }, "Delay Mode",
         juce::StringArray { "Normal", "PingPong" }, 0));
@@ -476,9 +486,13 @@ OPrismAudioProcessor::OPrismAudioProcessor()
         "pitchBendRange", "glideMode", "glideTime"
     };
 
-    // Initialize factory presets on first run (no-op if already written)
-    if (!presetManager.factoryPresetsExist())
-        presetManager.initializeFactoryPresets (FactoryPresets::build (parameters));
+    // Initialize factory presets on first run, and regenerate whenever the
+    // plugin version changes — otherwise on-disk factory JSON stays pinned to
+    // the first-installed version's parameter set forever (WR-08)
+    const juce::String factoryVersion (JucePlugin_VersionString);
+    if (! presetManager.factoryPresetsExist()
+        || presetManager.getFactoryPresetsVersion() != factoryVersion)
+        presetManager.initializeFactoryPresets (FactoryPresets::build (parameters), factoryVersion);
 
     // Generate factory wavetable library (28 tables)
     auto factoryLib = WavetableFactory::createFactoryLibrary();
@@ -532,9 +546,42 @@ OPrismAudioProcessor::OPrismAudioProcessor()
     pEqMidGain      = parameters.getRawParameterValue ("eqMidGain");
     pEqMidFreq      = parameters.getRawParameterValue ("eqMidFreq");
     pEqHighGain     = parameters.getRawParameterValue ("eqHighGain");
+    pDelaySync      = parameters.getRawParameterValue ("delaySync");
+    pDelayDivision  = parameters.getRawParameterValue ("delayDivision");
+
+    // Global LFO params (CR-06) — read every block by advanceGlobalLfoPhases
+    for (int i = 0; i < 4; ++i)
+    {
+        auto n = juce::String (i + 1);
+        pLfoSync[i]  = parameters.getRawParameterValue ("lfo" + n + "Sync");
+        pLfoRate[i]  = parameters.getRawParameterValue ("lfo" + n + "Rate");
+        pLfoDiv[i]   = parameters.getRawParameterValue ("lfo" + n + "Division");
+        pLfoShape[i] = parameters.getRawParameterValue ("lfo" + n + "Shape");
+    }
+
+    // Tuning + global params (CR-05 / IN-01) — read every block
+    pMasterTune     = parameters.getRawParameterValue ("masterTune");
+    pOctaveStretch  = parameters.getRawParameterValue ("octaveStretch");
+    pPitchBendRange = parameters.getRawParameterValue ("pitchBendRange");
+    pTuningPreset   = parameters.getRawParameterValue ("tuningPreset");
+    pTonic          = parameters.getRawParameterValue ("tonic");
+    pStereoWidth    = parameters.getRawParameterValue ("stereoWidth");
+    pMasterVol      = parameters.getRawParameterValue ("masterVol");
+    pOscATable      = parameters.getRawParameterValue ("oscATable");
+    pOscBTable      = parameters.getRawParameterValue ("oscBTable");
+
+    // Processor-level mod matrix for global FX destinations (WR-02)
+    fxModMatrix.setAPVTS (&parameters);
+
+    // Reaper for retired wavetables (see retireTable / timerCallback)
+    startTimer (500);
 }
 
-OPrismAudioProcessor::~OPrismAudioProcessor() = default;
+OPrismAudioProcessor::~OPrismAudioProcessor()
+{
+    cancelPendingUpdate();
+    stopTimer();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Audio Processing
@@ -543,32 +590,23 @@ OPrismAudioProcessor::~OPrismAudioProcessor() = default;
 void OPrismAudioProcessor::advanceGlobalLfoPhases (int numSamples, double sampleRate)
 {
     // Keep in sync with the rate calculation in PrismVoice::renderNextBlock.
-    static constexpr float kDivBeats[18] = {
-        4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f,
-        6.0f, 3.0f, 1.5f, 0.75f, 0.375f, 0.1875f,
-        2.6667f, 1.3333f, 0.6667f, 0.3333f, 0.1667f, 0.0833f
-    };
-
+    // Param pointers are cached in the constructor — juce::String construction
+    // heap-allocates and must never happen on the audio thread (CR-06).
     const double bpm = currentBPM.load (std::memory_order_relaxed);
 
     for (int i = 0; i < 4; ++i)
     {
-        auto n = juce::String (i + 1);
-        auto* pSync = parameters.getRawParameterValue ("lfo" + n + "Sync");
-        auto* pRate = parameters.getRawParameterValue ("lfo" + n + "Rate");
-        auto* pDiv  = parameters.getRawParameterValue ("lfo" + n + "Division");
-
         float rateHz;
-        if (pSync->load() > 0.5f)
+        if (pLfoSync[i]->load() > 0.5f)
         {
-            const int divIdx = juce::jlimit (0, 17, static_cast<int> (pDiv->load()));
-            const float beats = kDivBeats[divIdx];
+            const int divIdx = juce::jlimit (0, 17, static_cast<int> (pLfoDiv[i]->load()));
+            const float beats = NoteDiv::kDivBeats[divIdx];
             const float seconds = static_cast<float> (beats * 60.0 / bpm);
             rateHz = 1.0f / seconds;
         }
         else
         {
-            rateHz = pRate->load();
+            rateHz = pLfoRate[i]->load();
         }
 
         double& phase = globalLfoPhase[static_cast<size_t> (i)];
@@ -595,14 +633,22 @@ void OPrismAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     distortion.prepare (spec);
     chorus.prepare (spec);
     delay.prepare (spec);
-    delay.setPlayHead (getPlayHead());
     eq.prepare (spec);
     reverbProcessor.prepare (spec);
+
+    for (auto& lfo : fxLfo)
+        lfo.prepare (sampleRate);
+
+    distWasActive = chorusWasActive = delayWasActive = reverbWasActive = eqWasActive = false;
 
     masterVolSmoothed.reset (sampleRate, 0.02);
     stereoWidthSmoothed.reset (sampleRate, 0.02);
 
-    setLatencySamples (static_cast<int> (distortion.getLatencyInSamples()));
+    // IN-04: distortion (oversampler) is the only latency source and is
+    // skipped entirely when bypassed — report 0 then, or the host delay-
+    // compensates a path with no latency. Kept current by timerCallback.
+    setLatencySamples (pDistBypass->load() > 0.5f
+        ? 0 : static_cast<int> (distortion.getLatencyInSamples()));
 }
 
 void OPrismAudioProcessor::releaseResources() {}
@@ -626,26 +672,42 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         }
     }
 
-    // Update TuningEngine from APVTS
-    tuningEngine.setMasterTune (static_cast<double> (parameters.getRawParameterValue ("masterTune")->load()));
-    tuningEngine.setOctaveStretch (parameters.getRawParameterValue ("octaveStretch")->load());
-    tuningEngine.setPitchBendRange (static_cast<float> (
-        parameters.getRawParameterValue ("pitchBendRange")->load()));
-
-    // Forward tuning preset and tonic (only on change to avoid rebuilding frequency table every block)
-    int tuningPreset = static_cast<int> (parameters.getRawParameterValue ("tuningPreset")->load());
-    int tonic = static_cast<int> (parameters.getRawParameterValue ("tonic")->load());
-
-    if (tuningPreset != lastTuningPreset)
+    // TuningEngine sync (CR-05): detect parameter changes here, but defer the
+    // engine mutation to the message thread. setBuiltInPreset heap-allocates
+    // and setCustomIntervals/rebuildFrequencyTable take intervalMutex — none
+    // of that may run on the audio thread. Voices keep reading the lock-free
+    // frequencyTable atomics, which handleAsyncUpdate republishes.
     {
-        lastTuningPreset = tuningPreset;
-        tuningEngine.setBuiltInPreset (static_cast<TuningEngine::BuiltInPreset> (tuningPreset));
-    }
+        const float masterTune = pMasterTune->load();
+        const float octaveStretch = pOctaveStretch->load();
+        const float pbRange = pPitchBendRange->load();
+        const int tuningPreset = static_cast<int> (pTuningPreset->load());
+        const int tonic = static_cast<int> (pTonic->load());
 
-    if (tonic != lastTonic)
-    {
-        lastTonic = tonic;
-        tuningEngine.setTonicNote (tonic);
+        bool changed = false;
+
+        if (masterTune != lastMasterTune || octaveStretch != lastOctaveStretch
+            || pbRange != lastPitchBendRange || tonic != lastTonic)
+        {
+            lastMasterTune = masterTune;
+            lastOctaveStretch = octaveStretch;
+            lastPitchBendRange = pbRange;
+            lastTonic = tonic;
+            changed = true;
+        }
+
+        if (tuningPreset != lastTuningPreset)
+        {
+            lastTuningPreset = tuningPreset;
+            // Preset application is flagged separately: handleAsyncUpdate must
+            // NOT reapply the preset when only a scalar changed, or it would
+            // clobber a user-loaded .scl (engine preset = Custom).
+            pendingTuningPresetChange.store (true, std::memory_order_release);
+            changed = true;
+        }
+
+        if (changed)
+            triggerAsyncUpdate();
     }
 
     // Update wavetable assignments if table selection changed
@@ -673,59 +735,112 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // Advance shared free-running LFO phases for next block
     advanceGlobalLfoPhases (buffer.getNumSamples(), getSampleRate());
 
+    // Global FX mod destinations (WR-02): evaluate the processor-level matrix
+    // once per block. Sources are the global LFOs (sampled at the shared
+    // phases), mod wheel, and aftertouch; per-voice sources read as 0 here.
+    fxModMatrix.updateFromAPVTS();
+    for (int i = 0; i < 4; ++i)
+    {
+        fxLfo[i].setShape (static_cast<LFO::Shape> (static_cast<int> (pLfoShape[i]->load())));
+        fxLfo[i].setPhase (globalLfoPhase[static_cast<size_t> (i)]);
+        fxModMatrix.setSourceValue (
+            static_cast<ModSource> (static_cast<int> (ModSource::LFO1) + i),
+            fxLfo[i].getNextSample());
+    }
+    fxModMatrix.setSourceValue (ModSource::ModWheel, modWheelValue.load (std::memory_order_relaxed));
+    fxModMatrix.setSourceValue (ModSource::Aftertouch, aftertouchValue.load (std::memory_order_relaxed));
+    fxModMatrix.evaluate();
+
     // Effects chain (float precision)
     juce::dsp::AudioBlock<float> block (buffer);
 
     // 1. Distortion
-    runEffect (pDistBypass, distortion, block, [this] (auto& fx, auto& blk)
+    const bool distRan = runEffect (pDistBypass, distortion, block, [this] (auto& fx, auto& blk)
     {
         fx.setType (static_cast<int> (pDistType->load()));
         fx.setDrive (pDistDrive->load());
-        const float mix = pDistMix->load();
+        const float mix = juce::jlimit (0.0f, 1.0f,
+            pDistMix->load() + fxModMatrix.getModOffset (ModDest::DistMix));
         fx.setMix (mix);
-        if (mix > 0.001f)
-            fx.process (blk);
+        if (mix <= 0.001f)
+            return false;
+        fx.process (blk);
+        return true;
     });
+    if (! distRan && distWasActive)
+        distortion.reset();
+    distWasActive = distRan;
 
     // 2. Chorus
-    runEffect (pChorusBypass, chorus, block, [this] (auto& fx, auto& blk)
+    const bool chorusRan = runEffect (pChorusBypass, chorus, block, [this] (auto& fx, auto& blk)
     {
         fx.setRate (pChorusRate->load());
         fx.setDepth (pChorusDepth->load());
-        const float mix = pChorusMix->load();
+        const float mix = juce::jlimit (0.0f, 1.0f,
+            pChorusMix->load() + fxModMatrix.getModOffset (ModDest::ChorusMix));
         fx.setMix (mix);
-        if (mix > 0.001f)
-            fx.process (blk);
+        if (mix <= 0.001f)
+            return false;
+        fx.process (blk);
+        return true;
     });
+    if (! chorusRan && chorusWasActive)
+        chorus.reset();
+    chorusWasActive = chorusRan;
 
-    // 3. Delay
-    runEffect (pDelayBypass, delay, block, [this] (auto& fx, auto& blk)
+    // 3. Delay (WR-03: tempo sync — delaySync + delayDivision drive the time
+    // from the host BPM, mirroring the LFO division table)
+    const bool delayRan = runEffect (pDelayBypass, delay, block, [this] (auto& fx, auto& blk)
     {
-        fx.setTime (pDelayTime->load());
+        float timeSec;
+        if (pDelaySync->load() > 0.5f)
+        {
+            const int divIdx = juce::jlimit (0, 17, static_cast<int> (pDelayDivision->load()));
+            const double bpm = currentBPM.load (std::memory_order_relaxed);
+            timeSec = static_cast<float> (NoteDiv::kDivBeats[divIdx] * 60.0 / bpm);
+        }
+        else
+        {
+            timeSec = pDelayTime->load();
+        }
+        fx.setTime (timeSec); // clamped to kMaxDelaySeconds internally
+
         fx.setFeedback (pDelayFeedback->load());
         fx.setMode (static_cast<int> (pDelayMode->load()));
-        const float mix = pDelayMix->load();
+        const float mix = juce::jlimit (0.0f, 1.0f,
+            pDelayMix->load() + fxModMatrix.getModOffset (ModDest::DelayMix));
         fx.setMix (mix);
-        if (mix > 0.001f)
-            fx.process (blk);
+        if (mix <= 0.001f)
+            return false;
+        fx.process (blk);
+        return true;
     });
+    if (! delayRan && delayWasActive)
+        delay.reset();
+    delayWasActive = delayRan;
 
     // 4. Reverb
-    runEffect (pReverbBypass, reverbProcessor, block, [this] (auto& fx, auto& blk)
+    const bool reverbRan = runEffect (pReverbBypass, reverbProcessor, block, [this] (auto& fx, auto& blk)
     {
         fx.setSize (pReverbSize->load());
         fx.setDamping (pReverbDamp->load());
         fx.setPredelay (pReverbPredelay->load());
-        const float mix = pReverbMix->load();
+        const float mix = juce::jlimit (0.0f, 1.0f,
+            pReverbMix->load() + fxModMatrix.getModOffset (ModDest::ReverbMix));
         fx.setMix (mix);
         fx.setModDepth (pReverbModDepth->load());
         fx.setModRate (pReverbModRate->load());
-        if (mix > 0.001f)
-            fx.process (blk);
+        if (mix <= 0.001f)
+            return false;
+        fx.process (blk);
+        return true;
     });
+    if (! reverbRan && reverbWasActive)
+        reverbProcessor.reset();
+    reverbWasActive = reverbRan;
 
     // 5. EQ
-    runEffect (pEqBypass, eq, block, [this] (auto& fx, auto& blk)
+    const bool eqRan = runEffect (pEqBypass, eq, block, [this] (auto& fx, auto& blk)
     {
         const float lowGain  = pEqLowGain->load();
         const float midGain  = pEqMidGain->load();
@@ -735,12 +850,21 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         fx.setMidFreq (pEqMidFreq->load());
         fx.setHighGain (highGain);
         if (std::abs (lowGain) > 0.1f || std::abs (midGain) > 0.1f || std::abs (highGain) > 0.1f)
+        {
             fx.process (blk);
+            return true;
+        }
+        return false;
     });
+    if (! eqRan && eqWasActive)
+        eq.reset();
+    eqWasActive = eqRan;
 
-    // Stereo width (mid-side processing) + master volume (smoothed per-sample)
-    float stereoWidth = parameters.getRawParameterValue ("stereoWidth")->load();
-    float masterVol = parameters.getRawParameterValue ("masterVol")->load();
+    // Stereo width (mid-side processing) + master volume (smoothed per-sample).
+    // Master volume takes the WR-02 MasterVol mod offset.
+    float stereoWidth = pStereoWidth->load();
+    float masterVol = juce::jlimit (0.0f, 1.0f,
+        pMasterVol->load() + fxModMatrix.getModOffset (ModDest::MasterVol));
     stereoWidthSmoothed.setTargetValue (stereoWidth);
     masterVolSmoothed.setTargetValue (masterVol);
 
@@ -769,6 +893,64 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             buffer.setSample (0, sample, buffer.getSample (0, sample) * gain);
         }
     }
+
+    // Publish "this block is done reading wavetables" for the retired-table reaper
+    blockGeneration.fetch_add (1, std::memory_order_release);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Deferred TuningEngine sync (CR-05)
+// ═══════════════════════════════════════════════════════════════════
+
+void OPrismAudioProcessor::handleAsyncUpdate()
+{
+    // Message thread. The scalar setters are idempotent (internal change
+    // detection), so they are applied unconditionally with the latest values.
+    tuningEngine.setMasterTune (static_cast<double> (pMasterTune->load()));
+    tuningEngine.setOctaveStretch (pOctaveStretch->load());
+    tuningEngine.setPitchBendRange (pPitchBendRange->load());
+    tuningEngine.setTonicNote (static_cast<int> (pTonic->load()));
+
+    // The preset is only applied when the parameter actually changed —
+    // otherwise it would clobber a user-loaded .scl (engine preset = Custom).
+    if (pendingTuningPresetChange.exchange (false, std::memory_order_acq_rel))
+        tuningEngine.setBuiltInPreset (
+            static_cast<TuningEngine::BuiltInPreset> (static_cast<int> (pTuningPreset->load())));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Retired-table reaper
+// ═══════════════════════════════════════════════════════════════════
+
+void OPrismAudioProcessor::retireTable (std::unique_ptr<WavetableData> table)
+{
+    if (table != nullptr)
+        retiredTables.push_back ({ std::move (table),
+                                   blockGeneration.load (std::memory_order_acquire) });
+}
+
+void OPrismAudioProcessor::timerCallback()
+{
+    // IN-04: follow distortion bypass with the reported latency (message
+    // thread — setLatencySamples notifies the host).
+    const int wantedLatency = pDistBypass->load() > 0.5f
+        ? 0 : static_cast<int> (distortion.getLatencyInSamples());
+    if (wantedLatency != getLatencySamples())
+        setLatencySamples (wantedLatency);
+
+    if (retiredTables.empty())
+        return;
+
+    // A table is safe to free once two generations have passed since
+    // retirement: at least one full processBlock has then started AFTER the
+    // new pointers were published (its updateWavetableAssignments repointed
+    // every voice) and completed. If the host stops calling processBlock the
+    // generation freezes and tables are simply held — never freed unsafely.
+    const auto gen = blockGeneration.load (std::memory_order_acquire);
+    retiredTables.erase (
+        std::remove_if (retiredTables.begin(), retiredTables.end(),
+                        [gen] (const RetiredTable& r) { return gen >= r.retiredAt + 2; }),
+        retiredTables.end());
 }
 
 void OPrismAudioProcessor::updateWavetableAssignments()
@@ -840,9 +1022,11 @@ const WavetableData* OPrismAudioProcessor::resolveActiveTable (int oscIndex) con
     if (auto* userTable = userPtr.load (std::memory_order_relaxed))
         return userTable;
 
-    const char* paramId = (oscIndex == 0) ? "oscATable" : "oscBTable";
+    // IN-01: cached in the constructor — this runs every block via
+    // updateWavetableAssignments and must not do APVTS string lookups.
+    auto* pTable = (oscIndex == 0) ? pOscATable : pOscBTable;
     int idx = juce::jlimit (0, static_cast<int> (factoryTables.size()) - 1,
-        static_cast<int> (parameters.getRawParameterValue (paramId)->load()));
+        static_cast<int> (pTable->load()));
     return factoryTables[static_cast<size_t> (idx)].get();
 }
 
@@ -867,6 +1051,10 @@ void OPrismAudioProcessor::startEditing (int oscIndex)
     // Stop any existing editing session
     if (editingOscIndex >= 0)
         stopEditing (editingOscIndex);
+
+    // Defensive: a stale working table must be retired, not freed by
+    // loadTable's reassignment — the audio thread may still be reading it
+    retireTable (wavetableEditor.releaseWorkingTable());
 
     const WavetableData* sourceTable = getActiveOscTable (oscIndex);
     if (sourceTable == nullptr)
@@ -917,8 +1105,50 @@ void OPrismAudioProcessor::stopEditing (int oscIndex)
         }
     }
 
-    wavetableEditor.clearWorkingTable();
+    // Working table pointers are unpublished above but voices only repoint at
+    // the top of the NEXT processBlock — retire, never free in place (CR-02)
+    retireTable (wavetableEditor.releaseWorkingTable());
     editingOscIndex = -1;
+}
+
+bool OPrismAudioProcessor::deleteUserWavetable (const juce::String& name)
+{
+    // Unpublish before freeing: clear any osc override bound to this table
+    if (getActiveUserTableName (0) == name)
+        clearUserWavetableOverride (0);
+    if (getActiveUserTableName (1) == name)
+        clearUserWavetableOverride (1);
+
+    auto removed = userWavetableManager.removeWavetable (name);
+    const bool existed = (removed != nullptr);
+    retireTable (std::move (removed));
+    return existed;
+}
+
+bool OPrismAudioProcessor::saveEditedWavetable (const juce::String& name)
+{
+    std::unique_ptr<WavetableData> replaced;
+    if (! wavetableEditor.saveAsUserWavetable (name, userWavetableManager, replaced))
+        return false;
+
+    // Re-publish BEFORE retiring: an osc bound by name to the replaced table
+    // must point at the freshly imported object. The editing osc keeps its
+    // working-table preview — stopEditing re-resolves it by name later.
+    for (int osc = 0; osc < 2; ++osc)
+    {
+        if (osc == editingOscIndex)
+            continue;
+
+        const auto& boundName = (osc == 0) ? userTableNameA : userTableNameB;
+        if (boundName.isNotEmpty())
+        {
+            auto* fresh = userWavetableManager.getTable (boundName);
+            (osc == 0 ? userTablePtrA : userTablePtrB).store (fresh, std::memory_order_relaxed);
+        }
+    }
+
+    retireTable (std::move (replaced));
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -929,20 +1159,10 @@ void OPrismAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
 
-    // Add custom tuning state
+    // Full tuning engine state: intervals, name, tonic, mode, preset, and the
+    // KBM mapping block (WR-17: KBM/mode/preset were previously lost on reload)
     auto tuningState = state.getOrCreateChildWithName ("tuningEngine", nullptr);
-
-    auto intervals = tuningEngine.getIntervals();
-    juce::String intervalsStr;
-    for (size_t i = 0; i < intervals.size(); ++i)
-    {
-        if (i > 0) intervalsStr += ",";
-        intervalsStr += juce::String (intervals[i], 6);
-    }
-
-    tuningState.setProperty ("intervals", intervalsStr, nullptr);
-    tuningState.setProperty ("scaleName", tuningEngine.getActiveTuningName(), nullptr);
-    tuningState.setProperty ("tonic", tuningEngine.getTonicNote(), nullptr);
+    tuningEngine.writeStateTo (tuningState);
 
     // Save user wavetable selections
     auto userWtState = state.getOrCreateChildWithName ("userWavetables", nullptr);
@@ -965,27 +1185,21 @@ void OPrismAudioProcessor::setStateInformation (const void* data, int sizeInByte
         // Sync cached values so processBlock doesn't overwrite restored TuningEngine state
         lastTuningPreset = static_cast<int> (parameters.getRawParameterValue ("tuningPreset")->load());
         lastTonic = static_cast<int> (parameters.getRawParameterValue ("tonic")->load());
+        lastMasterTune = parameters.getRawParameterValue ("masterTune")->load();
+        lastOctaveStretch = parameters.getRawParameterValue ("octaveStretch")->load();
+        lastPitchBendRange = parameters.getRawParameterValue ("pitchBendRange")->load();
 
-        // Restore tuning state
+        // Apply the restored scalar params to the engine once (message-thread
+        // path of the CR-05 deferral; the audio thread only change-detects)
+        tuningEngine.setMasterTune (static_cast<double> (lastMasterTune));
+        tuningEngine.setOctaveStretch (lastOctaveStretch);
+        tuningEngine.setPitchBendRange (lastPitchBendRange);
+
+        // Restore full tuning state (intervals + mode + preset + KBM, WR-17;
+        // legacy sessions with only intervals/scaleName/tonic still load)
         auto tuningState = state.getChildWithName ("tuningEngine");
         if (tuningState.isValid())
-        {
-            juce::String intervalsStr = tuningState.getProperty ("intervals", "");
-            if (intervalsStr.isNotEmpty())
-            {
-                std::vector<double> intervals;
-                juce::StringArray tokens;
-                tokens.addTokens (intervalsStr, ",", "");
-                for (const auto& token : tokens)
-                    intervals.push_back (token.getDoubleValue());
-
-                juce::String scaleName = tuningState.getProperty ("scaleName", "Custom");
-                tuningEngine.setCustomIntervals (intervals, scaleName);
-            }
-
-            int tonic = tuningState.getProperty ("tonic", 0);
-            tuningEngine.setTonicNote (tonic);
-        }
+            tuningEngine.restoreStateFrom (tuningState);
 
         // Restore user wavetable selections
         auto userWtState = state.getChildWithName ("userWavetables");
