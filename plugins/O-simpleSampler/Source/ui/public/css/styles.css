@@ -1,0 +1,660 @@
+/* ============================================================================
+   O-simpleSampler — Ouaricon Audio Naturalist theme
+   Aged-paper field-guide aesthetic. Garamond serif, seed cross-section knobs,
+   green botanical toggles. Keyboard Sampler · A Field Guide. Base palette +
+   knob/toggle/header/preset/keyboard/combo/drop-zone/tooltip components cloned
+   verbatim from the O-simpleGrain sibling (sibling-consistency); sampler-specific
+   rules (wide waveform editor, 7-group signal-path rack, mini viz canvases) are
+   appended at the foot of this file.
+   ============================================================================ */
+
+:root {
+  /* Backgrounds */
+  --bg-paper-light: #FAF0E6;
+  --bg-paper: #F5E6D3;
+  --bg-paper-mid: #EBD9C7;
+  --bg-accent: #D4C4B0;
+  /* Browns */
+  --brown-border: #8B7355;
+  --brown-frame: #5C4033;
+  --brown-text: #3C2F2F;
+  --brown-soft: #5C4033;
+  /* Greens */
+  --green-light: #8BA870;
+  --green-mid: #6B8E4E;
+  --green-dark: #3C5C1A;
+  --green-darkest: #2C3E10;
+  /* Knob */
+  --knob-ring: #C9A27B;
+  --knob-seg-1: #F5DEB3;
+  --knob-seg-2: #E8D5B7;
+  --knob-divider: #8B7355;
+  --knob-core: #FFF8DC;
+  --knob-border: #8B7355;
+  /* Buttons */
+  --btn-default: rgba(139, 168, 112, 0.3);
+  --btn-active: rgba(107, 142, 35, 0.6);
+  --btn-border: #3C5C1A;
+  --btn-border-active: #2C3E10;
+  /* Effects */
+  --shadow-light: rgba(0, 0, 0, 0.15);
+  --shadow-medium: rgba(0, 0, 0, 0.25);
+  --shadow-heavy: rgba(0, 0, 0, 0.5);
+  --text-emboss: rgba(255, 255, 255, 0.5);
+  --fleuron-color: rgba(60, 47, 47, 0.3);
+  /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+body {
+  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  color: var(--brown-text);
+  background:
+    radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(92, 64, 51, 0.015) 0, rgba(92, 64, 51, 0.015) 1px, transparent 1px, transparent 3px),
+    var(--bg-paper);
+  position: relative;
+}
+
+/* ── Frame ──────────────────────────────────────────────────────────────── */
+.frame {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 3px solid var(--brown-frame);
+  border-image: linear-gradient(160deg, #6b5340, #5C4033) 1;
+  /* Scroll inside the fixed frame: the border stays put framing the window,
+     the field-guide content scrolls when it exceeds the editor height. */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* Direct sections keep their natural height — no shrink-to-overlap. The frame
+   scrolls instead of collapsing the Output / Lesson-Presets rows together. */
+.frame > * { flex-shrink: 0; }
+
+/* Aged-paper scrollbar */
+.frame::-webkit-scrollbar { width: 11px; }
+.frame::-webkit-scrollbar-track {
+  background: rgba(92, 64, 51, 0.06);
+  border-radius: 4px;
+}
+.frame::-webkit-scrollbar-thumb {
+  background: var(--brown-border);
+  border-radius: 6px;
+  border: 2px solid var(--bg-paper);
+}
+.frame::-webkit-scrollbar-thumb:hover { background: var(--brown-frame); }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+  padding-bottom: 6px;
+}
+.title {
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 3px;
+  color: var(--brown-frame);
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+.title-accent { color: var(--green-mid); font-style: italic; }
+.subtitle {
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+  margin-top: 2px;
+}
+.fleuron-row { font-size: 22px; color: var(--fleuron-color); }
+
+/* ── Visualization ──────────────────────────────────────────────────────── */
+.viz-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--brown-border);
+  margin-bottom: 4px;
+}
+.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
+.canvas-wrap {
+  flex: 1;
+  position: relative;
+  background:
+    linear-gradient(180deg, #2a2118 0%, #1c160f 100%);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.canvas-wrap canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+.controls {
+  flex: 0 0 auto;          /* natural height — never shrink below content */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.group {
+  background: rgba(250, 240, 230, 0.45);
+  border: 1px solid rgba(139, 115, 85, 0.35);
+  border-radius: 5px;
+  padding: 6px 14px 10px;
+}
+.group-title {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--green-darkest);
+  margin-bottom: 6px;
+  border-bottom: 1px dotted rgba(139, 115, 85, 0.4);
+  padding-bottom: 3px;
+}
+.knob-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.env-pair { display: flex; gap: 8px; }
+.env-pair .group { flex: 1; }
+.group-output .knob-row { justify-content: flex-start; }
+
+.knob-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 62px;
+}
+
+/* ── Seed cross-section knob ─────────────────────────────────────────────── */
+.knob {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  position: relative;
+  border: 2px solid var(--knob-border);
+  cursor: ns-resize;
+  background:
+    radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
+    conic-gradient(from 0deg,
+      var(--knob-seg-1) 0deg, var(--knob-seg-1) 18deg, var(--knob-divider) 18deg, var(--knob-divider) 19deg,
+      var(--knob-seg-2) 19deg, var(--knob-seg-2) 36deg, var(--knob-divider) 36deg, var(--knob-divider) 37deg,
+      var(--knob-seg-1) 37deg, var(--knob-seg-1) 54deg, var(--knob-divider) 54deg, var(--knob-divider) 55deg,
+      var(--knob-seg-2) 55deg, var(--knob-seg-2) 72deg, var(--knob-divider) 72deg, var(--knob-divider) 73deg,
+      var(--knob-seg-1) 73deg, var(--knob-seg-1) 90deg, var(--knob-divider) 90deg, var(--knob-divider) 91deg,
+      var(--knob-seg-2) 91deg, var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+      var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+      var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+      var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+      var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+      var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+      var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+      var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+      var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+      var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+      var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+      var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+      var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+      var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+      var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+    radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
+  box-shadow:
+    inset 1px 1px 3px rgba(0, 0, 0, 0.3),
+    inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+    2px 2px 6px var(--shadow-medium);
+  transition: transform 0.1s ease;
+}
+.knob:hover { transform: scale(1.05); }
+.knob:active { transform: scale(0.98); }
+.knob.knob-sm { width: 48px; height: 48px; }
+.knob-cell:has(.knob-sm) { width: 56px; }
+
+/* indicator stem — rotates with value (set via JS transform on .knob-stem) */
+.knob-stem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 46%;
+  background: var(--green-darkest);
+  border-radius: 2px;
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(0deg);
+  pointer-events: none;
+  box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
+}
+
+.knob-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--brown-soft);
+  margin-top: 6px;
+  text-align: center;
+  line-height: 1.1;
+}
+.knob-value {
+  font-size: 11px;
+  color: var(--brown-text);
+  margin-top: 2px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Toggles ────────────────────────────────────────────────────────────── */
+.toggle-row { display: flex; gap: 16px; margin-top: 8px; }
+.toggle {
+  position: relative;
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 5px;
+  padding: 7px 16px;
+  cursor: pointer;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+.toggle:hover { background: rgba(139, 168, 112, 0.45); transform: translateY(-1px); box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3); }
+.toggle.active { background: var(--btn-active); border-color: var(--btn-border-active); color: #1f2b08; }
+/* ADSR bypassed: dim + lock out the A/D/S/R knobs so it's clear the envelope is off. */
+.knob-row.env-bypassed { opacity: 0.38; pointer-events: none; transition: opacity 0.2s ease; }
+.fleuron-corner {
+  position: absolute;
+  top: 1px; right: 3px;
+  font-size: 8px;
+  opacity: 0.3;
+  color: var(--brown-frame);
+}
+
+/* ── Preset tour ────────────────────────────────────────────────────────── */
+.preset-tour {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 14px;
+  border-top: 1px solid rgba(139, 115, 85, 0.4);
+  flex-wrap: wrap;
+}
+.tour-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--brown-border);
+}
+.tour-buttons { display: flex; gap: 8px; }
+.tour-btn {
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
+.tour-btn.active { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+.tour-caption {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--brown-soft);
+  opacity: 0.85;
+  width: 100%;
+  text-align: right;
+  margin-top: 4px;
+  min-height: 1.2em;            /* reserve the line so the bar doesn't reflow */
+  line-height: 1.2;
+}
+
+/* ── On-screen keyboard ─────────────────────────────────────────────────── */
+.keyboard-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 14px 4px;
+  border-top: 1px solid rgba(139, 115, 85, 0.4);
+}
+.keyboard-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--brown-border);
+}
+.kbd-hint {
+  text-transform: none;
+  letter-spacing: 0.3px;
+  font-style: italic;
+  color: var(--green-mid);
+  opacity: 0.85;
+}
+.keyboard {
+  position: relative;
+  height: 96px;
+  display: flex;
+  touch-action: none;          /* let pointer events drive note on/off, not scroll */
+  border: 1px solid var(--brown-frame);
+  border-radius: 0 0 5px 5px;
+  box-shadow: inset 0 2px 6px rgba(92, 64, 51, 0.25);
+}
+.key { position: relative; cursor: pointer; }
+.key-white {
+  flex: 1 1 0;
+  height: 100%;
+  background: linear-gradient(180deg, var(--bg-paper-light) 0%, var(--knob-core) 72%, #e6d4ba 100%);
+  border: 1px solid var(--brown-border);
+  border-top: none;
+  margin-right: -1px;          /* collapse shared vertical borders */
+  box-shadow: inset 0 -4px 6px rgba(92, 64, 51, 0.12);
+}
+.key-white:last-of-type { margin-right: 0; }
+.key-black {
+  position: absolute;
+  top: 0;
+  width: 24px;
+  height: 60%;
+  background: linear-gradient(180deg, #4a3a2c 0%, var(--brown-frame) 100%);
+  border: 1px solid #261a12;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  z-index: 2;
+  box-shadow: inset 0 -3px 4px rgba(0, 0, 0, 0.45), 1px 2px 4px rgba(0, 0, 0, 0.4);
+}
+.key-white:hover { background: linear-gradient(180deg, #fbf4e6 0%, var(--knob-core) 72%, #e6d4ba 100%); }
+.key-black:hover { background: linear-gradient(180deg, #5a4636 0%, #4a3a2c 100%); }
+.key-white.active {
+  background: linear-gradient(180deg, var(--green-light) 0%, var(--green-mid) 100%);
+  border-color: var(--green-darkest);
+}
+.key-black.active {
+  background: linear-gradient(180deg, var(--green-mid) 0%, var(--green-dark) 100%);
+  border-color: var(--green-darkest);
+}
+.key-label {
+  position: absolute;
+  bottom: 4px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: var(--brown-border);
+  pointer-events: none;
+}
+.key-black .key-label { color: rgba(245, 230, 211, 0.7); }
+
+/* ── Tooltip ────────────────────────────────────────────────────────────── */
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 260px;
+  background: #2a2118;
+  color: #f5e6d3;
+  border: 1px solid var(--brown-border);
+  border-radius: 5px;
+  padding: 8px 11px;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+.tooltip.show { opacity: 1; visibility: visible; }
+.tooltip .tip-title {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--green-light);
+  margin-bottom: 3px;
+}
+
+/* ── Symbol glyph fallback (❦ fleurons, ♪ note) ──────────────────────────── */
+.fleuron-row, .fleuron-corner, .preset-fleuron, .op-out {
+  font-family: var(--symbol-font);
+}
+
+/* ── Keyboard focus visibility (accessibility) ───────────────────────────── */
+.knob:focus-visible,
+.toggle:focus-visible,
+.routing-panel:focus-visible,
+.tour-btn:focus-visible,
+.preset-bar button:focus-visible,
+.preset-dropdown-item:focus-visible {
+  outline: 2px solid var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* ── Preset bar (header, right) ──────────────────────────────────────────── */
+.preset-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;          /* let the lesson caption drop to its own line */
+}
+.preset-bar-container > .tour-caption { flex-basis: 100%; }  /* force caption onto a new row */
+.preset-fleuron { font-size: 18px; color: var(--fleuron-color); }
+
+/* ============================================================================
+   SAMPLER-SPECIFIC RULES (O-simpleSampler) — appended to the cloned base.
+   Wide headline waveform editor, 7-group signal-path rack (SOURCE | REGION |
+   PITCH | VINTAGE | FILTER | AMP | OUTPUT), mini per-group viz canvases, combos,
+   source drop zone. Same sepia/brown palette as the base components above.
+   Canvas containers are RESERVED here for Phase 3.2 — no drawing yet.
+   ============================================================================ */
+
+/* ── Header preset bar shell (7 concept-tour buttons; wired in 3.3) ───────── */
+.preset-bar-tour {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 460px;
+}
+.preset-bar-tour .tour-btn { font-size: 9.5px; padding: 4px 8px; }
+
+/* ── Headline waveform editor (canvas reserved for 3.2) ───────────────────── */
+.wave-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Canvas stretches to its .canvas-wrap via the base width/height:100% rule
+   (NOT right/bottom — a <canvas> is a CSS replaced element and would stay
+   stuck at 300×150). The wrap carries an explicit height so the replaced
+   element has a box to fill. */
+.wave-wrap { flex: none; height: 150px; }
+
+/* ── Control rack: 7 signal-path groups, left→right (wraps on narrow) ──────── */
+.rack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: stretch;
+}
+.rack .group {
+  flex: 1 1 auto;
+  padding: 6px 12px 9px;
+  min-width: 0;
+}
+.rack .knob-row { gap: 14px; }
+.rack .knob-cell { width: 54px; }
+.group-source  { flex: 1 1 240px; }
+.group-region  { flex: 2 1 360px; }
+.group-pitch   { flex: 1 1 220px; }
+.group-vintage { flex: 0 1 110px; }
+.group-filter  { flex: 1 1 180px; }
+.group-amp     { flex: 2 1 320px; }
+.group-output  { flex: 0 1 130px; }
+
+/* Combo + toggle row inside REGION / PITCH groups. */
+.region-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.toggle-cell { display: flex; align-items: flex-end; }
+select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
+
+/* Repitch-vs-Stretch readout (UI-02) — bound to the pitchMode combo. */
+.pitch-mode-readout {
+  font-size: 9.5px;
+  font-style: italic;
+  line-height: 1.25;
+  color: var(--green-mid);
+  max-width: 150px;
+  align-self: center;
+  opacity: 0.9;
+}
+
+/* ── Mini per-group viz canvases (filter curve / amp-ADSR / scope) ─────────── */
+/* Reserved for 3.2; sized via the wrap's explicit height so the replaced-element
+   <canvas> has a box to fill (base rule sets width/height:100%). */
+.mini-wrap {
+  flex: none;
+  height: 56px;
+  margin-bottom: 8px;
+}
+.scope-wrap { /* same dark inset as the base .canvas-wrap */ }
+
+/* ── Source drop zone + Load… picker ──────────────────────────────────────── */
+.source-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.source-pick-row { display: flex; align-items: center; gap: 8px; }
+.btn-load {
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  color: var(--green-darkest);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  padding: 6px 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.btn-load:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
+.source-drop-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 52px;
+  padding: 8px 10px;
+  font-size: 10.5px;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--brown-border);
+  background: repeating-linear-gradient(135deg, rgba(139,115,85,0.05) 0 8px, transparent 8px 16px), var(--bg-paper-light);
+  border: 1.5px dashed var(--brown-border);
+  border-radius: 5px;
+  transition: all 0.15s ease;
+}
+.source-drop-zone.drop-hover {
+  border-color: var(--green-dark);
+  background: rgba(139, 168, 112, 0.28);
+  color: var(--green-darkest);
+}
+.source-status {
+  font-size: 10px;
+  font-style: italic;
+  color: var(--green-mid);
+  min-height: 13px;
+  opacity: 0.9;
+}
+.source-status.truncated { color: #b8863a; }
+
+/* ── Combo <select> (sourceSample, windowShape) — sepia palette ───────────── */
+.select-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+select.combo {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 4px;
+  padding: 5px 9px;
+  min-width: 132px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--brown-soft) 50%),
+    linear-gradient(135deg, var(--brown-soft) 50%, transparent 50%);
+  background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.15s ease;
+}
+select.combo:hover { border-color: var(--green-dark); }
+select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+
+/* ── Toast (drop / load feedback) ─────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 60;
+  max-width: 340px;
+  padding: 9px 16px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #f5e6d3;
+  background: #2a2118;
+  border: 1px solid var(--brown-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }

@@ -395,3 +395,306 @@ Copy `O-simpleGrain/Source/VizAnalyzer.h` **verbatim** (rename `GrainVizAnalyzer
 
 ---
 *Research complete 2026-06-25. Inputs: ARCHITECTURE/ROADMAP/parameter-spec + verbatim extraction from O-simpleGrain & O-simpleSubtractive (4 parallel passes) + JUCE 8.0.9 source + piano.wav autocorrelation probe. Next: plan phase.*
+
+---
+---
+
+# Phase 2.2 — Deep Research (Tone Chain → Stretch) · 2026-06-25
+
+**Phase:** research (re-entry for Phase 2.2) → complete
+**Trigger:** Phase 2.1 SHIPPED + DAW gate cleared (CONTEXT D3). Discuss split Phase 2.2 → **2.2a tone chain** → DAW checkpoint → **2.2b Stretch SOLA** (CONTEXT D4/D5).
+**Inputs:** stages/2-dsp/CONTEXT.md "Open items for research phase (Phase 2.2)" (6 items) · the **actual shipped** `Source/SampleVoice.h` (2.1 Repitch read head, no longer the speculative skeleton) · `Source/PluginProcessor.cpp` processBlock param-push · ARCHITECTURE Algorithm Details · **3 parallel verbatim-extraction passes** over O-MicrotonalSampler / O-simpleGrain / O-simpleSubtractive / O-simpleAdditive + JUCE 8.0.9 `StateVariableTPTFilter` source.
+
+> **Why a second research pass.** §9–§11 above were written *before* 2.1 existed and treated the loop/Vintage/filter/Stretch blocks as forward-scope. Now 2.1 is real code and the extraction passes surfaced material corrections to that forward-scope — most importantly that **the loop crossfade is a port, not net-new** (O-MicrotonalSampler ships it), that the **region-end declick is mandatory and independent of the amp release** (the 0.2 s release is unreachable from the region-end path), that the **S&H decimator is net-new** (no in-repo idiom — only the bit-crush ports), and that **O-simpleSubtractive does NOT use `StateVariableTPTFilter`** (only its closed-form curve ports; the JUCE runtime filter is net-new wiring). This section supersedes §9.1/§9.2/§10/§11 where they conflict.
+
+---
+
+## P0. Answers to the 6 Phase-2.2 open items (CONTEXT.md)
+
+| # | Open item | Resolution | Verbatim? | Pass |
+|---|-----------|------------|-----------|------|
+| 1 | Loop crossfade mechanics (2nd read head, ping-pong, zero-cross) | **PORT** the dual-read-head equal-power crossfade from `O-MicrotonalSampler/Source/MicrotonalSamplerVoice.cpp:72-111` (`readVariantWithLoop` + `wrapLoopPosition`). Forward + fixed-8-sample there → generalize to configurable `xfadeSamp = loopCrossfade·fs/1000`. **Ping-pong, zero-cross snap, configurable xfade = net-new.** **§P3.** | partial | loop |
+| 2 | Region-end declick ramp + reconcile with 0.2 s release | The 0.2 s amp release **does NOT cover** the region-end cut: `SampleVoice.h:185-189` calls `ampEnv.reset()` (instant idle), **not** `noteOff()` (release ramp) — the release tail is only reachable from MIDI key-up. A **dedicated short raised-cosine end-ramp is required.** Port idiom = `O-MicrotonalSampler/Source/PluginProcessor.cpp:489-510` (`0.5−0.5·cos(π·k/fadeSamps)`, `fadeSamps = min(region/4, 5 ms·fs)`). **§P2.** | idiom | loop |
+| 3 | Stretch SOLA port surface (time-1× + per-grain keyRatio; pool lifetime; pitchMode switch) | The `Grain` POD (`O-simpleGrain/dsp/Grain.h:22-47`) already has **independent `readPos` (time) + `rate` (pitch)** — SOLA-native. The **only structural gap:** O-simpleGrain snapshots a **per-block** playhead; SOLA needs a **voice-local per-sample `timePos`** (`+= 1.0` for 1× realtime) captured as `g.readPos` *at each grain's spawn sample*. Pool=4 safe (≤2 active at 2× overlap). **Latch `pitchMode` at note-on** (mid-note switch clicks; drain pattern optional later). **§P6.** | port+edit | stretch |
+| 4 | Vintage formulation (fsEff/bits lerp, S&H+quantize order, clean-at-0) | **Bit-crush = VERBATIM** from `O-simpleAdditive/Source/AdditiveVoice.h:335-346`: `qLevel = 2^(bits−1)` (= L/2), `round(s·qLevel)/qLevel`, gated by `quantOn` (bit-clean off-branch). **S&H decimation = NET-NEW** (no in-repo idiom — grep of whole suite confirms). Order: **decimate (S&H) → quantize (bit-crush)**, both gated `if (vintage>0)`. **§P4.** | bit-crush verbatim / S&H net-new | filter+vintage |
+| 5 | Filter (`StateVariableTPTFilter` setup, res→Q, closed-form curve) | JUCE 8.0.9 verified: `setResonance(Q)` is **Q-like** (default `1/√2`, internally `R2=1/resonance`), **asserts `>0`** (cannot pass 0). Per-voice: `prepare({fs,block,1})`, `processSample(0,x)`, `reset()` on note-on. Closed-form curve = **VERBATIM** `O-simpleSubtractive/Source/SubVizAnalyzer.h:71-110` (`SubFilterCurve::magnitudeDb`) **fed `k = 1/Q = R2`** (the bridge). `res%→Q` map (`jmap 0.707→~12`) is **net-new** (the in-repo `resonanceToK` is a self-oscillation taper — do NOT reuse). **§P5.** | curve verbatim / wiring+map net-new | filter+vintage |
+| 6 | Grain-tuning starting point | O-simpleGrain **ships 30 ms grains @ density 40 → ~1.2× overlap** (`PluginProcessor.cpp:57,64`), hop = `fs/density` (density-driven, NOT `grainSize/2`). That is **NOT the SOLA baseline.** Use **60 ms (`kStretchGrainMs`) + fixed `hop = grainSize/2` ⇒ 2× Hann overlap** as the 2.2b starting point; tune grain length against the 2.3 single-grain autocorr harness. **§P6.4.** | new defaults | stretch |
+
+---
+
+## P1. Integration map — where 2.2 bolts onto the shipped 2.1 voice
+
+**Current 2.1 per-sample chain** (`SampleVoice.h:167-190`): `readSourceLagrange(readPos)` → `aaOnePole` → `VCA (ampEnv·velLevel)` → `addSample`; `readPos += voiceRate`; one-shot `if (readPos≥endSamp) { ampEnv.reset(); break; }`.
+
+**Target 2.2 per-sample chain (both pitch modes share the downstream):**
+```
+  ── source-sample generation (pitchMode) ──
+  Repitch (2.1, default): s = aaOnePole( readSourceLagrange(readPos) )      [continuous head]
+  Stretch (2.2b):         s = Σ grains[ aaOnePole(lagrange(g.readPos))·hann ] [overlap-add, AA per-grain]
+  ── shared downstream (2.2a, per voice) ──
+  s = vintage(s)        // S&H decimate → bit-crush ; bypass if vintage==0   (DSP-04)
+  s = lpFilter(s)       // StateVariableTPTFilter processSample(0,s)         (DSP-05)
+  out = s · ampEnv.getNextSample() · velLevel · endRamp                      (DSP-06 + declick)
+  ── read-head advance (2.2a) ──
+  Repitch: readPos += voiceRate·dir ; loop-wrap OR one-shot-end+declick
+  Stretch: timePos  += 1.0·dir       ; loop-wrap on timePos ; grains ride keyRatio
+```
+The **Vintage → Filter → VCA** tail is identical for both modes (insert between the source-sample generation and the existing VCA). Only the **read head** forks on `pitchMode`.
+
+### P1.1 `SamplerVoiceParams` extension (push struct, `SampleVoice.h:48-57`)
+Add (processor fills from the already-cached atomics — all 9 deferred params are live in the layout, currently inert):
+```cpp
+int   loopMode      = 0;     // 0 off / 1 forward / 2 ping-pong
+int   loopStartSamp = 0;     // ABS source-frame index (processor: % of region, zero-cross-snapped)
+int   loopEndSamp   = 0;     // ABS source-frame index (exclusive)
+int   xfadeSamp     = 0;     // loopCrossfade ms → samples (loopCrossfade·fs/1000)
+bool  reverse       = false;
+int   pitchMode     = 0;     // 0 Repitch / 1 Stretch  (LATCHED per-voice at startNote)
+float vintage       = 0.0f;  // 0–100
+float filterCutoff  = 20000; // Hz, already 20..0.45·fs clamped + 20 ms smoothed processor-side
+float filterQ       = 0.707f;// mapped from filterResonance% processor-side (net-new jmap)
+```
+> **Smoothing lives in the processor, not 16× per-voice.** `filterCutoff`/`filterResonance` are global (no per-note mod — `velToFilter` is v1.1-deferred), so smooth ONE `SmoothedValue` each (20 ms, like `outputGain`) in the processor and push the current scalar. Voices call `setCutoffFrequency`/`setResonance` **once per block** (one `tan` recompute — cheap) — not per sample. This avoids 16 redundant smoothers and matches the existing `outputGain` pattern (`PluginProcessor.cpp:488-491`).
+
+### P1.2 processBlock param-push additions (`PluginProcessor.cpp:449-474`)
+Alongside the existing `startSamp/endSamp` computation, add (all cheap, per block):
+- `loopMode = (int) loopModeParam->load()`; `reverse = reverseParam->load() > 0.5f`; `pitchMode = (int) pitchModeParam->load()`; `vintage = vintageParam->load()`.
+- **Loop bounds (% of region):** `loopAbsStart = startSamp + loopStart%·(endSamp−startSamp)`, `loopAbsEnd = startSamp + loopEnd%·(endSamp−startSamp)`, clamped `loopAbsStart < loopAbsEnd ≤ endSamp`. Then overwrite with the **zero-cross-snapped** indices published by the off-thread snap (§P3.4).
+- `xfadeSamp = jlimit(0, (loopAbsEnd−loopAbsStart)/2, (int)(loopCrossfade·0.001·fs))`.
+- Filter: push the processor-smoothed `filterCutoff` (Hz) + `filterQ` (`jmap(res,0,100, 0.707, 12)`, §P5.2).
+
+---
+
+## P2 (2.2a). Region-end declick — open item 2
+
+**The problem, confirmed by code reasoning.** `SampleVoice.h:185-189`:
+```cpp
+if (readPos >= (double) params.endSamp) { ampEnv.reset(); break; }
+```
+`ampEnv.reset()` sets the envelope to **idle/0 instantly** (it is the same call the voice-steal "hard stop" uses at `:143`) — it does **not** start the release ramp; only `ampEnv.noteOff()` does, and that is reachable only from MIDI key-up (`stopNote(allowTailOff=true)`, `:137`). So a **held** note whose End was dragged down hits `endSamp` while the env is still at sustain ≈ 1.0 → instantaneous drop to 0 → **click**. The 0.2 s release is structurally unreachable here. **A dedicated end-ramp is required** (do NOT widen/abuse `ampRelease` — 0.2 s would overrun `endSamp` and is user-owned).
+
+**Port idiom — raised-cosine tail** (`O-MicrotonalSampler/Source/PluginProcessor.cpp:489-510`):
+```cpp
+// when readPos enters the last `endRampSamp` samples before endSamp, taper:
+const int endRampSamp = juce::jmin ((params.endSamp - params.startSamp) / 4,
+                                    (int) std::floor (0.005 * getSampleRate())); // ≤5 ms
+const double distToEnd = (double) params.endSamp - readPos;        // samples remaining
+float endRamp = 1.0f;
+if (distToEnd < (double) endRampSamp && endRampSamp > 0)
+    endRamp = (float) (0.5 - 0.5 * std::cos (juce::MathConstants<double>::pi
+                       * juce::jmax (0.0, distToEnd) / (double) endRampSamp));
+// multiply into the VCA:  outv = s * ampVal * endRamp;
+```
+- **Scope:** applies only on the **one-shot path** (`loopMode==off`, or after the final pass). When looping, the seam crossfade (§P3) handles continuity and this ramp is bypassed.
+- **Reverse interaction:** when `reverse`, playback terminates at `startSamp` instead — apply the same taper to `readPos − startSamp`.
+- **Harness gate (2.3):** `continuityFraction` across a sustained note with End lowered mid-hold — no discontinuity at the boundary.
+
+---
+
+## P3 (2.2a). Loop engine — open item 1 (PORT + net-new extensions)
+
+### P3.1 Equal-power primitive (verbatim) — `O-MicrotonalSampler/Source/MicrotonalSamplerVoice.cpp:31-35`
+```cpp
+static inline std::pair<float,float> equalPowerWeights (float x) noexcept {
+    const float t = juce::jlimit (0.0f, 1.0f, x) * juce::MathConstants<float>::halfPi;
+    return { std::cos (t), std::sin (t) };           // {fade-out, fade-in}
+}
+// mix:  out = outSample * w.first + inSample * w.second;   (cpp:101)
+```
+(Same primitive as O-simpleGrain pan, `GrainVoice.h:350-351`.) For a configurable `xfadeSamp` (vs MicrotonalSampler's fixed 8) either compute `cos/sin` per seam-sample (≤500 ms of fade is rare and the cost is trivial) or precompute a small LUT on `xfadeSamp` change. Recommend **direct cos/sin** — the seam is a tiny fraction of samples.
+
+### P3.2 Dual-read-head forward crossfade (PORT) — `MicrotonalSamplerVoice.cpp:72-111`
+The shipped mechanism, generalized from fixed-8 to `xfadeSamp`:
+```cpp
+// primary head reads readPos; when within xfadeSamp of loopEnd, mix a 2nd head from loopStart:
+const double fadeStart = (double) loopEnd - xfadeSamp;
+float s;
+if (readPos < fadeStart) {
+    s = readSourceLagrange (src, len, (float) readPos);          // plain read
+} else {
+    const float x   = (float) ((readPos - fadeStart) / (double) xfadeSamp);  // 0→1 across fade
+    const auto  w   = equalPowerWeights (x);
+    const float out = readSourceLagrange (src, len, (float) readPos);                       // outgoing
+    const float in  = readSourceLagrange (src, len, (float)(readPos - loopLen + xfadeSamp));// incoming (≈loopStart)
+    s = out * w.first + in * w.second;
+}
+// advance + wrap (subtract loopLen — preserves fractional phase, no hard jump):
+readPos += voiceRate;
+while (readPos >= (double) loopEnd) readPos -= (double) loopLen;     // loopLen = loopEnd - loopStart
+```
+This is `readVariantWithLoop` + `wrapLoopPosition` (`cpp:104-111`) with `8` → `xfadeSamp`. The wrap **subtracts loopLen** rather than resetting to `loopStart`, preserving sub-sample phase. AA one-pole runs on `s` exactly as in 2.1.
+
+### P3.3 Ping-pong (NET-NEW) — confirmed nothing in the suite reflects a sample read head
+Grep confirmed only **delay** "PingPong" routing exists (`O-Bells/DelayProcessor`, `O-Formant`), not a reflecting read head. Net-new: carry a per-voice `int dir = +1`; at each boundary negate `dir` and **reflect** position, crossfading across the turnaround with the same equal-power pair:
+```cpp
+readPos += voiceRate * dir;
+if (dir > 0 && readPos >= loopEnd)   { readPos = 2.0*loopEnd   - readPos; dir = -1; } // reflect at end
+if (dir < 0 && readPos <= loopStart) { readPos = 2.0*loopStart - readPos; dir = +1; } // reflect at start
+// turnaround xfade: near a boundary, mix the reflected head (reading the opposite direction)
+```
+`reverse` composes by seeding `dir = −1` and `readPos = endSamp` at note-on (independent of loop direction — ARCHITECTURE §Loop "reverse negates the base increment independently").
+
+### P3.4 Zero-crossing snap (NET-NEW, off-thread) — confirmed not in suite
+No marker→sign-change snap exists (`PluginProcessor.cpp:60` self-documents it as "lands Stage 2"). The detection kernel (sign flip of consecutive samples) appears in `O-Formant/dsp/VibratoLFO.h:58-62` but is not a snap. **Implementation:** the processor is **already** a `Listener` + `AsyncUpdater` (for `sourceSample`). Extend it: a `parameterChanged` on `start`/`end`/`loopStart`/`loopEnd` → `triggerAsyncUpdate()` → on the message thread, scan ±W samples (e.g. ±256) around each nominal marker for the nearest sign change (`src[i-1] < 0 != src[i] < 0`) minimizing `|src[i]|`, store snapped indices in `std::atomic<int>` members the audio thread reads once/block.
+> **Secondary defense only.** The equal-power crossfade is the primary seam smoother; zero-cross snap keeps even `loopCrossfade=0` reasonable. If 2.2a schedule is tight, the snap can ship as a thin ±W scan (the crossfade carries correctness) — but CONTEXT D4 lists it in 2.2a, so include it.
+
+### P3.5 Loop ↔ region ↔ declick interaction
+- Loop bounds are **% of region** → moving `start`/`end` rescales the loop (UI shades loop inside region, Stage 3). Computed processor-side each block (§P1.2).
+- `loopMode==off` → existing one-shot path + **end-ramp** (§P2). `forward`/`ping-pong` → loop-wrap, **no** end-ramp (the note sustains until key-up → amp release).
+- **Harness gate (2.3):** `continuityFraction` across forward + ping-pong seams with `loopCrossfade` 0 / 10 / 100 ms.
+
+---
+
+## P4 (2.2a). Vintage — open item 4 (bit-crush PORT + S&H NET-NEW)
+
+Per-voice, **before** the filter (ARCHITECTURE: LP tames decimation aliasing — SP-1200-into-filter). **Full bypass at `vintage==0`** is a hard acceptance (DSP-04) — branch, do not rely on transparent endpoints.
+
+### P4.1 Bit-crush (VERBATIM idiom) — `O-simpleAdditive/Source/AdditiveVoice.h:335-346`
+```cpp
+// precompute once per block (NOT per sample):
+const bool  quantOn = (vintage > 0.0f);
+const float bits    = juce::jmap (vintage, 0.f, 100.f, 16.0f, 8.0f);   // clean→8-bit (ARCH FS_MIN/BITS_MIN)
+const float qLevel  = quantOn ? std::exp2 (bits - 1.0f) : 1.0f;        // = L/2 for L=2^bits
+const float qInv    = quantOn ? 1.0f / qLevel : 1.0f;
+// per sample (after S&H):
+if (quantOn) s = std::round (s * qLevel) * qInv;     // mid-tread; std::round is symmetric ± (no sign branch)
+```
+`qLevel = 2^(bits−1)` ≡ your `L/2` (`L=2^bits`); `round(s·qLevel)/qLevel` ≡ `round(x·L/2)/(L/2)`. **Match.** No dither (the staircase IS the lesson). The `quantOn` gate is the bit-clean off-branch — replicate its structure.
+
+### P4.2 Sample-and-hold decimation (NET-NEW) — no in-repo idiom (grep-confirmed)
+Phase-accumulator S&H (fractional ratios; the SP-1200 grit), gated identically:
+```cpp
+// per voice state: float shPhase = 0.0f, shHeld = 0.0f;
+if (vintage > 0.0f) {
+    const float fsEff = juce::jmap (vintage, 0.f, 100.f, (float) fs, 3000.f);  // FS_MIN ≈ 3000 Hz
+    shPhase += fsEff / (float) fs;
+    if (shPhase >= 1.0f) { shPhase -= 1.0f; shHeld = s; }
+    s = shHeld;                       // hold
+}                                     // else: untouched — bit-for-bit clean
+// then bit-crush (P4.1)
+```
+Reset `shPhase=0, shHeld=0` on note-on. Bounded ops (no transcendental, no NaN) — covered by the block `isfinite` scrub. **Order = decimate → quantize** (S&H first, then bit-reduce the held value).
+
+### P4.3 Clean-at-zero gate
+Both stages branch on `vintage > 0.0f`. At `vintage==0` the sample passes untouched (no `round`, no hold) — **bit-for-bit clean** (DSP-04 acceptance). **Harness gate (2.3):** `vintage=0` output == clean read sample-for-sample; `vintage=70` adds measurable quantization steps.
+
+---
+
+## P5 (2.2a). Filter — open item 5 (curve VERBATIM + JUCE wiring/map NET-NEW)
+
+### P5.1 `juce::dsp::StateVariableTPTFilter<float>` — JUCE 8.0.9 verified
+- API: `setType(Type::lowpass)` (only `lowpass/bandpass/highpass`), `setCutoffFrequency(Hz)`, `setResonance(Q)`, `prepare(const ProcessSpec&)`, `reset()`, `processSample(int channel, float)`.
+- **`setResonance` is Q-like:** default `1/√2 ≈ 0.707` = Butterworth (12 dB/oct); internally `R2 = 1/resonance` (`.cpp:133`). **Asserts `resonance > 0`** (`.cpp:63`) — **never pass 0** (no self-oscillation, unlike the ZDF's negative-k trick — irrelevant here, LP is linear).
+- **Per-VOICE mono:** in the voice's `prepareToPlay`, `filt.prepare({ fs, (uint32) blockSize, 1 })` (numChannels = **1**); per sample `s = filt.processSample(0, s)`; **`filt.reset()` in `startNote`** (clear state so a stolen voice doesn't carry the previous note's tail). State is `s1[ch]/s2[ch]` indexed by channel (`.cpp:110-111`).
+- `setCutoffFrequency`/`setResonance` each call `update()` (one `tan`) — call **once per block** from the processor-pushed smoothed scalars (§P1.1), not per sample.
+- Clamp cutoff `jlimit(20.0f, 0.45f*fs, filterCutoff)`.
+
+### P5.2 Resonance% → Q (NET-NEW — do NOT reuse `resonanceToK`)
+The in-repo `SubVoice.h:309-313 resonanceToK` is a **self-oscillation power-law taper** (drives k negative at the top) — wrong for a linear LP. Net-new linear-ish map:
+```cpp
+const float Q = juce::jmap (filterResonance, 0.f, 100.f, 0.707f, 12.0f);  // Butterworth → resonant
+filt.setResonance (Q);     // never 0
+```
+(`filterResonance` default 0 → Q 0.707 = open Butterworth; QUAL: smooth with the 20 ms processor `SmoothedValue`.)
+
+### P5.3 Closed-form curve (VERBATIM) — staged for Stage 3, atomics published in 2.2a
+Copy `O-simpleSubtractive/Source/SubVizAnalyzer.h:71-110` `SubFilterCurve::magnitudeDb` **verbatim**. The bridge: it expects `k = 1/Q`, and JUCE's `R2 = 1/resonance` **is** that `k` numerically. LP path only:
+```
+g = tan(π·fcDisplay/fs);  W = tan(π·f/fs)/g;  |H_LP| = 1 / sqrt((1−W²)² + (k·W)²)   // k = 1/Q = R2
+```
+**2.2a action (CONTEXT D4 "stage the atomics now"):** the **loudest-active** voice publishes `displayCutoffHz = smoothedCutoff` and `displayK = 1/Q` once per block (O-simpleSubtractive lead-voice pattern, `PluginProcessor.cpp:410`). The curve **drawing** is Stage 3; only the atomics land in 2.2a so the audio/curve g/k match by construction (QUAL-02). `displayK` semantics = `1/Q` (== R2), matching `magnitudeDb`'s `k`.
+
+---
+
+## P6 (2.2b). Stretch SOLA — open items 3 + 6 (HEADLINE)
+
+**Copy 3 files verbatim** (already partly present): `dsp/LagrangeInterpolation.h` (already in 2.1), `dsp/Grain.h`, `dsp/WindowLuts.h` (Hann = shape 4). The grain **render loop**, `readSourceLagrange`, and `aaOnePole` are already in `SampleVoice.h` (ported in 2.1) — reuse them per grain.
+
+### P6.1 The Grain POD is SOLA-native (no struct change) — `Grain.h:22-47`
+Two independent fields are exactly the time/pitch split: `float readPos` (absolute source position = **time axis**, advanced `readPos += rate`) and `float rate` (per-sample increment = **pitch axis**, set once at spawn). Per-grain AA (`aaCoeff/aaEngaged/aaState`) and Hann (`phase/phaseInc`) are already in the struct.
+
+### P6.2 The ONE structural gap: voice-local per-sample `timePos`
+O-simpleGrain snapshots a **per-block** playhead (`PluginProcessor.cpp:720 setPlayhead`) and all grains in a block share that `srcStart` — fine for a texture cloud, **wrong for SOLA** (each grain's `srcStart` must be the time pointer *at its spawn sample*). Fix: a per-voice `double timePos` advanced **per output sample** inside `renderNextBlock`:
+```cpp
+timePos += 1.0 * dir;          // 1× realtime (duration preserved regardless of key); dir for reverse
+// loop-wrap timePos exactly like the Repitch readPos (§P3.2) — the time axis is what loops/reverses
+```
+At each grain spawn: `g.readPos = timePos;` `g.rate = voiceRate;` (= keyRatio; zero all O-simpleGrain spray — `positionSpray/pitchSpray/scatter/panSpray` = 0). The waveform playhead = `timePos` → Repitch (pitch-coupled rate) vs Stretch (constant 1×) is **visible for free** (UI-02).
+
+### P6.3 Replace the density scheduler with a fixed SOLA hop — `GrainVoice.h:228-239`
+O-simpleGrain's hop is **density-driven** (`baseInterval = fs/density` + scatter jitter). Replace the reload with a deterministic fixed hop; keep the `if (--samplesUntilNextGrain<=0)` countdown structure:
+```cpp
+const float lenSamp  = juce::jmax (2.0f, (kStretchGrainMs * 0.001f) * (float) fs);  // 60 ms
+const float phaseInc = 1.0f / lenSamp;
+// on fire:
+spawnGrainSOLA (timePos, voiceRate, lenSamp, phaseInc);
+samplesUntilNextGrain = juce::jmax (1, (int) (lenSamp * 0.5f));   // hop = grainSize/2 ⇒ 2× Hann overlap (NO jitter)
+```
+**Also drop the `√overlap` normalizer** (`O-simpleGrain/PluginProcessor.cpp:755-756`) — a texture-cloud power-law heuristic. A 2× Hann overlap-add is already unity-gain (COLA).
+
+### P6.4 Grain-tuning baseline (open item 6)
+O-simpleGrain ships **30 ms @ density 40 ≈ 1.2× overlap** — **NOT** the SOLA baseline. Start 2.2b at **60 ms (`kStretchGrainMs`) + `hop = grainSize/2` ⇒ 2× Hann overlap**, then tune grain length against the **2.3 single-grain autocorrelation probe** (project memory: the grain-rate comb confounds spectral probes). Levers if A/B isn't clean: longer grains (less transient smear, more latency-feel) vs shorter (tighter transients, more graininess); 3× overlap as a fallback (CONTEXT D5 — phase-vocoder stays v1.1-deferred).
+
+### P6.5 Pool lifetime + pitchMode switch
+- **Pool = 4 is SAFE.** Active grains = grainLen/hop = overlap = **2** at 2× overlap; pool 4 = 2× headroom (boundary frames + mode drain). `spawnGrain`'s find-inactive/steal-oldest (`GrainVoice.h:312-320`) never allocates even on a momentary 3rd grain (it steals the oldest = the one already fading). `kMaxGrainsPerVoice=4` is already a `PluginProcessor.h` constant — use it (O-simpleGrain's 24 is cloud-sized; 4 is correct for SOLA and saves the pool-scan cost).
+- **Latch `pitchMode` at note-on** (cleanest for v1). A hard mid-note switch clicks (truncates in-flight grain windows). On note-on, the latched path is fixed for the voice; reset grain pool (`for g: g.active=false`), `samplesUntilNextGrain=0` (fire immediately), seed `timePos` at the read position so no jump. **Optional later:** O-simpleGrain's drain pattern (stop spawning old path, let active grains finish their Hann taper while the new path spawns) for click-free live toggling — defer unless DAW A/B demands it.
+
+### P6.6 Stretch ↔ downstream
+The overlap-add sum (AA already applied per grain) is the `s` fed to **Vintage → Filter → VCA** (§P1) — identical tail to Repitch. The end-ramp (§P2) and loop-wrap operate on `timePos` in Stretch (not the grain `readPos`).
+
+---
+
+## P7. Risks & mitigations (Phase 2.2)
+
+| Risk | Sev | Mitigation (this research) |
+|------|-----|----------------------------|
+| Region-end click (held note, End lowered) | MED→LOW | Dedicated raised-cosine end-ramp (§P2) — the 0.2 s release is unreachable from this path; harness `continuityFraction`. |
+| Loop seam click | MED→LOW | PORT the shipped equal-power dual-head crossfade (§P3.2) + zero-cross snap (§P3.4); never hard-jump (wrap subtracts loopLen). |
+| Ping-pong / zero-cross are net-new | MED | Small, bounded edits (§P3.3/P3.4); harness seam probe on both modes. |
+| Vintage not bit-clean at 0 | MED→LOW | Explicit `vintage>0` gate on BOTH S&H and bit-crush (§P4.3); S&H is net-new so its gate is mandatory (bit-crush gate is the verbatim `quantOn`). |
+| Filter: `setResonance(0)` assert / Q-vs-k confusion | LOW | Map res%→Q `0.707..12` (never 0); curve fed `k=1/Q=R2` (§P5.2/P5.3) — verified against JUCE source. |
+| Stretch not clearly distinct from Repitch (DSP-01) | **HIGH** | Voice-local 1× `timePos` (§P6.2) + fixed `grainSize/2` hop + 60 ms/2× baseline (§P6.4); drop √overlap normalizer; single-grain autocorr harness (2.3). |
+| pitchMode mid-note click | MED→LOW | **Latch at note-on** (§P6.5); reset pool + seed timePos. Drain pattern deferred. |
+| Grain pool overflow | LOW | Pool=4 ≥ 2× the 2-active worst case; steal-oldest never allocates (§P6.5). |
+| 16× per-voice filter/Vintage CPU | LOW | Both are a few ops/sample; filter coeff update once/block; ARCHITECTURE §Special-Considerations confirms light. SvfZDF is the documented fallback. |
+
+---
+
+## P8. Execute checklists
+
+### Phase 2.2a — Tone chain (lower risk, inherited patterns) → DAW checkpoint
+1. **Region-end declick** (§P2) — raised-cosine end-ramp on the one-shot path; `SampleVoice.h:184-189`.
+2. **Loop engine** (§P3) — extend `SamplerVoiceParams` (loopMode/loopAbs*/xfadeSamp/reverse); processor loop-bounds + xfade math (§P1.2); PORT dual-head equal-power crossfade (§P3.2); ping-pong reflect (§P3.3); reverse seed at note-on; off-thread zero-cross snap via the existing Listener+AsyncUpdater (§P3.4).
+3. **Vintage** (§P4) — per-voice S&H decimate (net-new) → bit-crush (verbatim), both gated `vintage>0`, before the filter; reset S&H state on note-on.
+4. **Filter** (§P5) — per-voice `StateVariableTPTFilter` LP; `prepare({fs,block,1})` in voice prepare; `reset()` on note-on; processor-smoothed cutoff + `jmap` Q pushed per block; `processSample(0,s)`; clamp cutoff `0.45·fs`. Stage `displayCutoffHz`/`displayK`(=1/Q) loudest-active atomics (curve drawing = Stage 3).
+5. **Build + auval + pluginval@5 + install → STOP** for DAW play-test (loop sustains, no seam click; ping-pong/reverse; Vintage clean-at-0 → grit; filter shapes tone; no zipper).
+
+### Phase 2.2b — Stretch SOLA (HEADLINE) → DAW A/B
+6. Copy `dsp/Grain.h` + `dsp/WindowLuts.h` (Hann shape 4) verbatim.
+7. Add per-voice `std::array<Grain,kMaxGrainsPerVoice>` + voice-local `double timePos` + `samplesUntilNextGrain` (§P6.2/P6.3). `spawnGrainSOLA`: `g.readPos=timePos; g.rate=voiceRate;` zero spray; per-grain AA from `g.rate`.
+8. Fixed `hop = grainSize/2` (60 ms baseline); overlap-add render (reuse 2.1 `readSourceLagrange`/`aaOnePole`); drop √overlap normalizer.
+9. `pitchMode` **latched at note-on** (§P6.5): reset pool, `samplesUntilNextGrain=0`, seed `timePos`. Stretch feeds the same Vintage→Filter→VCA tail; loop-wrap/end-ramp operate on `timePos`.
+10. **Build + validate + install → STOP** for DAW A/B (toggle Pitch Mode on a sustained note: Repitch slows/shortens low notes; Stretch holds duration, pitch tracks key). Tune grain length against the 2.3 autocorr harness.
+
+> 2.3 (AA hardening + viz taps + voice-stealing + RT-safety + offline render-harness) remains the subsequent Stage-2 pass — unchanged. The render-harness Stretch gate = **single-grain autocorrelation** (spectral bins confounded by grain comb — project memory).
+
+---
+
+## P9. Files to copy / create (Phase 2.2)
+
+| File | From | Action | Pass |
+|------|------|--------|------|
+| `Source/SampleVoice.h` | — (extend shipped 2.1) | add loop/declick/Vintage/filter to render path + `SamplerVoiceParams` | 2.2a |
+| `Source/PluginProcessor.{h,cpp}` | — | param-push loop bounds/xfade/Vintage/filter; processor `SmoothedValue` cutoff/Q; zero-cross-snap AsyncUpdater; loudest-active display atomics | 2.2a |
+| equal-power dual-head crossfade idiom | `O-MicrotonalSampler/MicrotonalSamplerVoice.cpp:31-111` | port (generalize 8→xfadeSamp) | 2.2a |
+| raised-cosine end-ramp idiom | `O-MicrotonalSampler/PluginProcessor.cpp:489-510` | port | 2.2a |
+| bit-crush idiom | `O-simpleAdditive/AdditiveVoice.h:335-346` | port verbatim | 2.2a |
+| `SubFilterCurve::magnitudeDb` + `updateCurve` | `O-simpleSubtractive/SubVizAnalyzer.h:71-110,173-182` | copy verbatim (feed k=1/Q) | 2.2a (atomics) / Stage 3 (draw) |
+| `Source/dsp/Grain.h` | `O-simpleGrain/Source/dsp/Grain.h` | copy verbatim | 2.2b |
+| `Source/dsp/WindowLuts.h` | `O-simpleGrain/Source/dsp/WindowLuts.h` | copy verbatim (Hann=4) | 2.2b |
+| grain spawn/render/AA idiom | `O-simpleGrain/GrainVoice.h:228-263,308-422` | port + SOLA edits (§P6.2/P6.3) | 2.2b |
+
+**Net-new (no port):** ping-pong reflection (§P3.3), zero-cross snap (§P3.4), S&H decimation (§P4.2), res%→Q jmap (§P5.2), voice-local `timePos` + fixed SOLA hop (§P6.2/P6.3).
+
+---
+*Phase 2.2 deep research complete 2026-06-25. Inputs: CONTEXT Phase-2.2 open items + shipped 2.1 SampleVoice.h/PluginProcessor.cpp + ARCHITECTURE + 3 parallel verbatim-extraction passes (O-MicrotonalSampler / O-simpleGrain / O-simpleSubtractive / O-simpleAdditive) + JUCE 8.0.9 StateVariableTPTFilter source. Supersedes §9.1/§9.2/§10/§11 where they conflict. Next: plan phase (Phase 2.2 — split 2.2a tone chain → 2.2b Stretch).*
