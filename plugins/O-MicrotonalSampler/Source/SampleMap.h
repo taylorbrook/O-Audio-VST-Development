@@ -119,6 +119,16 @@ struct SampleVariant
     int          loopStart        = 0;
     int          loopEnd          = 0;       // 0 = no loop (one-shot)
     LoopMode     loopMode         = LoopMode::OneShot;
+
+    // v1.23.4 (WR-04): memoised 24-bit base64 WAV of `audio`, populated lazily
+    // by encodeVariantAsBase64Wav on the first embedded-state save and reused on
+    // every subsequent getStateInformation. Embedded snapshots are immutable
+    // once loaded (the loader produces them and never mutates the audio buffer),
+    // and the loop points below are serialised as separate XML attrs — so the
+    // blob never goes stale. Kills the 250 MB re-encode-on-every-save hazard.
+    // `mutable` because the encoder takes `const SampleVariant&`. Not persisted
+    // and not part of the cell key.
+    mutable juce::String cachedBase64Wav;
 };
 
 // v1.8.0: a cell is the (midiNote, velocityLayer) coordinate. It holds one or

@@ -603,41 +603,59 @@ void OMicrotonalSamplerAudioProcessorEditor::filesDropped (
     const bool fileIsDirectory = file.isDirectory();
     const auto ext = file.getFileExtension();
 
-    // ---- 1. Cell hit-test (highest priority — the grid sits below the zone) ----
-    for (const auto& c : cellLayout)
+    // ---- Route the drop against the published grid + folder zone ----
+    // v1.23.5: geometry moved to DropRouting.h (unit-tested). Cell wins over
+    // the folder zone; an empty folderZoneRect never matches (IN-02 guard).
+    const auto hit = oms::hitTestDrop (
+        cellLayout,
+        folderZoneRect.getX(),     folderZoneRect.getY(),
+        folderZoneRect.getWidth(), folderZoneRect.getHeight(),
+        x, y);
+
+    // ---- 1. Cell hit (highest priority — the grid sits below the zone) ----
+    if (hit.zone == oms::DropZone::Cell)
     {
-        if (x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h)
+        const auto& c = cellLayout.getReference (hit.cellIndex);
+
+        // Cell hit. Now branch on payload type.
+        if (fileIsDirectory)
         {
-            // Cell hit. Now branch on payload type.
-            if (fileIsDirectory)
-            {
-                // EC3-3: folder dropped onto a cell → user intent ambiguous;
-                // surface the routing rule explicitly.
-                emitToast (webView.get(),
-                           "Drop a single file on a cell, or a folder on the top zone.");
-                return;
-            }
-
-            if (! isAudioFileExt (ext))
-            {
-                emitToast (webView.get(), "Drop a .wav/.aif on a cell");
-                return;
-            }
-
-            // Audio file on cell → forward to the per-cell loader. The
-            // sampleMapUpdated push event will refresh the grid + skipped-files.
-            DBG ("filesDropped: cell hit midi=" << c.midiNote
-                 << " vel=" << c.velocityLayer
-                 << " file=" << file.getFullPathName());
-            processorRef.loadSingleSample (c.midiNote, c.velocityLayer, file);
+            // EC3-3: folder dropped onto a cell → user intent ambiguous;
+            // surface the routing rule explicitly.
+            emitToast (webView.get(),
+                       "Drop a single file on a cell, or a folder on the top zone.");
             return;
         }
+
+        if (! isAudioFileExt (ext))
+        {
+            emitToast (webView.get(), "Drop a .wav/.aif on a cell");
+            return;
+        }
+
+        // IN-03 (v1.23.5): handleWebViewFileDrop forwards JS-supplied path
+        // strings straight here, so a filename-only / relative string (a host
+        // that doesn't expose absolute paths) yields a non-existent File.
+        // Gate the load on existence instead of dispatching a phantom load
+        // (also avoids the juce::File absolute-path jassert in debug) — the
+        // dialog path (loadSingleSampleDialog) already does this check.
+        if (! file.existsAsFile())
+        {
+            emitToast (webView.get(), "File not found — drop from Finder");
+            return;
+        }
+
+        // Audio file on cell → forward to the per-cell loader. The
+        // sampleMapUpdated push event will refresh the grid + skipped-files.
+        DBG ("filesDropped: cell hit midi=" << c.midiNote
+             << " vel=" << c.velocityLayer
+             << " file=" << file.getFullPathName());
+        processorRef.loadSingleSample (c.midiNote, c.velocityLayer, file);
+        return;
     }
 
-    // ---- 2. Folder-zone hit-test ----
-    if (! folderZoneRect.isEmpty()
-        && x >= folderZoneRect.getX() && x < folderZoneRect.getRight()
-        && y >= folderZoneRect.getY() && y < folderZoneRect.getBottom())
+    // ---- 2. Folder-zone hit ----
+    if (hit.zone == oms::DropZone::FolderZone)
     {
         if (fileIsDirectory)
         {
@@ -793,37 +811,36 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
-        { "getEmbeddedTuningCategories",
-                [] (const juce::Array<juce::var>&,
-                    std::function<void(juce::var)> complete)
-                {
-                    auto categories = EmbeddedTunings::getCategories();
-                    auto json = joinJsonArray (categories, [] (const auto& c)
-                    {
-                        return "\"" + juce::String (c) + "\"";
-                    });
-                    complete (juce::var (json));
-                }
-        },
+        // IN-01 (v1.23.5): getEmbeddedTuningCategories removed — no JS caller
+        // (full Resources/ui/js tree scan). The category list ships inline in
+        // each getEmbeddedTuningList entry; nothing consumes a separate list.
 
         // ---- reportCellLayout : JS publishes grid layout for hit-testing ----
         { "reportCellLayout",
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
                 {
+                    // IN-02 (v1.23.5): reset the shadow state up-front so a
+                    // report that omits `folderZone` (zone scrolled out of /
+                    // removed from the DOM) — or a malformed payload that fails
+                    // to parse — can no longer leave a stale rectangle that
+                    // mis-routes a later folder drop. filesDropped guards on an
+                    // empty folderZoneRect, so clearing it here disarms it.
+                    cellLayout.clearQuick();
+                    folderZoneRect = {};
+
                     if (args.size() >= 1)
                     {
                         auto parsed = juce::JSON::parse (args[0].toString());
                         if (auto* obj = parsed.getDynamicObject())
                         {
-                            cellLayout.clearQuick();
                             if (auto* cells = obj->getProperty ("cells").getArray())
                             {
                                 for (const auto& c : *cells)
                                 {
                                     if (auto* co = c.getDynamicObject())
                                     {
-                                        CellRect r;
+                                        oms::CellRect r;
                                         r.midiNote      = static_cast<int> (co->getProperty ("midiNote"));
                                         r.velocityLayer = static_cast<int> (co->getProperty ("velocityLayer"));
                                         r.x             = static_cast<int> (co->getProperty ("x"));
@@ -1154,9 +1171,18 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     // Capture chooser by value so its lifetime extends past
                     // the launch returning. Capture `complete` so JS resolves.
                     chooser->launchAsync (flags,
-                        [this, chooser, midi, vel, mergeAsRr, technique, complete]
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, midi, vel, mergeAsRr, technique, complete]
                             (const juce::FileChooser& fc) mutable
                         {
+                            // WR-01 (W12) v1.23.5: bail if the editor — and thus
+                            // the WebView that owns `complete` — was torn down
+                            // while the dialog was open. Calling `complete`
+                            // (or touching processorRef via a dangling `this`)
+                            // would UAF the dead WebBrowserComponent::Impl.
+                            if (safeThis == nullptr)
+                                return;
+
                             const auto results = fc.getResults();
                             if (results.isEmpty())
                             {
@@ -1187,24 +1213,17 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             // lambda). JS resolves immediately with `true` to
                             // unblock the await — the visual update arrives
                             // via the push event.
-                            processorRef.loadSingleSample (midi, vel, file, mergeAsRr, technique);
+                            safeThis->processorRef.loadSingleSample (midi, vel, file, mergeAsRr, technique);
                             complete (juce::var (true));
                         });
                 }
         },
 
-        { "getSkippedFiles",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    const auto& sk = processorRef.getLastSkippedFiles();
-                    auto json = joinJsonArray (sk, [] (const juce::String& s)
-                    {
-                        return juce::JSON::toString (juce::var (s));
-                    });
-                    complete (juce::var (json));
-                }
-        },
+        // IN-01 (v1.23.5): getSkippedFiles removed — superseded by JS reading
+        // snap.skippedFiles directly off the sampleMap snapshot
+        // (sampler-app.js). No getNativeFunction('getSkippedFiles') caller.
+        // The processor's getLastSkippedFiles() accessor is retained as API
+        // surface (lastSkippedFiles is still populated by the loader).
 
         // ---- overrideLoopPoints (Phase 3.4 — full impl) ----
         //
@@ -1441,6 +1460,10 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     auto* engine = processorRef.getTuningEngine();
                     if (engine != nullptr && args.size() >= 2)
                     {
+                        // v1.23.4 (WR-01): serialise tuning writes against the
+                        // off-message-thread getStateInformation capture, which
+                        // holds the same persistenceLock while reading the engine.
+                        const juce::ScopedLock persistLock (processorRef.getPersistenceLock());
                         engine->setSingleInterval (static_cast<int>    (args[0]),
                                                    static_cast<double> (args[1]));
                         complete (juce::var (true));
@@ -1458,6 +1481,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     auto* engine = processorRef.getTuningEngine();
                     if (engine != nullptr && args.size() >= 1)
                     {
+                        const juce::ScopedLock persistLock (processorRef.getPersistenceLock());   // v1.23.4 (WR-01)
                         engine->setTonicNote (static_cast<int> (args[0]));
                         complete (juce::var (true));
                         return;
@@ -1474,6 +1498,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     auto* engine = processorRef.getTuningEngine();
                     if (engine != nullptr && args.size() >= 1)
                     {
+                        const juce::ScopedLock persistLock (processorRef.getPersistenceLock());   // v1.23.4 (WR-01)
                         engine->setOctaveStretch (static_cast<float> (args[0]));
                         complete (juce::var (true));
                         return;
@@ -1490,6 +1515,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     auto* engine = processorRef.getTuningEngine();
                     if (engine != nullptr && args.size() >= 1)
                     {
+                        const juce::ScopedLock persistLock (processorRef.getPersistenceLock());   // v1.23.4 (WR-01)
                         engine->setMasterTune (static_cast<double> (args[0]));
                         complete (juce::var (true));
                         return;
@@ -1514,6 +1540,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             // period (matches setBuiltInPreset behaviour).
                             std::vector<double> withPeriod = t->intervals;
                             withPeriod.push_back (t->period);
+                            const juce::ScopedLock persistLock (processorRef.getPersistenceLock());   // v1.23.4 (WR-01)
                             engine->setCustomIntervals (withPeriod, juce::String (t->name));
                             complete (juce::var (true));
                             return;
@@ -1535,10 +1562,16 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
 
                     chooser->launchAsync (juce::FileBrowserComponent::openMode
                                           | juce::FileBrowserComponent::canSelectFiles,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc)
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             auto file = fc.getResult();
-                            auto* engine = processorRef.getTuningEngine();
+                            auto* engine = safeThis->processorRef.getTuningEngine();
+                            // v1.23.4 (WR-01): hold persistenceLock across the
+                            // load so a Reaper off-thread save can't tear-read
+                            // the tuning tables while loadScalaFile rewrites them.
+                            const juce::ScopedLock persistLock (safeThis->processorRef.getPersistenceLock());
                             if (engine != nullptr && file.existsAsFile()
                                 && engine->loadScalaFile (file))
                             {
@@ -1562,10 +1595,13 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
 
                     chooser->launchAsync (juce::FileBrowserComponent::openMode
                                           | juce::FileBrowserComponent::canSelectFiles,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc)
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             auto file = fc.getResult();
-                            auto* engine = processorRef.getTuningEngine();
+                            auto* engine = safeThis->processorRef.getTuningEngine();
+                            const juce::ScopedLock persistLock (safeThis->processorRef.getPersistenceLock());   // v1.23.4 (WR-01)
                             const bool ok = (engine != nullptr && file.existsAsFile()
                                              && engine->loadKBMFile (file));
                             complete (juce::var (ok));
@@ -1590,14 +1626,20 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc)
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             auto file = fc.getResult();
-                            auto* eng = processorRef.getTuningEngine();
+                            auto* eng = safeThis->processorRef.getTuningEngine();
                             if (eng != nullptr && file != juce::File())
                             {
-                                file.replaceWithText (eng->generateScalaFileContent());
-                                complete (juce::var (true));
+                                // W13 (v1.23.5): propagate the real write result
+                                // instead of always reporting success — a failed
+                                // write (read-only dir, disk full) now surfaces
+                                // to JS, matching saveCurrentPreset.
+                                const bool ok = file.replaceWithText (eng->generateScalaFileContent());
+                                complete (juce::var (ok));
                                 return;
                             }
                             complete (juce::var (false));
@@ -1622,14 +1664,17 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc)
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             auto file = fc.getResult();
-                            auto* eng = processorRef.getTuningEngine();
+                            auto* eng = safeThis->processorRef.getTuningEngine();
                             if (eng != nullptr && file != juce::File())
                             {
-                                file.replaceWithText (eng->generateKBMFileContent());
-                                complete (juce::var (true));
+                                // W13 (v1.23.5): propagate the real write result.
+                                const bool ok = file.replaceWithText (eng->generateKBMFileContent());
+                                complete (juce::var (ok));
                                 return;
                             }
                             complete (juce::var (false));
@@ -1704,6 +1749,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             cents.reserve (static_cast<size_t> (arr->size()));
                             for (const auto& v : *arr)
                                 cents.push_back (static_cast<double> (v));
+                            const juce::ScopedLock persistLock (processorRef.getPersistenceLock());   // v1.23.4 (WR-01)
                             engine->setCustomIntervals (cents, args[1].toString());
                             complete (juce::var (true));
                             return;
@@ -1744,15 +1790,17 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc) mutable
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             auto file = fc.getResult();
                             if (file == juce::File())
                             {
                                 complete (juce::var (false));
                                 return;
                             }
-                            const auto xml = processorRef.capturePresetXml();
+                            const auto xml = safeThis->processorRef.capturePresetXml();
                             if (xml.isEmpty() || ! file.replaceWithText (xml))
                             {
                                 complete (juce::var (false));
@@ -1779,8 +1827,10 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
 
                     chooser->launchAsync (juce::FileBrowserComponent::openMode
                                           | juce::FileBrowserComponent::canSelectFiles,
-                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc) mutable
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             auto file = fc.getResult();
                             if (! file.existsAsFile())
                             {
@@ -1788,7 +1838,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                                 return;
                             }
                             const auto xml = file.loadFileAsString();
-                            const bool ok  = processorRef.restorePresetXml (xml);
+                            const bool ok  = safeThis->processorRef.restorePresetXml (xml);
                             complete (juce::var (ok));
                         });
                 }
@@ -1813,16 +1863,18 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                                | juce::FileBrowserComponent::canSelectDirectories;
 
                     chooser->launchAsync (flags,
-                        [this, chooser, complete] (const juce::FileChooser& fc) mutable
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc) mutable
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             const auto results = fc.getResults();
                             if (results.isEmpty() || ! results.getFirst().isDirectory())
                             {
                                 complete (juce::var (false));
                                 return;
                             }
-                            processorRef.clearPendingMissingFolder();
-                            processorRef.loadSampleFolder (results.getFirst());
+                            safeThis->processorRef.clearPendingMissingFolder();
+                            safeThis->processorRef.loadSampleFolder (results.getFirst());
                             complete (juce::var (true));
                         });
                 }
@@ -1878,15 +1930,18 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [this, chooser, complete] (const juce::FileChooser& fc)
+                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                         chooser, complete] (const juce::FileChooser& fc)
                         {
+                            if (safeThis == nullptr) return;   // W12: editor/WebView torn down
                             auto file = fc.getResult();
-                            auto* eng = processorRef.getTuningEngine();
+                            auto* eng = safeThis->processorRef.getTuningEngine();
                             if (eng != nullptr && file != juce::File())
                             {
                                 auto html = TuningExporter::toHTML (*eng, "O-MicrotonalSampler");
-                                file.replaceWithText (html);
-                                complete (juce::var (true));
+                                // W13 (v1.23.5): propagate the real write result.
+                                const bool ok = file.replaceWithText (html);
+                                complete (juce::var (ok));
                                 return;
                             }
                             complete (juce::var (false));
@@ -1992,15 +2047,9 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
-        // ---- resetTechniqueNames() — reset all 8 to default vocabulary ----
-        { "resetTechniqueNames",
-                [this] (const juce::Array<juce::var>&,
-                        std::function<void(juce::var)> complete)
-                {
-                    processorRef.resetTechniqueNames();
-                    complete (juce::var (true));
-                }
-        },
+        // IN-01 (v1.23.5): resetTechniqueNames native fn removed — superseded
+        // by applyTechniqueNames / per-slot renames; no JS caller. The
+        // processor method of the same name is still used by the ctor/restore.
 
         // ---- v1.23.0 trim setters ----
         // Each fires the technique-state callback (via the processor's dirty

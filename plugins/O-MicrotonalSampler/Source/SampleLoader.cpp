@@ -11,9 +11,11 @@
 
 #include "SampleLoader.h"
 #include "FilenameParser.h"
+#include "LoaderSupport.h"
 
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <functional>
 #include <utility>
 #include <vector>
@@ -126,17 +128,46 @@ namespace
             return false;
         }
 
-        const int    srcChannels = (int) reader->numChannels;
-        const int    srcSamples  = (int) reader->lengthInSamples;
-        const double srcSR       = reader->sampleRate;
+        const int          srcChannels = (int) reader->numChannels;
+        const juce::int64  srcLength   = reader->lengthInSamples;   // v1.23.6 (WR-02): keep int64
+        const double       srcSR       = reader->sampleRate;
 
-        if (srcChannels <= 0 || srcSamples <= 0 || srcSR <= 0.0)
+        if (srcChannels <= 0 || srcLength <= 0 || srcSR <= 0.0)
         {
             outSkipReason = "invalid header: " + displayName;
             return false;
         }
 
-        juce::AudioBuffer<float> sourceBuf (srcChannels, srcSamples);
+        // v1.23.6 (WR-01/WR-02): reject an absurd/corrupt length BEFORE narrowing
+        // to int and BEFORE the proportional allocation. A bare (int) cast wraps a
+        // >2^31 length to a small positive (silent under-read) or negative (false
+        // reject), and an unbounded AudioBuffer would std::bad_alloc — which JUCE's
+        // Release threadEntryPoint catch(...) swallows silently, killing the whole
+        // folder worker with no callback. Here it becomes a recorded skip instead.
+        if (! oms::isAcceptableSampleLength (srcLength))
+        {
+            outSkipReason = "file too large / bad length ("
+                          + juce::String (srcLength) + " samples): " + displayName;
+            return false;
+        }
+
+        const int srcSamples = (int) srcLength;   // safe: 1 .. kMaxSamplesPerFile
+
+        // v1.23.6 (WR-01): from here the work allocates proportionally to the file
+        // and calls into JUCE decode/resample paths that can throw (std::bad_alloc
+        // on a genuinely large file, or a format-reader exception). Wrap the whole
+        // body so a throw becomes a recorded skip + continue (folder mode) / a
+        // reported failure (single-variant mode) instead of an uncaught throw that
+        // unwinds run() past every already-decoded sample with no callback.
+        try
+        {
+
+        // v1.23.6 (WR-03): pad ONE cleared guard sample. outNumSamples keeps the
+        // ceil (below), so the LagrangeInterpolator's look-ahead can read up to
+        // ~1 sample past srcSamples on odd-length SR conversions. The guard makes
+        // that read in-bounds and silent (previously a real heap over-read).
+        juce::AudioBuffer<float> sourceBuf (srcChannels, srcSamples + 1);
+        sourceBuf.clear();
 
         // v1.23.1 (CR-01): read in blocks with a cancellation checkpoint between them.
         // A single monolithic reader->read() of a multi-hundred-MB file could not observe
@@ -168,9 +199,11 @@ namespace
         if (needsResample)
         {
             srcRatio = srcSR / targetSR;
-            outNumSamples = (int) std::ceil ((double) srcSamples / srcRatio);
-            if (outNumSamples < 1)
-                outNumSamples = 1;
+            // v1.23.6 (WR-03 / IN-05): ceil via the shared helper; the guard sample
+            // above covers the interpolator's 1-sample over-read. srcSamples >= 1 and
+            // srcRatio > 0, so the result is always >= 1 — the old `outNumSamples < 1`
+            // clamp here was dead code and has been removed.
+            outNumSamples = oms::resampleOutLength (srcSamples, srcRatio);
         }
 
         // v1.17.1 (LOAD-E3): build the 2-channel variant directly. Only the
@@ -244,6 +277,19 @@ namespace
 
         outSkipReason.clear();
         return true;
+
+        }   // end try (v1.23.6 WR-01)
+        catch (const std::exception& e)
+        {
+            outSkipReason = juce::String ("decode error: ") + e.what()
+                          + " (" + displayName + ")";
+            return false;
+        }
+        catch (...)
+        {
+            outSkipReason = "decode error (unknown): " + displayName;
+            return false;
+        }
     }
 
     // v1.8.0: per-file scratch struct used during folder enumeration. Holds
@@ -383,6 +429,28 @@ void SampleLoader::run()
     if (threadShouldExit())
         return;
 
+    // v1.23.6 (IN-01): the enumeration above is FLAT (recursive=false), so samples
+    // in nested subfolders are neither loaded nor reported — a user who dropped a
+    // library organised into per-articulation subfolders would get a partial/empty
+    // map with no explanation. Surface a single summary line in the skipped list.
+    // (We keep the scan flat: recursing would silently ingest unrelated audio in
+    // sibling/bounce/render subfolders, a worse surprise than an under-load.)
+    {
+        int ignoredSubfolders = 0;
+        for (const auto& sub : juce::RangedDirectoryIterator (pendingFolder,
+                                                              /*recursive*/ false,
+                                                              "*",
+                                                              juce::File::findDirectories))
+        {
+            juce::ignoreUnused (sub);
+            ++ignoredSubfolders;
+        }
+
+        if (ignoredSubfolders > 0)
+            skippedFiles.add (juce::String (ignoredSubfolders)
+                + " subfolder(s) ignored (flat load — nested folders are not scanned)");
+    }
+
     if (loaded.empty())
     {
         auto fcb = failureCallback;
@@ -476,16 +544,19 @@ void SampleLoader::run()
         const int layer     = loaded[(size_t) first].velocityLayer;
         const int technique = loaded[(size_t) first].technique;     // v1.14.0
 
-        // Detect explicit RR vs ambiguous.
-        bool anyExplicitRr = false;
+        // v1.23.6 (IN-02): collect the group's resolved RR indices and delegate
+        // the ambiguity decision to oms::isAmbiguousRrGroup. Previously a group was
+        // ambiguous ONLY when NO file carried an explicit RR token, so a mix like
+        // {C3_v1_rr1.wav, C3_v1.wav} (a likely accidental duplicate next to an RR
+        // set) — and two files sharing the same resolved RR index — merged silently
+        // without the confirmation modal. The map is still BUILT with all variants
+        // either way; this only governs whether the user is asked to confirm.
+        std::vector<int> rrIndices;
+        rrIndices.reserve ((size_t) count);
         for (int k = runStart; k < runEnd; ++k)
-            if (loaded[(size_t) order[(size_t) k]].rrIndex >= 0)
-            {
-                anyExplicitRr = true;
-                break;
-            }
+            rrIndices.push_back (loaded[(size_t) order[(size_t) k]].rrIndex);
 
-        if (count > 1 && ! anyExplicitRr)
+        if (oms::isAmbiguousRrGroup (rrIndices))
         {
             // Ambiguous duplicate group — record for modal confirmation.
             // The cell is still BUILT with all variants; the processor stages
