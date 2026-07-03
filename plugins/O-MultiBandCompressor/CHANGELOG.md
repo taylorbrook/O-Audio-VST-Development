@@ -1,5 +1,68 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.3.0 (2026-07-01)
+
+Transparency fix from `.planning/CODE-REVIEW.md` (WR-03). **Changes the sound** (for the
+better): the plugin is now magnitude-flat at unity with all compressors bypassed.
+
+### Fixed
+
+- **WR-03 — Serial crossover summed with magnitude ripple even at rest.**
+  Root cause: the 4-way split is serial (LOW exits at crossover 1, the remainder is
+  split again at crossovers 2 and 3), so LOW never accumulated the phase rotation the
+  upper bands pick up from crossovers 2/3, and LOMID never saw crossover 3's. Summing
+  the bands therefore rippled up to **0.63 dB** around the crossover points with every
+  compressor bypassed. The "Linkwitz-Riley guarantees flat magnitude" assumption only
+  holds for a single 2-way split.
+  Fix: all-pass compensation in `CrossoverNetwork` — an LR4 pair sums to a 2nd-order
+  all-pass at its crossover frequency (Q = 1/√2), so LOW now passes through AP(f2)·AP(f3)
+  and LOMID through AP(f3). The 4-band sum is then AP(f1)·AP(f2)·AP(f3): pure all-pass,
+  flat magnitude. Costs 3 extra biquads per channel; coefficients follow the existing
+  RT-safe in-place `ArrayCoefficients` pattern (CR-01) — no audio-thread allocation.
+  Side benefit: bands are now phase-coherent at the sum, so per-band gain changes
+  (compression, makeup) produce less phase-cancellation artifact around the crossovers.
+
+### Verification
+
+- **Offline A/B harness** (v1.2.2 crossover vs v1.3.0, 48 kHz, 20 Hz–20 kHz):
+  - FFT of the summed impulse response (131k samples): old ripple 0.455–0.625 dB
+    depending on crossover settings; new worst-case **0.014 dB** (float32 coefficient
+    quantization floor, at 20 Hz with the 60/300/2.5k setting).
+  - Stepped swept sine (120 log-spaced tones, whole-cycle RMS windows): old
+    0.454–0.625 dB; new worst-case **0.013 dB**. Both methods, 4 crossover settings
+    (default 200/2k/8k, 60/300/2.5k, 500/5k/16k, 120/800/3.5k) — PASS at ±0.02 dB.
+- **pluginval** strictness 10 — PASS.
+- **auval** (`aufx OMbc`) — PASS.
+
+## Version 1.2.2 (2026-07-01)
+
+Correctness + polish pass from `.planning/CODE-REVIEW.md` (WR-02, WR-04, IN-05, IN-06).
+
+### Fixed
+
+- **WR-02 — Mid/Side modes under-detected by −6 dB (compressed too little).**
+  Root cause: the band buffers are preallocated stereo, but in mono M/S modes the
+  crossover only fills channel 0 — `Compressor::processStereo` then averaged the silent
+  channel 1 into the detector, halving the detected level. The active channel count is
+  now threaded from `processMultiband` into `processStereo`, so detection runs over
+  channels that actually carry signal. Mid/Side now apply the same gain reduction as
+  Off/Both for identical threshold/ratio settings.
+- **WR-04 — Attack/Release readouts didn't match the DSP value.** The APVTS ranges use
+  skew 0.3 (`value = min + (max−min)·norm^(1/0.3)`) but the labels used a pure-log
+  interpolation — at mid-travel the Attack label read ~4.5 ms while the DSP ran ~20 ms.
+  The formatters in `app.js` now use the skew-aware mapping. Display-only; no DSP change.
+- **IN-05 — Resource provider matched on basename only.** `getResource` now matches the
+  full relative path via an explicit path→resource table (same pattern as O-DigiDelay),
+  so same-named files in different folders can never collide.
+
+### Changed
+
+- **IN-06 — Spectrum analyzer now uses a log frequency axis.** The 64 UI bins are
+  log-spaced 20 Hz–20 kHz (edges precomputed in `prepareToPlay`, matching the crossover
+  overlay's log axis) instead of linear FFT-bin grouping that crammed everything below
+  ~5 kHz into the left sliver. Each UI bin takes the peak (not average) of its FFT bins,
+  so narrowband energy is no longer smeared. Cosmetic/analyzer-fidelity only.
+
 ## Version 1.2.1 (2026-07-01)
 
 Real-time-safety pass from `.planning/CODE-REVIEW.md`. Removes all audio-thread

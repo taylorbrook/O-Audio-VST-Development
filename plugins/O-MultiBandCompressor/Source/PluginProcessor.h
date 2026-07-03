@@ -111,6 +111,11 @@ private:
     mutable int spectrumReadSlot = 1;                     // UI-thread private
     mutable std::atomic<int> spectrumReadySlot { 2 };     // published-slot hand-off
 
+    // IN-06: log-spaced FFT bin edges for the UI spectrum (20 Hz – 20 kHz, matching the
+    // crossover overlay's log axis). Edge k is the first FFT bin of output bin k.
+    // Sample-rate dependent, so precomputed in prepareToPlay — never on the audio thread.
+    std::array<int, SPECTRUM_BINS + 1> spectrumBinEdges {};
+
     // M/S scratch buffer, preallocated in prepareToPlay (CR-03) — avoids per-block AudioBuffer
     // allocation in Mid/Side modes.
     juce::AudioBuffer<float> msScratchBuffer;

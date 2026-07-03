@@ -43,6 +43,14 @@ public:
             }
         }
 
+        // Phase-compensation all-passes (WR-03): 3 per channel
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            allpassF2Low[ch].prepare(spec);
+            allpassF3Low[ch].prepare(spec);
+            allpassF3LoMid[ch].prepare(spec);
+        }
+
         // Seed every filter's coefficient storage to a full 2nd-order (6-tap) array so
         // RT updates (updateCoefficients) can overwrite the taps in place, without
         // reallocating the coefficient Array on the audio thread. (CR-01)
@@ -65,6 +73,13 @@ public:
                 highpass1[i][ch].reset();
                 highpass2[i][ch].reset();
             }
+        }
+
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            allpassF2Low[ch].reset();
+            allpassF3Low[ch].reset();
+            allpassF3LoMid[ch].reset();
         }
     }
 
@@ -111,6 +126,23 @@ public:
                 assignCoeffs(highpass2[i][ch], hp);
             }
         }
+
+        // Phase-compensation all-passes (WR-03). An LR4 pair sums to a 2nd-order
+        // all-pass at its crossover frequency (Q = 1/sqrt(2)), so each lower band must
+        // pass through one such all-pass per crossover it skips: LOW through AP(f2) and
+        // AP(f3), LOMID through AP(f3). The 4-band sum then equals
+        // AP(f1)·AP(f2)·AP(f3) — flat magnitude at unity.
+        const auto ap2 = juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
+            currentSampleRate, xover2Hz, butterworthQ);
+        const auto ap3 = juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
+            currentSampleRate, xover3Hz, butterworthQ);
+
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            assignCoeffs(allpassF2Low[ch],   ap2);
+            assignCoeffs(allpassF3Low[ch],   ap3);
+            assignCoeffs(allpassF3LoMid[ch], ap3);
+        }
     }
 
     // Process buffer and split into 4 bands
@@ -148,18 +180,23 @@ public:
                 float inputSample = inputData[sample];
 
                 // ===== Crossover 1: Split input into LOW and REST =====
-                // Low band (final): LP through both cascades
+                // Low band: LP through both cascades, then phase-matched to the upper
+                // crossovers via AP(f2)·AP(f3) (WR-03).
                 xover1_low = lowpass1[0][ch].processSample(inputSample);
                 xover1_low = lowpass2[0][ch].processSample(xover1_low);
+                xover1_low = allpassF2Low[ch].processSample(xover1_low);
+                xover1_low = allpassF3Low[ch].processSample(xover1_low);
 
                 // High band (to next crossover): HP through both cascades
                 xover1_high = highpass1[0][ch].processSample(inputSample);
                 xover1_high = highpass2[0][ch].processSample(xover1_high);
 
                 // ===== Crossover 2: Split xover1_high into LOMID and REST =====
-                // Low-Mid band (final): LP through both cascades
+                // Low-Mid band: LP through both cascades, then phase-matched to
+                // crossover 3 via AP(f3) (WR-03).
                 xover2_low = lowpass1[1][ch].processSample(xover1_high);
                 xover2_low = lowpass2[1][ch].processSample(xover2_low);
+                xover2_low = allpassF3LoMid[ch].processSample(xover2_low);
 
                 // High band (to next crossover): HP through both cascades
                 xover2_high = highpass1[1][ch].processSample(xover1_high);
@@ -195,6 +232,7 @@ private:
     {
         const auto lp = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(currentSampleRate, 1000.0f, butterworthQ);
         const auto hp = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, 1000.0f, butterworthQ);
+        const auto ap = juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(currentSampleRate, 1000.0f, butterworthQ);
 
         for (int i = 0; i < 3; ++i)
         {
@@ -205,6 +243,13 @@ private:
                 assignCoeffs(highpass1[i][ch], hp);
                 assignCoeffs(highpass2[i][ch], hp);
             }
+        }
+
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            assignCoeffs(allpassF2Low[ch],   ap);
+            assignCoeffs(allpassF3Low[ch],   ap);
+            assignCoeffs(allpassF3LoMid[ch], ap);
         }
     }
 
@@ -231,6 +276,13 @@ private:
     juce::dsp::IIR::Filter<float> lowpass2[3][2];   // Second cascade, LP
     juce::dsp::IIR::Filter<float> highpass1[3][2];  // First cascade, HP
     juce::dsp::IIR::Filter<float> highpass2[3][2];  // Second cascade, HP
+
+    // WR-03 phase compensation, [channel]. Each lower band passes through a 2nd-order
+    // all-pass per higher crossover it skips, matching the phase the upper bands
+    // accumulate through those LR4 splits.
+    juce::dsp::IIR::Filter<float> allpassF2Low[2];    // AP @ xover2 on LOW
+    juce::dsp::IIR::Filter<float> allpassF3Low[2];    // AP @ xover3 on LOW
+    juce::dsp::IIR::Filter<float> allpassF3LoMid[2];  // AP @ xover3 on LOMID
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrossoverNetwork)
 };
