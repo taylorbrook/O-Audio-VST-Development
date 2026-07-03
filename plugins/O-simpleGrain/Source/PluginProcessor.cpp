@@ -122,6 +122,11 @@ OSimpleGrainAudioProcessor::createParameterLayout()
         juce::AudioParameterFloatAttributes().withLabel ("%")));
 
     //--- Amplitude envelope (per-voice ADSR) -------------------------------
+    // ADSR enable: when false the envelope is bypassed (flat velocity-scaled amp;
+    // on note-off the voice stops spawning grains and lets the active grains drain
+    // through their own windows — no declick needed). Default true = legacy behaviour.
+    params.push_back (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { adsrEnabled, 1 }, "ADSR Enabled", true));
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { ampAttack, 1 }, "Amp Attack", adsrTimeRange(), 0.01f,
         juce::AudioParameterFloatAttributes().withLabel ("s")));
@@ -169,6 +174,7 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     grainPitchParam    = apvts.getRawParameterValue (grainPitch);
     panSprayParam      = apvts.getRawParameterValue (panSpray);
     velToDensityParam  = apvts.getRawParameterValue (velToDensity);
+    adsrEnabledParam   = apvts.getRawParameterValue (adsrEnabled);
     ampAttackParam     = apvts.getRawParameterValue (ampAttack);
     ampDecayParam      = apvts.getRawParameterValue (ampDecay);
     ampSustainParam    = apvts.getRawParameterValue (ampSustain);
@@ -219,6 +225,9 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     // Reset the shared viz grain count (voices forget their contribution in their
     // own prepareToPlay, so a clean delta is recomputed on the first render).
     activeGrainCount.store (0, std::memory_order_relaxed);
+
+    // On-screen-keyboard MIDI queue: timestamps are seconds; tell it the rate.
+    midiCollector.reset (sampleRate);
 
     // Output trim (dB->lin, 20 ms smoothing).
     outputGain.reset (sampleRate, 0.02);
@@ -600,6 +609,15 @@ bool OSimpleGrainAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
     return true;
 }
 
+void OSimpleGrainAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, float velocity)
+{
+    auto msg = noteOn
+        ? juce::MidiMessage::noteOn  (1, noteNumber, juce::jlimit (0.0f, 1.0f, velocity))
+        : juce::MidiMessage::noteOff (1, noteNumber);
+    msg.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);   // MidiMessageCollector wants seconds
+    midiCollector.addMessageToQueue (msg);
+}
+
 void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                juce::MidiBuffer& midiMessages)
 {
@@ -608,6 +626,10 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const int numSamples = buffer.getNumSamples();
     const int numCh      = buffer.getNumChannels();
     buffer.clear();                              // grain voices ADD into a cleared buffer
+
+    // Merge any on-screen-keyboard notes into the host MIDI stream before the
+    // grain voices render below (the WebView keyboard injects via handleUiMidi).
+    midiCollector.removeNextBlockOfMessages (midiMessages, numSamples);
 
     // --- Snapshot the source buffer ONCE (held alive for the whole block) -----
     auto src = atomicLoad (currentSource);
@@ -630,6 +652,7 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     p.scatter        = scatterParam->load();
     p.panSpray       = panSprayParam->load();
     p.velToDensity   = velToDensityParam->load() * 0.01f;   // 0..100 % → 0..1 depth (GrainVoice consumes a 0..1 depth)
+    p.adsrEnabled    = (adsrEnabledParam->load() > 0.5f);    // false = bypass envelope (flat amp, grains drain via windows)
     p.amp = juce::ADSR::Parameters {
         ampAttackParam->load(), ampDecayParam->load(),
         ampSustainParam->load(), ampReleaseParam->load() };
@@ -718,13 +741,21 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     frame.frozen            = freezeActive;
     grainCloudBuffer.publish();
 
-    // --- Master output trim (dB->lin, smoothed) + fixed headroom -------------
-    // Overlapping grains sum; a fixed headroom factor keeps dense clouds below
-    // clipping before the user trim (overlap-aware normalization is a 2.x
-    // refinement — the bounded pool already caps the peak).
-    constexpr float kHeadroom = 0.5f;
+    // --- Master output trim (dB->lin, smoothed) + overlap-aware normalization -
+    // A single grain peaks near the source level; overlapping grains pile up as
+    // the cloud densifies. The *fixed* headroom (was 0.5 = −6 dB) sized for dense
+    // clouds left sparse/single-grain patches — i.e. ordinary playing at the
+    // default density — far too quiet. Normalize by the square root of the live
+    // overlap (grainSize × density): incoherent grains sum in power, so amplitude
+    // grows ~√overlap. This keeps dense clouds near the old level while lifting
+    // sparse patches by up to +6 dB; clamped so it only ever attenuates (never
+    // amplifies above unity). The SmoothedValue ramp on outputGain keeps the gain
+    // change click-free as density moves. (Per-voice velToDensity modulation is
+    // ignored here — this is a coarse global trim, not a limiter.)
+    const float overlap  = (grainSizeParam->load() * 0.001f) * densityParam->load();
+    const float normGain = 1.0f / std::sqrt (juce::jmax (1.0f, overlap));
     const float outDb = outputLevelParam->load();
-    outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f) * kHeadroom);
+    outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f) * normGain);
     const float g0 = outputGain.getCurrentValue();
     const float g1 = outputGain.skip (numSamples);
     buffer.applyGainRamp (0, numSamples, g0, g1);

@@ -304,22 +304,25 @@ static Spectrum analyze (const std::vector<float>& x, int off, double fs, int or
 }
 
 //==============================================================================
-// Render `seconds` of mono output (channel 0). All notes-on at sample 0; held
-// to the end (no note-off) so the analysis window sits in steady sustain.
-// `maxGrains` (out) receives the peak active-grain count seen across the render.
+// Render `seconds` of mono output (channel 0). All notes-on at sample 0. By default
+// held to the end (no note-off) so the analysis window sits in steady sustain; pass
+// `releaseAtSec >= 0` to send a note-off at that time (for envelope-release / ADSR-
+// off grain-drain tests). `maxGrains` (out) receives the peak active-grain count.
 static std::vector<float> render (OSimpleGrainAudioProcessor& proc,
                                   const std::vector<int>& notes, double seconds, double fs,
-                                  int* maxGrains = nullptr, int velocity = 100)
+                                  int* maxGrains = nullptr, int velocity = 100,
+                                  double releaseAtSec = -1.0)
 {
     const int block = 512;
     const int total = (int) (seconds * fs);
+    const int releaseSample = (releaseAtSec >= 0.0) ? (int) (releaseAtSec * fs) : -1;
 
     juce::AudioBuffer<float> buf (2, block);
     std::vector<float> out;
     out.reserve ((size_t) total);
 
     int pos = 0;
-    bool sentOn = false;
+    bool sentOn = false, sentOff = false;
     int peak = 0;
     while (pos < total)
     {
@@ -330,6 +333,14 @@ static std::vector<float> render (OSimpleGrainAudioProcessor& proc,
             for (int nn : notes)
                 midi.addEvent (juce::MidiMessage::noteOn (1, nn, (juce::uint8) velocity), 0);
             sentOn = true;
+        }
+        // Note-off the block the release point falls in (at the in-block offset).
+        if (releaseSample >= 0 && ! sentOff && pos + block > releaseSample)
+        {
+            const int off = juce::jlimit (0, block - 1, releaseSample - pos);
+            for (int nn : notes)
+                midi.addEvent (juce::MidiMessage::noteOff (1, nn), off);
+            sentOff = true;
         }
 
         proc.processBlock (buf, midi);
@@ -369,6 +380,7 @@ static void resetDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, PID::grainPitch,    0.0f);
     setParam (a, PID::panSpray,      0.0f);
     setParam (a, PID::velToDensity,  0.0f);
+    setParam (a, PID::adsrEnabled,   1.0f);   // ADSR on = legacy/default behaviour
     setParam (a, PID::ampAttack,     0.01f);
     setParam (a, PID::ampDecay,      0.05f);
     setParam (a, PID::ampSustain,    1.0f);   // full sustain -> steady analysis
@@ -631,6 +643,206 @@ int main()
         check ("velToDensity-depth", offFlat && onSpread,
                juce::String ("off[hi=") + juce::String (offHi) + " lo=" + juce::String (offLo)
                  + "] on[hi=" + juce::String (onHi) + " lo=" + juce::String (onLo) + "]");
+    }
+
+    // --- 10: on-screen-keyboard bridge makes sound via the MidiMessageCollector
+    // Guards bug #1 (v1.0.2): WebView-keyboard notes reach the synth ONLY through
+    // handleUiMidi → midiCollector → processBlock. No other gate exercises that
+    // path (render() injects MIDI straight into the host buffer), so a missing
+    // collector merge / native fn shipped the keyboard silent in v1.0.1. Here we
+    // inject via handleUiMidi and render with an EMPTY host MIDI buffer; the held
+    // note must be drained by the collector and sustain into the analysis window.
+    {
+        proc.releaseResources();
+        proc.prepareToPlay (fs, 512);
+        resetDefaults (apvts);
+        setParam (apvts, PID::density,      120.0f);
+        setParam (apvts, PID::grainSize,     50.0f);
+        setParam (apvts, PID::positionSpray, 70.0f);
+
+        proc.handleUiMidi (root, true, 0.8f);   // key down via the UI bridge (no note-off → held)
+
+        const int block = 512;
+        const int total = (int) (1.0 * fs);
+        juce::AudioBuffer<float> buf (2, block);
+        std::vector<float> y; y.reserve ((size_t) total);
+        int pos = 0, pk = 0;
+        while (pos < total)
+        {
+            buf.clear();
+            juce::MidiBuffer hostMidi;           // EMPTY — the collector is the only note source
+            proc.processBlock (buf, hostMidi);
+            pk = juce::jmax (pk, proc.getActiveGrainCount());
+            const int n = juce::jmin (block, total - pos);
+            for (int i = 0; i < n; ++i) y.push_back (buf.getSample (0, i));
+            pos += block;
+        }
+        const double r = rms (y, aOff, aLen);
+        check ("ui-midi-keyboard", r > 0.005 && allFinite (y) && pk > 0,
+               juce::String ("rms=") + juce::String (r, 4) + " peakGrains=" + juce::String (pk));
+    }
+
+    // --- 11: ADSR toggle bypasses the amp envelope (v1.1.0) ------------------
+    // With a long (2 s) attack the envelope is still ramping at 0.5 s, so an early
+    // window is far quieter than a later one when the ADSR is ON. Turn the ADSR OFF
+    // and the amp is a flat velocity-scaled gate from sample 0 — early ≈ later. The
+    // ratio (early/late) collapses the cloud-warmup noise and isolates the envelope.
+    {
+        proc.releaseResources();
+        proc.prepareToPlay (fs, 512);
+        resetDefaults (apvts);
+        setParam (apvts, PID::density,      120.0f);
+        setParam (apvts, PID::grainSize,     50.0f);
+        setParam (apvts, PID::positionSpray, 70.0f);
+        setParam (apvts, PID::ampAttack,      2.0f);   // long attack — only audible if the ADSR is engaged
+
+        const int eOff = (int) (0.06 * fs), eLen = (int) (0.06 * fs);   // [0.06,0.12] past cloud fill
+        const int lOff = (int) (0.50 * fs), lLen = (int) (0.20 * fs);   // [0.50,0.70]
+
+        setParam (apvts, PID::adsrEnabled, 1.0f);      // ON → attack still ramping → early << late
+        auto yOn  = render (proc, { root }, 1.0, fs);
+        const double onRatio = rms (yOn, eOff, eLen) / juce::jmax (1.0e-9, rms (yOn, lOff, lLen));
+
+        setParam (apvts, PID::adsrEnabled, 0.0f);      // OFF → flat gate → early ≈ late
+        auto yOff = render (proc, { root }, 1.0, fs);
+        const double offRatio = rms (yOff, eOff, eLen) / juce::jmax (1.0e-9, rms (yOff, lOff, lLen));
+
+        check ("adsr-toggle-bypass",
+               onRatio < 0.3 && offRatio > 0.6 && offRatio > onRatio + 0.3 && allFinite (yOff),
+               juce::String ("onEarly/Late=") + juce::String (onRatio, 3)
+                 + " offEarly/Late=" + juce::String (offRatio, 3));
+    }
+
+    // --- 12: ADSR-off voice drains via grain windows after note-off (v1.1.0) -
+    // With the ADSR off, note-off must stop spawning and let the active grains finish
+    // their Window envelopes — so the cloud is loud while held, then falls silent
+    // within ~one grain length and the voice frees (active grain count → 0). Guards
+    // against a stuck voice (the off-mode lifetime no longer keys on ampEnv).
+    {
+        proc.releaseResources();
+        proc.prepareToPlay (fs, 512);
+        resetDefaults (apvts);
+        setParam (apvts, PID::adsrEnabled,  0.0f);     // bypass
+        setParam (apvts, PID::density,      120.0f);
+        setParam (apvts, PID::grainSize,     50.0f);   // tail drains in ≤ ~50 ms
+        setParam (apvts, PID::positionSpray, 70.0f);
+
+        int peakG = 0;
+        auto y = render (proc, { root }, 1.0, fs, &peakG, 100, 0.40);   // release at 0.40 s
+        const double held = rms (y, (int) (0.20 * fs), (int) (0.15 * fs));  // [0.20,0.35] held → loud
+        const double tail = rms (y, (int) (0.70 * fs), (int) (0.25 * fs));  // [0.70,0.95] drained → silent
+        const int endGrains = proc.getActiveGrainCount();
+
+        check ("adsr-off-drains",
+               peakG > 0 && held > 0.005 && tail < 0.002 && endGrains == 0 && allFinite (y),
+               juce::String ("peakGrains=") + juce::String (peakG)
+                 + " heldRms=" + juce::String (held, 4) + " tailRms=" + juce::String (tail, 4)
+                 + " endGrains=" + juce::String (endGrains));
+    }
+
+    // --- DIAG B: on-screen-keyboard (handleUiMidi) lifecycle: noteOn → noteOff →
+    // retrigger. Does the collector path honour note-off and allow a fresh note?
+    {
+        auto renderN = [&](double secs) {
+            const int block = 512; const int tot = (int) (secs * fs);
+            juce::AudioBuffer<float> b (2, block); std::vector<float> o; o.reserve ((size_t) tot);
+            int p = 0; while (p < tot) { b.clear(); juce::MidiBuffer empty;
+                proc.processBlock (b, empty);
+                const int n = juce::jmin (block, tot - p);
+                for (int i = 0; i < n; ++i) o.push_back (b.getSample (0, i)); p += block; }
+            return o; };
+
+        proc.releaseResources(); proc.prepareToPlay (fs, 512);
+        resetDefaults (apvts);
+        setParam (apvts, PID::sourceSample, 3.0f); pumpMessages();   // piano: smooth sustained energy
+        setParam (apvts, PID::positionSpray, 40.0f);
+
+        proc.handleUiMidi (root, true, 0.8f);   auto a = renderN (0.6);   // held
+        proc.handleUiMidi (root, false, 0.0f);  auto b = renderN (1.0);   // released → should go silent
+        proc.handleUiMidi (root, true, 0.8f);   auto c = renderN (0.6);   // retrigger → should sound
+        const double kHeld = rms (a, (int) (0.30 * fs), (int) (0.20 * fs));
+        const double kTail = rms (b, (int) (0.70 * fs), (int) (0.25 * fs));
+        const double kRtg  = rms (c, (int) (0.30 * fs), (int) (0.20 * fs));
+        // Invariants (timing-robust — absolute level via the collector is non-
+        // deterministic in this fast-render harness): note-off silences the voice,
+        // and a held / re-triggered note is clearly louder than that silent tail.
+        check ("kbd-lifecycle", kTail < 0.002 && kHeld > 0.0015 && kRtg > 0.0015
+                                && kHeld > kTail * 4.0 && kRtg > kTail * 4.0,
+               juce::String ("held=") + juce::String (kHeld, 4)
+                 + " afterOff=" + juce::String (kTail, 4) + " retrig=" + juce::String (kRtg, 4));
+    }
+
+    // --- 14: polyphony + retrigger over time (no fade, no monophonic collapse) ---
+    // Guards the user-reported "gradually quieter to silence on successive notes":
+    // note 1 at 0, note 2 at 1.0 s (both held → must NOT be quieter than one note),
+    // allNotesOff at 1.5 s, fresh note 3 at 2.0 s (must retrigger audibly).
+    {
+        proc.releaseResources();
+        proc.prepareToPlay (fs, 512);
+        resetDefaults (apvts);                         // ADSR on, default sustain 0.8
+        setParam (apvts, PID::density,      120.0f);
+        setParam (apvts, PID::grainSize,     50.0f);
+        setParam (apvts, PID::positionSpray, 70.0f);
+
+        const int block = 512;
+        const int total = (int) (3.0 * fs);
+        const int tNote2 = (int) (1.0 * fs);
+        const int tRel   = (int) (1.5 * fs);
+        const int tNote3 = (int) (2.0 * fs);
+        juce::AudioBuffer<float> buf (2, block);
+        std::vector<float> y; y.reserve ((size_t) total);
+        int pos = 0; bool on1=false,on2=false,rel=false,on3=false;
+        auto at = [&](juce::MidiBuffer& m, int when, bool& flag, juce::MidiMessage msg){
+            if (! flag && pos + block > when) { m.addEvent (msg, juce::jlimit (0, block-1, when-pos)); flag = true; } };
+        while (pos < total)
+        {
+            buf.clear();
+            juce::MidiBuffer m;
+            if (! on1) { m.addEvent (juce::MidiMessage::noteOn (1, root, (juce::uint8) 100), 0); on1 = true; }
+            at (m, tNote2, on2, juce::MidiMessage::noteOn  (1, root + 7, (juce::uint8) 100));
+            at (m, tRel,   rel, juce::MidiMessage::allNotesOff (1));
+            at (m, tNote3, on3, juce::MidiMessage::noteOn  (1, root + 4, (juce::uint8) 100));
+            proc.processBlock (buf, m);
+            const int n = juce::jmin (block, total - pos);
+            for (int i = 0; i < n; ++i) y.push_back (buf.getSample (0, i));
+            pos += block;
+        }
+        const double t05 = rms (y, (int) (0.40 * fs), (int) (0.20 * fs));   // one note
+        const double t12 = rms (y, (int) (1.20 * fs), (int) (0.20 * fs));   // two notes
+        const double t23 = rms (y, (int) (2.30 * fs), (int) (0.20 * fs));   // fresh retrigger
+        check ("poly-no-fade", t05 > 0.005 && t12 >= t05 * 0.8 && t23 > 0.005,
+               juce::String ("t0.5=") + juce::String (t05, 4)
+                 + " t1.2(2notes)=" + juce::String (t12, 4)
+                 + " t2.3(retrig)=" + juce::String (t23, 4));
+    }
+
+    // --- 15: a single held note must NOT fade to silence over time (@48k) -------
+    // Encodes the user-reported failure mode as a contract: factory defaults (Scan 0,
+    // Position center, spray 0, ADSR on, sustain 0.8), one key held for 5 s at 48 kHz.
+    // Late RMS must stay within a tight band of the early RMS — no global decay.
+    {
+        proc.releaseResources();
+        proc.setPlayConfigDetails (0, 2, 48000.0, 512);
+        proc.prepareToPlay (48000.0, 512);
+        resetDefaults (apvts);
+        setParam (apvts, PID::sourceSample, 3.0f); pumpMessages();   // piano (smooth sustained body)
+        setParam (apvts, PID::positionSpray, 30.0f);                 // spread reads → stable steady-state level
+        const double rate = 48000.0;
+        const int block = 512; const int tot = (int) (5.0 * rate);
+        juce::AudioBuffer<float> b (2, block); std::vector<float> o; o.reserve ((size_t) tot);
+        int p = 0; bool on = false;
+        while (p < tot) { b.clear(); juce::MidiBuffer m;
+            if (! on) { m.addEvent (juce::MidiMessage::noteOn (1, root, (juce::uint8) 100), 0); on = true; }
+            proc.processBlock (b, m);
+            const int n = juce::jmin (block, tot - p);
+            for (int i = 0; i < n; ++i) o.push_back (b.getSample (0, i)); p += block; }
+        // Wide 1.5 s windows so the per-voice RNG (position spray) averages out — a
+        // narrow window is noisy run-to-run; a sustained FADE would still show as
+        // late << early across the wide average.
+        const double early = rms (o, (int) (0.5 * rate), (int) (1.5 * rate));   // [0.5,2.0]
+        const double late  = rms (o, (int) (3.0 * rate), (int) (1.5 * rate));   // [3.0,4.5]
+        check ("held-no-fade@48k", early > 0.004 && late > early * 0.6,
+               juce::String ("early=") + juce::String (early, 4) + " late=" + juce::String (late, 4));
     }
 
     proc.releaseResources();

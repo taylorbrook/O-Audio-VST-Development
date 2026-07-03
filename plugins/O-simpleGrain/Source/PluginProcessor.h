@@ -58,6 +58,7 @@ namespace OSimpleGrain::ParamIDs
     inline constexpr auto velToDensity   = "velToDensity";   // 0–100 %
 
     // Amplitude envelope (per-voice ADSR)
+    inline constexpr auto adsrEnabled    = "adsrEnabled";    // bool — false = bypass (flat amp, grains drain via windows)
     inline constexpr auto ampAttack      = "ampAttack";      // 0–5 s
     inline constexpr auto ampDecay       = "ampDecay";       // 0–5 s
     inline constexpr auto ampSustain     = "ampSustain";     // 0–1 (0–100 %)
@@ -113,6 +114,12 @@ public:
     // alongside the APVTS tree so a session restores the same source.
     const juce::String& getSourceIdentity() const noexcept { return currentSourceIdentity; }
     void setSourceIdentity (const juce::String& id) { currentSourceIdentity = id; }
+
+    //==========================================================================
+    // On-screen keyboard: the editor injects note on/off from the WebView (any
+    // thread). Queued via a MidiMessageCollector and merged into processBlock's
+    // MIDI stream so UI notes drive the synth identically to host MIDI.
+    void handleUiMidi (int noteNumber, bool noteOn, float velocity);
 
     //==========================================================================
     // Stage-3 visualization accessors. The editor reads these on its
@@ -255,12 +262,17 @@ private:
     WindowLuts        windowLuts { kWindowLutSize };
     juce::Synthesiser synth;
 
+    // On-screen-keyboard MIDI: thread-safe queue drained into processBlock so the
+    // WebView keyboard drives the synth identically to host MIDI.
+    juce::MidiMessageCollector midiCollector;
+
     // The resampled source buffer, published to the audio thread via an atomic
     // shared_ptr swap. Snapshotted once per block in processBlock.
     std::shared_ptr<juce::AudioBuffer<float>> currentSource;
 
-    // Master output trim (dB->lin, smoothed) + a fixed headroom factor so dense
-    // overlapping clouds don't clip before the trim.
+    // Master output trim (dB->lin, smoothed) folded together with an overlap-aware
+    // normalization factor so sparse/single grains play at full level while dense
+    // overlapping clouds stay tamed below clip (see processBlock).
     juce::SmoothedValue<float> outputGain { 1.0f };
 
     //==========================================================================
@@ -337,6 +349,7 @@ private:
     std::atomic<float>* grainPitchParam    = nullptr;
     std::atomic<float>* panSprayParam      = nullptr;
     std::atomic<float>* velToDensityParam  = nullptr;
+    std::atomic<float>* adsrEnabledParam   = nullptr;
     std::atomic<float>* ampAttackParam     = nullptr;
     std::atomic<float>* ampDecayParam      = nullptr;
     std::atomic<float>* ampSustainParam    = nullptr;

@@ -3,6 +3,88 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.0] — 2026-06-25
+
+User request: make it possible to turn the amplitude ADSR **off**, and confirm the
+envelope is polyphonic. Investigation found the ADSR was already fully per-voice
+(8-voice `juce::Synthesiser`, note-stealing on, each `GrainVoice` owns its own
+`juce::ADSR`), so no polyphony change was needed — the work is the new on/off
+toggle. Backward-compatible: the new parameter defaults to **on**, so existing
+sessions/presets load with unchanged behaviour.
+
+### Added
+- **`adsrEnabled` toggle (default on) — bypass the amplitude envelope.** New
+  `AudioParameterBool` "ADSR Enabled". When **off** the per-voice amp is a flat,
+  velocity-scaled gate (Attack/Decay/Sustain/Release are ignored) for a raw,
+  immediate sound. Surfaced as an "ADSR" toggle in the Amplitude Envelope panel;
+  toggling off dims and locks the A/D/S/R knobs so the bypass is visually obvious.
+- **Render-harness coverage** (`tests/render-harness`): `adsr-toggle-bypass`
+  (a 2 s attack is audible with the ADSR on but bypassed when off) and
+  `adsr-off-drains` (after note-off in bypass mode the cloud falls silent within
+  ~one grain length and the voice frees — no stuck voices). `render()` gained an
+  optional note-off time.
+- **Three additional regression guards** added while investigating a user-reported
+  "held notes fade to silence" symptom: `kbd-lifecycle` (on-screen-keyboard
+  noteOn→noteOff→retrigger honours note-off and re-sounds), `poly-no-fade`
+  (sequential/overlapping notes do not collapse to silence and retrigger cleanly),
+  and `held-no-fade@48k` (a single note held 5 s at 48 kHz stays at level — no
+  global decay). All pass; the reported fade did not reproduce in the engine and
+  was traced to a stale cached plugin instance in the host, not a code defect
+  (confirmed fade-free in the Standalone build). 15 automated gates total.
+
+### Changed
+- **ADSR-off voice lifetime drains through the grain windows (no declick).** In
+  bypass mode, note-off stops the scheduler from spawning new grains and lets the
+  already-active grains finish their own Window envelopes (Hann/Gauss/etc.), so the
+  tail fades out naturally without an amplitude release ramp. The voice frees once
+  the note is released *and* the grain pool empties. The ADSR-on path is unchanged
+  (still keyed on `ampEnv.isActive()`). The envelope is always advanced internally
+  so the ADSR can be toggled live without a click.
+
+### Notes
+- No existing parameter IDs, ranges, defaults, or state format changed. The added
+  `adsrEnabled` param is state-additive — older sessions load it at its default
+  (on), preserving 1.0.x behaviour.
+
+## [1.0.2] — 2026-06-25
+
+Three user-reported bugs: a dead on-screen keyboard, a dead output scope, and an
+overall-too-quiet output. No parameters, IDs, ranges, or state format changed
+(sessions/presets load unchanged).
+
+### Fixed
+- **On-screen keyboard produced no notes.** The WebView keyboard calls the
+  `uiMidi` native function on every key, but it was never registered on the C++
+  side — and the processor had no `MidiMessageCollector` and no merge of UI notes
+  into `processBlock`, so the entire UI-MIDI bridge (present in O-simpleFM) was
+  missing. Keys highlighted but emitted nothing. Ported the proven O-simpleFM
+  pattern: `midiCollector` member + `reset()` in `prepareToPlay` +
+  `removeNextBlockOfMessages()` in `processBlock` + `handleUiMidi()` +
+  `withNativeFunction("uiMidi", …)` in the editor. External MIDI was unaffected
+  and still works. *Root cause: the Stage-3 UI-MIDI bridge was never wired; no
+  automated gate exercised it because the render-harness injects MIDI directly.*
+- **Output was ~6–12 dB too quiet on sparse/single-grain patches.** The master
+  stage applied a *fixed* `kHeadroom = 0.5f` (−6 dB) sized to stop dense clouds
+  clipping. But a single grain peaks near the source level, so that fixed cut —
+  stacked on the equal-power pan and amp envelope — left sparse patches far too
+  quiet (the deferred "overlap-aware normalization" the code comment promised
+  never landed; nor did the "headroom normalisation upstream" the tooltip claims).
+  Replaced it with overlap-aware normalization: `normGain = 1 / max(1, overlap×0.5)`
+  where `overlap = grainSize × density`. Sparse/single grains now play at full
+  level; dense clouds stay tamed below clip. Smoothed via the existing `outputGain`
+  ramp (click-free). *Root cause: a fixed headroom factor cannot serve both the
+  sparse and dense ends of the density axis.*
+- **Output scope showed nothing.** A downstream symptom of the two bugs above —
+  the scope data path (post-gain ring → analyzer → `scopeUpdate` → `drawScope`)
+  was correct, but with the keyboard dead and the output very quiet there was
+  nothing to draw. Restored by the keyboard + loudness fixes; no scope code changed.
+
+### Tests
+- Added render-harness gate **10 (`ui-midi-keyboard`)**: injects a held note via
+  `handleUiMidi` and renders with an **empty host MIDI buffer**, asserting the
+  collector drains the note and the synth sustains audible output — guards the
+  UI-MIDI bridge that had no coverage and shipped silent in v1.0.1.
+
 ## [1.0.1] — 2026-06-25
 
 Code-review fixes — two correctness bugs, two real-time hot-path simplifications,
