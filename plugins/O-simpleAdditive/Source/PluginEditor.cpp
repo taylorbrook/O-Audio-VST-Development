@@ -67,16 +67,17 @@ OSimpleAdditiveAudioProcessorEditor::OSimpleAdditiveAudioProcessorEditor (OSimpl
     using namespace OSimpleAdditive::ParamIDs;
 
     // 31 float sliders (16 drawbars + scan/spectral/ADSR/output) + 2 combo boxes.
-    const juce::StringArray sliderIds {
-        partial1,  partial2,  partial3,  partial4,  partial5,  partial6,
-        partial7,  partial8,  partial9,  partial10, partial11, partial12,
-        partial13, partial14, partial15, partial16,
+    // The 16 drawbar IDs come from the shared partialIds array (PluginProcessor.h).
+    juce::StringArray sliderIds;
+    for (const auto* id : partialIds)
+        sliderIds.add (id);
+    sliderIds.addArray (juce::StringArray {
         scanPosition, scanLfoRate, scanLfoDepth, scanEnvAmount,
         spectralDecay, velToDecay,
         ampAttack, ampDecay, ampSustain, ampRelease,
         modAttack, modDecay, modSustain, modRelease,
         outputLevel
-    };
+    });
     const juce::StringArray comboIds { frameBSource, bitDepth };
 
     // 1. RELAYS (before the WebView) ----------------------------------------

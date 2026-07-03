@@ -14,7 +14,7 @@ juce_add_plugin(O-simpleAdditive
     PLUGIN_CODE OSiA
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleAdditive${OUARICON_DEV_SUFFIX}"
-    VERSION "1.0.0"
+    VERSION "1.0.2"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -92,3 +92,10 @@ target_compile_definitions(O-simpleAdditive
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Stage 2 DSP correctness gate + per-voice refill profile (offline render
+# harness). Off by default; enable with -DOUARICON_BUILD_TESTS=ON.
+option(OUARICON_BUILD_TESTS "Build O-simpleAdditive render-test harness" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()

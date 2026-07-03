@@ -7,18 +7,16 @@
 
     Pedagogical 16-voice additive / wavetable-scan synthesizer.
 
-    Stage 2 — additive voice, complete. 16 drawbars (Frame A) morph toward a
-    preset (Frame B) via scan/LFO/mod-env (2.2), tilt darker over the note via
-    the spectral-decay macro, and quantize via the bit-depth choice (2.3). The
-    summed single-cycle table is read by phase and shaped by the amp ADSR.
-    Zero latency (additive band-limits exactly → setLatencySamples(0)).
+    16 drawbars (Frame A) morph toward a preset (Frame B) via scan/LFO/mod-env,
+    tilt darker over the note via the spectral-decay macro, and quantize via the
+    bit-depth choice. The summed single-cycle table is read by phase and shaped by
+    the amp ADSR. Zero latency (additive band-limits exactly → setLatencySamples(0)).
 
-    Phase 2.3 also adds the real-time-safe visualization tap: a lock-free VizRing
-    (post-gain mono sum, copy-only on the audio thread — the FFT runs on the
-    editor Timer in Stage 3) and an atomic 16-element active-spectrum snapshot
-    (the morphed + decayed amplitudes of the newest sounding voice) feeding the
-    Stage-3 drawbar display. The APVTS holds all 33 params; the voice now
-    consumes every DSP parameter.
+    A real-time-safe visualization tap feeds the editor: a lock-free VizRing
+    (post-gain mono sum, copy-only on the audio thread — the FFT runs on the editor
+    Timer) and an atomic 16-element active-spectrum snapshot (the morphed + decayed
+    amplitudes of the newest sounding voice) driving the drawbar display. The APVTS
+    holds all 33 params; the voices consume every DSP parameter.
 
   ==============================================================================
 */
@@ -33,9 +31,8 @@
 #include "AdditiveVizAnalyzer.h"   // VizRing (audio-thread tap) + AdditiveVizAnalyzer (Stage 3 FFT)
 
 //==============================================================================
-// Parameter identifiers — single source of truth for APVTS IDs.
-// Referenced by the processor now; by the additive voices (Stage 2) and the
-// WebView relays/attachments (Stage 3) later.
+// Parameter identifiers — single source of truth for APVTS IDs. Referenced by the
+// processor, the additive voices, and the WebView relays/attachments.
 namespace OSimpleAdditive::ParamIDs
 {
     // Additive spectrum — Frame A: the 16 harmonic drawbars (stored 0–1 normalized).
@@ -55,6 +52,15 @@ namespace OSimpleAdditive::ParamIDs
     inline constexpr auto partial14 = "partial14";
     inline constexpr auto partial15 = "partial15";
     inline constexpr auto partial16 = "partial16";
+
+    // The 16 partial IDs as one array — single source of truth for every loop that
+    // builds, pushes, or presets the additive spectrum (processor + editor).
+    inline constexpr std::array<const char*, 16> partialIds {
+        partial1,  partial2,  partial3,  partial4,
+        partial5,  partial6,  partial7,  partial8,
+        partial9,  partial10, partial11, partial12,
+        partial13, partial14, partial15, partial16
+    };
 
     // Wavetable dimension — scan / morph (Frame A → Frame B).
     inline constexpr auto frameBSource  = "frameBSource";   // choice: Sine/Saw/Square/Odd
