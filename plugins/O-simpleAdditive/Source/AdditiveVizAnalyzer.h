@@ -3,9 +3,6 @@
 
     O-simpleAdditive - Visualization Tap (real-time-safe spectrum + oscilloscope)
 
-    Lifted verbatim from O-simpleFM's FmVizAnalyzer.h (VizRing unchanged; the
-    analyzer class renamed FmVizAnalyzer → AdditiveVizAnalyzer). Same contract:
-
     PERF-01: the audio thread is COPY-ONLY into a pre-allocated lock-free ring;
     NO allocation, NO FFT, NO locks on the audio thread. The FFT runs on the
     message thread (editor Timer, 30 Hz).
@@ -13,12 +10,10 @@
     Two pieces:
       - VizRing             : audio-thread writer / message-thread reader ring.
       - AdditiveVizAnalyzer : message-thread FFT (4096 / Blackman-Harris) + scope
-                              downsampler. Owned by the editor; Stage 3 emits its
-                              output to the WebView (drawbar-spectrum bars are
-                              driven separately from the active-spectrum snapshot,
-                              this analyzer drives the scope + FFT overlay). In
-                              Stage 2 the processor only instantiates VizRing —
-                              this analyzer is header-only and not yet constructed.
+                              downsampler. Owned by the editor, which emits its
+                              output to the WebView; it drives the scope + FFT
+                              overlay (the drawbar-spectrum bars are driven
+                              separately from the active-spectrum snapshot).
 
   ==============================================================================
 */

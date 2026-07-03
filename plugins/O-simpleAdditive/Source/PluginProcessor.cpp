@@ -3,7 +3,7 @@
 
     O-simpleAdditive - Audio Processor (implementation)
 
-    Stage 2 (complete): 16-voice additive Synthesiser. Per block: read all 33
+    16-voice additive Synthesiser. Per block: read all 33
     APVTS params → resolve Frame B + the global scan LFO + spectral-decay sources
     + the bit-depth choice → push to voices → render → smoothed output trim → NaN
     scrub → visualization tap (mono-sum into the lock-free VizRing + publish the
@@ -44,13 +44,7 @@ OSimpleAdditiveAudioProcessor::createParameterLayout()
 
     //--- Additive spectrum — Frame A: 16 harmonic drawbars (stored 0–1) ----
     // Default: H1 = 1.0 (100%), partials 2..16 = 0.0 → pure sine on load.
-    const char* const partialIds[16] = {
-        partial1,  partial2,  partial3,  partial4,
-        partial5,  partial6,  partial7,  partial8,
-        partial9,  partial10, partial11, partial12,
-        partial13, partial14, partial15, partial16
-    };
-
+    // partialIds is the shared array from OSimpleAdditive::ParamIDs (PluginProcessor.h).
     for (int k = 0; k < 16; ++k)
     {
         const float defaultLevel = (k == 0) ? 1.0f : 0.0f;
@@ -202,22 +196,19 @@ void OSimpleAdditiveAudioProcessor::pushParamsToVoices (int numSamples)
     using namespace OSimpleAdditive::ParamIDs;
     auto get = [this] (const char* id) { return parameters.getRawParameterValue (id)->load(); };
 
-    // Frame A — the 16 harmonic drawbars (stored 0–1).
-    static const char* const partialIds[AdditiveVoice::kNumPartials] = {
-        partial1,  partial2,  partial3,  partial4,
-        partial5,  partial6,  partial7,  partial8,
-        partial9,  partial10, partial11, partial12,
-        partial13, partial14, partial15, partial16
-    };
-
+    // Frame A — the 16 harmonic drawbars (stored 0–1). partialIds is the shared
+    // array from OSimpleAdditive::ParamIDs (PluginProcessor.h).
     float frameA[AdditiveVoice::kNumPartials];
     for (int k = 0; k < AdditiveVoice::kNumPartials; ++k)
         frameA[k] = get (partialIds[k]);
 
     // Frame B — resolve the selected preset vector once for all voices (the
-    // per-voice dirty-check absorbs the unchanged-block case).
+    // per-voice dirty-check absorbs the unchanged-block case). Resolve the choice
+    // INDEX with round + clamp (4 choices: Sine/Saw/Square/Odd → [0,3]), matching
+    // the bit-depth resolve below — never a raw truncating cast of the float value.
     float frameB[AdditiveVoice::kNumPartials];
-    OSimpleAdditive::fillFrameB ((int) get (frameBSource), frameB);
+    const int frameBIdx = juce::jlimit (0, 3, (int) std::round (get (frameBSource)));
+    OSimpleAdditive::fillFrameB (frameBIdx, frameB);
 
     // Global scan LFO — one sine shared by all voices so notes morph in phase
     // (ARCHITECTURE.md §Scan LFO: global, sine, advanced once per block). Bipolar
@@ -372,12 +363,9 @@ void OSimpleAdditiveAudioProcessor::applyFactoryPreset (const juce::String& name
             p->setValueNotifyingHost (p->convertTo0to1 ((float) index));
     };
     auto drawbars = [&setReal] (std::initializer_list<float> levels) {
-        static const char* const ids[16] = {
-            partial1,  partial2,  partial3,  partial4,  partial5,  partial6,
-            partial7,  partial8,  partial9,  partial10, partial11, partial12,
-            partial13, partial14, partial15, partial16 };
+        // partialIds: shared array from OSimpleAdditive::ParamIDs (PluginProcessor.h).
         int k = 0;
-        for (float v : levels) { if (k < 16) setReal (ids[k], juce::jlimit (0.0f, 1.0f, v)); ++k; }
+        for (float v : levels) { if (k < 16) setReal (partialIds[k], juce::jlimit (0.0f, 1.0f, v)); ++k; }
     };
     const auto inv = [] (float k) { return 1.0f / k; };   // 1/k harmonic amplitude
 

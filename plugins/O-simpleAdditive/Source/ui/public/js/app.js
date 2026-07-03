@@ -60,13 +60,8 @@ const TIPS = {
   modSustain:   ["Mod Sustain", "Held level of the modulation envelope while the key is down."],
   modRelease:   ["Mod Release", "Release of the modulation envelope after key-up."],
   outputLevel:  ["Output Level", "Master output trim in decibels."],
-  // Lesson presets.
-  lessonSine:   ["Pure Sine", "Only the fundamental (H1) — one drawbar, one sine: the atom of additive synthesis."],
-  lessonSaw:    ["Sawtooth", "Every harmonic present at 1/k — all overtones falling by 1/k give a bright, buzzy ramp."],
-  lessonSquare: ["Square", "Odd harmonics only, at 1/k. Dropping the even partials gives the hollow, reedy tone."],
-  lessonOrgan:  ["Organ", "A Hammond-style drawbar registration — a few low harmonics, instant attack, full sustain."],
-  lessonMorph:  ["Morph Pad", "The scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe."],
-  lessonLofi:   ["Lo-Fi Bells", "A spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit."],
+  // Lesson-preset tooltips (lessonSine … lessonLofi) are DERIVED from LESSONS
+  // below — the caption copy lives in exactly one place (single source of truth).
 };
 
 // Per-partial harmonic tooltips (generated).
@@ -398,6 +393,12 @@ function setupTooltips() {
 // ── Lesson preset tour ──────────────────────────────────────────────────────
 // The lessons are applied in C++ (applyFactoryPreset native fn) as full APVTS
 // snapshots; the relays/attachments sync every knob, drawbar, and combo here.
+//
+// SINGLE SOURCE OF TRUTH for lesson copy: each caption "Name — description" lives
+// here once. The tour caption shows it verbatim; the per-button hover tooltips
+// (TIPS.lessonSine … TIPS.lessonLofi) are DERIVED below by splitting on the first
+// em-dash into [title, body]. Keyed by the C++ preset name (matches
+// applyFactoryPreset and the buttons' data-preset).
 const LESSONS = {
   "Pure Sine":   "Pure Sine — only the fundamental (H1). One drawbar, one sine: the atom of additive synthesis.",
   "Sawtooth":    "Sawtooth — every harmonic at 1/k. All overtones falling by 1/k → a bright, buzzy ramp.",
@@ -406,6 +407,20 @@ const LESSONS = {
   "Morph Pad":   "Morph Pad — the scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe.",
   "Lo-Fi Bells": "Lo-Fi Bells — a spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit.",
 };
+
+// Derive the lesson-button tooltips from LESSONS (data-tip key → preset name) so
+// the caption wording is never duplicated. Each caption "Name — body" splits into
+// [title, body] on the first " — " (em-dash).
+const LESSON_TIP_KEYS = {
+  lessonSine: "Pure Sine",  lessonSaw: "Sawtooth",    lessonSquare: "Square",
+  lessonOrgan: "Organ",     lessonMorph: "Morph Pad", lessonLofi: "Lo-Fi Bells",
+};
+for (const [tipKey, preset] of Object.entries(LESSON_TIP_KEYS)) {
+  const caption = LESSONS[preset] || "";
+  const i = caption.indexOf(" — ");
+  TIPS[tipKey] = i >= 0 ? [caption.slice(0, i), caption.slice(i + 3)] : [preset, caption];
+}
+
 let applyPresetFn = null;
 
 async function applyLesson(name) {
