@@ -12,11 +12,13 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
-class OGainAudioProcessor : public juce::AudioProcessor
+class OGainAudioProcessor : public juce::AudioProcessor,
+                            private juce::AsyncUpdater,
+                            private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     OGainAudioProcessor();
-    ~OGainAudioProcessor() override = default;
+    ~OGainAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -65,17 +67,28 @@ public:
     // =========================================================================
 
     std::atomic<bool>  learnActive        { false };
-    std::atomic<int>   learnState         { 0 };      // 0=idle, 1=learning, 2=complete
 
-    // LUFS metering (updated during Learn)
-    std::atomic<float> momentaryLUFS      { -100.0f };
-    std::atomic<float> shortTermLUFS      { -100.0f };
-    std::atomic<float> integratedLUFS     { -100.0f };
-    std::atomic<float> truePeakDBTP       { -100.0f };
+    // -------------------------------------------------------------------------
+    // Learn-panel snapshot (WR-05)
+    // -------------------------------------------------------------------------
+    // All Learn-panel readouts are published as ONE coherent unit via a seqlock
+    // (learnSnapshotSeq) so the editor timer can never send JS a mix of fields
+    // from different processBlock iterations (e.g. state="DONE" with a stale
+    // integrated value). Plain peak/RMS/VU meters remain independent atomics —
+    // they need no cross-field coherence.
+    struct LearnSnapshot
+    {
+        int   state          = 0;         // 0=idle, 1=learning, 2=complete
+        int   confidence     = 0;         // 0=none, 1=low, 2=medium, 3=high
+        float momentaryLUFS  = -100.0f;
+        float shortTermLUFS  = -100.0f;
+        float integratedLUFS = -100.0f;
+        float samplePeakDBFS = -100.0f;   // WR-03: digital sample peak (dBFS), NOT oversampled dBTP
+        float elapsedSeconds = 0.0f;
+    };
 
-    // Learn results
-    std::atomic<float> learnElapsedSeconds { 0.0f };
-    std::atomic<int>   learnConfidence     { 0 };     // 0=none, 1=low, 2=medium, 3=high
+    // Read a coherent copy of the Learn panel (message thread / editor timer).
+    LearnSnapshot readLearnSnapshot() const noexcept;
 
     juce::AudioProcessorValueTreeState parameters;
 
@@ -134,10 +147,10 @@ private:
     int    shortTermBlockCount = 0;
 
     // =========================================================================
-    // True Peak Detection (digital peak for MVP)
+    // Sample Peak Detection (WR-03: un-oversampled digital peak, dBFS not dBTP)
     // =========================================================================
 
-    double truePeakMax      = 0.0;   // running maximum absolute sample value
+    double samplePeakMax    = 0.0;   // running maximum absolute sample value
 
     // =========================================================================
     // RMS Accumulation (for learn mode RMS measurement)
@@ -153,7 +166,35 @@ private:
 
     bool   prevLearnActive  = false;  // for edge detection
     int    learnMeasurementModeAtStart = 0;  // snapshot of measurement_mode at learn start
+    int    learnChannelsAtStart = 2;  // snapshot of active channel count at learn start (1=mono, 2=stereo)
     double learnSampleCount = 0.0;    // total samples accumulated during learn
+
+    // Set on the audio thread at the learn-stop edge; consumed on the message
+    // thread via AsyncUpdater so the gain write / host notification never runs
+    // on the real-time thread (see CR-01).
+    std::atomic<bool> learnFinalizePending { false };
+
+    // WR-04: throttle the (O(n)) running integrated-LUFS recompute to ~1 Hz so
+    // the per-hop audio-thread cost stays bounded regardless of learn duration.
+    int integratedHopCounter = 0;    // counts qualifying 400ms blocks during a learn
+
+    // -------------------------------------------------------------------------
+    // Learn-panel seqlock (WR-05)
+    // -------------------------------------------------------------------------
+    // Single-writer-at-a-time seqlock. Writers never truly overlap: the audio
+    // thread only publishes while a learn is active; the message-thread paths
+    // (finalizeLearn, parameterChanged/IN-02) only publish once a learn is idle
+    // or complete — serialized by learnActive / learnDisplayState.
+    std::atomic<uint32_t> learnSnapshotSeq  { 0 };   // even=stable, odd=write-in-progress
+    LearnSnapshot         learnSnapshotData;          // guarded by learnSnapshotSeq
+    std::atomic<int>      learnDisplayState { 0 };    // cheap mirror of snapshot.state (IN-02 gate)
+    LearnSnapshot         liveLearn;                   // audio-thread working copy accumulated per hop
+
+    // IN-02: guards finalizeLearn's own gain_offset write so its setValueNotifyingHost
+    // does not immediately clear the just-set "DONE" state via parameterChanged.
+    std::atomic<bool>     ignoreLearnGainWrite { false };
+
+    void publishLearnSnapshot(const LearnSnapshot& s) noexcept;
 
     // Peak meter decay state
     float  inputPeakDecayL  = 0.0f;
@@ -180,8 +221,15 @@ private:
     // Calculate integrated LUFS from accumulated gating blocks (with dual-gate)
     double calculateIntegratedLUFS() const;
 
-    // Finalize learn: compute gain, write to APVTS
+    // Finalize learn: compute gain, write to APVTS. Runs on the MESSAGE THREAD only.
     void finalizeLearn();
+
+    // AsyncUpdater callback: message-thread half of the learn-stop handoff (CR-01).
+    void handleAsyncUpdate() override;
+
+    // APVTS listener: clear the completed-Learn display when the user edits
+    // gain_offset / trim (IN-02). Fires on whichever thread changed the param.
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OGainAudioProcessor)
 };

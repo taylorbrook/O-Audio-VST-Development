@@ -84,6 +84,49 @@ namespace KWeight
 }
 
 // =============================================================================
+// Tuning Constants
+// =============================================================================
+
+namespace
+{
+    // Peak-hold meter decay time constant (seconds). Applied as a per-block
+    // coefficient pow(perSample, numSamples) so decay is block-size independent.
+    constexpr float  kPeakDecaySeconds    = 0.3f;
+
+    // Learn safety guards (CR-02): refuse to derive a gain from an unusable capture.
+    constexpr double kLearnMinSeconds     = 1.0;    // minimum capture length before a gain write
+    constexpr double kLearnInvalidLevelDB = -70.0;  // measured level at/below this = no usable signal
+
+    // Gain-stage ramp (seconds): click-free smoothing on gain changes (IN-06).
+    constexpr double kGainRampSeconds     = 0.02;   // 20 ms
+
+    // VU ballistics (IN-06): ANSI standard 300 ms integration, symmetric.
+    constexpr float  kVuBallisticsMs      = 300.0f;
+
+    // BS.1770 loudness windowing (IN-06).
+    constexpr double kLufsBlockSeconds    = 0.4;    // 400 ms integration block
+    constexpr double kLufsHopSeconds      = 0.1;    // 100 ms hop (75% overlap)
+    constexpr int    kMaxGatingBlocks     = 4000;   // ~400 s of learn at 100 ms hop
+
+    // Learn confidence thresholds (IN-06): based on elapsed time + gating blocks.
+    constexpr float  kConfidenceLowSeconds    = 5.0f;   // below this  -> low
+    constexpr float  kConfidenceMediumSeconds = 15.0f;  // below this  -> medium, else high
+    constexpr int    kConfidenceMinBlocks     = 50;     // fewer gating blocks than this -> low
+
+    // WR-04: recompute the running (display-only) integrated LUFS at ~1 Hz
+    // (every 10 hops of 100 ms) instead of on every hop.
+    constexpr int    kIntegratedRecomputeHops = 10;
+
+    // WR-03: Learn safety ceiling. truePeak/samplePeak here is an un-oversampled
+    // digital sample peak, so inter-sample peaks (ISPs) — which can exceed the
+    // sample peak by a few dB — are not measured. Drop the effective ceiling by
+    // kInterSamplePeakHeadroomDB below the nominal -1 dBFS target so the applied
+    // gain still leaves room for those un-measured ISPs.
+    constexpr double kLearnCeilingDBFS          = -1.0;  // nominal sample-peak ceiling
+    constexpr double kInterSamplePeakHeadroomDB =  3.0;  // extra headroom for un-measured ISPs
+}
+
+// =============================================================================
 // Parameter Layout
 // =============================================================================
 
@@ -183,6 +226,17 @@ OGainAudioProcessor::OGainAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+    // IN-02: watch the gain controls so a manual edit after a Learn clears the
+    // "DONE" display (see parameterChanged).
+    parameters.addParameterListener("gain_offset", this);
+    parameters.addParameterListener("trim", this);
+}
+
+OGainAudioProcessor::~OGainAudioProcessor()
+{
+    cancelPendingUpdate(); // AsyncUpdater: drop any queued learn finalize (CR-01)
+    parameters.removeParameterListener("gain_offset", this);
+    parameters.removeParameterListener("trim", this);
 }
 
 // =============================================================================
@@ -272,8 +326,8 @@ void OGainAudioProcessor::resetLearnAccumulators()
     shortTermWritePos = 0;
     shortTermBlockCount = 0;
 
-    // Reset true peak
-    truePeakMax = 0.0;
+    // Reset sample peak (WR-03)
+    samplePeakMax = 0.0;
 
     // Reset RMS accumulators
     rmsAccumL = 0.0;
@@ -283,19 +337,18 @@ void OGainAudioProcessor::resetLearnAccumulators()
     // Reset learn sample count
     learnSampleCount = 0.0;
 
+    // Reset the integrated-LUFS recompute throttle (WR-04)
+    integratedHopCounter = 0;
+
     // Reset K-weight filter state (remove history from previous learn sessions)
     kWeightPreFilterL.reset();
     kWeightPreFilterR.reset();
     kWeightRlbFilterL.reset();
     kWeightRlbFilterR.reset();
 
-    // Reset atomic outputs
-    momentaryLUFS.store(-100.0f, std::memory_order_relaxed);
-    shortTermLUFS.store(-100.0f, std::memory_order_relaxed);
-    integratedLUFS.store(-100.0f, std::memory_order_relaxed);
-    truePeakDBTP.store(-100.0f, std::memory_order_relaxed);
-    learnElapsedSeconds.store(0.0f, std::memory_order_relaxed);
-    learnConfidence.store(0, std::memory_order_relaxed);
+    // Reset the audio-thread working copy of the Learn snapshot (WR-05). Its
+    // state field is set by the caller (learn-start edge / prepareToPlay).
+    liveLearn = LearnSnapshot{};
 }
 
 // =============================================================================
@@ -357,7 +410,18 @@ double OGainAudioProcessor::calculateIntegratedLUFS() const
 
 void OGainAudioProcessor::finalizeLearn()
 {
-    float targetLevel = parameters.getRawParameterValue("target_level")->load();
+    // MESSAGE THREAD ONLY (invoked from handleAsyncUpdate, CR-01). The audio thread
+    // has already cleared learnActive, so the learn accumulators are stable to read.
+
+    const float targetLevel = parameters.getRawParameterValue("target_level")->load();
+
+    // Did we actually capture a usable measurement? (CR-02)
+    const bool haveValidMeasurement =
+        (learnMeasurementModeAtStart == 0 ? gatingBlockCount > 0 : rmsSampleCount > 0);
+
+    const double learnSeconds = (currentSampleRate > 0.0)
+        ? learnSampleCount / currentSampleRate
+        : 0.0;
 
     double measuredLevel;
 
@@ -369,7 +433,11 @@ void OGainAudioProcessor::finalizeLearn()
     {
         if (rmsSampleCount > 0)
         {
-            double avgPower = (rmsAccumL + rmsAccumR) / (2.0 * static_cast<double>(rmsSampleCount));
+            // Divide by the channel count actually accumulated so a mono capture
+            // (R accumulator stays zero) is not under-reported by 3 dB (WR-02).
+            const double channels = static_cast<double>(juce::jmax(1, learnChannelsAtStart));
+            double avgPower = (rmsAccumL + rmsAccumR)
+                            / (channels * static_cast<double>(rmsSampleCount));
             measuredLevel = 20.0 * std::log10(std::sqrt(avgPower) + 1e-30);
         }
         else
@@ -378,34 +446,116 @@ void OGainAudioProcessor::finalizeLearn()
         }
     }
 
-    // Calculate gain
-    double gainDB = static_cast<double>(targetLevel) - measuredLevel;
-
-    // True peak safety: max_safe_gain = ceiling - measured_true_peak
-    double ceiling = -1.0; // dBTP
-    double currentTruePeakDB = (truePeakMax > 0.0)
-        ? 20.0 * std::log10(truePeakMax)
+    // Sample peak (WR-03: un-oversampled digital peak, dBFS) for display + ceiling.
+    const double currentSamplePeakDB = (samplePeakMax > 0.0)
+        ? 20.0 * std::log10(samplePeakMax)
         : -100.0;
 
-    double maxSafeGain = ceiling - currentTruePeakDB;
+    // Publish the final Learn panel as one coherent unit (WR-05). Start from the
+    // last audio-thread snapshot (keeps momentary/short-term/elapsed) and stamp the
+    // final integrated + sample-peak + complete state on top.
+    LearnSnapshot snap = readLearnSnapshot();
+    snap.state          = 2; // complete
+    snap.integratedLUFS = static_cast<float>(measuredLevel);
+    snap.samplePeakDBFS = static_cast<float>(currentSamplePeakDB);
 
+    // CR-02: refuse to derive a gain from silence / near-silence / too-short a capture.
+    // Leaving gain_offset untouched avoids the +40 dB full-scale slam (a loudness /
+    // hearing-safety hazard) on a mono instance or a brief tap over a quiet passage.
+    if (! haveValidMeasurement
+        || measuredLevel <= kLearnInvalidLevelDB
+        || learnSeconds < kLearnMinSeconds)
+    {
+        snap.confidence = 0;       // none / invalid
+        publishLearnSnapshot(snap); // still show the user what was (not) measured
+        return;
+    }
+
+    publishLearnSnapshot(snap);
+
+    // Calculate gain with the sample-peak safety ceiling, dropped by an ISP
+    // headroom allowance because sample peak under-reports inter-sample peaks (WR-03).
+    double gainDB = static_cast<double>(targetLevel) - measuredLevel;
+
+    const double ceiling     = kLearnCeilingDBFS - kInterSamplePeakHeadroomDB; // effective dBFS
+    const double maxSafeGain = ceiling - currentSamplePeakDB;
     if (gainDB > maxSafeGain)
         gainDB = maxSafeGain;
 
-    // Clamp to parameter range
+    // Clamp to parameter range.
     gainDB = juce::jlimit(-40.0, 40.0, gainDB);
 
-    // Write to APVTS parameter
-    auto* gainParam = parameters.getParameter("gain_offset");
-    if (gainParam != nullptr)
+    // Write to APVTS parameter (host + listener notification — MESSAGE THREAD ONLY).
+    if (auto* gainParam = parameters.getParameter("gain_offset"))
     {
-        float normalizedValue = gainParam->convertTo0to1(static_cast<float>(gainDB));
+        const float normalizedValue = gainParam->convertTo0to1(static_cast<float>(gainDB));
+        // IN-02: mark this as a Learn-driven write so parameterChanged does not
+        // immediately clear the "DONE" state we just published above.
+        ignoreLearnGainWrite.store(true, std::memory_order_release);
         gainParam->setValueNotifyingHost(normalizedValue);
+        ignoreLearnGainWrite.store(false, std::memory_order_release);
     }
+}
 
-    // Store final integrated LUFS
-    integratedLUFS.store(static_cast<float>(measuredLevel), std::memory_order_relaxed);
-    truePeakDBTP.store(static_cast<float>(currentTruePeakDB), std::memory_order_relaxed);
+// =============================================================================
+// Learn Snapshot seqlock (WR-05) + IN-02 parameter listener
+// =============================================================================
+
+void OGainAudioProcessor::publishLearnSnapshot(const LearnSnapshot& s) noexcept
+{
+    const uint32_t seq = learnSnapshotSeq.load(std::memory_order_relaxed);
+    learnSnapshotSeq.store(seq + 1, std::memory_order_release);   // odd: write in progress
+    std::atomic_thread_fence(std::memory_order_release);
+    learnSnapshotData = s;
+    std::atomic_thread_fence(std::memory_order_release);
+    learnSnapshotSeq.store(seq + 2, std::memory_order_release);   // even: published
+    learnDisplayState.store(s.state, std::memory_order_release);  // cheap mirror for IN-02
+}
+
+OGainAudioProcessor::LearnSnapshot OGainAudioProcessor::readLearnSnapshot() const noexcept
+{
+    LearnSnapshot s;
+    uint32_t seqBefore, seqAfter;
+    do
+    {
+        seqBefore = learnSnapshotSeq.load(std::memory_order_acquire);
+        std::atomic_thread_fence(std::memory_order_acquire);
+        s = learnSnapshotData;
+        std::atomic_thread_fence(std::memory_order_acquire);
+        seqAfter = learnSnapshotSeq.load(std::memory_order_acquire);
+    } while ((seqBefore & 1u) != 0 || seqBefore != seqAfter); // retry if torn / mid-write
+    return s;
+}
+
+void OGainAudioProcessor::parameterChanged(const juce::String& parameterID, float)
+{
+    // IN-02: only interested in the two gain controls.
+    if (parameterID != "gain_offset" && parameterID != "trim")
+        return;
+
+    // Ignore finalizeLearn's own gain write (it just set state to "DONE").
+    if (ignoreLearnGainWrite.load(std::memory_order_acquire))
+        return;
+
+    // A genuine user edit after a completed Learn: clear "DONE" back to idle so
+    // the button stops reading DONE indefinitely. Do nothing while a learn is
+    // still running (state 1) so we never race the audio-thread snapshot writer.
+    if (learnDisplayState.load(std::memory_order_acquire) == 2)
+    {
+        LearnSnapshot snap = readLearnSnapshot();
+        snap.state = 0; // idle
+        publishLearnSnapshot(snap);
+    }
+}
+
+// =============================================================================
+// AsyncUpdater: message-thread half of the learn-stop handoff (CR-01)
+// =============================================================================
+
+void OGainAudioProcessor::handleAsyncUpdate()
+{
+    if (learnFinalizePending.exchange(false, std::memory_order_acquire))
+        finalizeLearn();
 }
 
 // =============================================================================
@@ -427,7 +577,7 @@ void OGainAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
     gainStage.prepare(spec);
     gainStage.reset();
-    gainStage.setRampDurationSeconds(0.02); // 20ms ramp for click-free gain changes
+    gainStage.setRampDurationSeconds(kGainRampSeconds); // click-free gain changes
 
     // Prepare VU ballistics filters (single channel each)
     juce::dsp::ProcessSpec monoSpec;
@@ -437,14 +587,14 @@ void OGainAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
     vuBallisticsL.prepare(monoSpec);
     vuBallisticsL.reset();
-    vuBallisticsL.setAttackTime(300.0f);   // 300ms ANSI VU attack
-    vuBallisticsL.setReleaseTime(300.0f);  // 300ms symmetric release
+    vuBallisticsL.setAttackTime(kVuBallisticsMs);   // ANSI VU attack
+    vuBallisticsL.setReleaseTime(kVuBallisticsMs);  // symmetric release
     vuBallisticsL.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
 
     vuBallisticsR.prepare(monoSpec);
     vuBallisticsR.reset();
-    vuBallisticsR.setAttackTime(300.0f);
-    vuBallisticsR.setReleaseTime(300.0f);
+    vuBallisticsR.setAttackTime(kVuBallisticsMs);
+    vuBallisticsR.setReleaseTime(kVuBallisticsMs);
     vuBallisticsR.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
 
     // Prepare K-weight filters
@@ -466,12 +616,11 @@ void OGainAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     kWeightRlbFilterR.reset();
 
     // Calculate LUFS block and hop sizes
-    lufsBlockSize = static_cast<int>(sampleRate * 0.4);  // 400ms
-    lufsHopSize   = static_cast<int>(sampleRate * 0.1);  // 100ms
+    lufsBlockSize = static_cast<int>(sampleRate * kLufsBlockSeconds);
+    lufsHopSize   = static_cast<int>(sampleRate * kLufsHopSeconds);
 
-    // Pre-allocate gating block storage
-    // Max expected learn duration: ~300 seconds at 100ms hop = 3000 blocks
-    gatingBlockPowers.resize(4000, 0.0);
+    // Pre-allocate gating block storage (~400 s of learn at a 100 ms hop)
+    gatingBlockPowers.resize(static_cast<size_t>(kMaxGatingBlocks), 0.0);
     gatingBlockCount = 0;
 
     // Reset all learn state
@@ -624,10 +773,13 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
             rmsAccR = rmsAccL;
         }
 
-        // Peak with decay (smooth falloff)
-        const float peakDecayRate = 1.0f - std::exp(-1.0f / (static_cast<float>(currentSampleRate) * 0.3f)); // ~300ms decay
-        inputPeakDecayL = juce::jmax(peakL, inputPeakDecayL * (1.0f - peakDecayRate));
-        inputPeakDecayR = juce::jmax(peakR, inputPeakDecayR * (1.0f - peakDecayRate));
+        // Peak with decay (smooth falloff). WR-01: the ~300ms time constant is
+        // per-sample, so raise it to a per-block coefficient. Applying the raw
+        // per-sample factor once per block froze the meter (block-size dependent).
+        const float perSampleDecay = std::exp(-1.0f / (static_cast<float>(currentSampleRate) * kPeakDecaySeconds));
+        const float blockDecay     = std::pow(perSampleDecay, static_cast<float>(numSamples));
+        inputPeakDecayL = juce::jmax(peakL, inputPeakDecayL * blockDecay);
+        inputPeakDecayR = juce::jmax(peakR, inputPeakDecayR * blockDecay);
 
         float rmsL = std::sqrt(rmsAccL / static_cast<float>(numSamples));
         float rmsR = std::sqrt(rmsAccR / static_cast<float>(numSamples));
@@ -661,6 +813,19 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
             }
         }
     }
+    else if (numChannels == 1)
+    {
+        // Mono path (WR-02): drive the L ballistics filter from channel 0 and
+        // mirror the result into both VU meters so the display is not dead in mono.
+        const auto* data = buffer.getReadPointer(0);
+
+        float vu = 0.0f;
+        for (int i = 0; i < numSamples; ++i)
+            vu = vuBallisticsL.processSample(0, std::abs(data[i]));
+
+        vuLevelL.store(vu, std::memory_order_relaxed);
+        vuLevelR.store(vu, std::memory_order_relaxed);
+    }
 
     // =========================================================================
     // STEP 4: Learn Mode Measurement (K-weight + LUFS accumulation)
@@ -670,51 +835,66 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     if (isLearnActive && !prevLearnActive)
     {
         // Learn just started
-        learnState.store(1, std::memory_order_relaxed);
         learnMeasurementModeAtStart = static_cast<int>(
             parameters.getRawParameterValue("measurement_mode")->load());
-        resetLearnAccumulators();
+        learnChannelsAtStart = numChannels; // 1 = mono, 2 = stereo (WR-02)
+        resetLearnAccumulators();           // also clears liveLearn
+        liveLearn.state = 1;                // learning
+        publishLearnSnapshot(liveLearn);    // WR-05
     }
     else if (!isLearnActive && prevLearnActive)
     {
-        // Learn just stopped -- finalize
-        finalizeLearn();
-        learnState.store(2, std::memory_order_relaxed); // complete
+        // Learn just stopped. Do NOT compute/write the gain here (CR-01): the
+        // measurement math and setValueNotifyingHost() must not run on the audio
+        // thread. Flag it and hand off to the message thread via AsyncUpdater,
+        // which publishes the final "complete" snapshot from finalizeLearn (WR-05).
+        learnFinalizePending.store(true, std::memory_order_release);
+        triggerAsyncUpdate();
     }
 
     prevLearnActive = isLearnActive;
 
-    if (isLearnActive && numChannels >= 2)
+    if (isLearnActive && numChannels >= 1)
     {
+        // Mono support (WR-02): feed channel 0 into the L accumulators only. The R
+        // accumulators stay zero, so the LUFS block power (meanPowerL + meanPowerR)
+        // collapses to the correct single-channel loudness, and the RMS divisor uses
+        // learnChannelsAtStart == 1 in finalizeLearn().
+        const bool  stereo    = (numChannels >= 2);
         const auto* leftData  = buffer.getReadPointer(0);
-        const auto* rightData = buffer.getReadPointer(1);
+        const auto* rightData = stereo ? buffer.getReadPointer(1) : nullptr;
 
         for (int i = 0; i < numSamples; ++i)
         {
-            double sampleL = static_cast<double>(leftData[i]);
-            double sampleR = static_cast<double>(rightData[i]);
+            const double sampleL = static_cast<double>(leftData[i]);
 
-            // True peak detection (digital peak for MVP)
+            // Sample-peak detection (WR-03: un-oversampled digital peak, dBFS)
             double absL = std::abs(sampleL);
-            double absR = std::abs(sampleR);
-            if (absL > truePeakMax) truePeakMax = absL;
-            if (absR > truePeakMax) truePeakMax = absR;
+            if (absL > samplePeakMax) samplePeakMax = absL;
 
             // RMS accumulation (for RMS measurement mode)
             rmsAccumL += sampleL * sampleL;
-            rmsAccumR += sampleR * sampleR;
-            ++rmsSampleCount;
 
             // K-weight filtering: pre-filter then RLB
             double kWeightedL = kWeightPreFilterL.processSample(sampleL);
             kWeightedL = kWeightRlbFilterL.processSample(kWeightedL);
-
-            double kWeightedR = kWeightPreFilterR.processSample(sampleR);
-            kWeightedR = kWeightRlbFilterR.processSample(kWeightedR);
-
-            // Accumulate squared K-weighted values into current sub-block
             subBlockPowerL[currentSubBlock] += kWeightedL * kWeightedL;
-            subBlockPowerR[currentSubBlock] += kWeightedR * kWeightedR;
+
+            if (stereo)
+            {
+                const double sampleR = static_cast<double>(rightData[i]);
+
+                double absR = std::abs(sampleR);
+                if (absR > samplePeakMax) samplePeakMax = absR;
+
+                rmsAccumR += sampleR * sampleR;
+
+                double kWeightedR = kWeightPreFilterR.processSample(sampleR);
+                kWeightedR = kWeightRlbFilterR.processSample(kWeightedR);
+                subBlockPowerR[currentSubBlock] += kWeightedR * kWeightedR;
+            }
+
+            ++rmsSampleCount;
             subBlockSampleCount[currentSubBlock]++;
 
             learnSampleCount += 1.0;
@@ -758,15 +938,9 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
                     }
 
                     // Momentary LUFS (this single 400ms block)
-                    if (blockMeanPower > 0.0)
-                    {
-                        double momLUFS = -0.691 + 10.0 * std::log10(blockMeanPower);
-                        momentaryLUFS.store(static_cast<float>(momLUFS), std::memory_order_relaxed);
-                    }
-                    else
-                    {
-                        momentaryLUFS.store(-100.0f, std::memory_order_relaxed);
-                    }
+                    liveLearn.momentaryLUFS = (blockMeanPower > 0.0)
+                        ? static_cast<float>(-0.691 + 10.0 * std::log10(blockMeanPower))
+                        : -100.0f;
 
                     // Short-term buffer (last 3s = 30 blocks at 100ms hop)
                     shortTermPowers[shortTermWritePos] = blockMeanPower;
@@ -782,13 +956,16 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
                     if (shortTermBlockCount > 0 && stSum > 0.0)
                     {
                         double stMeanPower = stSum / static_cast<double>(shortTermBlockCount);
-                        double stLUFS = -0.691 + 10.0 * std::log10(stMeanPower);
-                        shortTermLUFS.store(static_cast<float>(stLUFS), std::memory_order_relaxed);
+                        liveLearn.shortTermLUFS = static_cast<float>(-0.691 + 10.0 * std::log10(stMeanPower));
                     }
 
-                    // Calculate running integrated LUFS (with dual-gate)
-                    double intLUFS = calculateIntegratedLUFS();
-                    integratedLUFS.store(static_cast<float>(intLUFS), std::memory_order_relaxed);
+                    // Running integrated LUFS (dual-gate). WR-04: the recompute is
+                    // O(gatingBlockCount); it is display-only, so throttle it to
+                    // ~1 Hz (first qualifying block + every kIntegratedRecomputeHops)
+                    // rather than paying it on every 100 ms hop. The authoritative
+                    // final value is computed once in finalizeLearn().
+                    if ((integratedHopCounter++ % kIntegratedRecomputeHops) == 0)
+                        liveLearn.integratedLUFS = static_cast<float>(calculateIntegratedLUFS());
                 }
 
                 // Advance to next sub-block (circular)
@@ -798,24 +975,25 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
                 subBlockSampleCount[nextSubBlock] = 0;
                 currentSubBlock = nextSubBlock;
 
-                // Update true peak dBTP
-                if (truePeakMax > 0.0)
-                {
-                    double tpDB = 20.0 * std::log10(truePeakMax);
-                    truePeakDBTP.store(static_cast<float>(tpDB), std::memory_order_relaxed);
-                }
+                // Update sample peak (WR-03: dBFS, un-oversampled)
+                if (samplePeakMax > 0.0)
+                    liveLearn.samplePeakDBFS = static_cast<float>(20.0 * std::log10(samplePeakMax));
 
                 // Update elapsed time
-                float elapsed = static_cast<float>(learnSampleCount / currentSampleRate);
-                learnElapsedSeconds.store(elapsed, std::memory_order_relaxed);
+                const float elapsed = static_cast<float>(learnSampleCount / currentSampleRate);
+                liveLearn.elapsedSeconds = elapsed;
 
                 // Update confidence indicator
-                if (elapsed < 5.0f || gatingBlockCount < 50)
-                    learnConfidence.store(1, std::memory_order_relaxed); // low
-                else if (elapsed < 15.0f)
-                    learnConfidence.store(2, std::memory_order_relaxed); // medium
+                if (elapsed < kConfidenceLowSeconds || gatingBlockCount < kConfidenceMinBlocks)
+                    liveLearn.confidence = 1; // low
+                else if (elapsed < kConfidenceMediumSeconds)
+                    liveLearn.confidence = 2; // medium
                 else
-                    learnConfidence.store(3, std::memory_order_relaxed); // high
+                    liveLearn.confidence = 3; // high
+
+                // Publish the whole Learn panel coherently once per hop (WR-05).
+                liveLearn.state = 1; // learning
+                publishLearnSnapshot(liveLearn);
             }
         }
     }
@@ -868,10 +1046,11 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
             rmsAccR = rmsAccL;
         }
 
-        // Peak with decay
-        const float peakDecayRate = 1.0f - std::exp(-1.0f / (static_cast<float>(currentSampleRate) * 0.3f));
-        outputPeakDecayL = juce::jmax(peakL, outputPeakDecayL * (1.0f - peakDecayRate));
-        outputPeakDecayR = juce::jmax(peakR, outputPeakDecayR * (1.0f - peakDecayRate));
+        // Peak with decay. WR-01: per-block coefficient (see input metering above).
+        const float perSampleDecay = std::exp(-1.0f / (static_cast<float>(currentSampleRate) * kPeakDecaySeconds));
+        const float blockDecay     = std::pow(perSampleDecay, static_cast<float>(numSamples));
+        outputPeakDecayL = juce::jmax(peakL, outputPeakDecayL * blockDecay);
+        outputPeakDecayR = juce::jmax(peakR, outputPeakDecayR * blockDecay);
 
         float rmsL = std::sqrt(rmsAccL / static_cast<float>(numSamples));
         float rmsR = std::sqrt(rmsAccR / static_cast<float>(numSamples));
