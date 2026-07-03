@@ -1,5 +1,100 @@
 # O-Prism Changelog
 
+## v1.19.1 (2026-07-02)
+
+Code-review batch 3 (final) — the 17 Info findings from `.planning/CODE-REVIEW.md` (2026-07-02 deep review). Re-verified against the post-v1.19.0 tree first: IN-08 (Zarlino/JI "byte-identical") turned out to be a reviewer error — the arrays already differ at degree 10 (9/5 vs 16/9 minor seventh), no change made.
+
+### Fixed — DSP / RT
+- **IN-01 (completion): last uncached per-block APVTS lookups.** `resolveActiveTable` string-looked-up `oscATable`/`oscBTable` every block via `updateWavetableAssignments`; both pointers now cached in the constructor with the rest of the block.
+- **IN-03: delay time changes zippered.** `delaySamples` is now a `SmoothedValue` (50 ms ramp) read per-sample — automation glides the read position (tape-style pitch bend through the Lagrange interpolator) instead of stepping.
+- **IN-04: latency was reported even with distortion (the only latency source) bypassed** — hosts over-compensated the default configuration. Reported latency now follows `distBypass` (0 when bypassed), updated from the message-thread timer.
+- **IN-06: sub-osc/noise reset unconditionally in startNote** — clicked on legato/glide retrigger. Now gated by the same `(!wasActive || glideMode == 0)` condition as the main oscillators.
+
+### Fixed — tuning correctness
+- **IN-07: built-in Bohlen-Pierce preset omitted the 13th degree** (1755.6¢) — the top step double-jumped to the tritave and diverged from the embedded `nonoctave/bohlenpierceET`. All 13 degrees present now.
+- **IN-10: `generateRank2` clamped the generator against the unclamped period.** Period is clamped first.
+- **IN-11: KBM formal octave degree now used in frequency math** (Scala spec compliance — the per-pattern-repetition pitch jump honors a non-default formal octave instead of always using the scale period); the exporter pitch circle no longer double-draws the unison when the interval list includes the closing period (ET spokes now match the scale size too).
+- **IN-09: `isNoteMapped` read KBM state without `intervalMutex`** (latent — no callers yet). Locks now.
+
+### Fixed — UI / bridge
+- **IN-14: `applyGeneratedScale` ignored the scale-name argument** — generator names reverted to "Generated" on reopen. `args[1]` is used when present.
+- **IN-16 (completion): `toJsonFloatArray` clamps non-finite floats to 0** (a NaN froze the waveform display via a JS `JSON.parse` throw); the `getActiveOscInfo` factory branch routes the table name through `juce::JSON::toString` like the user branch.
+- **IN-17: tonic arrows updated UI state even when the bridge call failed** (silent UI/DSP desync). Failures now log to console and revert `currentTonic`; the `getTonicNote` fetch failure logs too.
+- **IN-12: `smoothFrames` strength semantics un-inverted** (1.0 = max smoothing). Latent — the only caller passes the symmetric 0.5, so no behavior change today.
+
+### Removed — dead code (IN-02, IN-05, IN-13, IN-15)
+- **IN-02:** `WavetableOscillator::getNextSample()` (mono path, zero callers) deleted — it duplicated the sync/warp logic and had to be kept in sync with every CR-01-class fix.
+- **IN-05:** the duplicated `kDivBeats` tables (processor + voice) consolidated into `Source/NoteDivisions.h` — divergence would have silently desynced global vs per-voice LFO rates.
+- **IN-13:** 11 registered-but-never-called native functions removed (`setTuningIntervals`, `getMasterTune`, `setMasterTune`, `setOctaveStretch`, `setTemperamentPreset`, `getTemperamentPreset`, `getEmbeddedTuningCategories`, `getWavetableFrame`, `getWavetableInfo`, `getWavetableFrameForPosition`, `deletePreset`). Relays and the remaining fns are the live paths; grep-verified zero JS references.
+- **IN-15:** unused `webview-relay-manager` module link removed from CMakeLists (no source ever included it; the editor uses its own relay helpers). Registry never tracked the dependency, so no registry change.
+
+### Technical Notes
+- **Version bump rationale:** PATCH (1.19.0 → 1.19.1) — bug fixes and dead-code removal only; no parameter, preset, or state-format changes.
+- **Root cause source:** `.planning/CODE-REVIEW.md` (2026-07-02 deep review), Info batch. All 17 findings now dispositioned; review complete.
+- **Behavior note:** hosts now see latency change when toggling distortion bypass; delay-time automation sounds like tape pitch-glide instead of zipper.
+- **Files changed:** `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.cpp`, `Source/PrismVoice.cpp`, `Source/TuningEngine.cpp`, `Source/ScaleGenerator.cpp`, `Source/TuningExporter.cpp`, `Source/NoteDivisions.h` (new), `Source/dsp/{WavetableOscillator.{h,cpp},DelayProcessor.{h,cpp},WavetableEditor.cpp}`, `Source/ui/public/index.html`, `CMakeLists.txt`.
+
+## v1.19.0 (2026-07-02)
+
+Code-review batch 2 — all remaining Critical and Warning findings from `.planning/CODE-REVIEW.md` (2026-07-02 deep review). 25 findings: CR-04..CR-07, CR-10, WR-01..WR-20.
+
+### Fixed — RT safety (CR-04, CR-05, CR-06, WR-01)
+- **CR-04: EQProcessor heap-allocated IIR coefficients on the audio thread every block.** `Coefficients::makeLowShelf/makePeakFilter/makeHighShelf` each `new` a ref-counted object, four setters ran unconditionally per callback. Ported the O-Formant v1.25.1 pattern verbatim: `ArrayCoefficients<float>::makeXXX` assigned in place into pre-grown `*state` storage, atomics for target values, change-detection to skip the no-change case.
+- **CR-05: TuningEngine was mutated from processBlock — mutex (×128 per rebuild) + heap allocation on the audio thread; message-thread getters raced shared Strings.** processBlock now only change-detects the five tuning params (cached pointers) and defers all engine mutation to the message thread via `AsyncUpdater`. The preset is applied only when the `tuningPreset` param actually changed (a scalar-only update must not clobber a user-loaded .scl). `pitchBendRange` is now atomic (the one engine scalar read per-note on the audio thread); `rebuildFrequencyTable` locks `intervalMutex` once instead of per MIDI note. With mutation now message-thread-only, `getActiveTuningName`/`getMasterTune`/`getBuiltInPreset` no longer race.
+- **CR-06: `advanceGlobalLfoPhases` built ~28 `juce::String`s + 12 APVTS map lookups per block.** All lfoN Sync/Rate/Division/Shape pointers cached in the constructor alongside the FX block. Also cached: masterTune, octaveStretch, pitchBendRange, tuningPreset, tonic, stereoWidth, masterVol (IN-01 partial).
+- **WR-01: SVF cutoff not clamped below Nyquist — unstable filter and sticky NaN at fs < 40 kHz.** Cutoff now clamps to `min(20 kHz, 0.49·fs)`; added a non-finite output guard that flushes integrator state to silence instead of recirculating NaN into the delay/reverb tanks forever.
+
+### Fixed — tuning & file-format correctness (CR-07, WR-11..WR-15, WR-17)
+- **CR-07: `.kbm` reference frequency was clamped through the 400–480 Hz A4 master-tune clamp** — a standard middle-C-referenced KBM (261.63 Hz) mistuned the whole instrument ~7 semitones sharp, silently. The KBM ref freq now lives in its own member (validated 8–20000 Hz) and drives the KBM branch of `calculateCustomFrequency` directly.
+- **WR-11: `.scl` parser broke on blank description lines and silently dropped negative-cents pitches.** The description is now consumed positionally (spec allows it to be blank); `parseScalaPitch` returns NaN on error instead of −1 so legal negative cents parse; loads now fail loudly on malformed pitch lines, invalid degree counts (≤ 0), and count mismatches instead of "succeeding" truncated.
+- **WR-12: `loadKBMFile` trusted the header-claimed map size** (a hostile file claiming 2×10⁹ attempted an ~8 GB vector). Sizes outside 0–128 are rejected.
+- **WR-13: `WavetableImporter` trusted audio headers** — int overflow in the 30 s cap and unclamped channel counts allowed multi-GB allocations. Cap computed in int64 with an absolute 8M-sample ceiling, channels clamped to 2, non-finite/≤0 sample rates rejected. Applied to both file and memory import paths.
+- **WR-14: `setSingleInterval` wiped any legitimate 11-degree scale (12 interval entries) to 12-TET.** Removed the `size() == 12` clause — only genuinely empty interval sets initialize to 12-TET.
+- **WR-15: `TuningExporter::toHTML` ignored periods ≤ 1200¢** — Carlos Gamma (737.1¢) exported with a 1200¢ period and wrong deviations/pitch circle. The last interval is now the period whenever positive.
+- **WR-17: session state omitted KBM mapping, engine mode, and current preset** — `.kbm` silently lost on reload, `getTemperamentPreset` reported 12-TET after every reload. New `TuningEngine::writeStateTo/restoreStateFrom` persist intervals, name, tonic, mode, preset, and the full KBM block (incl. ref freq); legacy session trees still restore.
+
+### Fixed — preset & file safety (CR-10, WR-08, WR-09, WR-10, WR-16)
+- **CR-10: Preset Save button was dead on macOS** — `window.prompt()` always returns null under JUCE's WKWebView (no text-input panel delegate). Replaced with an in-DOM save modal (same pattern as the wavetable editor's), with Enter/Escape and click-outside handling.
+- **WR-08: `applyPresetJson` didn't reset params to defaults first, and on-disk factory JSON never regenerated.** All non-excluded params now reset to defaults before a preset applies (partial/old presets no longer inherit stale state — known suite bug, O-Polystutter v1.12.3). Factory presets are version-stamped (`.factory-version`) and regenerate whenever the plugin version changes.
+- **WR-09: preset names were used verbatim as file paths** — "/" silently broke save/list, "../" escaped the preset dir. Names are sanitized via `File::createLegalFileName` (+ explicit separator strip, leading-dot strip) in save and delete.
+- **WR-10: user wavetable names from the WebView were unsanitized file paths** — `saveEditedWavetable("../../Desktop/x")` wrote to the Desktop; delete was a relative-path deletion primitive. Names sanitized at both entry points; deletion additionally verifies `isAChildOf(wavetableDir)`.
+- **WR-16: `setMasterTune`/`setOctaveStretch` native fns were silently reverted within one block** by the APVTS→engine sync. They now write the APVTS parameter (`setValueNotifyingHost`), mirroring `setTemperamentPreset`.
+
+### Added — dead features now implemented (WR-02, WR-03, WR-04, WR-06)
+- **WR-03: delay tempo-sync is live.** New `delayDivision` parameter (18 divisions, same table as the LFOs) + Division dropdown in the Effects tab; when Sync is on the delay time follows host BPM. **The ~20 factory presets authored with `delaySync`/`delayDivision` now sound as designed** (factory JSON regenerates via the WR-08 version stamp, so the new parameter reaches existing installs). Dead `setSync`/`setPlayHead`/`tempoSync` plumbing removed from DelayProcessor.
+- **WR-02: all nine previously-silent mod-matrix destinations now work.** LFO1–4 Rate (±2 octaves at full offset, per-sample in the voice); OscA/B Detune (block-rate; unison/detune/width are now also live under automation instead of note-start-only); Reverb/Delay/Chorus/Dist Mix and Master Vol via a new processor-level matrix evaluated once per block, driven by the global LFOs, mod wheel, and aftertouch (per-voice sources read as 0 for global destinations).
+- **WR-04: Phase knobs are live.** Phase = 0 keeps the classic random-phase start; Phase > 0 gives a deterministic oscillator start phase via the previously-dead `resetWithPhase()`.
+- **WR-06: glide modes actually differ, and glide is audible polyphonically.** "Legato" glides only while another note is held (or on a stolen voice); "Always" glides on every note, seeding fresh voices from a processor-level last-played-frequency atomic. GlideProcessor's `setTarget` now takes an explicit glide-in flag (the old `wasActive` heuristic snapped on almost every fresh poly voice).
+
+### Fixed — FX & UI (WR-05, WR-07, WR-18, WR-19, WR-20)
+- **WR-05: hard-coded delay-line capacities clamped at high sample rates** (2 s delay needs 384k samples at 192 kHz vs 192k capacity; 200 ms predelay needs 38.4k vs 19.2k). Both now size from `spec.sampleRate` in `prepare()`, with input clamps in `setTime`/`setPredelay`.
+- **WR-07: FX mix≈0/bypass gate left stale delay/reverb/chorus buffers that replayed as a "ghost echo" when the mix rose.** Each effect now resets once on its active→inactive transition (covers both the mix gate and bypass).
+- **WR-18: Redo (Ctrl/Cmd+Shift+Z) could never fire** — `e.key` is `'Z'` when Shift is held. Compared case-insensitively; Ctrl/Cmd+Y also redoes.
+- **WR-19: preset loads never refreshed the native-fn-backed tuning UI.** `window.__refreshAllControls` is now defined (calls `refreshTuningState`), and the `tuningPreset`/`tonic` relay listeners trigger a debounced refresh on host automation.
+- **WR-20: mod-matrix source/dest names were hard-coded in JS** while the registered `getModSourceNames`/`getModDestNames` native fns went uncalled — any future C++ enum change would silently misroute modulation. The dropdowns now populate from the native fns at startup (hard-coded lists remain only as a fallback).
+
+### Technical Notes
+- **Version bump rationale:** MINOR (1.18.2 → 1.19.0) — new `delayDivision` parameter and newly functional features (mod destinations, Phase knobs, glide modes, tempo-synced delay). No parameter IDs changed or removed; v1.18.x sessions and presets load identically (delayDivision defaults to 1/4).
+- **Behavior notes:** unison count/detune/width now respond to automation at block rate (previously note-start-only). Factory preset JSON on disk regenerates once on first load of v1.19.0 (user presets untouched).
+- **Files changed:** `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.cpp`, `Source/TuningEngine.{h,cpp}`, `Source/TuningExporter.cpp`, `Source/OuariconPresetManager.h`, `Source/PrismVoice.{h,cpp}`, `Source/dsp/{EQProcessor,SVFFilter,DelayProcessor,ReverbProcessor,GlideProcessor,UserWavetableManager,WavetableEditor,WavetableImporter}.{h,cpp}`, `Source/ui/public/index.html`, `Source/ui/public/js/wavetable-editor.js`, `CMakeLists.txt`.
+- **Deferred:** the 17 Info findings (IN-01 partially done via pointer caching) remain in `.planning/CODE-REVIEW.md` for a later cleanup pass.
+
+## v1.18.2 (2026-07-02)
+
+### Fixed
+- **CR-01: Out-of-bounds wavetable read at high pitch (host crash).** `phaseIncrement` had no upper bound and the render wrap subtracted 1.0 exactly once, so any frequency above the sample rate (e.g. MIDI 127 + `oscACoarse +24` at 44.1 kHz) grew the phase accumulator without bound and `readSample()` walked off the end of the wavetable buffer. Fixed with floor-based wrapping in all four advance paths (sync + non-sync, mono + stereo), a wrap after the hard-sync re-seed (which could land ≥ 1.0 at `syncRatio` up to 4), a defensive wrap + non-finite guard at the top of `readSample()`, and a Nyquist clamp in `setFrequency()`.
+- **CR-02: Use-after-free on wavetable editor close / user-table delete.** Voices hold raw `const WavetableData*` refreshed only at the top of the next `processBlock`, but `stopEditing()` freed the working table immediately and `deleteWavetable()` freed the entry in place. Closing the editor or deleting a table while a chord sustained dereferenced freed heap on the audio thread. Fixed with a retired-table reaper: tables are parked with the current block-generation stamp and freed on a 500 ms message-thread timer only after the generation has advanced ≥ 2 (same class of fix as O-MicrotonalSampler v1.23.2).
+- **CR-03: Saving an edited wavetable dangled the other oscillator permanently.** `saveAsUserWavetable()` ended with `manager.loadFromDisk()`, which destroyed **every** user `WavetableData` and re-imported fresh objects with nothing re-syncing the osc pointers. Now only the saved entry is inserted/replaced (`replaceOrInsertFromFile`), the replaced table is retired via the reaper, and both osc pointers are re-resolved by name before retirement (the editing osc keeps its working-table preview).
+- **CR-09: All 6 `FileChooser::launchAsync` completions captured raw `this` — UAF on editor teardown.** Known suite bug (O-MicrotonalSampler v1.23.5 W12). All six sites (loadScalaFile, loadKBMFile, saveScalaFile, saveKBMFile, exportTuningHTML, importUserWavetable) now capture `juce::Component::SafePointer` and bail with a bare `return` when the editor is gone — never calling `complete()` on the dead path, since that callback is owned by the destroyed WebView.
+- **CR-08 (partial, pulled forward): WAV overwrite appended instead of replacing.** `FileOutputStream` positions at end-of-file, so re-saving under an existing name appended a second WAV and the next import read the stale original header. Both save paths now `deleteFile()` first. Pulled into this batch because the CR-03 fix re-imports the just-written file and would otherwise import stale data.
+
+### Technical Notes
+- **Version bump rationale:** PATCH (1.18.1 → 1.18.2) — crash/UAF bug fixes only; no parameter, preset, or UI changes.
+- **Root cause source:** `.planning/CODE-REVIEW.md` (2026-07-02 deep review), criticals batch 1.
+- **Files changed:** `Source/dsp/WavetableOscillator.cpp`, `Source/dsp/WavetableEditor.{h,cpp}`, `Source/dsp/UserWavetableManager.{h,cpp}`, `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.cpp`.
+- **New mechanism:** `OPrismAudioProcessor` now inherits `juce::Timer`; `processBlock` publishes a `blockGeneration` counter; retired tables freed only after two generations pass. If the host stops calling `processBlock`, retired tables are held (never freed unsafely).
+- **API changes (internal):** `UserWavetableManager::deleteWavetable` → `removeWavetable` (returns the removed table for retirement); `saveAsUserWavetable` gains a `replacedOut` out-param; new processor entry points `deleteUserWavetable()` / `saveEditedWavetable()` used by the WebView native fns.
+
 ## v1.18.1 (2026-05-06)
 
 ### Added

@@ -39,8 +39,16 @@ public:
     juce::String importFromMemory (const void* data, size_t sizeInBytes,
                                    const juce::String& suggestedName);
 
-    /** Delete a user wavetable by name. */
-    bool deleteWavetable (const juce::String& name);
+    /** Delete a user wavetable's .wav and remove it from the list. Returns the
+        removed table (nullptr if not found) — the audio thread may still be
+        reading it, so the caller must retire it, never free it immediately. */
+    std::unique_ptr<WavetableData> removeWavetable (const juce::String& name);
+
+    /** Import a freshly-saved .wav and insert it under `name`, replacing any
+        existing entry. On success `replacedOut` receives the old table (nullptr
+        if the name was new) for the caller to retire. */
+    bool replaceOrInsertFromFile (const juce::String& name, const juce::File& file,
+                                  std::unique_ptr<WavetableData>& replacedOut);
 
     /** Get table by name (nullptr if not found). */
     const WavetableData* getTable (const juce::String& name) const;
@@ -53,6 +61,18 @@ public:
 
     /** Get persistent directory. */
     juce::File getWavetableDirectory() const { return wavetableDir; }
+
+    /** Wavetable names arrive from the WebView and become file names — strip
+        path separators and other illegal characters so "../x" can't write or
+        delete outside the wavetable directory (WR-10). */
+    static juce::String legalTableName (const juce::String& name)
+    {
+        auto legal = juce::File::createLegalFileName (name.trim());
+        legal = legal.replaceCharacter ('/', '-').replaceCharacter ('\\', '-');
+        while (legal.startsWithChar ('.'))
+            legal = legal.substring (1);
+        return legal.trim();
+    }
 
 private:
     juce::File wavetableDir;
