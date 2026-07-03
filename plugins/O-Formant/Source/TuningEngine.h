@@ -329,9 +329,5 @@ private:
     std::vector<int> kbmMapping;
     bool kbmLoaded = false;
 
-    // Future expansion
-    bool mtsSynthClientConnected = false;
-    bool scalaFileLoaded = false;
-
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TuningEngine)
 };

@@ -13,9 +13,9 @@
 #include <JuceHeader.h>
 #include "dsp/GlottalWavetable.h"
 #include "dsp/LyricsEngine.h"
-#include "DSP/DelayProcessor.h"
-#include "DSP/EQProcessor.h"
-#include "DSP/ReverbProcessor.h"
+#include "dsp/DelayProcessor.h"
+#include "dsp/EQProcessor.h"
+#include "dsp/ReverbProcessor.h"
 #include "OuariconPresetManager.h"
 #include "TuningEngine.h"
 #include "ScaleGenerator.h"

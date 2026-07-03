@@ -92,7 +92,14 @@ public:
             updateCyclePerturbations();
         }
 
-        // Mipmap level from frequency
+        // Mipmap level from frequency.
+        // IN-05 (known, audibly minor): level0 uses floor(levelFloat) crossfaded
+        // with level1, so the (1 - levelFrac) share of level0 retains
+        // (kTableSize/2 >> level0) harmonics — which for a floored level can exceed
+        // the alias-free harmonic count for the current f0 and leak mild aliasing
+        // above Nyquist. Biasing toward the safe level (ceil / a harmonic-count
+        // guard) would remove it but changes the source timbre, so it is left as a
+        // standard wavetable tradeoff rather than a behavioural change here.
         float baseFreq = static_cast<float> (sampleRate) / static_cast<float> (GlottalWavetable::kTableSize);
         float levelFloat = std::log2 (std::max (frequency, baseFreq) / baseFreq);
         levelFloat = std::max (0.0f, std::min (levelFloat, static_cast<float> (GlottalWavetable::kNumMipmapLevels - 1)));

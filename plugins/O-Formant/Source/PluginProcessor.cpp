@@ -926,10 +926,25 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
         presetManager.setCurrentPresetName (
             xmlState->getStringAttribute ("currentPreset", "Default"));
 
-        // Restore tuning engine state
+        // Restore tuning engine state.
+        // master-tune / octave-stretch / pitch-bend-range / built-in temperament
+        // normally reach the engine only through editor WebView callbacks, so a
+        // headless reload (offline bounce with the UI never opened) used to render
+        // in the engine's default 12-TET at A=440. Push the restored APVTS + saved
+        // tuning values straight into the engine here. (REVIEW.md WR-01)
+        tuningEngine.setMasterTune     (parameters.getRawParameterValue ("tuning_masterTune")->load());
+        tuningEngine.setOctaveStretch  (parameters.getRawParameterValue ("tuning_octaveStretch")->load());
+        tuningEngine.setPitchBendRange (parameters.getRawParameterValue ("tuning_pitchBendRange")->load());
+
         auto tuningState = state.getChildWithName ("tuningEngine");
         if (tuningState.isValid())
         {
+            // Apply the saved built-in temperament BEFORE any custom intervals so a
+            // custom .scl (restored just below) still wins when one was in use.
+            // setBuiltInPreset(Custom) is a no-op on intervals, so this is safe.
+            tuningEngine.setBuiltInPreset (static_cast<TuningEngine::BuiltInPreset> (
+                static_cast<int> (tuningState.getProperty ("preset", 0))));
+
             juce::String intervalsStr = tuningState.getProperty ("intervals", "");
             if (intervalsStr.isNotEmpty())
             {

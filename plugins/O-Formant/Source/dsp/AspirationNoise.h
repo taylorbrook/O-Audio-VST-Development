@@ -106,6 +106,12 @@ public:
     void reset() noexcept
     {
         glottalPhase = 0.0f;
+        // IN-09 (known onset behaviour): this seeds breath to 0.1 rather than the
+        // caller's target. FormantVoice::noteStarted calls reset() then
+        // setBreathiness(), so breath ramps 0.1 -> target over the smoothing time
+        // at every note-on — a small attack-time breathiness sweep. Resetting to
+        // getTargetValue() (or leaving breath untouched) would remove it, but that
+        // changes the note-onset timbre, so the current default is preserved here.
         breathSmoothed.setCurrentAndTargetValue (0.1f);
         tiltPrev = 0.0f;
         driftAmpDb = 0.0f;

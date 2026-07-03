@@ -247,40 +247,11 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                 complete (juce::var (json));
             })
 
-            .withNativeFunction ("setTuningIntervals", [this] (const auto& args, auto complete) {
-                if (args.size() >= 1)
-                {
-                    auto jsonArray = juce::JSON::parse (args[0].toString());
-                    if (auto* arr = jsonArray.getArray())
-                    {
-                        std::vector<double> intervals;
-                        for (const auto& val : *arr)
-                            intervals.push_back (static_cast<double> (val));
-                        processorRef.tuningEngine.setCustomIntervals (intervals, "Custom");
-                        complete (juce::var (true));
-                        return;
-                    }
-                }
-                complete (juce::var (false));
-            })
-
             .withNativeFunction ("getTuningName", [this] (auto, auto complete) {
                 complete (juce::var (processorRef.tuningEngine.getActiveTuningName()));
             })
 
             .withNativeFunction ("setSingleInterval", [this] (const auto& args, auto complete) {
-                if (args.size() >= 2)
-                {
-                    int index = static_cast<int> (args[0]);
-                    double cents = static_cast<double> (args[1]);
-                    processorRef.tuningEngine.setSingleInterval (index, cents);
-                    complete (juce::var (true));
-                    return;
-                }
-                complete (juce::var (false));
-            })
-
-            .withNativeFunction ("setSingleIntervalEncoded", [this] (const auto& args, auto complete) {
                 if (args.size() >= 2)
                 {
                     int index = static_cast<int> (args[0]);
@@ -322,10 +293,6 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                 complete (juce::var (false));
             })
 
-            .withNativeFunction ("getMasterTune", [this] (auto, auto complete) {
-                complete (juce::var (processorRef.tuningEngine.getMasterTune()));
-            })
-
             .withNativeFunction ("setMasterTune", [this] (const auto& args, auto complete) {
                 if (args.size() >= 1)
                 {
@@ -335,22 +302,6 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                     return;
                 }
                 complete (juce::var (false));
-            })
-
-            .withNativeFunction ("setTemperamentPreset", [this] (const auto& args, auto complete) {
-                if (args.size() >= 1)
-                {
-                    int preset = static_cast<int> (args[0]);
-                    processorRef.tuningEngine.setBuiltInPreset (
-                        static_cast<TuningEngine::BuiltInPreset> (preset));
-                    complete (juce::var (true));
-                    return;
-                }
-                complete (juce::var (false));
-            })
-
-            .withNativeFunction ("getTemperamentPreset", [this] (auto, auto complete) {
-                complete (juce::var (static_cast<int> (processorRef.tuningEngine.getBuiltInPreset())));
             })
 
             .withNativeFunction ("loadScalaFile", [this] (auto, auto complete) {
@@ -532,18 +483,6 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                     json += "\"category\":\"" + juce::String (tunings[i].category) + "\",";
                     json += "\"noteCount\":" + juce::String (static_cast<int> (tunings[i].intervals.size()));
                     json += "}";
-                }
-                json += "]";
-                complete (juce::var (json));
-            })
-
-            .withNativeFunction ("getEmbeddedTuningCategories", [this] (auto, auto complete) {
-                auto categories = EmbeddedTunings::getCategories();
-                juce::String json = "[";
-                for (size_t i = 0; i < categories.size(); ++i)
-                {
-                    if (i > 0) json += ",";
-                    json += "\"" + juce::String (categories[i]) + "\"";
                 }
                 json += "]";
                 complete (juce::var (json));
