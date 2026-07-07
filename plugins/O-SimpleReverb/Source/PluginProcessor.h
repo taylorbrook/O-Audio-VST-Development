@@ -5,7 +5,7 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.5.1 - Code simplification and real-time safety fixes
+    v1.5.6 - Code-review fixes (CR-01..04, WR-01..05)
 
   ==============================================================================
 */
@@ -48,6 +48,16 @@ public:
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    // WR-05: constrain layouts to mono/stereo. The default returns true for
+    // anything, letting surround hosts negotiate >2-channel layouts that the
+    // reverb (juce::dsp::Reverb is stereo-max) would silently pass through dry.
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override
+    {
+        auto out = layouts.getMainOutputChannelSet();
+        return (out == juce::AudioChannelSet::mono() || out == juce::AudioChannelSet::stereo())
+            && layouts.getMainInputChannelSet() == out;
+    }
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -120,9 +130,13 @@ private:
     float shimmerPhase = 0.0f;
     float shimmerFreq = kDefaultShimmerFreq;
 
-    // Pre-allocated buffers (avoids audio-thread allocation)
+    // Pre-allocated buffers (sized in prepareToPlay — CR-04)
     juce::AudioBuffer<float> dryBuffer;
     juce::AudioBuffer<float> wetBuffer;
+
+    // Wet/dry gain smoothing (WR-03, 20ms linear ramp)
+    juce::SmoothedValue<float> wetGainSmoothed;
+    juce::SmoothedValue<float> dryGainSmoothed;
 
     // Cached parameter pointers (never change after construction)
     std::atomic<float>* typeParam = nullptr;
@@ -177,7 +191,9 @@ private:
     void prepareFilterAsAllPass(FilterType& filter, const juce::dsp::ProcessSpec& spec, double sampleRate) {
         filter.prepare(spec);
         filter.reset();
-        *filter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
+        // ArrayCoefficients assignment primes the state's coefficient storage so
+        // later audio-thread coefficient updates never reallocate (CR-03)
+        *filter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(sampleRate, 1000.0f);
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSimpleReverbAudioProcessor)

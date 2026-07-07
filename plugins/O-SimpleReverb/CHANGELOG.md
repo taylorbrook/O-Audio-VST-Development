@@ -2,6 +2,26 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.5.6] - 2026-07-07
+
+Resolves all Critical and Warning findings from the 2026-07-05 code review (CODE_REVIEW.md).
+
+### Fixed
+
+- **CR-01 — FileChooser use-after-free:** Both `savePresetWithDialog` and `loadPresetFromFile` completions captured raw `this` and the WebView-owned `complete` callback; closing the plugin window while the dialog was open could crash the host. Completions now capture a `Component::SafePointer` and bail with a bare return after editor teardown (calling `complete()` there would itself be a UAF — same fix class as O-MicrotonalSampler v1.23.5 W12).
+- **CR-02 — Inverted DECAY skew:** Skew was 1.585 (the reciprocal of the intended value), putting 1.47x at knob center while the UI readout and all 24 factory presets were authored against the intended 0.6309 curve. Skew corrected to 0.6309: the plugin UI, the DAW generic parameter view, and the factory presets now all agree, and "short decay" presets are actually short. **Note:** saved sessions are unaffected (normalized values reinterpret), but user presets saved under ≤ v1.5.5 will load with a different — now correct — audible decay.
+- **CR-03 — Audio-thread heap allocation (filter coefficients):** All `IIR::Coefficients::makeXXX` calls reachable from `processBlock` (character warm/bright, low-cut frequency, type-EQ on type change) replaced with stack-based `ArrayCoefficients` assignments (identical math, no allocation). `prepareToPlay` primes each filter state through the same path so audio-thread assigns never reallocate.
+- **CR-04 — First-callback buffer allocation:** `dryBuffer`/`wetBuffer` are now pre-allocated in `prepareToPlay`; the `setSize` calls in `processBlock` are no-op reuse instead of a guaranteed allocation on the first audio callback (and on every block-size increase in variable-block hosts).
+- **WR-01 — Preset stale-state inheritance (preset-manager v1.0.3):** `applyPresetJson` resets every parameter to its default before applying, so presets missing a key (e.g. saves from builds predating LPFREQ/LPON) no longer inherit whatever LP state was live.
+- **WR-02 — CHARACTER readout mismatch:** The UI labeled the middle half of the range "neutral" while the DSP engages filtering outside ±0.5. Readout now mirrors the DSP threshold and shows a continuous amount ("warm 62%", "bright 30%", "neutral" only in the true dead zone).
+- **WR-03 — Wet/dry zipper noise:** Wet and Dry gains were raw per-block values; knob drags and automation stepped at block rate. Both gains now run through 20ms `SmoothedValue` ramps applied per-sample in the mix loop.
+- **WR-04 — Factory presets rewritten on every instantiation (preset-manager v1.0.3):** `initializeFactoryPresets` now checks a version-stamped `.factory-version` sentinel and only rewrites the 24 factory `.json` files when the plugin version changes — removing 24 synchronous message-thread file writes per instance/scan pass and the concurrent-construction file race.
+- **WR-05 — Unconstrained bus layouts:** Added `isBusesLayoutSupported` limiting the plugin to matched mono/stereo. Previously surround hosts could negotiate 4/6-channel layouts on which channels ≥ 2 silently received dry-only output.
+
+### Testing
+
+- Built Release (VST3 + AU + Standalone), auval validation, installed to system folders.
+
 ## [1.5.5] - 2026-02-15
 
 ### Added
