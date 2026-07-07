@@ -43,6 +43,12 @@ export class PresetManager {
         this.deleteButton = options.deleteButton;
         this.menuButton = options.menuButton;
 
+        // Optional confirmation hook for destructive actions. window.confirm() is
+        // unreliable (silent no-op or throw) in some JUCE WebView backends, so callers
+        // can supply a reliable native / in-DOM dialog here:
+        //   onConfirmDelete: (presetName, message) => Promise<boolean> | boolean
+        this.onConfirmDelete = options.onConfirmDelete || null;
+
         // JUCE 8 native function factory (required)
         this.getNativeFunction = options.getNativeFunction;
 
@@ -121,13 +127,21 @@ export class PresetManager {
     /**
      * Wait for JUCE native integration to be available.
      */
-    async _waitForNative() {
+    async _waitForNative(maxAttempts = 100, intervalMs = 50) {
         return new Promise((resolve) => {
+            let attempts = 0;
             const check = () => {
                 if (window.__JUCE__ && window.__JUCE__.backend) {
                     resolve();
+                } else if (++attempts >= maxAttempts) {
+                    // Bound the poll so a missing backend surfaces instead of hanging
+                    // initialize() forever. Resolve anyway — downstream native calls are
+                    // already guarded by try/catch and will report their own failures.
+                    console.error(`[PresetManager] JUCE backend unavailable after ` +
+                        `${(maxAttempts * intervalMs) / 1000}s — preset UI may be non-functional`);
+                    resolve();
                 } else {
-                    setTimeout(check, 50);
+                    setTimeout(check, intervalMs);
                 }
             };
             check();
@@ -310,12 +324,39 @@ export class PresetManager {
     }
 
     /**
-     * Prompt user to delete current preset.
-     * Note: confirm() may not work in all JUCE WebView contexts.
+     * Prompt the user to delete the current preset, then delete it if confirmed.
+     * Prefers options.onConfirmDelete (a reliable native / in-DOM dialog); window.confirm()
+     * is unreliable — a silent no-op or throw — in some JUCE WebView backends. Falls back to
+     * a guarded window.confirm(); if no confirmation mechanism is available the delete is
+     * safely aborted (fail-safe) and the reason is logged, rather than silently swallowed.
      */
-    promptDelete() {
-        if (confirm(`Delete preset "${this.currentPreset}"?`)) {
-            this.deletePreset(this.currentPreset);
+    async promptDelete() {
+        const message = `Delete preset "${this.currentPreset}"?`;
+        let confirmed = false;
+
+        if (typeof this.onConfirmDelete === 'function') {
+            try {
+                confirmed = await this.onConfirmDelete(this.currentPreset, message);
+            } catch (e) {
+                console.error('[PresetManager] onConfirmDelete failed:', e);
+                return;
+            }
+        } else if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+            try {
+                confirmed = window.confirm(message);
+            } catch (e) {
+                console.warn('[PresetManager] window.confirm unavailable in this WebView; ' +
+                    'delete aborted. Supply options.onConfirmDelete for a reliable dialog.');
+                return;
+            }
+        } else {
+            console.warn('[PresetManager] No confirmation mechanism available; delete aborted. ' +
+                'Supply options.onConfirmDelete.');
+            return;
+        }
+
+        if (confirmed) {
+            await this.deletePreset(this.currentPreset);
         }
     }
 

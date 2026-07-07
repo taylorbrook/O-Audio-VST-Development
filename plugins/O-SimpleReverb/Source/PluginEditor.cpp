@@ -94,13 +94,19 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
                     userDir,
                     "*.json"
                 );
+                // CR-01: the dialog can outlive the editor. Capture a SafePointer and
+                // bail with a bare return on the null path — `complete` is owned by
+                // the destroyed WebView Impl, so invoking it would itself be a UAF.
+                juce::Component::SafePointer<OSimpleReverbAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
                         auto file = fc.getResult();
                         if (file != juce::File{}) {
                             auto name = file.getFileNameWithoutExtension();
-                            bool success = processorRef.presetManager.savePreset(name);
+                            bool success = safeThis->processorRef.presetManager.savePreset(name);
                             auto* result = new juce::DynamicObject();
                             result->setProperty("success", success);
                             result->setProperty("name", name);
@@ -121,12 +127,16 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
                     presetsDir,
                     "*.json"
                 );
+                // CR-01: see savePresetWithDialog — SafePointer + bare return on teardown
+                juce::Component::SafePointer<OSimpleReverbAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
-                            bool success = processorRef.presetManager.loadPresetFromFile(file);
+                            bool success = safeThis->processorRef.presetManager.loadPresetFromFile(file);
                             auto name = file.getFileNameWithoutExtension();
                             auto* result = new juce::DynamicObject();
                             result->setProperty("success", success);

@@ -788,13 +788,18 @@
         // Value formatters
         const formatters = {
             CHARACTER: norm => {
-                const percent = norm * 100;
-                if (percent <= 25) return "warm";
-                if (percent >= 75) return "bright";
+                // WR-02: mirror the DSP exactly — the character filter engages
+                // outside ±0.5 on the -100..+100 range, so "neutral" must only
+                // show inside that dead zone (the old ±50 label zones read
+                // "neutral" while an 11kHz low-pass / +3dB shelf was audible).
+                const value = norm * 200 - 100;
+                if (value < -0.5) return `warm ${Math.abs(value).toFixed(0)}%`;
+                if (value > 0.5) return `bright ${value.toFixed(0)}%`;
                 return "neutral";
             },
             WET:   norm => `${(norm * 100).toFixed(0)}%`,
             DRY:   norm => `${(norm * 100).toFixed(0)}%`,
+            // DECAY curve must match the C++ NormalisableRange: skew 0.6309 → exponent 1/0.6309 = 1.585 (CR-02)
             DECAY: norm => `${(0.5 + 1.5 * Math.pow(norm, 1.585)).toFixed(1)}x`,
             SIZE:  norm => `${(norm * 100).toFixed(0)}%`
         };

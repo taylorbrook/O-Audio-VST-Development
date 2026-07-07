@@ -5,7 +5,7 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.5.1 - Code simplification and real-time safety fixes
+    v1.5.6 - Code-review fixes (CR-01..04, WR-01..05)
 
     Each reverb type now has distinct sonic character:
     - Booth: Tight, immediate, minimal reflections
@@ -163,11 +163,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout OSimpleReverbAudioProcessor:
         100.0f  // Default: 100%
     ));
 
-    // DECAY - Float (0.5x to 2.0x multiplier, skew 1.585 puts 1.0 at center)
+    // DECAY - Float (0.5x to 2.0x multiplier)
+    // CR-02: skew 0.6309 puts 1.0x at knob center. convertFrom0to1 maps
+    // value = min + (max-min) * norm^(1/skew); solving 0.5 + 1.5*0.5^(1/s) = 1.0
+    // gives s = log(0.5)/log(1/3) ≈ 0.6309. The previous 1.585 (the reciprocal)
+    // put 1.47x at center, disagreeing with the UI readout and factory presets,
+    // which were both authored against this intended curve.
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "DECAY", 1 },
         "Decay",
-        juce::NormalisableRange<float>(0.5f, 2.0f, 0.01f, 1.585f),
+        juce::NormalisableRange<float>(0.5f, 2.0f, 0.01f, 0.6309f),
         1.0f  // Default: 1.0x (no change)
     ));
 
@@ -252,9 +257,11 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     prepareFilterAsAllPass(typeEqFilter, spec, sampleRate);
 
     // Prepare user high-pass (low cut) filter
+    // (ArrayCoefficients assignment also primes the state's coefficient storage,
+    //  so the audio-thread updates in processBlock never reallocate — CR-03)
     lpFilter.prepare(spec);
     lpFilter.reset();
-    *lpFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 200.0f);
+    *lpFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(sampleRate, 200.0f);
     previousLPFreq = -1.0f;
 
     // Prepare pre-delay lines
@@ -272,6 +279,17 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     // Reset modulation
     lfoPhase = 0.0f;
     shimmerPhase = 0.0f;
+
+    // CR-04: pre-allocate work buffers so the setSize() calls in processBlock
+    // are no-op reuse instead of a guaranteed first-callback allocation
+    dryBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock);
+    wetBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock);
+
+    // WR-03: 20ms wet/dry gain smoothing (zipper-noise-free knob drags/automation)
+    wetGainSmoothed.reset(sampleRate, 0.02);
+    dryGainSmoothed.reset(sampleRate, 0.02);
+    wetGainSmoothed.setCurrentAndTargetValue(wetParam->load() / 100.0f);
+    dryGainSmoothed.setCurrentAndTargetValue(dryParam->load() / 100.0f);
 
     // Force type update on first block
     previousType = -1;
@@ -309,27 +327,31 @@ void OSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
     }
 
     // Update type-specific EQ
+    // CR-03: this runs on the audio thread (type change in processBlock), so use
+    // ArrayCoefficients (stack std::array, identical math) instead of
+    // Coefficients::makeXXX, which heap-allocates a ref-counted object.
+    // Assignment reuses the state's existing storage (primed in prepareToPlay).
     switch (preset.eqType) {
         case TypePreset::EqType::None:
-            *typeEqFilter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(currentSampleRate, 1000.0f);
+            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(currentSampleRate, 1000.0f);
             break;
         case TypePreset::EqType::LowShelf:
-            *typeEqFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf(
+            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf(
                 currentSampleRate, preset.eqFreq, preset.eqQ,
                 juce::Decibels::decibelsToGain(preset.eqGain));
             break;
         case TypePreset::EqType::HighShelf:
-            *typeEqFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
                 currentSampleRate, preset.eqFreq, preset.eqQ,
                 juce::Decibels::decibelsToGain(preset.eqGain));
             break;
         case TypePreset::EqType::Peak:
-            *typeEqFilter.state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
                 currentSampleRate, preset.eqFreq, preset.eqQ,
                 juce::Decibels::decibelsToGain(preset.eqGain));
             break;
         case TypePreset::EqType::HighPass:
-            *typeEqFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(
+            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
                 currentSampleRate, preset.eqFreq, preset.eqQ);
             break;
     }
@@ -397,8 +419,18 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float finalDamping = preset.baseDamping / decayValue;
     finalDamping = juce::jlimit(0.0f, 1.0f, finalDamping);
 
-    float wetGain = wetValue / 100.0f;
-    float dryGain = dryValue / 100.0f;
+    // WR-03: smooth wet/dry gains (raw per-block atomic loads step at block rate
+    // and zipper on sustained material). Ramp linearly across the block between
+    // the smoother's start and end values — equivalent to per-sample smoothing
+    // but keeps the channel-major mix loop.
+    wetGainSmoothed.setTargetValue(wetValue / 100.0f);
+    dryGainSmoothed.setTargetValue(dryValue / 100.0f);
+    const float wetGainStart = wetGainSmoothed.getCurrentValue();
+    const float dryGainStart = dryGainSmoothed.getCurrentValue();
+    wetGainSmoothed.skip(buffer.getNumSamples());
+    dryGainSmoothed.skip(buffer.getNumSamples());
+    const float wetGainEnd = wetGainSmoothed.getCurrentValue();
+    const float dryGainEnd = dryGainSmoothed.getCurrentValue();
 
     // Store dry signal (pre-allocated buffer, no reallocation)
     dryBuffer.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
@@ -525,7 +557,7 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             warmValue = juce::jlimit(0.0f, 1.0f, warmValue);
             float cutoffHz = 2000.0f + (18000.0f * warmValue);
             cutoffHz = juce::jlimit(2000.0f, 20000.0f, cutoffHz);
-            *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoffHz);
+            *characterFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(currentSampleRate, cutoffHz);  // CR-03: RT-safe, no heap alloc
             previousCharacterValue = characterValue;
         }
         characterFilter.process(wetContext);
@@ -536,7 +568,7 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             brightValue = juce::jlimit(0.0f, 1.0f, brightValue);
             float gainDb = brightValue * 6.0f;
             float gainLinear = juce::Decibels::decibelsToGain(gainDb);
-            *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(currentSampleRate, 4000.0f, 0.707f, gainLinear);
+            *characterFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(currentSampleRate, 4000.0f, 0.707f, gainLinear);  // CR-03: RT-safe, no heap alloc
             previousCharacterValue = characterValue;
         }
         characterFilter.process(wetContext);
@@ -546,19 +578,23 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (lpFilterOn) {
         // Update filter coefficients if frequency changed
         if (std::abs(lpFreqValue - previousLPFreq) > 0.5f) {
-            *lpFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, lpFreqValue);
+            *lpFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, lpFreqValue);  // CR-03: RT-safe, no heap alloc
             previousLPFreq = lpFreqValue;
         }
         lpFilter.process(wetContext);
     }
 
-    // === 9. Dry/Wet Mix ===
+    // === 9. Dry/Wet Mix (gain-ramped, WR-03) ===
+    const float rampStep = numSamples > 0 ? 1.0f / static_cast<float>(numSamples) : 0.0f;
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
         float* output = buffer.getWritePointer(channel);
         const float* dry = dryBuffer.getReadPointer(channel);
         const float* wet = wetBuffer.getReadPointer(channel);
 
-        for (int sample = 0; sample < numSamples; ++sample) {
+        float t = 0.0f;
+        for (int sample = 0; sample < numSamples; ++sample, t += rampStep) {
+            const float dryGain = dryGainStart + (dryGainEnd - dryGainStart) * t;
+            const float wetGain = wetGainStart + (wetGainEnd - wetGainStart) * t;
             output[sample] = (dry[sample] * dryGain) + (wet[sample] * wetGain);
         }
     }
