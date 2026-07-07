@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.0.1
+version: 1.0.3
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,19 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.0.3
+    date: 2026-07-07
+    changes:
+      - "WR-01 (O-SimpleReverb review): applyPresetJson() resets every parameter to its default before applying preset values, so presets missing a key (older saves, hand-authored factory defs) no longer inherit stale live state"
+      - "WR-04 (O-SimpleReverb review): initializeFactoryPresets() guarded by a version-stamped '.factory-version' sentinel — factory .json files only rewritten when the plugin version changes, not on every processor construction (auval scans, each new instance); also removes the concurrent-construction file race"
+  - version: 1.0.2
+    date: 2026-07-01
+    changes:
+      - "(retroactive entry — shipped in-header via dd8117a without a yaml bump)"
+      - "WR-04 (O-DigiDelay review): sanitizePresetName() strips path separators everywhere a name becomes a filename"
+      - "IN-02: preset JSON records JucePlugin_VersionString instead of hard-coded '1.0.0'"
+      - "IN-03: prev/next resume from last in-list index after an out-of-list file load"
+      - "IN-01: docstring corrected to the real preset path (~/Library/{plugin}/Presets/)"
   - version: 1.0.1
     date: 2026-06-30
     changes:

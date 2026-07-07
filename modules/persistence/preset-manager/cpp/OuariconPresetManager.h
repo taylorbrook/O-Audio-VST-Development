@@ -286,6 +286,13 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         auto paramsVar = preset->getProperty("parameters");
         if (auto* paramsObj = paramsVar.getDynamicObject())
         {
+            // WR-01: reset every parameter to its default first, so presets that
+            // omit a key (hand-authored factory defs, saves from older plugin
+            // versions with fewer parameters) don't inherit stale live state.
+            for (auto* param : parameters.processor.getParameters())
+                if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
+                    rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
+
             for (auto& prop : paramsObj->getProperties())
             {
                 if (auto* param = parameters.getParameter(prop.name.toString()))
@@ -544,6 +551,18 @@ inline void OuariconPresetManager::initializeFactoryPresets(
     const std::vector<FactoryPresetDef>& presets)
 {
     auto factoryDir = getFactoryPresetsDirectory();
+
+    // WR-04: version-stamped sentinel — only (re)write the factory .json files
+    // when the plugin version changes. Without this, every processor
+    // construction (each auval/pluginval scan pass, each instance added to a
+    // session) performs N synchronous file writes on the message thread, and
+    // two instances constructing concurrently race on the same files.
+    // The sentinel has no .json extension so getPresetList() never sees it.
+    auto sentinel = factoryDir.getChildFile(".factory-version");
+    if (sentinel.existsAsFile()
+        && sentinel.loadFileAsString().trim() == JucePlugin_VersionString)
+        return;
+
     factoryDir.createDirectory();
 
     for (const auto& preset : presets)
@@ -574,6 +593,8 @@ inline void OuariconPresetManager::initializeFactoryPresets(
         auto jsonString = juce::JSON::toString(juce::var(presetObj), true);
         presetFile.replaceWithText(jsonString);
     }
+
+    sentinel.replaceWithText(JucePlugin_VersionString);
 
     juce::Logger::writeToLog("[PresetManager] Factory presets initialized: " +
                              juce::String(presets.size()));
