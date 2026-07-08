@@ -971,7 +971,13 @@
                         indicator.style.transformOrigin = 'center 30px';
                         valueDisplay.textContent = syncSteps[idx].name;
                     } else {
-                        // No division fits the range at this tempo — fall back to the Hz readout.
+                        // No division fits the range at this tempo — fall back to the Hz readout
+                        // AND rotate the indicator from the normalized value, so the pointer can't
+                        // hold a stale angle from a previous paint in this edge case (v1.5.1 B).
+                        const normValue = state.getNormalisedValue();
+                        const angle = -140 + (normValue * 280);
+                        indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+                        indicator.style.transformOrigin = 'center 30px';
                         valueDisplay.textContent = realValue.toFixed(1) + unit;
                     }
                 } else {

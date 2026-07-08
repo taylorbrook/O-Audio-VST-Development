@@ -253,10 +253,13 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     if (bpm > 0.0)
         hostBpm.store(bpm);
 
-    // Handle tempo sync
-    if (tempoSyncEnabled && bpm > 0.0)
+    // Handle tempo sync. When sync is engaged but the host reports no BPM (e.g. Standalone),
+    // fall back to 120 BPM — the same default the WebView readout uses (index.html
+    // rebuildSyncSteps) — so the displayed division and the actual rate agree (v1.5.1 A).
+    if (tempoSyncEnabled)
     {
-        double beatsPerSecond = bpm / 60.0;
+        double effectiveBpm = (bpm > 0.0) ? bpm : 120.0;
+        double beatsPerSecond = effectiveBpm / 60.0;
 
         // Find closest musical division based on current speed
         float closestDivision = 1.0f;
