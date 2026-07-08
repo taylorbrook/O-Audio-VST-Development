@@ -55,10 +55,17 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
                     "*.json"
                 );
 
-                // Launch async save dialog
+                // Launch async save dialog.
+                // CR-01: guard the completion against editor teardown. If the editor is
+                // destroyed while the native dialog is open, both `this` and the WebView-owned
+                // `complete` callback dangle — bail with a bare return; do NOT call complete().
+                juce::Component::SafePointer<OuariconTremoloAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // editor gone — complete() is owned by the dead WebView
+
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             // User cancelled
@@ -73,7 +80,7 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
                         auto presetName = file.getFileNameWithoutExtension();
 
                         // Save using the preset manager
-                        bool success = processorRef.presetManager.savePreset(presetName);
+                        bool success = safeThis->processorRef.presetManager.savePreset(presetName);
 
                         auto* result = new juce::DynamicObject();
                         result->setProperty("success", success);
@@ -121,6 +128,11 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
             .withNativeFunction("getPluginVersion", [](auto&, auto complete) {
                 complete(juce::String(JucePlugin_VersionString));
             })
+            .withNativeFunction("getHostBpm", [this](auto&, auto complete) {
+                // IN-04: expose the host tempo so the tempo-sync readout shows the real
+                // division instead of assuming 120 BPM.
+                complete(processorRef.getHostBpm());
+            })
             .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
                 // Create file chooser for preset JSON files
                 fileChooser = std::make_unique<juce::FileChooser>(
@@ -129,10 +141,16 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
                     "*.json"
                 );
 
-                // Launch async file dialog
+                // Launch async file dialog.
+                // CR-01: same teardown guard as savePresetWithDialog — bail with a bare
+                // return if the editor is gone; never call complete() on the null path.
+                juce::Component::SafePointer<OuariconTremoloAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // editor gone — complete() is owned by the dead WebView
+
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             // User cancelled
@@ -144,7 +162,7 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
                         }
 
                         auto file = results.getFirst();
-                        bool success = processorRef.presetManager.loadPresetFromFile(file);
+                        bool success = safeThis->processorRef.presetManager.loadPresetFromFile(file);
 
                         auto* result = new juce::DynamicObject();
                         result->setProperty("success", success);

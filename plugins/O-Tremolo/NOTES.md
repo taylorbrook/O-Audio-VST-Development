@@ -2,10 +2,18 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.5
+- **Version:** 1.4.8
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
+
+- **2026-07-07 (v1.4.8):** Deep GSD code-review fixes (see `CODE_REVIEW.md` + CHANGELOG)
+  - CR-01: fixed FileChooser `launchAsync` use-after-free on editor teardown (SafePointer guard)
+  - WR-01: added per-sample Depth smoothing (zipper/click on automation & preset recall)
+  - WR-02: knob readouts now use JUCE `getScaledValue()` instead of hardcoded JS ranges
+  - IN-02/03/04/05: Factory-vs-User dropdown split, visualizer smoothing reset, real host-BPM
+    tempo readout (new `getHostBpm` native fn), waveform index divisor derived from option count
+  - Build (VST3+AU) + auval PASS; native-fn bridge verified balanced (12↔12)
 
 - **2026-01-03:** Plugin properly initialized with complete contract structure
   - Created `.ideas/` directory with all required contracts

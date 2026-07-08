@@ -201,72 +201,92 @@ OSpectralShaperAudioProcessor::OSpectralShaperAudioProcessor()
     warmSus[15] = 0.7f;  warmSus[16] = 0.6f;  warmSus[17] = 0.4f;
     warmSus[18] = 0.2f;
 
-    // Initialize factory presets
+    // Flat (neutral) curve state — WR-02: curve-less presets must reset the curves to
+    // flat, otherwise the previously-loaded preset's curves persist. Giving these
+    // presets an explicit all-zero customState makes "no shaping" the applied result.
+    std::array<float, 32> flatCurve {};
+
+    // CR-02: factory preset parameter values below are authored in ENGINEERING UNITS
+    // (ATTACK_TIME/SUSTAIN_TIME/LOOKAHEAD_TIME in ms, OUTPUT_GAIN in dB, MIX/SENSITIVITY
+    // as 0-1 fractions, LOOKAHEAD_ENABLED as 0/1). They are converted to normalised
+    // (0-1) via each parameter's own NormalisableRange in the loop below, so the 0.3
+    // skew on ATTACK_TIME/SUSTAIN_TIME is applied correctly. (Previously these were
+    // authored as linear fractions that ignored the skew, so every preset recalled a
+    // time ~10-30x too short and "Default" did not match the plugin's power-on state.)
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         {
             "Default",
-            {{"MIX", 1.0f}, {"ATTACK_TIME", 0.198f}, {"SUSTAIN_TIME", 0.184f},
+            {{"MIX", 1.0f}, {"ATTACK_TIME", 10.0f}, {"SUSTAIN_TIME", 100.0f},
              {"SENSITIVITY", 0.5f}, {"LOOKAHEAD_ENABLED", 0.0f},
-             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.5f}},
-            juce::var()
+             {"LOOKAHEAD_TIME", 2.0f}, {"OUTPUT_GAIN", 0.0f}},
+            makeCurveState(flatCurve, flatCurve)
         },
         {
             "Punch Enhancer",
-            {{"MIX", 0.85f}, {"ATTACK_TIME", 0.30f}, {"SUSTAIN_TIME", 0.05f},
+            {{"MIX", 0.85f}, {"ATTACK_TIME", 15.0f}, {"SUSTAIN_TIME", 35.0f},
              {"SENSITIVITY", 0.6f}, {"LOOKAHEAD_ENABLED", 0.0f},
-             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.54f}},
+             {"LOOKAHEAD_TIME", 2.0f}, {"OUTPUT_GAIN", 1.0f}},
             makeCurveState(punchAtk, punchSus)
         },
         {
             "Transient Tamer",
-            {{"MIX", 0.75f}, {"ATTACK_TIME", 0.05f}, {"SUSTAIN_TIME", 0.10f},
+            {{"MIX", 0.75f}, {"ATTACK_TIME", 2.5f}, {"SUSTAIN_TIME", 59.0f},
              {"SENSITIVITY", 0.7f}, {"LOOKAHEAD_ENABLED", 1.0f},
-             {"LOOKAHEAD_TIME", 0.30f}, {"OUTPUT_GAIN", 0.5f}},
+             {"LOOKAHEAD_TIME", 3.0f}, {"OUTPUT_GAIN", 0.0f}},
             makeCurveState(tamerAtk, tamerSus)
         },
         {
             "De-Esser",
-            {{"MIX", 0.80f}, {"ATTACK_TIME", 0.25f}, {"SUSTAIN_TIME", 0.20f},
+            {{"MIX", 0.80f}, {"ATTACK_TIME", 12.5f}, {"SUSTAIN_TIME", 108.0f},
              {"SENSITIVITY", 0.60f}, {"LOOKAHEAD_ENABLED", 0.0f},
-             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.5f}},
+             {"LOOKAHEAD_TIME", 2.0f}, {"OUTPUT_GAIN", 0.0f}},
             makeCurveState(deessAtk, deessSus)
         },
         {
             "Cymbal Control",
-            {{"MIX", 0.75f}, {"ATTACK_TIME", 0.08f}, {"SUSTAIN_TIME", 0.08f},
+            {{"MIX", 0.75f}, {"ATTACK_TIME", 4.0f}, {"SUSTAIN_TIME", 49.0f},
              {"SENSITIVITY", 0.70f}, {"LOOKAHEAD_ENABLED", 1.0f},
-             {"LOOKAHEAD_TIME", 0.40f}, {"OUTPUT_GAIN", 0.5f}},
+             {"LOOKAHEAD_TIME", 4.0f}, {"OUTPUT_GAIN", 0.0f}},
             makeCurveState(cymbAtk, cymbSus)
         },
         {
             "Warm Sustain",
-            {{"MIX", 0.65f}, {"ATTACK_TIME", 0.30f}, {"SUSTAIN_TIME", 0.45f},
+            {{"MIX", 0.65f}, {"ATTACK_TIME", 15.0f}, {"SUSTAIN_TIME", 230.0f},
              {"SENSITIVITY", 0.40f}, {"LOOKAHEAD_ENABLED", 0.0f},
-             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.52f}},
+             {"LOOKAHEAD_TIME", 2.0f}, {"OUTPUT_GAIN", 0.5f}},
             makeCurveState(warmAtk, warmSus)
         },
         {
             "Gentle Shaping",
-            {{"MIX", 0.50f}, {"ATTACK_TIME", 0.25f}, {"SUSTAIN_TIME", 0.30f},
+            {{"MIX", 0.50f}, {"ATTACK_TIME", 12.5f}, {"SUSTAIN_TIME", 157.0f},
              {"SENSITIVITY", 0.35f}, {"LOOKAHEAD_ENABLED", 0.0f},
-             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.5f}},
-            juce::var()
+             {"LOOKAHEAD_TIME", 2.0f}, {"OUTPUT_GAIN", 0.0f}},
+            makeCurveState(flatCurve, flatCurve)
         },
         {
             "Aggressive Bite",
-            {{"MIX", 1.0f}, {"ATTACK_TIME", 0.10f}, {"SUSTAIN_TIME", 0.02f},
+            {{"MIX", 1.0f}, {"ATTACK_TIME", 5.0f}, {"SUSTAIN_TIME", 20.0f},
              {"SENSITIVITY", 0.85f}, {"LOOKAHEAD_ENABLED", 1.0f},
-             {"LOOKAHEAD_TIME", 0.50f}, {"OUTPUT_GAIN", 0.46f}},
-            juce::var()
+             {"LOOKAHEAD_TIME", 5.0f}, {"OUTPUT_GAIN", -1.0f}},
+            makeCurveState(flatCurve, flatCurve)
         },
         {
             "Sustain Lift",
-            {{"MIX", 0.70f}, {"ATTACK_TIME", 0.40f}, {"SUSTAIN_TIME", 0.60f},
+            {{"MIX", 0.70f}, {"ATTACK_TIME", 20.0f}, {"SUSTAIN_TIME", 304.0f},
              {"SENSITIVITY", 0.45f}, {"LOOKAHEAD_ENABLED", 0.0f},
-             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.52f}},
-            juce::var()
+             {"LOOKAHEAD_TIME", 2.0f}, {"OUTPUT_GAIN", 0.5f}},
+            makeCurveState(flatCurve, flatCurve)
         }
     };
+
+    // CR-02: convert engineering-unit values to normalised (0-1) through each
+    // parameter's NormalisableRange. This handles the ATTACK_TIME/SUSTAIN_TIME skew
+    // once, correctly — initializeFactoryPresets stores these verbatim as the preset's
+    // normalised value, and applyPresetJson feeds them back through convertFrom0to1.
+    for (auto& preset : factoryPresets)
+        for (auto& [paramId, value] : preset.parameters)
+            if (auto* p = parameters.getParameter(paramId))
+                value = p->convertTo0to1(value);
 
     presetManager.initializeFactoryPresets(factoryPresets);
 
@@ -292,8 +312,9 @@ void OSpectralShaperAudioProcessor::prepareToPlay(double sampleRate, int samples
 {
     currentSampleRate = sampleRate;
 
-    // Report base latency (FFT size); updated dynamically when lookahead changes
+    // Report base latency (FFT size); re-signalled only when lookahead changes it (WR-03)
     setLatencySamples(STFTProcessor::FFT_SIZE);
+    lastReportedLatency = STFTProcessor::FFT_SIZE;
 
     // Prepare STFT processors (one per channel)
     for (int ch = 0; ch < 2; ++ch)
@@ -357,7 +378,15 @@ void OSpectralShaperAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     {
         lookaheadDelayLength = 0;
     }
-    setLatencySamples(STFTProcessor::FFT_SIZE + lookaheadDelayLength);
+    // WR-03: only re-signal latency when it actually changes, not every block. Reporting a
+    // changed latency from the audio thread every block makes hosts glitch or ignore it.
+    // (The Lookahead control itself remains a deferred no-op — see CHANGELOG v1.3.2.)
+    const int desiredLatency = STFTProcessor::FFT_SIZE + lookaheadDelayLength;
+    if (desiredLatency != lastReportedLatency)
+    {
+        setLatencySamples(desiredLatency);
+        lastReportedLatency = desiredLatency;
+    }
 
     // Update STFT parameters
     for (int ch = 0; ch < numChannels; ++ch)

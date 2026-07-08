@@ -1,5 +1,17 @@
 # O-SpectralShaper Changelog
 
+## [1.3.2] - 2026-07-07
+
+### Fixed
+- **CR-01 — Preset file-dialog use-after-free:** the `savePresetWithDialog` and `loadPresetFromFile` `FileChooser::launchAsync` completions captured raw `this` + the WebView-owned `complete` callback. If the plugin window closed while a dialog was open, the completion dereferenced the freed editor and invoked a dead callback. Now capture a `juce::Component::SafePointer` and bail with a bare `return` on teardown (matching the correct pattern already used in `parentHierarchyChanged`).
+- **CR-02 — Factory presets ignored the ATTACK_TIME/SUSTAIN_TIME skew:** preset values were authored as linear fractions that ignored the 0.3 skew, so every preset recalled attack/sustain times ~10–30× too short and the "Default" preset did not match the plugin's power-on state. Factory preset values are now authored in engineering units (ms/dB/fractions) and converted through each parameter's own `NormalisableRange` via `convertTo0to1()` at init, so the skew is applied correctly. "Default" now reproduces the APVTS defaults (ATTACK_TIME 10 ms, SUSTAIN_TIME 100 ms).
+- **WR-01 — Attack/Sustain knob readouts showed wrong numbers:** the JS `formatValue` callbacks re-derived the skewed range with an incorrect exponential formula (attack displayed ~0.3 ms at the 10 ms default). They now read the real engineering value from JUCE via `Juce.getSliderState(id).getScaledValue()`.
+- **WR-02 — Curve-less presets left stale curves applied:** loading a preset without `customState` (Default, Gentle Shaping, Aggressive Bite, Sustain Lift) left the previously-loaded preset's attack/sustain curves in effect. These four presets now carry an explicit flat (all-0.0) curve `customState`, so loading them resets both curves to neutral.
+- **WR-03 — Latency re-reported from the audio thread every block:** `processBlock` called `setLatencySamples()` on every block, continuously signalling a (potentially changed) latency from the audio thread — which many hosts glitch on or ignore. Latency is now cached in `lastReportedLatency` and re-signalled only when it actually changes (Lookahead toggled or its time changed). Only the latency-thrash bug is fixed here; the Lookahead control's underlying no-op behaviour is a known limitation deferred to a dedicated DSP pass.
+
+### Known Limitations
+- **Lookahead is currently inert:** enabling Lookahead delays both the transient detection and the shaped signal by the same amount, so gain and signal stay time-aligned and nothing audible changes (it only adds reported latency). True lookahead requires splitting detection from application in `STFTProcessor` and is deferred to a future release.
+
 ## [1.3.1] - 2026-07-01
 
 ### Fixed

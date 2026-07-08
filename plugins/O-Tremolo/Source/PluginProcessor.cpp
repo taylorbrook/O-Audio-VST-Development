@@ -213,6 +213,10 @@ void OuariconTremoloAudioProcessor::prepareToPlay(double sampleRate, int samples
     // Reset smoothing filter state
     smoothedLFO_L = 0.0f;
     smoothedLFO_R = 0.0f;
+
+    // Prime depth smoothing to the current value (no fade-in on the first block)
+    depthSmoothed.reset(sampleRate, 0.02);  // 20 ms ramp
+    depthSmoothed.setCurrentAndTargetValue(depthParam->load() / 100.0f);
 }
 
 void OuariconTremoloAudioProcessor::releaseResources()
@@ -237,43 +241,47 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     bool panSyncEnabled = panSyncParam->load() > 0.5f;
     bool tempoSyncEnabled = tempoSyncParam->load() > 0.5f;
 
+    // Query host for BPM once per block and cache it for the UI (IN-04), regardless of
+    // whether tempo sync is engaged — so the WebView readout is already correct the moment
+    // the user toggles sync on.
+    double bpm = 0.0;
+    if (auto* playHead = getPlayHead())
+        if (auto positionInfo = playHead->getPosition())
+            if (positionInfo->getBpm().hasValue())
+                bpm = *positionInfo->getBpm();
+
+    if (bpm > 0.0)
+        hostBpm.store(bpm);
+
     // Handle tempo sync
-    if (tempoSyncEnabled)
+    if (tempoSyncEnabled && bpm > 0.0)
     {
-        // Query host for BPM
-        if (auto* playHead = getPlayHead())
+        double beatsPerSecond = bpm / 60.0;
+
+        // Find closest musical division based on current speed
+        float closestDivision = 1.0f;
+        float minDiff = 1000.0f;
+
+        for (int i = 0; i < kNumMusicalDivisions; ++i)
         {
-            if (auto positionInfo = playHead->getPosition())
+            float divFreq = static_cast<float>(beatsPerSecond / kMusicalDivisions[i].beatMultiplier);
+            float diff = std::abs(speedHz - divFreq);
+            if (diff < minDiff)
             {
-                if (positionInfo->getBpm().hasValue())
-                {
-                    double bpm = *positionInfo->getBpm();
-                    double beatsPerSecond = bpm / 60.0;
-
-                    // Find closest musical division based on current speed
-                    float closestDivision = 1.0f;
-                    float minDiff = 1000.0f;
-
-                    for (int i = 0; i < kNumMusicalDivisions; ++i)
-                    {
-                        float divFreq = static_cast<float>(beatsPerSecond / kMusicalDivisions[i].beatMultiplier);
-                        float diff = std::abs(speedHz - divFreq);
-                        if (diff < minDiff)
-                        {
-                            minDiff = diff;
-                            closestDivision = kMusicalDivisions[i].beatMultiplier;
-                        }
-                    }
-
-                    // Calculate Hz from BPM and division
-                    speedHz = static_cast<float>(beatsPerSecond / closestDivision);
-                }
+                minDiff = diff;
+                closestDivision = kMusicalDivisions[i].beatMultiplier;
             }
         }
+
+        // Calculate Hz from BPM and division
+        speedHz = static_cast<float>(beatsPerSecond / closestDivision);
     }
 
     // Update phase increment
     lfoPhaseIncrement = speedHz / static_cast<float>(currentSampleRate);
+
+    // Ramp depth toward its new target; consumed per-sample below (WR-01)
+    depthSmoothed.setTargetValue(depth);
 
     // Calculate smoothing filter coefficient
     // 0% smoothing: coefficient ≈ 1.0 (no filtering)
@@ -305,6 +313,9 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
+            // Per-sample smoothed depth (WR-01) — one step per sample keeps L/R in sync
+            const float depthS = depthSmoothed.getNextValue();
+
             // Calculate left and right phases (R = L + 0.5 for 180° offset)
             float leftPhase = lfoPhase;
             float rightPhase = lfoPhase + 0.5f;
@@ -324,8 +335,8 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             float lfoValue_R = (smoothedLFO_R_val + 1.0f) / 2.0f;
 
             // Calculate gain multipliers with depth scaling
-            float gainMultiplier_L = 1.0f - (lfoValue_L * depth);
-            float gainMultiplier_R = 1.0f - (lfoValue_R * depth);
+            float gainMultiplier_L = 1.0f - (lfoValue_L * depthS);
+            float gainMultiplier_R = 1.0f - (lfoValue_R * depthS);
 
             // Apply gain modulation
             leftData[sample] *= gainMultiplier_L;
@@ -346,6 +357,9 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
+            // Per-sample smoothed depth (WR-01)
+            const float depthS = depthSmoothed.getNextValue();
+
             // Generate raw waveform value
             float rawLFO = generateWaveform(lfoPhase, waveformType, lfoPhase);
 
@@ -356,7 +370,7 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             float lfoValue = (smoothedLFO_val + 1.0f) / 2.0f;
 
             // Calculate gain multiplier with depth scaling
-            float gainMultiplier = 1.0f - (lfoValue * depth);
+            float gainMultiplier = 1.0f - (lfoValue * depthS);
 
             // Apply gain modulation to all channels
             for (int channel = 0; channel < numChannels && channel < 2; ++channel)

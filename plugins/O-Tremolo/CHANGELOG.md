@@ -5,6 +5,28 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.8] - 2026-07-07
+
+Resolves all findings from a deep GSD code review (see `CODE_REVIEW.md`): 1 critical, 2 warnings, 5 info.
+
+### Fixed
+
+- **CR-01 (crash): FileChooser use-after-free on editor teardown.** The `savePresetWithDialog` and `loadPresetFromFile` native functions launched `juce::FileChooser::launchAsync` with completions that captured a raw `this` and called the WebView-owned `complete()` callback. Closing the plugin window (or removing the track) while the native Save/Load dialog was open fired the completion against a destroyed editor → use-after-free. **Root cause:** the codebase's `SafePointer` teardown pattern was not applied here. Both completions now capture a `juce::Component::SafePointer` and bail with a bare `return` if the editor is gone — notably *without* calling `complete()`, which is itself owned by the dead WebView.
+- **WR-01 (zipper noise): Depth parameter is now smoothed.** `depth` scales the per-sample output gain, so an un-smoothed step from automation, preset recall, or a UI drag produced an audible click/zipper. Depth is now ramped with a 20 ms `juce::SmoothedValue` consumed per-sample in both the mono and pan-sync paths. (LFO rate remains block-updated — rate steps are inaudible and lower-risk to leave unchanged.)
+- **WR-02 (display drift): Knob readouts use the JUCE scaled value.** Speed/Depth readouts remapped normalized→real with hardcoded JS literals (`0.1–20`, `0–100`), which would silently drift from the C++ `NormalisableRange`/skew. They now read `SliderState.getScaledValue()` (authoritative from C++) and refresh on `propertiesChangedEvent`. The duplicated remap in the tempo-sync toggle handler was removed too.
+
+### Changed
+
+- **IN-02:** Preset dropdown now distinguishes **Factory** vs **User** presets (via the `isFactoryPreset` native fn) instead of labeling every entry "Factory".
+- **IN-03:** Visualizer smoothing state (`smoothedY`) is reset per redraw instead of persisting across draws; removed a dead `phase` local in the noise case.
+- **IN-04:** Tempo-sync readout now shows the division for the **real host tempo**. Added a `getHostBpm` native function (host BPM cached on the audio thread) that the UI polls while sync is active, replacing the hardcoded 120 BPM assumption.
+- **IN-05:** Waveform selector index divisor is now derived from the waveform-list length (single `WAVEFORM_NAMES` source of truth) instead of a hardcoded `×5`, so adding/removing a waveform can't silently break the mapping. (Kept the working `WebSliderRelay` binding rather than rewiring to a ComboBox relay, to avoid regression risk.)
+
+### Notes
+
+- **IN-01 (intentionally not fixed):** the async `promptDelete` change in the shared `preset-manager.js` module is inert in O-Tremolo (no delete affordance is wired in the UI). Adding a delete control is new functionality, out of scope for this review-fix pass; the module sync is committed as-is.
+- Native-function bridge verified balanced (12 C++ ↔ 12 JS, all names match).
+
 ## [1.4.7] - 2026-02-12
 
 ### Added

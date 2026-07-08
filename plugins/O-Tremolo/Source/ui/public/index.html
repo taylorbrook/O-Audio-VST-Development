@@ -684,6 +684,16 @@
         // JUCE Parameter States
         let speedState, depthState, waveformState, smoothingState, panSyncState, tempoSyncState;
 
+        // Single source of truth for waveform options — index divisor is derived from this
+        // length so adding/removing a waveform never breaks the normalized↔index mapping (IN-05).
+        // Order MUST match the C++ WAVEFORM_PARAM StringArray and the <select> options.
+        const WAVEFORM_NAMES = ['sine', 'triangle', 'phasor', 'noise', 'square', 'pulse'];
+
+        // Last-known host tempo, refreshed from C++ via getHostBpm (IN-04). The WebView has no
+        // direct host access, so the tempo-sync readout uses this instead of a hardcoded 120.
+        let hostBpm = 120;
+        let getHostBpm = null;
+
         // Musical divisions table (matches C++ implementation)
         const musicalDivisions = [
             // Straight divisions
@@ -719,9 +729,9 @@
             panSyncState = getToggleState('panSync');
             tempoSyncState = getToggleState('tempoSync');
 
-            // Setup knobs
-            setupKnob('speed', speedState, 0.1, 20, ' Hz');
-            setupKnob('depth', depthState, 0, 100, '%');
+            // Setup knobs (WR-02: real values come from the JUCE scaled value, not hardcoded ranges)
+            setupKnob('speed', speedState, ' Hz');
+            setupKnob('depth', depthState, '%');
 
             // Setup toggle buttons
             setupToggle('panButton', panSyncState);
@@ -766,8 +776,25 @@
                 }
             });
 
-            // Preset dropdown functionality
-            function showPresetDropdown() {
+            // IN-04: pull the real host tempo so the tempo-sync readout is accurate.
+            getHostBpm = getNativeFunction('getHostBpm');
+            refreshHostBpm();
+
+            // While tempo sync is active, keep the division readout live as host tempo changes.
+            setInterval(() => {
+                if (tempoSyncState && tempoSyncState.getValue()) {
+                    refreshHostBpm().then(() => {
+                        const speedValue = document.getElementById('speedValue');
+                        if (speedValue && speedState) {
+                            speedValue.textContent = getMusicalDivisionName(speedState.getScaledValue());
+                        }
+                    });
+                }
+            }, 1000);
+
+            // Preset dropdown functionality (IN-02: distinguish Factory vs User presets
+            // via the isFactoryPreset native fn instead of labeling every entry "Factory")
+            async function showPresetDropdown() {
                 const presets = presetManager.getPresetList();
                 presetDropdown.innerHTML = '';
 
@@ -778,18 +805,35 @@
                     empty.style.fontStyle = 'italic';
                     empty.style.color = '#888';
                     presetDropdown.appendChild(empty);
-                } else {
-                    // Add Factory section header
-                    const factoryHeader = document.createElement('div');
-                    factoryHeader.className = 'preset-dropdown-header';
-                    factoryHeader.textContent = 'Factory';
-                    presetDropdown.appendChild(factoryHeader);
+                    presetDropdown.classList.add('show');
+                    return;
+                }
 
-                    // Add each preset
-                    presets.forEach(presetName => {
+                // Classify each preset (default to factory if the check fails)
+                const flags = await Promise.all(presets.map(async (name) => {
+                    try { return await presetManager.isFactoryPreset(name); }
+                    catch (e) { return true; }
+                }));
+
+                const factoryNames = [];
+                const userNames = [];
+                presets.forEach((name, i) => {
+                    (flags[i] ? factoryNames : userNames).push(name);
+                });
+
+                const current = presetManager.getCurrentPreset();
+
+                const addSection = (headerText, names, isFactory) => {
+                    if (names.length === 0) return;
+                    const header = document.createElement('div');
+                    header.className = 'preset-dropdown-header';
+                    header.textContent = headerText;
+                    presetDropdown.appendChild(header);
+
+                    names.forEach(presetName => {
                         const item = document.createElement('div');
-                        item.className = 'preset-dropdown-item factory';
-                        if (presetName === presetManager.getCurrentPreset()) {
+                        item.className = 'preset-dropdown-item' + (isFactory ? ' factory' : '');
+                        if (presetName === current) {
                             item.classList.add('active');
                         }
                         item.textContent = presetName;
@@ -799,7 +843,10 @@
                         });
                         presetDropdown.appendChild(item);
                     });
-                }
+                };
+
+                addSection('Factory', factoryNames, true);
+                addSection('User', userNames, false);
 
                 presetDropdown.classList.add('show');
             }
@@ -826,9 +873,21 @@
             });
         });
 
-        // Helper function to get musical division name from Hz value
-        function getMusicalDivisionName(hz, bpm = 120) {
-            if (!bpm || bpm <= 0) bpm = 120; // Fallback to 120 BPM
+        // Refresh the cached host tempo from C++ (IN-04). Keeps last-known value on failure.
+        async function refreshHostBpm() {
+            if (!getHostBpm) return;
+            try {
+                const bpm = await getHostBpm();
+                if (bpm && bpm > 0) hostBpm = bpm;
+            } catch (e) {
+                // Keep last-known hostBpm; the readout stays usable.
+            }
+        }
+
+        // Helper function to get musical division name from Hz value.
+        // Defaults to the live host tempo (IN-04) instead of a hardcoded 120 BPM.
+        function getMusicalDivisionName(hz, bpm = hostBpm) {
+            if (!bpm || bpm <= 0) bpm = 120; // Fallback if host never reported a tempo
             const beatsPerSecond = bpm / 60.0;
 
             let closestDivision = musicalDivisions[0];
@@ -847,7 +906,7 @@
         }
 
         // Knob setup with JUCE binding (Pattern #16: Relative drag, Pattern #15: No callback params)
-        function setupKnob(paramId, state, min, max, unit) {
+        function setupKnob(paramId, state, unit) {
             if (!state) {
                 console.error(`Failed to get slider state for ${paramId}`);
                 return;
@@ -863,7 +922,9 @@
             // Update visual from normalized value (0-1)
             function updateVisual() {
                 const normValue = state.getNormalisedValue();
-                const realValue = min + (normValue * (max - min));
+                // WR-02: real value comes straight from the JUCE scaled value (honors the C++
+                // NormalisableRange + skew), not a hardcoded JS min/max that can silently drift.
+                const realValue = state.getScaledValue();
 
                 // Rotate indicator (-140° to +140°)
                 const angle = -140 + (normValue * 280);
@@ -887,6 +948,12 @@
 
             // JUCE → UI: Listen for parameter changes (Pattern #15: NO parameters passed)
             state.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // Re-render once the backend pushes the real range/skew (WR-02) so getScaledValue()
+            // and the indicator angle are correct even on the initial paint.
+            state.propertiesChangedEvent.addListener(() => {
                 updateVisual();
             });
 
@@ -942,17 +1009,17 @@
 
                 // If this is tempo sync button, trigger speed knob visual update
                 if (buttonId === 'tempoButton' && speedState) {
-                    // Manually trigger speed knob update by dispatching a fake event
-                    const speedKnob = document.getElementById('speedKnob');
-                    if (speedKnob) {
-                        const speedIndicator = document.getElementById('speedIndicator');
-                        const speedValue = document.getElementById('speedValue');
-                        const normValue = speedState.getNormalisedValue();
-                        const realValue = 0.1 + (normValue * (20 - 0.1));
+                    const speedValue = document.getElementById('speedValue');
+                    if (speedValue) {
+                        // WR-02: read the real Hz from the JUCE scaled value, not a hardcoded remap
+                        const realValue = speedState.getScaledValue();
 
                         // Update speed display based on tempo sync state
                         if (isActive) {
-                            speedValue.textContent = getMusicalDivisionName(realValue);
+                            // Refresh host tempo first so the division shown is accurate (IN-04)
+                            refreshHostBpm().then(() => {
+                                speedValue.textContent = getMusicalDivisionName(speedState.getScaledValue());
+                            });
                         } else {
                             speedValue.textContent = realValue.toFixed(1) + ' Hz';
                         }
@@ -984,10 +1051,14 @@
 
             const selector = document.getElementById('waveformSelect');
 
+            // IN-05: divisor derived from the option count, not a hardcoded 5, so the
+            // normalized↔index mapping stays correct if a waveform is ever added/removed.
+            const maxIndex = WAVEFORM_NAMES.length - 1;
+
             // Update visual from state
             function updateVisual() {
                 const normValue = waveformState.getNormalisedValue();
-                const index = Math.round(normValue * 5); // 0-5 range
+                const index = Math.round(normValue * maxIndex);
                 selector.value = index.toString();
                 drawWaveform();
             }
@@ -1000,7 +1071,7 @@
             // UI → JUCE
             selector.addEventListener('change', () => {
                 const index = parseInt(selector.value);
-                const normValue = index / 5; // Convert 0-5 to 0-1
+                const normValue = maxIndex > 0 ? index / maxIndex : 0;
                 waveformState.setNormalisedValue(normValue);
             });
 
@@ -1053,10 +1124,13 @@
         }
 
         // Waveform visualization
-        let smoothedY = 0;  // Smoothing state for waveform visualizer
 
         function drawWaveform() {
             if (!canvas || !ctx || !waveformState || !smoothingState || !depthState) return;
+
+            // IN-03: reset the visualizer smoothing state per redraw so the first sample
+            // doesn't smooth against the previous draw's trailing value.
+            let smoothedY = 0;
 
             const width = canvas.offsetWidth;
             const height = canvas.offsetHeight;
@@ -1066,7 +1140,8 @@
             const depthMultiplier = depthState.getNormalisedValue();
             const amplitude = (height / 2) * 0.8 * depthMultiplier;
 
-            const waveformIndex = Math.round(waveformState.getNormalisedValue() * 5);
+            // IN-05: derive index from the shared waveform list length, not a hardcoded 5.
+            const waveformIndex = Math.round(waveformState.getNormalisedValue() * (WAVEFORM_NAMES.length - 1));
             const smoothing = smoothingState.getNormalisedValue();
 
             ctx.clearRect(0, 0, width, height);
@@ -1086,8 +1161,7 @@
             ctx.lineWidth = 2;
             ctx.beginPath();
 
-            const waveforms = ['sine', 'triangle', 'phasor', 'noise', 'square', 'pulse'];
-            const waveform = waveforms[waveformIndex] || 'sine';
+            const waveform = WAVEFORM_NAMES[waveformIndex] || 'sine';
 
             // Helper function for smooth transitions (matches C++ smoothTransition)
             function smoothTransition(t) {
@@ -1132,7 +1206,6 @@
 
                     case 'noise': {
                         // Sample-and-hold: 4 samples per cycle
-                        const phase = (t * 4) % 1;
                         const quarter = Math.floor(t * 4) % 4;
                         y = noiseValues[quarter];
                         break;

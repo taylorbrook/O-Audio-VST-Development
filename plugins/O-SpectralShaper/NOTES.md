@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.3
+- **Version:** 1.3.2
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
@@ -12,10 +12,12 @@
 - **2026-03-08 (v1.1.1):** Fix three critical bugs — attack/sustain time knobs, curve data race, lookahead latency reporting
 - **2026-03-08 (v1.1.2):** Fix thread safety — SafePointer for callAfterDelay, curve value clamping/NaN protection, division-by-zero in NodeCurve
 - **2026-03-08 (v1.1.3):** Performance optimizations — cache APVTS pointers, eliminate magic numbers, reuse FFT magnitudes, pre-allocate JSON, cache band frequencies
+- **(v1.1.4 – v1.3.1):** See CHANGELOG.md for intervening releases (curve-editor undo/redo, WOLA synthesis window, spectrum overlay, preset-manager v1.0.2 sync).
+- **2026-07-07 (v1.3.2):** Code-review fixes — **CR-01** SafePointer guard on preset file-dialog completions (UAF); **CR-02** factory presets authored in engineering units + `convertTo0to1` so the ATTACK/SUSTAIN skew is applied (all presets were recalling ~10–30× wrong times); **WR-01** knob readouts use `getScaledValue()`; **WR-02** curve-less presets carry explicit flat curve state; **WR-03** latency re-signalled only on change, not every block.
 
 ## Known Issues
 
-None
+- **Lookahead control is inert (deferred):** enabling Lookahead delays detection and signal equally, so it produces no audible change — it only adds reported latency. True lookahead (detection ahead of the shaped output) requires an STFTProcessor detect/apply split and is deferred to a future release. The v1.3.2 fix only stopped the per-block latency re-reporting from the audio thread.
 
 ## Description
 

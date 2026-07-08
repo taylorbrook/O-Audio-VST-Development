@@ -27,7 +27,7 @@ Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
 | O-Bells | 📦 Installed | 4.0.0 | Synth (Physical Modeling Bells) | 2026-04-13 |
-| O-Tremolo | 📦 Installed | 1.4.7 | Audio Effect (Tremolo) | 2026-02-12 |
+| O-Tremolo | 📦 Installed | 1.4.8 | Audio Effect (Tremolo) | 2026-07-07 |
 | O-AnalogSaturation | 📦 Installed | 1.1.5 | Audio Effect (Saturation) | 2026-06-30 |
 | O-Marimba | 📦 Installed | 1.12.0 | Synth (Physical Model) | 2026-02-09 |
 | O-Comp | 📦 Installed | 1.5.0 | Audio Effect (Compressor) | 2026-07-01 |
@@ -42,7 +42,7 @@ Ouaricon Plugins:
 | O-Detune | 📦 Installed | 1.5.3 | Audio Effect (Detuning) | 2026-07-01 |
 | O-Freeze | 📦 Installed | 2.0.0 | Audio Effect (Granular Freeze) | 2026-04-04 |
 | O-FreqPulse | 📦 Installed | 1.16.2 | Audio Effect (Spectral Sequencer) | 2026-03-06 |
-| O-SpectralShaper | 📦 Installed | 1.3.1 | Audio Effect (Spectral Transient Shaper) | 2026-07-01 |
+| O-SpectralShaper | 📦 Installed | 1.3.2 | Audio Effect (Spectral Transient Shaper) | 2026-07-07 |
 | O-GrainScatter | 📦 Installed | 2.4.0 | Audio Effect (Granular Stutter Engine) | 2026-03-09 |
 | O-Chorus | 📦 Installed | 1.2.3 | Audio Effect (Chorus) | 2026-06-30 |
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
