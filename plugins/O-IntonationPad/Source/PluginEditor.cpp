@@ -34,7 +34,7 @@ void OIntonationPadAudioProcessorEditor::createRelays()
 {
     voiceCountRelay = std::make_unique<juce::WebSliderRelay>("voiceCount");
     complexityRelay = std::make_unique<juce::WebSliderRelay>("complexity");
-    keyRootRelay = std::make_unique<juce::WebSliderRelay>("keyRoot");
+    keyRootRelay = std::make_unique<juce::WebComboBoxRelay>("keyRoot");
     voicingModeRelay = std::make_unique<juce::WebComboBoxRelay>("voicingMode");
     stereoSpreadRelay = std::make_unique<juce::WebSliderRelay>("stereoSpread");
     spacingRelay = std::make_unique<juce::WebSliderRelay>("spacing");
@@ -219,7 +219,9 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 "*.scl");
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, complete](const juce::FileChooser& fc) {
+                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                (const juce::FileChooser& fc) {
+                    if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
                     if (file.existsAsFile()) {
                         bool success = processorRef.getTuningEngine().loadScalaFile(file);
@@ -241,7 +243,9 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 "*.scl");
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, complete](const juce::FileChooser& fc) {
+                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                (const juce::FileChooser& fc) {
+                    if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
                     if (file != juce::File()) {
                         auto content = processorRef.getTuningEngine().generateScalaFileContent();
@@ -260,7 +264,9 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 "*.kbm");
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, complete](const juce::FileChooser& fc) {
+                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                (const juce::FileChooser& fc) {
+                    if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
                     if (file.existsAsFile()) {
                         bool success = processorRef.getTuningEngine().loadKBMFile(file);
@@ -279,7 +285,9 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 "*.kbm");
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, complete](const juce::FileChooser& fc) {
+                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                (const juce::FileChooser& fc) {
+                    if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
                     if (file != juce::File()) {
                         auto content = processorRef.getTuningEngine().generateKBMFileContent();
@@ -429,7 +437,9 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 "*.html");
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, complete](const juce::FileChooser& fc) {
+                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                (const juce::FileChooser& fc) {
+                    if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
                     if (file != juce::File()) {
                         auto html = TuningExporter::toHTML(processorRef.getTuningEngine(), "O-IntonationPad");
@@ -620,7 +630,7 @@ void OIntonationPadAudioProcessorEditor::createAttachments()
         *apvts.getParameter("voiceCount"), *voiceCountRelay, nullptr);
     complexityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("complexity"), *complexityRelay, nullptr);
-    keyRootAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+    keyRootAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("keyRoot"), *keyRootRelay, nullptr);
     voicingModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("voicingMode"), *voicingModeRelay, nullptr);

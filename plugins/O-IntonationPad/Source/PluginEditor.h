@@ -35,7 +35,7 @@ private:
     // 1. RELAYS FIRST (no dependencies)
     std::unique_ptr<juce::WebSliderRelay> voiceCountRelay;
     std::unique_ptr<juce::WebSliderRelay> complexityRelay;
-    std::unique_ptr<juce::WebSliderRelay> keyRootRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> keyRootRelay;
     std::unique_ptr<juce::WebComboBoxRelay> voicingModeRelay;
     std::unique_ptr<juce::WebSliderRelay> stereoSpreadRelay;
     std::unique_ptr<juce::WebSliderRelay> spacingRelay;
@@ -102,7 +102,7 @@ private:
     // 3. ATTACHMENTS LAST (depend on both relays and webView)
     std::unique_ptr<juce::WebSliderParameterAttachment> voiceCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> complexityAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> keyRootAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> keyRootAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> voicingModeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> stereoSpreadAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> spacingAttachment;

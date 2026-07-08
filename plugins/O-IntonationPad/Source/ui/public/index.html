@@ -1778,7 +1778,7 @@
             // Initialize parameter states
             voiceCountState = Juce.getSliderState('voiceCount');
             complexityState = Juce.getSliderState('complexity');
-            keyRootState = Juce.getSliderState('keyRoot');
+            keyRootState = Juce.getComboBoxState('keyRoot');
             voicingModeState = Juce.getComboBoxState('voicingMode');
             stereoSpreadState = Juce.getSliderState('stereoSpread');
             spacingState = Juce.getSliderState('spacing');
@@ -1853,10 +1853,12 @@
             setupKnob('filterCutoff', filterCutoffState, 20, 20000, ' Hz', v => Math.round(v));
             setupKnob('filterLfoDepth', filterLfoDepthState, 0, 100, '%', v => Math.round(v));
             setupKnob('velocityToFilter', velocityToFilterState, 0, 100, '%', v => Math.round(v));
-            setupKnob('masterVolume', masterVolumeState, -60, 6, ' dB', v => v.toFixed(1));
+            // masterVolume is a linear gain 0.0–1.26; display as dB = 20*log10(gain)
+            setupKnob('masterVolume', masterVolumeState, -60, 6, ' dB', v => v.toFixed(1), { db: true });
 
             // Setup dropdowns
-            setupDropdown('keyRoot', keyRootState, 12);
+            // WR-02: keyRoot is an AudioParameterChoice → WebComboBoxRelay/getComboBoxState (was WebSliderRelay by luck)
+            setupComboBox('keyRoot', keyRootState);
             setupComboBox('voicingMode', voicingModeState);
 
             setupComboBox('wavetableBank', wavetableBankState);
@@ -2205,11 +2207,20 @@
         });
 
         // Generic knob setup (SVG vine-arc style)
-        function setupKnob(paramId, state, min, max, unit, formatter) {
+        //
+        // CR-02: The readout is driven by state.getScaledValue() — the true C++
+        // engineering value from the parameter's NormalisableRange (skew-aware) —
+        // NOT a linear `min + norm*(max-min)` map, which was ~8x wrong for skewed
+        // knobs (filterCutoff, lfoRate, time knobs, etc.). `dispMin`/`dispMax` are
+        // the DISPLAY endpoints matching the range endpoints; the ratio against
+        // the live properties.start/end handles unit conversion (s→ms, gain→%).
+        // opts.db=true routes the display through 20*log10(gain) for Master Volume.
+        function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
             if (!state) {
                 console.error(`Failed to get slider state for ${paramId}`);
                 return;
             }
+            const isDb = !!(opts && opts.db);
 
             const knobEl = document.getElementById(`${paramId}Knob`);
             const vine = document.getElementById(`${paramId}Vine`);
@@ -2224,23 +2235,51 @@
 
             let isEditing = false;
 
+            // Scaled engineering value (C++ range) -> displayed number
+            function scaledToDisplay(scaled) {
+                if (isDb) return scaled > 1e-4 ? (20 * Math.log10(scaled)) : -Infinity;
+                const { start, end } = state.properties;
+                if (end === start) return dispMin;
+                return dispMin + ((scaled - start) / (end - start)) * (dispMax - dispMin);
+            }
+            // Displayed number -> scaled engineering value (C++ range)
+            function displayToScaled(disp) {
+                if (isDb) return Math.pow(10, disp / 20);
+                const { start, end } = state.properties;
+                if (dispMax === dispMin) return start;
+                return start + ((disp - dispMin) / (dispMax - dispMin)) * (end - start);
+            }
+            // Scaled engineering value -> normalised [0,1] (skew-aware, matches JUCE)
+            function scaledToNorm(scaled) {
+                const { start, end, skew } = state.properties;
+                if (end === start) return 0;
+                const frac = Math.max(0, Math.min(1, (scaled - start) / (end - start)));
+                return Math.pow(frac, skew);
+            }
+            function formatDisplay(scaled) {
+                const disp = scaledToDisplay(scaled);
+                if (!isFinite(disp)) return '-∞' + unit;  // e.g. 0 gain -> -∞ dB
+                const formatted = formatter ? formatter(disp) : disp.toFixed(1);
+                return formatted + unit;
+            }
+
             function updateVisual() {
                 const normValue = state.getNormalisedValue();
-                const realValue = min + (normValue * (max - min));
 
-                // Update SVG vine arc
+                // Update SVG vine arc (getNormalisedValue is already skew-correct)
                 const offset = arcLength - (normValue * arcLength);
                 vine.style.strokeDashoffset = offset;
 
                 // Update value display (skip when user is editing)
                 if (!isEditing) {
-                    const formatted = formatter ? formatter(realValue) : realValue.toFixed(1);
-                    valueDisplay.textContent = formatted + unit;
+                    valueDisplay.textContent = formatDisplay(state.getScaledValue());
                 }
             }
 
             // JUCE -> UI
             state.valueChangedEvent.addListener(() => updateVisual());
+            // Re-render once the backend pushes the real range (start/end/skew)
+            state.propertiesChangedEvent.addListener(() => updateVisual());
 
             // UI -> JUCE (drag on knob-visual)
             const knobVisual = knobEl.querySelector('.knob-visual');
@@ -2272,9 +2311,10 @@
                 if (isEditing) return;
                 isEditing = true;
 
-                const normValue = state.getNormalisedValue();
-                const realValue = min + (normValue * (max - min));
-                const formatted = formatter ? formatter(realValue) : realValue.toFixed(1);
+                const initDisp = scaledToDisplay(state.getScaledValue());
+                const formatted = isFinite(initDisp)
+                    ? (formatter ? formatter(initDisp) : initDisp.toFixed(1))
+                    : '';
 
                 const input = document.createElement('input');
                 input.type = 'text';
@@ -2297,8 +2337,12 @@
                     if (!isEditing) return;
                     const rawVal = parseFloat(input.value);
                     if (!isNaN(rawVal)) {
-                        const clamped = Math.max(min, Math.min(max, rawVal));
-                        const norm = (clamped - min) / (max - min);
+                        // display -> scaled -> normalised (skew-aware inverse)
+                        let scaled = displayToScaled(rawVal);
+                        const { start, end } = state.properties;
+                        const lo = Math.min(start, end), hi = Math.max(start, end);
+                        scaled = Math.max(lo, Math.min(hi, scaled));
+                        const norm = scaledToNorm(scaled);
                         state.sliderDragStarted();
                         state.setNormalisedValue(Math.max(0, Math.min(1, norm)));
                         state.sliderDragEnded();

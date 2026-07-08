@@ -9,6 +9,7 @@
 */
 
 #include "ReverbProcessor.h"
+#include <cmath>
 
 void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 {
@@ -17,6 +18,13 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     reverb.prepare (spec);
     preDelayL.prepare (spec);
     preDelayR.prepare (spec);
+
+    // WR-03: size the pre-delay lines for the actual sample rate (reverbPredelay max is 200ms).
+    // The fixed 19200-sample ctor size overflows above 96 kHz; rescale here (non-RT).
+    const int maxPredelaySamples = static_cast<int> (std::ceil (0.2 * spec.sampleRate)) + 1;
+    preDelayL.setMaximumDelayInSamples (maxPredelaySamples);
+    preDelayR.setMaximumDelayInSamples (maxPredelaySamples);
+
     dryWetMixer.prepare (spec);
 
     // Force parameter application after prepare

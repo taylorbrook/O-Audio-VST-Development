@@ -36,7 +36,8 @@ struct ActiveNoteInfo
 };
 
 class OIntonationPadAudioProcessor : public juce::AudioProcessor,
-                                    public juce::AudioProcessorValueTreeState::Listener
+                                    public juce::AudioProcessorValueTreeState::Listener,
+                                    private juce::AsyncUpdater
 {
 public:
     OIntonationPadAudioProcessor();
@@ -136,6 +137,22 @@ private:
 
     // Background pre-warm task (joined in destructor)
     std::future<void> preWarmFuture_;
+
+    // CR-05: APVTS dispatches parameterChanged synchronously on the calling thread, so
+    // automating the tuning params fired the expensive locked TuningEngine rebuilds
+    // (intervalMutex + 128×pow + make_shared) on the AUDIO thread. parameterChanged now
+    // only stashes the new value into an atomic + a dirty flag and triggerAsyncUpdate()s;
+    // handleAsyncUpdate() (message thread) does the real work. getFrequency already reads
+    // the frequency table lock-free, so the deferral is safe.
+    void handleAsyncUpdate() override;
+    std::atomic<float> pendingMasterTune_ { 440.0f };
+    std::atomic<float> pendingOctaveStretch_ { 1.0f };
+    std::atomic<float> pendingPitchBendRange_ { 2.0f };
+    std::atomic<int>   pendingTemperament_ { 8 };
+    std::atomic<bool>  masterTuneDirty_ { false };
+    std::atomic<bool>  octaveStretchDirty_ { false };
+    std::atomic<bool>  pitchBendRangeDirty_ { false };
+    std::atomic<bool>  temperamentDirty_ { false };
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

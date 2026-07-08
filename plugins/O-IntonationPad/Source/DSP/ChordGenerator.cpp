@@ -12,25 +12,37 @@
 #include <algorithm>
 #include <cmath>
 
-std::vector<ChordVoice> ChordGenerator::generateChord(int rootMidiNote, int numVoices,
-                                                       int keyRoot, const std::vector<int>& enabledDegrees,
-                                                       int scaleDegreeCount,
-                                                       VoicingMode voicingMode)
+ChordGenerator::ChordGenerator()
 {
+    // WR-01: reserve generously so generateChord() never reallocates on the audio thread.
+    // numVoices is capped at 12; intervals ≤ scale-degree count (covers large microtonal scales).
+    voicesBuf_.reserve(32);
+    intervalsBuf_.reserve(256);
+}
+
+const std::vector<ChordVoice>& ChordGenerator::generateChord(int rootMidiNote, int numVoices,
+                                                             int keyRoot, const std::vector<int>& enabledDegrees,
+                                                             int scaleDegreeCount,
+                                                             VoicingMode voicingMode)
+{
+    voicesBuf_.clear();
+
     if (enabledDegrees.empty() || scaleDegreeCount <= 0)
     {
         // Fallback: single voice at root
-        return {{ rootMidiNote, 0, 0.0f }};
+        voicesBuf_.push_back({ rootMidiNote, 0, 0.0f });
+        return voicesBuf_;
     }
 
     // Find which enabled degree the played note maps to
     int rootDegreeInScale = findNearestDegree(rootMidiNote, keyRoot, enabledDegrees, scaleDegreeCount);
 
-    // Build chord intervals from enabled degrees
-    auto intervals = buildChordIntervals(rootDegreeInScale, enabledDegrees, scaleDegreeCount);
+    // Build chord intervals from enabled degrees (into intervalsBuf_)
+    buildChordIntervals(rootDegreeInScale, enabledDegrees, scaleDegreeCount);
 
-    // Distribute voices across the intervals
-    return distributeVoices(rootMidiNote, rootDegreeInScale, intervals, numVoices, scaleDegreeCount, voicingMode);
+    // Distribute voices across the intervals (into voicesBuf_)
+    distributeVoices(rootMidiNote, numVoices, scaleDegreeCount, voicingMode);
+    return voicesBuf_;
 }
 
 int ChordGenerator::findNearestDegree(int midiNote, int keyRoot, const std::vector<int>& enabledDegrees,
@@ -62,38 +74,40 @@ int ChordGenerator::findNearestDegree(int midiNote, int keyRoot, const std::vect
     return bestDegree;
 }
 
-std::vector<int> ChordGenerator::buildChordIntervals(int rootDegreeInScale,
-                                                      const std::vector<int>& enabledDegrees,
-                                                      int scaleDegreeCount) const
+void ChordGenerator::buildChordIntervals(int rootDegreeInScale,
+                                          const std::vector<int>& enabledDegrees,
+                                          int scaleDegreeCount)
 {
     // Build intervals as degree offsets from the root degree
     // These become MIDI note offsets (since TuningEngine maps MIDI linearly through degrees)
-    std::vector<int> intervals;
+    intervalsBuf_.clear();
 
     for (int d : enabledDegrees)
     {
         int offset = d - rootDegreeInScale;
         if (offset < 0)
             offset += scaleDegreeCount;
-        intervals.push_back(offset);
+        intervalsBuf_.push_back(offset);
     }
 
     // Sort by offset (ascending) — root (0) first, then upward
-    std::sort(intervals.begin(), intervals.end());
-
-    return intervals;
+    std::sort(intervalsBuf_.begin(), intervalsBuf_.end());
 }
 
-std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int rootDegreeInScale,
-                                                          const std::vector<int>& intervals,
-                                                          int numVoices, int scaleDegreeCount,
-                                                          VoicingMode voicingMode) const
+void ChordGenerator::distributeVoices(int rootMidiNote, int numVoices,
+                                      int scaleDegreeCount, VoicingMode voicingMode)
 {
-    std::vector<ChordVoice> voices;
+    // Aliases keep the mode-specific logic below unchanged while writing into the
+    // pre-reserved member buffer (no per-call allocation on the audio thread).
+    auto& voices = voicesBuf_;               // already cleared by generateChord()
+    const auto& intervals = intervalsBuf_;
     int availableIntervals = static_cast<int>(intervals.size());
 
     if (availableIntervals == 0)
-        return {{ rootMidiNote, 0, 0.0f }};
+    {
+        voices.push_back({ rootMidiNote, 0, 0.0f });
+        return;
+    }
 
     // Assign complexity thresholds: root interval gets 0.0 (always on),
     // subsequent intervals get progressively higher thresholds
@@ -142,14 +156,13 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int r
 
         case VoicingMode::Drop2:
         {
-            // Build close voicing first, then drop 2nd-highest note down one octave
-            std::vector<ChordVoice> closeVoices;
+            // Build close voicing directly in the output buffer, then drop 2nd-highest an octave
             for (int i = 0; i < numVoices; ++i)
             {
                 int intervalIndex = (availableIntervals > 0) ? (i % availableIntervals) : 0;
                 int degreeOffset = intervals[intervalIndex];
 
-                closeVoices.push_back({
+                voices.push_back({
                     rootMidiNote + degreeOffset,
                     0,
                     getThreshold(i, numVoices)
@@ -157,18 +170,17 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int r
             }
 
             // Sort by MIDI note (ascending) to find 2nd-highest
-            std::sort(closeVoices.begin(), closeVoices.end(),
+            std::sort(voices.begin(), voices.end(),
                       [](const ChordVoice& a, const ChordVoice& b) { return a.midiNote < b.midiNote; });
 
             // Drop the 2nd-highest note down one octave (if we have at least 2 voices)
-            if (static_cast<int>(closeVoices.size()) >= 2)
+            if (static_cast<int>(voices.size()) >= 2)
             {
-                auto& drop = closeVoices[closeVoices.size() - 2];
+                auto& drop = voices[voices.size() - 2];
                 drop.midiNote -= 12;  // Always 12 semitones (one standard octave)
                 drop.octaveShift = -1;
             }
 
-            voices = std::move(closeVoices);
             break;
         }
 
@@ -263,6 +275,5 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int r
             break;
         }
     }
-
-    return voices;
+    // Result is in voicesBuf_ (aliased as `voices`)
 }
