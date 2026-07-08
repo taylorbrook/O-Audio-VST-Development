@@ -73,16 +73,22 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
                     processorRef.presetManager.getUserPresetsDirectory(),
                     "*.json"
                 );
+                // CR-01: capture a SafePointer, not raw `this`/`complete`. If the editor
+                // is torn down while the dialog is open, bail with a bare return — the
+                // `complete` callback is owned by the (now-dead) WebView Impl, so calling
+                // it (even complete(false)) is itself a use-after-free.
+                juce::Component::SafePointer<OSpectralShaperAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete, makeDialogResult](const juce::FileChooser& fc) {
+                    [safeThis, complete, makeDialogResult](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             complete(makeDialogResult(false, ""));
                             return;
                         }
                         auto presetName = results.getFirst().getFileNameWithoutExtension();
-                        bool success = processorRef.presetManager.savePreset(presetName);
+                        bool success = safeThis->processorRef.presetManager.savePreset(presetName);
                         complete(makeDialogResult(success, success ? presetName : juce::String()));
                     }
                 );
@@ -129,16 +135,20 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
                     processorRef.presetManager.getUserPresetsDirectory(),
                     "*.json"
                 );
+                // CR-01: SafePointer guard — see savePresetWithDialog above. Bare return
+                // on teardown; do NOT call complete() (owned by the dead WebView Impl).
+                juce::Component::SafePointer<OSpectralShaperAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete, makeDialogResult](const juce::FileChooser& fc) {
+                    [safeThis, complete, makeDialogResult](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             complete(makeDialogResult(false, ""));
                             return;
                         }
                         auto file = results.getFirst();
-                        bool success = processorRef.presetManager.loadPresetFromFile(file);
+                        bool success = safeThis->processorRef.presetManager.loadPresetFromFile(file);
                         complete(makeDialogResult(success, success ? file.getFileNameWithoutExtension() : juce::String()));
                     }
                 );

@@ -77,6 +77,11 @@ private:
     int lookaheadDelayLength = 0;  // In samples
     bool lookaheadEnabled = false;
 
+    // WR-03: last latency value signalled to the host. Guards setLatencySamples() so it
+    // is only called when the reported latency actually changes, instead of every block
+    // from the audio thread (which many hosts glitch on or ignore).
+    int lastReportedLatency = -1;
+
     // Curve arrays (saved/loaded with plugin state)
     std::array<float, 32> attackCurve {};
     std::array<float, 32> sustainCurve {};

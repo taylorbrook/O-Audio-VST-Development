@@ -46,6 +46,10 @@ public:
     // Preset management
     OuariconPresetManager presetManager;
 
+    // Current host tempo (BPM), cached from the audio thread for the UI (IN-04).
+    // Returns the last-seen host BPM, or the 120.0 default if the host never reported one.
+    double getHostBpm() const { return hostBpm.load(); }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -59,6 +63,15 @@ private:
     // Smoothing filter state (separate for L/R when Pan Sync enabled)
     float smoothedLFO_L = 0.0f;
     float smoothedLFO_R = 0.0f;
+
+    // Depth parameter smoothing (WR-01): depth scales the per-sample output gain,
+    // so an un-smoothed step (automation / preset recall / UI drag) causes an audible
+    // zipper/click. Ramped per-sample to eliminate it.
+    juce::SmoothedValue<float> depthSmoothed;
+
+    // Host tempo cached from the audio thread for the UI's tempo-sync readout (IN-04).
+    // The WebView has no direct host access; getHostBpm() lets JS show the real division.
+    std::atomic<double> hostBpm { 120.0 };
 
     // Random number generator for noise waveform
     juce::Random random;

@@ -80,27 +80,22 @@ function initializeKnobs() {
     });
     bindKnobToParameter(app.knobs.mix, 'MIX');
 
-    // Attack Time (0.1-50ms, log scale)
+    // Attack Time (0.1-50ms, skewed range)
+    // WR-01: read the real engineering value JUCE already computed via getScaledValue()
+    // (== NormalisableRange::convertFrom0to1). Re-deriving the skewed range in JS drifts
+    // from the C++ range and ignores the skew — see pattern_webview_knob_readout_scaled_value.
     app.knobs.attackTime = new RotaryKnob('attack-time-knob-container', 'attack-time-value', {
-        formatValue: (v) => {
-            // Convert normalized to log range (0.1 to 50)
-            const skew = 0.3;
-            const min = 0.1;
-            const max = 50.0;
-            const value = min * Math.pow(max / min, Math.pow(v, 1.0 / skew));
+        formatValue: () => {
+            const value = Juce.getSliderState('ATTACK_TIME').getScaledValue();
             return value < 10 ? `${value.toFixed(1)}ms` : `${Math.round(value)}ms`;
         }
     });
     bindKnobToParameter(app.knobs.attackTime, 'ATTACK_TIME');
 
-    // Sustain Time (10-500ms, log scale)
+    // Sustain Time (10-500ms, skewed range) — WR-01: use getScaledValue(), see above
     app.knobs.sustainTime = new RotaryKnob('sustain-time-knob-container', 'sustain-time-value', {
-        formatValue: (v) => {
-            // Convert normalized to log range (10 to 500)
-            const skew = 0.3;
-            const min = 10.0;
-            const max = 500.0;
-            const value = min * Math.pow(max / min, Math.pow(v, 1.0 / skew));
+        formatValue: () => {
+            const value = Juce.getSliderState('SUSTAIN_TIME').getScaledValue();
             return `${Math.round(value)}ms`;
         }
     });
