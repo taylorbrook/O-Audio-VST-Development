@@ -286,6 +286,15 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         auto paramsVar = preset->getProperty("parameters");
         if (auto* paramsObj = paramsVar.getDynamicObject())
         {
+            // WR-03 (preset-manager v1.0.3): reset every parameter to its default first,
+            // so presets that omit a key (hand-authored factory defs storing only 3 of 5
+            // params, saves from older plugin versions with fewer parameters) don't inherit
+            // stale live state — e.g. loading a factory preset while bypass is on no longer
+            // leaves the plugin silently bypassed.
+            for (auto* param : parameters.processor.getParameters())
+                if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
+                    rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
+
             for (auto& prop : paramsObj->getProperties())
             {
                 if (auto* param = parameters.getParameter(prop.name.toString()))

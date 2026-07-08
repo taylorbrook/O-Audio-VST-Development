@@ -79,6 +79,11 @@ private:
     // State tracking
     CrossoverFilter::Mode lastReportedMode = CrossoverFilter::Mode::LowLatency;
 
+    // WR-02: cache the last latency_mode applied in processBlock so the RT-safe
+    // atomic mode flip only fires on change (not every block). Kept in sync with
+    // the parameter in prepareToPlay so the first block after prepare is a no-op.
+    CrossoverFilter::Mode lastLatencyMode = CrossoverFilter::Mode::LowLatency;
+
     // Smoothed enhance for click-free bypass transitions
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedEnhance;
 
