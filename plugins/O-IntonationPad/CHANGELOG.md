@@ -1,5 +1,30 @@
 # O-IntonationPad Changelog
 
+## [2.8.1] - 2026-07-08
+
+Resolves all Critical + Warning findings from the v2.8.0 deep code review (`CODE_REVIEW.md`).
+No parameter IDs, ranges, types, or state format changed — presets and sessions load unchanged.
+
+### Fixed
+
+- **CR-01 — Wavetable bank generation could run on the audio thread.** `WavetableVoice::setWavetableBank/Bank2` called `BankCache::getBank()` every block, whose slow path allocates a ~22 MB `MipmapTable` and runs additive synthesis under a mutex. **Root cause:** the pre-warm was fire-and-forget and callers hit the locking `getBank` unconditionally. **Fix:** added lock-free `BankCache::getBankIfReady()` (audio thread never locks/allocates), gated the setters on an actual index change (folds in IN-03), and `prepareToPlay` now synchronously warms the two currently-selected banks before audio starts. A switch to a not-yet-warmed bank keeps the current bank until the background warm completes.
+- **CR-02 — WebView knob readouts ignored `NormalisableRange` skew.** `setupKnob` displayed `min + norm*(max-min)` (linear), so ~10 skewed knobs read wrong (filterCutoff ~8× off) and Master Volume showed nonsense dB; double-click edits wrote wrong values. **Fix:** the readout is now driven by `state.getScaledValue()` (the true C++ engineering value); the display/range-endpoint ratio handles unit conversion (s→ms, gain→%), Master Volume uses `20·log10(gain)`, and the double-click inverse maps display→scaled→normalised (skew-aware). Linear knobs are behavior-identical.
+- **CR-03 — FileChooser `launchAsync` completions captured raw `this`.** Closing the editor while a tuning file dialog was open dereferenced a destroyed editor and invoked a `complete` callback owned by the dead WebView. **Fix:** all 5 dialogs now capture a `Component::SafePointer` and bail with a bare `return` on the null path (no `complete()` call — it is itself a UAF).
+- **CR-04 — EQ heap-allocated IIR coefficients on the audio thread.** `updateCoefficients()` called `Coefficients::makeLowShelf/makePeakFilter/makeHighShelf` (each `new`-allocates a ref-counted `Ptr`) every block during automation. **Fix:** switched to `ArrayCoefficients` (stack `std::array<float,6>`) copied in place via `getRawCoefficients()`; `prepare()` does the one-time allocation.
+- **CR-05 — Automatable tuning params ran mutex + `make_shared` + 128×`pow` on the audio thread.** APVTS dispatches `parameterChanged` synchronously on the calling thread, so host automation of Master Tune / Octave Stretch / Pitch Bend / Temperament rebuilt the frequency table on the audio callback. **Fix:** `parameterChanged` now stashes the value into an atomic + dirty flag and `triggerAsyncUpdate()`s; the real `TuningEngine` work runs in `handleAsyncUpdate()` on the message thread (`getFrequency` already reads the table lock-free).
+- **CR-06 — Factory presets seeded from live state, not defaults.** `buildFactoryPresetXml` started from `copyState()` (current values) then applied only sparse overrides, so unspecified params inherited whatever was loaded before, and "Init" (empty overrides) never re-inited. **Fix:** every PARAM is reset to `param->convertFrom0to1(param->getDefaultValue())` before overrides are applied. User presets (full-state saves) are unaffected.
+- **WR-01 — `generateChord()` heap-allocated on every note-on.** It returned a `std::vector<ChordVoice>` by value and built more vectors internally (intervals, Drop-2 close-voice copy). **Fix:** `ChordGenerator` now uses pre-reserved member scratch buffers (reserved in the ctor) and `generateChord` returns a `const&` — no allocation in steady state (single-threaded audio use).
+- **WR-02 — `keyRoot` (an `AudioParameterChoice`) was wired through a `WebSliderRelay`.** It worked only by coincidence of the linear choice mapping. **Fix:** converted to `WebComboBoxRelay` + `WebComboBoxParameterAttachment` + `getComboBoxState`/`setupComboBox`, matching the other five choice params.
+- **WR-03 — Delay/reverb delay lines overflowed above 96 kHz.** Fixed 192000 / 19200-sample ctor sizes cover only up to 96 kHz for the 2.0 s delay / 200 ms pre-delay maxima. **Fix:** each `prepare()` now `setMaximumDelayInSamples(ceil(maxSeconds·sampleRate)+1)`. (auval 192 kHz render test passes.)
+- **WR-04 — Preset name used verbatim as filename.** A "/" (or Windows-illegal char) silently dropped the save into a subfolder / failed the write. **Fix:** `getPresetFile` sanitizes via `juce::File::createLegalFileName`, and `savePreset` rejects names that sanitize to empty.
+- **WR-05 — Chord base MIDI note passed unclamped.** Extreme voicings (Thirds/Quartal/Quintal at a high root) could push the base note past 127. **Fix:** clamp `baseMidiNote` to [0,127] alongside the spacing/inversion notes.
+- **WR-06 — Fallback single-voice path discarded the NE offset and bypassed the TuningEngine.** It built the note from `getMidiNoteInHertz` after `applyPendingTuning` had already consumed the NE slot. **Fix:** the fallback now uses `resolveFrequency(note, 0.0) * neRatio`, consistent with the chord path. (Latent — the branch is not taken in the current default configuration.)
+
+### Notes
+
+- Also bumps the stale PLUGINS.md registry row (2.7.2 → 2.8.1) — folds in IN-08.
+- Info findings IN-01/02/04..07/09..11 were out of scope for this pass and remain open (see NOTES.md → Known Limitations).
+
 ## [2.8.0] - 2026-04-26
 
 ### Added

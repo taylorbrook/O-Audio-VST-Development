@@ -9,6 +9,7 @@
 */
 
 #include "DelayProcessor.h"
+#include <cmath>
 
 DelayProcessor::DelayProcessor() = default;
 
@@ -18,6 +19,13 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 
     delayL.prepare (spec);
     delayR.prepare (spec);
+
+    // WR-03: size the delay lines for the actual sample rate (delayTime max is 2.0s).
+    // The fixed 192000-sample ctor size overflows above 96 kHz; rescale here (non-RT).
+    const int maxDelaySamples = static_cast<int> (std::ceil (2.0 * spec.sampleRate)) + 1;
+    delayL.setMaximumDelayInSamples (maxDelaySamples);
+    delayR.setMaximumDelayInSamples (maxDelaySamples);
+
     feedbackFilterL.prepare (spec);
     feedbackFilterR.prepare (spec);
     dryWetMixer.prepare (spec);

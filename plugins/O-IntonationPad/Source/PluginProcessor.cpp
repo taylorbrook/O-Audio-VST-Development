@@ -433,12 +433,24 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
 
 OIntonationPadAudioProcessor::~OIntonationPadAudioProcessor()
 {
+    // CR-05: cancel any pending tuning-param async update before members are destroyed.
+    cancelPendingUpdate();
+
     if (preWarmFuture_.valid())
         preWarmFuture_.wait();
 }
 
 void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    // CR-01: synchronously ensure the two currently-selected banks are generated on
+    // this (non-realtime) thread BEFORE audio starts, so the audio thread's RT-safe
+    // getBankIfReady() path always finds them (covers presets that select a non-default
+    // bank at load). The remaining banks warm in the background; switching to a not-yet-
+    // warmed bank keeps the current bank until its generation completes — no audio-thread
+    // allocation or mutex ever.
+    WavetableData::BankCache::getBank(static_cast<int>(cachedWavetableBank->load()));
+    WavetableData::BankCache::getBank(static_cast<int>(cachedWavetableBank2->load()));
+
     // Pre-warm all 20 wavetable banks in a background thread to avoid
     // ~22MB allocations under mutex on the audio thread during first bank switch
     if (!preWarmFuture_.valid())
@@ -755,15 +767,53 @@ juce::AudioProcessorEditor* OIntonationPadAudioProcessor::createEditor()
 
 void OIntonationPadAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
 {
+    // CR-05: this can be called on the AUDIO thread (host automation). Do NOT touch the
+    // TuningEngine here (locks + 128×pow + make_shared). Stash the value + a dirty flag
+    // and defer the real work to handleAsyncUpdate() on the message thread.
     if (parameterID == "tuning_masterTune")
-        tuningEngine.setMasterTune(static_cast<double>(newValue));
+    {
+        pendingMasterTune_.store(newValue, std::memory_order_relaxed);
+        masterTuneDirty_.store(true, std::memory_order_release);
+    }
     else if (parameterID == "tuning_octaveStretch")
-        tuningEngine.setOctaveStretch(newValue);
+    {
+        pendingOctaveStretch_.store(newValue, std::memory_order_relaxed);
+        octaveStretchDirty_.store(true, std::memory_order_release);
+    }
     else if (parameterID == "tuning_pitchBendRange")
-        tuningEngine.setPitchBendRange(newValue);
+    {
+        pendingPitchBendRange_.store(newValue, std::memory_order_relaxed);
+        pitchBendRangeDirty_.store(true, std::memory_order_release);
+    }
     else if (parameterID == "tuning_temperamentPreset")
     {
-        tuningEngine.setBuiltInPreset(static_cast<TuningEngine::BuiltInPreset>(static_cast<int>(newValue)));
+        pendingTemperament_.store(static_cast<int>(newValue), std::memory_order_relaxed);
+        temperamentDirty_.store(true, std::memory_order_release);
+    }
+    else
+    {
+        return;
+    }
+
+    triggerAsyncUpdate();
+}
+
+void OIntonationPadAudioProcessor::handleAsyncUpdate()
+{
+    // Message thread: apply any tuning-parameter changes stashed by parameterChanged().
+    if (masterTuneDirty_.exchange(false, std::memory_order_acquire))
+        tuningEngine.setMasterTune(static_cast<double>(pendingMasterTune_.load(std::memory_order_relaxed)));
+
+    if (octaveStretchDirty_.exchange(false, std::memory_order_acquire))
+        tuningEngine.setOctaveStretch(pendingOctaveStretch_.load(std::memory_order_relaxed));
+
+    if (pitchBendRangeDirty_.exchange(false, std::memory_order_acquire))
+        tuningEngine.setPitchBendRange(pendingPitchBendRange_.load(std::memory_order_relaxed));
+
+    if (temperamentDirty_.exchange(false, std::memory_order_acquire))
+    {
+        tuningEngine.setBuiltInPreset(
+            static_cast<TuningEngine::BuiltInPreset>(pendingTemperament_.load(std::memory_order_relaxed)));
         checkAndResetForScaleChange();
     }
 }

@@ -119,7 +119,9 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
     {
         // Always generate MAX sub-voices with full complexity so voice count,
         // complexity, spacing, and inversion can all be changed in real-time on held notes
-        auto chordVoices = chordGeneratorPtr->generateChord(midiNoteNumber, MAX_SUB_VOICES,
+        // WR-01: reference to ChordGenerator's internal buffer — no allocation, valid
+        // until the next generateChord() call (single-threaded audio use).
+        const auto& chordVoices = chordGeneratorPtr->generateChord(midiNoteNumber, MAX_SUB_VOICES,
                                                              cachedKeyRoot, cachedEnabledDegrees,
                                                              cachedScaleDegreeCount,
                                                              static_cast<VoicingMode>(cachedVoicingMode));
@@ -133,7 +135,10 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         for (int i = 0; i < numSubVoices; ++i)
         {
             auto idx = static_cast<size_t>(i);
-            int baseMidiNote = chordVoices[idx].midiNote;
+            // WR-05: clamp the base note to the valid MIDI range, alongside the
+            // spacing/inversion notes below — extreme voicings (Thirds/Quartal/Quintal
+            // at a high root) can push degreeOffset well past 127.
+            int baseMidiNote = juce::jlimit(0, 127, chordVoices[idx].midiNote);
 
             // --- Base oscillator ---
             double centOffset = 0.0;
@@ -229,8 +234,10 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
     }
     else
     {
-        // Fallback: single voice at root frequency
-        float frequency = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
+        // Fallback: single voice at root frequency.
+        // WR-06: honor the tuning engine + the consumed NE ratio here too, so this
+        // path is consistent with the chord path (was bypassing both via getMidiNoteInHertz).
+        float frequency = static_cast<float>(resolveFrequency(midiNoteNumber, 0.0) * neRatio);
         initializeSingleSubVoice(0, midiNoteNumber, frequency,
                                  midiNoteNumber, frequency,
                                  midiNoteNumber, frequency);
@@ -480,13 +487,25 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
 
 void WavetableVoice::setWavetableBank(int bankIndex)
 {
-    const auto* bank = &WavetableData::BankCache::getBank(bankIndex);
+    // IN-03: only touch the oscillators on an actual index change.
+    if (bankIndex == cachedBankIndexA)
+        return;
+
+    // CR-01: RT-safe lookup — never generates/allocates on the audio thread. If the
+    // requested bank isn't warmed yet, keep the current bank and retry next block
+    // (cachedBankIndexA is left unchanged). Oscillators default to bank 0, so there
+    // is always a valid, non-null bank to play meanwhile.
+    const auto* bank = WavetableData::BankCache::getBankIfReady(bankIndex);
+    if (bank == nullptr)
+        return;
+
     for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
         subVoiceOscillators[i].setWavetableBank(bank);
         subVoiceSpacingOscillators[i].setWavetableBank(bank);
         subVoiceInversionOscillators[i].setWavetableBank(bank);
     }
+    cachedBankIndexA = bankIndex;
 }
 
 void WavetableVoice::setWavetablePosition(float pos)
@@ -502,13 +521,21 @@ void WavetableVoice::setWavetablePosition(float pos)
 
 void WavetableVoice::setWavetableBank2(int bankIndex)
 {
-    const auto* bank = &WavetableData::BankCache::getBank(bankIndex);
+    // IN-03 / CR-01: gate on change + RT-safe lookup (see setWavetableBank).
+    if (bankIndex == cachedBankIndexB)
+        return;
+
+    const auto* bank = WavetableData::BankCache::getBankIfReady(bankIndex);
+    if (bank == nullptr)
+        return;
+
     for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
         subVoiceOscillators2[i].setWavetableBank(bank);
         subVoiceSpacingOscillators2[i].setWavetableBank(bank);
         subVoiceInversionOscillators2[i].setWavetableBank(bank);
     }
+    cachedBankIndexB = bankIndex;
 }
 
 void WavetableVoice::setWavetablePosition2(float pos)

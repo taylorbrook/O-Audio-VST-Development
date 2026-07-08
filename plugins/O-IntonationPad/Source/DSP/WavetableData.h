@@ -511,6 +511,19 @@ namespace WavetableData
             return *instance.banks[idx];
         }
 
+        // CR-01: real-time-safe accessor for the audio thread. Returns the bank ONLY if
+        // it has already been generated (lock-free, no allocation); returns nullptr
+        // otherwise so the caller can keep its current bank until the background
+        // pre-warm finishes. NEVER takes the mutex or allocates — unlike getBank().
+        static const MipmapTable* getBankIfReady(int bankIndex) noexcept
+        {
+            auto& instance = getInstance();
+            auto idx = static_cast<size_t>(std::max(0, std::min(bankIndex, NUM_BANKS - 1)));
+            if (instance.generated[idx].load(std::memory_order_acquire))
+                return instance.banks[idx].get();
+            return nullptr;
+        }
+
     private:
         std::array<std::unique_ptr<MipmapTable>, NUM_BANKS> banks;
         std::array<std::atomic<bool>, NUM_BANKS> generated;

@@ -31,7 +31,11 @@ juce::File PresetManager::getUserPresetFolder() const
 
 juce::File PresetManager::getPresetFile(const juce::String& name) const
 {
-    return getUserPresetFolder().getChildFile(name + ".xml");
+    // WR-04: the preset name is used verbatim as the filename — a "/" is a path
+    // separator (and \ : * ? " < > | are illegal on Windows), which silently drops
+    // the file into a subfolder or fails the write. Sanitize consistently here so
+    // save/load/delete/rename all resolve to the same legal filename.
+    return getUserPresetFolder().getChildFile(juce::File::createLegalFileName(name) + ".xml");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -41,6 +45,10 @@ juce::File PresetManager::getPresetFile(const juce::String& name) const
 bool PresetManager::savePreset(const juce::String& name, const juce::String& category)
 {
     if (name.isEmpty())
+        return false;
+
+    // WR-04: reject names that sanitize to nothing (e.g. "/" or all-illegal chars)
+    if (juce::File::createLegalFileName(name).isEmpty())
         return false;
 
     // Get current state from processor
@@ -519,14 +527,30 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
 
 juce::String PresetManager::buildFactoryPresetXml(const FactoryPresetData& preset) const
 {
-    // Start with the current processor's default parameter layout
     // Build a ValueTree that matches the APVTS state format
-    auto state = processorRef.getAPVTS().copyState();
+    auto& apvts = processorRef.getAPVTS();
+    auto state = apvts.copyState();
+
+    // CR-06: reset EVERY parameter to its default (denormalized) before applying the
+    // sparse overrides. copyState() captures the *current live* values, so without this
+    // a factory preset inherited whatever was loaded before for any param it didn't
+    // override (non-deterministic recall), and "Init" (empty overrides) never re-inited.
+    for (int i = 0; i < state.getNumChildren(); ++i)
+    {
+        auto child = state.getChild(i);
+        if (child.hasType("PARAM"))
+        {
+            auto id = child.getProperty("id").toString();
+            if (auto* param = apvts.getParameter(id))
+                child.setProperty("value",
+                    param->convertFrom0to1(param->getDefaultValue()), nullptr);
+        }
+    }
 
     // Apply parameter overrides
     for (const auto& [paramId, value] : preset.paramOverrides)
     {
-        if (processorRef.getAPVTS().getParameter(paramId) != nullptr)
+        if (apvts.getParameter(paramId) != nullptr)
         {
             // Find the PARAM child in the ValueTree
             for (int i = 0; i < state.getNumChildren(); ++i)

@@ -173,6 +173,12 @@ private:
 
     float gainSmoothCoeff = 0.001f;
 
+    // CR-01/IN-03: last bank index actually applied to the oscillators. setWavetableBank
+    // is called every block; gating on an actual change means the (RT-safe) bank lookup
+    // only runs on a genuine switch. -1 forces the first apply.
+    int cachedBankIndexA = -1;
+    int cachedBankIndexB = -1;
+
     // v1.9.0: Independent gain per oscillator
     float cachedGainA = 1.0f;
     float cachedGainB = 0.0f;
