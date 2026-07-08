@@ -58,9 +58,18 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
                 );
 
                 // Launch async save dialog
+                // CR-01: guard the completion with a SafePointer — the editor can be
+                // destroyed while the native dialog is open (close window, switch track,
+                // remove plugin). On teardown bail with a BARE return: do NOT call
+                // complete() — that callback is owned by the already-dead WebView Impl,
+                // so invoking it is itself a use-after-free.
+                juce::Component::SafePointer<OBassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // editor gone — do NOT call complete()
+
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             // User cancelled
@@ -75,7 +84,7 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
                         auto presetName = file.getFileNameWithoutExtension();
 
                         // Save using the preset manager
-                        bool success = processorRef.presetManager.savePreset(presetName);
+                        bool success = safeThis->processorRef.presetManager.savePreset(presetName);
 
                         auto* result = new juce::DynamicObject();
                         result->setProperty("success", success);
@@ -129,9 +138,16 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
                 );
 
                 // Launch async file dialog
+                // CR-01: SafePointer-guard the completion (see savePresetWithDialog).
+                // Editor teardown while the dialog is open must bail with a BARE return —
+                // calling complete() would fire a callback owned by the dead WebView Impl.
+                juce::Component::SafePointer<OBassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // editor gone — do NOT call complete()
+
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             // User cancelled
@@ -143,7 +159,7 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
                         }
 
                         auto file = results.getFirst();
-                        bool success = processorRef.presetManager.loadPresetFromFile(file);
+                        bool success = safeThis->processorRef.presetManager.loadPresetFromFile(file);
 
                         auto* result = new juce::DynamicObject();
                         result->setProperty("success", success);

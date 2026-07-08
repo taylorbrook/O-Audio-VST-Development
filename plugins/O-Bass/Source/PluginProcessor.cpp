@@ -74,21 +74,30 @@ OBassAudioProcessor::OBassAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "OBass")
 {
-    // Initialize factory presets
+    // WR-01: crossover_freq has skew 0.5, so its stored value is a NORMALISED APVTS
+    // value, not a linear fraction. Author the table in engineering units (Hz) and
+    // convert through the real NormalisableRange so the skew is honoured — otherwise
+    // the whole table compresses into the bottom quarter of the 40-200 Hz control
+    // (e.g. "Default" would land at 50 Hz instead of the plugin's true 80 Hz default).
+    const auto& freqRange = parameters.getParameterRange("crossover_freq");
+    auto freqNorm = [&freqRange](float hz) { return freqRange.convertTo0to1(hz); };
+
+    // Initialize factory presets (crossover in Hz; enhance is % of 0-100, output is
+    // normalised on -18..+18 dB where 0.5 == 0 dB — both already unskewed/correct)
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
-        // Default - neutral starting point
-        {"Default", {{"crossover_freq", 0.25f}, {"enhance", 0.50f}, {"output", 0.5f}}, juce::var()},
+        // Default - neutral starting point (80 Hz matches the plugin's initial state)
+        {"Default", {{"crossover_freq", freqNorm(80.0f)}, {"enhance", 0.50f}, {"output", 0.5f}}, juce::var()},
 
         // Bass enhancement presets
-        {"Gentle Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.30f}, {"output", 0.5f}}, juce::var()},
-        {"Punchy 808", {{"crossover_freq", 0.0f}, {"enhance", 0.70f}, {"output", 0.5f}}, juce::var()},
-        {"Subtle Mix Glue", {{"crossover_freq", 0.50f}, {"enhance", 0.20f}, {"output", 0.5f}}, juce::var()},
-        {"Full Sub Enhancement", {{"crossover_freq", 0.125f}, {"enhance", 0.80f}, {"output", 0.45f}}, juce::var()},
-        {"Warm Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.50f}, {"output", 0.5f}}, juce::var()},
-        {"Fat Synth Bass", {{"crossover_freq", 0.25f}, {"enhance", 0.65f}, {"output", 0.48f}}, juce::var()},
-        {"Saturated Sub", {{"crossover_freq", 0.0f}, {"enhance", 0.85f}, {"output", 0.42f}}, juce::var()},
-        {"Vintage Mix Bus", {{"crossover_freq", 0.50f}, {"enhance", 0.35f}, {"output", 0.5f}}, juce::var()},
-        {"Maximum Enhancement", {{"crossover_freq", 0.25f}, {"enhance", 0.90f}, {"output", 0.40f}}, juce::var()}
+        {"Gentle Bass Guitar", {{"crossover_freq", freqNorm(100.0f)}, {"enhance", 0.30f}, {"output", 0.5f}}, juce::var()},
+        {"Punchy 808", {{"crossover_freq", freqNorm(40.0f)}, {"enhance", 0.70f}, {"output", 0.5f}}, juce::var()},
+        {"Subtle Mix Glue", {{"crossover_freq", freqNorm(120.0f)}, {"enhance", 0.20f}, {"output", 0.5f}}, juce::var()},
+        {"Full Sub Enhancement", {{"crossover_freq", freqNorm(60.0f)}, {"enhance", 0.80f}, {"output", 0.45f}}, juce::var()},
+        {"Warm Bass Guitar", {{"crossover_freq", freqNorm(100.0f)}, {"enhance", 0.50f}, {"output", 0.5f}}, juce::var()},
+        {"Fat Synth Bass", {{"crossover_freq", freqNorm(80.0f)}, {"enhance", 0.65f}, {"output", 0.48f}}, juce::var()},
+        {"Saturated Sub", {{"crossover_freq", freqNorm(40.0f)}, {"enhance", 0.85f}, {"output", 0.42f}}, juce::var()},
+        {"Vintage Mix Bus", {{"crossover_freq", freqNorm(120.0f)}, {"enhance", 0.35f}, {"output", 0.5f}}, juce::var()},
+        {"Maximum Enhancement", {{"crossover_freq", freqNorm(80.0f)}, {"enhance", 0.90f}, {"output", 0.40f}}, juce::var()}
     };
 
     presetManager.initializeFactoryPresets(factoryPresets);
@@ -134,6 +143,9 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     auto cleanMode = modeParam->load() < 0.5f ? CleanModeProcessor::Mode::LowLatency
                                                : CleanModeProcessor::Mode::HighFidelity;
     cleanModeProcessor.setMode(cleanMode);
+
+    // WR-02: seed the runtime mode cache so processBlock's on-change check starts in sync
+    lastLatencyMode = mode;
 
     // Initialize smoothed enhance (20ms ramp time for click-free transitions)
     smoothedEnhance.reset(sampleRate, 0.020);
@@ -194,6 +206,22 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
     // Smooth the enhance value to avoid clicks on bypass toggle
     smoothedEnhance.setTargetValue(targetEnhance);
+
+    // WR-02: apply latency_mode changes at runtime. Both setMode() calls are RT-safe
+    // atomic flips (the FIR bank is pre-loaded in prepare(); only the deferred FIR
+    // *index* reload on a frequency change still waits for the next prepareToPlay()).
+    // Fire only on change so we don't churn the atomics every block.
+    auto* modeParam = parameters.getRawParameterValue("latency_mode");
+    auto currentMode = modeParam->load() < 0.5f ? CrossoverFilter::Mode::LowLatency
+                                                 : CrossoverFilter::Mode::HighFidelity;
+    if (currentMode != lastLatencyMode)
+    {
+        crossover.setMode(currentMode);
+        cleanModeProcessor.setMode(currentMode == CrossoverFilter::Mode::LowLatency
+                                       ? CleanModeProcessor::Mode::LowLatency
+                                       : CleanModeProcessor::Mode::HighFidelity);
+        lastLatencyMode = currentMode;
+    }
 
     // Buffers are pre-allocated in prepareToPlay() - assert in debug builds only
     // Removed runtime resize checks for performance (allocation in processBlock is RT-unsafe)
