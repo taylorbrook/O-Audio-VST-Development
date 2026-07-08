@@ -2,10 +2,21 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.8
+- **Version:** 1.5.0
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
+
+- **2026-07-08 (v1.5.0):** Synced Speed knob now steps through discrete divisions (see CHANGELOG)
+  - When Tempo Sync is on, the knob indicator snaps to one detent per reachable musical division
+    and dragging steps division-by-division; previously only the text readout snapped while the
+    pointer glided continuously (0.1–20 Hz), making a synced knob look continuous.
+  - UI-only change in `Source/ui/public/index.html` (`rebuildSyncSteps`/`nearestSyncIndex`/
+    `speedHzToNorm` + single hoisted `updateSpeedVisual`); no DSP/param/state changes, so existing
+    sessions & presets are unaffected. Removed now-dead `getMusicalDivisionName()`.
+  - Known limitation: divisions whose synced rate would exceed 20 Hz at fast tempos stay
+    unreachable (would need a dedicated sync-division param; deferred).
+  - Build (VST3+AU) + auval PASS.
 
 - **2026-07-07 (v1.4.8):** Deep GSD code-review fixes (see `CODE_REVIEW.md` + CHANGELOG)
   - CR-01: fixed FileChooser `launchAsync` use-after-free on editor teardown (SafePointer guard)

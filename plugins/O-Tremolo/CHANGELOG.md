@@ -5,6 +5,19 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-08
+
+### Changed
+
+- **Synced Speed knob now steps through discrete divisions.** When Tempo Sync is engaged, the Speed knob no longer sweeps continuously (0.1–20 Hz) with only its text readout snapping to a division — the **indicator itself now snaps** to one discrete detent per reachable musical division, and dragging advances division-by-division (≈14 px per step). This makes a synced tremolo rate read clearly at a glance instead of appearing continuous. In free (non-synced) mode the knob behaves exactly as before (continuous Hz).
+  - **Root cause:** the division quantization lived only in the DSP (`processBlock` nearest-`kMusicalDivisions` search) and in the WebView *text* readout. The knob indicator and drag handler stayed bound to the raw continuous `SPEED_PARAM`, so the pointer glided smoothly while the readout jumped — the knob looked continuous even though the audio was stepped.
+  - **Implementation (UI-only, `Source/ui/public/index.html`):** added `rebuildSyncSteps()` (builds the slow→fast list of divisions whose synced rate falls inside the knob's real Hz range — exactly the set the DSP can select, so knob and audio stay in lockstep), `nearestSyncIndex()` (mirrors the C++ nearest search to highlight the playing detent), and `speedHzToNorm()` (range/skew-aware Hz→normalized round-trip). The Speed knob's `updateVisual()` snaps the indicator to `idx/(N-1)` of the arc when synced; the drag handler steps the division index instead of accumulating continuous normalized value. The sync toggle and the 1 s host-tempo interval now re-snap the knob through a single hoisted `updateSpeedVisual()`, replacing the previous duplicated text-only updates.
+  - **No DSP / parameter / state changes:** `SPEED_PARAM` and the tempo-sync DSP path are untouched, so existing sessions and presets load and sound identical. Removed the now-dead `getMusicalDivisionName()` helper (its callers were consolidated into the single updater).
+
+### Known Limitations
+
+- **Fast divisions can be unreachable at high tempos.** Because the synced rate is still derived from the continuous `SPEED_PARAM` (capped at 20 Hz), divisions whose rate would exceed 20 Hz at faster tempos are not selectable — the stepper simply omits them (unchanged from prior behavior; the DSP could never reach them either). Lifting this would require a dedicated sync-division parameter and is deferred.
+
 ## [1.4.8] - 2026-07-07
 
 Resolves all findings from a deep GSD code review (see `CODE_REVIEW.md`): 1 critical, 2 warnings, 5 info.
