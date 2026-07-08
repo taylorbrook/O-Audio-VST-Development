@@ -5,6 +5,15 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-07-08
+
+Two small synced-Speed consistency fixes. No new parameters; existing sessions and presets load and sound identical.
+
+### Fixed
+
+- **(A) Synced rate now matches the readout in Standalone / no host BPM.** When Tempo Sync was engaged but the host reported no BPM (e.g. the Standalone build, or a host that doesn't publish tempo), the WebView readout snapped division names using a 120 BPM fallback (`rebuildSyncSteps`), but the DSP guard `if (tempoSyncEnabled && bpm > 0.0)` fell through to the raw continuous `SPEED_PARAM` Hz — so the *displayed* division and the *actual* modulation rate disagreed. The DSP now mirrors the UI's fallback: when synced with no host BPM it uses an effective 120 BPM for the nearest-division snap, so the readout and the audio agree. (`Source/PluginProcessor.cpp`)
+- **(B) Indicator no longer holds a stale angle in the no-reachable-division edge case.** In the stepped Speed knob's `updateVisual()`, the branch taken when no musical division fits the knob's Hz range at the current tempo (`syncSteps.length === 0`) updated only the text readout, leaving the indicator pointer at whatever angle it last painted. That branch now also rotates the indicator from the normalized value, matching the continuous-mode behavior. (`Source/ui/public/index.html`)
+
 ## [1.5.0] - 2026-07-08
 
 ### Changed
