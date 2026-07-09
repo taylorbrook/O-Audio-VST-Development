@@ -14,6 +14,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "MarimbaSound.h"
 #include <array>
+#include <cmath>
 
 class MarimbaVoice : public juce::SynthesiserVoice
 {
@@ -85,6 +86,18 @@ private:
         {
             // Biquad difference equation: y[n] = b0*x[n] + a1*y[n-1] + a2*y[n-2]
             float output = b0 * input + a1 * y1 + a2 * y2;
+
+            // WR-05: NaN/Inf guard. std::abs(NaN) < 1e-8f is false, so the denormal flush
+            // below would let a non-finite value latch permanently into the state
+            // (y2=y1; y1=output) — silencing the voice forever and propagating NaN through
+            // the tone filter and master bus. Reset state on any non-finite output.
+            if (! std::isfinite(output))
+            {
+                output = 0.0f;
+                y1 = 0.0f;
+                y2 = 0.0f;
+                return 0.0f;
+            }
 
             // Denormal protection (critical for real-time safety)
             if (std::abs(y1) < 1e-8f && std::abs(y2) < 1e-8f)
@@ -159,6 +172,7 @@ private:
     // Voice state
     bool isActive = false;
     int samplesUntilRelease = 0;
+    int fadeOutSamples = 0;  // WR-04: length of the linear tail fade before termination
 
     // Helper functions
     double noteToFrequency(int midiNote) const;

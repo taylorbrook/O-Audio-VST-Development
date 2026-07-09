@@ -58,27 +58,36 @@ export class AnalogEQUnitUI {
         this.KNOB_RADIUS = 30;
         this.INNER_THRESHOLD = 0.60;
 
-        // Default normalized values (center position)
+        // WR-09: dbl-click-reset target for each control, as a NORMALISED (0..1) position.
+        // Gains are linear ([-12,12] dB, default 0 dB -> 0.5). The freq params are skewed
+        // 0.3 in C++, so their default Hz maps to a NON-0.5 normalised position; resetting to
+        // a hardcoded 0.5 landed them well off the shipped default. Each value below is
+        // convertTo0to1(defaultHz) = ((defaultHz-start)/(end-start))^0.3 for the C++ range:
+        //   lf  100 Hz in [30,500]     -> 0.5647
+        //   lmf 500 Hz in [100,2000]   -> 0.6267
+        //   hmf 2000 Hz in [500,8000]  -> 0.6171
+        //   hf  8000 Hz in [2000,20000]-> 0.7192
+        // (If a getParameterDefaults native fn is ever added across host plugins, prefer that.)
         this.DEFAULT_VALUES = {
-            lf_freq: 0.5, lf_gain: 0.5,
-            lmf_freq: 0.5, lmf_gain: 0.5,
-            hmf_freq: 0.5, hmf_gain: 0.5,
-            hf_freq: 0.5, hf_gain: 0.5
+            lf_freq: 0.5647, lf_gain: 0.5,
+            lmf_freq: 0.6267, lmf_gain: 0.5,
+            hmf_freq: 0.6171, hmf_gain: 0.5,
+            hf_freq: 0.7192, hf_gain: 0.5
         };
 
-        // Parameter ranges for display
+        // WR-09: format the ACTUAL (scaled) engineering value, not a linear map of the
+        // normalised value. The C++ freq params are skewed 0.3, so the old linear formula
+        // (e.g. lf_freq: 30 + v*470 at norm 0.5 -> 265 Hz) displayed ~3.5x the real filter
+        // frequency (~77 Hz). Callers pass state.getScaledValue(), which is the true Hz/dB.
         this.paramRanges = {
-            lf_freq: { format: v => Math.round(30 + v * 470) + ' Hz' },
-            lf_gain: { format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-            lmf_freq: { format: v => Math.round(100 + v * 1900) + ' Hz' },
-            lmf_gain: { format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-            hmf_freq: { format: v => Math.round(500 + v * 7500) + ' Hz' },
-            hmf_gain: { format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-            hf_freq: { format: v => {
-                const hz = 2000 + v * 18000;
-                return hz >= 10000 ? (hz/1000).toFixed(1) + 'k' : Math.round(hz) + ' Hz';
-            }},
-            hf_gain: { format: v => ((-12 + v * 24).toFixed(1)) + ' dB' }
+            lf_freq: { format: hz => Math.round(hz) + ' Hz' },
+            lf_gain: { format: db => db.toFixed(1) + ' dB' },
+            lmf_freq: { format: hz => Math.round(hz) + ' Hz' },
+            lmf_gain: { format: db => db.toFixed(1) + ' dB' },
+            hmf_freq: { format: hz => Math.round(hz) + ' Hz' },
+            hmf_gain: { format: db => db.toFixed(1) + ' dB' },
+            hf_freq: { format: hz => (hz >= 10000 ? (hz/1000).toFixed(1) + 'k' : Math.round(hz) + ' Hz') },
+            hf_gain: { format: db => db.toFixed(1) + ' dB' }
         };
     }
 
@@ -531,8 +540,9 @@ export class AnalogEQUnitUI {
         if (!freqState || !gainState) return;
 
         const updateTooltip = () => {
-            const freqValue = this.paramRanges[`${band}_freq`].format(freqState.getNormalisedValue());
-            const gainValue = this.paramRanges[`${band}_gain`].format(gainState.getNormalisedValue());
+            // WR-09: use the scaled (engineering) value so skewed freq params read correctly.
+            const freqValue = this.paramRanges[`${band}_freq`].format(freqState.getScaledValue());
+            const gainValue = this.paramRanges[`${band}_gain`].format(gainState.getScaledValue());
             tooltip.textContent = `${freqValue} / ${gainValue}`;
         };
 

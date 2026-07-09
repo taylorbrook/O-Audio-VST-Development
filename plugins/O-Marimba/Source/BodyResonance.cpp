@@ -48,6 +48,12 @@ void BodyResonance::prepare(double sampleRate, int samplesPerBlock)
     dryWetMixer.prepare(spec);
     dryWetMixer.setMixingRule(juce::dsp::DryWetMixingRule::balanced);
     dryWetMixer.setWetMixProportion(mix);
+
+    // WR-10: delay the dry path to match the convolution's reported latency so dry + wet
+    // stay phase-aligned (otherwise partial mixes comb-filter). The default-constructed
+    // juce::dsp::Convolution runs the zero-latency algorithm, so getLatency() is 0 today
+    // and this is a no-op — but it keeps the mix correct if the engine ever reports latency.
+    dryWetMixer.setWetLatency(static_cast<float>(convolution.getLatency()));
 }
 
 void BodyResonance::reset()

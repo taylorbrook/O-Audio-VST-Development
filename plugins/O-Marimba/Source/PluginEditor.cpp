@@ -466,18 +466,22 @@ juce::var OMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<juce::va
 
     auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
 
-    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    // CR-02: guard the async completion against editor teardown (window closed while the
+    // native dialog is open) — bare return on death, no complete() to call here.
+    juce::Component::SafePointer<OMarimbaAudioProcessorEditor> safe { this };
+    fileChooser->launchAsync(chooserFlags, [safe](const juce::FileChooser& fc)
     {
+        if (safe == nullptr) return;
         auto file = fc.getResult();
         if (file.existsAsFile())
         {
-            bool success = processorRef.getTuningEngine().loadScalaFile(file);
+            bool success = safe->processorRef.getTuningEngine().loadScalaFile(file);
             if (success)
             {
                 // Notify JavaScript of the loaded scale name
-                juce::String scaleName = processorRef.getTuningEngine().getActiveTuningName();
+                juce::String scaleName = safe->processorRef.getTuningEngine().getActiveTuningName();
                 juce::String js = "if (window.onScalaLoaded) window.onScalaLoaded('" + scaleName + "');";
-                webView->evaluateJavascript(js, nullptr);
+                safe->webView->evaluateJavascript(js, nullptr);
             }
         }
     });
@@ -498,12 +502,15 @@ juce::var OMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juce::var>
 
     auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
 
-    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    // CR-02: guard against editor teardown while the dialog is open.
+    juce::Component::SafePointer<OMarimbaAudioProcessorEditor> safe { this };
+    fileChooser->launchAsync(chooserFlags, [safe](const juce::FileChooser& fc)
     {
+        if (safe == nullptr) return;
         auto file = fc.getResult();
         if (file.existsAsFile())
         {
-            processorRef.getTuningEngine().loadKBMFile(file);
+            safe->processorRef.getTuningEngine().loadKBMFile(file);
         }
     });
 
@@ -631,20 +638,23 @@ juce::var OMarimbaAudioProcessorEditor::savePreset(const juce::Array<juce::var>&
                       | juce::FileBrowserComponent::canSelectFiles
                       | juce::FileBrowserComponent::warnAboutOverwriting;
 
-    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    // CR-02: guard against editor teardown while the dialog is open.
+    juce::Component::SafePointer<OMarimbaAudioProcessorEditor> safe { this };
+    fileChooser->launchAsync(chooserFlags, [safe](const juce::FileChooser& fc)
     {
+        if (safe == nullptr) return;
         auto file = fc.getResult();
         if (file != juce::File{})
         {
             juce::String presetName = file.getFileNameWithoutExtension();
-            bool success = processorRef.getPresetManager().savePreset(presetName);
+            bool success = safe->processorRef.getPresetManager().savePreset(presetName);
 
             if (success)
             {
                 // Notify JavaScript of the saved preset
                 juce::String js = "if (window.onPresetSaved) window.onPresetSaved('"
                     + presetName.replace("'", "\\'") + "');";
-                webView->evaluateJavascript(js, nullptr);
+                safe->webView->evaluateJavascript(js, nullptr);
             }
         }
     });
@@ -764,14 +774,17 @@ juce::var OMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Array<juc
     auto chooserFlags = juce::FileBrowserComponent::openMode
                       | juce::FileBrowserComponent::canSelectFiles;
 
-    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    // CR-02: guard against editor teardown while the dialog is open.
+    juce::Component::SafePointer<OMarimbaAudioProcessorEditor> safe { this };
+    fileChooser->launchAsync(chooserFlags, [safe](const juce::FileChooser& fc)
     {
+        if (safe == nullptr) return;
         auto file = fc.getResult();
         if (file.existsAsFile())
         {
             juce::String presetName = file.getFileNameWithoutExtension();
-            if (processorRef.getPresetManager().loadPreset(presetName))
-                notifyPresetLoaded(presetName);
+            if (safe->processorRef.getPresetManager().loadPreset(presetName))
+                safe->notifyPresetLoaded(presetName);
         }
     });
 
@@ -808,16 +821,19 @@ juce::var OMarimbaAudioProcessorEditor::saveScalaFile(const juce::Array<juce::va
                       | juce::FileBrowserComponent::canSelectFiles
                       | juce::FileBrowserComponent::warnAboutOverwriting;
 
-    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    // CR-02: guard against editor teardown while the dialog is open.
+    juce::Component::SafePointer<OMarimbaAudioProcessorEditor> safe { this };
+    fileChooser->launchAsync(chooserFlags, [safe](const juce::FileChooser& fc)
     {
+        if (safe == nullptr) return;
         auto file = fc.getResult();
         if (file != juce::File{})
         {
             // Remember directory for next time (within session)
-            lastScalaExportPath = file.getParentDirectory().getFullPathName();
+            safe->lastScalaExportPath = file.getParentDirectory().getFullPathName();
 
             // Generate Scala file content
-            juce::String content = processorRef.getTuningEngine().generateScalaFileContent();
+            juce::String content = safe->processorRef.getTuningEngine().generateScalaFileContent();
 
             // Write to file
             if (file.replaceWithText(content))
@@ -860,16 +876,19 @@ juce::var OMarimbaAudioProcessorEditor::saveKBMFile(const juce::Array<juce::var>
                       | juce::FileBrowserComponent::canSelectFiles
                       | juce::FileBrowserComponent::warnAboutOverwriting;
 
-    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    // CR-02: guard against editor teardown while the dialog is open.
+    juce::Component::SafePointer<OMarimbaAudioProcessorEditor> safe { this };
+    fileChooser->launchAsync(chooserFlags, [safe](const juce::FileChooser& fc)
     {
+        if (safe == nullptr) return;
         auto file = fc.getResult();
         if (file != juce::File{})
         {
             // Remember directory for next time (within session)
-            lastKBMExportPath = file.getParentDirectory().getFullPathName();
+            safe->lastKBMExportPath = file.getParentDirectory().getFullPathName();
 
             // Generate KBM file content
-            juce::String content = processorRef.getTuningEngine().generateKBMFileContent();
+            juce::String content = safe->processorRef.getTuningEngine().generateKBMFileContent();
 
             // Write to file
             if (file.replaceWithText(content))

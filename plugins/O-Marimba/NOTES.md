@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.12.0
+- **Version:** 1.12.1
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -118,10 +118,33 @@
   - Changed: Velocity curve exponent range extended (1.0→3.0, was 1.0→2.0) for wider dynamics
   - Changed: Velocity-dependent boost widened to -6dB→+6dB (12dB range, was 0→+6dB)
   - Result: +6dB louder at max velocity, -9dB quieter at low velocity, 50dB dynamic range (was 35dB)
+- **2026-07-08 (v1.12.1):** Code-review resolution — all 13 Critical + Warning findings from
+  the v1.12.0 deep review (`CODE_REVIEW.md`). See CHANGELOG for per-finding detail. Highlights:
+  - CR-01: microtonal tuning no longer mistunes across octaves (dropped octave period restored
+    in `setCustomIntervals`; JI C#5 now 1312¢ instead of 1292¢). Real `.scl` loads unaffected.
+  - CR-02: SafePointer on all 6 `launchAsync` completions (editor-teardown UAF).
+  - CR-03: preset filenames sanitized (`createLegalFileName`) — "/" in a name no longer loses the patch.
+  - WR-01: preset recall resets to defaults first (no stale FX). WR-02: tuning data race locked.
+  - WR-03/04/05/06: Nyquist guard, 5 ms tail fade (declick), biquad NaN guard, master output limiter.
+  - WR-07/08: cached param pointers, `isBusesLayoutSupported` (mono/stereo).
+  - WR-09: shared `analog-eq-unit` module → v1.1.1 (freq readouts use scaled value; skew-aware reset).
+  - Built VST3 + AU; `auval -v aumu OuMa OuDv` PASSED (incl. mono + stereo render, MIDI).
+  - Note: CMake `PLUGIN_VERSION`/CHANGELOG had drifted to 1.11.0 while shipping 1.12.0; reconciled to 1.12.1.
 
 ## Known Issues
 
-None
+- **WR-09 (partial, shared module):** the `analog-eq-unit` double-click reset now targets each
+  band's true C++ default via skew-aware **hardcoded** normalised constants. The fully robust
+  fix (a `getParameterDefaults` native function) requires coordinated wiring across every
+  `analog-eq-unit` host plugin and is deferred.
+- **WR-02 (residual):** a frequency-table rebuild triggered by TUNING_MODE/REFERENCE_PITCH
+  automation still runs its 128-entry `std::pow` loop on the audio thread (bounded, guarded).
+  The torn-read/OOB defect is fully resolved; eliminating the audio-thread rebuild entirely
+  would require an off-thread pump and is deferred.
+- **Info-tier findings (IN-01..16)** from `CODE_REVIEW.md` are deferred (opt-in). Notable:
+  IN-02 (`if(true)` force-regenerates factory presets every construction), IN-03 (`midiLock`
+  taken on the audio thread), IN-12 (preset metadata version string still "1.6.2"), IN-13/14/15
+  (dead tooltip-persistence branch, unwired `deletePreset`, unthrottled `requestAnimationFrame`).
 
 ## Additional Notes
 
