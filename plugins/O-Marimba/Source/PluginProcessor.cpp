@@ -13,6 +13,7 @@
 #include "MarimbaSound.h"
 #include "MarimbaVoice.h"
 #include "TuningEngine.h"
+#include <cmath>
 
 juce::AudioProcessorValueTreeState::ParameterLayout OMarimbaAudioProcessor::createParameterLayout()
 {
@@ -154,8 +155,29 @@ OMarimbaAudioProcessor::~OMarimbaAudioProcessor()
 {
 }
 
+bool OMarimbaAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    // WR-08: accept only mono or stereo output; reject anything else the host proposes.
+    const auto& mainOut = layouts.getMainOutputChannelSet();
+    return mainOut == juce::AudioChannelSet::mono()
+        || mainOut == juce::AudioChannelSet::stereo();
+}
+
 void OMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    // WR-07: resolve cached atomic parameter pointers once (avoids per-block string lookups)
+    pOutputGain      = parameters.getRawParameterValue("OUTPUT_GAIN");
+    pVelCurve        = parameters.getRawParameterValue("VEL_CURVE");
+    pMalletHardness  = parameters.getRawParameterValue("MALLET_HARDNESS");
+    pBarMaterial     = parameters.getRawParameterValue("BAR_MATERIAL");
+    pResonance       = parameters.getRawParameterValue("RESONANCE");
+    pStrikePosition  = parameters.getRawParameterValue("STRIKE_POSITION");
+    pOvertoneDamping = parameters.getRawParameterValue("OVERTONE_DAMPING");
+    pTone            = parameters.getRawParameterValue("TONE");
+    pTuningMode      = parameters.getRawParameterValue("TUNING_MODE");
+    pReferencePitch  = parameters.getRawParameterValue("REFERENCE_PITCH");
+    pEqEnabled       = parameters.getRawParameterValue("fx_eq_enabled");
+
     // Phase 2.1: Prepare synthesiser
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
 
@@ -214,25 +236,28 @@ void OMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         }
     }
 
-    // Phase 2.2: Read parameters (atomic, real-time safe)
-    float outputGainDB = parameters.getRawParameterValue("OUTPUT_GAIN")->load();
-    float velCurve = parameters.getRawParameterValue("VEL_CURVE")->load();
-    float malletHardness = parameters.getRawParameterValue("MALLET_HARDNESS")->load();
-    float barMaterial = parameters.getRawParameterValue("BAR_MATERIAL")->load();
-    float resonance = parameters.getRawParameterValue("RESONANCE")->load();
+    // Phase 2.2: Read parameters (WR-07: cached atomic pointers, no per-block string lookups)
+    float outputGainDB = pOutputGain->load();
+    float velCurve = pVelCurve->load();
+    float malletHardness = pMalletHardness->load();
+    float barMaterial = pBarMaterial->load();
+    float resonance = pResonance->load();
 
     // v1.6.0: Timbre parameters
-    float strikePosition = parameters.getRawParameterValue("STRIKE_POSITION")->load();
-    float overtoneDamping = parameters.getRawParameterValue("OVERTONE_DAMPING")->load();
-    float tone = parameters.getRawParameterValue("TONE")->load();
+    float strikePosition = pStrikePosition->load();
+    float overtoneDamping = pOvertoneDamping->load();
+    float tone = pTone->load();
 
     // Phase 2.3: Tuning parameters
-    int tuningModeInt = static_cast<int>(parameters.getRawParameterValue("TUNING_MODE")->load());
-    float referencePitch = parameters.getRawParameterValue("REFERENCE_PITCH")->load();
+    int tuningModeInt = static_cast<int>(pTuningMode->load());
+    float referencePitch = pReferencePitch->load();
 
     // Update tuning engine (atomic updates, safe from audio thread)
     tuningEngine.setMode(static_cast<TuningEngine::Mode>(tuningModeInt));
     tuningEngine.setReferencePitch(static_cast<double>(referencePitch));
+    // WR-02: complete any frequency-table rebuild that was deferred while the message
+    // thread held the tuning lock (non-blocking; no-op when the table is current).
+    tuningEngine.serviceRebuild();
 
     // Update all active voices with current parameters
     // v1.9.8: Output gain removed from voices - now applied once at end of chain
@@ -261,7 +286,7 @@ void OMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     bodyResonance.process(buffer);
 
     // v1.8.1: Apply Analog EQ only if enabled (effects tab, end of chain before output gain)
-    bool eqEnabled = parameters.getRawParameterValue("fx_eq_enabled")->load() > 0.5f;
+    bool eqEnabled = pEqEnabled->load() > 0.5f;  // WR-07: cached pointer
     if (eqEnabled)
         eqUnit.process(buffer);
 
@@ -272,6 +297,22 @@ void OMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     // Signal chain: Synth → Body Resonance → EQ (if enabled) → Compressor (if enabled) → Output Gain → VU Meter
     float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);
     buffer.applyGain(outputGainLinear);
+
+    // WR-06: master output safety net. Replace any non-finite sample with 0 and clamp to a
+    // safe ceiling (well above the ~+/-1 nominal signal) so a resonator/biquad blow-up or
+    // runaway feedback can't propagate a NaN/Inf into the waveform FIFO, the VU calc, or
+    // the host. Transparent for normal-level audio.
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        float* out = buffer.getWritePointer(ch);
+        for (int n = 0; n < buffer.getNumSamples(); ++n)
+        {
+            float x = out[n];
+            if (! std::isfinite(x))
+                x = 0.0f;
+            out[n] = juce::jlimit(-2.0f, 2.0f, x);
+        }
+    }
 
     // v1.2.3: Write samples to waveform FIFO for oscilloscope display
     // Use left channel (or mono mix if stereo)

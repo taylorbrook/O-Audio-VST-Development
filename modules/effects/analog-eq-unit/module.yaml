@@ -1,5 +1,5 @@
 name: analog-eq-unit
-version: 1.1.0
+version: 1.1.1
 category: effects
 description: |
   4-band analog-style parametric EQ module with low/high shelves and two mid bells.
@@ -81,6 +81,17 @@ tags:
 reuse_score: 9
 
 changelog:
+  - version: 1.1.1
+    date: 2026-07-08
+    changes:
+      - "Fix (WR-09): frequency readouts now display the actual (scaled) engineering value
+        via SliderState.getScaledValue() instead of a linear map of the normalised value.
+        The freq params are skewed 0.3, so the old linear formula read ~3.5x too high
+        (e.g. 265 Hz shown for a filter actually at ~77 Hz)."
+      - "Fix (WR-09): double-click reset now targets each band's true C++ default (skew-aware
+        normalised position) instead of a hardcoded 0.5 that landed off the shipped default."
+      - "Dependents pick this up on their next rebuild (JS is embedded per-plugin at build
+        time); no host code changes required. First surfaced in O-Marimba v1.12.1."
   - version: 1.1.0
     date: 2026-01-14
     changes:

@@ -13,6 +13,7 @@
 TuningEngine::TuningEngine()
 {
     // Initialize frequency table with 12-TET at 440 Hz
+    const juce::ScopedLock sl(tuningLock);
     rebuildFrequencyTable();
 }
 
@@ -47,8 +48,9 @@ void TuningEngine::setMode(Mode mode)
 
     currentMode.store(mode);
 
-    // Rebuild frequency table when mode changes
-    rebuildFrequencyTable();
+    // WR-02: setMode is called every block from the audio thread. Rebuild under a
+    // try-lock so a concurrent message-thread scale edit can never cause a torn read.
+    requestRebuild();
 }
 
 void TuningEngine::setReferencePitch(double freq)
@@ -61,8 +63,39 @@ void TuningEngine::setReferencePitch(double freq)
 
     referencePitch.store(freq);
 
-    // Rebuild frequency table when reference pitch changes
-    rebuildFrequencyTable();
+    // WR-02: setReferencePitch is called every block from the audio thread (and from
+    // the message thread on preset/state restore). Rebuild under a try-lock either way.
+    requestRebuild();
+}
+
+void TuningEngine::requestRebuild()
+{
+    // Try to rebuild immediately; if the message thread currently holds tuningLock
+    // (mid scale-edit), defer to serviceRebuild() on the next audio block so we never
+    // block the audio thread and never read scaleIntervals mid-mutation.
+    const juce::ScopedTryLock stl(tuningLock);
+    if (stl.isLocked())
+    {
+        rebuildFrequencyTable();
+        tableDirty.store(false);
+    }
+    else
+    {
+        tableDirty.store(true);
+    }
+}
+
+void TuningEngine::serviceRebuild()
+{
+    if (!tableDirty.load())
+        return;
+
+    const juce::ScopedTryLock stl(tuningLock);
+    if (stl.isLocked())
+    {
+        rebuildFrequencyTable();
+        tableDirty.store(false);
+    }
 }
 
 bool TuningEngine::loadScalaFile(const juce::File& sclFile)
@@ -81,14 +114,22 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
     if (intervals.size() < 2)
         return false;
 
-    // Store scale data
-    scaleIntervals = intervals;
-    scaleDegrees = static_cast<int>(intervals.size()) - 1;  // Exclude unison
-    scaleName = name;
-    scalaFilePath = sclFile.getFullPathName();
+    // Store scale data. WR-02: hold tuningLock across the mutation + rebuild so the audio
+    // thread (which only try-locks) never observes a half-updated interval vector.
+    // Real .scl files already carry their period as the final interval, so the existing
+    // "scaleDegrees = size - 1 / octaveCents = back()" semantics are correct here — this
+    // path is NOT subject to the CR-01 dropped-period bug (that is JS/preset-only).
+    {
+        const juce::ScopedLock sl(tuningLock);
+        scaleIntervals = intervals;
+        scaleDegrees = static_cast<int>(intervals.size()) - 1;  // Exclude unison
+        scaleName = name;
+        scalaFilePath = sclFile.getFullPathName();
 
-    // Rebuild frequency table with new scale
-    rebuildFrequencyTable();
+        // Rebuild frequency table with new scale
+        rebuildFrequencyTable();
+        tableDirty.store(false);
+    }
 
     return true;
 }
@@ -113,8 +154,11 @@ void TuningEngine::setTonicNote(int tonicIndex)
 
     tonicOffset.store(tonicIndex);
 
-    // Rebuild frequency table - tonic affects interval calculations in Scala mode
+    // Rebuild frequency table - tonic affects interval calculations in Scala mode.
+    // WR-02: guard against a concurrent audio-thread rebuild.
+    const juce::ScopedLock sl(tuningLock);
     rebuildFrequencyTable();
+    tableDirty.store(false);
 }
 
 void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const juce::String& name)
@@ -123,24 +167,50 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
     if (cents.empty())
         return;
 
-    // Store scale data
-    scaleIntervals.clear();
-    scaleIntervals.push_back(0.0);  // Always start with unison
+    // CR-01 (v1.12.1): Normalize the incoming interval set into the canonical form the
+    // frequency math requires: [0 (unison), d1, ..., d_{n-1}, PERIOD], with the equave as
+    // the FINAL entry so scaleDegrees (= size-1) counts pitch-classes-per-octave and
+    // calculateScala's back() is the true octave.
+    //
+    // Callers are inconsistent and all drop the period:
+    //   - JS applyTuning() sends currentIntervals.slice(1): pitch classes only, no 0, no 1200.
+    //   - Factory/user presets send a leading 0 but no 1200.
+    //   - State/preset round-trips (post-fix) send the full [0, ..., 1200].
+    // Without the period the octave collapsed onto an (n-1)-degree cycle with a compressed
+    // equave, so every non-12-TET scale mistuned across octave boundaries (12-TET survived
+    // only by arithmetic accident). Real .scl files bypass this method (loadScalaFile) and
+    // already carry their period, so they are untouched.
+    //
+    // The build below is idempotent: it drops any leading/duplicate unison, keeps the
+    // interior degrees, and appends exactly one octave period unless the last supplied
+    // value already reaches (or exceeds) an octave — so re-applying a saved [0,...,1200]
+    // reproduces the same canonical scale.
+    constexpr double kPeriodCents = 1200.0;  // one octave (2:1); the UI tuning model is octave-based
 
-    for (size_t i = 0; i < cents.size(); ++i)
+    std::vector<double> normalized;
+    normalized.reserve(cents.size() + 2);
+    normalized.push_back(0.0);                 // unison
+    for (double c : cents)
+        if (c > 0.0)                           // skip leading/duplicate unison(s)
+            normalized.push_back(c);
+    if (normalized.back() < kPeriodCents)      // append the equave unless it is already present
+        normalized.push_back(kPeriodCents);
+
+    // WR-02: publish the new scale + rebuild atomically w.r.t. the audio thread.
     {
-        scaleIntervals.push_back(cents[i]);
+        const juce::ScopedLock sl(tuningLock);
+        scaleIntervals = std::move(normalized);
+        scaleDegrees = static_cast<int>(scaleIntervals.size()) - 1;
+        scaleName = name;
+        scalaFilePath = "";  // Not from file
+
+        // Switch to Scala mode to use custom intervals
+        currentMode.store(Mode::Scala);
+
+        // Rebuild frequency table with new scale
+        rebuildFrequencyTable();
+        tableDirty.store(false);
     }
-
-    scaleDegrees = static_cast<int>(scaleIntervals.size()) - 1;
-    scaleName = name;
-    scalaFilePath = "";  // Not from file
-
-    // Switch to Scala mode to use custom intervals
-    currentMode.store(Mode::Scala);
-
-    // Rebuild frequency table with new scale
-    rebuildFrequencyTable();
 }
 
 juce::String TuningEngine::getActiveTuningName() const

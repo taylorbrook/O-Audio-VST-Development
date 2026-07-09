@@ -71,6 +71,11 @@ void MarimbaVoice::startNote(int midiNoteNumber, float velocityValue,
     float maxDecayTime = getDecayTime(0, resonance, overtoneDamping);
     samplesUntilRelease = static_cast<int>(maxDecayTime * sampleRate * 1.5f); // 1.5x for safety
 
+    // WR-04: length of the linear tail fade (5 ms) applied just before termination so the
+    // voice ramps to zero instead of hard-cutting at ~-13 dB (which clicked on every note).
+    // The total voice lifetime is unchanged — only the final 5 ms is ramped.
+    fadeOutSamples = juce::jmax(1, static_cast<int>(0.005 * sampleRate));
+
     // v1.6.0: Reset tone filter state for new note
     toneFilterState = 0.0f;
 }
@@ -135,6 +140,11 @@ void MarimbaVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         // y[n] = y[n-1] + coeff * (x[n] - y[n-1])
         toneFilterState += toneFilterCoeff * (finalSample - toneFilterState);
         finalSample = toneFilterState;
+
+        // WR-04: linear tail fade over the final fadeOutSamples so the note ramps to
+        // silence instead of hard-cutting at full ring amplitude (the source of the click).
+        if (samplesUntilRelease < fadeOutSamples && fadeOutSamples > 0)
+            finalSample *= static_cast<float>(samplesUntilRelease) / static_cast<float>(fadeOutSamples);
 
         // Write to all output channels
         for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
@@ -352,6 +362,19 @@ void MarimbaVoice::calculateModalCoefficients(float baseFreq)
     {
         // Calculate mode frequency from base frequency and ratio
         float modeFreq = baseFreq * MODE_RATIOS[i];
+
+        // WR-03: Nyquist guard. A two-pole resonator with theta > pi resonates at the
+        // aliased (fs - modeFreq). With ratios up to 54x, upper modes exceed Nyquist for
+        // high notes (e.g. mode 3 at MIDI 96 lands ~34 kHz -> folds to ~10 kHz as an
+        // inharmonic partial). Silence any mode at/above ~0.45*fs so it can't fold back.
+        if (modeFreq >= 0.45f * static_cast<float>(sampleRate))
+        {
+            modes[i].amplitude = 0.0f;
+            modes[i].b0 = 0.0f;
+            modes[i].a1 = 0.0f;
+            modes[i].a2 = 0.0f;
+            continue;
+        }
 
         // Get decay time for this mode (v1.6.0: now uses overtoneDamping)
         float decayTime = getDecayTime(i, resonance, overtoneDamping);

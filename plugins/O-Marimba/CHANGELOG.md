@@ -2,6 +2,82 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.1] - 2026-07-08
+
+Resolves all 13 Critical + Warning findings from the v1.12.0 deep code review
+(`CODE_REVIEW.md`). Info-tier findings (IN-01..16) are deferred. PATCH: no parameter
+IDs, ranges, or state format changed; existing sessions and presets load unchanged.
+
+### Fixed — Critical
+- **CR-01 — Microtonal tuning mistuned across octaves.** The JS scale model sends its
+  intervals without the octave period (`applyTuning` sends `currentIntervals.slice(1)`,
+  ending at the 11th degree, never 1200¢), and factory/user presets send a leading unison
+  but no period. `TuningEngine::setCustomIntervals` prepended a unison but never appended
+  the equave, so `scaleDegrees` counted 11 (not 12) and `back()` was the 11th degree — a
+  12-key octave was folded onto an 11-degree cycle with a compressed equave. Every
+  non-12-TET scale drifted ~one step per octave (e.g. Just-Intonation C#5 played 1292¢
+  instead of 1312¢, 20¢ flat); 12-TET survived only by arithmetic accident. **Fix:**
+  `setCustomIntervals` now normalizes any input into canonical `[0, …degrees…, 1200]`
+  form — dropping duplicate unisons and appending the octave period unless already present.
+  Idempotent across the JS live-edit, preset, and state-restore paths. Real `.scl` loads
+  (which carry their own period) are unaffected. C#5 in Just Intonation now plays 1312¢.
+- **CR-02 — Editor-teardown use-after-free.** All six `FileChooser::launchAsync`
+  completions (load/save Scala, load/save KBM, save/load preset) captured a bare `this`
+  and dereferenced `processorRef`/`webView`/editor members. Closing the plugin window while
+  a native file dialog was open ran the lambda after `~Editor` → UAF/host crash. **Fix:**
+  each completion now captures a `juce::Component::SafePointer` and bails with a bare
+  `return` when the editor is gone (no `complete()` on the dead path).
+- **CR-03 — Preset name with "/" silently lost.** The preset name was used verbatim as the
+  `.json` filename; `getChildFile` treats "/" as a path separator, so `"Warm / Bright"`
+  was written into an absent subdirectory and never reappeared in the (non-recursive)
+  preset list — silent data loss. **Fix:** filenames are sanitized with
+  `juce::File::createLegalFileName` in save/load/delete/isFactory/init (display name kept).
+
+### Fixed — Warning
+- **WR-01 — Stale FX on preset recall.** `applyPresetJson` only wrote the keys present in
+  the preset and never reset omitted params first; factory presets serialize just the 10
+  synth params (no `fx_eq_*`/`fx_comp_*`). Selecting a clean preset while EQ + compression
+  were engaged left the FX on. **Fix:** reset every APVTS param to its default before
+  applying the stored subset.
+- **WR-02 — Tuning data race.** `scaleIntervals`/`scaleDegrees` were read on the audio
+  thread (via `rebuildFrequencyTable`, triggered every block by `setMode`/`setReferencePitch`)
+  while mutated on the message thread with no lock → torn read / OOB. **Fix:** a
+  `CriticalSection` now serializes access; message-thread mutators take the full lock, the
+  audio thread only ever tries the lock and defers a missed rebuild via a dirty flag
+  serviced next block (`serviceRebuild`). `getFrequency` still reads the lock-free atomic table.
+- **WR-03 — Nyquist fold-back on high notes.** Modal frequencies (`baseFreq × ratio`, ratios
+  up to 54×) had no Nyquist check; upper modes on high notes aliased back into the audible
+  band as inharmonic partials. **Fix:** any mode at/above `0.45·fs` is silenced.
+- **WR-04 — Click on every note.** The voice hard-terminated at 1.5× decay time (~−13 dB)
+  with an abrupt `clearCurrentNote()`, clicking on every note. **Fix:** a 5 ms linear
+  tail fade ramps the final samples to zero; total voice lifetime is unchanged.
+- **WR-05 — Latent sticky-silence.** `ModalMode::processSample` had a denormal flush but no
+  NaN guard (`std::abs(NaN) < 1e-8f` is false), so a non-finite value could latch
+  permanently into the biquad state. **Fix:** reset the biquad state on any non-finite output.
+- **WR-06 — No master output safety net.** **Fix:** a final pass replaces non-finite
+  samples with 0 and clamps to ±2 before the waveform FIFO / VU calc, so a DSP blow-up
+  can't corrupt the meters or reach the host. Transparent for normal-level audio.
+- **WR-07 — Per-block string-keyed param lookups.** processBlock did 11
+  `getRawParameterValue("id")` hashed-string lookups per callback. **Fix:** atomic pointers
+  are cached once in `prepareToPlay`. No functional change.
+- **WR-08 — Unguarded channel layout.** **Fix:** added `isBusesLayoutSupported` accepting
+  only mono/stereo output (auval verifies both).
+- **WR-09 — EQ frequency readouts ~3.5× wrong (shared `analog-eq-unit` module).** The
+  band tooltips formatted the normalised value linearly, but the freq params are skewed 0.3,
+  so a filter at ~77 Hz displayed 265 Hz; double-click reset also landed off the C++ default.
+  **Fix (module v1.1.1):** readouts use `SliderState.getScaledValue()` (true Hz/dB) and
+  reset targets each band's skew-aware default. Benefits every `analog-eq-unit` dependent on
+  their next rebuild.
+- **WR-10 — Convolution dry/wet latency.** Verified: the default `juce::dsp::Convolution`
+  runs the zero-latency algorithm (`getLatency()` == 0), so no comb exists today. Added a
+  defensive `dryWetMixer.setWetLatency(convolution.getLatency())` to stay correct if the
+  engine ever reports latency.
+
+### Note
+- CMakeLists `PLUGIN_VERSION` and this changelog had drifted to 1.11.0 while the plugin
+  shipped 1.12.0 (tag `O-Marimba-v1.12.0`, +6 dB synthesis gain + wider velocity dynamics);
+  both are reconciled to 1.12.1 here.
+
 ## [1.11.0] - 2026-01-26
 
 ### Added

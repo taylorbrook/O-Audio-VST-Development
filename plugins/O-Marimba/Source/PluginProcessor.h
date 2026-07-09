@@ -103,6 +103,9 @@ public:
     void releaseResources() override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
+    // WR-08: only mono/stereo output is supported; reject any other host-proposed layout
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
+
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
@@ -142,6 +145,20 @@ public:
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // WR-07: cached atomic parameter pointers resolved once in prepareToPlay so
+    // processBlock avoids per-callback hashed-string map lookups.
+    std::atomic<float>* pOutputGain = nullptr;
+    std::atomic<float>* pVelCurve = nullptr;
+    std::atomic<float>* pMalletHardness = nullptr;
+    std::atomic<float>* pBarMaterial = nullptr;
+    std::atomic<float>* pResonance = nullptr;
+    std::atomic<float>* pStrikePosition = nullptr;
+    std::atomic<float>* pOvertoneDamping = nullptr;
+    std::atomic<float>* pTone = nullptr;
+    std::atomic<float>* pTuningMode = nullptr;
+    std::atomic<float>* pReferencePitch = nullptr;
+    std::atomic<float>* pEqEnabled = nullptr;
 
     // DSP Components (Phase 2.1: Basic synthesizer)
     juce::Synthesiser synthesiser;

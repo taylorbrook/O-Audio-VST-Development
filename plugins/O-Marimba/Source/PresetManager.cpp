@@ -10,6 +10,17 @@
 #include "PresetManager.h"
 #include "TuningEngine.h"
 
+// CR-03: turn a preset NAME into a legal filename. juce::File::getChildFile treats "/"
+// (and other path separators) in the name as a directory boundary, so a name like
+// "Warm / Bright" was written into an absent subdirectory and never reappeared in the
+// (non-recursive) preset list — silent data loss. Sanitizing the filename keeps the
+// display name (currentPresetName / JSON metadata) intact. Names without illegal chars
+// (all factory presets, including "Concert A=442") are unchanged, so existing files match.
+static juce::String presetFileName(const juce::String& presetName)
+{
+    return juce::File::createLegalFileName(presetName) + ".json";
+}
+
 PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts, TuningEngine& tuning)
     : parameters(apvts)
     , tuningEngine(tuning)
@@ -38,7 +49,7 @@ juce::File PresetManager::getUserPresetsDirectory() const
 
 bool PresetManager::isFactoryPreset(const juce::String& presetName) const
 {
-    auto factoryFile = getFactoryPresetsDirectory().getChildFile(presetName + ".json");
+    auto factoryFile = getFactoryPresetsDirectory().getChildFile(presetFileName(presetName));
     return factoryFile.existsAsFile();
 }
 
@@ -90,6 +101,14 @@ bool PresetManager::applyPresetJson(const juce::var& presetData)
     auto* preset = presetData.getDynamicObject();
     if (preset == nullptr)
         return false;
+
+    // WR-01: reset every parameter to its default BEFORE applying the stored subset.
+    // Factory presets only serialize the 10 synth params (no fx_eq_*/fx_comp_*), and
+    // legacy user presets predate some params — without this reset, any key omitted from
+    // the preset silently inherits whatever was loaded previously (e.g. selecting a clean
+    // "Default Marimba" while EQ + heavy compression were engaged left the FX on).
+    for (auto* param : parameters.processor.getParameters())
+        param->setValueNotifyingHost(param->getDefaultValue());
 
     // Restore parameters
     if (preset->hasProperty("parameters"))
@@ -164,7 +183,7 @@ bool PresetManager::savePreset(const juce::String& presetName)
         return false;
     }
 
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto presetFile = getUserPresetsDirectory().getChildFile(presetFileName(presetName));
 
     auto presetJson = createPresetJson();
     auto jsonString = juce::JSON::toString(presetJson, true);
@@ -185,10 +204,10 @@ bool PresetManager::loadPreset(const juce::String& presetName)
         return false;
 
     // Check factory presets first, then user presets
-    juce::File presetFile = getFactoryPresetsDirectory().getChildFile(presetName + ".json");
+    juce::File presetFile = getFactoryPresetsDirectory().getChildFile(presetFileName(presetName));
     if (!presetFile.existsAsFile())
     {
-        presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+        presetFile = getUserPresetsDirectory().getChildFile(presetFileName(presetName));
     }
 
     if (!presetFile.existsAsFile())
@@ -222,7 +241,7 @@ bool PresetManager::deletePreset(const juce::String& presetName)
         return false;
     }
 
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto presetFile = getUserPresetsDirectory().getChildFile(presetFileName(presetName));
     if (presetFile.existsAsFile())
     {
         if (presetFile.deleteFile())
@@ -556,7 +575,7 @@ void PresetManager::initializeFactoryPresets()
 
     for (const auto& preset : getFactoryPresetData())
     {
-        auto presetFile = factoryDir.getChildFile(preset.name + ".json");
+        auto presetFile = factoryDir.getChildFile(presetFileName(preset.name));
 
         // v1.6.2: Always regenerate factory presets to include new parameters
         // This ensures all users get the updated presets with new timbre controls
