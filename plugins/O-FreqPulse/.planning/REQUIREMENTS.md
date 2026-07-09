@@ -50,8 +50,10 @@
 
 ### NFR-2: Latency
 - NFR-2.1: Report accurate latency to host
-- NFR-2.2: Default latency ~46ms (2048 FFT at 44.1kHz)
-- NFR-2.3: (Future) Low-latency mode option
+- NFR-2.2: **Zero added latency** — implementation is time-domain Linkwitz-Riley crossovers
+  (`setLatencySamples(0)`), not FFT. The original FFT design's ~46 ms / 2048-sample latency
+  was superseded. (Corrected v1.16.4, code-review IN-02.)
+- NFR-2.3: N/A — no latency to reduce with the time-domain topology
 
 ### NFR-3: Audio Quality
 - NFR-3.1: No audible artifacts from FFT processing

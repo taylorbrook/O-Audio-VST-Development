@@ -28,7 +28,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
         1.0f));
 
     globalGroup->addChild(std::make_unique<juce::AudioParameterInt>(
-        juce::ParameterID { "steps", 2 },
+        juce::ParameterID { "steps", 1 },
         "Steps",
         2, 32, 16));
 
@@ -76,17 +76,23 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
         4000.0f));
 
     // Frequency boundary parameters
+    // WR-10: display-only — these bound the WebView grid's frequency axis and are NOT
+    // read by the DSP (never referenced in processBlock). Marked non-automatable so the
+    // host doesn't advertise automation lanes that change nothing audible. IDs and saved
+    // state are unchanged (not a breaking change); the UI still reads them via SliderState.
     globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "freq_low", 1 },
         "Freq Low",
         juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
-        20.0f));
+        20.0f,
+        juce::AudioParameterFloatAttributes().withAutomatable(false)));
 
     globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "freq_high", 1 },
         "Freq High",
         juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
-        20000.0f));
+        20000.0f,
+        juce::AudioParameterFloatAttributes().withAutomatable(false)));
 
     layout.add(std::move(globalGroup));
 
@@ -300,6 +306,15 @@ void OFreqPulseAudioProcessor::updateCrossoverFrequencies()
     float c2 = crossover2Param->load();
     float c3 = crossover3Param->load();
 
+    // WR-04: clamp below Nyquist before setCutoffFrequency(). LinkwitzRileyFilter computes
+    // g = tan(pi*f/fs); at f == fs/2 that is +inf → NaN, and just past Nyquist g goes negative
+    // (unstable). Cannot occur at 44.1/48/96 kHz (Nyquist > 20 kHz max cutoff) but does bite
+    // sub-~40 kHz sample rates (e.g. a 22050 Hz offline render with crossover_3 raised high).
+    const float nyquist = 0.49f * static_cast<float>(currentSampleRate);
+    c1 = juce::jmin(c1, nyquist);
+    c2 = juce::jmin(c2, nyquist);
+    c3 = juce::jmin(c3, nyquist);
+
     // Sort to guarantee ordering (handles automation edge cases)
     if (c1 > c2) std::swap(c1, c2);
     if (c2 > c3) std::swap(c2, c3);
@@ -343,8 +358,6 @@ std::array<bool, 32> OFreqPulseAudioProcessor::generateEuclidean(int steps, int 
 
 void OFreqPulseAudioProcessor::updateEuclideanPatterns()
 {
-    int globalSteps = juce::jlimit(2, 32, static_cast<int>(stepsParam->load()));
-
     for (int band = 0; band < 4; ++band)
     {
         int eucSteps = static_cast<int>(bandParams[band].eucSteps->load());
@@ -361,6 +374,11 @@ void OFreqPulseAudioProcessor::updateEuclideanPatterns()
 
 int OFreqPulseAudioProcessor::calculateCurrentStep(double ppq, int numSteps, int rateIndex, float swing)
 {
+    // IN-06: self-safe guard against modulo-by-zero. All current callers clamp numSteps to
+    // [2,32], but this makes the function safe for any future caller passing 0.
+    if (numSteps <= 0)
+        return 0;
+
     // PPQ values for rate options
     static constexpr double ppqPerStep[] = {
         4.0,     // 1/1 (whole note)
@@ -598,8 +616,12 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     }
 
     // Push dry samples to mixer
+    // WR-05: DryWetMixer is prepared for 2 channels; restrict the block to the processed
+    // channel count so a host handing us a >2-channel buffer can't drive pushDry/mixWet past
+    // the 2-wide internal dry buffer (OOB). Unreachable with the fixed stereo bus, but guarded.
     juce::dsp::AudioBlock<float> block(buffer);
-    dryWetMixer.pushDrySamples(block);
+    auto mixBlock = block.getSubsetChannelBlock(0, static_cast<size_t>(numChannels));
+    dryWetMixer.pushDrySamples(mixBlock);
 
     // Per-sample processing: LR crossover → per-band gain → sum
     for (int sample = 0; sample < numSamples; ++sample)
@@ -623,7 +645,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
             }
         }
 
-        // Two-stage gain smoothing: SmoothedValue (linear ramp) → one-pole LPF (softens corners)
+        // Two-stage gain smoothing: custom BandEnvelope (linear ramp) → one-pole LPF (softens corners)
         float bandGainValues[4];
         for (int band = 0; band < 4; ++band)
         {
@@ -635,6 +657,13 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         for (int ch = 0; ch < numChannels; ++ch)
         {
             float inputSample = buffer.getSample(ch, sample);
+
+            // WR-09: unity-gain transparency at rest is APPROXIMATE. A single LR4 low+high sum
+            // is an allpass, not identity; this binary tree (split c2 → split halves at c1/c3)
+            // sums allpass_c1(lowHalf) + allpass_c3(highHalf), whose differing phase yields a
+            // small magnitude ripple near c2 for CLOSELY-SPACED crossovers. Negligible at the
+            // well-separated defaults (120/500/4000 Hz). Accepted for a creative rhythmic gate;
+            // exact reconstruction would require per-path allpass compensation.
 
             // Stage 1: Split at crossover 2 (c2) into low-half and high-half
             float lowHalf, highHalf;
@@ -664,7 +693,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     // Mix dry/wet
     dryWetMixer.setWetMixProportion(mix);
-    dryWetMixer.mixWetSamples(block);
+    dryWetMixer.mixWetSamples(mixBlock);
 }
 
 //==============================================================================
@@ -730,7 +759,11 @@ static const juce::StringArray presetNames = {
 
 int OFreqPulseAudioProcessor::getNumPrograms()
 {
-    return numPresets;
+    // WR-11: report a single program so the DAW's native program menu isn't populated with
+    // 12 names that setCurrentProgram() intentionally does NOT load (loading there would
+    // clobber DAW state restoration/automation). Presets are managed via the WebView bar.
+    // (numPresets stays 12 for the factory-capture loop and getProgramName bounds.)
+    return 1;
 }
 
 int OFreqPulseAudioProcessor::getCurrentProgram()
@@ -810,6 +843,13 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
     };
 
     std::array<float, 32> velEmpty = {};
+
+    // WR-02: reset every band's step grid up-front. Euclidean-mode bands skip
+    // setStepVelocities() below, so without this the previously-loaded preset's manual
+    // velocities leak into the captured factory JSON (this fn is used to capture the 12
+    // factory presets) and reappear the instant a user switches that band to Manual.
+    for (int b = 0; b < 4; ++b)
+        setStepVelocities(b, velEmpty);
 
     switch (presetIndex)
     {
@@ -1127,16 +1167,19 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
     auto factoryDir = presetManager.getFactoryPresetsDirectory();
 
     // Regenerate factory presets when plugin version changes (ensures new parameters are captured)
+    // WR-06: gate on JucePlugin_VersionString rather than a hand-maintained literal, so a future
+    // release that changes a preset/param can never ship stale factory JSON by forgetting to bump.
     auto versionFile = factoryDir.getChildFile(".version");
 
     if (factoryDir.isDirectory()
         && versionFile.existsAsFile()
-        && versionFile.loadFileAsString().trimEnd() == "1.16.0")
+        && versionFile.loadFileAsString().trimEnd() == JucePlugin_VersionString)
         return;
 
-    if (factoryDir.isDirectory())
-        factoryDir.deleteRecursively();
-
+    // WR-07: overwrite the 12 files in place (replaceWithText below) instead of
+    // deleteRecursively()+recreate. The old delete-then-write opened a window where a
+    // concurrent getPresetList() saw an empty Factory dir, and two processors constructing
+    // concurrently could both delete/recreate and interleave writes.
     factoryDir.createDirectory();
 
     // For each of the 12 presets: load via existing loadPreset(), capture state, save as JSON
@@ -1173,7 +1216,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
     // Reset back to Init preset (index 0)
     loadPreset(0);
 
-    versionFile.replaceWithText("1.16.0\n");
+    versionFile.replaceWithText(juce::String(JucePlugin_VersionString) + "\n");
 
     juce::Logger::writeToLog("[O-FreqPulse] Factory presets initialized: " + juce::String(numPresets));
 }

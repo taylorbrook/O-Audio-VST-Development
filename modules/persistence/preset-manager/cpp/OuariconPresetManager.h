@@ -98,6 +98,12 @@ public:
     /** Load a preset from an arbitrary file path (for import). */
     bool loadPresetFromFile(const juce::File& file);
 
+    /** Save the current state to an arbitrary file path (Save As / export). Unlike savePreset(),
+        this honors the caller-chosen directory (symmetric with loadPresetFromFile). A ".json"
+        extension is ensured. The preset only appears in getPresetList() when written into the
+        user presets directory. */
+    bool savePresetToFile(const juce::File& file);
+
     /** Delete a user preset. Factory presets cannot be deleted. */
     bool deletePreset(const juce::String& presetName);
 
@@ -338,6 +344,26 @@ inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
         // Track the on-disk (sanitized) name so it matches getPresetList() and navigates.
         currentPresetName = safeName;
         juce::Logger::writeToLog("[PresetManager] Preset saved: " + safeName);
+        return true;
+    }
+
+    return false;
+}
+
+inline bool OuariconPresetManager::savePresetToFile(const juce::File& file)
+{
+    // Ensure a .json extension and that the chosen directory exists.
+    auto target = file.hasFileExtension("json") ? file : file.withFileExtension("json");
+    target.getParentDirectory().createDirectory();
+
+    auto presetJson = createPresetJson();
+    auto jsonString = juce::JSON::toString(presetJson, true);
+
+    if (target.replaceWithText(jsonString))
+    {
+        // Track the on-disk name so display/navigation reflect the save.
+        currentPresetName = target.getFileNameWithoutExtension();
+        juce::Logger::writeToLog("[PresetManager] Preset saved to file: " + target.getFullPathName());
         return true;
     }
 
