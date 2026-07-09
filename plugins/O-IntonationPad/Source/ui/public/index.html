@@ -1616,7 +1616,7 @@
             }
         }
 
-        function wireWavetableDisplay(display, posState, bankState, numBanks) {
+        function wireWavetableDisplay(display, posState, bankState) {
             function refresh() {
                 const bankIdx = Math.round(bankState.getChoiceIndex());
                 const pos = posState.getNormalisedValue();
@@ -1867,8 +1867,8 @@
             // Wavetable waveform displays
             const wtDisplayA = new WavetableDisplay('canvasOscA');
             const wtDisplayB = new WavetableDisplay('canvasOscB');
-            wireWavetableDisplay(wtDisplayA, wavetablePosState, wavetableBankState, 20);
-            wireWavetableDisplay(wtDisplayB, wavetablePos2State, wavetableBank2State, 20);
+            wireWavetableDisplay(wtDisplayA, wavetablePosState, wavetableBankState);
+            wireWavetableDisplay(wtDisplayB, wavetablePos2State, wavetableBank2State);
 
             // Refresh wavetable canvases when Synth tab becomes visible
             document.querySelector('[data-tab="synth"]').addEventListener('click', () => {

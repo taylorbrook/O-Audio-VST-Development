@@ -154,16 +154,6 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
             complete(JsonHelper::arrayToJSON(processorRef.getTuningEngine().getIntervals()));
         })
 
-        .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1) {
-                if (parseAndApplyIntervals(args[0].toString(), "Custom")) {
-                    complete(true);
-                    return;
-                }
-            }
-            complete(false);
-        })
-
         .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&, auto complete) {
             complete(processorRef.getTuningEngine().getActiveTuningName());
         })
@@ -192,23 +182,6 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
 
         .withNativeFunction("getTonicNote", [this](const juce::Array<juce::var>&, auto complete) {
             complete(processorRef.getTuningEngine().getTonicNote());
-        })
-
-        // --- Temperament Presets ---
-        .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1) {
-                int preset = static_cast<int>(args[0]);
-                processorRef.getTuningEngine().setBuiltInPreset(
-                    static_cast<TuningEngine::BuiltInPreset>(preset));
-                processorRef.checkAndResetForScaleChange();
-                complete(true);
-                return;
-            }
-            complete(false);
-        })
-
-        .withNativeFunction("getTemperamentPreset", [this](const juce::Array<juce::var>&, auto complete) {
-            complete(static_cast<int>(processorRef.getTuningEngine().getBuiltInPreset()));
         })
 
         // --- Scala File I/O ---
@@ -356,10 +329,6 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                     .add("noteCount", static_cast<int>(t.intervals.size())));
             }
             complete(arr.build());
-        })
-
-        .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&, auto complete) {
-            complete(JsonHelper::arrayToJSON(EmbeddedTunings::getCategories()));
         })
 
         .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
@@ -543,14 +512,6 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                     .add("category", p.category)
                     .add("isFactory", p.isFactory ? 1 : 0));
             }
-            complete(arr.build());
-        })
-
-        .withNativeFunction("getPresetCategories", [this](const juce::Array<juce::var>&, auto complete) {
-            auto cats = processorRef.getPresetManager().getCategories();
-            JsonHelper::JsonArrayBuilder arr;
-            for (const auto& c : cats)
-                arr.add(JsonHelper::JsonObjectBuilder{}.add("name", c));
             complete(arr.build());
         })
 
