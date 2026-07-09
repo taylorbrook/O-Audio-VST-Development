@@ -64,6 +64,20 @@ public:
      */
     void reset();
 
+    /**
+     * Coefficient for one allpass stage — the single source of truth for the
+     * cascade recipe. Static so WaveguideString::calculateFilterGroupDelay()
+     * can query the exact coefficients instead of replicating the math
+     * (pitch compensation silently drifts if the two copies diverge).
+     */
+    static float calculateStageCoefficient(double frequency, float stiffness, int stageIndex);
+
+    /**
+     * Sum of the DC group delays of all allpass stages, in samples,
+     * for the given note frequency and stiffness amount.
+     */
+    static float calculateGroupDelaySamples(double frequency, float stiffness);
+
 private:
     /**
      * Single allpass filter stage
@@ -113,7 +127,7 @@ private:
      * @param frequency Fundamental frequency in Hz
      * @return Scaling factor 0.0-1.0
      */
-    float calculateFrequencyScaling(double frequency) const;
+    static float calculateFrequencyScaling(double frequency);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StiffnessFilter)
 };

@@ -123,7 +123,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
                                 int /*currentPitchWheelPosition*/)
 {
     currentMidiNote = midiNoteNumber;
-    currentVelocity = velocity;
+    glissUpdateCounter = 0; // IN-05: first gliding sample always applies to the string
 
     // Phase 2.8: Use TuningEngine for frequency calculation (if available)
     if (tuningEngine != nullptr)
@@ -664,12 +664,22 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         // Phase 2.9: Update frequency from glissando controller (if active)
         if (glissandoController.isActive())
         {
+            // getNextFrequency() advances the controller's phase, so it MUST be
+            // called every sample to preserve glissando timing.
             double glissandoFreq = glissandoController.getNextFrequency();
-            stringModel.setFrequency(glissandoFreq);
 
-            // v1.27.0: Apply velocity-dependent damping scaling
-            float glissVel = glissandoController.getNextVelocity();
-            stringModel.setDamping(glissBaseDamping * (1.0f - glissVel * 0.3f));
+            // IN-05: apply to the string at a decimated rate. setFrequency (3× pow +
+            // group-delay estimate) and setDamping (filter update + crossfade restart)
+            // are far too heavy to run per sample; every 8 samples is ~0.18 ms at
+            // 44.1 kHz — well below any audible step size.
+            if ((glissUpdateCounter++ & 7) == 0)
+            {
+                stringModel.setFrequency(glissandoFreq);
+
+                // v1.27.0: Apply velocity-dependent damping scaling
+                float glissVel = glissandoController.getNextVelocity();
+                stringModel.setDamping(glissBaseDamping * (1.0f - glissVel * 0.3f));
+            }
         }
 
         // Generate one sample from physical model (string)

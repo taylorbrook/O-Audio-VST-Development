@@ -428,9 +428,12 @@ void WaveguideString::setMaterial(const StringMaterial& material)
 
 void WaveguideString::setFrequency(double frequency)
 {
-    if (frequency > 20.0 && frequency < 20000.0)
+    // IN-04: clamp instead of silently skipping the update — a skipped update left the
+    // string at its PREVIOUS pitch, so an extreme glissando could stick out of range.
+    // Non-finite input is still rejected (jlimit would pass NaN through).
+    if (std::isfinite(frequency))
     {
-        currentFrequency = frequency;
+        currentFrequency = juce::jlimit(20.0, 20000.0, frequency);
 
         // Update delay line lengths for new frequency
         float railDelay = calculateRailDelay();
@@ -616,35 +619,9 @@ float WaveguideString::calculateFilterGroupDelay() const
     // v1.1.3 FIX: Calculate actual stiffness filter group delay from allpass coefficients
     // Previous versions used a fixed 0.5f which caused pitch drift between materials
     // (e.g., Crystal at 0.70 stiffness vs Gut at 0.05 stiffness = ~14x different delay)
-    float stiffnessDelay = 0.0f;
-
-    if (stiffnessAmount > 0.001f)
-    {
-        // Replicate coefficient calculation from StiffnessFilter::updateCoefficients()
-        // Frequency scaling: bass strings exhibit more stiffness (same as StiffnessFilter)
-        constexpr double referenceFreq = 440.0;
-        double freqRatio = currentFrequency / referenceFreq;
-        float freqScaling = 1.0f / std::pow(static_cast<float>(freqRatio), 0.3f);
-        freqScaling = juce::jlimit(0.5f, 2.0f, freqScaling);
-
-        float baseCoefficient = stiffnessAmount * freqScaling;
-
-        // Sum group delay from all 4 allpass stages
-        constexpr int NUM_STAGES = 4;
-        for (int i = 0; i < NUM_STAGES; ++i)
-        {
-            // Progressive scaling per stage (same as StiffnessFilter)
-            float stageScaling = 1.0f - (static_cast<float>(i) / NUM_STAGES) * 0.5f;
-            float coefficient = baseCoefficient * stageScaling * 0.8f;
-            coefficient = juce::jlimit(-0.9f, 0.9f, coefficient);
-
-            // Group delay at DC for first-order allpass: (1 - a) / (1 + a) samples
-            if (std::abs(coefficient) > 0.001f)
-            {
-                stiffnessDelay += (1.0f - coefficient) / (1.0f + coefficient);
-            }
-        }
-    }
+    // IN-10: query StiffnessFilter's shared static recipe instead of replicating the
+    // coefficient math here (the two copies had to be kept in sync by hand).
+    float stiffnessDelay = StiffnessFilter::calculateGroupDelaySamples(currentFrequency, stiffnessAmount);
 
     return bridgeDelay + nutDelay + dampingDelay + stiffnessDelay;
 }

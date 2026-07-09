@@ -2,6 +2,64 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.3.2] - 2026-07-09
+
+Cleanup sweep resolving the 12 remaining Info findings from the v2.3.0 deep code review
+(`CODE_REVIEW.md`). v2.3.1 resolved all Critical/Warning findings plus six Info riders; this
+release closes out the rest. No parameter IDs, ranges, or state format changed.
+
+### Fixed
+
+- **IN-04 — sticky glissando at range extremes.** `WaveguideString::setFrequency` silently
+  no-op'd outside 20–20000 Hz, leaving the string at its *previous* pitch. *Fix:* clamp to the
+  boundary with `jlimit` (non-finite input still rejected — `jlimit` passes NaN through).
+- **IN-08 — incomplete `isRestoringState` guard.** The guard covered only
+  `tuningEngine.setMode`; `setMasterTune`, `setPitchBendRange`, and `setOctaveStretch` still ran
+  on the audio thread while `setStateInformation` (message thread) mutated the engine. *Fix:*
+  the guard now covers all four tuning-engine mutators in `processBlock`; values re-apply on the
+  first block after restoration.
+- **IN-16 — embedded-tuning JSON built by unescaped concatenation.** A future tuning
+  name/description containing `"` or `\` would emit malformed JSON and break the library
+  panel's `JSON.parse`. *Fix:* `getEmbeddedTuningList` now serializes via
+  `juce::JSON`/`DynamicObject`. (Period is now sent at full precision instead of 1-decimal;
+  the UI formats with `.toFixed(0)`, so display is unchanged.)
+
+### Changed
+
+- **IN-05 — heavy per-sample recompute during glissando.** `setFrequency` (3× `pow` + group-delay
+  estimate) and `setDamping` (filter update + crossfade restart) ran every sample while gliding.
+  *Fix:* the glissando controller still advances per sample (timing unchanged), but the string
+  model is updated every 8 samples (~0.18 ms at 44.1 kHz — below any audible step size).
+- **IN-10 — stiffness group-delay math duplicated.** `WaveguideString::calculateFilterGroupDelay`
+  re-implemented `StiffnessFilter`'s coefficient recipe by hand (drift hazard: any tweak to the
+  real filter silently broke pitch compensation). *Fix:* the recipe is now a static
+  `StiffnessFilter::calculateStageCoefficient` / `calculateGroupDelaySamples` shared by both;
+  numerics are identical.
+
+### Removed (dead code)
+
+- **IN-11** — unread `HarpSynthVoice::currentVelocity` member.
+- **IN-12** — unread `PluckExciter::pluckVelocity` member (its glissando `*= velScale` was a no-op;
+  `burstAmplitude` scaling, which actually drives output, is untouched).
+- **IN-13** — orphaned `Resources/ui/css/styles.css` (not embedded since v2.1.6; CSS is inlined
+  in index.html).
+- **IN-14** — five native functions registered but never called by the JS: `savePreset`,
+  `setSingleInterval`, `getTemperamentPreset`, `getEmbeddedTuningCategories`,
+  `getTooltipsEnabled` (JS uses `savePresetWithDialog` / `setSingleIntervalEncoded`; tooltip
+  state restores via `evaluateJavascript`).
+
+### Documented (intentional, no code change)
+
+- **IN-15** — `temperamentPreset` deliberately has no relay/attachment: the UI drives it through
+  the `setTemperamentPreset` native fn (which also mutates the TuningEngine). Binding it would
+  let host automation fight the engine's custom-scale state (e.g. override a loaded .scl).
+  Comment added at the parameter definition; see NOTES.md Known Limitations.
+- **IN-17** — Tonic is modal rotation on the KBM path but transposition on the linear path, and
+  clamps to 0-11 (scales > 12 degrees: only first 12 selectable). Intentional since v1.13.0;
+  comment added at `rotateIntervalsForTonic`.
+- **IN-18** — corrected stale header comment: effects chain runs Chorus → Delay → Reverb → EQ
+  (the v2.1.2 order), not Chorus → Delay → EQ → Reverb.
+
 ## [2.3.1] - 2026-07-08
 
 Resolves the Critical + Warning findings (and defense-in-depth Info riders) from the v2.3.0
