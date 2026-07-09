@@ -11,6 +11,9 @@
 #include "TuningEngine.h"
 
 namespace {
+    // Amplitude below which a gain/mix is treated as silent (skip the oscillator pass).
+    constexpr float kSilenceThreshold = 0.0001f;
+
     // Bhaskara I sine approximation — max error ~0.2%, sufficient for LFO modulation
     inline float fastSin(float x)
     {
@@ -338,7 +341,7 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
         float inversionMix = subVoiceInversionGains[idx];
 
         // Early-out: skip entire sub-voice if effectively silent
-        if (amplitudeGain < 0.0001f)
+        if (amplitudeGain < kSilenceThreshold)
         {
             subVoiceOscillators[idx].advancePhase(numSamples);
             subVoiceOscillators2[idx].advancePhase(numSamples);
@@ -402,7 +405,7 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
         float gainBR = amplitudeGain * smoothedGainB * panR;
 
         // Base oscillators (skip when spacing + inversion fully replace base)
-        if (baseMix >= 0.0001f)
+        if (baseMix >= kSilenceThreshold)
         {
             subVoiceOscillators[idx].processBlockStereo(destL, destR, activeSamples,
                 baseMix * gainAL, baseMix * gainAR);
@@ -416,7 +419,7 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
         }
 
         // Spacing oscillators (skip when spacing mix near zero)
-        if (spacingMix >= 0.0001f)
+        if (spacingMix >= kSilenceThreshold)
         {
             subVoiceSpacingOscillators[idx].processBlockStereo(destL, destR, activeSamples,
                 spacingMix * gainAL, spacingMix * gainAR);
@@ -430,7 +433,7 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
         }
 
         // Inversion oscillators (skip when inversion mix near zero)
-        if (inversionMix >= 0.0001f)
+        if (inversionMix >= kSilenceThreshold)
         {
             subVoiceInversionOscillators[idx].processBlockStereo(destL, destR, activeSamples,
                 inversionMix * gainAL, inversionMix * gainAR);
@@ -508,17 +511,6 @@ void WavetableVoice::setWavetableBank(int bankIndex)
     cachedBankIndexA = bankIndex;
 }
 
-void WavetableVoice::setWavetablePosition(float pos)
-{
-    auto count = static_cast<size_t>(activeSubVoices.load(std::memory_order_relaxed));
-    for (size_t i = 0; i < count; ++i)
-    {
-        subVoiceOscillators[i].setWavetablePosition(pos);
-        subVoiceSpacingOscillators[i].setWavetablePosition(pos);
-        subVoiceInversionOscillators[i].setWavetablePosition(pos);
-    }
-}
-
 void WavetableVoice::setWavetableBank2(int bankIndex)
 {
     // IN-03 / CR-01: gate on change + RT-safe lookup (see setWavetableBank).
@@ -536,17 +528,6 @@ void WavetableVoice::setWavetableBank2(int bankIndex)
         subVoiceInversionOscillators2[i].setWavetableBank(bank);
     }
     cachedBankIndexB = bankIndex;
-}
-
-void WavetableVoice::setWavetablePosition2(float pos)
-{
-    auto count = static_cast<size_t>(activeSubVoices.load(std::memory_order_relaxed));
-    for (size_t i = 0; i < count; ++i)
-    {
-        subVoiceOscillators2[i].setWavetablePosition(pos);
-        subVoiceSpacingOscillators2[i].setWavetablePosition(pos);
-        subVoiceInversionOscillators2[i].setWavetablePosition(pos);
-    }
 }
 
 void WavetableVoice::setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth)

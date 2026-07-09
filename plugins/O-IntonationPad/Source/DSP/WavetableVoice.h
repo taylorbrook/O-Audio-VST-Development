@@ -57,9 +57,7 @@ public:
 
     // Parameter setters (called from audio thread via atomic reads)
     void setWavetableBank(int bankIndex);
-    void setWavetablePosition(float pos);
     void setWavetableBank2(int bankIndex);
-    void setWavetablePosition2(float pos);
     void setGainA(float gain);
     void setGainB(float gain);
     void setEnvelopeParameters(float attack, float decay, float sustain, float release);

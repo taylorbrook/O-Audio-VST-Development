@@ -14,9 +14,14 @@
  * - HTML export
  *
  * Usage:
+ *   import * as Juce from './juce/index.js';
  *   import { TuningPanel } from './tuning-panel.js';
- *   const panel = new TuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
+ *   const panel = new TuningPanel(document.getElementById('tuning-container'), Juce);
  *   panel.init();
+ *
+ * NOTE: pass the `Juce` ES-module namespace (exports getNativeFunction / getSliderState),
+ * NOT `window.__JUCE__` — the low-level postMessage handler has no getNativeFunction and
+ * every backend call would silently throw, leaving an all-dead panel.
  */
 
 import { NOTE_NAMES } from './constants.js';

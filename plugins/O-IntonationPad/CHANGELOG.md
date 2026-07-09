@@ -1,5 +1,42 @@
 # O-IntonationPad Changelog
 
+## [2.8.2] - 2026-07-09
+
+Safe INFO-tier cleanup sweep from the v2.8.0 deep code review (`CODE_REVIEW.md`). Dead-code /
+cosmetic only — **no behavior change, no parameter/state/UI change.** All Critical + Warning findings
+were already resolved in v2.8.1.
+
+### Changed
+
+- **IN-01 — Extracted duplicated silence threshold.** The literal `0.0001f` appeared 4× in
+  `WavetableVoice::renderNextBlock` (amplitude early-out + base/spacing/inversion mix skips). Replaced
+  with a single file-scope `constexpr float kSilenceThreshold = 0.0001f;`. Identical numeric behavior.
+- **IN-02 — Removed dead voice methods.** `WavetableVoice::setWavetablePosition` /
+  `setWavetablePosition2` (the non-LFO variants) were never called — the processor drives position
+  exclusively through `setWavetablePositionWithLFO` / `...2WithLFO`. Deleted both definitions and
+  declarations. (The oscillator-level `WavetableOscillator::setWavetablePosition`, called by the
+  WithLFO paths, is untouched.)
+- **IN-04 — Removed 5 registered-but-never-called native functions** from `PluginEditor.cpp`:
+  `setTuningIntervals`, `setTemperamentPreset`, `getTemperamentPreset`, `getEmbeddedTuningCategories`,
+  `getPresetCategories`. No JS `getNativeFunction(...)` call resolves to any of them (the UI uses
+  hardcoded category lists and the APVTS attachment path for temperament). The `parseAndApplyIntervals`
+  and `checkAndResetForScaleChange` helpers they shared remain live (still used by `applyGeneratedScale`
+  / `loadEmbeddedTuning` / file-load paths). `tuning_temperamentPreset` remains automatable via APVTS —
+  removing its dead WebView accessors accepts it as automation-only (report IN-06).
+- **IN-05 — Fixed `tuning-panel.js` docstring.** The usage example told callers to pass
+  `window.__JUCE__` (the low-level postMessage handler, which has no `getNativeFunction` → an all-dead
+  panel). Corrected to pass the `Juce` ES-module namespace, matching what `index.html` already does.
+- **IN-07 — Dropped unused `numBanks` parameter** from `wireWavetableDisplay` in `index.html` (bank
+  index comes from `bankState.getChoiceIndex()`; the argument was never referenced). Updated both call
+  sites.
+
+### Notes
+
+- Remaining deferred INFO findings: IN-06 (temperament has no UI control — now formally automation-only
+  per the IN-04 accessor removal), IN-09 (torn frequency-table read — moot since CR-05 moved rebuilds
+  off the audio thread), IN-10 (reverb pre-delay click / `getActiveNotes` UI race — cosmetic), IN-11
+  (`smoothedGainB` flush — mitigated by `ScopedNoDenormals`). No RT-safety or correctness findings remain.
+
 ## [2.8.1] - 2026-07-08
 
 Resolves all Critical + Warning findings from the v2.8.0 deep code review (`CODE_REVIEW.md`).
