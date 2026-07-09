@@ -132,7 +132,6 @@ private:
     double currentFrequency = 440.0;
 
     // Excitation parameters
-    float pluckVelocity = 0.7f;
     float pluckPosition = 0.5f;
     float fingerHardness = 0.5f;
     float noiseAmount = 0.5f;  // Material-based noise content (Phase 2.5)

@@ -330,6 +330,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
     ));
 
     // v1.9.0: Temperament Preset Selection
+    // IN-15 (documented, intentional): this choice param has NO WebView relay/attachment —
+    // the UI drives it through the "setTemperamentPreset" native fn (which also mutates the
+    // TuningEngine), and the engine's scale state is what actually sounds. Host automation
+    // of this param moves the value but does NOT retune the engine or the UI dropdown;
+    // wiring an attachment would let automation fight the engine's custom-scale state
+    // (e.g. override a loaded .scl), so it is deliberately left unbound.
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "temperamentPreset", 1 },
         "Temperament Preset",
@@ -737,19 +743,24 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     sympatheticEngine.setResonatorQ(coreCache.sympatheticQ->load());
 
     // Phase 2.8: Update tuning engine parameters
-    tuningEngine.setMasterTune(static_cast<double>(coreCache.masterTune->load()));
-    tuningEngine.setPitchBendRange(coreCache.pitchBendRange->load());
-
-    // v1.6.0: Update tuning mode
     // v1.13.3: Skip mode sync during state restoration to prevent race condition
+    // IN-08: the guard now covers ALL tuning-engine mutators, not just setMode —
+    // setStateInformation (message thread) drives setBuiltInPreset/setCustomIntervals/
+    // setTonicNote/setOctaveStretch on the engine while processBlock runs, so the
+    // audio-thread writes below raced it. Values are re-applied on the first block
+    // after restoration completes.
     if (!isRestoringState.load(std::memory_order_acquire))
     {
+        tuningEngine.setMasterTune(static_cast<double>(coreCache.masterTune->load()));
+        tuningEngine.setPitchBendRange(coreCache.pitchBendRange->load());
+
+        // v1.6.0: Update tuning mode
         int modeInt = static_cast<int>(coreCache.tuningMode->load());
         tuningEngine.setMode(static_cast<TuningEngine::Mode>(modeInt));
-    }
 
-    // v1.9.0: Update octave stretch
-    tuningEngine.setOctaveStretch(coreCache.octaveStretch->load());
+        // v1.9.0: Update octave stretch
+        tuningEngine.setOctaveStretch(coreCache.octaveStretch->load());
+    }
 
     // v1.31.0: Read host BPM for tempo sync
     double hostBpm = 120.0;

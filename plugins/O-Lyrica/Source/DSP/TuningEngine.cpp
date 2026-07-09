@@ -347,6 +347,13 @@ juce::String TuningEngine::getActiveTuningName() const
 // ═══════════════════════════════════════════════════════════════════
 // Tonic (Modal Rotation) - v1.12.0
 // ═══════════════════════════════════════════════════════════════════
+// IN-17 (documented, intentional as of v1.13.0): "Tonic" means two different things
+// depending on the mapping path. With a KBM loaded, calculateCustomFrequency() uses
+// rotatedIntervals (MODAL ROTATION — same pitch set, different starting degree). On the
+// default linear path it ignores rotation and shifts the anchor note to 60 + tonic
+// (TRANSPOSITION). Also note setTonicNote clamps to 0-11, so for scales with more than
+// 12 degrees only the first 12 are selectable as tonic. Reconcile only with a UI/design
+// decision — changing either path retunes existing sessions.
 
 void TuningEngine::rotateIntervalsForTonic(int tonic)
 {

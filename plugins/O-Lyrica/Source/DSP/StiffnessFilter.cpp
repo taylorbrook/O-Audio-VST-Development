@@ -70,40 +70,51 @@ void StiffnessFilter::reset()
 
 void StiffnessFilter::updateCoefficients()
 {
-    // If stiffness is zero, bypass by setting all coefficients to 0
-    if (currentStiffness < 0.001f)
-    {
-        for (auto& stage : allpassStages)
-        {
-            stage.coefficient = 0.0f;
-        }
-        return;
-    }
+    // IN-10: delegate to the shared static recipe so the group-delay estimate
+    // (calculateGroupDelaySamples) can never drift from the live coefficients.
+    for (int i = 0; i < NUM_STAGES; ++i)
+        allpassStages[i].coefficient = calculateStageCoefficient(currentFrequency, currentStiffness, i);
+}
+
+float StiffnessFilter::calculateStageCoefficient(double frequency, float stiffness, int stageIndex)
+{
+    // If stiffness is zero, bypass (coefficient 0 = identity allpass)
+    if (stiffness < 0.001f)
+        return 0.0f;
 
     // Calculate frequency-dependent scaling (bass strings are stiffer)
-    float freqScaling = calculateFrequencyScaling(currentFrequency);
+    float freqScaling = calculateFrequencyScaling(frequency);
 
     // Base coefficient scales with stiffness and frequency
     // Higher stiffness = stronger phase shift = more inharmonicity
-    float baseCoefficient = currentStiffness * freqScaling;
+    float baseCoefficient = stiffness * freqScaling;
 
-    // Set coefficients for each stage with progressive scaling
-    // Each stage has slightly different coefficient for smooth dispersion curve
-    // This creates the characteristic "stretched" harmonic series
-    for (int i = 0; i < NUM_STAGES; ++i)
-    {
-        // Progressive scaling: earlier stages have stronger effect
-        float stageScaling = 1.0f - (static_cast<float>(i) / NUM_STAGES) * 0.5f;
+    // Progressive per-stage scaling: earlier stages have stronger effect,
+    // creating the characteristic "stretched" harmonic series
+    float stageScaling = 1.0f - (static_cast<float>(stageIndex) / NUM_STAGES) * 0.5f;
 
-        // Map to allpass coefficient range (-1 to 1)
-        // We use positive coefficients for high-frequency phase lead (sharp partials)
-        float coefficient = baseCoefficient * stageScaling * 0.8f;
-
-        allpassStages[i].coefficient = juce::jlimit(-0.9f, 0.9f, coefficient);
-    }
+    // Map to allpass coefficient range; positive coefficients give
+    // high-frequency phase lead (sharp partials)
+    return juce::jlimit(-0.9f, 0.9f, baseCoefficient * stageScaling * 0.8f);
 }
 
-float StiffnessFilter::calculateFrequencyScaling(double frequency) const
+float StiffnessFilter::calculateGroupDelaySamples(double frequency, float stiffness)
+{
+    float total = 0.0f;
+
+    for (int i = 0; i < NUM_STAGES; ++i)
+    {
+        float coefficient = calculateStageCoefficient(frequency, stiffness, i);
+
+        // Group delay at DC for a first-order allpass: (1 - a) / (1 + a) samples
+        if (std::abs(coefficient) > 0.001f)
+            total += (1.0f - coefficient) / (1.0f + coefficient);
+    }
+
+    return total;
+}
+
+float StiffnessFilter::calculateFrequencyScaling(double frequency)
 {
     // Bass strings (low frequencies) exhibit more stiffness in real instruments
     // This creates the characteristic "stretched octaves" in pianos

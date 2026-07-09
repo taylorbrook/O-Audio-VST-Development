@@ -132,13 +132,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             // ─────────────────────────────────────────────────────────────────
             // PRESET MANAGEMENT (v1.5.0)
             // ─────────────────────────────────────────────────────────────────
-            .withNativeFunction("savePreset", [this](const juce::Array<juce::var>& args,
-                                                      std::function<void(juce::var)> complete) {
-                if (args.isEmpty()) { complete(juce::var(false)); return; }
-                auto name = args[0].toString();
-                auto success = processorRef.getPresetManager().savePreset(name);
-                complete(juce::var(success));
-            })
+            // IN-14: "savePreset" was registered but never called by the JS (which uses
+            // "savePresetWithDialog") — removed.
             .withNativeFunction("loadPreset", [this](const juce::Array<juce::var>& args,
                                                       std::function<void(juce::var)> complete) {
                 if (args.isEmpty()) { complete(juce::var(false)); return; }
@@ -317,23 +312,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 processorRef.getTuningEngine()->setTonicNote(tonic);
                 complete(juce::var(true));
             })
-            // v1.11.1: Set a single interval by index (simpler than passing full array)
-            .withNativeFunction("setSingleInterval", [this](const juce::Array<juce::var>& args,
-                                                             std::function<void(juce::var)> complete) {
-                if (args.size() < 2) { complete(juce::var(false)); return; }
-
-                int index = static_cast<int>(args[0]);
-                double cents = static_cast<double>(args[1]);
-
-                processorRef.getTuningEngine()->setSingleInterval(index, cents);
-
-                // Also update APVTS tuningMode to Custom (1)
-                if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
-                    param->setValueNotifyingHost(param->convertTo0to1(1.0f));
-
-                complete(juce::var(true));
-            })
             // v1.11.1: Encoded version - single int: index * 10000 + cents
+            // IN-14: the unencoded "setSingleInterval" variant was registered but never
+            // called by the JS (which uses the encoded form below) — removed.
             .withNativeFunction("setSingleIntervalEncoded", [this](const juce::Array<juce::var>& args,
                                                                     std::function<void(juce::var)> complete) {
                 if (args.isEmpty()) {
@@ -539,11 +520,7 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 complete(juce::var(true));
             })
-            .withNativeFunction("getTemperamentPreset", [this](const juce::Array<juce::var>&,
-                                                                std::function<void(juce::var)> complete) {
-                int presetIndex = static_cast<int>(processorRef.getTuningEngine()->getBuiltInPreset());
-                complete(juce::var(presetIndex));
-            })
+            // IN-14: "getTemperamentPreset" was registered but never called by the JS — removed.
             .withNativeFunction("getOctaveStretch", [this](const juce::Array<juce::var>&,
                                                            std::function<void(juce::var)> complete) {
                 float stretch = processorRef.getTuningEngine()->getOctaveStretch();
@@ -667,25 +644,24 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&,
                                                             std::function<void(juce::var)> complete) {
-                // Build JSON array of all tunings
+                // Build JSON array of all tunings.
+                // IN-16: serialize via juce::JSON (proper escaping) instead of raw string
+                // concatenation — a tuning name/description containing a quote or backslash
+                // would have emitted malformed JSON and broken the library panel's JSON.parse.
                 const auto& tunings = EmbeddedTunings::getAllTunings();
-                juce::String json = "[";
-                bool first = true;
+                juce::Array<juce::var> list;
                 for (const auto& tuning : tunings)
                 {
-                    if (!first) json += ",";
-                    first = false;
-                    json += "{";
-                    json += "\"id\":\"" + juce::String(tuning.id) + "\",";
-                    json += "\"name\":\"" + juce::String(tuning.name) + "\",";
-                    json += "\"category\":\"" + juce::String(tuning.category) + "\",";
-                    json += "\"description\":\"" + juce::String(tuning.description) + "\",";
-                    json += "\"noteCount\":" + juce::String(static_cast<int>(tuning.intervals.size())) + ",";
-                    json += "\"period\":" + juce::String(tuning.period, 1);
-                    json += "}";
+                    auto* obj = new juce::DynamicObject();
+                    obj->setProperty("id", juce::String(tuning.id));
+                    obj->setProperty("name", juce::String(tuning.name));
+                    obj->setProperty("category", juce::String(tuning.category));
+                    obj->setProperty("description", juce::String(tuning.description));
+                    obj->setProperty("noteCount", static_cast<int>(tuning.intervals.size()));
+                    obj->setProperty("period", tuning.period);
+                    list.add(juce::var(obj));
                 }
-                json += "]";
-                complete(juce::var(json));
+                complete(juce::var(juce::JSON::toString(juce::var(list), true)));
             })
             .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args,
                                                               std::function<void(juce::var)> complete) {
@@ -728,18 +704,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 complete(juce::var(true));
             })
-            .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&,
-                                                                   std::function<void(juce::var)> complete) {
-                auto categories = EmbeddedTunings::getCategories();
-                juce::String json = "[";
-                for (size_t i = 0; i < categories.size(); ++i)
-                {
-                    if (i > 0) json += ",";
-                    json += "\"" + juce::String(categories[i]) + "\"";
-                }
-                json += "]";
-                complete(juce::var(json));
-            })
+            // IN-14: "getEmbeddedTuningCategories" was registered but never called by the
+            // JS (categories come with getEmbeddedTuningList) — removed.
             // ─────────────────────────────────────────────────────────────────
             // HTML EXPORT (v1.16.0)
             // ─────────────────────────────────────────────────────────────────
@@ -792,10 +758,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 processorRef.setTooltipsEnabled(enabled);
                 complete(juce::var(true));
             })
-            .withNativeFunction("getTooltipsEnabled", [this](const juce::Array<juce::var>&,
-                                                              std::function<void(juce::var)> complete) {
-                complete(juce::var(processorRef.getTooltipsEnabled()));
-            })
+            // IN-14: "getTooltipsEnabled" was registered but never called by the JS
+            // (tooltip state is restored via evaluateJavascript) — removed.
             // ─────────────────────────────────────────────────────────────────
             // NOTE TRIGGERING (v1.7.4)
             // ─────────────────────────────────────────────────────────────────

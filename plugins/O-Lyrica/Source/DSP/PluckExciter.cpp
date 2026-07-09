@@ -66,7 +66,6 @@ void PluckExciter::prepare(double sampleRate, int maxBlockSize)
 
 void PluckExciter::trigger(float velocity, float position, float hardness, double frequency)
 {
-    pluckVelocity = juce::jlimit(0.0f, 1.0f, velocity);
     pluckPosition = juce::jlimit(0.0f, 1.0f, position);
     fingerHardness = juce::jlimit(0.0f, 1.0f, hardness);
     currentFrequency = frequency;
@@ -88,7 +87,6 @@ void PluckExciter::trigger(float velocity, float position, float hardness, doubl
     {
         // Reduce effective velocity (lighter brush contact)
         float velScale = 1.0f - (glissAmount * 0.4f);
-        pluckVelocity *= velScale;
         burstAmplitude *= velScale;
 
         // Narrow the noise burst (shorter contact time = thinner transient)

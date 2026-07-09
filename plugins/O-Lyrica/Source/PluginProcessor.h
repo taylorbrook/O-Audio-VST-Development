@@ -238,7 +238,7 @@ private:
     // v1.33.1: Shared body resonance (post-mix, single instance for all voices)
     BodyResonance bodyResonance;
 
-    // v1.32.0: Effects chain (Chorus -> Delay -> EQ -> Reverb)
+    // v1.32.0: Effects chain — processBlock runs Chorus -> Delay -> Reverb -> EQ (v2.1.2 order)
     juce::dsp::Chorus<float> chorus;
     DelayProcessor delay;
     EQProcessor eq;

@@ -147,8 +147,8 @@ private:
     Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     double currentFrequency = 440.0;
-    float currentVelocity = 0.0f;
     int currentMidiNote = -1; // Current MIDI note number (for pitch bend)
+    int glissUpdateCounter = 0; // IN-05: decimates string-model updates during glissando
     int voiceId = -1; // Unique ID for sympathetic tracking (v1.3.2: generated from atomic counter)
     int cachedSympatheticSlot = -1; // v1.32.5: Cached slot index from registerVoice() to avoid per-sample lookup
 
