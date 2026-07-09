@@ -17,16 +17,26 @@ void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     midPeak.prepare (spec);
     highShelf.prepare (spec);
 
-    // Apply initial coefficients
-    *lowShelf.state = *FilterCoeffs::makeLowShelf (
+    // Apply initial coefficients via the ArrayCoefficients operator= (Coefficients::operator=
+    // (std::array) → assignImpl). Doing it here off the audio thread ALSO grows the coefficient
+    // array's storage to capacity ≥8 (ensureStorageAllocated), so the identical assignments in
+    // process() reuse the buffer with NO heap alloc (CR-03).
+    *lowShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf (
         currentSampleRate, 200.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetLowGainDB.load()));
-    *midPeak.state = *FilterCoeffs::makePeakFilter (
+    *midPeak.state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
         currentSampleRate, targetMidFreqHz.load(), 1.0f,
         juce::Decibels::decibelsToGain (targetMidGainDB.load()));
-    *highShelf.state = *FilterCoeffs::makeHighShelf (
+    *highShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetHighGainDB.load()));
+
+    // IN-07: seed the dirty-flag cache so the first post-prepare block does NOT force a
+    // spurious (heap-allocating) coefficient rebuild.
+    prevLowGainDB  = targetLowGainDB.load();
+    prevMidGainDB  = targetMidGainDB.load();
+    prevMidFreqHz  = targetMidFreqHz.load();
+    prevHighGainDB = targetHighGainDB.load();
 }
 
 void EQProcessor::reset()
@@ -49,9 +59,14 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
     float midFreq = targetMidFreqHz.load (std::memory_order_relaxed);
     float highGain = targetHighGainDB.load (std::memory_order_relaxed);
 
+    // CR-03: RT-safe coefficient updates. Assigning an ArrayCoefficients std::array uses
+    // Coefficients::operator=(std::array) → assignImpl, which reuses the already-allocated
+    // coefficient buffer (capacity ≥8 established in prepare) — NO heap alloc/free on the audio
+    // thread. This replaces the previous *state = *Coefficients::makeXXX(...) which heap-allocated
+    // (and freed) a Coefficients object every automated block.
     if (lowGain != prevLowGainDB)
     {
-        *lowShelf.state = *FilterCoeffs::makeLowShelf (
+        *lowShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf (
             currentSampleRate, 200.0f, 0.707f,
             juce::Decibels::decibelsToGain (lowGain));
         prevLowGainDB = lowGain;
@@ -59,7 +74,7 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     if (midGain != prevMidGainDB || midFreq != prevMidFreqHz)
     {
-        *midPeak.state = *FilterCoeffs::makePeakFilter (
+        *midPeak.state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
             currentSampleRate, midFreq, 1.0f,
             juce::Decibels::decibelsToGain (midGain));
         prevMidGainDB = midGain;
@@ -68,7 +83,7 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     if (highGain != prevHighGainDB)
     {
-        *highShelf.state = *FilterCoeffs::makeHighShelf (
+        *highShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (
             currentSampleRate, 8000.0f, 0.707f,
             juce::Decibels::decibelsToGain (highGain));
         prevHighGainDB = highGain;

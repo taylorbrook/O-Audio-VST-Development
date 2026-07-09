@@ -11,7 +11,12 @@
     wet/dry mix:
 
         out = (1 - a) · in + a · (xClamp − xClamp³ / 3)
-        xClamp = jlimit(-1.5, 1.5, in)
+        xClamp = jlimit(-1.0, 1.0, in)   // WR-03: ±1.0 keeps f monotonic
+
+    NOTE (WR-03): f(x)=x−x³/3 has f'(x)=1−x² ≤ 0 for |x|>1, so the correct
+    clamp for this cubic is ±1.0 (output plateaus at ±2/3). A ±1.5 clamp
+    admitted the fold-back region where rising |input| 1.0→1.5 *lowers* the
+    wet output — a level dip + inharmonic fold-back on loud peaks.
 
     True bypass at amount=0; full ARCHITECTURE-spec saturator at amount=1.
     Default amount = 0.5 (50% wet/dry). 30 ms zipper-free SmoothedValue
@@ -50,7 +55,10 @@ public:
 
     void reset()
     {
-        amountSmoothed.reset (0);
+        // WR-13: reset(int) binds SmoothedValue::reset(int numSteps) — it sets
+        // stepsToTarget, NOT the value, destroying the 30 ms ramp prepare() set.
+        // Use setCurrentAndTargetValue to seed the value (matches MasterLimiter::reset).
+        amountSmoothed.setCurrentAndTargetValue (0.0f);
     }
 
     void setAmount (float amount) noexcept
@@ -69,7 +77,7 @@ public:
     float processSample (float in) noexcept
     {
         const float a      = amountSmoothed.getNextValue();
-        const float xClamp = juce::jlimit (-1.5f, 1.5f, in);
+        const float xClamp = juce::jlimit (-1.0f, 1.0f, in);   // WR-03: ±1.0 monotonic
         const float wet    = xClamp - xClamp * xClamp * xClamp / 3.0f;
         return (1.0f - a) * in + a * wet;
     }
@@ -89,7 +97,7 @@ public:
             {
                 float* data        = buffer.getWritePointer (ch);
                 const float in     = data[i];
-                const float xClamp = juce::jlimit (-1.5f, 1.5f, in);
+                const float xClamp = juce::jlimit (-1.0f, 1.0f, in);   // WR-03: ±1.0 monotonic
                 const float wet    = xClamp - xClamp * xClamp * xClamp / 3.0f;
                 data[i]            = (1.0f - a) * in + a * wet;
             }

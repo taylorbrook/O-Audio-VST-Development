@@ -113,6 +113,10 @@ private:
     int   crossfadeTotalSamples      = 0;      // = ceil(0.005 * sr_internal); cached at prepare
     std::vector<std::pair<float, float>> crossfadeRamp;  // (oldGain, newGain) per sample
     double sr_internal               = 88200.0;
+    // WR-08 / WR-09: host (pre-oversampling) sample rate. Per-block quantities that
+    // step at the host block size — the slow-bow LFO phase delta and the macro /
+    // sub-harmonic smoother ramps — must use this, not the 2× internal rate.
+    double sr_host                   = 44100.0;
 
     // Per-voice 2× oversampler — RESEARCH §3.1 / §Q4. PolyphaseIIR, max quality,
     // useIntegerLatency=false (default).

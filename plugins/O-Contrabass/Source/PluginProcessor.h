@@ -19,7 +19,8 @@
 class BowedContrabassVoice;     // Phase 2.3 R29 forward decl — used by getActiveVoice()
 
 class OContrabassAudioProcessor : public juce::AudioProcessor,
-                                  public juce::AudioProcessorValueTreeState::Listener
+                                  public juce::AudioProcessorValueTreeState::Listener,
+                                  public juce::AsyncUpdater
 {
 public:
     OContrabassAudioProcessor();
@@ -66,8 +67,15 @@ public:
     bool loadScalaFile (const juce::File& sclFile);
 
     // Phase 2.6b R40a — APVTS Listener override (TUNING_SYSTEM Choice → mode
-    // dispatch via MessageManager::callAsync; ESCALATION-MTS1).
+    // dispatch). CR-03: parameterChanged may fire on the audio thread under host
+    // automation, so it only stores the choice atomically + triggerAsyncUpdate()
+    // (RT-safe, reuses a preallocated message). The mutex-holding setMode runs on
+    // the message thread in handleAsyncUpdate(). Replaces the prior audio-thread
+    // MessageManager::callAsync (heap alloc + this-capturing teardown UAF).
     void parameterChanged (const juce::String& parameterID, float newValue) override;
+
+    // CR-03 / WR-01 — message-thread apply of the staged tuning mode.
+    void handleAsyncUpdate() override;
 
     // NOTE: Do NOT declare getLatencySamples() here — it is non-virtual in JUCE 8.
     // Use setLatencySamples(N) inside prepareToPlay() instead.
@@ -81,7 +89,12 @@ private:
     // construction time.
     TuningEngine tuningEngine;
 
-    // Phase 2.1a: single E1 voice. Multi-voice / per-string voicing is Phase 2.2.
+    // CR-03 — choice index staged by parameterChanged (any thread) for the
+    // message-thread setMode apply in handleAsyncUpdate(). Default 2 = "12-TET".
+    std::atomic<int> pendingTuningChoice { 2 };
+
+    // WR-10: 4-voice polyphony (one per EADG string) — enables double-stop drones.
+    static constexpr int kNumVoices = 4;
     OContrabassMPESynthesiser synth;
 
     // Phase 2.6a — master output chain (post-voice-summation): Saturator →
@@ -91,6 +104,13 @@ private:
     MasterLimiter                masterLimiter;
     StereoWidth                  stereoWidth;
     juce::SmoothedValue<float>   outputGainSmoothed { 1.0f };
+
+    // WR-02: cache the master-chain parameter atomics (resolved once in the
+    // constructor) so processBlock does not re-walk the APVTS std::map 4× per block.
+    std::atomic<float>* satAmountParam      = nullptr;
+    std::atomic<float>* limiterCeilingParam = nullptr;
+    std::atomic<float>* widthParam          = nullptr;
+    std::atomic<float>* outputGainParam     = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OContrabassAudioProcessor)
 };

@@ -42,6 +42,17 @@ void PluckExciter::prepare(double sampleRate, int maxBlockSize)
     combWriteIndex = 0;
     combDelaySamples = 0.0f;
 
+    // CR-06: Establish the filter coefficient buffers (capacity ≥8) and size the filter state OFF
+    // the audio thread. Assigning an ArrayCoefficients std::array uses
+    // Coefficients::operator=(std::array) → assignImpl, which grows the buffer once here; the
+    // per-note updateBrightnessFilter()/updateTechniqueFilter() then reuse it with NO heap alloc.
+    // brightnessFilter is always first-order; techniqueFilter is kept order-2 for ALL techniques
+    // (first-order designs are zero-padded into the biquad form — identical transfer function) so
+    // its filter order never changes and no state reallocation is triggered on the audio thread.
+    *brightnessFilter.coefficients =
+        juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass(sampleRate, 3000.0f);
+    *techniqueFilter.coefficients =
+        juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(sampleRate, 1000.0f, 1.0f, 1.0f);
     brightnessFilter.prepare(spec);
     techniqueFilter.prepare(spec);
 
@@ -259,21 +270,34 @@ void PluckExciter::updateBrightnessFilter()
     // Hard: 12000 Hz cutoff (bright)
     float cutoffHz = juce::jmap(fingerHardness, 0.0f, 1.0f, 800.0f, 12000.0f);
 
-    // Design one-pole lowpass filter
-    brightnessFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, cutoffHz);
+    // CR-06: Design one-pole lowpass via the ArrayCoefficients operator= (reuses the pre-seeded
+    // buffer, no heap alloc on the audio thread). brightnessFilter is always first-order → its
+    // order never changes → no state reallocation.
+    *brightnessFilter.coefficients =
+        juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass(currentSampleRate, cutoffHz);
 }
 
 void PluckExciter::updateTechniqueFilter()
 {
-    // Technique-specific filtering to shape timbre
+    // Technique-specific filtering to shape timbre.
+    // CR-06: Fill the (always order-2) technique-filter coefficients via the ArrayCoefficients
+    // operator= (reuses the pre-seeded buffer — no heap alloc on the audio thread). First-order
+    // designs are zero-padded into the biquad form {b0,b1,0,a0,a1,0} — mathematically identical
+    // transfer function — so the filter order never changes and no state reallocation is triggered.
+    auto embedFirstOrder = [] (const std::array<float, 4>& fo) -> std::array<float, 6>
+    {
+        // first-order {b0,b1,a0,a1} → biquad {b0,b1,0,a0,a1,0}
+        return { fo[0], fo[1], 0.0f, fo[2], fo[3], 0.0f };
+    };
+
+    std::array<float, 6> coeffs {};
 
     switch (currentTechnique)
     {
         case PlayingTechnique::Normal:
             // Neutral filter (wide bandwidth)
-            techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-                currentSampleRate, 10000.0f);
+            coeffs = embedFirstOrder(juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass(
+                currentSampleRate, 10000.0f));
             break;
 
         case PlayingTechnique::Harmonic:
@@ -287,23 +311,25 @@ void PluckExciter::updateTechniqueFilter()
                 centerFreq = juce::jlimit(100.0f, 10000.0f, centerFreq);
                 float Q = 2.0f;  // Moderate bandwidth
 
-                techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+                coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
                     currentSampleRate, centerFreq, Q, 3.0f);  // 3x gain at harmonic
             }
             break;
 
         case PlayingTechnique::Muted:
             // Heavy lowpass for muted sound
-            techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-                currentSampleRate, 600.0f);
+            coeffs = embedFirstOrder(juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass(
+                currentSampleRate, 600.0f));
             break;
 
         case PlayingTechnique::PresDeLaTable:
             // High-shelf boost for metallic/bright character
-            techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+            coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
                 currentSampleRate, 2000.0f, 0.7f, 2.5f);  // Boost highs
             break;
     }
+
+    *techniqueFilter.coefficients = coeffs;
 }
 
 float PluckExciter::generateExcitation()

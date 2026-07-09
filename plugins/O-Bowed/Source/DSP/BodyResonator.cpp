@@ -10,6 +10,7 @@
 */
 
 #include "BodyResonator.h"
+#include <cmath>
 
 //==============================================================================
 // Static preset data: Membrane, Wood, Metal, Glass
@@ -61,6 +62,20 @@ void BodyResonator::prepare (double sampleRate, int maxBlockSize)
     {
         filter.prepare (spec);
         filter.reset();
+    }
+
+    // Allocate one shared coefficient object per mode (off the audio thread) and
+    // point both L and R filters at it. updateCoefficients() then mutates these in
+    // place — no per-block heap alloc/free on the audio thread. CR-02.
+    for (int i = 0; i < NUM_MODES; ++i)
+    {
+        modeCoeffs[i] = new juce::dsp::IIR::Coefficients<float>();
+        *modeCoeffs[i] = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
+            sampleRate, 1000.0f, 1.0f, 1.0f);
+        bodyModesL[i].coefficients = modeCoeffs[i];
+        bodyModesR[i].coefficients = modeCoeffs[i];
+        bodyModesL[i].reset();  // size state to the order-2 layout off-thread
+        bodyModesR[i].reset();
     }
 
     // Precompute gain sums for each preset
@@ -151,11 +166,13 @@ void BodyResonator::updateCoefficients()
         // Convert gain from dB to linear for makePeakFilter
         float gainLinear = juce::Decibels::decibelsToGain (gainDb);
 
-        // Apply shared coefficients to both L and R filter banks
-        auto coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter (
-            currentSampleRate, freq, q, gainLinear);
-        bodyModesL[i].coefficients = coeffs;
-        bodyModesR[i].coefficients = coeffs;
+        // Mutate the pre-allocated coefficient object in place. ArrayCoefficients
+        // returns a stack std::array (no heap); assigning it reuses the storage
+        // seeded in prepare(). Both L and R share modeCoeffs[i], so one write updates
+        // both banks. RT-safe — CR-02 (pattern_arraycoefficients_rt_safe_iir).
+        if (modeCoeffs[i] != nullptr)
+            *modeCoeffs[i] = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
+                currentSampleRate, freq, q, gainLinear);
     }
 
     // Normalization: keep output level consistent across material morphs
@@ -174,6 +191,17 @@ void BodyResonator::processStereo (float& left, float& right)
     {
         resonantL += bodyModesL[i].processSample (left);
         resonantR += bodyModesR[i].processSample (right);
+    }
+
+    // IN-06: a transient NaN/Inf reaching the bank would latch all 8 biquad states to
+    // NaN permanently (sticky silence — pattern_biquad_nan_guard_sticky_silence). Reset
+    // the bank and drop this sample if the resonance is non-finite. Complements WR-01's
+    // source reset on the voice path.
+    if (! std::isfinite (resonantL) || ! std::isfinite (resonantR))
+    {
+        reset();
+        resonantL = 0.0f;
+        resonantR = 0.0f;
     }
 
     // Average parallel filter outputs instead of summing them.

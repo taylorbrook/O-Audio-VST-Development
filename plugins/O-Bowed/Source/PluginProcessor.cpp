@@ -133,12 +133,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBowedAudioProcessor::create
         0.5f
     ));
 
-    // BOW_HAIR_STIFFNESS - Bristle stiffness for Enhanced/Quality friction tiers
+    // BOW_HAIR_STIFFNESS - Core↔bristle friction blend (0 = pure Core / shipped timbre,
+    // 1 = full elasto-plastic bristle). Default 0.0 keeps new instances and factory
+    // presets sounding like the pre-v1.4.0 plugin now that WR-02 made this knob audible.
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "bowHairStiffness", 1 },
         "Bow Hair Stiffness",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
-        0.5f
+        0.0f
     ));
 
     // ========== Output (2) ==========
@@ -265,6 +267,14 @@ void OBowedAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
 {
     synthesiser.setCurrentPlaybackSampleRate (sampleRate);
 
+    // IN-09: clear master-path state on (re-)prepare so a sample-rate change doesn't
+    // leak a startup transient. dcBlock persisted across prepares (releaseResources is
+    // a no-op); the body/sympathetic engines also reset inside their prepare() below.
+    dcBlockX[0] = dcBlockX[1] = 0.0f;
+    dcBlockY[0] = dcBlockY[1] = 0.0f;
+    bodyResonator.reset();
+    sympatheticEngine.reset();
+
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
         if (auto* voice = dynamic_cast<BowedStringVoice*> (synthesiser.getVoice (i)))
@@ -279,6 +289,27 @@ void OBowedAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     stereoWidthProcessor.prepare (sampleRate, samplesPerBlock);
     sympatheticEngine.prepare (sampleRate, samplesPerBlock);
     humanizeEngine.prepare (sampleRate, samplesPerBlock);
+
+    // WR-06: resolve APVTS atomic pointers once so processBlock reads are lock-free
+    // and allocation-free (no per-callback string-keyed map lookups).
+    pSympatheticAmount = parameters.getRawParameterValue ("sympatheticAmount");
+    pSympatheticCount  = parameters.getRawParameterValue ("sympatheticCount");
+    pBodyMaterial      = parameters.getRawParameterValue ("bodyMaterial");
+    pBodySize          = parameters.getRawParameterValue ("bodySize");
+    pWidth             = parameters.getRawParameterValue ("width");
+    pReferencePitch    = parameters.getRawParameterValue ("referencePitch");
+    pSympatheticDecay  = parameters.getRawParameterValue ("sympatheticDecay");
+    pBodyAmount        = parameters.getRawParameterValue ("bodyAmount");
+    pTuningSystem      = parameters.getRawParameterValue ("tuningSystem");
+    pOutputLevel       = parameters.getRawParameterValue ("outputLevel");
+    pHumanizeRange[0]  = parameters.getRawParameterValue ("humanizeSpeedRange");
+    pHumanizeRange[1]  = parameters.getRawParameterValue ("humanizePressureRange");
+    pHumanizeRange[2]  = parameters.getRawParameterValue ("humanizePositionRange");
+    pHumanizeRange[3]  = parameters.getRawParameterValue ("humanizeRosinRange");
+    pHumanizeRate[0]   = parameters.getRawParameterValue ("humanizeSpeedRate");
+    pHumanizeRate[1]   = parameters.getRawParameterValue ("humanizePressureRate");
+    pHumanizeRate[2]   = parameters.getRawParameterValue ("humanizePositionRate");
+    pHumanizeRate[3]   = parameters.getRawParameterValue ("humanizeRosinRate");
 }
 
 void OBowedAudioProcessor::releaseResources()
@@ -298,42 +329,34 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // correlate tuning deltas to their NoteOn's MIDI pitch (Phase 24).
     vst3Extensions.drainAndUpdate();
 
-    // === 1. Read all params from APVTS ===
-    float sympatheticAmt  = parameters.getRawParameterValue ("sympatheticAmount")->load();
-    int sympatheticCount  = static_cast<int> (parameters.getRawParameterValue ("sympatheticCount")->load());
-    float material        = parameters.getRawParameterValue ("bodyMaterial")->load();
-    float bodySize        = parameters.getRawParameterValue ("bodySize")->load();
-    float width           = parameters.getRawParameterValue ("width")->load();
-    float bowSpeed        = parameters.getRawParameterValue ("bowSpeed")->load();
-    float bowPressure     = parameters.getRawParameterValue ("bowPressure")->load();
-    float bowPos          = parameters.getRawParameterValue ("bowPosition")->load();
-    float rosin           = parameters.getRawParameterValue ("rosin")->load();
-    float brightness      = parameters.getRawParameterValue ("brightness")->load();
-    float infSustain      = parameters.getRawParameterValue ("infiniteSustain")->load();
-    float refPitch        = parameters.getRawParameterValue ("referencePitch")->load();
-    float sympDecay       = parameters.getRawParameterValue ("sympatheticDecay")->load();
-    float bodyAmount      = parameters.getRawParameterValue ("bodyAmount")->load();
-    float stringGauge     = parameters.getRawParameterValue ("stringGauge")->load();
-    float bowHairStiff    = parameters.getRawParameterValue ("bowHairStiffness")->load();
+    // === 1. Read processor-level params via cached atomic pointers (WR-06) ===
+    // The per-voice params (bowSpeed / bowPressure / bowPosition / rosin / brightness /
+    // infiniteSustain / stringGauge / bowHairStiffness) are read inside the voice's
+    // updateParametersFromAPVTS — the identical reads that used to sit here were dead
+    // (declared, never used) and are removed. WR-06.
+    float sympatheticAmt  = pSympatheticAmount->load();
+    int sympatheticCount  = static_cast<int> (pSympatheticCount->load());
+    float material        = pBodyMaterial->load();
+    float bodySize        = pBodySize->load();
+    float width           = pWidth->load();
+    float refPitch        = pReferencePitch->load();
+    float sympDecay       = pSympatheticDecay->load();
+    float bodyAmount      = pBodyAmount->load();
 
     // === 1a. Advance humanize random walk (shared across all voices) ===
     const std::array<float, 4> humanRanges {
-        parameters.getRawParameterValue ("humanizeSpeedRange")   ->load(),
-        parameters.getRawParameterValue ("humanizePressureRange")->load(),
-        parameters.getRawParameterValue ("humanizePositionRange")->load(),
-        parameters.getRawParameterValue ("humanizeRosinRange")   ->load()
+        pHumanizeRange[0]->load(), pHumanizeRange[1]->load(),
+        pHumanizeRange[2]->load(), pHumanizeRange[3]->load()
     };
     const std::array<float, 4> humanRates {
-        parameters.getRawParameterValue ("humanizeSpeedRate")   ->load(),
-        parameters.getRawParameterValue ("humanizePressureRate")->load(),
-        parameters.getRawParameterValue ("humanizePositionRate")->load(),
-        parameters.getRawParameterValue ("humanizeRosinRate")   ->load()
+        pHumanizeRate[0]->load(), pHumanizeRate[1]->load(),
+        pHumanizeRate[2]->load(), pHumanizeRate[3]->load()
     };
-    humanizeEngine.update (humanRanges, humanRates);
+    humanizeEngine.update (humanRanges, humanRates, buffer.getNumSamples());
 
     // === 1b. Wire tuning engine ===
     tuningEngine.setMasterTune (static_cast<double> (refPitch));
-    int tuningSystemIdx = static_cast<int> (parameters.getRawParameterValue ("tuningSystem")->load());
+    int tuningSystemIdx = static_cast<int> (pTuningSystem->load());
     switch (tuningSystemIdx)
     {
         case 0:  tuningEngine.setMode (TuningEngine::Mode::Scala); break;
@@ -409,7 +432,7 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     stereoWidthProcessor.processBlock (buffer, width);
 
     // === 8. Master output gain ===
-    float outputLevel = parameters.getRawParameterValue ("outputLevel")->load();
+    float outputLevel = pOutputLevel->load();
     buffer.applyGain (juce::Decibels::decibelsToGain (outputLevel));
 
     // === 9. Safety limiter ===

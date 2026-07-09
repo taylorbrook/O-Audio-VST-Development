@@ -206,6 +206,15 @@ private:
     // v1.13.3: Flag to prevent processBlock from syncing mode during state restoration
     std::atomic<bool> isRestoringState { false };
 
+    // WR-11: guards the sympathetic engine against the message-thread on-screen keyboard.
+    // triggerNoteOn/Off run synthesiser.noteOn/Off (→ registerVoice/unregisterVoice, which mutate
+    // VoiceSlots) on the message thread, while processBlock runs sympatheticEngine.syncBeforeBlock()
+    // (→ rebuildCouplingMatrix, which reads those VoiceSlots) lock-free on the audio thread. Holding
+    // this lock around both paths serialises them. (Host-MIDI note-ons register voices on the audio
+    // thread inside synthesiser.renderNextBlock and are already serialised by the Synthesiser's own
+    // lock, so they don't need this.)
+    juce::CriticalSection uiKeyboardLock;
+
     // v1.30.0: Keyswitch tracking
     std::atomic<bool> freeKeyswitchHeld { false };
     std::atomic<bool> scaleKeyswitchHeld { false };
@@ -261,6 +270,33 @@ private:
         std::atomic<float>* reverbShimmer = nullptr;
     };
     EffectsParamCache fxCache;
+
+    // WR-09: cached pointers for the synth/tuning/body/master params read every processBlock
+    // (mirrors fxCache). Resolved once in prepareToPlay; read via ->load() on the audio thread
+    // instead of per-block string-keyed getRawParameterValue() lookups.
+    struct CoreParamCache
+    {
+        std::atomic<float>* sympatheticAmount = nullptr;
+        std::atomic<float>* sympatheticQ      = nullptr;
+        std::atomic<float>* masterTune        = nullptr;
+        std::atomic<float>* pitchBendRange    = nullptr;
+        std::atomic<float>* tuningMode        = nullptr;
+        std::atomic<float>* octaveStretch     = nullptr;
+        std::atomic<float>* freeKeyswitchNote = nullptr;
+        std::atomic<float>* scaleKeyswitchNote = nullptr;
+        std::atomic<float>* bodySize          = nullptr;
+        std::atomic<float>* bodyResonance     = nullptr;
+        std::atomic<float>* woodType          = nullptr;
+        std::atomic<float>* bodyModeSpread    = nullptr;
+        std::atomic<float>* masterVolume      = nullptr;
+        std::atomic<float>* scaleToggle       = nullptr;
+        std::atomic<float>* freeToggle        = nullptr;
+    };
+    CoreParamCache coreCache;
+
+    // WR-10: reused keyswitch-filtered MIDI buffer (member instead of a fresh 0-capacity local
+    // every block, whose first addEvent heap-allocated on the audio thread). clear() retains capacity.
+    juce::MidiBuffer filteredMidi;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

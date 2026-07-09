@@ -2857,49 +2857,52 @@
         // ====================================================================
         // Parameter Bindings - Sliders
         // ====================================================================
+        // WR-07: normalised parameter defaults, fetched once from the C++ getParameterDefaults
+        // native fn (the JUCE WebSlider `properties` payload carries no default). Populated
+        // asynchronously at startup; double-click-reset handlers read it by reference.
+        let paramDefaults = {};
+        (async () => {
+            try {
+                const defs = await window.JuceAPI.getNativeFunction('getParameterDefaults')();
+                if (defs && typeof defs === 'object') paramDefaults = defs;
+            } catch (e) {
+                console.warn('getParameterDefaults failed:', e);
+            }
+        })();
+
+        // WR-08: `format` now receives the SKEW-AWARE SCALED value from sliderState.getScaledValue()
+        // (engineering units straight from the C++ NormalisableRange), not the raw 0–1 normalised
+        // value. This removes the hard-coded per-knob range/skew math that had drifted from C++
+        // (masterVolume was off by up to 24 dB, sympatheticQ ~2× at the midpoint, etc.). Percent
+        // knobs whose range is 0–1 read identically; the rest just label the true scaled value.
+        const pct = s => `${Math.round(s * 100)}%`;
         const sliderParams = [
-            { id: 'masterVolume', format: v => `${((v * 48) - 36).toFixed(1)} dB` },
-            { id: 'brightness', format: v => `${Math.round(v * 100)}%` },
-            { id: 'timbre', format: v => `${Math.round(v * 100)}%` },
-            { id: 'decayTime', format: v => {
-                // Skewed mapping: 0.1s to 20s
-                const seconds = 0.1 + v * v * 19.9;
-                return seconds < 1 ? `${(seconds * 1000).toFixed(0)}ms` : `${seconds.toFixed(1)}s`;
-            }},
-            { id: 'attackNoise', format: v => `${Math.round(v * 100)}%` },
-            { id: 'humanize', format: v => `${Math.round(v * 100)}%` },
-            { id: 'bodySize', format: v => `${Math.round(v * 100)}%` },
-            { id: 'bodyResonance', format: v => `${Math.round(v * 100)}%` },
-            { id: 'bodyModeSpread', format: v => `${Math.round((v - 0.5) * 200)}%` },
-            { id: 'bridgeBrightness', format: v => `${Math.round(v * 100)}%` },
-            { id: 'sympatheticAmount', format: v => `${Math.round(v * 100)}%` },
-            { id: 'sympatheticQ', format: v => {
-                // Range: 0.1 to 20.0
-                const q = 0.1 + v * 19.9;
-                return `Q ${q.toFixed(1)}`;
-            }},
-            { id: 'pluckPosition', format: v => `${Math.round(v * 100)}%` },
-            { id: 'fingerHardness', format: v => `${Math.round(v * 100)}%` },
-            { id: 'stringTension', format: v => `${Math.round(v * 100)}%` },
-            { id: 'stringGauge', format: v => `${Math.round(v * 100)}%` },
-            { id: 'stringLength', format: v => `${Math.round(v * 100)}%` },
-            { id: 'stringStiffness', format: v => `${Math.round(v * 100)}%` },
-            { id: 'glissandoSpeed', format: v => {
-                const actual = 4.0 + Math.pow(v, 1/0.5) * 26.0;
-                return `${actual.toFixed(1)} n/s`;
-            }},
-            { id: 'glissandoCustomSemitones', format: v => {
-                const st = Math.round(1 + v * 47);
-                return `${st} st`;
-            }},
-            { id: 'glissandoHumanize', format: v => `${Math.round(v * 100)}%` },
-            { id: 'glissandoVelStart', format: v => `${Math.round(v * 100)}%` },
-            { id: 'glissandoVelEnd', format: v => `${Math.round(v * 100)}%` },
-            { id: 'glissandoExcitation', format: v => `${Math.round(v * 100)}%` },
-            { id: 'glissandoTime', format: v => {
-                const actual = 0.01 + Math.pow(v, 1/0.5) * 0.49;
-                return `${Math.round(actual * 1000)} ms`;
-            }}
+            { id: 'masterVolume', format: s => `${s.toFixed(1)} dB` },      // range -60..6 dB
+            { id: 'brightness', format: pct },
+            { id: 'timbre', format: pct },
+            { id: 'decayTime', format: s =>                                  // range 0.1..20 s (skew 0.4)
+                s < 1 ? `${(s * 1000).toFixed(0)}ms` : `${s.toFixed(1)}s` },
+            { id: 'attackNoise', format: pct },
+            { id: 'humanize', format: pct },
+            { id: 'bodySize', format: pct },
+            { id: 'bodyResonance', format: pct },
+            { id: 'bodyModeSpread', format: s => `${Math.round(s * 100)}%` }, // range -1..1
+            { id: 'bridgeBrightness', format: pct },
+            { id: 'sympatheticAmount', format: pct },
+            { id: 'sympatheticQ', format: s => `Q ${s.toFixed(1)}` },        // range 0.1..20 (skew 0.5)
+            { id: 'pluckPosition', format: pct },
+            { id: 'fingerHardness', format: pct },
+            { id: 'stringTension', format: pct },
+            { id: 'stringGauge', format: pct },
+            { id: 'stringLength', format: pct },
+            { id: 'stringStiffness', format: pct },
+            { id: 'glissandoSpeed', format: s => `${s.toFixed(1)} n/s` },    // range 4..30 (skew 0.5)
+            { id: 'glissandoCustomSemitones', format: s => `${Math.round(s)} st` }, // range 1..48
+            { id: 'glissandoHumanize', format: pct },
+            { id: 'glissandoVelStart', format: pct },
+            { id: 'glissandoVelEnd', format: pct },
+            { id: 'glissandoExcitation', format: pct },
+            { id: 'glissandoTime', format: s => `${Math.round(s * 1000)} ms` } // range 0.01..0.5 s (skew 0.5)
         ];
         // Note: masterTune is controlled by the A4 REF knob in tuning tab (not a slider)
 
@@ -2913,10 +2916,11 @@
                 const sliderState = Juce.getSliderState(param.id);
                 if (!sliderState || !sliderState.valueChangedEvent) return;
 
-                // Bind slider to JUCE
+                // Bind slider to JUCE (WR-08: display the skew-aware scaled value; the HTML range
+                // input itself stays in normalised 0–1 space).
                 sliderState.valueChangedEvent.addListener(() => {
                     slider.value = sliderState.getNormalisedValue();
-                    valueDisplay.textContent = param.format(sliderState.getNormalisedValue());
+                    valueDisplay.textContent = param.format(sliderState.getScaledValue());
                 });
 
                 // User interaction
@@ -2929,14 +2933,19 @@
                 slider.addEventListener('touchstart', () => sliderState.sliderDragStarted());
                 slider.addEventListener('touchend', () => sliderState.sliderDragEnded());
 
-                // Double-click to reset
+                // Double-click to reset. WR-07: the JUCE WebSlider `properties` payload has NO
+                // defaultValue field, so the old `properties.defaultValue` was undefined →
+                // setNormalisedValue(undefined) → NaN pushed to the backend. Use the normalised
+                // defaults fetched from the getParameterDefaults native fn (see paramDefaults below).
                 slider.addEventListener('dblclick', () => {
-                    sliderState.setNormalisedValue(sliderState.properties.defaultValue);
+                    const d = paramDefaults[param.id];
+                    if (typeof d === 'number' && isFinite(d))
+                        sliderState.setNormalisedValue(d);
                 });
 
-                // Initialize display
+                // Initialize display (WR-08: scaled value)
                 slider.value = sliderState.getNormalisedValue();
-                valueDisplay.textContent = param.format(sliderState.getNormalisedValue());
+                valueDisplay.textContent = param.format(sliderState.getScaledValue());
             } catch (e) {
                 console.warn(`Slider binding failed for ${param.id}:`, e);
             }

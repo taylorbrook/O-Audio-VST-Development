@@ -41,7 +41,11 @@ void WaveguideString::prepare (double sr, int maxBlockSize)
     bridgeDispersion.setCoefficient (0.0f);
 
     // 20 ms linear ramp on STRING_STIFFNESS (RESEARCH §5 pitfall #6).
-    stiffnessSmoothed.reset (sr, 0.020);
+    // WR-09: this smoother is advanced by HOST-rate numSamples (the voice calls
+    // advanceStiffnessSmootherBy(numSamples) with the host block size), but `sr`
+    // here is the 2× internal rate. Resetting at `sr` made the 20 ms ramp take
+    // 40 ms of host time. Reset at the host rate (sr·0.5) so it completes in 20 ms.
+    stiffnessSmoothed.reset (sr * 0.5, 0.020);
     stiffnessSmoothed.setCurrentAndTargetValue (cachedStringStiffness);
 
     filterDirty = true;
@@ -74,8 +78,7 @@ void WaveguideString::updateDelayLengths()
     // partitioned at the bow contact point β.
     float totalDelay = static_cast<float> (sampleRate) / std::max (1.0f, currentFrequency);
 
-    float pi = juce::MathConstants<float>::pi;
-    float filterGroupDelay = static_cast<float> (sampleRate) / (2.0f * pi * std::max (1.0f, brightnessHz));
+    float filterGroupDelay = bridgeGroupDelaySamples();   // WR-07 (bounded to pole clamp)
     float compensated = totalDelay - filterGroupDelay;
 
     float bridgeSamples = compensated * bowPosition;
@@ -104,9 +107,7 @@ void WaveguideString::setDelaySamples (float totalSamples)
     // compensation as updateDelayLengths() so that calling
     // setDelaySamples(sr/f) is bit-exactly equivalent to trigger(f) for the
     // slot-0 regression preset (HARD RULE §15.9.5).
-    const float pi               = juce::MathConstants<float>::pi;
-    const float filterGroupDelay = static_cast<float> (sampleRate)
-                                 / (2.0f * pi * std::max (1.0f, brightnessHz));
+    const float filterGroupDelay = bridgeGroupDelaySamples();   // WR-07 (bounded to pole clamp)
     const float dispersionDelay  = bridgeDispersion.getGroupDelaySamples (currentFrequency);
     const float compensated      = totalSamples - filterGroupDelay;
 
@@ -127,6 +128,24 @@ float WaveguideString::computeLoopGain (float infSustainParam01) noexcept
     constexpr float kCeiling = 0.9999999f;
     const float g = kFloor + kSpan * infSustainParam01 * infSustainParam01;
     return std::min (g, kCeiling);
+}
+
+float WaveguideString::bridgeGroupDelaySamples() const noexcept
+{
+    // WR-07: The bridge-LP pole p is clamped to ≤ 0.95 (updateBridgeFilterCoeffs),
+    // so its true group delay saturates at ~19 samples once brightnessHz falls below
+    // the pole-clamp frequency (~720 Hz @ 88.2 kHz). The analog approximation
+    // sr/(2π·f) keeps growing below that → subtracts MORE delay than the filter adds
+    // → loop too short → pitch drifts sharp (~1.3 semitones at BRIGHTNESS=80 Hz on E1).
+    // Floor the brightness fed to the compensation at the pole-clamp frequency so the
+    // compensation never exceeds what the (clamped) filter realizes. No-op for
+    // brightnessHz ≥ ~720 Hz (incl. the 4500 Hz default) ⇒ golden-neutral.
+    constexpr float kBridgePoleMax = 0.95f;   // matches the clamp in updateBridgeFilterCoeffs
+    const float poleClampHz = -std::log (kBridgePoleMax) * static_cast<float> (sampleRate)
+                            / juce::MathConstants<float>::twoPi;
+    const float fForGroupDelay = std::max (poleClampHz, brightnessHz);
+    return static_cast<float> (sampleRate)
+         / (juce::MathConstants<float>::twoPi * fForGroupDelay);
 }
 
 void WaveguideString::updateBridgeFilterCoeffs()

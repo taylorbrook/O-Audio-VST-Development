@@ -798,6 +798,12 @@
             brightness:        { min: 20, max: 20000, default: 8000, unit: ' Hz', decimals: 0 },
             sympatheticAmount: { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             sympatheticCount:  { min: 0, max: 12, default: 0, unit: '', decimals: 0 },
+            // CR-04: real APVTS params whose knobs render but were never bound. Adding
+            // them here lets the bind loop (Object.keys(PARAMS)) wire the relay/state.
+            sympatheticDecay:  { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            bodyAmount:        { min: 0, max: 1, default: 0.6, unit: '', decimals: 2 },
+            stringGauge:       { min: 0.1, max: 2.0, default: 0.5, unit: '', decimals: 2 },
+            bowHairStiffness:  { min: 0, max: 1, default: 0.0, unit: '', decimals: 2 },
             width:             { min: 0, max: 2, default: 1, unit: '', decimals: 2 },
             outputLevel:       { min: -60, max: 12, default: 0, unit: ' dB', decimals: 1 },
             infiniteSustain:   { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
@@ -913,6 +919,9 @@
         // Slider Parameter Binding (JUCE WebSliderRelay)
         // ====================================================================
         const sliderStates = {};
+        // WR-07: normalized defaults per parameter (populated from the getParameterDefaults
+        // native fn at init) so double-click reset is skew-correct.
+        const parameterDefaults = {};
 
         function bindSliderParam(paramName) {
             const control = document.querySelector(`.knob-control[data-param="${paramName}"]`);
@@ -933,13 +942,17 @@
 
                 const initNorm = state.getNormalisedValue();
                 updateKnobVisual(control, initNorm, knobSize);
-                control.querySelector('.knob-value').textContent = formatValue(paramName, normToRaw(paramName, initNorm));
+                // WR-07: readout from getScaledValue() — the real engineering value honoring
+                // the C++ NormalisableRange (incl. skew), pushed via propertiesChanged. The
+                // old linear normToRaw() read skewed params (bowSpeed/bowPressure/brightness/
+                // stringGauge) ~2-8x wrong.
+                control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
 
                 // JUCE -> UI
                 state.valueChangedEvent.addListener(() => {
                     const norm = state.getNormalisedValue();
                     updateKnobVisual(control, norm, knobSize);
-                    control.querySelector('.knob-value').textContent = formatValue(paramName, normToRaw(paramName, norm));
+                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
 
                     // Conditional visibility updates
                     if (paramName === 'sympatheticCount') updateSympVisibility(norm);
@@ -974,11 +987,12 @@
                     }
                 });
 
-                // Double-click reset
+                // Double-click reset — WR-07: use the true normalized default from
+                // getParameterDefaults (skew-correct). The old linear
+                // (default-min)/(max-min) landed off-default for skewed params.
                 wrapper.addEventListener('dblclick', (e) => {
-                    const def = PARAMS[paramName];
-                    if (def) {
-                        const defaultNorm = (def.default - def.min) / (def.max - def.min);
+                    const defaultNorm = parameterDefaults[paramName];
+                    if (typeof defaultNorm === 'number') {
                         state.sliderDragStarted();
                         state.setNormalisedValue(defaultNorm);
                         state.sliderDragEnded();
@@ -1707,6 +1721,13 @@
         // Initialize Everything
         // ====================================================================
         document.addEventListener('DOMContentLoaded', async () => {
+            // WR-07: fetch skew-correct normalized defaults for double-click reset before
+            // binding, so the dblclick handlers see them.
+            try {
+                const defs = await Juce.getNativeFunction('getParameterDefaults')();
+                if (defs && typeof defs === 'object') Object.assign(parameterDefaults, defs);
+            } catch (e) { /* reset degrades to no-op if unavailable */ }
+
             // Bind all slider parameters
             Object.keys(PARAMS).forEach(paramName => {
                 bindSliderParam(paramName);

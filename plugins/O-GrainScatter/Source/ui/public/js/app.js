@@ -3,6 +3,11 @@
 
 import * as Juce from './juce/index.js';
 
+    // WR-11: skew-correct reset defaults come from C++ (the real NormalisableRange), fetched
+    // async at startup and ready long before any double-click. No hand-coded JS defaults.
+    const getParameterDefaults = Juce.getNativeFunction('getParameterDefaults');
+    let paramDefaults = {};
+
     // ════════════════════════════════════════════════════════════════════
     // Knob drag system
     // ════════════════════════════════════════════════════════════════════
@@ -12,7 +17,7 @@ import * as Juce from './juce/index.js';
     const ANGLE_MAX = 140;
     const ANGLE_RANGE = ANGLE_MAX - ANGLE_MIN;
 
-    function setupKnob(paramId, state, formatter, defaultNorm) {
+    function setupKnob(paramId, state, formatter) {
         const knobEl = document.querySelector(`.knob[data-param="${paramId}"]`);
         const indicator = knobEl ? knobEl.querySelector('.knob-indicator') : null;
         const valueEl = document.querySelector(`[data-value="${paramId}"]`);
@@ -21,19 +26,20 @@ import * as Juce from './juce/index.js';
         let isDragging = false;
         let lastY = 0;
 
-        function updateDisplay(norm) {
+        function updateDisplay() {
+            const norm = state.getNormalisedValue();
             const angle = ANGLE_MIN + norm * ANGLE_RANGE;
             indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-            if (valueEl && formatter) valueEl.textContent = formatter(norm);
+            // WR-11: format the engineering value JUCE reports via getScaledValue() — the real
+            // range/skew pushed from C++ — instead of re-deriving it from a hardcoded JS range.
+            if (valueEl && formatter) valueEl.textContent = formatter(state.getScaledValue());
         }
 
         // Sync from JUCE
-        state.valueChangedEvent.addListener(() => {
-            updateDisplay(state.getNormalisedValue());
-        });
+        state.valueChangedEvent.addListener(updateDisplay);
 
         // Initial sync
-        updateDisplay(state.getNormalisedValue());
+        updateDisplay();
 
         knobEl.addEventListener('mousedown', (e) => {
             isDragging = true;
@@ -58,15 +64,15 @@ import * as Juce from './juce/index.js';
             }
         });
 
-        // Double-click to reset to default
-        if (defaultNorm !== undefined) {
-            knobEl.addEventListener('dblclick', (e) => {
-                e.preventDefault();
-                state.sliderDragStarted();
-                state.setNormalisedValue(defaultNorm);
-                state.sliderDragEnded();
-            });
-        }
+        // Double-click to reset to the C++-provided (skew-correct) default
+        knobEl.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            const def = paramDefaults[paramId];
+            if (def === undefined) return;   // defaults not loaded yet — no-op
+            state.sliderDragStarted();
+            state.setNormalisedValue(def);
+            state.sliderDragEnded();
+        });
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -108,98 +114,53 @@ import * as Juce from './juce/index.js';
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // Value formatters
+    // Value formatters — receive the SCALED (engineering-unit) value from
+    // state.getScaledValue(); they add units/precision only, and never
+    // re-implement the C++ NormalisableRange or its skew (WR-11).
     // ════════════════════════════════════════════════════════════════════
 
-    function pctFormatter(norm) {
-        return Math.round(norm * 100) + '%';
-    }
+    const pctFormatter          = (v) => Math.round(v) + '%';   // any 0-N range shown as N%
+    const grainSizeFormatter    = (v) => Math.round(v) + ' ms';
+    const repeatsFormatter      = (v) => String(Math.round(v));
+    const eucPulsesFormatter    = repeatsFormatter;
+    const eucStepsFormatter     = repeatsFormatter;
+    const eucRotationFormatter  = repeatsFormatter;
+    const swingFormatter        = (v) => Math.round(v) + '%';
 
-    function grainSizeFormatter(norm) {
-        // NormalisableRange: 10-500ms, skew 0.5
-        // Approximate: denormalize with skew
-        const skew = 0.5;
-        const proportion = Math.pow(norm, 1.0 / skew);
-        const val = 10 + proportion * (500 - 10);
-        return Math.round(val) + ' ms';
-    }
+    // Spatial — getScaledValue() already yields real degrees (incl. negative elevation);
+    // 176 is the degree-sign code point.
+    const degreeFormatter = (v) => Math.round(v) + String.fromCharCode(176);
 
-    function densityFormatter(norm) {
-        const val = 1 + norm * (100 - 1);
-        return Math.round(val) + '%';
-    }
-
-    function repeatsFormatter(norm) {
-        const val = Math.round(1 + norm * 15);
-        return String(val);
-    }
-
-    function eucPulsesFormatter(norm) {
-        const val = Math.round(1 + norm * 15);
-        return String(val);
-    }
-
-    function eucStepsFormatter(norm) {
-        const val = Math.round(2 + norm * 14);
-        return String(val);
-    }
-
-    function eucRotationFormatter(norm) {
-        const val = Math.round(norm * 15);
-        return String(val);
-    }
-
-    function swingFormatter(norm) {
-        const val = 50 + norm * 25;
-        return val.toFixed(0) + '%';
-    }
-
-    // Spatial formatters — degree formatter factory for linear-range params
-    function degreeFormatter(range, offset = 0) {
-        return (norm) => Math.round(offset + norm * range) + '\u00B0';
-    }
-
-    const azimuthFormatter   = degreeFormatter(360);       // 0-360°
-    const elevationFormatter = degreeFormatter(180, -90);  // -90 to +90°
-    const azSpreadFormatter  = degreeFormatter(360);       // 0-360°
-    const elSpreadFormatter  = degreeFormatter(180);       // 0-180°
-
-    function trajSpeedFormatter(norm) {
-        // 0-400%
-        return Math.round(norm * 400) + '%';
-    }
-
-    function spatialSmoothFormatter(norm) {
-        // 1-200ms with skew 0.4
-        const skew = 0.4;
-        const proportion = Math.pow(norm, 1.0 / skew);
-        const val = 1 + proportion * (200 - 1);
-        return Math.round(val) + ' ms';
-    }
+    const azimuthFormatter       = degreeFormatter;
+    const elevationFormatter     = degreeFormatter;
+    const azSpreadFormatter      = degreeFormatter;
+    const elSpreadFormatter      = degreeFormatter;
+    const trajSpeedFormatter     = (v) => Math.round(v) + '%';
+    const spatialSmoothFormatter = (v) => Math.round(v) + ' ms';
 
     // ════════════════════════════════════════════════════════════════════
     // Initialize all parameter bindings
     // ════════════════════════════════════════════════════════════════════
 
     function initParams() {
-        // Sliders (12) — last arg is normalized default for double-click reset
-        setupKnob('grain_size',       Juce.getSliderState('grain_size'),       grainSizeFormatter, 0.4286);
-        setupKnob('density',          Juce.getSliderState('density'),          densityFormatter,   0.4949);
-        setupKnob('scan_position',    Juce.getSliderState('scan_position'),    pctFormatter,       0.0);
-        setupKnob('spread',           Juce.getSliderState('spread'),           pctFormatter,       0.0);
-        setupKnob('reverse',          Juce.getSliderState('reverse'),          pctFormatter,       0.0);
-        setupKnob('feedback',         Juce.getSliderState('feedback'),         pctFormatter,       0.0);
-        setupKnob('dry_wet',          Juce.getSliderState('dry_wet'),          pctFormatter,       0.5);
-        setupKnob('pitch_random',     Juce.getSliderState('pitch_random'),     pctFormatter,       0.0);
-        setupKnob('pan_random',       Juce.getSliderState('pan_random'),       pctFormatter,       0.0);
-        setupKnob('size_random',      Juce.getSliderState('size_random'),      pctFormatter,       0.0);
-        setupKnob('amp_random',       Juce.getSliderState('amp_random'),       pctFormatter,       0.0);
-        setupKnob('probability',      Juce.getSliderState('probability'),      pctFormatter, 1.0);
-        setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter,   0.2);
-        setupKnob('euclidean_pulses',   Juce.getSliderState('euclidean_pulses'),   eucPulsesFormatter,   0.2);
-        setupKnob('euclidean_steps',    Juce.getSliderState('euclidean_steps'),    eucStepsFormatter,    0.4286);
-        setupKnob('euclidean_rotation', Juce.getSliderState('euclidean_rotation'), eucRotationFormatter, 0.0);
-        setupKnob('euclidean_swing',    Juce.getSliderState('euclidean_swing'),    swingFormatter,       0.0);
+        // Sliders — double-click reset defaults come from C++ via getParameterDefaults (WR-11)
+        setupKnob('grain_size',       Juce.getSliderState('grain_size'),       grainSizeFormatter);
+        setupKnob('density',          Juce.getSliderState('density'),          pctFormatter);
+        setupKnob('scan_position',    Juce.getSliderState('scan_position'),    pctFormatter);
+        setupKnob('spread',           Juce.getSliderState('spread'),           pctFormatter);
+        setupKnob('reverse',          Juce.getSliderState('reverse'),          pctFormatter);
+        setupKnob('feedback',         Juce.getSliderState('feedback'),         pctFormatter);
+        setupKnob('dry_wet',          Juce.getSliderState('dry_wet'),          pctFormatter);
+        setupKnob('pitch_random',     Juce.getSliderState('pitch_random'),     pctFormatter);
+        setupKnob('pan_random',       Juce.getSliderState('pan_random'),       pctFormatter);
+        setupKnob('size_random',      Juce.getSliderState('size_random'),      pctFormatter);
+        setupKnob('amp_random',       Juce.getSliderState('amp_random'),       pctFormatter);
+        setupKnob('probability',      Juce.getSliderState('probability'),      pctFormatter);
+        setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter);
+        setupKnob('euclidean_pulses',   Juce.getSliderState('euclidean_pulses'),   eucPulsesFormatter);
+        setupKnob('euclidean_steps',    Juce.getSliderState('euclidean_steps'),    eucStepsFormatter);
+        setupKnob('euclidean_rotation', Juce.getSliderState('euclidean_rotation'), eucRotationFormatter);
+        setupKnob('euclidean_swing',    Juce.getSliderState('euclidean_swing'),    swingFormatter);
 
         // ComboBoxes (5)
         setupComboBox('scale',       Juce.getComboBoxState('scale'));
@@ -213,18 +174,18 @@ import * as Juce from './juce/index.js';
         setupToggle('stutter_gate', Juce.getToggleState('stutter_gate'));
 
         // Spatial knobs (6)
-        setupKnob('azimuth',        Juce.getSliderState('azimuth'),        azimuthFormatter,   0.0);
-        setupKnob('elevation',      Juce.getSliderState('elevation'),      elevationFormatter,  0.5);
-        setupKnob('az_spread',      Juce.getSliderState('az_spread'),      azSpreadFormatter,   0.25);
-        setupKnob('el_spread',      Juce.getSliderState('el_spread'),      elSpreadFormatter,   0.25);
-        setupKnob('distance',       Juce.getSliderState('distance'),       pctFormatter,        0.5);
-        setupKnob('spatial_width',  Juce.getSliderState('spatial_width'),  pctFormatter,        0.5);
+        setupKnob('azimuth',        Juce.getSliderState('azimuth'),        azimuthFormatter);
+        setupKnob('elevation',      Juce.getSliderState('elevation'),      elevationFormatter);
+        setupKnob('az_spread',      Juce.getSliderState('az_spread'),      azSpreadFormatter);
+        setupKnob('el_spread',      Juce.getSliderState('el_spread'),      elSpreadFormatter);
+        setupKnob('distance',       Juce.getSliderState('distance'),       pctFormatter);
+        setupKnob('spatial_width',  Juce.getSliderState('spatial_width'),  pctFormatter);
 
         // Spatial extended (4)
-        setupKnob('traj_speed',      Juce.getSliderState('traj_speed'),      trajSpeedFormatter,      0.25);
-        setupKnob('dist_lpf',        Juce.getSliderState('dist_lpf'),        pctFormatter,            1.0);
-        setupKnob('doppler',         Juce.getSliderState('doppler'),         pctFormatter,            0.0);
-        setupKnob('spatial_smooth',  Juce.getSliderState('spatial_smooth'),  spatialSmoothFormatter,  0.1);
+        setupKnob('traj_speed',      Juce.getSliderState('traj_speed'),      trajSpeedFormatter);
+        setupKnob('dist_lpf',        Juce.getSliderState('dist_lpf'),        pctFormatter);
+        setupKnob('doppler',         Juce.getSliderState('doppler'),         pctFormatter);
+        setupKnob('spatial_smooth',  Juce.getSliderState('spatial_smooth'),  spatialSmoothFormatter);
 
         // Spatial comboboxes (2)
         setupComboBox('spatial_mode', Juce.getComboBoxState('spatial_mode'));
@@ -553,6 +514,12 @@ import * as Juce from './juce/index.js';
         initParams();
         setupPitchGate();
         setupSpatialGate();
+
+        // WR-11: fetch the C++ (skew-correct) reset defaults; resolves well before any
+        // double-click, so the dblclick handler in setupKnob reads a populated map.
+        getParameterDefaults()
+            .then((defs) => { paramDefaults = defs || {}; })
+            .catch(() => { /* leave defaults empty — dblclick becomes a no-op */ });
 
         // Visualizations
         const grainCanvas = document.getElementById('grain-canvas');

@@ -23,7 +23,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.05f;        // v1.0.3: Lower for softer harmonics
             material.sympatheticCoupling = 0.80f;
             material.noiseContent = 0.2f;
-            material.name = "Gut";
             break;
 
         case MaterialType::Nylon:
@@ -32,7 +31,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.20f;
             material.sympatheticCoupling = 0.50f;
             material.noiseContent = 0.5f;
-            material.name = "Nylon";
             break;
 
         case MaterialType::Wire:
@@ -41,7 +39,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.05f;
             material.sympatheticCoupling = 0.20f;
             material.noiseContent = 0.7f;
-            material.name = "Wire";
             break;
 
         case MaterialType::Carbon:
@@ -50,7 +47,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.30f;
             material.sympatheticCoupling = 0.15f;
             material.noiseContent = 0.6f;
-            material.name = "Carbon";
             break;
 
         case MaterialType::MetalAlloy:
@@ -59,7 +55,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.15f;
             material.sympatheticCoupling = 0.10f;
             material.noiseContent = 0.4f;
-            material.name = "Metal Alloy";
             break;
 
         case MaterialType::Glass:
@@ -68,7 +63,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.60f;
             material.sympatheticCoupling = 0.70f;
             material.noiseContent = 0.2f;
-            material.name = "Glass";
             break;
 
         case MaterialType::Crystal:
@@ -77,7 +71,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.70f;        // v1.0.3: High inharmonicity for bell-like sound
             material.sympatheticCoupling = 0.85f;
             material.noiseContent = 0.05f;           // v1.0.3: Minimal attack noise
-            material.name = "Crystal";
             break;
 
         case MaterialType::Energy:
@@ -88,7 +81,6 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             material.stiffnessAmount = 0.40f;
             material.sympatheticCoupling = 0.60f;
             material.noiseContent = 0.8f;
-            material.name = "Energy";
             break;
 
         default:
@@ -109,16 +101,9 @@ StringMaterial StringMaterial::interpolate(const StringMaterial& other, float t)
     result.sympatheticCoupling = lerp(sympatheticCoupling, other.sympatheticCoupling, t);
     result.noiseContent = lerp(noiseContent, other.noiseContent, t);
 
-    // Name interpolation: show percentage mix
-    if (t < 0.01f)
-        result.name = name;
-    else if (t > 0.99f)
-        result.name = other.name;
-    else
-    {
-        int percentage = static_cast<int>(t * 100.0f);
-        result.name = name + " → " + other.name + " (" + juce::String(percentage) + "%)";
-    }
+    // CR-07: no name interpolation — this runs every block during a material crossfade on the
+    // AUDIO thread. Building a mixed juce::String here heap-allocated on the render path and the
+    // DSP never reads it. Display names are resolved on the message thread via getNameFromType().
 
     return result;
 }

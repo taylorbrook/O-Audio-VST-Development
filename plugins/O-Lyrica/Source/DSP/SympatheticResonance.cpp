@@ -56,19 +56,25 @@ void SympatheticResonanceEngine::prepare(double newSampleRate, int /*maxBlockSiz
 {
     sampleRate = newSampleRate;
 
-    // Reset all voice slots with new sample rate
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = 1;
+    spec.numChannels = 1;
+
+    // CR-05: Establish EVERY slot's resonator coefficient buffer (order 2, capacity ≥8) and size
+    // its filter state OFF the audio thread. Assigning an ArrayCoefficients std::array uses
+    // Coefficients::operator=(std::array) → assignImpl, which grows the buffer once here;
+    // designResonatorFilter() — called on the AUDIO thread from registerVoice()/syncBeforeBlock() —
+    // then reuses it with NO heap alloc.
     for (auto& slot : voiceSlots)
     {
-        if (slot.active.load(std::memory_order_relaxed))
-        {
-            juce::dsp::ProcessSpec spec;
-            spec.sampleRate = sampleRate;
-            spec.maximumBlockSize = 1;
-            spec.numChannels = 1;
+        double seedFreq = juce::jlimit(20.0, sampleRate * 0.45, slot.frequency);
+        *slot.resonatorFilter.coefficients =
+            juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass(sampleRate, seedFreq, resonatorQ);
+        slot.resonatorFilter.prepare(spec);   // sizes filter state for order 2 (one-time alloc here)
 
-            slot.resonatorFilter.prepare(spec);
+        if (slot.active.load(std::memory_order_relaxed))
             designResonatorFilter(slot.resonatorFilter, slot.frequency, resonatorQ);
-        }
     }
 
     // Mark rebuild needed
@@ -252,7 +258,9 @@ void SympatheticResonanceEngine::rebuildCouplingMatrix()
     // Build coupling list for each active voice slot
     for (int i = 0; i < MAX_VOICES; ++i)
     {
-        if (!voiceSlots[i].active.load(std::memory_order_relaxed))
+        // IN-09: acquire pairs with the release store in registerVoice() so the frequency/
+        // materialCoupling writes that precede active=true are guaranteed visible here.
+        if (!voiceSlots[i].active.load(std::memory_order_acquire))
             continue;
 
         const auto& currentSlot = voiceSlots[i];
@@ -264,7 +272,8 @@ void SympatheticResonanceEngine::rebuildCouplingMatrix()
             if (i == j)
                 continue;
 
-            if (!voiceSlots[j].active.load(std::memory_order_relaxed))
+            // IN-09: acquire (see the i-loop rationale above).
+            if (!voiceSlots[j].active.load(std::memory_order_acquire))
                 continue;
 
             const auto& otherSlot = voiceSlots[j];
@@ -320,6 +329,16 @@ float SympatheticResonanceEngine::computeSympatheticContribution(int slotIndex, 
 
         // Excite resonator with precomputed coupling
         otherSlot.lastSample += voiceOutput * entry.totalCoupling;
+
+        // IN-02 / IN-03: guard the leaky-integrator feedback state. A non-finite input would
+        // latch it to NaN forever (the soft clip below protects only the OUTPUT, not this state);
+        // and the integrator's DC gain is 1/(1-energyDecay) ≈ 200×–5000×, so a DC offset in
+        // voiceOutput could balloon it. Flush NaN/Inf and bound the accumulator well above
+        // musical levels (±4 ≈ +12 dBFS) to cap DC buildup without altering normal resonance.
+        if (! std::isfinite(otherSlot.lastSample))
+            otherSlot.lastSample = 0.0f;
+        else
+            otherSlot.lastSample = juce::jlimit(-4.0f, 4.0f, otherSlot.lastSample);
 
         // Process through resonator filter
         float resonatorOutput = otherSlot.resonatorFilter.processSample(otherSlot.lastSample);
@@ -449,12 +468,10 @@ void SympatheticResonanceEngine::designResonatorFilter(juce::dsp::IIR::Filter<fl
 {
     double clampedFreq = juce::jlimit(20.0, sampleRate * 0.45, frequency);
 
-    auto coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(
-        sampleRate,
-        clampedFreq,
-        Q
-    );
-
-    *filter.coefficients = *coefficients;
+    // CR-05: RT-safe. Assigning an ArrayCoefficients std::array uses
+    // Coefficients::operator=(std::array) → assignImpl, reusing the pre-seeded buffer (capacity ≥8)
+    // — NO heap alloc/free on the audio thread (registerVoice runs at every note-on; syncBeforeBlock
+    // on Q automation). filter.reset() keeps order == 2 → no state reallocation.
+    *filter.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass(sampleRate, clampedFreq, Q);
     filter.reset();
 }

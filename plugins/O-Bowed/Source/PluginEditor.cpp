@@ -38,6 +38,13 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
     sympatheticAmountRelay = std::make_unique<juce::WebSliderRelay>("sympatheticAmount");
     sympatheticCountRelay = std::make_unique<juce::WebSliderRelay>("sympatheticCount");
 
+    // Advanced Physics (CR-04: relays were missing entirely — these knobs rendered but
+    // never bound to their real APVTS parameters)
+    sympatheticDecayRelay = std::make_unique<juce::WebSliderRelay>("sympatheticDecay");
+    bodyAmountRelay = std::make_unique<juce::WebSliderRelay>("bodyAmount");
+    stringGaugeRelay = std::make_unique<juce::WebSliderRelay>("stringGauge");
+    bowHairStiffnessRelay = std::make_unique<juce::WebSliderRelay>("bowHairStiffness");
+
     // Output
     widthRelay = std::make_unique<juce::WebSliderRelay>("width");
     outputLevelRelay = std::make_unique<juce::WebSliderRelay>("outputLevel");
@@ -92,6 +99,11 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             // String Configuration
             .withOptionsFrom(*sympatheticAmountRelay)
             .withOptionsFrom(*sympatheticCountRelay)
+            // Advanced Physics (CR-04)
+            .withOptionsFrom(*sympatheticDecayRelay)
+            .withOptionsFrom(*bodyAmountRelay)
+            .withOptionsFrom(*stringGaugeRelay)
+            .withOptionsFrom(*bowHairStiffnessRelay)
             // Output
             .withOptionsFrom(*widthRelay)
             .withOptionsFrom(*outputLevelRelay)
@@ -135,6 +147,18 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                     processorRef.isAnyVoiceActive() ? "true" : "false"
                 );
                 complete(juce::var(json));
+            })
+
+            // WR-07: { paramId: normalizedDefault } for every parameter, so the UI can
+            // double-click-reset skew-correctly (the JUCE SliderState properties carry
+            // no default field; a linear (default-min)/(max-min) lands off-target for
+            // skewed params like bowSpeed/bowPressure/brightness/stringGauge).
+            .withNativeFunction("getParameterDefaults", [this](auto, auto complete) {
+                auto* obj = new juce::DynamicObject();
+                for (auto* param : processorRef.getParameters())
+                    if (auto* pid = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
+                        obj->setProperty(pid->getParameterID(), param->getDefaultValue());
+                complete(juce::var(obj));
             })
 
             // =============================================================
@@ -192,6 +216,7 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             })
 
             .withNativeFunction("savePresetWithDialog", [this](auto, auto complete) {
+                juce::Component::SafePointer<OBowedAudioProcessorEditor> safe(this);
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Save Preset",
                     processorRef.getPresetManager().getUserPresetsDirectory(),
@@ -199,7 +224,13 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                 );
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, safe, complete](const juce::FileChooser& fc) {
+                        // CR-05: the editor may have been torn down while this dialog was
+                        // open. `complete` is owned by the (now-destroyed) WebView impl, so
+                        // bail with a bare return — do NOT call complete() on the null path
+                        // (that is itself a use-after-free).
+                        if (safe == nullptr)
+                            return;
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -314,13 +345,16 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             })
 
             .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                juce::Component::SafePointer<OBowedAudioProcessorEditor> safe(this);
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Load Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.scl;*.tun");
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, safe, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-05: editor gone — complete owned by dead WebView
+                            return;
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
                             bool success = processorRef.getTuningEngine()->loadScalaFile(file);
@@ -332,13 +366,16 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             })
 
             .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                juce::Component::SafePointer<OBowedAudioProcessorEditor> safe(this);
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Load Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.kbm");
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, safe, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-05: editor gone — complete owned by dead WebView
+                            return;
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
                             bool success = processorRef.getTuningEngine()->loadKBMFile(file);
@@ -366,9 +403,165 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                 complete(false);
             })
 
-            .withNativeFunction("getTuningHTML", [this](const juce::Array<juce::var>&, auto complete) {
-                auto html = TuningExporter::toHTML(*processorRef.getTuningEngine(), "O-Bowed");
-                complete(html);
+            // CR-03: the shared tuning-panel.js calls these eight functions; O-Bowed's
+            // registration had drifted from the current module API, leaving the factory
+            // library list empty, every generator dead (all funnel through
+            // applyGeneratedScale), and Save .scl / .kbm / Export HTML non-functional.
+            .withNativeFunction("generateHarmonicSeries", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int startHarmonic = static_cast<int>(args[0]);
+                    int endHarmonic = static_cast<int>(args[1]);
+                    auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
+                    juce::String json = "[";
+                    for (size_t i = 0; i < intervals.size(); ++i) {
+                        if (i > 0) json += ",";
+                        json += juce::String(intervals[i], 6);
+                    }
+                    json += "]";
+                    complete(json);
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("generateRank2", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 3) {
+                    double generator = static_cast<double>(args[0]);
+                    double period = static_cast<double>(args[1]);
+                    int count = static_cast<int>(args[2]);
+                    auto intervals = ScaleGenerator::generateRank2(generator, period, count);
+                    juce::String json = "[";
+                    for (size_t i = 0; i < intervals.size(); ++i) {
+                        if (i > 0) json += ",";
+                        json += juce::String(intervals[i], 6);
+                    }
+                    json += "]";
+                    complete(json);
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    auto jsonArray = juce::JSON::parse(args[0].toString());
+                    juce::String scaleName = args[1].toString();
+                    if (auto* arr = jsonArray.getArray()) {
+                        std::vector<double> intervals;
+                        for (const auto& val : *arr)
+                            intervals.push_back(static_cast<double>(val));
+                        processorRef.getTuningEngine()->setCustomIntervals(intervals, scaleName);
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&, auto complete) {
+                const auto& tunings = EmbeddedTunings::getAllTunings();
+                juce::String json = "[";
+                for (size_t i = 0; i < tunings.size(); ++i) {
+                    if (i > 0) json += ",";
+                    json += "{";
+                    json += "\"id\":\"" + juce::String(tunings[i].id) + "\",";
+                    json += "\"name\":\"" + juce::String(tunings[i].name) + "\",";
+                    json += "\"category\":\"" + juce::String(tunings[i].category) + "\",";
+                    json += "\"noteCount\":" + juce::String(static_cast<int>(tunings[i].intervals.size()));
+                    json += "}";
+                }
+                json += "]";
+                complete(json);
+            })
+
+            .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    juce::String tuningId = args[0].toString();
+                    auto* tuning = EmbeddedTunings::getTuningById(tuningId.toStdString());
+                    if (tuning != nullptr && !tuning->intervals.empty()) {
+                        // Append the tuning PERIOD before setCustomIntervals; without it
+                        // every embedded tuning is silently mistuned
+                        // (pattern_embedded_tuning_period_dropped).
+                        auto intervals = tuning->intervals;
+                        intervals.push_back(tuning->period);
+                        processorRef.getTuningEngine()->setCustomIntervals(
+                            intervals, juce::String(tuning->name));
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                juce::Component::SafePointer<OBowedAudioProcessorEditor> safe(this);
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("tuning.scl"),
+                    "*.scl");
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, safe, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-05: editor gone — complete owned by dead WebView
+                            return;
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto content = processorRef.getTuningEngine()->generateScalaFileContent();
+                            file.replaceWithText(content);
+                            complete(file.getFileName());
+                        } else {
+                            complete(juce::var());
+                        }
+                    });
+            })
+
+            .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                juce::Component::SafePointer<OBowedAudioProcessorEditor> safe(this);
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("mapping.kbm"),
+                    "*.kbm");
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, safe, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-05
+                            return;
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto content = processorRef.getTuningEngine()->generateKBMFileContent();
+                            file.replaceWithText(content);
+                            complete(file.getFileName());
+                        } else {
+                            complete(juce::var());
+                        }
+                    });
+            })
+
+            // Renamed from getTuningHTML → exportTuningHTML to match the panel's call;
+            // now writes the doc to a user-chosen file (matches O-Wind/O-Prism). CR-03.
+            .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&, auto complete) {
+                juce::Component::SafePointer<OBowedAudioProcessorEditor> safe(this);
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Export Tuning Documentation",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("tuning-export.html"),
+                    "*.html");
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, safe, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-05
+                            return;
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto html = TuningExporter::toHTML(*processorRef.getTuningEngine(), "O-Bowed");
+                            file.replaceWithText(html);
+                            complete(true);
+                        } else {
+                            complete(false);
+                        }
+                    });
             })
     );
 
@@ -404,6 +597,16 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
         *apvts.getParameter("sympatheticAmount"), *sympatheticAmountRelay, nullptr);
     sympatheticCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("sympatheticCount"), *sympatheticCountRelay, nullptr);
+
+    // Advanced Physics (CR-04)
+    sympatheticDecayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("sympatheticDecay"), *sympatheticDecayRelay, nullptr);
+    bodyAmountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bodyAmount"), *bodyAmountRelay, nullptr);
+    stringGaugeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("stringGauge"), *stringGaugeRelay, nullptr);
+    bowHairStiffnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bowHairStiffness"), *bowHairStiffnessRelay, nullptr);
 
     // Output
     widthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

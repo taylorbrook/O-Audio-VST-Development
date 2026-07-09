@@ -417,6 +417,10 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
             // Add diffused input
             float tankInput = channels[ch] + fb;
 
+            // IN-02: the ±2 soft clip below is false for NaN (NaN comparisons are always false), so
+            // a single non-finite sample would latch this FDN tank channel to NaN permanently. Flush it.
+            if (! std::isfinite (tankInput)) tankInput = 0.0f;
+
             // Soft clip to prevent runaway
             if (tankInput > 2.0f) tankInput = 2.0f;
             else if (tankInput < -2.0f) tankInput = -2.0f;

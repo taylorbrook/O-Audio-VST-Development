@@ -66,6 +66,11 @@ void WaveguideString::prepare(double sampleRate, int maxBlockSize)
 
 void WaveguideString::trigger(double frequency, float velocity, float position, float hardness)
 {
+    // WR-02: validate the incoming frequency (setFrequency guards, but trigger previously trusted
+    // it). A malformed Scala scale / out-of-range degree can make the tuning engine return 0/NaN;
+    // that would yield a NaN/Inf rail delay (jlimit passes NaN through) → OOB delay-line read.
+    frequency = juce::jlimit(20.0, 20000.0, std::isfinite(frequency) ? frequency : 440.0);
+
     currentFrequency = frequency;
     pluckPosition = juce::jlimit(0.05f, 0.95f, position);
 
@@ -221,6 +226,17 @@ float WaveguideString::processSample()
         const float buzzSample = filtered * effectiveEnvelope * buzzCapturedEnergy * BUZZ_GAIN;
         excitationToUpper += buzzSample * 0.5f;
         excitationToLower += buzzSample * 0.5f;
+    }
+
+    // WR-02: finite guard at the feedback push boundary. The denormal flush below (a) only touches
+    // the READ output, not nutReflection/bridgeReflection pushed back into the rails, and (b) cannot
+    // catch NaN (std::abs(NaN) < 1e-15 is false). If a non-finite value ever enters the loop it would
+    // persist forever (currentEnergy → NaN → note stuck). Reset the SOURCE and silence this sample.
+    if (! std::isfinite(nutReflection) || ! std::isfinite(bridgeReflection))
+    {
+        reset();
+        exciter.reset();
+        return 0.0f;
     }
 
     // Feed reflected waves back into opposite rails
@@ -480,19 +496,26 @@ WaveguideString::FilterCutoffs WaveguideString::calculateFilterCutoffs() const
     // Bridge brightness modifier: 0 → 0.3x, 0.5 → 1.0x, 1.0 → 2.0x
     float bridgeBrightnessModifier = 0.3f + bridgeBrightnessAmount * 1.7f;
 
+    // WR-01: cap all three cutoffs below Nyquist (0.45·fs). The absolute-Hz clamps below assumed
+    // ≥ 44.1 kHz; at fs ≤ 40 kHz a bright patch (e.g. Crystal, brightnessCutoff 16 kHz) could push
+    // the cutoff to/above Nyquist, making tan(π·cutoff/fs) go negative/∞ → an unstable/NaN one-pole
+    // sitting inside the waveguide feedback loop. jmin() with the Hz ceiling keeps 44.1/48 kHz
+    // behavior unchanged.
+    const float nyquistCeil = 0.45f * static_cast<float>(currentSampleRate);
+
     cutoffs.bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier * bridgeBrightnessModifier;
-    cutoffs.bridgeCutoffHz = juce::jlimit(300.0f, 20000.0f, cutoffs.bridgeCutoffHz);
+    cutoffs.bridgeCutoffHz = juce::jlimit(300.0f, juce::jmin(20000.0f, nyquistCeil), cutoffs.bridgeCutoffHz);
 
     // Nut Filter: Higher cutoff (harder boundary than bridge)
     cutoffs.nutCutoffHz = materialBrightness * 1.2f * (0.7f + brightnessAmount * 0.5f) * tensionBrightnessModifier;
-    cutoffs.nutCutoffHz = juce::jlimit(1000.0f, 20000.0f, cutoffs.nutCutoffHz);
+    cutoffs.nutCutoffHz = juce::jlimit(1000.0f, juce::jmin(20000.0f, nyquistCeil), cutoffs.nutCutoffHz);
 
     // Loop Damping Filter: Material + gauge modifier
     float gaugeDampingModifier = 0.5f + gaugeAmount * 1.5f;
     float effectiveDamping = dampingAmount * gaugeDampingModifier;
     float clampedDamping = juce::jlimit(0.0f, 1.0f, effectiveDamping);
     cutoffs.dampingCutoffHz = 200.0f + (1.0f - clampedDamping) * 14000.0f;
-    cutoffs.dampingCutoffHz = juce::jlimit(200.0f, 14000.0f, cutoffs.dampingCutoffHz);
+    cutoffs.dampingCutoffHz = juce::jlimit(200.0f, juce::jmin(14000.0f, nyquistCeil), cutoffs.dampingCutoffHz);
 
     return cutoffs;
 }
@@ -565,8 +588,12 @@ float WaveguideString::calculateRailDelay() const
     float filterGroupDelay = calculateFilterGroupDelay();
     float compensatedDelay = totalDelay - filterGroupDelay;
 
-    // Each rail is half the total length
-    return compensatedDelay * 0.5f;
+    // WR-03: floor the rail delay. Group-delay compensation subtracts an unbounded amount; for high
+    // notes on a dark patch the sum of bridge/nut/damping group delays can exceed the string period,
+    // driving compensatedDelay negative → DelayLine clamps to 0 → the loop short-circuits and the
+    // string cannot resonate (dead/detuned top octave). ≥ 2 keeps 3rd-order Lagrange interpolation valid.
+    // Each rail is half the total length.
+    return juce::jmax(2.0f, compensatedDelay * 0.5f);
 }
 
 float WaveguideString::calculateFilterGroupDelay() const

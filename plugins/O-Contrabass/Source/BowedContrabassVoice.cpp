@@ -208,6 +208,7 @@ void BowedContrabassVoice::noteKeyStateChanged()
 void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSize)
 {
     currentMaxBlockSize = maxBlockSize;
+    sr_host             = hostSampleRate;          // WR-08 / WR-09 host-rate reference
     sr_internal         = hostSampleRate * 2.0;
 
     // 2× oversampler — initProcessing sized to maxBlockSize (host-rate block size).
@@ -267,7 +268,7 @@ void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSiz
     // so getNextValue() returns 0.0f exactly until any non-zero target lands.
     // This is the HR-3 IEEE 754 identity-arithmetic invariant: at modulators-
     // off, x + 0.0 == x and x * 1.0 == x bit-exactly for all finite x.
-    macroSmoothed.reset (sr_internal, 0.020);
+    macroSmoothed.reset (sr_host, 0.020);          // WR-09: consumed at host-rate step counts
     macroSmoothed.setCurrentAndTargetValue (0.0f);
     slowLfoSpeedSmoothed.reset (sr_internal, 0.020);
     slowLfoSpeedSmoothed.setCurrentAndTargetValue (0.0f);
@@ -281,7 +282,7 @@ void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSiz
     // note. setCurrentAndTargetValue(0.0f) is the HR-9 strict-default precondition:
     // at APVTS default 0.0, getNextValue() returns exact 0.0f → caller-side
     // short-circuit fires → 10 carry-forward goldens reproduce byte-identical.
-    subHarmonicsSmoothed.reset (sr_internal, 0.030);
+    subHarmonicsSmoothed.reset (sr_host, 0.030);   // WR-09: consumed at host-rate step counts
     subHarmonicsSmoothed.setCurrentAndTargetValue (0.0f);
     voiceBowForceUpliftThisBlock = 1.0f;             // HR-9 reset
     lastSubAmount.store (0.0f, std::memory_order_relaxed);
@@ -412,6 +413,17 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     //     with setRosin(rosinEq) via inverse algebraic identity.
     frictionModel.setRosin (rawRosin);
 
+    // WR-05: reset static-friction to the bass default UNCONDITIONALLY each block
+    // (mirrors the unconditional setRosin above). The sub-harmonic bias branch below
+    // widens mu_s via setStaticFrictionCoefficient(mu_s_pre); without this reset, when
+    // SUB_HARMONICS returns to 0 the bias block is skipped and mu_s stays elevated
+    // (harsher/stickier tone) for every subsequent note until prepareToPlay re-runs —
+    // breaking the HR-9 "bit-exact when sub-harmonics off" contract (v_0 already
+    // recovers via the unconditional setRosin; mu_s had no equivalent). Idempotent at
+    // the default (already 0.85 from prepareToPlay) ⇒ bit-exact preserved; the bias
+    // branch overwrites it when active.
+    frictionModel.setStaticFrictionCoefficient (0.85f);
+
     subHarmonicsSmoothed.setTargetValue (rawSubHarmonics);              // pin #11 UNCONDITIONAL
     const float subAmount = subHarmonicsSmoothed.getNextValue();
     subHarmonicsSmoothed.skip (juce::jmax (0, numSamples - 1));         // pin #7 jmax guard
@@ -465,8 +477,11 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     float slowLfoSpeedMod = 0.0f, slowLfoPressureMod = 0.0f;
     if (rawSlowLfoDepth > 0.0f)                                              // HR-2 gate
     {
+        // WR-08: block duration is numSamples / sr_host (numSamples is a host-rate
+        // count). Dividing by sr_internal (= 2× host) halved the increment, so the
+        // LFO ran at exactly half the set rate (SLOW_LFO_RATE=0.3 Hz → 0.15 Hz).
         slowLfoPhase += juce::MathConstants<float>::twoPi * rawSlowLfoRate
-                      * (static_cast<float> (numSamples) / static_cast<float> (sr_internal));
+                      * (static_cast<float> (numSamples) / static_cast<float> (sr_host));
         if (slowLfoPhase > juce::MathConstants<float>::twoPi)
             slowLfoPhase -= juce::MathConstants<float>::twoPi;
 

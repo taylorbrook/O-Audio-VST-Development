@@ -31,18 +31,24 @@ public:
 
     HumanizeEngine() { rng.setSeedRandomly(); }
 
-    void prepare (double sampleRate, int blockSize) noexcept
+    void prepare (double sr, int /*maxBlockSize*/) noexcept
     {
-        updatesPerSecond = (blockSize > 0 && sampleRate > 0.0)
-            ? static_cast<float> (sampleRate / blockSize)
-            : 200.0f;
+        sampleRate = (sr > 0.0) ? sr : 44100.0;
     }
 
     // Called once per processBlock. Both arrays are normalised APVTS values.
+    // numSamples is the ACTUAL block size for this callback (IN-07): deriving the
+    // update rate from the max block size (as prepare() used to) makes the walk drift
+    // faster than its labeled 0.15-8 Hz whenever the host uses a smaller buffer.
     void update (const std::array<float, NumParams>& ranges,
-                 const std::array<float, NumParams>& rates) noexcept
+                 const std::array<float, NumParams>& rates,
+                 int numSamples) noexcept
     {
         constexpr float twoPi = 6.28318530718f;
+
+        const float updatesPerSecond = (numSamples > 0)
+            ? static_cast<float> (sampleRate / numSamples)
+            : 200.0f;
 
         for (int i = 0; i < NumParams; ++i)
         {
@@ -78,5 +84,5 @@ public:
 private:
     std::array<float, NumParams> offsets { 0.0f, 0.0f, 0.0f, 0.0f };
     juce::Random rng;
-    float updatesPerSecond = 200.0f;
+    double sampleRate = 44100.0;
 };

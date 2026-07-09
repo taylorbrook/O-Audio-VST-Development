@@ -14,6 +14,14 @@ public:
         writePosition = 0;
     }
 
+    // Alloc-free zeroing for reset() — must NOT call setSize (that reallocates on the
+    // audio thread). Mirrors the intent of the old prepare()-in-reset() without the churn.
+    void clear()
+    {
+        buffer.clear();
+        writePosition = 0;
+    }
+
     void pushSample (float L, float R)
     {
         buffer.setSample (0, writePosition, L);
@@ -43,13 +51,20 @@ public:
 
     void copyRegion (juce::AudioBuffer<float>& dest, int startOffset, int length) const
     {
+        if (length <= 0 || bufferSize <= 0)
+            return;
+
+        length = juce::jmin (length, bufferSize, dest.getNumSamples());
         int readPos = ((writePosition - startOffset) % bufferSize + bufferSize) % bufferSize;
 
-        for (int i = 0; i < length; ++i)
+        // WR-03: two contiguous memcpys (via AudioBuffer::copyFrom) to span the ring
+        // wrap, instead of ~176k per-element getSample/setSample calls on the RT thread.
+        int firstRun = juce::jmin (length, bufferSize - readPos);
+        for (int ch = 0; ch < 2; ++ch)
         {
-            int idx = (readPos + i) % bufferSize;
-            for (int ch = 0; ch < 2; ++ch)
-                dest.setSample (ch, i, buffer.getSample (ch, idx));
+            dest.copyFrom (ch, 0, buffer, ch, readPos, firstRun);
+            if (length > firstRun)
+                dest.copyFrom (ch, firstRun, buffer, ch, 0, length - firstRun);
         }
     }
 

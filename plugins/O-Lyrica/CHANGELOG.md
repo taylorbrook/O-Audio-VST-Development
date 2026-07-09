@@ -2,6 +2,98 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.3.1] - 2026-07-08
+
+Resolves the Critical + Warning findings (and defense-in-depth Info riders) from the v2.3.0
+deep code review (`CODE_REVIEW.md`). All changes are RT-safety / correctness fixes; no parameter
+IDs, ranges, or state format changed.
+
+### Fixed — Critical
+
+- **CR-01 — WebView teardown use-after-free on all 7 `FileChooser::launchAsync` dialogs.** Closing
+  the editor (or DAW teardown) while a native Save/Load dialog was open fired the completion after
+  `~OLyricaAudioProcessorEditor`, dereferencing a dangling `this` and a `complete` callback owned by
+  the destroyed `WebBrowserComponent`. *Fix:* each completion now captures a
+  `juce::Component::SafePointer<OLyricaAudioProcessorEditor>` and bails with a bare `return` on the
+  null path (does NOT call `complete()`, which would itself be a UAF against the dead WebView impl).
+- **CR-02 — every factory-library tuning was silently mistuned.** `loadEmbeddedTuning` passed
+  `tuning->intervals` to `setCustomIntervals` without appending `tuning->period` (stored separately),
+  so all 24 embedded tunings got the wrong note count AND used the last interval as the repeat period
+  (Young 1799 → 11 notes/1091.7¢, Bohlen-Pierce → 12 notes/1755.6¢, etc.). *Fix:* append
+  `tuning->period` before `setCustomIntervals`, matching every other load path.
+- **CR-03…CR-06 — audio-thread heap allocation on IIR coefficient rebuilds.** EQ (3 shelf/peak),
+  BodyResonance (5 modes), SympatheticResonance (bandpass per note-on / Q-automation), and
+  PluckExciter (brightness + technique per note-on) all called `Coefficients::makeXXX` (heap `new` +
+  `delete`) on the render thread. *Fix:* switched to `*state = ArrayCoefficients::makeXXX(...)` /
+  `*filter.coefficients = ArrayCoefficients::makeXXX(...)` (the `operator=(std::array)` path reuses
+  the pre-allocated coefficient buffer — no alloc), seeding each buffer to capacity in `prepare()`.
+  PluckExciter's technique filter is kept order-2 for all techniques (first-order designs zero-padded
+  into the biquad form) so its filter state never reallocates on a technique change.
+- **CR-07 — `juce::String` construction on the render path.** `StringMaterial` carried a cosmetic
+  `name` that `fromType()` (every note-on) and `interpolate()` (every block during a ~50 ms material
+  crossfade) heap-allocated. The DSP never read it. *Fix:* removed the `name` member; display names
+  resolve on the message thread via the existing static `getNameFromType()`.
+
+### Fixed — Warning
+
+- **WR-01 — filter cutoffs could exceed Nyquist at fs ≤ 40 kHz** (bright patches at 32/40 kHz drove
+  `tan(π·cutoff/fs)` negative/∞ → an unstable/NaN one-pole inside the waveguide loop). *Fix:*
+  Nyquist-cap the bridge/nut/damping cutoffs at `0.45·fs`; also a defensive clamp inside
+  `OnePoleLPF::setCutoff` (44.1/48 kHz behavior unchanged).
+- **WR-02 — waveguide loop had no finite guard and `trigger()` trusted its frequency.** A malformed
+  Scala scale / bad degree could feed 0/NaN → NaN rail delay → out-of-bounds delay read. *Fix:*
+  sanitize the frequency in `trigger()` (`jlimit`+`isfinite`); add a per-sample finite guard at the
+  feedback push that resets the source and silences the sample (the `<1e-15` denormal flush cannot
+  catch NaN and did not cover the feedback push).
+- **WR-03 — dead/detuned top octave on dark patches.** Group-delay compensation could drive the rail
+  delay negative → clamped to 0 → the loop short-circuited. *Fix:* floor the rail delay at 2 samples.
+- **WR-04 — delay time aliased above 96 kHz** (fixed 192000-sample buffer < `2.0·fs`). *Fix:* size the
+  buffer to `⌈2·fs⌉` in `prepare()` and clamp `setTime`.
+- **WR-05 — all 48 factory presets pinned Sympathetic Sharpness to Q≈0.13–0.17** (authored ~0.03–0.18
+  as if linear, but the param has skew 0.5). *Fix:* re-authored each value as `sqrt(old)` so it maps
+  to the intended Q (spread ≈0.7–3.7), preserving each preset's relative sharpness. **Audition pass
+  recommended** — sympathetic resonance is now audibly sharper/more varied across presets.
+- **WR-06 — `stringCrosstalk` is audible (default 0.2) but had no UI.** Documented as an intentionally
+  hidden "expert" parameter (driven by presets/automation); code comment + NOTES entry added. Not
+  removed (would be a breaking state-format change) and not surfaced (kept off the panel by design).
+- **WR-07 — double-click "reset to default" pushed NaN.** It read `sliderState.properties.defaultValue`,
+  which the JUCE 8 WebSlider payload does not provide. *Fix:* new `getParameterDefaults` native fn
+  returns each parameter's normalised default; JS caches it and resets from it.
+- **WR-08 — knob readouts drifted from the real range** (masterVolume off by up to 24 dB, sympatheticQ
+  ~2× at midpoint, decayTime ~40% high, A4 endpoints wrong). *Fix:* readouts now format
+  `sliderState.getScaledValue()` (skew-aware, straight from the C++ `NormalisableRange`).
+- **WR-09 — per-block / per-sample string-keyed APVTS lookups on the audio thread.** *Fix:* cached the
+  synth/tuning/body/master parameter pointers (processor `coreCache`) and the voice's hot params
+  (voice `paramCache`), mirroring the existing `fxCache`; hoisted the per-sample glissando `"timbre"`
+  lookup out of the sample loop.
+- **WR-10 — per-block `MidiBuffer` construction allocated.** *Fix:* reuse a member `filteredMidi`
+  (`clear()` retains capacity; `ensureSize` in `prepareToPlay`).
+- **WR-11 — data race between the on-screen keyboard and audio-thread sympathetic sync.**
+  `triggerNoteOn/Off` (message thread) ran `registerVoice`/`unregisterVoice` while
+  `syncBeforeBlock()` read the same `VoiceSlot`s lock-free. *Fix:* a dedicated `uiKeyboardLock`
+  serialises the UI-keyboard note paths against `syncBeforeBlock()`.
+- **WR-12 — voice render path had no `ScopedNoDenormals`** (nut/loop-damping feedback unprotected in
+  isolation). *Fix:* `ScopedNoDenormals` at the top of `HarpSynthVoice::renderNextBlock`.
+
+### Fixed — Info (defense-in-depth riders)
+
+- **IN-01 / IN-02 — NaN guards** on the BodyResonance biquad bank, the FDN reverb tank, the delay
+  feedback state, and the sympathetic integrator (soft clips / range clamps are false for NaN, so a
+  transient non-finite value would otherwise latch these states permanently → sticky silence).
+- **IN-03 — bounded the sympathetic leaky-integrator** (DC gain up to ~5000×) to ±4 to cap DC buildup.
+- **IN-06 — hoisted BodyResonance's pending-coefficient apply** out of the per-sample loop to once per
+  block.
+- **IN-07 — reset EQ `prev*` cache in `prepare()`** so the first post-prepare block does not force a
+  redundant (heap-allocating, pre-CR-03) coefficient rebuild.
+- **IN-09 — acquire ordering** on the `active` loads in `rebuildCouplingMatrix` (pairs with the release
+  store in `registerVoice`).
+
+### Notes
+
+- `auval` reports a static "Meta Param Flag" warning caused by the intentional `freeToggle`/
+  `scaleToggle` mutual exclusion (v1.30.0) — pre-existing and benign; all render/MIDI/parameter tests
+  pass. Not introduced by this release.
+
 ## [2.3.0] - 2026-04-24
 
 ### Added

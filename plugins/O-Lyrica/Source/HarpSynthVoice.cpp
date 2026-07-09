@@ -54,6 +54,22 @@ void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
 void HarpSynthVoice::setAPVTS(juce::AudioProcessorValueTreeState* apvts)
 {
     parameters = apvts;
+
+    // WR-09: resolve the hot-path parameter pointers once (all IDs are registered at APVTS
+    // construction, before this is called). Read via paramCache.X->load() on the audio thread.
+    if (apvts != nullptr)
+    {
+        paramCache.brightness       = apvts->getRawParameterValue("brightness");
+        paramCache.timbre           = apvts->getRawParameterValue("timbre");
+        paramCache.decayTime        = apvts->getRawParameterValue("decayTime");
+        paramCache.stringStiffness  = apvts->getRawParameterValue("stringStiffness");
+        paramCache.stringTension    = apvts->getRawParameterValue("stringTension");
+        paramCache.stringGauge      = apvts->getRawParameterValue("stringGauge");
+        paramCache.stringLength     = apvts->getRawParameterValue("stringLength");
+        paramCache.attackNoise      = apvts->getRawParameterValue("attackNoise");
+        paramCache.bridgeBrightness = apvts->getRawParameterValue("bridgeBrightness");
+        paramCache.stringMaterial   = apvts->getRawParameterValue("stringMaterial");
+    }
 }
 
 void HarpSynthVoice::setSympatheticEngine(SympatheticResonanceEngine* engine)
@@ -541,30 +557,31 @@ void HarpSynthVoice::updateParametersFromAPVTS(int numSamples)
     if (parameters == nullptr)
         return;
 
+    // WR-09: read cached atomic pointers (resolved in setAPVTS) instead of per-block string lookups.
     // Update brightness (affects tone color)
-    stringModel.setBrightness(parameters->getRawParameterValue("brightness")->load());
+    stringModel.setBrightness(paramCache.brightness->load());
 
     // v1.1.0: Update timbre (renamed from sustain - controls tonal damping)
-    float damping = 1.0f - parameters->getRawParameterValue("timbre")->load();
+    float damping = 1.0f - paramCache.timbre->load();
     stringModel.setDamping(damping);
 
     // v1.1.0: Update decay time (new parameter - controls overall sustain duration)
-    stringModel.setDecayTime(parameters->getRawParameterValue("decayTime")->load());
+    stringModel.setDecayTime(paramCache.decayTime->load());
 
     // Update string stiffness
-    stringModel.setStiffness(parameters->getRawParameterValue("stringStiffness")->load());
+    stringModel.setStiffness(paramCache.stringStiffness->load());
 
     // v1.2.0: Update advanced string parameters (tension, gauge, length) in real-time
-    stringModel.setTension(parameters->getRawParameterValue("stringTension")->load());
-    stringModel.setGauge(parameters->getRawParameterValue("stringGauge")->load());
-    stringModel.setLength(parameters->getRawParameterValue("stringLength")->load());
+    stringModel.setTension(paramCache.stringTension->load());
+    stringModel.setGauge(paramCache.stringGauge->load());
+    stringModel.setLength(paramCache.stringLength->load());
 
     // v1.3.0: Update advanced physical modeling parameters
-    stringModel.setAttackNoise(parameters->getRawParameterValue("attackNoise")->load());
-    stringModel.setBridgeBrightness(parameters->getRawParameterValue("bridgeBrightness")->load());
+    stringModel.setAttackNoise(paramCache.attackNoise->load());
+    stringModel.setBridgeBrightness(paramCache.bridgeBrightness->load());
 
     // Update string material
-    float rawValue = parameters->getRawParameterValue("stringMaterial")->load();
+    float rawValue = paramCache.stringMaterial->load();
     int materialIndex = static_cast<int>(rawValue + 0.5f);  // Round to nearest to avoid float precision issues
     MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
 
@@ -613,6 +630,11 @@ void HarpSynthVoice::updateParametersFromAPVTS(int numSamples)
 void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       int startSample, int numSamples)
 {
+    // WR-12: flush denormals for the whole voice render. The master processBlock sets FTZ/DAZ, but
+    // the voice is unprotected in isolation (e.g. the render harness compiles it without the
+    // processor), and the nut/loop-damping feedback pushed into the rails is not manually flushed.
+    const juce::ScopedNoDenormals noDenormals;
+
     // Update DSP parameters from APVTS at block boundaries (real-time modulation)
     // v2.1.9: numSamples drives the material-change crossfade ramp
     updateParametersFromAPVTS(numSamples);
@@ -632,6 +654,10 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         return;
     }
 
+    // WR-09: hoist the glissando "timbre" read out of the per-sample loop — it is constant across
+    // the block, so the previous per-sample string-keyed lookup was pure overhead.
+    const float glissBaseDamping = 1.0f - (parameters != nullptr ? paramCache.timbre->load() : 0.5f);
+
     // Process samples through string model and body resonance
     while (--numSamples >= 0)
     {
@@ -643,8 +669,7 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
             // v1.27.0: Apply velocity-dependent damping scaling
             float glissVel = glissandoController.getNextVelocity();
-            float baseDamping = 1.0f - (parameters ? parameters->getRawParameterValue("timbre")->load() : 0.5f);
-            stringModel.setDamping(baseDamping * (1.0f - glissVel * 0.3f));
+            stringModel.setDamping(glissBaseDamping * (1.0f - glissVel * 0.3f));
         }
 
         // Generate one sample from physical model (string)

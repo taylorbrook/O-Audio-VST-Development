@@ -136,22 +136,51 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
     // (ESCALATION-RP1 voice-side ratio multiplication; cache field Q17).
     // tuningEngine is declared BEFORE synth in the header → constructed
     // first → pointer is valid here (Risk #32 mitigation).
-    synth.addVoice(new BowedContrabassVoice(&parameters, &tuningEngine));
+    //
+    // WR-10: add 4 voices (one per EADG string) so double-stop drones — the core
+    // use case, and what ACTIVE_STRINGS / the four DETUNE_* params / INFINITE_SUSTAIN
+    // are built for — don't steal each other. A single voice made the synth
+    // effectively monophonic (2nd note-on stole the 1st). Physical-model voices are
+    // CPU-heavy (2× oversampled waveguide + 8-mode body resonator each), so 4 balances
+    // polyphony against cost; MPESynthesiser allocates per note-on.
+    for (int i = 0; i < kNumVoices; ++i)
+        synth.addVoice(new BowedContrabassVoice(&parameters, &tuningEngine));
 
     // MPE legacy mode for non-MPE DAWs (RESEARCH §5 pitfall #8).
     // Pitchbend range 24 semitones, channels 1..16 — covers omni MIDI input.
-    synth.enableLegacyMode(/*pitchbendRange*/ 24, juce::Range<int>(1, 16));
+    // CR-02: juce::Range is END-EXCLUSIVE. Range(1, 16) covers channels 1..15 only,
+    // silently dropping channel 16 (MPEInstrument gates notes with
+    // channelRange.contains()). JUCE's own default is Range(1, 17). Use 17.
+    synth.enableLegacyMode(/*pitchbendRange*/ 24, juce::Range<int>(1, 17));
 
     // Phase 2.6b R40a — APVTS Listener registration for TUNING_SYSTEM Choice.
-    // Initial seed: dispatch parameterChanged once to set initial mode.
     parameters.addParameterListener ("TUNING_SYSTEM", this);
-    parameterChanged ("TUNING_SYSTEM",
-                      parameters.getRawParameterValue ("TUNING_SYSTEM")->load());
+
+    // WR-02: resolve the master-chain parameter atomics once (avoids the per-block
+    // O(log n) std::map walk in processBlock). Valid for the processor's lifetime.
+    satAmountParam      = parameters.getRawParameterValue ("MASTER_SAT_AMOUNT");
+    limiterCeilingParam = parameters.getRawParameterValue ("LIMITER_CEILING_DB");
+    widthParam          = parameters.getRawParameterValue ("WIDTH");
+    outputGainParam     = parameters.getRawParameterValue ("OUTPUT_GAIN");
+
+    // Initial seed: apply the default/restored tuning mode synchronously. We are on
+    // the message thread at construction time and no audio is rendering yet, so a
+    // direct apply is safe — CR-03's RT-safe async path is only needed for runtime
+    // audio-thread automation. Reuses handleAsyncUpdate()'s choice→Mode mapping and
+    // guarantees the mode is set even where the message loop is not pumped (e.g. the
+    // offline render harness).
+    pendingTuningChoice.store (
+        static_cast<int> (parameters.getRawParameterValue ("TUNING_SYSTEM")->load()));
+    handleAsyncUpdate();
 }
 
 OContrabassAudioProcessor::~OContrabassAudioProcessor()
 {
     parameters.removeParameterListener ("TUNING_SYSTEM", this);
+    // WR-01: drain any queued tuning-mode dispatch before members are destroyed —
+    // handleAsyncUpdate() dereferences tuningEngine, so a pending update outliving
+    // the processor would be a use-after-free.
+    cancelPendingUpdate();
 }
 
 //==============================================================================
@@ -230,23 +259,30 @@ void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // ─── Phase 2.6a — Master Output Chain ──────────────────────────────────
     // Voice writes mono L=R clone (no per-voice OUTPUT_GAIN applied).
-    // Chain: Saturator → Limiter → StereoWidth → OUTPUT_GAIN.
+    // Chain: Saturator → StereoWidth → Limiter → OUTPUT_GAIN.
+    // WR-04: StereoWidth moved BEFORE the limiter so the limiter is the last
+    // dynamics stage and its ceiling genuinely bounds the widened stereo output.
+    // (Parameter atomics are cached members per WR-02 — no per-block map walk.)
 
     // Step 10: Master Saturator (polynomial x − x³/3, wet/dry mix).
-    masterSaturator.setAmount(parameters.getRawParameterValue("MASTER_SAT_AMOUNT")->load());
+    masterSaturator.setAmount(satAmountParam->load());
     masterSaturator.processBlock(buffer);
 
-    // Step 11: Zero-latency feedforward limiter (3 ms attack / 50 ms release).
-    masterLimiter.setCeilingDb(parameters.getRawParameterValue("LIMITER_CEILING_DB")->load());
-    masterLimiter.processBlock(buffer);
-
-    // Step 12: Stereo width (allpass decorrelator + M/S width).
-    stereoWidth.setWidth(parameters.getRawParameterValue("WIDTH")->load());
+    // Step 11: Stereo width (allpass decorrelator + M/S width). WR-04: runs BEFORE
+    // the limiter — with width>1 the M/S side gain has no bound and, when it ran
+    // after the limiter, pushed peaks back above the ceiling the limiter had just
+    // enforced (e.g. +2·ceiling ≈ +5.7 dBFS at width=2, −0.3 dBFS ceiling), voiding
+    // the ceiling guarantee and hard-clipping downstream.
+    stereoWidth.setWidth(widthParam->load());
     stereoWidth.processBlock(buffer);
 
+    // Step 12: Zero-latency feedforward limiter (3 ms attack / 50 ms release) —
+    // now the final ceiling enforcer before output gain.
+    masterLimiter.setCeilingDb(limiterCeilingParam->load());
+    masterLimiter.processBlock(buffer);
+
     // Step 13: Output Gain (relocated from voice-side; ARCHITECTURE §258 final stage).
-    const float gainTarget = juce::Decibels::decibelsToGain(
-        parameters.getRawParameterValue("OUTPUT_GAIN")->load());
+    const float gainTarget = juce::Decibels::decibelsToGain(outputGainParam->load());
     outputGainSmoothed.setTargetValue(gainTarget);
 
     {
@@ -291,29 +327,40 @@ BowedContrabassVoice* OContrabassAudioProcessor::getActiveVoice() noexcept
 
 //==============================================================================
 // Phase 2.6b R40a — APVTS Listener: TUNING_SYSTEM Choice → TuningEngine::Mode.
-// ESCALATION-MTS1 LOCK: defer the actual setMode call to the message thread
-// via MessageManager::callAsync. setMode briefly holds intervalMutex inside
-// rebuildFrequencyTable — not RT-safe. callAsync is RT-safe to invoke from
-// the audio thread per JUCE docs, so this callback is safe even under
-// audio-thread parameter automation fuzz (pluginval-10 Parameter thread
-// safety). Choice index → module Mode index swap (plugin index 0 "Scala/TUN"
-// = module Mode::Scala; plugin index 2 "12-TET" = module Mode::TwelveTET).
+// ESCALATION-MTS1 LOCK: setMode briefly holds intervalMutex inside
+// rebuildFrequencyTable — not RT-safe. CR-03: parameterChanged fires SYNCHRONOUSLY
+// on the setter's thread, which is the AUDIO thread when a host automates
+// TUNING_SYSTEM. The prior MessageManager::callAsync constructed a std::function +
+// new'd a message → audio-thread heap allocation (the exact class pluginval-10
+// "Parameter thread safety" fails on), and captured `this` with no lifetime guard
+// (WR-01 teardown UAF). Instead: store the choice atomically and triggerAsyncUpdate()
+// — RT-safe (reuses a preallocated message) — and apply setMode on the message thread
+// in handleAsyncUpdate(); the destructor cancelPendingUpdate()s to close the UAF.
 void OContrabassAudioProcessor::parameterChanged (const juce::String& parameterID,
                                                   float newValue)
 {
     if (parameterID != "TUNING_SYSTEM")
         return;
 
-    const int choiceIdx = static_cast<int> (newValue);
+    pendingTuningChoice.store (static_cast<int> (newValue));
+    triggerAsyncUpdate();
+}
+
+// CR-03 / WR-01 — message-thread apply of the staged tuning mode. Choice index →
+// module Mode swap (plugin index 0 "Scala/TUN" = Mode::Scala; index 1 "MTS-ESP" =
+// Mode::MTSESP; index 2 "12-TET" = Mode::TwelveTET). Also invoked directly from the
+// constructor for the synchronous initial seed (message thread, pre-render).
+void OContrabassAudioProcessor::handleAsyncUpdate()
+{
     TuningEngine::Mode mode;
-    switch (choiceIdx)
+    switch (pendingTuningChoice.load())
     {
         case 0:  mode = TuningEngine::Mode::Scala;     break;
         case 1:  mode = TuningEngine::Mode::MTSESP;    break;
         case 2:
         default: mode = TuningEngine::Mode::TwelveTET; break;
     }
-    juce::MessageManager::callAsync ([this, mode]() { tuningEngine.setMode (mode); });
+    tuningEngine.setMode (mode);
 }
 
 //==============================================================================

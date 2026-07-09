@@ -43,6 +43,11 @@ private:
     std::array<juce::dsp::IIR::Filter<float>, NUM_MODES> bodyModesL;
     std::array<juce::dsp::IIR::Filter<float>, NUM_MODES> bodyModesR;
 
+    // Pre-allocated coefficient objects (one per mode, shared L/R). Seeded once in
+    // prepare() so updateCoefficients() can mutate them in place on the audio thread
+    // without heap alloc/free. CR-01/CR-02 (pattern_arraycoefficients_rt_safe_iir).
+    std::array<juce::dsp::IIR::Coefficients<float>::Ptr, NUM_MODES> modeCoeffs;
+
     // Current state
     double currentSampleRate = 44100.0;
     float currentMaterial = -1.0f;   // -1 forces initial update

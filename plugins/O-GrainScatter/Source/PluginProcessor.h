@@ -143,6 +143,7 @@ private:
     // SmoothedValues
     juce::SmoothedValue<float> dryWetSmoothed;
     juce::SmoothedValue<float> feedbackSmoothed;
+    juce::SmoothedValue<float> lpfCoeffSmoothed;   // WR-08: de-zipper the distance LPF cutoff
 
     // Euclidean pattern cache (audio thread only writes; atomics for cross-thread reads)
     std::array<bool, 16> euclideanPattern {};

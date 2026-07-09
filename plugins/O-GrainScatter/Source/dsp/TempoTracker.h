@@ -35,7 +35,10 @@ public:
                 auto ppqOpt = pos->getPpqPosition();
                 auto playing = pos->getIsPlaying();
 
-                if (bpmOpt.hasValue() && ppqOpt.hasValue())
+                // WR-09: a host reporting bpm <= 0 (stopped/scanning) must NOT be taken
+                // verbatim — ppqPerSample would be 0 and Sync mode would silently stop
+                // scheduling. Treat it as "no position" and use the 120 BPM fallback below.
+                if (bpmOpt.hasValue() && ppqOpt.hasValue() && *bpmOpt > 0.0)
                 {
                     info.bpm = *bpmOpt;
                     info.ppqPosition = *ppqOpt;
