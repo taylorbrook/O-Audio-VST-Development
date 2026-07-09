@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.4.1] - 2026-07-08
+
+Code-review resolution pass (CODE_REVIEW.md, v2.4.0 deep review). All 2 critical + 12 warning findings fixed.
+
+### Fixed
+- **CR-01 — dead "Scan" knob:** `scan_position` (the v2.4.0 flagship control) had a param, DSP, DOM knob, and JS binding but **no editor relay/attachment**, so it was uncontrollable from the UI *and* host automation. Added the `WebSliderRelay` + `.withOptionsFrom` + `WebSliderParameterAttachment` triplet. *Root cause:* the relay/attachment pair was never added when the param was introduced.
+- **CR-02 — RT reallocation in `reset()`:** `reset()` called `delayBuffer.prepare()` and `freezeManager.prepare()`, which `setSize()` the 2 s delay + freeze buffers (~6 MB of free/alloc) on a thread hosts may run in real time. Added alloc-free `clear()` methods (zero the already-sized buffers, no `setSize`) and call those instead.
+- **WR-01 — spatial-mode feedback was a block-held constant:** in Scatter/Trajectory mode `feedbackL/R` were updated only in the post-decode loop, so every input sample of a block was fed the *same*, one-block-late feedback value → DC offset + block-rate buzz. Feedback is now derived **per-sample inside the main loop** from the HOA omni (W) channel — a true per-sample recursion. (Spatial feedback is now mono; the grains re-spatialize it on the next pass.)
+- **WR-02 — swing dropped every off-beat + desynced Euclidean:** the swing gate reused the straight-boundary crossing and could only *reject*, so swung (odd) subdivisions were never spawned, and `euclideanStep` advanced only past the gate → pattern drift. Rewrote the scheduler to detect each division's **own** trigger time (straight for on-beats, swing-offset for off-beats) and advance the Euclidean step once per division, in order → phase-locked. Straight-grid behaviour (swing = 50 %) is bit-identical to before.
+- **WR-03 — freeze-engage click/xrun:** `engage()` copied up to ~176 k samples element-by-element (`getSample`/`setSample` + modulo) on the audio thread. Replaced with two contiguous `AudioBuffer::copyFrom` memcpys spanning the ring wrap.
+- **WR-04 — `spawnRequests` could exceed its `reserve(128)`** on large/offline blocks → audio-thread realloc. Added a hard `kMaxSpawnsPerBlock = 128` cap at every push site (free + sync + repeats).
+- **WR-05 — no NaN/Inf guard on recursive state:** a single non-finite sample could latch `feedbackL/R` or `distanceLpfState` to NaN → permanent silence. Added `isfinite` flush-to-zero on both feedback paths and both LPF states.
+- **WR-06 — per-sample SH trig in Trajectory mode:** `encodeSH16` (16-coeff trig) ran for every active voice every sample. It now updates the SH *target* only at a 16-sample control rate; the existing one-pole SH smoother interpolates between updates (trajectory position + Doppler stay per-sample, unchanged).
+- **WR-07 — no block-size clamp:** `hoaBus`/`binaural` buffers are sized to `samplesPerBlock`; added a `jassert` + defensive `jmin` clamp on `numSamples` so an over-sized host block can't write past the allocations (the class v2.0.2 fixed).
+- **WR-08 — distance-LPF zipper:** the cutoff coefficient was recomputed per block with no smoothing → stepping on Distance / Distance-LPF automation. Wrapped it in a per-sample `SmoothedValue`.
+- **WR-09 — `bpm <= 0` silently stopped Sync scheduling:** `TempoTracker` took a host-reported non-positive BPM verbatim (ppqPerSample = 0 → no subdivision crossings). It now falls through to the 120 BPM fallback; the repeat-interval divide is additionally hardened with `jmax(1.0, bpm)` (IN-06).
+- **WR-10 — `spatial_smooth` reset default wrong:** the hardcoded JS normalized default `0.1` ignored the 0.4 skew (reset snapped to ≈1.6 ms instead of 5 ms). Now sourced from C++ (see WR-11).
+- **WR-11 — JS re-implemented C++ ranges/skew:** knob readouts and reset defaults duplicated each `NormalisableRange` (incl. skew) in JS — a latent drift class (WR-10 was the first crack). Readouts now use `state.getScaledValue()` and double-click resets pull skew-correct defaults from a new `getParameterDefaults` native function. No hand-coded ranges/defaults remain.
+- **WR-12 — `CMakeLists` version drift:** `VERSION` was pinned at `2.1.0` (three minors behind the shipped 2.4.0 features) → binaries reported the wrong version. Bumped to `2.4.1`.
+
 ## [2.4.0] - 2026-03-09
 
 ### Added

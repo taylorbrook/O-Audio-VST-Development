@@ -139,7 +139,10 @@ public:
 
     void setStringImpedance (float impedance) noexcept
     {
-        R_s = impedance;
+        // Floor away from 0: R_s divides the friction-force → rho conversion, so a
+        // zero impedance would yield Inf → NaN. Latent until WR-02 activated this
+        // path; guarded here as its required companion (IN-03).
+        R_s = std::max (1.0e-3f, impedance);
     }
 
     // Bow hair stiffness: 0.0 = soft/flexible (2000), 1.0 = stiff/aggressive (10000)

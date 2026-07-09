@@ -81,7 +81,16 @@ public:
         constexpr float k1 = -0.0135f, k2 = 0.0058f, k3 = -0.000004f;
         constexpr float m1 =  0.0034f, m2 = 0.0179f, m3 = -0.0009f, m4 = -0.4986f;
 
-        const float I  = std::log2 (juce::jmax (f0Hz, 1.0f) / 440.0f) * 12.0f + 49.0f;
+        // WR-06: k = k1 + k2·I + k3·I² has a real zero near I ≈ 2.33 (f0 ≈ 30 Hz),
+        // *inside* the caller's [20, 5000] Hz clamp. Bending the E string (I=8 @ 41.2 Hz)
+        // toward ~30 Hz drives I through the zero → −C/k diverges and jlimit snaps the
+        // coefficient between ±0.99 across block boundaries → audible click + severe
+        // inharmonicity. The Rauhala/Välimäki formula's validity envelope is I ≥ 8 (E1,
+        // the lowest string), so floor I at 8 — sub-E1 pitches reuse E1's dispersion
+        // coefficient (k ≈ 0.033, well away from the zero). No-op at/above E1 (all
+        // default states) ⇒ bit-exact regression preserved.
+        const float I  = juce::jmax (std::log2 (juce::jmax (f0Hz, 1.0f) / 440.0f) * 12.0f + 49.0f,
+                                     8.0f);
         const float lB = std::log  (juce::jmax (B,    1e-9f));
         const float lM = std::log  (static_cast<float> (juce::jmax (M, 1)));
 

@@ -84,6 +84,13 @@ public:
      */
     void reset();
 
+    /**
+     * IN-06: Apply any pending filter-coefficient updates ONCE per block. Call this before the
+     * per-sample process() loop. Previously process() ran this every sample (a per-sample atomic
+     * acquire load); coefficient parameters only change at block rate.
+     */
+    void applyPendingUpdates() { applyPendingFilterUpdates(); }
+
 private:
     // Modal synthesis: 5 resonant bandpass filters
     static constexpr int NUM_MODES = 5;

@@ -7,6 +7,7 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
     // 1. Create relays FIRST
     grainSizeRelay      = std::make_unique<juce::WebSliderRelay>("grain_size");
     densityRelay        = std::make_unique<juce::WebSliderRelay>("density");
+    scanPositionRelay   = std::make_unique<juce::WebSliderRelay>("scan_position");   // CR-01
     pitchRandomRelay    = std::make_unique<juce::WebSliderRelay>("pitch_random");
     panRandomRelay      = std::make_unique<juce::WebSliderRelay>("pan_random");
     scaleRelay          = std::make_unique<juce::WebComboBoxRelay>("scale");
@@ -52,11 +53,26 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
                         juce::File::SpecialLocationType::tempDirectory)
                             .getChildFile("OGrainScatter_WebView")))
             .withNativeIntegrationEnabled()
+            // WR-11: expose each parameter's true (skew-correct) normalized default so the UI's
+            // double-click reset uses the C++ NormalisableRange instead of hand-coded JS constants
+            // that silently drift from the layout (WR-10 was the first crack: spatial_smooth).
+            .withNativeFunction(
+                juce::Identifier("getParameterDefaults"),
+                [this](const juce::Array<juce::var>& /*args*/,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+                    for (auto* p : audioProcessor.getParameters())
+                        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(p))
+                            obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+                    completion(juce::var(obj.get()));
+                })
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
             .withResourceProvider([this](const auto& url) { return getResource(url); })
 #endif
             .withOptionsFrom(*grainSizeRelay)
             .withOptionsFrom(*densityRelay)
+            .withOptionsFrom(*scanPositionRelay)   // CR-01
             .withOptionsFrom(*pitchRandomRelay)
             .withOptionsFrom(*panRandomRelay)
             .withOptionsFrom(*scaleRelay)
@@ -99,6 +115,8 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
         *audioProcessor.parameters.getParameter("grain_size"), *grainSizeRelay, nullptr);
     densityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("density"), *densityRelay, nullptr);
+    scanPositionAttachment = std::make_unique<juce::WebSliderParameterAttachment>(   // CR-01
+        *audioProcessor.parameters.getParameter("scan_position"), *scanPositionRelay, nullptr);
     pitchRandomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("pitch_random"), *pitchRandomRelay, nullptr);
     panRandomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

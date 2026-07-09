@@ -206,6 +206,11 @@ private:
 
         void setCutoff(float cutoffHz, double sampleRate) noexcept
         {
+            // WR-01 (defense-in-depth): clamp below Nyquist so tan(π·cutoff/fs) never blows up
+            // (cutoff == fs/2 → tan(π/2) = ∞ → NaN coefficients inside the feedback loop). The
+            // primary clamp lives in calculateFilterCutoffs(); this also protects any other caller
+            // (e.g. the buzz filter) at low sample rates.
+            cutoffHz = juce::jlimit(20.0f, static_cast<float>(sampleRate * 0.49), cutoffHz);
             const double n = std::tan(juce::MathConstants<double>::pi * (static_cast<double>(cutoffHz) / sampleRate));
             const double a0 = n + 1.0;
             const double invA0 = 1.0 / a0;

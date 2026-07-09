@@ -29,6 +29,7 @@ private:
     // Core
     std::unique_ptr<juce::WebSliderRelay> grainSizeRelay;
     std::unique_ptr<juce::WebSliderRelay> densityRelay;
+    std::unique_ptr<juce::WebSliderRelay> scanPositionRelay;   // CR-01
     std::unique_ptr<juce::WebSliderRelay> pitchRandomRelay;
     std::unique_ptr<juce::WebSliderRelay> panRandomRelay;
     std::unique_ptr<juce::WebComboBoxRelay> scaleRelay;
@@ -77,6 +78,7 @@ private:
     // Core
     std::unique_ptr<juce::WebSliderParameterAttachment> grainSizeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> densityAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> scanPositionAttachment;   // CR-01
     std::unique_ptr<juce::WebSliderParameterAttachment> pitchRandomAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> panRandomAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> scaleAttachment;

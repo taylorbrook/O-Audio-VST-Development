@@ -184,6 +184,17 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                     complete(juce::var(pm.getCurrentPresetName()));
                 }
             })
+            // WR-07: expose each parameter's NORMALISED default so the WebView double-click-reset can
+            // restore it. The JUCE WebSlider propertiesChanged payload carries no defaultValue field,
+            // so JS previously reset to `undefined` → NaN. Returns { paramID: normalisedDefault }.
+            .withNativeFunction("getParameterDefaults", [this](const juce::Array<juce::var>&,
+                                                               std::function<void(juce::var)> complete) {
+                auto* obj = new juce::DynamicObject();
+                for (auto* rap : processorRef.getParameters())
+                    if (auto* withID = dynamic_cast<juce::AudioProcessorParameterWithID*>(rap))
+                        obj->setProperty(withID->paramID, rap->getDefaultValue());
+                complete(juce::var(obj));
+            })
             // v1.5.1: File dialog functions for Save/Load buttons
             // v1.7.10 FIX: Capture shared_ptr in lambda to prevent dangling reference
             .withNativeFunction("savePresetWithDialog", [this](const juce::Array<juce::var>&,
@@ -201,7 +212,13 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                        // CR-01: if the editor/WebView was torn down while the dialog was open, bail
+                        // with a bare return. Do NOT call complete() — it is owned by the destroyed
+                        // WebBrowserComponent impl, so invoking it is itself a use-after-free.
+                        if (safe == nullptr)
+                            return;
+
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -235,7 +252,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
+                            return;
+
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -349,7 +369,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
+                            return;
+
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -389,7 +412,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
+                            return;
+
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -422,7 +448,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [chooser, content, complete](const juce::FileChooser& fc) {
+                    [safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, content, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
+                            return;
+
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -456,7 +485,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [chooser, content, complete](const juce::FileChooser& fc) {
+                    [safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, content, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
+                            return;
+
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -668,8 +700,15 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                     return;
                 }
 
-                // Apply to TuningEngine
-                processorRef.getTuningEngine()->setCustomIntervals(tuning->intervals, tuning->name);
+                // Apply to TuningEngine.
+                // CR-02: EmbeddedTuning::intervals EXCLUDES the period (stored separately). Every
+                // other load path (loadScalaFile / setBuiltInPreset / applyGeneratedScale) appends
+                // the period before setCustomIntervals; this one did not, so setCustomIntervals saw
+                // one fewer degree and used the last interval as the repeat period → all 24 library
+                // tunings were silently mistuned (wrong note count AND wrong octave/period).
+                std::vector<double> intervals = tuning->intervals;
+                intervals.push_back(tuning->period);
+                processorRef.getTuningEngine()->setCustomIntervals(intervals, tuning->name);
                 processorRef.getTuningEngine()->setMode(TuningEngine::Mode::Scala);
 
                 // Mark as custom preset (since this is a loaded tuning, not a built-in preset)
@@ -720,7 +759,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [chooser, htmlContent, complete](const juce::FileChooser& fc) {
+                    [safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, htmlContent, complete](const juce::FileChooser& fc) {
+                        if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
+                            return;
+
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {

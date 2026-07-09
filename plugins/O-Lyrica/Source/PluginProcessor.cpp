@@ -455,6 +455,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
 
     // v1.35.0: String Crosstalk (soundboard coupling between adjacent strings)
+    // WR-06: INTENTIONALLY HIDDEN "expert" parameter — it has no WebView relay/attachment or HTML
+    // knob and is not exposed in the editor UI. It is a real, audible DSP parameter (adjacent-string
+    // soundboard coupling, see the crosstalk block in processBlock) that is set exclusively via the
+    // factory/user presets and host automation. Kept non-UI by design to avoid crowding the panel;
+    // every factory preset assigns a deliberate value. Do NOT treat the absence of a knob as a bug
+    // (see NOTES.md "Known Limitations"). Removing it would be a breaking state-format change.
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "stringCrosstalk", 1 },
         "String Crosstalk",
@@ -535,6 +541,24 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
 
     // v1.35.0: Cache crosstalk parameter pointer
     crosstalkParam = parameters.getRawParameterValue("stringCrosstalk");
+
+    // WR-09: cache the synth/tuning/body/master parameter pointers (mirrors fxCache) so processBlock
+    // reads atomics directly instead of per-block string-keyed getRawParameterValue() lookups.
+    coreCache.sympatheticAmount  = parameters.getRawParameterValue("sympatheticAmount");
+    coreCache.sympatheticQ       = parameters.getRawParameterValue("sympatheticQ");
+    coreCache.masterTune         = parameters.getRawParameterValue("masterTune");
+    coreCache.pitchBendRange     = parameters.getRawParameterValue("pitchBendRange");
+    coreCache.tuningMode         = parameters.getRawParameterValue("tuningMode");
+    coreCache.octaveStretch      = parameters.getRawParameterValue("octaveStretch");
+    coreCache.freeKeyswitchNote  = parameters.getRawParameterValue("freeKeyswitchNote");
+    coreCache.scaleKeyswitchNote = parameters.getRawParameterValue("scaleKeyswitchNote");
+    coreCache.bodySize           = parameters.getRawParameterValue("bodySize");
+    coreCache.bodyResonance      = parameters.getRawParameterValue("bodyResonance");
+    coreCache.woodType           = parameters.getRawParameterValue("woodType");
+    coreCache.bodyModeSpread     = parameters.getRawParameterValue("bodyModeSpread");
+    coreCache.masterVolume       = parameters.getRawParameterValue("masterVolume");
+    coreCache.scaleToggle        = parameters.getRawParameterValue("scaleToggle");
+    coreCache.freeToggle         = parameters.getRawParameterValue("freeToggle");
 
     // v1.30.0: Register APVTS listeners for toggle mutual exclusion
     parameters.addParameterListener("freeToggle", this);
@@ -683,6 +707,9 @@ void OLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     delay.prepare(spec);
     eq.prepare(spec);
     reverbProcessor.prepare(spec);
+
+    // WR-10: reserve the reused keyswitch MIDI buffer so even the warm-up block does not allocate.
+    filteredMidi.ensureSize(256);
 }
 
 void OLyricaAudioProcessor::releaseResources()
@@ -705,24 +732,24 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // v1.18.3: Removed redundant null checks - APVTS guarantees non-null for registered params
     // (Pattern matches HarpSynthVoice cleanup from v1.3.2)
 
-    // Phase 2.7: Update sympathetic resonance parameters
-    sympatheticEngine.setIntensity(parameters.getRawParameterValue("sympatheticAmount")->load());
-    sympatheticEngine.setResonatorQ(parameters.getRawParameterValue("sympatheticQ")->load());
+    // Phase 2.7: Update sympathetic resonance parameters (WR-09: cached pointers)
+    sympatheticEngine.setIntensity(coreCache.sympatheticAmount->load());
+    sympatheticEngine.setResonatorQ(coreCache.sympatheticQ->load());
 
     // Phase 2.8: Update tuning engine parameters
-    tuningEngine.setMasterTune(static_cast<double>(parameters.getRawParameterValue("masterTune")->load()));
-    tuningEngine.setPitchBendRange(parameters.getRawParameterValue("pitchBendRange")->load());
+    tuningEngine.setMasterTune(static_cast<double>(coreCache.masterTune->load()));
+    tuningEngine.setPitchBendRange(coreCache.pitchBendRange->load());
 
     // v1.6.0: Update tuning mode
     // v1.13.3: Skip mode sync during state restoration to prevent race condition
     if (!isRestoringState.load(std::memory_order_acquire))
     {
-        int modeInt = static_cast<int>(parameters.getRawParameterValue("tuningMode")->load());
+        int modeInt = static_cast<int>(coreCache.tuningMode->load());
         tuningEngine.setMode(static_cast<TuningEngine::Mode>(modeInt));
     }
 
     // v1.9.0: Update octave stretch
-    tuningEngine.setOctaveStretch(parameters.getRawParameterValue("octaveStretch")->load());
+    tuningEngine.setOctaveStretch(coreCache.octaveStretch->load());
 
     // v1.31.0: Read host BPM for tempo sync
     double hostBpm = 120.0;
@@ -737,13 +764,23 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     currentBpm.store(hostBpm, std::memory_order_release);
 
     // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
-    sympatheticEngine.syncBeforeBlock();
+    // WR-11: take the synthesiser callback lock around syncBeforeBlock(). The message-thread
+    // on-screen keyboard (triggerNoteOn/Off → synthesiser.noteOn/Off) synchronously runs
+    // registerVoice/unregisterVoice under this same lock; without it, rebuildCouplingMatrix here
+    // could read VoiceSlot fields (frequency/materialCoupling/resonatorFilter) while the UI thread
+    // writes them → torn reads / a refcount race on the filter coefficients.
+    {
+        const juce::ScopedLock sl (uiKeyboardLock);
+        sympatheticEngine.syncBeforeBlock();
+    }
 
     // v1.30.0: Keyswitch filtering — intercept keyswitch notes before passing to synthesiser
-    int freeKSNote = static_cast<int>(parameters.getRawParameterValue("freeKeyswitchNote")->load());
-    int scaleKSNote = static_cast<int>(parameters.getRawParameterValue("scaleKeyswitchNote")->load());
+    // WR-09: cached pointers.
+    int freeKSNote = static_cast<int>(coreCache.freeKeyswitchNote->load());
+    int scaleKSNote = static_cast<int>(coreCache.scaleKeyswitchNote->load());
 
-    juce::MidiBuffer filteredMidi;
+    // WR-10: reuse the member buffer (retains capacity) instead of constructing a 0-capacity local.
+    filteredMidi.clear();
 
     for (const auto metadata : midiMessages)
     {
@@ -868,11 +905,16 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     // v1.33.1: Shared body resonance (post-mix, single instance for all voices)
     {
-        float bodySize = parameters.getRawParameterValue("bodySize")->load();
-        float bodyAmount = parameters.getRawParameterValue("bodyResonance")->load();
-        int woodTypeIndex = static_cast<int>(parameters.getRawParameterValue("woodType")->load());
+        // WR-09: cached pointers.
+        float bodySize = coreCache.bodySize->load();
+        float bodyAmount = coreCache.bodyResonance->load();
+        int woodTypeIndex = static_cast<int>(coreCache.woodType->load());
         bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
-        bodyResonance.setModeSpread(parameters.getRawParameterValue("bodyModeSpread")->load());
+        bodyResonance.setModeSpread(coreCache.bodyModeSpread->load());
+
+        // IN-06: apply any pending body-filter coefficient updates ONCE here (block rate) instead of
+        // via a per-sample atomic acquire load inside process().
+        bodyResonance.applyPendingUpdates();
 
         // Process mono synth output through shared body resonance, then copy to all channels
         float* ch0 = buffer.getWritePointer(0);
@@ -951,8 +993,8 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         eq.process(block);
     }
 
-    // Apply master volume
-    float volumeDb = parameters.getRawParameterValue("masterVolume")->load();
+    // Apply master volume (WR-09: cached pointer)
+    float volumeDb = coreCache.masterVolume->load();
     buffer.applyGain(juce::Decibels::decibelsToGain(volumeDb));
 }
 
@@ -983,13 +1025,15 @@ void OLyricaAudioProcessor::parameterChanged(const juce::String& parameterID, fl
 // v1.30.0: Priority logic for active glissando mode
 void OLyricaAudioProcessor::updateActiveGlissandoMode()
 {
+    // WR-09: cached toggle pointers (updateActiveGlissandoMode runs from both processBlock and the
+    // message-thread parameterChanged; atomic-pointer reads are safe from either).
     if (scaleKeyswitchHeld.load(std::memory_order_acquire))
         activeGlissandoMode.store(2, std::memory_order_release);
     else if (freeKeyswitchHeld.load(std::memory_order_acquire))
         activeGlissandoMode.store(1, std::memory_order_release);
-    else if (parameters.getRawParameterValue("scaleToggle")->load() >= 0.5f)
+    else if (coreCache.scaleToggle != nullptr && coreCache.scaleToggle->load() >= 0.5f)
         activeGlissandoMode.store(2, std::memory_order_release);
-    else if (parameters.getRawParameterValue("freeToggle")->load() >= 0.5f)
+    else if (coreCache.freeToggle != nullptr && coreCache.freeToggle->load() >= 0.5f)
         activeGlissandoMode.store(1, std::memory_order_release);
     else
         activeGlissandoMode.store(0, std::memory_order_release);
@@ -1017,7 +1061,10 @@ void OLyricaAudioProcessor::triggerNoteOn(int midiNote, float velocity)
     midiNote = juce::jlimit(0, 127, midiNote);
     velocity = juce::jlimit(0.0f, 1.0f, velocity);
 
-    // Use channel 1 (index 0) for UI-triggered notes
+    // Use channel 1 (index 0) for UI-triggered notes.
+    // WR-11: hold uiKeyboardLock so registerVoice (inside noteOn→startNote) cannot run while the
+    // audio thread is inside sympatheticEngine.syncBeforeBlock().
+    const juce::ScopedLock sl (uiKeyboardLock);
     synthesiser.noteOn(1, midiNote, velocity);
 
     // v1.7.9: Push to event queue for tuning circle visualization
@@ -1030,6 +1077,8 @@ void OLyricaAudioProcessor::triggerNoteOff(int midiNote)
     midiNote = juce::jlimit(0, 127, midiNote);
 
     // allowTailOff = true for natural release
+    // WR-11: see triggerNoteOn — serialise unregisterVoice against audio-thread syncBeforeBlock().
+    const juce::ScopedLock sl (uiKeyboardLock);
     synthesiser.noteOff(1, midiNote, 0.0f, true);
 
     // v1.7.9: Push to event queue for tuning circle visualization
@@ -1147,7 +1196,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.4f }, { "fingerHardness", 0.3f }, { "attackNoise", 0.6f },
         { "stringTension", 0.4f }, { "stringStiffness", 0.15f }, { "bridgeBrightness", 0.4f },
-        { "humanize", 0.35f }, { "stringCrosstalk", 0.4f }, { "sympatheticQ", 0.04f },
+        { "humanize", 0.35f }, { "stringCrosstalk", 0.4f }, { "sympatheticQ", 0.2000f },
         { "bodyModeSpread", 0.55f }, { "stringGauge", 0.55f }, { "stringLength", 0.45f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1163,7 +1212,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.45f }, { "fingerHardness", 0.35f }, { "attackNoise", 0.5f },
         { "stringTension", 0.45f }, { "stringStiffness", 0.2f }, { "bridgeBrightness", 0.45f },
-        { "humanize", 0.3f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.05f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.2236f },
         { "bodyModeSpread", 0.53f }, { "stringGauge", 0.5f }, { "stringLength", 0.48f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1178,7 +1227,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.4f }, { "attackNoise", 0.55f },
         { "stringTension", 0.5f }, { "stringStiffness", 0.18f }, { "bridgeBrightness", 0.5f },
-        { "humanize", 0.25f }, { "stringCrosstalk", 0.38f }, { "sympatheticQ", 0.06f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.38f }, { "sympatheticQ", 0.2449f },
         { "bodyModeSpread", 0.56f }, { "stringGauge", 0.52f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1194,7 +1243,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.62f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.45f }, { "attackNoise", 0.45f },
         { "stringTension", 0.55f }, { "stringStiffness", 0.22f }, { "bridgeBrightness", 0.55f },
-        { "humanize", 0.2f }, { "stringCrosstalk", 0.42f }, { "sympatheticQ", 0.06f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.42f }, { "sympatheticQ", 0.2449f },
         { "bodyModeSpread", 0.60f }, { "stringGauge", 0.55f }, { "stringLength", 0.55f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1210,7 +1259,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.42f }, { "fingerHardness", 0.38f }, { "attackNoise", 0.58f },
         { "stringTension", 0.42f }, { "stringStiffness", 0.16f }, { "bridgeBrightness", 0.42f },
-        { "humanize", 0.4f }, { "stringCrosstalk", 0.42f }, { "sympatheticQ", 0.04f },
+        { "humanize", 0.4f }, { "stringCrosstalk", 0.42f }, { "sympatheticQ", 0.2000f },
         { "bodyModeSpread", 0.57f }, { "stringGauge", 0.52f }, { "stringLength", 0.47f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1225,7 +1274,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.3f },
         { "pluckPosition", 0.35f }, { "fingerHardness", 0.25f }, { "attackNoise", 0.4f },
         { "stringTension", 0.35f }, { "stringStiffness", 0.12f }, { "bridgeBrightness", 0.35f },
-        { "humanize", 0.3f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.03f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.1732f },
         { "bodyModeSpread", 0.52f }, { "stringGauge", 0.48f }, { "stringLength", 0.42f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1244,7 +1293,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.4f }, { "attackNoise", 0.35f },
         { "stringTension", 0.5f }, { "stringStiffness", 0.15f }, { "bridgeBrightness", 0.5f },
-        { "humanize", 0.2f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.06f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.2449f },
         { "bodyModeSpread", 0.52f }, { "stringGauge", 0.45f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1259,7 +1308,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.45f }, { "attackNoise", 0.4f },
         { "stringTension", 0.52f }, { "stringStiffness", 0.18f }, { "bridgeBrightness", 0.52f },
-        { "humanize", 0.25f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.05f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.2236f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.48f }, { "stringLength", 0.48f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1274,7 +1323,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.45f }, { "fingerHardness", 0.35f }, { "attackNoise", 0.3f },
         { "stringTension", 0.45f }, { "stringStiffness", 0.12f }, { "bridgeBrightness", 0.45f },
-        { "humanize", 0.2f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.07f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.2646f },
         { "bodyModeSpread", 0.53f }, { "stringGauge", 0.44f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.05f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1290,7 +1339,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.42f }, { "attackNoise", 0.38f },
         { "stringTension", 0.48f }, { "stringStiffness", 0.16f }, { "bridgeBrightness", 0.48f },
-        { "humanize", 0.15f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.06f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.2449f },
         { "bodyModeSpread", 0.51f }, { "stringGauge", 0.46f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1305,7 +1354,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.52f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.38f }, { "attackNoise", 0.32f },
         { "stringTension", 0.5f }, { "stringStiffness", 0.14f }, { "bridgeBrightness", 0.5f },
-        { "humanize", 0.2f }, { "stringCrosstalk", 0.33f }, { "sympatheticQ", 0.07f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.33f }, { "sympatheticQ", 0.2646f },
         { "bodyModeSpread", 0.54f }, { "stringGauge", 0.48f }, { "stringLength", 0.53f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1322,7 +1371,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.3f }, { "attackNoise", 0.25f },
         { "stringTension", 0.46f }, { "stringStiffness", 0.1f }, { "bridgeBrightness", 0.46f },
         { "technique", choiceNorm(1, 4) },
-        { "humanize", 0.15f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.08f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.2828f },
         { "bodyModeSpread", 0.55f }, { "stringGauge", 0.44f }, { "stringLength", 0.55f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.04f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.2f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1341,7 +1390,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.55f }, { "attackNoise", 0.5f },
         { "stringTension", 0.6f }, { "stringStiffness", 0.25f }, { "bridgeBrightness", 0.6f },
-        { "humanize", 0.12f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.1f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.3162f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.52f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1356,7 +1405,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.55f },
         { "stringTension", 0.65f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.65f },
-        { "humanize", 0.1f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.12f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.3464f },
         { "bodyModeSpread", 0.48f }, { "stringGauge", 0.55f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1371,7 +1420,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.5f }, { "attackNoise", 0.45f },
         { "stringTension", 0.55f }, { "stringStiffness", 0.22f }, { "bridgeBrightness", 0.55f },
-        { "humanize", 0.12f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.1f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.3162f },
         { "bodyModeSpread", 0.52f }, { "stringGauge", 0.54f }, { "stringLength", 0.56f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1387,7 +1436,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.52f }, { "attackNoise", 0.48f },
         { "stringTension", 0.58f }, { "stringStiffness", 0.24f }, { "bridgeBrightness", 0.58f },
-        { "humanize", 0.15f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.09f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.3000f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.52f }, { "stringLength", 0.54f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1402,7 +1451,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.42f },
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.58f }, { "attackNoise", 0.52f },
         { "stringTension", 0.62f }, { "stringStiffness", 0.26f }, { "bridgeBrightness", 0.62f },
-        { "humanize", 0.1f }, { "stringCrosstalk", 0.22f }, { "sympatheticQ", 0.11f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.22f }, { "sympatheticQ", 0.3317f },
         { "bodyModeSpread", 0.49f }, { "stringGauge", 0.55f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.06f }, { "chorusDepth", 0.25f }, { "chorusMix", 0.12f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1417,7 +1466,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.58f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.48f }, { "attackNoise", 0.42f },
         { "stringTension", 0.52f }, { "stringStiffness", 0.2f }, { "bridgeBrightness", 0.52f },
-        { "humanize", 0.15f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.09f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.3000f },
         { "bodyModeSpread", 0.53f }, { "stringGauge", 0.5f }, { "stringLength", 0.56f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1436,7 +1485,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.4f },
         { "stringTension", 0.7f }, { "stringStiffness", 0.3f }, { "bridgeBrightness", 0.7f },
-        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.15f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.3873f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.4f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1451,7 +1500,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.3f },
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.62f }, { "attackNoise", 0.45f },
         { "stringTension", 0.68f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.68f },
-        { "humanize", 0.05f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.16f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.4000f },
         { "bodyModeSpread", 0.49f }, { "stringGauge", 0.42f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1466,7 +1515,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.42f },
         { "stringTension", 0.65f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.65f },
-        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.13f },
+        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.3606f },
         { "bodyModeSpread", 0.51f }, { "stringGauge", 0.38f }, { "stringLength", 0.55f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1481,7 +1530,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.38f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.58f }, { "attackNoise", 0.48f },
         { "stringTension", 0.62f }, { "stringStiffness", 0.26f }, { "bridgeBrightness", 0.62f },
-        { "humanize", 0.1f }, { "stringCrosstalk", 0.14f }, { "sympatheticQ", 0.14f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.14f }, { "sympatheticQ", 0.3742f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.44f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1496,7 +1545,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.32f },
         { "pluckPosition", 0.62f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.5f },
         { "stringTension", 0.72f }, { "stringStiffness", 0.34f }, { "bridgeBrightness", 0.72f },
-        { "humanize", 0.05f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.18f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.4243f },
         { "bodyModeSpread", 0.48f }, { "stringGauge", 0.4f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1512,7 +1561,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.7f }, { "attackNoise", 0.35f },
         { "stringTension", 0.75f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.75f },
         { "technique", choiceNorm(1, 4) },
-        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.14f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.3742f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.38f }, { "stringLength", 0.54f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1531,7 +1580,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.55f },
         { "stringTension", 0.65f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.65f },
-        { "humanize", 0.12f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.1f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.3162f },
         { "bodyModeSpread", 0.52f }, { "stringGauge", 0.55f }, { "stringLength", 0.54f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1546,7 +1595,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.6f },
         { "stringTension", 0.7f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.7f },
-        { "humanize", 0.1f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.12f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.3464f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.58f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1561,7 +1610,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.6f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.55f }, { "attackNoise", 0.5f },
         { "stringTension", 0.6f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.6f },
-        { "humanize", 0.12f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.1f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.3162f },
         { "bodyModeSpread", 0.53f }, { "stringGauge", 0.55f }, { "stringLength", 0.56f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1577,7 +1626,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.58f },
         { "stringTension", 0.72f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.72f },
-        { "humanize", 0.1f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.13f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.3606f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.56f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.04f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1592,7 +1641,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.58f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.52f }, { "attackNoise", 0.48f },
         { "stringTension", 0.58f }, { "stringStiffness", 0.3f }, { "bridgeBrightness", 0.58f },
-        { "humanize", 0.15f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.09f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.3000f },
         { "bodyModeSpread", 0.54f }, { "stringGauge", 0.54f }, { "stringLength", 0.55f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1608,7 +1657,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.65f },
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.62f }, { "attackNoise", 0.52f },
         { "stringTension", 0.68f }, { "stringStiffness", 0.36f }, { "bridgeBrightness", 0.68f },
-        { "humanize", 0.1f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.11f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.3317f },
         { "bodyModeSpread", 0.55f }, { "stringGauge", 0.55f }, { "stringLength", 0.54f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.03f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.18f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1627,7 +1676,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.72f }, { "attackNoise", 0.45f },
         { "stringTension", 0.75f }, { "stringStiffness", 0.42f }, { "bridgeBrightness", 0.75f },
-        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.18f },
+        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.4243f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.4f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1643,7 +1692,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.38f },
         { "pluckPosition", 0.62f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.4f },
         { "stringTension", 0.72f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.72f },
-        { "humanize", 0.1f }, { "stringCrosstalk", 0.14f }, { "sympatheticQ", 0.16f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.14f }, { "sympatheticQ", 0.4000f },
         { "bodyModeSpread", 0.49f }, { "stringGauge", 0.42f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1658,7 +1707,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.7f }, { "fingerHardness", 0.75f }, { "attackNoise", 0.38f },
         { "stringTension", 0.78f }, { "stringStiffness", 0.45f }, { "bridgeBrightness", 0.78f },
-        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.2f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.4472f },
         { "bodyModeSpread", 0.48f }, { "stringGauge", 0.38f }, { "stringLength", 0.55f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1674,7 +1723,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.42f },
         { "pluckPosition", 0.68f }, { "fingerHardness", 0.7f }, { "attackNoise", 0.42f },
         { "stringTension", 0.76f }, { "stringStiffness", 0.43f }, { "bridgeBrightness", 0.76f },
-        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.18f },
+        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.4243f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.4f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1690,7 +1739,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.36f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.35f },
         { "stringTension", 0.7f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.7f },
-        { "humanize", 0.12f }, { "stringCrosstalk", 0.13f }, { "sympatheticQ", 0.15f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.13f }, { "sympatheticQ", 0.3873f },
         { "bodyModeSpread", 0.51f }, { "stringGauge", 0.44f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1706,7 +1755,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "pluckPosition", 0.72f }, { "fingerHardness", 0.78f }, { "attackNoise", 0.32f },
         { "stringTension", 0.8f }, { "stringStiffness", 0.48f }, { "bridgeBrightness", 0.8f },
         { "technique", choiceNorm(1, 4) },
-        { "humanize", 0.06f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.22f },
+        { "humanize", 0.06f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.4690f },
         { "bodyModeSpread", 0.48f }, { "stringGauge", 0.38f }, { "stringLength", 0.54f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.05f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1724,7 +1773,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.35f },
         { "stringTension", 0.7f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.7f },
-        { "humanize", 0.15f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.12f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.3464f },
         { "bodyModeSpread", 0.54f }, { "stringGauge", 0.45f }, { "stringLength", 0.52f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1739,7 +1788,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.6f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.3f },
         { "stringTension", 0.65f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.65f },
-        { "humanize", 0.2f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.13f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.3606f },
         { "bodyModeSpread", 0.56f }, { "stringGauge", 0.48f }, { "stringLength", 0.55f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1755,7 +1804,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.65f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.55f }, { "attackNoise", 0.28f },
         { "stringTension", 0.62f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.62f },
-        { "humanize", 0.2f }, { "stringCrosstalk", 0.22f }, { "sympatheticQ", 0.14f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.22f }, { "sympatheticQ", 0.3742f },
         { "bodyModeSpread", 0.57f }, { "stringGauge", 0.46f }, { "stringLength", 0.56f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1771,7 +1820,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.7f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.5f }, { "attackNoise", 0.25f },
         { "stringTension", 0.58f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.58f },
-        { "humanize", 0.25f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.12f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.3464f },
         { "bodyModeSpread", 0.55f }, { "stringGauge", 0.5f }, { "stringLength", 0.53f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.02f }, { "chorusDepth", 0.25f }, { "chorusMix", 0.12f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1787,7 +1836,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.72f },
         { "pluckPosition", 0.45f }, { "fingerHardness", 0.45f }, { "attackNoise", 0.2f },
         { "stringTension", 0.55f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.55f },
-        { "humanize", 0.25f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.1f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.3162f },
         { "bodyModeSpread", 0.58f }, { "stringGauge", 0.48f }, { "stringLength", 0.58f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1804,7 +1853,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.62f }, { "attackNoise", 0.22f },
         { "stringTension", 0.68f }, { "stringStiffness", 0.36f }, { "bridgeBrightness", 0.68f },
         { "technique", choiceNorm(1, 4) },
-        { "humanize", 0.2f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.15f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.3873f },
         { "bodyModeSpread", 0.55f }, { "stringGauge", 0.44f }, { "stringLength", 0.55f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.04f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.18f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1823,7 +1872,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.7f }, { "fingerHardness", 0.8f }, { "attackNoise", 0.6f },
         { "stringTension", 0.8f }, { "stringStiffness", 0.5f }, { "bridgeBrightness", 0.8f },
-        { "humanize", 0.25f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.1f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.3162f },
         { "bodyModeSpread", 0.48f }, { "stringGauge", 0.4f }, { "stringLength", 0.45f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayTime", 0.08f }, { "delayFeedback", 0.35f }, { "delayMix", 0.2f },
@@ -1838,7 +1887,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.75f }, { "fingerHardness", 0.85f }, { "attackNoise", 0.65f },
         { "stringTension", 0.85f }, { "stringStiffness", 0.55f }, { "bridgeBrightness", 0.85f },
-        { "humanize", 0.3f }, { "stringCrosstalk", 0.08f }, { "sympatheticQ", 0.12f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.08f }, { "sympatheticQ", 0.3464f },
         { "bodyModeSpread", 0.46f }, { "stringGauge", 0.38f }, { "stringLength", 0.42f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayTime", 0.1f }, { "delayFeedback", 0.4f }, { "delayMix", 0.18f },
@@ -1854,7 +1903,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.75f }, { "attackNoise", 0.55f },
         { "stringTension", 0.75f }, { "stringStiffness", 0.45f }, { "bridgeBrightness", 0.75f },
-        { "humanize", 0.3f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.09f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.3000f },
         { "bodyModeSpread", 0.5f }, { "stringGauge", 0.42f }, { "stringLength", 0.48f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.08f }, { "chorusDepth", 0.4f }, { "chorusMix", 0.2f },
         { "delayBypass", 0.0f }, { "delayTime", 0.15f }, { "delayFeedback", 0.35f }, { "delayMix", 0.18f },
@@ -1869,7 +1918,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.7f }, { "attackNoise", 0.5f },
         { "stringTension", 0.7f }, { "stringStiffness", 0.42f }, { "bridgeBrightness", 0.7f },
-        { "humanize", 0.25f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.1f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.3162f },
         { "bodyModeSpread", 0.52f }, { "stringGauge", 0.45f }, { "stringLength", 0.5f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayTime", 0.2f }, { "delayFeedback", 0.4f },
@@ -1886,7 +1935,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.38f },
         { "pluckPosition", 0.72f }, { "fingerHardness", 0.82f }, { "attackNoise", 0.58f },
         { "stringTension", 0.82f }, { "stringStiffness", 0.52f }, { "bridgeBrightness", 0.82f },
-        { "humanize", 0.3f }, { "stringCrosstalk", 0.08f }, { "sympatheticQ", 0.12f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.08f }, { "sympatheticQ", 0.3464f },
         { "bodyModeSpread", 0.47f }, { "stringGauge", 0.38f }, { "stringLength", 0.44f },
         { "chorusBypass", 0.0f }, { "chorusRate", 0.1f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.18f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
@@ -1901,7 +1950,7 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.52f },
         { "stringTension", 0.68f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.68f },
-        { "humanize", 0.35f }, { "stringCrosstalk", 0.18f }, { "sympatheticQ", 0.08f },
+        { "humanize", 0.35f }, { "stringCrosstalk", 0.18f }, { "sympatheticQ", 0.2828f },
         { "bodyModeSpread", 0.53f }, { "stringGauge", 0.5f }, { "stringLength", 0.48f },
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },

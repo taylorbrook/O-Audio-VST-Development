@@ -91,9 +91,19 @@ void BodyResonator::recomputeCoefficients() noexcept
         const float gDb  = kDefaultGainDb[i] + 1.5f * (currentSize - 0.75f);
         gainLinear[i]    = juce::Decibels::decibelsToGain (gDb);
 
-        auto coeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass (
-            currentSampleRate, fc, qEff);
-        *modes[i].coefficients = *coeffs;
+        // CR-01 (RT-safety): assign through the allocation-free ArrayCoefficients
+        // std::array overload. Coefficients::operator=(std::array) funnels into
+        // assignImpl, which clearQuick()s and ensureStorageAllocated()s once — after
+        // the first (prepare-time) call it reuses capacity, so this is zero-alloc in
+        // processBlock. The Ptr-returning makeBandPass did `*new Coefficients(...)`
+        // → 8·N heap churn per audio block. Math is identical (the Ptr overload just
+        // wraps the same ArrayCoefficients::makeBandPass result). prepare() calls
+        // recomputeCoefficients() once, so the one-time allocation lands off the
+        // audio thread. (memory: ArrayCoefficients vs Coefficients — O-Formant
+        // v1.25.1 WR-08.)
+        *modes[i].coefficients =
+            juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (
+                currentSampleRate, fc, qEff);
     }
 }
 

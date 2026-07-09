@@ -18,6 +18,18 @@ public:
         crossfadeCounter = 0;
     }
 
+    // Alloc-free state reset for reset() — zeroes the (already-sized) buffer and clears
+    // freeze/crossfade flags without setSize(). CR-02: keeps reset() off the allocator.
+    void clear()
+    {
+        freezeBuffer.clear();
+        captureLength = 0;
+        active = false;
+        releasing = false;
+        crossfadeCounter = 0;
+        crossfadeDirection = 1;
+    }
+
     void engage (const DelayBuffer& delayBuf, int grainSizeSamples)
     {
         int len = juce::jmin (grainSizeSamples * 4, freezeBuffer.getNumSamples());

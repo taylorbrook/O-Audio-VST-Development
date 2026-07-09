@@ -137,5 +137,14 @@ private:
     float effectiveSpeed = 0.2f;
     float effectivePosition = 0.12f;
 
+    // WR-04: per-sample smoothing for bow position and bridge-filter brightness.
+    // Continuous MPE-timbre / Brightness automation otherwise steps the fractional
+    // delay lengths (and the one-pole corner) at block boundaries → zipper/clicks.
+    // Primed to the first block's value on note-on (see smoothersPrimed) so the
+    // attack does not sweep from a stale/zero value.
+    juce::SmoothedValue<float> bowPositionSmoothed;
+    juce::SmoothedValue<float> brightnessSmoothed;
+    bool smoothersPrimed = false;
+
     int voiceIndex = 0;
 };

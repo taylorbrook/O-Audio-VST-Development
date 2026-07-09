@@ -11,6 +11,7 @@
 
 #include "WaveguideString.h"
 #include "HyperbolicFriction.h"
+#include <array>
 
 void WaveguideString::prepare (double sr, int maxBlockSize)
 {
@@ -32,6 +33,12 @@ void WaveguideString::prepare (double sr, int maxBlockSize)
     neckDelay.setMaximumDelayInSamples (maxDelay);
 
     bridgeLossFilter.prepare (spec);
+
+    // Seed the coefficient storage once, off the audio thread. This allocates the
+    // internal coefficient array (capacity >= 8) so every subsequent in-place update
+    // on the audio thread reuses it without reallocating. CR-01.
+    *bridgeLossFilter.coefficients = std::array<float, 4> { 1.0f, 0.0f, 1.0f, 0.0f };
+    bridgeLossFilter.reset();  // size state to the order-1 layout off-thread
 
     filterDirty = true;
 }

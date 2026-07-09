@@ -110,5 +110,20 @@ private:
     float dcBlockX[2] = { 0.0f, 0.0f };
     float dcBlockY[2] = { 0.0f, 0.0f };
 
+    // WR-06: APVTS atomic pointers resolved once in prepareToPlay so processBlock reads
+    // parameters without per-callback string-keyed map lookups on the audio thread.
+    std::atomic<float>* pSympatheticAmount = nullptr;
+    std::atomic<float>* pSympatheticCount  = nullptr;
+    std::atomic<float>* pBodyMaterial      = nullptr;
+    std::atomic<float>* pBodySize          = nullptr;
+    std::atomic<float>* pWidth             = nullptr;
+    std::atomic<float>* pReferencePitch    = nullptr;
+    std::atomic<float>* pSympatheticDecay  = nullptr;
+    std::atomic<float>* pBodyAmount        = nullptr;
+    std::atomic<float>* pTuningSystem      = nullptr;
+    std::atomic<float>* pOutputLevel       = nullptr;
+    std::atomic<float>* pHumanizeRange[4]  = { nullptr, nullptr, nullptr, nullptr };
+    std::atomic<float>* pHumanizeRate[4]   = { nullptr, nullptr, nullptr, nullptr };
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBowedAudioProcessor)
 };

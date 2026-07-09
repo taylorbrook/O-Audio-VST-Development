@@ -11,6 +11,11 @@ struct SpawnRequest
 class GrainScheduler
 {
 public:
+    // WR-04: hard cap on spawn requests per block. Matches the processor's
+    // spawnRequests.reserve(128), so push_back never reallocates on the audio thread.
+    // Excess requests would only steal voices anyway (pool is 64).
+    static constexpr size_t kMaxSpawnsPerBlock = 128;
+
     void prepare (double newSampleRate)
     {
         sampleRate = newSampleRate;
@@ -32,7 +37,8 @@ public:
             if (samplesUntilNextGrain <= 0)
             {
                 samplesUntilNextGrain = intervalSamples;
-                if (rng.nextFloat() < probability / 100.0f)
+                if (rng.nextFloat() < probability / 100.0f
+                    && outRequests.size() < kMaxSpawnsPerBlock)   // WR-04
                     outRequests.push_back ({ i });
             }
         }
@@ -51,42 +57,37 @@ public:
         double subdiv = subdivPpq[juce::jlimit (0, 6, subdivIndex)];
         if (subdiv <= 0.0) return;
 
-        // Swing: offset even-numbered subdivisions by swingPct (50% = no swing, 75% = max shuffle)
-        // swingRatio converts 50-75% to 0.0-0.5 fractional offset of one subdivision
-        double swingRatio = (static_cast<double> (swingPct) - 50.0) / 50.0;  // 0.0 to 0.5
-
         stutterGateStart = -1;
         stutterGateEnd = -1;
+
+        // No valid tempo advance → no subdivision can be crossed this block (WR-09 companion).
+        if (syncInfo.ppqPerSample <= 0.0) return;
+
+        // Swing: odd-numbered divisions (the off-beats) fire late by swingOffsetPpq.
+        // swingRatio maps 50-75% → 0.0-0.5 of one subdivision.
+        double swingRatio    = (static_cast<double> (swingPct) - 50.0) / 50.0;
+        double swingOffsetPpq = swingRatio * subdiv;
 
         for (int i = 0; i < numSamples; ++i)
         {
             double ppqAtSample     = syncInfo.ppqPosition + i * syncInfo.ppqPerSample;
             double ppqAtSamplePrev = syncInfo.ppqPosition + (i - 1) * syncInfo.ppqPerSample;
 
-            if (i == 0 && syncInfo.ppqPerSample <= 0.0) continue;
+            // The straight subdivision window this sample lies in.
+            int divIndex = static_cast<int> (std::floor (ppqAtSample / subdiv));
+            if (divIndex < 0) continue;
 
-            // Apply swing: shift even-numbered subdivision boundaries forward
-            double currentDiv = std::floor (ppqAtSample / subdiv);
-            double prevDiv    = std::floor (ppqAtSamplePrev / subdiv);
+            // WR-02: each division has its OWN trigger time (straight for even/on-beat,
+            // swingOffset-delayed for odd/off-beat). Detecting that swung time directly —
+            // rather than reusing the straight-boundary crossing and then rejecting — means
+            // off-beat grains actually fire (they were being dropped) and the Euclidean step
+            // advances exactly once per division, in order, so the pattern stays phase-locked.
+            bool   isOffBeat  = (divIndex % 2) != 0;
+            double triggerPpq = divIndex * subdiv + (isOffBeat ? swingOffsetPpq : 0.0);
 
-            if (currentDiv > prevDiv)
+            if (triggerPpq > ppqAtSamplePrev && triggerPpq <= ppqAtSample)
             {
-                // Check if this is an even-numbered subdivision (0-indexed: 0,2,4... are on-beat)
-                int divIndex = static_cast<int> (currentDiv);
-                bool isEvenSubdiv = (divIndex % 2) != 0;  // odd divisions are the "off-beats" we swing
-
-                if (isEvenSubdiv && swingRatio > 0.001)
-                {
-                    // Delay this trigger by swingRatio * subdiv in PPQ
-                    double swingOffsetPpq = swingRatio * subdiv;
-                    double swungBoundary = currentDiv * subdiv + swingOffsetPpq;
-
-                    // Check if the swung boundary falls within [ppqAtSamplePrev, ppqAtSample)
-                    if (swungBoundary > ppqAtSample || swungBoundary <= ppqAtSamplePrev)
-                        continue;  // Not yet reached the swung position
-                }
-
-                // Euclidean gate check (with rotation offset)
+                // Euclidean gate (advance the step once per division regardless of the gate result)
                 bool euclideanPass = true;
                 if (euclideanLength > 0)
                 {
@@ -98,14 +99,17 @@ public:
                 if (euclideanPass && rng.nextFloat() < probability / 100.0f)
                 {
                     // Spawn primary grain
-                    outRequests.push_back ({ i });
+                    if (outRequests.size() < kMaxSpawnsPerBlock)   // WR-04
+                        outRequests.push_back ({ i });
 
-                    // Spawn repeat grains at subdivision intervals
-                    int repeatIntervalSamples = static_cast<int> (subdiv * 60.0 * sampleRate / syncInfo.bpm);
+                    // Spawn repeat grains at subdivision intervals.
+                    // IN-06: jmax(1.0, bpm) hardens the divide against a pathological tiny bpm.
+                    int repeatIntervalSamples = static_cast<int> (subdiv * 60.0 * sampleRate
+                                                                  / juce::jmax (1.0, syncInfo.bpm));
                     for (int r = 1; r < repeats; ++r)
                     {
                         int offset = i + r * repeatIntervalSamples;
-                        if (offset < numSamples)
+                        if (offset < numSamples && outRequests.size() < kMaxSpawnsPerBlock)   // WR-04
                             outRequests.push_back ({ offset });
                     }
 

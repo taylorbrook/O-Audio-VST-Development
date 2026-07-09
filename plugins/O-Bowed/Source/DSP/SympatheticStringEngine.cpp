@@ -78,8 +78,8 @@ void SympatheticStringEngine::setAmount (float amount)
 //==============================================================================
 void SympatheticStringEngine::setDecay (float decay)
 {
-    // Map 0.0-1.0 to loss coefficient 0.990-0.9999
-    // 0.0 = short ring (0.990), 1.0 = very long ring (0.9999)
+    // 0.0 = short ring, 1.0 = long ring. Applied per string in tuneString() as a
+    // sub-unity feedback decay gain (see WR-05).
     decayParam = decay;
 }
 
@@ -163,8 +163,10 @@ void SympatheticStringEngine::tuneString (int index, float frequency)
     float delaySamples = static_cast<float> (currentSampleRate) / frequency;
     s.delay.setDelay (delaySamples);
     s.frequency = frequency;
-    // Map decayParam 0.0-1.0 to lossCoeff 0.990-0.9999
-    s.lossCoeff = 0.990f + decayParam * 0.0099f;
+    // Map decayParam 0.0-1.0 to a sub-unity feedback decay gain 0.990-0.9995. This is
+    // the loop loss (< 1) that produces real exponential decay — longer knob = longer
+    // ring. Damping/tone is handled separately by the fixed DAMP_POLE lowpass. WR-05.
+    s.decayGain = 0.990f + decayParam * 0.0095f;
 
     // Pan position across stereo field
     float pan = (activeCount > 1)
@@ -193,10 +195,13 @@ SympatheticStringEngine::processSample (float excitation)
             continue;
 
         float delayed = s.delay.popSample (0);
-        // One-pole loss filter
-        s.filterState = s.lossCoeff * s.filterState + (1.0f - s.lossCoeff) * delayed;
-        // Feed excitation + filtered feedback into delay
-        s.delay.pushSample (0, s.filterState + scaledExcitation);
+        // Fixed-pole damping lowpass — frequency-dependent decay (highs die faster),
+        // DC gain 1. Tone only; does NOT set ring length.
+        s.filterState = DAMP_POLE * s.filterState + (1.0f - DAMP_POLE) * delayed;
+        // Feed excitation + sub-unity feedback into the delay. decayGain (< 1) is what
+        // makes the fundamental decay and drains DC from the loop — previously the
+        // one-pole "loss" had DC gain 1, so the fundamental rang ~forever. WR-05.
+        s.delay.pushSample (0, s.filterState * s.decayGain + scaledExcitation);
 
         float sample = s.filterState;
         s.energyEstimate = 0.999f * s.energyEstimate + 0.001f * std::abs (sample);

@@ -37,10 +37,19 @@ void BodyResonance::prepare(double sampleRate, int maxBlockSize)
     spec.maximumBlockSize = static_cast<juce::uint32>(maxBlockSize);
     spec.numChannels = 1; // Mono processing per voice
 
-    for (auto& filter : bodyModes)
+    // CR-04: Establish each mode's coefficient buffer (order 2, capacity ≥8) and size the filter
+    // state OFF the audio thread. Assigning an ArrayCoefficients std::array uses
+    // Coefficients::operator=(std::array) → assignImpl, which grows the buffer once here;
+    // updateFilterCoefficients() then reuses it with NO heap alloc/free on the audio thread.
+    for (int i = 0; i < NUM_MODES; ++i)
     {
-        filter.prepare(spec);
-        filter.reset();
+        float seedFreq = juce::jlimit(20.0f, static_cast<float>(currentSampleRate * 0.45),
+                                      BASE_FREQUENCIES[i]);
+        *bodyModes[i].coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
+            currentSampleRate, seedFreq,
+            getQForWoodType(currentWoodType), getGainForWoodType(currentWoodType));
+        bodyModes[i].prepare(spec);   // sizes filter state for order 2 (one-time alloc here)
+        bodyModes[i].reset();
     }
 
     // Initialize filter coefficients
@@ -85,8 +94,8 @@ void BodyResonance::setModeSpread(float spread)
 
 float BodyResonance::process(float input)
 {
-    // v1.32.6: Apply any pending coefficient updates on the audio thread
-    applyPendingFilterUpdates();
+    // IN-06: pending coefficient updates are now applied once per block via applyPendingUpdates()
+    // (called from the processor before the per-sample loop), not per sample here.
 
     // OPTIMIZED: Unrolled 5-mode filter bank (no loop overhead)
     float resonantOutput =
@@ -95,6 +104,15 @@ float BodyResonance::process(float input)
         bodyModes[2].processSample(input) * modeAmplitudes[2] +
         bodyModes[3].processSample(input) * modeAmplitudes[3] +
         bodyModes[4].processSample(input) * modeAmplitudes[4];
+
+    // IN-01: NaN/Inf guard. A transient non-finite value from the synth/crosstalk feed would
+    // otherwise latch all 5 biquad states to NaN permanently (sticky silence). Reset the bank
+    // and drop this sample to silence.
+    if (! std::isfinite(resonantOutput))
+    {
+        reset();
+        resonantOutput = 0.0f;
+    }
 
     float currentAmount = bodyAmount.load(std::memory_order_relaxed);
     float dryAmount = 1.0f - (currentAmount * MAX_DRY_REDUCTION);
@@ -134,9 +152,11 @@ void BodyResonance::updateFilterCoefficients()
         // Clamp to valid range
         scaledFreq = juce::jlimit(20.0f, static_cast<float>(currentSampleRate * 0.45), scaledFreq);
 
-        // Create bandpass filter coefficients with resonance boost
+        // CR-04: RT-safe coefficient update. Assigning an ArrayCoefficients std::array uses
+        // Coefficients::operator=(std::array) → assignImpl, reusing the pre-seeded buffer
+        // (capacity ≥8) — NO heap alloc/free on the audio thread.
         // v1.1.4: Fixed - was using unity gain (1.0) which caused no audible effect
-        bodyModes[i].coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        *bodyModes[i].coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
             currentSampleRate,
             scaledFreq,
             Q,

@@ -110,6 +110,24 @@ private:
     // APVTS reference for parameter access
     juce::AudioProcessorValueTreeState* parameters = nullptr;
 
+    // WR-09: cached raw APVTS parameter pointers, resolved once in setAPVTS(). The per-block
+    // updateParametersFromAPVTS() and the per-sample glissando loop previously did string-keyed
+    // hashmap lookups (getRawParameterValue("id")) on the audio thread; this mirrors the effects
+    // fxCache and reads the atomics directly.
+    struct ParamCache
+    {
+        std::atomic<float>* brightness       = nullptr;
+        std::atomic<float>* timbre           = nullptr;
+        std::atomic<float>* decayTime        = nullptr;
+        std::atomic<float>* stringStiffness  = nullptr;
+        std::atomic<float>* stringTension    = nullptr;
+        std::atomic<float>* stringGauge      = nullptr;
+        std::atomic<float>* stringLength     = nullptr;
+        std::atomic<float>* attackNoise      = nullptr;
+        std::atomic<float>* bridgeBrightness = nullptr;
+        std::atomic<float>* stringMaterial   = nullptr;
+    } paramCache;
+
     // Phase 2.7: Sympathetic Resonance Engine (shared, owned by processor)
     SympatheticResonanceEngine* sympatheticEngine = nullptr;
 

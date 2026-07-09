@@ -18,6 +18,14 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 
     delayL.prepare (spec);
     delayR.prepare (spec);
+
+    // WR-04: the compile-time 192000-sample buffer only covers 2.0 s up to 96 kHz. Grow it to the
+    // real fs so Delay Time near its 2.0 s max is not silently modulo-wrapped (aliased/too-short)
+    // at 176.4/192 kHz. +8 headroom for Lagrange3rd interpolation reach.
+    maxDelaySamples = static_cast<float> (std::ceil (2.0 * spec.sampleRate) + 8.0);
+    delayL.setMaximumDelayInSamples (static_cast<int> (maxDelaySamples));
+    delayR.setMaximumDelayInSamples (static_cast<int> (maxDelaySamples));
+
     feedbackFilterL.prepare (spec);
     feedbackFilterR.prepare (spec);
     dryWetMixer.prepare (spec);
@@ -42,7 +50,8 @@ void DelayProcessor::reset()
 
 void DelayProcessor::setTime (float seconds)
 {
-    delaySamples = seconds * currentSampleRate;
+    // WR-04: keep the requested delay within the (now sample-rate-correct) buffer.
+    delaySamples = juce::jlimit (0.0f, maxDelaySamples, seconds * currentSampleRate);
 }
 
 void DelayProcessor::setFeedback (float fb)
@@ -89,6 +98,10 @@ void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
 
         feedbackL = feedbackFilterL.processSample (0, wetL);
         feedbackR = feedbackFilterR.processSample (0, wetR);
+
+        // IN-02: a single non-finite sample would otherwise latch the feedback state to NaN forever.
+        if (! std::isfinite (feedbackL)) feedbackL = 0.0f;
+        if (! std::isfinite (feedbackR)) feedbackR = 0.0f;
 
         leftData[i] = wetL;
         rightData[i] = wetR;

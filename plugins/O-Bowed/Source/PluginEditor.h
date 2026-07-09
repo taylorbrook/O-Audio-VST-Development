@@ -44,6 +44,11 @@ private:
     // String Configuration
     std::unique_ptr<juce::WebSliderRelay> sympatheticAmountRelay;
     std::unique_ptr<juce::WebSliderRelay> sympatheticCountRelay;
+    // Advanced Physics (CR-04: real params that previously had no UI binding)
+    std::unique_ptr<juce::WebSliderRelay> sympatheticDecayRelay;
+    std::unique_ptr<juce::WebSliderRelay> bodyAmountRelay;
+    std::unique_ptr<juce::WebSliderRelay> stringGaugeRelay;
+    std::unique_ptr<juce::WebSliderRelay> bowHairStiffnessRelay;
     // Output
     std::unique_ptr<juce::WebSliderRelay> widthRelay;
     std::unique_ptr<juce::WebSliderRelay> outputLevelRelay;
@@ -81,6 +86,11 @@ private:
     // String Configuration
     std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticAmountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticCountAttachment;
+    // Advanced Physics (CR-04)
+    std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticDecayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bodyAmountAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> stringGaugeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bowHairStiffnessAttachment;
     // Output
     std::unique_ptr<juce::WebSliderParameterAttachment> widthAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputLevelAttachment;

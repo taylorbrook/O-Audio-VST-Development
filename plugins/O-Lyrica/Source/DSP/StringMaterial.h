@@ -45,7 +45,11 @@ struct StringMaterial
     float stiffnessAmount;     // Allpass dispersion amount 0.0-1.0
     float sympatheticCoupling; // How much resonates with other strings 0.0-1.0
     float noiseContent;        // Attack noise amount 0.0-1.0
-    juce::String name;
+
+    // CR-07: NO juce::String name member. This struct is constructed/interpolated on the AUDIO
+    // thread (per note-on and every block during a material crossfade); a juce::String would
+    // heap-allocate its ref-counted buffer on the render path. The DSP never needs the name —
+    // display names are resolved on the message thread via the static getNameFromType().
 
     /**
      * Construct default material (Nylon)
@@ -56,7 +60,6 @@ struct StringMaterial
         , stiffnessAmount(0.20f)
         , sympatheticCoupling(0.50f)
         , noiseContent(0.5f)
-        , name("Nylon")
     {}
 
     /**

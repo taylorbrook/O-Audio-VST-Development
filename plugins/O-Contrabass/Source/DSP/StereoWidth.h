@@ -58,7 +58,11 @@ public:
     void reset()
     {
         decorrelator.reset();
-        widthSmoothed.reset (1.0f);
+        // WR-12: reset(1.0f) binds SmoothedValue::reset(int numSteps) — 1.0f
+        // converts to int 1, setting stepsToTarget=1 (destroying the 20 ms ramp),
+        // NOT resetting width to 1.0. setCurrentAndTargetValue seeds the value
+        // (matches MasterLimiter::reset).
+        widthSmoothed.setCurrentAndTargetValue (1.0f);
     }
 
     void setWidth (float w) noexcept

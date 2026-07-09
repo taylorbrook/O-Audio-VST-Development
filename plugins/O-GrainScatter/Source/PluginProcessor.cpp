@@ -329,6 +329,18 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     grainPool.prepareSpatial (static_cast<float> (sampleRate));
     distanceLpfState[0] = 0.0f;
     distanceLpfState[1] = 0.0f;
+
+    // WR-08: prime the distance-LPF coefficient smoother to the current param state so
+    // the first spatial block doesn't ramp from a cold value.
+    {
+        float d0    = distanceParam->load() / 100.0f;
+        float amt0  = distLpfParam->load() / 100.0f;
+        float cut0  = 20000.0f - d0 * 15000.0f * amt0;
+        float coeff0 = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * cut0
+                                        / static_cast<float> (sampleRate));
+        lpfCoeffSmoothed.reset (sampleRate, 0.02);
+        lpfCoeffSmoothed.setCurrentAndTargetValue (coeff0);
+    }
 }
 
 void GrainScatterProcessor::releaseResources() {}
@@ -339,8 +351,8 @@ void GrainScatterProcessor::reset()
     for (auto& v : grainPool.getVoices())
         v.active = false;
 
-    // Clear delay buffer contents
-    delayBuffer.prepare (currentSampleRate, 2.0f);
+    // Clear delay buffer contents (CR-02: alloc-free — reset() may run on the RT thread)
+    delayBuffer.clear();
 
     // Reset feedback accumulators
     feedbackL = 0.0f;
@@ -349,10 +361,10 @@ void GrainScatterProcessor::reset()
     // Snap SmoothedValues to current targets (avoid ramp after jump)
     dryWetSmoothed.setCurrentAndTargetValue (dryWetSmoothed.getTargetValue());
     feedbackSmoothed.setCurrentAndTargetValue (feedbackSmoothed.getTargetValue());
+    lpfCoeffSmoothed.setCurrentAndTargetValue (lpfCoeffSmoothed.getTargetValue());
 
-    // Reset freeze state
-    freezeManager.prepare (currentSampleRate,
-                           static_cast<int> (currentSampleRate * 2.0) + 1);
+    // Reset freeze state (CR-02: clear() zeroes the already-sized buffer, no setSize)
+    freezeManager.clear();
     wasFrozen = false;
 
     // Reset scheduler timing
@@ -384,6 +396,13 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
     int numSamples = buffer.getNumSamples();
+
+    // WR-07: hoaBus / binauralL / binauralR are sized to samplesPerBlock. If a host ever
+    // hands us a block larger than the declared maximum, every i < numSamples write into
+    // those buffers would run past the allocation (this is the exact class v2.0.2 fixed).
+    // Clamp defensively — the JUCE contract says this can't happen, but not all hosts honor it.
+    jassert (numSamples <= hoaBus.getNumSamples());
+    numSamples = juce::jmin (numSamples, hoaBus.getNumSamples());
 
     // Read parameters atomically
     float grainSizeMs    = grainSizeParam->load();
@@ -438,6 +457,11 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     static constexpr float kFeedbackDrive = 3.0f;
     static constexpr float kTanhCompensation = 1.00497f;
     static constexpr float kStabilityMargin = 0.95f;
+
+    // WR-06: recompute the 16 SH target coefficients only every N samples (control rate).
+    // The one-pole SH smoothing interpolates between updates, so per-active-voice encodeSH16
+    // trig no longer runs every sample. Trajectory position + Doppler stay per-sample.
+    static constexpr int kTrajUpdateInterval = 16;
 
     int grainSizeSamples = juce::jmax(1, static_cast<int>(grainSizeMs * currentSampleRate / 1000.0));
 
@@ -581,6 +605,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             // Update grain trajectories before processing
             auto& poolVoices = grainPool.getVoices();
+            const bool updateShTarget = (i % kTrajUpdateInterval == 0);  // WR-06 control rate
             for (auto& v : poolVoices)
             {
                 if (!v.active)
@@ -606,7 +631,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                         v.dopplerFactor = 1.0f;
                     }
 
-                    v.shCoeffs.setTarget(az, el);
+                    // WR-06: encodeSH16 (16-coeff trig) only at control rate; the SH one-pole
+                    // smoother interpolates the current[] coeffs toward this target every sample.
+                    if (updateShTarget)
+                        v.shCoeffs.setTarget(az, el);
                 }
                 else
                 {
@@ -621,6 +649,23 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // Store into HOA bus for this sample
             for (int ch = 0; ch < kHOA3Channels; ++ch)
                 hoaBus.setSample(ch, i, hoaSample[ch]);
+
+            // WR-01 + WR-05: per-sample feedback recursion in spatial mode. The delay write
+            // at the top of this loop consumes feedbackL/R every sample; derive them HERE
+            // from the per-sample HOA omni (W) channel — the mono grain sum available this
+            // sample — so the recursion is genuinely per-sample. (Previously feedbackL/R were
+            // updated only in the post-decode loop, one block late, so every input sample of
+            // the block was fed the SAME held constant → DC offset + block-rate buzz.) The
+            // feedback is mono; the grains re-spatialize it on the next pass. The isfinite
+            // flush stops a single non-finite sample from latching permanent silence/noise.
+            {
+                float fbAmount = feedbackSmoothed.getNextValue();
+                float fb = std::tanh (hoaSample[0] * fbAmount * kFeedbackDrive)
+                           * kTanhCompensation * kStabilityMargin;
+                if (! std::isfinite (fb)) fb = 0.0f;
+                feedbackL = fb;
+                feedbackR = fb;
+            }
         }
 
         if (spatialMode == 0)
@@ -635,6 +680,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             float rawFbR = wetR * fbAmount;
             feedbackL = std::tanh(rawFbL * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
             feedbackR = std::tanh(rawFbR * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
+            if (! std::isfinite (feedbackL)) feedbackL = 0.0f;   // WR-05: no sticky NaN in the loop
+            if (! std::isfinite (feedbackR)) feedbackR = 0.0f;
 
             // Dry/wet mix
             float mix = dryWetSmoothed.getNextValue();
@@ -666,24 +713,28 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         // Distance LPF (1-pole low-pass for air absorption)
         // distLpfAmt scales how much distance affects the cutoff (0=no darkening, 1=full)
+        // WR-08: smooth the coefficient per sample so automating Distance / Distance LPF
+        // ramps the cutoff instead of stepping it discontinuously (zipper).
         float lpfCutoff = 20000.0f - distanceNorm * 15000.0f * distLpfAmt;
-        float lpfCoeff = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * lpfCutoff
-                                          / static_cast<float>(currentSampleRate));
+        float lpfCoeffTarget = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * lpfCutoff
+                                               / static_cast<float>(currentSampleRate));
+        lpfCoeffSmoothed.setTargetValue(lpfCoeffTarget);
 
         // Apply dry/wet mix with binaural output
         for (int i = 0; i < numSamples; ++i)
         {
-            // LPF
+            // LPF (WR-08: per-sample smoothed coefficient)
+            float lpfCoeff = lpfCoeffSmoothed.getNextValue();
             distanceLpfState[0] += lpfCoeff * (binauralL[i] - distanceLpfState[0]);
             distanceLpfState[1] += lpfCoeff * (binauralR[i] - distanceLpfState[1]);
+            if (! std::isfinite (distanceLpfState[0])) distanceLpfState[0] = 0.0f;   // WR-05
+            if (! std::isfinite (distanceLpfState[1])) distanceLpfState[1] = 0.0f;
 
             float wetBinL = std::tanh(distanceLpfState[0]);
             float wetBinR = std::tanh(distanceLpfState[1]);
 
-            // Feedback from binaural output (smoothed to avoid zipper noise)
-            float fbAmount = feedbackSmoothed.getNextValue();
-            feedbackL = std::tanh(wetBinL * fbAmount * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
-            feedbackR = std::tanh(wetBinR * fbAmount * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
+            // WR-01: spatial feedback is now derived per-sample in the main loop (from the
+            // HOA omni channel), not here — the post-decode value was one block late.
 
             float mix = dryWetSmoothed.getNextValue();
             float dryL = inL[i];

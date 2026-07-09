@@ -22,6 +22,7 @@ No parameter IDs, ranges, types, or state format changed — presets and session
 
 ### Notes
 
+- **Build-metadata fix (follow-up).** `CMakeLists.txt` set the version via the non-existent `juce_add_plugin` keyword `PLUGIN_VERSION`, which JUCE's argument parser silently ignores — the bundle fell back to `PROJECT_VERSION` and reported **1.0.0** in the VST3/AU `Info.plist`. Corrected to the recognized `VERSION "2.8.1"` keyword so the shipped bundles report the true version. No code, parameter, or state change.
 - Also bumps the stale PLUGINS.md registry row (2.7.2 → 2.8.1) — folds in IN-08.
 - Info findings IN-01/02/04..07/09..11 were out of scope for this pass and remain open (see NOTES.md → Known Limitations).
 

@@ -2,6 +2,131 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.4.1] - 2026-07-08
+
+Resolves the three runtime-affecting Info findings from the v1.3.0 review (`CODE_REVIEW.md`).
+PATCH — no param IDs/ranges/defaults/state format changed.
+
+### Fixed
+
+- **IN-06 — BodyResonator biquad bank now NaN-guarded.** A transient non-finite sample reaching the
+  8-mode parallel bank would latch every biquad state to NaN permanently (sticky silence,
+  `pattern_biquad_nan_guard_sticky_silence`). `processStereo` now checks the accumulated resonance
+  with `std::isfinite`, and on failure `reset()`s the bank and drops the sample. Complements the
+  v1.4.0 WR-01 source reset on the voice path.
+- **IN-07 — Humanize drift rate now uses the actual block size.** `HumanizeEngine` derived its
+  update rate (`sampleRate / blockSize`) from the *max* block size in `prepare()`, so under smaller
+  host buffers (e.g. 64 vs a 512 max) the random walk advanced faster than its labeled 0.15–8 Hz
+  (~8× at that ratio). `update()` now takes the real `numSamples` and computes the rate per callback.
+- **IN-09 — Master-path state cleared on (re-)prepare.** `dcBlockX/Y` persisted across
+  `prepareToPlay` calls (and `releaseResources` is a no-op), leaking a startup transient on
+  sample-rate changes. `prepareToPlay` now zeroes the DC-blocker state and resets the body /
+  sympathetic engines.
+
+### Known Limitations
+
+- Remaining Info findings IN-02, IN-04, IN-05, IN-08, IN-10, IN-11, IN-12, IN-13 (dead code, comment
+  fix, dead UI/native-fn cruft, unconditional viz poll) remain deferred — cosmetic / non-behavioral.
+  See NOTES.md Known Issues.
+
+## [1.4.0] - 2026-07-08
+
+Resolves the Critical + Warning findings from the v1.3.0 deep code review (`CODE_REVIEW.md`).
+MINOR bump: `bowHairStiffness` becomes an audible control (new behavior), backward compatible
+(no param IDs/ranges/state format changed; presets load unchanged).
+
+### Added
+
+- **`bowHairStiffness` now does something (WR-02 + CR-04).** The elasto-plastic bristle friction
+  model was fully wired but never evaluated, and `bristleBlend` (= `bowHairStiffness`) was never
+  read — the knob was doubly dead (no UI binding *and* no DSP effect). The render loop now blends
+  the Hyperbolic (Core) and elasto-plastic (bristle) reflection coefficients:
+  `rho = (1-blend)*core + blend*bristle`, with the bristle model receiving the sample period `dt`
+  it needs. The bristle displacement state `z` is reset on every note-on and `R_s` is floored
+  away from zero (IN-03, required companions so activating the path can't emit NaN).
+  **The default was changed 0.5 → 0.0** so new instances and factory presets (which don't set
+  this param) keep the pre-v1.4.0 timbre (pure Core friction); the bristle character is now an
+  additive enhancement as the knob is raised. (Note: sessions saved under ≤1.3.0 that stored the
+  old 0.5 default will now play with 50% bristle — unavoidable when activating a previously-inert
+  parameter.)
+- **Four previously-uncontrollable parameters are now bound to their UI knobs (CR-04):**
+  `sympatheticDecay`, `bodyAmount`, `stringGauge`, `bowHairStiffness`. They had real
+  `NormalisableRange`s and (three of them) drove DSP, but the editor created no
+  `WebSliderRelay`/`WebSliderParameterAttachment` and the JS `PARAMS` table omitted them, so the
+  knobs rendered frozen. Added relays, attachments, `withOptionsFrom`, and `PARAMS` entries.
+- **Tuning panel is fully functional (CR-03).** Registered the eight native functions the shared
+  `tuning-panel.js` calls that O-Bowed's editor was missing: `getEmbeddedTuningList`,
+  `loadEmbeddedTuning`, `generateHarmonicSeries`, `generateRank2`, `applyGeneratedScale`,
+  `saveScalaFile`, `saveKBMFile`, and `exportTuningHTML` (the last renamed from the drifted
+  `getTuningHTML`). Previously the factory-tuning library was empty, every generator was dead
+  (all funnel through the missing `applyGeneratedScale`), and Save .scl / .kbm / Export HTML did
+  nothing — all failures swallowed by the panel's try/catch. `loadEmbeddedTuning` appends the
+  tuning period before `setCustomIntervals` (guards `pattern_embedded_tuning_period_dropped`).
+- **Skew-correct knob readouts + double-click reset (WR-07).** Added a `getParameterDefaults`
+  native function; the UI now reads displayed values from `SliderState.getScaledValue()` (honors
+  the real C++ `NormalisableRange` incl. skew) and resets to the true normalized default. The old
+  hardcoded linear map read skewed params wrong — `brightness` ~8× off at mid-travel,
+  `bowSpeed`/`bowPressure`/`stringGauge` ~2× off — and reset landed off-default.
+
+### Fixed
+
+- **No audio-thread heap allocation on bridge loss-filter updates (CR-01).** `updateBridgeFilterCoeffs`
+  constructed a temporary `Coefficients<float>` (heap-allocating its internal array, then copy-
+  assigning it — a second alloc + free) on **every note-on** and on **every Brightness / Infinite-
+  Sustain** change. Now the coefficient storage is seeded once in `prepare()` and the update assigns
+  a stack `std::array` in place, reusing the storage (verified against JUCE `assignImpl`:
+  `clearQuick` + `ensureStorageAllocated(>=8)` → no realloc). Root cause: fresh `Coefficients`
+  object instead of writing into the pre-allocated storage.
+- **No audio-thread heap allocation on body Material/Size automation (CR-02).** `BodyResonator::
+  updateCoefficients` rebuilt 8 `Coefficients::makePeakFilter` reference-counted objects (8 `new`
+  + up to 16 `delete`) inside `processBlock` on any live Material/Size move. Now one shared
+  coefficient object per mode is pre-allocated in `prepare()` and mutated in place from
+  `ArrayCoefficients::makePeakFilter` (a stack `std::array`); JUCE only reallocs filter state on an
+  order *change*, which no longer happens. (`pattern_arraycoefficients_rt_safe_iir`, same class as
+  the O-Formant EQ regression.)
+- **FileChooser completions no longer use-after-free on editor teardown (CR-05).** All six
+  `launchAsync` completions (`savePresetWithDialog`, `loadScalaFile`, `loadKBMFile`, and the new
+  `saveScalaFile`/`saveKBMFile`/`exportTuningHTML`) captured `this` + the WebView `complete`
+  callback with no liveness guard. Closing the plugin window while a native dialog was open would
+  run the lambda after `~OBowedAudioProcessorEditor`, touching a destroyed WebView-owned
+  `complete` → host crash. Now each captures a `Component::SafePointer` and bails with a bare
+  `return` on the null path (does NOT call `complete()` — that is itself a UAF, per the
+  O-MicrotonalSampler W12 fix).
+- **A single non-finite excitation no longer silences a note mid-sustain (WR-01).** The `std::min`
+  rho clamps don't filter NaN (`min(NaN,x)==NaN`) and `tanh` preserves it, so one bad sample would
+  poison the delay line and drive `energyEstimate` to NaN → `clearCurrentNote()`. Added an
+  `std::isfinite` guard at the write boundary that resets the *source* (waveguide + both friction
+  models), not just the sample.
+- **Sympathetic "Decay" knob now actually controls ring time (WR-05).** `lossCoeff` was used as the
+  pole of a one-pole lowpass (DC gain = 1) instead of a sub-unity loop gain, so the fundamental rang
+  ~forever regardless of the knob and any loop DC never drained. Split into a fixed-pole damping
+  lowpass (tone) plus an explicit sub-unity feedback `decayGain` (0.990–0.9995) derived from the
+  Decay param — guarantees exponential decay and drains DC.
+- **No zipper on continuous MPE-timbre / Brightness moves (WR-04).** `bowPosition` (driven by CC74)
+  and `brightness` were pushed to the waveguide once per block, stepping the fractional delay
+  lengths and one-pole corner at block boundaries. Both are now advanced per sample via
+  `SmoothedValue` (15 ms), primed to the actual value on note-on so the attack doesn't sweep.
+- **Belt-and-suspenders denormal protection on the voice render path (WR-03).** Added
+  `ScopedNoDenormals` to `renderNextBlock` (the bridge loss-filter's ~15 s tail decays through the
+  denormal range; the processor's master guard covers the plugin but the voice runs unprotected in
+  the render harness).
+
+### Changed
+
+- **`processBlock` reads parameters via cached atomic pointers (WR-06).** Replaced ~25 per-callback
+  `getRawParameterValue("id")->load()` string-keyed map lookups with `std::atomic<float>*` members
+  resolved once in `prepareToPlay`. Also removed 8 dead reads (bowSpeed/bowPressure/bowPosition/
+  rosin/brightness/infiniteSustain/stringGauge/bowHairStiffness were read on the processor thread
+  but only ever used inside the voice).
+
+### Known Limitations
+
+- Info-level findings IN-02, IN-04, IN-05, IN-06, IN-07, IN-08, IN-09, IN-10, IN-11, IN-12, IN-13
+  were out of scope for this pass (Critical + Warning only). IN-01 and IN-03 were resolved as
+  required companions to WR-02. Notably IN-06 (BodyResonator biquad NaN guard) complements WR-01
+  and remains a recommended follow-up. The per-voice `updateParametersFromAPVTS` still uses string
+  lookups (WR-06 only covered the processor as flagged).
+
 ## [1.3.0] - 2026-04-26
 
 ### Added

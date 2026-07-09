@@ -17,35 +17,35 @@
       "name": "limiter-ceiling-stress",
       "startSec": 3.0,
       "endSec": 6.0,
-      "peak": 0.134796336293221,
-      "rms": 0.02594794029315
+      "peak": 0.13547383248806,
+      "rms": 0.025948762937199
     },
     {
       "name": "width-sweep",
       "startSec": 6.0,
       "endSec": 9.0,
       "peak": 0.07803401350975,
-      "rms": 0.014014978349457
+      "rms": 0.014014979307251
     },
     {
       "name": "clickfree-automation",
       "startSec": 9.0,
       "endSec": 12.0,
-      "peak": 0.068826608359814,
-      "rms": 0.013327007348933
+      "peak": 0.068826533854008,
+      "rms": 0.013325650711722
     },
     {
       "name": "peak-overshoot-stress",
       "startSec": 12.0,
       "endSec": 15.0,
-      "peak": 0.144037365913391,
-      "rms": 0.025820073964294
+      "peak": 0.144124522805214,
+      "rms": 0.025824538504785
     }
   ],
   "ceilingDbProbe2": -0.3,
   "ceilingDbProbe5": -3.0,
-  "peakDbProbe2": -17.406438827514648,
-  "peakDbProbe5": -16.830497741699219,
+  "peakDbProbe2": -17.362892150878906,
+  "peakDbProbe5": -16.825241088867188,
   "probe4MaxSampleJump": 0.01794009283185,
   "clickfreeThreshold": 0.200000002980232,
   "probe3Width0Rms": 0.006968413432503,

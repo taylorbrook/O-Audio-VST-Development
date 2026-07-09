@@ -41,9 +41,18 @@ void BowedStringVoice::noteStarted()
     oversampling.reset();
     bowNoiseGen.reset();
 
+    // Clear the bristle displacement state so a new note can't inherit a stale (or
+    // non-finite) z from the previous note now that the bristle path is live. IN-03,
+    // required companion to WR-02.
+    bristleFriction.resetState();
+
     // Reset reversed-friction smoother so the reversal formula can't pin rho
     // to a non-zero value before the bow physically engages (v1.1.2 thump fix).
     smoothedReversedAmount = 0.0f;
+
+    // WR-04: re-prime the geometry/brightness smoothers to this note's first block
+    // (done in updateParametersFromAPVTS) so the attack doesn't sweep.
+    smoothersPrimed = false;
 }
 
 void BowedStringVoice::noteStopped (bool allowTailOff)
@@ -116,11 +125,23 @@ void BowedStringVoice::prepareToPlay (double sampleRate, int maxBlockSize)
 
     // Reversed-friction smoother coefficient: ~25 ms one-pole at oversampled rate
     reversedRampCoeff = 1.0f - std::exp (-1.0f / (0.025f * static_cast<float> (sampleRate * 2.0)));
+
+    // WR-04: bow-position / brightness smoothers run in the oversampled inner loop.
+    // ~15 ms ramp removes block-boundary steps without smearing intentional gestures.
+    bowPositionSmoothed.reset (sampleRate * 2.0, 0.015);
+    brightnessSmoothed.reset (sampleRate * 2.0, 0.015);
+    smoothersPrimed = false;
 }
 
 void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                          int startSample, int numSamples)
 {
+    // WR-03: belt-and-suspenders denormal flush for the voice in isolation (bridge
+    // loss-filter state has a ~15 s tail that decays through the denormal range).
+    // The processor sets ScopedNoDenormals on the master path, but the render harness
+    // drives voices directly and feedback DSP warrants its own guard.
+    const juce::ScopedNoDenormals noDenormals;
+
     updateParametersFromAPVTS();
 
     // Check if voice should be cleared (bow released and string decayed)
@@ -145,6 +166,13 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // 3. Per-sample loop at 2x rate (friction + waveguide inner loop)
     for (int i = 0; i < numOversampledSamples; ++i)
     {
+        // WR-04: advance the smoothed bow position / brightness once per sample and
+        // push into the waveguide before reading the junction, so continuous changes
+        // move the delay lengths and bridge-filter corner smoothly instead of stepping
+        // at block boundaries.
+        waveguideString.setBowPosition (bowPositionSmoothed.getNextValue());
+        waveguideString.setBrightness  (brightnessSmoothed.getNextValue());
+
         // Step 1: Update bow envelope
         bowModel.updateEnvelope();
         float v_bow = bowModel.getBowVelocity();
@@ -156,6 +184,15 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // Step 5: Friction — Hyperbolic Stribeck curve
         float rho = frictionModel.computeReflectionCoefficient (v_delta, F_bow);
+
+        // WR-02: blend the elasto-plastic bristle model in via bowHairStiffness.
+        // 0 = pure Core (Hyperbolic), 1 = full bristle. Previously bristleBlend was
+        // computed every block but never applied, so bowHairStiffness was inert.
+        if (bristleBlend > 0.001f)
+        {
+            float bristleRho = bristleFriction.computeReflectionCoefficient (v_delta, F_bow, dt);
+            rho = (1.0f - bristleBlend) * rho + bristleBlend * bristleRho;
+        }
 
         // Reversed friction: interpolate rho toward (1 - rho).
         // The smoother ramps from 0 on note-on over ~25 ms so the reversal
@@ -182,6 +219,19 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // Steps 6-8: Write junction (inject velocity, push to delays, output)
         float sample = waveguideString.writeJunction (rho, v_delta, jState);
+
+        // WR-01: NaN/Inf guard at the write boundary. std::min-based rho clamps do NOT
+        // filter NaN (min(NaN,x)==NaN) and tanh preserves it, so a single non-finite
+        // excitation would poison the delay line, drive energyEstimate to NaN, and
+        // silence the note mid-sustain. Reset the *source* (waveguide + both friction
+        // models), not just the sample, so the note can recover cleanly.
+        if (! std::isfinite (sample))
+        {
+            waveguideString.reset();
+            bowModel.reset();
+            bristleFriction.resetState();
+            sample = 0.0f;
+        }
 
         // Sub-harmonics waveshaper (post-waveguide, pre-body)
         if (subHarmonicsAmount >= 0.001f)
@@ -274,10 +324,23 @@ void BowedStringVoice::updateParametersFromAPVTS()
     // Update DSP components with effective values
     bowModel.setBowSpeed (effectiveSpeed);
     bowModel.setBowPressure (effectivePressure);
-    waveguideString.setBowPosition (effectivePosition);
     frictionModel.setRosin (rosin);
-    waveguideString.setBrightness (brightness);
     waveguideString.setInfiniteSustain (infSustain);
+
+    // WR-04: bow position and brightness are advanced per sample from smoothers in the
+    // render loop rather than stepped here. Prime to the real value on the first block
+    // of a note so the attack starts in place; ramp on subsequent blocks.
+    if (! smoothersPrimed)
+    {
+        bowPositionSmoothed.setCurrentAndTargetValue (effectivePosition);
+        brightnessSmoothed.setCurrentAndTargetValue (brightness);
+        smoothersPrimed = true;
+    }
+    else
+    {
+        bowPositionSmoothed.setTargetValue (effectivePosition);
+        brightnessSmoothed.setTargetValue (brightness);
+    }
     cachedInfSustain = infSustain;
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
 

@@ -105,6 +105,10 @@ private:
     void updateBridgeFilterCoeffs();
     static float computeLoopGain (float infSustainParam01) noexcept;
 
+    // WR-07: bridge-LP group-delay compensation, bounded to the filter's realizable
+    // range. Shared by updateDelayLengths() and setDelaySamples() so both stay in sync.
+    float bridgeGroupDelaySamples() const noexcept;
+
     double sampleRate = 88200.0;          // internal (oversampled) rate
     float currentFrequency = 41.2f;        // E1 default
     float bowPosition = 0.10f;             // β, clamped [0.02, 0.98]
