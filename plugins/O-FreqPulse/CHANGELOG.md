@@ -2,6 +2,106 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.16.4] - 2026-07-08
+
+Resolves the safe/mechanical info-level findings from the v1.16.2 deep code review
+(`CODE_REVIEW.md`): IN-02, IN-03, IN-06, IN-10, IN-13. PATCH — no audio-path behavior change,
+no parameter/state changes. (All 11 warnings were already resolved in v1.16.3.)
+
+### Fixed
+
+- **IN-02 — Stale docs described the removed FFT design + a phantom ~46 ms latency.** `NOTES.md`,
+  `.planning/REQUIREMENTS.md` (NFR-2), and `.planning/STATUS.md` still claimed FFT-based
+  processing (2048-sample, 4× overlap) reporting ~46 ms latency. **The code is correct** — it is
+  time-domain Linkwitz-Riley LR4 crossovers reporting `setLatencySamples(0)`. Updated all three
+  docs to the LR + zero-latency topology so nobody "restores" a phantom latency report.
+- **IN-03 — WebView2 user-data folder pointed at the bare temp root.** `PluginEditor.cpp`
+  set `withUserDataFolder(tempDirectory)`; multiple Ouaricon WebView plugins sharing the temp
+  root invites cross-plugin lock contention on Windows. Now scoped to
+  `tempDirectory.getChildFile("OFreqPulse_WebView")` per the documented pattern.
+- **IN-06 — `calculateCurrentStep` had no internal guard for `numSteps == 0`.** Every current
+  caller clamps to `jlimit(2, 32, …)` so it was safe today, but a future caller passing 0 would
+  hit modulo-by-zero (UB). Added a self-safe `if (numSteps <= 0) return 0;` at function entry.
+- **IN-10 — `"steps"` param carried version hint `2` while every other param uses `1`.** A typo.
+  Verified against JUCE 8.0.9 that the version hint does **not** feed the VST3/AU param-ID hash
+  (`generateVSTParamIDForParam` / AU wrapper hash the string ID only), so this is a no-op for
+  automation/state — purely a consistency fix. Set to `1`.
+- **IN-13 — Dead variable + stale comment.** Removed the unused `int globalSteps` local in
+  `updateEuclideanPatterns()` (the loop uses per-band `effectiveSteps`), and corrected the gain-
+  smoothing comment from "SmoothedValue (linear ramp)" to "custom BandEnvelope (linear ramp)"
+  (the first smoothing stage is the custom `BandEnvelope` struct, not `juce::SmoothedValue`).
+  The harmless one-shot first-block recompute noted in IN-13 was intentionally left as-is (RT-safe,
+  changing the cache-init values risks a subtle first-block behavior shift).
+
+### Notes
+
+- Deferred (not in this batch): WR-06/07/08/IN-11 (factory-preset plumbing refactor via the shared
+  `OuariconPresetManager` + `module-upgrade`), WR-09 (LR allpass transparency), WR-10 (`freq_low/high`
+  intended role), WR-11 (native program menu). The remaining flag-only info items (IN-05/07/08/09/12/14)
+  are documented no-ops. IN-01 (FileChooser SafePointer defense-in-depth) and IN-04 (timerCallback
+  caching) were not selected for this batch.
+
+## [1.16.3] - 2026-07-08
+
+Resolves all 11 warnings from the v1.16.2 deep code review (`CODE_REVIEW.md`). No critical
+issues existed. PATCH — no breaking parameter/state changes.
+
+### Fixed
+
+- **WR-01 — Tooltip preference never persisted (broken both directions).** The Save side
+  called `window.__JUCE__.backend.getNativeFunction(...)`, but `getNativeFunction` lives on the
+  `Juce` ES-module namespace — the `backend` object only exposes `emitEvent`/`addEventListener`
+  — so the guard was always false and the C++ atomic never updated. The Restore side pushed
+  `restoreTooltipState` from a single 30 Hz timer tick ~33 ms after construction, before the
+  WebView's ES modules had loaded, then latched and never retried. **Root cause:** wrong bridge
+  object + a one-shot cold-start race. **Fix:** Save now uses `Juce.getNativeFunction('setTooltipsEnabled')`;
+  a new `getTooltipsEnabled` native function lets `initializeTooltips()` *pull* the persisted state
+  once the JS is ready, and the racy timer push was removed.
+- **WR-02 — Stale step velocities leaked into Euclidean-mode bands (baked into factory JSON).**
+  `loadPreset(int)` (used to capture the 12 factory presets) never reset the step grids, and
+  Euclidean bands skip `setStepVelocities()`, so a band inherited the previous preset's manual
+  velocities — invisible while Euclidean, wrong the instant it switched to Manual. **Fix:** reset
+  every band's step grid up-front in `loadPreset(int)`. Factory presets regenerate on load (WR-06).
+- **WR-03 — Save dialog silently ignored the chosen directory.** The native save dialog let the
+  user navigate anywhere, but `savePreset(name)` always wrote to the user presets folder using only
+  the filename. **Fix:** honor the chosen path via a new additive `savePresetToFile()` on the shared
+  preset module (symmetric with the load dialog); saving into the default user folder still lists
+  the preset in the bar.
+- **WR-04 — Crossover cutoff not clamped to Nyquist → NaN below ~40 kHz sample rate.**
+  `LinkwitzRileyFilter::setCutoffFrequency` computes `tan(pi*f/fs)`, which is `inf`/negative at or
+  past Nyquist. Unreachable at 44.1/48/96 kHz but a 22050 Hz offline render with a high crossover
+  could inject NaN. **Fix:** clamp c1/c2/c3 to `0.49 * fs` in `updateCrossoverFrequencies`.
+- **WR-05 — Dry/wet block not restricted to the processed channel count.** `DryWetMixer` is prepared
+  for 2 channels; a host handing a >2-channel buffer could drive push/mix past the internal 2-wide
+  dry buffer (OOB). Unreachable on the fixed stereo bus but now guarded via `getSubsetChannelBlock`.
+- **WR-06 — Factory regeneration sentinel was a hardcoded `"1.16.0"` literal.** A future preset/param
+  change that forgot to bump the literal would ship stale factory JSON. **Fix:** gate on and write
+  `JucePlugin_VersionString`.
+- **WR-07 — First-run factory init used a destructive `deleteRecursively` + recreate.** Concurrent
+  construction (pluginval + session insert, or two instances) could both delete/recreate the Factory
+  dir and interleave writes, and a concurrent `getPresetList()` could observe the emptied window.
+  **Fix:** overwrite the 12 files in place; no delete.
+- **WR-08 — Local `preset-manager.js` was behind the shared module.** Resynced from
+  `modules/persistence/preset-manager/js/preset-manager.js`, picking up bounded `_waitForNative`
+  (no infinite poll), fail-safe async `promptDelete`, and the `onConfirmDelete` hook.
+- **WR-11 — DAW native program menu advertised 12 dead names.** `getNumPrograms()` returned 12 but
+  `setCurrentProgram()` intentionally never loads (to avoid clobbering DAW state restoration). **Fix:**
+  report a single program so the native menu isn't populated; presets are managed via the WebView bar.
+
+### Changed
+
+- **WR-10 — `freq_low`/`freq_high` marked non-automatable.** They drive only the WebView grid's
+  frequency-axis display and are never read by the DSP; `withAutomatable(false)` stops the host from
+  advertising automation lanes that change nothing audible. Parameter IDs and saved state unchanged.
+
+### Documented
+
+- **WR-09 — LR crossover binary tree is approximately (not bit-) unity-gain at rest.** A single LR4
+  low+high sum is an allpass, not identity; the tree sums two differently-phased allpass halves, so a
+  small magnitude ripple exists near c2 for *closely-spaced* crossovers (negligible at the default
+  120/500/4000 Hz). Accepted for a creative rhythmic gate and documented in code + NOTES rather than
+  adding per-path allpass compensation.
+
 ## [1.16.2] - 2026-03-06
 
 ### Added

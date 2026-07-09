@@ -126,7 +126,8 @@
 ## Risks Identified (All Mitigated)
 - ~~HIGH: FFT processing artifacts~~ → Fixed with COLA, smoothing, phase preservation
 - ~~MEDIUM: CPU performance~~ → Validated via pluginval
-- ~~MEDIUM: Latency perception~~ → Proper DAW reporting implemented
+- ~~MEDIUM: Latency perception~~ → N/A: shipped topology is time-domain LR crossovers with
+  **zero** reported latency (`setLatencySamples(0)`); the ~46 ms FFT design was superseded (IN-02)
 - ~~MEDIUM: WebView rendering~~ → Working smoothly
 
 ## References

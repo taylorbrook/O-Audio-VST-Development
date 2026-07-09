@@ -64,7 +64,8 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
         .withWinWebView2Options(
             juce::WebBrowserComponent::Options::WinWebView2{}
                 .withUserDataFolder(juce::File::getSpecialLocation(
-                    juce::File::SpecialLocationType::tempDirectory)))
+                    juce::File::SpecialLocationType::tempDirectory)
+                        .getChildFile("OFreqPulse_WebView")))
         .withNativeIntegrationEnabled()
         .withResourceProvider([this](const auto& url) { return getResource(url); })
         // Global parameter relays
@@ -105,6 +106,13 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
             bool enabled = static_cast<bool>(args[0]);
             processorRef.setTooltipsEnabled(enabled);
             complete(juce::var(true));
+        })
+        // WR-01: getter so the WebView can PULL the persisted tooltip state once its JS is
+        // ready (replaces the racy one-shot 30 Hz timer push, which fired before restoreTooltipState
+        // existed on a cold WebView start and never retried).
+        .withNativeFunction("getTooltipsEnabled", [this](const juce::Array<juce::var>&,
+                                                         std::function<void(juce::var)> complete) {
+            complete(juce::var(processorRef.getTooltipsEnabled()));
         })
         // v1.6.0: Preset Manager native functions
         .withNativeFunction("savePreset", [this](const juce::Array<juce::var>& args,
@@ -177,7 +185,12 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
                     }
                     auto file = results.getFirst();
                     auto presetName = file.getFileNameWithoutExtension();
-                    bool success = processorRef.presetManager.savePreset(presetName);
+                    // WR-03: honor the directory the user navigated to (symmetric with the load
+                    // dialog, which uses the chosen path). savePresetToFile writes to that exact
+                    // path; when it's the default user presets dir the preset still appears in the
+                    // preset-bar list. Previously savePreset(name) always wrote to the user dir,
+                    // silently discarding the chosen location.
+                    bool success = processorRef.presetManager.savePresetToFile(file);
                     auto* result = new juce::DynamicObject();
                     result->setProperty("success", success);
                     result->setProperty("name", success ? presetName : juce::String());
@@ -303,9 +316,6 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
 
     // Start playhead update timer (30 Hz for smooth animation)
     startTimerHz(30);
-
-    // v1.5.0: Tooltip state sync flag
-    tooltipStateSynced = false;
 }
 
 OFreqPulseAudioProcessorEditor::~OFreqPulseAudioProcessorEditor()
@@ -329,15 +339,9 @@ void OFreqPulseAudioProcessorEditor::timerCallback()
     );
     webView->evaluateJavascript(js);
 
-    // v1.5.0: Sync tooltip state from processor to WebView (once, after page loads)
-    if (!tooltipStateSynced)
-    {
-        tooltipStateSynced = true;
-        bool enabled = processorRef.getTooltipsEnabled();
-        juce::String tooltipJs = "if (typeof window.restoreTooltipState === 'function') window.restoreTooltipState("
-            + juce::String(enabled ? "true" : "false") + ");";
-        webView->evaluateJavascript(tooltipJs);
-    }
+    // WR-01: tooltip state is now PULLED by the WebView via the getTooltipsEnabled native
+    // function once its JS is ready (see initializeTooltips() in app.js), so the old racy
+    // one-shot push from here has been removed.
 }
 
 void OFreqPulseAudioProcessorEditor::resized()

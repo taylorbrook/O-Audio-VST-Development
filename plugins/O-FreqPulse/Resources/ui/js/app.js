@@ -1063,13 +1063,14 @@ function initializeTooltips() {
             tooltip.classList.remove('visible');
         }
 
-        // Persist state to C++ (if native function available)
-        if (window.__JUCE__ && window.__JUCE__.backend && window.__JUCE__.backend.getNativeFunction) {
-            try {
-                window.__JUCE__.backend.getNativeFunction('setTooltipsEnabled')(state.tooltipsEnabled);
-            } catch (e) {
-                // Silently ignore if not available
-            }
+        // Persist state to C++. WR-01: getNativeFunction lives on the `Juce` ES-module
+        // namespace, NOT on window.__JUCE__.backend (that Backend object only has
+        // addEventListener/removeEventListener/emitEvent). The old window.__JUCE__.backend
+        // path was always falsy, so the preference never reached C++.
+        try {
+            Juce.getNativeFunction('setTooltipsEnabled')(state.tooltipsEnabled);
+        } catch (e) {
+            // Silently ignore if not available
         }
     });
 
@@ -1121,6 +1122,16 @@ function initializeTooltips() {
             tooltip.classList.remove('visible');
         }
     });
+
+    // WR-01: pull the persisted tooltip state from C++ once, now that the JS is ready.
+    // This runs inside the same DOMContentLoaded init where getPluginVersion already
+    // succeeds, so the native bridge is available — replacing the editor's racy one-shot
+    // 30 Hz timer push that fired before restoreTooltipState existed and never retried.
+    try {
+        Juce.getNativeFunction('getTooltipsEnabled')().then((enabled) => {
+            window.restoreTooltipState(!!enabled);
+        });
+    } catch (e) {}
 }
 
 // v1.5.0: Restore tooltip state from C++ (called via evaluateJavascript)

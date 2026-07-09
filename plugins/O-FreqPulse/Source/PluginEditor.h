@@ -112,9 +112,6 @@ private:
     // Step grid attachments (128 total) — velocity sliders
     std::array<std::unique_ptr<juce::WebSliderParameterAttachment>, 128> stepAttachments;
 
-    // v1.5.0: Tooltip state sync flag (ensures one-time sync from processor to WebView)
-    bool tooltipStateSynced = false;
-
     // v1.6.0: File chooser for preset save/load dialogs (must persist across async callbacks)
     std::unique_ptr<juce::FileChooser> fileChooser;
 
