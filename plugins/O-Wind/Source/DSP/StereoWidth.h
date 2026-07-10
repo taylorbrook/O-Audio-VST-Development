@@ -35,7 +35,10 @@ public:
     void reset()
     {
         decorrelator.reset();
-        widthSmoothed.reset (0);
+        // Snap to target without touching the ramp configuration —
+        // reset(0) sets steps-to-target to 0, silently disabling width
+        // smoothing until the next prepare()
+        widthSmoothed.setCurrentAndTargetValue (widthSmoothed.getTargetValue());
     }
 
     // Process stereo buffer in-place.

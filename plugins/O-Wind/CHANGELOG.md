@@ -1,5 +1,118 @@
 # O-Wind Changelog
 
+## [1.16.3] - 2026-07-10
+
+### Fixed — final CODE_REVIEW.md info-finding sweep (IN-01, IN-08..10, IN-12..15, IN-17)
+
+Resolves the 9 remaining deferred info findings from the 2026-07-09 deep review
+(selected via /improve-review). CODE_REVIEW.md is now fully resolved (40/40).
+No parameter, range, or state-format changes — PATCH.
+
+- **IN-01 — ~35 string-keyed APVTS lookups per block per voice.** Every
+  `updateParametersFromAPVTS()` call did ~30 `getRawParameterValue(name)` map
+  walks (×8 voices ≈ 280 O(log n) string-compare tree walks per block on the
+  audio thread), plus 3 more in the processor's post-voice width/formant path.
+  Added a `VoiceParamCache` of `std::atomic<float>*` cached once in
+  `prepareToPlay()` (same pattern as the processor's existing `fxCache`, which
+  gained width/formant/instrumentPreset). startNote and applyPresetCoefficients
+  read the cache too. (FluteSynthVoice.{h,cpp}, PluginProcessor.{h,cpp})
+- **IN-09 — 8 registered native functions never called from any served JS
+  removed:** `savePreset`, `getInstrumentPresets`, `getInstrumentPreset`,
+  `setInstrumentPreset`, `setTuningIntervals`, `setTemperamentPreset`,
+  `getTemperamentPreset`, `getEmbeddedTuningCategories`. The review's 9th
+  (`getMasterTune`) became used by the v1.16.1 WR-10 fix and is kept.
+  Verified with a both-direction grep-diff: every `getNativeFunction` name in
+  index.html + tuning-panel.js has a registration and vice versa.
+  (PluginEditor.cpp)
+- **IN-12 — Hand-built JSON in tuning native fns.** `getTuningIntervals`,
+  `generateEDO/HarmonicSeries/Rank2` (new `intervalsToJson()` helper) and
+  `getEmbeddedTuningList` (DynamicObject + `juce::JSON::toString`) now serialize
+  through juce::JSON — a future tuning name containing `"` can no longer break
+  the whole list. (PluginEditor.cpp)
+- **IN-13 — 52 document-level mouse listeners (2 per knob).** `bindSliderParam`
+  registered a document mousemove+mouseup per parameter; every mouse move ran
+  26 handlers. Hoisted a single shared `knobDrag` handler pair, matching the
+  effects tab's existing `fxKnobDrag` pattern. (index.html)
+- **IN-10 — Instrument-preset count hardcoded as `7` in three places.** The JS
+  selector now derives the index count from the backend-pushed
+  `state.properties.numSteps` (fallback 7), so adding a 9th preset in C++ can't
+  silently break the mapping. (index.html)
+- **IN-14 — FX wheel edits sent no drag gesture.** The effects-knob wheel
+  handler now brackets `setNormalisedValue` in
+  `sliderDragStarted()`/`sliderDragEnded()`, so hosts that gate automation
+  recording on gestures record wheel edits. (The dblclick value editor already
+  bracketed correctly.) (index.html)
+- **IN-15 — `exportTuningHTML` reported success on write failure.** The
+  `file.replaceWithText()` result is now returned to JS instead of an
+  unconditional `true`, matching saveScalaFile/saveKBMFile. (PluginEditor.cpp)
+- **IN-08 — `StereoWidthProcessor::reset()` disabled width smoothing.**
+  `widthSmoothed.reset(0)` set steps-to-target to 0 until the next prepare
+  (only reachable via releaseResources, so impact was nil in practice); now
+  snaps via `setCurrentAndTargetValue` without touching the ramp config.
+  (DSP/StereoWidth.h)
+- **IN-17 — shared module `preset-manager` v1.0.4:**
+  `initializeFactoryPresets()` now sanitizes `preset.name` before building the
+  filename, matching load/save/delete. O-Wind's 8 factory names were already
+  safe; this closes the gap fleet-wide for plugins that include the module
+  header directly. (modules/persistence/preset-manager/cpp/OuariconPresetManager.h)
+
+## [1.16.2] - 2026-07-10
+
+### Fixed — CODE_REVIEW.md info-finding sweep (IN-02..07, IN-11, IN-18, IN-19)
+
+Resolves 9 opt-in info findings from the 2026-07-09 deep review (selected via
+/improve-review). No parameter, range, or state-format changes — PATCH.
+
+- **IN-05 — CC overrides could never return to zero.** The `> 0.0f` test meant
+  CC2=0 (breath fully off) fell back to the knob instead of silencing — a breath
+  controller couldn't end a phrase. Replaced with per-controller "CC seen"
+  latches: once CC2/CC74/CC1 sends any value it owns the destination, including 0.
+  (FluteSynthVoice.{h,cpp})
+- **IN-07 — FX `mix > 0.001` gating froze effect state and cut tails.** Automating
+  a mix knob to 0 skipped `process()`, freezing delay/reverb buffers with content
+  (hard-cut tail now, stale-audio replay when mix rose later). Chorus/delay/reverb
+  now keep processing for a bounded tail-out after mix hits 0 (0.2 s / 10 s / 12 s)
+  so state decays naturally, then the CPU-saving gate re-engages.
+  (PluginProcessor.{h,cpp})
+- **IN-03 — Per-voice oversampler never reset.** Voice cleanup and hard stopNote
+  reset jet/bore/DC/delay but not `oversampling`; polyphase half-band state
+  survived into the next note (sub-audible onset artifact). Added
+  `oversampling.reset()` at both full-reset sites. (FluteSynthVoice.cpp)
+- **IN-06 — `juce::Random::getSystemRandom()` on the audio thread** in startNote
+  for the three vibrato/drift phases (shared global, not thread-safe against
+  message-thread use inside JUCE). Now uses the voice's own `voiceRng`, matching
+  the humanization draws. (FluteSynthVoice.cpp)
+- **IN-02 — Dead silence-tracking counter removed.** `silentSampleCount` /
+  `silentThreshold` were incremented/reset but never compared; the release-fade
+  backstop is the actual cleanup mechanism. (FluteSynthVoice.{h,cpp})
+- **IN-04 — Dead DSP scaffolding removed.** Deleted never-instantiated
+  `ToneHoleSystem.h` and never-included `SubHarmonics.h` (subharmonics live
+  inline in BoreWaveguide); removed the never-read bore delay lookup table
+  (`buildBoreDelayTable`/`getDelayForNote`) and the 8 never-read
+  `InstrumentPreset` fields (noiseLevel, noiseCutoffBase, boreLossCutoff,
+  boreLossQ, embouchureMin/Max, defaultBreath, attackTimeMs). Factory presets no
+  longer set the no-op `toneHoleToggle` (3 presets set it to 1.0, implying an
+  effect that doesn't exist). The `toneHoleToggle` param and UI toggle are KEPT
+  (removing the param would break sessions) and documented as a no-op pending
+  tone-hole DSP — see NOTES.md.
+- **IN-18 — Dead APVTS listeners removed** for `instrumentPreset` and
+  `toneHoleToggle` (handlers were explicit no-ops; both are read per-block by the
+  voice). (PluginProcessor.cpp)
+- **IN-19 — Second file dialog dropped the first.** All six chooser native fns
+  (save preset, load/save .scl, load/save .kbm, export HTML) shared one
+  `fileChooser` member; launching a second replaced the shared_ptr so the first
+  completion never fired, leaving its JS `await` pending forever. Added a
+  `fileDialogOpen` re-entry guard — a second request completes immediately with
+  the cancel value; the flag clears in each completion. (PluginEditor.{h,cpp})
+- **IN-11 — Classic `<script src>` tag for the ES-module `juce/index.js` removed**
+  (guaranteed `Unexpected token 'export'` console noise masking real errors; the
+  module import on the next line is the real loader). (index.html)
+
+Still deferred (info): IN-01 (per-block string-keyed APVTS lookups), IN-08,
+IN-09, IN-10, IN-12 (hand-built JSON escaping), IN-13, IN-14, IN-15, IN-17
+(shared-module factory-name sanitization). IN-16 was resolved by v1.16.1's
+registry/NOTES updates.
+
 ## [1.16.1] - 2026-07-10
 
 ### Fixed — CODE_REVIEW.md resolution sweep (CR-01..08, WR-01..13)

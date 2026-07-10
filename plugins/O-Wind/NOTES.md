@@ -1,7 +1,7 @@
 # O-Wind — Development Notes
 
 **Status:** 📦 Installed
-**Version:** 1.16.1
+**Version:** 1.16.3
 **Type:** Synth (Physical Model Flute) — 2× oversampled jet-drive waveguide (Verge 1995)
 
 ## Known Limitations
@@ -10,21 +10,31 @@
   WR-13, 2026-07-10).** All four are automatable and set by every factory preset, but
   are exposed only via the host's generic parameter list. Adding knobs is a candidate
   future MINOR (needs Sound/Expression tab layout work).
-- **Deferred review findings (IN-01..IN-19, 2026-07-09 review):** info-level items
-  from CODE_REVIEW.md were intentionally left unresolved in the v1.16.1 sweep.
-  Notables: per-block string-keyed APVTS lookups in the voice (IN-01 — cache pointers
-  like the processor's `fxCache`), dead ToneHoleSystem/SubHarmonics scaffolding and
-  no-op `toneHoleToggle` preset values (IN-04), CC overrides can't return control to
-  the knob or reach zero (IN-05), FX `mix > 0.001` gating freezes tails (IN-07),
-  hand-built JSON in tuning native fns doesn't escape strings (IN-12), classic-script
-  tag for the ES module logs a benign SyntaxError (IN-11), single shared `fileChooser`
-  drops a first dialog if a second opens (IN-19). See CODE_REVIEW.md for the full
-  list.
+- **`toneHoleToggle` ("Tone Hole") is a no-op (IN-04, 2026-07-10).** Tone-hole
+  scattering DSP was never implemented; the v1.16.2 sweep removed the dead
+  scaffolding (`ToneHoleSystem.h`, bore delay table) and factory-preset values, but
+  the param and UI toggle are kept so existing sessions/automation stay valid.
+  Either implement tone-hole DSP (MINOR) or remove the param + toggle (MAJOR,
+  breaking) in a future release.
 - **Rank-2 / Save SCL / Save KBM buttons require v1.16.1+** — the native fns did not
   exist before (silently dead buttons).
 
 ## Timeline
 
+- **2026-07-10 — v1.16.3:** Final info-finding sweep (IN-01, IN-08..10, IN-12..15,
+  IN-17 via /improve-review) — CODE_REVIEW.md fully resolved (40/40): voice +
+  processor raw-param-pointer caches (no string-keyed APVTS lookups on the audio
+  thread), 8 dead native-fn registrations removed (getMasterTune kept — used since
+  WR-10), tuning JSON via juce::JSON, shared knob-drag handler (52→2 document
+  listeners), preset-selector count from numSteps, wheel-edit drag gestures,
+  exportTuningHTML write-result reporting, StereoWidth reset smoothing fix,
+  preset-manager module v1.0.4 (factory preset name sanitization).
+- **2026-07-10 — v1.16.2:** Opt-in info-finding sweep (IN-02..07, IN-11, IN-18,
+  IN-19 via /improve-review): CC-seen latches so breath controllers can reach zero,
+  FX tail-out instead of hard mix-gating, per-voice oversampler reset, voiceRng on
+  the audio thread, dead scaffolding removal (ToneHoleSystem/SubHarmonics/bore delay
+  table/unused preset fields), dead APVTS listeners removed, file-dialog re-entry
+  guard, classic-script tag removed.
 - **2026-07-10 — v1.16.1:** CODE_REVIEW.md resolution sweep. All 8 criticals + 13
   warnings resolved: Effects tab and 4 Sound-tab knobs wired (relays/attachments were
   never written in v1.14.0/v1.12.0), RT allocations removed from the voice filter

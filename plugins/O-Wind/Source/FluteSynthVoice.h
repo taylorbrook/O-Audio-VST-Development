@@ -55,8 +55,46 @@ public:
 
 private:
     void updateParametersFromAPVTS();
+    void cacheParameterPointers();
 
     juce::AudioProcessorValueTreeState* parameters = nullptr;
+
+    // Raw parameter pointers cached once at prepare time (same pattern as the
+    // processor's fxCache). getRawParameterValue is a string-keyed map lookup;
+    // ~30 of them per block per voice is pure waste on the audio thread.
+    struct VoiceParamCache
+    {
+        std::atomic<float>* breathPressure = nullptr;
+        std::atomic<float>* embouchure = nullptr;
+        std::atomic<float>* breathNoise = nullptr;
+        std::atomic<float>* toneColor = nullptr;
+        std::atomic<float>* airColumn = nullptr;
+        std::atomic<float>* jetReflection = nullptr;
+        std::atomic<float>* endReflection = nullptr;
+        std::atomic<float>* vibratoRate = nullptr;
+        std::atomic<float>* vibratoDepth = nullptr;
+        std::atomic<float>* vibratoTremolo = nullptr;
+        std::atomic<float>* vibratoDriftDepth = nullptr;
+        std::atomic<float>* vibratoDriftSpeed = nullptr;
+        std::atomic<float>* vibratoOnset = nullptr;
+        std::atomic<float>* outputLevel = nullptr;
+        std::atomic<float>* infiniteSustain = nullptr;
+        std::atomic<float>* reversedJet = nullptr;
+        std::atomic<float>* subHarmonics = nullptr;
+        std::atomic<float>* material = nullptr;
+        std::atomic<float>* attackChiff = nullptr;
+        std::atomic<float>* humanize = nullptr;
+        std::atomic<float>* flutterTongue = nullptr;
+        std::atomic<float>* flutterRate = nullptr;
+        std::atomic<float>* growl = nullptr;
+        std::atomic<float>* inharmonicity = nullptr;
+        std::atomic<float>* adsrEnabled = nullptr;
+        std::atomic<float>* adsrAttack = nullptr;
+        std::atomic<float>* adsrDecay = nullptr;
+        std::atomic<float>* adsrSustain = nullptr;
+        std::atomic<float>* adsrRelease = nullptr;
+        std::atomic<float>* instrumentPreset = nullptr;
+    } paramCache;
     TuningEngine* tuningEngine = nullptr;
     Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
@@ -120,9 +158,7 @@ private:
     // Preset change tracking
     int lastPresetIndex = -1;
 
-    // Energy tracking for voice cleanup
-    int silentSampleCount = 0;
-    static constexpr int silentThreshold = 512;  // ~6ms at 88.2kHz internal rate
+    // Energy threshold for voice cleanup
     static constexpr float energyThreshold = 0.0001f;
 
     // Release tail fade: ensures voice clearing even if waveguide has residual energy
@@ -134,10 +170,15 @@ private:
     // continues through the ADSR release so the waveguide has energy to shape
     bool pendingJetRelease = false;
 
-    // CC state for MPE
+    // CC state for MPE. The *Seen latches flip on first receipt of a controller:
+    // from then on the CC value owns the destination (including 0), so a breath
+    // controller can silence the voice instead of falling back to the knob.
     float ccBreathPressure = 0.0f;
     float ccEmbouchure = 0.0f;
     float ccVibratoDepth = 0.0f;
+    bool ccBreathSeen = false;
+    bool ccEmbouchureSeen = false;
+    bool ccVibratoSeen = false;
     int pitchWheelValue = 8192;
 
     // Pitch bend state

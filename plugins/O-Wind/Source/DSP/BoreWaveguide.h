@@ -70,9 +70,6 @@ public:
         updateBoreLossFilter (6000.0f);
         updateEndReflectionFilter (3000.0f);
         updateRadiationFilter (300.0f);
-
-        // Build bore delay table
-        buildBoreDelayTable();
     }
 
     void reset()
@@ -88,7 +85,7 @@ public:
         boreFeedback = 0.0f;
     }
 
-    // Set bore delay directly (for Tier 1 tone hole lookup)
+    // Set bore delay directly (voice computes it from pitch + jet split)
     void setBoreDelay (float delaySamples)
     {
         currentBoreDelay = std::max (4.0f, delaySamples);
@@ -267,27 +264,6 @@ public:
         return std::max (0.0f, totalDelay);
     }
 
-    // Build bore delay lookup table for Tier 1 tone holes
-    void buildBoreDelayTable()
-    {
-        if (sampleRate <= 0.0)
-            return;
-
-        for (int note = 0; note < 128; ++note)
-        {
-            float freq = static_cast<float> (440.0 * std::pow (2.0, (note - 69.0) / 12.0));
-            float totalDelay = static_cast<float> (sampleRate) / freq;
-            totalDelay -= filterGroupDelay;
-            totalDelay = std::max (4.0f, totalDelay);
-            boreDelayTable[static_cast<size_t> (note)] = totalDelay;
-        }
-    }
-
-    float getDelayForNote (int midiNote) const
-    {
-        return boreDelayTable[static_cast<size_t> (juce::jlimit (0, 127, midiNote))];
-    }
-
 private:
     double sampleRate = 44100.0;
 
@@ -321,7 +297,4 @@ private:
     // Feedback gain: bore is properly lossy (1.0 = no artificial energy injection).
     // Jet spatial amplification in JetExciter provides the energy source per Verge (1995).
     static constexpr float feedbackGain = 1.0f;
-
-    // Bore delay lookup table (Tier 1 tone holes)
-    std::array<float, 128> boreDelayTable {};
 };

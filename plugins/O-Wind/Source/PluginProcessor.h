@@ -91,6 +91,13 @@ private:
     EQProcessor eq;
     ReverbProcessor reverbProcessor;
 
+    // FX tail-out: when a mix knob hits 0 the effect keeps processing for a
+    // bounded window so delay/reverb content decays naturally instead of
+    // freezing in the buffers (and replaying stale audio when mix rises again)
+    int chorusTailRemaining = 0;
+    int delayTailRemaining = 0;
+    int reverbTailRemaining = 0;
+
     // v1.14.0: Effects parameter cache for real-time access
     struct EffectsParamCache {
         std::atomic<float>* chorusBypass = nullptr;
@@ -114,6 +121,10 @@ private:
         std::atomic<float>* reverbMix = nullptr;
         std::atomic<float>* reverbMod = nullptr;
         std::atomic<float>* reverbShimmer = nullptr;
+        // Post-voice per-block reads (IN-01: no string-keyed lookups in processBlock)
+        std::atomic<float>* width = nullptr;
+        std::atomic<float>* formant = nullptr;
+        std::atomic<float>* instrumentPreset = nullptr;
     } fxCache;
 
     // Preset manager (OuariconPresetManager)

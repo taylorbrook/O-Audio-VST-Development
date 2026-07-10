@@ -15,6 +15,16 @@
 #include "EmbeddedTunings.h"
 #include "TuningExporter.h"
 
+// Serialize an interval list through juce::JSON rather than string
+// concatenation, so the payload can never be malformed (IN-12)
+static juce::String intervalsToJson (const std::vector<double>& intervals)
+{
+    juce::Array<juce::var> arr;
+    for (auto v : intervals)
+        arr.add (v);
+    return juce::JSON::toString (juce::var (arr), true);
+}
+
 OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
@@ -203,17 +213,6 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                 complete(juce::var(success));
             })
 
-            .withNativeFunction("savePreset", [this](const auto& args, auto complete) {
-                if (args.size() < 1 || !args[0].isString())
-                {
-                    complete(juce::var(false));
-                    return;
-                }
-                auto& pm = processorRef.getPresetManager();
-                bool success = pm.savePreset(args[0].toString());
-                complete(juce::var(success));
-            })
-
             .withNativeFunction("selectNextPreset", [this](auto, auto complete) {
                 auto& pm = processorRef.getPresetManager();
                 auto nextName = pm.getNextPreset();
@@ -229,6 +228,8 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             })
 
             .withNativeFunction("savePresetWithDialog", [this](auto, auto complete) {
+                if (fileDialogOpen) { complete(juce::var("")); return; }
+                fileDialogOpen = true;
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Save Preset",
                     processorRef.getPresetManager().getUserPresetsDirectory(),
@@ -242,6 +243,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                         // `complete` is owned by the dead WebView, calling it is a UAF
                         if (safeThis == nullptr)
                             return;
+                        safeThis->fileDialogOpen = false;
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -262,68 +264,11 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             })
 
             // =============================================================
-            // INSTRUMENT PRESET NATIVE FUNCTIONS
-            // =============================================================
-
-            .withNativeFunction("getInstrumentPresets", [](auto, auto complete) {
-                juce::Array<juce::var> arr;
-                for (int i = 0; i < InstrumentPresets::numTotalPresets; ++i)
-                    arr.add(juce::String(InstrumentPresets::allPresets[static_cast<size_t>(i)].name));
-                complete(juce::var(arr));
-            })
-
-            .withNativeFunction("getInstrumentPreset", [this](auto, auto complete) {
-                auto* param = processorRef.getAPVTS().getRawParameterValue("instrumentPreset");
-                complete(juce::var(static_cast<int>(param->load())));
-            })
-
-            .withNativeFunction("setInstrumentPreset", [this](const auto& args, auto complete) {
-                if (args.size() < 1)
-                {
-                    complete(juce::var(false));
-                    return;
-                }
-                int idx = static_cast<int>(args[0]);
-                if (idx >= 0 && idx < InstrumentPresets::numTotalPresets)
-                {
-                    if (auto* param = processorRef.getAPVTS().getParameter("instrumentPreset"))
-                        param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(idx)));
-                    complete(juce::var(true));
-                }
-                else
-                {
-                    complete(juce::var(false));
-                }
-            })
-
-            // =============================================================
             // TUNING NATIVE FUNCTIONS
             // =============================================================
 
             .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
-                auto intervals = processorRef.getTuningEngine()->getIntervals();
-                juce::String json = "[";
-                for (size_t i = 0; i < intervals.size(); ++i) {
-                    if (i > 0) json += ",";
-                    json += juce::String(intervals[i], 6);
-                }
-                json += "]";
-                complete(json);
-            })
-
-            .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    auto jsonArray = juce::JSON::parse(args[0].toString());
-                    if (auto* arr = jsonArray.getArray()) {
-                        std::vector<double> intervals;
-                        for (const auto& val : *arr)
-                            intervals.push_back(static_cast<double>(val));
-                        processorRef.getTuningEngine()->setCustomIntervals(intervals, "Custom");
-                        complete(true);
-                        return;
-                    }
-                }
-                complete(false);
+                complete(intervalsToJson(processorRef.getTuningEngine()->getIntervals()));
             })
 
             .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&, auto complete) {
@@ -387,22 +332,9 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                 complete(false);
             })
 
-            .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    int preset = static_cast<int>(args[0]);
-                    processorRef.getTuningEngine()->setBuiltInPreset(
-                        static_cast<TuningEngine::BuiltInPreset>(preset));
-                    complete(true);
-                    return;
-                }
-                complete(false);
-            })
-
-            .withNativeFunction("getTemperamentPreset", [this](const juce::Array<juce::var>&, auto complete) {
-                complete(static_cast<int>(processorRef.getTuningEngine()->getBuiltInPreset()));
-            })
-
             .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Load Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
@@ -413,6 +345,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
+                        safeThis->fileDialogOpen = false;
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
                             bool success = safeThis->processorRef.getTuningEngine()->loadScalaFile(file);
@@ -424,6 +357,8 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             })
 
             .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Load Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
@@ -434,6 +369,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
+                        safeThis->fileDialogOpen = false;
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
                             bool success = safeThis->processorRef.getTuningEngine()->loadKBMFile(file);
@@ -448,14 +384,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                 if (args.size() >= 2) {
                     int divisions = static_cast<int>(args[0]);
                     double period = static_cast<double>(args[1]);
-                    auto intervals = ScaleGenerator::generateEDO(divisions, period);
-                    juce::String json = "[";
-                    for (size_t i = 0; i < intervals.size(); ++i) {
-                        if (i > 0) json += ",";
-                        json += juce::String(intervals[i], 6);
-                    }
-                    json += "]";
-                    complete(json);
+                    complete(intervalsToJson(ScaleGenerator::generateEDO(divisions, period)));
                     return;
                 }
                 complete(juce::var());
@@ -465,14 +394,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                 if (args.size() >= 2) {
                     int startHarmonic = static_cast<int>(args[0]);
                     int endHarmonic = static_cast<int>(args[1]);
-                    auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
-                    juce::String json = "[";
-                    for (size_t i = 0; i < intervals.size(); ++i) {
-                        if (i > 0) json += ",";
-                        json += juce::String(intervals[i], 6);
-                    }
-                    json += "]";
-                    complete(json);
+                    complete(intervalsToJson(ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic)));
                     return;
                 }
                 complete(juce::var());
@@ -483,20 +405,15 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     double generator = static_cast<double>(args[0]);
                     double period = static_cast<double>(args[1]);
                     int count = static_cast<int>(args[2]);
-                    auto intervals = ScaleGenerator::generateRank2(generator, period, count);
-                    juce::String json = "[";
-                    for (size_t i = 0; i < intervals.size(); ++i) {
-                        if (i > 0) json += ",";
-                        json += juce::String(intervals[i], 6);
-                    }
-                    json += "]";
-                    complete(json);
+                    complete(intervalsToJson(ScaleGenerator::generateRank2(generator, period, count)));
                     return;
                 }
                 complete(juce::var());
             })
 
             .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Save Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
@@ -508,6 +425,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
+                        safeThis->fileDialogOpen = false;
                         auto file = fc.getResult();
                         if (file != juce::File()) {
                             auto content = safeThis->processorRef.getTuningEngine()->generateScalaFileContent();
@@ -519,6 +437,8 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             })
 
             .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Save Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
@@ -530,6 +450,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
+                        safeThis->fileDialogOpen = false;
                         auto file = fc.getResult();
                         if (file != juce::File()) {
                             auto content = safeThis->processorRef.getTuningEngine()->generateKBMFileContent();
@@ -558,29 +479,16 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
 
             .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&, auto complete) {
                 const auto& tunings = EmbeddedTunings::getAllTunings();
-                juce::String json = "[";
-                for (size_t i = 0; i < tunings.size(); ++i) {
-                    if (i > 0) json += ",";
-                    json += "{";
-                    json += "\"id\":\"" + juce::String(tunings[i].id) + "\",";
-                    json += "\"name\":\"" + juce::String(tunings[i].name) + "\",";
-                    json += "\"category\":\"" + juce::String(tunings[i].category) + "\",";
-                    json += "\"noteCount\":" + juce::String(static_cast<int>(tunings[i].intervals.size()));
-                    json += "}";
+                juce::Array<juce::var> arr;
+                for (const auto& t : tunings) {
+                    auto* obj = new juce::DynamicObject();
+                    obj->setProperty("id", juce::String(t.id));
+                    obj->setProperty("name", juce::String(t.name));
+                    obj->setProperty("category", juce::String(t.category));
+                    obj->setProperty("noteCount", static_cast<int>(t.intervals.size()));
+                    arr.add(juce::var(obj));
                 }
-                json += "]";
-                complete(json);
-            })
-
-            .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&, auto complete) {
-                auto categories = EmbeddedTunings::getCategories();
-                juce::String json = "[";
-                for (size_t i = 0; i < categories.size(); ++i) {
-                    if (i > 0) json += ",";
-                    json += "\"" + juce::String(categories[i]) + "\"";
-                }
-                json += "]";
-                complete(json);
+                complete(juce::JSON::toString(juce::var(arr), true));
             })
 
             .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
@@ -601,6 +509,8 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
 
             .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&,
                                                               std::function<void(juce::var)> complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
                 fileChooser = std::make_shared<juce::FileChooser>(
                     "Export Tuning Documentation",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
@@ -612,12 +522,14 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
+                        safeThis->fileDialogOpen = false;
                         auto file = fc.getResult();
                         if (file != juce::File()) {
                             auto html = TuningExporter::toHTML(
                                 *safeThis->processorRef.getTuningEngine(), "O-Wind");
-                            file.replaceWithText(html);
-                            complete(true);
+                            // Report the actual write result (IN-15) — same
+                            // pattern as saveScalaFile/saveKBMFile
+                            complete(file.replaceWithText(html));
                         } else {
                             complete(false);
                         }

@@ -9,7 +9,7 @@ juce_add_plugin(O-Wind
     PLUGIN_CODE OWnd
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Wind${OUARICON_DEV_SUFFIX}"
-    VERSION "1.16.1"
+    VERSION "1.16.3"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -31,10 +31,8 @@ target_sources(O-Wind
         Source/DSP/JetNonlinearity.h
         Source/DSP/DCBlocker.h
         Source/DSP/BoreWaveguide.h
-        Source/DSP/SubHarmonics.h
         Source/DSP/InstrumentPresets.h
         Source/DSP/StereoWidth.h
-        Source/DSP/ToneHoleSystem.h
         Source/DSP/DelayProcessor.h
         Source/DSP/DelayProcessor.cpp
         Source/DSP/EQProcessor.h
