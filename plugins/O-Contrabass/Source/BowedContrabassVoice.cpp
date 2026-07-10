@@ -74,7 +74,19 @@ void BowedContrabassVoice::noteStarted()
                                 ? tuningEngine->getFrequency (midiNote)
                                 : juce::MidiMessage::getMidiNoteInHertz (midiNote);
     const float  refPitchHz = parameters->getRawParameterValue ("REFERENCE_PITCH")->load();
-    tuningEngineBaseFreqHz  = tuneFreqHz * (static_cast<double> (refPitchHz) / 440.0);
+    double baseHz = tuneFreqHz * (static_cast<double> (refPitchHz) / 440.0);
+
+    // D9: NE folds into the CACHED base so Site B (notePitchbendChanged) recompute
+    // preserves the per-note Dorico offset. Always consume (keeps table clean),
+    // conditionally apply (NOTE_EXPRESSION APVTS gate, D10).
+    if (pendingTuningSource != nullptr)
+    {
+        const double neHz = Ouaricon::NoteExpression::applyPendingTuning (
+                                *pendingTuningSource, midiNote, baseHz);
+        if (parameters->getRawParameterValue ("NOTE_EXPRESSION")->load() > 0.5f)
+            baseHz = neHz;
+    }
+    tuningEngineBaseFreqHz = baseHz;
 
     const float bend = static_cast<float> (note.totalPitchbendInSemitones);
     double freq = tuningEngineBaseFreqHz;
@@ -188,12 +200,25 @@ void BowedContrabassVoice::notePitchbendChanged()
 
 void BowedContrabassVoice::notePressureChanged()
 {
-    // Pressure modulation will be wired in Phase 2.6 (Note Expression / MPE-Z).
+    // Phase 2.6c R41b (ESCALATION-YZ1): INTENTIONALLY EMPTY — do NOT wire this.
+    // MPE-Z (channel pressure) is ALREADY consumed by a per-block poll of
+    // getCurrentlyPlayingNote() in renderNextBlock Step 6:
+    //   bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f) ...)
+    // plus the matching F_bow_baseline pre-bias read in the Step 2.5
+    // sub-harmonic bias block (rawBowPressure * (0.5f + 1.5f * mpePressureBlockEntry)).
+    // Calibration is locked at the shipped map Z=0 → ×0.5, Z=1 → ×2.0 — baked
+    // into all carry-forward goldens. Adding code here would double-apply Z.
 }
 
 void BowedContrabassVoice::noteTimbreChanged()
 {
-    // Timbre modulation (CC74 / MPE-Y) will be wired in Phase 2.6.
+    // Phase 2.6c R41b (ESCALATION-YZ1): INTENTIONALLY EMPTY — do NOT wire this.
+    // MPE-Y (CC74 timbre) is ALREADY consumed by a per-block poll of
+    // getCurrentlyPlayingNote() in updateParametersFromAPVTS():
+    //   effectivePosition = jlimit (0.02f, 0.25f, bowPos + note.timbre.asSignedFloat() * 0.05f)
+    // Calibration is locked at the shipped ±0.05 bipolar span (clamped to the
+    // Schelleng-calibrated β domain; asSignedFloat() centres at 0 so no Y
+    // events ⇒ zero offset). Adding code here would double-apply Y.
 }
 
 void BowedContrabassVoice::noteKeyStateChanged()

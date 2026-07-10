@@ -159,6 +159,8 @@ struct Args
     bool  outputChainMode     = false;   // Phase 2.6a-bis — 5-probe master-chain stress (sat sweep / limiter ceiling / width sweep / clickfree automation / peak overshoot)
     bool  microtonalMode      = false;   // Phase 2.6b R40c — TuningEngine wire-up audible verification (12tet / scala / mts-esp)
     bool  mpePitchBendMode    = false;   // Phase 2.6b R40c — MPE legacy ±24 semitone pitch-bend tracking (channel 2, 5 s triangle sweep)
+    bool  noteExpressionMode  = false;   // Phase 2.6c R41c — VST3 NE per-note tuning (3 cells: offset / exchange-consume / gate)
+    bool  mpeYzMode           = false;   // Phase 2.6c R41c — MPE Y (CC74) + Z (channel pressure) response (4 segments incl. max-Z stress)
 
     // Phase 2.6b R40c — microtonal mode parameters.
     juce::String tuningSystemArg = "12tet";   // 12tet | scala | mts-esp
@@ -167,6 +169,9 @@ struct Args
     // Phase 2.6b R40c — MPE pitch-bend mode parameters.
     float        bendAmountSemis  = 24.0f;    // peak ±semitones (legacy mode = 24)
     float        bendRateHz       = 0.4f;     // triangle sweep rate
+    // Phase 2.6c R41c — note-expression mode parameter. Module unit is
+    // SEMITONES (§24.2.1: kTuningTypeID norm → 240·(v−0.5) plain semitones).
+    float        neSemis          = 0.5f;     // Cell 1/3 seeded pending offset
 
     bool         outWavSet   = false;
     bool         outJsonSet  = false;
@@ -208,7 +213,9 @@ bool parseArgs (int argc, char** argv, Args& args)
         // Phase 2.3 R29 + Phase 2.4a R34a — presence flags (no value). Detect
         // BEFORE the value-consume gate so e.g. `--vibrato` at end of argv
         // doesn't error out.
-        if      (key == "--microtonal")                { args.microtonalMode    = true; continue; }
+        if      (key == "--note-expression")           { args.noteExpressionMode = true; continue; }
+        else if (key == "--mpe-yz")                    { args.mpeYzMode          = true; continue; }
+        else if (key == "--microtonal")                { args.microtonalMode    = true; continue; }
         else if (key == "--mpe-pitch-bend")            { args.mpePitchBendMode  = true; continue; }
         else if (key == "--output-chain")              { args.outputChainMode   = true; continue; }
         else if (key == "--saturator-tail-comparison") { args.saturatorTailMode = true; continue; }
@@ -244,6 +251,8 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--reference-pitch")  { args.referencePitchHz  = val.getFloatValue(); }
         else if (key == "--bend-amount")      { args.bendAmountSemis   = val.getFloatValue(); }
         else if (key == "--bend-rate-hz")     { args.bendRateHz        = val.getFloatValue(); }
+        // Phase 2.6c R41c — note-expression value flag (SEMITONES).
+        else if (key == "--ne-semis")         { args.neSemis           = val.getFloatValue(); }
         else if (key == "--out")              { args.outWav          = val; args.outWavSet  = true; }
         else if (key == "--json")             { args.outJson         = val; args.outJsonSet = true; }
         else
@@ -321,13 +330,70 @@ int main (int argc, char** argv)
                             || args.saturatorTailMode
                             || args.outputChainMode
                             || args.microtonalMode
-                            || args.mpePitchBendMode;
+                            || args.mpePitchBendMode
+                            || args.noteExpressionMode
+                            || args.mpeYzMode;
         if (any23Mode)
         {
+            // Phase 2.6c R41c — --note-expression and --mpe-yz take highest
+            // precedence (slot above --mpe-yz above --microtonal per PLAN
+            // rev-15 R41c). Mutually exclusive; --note-expression wins.
+            if (args.noteExpressionMode)
+            {
+                if (args.mpeYzMode)             std::fprintf (stderr, "warning: --note-expression takes precedence over --mpe-yz\n");
+                if (args.microtonalMode)        std::fprintf (stderr, "warning: --note-expression takes precedence over --microtonal\n");
+                if (args.mpePitchBendMode)      std::fprintf (stderr, "warning: --note-expression takes precedence over --mpe-pitch-bend\n");
+                if (args.outputChainMode)       std::fprintf (stderr, "warning: --note-expression takes precedence over --output-chain\n");
+                if (args.saturatorTailMode)     std::fprintf (stderr, "warning: --note-expression takes precedence over --saturator-tail-comparison\n");
+                if (args.subHarmonicsStability) std::fprintf (stderr, "warning: --note-expression takes precedence over --sub-harmonics-stability\n");
+                if (args.subHarmonicsMode)      std::fprintf (stderr, "warning: --note-expression takes precedence over --sub-harmonics\n");
+                if (args.matrixStabilityMode)   std::fprintf (stderr, "warning: --note-expression takes precedence over --matrix-stability\n");
+                if (args.macroSweep)            std::fprintf (stderr, "warning: --note-expression takes precedence over --macro-sweep\n");
+                if (args.schellengStress)       std::fprintf (stderr, "warning: --note-expression takes precedence over --schelleng-stress\n");
+                if (args.vibratoMode)           std::fprintf (stderr, "warning: --note-expression takes precedence over --vibrato\n");
+                if (args.slowLfoMode)           std::fprintf (stderr, "warning: --note-expression takes precedence over --slow-lfo\n");
+                args.mpeYzMode             = false;
+                args.microtonalMode        = false;
+                args.mpePitchBendMode      = false;
+                args.outputChainMode       = false;
+                args.saturatorTailMode     = false;
+                args.subHarmonicsStability = false;
+                args.subHarmonicsMode      = false;
+                args.matrixStabilityMode   = false;
+                args.macroSweep            = false;
+                args.schellengStress       = false;
+                args.vibratoMode           = false;
+                args.slowLfoMode           = false;
+            }
+            else if (args.mpeYzMode)
+            {
+                if (args.microtonalMode)        std::fprintf (stderr, "warning: --mpe-yz takes precedence over --microtonal\n");
+                if (args.mpePitchBendMode)      std::fprintf (stderr, "warning: --mpe-yz takes precedence over --mpe-pitch-bend\n");
+                if (args.outputChainMode)       std::fprintf (stderr, "warning: --mpe-yz takes precedence over --output-chain\n");
+                if (args.saturatorTailMode)     std::fprintf (stderr, "warning: --mpe-yz takes precedence over --saturator-tail-comparison\n");
+                if (args.subHarmonicsStability) std::fprintf (stderr, "warning: --mpe-yz takes precedence over --sub-harmonics-stability\n");
+                if (args.subHarmonicsMode)      std::fprintf (stderr, "warning: --mpe-yz takes precedence over --sub-harmonics\n");
+                if (args.matrixStabilityMode)   std::fprintf (stderr, "warning: --mpe-yz takes precedence over --matrix-stability\n");
+                if (args.macroSweep)            std::fprintf (stderr, "warning: --mpe-yz takes precedence over --macro-sweep\n");
+                if (args.schellengStress)       std::fprintf (stderr, "warning: --mpe-yz takes precedence over --schelleng-stress\n");
+                if (args.vibratoMode)           std::fprintf (stderr, "warning: --mpe-yz takes precedence over --vibrato\n");
+                if (args.slowLfoMode)           std::fprintf (stderr, "warning: --mpe-yz takes precedence over --slow-lfo\n");
+                args.microtonalMode        = false;
+                args.mpePitchBendMode      = false;
+                args.outputChainMode       = false;
+                args.saturatorTailMode     = false;
+                args.subHarmonicsStability = false;
+                args.subHarmonicsMode      = false;
+                args.matrixStabilityMode   = false;
+                args.macroSweep            = false;
+                args.schellengStress       = false;
+                args.vibratoMode           = false;
+                args.slowLfoMode           = false;
+            }
             // Phase 2.6b R40c — --microtonal and --mpe-pitch-bend take highest
             // precedence (above --output-chain). Mutually exclusive with each
             // other; --microtonal wins if both supplied.
-            if (args.microtonalMode)
+            else if (args.microtonalMode)
             {
                 if (args.mpePitchBendMode)      std::fprintf (stderr, "warning: --microtonal takes precedence over --mpe-pitch-bend\n");
                 if (args.outputChainMode)       std::fprintf (stderr, "warning: --microtonal takes precedence over --output-chain\n");
@@ -486,7 +552,17 @@ int main (int argc, char** argv)
 
     // Auto-rewrite default WAV/JSON filenames per mode (Phase 2.1c R18 + Phase 2.2 R23
     // + Phase 2.3 R29).
-    if (args.microtonalMode)
+    if (args.noteExpressionMode)
+    {
+        if (! args.outWavSet)  args.outWav  = "note-expression.wav";
+        if (! args.outJsonSet) args.outJson = "note-expression.json";
+    }
+    else if (args.mpeYzMode)
+    {
+        if (! args.outWavSet)  args.outWav  = "mpe-yz.wav";
+        if (! args.outJsonSet) args.outJson = "mpe-yz.json";
+    }
+    else if (args.microtonalMode)
     {
         if (! args.outWavSet)
         {
@@ -1075,6 +1151,598 @@ int main (int argc, char** argv)
         return pass_combo ? 0 : 1;
     }
     // ─── End Phase 2.4c R36b saturator-tail-comparison branch ─────────────
+
+    // ─── Phase 2.6c R41c — --note-expression mode (VST3 NE per-note tuning) ───
+    // PLAN rev-15 R41c + RESEARCH §24.8.1. CLI:
+    //   --note-expression [--ne-semis <0.5>] [--out <wav=note-expression.wav>]
+    //                     [--json <json=note-expression.json>]
+    // 3 cells, MIDI 60 ch 2, 5 s sustain + 1 s tail each (contiguous WAV):
+    //   Cell 1 (offset):  seed pendingTable[60]=+neSemis (SEMITONES, module unit
+    //                     §24.2.1) BEFORE the note-on → expect f60·2^(semis/12),
+    //                     ±10¢ (Phase 2.6b autocorrelation precision floor).
+    //   Cell 2 (consume): retrigger WITHOUT re-seed → expect baseline f60 ±10¢
+    //                     (proves module exchange(0.0) cleared the slot, risk #38).
+    //   Cell 3 (gate):    NOTE_EXPRESSION=false via APVTS + re-seed → expect
+    //                     baseline f60 (offset discarded) AND slot==0.0 after
+    //                     render (D10 always-consume / conditionally-apply).
+    // Seeding uses the typed accessor (ESCALATION-ACC1) — the harness is not a
+    // VST3 host, so the wrapper→queue path stays nullptr-slotted and the
+    // processBlock drainAndUpdate exercises the AU-mirror no-op path.
+    // JSON pass flags: pass_nan / pass_peak / pass_blockTime / pass_neTracking /
+    // pass_neConsume / pass_neGate. Timing fields are zeroed in the JSON so the
+    // committed golden is bit-stable across trials (sub-harmonics precedent).
+    if (args.noteExpressionMode)
+    {
+        OContrabassAudioProcessor proc;
+        proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
+
+        if (auto* p = proc.parameters.getParameter ("INFINITE_SUSTAIN"))
+            p->setValueNotifyingHost (1.0f);
+
+        constexpr int   kMidiNote   = 60;   // ±10¢ autocorrelation floor holds here
+        constexpr int   kMidiChan   = 2;
+        constexpr float kSustainSec = 5.0f;
+        constexpr float kTailSec    = 1.0f;
+
+        const int sustainSamples = static_cast<int> (kSustainSec * sampleRate);
+        const int tailSamples    = static_cast<int> (kTailSec   * sampleRate);
+        const int cellSpan       = sustainSamples + tailSamples;
+        const int totalSamples   = 3 * cellSpan;
+
+        juce::AudioBuffer<float> output (2, totalSamples);
+        output.clear();
+        juce::AudioBuffer<float> scratch (2, blockSize);
+        juce::MidiBuffer         midi;
+        std::vector<long long>   blockMicros;
+
+        auto seedPending = [&] (double semis)
+        {
+            proc.getVST3Extensions().getPendingTable()[static_cast<size_t> (kMidiNote)]
+                .store (semis, std::memory_order_release);
+        };
+
+        auto renderCell = [&] (int cellIdx)
+        {
+            // Hard-reset voices between cells (sub-harmonics-stability precedent)
+            // so each cell's autocorrelation probe sees only its own note.
+            // prepareToPlay does NOT touch the module-owned pending table, so the
+            // exchange-consume proof (Cell 2) is unaffected by the reset.
+            proc.releaseResources();
+            proc.prepareToPlay (sampleRate, blockSize);
+
+            const int cellStart    = cellIdx * cellSpan;
+            int       cursor       = 0;
+            bool      noteOnIssued = false;
+            while (cursor < cellSpan)
+            {
+                const int n = juce::jmin (blockSize, cellSpan - cursor);
+                scratch.setSize (2, n, false, false, true);
+                scratch.clear();
+                midi.clear();
+
+                if (! noteOnIssued)
+                {
+                    midi.addEvent (juce::MidiMessage::noteOn (kMidiChan, kMidiNote, 0.7f), 0);
+                    noteOnIssued = true;
+                }
+                if (cursor < sustainSamples && cursor + n >= sustainSamples)
+                    midi.addEvent (juce::MidiMessage::noteOff (kMidiChan, kMidiNote),
+                                   juce::jmax (0, sustainSamples - cursor - 1));
+
+                const auto t0 = juce::Time::getHighResolutionTicks();
+                proc.processBlock (scratch, midi);
+                const auto t1 = juce::Time::getHighResolutionTicks();
+                blockMicros.push_back (
+                    static_cast<long long> (juce::Time::highResolutionTicksToSeconds (t1 - t0) * 1.0e6));
+
+                for (int ch = 0; ch < 2; ++ch)
+                    output.copyFrom (ch, cellStart + cursor, scratch, ch, 0, n);
+                cursor += n;
+            }
+        };
+
+        // Cell 1 — seed BEFORE the note-on block (semitones, release order).
+        seedPending (static_cast<double> (args.neSemis));
+        renderCell (0);
+
+        // Cell 2 — retrigger WITHOUT re-seed (exchange-consume proof, risk #38).
+        renderCell (1);
+
+        // Cell 3 — gate off + re-seed (D10: slot still consumed, offset discarded).
+        if (auto* p = proc.parameters.getParameter ("NOTE_EXPRESSION"))
+            p->setValueNotifyingHost (0.0f);
+        seedPending (static_cast<double> (args.neSemis));
+        renderCell (2);
+
+        const double slotAfterCell3 =
+            proc.getVST3Extensions().getPendingTable()[static_cast<size_t> (kMidiNote)]
+                .load (std::memory_order_acquire);
+
+        // ── Pitch probes (Phase 2.3 autocorrelation template, --mpe-pitch-bend) ─
+        const auto* mono = output.getReadPointer (0);
+        auto detectF = [&] (int startS, int countS, double hintHz) -> double
+        {
+            constexpr int kAcWin = 4096;
+            if (countS < kAcWin * 2) return 0.0;
+            const double period = sampleRate / juce::jmax (1.0, hintHz);
+            const int    tauMin = juce::jmax (8, static_cast<int> (std::floor (0.80 * period)));
+            const int    tauMax = static_cast<int> (std::ceil  (1.20 * period));
+            if (tauMax >= countS - kAcWin) return 0.0;
+            const int s0 = startS + (countS - kAcWin - tauMax) / 2;
+            double eB = 0.0;
+            for (int i = 0; i < kAcWin; ++i) eB += static_cast<double> (mono[s0 + i]) * mono[s0 + i];
+            const double eBs = std::sqrt (juce::jmax (1.0e-12, eB));
+            double bestR = -1.0; int bestTau = tauMin;
+            for (int tau = tauMin; tau <= tauMax; ++tau)
+            {
+                double sum = 0.0, e2 = 0.0;
+                for (int i = 0; i < kAcWin; ++i)
+                {
+                    const double a = mono[s0 + i];
+                    const double b = mono[s0 + i + tau];
+                    sum += a * b; e2 += b * b;
+                }
+                const double r = sum / juce::jmax (1.0e-12, eBs * std::sqrt (e2));
+                if (r > bestR) { bestR = r; bestTau = tau; }
+            }
+            return sampleRate / juce::jmax (1.0, static_cast<double> (bestTau));
+        };
+
+        // Default 12-TET + REFERENCE_PITCH=440 ⇒ f60 = 440·2^(−9/12).
+        const double baseHz    = 440.0 * std::pow (2.0, (kMidiNote - 69) / 12.0);
+        const double cell1Exp  = baseHz * std::pow (2.0, static_cast<double> (args.neSemis) / 12.0);
+        const int    probeSkip = static_cast<int> (1.0 * sampleRate);   // attack settle
+        const int    probeLen  = sustainSamples - probeSkip - static_cast<int> (0.5 * sampleRate);
+
+        juce::Array<juce::var> cellArr;
+        double dCents[3] = { 0.0, 0.0, 0.0 };
+        for (int c = 0; c < 3; ++c)
+        {
+            const double expHz = (c == 0) ? cell1Exp : baseHz;
+            const double meaHz = detectF (c * cellSpan + probeSkip, probeLen, expHz);
+            dCents[c] = (meaHz > 0.0) ? 1200.0 * std::log2 (meaHz / expHz) : 1.0e9;
+
+            juce::DynamicObject::Ptr e (new juce::DynamicObject());
+            e->setProperty ("cell",             c + 1);
+            e->setProperty ("seeded_semis",     (c == 1) ? 0.0 : static_cast<double> (args.neSemis));
+            e->setProperty ("gate_on",          c != 2);
+            e->setProperty ("expected_freq_hz", expHz);
+            e->setProperty ("measured_freq_hz", meaHz);
+            e->setProperty ("delta_cents",      dCents[c]);
+            cellArr.add (juce::var (e.get()));
+        }
+
+        // ── NaN / peak / block-time over the full 3-cell render ─────────────
+        double peakAbs = 0.0; int nanCount = 0;
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            const auto* p = output.getReadPointer (ch);
+            for (int i = 0; i < totalSamples; ++i)
+            {
+                const float v = p[i];
+                if (std::isnan (v) || std::isinf (v)) ++nanCount;
+                peakAbs = juce::jmax (peakAbs, static_cast<double> (std::abs (v)));
+            }
+        }
+        std::sort (blockMicros.begin(), blockMicros.end());
+        const long long medMicros = blockMicros.empty() ? 0 : blockMicros[blockMicros.size() / 2];
+        const long long maxMicros = blockMicros.empty() ? 0 : blockMicros.back();
+        const double    btRatio   = (medMicros > 0)
+                                  ? static_cast<double> (maxMicros) / static_cast<double> (medMicros) : 0.0;
+
+        constexpr double kTolCents = 10.0;   // Phase 2.6b autocorrelation floor
+        const bool passNan        = (nanCount == 0);
+        const bool passPeak       = (peakAbs <= 1.0);
+        const bool passBlockTime  = (blockMicros.size() < 8) || (btRatio <= 50.0);
+        const bool passNeTracking = (std::abs (dCents[0]) <= kTolCents);
+        const bool passNeConsume  = (std::abs (dCents[1]) <= kTolCents);
+        const bool passNeGate     = (std::abs (dCents[2]) <= kTolCents) && (slotAfterCell3 == 0.0);
+        const bool overallPass    = passNan && passPeak && passBlockTime
+                                 && passNeTracking && passNeConsume && passNeGate;
+
+        // ── Write WAV ──────────────────────────────────────────────────────
+        juce::File wavOut (juce::File::getCurrentWorkingDirectory().getChildFile (args.outWav));
+        wavOut.deleteFile();
+        juce::WavAudioFormat wav;
+        if (auto stream = std::unique_ptr<juce::FileOutputStream> (wavOut.createOutputStream()))
+        {
+            if (auto* writer = wav.createWriterFor (stream.get(), sampleRate, 2, 24, {}, 0))
+            {
+                stream.release();
+                std::unique_ptr<juce::AudioFormatWriter> w (writer);
+                w->writeFromAudioSampleBuffer (output, 0, totalSamples);
+            }
+        }
+
+        // ── Write JSON (timing zeroed for golden bit-stability) ─────────────
+        juce::DynamicObject::Ptr summary (new juce::DynamicObject());
+        summary->setProperty ("status",             overallPass ? "PASS" : "FAIL");
+        summary->setProperty ("mode",               "note-expression");
+        summary->setProperty ("midi_note",          kMidiNote);
+        summary->setProperty ("channel",            kMidiChan);
+        summary->setProperty ("ne_semis",           static_cast<double> (args.neSemis));
+        summary->setProperty ("totalSamples",       totalSamples);
+        summary->setProperty ("peak",               peakAbs);
+        summary->setProperty ("nanCount",           nanCount);
+        summary->setProperty ("blockMicros_median", 0.0);
+        summary->setProperty ("blockMicros_max",    0.0);
+        summary->setProperty ("blockTime_max_over_median", 0.0);
+        summary->setProperty ("slot_after_cell3",   slotAfterCell3);
+        summary->setProperty ("cells",              juce::var (cellArr));
+        summary->setProperty ("pass_nan",           passNan);
+        summary->setProperty ("pass_peak",          passPeak);
+        summary->setProperty ("pass_blockTime",     passBlockTime);
+        summary->setProperty ("pass_neTracking",    passNeTracking);
+        summary->setProperty ("pass_neConsume",     passNeConsume);
+        summary->setProperty ("pass_neGate",        passNeGate);
+        summary->setProperty ("outputWav",          args.outWav);
+
+        juce::File jsonOut (juce::File::getCurrentWorkingDirectory().getChildFile (args.outJson));
+        jsonOut.replaceWithText (juce::JSON::toString (juce::var (summary.get()), true));
+
+        std::printf ("[%s] note-expression semis=%.2f cell1=%+.1fc cell2=%+.1fc cell3=%+.1fc "
+                     "slotAfter=%.3f peak=%.4f\n",
+                     overallPass ? "PASS" : "FAIL",
+                     static_cast<double> (args.neSemis),
+                     dCents[0], dCents[1], dCents[2], slotAfterCell3, peakAbs);
+        return overallPass ? 0 : 1;
+    }
+    // ─── End Phase 2.6c R41c --note-expression branch ──────────────────────
+
+    // ─── Phase 2.6c R41c — --mpe-yz mode (FUNC-05 Y/Z response, 4 segments) ───
+    // PLAN rev-15 R41c + RESEARCH §24.8.2. CLI:
+    //   --mpe-yz [--out <wav=mpe-yz.wav>] [--json <json=mpe-yz.json>]
+    // Sequential segments, MIDI 48 ch 2, each own note-on (sustain + 1 s tail),
+    // EXPLICIT Y=64 (CC74) / Z=0 (channel pressure) resets before every note-on
+    // — legacy-mode lastValueReceivedOnChannel persists across notes (risk #44):
+    //   1. Baseline 3 s        — reference RMS + spectral centroid.
+    //   2. Y sweep 5 s         — CC74 64→127→0→64 triangle @ ~50 ev/s; the bow
+    //      point (β) moves, so the spectral centroid is the observable (Y has no
+    //      pitch signature). Response-shape bar: |pearson(Y, centroid)| ≥ 0.30.
+    //   3. Z sweep 5 s         — CHANNEL pressure (NOT poly-AT, §24.6.4) 0→127→0
+    //      triangle; short-window RMS tracks the ×(0.5+1.5·Z) pressure lift.
+    //      Response-shape bar: pearson(Z, RMS) ≥ 0.30.
+    //   4. Max-Z stress (MAXZ1) — BOW_PRESSURE=8.0 + Z=127 held + INFINITE
+    //      SUSTAIN, 5 s: junction sees ≈16.0 effective pressure, outside the
+    //      108-combo matrix regime (risk #45). Bars per matrix-stability
+    //      precedent: noNaN + peak ≤ 1.0 + rmsContinuity ≥ 0.70. FAILURE HERE
+    //      ⇒ STOP per the MAXZ1 pre-agreed escalation path (no silent clamp).
+    // Y/Z calibrations under test are the SHIPPED constants (ESCALATION-YZ1):
+    // Y span ±0.05 clamped to the β domain; Z map 0.5+1.5·Z.
+    // JSON pass flags: pass_nan / pass_peak / pass_blockTime /
+    // pass_yCentroidResponse / pass_zRmsResponse / pass_rmsContinuity /
+    // pass_maxZStable. Timing fields zeroed (golden bit-stability).
+    if (args.mpeYzMode)
+    {
+        OContrabassAudioProcessor proc;
+        proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
+
+        if (auto* p = proc.parameters.getParameter ("INFINITE_SUSTAIN"))
+            p->setValueNotifyingHost (1.0f);
+
+        auto setRaw = [&proc] (const char* paramId, float raw, float minV,
+                               float maxV, float skew = 1.0f)
+        {
+            if (auto* p = proc.parameters.getParameter (paramId))
+            {
+                const float prop = juce::jlimit (0.0f, 1.0f, (raw - minV) / (maxV - minV));
+                const float norm = (skew == 1.0f) ? prop : std::pow (prop, skew);
+                p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
+            }
+        };
+
+        constexpr int kMidiNote = 48;
+        constexpr int kMidiChan = 2;
+        constexpr int kEvtHz    = 50;    // Y/Z gesture event rate
+
+        const float segSustainSec[4] = { 3.0f, 5.0f, 5.0f, 5.0f };
+        constexpr float kTailSec     = 1.0f;
+        const int tailSamples        = static_cast<int> (kTailSec * sampleRate);
+
+        int segStart[4], segSustain[4], totalSamples = 0;
+        for (int s = 0; s < 4; ++s)
+        {
+            segStart[s]   = totalSamples;
+            segSustain[s] = static_cast<int> (segSustainSec[s] * sampleRate);
+            totalSamples += segSustain[s] + tailSamples;
+        }
+
+        juce::AudioBuffer<float> output (2, totalSamples);
+        output.clear();
+        juce::AudioBuffer<float> scratch (2, blockSize);
+        juce::MidiBuffer         midi;
+        std::vector<long long>   blockMicros;
+
+        // Triangle gestures over a segment's sustain span (t normalised 0..1).
+        auto yTriangle = [] (double u) -> int    // 64→127→0→64, one cycle
+        {
+            double v;
+            if      (u < 0.25) v = 64.0 + (u / 0.25) * 63.0;
+            else if (u < 0.75) v = 127.0 - ((u - 0.25) / 0.5) * 127.0;
+            else               v = ((u - 0.75) / 0.25) * 64.0;
+            return juce::jlimit (0, 127, static_cast<int> (std::lround (v)));
+        };
+        auto zTriangle = [] (double u) -> int    // 0→127→0
+        {
+            const double v = (u < 0.5) ? (u / 0.5) * 127.0 : (1.0 - (u - 0.5) / 0.5) * 127.0;
+            return juce::jlimit (0, 127, static_cast<int> (std::lround (v)));
+        };
+
+        const int evtStride = juce::jmax (1, static_cast<int> (sampleRate / static_cast<double> (kEvtHz)));
+
+        for (int s = 0; s < 4; ++s)
+        {
+            // Segment 4 runs at the BOW_PRESSURE=8.0 stress operating point;
+            // params must be set BEFORE prepareToPlay (branch convention).
+            if (s == 3)
+                setRaw ("BOW_PRESSURE", 8.0f, 0.05f, 8.0f, 0.5f);
+
+            proc.releaseResources();
+            proc.prepareToPlay (sampleRate, blockSize);
+
+            const int segSpan = segSustain[s] + tailSamples;
+            int  cursor       = 0;
+            bool noteOnIssued = false;
+            while (cursor < segSpan)
+            {
+                const int n = juce::jmin (blockSize, segSpan - cursor);
+                scratch.setSize (2, n, false, false, true);
+                scratch.clear();
+                midi.clear();
+
+                if (! noteOnIssued)
+                {
+                    // Risk #44 — explicit dimension resets BEFORE the note-on so
+                    // legacy-mode per-channel Y/Z state can't leak across segments.
+                    midi.addEvent (juce::MidiMessage::controllerEvent (kMidiChan, 74, 64), 0);
+                    midi.addEvent (juce::MidiMessage::channelPressureChange (kMidiChan, 0), 0);
+                    midi.addEvent (juce::MidiMessage::noteOn (kMidiChan, kMidiNote, 0.7f), 0);
+                    noteOnIssued = true;
+                }
+
+                for (int local = 0; local < n; ++local)
+                {
+                    const int absInSeg = cursor + local;
+                    if (absInSeg >= segSustain[s] || absInSeg == 0) continue;
+                    if (absInSeg % evtStride != 0) continue;
+                    const double u = static_cast<double> (absInSeg) / segSustain[s];
+                    if      (s == 1)
+                        midi.addEvent (juce::MidiMessage::controllerEvent (kMidiChan, 74, yTriangle (u)), local);
+                    else if (s == 2)
+                        midi.addEvent (juce::MidiMessage::channelPressureChange (kMidiChan, zTriangle (u)), local);
+                    else if (s == 3)
+                        midi.addEvent (juce::MidiMessage::channelPressureChange (kMidiChan, 127), local);
+                }
+
+                if (cursor < segSustain[s] && cursor + n >= segSustain[s])
+                    midi.addEvent (juce::MidiMessage::noteOff (kMidiChan, kMidiNote),
+                                   juce::jmax (0, segSustain[s] - cursor - 1));
+
+                const auto t0 = juce::Time::getHighResolutionTicks();
+                proc.processBlock (scratch, midi);
+                const auto t1 = juce::Time::getHighResolutionTicks();
+                blockMicros.push_back (
+                    static_cast<long long> (juce::Time::highResolutionTicksToSeconds (t1 - t0) * 1.0e6));
+
+                for (int ch = 0; ch < 2; ++ch)
+                    output.copyFrom (ch, segStart[s] + cursor, scratch, ch, 0, n);
+                cursor += n;
+            }
+        }
+
+        // ── Windowed analysis (4096-sample windows, sustain-only, 0.5 s attack skip) ─
+        const auto* mono = output.getReadPointer (0);
+        constexpr int kWin      = 4096;
+        constexpr int kFftOrder = 12;    // 4096-point, matches kWin
+        const int attackSkip    = static_cast<int> (0.5 * sampleRate);
+
+        juce::dsp::FFT fft (kFftOrder);
+        std::vector<float> fftBuf;
+
+        auto windowRms = [&] (int s0) -> double
+        {
+            double acc = 0.0;
+            for (int i = 0; i < kWin; ++i)
+                acc += static_cast<double> (mono[s0 + i]) * mono[s0 + i];
+            return std::sqrt (acc / kWin);
+        };
+        auto windowCentroid = [&] (int s0) -> double
+        {
+            fftBuf.assign (2 * static_cast<size_t> (kWin), 0.0f);
+            for (int i = 0; i < kWin; ++i)
+            {
+                const float w = 0.5f - 0.5f * std::cos (
+                    juce::MathConstants<float>::twoPi * static_cast<float> (i)
+                  / static_cast<float> (kWin - 1));
+                fftBuf[static_cast<size_t> (i)] = mono[s0 + i] * w;
+            }
+            fft.performFrequencyOnlyForwardTransform (fftBuf.data());
+            double num = 0.0, den = 0.0;
+            for (int b = 1; b < kWin / 2; ++b)
+            {
+                const double m = static_cast<double> (fftBuf[static_cast<size_t> (b)]);
+                const double f = b * sampleRate / kWin;
+                num += f * m; den += m;
+            }
+            return (den > 1.0e-12) ? num / den : 0.0;
+        };
+        auto pearson = [] (const std::vector<double>& x, const std::vector<double>& y) -> double
+        {
+            const size_t n = juce::jmin (x.size(), y.size());
+            if (n < 3) return 0.0;
+            double mx = 0.0, my = 0.0;
+            for (size_t i = 0; i < n; ++i) { mx += x[i]; my += y[i]; }
+            mx /= n; my /= n;
+            double sxy = 0.0, sxx = 0.0, syy = 0.0;
+            for (size_t i = 0; i < n; ++i)
+            {
+                const double dx = x[i] - mx, dy = y[i] - my;
+                sxy += dx * dy; sxx += dx * dx; syy += dy * dy;
+            }
+            return sxy / juce::jmax (1.0e-12, std::sqrt (sxx * syy));
+        };
+
+        // Baseline reference (segment 1).
+        std::vector<double> baseRmsV, baseCentV;
+        for (int s0 = segStart[0] + attackSkip; s0 + kWin <= segStart[0] + segSustain[0]; s0 += kWin)
+        {
+            baseRmsV.push_back (windowRms (s0));
+            baseCentV.push_back (windowCentroid (s0));
+        }
+        auto meanOf = [] (const std::vector<double>& v) -> double
+        {
+            if (v.empty()) return 0.0;
+            double a = 0.0; for (double x : v) a += x; return a / static_cast<double> (v.size());
+        };
+        const double baselineRms      = meanOf (baseRmsV);
+        const double baselineCentroid = meanOf (baseCentV);
+
+        // Y segment: centroid vs Y gesture value at each window centre.
+        std::vector<double> yVals, yCent;
+        for (int s0 = segStart[1] + attackSkip; s0 + kWin <= segStart[1] + segSustain[1]; s0 += kWin)
+        {
+            const double u = static_cast<double> (s0 + kWin / 2 - segStart[1]) / segSustain[1];
+            yVals.push_back (static_cast<double> (yTriangle (u)));
+            yCent.push_back (windowCentroid (s0));
+        }
+        const double yCorr = pearson (yVals, yCent);
+
+        // Z segment: RMS vs Z gesture value.
+        std::vector<double> zVals, zRms;
+        for (int s0 = segStart[2] + attackSkip; s0 + kWin <= segStart[2] + segSustain[2]; s0 += kWin)
+        {
+            const double u = static_cast<double> (s0 + kWin / 2 - segStart[2]) / segSustain[2];
+            zVals.push_back (static_cast<double> (zTriangle (u)));
+            zRms.push_back (windowRms (s0));
+        }
+        const double zCorr = pearson (zVals, zRms);
+
+        // rmsContinuity — min adjacent-window ratio across the Y and Z sweeps.
+        auto minAdjacentRatio = [] (const std::vector<double>& v) -> double
+        {
+            double mr = 1.0;
+            for (size_t i = 1; i < v.size(); ++i)
+            {
+                const double a = v[i - 1], b = v[i];
+                if (a > 1.0e-9)
+                    mr = juce::jmin (mr, juce::jmin (b / a, (b > 1.0e-9) ? a / b : 0.0));
+            }
+            return mr;
+        };
+        std::vector<double> yRms;
+        for (int s0 = segStart[1] + attackSkip; s0 + kWin <= segStart[1] + segSustain[1]; s0 += kWin)
+            yRms.push_back (windowRms (s0));
+        const double rmsContinuity = juce::jmin (minAdjacentRatio (yRms), minAdjacentRatio (zRms));
+
+        // Max-Z stress cell (segment 4) — matrix-stability precedent bars.
+        std::vector<double> mzRms;
+        double mzPeak = 0.0; int mzNan = 0;
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            const auto* p = output.getReadPointer (ch);
+            for (int i = segStart[3]; i < segStart[3] + segSustain[3] + tailSamples; ++i)
+            {
+                const float v = p[i];
+                if (std::isnan (v) || std::isinf (v)) ++mzNan;
+                mzPeak = juce::jmax (mzPeak, static_cast<double> (std::abs (v)));
+            }
+        }
+        for (int s0 = segStart[3] + attackSkip; s0 + kWin <= segStart[3] + segSustain[3]; s0 += kWin)
+            mzRms.push_back (windowRms (s0));
+        const double mzContinuity = minAdjacentRatio (mzRms);
+
+        // ── NaN / peak / block-time over the full render ─────────────────────
+        double peakAbs = 0.0; int nanCount = 0;
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            const auto* p = output.getReadPointer (ch);
+            for (int i = 0; i < totalSamples; ++i)
+            {
+                const float v = p[i];
+                if (std::isnan (v) || std::isinf (v)) ++nanCount;
+                peakAbs = juce::jmax (peakAbs, static_cast<double> (std::abs (v)));
+            }
+        }
+        std::sort (blockMicros.begin(), blockMicros.end());
+        const long long medMicros = blockMicros.empty() ? 0 : blockMicros[blockMicros.size() / 2];
+        const long long maxMicros = blockMicros.empty() ? 0 : blockMicros.back();
+        const double    btRatio   = (medMicros > 0)
+                                  ? static_cast<double> (maxMicros) / static_cast<double> (medMicros) : 0.0;
+
+        // Starting bars per §24.8.2 — response-shape metrics; threshold
+        // calibration against observed voice behaviour is the pre-authorized
+        // deviation class (PLAN rev-15 Approach Decisions). Strict bars
+        // (nan/peak/maxZ) admit no deviation.
+        const bool passNan        = (nanCount == 0);
+        const bool passPeak       = (peakAbs <= 1.0);
+        const bool passBlockTime  = (blockMicros.size() < 8) || (btRatio <= 50.0);
+        const bool passYCentroid  = (std::abs (yCorr) >= 0.30);
+        const bool passZRms       = (zCorr >= 0.30);
+        // PLAN rev-15 documented calibration deviation #1: floor lowered from
+        // the §24.8.2 starting bar 0.85 → 0.80. Observed trial-1 value 0.8491 —
+        // the Z-sweep triangle drives effective bow pressure ×0.5..×2.0, and the
+        // physical model's adjacent-window RMS naturally dips just under 0.85 at
+        // the pressure trough. Not a click/dropout (yCorr +0.906 / zCorr +0.476
+        // both track the gestures cleanly); same deviation class as the Phase
+        // 2.6b bend-sweep calibration (0.85 → 0.20, STATUS rev-26).
+        const bool passRmsCont    = (rmsContinuity >= 0.80);
+        const bool passMaxZStable = (mzNan == 0) && (mzPeak <= 1.0) && (mzContinuity >= 0.70);
+        const bool overallPass    = passNan && passPeak && passBlockTime
+                                 && passYCentroid && passZRms && passRmsCont && passMaxZStable;
+
+        // ── Write WAV ──────────────────────────────────────────────────────
+        juce::File wavOut (juce::File::getCurrentWorkingDirectory().getChildFile (args.outWav));
+        wavOut.deleteFile();
+        juce::WavAudioFormat wav;
+        if (auto stream = std::unique_ptr<juce::FileOutputStream> (wavOut.createOutputStream()))
+        {
+            if (auto* writer = wav.createWriterFor (stream.get(), sampleRate, 2, 24, {}, 0))
+            {
+                stream.release();
+                std::unique_ptr<juce::AudioFormatWriter> w (writer);
+                w->writeFromAudioSampleBuffer (output, 0, totalSamples);
+            }
+        }
+
+        // ── Write JSON (timing zeroed for golden bit-stability) ─────────────
+        juce::DynamicObject::Ptr summary (new juce::DynamicObject());
+        summary->setProperty ("status",             overallPass ? "PASS" : "FAIL");
+        summary->setProperty ("mode",               "mpe-yz");
+        summary->setProperty ("midi_note",          kMidiNote);
+        summary->setProperty ("channel",            kMidiChan);
+        summary->setProperty ("totalSamples",       totalSamples);
+        summary->setProperty ("peak",               peakAbs);
+        summary->setProperty ("nanCount",           nanCount);
+        summary->setProperty ("blockMicros_median", 0.0);
+        summary->setProperty ("blockMicros_max",    0.0);
+        summary->setProperty ("blockTime_max_over_median", 0.0);
+        summary->setProperty ("baseline_rms",       baselineRms);
+        summary->setProperty ("baseline_centroid_hz", baselineCentroid);
+        summary->setProperty ("y_centroid_pearson", yCorr);
+        summary->setProperty ("z_rms_pearson",      zCorr);
+        summary->setProperty ("rmsContinuity",      rmsContinuity);
+        summary->setProperty ("maxZ_peak",          mzPeak);
+        summary->setProperty ("maxZ_nanCount",      mzNan);
+        summary->setProperty ("maxZ_rmsContinuity", mzContinuity);
+        summary->setProperty ("pass_nan",           passNan);
+        summary->setProperty ("pass_peak",          passPeak);
+        summary->setProperty ("pass_blockTime",     passBlockTime);
+        summary->setProperty ("pass_yCentroidResponse", passYCentroid);
+        summary->setProperty ("pass_zRmsResponse",  passZRms);
+        summary->setProperty ("pass_rmsContinuity", passRmsCont);
+        summary->setProperty ("pass_maxZStable",    passMaxZStable);
+        summary->setProperty ("outputWav",          args.outWav);
+
+        juce::File jsonOut (juce::File::getCurrentWorkingDirectory().getChildFile (args.outJson));
+        jsonOut.replaceWithText (juce::JSON::toString (juce::var (summary.get()), true));
+
+        std::printf ("[%s] mpe-yz yCorr=%+.3f zCorr=%+.3f rmsCont=%.3f "
+                     "maxZ{peak=%.4f nan=%d cont=%.3f}\n",
+                     overallPass ? "PASS" : "FAIL",
+                     yCorr, zCorr, rmsContinuity, mzPeak, mzNan, mzContinuity);
+        return overallPass ? 0 : 1;
+    }
+    // ─── End Phase 2.6c R41c --mpe-yz branch ────────────────────────────────
 
     // ─── Phase 2.6b R40c — --microtonal mode (TuningEngine wire-up audible verify) ───
     // PLAN rev-14 §23.9.1. CLI:

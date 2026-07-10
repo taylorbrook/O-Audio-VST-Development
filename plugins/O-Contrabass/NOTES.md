@@ -33,6 +33,15 @@ marker — the source is Stage-2.
   layout (with legacy as an explicit fallback) is deferred to Stage 3, where the editor
   can expose MPE configuration. Legacy pitch-bend range is ±24 semitones, channels 1–16.
 
+- **Legacy-mode Y/Z stickiness across notes on a channel (risk #44).** In MPE
+  legacy mode, JUCE's `MPEInstrument` keeps `lastValueReceivedOnChannel` for the
+  timbre (CC74 / Y) and pressure (channel pressure / Z) dimensions — the last value
+  received on a channel **persists into the next note-on on that channel**; there is
+  no reset at note-off. A note struck after a high-Z passage starts at that Z until
+  the host sends a new value. This is host-typical MPE behaviour, not a defect; the
+  render harness's `--mpe-yz` mode sends explicit Y=64 / Z=0 resets before each
+  segment's note-on for exactly this reason. Documented Phase 2.6c (R41d).
+
 - **Info-tier cleanups deferred (IN-01..IN-16).** Non-blocking quality items from
   CODE_REVIEW.md, not addressed in this pass:
   - IN-01: `outputGainSmoothed.reset(1.0f)` wrong overload (same class as WR-12/13;
@@ -51,7 +60,7 @@ marker — the source is Stage-2.
 ## Regression harness
 
 - Offline render harness is the Stage-2 correctness gate:
-  `tests/render-harness/reproduce-goldens.sh` (17 goldens, sha256 truth-bar).
+  `tests/render-harness/reproduce-goldens.sh` (19 goldens, sha256 truth-bar).
   Build with `-DOUARICON_BUILD_TESTS=ON`; the target is `O-Contrabass-render-test`.
 - Acceptance criteria beyond byte-identity live in the per-mode JSON (`pass_nan`,
   `pass_peak`, `pass_blockTime`, `pass_rms*`, vibrato rate/depth ranges, stability

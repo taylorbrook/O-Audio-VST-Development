@@ -346,3 +346,93 @@ Ready for: **research phase** — Phase 2.6 umbrella research (or Phase 2.6a res
 ### Next Phase
 
 Ready for: **research phase** — Phase 2.6b RESEARCH §23 author. Scope LOCKED in this amendment + Q11–Q20 + R40 6-task breakdown + Gate 8b 5-invariant scorecard + 6 NEW risks + 6 open research questions above. RESEARCH §22 (Phase 2.6a) + §22-bis (Phase 2.6a-bis) closed; §23 is fresh append at later sub-cycle research-phase. §24 (Phase 2.6c Note Expression) deferred to its own sub-cycle.
+
+---
+
+## rev-11.c — Phase 2.6c sub-cycle amendment (VST3 Note Expression FUNC-06 + FUNC-05 MPE Y/Z)
+
+**Date:** 2026-07-09
+**Phase:** 2.6c discuss — LOCKED
+**Atomic target:** R41
+**Supersedes:** none (sub-cycle amendment to umbrella rev-11; rev-11.b closed with Gate 8b PASS)
+**Predecessor sub-cycle:** Phase 2.6b verify (Gate 8b PASS at HEAD 88179d2 — 5/5 invariants: 3 strict-PASS + 2 PASS-with-documented-PLAN-rev-14-tolerance-deviations on harness measurement bars; 0 production-code regressions; independent reproduction 17/17 goldens byte-identical; R40 atomic `e7f71158bc1c552983baa3345a5ad20013a281f2` + R40-backfill chore `c3f70b2`).
+
+### Live-state discrepancies resolved against rev-11 §22.6c (D4–D6)
+
+- **D4 — "Per-voice NE event drain" vs module-owned pattern:** rev-11 §22.6c text described a "per-voice NE event drain". **Live module** `modules/tuning/note-expression` v1.1.0 implements the D-09 pattern: **processor-level** `vst3Extensions.drainAndUpdate()` once per `processBlock` entry + module-owned 128-slot `PendingTuningTable` (`std::array<std::atomic<double>, 128>`); the voice consumes at note-on via `Ouaricon::NoteExpression::applyPendingTuning(table, midiNote, freq)` which `exchange(0.0)`-consumes the slot and composes **multiplicatively AFTER the TuningEngine lookup** (module D-10 contract, documented in NoteExpression.h). **LOCKED: module pattern authoritative**; rev-11 §22.6c text drift. O-Lyrica confirms live usage: `PluginProcessor.h:115` (`getVST3ClientExtensions` override), `PluginProcessor.h:192` (member), `PluginProcessor.cpp:730` (drain), `PluginProcessor.cpp:512` (`setPendingTuningSource(&vst3Extensions.getPendingTable())`), `HarpSynthVoice.cpp:161` (`applyPendingTuning`).
+- **D5 — FUNC-05 MPE Y/Z has NO O-Lyrica precedent:** `HarpSynthVoice` never overrides `notePressureChanged`/`noteTimbreChanged` — the Y/Z half of Phase 2.6c is **new design**, not a port. O-Contrabass voice already has empty stubs at `BowedContrabassVoice.cpp:189-197` ("will be wired in Phase 2.6") and `BOW_PRESSURE`/`BOW_POSITION` params exist (`PluginProcessor.cpp:48-50`) with established LFO (`×(1+0.5·lfo)`) + macro (`×(1+0.6·macro)`) multiplicative composition at voice lines 495–508. Q21/Q22 below lock the mapping design.
+- **D6 — JUCE-NE-PATCH verified PRESENT at discuss-phase:** raw-event forwarding confirmed live at `~/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp:3700-3736` (`kNoteExpressionValueEvent` → `Kind::NoteExpressionValue` queue push). Known cosmetic drift: patch filename `scripts/juce-patches/note-expression-juce-8.0.4.patch` is actually an 8.0.9 diff (rename pending, tracked in memory; NOT a Phase 2.6c task). Gate 8c invariant 5 asserts presence formally; mechanism (CMake configure-time vs runtime) is a RESEARCH §24 question.
+
+### Q21–Q29 LOCKED
+
+| # | Decision | Choice | Rationale |
+|---|----------|--------|-----------|
+| Q21 | MPE Y (timbre/CC74) → BOW_POSITION mapping | **Bipolar additive offset.** Y=0.5 (MPE center default) → zero offset; ±0.5 span maps to a bounded ±β offset around the knob value, clamped to param range. Depth calibrated at research-phase | Knob stays the macro center; guaranteed no-op when host sends no Y events (Gate 8c invariant 1); absence of events must leave offset state at 0 (risk #39) |
+| Q22 | MPE Z (pressure) → BOW_PRESSURE composition | **Multiplicative like macro:** `effectivePressure ×= (1 + k·Z)`; Z=0 → ×1.0 no-op. Depth k calibrated at research-phase | Matches existing LFO/macro composition idiom at voice lines 495–508; clean no-op at default; refines rev-11 "additive" wording (multiplicative composition, additive-in-effect on top of knob) |
+| Q23 | HR-13 — raw-event drain contract | **NEW HR-13 LOCKED:** "VST3 raw-event queue drains exactly once per `processBlock` entry, BEFORE `synth.renderNextBlock`; lock-free queue + atomic PendingTuningTable consume (extends HR-12); no mutex / allocation / file I/O on audio thread" | Fills the slot reserved at rev-11.b; makes drain ordering (umbrella risk #8) a durable plugin-level invariant |
+| Q24 | NE tuning application model | **Note-on-only consume** via `applyPendingTuning` (module `exchange(0.0)` semantics), composed AFTER TuningEngine lookup per module D-10. Mid-note NE retune NOT supported in v1.0 (module design; consistent with Q17 note-on-only tuning) | LOCKED by module v1.1.0 design, not re-litigable at plugin level; Dorico spike (2026-04-23) validated note-on application |
+| Q25 | NE integration pattern | **O-Lyrica D-09 pattern verbatim:** `Ouaricon::NoteExpression::VST3Extensions` member + `getVST3ClientExtensions()` override + `drainAndUpdate()` at processBlock entry + `setPendingTuningSource(&getPendingTable())` at voice construction | Production-proven reference (O-Lyrica); module owns the table (D-09); minimal plugin-side surface |
+| Q26 | Phase 2.6c parameter-spec.md amendment | **NO amendment.** Post-Phase-2.6a sha `ae956e94…` carries forward unchanged through Phase 2.6c. NE + MPE Y/Z are event-path wire-ups; no new params | Q7/Q14 precedent — Phase 2.6a was the FIRST + LAST Stage-1 contract amendment in Stage 2 |
+| Q27 | R41 task breakdown | **6-task** (R41-pre → R41a → R41b → R41c → R41d → R41e → R41 atomic → R41-backfill chore) per breakdown below | Mirrors R40 compressed shape: no NEW source files, only M to PluginProcessor + voice + harness |
+| Q28 | Phase 2.6c Gate 8c 5-invariant scorecard | **LOCKED** as below (refines umbrella: invariant 1 bar is all **17** goldens, not "Phase 2.6b goldens") | Carries rev-11 §22.6c LOCKED + Q21–Q25 refinements |
+| Q29 | Phase 2.6c risk register additions | **6 NEW risks LOCKED** (#37–#42 below); cumulative 42 entries (36 at Phase 2.6b verify exit + 6 Phase 2.6c) | NE/Y-Z integration surfaces 6 new failure modes; #42 (harness NE injection) is the load-bearing research question |
+
+### R41 6-task breakdown LOCKED
+
+- **R41-pre** (tripwire — re-runs at execute-phase entry):
+  1. `git status` clean against WIP scope.
+  2. 17 goldens (14 audible + microtonal-12tet/scala/mpe) reproduce byte-identical at HEAD descendant of R40 atomic `e7f71158…` (`reproduce-goldens.sh` 17-entry PASS).
+  3. parameter-spec.md sha matches `ae956e94…` (Q26 anchor).
+  4. Saturator carry-forward verify: `grep -c "sat \* std::tanh" plugins/O-Contrabass/Source/WaveguideString.cpp` returns 2.
+  5. Module link audit: `grep "note-expression" plugins/O-Contrabass/CMakeLists.txt` returns the `ouaricon_add_module` line (CMakeLists.txt:90, Pattern A).
+  6. JUCE-NE-PATCH presence: `grep -c "kNoteExpressionValueEvent" ~/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp` ≥ 1.
+  7. Pre-edit greps: `grep -n "VST3Extensions\|NoteExpression" plugins/O-Contrabass/Source/PluginProcessor.{h,cpp}` returns 0 hits (Phase 2.6c adds them); `notePressureChanged`/`noteTimbreChanged` bodies in `BowedContrabassVoice.cpp:189-197` are empty stubs.
+- **R41a** — `Source/PluginProcessor.{h,cpp}` M (~15 LOC NEW): `Ouaricon::NoteExpression::VST3Extensions` member + `getVST3ClientExtensions()` override + `vst3Extensions.drainAndUpdate()` at processBlock entry before `synth.renderNextBlock` (PluginProcessor.cpp:258) per HR-13 + `setPendingTuningSource(&vst3Extensions.getPendingTable())` at voice construction site (O-Lyrica PluginProcessor.cpp:512 pattern).
+- **R41b** — `Source/BowedContrabassVoice.{h,cpp}` M (~30 LOC NEW+M): `applyPendingTuning` compose at noteStarted AFTER TuningEngine lookup × refPitchRatio (D-10 order; slots after the R40b Site A refactor); `noteTimbreChanged()` → Q21 bipolar Y offset target; `notePressureChanged()` → Q22 multiplicative Z target; per-block smoothing reuses existing 20 ms `SmoothedValue` idiom (ESC-MPE1 precedent).
+- **R41c** — `tests/render-harness/main.cpp` M (~150 LOC NEW): `--note-expression` mode (NE injection strategy per RESEARCH §24 / risk #42 — harness is not a VST3 host, so synthetic semitone deltas seed the PendingTuningTable directly pre-note-on; verify output frequency deviation matches expected) + `--mpe-yz` mode (channel-2 CC74/pressure sweep → BOW_POSITION/BOW_PRESSURE tracking metrics). Both emit JSON measurement summaries; pitch detection reuses Phase 2.3 autocorrelation.
+- **R41d** — golden artefacts: 2 NEW — `note-expression.{wav,json,wav.sha256,json.sha256}` + `mpe-yz.{wav,json,wav.sha256,json.sha256}`; 17 goldens carry-forward bit-identical at NE-default state (Gate 8c invariant 1); 3-trial bit-stability per R39e/R40d precedent; `reproduce-goldens.sh` 17→19 entries.
+- **R41e** — regression bar: 19-entry `reproduce-goldens.sh` PASS + source audit hook reports EXACTLY {PluginProcessor.{h,cpp} M + BowedContrabassVoice.{h,cpp} M + tests/render-harness/main.cpp M} + 0 CMake edits + 0 parameter-spec amendment + saturator carry-forward + setLatencySamples invariant + `auval -v aumu OCbs OuDv` SUCCESS + `pluginval --strictness-level 10` SUCCESS full battery (Background thread state + Parameter thread safety + Buffer fuzz).
+- **R41 atomic commit** — single atomic per R36-bis/R37/R39/R40 precedent: 3 source M + 2 NEW goldens (8 artefact files) + reproduce-goldens.sh M + RESEARCH §24 + CONTEXT rev-11.c + PLAN rev-15 (Phase 2.6c plan-phase author) + SUMMARY/VERIFICATION/STATUS planning artefacts.
+- **R41-backfill chore** — sha propagation per R34…R40 precedent.
+
+### Phase 2.6c Gate 8c 5-invariant scorecard LOCKED
+
+1. **NE-default-state byte-identical:** all 17 goldens reproduce at post-R40 sha256s with NE wiring live but no NE/Y/Z events (HR-style determinism; Q21/Q22 no-op-at-default designs + HR-13 verify).
+2. **Synthetic NE-tuning stream** → expected per-note pitch deviation via harness `--note-expression` JSON metrics (tolerance set at plan-phase; Phase 2.6b autocorrelation precision floor ±10¢ is the starting bar).
+3. **MPE Y/Z per-note expression** maps to BOW_POSITION/BOW_PRESSURE without RT-safety violation (harness `--mpe-yz` metrics + pluginval-10 thread-safety battery).
+4. **auval AU + pluginval-10 SUCCESS** full battery.
+5. **JUCE-NE-PATCH presence asserted** (mechanism per RESEARCH §24: CMake configure-time check vs runtime check; D6 confirms present at discuss).
+
+### Phase 2.6c risk register (6 NEW; cumulative 42 entries)
+
+| # | Risk | Trigger | Mitigation | Status |
+|---|------|---------|------------|--------|
+| 37 | NE drain ordering race with MPE/MIDI dispatch | R41a drain placement | HR-13: drain exactly once at processBlock entry BEFORE renderNextBlock; O-Lyrica PluginProcessor.cpp:730 precedent | Mitigated by HR-13 + Q25 |
+| 38 | Retriggered note at same pitch inherits stale NE offset | R41b voice consume | Module `applyPendingTuning` `exchange(0.0)` consume semantics (designed-in) | Mitigated by module D-10 design |
+| 39 | Host sends no Y events but voice applies non-zero Y offset (default ≠ center) | R41b Y state init | Q21 LOCKED: offset state initialises to 0; only `noteTimbreChanged()` callback writes it; Y=0.5 maps to 0 offset | Mitigated by Q21 design |
+| 40 | Y/Z per-block modulation clicks under fast MPE gestures | R41b smoothing | Reuse existing 20 ms SmoothedValue idiom (ESC-MPE1 verified click-free at same ramp velocity order) | Mitigated by ESC-MPE1 precedent |
+| 41 | 17 goldens drift at NE-default if drain wire perturbs render path | R41a/R41b | Gate 8c invariant 1 + R41-pre tripwire step 2 + Q21/Q22 no-op-at-default designs | Mitigated by invariant 1 bar |
+| 42 | Harness cannot inject raw VST3 NE events (not a VST3 host — patched wrapper path unreachable offline) | R41c `--note-expression` design | Synthetic deltas seed PendingTuningTable directly (exercises applyPendingTuning + voice compose); wrapper→queue path is covered by O-Lyrica production precedent + Stage 4 Dorico audition (Q6) | Open (RESEARCH §24 confirms injection surface) |
+
+### Open Questions for Phase 2.6c research-phase (RESEARCH §24)
+
+- **note-expression module API line-review:** `VST3Extensions` construction/registration requirements; `drainAndUpdate()` threading contract; `Controller` wiring; what CMakeLists.txt:89 "Pattern A (per-format VST3 routing required)" implies for the AU build (NE is VST3-only — confirm AU path no-ops cleanly with zero overhead).
+- **JUCE-NE-PATCH assertion mechanism** (Gate 8c invariant 5): CMake configure-time grep vs `static_assert`/compile-time detection vs runtime check. Pick one; O-Lyrica precedent review.
+- **Harness NE injection surface** (risk #42): direct `PendingTuningTable` write via `getPendingTable()` vs a test hook on `VST3Extensions`; confirm `--note-expression` mode can seed deltas pre-note-on without a message loop (Phase 2.6b setMode-bypass precedent).
+- **Q21/Q22 depth calibration:** Y offset span (±β bound) and Z depth k — propose concrete values against BOW_POSITION [range audit] and BOW_PRESSURE composition at voice lines 495–508; must not push effectiveBowPressure past Schelleng-calibrated stable region (Phase 2.4a matrix evidence).
+- **MPE Y/Z legacy-mode behavior:** in `enableLegacyMode(24, {1,16})`, does JUCE route global CC74 / channel pressure to `noteTimbreChanged`/`notePressureChanged` on all sounding notes? Verify both MPE-host and legacy-host paths; harness `--mpe-yz` must drive whichever path is real.
+- **O-Lyrica line-by-line port checklist:** PluginProcessor.h:115/192, PluginProcessor.cpp:512/730, HarpSynthVoice.cpp:161 — exact O-Contrabass insertion points (processBlock entry at PluginProcessor.cpp:245-258; noteStarted post-R40b Site A).
+
+### Cross-Cycle Carry-Forward (Phase 2.6c additions)
+
+- HR-13 LOCKED at Phase 2.6c discuss; effective from R41 execute onwards; promotes to v1.1 cycles alongside HR-12.
+- 17 goldens carry-forward at post-R40 sha256s through Phase 2.6c execute-phase entry; R41 atomic preserves bit-equality at NE-default state (Gate 8c invariant 1). Key anchors: microtonal-12tet `38eab789…`, microtonal-scala `b2d2ec23…`, microtonal-mpe `68a5df92…`, output-chain `b5fc1d60…`, detune-sweep-A `db908ebc…`.
+- parameter-spec.md sha `ae956e94…` carries forward UNCHANGED through Phase 2.6c (Q26 lock).
+- ARCHITECTURE.md carries forward; 3 amendments still fold into Stage 2 full verify as single task (Q7 LOCKED). D3 (OUTPUT_LEVEL vs OUTPUT_GAIN) still flagged for Stage 2 full verify audit.
+- HR-1..HR-10 + HR-12 + HR-13 in effect; HR-11 retired.
+- Atomic-commit sequence: R7 → R15 → R20 → R26 → R33 → R34 → R35 → R36 → R36-bis → R37 → R39 → R39-bis (ada2c98) → R40 (e7f7115) → R40-backfill (c3f70b2) → **R41** (Phase 2.6c atomic) → Stage 2 verify amendments commit.
+- After Gate 8c PASS: Stage 2 full verify runs as SEPARATE `/plugin-verify O-Contrabass 2-dsp` invocation (Q10 LOCKED).
+
+### Next Phase
+
+Ready for: **research phase** — Phase 2.6c RESEARCH §24 author. Scope LOCKED in this amendment: D4–D6 + Q21–Q29 + R41 6-task breakdown + Gate 8c 5-invariant scorecard + 6 NEW risks (#37–#42) + 6 open research questions above. RESEARCH §22/§22-bis/§23 closed; §24 is a fresh append.

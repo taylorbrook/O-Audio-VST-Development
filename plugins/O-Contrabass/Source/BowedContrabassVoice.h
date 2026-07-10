@@ -33,6 +33,7 @@
 #include "DSP/BowNoiseGenerator.h"
 #include "BowModel.h"
 #include "HyperbolicFriction.h"
+#include "NoteExpression.h"   // Phase 2.6c R41b — Steinberg-free module header (safe in voice TU)
 
 class TuningEngine;     // Phase 2.6b R40b forward decl — full include in .cpp
 
@@ -64,6 +65,13 @@ public:
     // CC11 expression macro — set by OContrabassMPESynthesiser. Cached now,
     // wired into the bow envelope in Phase 2.6 alongside Note Expression.
     void setExpression (float value) noexcept { mpeExpression = value; }
+
+    // Phase 2.6c R41b — VST3 Note Expression pending-table source (module-owned
+    // table, D-09 pattern; processor wires this in its ctor addVoice loop).
+    void setPendingTuningSource (Ouaricon::NoteExpression::PendingTuningTable* t) noexcept
+    {
+        pendingTuningSource = t;
+    }
 
     // Phase 2.3 R29 — Schelleng wedge instrumentation hook (single-writer audio
     // thread / single-reader harness; relaxed memory order — no cross-thread
@@ -97,6 +105,10 @@ private:
     // multiplicative pow2(bend/12) on the cached value — NO re-poll mid-sustain.
     TuningEngine* tuningEngine        = nullptr;
     double        tuningEngineBaseFreqHz { 0.0 };
+
+    // Phase 2.6c R41b — pending NE tuning table (owned by the processor's
+    // VST3Extensions member; nullptr until setPendingTuningSource is called).
+    Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 
     // DSP composition — Phase 2.2 4-string bank (slots 0=E, 1=A, 2=D, 3=G).
     std::array<WaveguideString, 4> strings;
