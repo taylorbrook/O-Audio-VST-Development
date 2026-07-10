@@ -65,6 +65,35 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
     // Instrument Preset (int param as slider relay)
     instrumentPresetRelay = std::make_unique<juce::WebSliderRelay>("instrumentPreset");
 
+    // Sound-tab params (CR-02: shipped without relays in v1.12.0)
+    growlRelay = std::make_unique<juce::WebSliderRelay>("growl");
+    formantRelay = std::make_unique<juce::WebSliderRelay>("formant");
+    vibratoDriftDepthRelay = std::make_unique<juce::WebSliderRelay>("vibratoDriftDepth");
+    vibratoDriftSpeedRelay = std::make_unique<juce::WebSliderRelay>("vibratoDriftSpeed");
+
+    // Effects tab (CR-01: shipped without any relays in v1.14.0)
+    chorusRateRelay = std::make_unique<juce::WebSliderRelay>("chorusRate");
+    chorusDepthRelay = std::make_unique<juce::WebSliderRelay>("chorusDepth");
+    chorusMixRelay = std::make_unique<juce::WebSliderRelay>("chorusMix");
+    delayTimeRelay = std::make_unique<juce::WebSliderRelay>("delayTime");
+    delayFeedbackRelay = std::make_unique<juce::WebSliderRelay>("delayFeedback");
+    delayMixRelay = std::make_unique<juce::WebSliderRelay>("delayMix");
+    eqLowGainRelay = std::make_unique<juce::WebSliderRelay>("eqLowGain");
+    eqMidGainRelay = std::make_unique<juce::WebSliderRelay>("eqMidGain");
+    eqMidFreqRelay = std::make_unique<juce::WebSliderRelay>("eqMidFreq");
+    eqHighGainRelay = std::make_unique<juce::WebSliderRelay>("eqHighGain");
+    reverbSizeRelay = std::make_unique<juce::WebSliderRelay>("reverbSize");
+    reverbDampRelay = std::make_unique<juce::WebSliderRelay>("reverbDamp");
+    reverbPredelayRelay = std::make_unique<juce::WebSliderRelay>("reverbPredelay");
+    reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
+    reverbModRelay = std::make_unique<juce::WebSliderRelay>("reverbMod");
+    reverbShimmerRelay = std::make_unique<juce::WebSliderRelay>("reverbShimmer");
+    chorusBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("chorusBypass");
+    delayBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("delayBypass");
+    eqBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("eqBypass");
+    reverbBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("reverbBypass");
+    delayModeRelay = std::make_unique<juce::WebComboBoxRelay>("delayMode");
+
     // ===================================================================
     // 2. CREATE WEBVIEW with all relays + native functions
     // ===================================================================
@@ -117,6 +146,33 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             .withOptionsFrom(*toneHoleToggleRelay)
             // Instrument Preset
             .withOptionsFrom(*instrumentPresetRelay)
+            // Sound-tab params (CR-02)
+            .withOptionsFrom(*growlRelay)
+            .withOptionsFrom(*formantRelay)
+            .withOptionsFrom(*vibratoDriftDepthRelay)
+            .withOptionsFrom(*vibratoDriftSpeedRelay)
+            // Effects tab (CR-01)
+            .withOptionsFrom(*chorusRateRelay)
+            .withOptionsFrom(*chorusDepthRelay)
+            .withOptionsFrom(*chorusMixRelay)
+            .withOptionsFrom(*delayTimeRelay)
+            .withOptionsFrom(*delayFeedbackRelay)
+            .withOptionsFrom(*delayMixRelay)
+            .withOptionsFrom(*eqLowGainRelay)
+            .withOptionsFrom(*eqMidGainRelay)
+            .withOptionsFrom(*eqMidFreqRelay)
+            .withOptionsFrom(*eqHighGainRelay)
+            .withOptionsFrom(*reverbSizeRelay)
+            .withOptionsFrom(*reverbDampRelay)
+            .withOptionsFrom(*reverbPredelayRelay)
+            .withOptionsFrom(*reverbMixRelay)
+            .withOptionsFrom(*reverbModRelay)
+            .withOptionsFrom(*reverbShimmerRelay)
+            .withOptionsFrom(*chorusBypassRelay)
+            .withOptionsFrom(*delayBypassRelay)
+            .withOptionsFrom(*eqBypassRelay)
+            .withOptionsFrom(*reverbBypassRelay)
+            .withOptionsFrom(*delayModeRelay)
 
             // =============================================================
             // PRESET NATIVE FUNCTIONS
@@ -180,7 +236,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                 );
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                     complete](const juce::FileChooser& fc) {
+                        // Editor destroyed while the dialog was up: bare return —
+                        // `complete` is owned by the dead WebView, calling it is a UAF
+                        if (safeThis == nullptr)
+                            return;
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -188,8 +249,13 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                             return;
                         }
                         auto name = result.getFileNameWithoutExtension();
-                        auto& pm = processorRef.getPresetManager();
-                        pm.savePreset(name);
+                        auto& pm = safeThis->processorRef.getPresetManager();
+                        // Honor the directory the user picked — savePreset()
+                        // always writes to the user-presets dir (WR-12)
+                        if (result.isAChildOf(pm.getUserPresetsDirectory()))
+                            pm.savePreset(name);
+                        else
+                            pm.savePresetToFile(result.withFileExtension("json"));
                         complete(juce::var(name));
                     }
                 );
@@ -307,9 +373,16 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
 
             .withNativeFunction("setMasterTune", [this](const juce::Array<juce::var>& args, auto complete) {
                 if (args.size() >= 1) {
-                    processorRef.getTuningEngine()->setMasterTune(static_cast<double>(args[0]));
-                    complete(true);
-                    return;
+                    // Route through the referencePitch parameter (single source of
+                    // truth) — writing the engine directly diverges from the APVTS
+                    // and snaps back to 440 on session reload (WR-11). The
+                    // parameterChanged listener forwards to the engine.
+                    if (auto* param = processorRef.getAPVTS().getParameter("referencePitch")) {
+                        float hz = static_cast<float>(static_cast<double>(args[0]));
+                        param->setValueNotifyingHost(param->convertTo0to1(hz));
+                        complete(true);
+                        return;
+                    }
                 }
                 complete(false);
             })
@@ -336,10 +409,13 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     "*.scl;*.tun");
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                     complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
-                            bool success = processorRef.getTuningEngine()->loadScalaFile(file);
+                            bool success = safeThis->processorRef.getTuningEngine()->loadScalaFile(file);
                             complete(success);
                         } else {
                             complete(false);
@@ -354,10 +430,13 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     "*.kbm");
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                     complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
-                            bool success = processorRef.getTuningEngine()->loadKBMFile(file);
+                            bool success = safeThis->processorRef.getTuningEngine()->loadKBMFile(file);
                             complete(success);
                         } else {
                             complete(false);
@@ -397,6 +476,68 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     return;
                 }
                 complete(juce::var());
+            })
+
+            .withNativeFunction("generateRank2", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 3) {
+                    double generator = static_cast<double>(args[0]);
+                    double period = static_cast<double>(args[1]);
+                    int count = static_cast<int>(args[2]);
+                    auto intervals = ScaleGenerator::generateRank2(generator, period, count);
+                    juce::String json = "[";
+                    for (size_t i = 0; i < intervals.size(); ++i) {
+                        if (i > 0) json += ",";
+                        json += juce::String(intervals[i], 6);
+                    }
+                    json += "]";
+                    complete(json);
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("scale.scl"),
+                    "*.scl");
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                     complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // bare return — see savePresetWithDialog
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto content = safeThis->processorRef.getTuningEngine()->generateScalaFileContent();
+                            complete(file.replaceWithText(content));
+                        } else {
+                            complete(false);
+                        }
+                    });
+            })
+
+            .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("mapping.kbm"),
+                    "*.kbm");
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                     complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // bare return — see savePresetWithDialog
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto content = safeThis->processorRef.getTuningEngine()->generateKBMFileContent();
+                            complete(file.replaceWithText(content));
+                        } else {
+                            complete(false);
+                        }
+                    });
             })
 
             .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args, auto complete) {
@@ -467,11 +608,14 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     "*.html");
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                     complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file != juce::File()) {
                             auto html = TuningExporter::toHTML(
-                                *processorRef.getTuningEngine(), "O-Wind");
+                                *safeThis->processorRef.getTuningEngine(), "O-Wind");
                             file.replaceWithText(html);
                             complete(true);
                         } else {
@@ -556,6 +700,60 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
     instrumentPresetAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("instrumentPreset"), *instrumentPresetRelay, nullptr);
 
+    // Sound-tab params (CR-02)
+    growlAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("growl"), *growlRelay, nullptr);
+    formantAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("formant"), *formantRelay, nullptr);
+    vibratoDriftDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("vibratoDriftDepth"), *vibratoDriftDepthRelay, nullptr);
+    vibratoDriftSpeedAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("vibratoDriftSpeed"), *vibratoDriftSpeedRelay, nullptr);
+
+    // Effects tab (CR-01)
+    chorusRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusRate"), *chorusRateRelay, nullptr);
+    chorusDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusDepth"), *chorusDepthRelay, nullptr);
+    chorusMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusMix"), *chorusMixRelay, nullptr);
+    delayTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayTime"), *delayTimeRelay, nullptr);
+    delayFeedbackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayFeedback"), *delayFeedbackRelay, nullptr);
+    delayMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayMix"), *delayMixRelay, nullptr);
+    eqLowGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqLowGain"), *eqLowGainRelay, nullptr);
+    eqMidGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidGain"), *eqMidGainRelay, nullptr);
+    eqMidFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidFreq"), *eqMidFreqRelay, nullptr);
+    eqHighGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqHighGain"), *eqHighGainRelay, nullptr);
+    reverbSizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbSize"), *reverbSizeRelay, nullptr);
+    reverbDampAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbDamp"), *reverbDampRelay, nullptr);
+    reverbPredelayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbPredelay"), *reverbPredelayRelay, nullptr);
+    reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
+    reverbModAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbMod"), *reverbModRelay, nullptr);
+    reverbShimmerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbShimmer"), *reverbShimmerRelay, nullptr);
+    chorusBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("chorusBypass"), *chorusBypassRelay, nullptr);
+    delayBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("delayBypass"), *delayBypassRelay, nullptr);
+    eqBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("eqBypass"), *eqBypassRelay, nullptr);
+    reverbBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("reverbBypass"), *reverbBypassRelay, nullptr);
+    delayModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("delayMode"), *delayModeRelay, nullptr);
+
     // Navigate to embedded UI
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
@@ -566,6 +764,31 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
 OWindAudioProcessorEditor::~OWindAudioProcessorEditor()
 {
     // Explicit destruction in reverse order for safety
+    delayModeAttachment.reset();
+    reverbBypassAttachment.reset();
+    eqBypassAttachment.reset();
+    delayBypassAttachment.reset();
+    chorusBypassAttachment.reset();
+    reverbShimmerAttachment.reset();
+    reverbModAttachment.reset();
+    reverbMixAttachment.reset();
+    reverbPredelayAttachment.reset();
+    reverbDampAttachment.reset();
+    reverbSizeAttachment.reset();
+    eqHighGainAttachment.reset();
+    eqMidFreqAttachment.reset();
+    eqMidGainAttachment.reset();
+    eqLowGainAttachment.reset();
+    delayMixAttachment.reset();
+    delayFeedbackAttachment.reset();
+    delayTimeAttachment.reset();
+    chorusMixAttachment.reset();
+    chorusDepthAttachment.reset();
+    chorusRateAttachment.reset();
+    vibratoDriftSpeedAttachment.reset();
+    vibratoDriftDepthAttachment.reset();
+    formantAttachment.reset();
+    growlAttachment.reset();
     instrumentPresetAttachment.reset();
     toneHoleToggleAttachment.reset();
     adsrReleaseAttachment.reset();

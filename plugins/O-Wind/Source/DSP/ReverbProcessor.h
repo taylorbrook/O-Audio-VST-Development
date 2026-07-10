@@ -136,8 +136,12 @@ private:
     // Dry/wet mixer
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
-    // Scaled delay lengths
+    // Scaled delay lengths — scaledDelays glides toward targetDelays per sample
+    // (~50 ms one-pole) so Size changes don't jump the FDN read heads
+    // (the Householder feedback recirculates each discontinuity as a click)
     std::array<float, kNumChannels> scaledDelays {};
+    std::array<float, kNumChannels> targetDelays {};
+    float delaySmoothCoeff = 0.001f;
     float prevSizeForDelays = -1.0f;
 
     // -- Atomic targets --

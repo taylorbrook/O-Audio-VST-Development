@@ -26,13 +26,17 @@ public:
     void setMix (float mix);
 
 private:
+    // Initial capacity only — prepare() resizes for the full 2.0 s param range
+    // at the actual sample rate (192000 silently clamps above 96 kHz)
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> delayL { 192000 };
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> delayR { 192000 };
     juce::dsp::StateVariableTPTFilter<float> feedbackFilterL;
     juce::dsp::StateVariableTPTFilter<float> feedbackFilterR;
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
-    float delaySamples = 0.0f;
+    // Smoothed per sample (~30 ms) so time changes glide instead of the read
+    // head jumping arbitrary distances every block (broadband clicks)
+    juce::SmoothedValue<float> delaySmoothed;
     float feedbackAmount = 0.3f;
     int delayMode = 0; // 0=Normal, 1=PingPong
     float currentSampleRate = 44100.0f;

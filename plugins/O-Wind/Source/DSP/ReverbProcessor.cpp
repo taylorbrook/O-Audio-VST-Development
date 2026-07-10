@@ -218,7 +218,11 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
         tankState[static_cast<size_t> (ch)] = 0.0f;
 
         scaledDelays[static_cast<size_t> (ch)] = static_cast<float> (kBaseDelays[ch]) * srRatio;
+        targetDelays[static_cast<size_t> (ch)] = scaledDelays[static_cast<size_t> (ch)];
     }
+
+    // ~50 ms one-pole for Size-driven delay-length glides
+    delaySmoothCoeff = 1.0f - std::exp (-1.0f / (0.05f * currentSampleRate));
 
     for (int i = 0; i < 4; ++i)
     {
@@ -310,7 +314,7 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
     {
         float delayScale = (0.5f + size) * srRatio;
         for (int ch = 0; ch < kNumChannels; ++ch)
-            scaledDelays[static_cast<size_t> (ch)] = static_cast<float> (kBaseDelays[ch]) * delayScale;
+            targetDelays[static_cast<size_t> (ch)] = static_cast<float> (kBaseDelays[ch]) * delayScale;
         prevSizeForDelays = size;
     }
 
@@ -324,6 +328,11 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     for (size_t i = 0; i < numSamples; ++i)
     {
+        // Glide tank delay lengths toward their Size-derived targets
+        for (int ch = 0; ch < kNumChannels; ++ch)
+            scaledDelays[static_cast<size_t> (ch)] += delaySmoothCoeff
+                * (targetDelays[static_cast<size_t> (ch)] - scaledDelays[static_cast<size_t> (ch)]);
+
         float inL = leftData[i];
         float inR = rightData[i];
 

@@ -1,5 +1,95 @@
 # O-Wind Changelog
 
+## [1.16.1] - 2026-07-10
+
+### Fixed — CODE_REVIEW.md resolution sweep (CR-01..08, WR-01..13)
+
+Resolves all 8 critical and 13 warning findings from the 2026-07-09 deep code review.
+IN-* info findings deferred (documented in NOTES.md).
+
+**Critical:**
+
+- **CR-01 — Entire Effects tab was dead.** The v1.14.0 release added 21 effects
+  parameters and their JS bindings but never wrote the C++ relays/attachments, so
+  every FX knob, bypass toggle, and the delay-mode dropdown were inert and (with all
+  mix defaults at 0) the whole effects chain was unreachable from the UI. Added 16
+  `WebSliderRelay`, 4 `WebToggleButtonRelay`, 1 `WebComboBoxRelay` + matching
+  attachments in relay → webView → attachment order. (PluginEditor.{h,cpp})
+- **CR-02 — Growl, Formant, Drift Depth/Speed knobs were dead** since v1.12.0 (same
+  missing-relay class). Notably `formant` was stuck at 0.5, permanently applying a
+  +3 dB headjoint peak that couldn't be turned off from the UI. Added 4 relays +
+  attachments.
+- **CR-03 — ~80 heap alloc/free pairs per audio block.** The voice filter-update path
+  wrapped `ArrayCoefficients` results in temporary `IIR::Coefficients` objects, which
+  heap-allocate twice per assignment — unconditionally, every block, all 8 voices.
+  Now assigns the stack arrays in place (allocation-free after first use): both bore
+  loss filters, end-reflection shelf, radiation HP (BoreWaveguide.h), inharmonicity
+  allpasses (raw-array assign), and Strouhal bandpass (JetExciter.h).
+- **CR-04 — Stuck drone when ADSR disabled mid-release.** `updateParametersFromAPVTS`
+  now resolves a pending deferred jet release (calls `jetExciter.stopNote()`, clears
+  `pendingJetRelease`, idles the stage) when `adsrEnabled` goes false, so releasing
+  voices can't be orphaned at full level. (FluteSynthVoice.cpp)
+- **CR-05 — Tuning state lost on session reload.** `setCustomStateCallbacks` was never
+  registered, so Scala/KBM/embedded tunings, tonic, octave stretch, and mode silently
+  reverted to 12-TET on reload. Registered the O-Lyrica-pattern save/load lambdas
+  (intervals, scale name, tonic, built-in preset, octave stretch, mode + APVTS
+  tuningSystem sync). (PluginProcessor.cpp)
+- **CR-06 — Bundle reported version 1.0.0.** `juce_add_plugin` has no `PLUGIN_VERSION`
+  keyword (silently dropped; fell back to the root project's 1.0.0), which also froze
+  the factory-preset version sentinel forever. Changed to `VERSION "1.16.1"` — same
+  fix as O-IntonationPad e87ae36. Factory presets regenerate once via the new stamp.
+- **CR-07 — FileChooser `launchAsync` UAF on editor teardown.** All four completions
+  (save preset, load .scl, load .kbm, export HTML) captured raw `this` and called
+  `complete()` on every path. Now capture `Component::SafePointer` and bare-return
+  when the editor is gone (calling `complete` there is itself a UAF — the callback is
+  owned by the destroyed WebView). Fleet pattern from O-MicrotonalSampler v1.23.5 W12.
+- **CR-08 — Rank-2 generator and Save SCL/KBM buttons dead.** Registered the three
+  missing native fns (`generateRank2`, `saveScalaFile`, `saveKBMFile`) following the
+  O-Bells implementations, with CR-07-style SafePointer completions.
+
+**Warnings:**
+
+- **WR-01 — Dblclick-reset ignored skew:** ADSR knobs reset to ~1 ms instead of
+  10/100/200 ms. Reset now derives min/max/skew from backend `SliderState.properties`
+  and applies the skew. (index.html)
+- **WR-02 — Fixed delay-line capacity mistuned low notes at ≥96 kHz:** bore lines
+  (2048) and jet line (1024) now sized from the prepared internal rate for MIDI 0.
+  (BoreWaveguide.h, FluteSynthVoice.cpp)
+- **WR-03/WR-04 — Audio-thread coeff allocations in EQProcessor and the formant
+  filter:** switched `Coefficients::makeXXX` to in-place `ArrayCoefficients` assigns.
+  (EQProcessor.cpp, PluginProcessor.cpp)
+- **WR-05 — `airColumn` was computed then discarded (dead knob):** now wired as a bore
+  geometry macro scaling the bore-loss corner ±½ octave, **neutral at the 0.5
+  default** so factory/default timbre is unchanged; preset values 0.3–0.7 become
+  audibly distinct. `updateBoreLossFilter` dropped its ignored `q` argument.
+- **WR-06 — All 8 voices always ran the full 2× model:** `renderNextBlock` early-outs
+  on `!isVoiceActive()` (state is reset at clear time).
+- **WR-07 — FX delay capacity exceeded at high rates:** lines sized for the full 2.0 s
+  range at the prepared rate; `setTime` clamps to capacity. (DelayProcessor)
+- **WR-08 — Delay time / reverb size snapped instantly (clicks):** delay time now a
+  ~30 ms `SmoothedValue` per sample; FDN tank delay lengths glide toward
+  size-derived targets via ~50 ms one-pole. (DelayProcessor, ReverbProcessor)
+- **WR-09 — Knob readouts derived from a hardcoded JS range map:** all readouts now
+  use `SliderState.getScaledValue()`; FX knob ranges derive from backend-pushed
+  `properties` with display-unit factors. PARAMS retained only for decimals/units and
+  reset defaults. (index.html)
+- **WR-10 — Reference-pitch knob always dragged from 440 and never synced:** shared
+  module `tuning-panel.js` now tracks the current Hz, starts drags from it, and syncs
+  from `getMasterTune` in `loadInitialState`. Fixed in
+  `modules/tuning/scala-tuning-engine` (other plugins pick it up on their next
+  build/sync); docstring also corrected to require the `Juce` ES-module namespace.
+- **WR-11 — `setMasterTune` bypassed the `referencePitch` parameter** (panel setting
+  snapped back to 440 on reload): the native fn now routes through
+  `setValueNotifyingHost`; the existing listener updates the engine.
+- **WR-12 — Save-preset dialog ignored the chosen directory:** saves inside the
+  user-presets dir use `savePreset(name)`; anywhere else uses `savePresetToFile()`.
+- **WR-13 — attackChiff/humanize/vibratoOnset/inharmonicity have no UI knobs:**
+  documented as deliberate (host-automation/preset-only) in NOTES.md; UI knobs are a
+  candidate future MINOR.
+
+**Version:** 1.16.0 → 1.16.1 (PATCH — bug fixes only; no param IDs, ranges, or state
+format changed. The `airColumn` activation is neutral at default.)
+
 ## [1.16.0] - 2026-04-26
 
 ### Added — VST3 Note Expression Microtonal Support for Dorico

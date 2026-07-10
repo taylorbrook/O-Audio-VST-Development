@@ -47,11 +47,14 @@ public:
             1
         };
 
-        // Prepare bore delay lines
+        // Prepare bore delay lines. Each line holds half the bore round trip;
+        // size for the lowest MIDI note (8.176 Hz) at the prepared rate — a
+        // fixed 2048 silently clamps (mistunes) low notes at >= 96 kHz hosts.
+        const int maxHalfDelay = static_cast<int> (std::ceil (sampleRate / 8.176 * 0.5)) + 8;
         boreFwd.prepare (spec);
-        boreFwd.setMaximumDelayInSamples (2048);
+        boreFwd.setMaximumDelayInSamples (maxHalfDelay);
         boreBwd.prepare (spec);
-        boreBwd.setMaximumDelayInSamples (2048);
+        boreBwd.setMaximumDelayInSamples (maxHalfDelay);
 
         // Prepare filters (two cascaded lowpass for frequency-dependent bore loss)
         boreLossLow.prepare (spec);
@@ -64,7 +67,7 @@ public:
         allpass2.prepare (spec);
 
         // Default filter coefficients
-        updateBoreLossFilter (6000.0f, 0.707f);
+        updateBoreLossFilter (6000.0f);
         updateEndReflectionFilter (3000.0f);
         updateRadiationFilter (300.0f);
 
@@ -108,7 +111,9 @@ public:
         inharmonicityCoeff = a;
         if (sampleRate > 0.0 && a > 0.0f)
         {
-            auto coeffs = juce::dsp::IIR::Coefficients<float> (a, 1.0f, 1.0f, a);
+            // Assign raw arrays in place — constructing a temporary
+            // IIR::Coefficients here heap-allocates on the audio thread
+            const std::array<float, 4> coeffs { a, 1.0f, 1.0f, a };
             *allpass1.coefficients = coeffs;
             *allpass2.coefficients = coeffs;
         }
@@ -118,19 +123,20 @@ public:
     // Low cutoff (~2kHz) provides base viscothermal damping.
     // High cutoff (~8kHz) adds extra harmonic rolloff — higher harmonics lose more energy
     // per round trip, creating natural spectral thinning.
-    // The cutoffHz and q parameters from APVTS scale both cutoffs proportionally.
-    void updateBoreLossFilter (float cutoffHz, float q)
+    // The cutoffHz parameter from APVTS scales both cutoffs proportionally.
+    void updateBoreLossFilter (float cutoffHz)
     {
         if (sampleRate <= 0.0) return;
         // Scale factor from user toneColor control (cutoffHz ranges ~1000-12000)
         float scale = cutoffHz / 6000.0f;  // normalized to default
         float lowCut  = juce::jlimit (500.0f,  static_cast<float> (sampleRate * 0.45), 2000.0f * scale);
         float highCut = juce::jlimit (2000.0f, static_cast<float> (sampleRate * 0.45), 8000.0f * scale);
-        juce::ignoreUnused (q);
-        *boreLossLow.coefficients = juce::dsp::IIR::Coefficients<float> (
-            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, lowCut));
-        *boreLossHigh.coefficients = juce::dsp::IIR::Coefficients<float> (
-            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, highCut));
+        // Assign the ArrayCoefficients result directly — wrapping it in a
+        // temporary IIR::Coefficients heap-allocates on the audio thread
+        *boreLossLow.coefficients =
+            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, lowCut);
+        *boreLossHigh.coefficients =
+            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, highCut);
     }
 
     // End reflection: high-shelf that reduces reflection above ~2kHz.
@@ -143,16 +149,17 @@ public:
         // High-shelf with negative gain: attenuates above shelfFreq
         // -6dB shelf gives realistic open-end radiation loss for upper harmonics
         float shelfGainDb = -6.0f;
-        *endReflectionFilter.coefficients = juce::dsp::IIR::Coefficients<float> (
-            juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (sampleRate, shelfFreq, 0.707f, juce::Decibels::decibelsToGain (shelfGainDb)));
+        *endReflectionFilter.coefficients =
+            juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (
+                sampleRate, shelfFreq, 0.707f, juce::Decibels::decibelsToGain (shelfGainDb));
     }
 
     void updateRadiationFilter (float cutoffHz)
     {
         if (sampleRate <= 0.0) return;
         float clampedCutoff = juce::jlimit (20.0f, static_cast<float> (sampleRate * 0.45), cutoffHz);
-        *radiationFilter.coefficients = juce::dsp::IIR::Coefficients<float> (
-            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderHighPass (sampleRate, clampedCutoff));
+        *radiationFilter.coefficients =
+            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderHighPass (sampleRate, clampedCutoff);
     }
 
     // Core per-sample processing of the bore waveguide

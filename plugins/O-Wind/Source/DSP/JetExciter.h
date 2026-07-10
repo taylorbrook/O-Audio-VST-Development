@@ -213,8 +213,10 @@ private:
         {
             float clamped = juce::jlimit (200.0f, static_cast<float> (sampleRate * 0.45), centerHz);
             float q = 1.5f;  // moderate bandwidth for natural turbulence
-            *noiseBandpass.coefficients = juce::dsp::IIR::Coefficients<float> (
-                juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sampleRate, clamped, q));
+            // Assign the ArrayCoefficients result directly — wrapping it in a
+            // temporary IIR::Coefficients heap-allocates on the audio thread
+            *noiseBandpass.coefficients =
+                juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sampleRate, clamped, q);
         }
     }
 

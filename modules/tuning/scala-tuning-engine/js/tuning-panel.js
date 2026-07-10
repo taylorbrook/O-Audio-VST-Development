@@ -15,11 +15,16 @@
  * - Real-time note highlighting (noteOn/noteOff)
  *
  * Usage:
+ *   import * as Juce from './juce/index.js';
  *   import { TuningPanel, initTuningPanel } from './tuning-panel.js';
- *   const panel = new TuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
+ *   const panel = new TuningPanel(document.getElementById('tuning-container'), Juce);
  *   panel.init();
  *   // or:
- *   const panel = await initTuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
+ *   const panel = await initTuningPanel(document.getElementById('tuning-container'), Juce);
+ *
+ * IMPORTANT: pass the `Juce` ES-module namespace, NOT window.__JUCE__ — the
+ * panel calls juceApi.getNativeFunction(), which only exists on the module
+ * namespace. With window.__JUCE__ every backend call silently throws.
  */
 
 export class TuningPanel {
@@ -240,6 +245,10 @@ export class TuningPanel {
             const stretch = await this.juce.getNativeFunction('getOctaveStretch')();
             this.container.querySelector('#octave-stretch').value = stretch;
             this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
+
+            // Sync reference-pitch knob with the engine's master tune
+            if (this.refreshMasterTune)
+                await this.refreshMasterTune();
 
             // Update UI
             this.updateIntervalList();
@@ -910,6 +919,7 @@ export class TuningPanel {
         let isDragging = false;
         let startY = 0;
         let startValue = 440;
+        let currentHz = 440;
 
         const updateKnob = (hz) => {
             const indicator = this.container.querySelector('#ref-pitch-indicator');
@@ -923,9 +933,26 @@ export class TuningPanel {
             }
         };
 
+        // Sync the knob from the engine (called by loadInitialState). Without
+        // this, every drag starts from 440 and a reopened editor shows the
+        // default instead of the actual master tune.
+        this.refreshMasterTune = async () => {
+            if (!this.juce) return;
+            try {
+                const hz = await this.juce.getNativeFunction('getMasterTune')();
+                if (typeof hz === 'number' && isFinite(hz) && hz > 0) {
+                    currentHz = hz;
+                    updateKnob(hz);
+                }
+            } catch (e) {
+                console.error('[TuningPanel] getMasterTune failed:', e);
+            }
+        };
+
         knob.addEventListener('mousedown', (e) => {
             isDragging = true;
             startY = e.clientY;
+            startValue = currentHz;
             document.body.style.cursor = 'ns-resize';
         });
 
@@ -934,6 +961,7 @@ export class TuningPanel {
 
             const delta = (startY - e.clientY) * 0.5;
             const newHz = Math.max(400, Math.min(480, startValue + delta));
+            currentHz = newHz;
             updateKnob(newHz);
 
             if (this.juce) {

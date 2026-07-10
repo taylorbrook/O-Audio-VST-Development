@@ -1240,14 +1240,9 @@
             return rawValue.toFixed(def.decimals) + def.unit;
         }
 
-        function normToRaw(paramName, norm) {
-            const def = PARAMS[paramName];
-            if (!def) return norm;
-            // JUCE skewed range: raw = min + (max - min) * pow(norm, 1/skew)
-            if (def.skew && def.skew !== 1 && norm > 0)
-                norm = Math.pow(norm, 1.0 / def.skew);
-            return def.min + norm * (def.max - def.min);
-        }
+        // Readouts use SliderState.getScaledValue() — the C++ NormalisableRange
+        // pushed via propertiesChanged is the single source of truth. PARAMS is
+        // kept only for decimals/units and double-click reset defaults.
 
         // ====================================================================
         // Slider Parameter Binding (JUCE WebSliderRelay)
@@ -1271,15 +1266,17 @@
                 sliderStates[paramName] = state;
 
                 // Initialize visual
-                const initNorm = state.getNormalisedValue();
-                updateKnobVisual(control, initNorm);
-                control.querySelector('.knob-value').textContent = formatValue(paramName, normToRaw(paramName, initNorm));
+                updateKnobVisual(control, state.getNormalisedValue());
+                control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
 
                 // JUCE -> UI
                 state.valueChangedEvent.addListener(() => {
-                    const norm = state.getNormalisedValue();
-                    updateKnobVisual(control, norm);
-                    control.querySelector('.knob-value').textContent = formatValue(paramName, normToRaw(paramName, norm));
+                    updateKnobVisual(control, state.getNormalisedValue());
+                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+                });
+                state.propertiesChangedEvent.addListener(() => {
+                    updateKnobVisual(control, state.getNormalisedValue());
+                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
                 });
 
                 // UI -> JUCE (mouse drag)
@@ -1311,13 +1308,21 @@
                     }
                 });
 
-                // Double-click to reset
+                // Double-click to reset. Range and skew come from the backend
+                // properties: a linear (default-min)/(max-min) ignores skew and
+                // reset the ADSR times to ~1 ms instead of their real defaults.
                 wrapper.addEventListener('dblclick', (e) => {
                     const def = PARAMS[paramName];
                     if (def) {
-                        const defaultNorm = (def.default - def.min) / (def.max - def.min);
+                        const p = state.properties || {};
+                        const min = (typeof p.start === 'number') ? p.start : def.min;
+                        const max = (typeof p.end === 'number') ? p.end : def.max;
+                        const skew = (typeof p.skew === 'number' && p.skew > 0) ? p.skew : (def.skew || 1);
+                        let defaultNorm = (def.default - min) / (max - min);
+                        if (skew !== 1 && defaultNorm > 0)
+                            defaultNorm = Math.pow(defaultNorm, skew);
                         state.sliderDragStarted();
-                        state.setNormalisedValue(defaultNorm);
+                        state.setNormalisedValue(Math.max(0, Math.min(1, defaultNorm)));
                         state.sliderDragEnded();
                     }
                     e.preventDefault();
@@ -1631,7 +1636,12 @@
             return container;
         }
 
-        function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter) {
+        // displayFactor converts the parameter's engineering value (from
+        // getScaledValue / the backend-pushed range) into display units,
+        // e.g. 100 for 0..1 -> %, 1000 for seconds -> ms. Min/max come from
+        // sliderState.properties so a retuned C++ range can't silently
+        // diverge from a hardcoded JS copy.
+        function setupFxKnob(id, sliderState, displayFactor, suffix, formatter) {
             if (!sliderState) return;
             const knobEl = document.getElementById(id + 'Knob');
             const vine = document.getElementById(id + 'Vine');
@@ -1642,9 +1652,16 @@
             const arcLength = 2 * Math.PI * r * 0.75;
             let isEditing = false;
 
+            function displayBounds() {
+                const p = sliderState.properties || {};
+                const start = (typeof p.start === 'number') ? p.start : 0;
+                const end = (typeof p.end === 'number') ? p.end : 1;
+                return { min: start * displayFactor, max: end * displayFactor };
+            }
+
             function updateVisual() {
                 const normValue = sliderState.getNormalisedValue();
-                const realValue = displayMin + (normValue * (displayMax - displayMin));
+                const realValue = sliderState.getScaledValue() * displayFactor;
                 vine.style.strokeDashoffset = arcLength - (normValue * arcLength);
                 if (!isEditing) {
                     valueDisplay.textContent = formatter(realValue) + suffix;
@@ -1652,6 +1669,7 @@
             }
 
             sliderState.valueChangedEvent.addListener(() => updateVisual());
+            sliderState.propertiesChangedEvent.addListener(() => updateVisual());
 
             const knobVisual = knobEl.querySelector('.knob-visual');
             (knobVisual || knobEl).addEventListener('mousedown', (e) => {
@@ -1678,8 +1696,7 @@
                 e.stopPropagation();
                 if (isEditing) return;
                 isEditing = true;
-                const normValue = sliderState.getNormalisedValue();
-                const realValue = displayMin + (normValue * (displayMax - displayMin));
+                const realValue = sliderState.getScaledValue() * displayFactor;
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.value = formatter(realValue);
@@ -1699,8 +1716,13 @@
                     if (!isEditing) return;
                     const rawVal = parseFloat(input.value);
                     if (!isNaN(rawVal)) {
-                        const clamped = Math.max(displayMin, Math.min(displayMax, rawVal));
-                        const norm = (clamped - displayMin) / (displayMax - displayMin);
+                        const { min, max } = displayBounds();
+                        const clamped = Math.max(min, Math.min(max, rawVal));
+                        const p = sliderState.properties || {};
+                        const skew = (typeof p.skew === 'number' && p.skew > 0) ? p.skew : 1;
+                        let norm = (clamped - min) / (max - min);
+                        if (skew !== 1 && norm > 0)
+                            norm = Math.pow(norm, skew);
                         sliderState.sliderDragStarted();
                         sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
                         sliderState.sliderDragEnded();
@@ -1813,23 +1835,23 @@
                 const eqBypassState       = Juce.getToggleState('eqBypass');
                 const reverbBypassState   = Juce.getToggleState('reverbBypass');
 
-                // Setup knobs with display ranges
-                setupFxKnob('chorusRate',      chorusRateState,     0.1, 10, ' Hz', v => v.toFixed(2));
-                setupFxKnob('chorusDepth',     chorusDepthState,    0, 100, '%', v => Math.round(v));
-                setupFxKnob('chorusMix',       chorusMixState,      0, 100, '%', v => Math.round(v));
-                setupFxKnob('delayTime',       delayTimeState,      1, 2000, ' ms', v => Math.round(v));
-                setupFxKnob('delayFeedback',   delayFeedbackState,  0, 95, '%', v => Math.round(v));
-                setupFxKnob('delayMix',        delayMixState,       0, 100, '%', v => Math.round(v));
-                setupFxKnob('eqLowGain',       eqLowGainState,      -12, 12, ' dB', v => v.toFixed(1));
-                setupFxKnob('eqMidGain',       eqMidGainState,      -12, 12, ' dB', v => v.toFixed(1));
-                setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v));
-                setupFxKnob('eqHighGain',      eqHighGainState,     -12, 12, ' dB', v => v.toFixed(1));
-                setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v));
-                setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v));
-                setupFxKnob('reverbPredelay',  reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
-                setupFxKnob('reverbMod',       reverbModState,      0, 100, '%', v => Math.round(v));
-                setupFxKnob('reverbShimmer',   reverbShimmerState,  0, 100, '%', v => Math.round(v));
-                setupFxKnob('reverbMix',       reverbMixState,      0, 100, '%', v => Math.round(v));
+                // Setup knobs with display-unit factors (engineering value × factor)
+                setupFxKnob('chorusRate',      chorusRateState,     1, ' Hz', v => v.toFixed(2));
+                setupFxKnob('chorusDepth',     chorusDepthState,    100, '%', v => Math.round(v));
+                setupFxKnob('chorusMix',       chorusMixState,      100, '%', v => Math.round(v));
+                setupFxKnob('delayTime',       delayTimeState,      1000, ' ms', v => Math.round(v));
+                setupFxKnob('delayFeedback',   delayFeedbackState,  100, '%', v => Math.round(v));
+                setupFxKnob('delayMix',        delayMixState,       100, '%', v => Math.round(v));
+                setupFxKnob('eqLowGain',       eqLowGainState,      1, ' dB', v => v.toFixed(1));
+                setupFxKnob('eqMidGain',       eqMidGainState,      1, ' dB', v => v.toFixed(1));
+                setupFxKnob('eqMidFreq',       eqMidFreqState,      1, ' Hz', v => Math.round(v));
+                setupFxKnob('eqHighGain',      eqHighGainState,     1, ' dB', v => v.toFixed(1));
+                setupFxKnob('reverbSize',      reverbSizeState,     100, '%', v => Math.round(v));
+                setupFxKnob('reverbDamp',      reverbDampState,     100, '%', v => Math.round(v));
+                setupFxKnob('reverbPredelay',  reverbPredelayState, 1, ' ms', v => Math.round(v));
+                setupFxKnob('reverbMod',       reverbModState,      100, '%', v => Math.round(v));
+                setupFxKnob('reverbShimmer',   reverbShimmerState,  100, '%', v => Math.round(v));
+                setupFxKnob('reverbMix',       reverbMixState,      100, '%', v => Math.round(v));
 
                 // Delay mode dropdown
                 const modeSelect = document.getElementById('delayModeSelect');
