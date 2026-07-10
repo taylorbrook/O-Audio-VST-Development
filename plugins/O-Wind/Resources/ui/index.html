@@ -1101,8 +1101,8 @@
 
     </div>
 
-    <!-- JUCE WebView Bridge -->
-    <script src="/js/juce/index.js"></script>
+    <!-- JUCE WebView Bridge (index.js is an ES module — imported below, a
+         classic script tag would throw SyntaxError on its `export`) -->
     <script src="/js/juce/check_native_interop.js"></script>
 
     <script type="module">
@@ -1249,6 +1249,27 @@
         // ====================================================================
         const sliderStates = {};
 
+        // Single shared document-level drag handler for all main-tab knobs
+        // (same pattern as fxKnobDrag) — a per-knob pair would register 52
+        // document listeners, all running on every mouse move.
+        const knobDrag = { active: false, state: null, startY: 0, startNorm: 0 };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!knobDrag.active) return;
+            const dy = knobDrag.startY - e.clientY;
+            const sensitivity = e.shiftKey ? 600 : 200;
+            const newNorm = knobDrag.startNorm + dy / sensitivity;
+            knobDrag.state.setNormalisedValue(Math.max(0, Math.min(1, newNorm)));
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (knobDrag.active) {
+                knobDrag.active = false;
+                knobDrag.state.sliderDragEnded();
+                knobDrag.state = null;
+            }
+        });
+
         function bindSliderParam(paramName) {
             const control = document.querySelector(`.knob-control[data-param="${paramName}"]`);
             if (!control) {
@@ -1279,33 +1300,14 @@
                     control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
                 });
 
-                // UI -> JUCE (mouse drag)
-                let dragging = false;
-                let dragStartY = 0;
-                let dragStartNorm = 0;
-
+                // UI -> JUCE (mouse drag via the shared document-level handler)
                 wrapper.addEventListener('mousedown', (e) => {
-                    dragging = true;
-                    dragStartY = e.clientY;
-                    dragStartNorm = state.getNormalisedValue();
+                    knobDrag.active = true;
+                    knobDrag.state = state;
+                    knobDrag.startY = e.clientY;
+                    knobDrag.startNorm = state.getNormalisedValue();
                     state.sliderDragStarted();
                     e.preventDefault();
-                });
-
-                document.addEventListener('mousemove', (e) => {
-                    if (!dragging) return;
-                    const dy = dragStartY - e.clientY;
-                    const sensitivity = e.shiftKey ? 600 : 200;
-                    let newNorm = dragStartNorm + dy / sensitivity;
-                    newNorm = Math.max(0, Math.min(1, newNorm));
-                    state.setNormalisedValue(newNorm);
-                });
-
-                document.addEventListener('mouseup', () => {
-                    if (dragging) {
-                        dragging = false;
-                        state.sliderDragEnded();
-                    }
                 });
 
                 // Double-click to reset. Range and skew come from the backend
@@ -1416,22 +1418,30 @@
                 // Use slider relay for instrumentPreset param
                 const state = Juce.getSliderState('instrumentPreset');
 
+                // Index count comes from the backend-pushed numSteps so adding
+                // a preset in C++ can't silently break the mapping (a
+                // hardcoded 7 duplicated InstrumentPresets::numTotalPresets)
+                const maxIndex = () => {
+                    const p = state.properties || {};
+                    return (typeof p.numSteps === 'number' && p.numSteps > 1) ? p.numSteps - 1 : 7;
+                };
+
                 // Initialize from current value
                 const initNorm = state.getNormalisedValue();
-                const initIdx = Math.round(initNorm * 7);
+                const initIdx = Math.round(initNorm * maxIndex());
                 selectEl.value = String(initIdx);
 
                 // JUCE -> UI
                 state.valueChangedEvent.addListener(() => {
                     const norm = state.getNormalisedValue();
-                    const idx = Math.round(norm * 7);
+                    const idx = Math.round(norm * maxIndex());
                     selectEl.value = String(idx);
                 });
 
                 // UI -> JUCE
                 selectEl.addEventListener('change', () => {
                     const idx = parseInt(selectEl.value, 10);
-                    const norm = idx / 7;
+                    const norm = idx / maxIndex();
                     state.sliderDragStarted();
                     state.setNormalisedValue(norm);
                     state.sliderDragEnded();
@@ -1685,7 +1695,11 @@
                 e.preventDefault();
                 const currentNorm = sliderState.getNormalisedValue();
                 const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                // Bracket in a drag gesture — hosts that gate automation
+                // recording on gestures would otherwise miss wheel edits
+                sliderState.sliderDragStarted();
                 sliderState.setNormalisedValue(Math.max(0, Math.min(1, currentNorm + delta)));
+                sliderState.sliderDragEnded();
             }, { passive: false });
 
             updateVisual();

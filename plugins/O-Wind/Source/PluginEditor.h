@@ -163,8 +163,13 @@ private:
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
-    // File chooser for preset save/load dialogs (must be shared_ptr)
+    // File chooser for preset save/load dialogs (must be shared_ptr).
+    // fileDialogOpen guards re-entry: launching a second chooser would replace
+    // the shared_ptr, so the first completion never fires and its JS `await`
+    // hangs forever. The flag is cleared in each completion (destroying the
+    // FileChooser inside its own callback is not safe, so the guard is a bool).
     std::shared_ptr<juce::FileChooser> fileChooser;
+    bool fileDialogOpen = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OWindAudioProcessorEditor)
 };

@@ -291,6 +291,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
     ));
 
     // ========== Tone Hole Toggle (1) ==========
+    // Currently a no-op: tone-hole scattering DSP was never implemented
+    // (scaffolding removed in v1.16.2). The param is kept registered so
+    // existing sessions/automation stay valid; no DSP reads it and no
+    // factory preset sets it.
 
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "toneHoleToggle", 1 },
@@ -413,8 +417,6 @@ OWindAudioProcessor::OWindAudioProcessor()
     // Listen for tuning parameter changes (message thread callback)
     parameters.addParameterListener ("referencePitch", this);
     parameters.addParameterListener ("tuningSystem", this);
-    parameters.addParameterListener ("instrumentPreset", this);
-    parameters.addParameterListener ("toneHoleToggle", this);
 
     // v1.14.0: Cache effects parameter pointers for real-time access
     fxCache.chorusBypass    = parameters.getRawParameterValue("chorusBypass");
@@ -438,6 +440,9 @@ OWindAudioProcessor::OWindAudioProcessor()
     fxCache.reverbMix       = parameters.getRawParameterValue("reverbMix");
     fxCache.reverbMod       = parameters.getRawParameterValue("reverbMod");
     fxCache.reverbShimmer   = parameters.getRawParameterValue("reverbShimmer");
+    fxCache.width            = parameters.getRawParameterValue("width");
+    fxCache.formant          = parameters.getRawParameterValue("formant");
+    fxCache.instrumentPreset = parameters.getRawParameterValue("instrumentPreset");
 
     // Persist tuning-engine state (intervals, scale name, tonic, built-in
     // preset, octave stretch, mode) through DAW session state and user presets.
@@ -519,8 +524,6 @@ OWindAudioProcessor::~OWindAudioProcessor()
 {
     parameters.removeParameterListener ("referencePitch", this);
     parameters.removeParameterListener ("tuningSystem", this);
-    parameters.removeParameterListener ("instrumentPreset", this);
-    parameters.removeParameterListener ("toneHoleToggle", this);
 }
 
 void OWindAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
@@ -539,14 +542,6 @@ void OWindAudioProcessor::parameterChanged (const juce::String& parameterID, flo
             case 2:
             default: tuningEngine.setMode (TuningEngine::Mode::TwelveTET); break;
         }
-    }
-    else if (parameterID == "instrumentPreset")
-    {
-        // No-op: voice reads instrumentPreset directly from APVTS each block
-    }
-    else if (parameterID == "toneHoleToggle")
-    {
-        // No-op: voice reads toneHoleToggle directly from APVTS each block
     }
 }
 
@@ -589,6 +584,10 @@ void OWindAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     delay.prepare(spec);
     eq.prepare(spec);
     reverbProcessor.prepare(spec);
+
+    chorusTailRemaining = 0;
+    delayTailRemaining = 0;
+    reverbTailRemaining = 0;
 }
 
 void OWindAudioProcessor::releaseResources()
@@ -622,13 +621,12 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
     // Post-voice stereo width processing
-    auto* widthParam = parameters.getRawParameterValue ("width");
-    stereoWidth.processBlock (buffer, widthParam->load());
+    stereoWidth.processBlock (buffer, fxCache.width->load());
 
     // Post-width headjoint formant resonance filter
     {
-        auto formantVal = parameters.getRawParameterValue ("formant")->load();
-        int presetIdx = static_cast<int> (parameters.getRawParameterValue ("instrumentPreset")->load());
+        auto formantVal = fxCache.formant->load();
+        int presetIdx = static_cast<int> (fxCache.instrumentPreset->load());
         const auto& preset = InstrumentPresets::getPreset (presetIdx);
         float centerHz = preset.formantCenterHz;
         float gainDb = formantVal * 6.0f;  // 0dB at formant=0, +6dB at formant=1
@@ -680,10 +678,17 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         chorus.setDepth(chorusDepth);
         chorus.setMix(chorusMix);
 
+        // Process while audible, plus a short tail-out after mix reaches 0 so
+        // internal state decays instead of freezing (IN-07)
         if (chorusMix > 0.001f)
+            chorusTailRemaining = static_cast<int>(0.2 * getSampleRate());
+
+        if (chorusMix > 0.001f || chorusTailRemaining > 0)
         {
             juce::dsp::ProcessContextReplacing<float> chorusCtx(block);
             chorus.process(chorusCtx);
+            if (chorusMix <= 0.001f)
+                chorusTailRemaining -= buffer.getNumSamples();
         }
     }
 
@@ -701,8 +706,16 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         delay.setMode(delayModeVal);
         delay.setMix(delayMixVal);
 
+        // 10 s tail-out covers the 2 s max time with high feedback (IN-07)
         if (delayMixVal > 0.001f)
+            delayTailRemaining = static_cast<int>(10.0 * getSampleRate());
+
+        if (delayMixVal > 0.001f || delayTailRemaining > 0)
+        {
             delay.process(block);
+            if (delayMixVal <= 0.001f)
+                delayTailRemaining -= buffer.getNumSamples();
+        }
     }
 
     // 3. Reverb
@@ -717,8 +730,16 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         reverbProcessor.setMod(fxCache.reverbMod->load(std::memory_order_relaxed));
         reverbProcessor.setShimmer(fxCache.reverbShimmer->load(std::memory_order_relaxed));
 
+        // 12 s tail-out covers long FDN decays incl. shimmer (IN-07)
         if (reverbMixVal > 0.001f)
+            reverbTailRemaining = static_cast<int>(12.0 * getSampleRate());
+
+        if (reverbMixVal > 0.001f || reverbTailRemaining > 0)
+        {
             reverbProcessor.process(block);
+            if (reverbMixVal <= 0.001f)
+                reverbTailRemaining -= buffer.getNumSamples();
+        }
     }
 
     // 4. EQ
@@ -796,7 +817,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  0.0f },
         { "humanize",        normalize("humanize", 0.3f) },
         { "inharmonicity",   normalize("inharmonicity", 0.2f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },
@@ -830,7 +850,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  0.0f },
         { "humanize",        normalize("humanize", 0.5f) },
         { "inharmonicity",   normalize("inharmonicity", 0.35f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },
@@ -864,7 +883,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  1.0f },
         { "humanize",        normalize("humanize", 0.4f) },
         { "inharmonicity",   normalize("inharmonicity", 0.3f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },
@@ -898,7 +916,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  0.0f },
         { "humanize",        normalize("humanize", 0.5f) },
         { "inharmonicity",   normalize("inharmonicity", 0.35f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },
@@ -932,7 +949,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  1.0f },
         { "humanize",        normalize("humanize", 0.15f) },
         { "inharmonicity",   normalize("inharmonicity", 0.1f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },
@@ -966,7 +982,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  0.0f },
         { "humanize",        normalize("humanize", 0.35f) },
         { "inharmonicity",   normalize("inharmonicity", 0.25f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },
@@ -1000,7 +1015,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  1.0f },
         { "humanize",        normalize("humanize", 0.2f) },
         { "inharmonicity",   normalize("inharmonicity", 0.1f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },
@@ -1034,7 +1048,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "growl",           normalize("growl", 0.0f) },
-        { "toneHoleToggle",  0.0f },
         { "humanize",        normalize("humanize", 0.25f) },
         { "inharmonicity",   normalize("inharmonicity", 0.3f) },
         { "referencePitch",  normalize("referencePitch", 440.0f) },

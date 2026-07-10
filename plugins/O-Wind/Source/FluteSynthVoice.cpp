@@ -104,25 +104,24 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     totalDelaySmoothed.setCurrentAndTargetValue (totalLoopDelay);
 
     // Set initial bore delay estimate based on current embouchure + register mapping
-    float initEmb = (parameters != nullptr)
-        ? parameters->getRawParameterValue ("embouchure")->load() : 0.5f;
-    float initBreath = (parameters != nullptr)
-        ? parameters->getRawParameterValue ("breathPressure")->load() : 0.5f;
+    float initEmb = (paramCache.embouchure != nullptr)
+        ? paramCache.embouchure->load() : 0.5f;
+    float initBreath = (paramCache.breathPressure != nullptr)
+        ? paramCache.breathPressure->load() : 0.5f;
     float initJetRatio = embouchureToJetRatio (initEmb, initBreath, currentOverblowEase);
     boreWaveguide.setBoreDelay (totalLoopDelay / (1.0f + initJetRatio));
 
-    // Random initial vibrato phase per note (humanization)
-    vibratoPhase = juce::Random::getSystemRandom().nextFloat()
-                   * juce::MathConstants<float>::twoPi;
+    // Random initial vibrato phase per note (humanization).
+    // voiceRng, not Random::getSystemRandom() — the shared global instance is
+    // not thread-safe against message-thread use inside JUCE.
+    vibratoPhase = voiceRng.nextFloat() * juce::MathConstants<float>::twoPi;
 
     // Reset vibrato onset counter
     samplesSinceNoteOn = 0;
 
     // Randomize drift oscillator phases for variation between notes
-    vibratoRateDriftPhase = juce::Random::getSystemRandom().nextFloat()
-                            * juce::MathConstants<float>::twoPi;
-    vibratoDepthDriftPhase = juce::Random::getSystemRandom().nextFloat()
-                             * juce::MathConstants<float>::twoPi;
+    vibratoRateDriftPhase = voiceRng.nextFloat() * juce::MathConstants<float>::twoPi;
+    vibratoDepthDriftPhase = voiceRng.nextFloat() * juce::MathConstants<float>::twoPi;
 
     // Apply instrument preset coefficients
     applyPresetCoefficients();
@@ -153,8 +152,7 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     // Start breath attack envelope (with humanized attack time and chiff amplitude)
     jetExciter.startNote (velocity, attackTimeScale, noiseBurstScale);
 
-    // Reset silence counter and release fade
-    silentSampleCount = 0;
+    // Reset release fade
     releaseFade = 1.0f;
     releaseFadeInc = 0.0f;
     releaseFading = false;
@@ -203,6 +201,7 @@ void FluteSynthVoice::stopNote (float, bool allowTailOff)
         dcBlocker.reset();
         boreWaveguide.reset();
         jetDelay.reset();
+        oversampling.reset();
         adsrStage = ADSRStage::Idle;
         adsrLevel = 0.0f;
         pendingJetRelease = false;
@@ -230,22 +229,66 @@ void FluteSynthVoice::controllerMoved (int controllerNumber, int newValue)
     {
         case 2:   // CC2: Breath controller -> breath pressure
             ccBreathPressure = normalized;
+            ccBreathSeen = true;
             break;
         case 74:  // CC74: MPE Y / Slide -> embouchure
             ccEmbouchure = normalized;
+            ccEmbouchureSeen = true;
             break;
         case 1:   // CC1: Mod wheel -> vibrato depth
             ccVibratoDepth = normalized;
+            ccVibratoSeen = true;
             break;
         default:
             break;
     }
 }
 
+void FluteSynthVoice::cacheParameterPointers()
+{
+    if (parameters == nullptr)
+        return;
+
+    paramCache.breathPressure    = parameters->getRawParameterValue ("breathPressure");
+    paramCache.embouchure        = parameters->getRawParameterValue ("embouchure");
+    paramCache.breathNoise       = parameters->getRawParameterValue ("breathNoise");
+    paramCache.toneColor         = parameters->getRawParameterValue ("toneColor");
+    paramCache.airColumn         = parameters->getRawParameterValue ("airColumn");
+    paramCache.jetReflection     = parameters->getRawParameterValue ("jetReflection");
+    paramCache.endReflection     = parameters->getRawParameterValue ("endReflection");
+    paramCache.vibratoRate       = parameters->getRawParameterValue ("vibratoRate");
+    paramCache.vibratoDepth      = parameters->getRawParameterValue ("vibratoDepth");
+    paramCache.vibratoTremolo    = parameters->getRawParameterValue ("vibratoTremolo");
+    paramCache.vibratoDriftDepth = parameters->getRawParameterValue ("vibratoDriftDepth");
+    paramCache.vibratoDriftSpeed = parameters->getRawParameterValue ("vibratoDriftSpeed");
+    paramCache.vibratoOnset      = parameters->getRawParameterValue ("vibratoOnset");
+    paramCache.outputLevel       = parameters->getRawParameterValue ("outputLevel");
+    paramCache.infiniteSustain   = parameters->getRawParameterValue ("infiniteSustain");
+    paramCache.reversedJet       = parameters->getRawParameterValue ("reversedJet");
+    paramCache.subHarmonics      = parameters->getRawParameterValue ("subHarmonics");
+    paramCache.material          = parameters->getRawParameterValue ("material");
+    paramCache.attackChiff       = parameters->getRawParameterValue ("attackChiff");
+    paramCache.humanize          = parameters->getRawParameterValue ("humanize");
+    paramCache.flutterTongue     = parameters->getRawParameterValue ("flutterTongue");
+    paramCache.flutterRate       = parameters->getRawParameterValue ("flutterRate");
+    paramCache.growl             = parameters->getRawParameterValue ("growl");
+    paramCache.inharmonicity     = parameters->getRawParameterValue ("inharmonicity");
+    paramCache.adsrEnabled       = parameters->getRawParameterValue ("adsrEnabled");
+    paramCache.adsrAttack        = parameters->getRawParameterValue ("adsrAttack");
+    paramCache.adsrDecay         = parameters->getRawParameterValue ("adsrDecay");
+    paramCache.adsrSustain       = parameters->getRawParameterValue ("adsrSustain");
+    paramCache.adsrRelease       = parameters->getRawParameterValue ("adsrRelease");
+    paramCache.instrumentPreset  = parameters->getRawParameterValue ("instrumentPreset");
+}
+
 void FluteSynthVoice::prepareToPlay (double sampleRate, int maxBlockSize)
 {
     nativeSampleRate = sampleRate;
     internalSampleRate = sampleRate * 2.0;  // 2x oversampled
+
+    // Cache raw parameter pointers once — the per-block read path must not do
+    // string-keyed APVTS lookups on the audio thread (IN-01)
+    cacheParameterPointers();
 
     // Prepare oversampling
     oversampling.initProcessing (static_cast<size_t> (maxBlockSize));
@@ -329,6 +372,7 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             dcBlocker.reset();
             boreWaveguide.reset();
             jetDelay.reset();
+            oversampling.reset();  // half-band state must not leak into the next note
             clearCurrentNote();
             return;
         }
@@ -509,12 +553,6 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Soft safety clip (tanh-based to avoid aliasing from hard discontinuities)
         sample = std::tanh (sample * 0.5f) * 2.0f;
 
-        // Track silence for voice cleanup
-        if (std::abs (sample) < energyThreshold)
-            ++silentSampleCount;
-        else
-            silentSampleCount = 0;
-
         // Store in oversampled buffer
         osData[i] = sample;
     }
@@ -544,36 +582,40 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
 void FluteSynthVoice::updateParametersFromAPVTS()
 {
-    if (parameters == nullptr)
+    // Pointers cached at prepare time (IN-01) — no string-keyed APVTS lookups
+    // on the audio thread. renderNextBlock only runs after prepareToPlay.
+    if (paramCache.breathPressure == nullptr)
         return;
 
     // Read all parameters atomically (once per block)
-    float breathPressure = parameters->getRawParameterValue ("breathPressure")->load();
-    float embouchure     = parameters->getRawParameterValue ("embouchure")->load();
-    float breathNoise    = parameters->getRawParameterValue ("breathNoise")->load();
-    float toneColor      = parameters->getRawParameterValue ("toneColor")->load();
-    float airColumn      = parameters->getRawParameterValue ("airColumn")->load();
-    float jetReflection  = parameters->getRawParameterValue ("jetReflection")->load();
-    float endReflection  = parameters->getRawParameterValue ("endReflection")->load();
-    float vibratoRate    = parameters->getRawParameterValue ("vibratoRate")->load();
-    float vibratoDepth   = parameters->getRawParameterValue ("vibratoDepth")->load();
-    float outputLevel    = parameters->getRawParameterValue ("outputLevel")->load();
-    float infSustain     = parameters->getRawParameterValue ("infiniteSustain")->load();
-    float reversedJet    = parameters->getRawParameterValue ("reversedJet")->load();
-    float subHarmonics   = parameters->getRawParameterValue ("subHarmonics")->load();
+    float breathPressure = paramCache.breathPressure->load();
+    float embouchure     = paramCache.embouchure->load();
+    float breathNoise    = paramCache.breathNoise->load();
+    float toneColor      = paramCache.toneColor->load();
+    float airColumn      = paramCache.airColumn->load();
+    float jetReflection  = paramCache.jetReflection->load();
+    float endReflection  = paramCache.endReflection->load();
+    float vibratoRate    = paramCache.vibratoRate->load();
+    float vibratoDepth   = paramCache.vibratoDepth->load();
+    float outputLevel    = paramCache.outputLevel->load();
+    float infSustain     = paramCache.infiniteSustain->load();
+    float reversedJet    = paramCache.reversedJet->load();
+    float subHarmonics   = paramCache.subHarmonics->load();
 
-    float material        = parameters->getRawParameterValue ("material")->load();
+    float material        = paramCache.material->load();
 
-    float attackChiff     = parameters->getRawParameterValue ("attackChiff")->load();
-    float humanize        = parameters->getRawParameterValue ("humanize")->load();
-    float flutterTongue   = parameters->getRawParameterValue ("flutterTongue")->load();
-    float flutterRate     = parameters->getRawParameterValue ("flutterRate")->load();
-    float growl           = parameters->getRawParameterValue ("growl")->load();
+    float attackChiff     = paramCache.attackChiff->load();
+    float humanize        = paramCache.humanize->load();
+    float flutterTongue   = paramCache.flutterTongue->load();
+    float flutterRate     = paramCache.flutterRate->load();
+    float growl           = paramCache.growl->load();
 
-    // CC overrides (CC takes priority when non-zero)
-    if (ccBreathPressure > 0.0f) breathPressure = ccBreathPressure;
-    if (ccEmbouchure > 0.0f) embouchure = ccEmbouchure;
-    if (ccVibratoDepth > 0.0f) vibratoDepth = ccVibratoDepth;
+    // CC overrides: once a controller has sent any value it owns the destination,
+    // so CC value 0 is honored (a breath controller can end a phrase at zero)
+    // instead of falling back to the knob.
+    if (ccBreathSeen)     breathPressure = ccBreathPressure;
+    if (ccEmbouchureSeen) embouchure = ccEmbouchure;
+    if (ccVibratoSeen)    vibratoDepth = ccVibratoDepth;
 
     // Cache attackChiff for startNote pitch overshoot calculation
     attackChiffParam = attackChiff;
@@ -616,13 +658,13 @@ void FluteSynthVoice::updateParametersFromAPVTS()
 
     // Pitch vibrato parameters (applied per-sample in render loop)
     vibratoDepthParam = vibratoDepth;
-    vibratoTremoloDepthParam = parameters->getRawParameterValue ("vibratoTremolo")->load();
+    vibratoTremoloDepthParam = paramCache.vibratoTremolo->load();
     vibratoPhaseInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
                                            * vibratoRate / internalSampleRate);
 
     // Vibrato drift (evolution) parameters — user-controllable depth and speed
-    vibratoDriftDepthParam = parameters->getRawParameterValue ("vibratoDriftDepth")->load();
-    vibratoDriftSpeedParam = parameters->getRawParameterValue ("vibratoDriftSpeed")->load();
+    vibratoDriftDepthParam = paramCache.vibratoDriftDepth->load();
+    vibratoDriftSpeedParam = paramCache.vibratoDriftSpeed->load();
 
     // Update drift oscillator phase increments from user speed parameter
     // Rate drift oscillator runs at 1.175x the base speed, depth drift at 0.775x
@@ -633,7 +675,7 @@ void FluteSynthVoice::updateParametersFromAPVTS()
                                                  * vibratoDriftSpeedParam * 0.775 / internalSampleRate);
 
     // Vibrato onset delay (with per-note humanization offset)
-    float vibratoOnset = parameters->getRawParameterValue ("vibratoOnset")->load();
+    float vibratoOnset = paramCache.vibratoOnset->load();
     vibratoOnsetMs = std::max (0.0f, vibratoOnset + vibratoOnsetOffsetMs);
     vibratoOnsetSamples = static_cast<int> (internalSampleRate * vibratoOnsetMs * 0.001);
 
@@ -646,7 +688,7 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     boreWaveguide.setSubHarmonics (subHarmonics);
 
     // Inharmonicity: APVTS param multiplies preset base for effective allpass coefficient
-    float inharmonicity = parameters->getRawParameterValue ("inharmonicity")->load();
+    float inharmonicity = paramCache.inharmonicity->load();
     boreWaveguide.setInharmonicity (inharmonicity * currentPreset.inharmonicityBase);
 
     // Material macro: continuous wood (0) to metal (1) timbral offset
@@ -714,11 +756,11 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     filterDelayCompensation = boreFilterDelay + dcPhaseDelay + 1.0f;
 
     // ADSR envelope parameters
-    adsrEnabled = parameters->getRawParameterValue ("adsrEnabled")->load() >= 0.5f;
-    adsrAttackSeconds = parameters->getRawParameterValue ("adsrAttack")->load();
-    adsrDecaySeconds = parameters->getRawParameterValue ("adsrDecay")->load();
-    adsrSustainLevel = parameters->getRawParameterValue ("adsrSustain")->load();
-    adsrReleaseSeconds = parameters->getRawParameterValue ("adsrRelease")->load();
+    adsrEnabled = paramCache.adsrEnabled->load() >= 0.5f;
+    adsrAttackSeconds = paramCache.adsrAttack->load();
+    adsrDecaySeconds = paramCache.adsrDecay->load();
+    adsrSustainLevel = paramCache.adsrSustain->load();
+    adsrReleaseSeconds = paramCache.adsrRelease->load();
 
     // If ADSR was just disabled mid-note, reset to passthrough — and resolve
     // any deferred jet release. Without this a note that was releasing when
@@ -735,12 +777,8 @@ void FluteSynthVoice::updateParametersFromAPVTS()
         adsrLevel = 1.0f;
     }
 
-    // Read tone hole toggle from APVTS (stored for future ToneHoleSystem integration)
-    // ToneHoleSystem scattering will be wired in a future DSP update
-    juce::ignoreUnused (parameters->getRawParameterValue ("toneHoleToggle")->load());
-
     // Update instrument preset if changed (read from APVTS)
-    int presetIdx = static_cast<int> (parameters->getRawParameterValue ("instrumentPreset")->load());
+    int presetIdx = static_cast<int> (paramCache.instrumentPreset->load());
     if (presetIdx != lastPresetIndex)
     {
         lastPresetIndex = presetIdx;
@@ -751,9 +789,9 @@ void FluteSynthVoice::updateParametersFromAPVTS()
 
 void FluteSynthVoice::applyPresetCoefficients()
 {
-    if (parameters != nullptr)
+    if (paramCache.instrumentPreset != nullptr)
     {
-        int idx = static_cast<int> (parameters->getRawParameterValue ("instrumentPreset")->load());
+        int idx = static_cast<int> (paramCache.instrumentPreset->load());
         currentPreset = InstrumentPresets::getPreset (idx);
     }
 

@@ -593,7 +593,10 @@ inline void OuariconPresetManager::initializeFactoryPresets(
 
     for (const auto& preset : presets)
     {
-        auto presetFile = factoryDir.getChildFile(preset.name + ".json");
+        // Sanitize like load/save/delete do — a factory name containing a
+        // path separator would otherwise silently write outside factoryDir
+        // (or drop the file entirely)
+        auto presetFile = factoryDir.getChildFile(sanitizePresetName(preset.name) + ".json");
 
         auto* presetObj = new juce::DynamicObject();
 
