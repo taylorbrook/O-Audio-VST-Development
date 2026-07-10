@@ -29,6 +29,7 @@ findings:
   info: 16
   total: 32
 status: warnings_resolved
+verified: 2026-07-08   # /improve-verify PASS — 16/16 findings closed on disk, 17/17 goldens byte-identical, auval SUCCEEDED, pluginval-10 SUCCESS (param-thread-safety + fuzz clean)
 resolved:
   date: 2026-07-08
   set: [CR-01, CR-02, CR-03, WR-01, WR-02, WR-03, WR-04, WR-05, WR-06, WR-07, WR-08, WR-09, WR-10, WR-11, WR-12, WR-13]   # all Critical + Warning
