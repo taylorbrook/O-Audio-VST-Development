@@ -69,6 +69,7 @@ phase_2_6c_research_carry_forward: |  # rev-29 STATUS append for audit trail
 phase_2_5_atomic_sha: 907a7c3409b1c2e74734f7d835ab3a934bb123fa
 phase_2_6a_atomic_sha: 74b3f83e6d10162b3c28ef966aa79d4adf8e62f0
 phase_2_6a_bis_atomic_sha: ada2c9817112a310ed9c2cd221aebebc622a750e
+phase_2_6c_atomic_sha: 62d0adc6cc0964382fdd2fe3c7325cebcd00f6f3
 phase_2_6b_atomic_sha: e7f71158bc1c552983baa3345a5ad20013a281f2
 phase_2_6c_discuss_carry_forward: |  # rev-28 STATUS append for audit trail
   Phase 2.6c discuss complete 2026-07-09. CONTEXT rev-11.c sub-cycle amendment authored per Phase 2.6 umbrella Q1 LOCKED 3-sub-cycle scope. User selected all recommended options — D4-D6 + Q21-Q29 + R41 6-task breakdown + Gate 8c 5-invariant scorecard + 6 NEW risks (#37-#42) + HR-13 LOCK all carry without deviation.
