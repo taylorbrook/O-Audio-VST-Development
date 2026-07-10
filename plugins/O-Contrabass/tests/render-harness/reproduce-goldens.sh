@@ -47,7 +47,7 @@ fi
 # Parallel arrays (bash 3.2 compatible). Canonical invocations per RESEARCH §17.1:
 # sustain 60 / release 5 default for sustained modes; 3-s notes for note-sequence;
 # mode-locked sustain for vibrato/macro/slow/schelleng.
-NAMES=(stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence vibrato macro-sweep slow-lfo schelleng-stress sub-harmonics sub-harmonics-stability saturator-tail-comparison output-chain microtonal-12tet microtonal-scala microtonal-mpe)
+NAMES=(stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence vibrato macro-sweep slow-lfo schelleng-stress sub-harmonics sub-harmonics-stability saturator-tail-comparison output-chain microtonal-12tet microtonal-scala microtonal-mpe note-expression mpe-yz)
 INVOCS=(
     "--note 28 --velocity 0.7 --sustain 60 --release 5 --infinite-sustain 1.0 --string-stiffness 0"
     "--string A"
@@ -67,6 +67,13 @@ INVOCS=(
     "--microtonal --tuning-system 12tet"
     "--microtonal --tuning-system scala --scl ${REPO_ROOT}/plugins/O-Contrabass/tests/render-harness/fixtures/test-19edo.scl"
     "--mpe-pitch-bend"
+    # Phase 2.6c R41d goldens (VST3 Note Expression wire-up + FUNC-05 Y/Z adoption).
+    #   note-expression: 3 cells — +0.50-semi seeded offset / exchange-consume
+    #                    retrigger / NOTE_EXPRESSION-off gate (D9/D10 proofs).
+    #   mpe-yz:          4 segments — baseline / CC74 Y triangle / channel-pressure
+    #                    Z triangle / max-Z stress (BOW_PRESSURE=8.0, MAXZ1 cell).
+    "--note-expression"
+    "--mpe-yz"
 )
 
 FAIL=0

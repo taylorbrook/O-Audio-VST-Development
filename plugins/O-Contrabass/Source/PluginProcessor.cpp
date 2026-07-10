@@ -143,8 +143,16 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
     // effectively monophonic (2nd note-on stole the 1st). Physical-model voices are
     // CPU-heavy (2× oversampled waveguide + 8-mode body resonator each), so 4 balances
     // polyphony against cost; MPESynthesiser allocates per note-on.
+    // Phase 2.6c R41a — hand each voice a pointer to the module-owned pending
+    // NE tuning table (O-Lyrica .cpp:512 D-09 pattern). vst3Extensions is
+    // declared AFTER tuningEngine, BEFORE synth (member-order contract), so
+    // the table address is valid here.
     for (int i = 0; i < kNumVoices; ++i)
-        synth.addVoice(new BowedContrabassVoice(&parameters, &tuningEngine));
+    {
+        auto* voice = new BowedContrabassVoice(&parameters, &tuningEngine);
+        voice->setPendingTuningSource(&vst3Extensions.getPendingTable());
+        synth.addVoice(voice);
+    }
 
     // MPE legacy mode for non-MPE DAWs (RESEARCH §5 pitfall #8).
     // Pitchbend range 24 semitones, channels 1..16 — covers omni MIDI input.
@@ -254,6 +262,16 @@ void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // MPESynthesiser additively writes into outputBuffer — clear first so we
     // don't accumulate prior block content (synth.addVoice path uses addSample).
     buffer.clear();
+
+    // Phase 2.6c R41a — HR-13: drain the VST3 Note Expression raw-event queue
+    // EXACTLY ONCE per processBlock, BEFORE renderNextBlock, so pending
+    // per-note tuning deltas are staged in the table before any voice's
+    // noteStarted consumes them this block. Alloc-free in steady state per the
+    // module contract (§24.2.2: vectors reserved 64 at ctor; only blocks that
+    // actually carry VST3 NE events may allocate in the correlation map —
+    // never in AU/Standalone/harness, where the dispatch slots stay nullptr
+    // and this degrades to a ~ns no-op).
+    vst3Extensions.drainAndUpdate();
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 

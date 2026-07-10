@@ -39,6 +39,13 @@ target_sources(O-Contrabass-render-test PRIVATE
     ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/ScaleGenerator.cpp
     ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/EmbeddedTunings.cpp
     ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp/TuningExporter.cpp
+
+    # Phase 2.6c R41c (ESCALATION-HCM1) — note-expression SharedCode TU only.
+    # Resolves VST3Extensions ctor/dtor/drainAndUpdate symbols pulled in by the
+    # processor's value member. Do NOT add NoteExpression_VST3.cpp: dispatch
+    # slots stay nullptr in the console harness (mirrors the AU path) and the
+    # VST3 TU would drag Steinberg symbols into this target.
+    ${CMAKE_SOURCE_DIR}/modules/tuning/note-expression/cpp/NoteExpression.cpp
 )
 
 target_include_directories(O-Contrabass-render-test PRIVATE

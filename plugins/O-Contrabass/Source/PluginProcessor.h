@@ -15,6 +15,7 @@
 #include "DSP/MasterLimiter.h"
 #include "DSP/StereoWidth.h"
 #include "TuningEngine.h"
+#include "NoteExpression.h"
 
 class BowedContrabassVoice;     // Phase 2.3 R29 forward decl — used by getActiveVoice()
 
@@ -66,6 +67,19 @@ public:
     TuningEngine* getTuningEngine() noexcept { return &tuningEngine; }
     bool loadScalaFile (const juce::File& sclFile);
 
+    // Phase 2.6c R41a — VST3 Note Expression (kTuningTypeID, Dorico microtonal
+    // playback). Backed by note-expression module v1.1.0 (D-09 pattern,
+    // O-Lyrica PluginProcessor.h:115 precedent). On AU/Standalone the module's
+    // dispatch slots stay nullptr and the extension degrades to a no-op —
+    // no format branching required (§24.2.3).
+    juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
+
+    // Phase 2.6c R41a — typed accessor for harness NE injection (ESCALATION-ACC1;
+    // mirrors the getTuningEngine() harness-instrumentation precedent). The
+    // render harness seeds pending tuning deltas in SEMITONES directly:
+    //   proc.getVST3Extensions().getPendingTable()[note].store (semis, release);
+    Ouaricon::NoteExpression::VST3Extensions& getVST3Extensions() noexcept { return vst3Extensions; }
+
     // Phase 2.6b R40a — APVTS Listener override (TUNING_SYSTEM Choice → mode
     // dispatch). CR-03: parameterChanged may fire on the audio thread under host
     // automation, so it only stores the choice atomically + triggerAsyncUpdate()
@@ -88,6 +102,13 @@ private:
     // passes &tuningEngine to BowedContrabassVoice; pointer must be valid at
     // construction time.
     TuningEngine tuningEngine;
+
+    // Phase 2.6c R41a — VST3 Note Expression extension (module-owned 128-slot
+    // PendingTuningTable + raw-event buffer). MEMBER-ORDER CONTRACT: declared
+    // AFTER tuningEngine and BEFORE synth so the table address handed to each
+    // voice via setPendingTuningSource in the ctor addVoice loop is valid at
+    // construction time (extends the Risk #32 init-order discipline).
+    Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
 
     // CR-03 — choice index staged by parameterChanged (any thread) for the
     // message-thread setMode apply in handleAsyncUpdate(). Default 2 = "12-TET".

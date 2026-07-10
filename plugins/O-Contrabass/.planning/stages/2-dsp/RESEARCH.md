@@ -9345,3 +9345,286 @@ PLAN rev-14 supersedes PLAN rev-13 amendments scope (or appends as PLAN rev-13.b
 - `MEMORY.md` index: `JUCE 8: getLatencySamples() is NOT Virtual` (no impact on Phase 2.6b — TuningEngine wire-up adds zero latency).
 
 ---
+
+# §24 — Phase 2.6c VST3 Note Expression FUNC-06 + FUNC-05 MPE Y/Z Research (note-expression module wire-up + Y/Z live-state audit, Gate 8c)
+
+**Date:** 2026-07-09
+**Scope contract:** CONTEXT rev-11.c (Q21–Q29 LOCKED; D4–D6 resolved at discuss; R41 6-task breakdown; Gate 8c 5-invariant scorecard; risks #37–#42).
+**Production base:** HEAD descendant of R40 atomic `e7f71158bc1c552983baa3345a5ad20013a281f2` (+ R40-backfill chore `c3f70b2`).
+**Predecessor sections:** §22/§22-bis (Phase 2.6a/a-bis, closed), §23 (Phase 2.6b, closed at Gate 8b PASS).
+
+---
+
+## §24.1 Pre-Flight Tripwire — R41-pre Carry-Forward (no re-render at research-phase)
+
+Per §23.1 precedent, research-phase does NOT re-render goldens; R41-pre re-runs in full at execute-phase entry. Research-phase static audit performed 2026-07-09:
+
+1. **Module link audit:** `grep "note-expression" plugins/O-Contrabass/CMakeLists.txt` → 1 hit at line 90 (`ouaricon_add_module(O-Contrabass note-expression)`, Pattern A comment at line 89). ✅
+2. **JUCE-NE-PATCH presence:** `module.cmake` configure-time marker check is live for every O-Contrabass configure (see §24.3); D6 discuss-phase grep confirmed `kNoteExpressionValueEvent` forwarding at `~/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp:3700-3736`. ✅
+3. **Pre-edit greps:** `grep -n "VST3Extensions\|NoteExpression" plugins/O-Contrabass/Source/PluginProcessor.{h,cpp}` → 0 hits (R41a adds them). `notePressureChanged`/`noteTimbreChanged` bodies at `BowedContrabassVoice.cpp:189-197` are empty stubs. ✅
+4. **parameter-spec.md sha:** `ae956e94…` anchor carries (Q26 — no amendment). ✅
+5. **17 goldens:** carry-forward at post-R40 sha256s (microtonal-12tet `38eab789…`, microtonal-scala `b2d2ec23…`, microtonal-mpe `68a5df92…`, output-chain `b5fc1d60…`, detune-sweep-A `db908ebc…`); byte-render deferred to R41-pre. ✅ (static)
+
+---
+
+## §24.2 note-expression Module API Line-Review (Q-OPEN-1 — RESOLVED)
+
+Module is **v1.1.0** (`module.yaml`; C++ surface unchanged since v1.0.0). Three-file layout with a **two-TU split** (Plan 23-05 D-22) that is the load-bearing fact for the AU question:
+
+### §24.2.1 Public API surface (all in `modules/tuning/note-expression/cpp/NoteExpression.h`)
+
+| Symbol | Signature / semantics | Consumer site |
+|---|---|---|
+| `PendingTuningTable` | `std::array<std::atomic<double>, 128>` — per-MIDI-pitch pending semitone deltas | Voice holds `PendingTuningTable*` |
+| `applyPendingTuning(table, midiNote, currentFreq)` | header-inline, Steinberg-free; `exchange(0.0, acq_rel)` consume → returns `currentFreq * 2^(semis/12)`; identity when slot is 0.0 or note out of range | Voice `noteStarted` (D-10: freq AFTER TuningEngine lookup) |
+| `VST3Extensions` | `juce::VST3ClientExtensions` subclass; **value member** in processor | `PluginProcessor.h` member |
+| `VST3Extensions::drainAndUpdate()` | audio-thread; drains raw-event buffer + dispatches correlation via atomic fn-pointer slot | `processBlock` entry (HR-13) |
+| `VST3Extensions::getPendingTable()` | returns `PendingTuningTable&` | ctor voice-wiring + harness seed (§24.4) |
+| `VST3Extensions::onVst3RawEvent(e)` | called by patched JUCE wrapper on audio thread just before `processBlock`; plain `push_back` into `blockEvents` (reserved 64) | wrapper-only (no plugin code) |
+
+**Semitone unit confirmed:** `updatePendingFromEvents` (VST3 TU) maps kTuningTypeID norm [0,1] → `240.0 * (value − 0.5)` plain semitones [−120, +120], correlated to MIDI pitch via a per-block `noteId → pitch` map built from NoteOn events (`NoteExpression_VST3.cpp:182-210`). Harness synthetic seeds must therefore store **semitones** (not cents, not normalized).
+
+**Controller registration:** nothing plugin-side beyond the `getVST3ClientExtensions()` override. The NEC (`Controller`, advertises exactly 1 NE type = Tuning, bipolar/absolute) is lazy-created inside `queryIEditController` on first host query (`NoteExpression_VST3.cpp:240-266`, custom-deleter pimpl D-21).
+
+### §24.2.2 RT-safety analysis (HR-13 verification basis)
+
+- `drainAndUpdate()` = `drainBlockEvents(scratch)` (vector swap, both reserved 64 at ctor — T-23-02 no-allocation steady state) + atomic acquire-load of the dispatch slot + optional correlation call. **>64 raw events in one block would allocate** (accepted at module design, O-Lyrica production precedent; Dorico sends a handful of NE events per note-on).
+- `updatePendingFromEvents` builds a `std::map` on the audio thread when events are non-empty — allocation ONLY in blocks that actually carry VST3 NE events (never in the steady state, never in AU/Standalone, never absent Dorico). Documented module-level acceptance (O-Lyrica shipped); NOT a new HR-13 violation — HR-13's "no allocation" clause reads as steady-state per module contract. Flag verbatim in PLAN rev-15 so pluginval "Parameter thread safety" triage doesn't rediscover it.
+
+### §24.2.3 CMakeLists.txt:89 "Pattern A" AU implication — AU no-ops cleanly, zero plugin work
+
+`OuariconModules.cmake:52-94` routes module sources in two passes:
+1. **SharedCode glob** (`cpp/*.cpp`, `cpp/*.h`, non-recursive): picks up `NoteExpression.{h,cpp}` → links into every format. `NoteExpression.cpp` is Steinberg-symbol-free and owns ctor/dtor/`drainAndUpdate` + two `std::atomic` fn-pointer dispatch slots (`g_neUpdate`, `g_neQuery`), both `nullptr` at static-init.
+2. **Per-format routing** (`cpp/vst3/` → `${TARGET}_VST3` only, exact-suffix target match): `NoteExpression_VST3.cpp` (all Steinberg refs + static-init `DispatchRegistrar` that populates both slots) compiles ONLY into the VST3 target.
+
+**AU/Standalone consequence:** slots stay `nullptr` → `drainAndUpdate()` degrades to two vector ops on empty reserved buffers + one failed acquire-load; `queryIEditController` returns `-1` (kNoInterface) without touching Steinberg. **Zero configuration, zero `#if`, zero overhead beyond ~ns per block.** R41 requires **0 CMake edits** (matches R41e bar) — line 90 already routes everything.
+
+---
+
+## §24.3 JUCE-NE-PATCH Assertion Mechanism (Q-OPEN-2 — RESOLVED: configure-time, ALREADY LIVE)
+
+**Gate 8c invariant 5 is already satisfied by existing machinery.** `modules/tuning/note-expression/module.cmake` runs at CMake configure time for every consumer of `ouaricon_add_module(<plugin> note-expression)` — i.e., for **every O-Contrabass configure since Stage 1** — and `FATAL_ERROR`s (fail-loud/fail-fast, module D-15) if the `JUCE-NE-PATCH` marker string is absent from either:
+- `<JUCE>/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h`
+- `<JUCE>/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp`
+
+JUCE root resolution: `$ENV{JUCE_DIR}` → `C:/JUCE` (WIN32) → `/Users/taylorbrook/JUCE` — same ladder as root CMakeLists. Uses CMake-native `file(READ)` + `string(FIND)` (Windows-safe, no grep).
+
+**Recommendation (plan-phase LOCK):** Option A — **CMake configure-time check (existing), no new code.** Gate 8c invariant 5 verification = (a) point at the `[note-expression] JUCE-NE-PATCH markers verified` STATUS line in the configure log, (b) keep R41-pre step 6 grep (`grep -c "kNoteExpressionValueEvent" …juce_audio_plugin_client_VST3.cpp` ≥ 1) as belt-and-braces. A runtime check is strictly worse: the patch is a build-time precondition; a binary built against unpatched JUCE simply never receives raw events (silent, undetectable at runtime without a host).
+
+Known cosmetic drift (NOT 2.6c tasks): patch filename says 8.0.4, is an 8.0.9 diff (memory-tracked rename pending); `module.cmake` error text says "JUCE 8.0.4".
+
+---
+
+## §24.4 Harness NE Injection Surface (Q-OPEN-3 / Risk #42 — RESOLVED)
+
+The harness constructs `OContrabassAudioProcessor proc;` directly and already uses public members (`proc.parameters`, `getActiveVoice()`, `getTuningEngine()` at `PluginProcessor.h:66`). The patched-wrapper → `onVst3RawEvent` path is unreachable offline (harness is not a VST3 host) — confirmed; risk #42's synthetic-seed strategy is the correct and only offline surface.
+
+**Two candidate injection surfaces:**
+- **(a) Existing override, cast:** `proc.getVST3ClientExtensions()` returns `juce::VST3ClientExtensions*`; `static_cast` to `Ouaricon::NoteExpression::VST3Extensions*` → `getPendingTable()`. Zero new API, but a cast the compiler can't check.
+- **(b) Typed accessor (RECOMMENDED):** mirror the `getTuningEngine()` precedent — `Ouaricon::NoteExpression::VST3Extensions& getVST3Extensions() noexcept { return vst3Extensions; }` (+1 LOC in R41a). Type-safe, self-documenting, matches the plugin's established harness-instrumentation idiom (Phase 2.3 R29 `getActiveVoice`).
+
+**Seed pattern (no message loop required):**
+```cpp
+proc.getVST3Extensions().getPendingTable()[(size_t) midiNote]
+    .store (semitones, std::memory_order_release);   // BEFORE the note-on block
+```
+Voice consumes at `noteStarted` via `applyPendingTuning` (exchange-consume). This exercises the module table + voice compose path — the wrapper→queue→correlate path is covered by O-Lyrica production precedent + Stage 4 Dorico audition (Q6 LOCKED), exactly as risk #42 anticipated.
+
+**Exchange-consume proof cell (include in `--note-expression` mode):** render note N with seeded +0.50 semis → expect f·2^(0.5/12); re-trigger same pitch WITHOUT re-seed → expect baseline f (proves `exchange(0.0)` cleared the slot — risk #38 evidence).
+
+---
+
+## §24.5 Q21/Q22 Depth Calibration (Q-OPEN-4) — TWO LIVE-STATE DISCREPANCIES (D7 + D8): Y AND Z MAPPINGS ALREADY EXIST
+
+The load-bearing research finding of §24. CONTEXT rev-11.c D5 stated FUNC-05 Y/Z is "new design, not a port" because O-Lyrica has no precedent and the voice callbacks are empty stubs. The stubs ARE empty — but the voice **does not use the callback idiom at all**: it **polls `getCurrentlyPlayingNote()` per block**, and both mappings are already live in the render path.
+
+### §24.5.1 D7 — MPE Y → BOW_POSITION already implemented (and IS the Q21 design)
+
+`BowedContrabassVoice.cpp:848-853` (in `updateParametersFromAPVTS`, runs every block):
+```cpp
+// MPE timbre modulates Y (bow position offset). MPE pressure (Z) is
+// consumed in renderNextBlock Step 6 alongside macro-lifted bow pressure.
+auto note = getCurrentlyPlayingNote();
+float mpeTimbre = note.timbre.asSignedFloat();
+effectivePosition = juce::jlimit (0.02f, 0.25f, bowPos + mpeTimbre * 0.05f);
+```
+This is **exactly Q21**: bipolar additive offset around the knob, clamped to the param range. `asSignedFloat()` maps normalized 0.5 (MPE center, JUCE default `MPEValue::centreValue()`) → signed 0.0 → **zero offset when no Y events arrive** (risk #39 already mitigated in shipped code). **Calibration is already locked at β span = ±0.05** (±20 % of the 0.02–0.25 BOW_POSITION range) — baked into every golden since Phase 2.2/2.3. Changing the constant would break Gate 8c invariant 1 for nothing; **recommendation: adopt 0.05 as the Q21 depth, zero code change.**
+
+### §24.5.2 D8 — MPE Z → BOW_PRESSURE already implemented — Q22's ×(1+k·Z) would DOUBLE-COUNT (ESCALATION-YZ1)
+
+`BowedContrabassVoice.cpp:522-528` (render Step 6):
+```cpp
+const float mpePressure = note.pressure.asUnsignedFloat();
+bowModel.setBowSpeed    (effectiveBowSpeed * mpeExpression);
+bowModel.setBowPressure (effectiveBowPressure * (0.5f + mpePressure * 1.5f)
+                         * voiceBowForceUpliftThisBlock);
+```
+plus the matching pre-bias baseline at `:449-450` (`F_bow_baseline = rawBowPressure * (0.5f + 1.5f·mpePressureBlockEntry)` — sub-harmonic Schelleng path sees the same map).
+
+Mapping shape: **Z=0 → ×0.5, Z=1 → ×2.0** — NOT Q22's `×(1+k·Z)` no-op-at-zero shape. Critically, the ×0.5-at-default factor is **baked into all 17 goldens** (harness sends no pressure; JUCE legacy-mode initial pressure = `MPEValue::minValue()` = 0, `juce_MPEInstrument.cpp:89-91`). Layering Q22's new factor on top would double-count Z; replacing the existing map with `(1+k·Z)` would shift every golden (default factor 0.5 → 1.0) and re-baseline all 17 for zero musical gain.
+
+**ESCALATION-YZ1 (USER-DECISION at plan-phase; research recommendation = Option A):**
+- **Option A (RECOMMENDED):** Declare Q21/Q22 **already implemented**; adopt live constants (Y span ±0.05; Z map `0.5+1.5·Z`) as the locked calibration. R41b shrinks to: NE tuning compose (§24.7) + stub-comment updates documenting the polling idiom (+ optional `jassert`-free no-op bodies stay). Gate 8c invariant 1 trivially safe. Q22's "Z=0 → no-op" intent is satisfied in the only sense that matters — **absence of Z events produces byte-identical output** (0.5 is the baseline all goldens encode).
+- **Option B:** Reshape Z to `×(1+k·Z)` for literal Q22 compliance → re-baseline all 17 goldens + re-run matrix-stability evidence (effective-pressure operating point shifts globally). Rejected: cost ≫ benefit; contradicts rev-11.c's own "no-op-at-default / goldens byte-identical" invariant 1.
+
+### §24.5.3 Schelleng stable-region check (Q21/Q22 "must not push past stable region")
+
+- **Y:** `jlimit(0.02, 0.25, …)` — the offset cannot leave the Schelleng-calibrated β domain (same clamp the raw param obeys). Structurally safe. ✅
+- **Z:** at Z=1, effective bow pressure = 2× raw → with BOW_PRESSURE knob at max (8.0), junction sees ≈16.0 — a regime the 108-combo matrix (rendered at Z=0 → 0.5×, i.e. ≤4.0 effective) never exercised. `schelleng::safeDepthForString` is fed `rawBowPressure` (`:359`, `:456`), NOT the Z-lifted value, so the sub-harm guard's view is Z-blind (pre-existing, shipped). **Mitigation: add a max-Z stress cell to `--mpe-yz`** (Z=1.0 + BOW_PRESSURE=8.0 + INFINITE_SUSTAIN=1.0, 5 s, NaN/peak/RMS-bound flags per matrix-stability precedent) — empirical coverage of the top-right corner instead of new clamp code (any new clamp = golden shift). If the stress cell misbehaves, escalate a clamp decision to plan-phase; do NOT silently add one at execute.
+
+### §24.5.4 Smoothing adequacy (risk #40)
+
+Both existing paths step **once per block, unsmoothed**: Y → `s.setBowPosition(effectivePosition)`; Z → `bowModel.setBowPressure(…)`. No `SmoothedValue` between MPE dimension and DSP push (the 20 ms idioms cover detune/macro/body, not Y/Z). At 512-sample blocks a fast MPE gesture steps ~86 Hz — physical-model state (bow force enters a friction junction, not a gain stage) plus per-sample waveguide integration is expected to mask steps, but this is empirical. **Resolution: `--mpe-yz` rmsContinuity ≥ 0.85 metric (Phase 2.6b precedent) is the acceptance evidence.** If it fails, the ESC-MPE1 20 ms SmoothedValue idiom is the ready remedy — but that changes Y/Z-active renders only (default state untouched; invariant 1 safe either way).
+
+---
+
+## §24.6 MPE Y/Z Legacy-Mode Routing (Q-OPEN-5 — RESOLVED from JUCE 8.0.9 source)
+
+Verified line-by-line in `~/JUCE/modules/juce_audio_basics/mpe/juce_MPEInstrument.cpp`:
+
+1. **Legacy mode routes both dimensions.** `isMemberChannel()` returns `legacyMode.channelRange.contains(ch)` when legacy is enabled. CC74 → `handleTimbreMSB` → `timbre()` → `updateDimension`; channel pressure → `pressure()` → same path. With `enableLegacyMode(24, Range(1,17))` (live at `PluginProcessor.cpp:154`; rev-11.b D1's `Range(1,16)` text was superseded by the CR-02 end-exclusive fix — document as **D1-bis** drift note), any channel 1–16 works.
+2. **Tracking mode:** `trackingMode = lastNotePlayedOnChannel` (default) — CC74/pressure on channel N updates the **last note played** on N, then fires the voice's `noteTimbreChanged`/`notePressureChanged` listener callbacks. One-note-per-channel in the harness ⇒ deterministic targeting. Same `updateDimension` path serves real MPE hosts (member channels) — **the harness exercises the identical instrument-level code path as hardware MPE.**
+3. **Voice consumption needs NO callback bodies.** The per-block polls (§24.5) read `note.pressure`/`note.timbre` refreshed by `updateDimension` regardless of whether the callback stubs do anything. Stubs stay empty; R41b updates their comments to state the polling contract (prevents a future "wire the stubs" regression).
+4. **Use CHANNEL PRESSURE, not poly aftertouch, in the harness:** `processMidiAfterTouchMessage` gates poly-AT to `isMasterChannel()` — which is zone-based and does NOT match legacy member channels ⇒ poly-AT on ch 2 is dropped in legacy mode. `juce::MidiMessage::channelPressureChange(ch, value)` is the correct Z carrier (matches `--mpe-pitch-bend`'s channel-2 idiom).
+5. **Legacy-mode stickiness quirk (document, don't fix):** `noteOff` resets `lastValueReceivedOnChannel` **only in MPE mode** (`:397-401` guard `!legacyMode.isEnabled`). In legacy mode, the last Z/Y value received on a channel **persists into the next note-on on that channel** (`getInitialValueForNewNote` returns `lastValueReceivedOnChannel`). Harness cells must therefore send an explicit reset (Z=0 / Y=64) before each baseline segment; also worth a NOTES.md line — a DAW user riding Z on channel 1 will find the next note starts at the ridden value (host-typical behavior, matches JUCE semantics).
+
+---
+
+## §24.7 O-Lyrica Port Checklist (Q-OPEN-6 — RESOLVED) + NE Compose-Site Refinement (D9)
+
+### §24.7.1 Line-by-line port map
+
+| O-Lyrica reference | O-Contrabass insertion point | Delta |
+|---|---|---|
+| `PluginProcessor.h:22` `#include "NoteExpression.h"` | `PluginProcessor.h` includes (include-dir already on target via module) | +1 LOC |
+| `PluginProcessor.h:115` `getVST3ClientExtensions()` override | public section near `getTuningEngine()` (`:66`) | +1 LOC |
+| — (new, §24.4b) | `getVST3Extensions()` typed harness accessor | +1 LOC |
+| `PluginProcessor.h:192` `VST3Extensions vst3Extensions;` member | private section; declare **after `tuningEngine`, before `synth`** (mirrors Risk #32 init-order discipline; table address must be valid at ctor voice-wiring — value member, so any pre-`synth` position is safe) | +1 LOC |
+| `PluginProcessor.cpp:512` `voice->setPendingTuningSource(&vst3Extensions.getPendingTable())` | ctor `addVoice` loop (`PluginProcessor.cpp:146-147`) | +1 LOC |
+| `PluginProcessor.cpp:730` `vst3Extensions.drainAndUpdate()` | `processBlock` entry — after `ScopedNoDenormals`/clears, immediately before `synth.renderNextBlock` (`:258`) per HR-13 | +1 LOC (+comment) |
+| `HarpSynthVoice.h:88/147` setter + `PendingTuningTable*` member | `BowedContrabassVoice.h` — `setPendingTuningSource(...)` + `pendingTuningSource = nullptr` member | +3 LOC |
+| `HarpSynthVoice.cpp:159-163` `applyPendingTuning` compose | `noteStarted` — **into the cached base, see D9 below** | ~6 LOC |
+
+R41a ≈ 6 LOC + comments (within ~15 budget); R41b ≈ 10 LOC + stub-comment updates (UNDER the ~30 budget thanks to D7/D8 — Y/Z code already exists).
+
+### §24.7.2 D9 — NE offset must fold into `tuningEngineBaseFreqHz`, NOT `currentFrequency` (divergence from O-Lyrica, required by Q17 cache)
+
+O-Lyrica applies `applyPendingTuning` to `currentFrequency` once in `startNote` and never recomputes. O-Contrabass CANNOT copy this verbatim: `notePitchbendChanged` (Site B, `BowedContrabassVoice.cpp:165-187`) **recomputes `currentFrequency` from the cached `tuningEngineBaseFreqHz`** (Q17 LOCK). If NE composed into `currentFrequency` only, the first MPE pitch-bend event mid-note would silently **discard the Dorico microtonal offset** — a bug O-Lyrica structurally cannot exhibit. Correct compose (noteStarted, replacing `:74-77`):
+
+```cpp
+const double tuneFreqHz = (tuningEngine != nullptr)
+                            ? tuningEngine->getFrequency (midiNote)
+                            : juce::MidiMessage::getMidiNoteInHertz (midiNote);
+const float  refPitchHz = parameters->getRawParameterValue ("REFERENCE_PITCH")->load();
+double baseHz = tuneFreqHz * (static_cast<double> (refPitchHz) / 440.0);
+
+// D9: NE folds into the CACHED base so Site B (notePitchbendChanged) recompute
+// preserves the per-note Dorico offset. Always consume (keeps table clean),
+// conditionally apply (NOTE_EXPRESSION APVTS gate, D10).
+if (pendingTuningSource != nullptr)
+{
+    const double neHz = Ouaricon::NoteExpression::applyPendingTuning (
+                            *pendingTuningSource, midiNote, baseHz);
+    if (parameters->getRawParameterValue ("NOTE_EXPRESSION")->load() > 0.5f)
+        baseHz = neHz;
+}
+tuningEngineBaseFreqHz = baseHz;
+```
+Priority-order compliance (Q5): NE composes multiplicatively ON TOP of TuningEngine (D-10 module contract) and BEFORE the MPE-bend multiplier — matching **NE > MTS-ESP/Scala > MPE bend > 12-TET** as implemented (the ladder is compositional, not exclusive, per module design; ARCHITECTURE wording amendment already folded into the Q7 end-of-stage task).
+
+### §24.7.3 D10 — NOTE_EXPRESSION APVTS gate is declared but consumed NOWHERE (live-state discrepancy)
+
+`PluginProcessor.cpp:122-123` declares `NOTE_EXPRESSION` (Bool, default **true**) at Stage 1; `grep -rn NOTE_EXPRESSION Source/ tests/` → single hit (the declaration). R41 is the natural wiring point. **Recommended semantics (plan-phase LOCK): always-consume / conditionally-apply** (code above): the slot is exchanged regardless of the gate so a user toggling NE off→on doesn't inherit stale offsets from events received while disabled; the offset is simply discarded when off. Default true + no events ⇒ `applyPendingTuning` returns input unchanged ⇒ invariant 1 byte-safe. (Alternative — skip `drainAndUpdate` when off — rejected: lets `blockEvents` semantics degrade and leaves stale table entries.)
+
+---
+
+## §24.8 Render-Harness `--note-expression` + `--mpe-yz` Mode Design (R41c)
+
+Template: `--mpe-pitch-bend` block (`main.cpp:502+` naming, `~:1472+` render body — direct `OContrabassAudioProcessor` construction, blockwise MIDI injection, autocorrelation `detectF` probe, JSON pass flags). CLI plumbing follows the established precedence-warning ladder (`--note-expression` > `--mpe-yz` > `--microtonal` > …).
+
+### §24.8.1 `--note-expression` (Gate 8c invariant 2)
+
+`--note-expression [--ne-semis <0.5>] [--out note-expression.wav] [--json note-expression.json]`
+1. **Cell 1 (offset):** seed `getPendingTable()[60] = +0.50` semis (§24.4) → noteOn 60 ch 2 → 5 s INFINITE_SUSTAIN=1.0 render → autocorrelation vs expected `f₆₀·2^(0.5/12)` (≈ +50¢). Tolerance **±10¢** (Phase 2.6b autocorrelation precision floor, Gate 8c inv-2 starting bar).
+2. **Cell 2 (exchange-consume, risk #38):** noteOff → re-trigger note 60 WITHOUT re-seed → expect baseline `f₆₀` within ±10¢.
+3. **Cell 3 (gate, D10):** set `NOTE_EXPRESSION=false`, re-seed +0.50, render → expect baseline `f₆₀` (offset discarded, slot still consumed).
+4. JSON: `pass_nan / pass_peak / pass_blockTime / pass_neTracking / pass_neConsume / pass_neGate`.
+
+### §24.8.2 `--mpe-yz` (Gate 8c invariant 3)
+
+`--mpe-yz [--out mpe-yz.wav] [--json mpe-yz.json]` — sequential segments, ch 2, note 48, explicit dimension resets between segments (§24.6.5 stickiness):
+1. **Baseline** (no Y/Z, 3 s) — reference RMS + spectral centroid.
+2. **Y sweep:** CC74 64→127→0→64 triangle @ ~50 ev/s over 5 s → expect spectral-centroid modulation (β moves the bow point ⇒ harmonic-content change; centroid is the observable — bow position has no direct pitch signature) + rmsContinuity ≥ 0.85 (risk #40 evidence).
+3. **Z sweep:** channelPressure 0→127→0 triangle over 5 s → expect RMS envelope tracking the (0.5+1.5·Z) lift, monotone correlation between Z and short-window RMS + rmsContinuity ≥ 0.85.
+4. **Max-Z stress cell (§24.5.3):** BOW_PRESSURE=8.0 + Z=127 held + INFINITE_SUSTAIN=1.0, 5 s → `pass_nan / pass_peak` (limiter ceiling holds) / bounded-RMS flags per matrix-stability precedent.
+5. JSON: `pass_nan / pass_peak / pass_blockTime / pass_yCentroidResponse / pass_zRmsResponse / pass_rmsContinuity / pass_maxZStable`.
+
+Metrics are **response-shape** bars (monotone correlation / modulation-present), not absolute calibration bars — the Y/Z constants are shipped values (§24.5), not new tuning targets.
+
+---
+
+## §24.9 Goldens Strategy — 17 Carry-Forward + 2 NEW (R41d)
+
+- **17 carry-forward byte-identical** at post-R40 sha256s (Gate 8c invariant 1). Safety argument: R41a drain is a no-op without VST3 raw events (harness/AU path never produces any); R41b NE compose is identity when the slot is 0.0 (exchange returns 0.0 → early-return before `pow`); D7/D8 mean **zero Y/Z code motion**; NOTE_EXPRESSION default-true gate only selects between two identical values at default state. No float-path perturbation anywhere in the default render.
+- **2 NEW:** `note-expression.{wav,json,wav.sha256,json.sha256}` + `mpe-yz.{wav,json,wav.sha256,json.sha256}`; 3-trial bit-stability per R39e/R40d precedent.
+- `reproduce-goldens.sh` 17 → **19 entries**.
+- **No re-baseline of any existing golden** — this is the first Phase 2.6 sub-cycle with a strictly-additive golden set.
+
+---
+
+## §24.10 Open Items for Plan-Phase (PLAN rev-15)
+
+1. **ESCALATION-YZ1 (§24.5.2)** — Q21/Q22 resolution: Option A (adopt live Y ±0.05 / Z 0.5+1.5·Z as locked calibration; zero DSP change) vs Option B (literal Q22 reshape + 17-golden re-baseline). Research recommends **A**. USER-DECISION or plan-phase LOCK with rationale.
+2. **D10 gate semantics (§24.7.3)** — always-consume/conditionally-apply recommended; LOCK at plan.
+3. **D9 compose-site (§24.7.2)** — fold NE into cached base; LOCK verbatim (this is a correctness requirement, not a preference).
+4. **Harness accessor choice (§24.4)** — typed `getVST3Extensions()` accessor recommended over cast; LOCK at plan.
+5. **Max-Z stress-cell disposition (§24.5.3)** — if the stress cell fails at execute, STOP and escalate clamp design (any clamp shifts goldens); pre-agree the escalation path at plan.
+6. **D1-bis note (§24.6.1)** — rev-11.b/rev-11.c texts cite `Range(1,16)`; live code is `Range(1,17)` post-CR-02. Scribe into the Stage-2-verify amendments task (Q7 bundle), not R41.
+7. **HR-13 wording refinement (§24.2.2)** — "no allocation" clause reads steady-state per module contract (NE-event blocks may allocate in `updatePendingFromEvents`'s noteId map; O-Lyrica precedent). Scribe the clarification into the HR-13 registry entry at plan so pluginval triage has the citation.
+
+## §24.11 Risk-Surface Refinement for PLAN rev-15
+
+| # | Risk (rev-11.c) | Research disposition |
+|---|---|---|
+| 37 | NE drain ordering race | Mitigated — single drain site before `renderNextBlock` (§24.7.1); HR-13 |
+| 38 | Stale NE offset on retrigger | Mitigated by module exchange-consume; **harness Cell 2 proof added** (§24.8.1) |
+| 39 | Y offset non-zero absent events | **DISSOLVED** — shipped code already centers Y at `asSignedFloat()`=0 (§24.5.1) |
+| 40 | Y/Z zipper under fast gestures | Open→empirical: rmsContinuity ≥ 0.85 bars in `--mpe-yz` (§24.5.4); ESC-MPE1 smoother is the ready remedy |
+| 41 | 17-golden drift at NE-default | Mitigated — identity-path argument (§24.9); R41-pre + R41d verify |
+| 42 | Harness NE injection | **RESOLVED** — typed accessor + direct atomic store (§24.4) |
+| NEW #43 | NE offset lost at first mid-note pitch-bend if composed into `currentFrequency` (O-Lyrica-verbatim port bug) | Mitigated by D9 compose-into-cache design (§24.7.2); harness Cell 1 + bend combo optional at plan |
+| NEW #44 | Legacy-mode Y/Z stickiness across notes on same channel | Documented behavior (§24.6.5); harness sends explicit resets; NOTES.md line at R41 |
+| NEW #45 | Max-Z (2× pressure) regime outside matrix-stability evidence | Open→empirical: max-Z stress cell (§24.5.3 / §24.8.2.4); pre-agreed escalation path (§24.10.5) |
+
+## §24.12 Summary — Phase 2.6c Research Resolution Map
+
+| Open Q (CONTEXT rev-11.c) | Status | Resolution Path |
+|---|---|---|
+| #1 module API line-review + Pattern A / AU implication | ✅ RESOLVED | Full surface at §24.2; AU no-ops via nullptr dispatch slots, 0 CMake edits (§24.2.3) |
+| #2 JUCE-NE-PATCH assertion mechanism | ✅ RESOLVED | Configure-time check ALREADY LIVE in module.cmake (D-15); R41-pre grep as belt-and-braces (§24.3) |
+| #3 Harness NE injection surface (risk #42) | ✅ RESOLVED | Typed `getVST3Extensions()` accessor + direct atomic table store; exchange-consume proof cell (§24.4) |
+| #4 Q21/Q22 depth calibration | ✅ RESOLVED w/ ESCALATION-YZ1 | **D7/D8: both mappings already shipped** (Y ±0.05 clamped; Z 0.5+1.5·Z); recommend adopt-as-is; max-Z stress cell covers Schelleng gap (§24.5) |
+| #5 MPE Y/Z legacy-mode routing | ✅ RESOLVED | Legacy routes CC74+channelPressure to last-note-on-channel; poly-AT does NOT work; stickiness quirk documented (§24.6) |
+| #6 O-Lyrica port checklist | ✅ RESOLVED w/ D9 refinement | Line-map at §24.7.1; **NE must fold into cached base** (D9) — verbatim port would drop NE on first bend; D10 NOTE_EXPRESSION gate wiring (§24.7.3) |
+
+**6/6 RESOLVED + 1 ESCALATION (YZ1) + 4 new discrepancies surfaced (D7, D8, D9-design, D10) + 3 new risks (#43–#45).** R41b scope SHRINKS (~10 LOC vs ~30 budgeted) because FUNC-05 Y/Z is already live. **Plan-phase ready (PLAN rev-15).**
+
+## §24.13 References (§24 append)
+
+- `modules/tuning/note-expression/cpp/NoteExpression.h` (217 LOC) — `PendingTuningTable` :54; `applyPendingTuning` :66-79; dispatch-slot decls :110-134; `VST3Extensions` :159-214 (`onVst3RawEvent` :167, `drainBlockEvents` :178, `drainAndUpdate` :189, `getPendingTable` :193).
+- `modules/tuning/note-expression/cpp/NoteExpression.cpp` (187 LOC) — SharedCode TU: ctor reserves :125-132; `drainAndUpdate` :140-152; `queryIEditController` SharedCode body :173-184.
+- `modules/tuning/note-expression/cpp/vst3/NoteExpression_VST3.cpp` (300 LOC) — Controller :62-161 (1 NE type, Tuning, bipolar); `updatePendingFromEvents` :182-210 (**240·(v−0.5) semitone map** :207); lazy-create :240-266; `DispatchRegistrar` static-init :286-298.
+- `modules/tuning/note-expression/module.cmake` — configure-time JUCE-NE-PATCH marker FATAL_ERROR check (D-15); JUCE-root ladder `$ENV{JUCE_DIR}` → platform default.
+- `modules/tuning/note-expression/module.yaml` — v1.1.0; provides/requirements; O-Lyrica 2.3.0 first consumer.
+- `modules/cmake/OuariconModules.cmake` :52-94 — SharedCode glob (top-level cpp/ only) + per-format routing (`cpp/vst3/` → `${TARGET}_VST3` exact-suffix; silent no-op when format target absent).
+- `plugins/O-Lyrica/Source/PluginProcessor.h` :22/:115/:192; `PluginProcessor.cpp` :512/:730; `HarpSynthVoice.h` :88/:147; `HarpSynthVoice.cpp` :100-103/:159-163 — D-09 reference pattern.
+- `plugins/O-Contrabass/Source/PluginProcessor.h` :66 (`getTuningEngine` accessor precedent) :83-98 (member order: tuningEngine :90 before synth :98).
+- `plugins/O-Contrabass/Source/PluginProcessor.cpp` :122-123 (**NOTE_EXPRESSION Bool default true, consumed nowhere — D10**) :146-147 (addVoice loop) :154 (`enableLegacyMode(24, Range(1,17))` — D1-bis) :245-258 (processBlock entry → `renderNextBlock` :258).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.cpp` :55-105 (noteStarted; base-freq cache :74-79) :165-187 (notePitchbendChanged Site B recompute — D9 driver) :189-197 (empty Y/Z stubs) :436/:449-450 (F_bow_baseline pressure map, sub-harm path) :508 (`effectiveBowPressure` macro compose) :522-528 (**Step 6 Z map `(0.5+1.5·p)` — D8**) :848-853 (**Y map `bowPos + timbre·0.05` clamped — D7**).
+- `plugins/O-Contrabass/Source/BowedContrabassVoice.h` :47-51 (MPE callback overrides) :96-100 (tuningEngineBaseFreqHz cache Q17) :143 (`mpeExpression` member).
+- `plugins/O-Contrabass/tests/render-harness/main.cpp` :161/:211-213 (mode flags/parse) :324-400 (precedence ladder) :502+ (default out-name blocks) ~:1472+ (`--mpe-pitch-bend` render body — channel-2 blockwise injection + `detectF` autocorrelation template).
+- `~/JUCE/modules/juce_audio_basics/mpe/juce_MPEInstrument.cpp` — `isMemberChannel` legacy branch; `updateDimension` :462-491; dimension defaults :89-91 (pressure=min, timbre=centre); legacy-only no-reset at noteOff :397-401; poly-AT master-channel gate (`processMidiAfterTouchMessage`); `trackingMode = lastNotePlayedOnChannel` default (juce_MPEInstrument.h:393).
+- `~/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp` :3700-3736 — JUCE-NE-PATCH raw-event forwarding (D6 discuss-phase verification).
+- CONTEXT rev-11.c (2026-07-09) — scope contract; STATUS.md rev-28 discuss carry-forward block.
+
+---
