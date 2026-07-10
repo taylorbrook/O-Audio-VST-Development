@@ -1,8 +1,8 @@
 ---
 plugin: O-Contrabass
 stage: 2
-phase: execute
-status: phase_2_6c_execute_complete_r41_atomic_landed_gate_8c_pass_5_of_5_phase_2_6_umbrella_closed_ready_for_stage_2_full_verify
+phase: verify
+status: stage_2_dsp_complete_full_verify_pass_q10_ready_for_stage_3_gui
 last_updated: 2026-07-10
 complexity_score: 5.0
 complexity_score_raw: 16.0
@@ -10,8 +10,26 @@ complexity_tier: 6
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-cycle_scope: phase_2_6c_subcycle_execute_complete_vst3_note_expression_func06_plus_func05_mpe_yz_r41_atomic_landed
-next_action: stage_2_full_verify
+cycle_scope: stage_2_full_verify_complete_q7_amendments_landed_requirements_promoted_v1_1_backlog_logged
+next_action: stage_3_gui_discuss
+stage_2_full_verify_carry_forward: |  # rev-32 STATUS append for audit trail
+  Stage 2 (DSP) FULL VERIFY PASS 2026-07-10 (Q10 separate invocation). Automated
+  battery green at HEAD (descendant of R41 62d0adc + backfill a40d9e4): 19-entry
+  reproduce-goldens.sh all byte-identical; auval aumu OCbs OuDv SUCCEEDED;
+  pluginval-10 SUCCESS full battery. Q7 amendments LANDED in
+  .planning/research/ARCHITECTURE.md: (1) §"In-loop saturator" → 4·tanh(x/4)
+  with 3-evidence base (c7e845ea −13.09 dB / 5c45d176 −7.97 dB / 130a7b02
+  −25.06 dB), (2) §"DC Blocker" marked REMOVED (Phase 2.1a F3, grep evidence),
+  (3) §149/§509 size_scalar reconciled — §509 formula authoritative, span
+  corrected 1.83:1 → ≈1.35:1. D1/D1-bis scribed (enableLegacyMode 24,
+  Range(1,17) at 2 ARCHITECTURE sites). D3 audit RESOLVED — OUTPUT_GAIN id vs
+  "Output Level" display name consistent everywhere, no drift. REQUIREMENTS.md
+  promoted: FUNC-02/05/06, DSP-06/09, PERF-01/03, QUAL-01/02 → complete;
+  FUNC-07 (MTS-ESP stub) + DSP-07 (retune, priority-bumped) + DSP-08 (breathing
+  20%) partial → v1.1-logged; DSP-10 subjective bar + COMPAT-01 Windows leg →
+  stage-4-owned. 11-item v1.1 backlog logged in VERIFICATION.md. Post-2.6 Logic
+  AU smoke listed as recommended non-blocking human check. Stage 3 (GUI) opens
+  with fresh CONTEXT rev-12.
 phase_2_6c_execute_carry_forward: |  # rev-31 STATUS append for audit trail
   Phase 2.6c execute complete 2026-07-10. R41 atomic landed — Gate 8c 5/5 PASS
   (4 strict + inv-3 with ONE pre-authorized calibration deviation: --mpe-yz

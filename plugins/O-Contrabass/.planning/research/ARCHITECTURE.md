@@ -1,7 +1,7 @@
 ---
 title: "O-Contrabass DSP Architecture"
 created: 2026-04-25
-last_verified: 2026-04-25
+last_verified: 2026-07-10  # Stage 2 full verify — 3 Q7 amendments landed (in-loop saturator tanh port, F3 DCB removal, size_scalar reconciliation) + D1/D1-bis legacy-mode scribing
 juce_version: "8.0.4"
 summary: "Specification for a bass-only physical modeling bowed contrabass plugin (E1-G3) with a 4-string EADG digital waveguide, hyperbolic friction junction, 8-mode wood body resonator, drone-first features (infinite sustain, sub-harmonics, slow-bow LFO), and full Ouaricon microtonal convention. Synthesized from four parallel Level-3 research documents."
 domain: dsp
@@ -85,16 +85,23 @@ agents: [dsp, build, research]
   - **Constant leak:** `−1e-20` in bridge filter outside drone mode (defense-in-depth denormal guard).
   - **Per-string detune:** `juce::SmoothedValue<float, Linear>`, 20 ms ramp. Smoothed in delay-samples space, NOT cents (avoids logarithmic warping at low f0). Per-sample `setDelay()` during ramp.
   - **Active strings:** When `ACTIVE_STRINGS < 4`, bow is restricted to the lowest N strings. Note-to-string mapping uses standard double-bass first-position fingering (closest open string to MIDI note).
-  - **In-loop saturator:** Algebraic `x / sqrt(1 + x²)` after bridge filter — asymmetric onset at 0.6, asymptote at 1.0 prevents loop-gain runaway.
+  - **In-loop saturator:** `4·tanh(x/4)` per rail after bridge filter — prevents loop-gain runaway.
+    **AMENDED (Stage 2 verify, 2026-07-10):** original spec was algebraic `x / sqrt(1 + x²)` (asymmetric onset 0.6, asymptote 1.0). Ported to O-Bowed's `sat·tanh(x/sat)` topology with `sat = 4.0f` at Phase 2.4c-bis R36-bis (live at `WaveguideString.cpp:223-229`) after the `--saturator-tail-comparison` harness triggered the RESEARCH §19.7.6 escalation path. Three-evidence base (`decayEnvelopeDb[64]` at the 5 s post-bow-off mark, rel max):
+    1. **Pre-port** (algebraic), Phase 2.4c R36 golden `c7e845ea…`: **−13.09 dB** — |Δ| = 5.92 dB vs O-Bowed's −7.17 dB, above the 2 dB Q41 bound → escalation.
+    2. **Post-port** (tanh), Phase 2.4c-bis R36-bis golden `5c45d176…`: **−7.97 dB** — within bound vs O-Bowed; port validated.
+    3. **Post-body** (tanh + body resonator), Phase 2.5 R37 golden `130a7b02…`: **−25.06 dB** — |Δ| = 17.09 dB body-coupling design-intent flag; deep characterisation deferred to v1.1 backlog.
+    Known side-effects (v1.1 backlog): sub-harmonic energy-ratio collapse (DSP-07 retune, priority-bumped) and vibrato transfer attenuation (DSP-09 transfer tune) — see REQUIREMENTS.md inline notes. The master saturator (§Master Saturator) remains a SEPARATE `x − x³/3` block at output (CONTEXT rev-11 Q3 LOCKED — no unification).
 
 ---
 
-### DC Blocker (in-loop)
+### DC Blocker (in-loop) — REMOVED at Phase 2.1a (F3)
+
+**AMENDED (Stage 2 verify, 2026-07-10):** the in-loop DC blocker specified below was REMOVED as part of the Phase 2.1a R7 coupled fix (F1 split-rail topology + F2 bridge-LP DC-gain fix + F3 in-loop DCB removal + F4 voice-side `betaScale` fudge drop). The F2 bridge-filter DC-gain correction eliminated the DC-accumulation mechanism the blocker existed to guard against; with it in place the in-loop DCB blocked Helmholtz bootstrap at bass fundamentals. Evidence: zero references to `dcX1` / `dcY1` / `kDCBlockerR` in `WaveguideString.{h,cpp}` (Phase 2.1 VERIFICATION goal-backward check); bootstrap reaches steady-state within ~5 s across all four strings; all subsequent stability evidence (108-combo matrix, 36-combo sub-harmonics matrix, 60 s+ sustains) accumulated without an in-loop DCB. Original spec retained below for the historical record:
 
 - **JUCE Class:** Custom (one-pole, Smith DC blocker pattern).
 - **Purpose:** Removes DC drift from accumulated nonlinear residue on long sustains.
 - **Parameters Affected:** None (always active).
-- **Configuration:**
+- **Configuration (SUPERSEDED — not implemented):**
   - `H(z) = (1 − z⁻¹) / (1 − R·z⁻¹)` with `R = 0.999` → cutoff ~7 Hz at 44.1 kHz, safely below E1 (41 Hz).
   - Placed inside the loop after the bridge filter, before the next round trip.
 
@@ -146,7 +153,8 @@ agents: [dsp, build, research]
     | 6 | Cluster high | 340 | 6 | −5 |
     | 7 | Bridge cluster | 700 | 5 | −7 |
     | 8 | Bridge hill | 1200 | 2.5 | −6 |
-  - **Body Size scaling:** `size_scalar = 0.85 + 0.30·s` → 1.83:1 frequency span across knob. Q does NOT scale (size-independent in real wood, per Bissinger/Hutchins). See Open Decision §5.
+  - **Body Size scaling:** `size_scalar = 0.85 + 0.30·s` → ≈1.35:1 frequency span across knob. Q does NOT scale (size-independent in real wood, per Bissinger/Hutchins). See Open Decision §5.
+    **AMENDED (Stage 2 verify, 2026-07-10):** the original "1.83:1" span commentary here contradicted the §Body Resonator implementation formula `fc[i] = jlimit(20, sr·0.45, defaultFreq[i] / size_scalar)`. The formula section is LOCKED authoritative (CONTEXT rev-11 Q7): with `size_scalar ∈ [0.85, 1.15]`, the mode-frequency span across the knob is `1.15/0.85 ≈ 1.353:1`. Live code (`BodyResonator.cpp:78-88`) implements the formula verbatim.
   - **Body Damping scaling:** `Q_eff = Q_default · (1 − 0.85·damping)` (×0.15 minimum at full damp). Uniform across all modes.
   - **Body Mix:** Wet (8-mode bank) blended with HP-filtered dry (35 Hz HP on dry path to prevent sub-A0 phase-comb artifacts). `out = (1 − mix)·dry + mix·wet`.
   - **Coefficient updates:** Recomputed once per audio block (every 32–64 samples). 30 ms `SmoothedValue` on Size/Damping/Mix prevents zipper noise.
@@ -231,9 +239,9 @@ MIDI / MPE / VST3 Note Expression
    │   bias               │  │  (length = sr/(f0·2^(detune/1200)))
    │ + Schelleng guard    │  ├─ Per-string detune SmoothedValue (20 ms)
    │                      │  ├─ Bridge LP filter (g, p from INFINITE_SUSTAIN, BRIGHTNESS)
-   │                      │  ├─ In-loop saturator (algebraic, asym onset 0.6)
-   │                      │  ├─ DC blocker (R=0.999)
+   │                      │  ├─ In-loop saturator (4·tanh(x/4), Phase 2.4c-bis port)
    │                      │  └─ Tiny denormal leak (−1e-20)
+   │                      │     (in-loop DC blocker REMOVED — Phase 2.1a F3)
    ▼
    ┌────────────── 2x oversampling boundary (down) ──────────────┐
     │
@@ -285,7 +293,8 @@ Stereo Out
 - `juce::MidiBuffer` — MIDI event storage in `processBlock`.
 - `juce::MidiMessage` — note-on/off + CC parsing.
 - `juce::MPEInstrument` + `juce::MPEZoneLayout` — MPE state tracking (per-note pressure, slide, pitch bend).
-- `juce::MPESynthesiser` (or `MPESynthesiserBase` direct) — voice management. Use `enableLegacyMode(pitchbendRange=2, channelRange={1,17})` for non-MPE hosts.
+- `juce::MPESynthesiser` (or `MPESynthesiserBase` direct) — voice management. Use `enableLegacyMode(pitchbendRange=24, juce::Range<int>(1, 17))` for non-MPE hosts.
+  **AMENDED (Stage 2 verify, 2026-07-10, D1/D1-bis scribing):** original text said `pitchbendRange=2`. Live code (`PluginProcessor.cpp:162`) uses **±24 semitones** — LOCKED at CONTEXT rev-11.b D1 as Stage-1 ground truth (matches BRIEF per-string detune ±1200¢ headroom). D1-bis: interim texts cited `Range(1,16)`; live is `Range(1,17)` post-CR-02 end-exclusive fix (functionally channels 1–16).
 
 **CC mapping:**
 - CC11 (Expression) → `BOW_SPEED` (intrinsic).
@@ -1030,7 +1039,7 @@ Headroom for: Authentic Arco wolf-coupling, additional bow-noise spectral shapin
 - `juce::SmoothedValue<float, ValueSmoothingTypes::Linear>` — parameter smoothing.
 - `juce::ScopedNoDenormals` — denormal flush mode.
 - `juce::AudioProcessorValueTreeState` — APVTS (parameter automation + persistence).
-- `juce::MPESynthesiser` + `MPESynthesiserBase::enableLegacyMode(2, {1,17})` — MPE + non-MPE compatibility.
+- `juce::MPESynthesiser` + `MPESynthesiserBase::enableLegacyMode(24, {1,17})` — MPE + non-MPE compatibility (±24 semitones per D1 amendment above).
 
 ### Spike-Validated Patterns
 
