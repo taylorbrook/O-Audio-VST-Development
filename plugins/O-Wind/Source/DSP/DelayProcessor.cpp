@@ -18,6 +18,12 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 
     delayL.prepare (spec);
     delayR.prepare (spec);
+
+    // Size for the full delayTime range (2.0 s) at the prepared rate
+    const int maxDelaySamples = static_cast<int> (std::ceil (2.0 * spec.sampleRate)) + 4;
+    delayL.setMaximumDelayInSamples (maxDelaySamples);
+    delayR.setMaximumDelayInSamples (maxDelaySamples);
+
     feedbackFilterL.prepare (spec);
     feedbackFilterR.prepare (spec);
     dryWetMixer.prepare (spec);
@@ -27,7 +33,8 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     feedbackFilterL.setCutoffFrequency (8000.0f);
     feedbackFilterR.setCutoffFrequency (8000.0f);
 
-    delaySamples = 0.375f * currentSampleRate;
+    delaySmoothed.reset (spec.sampleRate, 0.03);
+    delaySmoothed.setCurrentAndTargetValue (0.375f * currentSampleRate);
 }
 
 void DelayProcessor::reset()
@@ -38,11 +45,13 @@ void DelayProcessor::reset()
     feedbackFilterR.reset();
     dryWetMixer.reset();
     feedbackL = feedbackR = 0.0f;
+    delaySmoothed.setCurrentAndTargetValue (delaySmoothed.getTargetValue());
 }
 
 void DelayProcessor::setTime (float seconds)
 {
-    delaySamples = seconds * currentSampleRate;
+    const float maxSamples = static_cast<float> (delayL.getMaximumDelayInSamples() - 4);
+    delaySmoothed.setTargetValue (juce::jlimit (1.0f, maxSamples, seconds * currentSampleRate));
 }
 
 void DelayProcessor::setFeedback (float fb)
@@ -84,6 +93,7 @@ void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
             delayR.pushSample (0, inputR + feedbackL * feedbackAmount);
         }
 
+        const float delaySamples = delaySmoothed.getNextValue();
         float wetL = delayL.popSample (0, delaySamples);
         float wetR = delayR.popSample (0, delaySamples);
 

@@ -264,7 +264,11 @@ void FluteSynthVoice::prepareToPlay (double sampleRate, int maxBlockSize)
         1
     };
     jetDelay.prepare (spec);
-    jetDelay.setMaximumDelayInSamples (1024);
+    // Jet delay reaches totalDelay * ratio/(1+ratio) (≤ ~25% of the loop);
+    // size for the lowest MIDI note at the internal rate — a fixed 1024
+    // silently clamps (shifts the bore/jet split) at >= 96 kHz hosts.
+    jetDelay.setMaximumDelayInSamples (
+        static_cast<int> (std::ceil (internalSampleRate / 8.176 * 0.5)) + 8);
 
     // SmoothedValue setup at internal rate (advances per oversampled sample)
     totalDelaySmoothed.reset (internalSampleRate, 0.003);  // 3ms delay crossfade
@@ -290,6 +294,12 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                         int startSample, int numSamples)
 {
     if (numSamples == 0)
+        return;
+
+    // Inactive voices produce exact zeros through the whole oversampled model —
+    // skip the render (and its filter updates) entirely. State is already reset
+    // at clearCurrentNote time, so early-out is safe.
+    if (! isVoiceActive())
         return;
 
     // Read APVTS parameters once per block
@@ -655,8 +665,12 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     float registerCutoffMult = 0.6f + (static_cast<float> (currentMidiNote) / 127.0f) * 0.8f;
     lossCutoff *= registerCutoffMult;
 
-    float lossQ = 0.707f * (1.0f - airColumn * 0.3f);
-    boreWaveguide.updateBoreLossFilter (lossCutoff, lossQ);
+    // Air column: bore geometry macro scaling the loss-filter corner ±½ octave
+    // around neutral 0.5 (longer/wider column damps harmonics sooner, shorter
+    // column keeps them). 0.5 leaves lossCutoff unchanged, so factory-default
+    // timbre is identical to when this parameter was inert.
+    lossCutoff *= std::pow (2.0f, 0.5f - airColumn);
+    boreWaveguide.updateBoreLossFilter (lossCutoff);
 
     // Radiation filter: preset base cutoff scaled by material (wood=darker, metal=brighter)
     boreWaveguide.updateRadiationFilter (currentPreset.radiationCutoff * materialRadScale);
@@ -706,9 +720,20 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     adsrSustainLevel = parameters->getRawParameterValue ("adsrSustain")->load();
     adsrReleaseSeconds = parameters->getRawParameterValue ("adsrRelease")->load();
 
-    // If ADSR was just disabled mid-note, reset to passthrough
+    // If ADSR was just disabled mid-note, reset to passthrough — and resolve
+    // any deferred jet release. Without this a note that was releasing when
+    // ADSR turned off never calls jetExciter.stopNote() and drones at full
+    // level until stolen (the Release stage only advances while adsrEnabled).
     if (! adsrEnabled)
+    {
+        if (pendingJetRelease)
+        {
+            jetExciter.stopNote();
+            pendingJetRelease = false;
+        }
+        adsrStage = ADSRStage::Idle;
         adsrLevel = 1.0f;
+    }
 
     // Read tone hole toggle from APVTS (stored for future ToneHoleSystem integration)
     // ToneHoleSystem scattering will be wired in a future DSP update

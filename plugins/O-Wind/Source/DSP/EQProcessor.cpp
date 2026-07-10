@@ -10,6 +10,11 @@
 
 #include "EQProcessor.h"
 
+// ArrayCoefficients::makeXXX returns a stack std::array with identical math;
+// assigning it into *state updates in place. The Coefficients::makeXXX
+// variants heap-allocate a ref-counted object — not audio-thread safe.
+using ArrayCoeffs = juce::dsp::IIR::ArrayCoefficients<float>;
+
 void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 {
     currentSampleRate = static_cast<float> (spec.sampleRate);
@@ -18,13 +23,13 @@ void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     highShelf.prepare (spec);
 
     // Apply initial coefficients
-    *lowShelf.state = *FilterCoeffs::makeLowShelf (
+    *lowShelf.state = ArrayCoeffs::makeLowShelf (
         currentSampleRate, 200.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetLowGainDB.load()));
-    *midPeak.state = *FilterCoeffs::makePeakFilter (
+    *midPeak.state = ArrayCoeffs::makePeakFilter (
         currentSampleRate, targetMidFreqHz.load(), 1.0f,
         juce::Decibels::decibelsToGain (targetMidGainDB.load()));
-    *highShelf.state = *FilterCoeffs::makeHighShelf (
+    *highShelf.state = ArrayCoeffs::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetHighGainDB.load()));
 }
@@ -51,7 +56,7 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     if (lowGain != prevLowGainDB)
     {
-        *lowShelf.state = *FilterCoeffs::makeLowShelf (
+        *lowShelf.state = ArrayCoeffs::makeLowShelf (
             currentSampleRate, 200.0f, 0.707f,
             juce::Decibels::decibelsToGain (lowGain));
         prevLowGainDB = lowGain;
@@ -59,7 +64,7 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     if (midGain != prevMidGainDB || midFreq != prevMidFreqHz)
     {
-        *midPeak.state = *FilterCoeffs::makePeakFilter (
+        *midPeak.state = ArrayCoeffs::makePeakFilter (
             currentSampleRate, midFreq, 1.0f,
             juce::Decibels::decibelsToGain (midGain));
         prevMidGainDB = midGain;
@@ -68,7 +73,7 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     if (highGain != prevHighGainDB)
     {
-        *highShelf.state = *FilterCoeffs::makeHighShelf (
+        *highShelf.state = ArrayCoeffs::makeHighShelf (
             currentSampleRate, 8000.0f, 0.707f,
             juce::Decibels::decibelsToGain (highGain));
         prevHighGainDB = highGain;

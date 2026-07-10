@@ -439,6 +439,78 @@ OWindAudioProcessor::OWindAudioProcessor()
     fxCache.reverbMod       = parameters.getRawParameterValue("reverbMod");
     fxCache.reverbShimmer   = parameters.getRawParameterValue("reverbShimmer");
 
+    // Persist tuning-engine state (intervals, scale name, tonic, built-in
+    // preset, octave stretch, mode) through DAW session state and user presets.
+    // Without this the APVTS restores tuningSystem=Scala on reload but the
+    // engine silently reverts to 12-TET intervals. Same pattern as O-Lyrica.
+    presetManager.setCustomStateCallbacks(
+        // Save callback - returns tuning state as JSON
+        [this]() -> juce::var {
+            auto* obj = new juce::DynamicObject();
+
+            auto intervals = tuningEngine.getIntervals();
+            juce::Array<juce::var> intervalsArray;
+            for (double cents : intervals)
+                intervalsArray.add(cents);
+            obj->setProperty("intervals", intervalsArray);
+
+            obj->setProperty("scaleName", tuningEngine.getActiveTuningName());
+            obj->setProperty("tonic", juce::var(tuningEngine.getTonicNote()));
+            obj->setProperty("presetIndex", static_cast<int>(tuningEngine.getBuiltInPreset()));
+            obj->setProperty("octaveStretch", tuningEngine.getOctaveStretch());
+            obj->setProperty("tuningMode", static_cast<int>(tuningEngine.getMode()));
+
+            return juce::var(obj);
+        },
+        // Load callback - restores tuning state from JSON
+        [this](const juce::var& customState) {
+            if (!customState.isObject())
+                return;
+
+            auto* obj = customState.getDynamicObject();
+            if (obj == nullptr)
+                return;
+
+            // Restore preset index first (sets intervals for built-in presets)
+            if (obj->hasProperty("presetIndex"))
+                tuningEngine.setBuiltInPreset(static_cast<TuningEngine::BuiltInPreset>(
+                    static_cast<int>(obj->getProperty("presetIndex"))));
+
+            // If custom intervals were saved, restore them (overrides preset)
+            if (obj->hasProperty("intervals"))
+            {
+                auto intervalsVar = obj->getProperty("intervals");
+                if (intervalsVar.isArray())
+                {
+                    std::vector<double> intervals;
+                    for (int i = 0; i < intervalsVar.size(); ++i)
+                        intervals.push_back(static_cast<double>(intervalsVar[i]));
+
+                    juce::String name = obj->getProperty("scaleName").toString();
+                    if (name.isEmpty()) name = "Custom";
+
+                    tuningEngine.setCustomIntervals(intervals, name);
+                }
+            }
+
+            // Restore tuning mode and keep the APVTS choice param in sync
+            if (obj->hasProperty("tuningMode"))
+            {
+                int mode = static_cast<int>(obj->getProperty("tuningMode"));
+                tuningEngine.setMode(static_cast<TuningEngine::Mode>(mode));
+
+                if (auto* tuningSystemParam = parameters.getParameter("tuningSystem"))
+                    tuningSystemParam->setValueNotifyingHost(static_cast<float>(mode) / 2.0f);
+            }
+
+            // Restore tonic AFTER intervals so scale rotation applies correctly
+            if (obj->hasProperty("tonic"))
+                tuningEngine.setTonicNote(static_cast<int>(obj->getProperty("tonic")));
+
+            if (obj->hasProperty("octaveStretch"))
+                tuningEngine.setOctaveStretch(static_cast<float>(obj->getProperty("octaveStretch")));
+        });
+
     // Initialize factory presets
     initializeFactoryPresets();
 }
@@ -568,11 +640,13 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
             lastFormantGainDb = gainDb;
             lastFormantCenterHz = centerHz;
 
-            auto coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter (
+            // ArrayCoefficients assigns in place — Coefficients::makePeakFilter
+            // heap-allocates on the audio thread
+            const auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
                 getSampleRate(), centerHz, 1.5f,
                 juce::Decibels::decibelsToGain (gainDb));
-            *formantFilterL.coefficients = *coeffs;
-            *formantFilterR.coefficients = *coeffs;
+            *formantFilterL.coefficients = coeffs;
+            *formantFilterR.coefficients = coeffs;
         }
 
         // Skip processing when gain is negligible (formant near 0)
