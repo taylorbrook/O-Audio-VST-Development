@@ -179,15 +179,16 @@ MIDI/MPE/NoteExpression
 
 ## UI Concept
 
-**Layout:** TBD in mockup phase. Expected groupings:
-- Bow section (speed, pressure, position, rosin, noise)
-- Body section (size, damping, brightness, mix)
-- Strings (tension, stiffness, per-string detune, active count)
-- Expression (vibrato, slow LFO, expression macro)
-- Drone (infinite sustain, sub-harmonics)
-- Output / Microtonal
+**Layout:** FINALIZED in mockup v1 (2026-07-10, `.planning/mockups/v1-ui.yaml`). 1000×650 fixed window, single-view sectioned grid — all 7 sections simultaneously visible, no tabs:
+- Bow section (speed, pressure, position, rosin, noise) with adjacent **Schelleng wedge** visualization (log-log speed×pressure operating point, wedge geometry shifts with β)
+- Body section (size, damping, brightness, mix) with **8-mode body spectrum** display
+- Strings (tension, stiffness, active count) + per-string detune as **4 vertical brass fine-tuner sliders** (E-A-D-G, ±1200 cents, center detent, dblclick reset)
+- Expression (vibrato rate/depth/onset, slow LFO, expression macro)
+- Drone (infinite sustain, sub-harmonics) — visually distinct deeper-umber panel with green "awake" glow when params leave 0
+- Output (level, width, saturator, limiter ceiling) with **vintage VU meter** (needle ballistics)
+- Microtonal footer strip (reference pitch, tuning system, Scala/TUN picker, Note Expression toggle)
 
-**Visual Style:** TBD in mockup phase. Suggest: dark wood / stage-lit aesthetic to match cinematic + drone dual identity.
+**Visual Style:** FINALIZED in mockup v1. Ouaricon house style (naturalist/parchment), O-Bowed-derived tokens darkened ~10% toward "aged parchment" bass identity: paper `#EDD9BE`, frame `#4A3226`, green accent `#5F8143`, Garamond/Georgia serif, 55px arc knobs. Brand illustration: vintage whale scientific engraving (SVG placeholder in mockup; final artwork = asset TODO).
 
 ## Technical Notes
 
