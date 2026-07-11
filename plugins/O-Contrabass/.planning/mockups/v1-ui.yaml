@@ -1,0 +1,527 @@
+# ============================================================================
+# O-Contrabass — UI Mockup Specification v1
+# Ouaricon Naturalist Series — "Slightly Aged Parchment" (darkened O-Bowed set)
+# ============================================================================
+# Design-iteration Phase A artifact. Companion browser mockup: v1-ui-test.html
+# Parameter IDs are AUTHORITATIVE — they match the shipped APVTS IDs
+# (parameter-spec.md, 31 params after Phase 2.6a additions).
+# ============================================================================
+
+plugin: O-Contrabass
+mockup_version: 1
+description: >
+  4-string contrabass physical model (waveguide + nonlinear bow friction).
+  Sustained orchestral arco and ambient drone. E1-G3, monophonic.
+  Single-view sectioned grid — all 7 sections visible at once, no tabs.
+
+window:
+  width: 1000
+  height: 650
+  resizable: false
+
+# ----------------------------------------------------------------------------
+# Palette — Ouaricon house style, shifted ~10% darker/warmer than O-Bowed
+# so the plugin reads "lower register" while staying in-family.
+# O-Bowed reference values in trailing comments.
+# ----------------------------------------------------------------------------
+styling:
+  fonts:
+    primary: "'Garamond', 'Georgia', 'Times New Roman', serif"
+  tokens:
+    bg-paper: "#EDD9BE"          # O-Bowed #F5E6D3
+    bg-paper-dark: "#DFC6A6"     # O-Bowed #E8D5BE
+    bg-paper-darker: "#C6B294"   # O-Bowed #D4C4AD
+    brown-text: "#332625"        # O-Bowed #3C2F2F
+    brown-text-light: "#5E4D40"  # O-Bowed #6B5B4F
+    brown-text-lighter: "#7D6C5E" # O-Bowed #8B7B6F
+    green-light: "#7E9A62"       # O-Bowed #8BA870
+    green-mid: "#5F8143"         # O-Bowed #6B8E4E
+    green-dark: "#3F5D2C"        # O-Bowed #4A6B35
+    green-accent: "#96B57A"      # O-Bowed #A3C288
+    brown-border: "#7C6547"      # O-Bowed #8B7355
+    brown-frame: "#4A3226"       # O-Bowed #5C4033 (deeper header/footer frame)
+    brown-frame-light: "#684C39" # O-Bowed #7A5C47
+    knob-size: 55px              # house standard
+    knob-track: "#C6B294"
+    knob-fill: "#5F8143"
+    shadow-soft: "rgba(51, 38, 37, 0.15)"
+    shadow-hard: "rgba(51, 38, 37, 0.3)"
+  drone_panel:
+    # Drone section is visually distinct — deeper umber tone panel; params
+    # default to 0 and "wake up" the drone territory. Panel gains a subtle
+    # green glow border when either drone param is raised above 0.
+    background: "linear-gradient(rgba(58,38,26,0.16), rgba(58,38,26,0.10))"
+    border: "#684C39"
+    label_color: "#B08F5E"
+
+# ----------------------------------------------------------------------------
+# Branding
+# ----------------------------------------------------------------------------
+branding:
+  header: "O-CONTRABASS"
+  brand_label: "OUARICON · NATURALIST SERIES"
+  illustration:
+    subject: "vintage cetacean (sperm whale) scientific engraving"
+    treatment: "low-opacity sepia overlay behind lower-center sections, ~0.13 opacity, hatched-line engraving style"
+    placement: { x: 300, y: 340, width: 430, height: 200 }
+    header_mark: "small whale glyph beside brand label, paper-tone stroke"
+    asset_status: "TODO — final engraving artwork is a production asset; mockup ships an inline SVG placeholder in engraving style"
+  section_label_style: "roman-numeral plate labels (I · BOW … VII · MICROTONAL), small caps, letterspaced, bottom rule"
+  preset_bar: "header strip — prev/next, preset name dropdown affordance, Save (visual placeholder only in mockup)"
+
+# ----------------------------------------------------------------------------
+# Section grid map (all coordinates absolute, px, within 1000x650)
+# Header 0-42 | Row1 52-304 | Row2 314-566 | Footer strip 576-640
+# ----------------------------------------------------------------------------
+sections:
+  - id: header       # preset bar
+    position: { x: 0, y: 0 }
+    size: { width: 1000, height: 42 }
+  - id: bow
+    label: "I · BOW"
+    position: { x: 10, y: 52 }
+    size: { width: 260, height: 252 }
+  - id: schelleng    # visualization panel, adjacent to Bow knobs (LOCKED)
+    label: "SCHELLENG DIAGRAM"
+    position: { x: 280, y: 52 }
+    size: { width: 336, height: 252 }
+  - id: body
+    label: "II · BODY"
+    position: { x: 626, y: 52 }
+    size: { width: 364, height: 252 }
+  - id: strings
+    label: "III · STRINGS"
+    position: { x: 10, y: 314 }
+    size: { width: 300, height: 252 }
+  - id: expression
+    label: "IV · EXPRESSION"
+    position: { x: 320, y: 314 }
+    size: { width: 330, height: 252 }
+  - id: drone
+    label: "V · DRONE"
+    position: { x: 660, y: 314 }
+    size: { width: 140, height: 252 }
+    distinct: true   # deeper umber panel treatment
+  - id: output
+    label: "VI · OUTPUT"
+    position: { x: 810, y: 314 }
+    size: { width: 180, height: 252 }
+  - id: microtonal
+    label: "VII · MICROTONAL"
+    position: { x: 10, y: 576 }
+    size: { width: 980, height: 64 }
+
+# ----------------------------------------------------------------------------
+# Controls — all 31 parameters (IDs authoritative)
+# type: slider → WebSliderRelay | toggle → WebToggleButtonRelay
+#       combo  → WebComboBoxRelay
+# ----------------------------------------------------------------------------
+controls:
+  # ---- Bow (5) ----
+  - id: BOW_SPEED
+    label: "Bow Speed"
+    type: slider
+    ui: knob
+    section: bow
+    position: { x: 25, y: 84 }
+    size: { width: 62, height: 86 }
+    range: [0.02, 1.5]
+    default: 0.15
+    unit: "m/s"
+    curve: log
+  - id: BOW_PRESSURE
+    label: "Bow Pressure"
+    type: slider
+    ui: knob
+    section: bow
+    position: { x: 98, y: 84 }
+    size: { width: 62, height: 86 }
+    range: [0.05, 8.0]
+    default: 1.0
+    unit: "N"
+    curve: log
+  - id: BOW_POSITION
+    label: "Bow Position (β)"
+    type: slider
+    ui: knob
+    section: bow
+    position: { x: 171, y: 84 }
+    size: { width: 62, height: 86 }
+    range: [0.02, 0.25]
+    default: 0.10
+    unit: ""
+    curve: linear
+  - id: ROSIN
+    label: "Rosin"
+    type: slider
+    ui: knob
+    section: bow
+    position: { x: 60, y: 180 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.65
+    curve: linear
+  - id: BOW_NOISE
+    label: "Bow Noise"
+    type: slider
+    ui: knob
+    section: bow
+    position: { x: 133, y: 180 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.35
+    curve: linear
+
+  # ---- Body (4) ----
+  - id: BODY_SIZE
+    label: "Body Size"
+    type: slider
+    ui: knob
+    section: body
+    position: { x: 644, y: 84 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.75
+    curve: linear
+  - id: BODY_DAMPING
+    label: "Body Damping"
+    type: slider
+    ui: knob
+    section: body
+    position: { x: 716, y: 84 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.40
+    curve: linear
+  - id: BODY_MIX
+    label: "Body Mix"
+    type: slider
+    ui: knob
+    section: body
+    position: { x: 788, y: 84 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.80
+    curve: linear
+  - id: BRIGHTNESS
+    label: "Brightness"
+    type: slider
+    ui: knob
+    section: body   # bridge filter — lives sensibly in Body section
+    position: { x: 860, y: 84 }
+    size: { width: 62, height: 86 }
+    range: [80, 12000]
+    default: 4500
+    unit: "Hz"
+    curve: log
+
+  # ---- Strings (7) ----
+  - id: STRING_TENSION
+    label: "String Tension"
+    type: slider
+    ui: knob
+    section: strings
+    position: { x: 25, y: 346 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.50
+    curve: linear
+  - id: STRING_STIFFNESS
+    label: "String Stiffness"
+    type: slider
+    ui: knob
+    section: strings
+    position: { x: 98, y: 346 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.30
+    curve: linear
+  - id: ACTIVE_STRINGS
+    label: "Active Strings"
+    type: slider          # Int 1-4, WebSliderRelay with stepped UI
+    ui: segmented-stepper # 4 plate-style segment buttons: 1 2 3 4
+    section: strings
+    position: { x: 176, y: 372 }
+    size: { width: 110, height: 26 }
+    range: [1, 4]
+    default: 4
+    step: 1
+    curve: linear
+  # Per-string detune — 4 vertical sliders styled as tailpiece fine-tuners,
+  # cents readouts, center-detent at 0 (soft snap ±20 cents), dblclick reset.
+  - id: DETUNE_E
+    label: "E String Detune"
+    type: slider
+    ui: vslider-finetuner
+    section: strings
+    position: { x: 52, y: 442 }
+    size: { width: 36, height: 112 }
+    range: [-1200, 1200]
+    default: 0
+    unit: "¢"
+    detent: 0
+    curve: linear
+  - id: DETUNE_A
+    label: "A String Detune"
+    type: slider
+    ui: vslider-finetuner
+    section: strings
+    position: { x: 114, y: 442 }
+    size: { width: 36, height: 112 }
+    range: [-1200, 1200]
+    default: 0
+    unit: "¢"
+    detent: 0
+    curve: linear
+  - id: DETUNE_D
+    label: "D String Detune"
+    type: slider
+    ui: vslider-finetuner
+    section: strings
+    position: { x: 176, y: 442 }
+    size: { width: 36, height: 112 }
+    range: [-1200, 1200]
+    default: 0
+    unit: "¢"
+    detent: 0
+    curve: linear
+  - id: DETUNE_G
+    label: "G String Detune"
+    type: slider
+    ui: vslider-finetuner
+    section: strings
+    position: { x: 238, y: 442 }
+    size: { width: 36, height: 112 }
+    range: [-1200, 1200]
+    default: 0
+    unit: "¢"
+    detent: 0
+    curve: linear
+
+  # ---- Expression (6) ----
+  - id: EXPRESSION_MACRO
+    label: "Expression Macro"
+    type: slider
+    ui: knob-featured   # 70px featured macro knob
+    section: expression
+    position: { x: 338, y: 360 }
+    size: { width: 78, height: 110 }
+    range: [0.0, 1.0]
+    default: 0.0
+    curve: linear
+  - id: VIBRATO_RATE
+    label: "Vibrato Rate"
+    type: slider
+    ui: knob
+    section: expression
+    position: { x: 430, y: 346 }
+    size: { width: 62, height: 86 }
+    range: [0.1, 12.0]
+    default: 5.0
+    unit: "Hz"
+    curve: log
+  - id: VIBRATO_DEPTH
+    label: "Vibrato Depth"
+    type: slider
+    ui: knob
+    section: expression
+    position: { x: 502, y: 346 }
+    size: { width: 62, height: 86 }
+    range: [0, 50]
+    default: 0
+    unit: "¢"
+    curve: linear
+  - id: VIBRATO_ONSET
+    label: "Vibrato Onset"
+    type: slider
+    ui: knob
+    section: expression
+    position: { x: 574, y: 346 }
+    size: { width: 62, height: 86 }
+    range: [0, 3000]
+    default: 600
+    unit: "ms"
+    curve: linear
+  - id: SLOW_LFO_RATE
+    label: "Slow Bow LFO Rate"
+    type: slider
+    ui: knob
+    section: expression
+    position: { x: 466, y: 444 }
+    size: { width: 62, height: 86 }
+    range: [0.05, 2.0]
+    default: 0.3
+    unit: "Hz"
+    curve: log
+  - id: SLOW_LFO_DEPTH
+    label: "Slow Bow LFO Depth"
+    type: slider
+    ui: knob
+    section: expression
+    position: { x: 538, y: 444 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.0
+    curve: linear
+
+  # ---- Drone (2) — defaults 0, wake up the drone territory ----
+  - id: INFINITE_SUSTAIN
+    label: "Infinite Sustain"
+    type: slider
+    ui: knob
+    section: drone
+    position: { x: 699, y: 352 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.0
+    curve: linear
+  - id: SUB_HARMONICS
+    label: "Sub-Harmonics"
+    type: slider
+    ui: knob
+    section: drone
+    position: { x: 699, y: 452 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.0
+    curve: linear
+
+  # ---- Output (4) ----
+  - id: OUTPUT_GAIN
+    label: "Output Level"
+    type: slider
+    ui: knob
+    section: output
+    position: { x: 825, y: 342 }
+    size: { width: 62, height: 86 }
+    range: [-60, 12]
+    default: 0
+    unit: "dB"
+    curve: linear
+  - id: WIDTH
+    label: "Width"
+    type: slider
+    ui: knob
+    section: output
+    position: { x: 899, y: 342 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 2.0]
+    default: 1.0
+    curve: linear
+  - id: MASTER_SAT_AMOUNT
+    label: "Master Saturator"
+    type: slider
+    ui: knob
+    section: output
+    position: { x: 825, y: 438 }
+    size: { width: 62, height: 86 }
+    range: [0.0, 1.0]
+    default: 0.50
+    curve: linear
+  - id: LIMITER_CEILING_DB
+    label: "Limiter Ceiling"
+    type: slider
+    ui: knob
+    section: output
+    position: { x: 899, y: 438 }
+    size: { width: 62, height: 86 }
+    range: [-6.0, 0.0]
+    default: -0.3
+    unit: "dB"
+    curve: linear
+
+  # ---- Microtonal (3 params + 1 visual affordance) ----
+  - id: REFERENCE_PITCH
+    label: "Reference Pitch"
+    type: slider
+    ui: knob-mini   # 40px footer-strip knob
+    section: microtonal
+    position: { x: 150, y: 588 }
+    size: { width: 40, height: 40 }
+    range: [220, 880]
+    default: 440
+    unit: "Hz"
+    curve: log
+  - id: TUNING_SYSTEM
+    label: "Tuning System"
+    type: combo
+    ui: dropdown
+    section: microtonal
+    position: { x: 320, y: 594 }
+    size: { width: 150, height: 28 }
+    choices: ["Scala/TUN", "MTS-ESP", "12-TET"]
+    default: 2   # 12-TET
+  - id: NOTE_EXPRESSION
+    label: "Note Expression"
+    type: toggle
+    ui: switch
+    section: microtonal
+    position: { x: 630, y: 596 }
+    size: { width: 46, height: 24 }
+    default: true
+
+affordances:
+  # Visual-only in mockup — wired to file chooser in Stage 3 implementation
+  - id: scl_load_button
+    label: "Load .scl / .tun"
+    section: microtonal
+    position: { x: 490, y: 594 }
+    size: { width: 110, height: 28 }
+    note: "opens Scala/TUN file picker; enabled when TUNING_SYSTEM = Scala/TUN"
+
+# ----------------------------------------------------------------------------
+# Visualizations — ALL THREE ship in v1.0 (LOCKED; defer escape hatch not taken)
+# Update budget: rAF-driven, throttled ≤60fps; C++ pushes state via
+# emitEventIfBrowserIsVisible at ≤30Hz (meter 16Hz acceptable).
+# ----------------------------------------------------------------------------
+visualizations:
+  - id: schelleng_wedge
+    title: "Schelleng diagram — centerpiece differentiator"
+    section: schelleng
+    canvas: { x: 292, y: 86, width: 312, height: 196 }
+    spec: |
+      Real-time bow operating point. X = bow speed (0.02-1.5 m/s, LOG axis),
+      Y = bow pressure (0.05-8 N, LOG axis). Playable Helmholtz wedge shaded
+      between p_max(v, β) and p_min(v, β); "RAUCOUS" region above, "SURFACE /
+      SLIPPING" below. Wedge geometry shifts with BOW_POSITION (β): p_max ∝
+      v/β, p_min ∝ v/β². Operating dot eased toward (BOW_SPEED, BOW_PRESSURE);
+      dot jitter amplitude ∝ BOW_NOISE; dot green inside wedge, rust outside.
+      MUST sit visually adjacent to Bow section knobs (Speed/Pressure/Position).
+    update: "60fps rAF while easing/jittering; idle-skips when settled"
+  - id: body_spectrum
+    title: "Body resonance spectrum"
+    section: body
+    canvas: { x: 640, y: 182, width: 336, height: 112 }
+    spec: |
+      8 body-resonator mode peaks (Lorentzian sum) over 40-1200 Hz log axis.
+      BODY_SIZE scales mode frequencies down as size grows; BODY_DAMPING
+      widens/flattens peaks (Q); BODY_MIX scales resonant level vs direct;
+      BRIGHTNESS tilts high-mode weighting. Redrawn on parameter change
+      (dirty-flag rAF), ≤60fps.
+    modes_base_hz: [58, 74, 98, 132, 178, 238, 320, 430]
+  - id: output_vu
+    title: "Vintage VU output meter"
+    section: output
+    canvas: { x: 825, y: 528, width: 150, height: 36 }
+    spec: |
+      Cream-face needle VU (RMS), -20..+3 dB scale with red sector above 0.
+      Functionally meaningful: plugin output chain is saturator + limiter.
+      Needle ballistics smoothed; test HTML simulates level from OUTPUT_GAIN /
+      MASTER_SAT_AMOUNT / INFINITE_SUSTAIN, capped at LIMITER_CEILING_DB.
+    update: "30fps throttled; C++ meter push 16Hz sufficient"
+
+# ----------------------------------------------------------------------------
+# WebView constraints honored (ui-design-rules.md)
+# ----------------------------------------------------------------------------
+constraints:
+  - "no viewport units (100vh/100vw/100dvh/100svh) anywhere"
+  - "html, body { height: 100%; } foundation"
+  - "user-select: none; cursor: default; overflow: hidden (native feel)"
+  - "context menu + dragstart disabled via JS"
+  - "fixed 1000x650 — setSize(1000, 650); setResizable(false, false)"
+  - "knob interaction: relative vertical drag, shift = fine, dblclick = default"
+  - "all viz updates rAF-throttled ≤60fps"
+
+assets_todo:
+  - "Final whale engraving artwork (production SVG/PNG) — mockup ships inline placeholder SVG in engraving style"
+  - "Optional paper-grain texture tile (mockup approximates with CSS gradients)"

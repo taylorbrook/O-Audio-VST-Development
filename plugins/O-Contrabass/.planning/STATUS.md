@@ -1,8 +1,8 @@
 ---
 plugin: O-Contrabass
-stage: 2
-phase: verify
-status: stage_2_dsp_complete_full_verify_pass_q10_ready_for_stage_3_gui
+stage: 3
+phase: discuss
+status: stage_3_gui_discuss_complete_context_rev_1_mockup_gate_pending
 last_updated: 2026-07-10
 complexity_score: 5.0
 complexity_score_raw: 16.0
@@ -10,8 +10,23 @@ complexity_tier: 6
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-cycle_scope: stage_2_full_verify_complete_q7_amendments_landed_requirements_promoted_v1_1_backlog_logged
-next_action: stage_3_gui_discuss
+cycle_scope: stage_3_gui_discuss_complete_ui_mockup_workflow_is_entry_gate_before_research
+next_action: ui_mockup_workflow_then_stage_3_gui_research
+latest_mockup_version: 1
+mockup_finalized: false
+stage_3_discuss_carry_forward: |  # rev-33 STATUS append for audit trail
+  Stage 3 (GUI) DISCUSS complete 2026-07-10. CONTEXT.md rev-1 written to
+  .planning/stages/3-gui/. Decisions: (1) ui-mockup workflow FIRST (mockup is
+  Stage-3 entry gate per ROADMAP Phase 3.1 — none exists yet), (2) visual
+  style = Ouaricon house style with O-Bowed as reference (parchment #F5E6D3,
+  brown/sage-green, Garamond, 55px knobs, 900x600 base), (3) ALL THREE Phase
+  3.3 visualizations confirmed v1.0 (Schelleng wedge + body spectrum + level
+  meter — defer-to-v1.1 escape hatch NOT taken), (4) single-view sectioned
+  grid, 7 UI-01 sections, no tabs. Param count corrected: 31 (ROADMAP "29" is
+  stale — Phase 2.6a added MASTER_SAT_AMOUNT + LIMITER_CEILING_DB). Constraint
+  flagged: render-harness compiles PluginEditor.cpp under JUCE_WEB_BROWSER=0 —
+  must guard createEditor + drop editor from harness sources when WebView
+  lands, re-run 19-entry goldens at Stage 3 execute start.
 stage_2_full_verify_carry_forward: |  # rev-32 STATUS append for audit trail
   Stage 2 (DSP) FULL VERIFY PASS 2026-07-10 (Q10 separate invocation). Automated
   battery green at HEAD (descendant of R41 62d0adc + backfill a40d9e4): 19-entry
