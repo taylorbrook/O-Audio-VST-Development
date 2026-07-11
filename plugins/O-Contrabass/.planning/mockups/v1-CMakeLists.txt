@@ -1,0 +1,75 @@
+# =============================================================================
+# O-Contrabass — WebView UI build configuration (from finalized mockup v1)
+#
+# This is a MERGE SNIPPET, not a standalone CMakeLists.txt.
+# Stage 3 Phase 3.x: merge the marked block into plugins/O-Contrabass/CMakeLists.txt.
+#
+# ALREADY PRESENT in O-Contrabass CMakeLists.txt (verified 2026-07-10 — do NOT
+# duplicate):
+#   juce_add_plugin(...):
+#     NEEDS_WEB_BROWSER TRUE
+#     NEEDS_WEBVIEW2 TRUE                    # Windows: links WebView2LoaderStatic.lib
+#     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+#   target_link_libraries: juce::juce_gui_extra
+#   target_compile_definitions:
+#     JUCE_WEB_BROWSER=1
+#     JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1   # REQUIRED with NEEDS_WEBVIEW2
+#                                                   # (dynamic loading silently
+#                                                   # blanks the WebView on Win)
+#     JUCE_USE_CURL=0
+#
+# =============================================================================
+# ADD THE FOLLOWING (place after juce_generate_juce_header / compile defs):
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# WebView UI resources — embedded as binary data, served by the editor's
+# resource provider (bare-path lookups: "/", "/index.html", "/js/juce/*.js").
+#
+# GOTCHA (MEMORY: critical_dual_binary_data_namespace_collision): if a SECOND
+# juce_add_binary_data target is ever added to this plugin (e.g. embedded
+# samples), give one of them a distinct NAMESPACE — two targets defaulting to
+# `BinaryData` collide at link time with duplicate symbols. O-Contrabass has
+# only this one today, so the default BinaryData namespace is fine and matches
+# the `#include "BinaryData.h"` in v1-PluginEditor.cpp.
+# -----------------------------------------------------------------------------
+juce_add_binary_data(OContrabass_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+)
+
+target_link_libraries(O-Contrabass
+    PRIVATE
+        OContrabass_UIResources
+)
+
+# =============================================================================
+# RENDER-HARNESS COUNTERPART (tests/render-harness/CMakeLists.txt):
+#
+# The harness compiles under JUCE_WEB_BROWSER=0. Once PluginEditor.cpp gains
+# WebView types it becomes un-buildable there (MEMORY:
+# pattern_render_harness_breaks_on_webview_editor). Required edits:
+#
+#   1. REMOVE Source/PluginEditor.cpp from the harness source list
+#      (grep tests/render-harness/CMakeLists.txt for PluginEditor).
+#   2. Guard createEditor() in Source/PluginProcessor.cpp:
+#         #if JUCE_WEB_BROWSER
+#             return new OContrabassAudioProcessorEditor(*this);
+#         #else
+#             return nullptr;   // harness build — headless
+#         #endif
+#      (hasEditor() may stay true; harness never opens an editor.)
+#   3. Rebuild harness + re-run the 19-entry reproduce-goldens.sh battery at
+#      Stage 3 execute START — this breakage is silent until the harness is
+#      next rebuilt.
+#
+# UI file provenance (Phase 3.1 copy steps):
+#   Source/ui/public/index.html               <- .planning/mockups/v1-ui.html
+#   Source/ui/public/js/juce/index.js         <- JUCE 8.0.9 frontend library
+#   Source/ui/public/js/juce/check_native_interop.js  (same origin)
+#   Canonical local source for the JUCE frontend lib:
+#     /Users/taylorbrook/JUCE/modules/juce_gui_extra/native/javascript/
+#   (or copy from plugins/O-GrainScatter/Source/ui/public/js/juce/ — same 8.0.9)
+# =============================================================================
