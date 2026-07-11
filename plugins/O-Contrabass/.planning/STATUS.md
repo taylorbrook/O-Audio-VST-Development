@@ -13,7 +13,8 @@ orchestration_mode: true
 cycle_scope: stage_3_gui_discuss_complete_ui_mockup_workflow_is_entry_gate_before_research
 next_action: ui_mockup_workflow_then_stage_3_gui_research
 latest_mockup_version: 1
-mockup_finalized: false
+mockup_finalized: true
+finalized_version: 1
 stage_3_discuss_carry_forward: |  # rev-33 STATUS append for audit trail
   Stage 3 (GUI) DISCUSS complete 2026-07-10. CONTEXT.md rev-1 written to
   .planning/stages/3-gui/. Decisions: (1) ui-mockup workflow FIRST (mockup is
