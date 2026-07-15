@@ -75,7 +75,9 @@ public:
 
     void processBlock(juce::AudioBuffer<float>& buffer)
     {
-        const int numChannels = buffer.getNumChannels();
+        // Never index past the prepared state, whatever layout the host sends
+        const int numChannels = std::min(buffer.getNumChannels(),
+                                         static_cast<int>(lpState.size()));
         const int numSamples = buffer.getNumSamples();
 
         if (juce::approximatelyEqual(currentBrightness, 0.0f)

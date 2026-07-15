@@ -112,6 +112,15 @@ body::after {
     border-color: var(--botanical-green-dark);
 }
 
+.mode-toggle button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.mode-toggle button:disabled:hover {
+    background: var(--paper-medium);
+}
+
 /* Main area: XY pad + vertical sliders */
 .main-area {
     display: flex;
@@ -239,6 +248,15 @@ body::after {
 .source-button.active {
     background: var(--botanical-green);
     border-color: var(--botanical-green-dark);
+}
+
+.source-button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.source-button:disabled:hover {
+    background: var(--paper-medium);
 }
 
 .source-button svg {

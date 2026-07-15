@@ -42,6 +42,7 @@ TextureProcessor::TextureProcessor()
     : AudioProcessor(BusesProperties()
                         .withInput("Sidechain", juce::AudioChannelSet::stereo(), false)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+      juce::Thread("O-Texture Inference"),
       parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
     sourceParam       = parameters.getRawParameterValue("SOURCE");
@@ -57,16 +58,25 @@ TextureProcessor::TextureProcessor()
 
     decodedBufferL.resize(static_cast<size_t>(kBlockSize), 0.0f);
     decodedBufferR.resize(static_cast<size_t>(kBlockSize), 0.0f);
-    decoderOutputBuffer.resize(static_cast<size_t>(kBlockSize), 0.0f);
+    asyncDecodedL.resize(static_cast<size_t>(kBlockSize), 0.0f);
+    asyncDecodedR.resize(static_cast<size_t>(kBlockSize), 0.0f);
 
     loadDimMap();
     initDecoderSession();
 
-    evolveNoise.setSeed(static_cast<uint32_t>(juce::Time::currentTimeMillis() & 0xFFFFFFFF));
+    const auto seed = static_cast<uint32_t>(juce::Time::currentTimeMillis() & 0xFFFFFFFF);
+    evolveNoise.setSeed(seed);
+    regenerateInactiveValues(seed);
+    snapshotSeed = seed;
+    snapshotCursors = evolveNoise.getCursors();
+
+    if (decoderSession)
+        startThread(Priority::high);
 }
 
 TextureProcessor::~TextureProcessor()
 {
+    stopThread(2000);
     decoderSession.reset();
 }
 
@@ -137,6 +147,8 @@ void TextureProcessor::initDecoderSession()
         sessionOptions.SetInterOpNumThreads(1);
         sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
+        memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+
         decoderSession = std::make_unique<Ort::Session>(
             ortEnv,
             decoderData,
@@ -159,8 +171,6 @@ bool TextureProcessor::runDecoder(const float* latent, float* outputAudio)
 
     try
     {
-        auto memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-
         // Input: latent vector [1, 32]
         std::array<int64_t, 2> inputShape = { 1, kLatentDim };
         Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
@@ -171,11 +181,13 @@ bool TextureProcessor::runDecoder(const float* latent, float* outputAudio)
             inputShape.size()
         );
 
-        // Output: audio [1, 1, 4096] — uses pre-allocated member buffer
+        // Output: audio [1, 1, 4096] bound directly to the caller's buffer —
+        // runDecoder holds no shared mutable state, so the inference thread and
+        // the offline-render path may both call it concurrently.
         std::array<int64_t, 3> outputShape = { 1, 1, kBlockSize };
         Ort::Value outputTensor = Ort::Value::CreateTensor<float>(
             memoryInfo,
-            decoderOutputBuffer.data(),
+            outputAudio,
             static_cast<size_t>(kBlockSize),
             outputShape.data(),
             outputShape.size()
@@ -191,14 +203,32 @@ bool TextureProcessor::runDecoder(const float* latent, float* outputAudio)
             outputNames, &outputTensor, 1
         );
 
-        // Copy output (the decoder output is [1, 1, 4096], we want the inner 4096 samples)
-        std::memcpy(outputAudio, decoderOutputBuffer.data(), sizeof(float) * static_cast<size_t>(kBlockSize));
         return true;
     }
-    catch (const Ort::Exception& e)
+    catch (const Ort::Exception&)
     {
-        juce::Logger::writeToLog("O-Texture: Decoder inference error: " + juce::String(e.what()));
+        decodeError.store(true, std::memory_order_relaxed);
         return false;
+    }
+}
+
+void TextureProcessor::run()
+{
+    while (!threadShouldExit())
+    {
+        const uint32_t target = reqSeq.load(std::memory_order_acquire);
+
+        if (doneSeq.load(std::memory_order_relaxed) != target)
+        {
+            const bool okL = runDecoder(reqLatentL.data(), asyncDecodedL.data());
+            const bool okR = runDecoder(reqLatentR.data(), asyncDecodedR.data());
+            asyncDecodeOk = okL && okR;
+            doneSeq.store(target, std::memory_order_release);
+        }
+        else
+        {
+            wait(1);
+        }
     }
 }
 
@@ -243,7 +273,7 @@ void TextureProcessor::constructLatentVectors(float x, float y, float charA, flo
     for (int dim : dimMap.inactiveDims)
     {
         if (dim >= 0 && dim < kLatentDim)
-            latentL[static_cast<size_t>(dim)] = inactiveRng.nextFloat() * 0.6f - 0.3f;
+            latentL[static_cast<size_t>(dim)] = inactiveValues[static_cast<size_t>(dim)];
     }
 
     for (int i = 0; i < kLatentDim; ++i)
@@ -253,6 +283,24 @@ void TextureProcessor::constructLatentVectors(float x, float y, float charA, flo
     latentR[static_cast<size_t>(dimMap.xDim)] -= kStereoOffset;
     latentL[static_cast<size_t>(dimMap.yDim)] += kStereoOffset * 0.5f;
     latentR[static_cast<size_t>(dimMap.yDim)] -= kStereoOffset * 0.5f;
+
+    // Publish noise state for getStateInformation; if the host is mid-read,
+    // skip — the next hop retries.
+    const juce::SpinLock::ScopedTryLockType snapshotLock(noiseSnapshotLock);
+    if (snapshotLock.isLocked())
+    {
+        snapshotSeed = evolveNoise.getSeed();
+        snapshotCursors = evolveNoise.getCursors();
+    }
+}
+
+void TextureProcessor::regenerateInactiveValues(uint32_t seed)
+{
+    // Deterministic per seed: the same project restores the same texture, and
+    // FREEZE genuinely freezes (values never change between hops).
+    juce::Random rng(static_cast<juce::int64>(seed) ^ 0x6b43a9b5);
+    for (auto& v : inactiveValues)
+        v = rng.nextFloat() * 0.6f - 0.3f;
 }
 
 // =============================================================================
@@ -309,6 +357,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout TextureProcessor::createPara
 // Prepare / Release
 // =============================================================================
 
+bool TextureProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    return layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo()
+        && (layouts.getChannelSet(true, 0).isDisabled()
+            || layouts.getChannelSet(true, 0) == juce::AudioChannelSet::stereo());
+}
+
 void TextureProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
     currentSampleRate = sampleRate;
@@ -316,21 +371,20 @@ void TextureProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
     olaProcessor.prepare(2);
     needsNewBlock = true;
 
-    tiltFilter.prepare(sampleRate, 2);
+    tiltFilter.prepare(sampleRate, juce::jmax(2, getTotalNumOutputChannels()));
 
-    setLatencySamples(OverlapAddProcessor::ACCUM_SIZE);
+    // Generate mode is a source: audio appears at sample 0 of the first hop,
+    // so there is no input-to-output delay to report.
+    setLatencySamples(0);
 
-    evolveNoise.reset();
-    inactiveRng.setSeed(static_cast<juce::int64>(juce::Time::currentTimeMillis()));
+    // Note: evolveNoise is deliberately NOT reset here — its state is
+    // hop-domain (sample-rate independent) and a reset would wipe the
+    // evolution position restored by setStateInformation.
 
     std::fill(decodedBufferL.begin(), decodedBufferL.end(), 0.0f);
     std::fill(decodedBufferR.begin(), decodedBufferR.end(), 0.0f);
-    decoderReady = false;
 
     prepared = true;
-
-    juce::Logger::writeToLog("O-Texture prepareToPlay: sampleRate=" + juce::String(sampleRate)
-                             + " latency=" + juce::String(OverlapAddProcessor::ACCUM_SIZE));
 }
 
 void TextureProcessor::releaseResources()
@@ -360,6 +414,28 @@ void TextureProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Midi
         return;
     }
 
+    // Apply noise state staged by setStateInformation. Try-lock: if the host
+    // is mid-write we skip and pick it up next block.
+    if (noiseStagingPending.load(std::memory_order_acquire))
+    {
+        const juce::SpinLock::ScopedTryLockType stagingLock(noiseStagingLock);
+        if (stagingLock.isLocked())
+        {
+            if (stagedHasSeed)
+            {
+                evolveNoise.setSeed(stagedSeed);
+                regenerateInactiveValues(stagedSeed);
+                stagedHasSeed = false;
+            }
+            if (stagedHasCursors)
+            {
+                evolveNoise.setCursors(stagedCursors);
+                stagedHasCursors = false;
+            }
+            noiseStagingPending.store(false, std::memory_order_release);
+        }
+    }
+
     const float x          = xParam->load();
     const float y          = yParam->load();
     const float charA      = characterAParam->load();
@@ -371,33 +447,72 @@ void TextureProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Midi
 
     tiltFilter.setBrightness(brightness);
 
+    const bool offline = isNonRealtime();
     int samplesProcessed = 0;
 
     while (samplesProcessed < numSamples)
     {
         if (needsNewBlock)
         {
-            constructLatentVectors(x, y, charA, charB, evolveRate, freeze);
-
-            // Run decoder inference synchronously for both channels
-            bool okL = runDecoder(latentL.data(), decodedBufferL.data());
-            bool okR = runDecoder(latentR.data(), decodedBufferR.data());
-
-            if (okL && okR)
+            if (offline)
             {
-                olaProcessor.addDecodedBlock(0, decodedBufferL.data());
-                olaProcessor.addDecodedBlock(1, decodedBufferR.data());
-                decoderReady = true;
+                // Offline render has no deadline: decode synchronously so
+                // bounces are deterministic and never depend on inference-
+                // thread timing. Discard any async result left in flight
+                // from realtime playback.
+                const uint32_t rq = reqSeq.load(std::memory_order_relaxed);
+                if (doneSeq.load(std::memory_order_acquire) == rq)
+                    consumedSeq = rq;
+
+                constructLatentVectors(x, y, charA, charB, evolveRate, freeze);
+
+                if (runDecoder(latentL.data(), decodedBufferL.data())
+                    && runDecoder(latentR.data(), decodedBufferR.data()))
+                {
+                    olaProcessor.addDecodedBlock(0, decodedBufferL.data());
+                    olaProcessor.addDecodedBlock(1, decodedBufferR.data());
+                }
+            }
+            else
+            {
+                // Realtime: consume the block the inference thread finished,
+                // then immediately request the next hop's decode. The decoder
+                // gets a full hop (~43 ms @ 48 kHz) per block.
+                const uint32_t rq = reqSeq.load(std::memory_order_relaxed);
+
+                if (doneSeq.load(std::memory_order_acquire) == rq && consumedSeq != rq)
+                {
+                    if (asyncDecodeOk)
+                    {
+                        olaProcessor.addDecodedBlock(0, asyncDecodedL.data());
+                        olaProcessor.addDecodedBlock(1, asyncDecodedR.data());
+                    }
+                    consumedSeq = rq;
+                }
+
+                if (consumedSeq == rq)
+                {
+                    // Idle: publish the next request (also primes at startup)
+                    constructLatentVectors(x, y, charA, charB, evolveRate, freeze);
+                    reqLatentL = latentL;
+                    reqLatentR = latentR;
+                    reqSeq.store(rq + 1, std::memory_order_release);
+                }
+                // else: decode still in flight — this hop plays the OLA tail
+                // (graceful Hann fade) and we retry at the next hop boundary.
             }
 
             needsNewBlock = false;
         }
 
-        int samplesToRead = std::min(numSamples - samplesProcessed,
-                                     olaProcessor.getSamplesUntilNextHop());
+        const int samplesToRead = std::min(numSamples - samplesProcessed,
+                                           olaProcessor.getSamplesUntilNextHop());
 
+        // getSamplesUntilNextHop() ∈ [1, HOP_SIZE], so this can't fire; the
+        // break guards against an infinite loop if that invariant ever breaks.
+        jassert(samplesToRead > 0);
         if (samplesToRead <= 0)
-            samplesToRead = numSamples - samplesProcessed;
+            break;
 
         int hops = olaProcessor.readSamples(buffer, samplesProcessed, samplesToRead);
 
@@ -430,15 +545,31 @@ void TextureProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
 
-    auto noiseSeed = static_cast<int>(evolveNoise.getSeed());
-    state.setProperty("evolve_seed", noiseSeed, nullptr);
+    // Never read evolveNoise directly here — the audio thread owns it. Read
+    // the per-hop snapshot instead; if a restore is still staged (audio not
+    // yet running), pass it through verbatim so save-after-load round-trips.
+    uint32_t seedOut;
+    std::array<float, 28> cursorsOut{};
+    {
+        const juce::SpinLock::ScopedLockType lock(noiseSnapshotLock);
+        seedOut = snapshotSeed;
+        cursorsOut = snapshotCursors;
+    }
 
-    const auto& cursors = evolveNoise.getCursors();
+    if (noiseStagingPending.load(std::memory_order_acquire))
+    {
+        const juce::SpinLock::ScopedLockType lock(noiseStagingLock);
+        if (stagedHasSeed)    seedOut = stagedSeed;
+        if (stagedHasCursors) cursorsOut = stagedCursors;
+    }
+
+    state.setProperty("evolve_seed", static_cast<int>(seedOut), nullptr);
+
     juce::String cursorStr;
     for (int i = 0; i < PerlinNoise1D<28>::getNumChannels(); ++i)
     {
         if (i > 0) cursorStr += ",";
-        cursorStr += juce::String(cursors[static_cast<size_t>(i)], 6);
+        cursorStr += juce::String(cursorsOut[static_cast<size_t>(i)], 6);
     }
     state.setProperty("evolve_cursors", cursorStr, nullptr);
 
@@ -455,25 +586,34 @@ void TextureProcessor::setStateInformation(const void* data, int sizeInBytes)
 
         auto state = parameters.state;
 
-        if (state.hasProperty("evolve_seed"))
+        // Stage the restored noise state; the audio thread applies it at the
+        // top of the next processBlock. Mutating evolveNoise from this (host)
+        // thread would race the audio thread's advance()/getAllValues().
+        if (state.hasProperty("evolve_seed") || state.hasProperty("evolve_cursors"))
         {
-            auto seed = static_cast<uint32_t>(static_cast<int>(state.getProperty("evolve_seed")));
-            evolveNoise.setSeed(seed);
-        }
+            const juce::SpinLock::ScopedLockType lock(noiseStagingLock);
 
-        if (state.hasProperty("evolve_cursors"))
-        {
-            juce::String cursorStr = state.getProperty("evolve_cursors").toString();
-            juce::StringArray tokens;
-            tokens.addTokens(cursorStr, ",", "");
-
-            if (tokens.size() == PerlinNoise1D<28>::getNumChannels())
+            if (state.hasProperty("evolve_seed"))
             {
-                std::array<float, 28> restoredCursors{};
-                for (int i = 0; i < tokens.size(); ++i)
-                    restoredCursors[static_cast<size_t>(i)] = tokens[i].getFloatValue();
-                evolveNoise.setCursors(restoredCursors);
+                stagedSeed = static_cast<uint32_t>(static_cast<int>(state.getProperty("evolve_seed")));
+                stagedHasSeed = true;
             }
+
+            if (state.hasProperty("evolve_cursors"))
+            {
+                juce::String cursorStr = state.getProperty("evolve_cursors").toString();
+                juce::StringArray tokens;
+                tokens.addTokens(cursorStr, ",", "");
+
+                if (tokens.size() == PerlinNoise1D<28>::getNumChannels())
+                {
+                    for (int i = 0; i < tokens.size(); ++i)
+                        stagedCursors[static_cast<size_t>(i)] = tokens[i].getFloatValue();
+                    stagedHasCursors = true;
+                }
+            }
+
+            noiseStagingPending.store(true, std::memory_order_release);
         }
     }
 }

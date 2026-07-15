@@ -19,7 +19,7 @@ class HannWindow
 public:
     HannWindow()
     {
-        constexpr float twoPi = 2.0f * static_cast<float>(M_PI);
+        constexpr float twoPi = 6.283185307179586f; // M_PI is not portable (MSVC)
         for (size_t n = 0; n < static_cast<size_t>(BlockSize); ++n)
             window[n] = 0.5f * (1.0f - std::cos(twoPi * static_cast<float>(n)
                                                         / static_cast<float>(BlockSize)));

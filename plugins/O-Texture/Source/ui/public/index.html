@@ -13,7 +13,8 @@
             <h1>O-TEXTURE</h1>
             <div class="mode-toggle">
                 <button>Generate</button>
-                <button>Transform</button>
+                <!-- Transform mode is not implemented in v0.1.x -->
+                <button disabled title="Coming soon">Transform</button>
             </div>
         </div>
 
@@ -53,7 +54,8 @@
             </div>
         </div>
 
-        <!-- Source selector: 6 icon buttons -->
+        <!-- Source selector: only Rain has a trained model in v0.1.x; the
+             other sources are disabled until their models ship -->
         <div class="source-selector">
             <!-- Rain -->
             <button class="source-button">
@@ -64,7 +66,7 @@
             </button>
 
             <!-- Metal -->
-            <button class="source-button">
+            <button class="source-button" disabled title="Coming soon">
                 <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="7"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -74,7 +76,7 @@
             </button>
 
             <!-- Wind -->
-            <button class="source-button">
+            <button class="source-button" disabled title="Coming soon">
                 <svg viewBox="0 0 24 24">
                     <path d="M3 8 Q8 6, 14 8 T20 8 M3 12 Q10 10, 16 12 T21 12 M3 16 Q7 14, 12 16 T19 16"/>
                 </svg>
@@ -82,7 +84,7 @@
             </button>
 
             <!-- Crowd -->
-            <button class="source-button">
+            <button class="source-button" disabled title="Coming soon">
                 <svg viewBox="0 0 24 24">
                     <circle cx="8" cy="7" r="2"/>
                     <circle cx="16" cy="7" r="2"/>
@@ -93,7 +95,7 @@
             </button>
 
             <!-- Synth -->
-            <button class="source-button">
+            <button class="source-button" disabled title="Coming soon">
                 <svg viewBox="0 0 24 24">
                     <path d="M4 12 L8 6 L12 16 L16 8 L20 12" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -101,7 +103,7 @@
             </button>
 
             <!-- Organic -->
-            <button class="source-button">
+            <button class="source-button" disabled title="Coming soon">
                 <svg viewBox="0 0 24 24">
                     <path d="M12 4 Q8 8, 12 12 T12 20 M12 12 Q16 10, 18 12"/>
                 </svg>
