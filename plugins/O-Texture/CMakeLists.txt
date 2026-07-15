@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.22)
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # =============================================================================
-# ANIRA - Neural network inference for real-time audio
+# ONNX Runtime, provisioned by the ANIRA fetch. Inference runs on our own
+# thread via the raw ORT C++ API, so anira itself is NOT linked or embedded —
+# the fetch is kept solely for its per-platform ONNX Runtime download logic,
+# which exports ANIRA_ONNXRUNTIME_SHARED_LIB_PATH (arch/OS-correct root dir).
 # =============================================================================
 include(FetchContent)
 FetchContent_Declare(
@@ -16,6 +19,15 @@ set(ANIRA_WITH_LIBTORCH OFF CACHE BOOL "" FORCE)
 set(ANIRA_WITH_TFLITE OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(anira)
 
+set(ONNXRUNTIME_VERSION 1.19.2)
+if(APPLE)
+    set(ONNXRUNTIME_LIB "${ANIRA_ONNXRUNTIME_SHARED_LIB_PATH}/lib/libonnxruntime.${ONNXRUNTIME_VERSION}.dylib")
+elseif(WIN32)
+    set(ONNXRUNTIME_LIB "${ANIRA_ONNXRUNTIME_SHARED_LIB_PATH}/lib/onnxruntime.lib")
+else()
+    set(ONNXRUNTIME_LIB "${ANIRA_ONNXRUNTIME_SHARED_LIB_PATH}/lib/libonnxruntime.so")
+endif()
+
 # =============================================================================
 # Plugin target
 # =============================================================================
@@ -27,15 +39,16 @@ juce_add_plugin(${PROJECT_NAME}
     PLUGIN_CODE OuTx
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Texture${OUARICON_DEV_SUFFIX}"
-    VERSION 0.1.0
+    VERSION 0.1.2
     IS_SYNTH TRUE
+    # MIDI input is required by the AU spec for MusicDevice (aumu) — auval
+    # fails without it — even though v0.1.x ignores all MIDI (IN-07).
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
 
-# ANIRA headers require C++20 (std::binary_semaphore)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
@@ -54,11 +67,12 @@ target_sources(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
     PRIVATE
         Source
+        "${ANIRA_ONNXRUNTIME_SHARED_LIB_PATH}/include"
 )
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
-        anira::anira
+        "${ONNXRUNTIME_LIB}"
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
@@ -83,13 +97,13 @@ juce_generate_juce_header(${PROJECT_NAME})
 # =============================================================================
 # Binary data: ONNX models
 # =============================================================================
+# encoder.onnx / prior.onnx stay on disk but are not embedded — only the
+# decoder and dim map are loaded until Transform mode lands.
 juce_add_binary_data(${PROJECT_NAME}_ModelData
     NAMESPACE ModelData
     HEADER_NAME ModelData.h
     SOURCES
         Resources/models/placeholder/decoder.onnx
-        Resources/models/placeholder/encoder.onnx
-        Resources/models/placeholder/prior.onnx
         Resources/models/rain/dim_map_rain.json
 )
 
@@ -128,7 +142,9 @@ target_compile_definitions(${PROJECT_NAME}
 )
 
 # =============================================================================
-# macOS: Embed ANIRA + ONNX Runtime shared libraries in plugin bundles
+# macOS: Embed the ONNX Runtime shared library in plugin bundles.
+# The plugin links libonnxruntime directly (install name
+# @rpath/libonnxruntime.<version>.dylib), resolved via INSTALL_RPATH.
 # =============================================================================
 if(APPLE)
     foreach(FORMAT VST3 AU Standalone)
@@ -141,32 +157,17 @@ if(APPLE)
                 BUILD_WITH_INSTALL_RPATH TRUE
             )
 
-            # Copy shared libraries into the bundle's Frameworks/ directory after build
+            # Copy the shared library into the bundle's Frameworks/ directory after build
             add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory
                     "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks"
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "$<TARGET_FILE:anira>"
+                    "${ONNXRUNTIME_LIB}"
                     "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/"
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "${anira_SOURCE_DIR}/modules/onnxruntime-1.19.2-macOS-arm64/lib/libonnxruntime.1.19.2.dylib"
-                    "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/"
-                # Create versioned symlinks
                 COMMAND ${CMAKE_COMMAND} -E create_symlink
-                    "libonnxruntime.1.19.2.dylib"
+                    "libonnxruntime.${ONNXRUNTIME_VERSION}.dylib"
                     "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/libonnxruntime.dylib"
-                COMMAND ${CMAKE_COMMAND} -E create_symlink
-                    "$<TARGET_FILE_NAME:anira>"
-                    "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/libanira.2.dylib"
-                COMMAND ${CMAKE_COMMAND} -E create_symlink
-                    "$<TARGET_FILE_NAME:anira>"
-                    "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/libanira.dylib"
-                # Fix anira's own reference to onnxruntime
-                COMMAND install_name_tool -change
-                    "@rpath/libonnxruntime.1.19.2.dylib"
-                    "@loader_path/libonnxruntime.1.19.2.dylib"
-                    "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/$<TARGET_FILE_NAME:anira>"
-                COMMENT "Embedding ANIRA + ONNX Runtime in ${FORMAT} bundle"
+                COMMENT "Embedding ONNX Runtime in ${FORMAT} bundle"
             )
         endif()
     endforeach()

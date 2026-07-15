@@ -5,7 +5,7 @@
   ==============================================================================
 */
 
-import { getSliderState, getToggleState, getComboBoxState, getBackendResourceAddress } from './juce/index.js';
+import { getSliderState, getToggleState, getComboBoxState } from './juce/index.js';
 
 // ============================================================================
 // State Management
@@ -16,6 +16,7 @@ let brightnessState, mixState, sourceState, modeState, freezeState;
 // XY pad animation
 const canvas = document.getElementById('xy-pad');
 const ctx = canvas ? canvas.getContext('2d') : null;
+let canvasW = 0, canvasH = 0; // logical (CSS pixel) drawing size
 const trailPoints = [];
 const MAX_TRAIL_LENGTH = 60; // ~2 seconds at 30fps
 let lastFrameTime = 0;
@@ -26,11 +27,12 @@ let isDraggingXY = false;
 // Initialize after DOM loads
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Setup canvas
+    // Setup canvas — a ResizeObserver keeps the backing store in sync with
+    // layout (covers the stylesheet settling after DOMContentLoaded in a cold
+    // WebView, and any future resizable-editor work).
     if (canvas) {
-        const container = canvas.parentElement;
-        canvas.width = container.clientWidth - 4; // Account for border
-        canvas.height = container.clientHeight - 4;
+        resizeCanvas();
+        new ResizeObserver(resizeCanvas).observe(canvas);
     }
 
     // Initialize all relay states
@@ -114,6 +116,21 @@ function updateModeButtons() {
 // ============================================================================
 // XY Pad with Orbital Trails
 // ============================================================================
+function resizeCanvas() {
+    // Canvas is a CSS replaced element: CSS sets its display size, but the
+    // backing store must be sized explicitly (DPR-aware for crisp Retina).
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (w <= 0 || h <= 0) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvasW = w;
+    canvasH = h;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
 function bindXYPad() {
     if (!canvas) return;
 
@@ -187,8 +204,8 @@ function animationLoop(timestamp) {
 function drawXYPad(normX, normY) {
     if (!ctx) return;
 
-    const w = canvas.width;
-    const h = canvas.height;
+    const w = canvasW;
+    const h = canvasH;
 
     // Clear
     ctx.clearRect(0, 0, w, h);
@@ -219,17 +236,17 @@ function drawXYPad(normX, normY) {
 // Vertical Sliders (Character A, B, Evolve)
 // ============================================================================
 function bindVerticalSliders() {
-    bindVerticalSlider('charA', characterAState);
-    bindVerticalSlider('charB', characterBState);
-    bindVerticalSlider('evolve', evolveState);
+    // Normalized defaults must match createParameterLayout() in PluginProcessor.cpp
+    bindVerticalSlider('charA', characterAState, 0.5);
+    bindVerticalSlider('charB', characterBState, 0.5);
+    bindVerticalSlider('evolve', evolveState, 0.3);
 }
 
-function bindVerticalSlider(id, sliderState) {
+function bindVerticalSlider(id, sliderState, defaultNorm) {
     const slider = document.getElementById(`slider-${id}`);
     if (!slider) return;
 
     const track = slider.querySelector('.slider-track');
-    const thumb = slider.querySelector('.slider-thumb');
     let isDragging = false;
     let startY, startValue;
 
@@ -263,10 +280,10 @@ function bindVerticalSlider(id, sliderState) {
         }
     });
 
-    // Double-click to reset
+    // Double-click to reset to the parameter's default
     track.addEventListener('dblclick', () => {
         sliderState.sliderDragStarted();
-        sliderState.setNormalisedValue(0.5); // Default center
+        sliderState.setNormalisedValue(defaultNorm);
         sliderState.sliderDragEnded();
     });
 
@@ -330,11 +347,12 @@ function updateSourceButtons() {
 // Rotary Knobs (Brightness, Mix)
 // ============================================================================
 function bindKnobs() {
-    bindKnob('brightness', brightnessState);
-    bindKnob('mix', mixState);
+    // Normalized defaults must match createParameterLayout() in PluginProcessor.cpp
+    bindKnob('brightness', brightnessState, 0.5); // 0.0 in a -1..1 range
+    bindKnob('mix', mixState, 1.0);
 }
 
-function bindKnob(id, sliderState) {
+function bindKnob(id, sliderState, defaultNorm) {
     const knob = document.getElementById(`knob-${id}`);
     if (!knob) return;
 
@@ -371,10 +389,10 @@ function bindKnob(id, sliderState) {
         }
     });
 
-    // Double-click to reset
+    // Double-click to reset to the parameter's default
     knob.addEventListener('dblclick', () => {
         sliderState.sliderDragStarted();
-        sliderState.setNormalisedValue(0.5); // Default center
+        sliderState.setNormalisedValue(defaultNorm);
         sliderState.sliderDragEnded();
     });
 

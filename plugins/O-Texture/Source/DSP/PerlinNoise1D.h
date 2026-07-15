@@ -59,6 +59,13 @@ public:
         for (size_t ch = 0; ch < static_cast<size_t>(NumChannels); ++ch)
         {
             cursors[ch] += stepPerHop;
+
+            // hashAt masks positions with & 0xFF, so the noise is periodic in
+            // 256 — wrap losslessly so float ULP never swallows small steps
+            // in very long sessions.
+            if (cursors[ch] >= 256.0f)
+                cursors[ch] -= 256.0f;
+
             cachedValues[ch] = evaluateNoise(cursors[ch], channelOffsets[ch]);
         }
     }
