@@ -34,6 +34,7 @@ info() {
 # Global variables
 PLUGIN_NAME=""
 PRODUCT_NAME=""
+CMAKE_TARGET=""
 DRY_RUN=false
 NO_INSTALL=false
 VERBOSE=false
@@ -118,6 +119,42 @@ execute() {
     return ${PIPESTATUS[0]}
 }
 
+# Resolve the CMake target declared by juce_add_plugin().
+# 11/37 plugins have a target name different from their folder name
+# (e.g. O-Chorus → OuariconChorus, O-Texture → ${PROJECT_NAME} → OuariconTexture),
+# so "<folder>_VST3" is not a valid ninja target for them, and their artefacts
+# live under "<target>_artefacts/", not "<folder>_artefacts/".
+resolve_cmake_target() {
+    local cmakelists="plugins/$PLUGIN_NAME/CMakeLists.txt"
+
+    # First token after "juce_add_plugin(" (tolerates newlines/whitespace)
+    local raw
+    raw=$(tr '\n' ' ' < "$cmakelists" \
+        | grep -oE 'juce_add_plugin[[:space:]]*\([[:space:]]*[^ )]+' \
+        | head -1 \
+        | sed -E 's/juce_add_plugin[[:space:]]*\([[:space:]]*//')
+
+    # Resolve one level of ${VAR} indirection via set(VAR value) in the same file
+    if [[ "$raw" =~ ^\$\{([A-Za-z0-9_]+)\}$ ]]; then
+        local var="${BASH_REMATCH[1]}"
+        raw=$(grep -oE "set[[:space:]]*\([[:space:]]*${var}[[:space:]]+[^ )]+" "$cmakelists" \
+            | head -1 \
+            | sed -E "s/set[[:space:]]*\([[:space:]]*${var}[[:space:]]+//")
+    fi
+
+    if [ -z "$raw" ] || [[ "$raw" == *'${'* ]]; then
+        warning "Could not resolve juce_add_plugin target from $cmakelists — falling back to folder name"
+        echo "WARNING: target resolution failed, using $PLUGIN_NAME" >> "$LOG_FILE"
+        raw="$PLUGIN_NAME"
+    fi
+
+    CMAKE_TARGET="$raw"
+    if [ "$CMAKE_TARGET" != "$PLUGIN_NAME" ]; then
+        info "  - CMake target resolved: $CMAKE_TARGET (differs from folder name)"
+    fi
+    echo "CMAKE_TARGET: $CMAKE_TARGET" >> "$LOG_FILE"
+}
+
 # ============================================================================
 # Phase 1: Pre-flight Validation
 # ============================================================================
@@ -141,6 +178,10 @@ phase_1_preflight_validation() {
         echo "ERROR: CMakeLists.txt not found" >> "$LOG_FILE"
         exit 1
     fi
+
+    # Resolve the actual CMake target name (may differ from folder name)
+    info "  - Resolving CMake target..."
+    resolve_cmake_target
 
     # Check PRODUCT_NAME in CMakeLists.txt
     info "  - Checking PRODUCT_NAME..."
@@ -210,7 +251,7 @@ phase_2_build() {
 
     # Build specific plugin using --target flags
     info "  - Building ${PLUGIN_NAME} (VST3 + AU) in parallel..."
-    if ! execute cmake --build "$build_dir" --config Release --target "${PLUGIN_NAME}_VST3" --target "${PLUGIN_NAME}_AU" --parallel; then
+    if ! execute cmake --build "$build_dir" --config Release --target "${CMAKE_TARGET}_VST3" --target "${CMAKE_TARGET}_AU" --parallel; then
         error "Build failed"
         echo "ERROR: Build failed" >> "$LOG_FILE"
         exit 1
@@ -234,8 +275,8 @@ phase_3_extract_product_name() {
     echo "Phase 3: Extract PRODUCT_NAME" >> "$LOG_FILE"
 
     info "  - Reading PRODUCT_NAME from build artifacts..."
-    local au_artefact_dir="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/AU"
-    local vst3_artefact_dir="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/VST3"
+    local au_artefact_dir="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/AU"
+    local vst3_artefact_dir="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/VST3"
 
     # Prefer AU; fall back to VST3 (e.g. on Linux)
     local artefact_path=""
@@ -366,8 +407,8 @@ phase_5_install_new_versions() {
 
     local vst3_dir="$HOME/Library/Audio/Plug-Ins/VST3"
     local au_dir="$HOME/Library/Audio/Plug-Ins/Components"
-    local vst3_build="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/VST3/$PRODUCT_NAME.vst3"
-    local au_build="build/plugins/$PLUGIN_NAME/${PLUGIN_NAME}_artefacts/Release/AU/$PRODUCT_NAME.component"
+    local vst3_build="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/VST3/$PRODUCT_NAME.vst3"
+    local au_build="build/plugins/$PLUGIN_NAME/${CMAKE_TARGET}_artefacts/Release/AU/$PRODUCT_NAME.component"
 
     # Verify VST3 artifact exists (skip in dry-run)
     info "  - Locating VST3 build artifact..."
