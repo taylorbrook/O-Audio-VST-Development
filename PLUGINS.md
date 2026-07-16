@@ -63,7 +63,7 @@ Ouaricon Plugins:
 | O-simpleSubtractive | ✅ Working | 1.0.0 | Synth (Pedagogical Subtractive) | 2026-06-25 |
 | O-simpleSampler | 🚧 Stage 1 | 0.1.0 | Synth (Pedagogical Sampler) | 2026-06-25 |
 | O-simpleBeatmaker | 📦 Installed | 1.0.2 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-07-15 |
-| O-simplePhysicalModelSynth | 📦 Installed | 1.0.1 | Synth (Pedagogical Physical Modeling) | 2026-07-16 |
+| O-simplePhysicalModelSynth | 📦 Installed | 1.0.2 | Synth (Pedagogical Physical Modeling) | 2026-07-16 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
