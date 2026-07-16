@@ -131,7 +131,8 @@ void OSimpleBeatmakerAudioProcessor::prepareToPlay (double sampleRate, int sampl
         OSimpleBeatmaker::dbToGain (pOutput != nullptr ? pOutput->load() : 0.0f));
 
     // Pre-allocate the merged MIDI buffer so processBlock never allocates.
-    sequencerMidi.ensureSize (4096);
+    // 16 KB ≈ 1800 note-ons/block headroom (merge is filtered to note-ons only).
+    sequencerMidi.ensureSize (16384);
 
     pendingCount = 0;
     absSamplePos = 0;
@@ -339,22 +340,35 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
     }
 
     // --- 4. Host-MIDI viz readout (source=1) + merge into the same stream ----
+    // Gated by isVoiceAudible like the sequencer path (:321) — a muted voice's
+    // trigger is dropped by handleTrigger, so drawing its dot would show a hit
+    // that makes no sound.
+    // Raw-byte gate (same as the merge below): a multi-KB SysEx must never
+    // construct a heap-backed MidiMessage on the audio thread.
     for (const auto meta : midiMessages)
     {
-        const auto m = meta.getMessage();
-        if (m.isNoteOn() && router.voiceForNote (m.getNoteNumber()) >= 0)
+        if (meta.numBytes != 3 || (meta.data[0] & 0xF0) != 0x90 || meta.data[2] == 0)
+            continue;
+        const int hostVoice = router.voiceForNote ((int) meta.data[1]);
+        if (hostVoice >= 0 && router.isVoiceAudible (hostVoice))
         {
             VizEvent ev;
-            ev.voiceIndex         = (juce::uint8) router.voiceForNote (m.getNoteNumber());
+            ev.voiceIndex         = (juce::uint8) hostVoice;
             ev.stepIndex          = -1;
             ev.nominalSampleInBar = meta.samplePosition;
             ev.appliedSampleInBar = meta.samplePosition;   // host MIDI: Δt = 0
-            ev.velocity           = (juce::uint8) m.getVelocity();
+            ev.velocity           = meta.data[2];
             ev.source             = 1;
             viz.push (ev);
         }
     }
-    sequencerMidi.addEvents (midiMessages, 0, numSamples, 0);   // host merged, stays sorted
+    // Merge note-ons only (all the router ever consumes). Raw-byte check so a
+    // multi-KB SysEx never constructs a heap-backed MidiMessage or grows
+    // sequencerMidi's storage on the audio thread.
+    for (const auto meta : midiMessages)
+        if (meta.numBytes == 3 && (meta.data[0] & 0xF0) == 0x90 && meta.data[2] != 0
+            && meta.samplePosition < numSamples)
+            sequencerMidi.addEvent (meta.getMessage(), meta.samplePosition);
 
     // --- 5. Sub-slice render on event offsets --------------------------------
     router.renderMerged (buffer, sequencerMidi, voices);
@@ -443,6 +457,14 @@ void OSimpleBeatmakerAudioProcessor::applyConceptPreset (int index)
 
     const auto& p = OSimpleBeatmaker::kBeatPresets[(size_t) index];
     using namespace OSimpleBeatmaker::ParamIDs;
+
+    // 0. Reset ALL 42 params to defaults first. The lesson presets only set the
+    //    5 timing-feel params + grid; without this, stale mute/solo/level/tune
+    //    state silently carries into the lesson (a soloed kick makes the "Ghost
+    //    Notes" snare inaudible with no visible cause).
+    for (auto* prm : getParameters())
+        if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+            rp->setValueNotifyingHost (rp->getDefaultValue());
 
     // 1. Timing-feel params, host-notifying. setValueNotifyingHost takes a
     //    NORMALISED 0..1 value, so convert each real value through the param's own

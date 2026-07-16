@@ -56,7 +56,9 @@ namespace OSimpleBeatmaker
 
     inline float dbToGain (float db) noexcept
     {
-        return db <= -59.5f ? 0.0f : juce::Decibels::decibelsToGain (db, -60.0f);
+        // −59.95 matches the UI's −∞ display threshold (app.js fmtDb): any value
+        // the knob shows as finite dB is audible; only the true bottom is silence.
+        return db <= -59.95f ? 0.0f : juce::Decibels::decibelsToGain (db, -60.0f);
     }
 
     inline float coefForSeconds (double seconds, double fs) noexcept
@@ -103,11 +105,12 @@ namespace OSimpleBeatmaker
             {
                 const float fInst = fBase + pitchEnv * pitchAmtHz;
                 phase += twoPi * fInst / (float) fs;
+                if (phase >= twoPi) phase -= twoPi;   // unwrapped float loses precision after ~30 min
                 float body = fastSine (phase) * ampEnv;
                 float click = noise.next() * clickEnv * clickLevel;
                 const float s = (body + click) * level * velGain;
                 L[start + i] += s;
-                R[start + i] += s;
+                if (R != L) R[start + i] += s;        // mono: R aliases L — one add only
                 ampEnv   *= ampCoef;
                 pitchEnv *= pitchCoef;
                 clickEnv *= clickCoef;
@@ -154,9 +157,10 @@ namespace OSimpleBeatmaker
             {
                 const float fInst = fBase + pitchEnv * pitchAmtHz;
                 phase += twoPi * fInst / (float) fs;
+                if (phase >= twoPi) phase -= twoPi;   // unwrapped float loses precision after ~30 min
                 const float s = fastSine (phase) * ampEnv * level * velGain;
                 L[start + i] += s;
-                R[start + i] += s;
+                if (R != L) R[start + i] += s;        // mono: R aliases L — one add only
                 ampEnv   *= ampCoef;
                 pitchEnv *= pitchCoef;
             }
@@ -214,11 +218,13 @@ namespace OSimpleBeatmaker
             {
                 ph1 += twoPi * f1 / (float) fs;
                 ph2 += twoPi * f2 / (float) fs;
+                if (ph1 >= twoPi) ph1 -= twoPi;       // unwrapped float loses precision after ~30 min
+                if (ph2 >= twoPi) ph2 -= twoPi;
                 const float body = (fastSine (ph1) + 0.7f * fastSine (ph2)) * bodyEnv * bodyMix;
                 const float nz   = bp.processSample (0, noise.next()) * noiseEnv * noiseMix * 2.0f;
                 const float s    = (body + nz) * level * velGain;
                 L[start + i] += s;
-                R[start + i] += s;
+                if (R != L) R[start + i] += s;        // mono: R aliases L — one add only
                 bodyEnv  *= bodyCoef;
                 noiseEnv *= noiseCoef;
             }
@@ -286,7 +292,7 @@ namespace OSimpleBeatmaker
                 const float band = bp.processSample (0, src);
                 const float s = band * (burstEnv + 0.5f * tailEnv) * level * velGain;
                 L[start + i] += s;
-                R[start + i] += s;
+                if (R != L) R[start + i] += s;        // mono: R aliases L — one add only
                 burstEnv *= burstCoef;
                 tailEnv  *= tailCoef;
             }
@@ -362,7 +368,7 @@ namespace OSimpleBeatmaker
                                 + openEnv   * openLevel   * (0.25f + 0.75f * openVel);
                 const float s = nz * amp;
                 L[start + i] += s;
-                R[start + i] += s;
+                if (R != L) R[start + i] += s;        // mono: R aliases L — one add only
                 closedEnv *= closedCoef;
                 openEnv   *= openCoef;
             }

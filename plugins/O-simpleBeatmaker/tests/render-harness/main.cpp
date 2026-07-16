@@ -21,6 +21,8 @@
       Probe 6  viz truth (QUAL-02)  — emitted appliedSampleInBar − nominalSampleInBar
                                       == the Δt baked into the emitted MidiMessage,
                                       and the viz FIFO agrees with the MIDI buffer.
+      Probe 7  mono parity (CR-02)  — a mono render matches one stereo channel's
+                                      RMS (no +6 dB double-add on 1-ch buffers).
 
     Exit 0 iff all probes pass.
 
@@ -549,6 +551,43 @@ int main()
                juce::String ("hits=") + juce::String ((int) r.hits.size())
                  + " viz=" + juce::String ((int) r.viz.size())
                  + " fifoAgrees=" + (fifoAgrees ? "Y" : "N"));
+    }
+
+    //==========================================================================
+    // PROBE 7 — mono/stereo gain parity (CR-02 regression): a mono render must
+    // match one stereo channel's level, not double-add every voice (+6 dB).
+    //==========================================================================
+    {
+        auto stereo = renderHost (proc, fs, block, 0.6, { { 0.0, 36, 110 } });
+        const double rStereo = rms (stereo, 0, (int) (0.2 * fs));
+
+        // Same kick hit through a 1-channel buffer (renderHost is stereo-only).
+        proc.setPlayConfigDetails (0, 1, fs, block);
+        proc.prepareToPlay (fs, block);
+        setDefaults (proc);
+        proc.clearGrid();
+        proc.setPlayHead (nullptr);
+        const int total = (int) (0.6 * fs);
+        std::vector<float> mono; mono.reserve ((size_t) total);
+        juce::AudioBuffer<float> mbuf (1, block);
+        int pos = 0;
+        while (pos < total)
+        {
+            mbuf.clear();
+            juce::MidiBuffer midi;
+            if (pos == 0) midi.addEvent (juce::MidiMessage::noteOn (1, 36, (juce::uint8) 110), 0);
+            proc.processBlock (mbuf, midi);
+            const int n = juce::jmin (block, total - pos);
+            for (int i = 0; i < n; ++i) mono.push_back (mbuf.getSample (0, i));
+            pos += block;
+        }
+        proc.setPlayConfigDetails (0, 2, fs, block);
+        const double rMono = rms (mono, 0, (int) (0.2 * fs));
+        const double ratio = rStereo > 0.0 ? rMono / rStereo : 0.0;
+        check ("mono-parity", ratio > 0.9 && ratio < 1.1 && rMono > 0.003,
+               juce::String ("stereoRMS=") + juce::String (rStereo, 4)
+                 + " monoRMS=" + juce::String (rMono, 4)
+                 + " ratio=" + juce::String (ratio, 3));
     }
 
     proc.releaseResources();
