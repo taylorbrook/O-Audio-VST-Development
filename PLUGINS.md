@@ -57,12 +57,12 @@ Ouaricon Plugins:
 | O-Contrabass | 🚧 Stage 2 | 1.0.0-dev | Synth (Physical Model Bowed Bass) | 2026-07-08 |
 | O-Bassoon | 🚧 Stage 0 | - | Synth (Physical Model Bassoon) | 2026-04-27 |
 | O-MicrotonalSampler | 📦 Installed | 1.23.3 | Synth (Microtonal Sampler) | 2026-06-30 |
-| O-simpleFM | 📦 Installed | 1.2.1 | Synth (Pedagogical 2-Op FM) | 2026-06-21 |
-| O-simpleAdditive | ✅ Working | 1.0.2 | Synth (Pedagogical Additive + Wavetable) | 2026-06-25 |
+| O-simpleFM | 📦 Installed | 1.2.2 | Synth (Pedagogical 2-Op FM) | 2026-07-15 |
+| O-simpleAdditive | ✅ Working | 1.0.4 | Synth (Pedagogical Additive + Wavetable) | 2026-07-15 |
 | O-simpleGrain | 📦 Installed | 1.1.0 | Synth (Pedagogical Granular) | 2026-06-25 |
 | O-simpleSubtractive | ✅ Working | 1.0.0 | Synth (Pedagogical Subtractive) | 2026-06-25 |
 | O-simpleSampler | 🚧 Stage 1 | 0.1.0 | Synth (Pedagogical Sampler) | 2026-06-25 |
-| O-simpleBeatmaker | ✅ Working | 1.0.0 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-06-25 |
+| O-simpleBeatmaker | 📦 Installed | 1.0.2 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-07-15 |
 | O-simplePhysicalModelSynth | 🚧 Stage 0 | - | Synth (Pedagogical Physical Modeling) | 2026-06-26 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
