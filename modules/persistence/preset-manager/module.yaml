@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.0.4
+version: 1.0.5
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,10 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.0.5
+    date: 2026-07-16
+    changes:
+      - "CR-03 (O-simplePhysicalModelSynth review): applyPresetJson() applies meta parameters (isMetaParameter()) FIRST in both the reset-to-defaults and apply passes — a macro param applied after the params its listener derives would re-derive and stomp explicitly saved values (user presets / any preset co-authoring macro + derived params). No-op for plugins without meta params"
   - version: 1.0.4
     date: 2026-07-10
     changes:

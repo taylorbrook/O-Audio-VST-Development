@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-simplePhysicalModelSynth</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="frame">
+    <!-- ─── Header + preset bar ────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">PhysicalModel</span></h1>
+        <p class="subtitle">Karplus&#8211;Strong String &amp; Modal Resonator Synthesizer &#183; A Field Guide</p>
+      </div>
+
+      <!-- Preset bar (factory + user JSON presets via OuariconPresetManager) -->
+      <div class="preset-bar-container">
+        <span class="preset-fleuron">&#10086;</span>
+        <div class="preset-bar" id="presetBar">
+          <button class="preset-nav" id="presetPrev" type="button" title="Previous preset" aria-label="Previous preset">&#9664;</button>
+          <button class="preset-name" id="presetName" type="button" title="Browse presets" aria-haspopup="listbox" aria-expanded="false">Default</button>
+          <button class="preset-nav" id="presetNext" type="button" title="Next preset" aria-label="Next preset">&#9654;</button>
+          <button class="preset-act" id="presetSave" type="button" title="Save current settings as a user preset">Save</button>
+          <button class="preset-act" id="presetDelete" type="button" title="Delete the current user preset">Delete</button>
+          <div class="preset-dropdown" id="presetDropdown" role="listbox" aria-label="Presets"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─── Central visualization row (reserved — populated in Phases 3.2/3.3) ─ -->
+    <section class="viz-row">
+      <!-- Loop / flow diagram (inline SVG). String skin = a pulse circulating the
+           Karplus-Strong loop, dimming with loopEnergy as the note decays. Modal
+           skin = 8 live stems (log-freq x, amp height). Skin toggles on resonatorType. -->
+      <div class="viz-block viz-diagram">
+        <div class="viz-label">Signal Flow &#183; <span class="viz-hint">excitation &#8594; resonator loop &#8594; material &#8594; out</span></div>
+        <div class="diagram-wrap" id="loopDiagram">
+          <svg class="diagram-svg" id="loopSvg" viewBox="0 0 520 200" preserveAspectRatio="xMidYMid meet" aria-label="Excitation to resonator to material to output signal-flow diagram">
+            <!-- connecting arrows (excite → resonator → material → out) -->
+            <line class="route-line" x1="104" y1="100" x2="146" y2="100" />
+            <polygon class="route-head" points="146,95 146,105 156,100" />
+            <line class="route-line" x1="302" y1="100" x2="346" y2="100" />
+            <polygon class="route-head" points="346,95 346,105 356,100" />
+            <line class="route-line" x1="446" y1="100" x2="470" y2="100" />
+            <polygon class="route-head" points="470,95 470,105 480,100" />
+
+            <!-- EXCITATION box -->
+            <g class="diagram-box">
+              <rect class="box-rect" data-tip="diagExcitation" x="8" y="70" width="96" height="60" rx="6" />
+              <text class="box-text" x="56" y="96" text-anchor="middle">EXCITE</text>
+              <text class="box-sub" x="56" y="112" text-anchor="middle">pluck&#183;strike&#183;bow</text>
+            </g>
+
+            <!-- RESONATOR box (holds the loop / stems) -->
+            <g class="diagram-box">
+              <rect class="box-rect box-rect-res" data-tip="diagResonator" x="150" y="34" width="152" height="132" rx="7" />
+              <text class="box-text" x="226" y="50" text-anchor="middle">RESONATOR</text>
+              <text class="box-sub" id="resonatorMode" x="226" y="160" text-anchor="middle">string &#183; loop</text>
+
+              <!-- String skin: circulating delay-loop pulse -->
+              <g id="stringSkin">
+                <circle class="loop-ring" id="loopRing" cx="226" cy="100" r="38" fill="none" />
+                <polygon class="loop-dir" points="226,58 220,68 232,68" />
+                <g id="loopPulseSpin">
+                  <circle class="loop-pulse" id="loopPulse" cx="226" cy="62" r="5" />
+                  <animateTransform attributeName="transform" type="rotate"
+                                    from="0 226 100" to="360 226 100" dur="1.7s" repeatCount="indefinite" />
+                </g>
+              </g>
+
+              <!-- Modal skin: 8 live stems (built + positioned in app.js) -->
+              <g id="modalSkin" style="display:none">
+                <line class="stem-baseline" x1="166" y1="150" x2="286" y2="150" />
+                <g id="modalStems"></g>
+              </g>
+            </g>
+
+            <!-- MATERIAL box -->
+            <g class="diagram-box">
+              <rect class="box-rect" data-tip="diagMaterial" x="350" y="70" width="96" height="60" rx="6" />
+              <text class="box-text" x="398" y="96" text-anchor="middle">MATERIAL</text>
+              <text class="box-sub" x="398" y="112" text-anchor="middle">damp&#183;decay</text>
+            </g>
+
+            <!-- OUTPUT box -->
+            <g class="diagram-box">
+              <rect class="box-rect" data-tip="diagOut" x="476" y="78" width="40" height="44" rx="6" />
+              <text class="box-text box-out" x="496" y="106" text-anchor="middle">&#9834;</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <!-- Live spectrum (canvas, Phase 3.2) -->
+      <div class="viz-block">
+        <div class="viz-label">Spectrum &#183; <span class="viz-hint">harmonic comb vs inharmonic modes</span></div>
+        <div class="canvas-wrap"><canvas id="spectrumCanvas"></canvas></div>
+      </div>
+      <!-- Oscilloscope (canvas, Phase 3.2) -->
+      <div class="viz-block">
+        <div class="viz-label">Waveform &#183; <span class="viz-hint">the ringing string / body, decaying</span></div>
+        <div class="canvas-wrap scope-wrap"><canvas id="scopeCanvas"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ─── Signal-flow control columns (left → right) ─────────── -->
+    <main class="signal-flow">
+
+      <!-- Column 1 · EXCITATION (how energy is injected) -->
+      <section class="group flow-col">
+        <h2 class="group-title">1 &#183; Excitation</h2>
+        <div class="col-body">
+          <div class="select-cell" data-tip="excitationType">
+            <select class="combo" id="combo-excitationType" aria-label="Excitation type"></select>
+            <div class="knob-label">Type</div>
+          </div>
+          <div class="knob-cell" data-tip="excitationPosition">
+            <div class="knob" id="knob-excitationPosition"><div class="knob-stem"></div></div>
+            <div class="knob-label">Position</div>
+            <div class="knob-value" id="val-excitationPosition">25%</div>
+          </div>
+          <div class="knob-cell" data-tip="excitationColor">
+            <div class="knob" id="knob-excitationColor"><div class="knob-stem"></div></div>
+            <div class="knob-label">Color</div>
+            <div class="knob-value" id="val-excitationColor">60%</div>
+          </div>
+          <div class="knob-cell" data-tip="bowForce">
+            <div class="knob" id="knob-bowForce"><div class="knob-stem"></div></div>
+            <div class="knob-label">Bow Force</div>
+            <div class="knob-value" id="val-bowForce">50%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Column 2 · RESONATOR (what carries the energy) -->
+      <section class="group flow-col">
+        <h2 class="group-title">2 &#183; Resonator</h2>
+        <div class="col-body">
+          <div class="select-cell" data-tip="resonatorType">
+            <select class="combo" id="combo-resonatorType" aria-label="Resonator type"></select>
+            <div class="knob-label">Engine</div>
+          </div>
+          <div class="select-cell" data-tip="stringModel">
+            <select class="combo" id="combo-stringModel" aria-label="String model"></select>
+            <div class="knob-label">String Model</div>
+          </div>
+          <div class="knob-cell" data-tip="inharmonicity">
+            <div class="knob" id="knob-inharmonicity"><div class="knob-stem"></div></div>
+            <div class="knob-label">Inharmonicity</div>
+            <div class="knob-value" id="val-inharmonicity">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="modeBrightness">
+            <div class="knob" id="knob-modeBrightness"><div class="knob-stem"></div></div>
+            <div class="knob-label">Mode Bright</div>
+            <div class="knob-value" id="val-modeBrightness">50%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Column 3 · MATERIAL + TUNING (how energy is lost · pitch) -->
+      <section class="group flow-col">
+        <h2 class="group-title">3 &#183; Material &#183; Tuning</h2>
+        <div class="col-body">
+          <div class="knob-cell" data-tip="material">
+            <div class="knob" id="knob-material"><div class="knob-stem"></div></div>
+            <div class="knob-label">Material</div>
+            <div class="knob-value" id="val-material">30%</div>
+          </div>
+          <div class="knob-cell" data-tip="damping">
+            <div class="knob" id="knob-damping"><div class="knob-stem"></div></div>
+            <div class="knob-label">Damping</div>
+            <div class="knob-value" id="val-damping">60%</div>
+          </div>
+          <div class="knob-cell" data-tip="decay">
+            <div class="knob" id="knob-decay"><div class="knob-stem"></div></div>
+            <div class="knob-label">Decay</div>
+            <div class="knob-value" id="val-decay">70%</div>
+          </div>
+          <div class="knob-cell" data-tip="coarseTune">
+            <div class="knob knob-sm" id="knob-coarseTune"><div class="knob-stem"></div></div>
+            <div class="knob-label">Coarse</div>
+            <div class="knob-value" id="val-coarseTune">0 st</div>
+          </div>
+          <div class="knob-cell" data-tip="fineTune">
+            <div class="knob knob-sm" id="knob-fineTune"><div class="knob-stem"></div></div>
+            <div class="knob-label">Fine</div>
+            <div class="knob-value" id="val-fineTune">0 c</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Column 4 · AMP + OUTPUT -->
+      <section class="group flow-col">
+        <h2 class="group-title">4 &#183; Amp &#183; Output</h2>
+        <div class="col-body">
+          <div class="knob-cell" data-tip="ampAttack">
+            <div class="knob knob-sm" id="knob-ampAttack"><div class="knob-stem"></div></div>
+            <div class="knob-label">Attack</div>
+            <div class="knob-value" id="val-ampAttack">1 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="ampRelease">
+            <div class="knob knob-sm" id="knob-ampRelease"><div class="knob-stem"></div></div>
+            <div class="knob-label">Release</div>
+            <div class="knob-value" id="val-ampRelease">200 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="velToBrightness">
+            <div class="knob" id="knob-velToBrightness"><div class="knob-stem"></div></div>
+            <div class="knob-label">Vel&#8594;Bright</div>
+            <div class="knob-value" id="val-velToBrightness">60%</div>
+          </div>
+          <div class="knob-cell" data-tip="outputLevel">
+            <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label">Level</div>
+            <div class="knob-value" id="val-outputLevel">-6.0 dB</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── On-screen keyboard (play without external MIDI) ─────── -->
+    <section class="keyboard-panel">
+      <div class="keyboard-label">Play &#183; <span class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+    </section>
+  </div>
+
+  <!-- Floating tooltip (wired in Phase 3.3) -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <!-- JUCE native-interop guard (must load before app.js as a module) -->
+  <script type="module" src="js/juce/check_native_interop.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
