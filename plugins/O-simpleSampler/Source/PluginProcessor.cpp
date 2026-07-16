@@ -17,6 +17,7 @@
 #include "SampleSound.h"
 #include "SampleVoice.h"
 #include "BinaryData.h"      // embedded piano.wav (Source/samples/piano.wav)
+#include <algorithm>         // std::remove_if (retired-source reaper)
 
 namespace
 {
@@ -197,12 +198,22 @@ OSimpleSamplerAudioProcessor::OSimpleSamplerAudioProcessor()
     // to the message thread via AsyncUpdater (never the audio thread) — see
     // parameterChanged / handleAsyncUpdate.
     apvts.addParameterListener (sourceSample, this);
+
+    // Retired-source reaper (CR-01). Always running (started here rather than at
+    // retire time so no cross-thread start/stop choreography is needed); an empty
+    // list makes the tick a no-op. 500 ms is far above any block duration, so a
+    // retired buffer's last audio-thread snapshot is long gone by the first reap.
+    retiredSources.reserve (8);
+    startTimer (500);
 }
 
 OSimpleSamplerAudioProcessor::~OSimpleSamplerAudioProcessor()
 {
+    stopTimer();
     apvts.removeParameterListener (OSimpleSampler::ParamIDs::sourceSample, this);
     cancelPendingUpdate();
+    // retiredSources drains here — safe: the host guarantees processing has
+    // stopped before destruction, so this is an off-audio free.
 }
 
 //==============================================================================
@@ -231,24 +242,32 @@ void OSimpleSamplerAudioProcessor::prepareToPlay (double sampleRate, int samples
     // since the engine rate may change). The active source is either the restored
     // built-in (identity "embedded:<name>") or — for a user-file path, a Stage 2.3
     // feature — falls back to the embedded piano for Phase 2.1.
-    if (currentSourceIdentity.startsWith ("embedded:"))
+    // CR-02: prepareToPlay may run on a host audio-setup thread concurrently with
+    // setStateInformation (arbitrary host thread) at project load — the whole
+    // identity-read → load → seed-guard sequence is one critical section so the
+    // restored identity can't be clobbered mid-publish (torn buffer/identity pair).
     {
-        loadBuiltInSource (builtInIndexForIdentity (currentSourceIdentity), sampleRate);
-    }
-    else
-    {
-        currentSourceIdentity = "embedded:piano";
-        loadBuiltInSource (0, sampleRate);
-    }
+        const juce::ScopedLock sl (sourcePublishLock);
 
-    // Prepare-time guarded root seed (RESEARCH §6). A FRESH instance (state NOT
-    // restored) seeds the per-source root (piano = 48) ONCE so the keyboard plays
-    // in standard tune; a restored session keeps its saved rootKey (stateWasRestored
-    // gates this off). rootSeeded ensures it runs only on the first prepare.
-    if (! stateWasRestored && ! rootSeeded)
-    {
-        seedRootForSource (builtInIndexForIdentity (currentSourceIdentity));
-        rootSeeded = true;
+        if (currentSourceIdentity.startsWith ("embedded:"))
+        {
+            loadBuiltInSource (builtInIndexForIdentity (currentSourceIdentity), sampleRate);
+        }
+        else
+        {
+            currentSourceIdentity = "embedded:piano";
+            loadBuiltInSource (0, sampleRate);
+        }
+
+        // Prepare-time guarded root seed (RESEARCH §6). A FRESH instance (state NOT
+        // restored) seeds the per-source root (piano = 48) ONCE so the keyboard plays
+        // in standard tune; a restored session keeps its saved rootKey (stateWasRestored
+        // gates this off). rootSeeded ensures it runs only on the first prepare.
+        if (! stateWasRestored && ! rootSeeded)
+        {
+            seedRootForSource (builtInIndexForIdentity (currentSourceIdentity));
+            rootSeeded = true;
+        }
     }
 }
 
@@ -352,6 +371,13 @@ bool OSimpleSamplerAudioProcessor::decodeAndPublish (const void* data, size_t nu
     if (data == nullptr || numBytes == 0)
         return false;
 
+    // CR-02: one publisher at a time. Serializes prepareToPlay / handleAsyncUpdate
+    // / setStateInformation so the buffer swap and the identity write below are one
+    // atomic unit (no torn buffer/identity pair, no racing juce::String assignment).
+    // Recursive, so callers already holding the lock (prepareToPlay) nest safely.
+    // Never contended by the audio thread (which never takes this lock).
+    const juce::ScopedLock sl (sourcePublishLock);
+
     juce::AudioFormatManager fmt;
     fmt.registerBasicFormats();                  // WAV / AIFF / FLAC
 
@@ -375,9 +401,34 @@ bool OSimpleSamplerAudioProcessor::decodeAndPublish (const void* data, size_t nu
     auto resampled = resampleToEngineRate (tmp, srcRate, engineRate, truncated);
     juce::ignoreUnused (truncated);              // 2.1 does not surface truncation (Stage 3 UI notice)
 
+    // CR-01: retire the outgoing buffer BEFORE the swap drops our reference. If
+    // atomicStore released it here, an in-flight processBlock snapshot could become
+    // the LAST owner and free() up to ~46 MB on the audio thread at end-of-block.
+    // Parked on retiredSources instead, the message-thread reaper (timerCallback)
+    // frees it once no audio-thread snapshot remains (use_count()==1).
+    auto old = atomicLoad (currentSource);
     atomicStore (currentSource, std::move (resampled));   // ATOMIC PUBLISH
+    if (old != nullptr)
+        retiredSources.push_back (std::move (old));
+
     currentSourceIdentity = identity;
     return true;
+}
+
+// Reaper (CR-01): message-thread timer. Frees retired source buffers whose only
+// remaining owner is the retired list itself. Try-lock: if a publisher is mid-
+// decode, skip this tick rather than stall the message thread.
+void OSimpleSamplerAudioProcessor::timerCallback()
+{
+    const juce::ScopedTryLock stl (sourcePublishLock);
+    if (! stl.isLocked() || retiredSources.empty())
+        return;
+
+    retiredSources.erase (
+        std::remove_if (retiredSources.begin(), retiredSources.end(),
+                        [] (const std::shared_ptr<juce::AudioBuffer<float>>& b)
+                        { return b.use_count() == 1; }),
+        retiredSources.end());
 }
 
 // Decode one embedded built-in by index and publish. OFF the audio thread.
@@ -416,6 +467,14 @@ void OSimpleSamplerAudioProcessor::parameterChanged (const juce::String& paramet
 
 void OSimpleSamplerAudioProcessor::handleAsyncUpdate()
 {
+    // CR-02: exchange + load + seed under the publish lock. setStateInformation
+    // clears pendingBuiltInIndex under the same lock, so a restore racing this
+    // callback either runs first (we exchange -1 and bail) or runs after (its
+    // publish overwrites ours) — the restored source always wins. Without the
+    // lock, a restore landing between our exchange and load could be clobbered
+    // by this stale built-in choice (and its root re-seed).
+    const juce::ScopedLock sl (sourcePublishLock);
+
     const int idx = pendingBuiltInIndex.exchange (-1, std::memory_order_relaxed);
     if (idx < 0)
         return;
@@ -512,10 +571,14 @@ void OSimpleSamplerAudioProcessor::getStateInformation (juce::MemoryBlock& destD
     // identity, so a session restores both the params and the active source.
     auto state = apvts.copyState();
 
+    // CR-02: identity is written by concurrent publishers — snapshot it under the
+    // publish lock (getStateInformation is never the audio thread).
+    const juce::String identitySnapshot = getSourceIdentity();
+
     auto sourceChild = state.getOrCreateChildWithName (
         juce::Identifier (kSourceStateTag), nullptr);
     sourceChild.setProperty (juce::Identifier (kSourceIdProp),
-                             currentSourceIdentity, nullptr);
+                             identitySnapshot, nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -531,6 +594,13 @@ void OSimpleSamplerAudioProcessor::setStateInformation (const void* data, int si
     if (! state.isValid() || state.getType() != apvts.state.getType())
         return;
 
+    // CR-02: setStateInformation can arrive on an arbitrary host thread while
+    // prepareToPlay runs on another (both fire back-to-back at project load).
+    // The identity write, restore flag, and reload below are one critical section
+    // so the restored source can't be clobbered by a concurrent prepare-time
+    // reload (and the non-atomic juce::String assignment can't race).
+    const juce::ScopedLock sl (sourcePublishLock);
+
     // Restore the custom loaded-source identity (if present) before handing the
     // tree to the APVTS. Default stays "embedded:piano" when absent (legacy state).
     auto sourceChild = state.getChildWithName (juce::Identifier (kSourceStateTag));
@@ -543,6 +613,8 @@ void OSimpleSamplerAudioProcessor::setStateInformation (const void* data, int si
     // method returns), so we publish the correct source below, then
     // cancelPendingUpdate() to drop the queued rebuild — otherwise a restored source
     // would be clobbered by the built-in choice (and its root re-seed) a moment later.
+    // (Safe under the lock: the listener only stores an atomic + triggerAsyncUpdate;
+    // the deferred handleAsyncUpdate acquires the lock itself when it eventually runs.)
     apvts.replaceState (state);
 
     // Mark the session restored so the prepare-time root seed (Task 5) is skipped —
