@@ -3,7 +3,7 @@
 
     O-simpleAdditive - Audio Processor (implementation)
 
-    Stage 2 (complete): 16-voice additive Synthesiser. Per block: read all 33
+    16-voice additive Synthesiser. Per block: read all 33
     APVTS params → resolve Frame B + the global scan LFO + spectral-decay sources
     + the bit-depth choice → push to voices → render → smoothed output trim → NaN
     scrub → visualization tap (mono-sum into the lock-free VizRing + publish the
@@ -44,13 +44,7 @@ OSimpleAdditiveAudioProcessor::createParameterLayout()
 
     //--- Additive spectrum — Frame A: 16 harmonic drawbars (stored 0–1) ----
     // Default: H1 = 1.0 (100%), partials 2..16 = 0.0 → pure sine on load.
-    const char* const partialIds[16] = {
-        partial1,  partial2,  partial3,  partial4,
-        partial5,  partial6,  partial7,  partial8,
-        partial9,  partial10, partial11, partial12,
-        partial13, partial14, partial15, partial16
-    };
-
+    // partialIds is the shared array from OSimpleAdditive::ParamIDs (PluginProcessor.h).
     for (int k = 0; k < 16; ++k)
     {
         const float defaultLevel = (k == 0) ? 1.0f : 0.0f;
@@ -141,6 +135,12 @@ OSimpleAdditiveAudioProcessor::OSimpleAdditiveAudioProcessor()
 
     synth.addSound (new AdditiveSound());     // single shared sound, all notes/channels
     synth.setNoteStealingEnabled (true);
+
+    // Belt-and-braces: give the on-screen-keyboard collector a valid timestamp
+    // base even if the editor fires before the host's first prepareToPlay
+    // (Standalone startup / editor opened on a suspended plugin). prepareToPlay
+    // re-resets it with the real rate.
+    midiCollector.reset (44100.0);
 }
 
 OSimpleAdditiveAudioProcessor::~OSimpleAdditiveAudioProcessor() = default;
@@ -202,22 +202,19 @@ void OSimpleAdditiveAudioProcessor::pushParamsToVoices (int numSamples)
     using namespace OSimpleAdditive::ParamIDs;
     auto get = [this] (const char* id) { return parameters.getRawParameterValue (id)->load(); };
 
-    // Frame A — the 16 harmonic drawbars (stored 0–1).
-    static const char* const partialIds[AdditiveVoice::kNumPartials] = {
-        partial1,  partial2,  partial3,  partial4,
-        partial5,  partial6,  partial7,  partial8,
-        partial9,  partial10, partial11, partial12,
-        partial13, partial14, partial15, partial16
-    };
-
+    // Frame A — the 16 harmonic drawbars (stored 0–1). partialIds is the shared
+    // array from OSimpleAdditive::ParamIDs (PluginProcessor.h).
     float frameA[AdditiveVoice::kNumPartials];
     for (int k = 0; k < AdditiveVoice::kNumPartials; ++k)
         frameA[k] = get (partialIds[k]);
 
     // Frame B — resolve the selected preset vector once for all voices (the
-    // per-voice dirty-check absorbs the unchanged-block case).
+    // per-voice dirty-check absorbs the unchanged-block case). Resolve the choice
+    // INDEX with round + clamp (4 choices: Sine/Saw/Square/Odd → [0,3]), matching
+    // the bit-depth resolve below — never a raw truncating cast of the float value.
     float frameB[AdditiveVoice::kNumPartials];
-    OSimpleAdditive::fillFrameB ((int) get (frameBSource), frameB);
+    const int frameBIdx = juce::jlimit (0, 3, (int) std::round (get (frameBSource)));
+    OSimpleAdditive::fillFrameB (frameBIdx, frameB);
 
     // Global scan LFO — one sine shared by all voices so notes morph in phase
     // (ARCHITECTURE.md §Scan LFO: global, sine, advanced once per block). Bipolar
@@ -344,6 +341,14 @@ void OSimpleAdditiveAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
 //==============================================================================
 void OSimpleAdditiveAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, float velocity)
 {
+    // Defensive native-boundary validation: the JS side clamps to 48–72 today,
+    // but the bridge itself accepts any int (out-of-range trips a JUCE jassert /
+    // malformed message) and a NaN velocity slips through jlimit (NaN compares
+    // false). Never trust the WebView's arguments.
+    noteNumber = juce::jlimit (0, 127, noteNumber);
+    if (! std::isfinite (velocity))
+        velocity = 0.8f;
+
     auto msg = noteOn
         ? juce::MidiMessage::noteOn  (1, noteNumber, juce::jlimit (0.0f, 1.0f, velocity))
         : juce::MidiMessage::noteOff (1, noteNumber);
@@ -360,24 +365,37 @@ void OSimpleAdditiveAudioProcessor::applyFactoryPreset (const juce::String& name
 {
     using namespace OSimpleAdditive::ParamIDs;
 
+    // Every setValueNotifyingHost is bracketed by begin/endChangeGesture: the
+    // VST3 wrapper maps these to beginEdit/performEdit/endEdit, and hosts that
+    // gate automation recording on gestures (Logic touch/latch, Cubase) drop or
+    // mis-record un-gestured edits.
     for (auto* p : getParameters())
+    {
+        p->beginChangeGesture();
         p->setValueNotifyingHost (p->getDefaultValue());
+        p->endChangeGesture();
+    }
 
     auto setReal = [this] (const char* id, float real) {
         if (auto* p = parameters.getParameter (id))
+        {
+            p->beginChangeGesture();
             p->setValueNotifyingHost (p->convertTo0to1 (real));
+            p->endChangeGesture();
+        }
     };
     auto setChoice = [this] (const char* id, int index) {
         if (auto* p = parameters.getParameter (id))
+        {
+            p->beginChangeGesture();
             p->setValueNotifyingHost (p->convertTo0to1 ((float) index));
+            p->endChangeGesture();
+        }
     };
     auto drawbars = [&setReal] (std::initializer_list<float> levels) {
-        static const char* const ids[16] = {
-            partial1,  partial2,  partial3,  partial4,  partial5,  partial6,
-            partial7,  partial8,  partial9,  partial10, partial11, partial12,
-            partial13, partial14, partial15, partial16 };
+        // partialIds: shared array from OSimpleAdditive::ParamIDs (PluginProcessor.h).
         int k = 0;
-        for (float v : levels) { if (k < 16) setReal (ids[k], juce::jlimit (0.0f, 1.0f, v)); ++k; }
+        for (float v : levels) { if (k < 16) setReal (partialIds[k], juce::jlimit (0.0f, 1.0f, v)); ++k; }
     };
     const auto inv = [] (float k) { return 1.0f / k; };   // 1/k harmonic amplitude
 

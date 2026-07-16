@@ -131,6 +131,11 @@ public:
         setCurrentPlaybackSampleRate (sr);
         sampleRate = sr;
 
+        // Touch the shared sine LUT so its one-time magic-static construction
+        // (guard mutex + LookupTableTransform heap fill) happens HERE, on the
+        // message/host thread — never inside the first note-on's render call.
+        (void) OSimpleAdditive::fastSine (0.0f);
+
         ampEnv.setSampleRate (sr);
         ampEnv.setParameters (ampParams);
         modEnv.setSampleRate (sr);
@@ -140,6 +145,11 @@ public:
         // avoidance". Post-sum smoothing keeps the morph zipper-free at control-rate
         // table refills (DSP-03).
         scanSmoothed.reset (sr, 0.02);
+
+        // Resolve the refill-cadence cap (PERF): minimum samples between
+        // motion-driven table rebuilds (~5 ms control rate). At least 1.
+        minRefillSamples   = juce::jmax (1, (int) std::lround (sr * (double) kRefillIntervalSeconds));
+        samplesSinceRefill = minRefillSamples;   // allow the first motion refill immediately
 
         // Start with a clean (silent) table so an un-triggered voice is benign.
         juce::FloatVectorOperations::clear (table, kTableSize);
@@ -200,8 +210,7 @@ public:
     void startNote (int midiNote, float velocity,
                     juce::SynthesiserSound*, int /*pitchWheel*/) override
     {
-        currentNote = midiNote;
-        f0          = juce::MidiMessage::getMidiNoteInHertz (midiNote);
+        f0       = juce::MidiMessage::getMidiNoteInHertz (midiNote);
         phaseInc    = (float) (f0 / sampleRate);
 
         velLevel = juce::jlimit (0.0f, 1.0f, velocity);
@@ -223,6 +232,7 @@ public:
         currentScan = scan0;
 
         refillTable (currentScan);    // first sample must be correct → fill now
+        samplesSinceRefill = 0;       // restart the refill-cadence window at note-on
 
         ampEnv.noteOn();
         modEnv.noteOn();
@@ -253,8 +263,10 @@ public:
     // 16 amplitudes into an atomic snapshot for the message-thread drawbar display.
     // No atomics needed voice→processor (same thread); the snapshot crosses the
     // thread boundary, not these getters.
-    //   getActiveSpectrum : post-morph, post-decay, pre-band-limit, pre-norm
-    //                       amplitudes — the exact bars the engine is summing.
+    //   getActiveSpectrum : post-morph, post-decay, post-band-limit, pre-norm
+    //                       amplitudes — the exact bars the engine is summing
+    //                       (partials above Nyquist read 0, so the live-glow on
+    //                       high notes shows only what actually sounds).
     //   isAmpActive       : amp-env activity (the voice's audible lifetime). NB:
     //                       deliberately NOT named isVoiceActive — that is a
     //                       juce::SynthesiserVoice virtual used internally for
@@ -293,6 +305,19 @@ public:
         // applied inside refillTable; here we advance tau and compute the effective
         // rate so we can decide whether the active spectrum is still moving.
         currentDecayRate = effectiveDecayRate();
+
+        // A change in the effective rate itself (Spectral Decay / Vel→Decay moved)
+        // must re-dirty the table even when tau has saturated at 1 (the branch
+        // below stops running then) and when the rate drops to 0 mid-note (the
+        // table must refill once more to RESTORE the undecayed spectrum). tau==0
+        // ⇒ D_k = 1 regardless of rate, so no refill is needed yet.
+        if (! juce::exactlyEqual (currentDecayRate, lastRenderedDecayRate))
+        {
+            lastRenderedDecayRate = currentDecayRate;
+            if (tau > 0.0f)
+                spectrumDirty = true;
+        }
+
         if (currentDecayRate > 0.0f && tau < 1.0f)
         {
             tau = juce::jmin (1.0f, tau + (float) numSamples / (kTauRampSeconds * (float) sampleRate));
@@ -303,8 +328,24 @@ public:
             spectrumDirty = true;
         }
 
-        if (spectrumDirty)
-            refillTable (currentScan);
+        // Cadence-capped refill (PERF — see kRefillIntervalSeconds). The table
+        // rebuild is a fixed cost per call regardless of numSamples, so on small
+        // host blocks a per-block rebuild during continuous motion does not
+        // amortize. Bound motion-driven refills to the control-rate interval: a
+        // refill only fires once at least minRefillSamples have elapsed since the
+        // last one. Static patches never set spectrumDirty here (they refill once
+        // per note in startNote), so their output stays bit-identical; large host
+        // blocks (numSamples ≥ minRefillSamples) still refill every block. The
+        // counter saturates at the interval so a long static sustain cannot
+        // overflow it.
+        if (samplesSinceRefill < minRefillSamples)
+            samplesSinceRefill += numSamples;
+
+        if (spectrumDirty && samplesSinceRefill >= minRefillSamples)
+        {
+            refillTable (currentScan);     // clears spectrumDirty
+            samplesSinceRefill = 0;
+        }
 
         const int numCh = out.getNumChannels();
 
@@ -340,12 +381,16 @@ public:
 
 private:
     //==========================================================================
-    // Per-note Nyquist band-limit: highest alias-free harmonic count.
+    // Per-note Nyquist band-limit: highest alias-free harmonic count. Kmax may
+    // legitimately be 0 (f0 at/above Nyquist, e.g. MIDI 127 at very low sample
+    // rates): nyquistGain's k > Kmax check then zeroes EVERY partial, so
+    // refillTable produces a silent table rather than writing an aliased
+    // fundamental. Never force it up to 1.
     void computeKmax() noexcept
     {
         const double nyquist = 0.5 * sampleRate;
         const int    k       = (int) std::floor (nyquist / juce::jmax (1.0, f0));
-        Kmax = juce::jlimit (1, kNumPartials, k);
+        Kmax = juce::jlimit (0, kNumPartials, k);
     }
 
     // Raised-cosine band-limit gain for harmonic k (1-based) given Kmax.
@@ -383,9 +428,10 @@ private:
     // (preset), `active_k = lerp(A_k, B_k, scan)` — linear *spectral* interpolation,
     // phase-coherent and zipper-free (ARCHITECTURE.md §Morph, DSP-03). Phase 2.3
     // multiplies in the spectral-decay tilt `D_k = exp(-rate·k·tau)` here too —
-    // also BEFORE band-limit + sum, so the table is always exactly what is heard
-    // AND what the drawbar display shows (the post-decay amplitudes are snapshotted
-    // into activeSpectrum[] for the editor; QUAL-02).
+    // also BEFORE band-limit + sum, so the table is always exactly what is heard.
+    // The drawbar display reads the same band-limited amplitudes (snapshotted into
+    // activeSpectrum[] after the band-limit) so the live-glow matches the sound;
+    // QUAL-02).
     void refillTable (float scan) noexcept
     {
         float band[kNumPartials];
@@ -408,12 +454,15 @@ private:
                                : 1.0f;
             const float activeK = morphedK * decayK;
 
-            // Snapshot the post-morph, post-decay, PRE-band-limit, PRE-norm
-            // amplitude — the conceptual "what the engine is summing" bar the
-            // Stage-3 drawbar display reads via getActiveSpectrum().
-            activeSpectrum[k] = activeK;
-
             band[k] = activeK * nyquistGain (k + 1, Kmax);   // exact band-limit
+
+            // Snapshot the post-morph, post-decay, POST-band-limit (pre-norm)
+            // amplitude — the exact bar the engine is summing, which the drawbar
+            // live-glow reads via getActiveSpectrum(). Folding in the band-limit
+            // gain means a partial above Nyquist on a high note glows at 0, so the
+            // green glow only ever shows what is actually sounding (QUAL-02).
+            activeSpectrum[k] = band[k];
+
             sumA   += band[k];
         }
 
@@ -428,7 +477,7 @@ private:
             const float theta = twoPi * (float) i / (float) kTableSize;
             float acc = 0.0f;
             for (int k = 0; k < kNumPartials; ++k)
-                if (band[k] != 0.0f)
+                if (! juce::exactlyEqual (band[k], 0.0f))   // skip silent partials (-Wfloat-equal safe)
                     acc += band[k] * OSimpleAdditive::fastSine (theta * (float) (k + 1));
 
             table[i] = acc * norm;
@@ -453,7 +502,6 @@ private:
     double f0         = 440.0;
     float  phase      = 0.0f;     // normalized single-cycle phase [0,1)
     float  phaseInc   = 0.0f;
-    int    currentNote = 69;
     int    Kmax        = kNumPartials;
     float  velLevel    = 1.0f;
 
@@ -476,6 +524,28 @@ private:
     // to once per note while staying well under the morph's audible step threshold.
     static constexpr float kScanRefillEps = 1.0e-4f;
 
+    //--- Refill-cadence cap (PERF) -------------------------------------------
+    // refillTable() rebuilds the whole single-cycle table — a FIXED ~2048×16
+    // sine-sum cost per call, INDEPENDENT of the host block size. During
+    // continuous motion (scan/LFO/mod-env/spectral-decay) the table is marked
+    // dirty every block, so on small host blocks the rebuild fires far more often
+    // per second than on large ones and the cost does not amortize (measured
+    // ~37 % of a core for a 16-voice Morph-Pad chord at 64-sample blocks, vs
+    // ~4.7 % at 512). We bound MOTION-driven refills to a control-rate interval
+    // (~5 ms): a minimum number of samples must elapse between rebuilds.
+    //   • Static patches are untouched — they never set spectrumDirty in
+    //     renderNextBlock (the refill stays once-per-note in startNote), so the
+    //     gate below is never reached and their output is BIT-IDENTICAL.
+    //   • Large host blocks (numSamples ≥ minRefillSamples) still refill every
+    //     block exactly as before — the cap is a no-op there.
+    //   • 5 ms is far finer than the refill cadence a ≥512-sample host already
+    //     uses (≈11.6 ms @ 44.1 kHz), so the 20 ms scan smoother's zipper-free
+    //     guarantee is preserved by construction (the per-refill scan step stays
+    //     below the already-validated large-block case).
+    static constexpr float kRefillIntervalSeconds = 0.005f;
+    int minRefillSamples   = 1;     // resolved from the sample rate in prepareToPlay
+    int samplesSinceRefill = 0;     // samples elapsed since the last refillTable()
+
     //--- Spectral-decay state (2.3) ------------------------------------------
     // tau: internal 0→1 ramp from note-on, advanced at control rate. The decay
     // tilt grows over the note even on a sustained note (the "spectrum darkens
@@ -488,12 +558,13 @@ private:
     float spectralDecay    = 0.0f;     // 0..1 knob (pushed each block)
     float velToDecay       = 0.0f;     // 0..1 opt-in velocity→decay amount
     float currentDecayRate = 0.0f;     // effective rate for the current block
+    float lastRenderedDecayRate = 0.0f; // rate at the last dirty-check → knob moves re-dirty the table
 
     //--- Bit-depth quantizer (2.3) ------------------------------------------
     int bitDepthBits = 0;             // 0 = Off (passthrough); else bit count {12,10,8,6,4,2}
 
     //--- Active-spectrum snapshot (2.3) -------------------------------------
-    // The post-morph, post-decay, pre-band-limit, pre-norm 16 amplitudes — the
+    // The post-morph, post-decay, post-band-limit, pre-norm 16 amplitudes — the
     // exact bars the engine is summing. Filled each refillTable(); read by the
     // processor (audio thread) which publishes the primary voice's copy to the
     // editor. Seeded to a pure fundamental so a freshly prepared voice is benign.

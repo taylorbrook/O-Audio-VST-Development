@@ -67,16 +67,17 @@ OSimpleAdditiveAudioProcessorEditor::OSimpleAdditiveAudioProcessorEditor (OSimpl
     using namespace OSimpleAdditive::ParamIDs;
 
     // 31 float sliders (16 drawbars + scan/spectral/ADSR/output) + 2 combo boxes.
-    const juce::StringArray sliderIds {
-        partial1,  partial2,  partial3,  partial4,  partial5,  partial6,
-        partial7,  partial8,  partial9,  partial10, partial11, partial12,
-        partial13, partial14, partial15, partial16,
+    // The 16 drawbar IDs come from the shared partialIds array (PluginProcessor.h).
+    juce::StringArray sliderIds;
+    for (const auto* id : partialIds)
+        sliderIds.add (id);
+    sliderIds.addArray (juce::StringArray {
         scanPosition, scanLfoRate, scanLfoDepth, scanEnvAmount,
         spectralDecay, velToDecay,
         ampAttack, ampDecay, ampSustain, ampRelease,
         modAttack, modDecay, modSustain, modRelease,
         outputLevel
-    };
+    });
     const juce::StringArray comboIds { frameBSource, bitDepth };
 
     // 1. RELAYS (before the WebView) ----------------------------------------
@@ -103,10 +104,6 @@ OSimpleAdditiveAudioProcessorEditor::OSimpleAdditiveAudioProcessorEditor (OSimpl
                 processorRef.handleUiMidi ((int) args[0], (bool) args[1],
                                            args.size() >= 3 ? (float) args[2] : 0.8f);
             complete (juce::var());
-        })
-        // Sample rate (reserved for future frequency-axis labels; harmless to expose).
-        .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
-            complete (processorRef.getCurrentSampleRate());
         })
         // Lesson preset tour — applies a full APVTS snapshot; relays sync the UI.
         .withNativeFunction ("applyFactoryPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
