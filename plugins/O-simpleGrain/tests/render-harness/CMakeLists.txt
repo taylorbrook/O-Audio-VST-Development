@@ -52,8 +52,10 @@ target_compile_definitions(O-simpleGrain-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon Audio Development"
     JucePlugin_ManufacturerCode=0x4f754476
     JucePlugin_PluginCode=0x4f734772
-    JucePlugin_VersionString="1.0.1"
-    JucePlugin_VersionCode=0x010001
+    # Version macros derive from the plugin CMakeLists' single source of truth
+    # (WR-04 — these were hand-rolled and drifted to 1.0.1 while the plugin shipped on).
+    JucePlugin_VersionString="${OSIMPLEGRAIN_VERSION}"
+    JucePlugin_VersionCode=${OSIMPLEGRAIN_VERSION_CODE}
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1
     JucePlugin_ProducesMidiOutput=0

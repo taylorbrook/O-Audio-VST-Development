@@ -3,6 +3,139 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.1] — 2026-07-16
+
+Resolves the 2026-07-15 CODE_REVIEW.md findings CR-01, CR-02, WR-02, WR-03,
+WR-04, WR-05 (WR-01 was already fixed in v1.0.2 — see the v1.1.0 recovery note
+below). No parameter IDs, ranges, or state format changed; the `adsrEnabled`
+param recovered in v1.1.0 is unchanged.
+
+### Fixed
+- **CR-01: a dropped source was silently replaced by the "fire" built-in on
+  every host re-prepare.** `prepareToPlay` only special-cased `embedded:`
+  identities; a `dropped:<name>` identity (no disk path — WKWebView strips it)
+  fell through to the missing-file fallback, so any buffer-size change, engine
+  stop/start, or offline bounce discarded the user's live sound mid-session
+  (and `juce::File("dropped:…")` fired a debug `jassert`). Now: the raw dropped
+  bytes are retained (≤32 MB cap) and re-decoded at a new engine rate; with the
+  rate unchanged the published buffer is kept as-is; with the bytes gone the
+  live buffer is kept (transposed at worst) — the built-in fallback only runs
+  when nothing is realisable (fresh-instance restore of a name-only identity).
+  A vanished picker-file path likewise keeps the live buffer instead of
+  clobbering. `setStateInformation` got the same identity guards (no
+  `juce::File` on non-path strings; same-instance restores reuse the retained
+  bytes). *Root cause: the state-restore fallback ran on the live-session
+  re-prepare path, where the source it discarded was still published.*
+- **CR-02: data race on `currentSourceIdentity` / `currentSampleRate`.** The
+  COW `juce::String` identity was written from host-controlled threads
+  (`prepareToPlay`, `set/getStateInformation` — VST3 hosts may call these off
+  the message thread) and the message thread (drop/picker/preset callbacks)
+  with no synchronization — two unsynchronized ref-count ops on one String can
+  double-release (UAF). Every access now goes through a `sourceStateLock`
+  CriticalSection (never taken on the audio thread); the identity accessor
+  returns by value. `currentSampleRate` (plain double, same multi-thread
+  pattern) is now `std::atomic<double>`. *Root cause: the sibling state on the
+  atomic-publish path was never given the same care as the buffer pointer.*
+- **WR-02: whole file decoded before the 10 s cap was applied.** The cap lived
+  in the resampler, after a full-file allocation + decode — a 45-min WAV cost a
+  ~500 MB spike and a multi-second stall, and `lengthInSamples` (int64) was
+  truncated straight to `int`, so a hostile header near INT32_MAX drove a
+  multi-GB allocation (`std::bad_alloc`). The decode length is now clamped to
+  the cap *before* allocating (int64 math), and the truncation notice fires for
+  pre-truncated files too.
+- **WR-03: lesson presets randomly kept or discarded a user-loaded source.**
+  `applyFactoryPreset` reset `sourceSample` to its default with everything
+  else, so pressing any concept button discarded a dropped/picked source *iff*
+  the last built-in choice differed from fire — invisible state deciding
+  whether your sound survived. Contract now explicit: **presets keep the
+  current source** (`sourceSample` is skipped in the reset); **"Granular Fire"
+  alone force-loads fire** via `loadBuiltInSource` (the old `setChoice` was
+  silently suppressed by the APVTS when the choice already read fire, so the
+  preset didn't actually load fire either).
+- **WR-04: version drift.** Sources said 1.0.1, the harness said 1.0.1, the
+  installed binary said 1.1.0, PLUGINS.md said 1.1.0 (see the v1.1.0 recovery
+  note). All version sources now derive from one `OSIMPLEGRAIN_VERSION`
+  variable in CMakeLists.txt (the harness's hand-rolled
+  `JucePlugin_VersionString/Code` included) — reconciled at 1.1.1.
+
+### Changed (performance / internal)
+- **WR-05: the audio thread no longer takes a hidden mutex per block.**
+  `std::atomic_load/store(shared_ptr&)` is not lock-free (libc++ backs it with
+  a global mutex pool shared across the process) — a real priority-inversion
+  risk on the RT path. The audio thread now reads one genuinely lock-free
+  `std::atomic<AudioBuffer*>` view per block; shared_ptr ownership stays on the
+  message/host side under `sourceStateLock`, and an outgoing source is parked
+  in a retired list, freed only once ≥2 audio blocks have completed since the
+  swap (per the O-MicrotonalSampler v1.24.0 pattern). Behaviour identical;
+  memory bound: at most one parked 10 s buffer between publishes.
+
+### Tests
+- Added render-harness gate **11 (`adsr-bypass`)** — guards the reconstructed
+  v1.1.0 feature: bypass ignores a 1.5 s attack (flat velocity level at once)
+  and drains within ~a grain length of note-off, while the enabled envelope
+  still ramps in and tails out. All 11 gates PASS; `auval` SUCCEEDED;
+  `pluginval --strictness-level 10` SUCCESS.
+
+## [1.1.0] — 2026-06-25 (source reconstructed 2026-07-16)
+
+**Recovery note:** v1.0.2 and v1.1.0 were built, installed, and recorded in
+PLUGINS.md but their source was never committed, and the working tree was later
+reverted to v1.0.1 — the 2026-07-15 code review unknowingly reviewed the
+regressed tree (its WR-01 "dead keyboard" finding was the already-fixed v1.0.2
+bug resurfacing). v1.0.2 was restored from `backups/O-simpleGrain/v1.0.2/`;
+v1.1.0's UI delta was recovered byte-exact from the installed binary's embedded
+resources and its C++ side re-implemented from the recovered spec below.
+
+### Added
+- **`adsrEnabled` parameter (19th param, bool, default ON)** — an "ADSR" toggle
+  in the envelope panel. **On** = the v1.0.x per-voice A/D/S/R behaviour,
+  unchanged. **Off** bypasses the envelope: each note plays at a flat velocity
+  level while held and, on release, the voice simply stops launching new grains
+  so the cloud fades out over one grain length through the *Window* envelopes
+  (no click) — a raw, immediate gate for the pedagogical "hear the grains
+  themselves" use. The A/D/S/R knobs dim + lock while bypassed
+  (`.env-bypassed`); the envelope still ticks internally so a mid-note toggle
+  lands on a coherent state.
+
+## [1.0.2] — 2026-06-25
+
+Three user-reported bugs: a dead on-screen keyboard, a dead output scope, and an
+overall-too-quiet output. No parameters, IDs, ranges, or state format changed
+(sessions/presets load unchanged).
+
+### Fixed
+- **On-screen keyboard produced no notes.** The WebView keyboard calls the
+  `uiMidi` native function on every key, but it was never registered on the C++
+  side — and the processor had no `MidiMessageCollector` and no merge of UI notes
+  into `processBlock`, so the entire UI-MIDI bridge (present in O-simpleFM) was
+  missing. Keys highlighted but emitted nothing. Ported the proven O-simpleFM
+  pattern: `midiCollector` member + `reset()` in `prepareToPlay` +
+  `removeNextBlockOfMessages()` in `processBlock` + `handleUiMidi()` +
+  `withNativeFunction("uiMidi", …)` in the editor. External MIDI was unaffected
+  and still works. *Root cause: the Stage-3 UI-MIDI bridge was never wired; no
+  automated gate exercised it because the render-harness injects MIDI directly.*
+- **Output was ~6–12 dB too quiet on sparse/single-grain patches.** The master
+  stage applied a *fixed* `kHeadroom = 0.5f` (−6 dB) sized to stop dense clouds
+  clipping. But a single grain peaks near the source level, so that fixed cut —
+  stacked on the equal-power pan and amp envelope — left sparse patches far too
+  quiet (the deferred "overlap-aware normalization" the code comment promised
+  never landed; nor did the "headroom normalisation upstream" the tooltip claims).
+  Replaced it with overlap-aware normalization: `normGain = 1 / max(1, overlap×0.5)`
+  where `overlap = grainSize × density`. Sparse/single grains now play at full
+  level; dense clouds stay tamed below clip. Smoothed via the existing `outputGain`
+  ramp (click-free). *Root cause: a fixed headroom factor cannot serve both the
+  sparse and dense ends of the density axis.*
+- **Output scope showed nothing.** A downstream symptom of the two bugs above —
+  the scope data path (post-gain ring → analyzer → `scopeUpdate` → `drawScope`)
+  was correct, but with the keyboard dead and the output very quiet there was
+  nothing to draw. Restored by the keyboard + loudness fixes; no scope code changed.
+
+### Tests
+- Added render-harness gate **10 (`ui-midi-keyboard`)**: injects a held note via
+  `handleUiMidi` and renders with an **empty host MIDI buffer**, asserting the
+  collector drains the note and the synth sustains audible output — guards the
+  UI-MIDI bridge that had no coverage and shipped silent in v1.0.1.
+
 ## [1.0.1] — 2026-06-25
 
 Code-review fixes — two correctness bugs, two real-time hot-path simplifications,

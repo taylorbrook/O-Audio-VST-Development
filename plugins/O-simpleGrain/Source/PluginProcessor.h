@@ -7,7 +7,7 @@
 
     Pedagogical granular synthesizer.
 
-    Stage 1 (Foundation): silent 8-voice synth shell. Full 18-parameter APVTS +
+    Stage 1 (Foundation): silent 8-voice synth shell. Full 19-parameter APVTS +
     state persistence (incl. a custom, non-APVTS loaded-source identity). No audio
     rendering yet (grain engine / voices / ADSR / window LUTs land Stage 2), no
     WebView UI yet (minimal placeholder editor for now — Stage 3 brings the UI).
@@ -19,6 +19,7 @@
 #include <JuceHeader.h>
 #include <atomic>
 #include <memory>
+#include <vector>
 #include "dsp/WindowLuts.h"
 #include "dsp/TripleBuffer.h"
 #include "dsp/GrainCloudFrame.h"
@@ -33,7 +34,7 @@ class GrainSound;
 // Parameter identifiers — single source of truth for APVTS IDs.
 // Referenced by the processor now; by the grain engine / voice param-push
 // (Stage 2) and WebView relays/attachments (Stage 3) later. IDs/ranges/defaults
-// are authoritative per .planning/parameter-spec.md (18 params).
+// are authoritative per .planning/parameter-spec.md (19 params).
 namespace OSimpleGrain::ParamIDs
 {
     // Source
@@ -62,6 +63,7 @@ namespace OSimpleGrain::ParamIDs
     inline constexpr auto ampDecay       = "ampDecay";       // 0–5 s
     inline constexpr auto ampSustain     = "ampSustain";     // 0–1 (0–100 %)
     inline constexpr auto ampRelease     = "ampRelease";     // 0–5 s
+    inline constexpr auto adsrEnabled    = "adsrEnabled";    // bool — envelope on/off (v1.1.0)
 
     // Output
     inline constexpr auto outputLevel    = "outputLevel";    // master trim (dB)
@@ -111,8 +113,26 @@ public:
     // Loaded-source identity (custom, non-APVTS state). "embedded:fire" by
     // default or a user file path once Stage 2.3 wires real loading. Persisted
     // alongside the APVTS tree so a session restores the same source.
-    const juce::String& getSourceIdentity() const noexcept { return currentSourceIdentity; }
-    void setSourceIdentity (const juce::String& id) { currentSourceIdentity = id; }
+    // Thread-safe: the identity is a COW juce::String touched from both host-
+    // controlled threads (prepareToPlay / get/setStateInformation) and the
+    // message thread (drop/picker/preset callbacks) — every access goes through
+    // sourceStateLock (returned BY VALUE, never by reference).
+    juce::String getSourceIdentity() const
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        return currentSourceIdentity;
+    }
+    void setSourceIdentity (const juce::String& id)
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        currentSourceIdentity = id;
+    }
+
+    //==========================================================================
+    // On-screen keyboard: the editor injects note on/off from the WebView (any
+    // thread). Queued via a MidiMessageCollector and merged into processBlock's
+    // MIDI stream so UI notes drive the synth identically to host MIDI.
+    void handleUiMidi (int noteNumber, bool noteOn, float velocity);
 
     //==========================================================================
     // Stage-3 visualization accessors. The editor reads these on its
@@ -124,7 +144,7 @@ public:
     VizRing&                       getVizRing()          noexcept { return vizRing; }
     TripleBuffer<GrainCloudFrame>& getGrainCloudBuffer() noexcept { return grainCloudBuffer; }
     int    getActiveGrainCount() const noexcept { return activeGrainCount.load (std::memory_order_relaxed); }
-    double getCurrentSampleRate() const noexcept { return currentSampleRate; }
+    double getCurrentSampleRate() const noexcept { return currentSampleRate.load (std::memory_order_relaxed); }
 
     //==========================================================================
     // Source loading (Stage 2.3). The drag-drop streaming handlers below are the
@@ -182,21 +202,37 @@ public:
 
 private:
     //==========================================================================
-    // Lock-free atomic shared_ptr swap for the source buffer (RESEARCH §6.3).
-    // The audio thread snapshots the pointer ONCE per block and holds the ref
-    // for the whole block, so a swap mid-block can never free the buffer it is
-    // reading. The decode/resample that builds a new buffer always happens off
-    // the audio thread (construction / prepareToPlay in 2.1; selection in 2.3).
-    template <class T>
-    static std::shared_ptr<T> atomicLoad (const std::shared_ptr<T>& s) noexcept
+    // Source publish/read — genuinely lock-free on the audio thread (v1.1.1,
+    // CODE_REVIEW WR-05). The previous std::atomic_load/store(shared_ptr&) free
+    // functions are NOT lock-free (libc++ backs them with a global mutex pool),
+    // which put a real lock on the RT path. Now:
+    //
+    //   - shared_ptr OWNERSHIP lives on the message/host side only, mutated
+    //     exclusively under sourceStateLock (never on the audio thread).
+    //   - the audio thread reads ONE std::atomic<AudioBuffer*> raw-pointer view
+    //     per block (wait-free; buffers are immutable once published).
+    //   - a publish parks the outgoing shared_ptr in `retiredSources` instead of
+    //     freeing it; an in-flight audio block may still be reading the old raw
+    //     pointer. Entries are reaped (on later publishes / prepareToPlay /
+    //     destruction) only once `blocksRendered` has advanced ≥2 past the value
+    //     recorded at parking — by then any block that could have observed the
+    //     old pointer has completed. Pattern per O-MicrotonalSampler v1.24.0.
+    //
+    // Memory bound: retired entries only exist between a publish and the second
+    // audio block after it (≤ one 10 s buffer, ~7 MB @96k, if audio is stopped).
+    struct RetiredSource
     {
-        return std::atomic_load (&s);
-    }
-    template <class T>
-    static void atomicStore (std::shared_ptr<T>& s, std::shared_ptr<T> v) noexcept
-    {
-        std::atomic_store (&s, std::move (v));
-    }
+        std::shared_ptr<juce::AudioBuffer<float>> buffer;
+        juce::uint64 parkedAtBlock = 0;
+    };
+
+    // Publish a fully-built buffer to the audio thread and park the old one.
+    // Caller MUST hold sourceStateLock. Message/host threads only.
+    void publishSource (std::shared_ptr<juce::AudioBuffer<float>> newBuf);
+
+    // Free retired buffers that no in-flight audio block can still reference.
+    // Caller MUST hold sourceStateLock.
+    void reapRetiredSources();
 
     //==========================================================================
     // Source decode/resample/publish (Stage 2.3) — ALL off the audio thread.
@@ -255,12 +291,51 @@ private:
     WindowLuts        windowLuts { kWindowLutSize };
     juce::Synthesiser synth;
 
-    // The resampled source buffer, published to the audio thread via an atomic
-    // shared_ptr swap. Snapshotted once per block in processBlock.
+    // On-screen-keyboard MIDI: thread-safe queue drained into processBlock so the
+    // WebView keyboard drives the synth identically to host MIDI.
+    juce::MidiMessageCollector midiCollector;
+
+    //==========================================================================
+    // Source ownership + audio-thread view (see the publish/reap note above).
+    //
+    // sourceStateLock guards ALL of: currentSource (the shared_ptr itself),
+    // currentSourceIdentity, retiredSources, userSourceBytes(+Identity), and
+    // publishedSourceRate. Taken ONLY off the audio thread (message + host-
+    // controlled threads: prepareToPlay, get/setStateInformation, native-fn
+    // callbacks). juce::CriticalSection is re-entrant, so decodeAndPublish may
+    // be called with the lock already held.
+    juce::CriticalSection sourceStateLock;
+
+    // Owning ref of the published source (message/host side, under the lock).
     std::shared_ptr<juce::AudioBuffer<float>> currentSource;
 
-    // Master output trim (dB->lin, smoothed) + a fixed headroom factor so dense
-    // overlapping clouds don't clip before the trim.
+    // Wait-free audio-thread view of currentSource (raw pointer; the pointee is
+    // kept alive by currentSource / retiredSources until provably unreferenced).
+    std::atomic<juce::AudioBuffer<float>*> audioSourceView { nullptr };
+
+    // Outgoing sources parked until no in-flight audio block can reference them.
+    std::vector<RetiredSource> retiredSources;
+
+    // Monotonic count of COMPLETED audio blocks (incremented at the end of
+    // processBlock, release order) — the reap fence for retiredSources.
+    std::atomic<juce::uint64> blocksRendered { 0 };
+
+    // Engine rate the published source was resampled to (under the lock) — lets
+    // prepareToPlay skip a pointless re-decode when the rate did not change.
+    double publishedSourceRate = 0.0;
+
+    // Raw file bytes of the last "dropped:" source (CR-01). A dropped file has
+    // no re-readable disk path (WKWebView strips it), so prepareToPlay retains
+    // the bytes to re-decode at a NEW engine rate instead of clobbering the
+    // user's live sound with a built-in. Capped so a huge drop can't pin RAM;
+    // over the cap the live buffer is kept as-is on a rate change (transposed).
+    static constexpr size_t kMaxRetainedSourceBytes = 32 * 1024 * 1024;
+    juce::MemoryBlock userSourceBytes;
+    juce::String      userSourceBytesIdentity;   // which "dropped:" identity the bytes belong to
+
+    // Master output trim (dB->lin, smoothed) folded together with an overlap-aware
+    // normalization factor so sparse/single grains play at full level while dense
+    // overlapping clouds stay tamed below clip (see processBlock).
     juce::SmoothedValue<float> outputGain { 1.0f };
 
     //==========================================================================
@@ -282,7 +357,11 @@ private:
     juce::SmoothedValue<float> playheadVelocity { 0.0f };   // samples/sample, freeze-pinnable
 
     //==========================================================================
-    // Custom non-APVTS state: which source is loaded (built-in name or file path).
+    // Custom non-APVTS state: which source is loaded (built-in name, file path,
+    // or "dropped:<name>"). GUARDED by sourceStateLock (CR-02): a COW
+    // juce::String written from host-controlled threads (prepareToPlay,
+    // set/getStateInformation) AND the message thread (drop/picker/preset) —
+    // unsynchronized ref-count ops on the same String can double-release.
     juce::String currentSourceIdentity { "embedded:fire" };
 
     // Built-in names, indexed to match the sourceSample choice order.
@@ -341,10 +420,13 @@ private:
     std::atomic<float>* ampDecayParam      = nullptr;
     std::atomic<float>* ampSustainParam    = nullptr;
     std::atomic<float>* ampReleaseParam    = nullptr;
+    std::atomic<float>* adsrEnabledParam   = nullptr;
     std::atomic<float>* outputLevelParam   = nullptr;
 
     //==========================================================================
-    double currentSampleRate = 44100.0;
+    // Atomic (CR-02): written by prepareToPlay (host-controlled thread), read
+    // lock-free by message-thread native fns and the editor timer.
+    std::atomic<double> currentSampleRate { 44100.0 };
 
     // Custom-state element names for get/setStateInformation.
     static constexpr const char* kSourceStateTag = "SOURCE";

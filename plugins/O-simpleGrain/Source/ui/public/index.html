@@ -177,7 +177,12 @@
         <!-- Amp ADSR -->
         <section class="group group-env">
           <h2 class="group-title">Amplitude Envelope</h2>
-          <div class="knob-row">
+          <div class="toggle-row">
+            <button class="toggle" id="toggle-adsrEnabled" data-tip="adsrEnabled">
+              ADSR<span class="fleuron-corner">&#10086;</span>
+            </button>
+          </div>
+          <div class="knob-row" id="env-knobs">
             <div class="knob-cell" data-tip="ampAttack">
               <div class="knob knob-sm" id="knob-ampAttack" data-param="ampAttack"><div class="knob-stem"></div></div>
               <div class="knob-label">Attack</div>

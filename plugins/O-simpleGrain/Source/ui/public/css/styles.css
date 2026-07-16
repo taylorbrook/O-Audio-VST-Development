@@ -378,6 +378,8 @@ body {
 }
 .toggle:hover { background: rgba(139, 168, 112, 0.45); transform: translateY(-1px); box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3); }
 .toggle.active { background: var(--btn-active); border-color: var(--btn-border-active); color: #1f2b08; }
+/* ADSR bypassed: dim + lock out the A/D/S/R knobs so it's clear the envelope is off. */
+.knob-row.env-bypassed { opacity: 0.38; pointer-events: none; transition: opacity 0.2s ease; }
 .fleuron-corner {
   position: absolute;
   top: 1px; right: 3px;

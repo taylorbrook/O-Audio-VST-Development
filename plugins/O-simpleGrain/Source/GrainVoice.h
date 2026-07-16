@@ -58,6 +58,11 @@ struct GrainVoiceParams
     float panSpray      = 0.0f;  // 0..100 % — per-grain stereo spread
     float velToDensity  = 0.0f;  // 0..100 % (stored 0..1) — velocity -> density depth
 
+    // v1.1.0 — amplitude-envelope bypass. false: flat velocity level while the
+    // note is held; on release the voice stops LAUNCHING grains and the cloud
+    // fades out over one grain length through the window envelopes (no click).
+    bool adsrEnabled = true;
+
     juce::ADSR::Parameters amp { 0.01f, 0.3f, 0.8f, 0.4f };
 };
 
@@ -152,14 +157,20 @@ public:
         samplesUntilNextGrain = 0;               // fire a grain on the first sample
 
         velLevel = juce::jlimit (0.0f, 1.0f, velocity);
-        ampEnv.noteOn();
+        noteHeld = true;
+        ampEnv.noteOn();          // ticked regardless of adsrEnabled so a mid-note
+                                  // toggle lands on a coherent envelope state
     }
 
     void stopNote (float, bool allowTailOff) override
     {
+        noteHeld = false;
         if (allowTailOff)
         {
             ampEnv.noteOff();
+            // adsrEnabled == false: no envelope tail — the scheduler stops
+            // launching grains (see renderNextBlock) and the in-flight grains
+            // window out within one grain length.
         }
         else
         {
@@ -176,7 +187,14 @@ public:
     //==========================================================================
     void renderNextBlock (juce::AudioBuffer<float>& out, int startSample, int numSamples) override
     {
-        if (! ampEnv.isActive())
+        // Voice liveness (v1.1.0): with the ADSR enabled the envelope is the
+        // lifetime key (unchanged from 2.1). Bypassed, the voice lives while the
+        // note is held OR grains are still draining after release (each finishes
+        // within one grain length via its window — the click-free "gate" mode).
+        const bool adsrOn = params.adsrEnabled;
+        const bool alive  = adsrOn ? ampEnv.isActive()
+                                   : (noteHeld || myActiveCount != 0);
+        if (! alive)
         {
             // If we were contributing grains last block, drop our contribution to
             // the shared count so a silent voice doesn't pin the readout (UI-05).
@@ -206,9 +224,15 @@ public:
         for (int i = 0; i < numSamples; ++i)
         {
             // --- Scheduler: fire a grain when the countdown elapses -----------
+            // ADSR bypassed + note released → stop LAUNCHING (the release
+            // behaviour is "cloud drains over one grain length"); the countdown
+            // keeps running so a re-toggle mid-drain stays coherent. With the
+            // ADSR on, spawning continues through the release tail (unchanged —
+            // the envelope shapes it out).
             if (--samplesUntilNextGrain <= 0)
             {
-                spawnGrain (lenSamp, phaseInc, startSample + i);
+                if (adsrOn || noteHeld)
+                    spawnGrain (lenSamp, phaseInc, startSample + i);
                 // Scatter (RESEARCH §2.6): jitter the period ± scatter% of the
                 // base interval. 0% = constant period (synchronous → discrete
                 // sidebands); 100% = ±full random (asynchronous → noise).
@@ -242,7 +266,11 @@ public:
             }
 
             // --- Voice amplitude (amp ADSR * velocity) -----------------------
-            const float ampVal = ampEnv.getNextSample() * velLevel;
+            // The envelope is ALWAYS ticked (so an ADSR-off→on toggle mid-note
+            // resumes from a coherent point) but only shapes the output when
+            // enabled; bypassed, the note plays at its flat velocity level.
+            const float envVal = ampEnv.getNextSample();
+            const float ampVal = (adsrOn ? envVal : 1.0f) * velLevel;
             outL *= ampVal;
             outR *= ampVal;
 
@@ -261,13 +289,17 @@ public:
         // Publish this voice's live grain count to the shared atomic (UI-05).
         // Recomputed by scanning the pool (O(24)) so steal-oldest / grain-done /
         // note-clear all stay consistent — robust vs. fragile inc/dec.
+        // (Also refreshes myActiveCount for the ADSR-bypass done check below.)
         publishActiveCount();
 
-        // Voice lifetime keyed on the amp envelope only.
-        if (! ampEnv.isActive())
+        // Voice lifetime: amp envelope (ADSR on) / released-and-drained (bypass).
+        const bool done = adsrOn ? ! ampEnv.isActive()
+                                 : (! noteHeld && myActiveCount == 0);
+        if (done)
         {
             for (auto& g : grains) g.active = false;
             publishActiveCount();           // release tail finished -> drop to 0
+            ampEnv.reset();
             clearCurrentNote();
         }
     }
@@ -412,6 +444,7 @@ private:
     double sampleRate = 44100.0;
     float  voiceRate  = 1.0f;            // key-tracked read-increment ratio
     float  velLevel   = 1.0f;
+    bool   noteHeld   = false;           // v1.1.0 — lifetime key when the ADSR is bypassed
 
     // Source snapshot (raw pointer set per block; processor holds the shared_ptr).
     const float* sourcePtr = nullptr;
