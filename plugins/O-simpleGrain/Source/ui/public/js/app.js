@@ -1,6 +1,6 @@
 // ============================================================================
 // O-simpleGrain — WebView UI controller (Phase 3.1)
-// Binds all 18 APVTS params two-way (15 sliders + 2 combos + 1 toggle), wires the
+// Binds all 19 APVTS params two-way (15 sliders + 2 combos + 2 toggles), wires the
 // source drag-drop + "Load…" picker, and sets up DPR-aware canvas placeholders for
 // the four visualizations (real rendering + viz-event subscriptions land in 3.2).
 //
@@ -20,7 +20,7 @@ const KNOB_IDS = [
   "outputLevel",
 ];
 const COMBO_IDS = ["sourceSample", "windowShape"];
-const TOGGLE_IDS = ["freeze"];
+const TOGGLE_IDS = ["freeze", "adsrEnabled"];
 
 // ── Display formatters (keyed by param id) — receive the *scaled* value ─────
 const fmtSec = (s) => (s < 1 ? `${Math.round(s * 1000)} ms` : `${s.toFixed(2)} s`);
@@ -88,6 +88,8 @@ const TIPS = {
     "How much your playing velocity drives Density, 0–100&nbsp;%. At 0 density is fixed; raise it and harder keys spawn thicker clouds (loudness already follows velocity through the amp envelope — this adds <em>thickness</em> on top)."],
 
   // ── Amplitude envelope ─────────────────────────────────────────────────────
+  adsrEnabled: ["ADSR On / Off",
+    "Switches the per-voice amplitude envelope on or off. <strong>Off</strong> bypasses Attack/Decay/Sustain/Release — each note plays at a flat level while held and, on release, simply stops launching new grains so the cloud fades out over one grain length through the <em>Window</em> envelopes (no click). Turn it on for shaped swells and pads; off for a raw, immediate gate."],
   ampAttack: ["Amp Attack",
     "How quickly a note fades in, 0–5&nbsp;s. This is the per-<em>voice</em> envelope over the whole grain stream — short for percussive, long for a pad swell. (Each grain has its own tiny Window envelope; this is the bigger one.)"],
   ampDecay: ["Amp Decay",
@@ -275,7 +277,15 @@ function bindToggle(id) {
   const el = document.getElementById(`toggle-${id}`);
   if (!el) { console.error(`Missing toggle element: toggle-${id}`); return; }
 
-  const refresh = () => el.classList.toggle("active", st.getValue());
+  const refresh = () => {
+    const on = st.getValue();
+    el.classList.toggle("active", on);
+    // ADSR off → dim + lock the A/D/S/R knobs so the bypass is visually obvious.
+    if (id === "adsrEnabled") {
+      const knobs = document.getElementById("env-knobs");
+      if (knobs) knobs.classList.toggle("env-bypassed", !on);
+    }
+  };
   st.valueChangedEvent.addListener(refresh);
   st.propertiesChangedEvent.addListener(refresh);
   refresh();
@@ -897,8 +907,9 @@ function noteOff(note) {
 function setupKeyboard() {
   const kb = document.getElementById("keyboard");
   if (!kb) return;
-  // uiMidi is optional this phase — the processor may not expose it yet; the
-  // keyboard still highlights so the layout reads correctly. (External MIDI works.)
+  // uiMidi bridges keys → the processor's MidiMessageCollector (merged into
+  // processBlock). The try/catch keeps the keyboard's highlight working even if
+  // the binding is ever absent. (External MIDI works regardless.)
   try { uiMidiFn = Juce.getNativeFunction("uiMidi"); } catch (e) { uiMidiFn = null; }
 
   const qFor = (n) => Object.keys(QWERTY).find((k) => QWERTY[k] === n);

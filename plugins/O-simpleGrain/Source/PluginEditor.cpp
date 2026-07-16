@@ -5,7 +5,8 @@
 
     Stage 3 (GUI): Ouaricon "Granular Field Guide" WebView UI. 15 slider relays
     (grain / spray-scatter / amp ADSR / output) + 2 combo relays (sourceSample,
-    windowShape) + 1 toggle relay (freeze) bound two-way to the APVTS. The five
+    windowShape) + 2 toggle relays (freeze, adsrEnabled) bound two-way to the
+    APVTS. The five
     fixed-name source native functions (dropSessionStart/AddFile/CommitFile/
     CommitFolder, loadSourceFromFileChooser) bridge the JS drag-drop / picker to
     the processor's already-built decode path.
@@ -77,8 +78,8 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
 {
     using namespace OSimpleGrain::ParamIDs;
 
-    // 18 APVTS params = 15 float sliders + 2 combos + 1 toggle.
-    // (sourceSample / windowShape are choices; freeze is the bool — NOT sliders.)
+    // 19 APVTS params = 15 float sliders + 2 combos + 2 toggles.
+    // (sourceSample / windowShape are choices; freeze / adsrEnabled are bools — NOT sliders.)
     const juce::StringArray sliderIds {
         grainSize, density, position, scan,
         pitchSpray, positionSpray, scatter, grainPitch, panSpray, velToDensity,
@@ -86,7 +87,7 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
         outputLevel
     };
     const juce::StringArray comboIds  { sourceSample, windowShape };
-    const juce::StringArray toggleIds { freeze };
+    const juce::StringArray toggleIds { freeze, adsrEnabled };
 
     // 1. RELAYS (before the WebView) ----------------------------------------
     for (const auto& id : sliderIds)
@@ -169,6 +170,15 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
             if (args.size() > 0)
                 processorRef.applyFactoryPreset (args[0].toString());
             complete (juce::var (true));
+        })
+        // On-screen keyboard → synth. args: [noteNumber, isNoteOn, velocity?].
+        // Queued through the processor's MidiMessageCollector and merged into
+        // processBlock's MIDI stream (identical path to host MIDI).
+        .withNativeFunction ("uiMidi", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+                processorRef.handleUiMidi ((int) args[0], (bool) args[1],
+                                           args.size() >= 3 ? (float) args[2] : 0.8f);
+            complete (juce::var());
         });
 
    #if JUCE_WINDOWS

@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.15)
 
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
+# Single source of truth for the plugin version (WR-04): consumed by
+# juce_add_plugin below AND by tests/render-harness/CMakeLists.txt (whose
+# hand-rolled JucePlugin_VersionString/Code previously drifted).
+# VERSION_CODE = 0x00MMmmpp (major/minor/patch bytes) — keep in sync.
+set(OSIMPLEGRAIN_VERSION "1.1.1")
+set(OSIMPLEGRAIN_VERSION_CODE 0x010101)
+
 # O-simpleGrain - Pedagogical Granular Synthesizer
 # Stage 1 (Foundation): silent 8-voice synth shell with the full 18-param APVTS
 # + state persistence (incl. loaded-source identity as custom ValueTree state).
@@ -14,7 +21,7 @@ juce_add_plugin(O-simpleGrain
     PLUGIN_CODE OsGr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleGrain${OUARICON_DEV_SUFFIX}"
-    VERSION "1.0.1"
+    VERSION "${OSIMPLEGRAIN_VERSION}"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE

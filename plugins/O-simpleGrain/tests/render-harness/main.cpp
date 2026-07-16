@@ -32,6 +32,14 @@
                               off -> grain count is velocity-independent; depth full
                               -> a hard note spawns a denser cloud than a soft one
                               (guards the 0..100 -> 0..1 scaling).
+     10. ui-midi-keyboard    — handleUiMidi -> MidiMessageCollector -> processBlock
+                              makes sound with an EMPTY host MIDI buffer (guards
+                              the on-screen-keyboard bridge that shipped silent
+                              in v1.0.1).
+     11. adsr-bypass         — adsrEnabled off ignores the attack ramp (flat
+                              velocity level immediately) and gates the release:
+                              output stops within ~a grain length of note-off,
+                              where the enabled envelope still has a long tail.
 
     Exit 0 iff all checks pass. Off by default; -DOUARICON_BUILD_TESTS=ON.
 
@@ -352,10 +360,11 @@ static void pumpMessages (int ms = 120)
         mm->runDispatchLoopUntil (ms);
 }
 
-// Reset all 18 params to a clean, analysis-friendly baseline: factory-ish, but
+// Reset all 19 params to a clean, analysis-friendly baseline: factory-ish, but
 // a fast amp envelope at full sustain so the [0.4s,0.75s] window is steady.
 static void resetDefaults (juce::AudioProcessorValueTreeState& a)
 {
+    setParam (a, PID::adsrEnabled,   1.0f);   // envelope on (v1.0.x behaviour)
     setParam (a, PID::sourceSample,  0.0f);   // fire
     setParam (a, PID::grainSize,    30.0f);
     setParam (a, PID::density,      40.0f);
@@ -631,6 +640,120 @@ int main()
         check ("velToDensity-depth", offFlat && onSpread,
                juce::String ("off[hi=") + juce::String (offHi) + " lo=" + juce::String (offLo)
                  + "] on[hi=" + juce::String (onHi) + " lo=" + juce::String (onLo) + "]");
+    }
+
+    // --- 10: on-screen-keyboard bridge makes sound via the MidiMessageCollector
+    // Guards bug #1 (v1.0.2): WebView-keyboard notes reach the synth ONLY through
+    // handleUiMidi → midiCollector → processBlock. No other gate exercises that
+    // path (render() injects MIDI straight into the host buffer), so a missing
+    // collector merge / native fn shipped the keyboard silent in v1.0.1. Here we
+    // inject via handleUiMidi and render with an EMPTY host MIDI buffer; the held
+    // note must be drained by the collector and sustain into the analysis window.
+    {
+        proc.releaseResources();
+        proc.prepareToPlay (fs, 512);
+        resetDefaults (apvts);
+        setParam (apvts, PID::density,      120.0f);
+        setParam (apvts, PID::grainSize,     50.0f);
+        setParam (apvts, PID::positionSpray, 70.0f);
+
+        proc.handleUiMidi (root, true, 0.8f);   // key down via the UI bridge (no note-off → held)
+
+        const int block = 512;
+        const int total = (int) (1.0 * fs);
+        juce::AudioBuffer<float> buf (2, block);
+        std::vector<float> y; y.reserve ((size_t) total);
+        int pos = 0, pk = 0;
+        while (pos < total)
+        {
+            buf.clear();
+            juce::MidiBuffer hostMidi;           // EMPTY — the collector is the only note source
+            proc.processBlock (buf, hostMidi);
+            pk = juce::jmax (pk, proc.getActiveGrainCount());
+            const int n = juce::jmin (block, total - pos);
+            for (int i = 0; i < n; ++i) y.push_back (buf.getSample (0, i));
+            pos += block;
+        }
+        const double r = rms (y, aOff, aLen);
+        check ("ui-midi-keyboard", r > 0.005 && allFinite (y) && pk > 0,
+               juce::String ("rms=") + juce::String (r, 4) + " peakGrains=" + juce::String (pk));
+    }
+
+    // --- 11: adsrEnabled bypass — flat gate in, one-grain-length fade out ------
+    // v1.1.0 (reconstructed): with the ADSR bypassed the note must (a) ignore a
+    // slow attack (flat velocity level immediately after note-on) and (b) stop
+    // within ~a grain length of note-off (the scheduler stops launching; the
+    // in-flight grains window out). With the ADSR ON the same slow envelope must
+    // still be audible ramping in and tailing out — proving the toggle switches
+    // between the two behaviours.
+    {
+        // Render 1.6 s with note-off at 0.8 s (dense cloud, 50 ms grains).
+        auto renderGated = [&] (bool adsrOn)
+        {
+            proc.releaseResources();
+            proc.prepareToPlay (fs, 512);        // clean voice state per measurement
+            resetDefaults (apvts);
+            setParam (apvts, PID::density,      120.0f);
+            setParam (apvts, PID::grainSize,     50.0f);
+            setParam (apvts, PID::positionSpray, 70.0f);
+            setParam (apvts, PID::ampAttack,      1.5f);   // slow — audible only when ADSR on
+            setParam (apvts, PID::ampSustain,     1.0f);
+            setParam (apvts, PID::ampRelease,     1.5f);   // long tail — only when ADSR on
+            setParam (apvts, PID::adsrEnabled, adsrOn ? 1.0f : 0.0f);
+
+            const int block = 512;
+            const int total  = (int) (1.6 * fs);
+            const int offAt  = (int) (0.8 * fs);
+            juce::AudioBuffer<float> buf (2, block);
+            std::vector<float> y; y.reserve ((size_t) total);
+            int pos = 0;
+            bool sentOn = false, sentOff = false;
+            while (pos < total)
+            {
+                buf.clear();
+                juce::MidiBuffer midi;
+                if (! sentOn)
+                {
+                    midi.addEvent (juce::MidiMessage::noteOn (1, root, (juce::uint8) 100), 0);
+                    sentOn = true;
+                }
+                if (! sentOff && pos + block > offAt)
+                {
+                    midi.addEvent (juce::MidiMessage::noteOff (1, root),
+                                   juce::jlimit (0, block - 1, offAt - pos));
+                    sentOff = true;
+                }
+                proc.processBlock (buf, midi);
+                const int n = juce::jmin (block, total - pos);
+                for (int i = 0; i < n; ++i) y.push_back (buf.getSample (0, i));
+                pos += block;
+            }
+            return y;
+        };
+
+        const auto yOff = renderGated (false);   // ADSR bypassed
+        const auto yOn  = renderGated (true);    // ADSR enabled
+
+        // Early window [50 ms, 200 ms]: bypass = already at full level; enabled =
+        // still deep in the 1.5 s attack (much quieter).
+        const int eOff = (int) (0.05 * fs), eLen = (int) (0.15 * fs);
+        const double earlyBypass = rms (yOff, eOff, eLen);
+        const double earlyAdsr   = rms (yOn,  eOff, eLen);
+
+        // Post-release window [1.0 s, 1.3 s] (0.2 s past note-off + 50 ms grains):
+        // bypass = drained to silence; enabled = 1.5 s release still sounding.
+        const int pOff = (int) (1.0 * fs), pLen = (int) (0.3 * fs);
+        const double tailBypass = rms (yOff, pOff, pLen);
+        const double tailAdsr   = rms (yOn,  pOff, pLen);
+
+        check ("adsr-bypass",
+               allFinite (yOff)
+                 && earlyBypass > 0.005 && earlyBypass > earlyAdsr * 2.0
+                 && tailBypass < 0.0005 && tailAdsr > 0.002,
+               juce::String ("early[bypass=") + juce::String (earlyBypass, 4)
+                 + " adsr=" + juce::String (earlyAdsr, 4)
+                 + "] tail[bypass=" + juce::String (tailBypass, 5)
+                 + " adsr=" + juce::String (tailAdsr, 4) + "]");
     }
 
     proc.releaseResources();
