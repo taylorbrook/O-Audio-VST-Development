@@ -3,6 +3,22 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.2] — 2026-07-16
+
+Verify-pass residual (VR-01, residual of CR-03). No parameter/state-format changes — PATCH.
+
+### Fixed
+- **VR-01 — stale Material-macro AsyncUpdate can stomp a restored state.** A `material`
+  automation event on the audio thread stashes damping/decay targets and queues
+  `triggerAsyncUpdate()`; if `setStateInformation` ran before the update fired, the
+  queued apply landed after `restoringState` cleared and overwrote the restored
+  damping/decay with pre-restore values. Root cause: the CR-03 `restoringState` guard
+  covered `parameterChanged`/`handleAsyncUpdate` re-entry during the restore, but not
+  an update already queued before it. Fix: `cancelPendingUpdate()` in
+  `setStateInformation` while the guard is still up — same pattern the destructor
+  already uses. Testing: render-harness regression suite re-run post-fix — 22/22 PASS
+  (incl. state-roundtrip).
+
 ## [1.0.1] — 2026-07-16
 
 Code-review resolution: all Critical + Warning findings from the 2026-07-15 deep

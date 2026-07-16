@@ -418,6 +418,10 @@ void OSimplePhysicalModelSynthAudioProcessor::setStateInformation (const void* d
         // restored `material` can't re-derive and stomp restored damping/decay.
         restoringState = true;
         presetManager.setStateFromXml (xml.get());
+        // VR-01: a macro apply queued from audio-thread automation BEFORE this
+        // restore would fire after restoringState clears and stomp the restored
+        // damping/decay — kill it while the guard is still up (dtor does the same).
+        cancelPendingUpdate();
         restoringState = false;
     }
 }
