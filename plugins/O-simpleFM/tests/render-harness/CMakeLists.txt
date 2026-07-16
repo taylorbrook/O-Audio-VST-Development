@@ -46,8 +46,14 @@ target_compile_definitions(O-simpleFM-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon"
     JucePlugin_ManufacturerCode=0x4f756172
     JucePlugin_PluginCode=0x4f536946
-    JucePlugin_VersionString="1.0.0"
-    JucePlugin_VersionCode=0x10000
+    # MUST track the plugin version (inherited from the parent CMakeLists).
+    # The processor ctor runs initializeFactoryPresets(); the module's
+    # .factory-version sentinel compares against JucePlugin_VersionString, so a
+    # stale literal here makes every harness run rewrite the user's REAL
+    # factory-preset directory with the wrong version stamp.
+    JucePlugin_VersionString="${OSIMPLEFM_VERSION}"
+    JucePlugin_VersionCode=0x10202
+
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1
     JucePlugin_ProducesMidiOutput=0

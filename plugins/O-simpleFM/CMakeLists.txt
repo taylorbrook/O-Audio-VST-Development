@@ -5,13 +5,20 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # O-simpleFM - Pedagogical 2-Operator FM/PM Synthesizer
 # Stage 1 (Foundation): silent synth shell with full 17-param APVTS + state persistence.
 # First audio: Stage 2 / Phase 2.1. WebView UI: Stage 3.
+
+# Single source of truth for the version — the render harness derives its
+# JucePlugin_VersionString from this. A mismatched harness version rewrites the
+# user's real factory-preset directory (the .factory-version sentinel compares
+# against JucePlugin_VersionString).
+set(OSIMPLEFM_VERSION "1.2.2")
+
 juce_add_plugin(O-simpleFM
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OSiF
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleFM${OUARICON_DEV_SUFFIX}"
-    VERSION "1.2.1"
+    VERSION "${OSIMPLEFM_VERSION}"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE

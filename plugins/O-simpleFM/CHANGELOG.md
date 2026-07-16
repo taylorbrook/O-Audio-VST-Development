@@ -3,6 +3,65 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.2] — 2026-07-15
+
+Resolves the Critical and all six Warning findings from the 2026-07-15 full-plugin
+code review (`CODE_REVIEW.md`, CR-01 + WR-01..WR-06). Bug fixes only — no DSP,
+parameter, or state-format changes.
+
+### Fixed
+- **CR-01 — Use-after-free in the preset file dialogs.** Both
+  `FileChooser::launchAsync` completions (`savePresetWithDialog`,
+  `loadPresetFromFile`) captured raw `this` and the WebView-owned `complete`
+  callback; closing the plugin window while the native dialog was open could fire
+  the completion against a destroyed editor. Root cause: async completion outliving
+  the editor (the W12 pattern from O-MicrotonalSampler v1.23.5). Now captures a
+  `Component::SafePointer` and bails with a bare return when the editor is gone —
+  deliberately NOT calling `complete(false)`, which is owned by the dead WebView
+  and would itself be a UAF.
+- **WR-01 — Stuck notes on the on-screen keyboard.** Releasing the mouse outside
+  the plugin window never delivered `pointerup` (no implicit capture for mouse
+  pointers), and a held QWERTY note's `keyup` was lost when the WebView lost focus
+  mid-hold. Root cause: release events not guaranteed to reach the listener. Now
+  uses `setPointerCapture` on pointerdown (guaranteeing `pointerup`/`pointercancel`),
+  glide tracks via `elementFromPoint` (captured events retarget to the container),
+  and a window-`blur` sweep releases all held notes.
+- **WR-02 — QWERTY notes fired while focus was on UI controls.** The global
+  `keydown` note handler ignored the event target, so letter keys pressed while
+  navigating the preset bar/dropdown (or any future text input) played notes and
+  swallowed the keystroke. Now bails when focus sits on
+  `input, textarea, [contenteditable], .preset-bar, .preset-dropdown`.
+- **WR-03 — Preset Delete had no confirmation.** The header Delete button removed
+  the current user preset file immediately and irreversibly. Now routes through
+  the module's `promptDelete()` with an in-DOM confirm dialog supplied via
+  `onConfirmDelete` (`window.confirm` is unreliable in JUCE WebViews). Escape,
+  backdrop click, and Cancel all abort; Cancel takes initial focus.
+- **WR-04 — Save dialog silently ignored the chosen folder.** The save handler
+  extracted only the filename and always wrote to `Presets/User/`; saving to e.g.
+  Desktop produced no file there, with no indication. Now saves through
+  `OuariconPresetManager::savePresetToFile()`, which honors the caller-chosen
+  directory (symmetric with `loadPresetFromFile`).
+- **WR-05 — Render harness rewrote the user's REAL factory presets with a stale
+  version.** The harness hardcoded `JucePlugin_VersionString="1.0.0"` while the
+  plugin was at 1.2.1; the processor ctor runs `initializeFactoryPresets()`, so
+  every harness run rewrote `~/Library/O-simpleFM/Presets/Factory/` stamped
+  1.0.0 and flipped the `.factory-version` sentinel — defeating it permanently on
+  any machine that ran the test. The version now lives in one
+  `set(OSIMPLEFM_VERSION …)` variable in the plugin CMakeLists; both
+  `juce_add_plugin(VERSION …)` and the harness macro derive from it.
+- **WR-06 — Spectrum axis and sideband markers used a boot-time Nyquist.** The JS
+  fetched the sample rate exactly once at boot; opening the editor before the
+  first `prepareToPlay`, or a host rate switch (44.1k → 96k) mid-session, left the
+  log-frequency axis and fc/sideband markers mapped against the wrong Nyquist
+  while the analyzer bars used the right one. The editor's 30 Hz timer now emits
+  `sampleRateUpdate` whenever the processor's rate changes; the page re-maps the
+  axis and redraws.
+
+### Validation
+- Built VST3 + AU, installed with cache clear, `auval` pass. Render harness
+  rebuilt and re-run (now stamps the correct version). No parameter or
+  state-format changes — presets and sessions from 1.2.x load unchanged.
+
 ## [1.2.1] — 2026-06-21
 
 A small teaching-copy addition: hover explanations on the Lesson Preset buttons.

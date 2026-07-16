@@ -103,22 +103,32 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
             else
                 complete (false);
         })
+        // The async completions below must NOT capture raw `this`: the host can
+        // destroy the editor while the native dialog is open. On teardown the
+        // WebView Impl that owns `complete` dies with it, so the null-SafePointer
+        // path must be a BARE return — invoking complete(false) there is itself
+        // a use-after-free.
         .withNativeFunction ("savePresetWithDialog", [this] (auto&, auto complete) {
             fileChooser = std::make_unique<juce::FileChooser> (
                 "Save Preset", processorRef.getPresetManager().getUserPresetsDirectory(), "*.json");
+            juce::Component::SafePointer<OSimpleFMAudioProcessorEditor> safeThis (this);
             fileChooser->launchAsync (
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, complete] (const juce::FileChooser& fc) {
+                [safeThis, complete] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return;
                     auto* result = new juce::DynamicObject();
                     auto results = fc.getResults();
                     if (results.isEmpty()) {
                         result->setProperty ("success", false);
                         result->setProperty ("name", juce::String());
                     } else {
-                        auto name = results.getFirst().getFileNameWithoutExtension();
-                        bool ok = processorRef.getPresetManager().savePreset (name);
+                        // Save to the file the user actually chose — savePresetToFile
+                        // honors arbitrary directories (not just Presets/User/).
+                        auto file = results.getFirst();
+                        bool ok = safeThis->processorRef.getPresetManager().savePresetToFile (file);
                         result->setProperty ("success", ok);
-                        result->setProperty ("name", ok ? name : juce::String());
+                        result->setProperty ("name", ok ? file.getFileNameWithoutExtension() : juce::String());
                     }
                     complete (juce::var (result));
                 });
@@ -132,9 +142,12 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
         .withNativeFunction ("loadPresetFromFile", [this] (auto&, auto complete) {
             fileChooser = std::make_unique<juce::FileChooser> (
                 "Load Preset", processorRef.getPresetManager().getPresetsDirectory(), "*.json");
+            juce::Component::SafePointer<OSimpleFMAudioProcessorEditor> safeThis (this);
             fileChooser->launchAsync (
                 juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, complete] (const juce::FileChooser& fc) {
+                [safeThis, complete] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return;
                     auto* result = new juce::DynamicObject();
                     auto results = fc.getResults();
                     if (results.isEmpty()) {
@@ -142,7 +155,7 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
                         result->setProperty ("name", juce::String());
                     } else {
                         auto file = results.getFirst();
-                        bool ok = processorRef.getPresetManager().loadPresetFromFile (file);
+                        bool ok = safeThis->processorRef.getPresetManager().loadPresetFromFile (file);
                         result->setProperty ("success", ok);
                         result->setProperty ("name", ok ? file.getFileNameWithoutExtension() : juce::String());
                     }
@@ -241,6 +254,16 @@ void OSimpleFMAudioProcessorEditor::timerCallback()
 
     if (webView == nullptr)
         return;
+
+    // Push the sample rate whenever it changes (host rate switch, or the editor
+    // opened before the first prepareToPlay) — the JS log-frequency axis and
+    // FM sideband markers must track the live Nyquist, not a boot-time fetch.
+    const double sr = processorRef.getCurrentSampleRate();
+    if (sr > 0.0 && ! juce::exactlyEqual (sr, lastPushedSampleRate))
+    {
+        lastPushedSampleRate = sr;
+        webView->emitEventIfBrowserIsVisible ("sampleRateUpdate", juce::var (sr));
+    }
 
     const auto& spec  = vizAnalyzer.getSpectrum();   // 256 dB bins, ~[-100, 0]
     const auto& scope = vizAnalyzer.getScope();       // 128 pts, [-1, 1]

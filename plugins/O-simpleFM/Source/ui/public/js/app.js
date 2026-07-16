@@ -380,6 +380,50 @@ async function updateDeleteButtonState() {
   delBtn.disabled = await presetManager.isFactoryPreset(presetManager.getCurrentPreset());
 }
 
+// Minimal in-DOM confirm dialog (window.confirm is unreliable in JUCE WebViews).
+// Resolves true on Delete, false on Cancel / Escape / backdrop click.
+function confirmInDom(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-overlay";
+    const box = document.createElement("div");
+    box.className = "confirm-box";
+    box.setAttribute("role", "alertdialog");
+    box.setAttribute("aria-modal", "true");
+
+    const msg = document.createElement("div");
+    msg.className = "confirm-message";
+    msg.textContent = message;
+
+    const row = document.createElement("div");
+    row.className = "confirm-buttons";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    const okBtn = document.createElement("button");
+    okBtn.className = "confirm-danger";
+    okBtn.textContent = "Delete";
+    row.append(cancelBtn, okBtn);
+    box.append(msg, row);
+    overlay.appendChild(box);
+
+    const done = (answer) => {
+      document.removeEventListener("keydown", onKey, true);
+      overlay.remove();
+      resolve(answer);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.stopPropagation(); done(false); }
+    };
+    document.addEventListener("keydown", onKey, true);
+    overlay.addEventListener("pointerdown", (e) => { if (e.target === overlay) done(false); });
+    cancelBtn.addEventListener("click", () => done(false));
+    okBtn.addEventListener("click", () => done(true));
+
+    document.body.appendChild(overlay);
+    cancelBtn.focus();   // safe default focus for keyboard users
+  });
+}
+
 function setupPresetManager() {
   const nameBtn = document.getElementById("presetName");
 
@@ -395,11 +439,15 @@ function setupPresetManager() {
 
   if (nameBtn) nameBtn.addEventListener("click", toggleDropdown);
 
-  // Delete current preset (deletePreset is a no-op on factory presets).
+  // Delete current preset — destructive and irreversible, so route through the
+  // module's promptDelete() with an in-DOM confirm (window.confirm is
+  // unreliable inside JUCE WebViews).
+  presetManager.onConfirmDelete = (_name, message) => confirmInDom(message);
   const delBtn = document.getElementById("presetDelete");
   if (delBtn) delBtn.addEventListener("click", async () => {
-    const ok = await presetManager.deletePreset(presetManager.getCurrentPreset());
-    if (ok) closeDropdown();
+    await presetManager.promptDelete();   // no-op unless confirmed
+    closeDropdown();
+    updateDeleteButtonState();
   });
 
   // Dismiss the dropdown on outside click / Escape.
@@ -568,6 +616,15 @@ function setupVizEvents() {
     });
     window.__JUCE__.backend.addEventListener("spectrumUpdate", (arr) => drawSpectrum(arr));
     window.__JUCE__.backend.addEventListener("scopeUpdate", (arr) => drawScope(arr));
+    // C++ pushes the rate whenever it changes (host rate switch, first
+    // prepareToPlay after the editor opened) — keeps the log-frequency axis
+    // and sideband markers on the live Nyquist.
+    window.__JUCE__.backend.addEventListener("sampleRateUpdate", (sr) => {
+      if (typeof sr === "number" && sr > 0 && sr / 2 !== nyquistHz) {
+        nyquistHz = sr / 2;
+        if (lastSpectrum) drawSpectrum(lastSpectrum);
+      }
+    });
   } else {
     console.error("window.__JUCE__.backend unavailable — viz events will not arrive.");
   }
@@ -654,25 +711,46 @@ function setupKeyboard() {
     const k = target.closest ? target.closest(".key") : null;
     return k ? +k.dataset.note : null;
   };
+  const releasePointerNote = () => {
+    if (pointerNote != null) { noteOff(pointerNote); pointerNote = null; }
+  };
+
+  // Pointer capture guarantees pointerup/pointercancel reach us even when the
+  // mouse is released outside the plugin window (no capture = stuck note).
+  // Captured events all target `kb`, so glide tracks via elementFromPoint
+  // instead of pointerover.
   kb.addEventListener("pointerdown", (e) => {
     const n = noteAt(e.target);
     if (n == null) return;
+    kb.setPointerCapture(e.pointerId);
     pointerNote = n;
     noteOn(n);
     e.preventDefault();
   });
-  kb.addEventListener("pointerover", (e) => {
+  kb.addEventListener("pointermove", (e) => {
     if (pointerNote == null) return;
-    const n = noteAt(e.target);
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const n = under ? noteAt(under) : null;
     if (n != null && n !== pointerNote) { noteOff(pointerNote); noteOn(n); pointerNote = n; }
   });
-  window.addEventListener("pointerup", () => {
-    if (pointerNote != null) { noteOff(pointerNote); pointerNote = null; }
-  });
+  kb.addEventListener("pointerup", releasePointerNote);
+  kb.addEventListener("pointercancel", releasePointerNote);
 
-  // Computer keyboard — polyphonic, auto-repeat suppressed.
+  // A held QWERTY note's keyup is lost if the WebView loses focus mid-hold
+  // (click into the DAW, Cmd-Tab) — sweep everything on blur.
+  const allNotesOff = () => {
+    [...heldNotes].forEach(noteOff);
+    pointerNote = null;
+  };
+  window.addEventListener("blur", allNotesOff);
+
+  // Computer keyboard — polyphonic, auto-repeat suppressed. Ignored while
+  // focus sits on an interactive control (preset bar/dropdown, any input):
+  // typing there must not trigger notes.
   window.addEventListener("keydown", (e) => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && t.closest && t.closest("input, textarea, [contenteditable], .preset-bar, .preset-dropdown")) return;
     const n = QWERTY[e.key.toLowerCase()];
     if (n == null) return;
     noteOn(n);
