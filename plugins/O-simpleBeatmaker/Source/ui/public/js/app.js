@@ -94,6 +94,7 @@ const KNOB_MIN_DEG = -135, KNOB_MAX_DEG = 135, DRAG_TRAVEL_PX = 220;
 const sliderState = {};   // id -> Juce SliderState
 const comboState = {};    // id -> Juce ComboBoxState
 const toggleState = {};   // id -> Juce ToggleState
+let paramDefaults = null; // id -> normalised default (getParameterDefaults native fn)
 function normToDeg(n) { return KNOB_MIN_DEG + n * (KNOB_MAX_DEG - KNOB_MIN_DEG); }
 
 function fmtFor(id) {
@@ -156,18 +157,29 @@ function bindKnob(id) {
     n = Math.max(0, Math.min(1, n));
     st.setNormalisedValue(n); updateKnobVisual(id); e.preventDefault();
   };
+  // pointercancel (pen/touch, OS gesture interruption) must also end the drag,
+  // or the host automation gesture (sliderDragStarted) is left open.
   const onUp = () => {
     if (!dragging) return;
     dragging = false; st.sliderDragEnded();
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
   };
   knob.addEventListener("pointerdown", (e) => {
     dragging = true; startY = e.clientY; startNorm = st.getNormalisedValue();
     st.sliderDragStarted();
+    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* mouse w/o capture support */ }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     e.preventDefault();
+  });
+  knob.addEventListener("dblclick", () => {
+    const d = paramDefaults ? paramDefaults[id] : undefined;
+    if (typeof d !== "number") return;
+    st.sliderDragStarted(); st.setNormalisedValue(d); st.sliderDragEnded();
+    updateKnobVisual(id);
   });
   knob.addEventListener("wheel", (e) => { nudge(st, e.deltaY < 0 ? 0.02 : -0.02, id); e.preventDefault(); }, { passive: false });
 }
@@ -245,6 +257,7 @@ function paintCell(v, s) {
 
 function applyStep(v, s, vel) {
   gridState[v][s] = vel;
+  lastLocalEditTime = performance.now();   // guard the 4 Hz poll (see refreshGridFromBackend)
   paintCell(v, s);
   if (setStepFn) setStepFn(v, s, vel);   // push to C++ atomics
 }
@@ -253,6 +266,7 @@ function renderGridColumns() {
   const rows = document.getElementById("gridRows");
   if (!rows) return;
   rows.innerHTML = "";
+  lastPhaseCol = -1;   // cells rebuilt — force the playhead class to re-apply
   for (let v = 0; v < NUM_VOICES; v++) {
     cellEls[v].fill(null);
     const row = document.createElement("div");
@@ -294,20 +308,29 @@ function renderGridColumns() {
 // Pull the authoritative grid from C++ (boot + after any host state restore).
 let getGridFn = null, clearGridFn = null, gridPollBusy = false;
 let applyPresetFn = null;
+let lastLocalEditTime = -1;
+const LOCAL_EDIT_HOLDOFF_MS = 300;   // a poll snapshot older than an in-flight click must not win
 
 // Clear every cell (UI + C++ atomics) via the clearGrid native fn.
 function clearAllSteps() {
   for (let v = 0; v < NUM_VOICES; v++)
     for (let s = 0; s < MAX_STEPS; s++) { gridState[v][s] = 0; if (s < patternLen) paintCell(v, s); }
+  lastLocalEditTime = performance.now();
   if (clearGridFn) clearGridFn();
   else if (setStepFn) for (let v = 0; v < NUM_VOICES; v++) for (let s = 0; s < MAX_STEPS; s++) setStepFn(v, s, 0);
 }
-async function refreshGridFromBackend() {
+// `force` bypasses the local-edit holdoff (boot, preset load — authoritative pulls).
+async function refreshGridFromBackend(force = false) {
   if (!getGridFn || gridPollBusy) return;
+  const editedRecently = () =>
+    !force && lastLocalEditTime >= 0 && performance.now() - lastLocalEditTime < LOCAL_EDIT_HOLDOFF_MS;
+  if (editedRecently()) return;   // a cell click may still be in flight to C++
   gridPollBusy = true;
   try {
     const flat = await getGridFn();   // length 6*32, row-major
-    if (Array.isArray(flat) && flat.length >= NUM_VOICES * MAX_STEPS) {
+    // Re-check after the await: a click during the round-trip means this
+    // snapshot is stale for that cell — drop it, the next poll is ≤250 ms away.
+    if (!editedRecently() && Array.isArray(flat) && flat.length >= NUM_VOICES * MAX_STEPS) {
       for (let v = 0; v < NUM_VOICES; v++)
         for (let s = 0; s < MAX_STEPS; s++) {
           const vel = flat[v * MAX_STEPS + s] | 0;
@@ -430,6 +453,8 @@ function onFrame(frame) {
     if (tEl) tEl.textContent = String(Math.round(currentBpm));
   }
   if (typeof frame.ph === "number") playheadPhase = frame.ph;
+  // live SR (host can switch rates after boot; boot's getSampleRate is just a seed)
+  if (typeof frame.sr === "number" && frame.sr > 0) sampleRate = frame.sr;
 
   const tEl = document.getElementById("readTransport");
   if (tEl) {
@@ -531,7 +556,7 @@ function initPresetTour() {
       btn.classList.add("armed");
       if (applyPresetFn) {
         try { await applyPresetFn(index); } catch (e) { console.error("applyPreset failed", e); }
-        await refreshGridFromBackend();
+        await refreshGridFromBackend(true);   // authoritative pull — bypass the edit holdoff
       }
       if (caption) caption.textContent = `“${btn.getAttribute("data-preset")}” loaded — tweak a knob to hear the concept.`;
     });
@@ -576,6 +601,7 @@ async function boot() {
   try { clearGridFn = Juce.getNativeFunction("clearGrid"); } catch (e) { clearGridFn = null; }
   try { applyPresetFn = Juce.getNativeFunction("applyPreset"); } catch (e) { applyPresetFn = null; console.error("applyPreset native fn unavailable", e); }
   try { sampleRate = await Juce.getNativeFunction("getSampleRate")(); } catch (e) { sampleRate = 44100; }
+  try { paramDefaults = await Juce.getNativeFunction("getParameterDefaults")(); } catch (e) { paramDefaults = null; }
 
   // bind all params
   for (const id of SLIDER_IDS) bindKnob(id);
@@ -584,7 +610,7 @@ async function boot() {
 
   // grid (renderGridColumns already ran via bindCombo refresh; ensure + paint)
   if (!document.querySelector(".cell")) renderGridColumns();
-  await refreshGridFromBackend();
+  await refreshGridFromBackend(true);
 
   // canvases + visuals
   lane = makeCanvas("laneCanvas");

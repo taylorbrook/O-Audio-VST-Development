@@ -49,7 +49,7 @@ target_compile_definitions(O-simpleBeatmaker-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon"
     JucePlugin_ManufacturerCode=0x4f756172
     JucePlugin_PluginCode=0x4f536942
-    JucePlugin_VersionString="1.0.0"
+    JucePlugin_VersionString="1.0.1"
     JucePlugin_VersionCode=0x10000
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1

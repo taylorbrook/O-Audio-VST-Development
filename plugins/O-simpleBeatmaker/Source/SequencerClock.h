@@ -77,7 +77,12 @@ namespace OSimpleBeatmaker
                 const double lo = ppqStart;
                 const double hi = ppqStart + blockPpq;
 
-                for (int bar = -1; bar <= 1 && count < maxOut; ++bar)
+                // Upper bar bound derived from the window: a block spanning more
+                // than one pattern period (tiny pattern + huge buffer + high bpm)
+                // still enumerates every step; a fixed +1 silently dropped them.
+                const int barsSpanned = 1 + (int) std::ceil (blockPpq / barLenPpq);
+
+                for (int bar = -1; bar <= barsSpanned && count < maxOut; ++bar)
                 {
                     const double barRepStartPpq = barStart + bar * barLenPpq;
                     for (int k = 0; k < patternLength && count < maxOut; ++k)
@@ -107,9 +112,13 @@ namespace OSimpleBeatmaker
             else
             {
                 // Free-run: integrate an internal step phase at `tempo` BPM.
+                // Wrap the carried phase against the CURRENT pattern length first —
+                // after a 32→8 shrink the stored phase can exceed the new period,
+                // which would report an out-of-range playhead for one block.
                 const double blockSteps = (double) numSamples / samplesPer16th;
-                const double startPos   = freeRunStepPos;
-                const double endPos     = startPos + blockSteps;
+                double startPos = freeRunStepPos;
+                while (startPos >= barLenSteps) startPos -= barLenSteps;
+                const double endPos = startPos + blockSteps;
 
                 int m = (int) std::ceil (startPos - 1.0e-9);
                 for (; (double) m < endPos - 1.0e-9 && count < maxOut; ++m)

@@ -128,6 +128,15 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
         // Sample rate for the timing lane's tempo-normalised Δt (samples → step fraction).
         .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
             complete (processorRef.getCurrentSampleRate());
+        })
+        // getParameterDefaults() — { paramID: normalisedDefault } map for the knobs'
+        // dblclick-to-default (project pattern: propertiesChanged carries no default).
+        .withNativeFunction ("getParameterDefaults", [this] (auto&, auto complete) {
+            auto* obj = new juce::DynamicObject();
+            for (auto* p : processorRef.getParameters())
+                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p))
+                    obj->setProperty (rp->paramID, rp->getDefaultValue());
+            complete (juce::var (obj));
         });
 
    #if JUCE_WINDOWS
@@ -212,6 +221,7 @@ void OSimpleBeatmakerAudioProcessorEditor::timerCallback()
     auto* frame = new juce::DynamicObject();
     frame->setProperty ("ph",   (double) viz.getPlayheadStepPhase());
     frame->setProperty ("bpm",  processorRef.getLastKnownBpm());
+    frame->setProperty ("sr",   processorRef.getCurrentSampleRate());   // live: tracks host SR changes
     frame->setProperty ("sync", processorRef.isHostSynced());
     frame->setProperty ("hits", juce::var (hits));
 

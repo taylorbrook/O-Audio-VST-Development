@@ -52,7 +52,9 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 3.0; } // longest voice tail
+    // Worst-case audible tail: max kick decay tc = 1.2 s exponential → −60 dB at
+    // ~6.9 tc ≈ 8.3 s. 3.0 s truncated a max-decay kick boom at −22 dB in bounces.
+    double getTailLengthSeconds() const override { return 9.0; }
 
     //==========================================================================
     int getNumPrograms() override { return 1; }
@@ -79,7 +81,7 @@ public:
     // tempo-independent — so it needs the current sample rate + the transport BPM
     // last seen by the audio thread. `lastKnownBpm` is written once per block as a
     // relaxed atomic (no extra audio-path cost) and is purely advisory for the UI.
-    double getCurrentSampleRate() const noexcept { return currentSampleRate; }
+    double getCurrentSampleRate() const noexcept { return currentSampleRate.load (std::memory_order_relaxed); }
     double getLastKnownBpm()      const noexcept { return lastKnownBpm.load (std::memory_order_relaxed); }
     bool   isHostSynced()         const noexcept { return hostSynced.load (std::memory_order_relaxed); }
 
@@ -141,7 +143,7 @@ private:
     juce::ValueTree buildPatternTree() const;
     void            restorePatternTree (const juce::ValueTree& pattern); // message thread; may allocate
 
-    double currentSampleRate = 44100.0;
+    std::atomic<double> currentSampleRate { 44100.0 };   // written in prepareToPlay, read by the UI timer
     std::atomic<double> lastKnownBpm { 120.0 };   // last transport/free-run BPM (UI lane scale)
     std::atomic<bool>   hostSynced  { false };    // true when locked to a playing host (UI readout)
 
