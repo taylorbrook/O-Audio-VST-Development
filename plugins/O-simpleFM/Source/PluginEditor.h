@@ -58,5 +58,9 @@ private:
     // Preset save/load native file dialogs (held while the async chooser is open).
     std::unique_ptr<juce::FileChooser> fileChooser;
 
+    // Last sample rate pushed to the page (0 = not yet pushed); the timer emits
+    // `sampleRateUpdate` on change so the JS spectrum axis tracks the live rate.
+    double lastPushedSampleRate = 0.0;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleFMAudioProcessorEditor)
 };

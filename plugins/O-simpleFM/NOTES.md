@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.1
+- **Version:** 1.2.2
 - **Type:** Synth (Pedagogical 2-Operator FM/PM)
 
 ## Lifecycle Timeline
@@ -16,10 +16,15 @@
 - **2026-06-21 (v1.2.0):** Sideband + carrier-null teaching visuals (viz-only, no DSP change). Spectrum now overlays predicted FM component frequencies — carrier f_c (solid amber, labelled) + sidebands f_c ± k·f_m, k=1..8 (dashed sage) — on the existing log-freq axis, drawn only while a note sounds. Carrier Hz reaches JS via a new `carrierUpdate` event emitted just before `spectrumUpdate` (processor tracks most-recent note-on pitch + any-voice-active; `getCarrierHz()`→0 when silent; audio thread does only 2 relaxed atomic stores). Added a green "carrier null" badge by the Signal Path I readout, gated on the *effective* radian index β=20·(I/20)^1.7 ≈ 2.405 (matches the render-harness `carrier-null@2.405` test; fires ≈ readout I 5.75, where the carrier marker sits on a nulled peak). Validation: harness 7/7, auval PASS + pluginval L10 exit 0.
 
 - **2026-06-21 (v1.2.1):** Added hover tooltips to the five Lesson Preset buttons (E-Piano, Tubular Bell, Brass, Clarinet, Clang Bell), each explaining how that voice is built in FM terms (C:M ratio harmonic/inharmonic, mod index + envelope behaviour, feedback, resulting spectrum). Copy mirrors `FactoryPresets.cpp`. Implemented by reusing the existing `setupTooltips()` engine — added `data-tip="lesson…"` to each `.tour-btn` plus matching `TIPS` entries in `app.js`; no new mechanism, so buttons inherit pointer-hover + keyboard-focus + Escape-dismiss. WebView-only (no C++/DSP/param change). Validation: auval PASS.
+- **2026-07-15 (v1.2.2):** Resolved CODE_REVIEW.md findings CR-01 + WR-01..WR-06 via /improve-review. CR-01: `launchAsync` completions in both preset file dialogs now capture `Component::SafePointer` and bare-return on teardown (UAF fix, W12 pattern). WR-01/02: on-screen keyboard uses pointer capture + blur sweep (no stuck notes) and QWERTY notes ignore keystrokes while focus is on the preset bar/dropdown/inputs. WR-03: preset Delete now confirms via in-DOM dialog (`promptDelete` + `onConfirmDelete`). WR-04: Save dialog honors the chosen folder via `savePresetToFile`. WR-05: render harness version now derives from a single `OSIMPLEFM_VERSION` CMake variable (was hardcoded "1.0.0", rewriting the user's real factory presets on every test run). WR-06: editor timer pushes `sampleRateUpdate` on rate change so the spectrum axis/sideband markers track the live Nyquist. IN-01..IN-04 deferred (opt-in, see Known Limitations). Validation: auval PASS; render harness ALL PASS (7/7), factory presets correctly stamped 1.2.2.
 
 ## Known Issues
 
-None.
+None critical. Deferred Info-level review findings (CODE_REVIEW.md 2026-07-15, opt-in — not selected for v1.2.2):
+- **IN-01:** index taper constants (20, ^1.7) duplicated in FMVoice.h / PluginProcessor.cpp / app.js
+- **IN-02:** `handleUiMidi` doesn't clamp the note number at the native boundary (JS guards 0–127)
+- **IN-03:** `scaledMidi` could reallocate on the audio thread under a >4 KB MIDI burst
+- **IN-04:** knobs lack double-click-reset-to-default (suite standard)
 
 ## Additional Notes
 
