@@ -3,6 +3,176 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.4] — 2026-07-15
+
+Code-review resolution pass, part 2: the six Info findings (IN-01..IN-06) deferred
+from the v1.0.3 pass (CODE_REVIEW.md 2026-07-15). All are hardening/cleanup — no
+audible change at standard sample rates, no parameter or state changes.
+
+### Fixed
+- **IN-03 — Nyquist edge: a fundamental at/above Nyquist now renders silence, not
+  aliasing.** `computeKmax` clamped the harmonic count to a minimum of 1, so when
+  `f0 ≥ 0.5·fs` (only reachable at sample rates below ~25 kHz) the fundamental was
+  written above Nyquist and aliased. Root cause: `jlimit (1, …)` forbade the
+  legitimate `Kmax = 0` case. Now clamped to `[0, 16]`; `nyquistGain`'s `k > Kmax`
+  check already zeroes every partial at `Kmax = 0`, so `refillTable` naturally
+  produces a silent table. Unreachable at 44.1 kHz+; closes the one hole in the
+  otherwise-exact band-limit.
+- **IN-04 — `uiMidi` native boundary now validates its arguments.** `handleUiMidi`
+  built MIDI messages from the raw bridge int (out-of-range → JUCE `jassert` /
+  malformed message) and a NaN velocity passed through `jlimit` (NaN comparisons
+  are false). Note number is clamped to 0–127 and non-finite velocity falls back
+  to 0.8 before the message is queued.
+- **IN-05 — `midiCollector` given a valid timestamp base at construction.** The
+  collector was only `reset()` in `prepareToPlay`; on-screen-keyboard messages
+  queued before the host's first prepare (Standalone startup, editor on a
+  suspended plugin) hit an unreset collector (debug assertion, undefined
+  timestamp base). Constructor now seeds `reset (44100.0)`; `prepareToPlay`
+  re-resets with the real rate.
+- **IN-06 — knobs and drawbars now publish ARIA value attributes.** `role="slider"`
+  elements had no `aria-valuenow/-min/-max`, so screen readers announced valueless
+  sliders. Knobs set min/max from the pushed C++ range properties (skew-safe, no
+  hardcoded JS ranges), `aria-valuenow` from `getScaledValue()`, `aria-valuetext`
+  via the existing FORMAT map, and an `aria-label` from the tooltip title;
+  drawbars publish 0–100 (%) matching their readout.
+
+### Removed
+- **IN-01 — dead `getSampleRate` bridge endpoint.** Registered "for future
+  frequency-axis labels" but never called from JS; removed until a caller exists
+  so it cannot drift into an assumed-working API.
+- **IN-02 — dead `currentNote` voice member.** Written in `startNote`, never read
+  (the base class already tracks `getCurrentlyPlayingNote()`).
+
+## [1.0.3] — 2026-07-15
+
+Code-review resolution pass (CODE_REVIEW.md 2026-07-15, WR-01..WR-06). Also
+**recovers the lost v1.0.1/v1.0.2 source**: those releases were built, installed,
+and recorded in PLUGINS.md but never committed — the working tree had silently
+reverted to v1.0.0. The complete v1.0.2 source was restored from
+`backups/O-simpleAdditive/v1.0.2/` before applying the fixes below (WR-06).
+
+### Fixed
+- **WR-01 — sine LUT no longer constructed on the audio thread.** `fastSine`'s
+  function-local `static SineTable` was first touched via `startNote →
+  refillTable`, i.e. inside the first note-on's render call: a magic-static guard
+  (potential mutex), a `LookupTableTransform` heap allocation, and 1024 `std::sin`
+  calls on the RT thread — at the most audible moment. Root cause: lazy
+  initialization with an audio-thread-only call site. The LUT is now touched once
+  in `AdditiveVoice::prepareToPlay` (message/host thread), so the static is fully
+  constructed before any `renderNextBlock`.
+- **WR-02 — Spectral Decay / Vel→Decay knobs no longer go dead after 2 s.** The
+  only re-dirty path for a decay-rate change was the `rate > 0 && tau < 1` render
+  branch; once `tau` saturated at 1 (≈2 s into a note) rate changes were silently
+  ignored, and turning the knob to 0 mid-note left the table frozen at its darkest
+  state instead of restoring the undecayed spectrum. Root cause: the dirty check
+  tracked the ramp, not the rate. `renderNextBlock` now compares the effective
+  rate against `lastRenderedDecayRate` and re-dirties the table on any change
+  while `tau > 0` — covering both the saturated-tau sweep and the rate→0 restore.
+- **WR-03 — `applyFactoryPreset` parameter writes now gestured.** All 33
+  `setValueNotifyingHost` calls (reset loop + `setReal`/`setChoice`) are bracketed
+  by `beginChangeGesture`/`endChangeGesture`. Un-gestured edits map to a
+  `performEdit` without `beginEdit` in the VST3 wrapper; hosts that gate
+  automation recording on gestures (Logic touch/latch, Cubase) could drop or
+  mis-record lesson-preset moves.
+- **WR-04 — stuck knob/drawbar drags eliminated.** Drag end depended on a
+  `pointerup` reaching `window`; releasing the mouse outside the plugin window (or
+  a `pointercancel`) left the drag active — knob glued to the cursor and the host
+  automation gesture open indefinitely. Knobs and drawbar tracks now
+  `setPointerCapture` on `pointerdown` (guaranteeing up/cancel delivery) and treat
+  `pointercancel` as `pointerup`.
+- **WR-05 — stuck on-screen-keyboard notes eliminated.** Note-off depended on
+  `pointerup`/`keyup` reaching the WebView; releasing outside the window, a
+  `pointercancel`, or clicking away to the DAW mid-keypress left `heldNotes`
+  populated and the note droning indefinitely. Added a panic path: `releaseAll()`
+  on window `blur` and `visibilitychange` (hidden), plus a `pointercancel`
+  handler for pointer-driven notes. (No pointer capture on the keyboard — key
+  glissando relies on `pointerover` retargeting.)
+- **WR-06 — version drift resolved by restoring the lost releases.** Source said
+  1.0.0 while PLUGINS.md and the installed binaries said 1.0.2. Investigation
+  showed v1.0.1/v1.0.2 were real (built, installed, backed up) but never
+  committed, and the tree had reverted. Restored the v1.0.2 source (including
+  `tests/render-harness/`) and released this pass as 1.0.3 across CMakeLists,
+  CHANGELOG, STATUS.md, and PLUGINS.md.
+
+### Notes
+- Info findings IN-01..IN-06 from the same review are deferred (opt-in); see
+  NOTES.md Known Limitations.
+
+## [1.0.2] — 2026-06-25
+
+Per-voice CPU optimization for continuous wavetable motion. No change to static
+patches (bit-identical) and no change at common large host block sizes.
+
+### Changed
+- **Refill-cadence cap (PERF).** `AdditiveVoice::refillTable()` rebuilds the whole
+  2048-point single-cycle table — a fixed ~2048×16 sine-sum cost *per call,
+  independent of the host block size*. During continuous motion (scan/LFO/mod-env/
+  spectral-decay) the table is marked dirty every block, so on small host blocks
+  the rebuild fired far more often per second than on large ones and the cost did
+  not amortize. Motion-driven refills are now bounded to a control-rate interval
+  (~5 ms, resolved from the sample rate in `prepareToPlay`): a minimum number of
+  samples must elapse between rebuilds.
+
+  **Root cause / profile (offline render-harness, 16-voice Morph-Pad chord, dense
+  Saw spectrum):** MOVING-regime CPU climbed from 4.7 % of a core at 512-sample
+  blocks to 36.7 % at 64-sample blocks (perfect 2× per block-size halving) while a
+  STATIC patch stayed flat at ~0.2–0.3 % — i.e. the per-block full-table rebuild
+  was the hot cost and did not amortize across small blocks.
+
+  **After:** 64-sample MOVING dropped 36.7 % → 9.0 % (4.1×), 128-sample 18.6 % →
+  9.0 % (2.1×); 256/512-sample blocks unchanged (the cap is a no-op once the host
+  block already exceeds the interval). The capped small-block cadence (~256 samples
+  ≈ 5.8 ms) matches the cadence a 256-sample host already used, so the 20 ms scan
+  smoother's zipper-free guarantee is preserved by construction.
+
+- **No-regression guarantees (verified by the render-harness golden battery):**
+  static patches (decay 0, LFO depth 0) keep the once-per-note refill and are
+  **bit-identical** (`maxAbsDiff = 0`); moving patches rendered at host blocks ≥ the
+  cap interval (512) are **also bit-identical**, proving the fill math itself is
+  untouched — only the small-block refill *cadence* changed.
+
+### Added
+- **`tests/render-harness/`** — offline Stage-2 correctness gate + refill profile
+  for this plugin (mirrors the O-simpleFM/O-simpleGrain harnesses). `--profile`
+  measures STATIC-vs-MOVING per-voice CPU across host block sizes; `--dump-golden`/
+  `--check-golden` capture and bit-compare the static + large-block-moving battery.
+  Off by default (`-DOUARICON_BUILD_TESTS=ON`).
+
+## [1.0.1] — 2026-06-25
+
+Code-quality cleanup bundle. No change to the synth's audio output; one
+display-accuracy refinement to the live drawbar glow.
+
+### Fixed
+- **Live drawbar glow now band-limited.** `refillTable()` published the
+  *pre*-band-limit partial amplitudes into `activeSpectrum[]`, so on high notes
+  partials above Nyquist (`k > Kmax`) lit the green live-glow even though they are
+  never written into the table and make no sound. The snapshot is now taken
+  *after* the `nyquistGain(k+1, Kmax)` band-limit, so the glow shows only what is
+  actually sounding — matching the drawbar tooltip's promise (QUAL-02). Audio
+  output (the wavetable itself) is unchanged.
+- **`frameBSource` choice resolved robustly.** `pushParamsToVoices()` cast the raw
+  parameter value with a truncating `(int)` cast; it now uses
+  `jlimit(0, 3, (int) std::round(...))`, matching how the bit-depth choice is
+  resolved. Same result for the four valid choice indices, but no longer relies on
+  the float landing exactly on an integer.
+
+### Changed
+- **Single source of truth for the 16 partial IDs.** The `partialIds[16]` string
+  array was duplicated four times (createParameterLayout, pushParamsToVoices,
+  applyFactoryPreset, and the editor's `sliderIds`). Hoisted one
+  `constexpr std::array` into `OSimpleAdditive::ParamIDs` (PluginProcessor.h) and
+  referenced everywhere.
+- **Single source of truth for lesson captions (WebView).** The lesson copy lived
+  twice in `app.js` — once in `TIPS.lesson*` and again in `LESSONS`. `LESSONS` is
+  now canonical; the per-button hover tooltips are derived from it. (Hover-tooltip
+  wording for the six lesson buttons changes slightly as a result; tour-caption
+  text is unchanged.)
+- `-Wfloat-equal` hygiene: the `band[k] != 0.0f` silent-partial skip in
+  `refillTable()` now uses `juce::exactlyEqual`, matching the rest of the codebase.
+- Removed stale stage-process comments (the "lifted verbatim from FmVizAnalyzer",
+  "not yet constructed", and "Stage 2 (complete)" framing in the file headers).
+
 ## [1.0.0] — 2026-06-22
 
 First complete release. A pedagogical 16-partial **additive** synth with a light

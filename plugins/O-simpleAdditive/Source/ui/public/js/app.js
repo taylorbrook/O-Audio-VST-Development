@@ -60,13 +60,8 @@ const TIPS = {
   modSustain:   ["Mod Sustain", "Held level of the modulation envelope while the key is down."],
   modRelease:   ["Mod Release", "Release of the modulation envelope after key-up."],
   outputLevel:  ["Output Level", "Master output trim in decibels."],
-  // Lesson presets.
-  lessonSine:   ["Pure Sine", "Only the fundamental (H1) — one drawbar, one sine: the atom of additive synthesis."],
-  lessonSaw:    ["Sawtooth", "Every harmonic present at 1/k — all overtones falling by 1/k give a bright, buzzy ramp."],
-  lessonSquare: ["Square", "Odd harmonics only, at 1/k. Dropping the even partials gives the hollow, reedy tone."],
-  lessonOrgan:  ["Organ", "A Hammond-style drawbar registration — a few low harmonics, instant attack, full sustain."],
-  lessonMorph:  ["Morph Pad", "The scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe."],
-  lessonLofi:   ["Lo-Fi Bells", "A spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit."],
+  // Lesson-preset tooltips (lessonSine … lessonLofi) are DERIVED from LESSONS
+  // below — the caption copy lives in exactly one place (single source of truth).
 };
 
 // Per-partial harmonic tooltips (generated).
@@ -105,16 +100,23 @@ function updateKnobVisual(id) {
   const st = sliderState[id];
   if (!st) return;
   const norm = st.getNormalisedValue();
+  const fmt = FORMAT[id] || ((v) => v.toFixed(2));
+  const scaled = st.getScaledValue();
   const knob = document.getElementById(`knob-${id}`);
   if (knob) {
     const stem = knob.querySelector(".knob-stem");
     if (stem) stem.style.transform = `translate(-50%, -100%) rotate(${normToDeg(norm)}deg)`;
+    // ARIA: role="slider" needs value attributes or screen readers announce a
+    // valueless slider. Range comes from the pushed C++ properties (skew-safe,
+    // re-applied on propertiesChangedEvent) — never a hardcoded JS min/max.
+    const props = st.properties || {};
+    knob.setAttribute("aria-valuemin", props.start != null ? props.start : 0);
+    knob.setAttribute("aria-valuemax", props.end != null ? props.end : 1);
+    knob.setAttribute("aria-valuenow", scaled);
+    knob.setAttribute("aria-valuetext", fmt(scaled));
   }
   const valEl = document.getElementById(`val-${id}`);
-  if (valEl) {
-    const fmt = FORMAT[id] || ((v) => v.toFixed(2));
-    valEl.textContent = fmt(st.getScaledValue());
-  }
+  if (valEl) valEl.textContent = fmt(scaled);
 }
 
 function bindKnob(id) {
@@ -130,6 +132,7 @@ function bindKnob(id) {
 
   knob.setAttribute("tabindex", "0");
   knob.setAttribute("role", "slider");
+  knob.setAttribute("aria-label", (TIPS[id] && TIPS[id][0]) || id);
   knob.addEventListener("keydown", (e) => {
     let delta = 0;
     if (e.key === "ArrowUp" || e.key === "ArrowRight") delta = 0.02;
@@ -154,14 +157,20 @@ function bindKnob(id) {
     st.sliderDragEnded();
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
   };
   knob.addEventListener("pointerdown", (e) => {
     dragging = true;
     startY = e.clientY;
     startNorm = st.getNormalisedValue();
     st.sliderDragStarted();
+    // Capture the pointer so pointerup/pointercancel are delivered even when the
+    // button is released outside the plugin window — otherwise the drag sticks
+    // and the host automation gesture stays open.
+    try { knob.setPointerCapture(e.pointerId); } catch (_) {}
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     e.preventDefault();
   });
   knob.addEventListener("wheel", (e) => {
@@ -201,8 +210,14 @@ function bindDrawbar(id) {
 
   const update = () => {
     const n = st.getNormalisedValue();
+    const pct = Math.round(st.getScaledValue() * 100);
     if (fill) fill.style.height = `${n * 100}%`;
-    if (valEl) valEl.textContent = `${Math.round(st.getScaledValue() * 100)}`;
+    if (valEl) valEl.textContent = `${pct}`;
+    // ARIA values in display units (0–100 %), matching the on-screen readout.
+    track.setAttribute("aria-valuemin", 0);
+    track.setAttribute("aria-valuemax", 100);
+    track.setAttribute("aria-valuenow", pct);
+    track.setAttribute("aria-valuetext", `${pct}%`);
   };
   st.valueChangedEvent.addListener(update);
   st.propertiesChangedEvent.addListener(update);
@@ -224,13 +239,17 @@ function bindDrawbar(id) {
     st.sliderDragEnded();
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
   };
   track.addEventListener("pointerdown", (e) => {
     dragging = true;
     st.sliderDragStarted();
     setFromY(e.clientY);
+    // Same stuck-drag guard as the knobs: capture the pointer and treat cancel as up.
+    try { track.setPointerCapture(e.pointerId); } catch (_) {}
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     e.preventDefault();
   });
   track.addEventListener("wheel", (e) => {
@@ -398,6 +417,12 @@ function setupTooltips() {
 // ── Lesson preset tour ──────────────────────────────────────────────────────
 // The lessons are applied in C++ (applyFactoryPreset native fn) as full APVTS
 // snapshots; the relays/attachments sync every knob, drawbar, and combo here.
+//
+// SINGLE SOURCE OF TRUTH for lesson copy: each caption "Name — description" lives
+// here once. The tour caption shows it verbatim; the per-button hover tooltips
+// (TIPS.lessonSine … TIPS.lessonLofi) are DERIVED below by splitting on the first
+// em-dash into [title, body]. Keyed by the C++ preset name (matches
+// applyFactoryPreset and the buttons' data-preset).
 const LESSONS = {
   "Pure Sine":   "Pure Sine — only the fundamental (H1). One drawbar, one sine: the atom of additive synthesis.",
   "Sawtooth":    "Sawtooth — every harmonic at 1/k. All overtones falling by 1/k → a bright, buzzy ramp.",
@@ -406,6 +431,20 @@ const LESSONS = {
   "Morph Pad":   "Morph Pad — the scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe.",
   "Lo-Fi Bells": "Lo-Fi Bells — a spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit.",
 };
+
+// Derive the lesson-button tooltips from LESSONS (data-tip key → preset name) so
+// the caption wording is never duplicated. Each caption "Name — body" splits into
+// [title, body] on the first " — " (em-dash).
+const LESSON_TIP_KEYS = {
+  lessonSine: "Pure Sine",  lessonSaw: "Sawtooth",    lessonSquare: "Square",
+  lessonOrgan: "Organ",     lessonMorph: "Morph Pad", lessonLofi: "Lo-Fi Bells",
+};
+for (const [tipKey, preset] of Object.entries(LESSON_TIP_KEYS)) {
+  const caption = LESSONS[preset] || "";
+  const i = caption.indexOf(" — ");
+  TIPS[tipKey] = i >= 0 ? [caption.slice(0, i), caption.slice(i + 3)] : [preset, caption];
+}
+
 let applyPresetFn = null;
 
 async function applyLesson(name) {
@@ -501,6 +540,20 @@ function setupKeyboard() {
     if (n != null && n !== pointerNote) { noteOff(pointerNote); noteOn(n); pointerNote = n; }
   });
   window.addEventListener("pointerup", () => {
+    if (pointerNote != null) { noteOff(pointerNote); pointerNote = null; }
+  });
+
+  // Stuck-note panic path: pointerup released outside the plugin window never
+  // arrives, a pointercancel fires neither up nor cleanup, and a QWERTY keyup
+  // goes to the DAW when focus leaves mid-press. Release everything on any of
+  // those escapes so no note can drone indefinitely.
+  const releaseAll = () => {
+    [...heldNotes].forEach(noteOff);
+    pointerNote = null;
+  };
+  window.addEventListener("blur", releaseAll);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
+  window.addEventListener("pointercancel", () => {
     if (pointerNote != null) { noteOff(pointerNote); pointerNote = null; }
   });
 
