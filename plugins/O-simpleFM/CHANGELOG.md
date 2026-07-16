@@ -3,6 +3,40 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.3] — 2026-07-15
+
+Resolves the four Info findings from the 2026-07-15 full-plugin code review
+(`CODE_REVIEW.md`, IN-01..IN-04). Hardening + suite-standard UX affordance —
+no DSP behavior, parameter, or state-format changes.
+
+### Fixed
+- **IN-01 — Index taper/range constants deduplicated.** The perceptual taper
+  `baseIndex = 20·(I/20)^1.7` was independently hardcoded in `FMVoice::setParams`,
+  `pushParamsToVoices` (the `/20` re-normalization), the modIndex parameter range,
+  the render-harness carrier-null test, and the JS carrier-null badge — a future
+  range/taper change would silently desynchronize them. Root cause: no single
+  source of truth. Now `OSimpleFM::kIndexMax` / `kIndexTaper` in `FMVoice.h` feed
+  all four C++ sites; the JS mirrors them as `INDEX_MAX` / `INDEX_TAPER` with
+  cross-referencing comments on both sides (a WebView page cannot include a C++
+  header).
+- **IN-02 — `handleUiMidi` now range-checks the note number.** The WebView-supplied
+  note went straight into `juce::MidiMessage::noteOn`, which jasserts in debug and
+  builds malformed MIDI in release for values outside 0–127. The JS guards its own
+  range, but the native boundary must not trust the page:
+  `juce::jlimit (0, 127, noteNumber)` (velocity was already clamped).
+- **IN-03 — `scaledMidi` headroom raised 4 KB → 16 KB.** A pathological block
+  (dense sysex/CC flood plus UI notes) exceeding the 4096-byte pre-allocation
+  would make `MidiBuffer::addEvent` reallocate inside `processBlock` — the one
+  remaining audio-thread allocation path. `ensureSize (16384)` in `prepareToPlay`.
+
+### Added
+- **IN-04 — Double-click a knob to reset it to its default.** Suite standard
+  (O-MicrotonalSampler v1.23.7): a new `getParameterDefaults` native fn returns
+  `{ paramID: normalisedDefault }` from `RangedAudioParameter::getDefaultValue()`
+  (the `propertiesChanged` payload carries the range but no default), and
+  `bindKnob` runs the full dragStarted → setNormalisedValue → dragEnded gesture
+  on `dblclick` so hosts record the automation touch.
+
 ## [1.2.2] — 2026-07-15
 
 Resolves the Critical and all six Warning findings from the 2026-07-15 full-plugin

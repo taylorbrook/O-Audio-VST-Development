@@ -182,8 +182,9 @@ int main()
 
     // --- 4: carrier null at I ~= 2.405 (J0 zero), ratio 4 (no fold onto f0) ----
     {
-        // modIndex stored such that baseIndex = 20*(stored/20)^1.7 = 2.405
-        const float idxStored = 20.0f * std::pow (2.405f / 20.0f, 1.0f / 1.7f);
+        // modIndex stored such that baseIndex = kIndexMax*(stored/kIndexMax)^kIndexTaper = 2.405
+        const float idxStored = OSimpleFM::kIndexMax
+                              * std::pow (2.405f / OSimpleFM::kIndexMax, 1.0f / OSimpleFM::kIndexTaper);
         resetDefaults (apvts);
         setParam (apvts, OSimpleFM::ParamIDs::ratio, 4.0f);
         setParam (apvts, OSimpleFM::ParamIDs::modSustain, 1.0f);

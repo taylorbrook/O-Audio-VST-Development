@@ -199,6 +199,15 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
         // Sample rate for the spectrum's frequency-axis labels (log-Hz mapping).
         .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
             complete (processorRef.getCurrentSampleRate());
+        })
+        // { paramID: normalisedDefault } for every parameter — powers the knobs'
+        // double-click-reset (propertiesChanged carries the range but no default).
+        .withNativeFunction ("getParameterDefaults", [this] (auto&, auto complete) {
+            auto* obj = new juce::DynamicObject();
+            for (auto* p : processorRef.getParameters())
+                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p))
+                    obj->setProperty (rp->paramID, rp->getDefaultValue());
+            complete (juce::var (obj));
         });
 
    #if JUCE_WINDOWS
