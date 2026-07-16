@@ -101,7 +101,11 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
     auto options = juce::WebBrowserComponent::Options{}
         .withNativeIntegrationEnabled()
         .withKeepPageLoadedWhenBrowserIsHidden()
-        .withResourceProvider ([this] (const auto& url) { return getResource (url); });
+        .withResourceProvider ([this] (const auto& url) { return getResource (url); })
+        // Engine constants pushed once (IN-05): the JS grain meter reads
+        // window.__JUCE__.initialisationData.grainCap[0] instead of duplicating
+        // kGlobalGrainCap — a C++ change can no longer desync the readout.
+        .withInitialisationData ("grainCap", OSimpleGrainAudioProcessor::kGlobalGrainCap);
 
     for (const auto& relay : sliderRelays)
         options = options.withOptionsFrom (*relay);
@@ -230,6 +234,10 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
+    // Snapshot the source version at open — the page's boot fetch covers the
+    // current source; the timer only signals decodes that happen after this.
+    lastSourceVersion = processorRef.getSourceVersion();
+
     setSize (900, 760);   // 2×2 grid + side rail + keyboard; the frame scrolls on shorter screens
     startTimerHz (30);
 }
@@ -301,6 +309,19 @@ void OSimpleGrainAudioProcessorEditor::timerCallback()
     // 3. Grain meter (UI-05) — active grain count over kGlobalGrainCap (192).
     webView->emitEventIfBrowserIsVisible ("grainMeterUpdate",
                                           juce::var (processorRef.getActiveGrainCount()));
+
+    // 4. Source-change signal (IN-08) — a successful decodeAndPublish bumped the
+    //    processor's version counter; tell the page so it refetches the waveform
+    //    thumbnail + truncation status event-driven (the old fixed 300 ms /
+    //    1200 ms timers raced slow decodes and long picker browses).
+    {
+        const auto v = processorRef.getSourceVersion();
+        if (v != lastSourceVersion)
+        {
+            lastSourceVersion = v;
+            webView->emitEventIfBrowserIsVisible ("sourceChanged", juce::var());
+        }
+    }
 
     // NB: windowInsetUpdate is NOT pushed here — the window only changes on the
     // windowShape combo, so the inset is recomputed JS-side on that change

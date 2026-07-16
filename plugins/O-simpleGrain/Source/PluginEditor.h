@@ -4,8 +4,8 @@
     O-simpleGrain - Plugin Editor
 
     Stage 3 (GUI): single-page Ouaricon "Granular Field Guide" WebView UI.
-    Binds all 18 APVTS parameters two-way via Web*Relay / Web*ParameterAttachment
-    (15 sliders + 2 combo boxes + 1 toggle), serves the embedded field-guide page
+    Binds all 19 APVTS parameters two-way via Web*Relay / Web*ParameterAttachment
+    (15 sliders + 2 combo boxes + 2 toggles), serves the embedded field-guide page
     through a bare-path resource provider, and registers the source drag-drop /
     file-picker native functions (decode is C++-side on the processor).
 
@@ -42,10 +42,10 @@ private:
     // VizRing). Consumed by the Timer in Phase 3.2.
     GrainVizAnalyzer vizAnalyzer;
 
-    // Held alive across the async "Load…" file picker (loadSourceFromFileChooser
-    // is fire-and-forget on the processor; the chooser there owns its own state,
-    // but a UI-initiated dialog kept here would also be held — reserved).
-    std::unique_ptr<juce::FileChooser> fileChooser;
+    // Source-version snapshot for the IN-08 "sourceChanged" event: the timer
+    // compares against the processor's counter and emits to the page on change,
+    // so the JS thumbnail/status refresh is event-driven, not timer-raced.
+    juce::uint32 lastSourceVersion = 0;
 
     // ═══════════════════════════════════════════════════════════════════
     // CRITICAL: member declaration order (C++ destroys in REVERSE)
@@ -56,7 +56,7 @@ private:
     // outlive the WebView and call into a freed component).
     // ═══════════════════════════════════════════════════════════════════
 
-    // 1. RELAYS — 15 sliders + 2 combos + 1 toggle
+    // 1. RELAYS — 15 sliders + 2 combos + 2 toggles
     std::vector<std::unique_ptr<juce::WebSliderRelay>>       sliderRelays;
     std::vector<std::unique_ptr<juce::WebComboBoxRelay>>     comboRelays;
     std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> toggleRelays;
