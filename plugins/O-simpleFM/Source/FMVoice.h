@@ -23,6 +23,18 @@
 #include <JuceHeader.h>
 #include "Operator.h"
 
+namespace OSimpleFM
+{
+    // Modulation-index range and perceptual taper — the SINGLE source of truth.
+    // baseIndex = kIndexMax * (I / kIndexMax)^kIndexTaper. Consumed by the DSP
+    // taper below, the modIndex parameter range + /kIndexMax re-normalization in
+    // the processor, and the render-harness carrier-null test. The JS carrier-null
+    // badge (ui/public/js/app.js: INDEX_MAX / INDEX_TAPER) mirrors these BY VALUE —
+    // keep in sync when changing.
+    inline constexpr float kIndexMax   = 20.0f;
+    inline constexpr float kIndexTaper = 1.7f;
+}
+
 //==============================================================================
 class FMSound : public juce::SynthesiserSound
 {
@@ -76,7 +88,8 @@ public:
         ratioSmoothed.setTargetValue (r);
 
         // Perceptual index taper: finer control in the dense low end.
-        const float baseIndex = 20.0f * std::pow (juce::jlimit (0.0f, 1.0f, indexNorm), 1.7f);
+        const float baseIndex = OSimpleFM::kIndexMax
+                              * std::pow (juce::jlimit (0.0f, 1.0f, indexNorm), OSimpleFM::kIndexTaper);
         indexSmoothed.setTargetValue (baseIndex);
 
         // feedback 0..1 -> coeff max ~pi radians, x^1.5 taper (bottom stays gentle).

@@ -47,11 +47,11 @@ OSimpleFMAudioProcessor::createParameterLayout()
     params.push_back (std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { ratioSnap, 1 }, "Ratio Snap", false));
 
-    // Raw radian modulation index I (0–20), skew biases control toward the
+    // Raw radian modulation index I (0–kIndexMax), skew biases control toward the
     // musically dense low end (perceptual taper applied in DSP at Stage 2).
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { modIndex, 1 }, "Modulation Index",
-        juce::NormalisableRange<float> { 0.0f, 20.0f, 0.001f, 0.3f }, 0.0f));
+        juce::NormalisableRange<float> { 0.0f, OSimpleFM::kIndexMax, 0.001f, 0.3f }, 0.0f));
 
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { feedback, 1 }, "Feedback",
@@ -149,7 +149,9 @@ void OSimpleFMAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     oversampler->reset();
     setLatencySamples ((int) std::round (oversampler->getLatencyInSamples()));
 
-    scaledMidi.ensureSize (4096);
+    // Sized so processBlock's per-chunk copy can never reallocate on the audio
+    // thread, even under a pathological sysex/CC flood (~16 KB of headroom).
+    scaledMidi.ensureSize (16384);
 
     // Synthesiser + per-voice prepare AT THE OVERSAMPLED RATE. juce::SynthesiserVoice
     // has no virtual prepareToPlay in JUCE 8 — dispatch the custom one via dynamic_cast.
@@ -193,7 +195,7 @@ void OSimpleFMAudioProcessor::pushParamsToVoices()
 
     const float ratioV     = get (ratio);
     const bool  snapV      = get (ratioSnap)    > 0.5f;
-    const float indexV     = get (modIndex) / 20.0f;          // 0..20 stored -> 0..1 norm for taper
+    const float indexV     = get (modIndex) / OSimpleFM::kIndexMax; // stored -> 0..1 norm for taper
     const float fbV        = get (feedback);
     const bool  fixedV     = get (modFixedMode) > 0.5f;
     const float fixedHzV   = get (modFixedHz);
@@ -210,6 +212,10 @@ void OSimpleFMAudioProcessor::pushParamsToVoices()
 
 void OSimpleFMAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, float velocity)
 {
+    // The note number arrives from the WebView — never trust the page at the
+    // native boundary (out-of-range values jassert in debug, build malformed
+    // MIDI in release).
+    noteNumber = juce::jlimit (0, 127, noteNumber);
     auto msg = noteOn
         ? juce::MidiMessage::noteOn  (1, noteNumber, juce::jlimit (0.0f, 1.0f, velocity))
         : juce::MidiMessage::noteOff (1, noteNumber);

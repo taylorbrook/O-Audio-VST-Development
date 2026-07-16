@@ -69,8 +69,17 @@ const KNOB_MIN_DEG = -135;   // 0.0 normalised
 const KNOB_MAX_DEG = 135;    // 1.0 normalised
 const DRAG_TRAVEL_PX = 220;  // vertical px for full 0..1 sweep
 
+// Modulation-index range + perceptual taper — mirrors the C++ single source of
+// truth (FMVoice.h: OSimpleFM::kIndexMax / kIndexTaper). Keep in sync.
+const INDEX_MAX = 20;
+const INDEX_TAPER = 1.7;
+
 const sliderState = {};   // id -> Juce SliderState
 const toggleState = {};   // id -> Juce ToggleState
+
+// paramID -> normalised default, fetched once from C++ (getParameterDefaults).
+// Powers double-click-reset on the knobs; empty until the async fetch lands.
+let paramDefaults = {};
 
 function normToDeg(n) { return KNOB_MIN_DEG + n * (KNOB_MAX_DEG - KNOB_MIN_DEG); }
 
@@ -159,6 +168,17 @@ function bindKnob(id) {
     nudge(st, e.deltaY < 0 ? 0.02 : -0.02, id);
     e.preventDefault();
   }, { passive: false });
+
+  // Double-click → reset to the parameter default (suite standard).
+  knob.addEventListener("dblclick", (e) => {
+    const d = paramDefaults[id];
+    if (typeof d !== "number") return;
+    st.sliderDragStarted();
+    st.setNormalisedValue(d);
+    st.sliderDragEnded();
+    updateKnobVisual(id);
+    e.preventDefault();
+  });
 }
 
 // ── Toggle binding ─────────────────────────────────────────────────────────
@@ -230,7 +250,7 @@ function updateRouting() {
   // badge lights exactly when the carrier marker sits on a nulled peak (≈ I 5.75).
   const badge = document.getElementById("carrierNullBadge");
   if (badge) {
-    const effIndex = 20 * Math.pow(idx.getScaledValue() / 20, 1.7);
+    const effIndex = INDEX_MAX * Math.pow(idx.getScaledValue() / INDEX_MAX, INDEX_TAPER);
     badge.classList.toggle("show", Math.abs(effIndex - 2.405) <= 0.15);
   }
 }
@@ -771,6 +791,14 @@ async function fetchSampleRate() {
   } catch (e) { /* keep the default */ }
 }
 
+// Pull { paramID: normalisedDefault } for double-click-reset on the knobs.
+async function fetchParameterDefaults() {
+  try {
+    const d = await Juce.getNativeFunction("getParameterDefaults")();
+    if (d && typeof d === "object") paramDefaults = d;
+  } catch (e) { /* dblclick-reset stays inert */ }
+}
+
 // ── Boot ────────────────────────────────────────────────────────────────────
 function boot() {
   spec = makeCanvas("spectrumCanvas");
@@ -793,6 +821,7 @@ function boot() {
   setupVizEvents();
   rewireResize();
   fetchSampleRate();
+  fetchParameterDefaults();
 
   // initial empty frames so the canvases aren't black
   drawSpectrum(new Array(256).fill(-100));
