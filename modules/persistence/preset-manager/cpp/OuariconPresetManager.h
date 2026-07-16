@@ -295,16 +295,30 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
             // WR-01: reset every parameter to its default first, so presets that
             // omit a key (hand-authored factory defs, saves from older plugin
             // versions with fewer parameters) don't inherit stale live state.
-            for (auto* param : parameters.processor.getParameters())
-                if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
-                    rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
-
-            for (auto& prop : paramsObj->getProperties())
+            //
+            // Meta parameters (isMetaParameter() — macros whose listeners drive
+            // OTHER params) are handled FIRST in both loops: a meta param applied
+            // after the params it derives would re-derive and stomp explicitly
+            // saved values (CR-03, O-simplePhysicalModelSynth Material macro).
+            // Meta-first means explicit values always win, while presets that omit
+            // the derived params still get the macro's derivation. No-op for
+            // plugins without meta params.
+            for (int pass = 0; pass < 2; ++pass)
             {
-                if (auto* param = parameters.getParameter(prop.name.toString()))
-                {
-                    param->setValueNotifyingHost(static_cast<float>(prop.value));
-                }
+                const bool metaPass = (pass == 0);
+                for (auto* param : parameters.processor.getParameters())
+                    if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
+                        if (rangedParam->isMetaParameter() == metaPass)
+                            rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
+            }
+
+            for (int pass = 0; pass < 2; ++pass)
+            {
+                const bool metaPass = (pass == 0);
+                for (auto& prop : paramsObj->getProperties())
+                    if (auto* param = parameters.getParameter(prop.name.toString()))
+                        if (param->isMetaParameter() == metaPass)
+                            param->setValueNotifyingHost(static_cast<float>(prop.value));
             }
         }
     }
