@@ -22,7 +22,11 @@
 struct Grain
 {
     bool   active        = false;
-    float  readPos       = 0.0f;   // absolute fractional position in the SOURCE buffer (samples)
+    // double (IN-04, v1.1.2): a 10 s source at 96 kHz spans 960k samples, where
+    // float ULP is 0.0625 samples — fractional read increments quantized near the
+    // tail (subtle pitch/interp jitter for late-reading grains). double keeps the
+    // fractional step exact across the whole source.
+    double readPos       = 0.0;    // absolute fractional position in the SOURCE buffer (samples)
     float  rate          = 1.0f;   // read increment = voiceRate * 2^((grainPitch + spray)/12)
     float  phase         = 0.0f;   // window phase 0..1
     float  phaseInc      = 0.0f;   // = 1.0f / lengthSamples

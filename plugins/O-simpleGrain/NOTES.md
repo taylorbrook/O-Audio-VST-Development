@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.1
+- **Version:** 1.1.2
 - **Type:** Synth (Pedagogical Granular)
 
 ## Lifecycle Timeline
@@ -14,14 +14,16 @@
 - **2026-06-25 (v1.1.0):** `adsrEnabled` envelope-bypass toggle (19th param) — see CHANGELOG.
 - **2026-07-16 (source recovery):** Discovered the working tree had been reverted to v1.0.1 with the v1.0.2/v1.1.0 source uncommitted — the installed 1.1.0 binary was the only surviving v1.1.0 artifact. Restored v1.0.2 from `backups/O-simpleGrain/v1.0.2/`; recovered the v1.1.0 UI byte-exact from the installed binary's embedded resources and re-implemented its C++ side from the recovered spec.
 - **2026-07-16 (v1.1.1):** CODE_REVIEW.md resolution (CR-01..02, WR-02..05; WR-01 was the v1.0.2 fix resurfacing via the reverted tree) — see CHANGELOG. Dropped-source survival across re-prepare (retained bytes + keep-live), sourceStateLock for the identity race, pre-decode 10 s cap, presets-keep-source contract (Granular Fire force-loads), single-sourced version, lock-free audio-thread source view (retired-list reap). New render gate (`adsr-bypass`). All 11 gates PASS, auval SUCCEEDED, pluginval strictness-10 SUCCESS, installed (VST3 + AU).
+- **2026-07-16 (v1.1.2):** CODE_REVIEW.md deferred-findings resolution (IN-01..IN-09) — see CHANGELOG. Spray-spawn wrap (no more edge-pinned DC thumps), τ-derived rest-ease (rate-independent glide), double read positions, event-driven UI source refresh (`sourceChanged`), cached typed voice pointers (no per-block RTTI), skip-unchanged-rate re-decode, dead member removed, grain cap pushed via initialisation data, gestured preset writes. All 11 gates PASS, auval SUCCEEDED, pluginval strictness-10 SUCCESS, installed (VST3 + AU).
 
 ## Known Issues
 
-None blocking. Deferred polish (2026-06-25 + 2026-07-15 code reviews, optional 1.x follow-ups):
+None blocking. Deferred polish (optional follow-ups):
 - √overlap normalization (v1.0.2) is a coarse global trim, not a limiter; extreme transposition stress (e.g. grainPitch +24 st + octave-up note) can still transiently exceed 0 dBFS. A true limiter remains a 2.x option.
 - Stereo sources: only channel 0 is granulated (right channel dropped) — consider mono-summing on decode.
-- 2026-07-15 review IN-01..IN-09 deferred by scope choice (opt-in): dead editor `fileChooser` member; per-block `dynamic_cast` over voices; `kRestEase` sample-rate dependence (IN-03); float `readPos` quantization near the tail of long sources; JS-duplicated contract constants (grain cap / window formulas); ungestured preset writes; edge-pinned grain reads under 100% position spray; UI status/thumbnail fixed-timer races; re-decode of built-ins on every prepare (IN-09 — the *dropped/user* path now skips it via the CR-01 fix).
 - A dropped source larger than the 32 MB retention cap survives re-prepares, but a sample-rate change mid-session plays it transposed (bytes not retained to re-resample). A restored session referencing a dropped file in a *fresh* instance still falls back to fire with a notice (bytes are session-local by design).
+
+(The 2026-07-15 review is now fully resolved: CR/WR in v1.1.1, IN-01..IN-09 in v1.1.2.)
 
 ## Additional Notes
 

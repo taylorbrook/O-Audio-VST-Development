@@ -185,12 +185,15 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
 
     // Preallocate all grain voices up front (no audio-thread allocation later).
     // Hand each voice the shared window-LUT table set (built at construction,
-    // before the synth member, so the pointer is valid here).
+    // before the synth member, so the pointer is valid here). The typed pointer
+    // is cached (IN-02) — the synth owns the voice for the processor's lifetime,
+    // so per-block dynamic_casts are unnecessary RTTI on the audio thread.
     for (int i = 0; i < kMaxVoices; ++i)
     {
         auto* v = new GrainVoice();
         v->setWindowLuts (&windowLuts);
         synth.addVoice (v);
+        grainVoices[(size_t) i] = v;
     }
 
     synth.addSound (new GrainSound());           // single shared sound, all notes/channels
@@ -218,11 +221,11 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     setLatencySamples (0);
 
     // Synthesiser + per-voice prepare. juce::SynthesiserVoice has no virtual
-    // prepareToPlay in JUCE 8 — dispatch the custom one via dynamic_cast.
+    // prepareToPlay in JUCE 8 — dispatch the custom one via the cached typed
+    // pointers (IN-02; the voices are synth-owned for the processor's lifetime).
     synth.setCurrentPlaybackSampleRate (sampleRate);
-    for (int v = 0; v < synth.getNumVoices(); ++v)
-        if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
-            gv->prepareToPlay (sampleRate, samplesPerBlock);
+    for (auto* gv : grainVoices)
+        gv->prepareToPlay (sampleRate, samplesPerBlock);
 
     // Reset the shared viz grain count (voices forget their contribution in their
     // own prepareToPlay, so a clean delta is recomputed on the first render).
@@ -246,6 +249,10 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     positionSmoothed.setCurrentAndTargetValue (positionParam->load());
     playheadVelocity.setCurrentAndTargetValue (0.0f);
 
+    // Rest-ease coefficient from the τ time constant (IN-03) — same glide feel
+    // at every sample rate (the old fixed 0.0008/sample was ~2× faster at 96 k).
+    restEaseCoeff = 1.0 - std::exp (-1.0 / (kRestEaseTauSeconds * sampleRate));
+
     // Seed the playhead at its resting point (position% * srcLen is unknown until
     // the source is decoded below; we re-seed once the source length is known).
     playheadPos = 0.0;
@@ -266,9 +273,19 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 
     if (identity.startsWith ("embedded:"))
     {
+        // Skip the re-decode when the published source is already this identity
+        // at this engine rate (IN-09) — hosts re-prepare on every buffer-size
+        // change / transport-engine restart, and decoding + resampling 10 s of
+        // audio each time is a pointless message/host-thread stall.
+        bool alreadyCurrent = false;
+        {
+            const juce::ScopedLock sl (sourceStateLock);
+            alreadyCurrent = (currentSource != nullptr && publishedSourceRate == sampleRate);
+        }
         // Built-in: pick the index matching the identity (falls back to the
         // sourceSample choice, then fire, if the name is unknown).
-        loadBuiltInSource (builtInIndexForIdentity (identity), sampleRate);
+        if (! alreadyCurrent)
+            loadBuiltInSource (builtInIndexForIdentity (identity), sampleRate);
     }
     else
     {
@@ -516,6 +533,10 @@ bool OSimpleGrainAudioProcessor::decodeAndPublish (const void* data, size_t numB
             userSourceBytesIdentity.clear();
         }
     }
+
+    // Tell the editor timer a new source is live (IN-08) — it emits the
+    // "sourceChanged" WebView event on the message thread.
+    sourceVersion.fetch_add (1, std::memory_order_relaxed);
     return true;
 }
 
@@ -807,14 +828,15 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // Capture the BLOCK-START playhead — this is the snapshot the voices read at
     // spawn (keeps the 2.1 voice spawn signature unchanged; Sequencing Note 3).
-    const float playheadAtBlockStart = (float) playheadPos;
+    // Stays double end-to-end (IN-04) — no float re-quantization on long sources.
+    const double playheadAtBlockStart = playheadPos;
 
     // Advance the global playhead across the block (per sample) for read-head
     // correctness + the Stage-3 waveform-playhead line. Voices snapshot the
     // block-start value above; the per-sample motion keeps the playhead coherent
     // block-to-block (and feeds the live playhead position to 2.3's viz tap).
     constexpr float kRestEpsilon = 1.0e-4f;          // |velocity| below this = "at rest"
-    constexpr float kRestEase    = 0.0008f;           // gentle per-sample ease toward resting point
+    const double restEase = restEaseCoeff;           // τ-derived in prepareToPlay (IN-03)
     for (int i = 0; i < numSamples; ++i)
     {
         const float scanNow = scanSmoothed.getNextValue();
@@ -832,7 +854,7 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         if (! freezeActive && std::abs (vel) < kRestEpsilon)
         {
             const double restTarget = (double) (restPct / 100.0f) * (double) srcLenF;
-            playheadPos += (restTarget - playheadPos) * (double) kRestEase;
+            playheadPos += (restTarget - playheadPos) * restEase;
         }
 
         // Wrap to [0, srcLen) for BOTH directions (negative scan = reverse).
@@ -846,30 +868,28 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     GrainCloudFrame& frame = grainCloudBuffer.getWriteBuffer();
     frame.count = 0;
 
-    for (int v = 0; v < synth.getNumVoices(); ++v)
-        if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
-        {
-            gv->setParams (p);
-            gv->setSource (srcPtr, srcLen);
-            gv->setPlayhead (playheadAtBlockStart);
-            gv->setGrainCloudFrame  (&frame);            // viz: grain events
-            gv->setActiveGrainCount (&activeGrainCount); // viz: live grain count (UI-05)
-        }
+    for (auto* gv : grainVoices)                         // cached typed pointers (IN-02)
+    {
+        gv->setParams (p);
+        gv->setSource (srcPtr, srcLen);
+        gv->setPlayhead (playheadAtBlockStart);
+        gv->setGrainCloudFrame  (&frame);            // viz: grain events
+        gv->setActiveGrainCount (&activeGrainCount); // viz: live grain count (UI-05)
+    }
 
     // --- Render the grain voices ---------------------------------------------
     synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
 
     // Detach the per-block viz pointers so a stale frame is never written between
     // blocks (the next block re-sets them before render).
-    for (int v = 0; v < synth.getNumVoices(); ++v)
-        if (auto* gv = dynamic_cast<GrainVoice*> (synth.getVoice (v)))
-            gv->setGrainCloudFrame (nullptr);
+    for (auto* gv : grainVoices)
+        gv->setGrainCloudFrame (nullptr);
 
     // --- Fill the global read-head fields + publish the grain frame ----------
     // (playhead/position/spray/freeze are the read-head context for the cloud
     // scatter (UI-01) + waveform playheads (UI-02).)
     frame.playheadNorm      = (srcLen > 0)
-                            ? juce::jlimit (0.0f, 1.0f, playheadAtBlockStart / srcLenF) : 0.0f;
+                            ? juce::jlimit (0.0f, 1.0f, (float) (playheadAtBlockStart / (double) srcLenF)) : 0.0f;
     frame.positionNorm      = juce::jlimit (0.0f, 1.0f, positionParam->load() / 100.0f);
     frame.positionSprayNorm = juce::jlimit (0.0f, 1.0f, positionSprayParam->load() / 100.0f);
     frame.frozen            = freezeActive;
@@ -961,23 +981,32 @@ void OSimpleGrainAudioProcessor::applyFactoryPreset (const juce::String& name)
     //    non-deterministic from the user's point of view. Contract now:
     //    presets keep the current source; "Granular Fire" alone force-loads
     //    fire (below), honouring its name.
+    // Every write is wrapped in a begin/endChangeGesture pair (IN-06, v1.1.2):
+    // hosts recording automation log ungestured setValueNotifyingHost calls
+    // oddly (strict hosts warn). A preset press is a user gesture — mark it so.
+    auto setGestured = [] (juce::AudioProcessorParameter* p, float norm) {
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (norm);
+        p->endChangeGesture();
+    };
+
     auto* sourceParam = apvts.getParameter (sourceSample);
     for (auto* p : getParameters())
         if (p != sourceParam)
-            p->setValueNotifyingHost (p->getDefaultValue());
+            setGestured (p, p->getDefaultValue());
 
     // 2. Snapshot helpers (scaled → normalised; choices/bool by index).
-    auto setReal = [this] (const char* id, float real) {
+    auto setReal = [this, &setGestured] (const char* id, float real) {
         if (auto* p = apvts.getParameter (id))
-            p->setValueNotifyingHost (p->convertTo0to1 (real));
+            setGestured (p, p->convertTo0to1 (real));
     };
-    auto setChoice = [this] (const char* id, int index) {
+    auto setChoice = [this, &setGestured] (const char* id, int index) {
         if (auto* p = apvts.getParameter (id))
-            p->setValueNotifyingHost (p->convertTo0to1 ((float) index));
+            setGestured (p, p->convertTo0to1 ((float) index));
     };
-    auto setBool = [this] (const char* id, bool on) {
+    auto setBool = [this, &setGestured] (const char* id, bool on) {
         if (auto* p = apvts.getParameter (id))
-            p->setValueNotifyingHost (on ? 1.0f : 0.0f);
+            setGestured (p, on ? 1.0f : 0.0f);
     };
 
     // ── Single Grain — isolate ONE grain: a long grain fired once per "tick".

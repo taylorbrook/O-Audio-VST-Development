@@ -17,6 +17,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <array>
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -173,6 +174,13 @@ public:
     // notice in Stage 3). Cleared on each successful load that did not truncate.
     bool wasLastLoadTruncated() const noexcept { return lastLoadTruncated.load (std::memory_order_relaxed); }
 
+    // Bumped on every successful decodeAndPublish (IN-08, v1.1.2). The editor's
+    // 30 Hz timer polls it and emits a "sourceChanged" WebView event on change —
+    // the JS drives its thumbnail/status refresh from that instead of fixed
+    // timers racing the decode. (Polling because decodeAndPublish can run on
+    // host-controlled threads where emitting WebView events is not allowed.)
+    juce::uint32 getSourceVersion() const noexcept { return sourceVersion.load (std::memory_order_relaxed); }
+
     //==========================================================================
     // Concept-preset tour (Stage 3.3 / FUNC-06). Eight factory snapshots, each
     // isolating ONE granular concept. Applied as a full APVTS snapshot via
@@ -291,6 +299,11 @@ private:
     WindowLuts        windowLuts { kWindowLutSize };
     juce::Synthesiser synth;
 
+    // Typed view of the synth's voices, cached at construction (the voices are
+    // owned by `synth` for the processor's lifetime). Avoids 2×kMaxVoices RTTI
+    // dynamic_casts per block on the audio thread (IN-02, v1.1.2).
+    std::array<GrainVoice*, kMaxVoices> grainVoices {};
+
     // On-screen-keyboard MIDI: thread-safe queue drained into processBlock so the
     // WebView keyboard drives the synth identically to host MIDI.
     juce::MidiMessageCollector midiCollector;
@@ -356,6 +369,14 @@ private:
     juce::SmoothedValue<float> positionSmoothed { 0.0f };   // resting point % -> samples ramp
     juce::SmoothedValue<float> playheadVelocity { 0.0f };   // samples/sample, freeze-pinnable
 
+    // Per-sample rest-ease coefficient, derived from a time constant in
+    // prepareToPlay (IN-03, v1.1.2): the old fixed 0.0008/sample glided ~2×
+    // faster at 96 kHz than at 44.1 kHz. τ ≈ 28.3 ms reproduces the shipped
+    // 44.1 kHz feel at every rate. Audio thread reads it; written only in
+    // prepareToPlay (never concurrent with processBlock).
+    static constexpr double kRestEaseTauSeconds = 0.0283;
+    double restEaseCoeff = 0.0008;
+
     //==========================================================================
     // Custom non-APVTS state: which source is loaded (built-in name, file path,
     // or "dropped:<name>"). GUARDED by sourceStateLock (CR-02): a COW
@@ -395,6 +416,9 @@ private:
 
     // Whether the most recent load was truncated to kMaxSourceSeconds.
     std::atomic<bool> lastLoadTruncated { false };
+
+    // Bumped by decodeAndPublish; polled by the editor timer (IN-08).
+    std::atomic<juce::uint32> sourceVersion { 0 };
 
     // Pending built-in index for the AsyncUpdater (set by the parameter listener,
     // consumed on the message thread). -1 = nothing pending.

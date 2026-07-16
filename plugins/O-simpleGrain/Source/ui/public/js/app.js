@@ -264,10 +264,9 @@ function bindCombo(id) {
 
   sel.addEventListener("change", () => st.setChoiceIndex(sel.selectedIndex));
 
-  // Switching the built-in source rebuilds currentSource on the C++ side (async).
-  // Refetch the thumbnail after a beat so the UI-02 waveform tracks the new source.
-  if (id === "sourceSample")
-    st.valueChangedEvent.addListener(() => setTimeout(fetchSourceThumbnail, 300));
+  // Switching the built-in source rebuilds currentSource on the C++ side (async);
+  // the "sourceChanged" backend event (IN-08) drives the thumbnail refetch once
+  // the decode has actually published — no fixed-delay race.
 }
 
 // ── Toggle binding (freeze) ──────────────────────────────────────────────────
@@ -311,6 +310,12 @@ function setSourceStatus(text, truncated) {
   el.classList.toggle("truncated", !!truncated);
 }
 
+// Label for the next user-initiated load, consumed by the "sourceChanged"
+// backend event (IN-08). Set BEFORE invoking the load so the event handler —
+// which fires as soon as the decode publishes — can't beat it. Built-in
+// switches leave it null (no status line, matching the old behaviour).
+let pendingSourceLabel = null;
+
 // ── After a load completes, surface the 10 s truncation notice ──────────────
 async function reportTruncationIfAny(label) {
   try {
@@ -334,21 +339,23 @@ function newSessionId() {
 async function commitDroppedFile(fileEntry) {
   const sessionId = newSessionId();
   showToast(`Loading ${fileEntry.name}…`);
+  pendingSourceLabel = fileEntry.name;   // consumed by the sourceChanged event (IN-08)
   try {
     const startOk = await Juce.getNativeFunction("dropSessionStart")(sessionId, "");
-    if (!startOk) { showToast("Drop session start failed"); return; }
+    if (!startOk) { pendingSourceLabel = null; showToast("Drop session start failed"); return; }
 
     const base64 = await readFileEntryAsBase64(fileEntry);
 
     const addOk = await Juce.getNativeFunction("dropSessionAddFile")(sessionId, fileEntry.name, base64);
-    if (!addOk) { showToast("File transfer failed"); return; }
+    if (!addOk) { pendingSourceLabel = null; showToast("File transfer failed"); return; }
 
     const commitOk = await Juce.getNativeFunction("dropSessionCommitFile")(sessionId, fileEntry.name, base64);
-    if (!commitOk) { showToast("File load failed at commit"); return; }
+    if (!commitOk) { pendingSourceLabel = null; showToast("File load failed at commit"); return; }
 
-    await reportTruncationIfAny(fileEntry.name);
-    fetchSourceThumbnail();   // refresh the UI-02 waveform background
+    // Thumbnail + truncation status are driven by the "sourceChanged" backend
+    // event, which fires only after the decode has actually published (IN-08).
   } catch (e) {
+    pendingSourceLabel = null;
     console.error("[O-simpleGrain] drop failed:", e);
     showToast(`Drop failed: ${e && e.message ? e.message : e}`);
   }
@@ -390,11 +397,13 @@ function bindLoadButton() {
   if (!btn) return;
   btn.addEventListener("click", async () => {
     try {
+      // The picker is async on the C++ side; the "sourceChanged" backend event
+      // reports truncation + refreshes the waveform once the decode publishes
+      // (IN-08 — the old 1.2 s fixed delay went stale on a longer browse).
+      pendingSourceLabel = "Source";
       await Juce.getNativeFunction("loadSourceFromFileChooser")();
-      // The picker is async on the C++ side; report truncation + refresh the
-      // waveform after a beat so the decode has a chance to finish. Best-effort.
-      setTimeout(() => { reportTruncationIfAny("Source"); fetchSourceThumbnail(); }, 1200);
     } catch (e) {
+      pendingSourceLabel = null;
       console.error("[O-simpleGrain] Load… failed:", e);
       showToast("Load failed");
     }
@@ -717,6 +726,18 @@ function setupVizEvents() {
   be.addEventListener("spectrumUpdate",   (a) => drawSpectrum(a));
   be.addEventListener("grainCloudUpdate", (f) => { drawCloud(f); drawSourceWaveform(f); });
   be.addEventListener("grainMeterUpdate", (n) => drawGrainReadout(n));
+
+  // A new source published on the C++ side (IN-08): refetch the waveform, and
+  // report load status only when a user-initiated load is pending (built-in
+  // switches refresh silently, matching the old behaviour).
+  be.addEventListener("sourceChanged", () => {
+    fetchSourceThumbnail();
+    if (pendingSourceLabel) {
+      const label = pendingSourceLabel;
+      pendingSourceLabel = null;
+      reportTruncationIfAny(label);
+    }
+  });
 }
 
 // ── UI-03: window-envelope inset (recomputed in JS, redrawn on change only) ──
@@ -724,6 +745,8 @@ function setupVizEvents() {
 // 2=Welch, 3=Gauss σ≈0.18, 4=Hann). Drawn for one grain's envelope; recomputed
 // only when the windowShape combo changes (+ once at boot) — NOT per frame
 // (Pitfall 4). No C++ change (Open Q2 default = JS recompute).
+// CONTRACT (IN-05): these formulas + GAUSS_SIGMA re-implement WindowLuts.h's
+// build() — any change THERE must be mirrored HERE (and vice versa).
 const GAUSS_SIGMA = 0.18;
 function windowValue(shape, phi) {
   switch (shape) {
@@ -771,7 +794,12 @@ function drawWindowInset() {
 // Grains N/192 (live, from grainMeterUpdate). Overlap ×Y = grainSizeSec × density
 // (display-only, read from the Juce slider states — no extra tap). CPU bar is a
 // coarse N/192 fill (Assumption A2 — no real CPU tap).
-const GLOBAL_GRAIN_CAP = 192;
+// Pushed from C++ via withInitialisationData (IN-05) — kGlobalGrainCap is the
+// single source of truth; 192 is only the fallback for a missing bridge.
+const GLOBAL_GRAIN_CAP =
+  (window.__JUCE__ && window.__JUCE__.initialisationData
+    && Array.isArray(window.__JUCE__.initialisationData.grainCap)
+    && window.__JUCE__.initialisationData.grainCap[0]) || 192;
 
 function drawGrainReadout(n) {
   const count = (typeof n === "number") ? n : 0;

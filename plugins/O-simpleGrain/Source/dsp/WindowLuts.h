@@ -19,6 +19,11 @@
     LUTs are sample-rate-independent (indexed by phase). Build once; never on the
     audio thread.
 
+    CONTRACT (IN-05): the five closed-form window formulas + the Gaussian σ are
+    re-implemented in the UI's window-envelope inset — app.js windowValue() /
+    GAUSS_SIGMA (an accepted design decision: the inset recomputes JS-side rather
+    than pushing tables). Any change to a formula or σ here MUST be mirrored there.
+
   ==============================================================================
 */
 

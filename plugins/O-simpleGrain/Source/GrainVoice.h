@@ -127,7 +127,9 @@ public:
     // head. Grains spawned this block read from here (± position spray). The
     // processor advances/freezes the playhead per sample; the voice only reads
     // this per-block snapshot, so the spawn signature is unchanged from 2.1.
-    void setPlayhead (float posSamples) noexcept { playheadPos = posSamples; }
+    // double end-to-end (IN-04): the processor keeps the playhead as double —
+    // truncating to float here re-quantized spawn positions on long sources.
+    void setPlayhead (double posSamples) noexcept { playheadPos = posSamples; }
 
     //==========================================================================
     // Phase 2.3 viz taps. The processor sets these once per block (like the
@@ -334,9 +336,20 @@ private:
         // source length around the current playhead. Under freeze the playhead is
         // pinned, so spray still scatters reads WITHIN the frozen region → a
         // frozen pad shimmers rather than buzzing on one grain (FUNC-03).
+        // Wrapped into [0, sourceLen) (IN-07, v1.1.2), consistent with the
+        // playhead's own wrap: an out-of-range spawn used to pin all four Lagrange
+        // taps to the edge sample and emit a constant-value (windowed DC) thump —
+        // at 100% spray up to half the spawns were affected.
         const float posSprayRand = (rng.nextFloat() * 2.0f - 1.0f)
                                  * (params.positionSpray * 0.01f) * (float) sourceLen;
-        g.readPos = playheadPos + posSprayRand;
+        double spawnPos = playheadPos + (double) posSprayRand;
+        if (sourceLen > 0)
+        {
+            spawnPos = std::fmod (spawnPos, (double) sourceLen);
+            if (spawnPos < 0.0)
+                spawnPos += (double) sourceLen;
+        }
+        g.readPos = spawnPos;
 
         // --- Pitch spray: fresh ± pitchSpray semitones per grain, combined with
         // the key rate and the global grainPitch offset (decision #2 — all three
@@ -377,7 +390,7 @@ private:
         {
             auto& ev = cloudFrame->events[(size_t) cloudFrame->count++];
             ev.readPosNorm = (sourceLen > 0)
-                           ? juce::jlimit (0.0f, 1.0f, g.readPos / (float) sourceLen) : 0.0f;
+                           ? juce::jlimit (0.0f, 1.0f, (float) (g.readPos / (double) sourceLen)) : 0.0f;
             ev.sizeMs      = (float) (lenSamp / juce::jmax (1.0, sampleRate) * 1000.0);
             // Pitch shown relative to the source's recorded pitch: voice key +
             // global offset + this grain's spray (semitones).
@@ -390,13 +403,14 @@ private:
 
     // Random-access fractional read into the static source (clamp at bounds —
     // a grain that runs off the end tapers out via its window, RESEARCH §2.5).
-    static float readSourceLagrange (const float* src, int len, float pos) noexcept
+    // pos is double (IN-04) so the fractional part stays exact on long sources.
+    static float readSourceLagrange (const float* src, int len, double pos) noexcept
     {
         if (src == nullptr || len <= 0)
             return 0.0f;
 
         const int   i0   = (int) pos;
-        const float frac = pos - (float) i0;
+        const float frac = (float) (pos - (double) i0);
         const int   im1  = juce::jlimit (0, len - 1, i0 - 1);
         const int   ip0  = juce::jlimit (0, len - 1, i0);
         const int   ip1  = juce::jlimit (0, len - 1, i0 + 1);
@@ -451,7 +465,8 @@ private:
     int          sourceLen = 0;
 
     // Current playhead (resting point in 2.1; moving/freezable in 2.2).
-    float playheadPos = 0.0f;
+    // double (IN-04): matches the processor's playhead — no float re-quantization.
+    double playheadPos = 0.0;
 
     // Phase 2.3 viz-tap seams (processor sets per block; null between blocks).
     GrainCloudFrame*  cloudFrame       = nullptr;   // grain events appended at spawn

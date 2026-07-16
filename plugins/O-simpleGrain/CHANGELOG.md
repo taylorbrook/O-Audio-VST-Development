@@ -3,6 +3,58 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.2] — 2026-07-16
+
+Resolves the nine deferred Info findings from the 2026-07-15 CODE_REVIEW.md
+(IN-01..IN-09). Internal quality: no parameter IDs, ranges, or state format
+changed (sessions/presets load unchanged).
+
+### Fixed
+- **IN-07: grains sprayed out of range emitted constant-value (windowed DC)
+  thumps.** A spawn at `playhead ± up to 100%` of the source length could start
+  outside `[0, sourceLen)`, where the clamped Lagrange taps all read the edge
+  sample — at 100% position spray up to half the spawns were affected. Spawn
+  positions now wrap into range, consistent with the playhead's own wrap. (Under
+  heavy spray the cloud now carries real signal where the thumps were.)
+- **IN-03: Position-knob glide speed depended on the sample rate.** The rest-
+  ease was a fixed 0.0008/sample, ~2× faster at 96 kHz than 44.1 kHz. Now derived
+  in `prepareToPlay` from a τ ≈ 28.3 ms time constant (`1 − exp(−1/(τ·fs))`),
+  reproducing the shipped 44.1 kHz feel at every rate.
+- **IN-04: float read positions quantized near the tail of long sources.** At
+  96 kHz a 10 s source spans 960k samples where float ULP is 0.0625 samples —
+  fractional increments jittered pitch/interpolation for late-reading grains.
+  `Grain::readPos`, the voice playhead, and the processor→voice handoff are now
+  double end-to-end.
+- **IN-08: source status/thumbnail refreshed on fixed timers that raced the
+  decode.** The Load… flow polled 1.2 s after the *click* (stale after a longer
+  browse); combo switches polled 300 ms after the change. The processor now bumps
+  a source-version counter on every successful publish; the editor timer emits a
+  `sourceChanged` WebView event on change, and the JS drives the thumbnail +
+  truncation status from that (a pending-label handoff keeps the drop's filename
+  in the status line).
+
+### Changed (performance / internal)
+- **IN-02:** the audio thread no longer runs 2×8 RTTI `dynamic_cast`s per block
+  (plus more in `prepareToPlay`) — voices are cached as typed pointers at
+  construction (synth-owned for the processor's lifetime).
+- **IN-09:** `prepareToPlay` skips the built-in re-decode + resample when the
+  published source is already at the engine rate (hosts re-prepare on every
+  buffer-size change; decoding 10 s of audio each time was a pointless stall).
+  The dropped/user path already skipped via the v1.1.1 CR-01 fix.
+- **IN-01:** deleted the editor's dead "reserved" `fileChooser` member (all
+  picking goes through the processor's own chooser).
+- **IN-05:** the JS grain meter reads `kGlobalGrainCap` pushed once via WebView
+  initialisation data instead of a hardcoded 192; the window-formula/σ JS
+  re-implementation is pinned by explicit CONTRACT cross-references in both
+  WindowLuts.h and app.js.
+- **IN-06:** `applyFactoryPreset`'s 19 parameter writes are wrapped in
+  begin/endChangeGesture pairs (hosts recording automation logged the ungestured
+  writes oddly; strict hosts warn).
+
+### Tests
+- All 11 render-harness gates PASS; `auval` SUCCEEDED;
+  `pluginval --strictness-level 10` SUCCESS.
+
 ## [1.1.1] — 2026-07-16
 
 Resolves the 2026-07-15 CODE_REVIEW.md findings CR-01, CR-02, WR-02, WR-03,
