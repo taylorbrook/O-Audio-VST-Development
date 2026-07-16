@@ -18,6 +18,8 @@ findings:
   warning: 6
   info: 5
   total: 13
+resolved: [CR-01, CR-02]
+resolved_date: 2026-07-16
 status: issues_found
 ---
 
@@ -67,12 +69,16 @@ if (old != nullptr)
     retiredSources.push_back (std::move (old));   // reaped by timer at use_count()==1
 ```
 
+> **RESOLVED 2026-07-16** — retired-list + 500 ms `juce::Timer` reaper landed exactly per the prescribed fix (`decodeAndPublish` retires under the CR-02 lock; `timerCallback` try-locks and erases at `use_count()==1`). Build + auval + pluginval@5 all pass.
+
 ### CR-02: Unsynchronized concurrent decode/publish paths — data race on `currentSourceIdentity` and the restore flags
 
 **File:** `plugins/O-simpleSampler/Source/PluginProcessor.cpp:234-242, 349-381, 417-429, 524-573`; `Source/PluginProcessor.h:215-220`
 **Issue:** Three entry points call `loadBuiltInSource` → `decodeAndPublish`: `prepareToPlay` (host audio-setup thread — not guaranteed to be the message thread in VST3/AU hosts), `handleAsyncUpdate` (message thread), and `setStateInformation` (arbitrary host thread). `decodeAndPublish` writes `currentSourceIdentity` (line 379) — a non-atomic `juce::String` — and `setStateInformation` also writes it (line 538) plus `stateWasRestored` (line 550), which `prepareToPlay` reads (line 248). Concurrent `juce::String` assignment is a data race on its ref-counted internals (UB, potential use-after-free of the old string data), and a race between prepareToPlay and setStateInformation can publish buffer A with identity B (torn buffer/identity pair). C++17 has no `atomic<shared_ptr>`; the suite fix (`pattern_texture_forge_swap_needs_lock_if_prepare_publishes`, shipped for exactly this plugin family) is a `CriticalSection` taken only off-audio.
 **Failure scenario:** Host restores session state on a worker thread while another host thread runs `prepareToPlay` (common at project-load: both fire back-to-back on different threads) → racing `String` assignment corrupts the refcount → crash or heap corruption; or the restored source identity is clobbered by the prepare-time reload, silently reverting the session's source.
 **Fix:** Add `juce::CriticalSection sourcePublishLock;` and take it (ScopedLock) around the whole decode→publish→identity-update sequence in `decodeAndPublish`, and around the identity/flag reads-writes in `prepareToPlay` / `setStateInformation` / `handleAsyncUpdate`. Never take it in `processBlock` (the atomic shared_ptr snapshot stays lock-free on the audio thread).
+
+> **RESOLVED 2026-07-16** — `sourcePublishLock` landed per the prescribed fix, covering `decodeAndPublish`, `prepareToPlay`, `setStateInformation`, `handleAsyncUpdate`, `getStateInformation`, and the identity accessors (now by-value). Bonus hardening: `handleAsyncUpdate`'s `pendingBuiltInIndex.exchange` moved inside the lock so a restore racing an in-flight async rebuild always wins. Build + auval + pluginval@5 all pass.
 
 ## Warnings
 

@@ -76,8 +76,9 @@ Progress: [##########..........] 50%
 - Dual-NAMESPACE binary-data split + render-harness already documented as CMake TODOs.
 
 **Phase 2.1 carry-forward into 2.2 (from verify/DSP critic):**
-- **Region-end hard cut clicks** (`SampleVoice.h:185-189` does `ampEnv.reset(); break;`) — fold a short declick ramp at region-end into the 2.2 loop/region work (most audible artifact when lowering End).
-- 2.3 hardening backlog (accepted O-simpleGrain-inherited RT patterns): message-thread reclaim queue for the source-swap shared_ptr free; revisit `std::atomic_load/store(shared_ptr)` (deprecated C++20); `setValueNotifyingHost`-in-prepare advisability.
+- **Region-end hard cut clicks** (`SampleVoice.h:185-189` does `ampEnv.reset(); break;`) — fold a short declick ramp at region-end into the 2.2 loop/region work (most audible artifact when lowering End). Also CODE_REVIEW.md WR-02.
+- **CODE_REVIEW.md (2026-07-16, v0.1.0 full review): CR-01/CR-02 RESOLVED** (retired-list reaper + sourcePublishLock, direct fix — build/auval/pluginval@5 pass). Remaining: 6 WR + 5 IN — fold into 2.2/2.3 (WR-01 float readPos precision, WR-02 region-end click → 2.2; WR-03/04/05/06 + INs → 2.3/Stage 3).
+- 2.3 hardening backlog (accepted O-simpleGrain-inherited RT patterns): ~~message-thread reclaim queue for the source-swap shared_ptr free~~ (done — CR-01); revisit `std::atomic_load/store(shared_ptr)` (deprecated C++20); `setValueNotifyingHost`-in-prepare advisability (also CODE_REVIEW.md WR-05).
 
 **Key DSP decisions (from Stage 0, unchanged):**
 - Repitch = continuous fractional-read varispeed; Stretch = synchronous-granular SOLA (time 1× + per-grain resample, Hann overlap-add) reusing O-simpleGrain `GrainScheduler`.

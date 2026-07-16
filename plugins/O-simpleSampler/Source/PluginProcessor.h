@@ -22,6 +22,7 @@
 #include <JuceHeader.h>
 #include <atomic>
 #include <memory>
+#include <vector>
 
 // Forward declarations — the custom voice/sound are pulled in only by the .cpp.
 // NB: named Sample{Voice,Sound}, NOT Sampler{Voice,Sound} — juce::SamplerVoice /
@@ -79,7 +80,8 @@ namespace OSimpleSampler::ParamIDs
 //==============================================================================
 class OSimpleSamplerAudioProcessor : public juce::AudioProcessor,
                                      private juce::AudioProcessorValueTreeState::Listener,
-                                     private juce::AsyncUpdater
+                                     private juce::AsyncUpdater,
+                                     private juce::Timer
 {
 public:
     OSimpleSamplerAudioProcessor();
@@ -120,9 +122,18 @@ public:
     // Loaded-source identity (custom, non-APVTS state). "embedded:piano" by
     // default, an "embedded:<name>" built-in, or a user file path once Stage 2.3
     // wires real loading. Persisted alongside the APVTS tree so a session restores
-    // the same source.
-    const juce::String& getSourceIdentity() const noexcept { return currentSourceIdentity; }
-    void setSourceIdentity (const juce::String& id) { currentSourceIdentity = id; }
+    // the same source. Returned by VALUE under the publish lock — identity is
+    // written from several host threads (CR-02), so a reference would be unsafe.
+    juce::String getSourceIdentity() const
+    {
+        const juce::ScopedLock sl (sourcePublishLock);
+        return currentSourceIdentity;
+    }
+    void setSourceIdentity (const juce::String& id)
+    {
+        const juce::ScopedLock sl (sourcePublishLock);
+        currentSourceIdentity = id;
+    }
 
     //==========================================================================
     // Engine constants (declared NOW; consumed by the sampler engine in Stage 2).
@@ -137,9 +148,17 @@ private:
     //==========================================================================
     // Lock-free atomic shared_ptr swap for the source buffer (RESEARCH §4). The
     // audio thread snapshots the pointer ONCE per block and holds the ref for the
-    // whole block, so a swap mid-block can never free the buffer it is reading. The
-    // decode/resample that builds a new buffer always happens off the audio thread
-    // (prepareToPlay / AsyncUpdater / setStateInformation — never processBlock).
+    // whole block, so a swap mid-block can never free the buffer WHILE it is being
+    // read. The end-of-block release is covered too: the publisher retires the
+    // outgoing shared_ptr onto `retiredSources` (below) instead of dropping its
+    // reference, so the audio thread's snapshot is never the LAST owner and the
+    // multi-MB buffer is only ever freed by the message-thread reaper (CR-01,
+    // suite pattern: retired-list freed at use_count()==1). The decode/resample
+    // that builds a new buffer always happens off the audio thread (prepareToPlay
+    // / AsyncUpdater / setStateInformation — never processBlock).
+    // NB: std::atomic_load/store on shared_ptr is deprecated in C++20 and is a
+    // spinlock pool on libc++ — bounded (once per block) and accepted suite-wide
+    // (IN-02); revisit with std::atomic<std::shared_ptr> on the C++20 migration.
     template <class T>
     static std::shared_ptr<T> atomicLoad (const std::shared_ptr<T>& s) noexcept
     {
@@ -190,6 +209,12 @@ private:
     // decode/resample/publish + per-source root seed for the pending selection.
     void handleAsyncUpdate() override;
 
+    // Reaper (CR-01): runs on the message thread; frees retired source buffers
+    // once their use_count() drops to 1 (i.e. no in-flight audio block still holds
+    // a snapshot). Uses a TRY-lock so the message thread never stalls behind a
+    // publisher mid-decode — a skipped tick just retries next period.
+    void timerCallback() override;
+
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
 
@@ -201,6 +226,23 @@ private:
     // thread via the atomic shared_ptr swap and snapshotted once per block.
     juce::Synthesiser synth;
     std::shared_ptr<juce::AudioBuffer<float>> currentSource;
+
+    //==========================================================================
+    // Publish lock (CR-02). Serializes the three off-audio decode/publish paths
+    // (prepareToPlay — host audio-setup thread; handleAsyncUpdate — message
+    // thread; setStateInformation — arbitrary host thread) and guards the shared
+    // non-atomic publish state: currentSourceIdentity, stateWasRestored,
+    // rootSeeded, and retiredSources. NEVER taken in processBlock — the audio
+    // thread stays on the lock-free atomic shared_ptr snapshot.
+    // (juce::CriticalSection is recursive, so decodeAndPublish may be called
+    // with the lock already held by prepareToPlay / setStateInformation.)
+    juce::CriticalSection sourcePublishLock;
+
+    // Retired source buffers (CR-01) awaiting message-thread free. A publisher
+    // pushes the outgoing buffer here (under sourcePublishLock) instead of
+    // dropping the last off-audio reference; timerCallback() erases entries at
+    // use_count()==1, so the free never happens on the audio thread.
+    std::vector<std::shared_ptr<juce::AudioBuffer<float>>> retiredSources;
 
     // Master output trim (dB->lin, 20 ms smoothing) — final stage in processBlock.
     juce::SmoothedValue<float> outputGain { 1.0f };
