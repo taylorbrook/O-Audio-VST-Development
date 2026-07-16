@@ -205,3 +205,4 @@ A custom file-based preset system:
 ## Related Issues
 
 - See also: vst3-bus-config-effect-missing-input.md - Different Ableton loading issue related to bus configuration
+- See also: [stale-asyncupdate-stomps-restored-state-O-simplePhysicalModelSynth-20260716.md](stale-asyncupdate-stomps-restored-state-O-simplePhysicalModelSynth-20260716.md) - Different restore-stomp mechanism: queued AsyncUpdater apply firing after the restoringState guard clears
