@@ -10,6 +10,25 @@ on:
   push:
     tags:
       - '*-v*'  # Matches: PluginName-vX.Y.Z
+  # Manual non-publishing path — build + validate a single plugin WITHOUT
+  # publishing a public GitHub Release (used for the O-Contrabass COMPAT-01
+  # Windows pluginval gate while the release is held). See parse-tag below.
+  workflow_dispatch:
+    inputs:
+      plugin_name:
+        description: 'Plugin directory name (e.g. O-Contrabass)'
+        required: true
+        type: string
+      version:
+        description: 'Version label for artifact naming (no Release is published on dispatch)'
+        required: false
+        default: '0.0.0-validate'
+        type: string
+      validate_only:
+        description: 'Validate-only: build + pluginval on Windows, publish NO GitHub Release'
+        required: false
+        default: true
+        type: boolean
 
 env:
   # JUCE 8.0.9 — matches the local dev install. The note-expression module
@@ -29,24 +48,38 @@ jobs:
     outputs:
       plugin_name: ${{ steps.parse.outputs.plugin_name }}
       version: ${{ steps.parse.outputs.version }}
+      validate_only: ${{ steps.parse.outputs.validate_only }}
     steps:
       - name: Parse tag
         id: parse
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          # Extract plugin name (everything before -v)
-          PLUGIN_NAME="${TAG%-v*}"
-          # Extract version (everything after -v)
-          VERSION="${TAG##*-v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual validate-only run — inputs supply the plugin/version; no tag.
+            PLUGIN_NAME="${{ github.event.inputs.plugin_name }}"
+            VERSION="${{ github.event.inputs.version }}"
+            VALIDATE_ONLY="${{ github.event.inputs.validate_only }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+            # Extract plugin name (everything before -v)
+            PLUGIN_NAME="${TAG%-v*}"
+            # Extract version (everything after -v)
+            VERSION="${TAG##*-v}"
+            # Tag pushes always publish a Release.
+            VALIDATE_ONLY="false"
+          fi
           echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Parsed: Plugin=$PLUGIN_NAME, Version=$VERSION"
+          echo "validate_only=$VALIDATE_ONLY" >> $GITHUB_OUTPUT
+          echo "Parsed: Plugin=$PLUGIN_NAME, Version=$VERSION, ValidateOnly=$VALIDATE_ONLY"
 
   # ============================================
   # macOS Build (Universal Binary: Intel + ARM)
   # ============================================
   build-macos:
     needs: parse-tag
+    # Validate-only dispatch is a Windows-focused COMPAT-01 gate (macOS is already
+    # green at every local gate: auval + pluginval-10 warm). Skip macOS there.
+    if: needs.parse-tag.outputs.validate_only != 'true'
     runs-on: macos-14  # Apple Silicon runner
     steps:
       - name: Checkout
@@ -429,7 +462,23 @@ jobs:
       - name: Configure CMake
         shell: bash
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_RELEASE=ON -DSKIP_PLUGINS="O-Orbit"
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          SKIP="O-Orbit"
+          if [ "${{ needs.parse-tag.outputs.validate_only }}" = "true" ]; then
+            # Validate-only: configure ONLY the target plugin. This CMake path
+            # configures every plugins/* dir, but the Windows build has only ever
+            # run per-tagged-plugin — ~30 siblings are unverified on windows-latest,
+            # and a single Windows-hostile sibling configure would fail the target's
+            # build. Skip all siblings to de-risk (and speed) the validation run.
+            for d in plugins/*/; do
+              name="$(basename "$d")"
+              if [ -f "${d}CMakeLists.txt" ] && [ "$name" != "$PLUGIN" ]; then
+                SKIP="$SKIP;$name"
+              fi
+            done
+          fi
+          echo "SKIP_PLUGINS=$SKIP"
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_RELEASE=ON -DSKIP_PLUGINS="$SKIP"
 
       - name: Resolve CMake Target
         id: resolve
@@ -444,6 +493,32 @@ jobs:
         run: |
           $TARGET = "${{ steps.resolve.outputs.cmake_target }}"
           cmake --build build --target "${TARGET}_VST3" --config ${{ env.BUILD_TYPE }}
+
+      - name: Validate with pluginval (strictness 10)
+        shell: bash
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          # Pinned Tracktion pluginval Windows build (COMPAT-01 gate — CI ran
+          # pluginval nowhere before this). VST3 only; there is no AU on Windows.
+          curl -L -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.3/pluginval_Windows.zip
+          7z x pluginval.zip -opluginval_bin
+          VST3=$(ls -d "build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}/VST3/"*.vst3 | head -1)
+          echo "Validating: $VST3"
+          # Generous timeout: a fresh Windows runner has a cold WebView2 (no cache),
+          # so the first editor open (WebView UI — first-ever visual test on real
+          # Windows) can be slow. macOS saw a cold-WKWebView first-run Editor-
+          # Automation timeout that passed warm; 10 min covers the cold Windows open.
+          # GitHub's bash shell runs with -o pipefail, so a pluginval failure through
+          # the tee still fails the step.
+          ./pluginval_bin/pluginval.exe --strictness-level 10 --timeout-ms 600000 --validate "$VST3" | tee pluginval-log.txt
+
+      - name: Upload pluginval log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluginval-windows-log
+          path: pluginval-log.txt
 
       - name: Get Product Name
         id: product
@@ -521,6 +596,10 @@ jobs:
   # ============================================
   create-release:
     needs: [parse-tag, build-macos, build-windows]
+    # Never publish a Release on the validate-only dispatch path (release is held).
+    # build-macos is also skipped there, which would gate this anyway; the explicit
+    # guard makes the non-publishing contract self-documenting.
+    if: needs.parse-tag.outputs.validate_only != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
