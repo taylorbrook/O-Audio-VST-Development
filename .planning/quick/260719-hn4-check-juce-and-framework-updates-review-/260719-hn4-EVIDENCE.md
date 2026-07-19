@@ -176,7 +176,7 @@ Notes:
 
 Usage is isolated to 4 files: `Source/dsp/KDTreeSearch.{h,cpp}`, `Source/dsp/UMAPProjection.{h,cpp}`.
 
-### nanoflann v1.6.2 → v1.7.1 (latest; scout's "v1.10.0" tag does not exist upstream — jlblancoc/nanoflann tops out at 1.7.1)
+### nanoflann v1.6.2 → 1.10.1 (latest; tags v1.8.0–1.10.1 verified via `git ls-remote` — the releases API hides them because 1.10.1 drops the `v` prefix)
 
 API surface actually used (from KDTreeSearch): `nanoflann::KDTreeSingleIndexAdaptor`,
 `KDTreeSingleIndexAdaptorParams`, `L2_Simple_Adaptor`, `KNNResultSet<float,uint32_t>`,
@@ -186,7 +186,7 @@ API surface actually used (from KDTreeSearch): `nanoflann::KDTreeSingleIndexAdap
   ResultSet implementations; O-TextureForge uses the stock `KNNResultSet`).
 - 1.7.1 — `worstDist()` negative-index static-analysis fix.
 None touch the stock `KDTreeSingleIndexAdaptor` / `KNNResultSet` API used here.
-**Verdict: DROP-IN** (upgrade target is v1.7.1, not the scout's non-existent v1.10.0).
+**Verdict: DROP-IN through v1.7.1** (changelog reviewed to that tag; 1.8.0–1.10.1 exist upstream but their changelogs were not pulled — do a changelog pass before pinning past v1.7.1).
 
 ### umappp v3.2.0 → v3.3.2 (libscran/umappp; tag confirmed via releases API)
 
@@ -214,4 +214,5 @@ initialize_method=InitializeMethod::SPECTRAL}`, `umappp::initialize<int,double>(
 - ANIRA `SetupOnnxRuntime.cmake` @ v2.2.0/v2.2.1 → **404**; resolved via `AniraBackends.cmake` in
   those tags (recorded above).
 - nanoflann `CHANGELOG.md` @ `master` → 404; the tagged `v1.7.1/CHANGELOG.md` (HTTP 200) was used.
-  Scout's `v1.10.0` tag does not exist on jlblancoc/nanoflann; latest is v1.7.1.
+  ORCHESTRATOR CORRECTION (post-execution): `git ls-remote --tags` shows v1.8.0, v1.9.0, v1.10.0 DO exist;
+  releases-API latest is `1.10.1` (no `v` prefix). Executor conclusion "tops out at 1.7.1" was wrong.

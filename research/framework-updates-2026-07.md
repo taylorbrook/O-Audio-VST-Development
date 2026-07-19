@@ -14,7 +14,7 @@
 |------------|--------|-----------------|-------|------|--------------------|
 | JUCE | 8.0.9 | 8.0.14 | +5 point releases (8.0.10–8.0.14) | **HIGH** (note-expression patch re-base) | stage + verify (dedicated branch) |
 | ANIRA (+ ONNX Runtime) | v2.0.3 / ORT 1.19.2 | v2.2.1 / ORT 1.26.0 | +2 minor / ORT +7 minor | MEDIUM | stage + verify (or defer to v2.1.0 for a zero-string-change bump) |
-| nanoflann | v1.6.2 | **v1.7.1** (scout's v1.10.0 does not exist) | +3 patch/minor | LOW | upgrade now / defer (optional) |
+| nanoflann | v1.6.2 | **1.10.1** (tags ≥v1.8.0 drop the `v` prefix in releases) | +7 patch/minor | LOW | upgrade now / defer (optional) |
 | umappp | v3.2.0 | v3.3.2 | +2 patch/minor | LOW | upgrade now / defer (optional) |
 | pluginval | 1.0.4 | 1.0.4 | none | — | up-to-date (no action) |
 
@@ -56,12 +56,14 @@ or the dylib-embed + `@rpath` post-build step breaks on a missing `libonnxruntim
 (Note: scout's "ORT 1.27.1" is the upstream ORT project version; the *coupled* number for the
 latest ANIRA tag is **1.26.0**.)
 
-### nanoflann v1.6.2 → v1.7.1
+### nanoflann v1.6.2 → 1.10.1
 Header-only KD-tree. Usage is confined to `Source/dsp/KDTreeSearch.{h,cpp}` using the stock
-`KDTreeSingleIndexAdaptor` / `KNNResultSet` / `SearchParameters` API. Changelog above the pin is
+`KDTreeSingleIndexAdaptor` / `KNNResultSet` / `SearchParameters` API. Changelog through 1.7.1 is
 build-tooling (1.6.3) plus `ResultSet::worstDist()` semantics (1.7.0/1.7.1) that only affect *custom*
-ResultSets — not the stock adaptor used here. **Verdict: drop-in.** (The scout's `v1.10.0` tag does
-not exist on `jlblancoc/nanoflann`; the real latest is **v1.7.1**.)
+ResultSets — not the stock adaptor used here. Releases v1.8.0–1.10.1 exist as tags (verified via
+`git ls-remote`; the GitHub releases list drops the `v` prefix from 1.10.1, which can hide them from
+release-API queries) — review their changelogs for the stock-adaptor API before pinning, or take the
+conservative v1.7.1 step. **Verdict: drop-in through v1.7.1; 1.8.0+ needs a changelog pass.**
 
 ### umappp v3.2.0 → v3.3.2
 Header-only UMAP. Usage confined to `Source/dsp/UMAPProjection.{h,cpp}` using
@@ -148,7 +150,7 @@ code. Watch preset round-trips during the JUCE verification pass.
 2. **ANIRA/ORT for O-Texture only** — staged after JUCE is green. Prefer **v2.1.0** for a
    zero-string-change ORT-1.19.2 bump; choose **v2.2.1** only if 1.26.0 is wanted, and then update the
    hardcoded `ONNXRUNTIME_VERSION` + re-validate the dylib-embed/rpath step.
-3. **nanoflann v1.7.1 / umappp v3.3.2** — optional low-risk bumps; may ride along with the O-Texture
+3. **nanoflann (v1.7.1 conservative, 1.10.1 after changelog pass) / umappp v3.3.2** — optional low-risk bumps; may ride along with the O-Texture
    work or be deferred. Verify by building O-TextureForge alone.
 4. **pluginval** — no action (at latest).
 
