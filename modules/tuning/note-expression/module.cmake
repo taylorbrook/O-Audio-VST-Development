@@ -19,14 +19,26 @@ else()
 endif()
 
 set(_NE_MARKER "JUCE-NE-PATCH")
-set(_NE_FILE1 "${_NE_JUCE_ROOT}/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h")
+
+# The VST3ClientExtensions header moved modules at JUCE 8.0.14
+# (juce_audio_processors → juce_audio_processors_headless/utilities/). Resolve
+# it in a both-paths-tolerant way so the marker guard passes on BOTH a local
+# pre-8.0.14 tree (old path) AND an 8.0.14+ tree (headless path), and survives
+# the future JUCE_VERSION bump.
+set(_NE_FILE1_NEW "${_NE_JUCE_ROOT}/modules/juce_audio_processors_headless/utilities/juce_VST3ClientExtensions.h")
+set(_NE_FILE1_OLD "${_NE_JUCE_ROOT}/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h")
+if(EXISTS "${_NE_FILE1_NEW}")
+    set(_NE_FILE1 "${_NE_FILE1_NEW}")
+else()
+    set(_NE_FILE1 "${_NE_FILE1_OLD}")
+endif()
 set(_NE_FILE2 "${_NE_JUCE_ROOT}/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp")
 
 foreach(_ne_f ${_NE_FILE1} ${_NE_FILE2})
     if(NOT EXISTS "${_ne_f}")
         message(FATAL_ERROR
             "[note-expression] Expected JUCE source not found: ${_ne_f}\n"
-            "Ensure JUCE 8.0.4 is installed and run scripts/apply-juce-patches.sh")
+            "Ensure the patched JUCE fork is installed and run scripts/apply-juce-patches.sh")
     endif()
     file(READ "${_ne_f}" _ne_contents)
     string(FIND "${_ne_contents}" "${_NE_MARKER}" _ne_idx)
