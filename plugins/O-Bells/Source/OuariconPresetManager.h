@@ -195,6 +195,26 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
     if (preset == nullptr)
         return false;
 
+    // WR-01: reset parameters to their defaults before applying the preset's keys.
+    // Factory presets are partial (they never name the FX section, lpFilter, etc.),
+    // so without this pass omitted keys inherit stale state from the previously
+    // loaded preset (pattern_preset_apply_needs_reset_to_defaults).
+    //
+    // Exception: the global tuning (tuning_*) is a cross-cutting concern, not part
+    // of a timbre preset. Factory presets carry no tuning keys, so resetting them
+    // would snap the user's temperament/A4/stretch back to defaults on every load.
+    // User presets that DO save tuning_* still recall correctly (they name the keys).
+    for (auto* param : parameters.processor.getParameters())
+    {
+        auto* rp = dynamic_cast<juce::RangedAudioParameter*>(param);
+        if (rp == nullptr)
+            continue;
+        if (auto* pid = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
+            if (pid->getParameterID().startsWith("tuning_"))
+                continue;
+        rp->setValueNotifyingHost(rp->getDefaultValue());
+    }
+
     if (preset->hasProperty("parameters"))
     {
         auto paramsVar = preset->getProperty("parameters");
@@ -216,23 +236,28 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
 
 inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
 {
-    if (presetName.isEmpty())
+    // WR-02: sanitize before using the name as a filename. A raw name containing
+    // "/" (or "\ :" etc.) is treated as a path separator by getChildFile, so the
+    // write lands in a phantom subdir or fails and the non-recursive getPresetList
+    // never surfaces it (critical_preset_name_slash_path_separator).
+    auto safeName = juce::File::createLegalFileName(presetName).trim();
+    if (safeName.isEmpty())
         return false;
 
-    if (isFactoryPreset(presetName))
+    if (isFactoryPreset(safeName))
     {
-        juce::Logger::writeToLog("[PresetManager] Cannot overwrite factory preset: " + presetName);
+        juce::Logger::writeToLog("[PresetManager] Cannot overwrite factory preset: " + safeName);
         return false;
     }
 
     getUserPresetsDirectory().createDirectory();
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto presetFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
     auto presetJson = createPresetJson();
     auto jsonString = juce::JSON::toString(presetJson, true);
 
     if (presetFile.replaceWithText(jsonString))
     {
-        currentPresetName = presetName;
+        currentPresetName = safeName;
         rebuildFlatPresetList();
         return true;
     }
@@ -504,7 +529,17 @@ inline void OuariconPresetManager::initializeFactoryPresets(
         auto* paramsObj = new juce::DynamicObject();
 
         for (const auto& [paramId, value] : preset.parameters)
-            paramsObj->setProperty(paramId, value);
+        {
+            // CR-01: factory tables are authored in engineering units, but presets
+            // are applied through the *normalized* setValueNotifyingHost (see
+            // applyPresetJson / createPresetJson). Store the normalized value so
+            // the on-disk convention matches user presets and skewed/wide-range
+            // params recall correctly (pattern_factory_preset_normalized_ignores_skew).
+            float stored = value;
+            if (auto* rp = dynamic_cast<juce::RangedAudioParameter*>(parameters.getParameter(paramId)))
+                stored = rp->getNormalisableRange().convertTo0to1(value);
+            paramsObj->setProperty(paramId, stored);
+        }
 
         presetObj->setProperty("parameters", juce::var(paramsObj));
 

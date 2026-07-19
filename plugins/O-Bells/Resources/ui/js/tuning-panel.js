@@ -15,7 +15,10 @@
  *
  * Usage:
  *   import { TuningPanel } from './tuning-panel.js';
- *   const panel = new TuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
+ *   import * as Juce from './js/juce/index.js';
+ *   // Pass the ES-module `Juce` namespace, NOT window.__JUCE__ — only the module
+ *   // namespace exposes getNativeFunction() (see critical_juce_webview_namespace_vs_postmessage).
+ *   const panel = new TuningPanel(document.getElementById('tuning-container'), Juce);
  *   panel.init();
  */
 
@@ -933,8 +936,10 @@ export class TuningPanel {
         let isDragging = false;
         let startY = 0;
         let startValue = 440;
+        let currentHz = 440;
 
         const updateKnob = (hz) => {
+            currentHz = hz;
             const indicator = this.container.querySelector('#ref-pitch-indicator');
             const valueEl = this.container.querySelector('#ref-pitch-value');
             if (indicator) {
@@ -946,9 +951,21 @@ export class TuningPanel {
             }
         };
 
+        // WR-08/IN-03: initialize the knob from the backend (APVTS-backed master
+        // tune) so it reflects the persisted/recalled value instead of a hardcoded
+        // 440 Hz. Without this the A4 knob mis-displays after a state recall.
+        if (this.juce) {
+            this.juce.getNativeFunction('getMasterTune')().then(hz => {
+                const v = parseFloat(hz);
+                if (!isNaN(v) && v > 0) updateKnob(v);
+            }).catch(() => {});
+        }
+
         knob.addEventListener('mousedown', (e) => {
             isDragging = true;
             startY = e.clientY;
+            // Accumulate from the current value (fixes drags always restarting at 440).
+            startValue = currentHz;
             document.body.style.cursor = 'ns-resize';
         });
 

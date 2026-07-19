@@ -1650,12 +1650,8 @@
                 return `${v.toFixed(1)} s`;
             }},
             { id: 'material', min: 0, max: 1, default: 0.25, format: v => {
-                // 5-material system: Bronze (0) → Brass (0.25) → Steel (0.5) → Aluminum (0.75) → Cast Iron (1.0)
-                if (v < 0.125) return 'Bronze';
-                if (v < 0.375) return 'Brass';
-                if (v < 0.625) return 'Steel';
-                if (v < 0.875) return 'Aluminum';
-                return 'Cast Iron';
+                // material is a 5-way choice param; its scaled value is the index 0..4 (WR-03/IN-01)
+                return ['Bronze', 'Brass', 'Steel', 'Aluminum', 'Cast Iron'][Math.round(v)] || 'Bronze';
             }},
             { id: 'inharmonicity', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
             { id: 'bloomSpeed', min: 0, max: 1, default: 0.5, format: v => `${Math.round(25 + v * 375)} ms` },
@@ -1668,36 +1664,44 @@
             { id: 'bloomAmountMid', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'bloomAmountHigh', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'shimmer', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v * 100)}%` },
-            { id: 'unisonCount', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 3) + 1}` },
-            { id: 'unisonDetune', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v * 50)}ct` },
+            // IN-01: formatters now receive the SCALED (engineering-unit) value.
+            { id: 'unisonCount', min: 0, max: 1, default: 0, format: v => `${Math.round(v)}` },
+            { id: 'unisonDetune', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v)}ct` },
             { id: 'octaveBlendSub', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'octaveBlendOct', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'stereoSpread', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
-            { id: 'partialTuning', min: 0, max: 1, default: 0.5, format: v => `${Math.round((v - 0.5) * 200)}ct` },
+            { id: 'partialTuning', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v)}ct` },
             { id: 'pitchEnvelope', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
-            { id: 'pitchEnvTime', min: 0, max: 1, default: 0.23, format: v => `${Math.round(5 + v * 195)}ms` },
+            { id: 'pitchEnvTime', min: 0, max: 1, default: 0.23, format: v => `${Math.round(v)}ms` },  // WR-06: scaled seconds→ms via range
             { id: 'nonlinearEffects', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'attackLevel', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
             // v2.4.0: Humanize - per-note organic variation
             { id: 'humanize', min: 0, max: 1, default: 0.3, format: v => `${Math.round(v * 100)}%` },
             // Multi-stage envelope params (visible when decayShape == 2)
-            { id: 'strikeTime', min: 0, max: 1, default: 0.26, format: v => `${Math.round(5 + v * 95)}ms` },
-            { id: 'brilliance', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'strikeTime', min: 0, max: 1, default: 0.26, format: v => `${Math.round(v)}ms` },
+            { id: 'brilliance', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v)}%` },  // IN-01: C++ range 0-100, scaled
             { id: 'bodyTime', min: 0, max: 1, default: 0.29, format: v => {
-                const ms = 100 + v * 4900;
-                return ms >= 1000 ? `${(ms/1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
+                // v is real milliseconds (scaled) — IN-01
+                return v >= 1000 ? `${(v/1000).toFixed(1)}s` : `${Math.round(v)}ms`;
             }},
-            { id: 'humSustain', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'humSustain', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v)}%` },  // IN-01: C++ range 0-100, scaled
             // Lowpass Filter (v2.6.0)
             { id: 'lpFilterCutoff', min: 0, max: 1, default: 1.0, format: v => {
-                // Decode skewed range: 200-20000 Hz with skew 0.3
-                const freq = 200 + Math.pow(v, 1/0.3) * (20000 - 200);
-                if (freq >= 1000) return `${(freq/1000).toFixed(1)} kHz`;
-                return `${Math.round(freq)} Hz`;
+                // v is real Hz (scaled) — the C++ NormalisableRange already applied the skew (IN-01)
+                if (v >= 1000) return `${(v/1000).toFixed(1)} kHz`;
+                return `${Math.round(v)} Hz`;
             }},
             // Output (v4.0.0: reverbMix moved to effects tab)
-            { id: 'outputGain', min: 0, max: 1, default: 0.67, format: v => `${Math.round((v - 0.67) * 36 / 0.33)}dB` }
+            { id: 'outputGain', min: 0, max: 1, default: 0.67, format: v => `${v.toFixed(1)}dB` }  // WR-04: scaled dB
         ];
+
+        // IN-02: fetch normalized defaults from the backend so a slider can be
+        // reset to its default on double-click (SliderState carries no default).
+        const parameterDefaults = {};
+        Juce.getNativeFunction('getParameterDefaults')().then(defs => {
+            if (defs && typeof defs === 'object')
+                Object.assign(parameterDefaults, defs);
+        }).catch(() => {});
 
         sliderParams.forEach(param => {
             const sliderEl = document.querySelector(`.slider[data-param="${param.id}"]`);
@@ -1708,10 +1712,9 @@
             const state = Juce.getSliderState(param.id);
             parameterStates.set(param.id, state);
 
-            // Initialize UI
-            const initialValue = state.getNormalisedValue();
-            updateSliderVisual(thumbEl, initialValue);
-            valueEl.textContent = param.format(initialValue);
+            // Initialize UI (thumb from normalized position; readout from scaled value — IN-01)
+            updateSliderVisual(thumbEl, state.getNormalisedValue());
+            valueEl.textContent = param.format(state.getScaledValue());
 
             // UI -> JUCE
             let isDragging = false;
@@ -1733,9 +1736,18 @@
 
             // JUCE -> UI (automation, preset load)
             state.valueChangedEvent.addListener(() => {
-                const value = state.getNormalisedValue();
-                updateSliderVisual(thumbEl, value);
-                valueEl.textContent = param.format(value);
+                updateSliderVisual(thumbEl, state.getNormalisedValue());
+                valueEl.textContent = param.format(state.getScaledValue());  // IN-01
+            });
+
+            // IN-02: double-click resets the slider to its parameter default.
+            sliderEl.addEventListener('dblclick', () => {
+                const def = parameterDefaults[param.id];
+                if (typeof def === 'number') {
+                    state.setNormalisedValue(def);
+                    updateSliderVisual(thumbEl, state.getNormalisedValue());
+                    valueEl.textContent = param.format(state.getScaledValue());
+                }
             });
         });
 
@@ -1746,7 +1758,9 @@
 
             state.setNormalisedValue(normalizedValue);
             updateSliderVisual(thumbEl, normalizedValue);
-            valueEl.textContent = formatter(normalizedValue);
+            // IN-01: format the SCALED (engineering-unit) value, not the raw
+            // normalized value, so readouts respect the C++ NormalisableRange + skew.
+            valueEl.textContent = formatter(state.getScaledValue());
         }
 
         function updateSliderVisual(thumbEl, value) {
@@ -1964,7 +1978,7 @@
             if (state) state.valueChangedEvent.addListener(updateCpuWarning);
         });
 
-        // Material is a combo box - listen via its relay
+        // Material is a slider-relay-bound choice param (WR-03) - listen for CPU estimate
         const materialState = parameterStates.get('material');
         if (materialState) materialState.valueChangedEvent.addListener(updateCpuWarning);
 
@@ -2006,9 +2020,10 @@
         const outputGainState = parameterStates.get('outputGain');
 
         function updateFooterGainVisual(value) {
-            const position = value * 100;
+            const position = value * 100;  // value is normalized (thumb position)
             footerGainThumb.style.left = `calc(${position}% - 7px)`;
-            footerGainValue.textContent = `${Math.round((value - 0.67) * 36 / 0.33)}dB`;
+            // WR-04: read the real dB from the scaled value, not a hand-coded slope.
+            footerGainValue.textContent = `${outputGainState.getScaledValue().toFixed(1)}dB`;
         }
 
         if (outputGainState) {
@@ -2355,7 +2370,11 @@
             return container;
         }
 
-        function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter) {
+        // WR-07: `useScaled` drives the readout/edit from getScaledValue() (which
+        // honors the C++ range + skew) instead of a linear displayMin..displayMax
+        // decode. Needed for eqMidFreq, the only FX param with a skewed range; the
+        // others' display ranges are intentional linear unit maps (0-1→%, s→ms).
+        function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter, useScaled = false) {
             if (!sliderState) {
                 console.error(`Failed to get slider state for ${id}`);
                 return;
@@ -2373,7 +2392,8 @@
 
             function updateVisual() {
                 const normValue = sliderState.getNormalisedValue();
-                const realValue = displayMin + (normValue * (displayMax - displayMin));
+                const realValue = useScaled ? sliderState.getScaledValue()
+                                            : displayMin + (normValue * (displayMax - displayMin));
 
                 const offset = arcLength - (normValue * arcLength);
                 vine.style.strokeDashoffset = offset;
@@ -2413,7 +2433,8 @@
                 isEditing = true;
 
                 const normValue = sliderState.getNormalisedValue();
-                const realValue = displayMin + (normValue * (displayMax - displayMin));
+                const realValue = useScaled ? sliderState.getScaledValue()
+                                            : displayMin + (normValue * (displayMax - displayMin));
                 const formatted = formatter(realValue);
 
                 const input = document.createElement('input');
@@ -2437,7 +2458,14 @@
                     const rawVal = parseFloat(input.value);
                     if (!isNaN(rawVal)) {
                         const clamped = Math.max(displayMin, Math.min(displayMax, rawVal));
-                        const norm = (clamped - displayMin) / (displayMax - displayMin);
+                        let norm;
+                        if (useScaled) {
+                            // WR-07: invert through the C++ range + skew, not a linear map.
+                            const p = sliderState.properties;
+                            norm = Math.pow((clamped - p.start) / (p.end - p.start), p.skew);
+                        } else {
+                            norm = (clamped - displayMin) / (displayMax - displayMin);
+                        }
                         sliderState.sliderDragStarted();
                         sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
                         sliderState.sliderDragEnded();
@@ -2570,7 +2598,7 @@
             setupFxKnob('delayMix',        delayMixState,       0, 100, '%', v => Math.round(v));
             setupFxKnob('eqLowGain',       eqLowGainState,      -12, 12, ' dB', v => v.toFixed(1));
             setupFxKnob('eqMidGain',       eqMidGainState,      -12, 12, ' dB', v => v.toFixed(1));
-            setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v));
+            setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v), true);  // WR-07: skewed range
             setupFxKnob('eqHighGain',      eqHighGainState,     -12, 12, ' dB', v => v.toFixed(1));
             setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v));
             setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v));

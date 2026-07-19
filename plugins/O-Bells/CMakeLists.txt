@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "4.1.0"
+    PLUGIN_VERSION "4.1.1"
 
     # Synthesizer configuration
     IS_SYNTH TRUE
@@ -96,8 +96,6 @@ juce_add_binary_data(O-Bells_UIResources
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/img/snail.png
-        Resources/ui/modules/instrument-footer-panel.js
-        Resources/ui/css/instrument-footer-panel.css
         Resources/ui/js/tuning-panel.js
         Resources/ui/css/tuning-panel.css
 )

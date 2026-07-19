@@ -33,6 +33,7 @@ private:
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
     float delaySamples = 0.0f;
+    float maxDelaySamples = 192000.0f;  // WR-10: set per-SR in prepare() so 2.0s doesn't overflow above 96 kHz
     float feedbackAmount = 0.3f;
     int delayMode = 0; // 0=Normal, 1=PingPong
     float currentSampleRate = 44100.0f;

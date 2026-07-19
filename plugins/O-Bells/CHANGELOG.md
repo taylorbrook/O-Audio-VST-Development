@@ -2,6 +2,116 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.1.1] - 2026-07-08
+
+Resolves the deep code-review findings in `CODE_REVIEW.md` (3 critical, 12 warning,
+13 info). Bug-fix release — no parameter IDs, ranges, or state format changed.
+
+### Fixed — Critical
+
+- **CR-01: Factory preset library was effectively broken.** Factory values were authored
+  in engineering units but applied through JUCE's *normalized* `setValueNotifyingHost`,
+  so every non-[0,1]-ranged param (airAbsorptionTime, unisonDetune, strikeTime, brilliance,
+  bodyTime, humSustain, lpFilterCutoff, pitchEnvTime, partialTuning, material) recalled
+  slammed to a rail — the ~25 curated presets collapsed toward identical maxed-out timbres.
+  Root cause: no `convertTo0to1` anywhere. Fix: `initializeFactoryPresets` now stores
+  `range.convertTo0to1(value)` (identity for [0,1] params) so the on-disk convention matches
+  user presets; `unisonCount` (the one param authored normalized against a [1,4] range) was
+  corrected to engineering units. A `.factory_version` sentinel forces regeneration of the
+  cached (broken) JSON on upgrade. (pattern_factory_preset_normalized_ignores_skew)
+- **CR-02: EQ recomputed IIR coefficients with heap-allocating factories on the audio thread.**
+  `EQProcessor::process` called `Coefficients::makeXXX` (malloc+free per block) whenever a
+  band gain/freq changed — a dropout risk while dragging/automating eqLowGain/eqMidGain/
+  eqMidFreq/eqHighGain. Fix: `ArrayCoefficients::makeXXX` (stack `std::array<float,6>`,
+  identical math) copied in place into the pre-allocated storage. (pattern_arraycoefficients_rt_safe_iir)
+- **CR-03: FileChooser `launchAsync` completions captured raw `this` (7 sites) → UAF.** Closing
+  the plugin window / switching tracks while a dialog was open fired the completion against a
+  freed editor. Fix: each completion now captures a `Component::SafePointer` and bails with a
+  **bare return** on teardown — never calling `complete()` on the null path, which is itself a
+  UAF (complete is owned by the destroyed WebBrowserComponent Impl).
+  (pattern_webview_launchasync_safepointer_no_complete)
+
+### Fixed — Warnings
+
+- **WR-01:** `applyPresetJson` now resets parameters to their defaults before applying a
+  preset's keys, so partial presets no longer inherit stale FX/lpFilter state from the
+  previous preset. Global tuning (`tuning_*`) is intentionally preserved across timbre-preset
+  loads. (pattern_preset_apply_needs_reset_to_defaults)
+- **WR-02:** Preset names are sanitized with `createLegalFileName` before use as a filename;
+  a name containing "/" no longer silently fails to save. (critical_preset_name_slash_path_separator)
+- **WR-03:** The `material` control was a ComboBox in C++ but a slider in the UI (mismatched
+  JUCE channels) — the control was dead and the CPU-decay estimator was stuck at Bronze. Bound
+  it with a slider relay/attachment (keeps the knob UI); both now work.
+- **WR-04:** `outputGain` dB readout (main + footer) used a ~3× too-steep hand-coded slope
+  (showed +36 dB at max vs the true +12). Now reads the scaled dB from the range.
+- **WR-05:** `airAbsorptionTime` readout treated the normalized value as seconds (always showed
+  ms, ignored skew). Now formats the real seconds.
+- **WR-06:** `pitchEnvTime` readout linearly decoded a skew-0.5 range (~2× off mid-range). Now
+  uses the scaled value.
+- **WR-07:** `eqMidFreq` readout AND double-click-edit linearly decoded a skew-0.5 range
+  (showed 4100 Hz where the true center is 2150 Hz; typing 1000 set ~282). Both now go through
+  the scaled value / skew-aware inverse.
+- **WR-08:** Tuning UI (A4 ref, octave stretch, temperament) drove the TuningEngine via native
+  functions but never wrote the APVTS params — so those values were **lost on session reload**
+  and didn't automate. Fix (minimal two-way bridge): the native setters now write the APVTS
+  param (the existing listener forwards to the engine), and the A4 knob initializes from the
+  backend. (Live DAW-automation still doesn't move the knob — see Known Limitations.)
+- **WR-09:** The soft limiter ran *before* the effects chain; the EQ's +12 dB shelves could
+  clip the output afterward. Added a second safety limiter after the FX chain (the pre-FX stage
+  is unchanged, so normal-level material is unaffected).
+- **WR-10:** `DelayProcessor` used a fixed 192000-sample max (2.0 s only at 96 kHz) and never
+  called `setMaximumDelayInSamples`; a 2.0 s delay overran at 176.4/192 kHz. Now sized per
+  sample rate in `prepare()` and clamped in `setTime`.
+- **WR-11:** `getTailLengthSeconds()` returned 0 for a multi-second-decay synth + reverb tail
+  (hosts could truncate on offline bounce). Now reports 15 s.
+- **WR-12:** `ScaleGenerator::generateRank2` clamped the generator against the *un-clamped*
+  period. Reordered so the period is clamped first.
+
+### Fixed / Changed — Info
+
+- **IN-01:** Migrated all WebView slider readouts to `SliderState.getScaledValue()` (the
+  C++-range-and-skew-aware value) instead of re-deriving engineering units from hardcoded JS
+  constants — the drift class behind WR-04..07. (pattern_webview_knob_readout_scaled_value)
+- **IN-02:** Added a `getParameterDefaults` native fn and double-click-to-reset on the main
+  sliders.
+- **IN-03:** A4-REF knob now initializes from the backend (was hardcoded to 440 Hz and drifted
+  after state recall); also fixed drag accumulation always restarting at 440.
+- **IN-04:** Deleted the dead, never-imported `instrument-footer-panel.{js,css}` (and their
+  binary-data entries).
+- **IN-05:** Corrected the `tuning-panel.js` docstring to document the `Juce` ES-module
+  namespace (not `window.__JUCE__`). (critical_juce_webview_namespace_vs_postmessage)
+- **IN-07:** `TuningExporter::calculateETDeviation` guards `totalDegrees <= 0`.
+- **IN-08:** `loadScalaFile` rejects a `<= 0` degree count instead of silently truncating.
+- **IN-09:** KBM degree clamp uses `scaleSize - 1` so the period can't be selected as a degree.
+- **IN-10:** `BellVoice` uses a per-voice `juce::Random` (seeded once) instead of the shared
+  non-thread-safe `getSystemRandom()` / `rand()` on the audio thread.
+- **IN-12:** Removed dead `ReverbProcessor` members (`prevSize`, `prevDamping`, `tankState[]`).
+- **IN-13:** Added defensive `{}` initializers to `BellVoice` decay-coefficient arrays.
+
+### Known Limitations (deferred with rationale)
+
+- **IN-06:** Pitch bends are stored per-note (not per-channel); two simultaneous same-numbered
+  notes on different MPE channels share one bend slot. Acceptable for the Dorico per-note
+  expression use case; a limit only if true MPE is expected.
+- **IN-11:** The air-absorption coefficient is recomputed per-sample per-voice. Correct and
+  NaN-safe; left as-is to avoid any tonal change (perf-only).
+- **WR-08 residual:** Live DAW automation of `tuning_*` params updates the engine but does not
+  move the tuning UI knob (no APVTS→UI push). Persistence and recall work.
+
+### Technical notes
+
+- **Files modified:** `Source/OuariconPresetManager.h`, `Source/PluginProcessor.{h,cpp}`,
+  `Source/PluginEditor.{h,cpp}`, `Source/DSP/EQProcessor.cpp`, `Source/DSP/DelayProcessor.{h,cpp}`,
+  `Source/DSP/ReverbProcessor.{h,cpp}`, `Source/ScaleGenerator.cpp`, `Source/TuningEngine.cpp`,
+  `Source/TuningExporter.cpp`, `Source/BellVoice.{h,cpp}`, `Resources/ui/index.html`,
+  `Resources/ui/js/tuning-panel.js`, `CMakeLists.txt`.
+- **Files removed:** `Resources/ui/modules/instrument-footer-panel.js`,
+  `Resources/ui/css/instrument-footer-panel.css`.
+- **Validation:** VST3 + AU build clean; `auval -v aumu OBls OuDv` PASS (render tests through
+  192 kHz).
+- **Version bump rationale:** PATCH (4.1.0 → 4.1.1) — review-finding fixes; no parameter or
+  state-format changes.
+
 ## [4.1.0] - 2026-04-26
 
 ### Added

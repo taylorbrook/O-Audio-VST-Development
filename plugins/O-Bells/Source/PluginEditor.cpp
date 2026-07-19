@@ -87,7 +87,12 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     tuningOctaveStretchRelay = std::make_unique<juce::WebSliderRelay>("tuning_octaveStretch");
     tuningPitchBendRangeRelay = std::make_unique<juce::WebSliderRelay>("tuning_pitchBendRange");
 
-    materialRelay = std::make_unique<juce::WebComboBoxRelay>("material");
+    // WR-03: the material knob in the UI is a slider (getSliderState('material')),
+    // so it must be bound with a slider relay — a combobox relay lives on a
+    // different JUCE channel ("__juce__comboBox…") and never meets it, leaving
+    // the control dead. material is an AudioParameterChoice (a RangedAudioParameter),
+    // which a WebSliderParameterAttachment drives correctly by normalized index.
+    materialRelay = std::make_unique<juce::WebSliderRelay>("material");
     strikeNoiseCharRelay = std::make_unique<juce::WebComboBoxRelay>("strikeNoiseChar");
     velocityCurveRelay = std::make_unique<juce::WebComboBoxRelay>("velocityCurve");
     tuningTemperamentPresetRelay = std::make_unique<juce::WebComboBoxRelay>("tuning_temperamentPreset");
@@ -226,6 +231,17 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                 complete(juce::var(pm.getCurrentPresetName()));
             })
 
+            // IN-02: getParameterDefaults — { paramId: normalizedDefault } for every
+            // parameter, so the UI can implement double-click-to-reset (the JUCE
+            // SliderState properties carry no default field).
+            .withNativeFunction("getParameterDefaults", [this](auto, auto complete) {
+                auto* obj = new juce::DynamicObject();
+                for (auto* param : processorRef.getParameters())
+                    if (auto* pid = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
+                        obj->setProperty(pid->getParameterID(), param->getDefaultValue());
+                complete(juce::var(obj));
+            })
+
             // loadPreset: Loads preset by name (flat search)
             .withNativeFunction("loadPreset", [this](const auto& args, auto complete) {
                 if (args.size() < 1 || !args[0].isString())
@@ -285,7 +301,12 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                 );
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                        // CR-03: the editor can be torn down while the native dialog is
+                        // open. If so, bail with a BARE return — complete() is owned by
+                        // the destroyed WebBrowserComponent Impl, so calling it is itself
+                        // a UAF (pattern_webview_launchasync_safepointer_no_complete).
+                        if (safeThis == nullptr) return;
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -293,7 +314,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                             return;
                         }
                         auto name = result.getFileNameWithoutExtension();
-                        auto& pm = processorRef.getPresetManager();
+                        auto& pm = safeThis->processorRef.getPresetManager();
                         pm.savePreset(name);
                         complete(juce::var(name));
                     }
@@ -309,14 +330,15 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                 );
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
                             complete(juce::var(""));
                             return;
                         }
-                        auto& pm = processorRef.getPresetManager();
+                        auto& pm = safeThis->processorRef.getPresetManager();
                         pm.loadPresetFromFile(result);
                         complete(juce::var(pm.getCurrentPresetName()));
                     }
@@ -403,7 +425,12 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withNativeFunction("setOctaveStretch", [this](const juce::Array<juce::var>& args, auto complete) {
                 if (args.size() >= 1) {
                     float stretch = static_cast<float>(args[0]);
-                    processorRef.getTuningEngine().setOctaveStretch(stretch);
+                    // WR-08: drive the APVTS param so the value persists/automates;
+                    // the parameter listener forwards it to the TuningEngine.
+                    if (auto* p = processorRef.getAPVTS().getParameter("tuning_octaveStretch"))
+                        p->setValueNotifyingHost(p->getNormalisableRange().convertTo0to1(stretch));
+                    else
+                        processorRef.getTuningEngine().setOctaveStretch(stretch);
                     complete(true);
                     return;
                 }
@@ -418,7 +445,12 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withNativeFunction("setMasterTune", [this](const juce::Array<juce::var>& args, auto complete) {
                 if (args.size() >= 1) {
                     double hz = static_cast<double>(args[0]);
-                    processorRef.getTuningEngine().setMasterTune(hz);
+                    // WR-08: drive the APVTS param (persist/automate); the listener
+                    // forwards to the TuningEngine.
+                    if (auto* p = processorRef.getAPVTS().getParameter("tuning_masterTune"))
+                        p->setValueNotifyingHost(p->getNormalisableRange().convertTo0to1(static_cast<float>(hz)));
+                    else
+                        processorRef.getTuningEngine().setMasterTune(hz);
                     complete(true);
                     return;
                 }
@@ -429,8 +461,13 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args, auto complete) {
                 if (args.size() >= 1) {
                     int preset = static_cast<int>(args[0]);
-                    processorRef.getTuningEngine().setBuiltInPreset(
-                        static_cast<TuningEngine::BuiltInPreset>(preset));
+                    // WR-08: drive the APVTS choice param (persist/automate); the
+                    // listener forwards to the TuningEngine.
+                    if (auto* p = processorRef.getAPVTS().getParameter("tuning_temperamentPreset"))
+                        p->setValueNotifyingHost(p->getNormalisableRange().convertTo0to1(static_cast<float>(preset)));
+                    else
+                        processorRef.getTuningEngine().setBuiltInPreset(
+                            static_cast<TuningEngine::BuiltInPreset>(preset));
                     complete(true);
                     return;
                 }
@@ -449,11 +486,12 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     "*.scl");
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
-                            bool success = processorRef.getTuningEngine().loadScalaFile(file);
-                            complete(success ? juce::var(processorRef.getTuningEngine().getActiveTuningName())
+                            bool success = safeThis->processorRef.getTuningEngine().loadScalaFile(file);
+                            complete(success ? juce::var(safeThis->processorRef.getTuningEngine().getActiveTuningName())
                                             : juce::var());
                         } else {
                             complete(juce::var());
@@ -469,10 +507,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     "*.scl");
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file != juce::File()) {
-                            auto content = processorRef.getTuningEngine().generateScalaFileContent();
+                            auto content = safeThis->processorRef.getTuningEngine().generateScalaFileContent();
                             file.replaceWithText(content);
                             complete(true);
                         } else {
@@ -488,10 +527,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     "*.kbm");
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
-                            bool success = processorRef.getTuningEngine().loadKBMFile(file);
+                            bool success = safeThis->processorRef.getTuningEngine().loadKBMFile(file);
                             complete(success);
                         } else {
                             complete(false);
@@ -507,10 +547,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     "*.kbm");
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file != juce::File()) {
-                            auto content = processorRef.getTuningEngine().generateKBMFileContent();
+                            auto content = safeThis->processorRef.getTuningEngine().generateKBMFileContent();
                             file.replaceWithText(content);
                             complete(true);
                         } else {
@@ -643,10 +684,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     "*.html");
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file != juce::File()) {
-                            auto html = TuningExporter::toHTML(processorRef.getTuningEngine(), "O-Bells");
+                            auto html = TuningExporter::toHTML(safeThis->processorRef.getTuningEngine(), "O-Bells");
                             file.replaceWithText(html);
                             complete(true);
                         } else {
@@ -788,8 +830,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     tuningPitchBendRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("tuning_pitchBendRange"), *tuningPitchBendRangeRelay, nullptr);
 
-    materialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
-        *apvts.getParameter("material"), *materialRelay, nullptr);
+    materialAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("material"), *materialRelay, nullptr);  // WR-03: slider relay for the material knob
     strikeNoiseCharAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("strikeNoiseChar"), *strikeNoiseCharRelay, nullptr);
     velocityCurveAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(

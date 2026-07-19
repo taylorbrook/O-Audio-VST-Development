@@ -458,6 +458,14 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
         {
             expectedDegrees = trimmed.getIntValue();
             foundDegreeCount = true;
+
+            // IN-08: a malformed/zero/negative count would make the pitch loop
+            // break after the first pitch and silently truncate the scale.
+            if (expectedDegrees <= 0)
+            {
+                DBG("TuningEngine::loadScalaFile() - invalid degree count: " << expectedDegrees);
+                return false;
+            }
             continue;
         }
 
@@ -822,7 +830,9 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
         }
 
         octaveNumber = patternOctave;
-        scaleDegree = juce::jlimit(0, scaleSize, scaleDegree);
+        // IN-09: clamp to the last real scale degree, not scaleSize (which is the
+        // period boundary index) — selecting the period as a degree is semantically wrong.
+        scaleDegree = juce::jlimit(0, juce::jmax(0, scaleSize - 1), scaleDegree);
 
         double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
         centsOffset += octaveNumber * period;
@@ -844,7 +854,7 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
             int mapped = kbmMapping[static_cast<size_t>(refPosInPattern)];
             if (mapped >= 0) refDegree = mapped;
         }
-        refDegree = juce::jlimit(0, scaleSize, refDegree);
+        refDegree = juce::jlimit(0, juce::jmax(0, scaleSize - 1), refDegree);  // IN-09: exclude the period index
         double refCentsFromC0 = activeIntervals[static_cast<size_t>(refDegree)] + refPatternOctave * period;
 
         double centsFromRef = centsOffset - refCentsFromC0;

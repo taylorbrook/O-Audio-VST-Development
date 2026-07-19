@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 3.2.0
+- **Version:** 4.1.1
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -30,10 +30,19 @@
 - **2026-02-04 (v2.4.0):** Humanize parameter for per-note organic variation (strike, mallet, decay, attack, inharmonicity)
 - **2026-02-05 (v3.1.0):** TrueKeys interval reporting - real-time frequency-based interval display with note names and interval labels (ported from O-Lyrica)
 - **2026-02-09 (v3.2.0):** Gain staging overhaul: -6dB synthesis normalization reduction + expanded velocity dynamic range (~18dB wider at low velocities)
+- **2026-04-13 (v4.0.0):** Effects tab — Chorus, Delay, EQ, 8-channel FDN Reverb
+- **2026-04-26 (v4.1.0):** VST3 Note Expression microtonal support for Dorico
+- **2026-07-08 (v4.1.1):** Code-review resolution — 3 critical / 12 warning / 13 info findings from `CODE_REVIEW.md`. Factory presets fixed (were recalling at rails), EQ RT-safety (ArrayCoefficients), FileChooser UAF (SafePointer), preset reset-to-defaults + name sanitization, dead `material` control fixed, all knob readouts migrated to `getScaledValue()`, tuning APVTS↔engine bridge, post-EQ safety limiter, high-SR delay overflow, tail length, per-voice RNG. auval PASS.
 
-## Known Issues
+## Known Issues / Limitations
 
-None
+- **Tuning UI vs DAW automation (WR-08):** Live automation of `tuning_*` params updates the
+  engine but does not move the tuning-tab UI knob (no APVTS→UI push). Persistence/recall work.
+- **MPE bends (IN-06):** Pitch bends are per-note, not per-channel — two simultaneous
+  same-numbered notes on different MPE channels share one bend slot. Fine for the Dorico
+  per-note-expression use case; a limit only if true MPE is expected.
+- **Upgrade note:** on first launch of v4.1.1 the factory presets are regenerated (a
+  `.factory_version` sentinel in the Factory dir); user presets are untouched.
 
 ## Description
 

@@ -14,6 +14,10 @@
 
 BellVoice::BellVoice()
 {
+    // IN-10: seed the per-voice RNG once with a per-instance value so the 16
+    // voices decorrelate (shimmer/pan initial phases, humanization).
+    voiceRandom.setSeed (juce::Time::getHighResolutionTicks()
+                         ^ static_cast<juce::int64> (reinterpret_cast<juce::pointer_sized_int> (this)));
 }
 
 bool BellVoice::canPlaySound(juce::SynthesiserSound* sound)
@@ -1160,8 +1164,8 @@ void BellVoice::initializeShimmer(ModalPartial& partial, int partialIndex)
     // Modulation depth: subtle (1-5 cents depending on shimmer amount)
     partial.shimmerDepth = juce::jmap(currentShimmer, 1.0f, 5.0f);
 
-    // Random initial phase to decorrelate partials
-    partial.shimmerLFOPhase = static_cast<float>(rand()) / RAND_MAX;
+    // Random initial phase to decorrelate partials (IN-10: per-voice RNG)
+    partial.shimmerLFOPhase = voiceRandom.nextFloat();
 }
 
 float BellVoice::applyShimmer(ModalPartial& partial, float basePhaseInc)
@@ -1257,8 +1261,8 @@ void BellVoice::initializeStereoMovement()
         float baseLFOFreq = 0.3f;  // 0.3 Hz base
         partialStereo[p].panLFORate = baseLFOFreq * primePanRatios[p] / static_cast<float>(currentSampleRate);
 
-        // Random initial phase
-        partialStereo[p].panLFOPhase = static_cast<float>(rand()) / RAND_MAX;
+        // Random initial phase (IN-10: per-voice RNG)
+        partialStereo[p].panLFOPhase = voiceRandom.nextFloat();
     }
 }
 

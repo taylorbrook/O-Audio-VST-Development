@@ -18,6 +18,14 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 
     delayL.prepare (spec);
     delayR.prepare (spec);
+
+    // WR-10: size the delay lines for the current sample rate. The compile-time
+    // 192000 = 2.0s only at 96 kHz; at 176.4/192 kHz a 2.0s delay needs
+    // 352800/384000 samples. Grow the buffer so popSample never overruns.
+    const int maxSamples = juce::jmax (192000, static_cast<int> (2.0 * spec.sampleRate) + 4);
+    delayL.setMaximumDelayInSamples (maxSamples);
+    delayR.setMaximumDelayInSamples (maxSamples);
+    maxDelaySamples = static_cast<float> (maxSamples - 1);
     feedbackFilterL.prepare (spec);
     feedbackFilterR.prepare (spec);
     dryWetMixer.prepare (spec);
@@ -42,7 +50,8 @@ void DelayProcessor::reset()
 
 void DelayProcessor::setTime (float seconds)
 {
-    delaySamples = seconds * currentSampleRate;
+    // WR-10: clamp to the prepared buffer size to avoid an out-of-range popSample.
+    delaySamples = juce::jlimit (0.0f, maxDelaySamples, seconds * currentSampleRate);
 }
 
 void DelayProcessor::setFeedback (float fb)
