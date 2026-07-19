@@ -41,7 +41,10 @@ public:
     bool acceptsMidi() const override { return true; }  // Synthesizer - MIDI input
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    // WR-11: bell decays run multiple seconds and the FDN reverb adds a long
+    // tail; report a representative length so hosts don't truncate on
+    // offline bounce/freeze at note-off.
+    double getTailLengthSeconds() const override { return 15.0; }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }

@@ -55,9 +55,11 @@ std::vector<double> ScaleGenerator::generateHarmonicSeries(int startHarmonic, in
 
 std::vector<double> ScaleGenerator::generateRank2(double generatorCents, double periodCents, int count)
 {
-    // Validate inputs
-    generatorCents = std::max(1.0, std::min(periodCents - 1.0, generatorCents));
+    // Validate inputs (WR-12: clamp the period FIRST, then clamp the generator
+    // against the corrected period — otherwise a caller passing periodCents < 101
+    // pins the generator to a nonsensical bound before the period is fixed).
     periodCents = std::max(100.0, std::min(2400.0, periodCents));
+    generatorCents = std::max(1.0, std::min(periodCents - 1.0, generatorCents));
     count = std::max(3, std::min(31, count));
 
     std::vector<double> intervals;

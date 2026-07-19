@@ -837,16 +837,20 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     // Process MIDI and render audio
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
-    // v3.1.2: Soft limiter - prevents distortion from overlapping voice tails
-    // Transparent below threshold, gentle tanh compression above
+    // v3.1.2 / WR-09: Soft limiter. Transparent below threshold, gentle tanh
+    // compression above. Applied BOTH pre-FX (tames overlapping voice tails, the
+    // original v3.1.2 behaviour) AND again post-EQ below — the EQ shelves boost
+    // up to +12 dB *after* this first stage, so a dense chord limited to ~0.9 and
+    // then boosted could otherwise clip hard at the output.
+    auto applySoftLimiter = [](juce::AudioBuffer<float>& buf)
     {
         constexpr float limiterThreshold = 0.9f;
         constexpr float limiterCeiling = 1.0f - limiterThreshold;
 
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        for (int ch = 0; ch < buf.getNumChannels(); ++ch)
         {
-            float* channelData = buffer.getWritePointer(ch);
-            for (int s = 0; s < buffer.getNumSamples(); ++s)
+            float* channelData = buf.getWritePointer(ch);
+            for (int s = 0; s < buf.getNumSamples(); ++s)
             {
                 float sample = channelData[s];
                 float absVal = std::abs(sample);
@@ -858,7 +862,9 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 }
             }
         }
-    }
+    };
+
+    applySoftLimiter(buffer);
 
     // Apply one-pole lowpass filter (v2.6.0) - post-synth, pre-reverb
     bool lpEnabled = lpFilterEnabledParam->load() > 0.5f;
@@ -950,6 +956,10 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         eqProcessor.setHighGain(fxCache.eqHighGain->load(std::memory_order_relaxed));
         eqProcessor.process(block);
     }
+
+    // WR-09: final safety limiter after the FX chain (esp. the EQ's +12 dB
+    // shelves) so post-EQ boost can't clip the output.
+    applySoftLimiter(buffer);
 
     // Calculate output levels for metering (peak detection)
     const int numSamples = buffer.getNumSamples();
@@ -1044,8 +1054,17 @@ void OBellsAudioProcessor::getHeldNotesData(std::vector<int>& notes, std::vector
 //==============================================================================
 void OBellsAudioProcessor::initializeFactoryPresets()
 {
-    // Only initialize if factory presets don't exist yet
-    if (presetManager.factoryPresetsExist())
+    // CR-01: force regeneration of on-disk factory JSON when the factory schema
+    // version changes. Pre-v4.1.1 installs cached presets that stored raw
+    // engineering units and recalled slammed to a rail; the sentinel guarantees
+    // the corrected, normalized presets are (re)written on upgrade rather than
+    // being skipped by the plain "already exists" guard.
+    const juce::String factoryVersion = "4.1.1";
+    auto versionFile = presetManager.getFactoryPresetsDirectory().getChildFile(".factory_version");
+
+    if (presetManager.factoryPresetsExist()
+        && versionFile.existsAsFile()
+        && versionFile.loadFileAsString().trim() == factoryVersion)
         return;
 
     std::vector<OuariconPresetManager::FactoryPresetDef> presets;
@@ -1082,7 +1101,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.85f}, {"bloomSpeedMid", 0.7f}, {"bloomSpeedHigh", 0.55f},
         {"bloomAmountLow", 0.4f}, {"bloomAmountMid", 0.3f}, {"bloomAmountHigh", 0.18f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 12.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 12.0f},
         {"octaveBlendSub", 0.45f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.85f},
         {"strikeTime", 45.0f}, {"brilliance", 38.0f}, {"bodyTime", 3200.0f}, {"humSustain", 82.0f},
         {"attackLevel", 0.52f}, {"reverbMix", 0.55f},
@@ -1100,7 +1119,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.95f}, {"bloomSpeedMid", 0.82f}, {"bloomSpeedHigh", 0.65f},
         {"bloomAmountLow", 0.55f}, {"bloomAmountMid", 0.4f}, {"bloomAmountHigh", 0.22f},
-        {"unisonCount", 0.67f}, {"unisonDetune", 18.0f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 18.0f},
         {"octaveBlendSub", 0.62f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.92f},
         {"strikeTime", 55.0f}, {"brilliance", 22.0f}, {"bodyTime", 4000.0f}, {"humSustain", 90.0f},
         {"attackLevel", 0.45f}, {"reverbMix", 0.6f},
@@ -1117,7 +1136,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.62f}, {"material", 1.0f}, {"inharmonicity", 0.48f},
         {"airAbsorption", 0.28f}, {"airAbsorptionTime", 3.5f},
         {"bloomSpeed", 0.65f}, {"bloomAmount", 0.28f}, {"shimmer", 0.25f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 10.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 10.0f},
         {"octaveBlendSub", 0.38f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.78f},
         {"strikeTime", 38.0f}, {"brilliance", 48.0f}, {"bodyTime", 2800.0f}, {"humSustain", 72.0f},
         {"attackLevel", 0.55f}, {"reverbMix", 0.52f},
@@ -1133,7 +1152,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.5f}, {"acousticBrightness", 0.58f}, {"material", 0.0f}, {"inharmonicity", 0.52f},
         {"airAbsorption", 0.32f}, {"airAbsorptionTime", 4.5f},
         {"bloomSpeed", 0.72f}, {"bloomAmount", 0.35f}, {"shimmer", 0.2f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 8.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 8.0f},
         {"octaveBlendSub", 0.42f}, {"octaveBlendOct", 0.18f}, {"stereoSpread", 0.88f},
         {"strikeTime", 42.0f}, {"brilliance", 45.0f}, {"bodyTime", 3500.0f}, {"humSustain", 78.0f},
         {"attackLevel", 0.58f}, {"reverbMix", 0.58f},
@@ -1152,7 +1171,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.98f}, {"bloomSpeedMid", 0.88f}, {"bloomSpeedHigh", 0.72f},
         {"bloomAmountLow", 0.6f}, {"bloomAmountMid", 0.48f}, {"bloomAmountHigh", 0.3f},
-        {"unisonCount", 0.67f}, {"unisonDetune", 15.0f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 15.0f},
         {"octaveBlendSub", 0.55f}, {"octaveBlendOct", 0.08f}, {"stereoSpread", 0.95f},
         {"strikeTime", 60.0f}, {"brilliance", 32.0f}, {"bodyTime", 4500.0f}, {"humSustain", 95.0f},
         {"attackLevel", 0.38f}, {"reverbMix", 0.65f},
@@ -1172,7 +1191,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.85f}, {"acousticBrightness", 0.82f}, {"material", 0.0f}, {"inharmonicity", 0.15f},
         {"airAbsorption", 0.12f}, {"airAbsorptionTime", 2.0f},
         {"bloomSpeed", 0.28f}, {"bloomAmount", 0.1f}, {"shimmer", 0.22f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.2f}, {"stereoSpread", 0.55f},
         {"strikeTime", 12.0f}, {"brilliance", 88.0f}, {"bodyTime", 1800.0f}, {"humSustain", 35.0f},
         {"attackLevel", 0.65f}, {"reverbMix", 0.38f},
@@ -1188,7 +1207,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.78f}, {"acousticBrightness", 0.75f}, {"material", 2.0f}, {"inharmonicity", 0.42f},
         {"airAbsorption", 0.15f}, {"airAbsorptionTime", 1.8f},
         {"bloomSpeed", 0.32f}, {"bloomAmount", 0.12f}, {"shimmer", 0.18f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.1f}, {"stereoSpread", 0.48f},
         {"strikeTime", 18.0f}, {"brilliance", 82.0f}, {"bodyTime", 1400.0f}, {"humSustain", 28.0f},
         {"attackLevel", 0.62f}, {"reverbMix", 0.32f},
@@ -1204,7 +1223,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.88f}, {"acousticBrightness", 0.88f}, {"material", 3.0f}, {"inharmonicity", 0.28f},
         {"airAbsorption", 0.08f}, {"airAbsorptionTime", 1.2f},
         {"bloomSpeed", 0.22f}, {"bloomAmount", 0.08f}, {"shimmer", 0.35f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 8.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 8.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.28f}, {"stereoSpread", 0.65f},
         {"strikeTime", 10.0f}, {"brilliance", 92.0f}, {"bodyTime", 900.0f}, {"humSustain", 18.0f},
         {"attackLevel", 0.68f}, {"reverbMix", 0.35f},
@@ -1219,7 +1238,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.75f}, {"acousticBrightness", 0.72f}, {"material", 0.0f}, {"inharmonicity", 0.22f},
         {"airAbsorption", 0.18f}, {"airAbsorptionTime", 1.5f},
         {"bloomSpeed", 0.35f}, {"bloomAmount", 0.15f}, {"shimmer", 0.25f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.05f}, {"octaveBlendOct", 0.18f}, {"stereoSpread", 0.52f},
         {"strikeTime", 15.0f}, {"brilliance", 78.0f}, {"bodyTime", 1600.0f}, {"humSustain", 32.0f},
         {"attackLevel", 0.6f}, {"reverbMix", 0.4f},
@@ -1235,7 +1254,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.82f}, {"acousticBrightness", 0.78f}, {"material", 2.0f}, {"inharmonicity", 0.18f},
         {"airAbsorption", 0.05f}, {"airAbsorptionTime", 0.8f},
         {"bloomSpeed", 0.15f}, {"bloomAmount", 0.05f}, {"shimmer", 0.12f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.45f},
         {"strikeTime", 8.0f}, {"brilliance", 85.0f}, {"bodyTime", 800.0f}, {"humSustain", 15.0f},
         {"attackLevel", 0.75f}, {"reverbMix", 0.28f},
@@ -1257,7 +1276,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.65f}, {"bloomSpeedMid", 0.55f}, {"bloomSpeedHigh", 0.4f},
         {"bloomAmountLow", 0.42f}, {"bloomAmountMid", 0.32f}, {"bloomAmountHigh", 0.15f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.22f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.55f},
         {"strikeTime", 35.0f}, {"brilliance", 35.0f}, {"bodyTime", 2200.0f}, {"humSustain", 65.0f},
         {"attackLevel", 0.28f}, {"reverbMix", 0.45f},
@@ -1273,7 +1292,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.45f}, {"acousticBrightness", 0.52f}, {"material", 1.0f}, {"inharmonicity", 0.28f},
         {"airAbsorption", 0.2f}, {"airAbsorptionTime", 2.5f},
         {"bloomSpeed", 0.65f}, {"bloomAmount", 0.42f}, {"shimmer", 0.38f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 5.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 5.0f},
         {"octaveBlendSub", 0.18f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.6f},
         {"strikeTime", 40.0f}, {"brilliance", 42.0f}, {"bodyTime", 2800.0f}, {"humSustain", 72.0f},
         {"attackLevel", 0.32f}, {"reverbMix", 0.48f},
@@ -1290,7 +1309,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.52f}, {"acousticBrightness", 0.58f}, {"material", 3.0f}, {"inharmonicity", 0.32f},
         {"airAbsorption", 0.12f}, {"airAbsorptionTime", 1.5f},
         {"bloomSpeed", 0.45f}, {"bloomAmount", 0.22f}, {"shimmer", 0.28f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.1f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.58f},
         {"strikeTime", 25.0f}, {"brilliance", 48.0f}, {"bodyTime", 1400.0f}, {"humSustain", 52.0f},
         {"attackLevel", 0.4f}, {"reverbMix", 0.35f},
@@ -1305,7 +1324,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.55f}, {"material", 1.0f}, {"inharmonicity", 0.38f},
         {"airAbsorption", 0.15f}, {"airAbsorptionTime", 1.8f},
         {"bloomSpeed", 0.35f}, {"bloomAmount", 0.18f}, {"shimmer", 0.18f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.48f},
         {"strikeTime", 22.0f}, {"brilliance", 52.0f}, {"bodyTime", 1200.0f}, {"humSustain", 45.0f},
         {"attackLevel", 0.35f}, {"reverbMix", 0.38f},
@@ -1324,7 +1343,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.78f}, {"bloomSpeedMid", 0.65f}, {"bloomSpeedHigh", 0.45f},
         {"bloomAmountLow", 0.5f}, {"bloomAmountMid", 0.38f}, {"bloomAmountHigh", 0.12f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 6.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 6.0f},
         {"octaveBlendSub", 0.28f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.62f},
         {"strikeTime", 45.0f}, {"brilliance", 28.0f}, {"bodyTime", 2500.0f}, {"humSustain", 68.0f},
         {"attackLevel", 0.25f}, {"reverbMix", 0.5f},
@@ -1344,7 +1363,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.58f}, {"acousticBrightness", 0.65f}, {"material", 0.0f}, {"inharmonicity", 0.88f},
         {"airAbsorption", 0.1f}, {"airAbsorptionTime", 1.2f},
         {"bloomSpeed", 0.18f}, {"bloomAmount", 0.08f}, {"shimmer", 0.1f},
-        {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
+        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.5f},
         {"strikeTime", 12.0f}, {"brilliance", 62.0f}, {"bodyTime", 600.0f}, {"humSustain", 22.0f},
         {"attackLevel", 0.72f}, {"reverbMix", 0.25f},
@@ -1360,7 +1379,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.78f}, {"acousticBrightness", 0.72f}, {"material", 2.0f}, {"inharmonicity", 0.72f},
         {"airAbsorption", 0.08f}, {"airAbsorptionTime", 0.8f},
         {"bloomSpeed", 0.15f}, {"bloomAmount", 0.05f}, {"shimmer", 0.08f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 15.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 15.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.72f},
         {"strikeTime", 8.0f}, {"brilliance", 75.0f}, {"bodyTime", 500.0f}, {"humSustain", 15.0f},
         {"attackLevel", 0.85f}, {"reverbMix", 0.2f},
@@ -1380,7 +1399,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.9f}, {"bloomSpeedMid", 0.78f}, {"bloomSpeedHigh", 0.6f},
         {"bloomAmountLow", 0.65f}, {"bloomAmountMid", 0.5f}, {"bloomAmountHigh", 0.35f},
-        {"unisonCount", 0.67f}, {"unisonDetune", 22.0f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 22.0f},
         {"octaveBlendSub", 0.45f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.92f},
         {"strikeTime", 55.0f}, {"brilliance", 35.0f}, {"bodyTime", 3800.0f}, {"humSustain", 85.0f},
         {"attackLevel", 0.42f}, {"reverbMix", 0.55f},
@@ -1395,7 +1414,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.72f}, {"acousticBrightness", 0.7f}, {"material", 1.0f}, {"inharmonicity", 0.55f},
         {"airAbsorption", 0.12f}, {"airAbsorptionTime", 1.5f},
         {"bloomSpeed", 0.28f}, {"bloomAmount", 0.15f}, {"shimmer", 0.45f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 25.0f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 25.0f},
         {"octaveBlendSub", 0.08f}, {"octaveBlendOct", 0.25f}, {"stereoSpread", 0.88f},
         {"strikeTime", 15.0f}, {"brilliance", 72.0f}, {"bodyTime", 1100.0f}, {"humSustain", 38.0f},
         {"attackLevel", 0.58f}, {"reverbMix", 0.42f},
@@ -1414,7 +1433,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.85f}, {"bloomSpeedMid", 0.7f}, {"bloomSpeedHigh", 0.5f},
         {"bloomAmountLow", 0.52f}, {"bloomAmountMid", 0.38f}, {"bloomAmountHigh", 0.2f},
-        {"unisonCount", 0.33f}, {"unisonDetune", 12.0f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 12.0f},
         {"octaveBlendSub", 0.52f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.82f},
         {"strikeTime", 48.0f}, {"brilliance", 25.0f}, {"bodyTime", 3200.0f}, {"humSustain", 78.0f},
         {"attackLevel", 0.48f}, {"reverbMix", 0.52f},
@@ -1436,7 +1455,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.88f}, {"bloomSpeedMid", 0.72f}, {"bloomSpeedHigh", 0.55f},
         {"bloomAmountLow", 0.55f}, {"bloomAmountMid", 0.4f}, {"bloomAmountHigh", 0.2f},
-        {"unisonCount", 0.67f}, {"unisonDetune", 18.0f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 18.0f},
         {"octaveBlendSub", 0.48f}, {"octaveBlendOct", 0.1f}, {"stereoSpread", 0.95f},
         {"strikeTime", 50.0f}, {"brilliance", 28.0f}, {"bodyTime", 4200.0f}, {"humSustain", 88.0f},
         {"attackLevel", 0.32f}, {"reverbMix", 0.75f},
@@ -1455,7 +1474,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.92f}, {"bloomSpeedMid", 0.8f}, {"bloomSpeedHigh", 0.6f},
         {"bloomAmountLow", 0.65f}, {"bloomAmountMid", 0.5f}, {"bloomAmountHigh", 0.25f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 20.0f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 20.0f},
         {"octaveBlendSub", 0.58f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.88f},
         {"strikeTime", 55.0f}, {"brilliance", 18.0f}, {"bodyTime", 3500.0f}, {"humSustain", 82.0f},
         {"attackLevel", 0.25f}, {"reverbMix", 0.72f},
@@ -1474,7 +1493,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.98f}, {"bloomSpeedMid", 0.92f}, {"bloomSpeedHigh", 0.8f},
         {"bloomAmountLow", 0.85f}, {"bloomAmountMid", 0.72f}, {"bloomAmountHigh", 0.55f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 15.0f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 15.0f},
         {"octaveBlendSub", 0.35f}, {"octaveBlendOct", 0.22f}, {"stereoSpread", 0.98f},
         {"strikeTime", 65.0f}, {"brilliance", 42.0f}, {"bodyTime", 4800.0f}, {"humSustain", 92.0f},
         {"attackLevel", 0.2f}, {"reverbMix", 0.68f},
@@ -1490,7 +1509,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.72f}, {"acousticBrightness", 0.68f}, {"material", 2.0f}, {"inharmonicity", 0.32f},
         {"airAbsorption", 0.18f}, {"airAbsorptionTime", 2.5f},
         {"bloomSpeed", 0.45f}, {"bloomAmount", 0.28f}, {"shimmer", 0.75f},
-        {"unisonCount", 0.67f}, {"unisonDetune", 12.0f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 12.0f},
         {"octaveBlendSub", 0.12f}, {"octaveBlendOct", 0.35f}, {"stereoSpread", 0.92f},
         {"strikeTime", 18.0f}, {"brilliance", 78.0f}, {"bodyTime", 2200.0f}, {"humSustain", 55.0f},
         {"attackLevel", 0.45f}, {"reverbMix", 0.58f},
@@ -1508,7 +1527,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.95f}, {"bloomSpeedMid", 0.85f}, {"bloomSpeedHigh", 0.7f},
         {"bloomAmountLow", 0.72f}, {"bloomAmountMid", 0.6f}, {"bloomAmountHigh", 0.42f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 18.0f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 18.0f},
         {"octaveBlendSub", 0.25f}, {"octaveBlendOct", 0.38f}, {"stereoSpread", 1.0f},
         {"strikeTime", 70.0f}, {"brilliance", 52.0f}, {"bodyTime", 4500.0f}, {"humSustain", 85.0f},
         {"attackLevel", 0.18f}, {"reverbMix", 0.72f},
@@ -1519,6 +1538,11 @@ void OBellsAudioProcessor::initializeFactoryPresets()
     }, {} });
 
     presetManager.initializeFactoryPresets(presets);
+
+    // Stamp the schema version so the corrected presets aren't regenerated again
+    // until the next factory-format change.
+    presetManager.getFactoryPresetsDirectory().createDirectory();
+    versionFile.replaceWithText(factoryVersion);
 }
 
 //==============================================================================

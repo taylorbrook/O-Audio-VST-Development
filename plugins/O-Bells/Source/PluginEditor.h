@@ -106,8 +106,9 @@ private:
     std::unique_ptr<juce::WebSliderRelay> tuningOctaveStretchRelay;
     std::unique_ptr<juce::WebSliderRelay> tuningPitchBendRangeRelay;
 
-    // Choice parameter relays (3 combo boxes in v1.3.0 - material added)
-    std::unique_ptr<juce::WebComboBoxRelay> materialRelay;
+    // Choice parameter relays (material is bound as a SLIDER relay — WR-03 —
+    // because the UI renders it as a slider knob, not a combobox)
+    std::unique_ptr<juce::WebSliderRelay> materialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> strikeNoiseCharRelay;
     std::unique_ptr<juce::WebComboBoxRelay> velocityCurveRelay;
     // v3.0.0: Tuning temperament combo relay
@@ -186,8 +187,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningOctaveStretchAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningPitchBendRangeAttachment;
 
-    // Choice parameter attachments (3 combo boxes in v1.3.0 - material added)
-    std::unique_ptr<juce::WebComboBoxParameterAttachment> materialAttachment;
+    // Choice parameter attachments (material uses a SLIDER attachment — WR-03)
+    std::unique_ptr<juce::WebSliderParameterAttachment> materialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> strikeNoiseCharAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> velocityCurveAttachment;
     // v3.0.0: Tuning temperament combo attachment

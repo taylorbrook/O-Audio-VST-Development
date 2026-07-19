@@ -242,10 +242,12 @@ private:
 
     // Multi-stage envelope state
     int samplesSinceNoteOn = 0;
-    // Pre-calculated decay coefficients per partial (computed once in startNote)
-    float strikeDecayCoeffs[NUM_PARTIALS];
-    float bodyDecayCoeffs[NUM_PARTIALS];
-    float humDecayCoeffs[NUM_PARTIALS];
+    // Pre-calculated decay coefficients per partial (computed once in startNote).
+    // IN-13: default-initialized defensively — always written before use, but {} avoids
+    // any read of indeterminate memory should the invariant ever change.
+    float strikeDecayCoeffs[NUM_PARTIALS] {};
+    float bodyDecayCoeffs[NUM_PARTIALS] {};
+    float humDecayCoeffs[NUM_PARTIALS] {};
 
     // Shimmer decay progress tracking (0.0 = start, 1.0 = fully decayed)
     float decayProgress = 0.0f;
@@ -283,14 +285,19 @@ private:
     void calculateMultiStageCoefficients(float fundamental);
     void applyMultiStageDecay(ModalPartial& partial, int partialIndex);
 
-    // Thread-safe Gaussian random number generator (CLT approximation)
+    // IN-10: per-voice RNG (seeded once in the constructor) instead of the shared
+    // juce::Random::getSystemRandom() singleton. startNote is serialized by the
+    // Synthesiser's lock so voices never raced each other, but this removes the
+    // audio-thread touch of a shared, documented-non-thread-safe generator.
+    juce::Random voiceRandom;
+
+    // Gaussian random number generator (CLT approximation)
     float gaussianApprox()
     {
         // Sum of 3 uniform randoms approximates Gaussian (Central Limit Theorem)
-        auto& rng = juce::Random::getSystemRandom();
         float sum = 0.0f;
         for (int i = 0; i < 3; ++i)
-            sum += rng.nextFloat() * 2.0f - 1.0f;
+            sum += voiceRandom.nextFloat() * 2.0f - 1.0f;
         return sum / 1.73f;  // Scale to ~unit variance
     }
 };

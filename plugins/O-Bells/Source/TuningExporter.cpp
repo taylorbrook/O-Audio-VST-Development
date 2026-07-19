@@ -115,6 +115,10 @@ double TuningExporter::calculateETDeviation(double cents, int degree, int totalD
     if (degree == 0)
         return 0.0;
 
+    // IN-07: guard against divide-by-zero on a degenerate scale.
+    if (totalDegrees <= 0)
+        return 0.0;
+
     double etCents = (static_cast<double>(degree) / static_cast<double>(totalDegrees)) * period;
     return cents - etCents;
 }
