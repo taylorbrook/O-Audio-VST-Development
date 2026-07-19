@@ -13,7 +13,9 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"   // WebView editor — excluded from the render harness (JUCE_WEB_BROWSER=0)
+#endif
 #include "BowedContrabassVoice.h"
 #include <cmath>
 
@@ -118,7 +120,11 @@ OContrabassAudioProcessor::createParameterLayout()
     layout.add(std::make_unique<APF>(juce::ParameterID{"REFERENCE_PITCH", 1},  "Reference Pitch",
         NR(220.0f, 880.0f, 0.01f),         440.0f));
     layout.add(std::make_unique<APC>(juce::ParameterID{"TUNING_SYSTEM", 1},    "Tuning System",
-        juce::StringArray { "Scala/TUN", "MTS-ESP", "12-TET" }, 2));
+        // Stage 3 D1: label "Scala" (was "Scala/TUN") — TuningEngine 2.1.0 has
+        // no TUN parser; a label promising .tun would be a silent-failure trap.
+        // Choice INDEX mapping is frozen (0=Scala, 1=MTS-ESP, 2=12-TET); label
+        // text is cosmetic and does not affect automation or state.
+        juce::StringArray { "Scala", "MTS-ESP", "12-TET" }, 2));
     layout.add(std::make_unique<APB>(juce::ParameterID{"NOTE_EXPRESSION", 1},  "Note Expression",
         true));
 
@@ -180,6 +186,191 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
     pendingTuningChoice.store (
         static_cast<int> (parameters.getRawParameterValue ("TUNING_SYSTEM")->load()));
     handleAsyncUpdate();
+
+    // Stage 3 Task 8 (D6) — persist tuning-engine state (intervals, scale name,
+    // tonic, octave stretch) through user presets AND DAW session state.
+    // Without this the APVTS restores TUNING_SYSTEM=Scala on reload but the
+    // engine silently reverts to 12-TET intervals (O-Wind/O-Lyrica pattern).
+    // Tuning MODE itself needs no custom slot: it rides the TUNING_SYSTEM
+    // APVTS choice → parameterChanged → handleAsyncUpdate dispatch.
+    presetManager.setCustomStateCallbacks (
+        // Save — tuning state as JSON
+        [this]() -> juce::var
+        {
+            auto* obj = new juce::DynamicObject();
+
+            juce::Array<juce::var> intervalsArray;
+            for (double cents : tuningEngine.getIntervals())
+                intervalsArray.add (cents);
+            obj->setProperty ("intervals",     intervalsArray);
+            obj->setProperty ("scaleName",     tuningEngine.getActiveTuningName());
+            obj->setProperty ("tonic",         tuningEngine.getTonicNote());
+            obj->setProperty ("octaveStretch", tuningEngine.getOctaveStretch());
+
+            return juce::var (obj);
+        },
+        // Load — restore tuning state from JSON (message thread)
+        [this] (const juce::var& customState)
+        {
+            auto* obj = customState.getDynamicObject();
+            if (obj == nullptr)
+                return;
+
+            if (obj->hasProperty ("intervals"))
+            {
+                auto intervalsVar = obj->getProperty ("intervals");
+                if (intervalsVar.isArray())
+                {
+                    std::vector<double> intervals;
+                    for (int i = 0; i < intervalsVar.size(); ++i)
+                        intervals.push_back (static_cast<double> (intervalsVar[i]));
+
+                    if (! intervals.empty())
+                    {
+                        juce::String name = obj->getProperty ("scaleName").toString();
+                        if (name.isEmpty()) name = "Custom";
+                        tuningEngine.setCustomIntervals (intervals, name);
+                    }
+                }
+            }
+
+            // Tonic AFTER intervals so scale rotation applies correctly.
+            if (obj->hasProperty ("tonic"))
+                tuningEngine.setTonicNote (static_cast<int> (obj->getProperty ("tonic")));
+
+            if (obj->hasProperty ("octaveStretch"))
+                tuningEngine.setOctaveStretch (static_cast<float> (obj->getProperty ("octaveStretch")));
+        });
+
+    // ── Stage 4 (Polish) FUNC-04 — factory presets ────────────────────────────
+    // Two 5-preset banks (Orchestral + Drone), authored in ENGINEERING UNITS and
+    // converted once through each param's NormalisableRange (skew-safe). The 4
+    // skewed params (BOW_SPEED 0.5, BOW_PRESSURE 0.5, BRIGHTNESS 0.25,
+    // VIBRATO_ONSET 0.5) recall 4×–30× wrong if authored as raw normalized
+    // fractions — convertTo0to1 handles skew + int/choice/bool uniformly
+    // (pattern_factory_preset_normalized_ignores_skew). Omitted keys revert to
+    // APVTS default on load (applyPresetJson resets all params first —
+    // pattern_preset_apply_needs_reset_to_defaults), so STRING_TENSION is left
+    // out entirely: it stays inert at default 0.5 (v1.1 deferral — authoring it
+    // away from 0.5 would re-baseline the frozen render goldens if ever wired).
+    // Drone presets carry explicit TUNING_SYSTEM(=2 12-TET) + NOTE_EXPRESSION(=1)
+    // so the tuning-reset-to-defaults doesn't clobber intent; per-string pitch is
+    // via the independent DETUNE_* params (they don't touch the Scala engine).
+    // "Cinematic Bass Sustain" is first alphabetically → the default landing preset.
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        // ── Orchestral bank ───────────────────────────────────────────────────
+        {
+            "Cinematic Bass Sustain",
+            {{"BOW_SPEED", 0.15f}, {"BOW_PRESSURE", 1.2f}, {"BOW_POSITION", 0.10f},
+             {"BRIGHTNESS", 4500.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.65f},
+             {"BOW_NOISE", 0.30f}, {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.30f},
+             {"BODY_MIX", 0.85f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 5.0f}, {"VIBRATO_DEPTH", 8.0f}, {"VIBRATO_ONSET", 900.0f},
+             {"SLOW_LFO_RATE", 0.30f}, {"SLOW_LFO_DEPTH", 0.10f}, {"WIDTH", 1.1f},
+             {"MASTER_SAT_AMOUNT", 0.45f}, {"LIMITER_CEILING_DB", -0.3f}}
+        },
+        {
+            "Section Bass",
+            {{"BOW_SPEED", 0.18f}, {"BOW_PRESSURE", 1.4f}, {"BOW_POSITION", 0.11f},
+             {"BRIGHTNESS", 3800.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.60f},
+             {"BOW_NOISE", 0.28f}, {"BODY_SIZE", 0.80f}, {"BODY_DAMPING", 0.55f},
+             {"BODY_MIX", 0.80f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 4.5f}, {"VIBRATO_DEPTH", 6.0f}, {"VIBRATO_ONSET", 800.0f},
+             {"SLOW_LFO_RATE", 0.25f}, {"SLOW_LFO_DEPTH", 0.15f}, {"WIDTH", 1.5f},
+             {"MASTER_SAT_AMOUNT", 0.40f}}
+        },
+        {
+            "Solo Arco Bass",
+            {{"BOW_SPEED", 0.20f}, {"BOW_PRESSURE", 1.0f}, {"BOW_POSITION", 0.09f},
+             {"BRIGHTNESS", 5200.0f}, {"OUTPUT_GAIN", 0.5f}, {"ROSIN", 0.78f},
+             {"BOW_NOISE", 0.45f}, {"BODY_SIZE", 0.75f}, {"BODY_DAMPING", 0.35f},
+             {"BODY_MIX", 0.82f}, {"STRING_STIFFNESS", 0.28f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 5.5f}, {"VIBRATO_DEPTH", 14.0f}, {"VIBRATO_ONSET", 500.0f},
+             {"WIDTH", 1.0f}, {"MASTER_SAT_AMOUNT", 0.45f}}
+        },
+        {
+            "Pianissimo Bass",
+            {{"BOW_SPEED", 0.08f}, {"BOW_PRESSURE", 0.35f}, {"BOW_POSITION", 0.20f},
+             {"BRIGHTNESS", 3000.0f}, {"OUTPUT_GAIN", -6.0f}, {"ROSIN", 0.50f},
+             {"BOW_NOISE", 0.25f}, {"BODY_SIZE", 0.78f}, {"BODY_DAMPING", 0.45f},
+             {"BODY_MIX", 0.80f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 4.5f}, {"VIBRATO_DEPTH", 5.0f}, {"VIBRATO_ONSET", 1100.0f},
+             {"WIDTH", 1.0f}, {"MASTER_SAT_AMOUNT", 0.35f}}
+        },
+        {
+            "Forte Bass",
+            {{"BOW_SPEED", 0.35f}, {"BOW_PRESSURE", 3.2f}, {"BOW_POSITION", 0.07f},
+             {"BRIGHTNESS", 6500.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.72f},
+             {"BOW_NOISE", 0.40f}, {"BODY_SIZE", 0.82f}, {"BODY_DAMPING", 0.28f},
+             {"BODY_MIX", 0.85f}, {"STRING_STIFFNESS", 0.32f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 5.5f}, {"VIBRATO_DEPTH", 10.0f}, {"VIBRATO_ONSET", 400.0f},
+             {"WIDTH", 1.2f}, {"MASTER_SAT_AMOUNT", 0.60f}}
+        },
+        // ── Drone bank (explicit TUNING_SYSTEM/NOTE_EXPRESSION per Decision 2) ──
+        {
+            "Infinite Drone",
+            {{"BOW_SPEED", 0.12f}, {"BOW_PRESSURE", 1.5f}, {"BOW_POSITION", 0.10f},
+             {"BRIGHTNESS", 3500.0f}, {"ROSIN", 0.60f}, {"BOW_NOISE", 0.30f},
+             {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.30f}, {"BODY_MIX", 0.85f},
+             {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"VIBRATO_ONSET", 600.0f}, {"SLOW_LFO_RATE", 0.18f}, {"SLOW_LFO_DEPTH", 0.45f},
+             {"INFINITE_SUSTAIN", 1.0f}, {"SUB_HARMONICS", 0.35f}, {"WIDTH", 1.4f},
+             {"MASTER_SAT_AMOUNT", 0.50f}, {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Just-Intoned Drone",
+            {{"BOW_SPEED", 0.12f}, {"BOW_PRESSURE", 1.4f}, {"BOW_POSITION", 0.10f},
+             {"BRIGHTNESS", 3800.0f}, {"ROSIN", 0.60f}, {"BOW_NOISE", 0.28f},
+             {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.32f}, {"BODY_MIX", 0.85f},
+             {"ACTIVE_STRINGS", 4.0f}, {"DETUNE_E", 0.0f}, {"DETUNE_A", 204.0f},
+             {"DETUNE_D", -14.0f}, {"DETUNE_G", 182.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"SLOW_LFO_RATE", 0.20f}, {"SLOW_LFO_DEPTH", 0.30f}, {"INFINITE_SUSTAIN", 1.0f},
+             {"SUB_HARMONICS", 0.25f}, {"WIDTH", 1.3f}, {"MASTER_SAT_AMOUNT", 0.50f},
+             {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Scordatura Bass",
+            {{"BOW_SPEED", 0.13f}, {"BOW_PRESSURE", 1.4f}, {"BOW_POSITION", 0.10f},
+             {"BRIGHTNESS", 3600.0f}, {"ROSIN", 0.60f}, {"BOW_NOISE", 0.28f},
+             {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.33f}, {"BODY_MIX", 0.85f},
+             {"ACTIVE_STRINGS", 4.0f}, {"DETUNE_E", -400.0f}, {"DETUNE_A", -200.0f},
+             {"DETUNE_D", 0.0f}, {"DETUNE_G", 200.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"SLOW_LFO_RATE", 0.22f}, {"SLOW_LFO_DEPTH", 0.30f}, {"INFINITE_SUSTAIN", 1.0f},
+             {"SUB_HARMONICS", 0.30f}, {"WIDTH", 1.3f}, {"MASTER_SAT_AMOUNT", 0.50f},
+             {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Sub Drone",
+            {{"BOW_SPEED", 0.10f}, {"BOW_PRESSURE", 1.6f}, {"BOW_POSITION", 0.10f},
+             {"BRIGHTNESS", 1200.0f}, {"OUTPUT_GAIN", -1.0f}, {"ROSIN", 0.55f},
+             {"BOW_NOISE", 0.22f}, {"BODY_SIZE", 0.90f}, {"BODY_DAMPING", 0.35f},
+             {"BODY_MIX", 0.88f}, {"ACTIVE_STRINGS", 2.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"SLOW_LFO_RATE", 0.15f}, {"SLOW_LFO_DEPTH", 0.35f}, {"INFINITE_SUSTAIN", 1.0f},
+             {"SUB_HARMONICS", 0.75f}, {"WIDTH", 1.2f}, {"MASTER_SAT_AMOUNT", 0.55f},
+             {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Dark Pad Bass",
+            {{"BOW_SPEED", 0.09f}, {"BOW_PRESSURE", 0.9f}, {"BOW_POSITION", 0.15f},
+             {"BRIGHTNESS", 2200.0f}, {"ROSIN", 0.50f}, {"BOW_NOISE", 0.20f},
+             {"BODY_SIZE", 0.80f}, {"BODY_DAMPING", 0.65f}, {"BODY_MIX", 0.75f},
+             {"ACTIVE_STRINGS", 4.0f}, {"VIBRATO_DEPTH", 0.0f}, {"VIBRATO_ONSET", 1500.0f},
+             {"SLOW_LFO_RATE", 0.12f}, {"SLOW_LFO_DEPTH", 0.40f}, {"INFINITE_SUSTAIN", 0.85f},
+             {"SUB_HARMONICS", 0.20f}, {"WIDTH", 1.5f}, {"MASTER_SAT_AMOUNT", 0.40f},
+             {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        }
+    };
+
+    // Skew-safe: convert every engineering-unit value to normalized 0..1 through
+    // its NormalisableRange right before seeding. initializeFactoryPresets stores
+    // the normalized value verbatim; applyPresetJson feeds it back via
+    // convertFrom0to1 on load. Only re-seeds when JucePlugin_VersionString changes.
+    for (auto& preset : factoryPresets)
+        for (auto& [id, value] : preset.parameters)
+            if (auto* p = parameters.getParameter (id))
+                value = p->convertTo0to1 (value);
+
+    presetManager.initializeFactoryPresets (factoryPresets);
 }
 
 OContrabassAudioProcessor::~OContrabassAudioProcessor()
@@ -313,25 +504,57 @@ void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 buffer.getWritePointer(ch)[i] *= g;
         }
     }
+
+    // Stage 3 Task 12 — VU feed: post-limiter/post-gain RMS (dB), READ-ONLY tap
+    // AFTER the output-gain loop (the true final signal). Relaxed store; the
+    // editor timer polls at 30 Hz. Never inserts/reorders signal-path
+    // arithmetic — goldens-safe by construction.
+    {
+        const int numSamples = buffer.getNumSamples();
+        const int numChans   = buffer.getNumChannels();
+        if (numSamples > 0 && numChans > 0)
+        {
+            double sumSq = 0.0;
+            for (int ch = 0; ch < numChans; ++ch)
+            {
+                const float* r = buffer.getReadPointer (ch);
+                for (int i = 0; i < numSamples; ++i)
+                    sumSq += static_cast<double> (r[i]) * static_cast<double> (r[i]);
+            }
+            const float rms = std::sqrt (static_cast<float> (
+                sumSq / static_cast<double> (numSamples * numChans)));
+            outputRmsDb.store (juce::Decibels::gainToDecibels (rms, -80.0f),
+                               std::memory_order_relaxed);
+        }
+    }
 }
 
 //==============================================================================
+// Stage 3 Task 8 (D6) — session state routed through OuariconPresetManager so
+// the tuning custom state (intervals/tonic/stretch) survives DAW reload.
+// Backward compatible: getStateAsXml() wraps the SAME APVTS XML root (extra
+// "CustomState" child + "currentPreset" attribute), and setStateFromXml()
+// accepts plain pre-Stage-3 APVTS XML unchanged.
 void OContrabassAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    if (auto xml = parameters.copyState().createXml())
+    if (auto xml = presetManager.getStateAsXml())
         copyXmlToBinary(*xml, destData);
 }
 
 void OContrabassAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
-        parameters.replaceState(juce::ValueTree::fromXml(*xml));
+        presetManager.setStateFromXml(xml.get());
 }
 
 //==============================================================================
 juce::AudioProcessorEditor* OContrabassAudioProcessor::createEditor()
 {
+   #if JUCE_WEB_BROWSER
     return new OContrabassAudioProcessorEditor(*this);
+   #else
+    return nullptr;   // render-harness build (JUCE_WEB_BROWSER=0) — headless
+   #endif
 }
 
 //==============================================================================
@@ -341,6 +564,36 @@ BowedContrabassVoice* OContrabassAudioProcessor::getActiveVoice() noexcept
     if (synth.getNumVoices() == 0)
         return nullptr;
     return dynamic_cast<BowedContrabassVoice*> (synth.getVoice(0));
+}
+
+//==============================================================================
+// Stage 3 Task 13 (D5) — most-recently-started active voice's effective bow
+// state (post-LFO/macro/MPE). All reads are relaxed atomics published by the
+// voices (single-writer audio thread); called from the editor timer @30 Hz.
+OContrabassAudioProcessor::BowStateViz OContrabassAudioProcessor::getBowStateViz() noexcept
+{
+    BowStateViz out { 0.0f, 0.0f, 0.10f, false };
+    juce::uint32 bestOrdinal = 0;
+
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        if (auto* v = dynamic_cast<BowedContrabassVoice*> (synth.getVoice(i)))
+        {
+            if (! v->getVizActive())
+                continue;
+
+            const auto ord = v->getVizStartOrdinal();
+            if (! out.active || ord >= bestOrdinal)
+            {
+                bestOrdinal  = ord;
+                out.active   = true;
+                out.speed    = v->getVizBowSpeed();
+                out.pressure = v->getVizBowPressure();
+                out.beta     = v->getVizBowBeta();
+            }
+        }
+    }
+    return out;
 }
 
 //==============================================================================

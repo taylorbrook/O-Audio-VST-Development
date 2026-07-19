@@ -133,6 +133,12 @@ void BowedContrabassVoice::noteStarted()
     // onset envelope re-arms.
     vibratoOnsetTimerSeconds   = 0.0f;
     noteOffFadeOutTimerSeconds = -1.0f;
+
+    // Stage 3 Task 13 (D5) — viz taps: mark active + take a start ordinal so
+    // the processor can pick the most-recently-started active voice.
+    vizStartOrdinal.store (sVizOrdinalCounter.fetch_add (1, std::memory_order_relaxed) + 1,
+                           std::memory_order_relaxed);
+    vizActive.store (true, std::memory_order_relaxed);
 }
 
 void BowedContrabassVoice::noteStopped (bool allowTailOff)
@@ -163,6 +169,7 @@ void BowedContrabassVoice::noteStopped (bool allowTailOff)
         vibratoOnsetGateAtNoteOff  = 0.0f;
         noteOffFadeOutTimerSeconds = -1.0f;
         lastSafeDepth.store (0.0f, std::memory_order_relaxed);
+        vizActive.store (false, std::memory_order_relaxed);   // Stage 3 Task 13 viz tap
 
         // Phase 2.5 — reset body resonator + bow noise generator state on hard
         // stop (filter state continues across blocks during sustain; only
@@ -357,6 +364,7 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
 
         if (! anyActive)
         {
+            vizActive.store (false, std::memory_order_relaxed);   // Stage 3 Task 13 viz tap
             clearCurrentNote();
             return;
         }
@@ -553,6 +561,14 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
                                  * voiceBowForceUpliftThisBlock);
         for (auto& s : strings)
             s.setBrightness (effectiveBrightnessHz);
+
+        // Stage 3 Task 13 (D5) — publish the effective operating point the bow
+        // model actually receives (post-LFO/macro/MPE) + β for the Schelleng
+        // wedge. READ-ONLY relaxed stores; nothing below consumes them.
+        vizBowSpeed.store    (effectiveBowSpeed * mpeExpression, std::memory_order_relaxed);
+        vizBowPressure.store (effectiveBowPressure * (0.5f + mpePressure * 1.5f)
+                              * voiceBowForceUpliftThisBlock,    std::memory_order_relaxed);
+        vizBowBeta.store     (effectivePosition,                 std::memory_order_relaxed);
     }
 
     // Suppress unused-variable warnings for fields not consumed at this stage

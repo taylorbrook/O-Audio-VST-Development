@@ -173,6 +173,15 @@ struct Args
     // SEMITONES (§24.2.1: kTuningTypeID norm → 240·(v−0.5) plain semitones).
     float        neSemis          = 0.5f;     // Cell 1/3 seeded pending offset
 
+    // Stage 4 (Polish) PERF-02 — CPU/voice benchmark mode. Isolated from every
+    // golden-locked render mode: it uses its OWN sample rate + block size (below),
+    // never the constexpr sampleRate=44100/blockSize=512 the golden modes render at,
+    // and writes NO WAV/JSON. The golden gate is WAV-sha256-only, so this cannot
+    // shift the 19/19 byte-identical invariant.
+    bool         perfMode        = false;
+    double       perfSampleRate  = 44100.0;   // --sample-rate {44100|48000}
+    int          perfBlockSize   = 256;       // --block-size (PERF-02 = 256)
+
     bool         outWavSet   = false;
     bool         outJsonSet  = false;
     bool         sustainSet  = false;
@@ -226,6 +235,7 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--matrix-stability") { args.matrixStabilityMode = true; continue; }
         else if (key == "--sub-harmonics")          { args.subHarmonicsMode      = true; continue; }
         else if (key == "--sub-harmonics-stability") { args.subHarmonicsStability = true; continue; }
+        else if (key == "--perf")                    { args.perfMode              = true; continue; }
 
         if (i + 1 >= argc)
         {
@@ -255,6 +265,9 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--ne-semis")         { args.neSemis           = val.getFloatValue(); }
         else if (key == "--out")              { args.outWav          = val; args.outWavSet  = true; }
         else if (key == "--json")             { args.outJson         = val; args.outJsonSet = true; }
+        // Stage 4 (Polish) PERF-02 — only consumed by --perf mode; golden modes ignore these.
+        else if (key == "--sample-rate")      { args.perfSampleRate  = val.getDoubleValue(); }
+        else if (key == "--block-size")       { args.perfBlockSize   = val.getIntValue(); }
         else
         {
             std::fprintf (stderr, "Unknown arg: %s\n", argv[i - 1]);
@@ -648,6 +661,88 @@ int main (int argc, char** argv)
             args.outWav  = juce::String ("string-") + juce::String::charToString (args.stringOverride) + ".wav";
         if (! args.outJsonSet)
             args.outJson = juce::String ("string-") + juce::String::charToString (args.stringOverride) + ".json";
+    }
+
+    // ─── Stage 4 (Polish) PERF-02 — --perf CPU/voice benchmark ─────────────────
+    // Isolated, self-contained, and returns BEFORE any golden-locked mode. Uses
+    // its own sample rate + block size (args.perfSampleRate/perfBlockSize), writes
+    // NO WAV/JSON → cannot perturb the 19/19 byte-identical golden invariant.
+    //
+    // "Per voice" is free: MPESynthesiser allocates a voice per note-on and idle
+    // voices no-op in renderNextBlock, so ONE sustained note = exactly 1 active
+    // voice. Settings are the APVTS factory defaults ("typical settings" per
+    // PERF-02 = the Cinematic Bass Sustain default landing state), Release build.
+    //
+    // Metric: cpuPct = 100 × medianMicros / (blockSize/sampleRate × 1e6).
+    // Budget @256-block: 5805µs @44.1k, 5333µs @48k → PERF-02 passes if cpuPct < 5.
+    if (args.perfMode)
+    {
+        const double sr  = args.perfSampleRate;
+        const int    bs  = args.perfBlockSize;
+
+        OContrabassAudioProcessor proc;
+        proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sr, bs);
+        proc.prepareToPlay (sr, bs);
+
+        const int   midiNote     = 28;                                   // E1, one voice
+        const int   velMidi      = juce::jlimit (1, 127, (int) std::round (0.7f * 127.0f));
+        const float measureSec   = 10.0f;                                // steady-state window
+        const int   totalSamples = (int) (measureSec * sr);
+        const int   warmupBlocks = 8;                                    // drop cold-start blocks
+
+        juce::AudioBuffer<float> blockBuffer (2, bs);
+        std::vector<double> blockMicros;
+        blockMicros.reserve ((size_t) (totalSamples / bs) + 8);
+
+        int  sampleCursor = 0;
+        bool noteOnSent   = false;
+        int  blockIndex   = 0;
+
+        while (sampleCursor < totalSamples)
+        {
+            const int thisBlock = std::min (bs, totalSamples - sampleCursor);
+            blockBuffer.setSize (2, thisBlock, false, true, true);
+            blockBuffer.clear();
+
+            juce::MidiBuffer midi;
+            if (! noteOnSent)
+            {
+                midi.addEvent (juce::MidiMessage::noteOn (1, midiNote, (juce::uint8) velMidi), 0);
+                noteOnSent = true;
+            }
+
+            const auto t0 = std::chrono::steady_clock::now();
+            proc.processBlock (blockBuffer, midi);
+            const auto t1 = std::chrono::steady_clock::now();
+
+            if (blockIndex >= warmupBlocks)
+                blockMicros.push_back (std::chrono::duration<double, std::micro> (t1 - t0).count());
+
+            sampleCursor += thisBlock;
+            ++blockIndex;
+        }
+
+        std::sort (blockMicros.begin(), blockMicros.end());
+        const double medianMicros = blockMicros.empty() ? 0.0 : blockMicros[blockMicros.size() / 2];
+        const double maxMicros    = blockMicros.empty() ? 0.0 : blockMicros.back();
+        const double budgetMicros = (double) bs / sr * 1.0e6;            // real-time budget per block
+        const double cpuPct       = (budgetMicros > 0.0) ? (100.0 * medianMicros / budgetMicros) : 0.0;
+        const double cpuPctMax    = (budgetMicros > 0.0) ? (100.0 * maxMicros    / budgetMicros) : 0.0;
+        const double rtf          = (medianMicros > 0.0) ? (budgetMicros / medianMicros) : 0.0;
+        const bool   pass         = (cpuPct < 5.0);
+
+        std::printf ("PERF-02 CPU/voice benchmark (1 active voice, E1, APVTS defaults)\n");
+        std::printf ("  sample_rate_hz   : %.1f\n",  sr);
+        std::printf ("  block_size       : %d\n",    bs);
+        std::printf ("  blocks_measured  : %zu (dropped %d warm-up)\n", blockMicros.size(), warmupBlocks);
+        std::printf ("  budget_us_block  : %.2f\n",  budgetMicros);
+        std::printf ("  median_us_block  : %.2f\n",  medianMicros);
+        std::printf ("  max_us_block     : %.2f\n",  maxMicros);
+        std::printf ("  cpu_pct_median   : %.3f %%\n", cpuPct);
+        std::printf ("  cpu_pct_max      : %.3f %%\n", cpuPctMax);
+        std::printf ("  realtime_factor  : %.2fx\n", rtf);
+        std::printf ("  PERF-02 (<5%% median): %s\n", pass ? "PASS" : "FAIL");
+        return pass ? 0 : 1;
     }
 
     constexpr double sampleRate = 44100.0;

@@ -24,7 +24,10 @@ lastUpdated: 2026-07-10  # Stage 2 full verify (Q10): all stage-2 requirements p
 <!-- Stage 2 verify 2026-07-10: 60 s sustain goldens (slow-lfo 60 s, saturator-tail-comparison 60 s + 5 s post-bow-off release window) byte-deterministic with nanCount=0; natural bow-lift tail characterised by the 65-bin decay-envelope analyser (Phase 2.4c/2.4c-bis/2.5 three-evidence base, ARCHITECTURE §"In-loop saturator" amendment); R38 Logic AU audition CONFIRMED "convincing orchestral arco bass" (Phase 2.5). No artifacts across 108-combo post-body matrix. -->
 
 | FUNC-03 | Plays both convincing orchestral arco sustains and ambient drone material from the same engine | must | pending | stage-4 |
-| FUNC-04 | Includes orchestral preset bank (Cinematic, Section, Solo Arco, Pianissimo, Forte) and drone preset bank (Infinite Drone, Just-Intoned, Scordatura, Sub Drone, Dark Pad) | should | pending | stage-4 |
+<!-- Stage 4 verify 2026-07-15: HUMAN GATE — subjective A/B, cannot auto-verify. AUDITION.md rig authored (P1 orchestral vs Spitfire/CSS/VSL, P3 drone vs O'Malley/Conrad, P4 preset A/B one-instance); DSP substrate green (19/19 goldens, Cinematic + Infinite Drone presets seed correctly). Awaiting user CONFIRM/REVISE in Logic. -->
+| FUNC-04 | Includes orchestral preset bank (Cinematic, Section, Solo Arco, Pianissimo, Forte) and drone preset bank (Infinite Drone, Just-Intoned, Scordatura, Sub Drone, Dark Pad) | should | complete | stage-4 |
+<!-- Stage 4 verify 2026-07-15: 10 FactoryPresetDefs (PluginProcessor.cpp ctor) seed to ~/Library/O-Contrabass/Presets/Factory/ — all 10 present on disk. Skew-safe convertTo0to1 loop verified end-to-end: Forte Bass BOW_PRESSURE 0.629465 = ((3.2−0.05)/(8.0−0.05))^0.5 → recalls 3.2; DETUNE_A 0.585 = (204+1200)/2400 → +204¢, D 0.494166 → −14¢, G 0.575833 → +182¢; TUNING_SYSTEM 1.0 = choice idx 2 (12-TET); NOTE_EXPRESSION 1.0. STRING_TENSION omitted → inert 0.5. Drone presets carry explicit TUNING_SYSTEM/NOTE_EXPRESSION (WR-01 reset-safe). Deliverable complete + objectively correct; subjective ×8 QA (AUDITION.md) is an optional non-blocking refinement loop. -->
+
 | FUNC-05 | MPE per-note pitch / pressure (Z) / slide (Y) controls bow expression in real time | should | complete | stage-2 |
 <!-- Stage 2 verify 2026-07-10: per-note pitch = MPE legacy pitch-bend ±24 semi (Gate 8b microtonal-mpe golden, notePitchbendChanged cache re-use per Q17); Y → BOW_POSITION bipolar ±0.05 clamped + Z → BOW_PRESSURE ×(0.5+1.5·Z) adopted at shipped calibrations (Gate 8c ESCALATION-YZ1 Option A; mpe-yz golden 56bd0356… with CC74 Y-centroid + channel-pressure Z-RMS + max-Z stress cell STABLE). Linnstrument/Seaboard hardware audition rolls to Stage 4 per CONTEXT rev-11. -->
 | FUNC-06 | VST3 Note Expression for Dorico microtonal playback (Ouaricon convention) | must | complete | stage-2 |
@@ -65,14 +68,18 @@ lastUpdated: 2026-07-10  # Stage 2 full verify (Q10): all stage-2 requirements p
 <!-- Phase 2.4c-bis 2026-04-29: in-loop saturator port (x/sqrt(1+x²) → 4·tanh(x/4)) subtly shifts vibrato envelope post-port — vibrato.wav.sha256 re-baselined to df7384e3… (CONTEXT rev-9-bis carry-forward conditional NOT taken). Post-port peakDepthCents at default ~7.95¢ vs pre-port 9.53¢ per R37-bis Logic AU audition sequence 5 DOCUMENT (further widens Phase 2.4c deviation #6 metric-side mismatch). Phase 2.4-bis backlog: DSP-09 VIBRATO_DEPTH transfer tune (additive — restore peakDepthCents to 10–14¢ strict band post-port; saturator topology change reduces friction-junction excitation amplitude → vibrato modulation transfer attenuated). -->
 | DSP-10 | Slow expressive attack characteristic — bow-on-string transient is long and natural for legato playing | must | partial | stage-2 |
 <!-- Stage 2 verify 2026-07-10: DSP evidence in place — R38 Logic AU audition (Phase 2.5) confirmed convincing arco character; no hard note-on transient introduced by output chain (Gate 8a); onset ramp measured at 1168 ms on the VIBRATO_ONSET architectural ramp. Final subjective character confirmation EXPLICITLY ROLLS TO STAGE-4 audition per CONTEXT rev-11 (subjective bar, alongside FUNC-03 reference-library A/B). -->
+<!-- Stage 4 verify 2026-07-15: DSP substrate re-confirmed (19/19 goldens byte-identical; 1168 ms onset unchanged; no note-on click). HUMAN GATE — final subjective slow-attack sign-off = AUDITION.md P2, NOT yet run. Awaiting user CONFIRM/REVISE. -->
+
 
 
 ### UI (UI)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Logical groupings for Bow, Body, Strings (incl. per-string detune), Expression, Drone, Output, Microtonal sections | should | pending | stage-3 |
-| UI-02 | Visual style supports dual cinematic-orchestral and drone-experimental identity (TBD in mockup phase) | nice | pending | stage-3 |
+| UI-01 | Logical groupings for Bow, Body, Strings (incl. per-string detune), Expression, Drone, Output, Microtonal sections | should | complete | stage-3 |
+<!-- Stage 3 verify 2026-07-11: all 7 sections in single-view grid at 1000x650 (setSize PluginEditor.cpp:627), 4 detune fine-tuners in Strings, microtonal footer strip + full Tuning tab (D3). 31/31 bindings live; bridge gate 32 JS = 32 C++; ui_frontend_check 14/14. VERIFICATION.md in stages/3-gui/. -->
+| UI-02 | Visual style supports dual cinematic-orchestral and drone-experimental identity (TBD in mockup phase) | nice | complete | stage-3 |
+<!-- Stage 3 verify 2026-07-11: O-Bowed parchment family with darkened bass palette per finalized mockup v1 (commit 19f51d9); Drone section "awake" glow at INFINITE_SUSTAIN/SUB_HARMONICS > 0. Final visual QA in Logic rolls into Stage 4 DAW pass (non-blocking, Stage-2 precedent). -->
 
 ### Performance (PERF)
 
@@ -81,7 +88,9 @@ lastUpdated: 2026-07-10  # Stage 2 full verify (Q10): all stage-2 requirements p
 | PERF-01 | Real-time safe audio processing — no allocations, no locks, no file I/O in processBlock | must | complete | stage-2 |
 <!-- Stage 2 verify 2026-07-10: pluginval-10 full battery (Parameter thread safety + Background thread state + Buffer fuzz) SUCCESS at every gate through 8c and re-confirmed at this verify. RT contracts durable as HR-12 (tuning table: std::array<std::atomic<double>,128> per-slot writes, no mutex/alloc/IO) + HR-13 (NE drain once per processBlock entry, lock-free queue + atomic consume; steady-state alloc-free per module contract). CR-01 code-review fix landed ArrayCoefficients zero-alloc biquad path in BodyResonator. -->
 
-| PERF-02 | CPU under 5% per voice on a modern laptop at typical settings (44.1/48 kHz, 256 sample buffer) | should | pending | stage-4 |
+| PERF-02 | CPU under 5% per voice on a modern laptop at typical settings (44.1/48 kHz, 256 sample buffer) | should | complete | stage-4 |
+<!-- Stage 4 verify 2026-07-15: render-harness --perf mode (isolated, writes no WAV → cannot perturb goldens). Measured Release, defaults, 1 voice, 256-block: 0.615% @44.1k (budget 5805µs, median 35.71µs) / 0.663% @48k (budget 5333µs, median 35.38µs) — far under 5%. First house RTF/CPU% number; method reusable. Logic CPU-meter spot-read is optional corroboration (human gate), not the metric. -->
+
 | PERF-03 | Zero algorithmic latency (waveguide is causal) | nice | complete | stage-2 |
 <!-- Stage 2 verify 2026-07-10: waveguide is causal; limiter is zero-look-ahead feedforward (Q4 LOCKED); master saturator + width are zero-delay. Sole residual is the 2x polyphase-IIR oversampler's anti-aliasing group delay (a few samples, correctly reported via setLatencySamples(ceil(getOversamplingLatency())) — PluginProcessor.cpp:239; invariant verified unchanged at Gates 8a/8b/8c). -->
 
@@ -92,8 +101,12 @@ lastUpdated: 2026-07-10  # Stage 2 full verify (Q10): all stage-2 requirements p
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation at strictness 10 (VST3 and AU on macOS, VST3 on Windows) | must | partial | stage-1 |
 <!-- Stage 2 verify 2026-07-10: macOS VST3 pluginval-10 SUCCESS + auval AU VALIDATION SUCCEEDED at every gate (R34h → R41e) and re-confirmed at this verify. Remaining: Windows VST3 pluginval-10 — owned by Stage 4 / CI publishing pipeline (no Windows build yet). -->
+<!-- Stage 4 verify 2026-07-15: macOS VST3 pluginval-10 re-confirmed SUCCESS (exit 0) + auval SUCCEEDED. Windows path AUTHORED in build-and-release.yml (workflow_dispatch + validate_only gate + Windows pluginval v1.0.3 --strictness-level 10 --timeout-ms 600000, log artifact). NOT yet dispatched — outward-facing + user holds release. HUMAN GATE: push + `gh workflow run build-and-release.yml -f plugin_name=O-Contrabass -f validate_only=true`, confirm Windows build + pluginval-10 pass AND WebView UI not blank. No public Release published on this path. -->
+
 
 | COMPAT-02 | Loads and plays correctly in Dorico (Note Expression microtonal playback verified) | must | pending | stage-4 |
+<!-- Stage 4 verify 2026-07-15: Dorico .doricolib bundle authored + STRUCTURALLY verified — Resources/dorico/ 5 files, 3 XML well-formed (xmllint), load-bearing pair <pitchBendRange>2 + <microtonalPlaybackMethod>kVST3NoteExpression present per ExpressionMapDefinition (critical_dorico_microtonal_top_level_fields), pluginID ABCDEF019182FAEB4F7544764F436273 (dev CID) consistent across ID chain, single pt.natural technique, kNoteVelocity dynamics, comment safely inside <kScoreLibrary>. CMake install(DIRECTORY) rule present. HUMAN GATE — TC-4 24-EDO quarter-sharp end-to-end playback in Dorico (SMOKE-TEST.md) NOT run; the only check that catches a dropped top-level microtonal field. Awaiting user. -->
+
 
 ### Quality (QUAL)
 

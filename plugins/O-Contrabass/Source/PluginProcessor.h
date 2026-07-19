@@ -16,6 +16,7 @@
 #include "DSP/StereoWidth.h"
 #include "TuningEngine.h"
 #include "NoteExpression.h"
+#include "OuariconPresetManager.h"
 
 class BowedContrabassVoice;     // Phase 2.3 R29 forward decl — used by getActiveVoice()
 
@@ -66,6 +67,25 @@ public:
     // FileChooser).
     TuningEngine* getTuningEngine() noexcept { return &tuningEngine; }
     bool loadScalaFile (const juce::File& sclFile);
+
+    // Stage 3 Task 8 (D6) — preset persistence (preset-manager v1.0.4, CMake
+    // include of the canonical module dir). Custom save/load callbacks round-
+    // trip tuning-engine state (intervals, scale name, tonic, octave stretch)
+    // — wired in the constructor.
+    OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
+
+    // Stage 3 Task 12 — post-limiter/post-gain output RMS (dB) for the UI VU
+    // meter. Relaxed-atomic read-only tap stored at the END of processBlock
+    // (after the output-gain loop) — never feeds back into the signal path.
+    float getOutputRmsDb() const noexcept { return outputRmsDb.load (std::memory_order_relaxed); }
+
+    // Stage 3 Task 13 (D5) — DSP-true bow operating point for the Schelleng
+    // wedge dot. Scans per-voice relaxed viz atomics and returns the
+    // most-recently-started ACTIVE voice's effective state (fixes the
+    // getActiveVoice() voice-0 hardcode for viz purposes; kNumVoices = 4).
+    // Defined in PluginProcessor.cpp where BowedContrabassVoice is visible.
+    struct BowStateViz { float speed; float pressure; float beta; bool active; };
+    BowStateViz getBowStateViz() noexcept;
 
     // Phase 2.6c R41a — VST3 Note Expression (kTuningTypeID, Dorico microtonal
     // playback). Backed by note-expression module v1.1.0 (D-09 pattern,
@@ -132,6 +152,15 @@ private:
     std::atomic<float>* limiterCeilingParam = nullptr;
     std::atomic<float>* widthParam          = nullptr;
     std::atomic<float>* outputGainParam     = nullptr;
+
+    // Stage 3 Task 8 (D6) — declared AFTER `parameters` (public, above) so the
+    // APVTS reference handed to the manager is valid at construction time.
+    // Presets live in ~/Library/O-Contrabass/Presets/ (module convention).
+    OuariconPresetManager presetManager { parameters, "O-Contrabass" };
+
+    // Stage 3 Task 12 — VU feed (single writer: audio thread; reader: editor
+    // timer @30 Hz). -80 dB = meter silence floor.
+    std::atomic<float> outputRmsDb { -80.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OContrabassAudioProcessor)
 };

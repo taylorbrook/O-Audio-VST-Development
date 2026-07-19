@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<playbackTemplateSpec>
+    <fileVersion>1.1416</fileVersion>
+    <playbackTemplateSpecID>playbacktemplate.user.o_contrabass</playbackTemplateSpecID>
+    <name>O-Contrabass</name>
+    <creator>Ouaricon Audio</creator>
+    <description>Loads O-Contrabass, a sustained-arco solo contrabass physical model, on contrabass / upright-bass staves. Routing is driven by the endpoint config's instrument list (instrument.strings.contrabass, instrument.strings.contrabass.d, instrument.strings.uprightbass); the empty spec-level instrumentFamilies/instruments fields are vestigial (parsed but not consulted). Microtonal pitch routes via VST3 Note Expression (kTuningTypeID); dynamics via note velocity. NoteExpression-only — no keyswitches. Non-bass staves are not routed by this template (solo-instrument add-on); apply a full template alongside for a mixed score, or assign O-Contrabass per stave via the Mixer.</description>
+    <version>1</version>
+    <associatedSpaceTemplateID/>
+    <entries array="true">
+        <entry>
+            <instrumentFamilies/>
+            <instruments/>
+            <endpointConfig>
+                <configID>endpointconfig.user.o_contrabass</configID>
+            </endpointConfig>
+        </entry>
+    </entries>
+</playbackTemplateSpec>

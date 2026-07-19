@@ -1,20 +1,186 @@
 ---
 plugin: O-Contrabass
-stage: 3
-phase: discuss
-status: stage_3_gui_mockup_v1_finalized_ready_for_research
-last_updated: 2026-07-10
+stage: 4
+phase: verify
+status: stage_4_polish_verify_partial_human_gates_pending
+last_updated: 2026-07-15
 complexity_score: 5.0
 complexity_score_raw: 16.0
 complexity_tier: 6
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-cycle_scope: stage_3_gui_mockup_gate_satisfied_v1_finalized_19f51d9
-next_action: stage_3_gui_research
+cycle_scope: stage_4_polish_verify_partial
+next_action: complete_4_human_gates_then_install_or_publish
+stage_4_verify_carry_forward: |  # rev-40 STATUS append for audit trail
+  Stage 4 (Polish) VERIFY 2026-07-15 — verdict ⚠️ PARTIAL. VERIFICATION.md in
+  .planning/stages/4-polish/. AUTOMATED BAR RE-RUN FRESH, ALL GREEN:
+  19/19 render goldens byte-identical (frozen-DSP invariant HELD); auval
+  `aumu OCbs OuDv` SUCCEEDED; pluginval-10 macOS VST3 SUCCESS (exit 0, 0 fails);
+  ui_frontend_check 14/14; bridge gate 32=32; PERF-02 0.615% @44.1k / 0.663%
+  @48k (<5%, PASS); 10 factory presets SEEDED to disk + skew round-trip EXACT
+  (Forte BOW_PRESSURE 0.629465→3.2, DETUNE_A 0.585→+204¢, TUNING_SYSTEM 1.0=idx2
+  12-TET, NOTE_EXPRESSION 1.0); Dorico bundle 5 files well-formed + load-bearing
+  microtonal pair + ID chain consistent + CMake install rule; CI validate-only +
+  Windows pluginval-10 authored (YAML valid); docs reconciled (CHANGELOG 1.0.0,
+  compiled ver 1.0.0, parameter-spec 4-voice, NOTES deferrals, registry 1.0.4).
+  REQUIREMENTS promoted: FUNC-04 → complete (delivery objectively correct),
+  PERF-02 → complete (measured). FOUR HUMAN GATES REMAIN (cannot auto-complete,
+  block final v1.0.0 ship sign-off): (1) COMPAT-01 Windows pluginval-10 via CI —
+  push + `gh workflow run build-and-release.yml -f plugin_name=O-Contrabass
+  -f validate_only=true` (outward-facing, release HELD — user triggers); (2)
+  COMPAT-02 Dorico TC-4 24-EDO quarter-sharp smoke test (SMOKE-TEST.md, P0);
+  (3) FUNC-03/DSP-10 subjective sign-off (AUDITION.md in Logic); (4) 5 Logic
+  manual checks + Logic CPU spot-read (PERF-02 corroboration). NOTHING
+  committed/pushed. Stale non-shadowing AU variants (pre-2-5-dev / pre-port)
+  optional cleanup. v1.1 deferral list untouched (goldens byte-identical).
+stage_4_execute_carry_forward: |  # rev-39 STATUS append for audit trail
+  Stage 4 (Polish) EXECUTE complete 2026-07-15. SUMMARY.md in
+  .planning/stages/4-polish/. Gate 3-gui→4-polish PASSED. DSP-FROZEN invariant
+  HELD end-to-end: 19/19 render goldens byte-identical after every edit.
+  DELIVERED: (A) 10 factory presets in PluginProcessor.cpp ctor (5 orch + 5 drone),
+  engineering-units + skew-safe convertTo0to1 loop; verified round-trip exact
+  (Forte Bass BOW_PRESSURE stores 0.629465 = ((3.2-0.05)/7.95)^0.5 → recalls 3.2);
+  STRING_TENSION omitted (inert 0.5); drone presets carry explicit TUNING_SYSTEM=2/
+  NOTE_EXPRESSION=1; Just-Intoned DETUNE_A=+204/D=-14/G=+182, Scordatura C-G-D-A.
+  (B) Dorico bundle Resources/dorico/ (5 files + CMake install rule) via dorico-agent:
+  load-bearing <pitchBendRange>2 + <microtonalPlaybackMethod>kVST3NoteExpression
+  present, kNoteVelocity, single pt.natural, pluginID ABCDEF019182FAEB4F7544764F436273
+  (dev), ID chain byte-consistent, comment inside kScoreLibrary. (C) Windows CI:
+  workflow_dispatch validate-only path + Windows pluginval-10 step authored in
+  build-and-release.yml (YAML valid) — NOT yet pushed/dispatched (outward-facing,
+  release held). (D) PERF-02 --perf harness mode: 0.587% @44.1k / 0.652% @48k
+  CPU/voice, 256-block, defaults — PASS (<5%). (E) AUDITION.md probe table authored.
+  (F) docs: CHANGELOG→[1.0.0], parameter-spec voice count fixed, NOTES v1.1 deferrals,
+  registry.yaml preset-mgr 1.0.2→1.0.4. Local automated bar GREEN: goldens 19/19,
+  auval SUCCEEDED, pluginval-10 macOS SUCCESS, ui_frontend_check 14/14, bridge 32=32.
+  O-Contrabass-dev VST3+AU reinstalled. NOTHING committed/pushed.
+  VERIFY-STAGE HUMAN GATES (cannot auto-complete): (1) Windows pluginval-10 via CI —
+  push + gh workflow run build-and-release.yml -f plugin_name=O-Contrabass
+  -f validate_only=true (COMPAT-01); (2) Dorico TC-4 24-EDO quarter-sharp smoke test
+  (COMPAT-02 P0); (3) FUNC-03/DSP-10/FUNC-04 subjective sign-off via AUDITION.md in
+  Logic; (4) 5 Logic manual checks carried from Stage 3 + Logic CPU spot-read
+  (PERF-02 corroboration). Flag: stale AU variants O-Contrabass-pre-2-5-dev /
+  -pre-port installed (non-shadowing, different subtypes) — optional cleanup.
 latest_mockup_version: 1
 mockup_finalized: true
 finalized_version: 1
+stage_4_discuss_carry_forward: |  # rev-38 STATUS append for audit trail
+  Stage 4 (Polish) DISCUSS complete 2026-07-14. CONTEXT.md written to
+  .planning/stages/4-polish/. Stage 4 verifies the four traceability-assigned
+  requirements: FUNC-03 (dual orchestral/drone A/B, subjective), FUNC-04 (10
+  presets: 5 orchestral + 5 drone), PERF-02 (CPU <5% Apple Silicon), COMPAT-02
+  (Dorico NE microtonal playback). Also closes COMPAT-01 remainder (Windows VST3
+  pluginval-10). DSP-10 subjective attack confirmation promoted alongside FUNC-03.
+  FOUR USER DECISIONS: (1) Release scope = VALIDATE CROSS-PLATFORM, HOLD public
+  release — Windows build+pluginval-10 via CI IS in scope (COMPAT-01 gate), but
+  plugin-publishing (GitHub release) + plugin-packaging (PKG) are OUT of scope
+  this stage; user decides release after audition. (2) Manual DAW test set =
+  Logic Pro + Dorico ONLY (5 carried human checks all run in Logic; other DAWs
+  delegated to automated pluginval-10 + auval). (3) Dorico distribution = FULL
+  .doricolib Playback Template bundle (bare .doricoexpmap NOT auto-ingested per
+  critical_dorico_distribution_mechanism; delegate to dorico-agent; cross-check
+  critical_dorico_microtonal_top_level_fields — top-level <pitchBendRange> +
+  <microtonalPlaybackMethod>kVST3NoteExpression LOAD-BEARING). (4) Presets =
+  Claude authors all 10, user auditions+tweaks in execute (Spitfire/CSS
+  orchestral refs, O'Malley/Conrad drone refs). CONSTRAINTS: DSP FROZEN — 19/19
+  render goldens byte-identical invariant holds through stage; preset authoring
+  writes STATE not DSP arithmetic. Preset gotchas to apply:
+  pattern_preset_apply_needs_reset_to_defaults +
+  pattern_factory_preset_normalized_ignores_skew (6 skewed params: BOW_SPEED,
+  BOW_PRESSURE, BRIGHTNESS, VIBRATO_RATE, SLOW_LFO_RATE, REFERENCE_PITCH —
+  author in engineering units + convertTo0to1). LOCKED v1.1 deferrals NOT to
+  touch: STRING_TENSION inert (D2), .tun parser (D1), DSP-07 subharmonic retune,
+  DSP-08 slow-LFO breathing, DSP-09 vibrato depth, MTS-ESP stub (FUNC-07),
+  registry.yaml R5 staleness. Version: ship v1.0.0 (collapse 1.x-dev engine
+  track). Five open questions for research: preset format/storage +
+  factory-vs-user location, minimal .doricolib schema for NE-only sustained-arco
+  instrument, Windows CI matrix path (never Windows-built despite flags), PERF-02
+  benchmark method, A/B reference audition rig.
+stage_3_verify_carry_forward: |  # rev-37 STATUS append for audit trail
+  Stage 3 (GUI) VERIFY complete 2026-07-11 — verdict VERIFIED, VERIFICATION.md
+  written to .planning/stages/3-gui/. Entire automated bar RE-RUN fresh at
+  verify (not inherited): 19/19 goldens byte-identical (3rd green run), auval
+  aumu OCbs OuDv SUCCEEDED, pluginval strictness-10 SUCCESS at DEFAULT timeout
+  (warm run — confirms execute's first-run Editor Automation timeout was a
+  cold-WKWebView flake, not a defect), ui_frontend_check.js 14/14, bridge gate
+  32 JS = 32 C++ zero asymmetry. Code-inspection spot checks all pass:
+  createEditor #if JUCE_WEB_BROWSER guard, editor out of harness sources,
+  relays(31)->webView->attachments(31) member order, SafePointer +
+  bare-return-on-null in ALL FileChooser completions, withUserDataFolder,
+  TuningPanel receives Juce ES namespace (window.__JUCE__ only for event
+  receive), loadEmbeddedTuning appends period. REQUIREMENTS.md: UI-01 + UI-02
+  promoted pending->complete. Five human DAW checks carried as Stage-4 ENTRY
+  items (non-blocking, Stage-2 precedent): Logic Release editor x10, 31-param
+  interaction + 6 skewed-param generic-view spot check, picker UAF scenario,
+  Logic smoke (E1 drone / BOW_SPEED automation / project reload), visual QA.
+  Windows build still unexercised (flags in place since Stage 1) -> Stage 4/CI.
+  Stage 4 scope carriers: Dorico distribution artifacts (D4), STRING_TENSION
+  inert (D2->v1.1), TUN parser (D1->v1.1), registry.yaml staleness (R5).
+stage_3_execute_carry_forward: |  # rev-36 STATUS append for audit trail
+  Stage 3 (GUI) EXECUTE complete 2026-07-11. All 16 tasks done on the
+  automatable surface (SUMMARY.md in .planning/stages/3-gui/). Regression bar:
+  19/19 goldens byte-identical (baseline + stage exit), auval SUCCEEDED
+  (aumu OCbs OuDv), pluginval strictness-10 SUCCESS (first-run Editor
+  Automation timeout = cold WKWebView flake, warm runs pass at default
+  timeout), ui_frontend_check.js 14/14, bridge gate 32 JS = 32 C++. Decisions
+  D1-D7 applied; 5 documented deviations (canonical-path binary-data embed
+  instead of vendored copies; prev/next return-name-only; spectrum fMax 1600;
+  session state through OuariconPresetManager getStateAsXml/setStateFromXml;
+  rAF gating while Tuning tab active). Manual-DAW checks pending for verify:
+  Logic editor open/close x10 Release, 31-param DAW interaction + 6 skewed-
+  param generic-view spot check, picker UAF scenario, Logic smoke, visual QA.
+stage_3_plan_carry_forward: |  # rev-35 STATUS append for audit trail
+  Stage 3 (GUI) PLAN complete 2026-07-10. PLAN.md rev-1 written to
+  .planning/stages/3-gui/ — 16 tasks across Phases 3.1 (harness protection +
+  layout + bindings, T1-T5), 3.2 (interaction + presets + tuning tab, T6-T11),
+  3.3 (visualizations, T12-T15) + exit bar (T16). 7 locked decisions: (D1) R2
+  .tun → picker restricted to .scl v1.0, TUN parser verified ABSENT in
+  TuningEngine 2.1.0, fleet-wide v1.1 module-upgrade backlog (O-Bowed:352 /
+  O-Wind:341 ship same dead filter); (D2) R4 STRING_TENSION ships inert
+  USER-CONFIRMED, annotated NOTES/CHANGELOG, DSP wiring v1.1 (default 0.5 not
+  no-op, goldens re-baseline required); (D3) USER SCOPE EXPANSION at plan —
+  full Tuning tab in v1.0 (supersedes research's strip-only): canonical
+  tuning-panel.js + snippets/tuning-panel.css, Main/Tuning tab bar in 42px
+  header per O-MicrotonalSampler index.html:38-40, hosted `new
+  TuningPanel(container, Juce)` — Juce ES namespace NEVER window.__JUCE__,
+  ~20 tuning native fns per O-Wind PluginEditor.cpp:191-510, REFERENCE_PITCH↔
+  masterTune + TUNING_SYSTEM↔panel-mode coherence both directions; controlled
+  mockup amendment, NO ui-mockup re-run (Main-tab DOM untouched); (D4) Dorico
+  = DSP already live (2.6c NE), UI adds tuning tab + NE toggle only;
+  Playback-Template/.doricolib distribution → Stage 4 packaging; (D5) R3
+  bowState = per-voice relaxed atomics + most-recent-started-active selection
+  (fixes getActiveVoice voice-0 hardcode); (D6) preset-manager v1.0.4 CMake-
+  include + canonical JS bar (10 fns); (D7) body spectrum pure-JS recompute
+  from BodyResonator.h:65-70 truth tables (R1 fix in T14). Native-fn surface
+  grows 2→≈32: T11 bridge grep-diff gate + ui_frontend_check.js port
+  MANDATORY. Harness §0 unchanged DO-FIRST (T1): guard createEditor, drop
+  editor from harness, 19-entry goldens at execute start AND stage exit.
+stage_3_research_carry_forward: |  # rev-34 STATUS append for audit trail
+  Stage 3 (GUI) RESEARCH complete 2026-07-10 (DEEP, 4 parallel sweeps: O-Bowed
+  reference / O-Contrabass DSP feed points / mockup v1 artifacts / shared-module
+  survey). RESEARCH.md written to .planning/stages/3-gui/. All 5 CONTEXT open
+  questions answered: (Q1) eventing = mockup's 30 Hz editor Timer +
+  emitEventIfBrowserIsVisible (fleet standard; O-Bowed's 15 Hz JS-poll is the
+  OLD pattern, not copied); (Q2) wedge bounds stay closed-form in JS (Phase-2.3
+  math was removed in 2.4a; empirical SchellengCalibration table is not
+  display-suitable), dot gets a recommended bowState atomic feed tracking
+  effectiveBowSpeed/Pressure/beta post-LFO/macro/MPE (BowedContrabassVoice.cpp
+  519-556, 878); (Q3) body spectrum = pure JS recompute from BodyResonator
+  formulas, NO data feed; (Q4) preset-manager ADOPT in 3.2 at v1.0.4 via O-Wind
+  CMake-include pattern (registry.yaml's 1.0.2 is stale); (Q5) 1000x650 fixed
+  settled by mockup. Mockup verified: all 31 bindings 1:1 vs parameter-spec,
+  only vuLevel feed is fake (-20 dB placeholder); tap goes AFTER output-gain
+  loop (PluginProcessor.cpp:315). 7 risks flagged for plan: R1 mockup body-mode
+  table != BodyResonator kDefaultFreq truth (must fix in 3.3); R2 .tun loader
+  absent while picker advertises it; R3 getActiveVoice() hardcodes voice 0 vs
+  kNumVoices=4; R4 STRING_TENSION has NO DSP consumer (inert knob — user
+  decision, default 0.5 is not a no-op if wired later); R5 registry.yaml
+  version staleness; R6 verify withUserDataFolder in scaffolding; R7 yaml/HTML
+  mockup inconsistencies (HTML wins). ui_frontend_check.js exists ONLY under
+  backups/O-MicrotonalSampler/v1.23.7 — port as template. Harness §0 DO-FIRST
+  unchanged: guard createEditor, drop editor from harness, 19-entry goldens at
+  execute start AND before verify.
 stage_3_discuss_carry_forward: |  # rev-33 STATUS append for audit trail
   Stage 3 (GUI) DISCUSS complete 2026-07-10. CONTEXT.md rev-1 written to
   .planning/stages/3-gui/. Decisions: (1) ui-mockup workflow FIRST (mockup is

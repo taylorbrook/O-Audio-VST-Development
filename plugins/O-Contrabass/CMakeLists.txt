@@ -47,6 +47,10 @@ target_include_directories(O-Contrabass PRIVATE
     Source
     Source/DSP
     ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/cpp
+    # Stage 3 Task 8 (D6) — preset-manager v1.0.4, canonical module include
+    # (O-Wind pattern; header-only OuariconPresetManager.h — stays current,
+    # no vendored-copy drift).
+    ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/cpp
 )
 
 # Required JUCE modules (canonical list — matches O-Bells / O-Bowed)
@@ -83,6 +87,36 @@ target_compile_definitions(O-Contrabass
         JUCE_USE_CURL=0
 )
 
+# -----------------------------------------------------------------------------
+# WebView UI resources (Stage 3) — embedded as binary data, served by the
+# editor's resource provider (bare-path lookups: "/", "/index.html",
+# "/js/juce/*.js").
+#
+# GOTCHA (MEMORY: critical_dual_binary_data_namespace_collision): if a SECOND
+# juce_add_binary_data target is ever added, give one a distinct NAMESPACE —
+# two targets defaulting to `BinaryData` collide at link time. O-Contrabass
+# has only this one, so the default BinaryData namespace is fine and matches
+# the `#include "BinaryData.h"` in PluginEditor.cpp.
+# -----------------------------------------------------------------------------
+juce_add_binary_data(OContrabass_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        # Stage 3 Tasks 8/9 — canonical shared-module JS/CSS embedded directly
+        # from the module tree (O-Wind pattern: no vendored copy → no drift).
+        # Served by the resource provider as /js/preset-manager.js,
+        # /js/tuning-panel.js, /css/tuning-panel.css.
+        ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/js/tuning-panel.js
+        ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/snippets/tuning-panel.css
+)
+
+target_link_libraries(O-Contrabass
+    PRIVATE
+        OContrabass_UIResources
+)
+
 # Module system integration
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
@@ -100,3 +134,22 @@ option(OUARICON_BUILD_TESTS "Build test harness binaries (e.g. O-Contrabass-rend
 if(OUARICON_BUILD_TESTS)
     add_subdirectory(tests/render-harness)
 endif()
+
+# ----------------------------------------------------------------------------
+# Stage 4 (Task 5) — ship the Dorico Playback Template bundle in the package.
+# Without this rule the EndpointConfig / PlaybackTemplateSpec / .doricolib +
+# install docs never leave the source tree, so `cmake --install` (and any
+# packaging step) would omit the Dorico integration entirely.
+#
+# Installs the whole Resources/dorico/ subtree (no trailing slash on the source
+# → the `dorico` folder itself is preserved under the destination):
+#   <prefix>/share/O-Contrabass/dorico/EndpointConfigs/O-Contrabass/...
+#   <prefix>/share/O-Contrabass/dorico/PlaybackTemplateSpecs/O-Contrabass/...
+#   <prefix>/share/O-Contrabass/dorico/INSTALL-DORICO.md, SMOKE-TEST.md
+# End users then follow INSTALL-DORICO.md to copy the three files into their
+# Dorico user library. Additive only — does not touch the plugin target,
+# compile definitions, or WebView config.
+# ----------------------------------------------------------------------------
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Resources/dorico"
+    DESTINATION "share/O-Contrabass"
+    COMPONENT Dorico)
