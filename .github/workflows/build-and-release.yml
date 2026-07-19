@@ -31,12 +31,12 @@ on:
         type: boolean
 
 env:
-  # JUCE 8.0.9 — matches the local dev install. The note-expression module
+  # JUCE 8.0.14 — matches the local dev install. The note-expression module
   # requires JUCE-NE-PATCH markers in two upstream files (Dorico microtonal
   # kNoteExpressionValueEvent surfacing). Rather than apply a brittle patch
   # to vanilla JUCE on each runner, we vendor the two patched files in
   # vendored/JUCE-overrides/ and copy them over the JUCE download below.
-  JUCE_VERSION: '8.0.9'
+  JUCE_VERSION: '8.0.14'
   BUILD_TYPE: Release
 
 jobs:
