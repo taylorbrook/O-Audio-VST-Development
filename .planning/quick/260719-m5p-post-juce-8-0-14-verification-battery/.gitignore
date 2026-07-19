@@ -1,0 +1,5 @@
+# Runtime sweep logs (per-plugin build/auval/pluginval output + pluginval XML).
+# The machine-readable results live in the committed *.tsv files; these verbose
+# logs are regenerable evidence, not tracked artifacts.
+battery-logs/
+harness-logs/

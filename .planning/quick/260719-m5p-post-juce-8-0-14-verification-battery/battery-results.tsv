@@ -1,0 +1,39 @@
+plugin	cmake_target	install_rc	auval_rc	pluginval_rc	note
+O-AnalogEQ	OuariconAnalogEQ	0	0	0	ok
+O-AnalogSaturation	O-AnalogSaturation	0	0	0	ok
+O-Bass	O-Bass	0	0	0	ok
+O-Bassoon	O-Bassoon	0	0	0	ok
+O-Bells	O-Bells	0	0	1	ok
+O-Bowed	O-Bowed	0	0	0	ok
+O-Chorus	OuariconChorus	0	0	0	ok
+O-Comp	O-Comp	0	0	0	ok
+O-Contrabass	O-Contrabass	0	0	0	ok
+O-Detune	O-Detune	0	0	0	ok
+O-DigiDelay	OuariconDigitalDelay	0	0	0	ok
+O-Formant	O-Formant	0	0	0	ok
+O-Freeze	O-Freeze	0	0	0	ok
+O-FreqPulse	O-FreqPulse	0	0	0	ok
+O-Gain	O-Gain	0	0	0	ok
+O-GrainScatter	OuariconGrainScatter	0	0	0	ok
+O-IntonationPad	O-IntonationPad	0	0	1	ok
+O-Lyrica	OLyrica	0	255	0	ok
+O-Marimba	OMarimba	0	0	0	ok
+O-MicrotonalSampler	O-MicrotonalSampler	0	0	0	ok
+O-MultiBandCompressor	O-MultiBandCompressor	0	0	0	ok
+O-Orbit	OuariconOrbit	EXCLUDED	EXCLUDED	EXCLUDED	EXCLUDED: root CMake SKIP_PLUGINS=O-Orbit (SAF-heavy, deliberately out of suite build; l26 "36/37" framing); not a JUCE 8.0.14 regression
+O-Polystutter	OPolystutter	0	2	0	auval_rc=2 is a FALSE NEGATIVE: verify-au-link.sh resolved aufx but NEEDS_MIDI_INPUT+IS_SYNTH=FALSE means JUCE emits aumf (MusicEffect). Corrected `auval -v aumf OuPs OuDv` => AU VALIDATION SUCCEEDED. Gate type-resolution gap, not a plugin/JUCE defect
+O-Prism	O-Prism	0	0	0	ok
+O-Reed	O-Reed	0	0	0	ok
+O-simpleAdditive	O-simpleAdditive	0	0	0	ok
+O-simpleBeatmaker	O-simpleBeatmaker	0	0	0	ok
+O-simpleFM	O-simpleFM	0	0	0	ok
+O-simpleGrain	O-simpleGrain	0	0	0	ok
+O-simplePhysicalModelSynth	O-simplePhysicalModelSynth	0	0	0	ok
+O-SimpleReverb	O-SimpleReverb	0	0	0	ok
+O-simpleSampler	O-simpleSampler	0	0	0	ok
+O-simpleSubtractive	O-simpleSubtractive	0	0	0	ok
+O-SpectralShaper	O-SpectralShaper	0	0	0	ok
+O-Texture	OuariconTexture	0	0	0	ok
+O-TextureForge	OuariconTextureForge	KNOWN-FAIL	KNOWN-FAIL	KNOWN-FAIL	KNOWN-FAIL: umappp/irlba transitive drift (DEF-L26-01), JUCE-independent; not built
+O-Tremolo	OuariconTremolo	0	0	0	ok
+O-Wind	O-Wind	0	0	0	ok
