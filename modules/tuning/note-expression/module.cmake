@@ -25,16 +25,22 @@ set(_NE_MARKER "JUCE-NE-PATCH")
 # it in a both-paths-tolerant way so the marker guard passes on BOTH a local
 # pre-8.0.14 tree (old path) AND an 8.0.14+ tree (headless path), and survives
 # the future JUCE_VERSION bump.
+#
+# Preference order matters: a pre-8.0.14 tree COMPILES the old-path header, and
+# overlaying the 8.0.14 vendored layout onto such a tree leaves a marker-bearing
+# headless header as an orphan the build never touches. Checking the old path
+# first whenever it exists keeps the guard pointed at the header the build
+# actually compiles (8.0.14+ trees have no old path at all).
 set(_NE_FILE1_NEW "${_NE_JUCE_ROOT}/modules/juce_audio_processors_headless/utilities/juce_VST3ClientExtensions.h")
 set(_NE_FILE1_OLD "${_NE_JUCE_ROOT}/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h")
-if(EXISTS "${_NE_FILE1_NEW}")
-    set(_NE_FILE1 "${_NE_FILE1_NEW}")
-else()
+if(EXISTS "${_NE_FILE1_OLD}")
     set(_NE_FILE1 "${_NE_FILE1_OLD}")
+else()
+    set(_NE_FILE1 "${_NE_FILE1_NEW}")
 endif()
 set(_NE_FILE2 "${_NE_JUCE_ROOT}/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp")
 
-foreach(_ne_f ${_NE_FILE1} ${_NE_FILE2})
+foreach(_ne_f IN ITEMS "${_NE_FILE1}" "${_NE_FILE2}")
     if(NOT EXISTS "${_ne_f}")
         message(FATAL_ERROR
             "[note-expression] Expected JUCE source not found: ${_ne_f}\n"
