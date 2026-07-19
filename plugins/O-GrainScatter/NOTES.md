@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.4.1
+- **Version:** 2.4.2
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-07-09 (v2.4.2):** Info-finding cleanup sweep (CODE_REVIEW.md IN-* items). Applied IN-01 (removed dead `getCrossfadeGain()` + `crossfadeDirection`), IN-02 (removed dead `TempoTracker::lastPpq`), IN-05 (`GrainPool::clearVoices()` in `prepareToPlay`), IN-09 (cached HOA write pointers per block), IN-10 (documented distance split-semantics), IN-11 (`reset()` resets `TempoTracker`), IN-14 (removed dead `.dimmed-spatial` CSS), IN-15 (`timerCallback` early-returns when hidden). Reviewed & no change needed: IN-03 (not a bug), IN-04/IN-06 (already fixed in v2.4.1), IN-07 (intended stutter), IN-08 (negligible), IN-12/IN-13 (acceptable/documented). No audible or behavioral change.
 - **2026-07-08 (v2.4.1):** Code-review resolution pass — fixed all 2 critical + 12 warning CODE_REVIEW.md findings. CR-01 dead Scan knob (missing relay/attachment), CR-02 RT realloc in reset(), WR-01 block-held spatial feedback, WR-02 swing dropping off-beats + Euclidean desync, WR-03 freeze-engage memcpy, WR-04 spawn cap, WR-05 feedback/LPF NaN guards, WR-06 control-rate SH trig, WR-07 block-size clamp, WR-08 distance-LPF smoothing, WR-09 bpm<=0 guard, WR-10/WR-11 skew-correct readouts + `getParameterDefaults` native fn, WR-12 CMake version 2.1.0→2.4.1
 - **2026-03-09 (v2.4.0):** Added grain scan position (`scan_position` 0-100%) — sweeps base grain read position through delay/freeze buffer (0-2 seconds)
 - **2026-03-08 (v2.2.0):** Added grain size randomization (`size_random`) and per-grain amplitude randomization (`amp_random`) — both 0-100% with UI knobs

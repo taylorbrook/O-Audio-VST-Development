@@ -66,6 +66,19 @@ public:
 
     void setGrainShape (int shape) { grainShape = shape; }
 
+    // IN-05: deactivate all voices and reset round-robin. Called from prepareToPlay()
+    // (and reset()) so a sample-rate/block-size change without a host reset() can't leave
+    // grains active with stale grainLengthSamples/readPosition.
+    void clearVoices()
+    {
+        for (auto& v : voices)
+        {
+            v.active = false;
+            v.samplesRemaining = 0;
+        }
+        nextVoice = 0;
+    }
+
     // Compute envelope value for a given phase (0..1) and shape
     static float computeEnvelope (float phase, int shape)
     {
@@ -262,7 +275,11 @@ public:
 
             float mono = (sampleL + sampleR) * 0.5f * envelope * v.amplitude;
 
-            // Distance attenuation (kDistanceScale controls attenuation steepness)
+            // Distance attenuation (kDistanceScale controls attenuation steepness).
+            // IN-10: grain gain uses v.distance FROZEN at spawn, whereas the processor's
+            // distance-LPF uses the live per-block Distance value — so moving Distance
+            // changes the LPF immediately but only affects grain gain for grains spawned
+            // afterward. Intended (per-grain snapshot for gain, continuous filter for tone).
             static constexpr float kDistanceScale = 3.0f;
             float distGain = 1.0f / (1.0f + v.distance * kDistanceScale);
             mono *= distGain;

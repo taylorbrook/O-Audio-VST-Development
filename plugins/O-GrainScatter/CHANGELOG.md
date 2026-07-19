@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.4.2] - 2026-07-09
+
+Info-finding cleanup sweep (CODE_REVIEW.md v2.4.0 review, IN-* items — the 2 critical + 12 warning findings were resolved in v2.4.1). No audible or behavioral change; dead-code removal, a per-block micro-optimization, and defensive state resets.
+
+### Changed
+- **IN-01 — dead `FreezeManager::getCrossfadeGain()` removed:** the method was never called (the freeze crossfade is implicit — grains switch source at spawn and `advanceCrossfade` delays `active=false` by ~5 ms). Removed it and the now-write-only `crossfadeDirection` member. No behavior change.
+- **IN-02 — dead `TempoTracker::lastPpq` removed:** written in both update branches, never read.
+- **IN-05 — grain voices now cleared in `prepareToPlay`:** added `GrainPool::clearVoices()` and call it from `prepareToPlay` (previously voices were deactivated only in `reset()`), so a sample-rate/block-size change without a host `reset()` can't leave stale grains active. `reset()` now shares the same `clearVoices()` path.
+- **IN-09 — HOA write pointers cached per block:** the spatial inner loop stored via `hoaBus.setSample(ch, i, …)` (a `getWritePointer` + bounds check per channel per sample); now caches the 16 write pointers once per block and indexes directly.
+- **IN-10 — distance split-semantics documented:** added a comment noting grain gain uses the spawn-frozen `v.distance` while the distance-LPF uses the live per-block value (intended: per-grain gain snapshot, continuous filter tone).
+- **IN-11 — `reset()` now resets `TempoTracker`:** `reset()` re-`prepare()`s the tempo tracker so the standalone `manualPpq` counter doesn't keep advancing across a transport stop/seek (completeness gap in "clear all DSP state").
+- **IN-14 — dead `.dimmed-spatial` CSS rule removed:** the spatial gate dims via inline `style.opacity`/`pointerEvents`, never applying this class.
+- **IN-15 — `timerCallback` early-returns when hidden:** the 30 Hz viz JSON (String allocations) was built every tick even when the WebView wasn't showing (the emit was already visibility-gated). Now skips construction entirely when `!webView->isShowing()`.
+
+### Reviewed — no change needed
+- **IN-03** (Euclidean generator is a rotation of canonical Bjorklund) — valid maximally-even pattern, not a bug.
+- **IN-04** (`isEvenSubdiv` misnamed) — already resolved by the WR-02 scheduler rewrite (now `isOffBeat`).
+- **IN-06** (harden `repeatIntervalSamples` divide) — already done in v2.4.1 alongside WR-09 (`jmax(1.0, bpm)`).
+- **IN-07** (repeat grains re-trigger at future subdivisions) — intended stutter/repeat-burst behavior (a shipped core feature); left as-is.
+- **IN-08** (grain envelope never reaches phase 1.0) — ~5e-7 error at typical grain lengths; changing the phase formula would alter the grain sound for no audible benefit.
+- **IN-12** (`releaseResources()` empty) — acceptable; JUCE re-`prepareToPlay`s before reuse.
+- **IN-13** (Doppler uses smoothed SH `current[1]` as previous-azimuth proxy) — documented heuristic, not a defect.
+
 ## [2.4.1] - 2026-07-08
 
 Code-review resolution pass (CODE_REVIEW.md, v2.4.0 deep review). All 2 critical + 12 warning findings fixed.

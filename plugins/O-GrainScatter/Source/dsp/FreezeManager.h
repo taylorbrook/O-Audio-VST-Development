@@ -27,7 +27,6 @@ public:
         active = false;
         releasing = false;
         crossfadeCounter = 0;
-        crossfadeDirection = 1;
     }
 
     void engage (const DelayBuffer& delayBuf, int grainSizeSamples)
@@ -38,7 +37,6 @@ public:
         active = true;
         releasing = false;
         crossfadeCounter = crossfadeSamples;
-        crossfadeDirection = 1;  // Fading in (0→1)
     }
 
     void release()
@@ -46,7 +44,6 @@ public:
         if (!active) return;
         releasing = true;
         crossfadeCounter = crossfadeSamples;
-        crossfadeDirection = -1;  // Fading out (1→0)
     }
 
     bool isActive() const { return active; }
@@ -75,14 +72,6 @@ public:
         return lagrangeInterpolate (data[im1], data[i0], data[i1], data[i2], frac);
     }
 
-    // Returns crossfade gain (0→1 on engage, 1→0 on release)
-    float getCrossfadeGain() const
-    {
-        if (crossfadeCounter <= 0) return (crossfadeDirection >= 0) ? 1.0f : 0.0f;
-        float progress = 1.0f - static_cast<float> (crossfadeCounter) / static_cast<float> (crossfadeSamples);
-        return (crossfadeDirection >= 0) ? progress : (1.0f - progress);
-    }
-
     void advanceCrossfade()
     {
         if (crossfadeCounter > 0)
@@ -102,7 +91,6 @@ private:
     int captureLength = 0;
     int crossfadeSamples = 220;
     int crossfadeCounter = 0;
-    int crossfadeDirection = 1;  // 1 = engage (fading in), -1 = release (fading out)
     bool active = false;
     bool releasing = false;
 };
