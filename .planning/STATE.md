@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-07-19 - Completed quick task 260719-hn4: framework update audit + integration plan (research/framework-updates-2026-07.md)
+Last activity: 2026-07-19 - Completed quick task 260719-iun: triaged dirty working tree into 9 atomic commits, pushed main (framework-update precondition gate now clear)
 
 Progress: [██████████] 100%
 
@@ -140,6 +140,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260622-pwy | Move to pay-what-you-want — Path A: flip CI licensing switch (remove licensing/Supabase flags from build-and-release.yml). Path B full removal deferred & scoped | 2026-06-22 | 155f34c |  | [260622-pwy-remove-licensing-pay-what-you-want](./quick/260622-pwy-remove-licensing-pay-what-you-want/) |
 | 260623-bmr | PWYW Path B — physically remove the licensing system (delete module + add-licensing skill, strip guards from 24 plugins, clean root CMake + registry). 28 atomic commits; 4 sample plugins build clean | 2026-06-23 | 77b6b5a | Verified | [260623-bmr-path-b-physically-remove-licensing-syste](./quick/260623-bmr-path-b-physically-remove-licensing-syste/) |
 | 260719-hn4 | Framework update audit — JUCE 8.0.9→8.0.14, ANIRA, nanoflann, umappp reviewed; integration plan written to research/framework-updates-2026-07.md (no upgrades performed) | 2026-07-19 | 1d562b6 |  | [260719-hn4-check-juce-and-framework-updates-review-](./quick/260719-hn4-check-juce-and-framework-updates-review-/) |
+| 260719-iun | Triage dirty tree — ~70 entries committed as 9 atomic commits (O-Bells v4.1.1, O-Contrabass v1.0.0, O-GrainScatter v2.4.2, O-Tremolo v1.6.0, O-Bowed v1.4.1, O-Detune module sync, commands, workflow state, CI); main pushed, no discards | 2026-07-19 | 60d1b24 |  | [260719-iun-triage-dirty-working-tree-commit-uncommi](./quick/260719-iun-triage-dirty-working-tree-commit-uncommi/) |
 
 ## Session Continuity
 
