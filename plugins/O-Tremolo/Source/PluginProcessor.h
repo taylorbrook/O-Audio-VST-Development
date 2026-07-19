@@ -88,6 +88,7 @@ private:
     std::atomic<float>* smoothingParam = nullptr;
     std::atomic<float>* panSyncParam = nullptr;
     std::atomic<float>* tempoSyncParam = nullptr;
+    std::atomic<float>* syncDivisionParam = nullptr;  // discrete musical division for synced rate (v1.6.0)
 
     // Helper methods
     float generateWaveform(float phase, int waveformType, float mainLfoPhase);

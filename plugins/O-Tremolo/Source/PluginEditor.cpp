@@ -21,6 +21,7 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
     smoothingRelay = std::make_unique<juce::WebSliderRelay>("smoothing");
     panSyncRelay = std::make_unique<juce::WebToggleButtonRelay>("panSync");
     tempoSyncRelay = std::make_unique<juce::WebToggleButtonRelay>("tempoSync");
+    syncDivisionRelay = std::make_unique<juce::WebComboBoxRelay>("syncDivision");
 
     // 2. Create WebView SECOND with all relay options and preset native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -40,6 +41,7 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
             .withOptionsFrom(*smoothingRelay)
             .withOptionsFrom(*panSyncRelay)
             .withOptionsFrom(*tempoSyncRelay)
+            .withOptionsFrom(*syncDivisionRelay)
             // Preset Manager native functions
             .withNativeFunction("savePreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)
@@ -186,6 +188,8 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
         *processorRef.parameters.getParameter("PAN_SYNC_PARAM"), *panSyncRelay, nullptr);
     tempoSyncAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.parameters.getParameter("TEMPO_SYNC_PARAM"), *tempoSyncRelay, nullptr);
+    syncDivisionAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.parameters.getParameter("SYNC_DIVISION_PARAM"), *syncDivisionRelay, nullptr);
 
     // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);

@@ -2,10 +2,27 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.0
+- **Version:** 1.6.0
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
+
+- **2026-07-08 (v1.6.0):** Dedicated discrete sync-division parameter (see CHANGELOG)
+  - New `SYNC_DIVISION_PARAM` (16-choice "Sync Division"). When Tempo Sync is ON the DSP computes
+    the rate directly from the chosen division (`beatsPerSecond / beatMultiplier`) — no 20 Hz cap,
+    no nearest-Hz search against the continuous `SPEED_PARAM`. Resolves both v1.5.0 known
+    limitations (fast divisions unreachable at high tempo; low-tempo triplet/quintuplet collision).
+  - UI: Speed knob dual-bound — synced drives/reads the `syncDivision` combo state (all 16
+    divisions, slow→fast, no Hz round-trip); free = continuous Hz as before. Added a
+    `WebComboBoxRelay` + `WebComboBoxParameterAttachment`. Removed the now-dead
+    `rebuildSyncSteps`/`nearestSyncIndex`/`speedHzToNorm` + host-BPM UI plumbing.
+  - Factory presets carry an explicit `SYNC_DIVISION_PARAM` (nearest division to each preset's
+    Speed @ 120 BPM); **Synced Sidechain = 1/16** reproduces its current 8.0 Hz synced rate.
+  - Non-breaking: param appended at end → old sessions/presets load with default `1/8`.
+  - Build (VST3+AU) + auval PASS (now 7 params); UI JS syntax + division-mapping logic verified.
+
+- **2026-07-08 (v1.5.1):** Synced-Speed consistency fixes — Standalone BPM fallback in the DSP
+  nearest-division snap (A) and indicator angle in the no-reachable-division edge case (B).
 
 - **2026-07-08 (v1.5.0):** Synced Speed knob now steps through discrete divisions (see CHANGELOG)
   - When Tempo Sync is on, the knob indicator snaps to one detent per reachable musical division

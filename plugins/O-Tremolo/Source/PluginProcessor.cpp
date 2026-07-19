@@ -101,6 +101,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconTremoloAudioProcesso
         false  // Default: OFF
     ));
 
+    // SYNC_DIVISION_PARAM - Musical division for the tempo-synced rate (Choice).
+    // v1.6.0: when Tempo Sync is ON the rate is taken DIRECTLY from this discrete choice
+    // instead of nearest-searching the continuous SPEED_PARAM (0.1-20 Hz). This removes two
+    // edge cases: fast divisions that exceed 20 Hz at high tempos are now reachable, and
+    // adjacent triplet/quintuplet divisions no longer collide under SPEED_PARAM's 0.1 Hz snap.
+    // Choices mirror kMusicalDivisions order (index N == kMusicalDivisions[N]). Default "1/8"
+    // (index 3) reproduces the 4.5 Hz SPEED default at 120 BPM (the pre-v1.6.0 synced rate).
+    // Added at the end of the layout so old sessions without it fall back to this default.
+    juce::StringArray divisionNames;
+    for (const auto& div : kMusicalDivisions)
+        divisionNames.add(div.name);
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "SYNC_DIVISION_PARAM", 1 },
+        "Sync Division",
+        divisionNames,
+        3  // Default: "1/8"
+    ));
+
     return layout;
 }
 
@@ -119,61 +138,71 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
         {
             "Default",
             {{"SPEED_PARAM", 0.221f}, {"DEPTH_PARAM", 0.75f}, {"WAVEFORM_PARAM", 0.0f},
-             {"SMOOTHING_PARAM", 0.30f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.30f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.2f}},   // 1/8 — matches 4.5 Hz @ 120 BPM
             juce::var()
         },
         {
             "Slow Pulse",
             {{"SPEED_PARAM", 0.05f}, {"DEPTH_PARAM", 0.85f}, {"WAVEFORM_PARAM", 0.0f},
-             {"SMOOTHING_PARAM", 0.50f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.50f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.0667f}},   // 1/2 — matches ~1.1 Hz @ 120 BPM
             juce::var()
         },
         {
             "Fast Chop",
             {{"SPEED_PARAM", 0.75f}, {"DEPTH_PARAM", 1.0f}, {"WAVEFORM_PARAM", 0.8f},
-             {"SMOOTHING_PARAM", 0.10f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.10f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.3333f}},   // 1/32 — matches ~15 Hz @ 120 BPM
             juce::var()
         },
         {
             "Auto-Pan",
             {{"SPEED_PARAM", 0.30f}, {"DEPTH_PARAM", 0.80f}, {"WAVEFORM_PARAM", 0.0f},
-             {"SMOOTHING_PARAM", 0.40f}, {"PAN_SYNC_PARAM", 1.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.40f}, {"PAN_SYNC_PARAM", 1.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.5333f}},   // 1/8T — matches ~6.1 Hz @ 120 BPM
             juce::var()
         },
         {
             "Subtle",
             {{"SPEED_PARAM", 0.20f}, {"DEPTH_PARAM", 0.35f}, {"WAVEFORM_PARAM", 0.0f},
-             {"SMOOTHING_PARAM", 0.60f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.60f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.2f}},   // 1/8 — matches ~4.1 Hz @ 120 BPM
             juce::var()
         },
         {
             "Helicopter",
             {{"SPEED_PARAM", 0.598f}, {"DEPTH_PARAM", 0.90f}, {"WAVEFORM_PARAM", 0.2f},
-             {"SMOOTHING_PARAM", 0.05f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.05f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.6f}},   // 1/16T — matches ~12 Hz @ 120 BPM
             juce::var()
         },
         {
             "Vintage Amp",
             {{"SPEED_PARAM", 0.271f}, {"DEPTH_PARAM", 0.55f}, {"WAVEFORM_PARAM", 0.0f},
-             {"SMOOTHING_PARAM", 0.70f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.70f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.5333f}},   // 1/8T — matches ~5.5 Hz @ 120 BPM
             juce::var()
         },
         {
             "Synced Sidechain",
             {{"SPEED_PARAM", 0.397f}, {"DEPTH_PARAM", 1.0f}, {"WAVEFORM_PARAM", 1.0f},
-             {"SMOOTHING_PARAM", 0.15f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 1.0f}},
+             {"SMOOTHING_PARAM", 0.15f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 1.0f},
+             {"SYNC_DIVISION_PARAM", 0.2667f}},   // 1/16 — reproduces the current synced 8.0 Hz @ 120 BPM
             juce::var()
         },
         {
             "Wide Stereo",
             {{"SPEED_PARAM", 0.095f}, {"DEPTH_PARAM", 0.60f}, {"WAVEFORM_PARAM", 0.2f},
-             {"SMOOTHING_PARAM", 0.45f}, {"PAN_SYNC_PARAM", 1.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.45f}, {"PAN_SYNC_PARAM", 1.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.1333f}},   // 1/4 — matches ~2.0 Hz @ 120 BPM
             juce::var()
         },
         {
             "Glitch",
             {{"SPEED_PARAM", 0.899f}, {"DEPTH_PARAM", 1.0f}, {"WAVEFORM_PARAM", 0.6f},
-             {"SMOOTHING_PARAM", 0.0f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+             {"SMOOTHING_PARAM", 0.0f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f},
+             {"SYNC_DIVISION_PARAM", 0.3333f}},   // 1/32 — matches ~18 Hz @ 120 BPM
             juce::var()
         }
     };
@@ -187,6 +216,7 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
     smoothingParam = parameters.getRawParameterValue("SMOOTHING_PARAM");
     panSyncParam = parameters.getRawParameterValue("PAN_SYNC_PARAM");
     tempoSyncParam = parameters.getRawParameterValue("TEMPO_SYNC_PARAM");
+    syncDivisionParam = parameters.getRawParameterValue("SYNC_DIVISION_PARAM");
 }
 
 OuariconTremoloAudioProcessor::~OuariconTremoloAudioProcessor()
@@ -253,31 +283,20 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     if (bpm > 0.0)
         hostBpm.store(bpm);
 
-    // Handle tempo sync. When sync is engaged but the host reports no BPM (e.g. Standalone),
-    // fall back to 120 BPM — the same default the WebView readout uses (index.html
-    // rebuildSyncSteps) — so the displayed division and the actual rate agree (v1.5.1 A).
+    // Handle tempo sync. v1.6.0: the rate is taken DIRECTLY from the discrete
+    // SYNC_DIVISION_PARAM — no 20 Hz cap and no nearest-Hz search against SPEED_PARAM — so
+    // every division is reachable at any tempo and triplet/quintuplet divisions never collide.
+    // When the host reports no BPM (e.g. Standalone), fall back to 120 BPM so the rate is defined.
     if (tempoSyncEnabled)
     {
         double effectiveBpm = (bpm > 0.0) ? bpm : 120.0;
         double beatsPerSecond = effectiveBpm / 60.0;
 
-        // Find closest musical division based on current speed
-        float closestDivision = 1.0f;
-        float minDiff = 1000.0f;
+        int divIdx = static_cast<int>(syncDivisionParam->load());
+        divIdx = juce::jlimit(0, kNumMusicalDivisions - 1, divIdx);
 
-        for (int i = 0; i < kNumMusicalDivisions; ++i)
-        {
-            float divFreq = static_cast<float>(beatsPerSecond / kMusicalDivisions[i].beatMultiplier);
-            float diff = std::abs(speedHz - divFreq);
-            if (diff < minDiff)
-            {
-                minDiff = diff;
-                closestDivision = kMusicalDivisions[i].beatMultiplier;
-            }
-        }
-
-        // Calculate Hz from BPM and division
-        speedHz = static_cast<float>(beatsPerSecond / closestDivision);
+        // Rate = beats/sec ÷ the selected division's beat multiplier (e.g. 1/8 = 0.5 beats).
+        speedHz = static_cast<float>(beatsPerSecond / kMusicalDivisions[divIdx].beatMultiplier);
     }
 
     // Update phase increment
