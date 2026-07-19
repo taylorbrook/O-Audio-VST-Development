@@ -1,8 +1,19 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-Lyrica",
+  "focused": "O-simpleSampler",
   "plugins": {
+    "O-Contrabass": {
+      "path": "plugins/O-Contrabass",
+      "stage": "2-dsp",
+      "phase": "plan",
+      "status": "active",
+      "created": "2026-04-25",
+      "lastActivity": "2026-07-09T00:00:00Z",
+      "modules": [],
+      "expressMode": false,
+      "blockedBy": null
+    },
     "O-Chorus": {
       "path": "plugins/O-Chorus",
       "stage": "4-polish",
@@ -233,6 +244,17 @@
       "expressMode": false,
       "blockedBy": null,
       "version": "1.18.0"
+    },
+    "O-simpleSampler": {
+      "path": "plugins/O-simpleSampler",
+      "stage": "2-dsp",
+      "phase": "verify",
+      "status": "active",
+      "created": "2026-06-25",
+      "lastActivity": "2026-07-16T00:00:00Z",
+      "modules": [],
+      "expressMode": false,
+      "blockedBy": null
     }
   },
   "modules": {
