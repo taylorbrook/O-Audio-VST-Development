@@ -1,7 +1,7 @@
 {
   "$schema": "./schemas/active-plugin.schema.json",
-  "plugin": "O-IntonationPad",
-  "focusedAt": "2026-03-04T12:00:00Z",
+  "plugin": "O-simpleSampler",
+  "focusedAt": "2026-07-16T00:00:00Z",
   "loadedContext": {
     "statusMd": true,
     "currentPlan": null,
