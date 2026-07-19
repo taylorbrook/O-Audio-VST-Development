@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<endpointConfig>
+    <fileVersion>1.1416</fileVersion>
+    <version>1</version>
+    <name>O-Contrabass</name>
+    <configID>endpointconfig.user.o_contrabass</configID>
+    <slots array="true">
+        <slotData>
+            <numAudioOutputs>2</numAudioOutputs>
+            <instanceData>
+                <slotID>1</slotID>
+                <pluginID>ABCDEF019182FAEB4F7544764F436273</pluginID>
+                <pluginName>O-Contrabass-dev</pluginName>
+                <pluginPresetLibraryID/>
+                <pluginPresetLibraryIDs/>
+                <enabled>true</enabled>
+                <flags>0</flags>
+                <endpointConfigID>endpointconfig.user.o_contrabass</endpointConfigID>
+                <endpointConfigSlotIndex>0</endpointConfigSlotIndex>
+                <programContents>
+                    <entries array="true">
+                        <entry>
+                            <portIndex>0</portIndex>
+                            <channelNumberRel0>0</channelNumberRel0>
+                            <programName/>
+                            <collectionName/>
+                            <expressionMapID>xmap.ouaricon.o_contrabass</expressionMapID>
+                            <drumkitNoteMapID/>
+                            <flags>0</flags>
+                        </entry>
+                    </entries>
+                </programContents>
+            </instanceData>
+        </slotData>
+    </slots>
+    <instruments array="true">
+        <instrumentData>
+            <entityID>instrument.strings.contrabass</entityID>
+            <index>0</index>
+            <irvIndex>0</irvIndex>
+            <playerType>kSoloPlayer</playerType>
+            <endpoints>0</endpoints>
+        </instrumentData>
+        <instrumentData>
+            <entityID>instrument.strings.contrabass.d</entityID>
+            <index>0</index>
+            <irvIndex>0</irvIndex>
+            <playerType>kSoloPlayer</playerType>
+            <endpoints>0</endpoints>
+        </instrumentData>
+        <instrumentData>
+            <entityID>instrument.strings.uprightbass</entityID>
+            <index>0</index>
+            <irvIndex>0</irvIndex>
+            <playerType>kSoloPlayer</playerType>
+            <endpoints>0</endpoints>
+        </instrumentData>
+    </instruments>
+</endpointConfig>

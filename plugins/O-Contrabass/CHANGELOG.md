@@ -1,9 +1,113 @@
 # Changelog — O-Contrabass
 
 All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
-Format loosely follows [Keep a Changelog]; this plugin is **pre-release** (Stage-2
-DSP engine complete through Phase 2.6b; WebView editor is Stage 3), so versions here
-track the DSP engine, not a shipped product.
+Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
+version** — the pre-release `1.x-dev` engine track collapses into it.
+
+## [1.0.0] — 2026-07-15 — first release (engine + WebView editor + polish)
+
+First shipped product version. Stage 4 (Polish) adds factory presets, the Dorico
+distribution bundle, the Windows/pluginval CI gate, and the PERF-02 benchmark on top
+of the Stage-2 DSP engine and Stage-3 WebView editor. **DSP is frozen** — Stage 4
+wrote parameter state + docs + distribution artifacts + tooling only. Validated:
+**19/19 render goldens byte-identical**, `auval -v aumu OCbs OuDv` **SUCCEEDED**,
+pluginval `--strictness-level 10` **SUCCESS** (macOS), **PERF-02 0.59% / 0.65%
+CPU/voice** (44.1 / 48 kHz, 256-block, defaults; budget 5%).
+
+### Added — Stage 4: Polish
+
+- **Factory presets (FUNC-04):** 10 presets seeded to
+  `~/Library/O-Contrabass/Presets/Factory/` on first run, authored in engineering
+  units and converted skew-safe through each param's `NormalisableRange`
+  (`convertTo0to1` — BOW_SPEED / BOW_PRESSURE / BRIGHTNESS / VIBRATO_ONSET are
+  skewed). Orchestral bank — **Cinematic Bass Sustain** (default landing preset),
+  Section Bass, Solo Arco Bass, Pianissimo Bass, Forte Bass. Drone bank — Infinite
+  Drone, **Just-Intoned Drone** (7-limit `DETUNE_A=+204 / D=−14 / G=+182`),
+  Scordatura Bass (C–G–D–A fifths), Sub Drone, Dark Pad Bass. Drone presets carry
+  explicit `TUNING_SYSTEM`(12-TET) / `NOTE_EXPRESSION` so the preset-load tuning
+  reset can't clobber intent; per-string pitch rides the independent `DETUNE_*`
+  params. `STRING_TENSION` intentionally left at its inert 0.5 default (v1.1).
+- **Dorico Playback Template bundle (COMPAT-02):** `Resources/dorico/` — single-
+  family `.doricolib` + `endpointconfig.xml` + `playbacktemplatespec.xml` for
+  microtonal VST3 Note Expression playback (one sustained-arco `pt.natural`
+  technique; **load-bearing** top-level `<pitchBendRange>2` +
+  `<microtonalPlaybackMethod>kVST3NoteExpression`; `kNoteVelocity` dynamics) plus
+  `INSTALL-DORICO.md` / `SMOKE-TEST.md` (P0 = TC-4 24-EDO quarter-sharp) and a CMake
+  `install(DIRECTORY …)` rule. Ships dev-branded (`OuDv` / `-dev`); release-GUID
+  swap documented.
+- **Windows cross-platform gate (COMPAT-01):** `workflow_dispatch` validate-only
+  path in `.github/workflows/build-and-release.yml` builds a single plugin and runs
+  `pluginval --strictness-level 10` on `windows-latest` **without publishing a
+  Release** (log uploaded as an artifact; skips macOS + release jobs on that path).
+- **PERF-02 benchmark:** isolated `--perf` render-harness mode
+  (`--sample-rate` / `--block-size`, RTF + CPU%/voice); measured **0.587% @44.1 kHz,
+  0.652% @48 kHz** (256-block, defaults). The golden gate is WAV-sha256-only, so the
+  timing additions cannot perturb the 19/19 invariant.
+
+### Stage 3: WebView GUI
+
+Full WebView editor from finalized mockup v1 (1000×650 fixed, parchment/naturalist
+house style). Validated: **19/19 render goldens byte-identical** (GUI touched zero
+signal-path arithmetic), `auval -v aumu OCbs OuDv` **SUCCEEDED**, pluginval
+`--strictness-level 10` **SUCCESS**, native-fn bridge gate clean (32 JS = 32 C++,
+`tests/ui_frontend_check.js` 14/14 PASS).
+
+### Added
+
+- **WebView editor (Phase 3.1):** 31 parameter bindings (29 WebSliderRelay +
+  WebComboBoxRelay + WebToggleButtonRelay) with locked member order
+  relays → webView → attachments; bare-path resource provider; skew-correct
+  dblclick-reset via `getParameterDefaults`; readouts from `getScaledValue()`.
+- **Preset bar (D6):** preset-manager v1.0.4 via canonical CMake include +
+  canonical `js/preset-manager.js` (10 native fns). Tuning-engine state (intervals,
+  scale name, tonic, octave stretch) round-trips through user presets AND DAW session
+  state (`getStateInformation` now routes through `OuariconPresetManager::getStateAsXml`;
+  backward compatible with pre-Stage-3 plain-APVTS session XML).
+- **Full Tuning tab (D3 — user scope expansion):** shared `tuning-panel.js` v3.0.0
+  behind a Main/Tuning tab bar in the 42 px header — intervals table, embedded tuning
+  library (period-intact loads), scale generators (EDO / harmonic series / rank-2),
+  .scl/.kbm round-trip, octave stretch, HTML export; 20 native fns. Panel receives the
+  `Juce` ES-module namespace (never `window.__JUCE__`). REFERENCE_PITCH ↔ panel
+  masterTune coherence: the APVTS param is the single source of truth (`setMasterTune`
+  routes through the param; the engine's own masterTune stays 440 by design — the
+  voice applies the refPitch/440 ratio itself).
+- **Real visualization feeds (Phase 3.3):**
+  - `vuLevel` — post-limiter/post-gain RMS dB from a read-only relaxed atomic stored
+    at the END of `processBlock`.
+  - `bowState` (D5) — DSP-true effective bow speed/pressure/β (post-LFO/macro/MPE)
+    via per-voice relaxed viz atomics; the processor publishes the most-recently-
+    started ACTIVE voice (fixes the voice-0 hardcode for viz). JS dot eases to the
+    feed when active, falls back to knob values at silence.
+  - Body spectrum (R1/D7) — mockup mode table replaced with the BodyResonator truth:
+    freqs {60,98,115,175,235,340,700,1200} Hz, Q {14,11,9,8,7,6,5,2.5}, gains
+    {−2,0,−1,−3,−4,−5,−7,−6} dB + the exact `recomputeCoefficients()` formulas; pure
+    JS recompute, no data feed (reserved `bodyModes` event intentionally unused).
+- **Render-harness protection:** `createEditor()` guarded `#if JUCE_WEB_BROWSER`;
+  `PluginEditor.cpp` removed from harness sources
+  (`pattern_render_harness_breaks_on_webview_editor`). Goldens re-baselined at execute
+  START and re-verified at stage exit — byte-identical both times.
+- **`tests/ui_frontend_check.js`:** ported from O-MicrotonalSampler v1.23.7 —
+  inline-module syntax, bridge closure (32-fn surface), getScaledValue/paramDefaults
+  pins, window.confirm ban, resource-provider closure.
+
+### Changed
+
+- **TUNING_SYSTEM choice label "Scala/TUN" → "Scala" (D1):** no TUN parser exists in
+  TuningEngine 2.1.0; the picker filter and all UI labels are `.scl`-only for v1.0.
+  Choice index mapping frozen (0=Scala, 1=MTS-ESP, 2=12-TET); label is cosmetic.
+  AnaMark TUN parser → v1.1 backlog (shared-module upgrade).
+
+### Known-inert
+
+- **STRING_TENSION ships bound but inert (D2, user-confirmed):** state round-trips but
+  no DSP consumer. Wiring deferred to v1.1 (activating it changes the default timbre —
+  default 0.5 is not a no-op; needs its own goldens re-baseline). See NOTES.md.
+
+### Deferred
+
+- Dorico distribution artifacts (Playback Template / EndpointConfig / .doricolib) →
+  Stage 4 packaging (D4). `registry.yaml` module-version refresh (R5) — trust
+  per-module `module.yaml` (preset-manager 1.0.4, scala-tuning-engine 2.1.0/js 3.0.0).
 
 ## [1.0.0-dev] — 2026-07-08 — Stage-2 DSP code-review resolution
 

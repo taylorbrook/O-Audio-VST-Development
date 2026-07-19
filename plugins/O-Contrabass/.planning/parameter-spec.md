@@ -110,12 +110,22 @@ Source: extracted from `BRIEF.md` (2026-04-25). Refine into full `parameter-spec
 
 ## Design Notes
 
-- **Monophonic** (one bow, one string at a time — authentic single-string playing).
+- **4 voices** (`kNumVoices = 4`, `PluginProcessor.h`) — one per E/A/D/G string, so
+  double-stop drones (the core use case for `ACTIVE_STRINGS`, the four `DETUNE_*`
+  params, and `INFINITE_SUSTAIN`) and MPE per-note tuning don't steal each other.
+  (This supersedes the original "monophonic" brief note — `MPESynthesiser` allocates
+  a voice per note-on; idle voices no-op.)
 - **Sustained-first articulation:** bow held while MIDI note held, release tail on note-off. CC11 controls dynamic shape over the held note.
 - **Bass-tuned defaults** throughout: slower bow speed (0.15 vs violin's ~0.3), higher pressure (1.0 N vs ~0.5), more rosin grip (0.65), heavier bow noise (0.35), beta closer to bridge (0.10).
 - **Drone defaults to off:** Infinite Sustain and Sub-Harmonics start at 0.0; preset banks engage them.
 - **No sympathetic strings** in v1.0 (deferred to v1.1+ per BRIEF out-of-scope list).
 - **Material is fixed wood** (no morphable material — that's O-Bowed's territory; O-Contrabass is deeply specialized).
+- **Skew factors are NOT listed here** — this doc predates the implemented ranges. Four
+  params are skewed (`BOW_SPEED` 0.5, `BOW_PRESSURE` 0.5, `BRIGHTNESS` 0.25,
+  `VIBRATO_ONSET` 0.5); read the authoritative `NormalisableRange(min,max,interval,skew)`
+  only from `Source/PluginProcessor.cpp` (`createParameterLayout`). Any tool authoring
+  normalized values (e.g. factory presets) must route engineering units through
+  `convertTo0to1` or it recalls 4×–30× wrong on the skewed params.
 
 ## Source
 

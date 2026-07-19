@@ -89,6 +89,23 @@ public:
         return lastSubAmount.load (std::memory_order_relaxed);
     }
 
+    // ------------------------------------------------------------------------
+    // Stage 3 Task 13 (D5) — Schelleng-wedge viz taps. READ-ONLY relaxed
+    // atomics published per block from the render path (same single-writer
+    // pattern as lastSafeDepth). Never feeds back into the signal path —
+    // goldens-safe by construction. Reader: processor getBowStateViz()
+    // (message thread, editor timer @30 Hz).
+    //   vizBowSpeed/Pressure = effective post-LFO/macro/MPE values pushed to
+    //   the bow model in Step 6; vizBowBeta = effectivePosition (post-MPE Y).
+    //   vizStartOrdinal orders voices so the processor can pick the
+    //   most-recently-started active voice (fixes the voice-0 hardcode).
+    // ------------------------------------------------------------------------
+    bool         getVizActive()       const noexcept { return vizActive.load (std::memory_order_relaxed); }
+    juce::uint32 getVizStartOrdinal() const noexcept { return vizStartOrdinal.load (std::memory_order_relaxed); }
+    float        getVizBowSpeed()     const noexcept { return vizBowSpeed.load (std::memory_order_relaxed); }
+    float        getVizBowPressure()  const noexcept { return vizBowPressure.load (std::memory_order_relaxed); }
+    float        getVizBowBeta()      const noexcept { return vizBowBeta.load (std::memory_order_relaxed); }
+
 private:
     void updateParametersFromAPVTS();
 
@@ -220,4 +237,17 @@ private:
     // For slip-trigger 5-cent change detection (push setFundamentalHz only on
     // note-start or > 5 cent change to avoid resetting slip counter every block).
     float lastFundamentalHz = 0.0f;
+
+    // ─── Stage 3 Task 13 (D5) — Schelleng viz taps (see public accessors) ─────
+    // Single-writer (audio thread) relaxed stores: Step 6 of renderNextBlock
+    // publishes speed/pressure/beta; noteStarted sets active + ordinal;
+    // both clearCurrentNote sites clear active. Read-only — never consumed by
+    // the signal path (goldens-safe).
+    std::atomic<float>        vizBowSpeed     { 0.0f };
+    std::atomic<float>        vizBowPressure  { 0.0f };
+    std::atomic<float>        vizBowBeta      { 0.10f };
+    std::atomic<bool>         vizActive       { false };
+    std::atomic<juce::uint32> vizStartOrdinal { 0 };
+    // Shared monotonic note-start ordinal across all voices (viz ordering only).
+    static inline std::atomic<juce::uint32> sVizOrdinalCounter { 0 };
 };

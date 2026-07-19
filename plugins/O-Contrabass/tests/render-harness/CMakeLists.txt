@@ -16,14 +16,16 @@ target_sources(O-Contrabass-render-test PRIVATE
     main.cpp
 
     # Reach back into the plugin source tree — the harness shares the engine
-    # implementation, not a separate static library. PluginEditor.cpp is
-    # included so the AudioProcessor's createEditor() symbol resolves at link
-    # time, even though the harness never calls it.
+    # implementation, not a separate static library.
+    #
+    # Stage 3 (GUI) Task 1: PluginEditor.cpp REMOVED — the editor is now a
+    # WebView UI that cannot compile under JUCE_WEB_BROWSER=0. createEditor()
+    # in PluginProcessor.cpp is guarded with #if JUCE_WEB_BROWSER and returns
+    # nullptr in this harness build (pattern_render_harness_breaks_on_webview_editor).
     #
     # Phase 2.1b: BowModel.cpp + HyperbolicFriction.h are now provided by the
     # bow-friction module via ouaricon_add_module() at the bottom of this file.
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginEditor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/BowedContrabassVoice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/WaveguideString.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/BodyResonator.cpp

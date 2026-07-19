@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<kScoreLibrary>
+	<!--
+	  ============================================================================
+	  CRITICAL — DO NOT REMOVE TOP-LEVEL <pitchBendRange> + <microtonalPlaybackMethod>
+	  ============================================================================
+	  The <ExpressionMapDefinition> below MUST keep BOTH:
+	    <pitchBendRange>2</pitchBendRange>
+	    <microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
+	  at the TOP LEVEL (between <applyStageTemplateSettings> and <initSwitchData>).
+	  These are LOAD-BEARING for microtonal pitch via VST3 Note Expression (SMOKE
+	  TEST TC-4). The per-combination copies are additive (HSO-shape parity) but
+	  DO NOT substitute — Dorico silently drops to nearest-12-TET if the top-level
+	  fields are absent, even when the plugin advertises kTuningTypeID correctly.
+	  Never change to kAuto (that falls back to pitch-bend / 12-TET).
+	  Bump <version> after any content edit (Dorico caches by entityID+version).
+
+	  O-Contrabass is a sustained-arco solo bass: NoteExpression-only, NO
+	  keyswitches — a single pt.natural combo with an empty <switchOnActions>.
+	  ============================================================================
+	-->
+	<expressionMapDefinitions>
+		<entities array="true">
+			<ExpressionMapDefinition>
+				<name>O-Contrabass</name>
+				<entityID>xmap.ouaricon.o_contrabass</entityID>
+				<parentEntityID>xmap.default</parentEntityID>
+				<inheritanceMask>0</inheritanceMask>
+				<creator>Ouaricon Audio</creator>
+				<description>O-Contrabass expression map. Sustained-arco solo contrabass physical model. Routes Dorico per-note microtonal pitch deltas as VST3 Note Expression (kTuningTypeID — load-bearing for non-Steinberg VST3s; auto/kAuto routing falls back to pitch-bend and breaks microtonal playback). Single natural (arco) playing technique — no keyswitches. Dynamics route via note velocity (fixed at note-on): sustained crescendos / hairpins within a single bowed note will not render mid-note (deferred to v1.1). To use continuous-controller dynamics instead, change volumeType to kCC with param1=11 (CC11/Expression) in Library -> Expression Maps once the plugin exposes a CC11 listener.</description>
+				<version>1</version>
+				<pluginNames/>
+				<autoMutualExclusion>true</autoMutualExclusion>
+				<allowMultipleNotesAtSamePitch>false</allowMultipleNotesAtSamePitch>
+				<applyStageTemplateSettings>true</applyStageTemplateSettings>
+				<pitchBendRange>2</pitchBendRange>
+				<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
+				<initSwitchData>
+					<enabled>true</enabled>
+					<initActions array="true"/>
+				</initSwitchData>
+				<playingTechniqueCombinations array="true">
+					<playingTechniqueCombination>
+						<baseSwitchID>0</baseSwitchID>
+						<techniqueIDs>pt.natural</techniqueIDs>
+						<enabled>true</enabled>
+						<flags>0</flags>
+						<conditionString/>
+						<exclusionGroup>1</exclusionGroup>
+						<velocityRange>0,127</velocityRange>
+						<pitchRange>0,127</pitchRange>
+						<transpose>0</transpose>
+						<ticksBefore>0</ticksBefore>
+						<millisecondsBefore>0</millisecondsBefore>
+						<velocityFactor>1.000000</velocityFactor>
+						<lengthFactor>1.000000</lengthFactor>
+						<pitchBendRange>2</pitchBendRange>
+						<microtonalPlaybackMethod>kVST3NoteExpression</microtonalPlaybackMethod>
+						<volumeType>
+							<type>kNoteVelocity</type>
+							<param1>0</param1>
+						</volumeType>
+						<attackType>
+							<type>kNoteVelocity</type>
+							<param1>0</param1>
+						</attackType>
+						<switchOnActions array="true"/>
+						<switchOffActions array="true"/>
+					</playingTechniqueCombination>
+				</playingTechniqueCombinations>
+				<techniqueAddOns array="true"/>
+				<mutualExclusionGroups array="true"/>
+				<playbackOptionsOverrides array="true"/>
+			</ExpressionMapDefinition>
+		</entities>
+	</expressionMapDefinitions>
+</kScoreLibrary>
