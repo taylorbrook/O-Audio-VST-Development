@@ -1,0 +1,9 @@
+plugin	target	build_rc	run_rc	note
+O-Bowed	O-Bowed-render-test	0	0	ok
+O-Contrabass	O-Contrabass-render-test	0	1	run exit 1
+O-simpleAdditive	O-simpleAdditive-render-test	0	0	ok
+O-simpleBeatmaker	O-simpleBeatmaker-render-test	0	0	ok
+O-simpleFM	O-simpleFM-render-test	0	0	ok
+O-simpleGrain	O-simpleGrain-render-test	0	0	ok
+O-simplePhysicalModelSynth	O-simplePhysicalModelSynth-render-test	0	0	ok
+O-simpleSubtractive	O-simpleSubtractive-render-test	0	0	ok

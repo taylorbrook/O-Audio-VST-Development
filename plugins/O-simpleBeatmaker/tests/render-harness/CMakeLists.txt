@@ -8,8 +8,8 @@
 #
 # DIVERGES from the O-simpleFM template: NO *_UIResources link and NO
 # JUCE_WEB_BROWSER=1 — this is a headless DSP gate. Since Stage 3 the real editor
-# is a WebView (juce::WebBrowserComponent + relays/attachments), so PluginEditor.cpp
-# is NOT compiled here; under JUCE_WEB_BROWSER=0 the processor's createEditor()
+# is a WebView (juce::WebBrowserComponent + relays/attachments), so the PluginEditor
+# translation unit is NOT compiled here; under JUCE_WEB_BROWSER=0 the processor's createEditor()
 # falls back to a GenericAudioProcessorEditor (see PluginProcessor.cpp), which is
 # all the linker needs (the harness never opens an editor).
 
@@ -20,7 +20,7 @@ juce_add_console_app(O-simpleBeatmaker-render-test
 target_sources(O-simpleBeatmaker-render-test PRIVATE
     main.cpp
     # Reach into the plugin source tree — share the engine, not a static lib.
-    # PluginEditor.cpp is intentionally excluded (WebView; needs JUCE_WEB_BROWSER=1).
+    # the PluginEditor translation unit is intentionally excluded (WebView; needs JUCE_WEB_BROWSER=1).
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
 )
 

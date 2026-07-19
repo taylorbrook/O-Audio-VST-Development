@@ -15,6 +15,12 @@ target_sources(O-simpleSubtractive-render-test PRIVATE
     main.cpp
     # Reach into the plugin source tree — share the engine, not a static lib.
     # PluginEditor.cpp is included so createEditor() resolves at link time.
+    # Stage 3: the editor is a juce::WebBrowserComponent UI (WebSliderRelay /
+    # WebComboBoxRelay), so the editor translation unit must compile with the
+    # web-browser path ENABLED and link O-simpleSubtractive_UIResources (the
+    # O-simpleFM working pattern) — with the web browser disabled the WebView
+    # types don't exist and the harness fails to build
+    # (pattern_render_harness_breaks_on_webview_editor).
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginEditor.cpp
 )
@@ -33,9 +39,10 @@ target_include_directories(O-simpleSubtractive-render-test PRIVATE
 target_compile_definitions(O-simpleSubtractive-render-test PRIVATE
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
-    # The Stage-1 editor is a GenericAudioProcessorEditor (no WebView); keep the
-    # browser off so the harness pulls no WebView dependencies.
-    JUCE_WEB_BROWSER=0
+    # The Stage-3 editor is a juce::WebBrowserComponent WebView UI. PluginEditor.cpp
+    # is compiled here only so createEditor() resolves at link time, so the WebView
+    # path MUST be enabled and the embedded UI BinaryData target linked (below).
+    JUCE_WEB_BROWSER=1
     JucePlugin_Build_Standalone=1
 
     # Minimal JucePlugin_* macros the processor references at compile time.
@@ -55,6 +62,9 @@ target_compile_definitions(O-simpleSubtractive-render-test PRIVATE
 
 target_link_libraries(O-simpleSubtractive-render-test
     PRIVATE
+        # Embedded UI resources — supplies BinaryData::index_html/styles_css/app_js/
+        # index_js/check_native_interop_js referenced by PluginEditor.cpp getResource().
+        O-simpleSubtractive_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats

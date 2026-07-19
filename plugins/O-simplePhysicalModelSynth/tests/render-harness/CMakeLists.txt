@@ -7,7 +7,7 @@
 # early. The autocorrelation pitch probe + DSP correctness checks arrive in Stage 2.1.
 #
 # ⚠ Diverges from O-simpleFM's CURRENT harness (the cautionary post-Stage-3
-# retrofit): we do NOT compile PluginEditor.cpp. createEditor is declared in
+# retrofit): we do NOT compile the PluginEditor translation unit. createEditor is declared in
 # PluginProcessor.h and defined in PluginProcessor.cpp behind #if JUCE_WEB_BROWSER
 # (the guarded #include "PluginEditor.h" there vanishes under =0, resolving to a
 # GenericAudioProcessorEditor). We set JUCE_WEB_BROWSER=0, and we link NO
@@ -20,7 +20,7 @@ juce_add_console_app(O-simplePhysicalModelSynth-render-test
 target_sources(O-simplePhysicalModelSynth-render-test PRIVATE
     main.cpp
     # Reach into the plugin source tree — share the processor, not a static lib.
-    # The voice is header-only; NO PluginEditor.cpp (createEditor's definition in
+    # The voice is header-only; NO PluginEditor translation unit (createEditor's definition in
     # PluginProcessor.cpp resolves to GenericAudioProcessorEditor under JUCE_WEB_BROWSER=0).
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
     # FactoryPresets.cpp MUST link here: PluginProcessor's ctor calls
