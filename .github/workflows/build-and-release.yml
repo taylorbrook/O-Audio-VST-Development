@@ -101,7 +101,7 @@ jobs:
           # cp -R preserves the directory tree under vendored/JUCE-overrides/.
           cp -R vendored/JUCE-overrides/modules/. JUCE/modules/
           # Verify markers present after copy (fail fast if not).
-          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors_headless/utilities/juce_VST3ClientExtensions.h
           grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
           echo "JUCE overrides applied."
 
@@ -450,7 +450,7 @@ jobs:
           # Copy vendored patched files (JUCE-NE-PATCH) over the vanilla download.
           cp -R vendored/JUCE-overrides/modules/. JUCE/modules/
           # Verify markers present after copy (fail fast if not).
-          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors/utilities/juce_VST3ClientExtensions.h
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors_headless/utilities/juce_VST3ClientExtensions.h
           grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
           echo "JUCE overrides applied."
 
