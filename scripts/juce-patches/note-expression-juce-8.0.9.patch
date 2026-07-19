@@ -1,6 +1,8 @@
 # note-expression module — JUCE local-fork patch (Ouaricon)
 #
-# Target: JUCE 8.0.4
+# Target: JUCE 8.0.9 (renamed from note-expression-juce-8.0.4.patch — the diff
+#         was always generated against an 8.0.9 tree; hunk context retains
+#         minor 8.0.4-era drift, inert under the marker-guarded applier)
 # Marker: JUCE-NE-PATCH (Ouaricon local fork, 2026-04-22)
 # Purpose: surface kNoteExpressionValueEvent and noteId-tagged NoteOn/NoteOff
 #          to the plugin via VST3ClientExtensions::onVst3RawEvent, before
