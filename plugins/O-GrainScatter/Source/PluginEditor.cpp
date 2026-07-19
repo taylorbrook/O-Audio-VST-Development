@@ -211,6 +211,11 @@ void GrainScatterEditor::resized()
 
 void GrainScatterEditor::timerCallback()
 {
+    // IN-15: the emits below are already visibility-gated, but building the per-tick
+    // viz JSON (String allocations at 30 Hz) is pure churn while the UI is hidden. Skip it.
+    if (! webView->isShowing())
+        return;
+
     // Read snapshot once (triple-buffered, thread-safe)
     const auto& snap = audioProcessor.getVizSnapshot();
 

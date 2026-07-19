@@ -326,6 +326,7 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     binauralDecoder.prepare (sampleRate, samplesPerBlock);
     binauralL.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
     binauralR.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
+    grainPool.clearVoices();   // IN-05: no stale grains after a rate/block-size change
     grainPool.prepareSpatial (static_cast<float> (sampleRate));
     distanceLpfState[0] = 0.0f;
     distanceLpfState[1] = 0.0f;
@@ -347,9 +348,8 @@ void GrainScatterProcessor::releaseResources() {}
 
 void GrainScatterProcessor::reset()
 {
-    // Kill all active grains
-    for (auto& v : grainPool.getVoices())
-        v.active = false;
+    // Kill all active grains (IN-05: shared clearVoices() path)
+    grainPool.clearVoices();
 
     // Clear delay buffer contents (CR-02: alloc-free — reset() may run on the RT thread)
     delayBuffer.clear();
@@ -369,6 +369,10 @@ void GrainScatterProcessor::reset()
 
     // Reset scheduler timing
     scheduler.prepare (currentSampleRate);
+
+    // IN-11: reset the standalone tempo counter so manualPpq doesn't keep advancing
+    // across a transport stop/seek (completeness gap in "clear all DSP state").
+    tempoTracker.prepare (currentSampleRate);
 
     // Clear distance LPF state
     distanceLpfState[0] = 0.0f;
@@ -532,6 +536,12 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     auto* outBufL = buffer.getWritePointer(0);
     auto* outBufR = buffer.getWritePointer(1);
 
+    // IN-09: cache the HOA write pointers once per block (spatial mode writes every
+    // channel every sample) — avoids a getWritePointer()/bounds-check per setSample call.
+    float* hoaWrite[kHOA3Channels];
+    for (int ch = 0; ch < kHOA3Channels; ++ch)
+        hoaWrite[ch] = hoaBus.getWritePointer (ch);
+
     size_t spawnIdx = 0;
 
     for (int i = 0; i < numSamples; ++i)
@@ -646,9 +656,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             float hoaSample[kHOA3Channels] = {};
             grainPool.processSampleSpatial(delayBuffer, freezeManager, hoaSample);
 
-            // Store into HOA bus for this sample
+            // Store into HOA bus for this sample (IN-09: cached write pointers)
             for (int ch = 0; ch < kHOA3Channels; ++ch)
-                hoaBus.setSample(ch, i, hoaSample[ch]);
+                hoaWrite[ch][i] = hoaSample[ch];
 
             // WR-01 + WR-05: per-sample feedback recursion in spatial mode. The delay write
             // at the top of this loop consumes feedbackL/R every sample; derive them HERE

@@ -17,7 +17,6 @@ public:
     {
         sampleRate = newSampleRate;
         manualPpq = 0.0;
-        lastPpq = 0.0;
     }
 
     SyncInfo update (juce::AudioPlayHead* playHead, int numSamples)
@@ -45,7 +44,6 @@ public:
                     info.isPlaying = playing;
                     info.ppqPerSample = info.bpm / (60.0 * sampleRate);
 
-                    lastPpq = info.ppqPosition;
                     gotPosition = true;
                 }
             }
@@ -60,7 +58,6 @@ public:
             info.isPlaying = true;
 
             manualPpq += info.ppqPerSample * numSamples;
-            lastPpq = manualPpq;
         }
 
         return info;
@@ -69,5 +66,4 @@ public:
 private:
     double sampleRate = 44100.0;
     double manualPpq = 0.0;
-    double lastPpq = 0.0;
 };

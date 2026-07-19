@@ -1,6 +1,7 @@
 ---
 phase: O-GrainScatter-v2.4.0
 reviewed: 2026-07-08
+verified: 2026-07-09
 depth: deep
 files_reviewed: 20
 files_reviewed_list:
@@ -29,15 +30,25 @@ findings:
   warning: 12
   info: 15
   total: 29
-status: issues_found
+status: resolved
+resolved: 2026-07-09
+resolved_in:
+  - v2.4.1 (all critical + warning: CR-01..02, WR-01..12)
+  - v2.4.2 (info sweep: IN-01/02/05/09/10/11/14/15 applied; IN-03/04/06/07/08/12/13 reviewed — no change needed)
 ---
 
 # O-GrainScatter v2.4.0: Code Review Report
 
+> **RESOLVED 2026-07-09.** All 2 critical + 12 warning findings fixed in **v2.4.1**; the
+> Info (IN-*) findings were swept in **v2.4.2** — IN-01/02/05/09/10/11/14/15 applied, and
+> IN-03/04/06/07/08/12/13 reviewed and accepted with no change needed (IN-04/IN-06 were
+> already resolved in v2.4.1). See CHANGELOG.md for per-finding detail. This file is kept
+> as the investigation record.
+
 **Reviewed:** 2026-07-08
 **Depth:** deep (parallel three-subsystem review: [A] granular engine DSP — pool/scheduler/freeze/trajectory/euclidean/tempo/scale/delay/triple-buffer/Lagrange · [B] spatial/binaural DSP + audio processor · [C] editor/WebView bridge + UI + build)
 **Files Reviewed:** 20 substantive (HRIRData.h is a pure data table; the two `js/juce/` files are vendored)
-**Status:** issues_found
+**Status:** resolved (v2.4.1 critical+warning, v2.4.2 info)
 
 ## Summary
 
