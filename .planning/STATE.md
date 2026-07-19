@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-07-19 - Completed quick task 260719-iun: triaged dirty working tree into 9 atomic commits, pushed main (framework-update precondition gate now clear)
+Last activity: 2026-07-19 - Completed quick task 260719-k5o: re-based JUCE-NE-PATCH onto 8.0.14 on branch quick/260719-k5o-juce-ne-rebase-8014 (verified; unmergeable until JUCE_VERSION bump)
 
 Progress: [██████████] 100%
 
@@ -141,6 +141,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260623-bmr | PWYW Path B — physically remove the licensing system (delete module + add-licensing skill, strip guards from 24 plugins, clean root CMake + registry). 28 atomic commits; 4 sample plugins build clean | 2026-06-23 | 77b6b5a | Verified | [260623-bmr-path-b-physically-remove-licensing-syste](./quick/260623-bmr-path-b-physically-remove-licensing-syste/) |
 | 260719-hn4 | Framework update audit — JUCE 8.0.9→8.0.14, ANIRA, nanoflann, umappp reviewed; integration plan written to research/framework-updates-2026-07.md (no upgrades performed) | 2026-07-19 | 1d562b6 |  | [260719-hn4-check-juce-and-framework-updates-review-](./quick/260719-hn4-check-juce-and-framework-updates-review-/) |
 | 260719-iun | Triage dirty tree — ~70 entries committed as 9 atomic commits (O-Bells v4.1.1, O-Contrabass v1.0.0, O-GrainScatter v2.4.2, O-Tremolo v1.6.0, O-Bowed v1.4.1, O-Detune module sync, commands, workflow state, CI); main pushed, no discards | 2026-07-19 | 60d1b24 |  | [260719-iun-triage-dirty-working-tree-commit-uncommi](./quick/260719-iun-triage-dirty-working-tree-commit-uncommi/) |
+| 260719-k5o | Re-base JUCE-NE-PATCH onto 8.0.14 — vendored header relocated to headless module, .cpp re-stitched at toMidiBuffer anchor, CI grep gates repointed, module.cmake both-paths guard, patch renamed 8.0.9 + regenerated 8.0.14; O-Lyrica compile-check vs scratch 8.0.14 green. Branch quick/260719-k5o-juce-ne-rebase-8014 (unmergeable until JUCE_VERSION bump) | 2026-07-19 | bbd24c5 | Verified | [260719-k5o-re-base-the-note-expression-vendored-pat](./quick/260719-k5o-re-base-the-note-expression-vendored-pat/) |
 
 ## Session Continuity
 
