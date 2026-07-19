@@ -33,6 +33,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> smoothingRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> panSyncRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> tempoSyncRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> syncDivisionRelay;
 
     // 2. WebView SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -47,6 +48,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> smoothingAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> panSyncAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> tempoSyncAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> syncDivisionAttachment;
 
     // Resource provider helper
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

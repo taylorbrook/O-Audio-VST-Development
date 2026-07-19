@@ -5,6 +5,31 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-07-08
+
+Synced Speed is now backed by a dedicated discrete division parameter instead of the continuous Speed knob. This removes the two v1.5.0 known limitations and makes the synced rate exact at every tempo. Non-breaking: adds one parameter at the end of the layout, so existing sessions and older presets load fine (the new parameter falls back to its default).
+
+### Added
+
+- **`SYNC_DIVISION_PARAM` — a discrete "Sync Division" choice parameter** (16 choices mirroring the musical-division table: `1/1 … 1/32`, triplets, quintuplets). When Tempo Sync is ON, this is now the source of truth for the modulation rate. Default `1/8` (index 3), reproducing the 4.5 Hz Speed default at 120 BPM. Automatable and preset-saved like any other parameter.
+
+### Changed
+
+- **Tempo-synced rate is computed directly from the selected division — no 20 Hz cap, no nearest-Hz search.** When synced, the DSP now sets `speedHz = beatsPerSecond / division.beatMultiplier` straight from `SYNC_DIVISION_PARAM` (falling back to 120 BPM when the host reports no tempo). Previously the synced rate was derived by nearest-searching the 16 divisions against the continuous `SPEED_PARAM` (0.1–20 Hz), which the v1.5.0 knob then stepped through. In free (non-synced) mode the Speed knob is unchanged — continuous 0.1–20 Hz. (`Source/PluginProcessor.cpp`)
+  - **Resolves v1.5.0 Known Limitation (1): fast divisions unreachable at high tempos.** Divisions whose synced rate exceeds 20 Hz (e.g. `1/32`, `1/32Q`, `1/32T` above ~135 BPM) are now selectable — the 20 Hz `SPEED_PARAM` ceiling no longer bounds the synced rate.
+  - **Resolves v1.5.0 Known Limitation (2): adjacent divisions colliding under the 0.1 Hz snap.** Divisions are now selected by discrete index, so triplet/quintuplet neighbours that map to rates <0.1 Hz apart at very low tempos no longer collapse onto the same `SPEED_PARAM` step.
+- **Speed knob is dual-bound in the UI.** Synced → the knob drives/reads the discrete `syncDivision` choice state, stepping through all 16 divisions in slow→fast order (one detent per division, ~14 px each) with the indicator snapping and the readout showing the division name — no Hz round-trip math. Free → continuous Hz exactly as before. (`Source/ui/public/index.html`, `Source/PluginEditor.cpp/.h` — added a `WebComboBoxRelay` + `WebComboBoxParameterAttachment`.)
+- **Factory presets carry an explicit `SYNC_DIVISION_PARAM`.** Each preset's division is the one nearest its stored Speed at 120 BPM, so toggling sync reproduces the pre-v1.6.0 behavior. The one already-synced factory preset, **Synced Sidechain, is set to `1/16`** — its current synced rate (8.0 Hz @ 120 BPM). (`Source/PluginProcessor.cpp`)
+
+### Fixed
+
+- Supersedes the v1.5.0 "fast divisions can be unreachable at high tempos" and low-tempo division-collision limitations (see Changed above). The synced division shown on the knob and the rate the DSP plays are now the same discrete selection by construction — they can no longer disagree.
+
+### Migration Notes
+
+- **Non-breaking.** `SYNC_DIVISION_PARAM` is appended to the end of the parameter layout; sessions and presets saved before v1.6.0 simply omit it and load with the default (`1/8`). An old session that was tempo-synced will now play the default division rather than whatever the continuous Speed value happened to nearest-snap to — set the Sync Division knob to taste if it differs.
+- The v1.5.1 host-BPM readout plumbing (`getHostBpm`) is retained on the C++ side but is no longer consumed by the UI (the synced readout now shows the tempo-independent division name).
+
 ## [1.5.1] - 2026-07-08
 
 Two small synced-Speed consistency fixes. No new parameters; existing sessions and presets load and sound identical.

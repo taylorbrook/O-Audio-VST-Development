@@ -678,32 +678,23 @@
     <!-- JUCE WebView Bridge - ES6 Module Import (Pattern #21) -->
     <script type="module" src="js/juce/check_native_interop.js"></script>
     <script type="module">
-        import { getSliderState, getToggleState, getNativeFunction } from './js/juce/index.js';
+        import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
         import { PresetManager } from './modules/preset-manager.js';
 
         // JUCE Parameter States
-        let speedState, depthState, waveformState, smoothingState, panSyncState, tempoSyncState;
+        let speedState, depthState, waveformState, smoothingState, panSyncState, tempoSyncState, syncDivisionState;
 
         // Single source of truth for waveform options — index divisor is derived from this
         // length so adding/removing a waveform never breaks the normalized↔index mapping (IN-05).
         // Order MUST match the C++ WAVEFORM_PARAM StringArray and the <select> options.
         const WAVEFORM_NAMES = ['sine', 'triangle', 'phasor', 'noise', 'square', 'pulse'];
 
-        // Last-known host tempo, refreshed from C++ via getHostBpm (IN-04). The WebView has no
-        // direct host access, so the tempo-sync readout uses this instead of a hardcoded 120.
-        let hostBpm = 120;
-        let getHostBpm = null;
-
-        // Reachable sync divisions (slow→fast) for the current host tempo, rebuilt whenever the
-        // tempo or the knob's range changes. When Tempo Sync is on, the Speed knob steps through
-        // THIS list instead of sweeping continuously, so the indicator snaps to one detent per
-        // division — matching what the DSP's nearest-division search actually plays.
-        let syncSteps = [];
-        // Reference to the Speed knob's own updateVisual(), hoisted so the sync toggle and the
-        // BPM refresh interval re-snap the indicator + readout from a single source of truth.
+        // Reference to the Speed knob's own updateVisual(), hoisted so the Tempo Sync toggle can
+        // re-snap the indicator + readout from a single source of truth when sync engages/disengages.
         let updateSpeedVisual = null;
 
-        // Musical divisions table (matches C++ implementation)
+        // Musical divisions table. Order MUST match the C++ SYNC_DIVISION_PARAM choices
+        // (which mirror kMusicalDivisions), so this array index == the parameter's choice index.
         const musicalDivisions = [
             // Straight divisions
             { name: "1/1",   beatMultiplier: 4.0 },
@@ -726,6 +717,17 @@
             { name: "1/32Q", beatMultiplier: 0.1 }
         ];
 
+        // Slow→fast display order for the synced Speed knob (v1.6.0). The synced rate is
+        // beatsPerSecond / beatMultiplier, so a LARGER multiplier is a SLOWER rate — sorting by
+        // multiplier descending lays the divisions out slowest→fastest along the knob arc. Each
+        // entry keeps its ORIGINAL choice index so the knob can drive SYNC_DIVISION_PARAM directly.
+        const syncDivisionOrder = musicalDivisions
+            .map((d, i) => ({ name: d.name, choiceIndex: i, beatMultiplier: d.beatMultiplier }))
+            .sort((a, b) => b.beatMultiplier - a.beatMultiplier);
+        // Reverse lookup: choice index → position in syncDivisionOrder (for indicator angle + stepping).
+        const syncDivisionPosByChoice = [];
+        syncDivisionOrder.forEach((d, pos) => { syncDivisionPosByChoice[d.choiceIndex] = pos; });
+
         // Wait for DOM load
         document.addEventListener('DOMContentLoaded', () => {
             console.log('JUCE backend:', window.__JUCE__?.backend);
@@ -737,6 +739,7 @@
             smoothingState = getSliderState('smoothing');
             panSyncState = getToggleState('panSync');
             tempoSyncState = getToggleState('tempoSync');
+            syncDivisionState = getComboBoxState('syncDivision');
 
             // Setup knobs (WR-02: real values come from the JUCE scaled value, not hardcoded ranges)
             setupKnob('speed', speedState, ' Hz');
@@ -784,21 +787,6 @@
                     versionLabel.textContent = 'v' + version;
                 }
             });
-
-            // IN-04: pull the real host tempo so the tempo-sync readout is accurate.
-            getHostBpm = getNativeFunction('getHostBpm');
-            refreshHostBpm();
-
-            // While tempo sync is active, keep the division steps live as host tempo changes so
-            // both the snapped indicator and the readout track the tempo (rebuild + re-snap).
-            setInterval(() => {
-                if (tempoSyncState && tempoSyncState.getValue()) {
-                    refreshHostBpm().then(() => {
-                        rebuildSyncSteps();
-                        if (updateSpeedVisual) updateSpeedVisual();
-                    });
-                }
-            }, 1000);
 
             // Preset dropdown functionality (IN-02: distinguish Factory vs User presets
             // via the isFactoryPreset native fn instead of labeling every entry "Factory")
@@ -881,56 +869,6 @@
             });
         });
 
-        // Refresh the cached host tempo from C++ (IN-04). Keeps last-known value on failure.
-        async function refreshHostBpm() {
-            if (!getHostBpm) return;
-            try {
-                const bpm = await getHostBpm();
-                if (bpm && bpm > 0) hostBpm = bpm;
-            } catch (e) {
-                // Keep last-known hostBpm; the readout stays usable.
-            }
-        }
-
-        // Rebuild the reachable-division list (slow→fast) for the current tempo. A division is
-        // reachable only if its synced rate lands inside the Speed knob's real Hz range — which
-        // is exactly the set the DSP's nearest-Hz search can select, so the knob and the audio
-        // engine step in lockstep. Uses the live range from speedState.properties (WR-02).
-        function rebuildSyncSteps(bpm = hostBpm) {
-            syncSteps = [];
-            if (!speedState) return;
-            if (!bpm || bpm <= 0) bpm = 120;
-            const beatsPerSecond = bpm / 60.0;
-            const p = speedState.properties;
-            const minHz = p.start, maxHz = p.end;
-            for (const div of musicalDivisions) {
-                const hz = beatsPerSecond / div.beatMultiplier;
-                if (hz >= minHz && hz <= maxHz) {
-                    syncSteps.push({ name: div.name, hz: hz });
-                }
-            }
-            syncSteps.sort((a, b) => a.hz - b.hz);  // slow → fast
-        }
-
-        // Index of the sync step whose Hz is nearest the given rate — mirrors the C++ nearest-
-        // division search, so the highlighted detent equals the rate the DSP is actually playing.
-        function nearestSyncIndex(hz) {
-            let bestIdx = 0, bestDiff = Infinity;
-            for (let i = 0; i < syncSteps.length; ++i) {
-                const diff = Math.abs(hz - syncSteps[i].hz);
-                if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
-            }
-            return bestIdx;
-        }
-
-        // Convert a target Hz to a normalized 0–1 value using the knob's real range + skew,
-        // matching juce SliderState.getNormalisedValue() so setNormalisedValue() round-trips.
-        function speedHzToNorm(hz) {
-            const p = speedState.properties;
-            const norm = Math.pow((hz - p.start) / (p.end - p.start), p.skew);
-            return Math.max(0, Math.min(1, norm));
-        }
-
         // Knob setup with JUCE binding (Pattern #16: Relative drag, Pattern #15: No callback params)
         function setupKnob(paramId, state, unit) {
             if (!state) {
@@ -958,28 +896,18 @@
                 // NormalisableRange + skew), not a hardcoded JS min/max that can silently drift.
                 const realValue = state.getScaledValue();
 
-                if (speedSyncActive()) {
-                    // Synced: the knob is a discrete stepper. Snap the indicator to one detent
-                    // per reachable division and show that division's name.
-                    if (syncSteps.length === 0) rebuildSyncSteps();
-                    const n = syncSteps.length;
-                    if (n > 0) {
-                        const idx = nearestSyncIndex(realValue);
-                        const frac = n > 1 ? idx / (n - 1) : 0.5;
-                        const angle = -140 + (frac * 280);
-                        indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-                        indicator.style.transformOrigin = 'center 30px';
-                        valueDisplay.textContent = syncSteps[idx].name;
-                    } else {
-                        // No division fits the range at this tempo — fall back to the Hz readout
-                        // AND rotate the indicator from the normalized value, so the pointer can't
-                        // hold a stale angle from a previous paint in this edge case (v1.5.1 B).
-                        const normValue = state.getNormalisedValue();
-                        const angle = -140 + (normValue * 280);
-                        indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-                        indicator.style.transformOrigin = 'center 30px';
-                        valueDisplay.textContent = realValue.toFixed(1) + unit;
-                    }
+                if (speedSyncActive() && syncDivisionState) {
+                    // Synced (v1.6.0): the knob is a discrete stepper backed by SYNC_DIVISION_PARAM.
+                    // Snap the indicator to the selected division's slot in the slow→fast arc and
+                    // show its name. No Hz round-trip, and every division is reachable at any tempo.
+                    const choiceIdx = syncDivisionState.getChoiceIndex();
+                    const n = syncDivisionOrder.length;
+                    const pos = syncDivisionPosByChoice[choiceIdx] ?? 0;
+                    const frac = n > 1 ? pos / (n - 1) : 0.5;
+                    const angle = -140 + (frac * 280);
+                    indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+                    indicator.style.transformOrigin = 'center 30px';
+                    valueDisplay.textContent = musicalDivisions[choiceIdx]?.name ?? '';
                 } else {
                     // Continuous: rotate straight from the normalized value.
                     const normValue = state.getNormalisedValue();
@@ -993,7 +921,7 @@
                 drawWaveform();
             }
 
-            // Hoist the Speed knob's updater so the sync toggle + BPM interval can re-snap it.
+            // Hoist the Speed knob's updater so the Tempo Sync toggle can re-snap it.
             if (isSpeed) updateSpeedVisual = updateVisual;
 
             // JUCE → UI: Listen for parameter changes (Pattern #15: NO parameters passed)
@@ -1002,19 +930,24 @@
             });
 
             // Re-render once the backend pushes the real range/skew (WR-02) so getScaledValue()
-            // and the indicator angle are correct even on the initial paint. For the Speed knob,
-            // rebuild the sync steps too — they depend on the now-correct Hz range.
+            // and the indicator angle are correct even on the initial paint.
             state.propertiesChangedEvent.addListener(() => {
-                if (isSpeed) rebuildSyncSteps();
                 updateVisual();
             });
+
+            // Speed knob only: repaint when the synced division changes. That value lives on
+            // SYNC_DIVISION_PARAM (automation / preset recall / this knob's own drag), not on the
+            // Speed slider's own state, so the slider's valueChangedEvent would never fire for it.
+            if (isSpeed && syncDivisionState) {
+                syncDivisionState.valueChangedEvent.addListener(() => updateVisual());
+                syncDivisionState.propertiesChangedEvent.addListener(() => updateVisual());
+            }
 
             // UI → JUCE: Mouse drag (Pattern #16: RELATIVE drag)
             knob.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 lastY = e.clientY;
                 dragAccum = 0;
-                if (speedSyncActive() && syncSteps.length === 0) rebuildSyncSteps();
                 state.sliderDragStarted();
                 e.preventDefault();
             });
@@ -1028,15 +961,17 @@
                 const deltaY = lastY - e.clientY;
                 lastY = e.clientY;
 
-                if (speedSyncActive() && syncSteps.length > 0) {
-                    // Synced: step through divisions one detent at a time.
+                if (speedSyncActive() && syncDivisionState) {
+                    // Synced (v1.6.0): step through divisions one detent at a time in slow→fast
+                    // display order, writing the discrete SYNC_DIVISION_PARAM directly — no Hz math.
                     dragAccum += deltaY;
                     const stepsToMove = Math.trunc(dragAccum / PX_PER_DIVISION);
                     if (stepsToMove !== 0) {
                         dragAccum -= stepsToMove * PX_PER_DIVISION;
-                        let idx = nearestSyncIndex(state.getScaledValue()) + stepsToMove;
-                        idx = Math.max(0, Math.min(syncSteps.length - 1, idx));
-                        state.setNormalisedValue(speedHzToNorm(syncSteps[idx].hz));
+                        const n = syncDivisionOrder.length;
+                        const curPos = syncDivisionPosByChoice[syncDivisionState.getChoiceIndex()] ?? 0;
+                        const pos = Math.max(0, Math.min(n - 1, curPos + stepsToMove));
+                        syncDivisionState.setChoiceIndex(syncDivisionOrder[pos].choiceIndex);
                     }
                     return;
                 }
@@ -1077,19 +1012,11 @@
                     button.classList.remove('active');
                 }
 
-                // If this is tempo sync button, re-snap the Speed knob (indicator + readout) via
-                // its own updater — single source of truth. Rebuild the reachable-division list
-                // first (with a fresh host tempo when engaging sync) so the detents are accurate.
+                // If this is the Tempo Sync button, re-snap the Speed knob (indicator + readout)
+                // via its own updater — single source of truth — so it flips between the discrete
+                // division stepper (synced) and continuous Hz (free) the instant sync toggles.
                 if (buttonId === 'tempoButton' && updateSpeedVisual) {
-                    if (isActive) {
-                        // Refresh host tempo first so the divisions shown are accurate (IN-04)
-                        refreshHostBpm().then(() => {
-                            rebuildSyncSteps();
-                            updateSpeedVisual();
-                        });
-                    } else {
-                        updateSpeedVisual();  // back to continuous Hz
-                    }
+                    updateSpeedVisual();
                 }
             }
 
