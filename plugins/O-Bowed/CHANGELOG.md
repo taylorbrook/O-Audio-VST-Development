@@ -23,6 +23,14 @@ PATCH — no param IDs/ranges/defaults/state format changed.
   sample-rate changes. `prepareToPlay` now zeroes the DC-blocker state and resets the body /
   sympathetic engines.
 
+### Build
+
+- **CMake `VERSION` keyword corrected.** `juce_add_plugin` was given `PLUGIN_VERSION "1.4.1"`, which
+  JUCE does not recognize — the keyword was silently ignored and every bundle shipped
+  `CFBundleShortVersionString`/`CFBundleVersion` `1.0.0` instead of `1.4.1`. Renamed to the correct
+  `VERSION "1.4.1"` so the built VST3/AU bundles now report `1.4.1`. Build metadata only; no code,
+  param, or state change.
+
 ### Known Limitations
 
 - Remaining Info findings IN-02, IN-04, IN-05, IN-08, IN-10, IN-11, IN-12, IN-13 (dead code, comment
