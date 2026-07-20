@@ -130,6 +130,6 @@ cp -R build/plugins/[PluginName]/[PluginName]_artefacts/Release/AU/[PluginName]*
 
 (Preferred: `./scripts/build-and-install.sh [PluginName]` — its Phase 4 does the dual-variant sweep automatically.)
 
-- [ ] **Logic (AU).** Plugin appears in the AU list, instantiates, loads its UI, plays a note — no crash, no silence.
-- [ ] **Ableton (VST3).** Plugin scans in, instantiates, loads its UI, plays a note — no crash, no silence.
-- [ ] Spot-check one note-expression plugin (e.g. O-Lyrica AU) and one WebView-UI plugin (e.g. O-simpleSubtractive VST3) for UI render + audio.
+- [x] **Logic (AU).** Plugin appears in the AU list, instantiates, loads its UI, plays a note — no crash, no silence. — **PASS 2026-07-20 (human)**
+- [x] **Ableton (VST3).** Plugin scans in, instantiates, loads its UI, plays a note — no crash, no silence. — **PASS 2026-07-20 (human)**
+- [x] Spot-check one note-expression plugin (e.g. O-Lyrica AU) and one WebView-UI plugin (e.g. O-simpleSubtractive VST3) for UI render + audio. — **PASS 2026-07-20 (human)**
