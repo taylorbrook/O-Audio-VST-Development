@@ -16,9 +16,10 @@
 # Exit codes are captured per-gate. macOS has no `timeout`/`gtimeout`, so a
 # portable background-PID + kill watchdog bounds each step.
 #
-# O-TextureForge is a KNOWN-FAIL fresh build (umappp/irlba transitive drift,
-# JUCE-independent, deferred DEF-L26-01). It is recorded as KNOWN-FAIL in every
-# column and never built, never "fixed", never allowed to abort the sweep.
+# O-TextureForge's former fresh-build KNOWN-FAIL (umappp/irlba transitive drift,
+# DEF-L26-01) was cleared by the qxy dep bump (nanoflann 1.10.1 + umappp v3.3.2);
+# it now builds + gates like every other plugin. The transitive irlba GIT_TAG
+# master remains unpinned upstream (durable-pin follow-up).
 #
 # Usage:
 #   ./scripts/verify-suite-battery.sh                 # full suite
@@ -124,15 +125,6 @@ gate_plugin() {
     local target install_rc auval_rc pluginval_rc note
     target="$(resolve_cmake_target "$plugin")"
     install_rc=""; auval_rc=""; pluginval_rc=""; note=""
-
-    # KNOWN-FAIL: never build, never gate.
-    if [ "$plugin" = "O-TextureForge" ]; then
-        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "$plugin" "$target" "KNOWN-FAIL" "KNOWN-FAIL" "KNOWN-FAIL" \
-            "KNOWN-FAIL: umappp/irlba transitive drift (DEF-L26-01), JUCE-independent; not built" >> "$TSV"
-        echo "[battery] $plugin -> KNOWN-FAIL (skipped)"
-        return 0
-    fi
 
     local blog="$LOGDIR/${plugin}.build.log"
     local alog="$LOGDIR/${plugin}.auval.log"
