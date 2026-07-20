@@ -12,7 +12,7 @@ include(FetchContent)
 FetchContent_Declare(
     anira
     GIT_REPOSITORY https://github.com/anira-project/anira.git
-    GIT_TAG v2.0.3
+    GIT_TAG v2.1.0
 )
 set(ANIRA_WITH_ONNXRUNTIME ON CACHE BOOL "" FORCE)
 set(ANIRA_WITH_LIBTORCH OFF CACHE BOOL "" FORCE)
