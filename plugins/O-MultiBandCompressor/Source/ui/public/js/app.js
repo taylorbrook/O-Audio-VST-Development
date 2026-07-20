@@ -87,15 +87,15 @@ function bindBandParameters(bandPrefix, bandId) {
         return ratio.toFixed(1) + ':1';
     });
 
-    // Attack: 0.1 to 200 ms (logarithmic)
+    // Attack: 0.1 to 200 ms (WR-04: APVTS skew 0.3 → value = min + (max−min)·norm^(1/skew))
     bindSlider(`${bandId}-attack`, `${bandPrefix}_ATTACK`, (norm) => {
-        const ms = Math.pow(10, norm * (Math.log10(200) - Math.log10(0.1)) + Math.log10(0.1));
+        const ms = 0.1 + (200 - 0.1) * Math.pow(norm, 1 / 0.3);
         return ms.toFixed(1) + ' ms';
     });
 
-    // Release: 10 to 2000 ms (logarithmic)
+    // Release: 10 to 2000 ms (WR-04: APVTS skew 0.3 → value = min + (max−min)·norm^(1/skew))
     bindSlider(`${bandId}-release`, `${bandPrefix}_RELEASE`, (norm) => {
-        const ms = Math.pow(10, norm * (Math.log10(2000) - Math.log10(10)) + Math.log10(10));
+        const ms = 10 + (2000 - 10) * Math.pow(norm, 1 / 0.3);
         return ms.toFixed(0) + ' ms';
     });
 

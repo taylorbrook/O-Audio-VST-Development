@@ -17,7 +17,7 @@ juce_add_plugin(O-simpleSampler
     PLUGIN_CODE OsSm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleSampler${OUARICON_DEV_SUFFIX}"
-    VERSION "0.1.0"
+    VERSION "1.0.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -42,23 +42,40 @@ target_include_directories(O-simpleSampler
         Source
 )
 
-# Stage 3 (GUI): juce_add_binary_data UI resources + ouaricon_add_module here.
-# (No ui/ assets exist yet — adding empty refs would break the build. Deferred.)
-# CRITICAL when added: the UI-resources target MUST use a distinct NAMESPACE *and*
-# HEADER_NAME (UIBinaryData / UIBinaryData.h) so it does NOT collide with the
-# embedded-samples target below (NAMESPACE BinaryData / BinaryData.h). A distinct
-# HEADER_NAME alone is insufficient — both share the namedResourceListSize /
-# getNamedResource symbols inside the same namespace (O-simpleGrain Stage-3.1
-# duplicate-symbol link lesson, in MEMORY.md).
+# Stage 3 (GUI): WebView UI resources + shared drag-drop streaming JS.
 #
-# Stage 2.1: built-in .wav sources are embedded via a SECOND juce_add_binary_data
-# target (NAMESPACE BinaryData / HEADER_NAME BinaryData.h) added AFTER
-# juce_generate_juce_header below. Currently piano.wav only; vocal/flute/vinyl
-# fall back to the piano blob (documented) until the curated set is sourced.
+# webview-drop-streaming module: the C++ drop handlers are HAND-ROLLED in
+# PluginProcessor.cpp (this plugin does NOT use the module's SessionManager), so
+# ouaricon_add_module here just (a) copies webview-drop-streaming.js into
+# Source/ui/public/modules/ at configure time and (b) adds the header-only module
+# C++ to the include path (harmless — never #included). The JS is then embedded
+# below and served at /js/modules/webview-drop-streaming.js by getResource. MUST
+# come BEFORE the juce_add_binary_data that lists it as a SOURCE.
+ouaricon_add_module(O-simpleSampler webview-drop-streaming)
+
+# WebView UI resources (embedded as BinaryData). CRITICAL: this target MUST use a
+# distinct NAMESPACE *and* HEADER_NAME (UIBinaryData) so it does NOT collide with
+# the O-simpleSampler_Samples target below (NAMESPACE BinaryData / BinaryData.h for
+# the embedded piano.wav). A distinct HEADER_NAME alone is insufficient — both
+# targets otherwise redefine namedResourceListSize / getNamedResource inside the
+# same namespace (O-simpleGrain Stage-3.1 duplicate-symbol link lesson, MEMORY.md).
+# The editor uses UIBinaryData::*; the processor uses BinaryData::* (the .wav).
+juce_add_binary_data(O-simpleSampler_UIResources
+    NAMESPACE UIBinaryData
+    HEADER_NAME UIBinaryData.h
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/webview-drop-streaming.js
+)
 
 # Required JUCE modules
 target_link_libraries(O-simpleSampler
     PRIVATE
+        O-simpleSampler_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
@@ -88,12 +105,18 @@ juce_generate_juce_header(O-simpleSampler)
 # audio thread, then atomic-publishes. NAMESPACE BinaryData / HEADER_NAME
 # BinaryData.h — the Stage-3 UI-resources target MUST use a DISTINCT namespace
 # (UIBinaryData) to avoid the duplicate getNamedResource symbol collision.
-# TODO(Stage 2.3): add vocal.wav/flute.wav/vinyl.wav once the curated set is sourced.
+# Stage 4 — curated built-in set delivered: piano (C3/48), cello (A4/69),
+# pizz (A4/69), hit (percussive, C4/60). Filenames are kept simple so JUCE mangles
+# them predictably: piano.wav->piano_wav, cello.aif->cello_aif, pizz.aif->pizz_aif,
+# hit.wav->hit_wav. Append SOURCES only; never touch NAMESPACE/HEADER_NAME.
 juce_add_binary_data(O-simpleSampler_Samples
     NAMESPACE BinaryData
     HEADER_NAME BinaryData.h
     SOURCES
-        Source/samples/piano.wav)
+        Source/samples/piano.wav
+        Source/samples/cello.aif
+        Source/samples/pizz.aif
+        Source/samples/hit.wav)
 
 target_link_libraries(O-simpleSampler PRIVATE O-simpleSampler_Samples)
 
@@ -111,8 +134,10 @@ target_compile_definitions(O-simpleSampler
 
 # Stage 2 DSP correctness gate — offline render harness (console app). Verifies
 # the sampler engine's audible acceptance criteria (Repitch tuning, Stretch
-# pitch/time independence, loop-seam click absence, Vintage clean-at-zero,
-# anti-alias budget) without a DAW. Off by default; enable with
-# -DOUARICON_BUILD_TESTS=ON. Added in Stage 2.3.
-# TODO(Stage 2.3): add_subdirectory(tests/render-harness) under an
-# OUARICON_BUILD_TESTS option, mirroring O-simpleGrain.
+# pitch/time independence, loop-seam click absence, region-end declick, Vintage
+# clean-at-zero, anti-alias budget) without a DAW. Off by default; enable with
+# -DOUARICON_BUILD_TESTS=ON. Added in Stage 2.3, mirroring O-simpleGrain.
+option(OUARICON_BUILD_TESTS "Build O-simpleSampler render-test harness" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()

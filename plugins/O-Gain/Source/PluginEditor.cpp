@@ -42,6 +42,10 @@ OGainAudioProcessorEditor::OGainAudioProcessorEditor(OGainAudioProcessor& p)
     // 2. Create WebView with relay options and native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
+#if JUCE_WINDOWS
+            // IN-04: webview2 backend + its options are Windows-only. Guarding
+            // keeps the editor from referencing a Windows enum on macOS (WebKit
+            // is always used there).
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
@@ -50,6 +54,7 @@ OGainAudioProcessorEditor::OGainAudioProcessorEditor(OGainAudioProcessor& p)
                         .getChildFile("OGain_WebView"))
                     .withStatusBarDisabled()
                     .withBuiltInErrorPageDisabled())
+#endif
             .withNativeIntegrationEnabled()
             .withKeepPageLoadedWhenBrowserIsHidden()
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
@@ -66,19 +71,11 @@ OGainAudioProcessorEditor::OGainAudioProcessorEditor(OGainAudioProcessor& p)
             .withOptionsFrom(*phaseInvertRRelay)
             .withOptionsFrom(*channelSwapRelay)
             .withOptionsFrom(*monoSumRelay)
-            // Native function: toggle learn mode
+            // Native function: toggle learn mode. processBlock detects the
+            // active-flag edge and drives the state transitions / finalize.
             .withNativeFunction("toggleLearn", [this](auto&, auto complete) {
-                bool current = processorRef.learnActive.load();
-                bool newState = !current;
+                const bool newState = ! processorRef.learnActive.load();
                 processorRef.learnActive.store(newState, std::memory_order_release);
-
-                // If turning off, set learn state to idle after a brief period
-                // (processBlock handles the state transitions)
-                if (!newState && processorRef.learnState.load() == 1)
-                {
-                    // processBlock will detect edge and finalize
-                }
-
                 complete(newState);
             })
     );
@@ -149,13 +146,17 @@ void OGainAudioProcessorEditor::resized()
 
 void OGainAudioProcessorEditor::timerCallback()
 {
-    // Read all atomic metering values from processor (thread-safe)
+    // Plain peak/RMS/VU meters are independent atomics (no cross-field coherence
+    // needed). The Learn panel is read as ONE coherent snapshot via the seqlock
+    // (WR-05) so state / confidence / integrated / peak can't tear across frames.
+    const auto learn = processorRef.readLearnSnapshot();
+
     juce::String script = juce::String::formatted(
         "if (typeof updateMeters === 'function') { updateMeters({"
         "inputPeakL:%f, inputPeakR:%f, inputRmsL:%f, inputRmsR:%f,"
         "outputPeakL:%f, outputPeakR:%f, outputRmsL:%f, outputRmsR:%f,"
         "vuLevelL:%f, vuLevelR:%f,"
-        "momentaryLUFS:%f, shortTermLUFS:%f, integratedLUFS:%f, truePeakDBTP:%f,"
+        "momentaryLUFS:%f, shortTermLUFS:%f, integratedLUFS:%f, samplePeakDBFS:%f,"
         "learnState:%d, learnElapsedSeconds:%f, learnConfidence:%d"
         "}); }",
         processorRef.inputPeakL.load(), processorRef.inputPeakR.load(),
@@ -163,10 +164,9 @@ void OGainAudioProcessorEditor::timerCallback()
         processorRef.outputPeakL.load(), processorRef.outputPeakR.load(),
         processorRef.outputRmsL.load(), processorRef.outputRmsR.load(),
         processorRef.vuLevelL.load(), processorRef.vuLevelR.load(),
-        processorRef.momentaryLUFS.load(), processorRef.shortTermLUFS.load(),
-        processorRef.integratedLUFS.load(), processorRef.truePeakDBTP.load(),
-        processorRef.learnState.load(), processorRef.learnElapsedSeconds.load(),
-        processorRef.learnConfidence.load()
+        learn.momentaryLUFS, learn.shortTermLUFS,
+        learn.integratedLUFS, learn.samplePeakDBFS,
+        learn.state, learn.elapsedSeconds, learn.confidence
     );
 
     webView->evaluateJavascript(script, nullptr);

@@ -33,7 +33,6 @@ public:
     void reset();
     void resetWithPhase (double phase);
 
-    double getNextSample();
     void getNextSampleStereo (double& outL, double& outR);
 
     // Unison

@@ -31,6 +31,7 @@ private:
     void updateCoefficients();
     double processSingleSVF (double input, double& s1, double& s2);
     double processNotch (double input, double& s1, double& s2);
+    double flushIfNonFinite (double output);
 
     double currentSampleRate = 44100.0;
     double cutoffHz = 20000.0;

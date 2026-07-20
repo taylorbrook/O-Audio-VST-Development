@@ -28,9 +28,6 @@ public:
         rmsBuffer.resize(rmsWindowSize, 0.0f);
         rmsWritePosition = 0;
         rmsSum = 0.0f;
-
-        peakValue = 0.0f;
-        rmsValue = 0.0f;
     }
 
     void reset()
@@ -38,8 +35,6 @@ public:
         std::fill(rmsBuffer.begin(), rmsBuffer.end(), 0.0f);
         rmsWritePosition = 0;
         rmsSum = 0.0f;
-        peakValue = 0.0f;
-        rmsValue = 0.0f;
     }
 
     // Process single sample and return detected level (linear, not dB)
@@ -78,10 +73,6 @@ private:
     int rmsWindowSize = 441;  // ~10ms @ 44.1kHz
     int rmsWritePosition = 0;
     float rmsSum = 0.0f;
-
-    // Cached values (not used for processing, kept for potential metering)
-    float peakValue = 0.0f;
-    float rmsValue = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EnvelopeDetector)
 };

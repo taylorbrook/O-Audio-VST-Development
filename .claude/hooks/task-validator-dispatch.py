@@ -89,6 +89,13 @@ def main():
     task_description = data.get("task_description", "")
     task_content = f"{task_subject} {task_description}"
 
+    # Env-gated debug echo (stderr ONLY; normal unset runs stay silent).
+    if os.environ.get("CLAUDE_HOOK_DEBUG"):
+        print(
+            f"[TaskCompleted] task-validator-dispatch: task_content={task_content[:80]!r}",
+            file=sys.stderr,
+        )
+
     # Skip non-code tasks: only validate if task mentions code-related content
     if not CODE_PATTERNS.search(task_content):
         sys.exit(0)  # Not a code task, skip validation

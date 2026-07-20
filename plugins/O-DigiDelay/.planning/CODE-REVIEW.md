@@ -53,7 +53,8 @@ folder, and a cross-thread meter race.
 
 - **v1.2.10** (DSP robustness): WR-01, WR-02, WR-06, IN-04 — resolved.
 - **v1.2.11** (preset system): WR-03, WR-04, IN-02, IN-03 — resolved; IN-01 — doc corrected (path intentionally unchanged, migration deferred).
-- **Outstanding:** WR-05 (WebView2 shared user-data folder — Windows-only), WR-07 (butterfly asset filename has spaces — percent-encoding-fragile).
+- **v1.2.12** (WebView/editor): WR-05 (plugin-specific WebView2 user-data folder), WR-07 (butterfly asset renamed to space-free `butterfly2_bw.png`) — resolved; butterfly overlay verified rendering on macOS.
+- **Outstanding:** none — all 7 warnings + 4 info findings addressed.
 
 ---
 

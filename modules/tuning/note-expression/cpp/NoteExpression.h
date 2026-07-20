@@ -1,6 +1,6 @@
 /*
   ==============================================================================
-    NoteExpression.h — note-expression module v1.0.0
+    NoteExpression.h — note-expression module v1.1.1
     VST3 Note Expression (kTuningTypeID) support for Dorico microtonal playback.
     Public API lives under the Ouaricon::NoteExpression nested namespace.
 
@@ -168,8 +168,15 @@ public:
     {
         // Called on the audio thread just before processBlock. Plain push is
         // safe: drain happens on the same thread at the top of processBlock.
-        // blockEvents is reserved to 64 slots in the constructor (T-23-02).
-        blockEvents.push_back (e);
+        // blockEvents is reserved to 64 slots in the constructor (T-23-02) and
+        // re-reserved after every drain, so pushing only while size < capacity
+        // guarantees no reallocation on the audio thread. Under a pathological
+        // burst (>capacity raw NE events in one block — e.g. dense Dorico divisi
+        // at tiny buffers) we drop the overflow rather than reallocate; the
+        // dropped tuning deltas simply fall back to the previous per-pitch offset
+        // for that block (WR-02).
+        if (blockEvents.size() < blockEvents.capacity())
+            blockEvents.push_back (e);
     }
 
     /** Called by the processor at the top of processBlock. Moves the current

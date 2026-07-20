@@ -135,3 +135,54 @@ isolated by start/end, shaped by amp ADSR + VCA, tuned relative to Root Key.
 5. 2nd `juce_add_binary_data` target wiring (NAMESPACE `BinaryData`), confirm no namespace collision
    with the (future) UI target.
 6. Velocity→amp curve (`velToAmp`) shape; `SmoothedValue` ramp lengths for click-free note-on/off.
+
+---
+
+# Phase 2.2 — discuss (continued) · 2026-06-25
+
+**Trigger:** Phase 2.1 verified PASS (first audio: Repitch + region + amp ADSR + piano decode; auval + pluginval@5 SUCCESS). DAW play-test gate **CLEARED** — root pitch, transpose, Start/End region, and Tune/Fine all confirmed playing correctly; no blocking issues. Re-entering discuss to scope **Phase 2.2 (the full tone chain)**.
+
+## Decisions resolved (Phase 2.2)
+
+### D3 — 2.1 DAW gate: **PASSED, proceed**
+- The CONTEXT-D2 STOP is cleared. O-simpleSampler-dev plays correctly in the DAW; no new issues surfaced beyond the already-captured region-end hard-cut click (a known 2.1 verify warning, scoped into 2.2 below). No 2.1 rework needed.
+
+### D4 — Phase 2.2 execution: **SPLIT into 2.2a (tone chain) → 2.2b (Stretch)**
+- Phase 2.2 bundles 5 DSP blocks; **Stretch SOLA is the highest-risk, headline component**. Split into two execute passes, each with its own DAW checkpoint (matching the 2.1 design-conscious test rhythm; isolates the risky engine from the inherited-pattern work).
+- **Phase 2.2a — Tone chain (lower risk, all inherited patterns):**
+  - **Region-end declick** — fold the 2.1 verify Warning 1 fix here: short declick ramp at `readPos≥endSamp` (`SampleVoice.h:185-189` currently `ampEnv.reset(); break;` → audible click when lowering End). The most likely audible artifact; address first.
+  - **Loop engine** — `loopMode` (off/forward/ping-pong); `loopStart`/`loopEnd` (% of region); equal-power (sin/cos) crossfade over `loopCrossfade` ms via a second read head; zero-crossing marker snap (off-thread). `reverse` negates read direction. DSP-03, FUNC-05/06.
+  - **Vintage** — per-voice S&H decimation (`fsEff=lerp(fs,3000,vintage)`) + bit-crush (`bits=lerp(clean,8,vintage)`); **full bypass at 0**; placed before the filter. DSP-04.
+  - **Filter** — per-voice `juce::dsp::StateVariableTPTFilter<float>` LP; `filterCutoff` (log) + `filterResonance`→Q; lead-voice `displayCutoffHz`/`displayK` atomics staged for the Stage-3 curve. DSP-05.
+  - **Checkpoint:** build VST3+AU+Standalone, auval + pluginval@5, install, **STOP for DAW play-test** (loop sustains a short sound, no seam click; ping-pong/reverse; Vintage clean-at-zero → grit; filter shapes tone) before 2.2b.
+- **Phase 2.2b — Stretch SOLA (HEADLINE):**
+  - Synchronous-granular SOLA — time-axis read head at 1× realtime + per-grain resample by `keyRatio`, Hann overlap-add (fixed ~60 ms grain, 2× overlap, `kMaxGrainsPerVoice=4`); mined from O-simpleGrain `GrainVoice`/`GrainScheduler`. `pitchMode` toggles Repitch↔Stretch. DSP-01.
+  - **Checkpoint:** DAW A/B — toggling Pitch Mode on a sustained sample, the Repitch↔Stretch difference is obvious (low note slows/lengthens in Repitch; held note keeps duration while pitch tracks key in Stretch).
+
+### D5 — Stretch fidelity bar (v1.0): **SOLA, tune the grain**
+- Ship the planned **synchronous-granular SOLA**; invest tuning effort in grain size/overlap so the Repitch↔Stretch A/B is **obvious and clean enough to read as "same length, different pitch"** for a teaching tool. Phase-vocoder / PSOLA HQ mode **deferred to v1.1** (architecture decision, unchanged).
+- Grain-tuning levers: fixed grain length (~60 ms baseline — tune for transient vs smearing), 2× Hann overlap, pool size 4. Validate with the 2.3 render-harness **single-grain autocorrelation probe** (the grain-rate comb confounds spectral probes — project memory).
+
+## Phase 2.2 scope summary (immediate forward target)
+
+| Pass | Components | Risk | Gate |
+|------|-----------|------|------|
+| **2.2a** | region-end declick · loop (fwd/ping-pong + equal-power crossfade + zero-cross snap) · reverse · Vintage (S&H + bit-crush, bypass@0) · filter (TPT LP) | Low (inherited) | DAW play-test |
+| **2.2b** | Stretch SOLA (`pitchMode` toggle, granular reuse of O-simpleGrain scheduler) | **High (headline)** | DAW A/B test |
+
+*2.3 (AA hardening + viz taps + voice-stealing + RT-safety + offline render-harness) remains the subsequent Stage-2 pass — unchanged.*
+
+## Carry-forward constraints (still binding in 2.2)
+
+- **21-param APVTS frozen** — read existing IDs only; the deferred params (`loopMode`, `loopStart`, `loopEnd`, `loopCrossfade`, `reverse`, `pitchMode`, `vintage`, `filterCutoff`, `filterResonance`) are already in the layout and currently inert — 2.2 wires them, no APVTS changes.
+- 2.3 hardening backlog accepted in 2.1 verify (message-thread reclaim queue for the source-swap free; `std::atomic_load/store(shared_ptr)` C++20 deprecation; `setValueNotifyingHost`-in-prepare advisability) stays in 2.3 scope — do **not** pull forward into 2.2.
+- Vintage/filter/loop are **per-voice**; lead-voice drives any display atomics (curve wiring lands visually in Stage 3, but stage the atomics now).
+
+## Open items for research phase (Phase 2.2)
+
+1. **Loop crossfade mechanics** — exact second-read-head equal-power crossfade + ping-pong direction handling at the loop seam from O-simpleGrain / O-GrainScatter / O-Freeze (signatures, how the two read heads are mixed, zero-cross snap off-thread).
+2. **Region-end declick ramp** — shortest ramp length that kills the hard-cut click without truncating audible content; reconcile with the existing 0.2 s release tail (does the release already cover it, or is a dedicated end-ramp needed?).
+3. **Stretch SOLA port surface** — exact `GrainVoice`/`GrainScheduler` reuse from O-simpleGrain: how to drive it at time-1× with per-grain `keyRatio` resample; grain-pool lifetime per voice; how `pitchMode` switches the read path cleanly mid-note (or only at note-on).
+4. **Vintage formulation** — confirm `fsEff`/`bits` lerp endpoints and the S&H + quantize order; verify bit-for-bit clean at `vintage==0` (O-simpleAdditive bit-depth lesson reference).
+5. **Filter** — `StateVariableTPTFilter` LP per-voice setup + `filterResonance`→Q mapping + closed-form `|H_LP|` g/k for the lead-voice display atomics (O-simpleSubtractive reference).
+6. **Grain-tuning starting point** — O-simpleGrain's shipped grain length/overlap as the 2.2b baseline before the harness autocorrelation tuning pass.

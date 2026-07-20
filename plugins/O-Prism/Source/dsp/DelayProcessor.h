@@ -23,9 +23,10 @@ public:
     void setTime (float seconds);
     void setFeedback (float fb);
     void setMode (int mode);
-    void setSync (bool sync);
     void setMix (float mix);
-    void setPlayHead (juce::AudioPlayHead* playHead);
+
+    /** Maximum supported delay time in seconds (delayTime parameter ceiling). */
+    static constexpr float kMaxDelaySeconds = 2.0f;
 
 private:
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> delayL { 192000 };
@@ -34,12 +35,12 @@ private:
     juce::dsp::StateVariableTPTFilter<float> feedbackFilterR;
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
-    float delaySamples = 0.0f;
+    // IN-03: smoothed per-sample — stepped read-position changes zipper/click
+    // under delayTime automation (Lagrange interpolation glides the pitch
+    // instead, tape-style)
+    juce::SmoothedValue<float> delaySamples { 0.0f };
     float feedbackAmount = 0.3f;
     int delayMode = 0; // 0=Normal, 1=PingPong
     float currentSampleRate = 44100.0f;
     float feedbackL = 0.0f, feedbackR = 0.0f;
-
-    juce::AudioPlayHead* audioPlayHead = nullptr;
-    bool tempoSync = false;
 };

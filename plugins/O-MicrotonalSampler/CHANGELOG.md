@@ -1,5 +1,239 @@
 # O-MicrotonalSampler Changelog
 
+## [1.23.6] - 2026-07-01
+
+Patch release hardening the **sample loader + filename parser** — the four
+warnings and the loader/parser infos from the 2026-06-30 loading-parsing review
+(`.planning/review/2026-06-30/REVIEW-loading-parsing.md`). **No parameter IDs,
+ranges, or state format change** — existing sessions and `.omspreset` files load
+byte-for-byte unchanged. Changes are confined to `SampleLoader.cpp`,
+`FilenameParser.cpp`, and a new pure-helper header `LoaderSupport.h`.
+
+The review's **CR-01** (worker force-kill via `pthread_cancel`) was already fixed
+in v1.23.1 (block reads + `shouldExit()` checkpoints + 5000 ms signal-first
+`stopThread`) and is **not** re-addressed here. **IN-04** (stale
+`lowestNote`/`highestNote` after a single-variant replace) lives in
+`PluginProcessor.cpp`, outside these two files, and is deferred.
+
+### Fixed
+
+- **WR-01 — a corrupt/huge file silently aborted the ENTIRE folder load with no
+  callback.** `processOneFile` allocated `AudioBuffer(srcChannels, srcSamples)`
+  and `make_shared<AudioBuffer>(2, outNumSamples)` straight from the file header
+  with no upper bound and no per-file `try`/`catch`. A bad length → `std::bad_alloc`,
+  which JUCE's Release `threadEntryPoint` `catch(...)` (Threads.cpp:108-114)
+  swallows silently: the worker exits mid-batch, neither `completionCallback` nor
+  `failureCallback` fires (UI spinner hangs), and every already-decoded sample is
+  discarded. **Fix:** wrap the per-file body in `try`/`catch` so a throw becomes a
+  recorded skip (`outSkipReason`) + continue in folder mode / a reported failure in
+  single-variant mode, and reject `srcSamples` above `kMaxSamplesPerFile`
+  (~268M samples/ch) **before** allocating.
+
+- **WR-02 — `int64 → int` truncation of `lengthInSamples` mis-sized very long /
+  corrupt files.** `const int srcSamples = (int) reader->lengthInSamples;` wrapped a
+  >2^31-sample length to a small positive (passing the `<= 0` guard → silent
+  under-read) or negative (false "invalid header" reject of a real file). **Fix:**
+  keep the count as `juce::int64` and validate it against the same ceiling
+  (`oms::isAcceptableSampleLength`) **before** narrowing.
+
+- **WR-03 / IN-05 — ~1-sample heap over-read on SR-mismatched loads.**
+  `outNumSamples = ceil(srcSamples / srcRatio)` made `LagrangeInterpolator::process`
+  consume up to ~1 input sample past `sourceBuf`'s valid region on any odd-length
+  down/up-convert (e.g. 44.1↔48 kHz) — a real out-of-bounds heap read on the
+  majority of real-world loads. **Fix:** pad the source buffer with one **cleared
+  guard sample** (`srcSamples + 1`, `clear()`d) so the look-ahead read is in-bounds
+  and silent; output length is unchanged (still `ceil`). The now-provably-dead
+  `if (outNumSamples < 1) outNumSamples = 1;` clamp (IN-05) is removed — `srcSamples >= 1`
+  and `srcRatio > 0` guarantee `ceil >= 1`. *(Chose guard-padding over the review's
+  `floor` alternative so no output tail is dropped and tiny files never produce a
+  zero-length buffer.)*
+
+- **WR-04 — RR split-form fabricated a round-robin index from the note token.**
+  The RR scan ran over ALL tokens without excluding the one already claimed as the
+  note, so `take_60.wav` → `["take","60"]` used `"60"` as BOTH the MIDI note AND
+  `parseAsRrIndex("take60")` → rr 59, planting a spurious explicit RR that
+  suppressed the ambiguous-duplicate modal and skewed variant ordering. **Fix:**
+  skip `i == noteTokenIndex`, and in the split form require the digit token index
+  `!= noteTokenIndex`. A genuinely distinct note + take (`C3_take_60`) keeps its RR.
+
+### Changed
+
+- **IN-01 — nested subfolders are now reported.** Folder enumeration stays flat
+  (recursing would silently ingest unrelated audio in sibling/bounce/render
+  subfolders), but a `"N subfolder(s) ignored (flat load …)"` line is now added to
+  the skipped-files payload so a user who dropped a per-articulation folder tree
+  sees why the map is partial instead of getting silence.
+
+- **IN-02 — more duplicate groups now ask for confirmation.** Previously a group
+  was flagged ambiguous ONLY when NO file carried an explicit RR token, so a mix
+  like `{C3_v1_rr1.wav, C3_v1.wav}` (a likely accidental duplicate next to an RR
+  set) and two files resolving to the SAME RR index merged silently. The new
+  `oms::isAmbiguousRrGroup` also flags mixed explicit/no-token groups and duplicate
+  explicit indices. Distinct explicit sets (`rr1, rr2, rr3…`) still merge silently.
+  The built map is unchanged either way — this only governs the confirmation modal.
+
+- **IN-03 — bare single-letter dynamics no longer mis-map pre-note.** With no
+  post-note velocity token, the pre-note tier accepted a bare `p`/`f` anywhere
+  before the note, so `F-C3.wav` (Flute) read as forte→layer 3 and `P_C3.wav`
+  (Piano) as piano→layer 0 — silent mis-maps. **Fix:** the pre-note tier now
+  requires a two-char dynamic (`mp`/`mf`) or an explicit `v`/`vel`/`L`/`layer`/`lyr`
+  form; bare `p`/`f` remain valid POST-note. *(Tradeoff: a library that uses a bare
+  `f`/`p` PRE-note as its intended dynamic now lands on the default layer — the
+  dominant `_mf_`/`_mp_` convention and all post-note forms are unaffected.)*
+
+### Testing
+
+- New `loader_robustness_check` regression (46/46) pins the extracted pure helpers
+  (`isAcceptableSampleLength`, `resampleOutLength`, `isAmbiguousRrGroup`) and the
+  parser fixes (WR-04 split-form exclusion, IN-03 pre-note dynamics gate).
+- `technique_parse_check`, `merge_rr_check`, `find_cell_triplet_check`,
+  `dynamics_layer_check`, `state_migration_check`, `cc_pc_trigger_check` all re-run
+  green (no parse/grouping/state regressions).
+- auval (`aumu OMtS OuDv`) **PASS**. The WR-01 `try`/`catch` and CR-01 cooperative
+  cancellation are integration-level (real/corrupt reader) — covered by build +
+  auval, not the console harness.
+
+## [1.23.5] - 2026-07-01
+
+Patch release hardening the **WebView C++/JS bridge** — the two warnings and
+three infos from the 2026-06-30 editor-bridge review
+(`.planning/review/2026-06-30/REVIEW-editor-bridge.md`). **No parameter IDs,
+ranges, or state format change** — existing sessions and `.omspreset` files load
+byte-for-byte unchanged. The changes affect only editor lifetime-safety, save
+error reporting, drop routing, and dead-code removal in `PluginEditor.cpp`.
+
+### Fixed
+
+- **W12 — async file-dialog completions could use-after-free after editor
+  teardown.** Each of the 9 `this`-capturing `chooser->launchAsync(...)`
+  completions (`loadSingleSampleDialog`, `loadScalaFile`, `loadKBMFile`,
+  `saveScalaFile`, `saveKBMFile`, `saveCurrentPreset`, `loadPreset`,
+  `locateMissingFolder`, `exportTuningHTML`) kept the `FileChooser` alive via a
+  shared_ptr but captured a raw `this`. If the host tore the editor window down
+  while a native dialog was open, the completion later dereferenced a dangling
+  `this` (`processorRef.…`) **and** called the WebView's `complete` callback
+  after the `WebBrowserComponent` was destroyed — both use-after-free.
+  **Fix:** capture a `juce::Component::SafePointer<…Editor>` and bail on null.
+  **Note (deviation from the review snippet):** the bail does **not** call
+  `complete(false)`. Verified in JUCE 8.0.9 that the native-fn completion is
+  `[this = WebBrowserComponent::Impl*, resultId](result){ … }` owned by the
+  editor's WebView — so calling `complete` on the dead-editor path would itself
+  UAF the freed `Impl`. The editor (and its JS) are gone during teardown, so the
+  unresolved promise is moot; we bail without touching the dead bridge.
+  (`pickSampleFolder` / `estimateFolderAudioSize` were already safe — `[]`
+  captures, no `this`.)
+
+- **W13 — silent save failures reported to JS as success.** `saveScalaFile`,
+  `saveKBMFile`, and `exportTuningHTML` called `file.replaceWithText(…)` and
+  unconditionally resolved `true`, discarding the write result. A failed write
+  (read-only location, permission denied, disk full) showed a success state in
+  the UI while nothing was written — silent data loss. **Fix:** propagate the
+  real `bool` (`complete(var(ok))`), matching `saveCurrentPreset` which already
+  did this.
+
+- **IN-02 — `reportCellLayout` never reset `folderZoneRect` on an omitted
+  payload.** The folder drop-zone rectangle was only overwritten when the JSON
+  contained a `folderZone` object; a later report that omitted it (zone
+  scrolled out / removed from the DOM) or failed to parse left a stale rectangle
+  that `filesDropped` could still route a folder drop to. **Fix:** reset
+  `cellLayout` + `folderZoneRect` up-front each report, before conditionally
+  repopulating — so a stale rect can no longer mis-route.
+
+- **IN-03 — cell-hit drop path loaded without an existence check.**
+  `handleWebViewFileDrop` forwards JS-supplied path strings straight into
+  `filesDropped`; a filename-only / relative string (a host that doesn't expose
+  absolute paths) yielded a non-existent `juce::File` and a phantom
+  `loadSingleSample` dispatch (also a debug jassert). **Fix:** gate the cell-hit
+  load on `file.existsAsFile()` and toast otherwise — matching the dialog path.
+
+### Changed
+
+- **IN-01 — removed 3 dead native functions from the bridge registry.** A
+  full-tree scan of `Resources/ui/js` (every `getNativeFunction` / `invokeNative`
+  call site) confirmed `getEmbeddedTuningCategories`, `getSkippedFiles`, and
+  `resetTechniqueNames` have no JS caller (`getSkippedFiles` is superseded by JS
+  reading `snap.skippedFiles` directly; `resetTechniqueNames` by
+  `applyTechniqueNames`/per-slot renames). Removed the registry entries; the
+  processor's `getLastSkippedFiles()` accessor and `resetTechniqueNames()` method
+  are retained (still used internally / as API surface).
+
+- **Extracted drop hit-test geometry to `DropRouting.h` (`oms::hitTestDrop`).**
+  The XY→zone routing (cell vs folder-zone priority, empty-zone guard) that lived
+  inline in `filesDropped` is now a pure, unit-testable free function.
+  Behaviour-preserving — cell wins over the zone, half-open intervals unchanged.
+
+### Testing
+
+- New `drop_routing_check` regression (**13/13 PASS**) pins `oms::hitTestDrop`:
+  cell hit / cell-priority-over-zone / folder-zone hit / empty-zone stale-rect
+  guard (IN-02) / out-of-bounds / half-open edges / first-match-wins.
+- Build (VST3 + AU, Release) clean; **auval PASS**; **pluginval strictness-10
+  PASS** including the Editor / "Open editor whilst processing" / Editor
+  Automation open-close cycles that exercise the W12 lifetime path.
+
+## [1.23.4] - 2026-07-01
+
+Patch release hardening the **state-serialization path** — three findings from
+the 2026-06-30 processor/state review
+(`.planning/review/2026-06-30/REVIEW-processor-state.md`). **No parameter IDs,
+ranges, or state format change** — existing sessions and `.omspreset` files load
+byte-for-byte unchanged; same-version project reopens are identical. The changes
+affect only (a) thread-safety of off-message-thread saves, (b) determinism when
+loading *partial/older* presets, and (c) save latency for embedded libraries.
+
+### Fixed
+
+- **WR-01 — off-message-thread `getStateInformation` could tear-read technique
+  names / tuning → crash.** Reaper (and other hosts) call `getStateInformation`
+  off the message thread — the documented HG-08 reason the `persistenceLock`
+  exists — but `captureStateValueTree` read two *other* pieces of mutable state
+  without it: `techniqueNames` (a `juce::StringArray`, which reallocates its
+  backing store on `set`/`add`) and the live `TuningEngine` (via
+  `captureTuningValueTree`). A concurrent rename or tuning edit on the message
+  thread during an off-thread save was a torn read / use-after-free. **Fix:**
+  snapshot `techniqueNames` under `persistenceLock` in the capture, guard
+  `setTechniqueName` / `resetTechniqueNames` (and the restore-path mutation)
+  with the same lock, hold the lock around the tuning capture, and take the lock
+  in the editor's 8 tuning-*write* native functions (`setSingleInterval`,
+  `setTonicNote`, `setOctaveStretch`, `setMasterTune`, `loadEmbeddedTuning`,
+  `loadScalaFile`, `loadKBMFile`, `applyGeneratedScale`). Read-only tuning
+  queries stay lock-free — two readers can't tear. New public
+  `getPersistenceLock()` accessor; the lock is recursive and never taken on the
+  audio thread.
+
+- **WR-02 — loading a partial/older preset bled the previous session's technique
+  names and CC/PC trigger tables through.** `restoreStateValueTree` reset the
+  *trims* table to unity before applying saved entries, but only *overrode
+  present slots* for technique names and only rebuilt the CC/PC tables when the
+  child was present. Loading an `.omspreset` that lacked `<TechniqueNames>` /
+  `<CcMapping>` / `<PcMapping>` over a customized session left the prior
+  session's renamed techniques and custom trigger tables active — a silently
+  mixed state the user never authored. **Root cause:** inconsistent
+  "state the preset doesn't carry" handling across the restore sections. **Fix:**
+  mirror the trims pattern — reset technique names to
+  `defaultTechniqueVocabulary()`, CC to `defaultCcMapping(count)`, and PC to
+  `defaultPcMapping()` **before** applying whatever the loaded tree carries.
+  Restore is now deterministic: the final state depends only on the loaded tree,
+  never on prior state. Back-compat preserved — v1.13.0/v1.14.0 sessions that
+  omit these children reset to the exact ctor defaults they had before.
+
+- **WR-04 — a 250 MB embedded library was re-encoded to base64 WAV on *every*
+  save.** `buildEmbeddedAudioTree` called `encodeVariantAsBase64Wav` for every
+  variant on each `getStateInformation`, re-encoding the whole embedded library
+  (a latency hazard on hosts that save from an audio-adjacent thread). **Fix:**
+  memoise the encoded blob on `SampleVariant` (`cachedBase64Wav`) — encode once,
+  reuse on every subsequent save. Embedded snapshots are immutable after load and
+  loop points serialise as separate XML attrs, so the cache never goes stale.
+  DAW autosave no longer re-encodes.
+
+### Testing
+
+- New `preset_determinism_check` regression (15/15) pins the WR-02 no-bleed
+  contract using the real `defaultTechniqueVocabulary` / `defaultCcMapping` /
+  `defaultPcMapping` factories.
+- Re-ran `state_migration_check`, `cc_pc_trigger_check`, `ks_default_check` —
+  all green. auval PASS; pluginval clean.
+
 ## [1.23.3] - 2026-06-30
 
 Patch release fixing the fresh-instance keyswitch default that silently ate low

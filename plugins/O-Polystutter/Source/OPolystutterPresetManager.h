@@ -265,6 +265,16 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
     if (preset == nullptr)
         return false;
 
+    // v1.12.3 (WR-08): a preset is authoritative — reset every parameter to
+    // its default first so keys the preset omits (pattern steps, Euclidean,
+    // pitch-rand) don't inherit stale values from the previous session.
+    if (preset->hasProperty("parameters"))
+    {
+        for (auto* param : parameters.processor.getParameters())
+            if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                ranged->setValueNotifyingHost(ranged->getDefaultValue());
+    }
+
     // Restore parameters
     if (preset->hasProperty("parameters"))
     {

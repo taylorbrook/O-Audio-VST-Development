@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.3.0
 - **Type:** Audio Effect (Dynamics Processor - Multiband Compressor)
 - **Complexity:** 5.0 (Maximum complexity - 56 parameters, 10 DSP components)
 
@@ -14,10 +14,14 @@
 - **2026-01-25 (v1.0.0):** Production ready - All stages complete (DSP, crossover network, M/S processing, WebView UI, metering)
 - **2026-01-25 (v1.1.0):** Added draggable crossover controls - click and drag to adjust XOVER1/2/3 frequency split points
 - **2026-01-26 (v1.2.0):** Real-time FFT spectrum analyzer - 2048-sample FFT with lock-free audio→UI communication
+- **2026-07-01 (v1.2.1):** RT-safety pass (CODE-REVIEW.md) - removed all audio-thread allocation/locking (CR-01/02/03, WR-01) + hot-loop/cleanup (IN-01..04). No sonic change (crossover verified bit-identical); pluginval strictness 10 + auval pass.
+- **2026-07-01 (v1.2.2):** Correctness + polish pass (CODE-REVIEW.md) - WR-02 M/S detection −6 dB fixed (active-channel count threaded into the detector), WR-04 Attack/Release readouts now use the skew-0.3 mapping, IN-05 resource provider matches full relative path, IN-06 spectrum bins log-spaced 20 Hz–20 kHz (peak per bin). auval pass.
+- **2026-07-01 (v1.3.0):** WR-03 crossover all-pass compensation - LOW passes through AP(f2)·AP(f3), LOMID through AP(f3); the 4-band sum is now pure all-pass (magnitude-flat at unity). Old ripple up to 0.63 dB → new ≤0.014 dB, verified by offline impulse-FFT + stepped swept-sine A/B harness. pluginval strictness 10 + auval pass.
 
 ## Known Issues
 
-None
+None. All items from the v1.2.0 code review (`.planning/CODE-REVIEW.md`) are resolved as
+of v1.3.0.
 
 ## Additional Notes
 

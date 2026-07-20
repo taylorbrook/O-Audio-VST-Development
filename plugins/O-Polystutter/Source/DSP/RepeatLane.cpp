@@ -28,6 +28,10 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
     captureBuffer.clear();
     captureWritePosition = 0;
 
+    // v1.12.3 (WR-05): Snapshot buffer holds the frozen slice for playback
+    snapshotBuffer.setSize(2, maxCaptureSamples);
+    snapshotBuffer.clear();
+
     // Calculate crossfade samples (5ms for click-free looping)
     crossfadeSamples = static_cast<int>(spec.sampleRate * 0.005);
 
@@ -168,26 +172,27 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
         if (effectivePosition < effectiveCaptureLength)
         {
-            // v1.1.0: Read from capture buffer NON-DESTRUCTIVELY with interpolation
-            // Calculate read position in the circular buffer
-            // captureStartPosition points to the oldest sample we want to read
+            // v1.12.3 (WR-05): Read from the trigger-time snapshot, not the
+            // circular capture buffer — the live write head keeps advancing
+            // and would corrupt long repeat tails. Snapshot index 0 is the
+            // start of the captured slice, so no circular math is needed.
             double readOffset = reverseEnabled
                 ? (captureLength - 1.0 - (effectivePosition * pitchRatio))
                 : (effectivePosition * pitchRatio);
 
             readOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), readOffset);
 
-            // Convert to circular buffer position
-            // captureStartPosition is where the capture began
-            int basePos = (captureStartPosition + static_cast<int>(readOffset)) % maxCaptureSamples;
-            int nextPos = (basePos + 1) % maxCaptureSamples;
-            float frac = static_cast<float>(readOffset - static_cast<int>(readOffset));
+            // Clamp the interpolation neighbor inside the slice (also fixes
+            // the old wrap into one sample of unrelated audio at the loop end)
+            int basePos = static_cast<int>(readOffset);
+            int nextPos = juce::jmin(basePos + 1, captureLength - 1);
+            float frac = static_cast<float>(readOffset - basePos);
 
             // Linear interpolation for smooth pitch shifting
-            float left0 = captureBuffer.getSample(0, basePos);
-            float left1 = captureBuffer.getSample(0, nextPos);
-            float right0 = captureBuffer.getSample(1, basePos);
-            float right1 = captureBuffer.getSample(1, nextPos);
+            float left0 = snapshotBuffer.getSample(0, basePos);
+            float left1 = snapshotBuffer.getSample(0, nextPos);
+            float right0 = snapshotBuffer.getSample(1, basePos);
+            float right1 = snapshotBuffer.getSample(1, nextPos);
 
             leftOut = left0 + frac * (left1 - left0);
             rightOut = right0 + frac * (right1 - right0);
@@ -327,6 +332,20 @@ void RepeatLane::trigger()
     // v1.1.0: Calculate start position in circular buffer
     // The capture starts at (writePosition - captureLength), wrapping around
     captureStartPosition = (captureWritePosition - captureLength + maxCaptureSamples) % maxCaptureSamples;
+
+    // v1.12.3 (WR-05): Snapshot the captured slice so the live write head
+    // can't overwrite it mid-tail (repeats × subdivision can exceed the 5s
+    // circular buffer). Bounded copy of pre-allocated memory — RT-safe.
+    if (captureLength > 0)
+    {
+        const int firstLen = juce::jmin(captureLength, maxCaptureSamples - captureStartPosition);
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            snapshotBuffer.copyFrom(ch, 0, captureBuffer, ch, captureStartPosition, firstLen);
+            if (firstLen < captureLength)
+                snapshotBuffer.copyFrom(ch, firstLen, captureBuffer, ch, 0, captureLength - firstLen);
+        }
+    }
 
     // Start first repeat immediately (with swing offset if applicable)
     int swingOffset = calculateSwingOffset(0);
@@ -717,9 +736,14 @@ void RepeatLane::generateEuclideanPattern(int pulses, int steps, bool result[16]
             seqLengths[aIdx] = aLen + bLen;
         }
 
-        // Move remaining sequences (unpaired) to after the paired ones
-        int remaining = totalSeqs - numA - pairs;
-        if (remaining > 0 && numA + pairs < totalSeqs)
+        // Unpaired sequences of EITHER group become the new remainder group.
+        // When numB > numA the leftover B's at [numA + pairs, numA + numB)
+        // must move down to [pairs, pairs + remaining). When numA > numB the
+        // leftover A's are already contiguous at [pairs, numA) and only need
+        // counting — the old code counted only leftover B's, silently dropping
+        // leftover A's (and their pulses) for E(3,8), E(5,8), E(7,16), etc.
+        int remaining = juce::jmax(numA, numB) - pairs;
+        if (numB > numA)
         {
             for (int i = 0; i < remaining; ++i)
             {

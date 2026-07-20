@@ -399,16 +399,23 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
                 auto userDir = processorRef.presetManager.getUserPresetsDirectory();
                 userDir.createDirectory();
 
-                auto* chooser = new juce::FileChooser("Save Preset", userDir, "*.json");
+                auto chooser = std::make_shared<juce::FileChooser>("Save Preset", userDir, "*.json");
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, chooser, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OPolystutterAudioProcessorEditor>(this),
+                     chooser, complete](const juce::FileChooser& fc) {
+                        // Bail if the editor — and the WebView that owns `complete` —
+                        // was torn down while the dialog was open. Even complete(false)
+                        // here would UAF the dead WebBrowserComponent::Impl.
+                        if (safeThis == nullptr)
+                            return;
+
                         auto results = fc.getResults();
                         if (results.size() > 0)
                         {
                             auto file = results[0];
                             auto name = file.getFileNameWithoutExtension();
-                            auto success = processorRef.presetManager.savePreset(name);
+                            auto success = safeThis->processorRef.presetManager.savePreset(name);
 
                             auto* result = new juce::DynamicObject();
                             result->setProperty("success", success);
@@ -422,7 +429,6 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
                             result->setProperty("name", "");
                             complete(juce::var(result));
                         }
-                        delete chooser;
                     });
             })
             .withNativeFunction("loadPreset", [this](auto& args, auto complete) {
@@ -435,15 +441,22 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
                 // Open native load dialog (JUCE 8 async pattern)
                 auto presetsDir = processorRef.presetManager.getPresetsDirectory();
 
-                auto* chooser = new juce::FileChooser("Load Preset", presetsDir, "*.json");
+                auto chooser = std::make_shared<juce::FileChooser>("Load Preset", presetsDir, "*.json");
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, chooser, complete](const juce::FileChooser& fc) {
+                    [safeThis = juce::Component::SafePointer<OPolystutterAudioProcessorEditor>(this),
+                     chooser, complete](const juce::FileChooser& fc) {
+                        // Bail if the editor — and the WebView that owns `complete` —
+                        // was torn down while the dialog was open. Even complete(false)
+                        // here would UAF the dead WebBrowserComponent::Impl.
+                        if (safeThis == nullptr)
+                            return;
+
                         auto results = fc.getResults();
                         if (results.size() > 0)
                         {
                             auto file = results[0];
-                            auto success = processorRef.presetManager.loadPresetFromFile(file);
+                            auto success = safeThis->processorRef.presetManager.loadPresetFromFile(file);
                             auto name = file.getFileNameWithoutExtension();
 
                             auto* result = new juce::DynamicObject();
@@ -458,7 +471,6 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
                             result->setProperty("name", "");
                             complete(juce::var(result));
                         }
-                        delete chooser;
                     });
             })
             .withNativeFunction("getPresetList", [this](auto&, auto complete) {

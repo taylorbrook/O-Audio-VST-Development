@@ -32,6 +32,7 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 #include "WebViewDropStreaming.h"  // v1.13.0 — shared module (ARCH-02)
+#include "DropRouting.h"           // v1.23.5 — pure drop hit-test (IN-02/03)
 
 class OMicrotonalSamplerAudioProcessorEditor : public juce::AudioProcessorEditor,
                                                public juce::FileDragAndDropTarget,
@@ -133,9 +134,9 @@ private:
 
     // Phase 3.2-onward — cell layout shadow published by JS via the
     // reportCellLayout native function. 3.1 stores; 3.3 hit-tests on drop.
-    struct CellRect { int midiNote = 0, velocityLayer = 0, x = 0, y = 0, w = 0, h = 0; };
-    juce::Array<CellRect> cellLayout;
-    juce::Rectangle<int>  folderZoneRect;
+    // v1.23.5: CellRect + hit-test moved to DropRouting.h (unit-testable).
+    juce::Array<oms::CellRect> cellLayout;
+    juce::Rectangle<int>       folderZoneRect;
 
     // v1.7.1: previous active-notes bitmask snapshot (MIDI 0..63 / 64..127).
     // The 30 Hz timerCallback diffs the current snapshot against these to

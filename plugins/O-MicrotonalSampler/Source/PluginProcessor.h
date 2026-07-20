@@ -237,6 +237,14 @@ public:
     // Public access to tuning engine (forward-compat for Phase 2.1+)
     TuningEngine* getTuningEngine() { return &tuningEngine; }
 
+    // v1.23.4 (WR-01): the same persistenceLock that guards loadOpHistory /
+    // lastSkippedFiles against Reaper's off-message-thread getStateInformation
+    // also serialises techniqueNames and the TuningEngine capture. The editor's
+    // tuning-WRITE native functions take this lock so a concurrent off-thread
+    // save can't tear-read the engine mid-mutation. Recursive (JUCE
+    // CriticalSection), never acquired from the audio thread.
+    juce::CriticalSection& getPersistenceLock() noexcept { return persistenceLock; }
+
     // VST3 Note Expression (kTuningTypeID) - Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
 

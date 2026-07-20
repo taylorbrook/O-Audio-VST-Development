@@ -19,55 +19,55 @@ lastUpdated: 2026-06-25
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Plays a buffered source recording polyphonically from MIDI, tuned to the keyboard relative to a Root Key | must | pending | stage-2 |
-| FUNC-02 | Selectable curated built-in found-sounds embedded in the plugin for a frictionless demo | must | pending | stage-2 |
-| FUNC-03 | Load-your-own audio via drag-drop onto the waveform and a file-picker fallback (the in-class "load one found sound" activity) | must | pending | stage-3 |
-| FUNC-04 | Start/End controls isolate the played region of the recording | must | pending | stage-2 |
-| FUNC-05 | Loop (off / forward / ping-pong) with crossfade sustains a short sound as a held note | must | pending | stage-2 |
-| FUNC-06 | Reverse plays the region backwards | should | pending | stage-2 |
-| FUNC-07 | Concept-isolating preset tour, each preset isolating one sampler move | should | pending | stage-3 |
-| FUNC-08 | Tune (coarse semitones) and Fine (cents) transpose the sample independent of the keyboard | should | pending | stage-2 |
+| FUNC-01 | Plays a buffered source recording polyphonically from MIDI, tuned to the keyboard relative to a Root Key | must | complete | stage-2 |
+| FUNC-02 | Selectable curated built-in found-sounds embedded in the plugin for a frictionless demo | must | complete | stage-4 |
+| FUNC-03 | Load-your-own audio via drag-drop onto the waveform and a file-picker fallback (the in-class "load one found sound" activity) | must | complete | stage-3 |
+| FUNC-04 | Start/End controls isolate the played region of the recording | must | complete | stage-2 |
+| FUNC-05 | Loop (off / forward / ping-pong) with crossfade sustains a short sound as a held note | must | complete | stage-2 |
+| FUNC-06 | Reverse plays the region backwards | should | complete | stage-2 |
+| FUNC-07 | Concept-isolating preset tour, each preset isolating one sampler move | should | complete | stage-3 |
+| FUNC-08 | Tune (coarse semitones) and Fine (cents) transpose the sample independent of the keyboard | should | complete | stage-2 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Pitch Mode toggle: Repitch (varispeed, pitch+time coupled) vs Stretch (pitch/time independent) — the headline pitch/time-independence lesson, audibly distinct | must | pending | stage-2 |
-| DSP-02 | Fractional-read interpolation with anti-aliasing on upward transposition so high keys do not alias/buzz | must | pending | stage-2 |
-| DSP-03 | Loop crossfade (equal-power) removes the per-loop seam click | must | pending | stage-2 |
-| DSP-04 | Vintage macro: sample-rate decimation + bit-depth reduction (SP-1200 character); clean at zero | must | pending | stage-2 |
-| DSP-05 | Resonant low-pass filter (cutoff + resonance) shapes the recording's tonal contour | must | pending | stage-2 |
-| DSP-06 | Per-voice amp ADSR with velocity→amp routing | must | pending | stage-2 |
-| DSP-07 | 16-voice polyphony with graceful voice-stealing | should | pending | stage-2 |
+| DSP-01 | Pitch Mode toggle: Repitch (varispeed, pitch+time coupled) vs Stretch (pitch/time independent) — the headline pitch/time-independence lesson, audibly distinct | must | complete | stage-2 |
+| DSP-02 | Fractional-read interpolation with anti-aliasing on upward transposition so high keys do not alias/buzz | must | complete | stage-2 |
+| DSP-03 | Loop crossfade (equal-power) removes the per-loop seam click | must | complete | stage-2 |
+| DSP-04 | Vintage macro: sample-rate decimation + bit-depth reduction (SP-1200 character); clean at zero | must | complete | stage-2 |
+| DSP-05 | Resonant low-pass filter (cutoff + resonance) shapes the recording's tonal contour | must | complete | stage-2 |
+| DSP-06 | Per-voice amp ADSR with velocity→amp routing | must | complete | stage-2 |
+| DSP-07 | 16-voice polyphony with graceful voice-stealing | should | complete | stage-2 |
 
 ### UI (UI)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Waveform editor with draggable start/end handles, shaded loop region with handles, live playhead, and root-key indication | must | pending | stage-3 |
-| UI-02 | Repitch-vs-Stretch difference is made visible (playhead behaviour or live indicator) | should | pending | stage-3 |
-| UI-03 | Live filter-response curve and animated amp-ADSR, sibling-consistent | should | pending | stage-3 |
-| UI-04 | On-hover pedagogical tooltips on every control in plain language | nice | pending | stage-3 |
-| UI-05 | Single-page, classroom/projector-readable layout consistent with the simple* siblings | nice | pending | stage-3 |
+| UI-01 | Waveform editor with draggable start/end handles, shaded loop region with handles, live playhead, and root-key indication | must | complete | stage-3 |
+| UI-02 | Repitch-vs-Stretch difference is made visible (playhead behaviour or live indicator) | should | complete | stage-3 |
+| UI-03 | Live filter-response curve and animated amp-ADSR, sibling-consistent | should | complete | stage-3 |
+| UI-04 | On-hover pedagogical tooltips on every control in plain language | nice | complete | stage-3 |
+| UI-05 | Single-page, classroom/projector-readable layout consistent with the simple* siblings | nice | complete | stage-3 |
 
 ### Performance (PERF)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations or locks in processBlock; sample loading off the audio thread) | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations or locks in processBlock; sample loading off the audio thread) | must | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
-| COMPAT-02 | Windows WebView2 flags set (NEEDS_WEBVIEW2 TRUE + JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1); second binary-data target uses a distinct NAMESPACE | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-4 |
+| COMPAT-02 | Windows WebView2 flags set (NEEDS_WEBVIEW2 TRUE + JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1); second binary-data target uses a distinct NAMESPACE | must | complete | stage-4 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges (no aliasing on high notes, no loop-seam clicks, no zipper on parameter moves) | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges (no aliasing on high notes, no loop-seam clicks, no zipper on parameter moves) | must | complete | stage-2 |
 
 ## Acceptance Criteria Details
 

@@ -122,7 +122,10 @@ static juce::String toJsonFloatArray (const float* data, int count, int stride, 
     for (int i = 0; i < count; i += stride)
     {
         if (i > 0) json += ",";
-        json += juce::String (data[i], decimals);
+        // IN-16: juce::String would emit "nan"/"inf" — invalid JSON that makes
+        // JS JSON.parse throw and silently freezes the waveform display
+        const float v = std::isfinite (data[i]) ? data[i] : 0.0f;
+        json += juce::String (v, decimals);
     }
     json += "]";
     return json;
@@ -149,25 +152,6 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
         [this] (const juce::Array<juce::var>&, auto complete) {
             auto intervals = processorRef.getTuningEngine()->getIntervals();
             complete (toJsonArray (intervals, [] (double v) { return juce::String (v, 6); }));
-        });
-
-    options = options.withNativeFunction ("setTuningIntervals",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1)
-            {
-                auto jsonArray = juce::JSON::parse (args[0].toString());
-                if (auto* arr = jsonArray.getArray())
-                {
-                    std::vector<double> intervals;
-                    for (const auto& val : *arr)
-                        intervals.push_back (static_cast<double> (val));
-                    processorRef.getTuningEngine()->setCustomIntervals (intervals, "Custom");
-                    syncTuningPresetToCustom (processorRef.getAPVTS());
-                    complete (true);
-                    return;
-                }
-            }
-            complete (false);
         });
 
     options = options.withNativeFunction ("getTuningName",
@@ -210,60 +194,11 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             complete (processorRef.getTuningEngine()->getTonicNote());
         });
 
-    // Master tune
-    options = options.withNativeFunction ("getMasterTune",
-        [this] (const juce::Array<juce::var>&, auto complete) {
-            complete (processorRef.getTuningEngine()->getMasterTune());
-        });
-
-    options = options.withNativeFunction ("setMasterTune",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1)
-            {
-                processorRef.getTuningEngine()->setMasterTune (static_cast<double> (args[0]));
-                complete (true);
-                return;
-            }
-            complete (false);
-        });
-
-    // Octave stretch
+    // Octave stretch (read-side only — writes go through the WebSliderRelay;
+    // the dead set/get master-tune + temperament fns were removed in IN-13)
     options = options.withNativeFunction ("getOctaveStretch",
         [this] (const juce::Array<juce::var>&, auto complete) {
             complete (processorRef.getTuningEngine()->getOctaveStretch());
-        });
-
-    options = options.withNativeFunction ("setOctaveStretch",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1)
-            {
-                processorRef.getTuningEngine()->setOctaveStretch (static_cast<float> (args[0]));
-                complete (true);
-                return;
-            }
-            complete (false);
-        });
-
-    // Temperament presets
-    options = options.withNativeFunction ("setTemperamentPreset",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1)
-            {
-                int presetIndex = static_cast<int> (args[0]);
-                processorRef.getTuningEngine()->setBuiltInPreset (
-                    static_cast<TuningEngine::BuiltInPreset> (presetIndex));
-                // Sync APVTS so the preset persists across DAW save/load
-                if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                    param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (presetIndex)));
-                complete (true);
-                return;
-            }
-            complete (false);
-        });
-
-    options = options.withNativeFunction ("getTemperamentPreset",
-        [this] (const juce::Array<juce::var>&, auto complete) {
-            complete (static_cast<int> (processorRef.getTuningEngine()->getBuiltInPreset()));
         });
 
     // Scala file I/O
@@ -276,16 +211,20 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
 
             chooser->launchAsync (juce::FileBrowserComponent::openMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [this, chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
+                 chooser, complete] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return; // editor destroyed — `complete` is owned by the dead WebView, never call it
+                    auto& proc = safeThis->processorRef;
                     auto file = fc.getResult();
                     if (file.existsAsFile())
                     {
-                        bool success = processorRef.getTuningEngine()->loadScalaFile (file);
+                        bool success = proc.getTuningEngine()->loadScalaFile (file);
                         if (success)
                         {
-                            syncTuningPresetToCustom (processorRef.getAPVTS());
+                            syncTuningPresetToCustom (proc.getAPVTS());
                         }
-                        complete (success ? juce::var (processorRef.getTuningEngine()->getActiveTuningName())
+                        complete (success ? juce::var (proc.getTuningEngine()->getActiveTuningName())
                                          : juce::var());
                     }
                     else
@@ -304,10 +243,13 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
 
             chooser->launchAsync (juce::FileBrowserComponent::openMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [this, chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
+                 chooser, complete] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
                     if (file.existsAsFile())
-                        complete (processorRef.getTuningEngine()->loadKBMFile (file));
+                        complete (safeThis->processorRef.getTuningEngine()->loadKBMFile (file));
                     else
                         complete (false);
                 });
@@ -324,11 +266,14 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
 
             chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [this, chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
+                 chooser, complete] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
                     if (file != juce::File())
                     {
-                        auto content = processorRef.getTuningEngine()->generateScalaFileContent();
+                        auto content = safeThis->processorRef.getTuningEngine()->generateScalaFileContent();
                         file.replaceWithText (content);
                         complete (file.getFileName());
                     }
@@ -349,11 +294,14 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
 
             chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [this, chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
+                 chooser, complete] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
                     if (file != juce::File())
                     {
-                        auto content = processorRef.getTuningEngine()->generateKBMFileContent();
+                        auto content = safeThis->processorRef.getTuningEngine()->generateKBMFileContent();
                         file.replaceWithText (content);
                         complete (file.getFileName());
                     }
@@ -417,14 +365,6 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             }));
         });
 
-    options = options.withNativeFunction ("getEmbeddedTuningCategories",
-        [this] (const juce::Array<juce::var>&, auto complete) {
-            auto categories = EmbeddedTunings::getCategories();
-            complete (toJsonArray (categories, [] (const auto& s) {
-                return "\"" + juce::String (s) + "\"";
-            }));
-        });
-
     options = options.withNativeFunction ("loadEmbeddedTuning",
         [this] (const juce::Array<juce::var>& args, auto complete) {
             if (args.size() >= 1)
@@ -456,71 +396,18 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     std::vector<double> intervals;
                     for (const auto& val : *arr)
                         intervals.push_back (static_cast<double> (val));
-                    processorRef.getTuningEngine()->setCustomIntervals (intervals, "Generated");
+                    // IN-14: keep the generator's scale name so it survives
+                    // reopen instead of reverting to "Generated"
+                    juce::String name = args.size() >= 2 ? args[1].toString() : juce::String();
+                    if (name.isEmpty())
+                        name = "Generated";
+                    processorRef.getTuningEngine()->setCustomIntervals (intervals, name);
                     syncTuningPresetToCustom (processorRef.getAPVTS());
                     complete (true);
                     return;
                 }
             }
             complete (false);
-        });
-
-    // Wavetable display native functions
-    options = options.withNativeFunction ("getWavetableFrame",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 2)
-            {
-                int oscId = static_cast<int> (args[0]);
-                int frameIndex = static_cast<int> (args[1]);
-                auto* table = processorRef.getFactoryTable (oscId);
-                if (table != nullptr && frameIndex >= 0 && frameIndex < table->numFrames)
-                {
-                    const float* frameData = table->getFrameData (0, frameIndex);
-                    complete (toJsonFloatArray (frameData, WavetableData::kTableSize, 8, 4));
-                    return;
-                }
-            }
-            complete (juce::var());
-        });
-
-    options = options.withNativeFunction ("getWavetableInfo",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1)
-            {
-                int oscId = static_cast<int> (args[0]);
-                auto* table = processorRef.getFactoryTable (oscId);
-                if (table != nullptr)
-                {
-                    juce::String name = processorRef.getTableName (oscId);
-                    juce::String category = processorRef.getTableCategory (oscId);
-                    juce::String json = "{\"numFrames\":" + juce::String (table->numFrames)
-                                      + ",\"shapeName\":\"" + name + "\""
-                                      + ",\"category\":\"" + category + "\""
-                                      + ",\"numTables\":" + juce::String (processorRef.getNumFactoryTables()) + "}";
-                    complete (json);
-                    return;
-                }
-            }
-            complete (juce::var());
-        });
-
-    options = options.withNativeFunction ("getWavetableFrameForPosition",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 2)
-            {
-                int oscId = static_cast<int> (args[0]);
-                float normalizedPos = static_cast<float> (args[1]);
-                auto* table = processorRef.getFactoryTable (oscId);
-                if (table != nullptr && table->numFrames > 0)
-                {
-                    int frameIndex = juce::jlimit (0, table->numFrames - 1,
-                        static_cast<int> (normalizedPos * (table->numFrames - 1)));
-                    const float* frameData = table->getFrameData (0, frameIndex);
-                    complete (toJsonFloatArray (frameData, WavetableData::kTableSize, 8, 4));
-                    return;
-                }
-            }
-            complete (juce::var());
         });
 
     // HTML export (API fix: toHTML not generateHTML)
@@ -534,12 +421,15 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
 
             chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [this, chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
+                 chooser, complete] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
                     if (file != juce::File())
                     {
                         auto html = TuningExporter::toHTML (
-                            *processorRef.getTuningEngine(), "O-Prism");
+                            *safeThis->processorRef.getTuningEngine(), "O-Prism");
                         file.replaceWithText (html);
                         complete (true);
                     }
@@ -573,14 +463,18 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
 
             chooser->launchAsync (juce::FileBrowserComponent::openMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [this, chooser, complete, oscIndex] (const juce::FileChooser& fc) {
+                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
+                 chooser, complete, oscIndex] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return; // editor destroyed — never call `complete` on the dead path
+                    auto& proc = safeThis->processorRef;
                     auto file = fc.getResult();
                     if (file.existsAsFile())
                     {
-                        auto name = processorRef.getUserWavetableManager().importFile (file);
+                        auto name = proc.getUserWavetableManager().importFile (file);
                         if (name.isNotEmpty())
                         {
-                            processorRef.selectUserWavetable (oscIndex, name);
+                            proc.selectUserWavetable (oscIndex, name);
                             complete ("{\"success\":true,\"name\":" + juce::JSON::toString (name) + "}");
                             return;
                         }
@@ -656,12 +550,8 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             if (args.size() >= 1)
             {
                 auto name = args[0].toString();
-                // Clear override if this table is active
-                if (processorRef.getActiveUserTableName (0) == name)
-                    processorRef.clearUserWavetableOverride (0);
-                if (processorRef.getActiveUserTableName (1) == name)
-                    processorRef.clearUserWavetableOverride (1);
-                complete (processorRef.getUserWavetableManager().deleteWavetable (name));
+                // Clears overrides, removes the entry, retires the buffer RT-safely
+                complete (processorRef.deleteUserWavetable (name));
                 return;
             }
             complete (false);
@@ -691,7 +581,8 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     auto* table = processorRef.getFactoryTable (factoryIdx);
                     int numFrames = table ? table->numFrames : 0;
                     complete ("{\"isUser\":false,\"factoryIndex\":" + juce::String (factoryIdx)
-                            + ",\"name\":\"" + name + "\",\"numFrames\":" + juce::String (numFrames) + "}");
+                            + ",\"name\":" + juce::JSON::toString (name)
+                            + ",\"numFrames\":" + juce::String (numFrames) + "}");
                 }
                 return;
             }
@@ -873,9 +764,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             if (args.size() >= 1)
             {
                 auto name = args[0].toString();
-                auto& editor = processorRef.getWavetableEditor();
-                bool success = editor.saveAsUserWavetable (
-                    name, processorRef.getUserWavetableManager());
+                bool success = processorRef.saveEditedWavetable (name);
                 if (success)
                 {
                     complete ("{\"success\":true,\"name\":" + juce::JSON::toString (name) + "}");
@@ -956,16 +845,6 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             if (args.size() >= 1)
             {
                 complete (processorRef.getPresetManager().savePreset (args[0].toString()));
-                return;
-            }
-            complete (false);
-        });
-
-    options = options.withNativeFunction ("deletePreset",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1)
-            {
-                complete (processorRef.getPresetManager().deletePreset (args[0].toString()));
                 return;
             }
             complete (false);

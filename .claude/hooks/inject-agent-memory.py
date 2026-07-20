@@ -2,6 +2,7 @@
 """SubagentStart hook: Inject persistent memory for target agents."""
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -28,6 +29,16 @@ def main():
 
         # Construct memory file path
         memory_file = project_root / ".claude" / "agent-memory" / f"{agent_type}.md"
+
+        # Env-gated debug echo (stderr ONLY — stdout is reserved for the
+        # hookSpecificOutput JSON contract; any stdout pollution corrupts the
+        # additionalContext payload).
+        if os.environ.get("CLAUDE_HOOK_DEBUG"):
+            print(
+                f"[SubagentStart] inject-agent-memory: agent_type={agent_type!r} "
+                f"memory_file_found={memory_file.is_file()}",
+                file=sys.stderr,
+            )
 
         # If memory file doesn't exist, exit silently
         if not memory_file.is_file():

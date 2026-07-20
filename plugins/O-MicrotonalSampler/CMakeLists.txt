@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.23.3"
+    VERSION "1.23.6"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -331,6 +331,26 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/state_migration_check.cpp")
         JUCE_USE_CURL=0)
 endif()
 
+# v1.23.4 (WR-02) — preset-restore determinism. Models the fixed
+# reset-before-apply order for technique names + CC/PC tables and pins the
+# no-bleed contract (final state depends only on the loaded tree). Build:
+#     ninja O-MicrotonalSampler_PresetDeterminismCheck
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/preset_determinism_check.cpp")
+    add_executable(O-MicrotonalSampler_PresetDeterminismCheck EXCLUDE_FROM_ALL
+        Source/tests/preset_determinism_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_PresetDeterminismCheck PRIVATE
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_events
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_PresetDeterminismCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_PresetDeterminismCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
 # v1.15.0 — CC + PC trigger routing + dynamics-mapping sanity tests.
 # Two EXCLUDE_FROM_ALL standalone executables that exercise:
 #   * resolveCcTechnique / resolvePcTechnique / resolveTriggerPrecedence
@@ -390,6 +410,52 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/ks_default_check.cpp")
     target_include_directories(O-MicrotonalSampler_KsDefaultCheck PRIVATE
         Source)
     target_compile_definitions(O-MicrotonalSampler_KsDefaultCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.23.5 — WebView editor-bridge hardening (review IN-02 / IN-03).
+# Pins oms::hitTestDrop (DropRouting.h) — the pure XY→zone routing extracted
+# from PluginEditor::filesDropped — so the cell-vs-folder-zone priority and the
+# empty-zone stale-rect guard cannot silently regress. Console-only; the W12
+# SafePointer lifetime fix and W13 save-result propagation are gated by
+# build + auval + pluginval editor open/close cycles.
+#     ninja O-MicrotonalSampler_DropRoutingCheck
+# Exit code = number of failed assertions.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/drop_routing_check.cpp")
+    add_executable(O-MicrotonalSampler_DropRoutingCheck EXCLUDE_FROM_ALL
+        Source/tests/drop_routing_check.cpp)
+    target_link_libraries(O-MicrotonalSampler_DropRoutingCheck PRIVATE
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_DropRoutingCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_DropRoutingCheck PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_USE_CURL=0)
+endif()
+
+# v1.23.6 — loader/parser robustness (review REVIEW-loading-parsing.md).
+# Pins the pure helpers extracted to LoaderSupport.h (WR-02 header-length
+# ceiling, WR-03/IN-05 resample output length, IN-02 RR-group ambiguity) plus
+# the FilenameParser fixes (WR-04 split-form note-token exclusion, IN-03
+# pre-note single-letter dynamics gate). Compiles FilenameParser.cpp for the
+# parser cases. The WR-01 per-file try/catch and CR-01 cooperative cancellation
+# are integration-level (real/corrupt reader) — gated by build + auval + pluginval.
+#     ninja O-MicrotonalSampler_LoaderRobustnessCheck
+# Exit code = number of failed assertions.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/tests/loader_robustness_check.cpp")
+    add_executable(O-MicrotonalSampler_LoaderRobustnessCheck EXCLUDE_FROM_ALL
+        Source/tests/loader_robustness_check.cpp
+        Source/FilenameParser.cpp)
+    target_link_libraries(O-MicrotonalSampler_LoaderRobustnessCheck PRIVATE
+        juce::juce_core
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+    target_include_directories(O-MicrotonalSampler_LoaderRobustnessCheck PRIVATE
+        Source)
+    target_compile_definitions(O-MicrotonalSampler_LoaderRobustnessCheck PRIVATE
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_CURL=0)
 endif()
