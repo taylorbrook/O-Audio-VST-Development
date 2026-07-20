@@ -1,6 +1,6 @@
 # Claude-assisted VST Development
 
-An AI-assisted JUCE plugin development system that enables conversational creation of professional VST3 and AU audio plugins for macOS. Design and build custom audio processors through natural dialogue with Claude Code—no programming experience required.
+An AI-assisted JUCE plugin development system that enables conversational creation of professional VST3 and AU audio plugins. Design and build custom audio processors through natural dialogue with Claude Code—no programming experience required. The interactive development loop is macOS-primary; cross-platform release builds (VST3 for macOS and Windows, AU for macOS) are produced through GitHub Actions CI via `/publish`.
 
 #VST building system based upon **[TÂCHES](https://youtube.com/tachesteaches)**
 
@@ -15,7 +15,7 @@ To make the development of VST and AU plugins using Claude Code more achievable.
 - **Utilities**: Analyzers, meters, routing tools, MIDI processors
 - **Experimental**: Custom DSP algorithms, hybrid processors, generative tools
 
-All plugins compile to native VST3/AU formats compatible with any DAW (Ableton, Logic, Reaper, etc.).
+All plugins compile to native VST3 and AU formats compatible with any DAW (Ableton, Logic, Reaper, etc.). VST3 builds on both macOS and Windows; AU is macOS-only.
 
 ## How It Works
 
@@ -216,8 +216,9 @@ At every completion point:
 
 ### Prerequisites
 
-- macOS (Sonoma or later recommended)
+- macOS (Sonoma or later recommended) for the interactive Claude Code development loop
 - Claude Code CLI
+- Windows is supported for VST3 release builds via GitHub Actions CI (triggered by `/publish`); local Windows builds use `scripts/build-and-install.ps1`
 
 All other dependencies (Xcode Command Line Tools, JUCE, CMake, Python, pluginval) can be validated and installed via `/setup`.
 
@@ -808,7 +809,13 @@ vst-development/
 │   │   └── plugin-planning/          # Plugin .planning/ templates
 │   └── hooks/                        # Validation gates
 ├── scripts/
-│   ├── build-and-install.sh          # 7-phase build pipeline
+│   ├── build-and-install.sh          # 7-phase build pipeline (macOS)
+│   ├── build-and-install.ps1         # Windows VST3 build + install
+│   ├── apply-juce-patches.sh         # Apply the vendored JUCE Note Expression patch (local dev)
+│   ├── juce-patches/                 # Named JUCE patch files (e.g. note-expression)
+│   ├── generate_placeholder_models.py # Placeholder ML models for ANIRA plugins
+│   ├── verify-au-link.sh             # AU link/loading gate (auval)
+│   ├── verify-suite-battery.sh       # Full-suite validation battery
 │   └── verify-backup.sh              # Backup integrity checks
 ├── troubleshooting/                  # Dual-indexed knowledge base
 │   ├── build-failures/
@@ -880,17 +887,19 @@ All 35 requirements delivered across 7 phases:
 
 ### Software
 
-**Required:**
+**Required (interactive development — macOS-primary):**
 - macOS 13+ (Sonoma recommended)
 - Claude Code CLI
 
 **Dependencies (validated/installed via `/setup`):**
 - Xcode Command Line Tools (`xcode-select --install`)
-- JUCE 8.0.0+ (audio plugin framework)
+- JUCE 8.0.14 (audio plugin framework)
 - Python 3.8+ (build scripts)
 - CMake 3.15+ (build system)
 - pluginval (plugin validation tool)
 - Git
+
+**Cross-platform release builds:** VST3 for both macOS and Windows (plus macOS AU) are produced by GitHub Actions CI and triggered via `/publish`. Windows builds use the same JUCE 8.0.14 pin (see `.github/workflows/build-and-release.yml`); local Windows installs use `scripts/build-and-install.ps1`.
 
 ### Hardware
 
