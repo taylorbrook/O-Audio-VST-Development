@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-07-19 - Completed quick task 260719-q0o: ANIRA v2.0.3 → v2.1.0 bump in O-Texture (ORT 1.19.2 unchanged) — rebuild, dylib-embed/rpath verify, auval + pluginval strictness 8 all PASS
+Last activity: 2026-07-19 - Completed quick task 260719-qxy: O-TextureForge dep bump (nanoflann 1.10.1, umappp v3.3.2 + threading-Options migration) — fresh-fetch build green, DEF-L26-01 cleared, auval + pluginval strictness 8 PASS
 
 Progress: [██████████] 100%
 
@@ -145,6 +145,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260719-l26 | Bump JUCE 8.0.9 → 8.0.14 — local /Users/taylorbrook/JUCE swapped to pristine 8.0.14 + NE patch re-applied (8.0.9 backup preserved), apply-juce-patches.sh repointed, CI JUCE_VERSION → 8.0.14; full-suite fresh build 36/37 plugins clean VST3+AU, zero JUCE fallout. Sole failure O-TextureForge (umappp↔irlba transitive drift, JUCE-independent, deferred DEF-L26-01) | 2026-07-19 | 4c45eba | Verified | [260719-l26-bump-juce-8-0-9-to-8-0-14-local-install-](./quick/260719-l26-bump-juce-8-0-9-to-8-0-14-local-install-/) |
 | 260719-m5p | Post-JUCE-8.0.14 verification battery — auval + verify-au-link.sh + pluginval (strictness 8) across 38 plugins, 8 render harnesses rebuilt+run, 8.0.11 var deep-equality watch CLEAN, no JUCE regressions; O-simpleSubtractive harness WebView pitfall fixed; matrix + Dorico/Logic/Ableton manual checklists in 260719-m5p-RESULTS.md | 2026-07-19 | 56d1f63 | Verified | [260719-m5p-post-juce-8-0-14-verification-battery](./quick/260719-m5p-post-juce-8-0-14-verification-battery/) |
 | 260719-q0o | Bump ANIRA v2.0.3 → v2.1.0 in O-Texture (ORT stays 1.19.2; v2.2.x deliberately skipped) — rebuild + install clean, embedded libonnxruntime.1.19.2.dylib + @loader_path/../Frameworks rpath verified via otool, auval + pluginval strictness 8 PASS | 2026-07-19 | bfdd6e0 |  | [260719-q0o-bump-anira-git-tag-v2-0-3-to-v2-1-0-in-o](./quick/260719-q0o-bump-anira-git-tag-v2-0-3-to-v2-1-0-in-o/) |
+| 260719-qxy | Bump O-TextureForge deps — nanoflann v1.6.2→1.10.1 (changelog scan clean; unprefixed tag) + umappp v3.2.0→v3.3.2 (required `parallel_optimization`→`num_threads_optimize` migration in UMAPProjection.cpp — NOT a pure drop-in); force-clean re-fetch build green → DEF-L26-01 cleared, KNOWN-FAIL guard removed from verify-suite-battery.sh; auval + pluginval strictness 8 PASS; DAW UMAP-scatter spot-check pending | 2026-07-19 | c54ca09 |  | [260719-qxy-bump-o-textureforge-header-only-deps-uma](./quick/260719-qxy-bump-o-textureforge-header-only-deps-uma/) |
 
 ## Session Continuity
 
