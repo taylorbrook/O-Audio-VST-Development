@@ -83,6 +83,10 @@ The 8.0.11 change to `juce::var` deep-equality semantics is exercised by **plugi
 
 This battery is macOS-only (auval + AU are macOS-only; pluginval run locally on VST3/AU). The Windows half of the build matrix (VST3-only) is validated via CI **`.github/workflows/build-and-release.yml`** with `JUCE_VERSION: '8.0.14'`, not re-run here. Push a release tag to exercise the Windows leg.
 
+**Windows leg VALIDATED 2026-07-20** via `workflow_dispatch` validate-only runs on branch `quick/260719-k5o-juce-ne-rebase-8014`:
+- **O-AnalogSaturation (run 29750147817): ✅ GREEN** — JUCE 8.0.14 download, NE-override overlay + both relocated grep gates, MSVC build, pluginval strictness 10, Inno installer all pass. The plugin has a green 8.0.9 Windows history, so this isolates and clears the JUCE variable.
+- **O-Lyrica (run 29749545545): ❌ FAILED — NOT a JUCE regression.** First-ever Windows build of O-Lyrica; MSVC rejects the `safe = juce::Component::SafePointer<...>(this)` init-capture inside nested WebView FileChooser lambdas (`this` resolves to the enclosing closure on MSVC). Pre-existing from v2.3.2 code-review fixes; JUCE steps in the run all passed. Same pattern exists in O-IntonationPad. **Follow-up:** hoist the SafePointer into a local before `launchAsync` in both plugins before any Windows release of them.
+
 ---
 
 # MANUAL CHECKLIST (documentation only — run by hand)
