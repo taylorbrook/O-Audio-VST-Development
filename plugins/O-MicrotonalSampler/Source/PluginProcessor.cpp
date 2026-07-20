@@ -2270,10 +2270,17 @@ void OMicrotonalSamplerAudioProcessor::setTechniqueName (int index, const juce::
     if (name.trim().isEmpty())
         return;
 
-    while (techniqueNames.size() <= index)
-        techniqueNames.add ("ord");
+    {
+        // v1.23.4 (WR-01): mutate under persistenceLock so a Reaper off-thread
+        // getStateInformation snapshotting techniqueNames can't tear-read the
+        // StringArray while it reallocates its backing store.
+        const juce::ScopedLock persistLock (persistenceLock);
 
-    techniqueNames.set (index, name.trim());
+        while (techniqueNames.size() <= index)
+            techniqueNames.add ("ord");
+
+        techniqueNames.set (index, name.trim());
+    }
 
     techniqueStateDirty.store (true, std::memory_order_release);
     triggerAsyncUpdate();
@@ -2281,9 +2288,17 @@ void OMicrotonalSamplerAudioProcessor::setTechniqueName (int index, const juce::
 
 void OMicrotonalSamplerAudioProcessor::resetTechniqueNames()
 {
-    // Single source of truth — Dorico-aligned vocabulary, see
-    // TechniqueDefaults.h and the shipped Strings expression map.
-    techniqueNames = OMtsTechnique::defaultTechniqueVocabulary();
+    {
+        // v1.23.4 (WR-01): same persistenceLock guard as setTechniqueName —
+        // the whole-array assignment reallocates, so an off-thread capture read
+        // must be excluded. Recursive lock: safe to call from the already-locked
+        // restore path. The ctor call sees no contention.
+        const juce::ScopedLock persistLock (persistenceLock);
+
+        // Single source of truth — Dorico-aligned vocabulary, see
+        // TechniqueDefaults.h and the shipped Strings expression map.
+        techniqueNames = OMtsTechnique::defaultTechniqueVocabulary();
+    }
 
     techniqueStateDirty.store (true, std::memory_order_release);
     triggerAsyncUpdate();
@@ -2570,6 +2585,14 @@ namespace
     juce::String encodeVariantAsBase64Wav (const SampleVariant& v)
     {
         if (v.audio == nullptr) return {};
+
+        // v1.23.4 (WR-04): reuse the memoised blob when present. The first save
+        // after a load pays the encode once; every later getStateInformation
+        // (e.g. a DAW autosave) reuses it instead of re-encoding the whole
+        // library. See SampleVariant::cachedBase64Wav for the staleness argument.
+        if (v.cachedBase64Wav.isNotEmpty())
+            return v.cachedBase64Wav;
+
         const int numChannels = v.audio->getNumChannels();
         const int numSamples  = v.audio->getNumSamples();
         if (numChannels <= 0 || numSamples <= 0) return {};
@@ -2937,18 +2960,39 @@ juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
     root.appendChild (folders, nullptr);
 
     // TuningState — full engine snapshot.
-    root.appendChild (captureTuningValueTree (tuningEngine), nullptr);
+    // v1.23.4 (WR-01): Reaper can call getStateInformation off the message
+    // thread while the UI edits tuning. captureTuningValueTree reads the live
+    // engine (getIntervals / getActiveTuningName / generate*FileContent), so a
+    // concurrent editor write would tear-read. The editor's tuning-WRITE native
+    // fns take the same persistenceLock (see getPersistenceLock), so holding it
+    // here serialises the capture against every mutation. Read-only editor
+    // queries stay lock-free (read+read can't tear).
+    {
+        const juce::ScopedLock persistLock (persistenceLock);
+        root.appendChild (captureTuningValueTree (tuningEngine), nullptr);
+    }
 
     // v1.14.0 — technique vocabulary. Only the names need persistence — the
     // count / KS range / active-select are APVTS params and round-trip via
     // <PARAM> children automatically.
     {
+        // v1.23.4 (WR-01): snapshot techniqueNames under persistenceLock (the
+        // same guard setTechniqueName / resetTechniqueNames now take) so an
+        // off-thread save can't read the StringArray mid-reallocation. Copy is
+        // cheap (<=8 short strings); build the XML from the snapshot outside the
+        // lock to keep the hold brief.
+        juce::StringArray techNamesSnapshot;
+        {
+            const juce::ScopedLock persistLock (persistenceLock);
+            techNamesSnapshot = techniqueNames;
+        }
+
         juce::ValueTree names (kTechniqueNamesTag);
-        for (int i = 0; i < techniqueNames.size(); ++i)
+        for (int i = 0; i < techNamesSnapshot.size(); ++i)
         {
             juce::ValueTree slot (kTechniqueSlotTag);
             slot.setProperty ("index", i, nullptr);
-            slot.setProperty ("name",  techniqueNames[i], nullptr);
+            slot.setProperty ("name",  techNamesSnapshot[i], nullptr);
             names.appendChild (slot, nullptr);
         }
         root.appendChild (names, nullptr);
@@ -3033,26 +3077,34 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     if (tuningTree.isValid())
         restoreTuningFromValueTree (tuningEngine, tuningTree);
 
-    // 2b. v1.14.0 — technique vocabulary. Default is already seeded by the
-    // ctor (resetTechniqueNames); only override the slots that the saved
-    // tree actually carries. v1.13.0 sessions have no <TechniqueNames>
-    // child, so the default vocab survives the restore — the back-compat
-    // contract from the plan.
-    auto techNamesTree = root.getChildWithName (kTechniqueNamesTag);
-    if (techNamesTree.isValid())
+    // 2b. v1.14.0 / v1.23.4 (WR-02) — technique vocabulary. Reset to the curated
+    // default FIRST (mirrors the trims pattern in 2e), THEN override only the
+    // slots the saved tree carries. Without the reset, loading a preset that
+    // lacks <TechniqueNames> — or carries fewer slots — bled the *previous*
+    // session's renamed techniques through. v1.13.0 sessions have no
+    // <TechniqueNames> child, so the reset restores the curated default,
+    // identical to the ctor-seeded back-compat contract.
+    resetTechniqueNames();   // lock-guarded; flags techniqueStateDirty
     {
-        for (int i = 0; i < techNamesTree.getNumChildren(); ++i)
+        auto techNamesTree = root.getChildWithName (kTechniqueNamesTag);
+        if (techNamesTree.isValid())
         {
-            const auto slot = techNamesTree.getChild (i);
-            if (! slot.hasType (kTechniqueSlotTag)) continue;
-            const int  idx  = juce::jlimit (0, 7,
-                                  static_cast<int> (slot.getProperty ("index", 0)));
-            const auto name = slot.getProperty ("name").toString();
-            if (name.isNotEmpty())
+            // v1.23.4 (WR-01): guard the array mutation with the same lock the
+            // off-thread capture snapshot takes.
+            const juce::ScopedLock persistLock (persistenceLock);
+            for (int i = 0; i < techNamesTree.getNumChildren(); ++i)
             {
-                while (techniqueNames.size() <= idx)
-                    techniqueNames.add ("ord");
-                techniqueNames.set (idx, name);
+                const auto slot = techNamesTree.getChild (i);
+                if (! slot.hasType (kTechniqueSlotTag)) continue;
+                const int  idx  = juce::jlimit (0, 7,
+                                      static_cast<int> (slot.getProperty ("index", 0)));
+                const auto name = slot.getProperty ("name").toString();
+                if (name.isNotEmpty())
+                {
+                    while (techniqueNames.size() <= idx)
+                        techniqueNames.add ("ord");
+                    techniqueNames.set (idx, name);
+                }
             }
         }
         techniqueStateDirty.store (true, std::memory_order_release);
@@ -3067,18 +3119,23 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
         pendingTechniqueIndex.store (juce::jlimit (0, 7, (int) tp->load()),
                                      std::memory_order_release);
 
-    // 2d. v1.15.0 — restore CC + PC mapping tables. v1.14.0 sessions have
-    // neither child; the constructor's defaults survive. v1.15.0 sessions
-    // override the defaults slot-by-slot — sparse trees fall back to the
-    // default for the missing slots.
+    // 2d. v1.15.0 / v1.23.4 (WR-02) — CC + PC mapping tables. Reset BOTH to
+    // their defaults FIRST (mirrors trims/technique-names above), THEN apply the
+    // saved slot overrides when present. Previously the tables were only rebuilt
+    // when the corresponding child was valid, so loading a preset that lacks
+    // <CcMapping>/<PcMapping> left the *previous* session's custom trigger tables
+    // active. v1.14.0 sessions carry neither child → the reset reproduces the
+    // ctor defaults exactly (back-compat preserved); same-version reopens always
+    // emit both children → the overrides fully repopulate → identical result.
     {
+        const int initialCount = juce::jlimit (1, 8,
+            (int) parameters.getRawParameterValue ("technique_count")->load());
+
+        auto cc = std::make_shared<OMtsTrigger::CcMapping> (
+            OMtsTrigger::defaultCcMapping (initialCount));
         auto ccTree = root.getChildWithName (kCcMappingTag);
         if (ccTree.isValid())
         {
-            const int initialCount = juce::jlimit (1, 8,
-                (int) parameters.getRawParameterValue ("technique_count")->load());
-            auto cc = std::make_shared<OMtsTrigger::CcMapping> (
-                OMtsTrigger::defaultCcMapping (initialCount));
             for (int i = 0; i < ccTree.getNumChildren(); ++i)
             {
                 const auto slot = ccTree.getChild (i);
@@ -3093,14 +3150,14 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
                 s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1,
                                             static_cast<int> (slot.getProperty ("tech", s.technique)));
             }
-            std::atomic_store (&currentCcMapping, cc);
         }
+        std::atomic_store (&currentCcMapping, cc);
 
+        auto pc = std::make_shared<OMtsTrigger::PcMapping> (
+            OMtsTrigger::defaultPcMapping());
         auto pcTree = root.getChildWithName (kPcMappingTag);
         if (pcTree.isValid())
         {
-            auto pc = std::make_shared<OMtsTrigger::PcMapping> (
-                OMtsTrigger::defaultPcMapping());
             for (int i = 0; i < pcTree.getNumChildren(); ++i)
             {
                 const auto slot = pcTree.getChild (i);
@@ -3113,14 +3170,14 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
                 s.technique = juce::jlimit (0, OMtsTrigger::kMaxTech - 1,
                                             static_cast<int> (slot.getProperty ("tech", s.technique)));
             }
-            std::atomic_store (&currentPcMapping, pc);
         }
+        std::atomic_store (&currentPcMapping, pc);
 
-        if (ccTree.isValid() || pcTree.isValid())
-        {
-            triggerStateDirty.store (true, std::memory_order_release);
-            triggerAsyncUpdate();
-        }
+        // Always refresh — we reset the tables even when the preset carried no
+        // trigger children, so the editor must re-read the (possibly defaulted)
+        // mappings rather than keeping a stale view.
+        triggerStateDirty.store (true, std::memory_order_release);
+        triggerAsyncUpdate();
     }
 
     // 2e. v1.23.0 — per-technique / per-(technique,layer) loudness trims. Reset

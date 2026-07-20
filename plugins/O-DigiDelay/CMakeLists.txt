@@ -9,7 +9,7 @@ juce_add_plugin(OuariconDigitalDelay
     PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-DigiDelay${OUARICON_DEV_SUFFIX}"
-    VERSION 1.2.11
+    VERSION 1.2.12
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -68,7 +68,7 @@ juce_add_binary_data(OuariconDigitalDelay_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper1.jpg
-        "Source/ui/public/img/butterfly2_Black and white.png"
+        Source/ui/public/img/butterfly2_bw.png
         Source/ui/public/modules/preset-manager.js
 )
 

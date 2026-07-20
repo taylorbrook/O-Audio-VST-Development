@@ -41,7 +41,13 @@ public:
     void setFrequency (float f0) noexcept
     {
         frequency = f0;
-        phaseIncrement = static_cast<double> (f0) / sampleRate;
+        // WR-04: clamp the per-sample phase increment to < 0.5 (the wavetable's
+        // Nyquist). A runaway f0 (≥ sampleRate, reachable at low SR with high
+        // notes) would otherwise advance phase past the guard sample in a single
+        // step and over-read the frame. Combined with the while-loop wrap below,
+        // phase is guaranteed to stay in [0, 1) and samplePos within the table.
+        double inc = static_cast<double> (f0) / sampleRate;
+        phaseIncrement = std::max (0.0, std::min (inc, 0.5));
     }
 
     void setRd (float rd) noexcept
@@ -77,11 +83,23 @@ public:
         // Detect cycle boundary (phase wrap) — update perturbations once per cycle
         if (phase >= 1.0)
         {
-            phase -= 1.0;
+            // WR-04: while-loop wrap. A single if only corrects [1.0, 2.0); with
+            // a large increment (or jitter modulation) phase could land ≥ 2.0 and
+            // stay ≥ 1.0 after one subtraction, driving samplePos past the frame.
+            // Loop until phase is back in [0, 1) so the table read is always safe.
+            while (phase >= 1.0)
+                phase -= 1.0;
             updateCyclePerturbations();
         }
 
-        // Mipmap level from frequency
+        // Mipmap level from frequency.
+        // IN-05 (known, audibly minor): level0 uses floor(levelFloat) crossfaded
+        // with level1, so the (1 - levelFrac) share of level0 retains
+        // (kTableSize/2 >> level0) harmonics — which for a floored level can exceed
+        // the alias-free harmonic count for the current f0 and leak mild aliasing
+        // above Nyquist. Biasing toward the safe level (ceil / a harmonic-count
+        // guard) would remove it but changes the source timbre, so it is left as a
+        // standard wavetable tradeoff rather than a behavioural change here.
         float baseFreq = static_cast<float> (sampleRate) / static_cast<float> (GlottalWavetable::kTableSize);
         float levelFloat = std::log2 (std::max (frequency, baseFreq) / baseFreq);
         levelFloat = std::max (0.0f, std::min (levelFloat, static_cast<float> (GlottalWavetable::kNumMipmapLevels - 1)));

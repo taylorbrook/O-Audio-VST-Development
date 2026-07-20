@@ -231,6 +231,22 @@ public:
     juce::String generateKBMFileContent() const;
 
     // ═══════════════════════════════════════════════════════════════════
+    // State Persistence (message thread)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Serialize the full engine state (mode, preset, scale name, intervals,
+     * tonic, KBM mapping + reference frequency) into a ValueTree.
+     */
+    void writeStateTo(juce::ValueTree& tree) const;
+
+    /**
+     * Restore engine state written by writeStateTo. Also accepts legacy
+     * trees that only carry "intervals"/"scaleName"/"tonic" properties.
+     */
+    void restoreStateFrom(const juce::ValueTree& tree);
+
+    // ═══════════════════════════════════════════════════════════════════
     // Frequency Retrieval (Audio Thread Safe)
     // ═══════════════════════════════════════════════════════════════════
 
@@ -283,9 +299,11 @@ private:
     // State
     // ═══════════════════════════════════════════════════════════════════
 
-    // Core tuning parameters
+    // Core tuning parameters. a4Frequency/octaveStretch are mutated on the
+    // message thread only and read there (or under rebuildFrequencyTable).
+    // pitchBendRange is atomic because applyPitchBend runs on the audio thread.
     double a4Frequency = 440.0;
-    float pitchBendRange = 2.0f;
+    std::atomic<float> pitchBendRange { 2.0f };
     float octaveStretch = 1.0f;
 
     // Built-in preset tracking
@@ -322,6 +340,10 @@ private:
     int kbmMiddleNote = 60;
     int kbmReferenceNote = 69;
     int kbmOctaveDegree = 12;
+    // KBM reference frequency, kept separate from a4Frequency: a KBM may
+    // legitimately reference middle C at 261.63 Hz, which must NOT be forced
+    // through the 400-480 Hz master-tune clamp (CR-07).
+    double kbmRefFrequency = 440.0;
     std::vector<int> kbmMapping;
     bool kbmLoaded = false;
 

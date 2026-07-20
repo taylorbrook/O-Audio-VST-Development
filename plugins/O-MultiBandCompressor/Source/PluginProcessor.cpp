@@ -229,15 +229,66 @@ void OMultiBandCompressorAudioProcessor::prepareToPlay(double sampleRate, int sa
     inputGain.prepare(spec);
     outputGain.prepare(spec);
 
+    // IN-03: ~20 ms ramp so Input/Output Gain automation doesn't zipper.
+    inputGain.setRampDurationSeconds(0.02);
+    outputGain.setRampDurationSeconds(0.02);
+
     // Prepare dry/wet mixer
     dryWetMixer.prepare(spec);
     dryWetMixer.setMixingRule(juce::dsp::DryWetMixingRule::linear);
+
+    // CR-03: preallocate the mono M/S scratch buffer to the maximum block size so Mid/Side
+    // modes never allocate on the audio thread.
+    msScratchBuffer.setSize(1, samplesPerBlock, false, false, false);
+    msScratchBuffer.clear();
+
+    // CR-02: resolve all parameter pointers once (no per-block string building / map lookups).
+    cacheParameterPointers();
+
+    // IN-06: precompute log-spaced FFT bin edges (20 Hz – 20 kHz) so the spectrum's 64 UI
+    // bins line up with the log frequency axis of the crossover overlay.
+    {
+        constexpr float minFreq = 20.0f;
+        constexpr float maxFreq = 20000.0f;
+
+        for (int k = 0; k <= SPECTRUM_BINS; ++k)
+        {
+            const float freq = minFreq * std::pow(maxFreq / minFreq,
+                                                  static_cast<float>(k) / static_cast<float>(SPECTRUM_BINS));
+            const int bin = static_cast<int>(std::lround(freq * static_cast<float>(FFT_SIZE)
+                                                         / static_cast<float>(sampleRate)));
+            spectrumBinEdges[static_cast<size_t>(k)] = juce::jlimit(1, FFT_SIZE / 2, bin);
+        }
+    }
 
     // Reset components to initial state
     multibandProcessor.reset();
     inputGain.reset();
     outputGain.reset();
     dryWetMixer.reset();
+}
+
+void OMultiBandCompressorAudioProcessor::cacheParameterPointers()
+{
+    static const char* const prefixes[4] = { "LOW", "LOMID", "HIMID", "HIGH" };
+    static const char* const suffixes[numBandParams] = {
+        "_THRESHOLD", "_RATIO", "_ATTACK", "_RELEASE", "_KNEE", "_MAKEUP",
+        "_PEAK_RMS", "_BYPASS", "_SOLO", "_SC_HPF", "_SC_LPF", "_SC_LISTEN"
+    };
+
+    for (int band = 0; band < 4; ++band)
+        for (int kind = 0; kind < numBandParams; ++kind)
+            bandParamPtrs[band][kind] =
+                parameters.getRawParameterValue(juce::String(prefixes[band]) + suffixes[kind]);
+
+    pInputGain  = parameters.getRawParameterValue("INPUT_GAIN");
+    pOutputGain = parameters.getRawParameterValue("OUTPUT_GAIN");
+    pMix        = parameters.getRawParameterValue("MIX");
+    pAutoMakeup = parameters.getRawParameterValue("AUTO_MAKEUP");
+    pMsMode     = parameters.getRawParameterValue("MS_MODE");
+    pXover1     = parameters.getRawParameterValue("XOVER1");
+    pXover2     = parameters.getRawParameterValue("XOVER2");
+    pXover3     = parameters.getRawParameterValue("XOVER3");
 }
 
 void OMultiBandCompressorAudioProcessor::releaseResources()
@@ -275,36 +326,22 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     }
 
     // ===== Read Parameters (atomic, real-time safe) =====
+    // CR-02: all pointers were resolved once in prepareToPlay — no string building or map
+    // lookups here.
 
     // Global parameters
-    auto* inputGainParam = parameters.getRawParameterValue("INPUT_GAIN");
-    float inputGainDB = inputGainParam->load();
-
-    auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
-    float outputGainDB = outputGainParam->load();
-
-    auto* mixParam = parameters.getRawParameterValue("MIX");
-    float mixPercent = mixParam->load();
-
-    auto* autoMakeupParam = parameters.getRawParameterValue("AUTO_MAKEUP");
-    bool autoMakeupEnabled = autoMakeupParam->load() > 0.5f;
-
-    auto* msModeParam = parameters.getRawParameterValue("MS_MODE");
-    int msMode = static_cast<int>(msModeParam->load());
+    float inputGainDB = pInputGain->load();
+    float outputGainDB = pOutputGain->load();
+    float mixPercent = pMix->load();
+    bool autoMakeupEnabled = pAutoMakeup->load() > 0.5f;
+    int msMode = static_cast<int>(pMsMode->load());
 
     // Crossover frequencies
-    auto* xover1Param = parameters.getRawParameterValue("XOVER1");
-    float xover1 = xover1Param->load();
-
-    auto* xover2Param = parameters.getRawParameterValue("XOVER2");
-    float xover2 = xover2Param->load();
-
-    auto* xover3Param = parameters.getRawParameterValue("XOVER3");
-    float xover3 = xover3Param->load();
+    float xover1 = pXover1->load();
+    float xover2 = pXover2->load();
+    float xover3 = pXover3->load();
 
     // Per-band parameters (arrays indexed by band: 0=LOW, 1=LOMID, 2=HIMID, 3=HIGH)
-    const char* bandPrefixes[4] = { "LOW", "LOMID", "HIMID", "HIGH" };
-
     float thresholds[4];
     float ratios[4];
     float attacks[4];
@@ -320,20 +357,18 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
     for (int band = 0; band < 4; ++band)
     {
-        juce::String prefix = bandPrefixes[band];
-
-        thresholds[band] = parameters.getRawParameterValue(prefix + "_THRESHOLD")->load();
-        ratios[band] = parameters.getRawParameterValue(prefix + "_RATIO")->load();
-        attacks[band] = parameters.getRawParameterValue(prefix + "_ATTACK")->load();
-        releases[band] = parameters.getRawParameterValue(prefix + "_RELEASE")->load();
-        knees[band] = parameters.getRawParameterValue(prefix + "_KNEE")->load();
-        makeups[band] = parameters.getRawParameterValue(prefix + "_MAKEUP")->load();
-        peakRmsBlends[band] = parameters.getRawParameterValue(prefix + "_PEAK_RMS")->load();
-        bypasses[band] = parameters.getRawParameterValue(prefix + "_BYPASS")->load() > 0.5f;
-        solos[band] = parameters.getRawParameterValue(prefix + "_SOLO")->load() > 0.5f;
-        scHPFs[band] = parameters.getRawParameterValue(prefix + "_SC_HPF")->load();
-        scLPFs[band] = parameters.getRawParameterValue(prefix + "_SC_LPF")->load();
-        scListens[band] = parameters.getRawParameterValue(prefix + "_SC_LISTEN")->load() > 0.5f;
+        thresholds[band]    = bandParamPtrs[band][bpThreshold]->load();
+        ratios[band]        = bandParamPtrs[band][bpRatio]->load();
+        attacks[band]       = bandParamPtrs[band][bpAttack]->load();
+        releases[band]      = bandParamPtrs[band][bpRelease]->load();
+        knees[band]         = bandParamPtrs[band][bpKnee]->load();
+        makeups[band]       = bandParamPtrs[band][bpMakeup]->load();
+        peakRmsBlends[band] = bandParamPtrs[band][bpPeakRms]->load();
+        bypasses[band]      = bandParamPtrs[band][bpBypass]->load() > 0.5f;
+        solos[band]         = bandParamPtrs[band][bpSolo]->load() > 0.5f;
+        scHPFs[band]        = bandParamPtrs[band][bpScHPF]->load();
+        scLPFs[band]        = bandParamPtrs[band][bpScLPF]->load();
+        scListens[band]     = bandParamPtrs[band][bpScListen]->load() > 0.5f;
     }
 
     // ===== Process Audio =====
@@ -408,12 +443,13 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     }
     else if (msMode == 1)
     {
-        // Mode 1: Mid - Compress only mid (channel 0), side passes through
-        juce::AudioBuffer<float> midBuffer(1, numSamples);
-        midBuffer.copyFrom(0, 0, buffer, 0, 0, numSamples);
+        // Mode 1: Mid - Compress only mid (channel 0), side passes through.
+        // CR-03: reuse the preallocated scratch buffer (avoidReallocating — no RT alloc).
+        msScratchBuffer.setSize(1, numSamples, false, false, true);
+        msScratchBuffer.copyFrom(0, 0, buffer, 0, 0, numSamples);
 
         multibandProcessor.processMultiband(
-            midBuffer,
+            msScratchBuffer,
             thresholds,
             ratios,
             knees,
@@ -428,16 +464,17 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             grMeters
         );
 
-        buffer.copyFrom(0, 0, midBuffer, 0, 0, numSamples);
+        buffer.copyFrom(0, 0, msScratchBuffer, 0, 0, numSamples);
     }
     else if (msMode == 2)
     {
-        // Mode 2: Side - Compress only side (channel 1), mid passes through
-        juce::AudioBuffer<float> sideBuffer(1, numSamples);
-        sideBuffer.copyFrom(0, 0, buffer, 1, 0, numSamples);
+        // Mode 2: Side - Compress only side (channel 1), mid passes through.
+        // CR-03: reuse the preallocated scratch buffer (avoidReallocating — no RT alloc).
+        msScratchBuffer.setSize(1, numSamples, false, false, true);
+        msScratchBuffer.copyFrom(0, 0, buffer, 1, 0, numSamples);
 
         multibandProcessor.processMultiband(
-            sideBuffer,
+            msScratchBuffer,
             thresholds,
             ratios,
             knees,
@@ -452,7 +489,7 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             grMeters
         );
 
-        buffer.copyFrom(1, 0, sideBuffer, 0, 0, numSamples);
+        buffer.copyFrom(1, 0, msScratchBuffer, 0, 0, numSamples);
     }
     else if (msMode == 3)
     {
@@ -539,8 +576,10 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             // Perform FFT
             fft.performFrequencyOnlyForwardTransform(fftWorkBuffer.data());
 
-            // Downsample to SPECTRUM_BINS and convert to normalized dB
-            constexpr int binsPerOutput = (FFT_SIZE / 2) / SPECTRUM_BINS;
+            // Downsample to SPECTRUM_BINS and convert to normalized dB.
+            // IN-06: bin groups are log-spaced (edges precomputed in prepareToPlay) so the
+            // UI's linear bin→X draw lands on the log frequency axis of the grid/overlay.
+            // Peak (not average) within each group so narrowband energy isn't smeared.
             constexpr float minDb = -80.0f;
             constexpr float maxDb = 0.0f;
 
@@ -548,27 +587,27 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
             for (int bin = 0; bin < SPECTRUM_BINS; ++bin)
             {
-                float sum = 0.0f;
-                int startIdx = bin * binsPerOutput;
-                int endIdx = startIdx + binsPerOutput;
+                const int startIdx = spectrumBinEdges[static_cast<size_t>(bin)];
+                const int endIdx = std::max(spectrumBinEdges[static_cast<size_t>(bin + 1)],
+                                            startIdx + 1);
 
+                float peakMag = 0.0f;
                 for (int j = startIdx; j < endIdx; ++j)
-                    sum += fftWorkBuffer[static_cast<size_t>(j)];
+                    peakMag = std::max(peakMag, fftWorkBuffer[static_cast<size_t>(j)]);
 
-                float avgMag = sum / static_cast<float>(binsPerOutput);
-                float db = avgMag > 0.0f
-                    ? juce::jlimit(minDb, maxDb, juce::Decibels::gainToDecibels(avgMag))
+                float db = peakMag > 0.0f
+                    ? juce::jlimit(minDb, maxDb, juce::Decibels::gainToDecibels(peakMag))
                     : minDb;
 
                 // Normalize to 0-1
                 tempSpectrum[static_cast<size_t>(bin)] = (db - minDb) / (maxDb - minDb);
             }
 
-            // Update shared spectrum data (protected by mutex)
-            {
-                std::lock_guard<std::mutex> lock(spectrumMutex);
-                spectrumData = tempSpectrum;
-            }
+            // WR-01: publish lock-free. Fill the writer-private slot, then atomically hand it
+            // off to the "ready" slot (receiving a free slot to write next time). No lock, no
+            // wait — the audio thread cannot be blocked by the UI thread.
+            spectrumBuffers[static_cast<size_t>(spectrumWriteSlot)] = tempSpectrum;
+            spectrumWriteSlot = spectrumReadySlot.exchange(spectrumWriteSlot, std::memory_order_acq_rel);
             spectrumDataReady.store(true, std::memory_order_release);
         }
     }
@@ -576,8 +615,11 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
 void OMultiBandCompressorAudioProcessor::getSpectrumData(std::array<float, SPECTRUM_BINS>& dest) const
 {
-    std::lock_guard<std::mutex> lock(spectrumMutex);
-    dest = spectrumData;
+    // WR-01: atomically claim the most-recently published slot (handing back the slot we
+    // previously held). Gated by hasNewSpectrumData()/clearSpectrumDataFlag() in the editor,
+    // so it reads at most once per published frame.
+    spectrumReadSlot = spectrumReadySlot.exchange(spectrumReadSlot, std::memory_order_acq_rel);
+    dest = spectrumBuffers[static_cast<size_t>(spectrumReadSlot)];
 }
 
 juce::AudioProcessorEditor* OMultiBandCompressorAudioProcessor::createEditor()

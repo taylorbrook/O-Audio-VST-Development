@@ -68,7 +68,11 @@ void SVFFilter::setKeyTrack (double amount, int midiNote)
 
 void SVFFilter::updateCoefficients()
 {
-    double fc = std::max (20.0, std::min (20000.0, cutoffHz));
+    // Clamp below Nyquist as well as the nominal 20 kHz ceiling: at fs < 40 kHz
+    // a 20 kHz cutoff makes tan(pi*fc/fs) go negative and the TPT integrators
+    // blow up to NaN, which then recirculates through delay/reverb (WR-01).
+    const double maxCutoff = std::min (20000.0, 0.49 * currentSampleRate);
+    double fc = std::max (20.0, std::min (maxCutoff, cutoffHz));
     g = std::tan (kPi * fc / currentSampleRate);
 
     // Map user resonance (0-1) to SVF inverse Q
@@ -123,11 +127,11 @@ double SVFFilter::processSample (double input)
 
     // Notch mode
     if (filterType == 6)
-        return processNotch (input, ic1eq_1, ic2eq_1);
+        return flushIfNonFinite (processNotch (input, ic1eq_1, ic2eq_1));
 
     // 12dB modes (single stage)
     if (filterType == 0 || filterType == 2 || filterType == 4)
-        return processSingleSVF (input, ic1eq_1, ic2eq_1);
+        return flushIfNonFinite (processSingleSVF (input, ic1eq_1, ic2eq_1));
 
     // 24dB modes (cascaded: two stages, resonance on first only)
     double stage1 = processSingleSVF (input, ic1eq_1, ic2eq_1);
@@ -142,9 +146,21 @@ double SVFFilter::processSample (double input)
 
     switch (filterType)
     {
-        case 1: return yLP;  // LP24
-        case 3: return yHP;  // HP24
-        case 5: return yBP;  // BP24
-        default: return stage1;
+        case 1: return flushIfNonFinite (yLP);  // LP24
+        case 3: return flushIfNonFinite (yHP);  // HP24
+        case 5: return flushIfNonFinite (yBP);  // BP24
+        default: return flushIfNonFinite (stage1);
     }
+}
+
+double SVFFilter::flushIfNonFinite (double output)
+{
+    if (std::isfinite (output))
+        return output;
+
+    // A NaN/inf in the integrator state is sticky and recirculates through
+    // downstream feedback paths forever — flush and go silent for one sample
+    // instead (WR-01).
+    reset();
+    return 0.0;
 }

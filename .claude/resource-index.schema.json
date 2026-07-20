@@ -45,13 +45,13 @@
         },
         "type": {
           "type": "string",
-          "enum": ["research", "algorithm", "guide", "market-research"]
+          "enum": ["research", "algorithm", "guide", "market-research", "deep-research", "reference", "research-synthesis"]
         },
         "keywords": {
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-z0-9-]+$" },
           "minItems": 3,
-          "maxItems": 15
+          "maxItems": 20
         },
         "stages": {
           "type": "array",

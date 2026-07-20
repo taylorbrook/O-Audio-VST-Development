@@ -36,13 +36,16 @@ void WavetableOscillator::setFMInput (double value)
 void WavetableOscillator::prepare (double sampleRate)
 {
     currentSampleRate = sampleRate;
-    phaseIncrement = frequency / currentSampleRate;
+    setFrequency (frequency);
 }
 
 void WavetableOscillator::setFrequency (double freq)
 {
-    frequency = freq;
-    phaseIncrement = freq / currentSampleRate;
+    // Clamp at Nyquist: phaseIncrement must stay well below 1.0 or the
+    // accumulators outrun the per-sample wrap and readSample() walks off
+    // the end of the wavetable buffer.
+    frequency = juce::jlimit (0.0, 0.5 * currentSampleRate, freq);
+    phaseIncrement = frequency / currentSampleRate;
 }
 
 void WavetableOscillator::setPosition (float pos)
@@ -122,6 +125,12 @@ double WavetableOscillator::readSample (double phase) const
     if (wavetable == nullptr || wavetable->numFrames == 0)
         return 0.0;
 
+    // Defensive wrap: warp/sync paths can hand us phase outside [0, 1),
+    // and any excursion here indexes past the wavetable buffer.
+    if (! std::isfinite (phase))
+        return 0.0;
+    phase -= std::floor (phase);
+
     // Sample position within frame
     double samplePos = phase * static_cast<double> (WavetableData::kTableSize);
     int idx0 = static_cast<int> (samplePos);
@@ -183,65 +192,6 @@ double WavetableOscillator::applyWarp (double phase, int voiceIndex) const
     }
 }
 
-double WavetableOscillator::getNextSample()
-{
-    if (wavetable == nullptr)
-        return 0.0;
-
-    double output = 0.0;
-
-    bool isSyncMode = (warpType == WarpType::Sync || warpType == WarpType::Window)
-                      && warpAmount > 0.001f;
-
-    for (int i = 0; i < unisonCount; ++i)
-    {
-        double readPhase = phaseAccumulators[i];
-
-        if (isSyncMode)
-        {
-            // Sync/Window: read from slave phase (phaseAccumulators),
-            // master controls reset timing
-            double sample = readSample (readPhase) * unisonGain;
-
-            if (warpType == WarpType::Window)
-                sample *= std::sin (kPi * masterPhases[i]);
-
-            output += sample;
-
-            // Advance master at normal rate
-            double masterInc = phaseIncrement * unisonDetuneFactors[i];
-            masterPhases[i] += masterInc;
-
-            // Advance slave at faster rate
-            double syncRatio = 1.0 + static_cast<double> (warpAmount) * 3.0;
-            phaseAccumulators[i] += masterInc * syncRatio;
-
-            // Wrap slave
-            if (phaseAccumulators[i] >= 1.0)
-                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
-
-            // Master wrap → reset slave
-            if (masterPhases[i] >= 1.0)
-            {
-                masterPhases[i] -= 1.0;
-                phaseAccumulators[i] = masterPhases[i] * syncRatio;
-            }
-        }
-        else
-        {
-            // Bend/FM/Off: apply warp to phase before lookup
-            double warped = applyWarp (readPhase, i);
-            output += readSample (warped) * unisonGain;
-
-            phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
-            if (phaseAccumulators[i] >= 1.0)
-                phaseAccumulators[i] -= 1.0;
-        }
-    }
-
-    return output;
-}
-
 void WavetableOscillator::getNextSampleStereo (double& outL, double& outR)
 {
     if (wavetable == nullptr)
@@ -281,8 +231,10 @@ void WavetableOscillator::getNextSampleStereo (double& outL, double& outR)
 
             if (masterPhases[i] >= 1.0)
             {
-                masterPhases[i] -= 1.0;
+                masterPhases[i] -= std::floor (masterPhases[i]);
+                // Re-seed can land ≥ 1.0 (syncRatio up to 4) — wrap it too
                 phaseAccumulators[i] = masterPhases[i] * syncRatio;
+                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
             }
         }
         else
@@ -294,7 +246,7 @@ void WavetableOscillator::getNextSampleStereo (double& outL, double& outR)
 
             phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
             if (phaseAccumulators[i] >= 1.0)
-                phaseAccumulators[i] -= 1.0;
+                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
         }
     }
 }

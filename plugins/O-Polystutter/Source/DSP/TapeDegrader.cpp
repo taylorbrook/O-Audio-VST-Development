@@ -328,34 +328,29 @@ void TapeDegrader::updateRolloffFilter()
     float cutoffFreq = 20000.0f - (rolloffAmount * 18000.0f);
     cutoffFreq = juce::jlimit(2000.0f, 20000.0f, cutoffFreq);
 
-    // Design lowpass filter
-    auto coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(
+    // Runs on the audio thread during rolloff automation: ArrayCoefficients
+    // returns a stack std::array (no heap allocation), and the in-place
+    // assignment reuses the arrays pre-sized by the prepare()-time call.
+    const auto coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
         sampleRate,
         cutoffFreq,
         0.707f  // Q = 1/sqrt(2) (Butterworth response)
     );
 
-    *rolloffFilterLeft.coefficients = *coefficients;
-    *rolloffFilterRight.coefficients = *coefficients;
+    *rolloffFilterLeft.coefficients = coefficients;
+    *rolloffFilterRight.coefficients = coefficients;
 }
 
 void TapeDegrader::updateHissBandpass()
 {
-    // Bandpass filter centered at 10kHz, bandwidth 5kHz-15kHz
-    // Use two stages: highpass at 5kHz + lowpass at 15kHz
-    auto coefficientsHigh = juce::dsp::IIR::Coefficients<float>::makeHighPass(
-        sampleRate,
-        5000.0f,
-        0.707f
-    );
-
-    auto coefficientsLow = juce::dsp::IIR::Coefficients<float>::makeLowPass(
+    // Hiss noise coloring: lowpass at 15kHz only (highpass stage intentionally
+    // omitted — less critical for hiss simulation)
+    const auto coefficientsLow = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
         sampleRate,
         15000.0f,
         0.707f
     );
 
-    // For simplicity, use lowpass only (highpass less critical for hiss simulation)
-    *hissBandpassLeft.coefficients = *coefficientsLow;
-    *hissBandpassRight.coefficients = *coefficientsLow;
+    *hissBandpassLeft.coefficients = coefficientsLow;
+    *hissBandpassRight.coefficients = coefficientsLow;
 }

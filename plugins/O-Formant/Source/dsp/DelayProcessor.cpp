@@ -42,7 +42,13 @@ void DelayProcessor::reset()
 
 void DelayProcessor::setTime (float seconds)
 {
-    delaySamples = seconds * currentSampleRate;
+    // Clamp to the delay line's capacity. The lines are fixed at 192000 samples,
+    // so a 2.0 s request above 96 kHz would otherwise exceed the buffer and
+    // silently alias (popSample masks by % totalSize) to a wrong, shorter time
+    // — and trip the jassert in Debug builds. (REVIEW.md WR-07)
+    float requested = seconds * currentSampleRate;
+    delaySamples = juce::jmin (requested,
+                               static_cast<float> (delayL.getMaximumDelayInSamples()));
 }
 
 void DelayProcessor::setFeedback (float fb)
@@ -91,7 +97,12 @@ void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
         feedbackR = feedbackFilterR.processSample (0, wetR);
 
         leftData[i] = wetL;
-        rightData[i] = wetR;
+        // IN-14: in a mono block rightData aliases leftData; guard the second
+        // write so the left channel keeps its own delay line's output. (No audible
+        // change today — both lines get identical input/time so wetL == wetR — but
+        // the intent is now explicit and left isn't clobbered by the right line.)
+        if (block.getNumChannels() > 1)
+            rightData[i] = wetR;
     }
 
     dryWetMixer.mixWetSamples (block);

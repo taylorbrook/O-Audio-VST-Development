@@ -168,7 +168,10 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     numGrains = static_cast<int>(grainCountParam->load());
     lastGrainSizeMs = grainSizeMs;
     lastGrainCount = numGrains;
-    grainSize = static_cast<int>(sampleRate * grainSizeMs / 1000.0);
+    // WR-04: clamp to maxGrainSize (== hannWindow.size()) exactly as processBlock does,
+    // so the Hann-window build loop below can never overrun the buffer if the GRAIN_SIZE
+    // range or maxGrainSize constant ever drift out of sync.
+    grainSize = juce::jmin(static_cast<int>(sampleRate * grainSizeMs / 1000.0), maxGrainSize);
     grainTriggerInterval = grainSize / numGrains;
 
     // Raw Hann window (no COLA scaling — per-grain jitter breaks COLA alignment)
@@ -301,18 +304,21 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     else // Threshold mode
     {
         // Calculate RMS level from input buffer
+        // WR-01: sum channels to a mono value per time instant BEFORE pushing one squared
+        // sample. Writing each channel serially inflated the window rate (halving the
+        // effective 20 ms window for stereo) and interleaved L/R out of order.
         float sumSquares = 0.0f;
-        for (int channel = 0; channel < numChannels; ++channel)
+        const int rmsChannels = juce::jmax(1, numChannels);
+        for (int sample = 0; sample < numSamples; ++sample)
         {
-            auto* channelData = buffer.getReadPointer(channel);
-            for (int sample = 0; sample < numSamples; ++sample)
-            {
-                float inputSample = channelData[sample];
+            float mono = 0.0f;
+            for (int channel = 0; channel < numChannels; ++channel)
+                mono += buffer.getReadPointer(channel)[sample];
+            mono /= static_cast<float>(rmsChannels);
 
-                // Update RMS buffer (circular)
-                rmsBuffer[rmsWriteIndex] = inputSample * inputSample;
-                rmsWriteIndex = (rmsWriteIndex + 1) % rmsSamplesPerWindow;
-            }
+            // Update RMS buffer (circular)
+            rmsBuffer[rmsWriteIndex] = mono * mono;
+            rmsWriteIndex = (rmsWriteIndex + 1) % rmsSamplesPerWindow;
         }
 
         // Calculate RMS from rolling window
@@ -397,7 +403,13 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         if (bufferFrozen)
         {
             // Freeze engaged: fade in frozen signal
+            // WR-02: reset() calls setCurrentAndTargetValue() internally, snapping the gain
+            // to its old target and discarding any in-progress fade (click on rapid toggle).
+            // Snapshot the current level and restore it so the new ramp starts from where
+            // the previous fade actually was.
+            float heldGain = freezeGain.getCurrentValue();
             freezeGain.reset(currentSampleRate, 0.050); // 50ms fade-in
+            freezeGain.setCurrentAndTargetValue(heldGain);
             freezeGain.setTargetValue(1.0f);
 
             // Reset WSOLA state for fresh freeze
@@ -440,8 +452,12 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             stopTriggeringNewGrains = true;
 
             // Fade-out covers grain completion time + 50ms safety margin
+            // WR-02: preserve the current fade level across the reset() (see fade-in branch)
+            // so releasing mid-fade-in doesn't snap to full before ramping down.
+            float heldGain = freezeGain.getCurrentValue();
             float grainDurationSec = static_cast<float>(grainSize) / static_cast<float>(currentSampleRate);
             freezeGain.reset(currentSampleRate, static_cast<double>(grainDurationSec) + 0.050);
+            freezeGain.setCurrentAndTargetValue(heldGain);
             freezeGain.setTargetValue(0.0f);
 
             // DON'T deactivate grains here - they'll naturally complete
@@ -485,7 +501,12 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 // WSOLA: search for best-overlap position with previous grain's tail
                 if (hasLastGrainTail)
                 {
-                    int searchRange = grainSize / 4;
+                    // CR-01: cap the search span to a musically-meaningful window (~5 ms)
+                    // so the per-trigger cross-correlation cost stays within the RT budget.
+                    // Uncapped, grainSize/4 reached ~48k at 192 kHz / 1000 ms grains, giving
+                    // millions of MACs inside one sample iteration → audio-deadline xruns.
+                    const int maxSearch = static_cast<int>(currentSampleRate * 0.005); // 5 ms
+                    int searchRange = juce::jmin(grainSize / 4, maxSearch);
                     int bestOffset = 0;
                     float bestCorrelation = -1.0f;
 
@@ -587,6 +608,12 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // Advance freeze crossfade smoother once per sample (NOT per channel)
         float currentFreezeGain = freezeGain.getNextValue();
 
+        // WR-03: while the release tail is still rendering, active grains keep reading the
+        // freeze buffer. Suppress live writes AND freeze the write head for the whole tail,
+        // otherwise the advancing write head overwrites the region the grains are reading
+        // and corrupts the fade-out (audible for large grain sizes).
+        bool renderingTail = bufferFrozen || freezeGain.getCurrentValue() > 0.001f;
+
         // Process each channel using the same grain state
         for (int channel = 0; channel < numChannels; ++channel)
         {
@@ -596,14 +623,14 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             float inputSample = channelData[sample];
             float outputSample = inputSample;
 
-            // Write to freeze buffer (if not frozen)
-            if (!bufferFrozen)
+            // Write to freeze buffer (only when not frozen AND not rendering a release tail)
+            if (!renderingTail)
             {
                 freezeData[writePosition] = inputSample;
             }
 
             // Granular synthesis (if frozen or fading out)
-            if (bufferFrozen || freezeGain.getCurrentValue() > 0.001f)
+            if (renderingTail)
             {
                 // Sum all active grains (overlap-add synthesis)
                 // Per-grain jitter breaks COLA — normalize by sum of active window values
@@ -670,7 +697,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         }
 
         // Advance write position AFTER processing all channels
-        if (!bufferFrozen)
+        // WR-03: hold the write head frozen for the whole release tail (not just while
+        // bufferFrozen) so grains reading the tail aren't overwritten.
+        if (!renderingTail)
         {
             writePosition = (writePosition + 1) % freezeBufferLength;
         }

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.3
+- **Version:** 1.2.12
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -19,6 +19,9 @@
 - **2026-01-24 (v1.2.1):** Renamed from "Ouaricon Digital Delay" to "O-DigiDelay" (DAW display, binaries, folder, presets)
 - **2026-02-07 (v1.2.2):** UI title changed back to "Ouaricon Digital Delay" (display name only)
 - **2026-02-07 (v1.2.3):** Knobs replaced with SVG vine-arc style from O-Detune (smooth animation, mouse wheel support)
+- **2026-07-01 (v1.2.10):** DSP robustness from code review (WR-01 buffer headroom, WR-02 NaN/Inf feedback sanitize, WR-06 atomic meter, IN-04 isBusesLayoutSupported)
+- **2026-07-01 (v1.2.11):** Preset-system fixes from code review (WR-03 name-only save dialog, WR-04 filename sanitization, IN-02 version metadata, IN-03 prev/next index, IN-01 doc)
+- **2026-07-01 (v1.2.12):** WebView/editor fixes from code review (WR-05 plugin-specific WebView2 user-data folder; WR-07 renamed butterfly asset to space-free `butterfly2_bw.png` to avoid %20 percent-encoding 404). Butterfly overlay verified rendering on macOS.
 
 ## Known Issues
 

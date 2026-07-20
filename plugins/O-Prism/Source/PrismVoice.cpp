@@ -10,6 +10,7 @@
 
 #include "PrismVoice.h"
 #include "PrismSound.h"
+#include "NoteDivisions.h"
 #include "TuningEngine.h"
 #include "PluginProcessor.h"
 #include "dsp/MathConstants.h"
@@ -30,6 +31,7 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 
     pOscACoarse    = apvts->getRawParameterValue ("oscACoarse");
     pOscAFine      = apvts->getRawParameterValue ("oscAFine");
+    pOscAPhase     = apvts->getRawParameterValue ("oscAPhase");
     pOscAUnison    = apvts->getRawParameterValue ("oscAUnison");
     pOscADetune    = apvts->getRawParameterValue ("oscADetune");
     pOscAWidth     = apvts->getRawParameterValue ("oscAWidth");
@@ -41,6 +43,7 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 
     pOscBCoarse    = apvts->getRawParameterValue ("oscBCoarse");
     pOscBFine      = apvts->getRawParameterValue ("oscBFine");
+    pOscBPhase     = apvts->getRawParameterValue ("oscBPhase");
     pOscBUnison    = apvts->getRawParameterValue ("oscBUnison");
     pOscBDetune    = apvts->getRawParameterValue ("oscBDetune");
     pOscBWidth     = apvts->getRawParameterValue ("oscBWidth");
@@ -196,13 +199,34 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     if (parameters == nullptr)
         return;
 
-    // Glide
+    // Glide (WR-06). "Legato" glides only while another note is held (or on a
+    // stolen voice); "Always" glides on every note, seeding a fresh voice from
+    // the processor-level last-played frequency so polyphonic glide is audible
+    // beyond voice-stealing pressure.
     int glideMode = static_cast<int> (pGlideMode->load());
     float glideTime = pGlideTime->load();
     glide.setMode (glideMode);
     glide.setTime (static_cast<double> (glideTime));
-    glide.setWasActive (wasActive);
-    glide.setTarget (currentFrequency);
+
+    bool glideIn = false;
+    if (glideMode == 1)
+        glideIn = wasActive || (processor != nullptr && processor->isAnyNoteHeldExcept (midiNoteNumber));
+    else if (glideMode == 2)
+        glideIn = true;
+
+    if (glideIn && ! wasActive)
+    {
+        const double lastFreq = (processor != nullptr) ? processor->getLastPlayedFrequency() : 0.0;
+        if (lastFreq > 0.0)
+            glide.startFrom (lastFreq);
+        else
+            glideIn = false; // first note ever — nothing to glide from
+    }
+
+    glide.setTarget (currentFrequency, glideIn);
+
+    if (processor != nullptr)
+        processor->setLastPlayedFrequency (currentFrequency);
 
     // Osc A: apply coarse/fine tuning
     int coarseA = static_cast<int> (pOscACoarse->load());
@@ -218,7 +242,13 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
 
     if (! wasActive || glideMode == 0)
     {
-        oscA.resetWithRandomPhases();
+        // Phase knob (WR-04): 0 = free-running random phases (classic analog
+        // behavior), > 0 = deterministic start phase for punchy transients.
+        const float phaseA = (pOscAPhase != nullptr) ? pOscAPhase->load() : 0.0f;
+        if (phaseA > 0.0001f)
+            oscA.resetWithPhase (static_cast<double> (phaseA));
+        else
+            oscA.resetWithRandomPhases();
     }
 
     // Osc B: apply coarse/fine tuning
@@ -235,7 +265,11 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
 
     if (! wasActive || glideMode == 0)
     {
-        oscB.resetWithRandomPhases();
+        const float phaseB = (pOscBPhase != nullptr) ? pOscBPhase->load() : 0.0f;
+        if (phaseB > 0.0001f)
+            oscB.resetWithPhase (static_cast<double> (phaseB));
+        else
+            oscB.resetWithRandomPhases();
     }
 
     // Sub oscillator
@@ -245,12 +279,18 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     subOsc.setShape (subShape);
     subOsc.setOctave (subOctave);
     subOsc.setFrequency (currentFrequency);
-    subOsc.reset();
 
     // Noise
     int noiseType = static_cast<int> (pNoiseType->load());
     noiseGen.setType (noiseType);
-    noiseGen.reset();
+
+    // IN-06: same retrigger gate as the main oscillators — resetting phase /
+    // noise state on a legato/glide retrigger clicks mid-note.
+    if (! wasActive || glideMode == 0)
+    {
+        subOsc.reset();
+        noiseGen.reset();
+    }
 
     // Reset FM cross-routing state
     lastOscAOut = 0.0;
@@ -353,16 +393,6 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float filtAEnvDepth = pFiltAEnvDepth->load();
     float filtBEnvDepth = pFiltBEnvDepth->load();
 
-    // Note division multipliers: how many beats per LFO cycle
-    // Index order: 1/1, 1/2, 1/4, 1/8, 1/16, 1/32,
-    //              1/1D, 1/2D, 1/4D, 1/8D, 1/16D, 1/32D,
-    //              1/1T, 1/2T, 1/4T, 1/8T, 1/16T, 1/32T
-    static constexpr float kDivBeats[18] = {
-        4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f,                   // straight
-        6.0f, 3.0f, 1.5f, 0.75f, 0.375f, 0.1875f,                // dotted (1.5x)
-        2.6667f, 1.3333f, 0.6667f, 0.3333f, 0.1667f, 0.0833f     // triplet (2/3x)
-    };
-
     // Read BPM from processor
     double bpm = (processor != nullptr) ? processor->getCurrentBPM() : 120.0;
 
@@ -373,7 +403,7 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         if (pSync->load() > 0.5f)
         {
             int divIdx = juce::jlimit (0, 17, static_cast<int> (pDiv->load()));
-            float beats = kDivBeats[divIdx];
+            float beats = NoteDiv::kDivBeats[divIdx];
             float seconds = static_cast<float> (beats * 60.0 / bpm);
             return 1.0f / seconds;
         }
@@ -416,6 +446,19 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
     // ─── Update mod matrix routing from APVTS (once per block) ───
     modMatrix.updateFromAPVTS();
+
+    // OscA/OscB Detune mod destinations (WR-02), applied at block rate using
+    // the offsets from the previous block's last evaluation. Re-applying
+    // setUnison each block also makes unison/detune/width live under
+    // automation instead of note-start-only.
+    oscA.setUnison (static_cast<int> (pOscAUnison->load()),
+                    juce::jlimit (0.0f, 1.0f, pOscADetune->load()
+                                      + modMatrix.getModOffset (ModDest::OscADetune)),
+                    pOscAWidth->load());
+    oscB.setUnison (static_cast<int> (pOscBUnison->load()),
+                    juce::jlimit (0.0f, 1.0f, pOscBDetune->load()
+                                      + modMatrix.getModOffset (ModDest::OscBDetune)),
+                    pOscBWidth->load());
 
     // Global mod sources from processor
     float modWheelVal = (processor != nullptr) ? processor->getModWheelValue() : 0.0f;
@@ -491,6 +534,19 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // Evaluate all active routes
         modMatrix.evaluate();
+
+        // LFO rate mod destinations (WR-02): ±2 octaves at full offset,
+        // applied to the next LFO sample
+        {
+            const float lr1 = modMatrix.getModOffset (ModDest::LFO1Rate);
+            if (std::abs (lr1) > 0.0001f) lfo1.setRate (lfo1Rate * std::exp2 (lr1 * 2.0f));
+            const float lr2 = modMatrix.getModOffset (ModDest::LFO2Rate);
+            if (std::abs (lr2) > 0.0001f) lfo2.setRate (lfo2Rate * std::exp2 (lr2 * 2.0f));
+            const float lr3 = modMatrix.getModOffset (ModDest::LFO3Rate);
+            if (std::abs (lr3) > 0.0001f) lfo3.setRate (lfo3Rate * std::exp2 (lr3 * 2.0f));
+            const float lr4 = modMatrix.getModOffset (ModDest::LFO4Rate);
+            if (std::abs (lr4) > 0.0001f) lfo4.setRate (lfo4Rate * std::exp2 (lr4 * 2.0f));
+        }
 
         // ─── Apply modulation offsets to parameters ──────────────
 
@@ -659,7 +715,7 @@ void PrismVoice::pitchWheelMoved (int newPitchWheelValue)
         float normalizedBend = (static_cast<float> (newPitchWheelValue) - 8192.0f) / 8192.0f;
         tuningEngine->setPitchBend (currentMidiNote, normalizedBend);
         currentFrequency = tuningEngine->getFrequency (currentMidiNote);
-        glide.setTarget (currentFrequency);
+        glide.setTarget (currentFrequency, true);
     }
 }
 

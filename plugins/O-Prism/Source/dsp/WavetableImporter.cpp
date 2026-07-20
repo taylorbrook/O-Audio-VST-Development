@@ -13,6 +13,12 @@
 */
 
 #include "WavetableImporter.h"
+#include <cmath>
+
+// Absolute import ceiling: 30 s at 192 kHz is ~5.8M samples; 8M gives headroom
+// while bounding a hostile header's allocation to ~64 MB after the 2-channel
+// clamp (WR-13).
+static constexpr juce::int64 kAbsoluteMaxImportSamples = 8 * 1024 * 1024;
 
 WavetableImporter::ImportResult WavetableImporter::importFromFile (const juce::File& file)
 {
@@ -28,16 +34,29 @@ WavetableImporter::ImportResult WavetableImporter::importFromFile (const juce::F
         return result;
     }
 
-    auto numSamples = static_cast<int> (juce::jmin (reader->lengthInSamples,
-                                                     static_cast<juce::int64> (reader->sampleRate * 30)));
-    if (numSamples == 0)
+    // Never trust header-claimed sizes (WR-13): a hostile header can claim a
+    // huge length/sample-rate/channel-count. Compute the 30 s cap entirely in
+    // int64 with an absolute ceiling, and only allocate the channels we use.
+    if (! std::isfinite (reader->sampleRate) || reader->sampleRate <= 0.0)
+    {
+        result.error = "Audio file has an invalid sample rate";
+        return result;
+    }
+
+    const auto maxSamples64 = juce::jmin<juce::int64> (
+        reader->lengthInSamples,
+        static_cast<juce::int64> (reader->sampleRate * 30.0),
+        kAbsoluteMaxImportSamples);
+    if (maxSamples64 <= 0)
     {
         result.error = "Audio file is empty";
         return result;
     }
 
-    juce::AudioBuffer<float> buffer (static_cast<int> (reader->numChannels), numSamples);
-    reader->read (&buffer, 0, numSamples, 0, true, reader->numChannels > 1);
+    const int numSamples = static_cast<int> (maxSamples64);
+    const int numChannels = juce::jlimit (1, 2, static_cast<int> (reader->numChannels));
+    juce::AudioBuffer<float> buffer (numChannels, numSamples);
+    reader->read (&buffer, 0, numSamples, 0, true, numChannels > 1);
 
     return processAudioBuffer (buffer);
 }
@@ -57,16 +76,27 @@ WavetableImporter::ImportResult WavetableImporter::importFromMemory (const void*
         return result;
     }
 
-    auto numSamples = static_cast<int> (juce::jmin (reader->lengthInSamples,
-                                                     static_cast<juce::int64> (reader->sampleRate * 30)));
-    if (numSamples == 0)
+    // Same header-hardening as importFromFile (WR-13)
+    if (! std::isfinite (reader->sampleRate) || reader->sampleRate <= 0.0)
+    {
+        result.error = "Audio data has an invalid sample rate";
+        return result;
+    }
+
+    const auto maxSamples64 = juce::jmin<juce::int64> (
+        reader->lengthInSamples,
+        static_cast<juce::int64> (reader->sampleRate * 30.0),
+        kAbsoluteMaxImportSamples);
+    if (maxSamples64 <= 0)
     {
         result.error = "Audio data is empty";
         return result;
     }
 
-    juce::AudioBuffer<float> buffer (static_cast<int> (reader->numChannels), numSamples);
-    reader->read (&buffer, 0, numSamples, 0, true, reader->numChannels > 1);
+    const int numSamples = static_cast<int> (maxSamples64);
+    const int numChannels = juce::jlimit (1, 2, static_cast<int> (reader->numChannels));
+    juce::AudioBuffer<float> buffer (numChannels, numSamples);
+    reader->read (&buffer, 0, numSamples, 0, true, numChannels > 1);
 
     return processAudioBuffer (buffer);
 }

@@ -7,9 +7,9 @@ domain: dsp
 type: research
 keywords:
   - glottal-pulse
-  - LF-model
-  - Rd-parameter
-  - PolyBLEP
+  - lf-model
+  - rd-parameter
+  - polyblep
   - vocal-synthesis
   - formant-synth
   - anti-aliasing

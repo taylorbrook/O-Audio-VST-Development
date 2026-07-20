@@ -626,7 +626,7 @@
           <button class="mode-option" data-index="1">RMS</button>
         </div>
       </div>
-      <div class="mode-group" data-tooltip="Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = loudness units" data-tooltip-pos="bottom">
+      <div class="mode-group" data-tooltip="Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = K-weighted momentary loudness (shown while Learn runs; falls back to RMS otherwise)" data-tooltip-pos="bottom">
         <div class="mode-label">Meter</div>
         <div class="mode-selector" id="meter-mode-selector">
           <button class="mode-option" data-index="0">Peak</button>
@@ -653,9 +653,9 @@
           <span class="learn-info-label">Integrated</span>
           <span class="learn-info-value" id="lufs-integrated">-- LUFS</span>
         </div>
-        <div class="learn-info-item" data-tooltip="Highest inter-sample peak detected. Gain is clamped so output stays below -1 dBTP">
-          <span class="learn-info-label">True Peak</span>
-          <span class="learn-info-value" id="lufs-true-peak">-- dBTP</span>
+        <div class="learn-info-item" data-tooltip="Highest digital sample peak (not oversampled, so inter-sample peaks are not measured). Learn leaves ~3 dB of extra headroom below -1 dBFS to cover them.">
+          <span class="learn-info-label">Sample Peak</span>
+          <span class="learn-info-value" id="lufs-true-peak">-- dBFS</span>
         </div>
         <div class="learn-info-item" data-tooltip="How long Learn has been running. 10-30 seconds recommended">
           <span class="learn-info-label">Elapsed</span>
@@ -676,7 +676,7 @@
       <button class="utility-btn" id="mono-btn" data-param="mono_sum" data-tooltip="Sum to mono: (L+R)/2 on both channels">MONO</button>
       <button class="utility-btn" id="ms-off-btn" data-ms="0" data-tooltip="Mid-Side processing off (normal stereo)">M/S OFF</button>
       <button class="utility-btn" id="ms-enc-btn" data-ms="1" data-tooltip="Encode L/R to Mid/Side. Use with a second O-Gain set to DEC after processing">ENC</button>
-      <button class="utility-btn" id="ms-dec-btn" data-ms="2" data-tooltip="Decode Mid/Side back to L/R. Place after M/S processing chain">DEC</button>
+      <button class="utility-btn" id="ms-dec-btn" data-ms="2" data-tooltip="Decode Mid/Side back to L/R. Place after M/S processing chain. Note: decoding a normal (un-encoded) L/R signal raises level by +6 dB — the inverse gain of ENC — so use ENC->DEC as a matched pair.">DEC</button>
     </div>
   </div>
 
@@ -939,15 +939,20 @@
     let currentMeterMode = 2; // default VU
     let lastLearnState = 0;
 
+    // Metering scale constants (IN-06)
+    const METER_DB_MIN = -60;        // meter bottom (dB)
+    const METER_DB_MAX = 0;          // meter top / full scale (dB)
+    const CLIP_THRESHOLD_DB = -0.5;  // clip indicator lights when peak exceeds this (dBFS)
+
     // Convert linear amplitude to dB
     function ampToDb(amp) {
       if (amp <= 0.00001) return -100;
       return 20 * Math.log10(amp);
     }
 
-    // Convert dB to meter percentage (0-100), range -60 to 0 dB
+    // Convert dB to meter percentage (0-100) across the METER_DB_MIN..MAX range
     function dbToPercent(db) {
-      return Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+      return Math.max(0, Math.min(100, ((db - METER_DB_MIN) / (METER_DB_MAX - METER_DB_MIN)) * 100));
     }
 
     window.updateMeters = function(data) {
@@ -973,9 +978,16 @@
           outL = ampToDb(data.outputRmsL);
           outR = ampToDb(data.outputRmsR);
           break;
-        case 3: // LUFS (show input RMS, output RMS as fallback)
-          inL = ampToDb(data.inputRmsL);
-          inR = ampToDb(data.inputRmsR);
+        case 3: // LUFS — K-weighted momentary loudness (input, during Learn)
+          // Momentary LUFS is only computed while Learn runs; when it is live,
+          // drive both input meters from it (loudness is not per-channel). Outside
+          // Learn there is no loudness value, so fall back to RMS (IN-03).
+          if (data.momentaryLUFS > -99) {
+            inL = inR = data.momentaryLUFS;
+          } else {
+            inL = ampToDb(data.inputRmsL);
+            inR = ampToDb(data.inputRmsR);
+          }
           outL = ampToDb(data.outputRmsL);
           outR = ampToDb(data.outputRmsR);
           break;
@@ -989,16 +1001,16 @@
       document.getElementById('output-meter-l').style.height = dbToPercent(outL) + '%';
       document.getElementById('output-meter-r').style.height = dbToPercent(outR) + '%';
 
-      // Clip indicators (above -0.5 dBFS)
+      // Clip indicators (peak above CLIP_THRESHOLD_DB)
       const inPeakL = ampToDb(data.inputPeakL);
       const inPeakR = ampToDb(data.inputPeakR);
       const outPeakL = ampToDb(data.outputPeakL);
       const outPeakR = ampToDb(data.outputPeakR);
 
-      document.getElementById('input-clip-l').classList.toggle('clipping', inPeakL > -0.5);
-      document.getElementById('input-clip-r').classList.toggle('clipping', inPeakR > -0.5);
-      document.getElementById('output-clip-l').classList.toggle('clipping', outPeakL > -0.5);
-      document.getElementById('output-clip-r').classList.toggle('clipping', outPeakR > -0.5);
+      document.getElementById('input-clip-l').classList.toggle('clipping', inPeakL > CLIP_THRESHOLD_DB);
+      document.getElementById('input-clip-r').classList.toggle('clipping', inPeakR > CLIP_THRESHOLD_DB);
+      document.getElementById('output-clip-l').classList.toggle('clipping', outPeakL > CLIP_THRESHOLD_DB);
+      document.getElementById('output-clip-r').classList.toggle('clipping', outPeakR > CLIP_THRESHOLD_DB);
 
       // dB readouts under meters
       const maxInDb = Math.max(inL, inR);
@@ -1038,12 +1050,12 @@
         const momLufs = data.momentaryLUFS > -99 ? data.momentaryLUFS.toFixed(1) + ' LUFS' : '-- LUFS';
         const stLufs = data.shortTermLUFS > -99 ? data.shortTermLUFS.toFixed(1) + ' LUFS' : '-- LUFS';
         const intLufs = data.integratedLUFS > -99 ? data.integratedLUFS.toFixed(1) + ' LUFS' : '-- LUFS';
-        const tp = data.truePeakDBTP > -99 ? data.truePeakDBTP.toFixed(1) + ' dBTP' : '-- dBTP';
+        const sp = data.samplePeakDBFS > -99 ? data.samplePeakDBFS.toFixed(1) + ' dBFS' : '-- dBFS';
 
         document.getElementById('lufs-momentary').textContent = momLufs;
         document.getElementById('lufs-short-term').textContent = stLufs;
         document.getElementById('lufs-integrated').textContent = intLufs;
-        document.getElementById('lufs-true-peak').textContent = tp;
+        document.getElementById('lufs-true-peak').textContent = sp;
         document.getElementById('learn-elapsed').textContent = data.learnElapsedSeconds.toFixed(1) + 's';
 
         const confEl = document.getElementById('learn-confidence');
@@ -1111,7 +1123,7 @@
         helpBtn.classList.toggle('active');
       });
 
-      console.log('O-Gain v1.0.0 UI loaded');
+      console.log('O-Gain v1.2.0 UI loaded');
     });
   </script>
 </body>

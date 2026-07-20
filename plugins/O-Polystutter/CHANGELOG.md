@@ -2,6 +2,22 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.12.3] - 2026-07-01
+
+RT-safety and correctness fixes from the 2026-07-01 adversarial code review (`.planning/CODE-REVIEW.md`, findings CR-01, CR-02, WR-01, WR-05, WR-08).
+
+### Fixed
+
+- **CR-01: Heap allocation on the audio thread in tape rolloff filter** — `updateRolloffFilter()` used `IIR::Coefficients::makeLowPass`, which heap-allocates a ref-counted object; during a `tape_rolloff` drag or automation ramp this ran every block on the RT thread (dropout risk under load). Replaced with `IIR::ArrayCoefficients::makeLowPass` assigned in place (stack array, identical math — same pattern as O-Formant v1.25.1). `updateHissBandpass` converted for consistency and its computed-but-discarded highpass removed.
+- **CR-02: Use-after-free in preset file dialogs on editor teardown** — both `savePresetWithDialog` and `loadPresetFromFile` FileChooser completions captured raw `this` and called `complete()` unconditionally; closing the plugin window while the OS dialog was open then dereferenced a dangling editor and a dead WebView Impl. Completions now capture `Component::SafePointer` and bail with a bare `return` when the editor is gone (O-MicrotonalSampler v1.23.5 W12 pattern); manual `new`/`delete` of the chooser replaced with `shared_ptr`.
+- **WR-01: Euclidean rhythm generator dropped pulses** — the Bjorklund iteration counted only leftover B-group sequences; whenever an iteration ended with more A's than B's, the unpaired A sequences (each carrying a pulse) were silently discarded. E(3,8) tresillo, E(5,8) cinquillo, E(7,16) samba, and E(5,12) all produced wrong patterns — the exact rhythms the "Euclidean Groove", "Afro-Latin Stutter", and "Minimal Pulse" factory presets are built on. Fixed leftover accounting in both the C++ engine (`RepeatLane::generateEuclideanPattern`) and its JS preview mirror (`parameter-bindings.js`); both verified against canonical patterns (tresillo/cinquillo/bossa/samba/venda) plus a full pulse-count sweep of all 240 (pulses, steps) combinations.
+- **WR-05: Long repeat tails corrupted by live input** — playback read the circular capture buffer whose write head keeps advancing; once `repeats × subdivision` exceeded the 5 s buffer (e.g. "Ambient Freeze": 16 × 1/4 at 120 BPM = 8 s), later repeats audibly mutated into delayed live input. The captured slice is now copied into a dedicated per-lane snapshot buffer at trigger time (bounded copy of pre-allocated memory, RT-safe) and playback reads only the snapshot. Also fixes the loop-boundary interpolation reading one sample of unrelated live audio (review IN-02).
+- **WR-08: Presets inherited stale parameter state** — `applyPresetJson` only set keys present in the preset JSON, so parameters the 12 non-Euclidean factory presets omit (64 pattern steps, pitch-rand, Euclidean settings) kept whatever the previous session left behind. All parameters are now reset to defaults before a preset's values are applied; this also repairs user presets saved by older versions.
+
+### Testing
+
+- Bjorklund fix verified by standalone harness (C++ and JS): canonical patterns E(3,8), E(5,8), E(5,16), E(7,16), E(5,12), E(2,5) exact-match, pulse-count invariant holds for all 240 combinations.
+
 ## [1.12.2] - 2026-03-06
 
 ### Added

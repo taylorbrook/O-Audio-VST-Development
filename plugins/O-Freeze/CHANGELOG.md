@@ -2,6 +2,42 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.0.1] - 2026-07-01
+
+Resolves five findings from the 2026-07-01 deep code review (`.planning/CODE-REVIEW.md`).
+All fixes are DSP-internal — no parameter IDs, ranges, or state format changed (presets
+and automation remain compatible).
+
+### Fixed
+- **CR-01 (RT safety):** WSOLA cross-correlation search span was `grainSize / 4`, reaching
+  ~48,000 samples at 192 kHz / 1000 ms grains — millions of multiply-adds plus thousands of
+  `sqrt` calls executed synchronously inside a single `processBlock` sample iteration,
+  blowing the audio deadline (xruns/dropouts) at small host buffers. Capped the search to a
+  5 ms window (`jmin(grainSize / 4, sampleRate * 0.005)`), independent of grain size.
+- **WR-01 (threshold detection):** Stereo RMS detector wrote each channel serially into the
+  circular window, halving the effective window (~10 ms instead of 20 ms) and interleaving
+  L/R out of temporal order. Now sums channels to a mono value per time instant before
+  pushing one squared sample, restoring the documented 20 ms mono window.
+- **WR-02 (click on rapid toggle):** `freezeGain.reset()` internally calls
+  `setCurrentAndTargetValue()`, snapping the gain to its old target and discarding an
+  in-progress fade — an amplitude click when freeze is re-toggled mid-fade. Now snapshots
+  the current gain and restores it across the `reset()` on both the fade-in and fade-out
+  branches, so the new ramp starts from the true current level.
+- **WR-03 (corrupted release tail):** On freeze release the write head resumed advancing
+  (gated only on `bufferFrozen`) while active grains kept reading the buffer for the up-to-
+  ~1 s fade-out, overwriting the region being read. Introduced a per-sample `renderingTail`
+  flag (`bufferFrozen || freezeGain > 0.001`) that suppresses live writes and freezes the
+  write head for the entire release tail.
+- **WR-04 (latent OOB):** `prepareToPlay` computed `grainSize` without the `maxGrainSize`
+  clamp that `processBlock` applies, so the initial Hann-window build loop was safe only by
+  the coincidence that the GRAIN_SIZE max (1000 ms) equals `maxGrainSize`. Mirrored the
+  `jmin(..., maxGrainSize)` clamp for defense-in-depth.
+
+### Notes
+- Remaining review findings IN-01…IN-05 (micro-optimizations, UI value-box precision,
+  round-robin grain reuse, zero-channel guard, resource-provider log noise) are deferred as
+  non-blocking.
+
 ## [2.0.0] - 2026-04-04
 
 ### Added

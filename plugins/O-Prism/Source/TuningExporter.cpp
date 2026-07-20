@@ -307,7 +307,13 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
     svg += "  <circle cx=\"" + juce::String(cx) + "\" cy=\"" + juce::String(cy)
          + "\" r=\"4\" fill=\"#8b7355\"/>\n";
 
-    const int total = static_cast<int>(intervals.size());
+    // IN-11: when the interval list includes the closing period it lands on
+    // the same angle as the unison (cents/period = 1.0) — skip it so the
+    // circle shows one node per degree and the ET spokes match the scale size.
+    int total = static_cast<int>(intervals.size());
+    if (total > 1 && std::abs(intervals.back() - period) < 0.01)
+        --total;
+
     const double twoPi = 6.283185307179586;
 
     // Draw ET reference lines (faint)
@@ -370,16 +376,12 @@ juce::String TuningExporter::toHTML(const TuningEngine& engine, const juce::Stri
     double masterTune = engine.getMasterTune();
     float octaveStretch = engine.getOctaveStretch();
 
-    // Determine period
+    // Determine period: the last interval IS the period whenever positive —
+    // gating on "> 1200" broke every sub-octave tuning (Carlos Gamma's 737.1¢
+    // period exported as 1200¢ with wrong deviations/pitch circle, WR-15)
     double period = 1200.0;
-    if (!intervals.empty() && intervals.back() > 1200.0)
-    {
+    if (!intervals.empty() && intervals.back() > 0.0)
         period = intervals.back();
-    }
-    else if (!intervals.empty() && noteCount > 0)
-    {
-        period = 1200.0;
-    }
 
     // Current date
     auto now = juce::Time::getCurrentTime();

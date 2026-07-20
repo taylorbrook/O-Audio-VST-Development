@@ -87,18 +87,49 @@ juce::String UserWavetableManager::importFromMemory (const void* data, size_t si
     return uniqueName;
 }
 
-bool UserWavetableManager::deleteWavetable (const juce::String& name)
+std::unique_ptr<WavetableData> UserWavetableManager::removeWavetable (const juce::String& name)
 {
     for (auto it = entries.begin(); it != entries.end(); ++it)
     {
         if (it->name == name)
         {
-            wavetableDir.getChildFile (name + ".wav").deleteFile();
+            // The name comes from the WebView — never let a relative path
+            // escape the wavetable directory as a deletion primitive (WR-10)
+            auto wavFile = wavetableDir.getChildFile (legalTableName (name) + ".wav");
+            if (wavFile.isAChildOf (wavetableDir))
+                wavFile.deleteFile();
+            auto removed = std::move (it->table);
             entries.erase (it);
+            return removed;
+        }
+    }
+    return nullptr;
+}
+
+bool UserWavetableManager::replaceOrInsertFromFile (const juce::String& name, const juce::File& file,
+                                                    std::unique_ptr<WavetableData>& replacedOut)
+{
+    replacedOut = nullptr;
+
+    auto importResult = WavetableImporter::importFromFile (file);
+    if (! importResult.success || ! importResult.table)
+        return false;
+
+    for (auto& entry : entries)
+    {
+        if (entry.name == name)
+        {
+            replacedOut = std::move (entry.table);
+            entry.table = std::move (importResult.table);
             return true;
         }
     }
-    return false;
+
+    UserWavetableEntry entry;
+    entry.name = name;
+    entry.table = std::move (importResult.table);
+    entries.push_back (std::move (entry));
+    return true;
 }
 
 const WavetableData* UserWavetableManager::getTable (const juce::String& name) const
@@ -132,6 +163,11 @@ bool UserWavetableManager::saveToWav (const WavetableData& table, const juce::Fi
         for (int i = 0; i < WavetableData::kTableSize; ++i)
             buffer.setSample (0, startSample + i, frameData[i]);
     }
+
+    // FileOutputStream positions at end-of-file — delete first or an
+    // overwrite appends a second WAV after the old one (stale data wins
+    // on the next import).
+    file.deleteFile();
 
     auto outputStream = std::make_unique<juce::FileOutputStream> (file);
     if (! outputStream->openedOk())

@@ -99,19 +99,20 @@ param_count: 21
 - Vintage floor: `FS_MIN ≈ 3000 Hz`, `BITS_MIN ≈ 8`
 - Latency: **0** (no oversampling / lookahead)
 
-## Built-in source set (Stage-1 placeholder — finalized at Stage-2 asset sourcing)
+## Built-in source set (FINALIZED — Stage 4, curated assets delivered)
 
-Per ARCHITECTURE (≈4–6 curated found-sounds, names illustrative): the Stage-1 shell
-locks a concrete 4-choice list so the APVTS `AudioParameterChoice` is valid; the
-embedded `.wav` blobs and any rename land in Stage 2.3 (mirrors O-simpleGrain, which
-locked fire/voice/water/piano at foundation before embedding the blobs). Working set:
+The curated 4-choice set is embedded (`Source/samples/`) and wired through the
+`sourceSample` `AudioParameterChoice`. Each source's recorded-pitch root (`kBuiltInRoot`,
+MIDI) was probed via YIN f0 → nearest MIDI note and is seeded into the live `rootKey`
+on selection (the APVTS `rootKey` *default* stays 60, frozen). `hit` is percussive
+(unvoiced) → neutral root 60 so pressing the reference key plays it at recorded speed.
 
-| Index | Choice | Default root (Stage 2) |
-|-------|--------|------------------------|
-| 0 | `piano` | C3 (60) |
-| 1 | `vocal` | A3 (69) |
-| 2 | `flute` | C4 (72) |
-| 3 | `vinyl` | C3 (60) |
+| Index | Choice  | Recorded root (MIDI) | Probed f0 |
+|-------|---------|----------------------|-----------|
+| 0 | `piano` | 48 | ≈131.6 Hz |
+| 1 | `cello` | 69 | ≈441 Hz   |
+| 2 | `pizz`  | 69 | ≈445 Hz   |
+| 3 | `hit`   | 60 | percussive (unvoiced) |
 
 Default `sourceSample` = index 0 (`piano`); default identity = `embedded:piano`.
 

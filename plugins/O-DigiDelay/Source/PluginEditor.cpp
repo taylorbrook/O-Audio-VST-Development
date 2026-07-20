@@ -29,8 +29,12 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
+                    // WR-05: plugin-specific user-data folder (not the bare temp root shared
+                    // by every Ouaricon plugin) — avoids WebView2 lock contention across
+                    // instances/plugins, which can silently fall back to IE (blank UI).
                     .withUserDataFolder(juce::File::getSpecialLocation(
-                        juce::File::SpecialLocationType::tempDirectory)))
+                        juce::File::SpecialLocationType::tempDirectory)
+                            .getChildFile("O-DigiDelay_WebView")))
             .withNativeIntegrationEnabled()
             .withResourceProvider([this](const auto& url) { return getResource(url); })
             .withOptionsFrom(*timeRelay)
@@ -262,10 +266,12 @@ OuariconDigitalDelayAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
-    if (url == "/img/butterfly2_Black and white.png") {
+    // WR-07: space-free filename — a name with spaces breaks the exact-string match if
+    // the engine percent-encodes the request path to %20 (404 → butterfly disappears).
+    if (url == "/img/butterfly2_bw.png") {
         return juce::WebBrowserComponent::Resource {
-            makeVector(BinaryData::butterfly2_Black_and_white_png,
-                      BinaryData::butterfly2_Black_and_white_pngSize),
+            makeVector(BinaryData::butterfly2_bw_png,
+                      BinaryData::butterfly2_bw_pngSize),
             juce::String("image/png")
         };
     }

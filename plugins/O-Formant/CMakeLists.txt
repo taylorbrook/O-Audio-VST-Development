@@ -10,7 +10,7 @@ juce_add_plugin(O-Formant
     PLUGIN_CODE OuFm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Formant${OUARICON_DEV_SUFFIX}"
-    VERSION 1.25.0
+    VERSION 1.25.4
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -31,9 +31,9 @@ target_sources(O-Formant
         Source/ScaleGenerator.cpp
         Source/TuningExporter.cpp
         Source/EmbeddedTunings.cpp
-        Source/DSP/DelayProcessor.cpp
-        Source/DSP/EQProcessor.cpp
-        Source/DSP/ReverbProcessor.cpp
+        Source/dsp/DelayProcessor.cpp
+        Source/dsp/EQProcessor.cpp
+        Source/dsp/ReverbProcessor.cpp
 )
 
 # Phase 24: VST3 Note Expression microtonal support (Dorico)

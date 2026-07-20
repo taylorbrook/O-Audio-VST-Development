@@ -222,8 +222,10 @@ void FormantVoice::noteStarted()
         float baseRd = pGlottalRd != nullptr ? pGlottalRd->load() : 1.0f;
         float modDepth = pRdModDepth != nullptr ? pRdModDepth->load() : 0.5f;
 
-        float midiNote = static_cast<float> (currentlyPlayingNote.initialNote);
-        float pitchRdOffset = -0.3f * (midiNote - 60.0f) / 12.0f;
+        // IN-01: renamed from midiNote to avoid shadowing the outer int midiNote
+        // declared at note-on above; both hold the same note number.
+        float midiNoteF = static_cast<float> (currentlyPlayingNote.initialNote);
+        float pitchRdOffset = -0.3f * (midiNoteF - 60.0f) / 12.0f;
         float velRdOffset = -0.5f * noteVelocity;
 
         float initRd = juce::jlimit (0.3f, 2.7f,
@@ -330,7 +332,10 @@ void FormantVoice::notePressureChanged()
 
 void FormantVoice::notePitchbendChanged()
 {
-    // Pitchbend handled per-sample via getCurrentlyPlayingNote().getFrequencyInHertz()
+    // Nothing to do per-event: renderNextBlock reads the live bend each block via
+    // getCurrentlyPlayingNote().getFrequencyInHertz(). MPESynthesiser re-splits the
+    // buffer at every bend event, so the updated pitch is picked up on the next
+    // renderNextBlock call for this voice.
 }
 
 void FormantVoice::noteTimbreChanged()
@@ -347,6 +352,12 @@ void FormantVoice::noteKeyStateChanged()
 void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                      int startSample, int numSamples)
 {
+    // WR-06: this voice's resonators (r up to ~0.9999) rely on FTZ/DAZ being
+    // active to keep long decaying tails out of denormal range. The guarantee is
+    // provided by juce::ScopedNoDenormals in PluginProcessor::processBlock, which
+    // wraps every renderNextBlock call. Any future caller that drives this voice
+    // directly (e.g. an offline render harness) MUST establish the same scope.
+    // FormantBiquad::processSample also carries a cheap belt-and-suspenders flush.
     if (! voiceActive)
         return;
 
@@ -521,6 +532,23 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     auto* outR = outputBuffer.getNumChannels() > 1
                      ? outputBuffer.getWritePointer (1, startSample)
                      : nullptr;
+
+    // --- Live pitch bend: standard MIDI wheel (legacy MPE, +/-2 st) + MPE per-note ---
+    // getFrequencyInHertz() folds channel/master + per-note pitchbend into the
+    // sounding frequency. Dividing by the bend-free reference (the note's initial
+    // pitch at zero bend; the A=440 basis cancels in the ratio) isolates the bend
+    // as a pure multiplier. tunedF0 already carries microtonal tuning + Dorico
+    // Note-Expression, so folding the ratio into the glide target makes tuning,
+    // NE and bend stack multiplicatively. MPESynthesiser splits sub-blocks at bend
+    // events, so the note's pitchbend is constant across one renderNextBlock —
+    // compute once here. bendRatio == 1.0 when the wheel is centred, leaving the
+    // tuning/glide target identical to the note-on value.
+    const float bendFreeRefHz = 440.0f * std::pow (2.0f,
+        (static_cast<float> (currentlyPlayingNote.initialNote) - 69.0f) / 12.0f);
+    const float bendRatio = bendFreeRefHz > 0.0f
+        ? static_cast<float> (getCurrentlyPlayingNote().getFrequencyInHertz()) / bendFreeRefHz
+        : 1.0f;
+    pitchGlide.setTarget (tunedF0 * bendRatio);
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -740,8 +768,16 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         if (! std::isfinite (sample))
         {
             sample = 0.0f;
+            // IN-03: also reset the excitation sources, not just the filters. If a
+            // NaN originates upstream of the banks (glottal oscillator or aspiration
+            // noise), resetting only the filter state leaves the source re-injecting
+            // NaN on the next sample and the guard never clears. fricationBank feeds
+            // the consonant path into `sample`, so reset it too.
+            glottalSource.reset();
+            aspirationNoise.reset();
             filterBank.reset();
             cascadeBank.reset();
+            fricationBank.reset();
             nasalPoleZero.reset();
             consonantEngine.reset();
         }

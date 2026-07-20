@@ -13,7 +13,6 @@
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
 #include <array>
-#include <mutex>
 #include "DSP/MultiBandProcessor.h"
 
 // FFT Configuration
@@ -100,12 +99,47 @@ private:
     std::array<float, FFT_SIZE * 2> fftWorkBuffer {};    // FFT work buffer
     std::array<float, FFT_SIZE> fftInputFifo {};         // Sample accumulation
     int fftFifoWriteIndex = 0;
-    std::array<float, SPECTRUM_BINS> spectrumData {};    // Downsampled magnitude data
     std::atomic<bool> spectrumDataReady { false };
-    mutable std::mutex spectrumMutex;                    // Protects spectrumData copy
+
+    // WR-01: lock-free triple-buffer hand-off for the spectrum snapshot. The audio thread
+    // never blocks — it fills its private write slot and atomically swaps it into the
+    // "ready" slot; the UI thread atomically claims the ready slot to read. Each of the
+    // three slots is owned by exactly one role at a time, so writer and reader never touch
+    // the same buffer.
+    std::array<std::array<float, SPECTRUM_BINS>, 3> spectrumBuffers {};
+    int spectrumWriteSlot = 0;                            // audio-thread private
+    mutable int spectrumReadSlot = 1;                     // UI-thread private
+    mutable std::atomic<int> spectrumReadySlot { 2 };     // published-slot hand-off
+
+    // IN-06: log-spaced FFT bin edges for the UI spectrum (20 Hz – 20 kHz, matching the
+    // crossover overlay's log axis). Edge k is the first FFT bin of output bin k.
+    // Sample-rate dependent, so precomputed in prepareToPlay — never on the audio thread.
+    std::array<int, SPECTRUM_BINS + 1> spectrumBinEdges {};
+
+    // M/S scratch buffer, preallocated in prepareToPlay (CR-03) — avoids per-block AudioBuffer
+    // allocation in Mid/Side modes.
+    juce::AudioBuffer<float> msScratchBuffer;
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
+
+    // CR-02: raw parameter pointers resolved once in prepareToPlay so processBlock never
+    // builds juce::String IDs or hashes the parameter map on the audio thread.
+    enum BandParam
+    {
+        bpThreshold = 0, bpRatio, bpAttack, bpRelease, bpKnee, bpMakeup,
+        bpPeakRms, bpBypass, bpSolo, bpScHPF, bpScLPF, bpScListen, numBandParams
+    };
+    std::atomic<float>* bandParamPtrs[4][numBandParams] {};
+    std::atomic<float>* pInputGain = nullptr;
+    std::atomic<float>* pOutputGain = nullptr;
+    std::atomic<float>* pMix = nullptr;
+    std::atomic<float>* pAutoMakeup = nullptr;
+    std::atomic<float>* pMsMode = nullptr;
+    std::atomic<float>* pXover1 = nullptr;
+    std::atomic<float>* pXover2 = nullptr;
+    std::atomic<float>* pXover3 = nullptr;
+    void cacheParameterPointers();
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

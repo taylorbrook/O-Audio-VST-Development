@@ -6,7 +6,7 @@ description: Validated patterns, constraints, and implementation knowledge from 
 <context>
 ## Project: VST-development
 
-Ouaricon Audio plugin repository. Collection of JUCE 8-based VST3 / AU / Standalone plugins sharing a common module system (aesthetic templates, preset manager, licensing, etc.).
+Ouaricon Audio plugin repository. Collection of JUCE 8-based VST3 / AU / Standalone plugins sharing a common module system (aesthetic templates, preset manager, etc.).
 
 Spike sessions wrapped: 2026-04-22 → 2026-04-23 (Dorico microtonal playback research).
 </context>

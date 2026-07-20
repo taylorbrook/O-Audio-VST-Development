@@ -472,7 +472,18 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     {
         for (int i = 0; i < noteTokenIndex; ++i)
         {
-            if (auto v = parseAsVelocity (lcTokens[i]))
+            // v1.23.6 (IN-03): reject BARE single-letter dynamics ("p"/"f") in the
+            // PRE-note tier. Pre-note, a single delimited letter is far more likely
+            // an instrument abbreviation than a dynamic — `F-C3.wav` (Flute) was
+            // silently read as forte→layer 3, `P_C3.wav` (Piano) as piano→layer 0.
+            // Two-char dynamics (mp/mf) and explicit forms (v/vel/L/layer/lyr) stay
+            // valid here (the dominant `vln_norm_mf-A#2-…` convention still works);
+            // bare p/f remain valid POST-note (handled in the loop above).
+            const auto& lc = lcTokens[i];
+            if (lc == "p" || lc == "f")
+                continue;
+
+            if (auto v = parseAsVelocity (lc))
             {
                 velLayer = *v;
                 break;
@@ -490,12 +501,21 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
     // tokenise to ["…", "take", "1"] — leaving the prefix bare and
     // silently dropping RR semantics. We now ALSO detect the split form:
     // a bare "rr" / "take" / "tk" token whose IMMEDIATE NEXT token is a
-    // 1-2 digit integer in 1..64. Note tokens consumed for note/velocity
-    // are NOT excluded from the scan because the RR digit is always to the
-    // RIGHT of the prefix and the prefix itself never matches note/vel.
+    // 1-2 digit integer in 1..64.
+    //
+    // v1.23.6 (WR-04): the split form must NOT re-consume the token already
+    // claimed as the bare-integer note. For `take_60.wav` — tokens ["take","60"]
+    // with "60" chosen as the MIDI note — the old scan evaluated
+    // parseAsRrIndex("take"+"60") → rrIndex 59, using "60" as BOTH the pitch and
+    // the RR index. That fabricates a spurious explicit RR that suppresses the
+    // ambiguous-duplicate modal and skews variant ordering. Fix: skip the note
+    // token itself, and in the split form require the digit token != noteTokenIndex.
     int rrIndex = -1;
     for (int i = 0; i < tokens.size(); ++i)
     {
+        if (i == noteTokenIndex)
+            continue;   // never re-read the token already claimed as the note
+
         // Glued form (v1.8.0): "rr1", "take7", "tk2", etc.
         if (auto rr = parseAsRrIndex (lcTokens[i]))
         {
@@ -510,7 +530,7 @@ std::optional<ParsedName> parse (const juce::String& filenameNoExtension)
         const auto& lc = lcTokens[i];
         if (lc == "rr" || lc == "take" || lc == "tk")
         {
-            if (i + 1 < tokens.size())
+            if (i + 1 < tokens.size() && i + 1 != noteTokenIndex)   // digit token must not be the note
             {
                 if (auto rr = parseAsRrIndex (lc + lcTokens[i + 1]))
                 {

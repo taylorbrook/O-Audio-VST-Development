@@ -83,8 +83,15 @@ public:
         juce::var customState;
     };
 
-    void initializeFactoryPresets(const std::vector<FactoryPresetDef>& presets);
+    void initializeFactoryPresets(const std::vector<FactoryPresetDef>& presets,
+                                  const juce::String& versionStamp = {});
     bool factoryPresetsExist() const;
+
+    /** Version stamp written by the last initializeFactoryPresets (empty if
+        none). Callers compare against the current plugin version so factory
+        JSON regenerates after updates instead of being pinned to the first
+        run's parameter set (WR-08). */
+    juce::String getFactoryPresetsVersion() const;
 
     // Parameters in this list are NEVER written to preset JSON and NEVER
     // overwritten when loading a preset. Used to preserve global state like
@@ -103,6 +110,18 @@ private:
     juce::var createPresetJson() const;
     bool applyPresetJson(const juce::var& presetData);
     void rebuildFlatPresetList();
+
+    /** Preset names are used verbatim as file names — strip path separators
+        and other illegal characters so "A/B" can't silently vanish and "../x"
+        can't escape the preset directory (WR-09). */
+    static juce::String legalPresetFileName(const juce::String& name)
+    {
+        auto legal = juce::File::createLegalFileName(name.trim());
+        legal = legal.replaceCharacter('/', '-').replaceCharacter('\\', '-');
+        while (legal.startsWithChar('.'))
+            legal = legal.substring(1);
+        return legal.trim();
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconPresetManager)
 };
@@ -208,6 +227,19 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         auto paramsVar = preset->getProperty("parameters");
         if (auto* paramsObj = paramsVar.getDynamicObject())
         {
+            // Reset all non-excluded parameters to defaults BEFORE applying —
+            // partial presets (hand-authored defs, saves from older versions
+            // with fewer params) must not silently inherit the previous
+            // patch's state for omitted keys (WR-08).
+            for (auto* param : parameters.processor.getParameters())
+            {
+                if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
+                {
+                    if (!excludedParameterIds.contains(rangedParam->getParameterID()))
+                        rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
+                }
+            }
+
             for (auto& prop : paramsObj->getProperties())
             {
                 const auto id = prop.name.toString();
@@ -227,23 +259,25 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
 
 inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
 {
-    if (presetName.isEmpty())
+    const auto fileName = legalPresetFileName(presetName);
+    if (fileName.isEmpty())
         return false;
 
-    if (isFactoryPreset(presetName))
+    if (isFactoryPreset(fileName))
     {
-        juce::Logger::writeToLog("[PresetManager] Cannot overwrite factory preset: " + presetName);
+        juce::Logger::writeToLog("[PresetManager] Cannot overwrite factory preset: " + fileName);
         return false;
     }
 
     getUserPresetsDirectory().createDirectory();
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto presetFile = getUserPresetsDirectory().getChildFile(fileName + ".json");
     auto presetJson = createPresetJson();
     auto jsonString = juce::JSON::toString(presetJson, true);
 
     if (presetFile.replaceWithText(jsonString))
     {
-        currentPresetName = presetName;
+        // Track the sanitized name — it is what getPresetList/loadPreset see
+        currentPresetName = fileName;
         rebuildFlatPresetList();
         return true;
     }
@@ -331,8 +365,9 @@ inline bool OuariconPresetManager::loadPresetFromFile(const juce::File& file)
     return false;
 }
 
-inline bool OuariconPresetManager::deletePreset(const juce::String& presetName)
+inline bool OuariconPresetManager::deletePreset(const juce::String& presetNameIn)
 {
+    const auto presetName = legalPresetFileName(presetNameIn);
     if (presetName.isEmpty() || isFactoryPreset(presetName))
         return false;
 
@@ -499,8 +534,14 @@ inline void OuariconPresetManager::setStateFromXml(const juce::XmlElement* xml)
     currentPresetName = xml->getStringAttribute("currentPreset", "Default");
 }
 
+inline juce::String OuariconPresetManager::getFactoryPresetsVersion() const
+{
+    auto versionFile = getFactoryPresetsDirectory().getChildFile(".factory-version");
+    return versionFile.existsAsFile() ? versionFile.loadFileAsString().trim() : juce::String();
+}
+
 inline void OuariconPresetManager::initializeFactoryPresets(
-    const std::vector<FactoryPresetDef>& presets)
+    const std::vector<FactoryPresetDef>& presets, const juce::String& versionStamp)
 {
     auto factoryDir = getFactoryPresetsDirectory();
 
@@ -533,6 +574,12 @@ inline void OuariconPresetManager::initializeFactoryPresets(
 
         auto jsonString = juce::JSON::toString(juce::var(presetObj), true);
         presetFile.replaceWithText(jsonString);
+    }
+
+    if (versionStamp.isNotEmpty())
+    {
+        factoryDir.createDirectory();
+        factoryDir.getChildFile(".factory-version").replaceWithText(versionStamp);
     }
 
     rebuildFlatPresetList();
