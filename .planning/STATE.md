@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-07-19 - Completed quick task 260719-m5p: post-JUCE-8.0.14 verification battery — auval+pluginval 38 plugins + 8 render harnesses, var deep-equality watch CLEAN, no JUCE regressions; O-simpleSubtractive harness WebView pitfall fixed; manual Dorico/Logic/Ableton checklists in 260719-m5p-RESULTS.md
+Last activity: 2026-07-19 - Completed quick task 260719-q0o: ANIRA v2.0.3 → v2.1.0 bump in O-Texture (ORT 1.19.2 unchanged) — rebuild, dylib-embed/rpath verify, auval + pluginval strictness 8 all PASS
 
 Progress: [██████████] 100%
 
@@ -144,6 +144,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260719-k5o | Re-base JUCE-NE-PATCH onto 8.0.14 — vendored header relocated to headless module, .cpp re-stitched at toMidiBuffer anchor, CI grep gates repointed, module.cmake both-paths guard, patch renamed 8.0.9 + regenerated 8.0.14; O-Lyrica compile-check vs scratch 8.0.14 green. Branch quick/260719-k5o-juce-ne-rebase-8014 (unmergeable until JUCE_VERSION bump) | 2026-07-19 | bbd24c5 | Verified | [260719-k5o-re-base-the-note-expression-vendored-pat](./quick/260719-k5o-re-base-the-note-expression-vendored-pat/) |
 | 260719-l26 | Bump JUCE 8.0.9 → 8.0.14 — local /Users/taylorbrook/JUCE swapped to pristine 8.0.14 + NE patch re-applied (8.0.9 backup preserved), apply-juce-patches.sh repointed, CI JUCE_VERSION → 8.0.14; full-suite fresh build 36/37 plugins clean VST3+AU, zero JUCE fallout. Sole failure O-TextureForge (umappp↔irlba transitive drift, JUCE-independent, deferred DEF-L26-01) | 2026-07-19 | 4c45eba | Verified | [260719-l26-bump-juce-8-0-9-to-8-0-14-local-install-](./quick/260719-l26-bump-juce-8-0-9-to-8-0-14-local-install-/) |
 | 260719-m5p | Post-JUCE-8.0.14 verification battery — auval + verify-au-link.sh + pluginval (strictness 8) across 38 plugins, 8 render harnesses rebuilt+run, 8.0.11 var deep-equality watch CLEAN, no JUCE regressions; O-simpleSubtractive harness WebView pitfall fixed; matrix + Dorico/Logic/Ableton manual checklists in 260719-m5p-RESULTS.md | 2026-07-19 | 56d1f63 | Verified | [260719-m5p-post-juce-8-0-14-verification-battery](./quick/260719-m5p-post-juce-8-0-14-verification-battery/) |
+| 260719-q0o | Bump ANIRA v2.0.3 → v2.1.0 in O-Texture (ORT stays 1.19.2; v2.2.x deliberately skipped) — rebuild + install clean, embedded libonnxruntime.1.19.2.dylib + @loader_path/../Frameworks rpath verified via otool, auval + pluginval strictness 8 PASS | 2026-07-19 | bfdd6e0 |  | [260719-q0o-bump-anira-git-tag-v2-0-3-to-v2-1-0-in-o](./quick/260719-q0o-bump-anira-git-tag-v2-0-3-to-v2-1-0-in-o/) |
 
 ## Session Continuity
 
