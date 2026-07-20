@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-07-20 - Completed quick task 260720-akp: README review/update (JUCE 8.0.14, cross-platform VST3 framing, full scripts/ listing)
+Last activity: 2026-07-20 - Quick task 260720-akp + follow-up: merged orphaned improve branch (O-Formant 1.25.4 et al.), reconciled PLUGINS.md, linked registry from README
 
 Progress: [██████████] 100%
 
@@ -151,7 +151,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260719-m5p | Post-JUCE-8.0.14 verification battery — auval + verify-au-link.sh + pluginval (strictness 8) across 38 plugins, 8 render harnesses rebuilt+run, 8.0.11 var deep-equality watch CLEAN, no JUCE regressions; O-simpleSubtractive harness WebView pitfall fixed; matrix + Dorico/Logic/Ableton manual checklists in 260719-m5p-RESULTS.md | 2026-07-19 | 56d1f63 | Verified | [260719-m5p-post-juce-8-0-14-verification-battery](./quick/260719-m5p-post-juce-8-0-14-verification-battery/) |
 | 260719-q0o | Bump ANIRA v2.0.3 → v2.1.0 in O-Texture (ORT stays 1.19.2; v2.2.x deliberately skipped) — rebuild + install clean, embedded libonnxruntime.1.19.2.dylib + @loader_path/../Frameworks rpath verified via otool, auval + pluginval strictness 8 PASS | 2026-07-19 | bfdd6e0 |  | [260719-q0o-bump-anira-git-tag-v2-0-3-to-v2-1-0-in-o](./quick/260719-q0o-bump-anira-git-tag-v2-0-3-to-v2-1-0-in-o/) |
 | 260719-qxy | Bump O-TextureForge deps — nanoflann v1.6.2→1.10.1 (changelog scan clean; unprefixed tag) + umappp v3.2.0→v3.3.2 (required `parallel_optimization`→`num_threads_optimize` migration in UMAPProjection.cpp — NOT a pure drop-in); force-clean re-fetch build green → DEF-L26-01 cleared, KNOWN-FAIL guard removed from verify-suite-battery.sh; auval + pluginval strictness 8 PASS; DAW UMAP-scatter spot-check pending | 2026-07-19 | c54ca09 |  | [260719-qxy-bump-o-textureforge-header-only-deps-uma](./quick/260719-qxy-bump-o-textureforge-header-only-deps-uma/) |
-| 260720-akp | README review/update — JUCE 8.0.0+→8.0.14, cross-platform VST3 framing (macOS+Windows CI, AU macOS-only), full scripts/ listing; "17 templates" verified accurate, no rewrite | 2026-07-20 | 45d7178 |  | [260720-akp-review-the-readme-and-update-as-needed](./quick/260720-akp-review-the-readme-and-update-as-needed/) |
+| 260720-akp | README review/update — JUCE 8.0.0+→8.0.14, cross-platform VST3 framing (macOS+Windows CI, AU macOS-only), full scripts/ listing; "17 templates" verified accurate, no rewrite. Follow-up: merged orphaned improve/o-formant-v1.25.1-rt-safety (34 commits — O-Formant 1.25.4, O-MicrotonalSampler 1.23.6, O-Prism 1.19.1, o-simpleSampler 1.0.0, PFS review fixes, tache_plugins archived; newest-wins resolution, 4 plugins build-verified vs 8.0.14), reconciled PLUGINS.md registry rows, linked registry from README | 2026-07-20 | 45d7178, cb6ceb0 |  | [260720-akp-review-the-readme-and-update-as-needed](./quick/260720-akp-review-the-readme-and-update-as-needed/) |
 
 ## Session Continuity
 
