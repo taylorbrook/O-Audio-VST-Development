@@ -55,7 +55,8 @@ void UMAPProjection::compute(const std::vector<GrainMetadata>& grains,
     opt.num_neighbors = 15;
     opt.min_dist = 0.1;
     opt.num_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 2);
-    opt.parallel_optimization = false;
+    opt.num_threads_optimize = 1;   // serial optimization (umappp v3.3.0 threading Options migration)
+    opt.num_threads_spectral = 1;   // deterministic irlba spectral init (FP results vary with thread count)
     opt.initialize_method = umappp::InitializeMethod::SPECTRAL;
 
     // Build nearest-neighbor index and initialize UMAP
