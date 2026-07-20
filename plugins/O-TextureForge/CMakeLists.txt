@@ -7,7 +7,7 @@ include(FetchContent)
 FetchContent_Declare(
     nanoflann
     GIT_REPOSITORY https://github.com/jlblancoc/nanoflann.git
-    GIT_TAG v1.6.2
+    GIT_TAG 1.10.1
 )
 set(NANOFLANN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(NANOFLANN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -17,7 +17,7 @@ FetchContent_MakeAvailable(nanoflann)
 FetchContent_Declare(
     umappp
     GIT_REPOSITORY https://github.com/libscran/umappp.git
-    GIT_TAG v3.2.0
+    GIT_TAG v3.3.2
 )
 FetchContent_MakeAvailable(umappp)
 
