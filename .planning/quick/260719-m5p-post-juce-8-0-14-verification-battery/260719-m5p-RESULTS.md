@@ -93,9 +93,9 @@ This battery is macOS-only (auval + AU are macOS-only; pluginval run locally on 
 
 The true note-expression acceptance gate — proves the JUCE-NE-PATCH re-base onto 8.0.14 preserved VST3 Note Expression microtonal playback. **Reference plugin: O-Lyrica** (validated spike/reference). Use any note-expression plugin (O-Lyrica, O-Bells, O-Wind, O-Reed, O-Bowed, O-Formant, O-IntonationPad, O-Prism) in Dorico 6 with the Ouaricon Microtonal Suite `.doricolib` imported.
 
-- [ ] **Point 1 — Pitch accuracy.** A quarter-sharp C4 plays at **≈ 269.29 Hz** (+50 cents above C4 = 261.63 Hz). Verify with a tuner/spectrum probe.
-- [ ] **Point 2 — Clean onset.** No attack zipper / no pitch-glide artifact on note onset (tuning applied before the DSP note trigger).
-- [ ] **Point 3 — Polyphonic isolation.** In a chord, only the detuned note is bent; other held notes play 12-TET (e.g. E4 = 329.63 Hz) — per-note NoteId correlation is intact.
+- [x] **Point 1 — Pitch accuracy.** A quarter-sharp C4 plays at **≈ 269.29 Hz** (+50 cents above C4 = 261.63 Hz). Verify with a tuner/spectrum probe. — **PASS 2026-07-20 (human, O-Lyrica VST3, Dorico regression project)**
+- [x] **Point 2 — Clean onset.** No attack zipper / no pitch-glide artifact on note onset (tuning applied before the DSP note trigger). — **PASS 2026-07-20**
+- [x] **Point 3 — Polyphonic isolation.** In a chord, only the detuned note is bent; other held notes play 12-TET (e.g. E4 = 329.63 Hz) — per-note NoteId correlation is intact. — **PASS 2026-07-20**
 
 If any point fails: the JUCE-NE-PATCH re-base is suspect — inspect `modules/tuning/note-expression/` dispatch slots (`g_neUpdate`/`g_neQuery`) and re-run `scripts/apply-juce-patches.sh`.
 
