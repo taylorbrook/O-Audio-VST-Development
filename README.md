@@ -17,6 +17,8 @@ To make the development of VST and AU plugins using Claude Code more achievable.
 
 All plugins compile to native VST3 and AU formats compatible with any DAW (Ableton, Logic, Reaper, etc.). VST3 builds on both macOS and Windows; AU is macOS-only.
 
+38 plugins have been built with this system so far — see the **[plugin registry](PLUGINS.md)** for the full catalog with versions and status.
+
 ## How It Works
 
 ### 1. Start (`/start`)
