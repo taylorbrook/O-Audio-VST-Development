@@ -2,6 +2,37 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.1.2] - 2026-07-21
+
+Windows-build fix ahead of cross-platform publishing. No audio, parameter, state,
+or UI behavior changes — mac/AU output is byte-for-byte identical to 4.1.1.
+
+### Fixed — Windows compile blocker
+
+- **All 7 `FileChooser::launchAsync` completions hoisted `SafePointer(this)` to a
+  local before the lambda.** The v4.1.1 CR-03 fix init-captured
+  `safeThis = juce::Component::SafePointer<…>(this)` *inside* the async completion
+  lambda, which itself lives inside a `withNativeFunction([this]…)` outer lambda.
+  Apple Clang binds `this` to the editor there, but MSVC binds it to the enclosing
+  closure — a Windows-only compile failure invisible on macOS. Each site now declares
+  `juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);` in the
+  outer lambda (where `this` is unambiguous) and captures it by copy. Teardown
+  semantics (bare `return` on null, never calling `complete()`) are unchanged.
+  Sites: savePresetWithDialog, loadPresetFromFile, loadScalaFile, saveScalaFile,
+  loadKBMFile, saveKBMFile, exportTuningHTML.
+  (critical_msvc_safepointer_init_capture_nested_lambda)
+
+### Fixed — Plugin binary reported version 1.0.0
+
+- **`juce_add_plugin` used `PLUGIN_VERSION`, which JUCE does not recognize.** JUCE's
+  only version keyword is `VERSION`; with none set it falls back to `PROJECT_VERSION`
+  (`project(JUCEPlugins VERSION 1.0.0)`), so **every** prior O-Bells release (1.x–4.1.1)
+  shipped VST3/AU bundles stamped 1.0.0 — DAWs saw no version metadata and could miss
+  update detection. Changed to `VERSION 4.1.2`; the AU/VST3 now report 4.1.2 (AU
+  component version `0x0040102`). No code path relied on the old key — the registry
+  version scanner already falls back to `VERSION`.
+  (Latent in siblings O-Marimba, O-MicrotonalSampler, O-Reed — same wrong keyword.)
+
 ## [4.1.1] - 2026-07-08
 
 Resolves the deep code-review findings in `CODE_REVIEW.md` (3 critical, 12 warning,
