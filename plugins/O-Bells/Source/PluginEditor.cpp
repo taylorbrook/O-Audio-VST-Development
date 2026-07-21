@@ -299,9 +299,15 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     processorRef.getPresetManager().getUserPresetsDirectory(),
                     "*.json"
                 );
+                // MSVC: the SafePointer must be hoisted to a local here. As an
+                // init-capture inside the nested launchAsync lambda, MSVC resolves
+                // `this` to the enclosing closure (the withNativeFunction lambda),
+                // not the editor — a Windows-only compile break Apple Clang hides.
+                // (critical_msvc_safepointer_init_capture_nested_lambda)
+                juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
                         // CR-03: the editor can be torn down while the native dialog is
                         // open. If so, bail with a BARE return — complete() is owned by
                         // the destroyed WebBrowserComponent Impl, so calling it is itself
@@ -328,9 +334,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     processorRef.getPresetManager().getPresetsDirectory(),
                     "*.json"
                 );
+                // MSVC: hoist SafePointer to a local — see savePresetWithDialog.
+                juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto result = fc.getResult();
                         if (result == juce::File{})
@@ -484,9 +492,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     "Load Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.scl");
+                // MSVC: hoist SafePointer to a local — see savePresetWithDialog.
+                juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
@@ -505,9 +515,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("scale.scl"),
                     "*.scl");
+                // MSVC: hoist SafePointer to a local — see savePresetWithDialog.
+                juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file != juce::File()) {
@@ -525,9 +537,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     "Load Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.kbm");
+                // MSVC: hoist SafePointer to a local — see savePresetWithDialog.
+                juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
@@ -545,9 +559,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("mapping.kbm"),
                     "*.kbm");
+                // MSVC: hoist SafePointer to a local — see savePresetWithDialog.
+                juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file != juce::File()) {
@@ -682,9 +698,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("tuning-export.html"),
                     "*.html");
+                // MSVC: hoist SafePointer to a local — see savePresetWithDialog.
+                juce::Component::SafePointer<OBellsAudioProcessorEditor> safeThis(this);
                 tuningFileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OBellsAudioProcessorEditor>(this), complete](const juce::FileChooser& fc) {
+                    [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr) return;  // CR-03: bare return — see savePresetWithDialog
                         auto file = fc.getResult();
                         if (file != juce::File()) {
