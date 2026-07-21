@@ -381,6 +381,7 @@ OMicrotonalSamplerAudioProcessor::OMicrotonalSamplerAudioProcessor()
         voice->setPendingTechniqueSource (&pendingTechniqueIndex);                 // v1.14.0
         voice->setTrimTableSource        (&cellTrims);                             // v1.23.0
         voice->setRetiredMapSink         (&retiredMapReaper);                      // v1.23.2 (W10)
+        voice->setLiveExpressionSource   (&liveExpression);                        // v1.23.8
         synthesiser.addVoice (voice);
     }
 
@@ -465,6 +466,10 @@ void OMicrotonalSamplerAudioProcessor::prepareToPlay (double sampleRate, int sam
     {
         const float v = ep->load();
         expressionSmoother.setCurrentAndTargetValue (v * v);
+        // v1.23.8: adopt the restored/current param value as the live
+        // dynamics source so a session restore lands before the first CC 11.
+        liveExpression.store (v, std::memory_order_relaxed);
+        lastForwardedExpression = v;
     }
 
     // v1.14.0: pre-allocate the keyswitch filter buffer. 2048 bytes covers
@@ -587,11 +592,17 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // — that is a real-time correctness violation (the call dispatches to
     // listeners that may take host locks, allocate, or block). We stage the
     // last CC 11 byte of the block into a lock-free atomic and ask the
-    // message thread to forward it to the host via handleAsyncUpdate. The
-    // squared-curve smoothing applied below uses the live "expression"
-    // APVTS atom directly, so audio gain still tracks the CC stream within
-    // ~one message-thread cycle (≈ tens of µs to a few ms — far below the
-    // 10 ms smoother ramp).
+    // message thread to forward it to the host via handleAsyncUpdate.
+    //
+    // v1.23.8: the audio path no longer waits for that round-trip. The
+    // message-thread forward is wall-clock-paced and coalescing — fine in
+    // real time (≈ tens of µs to a few ms, far below the smoother ramps),
+    // but during offline export the render thread outruns it: whole CC 11
+    // hairpins collapsed into one late "expression" write and dynamics
+    // jumped audibly in the exported audio. processBlock now stores the CC
+    // value into liveExpression (audio-thread atom) FIRST; the voices and
+    // the Velocity-mode post-mix gain read that atom. handleAsyncUpdate
+    // remains solely the UI-knob / host-automation mirror.
     int latestCC11 = -1;
     for (const auto meta : midiMessages)
     {
@@ -601,8 +612,24 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     }
     if (latestCC11 >= 0)
     {
+        const float ccVal = (float) latestCC11 / 127.0f;
+        liveExpression.store (ccVal, std::memory_order_relaxed);
+        lastForwardedExpression = ccVal;
         pendingCC11Value.store (latestCC11, std::memory_order_relaxed);
         triggerAsyncUpdate();
+    }
+    else if (pExpression != nullptr)
+    {
+        // No CC this block: adopt genuine UI-knob / automation moves of the
+        // "expression" param. The 0.5/127 epsilon ignores the quantised echo
+        // of our own setValueNotifyingHost forward (param step 0.001 → max
+        // snap error 0.0005, well inside the guard).
+        const float paramVal = pExpression->load();
+        if (std::abs (paramVal - lastForwardedExpression) > (0.5f / 127.0f))
+        {
+            liveExpression.store (paramVal, std::memory_order_relaxed);
+            lastForwardedExpression = paramVal;
+        }
     }
 
     // FUNC-03: propagate the polyphony APVTS cap into the synth before MIDI is
@@ -783,9 +810,11 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     const bool ccCrossfade = (pDynamicsMode != nullptr)
                           && (pDynamicsMode->load() > 0.5f);
 
-    if (pExpression != nullptr)
     {
-        const float v = pExpression->load();
+        // v1.23.8: read the audio-thread-direct atom (see the CC 11 scan) —
+        // the "expression" APVTS atom lags a message-thread cycle and stalls
+        // during offline export.
+        const float v = liveExpression.load (std::memory_order_relaxed);
         expressionSmoother.setTargetValue (v * v);
     }
 
