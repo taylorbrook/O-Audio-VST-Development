@@ -109,13 +109,17 @@ function bindModal(dialog, buttons, opts = {}) {
         const resolveKeyTarget = (entry) =>
             (typeof entry === 'function') ? entry() : entry;
 
+        // v1.23.7 (IN-04): stopPropagation once a key is claimed — this
+        // listener runs in the capture phase, so without it document-level
+        // bubble handlers (e.g. the loop editor's Esc-to-close) also fire
+        // and dismiss UI behind the modal.
         const onKey = (e) => {
             if (e.key === 'Escape') {
                 const target = resolveKeyTarget(opts.keys?.Escape);
-                if (target) { e.preventDefault(); target.click(); }
+                if (target) { e.preventDefault(); e.stopPropagation(); target.click(); }
             } else if (e.key === 'Enter') {
                 const target = resolveKeyTarget(opts.keys?.Enter);
-                if (target) { e.preventDefault(); target.click(); }
+                if (target) { e.preventDefault(); e.stopPropagation(); target.click(); }
             }
         };
         document.addEventListener('keydown', onKey, true);
@@ -152,34 +156,57 @@ const SLIDER_BINDINGS = [
     { domId: 'ctrl-output-gain',         relayId: 'output_gain',         label: 'Out Gain' }
 ];
 
-// Phase 3.5 — display formatting per parameter. Maps relayId → {min, max,
-// suffix, format(value)}. Values shown next to each knob mirror the C++
-// NormalisableRange + AudioParameterFloat conventions in PluginProcessor.
+// Phase 3.5 — display formatting per parameter. Maps relayId → {suffix,
+// format(scaledValue)}.
 //
-// All sliders are 0..1 normalised on the JS side; we map to display ranges
-// here purely for UI text. The actual APVTS value is what the host sees.
+// v1.23.7 (WR-01): the readout is computed from the relay's SCALED value
+// (SliderState.getScaledValue() — JUCE pushes the real NormalisableRange
+// start/end/skew via propertiesChanged), so the JS side no longer hard-codes
+// parameter ranges. The old linear min/max map here claimed attack/decay/
+// release were 0.001–5 s linear while the C++ range is 0–10 s skew 0.5 (label
+// read up to 2× low), and claimed polyphony 1–32 vs the real 1–16.
 const KNOB_FORMATS = {
-    'attack':              { min: 0.001, max: 5.0, suffix: ' s',
+    'attack':              { suffix: ' s',
                              format: v => v < 0.1 ? v.toFixed(3) : v.toFixed(2) },
-    'decay':               { min: 0.001, max: 5.0, suffix: ' s',
+    'decay':               { suffix: ' s',
                              format: v => v < 0.1 ? v.toFixed(3) : v.toFixed(2) },
-    'sustain':             { min: 0.0,   max: 1.0, suffix: '',
+    'sustain':             { suffix: '',
                              format: v => v.toFixed(2) },
-    'release':             { min: 0.001, max: 5.0, suffix: ' s',
+    'release':             { suffix: ' s',
                              format: v => v < 0.1 ? v.toFixed(3) : v.toFixed(2) },
-    'polyphony':           { min: 1,     max: 32, suffix: '',
+    'polyphony':           { suffix: '',
                              format: v => Math.round(v).toString() },
-    'velocity_crossfade':  { min: 0.0,   max: 1.0, suffix: '',
+    'velocity_crossfade':  { suffix: '',
                              format: v => v.toFixed(2) },
-    // v1.7.0: expression as 0-100% (squared curve handled C++ side).
-    'expression':          { min: 0.0,   max: 100.0, suffix: ' %',
-                             format: v => Math.round(v).toString() },
+    // v1.7.0: expression displays as 0-100 % (scaled param is 0..1; squared
+    // curve handled C++ side).
+    'expression':          { suffix: ' %',
+                             format: v => Math.round(v * 100).toString() },
     // v1.22.0: dynamic range in dB (linear NormalisableRange 0..40 C++ side).
-    'dynamic_range':       { min: 0.0,   max: 40.0, suffix: ' dB',
+    'dynamic_range':       { suffix: ' dB',
                              format: v => v.toFixed(1) },
-    'output_gain':         { min: -24.0, max: 24.0, suffix: ' dB',
+    'output_gain':         { suffix: ' dB',
                              format: v => (v >= 0 ? '+' : '') + v.toFixed(1) },
 };
+
+// v1.23.7 (WR-04): relayId → default normalised value, pulled once at boot
+// from the C++ side (param->getDefaultValue()) via getParameterDefaults.
+// Used by the knob double-click reset so it lands on the real APVTS default
+// instead of a blanket mid-range 0.5 (which, for the skewed ADSR ranges,
+// denormalised to ~2.5 s).
+let paramDefaults = {};
+
+async function pullParameterDefaults() {
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;
+    try {
+        const fn = Juce.getNativeFunction('getParameterDefaults');
+        const raw = await fn();
+        const obj = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+        if (obj && typeof obj === 'object') paramDefaults = obj;
+    } catch (err) {
+        console.warn('[sampler-app] pullParameterDefaults failed', err);
+    }
+}
 
 // SVG arc geometry (matches O-Bells: 270 degree sweep over r=18). The arc
 // is drawn via stroke-dasharray + stroke-dashoffset on a circle; the
@@ -202,17 +229,18 @@ const knobDrag = {
     pointerId: -1,
 };
 
-function knobUpdateVisual(vineEl, valueEl, fmt, norm) {
+function knobUpdateVisual(vineEl, valueEl, fmt, norm, state) {
     // Arc sweep
     if (vineEl) {
         const offset = KNOB_ARC_LENGTH * (1 - Math.max(0, Math.min(1, norm)));
         vineEl.style.strokeDasharray  = KNOB_ARC_LENGTH.toFixed(2);
         vineEl.style.strokeDashoffset = offset.toFixed(2);
     }
-    // Numeric readout
-    if (valueEl && fmt) {
-        const real = fmt.min + norm * (fmt.max - fmt.min);
-        valueEl.textContent = fmt.format(real) + fmt.suffix;
+    // Numeric readout — the real (scaled) value comes from the relay itself,
+    // which applies the C++ NormalisableRange incl. skew (WR-01). See the
+    // KNOB_FORMATS note.
+    if (valueEl && fmt && state) {
+        valueEl.textContent = fmt.format(state.getScaledValue()) + fmt.suffix;
     }
 }
 
@@ -245,7 +273,7 @@ function bindOneKnob({ domId, relayId }) {
     const init = state.getNormalisedValue();
     if (typeof init === 'number') {
         input.value = init;
-        knobUpdateVisual(vineEl, valueEl, fmt, init);
+        knobUpdateVisual(vineEl, valueEl, fmt, init, state);
     }
 
     // C++ -> DOM (automation, preset load, DAW change)
@@ -253,7 +281,19 @@ function bindOneKnob({ domId, relayId }) {
         const v = state.getNormalisedValue();
         if (typeof v === 'number') {
             input.value = v;
-            knobUpdateVisual(vineEl, valueEl, fmt, v);
+            knobUpdateVisual(vineEl, valueEl, fmt, v, state);
+        }
+    });
+
+    // The real range (start/end/skew) arrives asynchronously from C++ via
+    // propertiesChanged — refresh the visual when it lands, otherwise the
+    // boot-time readout is computed against the default 0..1 linear
+    // properties (WR-01).
+    state.propertiesChangedEvent.addListener(() => {
+        const v = state.getNormalisedValue();
+        if (typeof v === 'number' && Number.isFinite(v)) {
+            input.value = v;
+            knobUpdateVisual(vineEl, valueEl, fmt, v, state);
         }
     });
 
@@ -263,7 +303,7 @@ function bindOneKnob({ domId, relayId }) {
         const v = parseFloat(input.value);
         if (!Number.isNaN(v)) {
             state.setNormalisedValue(v);
-            knobUpdateVisual(vineEl, valueEl, fmt, v);
+            knobUpdateVisual(vineEl, valueEl, fmt, v, state);
         }
     });
 
@@ -288,27 +328,40 @@ function bindOneKnob({ domId, relayId }) {
     });
 
     // Wheel — 2 % per tick (matches O-Bells fxKnob convention).
+    // v1.23.7 (WR-05): wrapped in a sliderDragStarted/Ended gesture — opened
+    // on the first tick, closed after a short idle — so hosts in
+    // automation-write mode record wheel tweaks the same way as drags.
+    let wheelGestureTimer = null;
     knob.addEventListener('wheel', (e) => {
         e.preventDefault();
+        if (wheelGestureTimer === null) state.sliderDragStarted();
+        else clearTimeout(wheelGestureTimer);
+        wheelGestureTimer = setTimeout(() => {
+            wheelGestureTimer = null;
+            state.sliderDragEnded();
+        }, 250);
         const cur = state.getNormalisedValue();
         const delta = e.deltaY < 0 ? 0.02 : -0.02;
         const next = Math.max(0, Math.min(1, cur + delta));
         state.setNormalisedValue(next);
         input.value = next;
-        knobUpdateVisual(vineEl, valueEl, fmt, next);
+        knobUpdateVisual(vineEl, valueEl, fmt, next, state);
     }, { passive: false });
 
-    // Double-click resets to default (per APVTS default — pull from C++).
+    // Double-click resets to the parameter's APVTS default (WR-04). Defaults
+    // are pulled once at boot via getParameterDefaults (normalised 0..1,
+    // straight from param->getDefaultValue()); mid-range only as a fallback
+    // if that pull failed or hasn't landed yet.
     knob.addEventListener('dblclick', (e) => {
         e.preventDefault();
-        // Most natural reset: snap to mid-range. Stage 4 polish will plumb
-        // the parameter's default explicitly via a native function.
-        const mid = 0.5;
+        const def = (typeof paramDefaults[relayId] === 'number')
+            ? Math.max(0, Math.min(1, paramDefaults[relayId]))
+            : 0.5;
         state.sliderDragStarted();
-        state.setNormalisedValue(mid);
+        state.setNormalisedValue(def);
         state.sliderDragEnded();
-        input.value = mid;
-        knobUpdateVisual(vineEl, valueEl, fmt, mid);
+        input.value = def;
+        knobUpdateVisual(vineEl, valueEl, fmt, def, state);
     });
 }
 
@@ -320,7 +373,7 @@ function bindKnobGlobalDrag() {
         const next = Math.max(0, Math.min(1, knobDrag.startNorm + deltaY * sensitivity));
         knobDrag.state.setNormalisedValue(next);
         if (knobDrag.input) knobDrag.input.value = next;
-        knobUpdateVisual(knobDrag.vineEl, knobDrag.valueEl, knobDrag.fmt, next);
+        knobUpdateVisual(knobDrag.vineEl, knobDrag.valueEl, knobDrag.fmt, next, knobDrag.state);
     });
 
     const endDrag = (e) => {
@@ -789,8 +842,8 @@ function handleSampleMapSnapshot(payloadOrJson) {
 // The grid is rebuilt on every snapshot. With 352 cells (88 × 4), full
 // rebuild is < 5 ms and avoids stateful diff bookkeeping.
 
-const MIDI_LOW  = 21;   // A0
-const MIDI_HIGH = 108;  // C8
+const MIDI_LOW  = 21;   // labelled "A-1" under the C3=60 convention (A0 in C4=60 terms)
+const MIDI_HIGH = 108;  // labelled "C7" under the C3=60 convention (C8 in C4=60 terms)
 const NUM_LAYERS = 4;
 
 // v1.1.0: Velocity-layer ranges (matches MicrotonalSamplerVoice.cpp:
@@ -956,7 +1009,7 @@ function renderGrid(snap) {
         lbl.className = 'col-label';
         if (midi % 12 === 0) {
             lbl.dataset.c = '1';
-            lbl.textContent = midiToNoteName(midi);   // "C1", "C2", … "C8"
+            lbl.textContent = midiToNoteName(midi);   // "C0" … "C7" (C3=60 convention)
         }
         colFrag.appendChild(lbl);
     }
@@ -1778,11 +1831,14 @@ function showEmbedSizeConfirmModal (sizeBytes, displayName) {
         const confirmBtn = document.getElementById('embed-size-confirm-btn');
         const cancelBtn  = document.getElementById('embed-size-cancel-btn');
         if (!dialog || !messageEl || !confirmBtn || !cancelBtn) {
-            // Fallback to a plain confirm so the load never silently
-            // commits without the user seeing the size.
-            const summary = `Embed will add ~${formatBytes(sizeBytes)} `
-                          + `to your project state. Continue?`;
-            resolve(window.confirm(summary));
+            // v1.23.7 (IN-05): modal DOM missing = markup regression.
+            // window.confirm is NOT wired through WKWebView's UIDelegate
+            // (returns undefined silently), so the old confirm() fallback
+            // could never actually ask — fail safe: cancel the embed and
+            // surface the failure instead.
+            console.error('[sampler-app] embed-size-confirm modal DOM missing — cancelling embed');
+            showToast('Internal UI error: confirmation dialog unavailable — embed cancelled.');
+            resolve(false);
             return;
         }
 
@@ -2292,9 +2348,12 @@ function redrawLoopEditor() {
     }
     ctx.stroke();
 
-    // Markers — only draw if not one-shot (zero-region markers would be at x=0).
-    drawMarker(ctx, cssW, cssH, sampleToX(editorState.loopStart, cssW), 'start');
-    drawMarker(ctx, cssW, cssH, sampleToX(editorState.loopEnd,   cssW), 'end');
+    // Markers — skipped for one-shot cells (IN-03: no loop region; both
+    // markers would otherwise render stacked at x=0).
+    if (!isOneShot(editorState.snap)) {
+        drawMarker(ctx, cssW, cssH, sampleToX(editorState.loopStart, cssW), 'start');
+        drawMarker(ctx, cssW, cssH, sampleToX(editorState.loopEnd,   cssW), 'end');
+    }
 }
 
 function drawMarker(ctx, cssW, cssH, x, which) {
@@ -2652,11 +2711,13 @@ function showAmbiguousDuplicatesDialog (dups) {
     const okBtn   = document.getElementById('rr-confirm-accept');
     const noBtn   = document.getElementById('rr-confirm-cancel');
     if (!dialog || !listEl || !okBtn || !noBtn) {
-        // Fallback: send a quick confirm via window.confirm so the user is
-        // never blocked by a missing modal element.
-        const summary = dups.map(d => `MIDI ${d.midiNote}/L${d.velocityLayer}: ${(d.filenames || []).join(', ')}`).join('\n');
-        const accept = window.confirm(`Multiple files share the same note/layer:\n\n${summary}\n\nTreat as round-robin variants?`);
-        sendRrConfirmation(accept);
+        // v1.23.7 (IN-05): modal DOM missing = markup regression.
+        // window.confirm is dead in WKWebView (no UIDelegate wiring — it
+        // returns undefined), so the old fallback silently sent a "cancel"
+        // the user never saw. Cancel explicitly and surface the failure.
+        console.error('[sampler-app] rr-confirm modal DOM missing — cancelling ambiguous-duplicate load');
+        showToast('Internal UI error: round-robin confirmation dialog unavailable — load cancelled.');
+        sendRrConfirmation(false);
         return;
     }
 
@@ -2795,7 +2856,7 @@ async function pullTechniqueState() {
 }
 
 function subscribeTechniqueStateUpdates() {
-    if (!window.__JUCE__) return;
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;   // WR-02: match the guard every other subscriber uses
     window.__JUCE__.backend.addEventListener('techniqueStateUpdated', () => {
         pullTechniqueState();
     });
@@ -2857,8 +2918,10 @@ function renderTechniqueBar() {
     const ksHigh   = document.getElementById('technique-ks-high');
     const ksWrap   = document.getElementById('technique-ks-controls');
     if (ksToggle) ksToggle.checked = techniqueState.ksEnabled;
-    if (ksLow)    ksLow.value      = String(techniqueState.ksLow);
-    if (ksHigh)   ksHigh.value     = String(techniqueState.ksHigh);
+    // v1.23.7 (IN-01): skip the write while the user is typing in the field —
+    // an echoed techniqueStateUpdated would otherwise overwrite the edit.
+    setInputValueUnlessFocused(ksLow,  techniqueState.ksLow);
+    setInputValueUnlessFocused(ksHigh, techniqueState.ksHigh);
     if (ksWrap)   ksWrap.classList.toggle('disabled', !techniqueState.ksEnabled);
 }
 
@@ -3214,10 +3277,47 @@ async function pullTriggerState() {
 }
 
 function subscribeTriggerStateUpdates() {
-    if (!window.__JUCE__) return;
+    if (!window.__JUCE__ || !window.__JUCE__.backend) return;   // WR-02: match the guard every other subscriber uses
     window.__JUCE__.backend.addEventListener('triggerStateUpdated', () => {
         pullTriggerState();
     });
+}
+
+// v1.23.7 (WR-03): the CC/PC table rows are built ONCE and then only updated
+// in place. renderTriggerPanel used to `innerHTML = ''`-rebuild all 8 rows on
+// every technique/trigger state echo, discarding any in-progress edit and
+// dropping focus — the exact bug class the trim panel solved in v1.23.0 with
+// a static DOM + activeElement guard. The update pass below skips whichever
+// input the user is currently focused in.
+function ensureTriggerRows(tbody, fields) {
+    if (tbody.childElementCount === 8) return;
+    tbody.innerHTML = '';
+    for (let i = 0; i < 8; ++i) {
+        const tr = document.createElement('tr');
+        tr.dataset.slot = String(i);
+
+        const idTd = document.createElement('td');
+        idTd.textContent = String(i + 1);
+        tr.appendChild(idTd);
+
+        for (const f of fields) {
+            const td = document.createElement('td');
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = String(f.min);
+            input.max = String(f.max);
+            input.step = '1';
+            input.dataset.field = f.field;
+            td.appendChild(input);
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+    }
+}
+
+// Write an input's value in place unless the user is editing it right now.
+function setInputValueUnlessFocused(input, value) {
+    if (input && document.activeElement !== input) input.value = String(value);
 }
 
 function renderTriggerPanel() {
@@ -3236,7 +3336,7 @@ function renderTriggerPanel() {
     const ccNumber = document.getElementById('cc-trigger-number');
     const pcToggle = document.getElementById('pc-trigger-enabled');
     if (ccToggle) ccToggle.checked = triggerState.ccEnabled;
-    if (ccNumber) ccNumber.value   = String(triggerState.ccNumber);
+    if (ccNumber) setInputValueUnlessFocused(ccNumber, triggerState.ccNumber);
     if (pcToggle) pcToggle.checked = triggerState.pcEnabled;
 
     const techCount = Math.max(1, Math.min(8, techniqueState.count || 1));
@@ -3245,81 +3345,34 @@ function renderTriggerPanel() {
     // but greyed so the user can still pre-stage values for a future grow).
     const ccTbody = document.querySelector('#cc-trigger-table tbody');
     if (ccTbody) {
-        ccTbody.innerHTML = '';
+        ensureTriggerRows(ccTbody, [
+            { field: 'lo',   min: 0, max: 127 },
+            { field: 'hi',   min: 0, max: 127 },
+            { field: 'tech', min: 1, max: 8   },
+        ]);
         for (let i = 0; i < 8; ++i) {
+            const tr = ccTbody.children[i];
             const slot = triggerState.ccMapping[i] || { rangeLow: 0, rangeHigh: 127, tech: 0 };
-            const tr = document.createElement('tr');
-            tr.dataset.slot = String(i);
-            if (i >= techCount) tr.style.opacity = '0.45';
-
-            const idTd = document.createElement('td');
-            idTd.textContent = String(i + 1);
-            tr.appendChild(idTd);
-
-            const loTd = document.createElement('td');
-            const loInput = document.createElement('input');
-            loInput.type = 'number';
-            loInput.min = '0'; loInput.max = '127'; loInput.step = '1';
-            loInput.value = String(slot.rangeLow);
-            loInput.dataset.field = 'lo';
-            loTd.appendChild(loInput);
-            tr.appendChild(loTd);
-
-            const hiTd = document.createElement('td');
-            const hiInput = document.createElement('input');
-            hiInput.type = 'number';
-            hiInput.min = '0'; hiInput.max = '127'; hiInput.step = '1';
-            hiInput.value = String(slot.rangeHigh);
-            hiInput.dataset.field = 'hi';
-            hiTd.appendChild(hiInput);
-            tr.appendChild(hiTd);
-
-            const techTd = document.createElement('td');
-            const techInput = document.createElement('input');
-            techInput.type = 'number';
-            techInput.min = '1'; techInput.max = '8'; techInput.step = '1';
-            techInput.value = String(slot.tech + 1);   // user-facing 1..8
-            techInput.dataset.field = 'tech';
-            techTd.appendChild(techInput);
-            tr.appendChild(techTd);
-
-            ccTbody.appendChild(tr);
+            tr.style.opacity = (i >= techCount) ? '0.45' : '';
+            setInputValueUnlessFocused(tr.querySelector('input[data-field="lo"]'),   slot.rangeLow);
+            setInputValueUnlessFocused(tr.querySelector('input[data-field="hi"]'),   slot.rangeHigh);
+            setInputValueUnlessFocused(tr.querySelector('input[data-field="tech"]'), slot.tech + 1);  // user-facing 1..8
         }
     }
 
     // PC table
     const pcTbody = document.querySelector('#pc-trigger-table tbody');
     if (pcTbody) {
-        pcTbody.innerHTML = '';
+        ensureTriggerRows(pcTbody, [
+            { field: 'pc',   min: 0, max: 127 },
+            { field: 'tech', min: 1, max: 8   },
+        ]);
         for (let i = 0; i < 8; ++i) {
+            const tr = pcTbody.children[i];
             const slot = triggerState.pcMapping[i] || { pc: i, tech: i };
-            const tr = document.createElement('tr');
-            tr.dataset.slot = String(i);
-            if (i >= techCount) tr.style.opacity = '0.45';
-
-            const idTd = document.createElement('td');
-            idTd.textContent = String(i + 1);
-            tr.appendChild(idTd);
-
-            const pcTd = document.createElement('td');
-            const pcInput = document.createElement('input');
-            pcInput.type = 'number';
-            pcInput.min = '0'; pcInput.max = '127'; pcInput.step = '1';
-            pcInput.value = String(slot.pc);
-            pcInput.dataset.field = 'pc';
-            pcTd.appendChild(pcInput);
-            tr.appendChild(pcTd);
-
-            const techTd = document.createElement('td');
-            const techInput = document.createElement('input');
-            techInput.type = 'number';
-            techInput.min = '1'; techInput.max = '8'; techInput.step = '1';
-            techInput.value = String(slot.tech + 1);
-            techInput.dataset.field = 'tech';
-            techTd.appendChild(techInput);
-            tr.appendChild(techTd);
-
-            pcTbody.appendChild(tr);
+            tr.style.opacity = (i >= techCount) ? '0.45' : '';
+            setInputValueUnlessFocused(tr.querySelector('input[data-field="pc"]'),   slot.pc);
+            setInputValueUnlessFocused(tr.querySelector('input[data-field="tech"]'), slot.tech + 1);
         }
     }
 
@@ -3411,6 +3464,8 @@ function bindTriggerPanel() {
 document.addEventListener('DOMContentLoaded', () => {
     bindTabs();
     bindSliders();
+    pullParameterDefaults();               // v1.23.7 (WR-04) — dblclick reset targets
+
     subscribeSampleMapUpdates();
     subscribeFolderMissingEvent();   // v1.3.0 — register before pull
     subscribeAmbiguousDuplicatesEvent();   // v1.8.0

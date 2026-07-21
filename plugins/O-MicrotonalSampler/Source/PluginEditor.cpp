@@ -776,6 +776,29 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
+        // v1.23.7 (ui-frontend review WR-04): parameter defaults for the
+        // control-strip knobs. The JS double-click reset pulls this once at
+        // boot so it snaps to the real APVTS default (param->getDefaultValue(),
+        // normalised 0..1) instead of a blanket mid-range 0.5 — which for the
+        // skewed ADSR ranges denormalised to ~2.5 s. Keys mirror
+        // SLIDER_BINDINGS in sampler-app.js.
+        { "getParameterDefaults",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    static const char* const relayIds[] = {
+                        "attack", "decay", "sustain", "release", "polyphony",
+                        "velocity_crossfade", "expression", "dynamic_range",
+                        "output_gain"
+                    };
+                    auto* obj = new juce::DynamicObject();
+                    for (auto* id : relayIds)
+                        if (auto* p = processorRef.getAPVTS().getParameter (id))
+                            obj->setProperty (id, p->getDefaultValue());
+                    complete (juce::var (obj));
+                }
+        },
+
         // v1.7.1: catch-up pull for the TuningPanel. The 30 Hz timer
         // only emits tuningHeldNotes on change, so a panel that mounts
         // (lazy — first Tuning-tab activation) while notes are already
