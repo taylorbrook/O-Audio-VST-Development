@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<preset name="Worn Out">
-  <description>Heavy tape degradation with wow, flutter, dropout, and noise for lo-fi character</description>
-  <param id="drive" value="0.6"/>
-  <param id="age" value="0.7"/>
-  <param id="mix" value="0.85"/>
-</preset>

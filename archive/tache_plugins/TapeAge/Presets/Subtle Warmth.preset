@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<preset name="Subtle Warmth">
-  <description>Gentle tape saturation for adding warmth without obvious distortion</description>
-  <param id="drive" value="0.3"/>
-  <param id="age" value="0.1"/>
-  <param id="mix" value="0.5"/>
-</preset>

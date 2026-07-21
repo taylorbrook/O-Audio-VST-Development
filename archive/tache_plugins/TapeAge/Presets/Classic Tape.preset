@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<preset name="Classic Tape">
-  <description>Vintage tape machine sound - moderate saturation with subtle tape artifacts</description>
-  <param id="drive" value="0.5"/>
-  <param id="age" value="0.25"/>
-  <param id="mix" value="1.0"/>
-</preset>

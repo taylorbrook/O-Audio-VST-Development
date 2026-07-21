@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<AUTOCLIPPRESET version="1.0">
-  <PRESET name="Extreme Clip" author="AutoClip">
-    <PARAM id="clipThreshold" value="0.85"/>
-    <PARAM id="soloClipped" value="0.0"/>
-  </PRESET>
-</AUTOCLIPPRESET>
