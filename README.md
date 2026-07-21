@@ -2,8 +2,6 @@
 
 An AI-assisted JUCE plugin development system that enables conversational creation of professional VST3 and AU audio plugins. Design and build custom audio processors through natural dialogue with Claude Code—no programming experience required. The interactive development loop is macOS-primary; cross-platform release builds (VST3 for macOS and Windows, AU for macOS) are produced through GitHub Actions CI via `/publish`.
 
-#VST building system based upon **[TÂCHES](https://youtube.com/tachesteaches)**
-
 ## Why This Exists
 
 To make the development of VST and AU plugins using Claude Code more achievable.

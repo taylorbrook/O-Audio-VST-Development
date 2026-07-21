@@ -65,26 +65,6 @@ Ouaricon Plugins:
 | O-simpleBeatmaker | 📦 Installed | 1.0.2 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-07-15 |
 | O-simplePhysicalModelSynth | 📦 Installed | 1.0.2 | Synth (Pedagogical Physical Modeling) | 2026-07-16 |
 
-Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
-| Plugin Name | Status | Version | Type | Last Updated |
-|-------------|--------|---------|------|--------------|
-| GainKnob | 📦 Installed | 1.2.3 | Audio Effect (Utility) | 2025-11-10 |
-| TapeAge | 📦 Installed | 1.1.1 | Audio Effect | 2025-11-15 |
-| ClapMachine | 💡 Ideated | - | - | 2025-11-10 |
-| DriveVerb | 📦 Installed | 1.0.2 | Audio Effect (Reverb) | 2025-11-12 |
-| FlutterVerb | 📦 Installed | 1.0.3 | Audio Effect (Reverb) | 2025-11-12 |
-| LushVerb | 💡 Ideated | - | Audio Effect (Reverb) | 2025-11-12 |
-| OrganicHats | 📦 Installed | 1.0.0 | Synth (Instrument) | 2025-11-12 |
-| DrumRoulette | 📦 Installed | 1.0.0 | Instrument (Drum Sampler) | 2025-11-12 |
-| Scatter | ✅ Working | 1.0.0 | Audio Effect (Granular Delay) | 2025-11-14 |
-| AutoClip | 📦 Installed | 1.0.1 | Audio Effect (Hard Clipper) | 2025-11-15 |
-| MinimalKick | 🚧 Stage 5 | - | Synth | 2025-11-13 |
-| Drum808 | 📦 Installed | 1.0.0 | Synth (Drum Instrument) | 2025-11-13 |
-| LushPad | 📦 Installed | 1.0.0 | Synth (Instrument) | 2025-11-13 |
-| Words | 💡 Ideated | - | Utility (MIDI Sequencer) | 2025-11-13 |
-| PadForge | 💡 Ideated | - | Synth (Instrument) | 2025-11-14 |
-| AngelGrain | 📦 Installed | 1.0.0 | Audio Effect (Granular Delay) | 2025-11-19 |
-
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`
 

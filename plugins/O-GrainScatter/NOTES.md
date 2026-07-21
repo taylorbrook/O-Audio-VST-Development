@@ -19,7 +19,7 @@
 
 ## Heritage
 
-Built on the granular engine from the Scatter plugin (TACHES):
+Built on the granular engine from the Scatter plugin:
 - 64-voice grain pool, Lagrange3rd delay buffer, Hann window, scale quantization
 - Extended with beat-sync, freeze, pitch ladder, Euclidean rhythms, texture morph
 
