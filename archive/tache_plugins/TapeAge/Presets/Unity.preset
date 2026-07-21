@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<preset name="Unity">
-  <description>Bypass state - plugin passes audio through unprocessed</description>
-  <param id="drive" value="0.0"/>
-  <param id="age" value="0.0"/>
-  <param id="mix" value="0.0"/>
-</preset>

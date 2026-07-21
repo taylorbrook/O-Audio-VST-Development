@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<preset name="Destroyed">
-  <description>Maximum tape destruction - extreme saturation and heavy artifacts for creative effects</description>
-  <param id="drive" value="1.0"/>
-  <param id="age" value="1.0"/>
-  <param id="mix" value="1.0"/>
-</preset>

@@ -1,8 +1,0 @@
-[0;36m→ Log file: logs/TapeAge/build_20251113_002547.log[0m
-============================================================================
-JUCE Plugin Build & Installation: TapeAge
-============================================================================
-
-[0;36m→ Phase 1: Pre-flight Validation[0m
-[0;36m→   - Checking plugin directory...[0m
-[0;31m✗ Plugin directory not found: plugins/TapeAge[0m

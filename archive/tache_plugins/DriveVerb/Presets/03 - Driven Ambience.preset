@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<preset name="Driven Ambience">
-  <param id="size" value="0.6"/>
-  <param id="decay" value="0.5"/>
-  <param id="dryWet" value="0.4"/>
-  <param id="drive" value="0.5"/>
-  <param id="filter" value="0.5"/>
-  <param id="filterPosition" value="1.0"/>
-</preset>
