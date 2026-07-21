@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-GSD (Get Shit Done) is a context engineering framework by TACHES that orchestrates Claude Code for spec-driven development. The core insight: **context rot is the enemy**. As conversations lengthen, LLMs "forget" previous decisions and generate inconsistent code. GSD solves this through phase-based isolation, atomic task execution in fresh 200k-token subagent contexts, and file-based state persistence.
+GSD (Get Shit Done) is a context engineering framework that orchestrates Claude Code for spec-driven development. The core insight: **context rot is the enemy**. As conversations lengthen, LLMs "forget" previous decisions and generate inconsistent code. GSD solves this through phase-based isolation, atomic task execution in fresh 200k-token subagent contexts, and file-based state persistence.
 
 For multi-agent systems in 2026, the field is undergoing its "microservices revolution." Single all-purpose agents are being replaced by orchestrated teams of specialized agents. The key is **simplicity with constraints**--successful implementations use surprisingly few tools (10-20), delegate complexity to code execution, and treat context as a finite resource to be carefully managed.
 

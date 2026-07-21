@@ -21,7 +21,7 @@ No commercial plugin offers this combination. Portal ($99) has granular + scales
 
 ## Heritage
 
-Built on the granular foundation from the **Scatter** plugin (TACHES), which provides:
+Built on the granular foundation from the **Scatter** plugin, which provides:
 - 64-voice grain pool with Lagrange3rd interpolation
 - Hann window envelope per grain
 - Scale-quantized pitch randomization (Chromatic, Major, Minor, Pentatonic, Whole Tone)
@@ -111,7 +111,7 @@ Input -> Delay Buffer (2s) -> Grain Scheduler -> Voice Pool (64 voices)
 - **Output Portal** — Granular FX with scale quantization
 - **iZotope Stutter Edit 2** — Beat-synced gesture-based stutter
 - **Granulator II (Robert Henke)** — Max/MSP granular instrument
-- **Scatter (TACHES)** — Direct granular engine ancestor
+- **Scatter** — Direct granular engine ancestor
 - **O-Freeze** — Ouaricon granular freeze effect (related but distinct approach)
 
 ## Differentiation from O-Freeze
