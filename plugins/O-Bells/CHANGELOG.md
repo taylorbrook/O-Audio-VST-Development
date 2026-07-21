@@ -2,6 +2,29 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.1.3] - 2026-07-21
+
+Unblocks the first cross-platform release. The 4.1.2 tag built on Windows but the
+newly-added CI **pluginval strictness-10** gate (which never ran before v4.0.0) failed
+with `NaNs found in buffer` during the parameter-automation/fuzz sweep — a latent DSP
+defect present in every prior release, exposed only now. No audio change under normal use.
+
+### Fixed — NaN in the output buffer (pluginval strictness-10)
+
+- **Strike-resonator cutoff exceeded Nyquist.** `calculatePartialFrequency` returns
+  `fundamental × ratio` with no upper bound; a high note × partial ratio × inharmonicity
+  pushes it past Nyquist, and the bandpass `StateVariableTPTFilter` maps cutoff through
+  `g = tan(π·fc/fs)` → Inf/NaN as fc → fs/2, latching the resonator for the whole note.
+  Now clamped to `[20 Hz, fs·0.49]`. (pattern_biquad_nan_guard_sticky_silence)
+- **Air-absorption filter could divide 0/0.** A 0 air-absorption time made
+  `elapsedSamples / totalSamples` NaN (`jlimit` does not sanitize NaN), latching the
+  two-pole state. Divisor floored at 1 sample.
+- **Voice + output NaN backstops.** The summed voice output is flushed to 0 if non-finite
+  before it reaches the stateful air filter and the shared FX bus (whose delay/reverb
+  feedback would otherwise latch a NaN indefinitely); the final soft-limiter flushes any
+  remaining non-finite sample so the host never receives NaN/Inf. Normal finite audio is
+  untouched.
+
 ## [4.1.2] - 2026-07-21
 
 Windows-build fix ahead of cross-platform publishing. No audio, parameter, state,

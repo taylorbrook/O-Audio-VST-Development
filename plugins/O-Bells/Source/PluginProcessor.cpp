@@ -853,6 +853,15 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             for (int s = 0; s < buf.getNumSamples(); ++s)
             {
                 float sample = channelData[s];
+                // Final NaN/Inf net: a pathological param combo must never emit a
+                // non-finite sample to the host (pluginval strictness-10 gate). The
+                // voice-level guards below are the real fixes; this backstops the
+                // whole FX chain. (pattern_biquad_nan_guard_sticky_silence)
+                if (! std::isfinite (sample))
+                {
+                    channelData[s] = 0.0f;
+                    continue;
+                }
                 float absVal = std::abs(sample);
                 if (absVal > limiterThreshold)
                 {

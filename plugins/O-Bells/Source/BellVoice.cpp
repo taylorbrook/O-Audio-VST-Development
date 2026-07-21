@@ -351,6 +351,12 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     for (int i = 0; i < StrikeExciter::NUM_RESONATORS; ++i)
     {
         float partialFreq = calculatePartialFrequency(i, fundamental, currentInharmonicity);
+        // A high note × partial ratio × inharmonicity can push partialFreq past
+        // Nyquist. The SVF cutoff maps through g = tan(pi*fc/fs), which blows up to
+        // Inf/NaN as fc → fs/2 and then poisons the resonator's state for the whole
+        // note (pluginval strictness-10 Automation caught this). Clamp to the filter's
+        // valid band. (pattern_biquad_nan_guard_sticky_silence)
+        partialFreq = juce::jlimit(20.0f, static_cast<float>(currentSampleRate) * 0.49f, partialFreq);
         strikeNoise.resonators[i].reset();
         strikeNoise.resonators[i].setType(juce::dsp::StateVariableTPTFilterType::bandpass);
         strikeNoise.resonators[i].setCutoffFrequency(partialFreq);
@@ -597,6 +603,13 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
             }
         }
 
+        // Flush any non-finite sample from the summed partials before it reaches the
+        // stateful air-absorption filter (which would latch it for the whole note) and
+        // the shared FX bus (whose delay/reverb feedback would latch it indefinitely).
+        // Upstream guards make this rare; it is the voice-level backstop.
+        if (! std::isfinite (leftOutput))  leftOutput  = 0.0f;
+        if (! std::isfinite (rightOutput)) rightOutput = 0.0f;
+
         // Apply nonlinear effects (soft clipping/waveshaping)
         if (currentNonlinearEffects > 0.0f)
         {
@@ -621,7 +634,10 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
         if (currentAirAbsorption > 0.0f)
         {
             // Calculate time-based progress (v2.2.0: independent of decay envelope)
-            float totalSamples = currentAirAbsorptionTime * static_cast<float>(currentSampleRate);
+            // Guard the divisor: a 0 air-absorption time gives 0/0 = NaN, which then
+            // latches this two-pole filter's state for the whole note (jlimit does not
+            // sanitize NaN). (pattern_biquad_nan_guard_sticky_silence)
+            float totalSamples = std::max(1.0f, currentAirAbsorptionTime * static_cast<float>(currentSampleRate));
             float timeProgress = juce::jlimit(0.0f, 1.0f,
                 static_cast<float>(airAbsorptionElapsedSamples) / totalSamples);
             airAbsorptionElapsedSamples++;  // Increment time tracker
