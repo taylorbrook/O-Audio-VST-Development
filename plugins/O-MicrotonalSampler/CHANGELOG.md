@@ -1,5 +1,87 @@
 # O-MicrotonalSampler Changelog
 
+## [1.23.7] - 2026-07-03
+
+Patch release closing out the **WebView frontend** findings — the five warnings
+and four of the infos from the 2026-06-30 ui-frontend review
+(`.planning/review/2026-06-30/REVIEW-ui-frontend.md`), the last item of the
+v1.23.x review-followups batch. **No parameter IDs, ranges, or state format
+change** — changes are confined to `Resources/ui/js/sampler-app.js` plus one
+new read-only native fn (`getParameterDefaults`) in `PluginEditor.cpp`.
+
+### Fixed
+
+- **WR-01 — ADSR knob readouts displayed the wrong value (up to 2× low).**
+  `KNOB_FORMATS` mapped the normalised knob position linearly against a
+  hard-coded 0.001–5.0 s range, but the real attack/decay/release
+  `NormalisableRange` is 0–10 s with skew 0.5 — at full knob the label read
+  "5.00 s" while the host received 10.0 s. (Polyphony had the same class of
+  drift: JS claimed 1–32 vs the real 1–16 — missed by the review, caught during
+  investigation.) **Fix:** readouts are now computed from
+  `SliderState.getScaledValue()` — JUCE pushes the real range (start/end/skew)
+  via `propertiesChanged`, so JS no longer hard-codes ANY parameter range and
+  this class of drift is structurally gone. A `propertiesChangedEvent` listener
+  refreshes each knob when the real range lands at boot. The audio was always
+  correct; only the label lied.
+- **WR-02 — latent boot-time TypeError in two event subscribers.**
+  `subscribeTechniqueStateUpdates` / `subscribeTriggerStateUpdates` guarded
+  only `window.__JUCE__` before dereferencing `.backend`, unlike every other
+  subscriber in the file. A boot-ordering gap would throw mid-`DOMContentLoaded`
+  and abort the rest of the init sequence. Both now use the full guard.
+- **WR-03 — CC/PC trigger tables clobbered in-progress edits.**
+  `renderTriggerPanel` tore down and rebuilt all rows (`innerHTML = ''`) on
+  every technique/trigger state echo, discarding whatever the user was typing
+  and dropping focus. Now mirrors the v1.23.0 trim-panel reconciliation: rows
+  are built once (`ensureTriggerRows`) and values are written in place through
+  `setInputValueUnlessFocused`, which skips the input the user is focused in.
+- **WR-04 — knob double-click "reset" jumped to mid-range, not the default.**
+  It hard-coded normalised 0.5, which for the skewed ADSR ranges denormalises
+  to ~2.5 s (attack default is 0.005 s). New `getParameterDefaults` native fn
+  returns each control-strip param's `getDefaultValue()` (normalised); JS pulls
+  it once at boot and dblclick now snaps to the real APVTS default (0.5 only
+  as a fallback if the pull failed).
+- **WR-05 — wheel edits weren't recorded as host automation.** The wheel
+  handler wrote values without a `sliderDragStarted`/`sliderDragEnded` gesture
+  (drag and dblclick both had one), so hosts in automation-write mode could
+  coalesce or drop wheel tweaks. A gesture now opens on the first tick and
+  closes after 250 ms idle.
+- **IN-01 — KS low/high fields also overwritten mid-edit** — same
+  activeElement guard as WR-03 (one-line, same pattern; folded in).
+- **IN-04 — modal Esc bubbled into the loop editor.** `bindModal`'s
+  capture-phase key handler now calls `stopPropagation()` once it claims a
+  key, so dismissing a modal no longer also closes the loop editor behind it.
+- **IN-05 — dead `window.confirm` fallbacks removed.** WKWebView does not wire
+  `window.confirm` through the UIDelegate (returns `undefined` silently), so
+  the missing-modal-DOM fallbacks in `showEmbedSizeConfirmModal` and
+  `showAmbiguousDuplicatesDialog` could never actually ask — the RR path would
+  send a "cancel" the user never saw. Both now fail safe explicitly:
+  `console.error` + toast + cancel.
+
+### Changed
+
+- **IN-02 — stale octave-label comments corrected.** Under the intentional
+  C3=60 convention the grid labels read `C0…C7` (low key `A-1`), not the
+  `C1…C8` the comments claimed. Comments now match the rendering (which was
+  always correct-by-design, matching FilenameParser).
+- **IN-03 — loop markers no longer drawn for one-shot cells.** The `drawMarker`
+  call site's comment claimed one-shot suppression the code didn't do; the code
+  now honors it (markers previously rendered stacked at x=0). Cosmetic.
+
+### Deferred (out of scope per the followups brief)
+
+- IN-06 (`openLoopEditor` param `vel` → `layer` rename) and IN-07
+  (`renderControlStrip` tooltip interpolation → `createElement`) — naming/
+  defensive-pattern infos, no functional impact.
+
+### Testing
+
+- New `Source/tests/ui_frontend_check.js` (node script, 19/19): syntax gate
+  (`node --check` — a load-time SyntaxError silently kills the whole UI),
+  JS↔C++ native-fn bridge closure (all 42 names registered, incl. the new
+  `getParameterDefaults`), and static pins for WR-01..05 / IN-01 / IN-05.
+- All 15 existing C++ regression checks re-run green (352 assertions total);
+  auval PASS.
+
 ## [1.23.6] - 2026-07-01
 
 Patch release hardening the **sample loader + filename parser** — the four
