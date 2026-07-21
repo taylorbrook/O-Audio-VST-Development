@@ -130,6 +130,13 @@ public:
     // prevMap destruct in-scope, exactly as before.
     void setRetiredMapSink (RetiredMapReaper* r)                         { retiredMapSink = r; }
 
+    // v1.23.8: pointer to the processor's audio-thread-direct CC 11 dynamics
+    // atom (0..1). Preferred over the "expression" APVTS atom, which only
+    // updates via a message-thread AsyncUpdater and therefore lags/coalesces
+    // during offline export (Dorico export dynamics-jump bug). Null in bare
+    // constructions → currentExpression() falls back to the APVTS atom.
+    void setLiveExpressionSource (std::atomic<float>* src)               { liveExpressionSource = src; }
+
 private:
     juce::AudioProcessorValueTreeState*           parameters             = nullptr;
     TuningEngine*                                 tuningEngine           = nullptr;
@@ -200,6 +207,18 @@ private:
     // renderCcCrossfade / renderTailRampCc; drives the dB-linear loudness ramp
     // layered on top of the equal-power timbre morph. 0 dB = flat (v1.21.0).
     std::atomic<float>* dynamicRangeParam = nullptr;
+
+    // v1.23.8: see setLiveExpressionSource.
+    std::atomic<float>* liveExpressionSource = nullptr;
+
+    // v1.23.8: the dynamics value (0..1) the render path should track. The
+    // processor-fed live atom wins; the APVTS atom is the bare-voice fallback.
+    float currentExpression() const noexcept
+    {
+        if (liveExpressionSource != nullptr)
+            return liveExpressionSource->load (std::memory_order_relaxed);
+        return (expressionParam != nullptr) ? expressionParam->load() : 1.0f;
+    }
 
     std::vector<float> stealTailBufferL;
     std::vector<float> stealTailBufferR;

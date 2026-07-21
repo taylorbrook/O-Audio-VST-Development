@@ -743,6 +743,20 @@ private:
     // value; 0..127 otherwise. Drained atomically on the message thread.
     std::atomic<int> pendingCC11Value { -1 };
 
+    // v1.23.8: audio-thread-direct dynamics source. processBlock writes the
+    // latest CC 11 value (0..1) here BEFORE staging the async host forward;
+    // the voices and the Velocity-mode post-mix gain read this atom instead
+    // of the "expression" APVTS atom. The APVTS value only updates via
+    // handleAsyncUpdate on the message thread — during offline export the
+    // render thread outruns the wall-clock-paced AsyncUpdater, whole CC 11
+    // ramps coalesce into one late value, and dynamics jumped audibly in the
+    // exported audio (Dorico export bug). lastForwardedExpression is
+    // audio-thread-only state used to tell our own echoed
+    // setValueNotifyingHost write apart from a genuine UI-knob /
+    // host-automation move of "expression".
+    std::atomic<float> liveExpression { 1.0f };
+    float              lastForwardedExpression = 1.0f;
+
     // v1.12.1 — HG-08. Guards loadOpHistory and lastSkippedFiles across
     // message-thread mutations and the off-thread getStateInformation read.
     // Held only briefly; never acquired from the audio thread.

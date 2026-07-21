@@ -606,10 +606,9 @@ void MicrotonalSamplerVoice::startNote (int   midiNoteNumber,
 
         // Seed the dynamic position from the CURRENT Expression / CC 11 value
         // (NOT velocity — design contract). setCurrentAndTargetValue so the
-        // first block doesn't ramp up from a stale position.
-        const float d0 = (expressionParam != nullptr)
-                           ? juce::jlimit (0.0f, 1.0f, expressionParam->load())
-                           : 1.0f;
+        // first block doesn't ramp up from a stale position. v1.23.8: reads
+        // the processor's live CC atom, not the (message-thread-lagged) param.
+        const float d0 = juce::jlimit (0.0f, 1.0f, currentExpression());
         dynamicsSmoother.setCurrentAndTargetValue (d0);
     }
 
@@ -694,9 +693,8 @@ void MicrotonalSamplerVoice::renderNextBlock (juce::AudioBuffer<float>& out,
     // velocity-path render below (which stays bit-identical for Velocity mode).
     if (ccDynamicsActive)
     {
-        if (expressionParam != nullptr)
-            dynamicsSmoother.setTargetValue (juce::jlimit (0.0f, 1.0f,
-                                                           expressionParam->load()));
+        dynamicsSmoother.setTargetValue (juce::jlimit (0.0f, 1.0f,
+                                                       currentExpression()));
         renderCcCrossfade (out, startSample, numSamples);
         return;
     }

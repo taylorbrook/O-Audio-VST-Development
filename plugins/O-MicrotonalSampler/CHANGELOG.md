@@ -1,5 +1,50 @@
 # O-MicrotonalSampler Changelog
 
+## [1.23.8] - 2026-07-21
+
+Patch release fixing **sudden dynamic-level jumps in Dorico offline audio
+export** (real-time playback was always correct). **No parameter IDs, ranges,
+or state format change.**
+
+### Fixed
+
+- **Offline export: CC 11 dynamics jumped instead of ramping.** The audio
+  path's only dynamics input was the `"expression"` APVTS atom, which is
+  updated exclusively by `handleAsyncUpdate` on the **message thread** (the
+  v1.12.1 CR-01 RT-safety staging: `processBlock` → `pendingCC11Value` →
+  `triggerAsyncUpdate` → `setValueNotifyingHost`). In real time that
+  round-trip is a few ms — far under the voice's 20 ms smoother — so playback
+  sounded right. During offline export the render thread outruns the
+  wall-clock-paced, **coalescing** `AsyncUpdater`: a whole hairpin of CC 11
+  steps collapsed into one late value, and the voice stepped its equal-power
+  layer crossfade plus the dB-linear `dynamic_range` gain (default 20 dB,
+  max 40 dB) across a single 20 ms ramp → audible jumps only in the exported
+  audio. Note starts were worse: `startNote` seeded the smoother from the
+  same stale param **unsmoothed** (`setCurrentAndTargetValue`), so notes
+  began at the wrong dynamic and snapped mid-note when the async update
+  finally landed.
+
+  **Fix:** `processBlock` now stores each block's last CC 11 value into a new
+  audio-thread atom `liveExpression` **before** staging the async forward;
+  the voices (`startNote` seed + per-block smoother target, via
+  `currentExpression()`) and the Velocity-mode post-mix `expressionSmoother`
+  read that atom instead of the APVTS atom. `handleAsyncUpdate` is unchanged
+  and remains solely the UI-knob / host-automation / DAW-visibility mirror.
+  A reconciliation branch (0.5/127 epsilon) still adopts genuine UI-knob or
+  host-automation moves of `expression` on CC-quiet blocks while ignoring
+  the quantised echo of our own `setValueNotifyingHost` forward;
+  `prepareToPlay` seeds `liveExpression` from the restored param so session
+  restores land before the first CC arrives. RT-safe: relaxed atomic
+  load/store only, no allocation, no locks. Smoothing constants unchanged;
+  real-time playback is audibly identical (the value now arrives ≤1 block
+  earlier — sub-ms, far under the 20 ms ramp). Fixes both dynamics modes
+  (CC Crossfade default path and Velocity mode's milder variant of the same
+  defect).
+
+  Root cause found via dorico-agent investigation; Dorico's side (exp map
+  `volumeType kCC param1=11`, discrete CC steps for hairpins) is correct and
+  untouched.
+
 ## [1.23.7] - 2026-07-03
 
 Patch release closing out the **WebView frontend** findings — the five warnings
