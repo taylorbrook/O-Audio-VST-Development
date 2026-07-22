@@ -71,3 +71,4 @@ restoringState = false;
 ## Related Issues
 
 - Same category, different root cause: [ableton-preset-interference-state-restoration-JUCE-20251107.md](ableton-preset-interference-state-restoration-JUCE-20251107.md) (host program-list interference with state restore)
+- Same hazard class (AsyncUpdater timing vs. authoritative value): [offline-export-cc-dynamics-jumps-stutter-O-MicrotonalSampler-20260721.md](../dsp-issues/offline-export-cc-dynamics-jumps-stutter-O-MicrotonalSampler-20260721.md) (lagged CC→param delivery starving the audio path during offline export)
