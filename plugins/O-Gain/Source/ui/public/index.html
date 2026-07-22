@@ -1037,7 +1037,10 @@
           learnInfo.classList.add('visible');
         } else if (data.learnState === 2) {
           learnBtn.classList.add('complete');
-          learnBtn.textContent = 'DONE';
+          // confidence 0 at completion = Learn refused to write a gain (silence / too
+          // quiet — see kMaxLearnBoostDB). Show that instead of a misleading "DONE":
+          // no gain was applied, so the user should re-run Learn over a louder section.
+          learnBtn.textContent = (data.learnConfidence === 0) ? 'TOO QUIET' : 'DONE';
           learnInfo.classList.add('visible');
         } else {
           learnBtn.textContent = 'LEARN';

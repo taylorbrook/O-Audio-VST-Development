@@ -2,6 +2,39 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.2.1] - 2026-07-21
+
+Learn-mode safety fix. No parameter IDs, ranges, types, or state format changed —
+v1.0.0 / v1.1.0 / v1.2.0 sessions and presets load unchanged.
+
+### Fixed
+
+- **Learn no longer slams `gain_offset` to the +40 dB max (blasting/clipping the
+  output) when engaged over an unrepresentatively quiet passage.**
+  Root cause: `finalizeLearn()` normalizes to the loudness measured *only during the
+  learn window*, and the inter-sample-peak anti-clip ceiling only protects peaks seen
+  *in that same window*. A quiet-but-valid capture — a soft intro, a low noise floor,
+  anything above the −70 LUFS "invalid" floor — implied a normalization boost all the
+  way to the +40 dB parameter maximum; the ISP ceiling happily allowed it because the
+  window's own peaks were low, then real (louder) material clipped hard when it played
+  through the boost. Confidence was computed but never gated the magnitude of the write.
+
+  **Fix:** a new `kMaxLearnBoostDB` (**+24 dB**) caps the *automatic* learn-derived
+  boost. When the raw normalization boost (`target − measured`, before the ISP ceiling)
+  exceeds the cap, Learn treats the capture as too quiet / unrepresentative and **does
+  not write `gain_offset`** — it publishes the existing complete + none-confidence
+  snapshot instead. The Learn button now reads **"TOO QUIET"** (rather than a
+  misleading "DONE") so the user knows to re-run Learn over a louder / representative
+  section, or set the gain manually. The manual `gain_offset` slider keeps its full
+  ±40 dB range — the cap applies only to Learn's automatic write. The ISP ceiling and
+  all prior guards (−70 dB floor, 1 s minimum capture) are unchanged.
+
+### Notes
+
+- UI change is display-only (button label reuses the already-published `learnState` /
+  `learnConfidence` fields — no new native-function or snapshot plumbing). A successful
+  Learn still keeps its low/medium/high confidence and reads "DONE".
+
 ## [1.2.0] - 2026-07-01
 
 Second code-review remediation pass (WR-03, WR-04, WR-05, IN-01…IN-06). Metering
