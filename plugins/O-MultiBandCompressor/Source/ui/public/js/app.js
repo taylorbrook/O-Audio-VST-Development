@@ -32,6 +32,10 @@ function initializeUI() {
     // Initialize spectrum placeholder
     initializeSpectrumPlaceholder();
 
+    // Note: tooltips are initialized at the foot of this file, not here.
+    // initializeUI() runs at module top level, above the `let`/`const` tooltip
+    // state, which would still be in the temporal dead zone at this point.
+
     console.log('UI initialized - 56 parameters bound');
 }
 
@@ -478,6 +482,10 @@ window.updateCrossoverPositions = function(xover1Hz, xover2Hz, xover3Hz) {
         const label = crossover3.querySelector('.crossover-label');
         if (label) label.textContent = formatFrequency(xover3Hz);
     }
+
+    // v1.4.0: this is the only path that sees host automation and preset loads,
+    // so the band headers have to follow it too — not just the drag handler.
+    updateBandRanges(xover1Hz, xover2Hz, xover3Hz);
 };
 
 // Helper: Update meter fill height/width
@@ -509,10 +517,33 @@ function freqToX(freq) {
 // Helper: Format frequency for display
 function formatFrequency(freq) {
     if (freq >= 1000) {
-        return (freq / 1000).toFixed(1) + ' kHz';
-    } else {
-        return freq.toFixed(0) + ' Hz';
+        // Round to one decimal but drop a trailing ".0", so 2000 Hz reads
+        // "2 kHz" (matching the shipped defaults) rather than "2.0 kHz".
+        return (Math.round(freq / 100) / 10) + ' kHz';
     }
+    return Math.round(freq) + ' Hz';
+}
+
+// ========== v1.4.0: LIVE BAND FREQUENCY RANGES ==========
+
+// The analyzer's fixed display span; also the outer edges of the LOW and HIGH bands.
+const SPECTRUM_MIN_HZ = 20;
+const SPECTRUM_MAX_HZ = 20000;
+
+// Rewrite the four band-header readouts from the current crossover frequencies.
+// The markup ships static strings for the defaults; without this they would keep
+// advertising 20/200/2k/8k/20k no matter where the crossovers actually sit.
+function updateBandRanges(xover1Hz, xover2Hz, xover3Hz) {
+    setBandRange('range-low',   SPECTRUM_MIN_HZ, xover1Hz);
+    setBandRange('range-lomid', xover1Hz,        xover2Hz);
+    setBandRange('range-himid', xover2Hz,        xover3Hz);
+    setBandRange('range-high',  xover3Hz,        SPECTRUM_MAX_HZ);
+}
+
+function setBandRange(elementId, lowHz, highHz) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    element.textContent = `${formatFrequency(lowHz)} - ${formatFrequency(highHz)}`;
 }
 
 // ========== CROSSOVER DRAG INTERACTION ==========
@@ -635,6 +666,12 @@ function handleCrossoverDrag(e) {
     if (label) {
         label.textContent = formatFrequency(freq);
     }
+
+    // v1.4.0: update the band headers from the live drag value rather than waiting
+    // for the 30 Hz C++ push, which would otherwise trail the handle visibly.
+    const freqs = getCrossoverFreqs();
+    freqs[activeDrag.paramId] = freq;
+    updateBandRanges(freqs.XOVER1, freqs.XOVER2, freqs.XOVER3);
 }
 
 function endCrossoverDrag() {
@@ -670,16 +707,31 @@ function freqToNormalized(freq, minFreq, maxFreq) {
     return Math.pow(Math.max(0, Math.min(1, linear)), skew);
 }
 
+// Read the three crossover frequencies from the bound parameters.
+// Note the ?? rather than ||: a normalised value of exactly 0 is legitimate (it
+// means the crossover is parked at the bottom of its range), and || would have
+// silently substituted the 0.5 fallback for it.
+function getCrossoverFreqs() {
+    const read = (paramId) => {
+        const range = XOVER_RANGES[paramId];
+        const norm = parameterStates[paramId]?.getNormalisedValue() ?? 0.5;
+        return normalizedToFreq(norm, range.min, range.max);
+    };
+
+    return {
+        XOVER1: read('XOVER1'),
+        XOVER2: read('XOVER2'),
+        XOVER3: read('XOVER3')
+    };
+}
+
 // Apply ordering constraints: XOVER1 < XOVER2 < XOVER3
 function applyOrderingConstraints(paramId, freq) {
-    const xover1State = parameterStates['XOVER1'];
-    const xover2State = parameterStates['XOVER2'];
-    const xover3State = parameterStates['XOVER3'];
-
-    // Get current frequencies from parameters
-    const xover1Freq = normalizedToFreq(xover1State?.getNormalisedValue() || 0.5, XOVER_RANGES.XOVER1.min, XOVER_RANGES.XOVER1.max);
-    const xover2Freq = normalizedToFreq(xover2State?.getNormalisedValue() || 0.5, XOVER_RANGES.XOVER2.min, XOVER_RANGES.XOVER2.max);
-    const xover3Freq = normalizedToFreq(xover3State?.getNormalisedValue() || 0.5, XOVER_RANGES.XOVER3.min, XOVER_RANGES.XOVER3.max);
+    const {
+        XOVER1: xover1Freq,
+        XOVER2: xover2Freq,
+        XOVER3: xover3Freq
+    } = getCrossoverFreqs();
 
     if (paramId === 'XOVER1') {
         // XOVER1 must be at least MIN_GAP below XOVER2
@@ -711,4 +763,240 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeCrossoverDrag);
 } else {
     initializeCrossoverDrag();
+}
+
+// ========== v1.4.0: TOOLTIPS ==========
+
+const TOOLTIP_DELAY_MS = 120;
+const TOOLTIP_MARGIN = 8;   // gap between a tip and its control / the viewport edge
+
+// Controls that exist exactly once. Entries are [selector, title, body, wrapper?] —
+// the optional wrapper widens the hover target to a surrounding element, so the
+// label and value readout trigger the tip as well as the control itself.
+const GLOBAL_TOOLTIPS = [
+    ['#input-gain', 'Input Gain',
+     'Level trim applied before the signal is split into bands. Use it to drive the compressors harder or back them off without touching the thresholds. −24 to +24 dB.',
+     '.control-group'],
+
+    ['#mix', 'Mix',
+     'Blend between the dry input and the compressed output for parallel compression. 0% is fully dry, 100% is fully compressed.',
+     '.control-group'],
+
+    ['#auto-makeup', 'Auto Makeup',
+     'Automatically compensates the level lost to gain reduction in each band, so bypassing the compressor does not jump in volume. Stacks with each band’s Makeup knob.',
+     '.control-group'],
+
+    ['#ms-mode', 'Mid / Side Mode',
+     'Chooses what the compressors act on. Off processes left and right normally; Mid targets the centre of the image, Side the stereo edges, and Both processes them independently.',
+     '.control-group'],
+
+    ['#output-gain', 'Output Gain',
+     'Final level trim, applied after the mix stage. −24 to +24 dB.',
+     '.control-group'],
+
+    ['.input-meter', 'Input Meter',
+     'Level entering the plugin, averaged across both channels and measured before the input gain trim.'],
+
+    ['.output-meter', 'Output Meter',
+     'Level leaving the plugin, measured after mix and output gain.'],
+
+    ['.spectrum-container', 'Spectrum Analyzer',
+     'Real-time input spectrum, 20 Hz to 20 kHz on a logarithmic scale. Drag the vertical lines to move the crossovers.'],
+
+    ['#crossover1', 'Crossover 1',
+     'Split point between the Low and Low-Mid bands. Drag left or right to move it; the two band headers update as you go. 20 Hz to 500 Hz.'],
+
+    ['#crossover2', 'Crossover 2',
+     'Split point between the Low-Mid and High-Mid bands. Drag left or right to move it. 200 Hz to 5 kHz.'],
+
+    ['#crossover3', 'Crossover 3',
+     'Split point between the High-Mid and High bands. Drag left or right to move it. 2 kHz to 16 kHz.']
+];
+
+// Display names and GR-meter element ids, keyed by the band id used throughout app.js.
+const BAND_LABELS = { low: 'Low', lomid: 'Low-Mid', himid: 'High-Mid', high: 'High' };
+const BAND_GR_METERS = { low: 'grLow', lomid: 'grLomid', himid: 'grHimid', high: 'grHigh' };
+
+// Per-band controls. Identical in all four bands, so the wording lives here once.
+// Entries are [controlSuffix, wrapper, title, body].
+const BAND_TOOLTIPS = [
+    ['threshold', '.knob-control', 'Threshold',
+     'The level at which this band starts to compress. Anything above it is pulled down by the Ratio. −60 to 0 dB.'],
+
+    ['ratio', '.knob-control', 'Ratio',
+     'How firmly the band is compressed above the threshold. 1:1 leaves it untouched; 20:1 is effectively limiting.'],
+
+    ['attack', '.knob-control', 'Attack',
+     'How quickly compression engages once the signal crosses the threshold. Fast settings clamp transients, slow settings let them through. 0.1 to 200 ms.'],
+
+    ['release', '.knob-control', 'Release',
+     'How quickly compression lets go once the signal falls back below the threshold. Too fast can pump, too slow can choke the band. 10 to 2000 ms.'],
+
+    ['knee', '.knob-control', 'Knee',
+     'Softens the onset of compression around the threshold. 0 dB is a hard knee that grabs abruptly; 24 dB eases in very gradually.'],
+
+    ['makeup', '.knob-control', 'Makeup',
+     'Manual gain applied to this band after compression, to restore what gain reduction took away. −12 to +24 dB.'],
+
+    ['solo', null, 'Solo',
+     'Hear this band on its own — the other three are muted. Useful for checking where a crossover should sit.'],
+
+    ['bypass', null, 'Bypass',
+     'Pass this band through uncompressed. The crossover filtering still applies, so the band stays in phase with the others.'],
+
+    ['sc-listen', null, 'Sidechain Listen',
+     'Monitor the detector signal driving this band’s compressor, including its sidechain filtering. This is what the compressor "hears", not what it outputs.']
+];
+
+let tooltipEl = null;
+let tooltipTimer = null;
+let tooltipTarget = null;
+let tooltipSuppressed = false;
+
+function initializeTooltips() {
+    tooltipEl = document.getElementById('tooltip');
+    if (!tooltipEl) {
+        console.warn('Tooltip element not found - tooltips disabled');
+        return;
+    }
+
+    GLOBAL_TOOLTIPS.forEach(([selector, title, body, wrapper]) =>
+        applyTooltip(selector, title, body, wrapper));
+
+    Object.keys(BAND_LABELS).forEach(applyBandTooltips);
+
+    document.addEventListener('mouseover', handleTooltipOver);
+    document.addEventListener('mouseout', handleTooltipOut);
+
+    // Any press begins a click or a drag, so get the tip out of the way and keep
+    // it away until the pointer is released. Capture phase, because the crossover
+    // lines and knobs call preventDefault on their own mousedown handlers.
+    document.addEventListener('mousedown', () => {
+        tooltipSuppressed = true;
+        hideTooltip();
+    }, true);
+
+    document.addEventListener('mouseup', () => { tooltipSuppressed = false; }, true);
+
+    console.log('Tooltips initialized');
+}
+
+function applyBandTooltips(bandId) {
+    const bandName = BAND_LABELS[bandId];
+
+    BAND_TOOLTIPS.forEach(([control, wrapper, title, body]) =>
+        applyTooltip(`#${bandId}-${control}`, `${bandName} — ${title}`, body, wrapper));
+
+    applyTooltip(`#${BAND_GR_METERS[bandId]}`, `${bandName} — Gain Reduction`,
+        'How much this band is being compressed right now. The bar fills as gain reduction deepens, up to −24 dB.',
+        '.gr-meter');
+
+    applyTooltip(`#range-${bandId}`, `${bandName} — Frequency Range`,
+        'The span this band processes. It follows the crossover handles in the analyzer above, so drag them to retune it.',
+        '.band-header');
+}
+
+function applyTooltip(selector, title, body, wrapper) {
+    const element = document.querySelector(selector);
+    if (!element) {
+        console.warn(`Tooltip target not found: ${selector}`);
+        return;
+    }
+
+    const target = wrapper ? (element.closest(wrapper) || element) : element;
+    target.setAttribute('data-tip-title', title);
+    target.setAttribute('data-tip', body);
+}
+
+function handleTooltipOver(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target || target === tooltipTarget) return;
+
+    tooltipTarget = target;
+    clearTimeout(tooltipTimer);
+
+    if (tooltipSuppressed) return;
+    tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+
+function handleTooltipOut(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target) return;
+
+    // Moving between children of the same control is not a real exit
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+    hideTooltip();
+}
+
+function showTooltip(target) {
+    // The pointer may have moved on or gone down during the delay
+    if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+
+    const title = target.getAttribute('data-tip-title');
+    const body = target.getAttribute('data-tip');
+
+    // Built with textContent rather than innerHTML so the copy stays inert
+    tooltipEl.textContent = '';
+
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'tooltip-title';
+        titleEl.textContent = title;
+        tooltipEl.appendChild(titleEl);
+    }
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'tooltip-body';
+    bodyEl.textContent = body;
+    tooltipEl.appendChild(bodyEl);
+
+    // Measure and place while still transparent, so the tip never flashes at its
+    // previous position before settling on the new one.
+    const anchor = target.getBoundingClientRect();
+    const tip = tooltipEl.getBoundingClientRect();
+
+    // Prefer above; flip below only when there is no room at the top
+    let top = anchor.top - tip.height - TOOLTIP_MARGIN;
+    let placement = 'above';
+
+    if (top < TOOLTIP_MARGIN) {
+        top = anchor.bottom + TOOLTIP_MARGIN;
+        placement = 'below';
+    }
+
+    const anchorCentreX = anchor.left + anchor.width / 2;
+    const maxLeft = window.innerWidth - tip.width - TOOLTIP_MARGIN;
+    const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - tip.width / 2));
+
+    tooltipEl.style.left = `${left}px`;
+    tooltipEl.style.top = `${top}px`;
+    tooltipEl.dataset.placement = placement;
+
+    // The tip is clamped to the viewport but the arrow still points at the control,
+    // held clear of the rounded corners.
+    const arrowX = Math.max(10, Math.min(tip.width - 10, anchorCentreX - left));
+    tooltipEl.style.setProperty('--arrow-x', `${arrowX}px`);
+
+    tooltipEl.classList.add('visible');
+    tooltipEl.setAttribute('aria-hidden', 'false');
+}
+
+function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    tooltipTarget = null;
+
+    if (!tooltipEl) return;
+    tooltipEl.classList.remove('visible');
+    tooltipEl.setAttribute('aria-hidden', 'true');
+}
+
+// Initialize tooltips once their state above has been evaluated. This must stay at
+// the foot of the file: initializeUI() runs at module top level, where these
+// `let`/`const` bindings are still in the temporal dead zone, and the ReferenceError
+// would escape module evaluation and take initializeCrossoverDrag() down with it.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeTooltips);
+} else {
+    initializeTooltips();
 }

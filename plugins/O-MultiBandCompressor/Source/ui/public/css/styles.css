@@ -646,3 +646,65 @@ body {
 #band-high .band-title {
     color: #8B4513;
 }
+
+/* ==========================================================================
+   Tooltips (v1.4.0)
+   Fixed-position layer anchored to the viewport, so tips over controls near
+   the panel edge are not clipped by .plugin-container's overflow:hidden.
+   ========================================================================== */
+
+.tooltip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    max-width: 230px;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, #f5f0e6 0%, #e8dfcd 100%);
+    border: 1px solid #5C4033;
+    border-radius: 3px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    font-family: 'Garamond', 'Times New Roman', serif;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 110ms ease-out;
+}
+
+.tooltip.visible {
+    opacity: 1;
+}
+
+.tooltip-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #556B2F;
+    margin-bottom: 3px;
+}
+
+.tooltip-body {
+    font-size: 11px;
+    line-height: 1.35;
+    color: #3C2F2F;
+}
+
+/* Arrow — horizontal offset tracks the anchor via --arrow-x so the tip can be
+   clamped to the viewport while the arrow still points at its control. */
+.tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+}
+
+.tooltip[data-placement="above"]::after {
+    top: 100%;
+    border-top-color: #5C4033;
+}
+
+.tooltip[data-placement="below"]::after {
+    bottom: 100%;
+    border-bottom-color: #5C4033;
+}

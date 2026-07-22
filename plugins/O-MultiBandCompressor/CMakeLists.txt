@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin Configuration
 juce_add_plugin(O-MultiBandCompressor
+    VERSION 1.4.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OMbc
