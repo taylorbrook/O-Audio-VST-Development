@@ -1,5 +1,95 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.4.0 (2026-07-22)
+
+UI-only release. No DSP, parameter, or state-format changes — presets and automation from
+v1.3.0 load unchanged.
+
+### Added
+
+- **Tooltips across the whole interface.** Every control now shows hover help: the six
+  knobs and three buttons in each of the four bands, all five global controls, both level
+  meters, the four gain-reduction meters, the band headers, the spectrum analyzer, and the
+  three crossover handles. Copy explains what the control does and states its range, so
+  the numbers in the readouts have context.
+  Implemented as a styled tooltip layer rather than native `title=` attributes: the OS
+  tooltip has a fixed ~1 s delay and system chrome that clashes with the parchment theme.
+  The custom layer uses a 120 ms delay, parchment fill with a `#5C4033` border in Garamond,
+  flips above/below when it would run off the top, clamps horizontally to the viewport
+  while its arrow keeps pointing at the control, and hides instantly on mouse-down so it
+  never sits over a knob being dragged.
+  The tooltip element lives outside `.plugin-container` (which is `overflow: hidden`) so
+  tips on edge controls are not clipped. Copy is written via `textContent`, never
+  `innerHTML`. Per-band wording is defined once in `BAND_TOOLTIPS` and applied to all four
+  bands, so the four copies cannot drift apart.
+
+### Fixed
+
+- **Band header frequency ranges never updated.** The four `.band-range` readouts were
+  literal strings in `index.html` (`20 Hz - 200 Hz`, etc.) and no code ever wrote to them.
+  Moving a crossover repositioned the line, relabelled that one line, and repatched the
+  DSP, while all four band headers went on advertising the factory defaults — so at any
+  non-default crossover setting the headers were simply wrong. Preset loads and host
+  automation had the same gap.
+  Fix: `updateBandRanges()` rewrites all four readouts from the current crossover
+  frequencies, called from both paths that can change them — `updateCrossoverPositions()`
+  (the 30 Hz C++ push, which covers automation and preset recall) and `handleCrossoverDrag()`
+  (using the live drag value, so the headers track the handle instead of trailing it by up
+  to a frame).
+
+- **Plugin bundle reported version 1.0.0.** `juce_add_plugin()` had no `VERSION` argument,
+  so JUCE fell back to `PROJECT_VERSION` and every build since the first shipped as 1.0.0
+  regardless of the CHANGELOG — confirmed against the installed bundle's
+  `CFBundleShortVersionString`. Added `VERSION 1.4.0`. Hosts that key their plugin cache on
+  the bundle version were unable to tell releases apart before this.
+
+- **Crossover lines rendered at the wrong position on open.** The markup hardcoded
+  `left: 15% / 45% / 75%`, but the log-scale positions of the 200 Hz / 2 kHz / 8 kHz
+  defaults are `33.3% / 66.7% / 86.7%`. The lines were visibly misplaced until the first
+  timer push corrected them. Initial values now match the defaults.
+
+- **`applyOrderingConstraints()` misread a crossover parked at its minimum.** It used
+  `getNormalisedValue() || 0.5`, so a legitimate normalised value of exactly `0` (the
+  bottom of the range) was replaced by the `0.5` fallback — e.g. XOVER1 at 20 Hz was
+  treated as ~68 Hz when constraining its neighbours. Changed to `??` and factored the
+  three reads into `getCrossoverFreqs()`, now shared with the drag handler.
+
+### Changed
+
+- `formatFrequency()` drops a trailing `.0`, so 2000 Hz reads `2 kHz` rather than `2.0 kHz`,
+  matching the strings the markup already shipped. Affects the crossover line labels as
+  well as the new band ranges.
+
+### Verification
+
+- **Static frontend check:** all 55 tooltip selectors resolve against `index.html`; every
+  `.closest()` wrapper class exists; the `.tooltip*` classes, `--arrow-x`, and
+  `[data-placement]` rules are present in `styles.css`; all four `range-*` ids exist in the
+  markup and are written by `app.js`; and `updateBandRanges` is reachable from **both**
+  `updateCrossoverPositions` and `handleCrossoverDrag` — a regression in either alone would
+  leave half the feature dead while the other half still looked correct.
+
+- **Browser harness** — `app.js`/`index.html`/`styles.css` loaded unmodified against a stub
+  of the JUCE `getSliderState`/`getToggleState`/`getComboBoxState` bridge, driven with real
+  mouse events. This caught a defect that every other gate passed:
+  `initializeTooltips()` was called from `initializeUI()`, which runs at module top level —
+  above the `let`/`const` tooltip state, still in the temporal dead zone — throwing
+  `ReferenceError: Cannot access 'tooltipEl' before initialization`. The throw escaped
+  module evaluation, so **`initializeCrossoverDrag()` at the foot of the file never ran and
+  crossover dragging was entirely dead**. The C++ build, `auval`, and the static check above
+  all passed with the UI in that state. Tooltip init now happens at the foot of the file,
+  after its state is evaluated, with a comment recording why it must stay there.
+  Post-fix results: 0 console errors; 41/41 interactive controls covered by a tooltip
+  (55 tip targets total); dragging crossover 1 to ~316 Hz updated LOW and LOW-MID live, and
+  crossover 3 to ~3.5 kHz updated HIGH-MID and HIGH; the arrow lands within 1 px of the
+  control centre; tips clamp inside the viewport at both panel edges while the arrow keeps
+  tracking; tips over the analyzer flip below; and tips hide on mouse-down and stay
+  suppressed for the duration of a drag.
+
+- `node --check` clean on `app.js`; `auval -v aufx OMbc OuDv` **PASS**.
+- Bundle version confirmed at the binary: `CFBundleShortVersionString` 1.4.0 and
+  `AudioComponents` version `66560` (`0x010400`), up from `65536` (`0x010000` = 1.0.0).
+
 ## Version 1.3.0 (2026-07-01)
 
 Transparency fix from `.planning/CODE-REVIEW.md` (WR-03). **Changes the sound** (for the

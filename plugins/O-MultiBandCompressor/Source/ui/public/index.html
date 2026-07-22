@@ -24,15 +24,18 @@
             <div class="spectrum-container">
                 <canvas id="spectrum-canvas" class="spectrum-canvas"></canvas>
                 <div class="spectrum-overlay">
-                    <div class="crossover-line" id="crossover1" style="left: 15%;">
+                    <!-- v1.4.0: initial left values are the true log-scale positions of the
+                         parameter defaults (200 Hz / 2 kHz / 8 kHz) so the lines do not jump
+                         when the first C++ position push arrives. -->
+                    <div class="crossover-line" id="crossover1" style="left: 33.3%;">
                         <div class="crossover-handle"></div>
                         <span class="crossover-label">200 Hz</span>
                     </div>
-                    <div class="crossover-line" id="crossover2" style="left: 45%;">
+                    <div class="crossover-line" id="crossover2" style="left: 66.7%;">
                         <div class="crossover-handle"></div>
                         <span class="crossover-label">2 kHz</span>
                     </div>
-                    <div class="crossover-line" id="crossover3" style="left: 75%;">
+                    <div class="crossover-line" id="crossover3" style="left: 86.7%;">
                         <div class="crossover-handle"></div>
                         <span class="crossover-label">8 kHz</span>
                     </div>
@@ -51,7 +54,7 @@
             <div class="band" id="band-low">
                 <div class="band-header">
                     <h3 class="band-title">LOW</h3>
-                    <div class="band-range">20 Hz - 200 Hz</div>
+                    <div class="band-range" id="range-low">20 Hz - 200 Hz</div>
                 </div>
                 <div class="band-controls">
                     <div class="gr-meter">
@@ -102,7 +105,7 @@
             <div class="band" id="band-lomid">
                 <div class="band-header">
                     <h3 class="band-title">LOW-MID</h3>
-                    <div class="band-range">200 Hz - 2 kHz</div>
+                    <div class="band-range" id="range-lomid">200 Hz - 2 kHz</div>
                 </div>
                 <div class="band-controls">
                     <div class="gr-meter">
@@ -153,7 +156,7 @@
             <div class="band" id="band-himid">
                 <div class="band-header">
                     <h3 class="band-title">HIGH-MID</h3>
-                    <div class="band-range">2 kHz - 8 kHz</div>
+                    <div class="band-range" id="range-himid">2 kHz - 8 kHz</div>
                 </div>
                 <div class="band-controls">
                     <div class="gr-meter">
@@ -204,7 +207,7 @@
             <div class="band" id="band-high">
                 <div class="band-header">
                     <h3 class="band-title">HIGH</h3>
-                    <div class="band-range">8 kHz - 20 kHz</div>
+                    <div class="band-range" id="range-high">8 kHz - 20 kHz</div>
                 </div>
                 <div class="band-controls">
                     <div class="gr-meter">
@@ -288,6 +291,10 @@
             </div>
         </footer>
     </div>
+
+    <!-- v1.4.0: Tooltip layer. Lives outside .plugin-container (which is overflow:hidden)
+         so tips near the panel edge are never clipped. Content is set from app.js. -->
+    <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
     <!-- JUCE WebView Bridge -->
     <script type="module" src="js/juce/check_native_interop.js"></script>
