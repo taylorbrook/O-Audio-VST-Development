@@ -124,6 +124,16 @@ namespace
     // gain still leaves room for those un-measured ISPs.
     constexpr double kLearnCeilingDBFS          = -1.0;  // nominal sample-peak ceiling
     constexpr double kInterSamplePeakHeadroomDB =  3.0;  // extra headroom for un-measured ISPs
+
+    // v1.2.1: Learn auto-boost cap. The derived gain normalizes to the loudness of
+    // whatever played during the learn window, and the ISP ceiling only protects peaks
+    // seen in that window. An unrepresentatively quiet capture (soft passage / low noise
+    // floor — still above kLearnInvalidLevelDB, so not caught as "silence") implies a
+    // boost all the way to the +40 dB parameter max, which then clips when louder
+    // material plays through it. Refuse to write a learn gain whose raw normalization
+    // boost (target - measured, before the ISP ceiling) exceeds this. Manual gain_offset
+    // keeps its full ±40 dB range — this cap applies ONLY to Learn's automatic write.
+    constexpr double kMaxLearnBoostDB           = 24.0;
 }
 
 // =============================================================================
@@ -459,14 +469,24 @@ void OGainAudioProcessor::finalizeLearn()
     snap.integratedLUFS = static_cast<float>(measuredLevel);
     snap.samplePeakDBFS = static_cast<float>(currentSamplePeakDB);
 
-    // CR-02: refuse to derive a gain from silence / near-silence / too-short a capture.
+    // Raw normalization boost implied by the capture, BEFORE the ISP ceiling. A large
+    // positive value means the learn window was unrepresentatively quiet, so the derived
+    // gain would slam toward the +40 dB parameter max and clip when louder material plays
+    // through it (the ISP ceiling only protects peaks seen during the learn window).
+    const double rawBoostDB = static_cast<double>(targetLevel) - measuredLevel;
+
+    // CR-02 + v1.2.1: refuse to derive a gain from silence / near-silence, too-short a
+    // capture, OR a capture so quiet that the implied boost exceeds kMaxLearnBoostDB.
     // Leaving gain_offset untouched avoids the +40 dB full-scale slam (a loudness /
-    // hearing-safety hazard) on a mono instance or a brief tap over a quiet passage.
+    // hearing-safety hazard) on a mono instance or a brief tap over a quiet passage. The
+    // complete + confidence-0 snapshot makes the UI show "TOO QUIET" so the user re-runs
+    // Learn over a louder / representative section (or sets gain_offset manually).
     if (! haveValidMeasurement
         || measuredLevel <= kLearnInvalidLevelDB
-        || learnSeconds < kLearnMinSeconds)
+        || learnSeconds < kLearnMinSeconds
+        || rawBoostDB > kMaxLearnBoostDB)
     {
-        snap.confidence = 0;       // none / invalid
+        snap.confidence = 0;       // none / invalid / too quiet
         publishLearnSnapshot(snap); // still show the user what was (not) measured
         return;
     }
@@ -475,7 +495,8 @@ void OGainAudioProcessor::finalizeLearn()
 
     // Calculate gain with the sample-peak safety ceiling, dropped by an ISP
     // headroom allowance because sample peak under-reports inter-sample peaks (WR-03).
-    double gainDB = static_cast<double>(targetLevel) - measuredLevel;
+    // rawBoostDB is <= kMaxLearnBoostDB here (larger boosts were refused above).
+    double gainDB = rawBoostDB;
 
     const double ceiling     = kLearnCeilingDBFS - kInterSamplePeakHeadroomDB; // effective dBFS
     const double maxSafeGain = ceiling - currentSamplePeakDB;

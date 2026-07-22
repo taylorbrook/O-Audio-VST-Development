@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -21,6 +21,14 @@
   LUFS meter mode shows momentary loudness during Learn; guarded the webview2 backend with
   `#if JUCE_WINDOWS`; documented the +6 dB M/S DEC behavior; promoted magic numbers to
   named constants. Verified pluginval strictness 5 + auval.
+- **2026-07-21 (v1.2.1):** Learn safety fix. The v1.1.0 silence/near-silence guard did
+  NOT cover a *quiet-but-valid* capture (soft passage / low noise floor above the −70 LUFS
+  floor): Learn still derived a boost to the +40 dB max and clipped when louder material
+  played through it. Added `kMaxLearnBoostDB` (+24 dB) — when the raw normalization boost
+  (`target − measured`, before the ISP ceiling) exceeds the cap, Learn refuses to write
+  `gain_offset` and the button reads "TOO QUIET" so the user re-runs over a louder section.
+  Manual `gain_offset` keeps its full ±40 dB range. Verified auval PASS (Component Version
+  1.2.1 = 0x10201).
 
 ## Known Issues
 
@@ -33,7 +41,7 @@ and v1.2.0. One conscious non-defect remains:
 
 ## Additional Notes
 
-- No parameter IDs, ranges, types, or state format changed in v1.1.0 or v1.2.0 —
+- No parameter IDs, ranges, types, or state format changed in v1.1.0, v1.2.0, or v1.2.1 —
   v1.0.0 sessions and presets load unchanged.
 - Learn-panel coherence (WR-05): all Learn readouts are published together via a seqlock
   (`LearnSnapshot` + `learnSnapshotSeq`, single-writer-at-a-time, serialized by

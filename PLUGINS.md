@@ -49,7 +49,7 @@ Ouaricon Plugins:
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.2 | Instrument/Effect (Neural Texture Synth) | 2026-07-15 |
 | O-Prism | 📦 Installed | 1.19.1 | Synth (Microtonal Wavetable) | 2026-07-02 |
-| O-Gain | 📦 Installed | 1.2.0 | Audio Effect (Gain Staging Utility) | 2026-07-01 |
+| O-Gain | 📦 Installed | 1.2.1 | Audio Effect (Gain Staging Utility) | 2026-07-21 |
 | O-Formant | 📦 Installed | 1.25.4 | Synth (Physical Model Vocal) | 2026-07-01 |
 | O-Bowed | 📦 Installed | 1.4.1 | Synth (Physical Model Bowed String) | 2026-07-08 |
 | O-Reed | 📦 Installed | 1.1.0 | Synth (Physical Modeling Reed Wind) | 2026-04-26 |
