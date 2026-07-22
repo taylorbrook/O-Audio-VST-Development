@@ -618,12 +618,24 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         pendingCC11Value.store (latestCC11, std::memory_order_relaxed);
         triggerAsyncUpdate();
     }
-    else if (pExpression != nullptr)
+    else if (pExpression != nullptr
+             && pendingCC11Value.load (std::memory_order_relaxed) < 0)
     {
-        // No CC this block: adopt genuine UI-knob / automation moves of the
-        // "expression" param. The 0.5/127 epsilon ignores the quantised echo
-        // of our own setValueNotifyingHost forward (param step 0.001 → max
-        // snap error 0.0005, well inside the guard).
+        // No CC this block AND no CC forward in flight: adopt genuine
+        // UI-knob / automation moves of the "expression" param. The 0.5/127
+        // epsilon ignores the quantised echo of our own setValueNotifyingHost
+        // forward (param step 0.001 → max snap error 0.0005, well inside the
+        // guard).
+        //
+        // v1.23.9: the pending gate is LOAD-BEARING for offline export. While
+        // a forward is pending, the param still holds a value from earlier in
+        // the CC stream — offline the message thread lags the render thread
+        // by whole hairpins, so without the gate every CC-quiet block adopted
+        // that stale value and dynamics sawtoothed between fresh CC and stale
+        // param ("constant stuttering" in exported audio, inaudible in real
+        // time where the lag is sub-epsilon). handleAsyncUpdate clears
+        // pendingCC11Value only AFTER writing the param, so pending == -1
+        // guarantees param reflects the last forward.
         const float paramVal = pExpression->load();
         if (std::abs (paramVal - lastForwardedExpression) > (0.5f / 127.0f))
         {
@@ -859,11 +871,23 @@ void OMicrotonalSamplerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 // pre-fix behaviour at the message-thread granularity.
 void OMicrotonalSamplerAudioProcessor::handleAsyncUpdate()
 {
-    const int v = pendingCC11Value.exchange (-1, std::memory_order_acquire);
+    // v1.23.9: load + write + CAS-clear (was exchange-then-write). The audio
+    // thread's param-adoption branch in processBlock is gated on
+    // pendingCC11Value == -1, so the slot must stay occupied until the param
+    // actually holds the forwarded value — clearing first opened a window
+    // where pending == -1 but the param was still stale. The CAS also keeps
+    // a NEWER value staged during the setValueNotifyingHost dispatch: the
+    // audio thread's triggerAsyncUpdate re-queues us and the next pass
+    // forwards it.
+    const int v = pendingCC11Value.load (std::memory_order_acquire);
     if (v >= 0)
     {
         if (auto* ep = parameters.getParameter ("expression"))
             ep->setValueNotifyingHost ((float) v / 127.0f);
+
+        int expected = v;
+        pendingCC11Value.compare_exchange_strong (expected, -1,
+                                                  std::memory_order_acq_rel);
     }
 
     // v1.14.0: technique cursor / vocab change notification. Coalesced via

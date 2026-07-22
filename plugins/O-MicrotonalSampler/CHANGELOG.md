@@ -1,5 +1,42 @@
 # O-MicrotonalSampler Changelog
 
+## [1.23.9] - 2026-07-21
+
+Patch release fixing a **regression introduced by v1.23.8**: offline export
+hairpins stuttered (rapid sawtooth of the dynamic level) instead of the old
+sudden jumps. Real-time playback was unaffected. **No parameter IDs, ranges,
+or state format change.**
+
+### Fixed
+
+- **Offline export: dynamics sawtoothed between fresh CC 11 and the stale
+  `expression` param.** v1.23.8's reconciliation branch adopted the
+  `expression` APVTS value on CC-quiet blocks whenever it differed from the
+  last forwarded CC (epsilon-guarded) — intended to catch genuine UI-knob /
+  automation moves. But the guard only recognises the forward's echo AFTER
+  it lands; during offline export the message-thread forward lags the render
+  thread by whole hairpins, so on every block between Dorico's discrete CC
+  steps the param still held a value from much earlier in the hairpin and
+  the branch snapped `liveExpression` back to it. Fresh CC → forward jump,
+  quiet block → stale snap-back: a per-block sawtooth ≈ the reported
+  "constant stuttering". In real time the param tracks within the epsilon,
+  so the branch never fired and playback stayed clean — which is why the
+  regression was export-only.
+
+  **Fix:** the adoption branch is now additionally gated on
+  `pendingCC11Value == -1` (no CC forward in flight): while a forward is
+  pending, the param is known-stale and must not be trusted. To make that
+  gate sound, `handleAsyncUpdate` now clears the pending slot only AFTER
+  `setValueNotifyingHost` has written the param (load + CAS-clear instead of
+  exchange-then-write) — clearing first left a window where the gate was
+  open but the param was still stale. The CAS also preserves a newer CC
+  value staged mid-dispatch (the audio thread's `triggerAsyncUpdate`
+  re-queues the updater, which forwards it next pass). Genuine knob /
+  automation moves of `expression` are still adopted on any CC-quiet,
+  nothing-pending block, and CC still wins while a stream is active —
+  unchanged policy. RT-safe: relaxed atomic load added to processBlock;
+  CAS runs on the message thread only.
+
 ## [1.23.8] - 2026-07-21
 
 Patch release fixing **sudden dynamic-level jumps in Dorico offline audio
