@@ -38,6 +38,14 @@ private:
 private:
     OMultiBandCompressorAudioProcessor& processorRef;
 
+    // ========== 0. UI PREFERENCES (v1.4.1) ==========
+    // Declared ahead of the WebView so it is destroyed *after* it: the native
+    // functions registered below capture `this` and read/write uiPrefs, and
+    // reverse destruction order guarantees the WebView is gone first.
+    // Deliberately not part of the APVTS — tooltip visibility is a per-user
+    // preference, so presets and sessions must never carry it.
+    juce::PropertiesFile uiPrefs;
+
     // CRITICAL: Member declaration order (prevents crashes in release builds)
     // Pattern from troubleshooting/patterns/stage-3-patterns.md
     // Order: Relays → WebView → Attachments

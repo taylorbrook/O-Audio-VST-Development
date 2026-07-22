@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.4.1
 - **Type:** Audio Effect (Dynamics Processor - Multiband Compressor)
 - **Complexity:** 5.0 (Maximum complexity - 56 parameters, 10 DSP components)
 
@@ -16,6 +16,7 @@
 - **2026-01-26 (v1.2.0):** Real-time FFT spectrum analyzer - 2048-sample FFT with lock-free audio→UI communication
 - **2026-07-01 (v1.2.1):** RT-safety pass (CODE-REVIEW.md) - removed all audio-thread allocation/locking (CR-01/02/03, WR-01) + hot-loop/cleanup (IN-01..04). No sonic change (crossover verified bit-identical); pluginval strictness 10 + auval pass.
 - **2026-07-01 (v1.2.2):** Correctness + polish pass (CODE-REVIEW.md) - WR-02 M/S detection −6 dB fixed (active-channel count threaded into the detector), WR-04 Attack/Release readouts now use the skew-0.3 mapping, IN-05 resource provider matches full relative path, IN-06 spectrum bins log-spaced 20 Hz–20 kHz (peak per bin). auval pass.
+- **2026-07-22 (v1.4.1):** Added a "?" button in the header that switches the v1.4.0 tooltips off and on. State lives in a machine-wide preference file (`~/Library/Application Support/Ouaricon/`) via two new WebView native functions, deliberately outside the APVTS so presets never carry somebody else's help setting; defaults to on. Also fixed a v1.4.0 positioning bug where tips near the right edge re-wrapped into a ~70 px ribbon (a fixed-position box with `left` set shrink-to-fits the space to its right, so measure-then-place under-reported the width) — the tip width is now pinned in px before placement. No DSP or state changes. Browser harness (11-control geometry sweep) + auval pass.
 - **2026-07-22 (v1.4.0):** UI pass - tooltips on all 41 interactive controls (styled parchment layer, 120 ms delay, edge-aware flip/clamp, hides on drag); band header frequency ranges now track the crossovers live on drag, automation, and preset recall (they were static markup strings that never updated); `juce_add_plugin VERSION` added so the bundle stops reporting 1.0.0; crossover lines start at their true log positions; `applyOrderingConstraints` no longer misreads a crossover parked at its range minimum. No DSP or state changes. Browser harness + auval pass.
 - **2026-07-01 (v1.3.0):** WR-03 crossover all-pass compensation - LOW passes through AP(f2)·AP(f3), LOMID through AP(f3); the 4-band sum is now pure all-pass (magnitude-flat at unity). Old ripple up to 0.63 dB → new ≤0.014 dB, verified by offline impulse-FFT + stepped swept-sine A/B harness. pluginval strictness 10 + auval pass.
 

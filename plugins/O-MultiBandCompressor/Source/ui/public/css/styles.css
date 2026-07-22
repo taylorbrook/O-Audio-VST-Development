@@ -80,6 +80,49 @@ body {
     font-weight: 600;
 }
 
+/* v1.4.1: header right cluster — brand mark plus the help toggle */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* The "?" toggle. Reads as "on" (filled olive, like an engaged band button)
+   when the hover-help layer is active, and as a quiet outline when it is off. */
+.help-toggle {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    flex: 0 0 auto;
+    border: 1px solid #5C4033;
+    border-radius: 50%;
+    background: transparent;
+    color: #5C4033;
+    font-family: 'Garamond', 'Times New Roman', serif;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: background 120ms ease-out, color 120ms ease-out, opacity 120ms ease-out;
+}
+
+.help-toggle:hover {
+    opacity: 1;
+}
+
+.help-toggle[aria-pressed="true"] {
+    background: #8BA870;
+    border-color: #5C4033;
+    color: #3C2F2F;
+    opacity: 1;
+}
+
+.help-toggle:focus-visible {
+    outline: 2px solid #556B2F;
+    outline-offset: 2px;
+}
+
 /* Spectrum Analyzer Section */
 .spectrum-section {
     display: flex;
