@@ -1,5 +1,64 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.4.1 (2026-07-22)
+
+UI-only release, following on from the v1.4.0 tooltip work. No DSP, parameter, or
+state-format changes — presets and automation load unchanged.
+
+### Added
+
+- **"?" button in the header to switch the tooltips off and on.** The hover help
+  added in v1.4.0 is useful while learning the plugin and gets in the way once you
+  know it, so it is now switchable. The button sits to the right of the Ouaricon
+  mark: filled olive when help is on, a quiet outline when it is off.
+
+  The setting is stored **outside** the plugin state, in a machine-wide preference
+  file (`~/Library/Application Support/Ouaricon/O-MultiBandCompressor.settings` on
+  macOS, `%APPDATA%\Ouaricon\` on Windows), read through two new WebView native
+  functions (`getTooltipsEnabled` / `setTooltipsEnabled`). Keeping it out of the
+  APVTS is deliberate: tooltip visibility is a preference about *you*, not about a
+  mix, so every instance agrees on it, it survives DAW restarts, and loading
+  somebody else's preset can never switch your help text off. It is written through
+  on every click rather than left to the auto-save timer, so a force-quit does not
+  lose it.
+
+  Defaults to **on**, matching v1.4.0 exactly for anyone updating.
+
+  The "?" keeps its own tooltip while help is switched off — the control that turns
+  the tips back on has to be able to explain itself — and re-shows that tip in place
+  straight after a click, so the new state is confirmed without moving the mouse.
+
+### Fixed
+
+- **Tooltips near the right edge of the window wrapped into a narrow ribbon.** The
+  positioner measured the tip, then set `left`; because a fixed-position box with
+  `width:auto` shrink-to-fits whatever space remains to its right, applying a
+  near-the-edge `left` afterwards re-wrapped the copy and re-flowed it taller than
+  the measurement it had just been placed from. The header "?" button, as the
+  right-most control in the interface, rendered its tip 70 px wide instead of 230.
+
+  Root cause: `showTooltip()` took a single `getBoundingClientRect()` at the tip's
+  *previous* offset and treated that width as final. It now releases the width,
+  measures from `left: 0` where the full viewport is available, pins the measured
+  width in px so the box cannot re-flow, and only then measures height and places
+  the tip. Present since v1.4.0; it went unnoticed because every other control sits
+  far enough inboard that the squeeze was small.
+
+### Testing
+
+- Browser harness against a ~20-line JUCE-bridge stub at the true 900×600 plugin
+  size (see `pattern_module_toplevel_init_tdz` — build/auval cannot see a dead
+  WebView UI): toggle off suppresses every control tip, the "?" keeps its own,
+  toggle on restores them, `setTooltipsEnabled` is called once per click and *not*
+  on the start-up read.
+- Tooltip-geometry regression sweep across 11 controls spanning all four corners
+  (header button, far-left knob, far-right knob, all three crossover handles, both
+  level meters, a GR meter, a band header, the analyzer): all now measure the full
+  230 px, sit fully on-screen, and flip above/below correctly.
+- JS↔C++ bridge diff: both `getNativeFunction` names in `app.js` have matching
+  `withNativeFunction` registrations in `PluginEditor.cpp` (see
+  `pattern_webview_native_fn_bridge_gap` — an unregistered name fails silently).
+
 ## Version 1.4.0 (2026-07-22)
 
 UI-only release. No DSP, parameter, or state-format changes — presets and automation from

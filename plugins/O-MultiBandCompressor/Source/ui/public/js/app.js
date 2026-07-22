@@ -853,6 +853,14 @@ let tooltipTimer = null;
 let tooltipTarget = null;
 let tooltipSuppressed = false;
 
+// v1.4.1: master on/off for the hover-help layer, driven by the "?" button in
+// the header and persisted C++-side in a machine-wide preference file. Starts
+// true so the very first hover behaves like v1.4.0 even if the stored value
+// arrives a moment later (the native call below is a promise).
+let tooltipsEnabled = true;
+let helpToggleEl = null;
+let setTooltipsEnabledNative = null;
+
 function initializeTooltips() {
     tooltipEl = document.getElementById('tooltip');
     if (!tooltipEl) {
@@ -864,6 +872,8 @@ function initializeTooltips() {
         applyTooltip(selector, title, body, wrapper));
 
     Object.keys(BAND_LABELS).forEach(applyBandTooltips);
+
+    initializeHelpToggle();
 
     document.addEventListener('mouseover', handleTooltipOver);
     document.addEventListener('mouseout', handleTooltipOut);
@@ -879,6 +889,69 @@ function initializeTooltips() {
     document.addEventListener('mouseup', () => { tooltipSuppressed = false; }, true);
 
     console.log('Tooltips initialized');
+}
+
+// ---------- v1.4.1: the "?" toggle ----------
+
+function initializeHelpToggle() {
+    helpToggleEl = document.getElementById('help-toggle');
+    if (!helpToggleEl) {
+        console.warn('Help toggle not found - tooltips stay permanently on');
+        return;
+    }
+
+    helpToggleEl.addEventListener('click', () => setTooltipsEnabled(!tooltipsEnabled, true));
+
+    // Bridge to the preference file. Guarded because the same page is opened in
+    // a plain browser for UI checks, where native integration does not exist —
+    // there the toggle still works, it just does not persist.
+    let getTooltipsEnabledNative = null;
+
+    try {
+        getTooltipsEnabledNative = Juce.getNativeFunction('getTooltipsEnabled');
+        setTooltipsEnabledNative = Juce.getNativeFunction('setTooltipsEnabled');
+    } catch (e) {
+        console.warn('Tooltip preference not available, using session-only state:', e);
+    }
+
+    // Paint the current (default) state first so the button is never blank
+    // while the native call is in flight.
+    setTooltipsEnabled(tooltipsEnabled, false);
+
+    if (getTooltipsEnabledNative) {
+        getTooltipsEnabledNative()
+            .then((stored) => setTooltipsEnabled(stored !== false, false))
+            .catch((e) => console.warn('Could not read tooltip preference:', e));
+    }
+}
+
+// `persist` is false for the start-up push, so reading the stored value does
+// not immediately write it back.
+function setTooltipsEnabled(enabled, persist) {
+    tooltipsEnabled = !!enabled;
+
+    if (!tooltipsEnabled) hideTooltip();
+
+    if (helpToggleEl) {
+        helpToggleEl.setAttribute('aria-pressed', tooltipsEnabled ? 'true' : 'false');
+        helpToggleEl.setAttribute('data-tip-title', 'Hover Help');
+        helpToggleEl.setAttribute('data-tip', tooltipsEnabled
+            ? 'Hover help is on — every control describes itself and states its range. Click to turn the tips off.'
+            : 'Hover help is off. Click to turn the tips back on.');
+    }
+
+    if (persist && setTooltipsEnabledNative) {
+        setTooltipsEnabledNative(tooltipsEnabled)
+            .catch((e) => console.warn('Could not save tooltip preference:', e));
+    }
+
+    // Re-show the button's own tip straight after a click so the new state is
+    // confirmed in place. mousedown suppression has already lifted by now, and
+    // the pointer is still over the button, so no fresh mouseover would fire.
+    if (persist && helpToggleEl) {
+        tooltipTarget = helpToggleEl;
+        showTooltip(helpToggleEl);
+    }
 }
 
 function applyBandTooltips(bandId) {
@@ -908,9 +981,16 @@ function applyTooltip(selector, title, body, wrapper) {
     target.setAttribute('data-tip', body);
 }
 
+// The "?" button carries data-tip-always: the control that turns help back on
+// has to keep explaining itself while help is off.
+function tipAllowed(target) {
+    return tooltipsEnabled || target.hasAttribute('data-tip-always');
+}
+
 function handleTooltipOver(e) {
     const target = e.target.closest ? e.target.closest('[data-tip]') : null;
     if (!target || target === tooltipTarget) return;
+    if (!tipAllowed(target)) return;
 
     tooltipTarget = target;
     clearTimeout(tooltipTimer);
@@ -930,8 +1010,10 @@ function handleTooltipOut(e) {
 }
 
 function showTooltip(target) {
-    // The pointer may have moved on or gone down during the delay
+    // The pointer may have moved on or gone down during the delay, and help may
+    // have been switched off between the hover and the timer firing.
     if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+    if (!tipAllowed(target)) return;
 
     const title = target.getAttribute('data-tip-title');
     const body = target.getAttribute('data-tip');
@@ -954,10 +1036,25 @@ function showTooltip(target) {
     // Measure and place while still transparent, so the tip never flashes at its
     // previous position before settling on the new one.
     const anchor = target.getBoundingClientRect();
-    const tip = tooltipEl.getBoundingClientRect();
+
+    // v1.4.1: measure from the left edge with the width released, then pin the
+    // measured width in px before placing. A fixed-position box with `left` set
+    // and `width:auto` shrinks to fit whatever space is left to its right, so
+    // measuring at the previous offset under-reports the width, and applying a
+    // near-the-edge `left` afterwards re-wraps the copy into a narrow ribbon.
+    // The header "?" button, as the right-most control, is what exposes this.
+    tooltipEl.style.width = '';
+    tooltipEl.style.left = '0px';
+    tooltipEl.style.top = '0px';
+
+    const width = tooltipEl.getBoundingClientRect().width;
+    tooltipEl.style.width = `${width}px`;
+
+    // Height is only stable once the width is definite
+    const height = tooltipEl.getBoundingClientRect().height;
 
     // Prefer above; flip below only when there is no room at the top
-    let top = anchor.top - tip.height - TOOLTIP_MARGIN;
+    let top = anchor.top - height - TOOLTIP_MARGIN;
     let placement = 'above';
 
     if (top < TOOLTIP_MARGIN) {
@@ -966,8 +1063,8 @@ function showTooltip(target) {
     }
 
     const anchorCentreX = anchor.left + anchor.width / 2;
-    const maxLeft = window.innerWidth - tip.width - TOOLTIP_MARGIN;
-    const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - tip.width / 2));
+    const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+    const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
 
     tooltipEl.style.left = `${left}px`;
     tooltipEl.style.top = `${top}px`;
@@ -975,7 +1072,7 @@ function showTooltip(target) {
 
     // The tip is clamped to the viewport but the arrow still points at the control,
     // held clear of the rounded corners.
-    const arrowX = Math.max(10, Math.min(tip.width - 10, anchorCentreX - left));
+    const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
     tooltipEl.style.setProperty('--arrow-x', `${arrowX}px`);
 
     tooltipEl.classList.add('visible');

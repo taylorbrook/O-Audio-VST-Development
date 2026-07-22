@@ -13,9 +13,30 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 
+namespace
+{
+    // v1.4.1: tooltip visibility lives in a machine-wide preference file
+    // (~/Library/Application Support/Ouaricon/O-MultiBandCompressor.settings on
+    // macOS, %APPDATA%\Ouaricon\ on Windows) rather than in the APVTS. It is a
+    // user preference, not plugin state: every instance should agree on it, and
+    // loading somebody else's preset must not switch your help text off.
+    const char* const kTooltipsEnabledKey = "tooltipsEnabled";
+
+    juce::PropertiesFile::Options makeUiPrefsOptions()
+    {
+        juce::PropertiesFile::Options options;
+        options.applicationName     = "O-MultiBandCompressor";
+        options.filenameSuffix      = "settings";
+        options.folderName          = "Ouaricon";
+        options.osxLibrarySubFolder = "Application Support";
+        return options;
+    }
+}
+
 OMultiBandCompressorAudioProcessorEditor::OMultiBandCompressorAudioProcessorEditor(OMultiBandCompressorAudioProcessor& p)
     : AudioProcessorEditor(&p)
     , processorRef(p)
+    , uiPrefs(makeUiPrefsOptions())
 
     // ========== Initialize attachments (connect parameters to relays) ==========
     // Pattern: Attachment(parameter, relay, undoManager)
@@ -96,6 +117,36 @@ OMultiBandCompressorAudioProcessorEditor::OMultiBandCompressorAudioProcessorEdit
                         juce::File::SpecialLocationType::tempDirectory)))
             .withNativeIntegrationEnabled()
             .withResourceProvider([this](const auto& url) { return getResource(url); })
+
+            // v1.4.1: the "?" button in the header. The UI asks for the stored
+            // preference once at start-up and writes it back on every toggle.
+            .withNativeFunction("getTooltipsEnabled",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    complete(uiPrefs.getBoolValue(kTooltipsEnabledKey, true));
+                })
+
+            .withNativeFunction("setTooltipsEnabled",
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete(juce::var());
+                        return;
+                    }
+
+                    const auto enabled = static_cast<bool>(args[0]);
+                    uiPrefs.setValue(kTooltipsEnabledKey, enabled);
+
+                    // Write through immediately rather than waiting on the
+                    // auto-save timer — a DAW that is force-quit would
+                    // otherwise drop the change.
+                    uiPrefs.saveIfNeeded();
+
+                    complete(enabled);
+                })
 
             // Register global relays
             .withOptionsFrom(inputGainRelay)

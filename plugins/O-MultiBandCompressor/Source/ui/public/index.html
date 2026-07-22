@@ -11,7 +11,15 @@
         <!-- Header -->
         <header class="plugin-header">
             <h1 class="plugin-title">O-MultiBandCompressor</h1>
-            <span class="brand-name">Ouaricon Audio</span>
+            <div class="header-right">
+                <span class="brand-name">Ouaricon Audio</span>
+                <!-- v1.4.1: toggles the hover-help layer. Its own tip is exempt
+                     from the toggle (data-tip-always), so the control that turns
+                     help back on can always explain itself. -->
+                <button type="button" class="help-toggle" id="help-toggle"
+                        aria-pressed="true" aria-label="Toggle hover help"
+                        data-tip-always>?</button>
+            </div>
         </header>
 
         <!-- Spectrum Analyzer Area -->
