@@ -1,13 +1,15 @@
 ---
 plugin: O-ReverseDelay
-stage: 0
-status: complete
+stage: 1-foundation
+phase: discuss
+phase_status: complete
+status: in_progress
 last_updated: 2026-07-23
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
-next_stage: 1
+workflow_mode: manual
+next_action: /plugin-research O-ReverseDelay
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:7075c269df79e5dc1cf7f28d6ff4dda88805abb2c8086fc751e737f626efb07e
@@ -20,9 +22,26 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 (Research & Planning) — complete
-Status: Architecture and roadmap documented, ready for implementation
-Progress: [##..................] 10%
+Stage: 1 (Foundation) — discuss phase complete
+Status: CONTEXT.md written; next phase: research
+Progress: [##..................] 12%
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-07-23 | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+**Stage 1 discuss decisions:**
+- D1: Bus layouts mono→mono, mono→stereo, stereo→stereo (user choice; deviates from suite stereo-only)
+- D2: pluginval strictness 10 from Stage 1 (COMPAT-01 gate)
+- D3: Render harness deferred to Phase 2.1 per roadmap
+- PLUGIN_CODE `ORvD`; target `OuariconReverseDelay`; VERSION 1.0.0
 
 ## Completed So Far
 
