@@ -230,14 +230,19 @@ function bindToggle(elementId, parameterId) {
     }
 }
 
+// v1.4.2: a toggle that carries its own name in data-label keeps that name and
+// shows its state through the .active fill alone. Before this, every band button
+// was relabelled "On"/"Off" on bind, so a band's three buttons all read the same
+// word and nothing on screen said which was solo, bypass or sidechain listen.
+// The global Auto-MU toggle has no data-label — it sits beside its own caption,
+// so On/Off is the informative thing to show there and it is left as it was.
+// aria-pressed carries the state for screen readers now that colour alone does.
 function updateToggleUI(element, value) {
-    if (value) {
-        element.classList.add('active');
-        element.textContent = 'On';
-    } else {
-        element.classList.remove('active');
-        element.textContent = 'Off';
-    }
+    element.classList.toggle('active', Boolean(value));
+    element.setAttribute('aria-pressed', value ? 'true' : 'false');
+
+    const label = element.dataset.label;
+    element.textContent = label ? label : (value ? 'On' : 'Off');
 }
 
 function bindComboBox(elementId, parameterId) {

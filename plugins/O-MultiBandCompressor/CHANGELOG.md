@@ -1,5 +1,51 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.4.2 (2026-07-22)
+
+UI-only release. No DSP, parameter, or state-format changes — presets and
+automation load unchanged.
+
+### Fixed
+
+- **The three buttons under each band now say what they are: SOLO, BYPASS and
+  SC LISTEN.** Until now all three showed the word "Off" (or "On" once engaged),
+  so a band's button row read "Off Off Off" and nothing on screen distinguished
+  solo from bypass from sidechain listen. The only way to tell them apart was to
+  hover for a tooltip or to click one and listen.
+
+  Root cause: `updateToggleUI()` in `app.js` was shared by every toggle in the
+  plugin and unconditionally rewrote the button's text to "On"/"Off" on bind and
+  on every state change. The `S` / `B` / `SC` glyphs authored in `index.html`
+  were therefore overwritten the moment the UI connected to the backend, and had
+  never actually been visible in a DAW.
+
+  Each band button now carries its own name in a `data-label` attribute, and
+  `updateToggleUI()` keeps that name instead of relabelling. Engaged state is
+  shown by the existing `.active` styling — the olive fill the buttons already
+  had — which is now the sole indicator rather than a redundant one. The global
+  Auto-MU toggle has no `data-label` and is unchanged: it sits beside its own
+  "AUTO-MU" caption, so On/Off is the informative thing to show there.
+
+### Changed
+
+- **Band buttons size to their text** instead of a fixed 28 px square. The row
+  measures 163 px inside a 189 px band column, so it stays centred with room to
+  spare and the panel does not reflow. `white-space: nowrap` keeps "SC LISTEN"
+  on one line; the buttons also inherit the panel's Garamond stack, which the
+  browser default button font had been overriding.
+
+- **`aria-pressed` now tracks each band button's state.** Engaged/disengaged is
+  conveyed by fill colour alone now that the text is a fixed label, so the state
+  is exposed to assistive technology explicitly.
+
+### Testing
+
+Verified in a browser against a stubbed JUCE bridge at the plugin's real 900×600
+size: all four bands render an identical single-line row with no overflow, the
+labels survive toggling on and off, `.active` and `aria-pressed` both track
+state, and the Auto-MU toggle still reads On/Off. Built clean and validated with
+auval.
+
 ## Version 1.4.1 (2026-07-22)
 
 UI-only release, following on from the v1.4.0 tooltip work. No DSP, parameter, or
