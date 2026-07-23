@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.15)
 
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
+# Single source of truth for the version. The test harness needs the same value in
+# JucePlugin_VersionString: the processor ctor runs initializeFactoryPresets(), whose
+# .factory-version sentinel compares against it, so a harness left on a stale literal
+# would restamp the user's real factory-preset directory with the wrong version.
+set(OMBC_VERSION 1.6.0)
+
 # Plugin Configuration
 juce_add_plugin(O-MultiBandCompressor
-    VERSION 1.4.2
+    VERSION ${OMBC_VERSION}
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OMbc
@@ -12,6 +20,12 @@ juce_add_plugin(O-MultiBandCompressor
     NEEDS_WEBVIEW2 TRUE
 )
 
+# Preset manager module (v1.5.0).
+# MUST run before juce_add_binary_data below: ouaricon_add_module copies
+# preset-manager.js into Source/ui/public/modules/ at configure time, and the
+# binary-data target needs that file to already exist when it is declared.
+ouaricon_add_module(O-MultiBandCompressor preset-manager)
+
 # WebView UI Resources (Phase 5.1)
 juce_add_binary_data(O-MultiBandCompressor_UIResources
     SOURCES
@@ -20,6 +34,7 @@ juce_add_binary_data(O-MultiBandCompressor_UIResources
         Source/ui/public/js/app.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/preset-manager.js
 )
 
 # Source files
@@ -60,6 +75,13 @@ target_link_libraries(O-MultiBandCompressor
 
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-MultiBandCompressor)
+
+# v1.5.0 factory-preset verification harness — off by default,
+# enable with -DOUARICON_BUILD_TESTS=ON.
+option(OUARICON_BUILD_TESTS "Build O-MultiBandCompressor preset-test harness" OFF)
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()
 
 # Compile definitions
 target_compile_definitions(O-MultiBandCompressor

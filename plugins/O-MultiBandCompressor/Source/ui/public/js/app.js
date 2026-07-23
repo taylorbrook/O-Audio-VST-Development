@@ -115,25 +115,39 @@ function bindBandParameters(bandPrefix, bandId) {
         return db.toFixed(1) + ' dB';
     });
 
-    // Peak/RMS: bind for APVTS sync
-    try {
-        parameterStates[`${bandPrefix}_PEAK_RMS`] = Juce.getSliderState(`${bandPrefix}_PEAK_RMS`);
-    } catch (e) {
-        console.warn(`Could not bind ${bandPrefix}_PEAK_RMS:`, e);
-    }
-
     // Solo, Bypass, SC Listen: bool
     bindToggle(`${bandId}-solo`, `${bandPrefix}_SOLO`);
     bindToggle(`${bandId}-bypass`, `${bandPrefix}_BYPASS`);
     bindToggle(`${bandId}-sc-listen`, `${bandPrefix}_SC_LISTEN`);
 
-    // SC HPF/LPF: bind for APVTS sync
-    try {
-        parameterStates[`${bandPrefix}_SC_HPF`] = Juce.getSliderState(`${bandPrefix}_SC_HPF`);
-        parameterStates[`${bandPrefix}_SC_LPF`] = Juce.getSliderState(`${bandPrefix}_SC_LPF`);
-    } catch (e) {
-        console.warn(`Could not bind ${bandPrefix} sidechain filters:`, e);
-    }
+    // v1.5.0: the detector-path controls. Until now these three had no on-screen
+    // control and were only bound so automation and presets stayed in sync.
+    //
+    // They use bindScaledSlider rather than the hand-rolled formulas above: it reads
+    // the real range and skew that C++ pushes over propertiesChanged, so nothing here
+    // duplicates the NormalisableRange. (The six knobs above keep their existing
+    // formulas — those readouts are correct and working, and rewriting them is a
+    // separate change with its own regression surface.)
+
+    // Peak/RMS: 0% = pure peak detection, 100% = pure RMS over a 10 ms window
+    bindScaledSlider(`${bandId}-peak-rms`, `${bandPrefix}_PEAK_RMS`, (pct) => {
+        if (pct <= 0.5) return 'Peak';
+        if (pct >= 99.5) return 'RMS';
+        return `${pct.toFixed(0)}% RMS`;
+    });
+
+    // SC HPF: 0 Hz means the filter is off (see Compressor::updateSidechainFilters)
+    bindScaledSlider(`${bandId}-sc-hpf`, `${bandPrefix}_SC_HPF`, (hz) =>
+        hz < 1.0 ? 'Off' : formatHz(hz));
+
+    // SC LPF: the DSP treats 0 and anything at or above 20 kHz as off
+    bindScaledSlider(`${bandId}-sc-lpf`, `${bandPrefix}_SC_LPF`, (hz) =>
+        (hz < 1.0 || hz >= 20000.0) ? 'Off' : formatHz(hz));
+}
+
+function formatHz(hz) {
+    return hz >= 1000 ? `${(hz / 1000).toFixed(hz >= 10000 ? 0 : 1)} kHz`
+                      : `${hz.toFixed(0)} Hz`;
 }
 
 // ========== BINDING HELPERS ==========
@@ -189,6 +203,57 @@ function bindSlider(elementId, parameterId, formatValue) {
         });
 
         console.log(`Bound slider: ${parameterId} → #${elementId}`);
+    } catch (e) {
+        console.error(`Failed to bind slider ${parameterId}:`, e);
+    }
+}
+
+// v1.5.0: like bindSlider, but the readout is formatted from the parameter's real
+// engineering value (SliderState.getScaledValue()) instead of a range restated in JS.
+// The range and skew arrive from C++ via propertiesChanged, which lands *after* the
+// first render — hence the propertiesChangedEvent listener, without which every
+// readout would sit at its start-of-range value until the knob is first touched.
+function bindScaledSlider(elementId, parameterId, formatScaled) {
+    const element = document.getElementById(elementId);
+    const valueDisplay = document.getElementById(`${elementId}-value`);
+
+    if (!element) {
+        console.warn(`Slider element not found: ${elementId}`);
+        return;
+    }
+
+    try {
+        const sliderState = Juce.getSliderState(parameterId);
+        parameterStates[parameterId] = sliderState;
+
+        const render = () => {
+            element.value = sliderState.getNormalisedValue();
+            if (valueDisplay && formatScaled) {
+                valueDisplay.textContent = formatScaled(sliderState.getScaledValue());
+            }
+        };
+
+        render();
+
+        element.addEventListener('input', (e) => {
+            sliderState.setNormalisedValue(parseFloat(e.target.value));
+            // getScaledValue() reflects the value just written, so read it back rather
+            // than converting the raw normalised value here.
+            if (valueDisplay && formatScaled) {
+                valueDisplay.textContent = formatScaled(sliderState.getScaledValue());
+            }
+        });
+
+        element.addEventListener('mousedown', () => sliderState.sliderDragStarted());
+        element.addEventListener('mouseup', () => sliderState.sliderDragEnded());
+
+        // Automation and preset loads
+        sliderState.valueChangedEvent.addListener(render);
+
+        // First arrival of the real range/skew from C++
+        sliderState.propertiesChangedEvent.addListener(render);
+
+        console.log(`Bound scaled slider: ${parameterId} → #${elementId}`);
     } catch (e) {
         console.error(`Failed to bind slider ${parameterId}:`, e);
     }
@@ -850,7 +915,17 @@ const BAND_TOOLTIPS = [
      'Pass this band through uncompressed. The crossover filtering still applies, so the band stays in phase with the others.'],
 
     ['sc-listen', null, 'Sidechain Listen',
-     'Monitor the detector signal driving this band’s compressor, including its sidechain filtering. This is what the compressor "hears", not what it outputs.']
+     'Monitor the detector signal driving this band’s compressor, including its sidechain filtering. This is what the compressor "hears", not what it outputs.'],
+
+    // v1.5.0: detector-path controls
+    ['peak-rms', '.knob-control', 'Peak / RMS',
+     'Blends how the band’s level is measured. Peak reacts to individual transients and suits de-essing and plosive control; RMS averages over 10 ms and suits glue and level-riding.'],
+
+    ['sc-hpf', '.knob-control', 'Sidechain High-Pass',
+     'High-passes the detector only — the audio itself is untouched. Keeps low energy from triggering gain reduction, for example so subsonic rumble does not duck a whole band. Fully left is Off.'],
+
+    ['sc-lpf', '.knob-control', 'Sidechain Low-Pass',
+     'Low-passes the detector only — the audio itself is untouched. Narrows what the band responds to, for example keeping cymbals and air from holding a de-esser down. Fully left is Off.']
 ];
 
 let tooltipEl = null;
@@ -1093,12 +1168,217 @@ function hideTooltip() {
     tooltipEl.setAttribute('aria-hidden', 'true');
 }
 
+// ========== v1.5.0: PRESET BAR ==========
+
+let presetMgr = null;
+let presetDropdownEl = null;
+
+// Which of the listed presets are factory (read-only). isFactoryPreset() is one
+// native round-trip per name, so the answers are cached and only refreshed when the
+// list itself changes rather than on every dropdown open.
+let factoryPresetNames = new Set();
+
+async function refreshFactoryPresetNames() {
+    if (!presetMgr) return;
+    const list = presetMgr.getPresetList();
+    try {
+        const flags = await Promise.all(list.map((n) => presetMgr.isFactoryPreset(n)));
+        factoryPresetNames = new Set(list.filter((_, i) => flags[i]));
+    } catch (e) {
+        // On failure treat everything as factory: that only hides delete buttons,
+        // whereas guessing "user" would offer to delete presets that cannot be deleted.
+        console.warn('Could not determine factory presets:', e);
+        factoryPresetNames = new Set(list);
+    }
+}
+
+async function initializePresets() {
+    const nameDisplay = document.getElementById('presetName');
+    presetDropdownEl = document.getElementById('presetDropdown');
+
+    if (!nameDisplay || !presetDropdownEl) {
+        console.warn('Preset bar elements not found - presets disabled');
+        return;
+    }
+
+    const { PresetManager } = await import('../modules/preset-manager.js');
+
+    presetMgr = new PresetManager({
+        displayElement: nameDisplay,
+        prevButton: document.getElementById('prevPreset'),
+        nextButton: document.getElementById('nextPreset'),
+        saveButton: document.getElementById('savePreset'),
+        loadButton: document.getElementById('loadPreset'),
+        getNativeFunction: Juce.getNativeFunction,
+        // window.confirm() is a silent no-op in some JUCE WebView backends, so the
+        // module is handed an in-DOM confirmation instead of falling back to it.
+        onConfirmDelete: confirmDeletePreset,
+        onPresetListUpdated: () => {
+            refreshFactoryPresetNames().then(() => {
+                if (presetDropdownEl.classList.contains('show')) renderPresetDropdown();
+            });
+        }
+    });
+
+    await presetMgr.initialize();
+    await refreshFactoryPresetNames();
+
+    nameDisplay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (presetDropdownEl.classList.contains('show')) hidePresetDropdown();
+        else showPresetDropdown();
+    });
+
+    nameDisplay.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            nameDisplay.click();
+        } else if (e.key === 'Escape') {
+            hidePresetDropdown();
+        }
+    });
+
+    // Any click outside the bar closes the list.
+    document.addEventListener('click', (e) => {
+        const bar = document.getElementById('presetBar');
+        if (bar && !bar.contains(e.target)) hidePresetDropdown();
+    });
+
+    console.log('Preset bar initialized');
+}
+
+function showPresetDropdown() {
+    renderPresetDropdown();
+    presetDropdownEl.classList.add('show');
+    const nameDisplay = document.getElementById('presetName');
+    if (nameDisplay) nameDisplay.setAttribute('aria-expanded', 'true');
+}
+
+function hidePresetDropdown() {
+    if (!presetDropdownEl) return;
+    presetDropdownEl.classList.remove('show');
+    const nameDisplay = document.getElementById('presetName');
+    if (nameDisplay) nameDisplay.setAttribute('aria-expanded', 'false');
+}
+
+function renderPresetDropdown() {
+    presetDropdownEl.innerHTML = '';
+
+    const list = presetMgr ? presetMgr.getPresetList() : [];
+    const current = presetMgr ? presetMgr.getCurrentPreset() : '';
+
+    if (list.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'preset-dropdown-item empty';
+        empty.textContent = 'No presets';
+        presetDropdownEl.appendChild(empty);
+        return;
+    }
+
+    // getPresetList() returns one case-insensitive alphabetical list with factory and
+    // user presets interleaved. The dropdown keeps that order rather than grouping,
+    // because it is also the order the ◀ / ▶ buttons step through.
+    list.forEach((name) => {
+        const isFactory = factoryPresetNames.has(name);
+
+        const item = document.createElement('div');
+        item.className = 'preset-dropdown-item' + (name === current ? ' active' : '');
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', name === current ? 'true' : 'false');
+
+        const label = document.createElement('span');
+        label.textContent = name;
+        item.appendChild(label);
+
+        // Factory presets are read-only, so they get no delete affordance.
+        if (!isFactory) {
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'preset-delete';
+            del.textContent = '×';
+            del.setAttribute('aria-label', `Delete preset ${name}`);
+            // deletePreset() removes the file immediately — only promptDelete() runs
+            // the confirmation, and that one is hard-wired to the *current* preset.
+            // Confirm here so deleting any listed preset asks first.
+            del.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!await confirmDeletePreset(name)) return;
+                await presetMgr.deletePreset(name);
+                await refreshFactoryPresetNames();
+                renderPresetDropdown();
+            });
+            item.appendChild(del);
+        }
+
+        item.addEventListener('click', async () => {
+            await presetMgr.loadPreset(name);
+            hidePresetDropdown();
+        });
+
+        presetDropdownEl.appendChild(item);
+    });
+}
+
+// Renders a confirmation strip at the top of the open dropdown and resolves once the
+// user picks. Resolves false if the dropdown has gone away, so a delete never
+// proceeds on an unanswered prompt.
+function confirmDeletePreset(presetName) {
+    return new Promise((resolve) => {
+        if (!presetDropdownEl) {
+            resolve(false);
+            return;
+        }
+
+        const strip = document.createElement('div');
+        strip.className = 'preset-confirm';
+        strip.textContent = `Delete "${presetName}"?`;
+
+        const buttons = document.createElement('div');
+        buttons.className = 'preset-confirm-buttons';
+
+        const finish = (answer) => {
+            strip.remove();
+            resolve(answer);
+        };
+
+        const yes = document.createElement('button');
+        yes.type = 'button';
+        yes.className = 'preset-btn preset-btn-text';
+        yes.textContent = 'Delete';
+        yes.addEventListener('click', (e) => { e.stopPropagation(); finish(true); });
+
+        const no = document.createElement('button');
+        no.type = 'button';
+        no.className = 'preset-btn preset-btn-text';
+        no.textContent = 'Cancel';
+        no.addEventListener('click', (e) => { e.stopPropagation(); finish(false); });
+
+        buttons.append(yes, no);
+        strip.appendChild(buttons);
+
+        presetDropdownEl.classList.add('show');
+        presetDropdownEl.prepend(strip);
+    });
+}
+
 // Initialize tooltips once their state above has been evaluated. This must stay at
 // the foot of the file: initializeUI() runs at module top level, where these
 // `let`/`const` bindings are still in the temporal dead zone, and the ReferenceError
 // would escape module evaluation and take initializeCrossoverDrag() down with it.
+// The preset bar is started here for the same reason — and separately from tooltips,
+// so a failure in one cannot prevent the other from running.
+function initializeDeferredUI() {
+    try {
+        initializeTooltips();
+    } catch (e) {
+        console.error('Tooltip initialization failed:', e);
+    }
+
+    initializePresets().catch((e) => console.error('Preset initialization failed:', e));
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeTooltips);
+    document.addEventListener('DOMContentLoaded', initializeDeferredUI);
 } else {
-    initializeTooltips();
+    initializeDeferredUI();
 }
