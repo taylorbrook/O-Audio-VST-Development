@@ -1,41 +1,62 @@
 ---
 plugin: O-ReverseDelay
-stage: ideation
-status: creative_brief_complete
-last_updated: 2026-07-23 00:00:00
+stage: 0
+status: complete
+last_updated: 2026-07-23
+complexity_score: 5.0
+staged_implementation: true
+orchestration_mode: true
+next_action: invoke_foundation_shell_agent
+next_stage: 1
+ready_for_implementation: true
+contract_checksums:
+  brief: sha256:7075c269df79e5dc1cf7f28d6ff4dda88805abb2c8086fc751e737f626efb07e
+  parameter_spec: sha256:34f6fdf831f785784354d09ff8df864f9c4df42e0fb2175fe5645be0ade3ef39
+  architecture: sha256:28f04b7ddc3e2d6d5dbb20616fde05a9f9e1665d8a4a14b8afd2a7765f0eecfa
+  roadmap: sha256:854f43dbdabb6bed6a7f7042d024d72b8a61afd7e95913d65fa12ef62258f98e
 ---
 
-# Resume Point
+# O-ReverseDelay Status
 
-## Current State: Creative Brief Complete
+## Current Position
 
-Creative brief has been finalized for O-ReverseDelay. Ready to proceed to UI mockup or implementation.
+Stage: 0 (Research & Planning) — complete
+Status: Architecture and roadmap documented, ready for implementation
+Progress: [##..................] 10%
 
 ## Completed So Far
 
 **Ideation:** ✓ Complete
-- Core concept defined (granular reverse smear delay, ambient focus)
-- Parameters specified (10 params: time/sync/division, grain size/density, damped feedback, width, mix)
-- UI vision: not specified — to be designed in mockup phase
-- Use cases identified (ambient swells, pads, vocal ambience, wash beds)
-- Requirements extracted with acceptance criteria
+- Creative brief, 14 requirements, 10 draft parameters
+
+**Stage 0:** ✓ Complete — Research & Planning
+- Plugin type: stereo audio effect (granular reverse delay, time-domain, stateful)
+- Complexity tier 3, research depth MODERATE
+- 7 features researched: capture buffer, reverse grain engine, tempo sync, damping filters, feedback stability, width, mix
+- Professional references: Strymon TimeLine (REV/grain), ValhallaDelay Reverse, Red Panda Particle 2, Boss DD-7 (contrast), yaleD
+- JUCE APIs verified against local 8.0.14 source: `dsp::IIR::ArrayCoefficients`, `AudioPlayHead::PositionInfo::getBpm()`, `dsp::DryWetMixer` (rejected), `SmoothedValue`
+- In-suite prior art mapped: O-GrainScatter (DelayBuffer, GrainScheduler), O-simpleGrain (WindowLuts, harness)
+- Every HIGH/MEDIUM-risk feature has a documented fallback (dual crossfaded reverse heads; RMS energy limiter)
+- Complexity score: 5.0 (capped) — **Staged implementation** (DSP phases 2.1–2.3, GUI phases 3.1–3.2)
+- ARCHITECTURE.md and ROADMAP.md documented
 
 ## Next Steps
 
-1. Stage 0 planning (`/plan O-ReverseDelay`) — research granular reverse DSP approach
-2. Create UI mockup (`/start O-ReverseDelay` → option 3)
-3. Start implementation (`/implement O-ReverseDelay`)
+1. Stage 1: Foundation — build system + APVTS shell (foundation-shell-agent via `/implement O-ReverseDelay`)
+2. Create UI mockup before Stage 3 (none exists yet; UI-02 needs sync/free conditional display)
+3. Review `research/ARCHITECTURE.md` and `ROADMAP.md`
 
 ## Context to Preserve
 
 **Key Decisions:**
-- Plugin type: Effect (Audio Effect — Granular Reverse Delay)
-- Reverse engine: granular smear (overlapping reversed grains), NOT chunked block reversal
-- Timing: both host-sync note divisions and free ms
-- Feedback: damping filters in loop (lowCut + highCut); no shimmer in v1.0
-- Primary use case: ambient swells & pads
-- Name normalized from "o-reverseDelay" to "O-ReverseDelay" (suite convention)
+- Granular reverse smear engine (reverse read offset D+2n over 3.5 s capture ring); per-grain parameter latching for click-free changes
+- Feedback through shared capture buffer (alternating-direction regenerations = intended character); tanh loop stability at unity gain
+- Damping: 2nd-order Butterworth IIR + ArrayCoefficients in-place (DSP-02); cutoff clamp 0.49·fs
+- Custom equal-power mix (DryWetMixer rejected — zero latency); density compensation before feedback tap
+- Render harness FIRST in Phase 2.1 — all Stage-2 acceptance criteria are offline-render assertions
 
-**Files Created:**
-- plugins/O-ReverseDelay/.planning/BRIEF.md
-- plugins/O-ReverseDelay/.planning/REQUIREMENTS.md
+## Files Created (Stage 0)
+- plugins/O-ReverseDelay/.planning/research/ARCHITECTURE.md
+- plugins/O-ReverseDelay/.planning/ROADMAP.md
+- plugins/O-ReverseDelay/.planning/stages/0-ideation/CONTEXT.md
+- plugins/O-ReverseDelay/NOTES.md
