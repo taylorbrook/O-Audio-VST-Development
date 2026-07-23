@@ -13,7 +13,10 @@
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
 #include <array>
+#include <map>
+#include <vector>
 #include "DSP/MultiBandProcessor.h"
+#include "OuariconPresetManager.h"
 
 // FFT Configuration
 static constexpr int FFT_ORDER = 11;                     // 2^11 = 2048 samples
@@ -122,6 +125,20 @@ private:
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
+
+public:
+    // v1.5.0: preset persistence (~/Library/O-MultiBandCompressor/Presets/).
+    // Declared immediately after `parameters` because members are constructed in
+    // declaration order regardless of access specifier, and the manager stores a
+    // reference to the APVTS — it must not be built before the APVTS exists.
+    // Public so the editor can bind the WebView preset native functions to it.
+    OuariconPresetManager presetManager;
+
+private:
+    // Builds the v1.5.0 factory preset table. Values are authored in engineering
+    // units and converted through each parameter's own NormalisableRange, so the
+    // skew on ATTACK / RELEASE / XOVER* / SC_* is honoured.
+    std::vector<OuariconPresetManager::FactoryPresetDef> buildFactoryPresets() const;
 
     // CR-02: raw parameter pointers resolved once in prepareToPlay so processBlock never
     // builds juce::String IDs or hashes the parameter map on the audio thread.

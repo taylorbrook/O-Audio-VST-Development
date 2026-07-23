@@ -45,6 +45,23 @@ public:
         scHPF.reset();
         scLPF.reset();
 
+        // Seed both filters with a real biquad here, on the host thread. This is what
+        // makes the later assignments RT-safe: Coefficients::operator=(std::array)
+        // calls clearQuick() + ensureStorageAllocated(8) + add(), which only touches
+        // the heap if the storage is not already big enough. Doing it once here means
+        // every subsequent update on the audio thread reuses that allocation.
+        *scHPF.coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(
+            sampleRate, 1000.0f, 0.707f);
+        *scLPF.coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
+            sampleRate, 1000.0f, 0.707f);
+
+        // Force the first processed block to reconfigure from the live parameters
+        // rather than trusting a cached frequency from a previous sample rate.
+        currentSCHPFFreq = 0.0f;
+        currentSCLPFFreq = 0.0f;
+        scHPFEnabled = false;
+        scLPFEnabled = false;
+
         // Initialize auto-makeup
         averageGainReduction = 0.0f;
         autoMakeupSmoothingCoeff = 1.0f - std::exp(-1.0f / (0.5f * static_cast<float>(sampleRate))); // 500ms smoothing
@@ -196,35 +213,47 @@ private:
         releaseCoeff = std::exp(-1.0f / (releaseSec * static_cast<float>(currentSampleRate)));
     }
 
+    // v1.6.0 fix: the enabled flags are now derived from the requested frequency on
+    // every call, and only the *coefficients* are recomputed conditionally.
+    //
+    // The previous form set scHPFEnabled = true only inside the "frequency changed"
+    // branch, so the case (freq > 0 && freq == currentFreq) fell through both branches
+    // and left the flag at whatever it was. Any path that had disabled the filter left
+    // it disabled even though the parameter asked for it — reachable with one knob
+    // (set SC HPF to 100 Hz, down to Off, back to 100 Hz: silently stayed off) and hit
+    // constantly when switching presets, since currentSCHPFFreq survives the switch.
+    //
+    // RT-safety: ArrayCoefficients returns a stack std::array with identical maths,
+    // where Coefficients::makeHighPass heap-allocates a ref-counted object on the
+    // audio thread.
     void updateSidechainFilters(float hpfFreq, float lpfFreq)
     {
         // HPF: 0 means off, otherwise 20-2000 Hz
-        if (hpfFreq > 0.0f && hpfFreq != currentSCHPFFreq)
+        const bool wantHPF = hpfFreq > 0.0f;
+
+        if (wantHPF && hpfFreq != currentSCHPFFreq)
         {
-            auto hpfCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(
+            // operator=(std::array) normalises the 6 raw values by a0 and stores the
+            // resulting 5. Do NOT memcpy the array over getRawCoefficients() — the
+            // stored form is 5 normalised values, not the 6 raw ones.
+            *scHPF.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
                 currentSampleRate, hpfFreq, 0.707f); // Q = 0.707 (Butterworth)
-            *scHPF.coefficients = *hpfCoeffs;
             currentSCHPFFreq = hpfFreq;
-            scHPFEnabled = true;
-        }
-        else if (hpfFreq == 0.0f)
-        {
-            scHPFEnabled = false;
         }
 
-        // LPF: 0 means off, otherwise 500-20000 Hz
-        if (lpfFreq > 0.0f && lpfFreq < 20000.0f && lpfFreq != currentSCLPFFreq)
+        scHPFEnabled = wantHPF;
+
+        // LPF: 0 means off, and 20 kHz or above is treated as off too
+        const bool wantLPF = lpfFreq > 0.0f && lpfFreq < 20000.0f;
+
+        if (wantLPF && lpfFreq != currentSCLPFFreq)
         {
-            auto lpfCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
+            *scLPF.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
                 currentSampleRate, lpfFreq, 0.707f); // Q = 0.707 (Butterworth)
-            *scLPF.coefficients = *lpfCoeffs;
             currentSCLPFFreq = lpfFreq;
-            scLPFEnabled = true;
         }
-        else if (lpfFreq == 0.0f || lpfFreq >= 20000.0f)
-        {
-            scLPFEnabled = false;
-        }
+
+        scLPFEnabled = wantLPF;
     }
 
     float applySidechainFilters(float input)

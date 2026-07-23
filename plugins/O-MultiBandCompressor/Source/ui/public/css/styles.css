@@ -24,7 +24,11 @@ body {
 
 .plugin-container {
     width: 900px;
-    height: 600px;
+    /* v1.5.0: 600 -> 640. The per-band Detector/Sidechain sub-group added a third
+       knob row, which fitted inside 600px with almost no slack; 40px more keeps the
+       band columns from crowding their button row. Mirror any change here in
+       PluginEditor.cpp's setSize(). */
+    height: 640px;
     background: linear-gradient(135deg, #f5f0e6 0%, #ebe3d5 100%);
     border: 3px solid #5C4033;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
@@ -78,6 +82,185 @@ body {
     text-transform: uppercase;
     letter-spacing: 1px;
     font-weight: 600;
+}
+
+/* ===== v1.5.0: PRESET BAR ===== */
+
+.preset-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    /* Anchors the absolutely-positioned dropdown below. */
+    position: relative;
+}
+
+.preset-btn {
+    height: 20px;
+    min-width: 20px;
+    padding: 0 6px;
+    background: rgba(255,255,255,0.4);
+    border: 1px solid #5C4033;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 10px;
+    line-height: 1;
+    color: #3C2F2F;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+
+.preset-btn:hover {
+    background: rgba(255,255,255,0.7);
+}
+
+.preset-btn:active {
+    background: rgba(107, 142, 35, 0.35);
+}
+
+.preset-name-display {
+    min-width: 150px;
+    max-width: 190px;
+    height: 20px;
+    padding: 0 8px;
+    background: rgba(255,248,220,0.75);
+    border: 1px solid #5C4033;
+    border-radius: 3px;
+    font-size: 11px;
+    line-height: 18px;
+    color: #3C2F2F;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    /* A long user preset name must not stretch the header. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.preset-name-display:hover {
+    background: rgba(255,248,220,0.95);
+}
+
+.preset-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 24px;      /* aligned with the name display, clear of the ◀ button */
+    width: 190px;
+    margin-top: 4px;
+    background: rgba(255, 248, 220, 0.98);
+    border: 2px solid #5C4033;
+    border-radius: 4px;
+    box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 9999;
+}
+
+.preset-dropdown.show {
+    display: block;
+}
+
+/* The header and .spectrum-section both sit at z-index 1, and the spectrum comes
+   later in the DOM, so it wins the tie and would clip the open dropdown. Lift the
+   whole header while the list is open. */
+.plugin-header:has(.preset-dropdown.show) {
+    z-index: 9999;
+}
+
+.preset-dropdown-header {
+    padding: 4px 10px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #5C4033;
+    background: rgba(139, 168, 112, 0.25);
+    border-bottom: 1px solid rgba(92, 64, 51, 0.4);
+    cursor: default;
+}
+
+.preset-dropdown-item {
+    padding: 5px 10px;
+    font-size: 11px;
+    color: #3C2F2F;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.preset-dropdown-item:hover {
+    background: rgba(139, 168, 112, 0.3);
+}
+
+.preset-dropdown-item.active {
+    background: rgba(107, 142, 35, 0.3);
+    font-weight: 700;
+}
+
+.preset-dropdown-item.empty {
+    cursor: default;
+    color: #8B7355;
+    font-style: italic;
+}
+
+.preset-dropdown-item.empty:hover {
+    background: transparent;
+}
+
+/* Delete affordance on user presets only. Kept out of the flow until hover so the
+   list reads as names, not as a row of buttons. */
+.preset-delete {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: none;
+    border-radius: 2px;
+    background: transparent;
+    color: #8B4033;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.preset-dropdown-item:hover .preset-delete {
+    opacity: 0.75;
+}
+
+.preset-delete:hover {
+    opacity: 1;
+    background: rgba(139, 64, 51, 0.2);
+}
+
+/* In-DOM delete confirmation. window.confirm() is a silent no-op in some JUCE
+   WebView backends, so the module is given an onConfirmDelete hook instead. */
+.preset-confirm {
+    padding: 6px 10px;
+    font-size: 10px;
+    color: #3C2F2F;
+    background: rgba(212, 165, 40, 0.25);
+    border-bottom: 1px solid rgba(92, 64, 51, 0.4);
+}
+
+.preset-confirm-buttons {
+    display: flex;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+.preset-confirm-buttons .preset-btn {
+    flex: 1;
 }
 
 /* v1.4.1: header right cluster — brand mark plus the help toggle */
@@ -413,6 +596,37 @@ body {
     color: #5C4033;
     font-weight: 600;
     min-height: 11px;
+}
+
+/* ===== v1.5.0: DETECTOR / SIDECHAIN SUB-GROUP =====
+   Peak/RMS blend and the sidechain HPF/LPF shape what the compressor *hears*
+   rather than what it does about it, so they are set apart from the six
+   gain-stage knobs by a rule and rendered a size down. */
+.detector-group {
+    width: 100%;
+    padding-top: 4px;
+    border-top: 1px solid rgba(139, 115, 85, 0.45);
+}
+
+.detector-title {
+    font-size: 7px;
+    color: #8B7355;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+    margin-bottom: 3px;
+}
+
+.detector-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+}
+
+.knob-sm {
+    width: 28px;
+    height: 28px;
 }
 
 /* Button Row */

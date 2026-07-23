@@ -46,6 +46,11 @@ private:
     // preference, so presets and sessions must never carry it.
     juce::PropertiesFile uiPrefs;
 
+    // v1.5.0: kept alive across the async Save/Load dialogs. Declared ahead of the
+    // WebView for the same reason as uiPrefs — the native functions that own it are
+    // registered on the WebView, which must be torn down first.
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     // CRITICAL: Member declaration order (prevents crashes in release builds)
     // Pattern from troubleshooting/patterns/stage-3-patterns.md
     // Order: Relays → WebView → Attachments

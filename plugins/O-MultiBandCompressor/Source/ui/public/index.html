@@ -11,6 +11,21 @@
         <!-- Header -->
         <header class="plugin-header">
             <h1 class="plugin-title">O-MultiBandCompressor</h1>
+
+            <!-- v1.5.0: preset bar. The dropdown is a sibling of the buttons and is
+                 positioned against .preset-bar, which needs position:relative. -->
+            <div class="preset-bar" id="presetBar">
+                <button type="button" class="preset-btn" id="prevPreset"
+                        aria-label="Previous preset">&#9664;</button>
+                <div class="preset-name-display" id="presetName" role="button" tabindex="0"
+                     aria-haspopup="listbox" aria-expanded="false">Default</div>
+                <button type="button" class="preset-btn" id="nextPreset"
+                        aria-label="Next preset">&#9654;</button>
+                <button type="button" class="preset-btn preset-btn-text" id="savePreset">Save</button>
+                <button type="button" class="preset-btn preset-btn-text" id="loadPreset">Load</button>
+                <div class="preset-dropdown" id="presetDropdown" role="listbox" aria-label="Presets"></div>
+            </div>
+
             <div class="header-right">
                 <span class="brand-name">Ouaricon Audio</span>
                 <!-- v1.4.1: toggles the hover-help layer. Its own tip is exempt
@@ -101,6 +116,26 @@
                             <span class="knob-value" id="low-makeup-value">0 dB</span>
                         </div>
                     </div>
+                    <div class="detector-group">
+                        <div class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <input type="range" id="low-peak-rms" class="knob knob-sm" min="0" max="1" step="0.001" value="0.5">
+                                <label class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="low-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="low-sc-hpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC HPF</label>
+                                <span class="knob-value" id="low-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="low-sc-lpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC LPF</label>
+                                <span class="knob-value" id="low-sc-lpf-value">Off</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="button-row">
                         <button type="button" class="band-button" id="low-solo" data-label="Solo" aria-pressed="false">SOLO</button>
                         <button type="button" class="band-button" id="low-bypass" data-label="Bypass" aria-pressed="false">BYPASS</button>
@@ -150,6 +185,26 @@
                             <input type="range" id="lomid-makeup" class="knob" min="0" max="1" step="0.001" value="0.333">
                             <label class="knob-label">Makeup</label>
                             <span class="knob-value" id="lomid-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="detector-group">
+                        <div class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <input type="range" id="lomid-peak-rms" class="knob knob-sm" min="0" max="1" step="0.001" value="0.5">
+                                <label class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="lomid-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="lomid-sc-hpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC HPF</label>
+                                <span class="knob-value" id="lomid-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="lomid-sc-lpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC LPF</label>
+                                <span class="knob-value" id="lomid-sc-lpf-value">Off</span>
+                            </div>
                         </div>
                     </div>
                     <div class="button-row">
@@ -203,6 +258,26 @@
                             <span class="knob-value" id="himid-makeup-value">0 dB</span>
                         </div>
                     </div>
+                    <div class="detector-group">
+                        <div class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <input type="range" id="himid-peak-rms" class="knob knob-sm" min="0" max="1" step="0.001" value="0.5">
+                                <label class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="himid-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="himid-sc-hpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC HPF</label>
+                                <span class="knob-value" id="himid-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="himid-sc-lpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC LPF</label>
+                                <span class="knob-value" id="himid-sc-lpf-value">Off</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="button-row">
                         <button type="button" class="band-button" id="himid-solo" data-label="Solo" aria-pressed="false">SOLO</button>
                         <button type="button" class="band-button" id="himid-bypass" data-label="Bypass" aria-pressed="false">BYPASS</button>
@@ -252,6 +327,26 @@
                             <input type="range" id="high-makeup" class="knob" min="0" max="1" step="0.001" value="0.333">
                             <label class="knob-label">Makeup</label>
                             <span class="knob-value" id="high-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="detector-group">
+                        <div class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <input type="range" id="high-peak-rms" class="knob knob-sm" min="0" max="1" step="0.001" value="0.5">
+                                <label class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="high-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="high-sc-hpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC HPF</label>
+                                <span class="knob-value" id="high-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <input type="range" id="high-sc-lpf" class="knob knob-sm" min="0" max="1" step="0.001" value="0">
+                                <label class="knob-label">SC LPF</label>
+                                <span class="knob-value" id="high-sc-lpf-value">Off</span>
+                            </div>
                         </div>
                     </div>
                     <div class="button-row">

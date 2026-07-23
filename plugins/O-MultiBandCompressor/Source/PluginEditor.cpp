@@ -148,6 +148,167 @@ OMultiBandCompressorAudioProcessorEditor::OMultiBandCompressorAudioProcessorEdit
                     complete(enabled);
                 })
 
+            // ========== v1.5.0: PRESET MANAGER NATIVE FUNCTIONS ==========
+            // The two dialog-driven calls capture a SafePointer rather than `this`:
+            // the editor can be destroyed while the OS file dialog is still open, and
+            // `complete` is owned by the WebView impl that dies with it. On the null
+            // path we return bare — calling complete() there would itself be a
+            // use-after-free.
+
+            .withNativeFunction("savePreset",
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete(false);
+                        return;
+                    }
+                    complete(processorRef.presetManager.savePreset(args[0].toString()));
+                })
+
+            .withNativeFunction("savePresetWithDialog",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    fileChooser = std::make_unique<juce::FileChooser>(
+                        "Save Preset",
+                        processorRef.presetManager.getUserPresetsDirectory(),
+                        "*.json");
+
+                    juce::Component::SafePointer<OMultiBandCompressorAudioProcessorEditor> safeThis(this);
+                    fileChooser->launchAsync(
+                        juce::FileBrowserComponent::saveMode
+                            | juce::FileBrowserComponent::canSelectFiles,
+                        [safeThis, complete](const juce::FileChooser& fc)
+                        {
+                            if (safeThis == nullptr)
+                                return;
+
+                            auto* result = new juce::DynamicObject();
+                            auto results = fc.getResults();
+
+                            if (results.isEmpty())
+                            {
+                                result->setProperty("success", false);
+                                result->setProperty("name", juce::String());
+                                complete(juce::var(result));
+                                return;
+                            }
+
+                            auto presetName = results.getFirst().getFileNameWithoutExtension();
+                            const bool ok = safeThis->processorRef.presetManager.savePreset(presetName);
+                            result->setProperty("success", ok);
+                            result->setProperty("name", ok ? presetName : juce::String());
+                            complete(juce::var(result));
+                        });
+                })
+
+            .withNativeFunction("loadPreset",
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete(false);
+                        return;
+                    }
+                    complete(processorRef.presetManager.loadPreset(args[0].toString()));
+                })
+
+            .withNativeFunction("loadPresetFromFile",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    fileChooser = std::make_unique<juce::FileChooser>(
+                        "Load Preset",
+                        processorRef.presetManager.getPresetsDirectory(),
+                        "*.json");
+
+                    juce::Component::SafePointer<OMultiBandCompressorAudioProcessorEditor> safeThis(this);
+                    fileChooser->launchAsync(
+                        juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectFiles,
+                        [safeThis, complete](const juce::FileChooser& fc)
+                        {
+                            if (safeThis == nullptr)
+                                return;
+
+                            auto* result = new juce::DynamicObject();
+                            auto results = fc.getResults();
+
+                            if (results.isEmpty())
+                            {
+                                result->setProperty("success", false);
+                                result->setProperty("name", juce::String());
+                                complete(juce::var(result));
+                                return;
+                            }
+
+                            auto file = results.getFirst();
+                            const bool ok = safeThis->processorRef.presetManager.loadPresetFromFile(file);
+                            result->setProperty("success", ok);
+                            result->setProperty("name", ok ? file.getFileNameWithoutExtension()
+                                                          : juce::String());
+                            complete(juce::var(result));
+                        });
+                })
+
+            .withNativeFunction("getPresetList",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    juce::Array<juce::var> names;
+                    for (const auto& name : processorRef.presetManager.getPresetList())
+                        names.add(name);
+                    complete(juce::var(names));
+                })
+
+            .withNativeFunction("getCurrentPreset",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    complete(processorRef.presetManager.getCurrentPresetName());
+                })
+
+            .withNativeFunction("selectNextPreset",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    complete(processorRef.presetManager.getNextPreset());
+                })
+
+            .withNativeFunction("selectPreviousPreset",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    complete(processorRef.presetManager.getPreviousPreset());
+                })
+
+            .withNativeFunction("deletePreset",
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete(false);
+                        return;
+                    }
+                    complete(processorRef.presetManager.deletePreset(args[0].toString()));
+                })
+
+            .withNativeFunction("isFactoryPreset",
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    if (args.isEmpty())
+                    {
+                        complete(false);
+                        return;
+                    }
+                    complete(processorRef.presetManager.isFactoryPreset(args[0].toString()));
+                })
+
             // Register global relays
             .withOptionsFrom(inputGainRelay)
             .withOptionsFrom(outputGainRelay)
@@ -217,8 +378,9 @@ OMultiBandCompressorAudioProcessorEditor::OMultiBandCompressorAudioProcessorEdit
 
     addAndMakeVisible(*webView);
 
-    // Set window size
-    setSize(900, 600);
+    // Set window size. Must match .plugin-container in css/styles.css — v1.5.0 grew
+    // this from 600 to 640 to seat the per-band Detector/Sidechain knob row.
+    setSize(900, 640);
 
     // Start timer for metering updates (30 Hz = 33ms)
     startTimerHz(30);
@@ -283,6 +445,7 @@ OMultiBandCompressorAudioProcessorEditor::getResource(const juce::String& url)
         { "/js/app.js",                        BinaryData::app_js,                  BinaryData::app_jsSize,                  "application/javascript" },
         { "/js/juce/index.js",                 BinaryData::index_js,                BinaryData::index_jsSize,                "application/javascript" },
         { "/js/juce/check_native_interop.js",  BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize, "application/javascript" },
+        { "/modules/preset-manager.js",        BinaryData::presetmanager_js,        BinaryData::presetmanager_jsSize,        "application/javascript" },
     };
 
     for (const auto& entry : resourceMap)
