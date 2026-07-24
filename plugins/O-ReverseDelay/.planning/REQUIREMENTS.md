@@ -37,8 +37,8 @@ lastUpdated: 2026-07-24
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | All 10 parameters controllable from the plugin UI with value readouts from SliderState.getScaledValue() | should | pending | stage-3 |
-| UI-02 | Sync/Free mode switch shows the relevant time control (noteDivision vs delayTime) | nice | pending | stage-3 |
+| UI-01 | All 10 parameters controllable from the plugin UI with value readouts from SliderState.getScaledValue() | should | complete | stage-3 |
+| UI-02 | Sync/Free mode switch shows the relevant time control (noteDivision vs delayTime) | nice | complete | stage-3 |
 
 ### Performance (PERF)
 
@@ -102,6 +102,21 @@ lastUpdated: 2026-07-24
 **Acceptance Criteria:**
 - [x] No allocations, locks, or logging in processBlock (code review)
 - [x] pluginval strictness 10 passes 3 consecutive runs
+
+### UI-01: Full parameter control with scaled readouts
+
+**Acceptance Criteria:**
+- [x] All 10 parameters bound two-way (8 WebSliderRelay + 2 WebComboBoxRelay with attachments); readouts equal `createParameterLayout()` defaults on open
+- [x] Readouts computed from `SliderState.getScaledValue()` — at normalised 0.5 the skewed params read their exact `setSkewForCentre` values (delayTime 316 ms, grainSize 158 ms, lowCut 200 Hz, highCut 3162 Hz)
+- [x] Dblclick-reset returns every knob to its engineering default via `getParameterDefaults` (no JS default table)
+- [x] pluginval strictness 10 Editor Automation passes on VST3 and AU *(verified 2026-07-24, stage-3)*
+
+### UI-02: Sync/Free time-control swap
+
+**Acceptance Criteria:**
+- [x] Slot bounding box identical in both modes (`x:117 y:198 w:86 h:100`) — zero layout shift
+- [x] Sync shows `noteDivision` (13 divisions, contract order, default 1/4); Free shows `delayTime`; both stay relay-bound so neither is ever a dead control
+- [x] FREE/SYNC labels authored in HTML survive binding; state published via `aria-pressed` + active class
 
 ### COMPAT-01: Validation
 
