@@ -18,8 +18,12 @@ juce_add_console_app(O-ReverseDelay-render-test
 target_sources(O-ReverseDelay-render-test PRIVATE
     main.cpp
     # Reach into the plugin source tree — share the engine, not a static lib.
-    # Stage 1/2 has no PluginEditor.cpp (createEditor() returns
-    # GenericAudioProcessorEditor from within PluginProcessor.cpp).
+    #
+    # The Stage-3 WebView editor is deliberately NOT listed here, and must never
+    # be: this target defines JUCE_WEB_BROWSER=0, under which the editor's
+    # WebBrowserComponent types do not exist. createEditor() is guarded to return
+    # a GenericAudioProcessorEditor in this build
+    # (pattern_render_harness_breaks_on_webview_editor).
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
 )
 
