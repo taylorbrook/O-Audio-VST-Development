@@ -115,6 +115,10 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     scheduler.prepare(sampleRate);
     grainPool.clear();
 
+    // Deterministic width-spread sequence per prepare (harness reproducibility).
+    rngState = 0x12345678u;
+    panSign  = 1.0f;
+
     wetScratch.setSize(2, maxBlock);
     fbScratch.setSize(2, maxBlock);
     wetScratch.clear();
@@ -194,6 +198,8 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float delayTimeMs = pDelayTime->load();
     const float grainSizeMs = pGrainSize->load();
     const float densityPct  = pDensity->load();
+    const float widthNorm   = pWidth->load() * 0.01f;
+    const bool  syncMode    = pSyncMode->load() >= 0.5f;
 
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
@@ -202,9 +208,42 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     highCutSmoothed.setTargetValue(pHighCut->load());
 
     // ---- (1) resolve grain anchor delay D -----------------------------------
-    // Phase 2.1: free mode only. Tempo sync (Phase 2.3) will change only the
-    // VALUE of D here — never the spawn timing (no conditional routing).
-    const int D = juce::jmax(1, static_cast<int>(delayTimeMs * 0.001 * currentSampleRate));
+    // Sync only changes the VALUE of D per block — never the spawn timing (no
+    // conditional routing; the scheduler always runs the free countdown).
+    // Fallback to the free delayTime when the playhead is null OR getBpm() is
+    // empty (COMPAT-02). D is consumed only at spawn time, so a Sync<->Free
+    // switch changes only next-spawn D — in-flight grains finish on latched
+    // values (the click-free mechanism).
+    float effectiveDelayMs = delayTimeMs;
+
+    if (syncMode)
+    {
+        if (auto* playHead = getPlayHead())
+        {
+            if (const auto position = playHead->getPosition())
+            {
+                if (const auto bpm = position->getBpm())
+                {
+                    // noteDivision -> beats, contract order:
+                    // 1/16, 1/16D, 1/16T, 1/8, 1/8D, 1/8T, 1/4, 1/4D, 1/4T,
+                    // 1/2, 1/2D, 1/2T, 1/1
+                    static constexpr double kDivisionBeats[13] = {
+                        0.25, 0.375, 1.0 / 6.0,
+                        0.5,  0.75,  1.0 / 3.0,
+                        1.0,  1.5,   2.0 / 3.0,
+                        2.0,  3.0,   4.0 / 3.0,
+                        4.0
+                    };
+
+                    const int div = juce::jlimit(0, 12, static_cast<int>(pNoteDivision->load()));
+                    const double ms = kDivisionBeats[div] * 60000.0 / juce::jmax(1.0, *bpm);
+                    effectiveDelayMs = static_cast<float>(juce::jlimit(50.0, 2000.0, ms));
+                }
+            }
+        }
+    }
+
+    const int D = juce::jmax(1, static_cast<int>(effectiveDelayMs * 0.001 * currentSampleRate));
     const int G = juce::jmax(2, static_cast<int>(grainSizeMs * 0.001 * currentSampleRate));
 
     const float overlap         = 1.0f + (densityPct * 0.01f) * 7.0f;
@@ -254,10 +293,19 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         g.G           = G;
         g.invG        = 1.0f / static_cast<float>(G);
         g.gain        = grainGain;
-        g.gL          = 0.70710677f;   // width spread lands in Phase 2.3 — center pan for now
-        g.gR          = 0.70710677f;
         g.age         = 0;
         g.startOffset = offset;
+
+        // Width spread: per-grain equal-power pan, latched at spawn, never
+        // smoothed. Alternating-sign random bias — consecutive grains ping
+        // left/right; magnitude in [kPanBias, 1] scaled by width. width=0
+        // collapses to pan 0.5 -> gL = gR = 1/sqrt(2) (centered dual-mono).
+        panSign = -panSign;
+        const float spread = panSign * (kPanBias + (1.0f - kPanBias) * nextRand01());
+        const float pan    = 0.5f + widthNorm * 0.5f * spread;
+        const float phase  = pan * juce::MathConstants<float>::halfPi;
+        g.gL = std::cos(phase);
+        g.gR = std::sin(phase);
     }
 
     // ---- (4) render active grains into wetScratch (overlap-add) -------------

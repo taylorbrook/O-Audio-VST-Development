@@ -7,8 +7,8 @@
 #include "dsp/ReverseGrain.h"
 #include "dsp/WindowLut.h"
 
-// O-ReverseDelay — granular reverse delay (Stage 2 DSP, Phase 2.2: core reverse
-// wet path + damped tanh-stable feedback loop; tempo sync + width land in 2.3).
+// O-ReverseDelay — granular reverse delay (Stage 2 DSP, Phase 2.3 complete:
+// reverse wet path + damped tanh-stable feedback loop + tempo sync + width).
 // APVTS with 10 parameters per research/ARCHITECTURE.md (immutable contract).
 // NOTE: this file (and PluginProcessor.cpp) must stay free of editor-only includes —
 // the render harness compiles the processor without any editor sources.
@@ -79,16 +79,34 @@ private:
 
     double currentSampleRate = 44100.0;
 
+    // Width-spread RNG (RT-safe xorshift32 — never juce::Random::getSystemRandom
+    // on the audio thread) + alternating pan sign so consecutive grains ping
+    // left/right rather than clumping. Bias amount is a harness-tuned constant
+    // (probe K, D5), frozen once green.
+    static constexpr float kPanBias = 0.5f;
+    juce::uint32 rngState = 0x12345678u;
+    float        panSign  = 1.0f;
+
+    float nextRand01() noexcept
+    {
+        juce::uint32 x = rngState;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        rngState = x;
+        return static_cast<float>(x >> 8) * (1.0f / 16777216.0f);   // [0, 1)
+    }
+
     // Cached APVTS atomics — read once per block on the audio thread.
     std::atomic<float>* pDelayTime    = nullptr;
-    std::atomic<float>* pSyncMode     = nullptr;   // consumed in Phase 2.3
-    std::atomic<float>* pNoteDivision = nullptr;   // consumed in Phase 2.3
+    std::atomic<float>* pSyncMode     = nullptr;
+    std::atomic<float>* pNoteDivision = nullptr;
     std::atomic<float>* pGrainSize    = nullptr;
     std::atomic<float>* pDensity      = nullptr;
-    std::atomic<float>* pFeedback     = nullptr;   // consumed in Phase 2.2
-    std::atomic<float>* pLowCut       = nullptr;   // consumed in Phase 2.2
-    std::atomic<float>* pHighCut      = nullptr;   // consumed in Phase 2.2
-    std::atomic<float>* pWidth        = nullptr;   // consumed in Phase 2.3
+    std::atomic<float>* pFeedback     = nullptr;
+    std::atomic<float>* pLowCut       = nullptr;
+    std::atomic<float>* pHighCut      = nullptr;
+    std::atomic<float>* pWidth        = nullptr;
     std::atomic<float>* pMix          = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ReverseDelayProcessor)
