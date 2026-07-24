@@ -50,7 +50,7 @@ lastUpdated: 2026-07-23
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
 | COMPAT-02 | Tempo sync degrades gracefully when host provides no BPM (falls back to free time) | must | pending | stage-2 |
 
 ### Quality (QUAL)
@@ -106,7 +106,7 @@ lastUpdated: 2026-07-23
 ### COMPAT-01: Validation
 
 **Acceptance Criteria:**
-- [ ] auval passes (AU); pluginval passes VST3 and AU at strictness 10
+- [x] auval passes (AU); pluginval passes VST3 and AU at strictness 10 *(verified 2026-07-23, stage-1)*
 
 ### COMPAT-02: No-tempo fallback
 

@@ -44,8 +44,34 @@
                               full-range during playback: no clicks/zipper
                               via the probe-C first-difference detector.
 
-    Phase 2.3 scaffolds included now (PLAN Task 1): MockPlayHead (sync
-    probes I/J), continuityFraction.
+    Phase 2.3 probes:
+      I. sync-spacing       — (FUNC-02) MockPlayHead @120 BPM, Sync 1/4 ->
+                              first-echo latency 0.5 s ±1 block; free-mode
+                              variants at 150/500/1200 ms. The raw onset is
+                              quantised to the grain spawn grid (jitter up to
+                              2*interval > 1 block at legal grain sizes), so
+                              the tight latency check uses the ENERGY CENTROID
+                              of the hann^2-symmetric bloom (= T+D+G for any
+                              grid phase); the onset keeps a grid-bounded
+                              sanity window.
+      J. no-playhead        — (COMPAT-02) setPlayHead never called (fresh
+                              instance), and bonus getBpm()==nullopt case:
+                              Sync mode falls back to delayTime, no crash,
+                              no silence.
+      K. width              — (FUNC-04) width=0 -> centered dual-mono (L/R
+                              RMS match + corr ~1); width=100 -> wet-tail
+                              corr < 0.9 + frame-level |L-R| energy well
+                              above the width-0 run.
+      L. mono->stereo       — (D4 open item) 1-in/2-out: output L == R,
+                              wet level matches the stereo width-0 run
+                              within 0.5 dB.
+      M. all-param sweep    — (QUAL-01) each of the 10 params ramped
+                              full-range (triangle over the render), one at
+                              a time, others at defaults; probe-C click
+                              detector in two tiers (latched content params
+                              legitimately re-seat grain reads) + allFinite
+                              + peak bound; plus a Sync<->Free mode switch
+                              mid-playback.
 
   ==============================================================================
 */
@@ -106,6 +132,82 @@ static double maxAbsStep (const std::vector<float>& x)
     double m = 0.0;
     for (size_t i = 1; i < x.size(); ++i)
         m = juce::jmax (m, (double) std::abs (x[i] - x[i - 1]));
+    return m;
+}
+
+// Energy-weighted centroid (sample index) of x over [off, off+len); -1 if empty.
+static double energyCentroid (const std::vector<float>& x, int off, int len)
+{
+    const int lo = juce::jmax (0, off);
+    const int hi = juce::jmin ((int) x.size(), off + len);
+    double num = 0.0, den = 0.0;
+    for (int i = lo; i < hi; ++i)
+    {
+        const double e = (double) x[(size_t) i] * (double) x[(size_t) i];
+        num += e * (double) i;
+        den += e;
+    }
+    return den > 0.0 ? num / den : -1.0;
+}
+
+// First index with |x[i]| > thresh, or -1.
+static int firstAbove (const std::vector<float>& x, double thresh)
+{
+    for (size_t i = 0; i < x.size(); ++i)
+        if ((double) std::abs (x[i]) > thresh)
+            return (int) i;
+    return -1;
+}
+
+// Mean-removed Pearson correlation between channels a/b over [off, off+len).
+static double corrRange (const std::vector<float>& a, const std::vector<float>& b,
+                         int off, int len)
+{
+    const int lo = juce::jmax (0, off);
+    const int hi = juce::jmin ((int) juce::jmin (a.size(), b.size()), off + len);
+    if (hi - lo < 2) return 0.0;
+
+    const double n = (double) (hi - lo);
+    double ma = 0.0, mb = 0.0;
+    for (int i = lo; i < hi; ++i) { ma += a[(size_t) i]; mb += b[(size_t) i]; }
+    ma /= n; mb /= n;
+
+    double num = 0.0, ea = 0.0, eb = 0.0;
+    for (int i = lo; i < hi; ++i)
+    {
+        const double da = (double) a[(size_t) i] - ma;
+        const double db = (double) b[(size_t) i] - mb;
+        num += da * db;
+        ea  += da * da;
+        eb  += db * db;
+    }
+    const double den = std::sqrt (ea * eb);
+    return den > 1.0e-12 ? num / den : 0.0;
+}
+
+// RMS of the channel difference (frame-level |L-R| energy) over [off, off+len).
+static double diffRms (const std::vector<float>& a, const std::vector<float>& b,
+                       int off, int len)
+{
+    const int lo = juce::jmax (0, off);
+    const int hi = juce::jmin ((int) juce::jmin (a.size(), b.size()), off + len);
+    if (hi <= lo) return 0.0;
+
+    double acc = 0.0;
+    for (int i = lo; i < hi; ++i)
+    {
+        const double d = (double) a[(size_t) i] - (double) b[(size_t) i];
+        acc += d * d;
+    }
+    return std::sqrt (acc / (double) (hi - lo));
+}
+
+static double maxAbsDiff (const std::vector<float>& a, const std::vector<float>& b)
+{
+    const size_t n = juce::jmin (a.size(), b.size());
+    double m = 0.0;
+    for (size_t i = 0; i < n; ++i)
+        m = juce::jmax (m, (double) std::abs (a[i] - b[i]));
     return m;
 }
 
@@ -321,7 +423,7 @@ static StereoRender renderEffect (ReverseDelayProcessor& proc, double seconds, d
 static void setBaseline (juce::AudioProcessorValueTreeState& a)
 {
     setParam (a, "delayTime",    500.0f);
-    setParam (a, "syncMode",       0.0f);   // Free — sync engine lands in Phase 2.3
+    setParam (a, "syncMode",       0.0f);   // Free — Sync exercised by probes I/J/M
     setParam (a, "noteDivision",   6.0f);   // 1/4 (inert in Phase 2.1)
     setParam (a, "grainSize",    200.0f);
     setParam (a, "density",       60.0f);
@@ -330,6 +432,22 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     setParam (a, "highCut",     8000.0f);
     setParam (a, "width",          0.0f);
     setParam (a, "mix",          100.0f);
+}
+
+// Plugin defaults for the QUAL-01 all-parameter sweep (probe M): every value
+// matches createParameterLayout()'s defaults (incl. syncMode = Sync).
+static void setDefaults (juce::AudioProcessorValueTreeState& a)
+{
+    setParam (a, "delayTime",    500.0f);
+    setParam (a, "syncMode",       1.0f);   // Sync (plugin default)
+    setParam (a, "noteDivision",   6.0f);   // 1/4
+    setParam (a, "grainSize",    200.0f);
+    setParam (a, "density",       60.0f);
+    setParam (a, "feedback",      40.0f);
+    setParam (a, "lowCut",       100.0f);
+    setParam (a, "highCut",     8000.0f);
+    setParam (a, "width",         60.0f);
+    setParam (a, "mix",           35.0f);
 }
 
 //==============================================================================
@@ -356,7 +474,7 @@ int main()
     auto currentD = [&] { return juce::jmax (1, (int) (paramValue (apvts, "delayTime") * 0.001 * fs)); };
     auto currentG = [&] { return juce::jmax (2, (int) (paramValue (apvts, "grainSize") * 0.001 * fs)); };
 
-    std::printf ("O-ReverseDelay render-harness — Phase 2.1 probes, fs=%.0f block=%d\n", fs, block);
+    std::printf ("O-ReverseDelay render-harness — Stage 2 probes 0, A–M, fs=%.0f block=%d\n", fs, block);
 
     // --- Probe 0: silence pass (scaffold gate) -------------------------------
     {
@@ -773,6 +891,377 @@ int main()
                step2 < thresh && allFinite (y2.L) && allFinite (y2.R),
                juce::String ("maxStep=") + juce::String (step2, 6)
                  + " thresh=" + juce::String (thresh, 6));
+    }
+
+    //==========================================================================
+    // Phase 2.3 probes (I–M)
+    //==========================================================================
+
+    // Shared bloom-latency measurement for probes I/J. Impulse copies land at
+    // output T+D+2n (n in [0,G)) weighted hann(n/G), but ONLY at grain-grid
+    // positions (spawns every `interval` samples -> copies every 2*interval).
+    // The raw first-onset therefore jitters by up to 2*interval (2400 smp at
+    // G=200 ms / density=100) — larger than the ±1-block acceptance. The
+    // ENERGY CENTROID of the single-generation bloom, however, sits at T+D+G
+    // (hann^2 is symmetric about n=G/2 and the grid sum is phase-invariant to
+    // within a few samples), so latency := centroid − T − G carries the tight
+    // FUNC-02 assertion while the onset keeps a grid-bounded sanity window.
+    struct BloomMeasure
+    {
+        double latency = -1.0;   // centroid-derived first-echo latency (samples)
+        int    onset   = -1;     // first sample with |wet| > 1e-5
+        double preRms  = 1.0;    // RMS before the expected bloom (decoy detector)
+        bool   finite  = false;
+    };
+
+    auto measureBloom = [&] (ReverseDelayProcessor& p, double seconds, int T, int G, int Dexp)
+    {
+        auto y = renderEffect (p, seconds, fs, block,
+                               [T] (int t) { return t == T ? 1.0f : 0.0f; });
+        BloomMeasure m;
+        m.finite = allFinite (y.L) && allFinite (y.R);
+        const double c = energyCentroid (y.L, 0, (int) y.L.size());
+        m.latency = c >= 0.0 ? c - (double) T - (double) G : -1.0;
+        m.onset   = firstAbove (y.L, 1.0e-5);
+        m.preRms  = rms (y.L, 0, T + Dexp - block);
+        return m;
+    };
+
+    auto bloomOk = [&] (const BloomMeasure& m, int T, int Dexp, int interval)
+    {
+        return m.finite
+            && std::abs (m.latency - (double) Dexp) <= (double) block
+            && m.onset >= T + Dexp - block
+            && m.onset <= T + Dexp + 2 * interval + block
+            && m.preRms < 1.0e-6;
+    };
+
+    auto bloomDetail = [] (const BloomMeasure& m, int T, int Dexp)
+    {
+        return juce::String ("latency=") + juce::String (m.latency, 1)
+             + " (expected " + juce::String (Dexp) + ")"
+             + " onset-T=" + juce::String (m.onset - T)
+             + " preRms=" + juce::String (m.preRms, 9);
+    };
+
+    // --- Probe I: tempo-sync spacing (FUNC-02) -------------------------------
+    {
+        // Sync case: 120 BPM, 1/4 -> D = 0.5 s. delayTime is set to a 150 ms
+        // DECOY: a silent fallback-to-free bug lands the bloom at 150 ms and
+        // fails both the latency assertion and the pre-bloom silence check.
+        MockPlayHead mph;                        // bpm defaults to 120
+        proc.setPlayHead (&mph);
+
+        setBaseline (apvts);
+        setParam (apvts, "syncMode",     1.0f);
+        setParam (apvts, "noteDivision", 6.0f);  // 1/4
+        setParam (apvts, "delayTime",  150.0f);  // decoy
+        setParam (apvts, "density",    100.0f);  // overlap = 8 -> dense copy grid
+        proc.prepareToPlay (fs, block);
+
+        const int T        = (int) (0.5 * fs);
+        const int G        = currentG();
+        const int Dexp     = (int) (0.5 * fs);   // 1/4 @ 120 BPM
+        const int interval = juce::jmax (1, (int) ((float) G / 8.0f));
+
+        const auto m = measureBloom (proc, 2.0, T, G, Dexp);
+        proc.setPlayHead (nullptr);
+
+        check ("sync-quarter-120", bloomOk (m, T, Dexp, interval), bloomDetail (m, T, Dexp));
+
+        // Free-mode variant: continuous control at 150 / 500 / 1200 ms.
+        for (const float dt : { 150.0f, 500.0f, 1200.0f })
+        {
+            setBaseline (apvts);
+            setParam (apvts, "delayTime", dt);
+            setParam (apvts, "density", 100.0f);
+            proc.prepareToPlay (fs, block);
+
+            const int Gf  = currentG();
+            const int Df  = currentD();
+            const int ivf = juce::jmax (1, (int) ((float) Gf / 8.0f));
+
+            const auto mf = measureBloom (proc, 1.6 + dt * 0.001, T, Gf, Df);
+
+            check ((juce::String ("free-") + juce::String ((int) dt) + "ms").toRawUTF8(),
+                   bloomOk (mf, T, Df, ivf), bloomDetail (mf, T, Df));
+        }
+    }
+
+    // --- Probe J: no-playhead fallback (COMPAT-02) ---------------------------
+    {
+        // Main case: setPlayHead is NEVER called on this fresh instance. Sync
+        // mode must fall back to the free delayTime (350 ms — distinct from
+        // the 500 ms a 120 BPM 1/4 would produce), no crash, no silence.
+        ReverseDelayProcessor procJ;
+        procJ.setPlayConfigDetails (2, 2, fs, block);
+        auto& aj = procJ.parameters;
+
+        setBaseline (aj);
+        setParam (aj, "syncMode",     1.0f);
+        setParam (aj, "noteDivision", 6.0f);
+        setParam (aj, "delayTime",  350.0f);
+        setParam (aj, "density",    100.0f);
+        procJ.prepareToPlay (fs, block);
+
+        const int T   = (int) (0.5 * fs);
+        const int Gj  = juce::jmax (2, (int) (paramValue (aj, "grainSize") * 0.001 * fs));
+        const int Dj  = juce::jmax (1, (int) (paramValue (aj, "delayTime") * 0.001 * fs));
+        const int ivj = juce::jmax (1, (int) ((float) Gj / 8.0f));
+
+        const auto mj = measureBloom (procJ, 1.8, T, Gj, Dj);
+        check ("no-playhead-fallback", bloomOk (mj, T, Dj, ivj), bloomDetail (mj, T, Dj));
+
+        // Bonus case: a playhead IS installed but reports no tempo
+        // (getBpm() == nullopt) -> same fallback path.
+        MockPlayHead mphNoBpm;
+        mphNoBpm.bpm = {};
+        proc.setPlayHead (&mphNoBpm);
+
+        setBaseline (apvts);
+        setParam (apvts, "syncMode",     1.0f);
+        setParam (apvts, "noteDivision", 6.0f);
+        setParam (apvts, "delayTime",  350.0f);
+        setParam (apvts, "density",    100.0f);
+        proc.prepareToPlay (fs, block);
+
+        const int Gb  = currentG();
+        const int Db  = currentD();
+        const int ivb = juce::jmax (1, (int) ((float) Gb / 8.0f));
+
+        const auto mb = measureBloom (proc, 1.8, T, Gb, Db);
+        proc.setPlayHead (nullptr);
+
+        check ("null-bpm-fallback", bloomOk (mb, T, Db, ivb), bloomDetail (mb, T, Db));
+    }
+
+    // --- Probe K: width spread (FUNC-04) -------------------------------------
+    // Wet-only (mix=100, feedback=0) deterministic noise, density=100 for
+    // grain statistics (~160 grains inside the measured 2 s tail). The same
+    // noise seed feeds every run here and probe L's mono pass.
+    double refWidth0WetRms = -1.0;
+    {
+        const double A   = std::pow (10.0, -12.0 / 20.0);
+        const int    off = (int) (1.5 * fs);
+        const int    len = (int) (2.0 * fs);
+
+        auto renderNoise = [&] (float width)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density", 100.0f);
+            setParam (apvts, "width",   width);
+            proc.prepareToPlay (fs, block);
+
+            juce::Random rng (0x0077aa11);
+            return renderEffect (proc, 4.0, fs, block,
+                                 [&] (int) { return (float) (A * (rng.nextDouble() * 2.0 - 1.0)); });
+        };
+
+        // width = 0: centered dual-mono.
+        auto y0 = renderNoise (0.0f);
+        const double l0 = rms (y0.L, off, len);
+        const double r0 = rms (y0.R, off, len);
+        const double w0 = 0.5 * (l0 + r0);
+        const double c0 = corrRange (y0.L, y0.R, off, len);
+        const double s0 = diffRms  (y0.L, y0.R, off, len);
+        refWidth0WetRms = w0;
+
+        check ("width-0-centered",
+               w0 > 1.0e-4
+                 && std::abs (l0 - r0) / juce::jmax (w0, 1.0e-12) < 0.01
+                 && c0 > 0.99
+                 && allFinite (y0.L) && allFinite (y0.R),
+               juce::String ("rmsL=") + juce::String (l0, 5) + " rmsR=" + juce::String (r0, 5)
+                 + " corr=" + juce::String (c0, 4) + " sideRms=" + juce::String (s0, 9));
+
+        // width = 100: decorrelated spread; frame-level |L-R| energy must sit
+        // well above the width-0 run (x10) AND be a real fraction of the wet.
+        auto y1 = renderNoise (100.0f);
+        const double l1 = rms (y1.L, off, len);
+        const double r1 = rms (y1.R, off, len);
+        const double w1 = 0.5 * (l1 + r1);
+        const double c1 = corrRange (y1.L, y1.R, off, len);
+        const double s1 = diffRms  (y1.L, y1.R, off, len);
+
+        check ("width-100-spread",
+               w1 > 1.0e-4
+                 && c1 < 0.9
+                 && s1 > 10.0 * (s0 + 1.0e-9)
+                 && s1 > 0.1 * w1
+                 && allFinite (y1.L) && allFinite (y1.R),
+               juce::String ("corr=") + juce::String (c1, 4)
+                 + " sideRms=" + juce::String (s1, 6)
+                 + " (width0 side=" + juce::String (s0, 9) + ")"
+                 + " wetRms=" + juce::String (w1, 5));
+    }
+
+    // --- Probe L: mono->stereo identity (D4 open item) -----------------------
+    {
+        const double A   = std::pow (10.0, -12.0 / 20.0);
+        const int    off = (int) (1.5 * fs);
+        const int    len = (int) (2.0 * fs);
+
+        ReverseDelayProcessor procL;
+        procL.setPlayConfigDetails (1, 2, fs, block);   // mono in -> stereo out
+        auto& al = procL.parameters;
+
+        // Wet-only run with identical settings + noise seed to probe K's
+        // width-0 stereo run: the 0.5*(L+R) mono-sum must degrade to identity
+        // (no ±6 dB surprise), and width=0 keeps output L == R exactly.
+        setBaseline (al);
+        setParam (al, "density", 100.0f);
+        setParam (al, "width",     0.0f);
+        procL.prepareToPlay (fs, block);
+
+        juce::Random rng (0x0077aa11);
+        auto y = renderEffect (procL, 4.0, fs, block,
+                               [&] (int) { return (float) (A * (rng.nextDouble() * 2.0 - 1.0)); });
+
+        const double wm      = 0.5 * (rms (y.L, off, len) + rms (y.R, off, len));
+        const double maxDiff = maxAbsDiff (y.L, y.R);
+        const double levelDb = (refWidth0WetRms > 0.0 && wm > 0.0)
+                                 ? 20.0 * std::log10 (wm / refWidth0WetRms) : 99.0;
+
+        check ("mono-in-identity",
+               maxDiff < 1.0e-6 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("max|L-R|=") + juce::String (maxDiff, 9));
+
+        check ("mono-in-wet-level",
+               refWidth0WetRms > 0.0 && std::abs (levelDb) <= 0.5,
+               juce::String ("delta=") + juce::String (levelDb, 4) + " dB"
+                 + " (mono=" + juce::String (wm, 5)
+                 + " stereo=" + juce::String (refWidth0WetRms, 5) + ")");
+
+        // Dry-path duplication at default mix: mono dry must be duplicated to
+        // the right channel too (out L == R with dry present).
+        setBaseline (al);
+        setParam (al, "density", 100.0f);
+        setParam (al, "width",     0.0f);
+        setParam (al, "mix",      35.0f);
+        procL.prepareToPlay (fs, block);
+
+        juce::Random rng2 (0x0077aa11);
+        auto y2 = renderEffect (procL, 2.0, fs, block,
+                                [&] (int) { return (float) (A * (rng2.nextDouble() * 2.0 - 1.0)); });
+        const double maxDiff2 = maxAbsDiff (y2.L, y2.R);
+
+        check ("mono-in-dry-dup",
+               maxDiff2 < 1.0e-6 && allFinite (y2.L) && allFinite (y2.R),
+               juce::String ("max|L-R|=") + juce::String (maxDiff2, 9));
+    }
+
+    // --- Probe M: all-parameter sweep (QUAL-01) ------------------------------
+    // Each of the 10 params ramped full-range (triangle lo->hi->lo over the
+    // 3 s render), one at a time, others at plugin defaults; probe-C click
+    // detector + allFinite + peak bound on every render. A 120 BPM playhead
+    // is installed so the sync-dependent params (syncMode/noteDivision) sweep
+    // a LIVE D; the delayTime sweep forces Free mode so it is live too.
+    //
+    // Two detector tiers (D5 tunables — frozen once green):
+    //  * kStepFactorSmooth (3.0x sine step): smoothed / pan-only params —
+    //    lowCut, highCut, width, mix. Same regime as probes C (1.75x) and
+    //    H (2.5x), with headroom for the mix->100 wet boost.
+    //  * kStepFactorLoose (8.0x sine step): LATCHED content params
+    //    (delayTime, grainSize, density, syncMode, noteDivision) whose sweeps
+    //    legitimately re-seat grain read positions, plus feedback (fb->100
+    //    raises the loop's steady-state amplitude and with it the legitimate
+    //    per-sample step). 8x still sits ~4x below a genuine discontinuity of
+    //    the -12 dBFS test signal (~35x sine step) — real clicks are caught.
+    {
+        MockPlayHead mph;   // 120 BPM
+        proc.setPlayHead (&mph);
+
+        const double A  = std::pow (10.0, -12.0 / 20.0);
+        const double f0 = 220.0;
+        const double sineStep          = A * juce::MathConstants<double>::twoPi * f0 / fs;
+        const double kStepFactorSmooth = 3.0;
+        const double kStepFactorLoose  = 8.0;
+        const double margin            = std::pow (10.0, -60.0 / 20.0);
+
+        auto sine = [=] (int t) noexcept
+        {
+            return (float) (A * std::sin (juce::MathConstants<double>::twoPi * f0 * (double) t / fs));
+        };
+
+        struct SweepSpec
+        {
+            const char* id;
+            float lo, hi;
+            bool  choice;      // round the swept value to an integer index
+            bool  loose;       // latched-content tier (kStepFactorLoose)
+            bool  forceFree;   // syncMode -> Free so the sweep is live
+            float dtOverride;  // > 0: delayTime override (free D != sync D)
+        };
+
+        const SweepSpec specs[] = {
+            { "delayTime",    50.0f,  2000.0f, false, true,  true,    0.0f },
+            { "syncMode",      0.0f,     1.0f, true,  true,  false, 250.0f },
+            { "noteDivision",  0.0f,    12.0f, true,  true,  false,   0.0f },
+            { "grainSize",    50.0f,   500.0f, false, true,  false,   0.0f },
+            { "density",       0.0f,   100.0f, false, true,  false,   0.0f },
+            { "feedback",      0.0f,   100.0f, false, true,  false,   0.0f },
+            { "lowCut",       20.0f,  2000.0f, false, false, false,   0.0f },
+            { "highCut",     500.0f, 20000.0f, false, false, false,   0.0f },
+            { "width",         0.0f,   100.0f, false, false, false,   0.0f },
+            { "mix",           0.0f,   100.0f, false, false, false,   0.0f },
+        };
+
+        for (const auto& sp : specs)
+        {
+            setDefaults (apvts);
+            if (sp.forceFree)         setParam (apvts, "syncMode",  0.0f);
+            if (sp.dtOverride > 0.0f) setParam (apvts, "delayTime", sp.dtOverride);
+            setParam (apvts, sp.id, sp.lo);
+            proc.prepareToPlay (fs, block);
+
+            auto sweep = [&] (int pos, int total)
+            {
+                const double t   = (double) pos / (double) total;
+                const double tri = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;
+                float v = sp.lo + (float) tri * (sp.hi - sp.lo);
+                if (sp.choice) v = std::round (v);
+                setParam (apvts, sp.id, v);
+            };
+
+            auto y = renderEffect (proc, 3.0, fs, block, sine, sweep);
+
+            const double step   = juce::jmax (maxAbsStep (y.L), maxAbsStep (y.R));
+            const double pk     = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+            const double thresh = (sp.loose ? kStepFactorLoose : kStepFactorSmooth) * sineStep + margin;
+
+            check ((juce::String ("sweep-") + sp.id).toRawUTF8(),
+                   step < thresh && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+                   juce::String ("maxStep=") + juce::String (step, 6)
+                     + " thresh=" + juce::String (thresh, 6)
+                     + " peak=" + juce::String (pk, 4)
+                     + (sp.loose ? " [loose]" : ""));
+        }
+
+        // Sync <-> Free switch mid-playback: free D (250 ms) != sync D
+        // (500 ms), toggled every 0.5 s. Only next-spawn D may change —
+        // in-flight grains finish on latched values (click-free mechanism).
+        setDefaults (apvts);
+        setParam (apvts, "delayTime", 250.0f);
+        proc.prepareToPlay (fs, block);
+
+        auto toggle = [&] (int pos, int)
+        {
+            const int half = (int) (0.5 * fs);
+            setParam (apvts, "syncMode", ((pos / half) & 1) != 0 ? 0.0f : 1.0f);
+        };
+
+        auto y = renderEffect (proc, 4.0, fs, block, sine, toggle);
+        proc.setPlayHead (nullptr);
+
+        const double step   = juce::jmax (maxAbsStep (y.L), maxAbsStep (y.R));
+        const double pk     = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+        const double thresh = kStepFactorLoose * sineStep + margin;
+
+        check ("mode-switch",
+               step < thresh && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("maxStep=") + juce::String (step, 6)
+                 + " thresh=" + juce::String (thresh, 6)
+                 + " peak=" + juce::String (pk, 4));
     }
 
     std::printf ("%s (%d failure%s)\n",
