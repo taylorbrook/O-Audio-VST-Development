@@ -1,0 +1,380 @@
+/* ============================================================================
+   O-ReverseDelay — Ouaricon Naturalist (aesthetic ouaricon-naturalist-001)
+   Fixed 940 × 440. One row of four framed group panels: TIME | GRAIN |
+   FEEDBACK | OUTPUT (signal-flow order, D9). No viewport units — WebView
+   hosts size the frame, not the viewport.
+   ========================================================================= */
+
+:root {
+  /* Backgrounds */
+  --bg-paper-light: #FAF0E6;
+  --bg-paper:       #F5E6D3;
+  --bg-paper-mid:   #EBD9C7;
+  --bg-accent:      #D4C4B0;
+
+  /* Browns */
+  --brown-border: #8B7355;
+  --brown-frame:  #5C4033;
+  --brown-text:   #3C2F2F;
+
+  /* Greens (botanical accents) */
+  --green-light:   #8BA870;
+  --green-mid:     #6B8E4E;
+  --green-dark:    #3C5C1A;
+  --green-darkest: #2C3E10;
+
+  /* Knob (seed cross-section) */
+  --knob-ring:    #C9A27B;
+  --knob-seg-1:   #F5DEB3;
+  --knob-seg-2:   #E8D5B7;
+  --knob-divider: #8B7355;
+  --knob-core:    #FFF8DC;
+  --knob-border:  #8B7355;
+
+  /* Buttons */
+  --btn-default:       rgba(139, 168, 112, 0.3);
+  --btn-active:        rgba(107, 142, 35, 0.6);
+  --btn-border:        #3C5C1A;
+  --btn-border-active: #2C3E10;
+
+  /* Effects */
+  --shadow-light:  rgba(0, 0, 0, 0.15);
+  --shadow-medium: rgba(0, 0, 0, 0.25);
+  --shadow-heavy:  rgba(0, 0, 0, 0.5);
+  --text-emboss:   rgba(255, 255, 255, 0.5);
+  --fleuron-color: rgba(60, 47, 47, 0.3);
+
+  --serif: 'Garamond', 'EB Garamond', 'Times New Roman', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 940px;
+  height: 440px;
+  overflow: hidden;
+}
+
+body {
+  position: relative;
+  font-family: var(--serif);
+  color: var(--brown-text);
+  background:
+    /* barely-there paper fibre */
+    repeating-linear-gradient(0deg, rgba(92, 64, 51, 0.02) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, var(--bg-paper-light) 0%, var(--bg-paper) 45%, var(--bg-paper-mid) 100%);
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* ── Botanical overlay ───────────────────────────────────────────────────── */
+.botanical-overlay {
+  position: absolute;
+  right: -28px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 70%;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Framed specimen container ───────────────────────────────────────────── */
+.frame {
+  position: relative;
+  z-index: 2;
+  width: 940px;
+  height: 440px;
+  padding: 18px 22px 14px;
+  border: 3px solid var(--brown-frame);
+  box-shadow: inset 0 0 32px rgba(92, 64, 51, 0.12);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: 2.5px;
+  color: var(--brown-frame);
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.title-accent {
+  font-style: italic;
+  color: var(--green-mid);
+}
+
+.subtitle {
+  margin-top: 3px;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+/* ── Group row ───────────────────────────────────────────────────────────── */
+/* Panels are a fixed-height specimen row centred in the remaining space, rather
+   than stretched to it — stretching left a tall empty half in every panel and
+   buried the botanical overlay behind solid fill. */
+.groups {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.group {
+  position: relative;
+  height: 215px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 14px 12px;
+  border: 2px solid var(--brown-border);
+  border-radius: 5px;
+  background: rgba(212, 196, 176, 0.42);
+  box-shadow: 2px 2px 6px var(--shadow-light), inset 0 1px 0 rgba(255, 248, 220, 0.45);
+}
+
+/* Panel widths are pinned so the four panels sum to the fixed 940 px frame. */
+.group-time,
+.group-grain,
+.group-output   { width: 190px; }
+.group-feedback { width: 276px; }
+
+.group-label {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 8px;
+  background: var(--bg-paper);
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.group-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* ── Knob cell ───────────────────────────────────────────────────────────── */
+.knob-cell {
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.knob-label {
+  font-size: 9.5px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.knob-value {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--brown-text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Seed cross-section knob ─────────────────────────────────────────────── */
+.knob {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--knob-border);
+  cursor: ns-resize;
+  transition: transform 0.1s ease;
+  background:
+    radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
+    conic-gradient(from 0deg,
+      var(--knob-seg-1) 0deg,   var(--knob-seg-1) 18deg,  var(--knob-divider) 18deg,  var(--knob-divider) 19deg,
+      var(--knob-seg-2) 19deg,  var(--knob-seg-2) 36deg,  var(--knob-divider) 36deg,  var(--knob-divider) 37deg,
+      var(--knob-seg-1) 37deg,  var(--knob-seg-1) 54deg,  var(--knob-divider) 54deg,  var(--knob-divider) 55deg,
+      var(--knob-seg-2) 55deg,  var(--knob-seg-2) 72deg,  var(--knob-divider) 72deg,  var(--knob-divider) 73deg,
+      var(--knob-seg-1) 73deg,  var(--knob-seg-1) 90deg,  var(--knob-divider) 90deg,  var(--knob-divider) 91deg,
+      var(--knob-seg-2) 91deg,  var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+      var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+      var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+      var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+      var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+      var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+      var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+      var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+      var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+      var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+      var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+      var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+      var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+      var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+      var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+    radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
+  box-shadow:
+    inset 1px 1px 3px rgba(0, 0, 0, 0.3),
+    inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+    2px 2px 6px var(--shadow-medium);
+}
+
+.knob:hover  { transform: scale(1.05); }
+.knob:active { transform: scale(0.98); }
+
+.knob:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 3px;
+}
+
+/* Indicator: botanical stem line from centre to ~90% radius. */
+.knob-stem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.5px;
+  height: 24px;
+  border-radius: 1.5px;
+  background: var(--brown-frame);
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(0deg);
+  pointer-events: none;
+}
+
+/* ── syncMode segments (labels authored in HTML — JS toggles class only) ─── */
+.segments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.segment {
+  width: 58px;
+  padding: 7px 0;
+  font-family: var(--serif);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 5px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.segment:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* The active segment is the only cue for which time control is live (UI-02), so
+   it gets cream-on-green plus a pressed inset — palette unchanged, state
+   unmistakable at a glance. */
+.segment.active {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.segment.active:hover {
+  background: var(--btn-active);
+  transform: none;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.segment:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* ── TIME slot: identical box for both wraps → zero layout shift ─────────── */
+.time-slot {
+  position: relative;
+  width: 88px;
+  height: 100px;
+}
+
+.slot-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hidden { display: none; }
+
+.select-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.division-select {
+  width: 82px;
+  padding: 7px 6px;
+  font-family: var(--serif);
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-align: center;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.18), 2px 2px 5px var(--shadow-light);
+  cursor: pointer;
+}
+
+.division-select:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.fleuron {
+  font-size: 11px;
+  color: var(--fleuron-color);
+}
+
+.footer-text {
+  font-size: 9px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+  opacity: 0.75;
+}

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-ReverseDelay</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Botanical overlay — one specimen per plugin (birds: airy, reversed flight). -->
+  <img src="img/birds.png" class="botanical-overlay" alt="" />
+
+  <div class="frame">
+    <!-- ─── Header ──────────────────────────────────────────────────────── -->
+    <header class="header">
+      <h1 class="title">O&#8202;&#8211;&#8202;Reverse<span class="title-accent">Delay</span></h1>
+      <p class="subtitle">Granular Reverse Delay &#183; A Field Guide</p>
+    </header>
+
+    <!-- ─── Groups: signal-flow order (D9) ──────────────────────────────── -->
+    <main class="groups">
+
+      <!-- TIME ─────────────────────────────────────────────────────────── -->
+      <section class="group group-time">
+        <div class="group-label">Time</div>
+        <div class="group-body">
+
+          <!-- syncMode: two-segment pair. FREE / SYNC text is authored HERE and
+               is NEVER rewritten by JS — refresh() toggles classes + aria-pressed
+               only (pattern_js_state_updater_overwrites_html_labels). -->
+          <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
+            <button type="button" class="segment" id="seg-free" data-choice="0" aria-pressed="false">Free</button>
+            <button type="button" class="segment" id="seg-sync" data-choice="1" aria-pressed="true">Sync</button>
+          </div>
+
+          <!-- Fixed-dimension slot: both wraps are absolutely positioned to the
+               same box, so the FREE↔SYNC swap produces zero layout shift. -->
+          <div class="time-slot">
+            <div class="slot-wrap hidden" id="wrap-delayTime">
+              <div class="knob-cell">
+                <div class="knob" id="knob-delayTime" data-param="delayTime"><div class="knob-stem"></div></div>
+                <div class="knob-label">Delay</div>
+                <div class="knob-value" id="val-delayTime">&#8212;</div>
+              </div>
+            </div>
+
+            <div class="slot-wrap" id="wrap-noteDivision">
+              <div class="select-cell">
+                <!-- Options are built at runtime from properties.choices — the C++
+                     StringArray is the single source of truth (never hardcode). -->
+                <select class="division-select" id="combo-noteDivision" aria-label="Note Division"></select>
+                <div class="knob-label">Division</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- GRAIN ────────────────────────────────────────────────────────── -->
+      <section class="group group-grain">
+        <div class="group-label">Grain</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-grainSize" data-param="grainSize"><div class="knob-stem"></div></div>
+            <div class="knob-label">Size</div>
+            <div class="knob-value" id="val-grainSize">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-density" data-param="density"><div class="knob-stem"></div></div>
+            <div class="knob-label">Density</div>
+            <div class="knob-value" id="val-density">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEEDBACK ─────────────────────────────────────────────────────── -->
+      <section class="group group-feedback">
+        <div class="group-label">Feedback</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-feedback" data-param="feedback"><div class="knob-stem"></div></div>
+            <div class="knob-label">Amount</div>
+            <div class="knob-value" id="val-feedback">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-lowCut" data-param="lowCut"><div class="knob-stem"></div></div>
+            <div class="knob-label">Low Cut</div>
+            <div class="knob-value" id="val-lowCut">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-highCut" data-param="highCut"><div class="knob-stem"></div></div>
+            <div class="knob-label">High Cut</div>
+            <div class="knob-value" id="val-highCut">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OUTPUT ───────────────────────────────────────────────────────── -->
+      <section class="group group-output">
+        <div class="group-label">Output</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-width" data-param="width"><div class="knob-stem"></div></div>
+            <div class="knob-label">Width</div>
+            <div class="knob-value" id="val-width">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
+            <div class="knob-label">Mix</div>
+            <div class="knob-value" id="val-mix">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <span class="fleuron">&#10086;</span>
+      <span class="footer-text">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
+      <span class="fleuron">&#10086;</span>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

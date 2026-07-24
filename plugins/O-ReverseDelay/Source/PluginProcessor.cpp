@@ -429,9 +429,22 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 }
 
+// The editor include lives INSIDE the guard: the Stage-2 render harness compiles
+// this file with JUCE_WEB_BROWSER=0 and no editor sources, so a top-of-file
+// include would make the harness un-buildable the moment the editor gained
+// WebView types (pattern_render_harness_breaks_on_webview_editor). PluginProcessor.h
+// stays editor-include-free for the same reason.
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* ReverseDelayProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this);
+#if JUCE_WEB_BROWSER
+    return new ReverseDelayEditor(*this);
+#else
+    return new juce::GenericAudioProcessorEditor(*this);   // harness build
+#endif
 }
 
 bool ReverseDelayProcessor::hasEditor() const { return true; }

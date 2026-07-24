@@ -9,11 +9,17 @@ juce_add_plugin(OuariconReverseDelay
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-ReverseDelay${OUARICON_DEV_SUFFIX}"
     VERSION 1.0.0
+    NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
+# PluginEditor.cpp belongs to the PLUGIN target only — the Stage-2 render harness
+# compiles PluginProcessor.cpp with JUCE_WEB_BROWSER=0 and must never see WebView
+# types (pattern_render_harness_breaks_on_webview_editor).
 target_sources(OuariconReverseDelay
     PRIVATE
         Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp
 )
 
 target_include_directories(OuariconReverseDelay
@@ -44,10 +50,39 @@ target_link_libraries(OuariconReverseDelay
 
 juce_generate_juce_header(OuariconReverseDelay)
 
+# ── Embedded WebView UI resources ───────────────────────────────────────────
+# NAMESPACE *and* HEADER_NAME are both distinct from the default BinaryData /
+# BinaryData.h. No second binary-data target exists today, but a Stage-4 preset
+# or sample target defaulting to BinaryData would duplicate-symbol at link time —
+# a distinct HEADER_NAME alone does NOT prevent it
+# (critical_dual_binary_data_namespace_collision).
+juce_add_binary_data(OuariconReverseDelay_UIResources
+    NAMESPACE UIBinaryData
+    HEADER_NAME UIBinaryData.h
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/birds.png
+)
+
+target_link_libraries(OuariconReverseDelay
+    PRIVATE
+        OuariconReverseDelay_UIResources
+)
+
 target_compile_definitions(OuariconReverseDelay
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_USE_CURL=0
+        JUCE_WEB_BROWSER=1
+        # Set together with NEEDS_WEBVIEW2 — without static linking the Windows
+        # WebView silently renders blank in DAW hosts
+        # (critical_webview2_static_linking). Wired now, before the first
+        # Windows CI build, rather than retrofitted.
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
 )
 
 # Stage-2 offline render-test harness (DSP correctness gate — probes A..E in
