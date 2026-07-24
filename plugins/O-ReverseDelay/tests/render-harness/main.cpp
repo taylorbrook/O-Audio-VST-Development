@@ -31,8 +31,21 @@
                               energy confined to the first bloom window
                               (no echo at T+2D), < -80 dB relative outside.
 
-    Phase 2.2/2.3 scaffolds included now (PLAN Task 1): MockPlayHead (sync
-    probes I/J), Spectrum/analyze (damping probe F), continuityFraction.
+    Phase 2.2 probes:
+      F. damping-generations— (FUNC-03) feedback=60 + tight damping: gen 2
+                              exists, loses energy, spectral centroid falls
+                              (LP highCut) and the 20-150 Hz fraction falls
+                              (HP lowCut). NO direction assertions past gen 1
+                              (alternating-direction regens are intended).
+      G. stability-60s      — (DSP-03) feedback=100, default damping, 2 s
+                              excitation then silence: every sample finite,
+                              peak < 1.0, last-10 s bounded, wash persists.
+      H. cutoff-sweeps      — (QUAL-01 partial) lowCut and highCut ramped
+                              full-range during playback: no clicks/zipper
+                              via the probe-C first-difference detector.
+
+    Phase 2.3 scaffolds included now (PLAN Task 1): MockPlayHead (sync
+    probes I/J), continuityFraction.
 
   ==============================================================================
 */
@@ -609,6 +622,157 @@ int main()
                juce::String ("eIn=") + juce::String (eIn, 8)
                  + " eOut=" + juce::String (eOut, 12)
                  + " (win " + juce::String (winLo) + ".." + juce::String (winHi) + ")");
+    }
+
+    // --- Probe F: damping loss per generation (FUNC-03) ----------------------
+    // Impulse through the closed loop with tight damping. Gen 1 is the raw
+    // (undamped) bloom starting T+D; gen 2 is one loop pass later at T+2D and
+    // has been through fbGain -> HP(200) -> LP(4000) -> tanh exactly once.
+    {
+        setBaseline (apvts);
+        setParam (apvts, "density",  100.0f);
+        setParam (apvts, "feedback",  60.0f);
+        setParam (apvts, "lowCut",   200.0f);
+        setParam (apvts, "highCut", 4000.0f);
+        proc.prepareToPlay (fs, block);
+
+        const int D = currentD();
+        const int T = (int) fs;
+
+        auto y = renderEffect (proc, 3.5, fs, block,
+                               [T] (int t) { return t == T ? 1.0f : 0.0f; });
+
+        // FFT windows (2^14 = 16384 ~ 341 ms) at the generation onsets. With
+        // D = 24000 and gen-k support [T+kD, T+kD+2kG], the gen-1 window ends
+        // before gen 2 starts and the gen-2 window ends before gen 3 starts.
+        const auto s1 = analyze (y.L, T + D,     fs);
+        const auto s2 = analyze (y.L, T + 2 * D, fs);
+
+        const double e1 = s1.bandEnergy (20.0, 20000.0);
+        const double e2 = s2.bandEnergy (20.0, 20000.0);
+        const double c1 = s1.centroid   (20.0, 20000.0);
+        const double c2 = s2.centroid   (20.0, 20000.0);
+        const double lowFrac1 = e1 > 0.0 ? s1.bandEnergy (20.0, 150.0) / e1 : 0.0;
+        const double lowFrac2 = e2 > 0.0 ? s2.bandEnergy (20.0, 150.0) / e2 : 0.0;
+
+        // Two generations suffice; NO direction assertions past generation 1
+        // (alternating-direction regenerations are intended by ARCHITECTURE).
+        const bool ok = e1 > 1.0e-9
+                     && e2 > 1.0e-12         // the loop actually regenerates
+                     && e2 < e1              // loss per generation (fb 0.6 + damping)
+                     && c2 < c1              // HF loss: centroid falls through LP(4000)
+                     && lowFrac2 < lowFrac1  // LF loss: 20-150 Hz fraction falls through HP(200)
+                     && allFinite (y.L) && allFinite (y.R);
+
+        check ("damping-generations", ok,
+               juce::String ("centroid=") + juce::String (c1, 1) + "->" + juce::String (c2, 1)
+                 + " lowFrac=" + juce::String (lowFrac1, 5) + "->" + juce::String (lowFrac2, 5)
+                 + " energy=" + juce::String (e1, 6) + "->" + juce::String (e2, 6));
+    }
+
+    // --- Probe G: 60 s stability at feedback=100 (DSP-03) --------------------
+    // 2 s broadband excitation, then silence — the loop self-sustains through
+    // default damping. tanh bounds the loop; output must stay below ceiling
+    // with zero NaN/Inf for the full render.
+    {
+        setBaseline (apvts);
+        setParam (apvts, "density",   60.0f);
+        setParam (apvts, "feedback", 100.0f);
+        setParam (apvts, "lowCut",   100.0f);   // default damping
+        setParam (apvts, "highCut", 8000.0f);
+        proc.prepareToPlay (fs, block);
+
+        const double A = std::pow (10.0, -12.0 / 20.0);
+        juce::Random rng ((juce::int64) 0x0feedbac);
+        const int exciteLen = (int) (2.0 * fs);
+        auto fill = [&] (int t)
+        {
+            return t < exciteLen ? (float) (A * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+        };
+
+        auto y = renderEffect (proc, 60.0, fs, block, fill);
+
+        const double peakAll = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        double tailPeak = 0.0;
+        for (int i = (int) (50.0 * fs); i < (int) y.L.size(); ++i)
+            tailPeak = juce::jmax (tailPeak,
+                                   (double) std::abs (y.L[(size_t) i]),
+                                   (double) std::abs (y.R[(size_t) i]));
+
+        // Loop carried energy well past the excitation (feedback not silently dead).
+        const double washRms = rms (y.L, (int) (5.0 * fs), (int) (5.0 * fs));
+
+        const bool ok = allFinite (y.L) && allFinite (y.R)
+                     && peakAll < 1.0
+                     && tailPeak < 1.0
+                     && washRms > 1.0e-7;
+
+        check ("stability-60s", ok,
+               juce::String ("peak=") + juce::String (peakAll, 4)
+                 + " tailPeak=" + juce::String (tailPeak, 6)
+                 + " washRms[5..10s]=" + juce::String (washRms, 7));
+    }
+
+    // --- Probe H: cutoff sweeps during playback (QUAL-01 partial) ------------
+    // 220 Hz sine with the loop engaged (feedback=60); lowCut then highCut
+    // ramped full-range and back (log-mapped) while rendering. Legit-step
+    // factor is larger than probe C's: feedback regeneration raises the
+    // steady-state sine amplitude by the loop-convergence factor (< 2.5x at
+    // fb=60) — a real click/zipper is still an order of magnitude above.
+    {
+        const double A  = std::pow (10.0, -12.0 / 20.0);
+        const double f0 = 220.0;
+        const double sineStep     = A * juce::MathConstants<double>::twoPi * f0 / fs;
+        const double kStepFactorH = 2.5;
+        const double thresh       = kStepFactorH * sineStep + std::pow (10.0, -60.0 / 20.0);
+
+        auto sine = [=] (int t) noexcept
+        {
+            return (float) (A * std::sin (juce::MathConstants<double>::twoPi * f0 * (double) t / fs));
+        };
+
+        auto setupLoop = [&]
+        {
+            setBaseline (apvts);
+            setParam (apvts, "mix",      35.0f);
+            setParam (apvts, "feedback", 60.0f);
+            setParam (apvts, "density",  60.0f);
+            setParam (apvts, "width",    60.0f);
+            proc.prepareToPlay (fs, block);
+        };
+
+        // Run 1: lowCut 20 -> 2000 -> 20 Hz (log-mapped triangle).
+        setupLoop();
+        auto sweepLow = [&] (int pos, int total)
+        {
+            const double t = (double) pos / (double) total;
+            const double v = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;      // 0..1..0
+            setParam (apvts, "lowCut", (float) (20.0 * std::pow (2000.0 / 20.0, v)));
+        };
+        auto y1 = renderEffect (proc, 4.0, fs, block, sine, sweepLow);
+        const double step1 = juce::jmax (maxAbsStep (y1.L), maxAbsStep (y1.R));
+
+        check ("sweep-lowcut",
+               step1 < thresh && allFinite (y1.L) && allFinite (y1.R),
+               juce::String ("maxStep=") + juce::String (step1, 6)
+                 + " thresh=" + juce::String (thresh, 6));
+
+        // Run 2: highCut 20000 -> 500 -> 20000 Hz (log-mapped triangle).
+        setupLoop();
+        auto sweepHigh = [&] (int pos, int total)
+        {
+            const double t = (double) pos / (double) total;
+            const double v = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;
+            setParam (apvts, "highCut", (float) (20000.0 * std::pow (500.0 / 20000.0, v)));
+        };
+        auto y2 = renderEffect (proc, 4.0, fs, block, sine, sweepHigh);
+        const double step2 = juce::jmax (maxAbsStep (y2.L), maxAbsStep (y2.R));
+
+        check ("sweep-highcut",
+               step2 < thresh && allFinite (y2.L) && allFinite (y2.R),
+               juce::String ("maxStep=") + juce::String (step2, 6)
+                 + " thresh=" + juce::String (thresh, 6));
     }
 
     std::printf ("%s (%d failure%s)\n",
