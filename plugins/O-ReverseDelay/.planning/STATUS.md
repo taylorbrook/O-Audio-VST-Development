@@ -1,16 +1,16 @@
 ---
 plugin: O-ReverseDelay
 stage: 3-gui
-phase: execute
+phase: verify
 phase_status: complete
-stage_status: in_progress
+stage_status: complete
 status: in_progress
 last_updated: 2026-07-24
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: /plugin-verify O-ReverseDelay 3-gui
+next_action: /plugin-discuss O-ReverseDelay 4-polish
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:7075c269df79e5dc1cf7f28d6ff4dda88805abb2c8086fc751e737f626efb07e
@@ -23,9 +23,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 (GUI) — execute ✓ complete (2026-07-24)
-Status: WebView GUI shipped — 940×440 Naturalist, 4 panels (TIME|GRAIN|FEEDBACK|OUTPUT), all 10 params two-way bound (8 slider + 2 combo relays), single native fn. Gates: build clean, render harness exit 0 (no DSP regression), ui_frontend_check 45/45, auval SUCCEEDED, pluginval@10 green on VST3 AND AU, delayTime midpoint reads 317 ms in Standalone. Next: verify phase
-Progress: [##################..] 90%
+Stage: 3 (GUI) — ✅ VERIFIED, stage complete (2026-07-24)
+Status: WebView GUI shipped and verified — 940×440 Naturalist, 4 panels (TIME|GRAIN|FEEDBACK|OUTPUT), all 10 params two-way bound (8 slider + 2 combo relays), single native fn. UI-01 + UI-02 both complete → all 14 requirements now complete. Next: Stage 4 (Polish), gated on the D7 Standalone audition
+Progress: [####################] 95%
 
 ## Phase Progress
 
@@ -36,7 +36,20 @@ Progress: [##################..] 90%
 | research | ✓ | 2026-07-24 | |
 | plan | ✓ | 2026-07-24 | |
 | execute | ✓ | 2026-07-24 | |
-| verify | | | |
+| verify | ✓ | 2026-07-24 | |
+
+**Stage 3 verify results:**
+- VERIFICATION.md written — verdict ✅ VERIFIED, no blockers; UI-01 + UI-02 marked complete in REQUIREMENTS.md (all 14 requirements now complete)
+- Harness independently re-run at verify: 33/33 PASS, exit 0 — WebView editor caused zero DSP regression; harness links with JUCE_WEB_BROWSER=0, proving the createEditor guard
+- ui_frontend_check.js re-run: 45/45; native-fn grep-diff 1 ≡ 1 (app.js:266 ≡ PluginEditor.cpp:114)
+- Stub fixtures compared line-by-line against createParameterLayout() — all 8 ranges/skew-centres/defaults and both combo defaults match, so the stub gate is representative
+- Browser render: exactly 940×440, zero overflow, zero JS console errors (only a stub-server favicon 404, absent in the WebView path)
+- Skew proof at normalised 0.5: delayTime 316 ms, grainSize 158 ms, lowCut 200 Hz, highCut 3.2 kHz; linear params 50 % — exact setSkewForCentre values
+- UI-02 proof: .time-slot box identical in both modes (x:117 y:198 w:86 h:100), correct control visible each way, FREE/SYNC labels + aria-pressed intact
+- Dblclick-reset returns all 8 knobs to exact engineering defaults from off-default positions
+- Real WKWebView confirmed in Standalone (942×498 window) — renders identically to the stub and restored a NON-default saved state (FREE / 317 ms), proving the C++→JS direction in the real bridge
+- auval SUCCEEDED; pluginval@10 SUCCESS on VST3 and AU with Editor / Automation / Editor Automation tests included
+- Known non-blocker: synthetic click into the live Standalone was refused by macOS accessibility (error -25208), so the interactive JS→C++ leg was not re-driven at verify; covered by execute-session evidence + pluginval Editor Automation
 
 **Stage 3 plan results:**
 - PLAN.md: 10 tasks — 3.1 (frontend authoring, browser-stub render gate, CMake wiring, editor with 10 relays, createEditor guard, build+harness gate); 3.2 (interaction/UI-02 swap/dblclick-reset, stub re-check + native-fn grep-diff, ui_frontend_check.js port, full exit gate)
@@ -140,10 +153,11 @@ Progress: [##################..] 90%
 
 ## Next Steps
 
-1. Stage 3 research: `/plugin-research O-ReverseDelay 3-gui` (resolve mockup path, window size, noteDivision control style)
-2. UI mockup creation (Naturalist aesthetic, grouped layout) — before/at Phase 3.1
-3. **D6 Standalone audition — Stage 4 entry gate** (deferred per D7): smear/wash/width by ear, evaluate −7.3 dB/gen wash length — `/show-standalone O-ReverseDelay`
-4. Optional human checks from Stage-1 VERIFICATION.md (DAW mono→stereo, session round-trip)
+1. **D6/D7 Standalone audition — REQUIRED Stage 4 entry gate**: smear/wash/width by ear, evaluate the −7.3 dB/gen wash length and whether a feedback-tap makeup constant is wanted — `/show-standalone O-ReverseDelay`
+2. Stage 4 discuss: `/plugin-discuss O-ReverseDelay 4-polish`
+3. Re-run the render harness at Stage-4 entry before any DSP edit (`pattern_render_harness_breaks_on_webview_editor`)
+4. Factory presets: author in engineering units + `convertTo0to1` — 4 skewed params; a new binary-data target must not claim `NAMESPACE BinaryData` (`UIBinaryData` is taken)
+5. Optional human checks: DAW load/automation round-trip, mono→stereo listen, session save/reload
 
 ## Context to Preserve
 
