@@ -1,7 +1,7 @@
 ---
 plugin: O-ReverseDelay
 stage: 3-gui
-phase: research
+phase: plan
 phase_status: complete
 stage_status: in_progress
 status: in_progress
@@ -10,7 +10,7 @@ complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: /plugin-plan O-ReverseDelay 3-gui
+next_action: /plugin-execute O-ReverseDelay 3-gui
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:7075c269df79e5dc1cf7f28d6ff4dda88805abb2c8086fc751e737f626efb07e
@@ -23,9 +23,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 (GUI) — research ✓ complete (2026-07-24)
-Status: RESEARCH.md written — direct-author production UI (skip ui-mockup workflow), 940×440 fixed window, 8 WebSliderRelay + 2 WebComboBoxRelay (syncMode is Choice not bool), O-simpleGrain as reference implementation; next: plan phase
-Progress: [###############.....] 75%
+Stage: 3 (GUI) — plan ✓ complete (2026-07-24)
+Status: PLAN.md written — 10 tasks (Phase 3.1: 6, Phase 3.2: 4), 12 success criteria, 10-entry pitfall list; APVTS is ground truth (4 skewed params, not 6; delayTime midpoint ≈316 ms); next: execute phase
+Progress: [################....] 80%
 
 ## Phase Progress
 
@@ -34,9 +34,15 @@ Progress: [###############.....] 75%
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-07-24 | |
 | research | ✓ | 2026-07-24 | |
-| plan | | | |
+| plan | ✓ | 2026-07-24 | |
 | execute | | | |
 | verify | | | |
+
+**Stage 3 plan results:**
+- PLAN.md: 10 tasks — 3.1 (frontend authoring, browser-stub render gate, CMake wiring, editor with 10 relays, createEditor guard, build+harness gate); 3.2 (interaction/UI-02 swap/dblclick-reset, stub re-check + native-fn grep-diff, ui_frontend_check.js port, full exit gate)
+- 12 success criteria incl. harness re-run, ui_frontend_check exit 0, pluginval-10 both formats (single run; ×3 stays Stage 4), Standalone open
+- Corrections vs earlier docs: 4 skewed params (delayTime/grainSize/lowCut/highCut) per APVTS, not 6; delayTime skew-centre ≈316 ms not 315
+- Open in-task items: AU subtype `aufx ORvD OuDv` to confirm before auval; botanical PNG pick (birds vs flora) resolved in Task 1 (CMake list + resource-provider list together)
 
 **Stage 3 research findings:**
 - Mockup path: **direct-author production index.html** (skip ui-mockup workflow — no recent sibling used it; D8/D9/D10 fully constrain design); browser render against ~20-line JUCE-bridge stub replaces the mockup gate and doubles as TDZ/label check
