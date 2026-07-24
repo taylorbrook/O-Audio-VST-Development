@@ -1,16 +1,16 @@
 ---
 plugin: O-ReverseDelay
-stage: 2-dsp
-phase: verify
+stage: 3-gui
+phase: research
 phase_status: complete
-stage_status: complete
+stage_status: in_progress
 status: in_progress
 last_updated: 2026-07-24
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: /plugin-discuss O-ReverseDelay 3-gui
+next_action: /plugin-plan O-ReverseDelay 3-gui
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:7075c269df79e5dc1cf7f28d6ff4dda88805abb2c8086fc751e737f626efb07e
@@ -23,11 +23,37 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 (DSP) — ✓ COMPLETE, verified (2026-07-24)
-Status: VERIFICATION.md verdict ✅ VERIFIED — harness independently re-run 33/33, pluginval-10 re-confirmed both formats, 11/11 stage-2 requirements complete; D6 Standalone audition is the single outstanding human check (do before Stage 3); next: Stage 3 GUI discuss
-Progress: [##############......] 70%
+Stage: 3 (GUI) — research ✓ complete (2026-07-24)
+Status: RESEARCH.md written — direct-author production UI (skip ui-mockup workflow), 940×440 fixed window, 8 WebSliderRelay + 2 WebComboBoxRelay (syncMode is Choice not bool), O-simpleGrain as reference implementation; next: plan phase
+Progress: [###############.....] 75%
 
 ## Phase Progress
+
+### Stage 3: GUI
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-07-24 | |
+| research | ✓ | 2026-07-24 | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+**Stage 3 research findings:**
+- Mockup path: **direct-author production index.html** (skip ui-mockup workflow — no recent sibling used it; D8/D9/D10 fully constrain design); browser render against ~20-line JUCE-bridge stub replaces the mockup gate and doubles as TDZ/label check
+- Window: **fixed 940×440**, single row of 4 framed group panels TIME | GRAIN | FEEDBACK | OUTPUT
+- noteDivision: Naturalist `<select>` via **WebComboBoxRelay**, options from `st.properties.choices`; **syncMode is also Choice** (WebComboBoxRelay, FREE|SYNC segment pair); UI-02 swap = pure-JS hidden-class toggle on shared fixed slot, both controls always bound
+- Actual param contract: 8 sliders + 2 combos, 0 toggles; only 4 skewed params (delayTime, grainSize, lowCut, highCut) — not 6 as CONTEXT assumed
+- One native fn only: getParameterDefaults (dblclick-reset)
+- CMake: NAMESPACE **UIBinaryData**; NEEDS_WEB_BROWSER/NEEDS_WEBVIEW2 + JUCE_WEB_BROWSER=1 + WEBVIEW2 static-linking flag; harness already excludes editor sources — only edit is `#if JUCE_WEB_BROWSER` guard in createEditor()
+- Reference implementation: **O-simpleGrain editor** minus drag-drop/keyboard/viz/Timer
+- Phase 3.2 gate: port O-Contrabass `tests/ui_frontend_check.js`
+
+**Stage 3 discuss decisions:**
+- D7: D6 Standalone audition **deferred** — GUI touches no DSP; audition (incl. −7.3 dB/gen wash-length call + possible feedback-tap makeup constant) is now a REQUIRED Stage-4 entry check
+- D8: Aesthetic = **Ouaricon Naturalist** (ouaricon-naturalist-001)
+- D9: Layout = **grouped sections** as signal flow: TIME (syncMode, noteDivision/delayTime swap per UI-02) / GRAIN (grainSize, density) / FEEDBACK (feedback, lowCut, highCut) / OUTPUT (width, mix)
+- D10: Visualization = **none** — knobs + readouts only (no C++→JS polling bridge)
+- Open for research: mockup production path (ui-mockup workflow vs direct authoring), window size, noteDivision control style (13 divisions)
 
 ### Stage 2: DSP
 | Phase | Status | Date | Skipped |
@@ -108,10 +134,10 @@ Progress: [##############......] 70%
 
 ## Next Steps
 
-1. **D6 Standalone audition** (before Stage 3): smear quality, feedback wash length (see −7.3 dB/gen finding), width character — `/show-standalone O-ReverseDelay`
-2. Create UI mockup before Stage 3 (none exists yet; UI-02 needs sync/free conditional display)
-3. Stage 3 GUI: `/plugin-discuss O-ReverseDelay 3-gui`
-4. Optional human checks from Stage-1 VERIFICATION.md (DAW mono→stereo, GenericEditor review, session round-trip)
+1. Stage 3 research: `/plugin-research O-ReverseDelay 3-gui` (resolve mockup path, window size, noteDivision control style)
+2. UI mockup creation (Naturalist aesthetic, grouped layout) — before/at Phase 3.1
+3. **D6 Standalone audition — Stage 4 entry gate** (deferred per D7): smear/wash/width by ear, evaluate −7.3 dB/gen wash length — `/show-standalone O-ReverseDelay`
+4. Optional human checks from Stage-1 VERIFICATION.md (DAW mono→stereo, session round-trip)
 
 ## Context to Preserve
 
