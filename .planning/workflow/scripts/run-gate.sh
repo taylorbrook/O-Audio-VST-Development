@@ -129,7 +129,28 @@ REPORT_FILE="$STAGE_DIR/gate-report.json"
 BYPASS_LOG="$PLANNING_DIR/gate-bypasses.log"
 HANDOFF_FILE="$STAGE_DIR/HANDOFF.json"
 BUILD_DIR="$PROJECT_ROOT/build"
-VST3_PATH="$BUILD_DIR/plugins/${PLUGIN}/${PLUGIN}_artefacts/Release/VST3/${PLUGIN}.vst3"
+
+# The juce_add_plugin target can differ from the plugin folder name
+# (e.g. folder "O-ReverseDelay" → target "OuariconReverseDelay"). Ninja targets
+# and the artefacts directory use the TARGET name; the bundle uses PRODUCT_NAME
+# (which may carry OUARICON_DEV_SUFFIX), so the .vst3 is globbed, not assumed.
+CMAKE_TARGET=$(tr '\n' ' ' < "$PLUGIN_DIR/CMakeLists.txt" 2>/dev/null \
+    | grep -oE 'juce_add_plugin[[:space:]]*\([[:space:]]*[^ )]+' \
+    | head -1 \
+    | sed -E 's/juce_add_plugin[[:space:]]*\([[:space:]]*//')
+if [[ "$CMAKE_TARGET" =~ ^\$\{([A-Za-z0-9_]+)\}$ ]]; then
+    _var="${BASH_REMATCH[1]}"
+    CMAKE_TARGET=$(grep -oE "set[[:space:]]*\([[:space:]]*${_var}[[:space:]]+[^ )]+" "$PLUGIN_DIR/CMakeLists.txt" \
+        | head -1 \
+        | sed -E "s/set[[:space:]]*\([[:space:]]*${_var}[[:space:]]+//")
+fi
+if [ -z "$CMAKE_TARGET" ] || [[ "$CMAKE_TARGET" == *'${'* ]]; then
+    CMAKE_TARGET="$PLUGIN"
+fi
+
+VST3_ARTEFACT_DIR="$BUILD_DIR/plugins/${PLUGIN}/${CMAKE_TARGET}_artefacts/Release/VST3"
+VST3_PATH=$(find "$VST3_ARTEFACT_DIR" -maxdepth 1 -name '*.vst3' -print -quit 2>/dev/null)
+[ -z "$VST3_PATH" ] && VST3_PATH="$VST3_ARTEFACT_DIR/${PLUGIN}.vst3"
 
 # Initialize timing (macOS date doesn't support %N, so use seconds * 1000)
 get_time_ms() {
@@ -301,7 +322,7 @@ fi
 
 # Critical Check 2: Build (ninja Plugin_VST3 Plugin_AU)
 if [ -d "$BUILD_DIR" ]; then
-    if run_check "build" "cd '$BUILD_DIR' && ninja ${PLUGIN}_VST3 ${PLUGIN}_AU"; then
+    if run_check "build" "cd '$BUILD_DIR' && ninja ${CMAKE_TARGET}_VST3 ${CMAKE_TARGET}_AU"; then
         add_critical_result "build" "passed" "$CHECK_DURATION" "$CHECK_ATTEMPTS" "$CHECK_OUTPUT"
     else
         CRITICAL_PASSED=false
@@ -314,6 +335,9 @@ else
 fi
 
 # Critical Check 3: Pluginval (strictness 10 on VST3)
+# Re-resolve the bundle path — the build check above may have just produced it
+_fresh_vst3=$(find "$VST3_ARTEFACT_DIR" -maxdepth 1 -name '*.vst3' -print -quit 2>/dev/null)
+[ -n "$_fresh_vst3" ] && VST3_PATH="$_fresh_vst3"
 if [ -n "$PLUGINVAL_CMD" ] && [ -d "$VST3_PATH" ]; then
     if run_check "pluginval" "'$PLUGINVAL_CMD' --strictness-level 10 --validate '$VST3_PATH'"; then
         add_critical_result "pluginval" "passed" "$CHECK_DURATION" "$CHECK_ATTEMPTS" "$CHECK_OUTPUT"
