@@ -130,6 +130,23 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
     lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
     highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
+
+    // In-loop damping filters. prepare() + reset() here; coefficients seeded now
+    // so the cached-cutoff guards start valid (the guard only gates recompute).
+    const juce::dsp::ProcessSpec spec { sampleRate, static_cast<juce::uint32>(maxBlock), 1 };
+    hpL.prepare(spec); hpR.prepare(spec);
+    lpL.prepare(spec); lpR.prepare(spec);
+    hpL.reset(); hpR.reset();
+    lpL.reset(); lpR.reset();
+
+    const float fsF = static_cast<float>(sampleRate);
+    lastLowCut  = juce::jlimit(20.0f,  0.49f * fsF, lowCutSmoothed.getCurrentValue());
+    lastHighCut = juce::jlimit(500.0f, 0.49f * fsF, highCutSmoothed.getCurrentValue());
+
+    const auto hpCoeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(sampleRate, lastLowCut);
+    const auto lpCoeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(sampleRate, lastHighCut);
+    *hpL.coefficients = hpCoeffs;  *hpR.coefficients = hpCoeffs;
+    *lpL.coefficients = lpCoeffs;  *lpR.coefficients = lpCoeffs;
 }
 
 void ReverseDelayProcessor::releaseResources()
@@ -195,13 +212,32 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float grainGain       = 1.0f / std::sqrt(overlap);   // compensation, latched per grain,
                                                                // applied BEFORE the feedback tap
 
-    // ---- (2) advance smoothers ----------------------------------------------
-    // mix advances per sample in the mix loop (step 7). The Phase-2.2 loop
-    // parameters advance here so their timelines stay consistent when the
-    // feedback path lands.
-    feedbackSmoothed.skip(numSamples);
-    lowCutSmoothed.skip(numSamples);
-    highCutSmoothed.skip(numSamples);
+    // ---- (2) advance smoothers + update damping coefficients ----------------
+    // mix advances per sample in the mix loop (step 7); feedback gain advances
+    // per sample in the feedback fill (step 5). Cutoffs advance at block rate:
+    // skip() returns the smoothed value after the block, clamped before the
+    // tan() prewarp territory (highCut jlimit 500..0.49*fs per contract).
+    const float fsF = static_cast<float>(currentSampleRate);
+    const float lc  = juce::jlimit(20.0f,  0.49f * fsF, lowCutSmoothed.skip(numSamples));
+    const float hc  = juce::jlimit(500.0f, 0.49f * fsF, highCutSmoothed.skip(numSamples));
+
+    // Cached-cutoff guards gate ONLY the recompute (no enabled flag exists).
+    // ArrayCoefficients returns a stack std::array; operator= assigns the
+    // normalised values in place into the existing Coefficients — no allocation.
+    if (! juce::exactlyEqual (lc, lastLowCut))
+    {
+        lastLowCut = lc;
+        const auto a = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, lc);
+        *hpL.coefficients = a;
+        *hpR.coefficients = a;
+    }
+    if (! juce::exactlyEqual (hc, lastHighCut))
+    {
+        lastHighCut = hc;
+        const auto a = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(currentSampleRate, hc);
+        *lpL.coefficients = a;
+        *lpR.coefficients = a;
+    }
 
     // ---- (3) schedule spawns, latch per-grain state -------------------------
     const int spawnCount = scheduler.processBlock(numSamples, intervalSamples, spawnRequests);
@@ -263,10 +299,39 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             g.active = false;
     }
 
-    // ---- (5) feedback return — Phase 2.1 stub: fb = 0 -----------------------
-    // Phase 2.2 fills this with: wet → smoothed fbGain → HP(lowCut) →
-    // LP(highCut) → tanh → non-finite guard.
-    fbScratch.clear();
+    // ---- (5) feedback return: wet → fbGain → HP → LP → tanh → guard ---------
+    // Tap is post grain-gain (overlap compensation already applied in step 4 —
+    // loop gain stays density-independent), pre width/mix (they never enter
+    // the loop). tanh bounds the loop to ±1 at any feedback setting.
+    {
+        float* fbLw = fbScratch.getWritePointer(0);
+        float* fbRw = fbScratch.getWritePointer(1);
+        float  acc  = 0.0f;   // NaN detector: tanh output is bounded, so only NaN can escape
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float g = feedbackSmoothed.getNextValue();
+            float l = hpL.processSample(wetL[i] * g);
+            float r = hpR.processSample(wetR[i] * g);
+            l = lpL.processSample(l);
+            r = lpR.processSample(r);
+            l = std::tanh(l);
+            r = std::tanh(r);
+            fbLw[i] = l;
+            fbRw[i] = r;
+            acc += l + r;
+        }
+
+        // Non-finite guard at the loop write point: reset BOTH filter pairs AND
+        // zero the feedback source for this block; keep last-known-good
+        // coefficients (sticky-silence pattern — never reset only the filters).
+        if (! std::isfinite(acc))
+        {
+            hpL.reset(); hpR.reset();
+            lpL.reset(); lpR.reset();
+            fbScratch.clear();
+        }
+    }
     const float* fbL = fbScratch.getReadPointer(0);
     const float* fbR = fbScratch.getReadPointer(1);
 
