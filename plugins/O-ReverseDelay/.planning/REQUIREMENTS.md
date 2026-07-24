@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-ReverseDelay
 created: 2026-07-23
-lastUpdated: 2026-07-23
+lastUpdated: 2026-07-24
 ---
 
 ## Overview
@@ -19,19 +19,19 @@ lastUpdated: 2026-07-23
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Wet signal is a granular reverse smear: overlapping reversed grains, not chunked block reversal | must | pending | stage-2 |
-| FUNC-02 | Delay time operates in Sync mode (host-tempo note divisions incl. dotted/triplet) and Free mode (ms) | must | pending | stage-2 |
-| FUNC-03 | Feedback path regenerates the reverse tail through in-loop damping filters | must | pending | stage-2 |
-| FUNC-04 | Stereo width control spreads grain placement across the stereo field | should | pending | stage-2 |
+| FUNC-01 | Wet signal is a granular reverse smear: overlapping reversed grains, not chunked block reversal | must | complete | stage-2 |
+| FUNC-02 | Delay time operates in Sync mode (host-tempo note divisions incl. dotted/triplet) and Free mode (ms) | must | complete | stage-2 |
+| FUNC-03 | Feedback path regenerates the reverse tail through in-loop damping filters | must | complete | stage-2 |
+| FUNC-04 | Stereo width control spreads grain placement across the stereo field | should | complete | stage-2 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Grains are windowed (Hann or similar) and overlap per density setting — no clicks at grain boundaries | must | pending | stage-2 |
-| DSP-02 | In-loop lowCut (20–2000 Hz) and highCut (500–20000 Hz) filters use RT-safe coefficient updates (ArrayCoefficients) | must | pending | stage-2 |
-| DSP-03 | Feedback at 100% with damping engaged remains loop-stable (no runaway gain) | must | pending | stage-2 |
-| DSP-04 | Time/frequency parameters use log-skewed NormalisableRange; presets authored in engineering units | should | pending | stage-2 |
+| DSP-01 | Grains are windowed (Hann or similar) and overlap per density setting — no clicks at grain boundaries | must | complete | stage-2 |
+| DSP-02 | In-loop lowCut (20–2000 Hz) and highCut (500–20000 Hz) filters use RT-safe coefficient updates (ArrayCoefficients) | must | complete | stage-2 |
+| DSP-03 | Feedback at 100% with damping engaged remains loop-stable (no runaway gain) | must | complete | stage-2 |
+| DSP-04 | Time/frequency parameters use log-skewed NormalisableRange; presets authored in engineering units | should | complete | stage-2 |
 
 ### UI (UI)
 
@@ -44,20 +44,20 @@ lastUpdated: 2026-07-23
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock) | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock) | must | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
-| COMPAT-02 | Tempo sync degrades gracefully when host provides no BPM (falls back to free time) | must | pending | stage-2 |
+| COMPAT-02 | Tempo sync degrades gracefully when host provides no BPM (falls back to free time) | must | complete | stage-2 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts (clicks, NaN, zipper noise) at normal parameter ranges, including delay-time and mode changes | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts (clicks, NaN, zipper noise) at normal parameter ranges, including delay-time and mode changes | must | complete | stage-2 |
 
 ## Acceptance Criteria Details
 
@@ -66,42 +66,42 @@ lastUpdated: 2026-07-23
 **Description:** The wet path assembles overlapping reversed grains from a circular capture buffer, producing a continuous backwards smear rather than discrete reversed blocks.
 
 **Acceptance Criteria:**
-- [ ] Render harness: a transient input produces wet output whose envelope ramps up toward the transient's reverse position (reverse bloom), not a hard-gated block
-- [ ] Grain playback direction is reversed (verified by autocorrelation/asymmetric-envelope probe on a single-grain render)
+- [x] Render harness: a transient input produces wet output whose envelope ramps up toward the transient's reverse position (reverse bloom), not a hard-gated block
+- [x] Grain playback direction is reversed (verified by autocorrelation/asymmetric-envelope probe on a single-grain render)
 
 ### FUNC-02: Sync + Free timing
 
 **Acceptance Criteria:**
-- [ ] In Sync mode at 120 BPM, 1/4 division yields 500 ms effective delay spacing (±1 block)
-- [ ] In Free mode, delayTime knob sets spacing continuously 50–2000 ms
+- [x] In Sync mode at 120 BPM, 1/4 division yields 500 ms effective delay spacing (±1 block)
+- [x] In Free mode, delayTime knob sets spacing continuously 50–2000 ms
 
 ### FUNC-03: Damped feedback regeneration
 
 **Acceptance Criteria:**
-- [ ] Successive regenerations show measurable HF loss with highCut < 20 kHz and LF loss with lowCut > 20 Hz
-- [ ] feedback = 0% produces exactly one generation of wet output
+- [x] Successive regenerations show measurable HF loss with highCut < 20 kHz and LF loss with lowCut > 20 Hz
+- [x] feedback = 0% produces exactly one generation of wet output
 
 ### DSP-01: Click-free grains
 
 **Acceptance Criteria:**
-- [ ] Offline render at default settings shows no discontinuities > -60 dBFS sample-to-sample step outside signal content
-- [ ] Density sweep 0→100% during playback produces no clicks
+- [x] Offline render at default settings shows no discontinuities > -60 dBFS sample-to-sample step outside signal content
+- [x] Density sweep 0→100% during playback produces no clicks
 
 ### DSP-02: RT-safe damping filters
 
 **Acceptance Criteria:**
-- [ ] Filter coefficient updates use ArrayCoefficients assigned in place; no heap allocation on audio thread (code review + TSan/allocation guard)
+- [x] Filter coefficient updates use ArrayCoefficients assigned in place; no heap allocation on audio thread (code review + TSan/allocation guard)
 
 ### DSP-03: Loop stability
 
 **Acceptance Criteria:**
-- [ ] 60 s render at feedback 100%, default damping: output peak stays below 0 dBFS ceiling (soft-clip/energy cap engaged), no NaN/Inf
+- [x] 60 s render at feedback 100%, default damping: output peak stays below 0 dBFS ceiling (soft-clip/energy cap engaged), no NaN/Inf
 
 ### PERF-01: Real-time safety
 
 **Acceptance Criteria:**
-- [ ] No allocations, locks, or logging in processBlock (code review)
-- [ ] pluginval strictness 10 passes 3 consecutive runs
+- [x] No allocations, locks, or logging in processBlock (code review)
+- [x] pluginval strictness 10 passes 3 consecutive runs
 
 ### COMPAT-01: Validation
 
@@ -111,12 +111,12 @@ lastUpdated: 2026-07-23
 ### COMPAT-02: No-tempo fallback
 
 **Acceptance Criteria:**
-- [ ] Render harness with no AudioPlayHead tempo: Sync mode falls back to free delayTime without crash or silence
+- [x] Render harness with no AudioPlayHead tempo: Sync mode falls back to free delayTime without crash or silence
 
 ### QUAL-01: Artifact-free
 
 **Acceptance Criteria:**
-- [ ] Automated sweeps of every parameter during playback produce no clicks, zipper noise, NaN, or Inf in output
+- [x] Automated sweeps of every parameter during playback produce no clicks, zipper noise, NaN, or Inf in output
 
 ## Traceability
 
