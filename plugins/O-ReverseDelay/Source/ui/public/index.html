@@ -44,8 +44,20 @@
       <span class="fleuron">&#10086;</span>
     </div>
 
-    <!-- ─── Groups: signal-flow order (D9) ──────────────────────────────── -->
+    <!-- ─── Groups ──────────────────────────────────────────────────────
+         v1.1.0: two specimen rows sharing ONE pinned width contract
+         (190 | 190 | 276 | 190), so the columns align between rows.
+
+         Row 1 — signal flow (D9), unchanged from v1.0.1.
+         Row 2 — character. RANDOM ships with v1.1's four grain
+                 randomisations; WINDOW / MOTION / SPACE are framed and
+                 labelled now, so that filling them in v1.2-v1.6 never resizes
+                 the window again. Resizing is what invalidates the tooltip
+                 edge-clamp verification, so it is done once, here.
+      -->
     <main class="groups">
+
+      <div class="group-row group-row-1">
 
       <!-- TIME ─────────────────────────────────────────────────────────── -->
       <section class="group group-time">
@@ -159,6 +171,69 @@
           </div>
         </div>
       </section>
+
+      </div><!-- /.group-row-1 -->
+
+      <div class="group-row group-row-2">
+
+      <!-- RANDOM (v1.1.0, B3) ──────────────────────────────────────────
+           Four knob-cells wrapping to a 2x2 grid in a 190 px panel. Every
+           one defaults to 0, which is the exact no-op: a v1.0 session or
+           preset opened here sounds identical until one of these is moved. -->
+      <section class="group group-random">
+        <div class="group-label">Random</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-jitter" data-param="jitter"
+                 data-tip-title="Jitter"
+                 data-tip="Scatters the timing of each new grain. At zero the grains arrive on a strict grid, which combs sustained material; raise it and the wash loosens into a cloud."><div class="knob-stem"></div></div>
+            <div class="knob-label">Jitter</div>
+            <div class="knob-value" id="val-jitter">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-delayScatter" data-param="delayScatter"
+                 data-tip-title="Scatter"
+                 data-tip="Spreads how far back each grain reaches. Thickens the smear without moving the delay's rhythmic anchor, because the average reach is unchanged."><div class="knob-stem"></div></div>
+            <div class="knob-label">Scatter</div>
+            <div class="knob-value" id="val-delayScatter">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-sizeRandom" data-param="sizeRandom"
+                 data-tip-title="Size Random"
+                 data-tip="Varies the length of each grain. Jitter alone leaves every grain the same shape; this removes the last of the regularity."><div class="knob-stem"></div></div>
+            <div class="knob-label">Size Rnd</div>
+            <div class="knob-value" id="val-sizeRandom">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-gainRandom" data-param="gainRandom"
+                 data-tip-title="Gain Random"
+                 data-tip="Varies the level of each grain for depth and shimmer. Applied after the feedback tap, so it never changes how long the tail lasts."><div class="knob-stem"></div></div>
+            <div class="knob-label">Gain Rnd</div>
+            <div class="knob-value" id="val-gainRandom">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reserved (v1.2+). Framed and labelled so the chassis is final; the
+           fleuron is the page's own ornament, standing in for the specimen
+           that lands here. To fill one, replace the span with .knob-cell
+           markup — no CSS change, no resize. -->
+      <section class="group group-window">
+        <div class="group-label">Window</div>
+        <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>
+      </section>
+
+      <section class="group group-motion">
+        <div class="group-label">Motion</div>
+        <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>
+      </section>
+
+      <section class="group group-space">
+        <div class="group-label">Space</div>
+        <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>
+      </section>
+
+      </div><!-- /.group-row-2 -->
 
     </main>
 

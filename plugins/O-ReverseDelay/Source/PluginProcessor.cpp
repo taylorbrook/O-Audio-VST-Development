@@ -20,6 +20,12 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pWidth        = parameters.getRawParameterValue("width");
     pMix          = parameters.getRawParameterValue("mix");
 
+    // v1.1.0 grain randomisation (B3).
+    pJitter       = parameters.getRawParameterValue("jitter");
+    pDelayScatter = parameters.getRawParameterValue("delayScatter");
+    pSizeRandom   = parameters.getRawParameterValue("sizeRandom");
+    pGainRandom   = parameters.getRawParameterValue("gainRandom");
+
     // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
     // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
     // through each parameter's own NormalisableRange below. Four params are
@@ -27,9 +33,18 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All ten keys are explicit in every preset. Omitted keys would revert to the
-    // APVTS default (applyPresetJson resets everything first), which is safe but
-    // makes the table's intent unreadable.
+    // All fourteen keys are explicit in every preset. Omitted keys would revert
+    // to the APVTS default (applyPresetJson resets everything first), which is
+    // safe but makes the table's intent unreadable.
+    //
+    // ── v1.1.0 (B3): the four randomisation keys are pinned at 0 ────────────
+    // Not an oversight. These presets are the shipped v1.0 sound, and a factory
+    // preset that quietly switched on grain randomisation would change what
+    // "Reverse Bloom" means for everyone who already uses it
+    // (pattern_activating_dead_param_default_timbre). They are written
+    // explicitly rather than left to the default so that intent is on the page:
+    // v1.1 presets are deliberately unchanged, and a future release that DOES
+    // want a randomised preset edits a visible number here.
     //
     // No "/" in any name — OuariconPresetManager sanitises it to "_", so
     // "Reverse 1/8" would round-trip as "Reverse 1_8"
@@ -52,37 +67,49 @@ ReverseDelayProcessor::ReverseDelayProcessor()
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  500.0f},
            {"grainSize", 200.0f}, {"density", 53.3f}, {"feedback",  40.0f},
            {"lowCut",    100.0f}, {"highCut", 8000.0f},
-           {"width",      60.0f}, {"mix",       40.0f}}, {} },
+           {"width",      60.0f}, {"mix",       40.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
            {"grainSize", 300.0f}, {"density", 47.5f}, {"feedback",  45.0f},
            {"lowCut",    120.0f}, {"highCut", 6500.0f},
-           {"width",      55.0f}, {"mix",       55.0f}}, {} },
+           {"width",      55.0f}, {"mix",       55.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
            {"grainSize", 180.0f}, {"density", 65.0f}, {"feedback",  30.0f},
            {"lowCut",    300.0f}, {"highCut", 7000.0f},
-           {"width",      70.0f}, {"mix",       25.0f}}, {} },
+           {"width",      70.0f}, {"mix",       25.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
            {"grainSize", 450.0f}, {"density", 18.3f}, {"feedback",  65.0f},
            {"lowCut",     80.0f}, {"highCut", 5000.0f},
-           {"width",      85.0f}, {"mix",       50.0f}}, {} },
+           {"width",      85.0f}, {"mix",       50.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
            {"grainSize",  70.0f}, {"density", 88.3f}, {"feedback",  35.0f},
            {"lowCut",    150.0f}, {"highCut", 11000.0f},
-           {"width",      35.0f}, {"mix",       45.0f}}, {} },
+           {"width",      35.0f}, {"mix",       45.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
            {"grainSize", 320.0f}, {"density", 59.2f}, {"feedback",  70.0f},
            {"lowCut",    220.0f}, {"highCut", 1800.0f},
-           {"width",      75.0f}, {"mix",       55.0f}}, {} },
+           {"width",      75.0f}, {"mix",       55.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -92,13 +119,17 @@ ReverseDelayProcessor::ReverseDelayProcessor()
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  900.0f},
            {"grainSize", 350.0f}, {"density", 65.0f}, {"feedback", 100.0f},
            {"lowCut",    180.0f}, {"highCut", 2500.0f},
-           {"width",      80.0f}, {"mix",       50.0f}}, {} },
+           {"width",      80.0f}, {"mix",       50.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
            {"grainSize", 120.0f}, {"density", 76.7f}, {"feedback",  50.0f},
            {"lowCut",    140.0f}, {"highCut", 9000.0f},
-           {"width",      50.0f}, {"mix",       45.0f}}, {} },
+           {"width",      50.0f}, {"mix",       45.0f},
+           {"jitter", 0.0f}, {"delayScatter", 0.0f},
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -227,12 +258,14 @@ void ReverseDelayProcessor::reset()
     lpL.reset(); lpR.reset();
 
     wetScratch.clear();
+    loopScratch.clear();
     fbScratch.clear();
 
-    // Same fixed seed as prepareToPlay — a reset must not desynchronise the
-    // width-spread sequence the harness depends on.
-    rngState = 0x12345678u;
-    panSign  = 1.0f;
+    // Same seeds as prepareToPlay — a reset must not desynchronise the sequences
+    // the harness depends on. Per-instance since v1.1.0.
+    rngState       = instanceSeed;
+    jitterRngState = deriveJitterSeed (instanceSeed);
+    panSign        = 1.0f;
 
     // Jump the smoothers to their current targets rather than ramping from
     // whatever the previous pass ended on.
@@ -260,7 +293,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
     // exponent against the new max, so short times keep their knob resolution
     // instead of being crushed into the bottom of a linear-ish 4 s sweep.
     {
-        juce::NormalisableRange<float> range { 50.0f, kDelayTimeMaxMs, 0.01f };
+        juce::NormalisableRange<float> range { kDelayTimeMinMs, kDelayTimeMaxMs, 0.01f };
         range.setSkewForCentre(kDelayTimeSkewCentreMs);
         layout.add(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID { "delayTime", 1 }, "Delay Time", range, 500.0f,
@@ -333,7 +366,101 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 35.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
+    // ── v1.1.0 (B3): grain randomisation ────────────────────────────────────
+    //
+    // EVERY ONE DEFAULTS TO 0, and that is load-bearing rather than cautious:
+    //
+    //   * A new parameter appended to the APVTS is absent from every v1.0
+    //     session and every v1.0 preset. APVTS leaves absent params at their
+    //     default, and OuariconPresetManager::applyPresetJson resets all params
+    //     to defaults before applying, so a v1.0 session or preset reopened
+    //     under v1.1 gets 0 for all four. A non-zero default would therefore
+    //     silently re-voice existing work
+    //     (pattern_activating_dead_param_default_timbre).
+    //
+    //   * 0 is the exact no-op in the engine, not merely a small value: each
+    //     randomisation is gated on `amount > 0` and draws NOTHING from the
+    //     shared xorshift when off, so the pan sequence — and with it the whole
+    //     v1.0.1 render — is reproduced bit-for-bit. Render-harness probe T
+    //     asserts that equality against a defaults render rather than trusting
+    //     it, because "a randomiser that is off" is exactly the kind of claim
+    //     that quietly stops being true.
+    //
+    // This is why v1.1.0 is a MINOR bump and not a MAJOR one: nothing is
+    // renamed, removed, re-ranged or re-typed, and no existing session changes.
+
+    // jitter: 0–100 %, default 0. Randomises the SPAWN INTERVAL; the mean
+    // interval is unchanged, so density and the loop duty cycle do not move.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "jitter", 1 }, "Jitter",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // delayScatter: 0–500 ms, default 0. Randomises each grain's latched D by
+    // ±this, so the smear thickens without the average rhythmic anchor moving.
+    // The ring is sized for the POSITIVE half of this range (kCaptureSeconds).
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayScatter", 1 }, "Delay Scatter",
+        juce::NormalisableRange<float>(0.0f, kDelayScatterMaxMs, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("ms")));
+
+    // sizeRandom: 0–100 %, default 0. Randomises each grain's latched G.
+    // Jitter alone leaves a residual periodicity because every grain still
+    // shares one envelope length; this is what removes it.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "sizeRandom", 1 }, "Size Random",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // gainRandom: 0–100 %, default 0. Randomises per-grain gain AFTER the
+    // feedback tap — see the wet/loop split in processBlock. Power-normalised,
+    // so it adds shimmer without adding level.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "gainRandom", 1 }, "Gain Random",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     return layout;
+}
+
+//==============================================================================
+// v1.1.0 — per-instance RNG seed.
+//
+// v1.0 seeded every instance with the same literal, so two instances on two
+// tracks produced identical pan sequences and would, once v1.1's randomisations
+// landed, produce identical grain jitter/scatter/size/gain too — i.e. two
+// tracks that should decorrelate into a wide cloud would instead move together.
+//
+// The seed is fixed for the LIFETIME of the processor rather than re-rolled per
+// prepareToPlay, which keeps two properties that both matter:
+//   * one instance renders identically across prepare/reset cycles (probe O
+//     compares a 512- and a 4096-sample render of the same instance and demands
+//     bit equality; a per-prepare reseed would break that outright),
+//   * two instances differ.
+//
+// Under the render harness it collapses to v1.0's literal so all 49 shipped
+// probes keep their exact expected output.
+juce::uint32 ReverseDelayProcessor::makeInstanceSeed (const void* self) noexcept
+{
+   #if OUARICON_RENDER_HARNESS
+    juce::ignoreUnused (self);
+    return 0x12345678u;
+   #else
+    // Address bits (ASLR + allocator placement) mixed with a per-process
+    // counter, so instances differ even if an allocator reuses an address.
+    static std::atomic<juce::uint32> counter { 0 };
+
+    const auto addr = static_cast<juce::uint32> (
+        reinterpret_cast<juce::pointer_sized_uint> (self) >> 4);
+
+    const juce::uint32 s = 0x12345678u ^ addr
+                         ^ (counter.fetch_add (1u, std::memory_order_relaxed) * 0x9E3779B9u);
+
+    // xorshift32 is absorbing at zero — a zero state returns 0.0f forever, so
+    // every grain would pan hard to one side and every randomisation would
+    // collapse to its lower bound. One in 4 billion, silent, and permanent.
+    return s != 0u ? s : 0x12345678u;
+   #endif
 }
 
 void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -342,20 +469,25 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     const int maxBlock = juce::jmax(1, samplesPerBlock);
 
     // ALL allocation happens here — processBlock touches only preallocated state.
-    // v1.0.1 (A1): 3.5 -> 5.5 s. The ring must cover Dmax + 2·Gmax, and Dmax grew
-    // 2.0 -> 4.0 s, so the requirement is 4.0 + 2·0.5 = 5.0 s. Costs ~2.1 MB
-    // stereo at 48 kHz.
+    // v1.0.1 (A1): 3.5 -> 5.5 s (Dmax grew 2.0 -> 4.0 s).
+    // v1.1.0 (B3): 5.5 -> 6.0 s. delayScatter can push a grain's LATCHED delay
+    // 500 ms past the delayTime max, so the requirement became 4.5 + 2·0.5 =
+    // 5.5 s — which 5.5 s met by a single sample. See kCaptureSeconds.
     capture.prepare(sampleRate, kCaptureSeconds);
     scheduler.prepare(sampleRate);
     grainPool.clear();
 
-    // Deterministic width-spread sequence per prepare (harness reproducibility).
-    rngState = 0x12345678u;
-    panSign  = 1.0f;
+    // Deterministic sequences per prepare — from the INSTANCE's seed, not a
+    // shared literal, so this instance repeats and the next one differs.
+    rngState       = instanceSeed;
+    jitterRngState = deriveJitterSeed (instanceSeed);
+    panSign        = 1.0f;
 
     wetScratch.setSize(2, maxBlock);
+    loopScratch.setSize(2, maxBlock);
     fbScratch.setSize(2, maxBlock);
     wetScratch.clear();
+    loopScratch.clear();
     fbScratch.clear();
 
     const double smoothingSeconds = 0.02;   // ~20 ms per contract
@@ -446,6 +578,14 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float widthNorm   = pWidth->load() * 0.01f;
     const bool  syncMode    = pSyncMode->load() >= 0.5f;
 
+    // v1.1.0 (B3) — also latched per grain, also never smoothed. Each is used
+    // only through a `> 0` gate, so at the shipped defaults none of them touches
+    // the shared xorshift and the render is bit-identical to v1.0.1.
+    const float jitterNorm   = pJitter->load() * 0.01f;
+    const float scatterMs    = pDelayScatter->load();
+    const float sizeRandNorm = pSizeRandom->load() * 0.01f;
+    const float gainRandNorm = pGainRandom->load() * 0.01f;
+
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
     mixSmoothed.setTargetValue(pMix->load() * 0.01f);
@@ -486,7 +626,8 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                     // with kDelayTimeMaxMs — a stale literal here is exactly the
                     // v1.0.0 defect (division named but not played, silently).
                     effectiveDelayMs = static_cast<float>(
-                        juce::jlimit(50.0, static_cast<double>(kDelayTimeMaxMs), ms));
+                        juce::jlimit(static_cast<double>(kDelayTimeMinMs),
+                                     static_cast<double>(kDelayTimeMaxMs), ms));
                 }
             }
         }
@@ -506,6 +647,33 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const int   intervalSamples = juce::jmax(1, static_cast<int>(static_cast<float>(G) / overlap));
     const float grainGain       = 1.0f / std::sqrt(overlap);   // compensation, latched per grain,
                                                                // applied BEFORE the feedback tap
+
+    // ---- (1b) v1.1.0 randomisation amounts, resolved once per block ---------
+    // Everything here is derived from block-rate parameter reads; the actual
+    // draws happen per grain at spawn, so an amount that changes mid-flight
+    // never re-randomises a live grain (the same click-free latching mechanism
+    // that delayTime/grainSize/density/width already use).
+    const int scatterSamples = static_cast<int>(scatterMs * 0.001 * currentSampleRate);
+
+    // sizeRandom clamps into grainSize's OWN range: a randomised grain must
+    // never exceed a grain the user could dial in, because kCaptureSeconds is
+    // sized against kGrainSizeMaxMs. At the range endpoints the distribution is
+    // therefore one-sided (at grainSize = 500 ms the knob can only shorten),
+    // which is the correct trade — the alternative is an unbounded read span.
+    const int gMinSamples = juce::jmax(2,
+        static_cast<int>(kGrainSizeMinMs * 0.001 * currentSampleRate));
+    const int gMaxSamples = juce::jmax(gMinSamples,
+        static_cast<int>(kGrainSizeMaxMs * 0.001 * currentSampleRate));
+
+    // gainRandom, power-normalised. For g = 1 + dev·u with u uniform on [−1,1),
+    // E[g²] = 1 + dev²/3, so an un-normalised multiplier would raise wet RMS by
+    // up to +0.75 dB at full travel — the knob would read as a loudness control
+    // and would eat most of probe D's ±1 dB flatness budget. Dividing by the
+    // root makes expected power exactly independent of the setting.
+    // At gainRandNorm = 0: dev = 0, norm = 1.0f, and every grain's gLout is
+    // BITWISE gL — which is what makes the defaults render bit-identical.
+    const float gainRandDev  = juce::jmin(1.0f, gainRandNorm) * kMaxGainRandomDeviation;
+    const float gainRandNorml = 1.0f / std::sqrt(1.0f + gainRandDev * gainRandDev / 3.0f);
 
     // ---- (2) advance smoothers + update damping coefficients ----------------
     // mix advances per sample in the mix loop (step 7); feedback gain advances
@@ -554,16 +722,41 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // a 512-sample block is one pass and the code path is bit-identical to
     // v1.0.0. Only oversized blocks (or very low sample rates) split.
     wetScratch.clear();
-    float* wetL = wetScratch.getWritePointer(0);
-    float* wetR = wetScratch.getWritePointer(1);
-    float* fbLw = fbScratch.getWritePointer(0);
-    float* fbRw = fbScratch.getWritePointer(1);
+    loopScratch.clear();
+    float* wetL  = wetScratch.getWritePointer(0);
+    float* wetR  = wetScratch.getWritePointer(1);
+    float* loopL = loopScratch.getWritePointer(0);   // v1.1.0: feedback tap, pre-gainRandom
+    float* loopR = loopScratch.getWritePointer(1);
+    float* fbLw  = fbScratch.getWritePointer(0);
+    float* fbRw  = fbScratch.getWritePointer(1);
 
     // Mono input feeds both capture channels (L = R = in).
     const float* inL = buffer.getReadPointer(0);
     const float* inR = numInputChannels > 1 ? buffer.getReadPointer(1) : inL;
 
-    const int passLen = juce::jmax(1, juce::jmin(numSamples, D));
+    // ---- pass bound (A2, extended for v1.1's delayScatter) ------------------
+    // A2 bounds each pass so that a grain spawning at pass offset i reads
+    // capture that is already written, which needs i < (that grain's latched
+    // delay). Through v1.0.1 every grain's delay WAS D, so bounding the pass by
+    // D was sufficient.
+    //
+    // delayScatter breaks that: a scattered grain's delay can fall below D. The
+    // obvious repair — clamp the latched delay up to passLen — is wrong in a way
+    // that is invisible without probe W2, because passLen is itself derived from
+    // the host block size, so the clamp would latch DIFFERENT delays at 512 than
+    // at 4096 samples and an offline bounce would stop matching what was
+    // monitored. (It did; W2 caught it.)
+    //
+    // Both the bound and the clamp therefore key off grainDelayFloor, which is a
+    // function of the PARAMETERS alone: the delayTime range's own minimum, i.e.
+    // scatter can never pull a grain below the shortest delay the plugin offers.
+    // With scatter off the bound collapses to v1.0.1's exact min(numSamples, D)
+    // and the render is bit-identical.
+    const int minDelaySamples = juce::jmax(1,
+        static_cast<int>(kDelayTimeMinMs * 0.001 * currentSampleRate));
+    const int grainDelayFloor = juce::jmin(D, minDelaySamples);
+    const int passBound       = scatterSamples > 0 ? grainDelayFloor : D;
+    const int passLen         = juce::jmax(1, juce::jmin(numSamples, passBound));
 
     for (int off = 0; off < numSamples; off += passLen)
     {
@@ -573,33 +766,99 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // ---- (3) schedule spawns, latch per-grain state ---------------------
         // Offsets come back pass-relative; startOffset stays block-relative so
         // the render loop below indexes the shared scratch buffers directly.
-        const int spawnCount = scheduler.processBlock(len, intervalSamples, spawnRequests);
+        // jitterRngState, NOT rngState: the scheduler consumes its stream once
+        // per spawn from inside a per-sample countdown, while the loop below
+        // consumes the grain stream after the whole pass has been scheduled.
+        // Sharing one stream would interleave the two differently at different
+        // pass lengths — i.e. differently at 512 than at 4096 samples — and the
+        // engine would stop being block-size invariant (probe W2).
+        const int spawnCount = scheduler.processBlock(len, intervalSamples, jitterNorm,
+                                                      spawnRequests,
+                                                      [this] { return nextJitterRand01(); });
         const juce::int64 passStartAbs = capture.getTotalWritten();   // capture write happens in step 6
 
         for (int s = 0; s < spawnCount; ++s)
         {
             const int passOffset = spawnRequests[static_cast<size_t>(s)].sampleOffset;
-            auto& g = grainPool.obtain();
 
-            g.active      = true;
-            g.readAbs     = (passStartAbs + static_cast<juce::int64>(passOffset)) - static_cast<juce::int64>(D);
-            g.n           = 0;
-            g.G           = G;
-            g.invG        = 1.0f / static_cast<float>(G);
-            g.gain        = grainGain;
-            g.age         = 0;
-            g.startOffset = off + passOffset;
+            // ── per-grain randomisation, drawn BEFORE the slot is requested ──
+            // Draw order is fixed (scatter -> size -> gain -> pan) so a render
+            // is reproducible from the seed. Each draw is gated on its own
+            // amount, so enabling one does NOT shift the others' sequences and
+            // all-zero consumes nothing at all.
+            //
+            // Drawn before obtain() ON PURPOSE: a refused spawn must consume
+            // exactly what a granted one consumes, or RNG consumption would
+            // depend on pool occupancy — and occupancy at a given spawn depends
+            // on how many render passes have run, i.e. on the host block size.
+            // The few wasted draws buy an unconditional invariant.
+
+            // delayScatter: ±scatterSamples around D. Symmetric, so the MEAN
+            // latched delay stays D and the rhythmic anchor does not move —
+            // only the thickness of the smear around it changes.
+            int gD = D;
+            if (scatterSamples > 0)
+                gD = D + static_cast<int>(static_cast<float>(scatterSamples)
+                                          * (2.0f * nextRand01() - 1.0f));
+
+            // See the pass-bound note above: clamped to grainDelayFloor, which
+            // depends only on the parameters, so the latched value is identical
+            // at every host block size. passLen <= grainDelayFloor, so this also
+            // preserves A2's `i < gD` guarantee.
+            gD = juce::jmax(grainDelayFloor, gD);
+
+            // sizeRandom: ±% on G, clamped into grainSize's own range.
+            int gG = G;
+            if (sizeRandNorm > 0.0f)
+                gG = juce::jlimit(gMinSamples, gMaxSamples,
+                                  static_cast<int>(static_cast<float>(G)
+                                                   * randomMul(juce::jmin(1.0f, sizeRandNorm))));
+
+            // gainRandom: bounded, power-normalised, applied ONLY to the output
+            // pan gains below — never to gL/gR, which is what the feedback tap
+            // reads. jmax(0) guards the (unreachable at dev <= 0.75) negative
+            // multiplier that would invert a grain's polarity.
+            const float gainRand = gainRandDev > 0.0f
+                                     ? juce::jmax(0.0f, randomMul(gainRandDev)) * gainRandNorml
+                                     : 1.0f;
 
             // Width spread: per-grain equal-power pan, latched at spawn, never
             // smoothed. Alternating-sign random bias — consecutive grains ping
             // left/right; magnitude in [kPanBias, 1] scaled by width. width=0
             // collapses to pan 0.5 -> gL = gR = 1/sqrt(2) (centered dual-mono).
+            // panSign flips here rather than after the slot check for the same
+            // reason the draws happen here: it is sequence state.
             panSign = -panSign;
             const float spread = panSign * (kPanBias + (1.0f - kPanBias) * nextRand01());
             const float pan    = 0.5f + widthNorm * 0.5f * spread;
             const float phase  = pan * juce::MathConstants<float>::halfPi;
+
+            // v1.1.0: REFUSE, never steal. A stolen slot's Hann envelope jumps
+            // from mid-window to zero in one sample; a refused spawn just leaves
+            // the overlap-add one contributor lighter for that window. See
+            // GrainPool::obtain(). The scheduler countdown already advanced, so
+            // dropping the grain does not shift the spawn grid either.
+            auto* slot = grainPool.obtain();
+            if (slot == nullptr)
+                continue;
+
+            auto& g = *slot;
+
+            g.active      = true;
+            g.readAbs     = (passStartAbs + static_cast<juce::int64>(passOffset)) - static_cast<juce::int64>(gD);
+            g.n           = 0;
+            g.G           = gG;
+            g.invG        = 1.0f / static_cast<float>(gG);
+            g.gain        = grainGain;
+            g.age         = 0;
+            g.startOffset = off + passOffset;
+
             g.gL = std::cos(phase);
             g.gR = std::sin(phase);
+
+            // gainRand == 1.0f multiplies to a BITWISE copy, not an approximation.
+            g.gLout = g.gL * gainRand;
+            g.gRout = g.gR * gainRand;
         }
 
         // ---- (4) render active grains into wetScratch (overlap-add) ---------
@@ -620,18 +879,30 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             juce::int64 readAbs = g.readAbs;
             int         n       = g.n;
-            const float invG = g.invG, gain = g.gain, gL = g.gL, gR = g.gR;
+            const float invG = g.invG, gain = g.gain;
+            const float gL = g.gL,    gR = g.gR;       // feedback tap — never randomised
+            const float gLo = g.gLout, gRo = g.gRout;  // output — includes gainRandom
 
             // Branch-free inner loop: LUT lerp + mul-adds, per-grain constants
             // precomputed at spawn. Integer reverse read: readAbs steps −1 while
             // the write head advances +1 → net offset growth D+2n.
+            //
+            // v1.1.0 accumulates TWO buffers so gainRandom can sit downstream of
+            // the feedback tap (step 5 reads loop*, step 7 reads wet*). Kept
+            // unconditional rather than branched on "is gainRandom on": a
+            // block-rate branch would re-gain grains that were latched while it
+            // was on, which is precisely the click the latching exists to avoid.
+            // Cost is two extra mul-adds per grain-sample — at overlap <= 8 and
+            // 48 kHz, a few Mflop/s.
             for (int i = start; i < end; ++i)
             {
                 const float src = capture.monoSum(readAbs);
                 const float env = hannLut.read(static_cast<float>(n) * invG);
                 const float v   = src * env * gain;
-                wetL[i] += v * gL;
-                wetR[i] += v * gR;
+                wetL[i]  += v * gLo;
+                wetR[i]  += v * gRo;
+                loopL[i] += v * gL;
+                loopR[i] += v * gR;
                 --readAbs;
                 ++n;
             }
@@ -644,18 +915,25 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 g.active = false;
         }
 
-        // ---- (5) feedback return: wet → fbGain → HP → LP → tanh → guard -----
+        // ---- (5) feedback return: loop → fbGain → HP → LP → tanh → guard ----
         // Tap is post grain-gain (overlap compensation already applied in step 4 —
         // loop gain stays density-independent), pre width/mix (they never enter
         // the loop). tanh bounds the loop to ±1 at any feedback setting.
+        //
+        // v1.1.0: reads loop*, NOT wet*. gainRandom must not reach the loop —
+        // a randomised gain inside a recirculating path compounds every
+        // generation, so the knob would control how fast the tail dies rather
+        // than how it shimmers, and at feedback = 100 it would make the decay
+        // rate itself stochastic. At gainRandom = 0 loop* holds bitwise the same
+        // values as wet*, so this is a no-op against v1.0.1.
         {
             float acc = 0.0f;   // NaN detector: tanh output is bounded, so only NaN can escape
 
             for (int i = off; i < passEnd; ++i)
             {
                 const float g = feedbackSmoothed.getNextValue();
-                float l = hpL.processSample(wetL[i] * g);
-                float r = hpR.processSample(wetR[i] * g);
+                float l = hpL.processSample(loopL[i] * g);
+                float r = hpR.processSample(loopR[i] * g);
                 l = lpL.processSample(l);
                 r = lpR.processSample(r);
                 l = std::tanh(l);

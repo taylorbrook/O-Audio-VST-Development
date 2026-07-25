@@ -28,7 +28,9 @@ function skewForCentre(start, end, centre) {
 }
 
 const RANGES = {
-  delayTime: { start: 50,  end: 2000,  skew: skewForCentre(50, 2000, 316),    interval: 0.01, def: 500 },
+  // v1.0.1 raised delayTime's max 2000 -> 4000 (A1); the stub was left at 2000
+  // and so rendered a knob whose readout disagreed with the plugin's.
+  delayTime: { start: 50,  end: 4000,  skew: skewForCentre(50, 4000, 316),    interval: 0.01, def: 500 },
   grainSize: { start: 50,  end: 500,   skew: skewForCentre(50, 500, 158),     interval: 0.01, def: 200 },
   density:   { start: 0,   end: 100,   skew: 1, interval: 0.1,  def: 60 },
   feedback:  { start: 0,   end: 100,   skew: 1, interval: 0.1,  def: 40 },
@@ -36,6 +38,12 @@ const RANGES = {
   highCut:   { start: 500, end: 20000, skew: skewForCentre(500, 20000, 3162), interval: 0.01, def: 8000 },
   width:     { start: 0,   end: 100,   skew: 1, interval: 0.1,  def: 60 },
   mix:       { start: 0,   end: 100,   skew: 1, interval: 0.1,  def: 35 },
+
+  // v1.1.0 (B3) — RANDOM panel. All default to 0.
+  jitter:       { start: 0, end: 100, skew: 1, interval: 0.1, def: 0 },
+  delayScatter: { start: 0, end: 500, skew: 1, interval: 0.1, def: 0 },
+  sizeRandom:   { start: 0, end: 100, skew: 1, interval: 0.1, def: 0 },
+  gainRandom:   { start: 0, end: 100, skew: 1, interval: 0.1, def: 0 },
 };
 
 const CHOICES = {

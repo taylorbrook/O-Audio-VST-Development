@@ -1,12 +1,30 @@
 /* ============================================================================
    O-ReverseDelay — Ouaricon Naturalist (aesthetic ouaricon-naturalist-001)
-   Fixed 940 × 484. Header, a 44 px preset band, one row of four framed group
-   panels (TIME | GRAIN | FEEDBACK | OUTPUT, signal-flow order, D9), footer.
-   No viewport units — WebView hosts size the frame, not the viewport.
+   Fixed 940 × 743. Header, a 44 px preset band, TWO rows of four framed group
+   panels, footer. No viewport units — WebView hosts size the frame, not the
+   viewport.
 
-   Height is mirrored in PluginEditor.cpp's setSize (940, 484) — keep in sync.
-   The preset band and the height increase are both exactly 44 px, so .groups'
-   flex slack is unchanged and the panels/footer sit where Stage 3 left them.
+   Width is mirrored in PluginEditor.cpp's setSize (940, 743) — keep in sync.
+
+   ── v1.1.0: the chassis expansion, done ONCE ──────────────────────────────
+   Row 1 (215 px)  TIME | GRAIN | FEEDBACK | OUTPUT   — signal flow (D9)
+   Row 2 (245 px)  RANDOM | WINDOW | MOTION | SPACE   — character controls
+
+   484 + 14 (row gap) + 245 = 743, so .groups has EXACTLY zero slack: row 1
+   sits where Stage 3 left it and row 2 consumes the entire height increase.
+
+   Both rows share one width contract — 190 | 190 | 276 | 190, summing with
+   3 × 12 px gaps to 882 inside the frame's 890 px content box — so the two
+   rows align column-for-column. Row 2's panels are 30 px taller because their
+   .group-body wraps to TWO knob-cell rows (2 × 95 px + 12 px gap = 202 within
+   a 217 px body), which is what carries the ~26-control capacity: 9 cells in
+   row 1 + 18 in row 2 = 27.
+
+   This is deliberately sized for v1.1 THROUGH v1.6. Resizing the window is the
+   expensive change — it invalidates the tooltip edge-clamp verification, which
+   is viewport-sensitive and must be re-measured at the real shipping width
+   (pattern_tooltip_clamp_gate_viewport_sensitive). Doing it once now means
+   later releases only fill panels that already exist.
    ========================================================================= */
 
 :root {
@@ -55,7 +73,7 @@
 
 html, body {
   width: 940px;
-  height: 484px;
+  height: 743px;
   overflow: hidden;
 }
 
@@ -73,12 +91,17 @@ body {
 }
 
 /* ── Botanical overlay ───────────────────────────────────────────────────── */
+/* Height is PINNED in px, not 70% of the frame. Under a percentage the v1.1.0
+   resize (484 -> 743) scaled the plate from ~339 px to ~520 px, and the birds
+   stopped being a marginal specimen illustration and started reading as clutter
+   behind two rows of panels — the group fills are translucent, so it shows
+   through every one of them. 340 px reproduces the shipped v1.0.1 scale. */
 .botanical-overlay {
   position: absolute;
   right: -28px;
   top: 50%;
   transform: translateY(-50%);
-  height: 70%;
+  height: 340px;
   opacity: 0.35;
   pointer-events: none;
   z-index: 1;
@@ -89,7 +112,7 @@ body {
   position: relative;
   z-index: 2;
   width: 940px;
-  height: 484px;
+  height: 743px;
   padding: 18px 22px 14px;
   border: 3px solid var(--brown-frame);
   box-shadow: inset 0 0 32px rgba(92, 64, 51, 0.12);
@@ -221,12 +244,24 @@ body {
   text-overflow: ellipsis;
 }
 
-/* ── Group row ───────────────────────────────────────────────────────────── */
-/* Panels are a fixed-height specimen row centred in the remaining space, rather
-   than stretched to it — stretching left a tall empty half in every panel and
-   buried the botanical overlay behind solid fill. */
+/* ── Group rows ──────────────────────────────────────────────────────────── */
+/* v1.1.0: .groups became the COLUMN holding both specimen rows; .group-row is
+   what each row of panels now is, and it kept .groups' old flex behaviour
+   verbatim so row 1 renders exactly as it did at v1.0.1.
+
+   Panels are fixed-height rows centred in the available space rather than
+   stretched to it — stretching left a tall empty half in every panel and buried
+   the botanical overlay behind solid fill. */
 .groups {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.group-row {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,11 +280,46 @@ body {
   box-shadow: 2px 2px 6px var(--shadow-light), inset 0 1px 0 rgba(255, 248, 220, 0.45);
 }
 
-/* Panel widths are pinned so the four panels sum to the fixed 940 px frame. */
+/* Panel widths are pinned so the four panels sum to the fixed 940 px frame.
+   BOTH rows use this one contract, so the two rows align column-for-column —
+   TIME over RANDOM, FEEDBACK over MOTION. A panel added in a later release
+   inherits its width from here and moves nothing. */
 .group-time,
 .group-grain,
-.group-output   { width: 190px; }
-.group-feedback { width: 276px; }
+.group-output,
+.group-random,
+.group-window,
+.group-space    { width: 190px; }
+.group-feedback,
+.group-motion   { width: 276px; }
+
+/* Row 2 is 30 px taller than row 1 because its bodies wrap to two knob-cell
+   rows. 215 + 14 + 245 = 474 = the height .groups has at 743 px, exactly. */
+.group-row-2 .group { height: 245px; }
+
+/* Two cell rows, wrapping. Row 1's bodies never wrap (they hold 2–3 cells in a
+   190–276 px panel), so this is inert there and row 1 is untouched. */
+.group-row-2 .group-body {
+  flex-wrap: wrap;
+  align-content: center;
+  row-gap: 12px;
+}
+
+/* ── Reserved panels ─────────────────────────────────────────────────────── */
+/* WINDOW / MOTION / SPACE are framed and labelled now so the chassis is final,
+   but hold no controls until v1.2+. An empty frame reads as broken, so each
+   carries a dimmed fleuron — the page's own ornament, already used in the
+   preset bar and footer — which reads as a plate awaiting its specimen.
+
+   To fill one: drop .knob-cell markup into its .group-body and delete the
+   .group-reserved span. No CSS change, no resize, no tooltip re-verification. */
+.group-reserved {
+  margin: auto;
+  font-size: 26px;
+  color: var(--fleuron-color);
+  opacity: 0.55;
+  user-select: none;
+}
 
 .group-label {
   position: absolute;

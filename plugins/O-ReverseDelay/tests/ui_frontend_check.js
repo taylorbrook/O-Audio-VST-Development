@@ -52,9 +52,18 @@
          initialiser is hoisted, called from inside init(), and try/catch'd so a
          bar failure cannot take the ten knobs down (pattern_module_toplevel_init_tdz,
          pattern_js_state_updater_overwrites_html_labels).
-     14. All 10 controls carry tooltip copy, and showTooltip pins the measured
+     14. All 14 controls carry tooltip copy, and showTooltip pins the measured
          width BEFORE placing (pattern_fixed_tooltip_shrink_to_fit_edge) — the
          `mix` knob is the control this would otherwise shrink-wrap.
+     15. v1.1.0 four-way knob closure: createParameterLayout == kSliderIds ==
+         KNOB_IDS == the knob-<id>/val-<id> elements, plus a FORMAT entry and a
+         ui-stub range for each. A knob wired in three of the four places is a
+         silently dead control. Also pins the four randomisation defaults at 0,
+         which is what keeps every v1.0 session and preset sounding unchanged.
+
+    NOTE: sections 1-15 are STATIC. The tooltip edge-clamp is viewport-sensitive
+    and CANNOT be verified here — see tests/ui_tooltip_clamp_check.js, which
+    drives the real page at the real 940 x 743 shipping size.
 
   ==============================================================================
 */
@@ -370,15 +379,34 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'PluginProcessor.h stays free of editor includes');
 }
 
-// ------------------------------------------- 12. Stage 4: preset bar geometry
+// -------------------------------- 12. geometry: preset bar + v1.1 second row
 {
-    check(/setSize\s*\(\s*940\s*,\s*484\s*\)/.test(editorCpp),
-        'editor setSize is 940 x 484');
-    const heights = css.match(/height:\s*484px/g) || [];
+    check(/setSize\s*\(\s*940\s*,\s*743\s*\)/.test(editorCpp),
+        'editor setSize is 940 x 743 (v1.1.0 chassis)');
+    const heights = css.match(/height:\s*743px/g) || [];
     check(heights.length >= 2,
-        `styles.css declares 484px in BOTH html/body and .frame — found ${heights.length}`);
-    check(!/height:\s*440px/.test(css),
-        'no 440px height survives in styles.css (the Stage-3 value)');
+        `styles.css declares 743px in BOTH html/body and .frame — found ${heights.length}`);
+    check(!/height:\s*440px/.test(css) && !/height:\s*484px/.test(css),
+        'no superseded frame height survives in styles.css (440 Stage-3, 484 Stage-4)');
+
+    // The row-2 arithmetic is the whole premise of "expand once": 215 (row 1)
+    // + 14 (row gap) + 245 (row 2) = 474, which is exactly what .groups gains
+    // from 484 -> 743. If any of the three drifts, row 1 or the footer moves and
+    // the tooltip clamp verification below is measuring a stale layout.
+    const rowGap = (css.match(/\.groups\s*\{[\s\S]*?gap:\s*(\d+)px/) || [])[1];
+    const row2H  = (css.match(/\.group-row-2 \.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
+    const row1H  = (css.match(/\.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
+    check(row1H === '215' && rowGap === '14' && row2H === '245',
+        `row geometry is 215 + 14 + 245 = 474 = 743 - 484 `
+        + `— got row1=${row1H} gap=${rowGap} row2=${row2H}`);
+
+    // Both rows must share ONE width contract or the columns stop aligning.
+    check(/\.group-random,/.test(css) && /\.group-motion\s*\{\s*width:\s*276px/.test(css),
+        'row-2 panels reuse row 1\'s pinned widths (190 | 190 | 276 | 190)');
+    check(/\.groups\s*\{[\s\S]*?flex-direction:\s*column/.test(css),
+        '.groups is the column holding both rows');
+    check(/class="group-row group-row-1"/.test(html) && /class="group-row group-row-2"/.test(html),
+        'index.html wraps both panel rows in .group-row');
 
     // The band and the height increase must be the same 44 px, or the panels
     // and footer move (D15's whole low-regression premise).
@@ -441,7 +469,9 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
 {
     const TIP_ANCHORS = ['syncSegments', 'combo-noteDivision',
         'knob-delayTime', 'knob-grainSize', 'knob-density', 'knob-feedback',
-        'knob-lowCut', 'knob-highCut', 'knob-width', 'knob-mix'];
+        'knob-lowCut', 'knob-highCut', 'knob-width', 'knob-mix',
+        // v1.1.0 RANDOM panel
+        'knob-jitter', 'knob-delayScatter', 'knob-sizeRandom', 'knob-gainRandom'];
 
     const missingTips = TIP_ANCHORS.filter(id => {
         const m = html.match(new RegExp(`id="${id}"[\\s\\S]{0,400}?>`));
@@ -487,6 +517,101 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // no 12th native function.
     check(!/setTooltipsEnabled/.test(appJs) && !/setTooltipsEnabled/.test(editorCpp),
         'no tooltip-enable native fn (D13: tooltips only, the bridge stays at 11)');
+}
+
+// ------------------------- 15. v1.1.0: four-way knob/parameter closure
+// The knob inventory now lives in FOUR places: createParameterLayout() in the
+// processor, kSliderIds in the editor (relays + attachments), KNOB_IDS in
+// app.js, and the knob-<id> elements in index.html. Wire a parameter into
+// three of them and the fourth leaves a control that is silently dead — the
+// same failure class as an unregistered native function (section 3), and just
+// as invisible to ninja, auval and pluginval.
+//
+// v1.1.0 added four knobs at once across all four files, which is exactly when
+// this drifts.
+{
+    const processorCpp = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.cpp'), 'utf8');
+
+    // Float params declared in createParameterLayout(). The two choice params
+    // (syncMode, noteDivision) are deliberately excluded — they are not knobs.
+    const layoutIds = new Set();
+    for (const m of processorCpp.matchAll(/ParameterID\s*\{\s*"([A-Za-z0-9_]+)",\s*1\s*\}/g))
+        layoutIds.add(m[1]);
+    for (const m of processorCpp.matchAll(/AudioParameterChoice>\(\s*\n?\s*juce::ParameterID\s*\{\s*"([A-Za-z0-9_]+)"/g))
+        layoutIds.delete(m[1]);
+    ['syncMode', 'noteDivision'].forEach(id => layoutIds.delete(id));
+
+    const editorIds = new Set();
+    const sliderBlock = editorCpp.match(/kSliderIds\s*\{([\s\S]*?)\};/);
+    if (sliderBlock)
+        for (const m of sliderBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)) editorIds.add(m[1]);
+
+    const jsIds = new Set();
+    const knobBlock = appJs.match(/const KNOB_IDS = \[([\s\S]*?)\];/);
+    if (knobBlock)
+        for (const m of knobBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)) jsIds.add(m[1]);
+
+    const htmlIds = new Set();
+    for (const m of html.matchAll(/id="knob-([A-Za-z0-9_]+)"/g)) htmlIds.add(m[1]);
+
+    const readoutIds = new Set();
+    for (const m of html.matchAll(/id="val-([A-Za-z0-9_]+)"/g)) readoutIds.add(m[1]);
+
+    const diff = (a, b) => [...a].filter(x => !b.has(x));
+
+    check(sliderBlock && knobBlock, 'kSliderIds and KNOB_IDS blocks both found');
+
+    check(diff(layoutIds, editorIds).length === 0 && diff(editorIds, layoutIds).length === 0,
+        `APVTS float params == editor kSliderIds (${layoutIds.size})`
+        + (diff(layoutIds, editorIds).length ? ' — NO RELAY: ' + diff(layoutIds, editorIds).join(', ') : '')
+        + (diff(editorIds, layoutIds).length ? ' — NO PARAM: ' + diff(editorIds, layoutIds).join(', ') : ''));
+
+    check(diff(editorIds, jsIds).length === 0 && diff(jsIds, editorIds).length === 0,
+        `editor kSliderIds == app.js KNOB_IDS (${editorIds.size})`
+        + (diff(editorIds, jsIds).length ? ' — UNBOUND IN JS: ' + diff(editorIds, jsIds).join(', ') : '')
+        + (diff(jsIds, editorIds).length ? ' — NO RELAY: ' + diff(jsIds, editorIds).join(', ') : ''));
+
+    check(diff(jsIds, htmlIds).length === 0,
+        'every KNOB_IDS entry has a knob-<id> element in index.html'
+        + (diff(jsIds, htmlIds).length ? ' — MISSING: ' + diff(jsIds, htmlIds).join(', ') : ''));
+
+    check(diff(jsIds, readoutIds).length === 0,
+        'every KNOB_IDS entry has a val-<id> readout in index.html'
+        + (diff(jsIds, readoutIds).length ? ' — MISSING: ' + diff(jsIds, readoutIds).join(', ') : ''));
+
+    // A knob with no FORMAT entry falls back to toFixed(2) and silently shows a
+    // unitless number where every neighbour shows "%" or "ms".
+    const fmtBlock = appJs.match(/const FORMAT = \{([\s\S]*?)\n\};/);
+    const fmtIds = new Set();
+    if (fmtBlock)
+        for (const m of fmtBlock[1].matchAll(/^\s*([A-Za-z0-9_]+)\s*:/gm)) fmtIds.add(m[1]);
+    check(diff(jsIds, fmtIds).length === 0,
+        'every knob has a FORMAT entry (else the readout loses its unit)'
+        + (diff(jsIds, fmtIds).length ? ' — MISSING: ' + diff(jsIds, fmtIds).join(', ') : ''));
+
+    // The four v1.1 randomisations MUST default to 0 — that is what keeps every
+    // v1.0 session and preset sounding exactly as it did (the whole reason this
+    // is a MINOR bump). A non-zero default here re-voices shipped work silently.
+    for (const id of ['jitter', 'delayScatter', 'sizeRandom', 'gainRandom']) {
+        const decl = processorCpp.match(
+            new RegExp(`ParameterID\\s*\\{\\s*"${id}",\\s*1\\s*\\}[\\s\\S]*?\\),\\s*([0-9.]+)f,`));
+        check(!!decl && Number(decl[1]) === 0,
+            `${id} defaults to 0 (v1.0 sessions and presets must be unchanged)`
+            + (decl ? ` — got ${decl[1]}` : ' — declaration not found'));
+    }
+
+    // The stub renders the real page in a browser; a stale range there means the
+    // rendered readout disagrees with the plugin and the render proves nothing.
+    const stub = fs.readFileSync(path.join(pluginRoot, 'tests', 'ui-stub', 'juce-stub.js'), 'utf8');
+    const stubBlock = stub.match(/const RANGES = \{([\s\S]*?)\n\};/);
+    const stubIds = new Set();
+    if (stubBlock)
+        for (const m of stubBlock[1].matchAll(/^\s*([A-Za-z0-9_]+)\s*:/gm)) stubIds.add(m[1]);
+    check(diff(jsIds, stubIds).length === 0,
+        'the ui-stub declares a range for every knob'
+        + (diff(jsIds, stubIds).length ? ' — MISSING: ' + diff(jsIds, stubIds).join(', ') : ''));
+    check(/delayTime:\s*\{\s*start:\s*50,\s*end:\s*4000/.test(stub),
+        'ui-stub delayTime range tracks the v1.0.1 widening (50-4000, not 50-2000)');
 }
 
 console.log(failed === 0 ? '== ALL CHECKS PASSED ==' : `== ${failed} CHECK(S) FAILED ==`);

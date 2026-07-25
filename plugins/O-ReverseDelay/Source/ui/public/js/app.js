@@ -1,9 +1,9 @@
 // ============================================================================
 // O-ReverseDelay — WebView UI controller (Stage 3 controls, Stage 4 bar + tips)
 //
-// Binds all 10 APVTS parameters two-way: 8 WebSliderRelay knobs + 2
+// Binds all 14 APVTS parameters two-way: 12 WebSliderRelay knobs + 2
 // WebComboBoxRelay controls (syncMode as a segment pair, noteDivision as a
-// select).
+// select). v1.1.0 added the four RANDOM knobs in row 2.
 //
 // Native-function surface is 11 and must match PluginEditor.cpp exactly:
 // getParameterDefaults is fetched HERE (dblclick-reset); the other ten are
@@ -31,6 +31,8 @@ const KNOB_IDS = [
   "grainSize", "density",
   "feedback", "lowCut", "highCut",
   "width", "mix",
+  // v1.1.0 (B3) — RANDOM panel, row 2. All default to 0.
+  "jitter", "delayScatter", "sizeRandom", "gainRandom",
 ];
 
 const COMBO_SYNC     = "syncMode";
@@ -50,6 +52,12 @@ const FORMAT = {
   highCut:   fmtHz,
   width:     fmtPct,
   mix:       fmtPct,
+  // Scatter reads in ms and spans 0-500, so it never reaches fmtMs's second
+  // branch; a plain ms formatter keeps "0 ms" from ever rendering as "0.00 s".
+  jitter:       fmtPct,
+  delayScatter: (v) => `${Math.round(v)} ms`,
+  sizeRandom:   fmtPct,
+  gainRandom:   fmtPct,
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────

@@ -10,9 +10,10 @@ juce_add_plugin(OuariconReverseDelay
     PRODUCT_NAME "O-ReverseDelay${OUARICON_DEV_SUFFIX}"
     # JUCE reads VERSION (never PLUGIN_VERSION — that keyword is silently ignored
     # and the bundle ships as 1.0.0). Bumping it also invalidates the factory
-    # preset .factory-version sentinel, which is what makes the v1.0.1 preset
-    # table edits actually reach disk instead of being a silent no-op.
-    VERSION 1.0.1
+    # preset .factory-version sentinel, which is what makes preset table edits
+    # actually reach disk instead of being a silent no-op — v1.1.0 adds the four
+    # randomisation keys to all eight presets, so this bump is load-bearing.
+    VERSION 1.1.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )

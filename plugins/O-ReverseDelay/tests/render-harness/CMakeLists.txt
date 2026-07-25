@@ -52,16 +52,24 @@ target_compile_definitions(O-ReverseDelay-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon Audio Development"
     JucePlugin_ManufacturerCode=0x4f754476
     JucePlugin_PluginCode=0x4f527644
-    # Keep in sync with the plugin CMakeLists' VERSION (1.0.1). 0x10001 = 65537
+    # Keep in sync with the plugin CMakeLists' VERSION (1.1.0). 0x10100 = 65792
     # matches the verified AU version (WR-04: do not let these drift).
     #
     # This is load-bearing for probes N and R, not cosmetic: the factory-preset
     # sentinel and the user-preset migration sentinel both key off
-    # JucePlugin_VersionString. Left at 1.0.0 here, the harness would audit the
-    # STALE on-disk factory presets and skip the migration entirely, and both
-    # probes would pass against v1.0.0 data.
-    JucePlugin_VersionString="1.0.1"
-    JucePlugin_VersionCode=0x10001
+    # JucePlugin_VersionString. Left at an older value here, the harness would
+    # audit the STALE on-disk factory presets and skip the migration entirely,
+    # and both probes would pass against old data.
+    JucePlugin_VersionString="1.1.0"
+    JucePlugin_VersionCode=0x10100
+
+    # v1.1.0: collapse the per-instance RNG seed back to v1.0's literal.
+    # PluginProcessor seeds rngState from an instance hash so two instances on
+    # two tracks decorrelate; every probe that asserts a specific rendered value
+    # depends on the sequence being fixed, so the harness — and ONLY the
+    # harness — pins it. Defaults to 0 in PluginProcessor.h, so the plugin build
+    # needs no counterpart flag.
+    OUARICON_RENDER_HARNESS=1
     JucePlugin_IsSynth=0
     JucePlugin_WantsMidiInput=0
     JucePlugin_ProducesMidiOutput=0

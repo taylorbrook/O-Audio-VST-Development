@@ -2,6 +2,16 @@
 
 #include <JuceHeader.h>
 
+#include <atomic>
+
+// Set to 1 ONLY by tests/render-harness/CMakeLists.txt. Under the harness the
+// per-instance RNG seed collapses back to v1.0's literal so every probe is
+// reproducible; in a real build each instance seeds from its own hash so two
+// tracks do not correlate. Defaulted here so the plugin build needs no flag.
+#ifndef OUARICON_RENDER_HARNESS
+ #define OUARICON_RENDER_HARNESS 0
+#endif
+
 #include "dsp/CaptureBuffer.h"
 #include "dsp/GrainScheduler.h"
 #include "dsp/ReverseGrain.h"
@@ -12,7 +22,9 @@
 
 // O-ReverseDelay — granular reverse delay (Stage 2 DSP, Phase 2.3 complete:
 // reverse wet path + damped tanh-stable feedback loop + tempo sync + width).
-// APVTS with 10 parameters per research/ARCHITECTURE.md (immutable contract).
+// APVTS with 14 parameters: the 10 of research/ARCHITECTURE.md's immutable
+// contract, plus v1.1.0's four grain randomisations (B3), which are ADDITIVE —
+// every one defaults to 0, so the contract's behaviour is the default behaviour.
 // NOTE: this file (and PluginProcessor.cpp) must stay free of editor-only includes —
 // the render harness compiles the processor without any editor sources.
 class ReverseDelayProcessor : public juce::AudioProcessor
@@ -58,6 +70,16 @@ public:
         and for the render harness' probe N factory audit. */
     OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
 
+    /** Live concurrent-grain count. GrainPool::countActive() existed from Stage 2
+        and was called by nothing; v1.1.0 exposes it so render-harness probe Y can
+        report the peak concurrency the randomisations actually reach instead of
+        asserting a number nobody measured.
+
+        Reads audio-thread state without synchronisation: fine for the harness
+        (single-threaded) and for a torn-value-tolerant UI meter, NOT a basis for
+        any audio-path decision. */
+    int getActiveGrainCount() const noexcept { return grainPool.countActive(); }
+
     //==========================================================================
     // delayTime range constants (v1.0.1 / A1).
     //
@@ -65,6 +87,7 @@ public:
     // processBlock() and the user-preset migration — the v1.0.0 defect was a
     // literal 2000.0 in the sync clamp drifting from the parameter's own max,
     // so there is exactly one definition now.
+    static constexpr float kDelayTimeMinMs         =   50.0f;
     static constexpr float kDelayTimeMaxMs         = 4000.0f;
     static constexpr float kDelayTimeSkewCentreMs  =  316.0f;
 
@@ -73,8 +96,35 @@ public:
         max moves — see migrateUserPresets(). */
     static constexpr float kLegacyDelayTimeMaxMs   = 2000.0f;
 
-    /** Capture ring length. Must cover Dmax + 2·Gmax = 4.0 + 2·0.5 = 5.0 s. */
-    static constexpr float kCaptureSeconds         = 5.5f;
+    //==========================================================================
+    // grainSize range + v1.1.0 randomisation constants.
+    //
+    // The grainSize endpoints are named because sizeRandom clamps each grain's
+    // latched G back into them — a randomised grain must never be longer than a
+    // grain the user could dial in by hand, or the ring requirement below stops
+    // being true. Same single-definition discipline as kDelayTimeMaxMs (the
+    // v1.0.0 A1 defect was a literal 2000.0 drifting from the parameter range).
+    static constexpr float kGrainSizeMinMs         =  50.0f;
+    static constexpr float kGrainSizeMaxMs         = 500.0f;
+
+    /** delayScatter's max, in ms. Also the ring's positive-scatter budget. */
+    static constexpr float kDelayScatterMaxMs      = 500.0f;
+
+    /** Largest fraction of unity that gainRandom may add to or remove from a
+        grain's gain. Bounded well under 1.0 so a randomised grain can never be
+        silent (mul 0) or double-level (mul 2) — both read as faults, not depth. */
+    static constexpr float kMaxGainRandomDeviation = 0.75f;
+
+    /** Capture ring length. Must cover the WORST-CASE latched read span,
+        gD_max + 2·G_max, where v1.1's delayScatter extends gD_max beyond the
+        delayTime range:
+            gD_max = kDelayTimeMaxMs + kDelayScatterMaxMs = 4.0 + 0.5 = 4.5 s
+            G_max  = kGrainSizeMaxMs                      = 0.5 s
+            -> 4.5 + 2·0.5 = 5.5 s required.
+        v1.0.1's 5.5 s ring met that requirement with ONE sample to spare, which
+        is not headroom. 6.0 s restores a 0.5 s margin for ~192 KB stereo at
+        48 kHz. */
+    static constexpr float kCaptureSeconds         = 6.0f;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -100,8 +150,9 @@ private:
 
     std::array<SpawnRequest, GrainScheduler::kMaxSpawnsPerBlock> spawnRequests {};
 
-    juce::AudioBuffer<float> wetScratch;   // wet accumulation — never aliases the I/O buffer
-    juce::AudioBuffer<float> fbScratch;    // feedback return: wet → fbGain → HP → LP → tanh → guard
+    juce::AudioBuffer<float> wetScratch;   // OUTPUT wet — includes per-grain gainRandom
+    juce::AudioBuffer<float> loopScratch;  // FEEDBACK-TAP wet — excludes gainRandom (v1.1.0)
+    juce::AudioBuffer<float> fbScratch;    // feedback return: loop → fbGain → HP → LP → tanh → guard
 
     // In-loop damping filters (2nd-order Butterworth): lowCut = HP, highCut = LP.
     // Coefficient updates use ArrayCoefficients assigned IN PLACE into the
@@ -121,22 +172,82 @@ private:
 
     double currentSampleRate = 44100.0;
 
-    // Width-spread RNG (RT-safe xorshift32 — never juce::Random::getSystemRandom
-    // on the audio thread) + alternating pan sign so consecutive grains ping
-    // left/right rather than clumping. Bias amount is a harness-tuned constant
-    // (probe K, D5), frozen once green.
+    // TWO RT-safe xorshift32 streams (never juce::Random::getSystemRandom on the
+    // audio thread), split by WHEN they are consumed rather than by what they
+    // feed — and that split is a correctness requirement, not tidiness.
+    //
+    //   grainRng  — consumed inside the spawn handler: scatter, size, gain, pan.
+    //   jitterRng — consumed by GrainScheduler, inside its per-sample countdown.
+    //
+    // processBlock runs the engine in sub-passes bounded to D (the A2 fix), so
+    // the number of spawns per pass depends on the HOST BLOCK SIZE. With one
+    // shared stream the scheduler's jitter draws batch per pass and interleave
+    // with the spawn handler's draws differently at 512 than at 4096 samples,
+    // and the same session renders differently in an offline bounce than it
+    // monitored. Two streams make each one's consumption a pure function of the
+    // spawn INDEX, which is block-size invariant — render-harness probe W2
+    // asserts 512-vs-4096 bit equality with all four randomisations on, and
+    // caught exactly this.
+    //
+    // Both are seeded from instanceSeed (decorrelated by a different mixing
+    // constant), so one seed still reproduces the whole engine.
+    //
+    // Every randomisation must still draw NOTHING when its amount is 0, or
+    // turning one on would shift the others' sequences and change the shipped
+    // v1.0 sound — probe T asserts that as bit-equality.
+    //
+    // panSign alternates so consecutive grains ping left/right rather than
+    // clumping. Bias amount is a harness-tuned constant (probe K, D5).
     static constexpr float kPanBias = 0.5f;
-    juce::uint32 rngState = 0x12345678u;
-    float        panSign  = 1.0f;
 
-    float nextRand01() noexcept
+    /** Per-instance seed, fixed for the lifetime of the processor.
+        Fixed PER INSTANCE rather than per prepareToPlay: a single instance must
+        stay reproducible across prepare/reset (probe O compares two renders of
+        the same instance at different block sizes and requires bit equality),
+        while two instances on two tracks must decorrelate — v1.0 gave every
+        instance the same literal, so two tracks produced identical pan and
+        (from v1.1) identical grain randomisation, and correlated audibly. */
+    static juce::uint32 makeInstanceSeed (const void* self) noexcept;
+
+    const juce::uint32 instanceSeed { makeInstanceSeed (this) };
+
+    juce::uint32 rngState       { instanceSeed };
+    juce::uint32 jitterRngState { deriveJitterSeed (instanceSeed) };
+    float        panSign        = 1.0f;
+
+    /** Second stream's seed. A different odd multiplier plus an xor so the two
+        streams do not walk the same trajectory offset by a constant; guarded
+        against zero, which xorshift32 absorbs permanently. */
+    static juce::uint32 deriveJitterSeed (juce::uint32 s) noexcept
     {
-        juce::uint32 x = rngState;
+        const juce::uint32 j = (s * 0x9E3779B9u) ^ 0x5BF03635u;
+        return j != 0u ? j : 0xA5A5A5A5u;
+    }
+
+    static float xorshiftNext (juce::uint32& state) noexcept
+    {
+        juce::uint32 x = state;
         x ^= x << 13;
         x ^= x >> 17;
         x ^= x << 5;
-        rngState = x;
+        state = x;
         return static_cast<float>(x >> 8) * (1.0f / 16777216.0f);   // [0, 1)
+    }
+
+    float nextRand01()       noexcept { return xorshiftNext (rngState); }
+    float nextJitterRand01() noexcept { return xorshiftNext (jitterRngState); }
+
+    /** Bipolar random multiplier 1 + amount·u with u uniform on [−1, 1), so the
+        mean is exactly 1 and the parameter changes SPREAD, not level.
+        Returns 1.0f without touching the RNG when amount <= 0 — see the stream
+        note above; this is the mechanism behind "all four at 0 is bit-identical
+        to v1.0.1", not a coincidence of it. */
+    float randomMul (float amount) noexcept
+    {
+        if (amount <= 0.0f)
+            return 1.0f;
+
+        return 1.0f + amount * (2.0f * nextRand01() - 1.0f);
     }
 
     // Cached APVTS atomics — read once per block on the audio thread.
@@ -150,6 +261,13 @@ private:
     std::atomic<float>* pHighCut      = nullptr;
     std::atomic<float>* pWidth        = nullptr;
     std::atomic<float>* pMix          = nullptr;
+
+    // v1.1.0 grain randomisation (B3). All four default to 0 — see
+    // createParameterLayout() for why that is a hard requirement, not a taste.
+    std::atomic<float>* pJitter       = nullptr;
+    std::atomic<float>* pDelayScatter = nullptr;
+    std::atomic<float>* pSizeRandom   = nullptr;
+    std::atomic<float>* pGainRandom   = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ReverseDelayProcessor)
 };
