@@ -500,26 +500,34 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
-    // Fixed. 440 (Stage 3: header + one row of four framed group panels + footer)
-    // + 44 (Stage 4 preset band) + 259 (v1.1.0 second panel row: 14 px row gap
-    // + a 245 px row) + 229 (v1.7.0 third panel row: 14 px row gap + a 215 px
-    // row). Rows 1 and 2 and the footer sit exactly where they were.
+    // Fixed 940 x 768.
     //
-    // ── v1.7.0: the row-3 decision the v1.0.0 review's section D warned about ─
-    // v1.1.0 framed three empty panels so v1.2-v1.6 could be filled without ever
-    // resizing, and that held exactly: WINDOW, COUNT and MOTION landed in the
-    // reserve and the frame never moved. The reserve is now spent, so this
-    // release pays the resize the review budgeted — once, for four controls, and
-    // with one panel of row 3 framed and empty on the same principle.
+    // ── v1.7.1: 972 -> 768, all of it empty space ────────────────────────────
+    // The v1.7.0 frame did not fit a 1080p screen once a DAW's plugin header and
+    // the menu bar were above it. The 204 px removed here held no control: rows 1
+    // and 3 were 215 px panels around 100 px and 94 px of content, and .groups —
+    // which is flex:1, so it takes the frame's content box minus header, preset
+    // band and footer — was centring 703 px of rows inside 796.5 px.
+    //
+    // That last 93.5 px survived five releases because every comment reasoned
+    // about the ROW sum and called it "exactly zero slack" without ever
+    // subtracting it from the frame height. It is not the kind of error a build,
+    // auval or a static check can see; it was found by rendering the page at the
+    // shipping viewport and measuring, which is now what styles.css documents.
+    //
+    // Row 2 stays 245. Its WINDOW panel already lays 214 px of content into a
+    // 213 px body, so trimming row 2 means shrinking the v1.4.0 envelope display
+    // — a feature change, not a layout one.
     //
     // The WIDTH is deliberately unchanged at 940. The tooltip edge-clamp gate is
     // horizontal and viewport-sensitive — it only fires at the real shipping
     // width, so a width change would invalidate the verification outright
     // (pattern_tooltip_clamp_gate_viewport_sensitive). A height change moves only
-    // the above/below flip, which is re-measured at 940 x 972 rather than assumed.
+    // the above/below flip, which is re-measured at 940 x 768 rather than assumed
+    // — tests/ui_tooltip_clamp_check.js drives the real page at exactly this size.
     //
-    // Must stay in sync with styles.css (html/body and .frame both read 972px).
-    setSize (940, 972);
+    // Must stay in sync with styles.css (html/body and .frame both read 768px).
+    setSize (940, 768);
 }
 
 ReverseDelayEditor::~ReverseDelayEditor() = default;

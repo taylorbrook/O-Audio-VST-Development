@@ -1,12 +1,67 @@
 /* ============================================================================
    O-ReverseDelay — Ouaricon Naturalist (aesthetic ouaricon-naturalist-001)
-   Fixed 940 × 972. Header, a 44 px preset band, THREE rows of four framed group
+   Fixed 940 × 768. Header, a 44 px preset band, THREE rows of four framed group
    panels, footer. No viewport units — WebView hosts size the frame, not the
    viewport.
 
-   Width is mirrored in PluginEditor.cpp's setSize (940, 972) — keep in sync.
+   Width is mirrored in PluginEditor.cpp's setSize (940, 768) — keep in sync.
+
+   ── v1.7.1: 972 -> 768, and the "zero slack" claim was never true ─────────
+   The frame did not fit a 1080p screen with a DAW's plugin header and the menu
+   bar above it. Every one of the 204 px this release removes was EMPTY, and
+   the two places it was hiding are worth naming because the comment block
+   below (kept as history) asserted the opposite in both of them:
+
+     1. .groups is `flex: 1` with `justify-content: center`. It absorbed
+        796.5 px to lay out 703 px of rows — 93.5 px of centred nothing. The
+        v1.1.0/v1.7.0 note that ".groups still has EXACTLY zero slack" reasoned
+        from the ROW sum alone and never subtracted it from the frame's
+        content box, so the slack was invisible to the arithmetic that was
+        supposed to catch it. Measured in a browser at the shipping viewport,
+        not re-derived on paper.
+
+     2. Rows 1 and 3 were 215 px panels around 100 px and 94 px of content.
+        Row 1 inherited 215 from Stage 3, when its panels were the tallest
+        thing on a 484 px page; row 3 inherited it from row 1 in v1.7.0 on the
+        (correct at the time) principle of not inventing new geometry. Neither
+        height was ever measured against what the panels actually hold.
+
+   Row 2 is UNTOUCHED at 245 px. Its WINDOW panel budgets 214 px of content
+   into a 213 px body — the one panel on the page with genuinely zero slack —
+   so trimming row 2 means trimming the v1.4.0 envelope display, which is a
+   feature change wearing a layout change's clothes. It was declined.
+
+   Row 1 (145 px)  TIME   | GRAIN  | FEEDBACK | OUTPUT   — signal flow (D9)
+   Row 2 (245 px)  RANDOM | WINDOW | COUNT    | MOTION   — character controls
+   Row 3 (145 px)  SOURCE | DUCK   | DRIFT    | COLOUR   — space & response
+
+   The height budget, measured rather than guessed:
+       frame border      3 + 3                        =   6
+       frame padding     18 + 14                      =  32
+       header            54.5 + 16 margin             =  70.5
+       preset band       32 + 12 margin               =  44
+       .groups           145 + 14 + 245 + 14 + 145    = 592.5
+                         = 563 of rows + 29.5 centred
+       footer            10 padding + 13              =  23
+                                                total = 768
+   The 29.5 px inside .groups is deliberate and is the ONLY slack left: the
+   .group-label cartouches sit at top:-9px, straddling each panel's top border,
+   so row 1 needs ≥ 9 px of clearance under the preset band's rule or the two
+   collide. 14.75 px top and bottom leaves that margin without restoring the
+   dead space. Changing any number above means re-running
+   tests/ui_tooltip_clamp_check.js, which measures the real page at 940 × 768.
+
+   The WIDTH is unchanged at 940 for the same reason v1.7.0 left it alone: the
+   tooltip edge-clamp gate is horizontal and viewport-sensitive, so a width
+   change would invalidate that verification outright
+   (pattern_tooltip_clamp_gate_viewport_sensitive). A height change moves only
+   the above/below flip, which is re-measured at the new size.
 
    ── v1.7.0: the row-3 decision, paid ──────────────────────────────────────
+   Read the row heights below as v1.7.0's; v1.7.1 has since cut rows 1 and 3
+   to 145. The reasoning about WIDTH, alignment and the one-time expansion all
+   still holds.
+
    Row 1 (215 px)  TIME   | GRAIN  | FEEDBACK | OUTPUT   — signal flow (D9)
    Row 2 (245 px)  RANDOM | WINDOW | COUNT    | MOTION   — character controls
    Row 3 (215 px)  SOURCE | DUCK   | DRIFT    | COLOUR   — space & response
@@ -57,6 +112,13 @@
    484 + 14 (row gap) + 245 = 743 was v1.1.0's zero-slack arithmetic; v1.7.0
    adds 14 + 215 = 229 for row 3, so 743 + 229 = 972 and .groups still has
    EXACTLY zero slack. Rows 1 and 2 and the footer do not move.
+       ^ WRONG, and left in place because the shape of the error is the point.
+       Both sums are of ROWS. .groups is `flex: 1`, so its height is the frame's
+       content box MINUS header, preset band and footer — never the row sum —
+       and it centres the rows in whatever that leaves. At 972 that was 796.5
+       against 703 of rows: 93.5 px of slack, carried through five releases by
+       an arithmetic that could not see it because it never involved the frame
+       height at all. v1.7.1 measured it in a browser instead.
 
    All three rows share one width contract — 190 | 190 | 276 | 190, summing with
    3 × 12 px gaps to 882 inside the frame's 890 px content box — so the rows
@@ -118,7 +180,7 @@
 
 html, body {
   width: 940px;
-  height: 972px;
+  height: 768px;
   overflow: hidden;
 }
 
@@ -157,7 +219,7 @@ body {
   position: relative;
   z-index: 2;
   width: 940px;
-  height: 972px;
+  height: 768px;
   padding: 18px 22px 14px;
   border: 3px solid var(--brown-frame);
   box-shadow: inset 0 0 32px rgba(92, 64, 51, 0.12);
@@ -313,9 +375,14 @@ body {
   gap: 12px;
 }
 
+/* 145 px, not v1.0.1's 215: padding (16 + 12) and borders (2 × 2) take 32, so
+   this is a 113 px content box around row 1's tallest item — the 100 px
+   .time-slot — and around row 3's 94 px knob-cell. 6.5 px of clearance top and
+   bottom in the tightest panel on either row, measured at the shipping
+   viewport. Row 2 overrides this below and is deliberately unchanged. */
 .group {
   position: relative;
-  height: 215px;
+  height: 145px;
   display: flex;
   flex-direction: column;
   padding: 16px 14px 12px;
@@ -342,10 +409,19 @@ body {
 .group-count,                       /* v1.3.0: row 2's 276 px column, was labelled Motion */
 .group-drift    { width: 276px; }   /* v1.7.0: row 3's wide column */
 
-/* Row 2 is 30 px taller than rows 1 and 3 because its bodies wrap to two
-   knob-cell rows. Row 3 reuses row 1's 215 px — its panels hold at most a
-   segment pair plus two knobs, which is TIME's shape exactly.
-   215 + 14 + 245 + 14 + 215 = 703 = the height .groups has at 972 px, exactly. */
+/* Row 2 is 100 px taller than rows 1 and 3 because its bodies wrap to two
+   knob-cell rows AND, in WINDOW, carry the envelope display under them. Row 3
+   reuses row 1's height — its panels hold at most a segment pair plus two
+   knobs, which is TIME's shape exactly.
+
+   245 is the number that did NOT move in v1.7.1, and it is the only one on the
+   page that could not: WINDOW lays out 214 px of content (44 select-cell + 80
+   knob-cell + 72 env-cell + 2 × 9 row-gap) into this panel's 213 px body. It
+   is already 1 px over. Every other panel here has slack — COUNT has 59.5 px
+   above and below its knob — but a row is as tall as its tallest panel, so
+   that slack is WINDOW's to give and WINDOW has none.
+
+   145 + 14 + 245 + 14 + 145 = 563 of rows, centred in .groups' 592.5. */
 .group-row-2 .group { height: 245px; }
 
 /* Two cell rows, wrapping. Row 1's bodies never wrap (they hold 2–3 cells in a

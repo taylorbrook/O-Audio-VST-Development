@@ -393,14 +393,25 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
 
 // -------------------------------- 12. geometry: preset bar + the three rows
 {
-    check(/setSize\s*\(\s*940\s*,\s*972\s*\)/.test(editorCpp),
-        'editor setSize is 940 x 972 (v1.7.0 chassis)');
-    const heights = css.match(/height:\s*972px/g) || [];
+    check(/setSize\s*\(\s*940\s*,\s*768\s*\)/.test(editorCpp),
+        'editor setSize is 940 x 768 (v1.7.1 chassis)');
+    const heights = css.match(/height:\s*768px/g) || [];
     check(heights.length >= 2,
-        `styles.css declares 972px in BOTH html/body and .frame — found ${heights.length}`);
+        `styles.css declares 768px in BOTH html/body and .frame — found ${heights.length}`);
     check(!/height:\s*440px/.test(css) && !/height:\s*484px/.test(css)
-          && !/height:\s*743px/.test(css),
-        'no superseded frame height survives in styles.css (440 Stage-3, 484 Stage-4, 743 v1.1-v1.6)');
+          && !/height:\s*743px/.test(css) && !/height:\s*972px/.test(css),
+        'no superseded frame height survives in styles.css '
+        + '(440 Stage-3, 484 Stage-4, 743 v1.1-v1.6, 972 v1.7.0)');
+
+    // v1.7.1: the frame must FIT A 1080p SCREEN with a host's chrome above it,
+    // which is the whole point of the release and the one property a future
+    // panel row could quietly take back. 900 is the budget: 1080 less the macOS
+    // menu bar (~25), a DAW plugin window's title/header strip (~40-70) and a
+    // margin. Asserted here rather than left to the comment block, because the
+    // v1.7.0 comment block is exactly what asserted the slack away.
+    const shipH = Number((editorCpp.match(/setSize\s*\(\s*940\s*,\s*(\d+)\s*\)/) || [])[1]);
+    check(shipH > 0 && shipH <= 900,
+        `the frame fits a 1080p screen with host chrome — ${shipH} px, budget 900`);
     // The WIDTH must not have moved with it. The tooltip edge-clamp gate below is
     // horizontal and only fires at the real shipping width, so a height change
     // leaves the clamp geometry under test intact and a width change would not
@@ -410,21 +421,41 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(/width:\s*940px/.test(css) && /setSize\s*\(\s*940\s*,/.test(editorCpp),
         'the frame is still 940 px WIDE — the clamp verification survives a height-only resize');
 
-    // The row-2 arithmetic is the whole premise of "expand once": 215 (row 1)
-    // + 14 (row gap) + 245 (row 2) = 474, which is exactly what .groups gains
-    // from 484 -> 743. If any of the three drifts, row 1 or the footer moves and
-    // the tooltip clamp verification below is measuring a stale layout.
+    // The row heights, pinned. If any of them drifts, the rows no longer fit the
+    // frame and the tooltip clamp verification below is measuring a stale layout.
     const rowGap = (css.match(/\.groups\s*\{[\s\S]*?gap:\s*(\d+)px/) || [])[1];
     const row2H  = (css.match(/\.group-row-2 \.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
-    const row1H  = (css.match(/\.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
-    // v1.7.0: row 3 has no height rule of its own — it INHERITS row 1's 215 px
-    // from the base .group rule, which is why the sum below reads row1 twice.
-    // 215 + 14 + 245 + 14 + 215 = 703, exactly what .groups gains from 484 -> 972.
+    const row1H  = (css.match(/\n\.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
+    // Row 3 has no height rule of its own — it INHERITS row 1's from the base
+    // .group rule, which is why the sum below reads row1 twice.
+    // v1.7.1: 145 + 14 + 245 + 14 + 145 = 563.
     const rowsTotal = Number(row1H) + Number(rowGap) + Number(row2H)
                       + Number(rowGap) + Number(row1H);
-    check(row1H === '215' && rowGap === '14' && row2H === '245' && rowsTotal === 703,
-        `row geometry is 215 + 14 + 245 + 14 + 215 = 703 = 972 - 269 `
+    check(row1H === '145' && rowGap === '14' && row2H === '245' && rowsTotal === 563,
+        `row geometry is 145 + 14 + 245 + 14 + 145 = 563 `
         + `— got row1=${row1H} gap=${rowGap} row2=${row2H} total=${rowsTotal}`);
+
+    // The claim v1.7.1 exists to correct. .groups is flex:1, so its height is the
+    // frame's content box MINUS header, preset band and footer — NOT the row sum
+    // — and it centres the rows in what is left. Every comment from v1.1.0 to
+    // v1.7.0 called the row sum "exactly zero slack" and none of them ever did
+    // this subtraction, which is how 93.5 px of centred nothing survived five
+    // releases and a 972 px frame (pattern_test_fixture_mirrors_drift_silently:
+    // the fixture agreed with the comment because it mirrored the same sum).
+    //
+    // Chrome is measured, not guessed — these are rendered values from the
+    // stub page at the shipping viewport, and ui_tooltip_clamp_check.js renders
+    // the same page, so a drift here shows up there as an overflow.
+    const CHROME = 6 + 32 + 70.5 + 44 + 23;   // border, padding, header, band, footer
+    const groupsH = shipH - CHROME;
+    const slack   = groupsH - rowsTotal;
+    // The .group-label cartouches sit at top:-9px, straddling each panel's top
+    // border, so row 1 needs >= 9 px of clearance under the preset band's rule.
+    // Slack is centred, so half of it is what row 1 actually gets.
+    check(slack >= 18 && slack <= 40,
+        `.groups slack is deliberate and bounded — ${slack.toFixed(1)} px `
+        + `(${(slack / 2).toFixed(1)} above row 1; >= 9 needed for .group-label, `
+        + `and the whole band <= 40 or it is dead space again)`);
 
     // Both rows must share ONE width contract or the columns stop aligning.
     // All THREE rows share one contract (v1.7.0), so the 276 px selector is now a

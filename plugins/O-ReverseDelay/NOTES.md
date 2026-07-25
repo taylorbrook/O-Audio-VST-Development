@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.7.0
+- **Version:** 1.7.1
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -70,6 +70,14 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   **Drift's LFO phase comes from the absolute spawn position, not an accumulator**, which makes it block-size invariant exactly rather than nearly. The cost is that moving the rate knob re-derives the phase instead of continuing it — at worst one grain landing at a different delay, inaudible against Scatter, which does the same thing deliberately. `srcCh` follows **panSign** and not the resolved pan position for the mirror-image reason: at width 0 every pan is exactly 0.5, so a position test would send every grain to the same channel and Stereo would silently become "mono, but only the left input".
 
   Two verification gaps closed. `ui_frontend_check.js` gained a **choice closure** (APVTS choices ↔ `kComboIds` ↔ `getComboBoxState`, both directions) — the gap v1.6.0's bool closure left open, since choice ids were excluded from the knob closure by a hand-written list and then checked against nothing; `sourceMode` is exactly that case. And v1.6.0's three MOTION tooltip anchors were never added to the clamp check's inventory, which is the hand-maintained-fixture drift `pattern_test_fixture_mirrors_drift_silently` describes.
+
+- **2026-07-25 (v1.7.1):** Patch — **editor 940 × 972 → 940 × 768**, so the window fits a 1080p screen under a DAW's plugin header and the menu bar (972 ran to ~1035–1065 of the 1080 available). No parameter, preset, state or DSP change: the 138-probe harness is untouched and passes, and a v1.7.0 session opens bit-identical. Rows 1 and 3 **215 → 145 px**; row 2 stays 245; `.groups` slack 93.5 → 29.5. `ui_tooltip_clamp_check.js` re-measured at 940 × 768 (**27/27 anchors** across both TIME modes, clamp still firing for 5); `ui_frontend_check.js` gains a **≤ 900 px fits-1080p** assertion, so the property this release exists for is checked rather than described. auval SUCCEEDED.
+
+  **Every one of the 204 px removed was empty, and five releases of comments proved it was not.** `.groups` is `flex: 1`, so its height is the frame's content box minus header, preset band and footer — never the row sum — and `justify-content: center` centres the rows in what is left. At 972 that was 796.5 px holding 703 px of rows: **93.5 px of centred nothing**. Every comment from v1.1.0 to v1.7.0 said the opposite in the same words (*"743 + 229 = 972 and `.groups` still has EXACTLY zero slack"*), and both sums are sums **of rows** — neither ever subtracted the row total from the frame height, which is the only subtraction that could have found it. The guard was structurally incapable of firing and each release re-derived it and passed it on; `ui_frontend_check.js` mirrored the same sum, so the fixture agreed with the comment for the same reason (`pattern_test_fixture_mirrors_drift_silently`).
+
+  Rows 1 and 3 were the same error at panel scale: 215 px panels around **100 px** and **94 px** of content. Row 1 has been 215 since Stage 3, when its panels were the tallest thing on a 484 px page; row 3 inherited 215 from row 1 at v1.7.0 on the correct principle of not inventing new geometry. Neither was ever measured against what the panels hold. Row 2 is untouched at 245 because WINDOW already lays 214 px into a 213 px body — the one panel with no slack — so trimming row 2 means shrinking the v1.4.0 envelope display, a feature change wearing a layout change's clothes.
+
+  The 29.5 px left in `.groups` is deliberate: `.group-label` sits at `top: -9px`, straddling each panel's top border, so row 1 needs ≥ 9 px of clearance under the preset band's rule. The check now bounds the band to [18, 40] instead of trusting the comment. None of this is visible to `ninja`, `auval`, `pluginval` or a static check — **an over-tall frame renders perfectly**. It was found by serving the real page through `tests/ui-stub/` and measuring the boxes, and the height budget in `styles.css` is now written from rendered values rather than a paper sum.
 
 ## Known Issues
 
