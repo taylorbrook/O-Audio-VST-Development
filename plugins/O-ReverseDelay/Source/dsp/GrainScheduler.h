@@ -8,12 +8,14 @@
     (PLAN Task 3 / RESEARCH §3.3):
 
       * Interval from ARCHITECTURE, not the exponential map:
-            overlap = 2 + (density/100)·6      (v1.0.1; was 1 + d·7 at v1.0.0)
+            overlap = 2 + (density/100)·(ceiling − 2)   (v1.3.0; ceiling was a
+                                                         fixed 8 at v1.0.1)
             intervalSamples = max (1, (int) (G / overlap))
         (both computed by the caller — the scheduler only counts).
       * No probability gate, no Euclidean.
-      * Hard spawn cap 32/block (kMaxSpawnsPerBlock, WR-04 pattern) into a
-        FIXED array — zero allocation on the audio thread.
+      * Hard spawn cap per pass (kMaxSpawnsPerBlock, WR-04 pattern) into a
+        FIXED array — zero allocation on the audio thread. Overflow is COUNTED
+        and reported since v1.3.0; see kMaxSpawnsPerBlock.
 
     The scheduler ALWAYS runs this free countdown; tempo sync (Phase 2.3)
     only changes the VALUE of D per block, never the spawn timing — no
@@ -44,11 +46,54 @@ struct SpawnRequest
     int sampleOffset = 0;
 };
 
+/** What one pass of the countdown produced. `dropped` is the number of spawns
+    the countdown reached but could not write because the request array was
+    full — zero at every setting this plugin can reach (see
+    kMaxSpawnsPerBlock), and asserted zero by render-harness probe AB at the
+    worst case rather than assumed. */
+struct SpawnResult
+{
+    int count   = 0;
+    int dropped = 0;
+};
+
 class GrainScheduler
 {
 public:
-    // Matches the GrainPool size — excess spawns would only steal grains anyway.
-    static constexpr int kMaxSpawnsPerBlock = 32;
+    // ── v1.3.0 (B2): 32 -> 128, and overflow is no longer silent ─────────────
+    //
+    // v1.0's 32 was chosen to match GrainPool::kMaxGrains on the reasoning that
+    // "excess spawns would only steal grains anyway". That reasoning died at
+    // v1.1.0, when the pool started REFUSING on exhaustion instead of stealing:
+    // dropping a request here and refusing it in the pool are now two different
+    // events, and only the pool's is a deliberate design choice. A request
+    // dropped here is the scheduler failing to report work it actually decided
+    // to do, which is why the count is returned.
+    //
+    // The bound, worked at the shipped ranges — and it is SAMPLE-RATE
+    // INDEPENDENT, which is what makes it a real bound rather than a guess:
+    //
+    //   spawns per pass  = passLen / interval
+    //   passLen         <= kDelayTimeMinMs·fs             (the A2 pass bound)
+    //   interval         = G / overlap >= (kGrainSizeMinMs·fs) / overlapMax
+    //
+    //   -> spawns <= overlapMax · kDelayTimeMinMs / kGrainSizeMinMs
+    //              = 16 · 50 / 50 = 16                    (both minima are 50 ms)
+    //
+    // So 16 nominal at the v1.3.0 ceiling, against a cap of 128 — 8x margin.
+    // Jitter can shorten one interval to 0.1x nominal, so a BURST can exceed 16;
+    // exceeding 128 would need the mean jitter multiplier across 128 consecutive
+    // draws to be <= 0.125 when its distribution is uniform on [0.1, 1.9] with
+    // mean exactly 1.0. That is not a probability worth naming.
+    //
+    // The tripwire for a future release: the bound is
+    // overlapMax · kDelayTimeMinMs / kGrainSizeMinMs, so it is grainSize's
+    // MINIMUM — not the overlap ceiling — that this cap is most sensitive to.
+    // Dropping grainSize's minimum below ~6 ms would reach 128 at ceiling 16.
+    // Probe AB is what will notice.
+    //
+    // Cost of the raise: 128 ints in one preallocated member array, 512 bytes.
+    static constexpr int kMaxSpawnsPerBlock = 128;
 
     // The scheduler counts in SAMPLES and the caller supplies intervalSamples
     // already converted, so no sample rate is needed. v1.0.0 stored one in a
@@ -73,18 +118,26 @@ public:
     static constexpr float kMaxJitterDeviation = 0.9f;
 
     // Emits spawn offsets for this block into the fixed request array.
-    // Returns the number of requests written (<= kMaxSpawnsPerBlock).
+    // Returns the number of requests written (<= kMaxSpawnsPerBlock) alongside
+    // the number the cap discarded.
+    //
+    // The countdown is re-armed BEFORE the cap is tested, and deliberately: the
+    // spawn grid must not depend on whether the array had room, or a single
+    // overflow would shift every later spawn in the pass and the engine would
+    // stop being block-size invariant (probe W2). A dropped request is a missing
+    // grain, never a moved one — the same contract GrainPool::obtain() honours
+    // when it refuses.
     //
     // `nextRand01` must return [0, 1). It is a template parameter so the
     // processor's xorshift inlines here — no std::function, no allocation, no
     // indirect call on the audio thread.
     template <typename RandomFn>
-    int processBlock (int numSamples, int intervalSamples, float jitterAmount,
-                      std::array<SpawnRequest, kMaxSpawnsPerBlock>& outRequests,
-                      RandomFn&& nextRand01) noexcept
+    SpawnResult processBlock (int numSamples, int intervalSamples, float jitterAmount,
+                              std::array<SpawnRequest, kMaxSpawnsPerBlock>& outRequests,
+                              RandomFn&& nextRand01) noexcept
     {
         const int interval = juce::jmax (1, intervalSamples);
-        int count = 0;
+        SpawnResult result;
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -92,12 +145,15 @@ public:
             if (samplesUntilNextGrain <= 0)
             {
                 samplesUntilNextGrain = nextInterval (interval, jitterAmount, nextRand01);
-                if (count < kMaxSpawnsPerBlock)
-                    outRequests[static_cast<size_t> (count++)] = { i };
+
+                if (result.count < kMaxSpawnsPerBlock)
+                    outRequests[static_cast<size_t> (result.count++)] = { i };
+                else
+                    ++result.dropped;
             }
         }
 
-        return count;
+        return result;
     }
 
 private:

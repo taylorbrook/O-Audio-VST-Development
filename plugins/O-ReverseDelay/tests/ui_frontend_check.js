@@ -143,9 +143,10 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
 // ------------------------------------------------- 3. native-fn bridge gaps
 {
     // Stage 4: the JS side of the bridge is spread across TWO files. app.js
-    // fetches exactly one fn (getParameterDefaults); the other ten are fetched
-    // by the shared js/preset-manager.js, which app.js imports dynamically.
-    // Scanning app.js alone would read 1 vs 11 and false-FAIL on correct code.
+    // fetches two fns (getParameterDefaults + v1.3.0's getGrainMeter); the other
+    // ten are fetched by the shared js/preset-manager.js, which app.js imports
+    // dynamically. Scanning app.js alone would read 2 vs 12 and false-FAIL on
+    // correct code.
     const called = new Set();
     for (const src of [appJs, presetJs])
         for (const m of src.matchAll(/getNativeFunction\(\s*["']([A-Za-z0-9_]+)["']/g))
@@ -166,11 +167,17 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(dead.length === 0,
         'no dead C++ registrations (registered but never called from JS)'
         + (dead.length ? ' — DEAD: ' + dead.join(', ') : ''));
-    check(called.size === 11 && registered.size === 11,
-        `bridge surface is exactly 11 fns (getParameterDefaults + 10 preset)`
-        + ` — got JS=${called.size} C++=${registered.size}`);
+    check(called.size === 12 && registered.size === 12,
+        `bridge surface is exactly 12 fns (getParameterDefaults + getGrainMeter`
+        + ` + 10 preset) — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
         'getParameterDefaults is called by the JS AND registered in C++');
+    // v1.3.0 (B2): the meter is the one native fn whose failure is INVISIBLE in a
+    // still screenshot — an unwired readout renders its em-dash placeholder and
+    // looks like a control waiting for audio. Hence a named check, not just a
+    // count.
+    check(called.has('getGrainMeter') && registered.has('getGrainMeter'),
+        'getGrainMeter is called by the JS AND registered in C++');
 
     // savePresetWithDialog is the fn the Save button actually calls; an earlier
     // 9-fn reading of the module contract omitted it, and module.yaml's own
@@ -401,8 +408,17 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         + `— got row1=${row1H} gap=${rowGap} row2=${row2H}`);
 
     // Both rows must share ONE width contract or the columns stop aligning.
-    check(/\.group-random,/.test(css) && /\.group-motion\s*\{\s*width:\s*276px/.test(css),
+    check(/\.group-random,/.test(css) && /\.group-count\s*\{\s*width:\s*276px/.test(css),
         'row-2 panels reuse row 1\'s pinned widths (190 | 190 | 276 | 190)');
+    // v1.3.0 renamed MOTION -> COUNT. Assert the old class is GONE from both
+    // files: a stale .group-motion rule left behind would be dead CSS that still
+    // looks like it pins a width, and the next reader would trust it.
+    // Matched as a SELECTOR (name followed by a comma or a brace), not as the
+    // bare word: the CSS legitimately mentions ".group-motion renamed" in the
+    // comment recording the change, and a substring test flags its own
+    // changelog.
+    check(!/\.group-motion\s*[,{]/.test(css) && !/class="[^"]*group-motion/.test(html),
+        'no .group-motion RULE or class attribute survives the v1.3.0 rename');
     check(/\.groups\s*\{[\s\S]*?flex-direction:\s*column/.test(css),
         '.groups is the column holding both rows');
     check(/class="group-row group-row-1"/.test(html) && /class="group-row group-row-2"/.test(html),
@@ -475,7 +491,12 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         // v1.2.0 WINDOW panel — the select is an anchor too, exactly as
         // combo-noteDivision is; a tooltip inventory that only listed knobs
         // would leave every choice control undocumented.
-        'combo-grainShape', 'knob-grainTilt'];
+        'combo-grainShape', 'knob-grainTilt',
+        // v1.3.0 COUNT panel. The meter is a tooltip anchor without being a
+        // control, which is deliberate: "Active 9 / Overlap 5.6x" is the one
+        // thing on this page that reports rather than sets, and it needs to say
+        // so somewhere.
+        'knob-grainCount', 'grainMeter'];
 
     const missingTips = TIP_ANCHORS.filter(id => {
         const m = html.match(new RegExp(`id="${id}"[\\s\\S]{0,400}?>`));
@@ -608,7 +629,40 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         sizeRandom:   0,
         gainRandom:   0,
         grainTilt:    0.5,   // v1.2.0 (B1) — SYMMETRIC, the shipped Hann window
+        grainCount:   8,     // v1.3.0 (B2) — v1.2.0's HARD-CODED ceiling.
+                             // Not 2 (the range min) and emphatically not 16
+                             // (the new max): 8 is the only value at which
+                             // `min + d·(ceiling−min)` reproduces v1.0.1's
+                             // `2 + d·6` bitwise, which is what lets every
+                             // saved session keep its density meaning. Density
+                             // is stored DENORMALISED, so there is no migration
+                             // available if this is ever wrong
+                             // (critical_apvts_denormalised_vs_preset_normalised).
     };
+
+    // grainCount's default is written as the named constant kLegacyOverlapMax
+    // rather than a literal, so the numeric scan below cannot see it. Assert the
+    // binding instead — which is the stronger check anyway: the point is that the
+    // parameter default and the coherence-trim anchor are the SAME constant, and
+    // a literal 8.0f in either place could drift from the other.
+    {
+        const decl = processorCpp.match(
+            /ParameterID\s*\{\s*"grainCount",\s*1\s*\}[\s\S]*?\n\s*(kLegacyOverlapMax)\)\);/);
+        check(!!decl,
+            'grainCount defaults to kLegacyOverlapMax (the named constant, not a literal 8)');
+        // Read locally — section 5's processorH is scoped to its own block.
+        const procH = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.h'), 'utf8');
+        const konst = procH.match(/kLegacyOverlapMax\s*=\s*([0-9.]+)f/);
+        check(!!konst && Number(konst[1]) === 8,
+            'kLegacyOverlapMax is 8 — v1.2.0\'s hard-coded overlap ceiling'
+            + (konst ? ` — got ${konst[1]}` : ' — constant not found'));
+        // Both trims must be anchored at that same constant and return EXACTLY
+        // 1.0f at or below it, or the bit-identity claim is false.
+        check(/loopCountTrim[\s\S]{0,400}?overlap <= kLegacyOverlapMax[\s\S]{0,80}?return 1\.0f;/.test(procH),
+            'loopCountTrim returns exactly 1.0f at overlap <= kLegacyOverlapMax');
+    }
+
+    delete NOOP_DEFAULTS.grainCount;   // asserted above, by binding not by value
 
     for (const [id, expected] of Object.entries(NOOP_DEFAULTS)) {
         // Tolerates both `…range), 0.0f,` (attributes follow) and

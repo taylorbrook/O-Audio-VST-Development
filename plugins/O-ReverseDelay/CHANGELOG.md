@@ -4,6 +4,142 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.3.0] — 2026-07-25 — Grain count / overlap ceiling
+
+Minor release implementing **section B2** of the v1.0.0 review
+(`improvements/2026-07-24-v1.1-review.md`): grain count was never directly
+controllable, only inferable from density and grain size. Fills the second
+reserved panel of the chassis v1.1.0 framed — markup plus one CSS block, no
+resize.
+
+### What changed
+
+- **`grainCount`** — an explicit overlap ceiling, 2–16, step 1, **default 8**.
+  The density map becomes `overlap = 2 + density·(ceiling − 2)`, replacing the
+  hard-coded `2 + d·6`. Density 0 still gives overlap 2 at any ceiling, so
+  nothing previously reachable became unreachable.
+- **Spawn cap 32 → 128**, and no longer silent: dropped requests and pool
+  refusals are counted separately and exposed on the processor.
+- **COUNT panel** — the Count knob plus a live **Active / Overlap** readout.
+
+### Why the ceiling is its own parameter and not a wider density knob
+
+Density is stored **denormalised** in session state: a session saved at 60 %
+recalls 60 %. Widening the density knob's own span to reach overlap 16 would
+therefore have made every existing session ~2.3× denser at the same knob
+position, and there is no migration available — APVTS sessions and preset JSON
+need opposite treatment, and rescaling a session tree corrupts the ones already
+correct (`critical_apvts_denormalised_vs_preset_normalised`).
+
+A separate parameter sidesteps it entirely. Absent from any v1.0–v1.2 session or
+preset, `grainCount` resolves to its default, and `(8 − 2)` is exactly `6.0f` —
+so the new expression is the same three float operations on the same values that
+v1.0.1 shipped. Bitwise, not "equivalent": written as
+`min + d·(ceiling − min)` and deliberately not as the algebraically identical
+`min·(1−d) + ceiling·d`, which lands an ulp away. Third release running where the
+no-op default is a specific number rather than zero (v1.1's four → 0, v1.2's
+`grainTilt` → 0.5, this → 8).
+
+### The gain correction landed on the opposite path from the one predicted
+
+The review expected `grainGain`'s `1/sqrt(overlap)` to under-correct as overlap
+rose — overlapping grains read the same reversed material, so summing should be
+partially coherent, the real rise should sit between √N and N, and the error
+should grow with the ceiling. Sound reasoning, wrong path.
+
+**Output path: no correction needed, measured.** The grains read the same
+material but not at the same *time*. At a fixed output sample, grain *k* reads
+source `2kH − D − t` for spawn interval *H*, so every pair in the sum is
+separated by a multiple of `2H` — decorrelated for broadband input. Probe AA
+sweeps overlap 2 → 16 and holds the wet level inside **0.07 dB** with no
+correction term, against the ±1 dB budget probes D and Z2 use.
+
+> The first version of that probe measured a **2.5 dB non-monotonic** spread,
+> which is exactly what a coherence error looks like. It was the harness. The
+> shared excitation generator has ±0.077 autocorrelation at lags 600–2400
+> samples, which is precisely where the spawn interval sits, so each overlap
+> setting summed a different amount of correlation *in the test signal* — the
+> +1.45 dB outlier at overlap 10 sat on the generator's correlation peak at lag
+> 960, that setting's own interval. A murmur3 finaliser (`whiteNoiseAt`,
+> max|acf| 0.0024) drops the spread to 0.07 dB. Added alongside the old
+> generator, not replacing it, so pre-v1.3.0 probe numbers stay diffable.
+
+**Feedback path: a clipping defect.** What recirculates *is* self-similar, and
+there `1/sqrt(N)` leaves √N of excess loop gain per generation. Harmless while N
+stopped at 8; doubling the ceiling spent the whole margin:
+
+| ceiling | decay @ fb 100, before the fix |
+|---------|-------------------------------|
+| 8       | −0.29 dB/s (shipped)          |
+| 10      | **+0.87 dB/s** (growing)      |
+| 12      | +0.87 dB/s                    |
+| 14      | +0.67 dB/s                    |
+| 16      | +0.46 dB/s → 90 s peak **1.28, clipped** |
+
+Positive dB/s is self-oscillation. The `tanh` bounds the loop to ±1 per sample,
+but the wet output is a near-coherent sum of 16 grains each reading loop content
+at the limiter's ceiling, and `1/sqrt(16)` does not bound that.
+
+Fixed by `loopCountTrim` = `(N/8)^−0.5` — the fully-coherent amplitude law,
+used as derived rather than tuned — anchored at the legacy ceiling and exactly
+`1.0f` at or below it, so the shipped decay stays bitwise the shipped decay. It
+rides on the output/loop gain split v1.2.0 built for `gainRandom`. After:
+decay spread across all ceilings **0.020 dB/s**, worst-case peak **0.28**.
+
+### The spawn cap
+
+The old 32 matched `GrainPool::kMaxGrains` on the reasoning that "excess spawns
+would only steal grains anyway" — which died at v1.1.0, when the pool started
+*refusing* instead of stealing. A drop and a refusal became different events, and
+only the refusal is a design choice. The bound is now derived and sample-rate
+independent: `overlapMax · kDelayTimeMinMs / kGrainSizeMinMs` = 16 · 50/50 = **16
+nominal against a cap of 128**. Note it is grain size's *minimum*, not the
+ceiling, that this cap is most sensitive to — below ~6 ms it would reach 128 at
+ceiling 16, and probe AB is what will notice.
+
+### The UI, and a reversed decision
+
+The readout **reverses Stage 3's decision D10** ("no visualization, no Timer, no
+C++→JS polling bridge"), deliberately: `GrainPool::countActive()` shipped in
+Stage 2 and was called by nothing until v1.1's probe Y, which is how density
+stayed an abstract percentage. It is a *pull* — JS polls a native function at
+15 Hz — so there is no `juce::Timer` and no event-listener plumbing, which keeps
+the whole bridge inside the surface the ui-stub already models. The native-fn
+count goes 11 → 12.
+
+The panel that was labelled MOTION is now **COUNT**: 276 px, unchanged in width,
+position and height, so the frame geometry every tooltip clamp was verified
+against is the same geometry. The label had to move regardless — "Motion"
+describes delay-time drift (review B4 #6), which is not this, and now waits in
+SPACE.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| v1.2.0's 80 shared probe result lines vs v1.3.0's | **byte-for-byte identical** |
+| Offline render harness | **93/93 probes PASS, exit 0** (81 + 12 new) |
+| `ui_frontend_check.js` | **ALL CHECKS PASSED** |
+| `ui_tooltip_clamp_check.js` @ 940×743 | **ALL CHECKS PASSED**, 18/18 anchors, clamp fired on 4 |
+| `pluginval --strictness-level 10` VST3 | **SUCCESS ×3**, exit 0 |
+| `pluginval --strictness-level 10` AU | **SUCCESS ×3**, exit 0 |
+| `auval -v aufx ORvD OuDv` | **AU VALIDATION SUCCEEDED** |
+| AU component version | **66304** (= 1.3.0) |
+| Grain-steal refusal at ceiling 16 | **holds** — `ceiling16-pool-clickfree`, maxStep 0.0088 vs 0.177 threshold, peak 24/32 grains |
+
+The AU pluginval run emits one pre-existing `!!! WARNING: Current program is
+−1` from the JUCE AU wrapper. Not a failure; exit code 0.
+
+New probes: `level-flat-count`, `spawncap-headroom-512/4096`,
+`count-default-identity`, `ceiling16-pool-clickfree`, `count-live-2/12/16`,
+`count-meter-live`, `decay-count-fb60/fb100`, `ceiling16-loop-bounded`.
+
+### Not done
+
+Human DAW sign-off. The ceiling raise is verified offline and by both
+validators, but "does overlap 16 actually sound like a smoother wash" is a
+listening judgement no probe makes.
+
 ## [1.2.0] — 2026-07-24 — Grain window shape + tilt
 
 Minor release implementing **section B1** of the v1.0.0 review

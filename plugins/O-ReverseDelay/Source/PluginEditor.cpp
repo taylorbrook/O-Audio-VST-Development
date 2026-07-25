@@ -3,11 +3,28 @@
 
     O-ReverseDelay — Plugin Editor (implementation)
 
-    12 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
-    highCut, width, mix + v1.1.0's jitter, delayScatter, sizeRandom, gainRandom)
-    + 2 WebComboBoxRelay controls (syncMode, noteDivision) bound two-way to the
-    APVTS. The UI-02 Sync/Free control swap is pure JS — both controls stay
-    relay-bound at all times, so neither is ever dead.
+    14 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
+    highCut, width, mix + v1.1.0's jitter, delayScatter, sizeRandom, gainRandom
+    + v1.2.0's grainTilt + v1.3.0's grainCount) + 3 WebComboBoxRelay controls
+    (syncMode, noteDivision, grainShape) bound two-way to the APVTS. The UI-02
+    Sync/Free control swap is pure JS — both controls stay relay-bound at all
+    times, so neither is ever dead.
+
+    ── v1.3.0: this editor now polls the processor ───────────────────────────
+    Stage 3's decision D10 was "no visualization, no Timer, no C++->JS polling
+    bridge", and the COUNT panel's live grain readout (B2) reverses it. Recorded
+    plainly rather than quietly: the readout is the whole point of B2's third
+    item — GrainPool::countActive() has existed since Stage 2 and was called by
+    nothing, which made density an abstract percentage — and a value that
+    changes every block cannot be delivered by the parameter relays, which only
+    fire on parameter change.
+
+    It is a PULL, not a push: JS asks via a native function on an interval
+    (see app.js METER_POLL_MS), so there is no juce::Timer in this class and no
+    emitEvent listener plumbing. That choice is what keeps the ui-stub able to
+    render the page — the stub already models getNativeFunction, and modelling
+    window.__JUCE__.backend.addEventListener would have been new test surface
+    for no gain.
 
   ==============================================================================
 */
@@ -32,7 +49,11 @@ namespace
         // companion grainShape is a choice and belongs in kComboIds below, not
         // here. Putting a choice param in the slider list yields a relay that
         // attaches but a control whose index never updates.
-        "grainTilt"
+        "grainTilt",
+        // v1.3.0 (B2): COUNT panel. A float with step 1 rather than a choice,
+        // so it belongs here — a 15-entry AudioParameterChoice would have read
+        // as a dropdown of numbers and lost the drag gesture.
+        "grainCount"
     };
 
     const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape" };
@@ -121,11 +142,12 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     for (const auto& relay : comboRelays)
         options = options.withOptionsFrom (*relay);
 
-    // ── NATIVE FUNCTIONS — exactly 11 ──────────────────────────────────────
-    // 1 for dblclick-reset + the 10 that js/preset-manager.js fetches. The count
-    // is grep-diffed against app.js + preset-manager.js at the Stage-4 gate: an
-    // unregistered fn leaves its control silently dead while build, auval and
-    // pluginval all pass (pattern_webview_native_fn_bridge_gap).
+    // ── NATIVE FUNCTIONS — exactly 12 ──────────────────────────────────────
+    // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + the 10 that
+    // js/preset-manager.js fetches. The count is grep-diffed against app.js +
+    // preset-manager.js at the Stage-4 gate: an unregistered fn leaves its
+    // control silently dead while build, auval and pluginval all pass
+    // (pattern_webview_native_fn_bridge_gap).
 
     // Dblclick-reset needs each parameter's default in ENGINEERING units: the
     // properties payload pushed to the page carries start/end/skew but no
@@ -143,6 +165,32 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                 if (auto* param = processorRef.parameters.getParameter (id))
                     obj->setProperty (id, param->convertFrom0to1 (param->getDefaultValue()));
             }
+
+            complete (juce::var (obj));
+        });
+
+    // ── v1.3.0 (B2): the grain meter ────────────────────────────────────────
+    // Reports what the engine is DOING, not what the parameters say — which is
+    // the point. Density was an abstract percentage through v1.2.0 because the
+    // overlap it produces depends on grain size too, and now on the ceiling as
+    // well; a live count is the only honest readout of "how many grains".
+    //
+    // Reads two relaxed atomics the audio thread publishes once per block, never
+    // the pool or scheduler directly. processorRef.getActiveGrainCount() would
+    // have been the obvious call and is the wrong one here: it walks 32 bools
+    // that the audio thread is writing, which is a data race from this thread.
+    //
+    // Returns a DynamicObject rather than a JSON string so the page needs no
+    // parse step and a malformed payload cannot silently degrade to a dead
+    // readout — same shape as getParameterDefaults above.
+    options = options.withNativeFunction ("getGrainMeter",
+        [this] (auto&, auto complete)
+        {
+            const auto meter = processorRef.getGrainMeter();
+
+            auto* obj = new juce::DynamicObject();
+            obj->setProperty ("active",  meter.active);
+            obj->setProperty ("overlap", meter.overlap);
 
             complete (juce::var (obj));
         });

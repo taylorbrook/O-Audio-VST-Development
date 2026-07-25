@@ -186,8 +186,12 @@ function serve(root) {
     // populated readout is proof the module ran.
     const boundReadouts = await page.$$eval('.knob-value',
         els => els.filter(e => e.textContent.trim() !== '—' && e.textContent.trim() !== '').length);
-    check(boundReadouts >= 13,
-        `app.js ran and bound the knobs — ${boundReadouts}/13 readouts populated`);
+    // v1.3.0: 14 knobs (grainCount joined). Compared with === rather than >=:
+    // the loose form let this line print "14/13" once grainCount landed, and a
+    // bound that can never fail upward would also never notice a knob going
+    // missing while another was added.
+    check(boundReadouts === 14,
+        `app.js ran and bound the knobs — ${boundReadouts}/14 readouts populated`);
     check(consoleErrors.length === 0,
         'no console errors on load' + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
 
@@ -195,6 +199,17 @@ function serve(root) {
     const vp = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
     check(vp.w === SHIP_W && vp.h === SHIP_H,
         `viewport really is ${SHIP_W} x ${SHIP_H} — got ${vp.w} x ${vp.h}`);
+
+    // Every [data-tip] element must carry an id, because this enumeration is
+    // BY id — an anchor without one is silently skipped and its tip is never
+    // measured. v1.3.0's grain-meter tip was added without an id and vanished
+    // from this run without changing the 17/17 tally, which is exactly the kind
+    // of coverage hole a filter(Boolean) hides.
+    const idless = await page.$$eval('[data-tip]',
+        els => els.filter(e => !e.id).map(e => e.className || e.tagName));
+    check(idless.length === 0,
+        'every [data-tip] anchor carries an id, so none is skipped below'
+        + (idless.length ? ' — ID-LESS: ' + idless.join(', ') : ''));
 
     const anchors = await page.$$eval('[data-tip]', els => els.map(e => e.id).filter(Boolean));
     // v1.2.0 added two: the WINDOW panel's grainShape select and grainTilt knob.

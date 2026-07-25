@@ -64,7 +64,7 @@ Ouaricon Plugins:
 | O-simpleSampler | ✅ Working | 1.0.0 | Synth (Pedagogical Sampler) | 2026-07-01 |
 | O-simpleBeatmaker | 📦 Installed | 1.0.2 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-07-15 |
 | O-simplePhysicalModelSynth | 📦 Installed | 1.0.2 | Synth (Pedagogical Physical Modeling) | 2026-07-16 |
-| O-ReverseDelay | 📦 Installed | 1.2.0 | Audio Effect (Granular Reverse Delay) | 2026-07-24 |
+| O-ReverseDelay | 📦 Installed | 1.3.0 | Audio Effect (Granular Reverse Delay) | 2026-07-25 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`

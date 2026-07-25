@@ -546,6 +546,13 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     // instead of making it every future probe's job to remember.
     setParam (a, "grainTilt",      0.5f);   // symmetric — NOT 0
     setParam (a, "grainShape",     0.0f);   // Hann
+
+    // v1.3.0 (B2): the SHIPPED ceiling, for the same reason and by the same
+    // hard-won argument as the two window params above — probe AA sweeps
+    // grainCount and every probe that runs after it calls setBaseline().
+    // 8 is v1.2.0's hard-coded value, so pre-v1.3.0 probes measure what they
+    // always measured. NOT kOverlapCeilingMax, and not 2.
+    setParam (a, "grainCount",     8.0f);
 }
 
 // Plugin defaults for the QUAL-01 all-parameter sweep (probe M): every value
@@ -564,6 +571,7 @@ static void setDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, "mix",           35.0f);
     setParam (a, "grainTilt",      0.5f);   // v1.2.0 default — see setBaseline
     setParam (a, "grainShape",     0.0f);
+    setParam (a, "grainCount",     8.0f);   // v1.3.0 default
 }
 
 //==============================================================================
@@ -1696,6 +1704,46 @@ int main()
 
     auto randNoiseFill = [&] (int t) { return (float) (kRandA * randNoiseAt (t)); };
 
+    // ── v1.3.0: a WHITE position-deterministic excitation ────────────────────
+    //
+    // randNoiseAt above is one xorshift round over a multiplied counter, and that
+    // is not enough mixing to be white. Measured autocorrelation reaches ±0.077
+    // at lags in the 600–2400 sample range — which happens to be exactly where
+    // the grain spawn interval lives at these grain sizes.
+    //
+    // That does not matter for the probes that use it. T, U, W and Y compare two
+    // renders to each other, so any fixed colouration cancels; Z2 and Z3 compare
+    // levels across window shapes at a FIXED interval, so the same lag structure
+    // applies to every shape and cancels there too.
+    //
+    // It matters enormously for probe AA, which is the first probe to compare
+    // levels while VARYING the spawn interval. Adjacent grains read the source
+    // 2·interval apart, so with a coloured excitation each overlap setting sees a
+    // different amount of correlation between the grains it is summing, and the
+    // measured level moves for reasons that have nothing to do with the gain law.
+    // Measured that way, the ladder spread was 2.5 dB and NON-MONOTONIC in
+    // overlap: the +1.45 dB outlier at overlap 10 sat exactly on the generator's
+    // +0.077 correlation peak at lag 960, which is that setting's interval. It
+    // reads exactly like the partially-coherent summing the review predicted,
+    // and it is the test signal.
+    //
+    // A murmur3 finaliser over the same counter fixes it: max|acf| over lags
+    // 1..20000 drops from 0.077 to 0.0024, against an estimator noise floor of
+    // 0.0007. Still a pure function of the sample INDEX — the property probe O
+    // and W2 depend on — so it is block-size invariant like its predecessor.
+    //
+    // Added ALONGSIDE randNoiseAt rather than replacing it, deliberately: every
+    // pre-v1.3.0 probe's reported numbers stay exactly what they were, so this
+    // release's result lines remain diffable against v1.2.0's.
+    auto whiteNoiseAt = [] (int t) noexcept
+    {
+        juce::uint32 x = (juce::uint32) t * 0x9E3779B1u + 0x85EBCA6Bu;
+        x ^= x >> 16; x *= 0x85EBCA6Bu;
+        x ^= x >> 13; x *= 0xC2B2AE35u;
+        x ^= x >> 16;
+        return (double) (x >> 8) * (1.0 / 16777216.0) * 2.0 - 1.0;
+    };
+
     // All four v1.1 controls off. Every probe below starts from here, so a probe
     // that forgets to zero one of them cannot silently inherit it from the last.
     auto clearRandomisation = [&]
@@ -2474,6 +2522,554 @@ int main()
                      + " (needs >" + juce::String (0.02 * baseRef, 6) + ")"
                      + " peak=" + juce::String (pk, 4));
         }
+    }
+
+    //==========================================================================
+    // v1.3.0 probes (AA–AE) — B2 overlap ceiling / grain count
+    //==========================================================================
+
+    // Every probe below drives overlap by setting density to 100 and reading the
+    // ceiling as the overlap, which is exact: at density 100 the map collapses to
+    // `min + 1.0·(ceiling − min)` == ceiling. Asking for an arbitrary overlap
+    // would mean inverting the map onto density's 0.1 % grid and landing near it
+    // rather than on it, and probe AC's identity assertions are exact.
+    // --- Probe AA: level is flat across the RAISED overlap range -------------
+    // The acceptance test for the ceiling raise, and the probe that settled
+    // whether grainGain needed a new term. It did not.
+    //
+    // The review predicted one: grainGain's 1/sqrt(overlap) assumes incoherent
+    // summing, overlapping grains read the same reversed material at nearby
+    // offsets, so the compensation should under-correct by a margin growing with
+    // N — tolerable while N topped out at 8, but doubling the ceiling doubles the
+    // range over which it accumulates. Sound reasoning; wrong conclusion. At a
+    // fixed OUTPUT sample the grains in the sum read source points that are
+    // multiples of 2·interval apart, which is decorrelated for broadband input,
+    // so the output path sums incoherently and 1/sqrt(N) is exactly right.
+    // Measured here at 0.07 dB across 2..16 with no correction term.
+    //
+    // Measured at density 100 so overlap == ceiling exactly, wet-only, no
+    // feedback: the loop would fold a level error back on itself and confuse
+    // "the gain law is wrong" with "the decay rate moved" (which is probe AF's
+    // job). The whole ladder is PRINTED in dB relative to the legacy ceiling of
+    // 8, because the useful output of this probe is the table, not the verdict —
+    // a future release that re-tunes grainGain reads its effect straight off it.
+    //
+    // ⚠ USES whiteNoiseAt, NOT randNoiseFill, and that is load-bearing. This is
+    // the first probe in the suite to compare LEVELS while varying the spawn
+    // INTERVAL, which is what makes it sensitive to colouration in the test
+    // signal — see whiteNoiseAt's note. With the shared generator this probe
+    // reported a 2.5 dB non-monotonic spread that looked exactly like the
+    // predicted coherence error and was entirely the excitation.
+    {
+        constexpr float kLadder[] = { 2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f };
+        constexpr int   kN        = (int) (sizeof (kLadder) / sizeof (kLadder[0]));
+        constexpr int   kReps     = 3;            // independent noise realisations
+
+        // A single 0.4 s window on one noise realisation is NOT a good enough
+        // estimator here, and the first run of this probe proved it: it produced
+        // a 2.5 dB spread that was not monotonic in overlap (10 read +1.43 dB
+        // while 16 read −1.10 dB), which no gain law can explain and which would
+        // have been "fitted" by an exponent chasing noise.
+        //
+        // The variance is structural rather than sloppy. At overlap N the output
+        // is a sum of N windowed grains, and which parts of the noise land
+        // constructively depends on where the spawn grid falls against that
+        // particular realisation — so each ceiling gets a different draw from the
+        // same distribution. The cure is more data, in both directions: a 2.4 s
+        // window instead of 0.4, and three independent realisations averaged in
+        // POWER (not in dB, which would bias the mean low). ~18x the samples,
+        // ~4x less standard error.
+        double r[kN] {};
+        bool   ok = true;
+
+        struct Diag { int interval = 0; int refused = 0; int peakActive = 0; };
+        Diag diag[kN] {};
+
+        for (int i = 0; i < kN; ++i)
+        {
+            double power = 0.0;
+
+            for (int rep = 0; rep < kReps; ++rep)
+            {
+                setBaseline (apvts);             // feedback 0, width 0, mix 100 — wet only
+                clearRandomisation();
+                clearWindow();
+                setParam (apvts, "grainCount", kLadder[i]);
+                setParam (apvts, "density",    100.0f);   // overlap == ceiling
+                proc.prepareToPlay (fs, block);
+
+                // Decorrelated realisations from the same position-deterministic
+                // generator: offsetting t re-phases the whole sequence, and the
+                // offsets are far larger than any grain or delay length so no two
+                // renders share source material.
+                const int tOffset = rep * 500000;
+                auto fill = [&] (int t) { return (float) (kRandA * whiteNoiseAt (t + tOffset)); };
+
+                proc.resetSpawnCounters();
+                int peakActive = 0;
+                auto watch = [&] (int, int) { peakActive = juce::jmax (peakActive, proc.getActiveGrainCount()); };
+
+                auto y = renderEffect (proc, 4.0, fs, block, fill, watch);
+
+                const double rr = rms (y.L, (int) (1.2 * fs), (int) (2.4 * fs));
+                power += rr * rr;
+
+                diag[i].interval   = juce::jmax (1, (int) ((double) currentG() / (double) kLadder[i]));
+                diag[i].refused    = juce::jmax (diag[i].refused, (int) proc.getRefusedSpawnCount());
+                diag[i].peakActive = juce::jmax (diag[i].peakActive, peakActive);
+
+                ok = ok && allFinite (y.L) && allFinite (y.R)
+                        && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0;
+            }
+
+            r[i] = std::sqrt (power / (double) kReps);
+        }
+
+        // Reference is the legacy ceiling: what v1.2.0 could already reach is the
+        // level the new territory has to match, not some new global average.
+        const double ref = r[3];   // kLadder[3] == kLegacyOverlapMax
+        juce::String ladder;
+
+        // The spawn interval is printed alongside each rung because it is what the
+        // level actually keys off, and because it is what made the harness bug
+        // legible: the outlier rung's interval matched the excitation's
+        // correlation peak exactly.
+        for (int i = 0; i < kN; ++i)
+            ladder << juce::String ((int) kLadder[i]) << "="
+                   << juce::String (ref > 0.0 ? 20.0 * std::log10 (r[i] / ref) : -99.0, 2)
+                   << "dB/iv" << juce::String (diag[i].interval) << " ";
+
+        // Asserted over the FULL ladder, not just the new territory above 8. The
+        // first draft held only 8..16 on the assumption that the shipped span
+        // carried a drift that must not be "fixed" retroactively; the measurement
+        // says there is no drift to preserve, so the whole range gets the same
+        // ±1 dB budget probes D and Z2 use. That also makes this probe a guard on
+        // the legacy span rather than only on the extension.
+        //
+        // Refusals must be zero for the measurement to mean anything: a refused
+        // spawn lowers the ACTUAL overlap while grainGain still divides by the
+        // nominal one, which reads as a level error that is really a pool error.
+        double lo = 1.0e30, hi = 0.0;
+        int    refusedTotal = 0;
+
+        for (int i = 0; i < kN; ++i)
+        {
+            lo = juce::jmin (lo, r[i]);
+            hi = juce::jmax (hi, r[i]);
+            refusedTotal += diag[i].refused;
+        }
+
+        const double spreadDb = lo > 0.0 ? 20.0 * std::log10 (hi / lo) : 99.0;
+
+        check ("level-flat-count", ok && spreadDb < 1.0 && lo > 1.0e-4 && refusedTotal == 0,
+               juce::String ("rel-to-8: ") + ladder
+                 + "| spread(2..16)=" + juce::String (spreadDb, 3) + " dB"
+                 + " refused=" + juce::String (refusedTotal));
+    }
+
+    // --- Probe AB: the spawn cap is never reached ----------------------------
+    // GrainScheduler's fixed request array silently discarded anything past 32
+    // through v1.2.0. Unreachable at the shipped ranges — but "unreachable" was
+    // an argument, not a measurement, and the ceiling raise moves the very
+    // quantity the argument depended on.
+    //
+    // Worst case the parameters allow, derived rather than guessed:
+    //   spawns/pass = passLen / interval, passLen <= kDelayTimeMinMs·fs,
+    //   interval = G/overlap >= (kGrainSizeMinMs·fs)/overlapMax
+    //   -> 16 · 50/50 = 16 nominal, against a cap of 128.
+    // So: ceiling 16, grainSize AND delayTime both at their 50 ms minimum, and
+    // jitter at 100 % to add the bursts that a nominal count cannot show.
+    //
+    // Run at TWO block sizes because passLen is derived from the host block
+    // size: 512 gives one pass per block, 4096 gives several, and only the
+    // second exercises a pass that fills from a mid-block starting countdown.
+    {
+        for (const int blk : { 512, 4096 })
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "grainCount",   16.0f);
+            setParam (apvts, "grainSize",    ReverseDelayProcessor::kGrainSizeMinMs);
+            setParam (apvts, "delayTime",    ReverseDelayProcessor::kDelayTimeMinMs);
+            setParam (apvts, "density",      100.0f);
+            setParam (apvts, "jitter",       100.0f);
+            setParam (apvts, "feedback",      60.0f);
+            setParam (apvts, "width",        100.0f);
+            setParam (apvts, "mix",          100.0f);
+
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+            proc.resetSpawnCounters();          // cumulative — clear or inherit
+
+            int peakActive = 0;
+            auto watch = [&] (int, int) { peakActive = juce::jmax (peakActive, proc.getActiveGrainCount()); };
+
+            auto y = renderEffect (proc, 4.0, fs, blk, randNoiseFill, watch);
+
+            const auto dropped = proc.getDroppedSpawnCount();
+            const auto refused = proc.getRefusedSpawnCount();
+
+            // Drops are asserted zero; REFUSALS are only reported. A refusal is
+            // v1.1.0 working as designed (drop one grain rather than cut a live
+            // envelope) and at ceiling 16 against 32 slots it is reachable under
+            // full jitter — probe AD is what proves it stays inaudible.
+            check ((juce::String ("spawncap-headroom-") + juce::String (blk)).toRawUTF8(),
+                   dropped == 0 && allFinite (y.L) && allFinite (y.R)
+                     && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0,
+                   juce::String ("dropped=") + juce::String ((int) dropped)
+                     + " (cap " + juce::String (GrainScheduler::kMaxSpawnsPerBlock) + ")"
+                     + " refused=" + juce::String ((int) refused)
+                     + " peakGrains=" + juce::String (peakActive) + "/32");
+        }
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+    }
+
+    // --- Probe AC: the default ceiling is v1.2.0, BITWISE --------------------
+    // The guarantee that makes this a MINOR bump. Density is stored denormalised
+    // in session state, so if the ceiling had been folded into the density knob's
+    // own span every saved session would have got denser with no migration
+    // available (critical_apvts_denormalised_vs_preset_normalised). Making it a
+    // separate parameter avoids that only if its default reproduces the old map
+    // EXACTLY — `min + d·(ceiling−min)` with ceiling 8 must be the same three
+    // float operations as v1.0.1's `2 + d·6`, not merely the same value to
+    // within an ulp.
+    //
+    // Asserted as a full-render bit comparison at several densities — including
+    // 0 and 100, the two endpoints where the map's arithmetic degenerates — and
+    // as exact float equality rather than a tolerance, because a difference of
+    // one ulp is inaudible and would still mean the identity claim is false.
+    //
+    // Because grainGain ended up needing no new term (probe AA), this identity
+    // in fact holds at EVERY ceiling and not only at the default: nothing in the
+    // gain path changed at all this release. The probe still pins the default,
+    // which is the property the compatibility claim rests on.
+    {
+        double worstDiff = 0.0;
+        bool   ok = true;
+
+        for (const float d : { 0.0f, 37.5f, 60.0f, 100.0f })
+        {
+            auto renderAtCeiling = [&] (bool setCeiling)
+            {
+                setBaseline (apvts);            // leaves grainCount at 8 …
+                clearRandomisation();
+                clearWindow();
+                if (setCeiling)                 // … and this sets it to 8 again
+                    setParam (apvts, "grainCount", ReverseDelayProcessor::kLegacyOverlapMax);
+                setParam (apvts, "density",  d);
+                setParam (apvts, "feedback", 40.0f);
+                setParam (apvts, "width",    60.0f);
+                proc.prepareToPlay (fs, block);
+                return renderEffect (proc, 2.0, fs, block, randNoiseFill);
+            };
+
+            auto a = renderAtCeiling (false);
+            auto b = renderAtCeiling (true);
+
+            const double diff = juce::jmax (maxAbsDiff (a.L, b.L), maxAbsDiff (a.R, b.R));
+            worstDiff = juce::jmax (worstDiff, diff);
+            ok = ok && diff == 0.0 && rms (a.L, (int) (0.8 * fs), (int) (1.0 * fs)) > 1.0e-5;
+        }
+
+        check ("count-default-identity", ok,
+               juce::String ("max|explicit8 - default|=") + juce::String (worstDiff, 12)
+                 + " over density {0, 37.5, 60, 100}");
+    }
+
+    // --- Probe AD: the raised ceiling is still click-free --------------------
+    // Probe Y at ceiling 16. v1.1.0 replaced steal-oldest with refuse-on-
+    // exhaustion precisely because a stolen slot's envelope jumps from mid-window
+    // to zero in one sample; the review flagged that raising the ceiling makes
+    // exhaustion "much more likely", which is the condition that mechanism was
+    // built for and has never actually been run at.
+    //
+    // Same detector, same loose tier, same grainSize sweep as probe Y — so a
+    // regression here reads directly against that probe's numbers. Refusals are
+    // reported: a non-zero count with a passing step detector is the affirmative
+    // evidence that refuse-not-steal holds at 16, and is a stronger result than
+    // zero refusals would be, because zero refusals would mean the mechanism was
+    // never exercised.
+    {
+        const double sineHz   = 220.0;
+        const double sineStep = 2.0 * juce::MathConstants<double>::pi * sineHz / fs;
+        const double thresh   = 6.0 * sineStep + 0.004;   // kStepFactorLoose, as probe Y
+
+        setBaseline (apvts);
+        setParam (apvts, "grainCount", 16.0f);
+        setParam (apvts, "grainSize",  500.0f);
+        setParam (apvts, "density",    100.0f);   // overlap 16
+        setParam (apvts, "feedback",    60.0f);
+        setParam (apvts, "width",      100.0f);
+        setParam (apvts, "mix",        100.0f);
+        clearRandomisation();
+        clearWindow();
+        setParam (apvts, "jitter",       100.0f);
+        setParam (apvts, "delayScatter", 250.0f);
+        setParam (apvts, "sizeRandom",   100.0f);
+        setParam (apvts, "gainRandom",   100.0f);
+        proc.prepareToPlay (fs, block);
+        proc.resetSpawnCounters();
+
+        int peakActive = 0;
+
+        auto pressure = [&] (int pos, int total)
+        {
+            peakActive = juce::jmax (peakActive, proc.getActiveGrainCount());
+            const double t   = (double) pos / (double) total;
+            const double tri = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;
+            setParam (apvts, "grainSize", 500.0f - (float) tri * 450.0f);
+        };
+
+        auto y = renderEffect (proc, 6.0, fs, block,
+                               [&] (int t) { return (float) (0.25 * std::sin (sineStep * t)); },
+                               pressure);
+
+        const double step = juce::jmax (maxAbsStep (y.L), maxAbsStep (y.R));
+        const double pk   = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        check ("ceiling16-pool-clickfree",
+               step < thresh && pk < 1.0 && allFinite (y.L) && allFinite (y.R)
+                 && proc.getDroppedSpawnCount() == 0,
+               juce::String ("maxStep=") + juce::String (step, 6)
+                 + " thresh=" + juce::String (thresh, 6)
+                 + " peak=" + juce::String (pk, 4)
+                 + " peakGrains=" + juce::String (peakActive) + "/32"
+                 + " refused=" + juce::String ((int) proc.getRefusedSpawnCount())
+                 + " dropped=" + juce::String ((int) proc.getDroppedSpawnCount()));
+    }
+
+    // --- Probe AE: the ceiling is a LIVE control, and the meter reports it ---
+    // The mirror of probes T and Z5. Every assertion above is a "must not
+    // change" — bit-identical at the default, level flat above it, no drops, no
+    // clicks — and a grainCount wired to nothing whatsoever would satisfy all of
+    // them perfectly. This is the probe that fails when it is a dead knob.
+    //
+    // The UI readout is checked in the same place because it has the same failure
+    // mode and it is the reason B2 asked for the ceiling to be legible at all:
+    // countActive() shipped in Stage 2 and was called by NOTHING until v1.1's
+    // probe Y, which is precisely how a control ends up dead
+    // (pattern_webview_native_fn_bridge_gap — an unwired readout passes build,
+    // auval and pluginval identically to a wired one).
+    {
+        auto renderAtCount = [&] (float ceiling, float density)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "grainCount", ceiling);
+            setParam (apvts, "density",    density);
+            setParam (apvts, "feedback",   40.0f);
+            setParam (apvts, "width",      60.0f);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 2.0, fs, block, randNoiseFill);
+        };
+
+        auto base = renderAtCount (8.0f, 60.0f);
+        const double baseRef = juce::jmax (peakAbs (base.L), peakAbs (base.R));
+
+        for (const float c : { 2.0f, 12.0f, 16.0f })
+        {
+            auto y = renderAtCount (c, 60.0f);
+            const double d = juce::jmax (maxAbsDiff (base.L, y.L), maxAbsDiff (base.R, y.R));
+
+            check ((juce::String ("count-live-") + juce::String ((int) c)).toRawUTF8(),
+                   d > 0.02 * baseRef && allFinite (y.L) && allFinite (y.R)
+                     && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0,
+                   juce::String ("max|ceil8 - ceil") + juce::String ((int) c) + "|="
+                     + juce::String (d, 6) + " (needs >" + juce::String (0.02 * baseRef, 6) + ")");
+        }
+
+        // Meter: the published snapshot must be non-zero while a wash is running
+        // and must track the ceiling. Asserted as an ORDERING (16 reports more
+        // concurrent grains than 2) rather than against absolute counts, which
+        // depend on where the block boundary lands relative to the spawn grid.
+        renderAtCount (2.0f, 100.0f);
+        const auto meterLo = proc.getGrainMeter();
+
+        renderAtCount (16.0f, 100.0f);
+        const auto meterHi = proc.getGrainMeter();
+
+        check ("count-meter-live",
+               meterLo.active > 0 && meterHi.active > meterLo.active
+                 && std::abs (meterLo.overlap -  2.0f) < 0.01f
+                 && std::abs (meterHi.overlap - 16.0f) < 0.01f,
+               juce::String ("ceil2: active=") + juce::String (meterLo.active)
+                 + " overlap=" + juce::String (meterLo.overlap, 3)
+                 + " | ceil16: active=" + juce::String (meterHi.active)
+                 + " overlap=" + juce::String (meterHi.overlap, 3));
+    }
+
+    // --- Probe AF: the ceiling does not move the FEEDBACK DECAY RATE ---------
+    // Required by the review's own verification notes: "any change to grainGain,
+    // window shape, or overlap RANGE alters the feedback loop's per-generation
+    // loss — re-measure the decay rate at feedback = 100 before and after."
+    //
+    // And it is the one place the partial-coherence argument probe AA disproved
+    // for the output path does genuinely apply. What recirculates is not
+    // broadband input but this engine's own wash: self-similar material that
+    // overlapping grains read at nearby offsets, summing closer to coherently.
+    // v1.2.0 met that with a separate AMPLITUDE-normalised loop trim
+    // (WindowLut::getLoopNorm) while the output keeps a POWER normalisation —
+    // and that trim is a function of window shape and tilt, NOT of overlap, so
+    // whether it still holds when the overlap range doubles is exactly the open
+    // question. Nothing before this probe answers it.
+    //
+    // Measured the way probes S, X and Z4 measure theirs — same excitation, same
+    // dB/s, and Z4's fb=100 window placement ([5-10 s] vs [20-25 s], where that
+    // setting's tail is genuinely alive rather than sitting on the denormal
+    // floor). Density is held at 100 so overlap == ceiling.
+    //
+    // Both feedback tiers, with Z4's window placement for each — fb 60 is the
+    // loop's LINEAR per-generation gain, which is what loopCountTrim is directly
+    // responsible for, and fb 100 is where it runs into the tanh. Both are held
+    // to probe X's 0.25 dB/s: the trim's derived exponent leaves 0.02 dB/s of
+    // residual across the whole ceiling range, so a tight bound costs nothing and
+    // a loose one would let the defect back in unnoticed.
+    {
+        const int exciteLen = (int) (2.0 * fs);
+        constexpr float kCeilings[] = { 8.0f, 10.0f, 12.0f, 14.0f, 16.0f };
+
+        for (const float fb : { 60.0f, 100.0f })
+        {
+            const bool   fast    = fb < 80.0f;
+            const double w1Start = fast ? 3.0 :  5.0;
+            const double w2Start = fast ? 6.0 : 20.0;
+            const double winLen  = fast ? 2.0 :  5.0;
+            const double gapSec  = w2Start - w1Start;
+
+            double legacyDecay = 0.0, worstDelta = 0.0, worstPeak = 0.0;
+            int    worstCeil = 0;
+            juce::String detail;
+            bool   ok = true;
+
+            for (const float c : kCeilings)
+            {
+                setBaseline (apvts);
+                setParam (apvts, "grainCount", c);
+                setParam (apvts, "density",   100.0f);   // overlap == ceiling
+                setParam (apvts, "feedback",       fb);
+                setParam (apvts, "lowCut",    100.0f);
+                setParam (apvts, "highCut",  8000.0f);
+                clearRandomisation();
+                clearWindow();
+                proc.prepareToPlay (fs, block);
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+
+                auto y = renderEffect (proc, 30.0, fs, block, fill);
+
+                const double w1 = rms (y.L, (int) (w1Start * fs), (int) (winLen * fs));
+                const double w2 = rms (y.L, (int) (w2Start * fs), (int) (winLen * fs));
+                const double decay = (w1 > 0.0 && w2 > 0.0)
+                                       ? 20.0 * std::log10 (w2 / w1) / gapSec : 0.0;
+
+                if (juce::exactlyEqual (c, ReverseDelayProcessor::kLegacyOverlapMax))
+                {
+                    legacyDecay = decay;
+                }
+                else if (std::abs (decay - legacyDecay) > worstDelta)
+                {
+                    worstDelta = std::abs (decay - legacyDecay);
+                    worstCeil  = (int) c;
+                }
+
+                const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+                worstPeak = juce::jmax (worstPeak, pk);
+                detail << juce::String ((int) c) << "=" << juce::String (decay, 3) << " ";
+
+                // Every decay must be NEGATIVE. This is the assertion that would
+                // have caught the pre-trim defect on its own: at ceiling 10-16 the
+                // rate went positive, i.e. the loop self-oscillated, and a
+                // "difference from ceiling 8" bound alone can be satisfied by two
+                // configurations that are both growing.
+                ok = ok && allFinite (y.L) && allFinite (y.R) && pk < 1.0 && decay < 0.0;
+            }
+
+            check ((juce::String ("decay-count-fb") + juce::String ((int) fb)).toRawUTF8(),
+                   ok && worstDelta < 0.25,
+                   juce::String ("dB/s ") + detail
+                     + "worst-vs-8=" + juce::String (worstDelta, 3)
+                     + " (ceil " + juce::String (worstCeil) + ", <0.25)"
+                     + " peak=" + juce::String (worstPeak, 4));
+        }
+    }
+
+    // --- Probe AG: the worst case the ceiling allows stays bounded ------------
+    // The probe that would have failed before loopCountTrim existed, and the one
+    // worth keeping for that reason. Everything the ceiling raise can stack in one
+    // configuration: overlap 16, feedback 100, 90 seconds — long enough that a
+    // per-generation gain even slightly above unity has to show itself.
+    //
+    // Measured before the trim: RMS climbed 0.25 -> 1.07 and was still rising at
+    // 85 s, with a peak of 1.28. That is a clipped output, not a loud one, and it
+    // is the reason this probe asserts a MONOTONE DECAY across the whole
+    // trajectory rather than only a final peak — a runaway that happened to
+    // saturate below 1.0 would pass a peak check while still being a runaway.
+    //
+    // Probe M's stability-60s covers this shape at the DEFAULT ceiling; nothing
+    // covered it at the raised one, which is exactly how the defect got in.
+    {
+        const int exciteLen = (int) (2.0 * fs);
+
+        setBaseline (apvts);
+        setParam (apvts, "grainCount", ReverseDelayProcessor::kOverlapCeilingMax);
+        setParam (apvts, "density",   100.0f);
+        setParam (apvts, "feedback",  100.0f);
+        setParam (apvts, "mix",       100.0f);
+        clearRandomisation();
+        clearWindow();
+        proc.prepareToPlay (fs, block);
+
+        // width stays at setBaseline's 0, and that IS the worst case for the loop
+        // — which is the opposite of the intuition that "everything at maximum"
+        // is the hardest test. The first draft of this probe set width to 100 and
+        // measured a tail that died in 20 s where probe AF's rate predicts 15 s
+        // per 4 dB; the two disagreed by ~50 dB.
+        //
+        // The reason is pre-existing topology, not a v1.3.0 change: width scales
+        // the per-grain pan gains, and those same gains feed the FEEDBACK TAP.
+        // At width 0 every grain is centred, so loopL == loopR and the grains'
+        // mono sum on read-back carries a factor of 0.7071. At width 100 the
+        // alternating hard pan sends consecutive grains to opposite channels, so
+        // the mono sum carries 0.5 instead — 3 dB less loop gain per generation,
+        // compounding every pass. Width is therefore also a decay control in this
+        // engine. Worth knowing; out of scope here.
+
+        juce::Random rng ((juce::int64) 0x0feedbac);
+        auto fill = [&] (int t)
+        {
+            return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+        };
+
+        auto y = renderEffect (proc, 90.0, fs, block, fill);
+
+        // Sampled every 10 s from 5 s (after the excitation stops and the wash
+        // establishes) to 85 s. Each window must be quieter than the one before.
+        juce::String traj;
+        bool   monotone = true;
+        double prev     = 1.0e30;
+
+        for (int s = 5; s < 90; s += 10)
+        {
+            const double r = rms (y.L, (int) (s * fs), (int) (2.0 * fs));
+            traj << juce::String (s) << "s=" << juce::String (r, 5) << " ";
+            monotone = monotone && r < prev;
+            prev = r;
+        }
+
+        const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        check ("ceiling16-loop-bounded",
+               monotone && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("peak=") + juce::String (pk, 4)
+                 + " monotone=" + (monotone ? "1" : "0") + " " + traj);
     }
 
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------

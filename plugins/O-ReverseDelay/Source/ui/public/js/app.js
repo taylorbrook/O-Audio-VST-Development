@@ -1,13 +1,14 @@
 // ============================================================================
 // O-ReverseDelay — WebView UI controller (Stage 3 controls, Stage 4 bar + tips)
 //
-// Binds all 16 APVTS parameters two-way: 13 WebSliderRelay knobs + 3
+// Binds all 17 APVTS parameters two-way: 14 WebSliderRelay knobs + 3
 // WebComboBoxRelay controls (syncMode as a segment pair, noteDivision and
 // grainShape as selects). v1.1.0 added the four RANDOM knobs in row 2;
-// v1.2.0 added the WINDOW panel's Shape select + Tilt knob.
+// v1.2.0 added the WINDOW panel's Shape select + Tilt knob; v1.3.0 added the
+// COUNT panel's Count knob and the live grain meter beside it.
 //
-// Native-function surface is 11 and must match PluginEditor.cpp exactly:
-// getParameterDefaults is fetched HERE (dblclick-reset); the other ten are
+// Native-function surface is 12 and must match PluginEditor.cpp exactly:
+// getParameterDefaults and getGrainMeter are fetched HERE; the other ten are
 // fetched by js/preset-manager.js, which this file loads dynamically. Any
 // grep-diff of the bridge has to read both files.
 //
@@ -37,6 +38,9 @@ const KNOB_IDS = [
   // v1.2.0 (B1) — WINDOW panel. grainShape is a CHOICE and is bound below as a
   // select, not here; only grainTilt is a knob.
   "grainTilt",
+  // v1.3.0 (B2) — COUNT panel. Default 8, which is v1.2.0's hard-coded overlap
+  // ceiling, so an existing session opened here is unchanged.
+  "grainCount",
 ];
 
 const COMBO_SYNC     = "syncMode";
@@ -79,6 +83,10 @@ const FORMAT = {
   gainRandom:   fmtPct,
   // v1.2.0 (B1)
   grainTilt:    fmtTilt,
+  // v1.3.0 (B2). The parameter is a float with step 1, so the scaled value
+  // arrives as 8 rather than 8.0 — Math.round guards against a host that
+  // reports it a hair off the grid, which would render "7.999999".
+  grainCount:   (v) => `${Math.round(v)}`,
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────
@@ -91,6 +99,16 @@ const NUDGE_STEP     = 0.02;   // wheel / arrow-key increment
 const TOOLTIP_MARGIN   = 8;    // gap between a tip and its control / the viewport edge
 const TOOLTIP_DELAY_MS = 350;  // hover dwell before a tip appears
 const DELETE_ARM_MS    = 3000; // how long the delete button stays armed
+
+// ── Grain meter poll (v1.3.0, B2) ───────────────────────────────────────────
+// ~15 Hz. Fast enough that the count reads as live, slow enough that the
+// message-thread round trip is nothing: the native fn does two relaxed atomic
+// loads and builds a two-property object.
+//
+// A PULL on an interval rather than a push from a juce::Timer, because the page
+// is the only thing that knows whether it is visible and it keeps the whole
+// bridge inside the getNativeFunction surface the ui-stub already models.
+const METER_POLL_MS = 66;
 
 // ── Mutable module state ────────────────────────────────────────────────────
 // EVERY module-level binding lives in this one block — see the TDZ note above.
@@ -107,6 +125,12 @@ let tooltipTimer      = null;
 let tooltipTarget     = null;
 let tooltipSuppressed = false;
 let deleteArmTimer    = null;
+
+let meterTimer      = null;    // setInterval handle for the grain meter poll
+let meterActiveEl   = null;    // #meter-active  span
+let meterOverlapEl  = null;    // #meter-overlap span
+let meterFn         = null;    // the getGrainMeter native fn, resolved once
+let meterInFlight   = false;   // drop a tick rather than queue behind a slow one
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Function declarations (hoisted — safe to reference from init() below)
@@ -327,6 +351,73 @@ async function loadParameterDefaults(juce) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Grain meter (v1.3.0, B2)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Writes the two live values. textContent on the VALUE spans only — the
+// "Active" / "Overlap" captions are authored in index.html and must never be
+// rewritten from here (pattern_js_state_updater_overwrites_html_labels: a
+// shared updater that writes textContent on the wrong node erased HTML-authored
+// labels in every DAW since launch, and reading the source did not catch it).
+function renderGrainMeter(active, overlap) {
+  if (meterActiveEl) {
+    meterActiveEl.textContent = `${active}`;
+  }
+  if (meterOverlapEl) {
+    // One decimal: density is a continuous knob, so overlap is genuinely
+    // fractional between the integer ceilings — "5.6×" is the honest reading of
+    // density 60 at count 8, and rounding it to "6×" would hide that Density
+    // does anything at all between two Count settings.
+    meterOverlapEl.textContent = `${overlap.toFixed(1)}×`;
+  }
+}
+
+async function pollGrainMeter() {
+  // Never let ticks stack: at 15 Hz a round trip that stalls would otherwise
+  // queue, and the queue would drain as a burst of stale values.
+  if (!meterFn || meterInFlight) return;
+
+  meterInFlight = true;
+  try {
+    const raw = await meterFn();
+    const m = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    // Number() rather than trusting the payload: a var round-trip can deliver
+    // these as strings depending on backend, and `overlap.toFixed` on a string
+    // throws — which inside an interval callback would be a silent dead readout.
+    renderGrainMeter(Number(m.active) || 0, Number(m.overlap) || 0);
+  } catch (e) {
+    // Stop after the first failure rather than logging 15 times a second. The
+    // readout freezes on its last value; every other control is unaffected.
+    console.error("getGrainMeter failed, meter stopped:", e);
+    clearInterval(meterTimer);
+    meterTimer = null;
+  } finally {
+    meterInFlight = false;
+  }
+}
+
+function initGrainMeter(juce) {
+  meterActiveEl  = document.getElementById("meter-active");
+  meterOverlapEl = document.getElementById("meter-overlap");
+
+  if (!meterActiveEl || !meterOverlapEl) {
+    console.warn("Grain meter elements not found — meter disabled");
+    return;
+  }
+
+  try {
+    meterFn = juce.getNativeFunction("getGrainMeter");
+  } catch (e) {
+    console.error("getGrainMeter unavailable:", e);
+    return;   // the readout keeps its em-dash placeholders; nothing else breaks
+  }
+
+  meterTimer = setInterval(pollGrainMeter, METER_POLL_MS);
+  pollGrainMeter();   // paint once immediately rather than after the first tick
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Preset bar (Stage 4)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -506,6 +597,7 @@ function init() {
   shapeState    = bindSelectCombo(Juce, COMBO_SHAPE);
   loadParameterDefaults(Juce);   // async; nothing else depends on it
   initTooltips();
+  initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
   initPresetBar();               // async, fire-and-forget; self-contained failure
 }
 

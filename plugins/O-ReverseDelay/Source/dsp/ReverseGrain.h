@@ -34,11 +34,13 @@
     exactly 1.0f, so gLout/gRout are bitwise equal to gL/gR, the two buffers hold
     identical values, and the v1.0 sound is reproduced exactly.
 
-    Pool: fixed 32 preallocated slots (max sustained overlap is 8; headroom
-    covers delay-time transitions). find-inactive round-robin, and — since
-    v1.1.0 — REFUSE on exhaustion rather than steal-oldest. The proven
-    O-GrainScatter GrainPool shape, minus everything spatial/freeze.
-    Zero allocation in processBlock.
+    Pool: fixed 32 preallocated slots. v1.3.0 raised the max sustained overlap
+    from 8 to 16 (B2), so the headroom over steady state fell from 4x to 2x —
+    which is what the review budgeted, and the remaining 2x is what covers
+    delay-time transitions and the transient peaks the v1.1 randomisations
+    create. find-inactive round-robin, and — since v1.1.0 — REFUSE on exhaustion
+    rather than steal-oldest. The proven O-GrainScatter GrainPool shape, minus
+    everything spatial/freeze. Zero allocation in processBlock.
 
     `startOffset` is a per-block transient: the sample offset within the
     CURRENT block before which a freshly-spawned grain is silent. The render
