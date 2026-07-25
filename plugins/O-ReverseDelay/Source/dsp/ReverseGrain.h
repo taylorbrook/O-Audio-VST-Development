@@ -102,6 +102,19 @@ struct ReverseGrain
     float       tiltT       = 0.5f;
     float       tiltA       = 1.0f;
     float       tiltB       = 1.0f;
+
+    // ── v1.4.0: Tukey taper α, latched at spawn like everything above ────────
+    // Stored as the resolved GEOMETRY rather than as α, so the render loop does
+    // no division: `taperActive` is false for all four non-Tukey shapes and the
+    // remap is skipped entirely. Both fields are WindowLut::Taper flattened, for
+    // the same reason tiltT/A/B are — this stays a plain POD.
+    //
+    // Latched for the usual reason and one extra: α changes the window's WIDTH,
+    // so a live grain adopting a new α mid-flight would jump from one plateau
+    // edge to another — a bigger discontinuity than a shape swap, not a smaller
+    // one.
+    bool        taperActive = false;
+    float       taperInv    = 0.0f;         // 1 / (α/2)
 };
 
 class GrainPool

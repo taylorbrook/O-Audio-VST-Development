@@ -490,6 +490,11 @@ private:
     // row where the no-op default is a specific number rather than zero.
     std::atomic<float>* pGrainCount   = nullptr;
 
+    // v1.4.0 Tukey taper. Defaults to 0.5 — v1.2.0's frozen taper — so this is
+    // the FOURTH release running whose new parameter's no-op is a specific
+    // number rather than zero. 0.01 would ship a near-rectangular window.
+    std::atomic<float>* pTukeyTaper   = nullptr;
+
     //==========================================================================
     // v1.3.0 (B2) — meter + spawn accounting, all published by processBlock and
     // read from the message thread. Relaxed ordering throughout: these are

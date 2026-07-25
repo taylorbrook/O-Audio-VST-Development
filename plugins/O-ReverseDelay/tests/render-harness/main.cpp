@@ -553,6 +553,12 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     // 8 is v1.2.0's hard-coded value, so pre-v1.3.0 probes measure what they
     // always measured. NOT kOverlapCeilingMax, and not 2.
     setParam (a, "grainCount",     8.0f);
+
+    // v1.4.0: the SHIPPED taper. Same argument as grainTilt/grainShape/grainCount
+    // above, and the same trap in a fourth disguise — the no-op is 0.5, not the
+    // range minimum. Probes AH-AK sweep it and every probe after them calls
+    // setBaseline().
+    setParam (a, "tukeyTaper",     0.5f);
 }
 
 // Plugin defaults for the QUAL-01 all-parameter sweep (probe M): every value
@@ -572,6 +578,7 @@ static void setDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, "grainTilt",      0.5f);   // v1.2.0 default — see setBaseline
     setParam (a, "grainShape",     0.0f);
     setParam (a, "grainCount",     8.0f);   // v1.3.0 default
+    setParam (a, "tukeyTaper",     0.5f);   // v1.4.0 default
 }
 
 //==============================================================================
@@ -2128,6 +2135,7 @@ int main()
     {
         setParam (apvts, "grainShape", 0.0f);   // Hann
         setParam (apvts, "grainTilt",  0.5f);   // symmetric
+        setParam (apvts, "tukeyTaper", 0.5f);   // v1.4.0 — the shipped taper
     };
 
     // --- Probe Z1: the default window is the SHIPPED window, exactly ---------
@@ -3070,6 +3078,417 @@ int main()
                monotone && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
                juce::String ("peak=") + juce::String (pk, 4)
                  + " monotone=" + (monotone ? "1" : "0") + " " + traj);
+    }
+
+    //==========================================================================
+    // v1.4.0 probes (AH–AL) — continuous Tukey taper α
+    //==========================================================================
+
+    // --- Probe AH: the Hann remap really is the Tukey window -----------------
+    // The claim v1.4.0's render rests on: Tukey's taper is a Hann half, so
+    // Tukey(φ) = Hann(min(φ,1−φ)/taperEnd clamped, scaled) exactly. If that is
+    // wrong the shape is wrong at every α and nothing else here would say so —
+    // every level and decay probe below would happily normalise the wrong window.
+    //
+    // Measured against WindowLut's STORED Tukey table, which is built from
+    // std::cos directly and is therefore an independent reference rather than the
+    // remap compared to itself. Only the α = 0.5 table exists to compare against
+    // (that is the one v1.2.0 shipped), so that is where the shape is verified;
+    // the closed-form duty check in probe AI is what covers the other α.
+    //
+    // The bound is the LUT's own linear-interpolation error, not zero, and this
+    // probe is where that number is on the record: reading a 2048-point table at
+    // an arbitrary phase is not the same operation as evaluating cos there. 3e-6
+    // is ~5x the predicted 5.9e-7 — tight enough to catch a real shape error,
+    // loose enough not to fail on a compiler's fused multiply-add.
+    {
+        const auto& luts = proc.getWindowLuts();
+        const int   n    = 4096;
+
+        double worst = 0.0, worstPhi = 0.0;
+
+        for (int i = 0; i < n; ++i)
+        {
+            const float phi = static_cast<float> (i) / static_cast<float> (n - 1);
+
+            const auto  taper   = WindowLut::makeTaper (WindowLut::tukey, 0.5f);
+            const float remap   = luts.readShaped (luts.getTable (WindowLut::hann), taper, phi);
+            const float stored  = luts.readAt     (luts.getTable (WindowLut::tukey), phi);
+            const double d      = std::abs ((double) remap - (double) stored);
+
+            if (d > worst) { worst = d; worstPhi = phi; }
+        }
+
+        check ("taper-remap-is-tukey", worst < 3.0e-6,
+               juce::String ("max|hannRemap - storedTukey|=") + juce::String (worst, 10)
+                 + " at phi=" + juce::String (worstPhi, 4)
+                 + " (bound 3e-6; LUT lerp error, ~" + juce::String (20.0 * std::log10 (worst), 1)
+                 + " dB)");
+
+        // And at α = 1.0 the remap lands on the table's own points, so it must
+        // reproduce HANN essentially exactly — a much stronger statement, and the
+        // one that proves the phase scaling has no off-by-one.
+        double worstHann = 0.0;
+
+        for (int i = 0; i < n; ++i)
+        {
+            const float phi   = static_cast<float> (i) / static_cast<float> (n - 1);
+            const auto  taper = WindowLut::makeTaper (WindowLut::tukey, 1.0f);
+            const float remap = luts.readShaped (luts.getTable (WindowLut::hann), taper, phi);
+            const float hannV = luts.readAt     (luts.getTable (WindowLut::hann), phi);
+            worstHann = juce::jmax (worstHann, std::abs ((double) remap - (double) hannV));
+        }
+
+        check ("taper-alpha1-is-hann", worstHann < 1.0e-6,
+               juce::String ("max|tukey(a=1) - hann|=") + juce::String (worstHann, 12));
+    }
+
+    // --- Probe AI: the closed-form duty cycles are correct -------------------
+    // WindowLut integrates its normalisation constants from the real window and
+    // never from a closed form, because a hand-derived constant that drifts from
+    // the window is the silent error the whole normalisation exists to prevent.
+    // The closed forms are still worth having — they are how a reader checks the
+    // grid is sane — so they are ASSERTED here rather than trusted anywhere:
+    //
+    //     meanSq(α) = 1 − 0.625·α        mean(α) = 1 − 0.5·α
+    //
+    // Derived from the taper being a Hann half: over a taper the mean is 0.5 and
+    // the mean square 0.375, the flat part contributes 1, and the taper occupies
+    // exactly α of the window.
+    //
+    // Tolerance 1.5e-3 absolute: the grid integrates a 2048-point SAMPLED window
+    // whose endpoints are included, so it carries a small discrete-sum bias
+    // against the continuous integral (~5e-4, and largest at small α). A tighter
+    // bound would be asserting the sampling scheme, not the formula.
+    {
+        const auto& luts = proc.getWindowLuts();
+
+        double worstMs = 0.0, worstM = 0.0;
+        int    worstMsIdx = 0;
+        juce::String table;
+
+        for (int k = 0; k < WindowLut::kNumTaperSteps; ++k)
+        {
+            const float a  = WindowLut::taperAlphaAt (k);
+            const double ms = luts.getMeanSquare (WindowLut::tukey, a);
+            const double m  = luts.getMean       (WindowLut::tukey, a);
+
+            const double dMs = std::abs (ms - (1.0 - 0.625 * a));
+            const double dM  = std::abs (m  - (1.0 - 0.500 * a));
+
+            if (dMs > worstMs) { worstMs = dMs; worstMsIdx = k; }
+            worstM = juce::jmax (worstM, dM);
+
+            // Print the ends and the shipped default — the whole 100-row grid
+            // would drown the log, and these are the rows a reader checks.
+            if (k == 0 || k == 49 || k == WindowLut::kNumTaperSteps - 1)
+                table << "a=" << juce::String (a, 2)
+                      << " ms=" << juce::String (ms, 5)
+                      << " m="  << juce::String (m, 5) << " | ";
+        }
+
+        check ("taper-duty-closed-form", worstMs < 1.5e-3 && worstM < 1.5e-3,
+               table + "worst dMeanSq=" + juce::String (worstMs, 6)
+                 + " (a=" + juce::String (WindowLut::taperAlphaAt (worstMsIdx), 2) + ")"
+                 + " dMean=" + juce::String (worstM, 6));
+
+        // The default α must reproduce v1.3.0's constants BITWISE — that is the
+        // whole reason the parameter's step was chosen to make 0.5 a grid point.
+        // 0.6875 is the number the WindowLut header has documented since v1.2.0.
+        check ("taper-default-grid-exact",
+               juce::exactlyEqual (luts.getMeanSquare (WindowLut::tukey, 0.5f),
+                                   luts.getMeanSquare (WindowLut::tukey))
+                 && juce::exactlyEqual (luts.getShapeNorm (WindowLut::tukey, 0.5f),
+                                        luts.getShapeNorm (WindowLut::tukey)),
+               juce::String ("meanSq(0.5)=") + juce::String (luts.getMeanSquare (WindowLut::tukey, 0.5f), 9)
+                 + " shapeNorm(0.5)=" + juce::String (luts.getShapeNorm (WindowLut::tukey, 0.5f), 9));
+
+        // Tilt must stay power-invariant for Tukey at EVERY α, not just at the
+        // default — Tukey is symmetric for all α, so this is exactly 1.0f, and
+        // asserting it exactly is what stops it rotting into 1.0f ± 5e-8.
+        bool tiltExact = true;
+        for (int k = 0; k < WindowLut::kNumTaperSteps; ++k)
+            for (const float tv : { 0.05f, 0.3f, 0.5f, 0.7f, 0.95f })
+                tiltExact = tiltExact
+                         && juce::exactlyEqual (luts.getTiltNorm (WindowLut::tukey, tv,
+                                                                  WindowLut::taperAlphaAt (k)), 1.0f);
+
+        check ("taper-tilt-power-invariant", tiltExact,
+               juce::String ("getTiltNorm == 1.0f exactly over all ")
+                 + juce::String (WindowLut::kNumTaperSteps) + " alpha x 5 tilts");
+    }
+
+    // --- Probe AJ: α changes TIMBRE, not level ------------------------------
+    // The taper knob's acceptance test, and the mirror of probes D, U, Z2 and AA.
+    // α moves Tukey's power duty from 0.994 to 0.375 — a 4.2 dB swing — so
+    // without the α-aware shapeNorm this knob would be a volume control. Same
+    // ±1 dB budget and the same measurement as every other level probe.
+    //
+    // Uses whiteNoiseAt for the reason probe AA does: α changes the window's
+    // effective LENGTH, which shifts where overlapping grains read relative to
+    // each other, so a coloured excitation would make this measure the test
+    // signal again.
+    {
+        constexpr float kAlphas[] = { 0.01f, 0.1f, 0.25f, 0.5f, 0.75f, 1.0f };
+        constexpr int   kNa       = (int) (sizeof (kAlphas) / sizeof (kAlphas[0]));
+
+        double r[kNa] {};
+        bool   ok = true;
+
+        for (int i = 0; i < kNa; ++i)
+        {
+            setBaseline (apvts);              // feedback 0, width 0, mix 100 — wet only
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "grainShape", (float) WindowLut::tukey);
+            setParam (apvts, "tukeyTaper", kAlphas[i]);
+            proc.prepareToPlay (fs, block);
+
+            auto y = renderEffect (proc, 4.0, fs, block,
+                                   [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+
+            r[i] = rms (y.L, (int) (1.2 * fs), (int) (2.4 * fs));
+            ok = ok && allFinite (y.L) && allFinite (y.R)
+                    && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0;
+        }
+
+        double lo = 1.0e30, hi = 0.0;
+        juce::String detail;
+
+        for (int i = 0; i < kNa; ++i)
+        {
+            lo = juce::jmin (lo, r[i]);
+            hi = juce::jmax (hi, r[i]);
+            detail << juce::String (kAlphas[i], 2) << "=" << juce::String (r[i], 5) << " ";
+        }
+
+        const double spreadDb = lo > 0.0 ? 20.0 * std::log10 (hi / lo) : 99.0;
+
+        check ("level-flat-taper", ok && spreadDb < 1.0 && lo > 1.0e-4,
+               juce::String ("rms ") + detail
+                 + "spread=" + juce::String (spreadDb, 3) + " dB");
+    }
+
+    // --- Probe AK: α does not move the FEEDBACK DECAY RATE ------------------
+    // The half that probe AJ cannot see, and the third time this engine has had
+    // to answer it separately: α moves the AMPLITUDE duty 0.995 -> 0.500 (6.0 dB)
+    // against the power duty's 4.2 dB, so an α-aware output norm alone leaves
+    // ~1.8 dB per generation in the loop. Sold as "taper", heard as "tail
+    // length" — exactly what v1.2.0 fixed for shape and v1.3.0 for overlap.
+    //
+    // Both feedback tiers, Z4's window placement, and every rate asserted
+    // NEGATIVE as well as close to the default's — the lesson from v1.3.0, where
+    // a difference-only bound would have passed two growing configurations.
+    {
+        const int exciteLen = (int) (2.0 * fs);
+        constexpr float kAlphas[] = { 0.01f, 0.25f, 0.5f, 0.75f, 1.0f };
+
+        for (const float fb : { 60.0f, 100.0f })
+        {
+            const bool   fast    = fb < 80.0f;
+            const double w1Start = fast ? 3.0 :  5.0;
+            const double w2Start = fast ? 6.0 : 20.0;
+            const double winLen  = fast ? 2.0 :  5.0;
+            const double gapSec  = w2Start - w1Start;
+
+            // TWO PASSES, and that is a correctness fix rather than tidiness.
+            // Probes Z4 and AF compare each measurement against the reference
+            // configuration's as they go, which works only because their
+            // reference (Hann / ceiling 8) happens to be FIRST in their sweep.
+            // Here the reference α = 0.5 sits third, so a single pass compared
+            // α = 0.01 and 0.25 against a still-zero reference and reported a
+            // whole decay rate as the delta — a 9.7 dB/s "failure" that was the
+            // probe, not the engine. Collect first, compare after.
+            double decays[(int) (sizeof (kAlphas) / sizeof (kAlphas[0]))] {};
+            double worstPeak = 0.0;
+            juce::String detail;
+            bool   ok = true;
+            int    idx = 0;
+
+            for (const float a : kAlphas)
+            {
+                setBaseline (apvts);
+                clearRandomisation();
+                clearWindow();
+                setParam (apvts, "grainShape", (float) WindowLut::tukey);
+                setParam (apvts, "tukeyTaper", a);
+                setParam (apvts, "density",    60.0f);
+                setParam (apvts, "feedback",      fb);
+                proc.prepareToPlay (fs, block);
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+
+                auto y = renderEffect (proc, 30.0, fs, block, fill);
+
+                const double w1 = rms (y.L, (int) (w1Start * fs), (int) (winLen * fs));
+                const double w2 = rms (y.L, (int) (w2Start * fs), (int) (winLen * fs));
+                const double decay = (w1 > 0.0 && w2 > 0.0)
+                                       ? 20.0 * std::log10 (w2 / w1) / gapSec : 0.0;
+
+                decays[idx++] = decay;
+
+                const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+                worstPeak = juce::jmax (worstPeak, pk);
+                detail << juce::String (a, 2) << "=" << juce::String (decay, 3) << " ";
+
+                ok = ok && allFinite (y.L) && allFinite (y.R) && pk < 1.0 && decay < 0.0;
+            }
+
+            // Reference is the shipped α, found by value rather than by position.
+            double refDecay = 0.0;
+            for (int i = 0; i < idx; ++i)
+                if (juce::exactlyEqual (kAlphas[i], WindowLut::kTukeyTaperDefault))
+                    refDecay = decays[i];
+
+            // Two tiers, exactly as probe Z4 splits Expo-Decay out from the four
+            // smooth windows, and for the same physical reason.
+            //
+            // α = 0.01 is a very nearly RECTANGULAR window: crest factor ~1.0
+            // against Hann's 1.63, and a flat-topped window overlapping at hop
+            // G/overlap sums to something much closer to a constant. Both change
+            // how the loop's tanh is driven, and neither is removable by a linear
+            // amplitude-duty constant — the same statement the WindowLut header
+            // already makes about Expo-Decay. It is measured, printed and bounded
+            // separately rather than excused.
+            double worstAll = 0.0, worstSmooth = 0.0;
+            float  worstAlpha = 0.0f;
+
+            for (int i = 0; i < idx; ++i)
+            {
+                const double d = std::abs (decays[i] - refDecay);
+
+                if (d > worstAll) { worstAll = d; worstAlpha = kAlphas[i]; }
+
+                if (kAlphas[i] >= 0.1f)
+                    worstSmooth = juce::jmax (worstSmooth, d);
+            }
+
+            const double allBound = fast ? 0.40 : 1.10;
+
+            check ((juce::String ("decay-taper-fb") + juce::String ((int) fb)).toRawUTF8(),
+                   ok && worstAll < allBound && worstSmooth < 0.25,
+                   juce::String ("dB/s ") + detail
+                     + "worst-vs-0.5=" + juce::String (worstAll, 3)
+                     + " (a=" + juce::String (worstAlpha, 2)
+                     + ", <" + juce::String (allBound, 2) + ")"
+                     + " a>=0.1 worst=" + juce::String (worstSmooth, 3) + " (<0.25)"
+                     + " peak=" + juce::String (worstPeak, 4));
+        }
+    }
+
+    // --- Probe AL: the taper is a LIVE control, inert off Tukey --------------
+    // Two assertions that fail in opposite directions, and both matter:
+    //   (a) on Tukey, moving α must change the render — else it is a dead knob,
+    //       the failure class every "must not change" probe above would pass.
+    //   (b) on any OTHER shape, moving α must change NOTHING, bit-for-bit. The
+    //       taper is Tukey-only, and a leak would mean four shapes silently
+    //       re-voiced by a control that does not apply to them.
+    {
+        auto renderTaper = [&] (int shape, float alpha)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "grainShape", (float) shape);
+            setParam (apvts, "tukeyTaper", alpha);
+            setParam (apvts, "feedback",   40.0f);
+            setParam (apvts, "width",      60.0f);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 2.0, fs, block, randNoiseFill);
+        };
+
+        auto base = renderTaper (WindowLut::tukey, 0.5f);
+        const double baseRef = juce::jmax (peakAbs (base.L), peakAbs (base.R));
+
+        for (const float a : { 0.01f, 0.25f, 1.0f })
+        {
+            auto y = renderTaper (WindowLut::tukey, a);
+            const double d = juce::jmax (maxAbsDiff (base.L, y.L), maxAbsDiff (base.R, y.R));
+
+            check ((juce::String ("taper-live-") + juce::String ((int) (a * 100.0f))).toRawUTF8(),
+                   d > 0.02 * baseRef && allFinite (y.L) && allFinite (y.R)
+                     && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0,
+                   juce::String ("max|a0.5 - a") + juce::String (a, 2) + "|="
+                     + juce::String (d, 6) + " (needs >" + juce::String (0.02 * baseRef, 6) + ")");
+        }
+
+        // (b) — every non-Tukey shape, α at both extremes, asserted BIT-identical.
+        double worstLeak = 0.0;
+        juce::String leakDetail;
+
+        for (const int sh : { WindowLut::hann, WindowLut::gaussian,
+                              WindowLut::triangular, WindowLut::expoDecay })
+        {
+            auto ref = renderTaper (sh, 0.5f);
+
+            for (const float a : { 0.01f, 1.0f })
+            {
+                auto y = renderTaper (sh, a);
+                const double d = juce::jmax (maxAbsDiff (ref.L, y.L), maxAbsDiff (ref.R, y.R));
+                worstLeak = juce::jmax (worstLeak, d);
+            }
+
+            leakDetail << juce::String (sh) << ":" << juce::String (worstLeak, 3) << " ";
+        }
+
+        check ("taper-inert-off-tukey", worstLeak == 0.0,
+               juce::String ("max|alpha leak| over shapes 0,2,3,4 = ")
+                 + juce::String (worstLeak, 12));
+
+        // ── What α = 0.01 actually does to the grain edges ──────────────────
+        // The range's low end is a near-rectangular window, and this engine has
+        // form here: the WindowLut header records that the Gaussian's 2 % end
+        // pedestal was REMOVED because a step at every grain boundary, overlapping
+        // several deep inside a re-reversing feedback loop, was audible. α = 0.01
+        // is a deliberate 0->1 transition across 0.5 % of the grain, which is the
+        // same kind of edge by choice rather than by accident.
+        //
+        // So it is measured rather than assumed, at the WORST case for it: the
+        // 50 ms grain minimum, where 0.5 % of the grain is ~12 samples at 48 kHz
+        // (0.25 ms). Probe C's first-difference detector, loose tier — the same
+        // instrument, so the number is comparable to every other click probe.
+        //
+        // Reported at both extremes, and bounded only loosely: a fast edge is the
+        // POINT of the low end, and a probe that demanded α = 0.01 be as smooth as
+        // α = 0.5 would be asserting the feature away. What must hold is that it
+        // stays a fast edge and does not become a discontinuity or a NaN.
+        {
+            const double sineHz   = 220.0;
+            const double sineStep = 2.0 * juce::MathConstants<double>::pi * sineHz / fs;
+
+            juce::String edges;
+            bool ok = true;
+
+            for (const float a : { 0.01f, 0.5f, 1.0f })
+            {
+                setBaseline (apvts);
+                clearRandomisation();
+                clearWindow();
+                setParam (apvts, "grainShape", (float) WindowLut::tukey);
+                setParam (apvts, "tukeyTaper", a);
+                setParam (apvts, "grainSize",  ReverseDelayProcessor::kGrainSizeMinMs);
+                setParam (apvts, "density",    60.0f);
+                setParam (apvts, "mix",       100.0f);
+                proc.prepareToPlay (fs, block);
+
+                auto y = renderEffect (proc, 3.0, fs, block,
+                                       [&] (int t) { return (float) (0.25 * std::sin (sineStep * t)); });
+
+                const double step = juce::jmax (maxAbsStep (y.L), maxAbsStep (y.R));
+                const double pk   = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+                edges << "a=" << juce::String (a, 2) << " step=" << juce::String (step, 5) << " ";
+                ok = ok && allFinite (y.L) && allFinite (y.R) && pk < 1.0 && step < 0.25;
+            }
+
+            check ("taper-edge-report", ok,
+                   edges + "(bounded <0.25; a=0.01 is INTENTIONALLY a fast edge "
+                           "— 0.5 % of a 50 ms grain, ~0.25 ms)");
+        }
     }
 
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------

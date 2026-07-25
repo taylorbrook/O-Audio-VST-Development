@@ -1,16 +1,21 @@
 // ============================================================================
 // O-ReverseDelay — WebView UI controller (Stage 3 controls, Stage 4 bar + tips)
 //
-// Binds all 17 APVTS parameters two-way: 14 WebSliderRelay knobs + 3
+// Binds all 18 APVTS parameters two-way: 15 WebSliderRelay knobs + 3
 // WebComboBoxRelay controls (syncMode as a segment pair, noteDivision and
 // grainShape as selects). v1.1.0 added the four RANDOM knobs in row 2;
 // v1.2.0 added the WINDOW panel's Shape select + Tilt knob; v1.3.0 added the
-// COUNT panel's Count knob and the live grain meter beside it.
+// COUNT panel's Count knob and the live grain meter; v1.4.0 added WINDOW's
+// Taper knob and the ENVELOPE panel's window-shape display.
 //
-// Native-function surface is 12 and must match PluginEditor.cpp exactly:
-// getParameterDefaults and getGrainMeter are fetched HERE; the other ten are
-// fetched by js/preset-manager.js, which this file loads dynamically. Any
-// grep-diff of the bridge has to read both files.
+// Native-function surface is 13 and must match PluginEditor.cpp exactly:
+// getParameterDefaults, getGrainMeter and getWindowCurve are fetched HERE; the
+// other ten are fetched by js/preset-manager.js, which this file loads
+// dynamically. Any grep-diff of the bridge has to read both files.
+//
+// The envelope display deliberately does NOT compute the window in JS. The curve
+// is fetched from C++ so there is exactly one definition of the window; a JS copy
+// would be free to drift and a graph has no units to reveal it when it does.
 //
 // STRUCTURE IS LOAD-BEARING: every module-level `const`/`let` is declared in
 // this top block, and the single init() call sits at the BOTTOM of the file.
@@ -41,6 +46,10 @@ const KNOB_IDS = [
   // v1.3.0 (B2) — COUNT panel. Default 8, which is v1.2.0's hard-coded overlap
   // ceiling, so an existing session opened here is unchanged.
   "grainCount",
+  // v1.4.0 — WINDOW panel. Default 0.5, v1.2.0's frozen Tukey taper. Applies to
+  // the Tukey shape only; bound unconditionally regardless (see the inert-cell
+  // note on refreshTaperEnabled).
+  "tukeyTaper",
 ];
 
 const COMBO_SYNC     = "syncMode";
@@ -87,6 +96,9 @@ const FORMAT = {
   // arrives as 8 rather than 8.0 — Math.round guards against a host that
   // reports it a hair off the grid, which would render "7.999999".
   grainCount:   (v) => `${Math.round(v)}`,
+  // v1.4.0. Two decimals, matching the 0.01 parameter step exactly: one decimal
+  // would make adjacent steps read identically and the knob would look stuck.
+  tukeyTaper:   (v) => v.toFixed(2),
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────
@@ -110,6 +122,13 @@ const DELETE_ARM_MS    = 3000; // how long the delete button stays armed
 // bridge inside the getNativeFunction surface the ui-stub already models.
 const METER_POLL_MS = 66;
 
+// ── Envelope display (v1.4.0) ───────────────────────────────────────────────
+// Drawing constants. The curve is fetched from C++, so nothing here describes the
+// window's SHAPE — only how it is painted.
+const ENV_PAD       = 5;    // px inset so the curve's 0 and 1 are not on the frame
+const ENV_LINE_W    = 1.6;
+const ENV_REDRAW_MS = 40;   // coalescing delay while a knob is being dragged
+
 // ── Mutable module state ────────────────────────────────────────────────────
 // EVERY module-level binding lives in this one block — see the TDZ note above.
 const sliderState = {};        // id -> Juce SliderState
@@ -131,6 +150,13 @@ let meterActiveEl   = null;    // #meter-active  span
 let meterOverlapEl  = null;    // #meter-overlap span
 let meterFn         = null;    // the getGrainMeter native fn, resolved once
 let meterInFlight   = false;   // drop a tick rather than queue behind a slow one
+
+let envCanvas    = null;       // #envelopeCanvas
+let envCtx       = null;       // its 2D context
+let envCurveFn   = null;       // the getWindowCurve native fn, resolved once
+let envRedrawTid = null;       // coalescing timer
+let envInFlight  = false;      // as meterInFlight — never queue fetches
+let envLastCurve = null;       // last curve received, for a DPR redraw with no fetch
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Function declarations (hoisted — safe to reference from init() below)
@@ -348,6 +374,188 @@ async function loadParameterDefaults(juce) {
     console.error("getParameterDefaults failed:", e);
     paramDefaults = null;   // dblclick becomes a no-op; every other control is unaffected
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Envelope display (v1.4.0)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Taper applies to the Tukey shape only. Dim the cell when it does not, so an
+// inapplicable knob says so instead of looking live. Class + aria only — the text
+// in .knob-label / .knob-value is authored in HTML and written by the shared knob
+// updater respectively, and neither is touched here
+// (pattern_js_state_updater_overwrites_html_labels).
+function refreshTaperEnabled() {
+  const cell = document.getElementById("cell-tukeyTaper");
+  if (!cell || !shapeState) return;
+
+  // 1 == WindowLut::tukey. The index comes from the C++ StringArray via the
+  // relay's own choices, so it cannot drift from the enum.
+  const isTukey = shapeState.getChoiceIndex() === 1;
+  cell.classList.toggle("knob-cell-inert", !isTukey);
+  cell.setAttribute("aria-disabled", String(!isTukey));
+}
+
+// Sizes the backing store for the device pixel ratio and returns the CSS-px box.
+// Called on every draw rather than once: a window dragged between a retina and a
+// non-retina display changes devicePixelRatio with no resize event that this page
+// would otherwise see.
+function envResize() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = envCanvas.clientWidth  || 158;
+  const h = envCanvas.clientHeight || 82;
+
+  const bw = Math.round(w * dpr);
+  const bh = Math.round(h * dpr);
+
+  // Only touch width/height when they actually change — assigning to either
+  // CLEARS the canvas, so an unconditional write would blank the curve on every
+  // redraw and leave a flicker.
+  if (envCanvas.width !== bw || envCanvas.height !== bh) {
+    envCanvas.width = bw;
+    envCanvas.height = bh;
+  }
+
+  envCtx.setTransform(dpr, 0, 0, dpr, 0, 0);   // draw in CSS px from here on
+  return { w, h };
+}
+
+function drawEnvelope(curve) {
+  if (!envCanvas || !envCtx || !curve || curve.length < 2) return;
+
+  const { w, h } = envResize();
+  envCtx.clearRect(0, 0, w, h);
+
+  const x0 = ENV_PAD;
+  const x1 = w - ENV_PAD;
+  const y0 = h - ENV_PAD;          // amplitude 0
+  const y1 = ENV_PAD;              // amplitude 1
+  const span = x1 - x0;
+
+  // Read the page's own palette rather than hardcoding hexes, so the plot follows
+  // the aesthetic if it is ever retuned.
+  const css = getComputedStyle(document.documentElement);
+  const ink = css.getPropertyValue("--green-dark").trim() || "#3C5C1A";
+  const rule = css.getPropertyValue("--brown-border").trim() || "#8B7355";
+
+  // Midpoint guide — the reference that makes TILT legible. Without it a tilted
+  // window just looks like a differently-shaped bump.
+  envCtx.save();
+  envCtx.strokeStyle = rule;
+  envCtx.globalAlpha = 0.45;
+  envCtx.setLineDash([2, 3]);
+  envCtx.lineWidth = 1;
+  envCtx.beginPath();
+  envCtx.moveTo(Math.round(x0 + span / 2) + 0.5, y1);
+  envCtx.lineTo(Math.round(x0 + span / 2) + 0.5, y0);
+  envCtx.stroke();
+
+  // Baseline, so amplitude 0 is a place rather than an absence.
+  envCtx.setLineDash([]);
+  envCtx.globalAlpha = 0.5;
+  envCtx.beginPath();
+  envCtx.moveTo(x0, y0 + 0.5);
+  envCtx.lineTo(x1, y0 + 0.5);
+  envCtx.stroke();
+  envCtx.restore();
+
+  const xAt = (i) => x0 + (span * i) / (curve.length - 1);
+  const yAt = (v) => y0 + (y1 - y0) * Math.min(1, Math.max(0, v));
+
+  // Soft fill under the curve, then the curve itself — the fill is what makes a
+  // near-rectangular taper read as "more window" at a glance.
+  envCtx.beginPath();
+  envCtx.moveTo(x0, y0);
+  for (let i = 0; i < curve.length; i += 1) envCtx.lineTo(xAt(i), yAt(curve[i]));
+  envCtx.lineTo(x1, y0);
+  envCtx.closePath();
+  envCtx.globalAlpha = 0.16;
+  envCtx.fillStyle = ink;
+  envCtx.fill();
+
+  envCtx.globalAlpha = 1;
+  envCtx.beginPath();
+  for (let i = 0; i < curve.length; i += 1) {
+    const x = xAt(i);
+    const y = yAt(curve[i]);
+    if (i === 0) envCtx.moveTo(x, y);
+    else envCtx.lineTo(x, y);
+  }
+  envCtx.strokeStyle = ink;
+  envCtx.lineWidth = ENV_LINE_W;
+  envCtx.lineJoin = "round";
+  envCtx.stroke();
+}
+
+async function fetchEnvelope() {
+  if (!envCurveFn || envInFlight) return;
+
+  envInFlight = true;
+  try {
+    const raw = await envCurveFn();
+    const curve = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    if (Array.isArray(curve) && curve.length >= 2) {
+      envLastCurve = curve.map(Number);
+      drawEnvelope(envLastCurve);
+    }
+  } catch (e) {
+    console.error("getWindowCurve failed:", e);   // the plot stays on its last curve
+  } finally {
+    envInFlight = false;
+  }
+}
+
+// Coalesced: a knob drag fires valueChangedEvent per pointermove, and each fetch
+// is a message-thread round trip. One redraw per ~40 ms keeps the plot feeling
+// live while bounding the traffic to something a drag cannot flood.
+function scheduleEnvelopeRedraw() {
+  clearTimeout(envRedrawTid);
+  envRedrawTid = setTimeout(fetchEnvelope, ENV_REDRAW_MS);
+}
+
+function initEnvelope(juce) {
+  envCanvas = document.getElementById("envelopeCanvas");
+
+  if (!envCanvas || typeof envCanvas.getContext !== "function") {
+    console.warn("Envelope canvas not found — display disabled");
+    return;
+  }
+
+  envCtx = envCanvas.getContext("2d");
+  if (!envCtx) { console.warn("2D context unavailable — envelope disabled"); return; }
+
+  try {
+    envCurveFn = juce.getNativeFunction("getWindowCurve");
+  } catch (e) {
+    console.error("getWindowCurve unavailable:", e);
+    return;   // the panel stays empty; every control is unaffected
+  }
+
+  // Redraw when any of the three parameters the window depends on moves. Bound to
+  // the STATES rather than to pointer events on the knobs, so a change arriving
+  // from the host — automation, a preset load, another editor — repaints too.
+  ["grainTilt", "tukeyTaper"].forEach((id) => {
+    const st = sliderState[id];
+    if (st) {
+      st.valueChangedEvent.addListener(scheduleEnvelopeRedraw);
+      st.propertiesChangedEvent.addListener(scheduleEnvelopeRedraw);
+    }
+  });
+
+  if (shapeState) {
+    shapeState.valueChangedEvent.addListener(() => {
+      refreshTaperEnabled();
+      scheduleEnvelopeRedraw();
+    });
+    shapeState.propertiesChangedEvent.addListener(() => {
+      refreshTaperEnabled();
+      scheduleEnvelopeRedraw();
+    });
+  }
+
+  refreshTaperEnabled();
+  fetchEnvelope();   // paint immediately rather than on the first parameter move
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -598,6 +806,11 @@ function init() {
   loadParameterDefaults(Juce);   // async; nothing else depends on it
   initTooltips();
   initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
+  // AFTER bindKnob/bindSelectCombo above: it subscribes to sliderState[...] and
+  // shapeState, which those calls create. Ordering here is load-bearing in the
+  // ordinary way, not the TDZ way — the bindings exist, they are just empty until
+  // the binders run.
+  initEnvelope(Juce);            // v1.4.0; self-contained failure
   initPresetBar();               // async, fire-and-forget; self-contained failure
 }
 
