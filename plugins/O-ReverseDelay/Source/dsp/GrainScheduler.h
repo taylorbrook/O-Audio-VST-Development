@@ -19,6 +19,18 @@
     only changes the VALUE of D per block, never the spawn timing — no
     conditional routing (Locked Decision).
 
+    ── v1.1.0: spawn-time jitter (B3 #1) ────────────────────────────────────
+    The countdown was strictly periodic through v1.0.1. A fixed spawn interval
+    against a fixed grain length is a comb: every grain starts at the same
+    phase relative to its neighbours, and on sustained material that reads as
+    a metallic ring rather than a cloud. Jitter re-rolls the interval at each
+    spawn — interval·(1 ± dev), dev symmetric so the MEAN interval, and with
+    it the average density and the loop's duty cycle, are unchanged.
+
+    The RNG is injected rather than owned: PluginProcessor holds one xorshift32
+    stream shared by the pan spread and all four v1.1 randomisations, and a
+    single stream is what makes the whole engine reproducible from one seed.
+
   ==============================================================================
 */
 
@@ -52,10 +64,24 @@ public:
         samplesUntilNextGrain = 0;
     }
 
+    // Largest fraction of the nominal interval that jitter may remove or add.
+    // Not 1.0: at ±100 % the low tail approaches a zero-length interval, i.e. a
+    // spawn every sample. 0.9 caps the worst-case instantaneous spawn rate at
+    // 10x nominal while keeping the multiplier symmetric about 1, so the mean
+    // interval — and therefore the average overlap and the loop duty cycle —
+    // is exactly unchanged at every jitter setting.
+    static constexpr float kMaxJitterDeviation = 0.9f;
+
     // Emits spawn offsets for this block into the fixed request array.
     // Returns the number of requests written (<= kMaxSpawnsPerBlock).
-    int processBlock (int numSamples, int intervalSamples,
-                      std::array<SpawnRequest, kMaxSpawnsPerBlock>& outRequests) noexcept
+    //
+    // `nextRand01` must return [0, 1). It is a template parameter so the
+    // processor's xorshift inlines here — no std::function, no allocation, no
+    // indirect call on the audio thread.
+    template <typename RandomFn>
+    int processBlock (int numSamples, int intervalSamples, float jitterAmount,
+                      std::array<SpawnRequest, kMaxSpawnsPerBlock>& outRequests,
+                      RandomFn&& nextRand01) noexcept
     {
         const int interval = juce::jmax (1, intervalSamples);
         int count = 0;
@@ -65,7 +91,7 @@ public:
             --samplesUntilNextGrain;
             if (samplesUntilNextGrain <= 0)
             {
-                samplesUntilNextGrain = interval;
+                samplesUntilNextGrain = nextInterval (interval, jitterAmount, nextRand01);
                 if (count < kMaxSpawnsPerBlock)
                     outRequests[static_cast<size_t> (count++)] = { i };
             }
@@ -75,5 +101,25 @@ public:
     }
 
 private:
+    // LOAD-BEARING: at jitterAmount == 0 this draws NOTHING.
+    //
+    // The processor's xorshift is a single shared stream — pan spread, delay
+    // scatter, size random and gain random all pull from it. An unconditional
+    // draw here would advance that stream one step per spawn even with jitter
+    // off, shifting every subsequent pan value and changing the shipped v1.0
+    // sound on existing sessions. Every v1.1 randomisation follows the same
+    // rule at its own call site, which is what makes "all four at 0" render
+    // bit-identically to v1.0.1 (render-harness probe T asserts exactly this).
+    template <typename RandomFn>
+    static int nextInterval (int interval, float jitterAmount, RandomFn&& nextRand01) noexcept
+    {
+        if (jitterAmount <= 0.0f)
+            return interval;
+
+        const float dev = juce::jmin (1.0f, jitterAmount) * kMaxJitterDeviation;
+        const float mul = 1.0f + dev * (2.0f * nextRand01() - 1.0f);   // mean exactly 1.0
+        return juce::jmax (1, static_cast<int> (static_cast<float> (interval) * mul));
+    }
+
     int samplesUntilNextGrain = 0;
 };

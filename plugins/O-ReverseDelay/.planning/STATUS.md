@@ -13,7 +13,7 @@ workflow_mode: manual
 next_action: /publish O-ReverseDelay
 ready_for_implementation: true
 all_stages_verified: true
-ship_ready_version: 1.0.1
+ship_ready_version: 1.1.0
 human_needed: none - all 7 checklist items closed 2026-07-24 (user DAW sign-off)
 v1_0_signed_off: true
 contract_checksums:

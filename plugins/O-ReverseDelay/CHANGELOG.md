@@ -4,6 +4,174 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.1.0] — 2026-07-24 — Grain randomisation + UI chassis
+
+Minor release implementing **section B3** of the v1.0.0 review
+(`improvements/2026-07-24-v1.1-review.md`): the four grain randomisations that
+close the gap between "many reverse delays" and "a granular cloud". Also
+expands the editor chassis **once**, sized for the controls planned through
+v1.6, so later releases drop into space that already exists.
+
+Builds on v1.0.1's grown capture ring, as the review required.
+
+### The compatibility guarantee, and how it was verified
+
+All four new parameters default to **0**, which is the exact no-op in the
+engine — not a small value, a genuine no-op. Every randomisation is gated on
+`amount > 0` and draws **nothing** from the RNG when off, so the pan sequence
+is untouched and existing work renders identically.
+
+This is measured, not asserted. The v1.0.1 harness was rebuilt from commit
+`78af47b` and run head-to-head with v1.1.0:
+
+| Check | Result |
+|-------|--------|
+| v1.0.1's 49 probe result lines vs v1.1.0's | **byte-for-byte identical** |
+| Offline render harness | **63/63 probes PASS, exit 0** (49 + 14 new) |
+| `ui_frontend_check.js` | **ALL CHECKS PASSED** (sections 1–15) |
+| `ui_tooltip_clamp_check.js` @ 940×743 | **ALL CHECKS PASSED**, 14/14 anchors |
+| `pluginval --strictness-level 10` VST3 | **SUCCESS ×3**, zero failures |
+| `pluginval --strictness-level 10` AU | **SUCCESS ×3**, zero failures |
+| `auval -v aufx ORvD OuDv` | **AU VALIDATION SUCCEEDED** |
+| AU component version | **65792** (= 1.1.0) |
+
+Because nothing is renamed, removed, re-ranged or re-typed, and no existing
+session or preset changes value or sound, this is MINOR rather than MAJOR.
+
+### Added
+
+- **`jitter` (0–100 %, default 0)** — randomises the grain **spawn interval**,
+  `interval · (1 ± 0.9·jitter·u)`. Through v1.0.1 the scheduler was a strictly
+  periodic countdown, and a fixed interval against a fixed grain length is a
+  comb — the reason sustained material read as metallic rather than as a cloud.
+  The deviation is symmetric, so the *mean* interval, and with it the average
+  overlap and the feedback loop's duty cycle, are exactly unchanged. Capped at
+  ±90 % rather than ±100 % so the low tail cannot approach a zero-length
+  interval (i.e. a spawn every sample).
+- **`delayScatter` (0–500 ms, default 0)** — randomises each grain's latched
+  delay by ±this. Thickens the smear without moving the rhythmic anchor,
+  because the mean delay is unchanged. This is the parameter that required
+  v1.0.1 first: it can push a grain's latched delay 500 ms *past* the delayTime
+  maximum, so the worst-case read span became 4.5 + 2·0.5 = **5.5 s** — which
+  v1.0.1's 5.5 s ring met by a single sample. The ring is now **6.0 s**
+  (+192 KB stereo at 48 kHz) for a real margin.
+- **`sizeRandom` (0–100 %, default 0)** — randomises each grain's latched
+  length, clamped back into `grainSize`'s own range. Jitter alone leaves a
+  residual periodicity because every grain still shares one envelope length;
+  this removes it. Clamping to the parameter's own endpoints means a randomised
+  grain is never longer than one the user could dial in by hand, which is what
+  keeps the ring bound above true.
+- **`gainRandom` (0–100 %, default 0)** — randomises per-grain gain for depth
+  and shimmer, applied **after** the feedback tap (see below). Power-normalised
+  by `1/sqrt(1 + dev²/3)`, so it changes spread and not level.
+- **RANDOM panel** holding the four new knobs, with tooltip copy, dblclick
+  reset and keyboard/wheel adjustment on the same footing as every other knob.
+- **`getActiveGrainCount()`** — exposes the live concurrent-grain count.
+  `GrainPool::countActive()` had existed since Stage 2 and was called by
+  nothing; the harness now reports peak concurrency as a measured number.
+
+### Changed
+
+- **`GrainPool::obtain()` refuses the spawn when no slot is free, instead of
+  stealing the oldest grain.** v1.0 overwrote the oldest slot in place, which
+  cut a live Hann envelope from mid-window to zero in one sample — a click, not
+  a crossfade. It was unreachable in v1.0 steady state (max overlap 8 against
+  32 slots), but all four randomisations raise the transient concurrent-grain
+  peak, so it had to be safe *before* they landed. Refusing costs one
+  contributor out of a wash of 8–32 and is inaudible.
+- **The wet path is now accumulated twice** — once with per-grain random gain
+  (the output) and once without (the feedback tap). This is what keeps
+  `gainRandom` downstream of the loop: a randomised gain inside a recirculating
+  path compounds every generation, so the knob would control *how long the tail
+  lasts* rather than how it shimmers, and at feedback = 100 would make the
+  decay rate itself stochastic. Costs two extra mul-adds per grain-sample.
+- **`rngState` seeds from a per-instance hash** rather than the shared literal
+  `0x12345678`. v1.0 gave every instance the same seed, so two instances on two
+  tracks produced identical pan sequences — and would have produced identical
+  grain randomisation too, correlating exactly where a wide cloud is wanted.
+  The seed is fixed for the *lifetime of the instance*, not re-rolled per
+  `prepareToPlay`, so one instance still reproduces across prepare/reset cycles.
+  Under `OUARICON_RENDER_HARNESS=1` it collapses back to v1.0's literal.
+- **Editor 940 × 484 → 940 × 743.** A second panel row (RANDOM | WINDOW |
+  MOTION | SPACE) sharing row 1's pinned width contract (190 | 190 | 276 |
+  190), so the two rows align column-for-column. `215 + 14 + 245 = 474`
+  consumes the height increase exactly — row 1 and the footer do not move.
+  Capacity is ~27 knob-cell slots against the ~26 controls planned through
+  v1.6. WINDOW / MOTION / SPACE are framed and labelled but empty, carrying a
+  dimmed fleuron; filling one in a later release is an HTML change with no
+  resize and no re-verification.
+- `.botanical-overlay` height pinned at 340 px instead of `70%`. Under a
+  percentage the resize scaled the plate to ~520 px and it began reading as
+  clutter behind two rows of translucent panels.
+- `kDelayTimeMinMs` named, replacing the `50.0f` literals in the parameter
+  range and the tempo-sync clamp — the same single-definition discipline A1
+  established for the maximum.
+
+### Fixed
+
+- **The ui-stub's `delayTime` range was stale at 50–2000 ms**, missed when
+  v1.0.1 widened it to 50–4000. Any browser render of the page — which is the
+  gate for the failure classes C++ builds cannot see — was showing a readout
+  that disagreed with the plugin.
+
+### Verification added
+
+Fourteen new render-harness probes (T–Y) and two new frontend sections:
+
+- **T `random-live` / `random-zero-determinism`** — each randomisation
+  measurably changes the render (no dead controls), and two independent
+  all-zero renders are bit-identical.
+- **U `level-flat`** — wet RMS within ±1 dB across {0, 50, 100 %} for all four,
+  the same budget probe D holds density to. Catches a character knob that is
+  really a loudness knob.
+- **V `jitter-breaks-grid`** — at density 0 a regular spawn grid overlap-adds
+  perfectly flat (probe Q), so flatness reads grid regularity directly:
+  1.0000 at jitter 0, 0.0339 at jitter 100. Asserts *both* ends, so a dead
+  jitter fails rather than passing quietly.
+- **W `scatter-ring-worst-case` / `scatter-blocksize-invariance`** — the 5.5 s
+  read span against the 6.0 s ring, and 512-vs-4096 bit equality with all four
+  randomisations on.
+- **X `gainrandom-loop-neutral`** — loop decay at feedback 100 with gainRandom
+  0 vs 100: −2.493 vs −2.527 dB/s, delta 0.034. The single assertion behind
+  "applied after the feedback tap".
+- **Y `pool-pressure-clickfree`** — grainSize swept under maximum
+  randomisation; peak concurrency reported (14/32), click-freedom asserted.
+- **`ui_frontend_check.js` §15** — four-way knob closure across
+  `createParameterLayout` / `kSliderIds` / `KNOB_IDS` / the `knob-*` and
+  `val-*` elements, plus a FORMAT entry and a ui-stub range for each, plus the
+  four defaults pinned at 0. A knob wired in three of the four places is a
+  silently dead control.
+- **`ui_tooltip_clamp_check.js`** (new file) — drives the real page in a
+  browser at the real 940 × 743 and measures every tooltip rectangle. The
+  static check can prove the clamp *code* is correct but not that it *fires*,
+  because that depends entirely on viewport width
+  (`pattern_tooltip_clamp_gate_viewport_sensitive`). It asserts both edges, not
+  just width, and fails if the clamp never engages at all.
+
+### Two block-size bugs caught during this work
+
+Both were found by the new probes, and both would have shipped silently:
+
+1. **Jitter draws batched per pass.** The scheduler consumes its RNG inside a
+   per-sample countdown while the spawn handler consumes after the whole pass
+   is scheduled. Sharing one stream interleaved them differently at 512 than at
+   4096 samples, so an offline bounce would not match what was monitored. Fixed
+   by splitting into two streams, each consumed a fixed number of times per
+   spawn — making consumption a function of spawn *index*, which is block-size
+   invariant.
+2. **The scatter clamp was derived from `passLen`.** A2 bounds each engine pass
+   to `D`; negative scatter can put a grain's latched delay below that, and the
+   obvious repair — clamp the latched delay up to `passLen` — makes the latched
+   value itself depend on the host block size. Fixed by keying both the pass
+   bound and the clamp off `grainDelayFloor`, a function of the parameters
+   alone.
+
+Per-grain randomisation values are also now drawn *before* the pool slot is
+requested, so a refused spawn consumes exactly what a granted one does and RNG
+consumption cannot depend on pool occupancy.
+
+---
+
 ## [1.0.1] — 2026-07-24 — DSP correctness
 
 Patch release fixing the three defects found in the v1.0.0 read-only review

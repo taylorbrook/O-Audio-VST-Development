@@ -100,6 +100,43 @@
                               the remap's effect on the loop duty cycle is
                               a printed number rather than an assumption.
 
+    v1.1.0 probes (B3 grain randomisation + grain-pool refusal):
+      T. random-live        — each of the four randomisations measurably
+                              changes the render (no dead controls), AND two
+                              independent all-zero renders are BIT-IDENTICAL:
+                              every randomisation must draw nothing from the
+                              shared xorshift when off, or the pan sequence
+                              shifts and v1.0 sessions change sound. Also
+                              pins the new per-instance seed as per-INSTANCE
+                              rather than per-prepare, which probe O needs.
+      U. level-flat         — all four are symmetric about nominal (and
+                              gainRandom is power-normalised), so wet RMS
+                              stays within ±1 dB across {0, 50, 100 %} for
+                              each. Catches a "character" knob that is
+                              really a loudness knob.
+      V. jitter-breaks-grid — the B3 #1 claim, measured: at density 0 the
+                              overlap-add of a REGULAR grid is exactly flat
+                              (probe Q), so flatness reads grid regularity
+                              directly. Asserts both ends — flat at 0,
+                              broken at 100 — so a dead jitter FAILS.
+      W. scatter-ring       — W1: the ring's worst case, gD+2G = 5.5 s
+                              against the 6.0 s ring (scatter can push a
+                              LATCHED delay past the delayTime max).
+                              W2: 512- vs 4096-sample bit equality with all
+                              four randomisations ON — negative scatter
+                              shortens a grain's delay, so A2's pass bound
+                              needs the latched-value clamp to hold.
+      X. gainrandom-loop    — loop decay at feedback=100 with gainRandom 0
+                              vs 100 must match: the wet/loop buffer split
+                              is what keeps the randomised gain downstream
+                              of the feedback tap. Tap the wrong buffer and
+                              the decay RATE becomes stochastic.
+      Y. pool-pressure      — grainSize swept under max randomisation: no
+                              clicks, no NaN, bounded peak. v1.0 stole the
+                              oldest slot here and cut a live Hann envelope
+                              to zero; v1.1 refuses the spawn. Peak grain
+                              concurrency is reported, not asserted.
+
   ==============================================================================
 */
 
@@ -1577,6 +1614,391 @@ int main()
                      + " decay=" + juce::String (decayDbPerSec, 3) + " dB/s"
                      + " peak=" + juce::String (pk, 4));
         }
+    }
+
+    //==========================================================================
+    // v1.1.0 probes (T–Y) — grain randomisation (B3) + grain-pool refusal
+    //==========================================================================
+
+    // Position-deterministic broadband excitation shared by T/U/W/Y. A
+    // sequential juce::Random would be consumed a different number of times at
+    // a different block size, so two runs would not even share an input signal
+    // (probe O's lesson) — and probes T and W2 both compare renders directly.
+    const double kRandA = std::pow (10.0, -12.0 / 20.0);
+
+    auto randNoiseAt = [] (int t) noexcept
+    {
+        juce::uint32 x = (juce::uint32) t * 2654435761u + 0x9e3779b9u;
+        x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+        return (double) (x >> 8) * (1.0 / 16777216.0) * 2.0 - 1.0;
+    };
+
+    auto randNoiseFill = [&] (int t) { return (float) (kRandA * randNoiseAt (t)); };
+
+    // All four v1.1 controls off. Every probe below starts from here, so a probe
+    // that forgets to zero one of them cannot silently inherit it from the last.
+    auto clearRandomisation = [&]
+    {
+        setParam (apvts, "jitter",       0.0f);
+        setParam (apvts, "delayScatter", 0.0f);
+        setParam (apvts, "sizeRandom",   0.0f);
+        setParam (apvts, "gainRandom",   0.0f);
+    };
+
+    // --- Probe T: each randomisation is LIVE, and zero is exactly zero -------
+    // Two failure modes, both of which ship green through build/auval/pluginval:
+    //
+    //   1. A randomisation that is wired to a parameter but never reaches the
+    //      engine — the DSP analogue of an unregistered native function. The
+    //      knob moves, the sound does not, and nothing reports it.
+    //   2. A randomisation that draws from the shared xorshift even when it is
+    //      OFF. That would advance the stream one step per spawn, shifting every
+    //      subsequent pan value, and would change the shipped v1.0 sound for
+    //      every existing session the moment v1.1 is installed. It is invisible
+    //      to anything except a direct render comparison.
+    //
+    // (2) is asserted as bit-equality of two independent defaults renders, which
+    // also proves the new per-instance seed is fixed for the instance and not
+    // re-rolled per prepareToPlay — probe O's 512-vs-4096 equality depends on
+    // exactly that and would otherwise fail for an unrelated-looking reason.
+    {
+        auto renderWith = [&] (const char* id, float value)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density",  60.0f);
+            setParam (apvts, "feedback", 40.0f);   // loop engaged
+            setParam (apvts, "width",    60.0f);   // pan draws active — the stream under test
+            clearRandomisation();
+            if (id != nullptr)
+                setParam (apvts, id, value);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 2.0, fs, block, randNoiseFill);
+        };
+
+        auto base  = renderWith (nullptr, 0.0f);
+        auto base2 = renderWith (nullptr, 0.0f);
+
+        const double repeatDiff = juce::jmax (maxAbsDiff (base.L, base2.L),
+                                              maxAbsDiff (base.R, base2.R));
+        const double baseRef = juce::jmax (peakAbs (base.L), peakAbs (base.R));
+
+        check ("random-zero-determinism",
+               repeatDiff == 0.0 && baseRef > 1.0e-3,
+               juce::String ("max|run1-run2|=") + juce::String (repeatDiff, 9)
+                 + " peak=" + juce::String (baseRef, 5));
+
+        struct RandSpec { const char* id; float on; };
+        const RandSpec kRand[] = {
+            { "jitter",       75.0f },
+            { "delayScatter",  60.0f },   // ms
+            { "sizeRandom",   75.0f },
+            { "gainRandom",   75.0f },
+        };
+
+        for (const auto& r : kRand)
+        {
+            auto y = renderWith (r.id, r.on);
+            const double d  = juce::jmax (maxAbsDiff (base.L, y.L), maxAbsDiff (base.R, y.R));
+            const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+            // 2 % of the reference peak: far above float noise, far below the
+            // change any of these genuinely makes. A dead control reads 0.
+            check ((juce::String ("random-live-") + r.id).toRawUTF8(),
+                   d > 0.02 * baseRef && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+                   juce::String ("max|base-on|=") + juce::String (d, 6)
+                     + " (needs >" + juce::String (0.02 * baseRef, 6) + ")"
+                     + " peak=" + juce::String (pk, 4));
+        }
+    }
+
+    // --- Probe U: randomisation changes SPREAD, not LEVEL --------------------
+    // Every one of these is symmetric about its nominal value on purpose:
+    // jitter keeps the mean spawn interval, scatter keeps the mean delay,
+    // sizeRandom keeps the mean grain length, and gainRandom is explicitly
+    // power-normalised by 1/sqrt(1 + dev²/3). If any of that is wrong the knob
+    // silently becomes a loudness control — which is how a "character" control
+    // ends up being used as a mixer move and then blamed for the mix.
+    //
+    // Same ±1 dB budget probe D holds density to, measured the same way.
+    {
+        struct LevelSpec { const char* id; float maxVal; };
+        const LevelSpec kLevels[] = {
+            { "jitter",       100.0f },
+            { "delayScatter", 500.0f },
+            { "sizeRandom",   100.0f },
+            { "gainRandom",   100.0f },
+        };
+
+        for (const auto& sp : kLevels)
+        {
+            double lo = 1.0e30, hi = 0.0;
+            juce::String detail;
+
+            for (const float frac : { 0.0f, 0.5f, 1.0f })
+            {
+                setBaseline (apvts);          // feedback 0, width 0, mix 100 — wet only
+                clearRandomisation();
+                setParam (apvts, sp.id, frac * sp.maxVal);
+                proc.prepareToPlay (fs, block);
+
+                auto y = renderEffect (proc, 3.0, fs, block, randNoiseFill);
+
+                // Start after the first bloom has fully established (D + 2G at
+                // the baseline is 900 ms) so the measurement window is steady.
+                const double r = rms (y.L, (int) (1.2 * fs), (int) (1.6 * fs));
+                lo = juce::jmin (lo, r);
+                hi = juce::jmax (hi, r);
+                detail += juce::String (r, 5) + " ";
+            }
+
+            const double spreadDb = (lo > 0.0) ? 20.0 * std::log10 (hi / lo) : 99.0;
+
+            check ((juce::String ("level-flat-") + sp.id).toRawUTF8(),
+                   spreadDb < 1.0 && lo > 1.0e-4,
+                   juce::String ("rms{0,50,100%}=") + detail
+                     + "spread=" + juce::String (spreadDb, 3) + " dB");
+        }
+    }
+
+    // --- Probe V: jitter actually breaks the spawn grid ----------------------
+    // The musical claim behind B3 #1 is that strictly periodic spawning combs
+    // the wash. Probe Q already established the measurement: at density 0 the
+    // overlap is exactly 2, Hann is constant-overlap-add at hop G/2, and with a
+    // CONSTANT input and feedback 0 the wet signal IS the overlap-add envelope —
+    // so a perfectly regular grid renders perfectly flat (min/max = 1.0000).
+    //
+    // That makes flatness a direct readout of grid regularity, with no spectrum
+    // and no peak-picking: jitter must visibly destroy it. Asserting BOTH ends
+    // is what keeps this honest — a jitter that did nothing would leave the
+    // ratio at 1.0, and the probe would fail rather than pass quietly.
+    {
+        auto envRatio = [&] (float jitterPct)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density", 0.0f);
+            clearRandomisation();
+            setParam (apvts, "jitter", jitterPct);
+            proc.prepareToPlay (fs, block);
+
+            auto y = renderEffect (proc, 2.0, fs, block, [] (int) { return 0.25f; });
+
+            const int lo = (int) (1.0 * fs);
+            const int hi = (int) (1.8 * fs);
+
+            double eLo = 1.0e30, eHi = 0.0;
+            for (int i = lo; i < hi && i < (int) y.L.size(); ++i)
+            {
+                const double v = std::abs ((double) y.L[(size_t) i]);
+                eLo = juce::jmin (eLo, v);
+                eHi = juce::jmax (eHi, v);
+            }
+            return eHi > 0.0 ? eLo / eHi : 0.0;
+        };
+
+        const double flat     = envRatio (0.0f);
+        const double jittered = envRatio (100.0f);
+
+        check ("jitter-breaks-grid",
+               flat > 0.9 && jittered < 0.6,
+               juce::String ("min/max: jitter0=") + juce::String (flat, 4)
+                 + " (COLA = 1.00) jitter100=" + juce::String (jittered, 4)
+                 + " (needs < 0.60)");
+    }
+
+    // --- Probe W: delayScatter ring safety + block-size invariance -----------
+    // W1 is the ring's worst case, which is the whole reason this landed after
+    // v1.0.1: a grain's LATCHED delay can now exceed the delayTime maximum by
+    // the full scatter range, so the read span is gD + 2G = 4.5 + 1.0 = 5.5 s
+    // against a 6.0 s ring. Under-size the ring and grains read a full lap of
+    // stale capture — the A2 failure mode, arriving by a different route and
+    // just as inaudible to auval.
+    //
+    // W2 is the one that catches a broken pass bound. The A2 fix bounds each
+    // engine pass to D so that spawn offset i is always < the grain's delay;
+    // NEGATIVE scatter shortens that delay, so the latched value is clamped to
+    // passLen. Forget that clamp and a 4096-sample block at delayTime 50 ms
+    // diverges from a 512-sample one exactly as v1.0.0 did — with all four
+    // randomisations on, which is the configuration nobody renders twice.
+    {
+        // W1 — max delay, max grain, max scatter, dense, heavy feedback.
+        setBaseline (apvts);
+        setParam (apvts, "delayTime",   4000.0f);
+        setParam (apvts, "grainSize",    500.0f);
+        setParam (apvts, "density",      100.0f);
+        setParam (apvts, "feedback",      80.0f);
+        setParam (apvts, "width",        100.0f);
+        clearRandomisation();
+        setParam (apvts, "delayScatter", 500.0f);
+        setParam (apvts, "sizeRandom",   100.0f);
+        setParam (apvts, "jitter",       100.0f);
+        setParam (apvts, "gainRandom",   100.0f);
+        proc.prepareToPlay (fs, block);
+
+        auto yRing = renderEffect (proc, 12.0, fs, block,
+                                   [&] (int t) { return t < (int) (4.0 * fs) ? randNoiseFill (t) : 0.0f; });
+
+        const double ringPk  = juce::jmax (peakAbs (yRing.L), peakAbs (yRing.R));
+        const double ringRms = rms (yRing.L, (int) (6.0 * fs), (int) (4.0 * fs));
+
+        check ("scatter-ring-worst-case",
+               allFinite (yRing.L) && allFinite (yRing.R) && ringPk < 1.0 && ringRms > 1.0e-6,
+               juce::String ("peak=") + juce::String (ringPk, 4)
+                 + " washRms[6-10s]=" + juce::String (ringRms, 7)
+                 + " (D+scatter=4.5s, G=0.5s, span=5.5s vs 6.0s ring)");
+
+        // W2 — the A2 pass bound must survive negative scatter.
+        auto renderRandomAtBlock = [&] (int blk)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "delayTime", 50.0f);    // D = 2400 < 4096
+            setParam (apvts, "density",   60.0f);
+            setParam (apvts, "feedback",  40.0f);
+            setParam (apvts, "width",     60.0f);
+            clearRandomisation();
+            setParam (apvts, "jitter",       50.0f);
+            setParam (apvts, "delayScatter", 40.0f);   // ±1920 samples against D = 2400
+            setParam (apvts, "sizeRandom",   50.0f);
+            setParam (apvts, "gainRandom",   50.0f);
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+            return renderEffect (proc, 2.0, fs, blk, randNoiseFill);
+        };
+
+        auto rSmall = renderRandomAtBlock (512);
+        auto rLarge = renderRandomAtBlock (4096);
+
+        proc.setPlayConfigDetails (2, 2, fs, block);   // restore for later probes
+        proc.prepareToPlay (fs, block);
+
+        const double rd   = juce::jmax (maxAbsDiff (rSmall.L, rLarge.L),
+                                        maxAbsDiff (rSmall.R, rLarge.R));
+        const double rRef = rms (rSmall.L, (int) (1.0 * fs), (int) (0.9 * fs));
+
+        check ("scatter-blocksize-invariance",
+               rd < 1.0e-6 && rRef > 1.0e-4
+                 && allFinite (rLarge.L) && allFinite (rLarge.R),
+               juce::String ("max|512-4096|=") + juce::String (rd, 9)
+                 + " rms512=" + juce::String (rRef, 6));
+    }
+
+    // --- Probe X: gainRandom does NOT change the loop decay rate -------------
+    // This is the single assertion behind "applied after the feedback tap".
+    // The engine accumulates two wet buffers for this: step 5 taps the one
+    // WITHOUT per-grain random gain, step 7 outputs the one with it. Tap the
+    // wrong buffer and a random gain recirculates, compounding every
+    // generation — at feedback 100 the decay rate itself becomes stochastic,
+    // so "shimmer" silently becomes "how long the tail lasts".
+    //
+    // Measured exactly as probe S measures the A3 remap: same excitation, same
+    // windows, same dB/s. Both numbers are printed, so the comparison is a
+    // reported delta rather than a claim.
+    {
+        const int exciteLen = (int) (2.0 * fs);
+        double decay[2] = { 0.0, 0.0 };
+        double washRms[2] = { 0.0, 0.0 };
+        bool   ok = true;
+        int    slot = 0;
+
+        for (const float gr : { 0.0f, 100.0f })
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density",     60.0f);
+            setParam (apvts, "feedback",   100.0f);
+            setParam (apvts, "lowCut",     100.0f);
+            setParam (apvts, "highCut",   8000.0f);
+            clearRandomisation();
+            setParam (apvts, "gainRandom",     gr);
+            proc.prepareToPlay (fs, block);
+
+            juce::Random rng ((juce::int64) 0x0feedbac);
+            auto fill = [&] (int t)
+            {
+                return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+            };
+
+            auto y = renderEffect (proc, 30.0, fs, block, fill);
+
+            const double w1 = rms (y.L, (int) ( 5.0 * fs), (int) (5.0 * fs));
+            const double w2 = rms (y.L, (int) (20.0 * fs), (int) (5.0 * fs));
+
+            decay[slot]   = (w1 > 0.0 && w2 > 0.0) ? 20.0 * std::log10 (w2 / w1) / 15.0 : 0.0;
+            washRms[slot] = w1;
+            ok = ok && allFinite (y.L) && allFinite (y.R)
+                    && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0 && w1 > 1.0e-7;
+            ++slot;
+        }
+
+        const double deltaDecay = std::abs (decay[1] - decay[0]);
+
+        // 0.25 dB/s against a ~2.5 dB/s decay: a randomisation that leaked into
+        // the loop moves this by whole dB/s, not fractions.
+        check ("gainrandom-loop-neutral",
+               ok && deltaDecay < 0.25,
+               juce::String ("decay gr0=") + juce::String (decay[0], 3)
+                 + " gr100=" + juce::String (decay[1], 3)
+                 + " dB/s delta=" + juce::String (deltaDecay, 4)
+                 + " rms[5-10s]=" + juce::String (washRms[0], 7)
+                 + "/" + juce::String (washRms[1], 7));
+    }
+
+    // --- Probe Y: grain-pool pressure is click-free (refuse, never steal) ----
+    // v1.0 stole the oldest slot on exhaustion, cutting a live Hann envelope to
+    // zero in one sample. v1.1 refuses the spawn instead. The pool is 32 slots
+    // against a max sustained overlap of 8, so exhaustion needs the transient
+    // peaks the randomisations create — jitter can shorten an interval to 0.1x
+    // nominal, and a grainSize sweep leaves long grains in flight while short
+    // ones spawn underneath them.
+    //
+    // The observed peak concurrency is REPORTED rather than asserted, because
+    // whether 32 is reached depends on the RNG sequence and a threshold here
+    // would be a coin flip that fails on someone else's machine one day. What is
+    // asserted is the property that matters at any concurrency: no clicks, no
+    // NaN, bounded peak. Probe C's first-difference detector, loose tier —
+    // grainSize is a latched-content parameter and legitimately re-seats reads.
+    {
+        const double sineHz   = 220.0;
+        const double sineStep = 2.0 * juce::MathConstants<double>::pi * sineHz / fs;
+        const double margin   = 0.004;
+        const double thresh   = 6.0 * sineStep + margin;   // kStepFactorLoose
+
+        setBaseline (apvts);
+        setParam (apvts, "grainSize", 500.0f);
+        setParam (apvts, "density",   100.0f);   // overlap 8
+        setParam (apvts, "feedback",   60.0f);
+        setParam (apvts, "width",     100.0f);
+        setParam (apvts, "mix",       100.0f);
+        clearRandomisation();
+        setParam (apvts, "jitter",       100.0f);
+        setParam (apvts, "delayScatter", 250.0f);
+        setParam (apvts, "sizeRandom",   100.0f);
+        setParam (apvts, "gainRandom",   100.0f);
+        proc.prepareToPlay (fs, block);
+
+        int peakActive = 0;
+
+        // Sweep grainSize 500 -> 50 -> 500 so long grains are always in flight
+        // while short ones spawn beneath them — the review's stated steal trigger.
+        auto pressure = [&] (int pos, int total)
+        {
+            peakActive = juce::jmax (peakActive, proc.getActiveGrainCount());
+            const double t   = (double) pos / (double) total;
+            const double tri = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;
+            setParam (apvts, "grainSize", 500.0f - (float) tri * 450.0f);
+        };
+
+        auto y = renderEffect (proc, 6.0, fs, block,
+                               [&] (int t) { return (float) (0.25 * std::sin (sineStep * t)); },
+                               pressure);
+
+        const double step = juce::jmax (maxAbsStep (y.L), maxAbsStep (y.R));
+        const double pk   = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        check ("pool-pressure-clickfree",
+               step < thresh && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("maxStep=") + juce::String (step, 6)
+                 + " thresh=" + juce::String (thresh, 6)
+                 + " peak=" + juce::String (pk, 4)
+                 + " peakGrains=" + juce::String (peakActive) + "/32");
     }
 
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------

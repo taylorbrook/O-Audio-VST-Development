@@ -3,10 +3,11 @@
 
     O-ReverseDelay — Plugin Editor (implementation)
 
-    8 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
-    highCut, width, mix) + 2 WebComboBoxRelay controls (syncMode, noteDivision)
-    bound two-way to the APVTS. The UI-02 Sync/Free control swap is pure JS —
-    both controls stay relay-bound at all times, so neither is ever dead.
+    12 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
+    highCut, width, mix + v1.1.0's jitter, delayScatter, sizeRandom, gainRandom)
+    + 2 WebComboBoxRelay controls (syncMode, noteDivision) bound two-way to the
+    APVTS. The UI-02 Sync/Free control swap is pure JS — both controls stay
+    relay-bound at all times, so neither is ever dead.
 
   ==============================================================================
 */
@@ -22,7 +23,11 @@ namespace
         "delayTime",
         "grainSize", "density",
         "feedback", "lowCut", "highCut",
-        "width", "mix"
+        "width", "mix",
+        // v1.1.0 (B3): RANDOM panel. Order matches app.js's KNOB_IDS — not
+        // required by the relay machinery, but a reviewer diffing the two
+        // lists for a missing ID should not also have to reorder them.
+        "jitter", "delayScatter", "sizeRandom", "gainRandom"
     };
 
     const juce::StringArray kComboIds { "syncMode", "noteDivision" };
@@ -324,11 +329,17 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
     // Fixed. 440 (Stage 3: header + one row of four framed group panels + footer)
-    // + 44 for the Stage-4 preset band. The band and the extra frame height are
-    // the SAME 44 px, so .groups' flex slack — and with it panel heights and the
-    // footer — are untouched. Must stay in sync with styles.css (html/body and
-    // .frame both read 484px).
-    setSize (940, 484);
+    // + 44 (Stage 4 preset band) + 259 (v1.1.0 second panel row: 14 px row gap
+    // + a 245 px row). The second row consumes the height increase EXACTLY, so
+    // row 1 and the footer sit where Stage 4 left them.
+    //
+    // Sized once for v1.1 through v1.6 (~27 knob-cell slots against ~26 planned
+    // controls): a later resize would invalidate the tooltip edge-clamp
+    // verification, which only fires at the real shipping width
+    // (pattern_tooltip_clamp_gate_viewport_sensitive).
+    //
+    // Must stay in sync with styles.css (html/body and .frame both read 743px).
+    setSize (940, 743);
 }
 
 ReverseDelayEditor::~ReverseDelayEditor() = default;
