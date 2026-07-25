@@ -8,7 +8,14 @@
 
    ── v1.1.0: the chassis expansion, done ONCE ──────────────────────────────
    Row 1 (215 px)  TIME | GRAIN | FEEDBACK | OUTPUT   — signal flow (D9)
-   Row 2 (245 px)  RANDOM | WINDOW | MOTION | SPACE   — character controls
+   Row 2 (245 px)  RANDOM | WINDOW | COUNT | SPACE    — character controls
+
+   v1.3.0 renamed row 2's third panel MOTION -> COUNT and filled it (B2). Only
+   the label text and the class suffix changed; the 276 px width, the position
+   and the height are all inherited unchanged, so the frame geometry every
+   tooltip clamp was verified against is the same geometry. The name moved
+   because delay-time drift — what "Motion" described — is a later release's
+   control and now waits in SPACE.
 
    484 + 14 (row gap) + 245 = 743, so .groups has EXACTLY zero slack: row 1
    sits where Stage 3 left it and row 2 consumes the entire height increase.
@@ -282,7 +289,7 @@ body {
 
 /* Panel widths are pinned so the four panels sum to the fixed 940 px frame.
    BOTH rows use this one contract, so the two rows align column-for-column —
-   TIME over RANDOM, FEEDBACK over MOTION. A panel added in a later release
+   TIME over RANDOM, FEEDBACK over COUNT. A panel added in a later release
    inherits its width from here and moves nothing. */
 .group-time,
 .group-grain,
@@ -291,7 +298,7 @@ body {
 .group-window,
 .group-space    { width: 190px; }
 .group-feedback,
-.group-motion   { width: 276px; }
+.group-count    { width: 276px; }   /* v1.3.0: .group-motion renamed, same width */
 
 /* Row 2 is 30 px taller than row 1 because its bodies wrap to two knob-cell
    rows. 215 + 14 + 245 = 474 = the height .groups has at 743 px, exactly. */
@@ -306,8 +313,9 @@ body {
 }
 
 /* ── Reserved panels ─────────────────────────────────────────────────────── */
-/* WINDOW / MOTION / SPACE are framed and labelled now so the chassis is final,
-   but hold no controls until v1.2+. An empty frame reads as broken, so each
+/* SPACE is framed and labelled now so the chassis is final, but holds no
+   controls yet. WINDOW was filled at v1.2.0 and COUNT at v1.3.0, both without
+   touching this rule. An empty frame reads as broken, so the panel
    carries a dimmed fleuron — the page's own ornament, already used in the
    preset bar and footer — which reads as a plate awaiting its specimen.
 
@@ -319,6 +327,58 @@ body {
   color: var(--fleuron-color);
   opacity: 0.55;
   user-select: none;
+}
+
+/* ── Grain meter (v1.3.0, B2) ─────────────────────────────────────────────── */
+/* The COUNT panel's live readout, and the first element on this page that is
+   neither a knob, a select nor a segment pair — hence the only new CSS block
+   this release needs.
+
+   Deliberately NOT a .knob-cell: at 72px that box is sized for a 48px dial with
+   a caption under it, and two label/value ROWS in 72px would wrap "Overlap" or
+   crush the numbers. This is a 116px two-column block instead, which fits beside
+   the Count knob inside the 276px panel (72 + 116 + the body's gap) without
+   wrapping to a second row — so the panel keeps row 2's single-row height and
+   nothing else on the page moves.
+
+   Borrows .knob-value's type treatment rather than restating it: same size,
+   same colour, and tabular-nums so a value flipping between 8 and 16 at 15 Hz
+   does not shift the column width. */
+.meter-cell {
+  width: 116px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--brown-frame);
+  border-radius: 3px;
+  background: rgba(255, 248, 220, 0.22);
+  box-shadow: inset 1px 1px 3px var(--shadow-light);
+}
+
+.meter-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.meter-label {
+  font-size: 9.5px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.meter-value {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--brown-text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .group-label {

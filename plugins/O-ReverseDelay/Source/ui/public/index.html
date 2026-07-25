@@ -50,7 +50,7 @@
 
          Row 1 — signal flow (D9), unchanged from v1.0.1.
          Row 2 — character. RANDOM ships with v1.1's four grain
-                 randomisations; WINDOW / MOTION / SPACE are framed and
+                 randomisations; WINDOW, COUNT and SPACE are framed and
                  labelled now, so that filling them in v1.2-v1.6 never resizes
                  the window again. Resizing is what invalidates the tooltip
                  edge-clamp verification, so it is done once, here.
@@ -247,15 +247,59 @@
         </div>
       </section>
 
-      <!-- Reserved (v1.3+). Framed and labelled so the chassis is final; the
+      <!-- COUNT (v1.3.0, B2) ───────────────────────────────────────────────
+           The second reserved panel filled, and the one place this release
+           costs more than markup: the readout below needs its own CSS block
+           (.meter-cell), because it is the first element on the page that is
+           neither a knob, a select nor a segment pair.
+
+           It takes the panel that was labelled MOTION — the 276 px column, not
+           the 190 px one — because a knob plus two readout lines does not fit
+           the narrow width without crowding, and because the LABEL had to
+           change anyway: "Motion" describes delay-time drift (review B4 #6),
+           which is not this. That control now has SPACE reserved for it; the
+           row-3 decision the review's section D warns about arrives with
+           whichever of ducking / diffusion / stereo-source lands after that.
+
+           Count sits above the readout because it sets the ceiling the readout
+           reports against — reading the panel top-to-bottom is reading cause
+           then effect, the same ordering WINDOW uses for Shape over Tilt.
+           Default 8 is v1.2.0's hard-coded ceiling, so a v1.0-v1.2 session
+           opened here reads exactly as it did. -->
+      <section class="group group-count">
+        <div class="group-label">Count</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-grainCount" data-param="grainCount"
+                 data-tip-title="Grain Count"
+                 data-tip="The most grains allowed to overlap at once, which Density then scales into. Raise it for a denser, smoother, more reverb-like wash; the shipped setting is 8. Density at zero always gives two overlapping grains whatever this is set to."><div class="knob-stem"></div></div>
+            <div class="knob-label">Count</div>
+            <div class="knob-value" id="val-grainCount">&#8212;</div>
+          </div>
+
+          <!-- Live engine readout, polled from getGrainMeter. Values are written
+               with textContent into the SPANS only — the "Active" / "Overlap"
+               captions are authored here and never touched by JS
+               (pattern_js_state_updater_overwrites_html_labels). aria-live is
+               off: this updates ~15x/s and would flood a screen reader. -->
+          <div class="meter-cell" id="grainMeter" data-tip-title="Grain Meter"
+               data-tip="Grains actually sounding right now, and the overlap Size, Density and Count are producing between them. Reads zero when nothing is playing.">
+            <div class="meter-row">
+              <span class="meter-label">Active</span>
+              <span class="meter-value" id="meter-active" aria-live="off">&#8212;</span>
+            </div>
+            <div class="meter-row">
+              <span class="meter-label">Overlap</span>
+              <span class="meter-value" id="meter-overlap" aria-live="off">&#8212;</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reserved (v1.4+). Framed and labelled so the chassis is final; the
            fleuron is the page's own ornament, standing in for the specimen
            that lands here. To fill one, replace the span with .knob-cell
            markup — no CSS change, no resize. -->
-      <section class="group group-motion">
-        <div class="group-label">Motion</div>
-        <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>
-      </section>
-
       <section class="group group-space">
         <div class="group-label">Space</div>
         <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>

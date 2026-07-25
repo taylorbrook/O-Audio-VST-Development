@@ -51,6 +51,12 @@ const RANGES = {
   // tilt and a "−100 %" readout, i.e. it would show a state the plugin never
   // ships in.
   grainTilt:    { start: 0, end: 1,   skew: 1, interval: 0.001, def: 0.5 },
+
+  // v1.3.0 (B2) — COUNT panel. Same trap as grainTilt in a different disguise:
+  // the neutral default is 8, the value v1.2.0 hard-coded, NOT the range minimum
+  // and NOT the new maximum. A stub defaulting it to 2 or 16 would render a page
+  // showing a state the plugin never ships in.
+  grainCount:   { start: 2, end: 16,  skew: 1, interval: 1,     def: 8 },
 };
 
 const CHOICES = {
@@ -186,18 +192,38 @@ const PRESET_FNS = {
   isFactoryPreset: (name) => FACTORY.includes(name),
 };
 
-// Mirrors the ELEVEN native functions registered in PluginEditor.cpp:
-// getParameterDefaults (fetched by app.js) + the ten preset fns (fetched by
-// js/preset-manager.js). Any OTHER name must still reject — rejecting the
-// unknown is the whole point of this stub, and is how a bridge gap surfaces
-// here instead of as a silently dead control in a DAW
-// (pattern_webview_native_fn_bridge_gap). The whitelist grew 1 -> 11; it did
-// not become permissive.
+// Mirrors the TWELVE native functions registered in PluginEditor.cpp:
+// getParameterDefaults + getGrainMeter (both fetched by app.js) + the ten preset
+// fns (fetched by js/preset-manager.js). Any OTHER name must still reject —
+// rejecting the unknown is the whole point of this stub, and is how a bridge gap
+// surfaces here instead of as a silently dead control in a DAW
+// (pattern_webview_native_fn_bridge_gap). The whitelist grew 1 -> 11 -> 12; it
+// did not become permissive.
 export function getNativeFunction(name) {
   if (name === "getParameterDefaults") {
     return () => Promise.resolve(
       Object.fromEntries(Object.entries(RANGES).map(([id, r]) => [id, r.def]))
     );
+  }
+
+  // v1.3.0 (B2) — the grain meter. Returns a MOVING value rather than a
+  // constant: a stub that always answered the same numbers would render
+  // identically whether app.js polled once or on an interval, so the render gate
+  // could not tell a live readout from a dead one. The count walks the plausible
+  // range and overlap is derived from the stub's own grainCount/density states,
+  // which is also what makes the two readouts consistent with the knobs on screen.
+  if (name === "getGrainMeter") {
+    let tick = 0;
+    return () => {
+      const ceiling = getSliderState("grainCount").getScaledValue();
+      const density = getSliderState("density").getScaledValue();
+      const overlap = 2 + (density / 100) * (ceiling - 2);
+      tick = (tick + 1) % 7;
+      return Promise.resolve({
+        active: Math.max(0, Math.round(overlap) - (tick % 2)),
+        overlap,
+      });
+    };
   }
 
   if (Object.prototype.hasOwnProperty.call(PRESET_FNS, name)) {

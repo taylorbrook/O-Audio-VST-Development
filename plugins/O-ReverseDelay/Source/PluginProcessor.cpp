@@ -30,6 +30,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pGrainTilt    = parameters.getRawParameterValue("grainTilt");
     pGrainShape   = parameters.getRawParameterValue("grainShape");
 
+    // v1.3.0 grain count (B2).
+    pGrainCount   = parameters.getRawParameterValue("grainCount");
+
     // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
     // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
     // through each parameter's own NormalisableRange below. Four params are
@@ -37,9 +40,20 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All sixteen keys are explicit in every preset. Omitted keys would revert
+    // All seventeen keys are explicit in every preset. Omitted keys would revert
     // to the APVTS default (applyPresetJson resets everything first), which is
     // safe but makes the table's intent unreadable.
+    //
+    // ── v1.3.0 (B2): grainCount pinned at 8 ─────────────────────────────────
+    // 8 is v1.2.0's hard-coded overlap ceiling, so every preset below keeps the
+    // exact overlap it was authored for. Same trap as grainTilt one paragraph
+    // down and worth naming separately, because the wrong reflex here is the
+    // OTHER one: "new ceiling, use the new maximum" would push all eight presets
+    // to overlap 16 and make every factory sound roughly twice as dense.
+    //
+    // Note this is also why the v1.0.1 density re-authoring survives untouched:
+    // those values encode overlaps against a ceiling of 8, and the ceiling is
+    // now written down next to them rather than implied by the engine.
     //
     // ── v1.2.0 (B1): grainTilt pinned at 0.5, grainShape at 0 (Hann) ────────
     // Same reasoning as the v1.1 block below, with one extra trap: the no-op
@@ -80,7 +94,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      60.0f}, {"mix",       40.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
@@ -89,7 +104,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      55.0f}, {"mix",       55.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
@@ -98,7 +114,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      70.0f}, {"mix",       25.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
@@ -107,7 +124,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      85.0f}, {"mix",       50.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
@@ -116,7 +134,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      35.0f}, {"mix",       45.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
@@ -125,7 +144,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      75.0f}, {"mix",       55.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -138,7 +158,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      80.0f}, {"mix",       50.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
@@ -147,7 +168,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"width",      50.0f}, {"mix",       45.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
+           {"grainCount", 8.0f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -271,6 +293,14 @@ void ReverseDelayProcessor::reset()
     capture.clear();
     grainPool.clear();
     scheduler.clear();
+
+    // v1.3.0: the meter must follow the engine it reports on — the pool is now
+    // empty, so a stale non-zero count would sit on the UI until the next block.
+    // The DROP/REFUSAL counters are deliberately NOT cleared here: they are
+    // cumulative diagnostics over the processor's life, and a host that calls
+    // reset() between transport passes would otherwise erase the evidence of a
+    // drop that happened in the pass before.
+    publishedActiveGrains.store(0, std::memory_order_relaxed);
 
     hpL.reset(); hpR.reset();
     lpL.reset(); lpR.reset();
@@ -477,6 +507,40 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::ParameterID { "grainShape", 1 }, "Grain Shape",
         juce::StringArray { "Hann", "Tukey", "Gaussian", "Triangular", "Expo-Decay" },
         0));
+
+    // ── v1.3.0 (B2): the overlap ceiling ────────────────────────────────────
+    //
+    // grainCount: 2–16 grains, default 8, step 1, linear.
+    //
+    // The default is the load-bearing part, for the third release running, and
+    // for a slightly different reason each time. v1.1's four defaulted to 0
+    // because 0 was the no-op; v1.2's grainTilt defaulted to 0.5 because the
+    // no-op was the MIDPOINT; here the no-op is v1.2.0's own hard-coded
+    // constant, so the default is 8 and the parameter's job at that value is to
+    // reproduce a number that used to be spelled out in processBlock.
+    //
+    // That reproduction is exact rather than approximate, which is the whole
+    // reason this is a MINOR bump. Density is stored DENORMALISED in session
+    // state — a session saved at 60 % recalls 60 % — so if the density knob's
+    // span had been widened in place instead, every saved session would have
+    // become ~2.3x denser at the same knob position with no migration possible
+    // (critical_apvts_denormalised_vs_preset_normalised: sessions and preset
+    // JSON need opposite treatment, and sessions cannot be rescaled without
+    // corrupting the ones already correct). Making the ceiling its own
+    // parameter sidesteps that entirely: absent from a v1.0–v1.2 session or
+    // preset, it resolves to this default, and (8 − 2) is exactly 6.0f.
+    //
+    // Step 1 keeps the parameter on integers, so "Count" reads as a grain count
+    // and the default lands exactly on 8.0f rather than near it. The reachable
+    // overlap span is [2, ceiling]: density 0 always gives 2 whatever the
+    // ceiling is, so nothing the knob could reach before is now unreachable.
+    // At ceiling = 2 the two coincide and density goes inert — the honest
+    // endpoint of "lock overlap to the Hann constant-overlap-add minimum", and
+    // the reason the COUNT panel shows the effective overlap next to the knob.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "grainCount", 1 }, "Grain Count",
+        juce::NormalisableRange<float>(kOverlapCeilingMin, kOverlapCeilingMax, 1.0f),
+        kLegacyOverlapMax));
 
     return layout;
 }
@@ -709,9 +773,23 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // output amplitude-modulates to full silence at every boundary — a 100 %-depth
     // 5 Hz tremolo at grainSize 200 ms, not the "denser wash" the control claims.
     // Hann reaches constant-overlap-add at hop = G/2, i.e. overlap >= 2, so the
-    // bottom ~14 % of the knob was a gated-pulse region. 2 + d·6 keeps the same
-    // maximum (8) and makes the whole travel a smooth->dense sweep.
-    const float overlap         = 2.0f + (densityPct * 0.01f) * 6.0f;
+    // bottom ~14 % of the knob was a gated-pulse region. 2 + d·6 made the whole
+    // travel a smooth->dense sweep.
+    //
+    // B2 (v1.3.0): the 6 is no longer a literal. The span's top is grainCount,
+    // so density scales into [kOverlapMin, ceiling] instead of a fixed [2, 8].
+    //
+    // Written as `min + d·(ceiling − min)` and NOT as the algebraically identical
+    // `min·(1−d) + ceiling·d`, because only this form reproduces v1.2.0 bitwise
+    // at the default ceiling: (8.0f − 2.0f) is exactly 6.0f, so the three
+    // operations and their operands are the ones v1.0.1 shipped. The other form
+    // is two multiplies and an add on different values and lands an ulp away —
+    // which would cost the identity guarantee that makes this a MINOR bump, in a
+    // way no listening test would ever surface. Same trap as kTiltTravel's map
+    // at v1.2.0; probe AC asserts this one the same way probe Z1 asserted that.
+    const float ceilingF        = juce::jlimit(kOverlapCeilingMin, kOverlapCeilingMax,
+                                               pGrainCount->load());
+    const float overlap         = kOverlapMin + (densityPct * 0.01f) * (ceilingF - kOverlapMin);
     const int   intervalSamples = juce::jmax(1, static_cast<int>(static_cast<float>(G) / overlap));
 
     // ── grain gain: overlap × window power compensation (v1.2.0 / B1) ────────
@@ -737,6 +815,12 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float windowNorm      = windowLuts.getShapeNorm (shapeIdx)
                                 * windowLuts.getTiltNorm  (shapeIdx, tiltPeakPos);
 
+    // B2 (v1.3.0): UNCHANGED, and that is a measured result rather than an
+    // oversight. Raising the overlap ceiling to 16 was expected to need a
+    // coherence correction here — it does not; 1/sqrt(overlap) holds the wet
+    // level flat to 0.07 dB across the whole 2..16 range. The full derivation,
+    // and the harness bug that first said otherwise, are in PluginProcessor.h
+    // above kLegacyOverlapMax. Probe AA is the standing guard.
     const float grainGain       = (1.0f / std::sqrt(overlap)) * windowNorm;
 
     // ── feedback-tap trim (v1.2.0 / B1) ──────────────────────────────────────
@@ -758,7 +842,15 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // (built for gainRandom, and the same split serves this). Exactly 1.0f at
     // the shipped (Hann, 0.5) — a value divided by itself — so the tap gains
     // stay bitwise what they were.
-    const float loopTrim        = windowLuts.getLoopNorm (shapeIdx, tiltPeakPos);
+    //
+    // B2 (v1.3.0): times the OVERLAP half of the same argument. v1.2.0 corrected
+    // the loop for the window's amplitude duty but left overlap on the output's
+    // power law, which is a sqrt(overlap) excess in a recirculating path — and at
+    // the raised ceiling that excess turns feedback 100 into self-oscillation
+    // that clipped the output (peak 1.28). Exactly 1.0f at overlap <= 8, so the
+    // shipped decay is bitwise the shipped decay. See loopCountTrim().
+    const float loopTrim        = windowLuts.getLoopNorm (shapeIdx, tiltPeakPos)
+                                * loopCountTrim (overlap);
 
     // Resolved once per block; the Tilt POD is copied into each grain at spawn.
     const auto  blockTilt       = WindowLut::makeTilt (tiltPeakPos);
@@ -873,6 +965,13 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const int passBound       = scatterSamples > 0 ? grainDelayFloor : D;
     const int passLen         = juce::jmax(1, juce::jmin(numSamples, passBound));
 
+    // v1.3.0 (B2): accumulated across the block's passes and published once at
+    // the end, so the message thread sees one consistent snapshot per block
+    // rather than a value that changes under it mid-block.
+    int peakActiveThisBlock = 0;
+    int droppedThisBlock    = 0;
+    int refusedThisBlock    = 0;
+
     for (int off = 0; off < numSamples; off += passLen)
     {
         const int len = juce::jmin(passLen, numSamples - off);
@@ -887,12 +986,20 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // Sharing one stream would interleave the two differently at different
         // pass lengths — i.e. differently at 512 than at 4096 samples — and the
         // engine would stop being block-size invariant (probe W2).
-        const int spawnCount = scheduler.processBlock(len, intervalSamples, jitterNorm,
-                                                      spawnRequests,
-                                                      [this] { return nextJitterRand01(); });
+        //
+        // v1.3.0: the scheduler now also reports what its fixed request array
+        // could not hold. Unreachable at these ranges by 8x (see
+        // kMaxSpawnsPerBlock's derivation) — which is exactly why it is counted
+        // rather than trusted, since "unreachable" was also true of the 32-cap it
+        // replaced and nothing measured that either.
+        const auto spawn = scheduler.processBlock(len, intervalSamples, jitterNorm,
+                                                  spawnRequests,
+                                                  [this] { return nextJitterRand01(); });
+        droppedThisBlock += spawn.dropped;
+
         const juce::int64 passStartAbs = capture.getTotalWritten();   // capture write happens in step 6
 
-        for (int s = 0; s < spawnCount; ++s)
+        for (int s = 0; s < spawn.count; ++s)
         {
             const int passOffset = spawnRequests[static_cast<size_t>(s)].sampleOffset;
 
@@ -955,7 +1062,10 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // dropping the grain does not shift the spawn grid either.
             auto* slot = grainPool.obtain();
             if (slot == nullptr)
+            {
+                ++refusedThisBlock;   // v1.3.0: counted, so probe AB can report it
                 continue;
+            }
 
             auto& g = *slot;
 
@@ -1110,7 +1220,31 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // ---- (6) capture write: input + feedback return ---------------------
         for (int i = off; i < passEnd; ++i)
             capture.pushSample(inL[i] + fbLw[i], inR[i] + fbRw[i]);
+
+        // Sampled at the END of each pass, after step 4 has retired the grains
+        // that finished in it — so this is concurrency actually rendered, not a
+        // count inflated by slots about to be freed. PEAK across the block rather
+        // than the final value: at low density the block boundary lands between
+        // spawns and the instantaneous count reads low, which would make the UI
+        // meter flicker toward zero on material that is plainly still washing.
+        peakActiveThisBlock = juce::jmax(peakActiveThisBlock, grainPool.countActive());
     }
+
+    // ---- (6b) publish the meter + spawn accounting (v1.3.0 / B2) ------------
+    // Relaxed stores, once per block, read by the editor's 15 Hz poll. Nothing in
+    // the audio path reads these back, so there is no ordering to establish.
+    publishedActiveGrains.store(peakActiveThisBlock, std::memory_order_relaxed);
+    publishedOverlap.store(overlap, std::memory_order_relaxed);
+
+    // Cumulative, and only touched when non-zero: the common case is two loads
+    // and no stores rather than an unconditional read-modify-write per block.
+    if (droppedThisBlock > 0)
+        droppedSpawns.fetch_add(static_cast<juce::uint32>(droppedThisBlock),
+                                std::memory_order_relaxed);
+
+    if (refusedThisBlock > 0)
+        refusedSpawns.fetch_add(static_cast<juce::uint32>(refusedThisBlock),
+                                std::memory_order_relaxed);
 
     // ---- (7) equal-power dry/wet mix ----------------------------------------
     // Dry comes from the untouched input buffer (wet never rendered in-place).
