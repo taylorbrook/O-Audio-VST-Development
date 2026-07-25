@@ -186,13 +186,29 @@ function serve(root) {
     // populated readout is proof the module ran.
     const boundReadouts = await page.$$eval('.knob-value',
         els => els.filter(e => e.textContent.trim() !== '—' && e.textContent.trim() !== '').length);
-    // v1.4.0: 15 knobs (tukeyTaper joined). Compared with === rather than >=:
-    // the loose form let this line print "14/13" once grainCount landed, and a
-    // bound that can never fail upward would also never notice a knob going
-    // missing while another was added. It has now caught the count twice, which
-    // is the argument for keeping it exact.
-    check(boundReadouts === 15,
-        `app.js ran and bound the knobs — ${boundReadouts}/15 readouts populated`);
+    // Compared with === rather than >=: the loose form let this line print
+    // "14/13" once grainCount landed, and a bound that can never fail upward
+    // would also never notice a knob going missing while another was added.
+    //
+    // ── v1.6.0: the expected count is PARSED, not typed ──────────────────────
+    // It was a literal through v1.5.0 — 13, then 14, then 15 — and it has now
+    // failed three times for the same non-reason: a release added a knob and the
+    // fixture still described the release before it. That is exactly
+    // pattern_test_fixture_mirrors_drift_silently, and the third occurrence is
+    // the argument for deriving it. KNOB_IDS in app.js is the list the page
+    // actually binds, so it is the only honest source for how many readouts
+    // should be populated — and if a knob is added there and nowhere else, this
+    // check now fails for the RIGHT reason instead of needing a hand edit.
+    const knobBlock = fs.readFileSync(path.join(publicDir, 'js', 'app.js'), 'utf8')
+        .match(/const KNOB_IDS = \[([\s\S]*?)\];/);
+    const expectedReadouts = knobBlock
+        ? [...knobBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)].length
+        : -1;
+
+    check(expectedReadouts > 0,
+        `KNOB_IDS parsed from app.js — expecting ${expectedReadouts} readouts`);
+    check(boundReadouts === expectedReadouts,
+        `app.js ran and bound the knobs — ${boundReadouts}/${expectedReadouts} readouts populated`);
     check(consoleErrors.length === 0,
         'no console errors on load' + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
 

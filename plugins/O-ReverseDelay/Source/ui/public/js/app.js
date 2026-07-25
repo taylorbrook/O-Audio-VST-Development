@@ -1,12 +1,19 @@
 // ============================================================================
 // O-ReverseDelay — WebView UI controller (Stage 3 controls, Stage 4 bar + tips)
 //
-// Binds all 18 APVTS parameters two-way: 15 WebSliderRelay knobs + 3
+// Binds all 21 APVTS parameters two-way: 17 WebSliderRelay knobs + 3
 // WebComboBoxRelay controls (syncMode as a segment pair, noteDivision and
-// grainShape as selects). v1.1.0 added the four RANDOM knobs in row 2;
+// grainShape as selects) + 1 WebToggleButtonRelay (freeze, as a segment pair).
+// v1.1.0 added the four RANDOM knobs in row 2;
 // v1.2.0 added the WINDOW panel's Shape select + Tilt knob; v1.3.0 added the
 // COUNT panel's Count knob and the live grain meter; v1.4.0 added WINDOW's
-// Taper knob and the ENVELOPE panel's window-shape display.
+// Taper knob and the ENVELOPE panel's window-shape display; v1.6.0 filled the
+// last reserved panel with MOTION (Freeze, Direction, Regen).
+//
+// THREE relay families now, and the third is the one that is easy to get wrong:
+// `freeze` is an AudioParameterBool, so it has a ToggleState and NOT a
+// SliderState or a ComboBoxState. getSliderState("freeze") does not fail loudly
+// — it builds a state the backend never updates.
 //
 // Native-function surface is 13 and must match PluginEditor.cpp exactly:
 // getParameterDefaults, getGrainMeter and getWindowCurve are fetched HERE; the
@@ -50,11 +57,19 @@ const KNOB_IDS = [
   // the Tukey shape only; bound unconditionally regardless (see the inert-cell
   // note on refreshTaperEnabled).
   "tukeyTaper",
+  // v1.6.0 (B4 #2, #3) — MOTION panel. Both default to 0, which for once is
+  // genuinely the no-op: all-reverse and unity loop gain. `freeze`, the third
+  // control in that panel, is a BOOL and is bound through getToggleState below —
+  // not here, because a bool has no SliderState and asking for one throws.
+  "direction", "regenMakeup",
 ];
 
 const COMBO_SYNC     = "syncMode";
 const COMBO_DIVISION = "noteDivision";
 const COMBO_SHAPE    = "grainShape";
+
+// v1.6.0 — the plugin's only bool parameter, and so its only ToggleState.
+const TOGGLE_FREEZE  = "freeze";
 
 // ── Display formatters — receive the SCALED value, add units only ───────────
 const fmtPct = (v) => `${Math.round(v)} %`;
@@ -74,6 +89,25 @@ const fmtTilt = (v) => {
   if (t === 0) return "Centre";
   return `${t > 0 ? "+" : "−"}${Math.abs(t)} %`;
 };
+
+// direction's PARAMETER is a plain 0–100 %, but the two ENDS of it are named
+// states rather than amounts — 0 is "every grain reversed", 100 is "every grain
+// forward" — and a readout of "0 %" hides which of those zero means. The
+// endpoints therefore read as words and the interior as a percentage, which is
+// the same reasoning fmtTilt uses for "Centre". Derived from the scaled value,
+// never from a JS range map (pattern_webview_knob_readout_scaled_value).
+const fmtDirection = (v) => {
+  const p = Math.round(v);
+  if (p === 0)   return "Reverse";
+  if (p === 100) return "Forward";
+  return `${p} %`;
+};
+
+// One decimal, matching the 0.1 dB parameter step, and an explicit "+" so the
+// knob reads as makeup rather than as a level that might be cutting. 0 dB is
+// written plainly: it is the shipped no-op and "+0.0 dB" would suggest the loop
+// is being touched when it is not.
+const fmtRegen = (v) => (v <= 0 ? "0.0 dB" : `+${v.toFixed(1)} dB`);
 
 const FORMAT = {
   delayTime: fmtMs,
@@ -99,6 +133,9 @@ const FORMAT = {
   // v1.4.0. Two decimals, matching the 0.01 parameter step exactly: one decimal
   // would make adjacent steps read identically and the knob would look stuck.
   tukeyTaper:   (v) => v.toFixed(2),
+  // v1.6.0 (B4 #2, #3) — MOTION panel.
+  direction:    fmtDirection,
+  regenMakeup:  fmtRegen,
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────
@@ -133,6 +170,7 @@ const ENV_REDRAW_MS = 40;   // coalescing delay while a knob is being dragged
 // EVERY module-level binding lives in this one block — see the TDZ note above.
 const sliderState = {};        // id -> Juce SliderState
 let syncState     = null;      // Juce ComboBoxState (syncMode)
+let freezeState   = null;      // Juce ToggleState (freeze, v1.6.0)
 let divisionState = null;      // Juce ComboBoxState (noteDivision)
 let shapeState    = null;      // Juce ComboBoxState (grainShape, v1.2.0)
 let paramDefaults = null;      // { id: engineeringDefault } from the native fn
@@ -363,6 +401,40 @@ function bindSyncSegments(juce) {
 
   segFree.addEventListener("click", () => st.setChoiceIndex(0));
   segSync.addEventListener("click", () => st.setChoiceIndex(1));
+}
+
+// ── freeze segment pair (v1.6.0, B4 #1) ─────────────────────────────────────
+// Deliberately NOT a copy of bindSyncSegments: that one drives a ComboBoxState
+// through setChoiceIndex, and freeze is a ToggleState whose value is a boolean.
+// The two APIs are not interchangeable — ToggleState has no getChoiceIndex — and
+// a bool bound as a combo is the same class of silently dead control as an
+// unregistered native function (pattern_webview_native_fn_bridge_gap).
+//
+// The OFF / FREEZE text is authored in index.html and is never touched here.
+// Only classes and aria-pressed move (pattern_js_state_updater_overwrites_html_labels).
+function bindFreezeSegments(juce) {
+  const st = juce.getToggleState(TOGGLE_FREEZE);
+  freezeState = st;
+
+  const segOff = document.getElementById("seg-freeze-off");
+  const segOn  = document.getElementById("seg-freeze-on");
+
+  if (!segOff || !segOn) { console.error("Missing freeze segment elements"); return; }
+
+  const refresh = () => {
+    const frozen = st.getValue() === true;
+    segOff.classList.toggle("active", !frozen);
+    segOn.classList.toggle("active", frozen);
+    segOff.setAttribute("aria-pressed", String(!frozen));
+    segOn.setAttribute("aria-pressed", String(frozen));
+  };
+
+  st.valueChangedEvent.addListener(refresh);
+  st.propertiesChangedEvent.addListener(refresh);
+  refresh();
+
+  segOff.addEventListener("click", () => { st.setValue(false); refresh(); });
+  segOn.addEventListener("click", () => { st.setValue(true); refresh(); });
 }
 
 // ── Defaults for dblclick-reset (the only native function) ──────────────────
@@ -801,6 +873,7 @@ function initTooltips() {
 function init() {
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
   bindSyncSegments(Juce);
+  bindFreezeSegments(Juce);      // v1.6.0 (B4 #1); the only ToggleState
   divisionState = bindSelectCombo(Juce, COMBO_DIVISION);
   shapeState    = bindSelectCombo(Juce, COMBO_SHAPE);
   loadParameterDefaults(Juce);   // async; nothing else depends on it

@@ -54,19 +54,25 @@ private:
     // would outlive the WebView and call into a freed component.
     // ═══════════════════════════════════════════════════════════════════
 
-    // 1. RELAYS — 8 sliders + 2 combos.
-    //    syncMode AND noteDivision are both AudioParameterChoice, so BOTH are
-    //    combo relays; WebToggleButtonRelay is for bool params only and is
-    //    deliberately unused here.
-    std::vector<std::unique_ptr<juce::WebSliderRelay>>   sliderRelays;
-    std::vector<std::unique_ptr<juce::WebComboBoxRelay>> comboRelays;
+    // 1. RELAYS — 17 sliders + 3 combos + 1 toggle.
+    //    syncMode, noteDivision and grainShape are all AudioParameterChoice, so
+    //    all three are combo relays. v1.6.0's `freeze` is the plugin's first and
+    //    only AudioParameterBool and therefore its first WebToggleButtonRelay —
+    //    the relay TYPE has to match the parameter type, and a bool bound through
+    //    a slider relay attaches without error and produces a control whose state
+    //    never updates (pattern_webview_native_fn_bridge_gap, same failure class
+    //    reached by a different route).
+    std::vector<std::unique_ptr<juce::WebSliderRelay>>       sliderRelays;
+    std::vector<std::unique_ptr<juce::WebComboBoxRelay>>     comboRelays;
+    std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> toggleRelays;
 
     // 2. WEBVIEW
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
     // 3. ATTACHMENTS
-    std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>>   sliderAttachments;
-    std::vector<std::unique_ptr<juce::WebComboBoxParameterAttachment>> comboAttachments;
+    std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>>       sliderAttachments;
+    std::vector<std::unique_ptr<juce::WebComboBoxParameterAttachment>>     comboAttachments;
+    std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> toggleAttachments;
 
     // Preset save/load dialogs. fileDialogOpen guards re-entry: a second click
     // while a chooser is up must complete immediately with {false, ""} rather

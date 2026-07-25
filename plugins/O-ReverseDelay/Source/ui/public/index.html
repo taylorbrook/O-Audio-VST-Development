@@ -49,11 +49,20 @@
          (190 | 190 | 276 | 190), so the columns align between rows.
 
          Row 1 — signal flow (D9), unchanged from v1.0.1.
-         Row 2 — character. RANDOM ships with v1.1's four grain
-                 randomisations; WINDOW, COUNT and SPACE are framed and
-                 labelled now, so that filling them in v1.2-v1.6 never resizes
-                 the window again. Resizing is what invalidates the tooltip
-                 edge-clamp verification, so it is done once, here.
+         Row 2 — character. RANDOM shipped with v1.1's four grain
+                 randomisations; WINDOW, COUNT and SPACE were framed and
+                 labelled empty at the same time, so that filling them through
+                 v1.6 would never resize the window again. Resizing is what
+                 invalidates the tooltip edge-clamp verification, so it was done
+                 once, here.
+
+                 That plan held exactly: WINDOW filled at v1.2.0, COUNT at
+                 v1.3.0 and the last one — SPACE, now MOTION — at v1.6.0, and
+                 the frame has not moved since. Row 2 is therefore
+                 RANDOM | WINDOW | COUNT | MOTION and the chassis is FULL. The
+                 next new control is the row-3 / MORE-page decision the v1.0.0
+                 review's section D warns about, and it is now genuinely due
+                 rather than one release away.
       -->
     <main class="groups">
 
@@ -334,19 +343,58 @@
         </div>
       </section>
 
-      <!-- Reserved (v1.5+). Framed and labelled so the chassis is final; the
-           fleuron is the page's own ornament, standing in for the specimen
-           that lands here. To fill one, replace the span with .knob-cell
-           markup — no CSS change, no resize.
+      <!-- MOTION (v1.6.0, B4 #1-#3) ────────────────────────────────────────
+           The LAST reserved panel, filled — and it cost exactly what v1.1.0
+           promised the reserve would cost: markup, one width alias in the CSS
+           and nothing else. No panel width, position or height changed, so the
+           tooltip edge-clamp geometry is the one already verified and the
+           940 x 743 frame is untouched (pattern_tooltip_clamp_gate_viewport_sensitive).
 
-           v1.4.0 briefly took this panel for the envelope display and then gave
-           it back: putting the graph inside WINDOW, under the controls it
-           answers to, reads better AND leaves the row-2 reserve intact, so the
-           next new control still has somewhere to go before the row-3 / MORE-page
-           decision (v1.0.0 review, section D). -->
-      <section class="group group-space">
-        <div class="group-label">Space</div>
-        <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>
+           The three controls belong together because all three are properties of
+           the capture buffer rather than of the grains: whether it is being
+           written at all (Freeze), which way grains travel through it
+           (Direction), and how much of its own output is written back (Regen).
+
+           Freeze sits on top as a full-width segment pair, matching TIME's
+           Free/Sync: it is the one control here that is a STATE rather than an
+           amount, and reading the panel top-to-bottom is state then amounts.
+           Its OFF / FREEZE text is authored HERE and never rewritten by JS
+           (pattern_js_state_updater_overwrites_html_labels) — the same rule that
+           had the preset buttons reading the wrong labels in every DAW until it
+           was found.
+
+           All three default to their no-op, which for once is plain zero for
+           every one of them: freeze off, direction 0 (all-reverse), regen 0 dB.
+           A v1.0-v1.5 session or preset opened here therefore sounds exactly as
+           it did. -->
+      <section class="group group-motion">
+        <div class="group-label">Motion</div>
+        <div class="group-body">
+
+          <div class="segments" id="freezeSegments" role="group" aria-label="Freeze"
+               data-tip-title="Freeze"
+               data-tip="Stops writing into the buffer while the grains keep reading it, so the wash holds indefinitely. Dry passes through untouched, and the buffer resumes capturing where it left off on release.">
+            <button type="button" class="segment" id="seg-freeze-off" data-choice="0" aria-pressed="true">Off</button>
+            <button type="button" class="segment" id="seg-freeze-on" data-choice="1" aria-pressed="false">Freeze</button>
+          </div>
+
+          <div class="knob-cell">
+            <div class="knob" id="knob-direction" data-param="direction"
+                 data-tip-title="Direction"
+                 data-tip="How many grains play forwards instead of backwards. At zero every grain is reversed. Turn it up and forward grains blend in as a clean delay tap — add Scatter to break them apart into a forward cloud. Level is matched across the whole range."><div class="knob-stem"></div></div>
+            <div class="knob-label">Direction</div>
+            <div class="knob-value" id="val-direction">&#8212;</div>
+          </div>
+
+          <div class="knob-cell">
+            <div class="knob" id="knob-regenMakeup" data-param="regenMakeup"
+                 data-tip-title="Regen"
+                 data-tip="Extra gain inside the feedback loop. The topology loses about 7 dB each time round, so at zero even Feedback 100 eventually fades; raise this to reach true endless wash and, past it, self-oscillation into the loop's soft clip."><div class="knob-stem"></div></div>
+            <div class="knob-label">Regen</div>
+            <div class="knob-value" id="val-regenMakeup">&#8212;</div>
+          </div>
+
+        </div>
       </section>
 
       </div><!-- /.group-row-2 -->

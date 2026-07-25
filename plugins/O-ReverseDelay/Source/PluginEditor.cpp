@@ -3,13 +3,23 @@
 
     O-ReverseDelay — Plugin Editor (implementation)
 
-    15 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
+    17 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
     highCut, width, mix + v1.1.0's jitter, delayScatter, sizeRandom, gainRandom
-    + v1.2.0's grainTilt + v1.3.0's grainCount + v1.4.0's tukeyTaper) + 3
-    WebComboBoxRelay controls (syncMode, noteDivision, grainShape) bound two-way
-    to the APVTS. The UI-02
+    + v1.2.0's grainTilt + v1.3.0's grainCount + v1.4.0's tukeyTaper + v1.6.0's
+    direction, regenMakeup) + 3 WebComboBoxRelay controls (syncMode,
+    noteDivision, grainShape) + 1 WebToggleButtonRelay (v1.6.0's freeze) bound
+    two-way to the APVTS. The UI-02
     Sync/Free control swap is pure JS — both controls stay relay-bound at all
     times, so neither is ever dead.
+
+    ── v1.6.0: the first toggle relay ────────────────────────────────────────
+    `freeze` is the plugin's only AudioParameterBool, and a bool needs its own
+    relay TYPE — the slider and combo relays will attach to it without
+    complaint and produce a switch whose state never changes. Three lists now
+    have to stay in step with createParameterLayout(): kSliderIds, kComboIds and
+    kToggleIds. tests/ui_frontend_check.js diffs all three against the APVTS in
+    both directions, which is the only thing that actually catches an id landing
+    in the wrong one.
 
     ── v1.3.0: this editor now polls the processor ───────────────────────────
     Stage 3's decision D10 was "no visualization, no Timer, no C++->JS polling
@@ -59,10 +69,23 @@ namespace
         // still relay-bound at all times (never conditionally attached), exactly
         // as the Sync/Free pair is, so it can never become a dead control. The UI
         // dims it; the binding stays live.
-        "tukeyTaper"
+        "tukeyTaper",
+        // v1.6.0 (B4 #2, #3): MOTION panel. `freeze` is the third control in
+        // that panel and is NOT here — it is a bool and belongs in kToggleIds
+        // below. That split is the same trap grainShape presented at v1.2.0 in a
+        // different type: a relay whose type does not match the parameter's
+        // attaches cleanly and then never updates.
+        "direction", "regenMakeup"
     };
 
     const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape" };
+
+    // v1.6.0: the plugin's first bool parameter, and therefore its first toggle
+    // relay. Kept as a StringArray rather than a bare id so the frontend check's
+    // layout-vs-editor diff can scan this block the same way it scans the other
+    // two — an AudioParameterBool that appeared in the APVTS and in NO relay list
+    // would otherwise be a silently dead switch.
+    const juce::StringArray kToggleIds { "freeze" };
 
     // v1.4.0: how many points the window-shape graph is sampled at. 128 is well
     // above the ~160 CSS px the canvas is drawn into, so the curve is smooth at
@@ -143,6 +166,9 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     for (const auto& id : kComboIds)
         comboRelays.push_back (std::make_unique<juce::WebComboBoxRelay> (id));
 
+    for (const auto& id : kToggleIds)
+        toggleRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (id));
+
     // 2. WEBVIEW options + relay registration --------------------------------
     auto options = juce::WebBrowserComponent::Options{}
         .withNativeIntegrationEnabled()
@@ -153,6 +179,12 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
         options = options.withOptionsFrom (*relay);
 
     for (const auto& relay : comboRelays)
+        options = options.withOptionsFrom (*relay);
+
+    // Registers "freeze" in initialisationData.__juce__toggles, which is the
+    // list Juce.getToggleState() checks before it will build a ToggleState.
+    // Miss this and the page throws on load rather than merely losing a control.
+    for (const auto& relay : toggleRelays)
         options = options.withOptionsFrom (*relay);
 
     // ── NATIVE FUNCTIONS — exactly 13 ──────────────────────────────────────
@@ -442,6 +474,16 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             comboAttachments.push_back (
                 std::make_unique<juce::WebComboBoxParameterAttachment> (
                     *param, *comboRelays[(size_t) i], nullptr));
+    }
+
+    for (int i = 0; i < kToggleIds.size(); ++i)
+    {
+        auto* param = processorRef.parameters.getParameter (kToggleIds[i]);
+        jassert (param != nullptr);
+        if (param != nullptr)
+            toggleAttachments.push_back (
+                std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                    *param, *toggleRelays[(size_t) i], nullptr));
     }
 
     addAndMakeVisible (*webView);

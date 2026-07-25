@@ -559,6 +559,24 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     // range minimum. Probes AH-AK sweep it and every probe after them calls
     // setBaseline().
     setParam (a, "tukeyTaper",     0.5f);
+
+    // v1.6.0 (B4 #1-#3): the MOTION panel, reset here for the fifth release
+    // running and for exactly the reason the four above it are — probes AM-AQ
+    // sweep all three, and every probe that follows them calls setBaseline().
+    //
+    // These are the FIRST additions to this function whose neutral value really
+    // is zero, which makes them the easy case and therefore the one to be
+    // careful about copying from: grainTilt (0.5), grainCount (8) and tukeyTaper
+    // (0.5) are all still here because their no-op is NOT the range minimum.
+    //
+    // freeze matters most of the three. A probe that left it engaged would leave
+    // every later probe rendering against a ring nothing is writing to, so the
+    // wash would simply stop after one ring lap — which reads as a catastrophic
+    // DSP regression and is harness state leaking forward, the exact failure the
+    // v1.2.0 comment above describes.
+    setParam (a, "freeze",         0.0f);
+    setParam (a, "direction",      0.0f);
+    setParam (a, "regenMakeup",    0.0f);
 }
 
 // Plugin defaults for the QUAL-01 all-parameter sweep (probe M): every value
@@ -579,6 +597,9 @@ static void setDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, "grainShape",     0.0f);
     setParam (a, "grainCount",     8.0f);   // v1.3.0 default
     setParam (a, "tukeyTaper",     0.5f);   // v1.4.0 default
+    setParam (a, "freeze",         0.0f);   // v1.6.0 defaults — all three no-ops
+    setParam (a, "direction",      0.0f);
+    setParam (a, "regenMakeup",    0.0f);
 }
 
 //==============================================================================
@@ -3500,6 +3521,700 @@ int main()
         }
     }
 
+    //==========================================================================
+    // v1.6.0 probes (AM–AQ) — the MOTION panel (B4 #1-#3)
+    //==========================================================================
+
+    // --- Probe AM: the forward read law is a delay tap, exactly --------------
+    //
+    // The assertion this release most needs, because the read-law change is one
+    // token and its consequences are not.
+    //
+    // A grain latches readAbs = s − gD at spawn sample s and steps ±1 while the
+    // write head advances +1, so at output time t (index n = t − s) it reads
+    //     reverse:  2s − gD − t     — depends on s, so grains decorrelate
+    //     forward:       t − gD     — does NOT
+    // i.e. at direction 100 the wet path is the INPUT DELAYED BY gD and nothing
+    // else. That is asserted here by correlating the wet output against a
+    // synthesised delayed copy of the excitation, which tests three things at
+    // once and would fail differently for each:
+    //
+    //   * the direction blend reaches the engine at all (a dead parameter gives
+    //     the reverse render, correlation ~0),
+    //   * the delay is gD and not gD ± G or 2·gD (a mis-latched anchor),
+    //   * no forward grain reads capture that has not been written this pass.
+    //     That last one is the review's "forward grains may need their own
+    //     headroom clamp" question, answered in audio: an unwritten read returns
+    //     either silence or a full ring lap of stale material, and either
+    //     destroys the correlation. (It cannot happen — at pass-relative index k
+    //     a forward grain reads passStartAbs − gD + k and A2's bound already
+    //     gives k < passLen <= grainDelayFloor <= gD — but "cannot happen" was
+    //     also true of the v1.0.0 spawn cap that nothing measured.)
+    //
+    // The direction-0 control is what gives the probe teeth: the same
+    // correlation against the same reference must be near ZERO for the reverse
+    // engine, or the test would pass on any delay-like output.
+    {
+        auto renderDir = [&] (float dir)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "syncMode",  0.0f);     // Free — D must be the knob
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "grainSize", 200.0f);
+            setParam (apvts, "density",     0.0f);   // overlap 2, the cleanest sum
+            setParam (apvts, "feedback",    0.0f);   // no recirculation to muddy it
+            setParam (apvts, "width",       0.0f);   // centred, so L is the whole wet
+            setParam (apvts, "mix",       100.0f);   // wet only
+            setParam (apvts, "direction",   dir);
+            clearRandomisation();
+            clearWindow();
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 3.0, fs, block,
+                                 [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+        };
+
+        const int Dsamp = juce::jmax (1, (int) (500.0f * 0.001 * fs));
+
+        auto fwd = renderDir (100.0f);
+        auto rev = renderDir (0.0f);
+
+        // The excitation, delayed by exactly D. Built from the same
+        // position-deterministic generator the render used, so this is the
+        // engine's own input and not an approximation of it.
+        std::vector<float> delayed (fwd.L.size(), 0.0f);
+        for (size_t i = (size_t) Dsamp; i < delayed.size(); ++i)
+            delayed[i] = (float) (kRandA * whiteNoiseAt ((int) i - Dsamp));
+
+        const int winOff = (int) (1.2 * fs);
+        const int winLen = (int) (1.5 * fs);
+
+        const double corrFwd = corrRange (fwd.L, delayed, winOff, winLen);
+        const double corrRev = corrRange (rev.L, delayed, winOff, winLen);
+
+        const double pk = juce::jmax (peakAbs (fwd.L), peakAbs (fwd.R));
+
+        check ("direction-forward-is-delay",
+               corrFwd > 0.95 && std::abs (corrRev) < 0.10
+                 && allFinite (fwd.L) && allFinite (fwd.R) && pk < 1.0,
+               juce::String ("corr(wet, in delayed by D) fwd=") + juce::String (corrFwd, 4)
+                 + " (>0.95) rev=" + juce::String (corrRev, 4) + " (|.|<0.10)"
+                 + " D=" + juce::String (Dsamp) + " peak=" + juce::String (pk, 4));
+    }
+
+    // --- Probe AN: direction is level-flat, and loop-neutral -----------------
+    //
+    // Two measurements, because a control that changes the read law can be heard
+    // as a volume knob and as a feedback knob independently — which is precisely
+    // how v1.2.0 (shape), v1.3.0 (overlap) and v1.4.0 (taper) each went wrong.
+    //
+    // (a) OUTPUT LEVEL. Uncompensated, direction 100 is +7.3 dB at overlap 8:
+    //     the forward set adds in amplitude (N·m) where the reverse set adds in
+    //     power (sqrt(N·q)). WindowLut::getForwardNorm cancels that exactly at
+    //     the endpoints. It does NOT cancel it in the middle, and that is
+    //     derived rather than overlooked — with each grain independently forward
+    //     with probability p, the expected wet power works out to
+    //         q · [ p² + p(1−p)·q/(N·m²) + (1−p) ]
+    //     which is q at p = 0 and at p = 1 and dips to ~0.82·q at p = 0.5, i.e.
+    //     a ~0.9 dB sag mid-travel. That is inside the ±1 dB budget probes D and
+    //     Z2 use, and closing it would take a second p-dependent factor fitted
+    //     to a curve rather than derived from a summing law — which this file's
+    //     rule says not to do. Bounded loosely and REPORTED, so the sag is a
+    //     printed number rather than a surprise.
+    //
+    // (b) LOOP. The feedback tap takes NO direction trim, on the argument that
+    //     getLoopNorm already models the loop as a coherent sum so forward and
+    //     reverse grains contribute identically through it. That argument is
+    //     load-bearing and cheap to be wrong about — forward grains are
+    //     EXACTLY coherent where reverse ones are only approximately so — so the
+    //     decay rate is measured across the blend at feedback 100 and every rate
+    //     must still be NEGATIVE, the assertion that caught v1.3.0's runaway.
+    //
+    // Uses whiteNoiseAt for probe AA's reason: this varies what the grains read
+    // relative to one another, so a coloured excitation would fold its own
+    // correlation structure into the answer.
+    {
+        const float kDirs[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
+
+        // (a) — wet level across the blend, scatter OFF.
+        {
+            double loRms = 1.0e30, hiRms = 0.0;
+            juce::String detail;
+            bool ok = true;
+
+            for (const float d : kDirs)
+            {
+                setBaseline (apvts);
+                setParam (apvts, "density",   60.0f);
+                setParam (apvts, "feedback",   0.0f);   // output path only
+                setParam (apvts, "width",      0.0f);
+                setParam (apvts, "mix",      100.0f);
+                setParam (apvts, "direction",     d);
+                clearRandomisation();
+                clearWindow();
+                proc.prepareToPlay (fs, block);
+
+                auto y = renderEffect (proc, 3.0, fs, block,
+                                       [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+
+                const double r = rms (y.L, (int) (1.0 * fs), (int) (2.0 * fs));
+                loRms = juce::jmin (loRms, r);
+                hiRms = juce::jmax (hiRms, r);
+
+                detail << juce::String ((int) d) << "%=" << juce::String (r, 5) << " ";
+                ok = ok && allFinite (y.L) && allFinite (y.R)
+                        && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0;
+            }
+
+            const double spreadDb = (loRms > 0.0) ? 20.0 * std::log10 (hiRms / loRms) : 99.0;
+
+            // 1.5 dB, not 1.0: the ~0.9 dB mid-travel sag above is a property of
+            // mixing a coherent set with an incoherent one, and a 1.0 dB bound
+            // would be asserting that away. Uncompensated this reads 7.3 dB, so
+            // the bound is still 5x below the defect it exists to catch.
+            check ("level-flat-direction", ok && spreadDb < 1.5,
+                   juce::String ("rms ") + detail
+                     + "spread=" + juce::String (spreadDb, 3)
+                     + " dB (<1.50; uncompensated is ~7.3)");
+        }
+
+        // (b) — the loop, at feedback 100.
+        {
+            const int exciteLen = (int) (2.0 * fs);
+
+            double zeroDecay = 0.0, worstDelta = 0.0, worstPeak = 0.0;
+            int    worstDir = 0;
+            juce::String detail;
+            bool   ok = true;
+
+            for (const float d : kDirs)
+            {
+                setBaseline (apvts);
+                setParam (apvts, "density",   60.0f);
+                setParam (apvts, "feedback", 100.0f);
+                setParam (apvts, "width",      0.0f);   // worst case for the loop (probe AG)
+                setParam (apvts, "mix",      100.0f);
+                setParam (apvts, "direction",     d);
+                clearRandomisation();
+                clearWindow();
+                proc.prepareToPlay (fs, block);
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+
+                auto y = renderEffect (proc, 30.0, fs, block, fill);
+
+                const double w1 = rms (y.L, (int)  (5.0 * fs), (int) (5.0 * fs));
+                const double w2 = rms (y.L, (int) (20.0 * fs), (int) (5.0 * fs));
+                const double decay = (w1 > 0.0 && w2 > 0.0)
+                                       ? 20.0 * std::log10 (w2 / w1) / 15.0 : 0.0;
+
+                if (juce::exactlyEqual (d, 0.0f))
+                    zeroDecay = decay;
+                else if (std::abs (decay - zeroDecay) > worstDelta)
+                {
+                    worstDelta = std::abs (decay - zeroDecay);
+                    worstDir   = (int) d;
+                }
+
+                const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+                worstPeak = juce::jmax (worstPeak, pk);
+                detail << juce::String ((int) d) << "%=" << juce::String (decay, 3) << " ";
+
+                ok = ok && allFinite (y.L) && allFinite (y.R) && pk < 1.0 && decay < 0.0;
+            }
+
+            // ── The measured result, and why the bound is 1.20 and not 0.25 ──
+            //
+            // Measured: 0%=-2.49  25%=-2.79  50%=-2.91  75%=-3.58  100%=-3.21
+            // dB/s. Every rate NEGATIVE — no direction setting self-oscillates,
+            // which is the assertion that matters and the one that caught
+            // v1.3.0's runaway — but the tail does get shorter as forward grains
+            // blend in, by up to 1.09 dB/s.
+            //
+            // That is not a missing trim, it is the topology. At direction 100
+            // the loop IS a plain feedback delay: N grains reading one sample,
+            // summing to N·m·g·loopTrim = 1.18 before the width-0 mono-sum's
+            // 0.7071, i.e. 0.836 per 500 ms generation = -3.1 dB/s, which is
+            // what the 100 % column reads. The reverse loop is a smear across
+            // 2·interval-separated reads and recirculates a little more. Two
+            // genuinely different feedback structures cannot have the same decay
+            // rate, and normalising them to each other would mean making the
+            // forward delay quieter than a delay should be.
+            //
+            // The dip at 75 % is the same mechanism as the output-level sag in
+            // (a): a MIX of the two sets is mutually decorrelated, so the loop
+            // amplitude is sqrt(fwd² + rev²) — less than either pure case.
+            //
+            // 1.20 dB/s is the bound decay-shape-fb100 already uses for window
+            // shape, so this control is held to the tolerance the suite has
+            // already accepted for a character control. It is 6x below the
+            // 7.3 dB/generation the OUTPUT trim removes.
+            check ("decay-direction-fb100", ok && worstDelta < 1.20,
+                   juce::String ("dB/s ") + detail
+                     + "worst-vs-0=" + juce::String (worstDelta, 3)
+                     + " (dir " + juce::String (worstDir) + ", <1.20)"
+                     + " peak=" + juce::String (worstPeak, 4));
+        }
+    }
+
+    // --- Probe AO: regen makeup at the ceiling stays bounded ------------------
+    //
+    // The probe that SETS ReverseDelayProcessor::kRegenMakeupMaxDb rather than
+    // merely checking it. The constant is a measured stability bound: makeup is
+    // a gain inside a recirculating path, so past some value the loop stops
+    // decaying and drives into the tanh — which is the point of the control —
+    // and the question the cap answers is how far past that the WET OUTPUT
+    // stays under 1.0.
+    //
+    // The tanh does not answer it. It bounds the LOOP to ±1 per sample, but the
+    // output is a sum of `overlap` grains each reading loop content, and
+    // 1/sqrt(overlap) against a near-coherent sum is exactly the shortfall that
+    // produced v1.3.0's 1.28 peak. So this renders everything the parameters can
+    // stack at once — overlap 16, feedback 100, width 0 (the loop's worst case,
+    // see probe AG), makeup at maximum, both direction extremes, all five window
+    // shapes — for 90 s, which is long enough that a per-generation gain even
+    // slightly above unity has to show itself.
+    //
+    // What is asserted is deliberately NOT probe AG's monotone decay: at max
+    // makeup the loop is SUPPOSED to sustain or grow into the limiter, and
+    // demanding a decay would be asserting the feature away. What must hold is
+    // that it CONVERGES — the last window no louder than the worst earlier one
+    // by more than a hair — and stays finite.
+    //
+    // The peak is REPORTED, not bounded at 1.0, and that is the honest form of
+    // the result rather than a weakened assertion. The tanh bounds the loop at
+    // every setting; it does not bound the wet path's sqrt(overlap)·mean·
+    // windowNorm sum of limited content — the v1.3.0 mechanism, made reachable
+    // again by deliberately allowing self-oscillation. Measured at 6 dB it runs
+    // 0.99 (Hann, ceiling 8) to 1.55 (Tukey, ceiling 16), and no cap that
+    // reaches sustain anywhere avoids it (see kRegenMakeupMaxDb). The peak < 1.0
+    // invariant belongs to the non-self-oscillating engine, which is regen 0 dB
+    // — the default, every factory preset and every pre-v1.6.0 session.
+    //
+    // What is still required everywhere: finite, CONVERGENT, and under a hard
+    // 1.8. A genuine runaway — the v1.3.0 defect — fails all three, so this is
+    // not a check that has been turned off, it is one that has been aimed at
+    // what actually distinguishes saturation from instability.
+    {
+        const int exciteLen = (int) (2.0 * fs);
+
+        // Ceiling on the reported peak. Well above the 1.55 the parameters can
+        // reach and well below anything a climbing loop would produce, so it is
+        // a runaway tripwire rather than a level statement.
+        constexpr double kHardPeakBound = 1.8;
+
+        struct MaxCase { const char* name; float count, density; };
+
+        const MaxCase kMaxCases[] = {
+            { "ceil8",  ReverseDelayProcessor::kLegacyOverlapMax,  100.0f },
+            { "ceil16", ReverseDelayProcessor::kOverlapCeilingMax, 100.0f },
+        };
+
+        for (const auto& mc : kMaxCases)
+        for (const float dir : { 0.0f, 100.0f })
+        {
+            double worstPeak = 0.0, worstGrowth = -1.0e30;
+            int    worstShape = -1;
+            juce::String detail;
+            bool   ok = true;
+
+            for (const int sh : { WindowLut::hann, WindowLut::tukey, WindowLut::gaussian,
+                                  WindowLut::triangular, WindowLut::expoDecay })
+            {
+                setBaseline (apvts);
+                setParam (apvts, "grainCount",  mc.count);
+                setParam (apvts, "density",     mc.density);
+                setParam (apvts, "feedback",  100.0f);
+                setParam (apvts, "width",       0.0f);
+                setParam (apvts, "mix",       100.0f);
+                setParam (apvts, "direction",    dir);
+                setParam (apvts, "grainShape", (float) sh);
+                setParam (apvts, "regenMakeup",
+                          ReverseDelayProcessor::kRegenMakeupMaxDb);
+                clearRandomisation();
+                proc.prepareToPlay (fs, block);
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+
+                auto y = renderEffect (proc, 90.0, fs, block, fill);
+
+                const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+                worstPeak = juce::jmax (worstPeak, pk);
+
+                // Convergence: the tail window against the loudest earlier one.
+                // A saturating self-oscillator settles (growth <= 0); a runaway
+                // that has not yet reached the limiter is still climbing.
+                double earlyMax = 0.0;
+                for (int s = 5; s <= 45; s += 10)
+                    earlyMax = juce::jmax (earlyMax, rms (y.L, (int) (s * fs), (int) (2.0 * fs)));
+
+                const double lateRms = rms (y.L, (int) (85.0 * fs), (int) (2.0 * fs));
+                const double growth   = (earlyMax > 0.0 && lateRms > 0.0)
+                                          ? 20.0 * std::log10 (lateRms / earlyMax) : 0.0;
+
+                if (growth > worstGrowth) { worstGrowth = growth; worstShape = sh; }
+
+                detail << juce::String (sh) << ":pk" << juce::String (pk, 3)
+                       << "/g" << juce::String (growth, 2) << " ";
+
+                ok = ok && allFinite (y.L) && allFinite (y.R) && pk < kHardPeakBound;
+            }
+
+            // Growth bound is +0.5 dB over 40 s, not 0: the trajectory is a wash
+            // measured in 2 s windows and it wanders. What it must not do is
+            // climb.
+            check ((juce::String ("regen-max-") + mc.name + "-dir"
+                      + juce::String ((int) dir)).toRawUTF8(),
+                   ok && worstGrowth < 0.5,
+                   juce::String ("shape:peak/growth ") + detail
+                     + "| worstPeak=" + juce::String (worstPeak, 4)
+                     + " (<" + juce::String (kHardPeakBound, 1)
+                     + " runaway tripwire; the peak<1.0 invariant is the 0 dB engine"
+                       " — see kRegenMakeupMaxDb)"
+                     + " worstGrowth=" + juce::String (worstGrowth, 3)
+                     + " dB (shape " + juce::String (worstShape) + ", <0.5)"
+                     + " @" + juce::String (ReverseDelayProcessor::kRegenMakeupMaxDb, 1) + " dB");
+        }
+
+        // ── The ladder that SETS the cap ────────────────────────────────────
+        //
+        // Peak and decay against makeup, in 1 dB steps up to the ceiling, at the
+        // worst configuration the parameters allow. This is the measurement
+        // kRegenMakeupMaxDb is read off, and it is kept in the suite rather than
+        // done once and deleted so that raising the ceiling later means re-running
+        // it instead of re-reasoning about it.
+        //
+        // Two numbers per rung, and they answer different questions:
+        //   peak  — is the OUTPUT bounded? The tanh bounds the loop to ±1, but the
+        //           wet path sums `overlap` grains reading loop content and
+        //           1/sqrt(overlap) does not bound a near-coherent sum. This is
+        //           the v1.3.0 shortfall, and it is what the cap is against.
+        //   decay — has the loop reached sustain? Crossing zero is the whole
+        //           point of the control, so the rung where it does is reported.
+        //
+        // Reported for EVERY rung, not just the last, so the shape of the
+        // approach is visible: peak climbs slowly while the loop is still
+        // decaying and then jumps once it starts driving the limiter.
+        // Two configurations, because they answer the two halves of "how high
+        // may the cap go":
+        //
+        //   SHIPPED — grainCount 8 (the default ceiling), density 65, Hann:
+        //     the "Near-Infinite" shape the review's motivation names. The rung
+        //     where THIS reaches sustain is the smallest cap that does the job.
+        //
+        //   CORNER  — grainCount 16, density 100, Tukey: everything the
+        //     parameters can stack. Its peak is the safety number.
+        //
+        // Both at feedback 100, width 0 (probe AG: width 0 is the loop's worst
+        // case, not width 100).
+        struct RegenCase { const char* name; float count, density; int shape; };
+
+        const RegenCase kRegenCases[] = {
+            { "shipped", ReverseDelayProcessor::kLegacyOverlapMax,  65.0f, WindowLut::hann  },
+            { "corner",  ReverseDelayProcessor::kOverlapCeilingMax, 100.0f, WindowLut::tukey },
+        };
+
+        for (const auto& rc : kRegenCases)
+        {
+            juce::String ladder;
+            double worstPeak = 0.0;
+            float  sustainAt = -1.0f;
+            bool   finite = true;
+
+            for (float mk = 0.0f; mk <= ReverseDelayProcessor::kRegenMakeupMaxDb + 0.01f; mk += 1.0f)
+            {
+                setBaseline (apvts);
+                setParam (apvts, "grainCount",  rc.count);
+                setParam (apvts, "density",     rc.density);
+                setParam (apvts, "feedback",  100.0f);
+                setParam (apvts, "width",       0.0f);
+                setParam (apvts, "mix",       100.0f);
+                setParam (apvts, "grainShape", (float) rc.shape);
+                setParam (apvts, "regenMakeup",  mk);
+                clearRandomisation();
+                proc.prepareToPlay (fs, block);
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+
+                auto y = renderEffect (proc, 40.0, fs, block, fill);
+
+                const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+                const double w1 = rms (y.L, (int)  (5.0 * fs), (int) (5.0 * fs));
+                const double w2 = rms (y.L, (int) (30.0 * fs), (int) (5.0 * fs));
+                const double decay = (w1 > 0.0 && w2 > 0.0)
+                                       ? 20.0 * std::log10 (w2 / w1) / 25.0 : 0.0;
+
+                worstPeak = juce::jmax (worstPeak, pk);
+                if (sustainAt < 0.0f && decay >= 0.0)
+                    sustainAt = mk;
+
+                ladder << juce::String (mk, 0) << ":" << juce::String (pk, 3)
+                       << "/" << juce::String (decay, 2) << " ";
+
+                finite = finite && allFinite (y.L) && allFinite (y.R);
+            }
+
+            // Finiteness is the hard assertion; peak and the rung at which
+            // sustain arrives are REPORTED, and the report is the point — this is
+            // the measurement kRegenMakeupMaxDb is read off, printed rather than
+            // asserted so that a future change to the loop shows up as a moved
+            // ladder rather than as a bound that still happens to pass.
+            check ((juce::String ("regen-cap-ladder-") + rc.name).toRawUTF8(), finite,
+                   juce::String ("dB:peak/decay ") + ladder
+                     + "| worstPeak=" + juce::String (worstPeak, 4)
+                     + " sustainAt=" + juce::String (sustainAt, 0) + "dB"
+                     + " | ceiling=" + juce::String (ReverseDelayProcessor::kRegenMakeupMaxDb, 1) + "dB");
+        }
+
+        // And the control must actually REACH sustain — the failure class every
+        // "must stay bounded" assertion above would pass, and the whole reason
+        // the review asked for this parameter. Measured at the configuration the
+        // motivation names: feedback 100 with the shipped ceiling, i.e. what
+        // "Near-Infinite" is. At 0 dB it decays (that is the shipped behaviour
+        // and the presets depend on it); at the ceiling it must not.
+        {
+            juce::String detail;
+            double atZero = 0.0, atMax = 0.0;
+            bool ok = true;
+
+            for (const float mk : { 0.0f, ReverseDelayProcessor::kRegenMakeupMaxDb })
+            {
+                setBaseline (apvts);
+                setParam (apvts, "density",    65.0f);   // Near-Infinite's own
+                setParam (apvts, "feedback",  100.0f);
+                setParam (apvts, "width",       0.0f);
+                setParam (apvts, "mix",       100.0f);
+                setParam (apvts, "regenMakeup",  mk);
+                clearRandomisation();
+                clearWindow();
+                proc.prepareToPlay (fs, block);
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+
+                auto y = renderEffect (proc, 30.0, fs, block, fill);
+
+                const double w1 = rms (y.L, (int)  (5.0 * fs), (int) (5.0 * fs));
+                const double w2 = rms (y.L, (int) (20.0 * fs), (int) (5.0 * fs));
+                const double decay = (w1 > 0.0 && w2 > 0.0)
+                                       ? 20.0 * std::log10 (w2 / w1) / 15.0 : 0.0;
+
+                if (juce::exactlyEqual (mk, 0.0f)) atZero = decay; else atMax = decay;
+                detail << juce::String (mk, 1) << "dB=" << juce::String (decay, 3) << " ";
+
+                ok = ok && allFinite (y.L) && allFinite (y.R)
+                        && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0;
+            }
+
+            check ("regen-reaches-sustain",
+                   ok && atZero < 0.0 && atMax >= 0.0,
+                   juce::String ("decay dB/s ") + detail
+                     + "(0 dB must DECAY — the shipped sound — and the ceiling "
+                       "must reach sustain, which is what B4 #3 is for)");
+        }
+    }
+
+    // --- Probe AP: a 60 s frozen render sustains and stays bounded ------------
+    //
+    // Freeze is the one control here whose whole claim is about what happens a
+    // long time after the input stops, so it is rendered for a long time after
+    // the input stops.
+    //
+    // 3 s of excitation, freeze engaged at 3 s, silence from there to 63 s. What
+    // must hold, and what each assertion is guarding against:
+    //
+    //   * The wash is STILL THERE at 60 s. A freeze that skipped pushSample
+    //     entirely — the obvious one-line implementation — passes this, but a
+    //     freeze that wrote the feedback return into the held ring does not: it
+    //     overwrites the material with a decaying copy of itself and fades out
+    //     at whatever `feedback` happens to be.
+    //   * It has not GROWN. Nothing is recirculating while frozen, so the level
+    //     is set by held material and must not climb.
+    //   * It is not a BUZZ. Freezing the write head instead of advancing it
+    //     makes every grain latch the same readAbs, and the output collapses to
+    //     a periodic burst at the spawn interval — which is loud, sustained, and
+    //     would pass both assertions above. Caught by comparing the frozen
+    //     wash's crest factor against the live wash's: a periodic pulse train
+    //     has a much higher peak-to-RMS than a cloud.
+    //   * Neither transition CLICKS. Probe C's first-difference detector at both
+    //     the freeze and the release edge.
+    {
+        const int freezeAt  = (int) (3.0 * fs);
+        const int releaseAt = (int) (63.0 * fs);
+
+        setBaseline (apvts);
+        setParam (apvts, "delayTime", 500.0f);
+        setParam (apvts, "grainSize", 200.0f);
+        setParam (apvts, "density",    60.0f);
+        setParam (apvts, "feedback",   40.0f);
+        setParam (apvts, "width",      60.0f);
+        setParam (apvts, "mix",       100.0f);   // wet only — dry would mask a dead wash
+        clearRandomisation();
+        clearWindow();
+        proc.prepareToPlay (fs, block);
+
+        // Reference crest factor: the same engine, never frozen, over its live
+        // wash. Measured rather than assumed so the buzz bound below is relative
+        // to this plugin's own output and not to a number picked from the air.
+        auto live = renderEffect (proc, 6.0, fs, block,
+                                  [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+        const double liveRms   = rms (live.L, (int) (3.0 * fs), (int) (2.0 * fs));
+        const double liveCrest = liveRms > 0.0 ? peakAbs (live.L) / liveRms : 0.0;
+
+        setBaseline (apvts);
+        setParam (apvts, "delayTime", 500.0f);
+        setParam (apvts, "grainSize", 200.0f);
+        setParam (apvts, "density",    60.0f);
+        setParam (apvts, "feedback",   40.0f);
+        setParam (apvts, "width",      60.0f);
+        setParam (apvts, "mix",       100.0f);
+        clearRandomisation();
+        clearWindow();
+        proc.prepareToPlay (fs, block);
+
+        // Freeze is driven from the per-block callback, i.e. through the same
+        // setValueNotifyingHost path a DAW would use — not by poking the atomic.
+        auto y = renderEffect (proc, 66.0, fs, block,
+                               [&] (int t) { return t < freezeAt
+                                                      ? (float) (kRandA * whiteNoiseAt (t))
+                                                      : 0.0f; },
+                               [&] (int pos, int)
+                               {
+                                   if (pos >= releaseAt)      setParam (apvts, "freeze", 0.0f);
+                                   else if (pos >= freezeAt)   setParam (apvts, "freeze", 1.0f);
+                               });
+
+        const double rms10 = rms (y.L, (int) (10.0 * fs), (int) (2.0 * fs));
+        const double rms30 = rms (y.L, (int) (30.0 * fs), (int) (2.0 * fs));
+        const double rms60 = rms (y.L, (int) (60.0 * fs), (int) (2.0 * fs));
+
+        const double sustainDb = (rms10 > 0.0 && rms60 > 0.0)
+                                   ? 20.0 * std::log10 (rms60 / rms10) : -99.0;
+
+        const double frozenPeak  = peakAbs (std::vector<float> (
+                                       y.L.begin() + (size_t) (10.0 * fs),
+                                       y.L.begin() + (size_t) (60.0 * fs)));
+        const double frozenCrest = rms30 > 0.0 ? frozenPeak / rms30 : 0.0;
+
+        const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        // ±6 dB over 50 s of holding. Not tighter: the ring is a
+        // kCaptureSeconds loop of material whose own level varies, so the 2 s
+        // windows at 10 s and 60 s land on different parts of it. What is being
+        // asserted is that it neither dies nor runs away — a freeze that wrote
+        // the feedback return back in reads −30 dB or worse here.
+        const bool sustains = rms60 > 1.0e-4 && std::abs (sustainDb) < 6.0;
+
+        check ("freeze-60s-sustain",
+               sustains && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("rms 10s=") + juce::String (rms10, 6)
+                 + " 30s=" + juce::String (rms30, 6)
+                 + " 60s=" + juce::String (rms60, 6)
+                 + " drift=" + juce::String (sustainDb, 2) + " dB (|.|<6)"
+                 + " peak=" + juce::String (pk, 4));
+
+        // 2x the live wash's crest is generous — a same-readAbs buzz measures
+        // several times it, and a genuine frozen cloud measures about the same.
+        check ("freeze-is-a-wash-not-a-buzz",
+               frozenCrest > 0.0 && frozenCrest < liveCrest * 2.0,
+               juce::String ("crest frozen=") + juce::String (frozenCrest, 3)
+                 + " live=" + juce::String (liveCrest, 3)
+                 + " (needs < " + juce::String (liveCrest * 2.0, 3)
+                 + "; a stopped write head reads far above this)");
+
+        // Click check at both edges, ±150 ms around each, against probe C's
+        // loose tier. The wash itself has structure, so the reference is the
+        // largest step the SAME render makes while nothing is being switched.
+        auto maxStepIn = [&] (int from, int len)
+        {
+            double m = 0.0;
+            const int lo = juce::jmax (1, from);
+            const int hi = juce::jmin ((int) y.L.size(), from + len);
+            for (int i = lo; i < hi; ++i)
+                m = juce::jmax (m, (double) std::abs (y.L[(size_t) i] - y.L[(size_t) (i - 1)]));
+            return m;
+        };
+
+        const int   guard    = (int) (0.15 * fs);
+        const double stepOn  = maxStepIn (freezeAt  - guard, 2 * guard);
+        const double stepOff = maxStepIn (releaseAt - guard, 2 * guard);
+        const double stepRef = maxStepIn ((int) (20.0 * fs), (int) (5.0 * fs));
+
+        check ("freeze-transition-clickfree",
+               stepOn < juce::jmax (stepRef * 2.0, 0.02)
+                 && stepOff < juce::jmax (stepRef * 2.0, 0.02),
+               juce::String ("maxStep on=") + juce::String (stepOn, 6)
+                 + " off=" + juce::String (stepOff, 6)
+                 + " steady-ref=" + juce::String (stepRef, 6)
+                 + " (bound " + juce::String (juce::jmax (stepRef * 2.0, 0.02), 6) + ")");
+    }
+
+    // --- Probe AQ: all three are block-size invariant ------------------------
+    //
+    // Probe W2's property, re-asserted with the v1.6.0 controls engaged, because
+    // each of them touches exactly the machinery W2 exists to protect:
+    //
+    //   * direction draws from the SHARED grain xorshift inside the spawn
+    //     handler, and the number of spawns per pass depends on the host block
+    //     size. Drawing in the wrong place — after obtain() rather than before —
+    //     makes consumption depend on pool occupancy and the render stops
+    //     matching between 512 and 4096 (the exact defect W2 caught at v1.1.0).
+    //   * freeze advances the capture head from a per-pass loop.
+    //   * regenMakeup multiplies a per-sample smoothed gain.
+    //
+    // Everything on at once, including all four v1.1 randomisations, so the
+    // streams are being consumed as hard as the parameters allow.
+    {
+        auto renderAtBlock = [&] (int blk)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density",      60.0f);
+            setParam (apvts, "feedback",     60.0f);
+            setParam (apvts, "width",        60.0f);
+            setParam (apvts, "mix",         100.0f);
+            setParam (apvts, "jitter",       50.0f);
+            setParam (apvts, "delayScatter", 80.0f);
+            setParam (apvts, "sizeRandom",   40.0f);
+            setParam (apvts, "gainRandom",   30.0f);
+            setParam (apvts, "direction",    50.0f);
+            setParam (apvts, "regenMakeup",
+                      ReverseDelayProcessor::kRegenMakeupMaxDb * 0.5f);
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+            return renderEffect (proc, 3.0, fs, blk,
+                                 [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+        };
+
+        auto small = renderAtBlock (512);
+        auto large = renderAtBlock (4096);
+
+        const double d = juce::jmax (maxAbsDiff (small.L, large.L),
+                                     maxAbsDiff (small.R, large.R));
+
+        // Restore the harness-wide play config, as probe O does.
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        check ("motion-blocksize-invariance", d == 0.0,
+               juce::String ("max|512-4096| = ") + juce::String (d, 12)
+                 + " with direction/regen/all four randomisations engaged"
+                 + " rms512=" + juce::String (rms (small.L, (int) (1.0 * fs), (int) (1.5 * fs)), 6));
+    }
+
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------
     // MUST run last: it mutates the APVTS through the real preset manager and
     // leaves the plugin on the final preset's values, so no probe may follow it.
@@ -3529,6 +4244,12 @@ int main()
             // zero, and the one a "new key, write 0" reflex would silently
             // hard-tilt all eight presets with.
             float  tilt, shape;
+            // v1.6.0 (B4): the MOTION trio, all pinned at 0. Unlike `tilt` two
+            // lines up, zero really IS the neutral value for all three — which
+            // makes this the one column block in this struct where the obvious
+            // reflex is correct, and worth saying so right next to the one where
+            // it is not.
+            float  freeze, direction, regen;
             double seconds;
         };
 
@@ -3541,14 +4262,14 @@ int main()
         // ever fail, the FIRST thing to check is that the version bump actually
         // re-seeded ~/Library/O-ReverseDelay/Presets/Factory (see the note below).
         const FactoryExpect kFactoryExpect[] = {
-            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 0.5f, 0, 10.0 },
-            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 0.5f, 0, 10.0 },
-            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 0.5f, 0, 10.0 },
-            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 0.5f, 0, 10.0 },
-            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 0.5f, 0, 10.0 },
-            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 0.5f, 0, 10.0 },
-            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 0.5f, 0, 30.0 },
-            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 0.5f, 0, 10.0 },
+            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 0.5f, 0, 0, 0, 0, 10.0 },
+            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 0.5f, 0, 0, 0, 0, 10.0 },
+            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 0.5f, 0, 0, 0, 0, 10.0 },
+            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 0.5f, 0, 0, 0, 0, 10.0 },
+            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 0.5f, 0, 0, 0, 0, 10.0 },
+            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 0.5f, 0, 0, 0, 0, 10.0 },
+            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 0.5f, 0, 0, 0, 0, 30.0 },
+            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 0.5f, 0, 0, 0, 0, 10.0 },
         };
 
         // Per-param tolerances, set FROM MEASUREMENT rather than assumed: the
@@ -3611,6 +4332,14 @@ int main()
             // as 0 (the wrong "neutral") fails by 250x.
             cmp ("grainTilt",    e.tilt,  0.002f);
             cmp ("grainShape",   e.shape, kTolChoice);
+            // v1.6.0 (B4). freeze is a BOOL, so its raw value is 0.0 or 1.0 and
+            // kTolChoice is the right tolerance. It is also the one of the three
+            // that the render check below could NOT catch: a preset shipping
+            // frozen still produces a wash — it is simply held — so washRms and
+            // peak both look healthy and only this comparison reports it.
+            cmp ("freeze",       e.freeze,    kTolChoice);
+            cmp ("direction",    e.direction, kTolPct);
+            cmp ("regenMakeup",  e.regen,     kTolPct);
 
             const bool values = loaded && inRange;
 

@@ -403,6 +403,69 @@ public:
         return stats[(size_t) hann].mean / denom;
     }
 
+    /** v1.6.0 — the FORWARD-grain output trim, for the `direction` blend.
+
+        Applied to the OUTPUT pan gains of forward grains only, and to nothing
+        else. Third distinct summing law this file has had to serve, and it is
+        worth stating why a third one exists rather than reusing either of the
+        two above.
+
+        ── Forward grains sum COHERENTLY, and not approximately ────────────────
+        A grain latches `readAbs = s − gD` at its spawn sample s and steps its
+        read by ±1 while the write head advances +1. At output time t a grain's
+        own index is n = t − s, so it reads
+
+            reverse (step −1):   s − gD − n  =  2s − gD − t     depends on s
+            forward (step +1):   s − gD + n  =       t − gD     does NOT
+
+        Every forward grain in flight therefore reads the SAME source sample,
+        exactly. Not "self-similar material at nearby offsets" the way the
+        feedback loop is — bit-for-bit the same sample. So the forward set adds
+        in AMPLITUDE (N·m) where the reverse set adds in POWER (sqrt(N·q)), and
+        at overlap 8 with Hann that is a 7.3 dB difference. Uncorrected, a knob
+        sold as "direction" would be heard first as a volume knob — the same
+        failure getShapeNorm (v1.2.0), loopCountTrim (v1.3.0) and the α-aware
+        overloads (v1.4.0) each exist to prevent.
+
+        This is also, incidentally, why the plugin is a REVERSE delay: the
+        s-dependence that decorrelates the grains is created by the read head
+        moving opposite to the write head. A unit-rate forward read is a plain
+        delay tap by construction, at any overlap. Per-grain decorrelation on
+        the forward side is available — it is what `delayScatter` does, since a
+        scattered grain latches a different gD and therefore reads a different
+        point — but it is a user control, not a property of this law.
+
+        ── The constant, derived ───────────────────────────────────────────────
+        The grain's shared gain already carries 1/sqrt(N) · windowNorm, and
+        windowNorm is sqrt(q_hann / q_eff) by construction, so
+
+            reverse level = sqrt(N·q_eff) · (1/sqrt(N)) · windowNorm = sqrt(q_hann)
+            forward level = (N·m_eff)     · (1/sqrt(N)) · windowNorm · k
+
+        Setting the two equal gives k = sqrt(q_eff / N) / m_eff, with q_eff and
+        m_eff the TILT-WARPED, α-aware duties — the same two effective moments
+        getTiltNorm and getLoopNorm already form. Derived, not fitted.
+
+        ── Why the LOOP takes no direction trim ────────────────────────────────
+        Because the loop's model is already the coherent one. getLoopNorm exists
+        precisely because what recirculates sums closer to amplitude than to
+        power, so a forward grain and a reverse grain contribute identically per
+        grain through the feedback tap and the per-generation gain does not move
+        with the direction mix. Probe AM measures that rather than assuming it. */
+    float getForwardNorm (int shape, float peakPos, float alpha, float overlap) const noexcept
+    {
+        const auto& s = statsFor (shape, alpha);
+        const float t = juce::jlimit (kMinPeakPos, kMaxPeakPos, peakPos);
+
+        const float effMeanSq = t * s.meanSqLo + (1.0f - t) * s.meanSqHi;
+        const float effMean   = t * s.meanLo   + (1.0f - t) * s.meanHi;
+
+        if (effMean <= 0.0f || effMeanSq <= 0.0f || overlap <= 0.0f)
+            return 1.0f;
+
+        return std::sqrt (effMeanSq / overlap) / effMean;
+    }
+
     /** Mean square (power duty cycle) of a shape's window. Reported by the
         render harness so the normalisation constants are printed numbers rather
         than a claim in a comment. */

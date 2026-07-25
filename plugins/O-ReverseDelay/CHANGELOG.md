@@ -4,6 +4,161 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.6.0] — 2026-07-25 — Motion: Freeze, Direction, Regen
+
+Minor release. The three high-payoff / low-effort parameters from section B4 of
+the v1.0.0 review, filling the last reserved UI panel. Every one defaults to the
+engine's exact no-op, so **a v1.0–v1.5 session, preset or factory patch is
+bit-identical under v1.6.0** — the 122-probe render harness asserts that rather
+than claiming it.
+
+Two of the three turned out to have consequences the review did not anticipate.
+Both are written up below, because in each case the obvious one-line
+implementation is the wrong one and passes a casual listen.
+
+### Added
+
+**Freeze (`freeze`, bool, default off).** Stops writing new material into the
+capture ring while the grains go on reading it, so the wash holds indefinitely.
+Dry passes through untouched; the buffer resumes capturing where it left off on
+release. Both transitions are a ~20 ms crossfade of the ring's *content*, which
+also makes the loop's own seam a crossfade rather than a splice.
+
+**Direction (`direction`, 0–100 %, default 0).** The probability that a grain is
+latched to read *forward* instead of backward. At 0 every grain is reversed —
+the shipped engine. At 100 the wet path becomes a clean delay tap. Between them
+the cloud genuinely contains both read laws at once. Level is matched across the
+whole range (see below).
+
+**Regen Makeup (`regenMakeup`, 0–6 dB, default 0 dB).** The D11 feedback-tap
+constant that was *declined* at v1.0.0 as a hidden number, shipped instead as a
+user control. The topology loses ≈7.3 dB per generation at width 0 (−4.3 dB of
+Hann-squared duty, −3.0 dB of the pan-to-mono-sum round trip), so "Near-Infinite"
+at feedback 100 cannot in fact self-sustain — it decays, slowly. This makes true
+sustain reachable without moving anybody's default.
+
+### The three findings
+
+**Freezing the write head produces a buzz, and freezing the writes produces
+silence.** Grains latch `readAbs = totalWritten + offset − gD` at spawn, so with
+the head stopped every grain spawned during the hold latches the *same* readAbs
+and replays the same G samples — strictly periodic at the spawn interval, a
+~28 Hz buzz at the shipped 200 ms grain. Advancing the head without writing fixes
+that and then fails differently: the read sweeps over the whole 13 s ring
+including however much of it was never written, so a freeze in the first 13 s of
+a session falls silent mid-hold. Probe AP measured exactly that — rms at 10 s,
+30 s and 60 s all `0.000000`. What ships instead keeps writing, but writes a copy
+of the ring `freezeLoopSamples` back, latched on the rising edge to how much has
+*actually* been captured. Unity-gain copy, so a hold cannot grow, decay or drift
+however long it runs: 60 s frozen renders at 0.04 dB of drift.
+
+**Forward grains sum coherently — the read law alone gives Direction a +7.3 dB
+level jump.** At output time `t` a grain reads `2s − gD − t` reversed but
+`t − gD` forward, i.e. *independent of its spawn sample*. Every forward grain in
+flight therefore reads the same source sample, bit for bit, so the forward set
+adds in amplitude (`N·m`) where the reverse set adds in power (`√(N·q)`). This is
+also why the plugin is a *reverse* delay: the s-dependence that decorrelates the
+grains is created by the read head moving opposite to the write head, and a
+unit-rate forward read is a plain delay tap by construction. `WindowLut::
+getForwardNorm` cancels the jump on the **output** path with a derived
+`√(q_eff/N)/m_eff`; the feedback tap takes no direction trim, because
+`getLoopNorm` already models the loop as a coherent sum. Measured spread across
+the whole knob is **0.95 dB**, against 7.3 dB uncorrected. The residual is a
+~0.9 dB sag at mid-travel and it is derived rather than overlooked — mixing a
+coherent set with an incoherent one gives `q·[p² + p(1−p)·q/(N·m²) + (1−p)]`,
+which is `q` at both ends and `0.82·q` at `p = 0.5`.
+
+**Collision safety needed no new clamp, which is the opposite of the intuition.**
+A forward read head moves *toward* the write head rather than away from it, so
+the review flagged it as possibly needing its own headroom clamp. It does not: at
+pass-relative index `k` a forward grain reads `passStartAbs − gD + k`, and the
+v1.0.1 A2 pass bound already guarantees `k < passLen ≤ grainDelayFloor ≤ gD`. The
+read is strictly behind the write head at every `k`, at every host block size,
+and the ring span a forward grain needs is `gD + G` — *smaller* than the reverse
+case's `gD + 2·G` that `kCaptureSeconds` is sized for. Probe AM proves it in
+audio: correlation between the wet output and the input delayed by exactly D is
+**1.0000** at direction 100 and 0.0038 at direction 0.
+
+### The regen ceiling is a measured number
+
+Probe AO renders a 1 dB ladder at feedback 100, width 0 (the loop's worst case):
+
+| makeup | peak | decay dB/s |
+|--------|------|-----------|
+| 0 dB | 0.262 | −2.09 |
+| 1 dB | 0.275 | −0.65 |
+| 2 dB | 0.445 | **+0.53** |
+| 4 dB | 0.760 | +0.26 |
+| 6 dB | 0.834 | +0.08 |
+| 12 dB | 0.860 | +0.03 |
+
+6 dB is where two things meet: sustain arrives at 2 dB here and needs ~3 dB more
+at width 100, so 6 dB clears every configuration with margin; and past ~6 dB the
+control stops doing anything, because the tanh is already limiting and 12 dB buys
+0.026 dB/s over 6 dB. A knob whose top half is inert is a worse control than a
+shorter one.
+
+**What the cap does not guarantee, stated plainly.** The tanh bounds the *loop*
+to ±1 at every setting. It does not bound the wet *output*, which sums `overlap`
+grains reading self-similar limited content and approaches
+`√overlap · mean · windowNorm` — 1.41 for Hann at overlap 8, 1.55 for Tukey at
+overlap 16. That is the same shortfall behind v1.3.0's 1.28 peak, which
+`loopCountTrim` fixed by *preventing* self-oscillation rather than by bounding
+the sum. A cap that held peak < 1.0 everywhere would be ~1 dB, which reaches
+sustain nowhere. So the peak < 1.0 invariant the rest of the suite asserts
+belongs to the non-self-oscillating engine — regen 0 dB, i.e. the default, every
+factory preset and every pre-v1.6.0 session. Above it the plugin does what a
+self-oscillating delay does, and probe AO still requires finite, convergent, and
+under a hard 1.8 runaway tripwire.
+
+Direction also costs up to **1.09 dB/s** of decay rate at feedback 100, and that
+is topology rather than a missing trim: at direction 100 the loop *is* a plain
+feedback delay. Every rate stays negative. The bound is the 1.20 dB/s the suite
+already accepts for window shape.
+
+### Changed
+
+- **UI:** the reserved SPACE panel becomes **MOTION**, holding all three
+  controls. Markup, one width alias and two scoped rules — no panel width,
+  position or height moved, so the 940 × 743 frame and the tooltip clamp geometry
+  are untouched. The chassis framed at v1.1.0 is now full: the next new control
+  is the row-3 / MORE-page decision from the review's section D, which genuinely
+  arrives rather than being deferred a sixth time.
+- **Editor:** first `WebToggleButtonRelay` in the plugin. `freeze` is the only
+  `AudioParameterBool`, and a bool bound through a slider relay attaches without
+  complaint and produces a switch that never updates — `ui_frontend_check.js` now
+  closes APVTS bools against `kToggleIds` in both directions.
+- **Factory presets:** all eight carry the three new keys pinned at 0.
+  "Near-Infinite" is deliberately *not* re-authored to self-sustain, even though
+  that is the review's stated motivation for the control — it is a shipped sound
+  people have used since v1.0.0, and true sustain is now one knob away
+  (`pattern_activating_dead_param_default_timbre`).
+
+### Fixed (test fixtures)
+
+- `ui_tooltip_clamp_check.js` asserted a hardcoded `boundReadouts === 15`. It had
+  failed for the same non-reason three releases running — a knob was added and
+  the fixture still described the release before it. The count is now parsed from
+  `KNOB_IDS` (`pattern_test_fixture_mirrors_drift_silently`).
+- `ui_frontend_check.js`'s new bool-binding check flagged app.js's own header
+  comment, which explains the trap in prose containing the literal
+  `getSliderState("freeze")`. Comments are now stripped before the binding
+  regexes run — the same fix the `.group-motion` selector check already carries
+  for CSS.
+
+### Verification
+
+- Render harness: **122 probes, 0 failures** (up from 108; AM, AN, AO, AP, AQ
+  added). Every pre-v1.6.0 probe reports the number it reported at v1.5.0.
+- `ui_frontend_check.js`: 129 checks, all pass.
+- `ui_tooltip_clamp_check.js` re-run at the shipping 940 px viewport: 23 anchors,
+  clamp engaged for 5 controls. `#knob-regenMakeup` is the new right-most control
+  and clamps to exactly x=932 at its full 230 px width — the shrink-to-fit edge
+  case (`pattern_fixed_tooltip_shrink_to_fit_edge`), verified rather than assumed.
+- Page rendered against the JUCE-bridge stub: MOTION reads `Reverse` / `0.0 dB`,
+  OFF is lit, all 17 knob readouts populated, no console errors.
+- `auval -v aufx ORvD OuDv`: PASS. pluginval strictness 10: SUCCESS ×3.
+
 ## [1.5.0] — 2026-07-25 — Grain Size to 4000 ms
 
 Minor release. One requested change — `grainSize`'s ceiling raised from **500 ms

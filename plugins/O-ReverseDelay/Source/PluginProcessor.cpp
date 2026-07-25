@@ -36,6 +36,11 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // v1.4.0 Tukey taper.
     pTukeyTaper   = parameters.getRawParameterValue("tukeyTaper");
 
+    // v1.6.0 MOTION (B4 #1-#3).
+    pFreeze       = parameters.getRawParameterValue("freeze");
+    pDirection    = parameters.getRawParameterValue("direction");
+    pRegenMakeup  = parameters.getRawParameterValue("regenMakeup");
+
     // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
     // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
     // through each parameter's own NormalisableRange below. Four params are
@@ -43,9 +48,25 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All eighteen keys are explicit in every preset. Omitted keys would revert
+    // All twenty-one keys are explicit in every preset. Omitted keys would revert
     // to the APVTS default (applyPresetJson resets everything first), which is
     // safe but makes the table's intent unreadable.
+    //
+    // ── v1.6.0 (B4): freeze / direction / regenMakeup all pinned at 0 ────────
+    // Fifth release running that adds keys here and pins every one of them to
+    // the no-op, and the FIRST where all three no-ops are plain zero — so this
+    // block is the one that does NOT carry the trap the four above it do.
+    //
+    // regenMakeup deserves a sentence of its own, because it is the one an
+    // improvement pass is most tempted to move. The review's motivation for
+    // exposing it is precisely that "Near-Infinite" cannot self-sustain at
+    // feedback 100 — the topology loses ≈7.3 dB per generation — so the obvious
+    // reflex is to author that preset at +7 dB and finally make its name true.
+    // Deliberately NOT done: "Near-Infinite" is a shipped sound that people have
+    // used since v1.0.0, and quietly turning it into a self-oscillator would
+    // re-voice their work (pattern_activating_dead_param_default_timbre). The
+    // preset stays exactly what it was; true sustain is now one knob away, which
+    // is what the review actually asked for.
     //
     // ── v1.3.0 (B2): grainCount pinned at 8 ─────────────────────────────────
     // 8 is v1.2.0's hard-coded overlap ceiling, so every preset below keeps the
@@ -98,7 +119,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
@@ -108,7 +131,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
@@ -118,7 +143,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
@@ -128,7 +155,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
@@ -138,7 +167,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
@@ -148,7 +179,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -162,7 +195,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
@@ -172,7 +207,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
+           {"freeze", 0.0f}, {"direction", 0.0f},
+           {"regenMakeup", 0.0f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -396,6 +433,23 @@ void ReverseDelayProcessor::reset()
     if (pMix      != nullptr) mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
     if (pLowCut   != nullptr) lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
     if (pHighCut  != nullptr) highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
+
+    // v1.6.0: freeze follows the PARAMETER, not zero. capture.clear() above has
+    // just emptied the ring, so a frozen instance resumes holding silence and
+    // then holds whatever it captures when the user releases — which is the
+    // honest reading of "the host dropped the tail state".
+    if (pFreeze != nullptr)
+        freezeSmoothed.setCurrentAndTargetValue(pFreeze->load() >= 0.5f ? 1.0f : 0.0f);
+
+    // The ring has just been emptied, so a hold that survives a host reset has
+    // nothing left to loop and holds silence until it is released and re-armed.
+    // That is the honest reading of "the host dropped the tail" — the material
+    // the user froze is gone, and inventing a loop out of a cleared buffer would
+    // be worse than saying so. Clearing the edge flag as well means the next
+    // block re-latches rather than keeping a length that describes a ring that
+    // no longer exists.
+    freezeEngaged     = false;
+    freezeLoopSamples = 1;
 }
 
 ReverseDelayProcessor::~ReverseDelayProcessor() {}
@@ -651,6 +705,54 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
                                        WindowLut::kTukeyTaperStep),
         WindowLut::kTukeyTaperDefault));
 
+    // ── v1.6.0 (B4 #1-#3): the MOTION panel ─────────────────────────────────
+    //
+    // Three parameters whose no-op is 0 — the first release since v1.1.0 where
+    // that is true of all of them, and worth naming because v1.2.0 (tilt 0.5),
+    // v1.3.0 (count 8) and v1.4.0 (taper 0.5) each trapped exactly the reflex
+    // that would be CORRECT here. The rule was never "default to zero"; it is
+    // "default to whatever the engine already did", and here the engine already
+    // did nothing.
+
+    // freeze: bool, default false. The only bool parameter in the plugin, and
+    // therefore the only one that reaches the page through a WebToggleButtonRelay
+    // rather than a slider or combo relay (see PluginEditor's kToggleIds).
+    //
+    // A bool rather than a two-entry choice on purpose: hosts draw a bool as a
+    // switch and automate it as a switch, which is what a performance control
+    // wants. syncMode is a choice because it names two MODES; this names an
+    // on/off state.
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "freeze", 1 }, "Freeze", false));
+
+    // direction: 0–100 %, default 0 (every grain reverse). The probability that
+    // a grain is latched FORWARD at spawn, not a crossfade between two renders —
+    // at 50 % the cloud genuinely contains both read laws at once.
+    //
+    // Step 0.1 matches every other percentage knob here, and 0.0f is exactly on
+    // that grid, so the parameter reads back as exactly zero and the spawn
+    // handler's `> 0.0f` gate is exact rather than nearly exact.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "direction", 1 }, "Direction",
+        juce::NormalisableRange<float>(0.0f, kDirectionMaxPct, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // regenMakeup: 0 dB … kRegenMakeupMaxDb, default 0 dB — the D11 constant
+    // declined at v1.0, shipped as a control instead of a hidden number.
+    //
+    // Unipolar: attenuation is already available on the `feedback` knob, so a
+    // negative half would be a second, worse way to spell a control that exists.
+    // That also makes the no-op the range MINIMUM, which is the cleanest form of
+    // the guarantee — a preset or session written before v1.6.0 has no key here,
+    // resolves to 0 dB, and the loop gain it recalls is bitwise the loop gain it
+    // was saved with (regenMakeupGain returns exactly 1.0f at 0 dB).
+    //
+    // The maximum is a MEASURED bound, not a taste: see kRegenMakeupMaxDb.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "regenMakeup", 1 }, "Regen Makeup",
+        juce::NormalisableRange<float>(0.0f, kRegenMakeupMaxDb, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
+
     return layout;
 }
 
@@ -728,11 +830,24 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     mixSmoothed.reset(sampleRate, smoothingSeconds);
     lowCutSmoothed.reset(sampleRate, smoothingSeconds);
     highCutSmoothed.reset(sampleRate, smoothingSeconds);
+    freezeSmoothed.reset(sampleRate, smoothingSeconds);   // v1.6.0
 
     feedbackSmoothed.setCurrentAndTargetValue(pFeedback->load() * 0.01f);
     mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
     lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
     highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
+
+    // Jumped to the CURRENT freeze state rather than to 0: a session saved with
+    // Freeze engaged must reopen frozen, and ramping into it from 0 over 20 ms
+    // would write 20 ms of live input into a ring the user expects to be held.
+    //
+    // freezeEngaged is set to FALSE regardless, so the first block after prepare
+    // re-latches the loop length off a ring that prepareToPlay may just have
+    // resized. Latching it here instead would key off a capture length that no
+    // longer describes the buffer.
+    freezeSmoothed.setCurrentAndTargetValue(pFreeze->load() >= 0.5f ? 1.0f : 0.0f);
+    freezeEngaged     = false;
+    freezeLoopSamples = 1;
 
     // In-loop damping filters. prepare() + reset() here; coefficients seeded now
     // so the cached-cutoff guards start valid (the guard only gates recompute).
@@ -838,11 +953,47 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                                             WindowLut::kTukeyTaperMax,
                                             pTukeyTaper->load());
 
+    // v1.6.0 (B4 #2) — the forward-grain probability, latched per grain like
+    // every other content parameter. Read as a fraction; the draw that consumes
+    // it is gated on `> 0`, so at the default it costs the shared xorshift
+    // nothing (see the spawn handler).
+    const float directionNorm = juce::jlimit (0.0f, 1.0f,
+                                              pDirection->load() * 0.01f);
+
+    // v1.6.0 (B4 #3) — the feedback-tap makeup, block rate. NOT smoothed and it
+    // does not need to be: it multiplies the loop gain alongside feedbackSmoothed,
+    // which IS smoothed, and a step in a gain that is already being ramped by its
+    // neighbour would only be audible at a step size the 0.1 dB parameter grid
+    // cannot produce. Exactly 1.0f at the 0 dB default.
+    const float regenMakeup = regenMakeupGain (pRegenMakeup->load());
+
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
     mixSmoothed.setTargetValue(pMix->load() * 0.01f);
     lowCutSmoothed.setTargetValue(pLowCut->load());
     highCutSmoothed.setTargetValue(pHighCut->load());
+
+    // v1.6.0 (B4 #1) — Freeze. A target, not a jump: the ~20 ms ramp crossfades
+    // the ring's CONTENT across the boundary (CaptureBuffer::pushCrossfaded),
+    // which is both the transition and the loop seam.
+    const bool frozen = pFreeze->load() >= 0.5f;
+    freezeSmoothed.setTargetValue(frozen ? 1.0f : 0.0f);
+
+    // Latch the loop length on the RISING edge only. Recomputing it per block
+    // would grow it as the hold proceeds (totalWritten keeps advancing while
+    // frozen, because the ring is still being written — with copies), and a loop
+    // whose length changes under the read head is a loop that skips.
+    //
+    // jmin against the capture that has actually happened is the whole point:
+    // freeze 3 s after loading and the hold is a 3 s loop, not 13 s of which
+    // 10 are the cleared buffer.
+    if (frozen && ! freezeEngaged)
+        freezeLoopSamples = static_cast<int>(
+            juce::jlimit(static_cast<juce::int64>(1),
+                         static_cast<juce::int64>(juce::jmax(1, capture.getBufferSize() - 1)),
+                         capture.getTotalWritten()));
+
+    freezeEngaged = frozen;
 
     // ---- (1) resolve grain anchor delay D -----------------------------------
     // Sync only changes the VALUE of D per block — never the spawn timing (no
@@ -981,6 +1132,29 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // shape and v1.3.0 found for overlap. Probe AK measures it.
     const float loopTrim        = windowLuts.getLoopNorm (shapeIdx, tiltPeakPos, tukeyAlpha)
                                 * loopCountTrim (overlap);
+
+    // ── forward-grain output trim (v1.6.0 / B4 #2) ───────────────────────────
+    // The third summing law, on the third path — and the reason it is needed is
+    // exact rather than statistical: every forward grain in flight reads the
+    // SAME source sample (a unit-rate read against a unit-rate write head has a
+    // constant offset), so the forward subset adds in amplitude while the
+    // reverse subset adds in power. Uncorrected that is +7.3 dB at overlap 8,
+    // i.e. Direction would be heard as a volume control first and a character
+    // control second — the same failure v1.2.0, v1.3.0 and v1.4.0 each closed
+    // for shape, overlap and taper. Derivation in WindowLut::getForwardNorm.
+    //
+    // Applied to gLout/gRout ONLY. The feedback tap takes no direction trim at
+    // all: getLoopNorm already models the loop as a coherent sum, so a forward
+    // and a reverse grain contribute identically through it and the decay rate
+    // does not move with the mix. Probe AN measures that instead of assuming it.
+    //
+    // Computed unconditionally rather than under `if (directionNorm > 0)`: it is
+    // one sqrt and one divide at block rate, and a conditional would make the
+    // block's work depend on a parameter in a way the harness would have to
+    // model. It reaches no grain at direction 0 — nothing is latched forward —
+    // so the shipped render is untouched whatever this holds.
+    const float forwardTrim     = windowLuts.getForwardNorm (shapeIdx, tiltPeakPos,
+                                                             tukeyAlpha, overlap);
 
     // Resolved once per block; both PODs are copied into each grain at spawn.
     const auto  blockTilt       = WindowLut::makeTilt (tiltPeakPos);
@@ -1186,6 +1360,25 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             const float pan    = 0.5f + widthNorm * 0.5f * spread;
             const float phase  = pan * juce::MathConstants<float>::halfPi;
 
+            // v1.6.0 (B4 #2): the direction draw, LAST in the sequence.
+            //
+            // Its position is deliberate. Every draw here is gated on its own
+            // amount, so an amount at zero consumes nothing — but the ones that
+            // are on still consume in a fixed ORDER, which means enabling any
+            // randomisation shifts the streams of every draw AFTER it. Appending
+            // direction at the end is the only placement that leaves all four
+            // v1.1 sequences and the pan sequence bit-for-bit where they were,
+            // so a v1.5.0 session that turns Direction up gets its existing
+            // scatter/size/gain/pan character back unchanged with forward grains
+            // added to it, rather than a re-rolled cloud.
+            //
+            // Before obtain(), like everything above it: a refused spawn must
+            // consume exactly what a granted one does, or RNG consumption would
+            // depend on pool occupancy and the engine would stop being
+            // block-size invariant (probe W2).
+            const bool forward = directionNorm > 0.0f
+                              && nextRand01() < directionNorm;
+
             // v1.1.0: REFUSE, never steal. A stolen slot's Hann envelope jumps
             // from mid-window to zero in one sample; a refused spawn just leaves
             // the overlap-add one contributor lighter for that window. See
@@ -1234,14 +1427,26 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // the decay rate stochastic (probe X). Both multipliers are exactly
             // 1.0f at their no-op — Hann/tilt-0.5 and gainRandom 0 — so at the
             // shipped defaults all four gains are BITWISE the raw pan values.
+            //
+            // v1.6.0 adds a THIRD multiplier and puts it on the output side
+            // only. forwardTrim equalises the forward set's coherent sum against
+            // the reverse set's incoherent one; loopTrim equalises the loop,
+            // which is coherent for BOTH directions and therefore needs nothing
+            // extra. Crossing them over would break each path in the way its own
+            // normalisation exists to prevent.
             const float panL = std::cos(phase);
             const float panR = std::sin(phase);
 
             g.gL = panL * loopTrim;
             g.gR = panR * loopTrim;
 
-            g.gLout = panL * gainRand;
-            g.gRout = panR * gainRand;
+            const float outTrim = forward ? gainRand * forwardTrim : gainRand;
+
+            g.gLout = panL * outTrim;
+            g.gRout = panR * outTrim;
+
+            // −1 reverse, +1 forward. The whole of B4 #2 in the engine.
+            g.step = forward ? 1 : -1;
         }
 
         // ---- (4) render active grains into wetScratch (overlap-add) ---------
@@ -1262,6 +1467,14 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             juce::int64 readAbs = g.readAbs;
             int         n       = g.n;
+
+            // v1.6.0 (B4 #2): the read direction, hoisted to a register like
+            // every other per-grain constant. −1 is the shipped law and
+            // `readAbs += (-1)` is the same integer operation `--readAbs` was, so
+            // this costs the reverse path nothing measurable and nothing at all
+            // in the result.
+            const juce::int64 step = g.step;
+
             const float invG = g.invG, gain = g.gain;
             const float gL = g.gL,    gR = g.gR;       // feedback tap — never randomised
             const float gLo = g.gLout, gRo = g.gRout;  // output — includes gainRandom
@@ -1312,7 +1525,7 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 wetR[i]  += v * gRo;
                 loopL[i] += v * gL;
                 loopR[i] += v * gR;
-                --readAbs;
+                readAbs += step;
                 ++n;
             }
 
@@ -1338,9 +1551,16 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         {
             float acc = 0.0f;   // NaN detector: tanh output is bounded, so only NaN can escape
 
+            // v1.6.0 (B4 #3): the makeup rides WITH the feedback gain, i.e. ahead
+            // of the damping filters and ahead of the tanh. That ordering is the
+            // safety argument — the limiter stays the last thing in the loop, so
+            // no makeup setting can put an unbounded value into the capture ring
+            // — and it is also the musical one, since driving the tanh harder is
+            // what turns the ceiling from a safety net into saturation character.
+            // Exactly 1.0f at the 0 dB default, so `g * regenMakeup` is bitwise g.
             for (int i = off; i < passEnd; ++i)
             {
-                const float g = feedbackSmoothed.getNextValue();
+                const float g = feedbackSmoothed.getNextValue() * regenMakeup;
                 float l = hpL.processSample(loopL[i] * g);
                 float r = hpR.processSample(loopR[i] * g);
                 l = lpL.processSample(l);
@@ -1365,8 +1585,51 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         }
 
         // ---- (6) capture write: input + feedback return ---------------------
-        for (int i = off; i < passEnd; ++i)
-            capture.pushSample(inL[i] + fbLw[i], inR[i] + fbRw[i]);
+        //
+        // ── v1.6.0 (B4 #1): Freeze ────────────────────────────────────────────
+        // The whole feature is here: while frozen the ring is not written, and
+        // the grains — which are not told anything — go on reading it. Nothing
+        // else in the engine changes.
+        //
+        // Three points worth stating, because each is a thing the obvious
+        // implementation gets wrong:
+        //
+        //   * The ring keeps being WRITTEN, with a copy of itself
+        //     freezeLoopSamples back (CaptureBuffer::pushLooped). Neither
+        //     stopping the head nor advancing it without writing works — the
+        //     first turns the hold into a buzz at the spawn interval, the second
+        //     falls silent as soon as the read passes the last captured sample.
+        //     Both failure modes are written up on pushLooped(); the second is
+        //     the one probe AP found rather than the one that was anticipated.
+        //
+        //   * The feedback return is COMPUTED and then DISCARDED, not skipped.
+        //     Step 5 above runs unconditionally, so the damping filters keep
+        //     tracking the wash and are in the right state when writing resumes;
+        //     skipping it would leave stale filter memory to be spliced in on
+        //     release. Discarding rather than writing it is what makes a freeze
+        //     genuinely infinite: writing the return would overwrite the held
+        //     material with a decaying copy of itself, so a "freeze" would fade
+        //     out at whatever rate `feedback` happened to be set to.
+        //
+        //   * The transition is a CONTENT crossfade, not a gain ramp. Writing
+        //     `input · 0` would erase the ring, which is the opposite of holding
+        //     it, so the ramp has to blend against the material being looped —
+        //     which also makes the loop's own seam a crossfade.
+        //
+        // At freeze off and not smoothing this is the v1.5.0 loop, unchanged and
+        // uncalled-through — the branch costs one predicted compare per pass.
+        if (freezeSmoothed.isSmoothing() || freezeSmoothed.getCurrentValue() > 0.0f)
+        {
+            for (int i = off; i < passEnd; ++i)
+                capture.pushCrossfaded(inL[i] + fbLw[i], inR[i] + fbRw[i],
+                                       freezeLoopSamples,
+                                       freezeSmoothed.getNextValue());
+        }
+        else
+        {
+            for (int i = off; i < passEnd; ++i)
+                capture.pushSample(inL[i] + fbLw[i], inR[i] + fbRw[i]);
+        }
 
         // Sampled at the END of each pass, after step 4 has retired the grains
         // that finished in it — so this is concurrency actually rendered, not a

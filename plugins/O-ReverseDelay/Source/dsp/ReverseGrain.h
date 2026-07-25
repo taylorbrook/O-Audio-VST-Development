@@ -16,7 +16,7 @@
         v = s * e * gain;
         wetL  += v * gLout;  wetR  += v * gRout;   // output: per-grain random gain
         loopL += v * gL;     loopR += v * gR;      // feedback tap: never randomised
-        --readAbs;  ++n;
+        readAbs += step;  ++n;                     // v1.6.0: step is ±1 (B4 #2)
 
     The wet/loop split was introduced in v1.1.0 because gainRandom must be
     applied AFTER the feedback tap: randomising the gain the loop sees would
@@ -115,6 +115,27 @@ struct ReverseGrain
     // one.
     bool        taperActive = false;
     float       taperInv    = 0.0f;         // 1 / (α/2)
+
+    // ── v1.6.0 (B4 #2): read direction, latched at spawn ─────────────────────
+    // −1 = reverse (the shipped law), +1 = forward. The ONE field that changes
+    // what the inner loop computes rather than how loudly it computes it, and
+    // an int64 rather than an int because `readAbs += step` must not promote
+    // through a narrower type on the hot path.
+    //
+    // Latched for the usual reason — a grain that flipped direction mid-flight
+    // would jump its read position by 2n samples in one sample, which is not a
+    // click so much as a splice — and defaulted to −1 so a slot that is somehow
+    // read before being written behaves as it always did.
+    //
+    // Collision safety is UNCHANGED and needs no extra clamp, which is worth
+    // recording because it is the opposite of the intuition (a forward read head
+    // moves TOWARD the write head rather than away from it). At pass-relative
+    // index k a forward grain reads `passStartAbs − gD + k`, and A2's pass bound
+    // already guarantees k < passLen <= grainDelayFloor <= gD — so the read is
+    // strictly behind the write head at every k, at every host block size. The
+    // ring span a forward grain needs is gD + G, which is SMALLER than the
+    // reverse case's gD + 2·G that kCaptureSeconds is sized for.
+    juce::int64 step        = -1;
 };
 
 class GrainPool
