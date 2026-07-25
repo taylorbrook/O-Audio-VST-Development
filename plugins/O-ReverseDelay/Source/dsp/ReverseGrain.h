@@ -8,20 +8,31 @@
     AA filter (those exist for pitch-shifted reads; reverse speed here is
     exactly 1.0 with integer stepping).
 
-    Per-sample render (in PluginProcessor), v1.1.0 — TWO accumulations:
+    Per-sample render (in PluginProcessor), v1.2.0 — TWO accumulations:
+        p = n * invG;
+        q = min (p, tiltT)·tiltA + max (p - tiltT, 0)·tiltB;   // B1 window tilt
         s = capture.monoSum (readAbs);
-        e = hannLut.read (n * invG);
+        e = windowLuts.readAt (win, q);                        // B1 window shape
         v = s * e * gain;
         wetL  += v * gLout;  wetR  += v * gRout;   // output: per-grain random gain
         loopL += v * gL;     loopR += v * gR;      // feedback tap: never randomised
         --readAbs;  ++n;
 
-    The split exists because gainRandom must be applied AFTER the feedback tap:
-    randomising the gain the loop sees would modulate the per-generation decay
-    rate, i.e. the knob would change how long the tail lasts rather than how it
-    shimmers. At gainRandom = 0 the latched gLout/gRout are bitwise equal to
-    gL/gR, so the two buffers hold identical values and the v1.0 sound is
-    reproduced exactly.
+    The wet/loop split was introduced in v1.1.0 because gainRandom must be
+    applied AFTER the feedback tap: randomising the gain the loop sees would
+    modulate the per-generation decay rate, i.e. the knob would change how long
+    the tail lasts rather than how it shimmers.
+
+    v1.2.0 uses the same split in the other direction. The two paths sum
+    different things — the output sums decorrelated grains reading different
+    stretches of the ring, the loop recirculates self-similar material — so they
+    obey different summing laws and take different window normalisations: POWER
+    on the output, AMPLITUDE on the loop (see WindowLut::getLoopNorm). Neither
+    constant may cross over.
+
+    At the shipped defaults (gainRandom 0, Hann, tilt 0.5) both multipliers are
+    exactly 1.0f, so gLout/gRout are bitwise equal to gL/gR, the two buffers hold
+    identical values, and the v1.0 sound is reproduced exactly.
 
     Pool: fixed 32 preallocated slots (max sustained overlap is 8; headroom
     covers delay-time transitions). find-inactive round-robin, and — since
@@ -50,16 +61,45 @@ struct ReverseGrain
     int         G           = 0;            // latched length (samples) — v1.1: ± sizeRandom
     float       invG        = 0.0f;         // 1/G for window phase
     float       gain        = 0.0f;         // 1/sqrt(overlap), latched at spawn
+    // v1.2.0: the FEEDBACK-TAP gains — equal-power pan x loopTrim, the window's
+    // amplitude-duty normalisation. Never carries gainRandom (probe X).
     float       gL          = 0.70710677f;  // equal-power pan, latched (center in Phase 2.1)
     float       gR          = 0.70710677f;
-    // v1.1.0: pan × per-grain random gain. Latched at spawn like everything
-    // else, so a mid-flight gainRandom change never re-gains a live grain.
-    // Written as gL * gainRand with gainRand == 1.0f when the control is off,
-    // which is bitwise identity — not "close to" gL.
+    // v1.1.0: the OUTPUT gains — pan x per-grain random gain. Latched at spawn
+    // like everything else, so a mid-flight gainRandom change never re-gains a
+    // live grain. Never carries loopTrim, which would undo the window's POWER
+    // normalisation on the output path.
+    //
+    // Both are written as pan * <multiplier> with the multiplier exactly 1.0f at
+    // its no-op, which is bitwise identity — not "close to" the pan value. At
+    // the shipped defaults (Hann, tilt 0.5, gainRandom 0) all four are therefore
+    // bitwise equal to each other and to what v1.0.0 latched.
     float       gLout       = 0.70710677f;
     float       gRout       = 0.70710677f;
     int         age         = 0;            // samples alive
     int         startOffset = 0;            // block-transient: first render sample this block
+
+    // ── v1.2.0 (B1): window shape + tilt, both latched at spawn ─────────────
+    // Latched for the same reason everything else here is: the render loop must
+    // be able to finish a live grain on the settings it started with. A grain
+    // whose envelope SHAPE changed mid-flight would step from one window's value
+    // to another's at the switch sample — the exact discontinuity the
+    // latch-at-spawn contract exists to prevent, and one that no amount of
+    // parameter smoothing can remove (the two windows disagree at every phase,
+    // not just at the endpoints).
+    //
+    // `shape` is an index rather than a table pointer: the render loop resolves
+    // the pointer once per grain per pass, so the indirection costs nothing in
+    // the inner loop, and a stale index is a clamped read while a stale pointer
+    // would not be.
+    //
+    // tiltT/A/B are WindowLut::Tilt's three fields, flattened to keep this a
+    // plain POD. At grainTilt's 0.5 default they are { 0.5, 1.0f, 1.0f } and the
+    // warp is the bitwise identity — see WindowLut.h.
+    int         shape       = 0;            // WindowLut::hann
+    float       tiltT       = 0.5f;
+    float       tiltA       = 1.0f;
+    float       tiltB       = 1.0f;
 };
 
 class GrainPool

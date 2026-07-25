@@ -525,6 +525,14 @@ body {
   outline-offset: 2px;
 }
 
+/* WINDOW's shape names are words, not note values. .division-select's 82 px was
+   cut for "1/16D"; "Expo-Decay" measures 94 px with padding and the arrow, so it
+   would have rendered clipped — visible only in a render, never in the build,
+   auval or the static checks. 120 px clears the longest name with room and still
+   sits inside the 190 px panel's 162 px content box, so the Tilt knob keeps
+   wrapping to its own row and no panel width moves. */
+.shape-select { width: 120px; }
+
 /* ── Footer ──────────────────────────────────────────────────────────────── */
 .footer {
   display: flex;

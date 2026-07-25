@@ -27,10 +27,15 @@ namespace
         // v1.1.0 (B3): RANDOM panel. Order matches app.js's KNOB_IDS — not
         // required by the relay machinery, but a reviewer diffing the two
         // lists for a missing ID should not also have to reorder them.
-        "jitter", "delayScatter", "sizeRandom", "gainRandom"
+        "jitter", "delayScatter", "sizeRandom", "gainRandom",
+        // v1.2.0 (B1): WINDOW panel. grainTilt is the only NEW SLIDER — its
+        // companion grainShape is a choice and belongs in kComboIds below, not
+        // here. Putting a choice param in the slider list yields a relay that
+        // attaches but a control whose index never updates.
+        "grainTilt"
     };
 
-    const juce::StringArray kComboIds { "syncMode", "noteDivision" };
+    const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape" };
 
     auto makeBinaryResource (const char* data, int size, const char* mimeType)
         -> std::optional<juce::WebBrowserComponent::Resource>

@@ -26,6 +26,10 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pSizeRandom   = parameters.getRawParameterValue("sizeRandom");
     pGainRandom   = parameters.getRawParameterValue("gainRandom");
 
+    // v1.2.0 grain window (B1).
+    pGrainTilt    = parameters.getRawParameterValue("grainTilt");
+    pGrainShape   = parameters.getRawParameterValue("grainShape");
+
     // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
     // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
     // through each parameter's own NormalisableRange below. Four params are
@@ -33,9 +37,15 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All fourteen keys are explicit in every preset. Omitted keys would revert
+    // All sixteen keys are explicit in every preset. Omitted keys would revert
     // to the APVTS default (applyPresetJson resets everything first), which is
     // safe but makes the table's intent unreadable.
+    //
+    // ── v1.2.0 (B1): grainTilt pinned at 0.5, grainShape at 0 (Hann) ────────
+    // Same reasoning as the v1.1 block below, with one extra trap: the no-op
+    // value for grainTilt is 0.5, NOT 0. A reflex "new key, write 0" here would
+    // hard-tilt all eight factory presets to a peak-early window and change what
+    // "Reverse Bloom" sounds like for everyone already using it.
     //
     // ── v1.1.0 (B3): the four randomisation keys are pinned at 0 ────────────
     // Not an oversight. These presets are the shipped v1.0 sound, and a factory
@@ -69,7 +79,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",    100.0f}, {"highCut", 8000.0f},
            {"width",      60.0f}, {"mix",       40.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
@@ -77,7 +88,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",    120.0f}, {"highCut", 6500.0f},
            {"width",      55.0f}, {"mix",       55.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
@@ -85,7 +97,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",    300.0f}, {"highCut", 7000.0f},
            {"width",      70.0f}, {"mix",       25.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
@@ -93,7 +106,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",     80.0f}, {"highCut", 5000.0f},
            {"width",      85.0f}, {"mix",       50.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
@@ -101,7 +115,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",    150.0f}, {"highCut", 11000.0f},
            {"width",      35.0f}, {"mix",       45.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
@@ -109,7 +124,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",    220.0f}, {"highCut", 1800.0f},
            {"width",      75.0f}, {"mix",       55.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -121,7 +137,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",    180.0f}, {"highCut", 2500.0f},
            {"width",      80.0f}, {"mix",       50.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
@@ -129,7 +146,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"lowCut",    140.0f}, {"highCut", 9000.0f},
            {"width",      50.0f}, {"mix",       45.0f},
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f}}, {} },
+           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+           {"grainTilt", 0.5f}, {"grainShape", 0.0f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -420,6 +438,46 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
+    // ── v1.2.0 (B1): grain window shape + tilt ──────────────────────────────
+    //
+    // The v1.1 block above turns on "defaults to 0". These two default to the
+    // SHIPPED WINDOW instead, which is the same guarantee reached differently —
+    // and the distinction is worth stating because it is the easy thing to get
+    // wrong here:
+    //
+    //   * grainShape defaults to index 0 = Hann. Index 0 is also what an absent
+    //     key resolves to in a v1.0/v1.1 preset or session, so the ordering in
+    //     WindowLut::Shape is load-bearing: moving Hann off index 0 would
+    //     re-voice every existing session silently.
+    //
+    //   * grainTilt defaults to 0.5, NOT 0. 0.5 is the symmetric window; 0 is a
+    //     hard peak-early tilt. This is the one parameter in the plugin where
+    //     "default to zero for safety" is exactly backwards.
+    //
+    // Both are the engine's exact no-op, not merely close to it: shape 0 reads
+    // the same Hann table v1.0.0 built, and tilt 0.5 makes the phase warp the
+    // bitwise identity while its power normalisation is exactly 1.0f (see
+    // WindowLut.h). Probe Z1 asserts a defaults render is BIT-IDENTICAL to the
+    // v1.1.0 one rather than taking that on trust.
+
+    // grainTilt: 0–1, default 0.5, step 0.001. Linear and unskewed so the
+    // midpoint of the knob IS the symmetric window.
+    //
+    // The step matters for the identity guarantee: NormalisableRange snaps to
+    // the interval grid, and 0.5 sits exactly on a 0.001 grid, so the parameter
+    // reads back as exactly 0.5f. It is displayed as a signed percentage
+    // (−100 % early … +100 % late) by the UI — a display concern, kept out of
+    // the range so the C++ NormalisableRange stays the single source of truth.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "grainTilt", 1 }, "Grain Tilt",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f));
+
+    // grainShape: 5 entries, WindowLut::Shape order, default index 0 (Hann).
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "grainShape", 1 }, "Grain Shape",
+        juce::StringArray { "Hann", "Tukey", "Gaussian", "Triangular", "Expo-Decay" },
+        0));
+
     return layout;
 }
 
@@ -586,6 +644,16 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float sizeRandNorm = pSizeRandom->load() * 0.01f;
     const float gainRandNorm = pGainRandom->load() * 0.01f;
 
+    // v1.2.0 (B1) — grain window, also latched per grain, also never smoothed.
+    // Smoothing a WINDOW SHAPE is not merely unnecessary, it is meaningless:
+    // two windows disagree at every phase, so a crossfade between them still
+    // steps a live grain's envelope. Latching at spawn is the only click-free
+    // mechanism available, and it is the one every other content parameter here
+    // already uses.
+    const int   shapeIdx    = juce::jlimit (0, WindowLut::kNumShapes - 1,
+                                            static_cast<int> (pGrainShape->load()));
+    const float tiltPeakPos = tiltToPeakPos (juce::jlimit (0.0f, 1.0f, pGrainTilt->load()));
+
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
     mixSmoothed.setTargetValue(pMix->load() * 0.01f);
@@ -645,8 +713,55 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // maximum (8) and makes the whole travel a smooth->dense sweep.
     const float overlap         = 2.0f + (densityPct * 0.01f) * 6.0f;
     const int   intervalSamples = juce::jmax(1, static_cast<int>(static_cast<float>(G) / overlap));
-    const float grainGain       = 1.0f / std::sqrt(overlap);   // compensation, latched per grain,
-                                                               // applied BEFORE the feedback tap
+
+    // ── grain gain: overlap × window power compensation (v1.2.0 / B1) ────────
+    // 1/sqrt(overlap) alone assumed HANN's power duty cycle — which was true
+    // while Hann was the only window. It is the constant probe D freezes, and
+    // the v1.0.0 CHANGELOG attributes the loop's −4.3 dB per generation to the
+    // Hann² duty specifically.
+    //
+    // Tukey's mean square is 0.6875 against Hann's 0.375. Without compensation,
+    // selecting Tukey at a fixed density would raise the wet level by 2.6 dB AND
+    // slow the feedback decay by the same factor every generation — so a control
+    // sold as "window shape" would be read by the user as a volume control that
+    // also changes the tail length. Both norms below are exactly 1.0f at the
+    // shipped (Hann, tilt 0.5), so this multiply is a bitwise no-op there.
+    //
+    // Two separate constants because they answer two separate questions: how
+    // much power this SHAPE has relative to Hann, and how much the TILT warp
+    // moved it. The second is exactly 1.0f for every symmetric shape at any
+    // tilt — the warp is power-preserving by construction — so it only ever
+    // does real work for Expo-Decay. Applied BEFORE the feedback tap, so the
+    // loop sees the compensated level and the decay rate stays shape-independent
+    // (probe Z4 measures that at feedback = 100 for all five).
+    const float windowNorm      = windowLuts.getShapeNorm (shapeIdx)
+                                * windowLuts.getTiltNorm  (shapeIdx, tiltPeakPos);
+
+    const float grainGain       = (1.0f / std::sqrt(overlap)) * windowNorm;
+
+    // ── feedback-tap trim (v1.2.0 / B1) ──────────────────────────────────────
+    // windowNorm above equalises POWER, which is what the OUTPUT path needs: a
+    // pass over broadband input has each grain reading a different stretch of
+    // the ring, so the contributions are decorrelated and sum in power (probe
+    // Z2 measures all five shapes inside 0.15 dB).
+    //
+    // The loop sums something else. What recirculates is the wash this engine
+    // just made — self-similar material that overlapping grains read at nearby
+    // offsets — so it sums closer to coherently, and a coherent sum follows the
+    // window's MEAN rather than its mean square. Measured, the power-only
+    // normalisation left the decay rate at feedback = 100 spanning 5.7 dB/s
+    // across the five shapes, ranked exactly by amplitude duty: "window shape"
+    // would have been audible as "how long the tail lasts".
+    //
+    // So the two paths take different constants, which the engine can express
+    // because it has held separate output and feedback-tap gains since v1.1.0
+    // (built for gainRandom, and the same split serves this). Exactly 1.0f at
+    // the shipped (Hann, 0.5) — a value divided by itself — so the tap gains
+    // stay bitwise what they were.
+    const float loopTrim        = windowLuts.getLoopNorm (shapeIdx, tiltPeakPos);
+
+    // Resolved once per block; the Tilt POD is copied into each grain at spawn.
+    const auto  blockTilt       = WindowLut::makeTilt (tiltPeakPos);
 
     // ---- (1b) v1.1.0 randomisation amounts, resolved once per block ---------
     // Everything here is derived from block-rate parameter reads; the actual
@@ -853,12 +968,33 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             g.age         = 0;
             g.startOffset = off + passOffset;
 
-            g.gL = std::cos(phase);
-            g.gR = std::sin(phase);
+            // B1: window shape + tilt, latched like everything else above. No
+            // RNG is consumed here — the window is deterministic — so the two
+            // xorshift streams' consumption per spawn is UNCHANGED from v1.1.0
+            // and probes T (zero-determinism) and W2 (block-size invariance)
+            // stay valid without re-tuning.
+            g.shape       = shapeIdx;
+            g.tiltT       = blockTilt.t;
+            g.tiltA       = blockTilt.a;
+            g.tiltB       = blockTilt.b;
 
-            // gainRand == 1.0f multiplies to a BITWISE copy, not an approximation.
-            g.gLout = g.gL * gainRand;
-            g.gRout = g.gR * gainRand;
+            // The two paths diverge here, and BOTH divergences are latched:
+            //   gL / gR       — feedback tap: pan × loopTrim, no gainRandom.
+            //   gLout / gRout — output:       pan × gainRandom, no loopTrim.
+            //
+            // Neither trim may cross over. loopTrim in the output would undo the
+            // power normalisation Z2 asserts; gainRandom in the loop would make
+            // the decay rate stochastic (probe X). Both multipliers are exactly
+            // 1.0f at their no-op — Hann/tilt-0.5 and gainRandom 0 — so at the
+            // shipped defaults all four gains are BITWISE the raw pan values.
+            const float panL = std::cos(phase);
+            const float panR = std::sin(phase);
+
+            g.gL = panL * loopTrim;
+            g.gR = panR * loopTrim;
+
+            g.gLout = panL * gainRand;
+            g.gRout = panR * gainRand;
         }
 
         // ---- (4) render active grains into wetScratch (overlap-add) ---------
@@ -883,6 +1019,13 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             const float gL = g.gL,    gR = g.gR;       // feedback tap — never randomised
             const float gLo = g.gLout, gRo = g.gRout;  // output — includes gainRandom
 
+            // B1: the grain's OWN latched window, resolved once per pass. The
+            // table pointer is hoisted out of the per-sample loop so a five-shape
+            // bank costs the inner loop nothing over v1.1's single table, and
+            // the three tilt coefficients become plain registers.
+            const float* const win = windowLuts.getTable (g.shape);
+            const float tT = g.tiltT, tA = g.tiltA, tB = g.tiltB;
+
             // Branch-free inner loop: LUT lerp + mul-adds, per-grain constants
             // precomputed at spawn. Integer reverse read: readAbs steps −1 while
             // the write head advances +1 → net offset growth D+2n.
@@ -897,7 +1040,16 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             for (int i = start; i < end; ++i)
             {
                 const float src = capture.monoSum(readAbs);
-                const float env = hannLut.read(static_cast<float>(n) * invG);
+
+                // B1 tilt: two branchless segments mapping [0,t] -> [0,0.5] and
+                // [t,1] -> [0.5,1]. At the default t = 0.5 both coefficients are
+                // exactly 1.0f and this reduces to `p` BITWISE — min/max, not a
+                // near-identity multiply — which is what preserves the shipped
+                // render exactly. See WindowLut.h for the proof.
+                const float p   = static_cast<float>(n) * invG;
+                const float q   = juce::jmin(p, tT) * tA + juce::jmax(p - tT, 0.0f) * tB;
+
+                const float env = windowLuts.readAt(win, q);
                 const float v   = src * env * gain;
                 wetL[i]  += v * gLo;
                 wetR[i]  += v * gRo;

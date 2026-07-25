@@ -1,9 +1,10 @@
 // ============================================================================
 // O-ReverseDelay — WebView UI controller (Stage 3 controls, Stage 4 bar + tips)
 //
-// Binds all 14 APVTS parameters two-way: 12 WebSliderRelay knobs + 2
-// WebComboBoxRelay controls (syncMode as a segment pair, noteDivision as a
-// select). v1.1.0 added the four RANDOM knobs in row 2.
+// Binds all 16 APVTS parameters two-way: 13 WebSliderRelay knobs + 3
+// WebComboBoxRelay controls (syncMode as a segment pair, noteDivision and
+// grainShape as selects). v1.1.0 added the four RANDOM knobs in row 2;
+// v1.2.0 added the WINDOW panel's Shape select + Tilt knob.
 //
 // Native-function surface is 11 and must match PluginEditor.cpp exactly:
 // getParameterDefaults is fetched HERE (dblclick-reset); the other ten are
@@ -33,15 +34,33 @@ const KNOB_IDS = [
   "width", "mix",
   // v1.1.0 (B3) — RANDOM panel, row 2. All default to 0.
   "jitter", "delayScatter", "sizeRandom", "gainRandom",
+  // v1.2.0 (B1) — WINDOW panel. grainShape is a CHOICE and is bound below as a
+  // select, not here; only grainTilt is a knob.
+  "grainTilt",
 ];
 
 const COMBO_SYNC     = "syncMode";
 const COMBO_DIVISION = "noteDivision";
+const COMBO_SHAPE    = "grainShape";
 
 // ── Display formatters — receive the SCALED value, add units only ───────────
 const fmtPct = (v) => `${Math.round(v)} %`;
 const fmtMs  = (v) => (v >= 1000 ? `${(v / 1000).toFixed(2)} s` : `${Math.round(v)} ms`);
 const fmtHz  = (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)} kHz` : `${Math.round(v)} Hz`);
+
+// grainTilt's PARAMETER is 0..1 with 0.5 = symmetric, because that is the range
+// the C++ NormalisableRange owns and 0.5 is the value whose phase warp is the
+// bitwise identity. Presenting a bipolar control as "0.50" would hide that the
+// centre is the neutral position, so the READOUT is signed — and derived from
+// the scaled value here rather than by re-ranging the parameter, which would
+// have cost the exactness at the default
+// (pattern_webview_knob_readout_scaled_value: the range lives in C++, the units
+// live here). U+2212 is a real minus, matching the page's en-dashes.
+const fmtTilt = (v) => {
+  const t = Math.round((v - 0.5) * 200);
+  if (t === 0) return "Centre";
+  return `${t > 0 ? "+" : "−"}${Math.abs(t)} %`;
+};
 
 const FORMAT = {
   delayTime: fmtMs,
@@ -58,6 +77,8 @@ const FORMAT = {
   delayScatter: (v) => `${Math.round(v)} ms`,
   sizeRandom:   fmtPct,
   gainRandom:   fmtPct,
+  // v1.2.0 (B1)
+  grainTilt:    fmtTilt,
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────
@@ -76,6 +97,7 @@ const DELETE_ARM_MS    = 3000; // how long the delete button stays armed
 const sliderState = {};        // id -> Juce SliderState
 let syncState     = null;      // Juce ComboBoxState (syncMode)
 let divisionState = null;      // Juce ComboBoxState (noteDivision)
+let shapeState    = null;      // Juce ComboBoxState (grainShape, v1.2.0)
 let paramDefaults = null;      // { id: engineeringDefault } from the native fn
 
 let presetManager = null;      // PresetManager instance (Stage 4)
@@ -214,13 +236,17 @@ function bindKnob(juce, id) {
   });
 }
 
-// ── noteDivision select ─────────────────────────────────────────────────────
-function bindDivisionCombo(juce) {
-  const st = juce.getComboBoxState(COMBO_DIVISION);
-  divisionState = st;
+// ── <select>-backed choice params (noteDivision, grainShape) ────────────────
+// One implementation for both. v1.1.0 had this hard-wired to noteDivision; the
+// v1.2.0 grainShape select needs identical behaviour — options built from the
+// LIVE properties.choices, rebuilt when they arrive late, index refreshed on
+// both events — and a second copy would be a second place for that to rot.
+// Returns the state so the caller can hold it.
+function bindSelectCombo(juce, paramId) {
+  const st = juce.getComboBoxState(paramId);
 
-  const sel = document.getElementById(`combo-${COMBO_DIVISION}`);
-  if (!sel) { console.error(`Missing combo element: combo-${COMBO_DIVISION}`); return; }
+  const sel = document.getElementById(`combo-${paramId}`);
+  if (!sel) { console.error(`Missing combo element: combo-${paramId}`); return null; }
 
   const buildOptions = () => {
     const choices = (st.properties && st.properties.choices) || [];
@@ -246,6 +272,8 @@ function bindDivisionCombo(juce) {
   refresh();
 
   sel.addEventListener("change", () => st.setChoiceIndex(sel.selectedIndex));
+
+  return st;
 }
 
 // ── syncMode segment pair + UI-02 time-slot swap ────────────────────────────
@@ -474,7 +502,8 @@ function initTooltips() {
 function init() {
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
   bindSyncSegments(Juce);
-  bindDivisionCombo(Juce);
+  divisionState = bindSelectCombo(Juce, COMBO_DIVISION);
+  shapeState    = bindSelectCombo(Juce, COMBO_SHAPE);
   loadParameterDefaults(Juce);   // async; nothing else depends on it
   initTooltips();
   initPresetBar();               // async, fire-and-forget; self-contained failure
