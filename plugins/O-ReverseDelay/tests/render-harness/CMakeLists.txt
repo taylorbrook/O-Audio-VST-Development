@@ -52,10 +52,16 @@ target_compile_definitions(O-ReverseDelay-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon Audio Development"
     JucePlugin_ManufacturerCode=0x4f754476
     JucePlugin_PluginCode=0x4f527644
-    # Keep in sync with the plugin CMakeLists' VERSION (1.0.0). 0x10000 = 65536
-    # matches the Stage-1 verified AU version (WR-04: do not let these drift).
-    JucePlugin_VersionString="1.0.0"
-    JucePlugin_VersionCode=0x10000
+    # Keep in sync with the plugin CMakeLists' VERSION (1.0.1). 0x10001 = 65537
+    # matches the verified AU version (WR-04: do not let these drift).
+    #
+    # This is load-bearing for probes N and R, not cosmetic: the factory-preset
+    # sentinel and the user-preset migration sentinel both key off
+    # JucePlugin_VersionString. Left at 1.0.0 here, the harness would audit the
+    # STALE on-disk factory presets and skip the migration entirely, and both
+    # probes would pass against v1.0.0 data.
+    JucePlugin_VersionString="1.0.1"
+    JucePlugin_VersionCode=0x10001
     JucePlugin_IsSynth=0
     JucePlugin_WantsMidiInput=0
     JucePlugin_ProducesMidiOutput=0
