@@ -4,6 +4,146 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.5.0] — 2026-07-25 — Grain Size to 4000 ms
+
+Minor release. One requested change — `grainSize`'s ceiling raised from **500 ms
+to 4000 ms** — plus the two things that change forces and one latent test-harness
+defect it exposed.
+
+### `grainSize` — 50 to 4000 ms, default 200, skew centred on 316 ms
+
+The knob now spans the **same 50–4000 ms as `delayTime`, on the same taper**.
+Sharing `delayTime`'s 316 ms skew centre is deliberate: the two long-throw time
+knobs sit next to each other on the panel, so a given knob angle now reads as
+roughly the same duration on both.
+
+The default stays **200 ms** and every shipped sound is unchanged — a new
+instance renders identically to v1.4.0.
+
+Measured off the rendered UI, not derived:
+
+| knob | grain size |
+|------|-----------|
+| 0 % | 50 ms |
+| 25 % | 68 ms |
+| 50 % | 316 ms |
+| 75 % | 1339 ms |
+| 100 % | 4000 ms |
+
+The taper is steep at the bottom — the old 50–500 ms working range now lives in
+roughly the lower 55 % of the throw, and the top quarter buys 1339 → 4000 ms.
+That is the cost of reaching 4 s on one knob, and it is exactly the cost
+`delayTime` has always had.
+
+### The capture ring had to grow — 6.0 s to 13.0 s
+
+This is the load-bearing half of the change, and it is not optional.
+
+A grain spawned at output sample `s` reads source `(s − gD − n)` at its own
+sample `n`, so its **last** read lands at `(s − gD − G)` while the write head has
+itself advanced to `(s + G)`. The ring must therefore span `gD_max + 2·G_max`,
+not `gD_max + G_max`:
+
+```
+gD_max = kDelayTimeMaxMs + kDelayScatterMaxMs = 4.0 + 0.5 =  4.5 s
+G_max  = kGrainSizeMaxMs                                  =  4.0 s   (was 0.5)
+      -> 4.5 + 2·4.0                                      = 12.5 s required
+```
+
+Shipping the wider range against the old 6.0 s ring would **not** have faulted.
+Long grains would simply have wrapped onto material the writer had already
+overwritten — no NaN, no discontinuity (the ring is contiguous), every existing
+probe still green, and the only symptom "the long settings sound a bit crunchy".
+
+Cost: **~5.0 MB** stereo at 48 kHz (was ~2.3 MB), ~10 MB at 96 kHz, ~20 MB at
+192 kHz. Allocated once in `prepareToPlay()`, never on the audio thread.
+
+**The invariant is now a `static_assert`, not a comment.** Every prose statement
+of this requirement was already correct at v1.4.0 and none of them stopped this
+release from silently invalidating it — comments do not fail the build. Any
+future move of `kDelayTimeMaxMs`, `kDelayScatterMaxMs` or `kGrainSizeMaxMs` that
+outgrows the ring now stops the compiler.
+
+### User presets are migrated; sessions need nothing
+
+Two storage formats, opposite treatment — the same split v1.0.1 documented:
+
+- **Sessions** (APVTS) store *denormalised* milliseconds. A session saved at
+  350 ms recalls 350 ms under the new range with no migration, and rescaling one
+  would actively corrupt it. Untouched.
+- **Preset JSON** stores *normalised fractions*, which shift meaning when the
+  range moves. A v1.4.0 preset at the old default 200 ms holds ~0.573 — which
+  under the new curve would read back as **~1450 ms**.
+
+`migrateUserPresets()` gains a `grainSize` arm. The two arms carry **different
+version gates**, which is the part that was easy to get wrong:
+
+| parameter | moved at | gate |
+|-----------|----------|------|
+| `delayTime` | v1.0.1 | `version < 1.0.1` |
+| `grainSize` | v1.5.0 | `version < 1.5.0` |
+
+Reusing the existing `!= "1.0.0"` gate would have migrated v1.0.0 presets and
+silently left every v1.1–v1.4 preset — the bulk of any real library — holding a
+fraction against the old curve. The failure is quiet: the preset still loads, it
+just recalls the wrong grain size.
+
+`grainSize` is also the harder rescale of the two. `delayTime` kept its skew
+centre and moved only its max; `grainSize` moved **both** (max 500 → 4000, centre
+158 → 316), so the curves differ in shape as well as extent and no scale factor
+does the job — only reconstructing the old range and round-tripping through
+milliseconds. The gate is per-file, so migration is idempotent even if a previous
+pass was interrupted before the sentinel was written.
+
+Factory presets need no edits: they are authored in engineering units and
+re-converted through the new range on the `.factory-version` bump. All eight
+re-seed and recall at `worst=0.0000` tolerance.
+
+### Fixed — render-harness version string had drifted two releases
+
+`tests/render-harness/CMakeLists.txt` pinned `JucePlugin_VersionString="1.2.0"`
+while the plugin shipped 1.3.0 and 1.4.0. The file's own comment warns that this
+value is load-bearing rather than cosmetic — both the factory-preset and
+user-preset sentinels key off it — so probes N and R spent two releases auditing
+v1.2.0's stale on-disk presets. Now 1.5.0, and the re-seed is visible in the run.
+
+### Verified
+
+All **108** render-harness probes pass, including:
+
+- **`ring-cover-maxgrain`** (new) — at `D = G = 4000 ms` the reversed burst is
+  absent before 4 s and present from 5–9 s, ratio `8.6e-8`. This is the assertion
+  an undersized ring fails: a 6 s ring would wrap `(s − 8 s)` forward onto recent
+  material and leak the burst into the early window.
+- **`grainsize-preset-migration`** (new) — worst recall error `0.000061 ms`
+  against a 0.01 ms parameter step, and the un-migrated drift is at least 9.0 ms
+  (70 ms would recall 61.0 ms), so the probe has teeth rather than passing on a
+  migration that did nothing.
+- `blocksize-invariance` and `scatter-blocksize-invariance` — still bit-identical
+  (`max|512−4096| = 0.000000000`), with W1 now driving `grainSize` at the new
+  4000 ms maximum.
+- `count-default-identity`, `window-default-identity`, `window-loopnorm-identity`
+  — all still exactly `0.000000000`.
+- `decay-count-fb100` / `ceiling16-loop-bounded` — decay still negative and
+  monotone; the raised range does not disturb the v1.3.0 loop trim.
+- Full-range parameter sweep now covers 50–4000 ms with no click or NaN.
+
+### Not affected
+
+Recorded because each looks adjacent and is not:
+
+- `GrainScheduler::kMaxSpawnsPerBlock` — its bound is
+  `overlapMax · kDelayTimeMinMs / kGrainSizeMinMs`, which keys off grainSize's
+  **minimum**. Unmoved, so the cap's 8× margin is intact.
+- `GrainPool`'s 32 slots — a grain lives `G` samples and the spawn interval is
+  `G/overlap`, so concurrent grains ≈ overlap regardless of `G`.
+- `loopCountTrim` — a function of overlap only.
+- `ReverseGrain` — latches an `int G`; it owns no buffer to resize.
+- `sizeRandom` — already clamps to `kGrainSizeMaxMs`, so it follows the new
+  ceiling automatically.
+- The WebView readout — reads `SliderState.getScaledValue()`, so it tracks the
+  C++ range with no JS change.
+
 ## [1.4.0] — 2026-07-25 — Continuous Tukey taper + window-shape display
 
 Minor release. Two requested changes: unfreeze Tukey's shape parameter, and show

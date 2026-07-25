@@ -787,6 +787,37 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         + (diff(jsIds, stubIds).length ? ' — MISSING: ' + diff(jsIds, stubIds).join(', ') : ''));
     check(/delayTime:\s*\{\s*start:\s*50,\s*end:\s*4000/.test(stub),
         'ui-stub delayTime range tracks the v1.0.1 widening (50-4000, not 50-2000)');
+
+    // v1.5.0: grainSize's max AND skew centre both moved (500->4000, 158->316).
+    // Asserted against the C++ CONSTANTS rather than against literals repeated
+    // here, because a literal in the test drifts exactly as silently as the
+    // literal in the stub did — this check exists because the stub sat at
+    // 50-500 after the range moved, which would have made every browser-rendered
+    // readout disagree with the plugin while the suite stayed green.
+    {
+        const procH = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.h'), 'utf8');
+        const cppNum = (name) => {
+            const m = procH.match(new RegExp(name + '\\s*=\\s*([0-9.]+)f'));
+            return m ? parseFloat(m[1]) : null;
+        };
+        const gMin    = cppNum('kGrainSizeMinMs');
+        const gMax    = cppNum('kGrainSizeMaxMs');
+        const gCentre = cppNum('kGrainSizeSkewCentreMs');
+
+        const stubGrain = stub.match(
+            /grainSize:\s*\{\s*start:\s*([0-9.]+),\s*end:\s*([0-9.]+),\s*skew:\s*skewForCentre\(\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+)\)/);
+
+        check(gMin !== null && gMax !== null && gCentre !== null && stubGrain !== null
+                && parseFloat(stubGrain[1]) === gMin
+                && parseFloat(stubGrain[2]) === gMax
+                && parseFloat(stubGrain[3]) === gMin
+                && parseFloat(stubGrain[4]) === gMax
+                && parseFloat(stubGrain[5]) === gCentre,
+            'ui-stub grainSize range/skew match the C++ kGrainSize* constants'
+                + (stubGrain && gMax !== null
+                     ? ` — C++ ${gMin}-${gMax} c${gCentre}, stub ${stubGrain[1]}-${stubGrain[2]} c${stubGrain[5]}`
+                     : ' — could not parse'));
+    }
 }
 
 console.log(failed === 0 ? '== ALL CHECKS PASSED ==' : `== ${failed} CHECK(S) FAILED ==`);

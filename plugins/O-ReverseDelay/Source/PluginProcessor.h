@@ -166,8 +166,38 @@ public:
     // grain the user could dial in by hand, or the ring requirement below stops
     // being true. Same single-definition discipline as kDelayTimeMaxMs (the
     // v1.0.0 A1 defect was a literal 2000.0 drifting from the parameter range).
-    static constexpr float kGrainSizeMinMs         =  50.0f;
-    static constexpr float kGrainSizeMaxMs         = 500.0f;
+    //
+    // ── v1.5.0: max 500 -> 4000 ms ───────────────────────────────────────────
+    // The knob now spans the SAME 50–4000 ms as delayTime, and deliberately
+    // carries delayTime's skew centre too (316 ms): the two long-throw time
+    // knobs sit next to each other on the panel, and a shared taper means a
+    // given knob angle reads as roughly the same duration on both.
+    //
+    // Two things follow from this move and neither is optional:
+    //   * kCaptureSeconds grows, because the ring requirement below is
+    //     gD_max + 2·G_max and G_max just octupled. See kCaptureSeconds.
+    //   * User presets must be rescaled, because preset JSON stores NORMALISED
+    //     fractions and BOTH endpoints and skew moved. See migrateUserPresets()
+    //     and the kLegacyGrainSize* constants.
+    //
+    // NOT affected, recorded here because each looks adjacent and is not:
+    //   * GrainScheduler::kMaxSpawnsPerBlock — its bound is
+    //     overlapMax·kDelayTimeMinMs/kGrainSizeMinMs, which keys off grainSize's
+    //     MINIMUM. Unmoved, so the cap's 8x margin is untouched.
+    //   * GrainPool's 32 slots — a grain lives G samples and the spawn interval
+    //     is G/overlap, so concurrent grains ~= overlap regardless of G.
+    //   * loopCountTrim — a function of overlap only.
+    //   * ReverseGrain — latches an int G; it owns no buffer to resize.
+    static constexpr float kGrainSizeMinMs         =   50.0f;
+    static constexpr float kGrainSizeMaxMs         = 4000.0f;
+    static constexpr float kGrainSizeSkewCentreMs  =  316.0f;
+
+    /** v1.0.0–v1.4.0's grainSize range. Preset JSON stores NORMALISED fractions,
+        so a preset written against these recalls a different number of ms once
+        the range moves — and unlike the delayTime migration, the SKEW moved too,
+        so this is doubly not a linear rescale. See migrateUserPresets(). */
+    static constexpr float kLegacyGrainSizeMaxMs        = 500.0f;
+    static constexpr float kLegacyGrainSizeSkewCentreMs = 158.0f;
 
     /** delayScatter's max, in ms. Also the ring's positive-scatter budget. */
     static constexpr float kDelayScatterMaxMs      = 500.0f;
@@ -323,12 +353,42 @@ public:
         gD_max + 2·G_max, where v1.1's delayScatter extends gD_max beyond the
         delayTime range:
             gD_max = kDelayTimeMaxMs + kDelayScatterMaxMs = 4.0 + 0.5 = 4.5 s
-            G_max  = kGrainSizeMaxMs                      = 0.5 s
-            -> 4.5 + 2·0.5 = 5.5 s required.
-        v1.0.1's 5.5 s ring met that requirement with ONE sample to spare, which
-        is not headroom. 6.0 s restores a 0.5 s margin for ~192 KB stereo at
-        48 kHz. */
-    static constexpr float kCaptureSeconds         = 6.0f;
+            G_max  = kGrainSizeMaxMs                      = 4.0 s   (v1.5.0)
+            -> 4.5 + 2·4.0 = 12.5 s required.
+
+        Why 2·G and not G: a grain spawned at output sample s reads source
+        (s − gD − n) at its own sample n, so its LAST read — at n = G − 1 — lands
+        at (s − gD − G) while the write head has itself advanced to (s + G). The
+        distance the ring must still hold at that instant is therefore
+        gD + 2·G, not gD + G. Getting this wrong does not fault; the read simply
+        wraps onto material the writer has already overwritten, and the tail of
+        every long grain turns to garbage.
+
+        v1.0.1's 5.5 s ring met the OLD requirement with ONE sample to spare,
+        which is not headroom; 6.0 s restored a 0.5 s margin. 13.0 s keeps that
+        same 0.5 s margin against the new 12.5 s requirement.
+
+        Cost, allocated once in prepareToPlay() and never on the audio thread:
+        13 s stereo float is ~5.0 MB at 48 kHz, ~10 MB at 96 kHz and ~20 MB at
+        192 kHz (was ~2.3 MB at 48 kHz). That is the price of a 4 s grain and it
+        scales with the sample rate the host chose, not with anything the user
+        can dial in. */
+    static constexpr float kCaptureSeconds         = 13.0f;
+
+    // The ring requirement, as a COMPILE-TIME assertion rather than a comment.
+    //
+    // Every prose description of this invariant above was already correct at
+    // v1.4.0 and still did not stop the v1.5.0 grainSize raise from silently
+    // invalidating it — the arithmetic lives in a comment, and comments do not
+    // fail the build. This does. Any future move of kDelayTimeMaxMs,
+    // kDelayScatterMaxMs or kGrainSizeMaxMs that outgrows the ring now stops the
+    // compiler instead of quietly producing grains whose tails read overwritten
+    // material, which is a defect no auval/pluginval pass would catch and which
+    // only sounds like "the long settings are a bit crunchy".
+    static_assert (kCaptureSeconds * 1000.0f
+                     >= kDelayTimeMaxMs + kDelayScatterMaxMs + 2.0f * kGrainSizeMaxMs,
+                   "kCaptureSeconds is too short for the worst-case latched read span "
+                   "(gD_max + 2*G_max). Raise it before widening any of the three ranges.");
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

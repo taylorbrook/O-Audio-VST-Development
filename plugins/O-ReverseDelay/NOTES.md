@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.5.0
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -32,6 +32,14 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   Two things worth knowing. First, the requested range was 0.01–9.9; Tukey's taper is mathematically bounded to [0, 1] (1.0 = full taper = Hann), so 1.0–9.9 would have been ~90 % dead knob travel. Corrected to [0.01, 1.00] after checking with the user. Second, the remap is **not bitwise** for Tukey: it deviates from v1.3.0's stored table by up to **2.4e-6 (−112.5 dB)**, which is LUT lerp error, not a shape change, and cannot be avoided — reading a 2048-point table at an arbitrary phase is not the same operation as evaluating `cos` there. Confined to Tukey; the cross-version diff confirms it, with `window-live-Tukey` the single probe line that moved (0.075537 → 0.075538) and every other shape untouched. All eight factory presets are on Hann.
 
   α needed **two** different normalisation corrections, for the third release running: power duty 0.994→0.375 (4.2 dB) on the output, amplitude duty 0.995→0.500 (6.0 dB) on the feedback tap. Level ends up flat to **0.010 dB** across the whole range, and decay flat to **0.030 dB/s** (fb 60) / **0.056** (fb 100) for α ≥ 0.1. **α = 0.01 is a documented exception**: 0.240 dB/s at fb 60 and 0.791 at fb 100, because a near-rectangular window has crest factor ~1.0 against Hann's 1.63 and overlaps to something near-constant, neither of which a linear duty constant equalises — the same class of exception the header already records for Expo-Decay. Its grain edge measures 0.0112 against 0.0058 at α = 0.5, i.e. twice as fast but nowhere near a click.
+
+- **2026-07-25 (v1.5.0):** Minor — **`grainSize` max 500 → 4000 ms**, on `delayTime`'s exact range and taper (skew centre 316 ms), so the two long-throw time knobs read alike. Default stays 200 ms and a new instance is unchanged. Measured off the rendered UI: 25 % = 68 ms, 50 % = 316 ms, 75 % = 1339 ms — steep at the bottom, which is the price of 4 s on one knob and the price `delayTime` has always paid. Harness 106→**108 probes**, all passing; auval SUCCEEDED, pluginval-10 ×3 both formats, **user DAW sign-off**.
+
+  The load-bearing half was the **capture ring, 6.0 → 13.0 s**. The requirement is `gD_max + 2·G_max` — a grain's last read lands at `(s − gD − G)` while the write head has reached `(s + G)` — so `4.5 + 2·4.0 = 12.5 s`. Shipping the wider range against the old ring would **not have faulted**: long grains would have wrapped onto overwritten material with no NaN, no discontinuity, and every existing probe green — audible only as "the long settings sound crunchy". Cost ~5.0 MB stereo at 48 kHz (~20 MB at 192 kHz), allocated once in `prepareToPlay`. The invariant is now a **`static_assert`**, because every prose statement of it was already correct at v1.4.0 and none of them stopped this release from invalidating it.
+
+  User presets are migrated; sessions are not (APVTS stores denormalised ms — rescaling those would corrupt them). The trap was the **version gate**: `delayTime`'s range moved at v1.0.1 so its gate is `< 1.0.1`, but `grainSize`'s moved at v1.5.0 so its gate is `< 1.5.0`. Reusing the existing `!= "1.0.0"` test would have migrated v1.0.0 presets and silently left every v1.1–v1.4 preset — the bulk of any real library — on the old curve, still loading fine and recalling the wrong size. `grainSize` is also the harder rescale: `delayTime` kept its skew centre and moved only its max, while `grainSize` moved **both**, so no scale factor works — only reconstructing the old range and round-tripping through ms. The gate is per-file, so migration is idempotent if a pass is interrupted before the sentinel writes.
+
+  Two stale mirrors found and fixed, both of which would have kept passing while lying. `tests/render-harness/CMakeLists.txt` pinned `JucePlugin_VersionString="1.2.0"` while the plugin shipped 1.3.0 and 1.4.0 — the file's own comment warns this value is load-bearing (both preset sentinels key off it), so probes N and R spent two releases auditing v1.2.0's on-disk presets. And `tests/ui-stub/juce-stub.js` still declared `grainSize` as 50–500 centre-158, which would have made every browser-rendered readout disagree with the plugin. The new stub assertion checks against the **C++ constants** rather than repeating literals, since a literal in the test drifts exactly as silently as the one it is guarding.
 
 ## Known Issues
 
