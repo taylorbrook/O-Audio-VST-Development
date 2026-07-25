@@ -22,9 +22,10 @@
 
 // O-ReverseDelay — granular reverse delay (Stage 2 DSP, Phase 2.3 complete:
 // reverse wet path + damped tanh-stable feedback loop + tempo sync + width).
-// APVTS with 14 parameters: the 10 of research/ARCHITECTURE.md's immutable
-// contract, plus v1.1.0's four grain randomisations (B3), which are ADDITIVE —
-// every one defaults to 0, so the contract's behaviour is the default behaviour.
+// APVTS with 16 parameters: the 10 of research/ARCHITECTURE.md's immutable
+// contract, plus v1.1.0's four grain randomisations (B3) and v1.2.0's two
+// window controls (B1), all of which are ADDITIVE — every one defaults to the
+// engine's no-op, so the contract's behaviour is the default behaviour.
 // NOTE: this file (and PluginProcessor.cpp) must stay free of editor-only includes —
 // the render harness compiles the processor without any editor sources.
 class ReverseDelayProcessor : public juce::AudioProcessor
@@ -80,6 +81,13 @@ public:
         any audio-path decision. */
     int getActiveGrainCount() const noexcept { return grainPool.countActive(); }
 
+    /** v1.2.0 (B1): the window bank, exposed read-only so the render harness can
+        PRINT the per-shape power duty cycles and normalisation constants it is
+        asserting against. A level-match probe that derives its own expected
+        numbers from the same header it is testing proves nothing; a probe that
+        reports the constants alongside a measured RMS is auditable. */
+    const WindowLut& getWindowLuts() const noexcept { return windowLuts; }
+
     //==========================================================================
     // delayTime range constants (v1.0.1 / A1).
     //
@@ -115,6 +123,28 @@ public:
         silent (mul 0) or double-level (mul 2) — both read as faults, not depth. */
     static constexpr float kMaxGainRandomDeviation = 0.75f;
 
+    //==========================================================================
+    // v1.2.0 (B1) — grain window tilt.
+    //
+    // grainTilt is 0..1 with 0.5 = symmetric; the ENGINE wants a peak position
+    // inside the grain. The map is deliberately written as
+    //     peakPos = 0.5 + (tilt - 0.5) · kTiltTravel
+    // rather than the equivalent-looking `lo + tilt·(hi - lo)`, because only
+    // this form returns EXACTLY 0.5f at tilt = 0.5f: the bracket is exactly zero
+    // and 0.5f + 0.0f is 0.5f. The other form goes through a rounded multiply
+    // and lands one ulp away, which would silently cost the bitwise-identity
+    // guarantee that makes this a MINOR bump (probe Z1).
+    //
+    // 0.9 travel spans peak positions [0.05, 0.95], matching WindowLut's own
+    // clamp — so the parameter reaches its endpoints exactly rather than being
+    // clipped somewhere short of them.
+    static constexpr float kTiltTravel = 0.9f;
+
+    static float tiltToPeakPos (float tilt01) noexcept
+    {
+        return 0.5f + (tilt01 - 0.5f) * kTiltTravel;
+    }
+
     /** Capture ring length. Must cover the WORST-CASE latched read span,
         gD_max + 2·G_max, where v1.1's delayScatter extends gD_max beyond the
         delayTime range:
@@ -144,7 +174,12 @@ private:
     //==========================================================================
     // DSP components (Stage 2). All allocation confined to prepareToPlay().
     CaptureBuffer  capture;             // 5.5 s stereo ring, input + feedback return
-    WindowLut      hannLut { 2048 };    // built once at construction, never on audio thread
+
+    // v1.2.0 (B1): five shapes + per-shape power-normalisation constants, all
+    // built in this member's CONSTRUCTOR — i.e. before prepareToPlay, never on
+    // the audio thread. Was `hannLut` (a single Hann table) through v1.1.0; the
+    // rename is deliberate so no call site can keep assuming one shape.
+    WindowLut      windowLuts { 2048 };
     GrainPool      grainPool;           // 32 preallocated reverse-grain slots
     GrainScheduler scheduler;           // free-countdown spawn scheduler
 
@@ -268,6 +303,13 @@ private:
     std::atomic<float>* pDelayScatter = nullptr;
     std::atomic<float>* pSizeRandom   = nullptr;
     std::atomic<float>* pGainRandom   = nullptr;
+
+    // v1.2.0 grain window (B1). Both default to the SHIPPED window — grainTilt
+    // to 0.5 (symmetric) and grainShape to 0 (Hann) — so unlike the v1.1 four,
+    // the no-op default is not 0 for both. What matters is that it is the no-op:
+    // see createParameterLayout().
+    std::atomic<float>* pGrainTilt    = nullptr;
+    std::atomic<float>* pGrainShape   = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ReverseDelayProcessor)
 };

@@ -4,6 +4,188 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.2.0] — 2026-07-24 — Grain window shape + tilt
+
+Minor release implementing **section B1** of the v1.0.0 review
+(`improvements/2026-07-24-v1.1-review.md`), which called window tilt "the
+highest-value single change in this document". Fills the WINDOW panel that
+v1.1.0 framed and reserved — markup only, no resize, exactly as promised.
+
+This is a *reverse* delay, and through v1.1.0 every grain played its source
+backwards under a **symmetric** Hann: each one swelled in and out identically,
+so the effect smeared but never bloomed. A window whose peak sits late produces
+the backwards-swell-into-a-transient shape the effect is bought for.
+
+### The compatibility guarantee, and how it was verified
+
+Both new parameters default to the **shipped window**, and the no-op is not zero
+for both: `grainShape` defaults to index 0 (Hann) and `grainTilt` to **0.5**
+(symmetric). 0 is a hard peak-early tilt, so "new parameter, default it to 0"
+would have re-voiced every existing session and all eight factory presets.
+
+The defaults are the engine's *exact* no-op rather than approximately it, and
+that is by construction (see the tilt design below). Measured the same way
+v1.1.0 measured its own: the v1.1.0 harness was rebuilt from commit `8fa3646`
+and run head-to-head.
+
+| Check | Result |
+|-------|--------|
+| v1.1.0's 63 probe result lines vs v1.2.0's | **byte-for-byte identical** |
+| Offline render harness | **81/81 probes PASS, exit 0** (63 + 18 new) |
+| `ui_frontend_check.js` | **ALL CHECKS PASSED** (sections 1–15) |
+| `ui_tooltip_clamp_check.js` @ 940×743 | **ALL CHECKS PASSED**, 16/16 anchors, clamp fired on 4 |
+| `pluginval --strictness-level 10` VST3 | **SUCCESS ×3**, zero failures |
+| `pluginval --strictness-level 10` AU | **SUCCESS ×3**, zero failures |
+| `auval -v aufx ORvD OuDv` | **AU VALIDATION SUCCEEDED** |
+| AU component version | **66048** (= 1.2.0) |
+
+### Added
+
+- **`grainShape` (Hann / Tukey / Gaussian / Triangular / Expo-Decay, default
+  Hann)** — `WindowLut.h` was hard-coded Hann and had noted since Stage 2 that
+  it was trimmed from O-simpleGrain's 5-shape `WindowLuts.h`. All five tables are
+  built in the constructor, never on the audio thread, and indexed at spawn.
+  Hann's table is bit-for-bit the expression v1.0.0 shipped.
+  - The **Gaussian deliberately deviates** from O-simpleGrain's copy: at σ = 0.18
+    the raw curve reads 0.021 at both ends rather than 0. In a one-shot granular
+    texture that 2 % step is inaudible; here it would be a step at every grain
+    boundary, overlapping 2–8 deep, inside a loop that re-reverses it every
+    generation. The pedestal is subtracted and the result renormalised.
+- **`grainTilt` (0–1, default 0.5)** — moves the window's peak within the grain.
+  0 = peak early (a plucked, decaying reverse grain), 0.5 = the symmetric Hann
+  as shipped, 1 = peak late (slow swell into a fast cut). Displayed as a signed
+  percentage centred on "Centre"; the parameter keeps its 0–1 range because 0.5
+  is the value whose warp is exactly neutral.
+- **WINDOW panel**, with tooltip copy, dblclick reset and keyboard/wheel
+  adjustment on the same footing as every other control.
+
+### The tilt is a two-segment linear phase warp
+
+`q = min(p, t)·(0.5/t) + max(p − t, 0)·(0.5/(1 − t))`, mapping `[0, t] → [0, ½]`
+and `[t, 1] → [½, 1]`. Chosen over the review's suggested `read(pow(phase, k))`
+(which puts a transcendental back in the grain loop) and over a family of
+pre-tilted LUTs (~2.6 MB for a quantised approximation of a continuous control).
+Two properties are exact rather than approximate:
+
+- **At t = 0.5 it is the bitwise identity.** Both coefficients are exactly
+  `1.0f`, so `q = min(p, 0.5) + max(p − 0.5, 0)`; for p ≥ 0.5 Sterbenz's lemma
+  makes `p − 0.5` exact and `0.5 + (p − 0.5)` rounds to exactly `p`. Asserted
+  over a 4097-point phase sweep, not assumed.
+- **It is power-invariant for symmetric windows.** The segments' Jacobians are
+  2t and 2(1−t), so the warped mean square is `t·mLo + (1−t)·mHi` — independent
+  of t whenever the halves match. Tilt therefore cannot move the level or the
+  loop's duty cycle for four of the five shapes, by construction rather than by
+  a compensating constant.
+
+### Two normalisations, because the two paths sum differently
+
+The review warned that `grainGain = 1/sqrt(overlap)` assumes Hann's power duty
+and that a shape change would read as a volume *and* a feedback change. Both
+halves were real, and they needed **different** constants — which the first
+implementation of this release got wrong in an instructive way.
+
+- **Output path — power.** A pass over broadband input has each grain reading a
+  different stretch of the ring, so contributions are decorrelated and sum in
+  power. `shapeNorm = √(m_hann / m_shape)` folded into `grainGain` holds all five
+  shapes inside **0.147 dB** (probe Z2). Tukey's mean square is 0.687 against
+  Hann's 0.375, so uncompensated it would have landed +2.6 dB.
+- **Feedback tap — amplitude.** What recirculates is the wash the engine just
+  made: self-similar material read by overlapping grains at nearby offsets, so it
+  sums closer to *coherently*, and a coherent sum follows the window's **mean**,
+  not its mean square. Power-only normalisation left the decay rate spanning
+  **4.40 dB/s** at feedback 100, ranked exactly by amplitude duty — "window
+  shape" audible as "how long the tail lasts". `getLoopNorm()` multiplies the
+  loop tap gains only.
+
+The engine could express this because it has carried separate output and
+feedback-tap gains since v1.1.0, where the split was built so `gainRandom` could
+sit *after* the feedback tap. The same split, used in the other direction,
+carries this. Neither constant may cross over: `loopTrim` on the output would
+undo the power normalisation; `gainRandom` in the loop would make the decay rate
+stochastic. Measured, worst deviation from Hann in dB/s:
+
+| | feedback 60 | feedback 100 |
+|---|---|---|
+| power-only, all five shapes | 6.216 | 4.400 |
+| power-only, excluding Expo-Decay | 1.318 | 1.330 |
+| **+ loop trim, all five** | **1.848** | **0.175** |
+| **+ loop trim, excluding Expo-Decay** | **0.042** | **0.042** |
+
+Expo-Decay's residual is **not** a normalisation error and no linear constant
+removes it: its crest factor is 3.10 against Hann's 1.63, so at equal loop energy
+its peaks hit the loop's `tanh` harder and it genuinely loses more per
+generation. It is largest at feedback 60 — mid-knee, where a limiter's
+incremental gain is most level-dependent — rather than at 100, where everything
+is deep enough into limiting for the differences to wash out. Probe Z4 bounds the
+four low-crest shapes at 0.35 dB/s and Expo-Decay separately, so a regression to
+power-only normalisation still fails even though it would sit inside any single
+bound wide enough for Expo-Decay.
+
+### Changed
+
+- **`.shape-select` is 120 px, not `.division-select`'s 82 px.** "Expo-Decay"
+  measures 94 px with padding and the arrow and rendered clipped. Visible only in
+  a browser render — build, `auval`, `pluginval` and the static checks all pass a
+  clipped select. Still inside the 190 px panel's content box, so nothing moves.
+- **`bindDivisionCombo` generalised to `bindSelectCombo(juce, paramId)`** and
+  called twice. The grainShape select needs identical behaviour — options built
+  from live `properties.choices`, rebuilt if they arrive late, index refreshed on
+  both events — and a second copy would be a second place for that to rot.
+- **Factory presets** carry both new keys explicitly at the shipped window. The
+  CMake `VERSION` bump is what makes those edits reach disk; at a frozen version
+  the preset table is a silent no-op.
+
+### Testing
+
+Harness **63 → 81 probes**. New: `window-warp-identity`, `window-norm-identity`,
+`window-default-identity`, `window-duty-report`, `window-loopnorm-identity`,
+`level-flat-shape`, `level-flat-tilt-{Hann,Expo-Decay}`,
+`decay-shape-fb{60,100}`, `window-live-{Tukey,Gaussian,Triangular,Expo-Decay}`,
+`window-live-tilt{0,100}`, plus `sweep-grainTilt` / `sweep-grainShape` in the
+all-parameter sweep and two new columns in the factory-preset audit.
+
+`level-flat-tilt` runs for **Hann and Expo-Decay** specifically: for a symmetric
+window the warp is power-preserving by construction and `getTiltNorm()` returns
+exactly `1.0f`, so Hann tests the *warp*; Expo-Decay is the only asymmetric shape
+and therefore the only one where the tilt normalisation arithmetic actually runs.
+Testing Hann alone would leave it entirely unexercised.
+
+`window-live-*` is the mirror of probe T: every other new probe asserts a *must
+not change*, and a control wired to nothing satisfies all of them perfectly.
+
+Two harness corrections fell out of the first run, both worth recording because
+each looked like a DSP regression and neither was:
+
+- **`setBaseline()`/`setDefaults()` now reset the window parameters.** Probe M
+  sweeps them and leaves them where its triangle ended; probes P, Q and V run
+  afterwards and inherited a tilted, non-Hann window. Probe Q's
+  constant-overlap-add flatness read 0.3718 instead of 1.0000. Resetting at the
+  source makes the leak impossible rather than making it every future probe's job
+  to remember.
+- **`decay-shape-fb60` needed its own measurement windows.** At ~9.8 dB/s, probes
+  S and X's `[5–10 s]` vs `[20–25 s]` pair spans ~133 dB and the later window is
+  reading the denormal floor. Four of five shapes still agreed to 0.04 dB/s while
+  Expo-Decay read 1.5 dB/s off — which looks exactly like a normalisation failure
+  and is not one.
+
+### Notes
+
+- No new RNG draws. The two xorshift streams' consumption per spawn is unchanged
+  from v1.1.0, so probes T (zero-determinism) and W2 (block-size invariance) stay
+  valid without re-tuning.
+- Both parameters are latched per grain at spawn. Smoothing a window *shape* is
+  not merely unnecessary but meaningless — two windows disagree at every phase,
+  so any crossfade still steps a live grain's envelope.
+- A symmetric window's two halves are canonicalised at construction when their
+  power agrees to within 1e-6 relative. `std::cos`/`std::exp` evaluated at
+  mirrored arguments disagree in the last ulp, which would turn "exactly 1.0f at
+  every tilt" into "1.0f ± 5e-8" — inaudible, but it would cost the ability to
+  assert power invariance as an *exact* property, and an invariant checkable only
+  to a tolerance can rot by a real amount unnoticed. Mirroring the tables instead
+  was not available: Hann's must stay bit-identical to v1.0.0's.
+
+---
+
 ## [1.1.0] — 2026-07-24 — Grain randomisation + UI chassis
 
 Minor release implementing **section B3** of the v1.0.0 review

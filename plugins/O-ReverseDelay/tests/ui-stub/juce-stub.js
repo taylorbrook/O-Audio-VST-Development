@@ -44,10 +44,19 @@ const RANGES = {
   delayScatter: { start: 0, end: 500, skew: 1, interval: 0.1, def: 0 },
   sizeRandom:   { start: 0, end: 100, skew: 1, interval: 0.1, def: 0 },
   gainRandom:   { start: 0, end: 100, skew: 1, interval: 0.1, def: 0 },
+
+  // v1.2.0 (B1) — WINDOW panel. NOTE the default: 0.5, not 0. grainTilt is the
+  // one parameter here whose neutral position is the CENTRE of its range, so a
+  // stub that defaulted it to 0 would render the page with a hard peak-early
+  // tilt and a "−100 %" readout, i.e. it would show a state the plugin never
+  // ships in.
+  grainTilt:    { start: 0, end: 1,   skew: 1, interval: 0.001, def: 0.5 },
 };
 
 const CHOICES = {
   syncMode: ["Free", "Sync"],
+  // v1.2.0 — must match WindowLut::Shape order and the C++ StringArray.
+  grainShape: ["Hann", "Tukey", "Gaussian", "Triangular", "Expo-Decay"],
   noteDivision: [
     "1/16", "1/16D", "1/16T",
     "1/8",  "1/8D",  "1/8T",
@@ -57,7 +66,7 @@ const CHOICES = {
   ],
 };
 
-const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6 };
+const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6, grainShape: 0 };
 
 class StubSliderState {
   constructor(name) {

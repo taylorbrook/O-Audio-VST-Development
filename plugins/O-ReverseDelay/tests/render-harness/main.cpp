@@ -137,6 +137,40 @@
                               to zero; v1.1 refuses the spawn. Peak grain
                               concurrency is reported, not asserted.
 
+    v1.2.0 probes (B1 grain window shape + tilt):
+      Z1. window-identity   — the compatibility guarantee, as MECHANISM: the
+                              tilt warp at 0.5 is the BITWISE identity over a
+                              4097-point phase sweep, both power-normalisation
+                              constants are exactly 1.0f at (Hann, 0.5), and
+                              getTiltNorm is exactly 1.0f at EVERY tilt for all
+                              four symmetric shapes (the warp's power
+                              invariance). Plus a rendered default-vs-explicit
+                              equality, and a printed table of every shape's
+                              power duty cycle. The cross-VERSION half of the
+                              claim cannot live in one binary: the v1.1.0
+                              harness was rebuilt from commit 8fa3646 and its
+                              63 result lines diffed byte-for-byte against
+                              this build's (see CHANGELOG).
+      Z2. level-flat-shape  — wet RMS within ±1 dB across all five shapes at a
+                              fixed density. Uncompensated, Tukey's 1.83x duty
+                              would put it +2.6 dB — a timbre control read as
+                              a volume control.
+      Z3. level-flat-tilt   — same ±1 dB across tilt {0,.25,.5,.75,1}, run for
+                              Hann (tests the WARP, whose tiltNorm is exactly
+                              1.0f) and for Expo-Decay (the only asymmetric
+                              shape, i.e. the only one where the tilt
+                              normalisation arithmetic actually runs).
+      Z4. decay-fb100-shape — loop decay dB/s at feedback=100 for each shape.
+                              grainGain sits BEFORE the feedback tap, so the
+                              window's duty sets per-generation loss; without
+                              normalisation "shape" silently becomes "tail
+                              length". Every shape's number is printed.
+      Z5. window-live       — the mirror of probe T: every other Z probe is a
+                              "must not change", which a control wired to
+                              nothing satisfies perfectly. Each non-default
+                              shape and BOTH tilt extremes must measurably
+                              move the render.
+
   ==============================================================================
 */
 
@@ -496,6 +530,22 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     setParam (a, "highCut",     8000.0f);
     setParam (a, "width",          0.0f);
     setParam (a, "mix",          100.0f);
+
+    // v1.2.0 (B1): the SHIPPED window, so every probe written before this
+    // release measures exactly what it always measured.
+    //
+    // These belong here rather than in a clearWindow() the way v1.1's four
+    // randomisations live in clearRandomisation(), and that is a correction
+    // rather than a style choice. Probe M sweeps grainTilt and grainShape and
+    // leaves them wherever its triangle ended; probes P, Q and V run afterwards,
+    // call setBaseline(), and would silently inherit a tilted or non-Hann
+    // window. All three DID fail that way on the first run of this release —
+    // probe Q's constant-overlap-add flatness fell from 1.0000 to 0.3718 — and
+    // every one of them looked like a DSP regression rather than harness state
+    // leaking forward. Resetting at the source makes the leak impossible
+    // instead of making it every future probe's job to remember.
+    setParam (a, "grainTilt",      0.5f);   // symmetric — NOT 0
+    setParam (a, "grainShape",     0.0f);   // Hann
 }
 
 // Plugin defaults for the QUAL-01 all-parameter sweep (probe M): every value
@@ -512,6 +562,8 @@ static void setDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, "highCut",     8000.0f);
     setParam (a, "width",         60.0f);
     setParam (a, "mix",           35.0f);
+    setParam (a, "grainTilt",      0.5f);   // v1.2.0 default — see setBaseline
+    setParam (a, "grainShape",     0.0f);
 }
 
 //==============================================================================
@@ -1287,6 +1339,15 @@ int main()
             { "highCut",     500.0f, 20000.0f, false, false, false,   0.0f },
             { "width",         0.0f,   100.0f, false, false, false,   0.0f },
             { "mix",           0.0f,   100.0f, false, false, false,   0.0f },
+            // v1.2.0 (B1). Both are LATCHED CONTENT parameters — a sweep
+            // re-shapes the envelope of every NEW grain while in-flight grains
+            // finish on the window they were spawned with, which is the same
+            // legitimate read-reseating grainSize/density already get the loose
+            // tier for. A window that was NOT latched would show up here as a
+            // click, because two window shapes disagree at every phase and
+            // switching mid-grain steps the envelope.
+            { "grainTilt",     0.0f,     1.0f, false, true,  false,   0.0f },
+            { "grainShape",    0.0f,     4.0f, true,  true,  false,   0.0f },
         };
 
         for (const auto& sp : specs)
@@ -2001,6 +2062,420 @@ int main()
                  + " peakGrains=" + juce::String (peakActive) + "/32");
     }
 
+    //==========================================================================
+    // v1.2.0 probes (Z1–Z5) — B1 grain window shape + tilt
+    //==========================================================================
+
+    // Shape order must match WindowLut::Shape and the grainShape StringArray.
+    struct ShapeSpec { int index; const char* name; };
+    const ShapeSpec kShapes[] = {
+        { 0, "Hann"       },
+        { 1, "Tukey"      },
+        { 2, "Gaussian"   },
+        { 3, "Triangular" },
+        { 4, "Expo-Decay" },
+    };
+
+    auto clearWindow = [&]
+    {
+        setParam (apvts, "grainShape", 0.0f);   // Hann
+        setParam (apvts, "grainTilt",  0.5f);   // symmetric
+    };
+
+    // --- Probe Z1: the default window is the SHIPPED window, exactly ---------
+    // The whole compatibility claim of this release rests on two mechanisms
+    // being EXACT rather than approximately right, so both are asserted as
+    // exact-equality rather than within a tolerance:
+    //
+    //   1. The tilt phase warp at t = 0.5 must be the BITWISE identity. It is
+    //      built from min/max and two coefficients that are exactly 1.0f, and
+    //      0.5 + (p - 0.5) round-trips exactly for p in [0.5, 1] (Sterbenz).
+    //      A "near identity" here — say a lerp that lands one ulp off — would
+    //      pass every level and decay probe below and still change the render
+    //      of every existing session, which is the failure this release cannot
+    //      have.
+    //   2. Both power-normalisation constants must be exactly 1.0f at
+    //      (Hann, 0.5), so folding them into grainGain is a no-op multiply.
+    //
+    // The cross-version half of this claim cannot live inside one binary: the
+    // v1.1.0 harness was rebuilt from commit 8fa3646 and its 63 probe result
+    // lines diffed against this build's — byte-for-byte identical. That is
+    // recorded in the CHANGELOG; what runs here is the mechanism behind it.
+    {
+        const auto& luts = proc.getWindowLuts();
+
+        // (a) warp identity at the default tilt, over a dense phase sweep.
+        const auto tilt = WindowLut::makeTilt (
+            ReverseDelayProcessor::tiltToPeakPos (0.5f));
+
+        bool  warpExact = (tilt.t == 0.5f && tilt.a == 1.0f && tilt.b == 1.0f);
+        int   warpFails = 0;
+        float worstP = 0.0f;
+
+        for (int i = 0; i <= 4096; ++i)
+        {
+            const float p = (float) i / 4096.0f;
+
+            // juce::exactlyEqual, not `!=`: bitwise equality is the ASSERTION
+            // here, not an accident of it, and a bare != on two variables trips
+            // -Wfloat-equal (which juce_recommended_warning_flags enables). The
+            // whole probe exists because "close enough" is not enough.
+            if (! juce::exactlyEqual (tilt.warp (p), p))
+                { ++warpFails; if (warpFails == 1) worstP = p; }
+        }
+
+        warpExact = warpExact && warpFails == 0;
+
+        check ("window-warp-identity", warpExact,
+               juce::String ("t=") + juce::String (tilt.t, 6)
+                 + " a=" + juce::String (tilt.a, 6) + " b=" + juce::String (tilt.b, 6)
+                 + " mismatches=" + juce::String (warpFails) + "/4097"
+                 + (warpFails ? juce::String (" first@p=") + juce::String (worstP, 6)
+                              : juce::String()));
+
+        // (b) both norms exactly 1.0f at the shipped window, and the tilt norm
+        //     exactly 1.0f at ANY tilt for every symmetric shape (the warp's
+        //     power invariance — the reason tilt needs no compensation).
+        const bool hannNormExact = (luts.getShapeNorm (0) == 1.0f)
+                                && (luts.getTiltNorm (0, 0.5f) == 1.0f);
+
+        int symmetricFails = 0;
+        for (int s = 0; s <= 3; ++s)                      // Hann..Triangular are symmetric
+            for (const float tv : { 0.0f, 0.25f, 0.5f, 0.75f, 1.0f })
+                if (luts.getTiltNorm (s, ReverseDelayProcessor::tiltToPeakPos (tv)) != 1.0f)
+                    ++symmetricFails;
+
+        check ("window-norm-identity", hannNormExact && symmetricFails == 0,
+               juce::String ("hann shapeNorm=") + juce::String (luts.getShapeNorm (0), 9)
+                 + " tiltNorm=" + juce::String (luts.getTiltNorm (0, 0.5f), 9)
+                 + " symmetric-tilt non-unity: " + juce::String (symmetricFails) + "/20");
+
+        // (c) the rendered form of the same claim: explicitly selecting the
+        //     default window must produce the same samples as never touching it.
+        auto renderWindow = [&] (bool touch, float shapeIdx, float tiltVal)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density",  60.0f);
+            setParam (apvts, "feedback", 40.0f);
+            setParam (apvts, "width",    60.0f);
+            clearRandomisation();
+            clearWindow();
+            if (touch)
+            {
+                setParam (apvts, "grainShape", shapeIdx);
+                setParam (apvts, "grainTilt",  tiltVal);
+            }
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 2.0, fs, block, randNoiseFill);
+        };
+
+        auto untouched = renderWindow (false, 0.0f, 0.5f);
+        auto explicitly = renderWindow (true, 0.0f, 0.5f);
+
+        const double wd = juce::jmax (maxAbsDiff (untouched.L, explicitly.L),
+                                      maxAbsDiff (untouched.R, explicitly.R));
+        const double wRef = juce::jmax (peakAbs (untouched.L), peakAbs (untouched.R));
+
+        check ("window-default-identity", wd == 0.0 && wRef > 1.0e-3,
+               juce::String ("max|default-explicit|=") + juce::String (wd, 9)
+                 + " peak=" + juce::String (wRef, 5));
+
+        // (d) report the power duty cycles the normalisation is built on, so
+        //     the constants Z2/Z4 depend on are printed numbers, not a claim.
+        juce::String duty;
+        for (const auto& sh : kShapes)
+            duty += juce::String (sh.name) + "=" + juce::String (luts.getMeanSquare (sh.index), 4)
+                  + "/" + juce::String (luts.getMean (sh.index), 4)
+                  + "/" + juce::String (luts.getShapeNorm (sh.index), 4)
+                  + "/" + juce::String (luts.getLoopNorm (sh.index, 0.5f), 4) + " ";
+
+        check ("window-duty-report", true,
+               juce::String ("meanSq/mean/shapeNorm/loopNorm ") + duty);
+
+        // (e) the loop trim must ALSO be exactly 1.0f at the shipped window, or
+        //     the feedback tap's latched gains stop being bitwise the pan values
+        //     and (c) above would already have failed — asserted separately so a
+        //     failure names the constant rather than just the render.
+        check ("window-loopnorm-identity",
+               juce::exactlyEqual (luts.getLoopNorm (0, 0.5f), 1.0f),
+               juce::String ("hann loopNorm=") + juce::String (luts.getLoopNorm (0, 0.5f), 9));
+    }
+
+    // --- Probe Z2: shape changes TIMBRE, not level ---------------------------
+    // grainGain = 1/sqrt(overlap) assumed Hann's power duty cycle. Tukey's mean
+    // square is 0.6875 against Hann's 0.375, so an uncompensated shape switch
+    // would raise the wet level by 2.6 dB — the control would be read as a
+    // volume knob and blamed for the mix, exactly as probe U guards the four
+    // randomisations. Same ±1 dB budget, same measurement as probes D and U.
+    {
+        double lo = 1.0e30, hi = 0.0;
+        juce::String detail;
+        bool ok = true;
+
+        for (const auto& sh : kShapes)
+        {
+            setBaseline (apvts);          // feedback 0, width 0, mix 100 — wet only
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "grainShape", (float) sh.index);
+            proc.prepareToPlay (fs, block);
+
+            auto y = renderEffect (proc, 3.0, fs, block, randNoiseFill);
+
+            const double r = rms (y.L, (int) (1.2 * fs), (int) (1.6 * fs));
+            lo = juce::jmin (lo, r);
+            hi = juce::jmax (hi, r);
+            detail += juce::String (sh.name) + "=" + juce::String (r, 5) + " ";
+            ok = ok && allFinite (y.L) && allFinite (y.R)
+                    && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0;
+        }
+
+        const double spreadDb = (lo > 0.0) ? 20.0 * std::log10 (hi / lo) : 99.0;
+
+        check ("level-flat-shape", ok && spreadDb < 1.0 && lo > 1.0e-4,
+               juce::String ("rms ") + detail
+                 + "spread=" + juce::String (spreadDb, 3) + " dB");
+    }
+
+    // --- Probe Z3: tilt changes SHAPE, not level -----------------------------
+    // Run for Hann AND for Expo-Decay, because the two exercise different code:
+    // for a symmetric window the warp is power-preserving by construction and
+    // getTiltNorm() returns exactly 1.0f (probe Z1b), so Hann tests the WARP;
+    // Expo-Decay is asymmetric, its two half-powers differ, and it is the only
+    // shape where the tilt normalisation actually computes something. Testing
+    // only Hann would leave that arithmetic entirely unexercised.
+    {
+        for (const auto& sh : { kShapes[0], kShapes[4] })
+        {
+            double lo = 1.0e30, hi = 0.0;
+            juce::String detail;
+            bool ok = true;
+
+            for (const float tv : { 0.0f, 0.25f, 0.5f, 0.75f, 1.0f })
+            {
+                setBaseline (apvts);
+                clearRandomisation();
+                clearWindow();
+                setParam (apvts, "grainShape", (float) sh.index);
+                setParam (apvts, "grainTilt",  tv);
+                proc.prepareToPlay (fs, block);
+
+                auto y = renderEffect (proc, 3.0, fs, block, randNoiseFill);
+
+                const double r = rms (y.L, (int) (1.2 * fs), (int) (1.6 * fs));
+                lo = juce::jmin (lo, r);
+                hi = juce::jmax (hi, r);
+                detail += juce::String (r, 5) + " ";
+                ok = ok && allFinite (y.L) && allFinite (y.R)
+                        && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0;
+            }
+
+            const double spreadDb = (lo > 0.0) ? 20.0 * std::log10 (hi / lo) : 99.0;
+
+            check ((juce::String ("level-flat-tilt-") + sh.name).toRawUTF8(),
+                   ok && spreadDb < 1.0 && lo > 1.0e-4,
+                   juce::String ("rms{0,.25,.5,.75,1}=") + detail
+                     + "spread=" + juce::String (spreadDb, 3) + " dB");
+        }
+    }
+
+    // --- Probe Z4: shape does not change the FEEDBACK DECAY RATE -------------
+    // The second half of the load-bearing warning. grainGain is applied BEFORE
+    // the feedback tap, so the window's power duty cycle sets how much energy
+    // survives each generation — the v1.0.0 CHANGELOG attributes the loop's
+    // −4.3 dB/generation to the Hann² duty specifically. Normalise the level but
+    // not the loop and "window shape" silently becomes "tail length"; a user
+    // auditioning shapes at feedback 100 would hear the decay move and read it
+    // as the shape being louder or quieter.
+    //
+    // Measured exactly as probes S and X measure theirs: same excitation, same
+    // windows, same dB/s. Every shape's number is printed, so the comparison is
+    // a reported table and not an assertion nobody can audit.
+    // Two feedback settings, because they answer different questions and the
+    // first run of this release needed both to tell them apart:
+    //
+    //   fb = 60  — the loop runs well below the tanh's knee, so this is the
+    //              LINEAR per-generation gain. It is the number the loop
+    //              normalisation is responsible for, and the one held tight.
+    //   fb = 100 — the loop is into tanh compression, where a window's crest
+    //              factor changes how hard it limits. No linear constant can
+    //              equalise that, so this is held to a looser band and its whole
+    //              table is printed.
+    //
+    // The two settings need DIFFERENT measurement windows, and getting that
+    // wrong is its own trap: at fb 60 the loop loses ~8.8 dB/s, so probes S/X's
+    // [5-10 s] vs [20-25 s] pair spans 15 s of decay — about 133 dB — and the
+    // later window is reading the denormal floor rather than the tail. Measured
+    // that way, four of the five shapes still agreed to 0.06 dB/s while
+    // Expo-Decay read 1.5 dB/s off, which looks exactly like a normalisation
+    // failure and is not one. The windows below are placed where each setting's
+    // tail is genuinely alive.
+    {
+        const int exciteLen = (int) (2.0 * fs);
+
+        for (const float fb : { 60.0f, 100.0f })
+        {
+            const bool  fast = fb < 80.0f;
+            const double w1Start = fast ?  3.0 :  5.0;
+            const double w2Start = fast ?  6.0 : 20.0;
+            const double winLen  = fast ?  2.0 :  5.0;
+            const double gapSec  = w2Start - w1Start;
+
+            double hannDecay = 0.0;
+            double worstDelta = 0.0;        // over all five shapes
+            double worstSmooth = 0.0;       // excluding the peaky Expo-Decay
+            const char* worstName = "-";
+            juce::String detail;
+            bool ok = true;
+
+            for (const auto& sh : kShapes)
+            {
+                setBaseline (apvts);
+                setParam (apvts, "density",     60.0f);
+                setParam (apvts, "feedback",       fb);
+                setParam (apvts, "lowCut",     100.0f);
+                setParam (apvts, "highCut",   8000.0f);
+                clearRandomisation();
+                clearWindow();
+                setParam (apvts, "grainShape", (float) sh.index);
+                proc.prepareToPlay (fs, block);
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (kRandA * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+
+                auto y = renderEffect (proc, 30.0, fs, block, fill);
+
+                const double w1 = rms (y.L, (int) (w1Start * fs), (int) (winLen * fs));
+                const double w2 = rms (y.L, (int) (w2Start * fs), (int) (winLen * fs));
+                const double decayDbPerSec = (w1 > 0.0 && w2 > 0.0)
+                                               ? 20.0 * std::log10 (w2 / w1) / gapSec : 0.0;
+
+                if (sh.index == 0)
+                {
+                    hannDecay = decayDbPerSec;
+                }
+                else
+                {
+                    const double delta = std::abs (decayDbPerSec - hannDecay);
+
+                    if (delta > worstDelta) { worstDelta = delta; worstName = sh.name; }
+
+                    // Expo-Decay is excluded from the tight bound, not from the
+                    // probe: it is the only window with a crest factor far from
+                    // the others (3.10 against 1.21-1.79), and crest factor is
+                    // what a tanh responds to. Its number is still measured,
+                    // still printed, and still bounded — just separately.
+                    if (sh.index != 4 && delta > worstSmooth)
+                        worstSmooth = delta;
+                }
+
+                detail += juce::String (sh.name) + "=" + juce::String (decayDbPerSec, 3) + " ";
+
+                ok = ok && allFinite (y.L) && allFinite (y.R)
+                        && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0 && w1 > 1.0e-7;
+            }
+
+            // ── bounds, set FROM MEASUREMENT ────────────────────────────────
+            // The same probe was run against a build with getLoopNorm() forced
+            // to 1.0f — i.e. against power-only normalisation, which is what
+            // this release's first attempt shipped — to establish what each
+            // bound has to catch. All numbers dB/s, worst delta vs Hann:
+            //
+            //                        fb 60        fb 100
+            //   power-only, all      6.216        4.400      <- must FAIL
+            //   power-only, smooth   1.318        1.330      <- must FAIL
+            //   + loop trim, all     1.848        0.175
+            //   + loop trim, smooth  0.042        0.042
+            //
+            // Hence two bounds rather than one loose one. The four low-crest
+            // shapes are held to 0.35 — 8x tighter than they measure and 3.8x
+            // below the power-only failure — so a regression in the loop
+            // normalisation is caught even though it would leave the overall
+            // number inside any bound wide enough for Expo-Decay.
+            //
+            // Expo-Decay's own bound is looser because its residual is NOT a
+            // normalisation error and no linear constant removes it: its crest
+            // factor is 3.10 against Hann's 1.63, so at equal loop energy its
+            // peaks hit the loop's tanh far harder and it genuinely loses more
+            // per generation. That is a real property of a peaky window in a
+            // saturating loop, and it is largest at fb 60 — mid-knee, where a
+            // limiter's incremental gain is most level-dependent — rather than
+            // at fb 100, where everything is deep enough into limiting for the
+            // differences to wash out.
+            const double smoothBound = 0.35;
+            const double allBound    = fast ? 2.50 : 1.20;
+
+            check ((juce::String ("decay-shape-fb") + juce::String ((int) fb)).toRawUTF8(),
+                   ok && worstSmooth < smoothBound && worstDelta < allBound,
+                   juce::String ("dB/s ") + detail
+                     + "worst-vs-Hann=" + juce::String (worstDelta, 3)
+                     + " (" + worstName + ", <" + juce::String (allBound, 2) + ")"
+                     + " low-crest worst=" + juce::String (worstSmooth, 3)
+                     + " (<" + juce::String (smoothBound, 2) + ")"
+                     + " win " + juce::String (w1Start, 0) + "s/" + juce::String (w2Start, 0) + "s");
+        }
+    }
+
+    // --- Probe Z5: both window controls are LIVE -----------------------------
+    // The mirror of probe T. Every guard above is a "must not change" — level
+    // flat, decay flat, defaults bit-identical — and a control wired to nothing
+    // at all would satisfy every one of them perfectly. This is the assertion
+    // that fails when the window becomes a dead knob: the same failure class as
+    // an unregistered native function, and just as invisible to auval.
+    {
+        auto renderWindowAt = [&] (float shapeIdx, float tiltVal)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density",  60.0f);
+            setParam (apvts, "feedback", 40.0f);
+            setParam (apvts, "width",    60.0f);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "grainShape", shapeIdx);
+            setParam (apvts, "grainTilt",  tiltVal);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 2.0, fs, block, randNoiseFill);
+        };
+
+        auto base = renderWindowAt (0.0f, 0.5f);
+        const double baseRef = juce::jmax (peakAbs (base.L), peakAbs (base.R));
+
+        // Each non-default shape, at the default tilt.
+        for (const auto& sh : kShapes)
+        {
+            if (sh.index == 0) continue;
+
+            auto y = renderWindowAt ((float) sh.index, 0.5f);
+            const double d  = juce::jmax (maxAbsDiff (base.L, y.L), maxAbsDiff (base.R, y.R));
+            const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+            check ((juce::String ("window-live-") + sh.name).toRawUTF8(),
+                   d > 0.02 * baseRef && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+                   juce::String ("max|hann-shape|=") + juce::String (d, 6)
+                     + " (needs >" + juce::String (0.02 * baseRef, 6) + ")"
+                     + " peak=" + juce::String (pk, 4));
+        }
+
+        // Both tilt extremes, on Hann. Asserted separately from each other
+        // because a warp that collapsed to the identity in one direction only
+        // would still pass a single-ended check.
+        for (const float tv : { 0.0f, 1.0f })
+        {
+            auto y = renderWindowAt (0.0f, tv);
+            const double d  = juce::jmax (maxAbsDiff (base.L, y.L), maxAbsDiff (base.R, y.R));
+            const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+            check ((juce::String ("window-live-tilt") + juce::String ((int) (tv * 100.0f))).toRawUTF8(),
+                   d > 0.02 * baseRef && pk < 1.0 && allFinite (y.L) && allFinite (y.R),
+                   juce::String ("max|centre-tilt|=") + juce::String (d, 6)
+                     + " (needs >" + juce::String (0.02 * baseRef, 6) + ")"
+                     + " peak=" + juce::String (pk, 4));
+        }
+    }
+
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------
     // MUST run last: it mutates the APVTS through the real preset manager and
     // leaves the plugin on the final preset's values, so no probe may follow it.
@@ -2025,6 +2500,11 @@ int main()
         {
             const char* name;
             float  sync, div, delay, grain, dens, fb, lo, hi, width, mix;
+            // v1.2.0 (B1): every preset must recall the SHIPPED window. tilt is
+            // 0.5 and not 0 — the one column here whose neutral value is not
+            // zero, and the one a "new key, write 0" reflex would silently
+            // hard-tilt all eight presets with.
+            float  tilt, shape;
             double seconds;
         };
 
@@ -2037,14 +2517,14 @@ int main()
         // ever fail, the FIRST thing to check is that the version bump actually
         // re-seeded ~/Library/O-ReverseDelay/Presets/Factory (see the note below).
         const FactoryExpect kFactoryExpect[] = {
-            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 10.0 },
-            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 10.0 },
-            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 10.0 },
-            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 10.0 },
-            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 10.0 },
-            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 10.0 },
-            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 30.0 },
-            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 10.0 },
+            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 0.5f, 0, 10.0 },
+            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 0.5f, 0, 10.0 },
+            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 0.5f, 0, 10.0 },
+            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 0.5f, 0, 10.0 },
+            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 0.5f, 0, 10.0 },
+            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 0.5f, 0, 10.0 },
+            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 0.5f, 0, 30.0 },
+            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 0.5f, 0, 10.0 },
         };
 
         // Per-param tolerances, set FROM MEASUREMENT rather than assumed: the
@@ -2076,8 +2556,8 @@ int main()
 
             // (a) skew round-trip — the C1 assertion.
             // Every param is compared unconditionally (no && short-circuit) so
-            // the printed "worst" always reflects all ten, not just those before
-            // the first failure. "worst" is the param with the largest delta
+            // the printed "worst" always reflects all twelve, not just those
+            // before the first failure. "worst" is the param with the largest delta
             // RELATIVE to its own tolerance, i.e. the one closest to failing.
             float       worst      = 0.0f;   // raw delta of that param
             float       worstRatio = 0.0f;   // delta / tolerance
@@ -2102,6 +2582,11 @@ int main()
             cmp ("highCut",      e.hi,    kTolHiHz);
             cmp ("width",        e.width, kTolPct);
             cmp ("mix",          e.mix,   kTolPct);
+            // v1.2.0 (B1). grainTilt's 0.001 step resolves 0.5 exactly, so the
+            // 0.002 tolerance is two steps — tight enough that a preset written
+            // as 0 (the wrong "neutral") fails by 250x.
+            cmp ("grainTilt",    e.tilt,  0.002f);
+            cmp ("grainShape",   e.shape, kTolChoice);
 
             const bool values = loaded && inRange;
 

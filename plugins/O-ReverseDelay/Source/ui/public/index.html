@@ -214,15 +214,43 @@
         </div>
       </section>
 
-      <!-- Reserved (v1.2+). Framed and labelled so the chassis is final; the
+      <!-- WINDOW (v1.2.0, B1) ──────────────────────────────────────────────
+           The first reserved panel to be filled, and it cost exactly what
+           v1.1.0 promised it would: markup only. No CSS rule, no width change,
+           no resize — so the tooltip edge-clamp geometry is the same one
+           v1.1.0 verified (it is re-measured anyway, because two new anchors
+           exist, but the LAYOUT under test is unchanged).
+
+           Shape sits above Tilt because it selects which family of envelopes
+           the tilt then leans — reading the panel top-to-bottom is reading the
+           signal path. Both default to the shipped Hann: Shape to index 0 and
+           Tilt to its CENTRE, which is the one control on this page whose
+           no-op is not zero. -->
+      <section class="group group-window">
+        <div class="group-label">Window</div>
+        <div class="group-body">
+          <div class="select-cell">
+            <!-- Options built at runtime from properties.choices — the C++
+                 StringArray is the single source of truth (never hardcode). -->
+            <select class="division-select shape-select" id="combo-grainShape" aria-label="Grain Shape"
+                    data-tip-title="Shape"
+                    data-tip="The envelope each grain is played through. Hann is the shipped bell; Tukey holds its level and sounds more open; Expo-Decay plucks. Level is matched across all five, so this changes colour and not loudness."></select>
+            <div class="knob-label">Shape</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-grainTilt" data-param="grainTilt"
+                 data-tip-title="Tilt"
+                 data-tip="Moves the envelope's peak within the grain. Centre is the symmetric window. Turn up and each grain swells slowly then cuts — backwards-swell-into-a-transient, the reason to reach for a reverse delay. Turn down for a plucked, decaying grain."><div class="knob-stem"></div></div>
+            <div class="knob-label">Tilt</div>
+            <div class="knob-value" id="val-grainTilt">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reserved (v1.3+). Framed and labelled so the chassis is final; the
            fleuron is the page's own ornament, standing in for the specimen
            that lands here. To fill one, replace the span with .knob-cell
            markup — no CSS change, no resize. -->
-      <section class="group group-window">
-        <div class="group-label">Window</div>
-        <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>
-      </section>
-
       <section class="group group-motion">
         <div class="group-label">Motion</div>
         <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.2.0
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -19,6 +19,8 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 - **2026-07-24 (v1.0.1):** Patch — A1 sync clamp (delayTime max 2000→4000 ms, ring 3.5→5.5 s, user-preset migration), A2 unwritten-capture read at large block sizes (engine pass bounded to D — now block-size invariant), A3 density remap (`overlap = 2 + d·6`, removes the zero-overlap tremolo region), plus `reset()` override, dry-through on the oversized-block bail, and dead-code removal. Harness 41→49 probes.
 - **2026-07-24 (v1.1.0):** Minor — grain randomisation (review B3): `jitter`, `delayScatter`, `sizeRandom`, `gainRandom`, all defaulting to 0 and all latched per grain. `GrainPool::obtain()` now refuses on exhaustion instead of stealing (the steal cut a live Hann envelope to zero). Wet path split into output/loop buffers so `gainRandom` sits after the feedback tap. Per-instance RNG seed. Ring 5.5→6.0 s. Editor 940×484 → **940×743** with a second panel row (RANDOM | WINDOW | MOTION | SPACE), sized once for the ~26 controls planned through v1.6. Harness 49→63 probes; new `ui_tooltip_clamp_check.js` measures tooltips in a browser at the real shipping size. **v1.0.1's 49 probe results reproduce byte-for-byte**, verified against a rebuild of commit `78af47b`.
 
+- **2026-07-24 (v1.2.0):** Minor — grain window control (review B1): `grainShape` (Hann / Tukey / Gaussian / Triangular / Expo-Decay) and `grainTilt` (0–1, peak position within the grain), both latched per grain. Tilt is a two-segment linear phase warp that is the **bitwise identity** at its 0.5 default and power-invariant for symmetric windows by construction. Two normalisation constants, not one: POWER on the output path (decorrelated grains, all 5 shapes within 0.147 dB) and AMPLITUDE on the feedback tap (self-similar recirculating material — power-only left the decay rate spanning 4.40 dB/s at feedback 100; with the loop trim, 0.175). Fills the reserved WINDOW panel — **markup only, no resize**. Harness 63→81 probes. **v1.1.0's 63 probe results reproduce byte-for-byte**, verified against a rebuild of commit `8fa3646`.
+
 ## Known Issues
 
 - A v1.0.0 user preset restored from a backup **after** the
@@ -28,9 +30,11 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   plugin to re-run the migration.
 - `width` has a hole in the middle by design: `kPanBias = 0.5` means at
   width 100 % no grain is ever centred (decision D5, not a bug).
-- Grain steal is a hard cut (`ReverseGrain.h` `obtain()`), so a stolen grain's
-  Hann envelope jumps to zero. Unreachable at max overlap 8 against 32 slots in
-  steady state; would need addressing before max overlap is raised.
+- Expo-Decay decays faster in the feedback loop than the other four shapes
+  (1.85 dB/s at feedback 60, 0.18 at feedback 100). Not a normalisation error:
+  its crest factor is 3.10 against Hann's 1.63, so its peaks hit the loop's
+  `tanh` harder. No linear constant removes it; measured and bounded by harness
+  probe `decay-shape-fb60`.
 
 ## Key Architecture Points
 

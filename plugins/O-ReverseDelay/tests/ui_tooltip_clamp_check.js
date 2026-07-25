@@ -186,8 +186,8 @@ function serve(root) {
     // populated readout is proof the module ran.
     const boundReadouts = await page.$$eval('.knob-value',
         els => els.filter(e => e.textContent.trim() !== '—' && e.textContent.trim() !== '').length);
-    check(boundReadouts >= 12,
-        `app.js ran and bound the knobs — ${boundReadouts}/12 readouts populated`);
+    check(boundReadouts >= 13,
+        `app.js ran and bound the knobs — ${boundReadouts}/13 readouts populated`);
     check(consoleErrors.length === 0,
         'no console errors on load' + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
 
@@ -197,7 +197,8 @@ function serve(root) {
         `viewport really is ${SHIP_W} x ${SHIP_H} — got ${vp.w} x ${vp.h}`);
 
     const anchors = await page.$$eval('[data-tip]', els => els.map(e => e.id).filter(Boolean));
-    check(anchors.length >= 14, `found ${anchors.length} tooltip anchors (expected >= 14)`);
+    // v1.2.0 added two: the WINDOW panel's grainShape select and grainTilt knob.
+    check(anchors.length >= 16, `found ${anchors.length} tooltip anchors (expected >= 16)`);
 
     const dwell = Number((appJs.match(/TOOLTIP_DELAY_MS\s*=\s*(\d+)/) || [])[1] || 350);
 

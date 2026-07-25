@@ -471,7 +471,11 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'knob-delayTime', 'knob-grainSize', 'knob-density', 'knob-feedback',
         'knob-lowCut', 'knob-highCut', 'knob-width', 'knob-mix',
         // v1.1.0 RANDOM panel
-        'knob-jitter', 'knob-delayScatter', 'knob-sizeRandom', 'knob-gainRandom'];
+        'knob-jitter', 'knob-delayScatter', 'knob-sizeRandom', 'knob-gainRandom',
+        // v1.2.0 WINDOW panel — the select is an anchor too, exactly as
+        // combo-noteDivision is; a tooltip inventory that only listed knobs
+        // would leave every choice control undocumented.
+        'combo-grainShape', 'knob-grainTilt'];
 
     const missingTips = TIP_ANCHORS.filter(id => {
         const m = html.match(new RegExp(`id="${id}"[\\s\\S]{0,400}?>`));
@@ -539,7 +543,7 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         layoutIds.add(m[1]);
     for (const m of processorCpp.matchAll(/AudioParameterChoice>\(\s*\n?\s*juce::ParameterID\s*\{\s*"([A-Za-z0-9_]+)"/g))
         layoutIds.delete(m[1]);
-    ['syncMode', 'noteDivision'].forEach(id => layoutIds.delete(id));
+    ['syncMode', 'noteDivision', 'grainShape'].forEach(id => layoutIds.delete(id));
 
     const editorIds = new Set();
     const sliderBlock = editorCpp.match(/kSliderIds\s*\{([\s\S]*?)\};/);
@@ -589,15 +593,57 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'every knob has a FORMAT entry (else the readout loses its unit)'
         + (diff(jsIds, fmtIds).length ? ' — MISSING: ' + diff(jsIds, fmtIds).join(', ') : ''));
 
-    // The four v1.1 randomisations MUST default to 0 — that is what keeps every
-    // v1.0 session and preset sounding exactly as it did (the whole reason this
-    // is a MINOR bump). A non-zero default here re-voices shipped work silently.
-    for (const id of ['jitter', 'delayScatter', 'sizeRandom', 'gainRandom']) {
+    // Every parameter added after v1.0.0 MUST default to the engine's NO-OP —
+    // that is what keeps existing sessions and presets sounding exactly as they
+    // did, and it is the whole reason each of these releases is a MINOR bump.
+    //
+    // The no-op is NOT always 0. v1.1's four randomisations are off at 0, but
+    // v1.2's grainTilt is symmetric at 0.5 and hard-tilted at 0 — so this is a
+    // table of expected values rather than a blanket "=== 0", and getting that
+    // distinction wrong is precisely the silent re-voicing this guards against
+    // (pattern_activating_dead_param_default_timbre).
+    const NOOP_DEFAULTS = {
+        jitter:       0,     // v1.1.0 (B3) — off
+        delayScatter: 0,
+        sizeRandom:   0,
+        gainRandom:   0,
+        grainTilt:    0.5,   // v1.2.0 (B1) — SYMMETRIC, the shipped Hann window
+    };
+
+    for (const [id, expected] of Object.entries(NOOP_DEFAULTS)) {
+        // Tolerates both `…range), 0.0f,` (attributes follow) and
+        // `…range), 0.5f))` (no attributes) — grainTilt carries no unit label,
+        // so its declaration ends differently from every neighbour's.
         const decl = processorCpp.match(
-            new RegExp(`ParameterID\\s*\\{\\s*"${id}",\\s*1\\s*\\}[\\s\\S]*?\\),\\s*([0-9.]+)f,`));
-        check(!!decl && Number(decl[1]) === 0,
-            `${id} defaults to 0 (v1.0 sessions and presets must be unchanged)`
+            new RegExp(`ParameterID\\s*\\{\\s*"${id}",\\s*1\\s*\\}[\\s\\S]*?\\),\\s*([0-9.]+)f[,)]`));
+        check(!!decl && Number(decl[1]) === expected,
+            `${id} defaults to ${expected} (existing sessions and presets must be unchanged)`
             + (decl ? ` — got ${decl[1]}` : ' — declaration not found'));
+    }
+
+    // grainShape is a choice, so its default is a trailing INDEX rather than a
+    // float. Index 0 must be Hann: an absent key in a v1.0/v1.1 preset resolves
+    // to 0, so reordering WindowLut::Shape would re-voice shipped work even
+    // though every default here still read "0".
+    {
+        const shapeDecl = processorCpp.match(
+            /ParameterID\s*\{\s*"grainShape",\s*1\s*\}[\s\S]*?juce::StringArray\s*\{([\s\S]*?)\},\s*(\d+)\)/);
+        check(!!shapeDecl && Number(shapeDecl[2]) === 0,
+            'grainShape defaults to index 0'
+            + (shapeDecl ? ` — got ${shapeDecl[2]}` : ' — declaration not found'));
+        check(!!shapeDecl && /^\s*"Hann"/.test(shapeDecl[1]),
+            'grainShape index 0 is "Hann" (the shipped v1.0/v1.1 window)');
+
+        // The C++ StringArray is the single source of truth; the stub mirrors it
+        // only so the page renders. Drift here means the browser render under
+        // test shows options the plugin does not have.
+        const stubShape = fs.readFileSync(
+            path.join(pluginRoot, 'tests', 'ui-stub', 'juce-stub.js'), 'utf8')
+            .match(/grainShape:\s*\[([\s\S]*?)\]/);
+        const names = (s) => (s ? [...s.matchAll(/"([^"]+)"/g)].map(m => m[1]) : []);
+        check(JSON.stringify(names(shapeDecl && shapeDecl[1])) === JSON.stringify(names(stubShape && stubShape[1]))
+              && names(shapeDecl && shapeDecl[1]).length === 5,
+            'ui-stub grainShape choices match the C++ StringArray (5 entries)');
     }
 
     // The stub renders the real page in a browser; a stale range there means the
