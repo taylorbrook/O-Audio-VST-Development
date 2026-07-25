@@ -19,15 +19,22 @@
     js/juce/index.js swapped for the stub — in a browser resized to the exact
     shipping size, and measures the rendered tooltip rectangle.
 
-    v1.1.0 resized the editor 940x484 -> 940x743, and v1.7.0 again to 940x972.
-    Neither changed the WIDTH, which is what the horizontal clamp depends on — but
-    the tooltip layer is position:fixed and its vertical flip (above -> below) is
-    a function of viewport HEIGHT, and each resize added a panel row whose
-    "prefer above" clearance is different from the rows already verified. Row 3
-    is the case that matters most for the flip: it sits lowest on the page, so
-    its tips have the most room above them and the least below, which is the
-    opposite of row 1's situation. Every earlier C5 verification is therefore
-    invalid at the new height and this re-measures all of them.
+    v1.1.0 resized the editor 940x484 -> 940x743, v1.7.0 to 940x972, and v1.7.1
+    back down to 940x768. None of them changed the WIDTH, which is what the
+    horizontal clamp depends on — but the tooltip layer is position:fixed and its
+    vertical flip (above -> below) is a function of viewport HEIGHT, and every
+    one of those resizes moved every anchor on the page. Row 3 is the case that
+    matters most for the flip: it sits lowest, so its tips have the most room
+    above them and the least below, which is the opposite of row 1's situation.
+    Every earlier C5 verification is therefore invalid at the new height and this
+    re-measures all of them.
+
+    v1.7.1 is the first one that made the page SHORTER, and it moved every anchor
+    UP: row 1 by ~32 px, row 3 by ~102 px. A shorter page cannot overflow a tip
+    horizontally, but it can leave row 1 without the clearance to place a tip
+    above its knob, and it lowers the bottom edge a row-3 tip must stay inside.
+    Both are assertion 3, and it is the reason this file is re-run for a resize
+    that only removed empty space.
 
     What is asserted, for EVERY control carrying a tooltip:
       1. The tip is at its natural width, not shrink-wrapped — a fixed-position
@@ -63,11 +70,20 @@ const repoRoot   = path.resolve(pluginRoot, '..', '..');
 const publicDir  = path.join(pluginRoot, 'Source', 'ui', 'public');
 
 // Kept in sync with PluginEditor.cpp's setSize and styles.css.
-// v1.7.0: 743 -> 972 (row 3). Cross-checked against PluginEditor.cpp below, so a
-// resize that forgets this file fails loudly rather than measuring a stale
-// viewport (pattern_test_fixture_mirrors_drift_silently).
+// v1.7.1: 972 -> 768 (the empty space rows 1 and 3 and .groups were carrying).
+// Cross-checked against PluginEditor.cpp below, so a resize that forgets this
+// file fails loudly rather than measuring a stale viewport
+// (pattern_test_fixture_mirrors_drift_silently).
+//
+// This is the first resize in the plugin's history that made the page SHORTER,
+// which inverts what the vertical assertions are guarding. Every earlier resize
+// added room below a tip and the risk was a tip flipping down off the bottom;
+// this one takes 204 px away, so the risk is the opposite — a tip on row 1 no
+// longer having the clearance to sit ABOVE its knob, and a tip on row 3 pushed
+// past a bottom edge that has moved up. Assertion 3 covers both directions and
+// is re-run here rather than reasoned about.
 const SHIP_W = 940;
-const SHIP_H = 972;
+const SHIP_H = 768;
 
 // app.js constants — mirrored here, and cross-checked against the source below
 // so this file cannot drift from the page it is measuring.

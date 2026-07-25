@@ -4,6 +4,95 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.7.1] — 2026-07-25 — 940 × 768
+
+Patch release. **Editor 940 × 972 → 940 × 768.** No parameter, preset, state or
+DSP change: the 138-probe render harness is untouched and passes, and a v1.7.0
+session or preset opens bit-identical. Every one of the 204 px removed was empty.
+
+### Fixed
+
+**The window did not fit a 1080p screen.** At 972 px, plus a DAW's plugin header
+strip and the menu bar above it, the frame ran to roughly 1035–1065 of the 1080
+available — technically on-screen with the dock hidden, and off the bottom
+otherwise. It is now 768, which clears the same chrome with ~247 px to spare.
+
+The space came from three places, and the arithmetic is in `styles.css` rather
+than summarised here:
+
+| | v1.7.0 | v1.7.1 | content it holds |
+|---|---|---|---|
+| Row 1 — TIME / GRAIN / FEEDBACK / OUTPUT | 215 | **145** | 100 (the `.time-slot`) |
+| Row 2 — RANDOM / WINDOW / COUNT / MOTION | 245 | **245** | 214 (WINDOW) — unchanged |
+| Row 3 — SOURCE / DUCK / DRIFT / COLOUR | 215 | **145** | 94 (a knob-cell) |
+| `.groups` slack around the rows | 93.5 | **29.5** | — |
+
+Row 2 is deliberately untouched. Its WINDOW panel already lays 214 px of content
+into a 213 px body — the one panel on the page with no slack — so trimming row 2
+means shrinking the v1.4.0 envelope display. That is a feature change wearing a
+layout change's clothes, and it was declined; the ~28 px it would have bought is
+not worth the graph.
+
+The 29.5 px left inside `.groups` is not leftover. The `.group-label` cartouches
+sit at `top: -9px`, straddling each panel's top border, so row 1 needs ≥ 9 px of
+clearance under the preset band's rule or the two collide. 14.75 px top and
+bottom is that margin and nothing more, and `ui_frontend_check.js` now asserts
+the band stays inside [18, 40] rather than trusting the comment.
+
+### The finding
+
+**`.groups` had 93.5 px of centred nothing, and five releases of comments proved
+it did not.** `.groups` is `flex: 1`, so its height is the frame's content box
+minus header, preset band and footer — never the row sum — and `justify-content:
+center` centres the rows in whatever that leaves. At 972 that was 796.5 px
+holding 703 px of rows.
+
+Every comment from v1.1.0 to v1.7.0 asserted the opposite, in the same words:
+*"743 + 229 = 972 and `.groups` still has EXACTLY zero slack."* Both sums are
+sums **of rows**. Neither ever subtracted the row total from the frame height,
+which is the only subtraction that could have found the slack — so the
+arithmetic that was supposed to be the guard was structurally incapable of
+firing, and each release re-derived it and passed it on. `ui_frontend_check.js`
+mirrored the same sum, so the fixture agreed with the comment for the same
+reason (`pattern_test_fixture_mirrors_drift_silently`).
+
+Rows 1 and 3 are the same class of error at panel scale. Row 1 has been 215 px
+since Stage 3, when its panels were the tallest thing on a 484 px page and the
+height was reasonable; row 3 inherited 215 from row 1 at v1.7.0 on the correct
+principle of not inventing new geometry. Neither number was ever measured
+against what the panels actually hold, and by v1.7.0 that was 100 px and 94 px.
+
+None of this is visible to `ninja`, `auval`, `pluginval` or a static check — an
+over-tall frame renders perfectly. It was found by serving the real page through
+`tests/ui-stub/` and measuring the boxes, which is now how the height budget in
+`styles.css` is written: rendered values, not a paper sum.
+
+### Verification
+
+- `ui_frontend_check.js` — all pass, including three new/changed assertions: the
+  chassis is 940 × 768 in the editor and both CSS spots, the row sum is
+  145 + 14 + 245 + 14 + 145 = 563, and the frame is **≤ 900 px so it fits 1080p
+  with host chrome** — the property this release exists for, asserted rather
+  than left to a comment.
+- `ui_tooltip_clamp_check.js` re-run at the new viewport — **27/27 anchors pass
+  across both TIME modes**, and the horizontal edge clamp still engages for 5
+  controls, so the verification is still live rather than passing by having room.
+  This is the first resize in the plugin's history that made the page *shorter*,
+  which inverts the vertical risk: not a tip flipping off the bottom, but row 1
+  losing the clearance to place a tip above its knob. Both directions measured.
+- 138-probe render harness — **all pass**, unchanged. `auval` — pass.
+- Rendered in the real WKWebView (Standalone) as well as the stub browser.
+
+### Changed
+
+- `Source/PluginEditor.cpp` — `setSize (940, 972)` → `setSize (940, 768)`.
+- `Source/ui/public/css/styles.css` — `html, body` and `.frame` heights;
+  `.group` 215 → 145. The superseded "zero slack" note is kept in the history
+  block with the correction under it, because the shape of the error is the
+  reusable part.
+- `tests/ui_frontend_check.js`, `tests/ui_tooltip_clamp_check.js` — geometry
+  fixtures re-pinned to 768.
+
 ## [1.7.0] — 2026-07-25 — Source, Duck, Drift
 
 Minor release. The last three parameters from section B4 of the v1.0.0 review —
