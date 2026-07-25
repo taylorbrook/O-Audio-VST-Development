@@ -8,7 +8,7 @@
     (PLAN Task 3 / RESEARCH §3.3):
 
       * Interval from ARCHITECTURE, not the exponential map:
-            overlap = 1 + (density/100)·7
+            overlap = 2 + (density/100)·6      (v1.0.1; was 1 + d·7 at v1.0.0)
             intervalSamples = max (1, (int) (G / overlap))
         (both computed by the caller — the scheduler only counts).
       * No probability gate, no Euclidean.
@@ -38,9 +38,12 @@ public:
     // Matches the GrainPool size — excess spawns would only steal grains anyway.
     static constexpr int kMaxSpawnsPerBlock = 32;
 
-    void prepare (double newSampleRate) noexcept
+    // The scheduler counts in SAMPLES and the caller supplies intervalSamples
+    // already converted, so no sample rate is needed. v1.0.0 stored one in a
+    // `sampleRate` member that nothing ever read — removed in v1.0.1. The
+    // parameter stays for signature symmetry with the other DSP components.
+    void prepare (double /*sampleRate*/) noexcept
     {
-        sampleRate = newSampleRate;
         samplesUntilNextGrain = 0;
     }
 
@@ -72,6 +75,5 @@ public:
     }
 
 private:
-    double sampleRate = 44100.0;
     int samplesUntilNextGrain = 0;
 };

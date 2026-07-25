@@ -73,6 +73,33 @@
                               + peak bound; plus a Sync<->Free mode switch
                               mid-playback.
 
+    v1.0.1 probes (the three defects from the 2026-07-24 review):
+      O. blocksize-invariance— (A2) 512- vs 4096-sample render of the same
+                              position-deterministic noise at delayTime=50
+                              must agree sample-for-sample. Pre-fix the
+                              4096 run reads a full ring lap of stale
+                              capture. THE HARNESS NEVER VARIED BLOCK SIZE
+                              before v1.0.1, which is why A2 shipped.
+      P. delaytime-range    — (A1) 1/1 at 60 BPM must render a 4000 ms
+                              bloom (v1.0.0 clamped it to 2000); the range
+                              max is reachable and the skew centre still
+                              sits at 316 ms; and an APVTS session round
+                              trip recalls 1400 ms literally — session
+                              state is DENORMALISED and must NOT be
+                              rescaled when the range grows.
+      Q. density-0-continuity—(A3) constant input, density 0: the wet
+                              overlap-add envelope must be flat. At
+                              v1.0.0's overlap=1 it fell to zero at every
+                              grain boundary (100 %-depth 5 Hz tremolo).
+      R. preset-migration   — (A1) a synthesised v1.0.0 preset (normalised
+                              delayTime under the old 2000 ms range) must
+                              recall its original ms after the constructor's
+                              one-shot migration.
+      S. decay-fb100        — (A3) loop decay at feedback=100 measured at
+                              the overlap-matched and the new density, so
+                              the remap's effect on the loop duty cycle is
+                              a printed number rather than an assumption.
+
   ==============================================================================
 */
 
@@ -474,8 +501,8 @@ int main()
     auto currentD = [&] { return juce::jmax (1, (int) (paramValue (apvts, "delayTime") * 0.001 * fs)); };
     auto currentG = [&] { return juce::jmax (2, (int) (paramValue (apvts, "grainSize") * 0.001 * fs)); };
 
-    std::printf ("O-ReverseDelay render-harness — probes 0, A–M (Stage 2) + N (Stage 4), "
-                 "fs=%.0f block=%d\n", fs, block);
+    std::printf ("O-ReverseDelay render-harness — probes 0, A–M (Stage 2), O–S (v1.0.1) "
+                 "+ N (Stage 4), fs=%.0f block=%d\n", fs, block);
 
     // --- Probe 0: silence pass (scaffold gate) -------------------------------
     {
@@ -488,7 +515,19 @@ int main()
     }
 
     // --- Probe A: single-grain reversed ramp (FUNC-01 direction) -------------
-    // density=0 -> back-to-back grains, deterministic spawns at multiples of G.
+    // v1.0.1: density=0 no longer isolates a grain. The A3 remap floors overlap
+    // at 2, so the hop is G/2 and two grains are always in flight — de-windowing
+    // the raw output would mix both. Isolation now comes from the SOURCE instead:
+    // the input is a ramp BURST exactly G long, positioned so that only the grain
+    // spawning at `start` reads inside it.
+    //
+    // With spawns every G/2 and reads stepping −1 from (spawn − D):
+    //   grain @ start        reads (rampStart, rampStart+G]  -> inside the burst
+    //   grain @ start − G/2  reads [rampStart−G/2, rampStart] -> silence
+    //   grain @ start + G/2  reads (rampEnd, rampEnd+G/2]     -> silence
+    // so y[start+n] carries exactly one grain for the whole n in [0, G).
+    // This is a stronger isolation than v1.0.0's density trick — it holds at any
+    // overlap rather than depending on the hop equalling G.
     {
         setBaseline (apvts);
         setParam (apvts, "density", 0.0f);
@@ -496,18 +535,20 @@ int main()
 
         const int D = currentD();
         const int G = currentG();
-        const int rampLen = (int) fs;   // 1 s linear ramp 0 -> 1, then silence
 
-        auto ramp = [rampLen] (int t) noexcept
+        // +2 (not +1) so rampStart = start − D − G stays positive.
+        const int k         = (int) std::ceil ((double) D / (double) G) + 2;
+        const int start     = k * G;
+        const int rampStart = start - D - G;
+
+        auto ramp = [rampStart, G] (int t) noexcept
         {
-            return (t >= 0 && t < rampLen) ? (float) t / (float) rampLen : 0.0f;
+            return (t >= rampStart && t < rampStart + G)
+                     ? (float) (t - rampStart) / (float) G
+                     : 0.0f;
         };
 
         auto y = renderEffect (proc, 1.3, fs, block, [&] (int t) { return ramp (t); });
-
-        // First grain whose read region [kG-D-G, kG-D] is fully inside the ramp.
-        const int k     = (int) std::ceil ((double) D / (double) G) + 1;
-        const int start = k * G;
 
         // De-windowed values over the hann > 0.1 guard region.
         std::vector<double> xs, vs, srcRev, srcFwd;
@@ -525,8 +566,12 @@ int main()
             srcFwd.push_back ((double) ramp (start - D - (G - 1) + n));     // forward-read hypothesis
         }
 
-        const auto   fit           = linearFit (xs, vs);
-        const double expectedSlope = 0.70710677 / (double) rampLen;   // pan gain / ramp span
+        const auto fit = linearFit (xs, vs);
+
+        // pan gain (width=0 -> 1/sqrt(2)) * grainGain (1/sqrt(overlap), overlap=2
+        // at density 0) / burst span. The 1/sqrt(overlap) factor is new in v1.0.1
+        // — at v1.0.0's overlap=1 it was unity.
+        const double expectedSlope = 0.70710677 / std::sqrt (2.0) / (double) G;
         const double corrRev       = pearson (vs, srcRev);
         const double corrFwd       = pearson (vs, srcFwd);
         const double segRms        = rms (y.L, start + G / 4, G / 2);
@@ -1195,7 +1240,7 @@ int main()
         };
 
         const SweepSpec specs[] = {
-            { "delayTime",    50.0f,  2000.0f, false, true,  true,    0.0f },
+            { "delayTime",    50.0f,  4000.0f, false, true,  true,    0.0f },   // v1.0.1: max 2000 -> 4000
             { "syncMode",      0.0f,     1.0f, true,  true,  false, 250.0f },
             { "noteDivision",  0.0f,    12.0f, true,  true,  false,   0.0f },
             { "grainSize",    50.0f,   500.0f, false, true,  false,   0.0f },
@@ -1265,6 +1310,275 @@ int main()
                  + " peak=" + juce::String (pk, 4));
     }
 
+    //==========================================================================
+    // v1.0.1 probes (O–S) — the three shipped defects from the 2026-07-24 review
+    //==========================================================================
+
+    // --- Probe O: block-size invariance (A2) ---------------------------------
+    // A grain spawned at block offset i latches readAbs = blockStart + i − D and
+    // is rendered BEFORE this block's capture write, so every read is
+    // already-written only while i < D. v1.0.0 ran the whole host block as one
+    // pass, so at blockSize >= D the late grains read a full ring lap of stale
+    // audio. D bottoms out at 2400 samples (delayTime 50 ms @ 48 kHz), which puts
+    // every 4096-sample buffer squarely in the broken region — and the harness
+    // had never varied block size, which is why this shipped.
+    //
+    // The fix bounds each engine pass to D samples, which makes the engine
+    // block-size INVARIANT: identical spawn positions (the scheduler countdown is
+    // continuous), identical latched state, identical per-sample arithmetic. So
+    // the assertion is a direct equality between a 512-sample render and a
+    // 4096-sample one. Pre-fix the two diverge grossly; post-fix they agree to
+    // float noise.
+    //
+    // The excitation must be POSITION-deterministic, not a sequential RNG:
+    // renderEffect fills whole blocks, so a sequential generator would be
+    // consumed a different number of times at a different block size and the two
+    // runs would not share an input signal at all.
+    {
+        const double A = std::pow (10.0, -12.0 / 20.0);
+
+        auto noiseAt = [] (int t) noexcept
+        {
+            juce::uint32 x = (juce::uint32) t * 2654435761u + 0x9e3779b9u;
+            x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+            return (double) (x >> 8) * (1.0 / 16777216.0) * 2.0 - 1.0;
+        };
+
+        auto renderAtBlock = [&] (int blk)
+        {
+            setBaseline (apvts);
+            setParam (apvts, "delayTime",  50.0f);   // D = 2400 < 4096
+            setParam (apvts, "density",    60.0f);
+            setParam (apvts, "feedback",   40.0f);   // loop engaged — the stale read feeds back
+            setParam (apvts, "width",      60.0f);
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+
+            return renderEffect (proc, 2.0, fs, blk,
+                                 [&] (int t) { return (float) (A * noiseAt (t)); });
+        };
+
+        auto ySmall = renderAtBlock (512);
+        auto yLarge = renderAtBlock (4096);
+
+        // Restore the harness-wide play config for every probe that follows.
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        const double dL      = maxAbsDiff (ySmall.L, yLarge.L);
+        const double dR      = maxAbsDiff (ySmall.R, yLarge.R);
+        const double refRms  = rms (ySmall.L, (int) (1.0 * fs), (int) (0.9 * fs));
+        const double bigRms  = rms (yLarge.L, (int) (1.0 * fs), (int) (0.9 * fs));
+
+        check ("blocksize-invariance",
+               dL < 1.0e-6 && dR < 1.0e-6
+                 && refRms > 1.0e-4 && bigRms > 1.0e-4
+                 && allFinite (yLarge.L) && allFinite (yLarge.R),
+               juce::String ("max|512-4096|=") + juce::String (juce::jmax (dL, dR), 9)
+                 + " rms512=" + juce::String (refRms, 6)
+                 + " rms4096=" + juce::String (bigRms, 6));
+    }
+
+    // --- Probe P: delayTime range + state recall (A1) ------------------------
+    // P1 is the actual A1 acceptance test: 1/1 at 60 BPM is 4 beats = 4000 ms.
+    // v1.0.0 clamped that to 2000 ms, so the UI named 1/1 while the engine played
+    // 1/2 — and the same collapse hit 1/2D below 90 BPM and 1/2 below 60 BPM,
+    // i.e. across the whole tempo band this plugin targets.
+    {
+        MockPlayHead mph;
+        mph.bpm = 60.0;
+        proc.setPlayHead (&mph);
+
+        setBaseline (apvts);
+        setParam (apvts, "syncMode",      1.0f);
+        setParam (apvts, "noteDivision", 12.0f);   // 1/1
+        setParam (apvts, "delayTime",   150.0f);   // decoy, as probe I
+        setParam (apvts, "density",     100.0f);
+        proc.prepareToPlay (fs, block);
+
+        const int T        = (int) (0.5 * fs);
+        const int G        = currentG();
+        const int Dexp     = (int) (4.0 * fs);      // 4 beats @ 60 BPM
+        const int interval = juce::jmax (1, (int) ((float) G / 8.0f));
+
+        const auto m = measureBloom (proc, 6.0, T, G, Dexp);
+        proc.setPlayHead (nullptr);
+
+        check ("sync-whole-60bpm", bloomOk (m, T, Dexp, interval), bloomDetail (m, T, Dexp));
+
+        // P2: the widened range is reachable at all, and the skew centre is
+        // unchanged (316 ms must still sit at the knob's midpoint).
+        setParam (apvts, "delayTime", 4000.0f);
+        const float atMax = paramValue (apvts, "delayTime");
+
+        auto* dtParam = apvts.getParameter ("delayTime");
+        const float midMs = dtParam->getNormalisableRange().convertFrom0to1 (0.5f);
+
+        check ("delaytime-range",
+               std::abs (atMax - 4000.0f) < 0.5f && std::abs (midMs - 316.0f) < 1.0f,
+               juce::String ("max=") + juce::String (atMax, 2)
+                 + " midpoint=" + juce::String (midMs, 2) + " ms (expected 316)");
+
+        // P3: APVTS session state stores DENORMALISED values, so a v1.0.0 session
+        // recalls its literal ms under the widened range with no migration. This
+        // asserts that directly — and would catch a well-meant "migration" that
+        // rescaled the session tree as if it held normalised fractions.
+        setParam (apvts, "delayTime", 1400.0f);
+
+        juce::MemoryBlock stateBlob;
+        proc.getStateInformation (stateBlob);
+
+        setParam (apvts, "delayTime", 200.0f);
+        proc.setStateInformation (stateBlob.getData(), (int) stateBlob.getSize());
+
+        const float recalled = paramValue (apvts, "delayTime");
+
+        check ("state-recall-1400ms",
+               std::abs (recalled - 1400.0f) < 0.5f,
+               juce::String ("recalled=") + juce::String (recalled, 3) + " ms (saved 1400)");
+    }
+
+    // --- Probe Q: density floor removes the gated-pulse region (A3) ----------
+    // At v1.0.0's overlap = 1 the hop equalled the grain length, so Hann grains
+    // abutted and the wet output fell to ZERO at every boundary — a 100 %-depth
+    // 5 Hz tremolo at grainSize 200 ms, sold to the user as "less dense".
+    //
+    // A constant input makes the modulation directly measurable: with feedback=0
+    // and width=0 the wet signal IS the overlap-add envelope, no interference and
+    // no noise. Hann is constant-overlap-add at hop G/2, so at the new floor
+    // (overlap 2) the envelope is flat; at the old floor it is a full-depth
+    // ripple. min/max over a steady window separates them by two orders.
+    {
+        setBaseline (apvts);
+        setParam (apvts, "density", 0.0f);
+        proc.prepareToPlay (fs, block);
+
+        auto y = renderEffect (proc, 2.0, fs, block, [] (int) { return 0.25f; });
+
+        const int lo = (int) (1.0 * fs);
+        const int hi = (int) (1.8 * fs);
+
+        double envLo = 1.0e30, envHi = 0.0;
+        for (int i = lo; i < hi && i < (int) y.L.size(); ++i)
+        {
+            const double v = std::abs ((double) y.L[(size_t) i]);
+            envLo = juce::jmin (envLo, v);
+            envHi = juce::jmax (envHi, v);
+        }
+
+        const double ratio = envHi > 0.0 ? envLo / envHi : 0.0;
+
+        check ("density-0-continuity",
+               ratio > 0.9 && envHi > 1.0e-3 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("min/max=") + juce::String (ratio, 4)
+                 + " (v1.0.0 ~0.00, COLA = 1.00)"
+                 + " env=" + juce::String (envLo, 5) + ".." + juce::String (envHi, 5));
+    }
+
+    // --- Probe R: v1.0.0 user-preset migration (A1) --------------------------
+    // Preset JSON stores NORMALISED fractions (unlike the APVTS session tree),
+    // so widening delayTime's max silently re-points every saved fraction at a
+    // different ms. 500 ms saved under the 2000 ms range reads back as ~1240 ms
+    // under the 4000 ms one. migrateUserPresets() rewrites those files in place.
+    //
+    // The probe synthesises a genuine v1.0.0-format preset, clears the migration
+    // sentinel, and constructs a FRESH processor so the constructor's migration
+    // actually runs — then asserts recall in milliseconds.
+    {
+        auto& pm       = proc.getPresetManager();
+        auto  userDir  = pm.getUserPresetsDirectory();
+        auto  sentinel = pm.getPresetsDirectory().getChildFile (".user-migration-version");
+
+        const juce::String probeName = "ZZ Harness Migration Probe";
+        auto probeFile = userDir.getChildFile (probeName + ".json");
+
+        // v1.0.0's delayTime range, reconstructed exactly.
+        juce::NormalisableRange<float> legacyRange { 50.0f, 2000.0f, 0.01f };
+        legacyRange.setSkewForCentre (316.0f);
+
+        const float savedMs    = 1400.0f;
+        const float legacyNorm = legacyRange.convertTo0to1 (savedMs);
+
+        auto* params = new juce::DynamicObject();
+        params->setProperty ("delayTime", legacyNorm);
+
+        auto* root = new juce::DynamicObject();
+        root->setProperty ("parameters", juce::var (params));
+        root->setProperty ("version",    "1.0.0");
+        root->setProperty ("plugin",     "O-ReverseDelay");
+
+        userDir.createDirectory();
+        probeFile.replaceWithText (juce::JSON::toString (juce::var (root), true));
+        sentinel.deleteFile();
+
+        // What an UNMIGRATED v1.0.0 preset would recall under the new range —
+        // printed so the probe visibly has teeth rather than passing vacuously.
+        const float unmigratedMs =
+            apvts.getParameter ("delayTime")->getNormalisableRange().convertFrom0to1 (legacyNorm);
+
+        ReverseDelayProcessor procR;            // ctor runs migrateUserPresets()
+        procR.setPlayConfigDetails (2, 2, fs, block);
+        const bool loaded = procR.getPresetManager().loadPreset (probeName);
+        const float recalled = paramValue (procR.parameters, "delayTime");
+
+        probeFile.deleteFile();
+
+        check ("preset-migration",
+               loaded && std::abs (recalled - savedMs) < 0.5f,
+               juce::String ("loaded=") + (loaded ? "1" : "0")
+                 + " recalled=" + juce::String (recalled, 2) + " ms (saved " + juce::String (savedMs, 0)
+                 + ", unmigrated would give " + juce::String (unmigratedMs, 1) + ")");
+    }
+
+    // --- Probe S: feedback decay at 100 % (A3 duty-cycle re-measure) ---------
+    // The A3 remap changes overlap at a given density, and overlap sets both the
+    // spawn hop and grainGain = 1/sqrt(overlap) — i.e. the loop's duty cycle. The
+    // review flagged this as needing a before/after measurement.
+    //
+    // Both numbers come from THIS binary, which is what makes the comparison
+    // clean: density 53.3 reproduces v1.0.0's overlap at density 60 (1+0.6·7 =
+    // 5.2 = 2+0.533·6), and density 60 is the v1.0.1 mapping's own 5.6. The delta
+    // between the two printed decay rates IS the remap's effect on the loop.
+    // (Every factory preset is re-authored to the overlap-matched density, so no
+    // shipped preset moves.)
+    {
+        const double A = std::pow (10.0, -12.0 / 20.0);
+        const int exciteLen = (int) (2.0 * fs);
+
+        for (const float d : { 53.3f, 60.0f })
+        {
+            setBaseline (apvts);
+            setParam (apvts, "density",     d);
+            setParam (apvts, "feedback", 100.0f);
+            setParam (apvts, "lowCut",    100.0f);   // default damping
+            setParam (apvts, "highCut",  8000.0f);
+            proc.prepareToPlay (fs, block);
+
+            juce::Random rng ((juce::int64) 0x0feedbac);
+            auto fill = [&] (int t)
+            {
+                return t < exciteLen ? (float) (A * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+            };
+
+            auto y = renderEffect (proc, 30.0, fs, block, fill);
+
+            const double w1 = rms (y.L, (int) ( 5.0 * fs), (int) (5.0 * fs));
+            const double w2 = rms (y.L, (int) (20.0 * fs), (int) (5.0 * fs));
+            const double decayDbPerSec = (w1 > 0.0 && w2 > 0.0)
+                                           ? 20.0 * std::log10 (w2 / w1) / 15.0
+                                           : 0.0;
+            const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+            check ((juce::String ("decay-fb100-d") + juce::String (d, 1)).toRawUTF8(),
+                   allFinite (y.L) && allFinite (y.R) && pk < 1.0 && w1 > 1.0e-7,
+                   juce::String ("overlap=") + juce::String (2.0f + d * 0.06f, 2)
+                     + " rms[5-10s]=" + juce::String (w1, 7)
+                     + " rms[20-25s]=" + juce::String (w2, 7)
+                     + " decay=" + juce::String (decayDbPerSec, 3) + " dB/s"
+                     + " peak=" + juce::String (pk, 4));
+        }
+    }
+
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------
     // MUST run last: it mutates the APVTS through the real preset manager and
     // leaves the plugin on the final preset's values, so no probe may follow it.
@@ -1295,15 +1609,20 @@ int main()
         // Mirrors the table in ReverseDelayProcessor's constructor, in
         // ENGINEERING units. Near-Infinite renders 30 s rather than 10: at
         // feedback=100 it is the preset-driven DSP-03 stability statement.
+        //
+        // v1.0.1: the density column is re-authored to (7·d_old − 100)/6 so each
+        // preset holds the overlap it shipped with under the A3 remap. If these
+        // ever fail, the FIRST thing to check is that the version bump actually
+        // re-seeded ~/Library/O-ReverseDelay/Presets/Factory (see the note below).
         const FactoryExpect kFactoryExpect[] = {
-            { "Reverse Bloom",    0, 6,  500, 200, 60,  40, 100,  8000, 60, 40, 10.0 },
-            { "Guitar Swell",     0, 6,  700, 300, 55,  45, 120,  6500, 55, 55, 10.0 },
-            { "Vocal Halo",       0, 6,  380, 180, 70,  30, 300,  7000, 70, 25, 10.0 },
-            { "Slow Wash",        0, 6, 1400, 450, 30,  65,  80,  5000, 85, 50, 10.0 },
-            { "Tight Smear",      0, 6,  180,  70, 90,  35, 150, 11000, 35, 45, 10.0 },
-            { "Dark Cavern",      0, 6,  850, 320, 65,  70, 220,  1800, 75, 55, 10.0 },
-            { "Near-Infinite",    0, 6,  900, 350, 70, 100, 180,  2500, 80, 50, 30.0 },
-            { "Rhythmic Reverse", 1, 4,  500, 120, 80,  50, 140,  9000, 50, 45, 10.0 },
+            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 10.0 },
+            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 10.0 },
+            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 10.0 },
+            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 10.0 },
+            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 10.0 },
+            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 10.0 },
+            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 30.0 },
+            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 10.0 },
         };
 
         // Per-param tolerances, set FROM MEASUREMENT rather than assumed: the

@@ -24,6 +24,11 @@ public:
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
+    /** v1.0.1 (C): hosts calling reset() between transport passes previously left
+        the capture ring, grain pool and filter states populated, so a stale reverse
+        tail survived into the next pass. */
+    void reset() override;
+
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -53,8 +58,32 @@ public:
         and for the render harness' probe N factory audit. */
     OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
 
+    //==========================================================================
+    // delayTime range constants (v1.0.1 / A1).
+    //
+    // These are shared by createParameterLayout(), the tempo-sync clamp in
+    // processBlock() and the user-preset migration — the v1.0.0 defect was a
+    // literal 2000.0 in the sync clamp drifting from the parameter's own max,
+    // so there is exactly one definition now.
+    static constexpr float kDelayTimeMaxMs         = 4000.0f;
+    static constexpr float kDelayTimeSkewCentreMs  =  316.0f;
+
+    /** v1.0.0's delayTime max. Preset JSON stores NORMALISED fractions, so a
+        preset written against this max recalls a different number of ms once the
+        max moves — see migrateUserPresets(). */
+    static constexpr float kLegacyDelayTimeMaxMs   = 2000.0f;
+
+    /** Capture ring length. Must cover Dmax + 2·Gmax = 4.0 + 2·0.5 = 5.0 s. */
+    static constexpr float kCaptureSeconds         = 5.5f;
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    /** v1.0.1 (A1): rewrite pre-1.0.1 user presets in place so their delayTime
+        recalls the ms value they were saved with, not the ms value their stored
+        normalised fraction now maps to under the wider range. One-shot, guarded
+        by a version sentinel exactly like initializeFactoryPresets(). */
+    void migrateUserPresets();
 
     // MUST be declared after `parameters` — it binds a reference at construction,
     // and members initialise in declaration order regardless of access specifier.
@@ -64,7 +93,7 @@ private:
 
     //==========================================================================
     // DSP components (Stage 2). All allocation confined to prepareToPlay().
-    CaptureBuffer  capture;             // 3.5 s stereo ring, input + feedback return
+    CaptureBuffer  capture;             // 5.5 s stereo ring, input + feedback return
     WindowLut      hannLut { 2048 };    // built once at construction, never on audio thread
     GrainPool      grainPool;           // 32 preallocated reverse-grain slots
     GrainScheduler scheduler;           // free-countdown spawn scheduler

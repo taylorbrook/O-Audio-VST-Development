@@ -13,7 +13,7 @@ workflow_mode: manual
 next_action: /publish O-ReverseDelay
 ready_for_implementation: true
 all_stages_verified: true
-ship_ready_version: 1.0.0
+ship_ready_version: 1.0.1
 human_needed: none - all 7 checklist items closed 2026-07-24 (user DAW sign-off)
 v1_0_signed_off: true
 contract_checksums:
@@ -27,7 +27,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 (Polish) — verify ✓ complete (2026-07-24) — **ALL 4 STAGES VERIFIED · SHIP-READY v1.0.0**
+Stage: 4 (Polish) — verify ✓ complete (2026-07-24) — **ALL 4 STAGES VERIFIED · SHIPPED v1.0.0 · PATCHED to v1.0.1**
 Status: 18 of 19 tasks executed (Task 3 correctly skipped — D11 declined). Preset-manager v1.0.5 + 8 factory presets + 940×484 preset bar + tooltips shipped; harness 41/41, ui_frontend_check 76/76, pluginval-10 ×3 both formats, auval SUCCEEDED, CHANGELOG at v1.0.0. **Stage 4 carries ZERO DSP diff.**
 Progress: [####################] 100%
 
