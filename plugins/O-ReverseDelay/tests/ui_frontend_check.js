@@ -143,10 +143,10 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
 // ------------------------------------------------- 3. native-fn bridge gaps
 {
     // Stage 4: the JS side of the bridge is spread across TWO files. app.js
-    // fetches two fns (getParameterDefaults + v1.3.0's getGrainMeter); the other
-    // ten are fetched by the shared js/preset-manager.js, which app.js imports
-    // dynamically. Scanning app.js alone would read 2 vs 12 and false-FAIL on
-    // correct code.
+    // fetches three fns (getParameterDefaults + v1.3.0's getGrainMeter +
+    // v1.4.0's getWindowCurve); the other ten are fetched by the shared
+    // js/preset-manager.js, which app.js imports dynamically. Scanning app.js
+    // alone would read 3 vs 13 and false-FAIL on correct code.
     const called = new Set();
     for (const src of [appJs, presetJs])
         for (const m of src.matchAll(/getNativeFunction\(\s*["']([A-Za-z0-9_]+)["']/g))
@@ -167,9 +167,9 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(dead.length === 0,
         'no dead C++ registrations (registered but never called from JS)'
         + (dead.length ? ' — DEAD: ' + dead.join(', ') : ''));
-    check(called.size === 12 && registered.size === 12,
-        `bridge surface is exactly 12 fns (getParameterDefaults + getGrainMeter`
-        + ` + 10 preset) — got JS=${called.size} C++=${registered.size}`);
+    check(called.size === 13 && registered.size === 13,
+        `bridge surface is exactly 13 fns (getParameterDefaults + getGrainMeter`
+        + ` + getWindowCurve + 10 preset) — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
         'getParameterDefaults is called by the JS AND registered in C++');
     // v1.3.0 (B2): the meter is the one native fn whose failure is INVISIBLE in a
@@ -178,6 +178,11 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // count.
     check(called.has('getGrainMeter') && registered.has('getGrainMeter'),
         'getGrainMeter is called by the JS AND registered in C++');
+    // v1.4.0: same invisible-failure argument as the meter, and stronger — an
+    // unwired curve leaves an EMPTY panel, which reads as a display waiting for
+    // audio rather than as a broken bridge.
+    check(called.has('getWindowCurve') && registered.has('getWindowCurve'),
+        'getWindowCurve is called by the JS AND registered in C++');
 
     // savePresetWithDialog is the fn the Save button actually calls; an earlier
     // 9-fn reading of the module contract omitted it, and module.yaml's own
@@ -419,6 +424,34 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // changelog.
     check(!/\.group-motion\s*[,{]/.test(css) && !/class="[^"]*group-motion/.test(html),
         'no .group-motion RULE or class attribute survives the v1.3.0 rename');
+    // v1.4.0: the envelope display lives INSIDE the WINDOW panel, under the three
+    // controls that shape it, so SPACE stays reserved and row 2 keeps a slot.
+    check(/\.group-space\s*[,{]/.test(css) && /class="group group-space"/.test(html),
+        'SPACE is still a reserved panel — row 2 has a slot left');
+    // Extract the WINDOW <section> and look inside it, rather than guessing a
+    // character distance — the panel carries long comments and a fixed lookahead
+    // silently reported "not inside" for markup that was.
+    {
+        const start = html.indexOf('class="group group-window"');
+        const end   = start >= 0 ? html.indexOf('</section>', start) : -1;
+        const winSection = start >= 0 && end > start ? html.slice(start, end) : '';
+        check(winSection.includes('id="envelopeCanvas"')
+              && winSection.includes('id="knob-tukeyTaper"')
+              && winSection.includes('id="combo-grainShape"'),
+            'Shape, Tilt, Taper AND the envelope canvas are all inside the WINDOW panel');
+    }
+    // Every size override for the shrunk WINDOW controls must be SCOPED to that
+    // panel. An unscoped .knob or .knob-cell rule here would resize all eight
+    // panels, which is the kind of change that looks fine in the one screenshot
+    // someone checks and wrong everywhere else.
+    ['\\.knob-cell', '\\.knob', '\\.knob-stem', '\\.division-select', '\\.select-cell']
+      .forEach((sel) => {
+        const unscoped = new RegExp(`(^|\\n)\\s*${sel}\\s*\\{[^}]*?(width:\\s*4\\d px|height:\\s*(4\\d|20)px)`);
+        check(!unscoped.test(css),
+            `the shrunk ${sel.replace(/\\/g, '')} sizes are scoped to .group-window, not global`);
+      });
+    check((css.match(/\.group-window\s+\.(knob|knob-cell|knob-stem|division-select|select-cell|group-body)/g) || []).length >= 5,
+        'WINDOW-scoped size overrides are present (knob, cell, stem, select, body)');
     check(/\.groups\s*\{[\s\S]*?flex-direction:\s*column/.test(css),
         '.groups is the column holding both rows');
     check(/class="group-row group-row-1"/.test(html) && /class="group-row group-row-2"/.test(html),
@@ -496,7 +529,11 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         // control, which is deliberate: "Active 9 / Overlap 5.6x" is the one
         // thing on this page that reports rather than sets, and it needs to say
         // so somewhere.
-        'knob-grainCount', 'grainMeter'];
+        'knob-grainCount', 'grainMeter',
+        // v1.4.0 WINDOW's Taper + the ENVELOPE display. The display is an anchor
+        // without being a control, as grainMeter is: it reports rather than sets,
+        // and it needs to say so somewhere.
+        'knob-tukeyTaper', 'envelopeCell'];
 
     const missingTips = TIP_ANCHORS.filter(id => {
         const m = html.match(new RegExp(`id="${id}"[\\s\\S]{0,400}?>`));
@@ -629,6 +666,10 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         sizeRandom:   0,
         gainRandom:   0,
         grainTilt:    0.5,   // v1.2.0 (B1) — SYMMETRIC, the shipped Hann window
+        tukeyTaper:   0.5,   // v1.4.0 — v1.2.0's FROZEN Tukey taper. Not 0.01
+                             // (the range min) and not 1.0 (which is Hann).
+                             // Fourth release running where the no-op default is
+                             // a specific number rather than zero.
         grainCount:   8,     // v1.3.0 (B2) — v1.2.0's HARD-CODED ceiling.
                              // Not 2 (the range min) and emphatically not 16
                              // (the new max): 8 is the only value at which
@@ -662,7 +703,41 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
             'loopCountTrim returns exactly 1.0f at overlap <= kLegacyOverlapMax');
     }
 
+    // v1.4.0 — tukeyTaper's default is likewise a named constant, and the same
+    // binding check is the stronger one: WindowLut's α stats grid and the
+    // parameter default must be the SAME 0.5, or the grid's "exact at the
+    // default" guarantee would be exact at a value the parameter never takes.
+    {
+        const winH = fs.readFileSync(
+            path.join(pluginRoot, 'Source', 'dsp', 'WindowLut.h'), 'utf8');
+
+        const decl = processorCpp.match(
+            /ParameterID\s*\{\s*"tukeyTaper",\s*1\s*\}[\s\S]*?\n\s*WindowLut::kTukeyTaperDefault\)\);/);
+        check(!!decl,
+            'tukeyTaper defaults to WindowLut::kTukeyTaperDefault (the named constant)');
+
+        const konst = winH.match(/kTukeyTaperDefault\s*=\s*([0-9.]+)f/);
+        check(!!konst && Number(konst[1]) === 0.5,
+            "kTukeyTaperDefault is 0.5 — v1.2.0's frozen taper"
+            + (konst ? ` — got ${konst[1]}` : ' — constant not found'));
+
+        // The parameter's STEP must match the stats grid's step, or α stops
+        // landing exactly on precomputed entries and the default's bitwise
+        // guarantee is gone. This is the one drift that would be silent.
+        const step = winH.match(/kTukeyTaperStep\s*=\s*([0-9.]+)f/);
+        const steps = winH.match(/kNumTaperSteps\s*=\s*(\d+)/);
+        check(!!step && !!steps && Math.abs(Number(step[1]) * Number(steps[1]) - 1.0) < 1e-9,
+            'kTukeyTaperStep x kNumTaperSteps == 1.0, so every reachable alpha is a grid point'
+            + (step && steps ? ` — ${step[1]} x ${steps[1]}` : ''));
+
+        // And the range must be built FROM those constants rather than from
+        // literals that could drift from them.
+        check(/ParameterID\s*\{\s*"tukeyTaper"[\s\S]{0,400}?WindowLut::kTukeyTaperMin[\s\S]{0,200}?WindowLut::kTukeyTaperMax[\s\S]{0,200}?WindowLut::kTukeyTaperStep/.test(processorCpp),
+            'tukeyTaper range/step come from the WindowLut constants, not literals');
+    }
+
     delete NOOP_DEFAULTS.grainCount;   // asserted above, by binding not by value
+    delete NOOP_DEFAULTS.tukeyTaper;   // ditto
 
     for (const [id, expected] of Object.entries(NOOP_DEFAULTS)) {
         // Tolerates both `…range), 0.0f,` (attributes follow) and

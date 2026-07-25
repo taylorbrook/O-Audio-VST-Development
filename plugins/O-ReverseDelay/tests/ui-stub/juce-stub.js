@@ -57,6 +57,11 @@ const RANGES = {
   // and NOT the new maximum. A stub defaulting it to 2 or 16 would render a page
   // showing a state the plugin never ships in.
   grainCount:   { start: 2, end: 16,  skew: 1, interval: 1,     def: 8 },
+
+  // v1.4.0 — WINDOW panel's Taper. def 0.5 is v1.2.0's frozen taper, NOT the
+  // range minimum: a stub defaulting it to 0.01 would render the page showing a
+  // near-rectangular window the plugin never ships.
+  tukeyTaper:   { start: 0.01, end: 1, skew: 1, interval: 0.01, def: 0.5 },
 };
 
 const CHOICES = {
@@ -192,13 +197,13 @@ const PRESET_FNS = {
   isFactoryPreset: (name) => FACTORY.includes(name),
 };
 
-// Mirrors the TWELVE native functions registered in PluginEditor.cpp:
-// getParameterDefaults + getGrainMeter (both fetched by app.js) + the ten preset
-// fns (fetched by js/preset-manager.js). Any OTHER name must still reject —
-// rejecting the unknown is the whole point of this stub, and is how a bridge gap
-// surfaces here instead of as a silently dead control in a DAW
-// (pattern_webview_native_fn_bridge_gap). The whitelist grew 1 -> 11 -> 12; it
-// did not become permissive.
+// Mirrors the THIRTEEN native functions registered in PluginEditor.cpp:
+// getParameterDefaults + getGrainMeter + getWindowCurve (all fetched by app.js)
+// + the ten preset fns (fetched by js/preset-manager.js). Any OTHER name must
+// still reject — rejecting the unknown is the whole point of this stub, and is how
+// a bridge gap surfaces here instead of as a silently dead control in a DAW
+// (pattern_webview_native_fn_bridge_gap). The whitelist grew 1 -> 11 -> 12 -> 13;
+// it did not become permissive.
 export function getNativeFunction(name) {
   if (name === "getParameterDefaults") {
     return () => Promise.resolve(
@@ -223,6 +228,54 @@ export function getNativeFunction(name) {
         active: Math.max(0, Math.round(overlap) - (tick % 2)),
         overlap,
       });
+    };
+  }
+
+  // v1.4.0 — the window-shape curve. The stub REIMPLEMENTS the window, which the
+  // shipping page deliberately does not: app.js must never contain a second
+  // definition, but the stub is a test fixture standing in for the C++ and has to
+  // produce something shaped like a window or the render gate cannot see whether
+  // the plot is wired. Kept in sync by eye only — the frontend check asserts the
+  // real bridge, and the C++ is authoritative in the plugin.
+  if (name === "getWindowCurve") {
+    return () => {
+      const n = 128;
+      const shapeIdx = getComboBoxState("grainShape").getChoiceIndex();
+      const tilt = getSliderState("grainTilt").getScaledValue();
+      const alpha = getSliderState("tukeyTaper").getScaledValue();
+      const t = Math.min(0.95, Math.max(0.05, 0.5 + (tilt - 0.5) * 0.9));
+      const a = 0.5 / t, b = 0.5 / (1 - t);
+      const out = [];
+
+      for (let i = 0; i < n; i += 1) {
+        const p = i / (n - 1);
+        const q = Math.min(p, t) * a + Math.max(p - t, 0) * b;
+        let w;
+        if (shapeIdx === 1) {                        // Tukey — taper α
+          const u = Math.min(q, 1 - q);
+          const r = Math.min(u / (alpha / 2), 1) * 0.5;
+          w = 0.5 * (1 - Math.cos(2 * Math.PI * r));
+        } else if (shapeIdx === 2) {                 // Gaussian, pedestal removed
+          const d = (q - 0.5) / 0.18;
+          const g = Math.exp(-0.5 * d * d);
+          const edge = Math.exp(-0.5 * (0.5 / 0.18) ** 2);
+          w = Math.max(0, (g - edge) / (1 - edge));
+        } else if (shapeIdx === 3) {                 // Triangular
+          w = 1 - Math.abs(2 * q - 1);
+        } else if (shapeIdx === 4) {                 // Expo-Decay
+          const atk = 0.02;
+          if (q < atk) w = 0.5 * (1 - Math.cos(Math.PI * q / atk));
+          else {
+            const u = (q - atk) / (1 - atk);
+            const e = Math.exp(-5);
+            w = Math.max(0, (Math.exp(-5 * u) - e) / (1 - e));
+          }
+        } else {                                     // Hann
+          w = 0.5 * (1 - Math.cos(2 * Math.PI * q));
+        }
+        out.push(w);
+      }
+      return Promise.resolve(out);
     };
   }
 

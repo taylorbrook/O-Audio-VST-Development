@@ -33,6 +33,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // v1.3.0 grain count (B2).
     pGrainCount   = parameters.getRawParameterValue("grainCount");
 
+    // v1.4.0 Tukey taper.
+    pTukeyTaper   = parameters.getRawParameterValue("tukeyTaper");
+
     // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
     // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
     // through each parameter's own NormalisableRange below. Four params are
@@ -40,7 +43,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All seventeen keys are explicit in every preset. Omitted keys would revert
+    // All eighteen keys are explicit in every preset. Omitted keys would revert
     // to the APVTS default (applyPresetJson resets everything first), which is
     // safe but makes the table's intent unreadable.
     //
@@ -95,7 +98,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
@@ -105,7 +108,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
@@ -115,7 +118,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
@@ -125,7 +128,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
@@ -135,7 +138,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
@@ -145,7 +148,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -159,7 +162,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
@@ -169,7 +172,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"jitter", 0.0f}, {"delayScatter", 0.0f},
            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}}, {} },
+           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -542,6 +545,33 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::NormalisableRange<float>(kOverlapCeilingMin, kOverlapCeilingMax, 1.0f),
         kLegacyOverlapMax));
 
+    // ── v1.4.0: Tukey taper α ────────────────────────────────────────────────
+    //
+    // tukeyTaper: 0.01–1.00, step 0.01, default 0.50 — the value v1.2.0 froze.
+    // Fourth release running where the no-op default is a specific number and
+    // not zero, and here 0 is not merely wrong but out of range: α = 0 is the
+    // rectangular window, a hard step at both grain edges.
+    //
+    // The STEP is not cosmetic. α changes the window's power and amplitude duty
+    // cycles, so the level and feedback normalisations have to track it, and
+    // WindowLut integrates those from the real window rather than a closed form.
+    // A 0.01 step over [0.01, 1.00] is exactly the 100-entry grid it precomputes,
+    // so every reachable α hits an entry exactly — no interpolation, and the
+    // α = 0.50 entry reproduces v1.3.0's constants bitwise. See
+    // WindowLut::kNumTaperSteps.
+    //
+    // INERT unless grainShape is Tukey. That is a deliberate dead-control-shaped
+    // thing, and the UI owns making it legible: the knob dims and its tooltip
+    // says so when another shape is selected. The alternative — applying a taper
+    // to windows that have no taper — would mean either redefining four shapes or
+    // pretending the knob does something.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "tukeyTaper", 1 }, "Tukey Taper",
+        juce::NormalisableRange<float>(WindowLut::kTukeyTaperMin,
+                                       WindowLut::kTukeyTaperMax,
+                                       WindowLut::kTukeyTaperStep),
+        WindowLut::kTukeyTaperDefault));
+
     return layout;
 }
 
@@ -718,6 +748,15 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                                             static_cast<int> (pGrainShape->load()));
     const float tiltPeakPos = tiltToPeakPos (juce::jlimit (0.0f, 1.0f, pGrainTilt->load()));
 
+    // v1.4.0 — Tukey taper α, latched per grain like the two above. Read
+    // unconditionally rather than only when the shape is Tukey: makeTaper()
+    // already returns the inactive geometry for the other four, and a
+    // conditional read here would make the block's work depend on a parameter
+    // in a way the harness would have to model.
+    const float tukeyAlpha  = juce::jlimit (WindowLut::kTukeyTaperMin,
+                                            WindowLut::kTukeyTaperMax,
+                                            pTukeyTaper->load());
+
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
     mixSmoothed.setTargetValue(pMix->load() * 0.01f);
@@ -812,8 +851,13 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // does real work for Expo-Decay. Applied BEFORE the feedback tap, so the
     // loop sees the compensated level and the decay rate stays shape-independent
     // (probe Z4 measures that at feedback = 100 for all five).
-    const float windowNorm      = windowLuts.getShapeNorm (shapeIdx)
-                                * windowLuts.getTiltNorm  (shapeIdx, tiltPeakPos);
+    // v1.4.0: both norms are now α-aware. Tukey's power duty runs 0.994 at
+    // α = 0.01 down to 0.375 at α = 1.0 — a 4.2 dB level swing — so without this
+    // the taper knob would read as a volume knob, the same failure v1.2.0's
+    // getShapeNorm exists to keep grainShape from having. α is ignored by the
+    // other four shapes.
+    const float windowNorm      = windowLuts.getShapeNorm (shapeIdx, tukeyAlpha)
+                                * windowLuts.getTiltNorm  (shapeIdx, tiltPeakPos, tukeyAlpha);
 
     // B2 (v1.3.0): UNCHANGED, and that is a measured result rather than an
     // oversight. Raising the overlap ceiling to 16 was expected to need a
@@ -849,11 +893,17 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // the raised ceiling that excess turns feedback 100 into self-oscillation
     // that clipped the output (peak 1.28). Exactly 1.0f at overlap <= 8, so the
     // shipped decay is bitwise the shipped decay. See loopCountTrim().
-    const float loopTrim        = windowLuts.getLoopNorm (shapeIdx, tiltPeakPos)
+    // v1.4.0: α-aware here too, and NOT by the same factor as the output. The
+    // amplitude duty runs 0.995 -> 0.500 across α (6.0 dB) against the power
+    // duty's 4.2 dB, so an α-aware output norm alone would have left 1.8 dB of
+    // per-generation error in the loop — the same class of miss v1.2.0 found for
+    // shape and v1.3.0 found for overlap. Probe AK measures it.
+    const float loopTrim        = windowLuts.getLoopNorm (shapeIdx, tiltPeakPos, tukeyAlpha)
                                 * loopCountTrim (overlap);
 
-    // Resolved once per block; the Tilt POD is copied into each grain at spawn.
+    // Resolved once per block; both PODs are copied into each grain at spawn.
     const auto  blockTilt       = WindowLut::makeTilt (tiltPeakPos);
+    const auto  blockTaper      = WindowLut::makeTaper (shapeIdx, tukeyAlpha);
 
     // ---- (1b) v1.1.0 randomisation amounts, resolved once per block ---------
     // Everything here is derived from block-rate parameter reads; the actual
@@ -1088,6 +1138,12 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             g.tiltA       = blockTilt.a;
             g.tiltB       = blockTilt.b;
 
+            // v1.4.0: taper geometry, resolved at block rate and latched here.
+            // Consumes no RNG, exactly as the window did at v1.2.0, so probes T
+            // and W2 stay valid without re-tuning.
+            g.taperActive = blockTaper.active;
+            g.taperInv    = blockTaper.invTaperEnd;
+
             // The two paths diverge here, and BOTH divergences are latched:
             //   gL / gR       — feedback tap: pan × loopTrim, no gainRandom.
             //   gLout / gRout — output:       pan × gainRandom, no loopTrim.
@@ -1133,7 +1189,13 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // table pointer is hoisted out of the per-sample loop so a five-shape
             // bank costs the inner loop nothing over v1.1's single table, and
             // the three tilt coefficients become plain registers.
-            const float* const win = windowLuts.getTable (g.shape);
+            // v1.4.0: a Tukey grain reads the HANN table, because its taper IS a
+            // Hann half and a variable α is served by remapping the phase into it
+            // rather than by a table per α (WindowLut header). Resolved here, out
+            // of the per-sample loop, so the choice costs the loop nothing.
+            const WindowLut::Taper taper { g.taperActive, g.taperInv };
+            const float* const win = windowLuts.getTable (taper.active ? WindowLut::hann
+                                                                       : g.shape);
             const float tT = g.tiltT, tA = g.tiltA, tB = g.tiltB;
 
             // Branch-free inner loop: LUT lerp + mul-adds, per-grain constants
@@ -1159,7 +1221,11 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 const float p   = static_cast<float>(n) * invG;
                 const float q   = juce::jmin(p, tT) * tA + juce::jmax(p - tT, 0.0f) * tB;
 
-                const float env = windowLuts.readAt(win, q);
+                // B1 tilt warped the phase; v1.4.0's taper warps it AGAIN, for
+                // Tukey only, and then both read one table. readShaped's branch
+                // is on a per-grain constant, so it is perfectly predicted, and
+                // it reduces to a plain readAt for the other four shapes.
+                const float env = windowLuts.readShaped(win, taper, q);
                 const float v   = src * env * gain;
                 wetL[i]  += v * gLo;
                 wetR[i]  += v * gRo;

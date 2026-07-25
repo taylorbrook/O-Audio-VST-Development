@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.0
+- **Version:** 1.4.0
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -25,7 +25,29 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 
   The gain work landed on the **opposite path from the one predicted**. The review expected `1/sqrt(overlap)` to under-correct on the output as overlap rose (partially coherent summing); measured across 2→16, it is flat to **0.07 dB** and needs nothing — at a fixed output sample the summed grains read source points multiples of `2·interval` apart, which is decorrelated for broadband input. The real defect was in the **feedback loop**, where the recirculating material genuinely is self-similar: at ceiling ≥ 10 with feedback 100 the loop crossed into self-oscillation (−0.29 → **+0.87 dB/s**) and a 90 s render **peaked at 1.28, i.e. clipped**. Fixed by `loopCountTrim` — `(N/8)^−0.5`, the fully-coherent amplitude law, anchored at the legacy ceiling and exactly `1.0f` at or below it — which brings the decay spread across all ceilings to **0.020 dB/s** and the worst-case peak to 0.28. Riding on the output/loop gain split v1.2.0 built for `gainRandom`.
 
+- **2026-07-25 (v1.4.0):** Minor — **continuous Tukey taper + a window-shape display**. `tukeyTaper` unfreezes the α that v1.2.0 hard-coded at 0.5, over **[0.01, 1.00] step 0.01**: 0.01 is near-rectangular (fast edge, "open"), and 1.00 *is* Hann, reached exactly. Rendered with **no new table and no new transcendental** — Tukey's taper is literally a Hann half, so `Tukey(φ) = Hann(min(φ,1−φ)/taperEnd, clamped)` is one phase remap into the existing Hann table. The step is chosen so every reachable α lands exactly on the 100-entry stats grid WindowLut precomputes, which is what keeps α = 0.5's normalisation constants bitwise. New **ENVELOPE** panel (was reserved SPACE) draws the live envelope — shape, tilt and taper composed — with the curve fetched from C++ via `getWindowCurve` rather than recomputed in JS, so there is exactly one definition of the window. Harness 93→**106 probes**; **92 of 93 shared probe results byte-for-byte identical** against a rebuild of `8a52c33`.
+
+  The display lives **inside the WINDOW panel**, under Shape/Tilt/Taper, so the panel reads cause-then-effect; fitting it shrank that panel's own knobs (56→46 px), select padding and gaps, all via `.group-window`-scoped rules that touch no other panel. Measured budget: 212 of 213 px. SPACE therefore stays reserved and row 2 keeps a free slot.
+
+  Two things worth knowing. First, the requested range was 0.01–9.9; Tukey's taper is mathematically bounded to [0, 1] (1.0 = full taper = Hann), so 1.0–9.9 would have been ~90 % dead knob travel. Corrected to [0.01, 1.00] after checking with the user. Second, the remap is **not bitwise** for Tukey: it deviates from v1.3.0's stored table by up to **2.4e-6 (−112.5 dB)**, which is LUT lerp error, not a shape change, and cannot be avoided — reading a 2048-point table at an arbitrary phase is not the same operation as evaluating `cos` there. Confined to Tukey; the cross-version diff confirms it, with `window-live-Tukey` the single probe line that moved (0.075537 → 0.075538) and every other shape untouched. All eight factory presets are on Hann.
+
+  α needed **two** different normalisation corrections, for the third release running: power duty 0.994→0.375 (4.2 dB) on the output, amplitude duty 0.995→0.500 (6.0 dB) on the feedback tap. Level ends up flat to **0.010 dB** across the whole range, and decay flat to **0.030 dB/s** (fb 60) / **0.056** (fb 100) for α ≥ 0.1. **α = 0.01 is a documented exception**: 0.240 dB/s at fb 60 and 0.791 at fb 100, because a near-rectangular window has crest factor ~1.0 against Hann's 1.63 and overlaps to something near-constant, neither of which a linear duty constant equalises — the same class of exception the header already records for Expo-Decay. Its grain edge measures 0.0112 against 0.0058 at α = 0.5, i.e. twice as fast but nowhere near a click.
+
 ## Known Issues
+
+- **The WINDOW panel has ~1 px of vertical slack.** Its budget is 212 of 213 px
+  (select-cell 44 + knob-cell 78 + env-cell 72 + two 9 px row gaps). Adding
+  anything to that panel, or growing any of its parts, means re-doing that sum —
+  the numbers are in the CSS comment beside the `.group-window` overrides. Those
+  overrides are deliberately SCOPED: `.knob`, `.knob-cell`, `.select-cell` and
+  `.division-select` are shared by all eight panels.
+- **Row 2 still has one reserved panel (SPACE).** The next new control after that
+  forces a third row or a MORE page (v1.0.0 review, section D), and a resize
+  invalidates the tooltip edge-clamp verification, which is viewport-sensitive.
+- `tukeyTaper` is **inert unless `grainShape` is Tukey**. The knob dims and sets
+  `aria-disabled`, but stays relay-bound and adjustable, so a value set before
+  switching to Tukey is honoured. Deliberate: hiding it would make the WINDOW
+  panel jump as Shape changes.
 
 - The harness's shared excitation generator `randNoiseAt` is **not white** —
   measured autocorrelation reaches ±0.077 at lags 600–2400 samples, which is

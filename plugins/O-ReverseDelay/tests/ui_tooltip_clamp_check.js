@@ -186,12 +186,13 @@ function serve(root) {
     // populated readout is proof the module ran.
     const boundReadouts = await page.$$eval('.knob-value',
         els => els.filter(e => e.textContent.trim() !== '—' && e.textContent.trim() !== '').length);
-    // v1.3.0: 14 knobs (grainCount joined). Compared with === rather than >=:
+    // v1.4.0: 15 knobs (tukeyTaper joined). Compared with === rather than >=:
     // the loose form let this line print "14/13" once grainCount landed, and a
     // bound that can never fail upward would also never notice a knob going
-    // missing while another was added.
-    check(boundReadouts === 14,
-        `app.js ran and bound the knobs — ${boundReadouts}/14 readouts populated`);
+    // missing while another was added. It has now caught the count twice, which
+    // is the argument for keeping it exact.
+    check(boundReadouts === 15,
+        `app.js ran and bound the knobs — ${boundReadouts}/15 readouts populated`);
     check(consoleErrors.length === 0,
         'no console errors on load' + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
 

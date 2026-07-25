@@ -3,10 +3,11 @@
 
     O-ReverseDelay — Plugin Editor (implementation)
 
-    14 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
+    15 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
     highCut, width, mix + v1.1.0's jitter, delayScatter, sizeRandom, gainRandom
-    + v1.2.0's grainTilt + v1.3.0's grainCount) + 3 WebComboBoxRelay controls
-    (syncMode, noteDivision, grainShape) bound two-way to the APVTS. The UI-02
+    + v1.2.0's grainTilt + v1.3.0's grainCount + v1.4.0's tukeyTaper) + 3
+    WebComboBoxRelay controls (syncMode, noteDivision, grainShape) bound two-way
+    to the APVTS. The UI-02
     Sync/Free control swap is pure JS — both controls stay relay-bound at all
     times, so neither is ever dead.
 
@@ -53,10 +54,22 @@ namespace
         // v1.3.0 (B2): COUNT panel. A float with step 1 rather than a choice,
         // so it belongs here — a 15-entry AudioParameterChoice would have read
         // as a dropdown of numbers and lost the drag gesture.
-        "grainCount"
+        "grainCount",
+        // v1.4.0: WINDOW panel, beside Tilt. Inert unless grainShape is Tukey —
+        // still relay-bound at all times (never conditionally attached), exactly
+        // as the Sync/Free pair is, so it can never become a dead control. The UI
+        // dims it; the binding stays live.
+        "tukeyTaper"
     };
 
     const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape" };
+
+    // v1.4.0: how many points the window-shape graph is sampled at. 128 is well
+    // above the ~160 CSS px the canvas is drawn into, so the curve is smooth at
+    // 1x and 2x DPR alike without shipping a payload per pixel. The value is
+    // mirrored in app.js only as an expectation to validate, never to size an
+    // array — the C++ decides the length and JS reads what it is sent.
+    constexpr int kWindowCurvePoints = 128;
 
     auto makeBinaryResource (const char* data, int size, const char* mimeType)
         -> std::optional<juce::WebBrowserComponent::Resource>
@@ -142,9 +155,9 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     for (const auto& relay : comboRelays)
         options = options.withOptionsFrom (*relay);
 
-    // ── NATIVE FUNCTIONS — exactly 12 ──────────────────────────────────────
-    // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + the 10 that
-    // js/preset-manager.js fetches. The count is grep-diffed against app.js +
+    // ── NATIVE FUNCTIONS — exactly 13 ──────────────────────────────────────
+    // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + 1 for v1.4.0's
+    // window-shape curve + the 10 that js/preset-manager.js fetches. The count is grep-diffed against app.js +
     // preset-manager.js at the Stage-4 gate: an unregistered fn leaves its
     // control silently dead while build, auval and pluginval all pass
     // (pattern_webview_native_fn_bridge_gap).
@@ -193,6 +206,59 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             obj->setProperty ("overlap", meter.overlap);
 
             complete (juce::var (obj));
+        });
+
+    // ── v1.4.0: the window-shape curve ──────────────────────────────────────
+    // Returns the envelope the engine will actually apply — shape, tilt and Tukey
+    // taper composed — sampled at kWindowCurvePoints.
+    //
+    // Computed by WindowLut::sampleWindow rather than replicated in JavaScript,
+    // and that is the whole design of this feature. A JS reimplementation of the
+    // window would be a SECOND definition free to drift from the first, and the
+    // drift would be invisible: the graph would keep looking like a plausible
+    // window while no longer describing the audio. That is the same failure mode
+    // as a JS knob-range table drifting from the C++ NormalisableRange
+    // (pattern_webview_knob_readout_scaled_value), except a graph has no units to
+    // give it away.
+    //
+    // PULLED on change, not polled: the page refetches when grainShape, grainTilt
+    // or tukeyTaper moves, which is a handful of calls per gesture rather than 15
+    // a second for a curve that is static between edits.
+    //
+    // Reads the parameters here rather than taking them as arguments so the curve
+    // can never disagree with the knobs — one source for both.
+    options = options.withNativeFunction ("getWindowCurve",
+        [this] (auto&, auto complete)
+        {
+            const auto& luts = processorRef.getWindowLuts();
+
+            auto* shapeParam = processorRef.parameters.getParameter ("grainShape");
+            auto* tiltParam  = processorRef.parameters.getParameter ("grainTilt");
+            auto* taperParam = processorRef.parameters.getParameter ("tukeyTaper");
+
+            const int   shape = shapeParam != nullptr
+                                  ? juce::roundToInt (shapeParam->convertFrom0to1 (shapeParam->getValue()))
+                                  : 0;
+            const float tilt  = tiltParam  != nullptr
+                                  ? tiltParam->convertFrom0to1 (tiltParam->getValue())
+                                  : 0.5f;
+            const float alpha = taperParam != nullptr
+                                  ? taperParam->convertFrom0to1 (taperParam->getValue())
+                                  : WindowLut::kTukeyTaperDefault;
+
+            std::array<float, (size_t) kWindowCurvePoints> curve {};
+            luts.sampleWindow (shape,
+                               ReverseDelayProcessor::tiltToPeakPos (tilt),
+                               alpha,
+                               curve.data(), kWindowCurvePoints);
+
+            juce::Array<juce::var> points;
+            points.ensureStorageAllocated (kWindowCurvePoints);
+
+            for (auto v : curve)
+                points.add (juce::var (v));
+
+            complete (juce::var (points));
         });
 
     // ── Preset bridge (OuariconPresetManager v1.0.5 contract) ──────────────

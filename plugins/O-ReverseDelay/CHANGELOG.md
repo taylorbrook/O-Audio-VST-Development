@@ -4,6 +4,204 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.4.0] — 2026-07-25 — Continuous Tukey taper + window-shape display
+
+Minor release. Two requested changes: unfreeze Tukey's shape parameter, and show
+the windowing function on screen.
+
+### The range, corrected
+
+The request was for a range of 0.01–9.9. Tukey's shape parameter is its **taper
+fraction α**, hard-coded at `0.5` in `WindowLut.h` since v1.2.0, and it is
+mathematically bounded to **[0, 1]** — 0 is the rectangular window, 1 is exactly
+Hann, and there is nothing above 1 to reach. A 9.9 maximum would have clamped
+from 1.0 upward, leaving roughly 90 % of the knob's travel rendering an identical
+window. Confirmed with the user and shipped as **[0.01, 1.00]**.
+
+### `tukeyTaper` — 0.01 to 1.00, step 0.01, default 0.50
+
+- **0.01** — very nearly rectangular. Fast grain edges, an open/gated character.
+- **0.50** — the shipped window. The default, so nothing existing changes.
+- **1.00** — exactly Hann, reached rather than approached.
+
+Rendered with **no new table and no new transcendental in the grain loop**,
+because Tukey's taper is literally a Hann half. With `taperEnd = α/2`:
+
+```
+Tukey_taper(φ) = 0.5(1 − cos(πφ / taperEnd))
+Hann(x)        = 0.5(1 − cos(2πx))
+            ->   Tukey_taper(φ) = Hann(φ / (2·taperEnd))
+```
+
+so the whole window is one phase remap into the existing Hann table, saturating
+at the flat top (`Hann(0.5)` is exactly 1.0f, so a grain's plateau is a true
+unity plateau):
+
+```
+u = min(φ, 1 − φ)                 distance to the nearest edge
+r = min(u / taperEnd, 1) · 0.5    [0, 0.5], flat top at exactly 0.5
+w = Hann_table(r)
+```
+
+Continuous in α, zero extra memory, and one per-grain flag rather than a
+quantised bank of tables.
+
+**The step is load-bearing.** α changes the window's duty cycles, so the level
+and feedback normalisations must track it — and `WindowLut`'s rule is that those
+constants are integrated from the real window, never hand-derived. Integrating
+2048 points per block on the audio thread is not available, so the stats are
+precomputed per α in the constructor; a 0.01 step over [0.01, 1.00] makes that a
+100-entry grid on which **every reachable α lands exactly**, so the stats are
+exact rather than interpolated and the α = 0.5 entry reproduces v1.3.0's
+constants bitwise. `taper-default-grid-exact` asserts that.
+
+### ⚠ Not bitwise for Tukey — measured, and confined
+
+The remap deviates from v1.3.0's stored Tukey table by up to **2.4e-6
+(−112.5 dB)**. That is the Hann table's linear-interpolation error, not a change
+of shape, and it cannot be avoided: reading a 2048-point table at an arbitrary
+phase is not the same operation as evaluating `cos` there.
+
+Stated properly rather than waved at — 2.4e-6 is roughly **20× a 24-bit LSB**, so
+it is not "below the noise floor" as an absolute envelope error. What makes it
+inaudible is *where* it occurs: the worst case is at φ ≈ 0.999, at the very end of
+the taper where the window value is itself almost zero, so the error multiplies a
+sample being faded out. Against a typical source level it lands near −124 dB.
+
+The blast radius is Tukey only, and the cross-version diff confirms it rather
+than asserting it: of 93 shared probes, **92 are byte-for-byte identical** and
+the one that moved is `window-live-Tukey` (0.075537 → 0.075538). Hann, Gaussian,
+Triangular and Expo-Decay never take this path, all eight factory presets are on
+Hann, and a default session is bitwise unchanged. At α = 1.0 the remap lands on
+the table's own points and the deviation drops to 4.2e-7.
+
+### α needed two normalisation corrections, not one
+
+Third release running where the output and feedback paths required *different*
+constants for the same control — after shape (v1.2.0) and overlap (v1.3.0). The
+split the engine has carried since v1.1.0 earns its keep again:
+
+| | duty at α=0.01 | at α=1.0 | swing |
+|---|---|---|---|
+| Power (output path) | 0.994 | 0.375 | 4.2 dB |
+| Amplitude (loop path) | 0.995 | 0.500 | 6.0 dB |
+
+An α-aware output norm alone would have left ~1.8 dB of per-generation error in
+the loop — "taper" heard as "tail length". Results:
+
+| Measurement | Result |
+|---|---|
+| Wet level across α (probe AJ) | **0.010 dB** spread |
+| Decay at fb 60, α ≥ 0.1 (AK) | **0.030 dB/s** vs default |
+| Decay at fb 100, α ≥ 0.1 (AK) | **0.056 dB/s** vs default |
+| Tilt power-invariance, all 100 α × 5 tilts | **exactly 1.0f** |
+
+**α = 0.01 is a documented exception**, not a regression: 0.240 dB/s at fb 60 and
+0.791 at fb 100. A near-rectangular window has crest factor ~1.0 against Hann's
+1.63 and overlaps to something close to a constant; neither is removable by a
+linear duty constant, which is the same statement `WindowLut.h` already makes
+about Expo-Decay. It is bounded and printed separately rather than excused.
+
+On the click risk the low end implies — the engine removed a 2 % Gaussian
+pedestal at v1.2.0 for exactly this reason — the answer is measured and reassuring:
+at the 50 ms grain minimum the grain-edge first difference is **0.0112 at α = 0.01
+against 0.0058 at α = 0.5**, i.e. twice as fast and nowhere near the 0.25 click
+threshold. A fast edge is the point of the low end, not a defect.
+
+### The window display, inside the WINDOW panel
+
+It draws the live envelope with shape, tilt and taper composed, a dashed midpoint
+guide so tilt is legible, and a filled area so a near-rectangular taper reads as
+"more window" at a glance.
+
+It sits **inside the WINDOW panel**, beneath the three controls that shape it, so
+the panel reads top-to-bottom as Shape → Tilt/Taper → the resulting window — cause
+then effect, the same ordering the panel already used for Shape over Tilt. (It
+was first built as a panel of its own in the reserved SPACE slot; putting it with
+its controls reads better and leaves that slot reserved, so the row-3 / MORE-page
+decision is still one release away rather than due now.)
+
+Fitting it cost ~73 px the panel did not have spare, bought back by shrinking that
+panel's own controls: knobs 56→46 px, select padding 7→4 px, gaps 12→9 and 7→5.
+**Every one of those rules is scoped to `.group-window`** — `.knob`, `.knob-cell`,
+`.select-cell` and `.division-select` are shared by all eight panels, so an
+unscoped edit would have resized the whole interface while looking correct in the
+one screenshot anyone checks. The frontend check now asserts the scoping.
+
+The height budget is measured, not estimated, and lands with 1 px spare in a
+158 × 213 body — the same zero-slack discipline the row geometry uses:
+
+```
+select-cell   28 + 6 + 10           =  44
+knob-cell     46 + 5 + 10 + 5 + 12  =  78
+env-cell      6 + 58 + 6 + 2 border =  72
+2 row gaps at 9                     =  18
+                              total =  212 of 213
+```
+
+The knob-stem is scaled with the knob (24→20 px). It is the one part of the knob
+that is a fixed pixel height rather than a percentage gradient, so leaving it
+would have given the smaller dial a pointer that overshot its own edge.
+
+The curve is **fetched from C++** (`getWindowCurve`, 128 points) rather than
+recomputed in JavaScript, and that is the design rather than an implementation
+detail: a JS copy of the window would be a second definition free to drift from
+the first, and a graph has no units to reveal it when it does — unlike a knob
+readout, which is why the same rule already keeps readouts on `getScaledValue()`.
+It is pulled on change (coalesced at 40 ms), not polled.
+
+Verified by canvas hashing rather than by eye, which produced the nicest result
+in this release: rendering Hann, Tukey α=0.50, α=0.01, α=1.00 and Expo-Decay
+gives **4 distinct canvases from 5 renders** — and the single collision is
+Tukey α=1.00 against Hann, byte-identical, because α=1 *is* Hann. The display
+proves the mathematical identity visually.
+
+`tukeyTaper` is **inert unless Tukey is selected**: the cell dims and sets
+`aria-disabled`, but stays relay-bound and adjustable, so a value set beforehand
+is honoured. Hiding it would make the panel jump as Shape changes.
+
+### Row 2 still has a reserved slot
+
+RANDOM | WINDOW | COUNT | SPACE — unchanged from v1.3.0. Because the display went
+inside WINDOW rather than taking SPACE, the chassis v1.1.0 sized for v1.2–v1.6
+keeps one free panel, and the row-3 / MORE-page decision (v1.0.0 review, section
+D) is still ahead rather than forced now. No panel width, position or height
+changed, so the tooltip edge-clamp geometry is the geometry v1.3.0 verified.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| v1.3.0's shared probe result lines vs v1.4.0's | **92 of 93 byte-for-byte identical** (the one delta is the documented Tukey remap) |
+| Offline render harness | **106/106 probes PASS, exit 0** (93 + 13 new) |
+| `ui_frontend_check.js` | **ALL CHECKS PASSED** |
+| `ui_tooltip_clamp_check.js` @ 940×743 | **ALL CHECKS PASSED**, 20/20 anchors, clamp fired on 4, 15/15 knobs bound |
+| WINDOW panel height budget | **212 of 213 px**, `scrollHeight == clientHeight` (no overflow) |
+| Envelope display, canvas-hashed | **4 distinct renders / 5**, collision = Tukey α=1 ≡ Hann |
+| `pluginval --strictness-level 10` VST3 | **exit 0 ×3** |
+| `pluginval --strictness-level 10` AU | **exit 0 ×3** |
+| `auval -v aufx ORvD OuDv` | **AU VALIDATION SUCCEEDED** |
+| AU component version | **66560** (= 1.4.0) |
+
+New probes: `taper-remap-is-tukey`, `taper-alpha1-is-hann`,
+`taper-duty-closed-form`, `taper-default-grid-exact`,
+`taper-tilt-power-invariant`, `level-flat-taper`, `decay-taper-fb60/fb100`,
+`taper-live-1/25/100`, `taper-inert-off-tukey`, `taper-edge-report`.
+
+Two harness fixes found on the way: probes Z4 and AF compare each measurement
+against the reference configuration's *as they go*, which works only because
+their reference happens to be first in their sweep. The new taper probe's
+reference (α = 0.5) sits third, and a single-pass version reported a whole decay
+rate as the delta — a 9.7 dB/s "failure" that was the probe. It now collects
+first and compares after. The `boundReadouts` assertion tightened at v1.3.0 also
+caught the knob count again (15, not 14), which is the argument for keeping it
+exact rather than `>=`.
+
+### Not done
+
+Human DAW sign-off. The taper is verified offline and by both validators, but
+whether α near 0.01 is musically useful or merely edgy is a listening call.
+
 ## [1.3.0] — 2026-07-25 — Grain count / overlap ceiling
 
 Minor release implementing **section B2** of the v1.0.0 review

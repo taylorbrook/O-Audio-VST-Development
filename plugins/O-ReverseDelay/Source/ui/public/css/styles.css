@@ -10,6 +10,15 @@
    Row 1 (215 px)  TIME | GRAIN | FEEDBACK | OUTPUT   — signal flow (D9)
    Row 2 (245 px)  RANDOM | WINDOW | COUNT | SPACE    — character controls
 
+   v1.4.0 put the window-shape display INSIDE the WINDOW panel, beneath the three
+   controls that shape it, rather than in a panel of its own. That reads better —
+   Shape, then Tilt/Taper, then the resulting window — and it leaves SPACE
+   reserved, so the row-3 / MORE-page decision (v1.0.0 review, section D) is still
+   one release away rather than due now. The cost is paid inside WINDOW: its
+   knobs, select and gaps shrink slightly, all via .group-window-scoped rules that
+   touch no other panel. No panel width, position or height changed, so the
+   tooltip clamp geometry is untouched.
+
    v1.3.0 renamed row 2's third panel MOTION -> COUNT and filled it (B2). Only
    the label text and the class suffix changed; the 276 px width, the position
    and the height are all inherited unchanged, so the frame geometry every
@@ -313,11 +322,11 @@ body {
 }
 
 /* ── Reserved panels ─────────────────────────────────────────────────────── */
-/* SPACE is framed and labelled now so the chassis is final, but holds no
-   controls yet. WINDOW was filled at v1.2.0 and COUNT at v1.3.0, both without
-   touching this rule. An empty frame reads as broken, so the panel
-   carries a dimmed fleuron — the page's own ornament, already used in the
-   preset bar and footer — which reads as a plate awaiting its specimen.
+/* SPACE is framed and labelled so the chassis is final, but holds no controls
+   yet. WINDOW was filled at v1.2.0 and COUNT at v1.3.0, neither touching this
+   rule — which was the point of framing them early. An empty frame reads as
+   broken, so the panel carries a dimmed fleuron (the page's own ornament, already
+   in the preset bar and footer), which reads as a plate awaiting its specimen.
 
    To fill one: drop .knob-cell markup into its .group-body and delete the
    .group-reserved span. No CSS change, no resize, no tooltip re-verification. */
@@ -327,6 +336,81 @@ body {
   color: var(--fleuron-color);
   opacity: 0.55;
   user-select: none;
+}
+
+/* ── WINDOW panel: making room for the envelope display (v1.4.0) ──────────── */
+/* The graph sits under Shape / Tilt / Taper inside WINDOW, which needs ~73 px the
+   panel did not have spare. It is bought back by shrinking that panel's own
+   controls, and EVERY rule here is scoped to .group-window on purpose: .knob,
+   .knob-cell, .select-cell and .division-select are shared by all eight panels,
+   so an unscoped edit would resize the entire interface.
+
+   The height budget, measured rather than guessed — body is 158 x 213:
+       select-cell   28 + 6 + 10            =  44
+       knob-cell     46 + 5 + 10 + 5 + 12   =  78
+       env-cell      6 + 58 + 6 + 2 border  =  72
+       + 2 row gaps at 9                    =  18
+                                        total = 212 of 213
+   One px spare, which is the same "exactly zero slack" discipline the row
+   geometry above uses. Changing any number here means re-doing that sum. */
+.group-window .group-body { row-gap: 9px; }
+
+.group-window .select-cell { gap: 6px; }
+
+/* Height, not font-size: the option text stays 12 px and legible; only the
+   vertical padding gives way. */
+.group-window .division-select { padding: 4px 6px; }
+
+.group-window .knob-cell { width: 66px; gap: 5px; }
+
+/* The knob's rings and segments are all percentage-based gradients, so it scales
+   without redrawing anything. The STEM is not — it is a fixed px height — so it
+   has to be scaled in step or a smaller knob gets a pointer that overshoots its
+   own edge. 20/46 keeps the same proportion 24/56 had. */
+.group-window .knob { width: 46px; height: 46px; }
+.group-window .knob-stem { height: 20px; }
+
+/* ── Envelope display (v1.4.0) ────────────────────────────────────────────── */
+/* Same plate treatment as .meter-cell so the two displays read as one family
+   against the knobs: hairline frame, faint cream fill, inset shadow.
+
+   flex-basis 100% is what puts it on its own row beneath both knobs rather than
+   trying to sit beside them — the body is a wrapping flex row, so a full-width
+   item forces the break by itself with no explicit ordering.
+
+   The CANVAS gets explicit width/height in CSS *and* has its attributes rewritten
+   in JS for the device pixel ratio. Both are required and they are not the same
+   thing: a canvas is a replaced element, so CSS sizes the box it is painted into
+   while the width/height attributes size the backing store. Setting only CSS
+   scales a blurry 300x150 default up; setting only the attributes ignores DPR and
+   goes soft on a retina panel (o-textureforge-cursor-bug). */
+.env-cell {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border: 1px solid var(--brown-frame);
+  border-radius: 3px;
+  background: rgba(255, 248, 220, 0.22);
+  box-shadow: inset 1px 1px 3px var(--shadow-light);
+}
+
+.env-cell canvas {
+  display: block;
+  width: 144px;
+  height: 58px;
+}
+
+/* ── Inapplicable control (v1.4.0) ────────────────────────────────────────── */
+/* Taper applies to the Tukey shape only. Rather than hide it — which would make
+   the panel jump as Shape changes — or leave it looking live, the cell dims.
+   pointer-events stay ON: the knob is still relay-bound and still adjustable, so
+   a user who sets it before switching to Tukey gets what they set. This is a
+   statement about APPLICABILITY, not about being disabled. */
+.knob-cell-inert {
+  opacity: 0.38;
+  transition: opacity 0.18s ease;
 }
 
 /* ── Grain meter (v1.3.0, B2) ─────────────────────────────────────────────── */

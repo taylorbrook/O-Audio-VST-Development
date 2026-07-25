@@ -19,10 +19,49 @@
     PluginProcessor.cpp. Hann is index 0 so the default is the shipped sound:
 
         0 = Hann        0.5(1 - cos 2πφ)                     — v1.0/v1.1 default
-        1 = Tukey       50 % cosine taper, flat middle       — the "open" one
+        1 = Tukey       cosine taper α, flat middle          — the "open" one
         2 = Gaussian    σ = 0.18, PEDESTAL REMOVED (below)
         3 = Triangular  1 - |2φ - 1|
         4 = Expo-Decay  smooth 2 % attack, then e^-5u to zero — "plucked"
+
+    ── v1.4.0: Tukey's taper α becomes continuous ─────────────────────────────
+    α was frozen at 0.5 (a 50 % taper) from v1.2.0. It is now a parameter over
+    [0.01, 1.0]: 0.01 is very nearly rectangular — a fast edge, an "open"/gated
+    grain — and 1.0 IS Hann, reached exactly rather than approached.
+
+    It is rendered WITHOUT a new table and WITHOUT a transcendental in the grain
+    loop, because Tukey's taper is literally a Hann half. With taperEnd = α/2,
+
+        Tukey_taper(φ) = 0.5(1 - cos(πφ / taperEnd))
+        Hann(x)        = 0.5(1 - cos(2πx))
+        -> Tukey_taper(φ) = Hann(φ / (2·taperEnd))
+
+    so the whole window is one remap of the phase into the EXISTING Hann table,
+    saturating at the flat top (Hann(0.5) = 1 exactly):
+
+        u = min(φ, 1 - φ)                    distance to the nearest edge
+        r = min(u / taperEnd, 1) · 0.5       [0, 0.5], flat top at exactly 0.5
+        w = Hann_table(r)
+
+    Branch-free apart from one per-grain flag, no extra memory, and continuous in
+    α rather than a quantised bank of tables.
+
+    ⚠ This makes the Tukey render differ from v1.3.0's stored Tukey table by up
+    to 2.4e-6 (−112.5 dB, measured by harness probe AH) — the Hann table's
+    linear-interpolation error, not a change of shape. It is NOT bitwise, and
+    cannot be: reading a 2048-point table at an arbitrary phase is not the same
+    operation as evaluating cos there.
+
+    On the size of that number, stated properly rather than waved at: 2.4e-6 is
+    roughly 20x a 24-bit LSB, so it is NOT "below the noise floor" as an absolute
+    envelope error. What makes it inaudible is where it occurs — the worst case is
+    at φ ≈ 0.999, i.e. at the very end of the taper where the window value is
+    itself almost zero, so the error multiplies a sample that is being faded out.
+    Against a typical source level it lands near −124 dB at the output. The
+    deviation also affects TUKEY ONLY: Hann, Gaussian, Triangular and Expo-Decay
+    never take this path, all eight factory presets are on Hann, and a default
+    session is bitwise unchanged. At α = 1.0 the remap lands on the table's own
+    points and the deviation drops to 4.2e-7.
 
     ── The Gaussian pedestal (deliberate deviation from O-simpleGrain) ────────
     O-simpleGrain keeps the raw Gaussian, which at σ = 0.18 reads 0.021 at both
@@ -109,6 +148,49 @@ public:
     static constexpr float kMinPeakPos = 0.05f;
     static constexpr float kMaxPeakPos = 0.95f;
 
+    //==========================================================================
+    // v1.4.0 — Tukey taper α.
+    //
+    // Range and STEP are both load-bearing, and the step is the interesting one.
+    // α's power and amplitude duty cycles change with α, so shapeNorm and
+    // loopNorm must track it — and this file's rule is that those constants are
+    // integrated from the actual window, never hand-derived, because a closed
+    // form that drifts from the window is the exact silent error the
+    // normalisation exists to prevent.
+    //
+    // Integrating 2048 points per block on the audio thread is not available, so
+    // the stats are precomputed per α in the constructor. Choosing a 0.01 step
+    // over [0.01, 1.00] makes that a 100-entry grid on which EVERY reachable α
+    // lands exactly — so the stats are exact rather than interpolated, and the
+    // α = 0.5 entry is built by the same expression v1.2.0 used, which is what
+    // keeps the shipped normalisation constants bitwise unchanged.
+    //
+    // 100 positions on a taper knob is far finer than audible; the alternative
+    // (a continuous α with interpolated stats) would buy nothing and would cost
+    // the exactness at the default.
+    static constexpr float kTukeyTaperMin     = 0.01f;
+    static constexpr float kTukeyTaperMax     = 1.00f;
+    static constexpr float kTukeyTaperStep    = 0.01f;
+    static constexpr float kTukeyTaperDefault = 0.50f;   // v1.2.0's frozen value
+
+    static constexpr int kNumTaperSteps = 100;           // α = (i + 1)/100
+
+    /** α -> grid index. Rounds rather than truncates: the parameter is snapped to
+        the same 0.01 grid by its NormalisableRange, so this is exact for every
+        value the parameter can hold, and rounding keeps it exact against the
+        float representation of e.g. 0.5f rather than landing on 49 vs 50. */
+    static int taperIndex (float alpha) noexcept
+    {
+        const float a = juce::jlimit (kTukeyTaperMin, kTukeyTaperMax, alpha);
+        return juce::jlimit (0, kNumTaperSteps - 1,
+                             juce::roundToInt (a * 100.0f) - 1);
+    }
+
+    static float taperAlphaAt (int index) noexcept
+    {
+        return static_cast<float> (juce::jlimit (0, kNumTaperSteps - 1, index) + 1) * 0.01f;
+    }
+
     explicit WindowLut (int lutSize = 2048)
         : size (juce::jmax (2, lutSize))
     {
@@ -141,6 +223,54 @@ public:
     float read (int shape, float phase) const noexcept
     {
         return readAt (getTable (shape), phase);
+    }
+
+    //==========================================================================
+    // v1.4.0 — the Tukey taper remap.
+
+    /** Per-grain latched taper geometry. `active` is false for every shape except
+        Tukey, and for Tukey it is always true — so it is constant for the whole
+        life of a grain and the branch in readShaped() is perfectly predicted.
+
+        A branch-free form (`r = q + active·(map(q) − q)`) was considered and
+        rejected: it would evaluate the remap for all five shapes to avoid a
+        branch that never mispredicts. */
+    struct Taper
+    {
+        bool  active      = false;
+        float invTaperEnd = 0.0f;   // 1 / (α/2)
+    };
+
+    /** Resolved once per block and copied into each grain at spawn, exactly like
+        Tilt. Non-Tukey shapes get the inactive geometry, so a stale α cannot
+        reach a shape that does not use it. */
+    static Taper makeTaper (int shape, float alpha) noexcept
+    {
+        if (shape != tukey)
+            return {};
+
+        const float a  = juce::jlimit (kTukeyTaperMin, kTukeyTaperMax, alpha);
+        const float te = a * 0.5f;
+
+        return { true, 1.0f / te };
+    }
+
+    /** The hot read. `table` must be the HANN table when tp.active — the caller
+        resolves that once per grain, because Tukey no longer has a table of its
+        own to read (see the header note: its taper IS a Hann half).
+
+        The flat top is exact, not approximate: min(...) saturates at 1.0f, times
+        0.5f is exactly 0.5f, and Hann(0.5) is exactly 1.0f — so a grain's
+        plateau is a true unity plateau and not 0.9999. */
+    float readShaped (const float* table, const Taper& tp, float phase) const noexcept
+    {
+        if (! tp.active)
+            return readAt (table, phase);
+
+        const float p = juce::jlimit (0.0f, 1.0f, phase);
+        const float u = juce::jmin (p, 1.0f - p);
+
+        return readAt (table, juce::jmin (u * tp.invTaperEnd, 1.0f) * 0.5f);
     }
 
     //==========================================================================
@@ -178,7 +308,19 @@ public:
         divided by itself, then sqrt(1.0f)). */
     float getShapeNorm (int shape) const noexcept
     {
-        return stats[(size_t) juce::jlimit (0, kNumShapes - 1, shape)].shapeNorm;
+        return statsFor (shape, kTukeyTaperDefault).shapeNorm;
+    }
+
+    /** α-aware overload. Tukey's duty cycle is a strong function of α — mean
+        square runs 0.994 at α = 0.01 down to 0.375 at α = 1.0, so the level
+        correction spans 4.2 dB across the knob. Without this the taper control
+        would be heard as a volume control, which is precisely what v1.2.0's
+        getShapeNorm exists to stop `grainShape` from being.
+
+        Every other shape ignores α. */
+    float getShapeNorm (int shape, float alpha) const noexcept
+    {
+        return statsFor (shape, alpha).shapeNorm;
     }
 
     /** sqrt(m / (t·mLo + (1-t)·mHi)) — exactly 1.0f whenever mLo == mHi (all
@@ -187,7 +329,18 @@ public:
         round identically (halving is exact). */
     float getTiltNorm (int shape, float peakPos) const noexcept
     {
-        const auto& s = stats[(size_t) juce::jlimit (0, kNumShapes - 1, shape)];
+        return getTiltNorm (shape, peakPos, kTukeyTaperDefault);
+    }
+
+    /** α-aware overload. Still exactly 1.0f for Tukey at EVERY α, because Tukey
+        stays symmetric as α varies — its two half-window mean squares agree to
+        the last bit at 0.01 and at 1.0 alike, so the canonicalisation in
+        computeStats() collapses them and the ratio is a value over itself. That
+        is worth stating because it is not automatic: an α that broke symmetry
+        would silently turn tilt into a level control. */
+    float getTiltNorm (int shape, float peakPos, float alpha) const noexcept
+    {
+        const auto& s = statsFor (shape, alpha);
         const float t = juce::jlimit (kMinPeakPos, kMaxPeakPos, peakPos);
 
         const float warped = t * s.meanSqLo + (1.0f - t) * s.meanSqHi;
@@ -225,10 +378,22 @@ public:
         needs. Exactly 1.0f at (Hann, 0.5): a value divided by itself. */
     float getLoopNorm (int shape, float peakPos) const noexcept
     {
-        const auto& s = stats[(size_t) juce::jlimit (0, kNumShapes - 1, shape)];
+        return getLoopNorm (shape, peakPos, kTukeyTaperDefault);
+    }
+
+    /** α-aware overload. The loop follows the AMPLITUDE duty, which moves with α
+        on its own schedule (mean runs 0.995 -> 0.500, i.e. 6.0 dB, against the
+        power duty's 4.2 dB) — so a single α-aware constant on the output would
+        NOT have fixed the loop, exactly as v1.2.0 found for shape and v1.3.0
+        found for overlap. Third time the two paths needed different α-dependent
+        constants; the split earns its keep again. */
+    float getLoopNorm (int shape, float peakPos, float alpha) const noexcept
+    {
+        const auto& s = statsFor (shape, alpha);
         const float t = juce::jlimit (kMinPeakPos, kMaxPeakPos, peakPos);
 
-        const float windowNorm = getShapeNorm (shape) * getTiltNorm (shape, peakPos);
+        const float windowNorm = getShapeNorm (shape, alpha)
+                               * getTiltNorm  (shape, peakPos, alpha);
         const float effMean    = t * s.meanLo + (1.0f - t) * s.meanHi;
         const float denom      = windowNorm * effMean;
 
@@ -243,18 +408,74 @@ public:
         than a claim in a comment. */
     float getMeanSquare (int shape) const noexcept
     {
-        return stats[(size_t) juce::jlimit (0, kNumShapes - 1, shape)].meanSq;
+        return statsFor (shape, kTukeyTaperDefault).meanSq;
+    }
+
+    float getMeanSquare (int shape, float alpha) const noexcept
+    {
+        return statsFor (shape, alpha).meanSq;
     }
 
     /** Mean (amplitude duty cycle) — the constant the feedback path follows. */
     float getMean (int shape) const noexcept
     {
-        return stats[(size_t) juce::jlimit (0, kNumShapes - 1, shape)].mean;
+        return statsFor (shape, kTukeyTaperDefault).mean;
+    }
+
+    float getMean (int shape, float alpha) const noexcept
+    {
+        return statsFor (shape, alpha).mean;
     }
 
     int getSize() const noexcept { return size; }
 
+    /** Samples the window a caller will actually HEAR, composing shape, tilt and
+        taper in the same order and by the same calls the render loop uses.
+
+        Exists for the v1.4.0 UI display, and deliberately not reimplemented in
+        JavaScript. A JS copy of this composition would be a second definition of
+        the window free to drift from the first, and the drift would be invisible
+        — the graph would keep looking plausible while no longer describing the
+        audio. Same reasoning that keeps knob readouts on getScaledValue() instead
+        of a JS range table.
+
+        Message thread only (it is neither RT-safe nor RT-needed): one call fills
+        a whole curve. */
+    void sampleWindow (int shape, float peakPos, float alpha,
+                       float* dest, int numPoints) const noexcept
+    {
+        if (dest == nullptr || numPoints <= 0)
+            return;
+
+        const auto  tilt  = makeTilt (peakPos);
+        const auto  taper = makeTaper (shape, alpha);
+        const float* table = taper.active ? getTable (hann) : getTable (shape);
+
+        for (int i = 0; i < numPoints; ++i)
+        {
+            const float p = numPoints == 1
+                              ? 0.0f
+                              : static_cast<float> (i) / static_cast<float> (numPoints - 1);
+
+            dest[i] = readShaped (table, taper, tilt.warp (p));
+        }
+    }
+
 private:
+    //==========================================================================
+    // Declared before the methods that return a reference to it — a member
+    // function's RETURN TYPE must be known at its declaration, unlike its body.
+    struct ShapeStats
+    {
+        float meanSqLo  = 0.0f;   // mean of w² over [0, 0.5)
+        float meanSqHi  = 0.0f;   // mean of w² over [0.5, 1]
+        float meanSq    = 0.0f;   // 0.5·(lo + hi) — the POWER duty (output path)
+        float meanLo    = 0.0f;   // mean of w  over [0, 0.5)
+        float meanHi    = 0.0f;   // mean of w  over [0.5, 1]
+        float mean      = 0.0f;   // 0.5·(lo + hi) — the AMPLITUDE duty (loop path)
+        float shapeNorm = 1.0f;   // sqrt(m_hann / m)
+    };
+
     //==========================================================================
     void build()
     {
@@ -287,7 +508,14 @@ private:
             // shipped window and any drift here changes every existing session.
             tables[(size_t) hann][(size_t) i] = 0.5f * (1.0f - std::cos (twoPi * phi));
 
-            // 1 — Tukey (r = 0.5): raised-cosine taper, flat middle half.
+            // 1 — Tukey at the DEFAULT α: raised-cosine taper, flat middle half.
+            //
+            // v1.4.0 no longer RENDERS from this table — a variable α is served by
+            // remapping into the Hann table (header note) — but it is not dead
+            // code. It is the independent reference that harness probe AH measures
+            // the remap against: built from std::cos directly, so a probe
+            // comparing the two is comparing the remap to real trigonometry
+            // rather than to itself.
             {
                 float w;
                 if (phi < taperEnd)
@@ -329,6 +557,93 @@ private:
         }
 
         computeStats();
+        computeTaperStats();
+    }
+
+    /** v1.4.0 — the per-α Tukey stats grid.
+        One entry per reachable α, each integrated from the window the render loop
+        will ACTUALLY produce at that α (readShaped through the Hann table), not
+        from the analytic Tukey and not from a closed form. That is the same
+        principle computeStats() follows, applied to a parameterised shape: the
+        constants describe what is heard, by construction, so they cannot drift
+        from it.
+
+        Cost is 100 x `size` table reads, once, in the constructor.
+
+        The closed forms — meanSq = 1 − 0.625α and mean = 1 − 0.5α — are real and
+        exact for the continuous window, and are deliberately NOT used here. They
+        are asserted against this grid by harness probe AI instead, which keeps
+        them as an auditable cross-check rather than an unverifiable claim. */
+    void computeTaperStats()
+    {
+        const int half = size / 2;
+        std::vector<float> w ((size_t) size, 0.0f);
+
+        for (int k = 0; k < kNumTaperSteps; ++k)
+        {
+            const auto taper = makeTaper (tukey, taperAlphaAt (k));
+
+            for (int i = 0; i < size; ++i)
+            {
+                const float phi = static_cast<float> (i) / static_cast<float> (size - 1);
+                w[(size_t) i] = readShaped (tables[(size_t) hann].data(), taper, phi);
+            }
+
+            double lo = 0.0, hi = 0.0, aLo = 0.0, aHi = 0.0;
+
+            for (int i = 0; i < half; ++i)
+            {
+                const double v = (double) w[(size_t) i];
+                lo += v * v;  aLo += v;
+            }
+
+            for (int i = half; i < size; ++i)
+            {
+                const double v = (double) w[(size_t) i];
+                hi += v * v;  aHi += v;
+            }
+
+            const double nLo = (double) juce::jmax (1, half);
+            const double nHi = (double) juce::jmax (1, size - half);
+
+            auto& st = taperStats[(size_t) k];
+            st.meanSqLo = (float) (lo  / nLo);
+            st.meanSqHi = (float) (hi  / nHi);
+            st.meanSq   = 0.5f * (st.meanSqLo + st.meanSqHi);
+            st.meanLo   = (float) (aLo / nLo);
+            st.meanHi   = (float) (aHi / nHi);
+            st.mean     = 0.5f * (st.meanLo + st.meanHi);
+
+            // Same canonicalisation as computeStats(), and needed for the same
+            // reason: Tukey is symmetric at every α, but its two halves are built
+            // from table reads at different arguments and can disagree in the last
+            // ulp. Collapsing them is what keeps getTiltNorm EXACTLY 1.0f for
+            // Tukey at every α — an invariant that can only be checked to within
+            // a tolerance is one that can rot later without any probe noticing.
+            if (std::abs (st.meanSqLo - st.meanSqHi)
+                  <= 1.0e-6f * juce::jmax (st.meanSqLo, st.meanSqHi))
+                st.meanSqLo = st.meanSqHi = st.meanSq;
+
+            if (std::abs (st.meanLo - st.meanHi)
+                  <= 1.0e-6f * juce::jmax (st.meanLo, st.meanHi))
+                st.meanLo = st.meanHi = st.mean;
+
+            st.shapeNorm = (st.meanSq > 0.0f)
+                             ? std::sqrt (stats[(size_t) hann].meanSq / st.meanSq)
+                             : 1.0f;
+        }
+    }
+
+    /** Routes Tukey to its α grid and every other shape to the fixed stats. The
+        single choke point for "does α matter here", so no accessor can forget. */
+    const ShapeStats& statsFor (int shape, float alpha) const noexcept
+    {
+        const int s = juce::jlimit (0, kNumShapes - 1, shape);
+
+        if (s == tukey)
+            return taperStats[(size_t) taperIndex (alpha)];
+
+        return stats[(size_t) s];
     }
 
     /** Half-window mean squares, integrated from the tables themselves rather
@@ -414,20 +729,14 @@ private:
             st.shapeNorm = (st.meanSq > 0.0f) ? std::sqrt (ref / st.meanSq) : 1.0f;
     }
 
-    struct ShapeStats
-    {
-        float meanSqLo  = 0.0f;   // mean of w² over [0, 0.5)
-        float meanSqHi  = 0.0f;   // mean of w² over [0.5, 1]
-        float meanSq    = 0.0f;   // 0.5·(lo + hi) — the POWER duty (output path)
-        float meanLo    = 0.0f;   // mean of w  over [0, 0.5)
-        float meanHi    = 0.0f;   // mean of w  over [0.5, 1]
-        float mean      = 0.0f;   // 0.5·(lo + hi) — the AMPLITUDE duty (loop path)
-        float shapeNorm = 1.0f;   // sqrt(m_hann / m)
-    };
-
     int size;
     std::array<std::vector<float>, kNumShapes> tables {};
     std::array<ShapeStats,         kNumShapes> stats  {};
+
+    /** v1.4.0 — Tukey's stats per reachable α. 100 x 7 floats = 2.8 KB, built in
+        the constructor. Indexed by taperIndex(), never interpolated: every α the
+        parameter can hold lands exactly on an entry. */
+    std::array<ShapeStats, kNumTaperSteps> taperStats {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowLut)
 };

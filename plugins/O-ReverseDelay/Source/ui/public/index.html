@@ -244,6 +244,44 @@
             <div class="knob-label">Tilt</div>
             <div class="knob-value" id="val-grainTilt">&#8212;</div>
           </div>
+
+          <!-- v1.4.0: Tukey taper. Applies ONLY to the Tukey shape, so the cell
+               carries .knob-cell-inert whenever another shape is selected — a
+               visual dim plus aria-disabled, driven by refreshTaperEnabled() in
+               app.js. The relay stays bound either way; only the appearance
+               changes, so this is never a dead control, just an inapplicable
+               one saying so. -->
+          <div class="knob-cell" id="cell-tukeyTaper">
+            <div class="knob" id="knob-tukeyTaper" data-param="tukeyTaper"
+                 data-tip-title="Taper"
+                 data-tip="How much of the Tukey grain is tapered. Low is nearly rectangular — a fast edge, open and gated. 1.00 is the full raised cosine, which is exactly the Hann window. Level is matched across the whole range, so this changes character and not loudness. Applies to the Tukey shape only."><div class="knob-stem"></div></div>
+            <div class="knob-label">Taper</div>
+            <div class="knob-value" id="val-tukeyTaper">&#8212;</div>
+          </div>
+
+          <!-- Envelope display, under the controls that shape it (v1.4.0).
+               Reading the panel top-to-bottom is now Shape -> Tilt/Taper ->
+               the resulting window, i.e. cause then effect, which is the same
+               ordering the panel already used for Shape over Tilt.
+
+               It lives HERE rather than in a panel of its own so the graph sits
+               with the three controls it answers to. That costs the panel some
+               room, which is why .group-window shrinks its own knobs, select and
+               gaps — every one of those overrides is scoped to this panel and
+               changes nothing anywhere else on the page.
+
+               Full-width, so flex-wrap puts it on its own row beneath both
+               knobs. -->
+          <div class="env-cell" id="envelopeCell" data-tip-title="Envelope"
+               data-tip="The amplitude envelope applied to every grain, as Shape, Tilt and Taper currently set it. Time runs left to right across one grain; the dotted line is the halfway point.">
+            <!-- width/height are rewritten in JS for the device pixel ratio.
+                 The CSS gives the ELEMENT its size; these attributes are the
+                 backing store — a canvas is a replaced element, so CSS alone
+                 would scale a blurry 300x150 default rather than resize it
+                 (o-textureforge-cursor-bug). -->
+            <canvas id="envelopeCanvas" width="144" height="58" role="img"
+                    aria-label="Grain amplitude envelope"></canvas>
+          </div>
         </div>
       </section>
 
@@ -296,10 +334,16 @@
         </div>
       </section>
 
-      <!-- Reserved (v1.4+). Framed and labelled so the chassis is final; the
+      <!-- Reserved (v1.5+). Framed and labelled so the chassis is final; the
            fleuron is the page's own ornament, standing in for the specimen
            that lands here. To fill one, replace the span with .knob-cell
-           markup — no CSS change, no resize. -->
+           markup — no CSS change, no resize.
+
+           v1.4.0 briefly took this panel for the envelope display and then gave
+           it back: putting the graph inside WINDOW, under the controls it
+           answers to, reads better AND leaves the row-2 reserve intact, so the
+           next new control still has somewhere to go before the row-3 / MORE-page
+           decision (v1.0.0 review, section D). -->
       <section class="group group-space">
         <div class="group-label">Space</div>
         <div class="group-body"><span class="group-reserved" aria-hidden="true">&#10086;</span></div>
