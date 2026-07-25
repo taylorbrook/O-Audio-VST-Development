@@ -3,14 +3,20 @@
 
     O-ReverseDelay — Plugin Editor
 
-    Stage 3 (GUI): Ouaricon Naturalist WebView UI, fixed 940 × 440. Four framed
-    group panels in signal-flow order (TIME | GRAIN | FEEDBACK | OUTPUT) binding
-    all 10 APVTS parameters two-way through Web*Relay / Web*ParameterAttachment.
+    Stage 3 (GUI): Ouaricon Naturalist WebView UI. Four framed group panels in
+    signal-flow order (TIME | GRAIN | FEEDBACK | OUTPUT) binding all 10 APVTS
+    parameters two-way through Web*Relay / Web*ParameterAttachment.
 
-    This is the simplest WebView editor in the suite by design (D10): no
-    visualization, no Timer, no C++→JS polling bridge, no drag-drop, no
-    FileChooser, no withInitialisationData. Exactly ONE native function
-    (getParameterDefaults) backs dblclick-reset.
+    Stage 4 (Polish) grows the window to 940 × 484 for a preset bar and adds the
+    OuariconPresetManager v1.0.5 bridge.
+
+    No visualization, no Timer, no C++→JS polling bridge, no drag-drop, no
+    withInitialisationData (D10). The native-function surface is exactly ELEVEN:
+      - getParameterDefaults  (dblclick-reset)
+      - 10 preset fns         (the contract js/preset-manager.js fetches)
+    Keep that count in sync with app.js + preset-manager.js — an unregistered fn
+    is a silently dead control that passes build, auval AND pluginval
+    (pattern_webview_native_fn_bridge_gap).
 
     NOTE: this header is included by PluginProcessor.cpp only from inside an
     #if JUCE_WEB_BROWSER guard — the Stage-2 render harness builds the processor
@@ -61,6 +67,12 @@ private:
     // 3. ATTACHMENTS
     std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>>   sliderAttachments;
     std::vector<std::unique_ptr<juce::WebComboBoxParameterAttachment>> comboAttachments;
+
+    // Preset save/load dialogs. fileDialogOpen guards re-entry: a second click
+    // while a chooser is up must complete immediately with {false, ""} rather
+    // than replace the live FileChooser out from under its own callback.
+    std::shared_ptr<juce::FileChooser> fileChooser;
+    bool fileDialogOpen = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ReverseDelayEditor)
 };

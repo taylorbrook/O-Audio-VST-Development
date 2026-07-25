@@ -474,7 +474,8 @@ int main()
     auto currentD = [&] { return juce::jmax (1, (int) (paramValue (apvts, "delayTime") * 0.001 * fs)); };
     auto currentG = [&] { return juce::jmax (2, (int) (paramValue (apvts, "grainSize") * 0.001 * fs)); };
 
-    std::printf ("O-ReverseDelay render-harness — Stage 2 probes 0, A–M, fs=%.0f block=%d\n", fs, block);
+    std::printf ("O-ReverseDelay render-harness — probes 0, A–M (Stage 2) + N (Stage 4), "
+                 "fs=%.0f block=%d\n", fs, block);
 
     // --- Probe 0: silence pass (scaffold gate) -------------------------------
     {
@@ -1262,6 +1263,138 @@ int main()
                juce::String ("maxStep=") + juce::String (step, 6)
                  + " thresh=" + juce::String (thresh, 6)
                  + " peak=" + juce::String (pk, 4));
+    }
+
+    // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------
+    // MUST run last: it mutates the APVTS through the real preset manager and
+    // leaves the plugin on the final preset's values, so no probe may follow it.
+    //
+    // The audit deliberately goes through the SHIPPING OuariconPresetManager
+    // ::loadPreset() rather than a re-typed normalised table. That is the only
+    // thing that actually proves the round trip
+    //     engineering units -> convertTo0to1 -> JSON -> convertFrom0to1
+    // survives the four skewed params. A table authored as raw normalised
+    // fractions recalls 10-30x wrong on those and is otherwise silent — it
+    // passes build, auval and pluginval and only ever sounds "like the wrong
+    // preset" (pattern_factory_preset_normalized_ignores_skew).
+    //
+    // NOTE the dev-loop trap: initializeFactoryPresets() early-returns while
+    // Factory/.factory-version already holds JucePlugin_VersionString. At a
+    // frozen 1.0.0 every edit to the processor's factory table after the first
+    // run is a SILENT no-op. After changing that table:
+    //     rm -rf ~/Library/O-ReverseDelay/Presets/Factory
+    // and re-run this harness (constructing the processor re-seeds the dir).
+    {
+        struct FactoryExpect
+        {
+            const char* name;
+            float  sync, div, delay, grain, dens, fb, lo, hi, width, mix;
+            double seconds;
+        };
+
+        // Mirrors the table in ReverseDelayProcessor's constructor, in
+        // ENGINEERING units. Near-Infinite renders 30 s rather than 10: at
+        // feedback=100 it is the preset-driven DSP-03 stability statement.
+        const FactoryExpect kFactoryExpect[] = {
+            { "Reverse Bloom",    0, 6,  500, 200, 60,  40, 100,  8000, 60, 40, 10.0 },
+            { "Guitar Swell",     0, 6,  700, 300, 55,  45, 120,  6500, 55, 55, 10.0 },
+            { "Vocal Halo",       0, 6,  380, 180, 70,  30, 300,  7000, 70, 25, 10.0 },
+            { "Slow Wash",        0, 6, 1400, 450, 30,  65,  80,  5000, 85, 50, 10.0 },
+            { "Tight Smear",      0, 6,  180,  70, 90,  35, 150, 11000, 35, 45, 10.0 },
+            { "Dark Cavern",      0, 6,  850, 320, 65,  70, 220,  1800, 75, 55, 10.0 },
+            { "Near-Infinite",    0, 6,  900, 350, 70, 100, 180,  2500, 80, 50, 30.0 },
+            { "Rhythmic Reverse", 1, 4,  500, 120, 80,  50, 140,  9000, 50, 45, 10.0 },
+        };
+
+        // Per-param tolerances, set FROM MEASUREMENT rather than assumed: the
+        // first run of this probe printed worst=0.0000 for all ten params of all
+        // eight presets, i.e. the engineering-unit round trip is bit-exact once
+        // the 0.01 step snapping is applied. These values are therefore ~4 orders
+        // of magnitude above the observed error and ~4 orders BELOW the error a
+        // genuine skew bug produces (10-30x, i.e. thousands of Hz on highCut).
+        // The "worst= ... % of tol" field in each line reports the headroom.
+        const float kTolMs     = 0.5f;    // delayTime, grainSize
+        const float kTolPct    = 0.1f;    // density, feedback, width, mix (linear)
+        const float kTolLoHz   = 0.5f;    // lowCut   (20-2000, skew centre 200)
+        const float kTolHiHz   = 0.5f;    // highCut  (500-20000, skew centre 3162)
+        const float kTolChoice = 0.01f;   // syncMode, noteDivision (exact index)
+
+        // 120 BPM playhead for the whole probe. Inert for the seven Free presets;
+        // Rhythmic Reverse (syncMode=Sync, 1/8D) genuinely exercises tempo sync
+        // rather than the COMPAT-02 no-BPM fallback — asserting the case we chose.
+        MockPlayHead mph;
+        proc.setPlayHead (&mph);
+
+        const double A = std::pow (10.0, -12.0 / 20.0);
+        const int exciteLen = (int) (2.0 * fs);
+
+        for (const auto& e : kFactoryExpect)
+        {
+            const bool loaded = proc.getPresetManager().loadPreset (e.name);
+            proc.prepareToPlay (fs, block);
+
+            // (a) skew round-trip — the C1 assertion.
+            // Every param is compared unconditionally (no && short-circuit) so
+            // the printed "worst" always reflects all ten, not just those before
+            // the first failure. "worst" is the param with the largest delta
+            // RELATIVE to its own tolerance, i.e. the one closest to failing.
+            float       worst      = 0.0f;   // raw delta of that param
+            float       worstRatio = 0.0f;   // delta / tolerance
+            const char* worstId    = "-";
+            bool        inRange    = true;
+
+            auto cmp = [&] (const char* id, float expected, float tol)
+            {
+                const float d     = std::abs (paramValue (apvts, id) - expected);
+                const float ratio = d / tol;
+                if (ratio > worstRatio) { worstRatio = ratio; worst = d; worstId = id; }
+                if (d > tol) inRange = false;
+            };
+
+            cmp ("syncMode",     e.sync,  kTolChoice);
+            cmp ("noteDivision", e.div,   kTolChoice);
+            cmp ("delayTime",    e.delay, kTolMs);
+            cmp ("grainSize",    e.grain, kTolMs);
+            cmp ("density",      e.dens,  kTolPct);
+            cmp ("feedback",     e.fb,    kTolPct);
+            cmp ("lowCut",       e.lo,    kTolLoHz);
+            cmp ("highCut",      e.hi,    kTolHiHz);
+            cmp ("width",        e.width, kTolPct);
+            cmp ("mix",          e.mix,   kTolPct);
+
+            const bool values = loaded && inRange;
+
+            // (b) render — finite, bounded, and audibly alive.
+            // 2 s broadband burst then silence, as probe G. The wash window
+            // starts right after the burst so low-feedback presets (Vocal Halo
+            // at fb=30 decays in ~2 s) are measured where they actually sound,
+            // not after they have legitimately died away.
+            juce::Random rng ((juce::int64) 0x0feedbac);
+            auto fill = [&] (int t)
+            {
+                return t < exciteLen ? (float) (A * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+            };
+
+            auto y = renderEffect (proc, e.seconds, fs, block, fill);
+
+            const double pk      = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+            const double washRms = rms (y.L, (int) (2.0 * fs), (int) (2.0 * fs));
+
+            const bool audio = allFinite (y.L) && allFinite (y.R)
+                            && pk < 1.0
+                            && washRms > 1.0e-5;
+
+            check ((juce::String ("preset-") + e.name).toRawUTF8(),
+                   values && audio,
+                   juce::String ("loaded=") + (loaded ? "1" : "0")
+                     + " worst=" + juce::String (worst, 4) + "(" + worstId
+                     + " " + juce::String (worstRatio * 100.0f, 1) + "% of tol)"
+                     + " peak=" + juce::String (pk, 4)
+                     + " washRms[2..4s]=" + juce::String (washRms, 7)
+                     + " " + juce::String (e.seconds, 0) + "s");
+        }
+
+        proc.setPlayHead (nullptr);
     }
 
     std::printf ("%s (%d failure%s)\n",

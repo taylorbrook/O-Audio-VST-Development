@@ -1,8 +1,12 @@
 /* ============================================================================
    O-ReverseDelay — Ouaricon Naturalist (aesthetic ouaricon-naturalist-001)
-   Fixed 940 × 440. One row of four framed group panels: TIME | GRAIN |
-   FEEDBACK | OUTPUT (signal-flow order, D9). No viewport units — WebView
-   hosts size the frame, not the viewport.
+   Fixed 940 × 484. Header, a 44 px preset band, one row of four framed group
+   panels (TIME | GRAIN | FEEDBACK | OUTPUT, signal-flow order, D9), footer.
+   No viewport units — WebView hosts size the frame, not the viewport.
+
+   Height is mirrored in PluginEditor.cpp's setSize (940, 484) — keep in sync.
+   The preset band and the height increase are both exactly 44 px, so .groups'
+   flex slack is unchanged and the panels/footer sit where Stage 3 left them.
    ========================================================================= */
 
 :root {
@@ -51,7 +55,7 @@
 
 html, body {
   width: 940px;
-  height: 440px;
+  height: 484px;
   overflow: hidden;
 }
 
@@ -85,7 +89,7 @@ body {
   position: relative;
   z-index: 2;
   width: 940px;
-  height: 440px;
+  height: 484px;
   padding: 18px 22px 14px;
   border: 3px solid var(--brown-frame);
   box-shadow: inset 0 0 32px rgba(92, 64, 51, 0.12);
@@ -121,6 +125,100 @@ body {
   text-transform: uppercase;
   color: var(--brown-border);
   text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+/* ── Preset bar ──────────────────────────────────────────────────────────── */
+/* 32 px band + 12 px margin = the 44 px the frame grew by, so .groups' flex
+   slack is unchanged. Transparent over the paper gradient with the same hairline
+   rule as .header — a second field-guide register line, not a chrome strip. The
+   controls reuse the .segment / .division-select vocabulary already on the page
+   rather than importing a foreign dark bar. */
+.preset-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+}
+
+/* Nav arrows + action buttons share .segment's treatment (fill, 2 px border,
+   5 px radius, hover lift) at a smaller scale. */
+.preset-nav,
+.preset-btn {
+  font-family: var(--serif);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 5px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.preset-nav {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.preset-btn {
+  padding: 5px 12px;
+  font-size: 10px;
+}
+
+.preset-nav:hover,
+.preset-btn:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.preset-nav:active,
+.preset-btn:active {
+  transform: translateY(0);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.preset-nav:focus-visible,
+.preset-btn:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* Armed delete: the two-click inline confirm (window.confirm is a silent no-op
+   or throw in some JUCE WebView backends). Cream-on-green matches .segment.active
+   so "armed" reads as the same kind of state the sync segments use. */
+#preset-delete[data-armed="1"] {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* Recessed cartouche, identical treatment to .division-select. Fixed width with
+   ellipsis so a long user-preset name cannot reflow the bar. */
+.preset-name {
+  width: 300px;
+  padding: 5px 10px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  text-align: center;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.18), 2px 2px 5px var(--shadow-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Group row ───────────────────────────────────────────────────────────── */
@@ -377,4 +475,64 @@ body {
   text-transform: uppercase;
   color: var(--brown-border);
   opacity: 0.75;
+}
+
+/* ── Tooltips ────────────────────────────────────────────────────────────── */
+/* position:fixed anchors the tip to the viewport rather than to .frame, so it
+   escapes the frame's inset shadow; z-index 1000 clears .botanical-overlay (1)
+   and .frame (2). Palette is the page's own — O-MultiBandCompressor's tooltip,
+   which this is lifted from, is already Naturalist, so only the literals moved
+   to custom properties. */
+.tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  max-width: 230px;
+  padding: 7px 10px;
+  background: linear-gradient(135deg, var(--bg-paper-light) 0%, var(--bg-paper-mid) 100%);
+  border: 1px solid var(--brown-frame);
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-family: var(--serif);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
+}
+
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--green-mid);
+  margin-bottom: 3px;
+}
+
+.tooltip-body {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--brown-text);
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip can
+   be clamped to the viewport edge while the arrow still points at its control. */
+.tooltip::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+}
+
+.tooltip[data-placement="above"]::after {
+  top: 100%;
+  border-top-color: var(--brown-frame);
+}
+
+.tooltip[data-placement="below"]::after {
+  bottom: 100%;
+  border-bottom-color: var(--brown-frame);
 }

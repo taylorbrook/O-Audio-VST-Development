@@ -7,6 +7,9 @@
 #include "dsp/ReverseGrain.h"
 #include "dsp/WindowLut.h"
 
+// Header-only, no WebView dependency — safe under the harness' JUCE_WEB_BROWSER=0.
+#include "OuariconPresetManager.h"
+
 // O-ReverseDelay — granular reverse delay (Stage 2 DSP, Phase 2.3 complete:
 // reverse wet path + damped tanh-stable feedback loop + tempo sync + width).
 // APVTS with 10 parameters per research/ARCHITECTURE.md (immutable contract).
@@ -46,8 +49,18 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    /** Stage 4: preset library access for the editor's 10 preset native functions
+        and for the render harness' probe N factory audit. */
+    OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // MUST be declared after `parameters` — it binds a reference at construction,
+    // and members initialise in declaration order regardless of access specifier.
+    // Name is hardcoded (no OUARICON_DEV_SUFFIX) so dev and release builds share
+    // one library at ~/Library/O-ReverseDelay/Presets/{Factory,User}/.
+    OuariconPresetManager presetManager { parameters, "O-ReverseDelay" };
 
     //==========================================================================
     // DSP components (Stage 2). All allocation confined to prepareToPlay().
