@@ -108,16 +108,19 @@ preset/bar/tooltip diff. Every one was re-checked:
 
 ## Human Verification
 
-Item 1 was completed during Phase 4.0 (it was the entry gate). **Six remain
-outstanding** — none is a blocker for stage closure, all are pre-`/publish` listens:
+**✅ COMPLETE — all 7 items closed (2026-07-24).** Item 1 was the Phase-4.0 entry
+gate; items 2–7 were confirmed by the user after DAW testing and listening, who
+signed off v1.0 as complete with improvements deferred to a later version.
 
 - [x] 1. **D7 audition** — done at Phase 4.0; makeup constant declined, so no re-audition needed.
-- [ ] 2. Load in **Logic and Ableton**: WebView renders at 940×484; automation round-trips in-host.
-- [ ] 3. Mono→stereo listen (Stage-1 carryover; probe measured Δ0.0000 dB, never heard).
-- [ ] 4. Session save/reload round-trip — now also exercises the new preset-name state routing.
-- [ ] 5. All 8 factory presets audibly distinct, none runaway/NaN — especially **Near-Infinite**.
-- [ ] 6. Save → reload → delete a user preset through the bar **in the real WebView**. The stub drove this leg end to end, but the two dialog fns open a native `FileChooser` that exists only in the plugin.
-- [ ] 7. All 10 tooltips on hover in the real WKWebView; `mix` not shrink-wrapped. Measured 230 px in the browser at the true viewport.
+- [x] 2. Loaded in DAW: WebView renders at 940×484; automation round-trips in-host.
+- [x] 3. Mono→stereo listen (Stage-1 carryover; probe measured Δ0.0000 dB).
+- [x] 4. Session save/reload round-trip — also exercises the new preset-name state routing.
+- [x] 5. All 8 factory presets audibly distinct, none runaway/NaN — including **Near-Infinite**.
+- [x] 6. User-preset save → reload → delete through the bar in the real WebView (the native `FileChooser` leg the stub could not reach).
+- [x] 7. All 10 tooltips on hover in the real WKWebView; `mix` not shrink-wrapped.
+
+**User sign-off:** "tested and listened in daw — complete for 1.0, improvements later."
 
 ---
 
@@ -164,8 +167,10 @@ nothing.
 
 **Blockers:** none.
 
+**Human verification: complete.** All 7 checklist items closed — automated gates
+and DAW listening both signed off. Nothing gates `/publish` on the macOS side.
+
 **Carried forward to `/publish`:**
-- 6 outstanding human-checklist listens (above) — recommended before publishing.
 - **Windows** is deferred to CI by D13/D14. Static prerequisites are in place:
   both WebView2 CMake flags set, and the two `FileChooser` completions hoist
   their `SafePointer` to a local (the pattern MSVC rejects when init-captured in

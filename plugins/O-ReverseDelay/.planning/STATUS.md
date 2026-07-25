@@ -10,11 +10,12 @@ complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: /install-plugin O-ReverseDelay
+next_action: /publish O-ReverseDelay
 ready_for_implementation: true
 all_stages_verified: true
 ship_ready_version: 1.0.0
-human_needed: 6 checklist listens (items 2-7) before /publish
+human_needed: none - all 7 checklist items closed 2026-07-24 (user DAW sign-off)
+v1_0_signed_off: true
 contract_checksums:
   brief: sha256:7075c269df79e5dc1cf7f28d6ff4dda88805abb2c8086fc751e737f626efb07e
   parameter_spec: sha256:34f6fdf831f785784354d09ff8df864f9c4df42e0fb2175fe5645be0ade3ef39
@@ -51,7 +52,7 @@ Progress: [####################] 100%
 - C1 skew confirmed on disk (`delayTime 0.60037` for 500 ms vs linear 0.231); probe N worst delta **0.0000**; C3/C8/C9 all hold
 - Missing `~/Library/O-ReverseDelay/Presets/User/` is **not** a defect — `savePreset()` creates it lazily (`OuariconPresetManager.h:348`)
 - **2 documentation issues found and fixed** (no shipped-behaviour defects): (1) frontend-check count was 77/77, actually **76/76** — the 77th grep match is the `check()` definition; corrected in CHANGELOG + SUMMARY. (2) `CMakeLists.txt:77` comment misdocumented the binary-data symbol as `preset_manager_js`; real symbol is `presetmanager_js` (hyphen **stripped**) — corrected with the memory-pattern name cited inline
-- **6 human-checklist listens outstanding** (items 2–7); recommended before `/publish`. Windows deferred to CI with static prerequisites in place
+- **Human checklist COMPLETE** — user tested and listened in DAW 2026-07-24 and signed off v1.0 ("complete for 1.0, improvements later"). All 7 items closed; nothing gates `/publish` on macOS. Windows deferred to CI with static prerequisites in place
 
 **Stage 4 execute results:**
 - **D11 CLOSED — makeup constant explicitly DECLINED.** User auditioned at feedback=100; wash length is right as shipped. Task 3 skipped ⇒ **Stage 4 carries ZERO DSP diff**; harness 33 entry / 41 exit (not 34/42)
@@ -216,13 +217,20 @@ Progress: [####################] 100%
 
 ## Next Steps
 
-**All four stages are verified. The plugin is ship-ready at v1.0.0.**
+**All four stages verified · human checklist complete · v1.0.0 SIGNED OFF (2026-07-24).**
 
-1. `/install-plugin O-ReverseDelay` — install to system folders for DAW use (a fresh dual-variant-swept `-dev` install is already present from Stage 4)
-2. **6 human-checklist listens outstanding** (items 2–7 in `stages/4-polish/VERIFICATION.md`) — recommended before publishing:
-   Logic + Ableton render/automation · mono→stereo listen · session save/reload · all 8 presets distinct (esp. Near-Infinite) · user-preset save/reload/delete **in the real WebView** (native `FileChooser` exists only in the plugin) · all 10 tooltips in the real WKWebView
-3. `/publish O-ReverseDelay` — separate, user-triggered. **Windows is deferred to CI**; static prerequisites verified (both WebView2 flags set; both `FileChooser` completions hoist `SafePointer` to a local, which is what MSVC needs). First Windows CI build is the real test.
-4. Re-run note for any future improve session: the **C5 tooltip gate is viewport-sensitive** — resize the browser to 940×484 before testing, or the clamp never fires and the test silently proves nothing.
+1. `/publish O-ReverseDelay` — cross-platform GitHub Actions release. The only
+   remaining unknown is **Windows**, deferred to CI by D13/D14. Static
+   prerequisites are verified (both WebView2 flags set; both `FileChooser`
+   completions hoist `SafePointer` to a local, which is what MSVC needs) but the
+   first Windows CI build is the real test — expect to fix forward there, not here.
+2. Improvements are deferred to a later version per user sign-off. Use
+   `/improve O-ReverseDelay` when picking that up — and run the **4-way version
+   check first** (`pattern_uncommitted_improve_versions_lost`).
+3. Note for any future improve/verify session: the **C5 tooltip gate is
+   viewport-sensitive** — resize the browser to 940×484 before testing, or the
+   clamp never fires and the test silently proves nothing
+   (`pattern_tooltip_clamp_gate_viewport_sensitive`).
 
 ## Context to Preserve
 
