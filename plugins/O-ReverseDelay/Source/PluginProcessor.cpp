@@ -41,6 +41,12 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pDirection    = parameters.getRawParameterValue("direction");
     pRegenMakeup  = parameters.getRawParameterValue("regenMakeup");
 
+    // v1.7.0 SOURCE / DUCK / DRIFT (B4 #4-#6).
+    pSourceMode   = parameters.getRawParameterValue("sourceMode");
+    pDuck         = parameters.getRawParameterValue("duck");
+    pDriftRate    = parameters.getRawParameterValue("driftRate");
+    pDriftDepth   = parameters.getRawParameterValue("driftDepth");
+
     // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
     // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
     // through each parameter's own NormalisableRange below. Four params are
@@ -48,9 +54,22 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All twenty-one keys are explicit in every preset. Omitted keys would revert
-    // to the APVTS default (applyPresetJson resets everything first), which is
-    // safe but makes the table's intent unreadable.
+    // All twenty-five keys are explicit in every preset. Omitted keys would
+    // revert to the APVTS default (applyPresetJson resets everything first),
+    // which is safe but makes the table's intent unreadable.
+    //
+    // ── v1.7.0 (B4 #4-#6): sourceMode / duck / driftRate / driftDepth ────────
+    // Three of the four are pinned at 0 and the fourth — driftRate — is pinned
+    // at its own default of 0.30 Hz, which is inert while driftDepth is 0. That
+    // asymmetry is deliberate and is the trap this block carries: a rate written
+    // as 0 would be CLAMPED up to kDriftRateMinHz by the NormalisableRange, so
+    // the preset would recall 0.02 Hz rather than the default and probe N's
+    // round-trip comparison would fail against a table that looked correct.
+    //
+    // sourceMode carries the grainShape trap rather than the freeze one: its
+    // no-op is index 0 (Mono Sum), and 0 is also what an absent key resolves to,
+    // so the ORDER of the choice list is load-bearing. Putting Stereo first
+    // would re-voice every existing session the moment v1.7.0 is installed.
     //
     // ── v1.6.0 (B4): freeze / direction / regenMakeup all pinned at 0 ────────
     // Fifth release running that adds keys here and pins every one of them to
@@ -121,7 +140,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
@@ -133,7 +154,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
@@ -145,7 +168,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
@@ -157,7 +182,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
@@ -169,7 +196,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
@@ -181,7 +210,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -197,7 +228,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
@@ -209,7 +242,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"grainTilt", 0.5f}, {"grainShape", 0.0f},
            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
            {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f}}, {} },
+           {"regenMakeup", 0.0f},
+           {"sourceMode", 0.0f}, {"duck", 0.0f},
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -450,6 +485,13 @@ void ReverseDelayProcessor::reset()
     // no longer exists.
     freezeEngaged     = false;
     freezeLoopSamples = 1;
+
+    // v1.7.0: the duck follower. Zeroed rather than jumped to the current input
+    // level, because there IS no current input level at a reset — the host has
+    // just told us the signal is gone. Starting at 0 means the first block after
+    // a reset is un-ducked and the envelope climbs into the duck over its attack
+    // time, which is what a transport start sounds like anyway.
+    duckEnv = 0.0f;
 }
 
 ReverseDelayProcessor::~ReverseDelayProcessor() {}
@@ -753,6 +795,83 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::NormalisableRange<float>(0.0f, kRegenMakeupMaxDb, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
+    // ── v1.7.0 (B4 #4-#6): SOURCE / DUCK / DRIFT ────────────────────────────
+    //
+    // Four parameters, and their no-ops split two ways for the first time in one
+    // release — three at zero and one that is NOT, which is exactly the mix that
+    // has caught this plugin before. driftRate's neutral value is its DEFAULT
+    // rate, because the control it is neutral through is driftDepth; writing
+    // driftRate as 0 anywhere would be clamped to kDriftRateMinHz and would look
+    // like it worked.
+
+    // sourceMode: Mono Sum / Stereo, default index 0 (Mono Sum).
+    //
+    // Index 0 is load-bearing in the same way grainShape's Hann-at-0 is: a
+    // v1.0-v1.6 session or preset has no key here, APVTS leaves an absent param
+    // at its default and applyPresetJson resets to defaults before applying, so
+    // index 0 is what every piece of existing work resolves to. It must
+    // therefore be the shipped behaviour, which is the mono sum the grain engine
+    // has read since Stage 2 (decision D4).
+    //
+    // A choice rather than a bool because it names two MODES of reading the
+    // buffer, which is the distinction syncMode draws and freeze does not — and
+    // because a third mode (mid/side) is a plausible later addition that a bool
+    // could not grow into without a parameter-type change.
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "sourceMode", 1 }, "Source Mode",
+        juce::StringArray { "Mono Sum", "Stereo" }, 0));
+
+    // duck: 0–100 %, default 0. Attenuates the WET by the dry input's envelope.
+    //
+    // 0 is the exact no-op and not merely a small value: the gain is
+    // 1 − depth·u, so at depth 0 it is exactly 1.0f whatever the envelope holds,
+    // and multiplying the wet by exactly 1.0f is bitwise identity. The follower
+    // still runs — it is two mul-adds per sample and keeping it warm means
+    // raising the knob mid-session does not start from a stale envelope — but
+    // nothing it computes can reach the output at 0.
+    //
+    // Applied to the OUTPUT path only, never to the feedback tap. A duck inside
+    // the loop would attenuate what is written back, so the input's envelope
+    // would modulate the DECAY RATE and the knob would control how long the tail
+    // lasts rather than when it is heard. That is the same split gainRandom has
+    // used since v1.1.0 and loopTrim since v1.2.0, applied to a third control.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "duck", 1 }, "Duck",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // driftRate: 0.02–5 Hz, default 0.30, skew centred on 0.30 Hz.
+    //
+    // Skewed for the same reason delayTime is: the useful settings are bunched at
+    // the bottom (a slow wander under a wash) and the top of the range is a
+    // special effect, so a linear knob would spend most of its travel on vibrato
+    // and leave "slow" unreachable. Centring the skew on the DEFAULT puts the
+    // shipped value at the knob's midpoint.
+    //
+    // Inert while driftDepth is 0, which is the shipped state — the same
+    // deliberate dead-control shape tukeyTaper has when the window is not Tukey,
+    // and handled the same way: the UI dims the cell, the relay stays bound, and
+    // the knob is never actually dead.
+    {
+        juce::NormalisableRange<float> range { kDriftRateMinHz, kDriftRateMaxHz, 0.01f };
+        range.setSkewForCentre(kDriftRateCentreHz);
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID { "driftRate", 1 }, "Drift Rate", range, kDriftRateCentreHz,
+            juce::AudioParameterFloatAttributes().withLabel("Hz")));
+    }
+
+    // driftDepth: 0–100 %, default 0. How far the LFO moves D, as a fraction of
+    // kDriftMaxFraction — so 100 % is ±25 % of the current delay.
+    //
+    // 0 is the exact no-op: driftMul() early-returns 1.0f rather than evaluating
+    // a sine that happens to be near zero, so `D * 1.0f` is bitwise D and no
+    // std::sin is called at all. Probe AV asserts that as bit-equality against a
+    // defaults render rather than trusting it.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "driftDepth", 1 }, "Drift Depth",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     return layout;
 }
 
@@ -808,6 +927,9 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     // 5.5 s — which 5.5 s met by a single sample.
     // v1.5.0:     6.0 -> 13.0 s. G_max went 0.5 -> 4.0 s and the requirement is
     // gD_max + 2·G_max, so 4.5 + 2·4.0 = 12.5 s. See kCaptureSeconds.
+    // v1.7.0:    13.0 -> 14.0 s. Delay drift MULTIPLIES the latched delay by up
+    // to 1 + kDriftMaxFraction, so gD_max became 4.0·1.25 + 0.5 = 5.5 s and the
+    // requirement 13.5 s. The static_assert in the header is what enforces it.
     capture.prepare(sampleRate, kCaptureSeconds);
     scheduler.prepare(sampleRate);
     grainPool.clear();
@@ -848,6 +970,9 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     freezeSmoothed.setCurrentAndTargetValue(pFreeze->load() >= 0.5f ? 1.0f : 0.0f);
     freezeEngaged     = false;
     freezeLoopSamples = 1;
+
+    // v1.7.0: the duck follower starts un-ducked — see reset().
+    duckEnv = 0.0f;
 
     // In-loop damping filters. prepare() + reset() here; coefficients seeded now
     // so the cached-cutoff guards start valid (the guard only gates recompute).
@@ -895,7 +1020,10 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     const int numSamples = buffer.getNumSamples();
 
-    if (numSamples == 0 || buffer.getNumChannels() == 0)
+    // `<= 0` rather than `== 0`: getNumSamples() should never be negative, but
+    // every loop and every division below keys off this value, so the guard costs
+    // nothing and covers the case rather than assuming it away.
+    if (numSamples <= 0 || buffer.getNumChannels() <= 0)
         return;
 
     const int numInputChannels  = juce::jmin(getTotalNumInputChannels(),  buffer.getNumChannels());
@@ -966,6 +1094,29 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // neighbour would only be audible at a step size the 0.1 dB parameter grid
     // cannot produce. Exactly 1.0f at the 0 dB default.
     const float regenMakeup = regenMakeupGain (pRegenMakeup->load());
+
+    // v1.7.0 (B4 #5) — the source read law, latched per grain like every other
+    // content parameter. Resolved to a bool here so the spawn handler does one
+    // compare rather than a float test, and so a stale/out-of-range choice index
+    // can only ever mean "mono sum".
+    const bool  stereoSource = pSourceMode->load() >= 0.5f;
+
+    // v1.7.0 (B4 #6) — delay drift. Both read at block rate; the LFO itself is
+    // sampled per SPAWN from the grain's own absolute position, so the value that
+    // reaches a grain is latched exactly like gD and gG are. Depth is gated on
+    // `> 0` inside driftMul(), so at the default no std::sin runs and the latched
+    // delay is bitwise D.
+    const float driftDepthNorm = juce::jlimit (0.0f, 1.0f, pDriftDepth->load() * 0.01f);
+    const float driftRateHz    = juce::jlimit (kDriftRateMinHz, kDriftRateMaxHz,
+                                               pDriftRate->load());
+
+    // v1.7.0 (B4 #4) — ducking. The DEPTH is block rate; the envelope it scales
+    // is per sample (see the mix loop in step 7 and kDuckKnee's note in the
+    // header). Exactly 0.0f at the default, which makes the duck gain exactly
+    // 1.0f and the wet multiply a bitwise no-op.
+    const float duckNorm   = juce::jlimit (0.0f, 1.0f, pDuck->load() * 0.01f);
+    const float duckAttack = duckCoeff (kDuckAttackSec,  currentSampleRate);
+    const float duckRelease= duckCoeff (kDuckReleaseSec, currentSampleRate);
 
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
@@ -1177,6 +1328,29 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const int gMaxSamples = juce::jmax(gMinSamples,
         static_cast<int>(kGrainSizeMaxMs * 0.001 * currentSampleRate));
 
+    // ── v1.7.0 (B4 #6): the ring-headroom ceiling on a latched delay ─────────
+    //
+    // A grain reaching gD back needs the ring to still hold gD + 2·G when its
+    // LAST sample is read, so gD may never exceed bufferSize − 2·G_max − 1.
+    // The static_assert in the header already guarantees the PARAMETERS cannot
+    // ask for more than that — drift's +25 %, scatter's +500 ms and the 4 s
+    // grain together land 500 ms inside the 14 s ring — so this clamp is a
+    // guard rather than a shaper and never bites at any reachable setting.
+    //
+    // It exists anyway because the failure it prevents is silent. An
+    // over-reaching read does not fault, does not produce a NaN and does not
+    // click: it wraps onto material the writer has already overwritten, and the
+    // only symptom is that long settings sound wrong. The compile-time assert
+    // covers the ranges as declared; this covers the arithmetic that combines
+    // them, which is where v1.5.0's near-miss actually lived.
+    //
+    // Derived from G_MAX rather than from this grain's own gG on purpose: a
+    // bound that varied with the latched grain size would make the clamp point
+    // depend on an RNG draw, and a guard that moves is a guard that cannot be
+    // reasoned about. Conservative and constant is the right trade for something
+    // that should never fire.
+    const int maxLatchedDelay = juce::jmax(1, capture.getBufferSize() - 2 * gMaxSamples - 1);
+
     // gainRandom, power-normalised. For g = 1 + dev·u with u uniform on [−1,1),
     // E[g²] = 1 + dev²/3, so an un-normalised multiplier would raise wet RMS by
     // up to +0.75 dB at full travel — the knob would read as a loudness control
@@ -1320,19 +1494,46 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // on how many render passes have run, i.e. on the host block size.
             // The few wasted draws buy an unconditional invariant.
 
+            // ── v1.7.0 (B4 #6): delay drift, sampled at this grain's own
+            // absolute spawn position ─────────────────────────────────────────
+            //
+            // The LFO phase comes from `passStartAbs + passOffset`, which is the
+            // capture ring's monotonic write position — i.e. the grain's
+            // absolute sample time — rather than from a phase accumulated per
+            // block. That is what makes drift block-size invariant: the same
+            // spawn lands at the same absolute sample at 512 and at 4096, so it
+            // sees the same phase exactly, where an accumulator advanced eight
+            // times as often would land a few ulps apart and probe AV demands
+            // bit equality (the property probes O and W2 established).
+            //
+            // Applied BEFORE scatter so the scatter stays symmetric about the
+            // drifted delay rather than about the nominal one — the two controls
+            // then compose as "wander, and smear around wherever you are"
+            // instead of fighting over the same anchor. It consumes no RNG, so
+            // every existing draw sequence is untouched (probe T's property).
+            const juce::int64 spawnAbs = passStartAbs + static_cast<juce::int64>(passOffset);
+            const float driftedD = static_cast<float>(D)
+                                     * driftMul(driftDepthNorm, driftRateHz,
+                                                spawnAbs, currentSampleRate);
+
             // delayScatter: ±scatterSamples around D. Symmetric, so the MEAN
             // latched delay stays D and the rhythmic anchor does not move —
             // only the thickness of the smear around it changes.
-            int gD = D;
+            int gD = static_cast<int>(driftedD);
             if (scatterSamples > 0)
-                gD = D + static_cast<int>(static_cast<float>(scatterSamples)
-                                          * (2.0f * nextRand01() - 1.0f));
+                gD += static_cast<int>(static_cast<float>(scatterSamples)
+                                       * (2.0f * nextRand01() - 1.0f));
 
             // See the pass-bound note above: clamped to grainDelayFloor, which
             // depends only on the parameters, so the latched value is identical
             // at every host block size. passLen <= grainDelayFloor, so this also
             // preserves A2's `i < gD` guarantee.
-            gD = juce::jmax(grainDelayFloor, gD);
+            //
+            // v1.7.0 adds the ceiling: drift can only push gD UP, and the ring
+            // has to still hold gD + 2·G when the grain's last sample is read.
+            // Unreachable at every legal setting (see maxLatchedDelay) and kept
+            // because the failure it guards is inaudible until it is not.
+            gD = juce::jlimit(grainDelayFloor, juce::jmax(grainDelayFloor, maxLatchedDelay), gD);
 
             // sizeRandom: ±% on G, clamped into grainSize's own range.
             int gG = G;
@@ -1447,6 +1648,20 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             // −1 reverse, +1 forward. The whole of B4 #2 in the engine.
             g.step = forward ? 1 : -1;
+
+            // v1.7.0 (B4 #5): the source channel, latched. Follows panSign — the
+            // grain's pan SIDE — rather than the resolved pan position, because
+            // at width 0 every pan is exactly 0.5 and a position test would send
+            // every grain to the same channel (see ReverseGrain::srcCh).
+            //
+            // panSign was flipped above, before the pan was computed, so the sign
+            // read here is this grain's: +1 pans right and reads R, −1 pans left
+            // and reads L. That correspondence is the whole feature — it is what
+            // makes Stereo preserve the image instead of just decorrelating it.
+            //
+            // Consumes no RNG, exactly as the window and taper latches do, so
+            // probes T and W2 stay valid without re-tuning.
+            g.srcCh = stereoSource ? (panSign > 0.0f ? 1 : 0) : -1;
         }
 
         // ---- (4) render active grains into wetScratch (overlap-add) ---------
@@ -1474,6 +1689,18 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // this costs the reverse path nothing measurable and nothing at all
             // in the result.
             const juce::int64 step = g.step;
+
+            // v1.7.0 (B4 #5): the grain's latched source channel, hoisted for the
+            // same reason `step` is. −1 selects the mono sum, which keeps the
+            // shipped path bitwise what it was: monoSum() is called unchanged
+            // rather than being re-expressed as a weighted read, and 0.5·(L+R) is
+            // NOT bit-equal to 0.5·L + 0.5·R once denormals are in play.
+            //
+            // The per-sample branch is on a per-grain constant, so it is either
+            // perfectly predicted or hoisted out of the loop entirely by loop
+            // unswitching — the same argument readShaped's taper branch has made
+            // since v1.4.0.
+            const int srcCh = g.srcCh;
 
             const float invG = g.invG, gain = g.gain;
             const float gL = g.gL,    gR = g.gR;       // feedback tap — never randomised
@@ -1505,7 +1732,8 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // 48 kHz, a few Mflop/s.
             for (int i = start; i < end; ++i)
             {
-                const float src = capture.monoSum(readAbs);
+                const float src = srcCh < 0 ? capture.monoSum(readAbs)
+                                            : capture.readAbs(srcCh, readAbs);
 
                 // B1 tilt: two branchless segments mapping [0,t] -> [0,0.5] and
                 // [t,1] -> [0.5,1]. At the default t = 0.5 both coefficients are
@@ -1656,9 +1884,73 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         refusedSpawns.fetch_add(static_cast<juce::uint32>(refusedThisBlock),
                                 std::memory_order_relaxed);
 
-    // ---- (7) equal-power dry/wet mix ----------------------------------------
+    // ---- (7) equal-power dry/wet mix + duck ---------------------------------
     // Dry comes from the untouched input buffer (wet never rendered in-place).
+    //
+    // ── v1.7.0 (B4 #4): the duck follower lives HERE ─────────────────────────
+    // This loop is the last place in the block where the dry input is still
+    // readable — everything upstream reads it, this is what overwrites it — so
+    // running the follower inline costs no second pass over the buffer and no
+    // copy of the dry signal.
+    //
+    // Per SAMPLE, with coefficients computed once per block. A block-rate
+    // envelope would be cheaper and is what the obvious implementation does; it
+    // would also make the duck a function of the host's buffer size, so an
+    // offline bounce at 4096 samples would duck 75 ms later than the same
+    // session monitored at 512, and probes O/W2/AV could no longer assert bit
+    // equality. See kDuckKnee in the header for the full argument.
+    //
+    // The duck multiplies the WET ONLY. The feedback tap is upstream of this
+    // loop and never sees it, which is what keeps the tail's decay rate a
+    // property of `feedback` rather than of what the player happens to be doing
+    // — the same output/loop split gainRandom (v1.1.0), loopTrim (v1.2.0) and
+    // forwardTrim (v1.6.0) each rely on.
     constexpr float halfPi = juce::MathConstants<float>::halfPi;
+
+    // Rectified stereo mean, one-pole with asymmetric attack/release, then the
+    // compressive map. `duckNorm == 0` makes this exactly 1.0f whatever the
+    // envelope holds, so the wet multiply below is a bitwise no-op at the
+    // default — and the divide is skipped on a branch the compiler hoists,
+    // because duckNorm is a block constant.
+    auto advanceDuck = [&] (float dryL, float dryR) noexcept
+    {
+        const float rect = 0.5f * (std::abs (dryL) + std::abs (dryR));
+        const float c    = rect > duckEnv ? duckAttack : duckRelease;
+
+        duckEnv = rect + c * (duckEnv - rect);
+
+        // ── The follower is the one piece of state here that cannot heal ──────
+        //
+        // duckEnv is the plugin's first PERSISTENT audio state a pathological
+        // input can poison permanently, and that is a property of the follower
+        // rather than of ducking. Once it holds a non-finite value the update
+        // above reproduces one every sample for the life of the instance:
+        // `rect + c*(NaN - rect)` is NaN for any finite rect, so a single bad
+        // input sample is forever. An infinity gets there by a second route —
+        // inf/(inf + knee) is NaN, not 1 — so both flavours have to be caught.
+        //
+        // Everything else in the engine already recovers on its own schedule and
+        // that is exactly why this stood out: the capture ring ages a bad sample
+        // out after one lap, and the feedback loop's isfinite guard resets the
+        // damping filters within the pass. Measured, before this guard existed:
+        // a 10 ms NaN/inf burst left duck 0 fully recovered by 20 s (rms 0.0638)
+        // and duck 80 reading NaN for the rest of the render. Probe AY is the
+        // standing check, and it measures duck 80 AGAINST duck 0 rather than
+        // against an absolute — the shipped path's recovery is the standard.
+        //
+        // Reset to 0, i.e. un-ducked, which is the safe direction: garbage in the
+        // envelope must not attenuate the wet. Costs one bit test per sample in a
+        // loop that already evaluates cos and sin, and it cannot fire for finite
+        // input, so the duck-0 identity and the block-size invariance probe AX
+        // asserts are both untouched.
+        if (! std::isfinite (duckEnv))
+            duckEnv = 0.0f;
+
+        if (duckNorm <= 0.0f)
+            return 1.0f;
+
+        return 1.0f - duckNorm * (duckEnv / (duckEnv + kDuckKnee));
+    };
 
     if (numOutputChannels > 1)
     {
@@ -1673,8 +1965,13 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             const float dryL    = outL[i];
             const float dryR    = numInputChannels > 1 ? outR[i] : dryL;   // mono→stereo: duplicate dry
 
-            outL[i] = dryGain * dryL + wetGain * wetL[i];
-            outR[i] = dryGain * dryR + wetGain * wetR[i];
+            // (wetGain · duck) · wet, i.e. the duck folds into the existing wet
+            // gain rather than adding a third multiply. At duck 0 that factor is
+            // wetGain · 1.0f, which is bitwise wetGain.
+            const float wg = wetGain * advanceDuck (dryL, dryR);
+
+            outL[i] = dryGain * dryL + wg * wetL[i];
+            outR[i] = dryGain * dryR + wg * wetR[i];
         }
     }
     else
@@ -1686,10 +1983,33 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             const float m       = mixSmoothed.getNextValue();
             const float dryGain = std::cos(m * halfPi);
             const float wetGain = std::sin(m * halfPi);
+            const float dryM    = outM[i];
 
-            // Mono out: equal-power fold of the centered wet pair
-            // (0.7071·(L+R) → unity for the width-0 dual-mono wet).
-            outM[i] = dryGain * outM[i] + wetGain * 0.70710677f * (wetL[i] + wetR[i]);
+            // Mono in: the follower sees the same sample twice, which is the
+            // same rectified mean a centred stereo signal would give it, so a
+            // mono and a dual-mono render duck identically.
+            const float wg = wetGain * advanceDuck (dryM, dryM);
+
+            // Mono out: equal-power fold of the wet pair.
+            //
+            // ── v1.7.0: why 0.7071 is still the right constant with a STEREO
+            // source ──────────────────────────────────────────────────────────
+            // The constant answers a question about the PAN, not about what the
+            // grains read. At width 0 every grain pans centre, so panL = panR =
+            // 1/√2 and each grain contributes v/√2 to both channels; the fold is
+            // 0.7071·(wetL + wetR) = 0.7071·2·(v/√2) = v, i.e. exactly unity —
+            // and that holds in Stereo mode too, because a Stereo-mode grain at
+            // width 0 still pans centre and still writes both channels equally.
+            // Only the value of v changes, never the geometry.
+            //
+            // Above width 0 the fold is the incoherent-sum constant for a pair
+            // that is no longer identical, and Stereo mode makes wetL and wetR
+            // MORE decorrelated rather than less — so 1/√2 is if anything a
+            // better fit there than it was for the mono-sum case it was derived
+            // for. Re-derived rather than assumed, and probe AT measures the
+            // mono fold in both source modes rather than taking either claim on
+            // trust.
+            outM[i] = dryGain * dryM + wg * 0.70710677f * (wetL[i] + wetR[i]);
         }
     }
 }

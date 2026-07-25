@@ -3,14 +3,14 @@
 
     O-ReverseDelay — Plugin Editor (implementation)
 
-    17 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
+    20 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
     highCut, width, mix + v1.1.0's jitter, delayScatter, sizeRandom, gainRandom
     + v1.2.0's grainTilt + v1.3.0's grainCount + v1.4.0's tukeyTaper + v1.6.0's
-    direction, regenMakeup) + 3 WebComboBoxRelay controls (syncMode,
-    noteDivision, grainShape) + 1 WebToggleButtonRelay (v1.6.0's freeze) bound
-    two-way to the APVTS. The UI-02
-    Sync/Free control swap is pure JS — both controls stay relay-bound at all
-    times, so neither is ever dead.
+    direction, regenMakeup + v1.7.0's duck, driftRate, driftDepth) + 4
+    WebComboBoxRelay controls (syncMode, noteDivision, grainShape + v1.7.0's
+    sourceMode) + 1 WebToggleButtonRelay (v1.6.0's freeze) bound two-way to the
+    APVTS. The UI-02 Sync/Free control swap is pure JS — both controls stay
+    relay-bound at all times, so neither is ever dead.
 
     ── v1.6.0: the first toggle relay ────────────────────────────────────────
     `freeze` is the plugin's only AudioParameterBool, and a bool needs its own
@@ -75,10 +75,21 @@ namespace
         // below. That split is the same trap grainShape presented at v1.2.0 in a
         // different type: a relay whose type does not match the parameter's
         // attaches cleanly and then never updates.
-        "direction", "regenMakeup"
+        "direction", "regenMakeup",
+        // v1.7.0 (B4 #4, #6): the DUCK and DRIFT panels in row 3. `sourceMode`
+        // is the fourth new parameter and is NOT here — it is a CHOICE and
+        // belongs in kComboIds below, the same split grainShape presented at
+        // v1.2.0 and `freeze` presented again at v1.6.0 in a third type. A relay
+        // whose type does not match the parameter attaches cleanly and then
+        // never updates.
+        "duck", "driftRate", "driftDepth"
     };
 
-    const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape" };
+    // v1.7.0: sourceMode joins the three originals. It is rendered as a SEGMENT
+    // PAIR rather than a select — like syncMode, and unlike noteDivision and
+    // grainShape — because it names two modes rather than picking from a list;
+    // the relay type is the same either way.
+    const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape", "sourceMode" };
 
     // v1.6.0: the plugin's first bool parameter, and therefore its first toggle
     // relay. Kept as a StringArray rather than a bare id so the frontend check's
@@ -491,16 +502,24 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
 
     // Fixed. 440 (Stage 3: header + one row of four framed group panels + footer)
     // + 44 (Stage 4 preset band) + 259 (v1.1.0 second panel row: 14 px row gap
-    // + a 245 px row). The second row consumes the height increase EXACTLY, so
-    // row 1 and the footer sit where Stage 4 left them.
+    // + a 245 px row) + 229 (v1.7.0 third panel row: 14 px row gap + a 215 px
+    // row). Rows 1 and 2 and the footer sit exactly where they were.
     //
-    // Sized once for v1.1 through v1.6 (~27 knob-cell slots against ~26 planned
-    // controls): a later resize would invalidate the tooltip edge-clamp
-    // verification, which only fires at the real shipping width
-    // (pattern_tooltip_clamp_gate_viewport_sensitive).
+    // ── v1.7.0: the row-3 decision the v1.0.0 review's section D warned about ─
+    // v1.1.0 framed three empty panels so v1.2-v1.6 could be filled without ever
+    // resizing, and that held exactly: WINDOW, COUNT and MOTION landed in the
+    // reserve and the frame never moved. The reserve is now spent, so this
+    // release pays the resize the review budgeted — once, for four controls, and
+    // with one panel of row 3 framed and empty on the same principle.
     //
-    // Must stay in sync with styles.css (html/body and .frame both read 743px).
-    setSize (940, 743);
+    // The WIDTH is deliberately unchanged at 940. The tooltip edge-clamp gate is
+    // horizontal and viewport-sensitive — it only fires at the real shipping
+    // width, so a width change would invalidate the verification outright
+    // (pattern_tooltip_clamp_gate_viewport_sensitive). A height change moves only
+    // the above/below flip, which is re-measured at 940 x 972 rather than assumed.
+    //
+    // Must stay in sync with styles.css (html/body and .frame both read 972px).
+    setSize (940, 972);
 }
 
 ReverseDelayEditor::~ReverseDelayEditor() = default;

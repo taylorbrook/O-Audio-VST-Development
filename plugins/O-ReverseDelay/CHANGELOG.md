@@ -4,6 +4,253 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.7.0] — 2026-07-25 — Source, Duck, Drift
+
+Minor release. The last three parameters from section B4 of the v1.0.0 review —
+ducking (#4), stereo source (#5) and delay drift (#6) — and the row-3 layout
+decision that section D of the same review said they would force. All four new
+parameters default to the engine's exact no-op, so **a v1.0–v1.6 session, preset
+or factory patch is bit-identical under v1.7.0**, and the 138-probe render
+harness asserts that rather than claiming it.
+
+Three findings below, and none of them is the feature working as described. Two
+are corrections to what this release's own probes first asserted, which is the
+useful kind: the probe was wrong in a way that looked exactly like the engine
+being wrong.
+
+### Added
+
+**Duck (`duck`, 0–100 %, default 0).** Attenuates the wet by the dry input's
+envelope, so the wash blooms in the gaps rather than competing with the source —
+the brief's "vocal ambience behind a lead" case. Applied to the **output path
+only**, never to the feedback tap: a duck inside the loop would let the input's
+envelope modulate the decay rate, so the knob would control how long the tail
+lasts rather than when it is heard. That is the same output/loop split
+`gainRandom` has used since v1.1.0, `loopTrim` since v1.2.0 and `forwardTrim`
+since v1.6.0, applied to a fourth control.
+
+Gain is `1 − depth · env/(env + 0.1)` — a smooth compressive map with no knee
+parameter to explain, no discontinuity and no division by zero. Half depth
+arrives at −20 dBFS, roughly where a mixed vocal or guitar sits, and full depth
+is approached asymptotically so a loud source never quite mutes the wet.
+Measured against an un-ducked render of the same excitation: **−10.10 dB** while
+the dry is loud, **−1.08 dB** 700 ms into the gap.
+
+**Source (`sourceMode`, Mono Sum / Stereo, default Mono Sum).** Through v1.6.0
+the grain engine always read `CaptureBuffer::monoSum`, so the source's stereo
+image was discarded before a grain ever saw it and `width` could only pan mono
+copies of it — `CaptureBuffer::readAbs(ch, …)` existed and was called by nothing.
+In Stereo mode a grain latches a channel at spawn, following **its own pan
+side**: a grain that will be placed right reads the right channel. Hard-panned
+source, width 100, measured L/R wet asymmetry: **0.637 in Stereo against 0.001
+in Mono Sum.**
+
+It follows `panSign` rather than the resolved pan *position*, and that is the
+width-0 case rather than a detail. At width 0 every grain's pan is exactly 0.5,
+so a position test would send every grain to the same channel and the mode would
+silently become "mono, but only the left input".
+
+**Drift (`driftRate` 0.02–5 Hz default 0.30, `driftDepth` 0–100 % default 0).**
+A slow sine on the delay, sampled **at spawn** and latched with everything else,
+so it is click-free by construction rather than by smoothing: a grain never
+changes the delay it is reading from, the cloud's delay wanders. Multiplicative
+rather than additive, so ±25 % at full depth reads the same at a 100 ms delay as
+at a 4 s one — which is what tape does. Rate is inert while Depth is 0 and its
+cell dims to say so, exactly as Taper's does off Tukey.
+
+### Changed
+
+**Capture ring 13.0 → 14.0 s.** Drift multiplies the latched delay, so
+`gD_max` became `4000·1.25 + 500 = 5500 ms` and the requirement
+`5.5 + 2·4.0 = 13.5 s`. 14.0 keeps the same 0.5 s margin every earlier release
+held. Cost ~5.4 MB stereo at 48 kHz (~21.5 MB at 192 kHz), allocated once in
+`prepareToPlay`. The `static_assert` added at v1.5.0 was extended rather than
+re-reasoned about — and its parenthesisation is load-bearing, because drift
+**multiplies** where scatter **adds**, so the two compose as `(D·drift + scatter)`
+and not as a third additive term.
+
+**Editor 940 × 743 → 940 × 972.** The reserve v1.1.0 framed held for five
+releases and eleven controls without the window moving once; it is spent, so
+this release pays the resize the review budgeted. Row 3 takes the **same**
+190 | 190 | 276 | 190 contract, so the columns keep aligning, and one panel —
+COLOUR — ships framed and empty for the review's remaining loop-character items
+(#7 diffusion, #8 loop drive).
+
+The **width did not change**, and that is the load-bearing half. The tooltip
+edge-clamp gate is horizontal and only fires at the real shipping width, so a
+height change leaves the clamp geometry under test intact where a width change
+would have invalidated it outright
+(`pattern_tooltip_clamp_gate_viewport_sensitive`). Re-measured anyway at
+940 × 972: 27/27 anchors, clamp engaging for 5 of them, right-most tip ending at
+932 of 940.
+
+### The duck follower runs per sample, and the brief asked for per block
+
+The requested design was a block-rate envelope: block RMS, one-pole with
+coefficient `exp(−N/(τ·fs))`, gain ramped across the block, with a guard against
+dividing by `numSamples <= 0`. It is cheaper and it is what most ambient delays
+do. It is wrong **here**, for a reason specific to this plugin rather than to
+ducking.
+
+Probes O, W2 and AQ assert that a 512- and a 4096-sample render of the same
+input are bit-identical, and three earlier releases spent real effort earning
+that — the sub-block pass bound at v1.0.1, the split RNG streams at v1.1.0, the
+draw-before-`obtain()` ordering at v1.6.0. A block-rate envelope breaks it by
+construction, and not subtly: at 4096 samples the attack resolves to 85 ms
+against 10.7 ms at 512, so an **offline bounce would duck audibly later than the
+same session monitored**. That is the class of defect
+`pattern_offline_render_asyncupdater_dynamics_gap` describes, reached from a
+different direction.
+
+What ships is a one-pole on `|dry|` advanced per sample, with its coefficients
+computed once per block from `exp(−1/(τ·fs))`. It costs two mul-adds and one
+divide per sample, runs inside the existing mix loop (the last place the dry
+input is still readable, so there is no second pass and no copy), and removes
+the question. There is no block RMS and therefore no division by `numSamples` to
+guard — the guard the block-rate design needed is not weakened here, it is
+absent because the quantity is. Probe AX asserts the invariant with ducking
+engaged: `max|512 − 4096| = 0.000000000000`.
+
+Probe M's click detector holds `duck` to the **smooth** tier rather than the
+latched-content tier the other three new parameters get, which is the assertion:
+a per-block gain step would fail that line and pass every other probe in the
+suite.
+
+### The follower is the first state here that could not heal, and it did not
+
+The per-sample design has a consequence the block-rate one would have shared and
+that neither the brief nor the first review of this release caught: `duckEnv` is
+**persistent audio state with no recovery path**. The update is
+`rect + c·(duckEnv − rect)`, which reproduces a NaN for any finite `rect` — so a
+single bad input sample poisons the duck gain for the life of the instance. An
+infinity reaches the same place by a second route, since `inf/(inf + knee)` is
+NaN rather than 1.
+
+This stood out precisely because nothing else in the engine behaves that way.
+The capture ring ages a bad sample out after one lap; the feedback loop's
+`isfinite` guard resets the damping filters within the pass. Measured before the
+guard existed — a 10 ms NaN/inf burst at 1 s into a 30 s render, tail window
+[20 s, 30 s] after the 14 s ring has fully lapped:
+
+    duck  0 (the v1.0–v1.6 path)   finite, rms 0.0638   — fully recovered
+    duck 80                        NaN                  — permanently
+
+auval passed, pluginval strictness-10 passed three times on both formats, and
+all 137 other probes passed, in that state. It took a probe that feeds
+non-finite input deliberately.
+
+Fixed with an `isfinite` reset to 0 — un-ducked, which is the safe direction,
+since garbage in the envelope must not attenuate the wet. It costs one bit test
+per sample in a loop that already evaluates `cos` and `sin`, and it cannot fire
+for finite input, so the duck-0 bitwise identity and probe AX's block-size
+invariance are both untouched. Probe AY is the standing guard, and it measures
+duck 80 **against duck 0** rather than against an absolute: the shipped path's
+recovery is the standard the new one has to meet. A probe asserting only "duck 80
+recovers" would be satisfied by an engine that never went bad, and one asserting
+"the output is finite throughout" would fail on the ring lap, which is correct
+behaviour.
+
+`processBlock`'s entry guard also moved from `numSamples == 0` to
+`numSamples <= 0` (and the same for the channel count). It is defensive rather
+than load-bearing — `getNumSamples()` should never be negative — but every loop
+and division below keys off it, and the check is free.
+
+### A correlated input does not imply a correlated capture ring
+
+Probe AT asserts that with `L == R` the two source modes render **bit-identically**
+— `0.5·(L+R)` is exactly `L` when the two agree, so the read laws coincide
+sample-for-sample. Written with feedback at 40 and width at 60, it failed by
+0.0154.
+
+The engine was right. The identity is about the **capture ring**, not about the
+input, and the ring is written with `input + feedback return` — where the
+feedback return is the **width-panned wet**. So the moment anything recirculates
+at width > 0, a perfectly correlated input stops implying a correlated ring and
+the two read laws legitimately diverge. The probe now runs at feedback 0 (width
+stays at 60, so the pan path is still exercised) and measures exactly 0.
+
+### The mono fold's 0.7071 is unchanged, and the first probe of it was 3 dB wrong
+
+The review asked whether the equal-power fold in `processBlock`'s mono branch
+still holds once grains can read one channel instead of the sum. It does, and
+the reason is sharper than "it still sounds right": **mono output is only
+reachable with mono input** — the bus layout rejects stereo→mono outright — and
+with a mono input the capture ring holds `L == R`, so the two source modes read
+identical material by construction. The constant cannot depend on the mode
+because the mode cannot reach it. Probe AU asserts that as bit-equality.
+
+The fold's *value* was harder to test than to derive. The first version of the
+probe compared mono-out RMS against the stereo render's **L channel** and
+reported +3.010 dB — which reads exactly like a broken constant and is not. At
+width 0 each channel carries `1/√2` of the grain sum, so one channel is always
+3 dB under the pair. The reference is the stereo render's **total power**,
+`√(rmsL² + rmsR²)`, which is the right one precisely because it is
+fold-*independent*: it is the same number whatever constant the mono branch uses,
+so the comparison tests the constant instead of restating it. Measured
+**−0.000 dB**. A bare sum would read +3.01, a 0.5 average −3.01.
+
+### Width 0 has never been bitwise dual-mono
+
+Found by the same probe, and it belongs to v1.0.0 rather than to this release.
+At width 0 the pan is exactly 0.5, so the gains are `cos(π/4)` and `sin(π/4)` —
+mathematically equal, and **one ulp apart** as the library computes them. The
+shipped width-0 wet has therefore always been dual-mono to within a pan-gain ulp
+rather than bitwise, which is why probe K has always measured it with a
+tolerance. Measured here at 1.1e-8 against a 0.107 peak, i.e. about −136 dB.
+Probe AT's collapse assertion was rewritten to the meaningful form: Stereo at
+width 0 must be no more asymmetric than Mono Sum is at width 0. Both measure
+0.000000000.
+
+### Drift's LFO phase comes from the spawn position, not an accumulator
+
+The phase is `absPos · rate / fs`, where `absPos` is the capture ring's
+monotonic write position at the moment the grain spawns — a quantity the engine
+already computes. That makes drift block-size invariant *exactly*: the same
+spawn lands at the same absolute sample at 512 and at 4096, so it sees the same
+phase, where a per-block accumulator advanced eight times as often would land a
+few ulps apart and probe AX demands bit equality.
+
+The cost is that moving the **rate** knob re-derives the phase rather than
+continuing it. On a latched-at-spawn parameter that is at worst one grain
+landing at a different delay — inaudible against Scatter, which does the same
+thing deliberately — and it buys an invariant the whole harness depends on. Both
+drift parameters take the loose click tier in probe M for exactly that reason.
+
+The ring clamp is a **guard, not a shaper**: the `static_assert` already
+guarantees no reachable setting can ask for more than the ring holds, so it never
+fires. It exists because the failure it prevents is silent — an over-reaching
+read does not fault, does not produce a NaN and does not click; it wraps onto
+overwritten material and the only symptom is that the long settings sound wrong.
+Probe AV measures the observable instead of the engine's own belief: D and G both
+at 4000 ms, scatter at max, drift at full depth, and the pre-arrival window at
+**1e-7 of the arrival window**.
+
+### Verification
+
+- Render harness **122 → 138 probes**, all passing. Twelve new assertions —
+  `duck-gap-bloom`, `duck-zero-is-noop`, `duck-depth-monotone`,
+  `stereo-source-image` / `-correlated-identity` / `-width0-collapse`,
+  `mono-fold-source-invariant`, `drift-ring-clamp`, `drift-zero-is-noop`,
+  `drift-is-live`, `v170-blocksize-invariance`, `nonfinite-input-does-not-stick`
+  — plus four new lines in probe M's sweep and four new columns in probe N's
+  factory audit. `nonfinite-input-does-not-stick` is the first probe in this
+  suite to feed deliberately pathological INPUT rather than to check that the
+  engine's own output stays finite.
+- `ui_frontend_check.js` **129 → 145 checks**, including a new **choice closure**
+  (APVTS choice params ↔ `kComboIds` ↔ `getComboBoxState` in app.js, both
+  directions). That gap is what v1.6.0's bool closure left open: through v1.6.0
+  the choice ids were excluded from the knob closure by a hand-written list and
+  then checked against nothing, so a choice parameter that never reached
+  `kComboIds` would have been absent from every assertion. `sourceMode` is
+  precisely that case.
+- `ui_tooltip_clamp_check.js` re-measured at **940 × 972** — 27/27 anchors, clamp
+  engaging for 5.
+- Two more tooltip-inventory gaps backfilled: v1.6.0's `freezeSegments`,
+  `knob-direction` and `knob-regenMakeup` were never added to the anchor list,
+  which is the hand-maintained-fixture drift
+  `pattern_test_fixture_mirrors_drift_silently` describes.
+- auval SUCCEEDED; pluginval strictness-10 ×3 on VST3 and on AU, all SUCCESS.
+
 ## [1.6.0] — 2026-07-25 — Motion: Freeze, Direction, Regen
 
 Minor release. The three high-payoff / low-effort parameters from section B4 of

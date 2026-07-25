@@ -391,15 +391,24 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'PluginProcessor.h stays free of editor includes');
 }
 
-// -------------------------------- 12. geometry: preset bar + v1.1 second row
+// -------------------------------- 12. geometry: preset bar + the three rows
 {
-    check(/setSize\s*\(\s*940\s*,\s*743\s*\)/.test(editorCpp),
-        'editor setSize is 940 x 743 (v1.1.0 chassis)');
-    const heights = css.match(/height:\s*743px/g) || [];
+    check(/setSize\s*\(\s*940\s*,\s*972\s*\)/.test(editorCpp),
+        'editor setSize is 940 x 972 (v1.7.0 chassis)');
+    const heights = css.match(/height:\s*972px/g) || [];
     check(heights.length >= 2,
-        `styles.css declares 743px in BOTH html/body and .frame — found ${heights.length}`);
-    check(!/height:\s*440px/.test(css) && !/height:\s*484px/.test(css),
-        'no superseded frame height survives in styles.css (440 Stage-3, 484 Stage-4)');
+        `styles.css declares 972px in BOTH html/body and .frame — found ${heights.length}`);
+    check(!/height:\s*440px/.test(css) && !/height:\s*484px/.test(css)
+          && !/height:\s*743px/.test(css),
+        'no superseded frame height survives in styles.css (440 Stage-3, 484 Stage-4, 743 v1.1-v1.6)');
+    // The WIDTH must not have moved with it. The tooltip edge-clamp gate below is
+    // horizontal and only fires at the real shipping width, so a height change
+    // leaves the clamp geometry under test intact and a width change would not
+    // (pattern_tooltip_clamp_gate_viewport_sensitive). Asserted rather than
+    // trusted, because "we only made it taller" is exactly the claim that stops
+    // being true in the release that also nudges a column.
+    check(/width:\s*940px/.test(css) && /setSize\s*\(\s*940\s*,/.test(editorCpp),
+        'the frame is still 940 px WIDE — the clamp verification survives a height-only resize');
 
     // The row-2 arithmetic is the whole premise of "expand once": 215 (row 1)
     // + 14 (row gap) + 245 (row 2) = 474, which is exactly what .groups gains
@@ -408,13 +417,21 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     const rowGap = (css.match(/\.groups\s*\{[\s\S]*?gap:\s*(\d+)px/) || [])[1];
     const row2H  = (css.match(/\.group-row-2 \.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
     const row1H  = (css.match(/\.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
-    check(row1H === '215' && rowGap === '14' && row2H === '245',
-        `row geometry is 215 + 14 + 245 = 474 = 743 - 484 `
-        + `— got row1=${row1H} gap=${rowGap} row2=${row2H}`);
+    // v1.7.0: row 3 has no height rule of its own — it INHERITS row 1's 215 px
+    // from the base .group rule, which is why the sum below reads row1 twice.
+    // 215 + 14 + 245 + 14 + 215 = 703, exactly what .groups gains from 484 -> 972.
+    const rowsTotal = Number(row1H) + Number(rowGap) + Number(row2H)
+                      + Number(rowGap) + Number(row1H);
+    check(row1H === '215' && rowGap === '14' && row2H === '245' && rowsTotal === 703,
+        `row geometry is 215 + 14 + 245 + 14 + 215 = 703 = 972 - 269 `
+        + `— got row1=${row1H} gap=${rowGap} row2=${row2H} total=${rowsTotal}`);
 
     // Both rows must share ONE width contract or the columns stop aligning.
-    check(/\.group-random,/.test(css) && /\.group-count\s*\{\s*width:\s*276px/.test(css),
-        'row-2 panels reuse row 1\'s pinned widths (190 | 190 | 276 | 190)');
+    // All THREE rows share one contract (v1.7.0), so the 276 px selector is now a
+    // group list ending in .group-drift rather than .group-count alone.
+    check(/\.group-random,/.test(css) && /\.group-source,/.test(css)
+          && /\.group-drift\s*\{\s*width:\s*276px/.test(css),
+        'rows 2 and 3 reuse row 1\'s pinned widths (190 | 190 | 276 | 190)');
     // v1.6.0 filled the last reserved panel: SPACE -> MOTION. The assertion that
     // used to live here was the mirror image — v1.3.0 renamed row 2's 276 px
     // column MOTION -> COUNT and this checked that no stale `.group-motion` rule
@@ -425,12 +442,24 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'MOTION is a real panel — .group-motion rule + class both present');
     check(!/\.group-space\s*[,{]/.test(css) && !/class="[^"]*group-space/.test(html),
         'no .group-space rule or class survives the v1.6.0 rename');
-    // The reserve is spent, so the ornament that stood in for an empty plate must
-    // go with it. A .group-reserved rule left behind is dead CSS that still reads
-    // like a live layout decision — the exact thing the v1.3.0 check above
-    // existed to catch, one release later and in the other direction.
-    check(!/\.group-reserved\s*[,{]/.test(css) && !/class="group-reserved"/.test(html),
-        'no reserved-panel ornament survives — every row-2 panel is filled');
+    // v1.7.0 restores the reserved-panel ornament, and the assertion flips with
+    // it. v1.6.0 asserted the rule was GONE, correctly: the reserve was spent, and
+    // a .group-reserved rule left behind would have been dead CSS that still read
+    // like a live layout decision. There is a reserve again — row 3's COLOUR
+    // panel — so the rule is live again, and what has to be checked is that it is
+    // used exactly once and only there. A stray .group-reserved inside a FILLED
+    // panel would draw a fleuron over live controls.
+    check(/\.group-reserved\s*[,{]/.test(css) && /class="group-reserved"/.test(html),
+        'the reserved-panel ornament is live again for row 3\'s COLOUR panel');
+    check((html.match(/class="group-reserved"/g) || []).length === 1,
+        'exactly ONE reserved panel — a second would mean a filled panel lost its controls');
+    {
+        const start = html.indexOf('class="group group-colour"');
+        const end   = start >= 0 ? html.indexOf('</section>', start) : -1;
+        const colour = start >= 0 && end > start ? html.slice(start, end) : '';
+        check(colour.includes('class="group-reserved"') && !/data-param=/.test(colour),
+            'COLOUR is the reserved panel: it carries the ornament and NO bound control');
+    }
     {
         const start = html.indexOf('class="group group-motion"');
         const end   = start >= 0 ? html.indexOf('</section>', start) : -1;
@@ -472,8 +501,30 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'WINDOW-scoped size overrides are present (knob, cell, stem, select, body)');
     check(/\.groups\s*\{[\s\S]*?flex-direction:\s*column/.test(css),
         '.groups is the column holding both rows');
-    check(/class="group-row group-row-1"/.test(html) && /class="group-row group-row-2"/.test(html),
-        'index.html wraps both panel rows in .group-row');
+    check(/class="group-row group-row-1"/.test(html) && /class="group-row group-row-2"/.test(html)
+          && /class="group-row group-row-3"/.test(html),
+        'index.html wraps all THREE panel rows in .group-row');
+    // v1.7.0's own panels, by the same standard MOTION is held to: a width rule,
+    // a class on the section, and the controls actually inside it.
+    {
+        const panelHas = (cls, ids) => {
+            const start = html.indexOf(`class="group ${cls}"`);
+            const end   = start >= 0 ? html.indexOf('</section>', start) : -1;
+            const sec   = start >= 0 && end > start ? html.slice(start, end) : '';
+            return ids.every((id) => sec.includes(id));
+        };
+        check(panelHas('group-source', ['id="seg-source-mono"', 'id="seg-source-stereo"']),
+            'both Source segments are inside the SOURCE panel');
+        check(panelHas('group-duck', ['id="knob-duck"']),
+            'Duck is inside the DUCK panel');
+        check(panelHas('group-drift', ['id="knob-driftRate"', 'id="knob-driftDepth"']),
+            'Rate and Depth are both inside the DRIFT panel');
+        // Same scoping rule MOTION's segments are held to: .segments and .segment
+        // are shared with TIME's VERTICAL Free/Sync pair, so an unscoped
+        // flex-direction here would lay that one out sideways too.
+        check(/\.group-source \.segments\s*\{/.test(css) && /\.group-source \.segment\s*\{/.test(css),
+            'SOURCE\'s segment overrides are scoped to that panel');
+    }
 
     // The band and the height increase must be the same 44 px, or the panels
     // and footer move (D15's whole low-regression premise).
@@ -551,7 +602,16 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         // v1.4.0 WINDOW's Taper + the ENVELOPE display. The display is an anchor
         // without being a control, as grainMeter is: it reports rather than sets,
         // and it needs to say so somewhere.
-        'knob-tukeyTaper', 'envelopeCell'];
+        'knob-tukeyTaper', 'envelopeCell',
+        // v1.6.0 MOTION panel. These were missing from the inventory when the
+        // panel shipped — the list is hand-maintained, so it drifts exactly the
+        // way a fixture that mirrors the page drifts
+        // (pattern_test_fixture_mirrors_drift_silently). Backfilled here.
+        'freezeSegments', 'knob-direction', 'knob-regenMakeup',
+        // v1.7.0 row 3. The segment pair is an anchor in its own right, as
+        // syncSegments and freezeSegments are — a tooltip inventory that only
+        // listed knobs would leave every mode control undocumented.
+        'sourceSegments', 'knob-duck', 'knob-driftRate', 'knob-driftDepth'];
 
     const missingTips = TIP_ANCHORS.filter(id => {
         const m = html.match(new RegExp(`id="${id}"[\\s\\S]{0,400}?>`));
@@ -643,6 +703,27 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     if (toggleBlock)
         for (const m of toggleBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)) toggleIds.add(m[1]);
 
+    // v1.7.0 — the CHOICE closure, and it is the one gap the v1.6.0 bool closure
+    // left open. Through v1.6.0 the choice ids were excluded from the knob
+    // closure by a hand-written list and then checked against nothing: a choice
+    // parameter that never reached kComboIds would simply be absent from every
+    // assertion here. `sourceMode` is precisely that case — it is a choice living
+    // next to three new floats, and WebSliderRelay would attach to it without
+    // complaint and produce a control whose index never updates.
+    //
+    // Closed in BOTH directions, like the bool one, and then end to end into
+    // app.js: every choice must be built through getComboBoxState there, whether
+    // it is drawn as a select (noteDivision, grainShape) or as a segment pair
+    // (syncMode, sourceMode).
+    const choiceIds = new Set();
+    for (const m of processorCpp.matchAll(/AudioParameterChoice>\(\s*\n?\s*juce::ParameterID\s*\{\s*"([A-Za-z0-9_]+)"/g))
+        choiceIds.add(m[1]);
+
+    const comboIds = new Set();
+    const comboBlock = editorCpp.match(/kComboIds\s*\{([\s\S]*?)\};/);
+    if (comboBlock)
+        for (const m of comboBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)) comboIds.add(m[1]);
+
     const editorIds = new Set();
     const sliderBlock = editorCpp.match(/kSliderIds\s*\{([\s\S]*?)\};/);
     if (sliderBlock)
@@ -660,12 +741,30 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     for (const m of html.matchAll(/id="val-([A-Za-z0-9_]+)"/g)) readoutIds.add(m[1]);
 
     const diff = (a, b) => [...a].filter(x => !b.has(x));
+    const diffOk = (a, b) => diff(a, b).length === 0 && diff(b, a).length === 0;
+    const diffDetail = (a, b) => {
+        const missing = diff(a, b), extra = diff(b, a);
+        return (missing.length ? ' — missing: ' + missing.join(', ') : '')
+             + (extra.length   ? ' — unexpected: ' + extra.join(', ')  : '');
+    };
 
     check(sliderBlock && knobBlock, 'kSliderIds and KNOB_IDS blocks both found');
 
     // v1.6.0 — the bool closure, asserted in both directions and end to end:
     // APVTS bool <-> editor kToggleIds <-> a segment pair in the HTML <-> a
     // getToggleState() call in app.js. Four places, exactly like the knobs.
+    check(!!comboBlock, 'kComboIds block found in PluginEditor.cpp');
+    check(comboBlock && diffOk(choiceIds, comboIds),
+        `APVTS choice params == editor kComboIds (${choiceIds.size})`
+        + (comboBlock ? diffDetail(choiceIds, comboIds) : ''));
+    [...choiceIds].forEach((id) => {
+        check(new RegExp(`getComboBoxState\\(\\s*(COMBO_[A-Z_]+|["']${id}["'])`).test(appJs)
+              || new RegExp(`COMBO_[A-Z_]+\\s*=\\s*["']${id}["']`).test(appJs),
+            `${id} reaches app.js through a ComboBoxState (not a slider or toggle state)`);
+        check(!editorIds.has(id) && !toggleIds.has(id),
+            `${id} is absent from kSliderIds and kToggleIds (a choice has no SliderState)`);
+    });
+
     check(!!toggleBlock, 'kToggleIds block found in PluginEditor.cpp');
     check(diff(boolIds, toggleIds).length === 0 && diff(toggleIds, boolIds).length === 0,
         `APVTS bool params == editor kToggleIds (${boolIds.size})`

@@ -1,21 +1,36 @@
 /* ============================================================================
    O-ReverseDelay — Ouaricon Naturalist (aesthetic ouaricon-naturalist-001)
-   Fixed 940 × 743. Header, a 44 px preset band, TWO rows of four framed group
+   Fixed 940 × 972. Header, a 44 px preset band, THREE rows of four framed group
    panels, footer. No viewport units — WebView hosts size the frame, not the
    viewport.
 
-   Width is mirrored in PluginEditor.cpp's setSize (940, 743) — keep in sync.
+   Width is mirrored in PluginEditor.cpp's setSize (940, 972) — keep in sync.
 
-   ── v1.1.0: the chassis expansion, done ONCE ──────────────────────────────
-   Row 1 (215 px)  TIME | GRAIN | FEEDBACK | OUTPUT   — signal flow (D9)
-   Row 2 (245 px)  RANDOM | WINDOW | COUNT | MOTION   — character controls
+   ── v1.7.0: the row-3 decision, paid ──────────────────────────────────────
+   Row 1 (215 px)  TIME   | GRAIN  | FEEDBACK | OUTPUT   — signal flow (D9)
+   Row 2 (245 px)  RANDOM | WINDOW | COUNT    | MOTION   — character controls
+   Row 3 (215 px)  SOURCE | DUCK   | DRIFT    | COLOUR   — space & response
 
-   v1.6.0 filled the last of those (SPACE -> MOTION: Freeze, Direction, Regen)
-   and the chassis is now full. It held for five releases and eleven new
-   controls without the window moving once, which is what the one-time expansion
-   was for. The next control to arrive is the row-3 / MORE-page decision from the
-   v1.0.0 review's section D, and it now genuinely arrives rather than being
-   deferred again — see .group-motion below.
+   v1.6.0 filled the last of v1.1.0's reserved panels (SPACE -> MOTION: Freeze,
+   Direction, Regen) and the chassis was full. It held for five releases and
+   eleven new controls without the window moving once, which is what the one-time
+   expansion was for — and v1.7.0's four controls are the ones the v1.0.0
+   review's section D said would force the choice.
+
+   Row 3 takes the SAME width contract as rows 1 and 2 (190 | 190 | 276 | 190),
+   so the columns keep aligning down the page, and it reuses row 1's 215 px
+   height rather than row 2's 245: its panels hold at most a segment pair plus
+   two knobs, which is exactly row 1's TIME panel's shape.
+
+   COLOUR is framed and EMPTY, on the same principle v1.1.0 used: it is reserved
+   for the review's remaining loop-character items (B4 #7 diffusion, #8 loop
+   drive), so filling those costs markup rather than another resize.
+
+   The WIDTH did not change, and that is the load-bearing half of the decision:
+   the tooltip edge-clamp gate is horizontal and only fires at the real shipping
+   width (pattern_tooltip_clamp_gate_viewport_sensitive), so the clamp geometry
+   under test is the one already verified. Height changes only which side of an
+   anchor a tip flips to, which is re-measured at 940 × 972.
 
    ── Earlier record, superseded by the block above ─────────────────────────
    Kept because each entry says what a release cost, which is the argument for
@@ -39,21 +54,22 @@
    release's control. (v1.6.0 has since put the name back, on row 2's FOURTH
    panel and for an unrelated set of controls; see .group-motion below.)
 
-   484 + 14 (row gap) + 245 = 743, so .groups has EXACTLY zero slack: row 1
-   sits where Stage 3 left it and row 2 consumes the entire height increase.
+   484 + 14 (row gap) + 245 = 743 was v1.1.0's zero-slack arithmetic; v1.7.0
+   adds 14 + 215 = 229 for row 3, so 743 + 229 = 972 and .groups still has
+   EXACTLY zero slack. Rows 1 and 2 and the footer do not move.
 
-   Both rows share one width contract — 190 | 190 | 276 | 190, summing with
-   3 × 12 px gaps to 882 inside the frame's 890 px content box — so the two
-   rows align column-for-column. Row 2's panels are 30 px taller because their
+   All three rows share one width contract — 190 | 190 | 276 | 190, summing with
+   3 × 12 px gaps to 882 inside the frame's 890 px content box — so the rows
+   align column-for-column. Row 2's panels are 30 px taller because their
    .group-body wraps to TWO knob-cell rows (2 × 95 px + 12 px gap = 202 within
-   a 217 px body), which is what carries the ~26-control capacity: 9 cells in
-   row 1 + 18 in row 2 = 27.
+   a 217 px body), which is what carries the capacity: 9 cells in row 1 + 18 in
+   row 2 + 9 in row 3 = 36.
 
-   This is deliberately sized for v1.1 THROUGH v1.6. Resizing the window is the
-   expensive change — it invalidates the tooltip edge-clamp verification, which
-   is viewport-sensitive and must be re-measured at the real shipping width
-   (pattern_tooltip_clamp_gate_viewport_sensitive). Doing it once now means
-   later releases only fill panels that already exist.
+   Resizing the window is the expensive change — it invalidates the tooltip
+   edge-clamp verification, which is viewport-sensitive and must be re-measured
+   at the real shipping width (pattern_tooltip_clamp_gate_viewport_sensitive).
+   v1.1.0's one-time expansion bought five releases without one; v1.7.0's buys
+   the next few the same way, with COLOUR framed and empty in row 3.
    ========================================================================= */
 
 :root {
@@ -102,7 +118,7 @@
 
 html, body {
   width: 940px;
-  height: 743px;
+  height: 972px;
   overflow: hidden;
 }
 
@@ -141,7 +157,7 @@ body {
   position: relative;
   z-index: 2;
   width: 940px;
-  height: 743px;
+  height: 972px;
   padding: 18px 22px 14px;
   border: 3px solid var(--brown-frame);
   box-shadow: inset 0 0 32px rgba(92, 64, 51, 0.12);
@@ -310,20 +326,26 @@ body {
 }
 
 /* Panel widths are pinned so the four panels sum to the fixed 940 px frame.
-   BOTH rows use this one contract, so the two rows align column-for-column —
-   TIME over RANDOM, FEEDBACK over COUNT. A panel added in a later release
-   inherits its width from here and moves nothing. */
+   ALL THREE rows use this one contract, so the rows align column-for-column —
+   TIME over RANDOM over SOURCE, FEEDBACK over COUNT over DRIFT. A panel added in
+   a later release inherits its width from here and moves nothing. */
 .group-time,
 .group-grain,
 .group-output,
 .group-random,
 .group-window,
-.group-motion   { width: 190px; }   /* v1.6.0: .group-space filled + renamed */
+.group-motion,                      /* v1.6.0: .group-space filled + renamed */
+.group-source,                      /* v1.7.0: row 3 */
+.group-duck,
+.group-colour   { width: 190px; }
 .group-feedback,
-.group-count    { width: 276px; }   /* v1.3.0: row 2's 276 px column, was labelled Motion */
+.group-count,                       /* v1.3.0: row 2's 276 px column, was labelled Motion */
+.group-drift    { width: 276px; }   /* v1.7.0: row 3's wide column */
 
-/* Row 2 is 30 px taller than row 1 because its bodies wrap to two knob-cell
-   rows. 215 + 14 + 245 = 474 = the height .groups has at 743 px, exactly. */
+/* Row 2 is 30 px taller than rows 1 and 3 because its bodies wrap to two
+   knob-cell rows. Row 3 reuses row 1's 215 px — its panels hold at most a
+   segment pair plus two knobs, which is TIME's shape exactly.
+   215 + 14 + 245 + 14 + 215 = 703 = the height .groups has at 972 px, exactly. */
 .group-row-2 .group { height: 245px; }
 
 /* Two cell rows, wrapping. Row 1's bodies never wrap (they hold 2–3 cells in a
@@ -379,6 +401,49 @@ body {
    body's 14 px gap land on the same 158, so the segment pair and the knob row
    share one edge-to-edge width. */
 .group-motion .segment { width: 75px; }
+
+/* ── Row 3: SOURCE | DUCK | DRIFT | COLOUR (v1.7.0) ───────────────────────── */
+/* The row-3 decision the v1.0.0 review's section D warned about, paid once and
+   at the same width. Every panel here inherits its width from the shared
+   contract above and its 215 px height from the base .group rule, so the only
+   NEW geometry in this release is the three rules below and the reserve's
+   fleuron — the rest is the existing chassis with one more row of it.
+
+   SOURCE reuses MOTION's segment layout verbatim rather than sharing a class
+   with it: both are a full-width horizontal pair over a 190 px panel, and the
+   two selectors are listed together so the arithmetic (2 × 75 + 8 = 158, the
+   panel's exact content box) has one home. */
+.group-source .segments {
+  flex: 0 0 100%;
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
+}
+
+.group-source .segment { width: 75px; }
+
+/* Centre the single Duck knob in its panel rather than letting it sit against
+   the label. .group-body is a flex row for every other panel; with one child
+   there is nothing to distribute, so this is the one place it needs saying. */
+.group-duck .group-body { justify-content: center; }
+
+/* COLOUR: framed, labelled and EMPTY — reserved for the review's remaining
+   loop-character items (B4 #7 diffusion, #8 loop drive), so filling it costs
+   markup and nothing else.
+
+   This rule is v1.1.0's .group-reserved, restored. v1.6.0 deleted it when the
+   last reserve was spent, on the correct principle that a rule kept "in case"
+   is dead CSS that still reads like a live layout decision. It is live again
+   because there is a reserve again — and it is deliberately the same 26 px
+   fleuron at the same opacity, so the empty panel reads as "not yet" rather
+   than as a rendering failure. */
+.group-reserved {
+  margin: auto;
+  font-size: 26px;
+  color: var(--fleuron-color);
+  opacity: 0.55;
+  user-select: none;
+}
 
 /* ── WINDOW panel: making room for the envelope display (v1.4.0) ──────────── */
 /* The graph sits under Shape / Tilt / Taper inside WINDOW, which needs ~73 px the

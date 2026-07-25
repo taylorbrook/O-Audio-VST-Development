@@ -1,14 +1,17 @@
 // ============================================================================
 // O-ReverseDelay — WebView UI controller (Stage 3 controls, Stage 4 bar + tips)
 //
-// Binds all 21 APVTS parameters two-way: 17 WebSliderRelay knobs + 3
-// WebComboBoxRelay controls (syncMode as a segment pair, noteDivision and
-// grainShape as selects) + 1 WebToggleButtonRelay (freeze, as a segment pair).
+// Binds all 25 APVTS parameters two-way: 20 WebSliderRelay knobs + 4
+// WebComboBoxRelay controls (syncMode and sourceMode as segment pairs,
+// noteDivision and grainShape as selects) + 1 WebToggleButtonRelay (freeze, as
+// a segment pair).
 // v1.1.0 added the four RANDOM knobs in row 2;
 // v1.2.0 added the WINDOW panel's Shape select + Tilt knob; v1.3.0 added the
 // COUNT panel's Count knob and the live grain meter; v1.4.0 added WINDOW's
 // Taper knob and the ENVELOPE panel's window-shape display; v1.6.0 filled the
-// last reserved panel with MOTION (Freeze, Direction, Regen).
+// last reserved panel with MOTION (Freeze, Direction, Regen); v1.7.0 added
+// row 3 — SOURCE (segments), DUCK (one knob), DRIFT (Rate + Depth) and a
+// framed, empty COLOUR reserve.
 //
 // THREE relay families now, and the third is the one that is easy to get wrong:
 // `freeze` is an AudioParameterBool, so it has a ToggleState and NOT a
@@ -62,11 +65,23 @@ const KNOB_IDS = [
   // control in that panel, is a BOOL and is bound through getToggleState below —
   // not here, because a bool has no SliderState and asking for one throws.
   "direction", "regenMakeup",
+  // v1.7.0 (B4 #4, #6) — row 3's DUCK and DRIFT panels. All three default to
+  // their no-op; driftRate's no-op is its own DEFAULT rate (0.30 Hz) rather
+  // than zero, because what makes it neutral is driftDepth being 0 — writing
+  // it as 0 anywhere would be clamped up to the range minimum instead.
+  // `sourceMode`, the fourth new parameter, is a CHOICE and is bound below
+  // through getComboBoxState — not here.
+  "duck", "driftRate", "driftDepth",
 ];
 
 const COMBO_SYNC     = "syncMode";
 const COMBO_DIVISION = "noteDivision";
 const COMBO_SHAPE    = "grainShape";
+
+// v1.7.0 (B4 #5) — rendered as a SEGMENT PAIR like syncMode, not as a select:
+// it names two modes rather than picking from a list. Same ComboBoxState either
+// way; only the control drawn on top of it differs.
+const COMBO_SOURCE   = "sourceMode";
 
 // v1.6.0 — the plugin's only bool parameter, and so its only ToggleState.
 const TOGGLE_FREEZE  = "freeze";
@@ -109,6 +124,23 @@ const fmtDirection = (v) => {
 // is being touched when it is not.
 const fmtRegen = (v) => (v <= 0 ? "0.0 dB" : `+${v.toFixed(1)} dB`);
 
+// duck's 0 is the shipped no-op, so it reads as a word rather than as "0 %" —
+// the same reasoning fmtTilt uses for "Centre" and fmtDirection for "Reverse".
+// "Off" and not "0 %" because the control is genuinely bypassed there: the wet
+// multiply is exactly 1.0f, not a very small attenuation.
+const fmtDuck = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
+
+// driftDepth reads the same way and for the same reason — at 0 no LFO is
+// evaluated at all, so "Off" is the literal truth about the engine.
+const fmtDriftDepth = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
+
+// driftRate spans 0.02–5 Hz, so a single format would print "0 Hz" at the bottom
+// and "5.00 Hz" at the top. Two decimals below 1 Hz keeps the slow end legible —
+// where the 0.01 parameter step actually resolves distinct settings — and one
+// above it, where it does not. Derived from the scaled value, never from a JS
+// range map (pattern_webview_knob_readout_scaled_value).
+const fmtDriftRate = (v) => (v < 1 ? `${v.toFixed(2)} Hz` : `${v.toFixed(1)} Hz`);
+
 const FORMAT = {
   delayTime: fmtMs,
   grainSize: (v) => `${Math.round(v)} ms`,
@@ -136,6 +168,10 @@ const FORMAT = {
   // v1.6.0 (B4 #2, #3) — MOTION panel.
   direction:    fmtDirection,
   regenMakeup:  fmtRegen,
+  // v1.7.0 (B4 #4, #6) — DUCK and DRIFT panels.
+  duck:         fmtDuck,
+  driftRate:    fmtDriftRate,
+  driftDepth:   fmtDriftDepth,
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────
@@ -170,6 +206,7 @@ const ENV_REDRAW_MS = 40;   // coalescing delay while a knob is being dragged
 // EVERY module-level binding lives in this one block — see the TDZ note above.
 const sliderState = {};        // id -> Juce SliderState
 let syncState     = null;      // Juce ComboBoxState (syncMode)
+let sourceState   = null;      // Juce ComboBoxState (sourceMode, v1.7.0)
 let freezeState   = null;      // Juce ToggleState (freeze, v1.6.0)
 let divisionState = null;      // Juce ComboBoxState (noteDivision)
 let shapeState    = null;      // Juce ComboBoxState (grainShape, v1.2.0)
@@ -435,6 +472,55 @@ function bindFreezeSegments(juce) {
 
   segOff.addEventListener("click", () => { st.setValue(false); refresh(); });
   segOn.addEventListener("click", () => { st.setValue(true); refresh(); });
+}
+
+// ── sourceMode segment pair (v1.7.0, B4 #5) ─────────────────────────────────
+// A ComboBoxState like syncMode's, drawn as segments rather than as a select.
+// Deliberately not folded into bindSyncSegments: that one also owns the UI-02
+// time-slot swap, and a shared "bind a two-segment combo" helper would either
+// carry that swap as a special case or lose it.
+//
+// The MONO / STEREO text is authored in index.html and is never touched here —
+// classes and aria-pressed only (pattern_js_state_updater_overwrites_html_labels).
+function bindSourceSegments(juce) {
+  const st = juce.getComboBoxState(COMBO_SOURCE);
+  sourceState = st;
+
+  const segMono   = document.getElementById("seg-source-mono");
+  const segStereo = document.getElementById("seg-source-stereo");
+
+  if (!segMono || !segStereo) { console.error("Missing sourceMode segment elements"); return; }
+
+  const refresh = () => {
+    const isStereo = st.getChoiceIndex() === 1;   // { Mono Sum, Stereo }, default 0
+    segMono.classList.toggle("active", !isStereo);
+    segStereo.classList.toggle("active", isStereo);
+    segMono.setAttribute("aria-pressed", String(!isStereo));
+    segStereo.setAttribute("aria-pressed", String(isStereo));
+  };
+
+  st.valueChangedEvent.addListener(refresh);
+  st.propertiesChangedEvent.addListener(refresh);
+  refresh();
+
+  segMono.addEventListener("click", () => st.setChoiceIndex(0));
+  segStereo.addEventListener("click", () => st.setChoiceIndex(1));
+}
+
+// ── Drift Rate is inert while Depth is 0 (v1.7.0, B4 #6) ────────────────────
+// Same shape as refreshTaperEnabled, and for the same reason: the knob is not
+// dead, it is inapplicable, and the page should say which. Class + aria only —
+// the relay stays bound at all times, so a host automating driftRate while
+// depth is 0 still round-trips correctly and the control lights up the moment
+// depth is raised.
+function refreshDriftRateEnabled() {
+  const cell = document.getElementById("cell-driftRate");
+  const st   = sliderState.driftDepth;
+  if (!cell || !st) return;
+
+  const live = st.getScaledValue() > 0;
+  cell.classList.toggle("knob-cell-inert", !live);
+  cell.setAttribute("aria-disabled", String(!live));
 }
 
 // ── Defaults for dblclick-reset (the only native function) ──────────────────
@@ -874,8 +960,23 @@ function init() {
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
   bindSyncSegments(Juce);
   bindFreezeSegments(Juce);      // v1.6.0 (B4 #1); the only ToggleState
+  bindSourceSegments(Juce);      // v1.7.0 (B4 #5)
   divisionState = bindSelectCombo(Juce, COMBO_DIVISION);
   shapeState    = bindSelectCombo(Juce, COMBO_SHAPE);
+
+  // v1.7.0: Drift Rate dims while Depth is 0. AFTER the bindKnob loop above,
+  // which is what creates sliderState.driftDepth — ordinary ordering, not the
+  // TDZ kind: the binding exists from the top of the file, it is just empty
+  // until the binder runs.
+  {
+    const st = sliderState.driftDepth;
+    if (st) {
+      st.valueChangedEvent.addListener(refreshDriftRateEnabled);
+      st.propertiesChangedEvent.addListener(refreshDriftRateEnabled);
+    }
+    refreshDriftRateEnabled();
+  }
+
   loadParameterDefaults(Juce);   // async; nothing else depends on it
   initTooltips();
   initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
