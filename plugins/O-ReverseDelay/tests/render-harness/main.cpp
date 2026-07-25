@@ -171,6 +171,52 @@
                               shape and BOTH tilt extremes must measurably
                               move the render.
 
+    v1.7.0 probes (B4 #4 ducking, #5 stereo source, #6 delay drift):
+      AR. duck-gap-bloom    — the wet's own level already tracks the input, so a
+                              direct "quieter while the dry plays" test would
+                              measure the DELAY and pass on a dead knob. Renders
+                              the same gated excitation at duck 0 and duck 100
+                              and compares window by window, which cancels the
+                              wet's dynamics exactly. Plus the no-op, as a
+                              rendered fact: two duck-0 renders with a
+                              full-depth render between them must be
+                              BIT-IDENTICAL.
+      AS. duck-depth-monotone— the knob does something proportional across its
+                              travel, not just at the ends.
+      AT. stereo-source     — three assertions. IMAGE: a hard-left source comes
+                              back left in Stereo and centred in Mono Sum.
+                              EQUIVALENCE: with a CORRELATED source the two
+                              modes are BIT-IDENTICAL, because 0.5·(L+R) is
+                              exactly L when L==R — which proves the mode
+                              changes what is READ rather than adding a gain.
+                              COLLAPSE: at width 0 a Stereo render is still
+                              dual-mono (wetL bitwise wetR).
+                              Needs renderEffectStereo — every probe before this
+                              release drove L and R with the SAME signal, which
+                              a stereo-source probe cannot use.
+      AU. mono-fold         — the 0.70710677f fold, re-derived rather than
+                              assumed: mono OUT is only reachable with mono IN,
+                              where the capture ring holds L == R and the two
+                              source modes coincide by construction. Asserts
+                              that (bitwise) and that the fold is still unity
+                              against the stereo width-0 wet.
+      AV. drift-ring-clamp  — probe AH's assertion reached from a new direction.
+                              Drift MULTIPLIES the latched delay by up to 1.25,
+                              so it extends the worst-case read span; an
+                              over-reaching read does not fault, it wraps onto
+                              overwritten material. D and G both at 4000 ms,
+                              scatter at max, drift at full depth: the early
+                              window must be silent.
+      AW. drift-live/no-op  — depth 0 must be bit-identical across two very
+                              different RATES (driftMul returns before touching
+                              std::sin), and depth 100 must measurably move the
+                              render.
+      AX. v170-blocksize    — probe AQ's property with this release's four
+                              controls engaged, on a DECORRELATED stereo
+                              excitation. This is the line a block-rate duck
+                              envelope or a per-block drift phase accumulator
+                              fails, and the only line either would fail.
+
   ==============================================================================
 */
 
@@ -184,6 +230,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <vector>
 
 //==============================================================================
@@ -516,6 +563,85 @@ static StereoRender renderEffect (ReverseDelayProcessor& proc, double seconds, d
 }
 
 //==============================================================================
+// v1.7.0 (B4 #5): the same loop with INDEPENDENT L and R fills.
+//
+// Every probe before this release drove both input channels with the same
+// signal, which was fine while the grain engine read CaptureBuffer::monoSum and
+// the source's stereo image was discarded before a grain ever saw it. It is
+// exactly what a stereo-source probe cannot use: with L == R the two source
+// modes read identical material by construction, so a mono excitation would
+// make probe AT pass against an engine that ignored the mode entirely.
+template <typename FillL, typename FillR>
+static StereoRender renderEffectStereo (ReverseDelayProcessor& proc, double seconds, double fs,
+                                        int block, FillL&& fillL, FillR&& fillR)
+{
+    const int total = (int) (seconds * fs);
+    juce::AudioBuffer<float> buf (2, block);
+    juce::MidiBuffer midi;
+
+    StereoRender out;
+    out.L.reserve ((size_t) total);
+    out.R.reserve ((size_t) total);
+
+    int pos = 0;
+    while (pos < total)
+    {
+        for (int i = 0; i < block; ++i)
+        {
+            buf.setSample (0, i, fillL (pos + i));
+            buf.setSample (1, i, fillR (pos + i));
+        }
+
+        proc.processBlock (buf, midi);
+
+        const int n = juce::jmin (block, total - pos);
+        for (int i = 0; i < n; ++i)
+        {
+            out.L.push_back (buf.getSample (0, i));
+            out.R.push_back (buf.getSample (1, i));
+        }
+        pos += block;
+    }
+    return out;
+}
+
+//==============================================================================
+// v1.7.0: MONO in / MONO out, for the mono-fold half of probe AT.
+//
+// A separate loop rather than a flag on renderEffect: the buffer is genuinely
+// 1-channel, which is what makes processBlock take its `numOutputChannels <= 1`
+// branch — the one place the 0.70710677f fold constant is used. Driving a
+// 2-channel buffer and reading channel 0 would exercise the stereo path and
+// prove nothing about the fold.
+template <typename FillFn>
+static std::vector<float> renderEffectMono (ReverseDelayProcessor& proc, double seconds,
+                                            double fs, int block, FillFn&& fill)
+{
+    const int total = (int) (seconds * fs);
+    juce::AudioBuffer<float> buf (1, block);
+    juce::MidiBuffer midi;
+
+    std::vector<float> out;
+    out.reserve ((size_t) total);
+
+    int pos = 0;
+    while (pos < total)
+    {
+        for (int i = 0; i < block; ++i)
+            buf.setSample (0, i, fill (pos + i));
+
+        proc.processBlock (buf, midi);
+
+        const int n = juce::jmin (block, total - pos);
+        for (int i = 0; i < n; ++i)
+            out.push_back (buf.getSample (0, i));
+
+        pos += block;
+    }
+    return out;
+}
+
+//==============================================================================
 // Probe baseline: wet-only, no feedback, no width, free 500 ms / 200 ms grain.
 // Individual probes override what they need.
 static void setBaseline (juce::AudioProcessorValueTreeState& a)
@@ -577,6 +703,28 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     setParam (a, "freeze",         0.0f);
     setParam (a, "direction",      0.0f);
     setParam (a, "regenMakeup",    0.0f);
+
+    // v1.7.0 (B4 #4-#6): SOURCE / DUCK / DRIFT, reset here for the sixth release
+    // running and for the reason every block above it gives — probes AR-AV sweep
+    // all four, and every probe that follows them calls setBaseline().
+    //
+    // driftRate is the one to be careful with, and it is a NEW disguise of the
+    // grainTilt/grainCount/tukeyTaper trap rather than a repeat of it: its
+    // neutral value is the parameter's own DEFAULT (0.30 Hz), not the range
+    // minimum, because what makes it inert is driftDepth being 0. Writing 0.0f
+    // here would be clamped up to kDriftRateMinHz — so it would not fail, it
+    // would just leave every later probe running a slower LFO than the plugin
+    // ships, at a setting where the LFO does nothing anyway. Silent until
+    // somebody raises depth.
+    //
+    // duck matters most of the four for leakage, in the way freeze does: a probe
+    // that left it engaged would leave every later probe measuring a wet path
+    // whose level tracks the excitation's envelope, which reads as a level or
+    // decay regression rather than as harness state leaking forward.
+    setParam (a, "sourceMode",     0.0f);   // Mono Sum
+    setParam (a, "duck",           0.0f);
+    setParam (a, "driftRate",      ReverseDelayProcessor::kDriftRateCentreHz);
+    setParam (a, "driftDepth",     0.0f);
 }
 
 // Plugin defaults for the QUAL-01 all-parameter sweep (probe M): every value
@@ -600,6 +748,10 @@ static void setDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, "freeze",         0.0f);   // v1.6.0 defaults — all three no-ops
     setParam (a, "direction",      0.0f);
     setParam (a, "regenMakeup",    0.0f);
+    setParam (a, "sourceMode",     0.0f);   // v1.7.0 defaults — Mono Sum,
+    setParam (a, "duck",           0.0f);   // duck off, drift off, and the rate
+    setParam (a, "driftRate",      ReverseDelayProcessor::kDriftRateCentreHz);
+    setParam (a, "driftDepth",     0.0f);   // at its DEFAULT, not its minimum
 }
 
 //==============================================================================
@@ -1384,6 +1536,25 @@ int main()
             // switching mid-grain steps the envelope.
             { "grainTilt",     0.0f,     1.0f, false, true,  false,   0.0f },
             { "grainShape",    0.0f,     4.0f, true,  true,  false,   0.0f },
+            // v1.7.0 (B4 #4-#6). Three of the four take the LATCHED-CONTENT
+            // (loose) tier and one does not, and the split is the point:
+            //
+            //   sourceMode / driftRate / driftDepth all change what a NEW grain
+            //   reads — which channel, and from how far back — while in-flight
+            //   grains finish on what they latched. That is the same legitimate
+            //   read-reseating grainSize and delayScatter already get the loose
+            //   tier for, and a source or delay that was NOT latched would show
+            //   up here as a click.
+            //
+            //   duck does not touch the grains at all: it is a smooth gain on
+            //   the wet, downstream of everything, so it gets the SMOOTH tier.
+            //   That is the assertion — a duck implemented as a per-block gain
+            //   step rather than a per-sample envelope would fail this line and
+            //   pass every other probe in the suite.
+            { "sourceMode",    0.0f,     1.0f, true,  true,  false,   0.0f },
+            { "duck",          0.0f,   100.0f, false, false, false,   0.0f },
+            { "driftRate",     0.02f,    5.0f, false, true,  true,    0.0f },
+            { "driftDepth",    0.0f,   100.0f, false, true,  true,    0.0f },
         };
 
         for (const auto& sp : specs)
@@ -4215,6 +4386,624 @@ int main()
                  + " rms512=" + juce::String (rms (small.L, (int) (1.0 * fs), (int) (1.5 * fs)), 6));
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // v1.7.0 probes (B4 #4-#6: ducking, stereo source, delay drift)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // --- Probe AR: ducking responds to the DRY envelope ----------------------
+    //
+    // The measurement problem this probe has to solve first: the wet's own level
+    // already tracks the input, because the input is what the wet is made of. A
+    // naive "wet is quieter while the dry is loud" test would therefore measure
+    // the delay, not the duck, and would pass on an engine where `duck` did
+    // nothing at all.
+    //
+    // Solved by rendering the SAME excitation twice - once at duck 0 and once at
+    // duck 100 - and comparing the two renders window by window. The ratio
+    // cancels the wet's own dynamics exactly, so what is left is the duck gain
+    // and nothing else.
+    //
+    // Excitation is a 1 s loud / 1 s quiet square-gated noise: quiet is 0.02x
+    // rather than silence so the wet is genuinely present in both windows and
+    // the ratio is well conditioned in each. Windows are placed clear of the
+    // 5 ms attack and 250 ms release so neither is measured mid-transition.
+    {
+        auto gatedNoise = [&] (int t)
+        {
+            const double sec  = (double) t / fs;
+            const bool   loud = ((int) sec) % 2 == 1;      // [1,2), [3,4), ...
+            return (float) ((loud ? 1.0 : 0.02) * kRandA * whiteNoiseAt (t));
+        };
+
+        auto renderAtDuck = [&] (float duckPct)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",  0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "feedback",   40.0f);
+            setParam (apvts, "mix",       100.0f);         // wet only
+            setParam (apvts, "duck",      duckPct);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 6.0, fs, block, gatedNoise);
+        };
+
+        auto ref     = renderAtDuck (0.0f);
+        auto ducked  = renderAtDuck (100.0f);
+        auto refTwo  = renderAtDuck (0.0f);
+
+        // Loud window: inside [3,4) s, clear of the 5 ms attack.
+        // Quiet window: inside [4,5) s, 700 ms after the gate fell - nearly
+        // three release time constants, so the envelope has released.
+        const int loudOff  = (int) (3.5 * fs), loudLen  = (int) (0.4 * fs);
+        const int quietOff = (int) (4.7 * fs), quietLen = (int) (0.25 * fs);
+
+        const double loudRef  = rms (ref.L,    loudOff,  loudLen);
+        const double loudDuck = rms (ducked.L, loudOff,  loudLen);
+        const double qtRef    = rms (ref.L,    quietOff, quietLen);
+        const double qtDuck   = rms (ducked.L, quietOff, quietLen);
+
+        const double ratioLoud  = loudRef > 0.0 ? loudDuck / loudRef : -1.0;
+        const double ratioQuiet = qtRef   > 0.0 ? qtDuck   / qtRef   : -1.0;
+
+        // The duck must bite hard while the dry is loud and be nearly released
+        // while it is quiet. Both bounds are loose against the arithmetic the
+        // header predicts (~0.44 loud, ~0.9 quiet) and tight against a dead
+        // control, which would put BOTH ratios at exactly 1.
+        check ("duck-gap-bloom",
+               ratioLoud > 0.0 && ratioQuiet > 0.0
+                 && ratioLoud < 0.70 && ratioQuiet > 0.82
+                 && ratioLoud < ratioQuiet * 0.85,
+               juce::String ("wet vs un-ducked: loud=") + juce::String (ratioLoud, 4)
+                 + " (" + juce::String (20.0 * std::log10 (juce::jmax (1.0e-9, ratioLoud)), 2) + " dB)"
+                 + " quiet=" + juce::String (ratioQuiet, 4)
+                 + " (" + juce::String (20.0 * std::log10 (juce::jmax (1.0e-9, ratioQuiet)), 2) + " dB)"
+                 + " - needs loud<0.70, quiet>0.82");
+
+        // The no-op, as a rendered fact rather than as an argument about
+        // `1 - 0.u`. The full-depth render between the two duck-0 renders is the
+        // point: the follower runs unconditionally and carries state across
+        // blocks, so anything of it that leaked into the output path at depth 0
+        // - a stale gain, a mis-scoped branch - would show up as a difference
+        // here and nowhere else in the suite.
+        const double d = juce::jmax (maxAbsDiff (ref.L, refTwo.L),
+                                     maxAbsDiff (ref.R, refTwo.R));
+
+        check ("duck-zero-is-noop", d == 0.0,
+               juce::String ("max|duck0 - duck0| = ") + juce::String (d, 12)
+                 + " across an intervening duck-100 render");
+    }
+
+    // --- Probe AS: the duck is monotone in depth -----------------------------
+    //
+    // Probe AR proves the duck responds to the ENVELOPE; this proves the KNOB
+    // does something proportional across its travel, which is the other half of
+    // "not a dead control" and the half a two-point test misses. Continuous
+    // noise, so the envelope is steady and the only variable is depth.
+    {
+        double prev = 1.0e9;
+        bool   monotone = true;
+        double firstRms = 0.0, lastRms = 0.0;
+
+        for (float pct : { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f })
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",  0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "feedback",   40.0f);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "duck",      pct);
+            proc.prepareToPlay (fs, block);
+
+            auto y = renderEffect (proc, 4.0, fs, block,
+                                   [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+
+            const double r = rms (y.L, (int) (1.0 * fs), (int) (2.5 * fs));
+
+            if (pct == 0.0f)   firstRms = r;
+            if (pct == 100.0f) lastRms  = r;
+
+            if (r > prev) monotone = false;
+            prev = r;
+        }
+
+        const double totalDb = (firstRms > 0.0 && lastRms > 0.0)
+                                 ? 20.0 * std::log10 (lastRms / firstRms) : 0.0;
+
+        // At least 3 dB of travel end-to-end. The header's arithmetic predicts
+        // ~7 dB at this excitation level; 3 is the bound that separates a live
+        // control from a nearly-dead one without pinning the knee constant.
+        check ("duck-depth-monotone",
+               monotone && totalDb < -3.0,
+               juce::String ("wet rms 0% -> 100% = ") + juce::String (totalDb, 2)
+                 + " dB, monotone=" + (monotone ? "yes" : "NO")
+                 + " (needs monotone and < -3 dB)");
+    }
+
+    // --- Probe AT: the stereo source preserves the image ---------------------
+    //
+    // Three assertions, and the middle one is the one that would be missing from
+    // an obvious version of this probe.
+    //
+    //   1. IMAGE - a hard-left source must come back on the left in Stereo mode
+    //      and be centred in Mono Sum mode. Measured as the L/R energy
+    //      asymmetry of the wet, at width 100 where the two modes differ most.
+    //   2. EQUIVALENCE - with a CORRELATED input the two modes must be
+    //      BIT-IDENTICAL, because monoSum of L == R is L exactly and the two
+    //      code paths then read the same numbers. This is what proves the mode
+    //      changes what is READ rather than adding a gain or a decorrelator, and
+    //      it is exact rather than within a tolerance.
+    //   3. COLLAPSE - at width 0 a Stereo-mode render must still produce a
+    //      dual-mono wet (wetL bitwise wetR), which is the "collapses sensibly"
+    //      requirement. Grains alternate L and R sources there while all panning
+    //      centre, so the pair stays identical and the mono fold below stays
+    //      unity.
+    {
+        // Hard-left: L carries noise, R is silent. Two independent generators
+        // would also work; silence is the sharper test because a mode that
+        // ignored the channel would produce a symmetric wet from asymmetric
+        // input, which is precisely the v1.6.0 behaviour.
+        auto fillL   = [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); };
+        auto fillNil = [ ] (int)   { return 0.0f; };
+
+        auto renderPanned = [&] (float sourceMode, float width)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",   0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "feedback",    0.0f);   // one generation - image, not wash
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "width",     width);
+            setParam (apvts, "sourceMode", sourceMode);
+            proc.prepareToPlay (fs, block);
+            return renderEffectStereo (proc, 4.0, fs, block, fillL, fillNil);
+        };
+
+        auto monoW100   = renderPanned (0.0f, 100.0f);
+        auto stereoW100 = renderPanned (1.0f, 100.0f);
+
+        auto asym = [&] (const StereoRender& y)
+        {
+            const double l = rms (y.L, (int) (1.0 * fs), (int) (2.5 * fs));
+            const double r = rms (y.R, (int) (1.0 * fs), (int) (2.5 * fs));
+            return (l + r) > 0.0 ? std::abs (l - r) / (l + r) : 0.0;
+        };
+
+        const double asymMono   = asym (monoW100);
+        const double asymStereo = asym (stereoW100);
+
+        // Mono Sum discards the image, so its wet is near-symmetric whatever the
+        // source did; Stereo keeps it, so a hard-panned source produces a
+        // strongly asymmetric wet. 3x separation is far below what the mechanism
+        // predicts (half the grains read silence) and far above the pan
+        // sequence's own residual imbalance.
+        check ("stereo-source-image",
+               asymStereo > 0.30 && asymMono < 0.15 && asymStereo > asymMono * 3.0,
+               juce::String ("L/R asymmetry - monoSum=") + juce::String (asymMono, 4)
+                 + " stereo=" + juce::String (asymStereo, 4)
+                 + " (hard-left source, width 100; needs stereo>0.30, mono<0.15)");
+
+        // (2) Correlated input: the two modes must agree BITWISE.
+        //
+        // FEEDBACK MUST BE 0 here, and finding out why was worth the probe on
+        // its own. The identity is about the CAPTURE RING, not about the input:
+        // monoSum is 0.5*(L+R) and equals L exactly only while the ring's two
+        // channels hold the same numbers. The ring is written with `input +
+        // feedback return`, and the feedback return is the WIDTH-PANNED wet - so
+        // the moment anything recirculates at width > 0, a perfectly correlated
+        // INPUT stops implying a correlated RING and the two read laws
+        // legitimately diverge. Measured at feedback 40 / width 60 that
+        // divergence is 0.0154: not a rounding error, and not a defect.
+        //
+        // Width stays at 60 so the pan path is still exercised - it is the
+        // recirculation that has to go, not the panning.
+        auto renderCorrelated = [&] (float sourceMode)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",   0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "feedback",    0.0f);   // see above - NOT optional
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "width",      60.0f);
+            setParam (apvts, "sourceMode", sourceMode);
+            proc.prepareToPlay (fs, block);
+            return renderEffectStereo (proc, 3.0, fs, block, fillL, fillL);
+        };
+
+        auto corrMono   = renderCorrelated (0.0f);
+        auto corrStereo = renderCorrelated (1.0f);
+
+        const double dCorr = juce::jmax (maxAbsDiff (corrMono.L, corrStereo.L),
+                                         maxAbsDiff (corrMono.R, corrStereo.R));
+
+        check ("stereo-source-correlated-identity", dCorr == 0.0,
+               juce::String ("max|monoSum - stereo| = ") + juce::String (dCorr, 12)
+                 + " on a correlated source at feedback 0 - 0.5*(L+R) is exactly"
+                 + " L when L==R, so the two read laws coincide sample-for-sample");
+
+        // (3) Width 0 collapse: the wet pair must stay dual-mono in Stereo mode.
+        //
+        // NOT asserted as bit-equality, and that correction belongs to v1.0.0
+        // rather than to this release. At width 0 the pan is exactly 0.5, so the
+        // gains are cos(pi/4) and sin(pi/4) - mathematically equal, and one ulp
+        // apart as the library computes them. The shipped width-0 wet has
+        // therefore always been dual-mono to within a pan-gain ulp rather than
+        // bitwise, which is why probe K has always measured it with a tolerance.
+        // Measured here at 1.1e-8 against a ~0.07 signal, i.e. about -136 dB.
+        //
+        // What IS asserted is the meaningful form of "collapses sensibly":
+        // Stereo at width 0 must be no more asymmetric than Mono Sum is at
+        // width 0. A mode that picked its channel from the pan POSITION rather
+        // than from panSign would send every grain to one channel here and miss
+        // this by orders of magnitude - which is the whole reason srcCh follows
+        // panSign.
+        auto stereoW0 = renderPanned (1.0f, 0.0f);
+        auto monoW0   = renderPanned (0.0f, 0.0f);
+
+        const double asymStereoW0 = asym (stereoW0);
+        const double asymMonoW0   = asym (monoW0);
+        const double dW0          = maxAbsDiff (stereoW0.L, stereoW0.R);
+        const double pkW0         = peakAbs (stereoW0.L);
+
+        check ("stereo-source-width0-collapse",
+               asymStereoW0 < 1.0e-4
+                 && asymStereoW0 < juce::jmax (asymMonoW0 * 10.0, 1.0e-6)
+                 && pkW0 > 0.0 && dW0 < pkW0 * 1.0e-5,
+               juce::String ("width-0 L/R asymmetry stereo=") + juce::String (asymStereoW0, 9)
+                 + " monoSum=" + juce::String (asymMonoW0, 9)
+                 + " | max|wetL - wetR| = " + juce::String (dW0, 12)
+                 + " vs peak " + juce::String (pkW0, 6)
+                 + " (pan-gain ulp, not a mode artefact - see probe K)");
+    }
+
+    // --- Probe AU: the mono-output fold, re-derived for a stereo source -------
+    //
+    // The v1.7.0 review asked whether the 0.70710677f in processBlock's mono
+    // branch still holds once grains can read one channel rather than the sum.
+    // The answer is that the constant is about the PAN geometry and not about
+    // what is read, and the mono path makes that concrete in a way worth
+    // asserting: mono OUT is only reachable with mono IN (the bus layout rejects
+    // stereo->mono outright), and with a mono input the capture ring holds
+    // L == R, so the two source modes read identical material by construction.
+    //
+    // So two things are measured rather than argued:
+    //   * the two modes render BITWISE identically down the mono path, i.e. the
+    //     constant cannot depend on the mode because the mode cannot reach it;
+    //   * the fold is still UNITY - the mono-out wet level matches the
+    //     stereo-out width-0 wet level, which is what "0.7071.(L+R) -> unity for
+    //     the centred dual-mono wet" means as a measurement.
+    {
+        auto fill = [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); };
+
+        auto renderMonoAt = [&] (float sourceMode)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",   0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "feedback",   40.0f);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "width",       0.0f);
+            setParam (apvts, "sourceMode", sourceMode);
+            proc.setPlayConfigDetails (1, 1, fs, block);
+            proc.prepareToPlay (fs, block);
+            return renderEffectMono (proc, 3.0, fs, block, fill);
+        };
+
+        auto monoOutSum    = renderMonoAt (0.0f);
+        auto monoOutStereo = renderMonoAt (1.0f);
+
+        const double dMode = maxAbsDiff (monoOutSum, monoOutStereo);
+
+        // Stereo reference at the same settings, for the fold's unity check.
+        setBaseline (apvts);
+            clearRandomisation();
+        setParam (apvts, "syncMode",   0.0f);
+        setParam (apvts, "delayTime", 500.0f);
+        setParam (apvts, "feedback",   40.0f);
+        setParam (apvts, "mix",       100.0f);
+        setParam (apvts, "width",       0.0f);
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+        auto stereoRef = renderEffect (proc, 3.0, fs, block, fill);
+
+        // The reference is the stereo render's TOTAL POWER, sqrt(rmsL^2 + rmsR^2),
+        // and not one of its channels. That correction is the measurement this
+        // probe exists to make, because getting it wrong looks exactly like a
+        // broken constant: the first version of this probe compared against
+        // rms(L) alone and reported +3.010 dB, which is not the fold being wrong
+        // but the reference being 3 dB low by construction. At width 0 each
+        // channel carries 0.7071 of the grain sum, so one channel is always
+        // 3 dB under the pair.
+        //
+        // Total power is the right reference precisely because it is
+        // fold-INDEPENDENT: it is the same number whatever constant the mono
+        // branch uses, so the comparison tests the constant instead of
+        // restating it. A power-preserving fold lands on it exactly; the two
+        // other plausible constants do not (a bare sum would read +3.01 dB,
+        // a 0.5 average -3.01 dB).
+        const int    win     = (int) (1.5 * fs);
+        const double monoRms = rms (monoOutSum, (int) (1.0 * fs), win);
+        const double stL     = rms (stereoRef.L, (int) (1.0 * fs), win);
+        const double stR     = rms (stereoRef.R, (int) (1.0 * fs), win);
+        const double stPower = std::sqrt (stL * stL + stR * stR);
+        const double foldDb  = (monoRms > 0.0 && stPower > 0.0)
+                                 ? 20.0 * std::log10 (monoRms / stPower) : -99.0;
+
+        // Restore the harness-wide play config before anything else runs.
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        check ("mono-fold-source-invariant",
+               dMode == 0.0 && std::abs (foldDb) < 0.5
+                 && allFinite (monoOutSum) && allFinite (monoOutStereo),
+               juce::String ("max|monoSum - stereo| = ") + juce::String (dMode, 12)
+                 + " (mono out is only reachable with mono in, where L==R)"
+                 + " | mono out vs stereo TOTAL POWER = " + juce::String (foldDb, 3)
+                 + " dB (needs |.|<0.5 - a bare sum reads +3.01, a 0.5 average -3.01)");
+    }
+
+    // --- Probe AV: delay drift stays inside the ring -------------------------
+    //
+    // The defect this exists to catch is probe AH's, reached from a new
+    // direction: drift MULTIPLIES the latched delay by up to 1.25, so it extends
+    // the worst-case read span the same way delayScatter does - and an
+    // over-reaching read does not fault, does not produce a NaN and does not
+    // click. It wraps onto material the writer has already overwritten, and the
+    // only symptom is that the long settings sound wrong.
+    //
+    // Same configuration and same assertion as probe AH, with drift at FULL
+    // depth on top: D = 4000 ms, G = 4000 ms, one burst at the start, silence
+    // after. A grain reads [s - gD - G, s - gD], so with gD in [3000, 5000] ms
+    // the burst can only reach the output after ~3 s and the early window must
+    // be silent. Under a ring that did not cover the drifted span the burst
+    // leaks straight into it.
+    //
+    // Deliberately NOT asserted by reading maxLatchedDelay back: that constant
+    // is what the engine believes, and a probe that checks the engine's own
+    // belief proves nothing. The arrival TIME is the observable.
+    {
+        setBaseline (apvts);
+            clearRandomisation();
+        setParam (apvts, "syncMode",   0.0f);
+        setParam (apvts, "delayTime",  ReverseDelayProcessor::kDelayTimeMaxMs);
+        setParam (apvts, "grainSize",  ReverseDelayProcessor::kGrainSizeMaxMs);
+        setParam (apvts, "density",     0.0f);        // overlap 2
+        setParam (apvts, "feedback",    0.0f);
+        setParam (apvts, "mix",       100.0f);
+        setParam (apvts, "width",       0.0f);
+        setParam (apvts, "delayScatter",
+                  ReverseDelayProcessor::kDelayScatterMaxMs);   // both extenders at once
+        setParam (apvts, "driftRate",   0.15f);       // ~6.7 s cycle: a full swing inside the render
+        setParam (apvts, "driftDepth", 100.0f);
+        proc.prepareToPlay (fs, block);
+
+        const int    burstLen = (int) (1.0 * fs);
+        juce::Random rng ((juce::int64) 0x5eed77);
+        auto fill = [&] (int t)
+        {
+            return t < burstLen ? (float) (0.5 * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+        };
+
+        auto y = renderEffect (proc, 12.0, fs, block, fill);
+
+        // Early window [0.5 s, 2.5 s). The shortest reachable delay here is
+        // 4000.0.75 - 500 = 2500 ms, so nothing may arrive before then.
+        const double earlyRms = juce::jmax (rms (y.L, (int) (0.5 * fs), (int) (2.0 * fs)),
+                                            rms (y.R, (int) (0.5 * fs), (int) (2.0 * fs)));
+
+        // Arrival window [4 s, 10 s): wide, because drift moves where the burst
+        // lands. It must be somewhere in here or the probe would also pass on an
+        // engine that output nothing.
+        const double arrivedRms = juce::jmax (rms (y.L, (int) (4.0 * fs), (int) (6.0 * fs)),
+                                              rms (y.R, (int) (4.0 * fs), (int) (6.0 * fs)));
+
+        const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        check ("drift-ring-clamp",
+               earlyRms < arrivedRms * 1.0e-3 && arrivedRms > 1.0e-4 && pk < 1.0
+                 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("earlyRms[0.5..2.5s]=") + juce::String (earlyRms, 9)
+                 + " arrivedRms[4..10s]=" + juce::String (arrivedRms, 7)
+                 + " ratio=" + juce::String (arrivedRms > 0.0 ? earlyRms / arrivedRms : -1.0, 9)
+                 + " peak=" + juce::String (pk, 4)
+                 + " | required span = " + juce::String (
+                       ReverseDelayProcessor::kDelayTimeMaxMs
+                         * (1.0f + ReverseDelayProcessor::kDriftMaxFraction)
+                         + ReverseDelayProcessor::kDelayScatterMaxMs
+                         + 2.0f * ReverseDelayProcessor::kGrainSizeMaxMs, 0)
+                 + " ms, ring = " + juce::String (
+                       ReverseDelayProcessor::kCaptureSeconds * 1000.0f, 0) + " ms");
+    }
+
+    // --- Probe AW: drift is live at depth, and exactly nothing at zero -------
+    //
+    // The mirror of probe T, for the one control in this release whose no-op is
+    // reached by an early RETURN rather than by arithmetic that happens to be
+    // neutral: driftMul() bails before evaluating std::sin at depth 0. That is
+    // stronger than "the sine is near zero" and is asserted as such - a
+    // defaults render must be bit-identical to one where drift is explicitly
+    // zeroed at a non-default RATE, which a sine-that-rounds-to-zero would fail.
+    {
+        auto renderDrift = [&] (float depth, float rate)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",   0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "feedback",   40.0f);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "driftRate",  rate);
+            setParam (apvts, "driftDepth", depth);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 4.0, fs, block,
+                                 [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+        };
+
+        auto off      = renderDrift (0.0f,   ReverseDelayProcessor::kDriftRateCentreHz);
+        auto offFast  = renderDrift (0.0f,   4.0f);    // same no-op, wildly different rate
+        auto on       = renderDrift (100.0f, 1.0f);
+
+        const double dOff = juce::jmax (maxAbsDiff (off.L, offFast.L),
+                                        maxAbsDiff (off.R, offFast.R));
+        const double dOn  = diffRms (off.L, on.L, (int) (1.0 * fs), (int) (2.5 * fs));
+        const double base = rms (off.L, (int) (1.0 * fs), (int) (2.5 * fs));
+
+        check ("drift-zero-is-noop", dOff == 0.0,
+               juce::String ("max|rate 0.30 - rate 4.0| at depth 0 = ")
+                 + juce::String (dOff, 12)
+                 + " (driftMul returns before touching std::sin)");
+
+        // 10 % of the wet's own RMS is a low bar deliberately: what is being
+        // caught is a control wired to a parameter and reaching no engine, which
+        // measures exactly 0.
+        check ("drift-is-live",
+               base > 0.0 && dOn > base * 0.10 && allFinite (on.L) && allFinite (on.R),
+               juce::String ("rms|depth100 - depth0| = ") + juce::String (dOn, 6)
+                 + " against wet rms " + juce::String (base, 6)
+                 + " (needs > 10 %)");
+    }
+
+    // --- Probe AX: v1.7.0's controls are block-size invariant ----------------
+    //
+    // Probe AQ's property, re-asserted with this release's four controls
+    // engaged, and it is the reason two of them are built the way they are:
+    //
+    //   * duck runs its follower per SAMPLE with a coefficient computed once per
+    //     block. The cheaper block-rate design - block RMS, one-pole on
+    //     exp(-N/(τ.fs)), gain ramped across the block - fails THIS LINE by
+    //     construction, and only this line: it passes every level, response and
+    //     click probe above. It would also mean an offline bounce at 4096
+    //     ducking 75 ms later than the same session monitored at 512.
+    //   * driftMul derives its LFO phase from the grain's absolute spawn
+    //     position rather than from a per-block accumulator, for the same
+    //     reason: an accumulator advanced eight times as often lands a few ulps
+    //     apart, and this assertion is exact.
+    //
+    // Everything on at once, including the v1.1 randomisations and the v1.6
+    // motion controls, so every stream is being consumed as hard as the
+    // parameters allow.
+    {
+        auto renderAtBlock = [&] (int blk)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "density",      60.0f);
+            setParam (apvts, "feedback",     60.0f);
+            setParam (apvts, "width",        60.0f);
+            setParam (apvts, "mix",         100.0f);
+            setParam (apvts, "jitter",       50.0f);
+            setParam (apvts, "delayScatter", 80.0f);
+            setParam (apvts, "sizeRandom",   40.0f);
+            setParam (apvts, "gainRandom",   30.0f);
+            setParam (apvts, "direction",    50.0f);
+            setParam (apvts, "sourceMode",    1.0f);   // Stereo
+            setParam (apvts, "duck",         80.0f);
+            setParam (apvts, "driftRate",     1.5f);
+            setParam (apvts, "driftDepth",   70.0f);
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+            return renderEffectStereo (proc, 3.0, fs, blk,
+                                       [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); },
+                                       [&] (int t) { return (float) (kRandA * whiteNoiseAt (t + 7919)); });
+        };
+
+        auto small = renderAtBlock (512);
+        auto large = renderAtBlock (4096);
+
+        const double d = juce::jmax (maxAbsDiff (small.L, large.L),
+                                     maxAbsDiff (small.R, large.R));
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        check ("v170-blocksize-invariance", d == 0.0,
+               juce::String ("max|512-4096| = ") + juce::String (d, 12)
+                 + " with duck/drift/stereo-source and every earlier"
+                 + " randomisation engaged, on a DECORRELATED stereo excitation"
+                 + " rms512=" + juce::String (rms (small.L, (int) (1.0 * fs), (int) (1.5 * fs)), 6));
+    }
+
+    // --- Probe AY: a non-finite input must not stick -------------------------
+    //
+    // The duck follower is the plugin's first piece of PERSISTENT audio state
+    // that a pathological input can poison permanently, and that is a property
+    // of the follower rather than of ducking: duckEnv is updated as
+    // `rect + c*(duckEnv - rect)`, and once it holds a NaN every later update
+    // reproduces one, for the life of the instance. The engine's other state
+    // recovers on its own schedule - the capture ring ages a bad sample out
+    // after one lap, and the feedback loop's isfinite guard resets the filters
+    // within the pass - so this would be the one place a single bad sample is
+    // forever.
+    //
+    // Measured against the SHIPPED engine rather than against an absolute:
+    // duck 0 is the v1.0-v1.6 path, so whatever recovery it manages is the
+    // standard duck 80 has to meet. A probe that only asserted "duck 80
+    // recovers" could be satisfied by an engine that never went bad, and one
+    // that asserted "the output is finite throughout" would fail on the ring
+    // lap, which is correct behaviour.
+    //
+    // Render is 30 s so the 14 s ring has fully lapped past the burst before the
+    // measurement window opens.
+    {
+        auto burstFill = [&] (int t)
+        {
+            // 10 ms of non-finite input at 1 s: both flavours, since inf reaches
+            // NaN by a different route (inf/(inf+knee) is NaN, not 1).
+            const int burstStart = (int) (1.0 * fs);
+            const int burstEnd   = burstStart + (int) (0.010 * fs);
+
+            if (t >= burstStart && t < burstEnd)
+                return ((t - burstStart) % 2 == 0)
+                         ? std::numeric_limits<float>::quiet_NaN()
+                         : std::numeric_limits<float>::infinity();
+
+            return (float) (kRandA * whiteNoiseAt (t));
+        };
+
+        auto renderBurst = [&] (float duckPct)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",  0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "feedback",   40.0f);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "duck",      duckPct);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 30.0, fs, block, burstFill);
+        };
+
+        auto shipped = renderBurst (0.0f);    // the v1.0-v1.6 path
+        auto ducked  = renderBurst (80.0f);
+
+        const int tailOff = (int) (20.0 * fs), tailLen = (int) (10.0 * fs);
+
+        auto tailOk = [&] (const StereoRender& y)
+        {
+            for (int i = tailOff; i < tailOff + tailLen; ++i)
+                if (! std::isfinite (y.L[(size_t) i]) || ! std::isfinite (y.R[(size_t) i]))
+                    return false;
+            return true;
+        };
+
+        const bool   shippedOk  = tailOk (shipped);
+        const bool   duckedOk   = tailOk (ducked);
+        const double shippedRms = rms (shipped.L, tailOff, tailLen);
+        const double duckedRms  = rms (ducked.L,  tailOff, tailLen);
+
+        check ("nonfinite-input-does-not-stick",
+               shippedOk && duckedOk && shippedRms > 1.0e-5 && duckedRms > 1.0e-5,
+               juce::String ("tail[20..30s] finite: duck0=") + (shippedOk ? "yes" : "NO")
+                 + " duck80=" + (duckedOk ? "yes" : "NO")
+                 + " | rms duck0=" + juce::String (shippedRms, 7)
+                 + " duck80=" + juce::String (duckedRms, 7)
+                 + " (a 10 ms NaN/inf burst at 1 s; the 14 s ring has lapped by 20 s)");
+    }
+
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------
     // MUST run last: it mutates the APVTS through the real preset manager and
     // leaves the plugin on the final preset's values, so no probe may follow it.
@@ -4250,6 +5039,14 @@ int main()
             // reflex is correct, and worth saying so right next to the one where
             // it is not.
             float  freeze, direction, regen;
+            // v1.7.0 (B4 #4-#6): SOURCE / DUCK / DRIFT. Three zeros and one that
+            // is NOT — driftRate is pinned at its DEFAULT 0.30 Hz, because a 0
+            // written here would be clamped up to kDriftRateMinHz by the
+            // parameter's own range and the comparison would fail against a
+            // table that reads as if it were correct. Same class of trap as
+            // `tilt` four lines up, in a shape that is new: there the wrong
+            // value is out of range in spirit, here it is out of range in fact.
+            float  source, duck, driftRate, driftDepth;
             double seconds;
         };
 
@@ -4262,14 +5059,14 @@ int main()
         // ever fail, the FIRST thing to check is that the version bump actually
         // re-seeded ~/Library/O-ReverseDelay/Presets/Factory (see the note below).
         const FactoryExpect kFactoryExpect[] = {
-            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 0.5f, 0, 0, 0, 0, 10.0 },
-            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 0.5f, 0, 0, 0, 0, 10.0 },
-            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 0.5f, 0, 0, 0, 0, 10.0 },
-            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 0.5f, 0, 0, 0, 0, 10.0 },
-            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 0.5f, 0, 0, 0, 0, 10.0 },
-            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 0.5f, 0, 0, 0, 0, 10.0 },
-            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 0.5f, 0, 0, 0, 0, 30.0 },
-            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 0.5f, 0, 0, 0, 0, 10.0 },
+            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
+            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
+            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
+            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
+            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
+            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
+            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 30.0 },
+            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
         };
 
         // Per-param tolerances, set FROM MEASUREMENT rather than assumed: the
@@ -4340,6 +5137,14 @@ int main()
             cmp ("freeze",       e.freeze,    kTolChoice);
             cmp ("direction",    e.direction, kTolPct);
             cmp ("regenMakeup",  e.regen,     kTolPct);
+            // v1.7.0 (B4 #4-#6). sourceMode is a CHOICE, so kTolChoice; the
+            // other three are floats. driftRate's tolerance is its own 0.01 Hz
+            // step, tight enough that the clamped-to-minimum failure mode
+            // (0.30 -> 0.02) misses by 28 steps rather than sneaking through.
+            cmp ("sourceMode",   e.source,     kTolChoice);
+            cmp ("duck",         e.duck,       kTolPct);
+            cmp ("driftRate",    e.driftRate,  0.01f);
+            cmp ("driftDepth",   e.driftDepth, kTolPct);
 
             const bool values = loaded && inRange;
 

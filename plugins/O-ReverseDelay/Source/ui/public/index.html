@@ -45,8 +45,8 @@
     </div>
 
     <!-- ─── Groups ──────────────────────────────────────────────────────
-         v1.1.0: two specimen rows sharing ONE pinned width contract
-         (190 | 190 | 276 | 190), so the columns align between rows.
+         THREE specimen rows sharing ONE pinned width contract
+         (190 | 190 | 276 | 190), so the columns align down the page.
 
          Row 1 — signal flow (D9), unchanged from v1.0.1.
          Row 2 — character. RANDOM shipped with v1.1's four grain
@@ -54,15 +54,20 @@
                  labelled empty at the same time, so that filling them through
                  v1.6 would never resize the window again. Resizing is what
                  invalidates the tooltip edge-clamp verification, so it was done
-                 once, here.
+                 once, there.
 
                  That plan held exactly: WINDOW filled at v1.2.0, COUNT at
                  v1.3.0 and the last one — SPACE, now MOTION — at v1.6.0, and
-                 the frame has not moved since. Row 2 is therefore
-                 RANDOM | WINDOW | COUNT | MOTION and the chassis is FULL. The
-                 next new control is the row-3 / MORE-page decision the v1.0.0
-                 review's section D warns about, and it is now genuinely due
-                 rather than one release away.
+                 the frame did not move once across five releases and eleven
+                 controls.
+         Row 3 — space & response (v1.7.0). The reserve was spent, so this is
+                 the row-3 decision the review's section D warned about, paid at
+                 the same 940 px WIDTH: the tooltip clamp gate is horizontal, so
+                 a taller frame leaves the geometry under test unchanged and a
+                 wider one would not have.
+
+                 SOURCE | DUCK | DRIFT | COLOUR, with COLOUR framed and empty on
+                 the same principle that bought the last five releases.
       -->
     <main class="groups">
 
@@ -398,6 +403,107 @@
       </section>
 
       </div><!-- /.group-row-2 -->
+
+      <div class="group-row group-row-3">
+
+      <!-- SOURCE (v1.7.0, B4 #5) ───────────────────────────────────────────
+           What the grains READ, which through v1.6.0 was always the mono sum —
+           so the source's own stereo image was discarded before a grain saw it,
+           and Width could only pan mono copies of it. Stereo latches a channel
+           per grain, following that grain's pan side, so material that was on
+           the right comes back on the right.
+
+           A segment pair rather than a select, matching TIME's Free/Sync: it
+           names two modes rather than picking from a list. The MONO / STEREO
+           text is authored HERE and never rewritten by JS
+           (pattern_js_state_updater_overwrites_html_labels).
+
+           Mono Sum is index 0 and the default, which is load-bearing: an absent
+           key in a v1.0-v1.6 session or preset resolves to index 0, so index 0
+           has to be the shipped behaviour. -->
+      <section class="group group-source">
+        <div class="group-label">Source</div>
+        <div class="group-body">
+
+          <div class="segments" id="sourceSegments" role="group" aria-label="Source Mode"
+               data-tip-title="Source"
+               data-tip="What each grain reads. Mono sums the input before granulating, so Width spreads copies of one signal. Stereo reads left or right per grain, following that grain's position, so a wide source keeps its image through the wash.">
+            <button type="button" class="segment" id="seg-source-mono" data-choice="0" aria-pressed="true">Mono</button>
+            <button type="button" class="segment" id="seg-source-stereo" data-choice="1" aria-pressed="false">Stereo</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- DUCK (v1.7.0, B4 #4) ─────────────────────────────────────────────
+           One knob, centred. The wet is attenuated by the dry input's envelope,
+           so the wash blooms in the gaps instead of competing with the source —
+           the brief's "vocal ambience behind a lead" case, specifically.
+
+           Applied to the OUTPUT only and never to the feedback tap, so it
+           changes WHEN the tail is heard and not how long it lasts. -->
+      <section class="group group-duck">
+        <div class="group-label">Duck</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-duck" data-param="duck"
+                 data-tip-title="Duck"
+                 data-tip="Pulls the wash down while the dry signal is playing and lets it swell back in the gaps. At zero the wet is untouched. It never changes how long the tail lasts — only when you hear it."><div class="knob-stem"></div></div>
+            <div class="knob-label">Duck</div>
+            <div class="knob-value" id="val-duck">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DRIFT (v1.7.0, B4 #6) ────────────────────────────────────────────
+           The 276 px column, for the same reason FEEDBACK and COUNT have it:
+           two knobs plus their readouts crowd a 190 px panel.
+
+           Rate sits above Depth because it sets the character Depth then scales
+           — the same cause-then-effect ordering WINDOW uses for Shape over Tilt
+           and COUNT uses for Count over its readout.
+
+           Rate is INERT while Depth is 0, which is the shipped state. Its cell
+           carries .knob-cell-inert then, exactly as Taper's does when the window
+           is not Tukey — dimmed and aria-disabled, but never unbound. -->
+      <section class="group group-drift">
+        <div class="group-label">Drift</div>
+        <div class="group-body">
+          <div class="knob-cell" id="cell-driftRate">
+            <div class="knob" id="knob-driftRate" data-param="driftRate"
+                 data-tip-title="Drift Rate"
+                 data-tip="How fast the delay time wanders. Slow settings read as tape wow under a long wash; fast ones as vibrato on the tail. Has no effect until Depth is raised."><div class="knob-stem"></div></div>
+            <div class="knob-label">Rate</div>
+            <div class="knob-value" id="val-driftRate">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-driftDepth" data-param="driftDepth"
+                 data-tip-title="Drift Depth"
+                 data-tip="How far the delay time wanders, as a share of whatever the delay is set to. Each grain is fixed at the moment it starts, so this smears and detunes the tail without ever clicking."><div class="knob-stem"></div></div>
+            <div class="knob-label">Depth</div>
+            <div class="knob-value" id="val-driftDepth">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- COLOUR (reserved) ────────────────────────────────────────────────
+           Framed and empty, on exactly the principle v1.1.0 used for WINDOW,
+           COUNT and SPACE: reserve the panel while the window is being resized
+           anyway, so the next release costs markup rather than another resize.
+           That plan held for five releases and eleven controls last time.
+
+           Reserved for the v1.0.0 review's remaining loop-character items —
+           B4 #7 (diffusion allpasses in the loop) and #8 (loop drive into the
+           tanh that is already there). Both colour the feedback path, which is
+           why they share a panel and why it is called Colour. -->
+      <section class="group group-colour">
+        <div class="group-label">Colour</div>
+        <div class="group-body">
+          <span class="group-reserved" aria-hidden="true">&#10086;</span>
+        </div>
+      </section>
+
+      </div><!-- /.group-row-3 -->
 
     </main>
 

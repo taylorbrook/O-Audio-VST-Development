@@ -23,12 +23,12 @@
 
 // O-ReverseDelay — granular reverse delay (Stage 2 DSP, Phase 2.3 complete:
 // reverse wet path + damped tanh-stable feedback loop + tempo sync + width).
-// APVTS with 21 parameters: the 10 of research/ARCHITECTURE.md's immutable
+// APVTS with 25 parameters: the 10 of research/ARCHITECTURE.md's immutable
 // contract, plus v1.1.0's four grain randomisations (B3), v1.2.0's two window
-// controls (B1), v1.3.0's overlap ceiling (B2), v1.4.0's Tukey taper and
-// v1.6.0's three MOTION controls (B4 #1-#3), all of which are ADDITIVE — every
-// one defaults to the engine's no-op, so the contract's behaviour is the
-// default behaviour.
+// controls (B1), v1.3.0's overlap ceiling (B2), v1.4.0's Tukey taper,
+// v1.6.0's three MOTION controls (B4 #1-#3) and v1.7.0's four SOURCE/DUCK/DRIFT
+// controls (B4 #4-#6), all of which are ADDITIVE — every one defaults to the
+// engine's no-op, so the contract's behaviour is the default behaviour.
 // NOTE: this file (and PluginProcessor.cpp) must stay free of editor-only includes —
 // the render harness compiles the processor without any editor sources.
 class ReverseDelayProcessor : public juce::AudioProcessor
@@ -452,12 +452,142 @@ public:
         return std::pow (10.0f, juce::jmin (dB, kRegenMakeupMaxDb) * 0.05f);
     }
 
+    //==========================================================================
+    // v1.7.0 (B4 #4) — ducking.
+    //
+    // The wet is attenuated by the DRY input's envelope, so the wash blooms in
+    // the gaps rather than competing with the source. `duck` is the depth in
+    // percent, 0 = the shipped engine.
+    //
+    // ── Why the follower runs per SAMPLE and not per block ───────────────────
+    //
+    // The obvious implementation is a block-rate one: take the block's RMS, run
+    // a one-pole with coefficient exp(−N/(τ·fs)), ramp the resulting gain across
+    // the block. It is cheaper and it is what most ambient delays do.
+    //
+    // It is wrong HERE, for a reason specific to this plugin: probes O, W2 and
+    // AQ assert that a 512- and a 4096-sample render of the same input are
+    // BIT-IDENTICAL, and three earlier releases spent real effort earning that
+    // (the sub-block pass bound at v1.0.1, the split RNG streams at v1.1.0, the
+    // draw-before-obtain ordering at v1.6.0). A block-rate envelope breaks it by
+    // construction — and not subtly: at 4096 samples the attack resolves to
+    // 85 ms against 10.7 ms at 512, so an offline bounce would duck audibly
+    // later than the same session monitored. That is the class of defect
+    // pattern_offline_render_asyncupdater_dynamics_gap describes, arrived at
+    // from a different direction.
+    //
+    // Per-sample costs two mul-adds and one divide per sample and removes the
+    // question. There is no block RMS and therefore no division by numSamples to
+    // guard — the guard the block-rate design would have needed is not weakened
+    // here, it is absent because the quantity is.
+    //
+    // ── The knee is a level, not a threshold parameter ───────────────────────
+    //
+    // gain = 1 − depth · env/(env + knee) is a smooth compressive map with no
+    // discontinuity, no knee parameter to explain, and no division by zero
+    // (env >= 0, knee > 0). At env = knee the duck is at half depth; the shape
+    // then approaches full depth asymptotically, so a loud source never quite
+    // mutes the wet and the tail stays audible under a lead rather than gating.
+    //
+    // −20 dBFS (0.1) is the half-depth point because that is roughly where a
+    // mixed vocal or guitar sits: quieter material ducks proportionally rather
+    // than being ignored, and hotter material does not slam the wet to silence.
+    static constexpr float kDuckKnee       = 0.1f;
+
+    /** Follower time constants, seconds. Attack fast enough that the duck lands
+        with the transient rather than after it; release slow enough that the
+        wash swells back over a phrase gap instead of pumping between syllables.
+        Not exposed: a single-knob duck is what the review asked for, and two
+        more time knobs on a page that is already at its third row would be a
+        worse control surface than one well-chosen pair. */
+    static constexpr float kDuckAttackSec  = 0.005f;
+    static constexpr float kDuckReleaseSec = 0.250f;
+
+    /** One-pole coefficient for a per-SAMPLE follower. Computed once per block
+        (two std::exp) and applied per sample, which is what keeps the envelope
+        a pure function of the input rather than of the host's buffer size. */
+    static float duckCoeff (float tauSeconds, double sampleRate) noexcept
+    {
+        const float fs = static_cast<float> (sampleRate);
+
+        if (tauSeconds <= 0.0f || fs <= 0.0f)
+            return 0.0f;
+
+        return std::exp (-1.0f / (tauSeconds * fs));
+    }
+
+    //==========================================================================
+    // v1.7.0 (B4 #6) — delay-time drift.
+    //
+    // A slow sine on D, sampled AT SPAWN and latched with everything else, so it
+    // is click-free by construction rather than by smoothing: a grain never
+    // changes the delay it is reading from, the CLOUD's delay wanders.
+    //
+    // Multiplicative rather than additive in ms, so the wobble is proportional —
+    // a 25 % swing reads the same at a 100 ms delay and at a 4 s one, which is
+    // what tape does. Additive would be inaudible at the top of the range and
+    // violent at the bottom.
+    //
+    // ── The maximum is bounded by the RING, not by taste ─────────────────────
+    //
+    // kCaptureSeconds must cover gD_max + 2·G_max, and drift extends gD_max the
+    // same way delayScatter does. At 0.25:
+    //     gD_max = 4000·1.25 + 500 = 5500 ms,  + 2·4000 = 13500 ms
+    // against a 14.0 s ring — the same 0.5 s margin every earlier release held.
+    // The static_assert below is what enforces that; raising this constant
+    // without raising the ring stops the build rather than quietly producing
+    // grains whose tails read overwritten material.
+    static constexpr float kDriftMaxFraction = 0.25f;
+
+    /** Drift LFO rate, Hz. The bottom is a ~50 s cycle — slower than any phrase,
+        which is the "is this thing on" setting that turns out to be the useful
+        one on long washes — and the top is fast enough to read as vibrato on the
+        tail rather than as a slow tuning drift. */
+    static constexpr float kDriftRateMinHz     = 0.02f;
+    static constexpr float kDriftRateMaxHz     = 5.0f;
+    static constexpr float kDriftRateCentreHz  = 0.30f;
+
+    /** The drift multiplier for a grain spawned at absolute sample `absPos`.
+
+        Exactly 1.0f when depth is 0 — the early-out, not a sine that happens to
+        be near zero — so `D * 1.0f` is bitwise D and a v1.0–v1.6 session is
+        untouched. Phase is derived from the ABSOLUTE sample position rather than
+        from an accumulated per-block phase, which is what makes it block-size
+        invariant: an accumulator advanced 8x more often at 512 than at 4096
+        lands a few ulps apart, and probe AV asserts exact equality.
+
+        The cost of that choice is that moving the RATE knob re-derives the phase
+        rather than continuing it. On a latched-at-spawn parameter that is at
+        worst one grain landing at a different delay — inaudible against Scatter,
+        which does the same thing deliberately — and it buys an invariant the
+        whole harness depends on. */
+    static float driftMul (float depthNorm, float rateHz,
+                           juce::int64 absPos, double sampleRate) noexcept
+    {
+        if (depthNorm <= 0.0f || sampleRate <= 0.0)
+            return 1.0f;
+
+        const double revs  = static_cast<double> (absPos) * static_cast<double> (rateHz)
+                               / sampleRate;
+        const double phase = revs * 2.0 * juce::MathConstants<double>::pi;
+
+        return 1.0f + juce::jmin (1.0f, depthNorm) * kDriftMaxFraction
+                        * static_cast<float> (std::sin (phase));
+    }
+
     /** Capture ring length. Must cover the WORST-CASE latched read span,
-        gD_max + 2·G_max, where v1.1's delayScatter extends gD_max beyond the
-        delayTime range:
-            gD_max = kDelayTimeMaxMs + kDelayScatterMaxMs = 4.0 + 0.5 = 4.5 s
+        gD_max + 2·G_max, where v1.1's delayScatter and v1.7's delay drift both
+        extend gD_max beyond the delayTime range:
+            gD_max = kDelayTimeMaxMs·(1 + kDriftMaxFraction) + kDelayScatterMaxMs
+                   = 4.0·1.25 + 0.5 = 5.5 s                          (v1.7.0)
             G_max  = kGrainSizeMaxMs                      = 4.0 s   (v1.5.0)
-            -> 4.5 + 2·4.0 = 12.5 s required.
+            -> 5.5 + 2·4.0 = 13.5 s required.
+
+        v1.7.0 raised this 13.0 -> 14.0 s for drift's positive half, which costs
+        ~0.4 MB at 48 kHz and ~1.5 MB at 192 kHz over v1.5.0's ring. Note that
+        drift MULTIPLIES the delay while scatter ADDS to it, so the two compose
+        as (D·drift + scatter) rather than summing — the parenthesisation in the
+        static_assert below is load-bearing.
 
         Why 2·G and not G: a grain spawned at output sample s reads source
         (s − gD − n) at its own sample n, so its LAST read — at n = G − 1 — lands
@@ -468,15 +598,15 @@ public:
         every long grain turns to garbage.
 
         v1.0.1's 5.5 s ring met the OLD requirement with ONE sample to spare,
-        which is not headroom; 6.0 s restored a 0.5 s margin. 13.0 s keeps that
-        same 0.5 s margin against the new 12.5 s requirement.
+        which is not headroom; 6.0 s restored a 0.5 s margin. 14.0 s keeps that
+        same 0.5 s margin against the new 13.5 s requirement.
 
         Cost, allocated once in prepareToPlay() and never on the audio thread:
-        13 s stereo float is ~5.0 MB at 48 kHz, ~10 MB at 96 kHz and ~20 MB at
-        192 kHz (was ~2.3 MB at 48 kHz). That is the price of a 4 s grain and it
-        scales with the sample rate the host chose, not with anything the user
-        can dial in. */
-    static constexpr float kCaptureSeconds         = 13.0f;
+        14 s stereo float is ~5.4 MB at 48 kHz, ~10.8 MB at 96 kHz and ~21.5 MB
+        at 192 kHz (was ~2.3 MB at 48 kHz). That is the price of a 4 s grain
+        plus a quarter of drift, and it scales with the sample rate the host
+        chose, not with anything the user can dial in. */
+    static constexpr float kCaptureSeconds         = 14.0f;
 
     // The ring requirement, as a COMPILE-TIME assertion rather than a comment.
     //
@@ -484,14 +614,22 @@ public:
     // v1.4.0 and still did not stop the v1.5.0 grainSize raise from silently
     // invalidating it — the arithmetic lives in a comment, and comments do not
     // fail the build. This does. Any future move of kDelayTimeMaxMs,
-    // kDelayScatterMaxMs or kGrainSizeMaxMs that outgrows the ring now stops the
-    // compiler instead of quietly producing grains whose tails read overwritten
-    // material, which is a defect no auval/pluginval pass would catch and which
-    // only sounds like "the long settings are a bit crunchy".
+    // kDelayScatterMaxMs, kGrainSizeMaxMs or kDriftMaxFraction that outgrows the
+    // ring now stops the compiler instead of quietly producing grains whose
+    // tails read overwritten material, which is a defect no auval/pluginval pass
+    // would catch and which only sounds like "the long settings are a bit
+    // crunchy".
+    //
+    // v1.7.0 added the drift term, and it is a MULTIPLIER on the delay rather
+    // than another addend — drift scales D, scatter then offsets the result — so
+    // it wraps kDelayTimeMaxMs alone and not the sum. Writing it as a fourth
+    // additive term would over-state the requirement by 125 ms and, worse, would
+    // stop describing what the spawn handler actually computes.
     static_assert (kCaptureSeconds * 1000.0f
-                     >= kDelayTimeMaxMs + kDelayScatterMaxMs + 2.0f * kGrainSizeMaxMs,
+                     >= kDelayTimeMaxMs * (1.0f + kDriftMaxFraction)
+                          + kDelayScatterMaxMs + 2.0f * kGrainSizeMaxMs,
                    "kCaptureSeconds is too short for the worst-case latched read span "
-                   "(gD_max + 2*G_max). Raise it before widening any of the three ranges.");
+                   "(gD_max + 2*G_max). Raise it before widening any of the four ranges.");
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -667,6 +805,27 @@ private:
     std::atomic<float>* pFreeze       = nullptr;
     std::atomic<float>* pDirection    = nullptr;
     std::atomic<float>* pRegenMakeup  = nullptr;
+
+    // v1.7.0 (B4 #4-#6) — SOURCE / DUCK / DRIFT. Four more no-ops at the range
+    // minimum, i.e. the v1.1.0 and v1.6.0 situation rather than the v1.2-v1.4
+    // one. sourceMode's is index 0 (Mono Sum), which is the same kind of
+    // guarantee grainShape's Hann-at-index-0 carries: the ORDER of the choice
+    // list is load-bearing, because an absent key in a pre-v1.7.0 session or
+    // preset resolves to index 0 and must land on the shipped behaviour.
+    std::atomic<float>* pSourceMode   = nullptr;
+    std::atomic<float>* pDuck         = nullptr;
+    std::atomic<float>* pDriftRate    = nullptr;
+    std::atomic<float>* pDriftDepth   = nullptr;
+
+    /** v1.7.0 (B4 #4) — the duck follower's state: a one-pole on |dry|, advanced
+        per sample inside the mix loop (which is the one place the dry input is
+        still readable — the wet is mixed into the output buffer in place).
+
+        NOT a SmoothedValue: this is an envelope FOLLOWER with asymmetric attack
+        and release, and a SmoothedValue would ramp linearly to a block-rate
+        target, which is the block-size-dependent design this deliberately is
+        not. Reset to 0 in prepare/reset so a fresh instance starts un-ducked. */
+    float duckEnv = 0.0f;
 
     /** v1.6.0 (B4 #1) — the freeze crossfade, 0 = writing, 1 = held.
         Smoothed on the same ~20 ms as feedback/mix/cutoffs, and smoothed for a

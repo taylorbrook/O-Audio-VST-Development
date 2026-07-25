@@ -19,11 +19,15 @@
     js/juce/index.js swapped for the stub — in a browser resized to the exact
     shipping size, and measures the rendered tooltip rectangle.
 
-    v1.1.0 resized the editor 940x484 -> 940x743. The width did not change, but
-    the tooltip layer is position:fixed and its vertical flip (above -> below)
-    is a function of viewport HEIGHT, and the new RANDOM panel put four controls
-    in a second row where the "prefer above" placement has different clearance.
-    The v1.0.1 C5 verification is therefore invalid and this re-measures it.
+    v1.1.0 resized the editor 940x484 -> 940x743, and v1.7.0 again to 940x972.
+    Neither changed the WIDTH, which is what the horizontal clamp depends on — but
+    the tooltip layer is position:fixed and its vertical flip (above -> below) is
+    a function of viewport HEIGHT, and each resize added a panel row whose
+    "prefer above" clearance is different from the rows already verified. Row 3
+    is the case that matters most for the flip: it sits lowest on the page, so
+    its tips have the most room above them and the least below, which is the
+    opposite of row 1's situation. Every earlier C5 verification is therefore
+    invalid at the new height and this re-measures all of them.
 
     What is asserted, for EVERY control carrying a tooltip:
       1. The tip is at its natural width, not shrink-wrapped — a fixed-position
@@ -59,8 +63,11 @@ const repoRoot   = path.resolve(pluginRoot, '..', '..');
 const publicDir  = path.join(pluginRoot, 'Source', 'ui', 'public');
 
 // Kept in sync with PluginEditor.cpp's setSize and styles.css.
+// v1.7.0: 743 -> 972 (row 3). Cross-checked against PluginEditor.cpp below, so a
+// resize that forgets this file fails loudly rather than measuring a stale
+// viewport (pattern_test_fixture_mirrors_drift_silently).
 const SHIP_W = 940;
-const SHIP_H = 743;
+const SHIP_H = 972;
 
 // app.js constants — mirrored here, and cross-checked against the source below
 // so this file cannot drift from the page it is measuring.

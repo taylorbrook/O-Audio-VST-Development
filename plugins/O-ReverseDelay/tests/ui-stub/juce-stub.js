@@ -71,6 +71,21 @@ const RANGES = {
   // whose top reads a value the plugin cannot reach.
   direction:    { start: 0, end: 100, skew: 1, interval: 0.1, def: 0 },
   regenMakeup:  { start: 0, end: 6,   skew: 1, interval: 0.1, def: 0 },
+
+  // v1.7.0 (B4 #4, #6) — row 3's DUCK and DRIFT panels. duck and driftDepth are
+  // plain zeros; driftRate is the trap in this block, and it is a NEW disguise
+  // of the grainTilt/grainCount/tukeyTaper one: its neutral value is 0.30 Hz,
+  // the parameter's own default, because what makes it neutral is driftDepth
+  // sitting at 0. A stub defaulting it to the range MINIMUM would render the
+  // page showing a slower rate than the plugin ever ships — and 0 would be
+  // clamped to 0.02 rather than rejected, so it would look like it worked.
+  //
+  // The skew mirrors setSkewForCentre(kDriftRateCentreHz) on the C++ range, and
+  // the centre IS the default, so the shipped rate sits at the knob's midpoint.
+  duck:         { start: 0,    end: 100, skew: 1, interval: 0.1,  def: 0 },
+  driftRate:    { start: 0.02, end: 5,   skew: skewForCentre(0.02, 5, 0.30),
+                                          interval: 0.01, def: 0.30 },
+  driftDepth:   { start: 0,    end: 100, skew: 1, interval: 0.1,  def: 0 },
 };
 
 // v1.6.0 — bool parameters. `freeze` is the only one, and it needs its own map
@@ -80,6 +95,10 @@ const TOGGLES = { freeze: false };
 
 const CHOICES = {
   syncMode: ["Free", "Sync"],
+  // v1.7.0 (B4 #5) — must match the C++ StringArray, and the ORDER is
+  // load-bearing rather than cosmetic: index 0 is what an absent key in a
+  // pre-v1.7.0 session or preset resolves to, so Mono Sum has to be first.
+  sourceMode: ["Mono Sum", "Stereo"],
   // v1.2.0 — must match WindowLut::Shape order and the C++ StringArray.
   grainShape: ["Hann", "Tukey", "Gaussian", "Triangular", "Expo-Decay"],
   noteDivision: [
@@ -91,7 +110,7 @@ const CHOICES = {
   ],
 };
 
-const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6, grainShape: 0 };
+const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6, grainShape: 0, sourceMode: 0 };
 
 class StubSliderState {
   constructor(name) {

@@ -11,7 +11,8 @@
     Per-sample render (in PluginProcessor), v1.2.0 — TWO accumulations:
         p = n * invG;
         q = min (p, tiltT)·tiltA + max (p - tiltT, 0)·tiltB;   // B1 window tilt
-        s = capture.monoSum (readAbs);
+        s = srcCh < 0 ? capture.monoSum (readAbs)              // v1.7.0: B4 #5
+                      : capture.readAbs (srcCh, readAbs);
         e = windowLuts.readAt (win, q);                        // B1 window shape
         v = s * e * gain;
         wetL  += v * gLout;  wetR  += v * gRout;   // output: per-grain random gain
@@ -136,6 +137,27 @@ struct ReverseGrain
     // ring span a forward grain needs is gD + G, which is SMALLER than the
     // reverse case's gD + 2·G that kCaptureSeconds is sized for.
     juce::int64 step        = -1;
+
+    // ── v1.7.0 (B4 #5): the source channel, latched at spawn ─────────────────
+    // −1 = read CaptureBuffer::monoSum (the shipped law, Stage-2 decision D4),
+    // 0 = read L only, 1 = read R only.
+    //
+    // In Stereo mode the channel follows the grain's own PAN SIDE, which is what
+    // makes the mode preserve the source image rather than merely decorrelate
+    // it: a grain that will be placed right reads the right channel, so
+    // right-panned source material comes back on the right.
+    //
+    // It follows panSign rather than the resolved pan POSITION, and that is the
+    // width-0 case rather than a detail. At width 0 every grain's pan is exactly
+    // 0.5, so a position test would send every grain to the same channel and the
+    // mode would silently become "mono, but only the left input". panSign
+    // alternates regardless of width, so at width 0 the grains alternate L and R
+    // while all panning centre — the wet stays dual-mono and carries both
+    // channels' material, which is the sensible collapse.
+    //
+    // −1 rather than 0 as the default so a slot read before being written
+    // behaves as it always did; 0 would silently mean "left only".
+    int         srcCh       = -1;
 };
 
 class GrainPool

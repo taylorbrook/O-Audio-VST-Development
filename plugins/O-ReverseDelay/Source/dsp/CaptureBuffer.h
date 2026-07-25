@@ -132,6 +132,12 @@ public:
 
     // Integer read at an absolute (monotonic) sample index. Double-mod handles
     // negative indices (pre-history reads return the cleared buffer's zeros).
+    //
+    // v1.7.0: this is the STEREO SOURCE read (B4 #5). Through v1.6.0 it existed
+    // and was called by nothing but pushLooped/pushCrossfaded — the grain engine
+    // always went through monoSum, so the source's stereo image was discarded
+    // before a grain ever saw it and `width` could only pan mono copies of it.
+    // A grain in Stereo mode now latches a channel at spawn and reads it here.
     float readAbs (int ch, juce::int64 absIndex) const noexcept
     {
         const int idx = static_cast<int> (((absIndex % bufferSize) + bufferSize) % bufferSize);
