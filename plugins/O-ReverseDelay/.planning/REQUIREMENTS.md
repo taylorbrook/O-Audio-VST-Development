@@ -12,6 +12,7 @@ lastUpdated: 2026-07-24
 **Target Milestone:** v1.0
 **Total Requirements:** 14
 **Coverage:** must: 9 | should: 4 | nice: 1
+**Status:** ✅ **14/14 complete** — all four stages verified, ship-ready at v1.0.0
 
 ## Requirements
 
@@ -140,7 +141,18 @@ lastUpdated: 2026-07-24
 | stage-1 | COMPAT-01 |
 | stage-2 | FUNC-01..04, DSP-01..04, PERF-01, COMPAT-02, QUAL-01 |
 | stage-3 | UI-01, UI-02 |
-| stage-4 | COMPAT-*, all remaining |
+| stage-4 | **All 14 re-confirmed** against the preset/bar/tooltip diff — no new requirement, no regression |
+
+**Stage-4 re-confirmation (2026-07-24):** every requirement was re-checked rather
+than carried forward on trust. Harness re-run 41/41 exit 0 covers FUNC-01..04,
+DSP-01..04, COMPAT-02 and QUAL-01; `pluginval --strictness-level 10` re-run on
+both formats re-verifies COMPAT-01 and PERF-01; a real-browser render at the
+shipping 940×484 viewport re-verifies UI-01 and UI-02 (slot box mode-invariant at
+the new `y:242`, all 8 readouts at exact engineering defaults, dblclick reset
+intact). DSP-02/PERF-01 additionally rest on a measured **zero-DSP-diff**: the
+Stage-4 diff touches only the constructor and `get/setStateInformation`, leaving
+`processBlock` and every DSP function untouched. Full evidence in
+`stages/4-polish/VERIFICATION.md`.
 
 ## Out of Scope (v1.0)
 

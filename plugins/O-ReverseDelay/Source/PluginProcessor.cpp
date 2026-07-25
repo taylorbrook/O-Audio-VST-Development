@@ -19,6 +19,89 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pHighCut      = parameters.getRawParameterValue("highCut");
     pWidth        = parameters.getRawParameterValue("width");
     pMix          = parameters.getRawParameterValue("mix");
+
+    // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
+    // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
+    // through each parameter's own NormalisableRange below. Four params are
+    // skewed (delayTime centre 316 ms, grainSize 158 ms, lowCut 200 Hz, highCut
+    // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
+    // wrong (pattern_factory_preset_normalized_ignores_skew).
+    //
+    // All ten keys are explicit in every preset. Omitted keys would revert to the
+    // APVTS default (applyPresetJson resets everything first), which is safe but
+    // makes the table's intent unreadable.
+    //
+    // No "/" in any name — OuariconPresetManager sanitises it to "_", so
+    // "Reverse 1/8" would round-trip as "Reverse 1_8"
+    // (critical_preset_name_slash_path_separator). Hence "Rhythmic Reverse".
+    //
+    // syncMode: 0 = Free, 1 = Sync. noteDivision: 4 = 1/8D, 6 = 1/4 (the default).
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        { "Reverse Bloom",
+          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  500.0f},
+           {"grainSize", 200.0f}, {"density", 60.0f}, {"feedback",  40.0f},
+           {"lowCut",    100.0f}, {"highCut", 8000.0f},
+           {"width",      60.0f}, {"mix",       40.0f}}, {} },
+
+        { "Guitar Swell",
+          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
+           {"grainSize", 300.0f}, {"density", 55.0f}, {"feedback",  45.0f},
+           {"lowCut",    120.0f}, {"highCut", 6500.0f},
+           {"width",      55.0f}, {"mix",       55.0f}}, {} },
+
+        { "Vocal Halo",
+          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
+           {"grainSize", 180.0f}, {"density", 70.0f}, {"feedback",  30.0f},
+           {"lowCut",    300.0f}, {"highCut", 7000.0f},
+           {"width",      70.0f}, {"mix",       25.0f}}, {} },
+
+        { "Slow Wash",
+          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
+           {"grainSize", 450.0f}, {"density", 30.0f}, {"feedback",  65.0f},
+           {"lowCut",     80.0f}, {"highCut", 5000.0f},
+           {"width",      85.0f}, {"mix",       50.0f}}, {} },
+
+        { "Tight Smear",
+          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
+           {"grainSize",  70.0f}, {"density", 90.0f}, {"feedback",  35.0f},
+           {"lowCut",    150.0f}, {"highCut", 11000.0f},
+           {"width",      35.0f}, {"mix",       45.0f}}, {} },
+
+        { "Dark Cavern",
+          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
+           {"grainSize", 320.0f}, {"density", 65.0f}, {"feedback",  70.0f},
+           {"lowCut",    220.0f}, {"highCut", 1800.0f},
+           {"width",      75.0f}, {"mix",       55.0f}}, {} },
+
+        // feedback = 100 %: doubles as the preset-driven DSP-03 stability
+        // statement (probe N renders this one for 30 s, not 10).
+        { "Near-Infinite",
+          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  900.0f},
+           {"grainSize", 350.0f}, {"density", 70.0f}, {"feedback", 100.0f},
+           {"lowCut",    180.0f}, {"highCut", 2500.0f},
+           {"width",      80.0f}, {"mix",       50.0f}}, {} },
+
+        { "Rhythmic Reverse",
+          {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
+           {"grainSize", 120.0f}, {"density", 80.0f}, {"feedback",  50.0f},
+           {"lowCut",    140.0f}, {"highCut", 9000.0f},
+           {"width",      50.0f}, {"mix",       45.0f}}, {} },
+    };
+
+    // C1: engineering units → normalised, through each param's own range. Handles
+    // skew, step and choice-index uniformly (AudioParameterChoice's range is
+    // 0…n-1 step 1, so convertTo0to1(6.0f) on the 13-entry division list = 0.5).
+    // initializeFactoryPresets stores the normalised value verbatim;
+    // applyPresetJson feeds it back through convertFrom0to1 on load.
+    for (auto& preset : factoryPresets)
+        for (auto& [id, value] : preset.parameters)
+            if (auto* p = parameters.getParameter(id))
+                value = p->convertTo0to1(value);
+
+    // Only re-seeds when JucePlugin_VersionString changes (.factory-version
+    // sentinel). At a frozen 1.0.0 that means edits to the table above are a
+    // SILENT no-op until ~/Library/O-ReverseDelay/Presets/Factory is removed.
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 ReverseDelayProcessor::~ReverseDelayProcessor() {}
@@ -464,19 +547,24 @@ void ReverseDelayProcessor::setCurrentProgram(int index) { juce::ignoreUnused(in
 const juce::String ReverseDelayProcessor::getProgramName(int index) { juce::ignoreUnused(index); return {}; }
 void ReverseDelayProcessor::changeProgramName(int index, const juce::String& newName) { juce::ignoreUnused(index, newName); }
 
+// Stage 4: session state routed through OuariconPresetManager so the current
+// preset NAME survives a save/reload alongside the parameters.
+//
+// Backward compatible in both directions: getStateAsXml() wraps the SAME APVTS
+// root, adding only a `currentPreset` attribute, and setStateFromXml() accepts a
+// plain pre-Stage-4 APVTS tree (the attribute simply defaults to "Default").
+// Stage 1–3 sessions therefore still load. No setCustomStateCallbacks — this
+// plugin holds no state outside the APVTS.
 void ReverseDelayProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void ReverseDelayProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+        presetManager.setStateFromXml(xml.get());
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

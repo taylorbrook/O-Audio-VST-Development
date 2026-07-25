@@ -17,6 +17,33 @@
       <p class="subtitle">Granular Reverse Delay &#183; A Field Guide</p>
     </header>
 
+    <!-- ─── Preset bar (Stage 4) ─────────────────────────────────────────
+         44 px band (32 px tall + 12 px margin) under the header. Transparent
+         over the paper gradient with a hairline rule below, mirroring the
+         header's — a second field-guide register line rather than chrome. It
+         deliberately does NOT carry the plugin name: that would give the page
+         two competing title bars.
+
+         Element IDs are the ones js/preset-manager.js binds. Button copy lives
+         HERE, in data-label / data-confirm, never in JS — a shared JS state
+         updater writing textContent silently erases HTML-authored labels
+         (pattern_js_state_updater_overwrites_html_labels). #preset-name is the
+         sanctioned exception: _updateDisplay() owning its own element is the
+         module's intended behaviour. Its placeholder is "Default" because a
+         fresh instance genuinely reports "Default" — deliberately not a member
+         of the preset list. -->
+    <div class="preset-bar">
+      <span class="fleuron">&#10086;</span>
+      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset">&#9664;</button>
+      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset">&#9654;</button>
+      <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+      <button type="button" class="preset-btn" id="preset-save" data-label="Save">Save</button>
+      <button type="button" class="preset-btn" id="preset-load" data-label="Load">Load</button>
+      <button type="button" class="preset-btn" id="preset-delete"
+              data-label="Delete" data-confirm="Confirm?" data-armed="0">Delete</button>
+      <span class="fleuron">&#10086;</span>
+    </div>
+
     <!-- ─── Groups: signal-flow order (D9) ──────────────────────────────── -->
     <main class="groups">
 
@@ -28,7 +55,9 @@
           <!-- syncMode: two-segment pair. FREE / SYNC text is authored HERE and
                is NEVER rewritten by JS — refresh() toggles classes + aria-pressed
                only (pattern_js_state_updater_overwrites_html_labels). -->
-          <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
+          <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode"
+               data-tip-title="Sync Mode"
+               data-tip="Free reads the delay in milliseconds; Sync locks it to the host's tempo grid.">
             <button type="button" class="segment" id="seg-free" data-choice="0" aria-pressed="false">Free</button>
             <button type="button" class="segment" id="seg-sync" data-choice="1" aria-pressed="true">Sync</button>
           </div>
@@ -38,7 +67,9 @@
           <div class="time-slot">
             <div class="slot-wrap hidden" id="wrap-delayTime">
               <div class="knob-cell">
-                <div class="knob" id="knob-delayTime" data-param="delayTime"><div class="knob-stem"></div></div>
+                <div class="knob" id="knob-delayTime" data-param="delayTime"
+                     data-tip-title="Delay"
+                     data-tip="How far back the grains reach. Long settings read as separate reversed phrases; short ones fuse into a smear."><div class="knob-stem"></div></div>
                 <div class="knob-label">Delay</div>
                 <div class="knob-value" id="val-delayTime">&#8212;</div>
               </div>
@@ -48,7 +79,9 @@
               <div class="select-cell">
                 <!-- Options are built at runtime from properties.choices — the C++
                      StringArray is the single source of truth (never hardcode). -->
-                <select class="division-select" id="combo-noteDivision" aria-label="Note Division"></select>
+                <select class="division-select" id="combo-noteDivision" aria-label="Note Division"
+                        data-tip-title="Division"
+                        data-tip="The note value the delay follows while Sync is lit — dotted (D) and triplet (T) included."></select>
                 <div class="knob-label">Division</div>
               </div>
             </div>
@@ -62,12 +95,16 @@
         <div class="group-label">Grain</div>
         <div class="group-body">
           <div class="knob-cell">
-            <div class="knob" id="knob-grainSize" data-param="grainSize"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-grainSize" data-param="grainSize"
+                 data-tip-title="Grain Size"
+                 data-tip="Length of each reversed fragment. Long grains bloom and swell; short grains chatter."><div class="knob-stem"></div></div>
             <div class="knob-label">Size</div>
             <div class="knob-value" id="val-grainSize">&#8212;</div>
           </div>
           <div class="knob-cell">
-            <div class="knob" id="knob-density" data-param="density"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-density" data-param="density"
+                 data-tip-title="Density"
+                 data-tip="How many grains overlap at once. Sparse settings stutter; dense settings pour."><div class="knob-stem"></div></div>
             <div class="knob-label">Density</div>
             <div class="knob-value" id="val-density">&#8212;</div>
           </div>
@@ -79,17 +116,23 @@
         <div class="group-label">Feedback</div>
         <div class="group-body">
           <div class="knob-cell">
-            <div class="knob" id="knob-feedback" data-param="feedback"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-feedback" data-param="feedback"
+                 data-tip-title="Feedback"
+                 data-tip="How much of the wash returns to the buffer. Each pass re-reverses, so the tail keeps folding back on itself."><div class="knob-stem"></div></div>
             <div class="knob-label">Amount</div>
             <div class="knob-value" id="val-feedback">&#8212;</div>
           </div>
           <div class="knob-cell">
-            <div class="knob" id="knob-lowCut" data-param="lowCut"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-lowCut" data-param="lowCut"
+                 data-tip-title="Low Cut"
+                 data-tip="Trims low frequencies inside the feedback loop — every pass grows lighter."><div class="knob-stem"></div></div>
             <div class="knob-label">Low Cut</div>
             <div class="knob-value" id="val-lowCut">&#8212;</div>
           </div>
           <div class="knob-cell">
-            <div class="knob" id="knob-highCut" data-param="highCut"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-highCut" data-param="highCut"
+                 data-tip-title="High Cut"
+                 data-tip="Trims high frequencies inside the feedback loop — every pass grows darker and further away."><div class="knob-stem"></div></div>
             <div class="knob-label">High Cut</div>
             <div class="knob-value" id="val-highCut">&#8212;</div>
           </div>
@@ -101,12 +144,16 @@
         <div class="group-label">Output</div>
         <div class="group-body">
           <div class="knob-cell">
-            <div class="knob" id="knob-width" data-param="width"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-width" data-param="width"
+                 data-tip-title="Width"
+                 data-tip="Spreads grains across the stereo field. At zero they stack in the centre."><div class="knob-stem"></div></div>
             <div class="knob-label">Width</div>
             <div class="knob-value" id="val-width">&#8212;</div>
           </div>
           <div class="knob-cell">
-            <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-mix" data-param="mix"
+                 data-tip-title="Mix"
+                 data-tip="Balance of dry input against the reversed wash. Equal-power, so the total stays level."><div class="knob-stem"></div></div>
             <div class="knob-label">Mix</div>
             <div class="knob-value" id="val-mix">&#8212;</div>
           </div>
@@ -121,6 +168,11 @@
       <span class="fleuron">&#10086;</span>
     </footer>
   </div>
+
+  <!-- Hover-help layer. Lives OUTSIDE .frame and is position:fixed, so a tip on
+       an edge control is not clipped by the frame's inset shadow. Content is
+       written with textContent from the anchors' data-tip-title / data-tip. -->
+  <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
   <script type="module" src="js/app.js"></script>
 </body>

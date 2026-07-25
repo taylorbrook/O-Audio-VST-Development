@@ -1,17 +1,20 @@
 ---
 plugin: O-ReverseDelay
-stage: 3-gui
+stage: 4-polish
 phase: verify
 phase_status: complete
 stage_status: complete
-status: in_progress
+status: complete
 last_updated: 2026-07-24
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: /plugin-discuss O-ReverseDelay 4-polish
+next_action: /install-plugin O-ReverseDelay
 ready_for_implementation: true
+all_stages_verified: true
+ship_ready_version: 1.0.0
+human_needed: 6 checklist listens (items 2-7) before /publish
 contract_checksums:
   brief: sha256:7075c269df79e5dc1cf7f28d6ff4dda88805abb2c8086fc751e737f626efb07e
   parameter_spec: sha256:34f6fdf831f785784354d09ff8df864f9c4df42e0fb2175fe5645be0ade3ef39
@@ -23,11 +26,71 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 (GUI) — ✅ VERIFIED, stage complete (2026-07-24)
-Status: WebView GUI shipped and verified — 940×440 Naturalist, 4 panels (TIME|GRAIN|FEEDBACK|OUTPUT), all 10 params two-way bound (8 slider + 2 combo relays), single native fn. UI-01 + UI-02 both complete → all 14 requirements now complete. Next: Stage 4 (Polish), gated on the D7 Standalone audition
-Progress: [####################] 95%
+Stage: 4 (Polish) — verify ✓ complete (2026-07-24) — **ALL 4 STAGES VERIFIED · SHIP-READY v1.0.0**
+Status: 18 of 19 tasks executed (Task 3 correctly skipped — D11 declined). Preset-manager v1.0.5 + 8 factory presets + 940×484 preset bar + tooltips shipped; harness 41/41, ui_frontend_check 76/76, pluginval-10 ×3 both formats, auval SUCCEEDED, CHANGELOG at v1.0.0. **Stage 4 carries ZERO DSP diff.**
+Progress: [####################] 100%
 
 ## Phase Progress
+
+### Stage 4: Polish
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-07-24 | |
+| research | ✓ | 2026-07-24 | |
+| plan | ✓ | 2026-07-24 | |
+| execute | ✓ | 2026-07-24 | |
+| verify | ✓ | 2026-07-24 | |
+
+**Stage 4 verify results:**
+- VERIFICATION.md written — verdict ✅ **VERIFIED, no blockers. Plugin ship-ready at v1.0.0.** All 14 requirements re-confirmed complete
+- **Every automated gate independently re-run at verify**, not read from SUMMARY: harness **41/41 exit 0**; `ui_frontend_check` **76/76 exit 0**; pluginval-10 **VST3 SUCCESS + AU SUCCESS**; `auval` SUCCEEDED; AU version 65536 / `aufx ORvD OuDv`; build clean, zero warnings
+- **Zero-DSP-diff claim tested, not assumed**: `git diff bbefa10 -- PluginProcessor.cpp` = exactly 2 hunks (constructor preset table + `get/setStateInformation`). `processBlock` and every DSP function untouched
+- UI re-rendered in a real browser at the shipping viewport: 940×484 exact, overflow 0/0, band 32+12=44, panels 215px, name `Default`, **zero JS console errors** (only the stub favicon 404)
+- **C5 re-proven**: all 10 tooltips a full 230px; `mix` clamped to `left:702` (= 940−230−8) with `--arrow-x:157px`; zero overflow. **Gate is viewport-sensitive** — at a 1200px viewport the clamp never fires and the test proves nothing; must resize to 940 first
+- UI-02 slot **mode-invariant** at `x:117 y:242 w:86 h:100`; bar cycles all 8 names + wraps; knobs unregressed (drag 35→62%, dblclick→35%); Save/Load/**Delete** labels survive binding (C6)
+- C1 skew confirmed on disk (`delayTime 0.60037` for 500 ms vs linear 0.231); probe N worst delta **0.0000**; C3/C8/C9 all hold
+- Missing `~/Library/O-ReverseDelay/Presets/User/` is **not** a defect — `savePreset()` creates it lazily (`OuariconPresetManager.h:348`)
+- **2 documentation issues found and fixed** (no shipped-behaviour defects): (1) frontend-check count was 77/77, actually **76/76** — the 77th grep match is the `check()` definition; corrected in CHANGELOG + SUMMARY. (2) `CMakeLists.txt:77` comment misdocumented the binary-data symbol as `preset_manager_js`; real symbol is `presetmanager_js` (hyphen **stripped**) — corrected with the memory-pattern name cited inline
+- **6 human-checklist listens outstanding** (items 2–7); recommended before `/publish`. Windows deferred to CI with static prerequisites in place
+
+**Stage 4 execute results:**
+- **D11 CLOSED — makeup constant explicitly DECLINED.** User auditioned at feedback=100; wash length is right as shipped. Task 3 skipped ⇒ **Stage 4 carries ZERO DSP diff**; harness 33 entry / 41 exit (not 34/42)
+- Phase 4.1: preset-manager v1.0.5 via CMake include (ONE binary-data target); 8 factory presets in engineering units + `convertTo0to1`; 11-fn bridge with **hoisted** SafePointer (MSVC-safe) + bare-return null path; probe N audits all 8 through the real `loadPreset()` — **worst round-trip delta 0.0000 on every param of every preset**
+- Phase 4.2: 940×484 (band and height increase are the same 44px, so panels/footer unmoved); 5-control bar (Delete confirmed by user over D15's 4-control sketch); tooltips on all 10; stub repaired (`__JUCE__` shim + serve-stub copy line); `ui_frontend_check.js` §3/§9 **repaired** + §12–14 added → **77/77 exit 0**
+- Phase 4.2 gate driven in a real browser: 940×484 exact, zero overflow, **zero JS console errors**, all 8 preset names cycle + wrap, Save→Load→Delete round-trip with label restored from `data-label`, `.time-slot` box identical across modes (y 198→242 = the predicted +44), **`mix` tooltip full 230px** clamped at left:702 with arrow tracking, knob drag + dblclick reset unregressed
+- Phase 4.3: harness **41/41 exit 0**; pluginval-10 **VST3 3/3 + AU 3/3** zero failures (incl. Plugin state restoration); `auval` SUCCEEDED; AU version **65536**; CHANGELOG authored at v1.0.0
+- **4 plan corrections found during execution** (full list in SUMMARY.md §Deviations): binary-data symbol is `presetmanager_js` not `preset_manager_js` (JUCE strips the hyphen); highCut tolerance set to 0.5 Hz **from the 0.0000 measurement** not the assumed 2.0; probe N's wash window moved to [2..4 s] because the plan's [6..8 s] would fail correct low-feedback presets; `ui_frontend_check` needed a THIRD repair — its binary-block regex truncates at the first `)`, so a parenthesis in a comment silently FAILs correct code
+- Human checklist (7 items) batched in SUMMARY.md — item 1 (audition) already done; items 2–7 outstanding
+
+**Stage 4 plan results:**
+- PLAN.md: **19 tasks across 4 phases** — 4.0 entry gate (audition + 33/33 baseline + conditional makeup constant) / 4.1 preset system (CMake, processor+factory table, 10 native fns, harness probe N) / 4.2 bar + tooltips (geometry, markup+CSS, TDZ-safe init, tooltips, stub repair, ui_frontend_check repair) / 4.3 validation + release
+- All 7 RESEARCH findings **re-verified against the live tree** this session: preset-manager.js:89-98 = 10 fns · module.yaml v1.0.5 (its own native-functions list is stale at 9) · editor at 1 fn (PluginEditor.cpp:114 ≡ app.js:266) · harness inherits includes (render-harness/CMakeLists.txt:37-38) · ui_frontend_check.js:110-131 asserts surface==1 on appJs only · :209/:226 regexes miss module paths + dynamic import · serve-stub.sh:16 copies public/ only · juce-stub.js:106-110 rejects all but getParameterDefaults
+- Exact edit sites confirmed: PluginEditor.cpp:168 · styles.css:54+88 · index.html:18/21 · PluginProcessor.cpp:361 · CMakeLists.txt:25-28, 59-68
+- **RESEARCH.md §8 declared authoritative over CONTEXT.md** wherever they conflict (11≡11 not 10≡10; 41/41 exit not 33/33; ~/Library/O-ReverseDelay/Presets/ not Application Support)
+- 4 open items closed: makeup constant = conditional task, k=2.0f pencilled · highCut tolerance set from measured delta, not assumed · Near-Infinite renders 30 s · **preset bar ships 5 controls incl. Delete** (D15's 4-control sketch is schematic; human-checklist item 6 requires the delete round-trip) — flagged for user
+- Risk register: 9 failure modes that pass build/auval/pluginval silently, each mapped to its owning task
+
+**Stage 4 research findings (RESEARCH.md — 6 corrections to CONTEXT):**
+- **F1:** `preset-manager.js` requires **10** native fns, not 9 — D12 omitted `savePresetWithDialog` (the fn the Save button actually calls). Total bridge surface is **11**, not 10 → C4 gate is `11 ≡ 11`
+- **F2:** All 10 preset `getNativeFunction` calls live in `preset-manager.js`, not `app.js`. `ui_frontend_check.js` §3 scans `appJs` only and hard-asserts surface==1 → must scan both files
+- **F3:** `ui_frontend_check.js` §9 three-way closure FAILs on correct code — its regex is `Source/ui/public/…` and the new binary-data entry is a `modules/…` path; also dynamic `import()` isn't harvested into `refs`
+- **F4:** Browser stub is unusable for the bar as-is: no `window.__JUCE__` → `_waitForNative()` polls 5 s then `console.error`s (fails the zero-console-errors gate); and `serve-stub.sh` never copies `preset-manager.js` (it's not under `Source/ui/public`) → 404
+- **F5:** Preset path is `~/Library/O-ReverseDelay/Presets/{Factory,User}/`, NOT `~/Library/Application Support/…` as D12 states
+- **F6:** O-Contrabass's dialog lambdas use the **MSVC-breaking** nested `SafePointer(this)` init-capture — must hoist to a local before `launchAsync` or Windows CI won't compile (`critical_msvc_safepointer_init_capture_nested_lambda`)
+- **F7:** `.factory-version` sentinel is keyed on `JucePlugin_VersionString`; at a frozen 1.0.0 **factory-table edits never re-seed** — `rm -rf ~/Library/O-ReverseDelay/Presets/Factory` after every edit
+- **F8:** C2 needs **zero** plugin-side code — v1.0.5 `applyPresetJson` already resets all params to defaults (meta-first) before applying
+- **F9:** Harness inherits the preset-manager include free via `$<TARGET_PROPERTY:…,INCLUDE_DIRECTORIES>` → preset audit runs through the **real** `loadPreset()` (true skew round-trip), not a re-typed table. Answers open question #4. Harness goes **33 → 41** checks
+- Resolved: 8-preset table authored in engineering units (7 Free + 1 Sync 1/8D); 10 tooltip copy lines; Naturalist bar styling = borrow O-Contrabass *structure*, dress in local `.segment`/`.division-select` vocabulary (O-Contrabass's dark chrome bar would double the title); makeup-constant derivation (recommend `k=2.0f`/+6 dB if the audition asks, pre-`tanh` at the tap)
+- Suggested split: 4.0 entry gate (audition + 33/33) → 4.1 preset system → 4.2 bar + tooltips → 4.3 validation + CHANGELOG
+
+**Stage 4 discuss decisions:**
+- D11: Wash decay — **audition first, then decide**. The makeup constant at the feedback tap is NOT pre-authorized; user auditions Standalone and reports. If implemented, gated on harness + probe G (60 s @ fb=100)
+- D12: Presets = **full OuariconPresetManager v1.0.5** (module.yaml authoritative; registry.yaml stale) + preset bar; CMake-include pattern per O-Bowed/O-Wind; 9 native fns added (1 → 10)
+- D13: Extra scope = **tooltips on all 10 controls only**. No CPU pass; Windows deferred to publish/CI
+- D14: Release = **ship-ready v1.0.0, publish separately** (`/publish` is a later user-triggered step; Windows pluginval fuzz not a Stage-4 blocker)
+- D15: Preset bar = **grow to 940×484**, new 44px band under the header; panels + footer untouched. `PluginEditor.cpp:168` setSize change; `.time-slot` y shifts +44 (re-verify asserts *identical box across modes*, not the old absolute y)
+- D16: **8 factory presets** — Reverse Bloom, Guitar Swell, Vocal Halo, Slow Wash, Tight Smear, Dark Cavern, Near-Infinite (doubles as DSP-03 stability check), Rhythmic Reverse (Sync 1/8D — name avoids "/", `critical_preset_name_slash_path_separator`)
+- Open for research: makeup-constant value (if needed), Naturalist bar styling, tooltip copy, preset-audit harness placement
 
 ### Stage 3: GUI
 | Phase | Status | Date | Skipped |
@@ -153,11 +216,13 @@ Progress: [####################] 95%
 
 ## Next Steps
 
-1. **D6/D7 Standalone audition — REQUIRED Stage 4 entry gate**: smear/wash/width by ear, evaluate the −7.3 dB/gen wash length and whether a feedback-tap makeup constant is wanted — `/show-standalone O-ReverseDelay`
-2. Stage 4 discuss: `/plugin-discuss O-ReverseDelay 4-polish`
-3. Re-run the render harness at Stage-4 entry before any DSP edit (`pattern_render_harness_breaks_on_webview_editor`)
-4. Factory presets: author in engineering units + `convertTo0to1` — 4 skewed params; a new binary-data target must not claim `NAMESPACE BinaryData` (`UIBinaryData` is taken)
-5. Optional human checks: DAW load/automation round-trip, mono→stereo listen, session save/reload
+**All four stages are verified. The plugin is ship-ready at v1.0.0.**
+
+1. `/install-plugin O-ReverseDelay` — install to system folders for DAW use (a fresh dual-variant-swept `-dev` install is already present from Stage 4)
+2. **6 human-checklist listens outstanding** (items 2–7 in `stages/4-polish/VERIFICATION.md`) — recommended before publishing:
+   Logic + Ableton render/automation · mono→stereo listen · session save/reload · all 8 presets distinct (esp. Near-Infinite) · user-preset save/reload/delete **in the real WebView** (native `FileChooser` exists only in the plugin) · all 10 tooltips in the real WKWebView
+3. `/publish O-ReverseDelay` — separate, user-triggered. **Windows is deferred to CI**; static prerequisites verified (both WebView2 flags set; both `FileChooser` completions hoist `SafePointer` to a local, which is what MSVC needs). First Windows CI build is the real test.
+4. Re-run note for any future improve session: the **C5 tooltip gate is viewport-sensitive** — resize the browser to 940×484 before testing, or the clamp never fires and the test silently proves nothing.
 
 ## Context to Preserve
 

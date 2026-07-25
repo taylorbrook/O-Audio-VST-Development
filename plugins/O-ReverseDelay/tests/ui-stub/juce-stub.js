@@ -102,14 +102,90 @@ export function getComboBoxState(name) {
   return comboStates.get(name);
 }
 
-// Mirrors the ONE native function registered in PluginEditor.cpp. Any other
-// name must reject — that is how the stub surfaces a bridge gap
-// (pattern_webview_native_fn_bridge_gap).
+// ── Preset backend stub (Stage 4) ───────────────────────────────────────────
+// preset-manager.js polls window.__JUCE__.backend before doing anything else.
+// Without this shim _waitForNative() burns 100 x 50 ms = 5 s and then
+// console.errors (preset-manager.js:129-142) — which both fails the
+// zero-console-errors render gate and adds 5 s to every stub run.
+if (typeof window !== "undefined") window.__JUCE__ = { backend: {} };
+
+// In-memory preset library. FACTORY mirrors the eight seeded by
+// initializeFactoryPresets(), in the same case-insensitive sorted order
+// getPresetList() returns.
+const FACTORY = ["Dark Cavern", "Guitar Swell", "Near-Infinite", "Reverse Bloom",
+                 "Rhythmic Reverse", "Slow Wash", "Tight Smear", "Vocal Halo"];
+const userPresets = new Set();
+let currentPreset = "Default";
+
+// A fresh instance reports "Default", which is deliberately NOT a list member.
+const presetList = () => [...FACTORY, ...userPresets].sort((a, b) =>
+  a.toLowerCase().localeCompare(b.toLowerCase()));
+
+// Prev/next mirror the C++ lastListIndex behaviour closely enough for the bar:
+// an out-of-list current name starts navigation at index 0.
+function neighbour(step) {
+  const list = presetList();
+  if (list.length === 0) return currentPreset;
+  const i = list.indexOf(currentPreset);
+  if (i < 0) return list[0];
+  return list[(i + step + list.length) % list.length];
+}
+
+// Both dialog fns MUST resolve {success, name} — preset-manager.js checks
+// `result && result.success`, so a bare bool silently reports failure.
+const dialogResult = (ok, name) => ({ success: ok, name });
+
+const PRESET_FNS = {
+  savePreset: (name) => {
+    if (!name || FACTORY.includes(name)) return false;
+    userPresets.add(name); currentPreset = name; return true;
+  },
+  savePresetWithDialog: () => {
+    // No native dialog in a browser: synthesise a name so the Save leg of the
+    // bar is still drivable at the render gate.
+    const name = `Stub Preset ${userPresets.size + 1}`;
+    userPresets.add(name); currentPreset = name;
+    return dialogResult(true, name);
+  },
+  loadPreset: (name) => {
+    if (!presetList().includes(name)) return false;
+    currentPreset = name; return true;
+  },
+  loadPresetFromFile: () => {
+    const name = presetList()[0];
+    if (!name) return dialogResult(false, "");
+    currentPreset = name; return dialogResult(true, name);
+  },
+  getPresetList: () => presetList(),
+  getCurrentPreset: () => currentPreset,
+  selectNextPreset: () => neighbour(1),
+  selectPreviousPreset: () => neighbour(-1),
+  deletePreset: (name) => {
+    if (FACTORY.includes(name) || !userPresets.has(name)) return false;
+    userPresets.delete(name);
+    if (currentPreset === name) currentPreset = "Default";
+    return true;
+  },
+  isFactoryPreset: (name) => FACTORY.includes(name),
+};
+
+// Mirrors the ELEVEN native functions registered in PluginEditor.cpp:
+// getParameterDefaults (fetched by app.js) + the ten preset fns (fetched by
+// js/preset-manager.js). Any OTHER name must still reject — rejecting the
+// unknown is the whole point of this stub, and is how a bridge gap surfaces
+// here instead of as a silently dead control in a DAW
+// (pattern_webview_native_fn_bridge_gap). The whitelist grew 1 -> 11; it did
+// not become permissive.
 export function getNativeFunction(name) {
-  if (name !== "getParameterDefaults") {
-    return () => Promise.reject(new Error(`Unregistered native function: ${name}`));
+  if (name === "getParameterDefaults") {
+    return () => Promise.resolve(
+      Object.fromEntries(Object.entries(RANGES).map(([id, r]) => [id, r.def]))
+    );
   }
-  return () => Promise.resolve(
-    Object.fromEntries(Object.entries(RANGES).map(([id, r]) => [id, r.def]))
-  );
+
+  if (Object.prototype.hasOwnProperty.call(PRESET_FNS, name)) {
+    return (...args) => Promise.resolve(PRESET_FNS[name](...args));
+  }
+
+  return () => Promise.reject(new Error(`Unregistered native function: ${name}`));
 }

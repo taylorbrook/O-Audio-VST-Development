@@ -25,6 +25,11 @@ target_sources(OuariconReverseDelay
 target_include_directories(OuariconReverseDelay
     PRIVATE
         Source
+        # OuariconPresetManager is header-only (all impl inline) — included by
+        # path, never vendored into Source/. The render harness picks this up for
+        # free via $<TARGET_PROPERTY:OuariconReverseDelay,INCLUDE_DIRECTORIES>,
+        # so probe N audits through the SHIPPING manager, not a re-typed table.
+        ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/cpp
 )
 
 target_link_libraries(OuariconReverseDelay
@@ -66,6 +71,13 @@ juce_add_binary_data(OuariconReverseDelay_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/birds.png
+        # Stage 4: the shared preset-manager JS module, embedded into the EXISTING
+        # UIResources target (C3 — a second juce_add_binary_data target defaulting
+        # to NAMESPACE BinaryData duplicate-symbols against UIBinaryData).
+        # Symbol: UIBinaryData::presetmanager_js — juce_add_binary_data STRIPS the
+        # hyphen, it does NOT convert it to an underscore
+        # (critical_binary_data_strips_hyphens). Served at /js/preset-manager.js.
+        ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
 )
 
 target_link_libraries(OuariconReverseDelay
