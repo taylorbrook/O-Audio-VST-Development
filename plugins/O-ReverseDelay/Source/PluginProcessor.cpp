@@ -193,13 +193,37 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     presetManager.initializeFactoryPresets(factoryPresets);
 
     // A1: user presets are stored as NORMALISED fractions and must be rescaled
-    // against the widened delayTime range. Runs immediately after the factory
-    // seed, on the message thread, once per version.
+    // whenever a parameter's range moves under them — delayTime at v1.0.1,
+    // grainSize at v1.5.0. Runs immediately after the factory seed, on the
+    // message thread, once per version.
     migrateUserPresets();
+}
+
+namespace
+{
+    /** "1.4.0" -> 10400, so preset-version gates read as plain comparisons.
+        Two decimal digits per component is ample for a plugin whose components
+        have never exceeded 5, and packed decimal keeps the constants legible in
+        a debugger. Missing or non-numeric components parse as 0 via
+        getIntValue(), which makes a truncated "1.5" compare as 1.5.0 — the
+        conservative direction, since the only cost of treating a file as NEWER
+        than it is would be skipping a rescale on a file that is not ours to
+        begin with. */
+    int packVersion (const juce::String& v)
+    {
+        auto parts = juce::StringArray::fromTokens (v.trim(), ".", "");
+
+        const int major = parts.size() > 0 ? parts[0].getIntValue() : 0;
+        const int minor = parts.size() > 1 ? parts[1].getIntValue() : 0;
+        const int patch = parts.size() > 2 ? parts[2].getIntValue() : 0;
+
+        return major * 10000 + minor * 100 + patch;
+    }
 }
 
 //==============================================================================
 // v1.0.1 (A1) — user-preset delayTime migration.
+// v1.5.0      — user-preset grainSize migration, on the same machinery.
 //
 // Two DIFFERENT storage formats are in play, and they need opposite treatment:
 //
@@ -220,6 +244,28 @@ ReverseDelayProcessor::ReverseDelayProcessor()
 //
 // Factory presets need no migration — the version bump re-seeds them from the
 // engineering-unit table above.
+//
+// ── v1.5.0: the two arms have DIFFERENT version gates ─────────────────────────
+// This is the part that is easy to get wrong, because through v1.4.0 there was
+// only one arm and one gate, written as `if (version != "1.0.0") continue;`.
+//
+//   * delayTime's range moved once, at v1.0.1. Only v1.0.0 files carry the old
+//     mapping, so its gate stays  version < 1.0.1.
+//   * grainSize's range moved at v1.5.0, so EVERY file written by v1.0.0 through
+//     v1.4.x carries the old mapping: its gate is  version < 1.5.0.
+//
+// Reusing the delayTime gate for grainSize would have migrated v1.0.0 presets
+// and silently left every v1.1–v1.4 preset holding a fraction against the old
+// curve — the majority of any real user library, and the failure is quiet: the
+// preset still loads, it just recalls the wrong grain size.
+//
+// grainSize is also the harder rescale of the two. delayTime kept its skew
+// centre (316 ms) and moved only its max, but grainSize moved BOTH — max
+// 500 -> 4000 and centre 158 -> 316 — so the old and new curves differ in shape
+// as well as extent. Reconstructing the old range exactly and round-tripping
+// through milliseconds is the only correct transform; there is no scale factor
+// that does it. Worked example: a v1.4.0 preset at the old default 200 ms holds
+// ~0.573, which under the new curve would read back as ~1450 ms without this.
 //
 // Guarded by a version sentinel mirroring initializeFactoryPresets()'s: without
 // it every processor construction (each auval/pluginval scan pass, each instance
@@ -242,40 +288,66 @@ void ReverseDelayProcessor::migrateUserPresets()
         // centre, only the max differs. setSkewForCentre re-solves the exponent
         // against the max, so the two curves are genuinely different mappings —
         // this is not a linear rescale.
-        juce::NormalisableRange<float> legacyRange { 50.0f, kLegacyDelayTimeMaxMs, 0.01f };
-        legacyRange.setSkewForCentre(kDelayTimeSkewCentreMs);
+        juce::NormalisableRange<float> legacyDelayRange { kDelayTimeMinMs, kLegacyDelayTimeMaxMs, 0.01f };
+        legacyDelayRange.setSkewForCentre(kDelayTimeSkewCentreMs);
+
+        // v1.5.0: grainSize's pre-1.5.0 range — max AND centre both differ.
+        juce::NormalisableRange<float> legacyGrainRange { kGrainSizeMinMs, kLegacyGrainSizeMaxMs, 0.01f };
+        legacyGrainRange.setSkewForCentre(kLegacyGrainSizeSkewCentreMs);
 
         auto* delayParam = parameters.getParameter("delayTime");
+        auto* grainParam = parameters.getParameter("grainSize");
+
+        // Rescale one stored fraction from `from` onto `target`'s current range,
+        // via the engineering value both agree on. Returns false when the key is
+        // absent so the caller knows whether the file actually changed.
+        auto rescale = [](juce::DynamicObject* params,
+                          const juce::String& id,
+                          const juce::NormalisableRange<float>& from,
+                          const juce::RangedAudioParameter* target) -> bool
+        {
+            if (params == nullptr || target == nullptr || ! params->hasProperty(id))
+                return false;
+
+            const float oldNorm = static_cast<float>(
+                static_cast<double>(params->getProperty(id)));
+            const float value   = from.convertFrom0to1(juce::jlimit(0.0f, 1.0f, oldNorm));
+            const float newNorm = target->getNormalisableRange().convertTo0to1(value);
+
+            params->setProperty(id, newNorm);
+            return true;
+        };
 
         for (const auto& file : userDir.findChildFiles(juce::File::findFiles, false, "*.json"))
         {
             auto data = juce::JSON::parse(file.loadFileAsString());
             auto* obj = data.getDynamicObject();
-            if (obj == nullptr || delayParam == nullptr)
+            if (obj == nullptr)
                 continue;
 
-            // Only v1.0.0 files carry the old mapping. A missing "version" is
-            // treated as 1.0.0 — that field has been written since the preset
-            // manager's first release, so absence means hand-authored/ancient.
+            // A missing "version" is treated as 1.0.0 — that field has been
+            // written since the preset manager's first release, so absence means
+            // hand-authored/ancient.
             const juce::String version = obj->hasProperty("version")
                                            ? obj->getProperty("version").toString()
                                            : juce::String("1.0.0");
-
-            if (version != "1.0.0")
-                continue;
+            const int fileVersion = packVersion(version);
 
             auto paramsVar = obj->getProperty("parameters");
             auto* params   = paramsVar.getDynamicObject();
 
-            if (params != nullptr && params->hasProperty("delayTime"))
-            {
-                const float oldNorm = static_cast<float>(
-                    static_cast<double>(params->getProperty("delayTime")));
-                const float ms      = legacyRange.convertFrom0to1(juce::jlimit(0.0f, 1.0f, oldNorm));
-                const float newNorm = delayParam->getNormalisableRange().convertTo0to1(ms);
+            bool changed = false;
 
-                params->setProperty("delayTime", newNorm);
-            }
+            // delayTime: widened at v1.0.1, so only v1.0.0 files are stale.
+            if (fileVersion < packVersion("1.0.1"))
+                changed |= rescale(params, "delayTime", legacyDelayRange, delayParam);
+
+            // grainSize: widened at v1.5.0, so everything through v1.4.x is stale.
+            if (fileVersion < packVersion("1.5.0"))
+                changed |= rescale(params, "grainSize", legacyGrainRange, grainParam);
+
+            if (! changed)
+                continue;
 
             obj->setProperty("version", JucePlugin_VersionString);
             file.replaceWithText(juce::JSON::toString(data, true));
@@ -366,10 +438,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
                             "1/1" },
         6));
 
-    // grainSize: 50–500 ms, default 200, skew centred on 158 ms
+    // grainSize: 50–4000 ms, default 200, skew centred on 316 ms (v1.5.0).
+    //
+    // Endpoints and skew centre both come from the named constants rather than
+    // literals — the v1.0.0 A1 defect was exactly a literal drifting from the
+    // parameter range, and migrateUserPresets() has to reconstruct the OLD curve
+    // from kLegacyGrainSize* to rescale saved presets, so the two must not be
+    // able to disagree. Default stays 200 ms: it is the shipped value and a new
+    // instance must sound identical to v1.4.0.
     {
-        juce::NormalisableRange<float> range { 50.0f, 500.0f, 0.01f };
-        range.setSkewForCentre(158.0f);
+        juce::NormalisableRange<float> range { kGrainSizeMinMs, kGrainSizeMaxMs, 0.01f };
+        range.setSkewForCentre(kGrainSizeSkewCentreMs);
         layout.add(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID { "grainSize", 1 }, "Grain Size", range, 200.0f,
             juce::AudioParameterFloatAttributes().withLabel("ms")));
@@ -624,7 +703,9 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     // v1.0.1 (A1): 3.5 -> 5.5 s (Dmax grew 2.0 -> 4.0 s).
     // v1.1.0 (B3): 5.5 -> 6.0 s. delayScatter can push a grain's LATCHED delay
     // 500 ms past the delayTime max, so the requirement became 4.5 + 2·0.5 =
-    // 5.5 s — which 5.5 s met by a single sample. See kCaptureSeconds.
+    // 5.5 s — which 5.5 s met by a single sample.
+    // v1.5.0:     6.0 -> 13.0 s. G_max went 0.5 -> 4.0 s and the requirement is
+    // gD_max + 2·G_max, so 4.5 + 2·4.0 = 12.5 s. See kCaptureSeconds.
     capture.prepare(sampleRate, kCaptureSeconds);
     scheduler.prepare(sampleRate);
     grainPool.clear();
@@ -915,7 +996,7 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // sizeRandom clamps into grainSize's OWN range: a randomised grain must
     // never exceed a grain the user could dial in, because kCaptureSeconds is
     // sized against kGrainSizeMaxMs. At the range endpoints the distribution is
-    // therefore one-sided (at grainSize = 500 ms the knob can only shorten),
+    // therefore one-sided (at grainSize = 4000 ms the knob can only shorten),
     // which is the correct trade — the alternative is an unbounded read span.
     const int gMinSamples = juce::jmax(2,
         static_cast<int>(kGrainSizeMinMs * 0.001 * currentSampleRate));

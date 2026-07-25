@@ -52,7 +52,7 @@ target_compile_definitions(O-ReverseDelay-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon Audio Development"
     JucePlugin_ManufacturerCode=0x4f754476
     JucePlugin_PluginCode=0x4f527644
-    # Keep in sync with the plugin CMakeLists' VERSION (1.2.0). 0x10200 = 66048
+    # Keep in sync with the plugin CMakeLists' VERSION (1.5.0). 0x10500 = 66816
     # matches the verified AU version (WR-04: do not let these drift).
     #
     # This is load-bearing for probes N and R, not cosmetic: the factory-preset
@@ -60,8 +60,16 @@ target_compile_definitions(O-ReverseDelay-render-test PRIVATE
     # JucePlugin_VersionString. Left at an older value here, the harness would
     # audit the STALE on-disk factory presets and skip the migration entirely,
     # and both probes would pass against old data.
-    JucePlugin_VersionString="1.2.0"
-    JucePlugin_VersionCode=0x10200
+    #
+    # v1.5.0: this HAD drifted — it sat at 1.2.0 while the plugin shipped 1.3.0
+    # and 1.4.0, which is precisely the failure the paragraph above describes, so
+    # probes N and R spent two releases auditing v1.2.0's on-disk presets. The
+    # v1.5.0 grainSize migration is what surfaced it: its per-file version gate
+    # (< 1.5.0) is stamped with THIS string, so a stale value here would have let
+    # the harness re-migrate the same file on every processor construction and
+    # still report a pass.
+    JucePlugin_VersionString="1.5.0"
+    JucePlugin_VersionCode=0x10500
 
     # v1.1.0: collapse the per-instance RNG seed back to v1.0's literal.
     # PluginProcessor seeds rngState from an instance hash so two instances on

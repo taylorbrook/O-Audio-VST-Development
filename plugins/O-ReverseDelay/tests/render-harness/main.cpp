@@ -1347,7 +1347,7 @@ int main()
             { "delayTime",    50.0f,  4000.0f, false, true,  true,    0.0f },   // v1.0.1: max 2000 -> 4000
             { "syncMode",      0.0f,     1.0f, true,  true,  false, 250.0f },
             { "noteDivision",  0.0f,    12.0f, true,  true,  false,   0.0f },
-            { "grainSize",    50.0f,   500.0f, false, true,  false,   0.0f },
+            { "grainSize",    50.0f,  4000.0f, false, true,  false,   0.0f },   // v1.5.0: max 500 -> 4000
             { "density",       0.0f,   100.0f, false, true,  false,   0.0f },
             { "feedback",      0.0f,   100.0f, false, true,  false,   0.0f },
             { "lowCut",       20.0f,  2000.0f, false, false, false,   0.0f },
@@ -1937,9 +1937,12 @@ int main()
     // randomisations on, which is the configuration nobody renders twice.
     {
         // W1 — max delay, max grain, max scatter, dense, heavy feedback.
+        // v1.5.0: "max grain" now means 4000 ms, which also makes this the
+        // block-size-invariance probe that exercises the widest possible latched
+        // read span (gD_max + 2·G_max) against the ring.
         setBaseline (apvts);
         setParam (apvts, "delayTime",   4000.0f);
-        setParam (apvts, "grainSize",    500.0f);
+        setParam (apvts, "grainSize",  ReverseDelayProcessor::kGrainSizeMaxMs);
         setParam (apvts, "density",      100.0f);
         setParam (apvts, "feedback",      80.0f);
         setParam (apvts, "width",        100.0f);
@@ -2078,7 +2081,7 @@ int main()
         const double thresh   = 6.0 * sineStep + margin;   // kStepFactorLoose
 
         setBaseline (apvts);
-        setParam (apvts, "grainSize", 500.0f);
+        setParam (apvts, "grainSize", ReverseDelayProcessor::kGrainSizeMaxMs);
         setParam (apvts, "density",   100.0f);   // overlap 8
         setParam (apvts, "feedback",   60.0f);
         setParam (apvts, "width",     100.0f);
@@ -2092,14 +2095,17 @@ int main()
 
         int peakActive = 0;
 
-        // Sweep grainSize 500 -> 50 -> 500 so long grains are always in flight
+        // Sweep grainSize max -> min -> max so long grains are always in flight
         // while short ones spawn beneath them — the review's stated steal trigger.
         auto pressure = [&] (int pos, int total)
         {
             peakActive = juce::jmax (peakActive, proc.getActiveGrainCount());
             const double t   = (double) pos / (double) total;
             const double tri = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;
-            setParam (apvts, "grainSize", 500.0f - (float) tri * 450.0f);
+            setParam (apvts, "grainSize",
+                      ReverseDelayProcessor::kGrainSizeMaxMs
+                        - (float) tri * (ReverseDelayProcessor::kGrainSizeMaxMs
+                                           - ReverseDelayProcessor::kGrainSizeMinMs));
         };
 
         auto y = renderEffect (proc, 6.0, fs, block,
@@ -2807,7 +2813,7 @@ int main()
 
         setBaseline (apvts);
         setParam (apvts, "grainCount", 16.0f);
-        setParam (apvts, "grainSize",  500.0f);
+        setParam (apvts, "grainSize",  ReverseDelayProcessor::kGrainSizeMaxMs);
         setParam (apvts, "density",    100.0f);   // overlap 16
         setParam (apvts, "feedback",    60.0f);
         setParam (apvts, "width",      100.0f);
@@ -2828,7 +2834,10 @@ int main()
             peakActive = juce::jmax (peakActive, proc.getActiveGrainCount());
             const double t   = (double) pos / (double) total;
             const double tri = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;
-            setParam (apvts, "grainSize", 500.0f - (float) tri * 450.0f);
+            setParam (apvts, "grainSize",
+                      ReverseDelayProcessor::kGrainSizeMaxMs
+                        - (float) tri * (ReverseDelayProcessor::kGrainSizeMaxMs
+                                           - ReverseDelayProcessor::kGrainSizeMinMs));
         };
 
         auto y = renderEffect (proc, 6.0, fs, block,
@@ -3636,6 +3645,151 @@ int main()
         }
 
         proc.setPlayHead (nullptr);
+    }
+
+    // --- Probe AH: ring coverage at the v1.5.0 maximum grain ------------------
+    //
+    // The defect this exists to catch: kGrainSizeMaxMs moved 500 -> 4000 ms, and
+    // the capture ring must cover gD_max + 2·G_max. If the ring is too short the
+    // engine does NOT fault — the tail of each long grain simply wraps onto
+    // material the writer has already overwritten. There is no NaN, no
+    // discontinuity at the wrap (the ring is contiguous), and every existing
+    // probe still passes. It just plays back the wrong audio.
+    //
+    // A finiteness/peak check cannot see that, so this probe tests ARRIVAL TIME
+    // instead, which the wrap destroys in a way that is trivially measurable.
+    //
+    // Configuration: D = 4000 ms, G = 4000 ms, mix 100 %, feedback 0, overlap 2,
+    // no randomisation, no window tilt. A grain spawned at output sample s reads
+    // source over [s − D − G, s − D] = [s − 8 s, s − 4 s]. Excite with a 1 s
+    // burst at the very start and hold silence after, so the ONLY source energy
+    // lives in [0, 1 s). The read window therefore overlaps the burst only while
+    // 4 s < s < 9 s, and the wet output must be silent before ~4 s.
+    //
+    // Under a too-short ring the read at (s − 8 s) wraps forward by the ring
+    // length — with v1.4.0's 6 s ring it would land at (s − 2 s), i.e. RECENT
+    // material — and the burst leaks into the early window. So "early window is
+    // silent" is exactly the assertion that fails on an undersized ring and
+    // passes on a correct one. The static_assert in PluginProcessor.h guards the
+    // same invariant at compile time; this one proves it end-to-end in audio.
+    {
+        setBaseline (apvts);
+        setParam (apvts, "syncMode",  0.0f);        // Free — D must be the knob
+        setParam (apvts, "delayTime", ReverseDelayProcessor::kDelayTimeMaxMs);
+        setParam (apvts, "grainSize", ReverseDelayProcessor::kGrainSizeMaxMs);
+        setParam (apvts, "density",   0.0f);        // overlap 2
+        setParam (apvts, "feedback",  0.0f);        // no recirculation to muddy timing
+        setParam (apvts, "mix",     100.0f);        // wet only
+        setParam (apvts, "width",     0.0f);
+        clearRandomisation();
+        clearWindow();
+        proc.prepareToPlay (fs, block);
+
+        const int    burstLen = (int) (1.0 * fs);
+        juce::Random rng ((juce::int64) 0x5eed12);
+        auto fill = [&] (int t)
+        {
+            return t < burstLen ? (float) (0.5 * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+        };
+
+        auto y = renderEffect (proc, 11.0, fs, block, fill);
+
+        // Early window [0.5 s, 3.5 s): strictly before the 4 s delay can deliver
+        // anything. Starts at 0.5 s to skip the direct-path settling of the very
+        // first block regardless of mix.
+        const double earlyRms = juce::jmax (rms (y.L, (int) (0.5 * fs), (int) (3.0 * fs)),
+                                            rms (y.R, (int) (0.5 * fs), (int) (3.0 * fs)));
+
+        // Arrival window [5 s, 9 s): the reversed burst must actually be here,
+        // or the probe would also pass on an engine that output nothing at all.
+        const double arrivedRms = juce::jmax (rms (y.L, (int) (5.0 * fs), (int) (4.0 * fs)),
+                                              rms (y.R, (int) (5.0 * fs), (int) (4.0 * fs)));
+
+        const double pk = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        // 60 dB of separation between "nothing has arrived" and "the grain is
+        // sounding" — a wrap leaks the burst itself, which is far above this.
+        const bool silentEarly = earlyRms < arrivedRms * 1.0e-3;
+
+        check ("ring-cover-maxgrain",
+               silentEarly && arrivedRms > 1.0e-4 && pk < 1.0
+                 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("earlyRms[0.5..3.5s]=") + juce::String (earlyRms, 9)
+                 + " arrivedRms[5..9s]=" + juce::String (arrivedRms, 7)
+                 + " ratio=" + juce::String (arrivedRms > 0.0 ? earlyRms / arrivedRms : -1.0, 9)
+                 + " peak=" + juce::String (pk, 4)
+                 + " ring=" + juce::String (ReverseDelayProcessor::kCaptureSeconds, 1) + "s");
+    }
+
+    // --- Probe AI: grainSize user-preset migration transform -------------------
+    //
+    // Guards migrateUserPresets()'s v1.5.0 arm. Deliberately tests the TRANSFORM
+    // rather than the file rewrite: the rewrite operates on
+    // ~/Library/O-ReverseDelay/Presets/User, and a harness that writes fixtures
+    // there would corrupt the developer's real preset library and burn the
+    // one-shot version sentinel. The filesystem plumbing is shared with the
+    // delayTime arm that has shipped since v1.0.1; the arithmetic is what is new,
+    // and the arithmetic is what silently recalls the wrong grain size.
+    //
+    // Asserts two things, and the second matters as much as the first:
+    //   1. Round trip — a stored fraction written against the OLD curve, pushed
+    //      through the migration, recalls the SAME milliseconds under the new one.
+    //   2. The migration is NECESSARY — the same fraction read directly under the
+    //      new curve is materially wrong. Without this, a migration that silently
+    //      did nothing would still pass (1).
+    {
+        juce::NormalisableRange<float> legacy { ReverseDelayProcessor::kGrainSizeMinMs,
+                                                ReverseDelayProcessor::kLegacyGrainSizeMaxMs, 0.01f };
+        legacy.setSkewForCentre (ReverseDelayProcessor::kLegacyGrainSizeSkewCentreMs);
+
+        const auto& current = apvts.getParameter ("grainSize")->getNormalisableRange();
+
+        // The eight factory grain sizes plus both legacy endpoints.
+        const float cases[] = { 50.0f, 70.0f, 120.0f, 180.0f, 200.0f,
+                                300.0f, 320.0f, 350.0f, 450.0f, 500.0f };
+
+        double worstErr   = 0.0;   // migrated recall error, ms
+        double leastDrift = 1.0e9; // smallest un-migrated error, ms
+        float  worstMs = 0.0f, driftMs = 0.0f, driftGot = 0.0f;
+
+        for (float ms : cases)
+        {
+            const float stored   = legacy.convertTo0to1 (ms);           // what v1.4.0 wrote
+            const float migrated = current.convertTo0to1 (
+                                       legacy.convertFrom0to1 (stored)); // what v1.5.0 rewrites it to
+
+            const double err = std::abs ((double) current.convertFrom0to1 (migrated) - (double) ms);
+            if (err > worstErr) { worstErr = err; worstMs = ms; }
+
+            // Same fraction, read straight off the NEW curve — the bug.
+            //
+            // Skip the range MINIMUM: 50 ms is a fixed point of both curves
+            // (fraction 0.0 maps to `start` at any skew), so it is the one value
+            // that legitimately survives without migration and would drag this
+            // bound to zero while proving nothing.
+            if (ms > ReverseDelayProcessor::kGrainSizeMinMs)
+            {
+                const double naive = (double) current.convertFrom0to1 (stored);
+                const double drift = std::abs (naive - (double) ms);
+                if (drift < leastDrift) { leastDrift = drift; driftMs = ms; driftGot = (float) naive; }
+            }
+        }
+
+        // 0.01 ms is the parameter's own step, so anything at or under it is
+        // quantisation rather than a transform error.
+        //
+        // The drift bound is 1 ms — two orders of magnitude above that step, and
+        // deliberately not tighter: both curves are pinned at 50 ms, so drift
+        // grows with the value (70 ms recalls ~61 ms, a 13 % error; the old
+        // 500 ms endpoint recalls 4000 ms). The SMALLEST interior drift is the
+        // honest thing to bound, and it sits at the bottom of the range.
+        check ("grainsize-preset-migration",
+               worstErr <= 0.01 && leastDrift > 1.0,
+               juce::String ("worstRecallErr=") + juce::String (worstErr, 6)
+                 + "ms @" + juce::String (worstMs, 0) + "ms"
+                 + " | unmigrated drift >= " + juce::String (leastDrift, 1)
+                 + "ms (e.g. " + juce::String (driftMs, 0) + " -> "
+                 + juce::String (driftGot, 1) + "ms)");
     }
 
     std::printf ("%s (%d failure%s)\n",

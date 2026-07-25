@@ -31,7 +31,7 @@ const RANGES = {
   // v1.0.1 raised delayTime's max 2000 -> 4000 (A1); the stub was left at 2000
   // and so rendered a knob whose readout disagreed with the plugin's.
   delayTime: { start: 50,  end: 4000,  skew: skewForCentre(50, 4000, 316),    interval: 0.01, def: 500 },
-  grainSize: { start: 50,  end: 500,   skew: skewForCentre(50, 500, 158),     interval: 0.01, def: 200 },
+  grainSize: { start: 50,  end: 4000,  skew: skewForCentre(50, 4000, 316),    interval: 0.01, def: 200 },
   density:   { start: 0,   end: 100,   skew: 1, interval: 0.1,  def: 60 },
   feedback:  { start: 0,   end: 100,   skew: 1, interval: 0.1,  def: 40 },
   lowCut:    { start: 20,  end: 2000,  skew: skewForCentre(20, 2000, 200),    interval: 0.01, def: 100 },
