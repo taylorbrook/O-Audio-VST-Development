@@ -62,7 +62,21 @@ const RANGES = {
   // range minimum: a stub defaulting it to 0.01 would render the page showing a
   // near-rectangular window the plugin never ships.
   tukeyTaper:   { start: 0.01, end: 1, skew: 1, interval: 0.01, def: 0.5 },
+
+  // v1.6.0 (B4 #2, #3) — MOTION panel. These two ARE plain zeros, unlike the
+  // three releases before them: 0 % is all-reverse and 0 dB is unity loop gain,
+  // both the engine's exact no-op. The end of regenMakeup must track
+  // ReverseDelayProcessor::kRegenMakeupMaxDb — that constant is a measured
+  // stability bound (probe AO), so a stub that drifts from it renders a knob
+  // whose top reads a value the plugin cannot reach.
+  direction:    { start: 0, end: 100, skew: 1, interval: 0.1, def: 0 },
+  regenMakeup:  { start: 0, end: 6,   skew: 1, interval: 0.1, def: 0 },
 };
+
+// v1.6.0 — bool parameters. `freeze` is the only one, and it needs its own map
+// because a ToggleState carries a boolean rather than a scaled value; feeding it
+// through RANGES would give app.js a SliderState for a parameter that has none.
+const TOGGLES = { freeze: false };
 
 const CHOICES = {
   syncMode: ["Free", "Sync"],
@@ -117,8 +131,25 @@ class StubComboBoxState {
   setChoiceIndex(i) { this.choiceIndex = i; this.valueChangedEvent.callListeners(); }
 }
 
+// v1.6.0 — mirrors juce/index.js's ToggleState: a boolean, getValue/setValue,
+// and the same two listener lists. Deliberately NOT a two-choice ComboBoxState,
+// because the whole point of stubbing it is to catch app.js calling the wrong
+// API for a bool — which in a real host is a switch that never updates.
+class StubToggleState {
+  constructor(name) {
+    this.name = name;
+    this.properties = { name, parameterIndex: 0 };
+    this.value = TOGGLES[name] ?? false;
+    this.valueChangedEvent = listenerList();
+    this.propertiesChangedEvent = listenerList();
+  }
+  getValue() { return this.value; }
+  setValue(v) { this.value = v; this.valueChangedEvent.callListeners(); }
+}
+
 const sliderStates = new Map();
 const comboStates = new Map();
+const toggleStates = new Map();
 
 export function getSliderState(name) {
   if (!sliderStates.has(name)) sliderStates.set(name, new StubSliderState(name));
@@ -128,6 +159,11 @@ export function getSliderState(name) {
 export function getComboBoxState(name) {
   if (!comboStates.has(name)) comboStates.set(name, new StubComboBoxState(name));
   return comboStates.get(name);
+}
+
+export function getToggleState(name) {
+  if (!toggleStates.has(name)) toggleStates.set(name, new StubToggleState(name));
+  return toggleStates.get(name);
 }
 
 // ── Preset backend stub (Stage 4) ───────────────────────────────────────────

@@ -415,19 +415,37 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // Both rows must share ONE width contract or the columns stop aligning.
     check(/\.group-random,/.test(css) && /\.group-count\s*\{\s*width:\s*276px/.test(css),
         'row-2 panels reuse row 1\'s pinned widths (190 | 190 | 276 | 190)');
-    // v1.3.0 renamed MOTION -> COUNT. Assert the old class is GONE from both
-    // files: a stale .group-motion rule left behind would be dead CSS that still
-    // looks like it pins a width, and the next reader would trust it.
-    // Matched as a SELECTOR (name followed by a comma or a brace), not as the
-    // bare word: the CSS legitimately mentions ".group-motion renamed" in the
-    // comment recording the change, and a substring test flags its own
-    // changelog.
-    check(!/\.group-motion\s*[,{]/.test(css) && !/class="[^"]*group-motion/.test(html),
-        'no .group-motion RULE or class attribute survives the v1.3.0 rename');
-    // v1.4.0: the envelope display lives INSIDE the WINDOW panel, under the three
-    // controls that shape it, so SPACE stays reserved and row 2 keeps a slot.
-    check(/\.group-space\s*[,{]/.test(css) && /class="group group-space"/.test(html),
-        'SPACE is still a reserved panel — row 2 has a slot left');
+    // v1.6.0 filled the last reserved panel: SPACE -> MOTION. The assertion that
+    // used to live here was the mirror image — v1.3.0 renamed row 2's 276 px
+    // column MOTION -> COUNT and this checked that no stale `.group-motion` rule
+    // survived it. The name is deliberately live again, on a DIFFERENT panel
+    // (190 px, row 2, column 4), so what has to be asserted is that it is REAL:
+    // a width rule, a class on the section, and three bound controls inside it.
+    check(/\.group-motion\s*[,{]/.test(css) && /class="group group-motion"/.test(html),
+        'MOTION is a real panel — .group-motion rule + class both present');
+    check(!/\.group-space\s*[,{]/.test(css) && !/class="[^"]*group-space/.test(html),
+        'no .group-space rule or class survives the v1.6.0 rename');
+    // The reserve is spent, so the ornament that stood in for an empty plate must
+    // go with it. A .group-reserved rule left behind is dead CSS that still reads
+    // like a live layout decision — the exact thing the v1.3.0 check above
+    // existed to catch, one release later and in the other direction.
+    check(!/\.group-reserved\s*[,{]/.test(css) && !/class="group-reserved"/.test(html),
+        'no reserved-panel ornament survives — every row-2 panel is filled');
+    {
+        const start = html.indexOf('class="group group-motion"');
+        const end   = start >= 0 ? html.indexOf('</section>', start) : -1;
+        const motion = start >= 0 && end > start ? html.slice(start, end) : '';
+        check(motion.includes('id="seg-freeze-on"')
+              && motion.includes('id="knob-direction"')
+              && motion.includes('id="knob-regenMakeup"'),
+            'Freeze, Direction and Regen are all inside the MOTION panel');
+    }
+    // Both MOTION overrides must be SCOPED. `.segments` and `.segment` are shared
+    // with TIME's vertical Free/Sync pair, so an unscoped `flex-direction: row`
+    // here would lay that one out sideways too — the same class of change the
+    // WINDOW scoping check below guards against.
+    check(/\.group-motion \.segments\s*\{/.test(css) && /\.group-motion \.segment\s*\{/.test(css),
+        'MOTION\'s segment overrides are scoped to that panel');
     // Extract the WINDOW <section> and look inside it, rather than guessing a
     // character distance — the panel carries long comments and a fixed lookahead
     // silently reported "not inside" for markup that was.
@@ -594,14 +612,36 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
 {
     const processorCpp = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.cpp'), 'utf8');
 
-    // Float params declared in createParameterLayout(). The two choice params
-    // (syncMode, noteDivision) are deliberately excluded — they are not knobs.
+    // Float params declared in createParameterLayout(). The three choice params
+    // (syncMode, noteDivision, grainShape) and — since v1.6.0 — every BOOL param
+    // are deliberately excluded: none of them is a knob, and each reaches the
+    // page through a relay of its own type.
     const layoutIds = new Set();
     for (const m of processorCpp.matchAll(/ParameterID\s*\{\s*"([A-Za-z0-9_]+)",\s*1\s*\}/g))
         layoutIds.add(m[1]);
     for (const m of processorCpp.matchAll(/AudioParameterChoice>\(\s*\n?\s*juce::ParameterID\s*\{\s*"([A-Za-z0-9_]+)"/g))
         layoutIds.delete(m[1]);
     ['syncMode', 'noteDivision', 'grainShape'].forEach(id => layoutIds.delete(id));
+
+    // v1.6.0 — bool params, scraped the same way the choices are, and then
+    // closed against kToggleIds in BOTH directions below. Removed from layoutIds
+    // first so the knob closure does not report `freeze` as a missing knob.
+    //
+    // This is the check that catches a bool landing in the wrong relay list.
+    // WebSliderRelay attaches to an AudioParameterBool without complaint and
+    // produces a control whose state never updates — build, auval and pluginval
+    // all pass, and the switch is simply dead
+    // (pattern_webview_native_fn_bridge_gap by a different route).
+    const boolIds = new Set();
+    for (const m of processorCpp.matchAll(/AudioParameterBool>\(\s*\n?\s*juce::ParameterID\s*\{\s*"([A-Za-z0-9_]+)"/g)) {
+        boolIds.add(m[1]);
+        layoutIds.delete(m[1]);
+    }
+
+    const toggleIds = new Set();
+    const toggleBlock = editorCpp.match(/kToggleIds\s*\{([\s\S]*?)\};/);
+    if (toggleBlock)
+        for (const m of toggleBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)) toggleIds.add(m[1]);
 
     const editorIds = new Set();
     const sliderBlock = editorCpp.match(/kSliderIds\s*\{([\s\S]*?)\};/);
@@ -622,6 +662,39 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     const diff = (a, b) => [...a].filter(x => !b.has(x));
 
     check(sliderBlock && knobBlock, 'kSliderIds and KNOB_IDS blocks both found');
+
+    // v1.6.0 — the bool closure, asserted in both directions and end to end:
+    // APVTS bool <-> editor kToggleIds <-> a segment pair in the HTML <-> a
+    // getToggleState() call in app.js. Four places, exactly like the knobs.
+    check(!!toggleBlock, 'kToggleIds block found in PluginEditor.cpp');
+    check(diff(boolIds, toggleIds).length === 0 && diff(toggleIds, boolIds).length === 0,
+        `APVTS bool params == editor kToggleIds (${boolIds.size})`
+        + (diff(boolIds, toggleIds).length ? ' — NO RELAY: ' + diff(boolIds, toggleIds).join(', ') : '')
+        + (diff(toggleIds, boolIds).length ? ' — NO PARAM: ' + diff(toggleIds, boolIds).join(', ') : ''));
+
+    // A bool must reach the page through getToggleState, never getSliderState or
+    // getComboBoxState — the wrong call builds a state the backend never updates.
+    //
+    // Tested against app.js with COMMENTS STRIPPED, and that is not fastidiousness:
+    // the first run of this check failed because app.js's own header explains the
+    // trap in prose containing the literal `getSliderState("freeze")`, so the file
+    // was flagged by its own documentation of the thing it does not do. Exactly
+    // the failure the .group-motion selector check above records — a substring
+    // test reading a changelog as code — and the fix is the same one, applied to
+    // the other language.
+    const appJsCode = appJs
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+    for (const id of boolIds) {
+        check(new RegExp(`getToggleState\\(\\s*(TOGGLE_[A-Z_]+|["']${id}["'])`).test(appJsCode),
+            `${id} is bound with getToggleState in app.js (not a slider or combo state)`);
+        check(!new RegExp(`getSliderState\\(\\s*["']${id}["']`).test(appJsCode)
+              && !new RegExp(`getComboBoxState\\(\\s*["']${id}["']`).test(appJsCode),
+            `${id} is NOT bound as a slider or combo state`);
+        check(!jsIds.has(id) && !editorIds.has(id),
+            `${id} is absent from KNOB_IDS and kSliderIds (a bool has no SliderState)`);
+    }
 
     check(diff(layoutIds, editorIds).length === 0 && diff(editorIds, layoutIds).length === 0,
         `APVTS float params == editor kSliderIds (${layoutIds.size})`
@@ -679,6 +752,12 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
                              // is stored DENORMALISED, so there is no migration
                              // available if this is ever wrong
                              // (critical_apvts_denormalised_vs_preset_normalised).
+        direction:    0,     // v1.6.0 (B4 #2) — all-reverse, the shipped read law.
+        regenMakeup:  0,     // v1.6.0 (B4 #3) — 0 dB, i.e. regenMakeupGain()
+                             // returns exactly 1.0f and the loop gain is bitwise
+                             // what v1.5.0 shipped. First release since v1.1.0
+                             // where the new controls' no-ops really ARE zero,
+                             // which is why they sit in this table by value.
     };
 
     // grainCount's default is written as the named constant kLegacyOverlapMax
@@ -748,6 +827,31 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         check(!!decl && Number(decl[1]) === expected,
             `${id} defaults to ${expected} (existing sessions and presets must be unchanged)`
             + (decl ? ` — got ${decl[1]}` : ' — declaration not found'));
+    }
+
+    // v1.6.0 — freeze is a BOOL, so its default is a trailing `false` rather than
+    // a float, and the numeric scan above cannot see it. Asserted separately for
+    // the same reason every other new parameter's default is: a v1.0-v1.5 session
+    // has no key here, resolves to this, and must not arrive frozen.
+    {
+        const decl = processorCpp.match(
+            /AudioParameterBool>\(\s*\n?\s*juce::ParameterID\s*\{\s*"freeze",\s*1\s*\}[\s\S]{0,120}?,\s*(true|false)\)\);/);
+        check(!!decl && decl[1] === 'false',
+            'freeze defaults to false (an existing session must not open held)'
+            + (decl ? ` — got ${decl[1]}` : ' — declaration not found'));
+    }
+
+    // v1.6.0 — regenMakeup's ceiling is a MEASURED stability bound, not a taste,
+    // so the parameter range must come FROM the named constant. A literal here
+    // that drifted above kRegenMakeupMaxDb would let the knob reach a setting the
+    // loop-stability probe never measured — and the failure is a clipped output
+    // at extreme settings, which nothing else in the suite would report.
+    {
+        const procH = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.h'), 'utf8');
+        check(/ParameterID\s*\{\s*"regenMakeup",\s*1\s*\}[\s\S]{0,300}?kRegenMakeupMaxDb/.test(processorCpp),
+            'regenMakeup\'s range max is kRegenMakeupMaxDb, not a literal');
+        check(/regenMakeupGain[\s\S]{0,200}?dB <= 0\.0f[\s\S]{0,60}?return 1\.0f;/.test(procH),
+            'regenMakeupGain returns exactly 1.0f at 0 dB (the bitwise no-op)');
     }
 
     // grainShape is a choice, so its default is a trailing INDEX rather than a

@@ -8,23 +8,36 @@
 
    ── v1.1.0: the chassis expansion, done ONCE ──────────────────────────────
    Row 1 (215 px)  TIME | GRAIN | FEEDBACK | OUTPUT   — signal flow (D9)
-   Row 2 (245 px)  RANDOM | WINDOW | COUNT | SPACE    — character controls
+   Row 2 (245 px)  RANDOM | WINDOW | COUNT | MOTION   — character controls
+
+   v1.6.0 filled the last of those (SPACE -> MOTION: Freeze, Direction, Regen)
+   and the chassis is now full. It held for five releases and eleven new
+   controls without the window moving once, which is what the one-time expansion
+   was for. The next control to arrive is the row-3 / MORE-page decision from the
+   v1.0.0 review's section D, and it now genuinely arrives rather than being
+   deferred again — see .group-motion below.
+
+   ── Earlier record, superseded by the block above ─────────────────────────
+   Kept because each entry says what a release cost, which is the argument for
+   the one-time expansion. Read them as history, not as current state — SPACE no
+   longer exists and nothing on the page is reserved.
 
    v1.4.0 put the window-shape display INSIDE the WINDOW panel, beneath the three
-   controls that shape it, rather than in a panel of its own. That reads better —
-   Shape, then Tilt/Taper, then the resulting window — and it leaves SPACE
-   reserved, so the row-3 / MORE-page decision (v1.0.0 review, section D) is still
-   one release away rather than due now. The cost is paid inside WINDOW: its
+   controls that shape it, rather than in a panel of its own. That read better —
+   Shape, then Tilt/Taper, then the resulting window — and it left SPACE
+   reserved, so the row-3 / MORE-page decision (v1.0.0 review, section D) was
+   still one release away at the time. The cost was paid inside WINDOW: its
    knobs, select and gaps shrink slightly, all via .group-window-scoped rules that
    touch no other panel. No panel width, position or height changed, so the
-   tooltip clamp geometry is untouched.
+   tooltip clamp geometry was untouched.
 
    v1.3.0 renamed row 2's third panel MOTION -> COUNT and filled it (B2). Only
    the label text and the class suffix changed; the 276 px width, the position
-   and the height are all inherited unchanged, so the frame geometry every
-   tooltip clamp was verified against is the same geometry. The name moved
-   because delay-time drift — what "Motion" described — is a later release's
-   control and now waits in SPACE.
+   and the height were all inherited unchanged, so the frame geometry every
+   tooltip clamp had been verified against was the same geometry. The name moved
+   because delay-time drift — what "Motion" described there — is a later
+   release's control. (v1.6.0 has since put the name back, on row 2's FOURTH
+   panel and for an unrelated set of controls; see .group-motion below.)
 
    484 + 14 (row gap) + 245 = 743, so .groups has EXACTLY zero slack: row 1
    sits where Stage 3 left it and row 2 consumes the entire height increase.
@@ -305,9 +318,9 @@ body {
 .group-output,
 .group-random,
 .group-window,
-.group-space    { width: 190px; }
+.group-motion   { width: 190px; }   /* v1.6.0: .group-space filled + renamed */
 .group-feedback,
-.group-count    { width: 276px; }   /* v1.3.0: .group-motion renamed, same width */
+.group-count    { width: 276px; }   /* v1.3.0: row 2's 276 px column, was labelled Motion */
 
 /* Row 2 is 30 px taller than row 1 because its bodies wrap to two knob-cell
    rows. 215 + 14 + 245 = 474 = the height .groups has at 743 px, exactly. */
@@ -321,22 +334,51 @@ body {
   row-gap: 12px;
 }
 
-/* ── Reserved panels ─────────────────────────────────────────────────────── */
-/* SPACE is framed and labelled so the chassis is final, but holds no controls
-   yet. WINDOW was filled at v1.2.0 and COUNT at v1.3.0, neither touching this
-   rule — which was the point of framing them early. An empty frame reads as
-   broken, so the panel carries a dimmed fleuron (the page's own ornament, already
-   in the preset bar and footer), which reads as a plate awaiting its specimen.
+/* ── MOTION panel: the last reserve, spent (v1.6.0) ───────────────────────── */
+/* v1.1.0 framed four row-2 panels and filled one; WINDOW followed at v1.2.0,
+   COUNT at v1.3.0, and this one — SPACE — at v1.6.0. The .group-reserved rule
+   that drew a dimmed fleuron in an empty frame went with it: nothing on the page
+   is reserved any more, and a rule kept "in case" would be dead CSS that still
+   reads like a live layout decision.
 
-   To fill one: drop .knob-cell markup into its .group-body and delete the
-   .group-reserved span. No CSS change, no resize, no tooltip re-verification. */
-.group-reserved {
-  margin: auto;
-  font-size: 26px;
-  color: var(--fleuron-color);
-  opacity: 0.55;
-  user-select: none;
+   Row 2 is now RANDOM | WINDOW | COUNT | MOTION, and the chassis is full. The
+   next new control is the row-3 / MORE-page decision the v1.0.0 review's
+   section D warns about — which now genuinely arrives, rather than being one
+   release away as it has been since v1.1.0.
+
+   NOTE for anyone reading the v1.3.0 history: `.group-motion` was briefly the
+   class on row 2's 276 px column before that panel was renamed COUNT, and
+   ui_frontend_check.js used to assert the name was gone precisely to catch a
+   stale rule surviving that rename. The name is deliberately live again here, on
+   a DIFFERENT panel — 190 px, row 2, column 4 — and the check now asserts the
+   panel is real and filled instead.
+
+   Cost of filling it: this comment, one width alias above, and the two rules
+   below. No panel width, position or height moved, so the tooltip edge-clamp
+   geometry is the one already verified at 940 px
+   (pattern_tooltip_clamp_gate_viewport_sensitive). */
+
+/* Freeze is a STATE, not an amount, so it takes TIME's segment vocabulary rather
+   than a knob — but laid out horizontally and full-width, which forces the two
+   knob-cells below it onto their own wrapped row with no explicit ordering.
+   flex-basis 100% is the same mechanism .env-cell uses inside WINDOW.
+
+   Both overrides are scoped to this panel: .segments and .segment are shared
+   with the TIME panel's vertical Free/Sync pair, and an unscoped edit here would
+   turn that one sideways too. */
+.group-motion .segments {
+  flex: 0 0 100%;
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
 }
+
+/* 2 x 75 + 8 = 158, which is exactly the 190 px panel's content box (190 − 2×14
+   padding − 2×2 border) — the same "zero slack" arithmetic the row geometry and
+   the WINDOW panel's height budget both use. Two 72 px knob-cells plus the
+   body's 14 px gap land on the same 158, so the segment pair and the knob row
+   share one edge-to-edge width. */
+.group-motion .segment { width: 75px; }
 
 /* ── WINDOW panel: making room for the envelope display (v1.4.0) ──────────── */
 /* The graph sits under Shape / Tilt / Taper inside WINDOW, which needs ~73 px the

@@ -23,10 +23,11 @@
 
 // O-ReverseDelay — granular reverse delay (Stage 2 DSP, Phase 2.3 complete:
 // reverse wet path + damped tanh-stable feedback loop + tempo sync + width).
-// APVTS with 17 parameters: the 10 of research/ARCHITECTURE.md's immutable
+// APVTS with 21 parameters: the 10 of research/ARCHITECTURE.md's immutable
 // contract, plus v1.1.0's four grain randomisations (B3), v1.2.0's two window
-// controls (B1) and v1.3.0's overlap ceiling (B2), all of which are ADDITIVE —
-// every one defaults to the engine's no-op, so the contract's behaviour is the
+// controls (B1), v1.3.0's overlap ceiling (B2), v1.4.0's Tukey taper and
+// v1.6.0's three MOTION controls (B4 #1-#3), all of which are ADDITIVE — every
+// one defaults to the engine's no-op, so the contract's behaviour is the
 // default behaviour.
 // NOTE: this file (and PluginProcessor.cpp) must stay free of editor-only includes —
 // the render harness compiles the processor without any editor sources.
@@ -349,6 +350,108 @@ public:
         return std::pow (overlap / kLegacyOverlapMax, -kLoopCountTrimExponent);
     }
 
+    //==========================================================================
+    // v1.6.0 (B4 #2) — the direction blend.
+    //
+    // `direction` is the PROBABILITY, in percent, that a grain is latched
+    // forward at spawn. 0 = every grain reverse (the shipped engine), 100 =
+    // every grain forward, and the interval between is a genuine mix of the two
+    // read laws rather than a crossfade between two renders.
+    //
+    // Default 0 is the engine's exact no-op in the strong sense this plugin has
+    // used since v1.1.0: the draw that decides a grain's direction is GATED on
+    // direction > 0, so at the default the shared xorshift is not touched, the
+    // pan sequence is unmoved, and `readAbs += step` with step == −1 is the same
+    // integer operation `--readAbs` was. Probe AM asserts bit-equality against a
+    // defaults render rather than trusting either half of that.
+    //
+    // See WindowLut::getForwardNorm for why the forward half needs an output
+    // trim and the feedback tap does not.
+    static constexpr float kDirectionMaxPct = 100.0f;
+
+    //==========================================================================
+    // v1.6.0 (B4 #3) — the regeneration makeup.
+    //
+    // D11 declined this at v1.0 as a HIDDEN constant, and that decision stands:
+    // what ships here is the same gain as a user control defaulting to 0 dB, so
+    // every existing session, preset and factory patch is bit-for-bit unchanged
+    // and the only thing that has appeared is a knob (see
+    // pattern_activating_dead_param_default_timbre). Fifth release running whose
+    // new parameter's no-op is a specific number; this is the first where that
+    // number is also the range MINIMUM, which makes it the easy one.
+    //
+    // What it buys: the topology loses ≈7.3 dB per generation at width 0 —
+    // −4.3 dB of Hann-squared duty plus −3.0 dB of the pan-to-mono-sum round
+    // trip (probe AG's note: width is also a decay control here, costing 6 dB at
+    // width 100 rather than 3) — so "Near-Infinite" at feedback 100 cannot in
+    // fact self-sustain. It decays, slowly. This makes true sustain reachable
+    // without moving anybody's default.
+    //
+    // ── The cap is a MEASURED number, not a chosen one ───────────────────────
+    //
+    // Probe AO renders a ladder in 1 dB steps at feedback 100, width 0 (the
+    // loop's worst case — see probe AG), and the ceiling is read off it:
+    //
+    //   shipped ceiling (grainCount 8, density 65, Hann) — peak / decay dB/s
+    //     0 dB 0.262/−2.09   1 dB 0.275/−0.65   2 dB 0.445/+0.53
+    //     4 dB 0.760/+0.26   6 dB 0.834/+0.08  12 dB 0.860/+0.03
+    //
+    // Two things fall out, and 6 dB is where they meet:
+    //
+    //   * SUSTAIN arrives at 2 dB here, and needs roughly 3 dB more at width 100
+    //     (the pan-to-mono-sum round trip costs 6 dB there against 3 at width 0).
+    //     6 dB clears every configuration's threshold with margin.
+    //   * Past ~6 dB the control STOPS DOING ANYTHING. The tanh is already
+    //     limiting, so the decay rate plateaus at +0.03 dB/s and the peak at
+    //     0.86 — 12 dB buys 0.026 dB/s over 6 dB. A knob whose top half is inert
+    //     is a worse control than a shorter one.
+    //
+    // ── What the cap does NOT guarantee, stated plainly ──────────────────────
+    //
+    // The tanh bounds the LOOP to ±1 per sample at every setting, which is the
+    // safety property and the one the brief asked for. It does not bound the wet
+    // OUTPUT. The output sums `overlap` grains reading self-similar limited
+    // content, so once the loop is saturating the wet peak approaches
+    //     sqrt(overlap) · mean · windowNorm
+    // — 1.41 for Hann at overlap 8, 1.57 for Tukey, 2.2 for Tukey at overlap 16.
+    // That is the same shortfall behind v1.3.0's 1.28 peak, which loopCountTrim
+    // fixed by preventing self-oscillation rather than by bounding the sum.
+    //
+    // Enabling self-oscillation on purpose brings it back, and the measurements
+    // say no useful cap avoids it:
+    //     ceiling 8,  density 100, 6 dB — peak 0.99 (Hann) … 1.10 (Tukey)
+    //     ceiling 16, density 100, 6 dB — peak 1.40 (Hann) … 1.55 (Tukey)
+    //     ceiling 16, density 100, 1 dB — peak 0.98, and that corner is already
+    //                                     at −0.18 dB/s with NO makeup, because
+    //                                     kLoopCountTrimExponent was derived to
+    //                                     make it just barely decay.
+    // So a cap that held peak < 1.0 everywhere would be ~1 dB, which reaches
+    // sustain nowhere. The choice is between a control that does nothing and a
+    // documented one.
+    //
+    // The peak < 1.0 invariant the rest of the suite asserts therefore belongs
+    // to the NON-SELF-OSCILLATING engine — which is regen 0 dB, i.e. the
+    // default, every factory preset and every session written before v1.6.0.
+    // Above it the plugin is doing what a self-oscillating delay does. What
+    // probe AO still requires everywhere is that the output is finite, that it
+    // CONVERGES rather than climbing, and that it stays under a hard 1.8 — a
+    // runaway that had not yet reached the limiter would fail all three.
+    //
+    // Raising this constant means re-running that ladder, not re-reasoning about
+    // it.
+    static constexpr float kRegenMakeupMaxDb = 6.0f;
+
+    /** dB -> linear, for the feedback tap. Exactly 1.0f at 0 dB — std::pow
+        returns exactly 1.0 for a zero exponent — which is what makes the default
+        a bitwise no-op rather than a value very close to one. */
+    static float regenMakeupGain (float dB) noexcept
+    {
+        if (dB <= 0.0f)
+            return 1.0f;
+
+        return std::pow (10.0f, juce::jmin (dB, kRegenMakeupMaxDb) * 0.05f);
+    }
+
     /** Capture ring length. Must cover the WORST-CASE latched read span,
         gD_max + 2·G_max, where v1.1's delayScatter extends gD_max beyond the
         delayTime range:
@@ -554,6 +657,38 @@ private:
     // the FOURTH release running whose new parameter's no-op is a specific
     // number rather than zero. 0.01 would ship a near-rectangular window.
     std::atomic<float>* pTukeyTaper   = nullptr;
+
+    // v1.6.0 (B4 #1-#3) — MOTION panel. All three no-ops are the range minimum
+    // for once: freeze off, direction 0 (all-reverse), regen 0 dB. That is the
+    // v1.1.0 situation rather than the v1.2-v1.4 one, and it is worth saying so
+    // explicitly, because "the new control's neutral value is zero" has been
+    // WRONG for three consecutive releases here and a reader arriving from those
+    // would reasonably expect a fourth trap.
+    std::atomic<float>* pFreeze       = nullptr;
+    std::atomic<float>* pDirection    = nullptr;
+    std::atomic<float>* pRegenMakeup  = nullptr;
+
+    /** v1.6.0 (B4 #1) — the freeze crossfade, 0 = writing, 1 = held.
+        Smoothed on the same ~20 ms as feedback/mix/cutoffs, and smoothed for a
+        different reason than any of them: it is not the audible level that would
+        step at the boundary but the ring's CONTENT, which splices from live
+        capture to material a full ring lap old. See CaptureBuffer::pushBlended. */
+    juce::SmoothedValue<float> freezeSmoothed;
+
+    /** v1.6.0 (B4 #1) — how long the frozen loop is, latched when the hold
+        begins and held until it ends.
+
+        Latched to how much has ACTUALLY been captured, not to the ring length.
+        The ring is kCaptureSeconds long and starts cleared, so a freeze in the
+        first 13 s of a session would otherwise loop over material that was never
+        written and the wash would fall silent mid-hold — which is not a corner
+        case, it is what happens the first time anybody presses the button.
+        Capped at bufferSize − 1 so the read can never land on the position about
+        to be written. Probe AP is the standing guard. */
+    int  freezeLoopSamples = 1;
+
+    /** Edge detector for the latch above — the previous block's freeze target. */
+    bool freezeEngaged = false;
 
     //==========================================================================
     // v1.3.0 (B2) — meter + spawn accounting, all published by processBlock and

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.0
+- **Version:** 1.6.0
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -41,6 +41,20 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 
   Two stale mirrors found and fixed, both of which would have kept passing while lying. `tests/render-harness/CMakeLists.txt` pinned `JucePlugin_VersionString="1.2.0"` while the plugin shipped 1.3.0 and 1.4.0 — the file's own comment warns this value is load-bearing (both preset sentinels key off it), so probes N and R spent two releases auditing v1.2.0's on-disk presets. And `tests/ui-stub/juce-stub.js` still declared `grainSize` as 50–500 centre-158, which would have made every browser-rendered readout disagree with the plugin. The new stub assertion checks against the **C++ constants** rather than repeating literals, since a literal in the test drifts exactly as silently as the one it is guarding.
 
+- **2026-07-25 (v1.6.0):** Minor — the **MOTION** panel (review B4 #1–#3): `freeze` (bool, off), `direction` (0–100 %, 0 = all-reverse) and `regenMakeup` (0–6 dB, 0 dB). All three no-ops are plain zero, which makes this the first release since v1.1.0 where the reflex "default the new control to 0" is *correct* — v1.2.0 (tilt 0.5), v1.3.0 (count 8) and v1.4.0 (taper 0.5) each trapped it. Fills the last reserved panel (SPACE → MOTION), **markup + one width alias + two scoped rules, no resize** — so the 940 × 743 frame and the tooltip clamp geometry are the ones already verified. The chassis framed at v1.1.0 is now full; the next new control is genuinely the row-3 / MORE-page decision from the review's section D. First `WebToggleButtonRelay` in the plugin (`freeze` is its only `AudioParameterBool`). Harness 108→**122 probes**, all passing; `ui_frontend_check.js` 129 checks; auval SUCCEEDED, pluginval-10 ×3.
+
+  **Freeze took three implementations.** Stopping the write head makes every grain spawned during the hold latch the *same* `readAbs` — the output goes strictly periodic at the spawn interval, a ~28 Hz buzz. Advancing the head without writing fixes that and then falls **silent**, because the read sweeps over the whole 13 s ring including however much was never written; probe AP measured rms at 10 s / 30 s / 60 s all `0.000000` on a freeze 3 s after load. What ships keeps writing and writes a **copy of the ring `freezeLoopSamples` back**, latched on the rising edge to how much has *actually* been captured. Unity-gain copy, so a hold cannot grow or decay: 60 s frozen renders at **0.04 dB** of drift. The ~20 ms transition crossfade blends against the looped material rather than ramping the input to zero (which would *erase* the ring), so it doubles as the loop's seam.
+
+  **Forward grains sum coherently, and that is why this is a reverse delay.** At output time `t` a grain reads `2s − gD − t` reversed but `t − gD` forward — independent of its spawn sample — so every forward grain in flight reads the *same* source sample and the forward set adds in amplitude (`N·m`) where the reverse set adds in power (`√(N·q)`): **+7.3 dB** uncorrected at overlap 8. The s-dependence that decorrelates grains comes from the read head moving opposite to the write head; a unit-rate forward read is a plain delay tap by construction. `WindowLut::getForwardNorm` cancels it on the **output** only (`√(q_eff/N)/m_eff`, derived); the feedback tap needs nothing because `getLoopNorm` already models the loop as a coherent sum. Measured spread across the knob: **0.95 dB**. The residual ~0.9 dB mid-travel sag is derived, not overlooked — mixing a coherent set with an incoherent one gives `q·[p² + p(1−p)q/(Nm²) + (1−p)]`.
+
+  **The collision question answered the other way.** A forward read head moves *toward* the write head, so the review flagged it as possibly needing its own clamp. It needs none: at pass-relative `k` a forward grain reads `passStartAbs − gD + k`, and v1.0.1's A2 pass bound already gives `k < passLen ≤ grainDelayFloor ≤ gD`. Its ring span is `gD + G` — **smaller** than reverse's `gD + 2·G`. Probe AM proves it in audio: correlation with the input delayed by exactly D is **1.0000** forward, 0.0038 reverse.
+
+  **The regen ceiling is read off a ladder, not chosen.** At feedback 100 / width 0: sustain arrives at **2 dB** (peak 0.445), and past ~6 dB the control stops doing anything because the tanh is already limiting (12 dB buys 0.026 dB/s over 6 dB). Hence 6 dB. What the cap does **not** give is a bounded output: the tanh bounds the *loop* to ±1, but the wet path sums `overlap` grains of self-similar limited content and approaches `√overlap·mean·windowNorm` — 1.41 (Hann, overlap 8) to 1.55 (Tukey, overlap 16). Same shortfall as v1.3.0's 1.28 peak, which `loopCountTrim` fixed by *preventing* self-oscillation rather than bounding the sum. A cap holding peak < 1.0 everywhere would be ~1 dB and reach sustain nowhere. So **peak < 1.0 is an invariant of the 0 dB engine** — the default and every factory preset — and probe AO requires finite + convergent + under a hard 1.8 above it. Direction likewise costs up to 1.09 dB/s of decay (at direction 100 the loop *is* a plain feedback delay); every rate stays negative.
+
+  "Near-Infinite" is deliberately **not** re-authored to self-sustain, even though that is the review's stated motivation — it is a shipped sound, and true sustain is now one knob away.
+
+  Two stale test fixtures fixed, both of which had been passing while lying. `ui_tooltip_clamp_check.js` asserted a hardcoded `boundReadouts === 15` and had failed for the same non-reason three releases running; it now parses `KNOB_IDS`. And the new bool-binding check in `ui_frontend_check.js` flagged app.js's own header comment, which explains the trap in prose containing `getSliderState("freeze")` — comments are stripped before the binding regexes run, the same fix the `.group-motion` selector check already carried for CSS.
+
 ## Known Issues
 
 - **The WINDOW panel has ~1 px of vertical slack.** Its budget is 212 of 213 px
@@ -49,9 +63,34 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   the numbers are in the CSS comment beside the `.group-window` overrides. Those
   overrides are deliberately SCOPED: `.knob`, `.knob-cell`, `.select-cell` and
   `.division-select` are shared by all eight panels.
-- **Row 2 still has one reserved panel (SPACE).** The next new control after that
-  forces a third row or a MORE page (v1.0.0 review, section D), and a resize
-  invalidates the tooltip edge-clamp verification, which is viewport-sensitive.
+- **The UI chassis is FULL as of v1.6.0.** Row 2 is
+  RANDOM | WINDOW | COUNT | MOTION and nothing is reserved any more. The next new
+  control forces a third row or a MORE page (v1.0.0 review, section D). A resize
+  invalidates the tooltip edge-clamp verification, which is viewport-sensitive
+  and must be re-measured at the real shipping width, not a default browser one.
+- **`regenMakeup` above ~2 dB can put the wet output over 1.0**, and this is
+  documented rather than fixed. The tanh bounds the *loop* to ±1 at every
+  setting; it does not bound the output, which sums `overlap` grains of
+  self-similar limited content and approaches `√overlap·mean·windowNorm` —
+  measured 0.99 (Hann, overlap 8) to 1.55 (Tukey, overlap 16) at the 6 dB
+  ceiling. Same mechanism as v1.3.0's 1.28 peak, which `loopCountTrim` fixed by
+  *preventing* self-oscillation rather than by bounding the sum. A cap holding
+  peak < 1.0 everywhere would be ~1 dB and would reach sustain nowhere, so
+  **peak < 1.0 is an invariant of the 0 dB engine** — the default, every factory
+  preset and every pre-v1.6.0 session. Probe AO still requires finite, convergent
+  and under a hard 1.8 above it.
+- **`direction` shortens the tail**, by up to 1.09 dB/s at feedback 100. Not a
+  missing trim: at direction 100 the loop *is* a plain feedback delay
+  (N grains reading one sample), which is a different feedback structure from a
+  reverse smear and cannot have the same decay rate. Every rate stays negative.
+  The 75 % dip below both endpoints is the same mutual-decorrelation effect as
+  the output-level sag — a mix of the two sets sums to `√(fwd² + rev²)`.
+- **`direction` at 100 % with `delayScatter` at 0 is a clean delay, not a
+  cloud.** Forward grains all read the same source sample, so they cannot
+  decorrelate among themselves at unit read rate — that is exactly why the plugin
+  is a *reverse* delay. Scatter is the companion control: a scattered grain
+  latches a different `gD` and therefore reads a different point. Noted in the
+  Direction tooltip.
 - `tukeyTaper` is **inert unless `grainShape` is Tukey**. The knob dims and sets
   `aria-disabled`, but stays relay-bound and adjustable, so a value set before
   switching to Tukey is honoured. Deliberate: hiding it would make the WINDOW
