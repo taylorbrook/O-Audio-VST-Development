@@ -608,6 +608,20 @@ public:
         chose, not with anything the user can dial in. */
     static constexpr float kCaptureSeconds         = 14.0f;
 
+    /** v1.7.2 (WR-03) — the damping filters' control rate, in samples.
+
+        32 samples is ~0.67 ms at 48 kHz, i.e. ~30 updates across the 20 ms
+        smoothing contract, which resolves a cutoff sweep finely enough that the
+        biquad coefficient steps are inaudible inside the feedback loop.
+
+        Fixed in SAMPLES on purpose, not derived from the host's block size: the
+        point of the constant is that the update grid follows the sample rate and
+        nothing else, so a render is identical at 512 and at 4096. It is consumed
+        through coeffCountdown, which persists across blocks and passes — a grid
+        anchored to a pass offset would shift whenever passLen is not a multiple
+        of this (grainDelayFloor is 2205 at 44.1 kHz). */
+    static constexpr int kCoeffUpdateSamples = 32;
+
     // The ring requirement, as a COMPILE-TIME assertion rather than a comment.
     //
     // Every prose description of this invariant above was already correct at
@@ -675,6 +689,27 @@ private:
     // enabled/bypass flag exists (O-MultiBandCompressor v1.6.0 lesson).
     float lastLowCut  = -1.0f;
     float lastHighCut = -1.0f;
+
+    /** v1.7.2 (WR-03) — samples remaining before the next damping-coefficient
+        refresh.
+
+        Deliberately a MEMBER and not a loop-local: it carries the remainder
+        across block and pass boundaries, which is what makes the update grid
+        continuous in stream time and therefore identical at every host block
+        size. Reset to 0 in prepareToPlay()/reset() so the first block after a
+        (re)start updates immediately. */
+    int coeffCountdown = 0;
+
+    /** Advances the two cutoff smoothers by `numSamples` and refreshes the
+        damping filters' coefficients if either value actually moved.
+
+        Called from step 5 of processBlock on the kCoeffUpdateSamples grid. RT-safe:
+        ArrayCoefficients returns a stack std::array and operator= assigns the
+        normalised values in place into the existing Coefficients — no allocation
+        (pattern_arraycoefficients_rt_safe_iir). The exactlyEqual guards gate only
+        the recompute, never an enabled flag
+        (pattern_conditional_coeff_update_leaks_enabled_flag). */
+    void updateDampingCoefficients (int numSamples) noexcept;
 
     // Smoothed (~20 ms): feedback, mix, lowCut, highCut.
     // NEVER smoothed (latched per grain): delayTime/D, grainSize, density, width.
@@ -843,10 +878,26 @@ private:
         written and the wash would fall silent mid-hold — which is not a corner
         case, it is what happens the first time anybody presses the button.
         Capped at bufferSize − 1 so the read can never land on the position about
-        to be written. Probe AP is the standing guard. */
+        to be written. Probe AP is the standing guard.
+
+        v1.7.2 (CR-02) adds the floor at the other end: the latch will not arm at
+        all until at least one grain (G samples) has been captured. Below that the
+        "hold" is a periodic tone at 1/loopSamples rather than a wash — 200
+        captured samples is a 240 Hz buzz at 48 kHz — and at the limit
+        (totalWritten == 0, which is every prepareToPlay and reset) it is a
+        one-sample loop over a cleared ring, i.e. permanent silence. */
     int  freezeLoopSamples = 1;
 
-    /** Edge detector for the latch above — the previous block's freeze target. */
+    /** Whether a hold is currently ARMED — i.e. whether freezeLoopSamples above
+        describes a real captured span.
+
+        v1.7.2 (CR-02): this is deliberately NOT "the previous block's freeze
+        target". It tracks whether the latch SUCCEEDED, so a Freeze engaged before
+        the ring has a grain in it is deferred rather than lost: freezeEngaged
+        stays false, the smoother's target stays 0, live material keeps being
+        written, and the hold arms itself on the first block that has enough. The
+        old unconditional `freezeEngaged = frozen` is what let a session saved
+        with Freeze on reopen with a permanently silent wet path. */
     bool freezeEngaged = false;
 
     //==========================================================================

@@ -382,6 +382,22 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(/JUCE_WEB_BROWSER=0/.test(harness),
         'the render harness defines JUCE_WEB_BROWSER=0');
 
+    // v1.7.2 (WR-01): the harness's JucePlugin_VersionString must be DERIVED from
+    // the plugin target, never mirrored as a literal.
+    //
+    // This is the third time this value has been checked by hand and the second
+    // time it had silently drifted: 1.2.0 while the plugin shipped 1.3.0/1.4.0,
+    // then 1.5.0 across v1.6.0, v1.7.0 and v1.7.1. Both preset sentinels key off
+    // it, so a stale value makes probes N and R audit older on-disk presets and
+    // report a pass. A comment saying "keep in sync" cannot enforce that; this can
+    // (pattern_test_fixture_mirrors_drift_silently).
+    check(/JucePlugin_VersionString="\$\{_ORD_VERSION\}"/.test(harnessCode),
+        'the harness derives JucePlugin_VersionString from the plugin target, not a literal');
+    check(/get_target_property\(_ORD_VERSION\s+OuariconReverseDelay\s+JUCE_VERSION\)/.test(harnessCode),
+        '_ORD_VERSION is read from the OuariconReverseDelay target JUCE_VERSION property');
+    check(!/JucePlugin_VersionString="\d+\.\d+\.\d+"/.test(harnessCode),
+        'no hardcoded version literal remains in the harness CMake');
+
     const processorCpp = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.cpp'), 'utf8');
     check(/#if JUCE_WEB_BROWSER\s*\n\s*#include "PluginEditor\.h"/.test(processorCpp),
         'PluginEditor.h is included only inside an #if JUCE_WEB_BROWSER guard');
@@ -683,6 +699,33 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // A tip must not hang over a knob mid-drag.
     check(/tooltipSuppressed\s*=\s*true/.test(appJs) && /tooltipSuppressed\s*=\s*false/.test(appJs),
         'tooltips are suppressed on pointerdown and re-enabled on pointerup');
+
+    // v1.7.2 (WR-05): a knob drag must CAPTURE the pointer and must terminate on
+    // cancel and lost-capture as well as on up.
+    //
+    // With window listeners and only a `pointerup` to end the drag, any path that
+    // does not deliver that event leaves `dragging` true and the listeners
+    // attached — drag out of the plugin window and release over the DAW, let the
+    // host take a modal grab, or let the OS synthesise a pointercancel. Two silent
+    // consequences: the knob follows the cursor with no button held, and
+    // sliderDragStarted() is left unmatched so the host's automation gesture stays
+    // open (Logic and Live latch automation write on that parameter).
+    //
+    // Asserted structurally because neither this script nor
+    // ui_tooltip_clamp_check.js can reach the state — both dispatch synthetic
+    // events that always deliver their pointerup.
+    check(/setPointerCapture\(\s*e\.pointerId\s*\)/.test(appJs),
+        'knob pointerdown captures the pointer (setPointerCapture)');
+    check(/knob\.addEventListener\(\s*["']pointercancel["']/.test(appJs),
+        'knob drags terminate on pointercancel, not only pointerup');
+    check(/knob\.addEventListener\(\s*["']lostpointercapture["']/.test(appJs),
+        'knob drags terminate on lostpointercapture');
+    check(!/window\.addEventListener\(\s*["']pointermove["']/.test(appJs),
+        'knob pointermove is bound to the knob, not to window (a lost pointerup would strand it)');
+    // sliderDragEnded() must be reachable from the same handler all four paths
+    // share, or the gesture can still be left open.
+    check(/const onUp = \([\s\S]{0,400}?st\.sliderDragEnded\(\)/.test(appJs),
+        'the shared onUp handler is what calls sliderDragEnded()');
 
     // D13 scoped this to hover help only: no toggle, no persisted state, and so
     // no 12th native function.

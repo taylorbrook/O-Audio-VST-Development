@@ -38,6 +38,38 @@ target_include_directories(O-ReverseDelay-render-test PRIVATE
     $<TARGET_PROPERTY:OuariconReverseDelay,INCLUDE_DIRECTORIES>
 )
 
+# ── Plugin version, DERIVED (v1.7.2, WR-01) ──────────────────────────────────
+# juce_add_plugin stores the VERSION it was given in the target's JUCE_VERSION
+# property, so reading it back here is reading the single source of truth rather
+# than a copy of it. The plugin target is created at plugins/O-ReverseDelay/
+# CMakeLists.txt:5 and this directory is added at :109, so the property is set by
+# the time this runs.
+#
+# The hex code mirrors JUCE's own _juce_version_code() math
+# ((major << 16) + (minor << 8) + patch) rather than calling it: that function is
+# private to JUCEUtils.cmake and a rename upstream would break configure. The
+# math is three lines and fixed by the AU version format.
+get_target_property(_ORD_VERSION OuariconReverseDelay JUCE_VERSION)
+
+if(NOT _ORD_VERSION)
+    message(FATAL_ERROR
+        "Could not read JUCE_VERSION from the OuariconReverseDelay target. The "
+        "render harness stamps the preset sentinels with this value; a wrong or "
+        "empty one makes probes N and R audit stale on-disk presets (WR-01).")
+endif()
+
+string(REPLACE "." ";" _ORD_VERSION_PARTS "${_ORD_VERSION}")
+list(GET _ORD_VERSION_PARTS 0 _ORD_VER_MAJOR)
+list(GET _ORD_VERSION_PARTS 1 _ORD_VER_MINOR)
+list(GET _ORD_VERSION_PARTS 2 _ORD_VER_PATCH)
+math(EXPR _ORD_VERSION_CODE
+    "(${_ORD_VER_MAJOR} << 16) + (${_ORD_VER_MINOR} << 8) + ${_ORD_VER_PATCH}"
+    OUTPUT_FORMAT HEXADECIMAL)
+
+message(STATUS
+    "O-ReverseDelay render-harness: version ${_ORD_VERSION} (${_ORD_VERSION_CODE}) "
+    "derived from the plugin target")
+
 target_compile_definitions(O-ReverseDelay-render-test PRIVATE
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
@@ -52,8 +84,7 @@ target_compile_definitions(O-ReverseDelay-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon Audio Development"
     JucePlugin_ManufacturerCode=0x4f754476
     JucePlugin_PluginCode=0x4f527644
-    # Keep in sync with the plugin CMakeLists' VERSION (1.5.0). 0x10500 = 66816
-    # matches the verified AU version (WR-04: do not let these drift).
+    # DERIVED from the plugin target, never mirrored — see _ORD_VERSION above.
     #
     # This is load-bearing for probes N and R, not cosmetic: the factory-preset
     # sentinel and the user-preset migration sentinel both key off
@@ -68,8 +99,14 @@ target_compile_definitions(O-ReverseDelay-render-test PRIVATE
     # (< 1.5.0) is stamped with THIS string, so a stale value here would have let
     # the harness re-migrate the same file on every processor construction and
     # still report a pass.
-    JucePlugin_VersionString="1.5.0"
-    JucePlugin_VersionCode=0x10500
+    #
+    # v1.7.2 (WR-01): and then it drifted AGAIN, sitting at 1.5.0 across v1.6.0,
+    # v1.7.0 and v1.7.1 — because "keep in sync with" is a promise a comment
+    # cannot keep (pattern_test_fixture_mirrors_drift_silently). The literal is
+    # gone; both values are now computed from the plugin target's own JUCE_VERSION
+    # property, so they cannot diverge from what juce_add_plugin baked in.
+    JucePlugin_VersionString="${_ORD_VERSION}"
+    JucePlugin_VersionCode=${_ORD_VERSION_CODE}
 
     # v1.1.0: collapse the per-instance RNG seed back to v1.0's literal.
     # PluginProcessor seeds rngState from an instance hash so two instances on

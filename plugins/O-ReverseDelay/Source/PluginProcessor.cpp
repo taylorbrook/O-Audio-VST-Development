@@ -452,6 +452,13 @@ void ReverseDelayProcessor::reset()
     hpL.reset(); hpR.reset();
     lpL.reset(); lpR.reset();
 
+    // v1.7.2 (WR-03): the coefficient grid restarts with the filter state, so a
+    // host reset does not leave a partial countdown straddling the boundary.
+    // Note the filters' COEFFICIENTS are deliberately not touched — only their
+    // state is — so a reset cannot produce sticky silence
+    // (pattern_biquad_nan_guard_sticky_silence).
+    coeffCountdown = 0;
+
     wetScratch.clear();
     loopScratch.clear();
     fbScratch.clear();
@@ -469,20 +476,22 @@ void ReverseDelayProcessor::reset()
     if (pLowCut   != nullptr) lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
     if (pHighCut  != nullptr) highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
 
-    // v1.6.0: freeze follows the PARAMETER, not zero. capture.clear() above has
-    // just emptied the ring, so a frozen instance resumes holding silence and
-    // then holds whatever it captures when the user releases — which is the
-    // honest reading of "the host dropped the tail state".
-    if (pFreeze != nullptr)
-        freezeSmoothed.setCurrentAndTargetValue(pFreeze->load() >= 0.5f ? 1.0f : 0.0f);
-
-    // The ring has just been emptied, so a hold that survives a host reset has
-    // nothing left to loop and holds silence until it is released and re-armed.
-    // That is the honest reading of "the host dropped the tail" — the material
-    // the user froze is gone, and inventing a loop out of a cleared buffer would
-    // be worse than saying so. Clearing the edge flag as well means the next
-    // block re-latches rather than keeping a length that describes a ring that
-    // no longer exists.
+    // v1.7.2 (CR-02): freeze starts at ZERO here, not at the parameter's value —
+    // the same correction prepareToPlay carries, for the same reason and with one
+    // extra consequence specific to reset().
+    //
+    // capture.clear() above has just emptied the ring, so there is nothing to
+    // hold. Jumping the smoother to 1.0 while the latch (correctly) refuses to
+    // arm against an empty ring would leave the two disagreeing: processBlock
+    // would target 0.0f and spend ~20 ms ramping DOWN through pushCrossfaded
+    // against the un-latched freezeLoopSamples == 1, writing the zeros the guard
+    // exists to prevent. Starting at 0 keeps the smoother and the latch in
+    // agreement — the hold re-arms itself once a grain of material exists.
+    //
+    // The material the user froze is genuinely gone, which is the honest reading
+    // of "the host dropped the tail state"; inventing a loop out of a cleared
+    // buffer would be worse than re-capturing one.
+    freezeSmoothed.setCurrentAndTargetValue(0.0f);
     freezeEngaged     = false;
     freezeLoopSamples = 1;
 
@@ -934,6 +943,16 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     scheduler.prepare(sampleRate);
     grainPool.clear();
 
+    // v1.7.2 (WR-02): the spawn-request cap's bound is stated against
+    // hostBlock <= 16384 and fs >= 44100. Both assumptions hold for every host
+    // this ships into, but the bound is now written down in
+    // GrainScheduler::kMaxSpawnsPerBlock's derivation rather than assumed, so the
+    // one input the plugin does not control gets asserted where it arrives.
+    // Exceeding it is not a fault — the scheduler drops requests it cannot report
+    // and getDroppedSpawnCount() surfaces exactly that — but it invalidates the
+    // harness's `dropped == 0` assertion, which is the thing worth knowing.
+    jassert (maxBlock <= 16384);
+
     // Deterministic sequences per prepare — from the INSTANCE's seed, not a
     // shared literal, so this instance repeats and the next one differs.
     rngState       = instanceSeed;
@@ -959,15 +978,23 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
     highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
 
-    // Jumped to the CURRENT freeze state rather than to 0: a session saved with
-    // Freeze engaged must reopen frozen, and ramping into it from 0 over 20 ms
-    // would write 20 ms of live input into a ring the user expects to be held.
+    // v1.7.2 (CR-02): start UN-frozen, even when the parameter says frozen.
     //
-    // freezeEngaged is set to FALSE regardless, so the first block after prepare
-    // re-latches the loop length off a ring that prepareToPlay may just have
-    // resized. Latching it here instead would key off a capture length that no
-    // longer describes the buffer.
-    freezeSmoothed.setCurrentAndTargetValue(pFreeze->load() >= 0.5f ? 1.0f : 0.0f);
+    // This used to jump to the parameter's value, reasoning that "a session saved
+    // with Freeze engaged must reopen frozen". It still does — but the RING is
+    // not part of that saved state, and capture.prepare() below has just
+    // allocated and cleared it. Jumping the smoother to 1.0 here made the first
+    // processBlock hold a buffer with nothing in it: the latch floored at one
+    // sample, pushLooped(1) copied the previous (zero) slot, and the wet path was
+    // exactly zero for the life of the session with no way back except toggling
+    // Freeze off and waiting for capture.
+    //
+    // Starting at 0 with freezeEngaged false leaves the edge detector ARMED, so
+    // the hold arms itself on the first block where a grain of real material
+    // exists (see the freeze latch in processBlock). The session still reopens
+    // frozen; it just captures a grain first, which is the only reading under
+    // which the control does anything at all.
+    freezeSmoothed.setCurrentAndTargetValue(0.0f);
     freezeEngaged     = false;
     freezeLoopSamples = 1;
 
@@ -985,6 +1012,11 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     const float fsF = static_cast<float>(sampleRate);
     lastLowCut  = juce::jlimit(20.0f,  0.49f * fsF, lowCutSmoothed.getCurrentValue());
     lastHighCut = juce::jlimit(500.0f, 0.49f * fsF, highCutSmoothed.getCurrentValue());
+
+    // v1.7.2 (WR-03): zeroed so the first block refreshes coefficients on its
+    // first sub-block rather than inheriting a partial countdown from whatever
+    // the previous configuration was mid-way through.
+    coeffCountdown = 0;
 
     const auto hpCoeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(sampleRate, lastLowCut);
     const auto lpCoeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(sampleRate, lastHighCut);
@@ -1011,6 +1043,45 @@ bool ReverseDelayProcessor::isBusesLayoutSupported(const BusesLayout& layouts) c
 
     // Accept mono→mono, mono→stereo, stereo→stereo; reject stereo→mono (no down-mix path)
     return inOk && outOk && in.size() <= out.size();
+}
+
+// v1.7.2 (WR-03) — cutoff smoother advance + damping coefficient refresh.
+//
+// Extracted from processBlock's old once-per-block step 2 so it can be called on
+// the kCoeffUpdateSamples grid instead. The body is unchanged apart from taking
+// the advance length as an argument: skip() still returns the smoothed value
+// AFTER the requested span, and both values are still clamped clear of the tan()
+// prewarp region (highCut jlimit 500..0.49*fs per contract) before reaching
+// makeLowPass/makeHighPass.
+//
+// Bitwise inert while the cutoffs are STATIC, which is every existing probe and
+// every session that does not automate them: once a SmoothedValue has reached its
+// target, skip(n) returns that target for any n, so 30 calls of skip(32) and one
+// call of skip(960) land on the identical float and the exactlyEqual guards then
+// suppress every recompute after the first.
+void ReverseDelayProcessor::updateDampingCoefficients (int numSamples) noexcept
+{
+    const float fsF = static_cast<float>(currentSampleRate);
+    const float lc  = juce::jlimit(20.0f,  0.49f * fsF, lowCutSmoothed.skip(numSamples));
+    const float hc  = juce::jlimit(500.0f, 0.49f * fsF, highCutSmoothed.skip(numSamples));
+
+    // Cached-cutoff guards gate ONLY the recompute (no enabled flag exists).
+    // ArrayCoefficients returns a stack std::array; operator= assigns the
+    // normalised values in place into the existing Coefficients — no allocation.
+    if (! juce::exactlyEqual (lc, lastLowCut))
+    {
+        lastLowCut = lc;
+        const auto a = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, lc);
+        *hpL.coefficients = a;
+        *hpR.coefficients = a;
+    }
+    if (! juce::exactlyEqual (hc, lastHighCut))
+    {
+        lastHighCut = hc;
+        const auto a = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(currentSampleRate, hc);
+        *lpL.coefficients = a;
+        *lpR.coefficients = a;
+    }
 }
 
 void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -1124,27 +1195,10 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     lowCutSmoothed.setTargetValue(pLowCut->load());
     highCutSmoothed.setTargetValue(pHighCut->load());
 
-    // v1.6.0 (B4 #1) — Freeze. A target, not a jump: the ~20 ms ramp crossfades
-    // the ring's CONTENT across the boundary (CaptureBuffer::pushCrossfaded),
-    // which is both the transition and the loop seam.
+    // v1.6.0 (B4 #1) — Freeze. The rising-edge latch and the smoother's target
+    // both live after G is resolved (see "Freeze latch" below), because v1.7.2
+    // floors the loop length at one grain and G is not known yet here.
     const bool frozen = pFreeze->load() >= 0.5f;
-    freezeSmoothed.setTargetValue(frozen ? 1.0f : 0.0f);
-
-    // Latch the loop length on the RISING edge only. Recomputing it per block
-    // would grow it as the hold proceeds (totalWritten keeps advancing while
-    // frozen, because the ring is still being written — with copies), and a loop
-    // whose length changes under the read head is a loop that skips.
-    //
-    // jmin against the capture that has actually happened is the whole point:
-    // freeze 3 s after loading and the hold is a 3 s loop, not 13 s of which
-    // 10 are the cleared buffer.
-    if (frozen && ! freezeEngaged)
-        freezeLoopSamples = static_cast<int>(
-            juce::jlimit(static_cast<juce::int64>(1),
-                         static_cast<juce::int64>(juce::jmax(1, capture.getBufferSize() - 1)),
-                         capture.getTotalWritten()));
-
-    freezeEngaged = frozen;
 
     // ---- (1) resolve grain anchor delay D -----------------------------------
     // Sync only changes the VALUE of D per block — never the spawn timing (no
@@ -1189,6 +1243,57 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     const int D = juce::jmax(1, static_cast<int>(effectiveDelayMs * 0.001 * currentSampleRate));
     const int G = juce::jmax(2, static_cast<int>(grainSizeMs * 0.001 * currentSampleRate));
+
+    // ---- Freeze latch (v1.6.0 B4 #1; corrected v1.7.2 CR-02) ----------------
+    // Latch the loop length on the RISING edge only. Recomputing it per block
+    // would grow it as the hold proceeds (totalWritten keeps advancing while
+    // frozen, because the ring is still being written — with copies), and a loop
+    // whose length changes under the read head is a loop that skips.
+    //
+    // jmin against the capture that has actually happened is the whole point:
+    // freeze 3 s after loading and the hold is a 3 s loop, not 13 s of which
+    // 10 are the cleared buffer.
+    //
+    // v1.7.2 (CR-02): the latch now REFUSES to arm against a ring that has less
+    // than one grain in it, and freezeEngaged tracks whether the latch actually
+    // SUCCEEDED rather than what the parameter says. Two failures came out of the
+    // old "freezeEngaged = frozen" unconditional assignment:
+    //
+    //  1. A session saved with Freeze engaged reopened permanently SILENT.
+    //     prepareToPlay/reset clear the ring but the parameter is restored, so
+    //     the first block latched jlimit(1, .., totalWritten == 0) == 1 and
+    //     pushLooped(1) copies the previous slot — zero — forever. freezeEngaged
+    //     was already true, so the latch never re-armed. The dry path passed
+    //     through, which is why it reads as "the plugin stopped working".
+    //  2. Engaging Freeze inside the first blocks after load produced a TONE:
+    //     200 captured samples became a 240 Hz loop, not a wash.
+    //
+    // Because freezeEngaged now stays false until the latch succeeds, a Freeze
+    // that arrives too early is not lost — it arms itself on the first block
+    // where a grain's worth of material exists. The smoother's target follows
+    // freezeEngaged (not `frozen`) for the same reason: pushCrossfaded would
+    // otherwise ramp holdWeight to 1.0 against the un-latched
+    // freezeLoopSamples == 1 and write the same zeros the latch guard just
+    // refused to arm.
+    const auto minLoopSamples = static_cast<juce::int64>(juce::jmax(2, G));
+
+    if (frozen)
+    {
+        if (! freezeEngaged && capture.getTotalWritten() >= minLoopSamples)
+        {
+            freezeLoopSamples = static_cast<int>(
+                juce::jlimit(static_cast<juce::int64>(1),
+                             static_cast<juce::int64>(juce::jmax(1, capture.getBufferSize() - 1)),
+                             capture.getTotalWritten()));
+            freezeEngaged = true;
+        }
+    }
+    else
+    {
+        freezeEngaged = false;
+    }
+
+    freezeSmoothed.setTargetValue(freezeEngaged ? 1.0f : 0.0f);
 
     // A3 (v1.0.1): overlap floor raised 1 -> 2. At overlap = 1 the hop equals the
     // grain length, so Hann-windowed grains ABUT rather than overlap and the wet
@@ -1361,32 +1466,37 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float gainRandDev  = juce::jmin(1.0f, gainRandNorm) * kMaxGainRandomDeviation;
     const float gainRandNorml = 1.0f / std::sqrt(1.0f + gainRandDev * gainRandDev / 3.0f);
 
-    // ---- (2) advance smoothers + update damping coefficients ----------------
+    // ---- (2) smoother advance rates -----------------------------------------
     // mix advances per sample in the mix loop (step 7); feedback gain advances
-    // per sample in the feedback fill (step 5). Cutoffs advance at block rate:
-    // skip() returns the smoothed value after the block, clamped before the
-    // tan() prewarp territory (highCut jlimit 500..0.49*fs per contract).
-    const float fsF = static_cast<float>(currentSampleRate);
-    const float lc  = juce::jlimit(20.0f,  0.49f * fsF, lowCutSmoothed.skip(numSamples));
-    const float hc  = juce::jlimit(500.0f, 0.49f * fsF, highCutSmoothed.skip(numSamples));
-
-    // Cached-cutoff guards gate ONLY the recompute (no enabled flag exists).
-    // ArrayCoefficients returns a stack std::array; operator= assigns the
-    // normalised values in place into the existing Coefficients — no allocation.
-    if (! juce::exactlyEqual (lc, lastLowCut))
-    {
-        lastLowCut = lc;
-        const auto a = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, lc);
-        *hpL.coefficients = a;
-        *hpR.coefficients = a;
-    }
-    if (! juce::exactlyEqual (hc, lastHighCut))
-    {
-        lastHighCut = hc;
-        const auto a = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(currentSampleRate, hc);
-        *lpL.coefficients = a;
-        *lpR.coefficients = a;
-    }
+    // per sample in the feedback fill (step 5).
+    //
+    // v1.7.2 (WR-03): the CUTOFFS no longer advance here. They used to run
+    // `skip(numSamples)` once per block and hold one set of coefficients for the
+    // whole block, which made the documented 20 ms smoothing contract sample
+    // itself at the HOST's block rate. Two things followed, and neither was
+    // measured because every invariance probe sets its parameters before
+    // prepareToPlay and never moves them:
+    //
+    //   1. The 512-vs-4096 bit-identity was conditional on the cutoffs being
+    //      static, while NOTES.md and the v1.7.0 CHANGELOG stated it flatly. A
+    //      session that AUTOMATES highCut bounced differently offline than it
+    //      monitored — the same class of defect the duck follower was deliberately
+    //      built per-sample to avoid
+    //      (pattern_block_rate_envelope_breaks_blocksize_invariance).
+    //   2. At large buffers the smoother did nothing at all: a 20 ms ramp is 960
+    //      samples at 48 kHz, so a 4096-sample block skipped past it in ONE step
+    //      and a swept cutoff became a single large biquad coefficient jump per
+    //      block instead of eight small ones — a zipper/click risk inside the
+    //      feedback loop. Probe M's click detector runs at block 512, where the
+    //      ramp resolves in eight steps and the artefact does not appear.
+    //
+    // They now advance on a fixed kCoeffUpdateSamples grid inside step 5, driven
+    // by a countdown that PERSISTS ACROSS BLOCKS AND PASSES (coeffCountdown), so
+    // the update grid is a function of the sample rate alone. Chunking relative to
+    // each pass offset instead would have re-broken the very invariant this fixes:
+    // grainDelayFloor is 2205 samples at 44.1 kHz, which is not a multiple of 32,
+    // so a second pass starting there would shift the grid at 4096 while a
+    // 512-sample block kept it aligned.
 
     // ---- (3)–(6) sub-blocked engine pass ------------------------------------
     // A2 (v1.0.1): a grain spawned at block offset i latches
@@ -1435,13 +1545,25 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     //
     // Both the bound and the clamp therefore key off grainDelayFloor, which is a
     // function of the PARAMETERS alone: the delayTime range's own minimum, i.e.
-    // scatter can never pull a grain below the shortest delay the plugin offers.
-    // With scatter off the bound collapses to v1.0.1's exact min(numSamples, D)
-    // and the render is bit-identical.
+    // nothing can pull a grain below the shortest delay the plugin offers.
+    // With no shortening parameter active the bound collapses to v1.0.1's exact
+    // min(numSamples, D) and the render is bit-identical.
+    //
+    // v1.7.2 (CR-01): the test is "can ANY parameter pull a latched delay below
+    // D", not "is scatter on". v1.7.0's drift multiplies D by as little as
+    // (1 - kDriftMaxFraction) = 0.75, so `scatterSamples > 0` alone re-opened A2:
+    // with drift at 100 %, scatter at 0 and a host block of 4096, a grain
+    // spawning late in the pass on the LFO's negative half latched
+    // readAbs AHEAD of the write head and read a full ring lap of stale
+    // material — and rendered differently at 512 than at 4096. driftMul()
+    // early-returns exactly 1.0f at depth 0, so `driftDepthNorm > 0.0f` is the
+    // precise complement of "drift can shorten" and this stays bit-inert at the
+    // shipped default, every factory preset and every pre-v1.7.0 session.
     const int minDelaySamples = juce::jmax(1,
         static_cast<int>(kDelayTimeMinMs * 0.001 * currentSampleRate));
     const int grainDelayFloor = juce::jmin(D, minDelaySamples);
-    const int passBound       = scatterSamples > 0 ? grainDelayFloor : D;
+    const bool delayMayShorten = (scatterSamples > 0) || (driftDepthNorm > 0.0f);
+    const int passBound       = delayMayShorten ? grainDelayFloor : D;
     const int passLen         = juce::jmax(1, juce::jmin(numSamples, passBound));
 
     // v1.3.0 (B2): accumulated across the block's passes and published once at
@@ -1786,18 +1908,36 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // — and it is also the musical one, since driving the tanh harder is
             // what turns the ceiling from a safety net into saturation character.
             // Exactly 1.0f at the 0 dB default, so `g * regenMakeup` is bitwise g.
-            for (int i = off; i < passEnd; ++i)
+            //
+            // v1.7.2 (WR-03): chunked on the cutoff control grid. The inner loop
+            // is byte-for-byte what it was; the only change is that the damping
+            // coefficients are refreshed every kCoeffUpdateSamples samples of
+            // CONTINUOUS stream time rather than once per host block.
+            for (int i = off; i < passEnd; )
             {
-                const float g = feedbackSmoothed.getNextValue() * regenMakeup;
-                float l = hpL.processSample(loopL[i] * g);
-                float r = hpR.processSample(loopR[i] * g);
-                l = lpL.processSample(l);
-                r = lpR.processSample(r);
-                l = std::tanh(l);
-                r = std::tanh(r);
-                fbLw[i] = l;
-                fbRw[i] = r;
-                acc += l + r;
+                if (coeffCountdown <= 0)
+                {
+                    updateDampingCoefficients (kCoeffUpdateSamples);
+                    coeffCountdown = kCoeffUpdateSamples;
+                }
+
+                const int n = juce::jmin (coeffCountdown, passEnd - i);
+
+                for (int e = i + n; i < e; ++i)
+                {
+                    const float g = feedbackSmoothed.getNextValue() * regenMakeup;
+                    float l = hpL.processSample(loopL[i] * g);
+                    float r = hpR.processSample(loopR[i] * g);
+                    l = lpL.processSample(l);
+                    r = lpR.processSample(r);
+                    l = std::tanh(l);
+                    r = std::tanh(r);
+                    fbLw[i] = l;
+                    fbRw[i] = r;
+                    acc += l + r;
+                }
+
+                coeffCountdown -= n;
             }
 
             // Non-finite guard at the loop write point: reset BOTH filter pairs AND
@@ -2041,7 +2181,28 @@ bool ReverseDelayProcessor::producesMidi() const { return false; }
 bool ReverseDelayProcessor::isMidiEffect() const { return false; }
 // Conservative real tail so hosts don't truncate the reverse tail on bounce
 // (RESEARCH pitfall 11 — offline renders honour this).
-double ReverseDelayProcessor::getTailLengthSeconds() const { return 10.0; }
+//
+// v1.7.2 (WR-04): DERIVED, not pinned. This sat at 10.0 from v1.0.0, when
+// kDelayTimeMaxMs was 2000 and kGrainSizeMaxMs was 500 — i.e. ~4x the longest
+// single-generation span. Every one of those numbers then moved: delayTime to
+// 4000 ms (v1.0.1), grainSize to 4000 ms (v1.5.0), drift +25 % (v1.7.0), and
+// regenMakeup can push the loop into sustain (v1.6.0). The static_assert on
+// kCaptureSeconds puts the worst-case span for ONE generation at 13.5 s, so the
+// declared tail had become SHORTER than a single generation and a long bounce
+// ended mid-wash while the same settings monitored live decayed properly.
+//
+// Tied to kCaptureSeconds so a future range move carries this with it rather
+// than leaving it behind again — that is the whole failure being fixed. The ring
+// is sized for exactly one generation's read span, and feedback stacks more, so
+// four of them is the honest figure at feedback 70 % with makeup.
+//
+// The asymmetry matters: an over-long tail costs offline render time and nothing
+// else, while an under-long one truncates audio the user cannot get back.
+double ReverseDelayProcessor::getTailLengthSeconds() const
+{
+    constexpr double kGenerations = 4.0;
+    return kGenerations * static_cast<double> (kCaptureSeconds - 0.5f);   // ~54 s
+}
 
 int ReverseDelayProcessor::getNumPrograms() { return 1; }
 int ReverseDelayProcessor::getCurrentProgram() { return 0; }

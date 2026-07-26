@@ -70,30 +70,58 @@ public:
     // dropped here is the scheduler failing to report work it actually decided
     // to do, which is why the count is returned.
     //
-    // The bound, worked at the shipped ranges — and it is SAMPLE-RATE
-    // INDEPENDENT, which is what makes it a real bound rather than a guess:
+    // ── v1.7.2 (WR-02): 128 -> 2048, and the DERIVATION is corrected ─────────
+    //
+    // The v1.3.0 derivation was unsound. It read:
     //
     //   spawns per pass  = passLen / interval
     //   passLen         <= kDelayTimeMinMs·fs             (the A2 pass bound)
     //   interval         = G / overlap >= (kGrainSizeMinMs·fs) / overlapMax
+    //   -> spawns <= overlapMax · kDelayTimeMinMs / kGrainSizeMinMs = 16
     //
-    //   -> spawns <= overlapMax · kDelayTimeMinMs / kGrainSizeMinMs
-    //              = 16 · 50 / 50 = 16                    (both minima are 50 ms)
+    // and concluded "16 nominal against a cap of 128 — 8x margin", plus a
+    // sample-rate-independence claim. The second line is only true when
+    // delayScatter > 0. With scatter at 0 — the shipped DEFAULT and every factory
+    // preset — PluginProcessor's passBound is D, so passLen = min(numSamples, D)
+    // and the governing quantity is the HOST BLOCK SIZE, which appears nowhere in
+    // the old bound. Probe AB reproduced the same derivation in its comment and
+    // then pinned delayTime to kDelayTimeMinMs, i.e. the single configuration in
+    // which the false premise happens to hold (D == minDelaySamples).
     //
-    // So 16 nominal at the v1.3.0 ceiling, against a cap of 128 — 8x margin.
-    // Jitter can shorten one interval to 0.1x nominal, so a BURST can exceed 16;
-    // exceeding 128 would need the mean jitter multiplier across 128 consecutive
-    // draws to be <= 0.125 when its distribution is uniform on [0.1, 1.9] with
-    // mean exactly 1.0. That is not a probability worth naming.
+    // The real worst case is delayTime at its MAXIMUM (so passLen = numSamples)
+    // with grainSize at its minimum and the overlap ceiling at 16:
     //
-    // The tripwire for a future release: the bound is
-    // overlapMax · kDelayTimeMinMs / kGrainSizeMinMs, so it is grainSize's
-    // MINIMUM — not the overlap ceiling — that this cap is most sensitive to.
-    // Dropping grainSize's minimum below ~6 ms would reach 128 at ceiling 16.
-    // Probe AB is what will notice.
+    //   passLen  <= min(hostBlock, kDelayTimeMaxMs·fs)  ->  hostBlock
+    //   interval  = max(1, (int)(G / overlap))
+    //            >= (kGrainSizeMinMs·fs/1000) / kOverlapCeilingMax
+    //   -> nominal spawns <= hostBlock · kOverlapCeilingMax
+    //                          / (kGrainSizeMinMs·fs/1000)
     //
-    // Cost of the raise: 128 ints in one preallocated member array, 512 bytes.
-    static constexpr int kMaxSpawnsPerBlock = 128;
+    // At 44.1 kHz that interval is 2205/16 = 137 samples, so the NOMINAL count is
+    // 30 at a 4096-sample block and 119 at 16384 (an offline bounce in several
+    // hosts) — against the old cap of 128. The claimed 8x margin was really 1.07x,
+    // and `droppedSpawns` is asserted == 0, so a live assertion was resting on it.
+    //
+    // This cap is now the HARD bound rather than a probabilistic one, because
+    // jitter's floor is itself hard: nextInterval() returns
+    // jmax(1, (int)(interval · mul)) with mul >= 1 - kMaxJitterDeviation = 0.1, so
+    // no draw sequence however unlucky can produce an interval below
+    //
+    //   minInterval = max(1, (int)(0.1 · 137)) = 13 samples   (44.1 kHz)
+    //   -> spawns   <= 16384 / 13 = 1261
+    //
+    // 2048 covers that with ~1.6x margin, and covers the realistic 119 by 17x.
+    // Note the sensitivity has INVERTED relative to the old comment: because
+    // interval scales with fs while the host's block size does not, the pressure
+    // comes from LOW sample rates and LARGE blocks, not from high ones. The two
+    // documented assumptions are therefore fs >= 44100 and hostBlock <= 16384;
+    // prepareToPlay jasserts the second, and getDroppedSpawnCount() remains the
+    // standing tripwire for both (it is counted, not trusted — which is the one
+    // thing v1.3.0 got right).
+    //
+    // Cost of the raise: 2048 ints in one preallocated member array, 8 KB, sized
+    // at compile time and never touched on the audio thread.
+    static constexpr int kMaxSpawnsPerBlock = 2048;
 
     // The scheduler counts in SAMPLES and the caller supplies intervalSamples
     // already converted, so no sample rate is needed. v1.0.0 stored one in a

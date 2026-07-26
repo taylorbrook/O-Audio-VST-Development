@@ -4,6 +4,188 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.7.2] — 2026-07-25 — code-review resolution (CR-01/02, WR-01–05)
+
+Patch release. Resolves the seven defect findings of the v1.7.1 deep code review:
+two Critical, five Warning. No parameter, preset, state or UI-layout change — a
+v1.7.1 session, preset or factory patch opens and renders identically unless it
+uses **delay drift** or **Freeze**, both of which are called out below.
+
+Harness **138 → 145 probes**; `ui_frontend_check.js` **147 → 155 checks**;
+`ui_tooltip_clamp_check.js` unchanged at 27/27 anchors with the clamp firing for
+5. auval SUCCEEDED, AU version verified as 1.7.2 (0x10702).
+
+Both Critical fixes were verified by reverting them against the new probes rather
+than by inspection: CR-01's probe reports `max|512−4096| = 0.084275` on the old
+code against `0.000000000000` on the new, and CR-02's reports a wet RMS of
+`0.000000` against `0.061454`.
+
+### Fixed
+
+**CR-01 — delay drift with Scatter off read unwritten capture, and broke the
+512-vs-4096 bit-identity.** The engine's sub-block pass bound was widened to `D`
+whenever `delayScatter == 0`, on the v1.0.1 reasoning that "the only thing that
+can pull a latched delay below `D` is scatter". v1.7.0's `driftMul()` broke that
+premise: it multiplies `D` by as little as `1 − kDriftMaxFraction` = 0.75. At a
+host block of 4096 with `driftDepth` 100 %, `delayScatter` 0 and `delayTime`
+95 ms, `passLen` was 4096 while `gD` reached 3420, so a grain spawning at pass
+offset 3800 latched `readAbs` **380 samples ahead of the capture write head** —
+which step 6 does not write until after step 4 has rendered — and read one full
+14 s ring lap of stale material. With `direction > 0` the whole grain is
+corrupted rather than just its head, because a forward grain reads `t − gD` at
+every sample of its life. Reachable at 48 kHz/4096 for `delayTime` ≈ 51–114 ms.
+The pass bound now tests every parameter that can *shorten* a latched delay
+(`scatterSamples > 0 || driftDepthNorm > 0`), which restores `passOffset < gD` at
+every block size. `driftMul()` early-returns exactly `1.0f` at depth 0, so this
+is bitwise inert at the shipped default, every factory preset and every
+pre-v1.7.0 session — the four existing invariance probes still read
+`0.000000000`.
+
+Why 138 probes missed it: every drift probe ran with `delayScatter` at 80 ms or
+at its maximum, and `scatterSamples > 0` is precisely the branch that selects the
+*safe* bound. The one scatter-free drift probe ran at `block = 512`, where
+`passLen` is two orders of magnitude below the smallest reachable `gD`. New probe
+`drift-noscatter-blocksize-invariance` closes it.
+
+**CR-02 — a session saved with Freeze engaged reopened with a permanently silent
+wet path.** `prepareToPlay` jumped `freezeSmoothed` to the restored parameter
+value so the session would "reopen frozen", but the capture ring is not part of
+saved state and `capture.prepare()` had just cleared it. The first `processBlock`
+then latched `jlimit(1, …, totalWritten == 0)` = **1**, and `pushLooped(1)` copies
+the sample one slot back — zero — so every later sample copied the zero it had
+just written. `freezeEngaged` was set unconditionally from the parameter on that
+same block, so the latch never re-armed: the wet output was exactly zero for the
+life of the session, with the dry path passing through, the FREEZE segment lit
+and the grain meter showing grains active. It presented as "the plugin stopped
+working", and the only recovery was to toggle Freeze off, wait for capture and
+toggle it back on.
+
+Three changes: `prepareToPlay` and `reset()` both start **un-frozen** (leaving
+the edge detector armed); the latch refuses to arm until at least one grain
+(`G` samples) has been captured, which also closes the sibling failure where
+engaging Freeze in the first blocks after load produced a **240 Hz tone** rather
+than a wash; and `freezeEngaged` now tracks whether the latch *succeeded* rather
+than what the parameter says, so an early Freeze is deferred instead of lost. The
+smoother's target follows `freezeEngaged` for the same reason — otherwise
+`pushCrossfaded` would ramp `holdWeight` to 1.0 against the un-latched
+`freezeLoopSamples == 1` and write the very zeros the guard refused to arm. A
+session saved frozen still reopens frozen; it captures one grain first, which is
+the only reading under which the control does anything at all.
+
+New probes `freeze-restored-from-session-is-not-silent` and
+`freeze-early-engage-is-not-a-tone`. The second is measured by **lagged
+autocorrelation**, not crest factor: a short loop is a periodic *waveform* whose
+crest is if anything lower than a cloud's, and the first draft of that probe read
+crest 3.62 against a live 3.20 on the very code it was meant to reject and
+passed. Autocorrelation separates them cleanly — 0.9936 broken against 0.5531
+fixed.
+
+**WR-01 — the render harness's `JucePlugin_VersionString` had drifted to 1.5.0
+again.** Pinned at `"1.5.0"` while the plugin shipped 1.7.1, across three
+releases. Both preset sentinels compare against this string, so the harness and
+the installed plugin ping-pong `.factory-version` / `.user-migration-version`,
+making every processor construction re-seed eight factory files and re-walk the
+user preset library on the message thread — and any user preset the harness
+rewrites is stamped with the stale version. This machine's
+`.user-migration-version` was found reading `1.5.0`, confirming the mechanism.
+The same file had already drifted once (1.2.0 across v1.3.0/v1.4.0) and carried a
+comment saying the value was load-bearing, which is the point: "keep in sync
+with" is a promise a comment cannot keep. Both values are now **derived** from
+the plugin target's `JUCE_VERSION` property, with the hex code computed by JUCE's
+own `(major << 16) + (minor << 8) + patch` and a `FATAL_ERROR` if the property
+cannot be read. Three new `ui_frontend_check.js` assertions fail the build if a
+literal ever comes back.
+
+**WR-02 — `kMaxSpawnsPerBlock`'s derivation was unsound, and probe AB reproduced
+the same error.** The bound assumed `passLen <= kDelayTimeMinMs·fs`, which only
+holds when `delayScatter > 0`; with scatter at 0 — the shipped default and every
+factory preset — the governing quantity is the **host block size**, which appeared
+nowhere in the derivation. Probe AB reproduced the derivation verbatim and then
+pinned `delayTime` to `kDelayTimeMinMs`, the single configuration in which the
+false premise happens to be true. The real worst case is `delayTime` at its
+*maximum* with `grainSize` at its minimum and ceiling 16: at 44.1 kHz the interval
+is 137 samples, giving 30 nominal spawns at a 4096-sample block and **119 at
+16384** against a cap of 128 — a claimed 8× margin that was really 1.07×, with
+`droppedSpawns` asserted `== 0` resting on it. The cap is now the **hard** bound
+rather than a probabilistic one, since jitter's floor is itself hard
+(`nextInterval` returns `jmax(1, (int)(interval · mul))` with `mul >= 0.1`):
+`16384 / 13 = 1261`, so **128 → 2048** (8 KB, one preallocated array). The
+sensitivity has *inverted* — pressure comes from low sample rates and large
+blocks, not high ones — so the two assumptions (`fs >= 44100`,
+`hostBlock <= 16384`) are now written down and the second is `jassert`ed in
+`prepareToPlay`. Probe AB gains a `longdelay` case at 512/4096/**16384**; all five
+report `dropped=0`.
+
+**WR-03 — cutoff smoothing was quantised to the host block.** `skip(numSamples)`
+advanced the smoother by a whole block and one coefficient set was held for it, so
+the documented 20 ms contract sampled itself at the host's block rate: a 20 ms
+ramp is 960 samples at 48 kHz, so a 4096-sample block skipped the entire ramp in
+**one step**. The cutoffs now advance on a fixed 32-sample grid driven by a
+countdown that persists across blocks *and passes* — chunking relative to each
+pass offset would have re-broken the invariant it fixes, since `grainDelayFloor`
+is 2205 samples at 44.1 kHz and a second pass starting there shifts the grid at
+4096 while 512 stays aligned. Bitwise inert for static cutoffs (once a
+`SmoothedValue` is at target, 30 × `skip(32)` and 1 × `skip(960)` return the
+identical float), which is every existing probe.
+
+Measured honestly, and **less consequential than the finding implied**: rendered
+both ways, the 512-vs-4096 divergence under a fast `highCut` sweep moves only
+from 7.2 % to 6.7 % of wet RMS, and the click detector cannot separate the two
+implementations at all (0.98× either way). The divergence is dominated by
+`processBlock` reading each parameter **once per block** — all a host without
+sample-accurate automation delivers — so a 512-sample block samples the
+automation curve eight times more finely than a 4096-sample one and the two
+follow genuinely different target sequences. Bit-identity under automation is
+therefore not reachable in the DSP at all. This is a fidelity-to-contract
+correction, and the overstated claim needed fixing regardless: **NOTES.md now
+scopes the invariant to "bit-identical for static parameters"**, which is the
+property the offline-bounce guarantee actually rests on. New probe
+`cutoff-sweep-bounded-and-clickfree` records both numbers rather than leaving
+them unmeasured.
+
+**WR-04 — `getTailLengthSeconds()` was still 10 s.** Set at v1.0.0 when
+`kDelayTimeMaxMs` was 2000 and `kGrainSizeMaxMs` 500, i.e. ~4× the longest
+single-generation span. Since then `delayTime` went to 4000 ms, `grainSize` to
+4000 ms, drift added +25 % and `regenMakeup` can push the loop into sustain — and
+the `static_assert` on `kCaptureSeconds` puts one generation's read span at
+**13.5 s**, already longer than the declared tail before any feedback. Hosts
+honour this when deciding how far past the last input event to keep rendering an
+offline bounce, so a long wash ended mid-decay while the same settings monitored
+live decayed properly. Now derived as four generations from `kCaptureSeconds`
+(~54 s) so a future range move carries it along, which is the actual failure being
+fixed. Reported metadata only, no DSP change; an over-long tail costs offline
+render time, an under-long one truncates audio.
+
+**WR-05 — a lost `pointerup` stuck a knob to the cursor and left a host
+automation gesture open.** Knob drags added `pointermove`/`pointerup` listeners to
+`window` with no `setPointerCapture`, no `pointercancel` handler and no
+`lostpointercapture` handler, and `onUp` was the only thing that cleared
+`dragging` and called `sliderDragEnded()`. Any path that does not deliver that
+`pointerup` — releasing over the DAW after dragging out of the plugin window, the
+host taking a modal grab, the WebView losing focus mid-drag, the OS synthesising a
+`pointercancel` — left both listeners attached, so every later mouse move over the
+page kept writing `setNormalisedValue()` with **no button held**, and left
+`sliderDragStarted()` unmatched, which latches automation write on that parameter
+in Logic and Live. Both silent; nothing reaches the console. The drag now captures
+the pointer on the knob itself and terminates on up, cancel and lost-capture, with
+`try/catch` for older backends and an idempotent `onUp` that releases the capture.
+Five new `ui_frontend_check.js` assertions, including that `pointermove` is no
+longer bound to `window` — asserted structurally because both UI scripts dispatch
+synthetic events that always deliver their `pointerup` and so cannot reach the
+state.
+
+### Notes
+
+The six **Info** findings of the review (IN-01 … IN-06) were out of scope for this
+release and remain open: `ReverseGrain::age` is write-only dead state;
+`PluginEditor.h`'s class contract is three releases stale (940 × 484, "eleven"
+native functions, "17 sliders + 3 combos"); `styles.css` states two contradictory
+WINDOW height budgets 120 lines apart, with `NOTES.md` mirroring the wrong one;
+`envLastCurve` is assigned and never read, so the DPR redraw its comment promises
+does not exist; the preset sentinels are check-then-write, so the race they
+document is not closed; and `prepareToPlay` dereferences the cached parameter
+atomics without the null guards `reset()` applies.
+
 ## [1.7.1] — 2026-07-25 — 940 × 768
 
 Patch release. **Editor 940 × 972 → 940 × 768.** No parameter, preset, state or

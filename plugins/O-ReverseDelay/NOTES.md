@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.7.1
+- **Version:** 1.7.2
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -79,8 +79,32 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 
   The 29.5 px left in `.groups` is deliberate: `.group-label` sits at `top: -9px`, straddling each panel's top border, so row 1 needs ≥ 9 px of clearance under the preset band's rule. The check now bounds the band to [18, 40] instead of trusting the comment. None of this is visible to `ninja`, `auval`, `pluginval` or a static check — **an over-tall frame renders perfectly**. It was found by serving the real page through `tests/ui-stub/` and measuring the boxes, and the height budget in `styles.css` is now written from rendered values rather than a paper sum.
 
+- **2026-07-25 (v1.7.2):** Patch — resolves the seven defect findings of the v1.7.1 deep code review (2 Critical, 5 Warning). No parameter, preset, state or UI-layout change; a v1.7.1 session renders identically unless it uses **drift** or **Freeze**. **CR-01** the pass bound now tests every parameter that can *shorten* a latched delay, not just scatter — v1.7.0's `driftMul` multiplies `D` by as little as 0.75, so drift-with-scatter-off read capture the write head had not reached yet and rendered differently at 512 than at 4096. **CR-02** Freeze no longer latches against an empty ring: `prepareToPlay`/`reset` start un-frozen and the latch waits for one grain, so a session saved frozen no longer reopens with a permanently silent wet path. **WR-01** the harness's `JucePlugin_VersionString` is derived from the plugin target instead of mirrored (it had drifted to 1.5.0 across three releases). **WR-02** `kMaxSpawnsPerBlock` 128 → 2048 against a corrected, now-hard bound. **WR-03** cutoff coefficients update on a fixed 32-sample grid. **WR-04** `getTailLengthSeconds` derived from `kCaptureSeconds` (~54 s) instead of pinned at 10 s. **WR-05** knob drags capture the pointer and terminate on cancel/lost-capture. Harness 138→**145 probes**; `ui_frontend_check.js` 147→**155 checks**; tooltip clamp unchanged at 27/27. auval SUCCEEDED, AU version verified 1.7.2 (0x10702). The six Info findings (IN-01…IN-06) are deferred — see the CHANGELOG's Notes.
+
+  **Both Critical fixes were verified by reverting them against the new probes, not by inspection.** CR-01's probe reads `max|512−4096| = 0.084275` on the old code — 1.75× the wet RMS of 0.048, i.e. the stale read dominates the signal — against `0.000000000000` on the new. CR-02's reads a wet RMS of `0.000000` against `0.061454`. That step also caught a probe that did not work: the "a hold must not become a tone" arm was first written with probe AP's **crest factor**, which detects a pulse train and not a periodic waveform, and it *passed on the very code it was meant to reject* (crest 3.62 against a live 3.20). Re-pointed at **lagged autocorrelation** it separates cleanly — 0.9936 broken, 0.5531 fixed. A probe that has not been seen to fail is not a regression guard.
+
+  **WR-03 turned out smaller than the finding claimed, and the measurement is the deliverable.** Rendered both ways, the 512-vs-4096 divergence under a fast `highCut` sweep moves only 7.2 % → 6.7 % of wet RMS, and the click detector cannot tell the implementations apart at all (0.98× either way). The divergence is dominated by `processBlock` reading each parameter **once per block** — all a host without sample-accurate automation offers — so bit-identity under automation is not reachable in the DSP, and the 32-sample grid is a fidelity-to-contract fix rather than an artefact fix. The overstated invariant claim needed correcting either way and now reads **"bit-identical for static parameters"** (see Known Issues). Two estimates written into probe comments before measuring (79 %, 2.68×) were both wrong and were removed; the shipped comments carry measured numbers only.
+
 ## Known Issues
 
+- **The 512-vs-4096 bit-identity holds for STATIC parameters, not for automated
+  ones.** Stated flatly through v1.7.1 ("a 512- and a 4096-sample render of the
+  same input are BIT-IDENTICAL"), and scoped at v1.7.2 (WR-03) because every
+  probe that asserts it — O, W2, AQ, AX, BA — sets its parameters before
+  `prepareToPlay` and never moves them, while `setCurrentAndTargetValue` starts
+  the smoothers *at* target. Automate a cutoff and the two renders diverge by
+  ~7 % of wet RMS (probe BD measures it).
+  The cause is **not** the DSP and is not fixable in it: `processBlock` reads each
+  parameter once per block, which is all a host without sample-accurate
+  automation delivers, so a 512-sample block samples the automation curve eight
+  times more finely than a 4096-sample one and the two are following genuinely
+  different target sequences. v1.7.2 did move the cutoff coefficient update onto
+  a fixed 32-sample grid so the 20 ms smoothing contract is honoured at every
+  block size rather than being skipped in one step at large buffers — but that
+  changed the measured divergence only from 7.2 % to 6.7 %, and the click
+  detector cannot separate the two implementations at all (0.98× either way).
+  Treat the invariant as: **bit-identical for static parameters**, which is the
+  property the offline-bounce guarantee actually rests on.
 - **The WINDOW panel has ~1 px of vertical slack.** Its budget is 212 of 213 px
   (select-cell 44 + knob-cell 78 + env-cell 72 + two 9 px row gaps). Adding
   anything to that panel, or growing any of its parts, means re-doing that sum —
