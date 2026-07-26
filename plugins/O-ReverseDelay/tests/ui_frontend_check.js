@@ -489,23 +489,32 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'MOTION is a real panel — .group-motion rule + class both present');
     check(!/\.group-space\s*[,{]/.test(css) && !/class="[^"]*group-space/.test(html),
         'no .group-space rule or class survives the v1.6.0 rename');
-    // v1.7.0 restores the reserved-panel ornament, and the assertion flips with
-    // it. v1.6.0 asserted the rule was GONE, correctly: the reserve was spent, and
-    // a .group-reserved rule left behind would have been dead CSS that still read
-    // like a live layout decision. There is a reserve again — row 3's COLOUR
-    // panel — so the rule is live again, and what has to be checked is that it is
-    // used exactly once and only there. A stray .group-reserved inside a FILLED
-    // panel would draw a fleuron over live controls.
-    check(/\.group-reserved\s*[,{]/.test(css) && /class="group-reserved"/.test(html),
-        'the reserved-panel ornament is live again for row 3\'s COLOUR panel');
-    check((html.match(/class="group-reserved"/g) || []).length === 1,
-        'exactly ONE reserved panel — a second would mean a filled panel lost its controls');
+    // v1.8.0 spends the reserve, and the assertion flips back for the third
+    // time. The rule has now been deleted (v1.6.0), restored (v1.7.0) and
+    // deleted again (v1.8.0), tracking whether a reserve actually exists — which
+    // is the point of checking it at all. A .group-reserved rule surviving with
+    // no reserved panel is dead CSS that still reads like a live layout
+    // decision; the ornament surviving in the MARKUP would be worse, drawing a
+    // fleuron on top of Diffusion and Drive.
+    check(!/\.group-reserved\s*[,{]/.test(css) && !/class="group-reserved"/.test(html),
+        'no .group-reserved rule or ornament survives v1.8.0 spending the reserve');
     {
         const start = html.indexOf('class="group group-colour"');
         const end   = start >= 0 ? html.indexOf('</section>', start) : -1;
         const colour = start >= 0 && end > start ? html.slice(start, end) : '';
-        check(colour.includes('class="group-reserved"') && !/data-param=/.test(colour),
-            'COLOUR is the reserved panel: it carries the ornament and NO bound control');
+        check(colour.includes('data-param="diffusion"')
+              && colour.includes('data-param="drive"')
+              && colour.includes('id="val-diffusion"')
+              && colour.includes('id="val-drive"'),
+            'COLOUR is a real panel: both B4 #7/#8 knobs bound, both readouts present');
+        // Two cells at 72 px with the shared 14 px .group-body gap = 158 px, and
+        // the panel is 190. This is the arithmetic that made the fill free — if a
+        // later release adds a third control here it FAILS, which is the point:
+        // that is the resize the reserve was spent to defer, and it should stop
+        // the build rather than silently overflow the panel.
+        const cells = (colour.match(/class="knob-cell"/g) || []).length;
+        check(cells === 2,
+            `COLOUR holds exactly 2 knob-cells (2x72 + 14 = 158 of 190 px) — got ${cells}`);
     }
     {
         const start = html.indexOf('class="group group-motion"');

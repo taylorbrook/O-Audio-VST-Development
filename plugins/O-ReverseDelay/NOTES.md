@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.7.3
+- **Version:** 1.8.0
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -78,6 +78,16 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   Rows 1 and 3 were the same error at panel scale: 215 px panels around **100 px** and **94 px** of content. Row 1 has been 215 since Stage 3, when its panels were the tallest thing on a 484 px page; row 3 inherited 215 from row 1 at v1.7.0 on the correct principle of not inventing new geometry. Neither was ever measured against what the panels hold. Row 2 is untouched at 245 because WINDOW already lays 212 px into a 213 px body — the one panel with no slack — so trimming row 2 means shrinking the v1.4.0 envelope display, a feature change wearing a layout change's clothes. *(The 214 written here through v1.7.2 was wrong; see the v1.7.3 entry.)*
 
   The 29.5 px left in `.groups` is deliberate: `.group-label` sits at `top: -9px`, straddling each panel's top border, so row 1 needs ≥ 9 px of clearance under the preset band's rule. The check now bounds the band to [18, 40] instead of trusting the comment. None of this is visible to `ninja`, `auval`, `pluginval` or a static check — **an over-tall frame renders perfectly**. It was found by serving the real page through `tests/ui-stub/` and measuring the boxes, and the height budget in `styles.css` is now written from rendered values rather than a paper sum.
+
+- **2026-07-26 (v1.8.0):** Minor — **COLOUR** (`diffusion`, `drive`), the last two items of review B4 and with them the review's whole B section. Both no-ops are the range minimum and both are EXACT, so v1.0–v1.7 work renders bit-identically (probe AZ asserts it against a defaults render rather than claiming it). **The v1.7.0 reserve paid out exactly as designed: markup, no resize, and not one CSS rule** — two `.knob-cell`s at 72 px plus the shared 14 px gap are 158 px inside the 190 px panel already declared, which is GRAIN's and OUTPUT's shape since Stage 3. Editor stays 940×768; `.group-reserved` deleted for the second time and nothing on the page is reserved now. Harness 138→**151 probes**; `ui_frontend_check.js` 145→**155 checks**; `ui_tooltip_clamp_check.js` **29/29 anchors** (clamp firing for 6). auval SUCCEEDED, pluginval-10 ×3 both formats.
+
+  **`drive` is not a second `regenMakeup`, and the whole design is the division.** The obvious "loop drive" is a pre-gain into the tanh — which `regenMakeup` already is, and whose own ladder says it stops doing anything past ~6 dB. `tanh(d·x)/d` has small-signal gain exactly 1 at every `d`, so: the decay rate does not move (4.4515/4.4509/4.4464 dB/s at drive 0/50/100, spread 0.005), the loop is bounded to ±1/d which is TIGHTER than the ±1 held since v1.0, and it never plateaus — loud repeats compress while quiet ones stay linear, so the tail blooms as it decays. `regenMakeup` = how long, `drive` = what colour. Percent and not dB, because a level-compensated control has no gain to report.
+
+  **Diffusion's stability is proved, not measured.** An allpass is magnitude-flat, so the wet/dry mix satisfies `|(1−m) + m·e^{jφ}| ≤ 1` at every frequency and setting — non-expansive by construction, hence no equivalent of `kRegenMakeupMaxDb`. The knob is a mix over the chain rather than a scaling of the allpass coefficient, which is what makes 0 a true no-op: scaling `g` to zero leaves four pure DELAYS, so "off" would splice ~48 ms into the loop and click on first touch.
+
+  **The trap this release actually set: diffusion slows the dB/SECOND decay, and it is not added energy.** Two versions of probe BA failed on it. The chain adds ≤48.6 ms of group delay per pass, so at a 400 ms delay each generation takes ~12 % longer — fewer generations per second, same loss per generation. Measured 4.8053/5.2989 = **0.9068** against the period prediction 400/448.6 = **0.8917**. Self-oscillation depends on gain per TRIP, not per second, so the probe asserts dB per generation crediting the maximum physical group delay: −2.1556 diffused against −2.1196 plain. A probe measuring the rate a diffuser is designed to change will always read the feature as a fault.
+
+  The capture-ring `static_assert` is deliberately untouched: it bounds the latched READ span, and the allpasses delay what is WRITTEN. All eight factory presets pinned at 0 for both — the sixth time this table has refused to re-voice a shipped sound.
 
 - **2026-07-25 (v1.7.3):** Patch — **Info-tier review sweep** (IN-01…IN-06), the six findings v1.7.2 deferred. No parameter, preset, state, DSP or layout change; harness unchanged at **145 probes**, all passing. **IN-01** `ReverseGrain::age` deleted — write-only since v1.1.0 replaced steal-oldest with find-inactive. **IN-02** `PluginEditor.h`'s contract re-measured: 940×768 (not 484), **thirteen** native fns (not eleven), **20 sliders + 4 combos + 1 toggle** (not "17 + 3"), 25 params (not 10), and D10's "no polling bridge" recorded as reversed at v1.3.0. **IN-03** see below — the review's recommendation was wrong and the measurement inverted it. **IN-04** dead `envLastCurve` and the retina-migration claim its comment made removed (the wire-it-up arm was declined as new runtime behaviour). **IN-05** the user-preset migration sentinel now stamps **before** its walk, so concurrent construction actually serialises; interrupted migrations are no longer retried, recovery is to delete the sentinel. **IN-06** all 25 cached parameter atomics `jassert`-ed once in the constructor and `reset()`'s inconsistent null guards dropped, so it and `prepareToPlay` read identically. auval SUCCEEDED, AU version verified 1.7.3 (0x10703).
 
@@ -213,4 +223,4 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 - `plugins/O-ReverseDelay/.planning/REQUIREMENTS.md`
 - UI mockup: not yet created (required before Stage 3)
 
-**Last Updated:** 2026-07-25
+**Last Updated:** 2026-07-26

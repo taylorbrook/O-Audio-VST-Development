@@ -216,6 +216,37 @@
                               excitation. This is the line a block-rate duck
                               envelope or a per-block drift phase accumulator
                               fails, and the only line either would fail.
+      AY. nonfinite-sticky  — a 10 ms NaN/inf burst must not poison the duck
+                              follower for the life of the instance. Measured
+                              against the duck-0 path rather than an absolute.
+
+    v1.8.0 (B4 #7-#8) — COLOUR:
+
+      AZ. v180-defaults     — diffusion 0 / drive 0 renders BITWISE the v1.7.3
+                              engine, with a same-parameters repeat as the
+                              determinism control, and both controls proven
+                              audible at 60 % so the probe cannot be satisfied
+                              by a pair of dead knobs.
+      BA. diffusion-nonexp  — the safety claim made INSTEAD of a measured cap.
+                              An allpass is magnitude-flat, so the mixed block
+                              is non-expansive at every setting and cannot open
+                              a self-oscillation path `feedback` would not.
+                              Asserted at feedback 100 against the undiffused
+                              engine's own late/early growth, not an absolute —
+                              diffusion IS allowed to move energy around in
+                              time, just not to add any.
+      BB. drive-decay       — the property separating drive from regenMakeup.
+                              tanh(d·x)/d has small-signal gain 1 at every d, so
+                              the LATE-tail decay rate must not move across the
+                              whole knob. regenMakeup fails this by construction
+                              at any non-zero setting, which is why it needed a
+                              measured cap and this does not. The EARLY tail is
+                              expected to differ — that difference is the
+                              feature.
+      BC. v180-blocksize    — probes AQ/AX again with COLOUR engaged. The
+                              allpass ring index is per-sample state carried
+                              across block boundaries, which is the exact shape
+                              of the v1.0.1 delay-read-latch bug.
 
   ==============================================================================
 */
@@ -1555,6 +1586,23 @@ int main()
             { "duck",          0.0f,   100.0f, false, false, false,   0.0f },
             { "driftRate",     0.02f,    5.0f, false, true,  true,    0.0f },
             { "driftDepth",    0.0f,   100.0f, false, true,  true,    0.0f },
+            // v1.8.0 (B4 #7-#8). Both take the SMOOTH tier, and neither is a
+            // latched-content parameter — they act on the feedback RETURN, which
+            // is a per-sample path with no grain state in it at all, so there is
+            // nothing to latch and no legitimate read-reseating to excuse.
+            //
+            // That makes these two lines a real assertion rather than a
+            // formality. Neither control is smoothed in the processor, and both
+            // are allowed to be for a specific reason (see the block-rate reads
+            // in processBlock): diffusion crossfades between two unity-MAGNITUDE
+            // paths so a step moves phase and not level, and drive scales the
+            // argument of a function whose small-signal gain is 1 at every
+            // setting so a step leaves quiet material where it was. If either
+            // claim is wrong the sweep steps the loop's level and this tier
+            // catches it — which is exactly the check a SmoothedValue would have
+            // hidden.
+            { "diffusion",     0.0f,   100.0f, false, false, false,   0.0f },
+            { "drive",         0.0f,   100.0f, false, false, false,   0.0f },
         };
 
         for (const auto& sp : specs)
@@ -5032,6 +5080,296 @@ int main()
                  + " (a 10 ms NaN/inf burst at 1 s; the 14 s ring has lapped by 20 s)");
     }
 
+    // --- Probe AZ: v1.8.0's defaults are bitwise the v1.7.3 engine -----------
+    //
+    // The guarantee every release since v1.1.0 has made, asserted the only way
+    // it can be: diffusion and drive at 0 must produce a render that is EXACTLY
+    // equal — not close — to one made with the code paths they add stepped over.
+    //
+    // Both zeros are early-outs rather than arithmetic that happens to cancel,
+    // which is what makes exact equality the right bar instead of a tolerance:
+    //   * diffusion 0 -> `l += 0.0f * (dl - l)`, and 0.0f * finite is +0.0f, so
+    //     l is unchanged bit-for-bit. (The chain still RUNS; this asserts that
+    //     running it is inaudible, which is the actual claim.)
+    //   * drive 0 -> driveRatio returns exactly 1.0f -> driveShape branches on
+    //     `d <= 1.0f` and calls std::tanh(x). Not tanh(1.0f*x)/1.0f, which would
+    //     also be exact here but would be relying on it.
+    //
+    // Rendered with feedback high and mix 100 so the loop — the only path either
+    // control touches — dominates the output. A defaults render at mix 0 would
+    // pass this probe against an engine where both controls were wired backwards.
+    {
+        auto renderColour = [&] (float diffusion, float drive)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",  0.0f);
+            setParam (apvts, "delayTime", 400.0f);
+            setParam (apvts, "feedback",   75.0f);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "diffusion", diffusion);
+            setParam (apvts, "drive",     drive);
+            proc.prepareToPlay (fs, block);
+            return renderEffect (proc, 6.0, fs, block,
+                                 [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+        };
+
+        auto shipped = renderColour (0.0f, 0.0f);
+        auto again   = renderColour (0.0f, 0.0f);
+
+        // Same parameters twice is the control: if THIS differs the harness is
+        // not deterministic and the comparison below means nothing.
+        const double repeatD = maxAbsDiff (shipped.L, again.L);
+
+        auto diffused = renderColour (60.0f,  0.0f);
+        auto driven   = renderColour ( 0.0f, 60.0f);
+
+        const double dDiff  = maxAbsDiff (shipped.L, diffused.L);
+        const double dDrive = maxAbsDiff (shipped.L, driven.L);
+
+        check ("v180-defaults-bit-identical",
+               repeatD == 0.0 && dDiff > 1.0e-4 && dDrive > 1.0e-4,
+               juce::String ("repeat|0,0 vs 0,0| = ") + juce::String (repeatD, 12)
+                 + " (must be 0) | diffusion 60 moves " + juce::String (dDiff, 7)
+                 + " | drive 60 moves " + juce::String (dDrive, 7)
+                 + " (both must be audible, else the controls are not wired)");
+    }
+
+    // --- Probe BA: diffusion cannot raise the LINEAR loop gain ---------------
+    //
+    // The safety claim v1.8.0 makes INSTEAD of a measured cap, and the reason
+    // diffusion needs no equivalent of kRegenMakeupMaxDb. An allpass has unit
+    // magnitude at every frequency, so the mixed block's response is
+    // |(1-m) + m.e^{j.phi}| <= (1-m) + m = 1 for every m and every phi. The
+    // block is non-expansive, therefore it cannot open a self-oscillation path
+    // that `feedback` alone would not.
+    //
+    // ── Per GENERATION, not per second — and that is the whole probe ─────────
+    //
+    // Two earlier versions of this probe failed, and both failed because they
+    // measured decay in dB/SECOND. The diffused tail genuinely decays slower by
+    // that measure — 4.81 dB/s against 5.30 at feedback 85 — and it does so
+    // even at -52 dBFS, where the tanh is within ulps of the identity and no
+    // saturation story can explain it.
+    //
+    // The cause is not gain, it is TIME. The allpass chain adds up to 48.6 ms of
+    // group delay to the feedback return, so at a 400 ms delay each generation
+    // takes ~12 % longer. Fewer generations per second is a slower decay per
+    // second with the loss per generation unchanged — and self-oscillation
+    // depends on the gain a signal accumulates per TRIP AROUND THE LOOP, not
+    // per second. A loop losing 2.1 dB per pass never runs away however long a
+    // pass takes.
+    //
+    // The measured ratio confirms it rather than merely being consistent with
+    // it: 4.8053/5.2989 = 0.9068 against the pure period prediction
+    // 400/(400+48.6) = 0.8917. The small residual is group delay being
+    // frequency-dependent and below the full sum at the top of the band.
+    //
+    // So the assertion is on dB per generation, with the diffused loop CREDITED
+    // the maximum group delay the chain can physically produce (the sum of the
+    // four section lengths — a bound, not a fitted value). Crediting the
+    // maximum is what makes this conservative in the right direction: if
+    // diffusion were adding real energy, no amount of period credit up to the
+    // physical ceiling could account for it and this line fails. Rewriting the
+    // mix as something with gain — scaling the coefficient, dropping the dry
+    // path, chaining the sections in series without the crossfade — moves it
+    // immediately.
+    //
+    // Measured at -52 dBFS so the tanh cannot contribute either way. The
+    // feedback-100 corner is checked separately below for the property that is
+    // actually load-bearing there: it must CONVERGE and stay bounded.
+    {
+        auto tailDecayDb = [&] (float diffusion, float feedback, double amp)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",  0.0f);
+            setParam (apvts, "delayTime", 400.0f);
+            setParam (apvts, "feedback",  feedback);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "diffusion", diffusion);
+            proc.prepareToPlay (fs, block);
+
+            auto y = renderEffect (proc, 20.0, fs, block, [&] (int t)
+            {
+                return t < (int) (2.0 * fs) ? (float) (amp * whiteNoiseAt (t)) : 0.0f;
+            });
+
+            const int aOff = (int) (5.0 * fs), bOff = (int) (15.0 * fs);
+            const int win  = (int) (3.0 * fs);
+            const double ra = juce::jmax (1.0e-30, rms (y.L, aOff, win));
+            const double rb = juce::jmax (1.0e-30, rms (y.L, bOff, win));
+
+            double peak = 0.0;
+            for (size_t i = 0; i < y.L.size(); ++i)
+                peak = juce::jmax (peak, (double) std::abs (y.L[i]));
+
+            const bool finite = std::all_of (y.L.begin(), y.L.end(),
+                                             [] (float v) { return std::isfinite (v); });
+
+            struct R { double decayDb, peak; bool finite; };
+            return R { 20.0 * std::log10 (rb / ra) / 10.0, peak, finite };
+        };
+
+        // (a) LINEAR regime — the non-expansiveness assertion proper.
+        // -52 dBFS excitation: the loop peaks around 1e-3, where tanh(x) and x
+        // agree to ~1e-7 relative, so the saturator cannot be the thing moving
+        // the decay rate.
+        const double quiet   = std::pow (10.0, -52.0 / 20.0);
+        const double delaySec = 0.400;
+
+        const auto linPlain = tailDecayDb (  0.0f, 85.0f, quiet);
+        const auto linDiff  = tailDecayDb (100.0f, 85.0f, quiet);
+
+        // The maximum group delay the chain can produce: the sum of its four
+        // section lengths. Read from the plugin's own constant rather than
+        // re-typed, so a voicing change to the lengths cannot leave this probe
+        // crediting a period the engine no longer has
+        // (pattern_test_fixture_mirrors_drift_silently).
+        double gdMaxSec = 0.0;
+        for (float ms : ReverseDelayProcessor::kDiffusionAllpassMs)
+            gdMaxSec += (double) ms * 0.001;
+
+        // dB lost per trip around the loop. Decay is negative, so "more
+        // negative" is more loss; the diffused loop must lose AT LEAST as much
+        // per generation as the plain one even after being credited the largest
+        // period the chain can physically add.
+        const double plainPerGen = linPlain.decayDb * delaySec;
+        const double diffPerGen  = linDiff.decayDb  * (delaySec + gdMaxSec);
+
+        // For the report line: how much of the dB/s slowdown the period alone
+        // predicts, against what was measured.
+        const double measuredRatio  = linDiff.decayDb / linPlain.decayDb;
+        const double predictedRatio = delaySec / (delaySec + gdMaxSec);
+
+        // (b) feedback 100 — convergence and boundedness, the property that is
+        // actually load-bearing at the corner.
+        const auto hotPlain = tailDecayDb (  0.0f, 100.0f, kRandA);
+        const auto hotDiff  = tailDecayDb (100.0f, 100.0f, kRandA);
+
+        const bool converges = hotPlain.decayDb < 0.0 && hotDiff.decayDb < 0.0;
+        const bool bounded   = hotPlain.peak < 1.8 && hotDiff.peak < 1.8
+                                 && hotPlain.finite && hotDiff.finite;
+
+        check ("diffusion-is-non-expansive",
+               linPlain.finite && linDiff.finite
+                 && diffPerGen <= plainPerGen && converges && bounded,
+               juce::String ("LINEAR (-52 dBFS, fb 85) dB per GENERATION:"
+                             " diffusion 0 = ")
+                 + juce::String (plainPerGen, 4)
+                 + ", diffusion 100 = " + juce::String (diffPerGen, 4)
+                 + " (crediting the full " + juce::String (gdMaxSec * 1000.0, 1)
+                 + " ms allpass group delay; diffused must lose at least as much)"
+                 + " | dB/s ratio measured " + juce::String (measuredRatio, 4)
+                 + " vs period prediction " + juce::String (predictedRatio, 4)
+                 + " || fb 100: decay 0 = " + juce::String (hotPlain.decayDb, 4)
+                 + ", 100 = " + juce::String (hotDiff.decayDb, 4)
+                 + " dB/s (both must be < 0) peak = "
+                 + juce::String (hotDiff.peak, 4));
+    }
+
+    // --- Probe BB: drive does not move the decay rate ------------------------
+    //
+    // The property that separates drive from regenMakeup, asserted rather than
+    // asserted-in-a-comment. tanh(d.x)/d has small-signal gain exactly 1 for
+    // every d, so the loop's LOW-LEVEL decay — which is what sets how long a
+    // tail lasts — must be unchanged across the whole knob. regenMakeup fails
+    // this line by construction at any non-zero setting, which is precisely why
+    // it needed a measured cap and this does not.
+    //
+    // Measured in the LATE tail, where the loop content has decayed into the
+    // small-signal region the claim is about. The early tail is expected to
+    // differ — that is the saturation, i.e. the feature.
+    {
+        auto decayDbPerSec = [&] (float drivePct)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "syncMode",  0.0f);
+            setParam (apvts, "delayTime", 400.0f);
+            setParam (apvts, "feedback",   85.0f);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "drive",     drivePct);
+            proc.prepareToPlay (fs, block);
+
+            auto y = renderEffect (proc, 25.0, fs, block, [&] (int t)
+            {
+                return t < (int) (1.0 * fs) ? (float) (kRandA * whiteNoiseAt (t)) : 0.0f;
+            });
+
+            // Two windows deep in the tail, 8 s apart.
+            const int aOff = (int) (12.0 * fs), bOff = (int) (20.0 * fs);
+            const int win  = (int) (2.0 * fs);
+            const double ra = juce::jmax (1.0e-12, rms (y.L, aOff, win));
+            const double rb = juce::jmax (1.0e-12, rms (y.L, bOff, win));
+            return 20.0 * std::log10 (rb / ra) / 8.0;
+        };
+
+        const double d0   = decayDbPerSec (0.0f);
+        const double d50  = decayDbPerSec (50.0f);
+        const double d100 = decayDbPerSec (100.0f);
+
+        const double spread = juce::jmax (std::abs (d50 - d0), std::abs (d100 - d0));
+
+        check ("drive-preserves-decay-rate",
+               spread < 0.25,
+               juce::String ("decay dB/s: drive 0 = ") + juce::String (d0, 4)
+                 + ", 50 = " + juce::String (d50, 4)
+                 + ", 100 = " + juce::String (d100, 4)
+                 + " | spread = " + juce::String (spread, 4)
+                 + " dB/s (must stay under 0.25 — the small-signal gain of"
+                 + " tanh(d.x)/d is 1 at every d)");
+    }
+
+    // --- Probe BC: v1.8.0's controls are block-size invariant ----------------
+    //
+    // Probes AQ and AX again, with COLOUR engaged. Neither new control has any
+    // block-rate state — the allpass chain advances per sample and the drive is
+    // a memoryless function — so this should hold trivially. It is asserted
+    // anyway because "should hold trivially" is what was said about the delay
+    // read latch (v1.0.1) and the RNG streams (v1.1.0), and both were wrong.
+    //
+    // The allpass chain is the specific risk: its ring index is per-sample state
+    // carried across block boundaries, which is exactly the shape of the bug
+    // pattern_grain_read_before_capture_write_blocksize describes.
+    {
+        auto renderAtBlock = [&] (int blk)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            setParam (apvts, "density",      60.0f);
+            setParam (apvts, "feedback",     70.0f);
+            setParam (apvts, "mix",         100.0f);
+            setParam (apvts, "jitter",       50.0f);
+            setParam (apvts, "delayScatter", 80.0f);
+            setParam (apvts, "direction",    50.0f);
+            setParam (apvts, "duck",         80.0f);
+            setParam (apvts, "driftDepth",   70.0f);
+            setParam (apvts, "diffusion",    85.0f);
+            setParam (apvts, "drive",        75.0f);
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+            return renderEffectStereo (proc, 4.0, fs, blk,
+                                       [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); },
+                                       [&] (int t) { return (float) (kRandA * whiteNoiseAt (t + 7919)); });
+        };
+
+        auto small = renderAtBlock (512);
+        auto large = renderAtBlock (4096);
+
+        const double d = juce::jmax (maxAbsDiff (small.L, large.L),
+                                     maxAbsDiff (small.R, large.R));
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        check ("v180-blocksize-invariance", d == 0.0,
+               juce::String ("max|512-4096| = ") + juce::String (d, 12)
+                 + " with diffusion 85 / drive 75 and every earlier control"
+                 + " engaged, rms512="
+                 + juce::String (rms (small.L, (int) (1.0 * fs), (int) (1.5 * fs)), 6));
+    }
+
     // --- Probe N: factory-preset audit (Stage 4, D16 / C1) -------------------
     // MUST run last: it mutates the APVTS through the real preset manager and
     // leaves the plugin on the final preset's values, so no probe may follow it.
@@ -5075,6 +5413,15 @@ int main()
             // `tilt` four lines up, in a shape that is new: there the wrong
             // value is out of range in spirit, here it is out of range in fact.
             float  source, duck, driftRate, driftDepth;
+            // v1.8.0 (B4 #7-#8): COLOUR, both pinned at 0. Back to the v1.6.0
+            // situation — the reflex is correct here — but these two columns are
+            // load-bearing for a reason the MOTION trio's were not. Diffusion and
+            // Drive are the first parameters this plugin has added that would
+            // genuinely IMPROVE the factory presets, so the pressure is not to
+            // write the wrong neutral, it is to write a deliberate non-neutral
+            // and re-voice eight shipped sounds. These zeros are what fails if
+            // someone does (pattern_activating_dead_param_default_timbre).
+            float  diffusion, drive;
             double seconds;
         };
 
@@ -5087,14 +5434,14 @@ int main()
         // ever fail, the FIRST thing to check is that the version bump actually
         // re-seeded ~/Library/O-ReverseDelay/Presets/Factory (see the note below).
         const FactoryExpect kFactoryExpect[] = {
-            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
-            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
-            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
-            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
-            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
-            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
-            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 30.0 },
-            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 10.0 },
+            { "Reverse Bloom",    0, 6,  500, 200, 53.3f,  40, 100,  8000, 60, 40, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 10.0 },
+            { "Guitar Swell",     0, 6,  700, 300, 47.5f,  45, 120,  6500, 55, 55, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 10.0 },
+            { "Vocal Halo",       0, 6,  380, 180, 65.0f,  30, 300,  7000, 70, 25, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 10.0 },
+            { "Slow Wash",        0, 6, 1400, 450, 18.3f,  65,  80,  5000, 85, 50, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 10.0 },
+            { "Tight Smear",      0, 6,  180,  70, 88.3f,  35, 150, 11000, 35, 45, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 10.0 },
+            { "Dark Cavern",      0, 6,  850, 320, 59.2f,  70, 220,  1800, 75, 55, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 10.0 },
+            { "Near-Infinite",    0, 6,  900, 350, 65.0f, 100, 180,  2500, 80, 50, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 30.0 },
+            { "Rhythmic Reverse", 1, 4,  500, 120, 76.7f,  50, 140,  9000, 50, 45, 0.5f, 0, 0, 0, 0, 0, 0, 0.30f, 0, 0, 0, 10.0 },
         };
 
         // Per-param tolerances, set FROM MEASUREMENT rather than assumed: the
@@ -5173,6 +5520,11 @@ int main()
             cmp ("duck",         e.duck,       kTolPct);
             cmp ("driftRate",    e.driftRate,  0.01f);
             cmp ("driftDepth",   e.driftDepth, kTolPct);
+            // v1.8.0 (B4 #7-#8). Both linear 0-100 % floats on a 0.1 step, so
+            // kTolPct is one step — any deliberate re-voicing of a shipped preset
+            // fails this by at least 100x rather than drifting under the bar.
+            cmp ("diffusion",    e.diffusion,  kTolPct);
+            cmp ("drive",        e.drive,      kTolPct);
 
             const bool values = loaded && inRange;
 

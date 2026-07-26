@@ -72,6 +72,12 @@ const KNOB_IDS = [
   // `sourceMode`, the fourth new parameter, is a CHOICE and is bound below
   // through getComboBoxState — not here.
   "duck", "driftRate", "driftDepth",
+  // v1.8.0 (B4 #7, #8) — row 3's COLOUR panel, the last of the v1.0.0 review's
+  // section B4. Both default to 0 and both zeroes are exact no-ops: diffusion 0
+  // leaves the loop's dry path at exactly 1.0, drive 0 maps to a tanh pre-gain
+  // of exactly 1.0 and early-outs to the plain std::tanh the loop has always
+  // called. Neither is a CHOICE or a BOOL, so neither has a counterpart below.
+  "diffusion", "drive",
 ];
 
 const COMBO_SYNC     = "syncMode";
@@ -141,6 +147,19 @@ const fmtDriftDepth = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
 // range map (pattern_webview_knob_readout_scaled_value).
 const fmtDriftRate = (v) => (v < 1 ? `${v.toFixed(2)} Hz` : `${v.toFixed(1)} Hz`);
 
+// v1.8.0 (B4 #7, #8). Both read "Off" at 0 on the same grounds fmtDuck and
+// fmtDriftDepth do, and in both cases the word is literally true of the engine
+// rather than a rounding of something small:
+//
+//   * diffusion 0 leaves the dry term at exactly 1.0, so the allpass chain's
+//     output is multiplied by exactly zero — it runs, but nothing it computes
+//     reaches the loop.
+//   * drive 0 maps to a pre-gain of exactly 1.0, and driveShape() branches on
+//     that to call plain std::tanh — the same call the loop has made since
+//     v1.0.0, not tanh(1.0·x)/1.0 evaluated the long way.
+const fmtDiffusion = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
+const fmtDrive     = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
+
 const FORMAT = {
   delayTime: fmtMs,
   grainSize: (v) => `${Math.round(v)} ms`,
@@ -172,6 +191,9 @@ const FORMAT = {
   duck:         fmtDuck,
   driftRate:    fmtDriftRate,
   driftDepth:   fmtDriftDepth,
+  // v1.8.0 (B4 #7, #8) — COLOUR panel.
+  diffusion:    fmtDiffusion,
+  drive:        fmtDrive,
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────
