@@ -702,3 +702,60 @@ constructor immediately after `getRawParameterValue()` and then drop the null ch
 
 _Reviewed: 2026-07-25_
 _Reviewer: Claude (gsd-code-reviewer), depth: deep_
+
+---
+
+## Resolved
+
+**v1.7.2** (`975fb40`..) — CR-01, CR-02, WR-01 … WR-05. See the CHANGELOG.
+
+**v1.7.3** (`6df057e`) — the Info tier, swept as one gate.
+
+| ID | Resolution |
+|----|------------|
+| IN-01 | `ReverseGrain::age` and both writes deleted. |
+| IN-02 | `PluginEditor.h` contract re-measured from source — 940 × 768, thirteen native fns, 20 sliders / 4 combos / 1 toggle, 25 params, D10 recorded as reversed at v1.3.0. |
+| IN-03 | **Resolved against the finding's own recommendation.** See below. |
+| IN-04 | Dead `envLastCurve` binding and the absent-behaviour half of `envResize()`'s comment removed. The "wire it up" arm was declined — new runtime behaviour does not belong in a patch sweep. |
+| IN-05 | **Partial.** `migrateUserPresets()` now stamps before the walk. `initializeFactoryPresets()` has the same defect but lives in the shared preset-manager module — still open. |
+| IN-06 | 25 cached atomics `jassert`-ed once at construction; `reset()`'s null guards dropped so both call sites read identically. Note the finding's `pFreeze` claim was already stale — v1.7.2's CR-02 fix had removed that dereference. |
+
+### IN-03: the finding identified the right defect and the wrong fix
+
+The finding correctly spotted two contradictory budgets, then recommended
+keeping the `214`-into-`213` one on the strength of having *recomputed* the
+knob-cell from the CSS rules as written. Rendered and measured at the shipping
+viewport, the knob-cell is **78 px, not 80**, and the panel lays **212 into 213 —
+1 px under, not 1 px over**. The surviving comment is the one the finding
+proposed to delete.
+
+This matters beyond the pixel. Recomputation from rules is precisely how the
+second budget came to exist, and the review reproduced that method and so
+reproduced its error. The resolution is therefore not a corrected comment but
+three assertions in `ui_tooltip_clamp_check.js` measuring the rendered rows.
+
+Two further copies of the wrong figure, which the finding did not mention, were
+found by grep during the fix: `styles.css`'s top-of-file block and
+`PluginEditor.cpp:518`. Four copies total, three of them wrong.
+
+**A second trap surfaced while writing the guard.** The first version asserted
+`contentSum <= body.clientHeight` and could never have failed: `.group-body` is
+`flex: 1 1 0%` with `min-height: auto`, so it grows with its content rather than
+clipping, and `clientHeight` grows with it — the fail-test showed content and
+bound moving together from 213 to 222 while still reporting "0 px spare". That
+is `pattern_flex1_container_slack_invisible_to_row_sum`, rebuilt by accident
+inside the fix for its twin. The shipped bound is the **panel's** fixed content
+box (245 less border and padding = 213), the one quantity that does not move
+with the thing it bounds. All three assertions were then verified to fail
+against a restored pre-v1.4.0 56 px knob and the layout restored bit-identically.
+
+### Still open
+
+- **IN-05 (module half).** `OuariconPresetManager::initializeFactoryPresets()`
+  in `modules/persistence/preset-manager/cpp/` (module v1.0.5) writes
+  `.factory-version` after its work, with the same non-closing check-then-act.
+  Fixing it changes behaviour for every plugin depending on the module and needs
+  a module version bump plus a rollout to all dependents — out of scope for a
+  single-plugin Info sweep.
+
+_Info tier swept: 2026-07-25_
