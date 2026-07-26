@@ -26,10 +26,13 @@
         (correct at the time) principle of not inventing new geometry. Neither
         height was ever measured against what the panels actually hold.
 
-   Row 2 is UNTOUCHED at 245 px. Its WINDOW panel budgets 214 px of content
-   into a 213 px body — the one panel on the page with genuinely zero slack —
+   Row 2 is UNTOUCHED at 245 px. Its WINDOW panel lays 212 px of content into a
+   213 px content box — the one panel on the page with effectively zero slack —
    so trimming row 2 means trimming the v1.4.0 envelope display, which is a
    feature change wearing a layout change's clothes. It was declined.
+   (v1.7.3: this said 214 into 213 through v1.7.2 and was wrong in both the
+   figure and the sign. The itemised budget is stated ONCE, at the .group-window
+   block below, and asserted in tests/ui_tooltip_clamp_check.js.)
 
    Row 1 (145 px)  TIME   | GRAIN  | FEEDBACK | OUTPUT   — signal flow (D9)
    Row 2 (245 px)  RANDOM | WINDOW | COUNT    | MOTION   — character controls
@@ -415,11 +418,18 @@ body {
    knobs, which is TIME's shape exactly.
 
    245 is the number that did NOT move in v1.7.1, and it is the only one on the
-   page that could not: WINDOW lays out 214 px of content (44 select-cell + 80
-   knob-cell + 72 env-cell + 2 × 9 row-gap) into this panel's 213 px body. It
-   is already 1 px over. Every other panel here has slack — COUNT has 59.5 px
-   above and below its knob — but a row is as tall as its tallest panel, so
-   that slack is WINDOW's to give and WINDOW has none.
+   page that could not: WINDOW fills its 213 px body to within 1 px. The
+   itemised budget lives ONCE, at the .group-window block below — do not restate
+   it here. Every other panel in this row has slack (COUNT has 59.5 px above and
+   below its knob), but a row is as tall as its tallest panel, so that slack is
+   WINDOW's to give and WINDOW has none.
+
+   v1.7.3 (IN-03): this comment used to carry its own copy of the budget, and
+   the copy was wrong — it itemised an 80 px knob-cell against the real 78 and
+   concluded the panel was 1 px OVER rather than 1 px under. It was derived from
+   the rules rather than measured. The budget is now asserted against the
+   rendered box in tests/ui_tooltip_clamp_check.js, which is the only version of
+   it that can fail.
 
    145 + 14 + 245 + 14 + 145 = 563 of rows, centred in .groups' 592.5. */
 .group-row-2 .group { height: 245px; }
@@ -528,14 +538,27 @@ body {
    .knob-cell, .select-cell and .division-select are shared by all eight panels,
    so an unscoped edit would resize the entire interface.
 
-   The height budget, measured rather than guessed — body is 158 x 213:
+   THE height budget for this panel — the only copy. Body is 158 x 213:
        select-cell   28 + 6 + 10            =  44
        knob-cell     46 + 5 + 10 + 5 + 12   =  78
        env-cell      6 + 58 + 6 + 2 border  =  72
        + 2 row gaps at 9                    =  18
                                         total = 212 of 213
    One px spare, which is the same "exactly zero slack" discipline the row
-   geometry above uses. Changing any number here means re-doing that sum. */
+   geometry above uses.
+
+   Note the two knob-cells SHARE a flex row (the body is flex-wrap with
+   align-content:center), so 78 is counted once, not twice — the sum is over
+   rendered ROWS, not over children.
+
+   v1.7.3 (IN-03): every figure above was re-measured against the rendered box
+   and all of them hold. A second, conflicting copy of this budget used to live
+   in the row-2 block ~120 lines up, itemising an 80 px knob-cell and concluding
+   the panel was 1 px over; it was derived from the rules rather than rendered,
+   and it has been deleted. Do not restate these numbers anywhere else —
+   changing one means re-running tests/ui_tooltip_clamp_check.js, which now
+   asserts the total, the overflow and the 78 px knob-cell against the real
+   layout and will fail if this comment goes stale. */
 .group-window .group-body { row-gap: 9px; }
 
 .group-window .select-cell { gap: 6px; }

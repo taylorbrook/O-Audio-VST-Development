@@ -532,7 +532,7 @@ drag-suppression behaviour of the tooltip layer is unchanged.
 
 ## Info
 
-### IN-01: `ReverseGrain::age` is write-only dead state
+### IN-01: `ReverseGrain::age` is write-only dead state — **Resolved in v1.7.3**
 
 **File:** `Source/dsp/ReverseGrain.h:82` (written at `Source/PluginProcessor.cpp:1603` and `:1762`)
 
@@ -553,7 +553,7 @@ could reasonably assume grains are ordered by age.
 
 ---
 
-### IN-02: `PluginEditor.h`'s class contract is three releases stale and now contradicts the .cpp
+### IN-02: `PluginEditor.h`'s class contract is three releases stale and now contradicts the .cpp — **Resolved in v1.7.3**
 
 **File:** `Source/PluginEditor.h:10-19`
 
@@ -580,7 +580,7 @@ conclude two registrations are spurious.
 
 ---
 
-### IN-03: `styles.css` states two contradictory WINDOW-panel height budgets
+### IN-03: `styles.css` states two contradictory WINDOW-panel height budgets — **Resolved in v1.7.3**
 
 **File:** `Source/ui/public/css/styles.css:418-420` vs `:531-537`
 
@@ -612,7 +612,7 @@ asserted rather than written down twice.
 
 ---
 
-### IN-04: `envLastCurve` is assigned and never read; the DPR redraw its comment promises does not exist
+### IN-04: `envLastCurve` is assigned and never read; the DPR redraw its comment promises does not exist — **Resolved in v1.7.3**
 
 **File:** `Source/ui/public/js/app.js:234` (assigned at `:657`), with `:560-579`
 
@@ -640,7 +640,7 @@ dprQuery.addEventListener("change", () => { if (envLastCurve) drawEnvelope(envLa
 
 ---
 
-### IN-05: the preset sentinels are check-then-write, so the race they are documented to prevent survives
+### IN-05: the preset sentinels are check-then-write, so the race they are documented to prevent survives — **Partially resolved in v1.7.3**
 
 **File:** `Source/PluginProcessor.cpp:348-431` (and `:265-271`; `OuariconPresetManager.h:601-604`)
 
@@ -676,7 +676,7 @@ with the documented recovery (delete the sentinel) already in `NOTES.md`.
 
 ---
 
-### IN-06: `prepareToPlay` dereferences the cached parameter atomics without the null guards `reset()` applies
+### IN-06: `prepareToPlay` dereferences the cached parameter atomics without the null guards `reset()` applies — **Resolved in v1.7.3**
 
 **File:** `Source/PluginProcessor.cpp:957-970` vs `:467-477`
 

@@ -47,6 +47,38 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pDriftRate    = parameters.getRawParameterValue("driftRate");
     pDriftDepth   = parameters.getRawParameterValue("driftDepth");
 
+    // ── v1.7.3 (IN-06): one guard posture, asserted once, here ──────────────
+    // getRawParameterValue returns nullptr for an id that is not in the layout,
+    // which is only ever a TYPO in createParameterLayout() or in the string
+    // above — never a runtime condition. Asserting it once at construction is
+    // therefore strictly better than guarding at every use site:
+    //
+    //   - a typo fails LOUDLY here, in debug, on the first instantiation;
+    //   - reset() and prepareToPlay() can then dereference identically.
+    //
+    // Before this, they disagreed — reset() guarded every pointer and
+    // prepareToPlay dereferenced the same ones bare. That disagreement picked
+    // the WRONG direction: a typo'd id made reset() a silent no-op (a smoother
+    // stuck at its default forever, with no diagnostic) and prepareToPlay a
+    // null dereference (a release crash on the host's first prepare). One
+    // symptom hides the bug, the other reports it far from its cause.
+    //
+    // jassert compiles out of release, so this costs nothing shipped. The
+    // release posture is deliberate: if an id ever did go missing past a debug
+    // run, crashing at prepare is more discoverable than a silently dead
+    // control, and ui_frontend_check.js already diffs the relay lists against
+    // the APVTS in both directions on every build.
+    for (auto* p : { pDelayTime, pSyncMode, pNoteDivision, pGrainSize, pDensity,
+                     pFeedback, pLowCut, pHighCut, pWidth, pMix,
+                     pJitter, pDelayScatter, pSizeRandom, pGainRandom,
+                     pGrainTilt, pGrainShape, pGrainCount, pTukeyTaper,
+                     pFreeze, pDirection, pRegenMakeup,
+                     pSourceMode, pDuck, pDriftRate, pDriftDepth })
+    {
+        jassert (p != nullptr);   // id typo in createParameterLayout() or above
+        juce::ignoreUnused (p);
+    }
+
     // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
     // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
     // through each parameter's own NormalisableRange below. Four params are
@@ -342,9 +374,24 @@ namespace
 // Guarded by a version sentinel mirroring initializeFactoryPresets()'s: without
 // it every processor construction (each auval/pluginval scan pass, each instance
 // added to a session) would re-read every user preset on the message thread, and
-// two instances constructing concurrently would race on the same files. The
-// trade-off is that a v1.0.0 preset restored from a backup AFTER the sentinel is
-// stamped will not be migrated.
+// two instances constructing concurrently would race on the same files.
+//
+// v1.7.3 (IN-05): the sentinel is now STAMPED BEFORE THE WALK. It used to be
+// written at the end, which made this a check-then-act that did not close the
+// race it was documented to close: several instances constructing in parallel on
+// the first launch after an upgrade all pass the existsAsFile() check, all walk,
+// and all rewrite the same files. The outcome was benign — the transform is
+// per-file version-gated so every writer produces identical content, and
+// replaceWithText goes via a temp file — but it was still N× the intended
+// message-thread file IO during construction, which is exactly where AU
+// validation is timing-sensitive.
+//
+// Two trade-offs, both accepted deliberately:
+//   - a v1.0.0 preset restored from a backup AFTER the sentinel is stamped will
+//     not be migrated (unchanged from before);
+//   - an INTERRUPTED pass is now never retried, because the claim is already on
+//     disk. Recovery is to delete the sentinel — see NOTES.md "Known Issues".
+//     This is the same trade the backup path already accepts.
 void ReverseDelayProcessor::migrateUserPresets()
 {
     auto userDir  = presetManager.getUserPresetsDirectory();
@@ -353,6 +400,11 @@ void ReverseDelayProcessor::migrateUserPresets()
     if (sentinel.existsAsFile()
         && sentinel.loadFileAsString().trim() == JucePlugin_VersionString)
         return;
+
+    // Stamp FIRST: a concurrent constructor must see the claim before the work
+    // is visible, or the sentinel serialises nothing.
+    sentinel.getParentDirectory().createDirectory();
+    sentinel.replaceWithText(JucePlugin_VersionString);
 
     if (userDir.isDirectory())
     {
@@ -425,9 +477,6 @@ void ReverseDelayProcessor::migrateUserPresets()
             file.replaceWithText(juce::JSON::toString(data, true));
         }
     }
-
-    sentinel.getParentDirectory().createDirectory();
-    sentinel.replaceWithText(JucePlugin_VersionString);
 }
 
 //==============================================================================
@@ -471,10 +520,14 @@ void ReverseDelayProcessor::reset()
 
     // Jump the smoothers to their current targets rather than ramping from
     // whatever the previous pass ended on.
-    if (pFeedback != nullptr) feedbackSmoothed.setCurrentAndTargetValue(pFeedback->load() * 0.01f);
-    if (pMix      != nullptr) mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
-    if (pLowCut   != nullptr) lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
-    if (pHighCut  != nullptr) highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
+    //
+    // v1.7.3 (IN-06): the null guards these four carried are gone — every cached
+    // atomic is jassert-ed once in the constructor, so this now reads exactly as
+    // prepareToPlay's identical block does.
+    feedbackSmoothed.setCurrentAndTargetValue(pFeedback->load() * 0.01f);
+    mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
+    lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
+    highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
 
     // v1.7.2 (CR-02): freeze starts at ZERO here, not at the parameter's value —
     // the same correction prepareToPlay carries, for the same reason and with one
@@ -1722,7 +1775,6 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             g.G           = gG;
             g.invG        = 1.0f / static_cast<float>(gG);
             g.gain        = grainGain;
-            g.age         = 0;
             g.startOffset = off + passOffset;
 
             // B1: window shape + tilt, latched like everything else above. No
@@ -1881,7 +1933,6 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             g.readAbs = readAbs;
             g.n       = n;
-            g.age    += (end - start);
 
             if (g.n >= g.G)
                 g.active = false;

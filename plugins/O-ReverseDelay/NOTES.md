@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.7.2
+- **Version:** 1.7.3
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -37,7 +37,7 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 
   The load-bearing half was the **capture ring, 6.0 → 13.0 s**. The requirement is `gD_max + 2·G_max` — a grain's last read lands at `(s − gD − G)` while the write head has reached `(s + G)` — so `4.5 + 2·4.0 = 12.5 s`. Shipping the wider range against the old ring would **not have faulted**: long grains would have wrapped onto overwritten material with no NaN, no discontinuity, and every existing probe green — audible only as "the long settings sound crunchy". Cost ~5.0 MB stereo at 48 kHz (~20 MB at 192 kHz), allocated once in `prepareToPlay`. The invariant is now a **`static_assert`**, because every prose statement of it was already correct at v1.4.0 and none of them stopped this release from invalidating it.
 
-  User presets are migrated; sessions are not (APVTS stores denormalised ms — rescaling those would corrupt them). The trap was the **version gate**: `delayTime`'s range moved at v1.0.1 so its gate is `< 1.0.1`, but `grainSize`'s moved at v1.5.0 so its gate is `< 1.5.0`. Reusing the existing `!= "1.0.0"` test would have migrated v1.0.0 presets and silently left every v1.1–v1.4 preset — the bulk of any real library — on the old curve, still loading fine and recalling the wrong size. `grainSize` is also the harder rescale: `delayTime` kept its skew centre and moved only its max, while `grainSize` moved **both**, so no scale factor works — only reconstructing the old range and round-tripping through ms. The gate is per-file, so migration is idempotent if a pass is interrupted before the sentinel writes.
+  User presets are migrated; sessions are not (APVTS stores denormalised ms — rescaling those would corrupt them). The trap was the **version gate**: `delayTime`'s range moved at v1.0.1 so its gate is `< 1.0.1`, but `grainSize`'s moved at v1.5.0 so its gate is `< 1.5.0`. Reusing the existing `!= "1.0.0"` test would have migrated v1.0.0 presets and silently left every v1.1–v1.4 preset — the bulk of any real library — on the old curve, still loading fine and recalling the wrong size. `grainSize` is also the harder rescale: `delayTime` kept its skew centre and moved only its max, while `grainSize` moved **both**, so no scale factor works — only reconstructing the old range and round-tripping through ms. The gate is per-file, so the transform itself is idempotent — every writer produces identical content. *(Through v1.7.2 an interrupted pass would simply re-run next construction; since v1.7.3 the sentinel is stamped first, so recovery from an interrupted pass is to delete it — see Known Issues.)*
 
   Two stale mirrors found and fixed, both of which would have kept passing while lying. `tests/render-harness/CMakeLists.txt` pinned `JucePlugin_VersionString="1.2.0"` while the plugin shipped 1.3.0 and 1.4.0 — the file's own comment warns this value is load-bearing (both preset sentinels key off it), so probes N and R spent two releases auditing v1.2.0's on-disk presets. And `tests/ui-stub/juce-stub.js` still declared `grainSize` as 50–500 centre-158, which would have made every browser-rendered readout disagree with the plugin. The new stub assertion checks against the **C++ constants** rather than repeating literals, since a literal in the test drifts exactly as silently as the one it is guarding.
 
@@ -75,9 +75,15 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 
   **Every one of the 204 px removed was empty, and five releases of comments proved it was not.** `.groups` is `flex: 1`, so its height is the frame's content box minus header, preset band and footer — never the row sum — and `justify-content: center` centres the rows in what is left. At 972 that was 796.5 px holding 703 px of rows: **93.5 px of centred nothing**. Every comment from v1.1.0 to v1.7.0 said the opposite in the same words (*"743 + 229 = 972 and `.groups` still has EXACTLY zero slack"*), and both sums are sums **of rows** — neither ever subtracted the row total from the frame height, which is the only subtraction that could have found it. The guard was structurally incapable of firing and each release re-derived it and passed it on; `ui_frontend_check.js` mirrored the same sum, so the fixture agreed with the comment for the same reason (`pattern_test_fixture_mirrors_drift_silently`).
 
-  Rows 1 and 3 were the same error at panel scale: 215 px panels around **100 px** and **94 px** of content. Row 1 has been 215 since Stage 3, when its panels were the tallest thing on a 484 px page; row 3 inherited 215 from row 1 at v1.7.0 on the correct principle of not inventing new geometry. Neither was ever measured against what the panels hold. Row 2 is untouched at 245 because WINDOW already lays 214 px into a 213 px body — the one panel with no slack — so trimming row 2 means shrinking the v1.4.0 envelope display, a feature change wearing a layout change's clothes.
+  Rows 1 and 3 were the same error at panel scale: 215 px panels around **100 px** and **94 px** of content. Row 1 has been 215 since Stage 3, when its panels were the tallest thing on a 484 px page; row 3 inherited 215 from row 1 at v1.7.0 on the correct principle of not inventing new geometry. Neither was ever measured against what the panels hold. Row 2 is untouched at 245 because WINDOW already lays 212 px into a 213 px body — the one panel with no slack — so trimming row 2 means shrinking the v1.4.0 envelope display, a feature change wearing a layout change's clothes. *(The 214 written here through v1.7.2 was wrong; see the v1.7.3 entry.)*
 
   The 29.5 px left in `.groups` is deliberate: `.group-label` sits at `top: -9px`, straddling each panel's top border, so row 1 needs ≥ 9 px of clearance under the preset band's rule. The check now bounds the band to [18, 40] instead of trusting the comment. None of this is visible to `ninja`, `auval`, `pluginval` or a static check — **an over-tall frame renders perfectly**. It was found by serving the real page through `tests/ui-stub/` and measuring the boxes, and the height budget in `styles.css` is now written from rendered values rather than a paper sum.
+
+- **2026-07-25 (v1.7.3):** Patch — **Info-tier review sweep** (IN-01…IN-06), the six findings v1.7.2 deferred. No parameter, preset, state, DSP or layout change; harness unchanged at **145 probes**, all passing. **IN-01** `ReverseGrain::age` deleted — write-only since v1.1.0 replaced steal-oldest with find-inactive. **IN-02** `PluginEditor.h`'s contract re-measured: 940×768 (not 484), **thirteen** native fns (not eleven), **20 sliders + 4 combos + 1 toggle** (not "17 + 3"), 25 params (not 10), and D10's "no polling bridge" recorded as reversed at v1.3.0. **IN-03** see below — the review's recommendation was wrong and the measurement inverted it. **IN-04** dead `envLastCurve` and the retina-migration claim its comment made removed (the wire-it-up arm was declined as new runtime behaviour). **IN-05** the user-preset migration sentinel now stamps **before** its walk, so concurrent construction actually serialises; interrupted migrations are no longer retried, recovery is to delete the sentinel. **IN-06** all 25 cached parameter atomics `jassert`-ed once in the constructor and `reset()`'s inconsistent null guards dropped, so it and `prepareToPlay` read identically. auval SUCCEEDED, AU version verified 1.7.3 (0x10703).
+
+  **The WINDOW budget was wrong in three of the four places it was written, and the review picked the wrong one to keep.** `styles.css` carried two contradictory budgets 120 lines apart — 214-into-213 with an 80 px knob-cell, and 212-of-213 with 78 — and the 214 figure had also been copied into the file's top-of-file block, into `PluginEditor.cpp:518` and into this file. Rendered and measured, the truth is **44 + 78 + 72 + two 9 px gaps = 212 into a 213 px box, 1 px spare**: the panel is 1 px *under*, not over. The 80 px cell was never real — it was derived from the CSS rules instead of observed, which is exactly how a second budget got written in the first place. The itemisation now lives in **one** comment and in three assertions in `ui_tooltip_clamp_check.js`, all three verified to fail by temporarily restoring the pre-v1.4.0 56 px knob (222 into 213) and then restored bit-identically.
+
+  **The first version of that assertion could never have failed, and the reason is worth keeping.** It compared the content sum against `.group-body`'s own `clientHeight` — but that element is `flex: 1 1 0%` with `min-height: auto`, so it *grows* with its content rather than clipping. Inflating the knob moved content and `clientHeight` together (213 → 222) and the check cheerfully reported "222 into 222, 0 px spare". That is `pattern_flex1_container_slack_invisible_to_row_sum` rebuilt by accident while fixing its twin. The shipped bound is the **panel's** fixed content box (245 less border and padding = 213), which is the only quantity in the layout that does not move with the thing it bounds.
 
 - **2026-07-25 (v1.7.2):** Patch — resolves the seven defect findings of the v1.7.1 deep code review (2 Critical, 5 Warning). No parameter, preset, state or UI-layout change; a v1.7.1 session renders identically unless it uses **drift** or **Freeze**. **CR-01** the pass bound now tests every parameter that can *shorten* a latched delay, not just scatter — v1.7.0's `driftMul` multiplies `D` by as little as 0.75, so drift-with-scatter-off read capture the write head had not reached yet and rendered differently at 512 than at 4096. **CR-02** Freeze no longer latches against an empty ring: `prepareToPlay`/`reset` start un-frozen and the latch waits for one grain, so a session saved frozen no longer reopens with a permanently silent wet path. **WR-01** the harness's `JucePlugin_VersionString` is derived from the plugin target instead of mirrored (it had drifted to 1.5.0 across three releases). **WR-02** `kMaxSpawnsPerBlock` 128 → 2048 against a corrected, now-hard bound. **WR-03** cutoff coefficients update on a fixed 32-sample grid. **WR-04** `getTailLengthSeconds` derived from `kCaptureSeconds` (~54 s) instead of pinned at 10 s. **WR-05** knob drags capture the pointer and terminate on cancel/lost-capture. Harness 138→**145 probes**; `ui_frontend_check.js` 147→**155 checks**; tooltip clamp unchanged at 27/27. auval SUCCEEDED, AU version verified 1.7.2 (0x10702). The six Info findings (IN-01…IN-06) are deferred — see the CHANGELOG's Notes.
 
@@ -106,9 +112,13 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   Treat the invariant as: **bit-identical for static parameters**, which is the
   property the offline-bounce guarantee actually rests on.
 - **The WINDOW panel has ~1 px of vertical slack.** Its budget is 212 of 213 px
-  (select-cell 44 + knob-cell 78 + env-cell 72 + two 9 px row gaps). Adding
-  anything to that panel, or growing any of its parts, means re-doing that sum —
-  the numbers are in the CSS comment beside the `.group-window` overrides. Those
+  (select-cell 44 + knob-cell 78 + env-cell 72 + two 9 px row gaps; the two
+  knob-cells share a flex row, so 78 counts once). As of **v1.7.3 this is
+  asserted, not just written down** — `ui_tooltip_clamp_check.js` measures the
+  rendered rows and fails if the content stops fitting or the knob-cell leaves
+  78 px. Adding anything to that panel still means re-doing the sum, but the
+  build now notices if you don't. The numbers live in exactly one CSS comment,
+  beside the `.group-window` overrides. Those
   overrides are deliberately SCOPED: `.knob`, `.knob-cell`, `.select-cell` and
   `.division-select` are shared by all eight panels.
 - **The UI chassis is FULL as of v1.6.0.** Row 2 is
@@ -165,6 +175,21 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   `delayTime` will recall high (a 1400 ms save reads back as ~2450 ms). Delete
   `~/Library/O-ReverseDelay/Presets/.user-migration-version` and reopen the
   plugin to re-run the migration.
+
+  **As of v1.7.3 the same recovery also covers an interrupted migration.** The
+  sentinel is now stamped *before* the walk (IN-05) so that concurrent processor
+  construction actually serialises — which means a pass killed part-way through
+  has already claimed the version and will not retry itself. Deleting the
+  sentinel and reopening is the fix in both cases. This is the same trade-off
+  the backup path already accepts, and it buys the elimination of N× redundant
+  message-thread file IO when a host constructs several instances at once.
+
+- **The `.factory-version` sentinel still has the pre-v1.7.3 check-then-write
+  ordering.** It is written by `OuariconPresetManager::initializeFactoryPresets()`
+  in the shared **preset-manager module (v1.0.5)**, not by this plugin, so fixing
+  it is a module change affecting every dependent and needs its own version bump
+  and rollout. The impact is the same benign-but-wasteful concurrent rewrite
+  described above. Tracked as the open half of IN-05.
 - `width` has a hole in the middle by design: `kPanBias = 0.5` means at
   width 100 % no grain is ever centred (decision D5, not a bug).
 - Expo-Decay decays faster in the feedback loop than the other four shapes

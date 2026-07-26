@@ -231,7 +231,6 @@ let envCtx       = null;       // its 2D context
 let envCurveFn   = null;       // the getWindowCurve native fn, resolved once
 let envRedrawTid = null;       // coalescing timer
 let envInFlight  = false;      // as meterInFlight — never queue fetches
-let envLastCurve = null;       // last curve received, for a DPR redraw with no fetch
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Function declarations (hoisted — safe to reference from init() below)
@@ -582,9 +581,16 @@ function refreshTaperEnabled() {
 }
 
 // Sizes the backing store for the device pixel ratio and returns the CSS-px box.
-// Called on every draw rather than once: a window dragged between a retina and a
-// non-retina display changes devicePixelRatio with no resize event that this page
-// would otherwise see.
+// Called from drawEnvelope() on every draw, so a devicePixelRatio that changed
+// since the last draw is picked up without a separate resize path.
+//
+// This is NOT a retina-migration handler: drawEnvelope() is only reachable from
+// fetchEnvelope(), which runs on a parameter change or at init. Dragging the
+// window between a retina and a non-retina display without touching Shape, Tilt
+// or Taper leaves the canvas at its old backing-store resolution until the next
+// parameter move. v1.7.3 (IN-03/IN-04) removed the dead `envLastCurve` binding
+// that made this look handled; wiring a matchMedia listener would be the fix, and
+// is deliberately not shipped — it is new runtime behaviour, not a comment fix.
 function envResize() {
   const dpr = window.devicePixelRatio || 1;
   const w = envCanvas.clientWidth  || 158;
@@ -681,8 +687,7 @@ async function fetchEnvelope() {
     const curve = typeof raw === "string" ? JSON.parse(raw) : raw;
 
     if (Array.isArray(curve) && curve.length >= 2) {
-      envLastCurve = curve.map(Number);
-      drawEnvelope(envLastCurve);
+      drawEnvelope(curve.map(Number));
     }
   } catch (e) {
     console.error("getWindowCurve failed:", e);   // the plot stays on its last curve

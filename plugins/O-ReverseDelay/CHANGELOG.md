@@ -4,6 +4,112 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.7.3] — 2026-07-25 — Info-tier review sweep (IN-01 … IN-06)
+
+Patch release. Clears the six **Info** findings the v1.7.1 review left open and
+v1.7.2 deferred. **No parameter, preset, state, DSP or layout change** — a v1.7.2
+session, preset or factory patch opens and renders identically, and the render
+harness's 145 probes are byte-for-byte unchanged.
+
+Four of the six are comment and dead-code work. Two touch behaviour and were
+gated accordingly: the user-preset migration sentinel now stamps before its walk,
+and the cached parameter atomics are asserted once at construction instead of
+guarded inconsistently at two call sites.
+
+Harness **145 probes**, unchanged and all passing; `ui_frontend_check.js`
+unchanged; `ui_tooltip_clamp_check.js` **27/27 anchors + 3 new WINDOW-panel
+assertions**. auval SUCCEEDED, AU version verified as 1.7.3 (0x10703).
+
+### Fixed
+
+**IN-03 — the WINDOW panel's height budget was written down four times, and the
+three copies that agreed with each other were the wrong ones.** `styles.css` held
+two contradictory budgets 120 lines apart: one itemising an 80 px knob-cell for
+214 px of content into a 213 px body ("already 1 px over"), the other a 78 px
+knob-cell for 212 of 213 ("one px spare"). The 214 version had also been copied
+into `styles.css`'s top-of-file block, into `PluginEditor.cpp:518` and into
+`NOTES.md`.
+
+Rendered and measured at the shipping viewport, the correct figures are
+**44 + 78 + 72 + two 9 px gaps = 212 into a 213 px box — 1 px spare**. The 80 px
+knob-cell was never real; it was *derived from the CSS rules* rather than
+observed, which is the same failure mode that put a second budget in the file to
+begin with. The code review that raised this finding recommended keeping the 80
+version for the same reason, and was also wrong.
+
+The budget now exists in exactly one comment and, more importantly, in three
+assertions in `ui_tooltip_clamp_check.js` that measure the rendered rows. All
+three were verified to FAIL by temporarily restoring the pre-v1.4.0 56 px knob
+(content 222 into 213, −9 px spare), then restored bit-identically.
+
+Worth recording: the first version of that assertion compared the content sum
+against the body's own `clientHeight` and was **structurally incapable of
+failing** — `.group-body` is `flex: 1 1 0%` with `min-height: auto`, so it grows
+with its content instead of clipping, and `clientHeight` grew right along with
+it (213 → 222, still "0 px spare"). That is
+`pattern_flex1_container_slack_invisible_to_row_sum` rebuilt by accident while
+fixing its twin. The shipped assertion measures against the *panel's* fixed
+content box (245 less border and padding = 213), which is the only bound that
+does not move with the thing it is bounding.
+
+**IN-05 — the preset migration sentinel was check-then-write, so the race it
+documented survived.** `migrateUserPresets()` read the sentinel, walked and
+rewrote the user preset directory, and only then stamped the sentinel — from the
+processor **constructor**. A host instantiating several instances in parallel on
+the first launch after an upgrade had every one of them pass the check and
+rewrite the same files. Benign in outcome (the transform is per-file
+version-gated, so all writers produce identical content, and `replaceWithText`
+goes via a temp file) but N× the intended message-thread file IO during
+construction, which is where AU validation is timing-sensitive. The stamp now
+happens before the walk.
+
+Trade-off, accepted deliberately and documented in `NOTES.md`: an interrupted
+migration is no longer retried, because the claim is already on disk. Recovery is
+to delete the sentinel.
+
+**IN-06 — `reset()` and `prepareToPlay()` disagreed about whether the cached
+parameter atomics could be null.** `reset()` guarded every pointer; `prepareToPlay`
+dereferenced the same ones bare. The disagreement picked the wrong direction: an
+id typo in `createParameterLayout()` would make `reset()` a silent no-op and
+`prepareToPlay` a release crash. All 25 cached pointers are now `jassert`-ed once
+in the constructor and both functions dereference identically.
+
+### Removed
+
+**IN-01 — `ReverseGrain::age` was write-only dead state.** Zeroed at spawn,
+incremented per grain per pass on the audio thread, read by nothing in `Source/`
+or `tests/`. A leftover from the steal-oldest pool policy v1.1.0 replaced with
+find-inactive round-robin. Field and both writes deleted.
+
+**IN-04 — `envLastCurve` was assigned and never read, and the behaviour its
+comment promised did not exist.** `envResize()`'s comment claimed it handled a
+window dragged between a retina and a non-retina display; `envResize()` is only
+reachable from `drawEnvelope()` ← `fetchEnvelope()`, which runs on a parameter
+change or at init. The dead binding and the misleading half of the comment are
+gone, and what remains states the real limitation. Wiring up a `matchMedia`
+listener was considered and declined — it is new runtime behaviour, not a
+comment fix, and does not belong in a patch sweep.
+
+### Changed
+
+**IN-02 — `PluginEditor.h`'s class contract was three releases stale and
+contradicted the `.cpp`.** Every figure re-measured from source: the window is
+940 × 768 (not 484), the native-function surface is **thirteen** (not eleven),
+the relays are **20 sliders + 4 combos + 1 toggle = 25** (not "17 + 3"), the
+parameter count is 25 (not 10), and decision D10's "no C++→JS polling bridge" was
+reversed at v1.3.0 by the 15 Hz `getGrainMeter` poll. The header now says so.
+
+### Notes
+
+**One finding is only half-resolved, deliberately.** IN-05 names *both* preset
+sentinels, but `.factory-version` is written by
+`OuariconPresetManager::initializeFactoryPresets()`, which lives in the **shared
+`preset-manager` module (v1.0.5)** rather than in this plugin. Reordering it
+would change behaviour for every plugin in the suite and needs its own module
+version bump plus a rollout to all dependents. Out of scope for a single-plugin
+Info sweep; the plugin-local half (`migrateUserPresets`) is done and the module
+half is **still open**.
+
 ## [1.7.2] — 2026-07-25 — code-review resolution (CR-01/02, WR-01–05)
 
 Patch release. Resolves the seven defect findings of the v1.7.1 deep code review:
@@ -177,14 +283,19 @@ state.
 ### Notes
 
 The six **Info** findings of the review (IN-01 … IN-06) were out of scope for this
-release and remain open: `ReverseGrain::age` is write-only dead state;
-`PluginEditor.h`'s class contract is three releases stale (940 × 484, "eleven"
-native functions, "17 sliders + 3 combos"); `styles.css` states two contradictory
-WINDOW height budgets 120 lines apart, with `NOTES.md` mirroring the wrong one;
-`envLastCurve` is assigned and never read, so the DPR redraw its comment promises
-does not exist; the preset sentinels are check-then-write, so the race they
-document is not closed; and `prepareToPlay` dereferences the cached parameter
-atomics without the null guards `reset()` applies.
+release: `ReverseGrain::age` is write-only dead state; `PluginEditor.h`'s class
+contract is three releases stale (940 × 484, "eleven" native functions, "17
+sliders + 3 combos"); `styles.css` states two contradictory WINDOW height budgets
+120 lines apart, with `NOTES.md` mirroring one of them; `envLastCurve` is assigned
+and never read, so the DPR redraw its comment promises does not exist; the preset
+sentinels are check-then-write, so the race they document is not closed; and
+`prepareToPlay` dereferences the cached parameter atomics without the null guards
+`reset()` applies.
+
+**All six were swept in v1.7.3** — see that entry. One resolved differently from
+the review's recommendation: IN-03's contradictory budgets were settled by
+*measuring* the rendered panel, which showed the review had picked the wrong
+comment.
 
 ## [1.7.1] — 2026-07-25 — 940 × 768
 

@@ -515,9 +515,17 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     // auval or a static check can see; it was found by rendering the page at the
     // shipping viewport and measuring, which is now what styles.css documents.
     //
-    // Row 2 stays 245. Its WINDOW panel already lays 214 px of content into a
-    // 213 px body, so trimming row 2 means shrinking the v1.4.0 envelope display
+    // Row 2 stays 245. Its WINDOW panel lays 212 px of content into a 213 px
+    // content box, so trimming row 2 means shrinking the v1.4.0 envelope display
     // — a feature change, not a layout one.
+    //
+    // v1.7.3 (IN-03): this read "214 px into a 213 px body" through v1.7.2, and
+    // so did styles.css in two places and NOTES.md in one. All four were copies
+    // of a figure derived from the CSS rules rather than measured; the rendered
+    // knob-cell is 78 px, not 80, so the panel is 1 px UNDER, not 1 px over.
+    // The itemised budget now lives in exactly one comment (the .group-window
+    // block in styles.css) and is asserted against the real layout in
+    // tests/ui_tooltip_clamp_check.js. Do not restate it here again.
     //
     // The WIDTH is deliberately unchanged at 940. The tooltip edge-clamp gate is
     // horizontal and viewport-sensitive — it only fires at the real shipping
