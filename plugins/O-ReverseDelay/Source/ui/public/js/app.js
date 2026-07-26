@@ -329,12 +329,19 @@ function bindKnob(juce, id) {
     e.preventDefault();
   };
 
-  const onUp = () => {
+  // v1.7.2 (WR-05): terminates on cancel and lost-capture as well as on up, and
+  // is idempotent (the !dragging early-return), because all four paths can fire.
+  const onUp = (e) => {
     if (!dragging) return;
     dragging = false;
     st.sliderDragEnded();
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
+    knob.removeEventListener("pointermove", onMove);
+    knob.removeEventListener("pointerup", onUp);
+    knob.removeEventListener("pointercancel", onUp);
+    knob.removeEventListener("lostpointercapture", onUp);
+    if (e && e.pointerId !== undefined) {
+      try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+    }
   };
 
   knob.addEventListener("pointerdown", (e) => {
@@ -342,8 +349,28 @@ function bindKnob(juce, id) {
     startY    = e.clientY;
     startNorm = st.getNormalisedValue();
     st.sliderDragStarted();
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    // v1.7.2 (WR-05): capture on the KNOB rather than listening on window.
+    //
+    // With window listeners and only a `pointerup` to end the drag, any path that
+    // does not deliver that event leaves `dragging` true and both listeners
+    // attached: drag out of the plugin window and release over the DAW, let the
+    // host take a modal grab, or let the WebView lose focus mid-drag and the OS
+    // synthesise a pointercancel instead. Two silent consequences followed —
+    // every later mouse move over the page kept writing setNormalisedValue()
+    // with no button held (the knob follows the cursor until the next click), and
+    // sliderDragStarted() was left unmatched, so the host's parameter gesture
+    // stayed open, which latches automation write in Logic and Live.
+    //
+    // Capturing routes every subsequent pointer event for this pointerId to the
+    // knob even outside the WebView, and guarantees a terminating
+    // pointerup/pointercancel/lostpointercapture. try/catch covers older
+    // backends; the window path is not kept as a fallback because a partial
+    // failure there is what produced the bug.
+    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+    knob.addEventListener("pointermove", onMove);
+    knob.addEventListener("pointerup", onUp);
+    knob.addEventListener("pointercancel", onUp);
+    knob.addEventListener("lostpointercapture", onUp);
     e.preventDefault();
   });
 

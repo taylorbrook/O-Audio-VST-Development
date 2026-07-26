@@ -2879,30 +2879,58 @@ int main()
     // an argument, not a measurement, and the ceiling raise moves the very
     // quantity the argument depended on.
     //
-    // Worst case the parameters allow, derived rather than guessed:
+    // v1.7.2 (WR-02): this probe used to reproduce the header's derivation
+    //
     //   spawns/pass = passLen / interval, passLen <= kDelayTimeMinMs·fs,
     //   interval = G/overlap >= (kGrainSizeMinMs·fs)/overlapMax
-    //   -> 16 · 50/50 = 16 nominal, against a cap of 128.
-    // So: ceiling 16, grainSize AND delayTime both at their 50 ms minimum, and
-    // jitter at 100 % to add the bursts that a nominal count cannot show.
+    //   -> 16 · 50/50 = 16 nominal, against a cap of 128
     //
-    // Run at TWO block sizes because passLen is derived from the host block
+    // verbatim, and then pinned delayTime to kDelayTimeMinMs — which is the ONE
+    // configuration in which the false premise on line 2 happens to be true.
+    // `passLen <= kDelayTimeMinMs·fs` only holds when delayScatter > 0; with
+    // scatter at 0 (the shipped default) passBound is D, so passLen is governed by
+    // the HOST BLOCK SIZE. Pinning delayTime to its minimum forces
+    // D == minDelaySamples and hides exactly that.
+    // See GrainScheduler::kMaxSpawnsPerBlock for the corrected bound.
+    //
+    // The `min` case below is kept as-is (it is a legitimate configuration and the
+    // historical regression guard); `longdelay` is the case the old derivation
+    // could not see, and it is the real worst case: delayTime at its MAXIMUM so
+    // passLen == numSamples, grainSize at its minimum and ceiling 16 so the
+    // interval is as short as the parameters allow, scatter explicitly at 0 so the
+    // wide pass bound is selected, and 16384 included because several hosts bounce
+    // at that block size.
+    //
+    // Run at multiple block sizes because passLen is derived from the host block
     // size: 512 gives one pass per block, 4096 gives several, and only the
     // second exercises a pass that fills from a mid-block starting countdown.
     {
-        for (const int blk : { 512, 4096 })
+        struct SpawnCapCase { const char* name; float delayMs; std::vector<int> blocks; };
+
+        const SpawnCapCase spawnCapCases[] = {
+            { "min",       ReverseDelayProcessor::kDelayTimeMinMs, { 512, 4096 } },
+            { "longdelay", ReverseDelayProcessor::kDelayTimeMaxMs, { 512, 4096, 16384 } },
+        };
+
+        for (const auto& scc : spawnCapCases)
+        for (const int blk : scc.blocks)
         {
             setBaseline (apvts);
             clearRandomisation();
             clearWindow();
             setParam (apvts, "grainCount",   16.0f);
             setParam (apvts, "grainSize",    ReverseDelayProcessor::kGrainSizeMinMs);
-            setParam (apvts, "delayTime",    ReverseDelayProcessor::kDelayTimeMinMs);
+            setParam (apvts, "delayTime",    scc.delayMs);
             setParam (apvts, "density",      100.0f);
             setParam (apvts, "jitter",       100.0f);
             setParam (apvts, "feedback",      60.0f);
             setParam (apvts, "width",        100.0f);
             setParam (apvts, "mix",          100.0f);
+            // Explicit: 0 is what selects the WIDE pass bound, which is the whole
+            // point of the longdelay case. clearRandomisation() already zeroes it;
+            // stated here so a future edit to that helper cannot quietly turn this
+            // back into the scatter-bounded configuration.
+            setParam (apvts, "delayScatter",   0.0f);
 
             proc.setPlayConfigDetails (2, 2, fs, blk);
             proc.prepareToPlay (fs, blk);
@@ -2920,7 +2948,7 @@ int main()
             // v1.1.0 working as designed (drop one grain rather than cut a live
             // envelope) and at ceiling 16 against 32 slots it is reachable under
             // full jitter — probe AD is what proves it stays inaudible.
-            check ((juce::String ("spawncap-headroom-") + juce::String (blk)).toRawUTF8(),
+            check ((juce::String ("spawncap-headroom-") + scc.name + "-" + juce::String (blk)).toRawUTF8(),
                    dropped == 0 && allFinite (y.L) && allFinite (y.R)
                      && juce::jmax (peakAbs (y.L), peakAbs (y.R)) < 1.0,
                    juce::String ("dropped=") + juce::String ((int) dropped)
@@ -5324,6 +5352,355 @@ int main()
                  + " | unmigrated drift >= " + juce::String (leastDrift, 1)
                  + "ms (e.g. " + juce::String (driftMs, 0) + " -> "
                  + juce::String (driftGot, 1) + "ms)");
+    }
+
+    // --- Probe BA: drift with scatter OFF is block-size invariant (CR-01) -----
+    //
+    // The gap probes AV, AW and AX left between them, and the whole finding is in
+    // which branch of PluginProcessor's pass bound each of them selected:
+    //
+    //   * AV (drift-ring-clamp)        sets delayScatter = kDelayScatterMaxMs
+    //   * AX (v170-blocksize-invariance) sets delayScatter = 80 ms
+    //     -> both take `scatterSamples > 0`, i.e. the CONSERVATIVE grainDelayFloor
+    //        bound, which is precisely the branch that was already safe.
+    //   * AW (drift-is-live)           runs scatter-free, but at block = 512 with
+    //     delayTime = 500 ms, where passLen is two orders of magnitude below the
+    //     smallest reachable gD.
+    //
+    // So no probe varied the block size with drift ON and scatter OFF, and that is
+    // the one combination in which v1.7.0's driftMul could pull a latched delay
+    // (down to 0.75·D) below a pass bound still widened to D. A grain spawning
+    // late in such a pass latched readAbs AHEAD of the capture write head — which
+    // step 6 has not written yet — and read a full 14 s ring lap of stale material.
+    //
+    // The settings are chosen so passLen actually straddles gD's negative
+    // excursion rather than merely being legal: at 48 kHz, delayTime 95 ms gives
+    // D = 4560, gD ranges over [3420, 5700] at depth 100, and a 4096-sample block
+    // makes passLen = 4096 > 3420. direction 60 matters because a forward grain
+    // reads t − gD at EVERY sample of its life, so the corruption is the whole
+    // grain rather than just its head.
+    //
+    // Asserted EXACT, like every other invariance probe here: this is arithmetic
+    // on the same inputs, not a tolerance question.
+    {
+        auto renderAtBlock = [&] (int blk)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "delayTime",     95.0f);   // D = 4560 at 48 kHz
+            setParam (apvts, "grainSize",    120.0f);
+            setParam (apvts, "density",       70.0f);
+            setParam (apvts, "feedback",      50.0f);
+            setParam (apvts, "width",         60.0f);
+            setParam (apvts, "mix",          100.0f);
+            setParam (apvts, "direction",     60.0f);
+            setParam (apvts, "driftRate",      2.0f);
+            setParam (apvts, "driftDepth",   100.0f);   // gD in [0.75·D, 1.25·D]
+            setParam (apvts, "delayScatter",   0.0f);   // THE branch under test
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+            return renderEffect (proc, 3.0, fs, blk,
+                                 [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+        };
+
+        auto small = renderAtBlock (512);
+        auto large = renderAtBlock (4096);
+
+        const double d = juce::jmax (maxAbsDiff (small.L, large.L),
+                                     maxAbsDiff (small.R, large.R));
+        const double r = rms (small.L, (int) (1.0 * fs), (int) (1.5 * fs));
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        check ("drift-noscatter-blocksize-invariance",
+               d == 0.0 && r > 1.0e-4
+                 && allFinite (small.L) && allFinite (large.L),
+               juce::String ("max|512-4096| = ") + juce::String (d, 12)
+                 + " at driftDepth 100 / delayScatter 0 / delayTime 95 ms"
+                 + " (the pass-bound branch AV and AX never take)"
+                 + " rms512=" + juce::String (r, 6));
+    }
+
+    // --- Probe BB: Freeze restored from a session must not be silent (CR-02) --
+    //
+    // Probe AP engages the hold 3 s after load, which was the right timing for the
+    // failure it was built to catch (advancing the write head without writing goes
+    // silent) and is the one timing at which this failure cannot appear: it needs
+    // capture.getTotalWritten() to be SMALL when the latch fires.
+    //
+    // A session saved with Freeze engaged is ordinary use — it is a performance
+    // control — and the ring is not part of that saved state. prepareToPlay
+    // allocates and clears it, so the parameter says "frozen" while the buffer
+    // holds nothing. v1.7.1 latched jlimit(1, .., 0) == 1 on the first block,
+    // pushLooped(1) copied the previous (zero) slot, every later sample copied the
+    // zero it had just written, and freezeEngaged was already true so the latch
+    // never re-armed: the wet path was exactly zero for the life of the session.
+    // The dry path passed through, which is why it presents as "the plugin stopped
+    // working" rather than as a freeze.
+    //
+    // This is the ONLY ordering that reproduces it: set freeze BEFORE
+    // prepareToPlay, exactly as setStateInformation-then-prepare does on session
+    // load. Rendering wet-only (mix 100) is what makes the assertion meaningful —
+    // any dry leak would mask a dead wash.
+    {
+        setBaseline (apvts);
+        clearRandomisation();
+        clearWindow();
+        setParam (apvts, "delayTime", 500.0f);
+        setParam (apvts, "grainSize", 200.0f);
+        setParam (apvts, "density",    60.0f);
+        setParam (apvts, "feedback",   40.0f);
+        setParam (apvts, "width",      60.0f);
+        setParam (apvts, "mix",       100.0f);   // wet only — dry would mask silence
+        setParam (apvts, "freeze",      1.0f);   // BEFORE prepare: the session-load order
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        // Freeze stays engaged throughout — no callback touches it. The hold must
+        // arm itself once a grain of material exists.
+        auto y = renderEffect (proc, 5.0, fs, block,
+                               [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+
+        const double rEarly = rms (y.L, (int) (0.5 * fs), (int) (1.0 * fs));
+        const double rLate  = rms (y.L, (int) (3.5 * fs), (int) (1.0 * fs));
+        const double pk     = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+
+        // v1.7.1 measured exactly 0.0 for both windows. The bound is a real wash
+        // level rather than "> 0" so a single leaked sample cannot satisfy it.
+        check ("freeze-restored-from-session-is-not-silent",
+               rLate > 1.0e-3 && rEarly > 1.0e-4 && pk < 1.0
+                 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("wet rms early[0.5..1.5s]=") + juce::String (rEarly, 6)
+                 + " late[3.5..4.5s]=" + juce::String (rLate, 6)
+                 + " peak=" + juce::String (pk, 4)
+                 + " (freeze=1 set BEFORE prepareToPlay; v1.7.1 rendered 0.000000)");
+    }
+
+    // --- Probe BC: a hold can never latch into a TONE (CR-02, second arm) -----
+    //
+    // The sibling of BB, reached from the other end. Engaging Freeze a few hundred
+    // samples after load — well before a grain has been captured — used to latch a
+    // loop that short: at block 512 the hold became a 512-sample loop, i.e. a
+    // 94 Hz pitched tone at 48 kHz rather than the wash the control claims.
+    // v1.7.2 refuses to arm below one grain, so the hold waits and then holds real
+    // material.
+    //
+    // NOT measured by crest factor, which is what probe AP uses and what this
+    // probe was first written with. Crest catches a PULSE TRAIN (AP's stopped-write-
+    // head failure reads far above the live wash) but a short loop is a periodic
+    // WAVEFORM, whose crest is if anything lower than a cloud's: the first draft of
+    // this probe read crest 3.62 against a live 3.20 on the very code it was meant
+    // to reject, and passed.
+    //
+    // The discriminator that actually separates them is LAGGED AUTOCORRELATION. A
+    // ring looping with period L makes every grain read material that repeats at L,
+    // so the output correlates near-1 at lag L. The assertion is therefore the
+    // general form of the invariant — no strong periodicity at ANY lag shorter than
+    // one grain — rather than a test against the one lag the old code happened to
+    // pick, which would be pinned to the harness's block size.
+    {
+        // Normalised autocorrelation of x at `lag`, over [off, off+len).
+        auto autocorrAt = [] (const std::vector<float>& x, int lag, int off, int len)
+        {
+            const int hi = juce::jmin ((int) x.size() - lag, off + len);
+            if (hi - off < 2) return 0.0;
+
+            double num = 0.0, ea = 0.0, eb = 0.0;
+            for (int i = off; i < hi; ++i)
+            {
+                const double a = (double) x[(size_t) i];
+                const double b = (double) x[(size_t) (i + lag)];
+                num += a * b;
+                ea  += a * a;
+                eb  += b * b;
+            }
+            const double den = std::sqrt (ea * eb);
+            return den > 1.0e-20 ? num / den : 0.0;
+        };
+
+        // Freeze at 256 samples — inside the first block at every tested size, and
+        // two orders of magnitude below G.
+        //
+        // The excitation runs for the WHOLE render, unlike probe AP's 3-s burst.
+        // That is not incidental: the fix defers the latch until a grain of
+        // material exists, so the ring must still be receiving live input across
+        // that window. Cutting the input at freezeAt starves the deferred latch —
+        // it then captures ~5 ms of noise and 195 ms of silence, and the resulting
+        // sparse output reads crest 48 against a live 3.2, which measures the
+        // probe's excitation and not the plugin. Once armed the hold ignores the
+        // input anyway, so leaving it on cannot flatter the result.
+        const int freezeAt = 256;
+
+        setBaseline (apvts);
+        clearRandomisation();
+        clearWindow();
+        setParam (apvts, "delayTime", 500.0f);
+        setParam (apvts, "grainSize", 200.0f);
+        setParam (apvts, "density",    60.0f);
+        setParam (apvts, "feedback",   40.0f);
+        setParam (apvts, "width",      60.0f);
+        setParam (apvts, "mix",       100.0f);
+        setParam (apvts, "freeze",     0.0f);
+        proc.prepareToPlay (fs, block);
+
+        auto y = renderEffect (proc, 8.0, fs, block,
+                               [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); },
+                               [&] (int pos, int)
+                               {
+                                   if (pos >= freezeAt) setParam (apvts, "freeze", 1.0f);
+                               });
+
+        const double rHold = rms (y.L, (int) (5.0 * fs), (int) (2.0 * fs));
+
+        // Scan every lag a degenerate latch could have produced: from 64 samples up
+        // to one grain. The spawn interval (G/overlap = 1714 samples here) lives
+        // inside this range and is legitimate structure, so the bound has to sit
+        // above whatever the correctly-armed hold reads there — measured, not
+        // guessed, and reported either way so a future shift is visible.
+        const int    gSamples = (int) (0.200 * fs);
+        const int    winOff   = (int) (5.0 * fs);
+        const int    winLen   = (int) (2.0 * fs);
+        double worstCorr = 0.0;
+        int    worstLag  = 0;
+
+        for (int lag = 64; lag < gSamples; lag += 16)
+        {
+            const double c = std::abs (autocorrAt (y.L, lag, winOff, winLen));
+            if (c > worstCorr) { worstCorr = c; worstLag = lag; }
+        }
+
+        check ("freeze-early-engage-is-not-a-tone",
+               rHold > 1.0e-4 && worstCorr < 0.80
+                 && allFinite (y.L) && allFinite (y.R),
+               juce::String ("hold rms[5..7s]=") + juce::String (rHold, 6)
+                 + " worst |autocorr| = " + juce::String (worstCorr, 4)
+                 + " @lag " + juce::String (worstLag)
+                 + " over lags 64..G (needs < 0.80)"
+                 + " | freeze engaged at " + juce::String (freezeAt)
+                 + " samples, G=" + juce::String (gSamples));
+    }
+
+    // --- Probe BD: a SWEPT cutoff's block-size divergence is bounded (WR-03) --
+    //
+    // The gap in probes O, W2, AQ, AX and BA: every one of them sets its parameters
+    // before prepareToPlay and never moves them, and setCurrentAndTargetValue
+    // starts the smoothers AT target. So all five assert bit-identity for STATIC
+    // parameters, while NOTES.md and the v1.7.0 CHANGELOG stated the invariant
+    // flatly. This probe is the automated case they never covered.
+    //
+    // Bit-identity is UNREACHABLE here, and NOT because of the smoother: the
+    // processor reads pHighCut->load() once per processBlock, which is all a host
+    // without sample-accurate automation offers. A 512-sample block samples the
+    // automation curve 8x more finely than a 4096-sample one, so the two renders
+    // are asked to follow genuinely different target sequences. Asserting == 0
+    // would be asserting something false.
+    //
+    // ── What this probe established about the WR-03 fix, measured both ways ────
+    //
+    // The fix (32-sample coefficient grid) was landed on the argument that the old
+    // skip(numSamples) update defeated the documented 20 ms smoothing contract at
+    // large buffers — a 20 ms ramp is 960 samples at 48 kHz, so a 4096-sample block
+    // skipped the whole ramp in ONE step and held one coefficient set for the block.
+    // That mechanism is real and the fix removes it.
+    //
+    // Its measurable consequence, however, is much smaller than that reasoning
+    // suggests, and this probe is the record of it. Rendered both ways:
+    //
+    //   512-vs-4096 divergence:  6.7 % of wet RMS with the grid, 7.2 % with the
+    //                            block-rate update. The divergence is dominated by
+    //                            the per-block PARAMETER sampling above, not by the
+    //                            coefficient grid, so the fix barely moves it.
+    //   maxAbsStep vs parked:    0.98x with the block-rate update — i.e. probe C's
+    //                            click detector cannot see the coefficient jump
+    //                            either, because broadband noise through the grain
+    //                            engine dominates the first difference.
+    //
+    // So the fix is a fidelity-to-contract correction, not an audible-artefact fix,
+    // and the NOTES.md invariance claim needed correcting regardless of it. Both
+    // numbers are reported rather than asserted tightly; the bound below is a
+    // regression guard against a future change making the divergence wild, not a
+    // discriminator between the two implementations.
+    {
+        auto renderSweep = [&] (int blk)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "delayTime", 300.0f);
+            setParam (apvts, "grainSize", 150.0f);
+            setParam (apvts, "density",    60.0f);
+            setParam (apvts, "feedback",   50.0f);
+            setParam (apvts, "width",      50.0f);
+            setParam (apvts, "mix",       100.0f);
+            setParam (apvts, "lowCut",     20.0f);
+            setParam (apvts, "highCut", 18000.0f);
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+
+            // A fast sweep — 18 kHz down to 800 Hz over 2 s — because a slow one
+            // hides a coarse update grid. Driven through setParam, i.e. the same
+            // path a DAW's automation lane uses.
+            return renderEffect (proc, 3.0, fs, blk,
+                                 [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); },
+                                 [&] (int pos, int)
+                                 {
+                                     const double u = juce::jlimit (0.0, 1.0,
+                                                        (double) pos / (2.0 * fs));
+                                     setParam (apvts, "highCut",
+                                               (float) (18000.0 - u * 17200.0));
+                                 });
+        };
+
+        auto small = renderSweep (512);
+        auto large = renderSweep (4096);
+
+        const double d  = juce::jmax (maxAbsDiff (small.L, large.L),
+                                      maxAbsDiff (small.R, large.R));
+        const double r  = rms (small.L, (int) (0.5 * fs), (int) (2.0 * fs));
+        const double rel = r > 0.0 ? d / r : 99.0;
+
+        // Largest sample-to-sample step in the 4096-sample render, against the same
+        // engine's step with the cutoff PARKED. Reported as a click guard. It does
+        // not discriminate the two coefficient implementations (the block-rate one
+        // reads 0.98x here) — see the note above; it is kept because a future change
+        // that genuinely does splice a coefficient jump would show up in it.
+        setBaseline (apvts);
+        clearRandomisation();
+        clearWindow();
+        setParam (apvts, "delayTime", 300.0f);
+        setParam (apvts, "grainSize", 150.0f);
+        setParam (apvts, "density",    60.0f);
+        setParam (apvts, "feedback",   50.0f);
+        setParam (apvts, "width",      50.0f);
+        setParam (apvts, "mix",       100.0f);
+        setParam (apvts, "lowCut",     20.0f);
+        setParam (apvts, "highCut",  9000.0f);   // parked mid-sweep
+        proc.setPlayConfigDetails (2, 2, fs, 4096);
+        proc.prepareToPlay (fs, 4096);
+        auto steady = renderEffect (proc, 3.0, fs, 4096,
+                                    [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+
+        const double stepSwept = maxAbsStep (large.L);
+        const double stepRef   = maxAbsStep (steady.L);
+        const double stepRatio = stepRef > 0.0 ? stepSwept / stepRef : 99.0;
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+
+        check ("cutoff-sweep-bounded-and-clickfree",
+               rel < 0.40 && stepRatio < 2.0 && r > 1.0e-4
+                 && allFinite (small.L) && allFinite (large.L)
+                 && allFinite (steady.L),
+               juce::String ("512-vs-4096 divergence = ") + juce::String (d, 6)
+                 + " = " + juce::String (rel * 100.0, 1) + " % of wet rms "
+                 + juce::String (r, 6) + " (bound 40 %; inherent ~7 % from"
+                 + " per-block parameter delivery, NOT the coefficient grid)"
+                 + " | maxStep swept=" + juce::String (stepSwept, 6)
+                 + " parked-ref=" + juce::String (stepRef, 6)
+                 + " ratio=" + juce::String (stepRatio, 3) + "x (bound 2.0x)");
     }
 
     std::printf ("%s (%d failure%s)\n",
