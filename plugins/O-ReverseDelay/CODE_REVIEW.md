@@ -3,6 +3,8 @@ plugin: O-ReverseDelay
 version: 1.7.1
 date: 2026-07-25
 depth: deep
+verified: 2026-07-25          # /improve-verify PASS over v1.7.2 + v1.7.3
+verified_scope: 12 of 13 CLOSED, IN-05 PARTIAL (module half declared out of scope)
 scope:
   - Source/PluginProcessor.h
   - Source/PluginProcessor.cpp
