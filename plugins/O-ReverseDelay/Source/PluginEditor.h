@@ -3,16 +3,26 @@
 
     O-ReverseDelay — Plugin Editor
 
-    Stage 3 (GUI): Ouaricon Naturalist WebView UI. Four framed group panels in
-    signal-flow order (TIME | GRAIN | FEEDBACK | OUTPUT) binding all 10 APVTS
-    parameters two-way through Web*Relay / Web*ParameterAttachment.
+    Stage 3 (GUI): Ouaricon Naturalist WebView UI. Framed group panels in
+    signal-flow order binding all 25 APVTS parameters two-way through
+    Web*Relay / Web*ParameterAttachment.
 
-    Stage 4 (Polish) grows the window to 940 × 484 for a preset bar and adds the
-    OuariconPresetManager v1.0.5 bridge.
+    Stage 4 (Polish) added the preset bar and the OuariconPresetManager v1.0.5
+    bridge. The window is 940 × 768 as of v1.7.1, which is the size that fits a
+    1080p display; PluginEditor.cpp:530 is the single setSize call and
+    styles.css (html/body and .frame) must agree with it.
 
-    No visualization, no Timer, no C++→JS polling bridge, no drag-drop, no
-    withInitialisationData (D10). The native-function surface is exactly ELEVEN:
+    No drag-drop, no withInitialisationData. Decision D10 ("no visualization, no
+    Timer, no C++→JS polling bridge") was REVERSED at v1.3.0 by the COUNT
+    panel's live grain readout: getGrainMeter is polled from JS at 15 Hz (see
+    app.js METER_POLL_MS). It is a PULL, so there is still no juce::Timer in
+    this class and no emitEvent plumbing — see PluginEditor.cpp:24-38 for why
+    that distinction is what keeps the ui-stub able to render the page.
+
+    The native-function surface is exactly THIRTEEN:
       - getParameterDefaults  (dblclick-reset)
+      - getWindowCurve        (the v1.4.0 envelope display)
+      - getGrainMeter         (the v1.3.0 COUNT readout, polled)
       - 10 preset fns         (the contract js/preset-manager.js fetches)
     Keep that count in sync with app.js + preset-manager.js — an unregistered fn
     is a silently dead control that passes build, auval AND pluginval
@@ -54,10 +64,15 @@ private:
     // would outlive the WebView and call into a freed component.
     // ═══════════════════════════════════════════════════════════════════
 
-    // 1. RELAYS — 17 sliders + 3 combos + 1 toggle.
-    //    syncMode, noteDivision and grainShape are all AudioParameterChoice, so
-    //    all three are combo relays. v1.6.0's `freeze` is the plugin's first and
-    //    only AudioParameterBool and therefore its first WebToggleButtonRelay —
+    // 1. RELAYS — 20 sliders + 4 combos + 1 toggle = 25, one per APVTS
+    //    parameter. The authoritative lists are kSliderIds / kComboIds /
+    //    kToggleIds in PluginEditor.cpp:50-99; ui_frontend_check.js diffs all
+    //    three against the APVTS in both directions, which is the only thing
+    //    that catches an id landing in the wrong list.
+    //    syncMode, noteDivision, grainShape and sourceMode are all
+    //    AudioParameterChoice, so all four are combo relays. v1.6.0's `freeze`
+    //    is the plugin's first and only AudioParameterBool and therefore its
+    //    first WebToggleButtonRelay —
     //    the relay TYPE has to match the parameter type, and a bool bound through
     //    a slider relay attaches without error and produces a control whose state
     //    never updates (pattern_webview_native_fn_bridge_gap, same failure class

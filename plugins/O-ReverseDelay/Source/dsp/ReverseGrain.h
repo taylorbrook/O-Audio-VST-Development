@@ -79,7 +79,6 @@ struct ReverseGrain
     // bitwise equal to each other and to what v1.0.0 latched.
     float       gLout       = 0.70710677f;
     float       gRout       = 0.70710677f;
-    int         age         = 0;            // samples alive
     int         startOffset = 0;            // block-transient: first render sample this block
 
     // ── v1.2.0 (B1): window shape + tilt, both latched at spawn ─────────────

@@ -358,6 +358,128 @@ function serve(root) {
     console.log(`\n   right-most tip: #${worstRightId} ends at ${worstRight.toFixed(1)} `
         + `of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
 
+    // ── v1.7.3 (IN-03): the WINDOW panel's height budget, MEASURED ───────────
+    // styles.css carried this budget written down twice, 120 lines apart, and
+    // the two disagreed. One said 214 px of content into a 213 px body ("already
+    // 1 px over", itemising an 80 px knob-cell); the other said 212 of 213 ("one
+    // px spare", itemising 78). Neither could fail a build, so the contradiction
+    // survived three releases.
+    //
+    // Measured here, the 78/212 version is the correct one and the 80/214 one
+    // was wrong. That direction matters more than the px: the wrong figure was
+    // produced by RECOMPUTING the cell from the rules as written (gap 5 + knob
+    // 46 + label + value at line-height:normal) instead of observing it, and
+    // recomputation is exactly what put a second budget in the file to begin
+    // with. Same lesson as pattern_flex1_container_slack_invisible_to_row_sum,
+    // where five releases of "EXACTLY zero slack" sat above 204 px of real empty
+    // space because the sum was computed rather than rendered.
+    //
+    // So the number now lives in ONE comment and ONE assertion that can fail.
+    //
+    // The body is display:flex/wrap with align-content:center, so the cells do
+    // NOT stack one-per-row: the two knob-cells share a flex row. Grouping the
+    // children by their top offset is what makes this a measurement of the real
+    // layout rather than of an assumed one — a naive sum over all four children
+    // double-counts the knob row and reports 290 into 213.
+    //
+    // WINDOW is the tightest panel on the page and it is what pins row 2 at
+    // 245 px, so this is the assertion that notices if it silently gains
+    // content. .group sets no overflow, so an overrun would not clip — it bleeds
+    // into the panel's padding, invisible to the eye as well as to the build.
+    //
+    // ── The budget is measured against the PANEL, not the body ──────────────
+    // The first version of this check compared the content sum with the body's
+    // own clientHeight and was structurally incapable of failing. .group-body is
+    // `flex: 1 1 0%` with the default min-height:auto, so it does not clip or
+    // scroll when its content grows — it GROWS, and clientHeight grows with it.
+    // Inflating the knob 46 -> 56 px moved content and clientHeight together
+    // (213 -> 222) and the assertion happily reported "222 into 222, 0 px
+    // spare". That is the same never-firing guard as
+    // pattern_flex1_container_slack_invisible_to_row_sum, rebuilt by accident
+    // while fixing its twin.
+    //
+    // What is actually fixed is the PANEL: `.group-row-2 .group { height: 245px }`.
+    // Its content box — 245 − 2 − 2 border − 16 − 12 padding = 213 — is the real
+    // ceiling, and the body silently overflowing it into the bottom padding is
+    // exactly the failure worth catching. So the bound is derived from the
+    // panel's own computed box here, not from the body and not from a literal.
+    const win = await page.evaluate(() => {
+        const body = document.querySelector('.group-window .group-body');
+        if (!body) return null;
+        const panel = document.querySelector('.group-window');
+        const cs = getComputedStyle(body);
+        const pcs = getComputedStyle(panel);
+        const br = body.getBoundingClientRect();
+        const px = (v) => parseFloat(v) || 0;
+
+        // The panel's fixed content box: what the body is actually allowed.
+        const panelBox = panel.getBoundingClientRect().height
+                       - px(pcs.borderTopWidth) - px(pcs.borderBottomWidth)
+                       - px(pcs.paddingTop)     - px(pcs.paddingBottom);
+
+        // Group children into flex rows by top offset; a row's height is its
+        // tallest child.
+        const rows = new Map();
+        for (const c of body.children) {
+            const r = c.getBoundingClientRect();
+            const key = Math.round(r.top - br.top);
+            rows.set(key, Math.max(rows.get(key) ?? 0, r.height));
+        }
+        const rowHeights = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(e => e[1]);
+        const gap = parseFloat(cs.rowGap) || 0;
+        const contentSum = rowHeights.reduce((a, b) => a + b, 0)
+                         + gap * Math.max(0, rowHeights.length - 1);
+
+        const cell = (sel) => {
+            const el = document.querySelector(`.group-window ${sel}`);
+            return el ? +el.getBoundingClientRect().height.toFixed(2) : -1;
+        };
+
+        return {
+            clientHeight: body.clientHeight,
+            scrollHeight: body.scrollHeight,
+            bodyHeight:  +br.height.toFixed(2),
+            panelBox:    +panelBox.toFixed(2),
+            rowHeights, gap,
+            contentSum:  +contentSum.toFixed(2),
+            selectCell:  cell('.select-cell'),
+            knobCell:    cell('.knob-cell'),
+            envCell:     cell('.env-cell'),
+            panelH:      panel.getBoundingClientRect().height,
+        };
+    });
+
+    check(win !== null, 'the WINDOW panel body is present and measurable');
+
+    if (win) {
+        const slack = +(win.panelBox - win.contentSum).toFixed(2);
+
+        // A CEILING, not an equality — content may shrink, it may not overrun.
+        // This is the assertion the two prose budgets could never be.
+        check(win.contentSum <= win.panelBox,
+            `WINDOW panel content fits the panel's fixed content box — `
+            + `${win.contentSum} into ${win.panelBox} px, ${slack} px spare `
+            + `(rows ${win.rowHeights.join(' + ')} @ gap ${win.gap})`);
+
+        // The body itself must not have been pushed past that box either. This
+        // is the one that catches a flex:1 body silently growing into the
+        // panel's bottom padding.
+        check(win.bodyHeight <= win.panelBox,
+            `WINDOW panel body stays inside the panel's content box — `
+            + `body ${win.bodyHeight} <= ${win.panelBox} px `
+            + `(panel ${win.panelH} less its border and padding)`);
+
+        // The knob-cell is the exact figure the two dead budgets disagreed
+        // about, so it is pinned rather than left to drift again.
+        check(win.knobCell === 78,
+            `WINDOW knob-cell renders at 78 px, matching the surviving styles.css `
+            + `itemisation (the deleted budget claimed 80) — measured ${win.knobCell}`);
+
+        console.log(`   WINDOW budget: select ${win.selectCell} + knob ${win.knobCell} `
+            + `+ env ${win.envCell} + 2 gaps @ ${win.gap} = ${win.contentSum} `
+            + `into body ${win.clientHeight} (panel ${win.panelH}) — ${slack} px spare`);
+    }
+
     await browser.close();
     server.close();
     fs.rmSync(root, { recursive: true, force: true });
