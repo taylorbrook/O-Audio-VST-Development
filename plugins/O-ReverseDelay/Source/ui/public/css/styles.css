@@ -83,6 +83,10 @@
    COLOUR is framed and EMPTY, on the same principle v1.1.0 used: it is reserved
    for the review's remaining loop-character items (B4 #7 diffusion, #8 loop
    drive), so filling those costs markup rather than another resize.
+       ^ v1.8.0 spent it, and the bet paid: Diffusion and Drive went in as two
+       knob-cells (158 px into the 190 px panel) with no width change, no height
+       change and no CSS rule added. Section B4 of the v1.0.0 review is now
+       fully implemented and NOTHING on the page is reserved.
 
    The WIDTH did not change, and that is the load-bearing half of the decision:
    the tooltip edge-clamp gate is horizontal and only fires at the real shipping
@@ -135,6 +139,19 @@
    at the real shipping width (pattern_tooltip_clamp_gate_viewport_sensitive).
    v1.1.0's one-time expansion bought five releases without one; v1.7.0's buys
    the next few the same way, with COLOUR framed and empty in row 3.
+       ^ v1.8.0 cashed it in ONE release rather than five, and that is the
+       honest reading of the ledger: v1.1.0 reserved three panels and got eleven
+       controls out of them, v1.7.0 reserved one and got two. The mechanism
+       works either way — neither release resized — but a reserve is worth what
+       the panels it holds are worth, and one 190 px panel is worth two knobs.
+
+   Row 3 is now full, so the chassis is full again and the next new control is a
+   real decision: a fourth row (the frame is 768 of a ~1035 px budget on 1080p,
+   so ~145 px of row plus a 14 px gap would fit ONCE), or the MORE page the
+   v1.0.0 review's section D described. Neither is free, and neither should be
+   pre-paid by framing an empty panel now — there is no pending review item to
+   reserve one FOR, which is the difference between v1.7.0's reserve and a
+   speculative one.
    ========================================================================= */
 
 :root {
@@ -513,23 +530,21 @@ body {
    there is nothing to distribute, so this is the one place it needs saying. */
 .group-duck .group-body { justify-content: center; }
 
-/* COLOUR: framed, labelled and EMPTY — reserved for the review's remaining
-   loop-character items (B4 #7 diffusion, #8 loop drive), so filling it costs
-   markup and nothing else.
+/* COLOUR (v1.8.0): filled with Diffusion + Drive, and needing NO rule of its
+   own to do it. Two .knob-cells at 72 px with the shared 14 px .group-body gap
+   come to 158 px inside the 190 px panel already declared above — the same
+   arithmetic GRAIN and OUTPUT have satisfied since Stage 3 — so the panel
+   inherits every dimension it needs.
 
-   This rule is v1.1.0's .group-reserved, restored. v1.6.0 deleted it when the
-   last reserve was spent, on the correct principle that a rule kept "in case"
-   is dead CSS that still reads like a live layout decision. It is live again
-   because there is a reserve again — and it is deliberately the same 26 px
-   fleuron at the same opacity, so the empty panel reads as "not yet" rather
-   than as a rendering failure. */
-.group-reserved {
-  margin: auto;
-  font-size: 26px;
-  color: var(--fleuron-color);
-  opacity: 0.55;
-  user-select: none;
-}
+   That is the reserve paying out. v1.7.0 framed this panel empty during a
+   resize it was making anyway; the bet was that filling it later would cost
+   markup instead of a second resize, and the cost turned out to be markup with
+   no CSS at all.
+
+   .group-reserved is DELETED here, for the reason v1.6.0 deleted it and v1.7.0
+   restored it: a rule kept "in case" is dead CSS that still reads like a live
+   layout decision. There is no reserve now — row 3 is full, and the next new
+   control is a genuine layout decision rather than a slot to drop into. */
 
 /* ── WINDOW panel: making room for the envelope display (v1.4.0) ──────────── */
 /* The graph sits under Shape / Tilt / Taper inside WINDOW, which needs ~73 px the

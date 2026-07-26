@@ -2,8 +2,11 @@
 
 #include <JuceHeader.h>
 
+#include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
+#include <vector>
 
 // Set to 1 ONLY by tests/render-harness/CMakeLists.txt. Under the harness the
 // per-instance RNG seed collapses back to v1.0's literal so every probe is
@@ -575,6 +578,152 @@ public:
                         * static_cast<float> (std::sin (phase));
     }
 
+    //==========================================================================
+    // v1.8.0 (B4 #7, #8) — COLOUR: diffusion and loop drive.
+    //
+    // The two loop-character items the v1.0.0 review left, and the reason the
+    // COLOUR panel shipped framed and empty at v1.7.0. Both act on the FEEDBACK
+    // return and neither touches the output path, which is why they share a
+    // panel: they change what the tail becomes, not what the first pass sounds
+    // like.
+    //
+    // The loop chain, with both inserted:
+    //     loop -> fbGain·regenMakeup -> HP -> LP -> DIFFUSION -> DRIVE -> guard
+    //
+    // The drive IS the tanh — it is not a stage in front of one. That is the
+    // whole design and the next block says why.
+
+    /** Allpass delay lengths, ms. Four Schroeder sections per channel.
+        Mutually prime-ish so their echo patterns do not reinforce into a pitched
+        comb, and short — ~48 ms total — because the job is smearing a grain's
+        attack, not adding a room. Reverb-scale lengths (100 ms+) would read as a
+        second space bolted onto the delay rather than as the delay's own tail
+        blurring, which is what the review asked for.
+
+        Fixed rather than exposed as a Size knob: the COLOUR panel is 190 px and
+        holds two knob-cells (72 + 14 + 72 = 158), which Diffusion and Drive
+        already spend. A third control would force the row-3 width contract open
+        and, with it, a resize — the exact cost the reserve existed to avoid.
+        Same call the window LUT's table constants get. */
+    static constexpr std::array<float, 4> kDiffusionAllpassMs { 4.7f, 8.3f, 13.9f, 21.7f };
+
+    /** Allpass coefficient. 0.7 is the usual Schroeder value and it is a VOICING
+        constant, not a depth control — the Diffusion knob is a wet/dry mix over
+        the whole chain (see below), not this coefficient scaled. Scaling `g`
+        instead would have made diffusion 0 a chain of pure N-sample DELAYS
+        rather than an identity, so the knob's first touch would splice ~48 ms of
+        latency into the loop and click. */
+    static constexpr float kDiffusionCoeff = 0.7f;
+
+    /** Maximum drive ratio — the pre-gain into the tanh at Drive 100 %.
+        8.0 is +18 dB. Mapped exponentially from the percentage so the knob is
+        perceptually even rather than bunched at the bottom. */
+    static constexpr float kDriveMaxRatio = 8.0f;
+
+    /** Percent -> tanh pre-gain ratio. Exactly 1.0f at 0 %, which is what makes
+        the default bitwise identical to v1.0–v1.7 (see driveShape below). */
+    static float driveRatio (float pct) noexcept
+    {
+        if (pct <= 0.0f)
+            return 1.0f;
+
+        const float n = juce::jlimit (0.0f, 1.0f, pct * 0.01f);
+        return std::pow (kDriveMaxRatio, n);
+    }
+
+    /** The loop's saturator: tanh(d·x)/d.
+
+        ── Why this is not a second regenMakeup ─────────────────────────────────
+
+        regenMakeup (v1.6.0, B4 #3) multiplies the loop gain AHEAD of the damping
+        filters, so it raises level INTO a fixed ceiling. That couples two things:
+        it lengthens the tail and it saturates, and past ~6 dB the tanh has taken
+        over and the control stops doing either (the measured ladder is in
+        kRegenMakeupMaxDb's note — +0.03 dB/s and 0.86 peak at 12 dB against
+        +0.08 and 0.834 at 6). A second plain pre-gain here would be that same
+        control with the same inert top half, which is the objection raised when
+        this release was scoped.
+
+        Dividing by d is what separates them. d/dx tanh(d·x) at x=0 is exactly d,
+        so tanh(d·x)/d has SMALL-SIGNAL GAIN 1 for every d. Three consequences,
+        and they are the argument for the knob:
+
+          * The decay rate at low level is unchanged by drive. Drive cannot open
+            a self-oscillation path that `feedback` alone would not, so it needs
+            no equivalent of kRegenMakeupMaxDb's measured cap.
+          * The loop is bounded to ±1/d, which is STRICTLY TIGHTER than the ±1
+            this plugin has guaranteed since v1.0. Drive improves the safety
+            property rather than spending it.
+          * It does not plateau. Because level is compensated, raising drive
+            keeps adding harmonic content instead of asymptoting into a limiter —
+            loud repeats compress and dull while quiet ones stay linear, so the
+            tail BLOOMS as it decays. That is the character regenMakeup cannot
+            produce at any setting.
+
+        So regenMakeup answers "how long", drive answers "what colour", and they
+        are orthogonal rather than two spellings of one knob.
+
+        At d = 1.0f this returns std::tanh(x) — the same call on the same value,
+        divided by exactly 1.0f — so Drive 0 is bitwise the v1.7.3 loop. Probe BC
+        asserts that against a defaults render rather than trusting it. */
+    static float driveShape (float x, float d) noexcept
+    {
+        if (d <= 1.0f)
+            return std::tanh (x);
+
+        return std::tanh (d * x) / d;
+    }
+
+    /** One Schroeder allpass section: y[n] = -g·x[n] + x[n-N] + g·y[n-N].
+
+        Magnitude-flat at every frequency, which is the load-bearing property
+        here — see the diffusion mix note in processBlock for why that makes the
+        block provably non-expansive inside a recirculating loop.
+
+        RT-safe: `buf` is sized once in prepare() and never touched again on the
+        audio thread. reset() zeroes state without reallocating, exactly like the
+        IIR filters' reset(), so the non-finite guard can call it. */
+    struct Allpass
+    {
+        void prepare (int maxDelaySamples)
+        {
+            buf.assign (static_cast<size_t> (juce::jmax (1, maxDelaySamples)), 0.0f);
+            idx = 0;
+        }
+
+        void reset() noexcept
+        {
+            std::fill (buf.begin(), buf.end(), 0.0f);
+            idx = 0;
+        }
+
+        /** `n` is the section's delay in samples, clamped to the allocated size
+            so a sample-rate change can never index past the buffer. */
+        float process (float x, int n) noexcept
+        {
+            const int size = static_cast<int> (buf.size());
+            const int d    = juce::jlimit (1, size, n);
+
+            // Read n back from the write position, wrapping.
+            int readIdx = idx - d;
+            if (readIdx < 0)
+                readIdx += size;
+
+            const float delayed = buf[static_cast<size_t> (readIdx)];
+            const float y       = -kDiffusionCoeff * x + delayed;
+
+            buf[static_cast<size_t> (idx)] = x + kDiffusionCoeff * y;
+
+            if (++idx >= size)
+                idx = 0;
+
+            return y;
+        }
+
+        std::vector<float> buf;
+        int idx = 0;
+    };
+
     /** Capture ring length. Must cover the WORST-CASE latched read span,
         gD_max + 2·G_max, where v1.1's delayScatter and v1.7's delay drift both
         extend gD_max beyond the delayTime range:
@@ -639,6 +788,15 @@ public:
     // it wraps kDelayTimeMaxMs alone and not the sum. Writing it as a fourth
     // additive term would over-state the requirement by 125 ms and, worse, would
     // stop describing what the spawn handler actually computes.
+    //
+    // v1.8.0's diffusion adds ~48 ms of group delay to the feedback return and
+    // does NOT belong here, which is worth stating because the reflex is to add
+    // it. This bound is on the worst-case latched READ span — how far BACK a
+    // grain reaches from the write head — and the allpasses delay what is
+    // WRITTEN to the ring, not where anything reads from. A grain's read offset
+    // is (gD + n) computed at spawn from the parameters below; no allpass
+    // appears in it. Diffusion changes the CONTENT arriving at the write head,
+    // which this assert says nothing about and does not need to.
     static_assert (kCaptureSeconds * 1000.0f
                      >= kDelayTimeMaxMs * (1.0f + kDriftMaxFraction)
                           + kDelayScatterMaxMs + 2.0f * kGrainSizeMaxMs,
@@ -676,7 +834,19 @@ private:
 
     juce::AudioBuffer<float> wetScratch;   // OUTPUT wet — includes per-grain gainRandom
     juce::AudioBuffer<float> loopScratch;  // FEEDBACK-TAP wet — excludes gainRandom (v1.1.0)
-    juce::AudioBuffer<float> fbScratch;    // feedback return: loop → fbGain → HP → LP → tanh → guard
+    juce::AudioBuffer<float> fbScratch;    // feedback return: loop → fbGain → HP → LP → diffusion → drive → guard
+
+    /** v1.8.0 (B4 #7) — the diffusion chain, four allpass sections per channel.
+
+        Per channel and NOT shared: a shared chain would fold L and R through one
+        state and collapse the stereo tail to mono the moment diffusion came up,
+        which is the opposite of what a diffuser is for.
+
+        Delay lengths are resolved to SAMPLES in prepareToPlay from
+        kDiffusionAllpassMs, so a sample-rate change re-derives them rather than
+        keeping a length that means a different time. */
+    std::array<Allpass, 4> apL, apR;
+    std::array<int, 4>     apDelaySamples { 1, 1, 1, 1 };
 
     // In-loop damping filters (2nd-order Butterworth): lowCut = HP, highCut = LP.
     // Coefficient updates use ArrayCoefficients assigned IN PLACE into the
@@ -851,6 +1021,16 @@ private:
     std::atomic<float>* pDuck         = nullptr;
     std::atomic<float>* pDriftRate    = nullptr;
     std::atomic<float>* pDriftDepth   = nullptr;
+
+    // v1.8.0 (B4 #7-#8) — COLOUR. Both no-ops are the range minimum, so this is
+    // the v1.1.0 / v1.6.0 / v1.7.0 situation again and not the v1.2-v1.4 trap.
+    // Worth one line on WHY, because for `drive` the zero is doing more work
+    // than it looks: 0 % maps through driveRatio() to a ratio of exactly 1.0f,
+    // and driveShape() branches on `d <= 1.0f` to call plain std::tanh — the
+    // same call on the same value the loop has made since v1.0. The no-op is an
+    // early-out, not a division by a number very close to one.
+    std::atomic<float>* pDiffusion    = nullptr;
+    std::atomic<float>* pDrive        = nullptr;
 
     /** v1.7.0 (B4 #4) — the duck follower's state: a one-pole on |dry|, advanced
         per sample inside the mix loop (which is the one place the dry input is

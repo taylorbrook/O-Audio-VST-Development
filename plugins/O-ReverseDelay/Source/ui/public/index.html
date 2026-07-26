@@ -486,20 +486,39 @@
         </div>
       </section>
 
-      <!-- COLOUR (reserved) ────────────────────────────────────────────────
-           Framed and empty, on exactly the principle v1.1.0 used for WINDOW,
-           COUNT and SPACE: reserve the panel while the window is being resized
-           anyway, so the next release costs markup rather than another resize.
-           That plan held for five releases and eleven controls last time.
+      <!-- COLOUR (v1.8.0, B4 #7-#8) ────────────────────────────────────────
+           The reserve is SPENT, and it paid exactly what it was framed to pay.
+           v1.7.0 left this panel empty during a resize it was making anyway, on
+           the bet that the next release would then cost markup instead of
+           another resize. It did: two knob-cells are 72 + 14 + 72 = 158 px in
+           the 190 px panel already here, which is the shape GRAIN and OUTPUT
+           have had since Stage 3. No width change, no height change, no new
+           geometry — so the tooltip clamp geometry under test is untouched.
 
-           Reserved for the v1.0.0 review's remaining loop-character items —
-           B4 #7 (diffusion allpasses in the loop) and #8 (loop drive into the
-           tanh that is already there). Both colour the feedback path, which is
-           why they share a panel and why it is called Colour. -->
+           Diffusion above Drive, matching the loop's own order (allpasses feed
+           the saturator, not the reverse) — the same cause-then-effect ordering
+           DRIFT uses for Rate over Depth.
+
+           Neither knob is ever inert: diffusion at 0 leaves drive fully audible
+           and vice versa, so unlike Drift's Rate cell there is no .knob-cell-inert
+           state here. -->
       <section class="group group-colour">
         <div class="group-label">Colour</div>
         <div class="group-body">
-          <span class="group-reserved" aria-hidden="true">&#10086;</span>
+          <div class="knob-cell">
+            <div class="knob" id="knob-diffusion" data-param="diffusion"
+                 data-tip-title="Diffusion"
+                 data-tip="Smears each repeat as it recirculates, so the tail blurs into a wash instead of restating the grain cloud verbatim. It cannot make the delay louder or push it into feedback — it only rearranges what is already there."><div class="knob-stem"></div></div>
+            <div class="knob-label">Diffusion</div>
+            <div class="knob-value" id="val-diffusion">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-drive" data-param="drive"
+                 data-tip-title="Drive"
+                 data-tip="Saturates the feedback loop at a matched level, so it changes the tail's colour rather than its length. Loud repeats compress and dull while quiet ones stay clean, which makes the tail bloom as it decays. Regen Makeup sets how long the tail lasts; this sets what it sounds like."><div class="knob-stem"></div></div>
+            <div class="knob-label">Drive</div>
+            <div class="knob-value" id="val-drive">&#8212;</div>
+          </div>
         </div>
       </section>
 

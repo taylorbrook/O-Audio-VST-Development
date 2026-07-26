@@ -4,6 +4,121 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.8.0] — 2026-07-26 — COLOUR: diffusion and loop drive (B4 #7, #8)
+
+Minor release. The last two items of section B4 of the v1.0.0 review, and with
+them **the review's B section is complete**. `diffusion` (0–100 %, default 0) and
+`drive` (0–100 %, default 0) fill the COLOUR panel v1.7.0 shipped framed and
+empty. Both no-ops are the range minimum and both are exact, so a v1.0–v1.7
+session, preset or factory patch renders **bit-identically** — asserted by probe
+AZ rather than claimed.
+
+**The reserve paid out, and it cost markup.** v1.7.0 framed this panel empty
+during a resize it was making anyway, betting that filling it later would cost
+markup instead of a second resize. It did: two `.knob-cell`s at 72 px with the
+shared 14 px gap are 158 px inside the 190 px panel already declared — the shape
+GRAIN and OUTPUT have had since Stage 3 — so **no width change, no height change
+and not one CSS rule was added**. The editor stays 940 × 768 and the tooltip
+clamp geometry under test is the one already verified.
+
+Row 3 is now full and **nothing on the page is reserved**. `.group-reserved` is
+deleted for the second time, on the same principle v1.6.0 deleted it: a rule kept
+"in case" is dead CSS that still reads like a live layout decision.
+
+Harness 138 → **151 probes**; `ui_frontend_check.js` 145 → **155 checks**;
+`ui_tooltip_clamp_check.js` re-measured at 940 × 768 (**29/29 anchors**, clamp
+firing for 6). auval SUCCEEDED; pluginval strictness-10 ×3 on both formats.
+
+### Added
+
+**`diffusion` — four Schroeder allpasses in the feedback return (B4 #7).**
+Sections at 4.7 / 8.3 / 13.9 / 21.7 ms, per channel (a shared chain would fold L
+and R through one state and collapse the tail to mono the moment it came up).
+Placed **after** the damping filters and **before** the saturator: after damping
+because the diffuser should blur what survives the loop rather than what is on
+its way out of it, and before the saturator because the limiter must stay the
+last thing in the loop — the invariant v1.6.0's makeup was placed around.
+
+The knob is a **wet/dry mix over the chain, not a scaling of the allpass
+coefficient**, and that distinction is what makes 0 a true no-op. Scaling the
+coefficient toward zero leaves each section a pure N-sample *delay*, so "off"
+would still splice ~48 ms of latency into the loop and the knob's first movement
+would click. Mixing leaves the dry path at exactly `(1 − 0)·x`.
+
+It also makes the stability argument exact rather than empirical. An allpass has
+unit magnitude at every frequency, so the block's response is
+`|(1−m) + m·e^{jφ}| ≤ (1−m) + m = 1` for every `m` and every `φ`. Diffusion is
+**non-expansive by construction** — it cannot raise the loop gain at any
+frequency, and so cannot open a self-oscillation path `feedback` alone would not.
+That is why it carries no measured cap where `kRegenMakeupMaxDb` needed one.
+
+**`drive` — the loop saturator, now level-compensated (B4 #8).** `tanh(x)`
+becomes **`tanh(d·x)/d`**, `d` = 1 … 8 mapped exponentially from the percentage.
+
+This is the one item the release was argued about before it was written, because
+the obvious reading of "loop drive" is a second pre-gain into the tanh — and
+`regenMakeup` already is one. Its own measured ladder says that control stops
+doing anything past ~6 dB (+0.03 dB/s and 0.86 peak at 12 dB against +0.08 and
+0.834 at 6), so a naive Drive would have shipped with an inert top half.
+
+Dividing by `d` is what separates them. `d/dx tanh(d·x)` at `x=0` is exactly `d`,
+so the small-signal gain is **1 at every setting**. Three consequences, and they
+are the argument for the knob:
+
+- **The decay rate does not move.** Probe BB measures 4.4515 / 4.4509 / 4.4464
+  dB/s at drive 0 / 50 / 100 — a spread of 0.005 dB/s. `regenMakeup` fails that
+  line by construction at any non-zero setting, which is precisely why it needed
+  a cap and this does not.
+- **The loop is bounded to ±1/d**, strictly tighter than the ±1 guaranteed since
+  v1.0. Drive improves the safety property rather than spending it.
+- **It does not plateau.** Level being compensated, more drive keeps adding
+  harmonic content instead of asymptoting into a limiter: loud repeats compress
+  and dull while quiet ones stay linear, so the tail *blooms* as it decays. That
+  is the character `regenMakeup` cannot produce at any setting.
+
+So `regenMakeup` answers *how long* and `drive` answers *what colour*. The knob
+reads in **percent, not dB**, deliberately: a level-compensated control has no
+gain to report, and two adjacent dB knobs doing unrelated things is a misread
+waiting to happen.
+
+### Fixed
+
+**The non-finite guard now resets the allpass chain.** The chain is the one
+v1.8.0 state that *recirculates* — each section feeds its own output back through
+`g` — so a single non-finite sample written into its buffer would survive every
+later block and reproduce itself for the life of the instance, exactly as an
+envelope follower's state does (`pattern_envelope_follower_state_sticky_nan`).
+Clearing the feedback source without clearing the allpasses would have left the
+guard looking like it worked while the chain kept re-poisoning the loop.
+
+### Notes
+
+**The capture-ring `static_assert` is deliberately unchanged**, and the reflex is
+to touch it. Diffusion adds ~48 ms of group delay to the feedback return, but
+that bound is on the worst-case latched *read* span — how far back a grain
+reaches from the write head — and the allpasses delay what is **written**, not
+where anything reads from. A grain's read offset is `(gD + n)`, computed at spawn
+from the parameters; no allpass appears in it.
+
+**Diffusion makes the tail decay slower in dB/second, and that is not added
+energy.** Two versions of probe BA failed on this before the cause was found, so
+it is worth recording. The chain adds up to 48.6 ms of group delay per pass, so
+at a 400 ms delay each generation takes ~12 % longer — fewer generations per
+second is a slower decay per second with the loss *per generation* unchanged. The
+measured ratio confirms it rather than merely fitting: 4.8053/5.2989 = **0.9068**
+against the pure period prediction 400/448.6 = **0.8917**, the residual being
+group delay falling below the full sum at the top of the band. Self-oscillation
+depends on gain per trip around the loop, not per second, so the probe now
+asserts **dB per generation** with the diffused loop credited the maximum group
+delay the chain can physically produce: −2.1556 against −2.1196 undiffused.
+
+**The eight factory presets are pinned at 0 for both controls.** "Reverse Bloom"
+at diffusion 40 would be a better patch; it would also be a *different* patch
+than the one shipped since v1.0.0, and re-voicing a sound people have built work
+on is what this table has now refused six times
+(`pattern_activating_dead_param_default_timbre`). A v1.8.0 preset that wants
+diffusion is a new entry, not an edit to an existing one.
+
 ## [1.7.3] — 2026-07-25 — Info-tier review sweep (IN-01 … IN-06)
 
 Patch release. Clears the six **Info** findings the v1.7.1 review left open and

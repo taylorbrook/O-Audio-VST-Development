@@ -86,6 +86,14 @@ const RANGES = {
   driftRate:    { start: 0.02, end: 5,   skew: skewForCentre(0.02, 5, 0.30),
                                           interval: 0.01, def: 0.30 },
   driftDepth:   { start: 0,    end: 100, skew: 1, interval: 0.1,  def: 0 },
+
+  // v1.8.0 (B4 #7, #8) — row 3's COLOUR panel. Both plain zeros, both linear,
+  // and for once no trap in the block: neither is a choice index, neither is
+  // neutral at a non-zero value, and neither is skewed. Worth stating rather
+  // than leaving to inference, because five of the six blocks above DO carry
+  // one and a reader arriving from them should not have to check.
+  diffusion:    { start: 0,    end: 100, skew: 1, interval: 0.1,  def: 0 },
+  drive:        { start: 0,    end: 100, skew: 1, interval: 0.1,  def: 0 },
 };
 
 // v1.6.0 — bool parameters. `freeze` is the only one, and it needs its own map

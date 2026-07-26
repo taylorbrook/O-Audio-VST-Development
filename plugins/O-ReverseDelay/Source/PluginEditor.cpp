@@ -82,7 +82,12 @@ namespace
         // v1.2.0 and `freeze` presented again at v1.6.0 in a third type. A relay
         // whose type does not match the parameter attaches cleanly and then
         // never updates.
-        "duck", "driftRate", "driftDepth"
+        "duck", "driftRate", "driftDepth",
+        // v1.8.0 (B4 #7, #8): the COLOUR panel, filling row 3's last slot. Both
+        // are AudioParameterFloat, so for the first time since v1.5.0 a release
+        // adds controls with NO type split to get wrong — every new parameter
+        // here is a slider and none belongs in the two lists below.
+        "diffusion", "drive"
     };
 
     // v1.7.0: sourceMode joins the three originals. It is rendered as a SEGMENT

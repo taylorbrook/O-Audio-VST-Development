@@ -47,6 +47,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pDriftRate    = parameters.getRawParameterValue("driftRate");
     pDriftDepth   = parameters.getRawParameterValue("driftDepth");
 
+    pDiffusion    = parameters.getRawParameterValue("diffusion");
+    pDrive        = parameters.getRawParameterValue("drive");
+
     // ── v1.7.3 (IN-06): one guard posture, asserted once, here ──────────────
     // getRawParameterValue returns nullptr for an id that is not in the layout,
     // which is only ever a TYPO in createParameterLayout() or in the string
@@ -102,6 +105,18 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // no-op is index 0 (Mono Sum), and 0 is also what an absent key resolves to,
     // so the ORDER of the choice list is load-bearing. Putting Stereo first
     // would re-voice every existing session the moment v1.7.0 is installed.
+    //
+    // ── v1.8.0 (B4 #7-#8): diffusion / drive both pinned at 0 ───────────────
+    // Sixth release running that adds keys here and pins every one to the no-op.
+    // Both are plain zero, so this block carries neither the grainTilt trap nor
+    // the driftRate one — but pinning them is doing real work even so, because
+    // these are the two keys most obviously "free" to author into the presets.
+    //
+    // "Reverse Bloom" at diffusion 40 would be a better patch. It would also be
+    // a DIFFERENT patch than the one shipped since v1.0.0, and re-voicing a
+    // sound people have built work on is the thing this table has refused five
+    // times now (pattern_activating_dead_param_default_timbre). A v1.8.0 preset
+    // that wants diffusion is a NEW entry, not an edit to an existing one.
     //
     // ── v1.6.0 (B4): freeze / direction / regenMakeup all pinned at 0 ────────
     // Fifth release running that adds keys here and pins every one of them to
@@ -174,7 +189,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
@@ -188,7 +204,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
@@ -202,7 +219,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
@@ -216,7 +234,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
@@ -230,7 +249,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
@@ -244,7 +264,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -262,7 +283,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
@@ -276,7 +298,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
            {"freeze", 0.0f}, {"direction", 0.0f},
            {"regenMakeup", 0.0f},
            {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f}}, {} },
+           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
+           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -500,6 +523,14 @@ void ReverseDelayProcessor::reset()
 
     hpL.reset(); hpR.reset();
     lpL.reset(); lpR.reset();
+
+    // v1.8.0 (B4 #7): the diffusion chain holds up to ~48 ms of the previous
+    // pass's tail, so it belongs with the filter memory in reason C above — a
+    // host reset that dropped the ring and the filters but left the allpasses
+    // loaded would splice the old tail's smear into the new pass. reset() only
+    // zeroes state; the buffers keep their prepareToPlay sizing.
+    for (auto& ap : apL) ap.reset();
+    for (auto& ap : apR) ap.reset();
 
     // v1.7.2 (WR-03): the coefficient grid restarts with the filter state, so a
     // host reset does not leave a partial countdown straddling the boundary.
@@ -934,6 +965,43 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
+    // ── v1.8.0 (B4 #7-#8): COLOUR ───────────────────────────────────────────
+    //
+    // Both no-ops are the range minimum and both are EXACT rather than nearly
+    // exact, which is the property the defaults-bit-identity probes rest on.
+    // Neither needs the kind of measured cap kRegenMakeupMaxDb carries, and the
+    // reasons are different for the two — diffusion because an allpass cannot
+    // add loop gain, drive because its normalisation holds the small-signal gain
+    // at 1. Both are argued where they are implemented rather than here.
+
+    // diffusion: 0-100 %, default 0. A wet/dry mix over the four-section allpass
+    // chain in the feedback return, NOT a scaling of the allpass coefficient.
+    //
+    // That distinction is the whole reason 0 is a true no-op. Scaling the
+    // coefficient toward zero leaves each section as a pure N-sample DELAY, so
+    // "off" would still be ~48 ms of latency spliced into the loop and the
+    // knob's first movement would click. Mixing leaves the dry path at exactly
+    // (1 - 0)·x = x, which is bitwise identity, and gives a continuous path from
+    // there to fully diffused.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "diffusion", 1 }, "Diffusion",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // drive: 0-100 %, default 0. Percent rather than dB, deliberately.
+    //
+    // regenMakeup next door is in dB and this is not the same kind of quantity:
+    // regenMakeup IS a gain and its dB reading is the honest one, whereas drive
+    // is level-compensated (tanh(d·x)/d) and so has no gain to report — its dB
+    // figure would name a pre-gain the user never hears as level. Percent says
+    // "amount of character", which is what it is, and matches Duck, Direction
+    // and Drift Depth. It also avoids two adjacent dB knobs in one panel that
+    // do unrelated things, which is a misread waiting to happen.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "drive", 1 }, "Drive",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     return layout;
 }
 
@@ -1075,6 +1143,19 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     const auto lpCoeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(sampleRate, lastHighCut);
     *hpL.coefficients = hpCoeffs;  *hpR.coefficients = hpCoeffs;
     *lpL.coefficients = lpCoeffs;  *lpR.coefficients = lpCoeffs;
+
+    // v1.8.0 (B4 #7) — the diffusion chain. Lengths are re-derived from ms here
+    // rather than kept as samples across a rate change, so 4.7 ms stays 4.7 ms
+    // at 192 kHz instead of becoming 1.2. This is the ONLY place the allpass
+    // buffers are sized; process() clamps its index into the allocated size, so
+    // even a length/rate mismatch cannot walk off the end.
+    for (size_t i = 0; i < kDiffusionAllpassMs.size(); ++i)
+    {
+        apDelaySamples[i] = juce::jmax (1, juce::roundToInt (kDiffusionAllpassMs[i]
+                                                               * 0.001f * fsF));
+        apL[i].prepare (apDelaySamples[i]);
+        apR[i].prepare (apDelaySamples[i]);
+    }
 }
 
 void ReverseDelayProcessor::releaseResources()
@@ -1241,6 +1322,23 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float duckNorm   = juce::jlimit (0.0f, 1.0f, pDuck->load() * 0.01f);
     const float duckAttack = duckCoeff (kDuckAttackSec,  currentSampleRate);
     const float duckRelease= duckCoeff (kDuckReleaseSec, currentSampleRate);
+
+    // v1.8.0 (B4 #7-#8) — COLOUR, both read at block rate.
+    //
+    // Neither is smoothed, and unlike regenMakeup — which gets away with it by
+    // riding alongside a gain that IS smoothed — each has its own reason:
+    //
+    //   * diffuseMix is a crossfade between two unity-magnitude paths, so a step
+    //     in it changes phase distribution rather than level. There is no gain
+    //     discontinuity for a ramp to hide.
+    //   * driveD scales the argument of a function whose small-signal gain is 1
+    //     at every d, so a step leaves quiet material bitwise where it was and
+    //     moves only the harmonic content of loud material.
+    //
+    // Both are exact at their defaults: 0 % gives diffuseMix == 0.0f (dry term
+    // exactly 1.0f) and driveD == 1.0f (driveShape early-outs to std::tanh).
+    const float diffuseMix = juce::jlimit (0.0f, 1.0f, pDiffusion->load() * 0.01f);
+    const float driveD     = driveRatio (pDrive->load());
 
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
@@ -1981,8 +2079,56 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                     float r = hpR.processSample(loopR[i] * g);
                     l = lpL.processSample(l);
                     r = lpR.processSample(r);
-                    l = std::tanh(l);
-                    r = std::tanh(r);
+
+                    // v1.8.0 (B4 #7) — diffusion, AFTER the damping filters and
+                    // BEFORE the saturator. Both halves of that placement matter:
+                    //
+                    //   * After damping, because an allpass chain fed the raw loop
+                    //     smears content the low-pass is about to remove anyway,
+                    //     and the diffuser should blur what survives the loop, not
+                    //     what is on its way out of it.
+                    //   * Before the saturator, because the limiter must stay the
+                    //     LAST thing in the loop — the invariant v1.6.0's makeup
+                    //     was placed around, restated. It is also the physical
+                    //     ordering: a chamber diffuses and the amplifier then
+                    //     saturates, not the reverse.
+                    //
+                    // The mix is what makes this safe inside a recirculating path,
+                    // and the bound is exact rather than empirical. An allpass has
+                    // unit magnitude at every frequency, so the block's response is
+                    // |(1-m) + m·e^{jφ}| <= (1-m) + m = 1 for every m in [0,1] and
+                    // every φ. Diffusion is therefore NON-EXPANSIVE at every
+                    // setting: it cannot raise the loop gain at any frequency and
+                    // so cannot open a self-oscillation path that `feedback` alone
+                    // would not. That is why it carries no measured cap where
+                    // kRegenMakeupMaxDb needed one.
+                    //
+                    // The chain runs even at m = 0, on the same reasoning the duck
+                    // follower does: two mul-adds per section keeps its memory
+                    // warm, so raising the knob mid-session blurs the tail that is
+                    // actually sounding rather than splicing in ~48 ms of silence.
+                    // Nothing it computes reaches the loop at 0 — the dry term is
+                    // exactly 1.0f·l, which is bitwise l.
+                    {
+                        float dl = l, dr = r;
+                        for (size_t s = 0; s < apL.size(); ++s)
+                        {
+                            dl = apL[s].process (dl, apDelaySamples[s]);
+                            dr = apR[s].process (dr, apDelaySamples[s]);
+                        }
+
+                        l += diffuseMix * (dl - l);
+                        r += diffuseMix * (dr - r);
+                    }
+
+                    // v1.8.0 (B4 #8) — the saturator, now level-compensated.
+                    // driveShape(x, 1.0f) is std::tanh(x), so at the default this
+                    // is the line it replaced. See driveShape() for why dividing
+                    // by d is what makes this a colour control and not a second
+                    // regenMakeup.
+                    l = driveShape (l, driveD);
+                    r = driveShape (r, driveD);
+
                     fbLw[i] = l;
                     fbRw[i] = r;
                     acc += l + r;
@@ -1994,10 +2140,21 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Non-finite guard at the loop write point: reset BOTH filter pairs AND
             // zero the feedback source for this pass; keep last-known-good
             // coefficients (sticky-silence pattern — never reset only the filters).
+            //
+            // v1.8.0: the allpass chain is reset here too, and it has to be. It is
+            // the one v1.8.0 state that RECIRCULATES — each section feeds its own
+            // output back through `g`, so a single non-finite sample written into
+            // buf survives every subsequent block and reproduces itself forever,
+            // exactly the way an envelope follower's state does
+            // (pattern_envelope_follower_state_sticky_nan). Clearing the feedback
+            // source without clearing the allpasses would leave the guard looking
+            // like it worked while the chain kept re-poisoning the loop.
             if (! std::isfinite(acc))
             {
                 hpL.reset(); hpR.reset();
                 lpL.reset(); lpR.reset();
+                for (auto& ap : apL) ap.reset();
+                for (auto& ap : apR) ap.reset();
                 juce::FloatVectorOperations::clear(fbLw + off, len);
                 juce::FloatVectorOperations::clear(fbRw + off, len);
             }
