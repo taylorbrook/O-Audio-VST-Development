@@ -172,7 +172,7 @@ plugins/[Name]/.planning/
     └── 3-ui/
 ```
 
-**GSD Integration**: Each stage follows the discuss → research → plan → execute → verify cycle with explicit documentation at each phase.
+**[GSD](https://github.com/open-gsd/gsd-core) Integration**: Each stage follows the discuss → research → plan → execute → verify cycle with explicit documentation at each phase.
 
 **Zero drift**: All stages reference the same specs. No "telephone game" across workflows.
 
