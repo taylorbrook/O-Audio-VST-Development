@@ -1,0 +1,323 @@
+# Public Release Readiness — VST-development
+
+*Assessment date: 2026-07-30. Every figure below is measured, not estimated; the raw measurements live in `.planning/quick/260730-vwx-audit-repo-for-security-and-efficiency-i/260730-vwx-SCOUT.md` and each finding cites its scout ID inline.*
+
+---
+
+## 1. Verdict
+
+**No secret has ever been committed to this repository.** A credential-extension scan over every tracked file, a content scan over the working tree, the same content scan over the *full* commit history, and a scan of deleted files all returned zero hits [S1]. There is therefore **no security reason to rewrite history** before going public.
+
+**The two hard blockers are legal, not technical:** there is no root `LICENSE` file, which means a public repo is all-rights-reserved and nobody may legally use, fork, or contribute [L1]; and three sets of audio samples with unknown provenance are compiled *into shipped plugin binaries* via `BinaryData` [L4].
+
+Everything else in this document is hardening, repository size, or a disclosure decision that is yours to make — not a blocker.
+
+---
+
+## 2. Blockers — must fix before going public
+
+### 2.1 No root LICENSE file [L1]
+
+**What.** There is no `LICENSE`, `COPYING`, or `NOTICE` at the repository root. The only license file present is `plugins/O-Bassoon/research/reference-recordings/LICENSE.md`, which is a provenance note covering one asset folder and does not govern the repository [L1].
+
+**Why it matters.** A public repository with no license is not open source. Under default copyright, "public" means all-rights-reserved: readers may view the code but may not legally use it, fork it, redistribute it, or contribute to it. Making the repo public without a license produces the worst of both worlds — full disclosure with zero collaboration rights.
+
+**What is needed.** Add a root `LICENSE` file. **This decision is gated on section 5.2** — the JUCE licensing question [L2] must be settled first, because which JUCE terms apply constrains which root licenses are even permissible. Do not pick a license before answering that question.
+
+**Effort.** Minutes to write the file; the gating decision in [L2] is where the real time goes.
+
+---
+
+### 2.2 Undocumented audio samples shipped inside plugin binaries [L4]
+
+**What.** Three sample sets have no documented provenance, and all three are compiled into distributed plugin binaries via `BinaryData` rather than merely sitting in the repository [L4]:
+
+| Location | Files |
+|---|---|
+| `plugins/O-simpleGrain/Source/samples/` | `fire.wav`, `piano.wav`, `voice.wav`, `water.wav` |
+| `plugins/O-simpleSampler/Source/samples/` | `cello.aif`, `hit.wav`, `piano.wav`, `pizz.aif` |
+| `plugins/O-MicrotonalSampler/tests/fixtures/4-layer/` | `C4_v1.wav` … `C4_v4.wav` |
+
+**Why it matters.** This is materially more serious than an undocumented file sitting in a repo. These samples are embedded in binaries that are built, signed, notarised, and distributed to end users. If any of them is not redistributable, the exposure attaches to every release already shipped, not just to the source tree. Scout rates this the highest-risk legal item after the missing LICENSE [L4].
+
+**What is needed — a decision, not a recommendation.** Three paths, and the choice is yours:
+
+1. **Locate and document provenance.** Establish where each file came from and confirm redistribution rights, then record it in a provenance `LICENSE.md` alongside each folder — the pattern already used correctly for `plugins/O-Bassoon/research/reference-recordings/`, which is documented VSCO-2-CE under CC0 1.0 and is redistributable [L4].
+2. **Replace with known-redistributable material.** Substitute CC0 or self-recorded audio and rebuild. Removes the question entirely.
+3. **Remove from the binaries.** Drop the `BinaryData` embedding and load samples at runtime from user-supplied paths, so nothing undocumented ships.
+
+**Effort.** Path 1 is hours if the origins are recoverable and indefinite if they are not. Paths 2 and 3 are bounded work — a rebuild and a regression pass per affected plugin.
+
+---
+
+### 2.3 `.claude/system-config.json` is tracked despite its `.gitignore` entry [S3]
+
+**What.** `.gitignore` line 1 lists `.claude/system-config.json`, yet the file is still tracked — confirmed by `git ls-files -i -c --exclude-standard`. The file contains machine-local absolute toolchain paths [S3].
+
+**Why it matters.** `.gitignore` only prevents *untracked* files from being added; it has no effect on a file that git is already tracking. This is a common and silent failure mode: the ignore rule is present, the intent is clear, and the file keeps getting committed anyway. On a public repo it publishes your local toolchain layout.
+
+**What is needed.**
+
+> Note: `git rm --cached` untracks the file and leaves it on disk. It does **not** remove it from history — earlier commits still contain it. If you also want it gone from history, that is the rewrite discussed in section 4.
+
+```bash
+git rm --cached .claude/system-config.json
+git commit -m "chore: untrack machine-local system-config.json"
+```
+
+**Effort.** Under a minute.
+
+---
+
+### 2.4 `build-release/` is tracked, including a compiled executable [E3]
+
+**What.** Ten tracked files live under `build-release/`: `CPackConfig.cmake`, `CPackSourceConfig.cmake`, seven files matching `JUCE/*.cmake`, and `build-release/plugins/O-Bowed/O-Bowed_vst3_helper` — a compiled binary. `.gitignore` covers `build/` but not `build-release/` [E3].
+
+**Why it matters.** Committed build output is noise at best. A committed *executable* is worse: a public repo shipping an unexplained binary invites reasonable suspicion, and nobody reviewing the repo can verify what it was built from.
+
+**What is needed.** Untrack the tree. Note that `.gitignore` currently has no `build-release/` rule; whether to add one is your call, and this document does not edit `.gitignore`.
+
+> Note: as above, `git rm -r --cached` untracks and leaves the files on disk; it does not remove them from history.
+
+```bash
+git rm -r --cached build-release/
+git commit -m "chore: untrack build-release output"
+```
+
+**Effort.** Under a minute.
+
+---
+
+## 3. Security hardening — should fix
+
+### 3.1 CI workflow — the posture is already correct; keep it that way [S4]
+
+**Start from the good news.** `.github/workflows/build-and-release.yml` triggers on `push` and `workflow_dispatch` **only**. There is no `pull_request` trigger and no `pull_request_target` trigger, which means a fork pull request cannot reach the eight Apple signing secrets the workflow consumes: `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PWD`, `MACOS_INSTALLER_CERTIFICATE`, `MACOS_INSTALLER_CERTIFICATE_PWD`, `APPLE_ID`, `APPLE_ID_PASSWORD`, `APPLE_IDENTITY_NAME`, `APPLE_TEAM_ID` [S4]. This is the correct posture for a public repo. The work here is preserving it and hardening around it — not fixing a defect.
+
+**The stakes, in one line.** Compromise of this workflow means an attacker can ship signed and notarised malware under the Ouaricon identity [S4].
+
+**Three concrete actions:**
+
+1. **Add a top-level `permissions:` block.** Only the release job sets `permissions:` today, at line 599 of the workflow. Public repositories inherit the org or repo default token scope for every other job [S4]. Add at the top of the file:
+
+   ```yaml
+   permissions:
+     contents: read
+   ```
+
+   The release job keeps its own broader block; every other job then runs read-only.
+
+2. **SHA-pin every tag-pinned action reference.** A tag is mutable — the upstream owner can move it — so a tag pin is a standing supply-chain exposure on a workflow that holds signing certificates. The tag-pinned references are [S4]:
+
+   | Action reference | Uses recorded |
+   |---|---|
+   | `actions/checkout@v4` | ×2 |
+   | `actions/upload-artifact@v4` | ×3 |
+   | `actions/download-artifact@v4` | — |
+   | `softprops/action-gh-release@v2` | — |
+
+   Replace each with the full commit SHA of the release you intend, keeping the tag in a trailing comment for readability.
+
+3. **Adopt a standing rule.** Never add `pull_request_target`, and never add a secrets-bearing `pull_request` trigger, to this workflow while it carries signing certificates [S4]. Record the rule where the next person editing the workflow will see it.
+
+---
+
+### 3.2 Local-path and username disclosure [S2]
+
+The string `/Users/taylorbrook` appears in **354 tracked files** [S2]. The occurrences are concentrated in the AI-workflow directories: `.claude/agent-memory/*.md`, `.claude/skills/**`, `.claude/system-config.json`, `.planning/STATE.md`, `.planning/codebase/*.md`, and `.planning/milestones/**/*-PLAN.md` [S2].
+
+This discloses the macOS account name and the full local directory layout. **Low severity, high volume** [S2] — no credential is exposed, but the footprint is large enough that piecemeal editing is not practical. In practice this resolves as a side effect of the keep-or-strip decision in section 3.3: strip those trees and the great majority of the 354 files go with them.
+
+---
+
+### 3.3 Internal AI-workflow artifacts — a disclosure decision, not a defect [S5]
+
+`.claude/` holds **417 tracked files** and `.planning/` holds **435 tracked files** — **852 files** in total. The content includes agent memory, a session-derived developer profile, phase plans, verification reports, and quick-task history [S5].
+
+This is **not a vulnerability**. It is a decision about what you are willing to publish, and it needs an explicit call before the repo goes public. Both sides are real:
+
+| Keep them public | Strip them |
+|---|---|
+| The full planning and verification history is genuinely valuable documentation — it shows how each plugin was designed, researched, and validated. | Agent memory and the session-derived developer profile describe your working habits, not the product. |
+| Reviewers and contributors can see the reasoning behind decisions, not just the outcome. | Internal verification reports may reference unshipped work, known defects, or judgements you would phrase differently in public. |
+| Removing them costs the repo its most complete record of intent. | These trees are also where the 354 local-path disclosures live [S2]. |
+
+This document does not recommend a side. It does flag one sequencing consequence: **resolve this before any history rewrite**, because it changes what a rewrite would need to strip — see section 6.
+
+---
+
+### 3.4 Tracked build logs [S6]
+
+**31 files** matching `logs/**/build_*.log` are tracked, and are also matched by `.gitignore` — the same already-tracked-despite-ignored situation as section 2.3. Build logs embed absolute paths and local environment detail [S6].
+
+Same remedy shape as [S3]:
+
+> Note: untracks and leaves on disk; does not remove from history.
+
+```bash
+git rm -r --cached logs/
+git commit -m "chore: untrack build logs"
+```
+
+---
+
+## 4. Efficiency and repository size
+
+### 4.1 Measured baseline [E1]
+
+| Measure | Value |
+|---|---|
+| `.git` | 912 MB |
+| `.git/objects` | 596 MB |
+| Tracked files | 3308 |
+| Working tree | 7.6 GB |
+
+The working tree figure is mostly untracked material — `build/`, `.cache/`, `backups/`, `.playwright-mcp/` — and does not travel with a clone [E1]. The number that matters for anyone cloning is the 912 MB `.git`.
+
+### 4.2 Binary test goldens dominate history [E1]
+
+Roughly **250 MB of blobs** are audio goldens. Several appear **twice** in history — a golden that was re-committed stores each revision in full [E1]:
+
+| Size | Path | Dupes in history |
+|---|---|---|
+| 50.0 MB | `plugins/O-Contrabass/tests/render-harness/golden/sub-harmonics-stability.wav` | 2 |
+| 16.4 MB | `.../golden/string-G.wav`, `string-D.wav`, `string-A.wav` | 1 each |
+| 16.4 MB | `.../golden/stiffness-zero-pre.wav` | 2 |
+| 16.4 MB | `.../golden/saturator-tail-comparison.wav` | 1 |
+| 16.4 MB | `plugins/O-Contrabass/e1-max-sustain.wav` | 1 |
+| 15.6 MB | `.../golden/slow-lfo.wav` | 2 |
+| 8.1 MB | `.../golden/schelleng-stress.wav`, `detune-sweep-A.wav` | 2 / 1 |
+| 5.6 MB | `.../golden/mpe-yz.wav`, `macro-sweep.wav` | 1 / 2 |
+| 5.0 MB | `.../golden/note-sequence.wav` | 2 |
+| 4.5 MB | `.../golden/note-expression.wav`, `output-chain.wav` (×2) | |
+
+**32 `.wav` files are tracked in total** [E1]. One entry in the table is not a golden at all: `plugins/O-Contrabass/e1-max-sustain.wav` (16.4 MB) is a stray scratch render that was committed into a plugin folder [E1].
+
+### 4.3 Shipped installers committed to git [E2]
+
+Three blobs totalling **13.5 MB** [E2]:
+
+- `plugins/O-Polystutter/dist/O-Polystutter-OuariconAudio.pkg` — 4.5 MB
+- `plugins/O-Polystutter/dist/O-Polystutter-by-TACHES.pkg` — 4.5 MB (history only)
+- `plugins/O-Polystutter/dist/PolyStutter.zip` — 4.5 MB
+
+Build outputs belong on GitHub Releases, not in git — and the release workflow already publishes there [E2].
+
+### 4.4 Root-level scratch files and first impressions [E4]
+
+These are untracked, so they will not be published, but they are present in the working directory and they make the repo root read as a scratch space rather than a project: `e1-max-sustain.wav` (17 MB), `o-bowed-pre-extraction-canonical.wav` (1.3 MB), `mbc-v150.png`, `o-reversedelay-484.png`, `tooltip-knob.png`, `.DS_Store`, and `scratch-pv/` [E4].
+
+Separately, **38 `.png` and 23 `.jpg` files are tracked** repo-wide — including `plugins/O-AnalogEQ/Source/ui/public/images/flower_ferdinandibauer00baue_0021.png` at 3 MB [E4]. These are real UI assets; the point is that image weight is a second contributor to clone size after the audio goldens.
+
+### 4.5 Clone cost and GitHub limits [E5]
+
+At 912 MB, a `git clone` is slow and consumes GitHub bandwidth on every fork and every CI run [E5]. Two thresholds matter: GitHub **soft-warns above 1 GB** for repository size, and **hard-caps individual files at 100 MB**. The largest single file here is 50 MB — **under the cap, so no push will be rejected** [E5]. The repo is not at a wall; it is well past comfortable.
+
+---
+
+### 4.6 The pivotal mechanic — read this before deciding
+
+> **Removing files in a new commit shrinks the checkout but NOT `.git`.** The old blobs stay in history, so the 912 MB does not move. Only a **history rewrite** reclaims that space [E5]. A rewrite changes **every commit SHA** in the repository. That makes it a one-time, before-the-fact operation: it must happen **before the repo is public and before anyone forks**, or not at all [E5].
+
+**This is a size decision, not a security one.** Scout confirmed zero credential material across the entire history [S1], so nothing in this section is required to make the repo safe. Do not let the size cleanup [E1] [E2] [E5] be mistaken for a security necessity — if you decide the 912 MB is acceptable, skipping the rewrite entirely is a legitimate and safe choice.
+
+If you do decide to proceed, this is the shape of the operation. It is a **proposal for your approval**, not a step this document has taken:
+
+> **IRREVERSIBLE — decide before running.**
+
+```bash
+# PROPOSAL ONLY — rewrites every commit SHA. Do not run until you have decided.
+# Take a full backup clone first:
+#   git clone --mirror . ../VST-development-backup.git
+
+git filter-repo \
+  --path plugins/O-Contrabass/tests/render-harness/golden/ \
+  --path plugins/O-Contrabass/e1-max-sustain.wav \
+  --path plugins/O-Polystutter/dist/ \
+  --path build-release/ \
+  --invert-paths
+
+# Then verify the submodule gitlink survived:
+git submodule status plugins/O-Orbit/libs/SAF
+```
+
+**Submodule caveat.** `plugins/O-Orbit/libs/SAF` is a git submodule pointing at `github.com/leomccormack/Spatial_Audio_Framework` [L3]. Any rewrite must preserve that gitlink entry — verify it explicitly afterwards, as in the last line above. Per project convention, worktree isolation is unsafe for submodule paths, so run the rewrite on a dedicated backup clone rather than inside a worktree.
+
+---
+
+## 5. Legal and licensing
+
+### 5.1 The root LICENSE is the gating artifact [L1]
+
+Restating section 2.1 in its legal context: with no root license, publishing grants no rights. Everything else in this section feeds into which license you can choose. Answer 5.2 first.
+
+### 5.2 The JUCE licensing question — your decision to make [L2]
+
+This document deliberately does not choose for you. Here are the facts and the branches.
+
+**Facts.** The plugin sources are JUCE-derived. JUCE 8 is dual-licensed: **AGPLv3 or a commercial license** [L2]. Beyond ordinary use, this repository also *redistributes modified JUCE source*: `vendored/JUCE-overrides/` ships two modified JUCE files, `juce_audio_plugin_client_VST3.cpp` and `juce_VST3ClientExtensions.h` [L2]. Additionally, JUCE-shipped JavaScript is vendored across many plugins at `plugins/*/Source/ui/public/js/juce/*.js` [L2]. Redistributing modified JUCE source publicly carries obligations that depend entirely on which JUCE license you hold.
+
+**Branch A — you hold a commercial JUCE license.** You are not obliged to publish your plugin sources under AGPLv3, so a permissive root license (MIT, Apache-2.0, BSD) becomes available for your own code. Your redistribution of the two modified JUCE files is governed by your commercial agreement rather than by AGPLv3, so read that agreement's redistribution clause directly before publishing `vendored/JUCE-overrides/` — this document has not seen your agreement and does not assert what it permits.
+
+**Branch B — you rely on the AGPLv3 option.** AGPLv3 is copyleft and network-reciprocal. Your plugin sources are then AGPLv3-derived works, and the root license must be AGPLv3 or compatible. A permissive root license would be inconsistent with the code it governs. The vendored JUCE-overrides and vendored JS are fine to redistribute under this branch, with their license headers intact.
+
+**The question to answer:** *Which JUCE license do you hold?* Nothing downstream — the root LICENSE, the notices file, the handling of `vendored/JUCE-overrides/` — can be settled until that is answered.
+
+### 5.3 Third-party attribution inventory [L3]
+
+The repository carries several third-party components that need aggregated attribution [L3]:
+
+| Component | Location | Note |
+|---|---|---|
+| Spatial_Audio_Framework | `plugins/O-Orbit/libs/SAF` (git submodule) | Points at `github.com/leomccormack/Spatial_Audio_Framework`. The submodule URL is public HTTPS, so it clones fine for outsiders. Ships its own `LICENSE.md`. |
+| Bundled JS dependencies | `plugins/O-TextureForge/.../app.bundle.js.LICENSE.txt` | Already carries its own license text; needs surfacing. |
+| moodycamel concurrent queue | header attribution (`cameron@moodycamel.com`) | Vendored header. |
+| FetchContent dependencies | build configuration | umappp, nanoflann, ONNX/ANIRA per project notes. |
+
+**Recommended deliverable:** a `THIRD-PARTY-NOTICES.md` at the repository root aggregating all of the above, with each component's license text or a link to it. This document does not create that file.
+
+### 5.4 Audio asset provenance — the documented/undocumented split [L4]
+
+There is exactly one folder that is done correctly, and it is the template for the rest:
+
+- **Documented and redistributable:** `plugins/O-Bassoon/research/reference-recordings/` — VSCO-2-CE under CC0 1.0, with a proper provenance `LICENSE.md` [L4].
+- **Undocumented, and shipped inside binaries:** the three sample sets enumerated in section 2.2 [L4].
+
+The binary-shipping distinction is what raises this from housekeeping to a blocker. Undocumented material sitting in a repository is a question you can answer later; undocumented material compiled into a signed, notarised, distributed product is a question that already has consequences. Section 2.2 lays out the three resolution paths.
+
+---
+
+## 6. Ordered execution checklist
+
+Work top to bottom. The order is not arbitrary — each step either gates the next or changes what the next step operates on.
+
+- [ ] **1. Answer the JUCE licensing question.** Determine which JUCE license you hold, and read its redistribution terms for `vendored/JUCE-overrides/`. *(Section 5.2 — [L2].)* Gates everything below it.
+- [ ] **2. Add a root `LICENSE` file** consistent with the branch chosen in step 1. *(Section 2.1 / 5.1 — [L1].)*
+- [ ] **3. Resolve the undocumented sample provenance** in O-simpleGrain, O-simpleSampler, and the O-MicrotonalSampler 4-layer fixtures — document, replace, or remove from the binaries. *(Section 2.2 / 5.4 — [L4].)* Do this before any rewrite, because paths 2 and 3 change which files exist.
+- [ ] **4. Write `THIRD-PARTY-NOTICES.md`** aggregating SAF, the bundled JS licenses, moodycamel, and the FetchContent dependencies. *(Section 5.3 — [L3].)*
+- [ ] **5. Untrack `.claude/system-config.json`** with `git rm --cached`. *(Section 2.3 — [S3].)*
+- [ ] **6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`. *(Section 2.4 — [E3].)*
+- [ ] **7. Untrack the build logs** under `logs/`. *(Section 3.4 — [S6].)*
+- [ ] **8. Add a top-level `permissions: contents: read` block** to the release workflow. *(Section 3.1 — [S4].)*
+- [ ] **9. SHA-pin every tag-pinned action reference** in the release workflow. *(Section 3.1 — [S4].)*
+- [ ] **10. Record the standing CI rule** — never add `pull_request_target` or a secrets-bearing `pull_request` trigger while the workflow holds signing certificates. *(Section 3.1 — [S4].)*
+- [ ] **11. Decide: keep or strip `.claude/` and `.planning/`.** *(Section 3.3 — [S5]; also resolves the bulk of [S2].)* Must resolve **before** step 12, because it changes what a rewrite would need to strip.
+- [ ] **12. Move the committed installers off git** and onto GitHub Releases. *(Section 4.3 — [E2].)*
+- [ ] **13. Tidy the repo root** — the scratch renders and images that make the root read as a workspace. *(Section 4.4 — [E4].)*
+- [ ] **14. Optional: rewrite history to reclaim `.git` size.** Take a mirror backup, run the `git filter-repo` proposal in section 4.6, and verify the `plugins/O-Orbit/libs/SAF` gitlink survived. *(Sections 4.2 / 4.5 / 4.6 — [E1] [E5] [L3].)* **Last among all local changes** — it changes every commit SHA, so nothing else should follow it.
+- [ ] **15. Flip visibility to public.** Final step, after everything above.
+
+  > **IRREVERSIBLE — decide before running.**
+
+  ```bash
+  # PROPOSAL ONLY — publishing cannot be fully undone; forks and caches persist.
+  gh repo edit taylorbrook/VST-development --visibility public
+  ```
+
+---
+
+### Closing note on step 14
+
+Step 14 is **genuinely optional**. It reclaims repository size and nothing else. Scout verified across the full history that no credential material has ever been committed [S1], so there is no security requirement to rewrite anything. If you would rather keep every commit SHA stable — for existing clones, for links into history, for the release tags the workflow has already published — skipping step 14 is a legitimate choice, and the repo is just as safe to publish without it. The only cost is that clones stay at the measured 912 MB [E5].
+
+Steps 1 through 3 are the ones that actually block you.
