@@ -8,7 +8,9 @@
 
 **No secret has ever been committed to this repository.** A credential-extension scan over every tracked file, a content scan over the working tree, the same content scan over the *full* commit history, and a scan of deleted files all returned zero hits [S1]. There is therefore **no security reason to rewrite history** before going public.
 
-**The two hard blockers are legal, not technical:** there is no root `LICENSE` file, which means a public repo is all-rights-reserved and nobody may legally use, fork, or contribute [L1]; and three sets of audio samples with unknown provenance are compiled *into shipped plugin binaries* via `BinaryData` [L4].
+**Of the two hard blockers, both legal rather than technical, one is now closed.** ✅ The missing root `LICENSE` [L1] is resolved — the repository is licensed **AGPL-3.0**, following the JUCE election in section 5.2. ⚠️ The remaining blocker stands: three sets of audio samples with unknown provenance are compiled *into shipped plugin binaries* via `BinaryData` [L4].
+
+**The licensing decision is worth reading in full (section 5.2), because it was not the obvious one.** JUCE 8 is dual-licensed, and "the free JUCE license" resolves two different ways with opposite consequences. The free *Starter* tier caps you at $20,000 gross annual revenue — and JUCE counts donations and pay-what-you-want income toward that — while its EULA §1.17/§2.3 conflict with publishing the **80 JUCE-owned source files this repository redistributes** (4,451 lines of vendored JUCE overrides plus 78 vendored JUCE JS files). Taking JUCE under **AGPLv3** instead removes the revenue cap and makes those 80 files legally publishable as-is. Nothing needs deleting on license grounds.
 
 Everything else in this document is hardening, repository size, or a disclosure decision that is yours to make — not a blocker.
 
@@ -16,15 +18,15 @@ Everything else in this document is hardening, repository size, or a disclosure 
 
 ## 2. Blockers — must fix before going public
 
-### 2.1 No root LICENSE file [L1]
+### 2.1 No root LICENSE file [L1] — ✅ RESOLVED 2026-08-01
 
-**What.** There is no `LICENSE`, `COPYING`, or `NOTICE` at the repository root. The only license file present is `plugins/O-Bassoon/research/reference-recordings/LICENSE.md`, which is a provenance note covering one asset folder and does not govern the repository [L1].
+**What it was.** There was no `LICENSE`, `COPYING`, or `NOTICE` at the repository root. The only license file present was `plugins/O-Bassoon/research/reference-recordings/LICENSE.md`, a provenance note covering one asset folder that does not govern the repository [L1].
 
-**Why it matters.** A public repository with no license is not open source. Under default copyright, "public" means all-rights-reserved: readers may view the code but may not legally use it, fork it, redistribute it, or contribute to it. Making the repo public without a license produces the worst of both worlds — full disclosure with zero collaboration rights.
+**Why it mattered.** A public repository with no license is not open source. Under default copyright, "public" means all-rights-reserved: readers may view the code but may not legally use it, fork it, redistribute it, or contribute to it — full disclosure with zero collaboration rights.
 
-**What is needed.** Add a root `LICENSE` file. **This decision is gated on section 5.2** — the JUCE licensing question [L2] must be settled first, because which JUCE terms apply constrains which root licenses are even permissible. Do not pick a license before answering that question.
+**Resolution.** Root `LICENSE` now contains the **GNU Affero General Public License v3.0**, installed verbatim from `https://www.gnu.org/licenses/agpl-3.0.txt` (661 lines, byte-identical to source, all required sections verified present). This follows the JUCE election recorded in section 5.2 — AGPLv3 rather than the free Starter tier — which also settles the redistribution question for the 80 JUCE-owned files this repo carries.
 
-**Effort.** Minutes to write the file; the gating decision in [L2] is where the real time goes.
+**Still open (housekeeping, not blocking):** per-file AGPL notice headers across the plugin sources, and the JUCE election statement in `THIRD-PARTY-NOTICES.md`. Both detailed at the end of section 5.2.
 
 ---
 
@@ -247,21 +249,39 @@ git submodule status plugins/O-Orbit/libs/SAF
 
 ## 5. Legal and licensing
 
-### 5.1 The root LICENSE is the gating artifact [L1]
+### 5.1 The root LICENSE — settled [L1]
 
-Restating section 2.1 in its legal context: with no root license, publishing grants no rights. Everything else in this section feeds into which license you can choose. Answer 5.2 first.
+Restating section 2.1 in its legal context: with no root license, publishing grants no rights. That gate is now closed — the repository is **AGPL-3.0**, following the JUCE election in 5.2. Read 5.2 for why that election was the load-bearing decision and not a formality.
 
-### 5.2 The JUCE licensing question — your decision to make [L2]
+### 5.2 The JUCE licensing question — RESOLVED: AGPLv3 [L2]
 
-This document deliberately does not choose for you. Here are the facts and the branches.
+> **Decided 2026-08-01.** JUCE is taken under **AGPLv3**, not under the free Starter tier. Root LICENSE is `AGPL-3.0`, installed verbatim from `gnu.org/licenses/agpl-3.0.txt`.
 
-**Facts.** The plugin sources are JUCE-derived. JUCE 8 is dual-licensed: **AGPLv3 or a commercial license** [L2]. Beyond ordinary use, this repository also *redistributes modified JUCE source*: `vendored/JUCE-overrides/` ships two modified JUCE files, `juce_audio_plugin_client_VST3.cpp` and `juce_VST3ClientExtensions.h` [L2]. Additionally, JUCE-shipped JavaScript is vendored across many plugins at `plugins/*/Source/ui/public/js/juce/*.js` [L2]. Redistributing modified JUCE source publicly carries obligations that depend entirely on which JUCE license you hold.
+**Why this was a real fork and not a formality.** "The free JUCE license" is ambiguous, and the two readings lead to opposite outcomes. JUCE 8 is dual-licensed — you take it under *either* the [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html) *or* the [commercial JUCE 8 EULA](https://juce.com/legal/juce-8-licence/), whose tiers are Starter (free, ≤ $20,000 annual revenue), Indie (≤ $300,000), Pro (uncapped), and Educational.
 
-**Branch A — you hold a commercial JUCE license.** You are not obliged to publish your plugin sources under AGPLv3, so a permissive root license (MIT, Apache-2.0, BSD) becomes available for your own code. Your redistribution of the two modified JUCE files is governed by your commercial agreement rather than by AGPLv3, so read that agreement's redistribution clause directly before publishing `vendored/JUCE-overrides/` — this document has not seen your agreement and does not assert what it permits.
+**The conflict that decided it.** This repository does not merely *use* JUCE — it *redistributes JUCE source*:
 
-**Branch B — you rely on the AGPLv3 option.** AGPLv3 is copyleft and network-reciprocal. Your plugin sources are then AGPLv3-derived works, and the root license must be AGPLv3 or compatible. A permissive root license would be inconsistent with the code it governs. The vendored JUCE-overrides and vendored JS are fine to redistribute under this branch, with their license headers intact.
+| What | Count | Detail |
+|---|---|---|
+| `vendored/JUCE-overrides/` | 2 files, **4,451 lines** | `juce_audio_plugin_client_VST3.cpp` (4,112) + `juce_VST3ClientExtensions.h` (339), both carrying Raw Material Software's copyright header verbatim |
+| `plugins/*/…/js/juce/*.js` | **78 files** | JUCE-shipped WebView JS (`index.js`, `check_native_interop.js`), vendored per plugin |
 
-**The question to answer:** *Which JUCE license do you hold?* Nothing downstream — the root LICENSE, the notices file, the handling of `vendored/JUCE-overrides/` — can be settled until that is answered.
+That is 80 JUCE-owned files in a repo about to become public. The commercial EULA is hostile to exactly this: **§1.17** — "You may not sell, sub-license, or otherwise Distribute the Framework, or any subset of the Framework, on its own"; **§2.3** — the Framework may not be used in a way that subjects it to open-source licensing requiring it to be "disclosed or distributed in source code form" or made "redistributable at no charge." A root LICENSE covering the whole repository would purport to license those 80 files under it.
+
+AGPLv3 dissolves the conflict rather than working around it — redistributing modified JUCE source is *expressly permitted* under that horn. The vendored files say so themselves; their own header reads *"You may also use this code under the terms of the AGPLv3."*
+
+**The second reason, specific to pay-what-you-want.** JUCE measures the Starter cap as **gross revenue, and counts donations and pay-what-you-want income toward it**. Across 37+ PWYW plugins that is a $20,000 ceiling requiring active tracking, with an upgrade obligation on crossing it. AGPLv3 has no revenue cap, so this concern disappears entirely.
+
+**Dependency compatibility — checked, all clear.** AGPLv3 is the most restrictive license in the tree, so every other component must be compatible *with* it, and each is: Spatial_Audio_Framework (ISC, permissive), moodycamel (BSD/Boost), nanoflann (BSD), umappp and ONNX Runtime (MIT). The VST3 SDK is dual GPLv3-or-Steinberg-proprietary, and AGPLv3 §13 expressly permits linking with GPLv3 works.
+
+**What you are accepting.** AGPLv3 is strong copyleft: anyone who distributes a derivative of these plugins must release their source under AGPLv3 too. For pay-what-you-want releases this is usually neutral or actively desirable, but it does foreclose a closed-source commercial fork — including by you, later, without relicensing. Relicensing is possible since you hold copyright on your own code, but it would require replacing or re-permissioning the JUCE dependency.
+
+**Consequences now settled.** The 80 JUCE-derived files above are fine to publish as-is with their headers intact. No file needs removing on license grounds. `scripts/juce-patches/*.patch` may stay. Section 2.1 is unblocked and closed.
+
+**Remaining AGPL housekeeping** (recommended, not blocking):
+- Add the standard AGPL notice header to your own source files (the "How to Apply These Terms" stanza at the end of `LICENSE`). This is a 37-plugin sweep — worth scripting, not hand-editing.
+- State the JUCE election explicitly in `THIRD-PARTY-NOTICES.md` (§5.3): *"JUCE is used under the AGPLv3 option of its dual license, not under a commercial JUCE licence."* This matters because JUCE's dual license makes the election otherwise unknowable to a reader.
+- Note in the README that binaries distributed as PWYW are AGPLv3 and that source is at this repository. AGPLv3 does not restrict charging money — pay-what-you-want is fully compatible.
 
 ### 5.3 Third-party attribution inventory [L3]
 
@@ -291,10 +311,11 @@ The binary-shipping distinction is what raises this from housekeeping to a block
 
 Work top to bottom. The order is not arbitrary — each step either gates the next or changes what the next step operates on.
 
-- [ ] **1. Answer the JUCE licensing question.** Determine which JUCE license you hold, and read its redistribution terms for `vendored/JUCE-overrides/`. *(Section 5.2 — [L2].)* Gates everything below it.
-- [ ] **2. Add a root `LICENSE` file** consistent with the branch chosen in step 1. *(Section 2.1 / 5.1 — [L1].)*
-- [ ] **3. Resolve the undocumented sample provenance** in O-simpleGrain, O-simpleSampler, and the O-MicrotonalSampler 4-layer fixtures — document, replace, or remove from the binaries. *(Section 2.2 / 5.4 — [L4].)* Do this before any rewrite, because paths 2 and 3 change which files exist.
-- [ ] **4. Write `THIRD-PARTY-NOTICES.md`** aggregating SAF, the bundled JS licenses, moodycamel, and the FetchContent dependencies. *(Section 5.3 — [L3].)*
+- [x] ~~**1. Answer the JUCE licensing question.**~~ ✅ **Done 2026-08-01 — AGPLv3**, not the free Starter tier. Removes the $20k PWYW revenue cap and makes the 80 redistributed JUCE files publishable as-is. *(Section 5.2 — [L2].)*
+- [x] ~~**2. Add a root `LICENSE` file.**~~ ✅ **Done 2026-08-01** — AGPL-3.0, verbatim from gnu.org, 661 lines. *(Section 2.1 / 5.1 — [L1].)*
+- [ ] **3. Resolve the undocumented sample provenance** in O-simpleGrain, O-simpleSampler, and the O-MicrotonalSampler 4-layer fixtures — document, replace, or remove from the binaries. *(Section 2.2 / 5.4 — [L4].)* **This is now the only remaining hard blocker.** Do it before any rewrite, because paths 2 and 3 change which files exist.
+- [ ] **4. Write `THIRD-PARTY-NOTICES.md`** aggregating SAF, the bundled JS licenses, moodycamel, and the FetchContent dependencies — and stating explicitly that **JUCE is used under the AGPLv3 option of its dual license**, which a reader cannot otherwise determine. *(Section 5.3 / 5.2 — [L3] [L2].)*
+- [ ] **4b. Add AGPL notice headers** to your own source files (the "How to Apply These Terms" stanza at the end of `LICENSE`). A 37-plugin sweep — script it. *(Section 5.2 — [L2].)* Recommended, not blocking.
 - [ ] **5. Untrack `.claude/system-config.json`** with `git rm --cached`. *(Section 2.3 — [S3].)*
 - [ ] **6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`. *(Section 2.4 — [E3].)*
 - [ ] **7. Untrack the build logs** under `logs/`. *(Section 3.4 — [S6].)*
