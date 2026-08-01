@@ -278,8 +278,13 @@ AGPLv3 dissolves the conflict rather than working around it — redistributing m
 
 **Consequences now settled.** The 80 JUCE-derived files above are fine to publish as-is with their headers intact. No file needs removing on license grounds. `scripts/juce-patches/*.patch` may stay. Section 2.1 is unblocked and closed.
 
-**Remaining AGPL housekeeping** (recommended, not blocking):
-- Add the standard AGPL notice header to your own source files (the "How to Apply These Terms" stanza at the end of `LICENSE`). This is a 37-plugin sweep — worth scripting, not hand-editing.
+**AGPL housekeeping:**
+- ✅ **Per-file notice headers — done 2026-08-01.** 707 files (358 `.h`, 231 `.cpp`, 56 `.js`, 40 `.html`, 22 `.css`) across 39 plugins and 11 shared modules, each carrying its product subject, an `SPDX-License-Identifier: AGPL-3.0-or-later`, and the full warranty disclaimer. Applied by **`scripts/add-agpl-headers.py`**, which is idempotent — re-run it after adding a plugin and it stamps only the new files.
+
+  The script deliberately excludes third-party code, and this is the part worth preserving: AGPLv3 lets us *redistribute* JUCE's files, but stamping **our** copyright onto them would be a false attribution. Excluded and verified untouched: the 80 `js/juce/*` files, `vendored/JUCE-overrides/`, the generated `app.bundle.js`, and 24 plugin-local `.planning/` mockups. `--audit` is a content-based backstop that fails the run if any file bearing a foreign copyright notice escapes the path rules.
+
+  One trap found in the process, recorded because it would silently recur: Python's `Path.read_text()` performs universal-newline translation, so a CRLF file becomes a whole-file rewrite rather than a one-block insertion. Exactly one file here is CRLF (`plugins/O-Tremolo/Source/ui/public/index.html`) and it produced a 1,264-line phantom diff before the script was switched to newline-preserving I/O.
+
 - State the JUCE election explicitly in `THIRD-PARTY-NOTICES.md` (§5.3): *"JUCE is used under the AGPLv3 option of its dual license, not under a commercial JUCE licence."* This matters because JUCE's dual license makes the election otherwise unknowable to a reader.
 - Note in the README that binaries distributed as PWYW are AGPLv3 and that source is at this repository. AGPLv3 does not restrict charging money — pay-what-you-want is fully compatible.
 
@@ -315,7 +320,7 @@ Work top to bottom. The order is not arbitrary — each step either gates the ne
 - [x] ~~**2. Add a root `LICENSE` file.**~~ ✅ **Done 2026-08-01** — AGPL-3.0, verbatim from gnu.org, 661 lines. *(Section 2.1 / 5.1 — [L1].)*
 - [ ] **3. Resolve the undocumented sample provenance** in O-simpleGrain, O-simpleSampler, and the O-MicrotonalSampler 4-layer fixtures — document, replace, or remove from the binaries. *(Section 2.2 / 5.4 — [L4].)* **This is now the only remaining hard blocker.** Do it before any rewrite, because paths 2 and 3 change which files exist.
 - [ ] **4. Write `THIRD-PARTY-NOTICES.md`** aggregating SAF, the bundled JS licenses, moodycamel, and the FetchContent dependencies — and stating explicitly that **JUCE is used under the AGPLv3 option of its dual license**, which a reader cannot otherwise determine. *(Section 5.3 / 5.2 — [L3] [L2].)*
-- [ ] **4b. Add AGPL notice headers** to your own source files (the "How to Apply These Terms" stanza at the end of `LICENSE`). A 37-plugin sweep — script it. *(Section 5.2 — [L2].)* Recommended, not blocking.
+- [x] ~~**4b. Add AGPL notice headers** to your own source files.~~ ✅ **Done 2026-08-01** — 707 files across 39 plugins and 11 modules, via the idempotent `scripts/add-agpl-headers.py`. Third-party excluded and verified untouched. *(Section 5.2 — [L2].)*
 - [ ] **5. Untrack `.claude/system-config.json`** with `git rm --cached`. *(Section 2.3 — [S3].)*
 - [ ] **6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`. *(Section 2.4 — [E3].)*
 - [ ] **7. Untrack the build logs** under `logs/`. *(Section 3.4 — [S6].)*
