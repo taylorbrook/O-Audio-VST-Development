@@ -2,6 +2,15 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.16.5] - 2026-08-02
+
+Licensing release — no functional changes. PATCH: no audio-path, parameter, or state changes.
+
+### Changed
+
+- **AGPL-3.0 notice headers added to all Ouaricon-authored sources** as part of the repo-wide
+  relicensing sweep (commit `1390fc3f`). Binaries rebuilt from identical functional code.
+
 ## [1.16.4] - 2026-07-08
 
 Resolves the safe/mechanical info-level findings from the v1.16.2 deep code review
