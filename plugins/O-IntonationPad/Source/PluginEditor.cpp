@@ -209,9 +209,10 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 "Load Scala File",
                 juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                 "*.scl");
+            juce::Component::SafePointer<OIntonationPadAudioProcessorEditor> safe(this);
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                [this, safe, complete]
                 (const juce::FileChooser& fc) {
                     if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
@@ -233,9 +234,10 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                     .getChildFile("scale.scl"),
                 "*.scl");
+            juce::Component::SafePointer<OIntonationPadAudioProcessorEditor> safe(this);
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                [this, safe, complete]
                 (const juce::FileChooser& fc) {
                     if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
@@ -254,9 +256,10 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 "Load Keyboard Mapping",
                 juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                 "*.kbm");
+            juce::Component::SafePointer<OIntonationPadAudioProcessorEditor> safe(this);
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                [this, safe, complete]
                 (const juce::FileChooser& fc) {
                     if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
@@ -275,9 +278,10 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                     .getChildFile("mapping.kbm"),
                 "*.kbm");
+            juce::Component::SafePointer<OIntonationPadAudioProcessorEditor> safe(this);
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                [this, safe, complete]
                 (const juce::FileChooser& fc) {
                     if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();
@@ -423,9 +427,10 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                     .getChildFile("tuning-export.html"),
                 "*.html");
+            juce::Component::SafePointer<OIntonationPadAudioProcessorEditor> safe(this);
             tuningFileChooser->launchAsync(
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [this, safe = juce::Component::SafePointer<OIntonationPadAudioProcessorEditor>(this), complete]
+                [this, safe, complete]
                 (const juce::FileChooser& fc) {
                     if (safe == nullptr) return;  // editor destroyed while dialog open — `complete` is dead too
                     auto file = fc.getResult();

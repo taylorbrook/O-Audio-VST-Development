@@ -1,5 +1,14 @@
 # O-IntonationPad Changelog
 
+## [2.8.3] - 2026-08-02
+
+### Fixed
+
+- **Windows build failure (MSVC C2440/C2119).** MSVC rejects `SafePointer(this)` init-captures
+  inside nested lambdas; all five `FileChooser::launchAsync` callbacks in `PluginEditor.cpp`
+  now hoist the `SafePointer` to a local and capture it by value (same fix as O-Lyrica v2.3.3).
+  Behaviour is unchanged on all platforms.
+
 ## [2.8.2] - 2026-07-09
 
 Safe INFO-tier cleanup sweep from the v2.8.0 deep code review (`CODE_REVIEW.md`). Dead-code /
