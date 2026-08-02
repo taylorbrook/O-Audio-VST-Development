@@ -27,7 +27,7 @@
     Pedagogical keyboard sampler.
 
     Stage 2.1 (Core Playable Sampler): a polyphonic, MIDI-playable sampler — the
-    embedded piano.wav read through a fractional-read varispeed ("Repitch") head,
+    single embedded piano.wav read through a fractional-read varispeed ("Repitch") head,
     isolated by start/end region, anti-aliased, shaped by a per-voice amp ADSR +
     VCA + velocity sensitivity, tuned relative to the live Root Key. Decode /
     resample / atomic-publish of the source happens OFF the audio thread
@@ -56,12 +56,12 @@ class SampleSound;
 // Parameter identifiers — single source of truth for APVTS IDs.
 // Referenced by the processor now; by the sampler voices / param-push (Stage 2)
 // and WebView relays/attachments (Stage 3) later. IDs/ranges/defaults are
-// authoritative per .planning/parameter-spec.md (21 params).
+// authoritative per .planning/parameter-spec.md (20 params).
+//
+// v1.1.0: source selection is no longer parameterised — the plugin starts on its
+// one embedded source and Load… / drag-drop is the only way to change it.
 namespace OSimpleSampler::ParamIDs
 {
-    // Source
-    inline constexpr auto sourceSample    = "sourceSample";    // choice: piano/cello/pizz/hit
-
     // Region (start/end · loop · reverse)
     // NB: identifiers are regionStart/regionEnd (not start/end) — a bare `end`
     // collides with juce::end (RangedDirectoryIterator) under `using namespace`.
@@ -220,7 +220,7 @@ public:
     static constexpr int kRootNote          = 60;   // C3 — key-track reference / default rootKey
     static constexpr int kMaxSourceSeconds  = 30;   // source-length cap
     static constexpr int kStretchGrainMs    = 60;   // Stretch fixed grain size (ms)
-    static constexpr int kNumBuiltIns       = 4;    // built-in source count (sourceSample choices)
+    static constexpr int kNumBuiltIns       = 1;    // embedded built-in source count
 
 private:
     //==========================================================================
@@ -228,11 +228,11 @@ private:
 
     // Decode one embedded BinaryData .wav (by built-in index), resample to the
     // engine rate, cap at kMaxSourceSeconds, and atomic-publish. Returns true on
-    // success. OFF the audio thread (prepareToPlay / sourceSample change).
+    // success. OFF the audio thread (prepareToPlay / setStateInformation).
     bool loadBuiltInSource (int builtInIndex, double engineRate);
 
     // Map an "embedded:<name>" identity to its built-in index (0..kNumBuiltIns-1).
-    // Falls back to the live sourceSample choice, then 0 (piano), if unknown.
+    // Falls back to 0 (piano) if unknown.
     int builtInIndexForIdentity (const juce::String& identity) const;
 
     // Decode a raw byte block (a complete .wav/.aiff/.flac in memory) through the
@@ -253,14 +253,13 @@ private:
     // overwrites the live value. OFF the audio thread.
     void seedRootForSource (int builtInIndex);
 
-    // APVTS listener: fires on the message thread when `sourceSample` changes. We
-    // do NOT decode here (the host may call it from any thread) — we
-    // triggerAsyncUpdate() so the decode always runs on the message thread.
+    // APVTS listener: fires on the message thread when a region/loop marker changes.
+    // We do NOT scan here (the host may call it from any thread) — we
+    // triggerAsyncUpdate() so the work always runs on the message thread.
     void parameterChanged (const juce::String& parameterID, float newValue) override;
 
-    // AsyncUpdater: message-thread callback that performs the actual built-in
-    // decode/resample/publish + per-source root seed for the pending selection,
-    // and the deferred zero-cross marker snap (Phase 2.2a).
+    // AsyncUpdater: message-thread callback that performs the deferred fresh-instance
+    // root seed and the deferred zero-cross marker snap (Phase 2.2a).
     void handleAsyncUpdate() override;
 
     // Clear the active drag-drop session state (message thread).
@@ -328,10 +327,6 @@ private:
     juce::SmoothedValue<float> filterCutoffSm { 20000.0f };
     juce::SmoothedValue<float> filterQSm      { 0.707f };
 
-    // Pending built-in index for the AsyncUpdater (set by the parameter listener,
-    // consumed on the message thread). -1 = nothing pending.
-    std::atomic<int> pendingBuiltInIndex { -1 };
-
     // Phase 2.2a — deferred zero-cross snap request (set by parameterChanged on a
     // start/end/loopStart/loopEnd change; consumed in handleAsyncUpdate).
     std::atomic<bool> pendingSnap { false };
@@ -393,24 +388,20 @@ private:
     // Custom non-APVTS state: which source is loaded (built-in name or file path).
     juce::String currentSourceIdentity { "embedded:piano" };
 
-    // Built-in names, indexed to match the sourceSample choice order. Stage 4 —
-    // curated found-sound set delivered: piano, cello, pizz (pizzicato strings),
-    // hit (percussive one-shot). The identity scheme is "embedded:<name>", so these
-    // strings are the contract-adjacent surface (must match the sourceSample Choice
-    // order and the parameter-spec built-in table).
-    static constexpr const char* kBuiltInNames[kNumBuiltIns] = { "piano", "cello", "pizz", "hit" };
+    // Built-in names. v1.1.0 ships ONE embedded source: piano. The identity scheme is
+    // "embedded:<name>", so this string is the contract-adjacent surface (it must match
+    // the parameter-spec built-in table). Kept as an array rather than hard-coded so a
+    // future cleared built-in is a one-line addition here + in kBuiltInRoot.
+    static constexpr const char* kBuiltInNames[kNumBuiltIns] = { "piano" };
 
     // Per-source recorded-pitch root (engine metadata), probed via YIN f0 → nearest
-    // MIDI. piano = 48 (f0 ≈ 131.6 Hz / C3), cello = 69 (f0 ≈ 441 Hz / A4), pizz = 69
-    // (f0 ≈ 445 Hz / A4). hit is percussive (unvoiced) → neutral 60 (C4): pressing
-    // C4 plays the one-shot at its recorded speed. The APVTS rootKey DEFAULT stays 60
+    // MIDI. piano = 48 (f0 ≈ 131.6 Hz / C3). The APVTS rootKey DEFAULT stays 60
     // (frozen contract); seedRootForSource overwrites the live value per source.
-    static constexpr int kBuiltInRoot[kNumBuiltIns] = { 48, 69, 69, 60 };
+    static constexpr int kBuiltInRoot[kNumBuiltIns] = { 48 };
 
     //==========================================================================
     // Cached raw-param atomic pointers (assigned in the ctor). Established now;
     // read once per block by the sampler engine in Stage 2. Unused while silent.
-    std::atomic<float>* sourceSampleParam    = nullptr;
     std::atomic<float>* startParam           = nullptr;
     std::atomic<float>* endParam             = nullptr;
     std::atomic<float>* loopModeParam        = nullptr;

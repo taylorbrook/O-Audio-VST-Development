@@ -45,8 +45,8 @@ target_include_directories(O-simpleSampler-render-test PRIVATE
 target_compile_definitions(O-simpleSampler-render-test PRIVATE
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
-    # Pump the message loop (runDispatchLoopUntil) so the AsyncUpdater-driven
-    # sourceSample decode/zero-cross snap runs in this console app.
+    # Pump the message loop (runDispatchLoopUntil) so the AsyncUpdater-driven work
+    # (the deferred root seed and the zero-cross marker snap) runs in this console app.
     JUCE_MODAL_LOOPS_PERMITTED=1
     # The placeholder editor is a plain juce::AudioProcessorEditor (NO WebView,
     # unlike O-simpleGrain) — disable the web browser so juce_gui_extra does not

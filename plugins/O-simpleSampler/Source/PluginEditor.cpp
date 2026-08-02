@@ -23,14 +23,14 @@
     O-simpleSampler - Plugin Editor (implementation)
 
     Stage 3 (GUI): Ouaricon "Keyboard Sampler Field Guide" WebView UI. 17 slider
-    relays (region / loop / pitch / vintage / filter / amp / output) + 3 combo
-    relays (sourceSample, loopMode, pitchMode) + 1 toggle relay (reverse) bound
+    relays (region / loop / pitch / vintage / filter / amp / output) + 2 combo
+    relays (loopMode, pitchMode) + 1 toggle relay (reverse) bound
     two-way to the APVTS. Eight native functions bridge the JS drag-drop / picker /
     waveform thumbnail / on-screen keyboard / concept-preset tour to the processor
     (which decodes/resamples/publishes the source OFF the audio thread, queues UI
     MIDI through a MidiMessageCollector, and snapshots factory presets into the APVTS).
 
-    Phase 3.1: layout + 21-param binding + load-your-own + keyboard. Phase 3.2: the
+    Phase 3.1: layout + 20-param binding + load-your-own + keyboard. Phase 3.2: the
     30 Hz Timer viz push (interactive waveform editor + filter curve + amp-ADSR +
     scope). Phase 3.3: per-control tooltips + the applyFactoryPreset preset-tour hook.
 
@@ -94,7 +94,7 @@ OSimpleSamplerAudioProcessorEditor::OSimpleSamplerAudioProcessorEditor (OSimpleS
 {
     using namespace OSimpleSampler::ParamIDs;
 
-    // 21 APVTS params = 17 sliders + 3 combos + 1 toggle. NB: the string IDs
+    // 20 APVTS params = 17 sliders + 2 combos + 1 toggle. NB: the string IDs
     // "start"/"end" are carried by the C++ identifiers regionStart/regionEnd (the
     // juce::end shadow fix); the relays/attachments/DOM all use the STRING ids.
     const juce::StringArray sliderIds {
@@ -105,7 +105,7 @@ OSimpleSamplerAudioProcessorEditor::OSimpleSamplerAudioProcessorEditor (OSimpleS
         ampAttack, ampDecay, ampSustain, ampRelease, velToAmp,
         outputLevel
     };
-    const juce::StringArray comboIds  { sourceSample, loopMode, pitchMode };
+    const juce::StringArray comboIds  { loopMode, pitchMode };
     const juce::StringArray toggleIds { reverse };
 
     // 1. RELAYS (before the WebView) ----------------------------------------
