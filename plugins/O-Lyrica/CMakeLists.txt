@@ -9,7 +9,7 @@ juce_add_plugin(OLyrica
     PLUGIN_CODE OLyr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Lyrica${OUARICON_DEV_SUFFIX}"
-    VERSION "2.3.2"
+    VERSION "2.3.3"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE

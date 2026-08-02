@@ -2,6 +2,13 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.3.3] - 2026-08-02
+
+### Changed
+
+- Added AGPL-3.0 license notice headers to all Ouaricon-authored source files. No functional
+  changes — parameter IDs, ranges, state format, and DSP are identical to v2.3.2.
+
 ## [2.3.2] - 2026-07-09
 
 Cleanup sweep resolving the 12 remaining Info findings from the v2.3.0 deep code review
