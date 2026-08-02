@@ -306,7 +306,7 @@ static Spectrum analyze (const std::vector<float>& x, int off, double fs, int or
 }
 
 //==============================================================================
-// Pump the message loop so AsyncUpdater-driven work (sourceSample decode + zero-
+// Pump the message loop so AsyncUpdater-driven work (deferred root seed + zero-
 // cross snap) actually runs in this console app.
 static void pumpMessages (int ms = 60)
 {
@@ -364,13 +364,12 @@ static std::vector<float> render (OSimpleSamplerAudioProcessor& proc,
     return out;
 }
 
-// Reset all 21 params to a clean, analysis-friendly baseline: factory-ish, full
+// Reset all 20 params to a clean, analysis-friendly baseline: factory-ish, full
 // sustain so a held window is steady, Repitch one-shot, no loop/vintage/filter.
 // rootKey is pinned to 48 (the piano recorded root) so pitch tests are
 // deterministic regardless of the seed-on-prepare timing.
 static void resetDefaults (juce::AudioProcessorValueTreeState& a)
 {
-    setParam (a, PID::sourceSample,        0.0f);   // piano
     setParam (a, PID::regionStart,         0.0f);
     setParam (a, PID::regionEnd,         100.0f);
     setParam (a, PID::loopMode,            0.0f);   // off (one-shot)

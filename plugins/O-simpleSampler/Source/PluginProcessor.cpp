@@ -69,13 +69,6 @@ OSimpleSamplerAudioProcessor::createParameterLayout()
     using namespace OSimpleSampler::ParamIDs;
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    //--- Source ------------------------------------------------------------
-    // Which built-in recording plays. The "(loaded)" user-file state is reflected
-    // in custom (non-APVTS) state, NOT as a 5th choice. Default piano (index 0).
-    params.push_back (std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { sourceSample, 1 }, "Source",
-        juce::StringArray { "piano", "cello", "pizz", "hit" }, 0));
-
     //--- Region: Start / End ----------------------------------------------
     // Played region of the source. Start/End together are the "isolate the useful
     // part" lesson. Stored as raw percent; zero-crossing snap lands Stage 2.
@@ -183,7 +176,6 @@ OSimpleSamplerAudioProcessor::OSimpleSamplerAudioProcessor()
 
     // Cache raw-param atomic pointers. Established now (read once per block by the
     // sampler engine in Stage 2; unused while silent).
-    sourceSampleParam    = apvts.getRawParameterValue (sourceSample);
     startParam           = apvts.getRawParameterValue (regionStart);
     endParam             = apvts.getRawParameterValue (regionEnd);
     loopModeParam        = apvts.getRawParameterValue (loopMode);
@@ -214,11 +206,6 @@ OSimpleSamplerAudioProcessor::OSimpleSamplerAudioProcessor()
     synth.addSound (new SampleSound());          // single shared sound, all notes/channels
     synth.setNoteStealingEnabled (true);         // steal quietest/oldest voice on overflow
 
-    // Listen for sourceSample selection changes. The decode/resample is dispatched
-    // to the message thread via AsyncUpdater (never the audio thread) — see
-    // parameterChanged / handleAsyncUpdate.
-    apvts.addParameterListener (sourceSample, this);
-
     // Phase 2.2a: the region/loop markers drive the off-thread zero-cross snap. A
     // change flags pendingSnap + triggers the AsyncUpdater (the scan runs on the
     // message thread — never the audio thread).
@@ -231,7 +218,6 @@ OSimpleSamplerAudioProcessor::OSimpleSamplerAudioProcessor()
 OSimpleSamplerAudioProcessor::~OSimpleSamplerAudioProcessor()
 {
     using namespace OSimpleSampler::ParamIDs;
-    apvts.removeParameterListener (sourceSample, this);
     apvts.removeParameterListener (regionStart,  this);
     apvts.removeParameterListener (regionEnd,    this);
     apvts.removeParameterListener (loopStart,    this);
@@ -358,14 +344,13 @@ bool OSimpleSamplerAudioProcessor::isBusesLayoutSupported (const BusesLayout& la
 
 //==============================================================================
 // Source decode/resample/publish (Phase 2.1). ALL of this runs OFF the audio
-// thread (prepareToPlay, the AsyncUpdater for sourceSample changes, and
-// setStateInformation). The audio thread only ever sees a fully-built buffer
-// published via the atomic shared_ptr swap.
+// thread (prepareToPlay and setStateInformation). The audio thread only ever sees
+// a fully-built buffer published via the atomic shared_ptr swap.
 
-// Map embedded BinaryData symbols by built-in index. Stage 4 — the curated set is
-// delivered: 0=piano, 1=cello, 2=pizz, 3=hit. JUCE mangles each filename to its
-// BinaryData symbol (piano.wav -> piano_wav, cello.aif -> cello_aif, etc.). The
-// `default` keeps piano as the never-silent fallback for any out-of-range index.
+// Map embedded BinaryData symbols by built-in index. v1.1.0 ships ONE embedded
+// source: 0=piano. JUCE mangles each filename to its BinaryData symbol
+// (piano.wav -> piano_wav). The `default` keeps piano as the never-silent fallback
+// for any out-of-range index.
 namespace
 {
     struct BuiltInBlob { const char* data; int size; };
@@ -375,9 +360,6 @@ namespace
         switch (idx)
         {
             case 0:  return { BinaryData::piano_wav, BinaryData::piano_wavSize };
-            case 1:  return { BinaryData::cello_aif, BinaryData::cello_aifSize };
-            case 2:  return { BinaryData::pizz_aif,  BinaryData::pizz_aifSize };
-            case 3:  return { BinaryData::hit_wav,   BinaryData::hit_wavSize };
             default: return { BinaryData::piano_wav, BinaryData::piano_wavSize };
         }
     }
@@ -392,9 +374,7 @@ int OSimpleSamplerAudioProcessor::builtInIndexForIdentity (const juce::String& i
             if (name == kBuiltInNames[i])
                 return i;
     }
-    // Fall back to the live choice param, then piano.
-    if (sourceSampleParam != nullptr)
-        return juce::jlimit (0, kNumBuiltIns - 1, (int) sourceSampleParam->load());
+    // Unknown / user-file identity → piano (the never-silent fallback).
     return 0;
 }
 
@@ -546,8 +526,8 @@ std::vector<float> OSimpleSamplerAudioProcessor::getSourceThumbnail (int numPair
 // Stored-range reminders (parameter-spec.md): start/end/loopStart/loopEnd/vintage/
 // filterResonance/velToAmp are 0–100; loopCrossfade 0–500 ms; rootKey/tune are INT
 // params; fine ±100 c; filterCutoff 20–20000 Hz (log); ADSR times in seconds;
-// ampSustain stored 0–1 (NOT %). Choice indices — sourceSample: 0=piano 1=cello
-// 2=pizz 3=hit; loopMode: 0=Off 1=Forward 2=Ping-Pong; pitchMode: 0=Repitch
+// ampSustain stored 0–1 (NOT %). Choice indices — loopMode: 0=Off 1=Forward
+// 2=Ping-Pong; pitchMode: 0=Repitch
 // 1=Stretch. setReal/setChoice take the STRING id (apvts.getParameter("start")),
 // so the regionStart/regionEnd identifier rename does not affect these helpers.
 void OSimpleSamplerAudioProcessor::applyFactoryPreset (const juce::String& name)
@@ -797,21 +777,17 @@ void OSimpleSamplerAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, fl
 }
 
 //==============================================================================
-// APVTS listener (message thread, possibly off it depending on host). Never
-// decodes here — defers to the AsyncUpdater so the decode always runs on the
-// message thread (RT-safety: no decode on the audio thread).
+// APVTS listener (message thread, possibly off it depending on host). Never scans
+// the source here — defers to the AsyncUpdater so the work always runs on the
+// message thread (RT-safety: no source scan on the audio thread). Only the marker
+// IDs matter; the new value itself is re-read from the params by the snap pass.
 void OSimpleSamplerAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
 {
     using namespace OSimpleSampler::ParamIDs;
+    juce::ignoreUnused (newValue);
 
-    if (parameterID == sourceSample)
-    {
-        pendingBuiltInIndex.store (juce::jlimit (0, kNumBuiltIns - 1, (int) newValue),
-                                   std::memory_order_relaxed);
-        triggerAsyncUpdate();
-    }
-    else if (parameterID == regionStart || parameterID == regionEnd
-             || parameterID == loopStart || parameterID == loopEnd)
+    if (parameterID == regionStart || parameterID == regionEnd
+        || parameterID == loopStart || parameterID == loopEnd)
     {
         // Phase 2.2a: defer the zero-cross snap to the message thread (no audio-thread
         // source scan). Coalesces — multiple marker drags collapse into one re-scan.
@@ -827,18 +803,6 @@ void OSimpleSamplerAudioProcessor::handleAsyncUpdate()
     // setValueNotifyingHost is safe here. Seeds the CURRENT source's recorded root.
     if (pendingRootSeed.exchange (false, std::memory_order_relaxed))
         seedRootForSource (builtInIndexForIdentity (currentSourceIdentity));
-
-    const int idx = pendingBuiltInIndex.exchange (-1, std::memory_order_relaxed);
-    if (idx >= 0)
-    {
-        // A state restore that lands on a source cancels this pending update
-        // (setStateInformation publishes the restored source then cancelPendingUpdate()s),
-        // so reaching here always means a genuine user sourceSample-choice change — seed
-        // the per-source root so an explicit pick retunes the keyboard.
-        loadBuiltInSource (idx, currentSampleRate);
-        seedRootForSource (idx);
-        pendingSnap.store (true, std::memory_order_relaxed);   // new source → re-snap markers
-    }
 
     // Phase 2.2a: recompute zero-cross-snapped markers off the audio thread.
     if (pendingSnap.exchange (false, std::memory_order_relaxed))
@@ -1147,11 +1111,10 @@ void OSimpleSamplerAudioProcessor::setStateInformation (const void* data, int si
         currentSourceIdentity = sourceChild.getProperty (
             juce::Identifier (kSourceIdProp), currentSourceIdentity).toString();
 
-    // replaceState() fires the sourceSample listener, which queues an AsyncUpdater
-    // to rebuild a built-in source. That update is deferred (it runs AFTER this
-    // method returns), so we publish the correct source below, then
-    // cancelPendingUpdate() to drop the queued rebuild — otherwise a restored source
-    // would be clobbered by the built-in choice (and its root re-seed) a moment later.
+    // replaceState() fires the region/loop marker listeners (Phase 2.2a), each of
+    // which queues an AsyncUpdater run. Those updates are deferred (they run AFTER
+    // this method returns), so we publish the correct source below, then
+    // cancelPendingUpdate() to drop the queued work and do the marker snap directly.
     apvts.replaceState (state);
 
     // Mark the session restored so the prepare-time root seed (Task 5) is skipped —
@@ -1189,13 +1152,12 @@ void OSimpleSamplerAudioProcessor::setStateInformation (const void* data, int si
         }
     }
 
-    // Drop the sourceSample-rebuild that replaceState() queued above — the restored
-    // source is already published, so letting the pending built-in load (with its
-    // root re-seed) run would only clobber the restored state.
+    // Drop the AsyncUpdater run that replaceState() queued above — the restored
+    // source is already published, and any queued work would only run after this
+    // method returns, against state we have already settled.
     cancelPendingUpdate();
-    pendingBuiltInIndex.store (-1, std::memory_order_relaxed);
 
-    // replaceState() also fired the region/loop listeners (Phase 2.2a), queuing a
+    // replaceState() fired the region/loop listeners (Phase 2.2a), queuing a
     // snap that cancelPendingUpdate() just dropped. Snap the restored markers directly
     // (off the audio thread; self-guards on a null source if state restores before
     // prepareToPlay, which then re-snaps).

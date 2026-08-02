@@ -105,18 +105,15 @@ juce_generate_juce_header(O-simpleSampler)
 # audio thread, then atomic-publishes. NAMESPACE BinaryData / HEADER_NAME
 # BinaryData.h — the Stage-3 UI-resources target MUST use a DISTINCT namespace
 # (UIBinaryData) to avoid the duplicate getNamedResource symbol collision.
-# Stage 4 — curated built-in set delivered: piano (C3/48), cello (A4/69),
-# pizz (A4/69), hit (percussive, C4/60). Filenames are kept simple so JUCE mangles
-# them predictably: piano.wav->piano_wav, cello.aif->cello_aif, pizz.aif->pizz_aif,
-# hit.wav->hit_wav. Append SOURCES only; never touch NAMESPACE/HEADER_NAME.
+# v1.1.0 — a single embedded source ships: piano (recorded root C3/48). The other
+# v1.0 built-ins were withdrawn; see CHANGELOG.md and Source/samples/LICENSE.md.
+# Filenames are kept simple so JUCE mangles them predictably (piano.wav->piano_wav).
+# Append SOURCES only; never touch NAMESPACE/HEADER_NAME.
 juce_add_binary_data(O-simpleSampler_Samples
     NAMESPACE BinaryData
     HEADER_NAME BinaryData.h
     SOURCES
-        Source/samples/piano.wav
-        Source/samples/cello.aif
-        Source/samples/pizz.aif
-        Source/samples/hit.wav)
+        Source/samples/piano.wav)
 
 target_link_libraries(O-simpleSampler PRIVATE O-simpleSampler_Samples)
 
