@@ -623,7 +623,7 @@ select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
 }
 .source-status.truncated { color: #b8863a; }
 
-/* ── Combo <select> (sourceSample, windowShape) — sepia palette ───────────── */
+/* ── Combo <select> cells + control — sepia palette ───────────────────────── */
 .select-cell {
   display: flex;
   flex-direction: column;

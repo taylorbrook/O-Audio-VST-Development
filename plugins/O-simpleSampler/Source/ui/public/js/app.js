@@ -19,7 +19,7 @@
 */
 // ============================================================================
 // O-simpleSampler — WebView UI controller (Phase 3.1)
-// Binds all 21 APVTS params two-way (17 sliders + 3 combos + 1 toggle), wires the
+// Binds all 20 APVTS params two-way (17 sliders + 2 combos + 1 toggle), wires the
 // source drag-drop + "Load…" picker + the >30 s truncation notice, and the
 // on-screen keyboard. The four canvases (waveform editor / filter curve /
 // amp-ADSR / scope) are RESERVED in the DOM — their rendering + the viz push-event
@@ -45,7 +45,12 @@ const KNOB_IDS = [
   "ampAttack", "ampDecay", "ampSustain", "ampRelease", "velToAmp",
   "outputLevel",
 ];
-const COMBO_IDS = ["sourceSample", "loopMode", "pitchMode"];
+const COMBO_IDS = ["loopMode", "pitchMode"];
+
+// The single embedded source the plugin starts on. Mirrors kBuiltInNames[0] in
+// PluginProcessor.h — the UI has no native fn to query the live source identity,
+// so this is the one place the name is written on the JS side.
+const BUILT_IN_SOURCE_NAME = "piano";
 const TOGGLE_IDS = ["reverse"];
 
 // ── Display formatters (keyed by string id) — receive the *scaled* value ────
@@ -79,17 +84,15 @@ const FORMAT = {
 
 // ── Tooltip copy (UI-04) — plain-language, projector-friendly hover copy keyed
 // by data-tip. Shape: key → [title, bodyHtml] (the body is dropped into innerHTML
-// after the title span; the title-attr fallback strips the HTML). Covers all 21
+// after the title span; the title-attr fallback strips the HTML). Covers all 20
 // controls + the source drop/load affordances + the four viz cells + the seven
 // concept-preset lessons. Teaching tone: what it does, in something you can hear.
 const TIPS = {
   // ── Source ──────────────────────────────────────────────────────────────────
-  sourceSample: ["Source Sample",
-    "The recording the keyboard plays. Everything else on this panel shapes <em>this</em> sound — pick a built-in, or load your own with the button beside it."],
   loadSource: ["Load your own",
-    "Open a file picker to sample any <code>.wav</code>&nbsp;/&nbsp;<code>.aif</code>&nbsp;/&nbsp;<code>.flac</code>. Anything longer than 30&nbsp;s is trimmed (you'll see a notice). The same controls then play your sound."],
+    "The plugin starts on its built-in recording — everything else on this panel shapes <em>that</em> sound. Press this to open a file picker and sample any <code>.wav</code>&nbsp;/&nbsp;<code>.aif</code>&nbsp;/&nbsp;<code>.flac</code> instead. Anything longer than 30&nbsp;s is trimmed (you'll see a notice). The same controls then play your sound."],
   dropZone: ["Drop a sound here",
-    "Drag an audio file straight from your desktop onto this panel to sample it. Try a spoken word, a drum hit, or a field recording — a sampler can play <strong>any</strong> sound across the keyboard."],
+    "Drag an audio file straight from your desktop onto this panel to sample it. Try a spoken word, a drum hit, or a field recording — a sampler can play <strong>any</strong> sound across the keyboard. This and the Load&#8230; button are the two ways to change the source."],
 
   // ── Region ──────────────────────────────────────────────────────────────────
   start: ["Start",
@@ -268,7 +271,7 @@ function bindKnob(id) {
   }, { passive: false });
 }
 
-// ── Combo box binding (sourceSample, loopMode, pitchMode) ────────────────────
+// ── Combo box binding (loopMode, pitchMode) ─────────────────────────────────
 function bindCombo(id) {
   const st = Juce.getComboBoxState(id);
   comboState[id] = st;
@@ -685,12 +688,6 @@ function setupCanvases() {
   ["ampAttack", "ampDecay", "ampSustain", "ampRelease"].forEach((id) => {
     if (sliderState[id]) sliderState[id].valueChangedEvent.addListener(() => drawAmpEnv());
   });
-
-  // A new source (combo change) reloads async on the C++ side — refetch its
-  // thumbnail after a beat so the new envelope replaces the old.
-  if (comboState["sourceSample"])
-    comboState["sourceSample"].valueChangedEvent.addListener(() =>
-      setTimeout(fetchSourceThumbnail, 400));
 
   bindWaveformEditor();
   drawWaveformEditor();
@@ -1151,6 +1148,12 @@ function boot() {
   setupPitchModeReadout();
   setupVizEvents();
   fetchSourceThumbnail();
+
+  // Seed the source status line. Without a selector in the Source group, nothing
+  // else tells the user what is playing until a load completes — setSourceStatus
+  // only ever fires from a picker/drop. A fresh instance therefore has to read as
+  // "loaded" rather than blank. Any subsequent load overwrites this text.
+  setSourceStatus(`${BUILT_IN_SOURCE_NAME} — built-in source`, false);
 }
 
 if (document.readyState === "loading")
