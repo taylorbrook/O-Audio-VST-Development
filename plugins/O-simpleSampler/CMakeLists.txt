@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # O-simpleSampler - Pedagogical Keyboard Sampler
-# Stage 1 (Foundation): silent 16-voice synth shell with the full 21-param APVTS
+# Stage 1 (Foundation): silent 16-voice synth shell with the full 20-param APVTS
 # + state persistence (incl. loaded-source identity as custom ValueTree state).
 # Signal path (built Stage 2+): source -> start/end region + loop/reverse -> pitch
 # engine (Repitch varispeed / Stretch synchronous-granular) -> Vintage -> resonant
@@ -17,7 +17,7 @@ juce_add_plugin(O-simpleSampler
     PLUGIN_CODE OsSm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleSampler${OUARICON_DEV_SUFFIX}"
-    VERSION "1.1.0"
+    VERSION "1.2.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
