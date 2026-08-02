@@ -1,5 +1,13 @@
 # O-Prism Changelog
 
+## v1.19.3 (2026-08-02)
+
+### Fixed
+- **Windows CI build failure (v1.19.2 tag never released).** Same latent MSVC break as O-Lyrica v2.3.3 / O-IntonationPad v2.8.3: MSVC rejects `SafePointer(this)` init-captures in nested lambdas (C2440/C2119 cascade). Hoisted the SafePointer to a local and captured by value in all six FileChooser `launchAsync` callbacks in `PluginEditor.cpp`. No behavior change.
+
+### Technical Notes
+- v1.19.2 binaries were never published — the Windows job failed at compile, so `create-release` never ran. This release ships the v1.19.2 content (license headers) plus the MSVC fix.
+
 ## v1.19.2 (2026-08-02)
 
 ### Changed

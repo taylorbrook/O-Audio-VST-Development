@@ -228,10 +228,10 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
                 "*.scl");
 
+            juce::Component::SafePointer<OPrismAudioProcessorEditor> safeThis (this);
             chooser->launchAsync (juce::FileBrowserComponent::openMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
-                 chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis, chooser, complete] (const juce::FileChooser& fc) {
                     if (safeThis == nullptr)
                         return; // editor destroyed — `complete` is owned by the dead WebView, never call it
                     auto& proc = safeThis->processorRef;
@@ -260,10 +260,10 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
                 "*.kbm");
 
+            juce::Component::SafePointer<OPrismAudioProcessorEditor> safeThis (this);
             chooser->launchAsync (juce::FileBrowserComponent::openMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
-                 chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis, chooser, complete] (const juce::FileChooser& fc) {
                     if (safeThis == nullptr)
                         return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
@@ -283,10 +283,10 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     .getChildFile ("tuning.scl"),
                 "*.scl");
 
+            juce::Component::SafePointer<OPrismAudioProcessorEditor> safeThis (this);
             chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
-                 chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis, chooser, complete] (const juce::FileChooser& fc) {
                     if (safeThis == nullptr)
                         return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
@@ -311,10 +311,10 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     .getChildFile ("mapping.kbm"),
                 "*.kbm");
 
+            juce::Component::SafePointer<OPrismAudioProcessorEditor> safeThis (this);
             chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
-                 chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis, chooser, complete] (const juce::FileChooser& fc) {
                     if (safeThis == nullptr)
                         return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
@@ -438,10 +438,10 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     .getChildFile ("tuning-export.html"),
                 "*.html");
 
+            juce::Component::SafePointer<OPrismAudioProcessorEditor> safeThis (this);
             chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
-                 chooser, complete] (const juce::FileChooser& fc) {
+                [safeThis, chooser, complete] (const juce::FileChooser& fc) {
                     if (safeThis == nullptr)
                         return; // editor destroyed — never call `complete` on the dead path
                     auto file = fc.getResult();
@@ -480,10 +480,10 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
                 "*.wav;*.aiff;*.flac");
 
+            juce::Component::SafePointer<OPrismAudioProcessorEditor> safeThis (this);
             chooser->launchAsync (juce::FileBrowserComponent::openMode
                                 | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer<OPrismAudioProcessorEditor> (this),
-                 chooser, complete, oscIndex] (const juce::FileChooser& fc) {
+                [safeThis, chooser, complete, oscIndex] (const juce::FileChooser& fc) {
                     if (safeThis == nullptr)
                         return; // editor destroyed — never call `complete` on the dead path
                     auto& proc = safeThis->processorRef;
