@@ -1,5 +1,10 @@
 # O-AnalogEQ Changelog
 
+## [1.1.11] - 2026-08-02
+
+### Changed
+- Added AGPL-3.0 license notice headers to all Ouaricon-authored source files. No functional changes.
+
 ## [1.1.10] - 2026-06-30
 
 ### Fixed (code-review info items)
