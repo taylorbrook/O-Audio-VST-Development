@@ -2,6 +2,12 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.5.7] - 2026-08-02
+
+### Changed
+
+- **License headers:** Added AGPL-3.0 notice headers to all Ouaricon-authored source files (repo-wide licensing sweep). No functional changes.
+
 ## [1.5.6] - 2026-07-07
 
 Resolves all Critical and Warning findings from the 2026-07-05 code review (CODE_REVIEW.md).
