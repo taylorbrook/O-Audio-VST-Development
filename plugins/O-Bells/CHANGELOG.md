@@ -2,6 +2,20 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.1.4] - 2026-08-02
+
+Licensing-only release. No audio, parameter, state, or UI behavior changes — output is
+byte-for-byte identical to 4.1.3. Presets and saved sessions are unaffected.
+
+### Changed — licensing
+
+- **Relicensed under AGPL-3.0-or-later.** The repository elected the GNU Affero General
+  Public License v3 for its JUCE dual-license obligation (rather than the free Starter
+  tier), and this release is the first O-Bells build distributed under it.
+- **SPDX notice headers added to all 25 Ouaricon-authored O-Bells sources** — C++
+  (`Source/`, `Source/DSP/`) and WebView assets (`Resources/ui/` HTML, CSS, JS) — each
+  carrying `SPDX-License-Identifier: AGPL-3.0-or-later` and the standard AGPL notice.
+
 ## [4.1.3] - 2026-07-21
 
 Unblocks the first cross-platform release. The 4.1.2 tag built on Windows but the
