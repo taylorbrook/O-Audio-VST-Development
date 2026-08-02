@@ -3,6 +3,21 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.0] — 2026-08-02
+
+First published release. Neither 1.0.0 nor 1.1.0 was ever distributed — no tag, no
+GitHub Release, no binary shipped to anyone. 1.2.0 is the version under which the
+1.1.0 content withdrawal reaches its first actual release. No code, DSP, parameter,
+or UI change since 1.1.0: the 20-parameter APVTS contract, the piano-only built-in
+source set, and the 7 factory presets are exactly as verified for 1.1.0 (auval
+20 params, pluginval strictness 10 ×6, offline render harness 9/9).
+
+### Added
+- `Source/samples/LICENSE.md` — provenance and licensing for the built-in sample
+  set: the surviving piano source is documented as procedurally generated and
+  self-authored, and the three commercial-library sources withdrawn in 1.1.0 are
+  recorded as removed rather than replaced.
+
 ## [1.1.0] — 2026-08-01
 
 Content and contract change ahead of the repository going public. No release ever shipped
