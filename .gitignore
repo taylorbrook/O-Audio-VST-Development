@@ -225,3 +225,6 @@ plugins/*/.continue-here.md
 
 # Playwright MCP debug artifacts
 .playwright-mcp/
+
+# Scratch pluginval / validation log dumps
+scratch-pv/
