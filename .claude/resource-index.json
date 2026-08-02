@@ -1,7 +1,7 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-07-02T18:20:19Z",
+  "generated": "2026-07-23T23:08:05Z",
   "documents": [
     {
       "path": "research/2d-scatter-plot-concatenative-synthesis.md",
