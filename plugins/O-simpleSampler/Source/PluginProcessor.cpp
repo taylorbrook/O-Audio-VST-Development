@@ -1081,14 +1081,20 @@ juce::AudioProcessorEditor* OSimpleSamplerAudioProcessor::createEditor()
 //==============================================================================
 void OSimpleSamplerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // Serialize the APVTS tree PLUS a custom child holding the loaded-source
-    // identity, so a session restores both the params and the active source.
+    // Serialize the APVTS tree PLUS two custom children: the loaded-source
+    // identity and the UI preferences, so a session restores the params, the
+    // active source AND the tooltip-visibility choice.
     auto state = apvts.copyState();
 
     auto sourceChild = state.getOrCreateChildWithName (
         juce::Identifier (kSourceStateTag), nullptr);
     sourceChild.setProperty (juce::Identifier (kSourceIdProp),
                              currentSourceIdentity, nullptr);
+
+    auto uiChild = state.getOrCreateChildWithName (
+        juce::Identifier (kUiStateTag), nullptr);
+    uiChild.setProperty (juce::Identifier (kTipsProp),
+                         tipsEnabled.load (std::memory_order_relaxed), nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -1110,6 +1116,16 @@ void OSimpleSamplerAudioProcessor::setStateInformation (const void* data, int si
     if (sourceChild.isValid())
         currentSourceIdentity = sourceChild.getProperty (
             juce::Identifier (kSourceIdProp), currentSourceIdentity).toString();
+
+    // Restore the tooltip-visibility preference. An ABSENT <UI> child means state
+    // written before 1.3.0 — restore the shipped default (tips on) rather than
+    // leaving whatever this instance happened to be set to, so loading an old
+    // session is deterministic instead of order-dependent.
+    auto uiChild = state.getChildWithName (juce::Identifier (kUiStateTag));
+    tipsEnabled.store (uiChild.isValid()
+                           ? (bool) uiChild.getProperty (juce::Identifier (kTipsProp), true)
+                           : true,
+                       std::memory_order_relaxed);
 
     // replaceState() fires the region/loop marker listeners (Phase 2.2a), each of
     // which queues an AsyncUpdater run. Those updates are deferred (they run AFTER

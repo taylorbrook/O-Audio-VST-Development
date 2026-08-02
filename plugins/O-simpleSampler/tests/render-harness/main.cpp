@@ -632,6 +632,75 @@ int main()
                  + " tailRms=" + String (tail, 4) + " (bounded, no NaN, tail silent after note-offs)");
     }
 
+    // --- 10: tooltip-visibility state round-trip (1.3.0) ---------------------
+    // The header "?" toggle is deliberately NOT an APVTS parameter — it rides in a
+    // custom <UI tipsEnabled="…"/> child of the saved tree, so neither auval nor any
+    // render test above can see it. Assert the save/restore contract directly:
+    // both states survive a round-trip, a fresh instance defaults to tips-ON (the
+    // 1.2.0 behaviour), state written before 1.3.0 (no <UI> child) restores to that
+    // default rather than to whatever the instance happened to hold, and the
+    // parameter values still round-trip alongside the new child.
+    {
+        resetDefaults (apvts);
+        setParam (apvts, PID::filterCutoff, 1234.0f);      // witness value
+
+        auto roundTrip = [&] (bool tips)
+        {
+            proc.setTipsEnabled (tips);
+            juce::MemoryBlock mb;
+            proc.getStateInformation (mb);
+
+            OSimpleSamplerAudioProcessor fresh;
+            fresh.setPlayConfigDetails (0, 2, fs, 512);
+            fresh.prepareToPlay (fs, 512);
+            fresh.setStateInformation (mb.getData(), (int) mb.getSize());
+            const bool got = fresh.getTipsEnabled();
+            fresh.releaseResources();
+            return got == tips;
+        };
+
+        const bool offOk = roundTrip (false);
+        const bool onOk  = roundTrip (true);
+
+        bool defaultOk = false;
+        {
+            OSimpleSamplerAudioProcessor fresh;             // never restored
+            defaultOk = fresh.getTipsEnabled();             // must ship ON
+        }
+
+        // Pre-1.3.0 state = the same tree with the <UI> child stripped back out.
+        bool legacyOk = false, paramOk = false;
+        {
+            proc.setTipsEnabled (false);                    // must NOT leak through
+            juce::MemoryBlock mb;
+            proc.getStateInformation (mb);
+
+            if (auto xml = juce::AudioProcessor::getXmlFromBinary (mb.getData(), (int) mb.getSize()))
+            {
+                xml->deleteAllChildElementsWithTagName ("UI");
+                juce::MemoryBlock legacy;
+                juce::AudioProcessor::copyXmlToBinary (*xml, legacy);
+
+                OSimpleSamplerAudioProcessor fresh;
+                fresh.setPlayConfigDetails (0, 2, fs, 512);
+                fresh.prepareToPlay (fs, 512);
+                fresh.setStateInformation (legacy.getData(), (int) legacy.getSize());
+                legacyOk = fresh.getTipsEnabled();          // absent child -> default ON
+                if (auto* cutoff = fresh.getAPVTS().getRawParameterValue (PID::filterCutoff))
+                    paramOk = std::abs (cutoff->load() - 1234.0f) < 1.0f;
+                fresh.releaseResources();
+            }
+        }
+
+        check ("tips-state-roundtrip",
+               offOk && onOk && defaultOk && legacyOk && paramOk,
+               String ("off->off=")        + (offOk     ? "y" : "n")
+                 + " on->on="              + (onOk      ? "y" : "n")
+                 + " freshDefaultOn="      + (defaultOk ? "y" : "n")
+                 + " legacyNoUiChild->on=" + (legacyOk  ? "y" : "n")
+                 + " paramsSurvive="       + (paramOk   ? "y" : "n"));
+    }
+
     proc.releaseResources();
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);

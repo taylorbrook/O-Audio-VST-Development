@@ -46,6 +46,14 @@
           <button class="tour-btn" data-preset="SP-1200 Crunch"        data-tip="lessonSp1200">SP-1200</button>
           <button class="tour-btn" data-preset="Filtered & Enveloped"  data-tip="lessonFilteredEnv">Filtered</button>
         </div>
+        <!-- Tooltip visibility toggle. Deliberately carries NO data-tip: the
+             tooltip layer manages the title attribute of every [data-tip]
+             element and strips it when tips are off, which would leave this
+             button unlabelled in exactly the state it exists to undo. Its own
+             title is authored here and never touched. -->
+        <button class="tips-toggle" id="tipsToggle" type="button" aria-pressed="true"
+                aria-label="Toggle tooltips"
+                title="Tooltips &#8212; hover help on every control. Click to turn the explanations off or back on.">?</button>
         <div class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a concept preset to hear it isolated.</div>
       </div>
     </header>
