@@ -9,6 +9,13 @@ All notable changes to O-Lyrica are documented in this file.
 - Added AGPL-3.0 license notice headers to all Ouaricon-authored source files. No functional
   changes — parameter IDs, ranges, state format, and DSP are identical to v2.3.2.
 
+### Fixed
+
+- **Windows build failure (MSVC C2440/C2119).** MSVC rejects `SafePointer(this)` init-captures
+  inside nested lambdas; all seven `FileChooser::launchAsync` callbacks in `PluginEditor.cpp`
+  now hoist the `SafePointer` to a local and capture it by value (same idiom as O-Bells).
+  Behaviour is unchanged on all platforms.
+
 ## [2.3.2] - 2026-07-09
 
 Cleanup sweep resolving the 12 remaining Info findings from the v2.3.0 deep code review

@@ -224,9 +224,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 );
                 fileChooser = chooser;  // Store reference for potential future use
 
+                juce::Component::SafePointer<OLyricaAudioProcessorEditor> safe(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe, chooser, complete](const juce::FileChooser& fc) {
                         // CR-01: if the editor/WebView was torn down while the dialog was open, bail
                         // with a bare return. Do NOT call complete() — it is owned by the destroyed
                         // WebBrowserComponent impl, so invoking it is itself a use-after-free.
@@ -264,9 +265,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 );
                 fileChooser = chooser;
 
+                juce::Component::SafePointer<OLyricaAudioProcessorEditor> safe(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe, chooser, complete](const juce::FileChooser& fc) {
                         if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
                             return;
 
@@ -367,9 +369,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 );
                 fileChooser = chooser;
 
+                juce::Component::SafePointer<OLyricaAudioProcessorEditor> safe(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe, chooser, complete](const juce::FileChooser& fc) {
                         if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
                             return;
 
@@ -410,9 +413,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 );
                 fileChooser = chooser;
 
+                juce::Component::SafePointer<OLyricaAudioProcessorEditor> safe(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, complete](const juce::FileChooser& fc) {
+                    [this, safe, chooser, complete](const juce::FileChooser& fc) {
                         if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
                             return;
 
@@ -446,9 +450,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 );
                 fileChooser = chooser;
 
+                juce::Component::SafePointer<OLyricaAudioProcessorEditor> safe(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, content, complete](const juce::FileChooser& fc) {
+                    [safe, chooser, content, complete](const juce::FileChooser& fc) {
                         if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
                             return;
 
@@ -483,9 +488,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 );
                 fileChooser = chooser;
 
+                juce::Component::SafePointer<OLyricaAudioProcessorEditor> safe(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, content, complete](const juce::FileChooser& fc) {
+                    [safe, chooser, content, complete](const juce::FileChooser& fc) {
                         if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
                             return;
 
@@ -742,9 +748,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 );
                 fileChooser = chooser;
 
+                juce::Component::SafePointer<OLyricaAudioProcessorEditor> safe(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safe = juce::Component::SafePointer<OLyricaAudioProcessorEditor>(this), chooser, htmlContent, complete](const juce::FileChooser& fc) {
+                    [safe, chooser, htmlContent, complete](const juce::FileChooser& fc) {
                         if (safe == nullptr)  // CR-01: editor torn down while dialog open — bare return, no complete()
                             return;
 
