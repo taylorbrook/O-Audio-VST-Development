@@ -86,7 +86,7 @@ The final validation sweep re-confirms every still-pending requirement; FUNC-02 
 ## Human Verification (recommended, non-blocking)
 
 - [ ] By-ear pass on each of the 7 preset buttons in a DAW (authored to spec + structurally validated; audible isolation not auto-checkable).
-- [ ] Audition each built-in source (cello/pizz/hit) for in-tune playback at its seeded root.
+- [~] ~~Audition each built-in source (cello/pizz/hit) for in-tune playback at its seeded root.~~ — **N/A as of v1.1.0.** Those three built-ins were withdrawn (commercial-library provenance); only `piano` remains and its root-48 seed is asserted by the render harness. See `.planning/quick/260801-u3o-remove-commercial-library-samples-from-o/`.
 - [ ] **COMPAT-02:** confirm the WebView UI renders + plays on a Windows host/DAW (user carry-out).
 
 ## Issues Found
