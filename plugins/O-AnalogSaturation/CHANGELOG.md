@@ -2,6 +2,12 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.1.6] - 2026-08-02
+
+### Changed
+- Source files now carry AGPL-3.0 license notice headers (repo-wide licensing pass;
+  no functional changes).
+
 ## [1.1.5] - 2026-06-30
 
 Resolves the remaining open findings from the v1.1.3 deep code review (WR-01…WR-05,
