@@ -192,6 +192,23 @@ OSimpleSamplerAudioProcessorEditor::OSimpleSamplerAudioProcessorEditor (OSimpleS
             if (args.size() > 0)
                 processorRef.applyFactoryPreset (args[0].toString());
             complete (juce::var (true));
+        })
+        // Tooltip visibility (the header "?" chip). A UI preference living in the
+        // custom <UI> state child, NOT an APVTS parameter — the parameter count
+        // stays at 20 and the concept presets cannot reset it. The page reads it
+        // once at boot and writes it on each click.
+        .withNativeFunction ("getTipsEnabled", [this] (auto&, auto complete) {
+            complete (juce::var (processorRef.getTipsEnabled()));
+        })
+        .withNativeFunction ("setTipsEnabled", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+            {
+                processorRef.setTipsEnabled ((bool) args[0]);
+                // The page is ALREADY in this state — sync the edge tracker so the
+                // Timer below does not echo the click straight back at it.
+                lastTipsEnabled = processorRef.getTipsEnabled();
+            }
+            complete (juce::var (true));
         });
 
    #if JUCE_WINDOWS
@@ -241,6 +258,11 @@ OSimpleSamplerAudioProcessorEditor::OSimpleSamplerAudioProcessorEditor (OSimpleS
 
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
+
+    // Seed the tooltip edge tracker from the LIVE value (a session may have
+    // restored tips-off before this editor was ever opened) so the first Timer
+    // tick does not fire a redundant push — the page reads the value at boot.
+    lastTipsEnabled = processorRef.getTipsEnabled();
 
     setSize (980, 720);   // headline waveform + 7-group rack + keyboard; frame scrolls on shorter screens
     startTimerHz (30);    // plumbing for Phase 3.2 viz push (body is an empty stub now)
@@ -294,6 +316,15 @@ void OSimpleSamplerAudioProcessorEditor::timerCallback()
         scopeArr.ensureStorageAllocated ((int) scope.size());
         for (float v : scope) scopeArr.add (v);
         webView->emitEventIfBrowserIsVisible ("scopeUpdate", juce::var (std::move (scopeArr)));
+    }
+
+    // 4. Tooltip visibility. The page owns the click, but a host can restore a
+    //    session/preset UNDER an open editor and change this underneath it. Push
+    //    on a real edge only — never at 30 Hz.
+    if (const bool tips = processorRef.getTipsEnabled(); tips != lastTipsEnabled)
+    {
+        lastTipsEnabled = tips;
+        webView->emitEventIfBrowserIsVisible ("tipsEnabledChanged", juce::var (tips));
     }
 }
 

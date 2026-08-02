@@ -146,6 +146,17 @@ public:
     const juce::String& getSourceIdentity() const noexcept { return currentSourceIdentity; }
     void setSourceIdentity (const juce::String& id) { currentSourceIdentity = id; }
 
+    // Tooltip visibility ("?" chip in the header) — a UI preference, NOT an APVTS
+    // parameter. Deliberately kept out of the parameter layout so (a) the plugin
+    // still reports exactly 20 automatable parameters, and (b) applyFactoryPreset
+    // (which writes parameters only) cannot reset the user's choice each time a
+    // concept preset is clicked. Persisted as a custom <UI tipsEnabled="…"/> child
+    // of the saved tree, the same way <SOURCE identity="…"/> carries the source.
+    // Message thread only in practice (native-fn callbacks, editor Timer, state
+    // save/restore); atomic so a host calling getStateInformation off-thread is safe.
+    bool getTipsEnabled() const noexcept { return tipsEnabled.load (std::memory_order_relaxed); }
+    void setTipsEnabled (bool on) noexcept { tipsEnabled.store (on, std::memory_order_relaxed); }
+
     //==========================================================================
     // Source loading (Stage 3.1 / FUNC-03). The drag-drop streaming handlers are
     // the C++ side of the WebView bridge — the Stage-3 editor registers JS that
@@ -426,9 +437,15 @@ private:
     //==========================================================================
     double currentSampleRate = 44100.0;
 
+    // Tooltip visibility (see getTipsEnabled above). Default = tips ON, which is
+    // the shipped behaviour a fresh instance must reproduce.
+    std::atomic<bool> tipsEnabled { true };
+
     // Custom-state element names for get/setStateInformation.
     static constexpr const char* kSourceStateTag = "SOURCE";
     static constexpr const char* kSourceIdProp   = "identity";
+    static constexpr const char* kUiStateTag     = "UI";
+    static constexpr const char* kTipsProp       = "tipsEnabled";
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleSamplerAudioProcessor)
 };

@@ -68,6 +68,13 @@ private:
     // chooser); this mirrors the sibling editor layout.
     std::unique_ptr<juce::FileChooser> fileChooser;
 
+    // Tooltip-visibility edge tracker. The Timer pushes "tipsEnabledChanged" only
+    // when the processor's value actually moves (a session/preset restore under an
+    // open editor) — without this it would re-emit at 30 Hz. Seeded from the live
+    // value in the ctor and re-synced by the setTipsEnabled native fn so a click
+    // originating in the page is never echoed back to it.
+    bool lastTipsEnabled = true;
+
     // ═══════════════════════════════════════════════════════════════════
     // CRITICAL: member declaration order (C++ destroys in REVERSE)
     //   1. Relays      — declared first  → destroyed last  (safe)

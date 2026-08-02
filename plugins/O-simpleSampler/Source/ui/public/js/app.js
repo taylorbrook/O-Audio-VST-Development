@@ -475,14 +475,38 @@ function setupPresets() {
 }
 
 // ── Tooltips ─────────────────────────────────────────────────────────────────
+// TWO hover surfaces are gated by one flag: the floating rich #tooltip, and the
+// native `title=` fallback the same loop installs. Switching tips off has to
+// strip the title attributes as well — leave them and the OS tooltip still pops
+// up on hover, so the "?" button reads as broken. The authored copy is parked in
+// data-tip-title so it can be restored verbatim when tips come back on.
+let tipsEnabled = true;                 // shipped default; the session state wins at boot
+let hideTooltip = () => {};             // published by setupTooltips (used by the toggle)
+
+function applyTipsEnabled(on) {
+  tipsEnabled = !!on;
+  if (!tipsEnabled) hideTooltip();
+
+  document.querySelectorAll("[data-tip]").forEach((el) => {
+    const parked = el.getAttribute("data-tip-title");
+    if (!parked) return;
+    if (tipsEnabled) el.setAttribute("title", parked);
+    else el.removeAttribute("title");
+  });
+
+  const btn = document.getElementById("tipsToggle");
+  if (btn) btn.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+}
+
 function setupTooltips() {
   const tip = document.getElementById("tooltip");
   if (!tip) return;
   let active = null;
 
   const show = (key, x, y) => {
+    if (!tipsEnabled) return;
     const entry = TIPS[key];
-    if (!entry) return;   // 3.1: TIPS is empty (3.3 authors the copy)
+    if (!entry) return;
     tip.innerHTML = `<span class="tip-title">${entry[0]}</span>${entry[1]}`;
     tip.classList.add("show");
     tip.setAttribute("aria-hidden", "false");
@@ -507,14 +531,60 @@ function setupTooltips() {
   document.querySelectorAll("[data-tip]").forEach((el) => {
     const key = el.getAttribute("data-tip");
     const entry = TIPS[key];
-    if (entry && !el.hasAttribute("title"))
-      el.setAttribute("title", `${entry[0]} — ${plain(entry[1])}`);
-    el.addEventListener("pointerenter", (e) => { active = key; show(key, e.clientX, e.clientY); });
+    if (entry && !el.hasAttribute("title")) {
+      const fallback = `${entry[0]} — ${plain(entry[1])}`;
+      el.setAttribute("data-tip-title", fallback);   // parked copy for the toggle
+      el.setAttribute("title", fallback);
+    }
+    el.addEventListener("pointerenter", (e) => {
+      if (!tipsEnabled) return;
+      active = key;
+      show(key, e.clientX, e.clientY);
+    });
     el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
     el.addEventListener("pointerleave", hide);
     el.addEventListener("pointerdown", hide);
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+
+  hideTooltip = hide;   // the toggle needs to retract a tip that is already open
+}
+
+// ── Tooltip on/off toggle ("?" chip) ─────────────────────────────────────────
+// The flag is NOT an APVTS parameter — it is a UI preference living in a custom
+// <UI tipsEnabled="…"/> child of the saved state tree, alongside <SOURCE>. That
+// keeps the automatable parameter count at 20 and, just as importantly, keeps
+// the seven concept presets from resetting the user's choice every time one is
+// clicked (applyFactoryPreset writes parameters only).
+function setupTipsToggle() {
+  const btn = document.getElementById("tipsToggle");
+  if (!btn) { console.error("Missing tipsToggle element"); return; }
+
+  let setTipsFn = null;
+  try { setTipsFn = Juce.getNativeFunction("setTipsEnabled"); }
+  catch (e) { setTipsFn = null; }
+
+  btn.addEventListener("click", () => {
+    applyTipsEnabled(!tipsEnabled);
+    if (setTipsFn) setTipsFn(tipsEnabled);
+  });
+
+  // Adopt the persisted value: a restored session must not come back with the
+  // explanations switched on again.
+  (async () => {
+    try {
+      const v = await Juce.getNativeFunction("getTipsEnabled")();
+      applyTipsEnabled(Array.isArray(v) ? !!v[0] : !!v);
+    } catch (e) {
+      applyTipsEnabled(true);
+    }
+  })();
+
+  // A host can restore state UNDER an already-open editor; the C++ Timer pushes
+  // this on a real edge only (not at 30 Hz).
+  const be = window.__JUCE__ && window.__JUCE__.backend;
+  if (be) be.addEventListener("tipsEnabledChanged",
+                              (v) => applyTipsEnabled(Array.isArray(v) ? !!v[0] : !!v));
 }
 
 // ── On-screen keyboard (play without external MIDI) ──────────────────────────
@@ -1141,6 +1211,7 @@ function boot() {
   bindLoadButton();
   setupPresets();
   setupTooltips();
+  setupTipsToggle();   // MUST follow setupTooltips — it parks the title copy the toggle restores
   setupKeyboard();
 
   // Phase 3.2 — interactive waveform editor + viz layer.
