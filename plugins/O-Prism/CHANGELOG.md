@@ -1,5 +1,14 @@
 # O-Prism Changelog
 
+## v1.19.2 (2026-08-02)
+
+### Changed
+- Added AGPL-3.0 license notice headers to all Ouaricon-authored source files (repo relicensed to AGPL-3.0). No functional change.
+
+### Technical Notes
+- First tagged release since v1.18.1 — these binaries are the first to ship the full v1.18.2–v1.19.1 code-review remediation (47 findings, see entries below) and the dead licensing-integration removal.
+- Version bump rationale: PATCH — license headers only; no parameter, preset, or state-format changes.
+
 ## v1.19.1 (2026-07-02)
 
 Code-review batch 3 (final) — the 17 Info findings from `.planning/CODE-REVIEW.md` (2026-07-02 deep review). Re-verified against the post-v1.19.0 tree first: IN-08 (Zarlino/JI "byte-identical") turned out to be a reviewer error — the arrays already differ at degree 10 (9/5 vs 16/9 minor seventh), no change made.
