@@ -3,6 +3,43 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.0] — 2026-08-01
+
+Content and contract change ahead of the repository going public. No release ever shipped
+v1.0.0, so nothing distributed is affected by any of the removals below.
+
+### Removed
+- **Three built-in sources — `cello`, `pizz`, and `hit`.** These assets originated in a
+  commercial sample library whose redistribution rights were never established, so they
+  could not remain embedded in a plugin binary that is about to be published. They have
+  been **removed rather than replaced**: substituting generated or CC0 audio was
+  considered and deliberately declined. The built-in source set is now **piano only**
+  (recorded root 48), which is procedurally generated and provably self-authored — see
+  `Source/samples/LICENSE.md`. No release of this plugin ever shipped the withdrawn
+  assets; they were present only in the repository.
+- **The `sourceSample` Source parameter** (APVTS contract **21 → 20 parameters**). With a
+  single built-in remaining, keeping the selector as a one-entry choice is not an option:
+  JUCE's `AudioParameterChoice` asserts `choices.size() > 1`, and a one-entry choice builds
+  the degenerate `NormalisableRange {0, 0}` whose `convertTo0to1` is `0/0` — a NaN that
+  `jlimit` does not clamp, so the parameter would be born holding NaN in a Release build.
+  The parameter is therefore dropped outright. The surviving 20 parameters keep their
+  string IDs and versioned `ParameterID`s unchanged, so VST3/AUv2 automation IDs (hashed
+  from the string ID, not the index) are stable. A v1.0.0 session carrying a `sourceSample`
+  entry restores harmlessly — the orphan child is inert.
+- The Source group's built-in `<select>` combo in the WebView UI, which had nothing left
+  to select. Two combos remain (Loop Mode, Pitch Mode).
+
+### Changed
+- The plugin now **starts on its one built-in source** with no user action; the recorded
+  root (48) is still seeded on a fresh instance so it plays in tune immediately.
+- **`Load…` and drag-and-drop are now the only way to change the source**, and are
+  otherwise unchanged — WAV / AIFF / FLAC, resampled to the engine rate, 30 s cap. The
+  Source group's status line is now seeded at boot with the active built-in's name so a
+  fresh instance reads as loaded rather than blank.
+- The 7 factory presets are unchanged. All of them were already source-agnostic (none set
+  the removed parameter), and the central post-reset root re-seed still runs, so none play
+  octave-flat.
+
 ## [1.0.0] — 2026-06-26
 
 First release. O-simpleSampler is the sampler sibling to O-simpleFM / O-simpleAdditive /

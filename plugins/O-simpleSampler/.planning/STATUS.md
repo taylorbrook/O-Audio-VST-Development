@@ -140,3 +140,15 @@ Progress: [####################] 100% — v1.0.0 COMPLETE
 - plugins/O-simpleSampler/Source/{PluginProcessor,PluginEditor}.{h,cpp}
 
 **Sibling references:** O-simpleGrain (PRIMARY reuse — foundation pattern mirrored), O-simpleSubtractive (filter/ADSR/voice), O-simpleFM/O-simpleAdditive (voice skeleton + bit-depth lesson), O-MicrotonalSampler (drag-drop + Base64), O-GrainScatter/O-Freeze (overlap-add + loop crossfade).
+
+**2026-08-01 — v1.1.0 (quick task 260801-u3o):** Three built-in sources (`cello`, `pizz`,
+`hit`) withdrawn — commercial sample-library provenance, redistribution rights never
+established, removed with no replacement ahead of the repo going public. Built-in set is
+now `piano` only. The `sourceSample` choice parameter was dropped with them (a one-entry
+`AudioParameterChoice` is invalid in JUCE and yields a degenerate `0/0` range), moving the
+APVTS contract **21 → 20 parameters**; the surviving 20 keep their string IDs and versioned
+`ParameterID`s. UI: the Source-group combo is gone; the status line is seeded at boot with
+the active built-in. Version bumped to **1.1.0**. Provenance for the surviving asset is
+recorded in `Source/samples/LICENSE.md`. No release ever shipped the withdrawn assets, but
+they remain in git history at commit `4ca27977` — an open decision (see
+PUBLIC-RELEASE-READINESS.md §2.2).

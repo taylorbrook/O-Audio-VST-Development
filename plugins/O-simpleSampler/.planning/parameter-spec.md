@@ -1,31 +1,36 @@
 # O-simpleSampler — Parameter Specification
 
 ---
-version: 1.0.0
+version: 1.1.0
 plugin: O-simpleSampler
 created: 2026-06-25
+updated: 2026-08-01
 source: research/ARCHITECTURE.md Parameter Mapping (authoritative; supersedes parameter-spec-draft.md)
-status: final (Stage-1 APVTS contract)
-param_count: 21
+status: final (live APVTS contract)
+param_count: 20
 ---
 
 > Finalized from the research-locked **ARCHITECTURE.md → Parameter Mapping** table
-> (2026-06-25). The plan-before-mockup path was taken (no mockup YAML yet); the
-> 21-parameter set and every range/default/skew below are resolved and are the
-> authoritative contract the Stage-1 APVTS is built against. The Stage-3 mockup
-> must bind exactly these 21 parameters — additions/removals require a contract bump.
+> (2026-06-25). The plan-before-mockup path was taken (no mockup YAML yet); every
+> range/default/skew below is resolved and is the authoritative contract the APVTS is
+> built against. The UI must bind exactly this set — additions/removals require a
+> contract bump.
+>
+> **v1.1.0 contract change:** the Source Sample choice parameter was removed, leaving
+> **20 parameters**. Source selection is no longer parameterised — see "Built-in source
+> set" below.
 
 ## Signal path (left → right)
 
 `SOURCE → REGION (start/end · loop · reverse) → PITCH (root · Repitch/Stretch · tune/fine) → VINTAGE → FILTER (resonant LP) → AMP (ADSR → VCA · vel) → OUTPUT`
 
-## The 21 APVTS Parameters
+## The 20 APVTS Parameters
 
-### Source (1)
+### Source (0)
 
-| Param | ID | Type | Range / Choices | Default | Skew / Notes |
-|-------|----|------|-----------------|---------|--------------|
-| Source Sample | `sourceSample` | Choice | curated built-ins | first built-in | seeds `rootKey` to per-sample default (Stage 2). `Load…` is a **separate native-fn action + custom ValueTree state**, NOT a 5th choice (FUNC-02/03). |
+No source parameter. As of v1.1.0 the active source is **not** an APVTS parameter — the
+plugin starts on its one embedded built-in, and `Load…` / drag-drop is a native-fn action
+carrying custom `ValueTree` state (FUNC-02/03). See "Built-in source set" below.
 
 ### Region — Start/End · Loop · Reverse (7)
 
@@ -77,7 +82,7 @@ param_count: 21
 | Velocity → Amp | `velToAmp` | Float | 0 – 100% | 50 | linear; how much note velocity scales loudness — DSP-06 |
 | Output Level | `outputLevel` | Float | −60 – 0 dB | 0 | dB→lin, 20 ms smooth (−60 dB ≡ −inf) |
 
-**Total: 21 APVTS parameters.**
+**Total: 20 APVTS parameters.**
 
 ## Storage conventions (Stage-1 APVTS ↔ Stage-3 UI)
 
@@ -99,22 +104,22 @@ param_count: 21
 - Vintage floor: `FS_MIN ≈ 3000 Hz`, `BITS_MIN ≈ 8`
 - Latency: **0** (no oversampling / lookahead)
 
-## Built-in source set (FINALIZED — Stage 4, curated assets delivered)
+## Built-in source set (v1.1.0 — single embedded source)
 
-The curated 4-choice set is embedded (`Source/samples/`) and wired through the
-`sourceSample` `AudioParameterChoice`. Each source's recorded-pitch root (`kBuiltInRoot`,
-MIDI) was probed via YIN f0 → nearest MIDI note and is seeded into the live `rootKey`
-on selection (the APVTS `rootKey` *default* stays 60, frozen). `hit` is percussive
-(unvoiced) → neutral root 60 so pressing the reference key plays it at recorded speed.
+**There is exactly one embedded source: `piano`**, at recorded root **48** (probed f0
+≈131.6 Hz via YIN → nearest MIDI note). Its identity is **`embedded:piano`**, which is
+also the default identity for a fresh instance. The recorded root is seeded into the live
+`rootKey` on a fresh instance so the source plays in tune with no user action (the APVTS
+`rootKey` *default* stays 60, frozen).
 
-| Index | Choice  | Recorded root (MIDI) | Probed f0 |
-|-------|---------|----------------------|-----------|
-| 0 | `piano` | 48 | ≈131.6 Hz |
-| 1 | `cello` | 69 | ≈441 Hz   |
-| 2 | `pizz`  | 69 | ≈445 Hz   |
-| 3 | `hit`   | 60 | percussive (unvoiced) |
+**Source selection is no longer parameterised.** The v1.0 choice parameter was removed in
+v1.1.0 — with one built-in remaining, a single-entry `AudioParameterChoice` is invalid in
+JUCE and produces a degenerate normalisable range. `Load…` and drag-and-drop are the only
+ways to change the source, and they carry custom `ValueTree` state rather than a parameter
+value. The engine keeps `kNumBuiltIns` / `kBuiltInNames` / `kBuiltInRoot` as arrays so a
+future cleared built-in is a one-line addition.
 
-Default `sourceSample` = index 0 (`piano`); default identity = `embedded:piano`.
+Provenance for the embedded asset is recorded in `Source/samples/LICENSE.md`.
 
 ## v1.1-deferred (NOT in v1.0)
 
