@@ -1,4 +1,79 @@
-# Claude-assisted VST Development
+# 0-Audio
+
+[0-Audio](https://oaudio.io/) is an open-source audio software publisher releasing free VST3 and AU plugins for macOS and Windows. Instruments, effects, and utilities — built for DAWs and for notation software, with a particular focus on microtonal and physical-modeling instruments.
+
+This repository holds the full source for the plugin catalog **and** the AI-assisted development system that builds it. Both are published together: the plugins you can install, and the workflow that produced them.
+
+Every plugin is free and pay-what-you-want, and the entire catalog is open source under AGPL-3.0 — see [License](#license).
+
+## Plugins
+
+All plugins build as VST3 (macOS and Windows) and AU (macOS), and load in any compatible DAW.
+
+**Instruments & Synths**
+
+| Plugin | Description |
+|--------|-------------|
+| `O-Bells` | Physical-modeling bells |
+| `O-Marimba` | Physical-model marimba |
+| `O-Lyrica` | Physical-modeling harp |
+| `O-Wind` | Physical-model flute |
+| `O-Reed` | Physical-modeling reed wind |
+| `O-Bowed` | Physical-model bowed string |
+| `O-Contrabass` | Physical-model bowed bass (in development) |
+| `O-Bassoon` | Physical-model bassoon (in development) |
+| `O-Formant` | Physical-model vocal synth |
+| `O-Prism` | Microtonal wavetable synth |
+| `O-IntonationPad` | Wavetable pad with microtonal intonation |
+| `O-MicrotonalSampler` | Microtonal sampler |
+| `O-TextureForge` | Concatenative synthesis instrument |
+| `O-Texture` | Neural texture synth (instrument/effect) |
+
+**The `simple` series — pedagogical instruments**
+
+Minimal, readable implementations of the classic synthesis methods, intended to be read as much as played.
+
+| Plugin | Description |
+|--------|-------------|
+| `O-simpleSubtractive` | Subtractive synthesis |
+| `O-simpleAdditive` | Additive + wavetable synthesis |
+| `O-simpleFM` | Two-operator FM synthesis |
+| `O-simpleGrain` | Granular synthesis |
+| `O-simplePhysicalModelSynth` | Physical modeling |
+| `O-simpleSampler` | Sampling |
+| `O-simpleBeatmaker` | Step-sequencer drum machine |
+
+**Effects & Processors**
+
+| Plugin | Description |
+|--------|-------------|
+| `O-SimpleReverb` | Reverb |
+| `O-DigiDelay` | Digital delay |
+| `O-ReverseDelay` | Granular reverse delay |
+| `O-Chorus` | Chorus |
+| `O-Tremolo` | Tremolo |
+| `O-Detune` | Detuning |
+| `O-AnalogEQ` | Analog-voiced EQ |
+| `O-AnalogSaturation` | Saturation |
+| `O-Comp` | Compressor |
+| `O-MultiBandCompressor` | Multiband dynamics |
+| `O-Bass` | Bass enhancer |
+| `O-Polystutter` | Beat repeater |
+| `O-GrainScatter` | Granular stutter engine |
+| `O-Freeze` | Granular freeze |
+| `O-FreqPulse` | Spectral sequencer |
+| `O-SpectralShaper` | Spectral transient shaper |
+| `O-Orbit` | Spatial orbiter |
+
+**Utilities**
+
+| Plugin | Description |
+|--------|-------------|
+| `O-Gain` | Gain-staging utility |
+
+Per-plugin versions, release state, and history live in the **[plugin registry](PLUGINS.md)**.
+
+## The Development System
 
 An AI-assisted JUCE plugin development system that enables conversational creation of professional VST3 and AU audio plugins. Design and build custom audio processors through natural dialogue with Claude Code—no programming experience required. The interactive development loop is macOS-primary; cross-platform release builds (VST3 for macOS and Windows, AU for macOS) are produced through GitHub Actions CI via `/publish`.
 
@@ -913,11 +988,21 @@ All 35 requirements delivered across 7 phases:
 - Basic understanding of audio plugin concepts (parameters, presets, DAW usage)
 - Ability to describe sonic goals and UX preferences
 
+## License
+
+This repository — every plugin in it and the development system that builds them — is licensed under the **GNU Affero General Public License v3.0**. The full text is in [LICENSE](LICENSE).
+
+JUCE is dual-licensed, and this project takes it under its **AGPLv3** option rather than the free Starter tier: the repository redistributes JUCE-owned source files, which the Starter EULA does not permit, and Starter's revenue cap counts pay-what-you-want income. The long-form rationale is in `PUBLIC-RELEASE-READINESS.md` §5.2.
+
+Source files carry AGPL notice headers applied by `scripts/add-agpl-headers.py`.
+
+Anyone distributing a derived plugin inherits the AGPL-3.0 obligations — including making the corresponding source available to users of that plugin.
+
 ## Acknowledgments
 
 Built with:
 
-- [JUCE](https://juce.com/) - Cross-platform audio application framework
+- [JUCE](https://juce.com/) - Cross-platform audio application framework (used here under its AGPLv3 license option)
 - [Claude Code](https://claude.com/claude-code) - AI-assisted development environment
 - [Anthropic](https://anthropic.com/) - Claude AI models
 
