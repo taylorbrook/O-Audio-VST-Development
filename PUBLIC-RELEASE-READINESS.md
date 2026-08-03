@@ -206,7 +206,7 @@ git rm -r --cached logs/
 git commit -m "chore: untrack build logs"
 ```
 
-**Resolved 2026-08-03.** `ecf3fa39` untracked all 31 matching files. `.gitignore` line 196 (`*.log`) already covers the pattern, so — unlike `build-release/` — these cannot silently return to tracking.
+**Resolved 2026-08-03.** `ecf3fa39` untracked all 31 matching files. `.gitignore` line 197 (`*.log`) already covers the pattern, so — unlike `build-release/` — these cannot silently return to tracking.
 
 ---
 
@@ -242,15 +242,28 @@ Roughly **250 MB of blobs** are audio goldens. Several appear **twice** in histo
 
 **32 `.wav` files are tracked in total** [E1]. One entry in the table is not a golden at all: `plugins/O-Contrabass/e1-max-sustain.wav` (16.4 MB) is a stray scratch render that was committed into a plugin folder [E1].
 
-### 4.3 Shipped installers committed to git [E2]
+### 4.3 Shipped installers committed to git [E2] — ✅ RESOLVED 2026-08-03
 
-Three blobs totalling **13.5 MB** [E2]:
+**As assessed 2026-07-30 —** three blobs totalling **13.5 MB** [E2]:
 
 - `plugins/O-Polystutter/dist/O-Polystutter-OuariconAudio.pkg` — 4.5 MB
 - `plugins/O-Polystutter/dist/O-Polystutter-by-TACHES.pkg` — 4.5 MB (history only)
 - `plugins/O-Polystutter/dist/PolyStutter.zip` — 4.5 MB
 
 Build outputs belong on GitHub Releases, not in git — and the release workflow already publishes there [E2].
+
+**Correction to this section's own figures, measured 2026-08-03.** The headline number overstated the problem in three ways, each worth recording because the corrected figure is the one a later step will be checked against:
+
+- **Only two of the three blobs were ever tracked.** `O-Polystutter-by-TACHES.pkg` was already history-only at the assessment date — the bullet above says so, yet the 13.5 MB total counts it anyway. There was never anything to untrack for it.
+- **The tracked total was 9,498,890 bytes (~9.5 MB), not 13.5 MB** — 4,756,409 B for the `.pkg` plus 4,742,481 B for the `.zip`.
+- **The two overlap rather than being independent.** `PolyStutter.zip` contains a copy of the `.pkg` at exactly 4,756,409 bytes plus an install-readme, so the pair is one v1.8.0 distribution package stored twice, not two distinct artifacts.
+
+**Resolved 2026-08-03.** Both tracked blobs were untracked with `git rm --cached` and left on disk, after first being copied to `~/VST-development-releases-backup-20260803/assets/O-Polystutter-v1.8.0-repo-dist/` and MD5-verified against the originals. That backup — not git history — is what satisfies the preservation gate here, because neither blob matches any published Release asset: the only published O-Polystutter release is v1.12.4, a different version at different sizes. Two further decisions are recorded so nobody has to re-derive them:
+
+- **`plugins/O-Polystutter/dist/install-readme.txt` remains tracked.** It is hand-authored source rather than build output, so the directory was not emptied from git.
+- **A directory-wide ignore rule over plugin `dist` folders was considered and deliberately rejected.** O-Tremolo's Inno Setup script (`installer.iss`) and the install-readme text files live in exactly such a folder and must stay tracked; a broad rule would silently stop future installer scripts from being tracked at all. The rules added instead match the built-artifact extensions `*.pkg`, `*.dmg`, and `*.msi`, and they went in **before** the untracking so the files were never simultaneously untracked and unignored.
+
+**Per §4.6's pivotal mechanic, the 912 MB did not move.** Removing files in a new commit shrinks the checkout, not `.git`. The ~9.5 MB stays in history by design and both blobs remain recoverable by addressing the blob at its pre-removal commit; reclaiming that space is step 14's decision, and its proposal already lists this path.
 
 ### 4.4 Root-level scratch files and first impressions [E4]
 
@@ -379,12 +392,12 @@ Work top to bottom. The order is not arbitrary — each step either gates the ne
 - [x] ~~**4b. Add AGPL notice headers** to your own source files.~~ ✅ **Done 2026-08-01** — 707 files across 39 plugins and 11 modules, via the idempotent `scripts/add-agpl-headers.py`. Third-party excluded and verified untouched. *(Section 5.2 — [L2].)*
 - [x] ~~**5. Untrack `.claude/system-config.json`** with `git rm --cached`.~~ ✅ **Done 2026-08-03** — untracked in `ecf3fa39` (1 file, part of a 42-file, 5897-deletion untracking commit); `git ls-files` now returns nothing for the path and the file remains on disk. `.gitignore:9` keeps it from being re-added. *(Section 2.3 — [S3].)*
 - [x] ~~**6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`.~~ ✅ **Done 2026-08-03** — all 10 tracked files untracked in `ecf3fa39`, the compiled helper binary among them; `git ls-files build-release` now returns nothing. *(Section 2.4 — [E3].)* **Fully closed:** untracking alone was not enough — `.gitignore` had no `build-release/` rule, leaving the tree on disk as an untracked `??` entry that a future `git add -A` would have re-committed into a now-public repository. `build-release/` added to `.gitignore` (line 67, beside `build/`); `git check-ignore` now resolves the tree and the compiled helper to that rule, and `git add -An` stages nothing under it.
-- [x] ~~**7. Untrack the build logs** under `logs/`.~~ ✅ **Done 2026-08-03** — 31 `logs/**/build_*.log` files untracked in `ecf3fa39`; `.gitignore:196` (`*.log`) already covers them, so unlike `build-release/` this one cannot silently return to tracking. *(Section 3.4 — [S6].)*
+- [x] ~~**7. Untrack the build logs** under `logs/`.~~ ✅ **Done 2026-08-03** — 31 `logs/**/build_*.log` files untracked in `ecf3fa39`; `.gitignore:197` (`*.log`) already covers them, so unlike `build-release/` this one cannot silently return to tracking. *(Section 3.4 — [S6].)*
 - [x] ~~**8. Add a top-level `permissions: contents: read` block** to the release workflow.~~ ✅ **Done 2026-08-03** — added between the `on:` and `env:` blocks as the least-privilege default for every job's `GITHUB_TOKEN`. The `create-release` job keeps its own `contents: write` override, so Release publishing is unaffected. *(Section 3.1 — [S4].)*
 - [x] ~~**9. SHA-pin every tag-pinned action reference** in the release workflow.~~ ✅ **Done 2026-08-03** — all 8 references pinned to 40-hex commit SHAs, each with a trailing `# vN (vN.N.N)` comment carrying both the major tag pinned and the precise release. Zero mutable-tag references remain. *(Section 3.1 — [S4].)*
 - [x] ~~**10. Record the standing CI rule** — never add `pull_request_target` or a secrets-bearing `pull_request` trigger while the workflow holds signing certificates.~~ ✅ **Done 2026-08-03** — recorded as a set-off standing-rule block in the workflow's own header comment, where the next editor sees it first. It names both forbidden triggers, lists the eight Apple signing secrets, and states the stake: signed, notarised malware shipped under the Ouaricon identity. *(Section 3.1 — [S4].)*
 - [ ] **11. Decide: keep or strip `.claude/` and `.planning/`.** *(Section 3.3 — [S5]; also resolves the bulk of [S2].)* Must resolve **before** step 12, because it changes what a rewrite would need to strip.
-- [ ] **12. Move the committed installers off git** and onto GitHub Releases. *(Section 4.3 — [E2].)*
+- [x] ~~**12. Move the committed installers off git** and onto GitHub Releases.~~ ✅ **Done 2026-08-03** — the two tracked O-Polystutter v1.8.0 blobs, `plugins/O-Polystutter/dist/O-Polystutter-OuariconAudio.pkg` (4,756,409 B) and `plugins/O-Polystutter/dist/PolyStutter.zip` (4,742,481 B), were untracked with the cached form of `git rm` and left on disk. *(Section 4.3 — [E2].)* **The preservation gate came first, and it was the backup that satisfied it — not git history.** Neither blob matches any published Release asset: the only published O-Polystutter release is `O-Polystutter-v1.12.4`, a different version at different sizes. Both were therefore copied to `~/VST-development-releases-backup-20260803/assets/O-Polystutter-v1.8.0-repo-dist/` and MD5-verified against the originals — `c778e3de586f536d0972f54336de2463` and `705eae9b8dcf00cc6cf3d0c77e5ca857` — **before** anything left the index. **Step 6's residual was not repeated:** `*.pkg`, `*.dmg`, and `*.msi` rules were added *before* the untracking, so the files were never simultaneously untracked and unignored; `git check-ignore -v` now resolves both removed paths to a rule, and a dry-run `git add -An` on `plugins/O-Polystutter/dist/` stages **zero** paths. The tracked-but-ignored census fell from 10 entries to 9, all of them vendored `preset-manager.js`. **History was intentionally left intact.** This was a checkout-only change — the ~9.5 MB of blobs remains in `.git`, both files stay recoverable by addressing the blob at its pre-removal commit, and reclaiming that space belongs to **step 14**, whose section 4.6 proposal already lists `plugins/O-Polystutter/dist/`.
 - [ ] **13. Tidy the repo root** — the scratch renders and images that make the root read as a workspace. *(Section 4.4 — [E4].)*
 - [ ] **14. Rewrite history — optional, size only.** The legal dimension was already closed by the targeted step-3b rewrite of 2026-08-02, so this step is back to being **genuinely optional**: it reclaims repository size and nothing else. If run, take a mirror backup, run the `git filter-repo` proposal in section 4.6 (the three sample paths are already gone — no need to include them), and verify the `plugins/O-Orbit/libs/SAF` gitlink survived. *(Sections 4.2 / 4.5 / 4.6 — [E1] [E5].)* **Last among all local changes** — it changes every commit SHA again, so nothing else should follow it.
 - [x] ~~**15. Flip visibility to public.**~~ ✅ **Done 2026-08-03 — via a separate public repo, not a visibility flip.** The orphaned pre-rewrite commits were confirmed still fetchable on the private repo (API served `4ca27977` post-force-push), so instead of deleting the repo or waiting on GitHub Support, the clean rewritten history was pushed to a **new** repo: **`github.com/taylorbrook/O-Audio-VST-Development`** (main + 289 main-reachable tags; the 2 off-main tags `O-GrainScatter-v2.4.2` / `v1.4.1-intonationpad` deliberately excluded), the 18 releases published in the prior 48 h restored from backup with all assets, verified (orphan SHA 404s; v1.0.0 samples dir contains only `piano.wav`), then made public. **The private `VST-development` repo remains private and untouched** — it keeps all 56 releases, the 8 Apple signing secrets, and the orphaned commits (unexposed while private). Full release backup: `~/VST-development-releases-backup-20260803/` (999 MB, verified byte-perfect). Steps 4, 8–13 were consciously deferred past the flip.
