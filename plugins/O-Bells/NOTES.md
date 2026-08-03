@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 4.1.1
+- **Version:** 4.1.5
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -33,6 +33,7 @@
 - **2026-04-13 (v4.0.0):** Effects tab — Chorus, Delay, EQ, 8-channel FDN Reverb
 - **2026-04-26 (v4.1.0):** VST3 Note Expression microtonal support for Dorico
 - **2026-07-08 (v4.1.1):** Code-review resolution — 3 critical / 12 warning / 13 info findings from `CODE_REVIEW.md`. Factory presets fixed (were recalling at rails), EQ RT-safety (ArrayCoefficients), FileChooser UAF (SafePointer), preset reset-to-defaults + name sanitization, dead `material` control fixed, all knob readouts migrated to `getScaledValue()`, tuning APVTS↔engine bridge, post-EQ safety limiter, high-SR delay overflow, tail length, per-voice RNG. auval PASS.
+- **2026-08-02 (v4.1.5):** Fixed the v4.1.1 CR-02 EQ coefficient update: `std::copy` of 6 RAW ArrayCoefficients values into the 5-slot NORMALISED `IIR::Coefficients` array → EQ unstable to Inf on any gain/freq change (same bug as O-IntonationPad v2.8.4, caught there by Windows CI pluginval fuzz). Now assigns via `Coefficients::operator=(std::array)` — normalises by a0, still allocation-free after prepare(). pluginval strictness-10 clean.
 
 ## Known Issues / Limitations
 
