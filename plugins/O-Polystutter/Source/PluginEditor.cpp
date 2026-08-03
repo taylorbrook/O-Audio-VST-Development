@@ -419,10 +419,12 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
                 userDir.createDirectory();
 
                 auto chooser = std::make_shared<juce::FileChooser>("Save Preset", userDir, "*.json");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) — hoist to a local and capture by value.
+                juce::Component::SafePointer<OPolystutterAudioProcessorEditor> safeThis(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OPolystutterAudioProcessorEditor>(this),
-                     chooser, complete](const juce::FileChooser& fc) {
+                    [safeThis, chooser, complete](const juce::FileChooser& fc) {
                         // Bail if the editor — and the WebView that owns `complete` —
                         // was torn down while the dialog was open. Even complete(false)
                         // here would UAF the dead WebBrowserComponent::Impl.
@@ -461,10 +463,12 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
                 auto presetsDir = processorRef.presetManager.getPresetsDirectory();
 
                 auto chooser = std::make_shared<juce::FileChooser>("Load Preset", presetsDir, "*.json");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) — hoist to a local and capture by value.
+                juce::Component::SafePointer<OPolystutterAudioProcessorEditor> safeThis(this);
                 chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OPolystutterAudioProcessorEditor>(this),
-                     chooser, complete](const juce::FileChooser& fc) {
+                    [safeThis, chooser, complete](const juce::FileChooser& fc) {
                         // Bail if the editor — and the WebView that owns `complete` —
                         // was torn down while the dialog was open. Even complete(false)
                         // here would UAF the dead WebBrowserComponent::Impl.

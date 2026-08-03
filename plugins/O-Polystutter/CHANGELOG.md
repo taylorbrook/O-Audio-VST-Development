@@ -2,6 +2,17 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.12.4] - 2026-08-02
+
+### Fixed
+
+- **Windows build failure (MSVC C2440/C2119).** The v1.12.3 release run failed `build-windows`:
+  MSVC rejects `SafePointer(this)` init-captures inside nested lambdas. Both
+  `FileChooser::launchAsync` callbacks in `PluginEditor.cpp` (`savePresetWithDialog`,
+  `loadPresetFromFile`) now hoist the `SafePointer` to a local and capture it by value —
+  same fix as O-Lyrica v2.3.3 / O-IntonationPad v2.8.3 / O-Prism v1.19.3. Behaviour is
+  unchanged on all platforms.
+
 ## [1.12.3] - 2026-07-01
 
 RT-safety and correctness fixes from the 2026-07-01 adversarial code review (`.planning/CODE-REVIEW.md`, findings CR-01, CR-02, WR-01, WR-05, WR-08).
