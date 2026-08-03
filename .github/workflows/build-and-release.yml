@@ -3,6 +3,34 @@
 # Triggers on tags matching: *-v* (e.g., OuariconTremolo-v1.4.0)
 # Builds: macOS (Universal), Windows
 # Creates: GitHub Release with all artifacts
+#
+# ---------------------------------------------------------------------------
+# STANDING RULE — NEVER ADD A FORK-REACHABLE TRIGGER TO THIS WORKFLOW
+# ---------------------------------------------------------------------------
+# This workflow triggers on push (tag) and workflow_dispatch only. Keep it that
+# way. Two triggers are permanently forbidden here:
+#
+#   * pull_request_target — never add it. It runs against the base repository
+#     with the base repo's secrets available, while checking out code an
+#     outside contributor controls.
+#   * pull_request carrying secrets — never add it. Do not expose this
+#     workflow's secrets to any job a fork pull request can reach.
+#
+# Reason: this workflow consumes eight Apple signing secrets —
+#   MACOS_CERTIFICATE, MACOS_CERTIFICATE_PWD, MACOS_INSTALLER_CERTIFICATE,
+#   MACOS_INSTALLER_CERTIFICATE_PWD, APPLE_ID, APPLE_ID_PASSWORD,
+#   APPLE_IDENTITY_NAME, APPLE_TEAM_ID
+# — and it signs and notarises binaries with them. Leaking those does not just
+# expose a repository: it lets an attacker ship signed, notarised malware under
+# the Ouaricon identity. Revoking a token cannot undo that; it burns the
+# Developer ID and the trust of every binary already shipped under it.
+#
+# For the same reason every third-party action below is pinned to a commit SHA
+# rather than a mutable tag — a tag lets an upstream publisher change the code
+# that runs next to these secrets after it was reviewed.
+#
+# Source: PUBLIC-RELEASE-READINESS.md section 3.1.
+# ---------------------------------------------------------------------------
 
 name: Build and Release
 
@@ -29,6 +57,13 @@ on:
         required: false
         default: true
         type: boolean
+
+# Least-privilege default for the GITHUB_TOKEN issued to every job. Jobs that
+# need more must opt in with their own job-level permissions block — see
+# create-release, which overrides this with contents: write to publish the
+# Release. Do not widen this default. (PUBLIC-RELEASE-READINESS.md section 3.1)
+permissions:
+  contents: read
 
 env:
   # JUCE 8.0.14 — matches the local dev install. The note-expression module
@@ -83,7 +118,7 @@ jobs:
     runs-on: macos-14  # Apple Silicon runner
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
         with:
           submodules: recursive
 
@@ -416,7 +451,7 @@ jobs:
           fi
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
         with:
           name: macos-build
           path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-macos.pkg
@@ -429,7 +464,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
         with:
           submodules: recursive
 
@@ -512,7 +547,7 @@ jobs:
 
       - name: Upload pluginval log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
         with:
           name: pluginval-windows-log
           path: pluginval-log.txt
@@ -581,7 +616,7 @@ jobs:
           Write-Host "Created: $PLUGIN-$VERSION-windows.exe"
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
         with:
           name: windows-build
           path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-windows.exe
@@ -600,10 +635,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
 
       - name: Download All Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (v4.3.0)
         with:
           path: artifacts
 
@@ -647,7 +682,7 @@ jobs:
           find artifacts -type f
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2 (v2.6.2)
         with:
           name: "${{ steps.product_name.outputs.name }} v${{ needs.parse-tag.outputs.version }}"
           body_path: release_notes.md
