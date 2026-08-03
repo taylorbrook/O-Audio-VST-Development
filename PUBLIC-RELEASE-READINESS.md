@@ -105,22 +105,23 @@ git commit -m "chore: untrack machine-local system-config.json"
 
 ### 2.4 `build-release/` is tracked, including a compiled executable [E3] — ✅ RESOLVED 2026-08-03
 
-**What (as found 2026-07-30).** Ten tracked files lived under `build-release/`: `CPackConfig.cmake`, `CPackSourceConfig.cmake`, seven files matching `JUCE/*.cmake`, and `build-release/plugins/O-Bowed/O-Bowed_vst3_helper` — a compiled binary. `.gitignore` covers `build/` but still does not cover `build-release/` [E3].
+**What (as found 2026-07-30).** Ten tracked files lived under `build-release/`: `CPackConfig.cmake`, `CPackSourceConfig.cmake`, seven files matching `JUCE/*.cmake`, and `build-release/plugins/O-Bowed/O-Bowed_vst3_helper` — a compiled binary. `.gitignore` covered `build/` but not `build-release/` [E3].
 
 **Why it matters.** Committed build output is noise at best. A committed *executable* is worse: a public repo shipping an unexplained binary invites reasonable suspicion, and nobody reviewing the repo can verify what it was built from.
 
-**What was needed.** Untrack the tree. Note that `.gitignore` had — and still has — no `build-release/` rule; whether to add one is your call, and this document does not edit `.gitignore`.
+**What was needed.** Untrack the tree — and, because `.gitignore` had no `build-release/` rule, add one, or the untracked tree simply gets re-added. Both were done; see the resolution note below.
 
 > Note: as above, `git rm -r --cached` untracks and leaves the files on disk; it does not remove them from history.
 
 ```bash
 git rm -r --cached build-release/
+echo 'build-release/' >> .gitignore   # without this, the untracked tree gets re-added
 git commit -m "chore: untrack build-release output"
 ```
 
-**Resolved 2026-08-03 — with one residual.** `ecf3fa39` untracked all ten files, the compiled `O-Bowed_vst3_helper` among them, and `git ls-files build-release` now returns nothing.
+**Resolved 2026-08-03 — fully.** `ecf3fa39` untracked all ten files, the compiled `O-Bowed_vst3_helper` among them, and `git ls-files build-release` now returns nothing.
 
-> **Residual — still open.** `.gitignore` still has **no `build-release/` rule**. `git check-ignore -v build-release/CPackConfig.cmake` returns nothing, and `git status --porcelain` shows `?? build-release/` right now — the directory is sitting on disk, untracked *and* unignored. The practical consequence: a single `git add -A` re-commits the whole tree, putting the compiled helper binary back into a repository that is now public. Closing it is a one-line `.gitignore` addition, deliberately left out of scope, consistent with this section's statement above that this document does not edit `.gitignore`. **This is the one part of section 2.4 that is not done.**
+> **The residual — also closed, 2026-08-03.** Untracking alone left the tree exposed: `.gitignore` had **no `build-release/` rule**, so `git check-ignore` returned nothing and the directory sat on disk as an untracked `??` entry. A single `git add -A` would have re-committed the whole tree — compiled helper binary included — into a repository that is now public. Closed by adding `build-release/` to `.gitignore` at line 67, beside the existing `build/` and `Build/` rules. Verified: `git check-ignore -v` on `CPackConfig.cmake`, on `plugins/O-Bowed/O-Bowed_vst3_helper`, and on the directory itself all now resolve to `.gitignore:67`; `git status --porcelain` no longer lists `build-release/`; and `git add -An` stages **zero** paths under it. This is the sole `.gitignore` edit made from this document, taken on explicit instruction.
 
 **Effort.** Under a minute.
 
@@ -377,7 +378,7 @@ Work top to bottom. The order is not arbitrary — each step either gates the ne
 - [ ] **4. Write `THIRD-PARTY-NOTICES.md`** aggregating SAF, the bundled JS licenses, moodycamel, and the FetchContent dependencies — and stating explicitly that **JUCE is used under the AGPLv3 option of its dual license**, which a reader cannot otherwise determine. *(Section 5.3 / 5.2 — [L3] [L2].)*
 - [x] ~~**4b. Add AGPL notice headers** to your own source files.~~ ✅ **Done 2026-08-01** — 707 files across 39 plugins and 11 modules, via the idempotent `scripts/add-agpl-headers.py`. Third-party excluded and verified untouched. *(Section 5.2 — [L2].)*
 - [x] ~~**5. Untrack `.claude/system-config.json`** with `git rm --cached`.~~ ✅ **Done 2026-08-03** — untracked in `ecf3fa39` (1 file, part of a 42-file, 5897-deletion untracking commit); `git ls-files` now returns nothing for the path and the file remains on disk. `.gitignore:9` keeps it from being re-added. *(Section 2.3 — [S3].)*
-- [x] ~~**6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`.~~ ✅ **Done 2026-08-03** — all 10 tracked files untracked in `ecf3fa39`, the compiled helper binary among them; `git ls-files build-release` now returns nothing. *(Section 2.4 — [E3].)* **Residual, still open: `.gitignore` still has no `build-release/` rule. The directory sits on disk right now as an untracked `??` entry, so a future `git add -A` would re-commit the whole tree — compiled `O-Bowed_vst3_helper` included — into a now-public repository. Adding that ignore rule is the open follow-up; it has not been done.**
+- [x] ~~**6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`.~~ ✅ **Done 2026-08-03** — all 10 tracked files untracked in `ecf3fa39`, the compiled helper binary among them; `git ls-files build-release` now returns nothing. *(Section 2.4 — [E3].)* **Fully closed:** untracking alone was not enough — `.gitignore` had no `build-release/` rule, leaving the tree on disk as an untracked `??` entry that a future `git add -A` would have re-committed into a now-public repository. `build-release/` added to `.gitignore` (line 67, beside `build/`); `git check-ignore` now resolves the tree and the compiled helper to that rule, and `git add -An` stages nothing under it.
 - [x] ~~**7. Untrack the build logs** under `logs/`.~~ ✅ **Done 2026-08-03** — 31 `logs/**/build_*.log` files untracked in `ecf3fa39`; `.gitignore:196` (`*.log`) already covers them, so unlike `build-release/` this one cannot silently return to tracking. *(Section 3.4 — [S6].)*
 - [x] ~~**8. Add a top-level `permissions: contents: read` block** to the release workflow.~~ ✅ **Done 2026-08-03** — added between the `on:` and `env:` blocks as the least-privilege default for every job's `GITHUB_TOKEN`. The `create-release` job keeps its own `contents: write` override, so Release publishing is unaffected. *(Section 3.1 — [S4].)*
 - [x] ~~**9. SHA-pin every tag-pinned action reference** in the release workflow.~~ ✅ **Done 2026-08-03** — all 8 references pinned to 40-hex commit SHAs, each with a trailing `# vN (vN.N.N)` comment carrying both the major tag pinned and the precise release. Zero mutable-tag references remain. *(Section 3.1 — [S4].)*
