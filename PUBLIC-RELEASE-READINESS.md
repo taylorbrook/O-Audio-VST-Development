@@ -143,10 +143,12 @@ git commit -m "chore: untrack build-release output"
 
    | Action reference | Uses recorded |
    |---|---|
-   | `actions/checkout@v4` | ×2 |
+   | `actions/checkout@v4` | ×3 |
    | `actions/upload-artifact@v4` | ×3 |
-   | `actions/download-artifact@v4` | — |
-   | `softprops/action-gh-release@v2` | — |
+   | `actions/download-artifact@v4` | ×1 |
+   | `softprops/action-gh-release@v2` | ×1 |
+
+   ✅ **Done 2026-08-03** — all eight references are now pinned to 40-hex commit SHAs, and every pin carries a trailing `# vN (vN.N.N)` comment recording both the major tag that was pinned and the precise release it corresponded to.
 
    Replace each with the full commit SHA of the release you intend, keeping the tag in a trailing comment for readability.
 
@@ -363,9 +365,9 @@ Work top to bottom. The order is not arbitrary — each step either gates the ne
 - [ ] **5. Untrack `.claude/system-config.json`** with `git rm --cached`. *(Section 2.3 — [S3].)*
 - [ ] **6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`. *(Section 2.4 — [E3].)*
 - [ ] **7. Untrack the build logs** under `logs/`. *(Section 3.4 — [S6].)*
-- [ ] **8. Add a top-level `permissions: contents: read` block** to the release workflow. *(Section 3.1 — [S4].)*
-- [ ] **9. SHA-pin every tag-pinned action reference** in the release workflow. *(Section 3.1 — [S4].)*
-- [ ] **10. Record the standing CI rule** — never add `pull_request_target` or a secrets-bearing `pull_request` trigger while the workflow holds signing certificates. *(Section 3.1 — [S4].)*
+- [x] ~~**8. Add a top-level `permissions: contents: read` block** to the release workflow.~~ ✅ **Done 2026-08-03** — added between the `on:` and `env:` blocks as the least-privilege default for every job's `GITHUB_TOKEN`. The `create-release` job keeps its own `contents: write` override, so Release publishing is unaffected. *(Section 3.1 — [S4].)*
+- [x] ~~**9. SHA-pin every tag-pinned action reference** in the release workflow.~~ ✅ **Done 2026-08-03** — all 8 references pinned to 40-hex commit SHAs, each with a trailing `# vN (vN.N.N)` comment carrying both the major tag pinned and the precise release. Zero mutable-tag references remain. *(Section 3.1 — [S4].)*
+- [x] ~~**10. Record the standing CI rule** — never add `pull_request_target` or a secrets-bearing `pull_request` trigger while the workflow holds signing certificates.~~ ✅ **Done 2026-08-03** — recorded as a set-off standing-rule block in the workflow's own header comment, where the next editor sees it first. It names both forbidden triggers, lists the eight Apple signing secrets, and states the stake: signed, notarised malware shipped under the Ouaricon identity. *(Section 3.1 — [S4].)*
 - [ ] **11. Decide: keep or strip `.claude/` and `.planning/`.** *(Section 3.3 — [S5]; also resolves the bulk of [S2].)* Must resolve **before** step 12, because it changes what a rewrite would need to strip.
 - [ ] **12. Move the committed installers off git** and onto GitHub Releases. *(Section 4.3 — [E2].)*
 - [ ] **13. Tidy the repo root** — the scratch renders and images that make the root read as a workspace. *(Section 4.4 — [E4].)*
