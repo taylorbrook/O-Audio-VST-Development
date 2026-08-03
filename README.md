@@ -90,7 +90,7 @@ To make the development of VST and AU plugins using Claude Code more achievable.
 
 All plugins compile to native VST3 and AU formats compatible with any DAW (Ableton, Logic, Reaper, etc.). VST3 builds on both macOS and Windows; AU is macOS-only.
 
-38 plugins have been built with this system so far — see the **[plugin registry](PLUGINS.md)** for the full catalog with versions and status.
+39 plugins have been built with this system so far — see the **[plugin registry](PLUGINS.md)** for the full catalog with versions and status.
 
 ## How It Works
 
@@ -140,7 +140,7 @@ Plugins use web-based interfaces (HTML/CSS/JS) rendered via JUCE's WebView inste
 
 Pitched plugins ship with VST3 Note Expression support so Dorico can drive per-note microtonal inflections (quarter-tones, just intonation, custom tunings) directly from the score — no MIDI Pitch Bend hacks, no per-track lane workarounds.
 
-- **Shared module** — `modules/tuning/note-expression` (v1.1.0): a header-only `Ouaricon::NoteExpression` API that owns the Note Expression Controller (`kTuningTypeID`), drains raw NE events from a patched JUCE wrapper, and applies per-note semitone offsets at the voice call site. Composes cleanly with the `scala-tuning-engine` module.
+- **Shared module** — `modules/tuning/note-expression` (v1.1.1): a header-only `Ouaricon::NoteExpression` API that owns the Note Expression Controller (`kTuningTypeID`), drains raw NE events from a patched JUCE wrapper, and applies per-note semitone offsets at the voice call site. Composes cleanly with the `scala-tuning-engine` module.
 - **Cohort consumers** — O-Lyrica, O-Bells, O-Prism, O-Wind, O-IntonationPad, O-Reed, O-Bowed, O-Formant.
 - **How it works in Dorico** — installers (PKG on macOS, EXE on Windows) bundle `Ouaricon-VST3-NoteExpression.doricolib`. User runs Dorico → Library → Library Manager → Import once; the plugins then play back tuned pitches automatically when used as VST3 instruments in a Dorico project.
 
@@ -458,12 +458,12 @@ Develop multiple plugins simultaneously using context isolation:
 │                                                                             │
 │   Session A                    Session B                    Session C       │
 │   ┌──────────────┐            ┌──────────────┐            ┌──────────────┐ │
-│   │ O-Reverb     │            │ O-Compressor │            │ O-Saturator  │ │
+│   │ O-PluginA    │            │ O-PluginB    │            │ O-PluginC    │ │
 │   │ Stage 2: DSP │            │ Stage 1: Found│            │ Stage 3: GUI │ │
 │   └──────────────┘            └──────────────┘            └──────────────┘ │
 │         ↑                           ↑                           ↑          │
 │   /plugin-focus              /plugin-focus              /plugin-focus      │
-│   O-Reverb                   O-Compressor               O-Saturator        │
+│   O-PluginA                  O-PluginB                  O-PluginC          │
 │                                                                             │
 │   Each plugin has isolated state in plugins/[Name]/.planning/               │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -479,20 +479,20 @@ Develop multiple plugins simultaneously using context isolation:
 # ┌────────────────┬───────────┬─────────┬──────────────┐
 # │ Plugin         │ Stage     │ Phase   │ Status       │
 # ├────────────────┼───────────┼─────────┼──────────────┤
-# │ O-Reverb       │ 2-dsp     │ execute │ in_progress  │
-# │ O-Compressor   │ 1-found   │ verify  │ pending      │
-# │ O-Saturator    │ 3-gui     │ discuss │ paused       │
+# │ O-PluginA      │ 2-dsp     │ execute │ in_progress  │
+# │ O-PluginB      │ 1-found   │ verify  │ pending      │
+# │ O-PluginC      │ 3-gui     │ discuss │ paused       │
 # └────────────────┴───────────┴─────────┴──────────────┘
 
 # Switch focus to a specific plugin
-/plugin-focus O-Compressor
+/plugin-focus O-PluginB
 
-# Now all commands default to O-Compressor
-/plugin-status          # Shows O-Compressor status
-/implement              # Continues O-Compressor implementation
+# Now all commands default to O-PluginB
+/plugin-status          # Shows O-PluginB status
+/implement              # Continues O-PluginB implementation
 
 # Check detailed status
-/plugin-status O-Reverb
+/plugin-status O-PluginA
 
 # Output shows:
 # - Current stage and phase
@@ -503,12 +503,12 @@ Develop multiple plugins simultaneously using context isolation:
 **Parallel development workflow:**
 
 ```bash
-# Terminal 1: Working on O-Reverb
-/plugin-focus O-Reverb
+# Terminal 1: Working on O-PluginA
+/plugin-focus O-PluginA
 /implement
 
-# Terminal 2: Working on O-Compressor (different Claude Code session)
-/plugin-focus O-Compressor
+# Terminal 2: Working on O-PluginB (different Claude Code session)
+/plugin-focus O-PluginB
 /implement
 
 # Each session operates independently with isolated state.
@@ -652,7 +652,7 @@ git add -A && git commit -m "WIP: Stage 2 progress"
 **3. Use express mode for straightforward plugins**
 ```bash
 # Skip intermediate menus
-/implement O-SimpleGain --express
+/implement O-MyPlugin --express
 
 # Drops to manual mode on any error
 ```
@@ -899,9 +899,12 @@ vst-development/
 ├── scripts/
 │   ├── build-and-install.sh          # 7-phase build pipeline (macOS)
 │   ├── build-and-install.ps1         # Windows VST3 build + install
+│   ├── resolve-target.sh             # Resolve a plugin's CMake target name from its folder
 │   ├── apply-juce-patches.sh         # Apply the vendored JUCE Note Expression patch (local dev)
 │   ├── juce-patches/                 # Named JUCE patch files (e.g. note-expression)
 │   ├── generate_placeholder_models.py # Placeholder ML models for ANIRA plugins
+│   ├── add-agpl-headers.py           # Apply AGPL notice headers to source files
+│   ├── regen-registry-used-by.sh     # Regenerate module registry used_by from disk truth
 │   ├── verify-au-link.sh             # AU link/loading gate (auval)
 │   ├── verify-suite-battery.sh       # Full-suite validation battery
 │   └── verify-backup.sh              # Backup integrity checks
