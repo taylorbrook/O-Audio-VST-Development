@@ -126,9 +126,12 @@ OSimplePhysicalModelSynthAudioProcessorEditor::OSimplePhysicalModelSynthAudioPro
         .withNativeFunction ("savePresetWithDialog", [this] (auto&, auto complete) {
             fileChooser = std::make_unique<juce::FileChooser> (
                 "Save Preset", processorRef.getPresetManager().getUserPresetsDirectory(), "*.json");
+            // MSVC rejects SafePointer(this) init-captures in nested lambdas
+            // (C2440/C2119) - hoist to a local and capture by value.
+            juce::Component::SafePointer<OSimplePhysicalModelSynthAudioProcessorEditor> safeThis(this);
             fileChooser->launchAsync (
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer (this), complete] (const juce::FileChooser& fc) {
+                [safeThis, complete] (const juce::FileChooser& fc) {
                     // CR-02: the host may destroy the editor while the native dialog
                     // is open. `complete` is owned by the dead WebView Impl, so on
                     // teardown bail with a bare return — calling complete() on ANY
@@ -159,9 +162,12 @@ OSimplePhysicalModelSynthAudioProcessorEditor::OSimplePhysicalModelSynthAudioPro
         .withNativeFunction ("loadPresetFromFile", [this] (auto&, auto complete) {
             fileChooser = std::make_unique<juce::FileChooser> (
                 "Load Preset", processorRef.getPresetManager().getPresetsDirectory(), "*.json");
+            // MSVC rejects SafePointer(this) init-captures in nested lambdas
+            // (C2440/C2119) - hoist to a local and capture by value.
+            juce::Component::SafePointer<OSimplePhysicalModelSynthAudioProcessorEditor> safeThis(this);
             fileChooser->launchAsync (
                 juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis = juce::Component::SafePointer (this), complete] (const juce::FileChooser& fc) {
+                [safeThis, complete] (const juce::FileChooser& fc) {
                     // CR-02: see savePresetWithDialog — bare return on dead editor,
                     // never touch complete() after teardown.
                     if (safeThis == nullptr)

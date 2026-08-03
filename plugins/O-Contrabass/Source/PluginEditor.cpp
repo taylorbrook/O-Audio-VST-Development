@@ -205,9 +205,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                     "Save Preset",
                     processorRef.getPresetManager().getUserPresetsDirectory(),
                     "*.json");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OContrabassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this),
+                    [safeThis,
                      complete, makeResult](const juce::FileChooser& fc) {
                         // Editor destroyed while the dialog was up: bare return —
                         // `complete` is owned by the dead WebView Impl (UAF otherwise).
@@ -240,9 +243,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                     "Load Preset",
                     processorRef.getPresetManager().getUserPresetsDirectory(),
                     "*.json");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OContrabassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this),
+                    [safeThis,
                      complete, makeResult](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;   // bare return — see savePresetWithDialog
@@ -334,9 +340,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                     "Load Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.scl");   // D1: .scl only — no TUN parser in TuningEngine 2.1.0
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OContrabassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;   // bare return — see savePresetWithDialog
@@ -356,9 +365,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                     "Load Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.kbm");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OContrabassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;   // bare return — see savePresetWithDialog
@@ -379,9 +391,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("scale.scl"),
                     "*.scl");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OContrabassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;   // bare return — see savePresetWithDialog
@@ -404,9 +419,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("mapping.kbm"),
                     "*.kbm");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OContrabassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;   // bare return — see savePresetWithDialog
@@ -506,9 +524,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("tuning-export.html"),
                     "*.html");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OContrabassAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;   // bare return — see savePresetWithDialog

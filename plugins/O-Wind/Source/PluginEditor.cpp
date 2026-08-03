@@ -254,9 +254,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     processorRef.getPresetManager().getUserPresetsDirectory(),
                     "*.json"
                 );
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OWindAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         // Editor destroyed while the dialog was up: bare return —
                         // `complete` is owned by the dead WebView, calling it is a UAF
@@ -358,9 +361,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     "Load Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.scl;*.tun");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OWindAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
@@ -382,9 +388,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     "Load Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.kbm");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OWindAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
@@ -438,9 +447,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("scale.scl"),
                     "*.scl");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OWindAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
@@ -463,9 +475,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("mapping.kbm"),
                     "*.kbm");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OWindAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
@@ -535,9 +550,12 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                         .getChildFile("tuning-export.html"),
                     "*.html");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OWindAudioProcessorEditor> safeThis(this);
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [safeThis = juce::Component::SafePointer<OWindAudioProcessorEditor>(this),
+                    [safeThis,
                      complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;  // bare return — see savePresetWithDialog
