@@ -766,6 +766,8 @@ Manage multiple plugins in parallel with explicit context switching:
 | `/plugin-plan [Name?] [Stage?]` | GSD plan phase - create task breakdown |
 | `/plugin-execute [Name?] [Stage?]` | GSD execute phase - run stage-specific agent |
 | `/plugin-verify [Name?] [Stage?]` | GSD verify phase - validate stage goals achieved |
+| `/plugin-critique [Name?] [Stage?]` | Run domain-specific critic on stage outputs for quality validation |
+| `/plugin-handoff [Name?] [Stage?]` | Create handoff document for a stage transition |
 
 Skip flags: `--skip-discuss`, `--skip-research`, `--skip-verify`
 
@@ -778,11 +780,20 @@ Skip flags: `--skip-discuss`, `--skip-research`, `--skip-verify`
 
 ### Post-Completion
 
+The review commands form a loop around `/improve`: a code review produces `CODE_REVIEW.md`, `/improve-review` resolves its findings, `/improve-review-info` sweeps the low-risk Info tier that pass skips, and `/improve-verify` confirms the fixes hold before the plugin is considered ship-ready. The two simplify commands sweep tiers of a plugin's `SIMPLIFICATION-AUDIT.md` in the same spirit.
+
 | Command | Purpose |
 |---------|---------|
 | `/improve [Name]` | Add features, fix bugs (with versioning and regression testing) |
+| `/improve-milestone [Name] [description?]` | Complex improvements run as GSD-style phase cycles |
+| `/improve-review [Name] [findings?]` | Resolve code-review findings from a plugin's `CODE_REVIEW.md` |
+| `/improve-review-info [Name] [findings?]` | Sweep the Info tier (IN-*) of `CODE_REVIEW.md` — the opt-out findings `/improve-review` skips |
+| `/improve-verify [Name] [version?]` | Verify resolved code-review fixes hold with no regressions, then gate ship-readiness |
+| `/simplify-phase2 [Name]` | Apply MEDIUM-risk HIGH-severity candidates from `SIMPLIFICATION-AUDIT.md` |
+| `/simplify-phase3 [Name]` | Sweep the MEDIUM and LOW tiers of `SIMPLIFICATION-AUDIT.md` (high-volume, low-risk cleanup) |
 | `/install-plugin [Name]` | Deploy to `~/Library/Audio/Plug-Ins/` |
 | `/package [Name]` | Create signed PKG installer for distribution |
+| `/build-installer [Name]` | Create a Windows EXE installer for VST3 distribution (Inno Setup) |
 | `/publish [Name]` | Release via GitHub Actions CI/CD |
 
 ### Lifecycle Management
@@ -794,7 +805,6 @@ Skip flags: `--skip-discuss`, `--skip-research`, `--skip-verify`
 | `/destroy [Name]` | Complete removal with verified backup |
 | `/clean [Name]` | Interactive cleanup menu (choose operation) |
 | `/reconcile [Name]` | Fix out-of-sync state files |
-| `/clear-cache [Name]` | Clear validation cache |
 
 ### Module System (Code Reuse)
 
@@ -809,12 +819,14 @@ Reusable code components with versioning and dependency tracking:
 | `/module-remove [Plugin] [Module]` | Remove module dependency |
 | `/module-create [Name] --from [Plugin]` | Extract code into reusable module |
 | `/module-upgrade [Name]` | Upgrade module and rebuild all dependents |
+| `/module-upgrade-all` | Batch upgrade all modules across all plugins, with preview |
 
 ### Research & Troubleshooting
 
 | Command | Purpose |
 |---------|---------|
 | `/research [topic]` | Deep multi-agent investigation (3-level protocol) |
+| `/dorico [Name] [question?]` | Dorico integration helper — microtonal playback, expression maps, playback templates, keyswitch routing, CC/PC technique triggers |
 | `/doc-fix` | Document solved problem to knowledge base |
 | `/add-critical-pattern` | Add current problem to Required Reading |
 
@@ -824,6 +836,7 @@ Reusable code components with versioning and dependency tracking:
 |---------|---------|
 | `/pfs` | Load Plugin Freedom System architecture context |
 | `/templates` | Browse reusable code patterns and snippets |
+| `/generalize-microtones` | Promote the VST3 Note Expression pattern into a shared module and propagate Dorico microtonal playback across pitched plugins |
 
 ## Project Structure
 
