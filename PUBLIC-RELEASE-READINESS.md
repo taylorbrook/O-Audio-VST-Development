@@ -139,6 +139,8 @@ git commit -m "chore: untrack build-release output"
 
    The release job keeps its own broader block; every other job then runs read-only.
 
+   ✅ **Done 2026-08-03** — added between the `on:` and `env:` blocks. `create-release` retains its `contents: write` override, so Release publishing is unaffected.
+
 2. **SHA-pin every tag-pinned action reference.** A tag is mutable — the upstream owner can move it — so a tag pin is a standing supply-chain exposure on a workflow that holds signing certificates. The tag-pinned references are [S4]:
 
    | Action reference | Uses recorded |
@@ -148,11 +150,13 @@ git commit -m "chore: untrack build-release output"
    | `actions/download-artifact@v4` | ×1 |
    | `softprops/action-gh-release@v2` | ×1 |
 
-   ✅ **Done 2026-08-03** — all eight references are now pinned to 40-hex commit SHAs, and every pin carries a trailing `# vN (vN.N.N)` comment recording both the major tag that was pinned and the precise release it corresponded to.
-
    Replace each with the full commit SHA of the release you intend, keeping the tag in a trailing comment for readability.
 
+   ✅ **Done 2026-08-03** — all eight references are now pinned to 40-hex commit SHAs, and every pin carries a trailing `# vN (vN.N.N)` comment recording both the major tag that was pinned and the precise release it corresponded to.
+
 3. **Adopt a standing rule.** Never add `pull_request_target`, and never add a secrets-bearing `pull_request` trigger, to this workflow while it carries signing certificates [S4]. Record the rule where the next person editing the workflow will see it.
+
+   ✅ **Done 2026-08-03** — recorded as a set-off block in the workflow's own header comment, above `name:`. It names both forbidden triggers, lists the eight Apple signing secrets, and states the stake. Note this is a **documentary** control only: nothing technically prevents a future editor from adding the trigger. A branch ruleset on `.github/workflows/**` would be the enforcing control and remains unimplemented.
 
 ---
 
