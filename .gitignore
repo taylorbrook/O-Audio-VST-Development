@@ -46,6 +46,26 @@ backups/
 e1-max-sustain.json
 *-pre-extraction-canonical.json
 plugins/*/.planning/evidence/**/*.wav
+#
+# O-Bowed's canonical golden render is a special case. The `.sha256` sibling
+# already in that directory IS the tracked audit trail — it is what any future
+# harness run is checked against. The binary itself is kept on disk purely as a
+# local byte-exact reference and is deliberately not committed.
+#
+# Why this one is ignored when O-Contrabass tracks its own golden renders:
+# section 4.2 of PUBLIC-RELEASE-READINESS.md identifies the tracked audio
+# goldens as the single largest contributor to repository size, and step 14
+# exists to reclaim exactly that. Adding another multi-megabyte binary to a
+# now-public repo would work against that standing direction, and O-Bowed's
+# golden directory was authored sha256-only from the start — this preserves the
+# author's original choice rather than quietly reversing it.
+#
+# Why this names one exact path and not a directory wildcard: O-Contrabass
+# legitimately tracks nineteen golden renders in its own golden directory, so a
+# broader rule would silently stop future intentional goldens from being
+# tracked. Same reasoning as the installer block at the end of this file —
+# match the artifact, never broaden to the containing directory.
+plugins/O-Bowed/tests/render-harness/golden/canonical-preset.wav
 
 # =============================================================================
 # macOS System Files
