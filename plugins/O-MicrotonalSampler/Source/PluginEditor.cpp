@@ -1212,8 +1212,11 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     // The launchAsync completion runs on the message thread.
                     // Capture chooser by value so its lifetime extends past
                     // the launch returning. Capture `complete` so JS resolves.
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (flags,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, midi, vel, mergeAsRr, technique, complete]
                             (const juce::FileChooser& fc) mutable
                         {
@@ -1602,9 +1605,12 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                         juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
                         "*.scl");
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (juce::FileBrowserComponent::openMode
                                           | juce::FileBrowserComponent::canSelectFiles,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc)
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
@@ -1635,9 +1641,12 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                         juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
                         "*.kbm");
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (juce::FileBrowserComponent::openMode
                                           | juce::FileBrowserComponent::canSelectFiles,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc)
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
@@ -1665,10 +1674,13 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             .getChildFile (engine->getActiveTuningName() + ".scl"),
                         "*.scl");
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc)
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
@@ -1703,10 +1715,13 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             .getChildFile ("mapping.kbm"),
                         "*.kbm");
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc)
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
@@ -1829,10 +1844,13 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             .getChildFile ("O-MicrotonalSampler.omspreset"),
                         "*.omspreset");
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc) mutable
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
@@ -1867,9 +1885,12 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                         juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
                         "*.omspreset");
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (juce::FileBrowserComponent::openMode
                                           | juce::FileBrowserComponent::canSelectFiles,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc) mutable
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
@@ -1904,8 +1925,11 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                     auto flags = juce::FileBrowserComponent::openMode
                                | juce::FileBrowserComponent::canSelectDirectories;
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (flags,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc) mutable
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
@@ -1969,10 +1993,13 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                             .getChildFile (engine->getActiveTuningName() + ".html"),
                         "*.html");
 
+                    // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                    // (C2440/C2119) - hoist to a local and capture by value.
+                    juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> safeThis(this);
                     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                                           | juce::FileBrowserComponent::canSelectFiles
                                           | juce::FileBrowserComponent::warnAboutOverwriting,
-                        [safeThis = juce::Component::SafePointer<OMicrotonalSamplerAudioProcessorEditor> (this),
+                        [safeThis,
                          chooser, complete] (const juce::FileChooser& fc)
                         {
                             if (safeThis == nullptr) return;   // W12: editor/WebView torn down
