@@ -36,14 +36,17 @@ void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     midPeak.prepare (spec);
     highShelf.prepare (spec);
 
-    // Apply initial coefficients
-    *lowShelf.state = *FilterCoeffs::makeLowShelf (
+    // Apply initial coefficients. Assigning the raw 6-element ArrayCoefficients
+    // through Coefficients::operator=(std::array) normalises by a0 AND reserves
+    // the internal Array's >= 8-slot storage, so the audio-thread updates in
+    // process() can reuse the same operator= without ever allocating.
+    *lowShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf (
         currentSampleRate, 200.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetLowGainDB.load()));
-    *midPeak.state = *FilterCoeffs::makePeakFilter (
+    *midPeak.state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
         currentSampleRate, targetMidFreqHz.load(), 1.0f,
         juce::Decibels::decibelsToGain (targetMidGainDB.load()));
-    *highShelf.state = *FilterCoeffs::makeHighShelf (
+    *highShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetHighGainDB.load()));
 }
@@ -72,33 +75,35 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
     // ArrayCoefficients factories. The ref-counted Coefficients::makeXXX
     // factories heap-allocate a new object every call — a malloc+free on the
     // audio thread each block while a gain/freq is dragged or automated.
-    // ArrayCoefficients returns a std::array<float,6> (identical math) that we
-    // copy into the already-allocated storage. (pattern_arraycoefficients_rt_safe_iir)
+    // ArrayCoefficients returns a RAW std::array<float,6> {b0,b1,b2,a0,a1,a2};
+    // Coefficients stores 5 NORMALISED values (divided by a0, a0 dropped), so
+    // assign through Coefficients::operator=(std::array) — a raw std::copy of
+    // 6 values mis-aligns the feedback polynomial and the filter goes unstable
+    // to Inf on the first update (O-IntonationPad v2.8.4, Windows CI pluginval
+    // fuzz). operator= is allocation-free here: prepare() reserved the >= 8-slot
+    // storage. (pattern_arraycoefficients_rt_safe_iir)
     if (lowGain != prevLowGainDB)
     {
-        auto c = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf (
+        *lowShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf (
             currentSampleRate, 200.0f, 0.707f,
             juce::Decibels::decibelsToGain (lowGain));
-        std::copy (c.begin(), c.end(), lowShelf.state->getRawCoefficients());
         prevLowGainDB = lowGain;
     }
 
     if (midGain != prevMidGainDB || midFreq != prevMidFreqHz)
     {
-        auto c = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
+        *midPeak.state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
             currentSampleRate, midFreq, 1.0f,
             juce::Decibels::decibelsToGain (midGain));
-        std::copy (c.begin(), c.end(), midPeak.state->getRawCoefficients());
         prevMidGainDB = midGain;
         prevMidFreqHz = midFreq;
     }
 
     if (highGain != prevHighGainDB)
     {
-        auto c = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (
+        *highShelf.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (
             currentSampleRate, 8000.0f, 0.707f,
             juce::Decibels::decibelsToGain (highGain));
-        std::copy (c.begin(), c.end(), highShelf.state->getRawCoefficients());
         prevHighGainDB = highGain;
     }
 

@@ -2,6 +2,22 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.1.5] - 2026-08-02
+
+### Fixed
+
+- **EQ blows up to Inf/NaN on any EQ parameter change.** Same bug fixed in O-IntonationPad
+  v2.8.4: the CR-02 RT-safe coefficient update copied the **6 raw** values returned by
+  `IIR::ArrayCoefficients::makeXXX` (`{b0,b1,b2,a0,a1,a2}`) over
+  `Coefficients::getRawCoefficients()`, but `IIR::Coefficients` stores **5 normalised**
+  values (each divided by a0, a0 dropped) — the feedback polynomial was mis-aligned and the
+  shelf/peak filters went unstable to Inf on the first gain/freq change. Normal playback was
+  unaffected (coefficients from `prepare()` are correct until the first update). Fix: assign
+  through `Coefficients::operator=(std::array)`, which normalises by a0; still RT-safe —
+  `prepare()` now also assigns via the array form so the coefficient Array's ≥8-slot storage
+  is reserved up front and the audio-thread assignment never allocates.
+  Verified with pluginval strictness-10 (Automation + Fuzz parameters clean).
+
 ## [4.1.4] - 2026-08-02
 
 Licensing-only release. No audio, parameter, state, or UI behavior changes — output is
