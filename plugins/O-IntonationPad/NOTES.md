@@ -2,11 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.8.2
+- **Version:** 2.8.4
 - **Type:** Synth (Wavetable Pad)
 
 ## Lifecycle Timeline
 
+- **2026-08-02 (v2.8.4):** Fixed the Windows CI pluginval strictness-10 failure (Automation/Fuzz Inf/NaN): `EQProcessor::updateCoefficients` copied 6 RAW ArrayCoefficients values into the 5-slot NORMALISED `IIR::Coefficients` array → unstable EQ on any EQ param change. Now assigns via `Coefficients::operator=(std::array)` (normalises by a0, still allocation-free after prepare). Reproduced + verified locally with seeded pluginval. **O-Bells has the identical bug (3 sites) — pending.**
+- **2026-08-02 (v2.8.3):** Windows CI fix — hoisted `SafePointer(this)` init-captures for MSVC. (Release run failed pluginval on the pre-existing EQ bug above; fixed in v2.8.4.)
 - **2026-04-26 (v2.8.0):** Added VST3 Note Expression microtonal support for Dorico; adopted shared `note-expression` module.
 - **2026-07-09 (v2.8.2):** Safe INFO-tier cleanup sweep (IN-01/02/04/05/07) — extracted silence-threshold constant, removed dead voice methods + 5 unused native functions, fixed the `tuning-panel.js` docstring, dropped an unused UI parameter. No behavior change; auval PASSED.
 - **2026-07-08 (v2.8.1):** Resolved all Critical + Warning findings from the v2.8.0 deep code review (`CODE_REVIEW.md`) via `/improve-review`. See CHANGELOG for per-finding root causes.

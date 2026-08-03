@@ -1,5 +1,29 @@
 # O-IntonationPad Changelog
 
+## [2.8.4] - 2026-08-02
+
+### Fixed
+
+- **EQ blows up to Inf/NaN on any EQ parameter change (Windows CI pluginval failure).** The
+  v2.8.3 release run failed `build-windows` in the pluginval strictness-10 *Automation* and
+  *Fuzz parameters* tests with Inf/NaN/subnormal output. Root cause (reproduced locally on
+  macOS with `--random-seed 0x5e6bc4b` — the bug is cross-platform; earlier green runs were
+  fuzz luck): `EQProcessor::updateCoefficients()` copied the **6 raw** values returned by
+  `IIR::ArrayCoefficients::makeXXX` (`{b0,b1,b2,a0,a1,a2}`) over
+  `Coefficients::getRawCoefficients()`, but `IIR::Coefficients` stores **5 normalised**
+  values (each divided by a0, a0 dropped). The feedback polynomial was mis-aligned (raw a0
+  landed in the a1 slot, unnormalised) → the shelf/peak filters went unstable to Inf on the
+  first coefficient update. Plain playback was clean because the EQ defaults sit inside the
+  ±0.1 dB process gate — only automation/fuzz triggered an update. Fix: assign through
+  `Coefficients::operator=(std::array)`, which normalises by a0; still RT-safe because
+  `prepare()` pre-reserves the coefficient Array's ≥8-slot storage, so the audio-thread
+  assignment never allocates. Verified: seeded repro seeds `0x5e6bc4b`/`0xbd3fa3` + 2 random
+  strictness-10 runs all pass; per-stage non-finite instrumentation confirmed the EQ stage
+  as the sole source before the fix and clean after.
+- **Note:** O-Bells `Source/DSP/EQProcessor.cpp` contains the identical raw-copy pattern
+  (3 call sites) and needs the same fix. O-Chorus and O-MultiBandCompressor were audited
+  and are correct.
+
 ## [2.8.3] - 2026-08-02
 
 ### Fixed
