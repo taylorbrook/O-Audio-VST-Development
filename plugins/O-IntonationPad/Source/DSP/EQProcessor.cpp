@@ -37,18 +37,21 @@ void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     midPeak.prepare (spec);
     highShelf.prepare (spec);
 
-    // One-time full assignment (non-RT) allocates the 6-element coefficient arrays
-    // so the audio-thread path in updateCoefficients() can copy into them in place.
+    // One-time full assignment (non-RT). Assigning the raw 6-element ArrayCoefficients
+    // through Coefficients::operator=(std::array) normalises by a0 AND reserves the
+    // internal Array's storage (>= 8 slots), so the audio-thread path in
+    // updateCoefficients() can reuse the same operator= without ever allocating.
     float lowGain  = targetLowGainDB.load (std::memory_order_relaxed);
     float midGain  = targetMidGainDB.load (std::memory_order_relaxed);
     float midFreq  = targetMidFreqHz.load (std::memory_order_relaxed);
     float highGain = targetHighGainDB.load (std::memory_order_relaxed);
 
-    *lowShelf.state = *FilterCoeffs::makeLowShelf (
+    using ArrayCoeffs = juce::dsp::IIR::ArrayCoefficients<float>;
+    *lowShelf.state = ArrayCoeffs::makeLowShelf (
         currentSampleRate, 200.0f, 0.707f, juce::Decibels::decibelsToGain (lowGain));
-    *midPeak.state = *FilterCoeffs::makePeakFilter (
+    *midPeak.state = ArrayCoeffs::makePeakFilter (
         currentSampleRate, midFreq, 1.0f, juce::Decibels::decibelsToGain (midGain));
-    *highShelf.state = *FilterCoeffs::makeHighShelf (
+    *highShelf.state = ArrayCoeffs::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f, juce::Decibels::decibelsToGain (highGain));
 
     appliedLowGainDB  = lowGain;
@@ -81,20 +84,22 @@ void EQProcessor::updateCoefficients()
         return;
 
     // CR-04: RT-safe coefficient update. ArrayCoefficients returns a stack
-    // std::array<float,6> (no heap alloc, unlike Coefficients::makeXXX which
-    // returns a new-allocated ref-counted Ptr); copy the 6 values in place into
-    // the arrays that prepare() already sized. See pattern_arraycoefficients_rt_safe_iir.
+    // std::array<float,6> of RAW {b0,b1,b2,a0,a1,a2}; Coefficients stores 5
+    // NORMALISED values (each divided by a0, a0 itself dropped). Assign through
+    // Coefficients::operator=(std::array), which performs that normalisation —
+    // a raw std::copy of 6 values mis-aligns the feedback polynomial (a0 lands
+    // in the a1 slot) and the filter goes unstable to Inf on the first update
+    // (caught by Windows CI pluginval fuzz, v2.8.3). operator= is allocation-free
+    // here: prepare() already reserved the Array's >= 8-slot storage, and
+    // clearQuick()+add() never reallocate within capacity.
+    // See pattern_arraycoefficients_rt_safe_iir.
     using ArrayCoeffs = juce::dsp::IIR::ArrayCoefficients<float>;
-    const auto ls = ArrayCoeffs::makeLowShelf (
+    *lowShelf.state = ArrayCoeffs::makeLowShelf (
         currentSampleRate, 200.0f, 0.707f, juce::Decibels::decibelsToGain (lowGain));
-    const auto mp = ArrayCoeffs::makePeakFilter (
+    *midPeak.state = ArrayCoeffs::makePeakFilter (
         currentSampleRate, midFreq, 1.0f, juce::Decibels::decibelsToGain (midGain));
-    const auto hs = ArrayCoeffs::makeHighShelf (
+    *highShelf.state = ArrayCoeffs::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f, juce::Decibels::decibelsToGain (highGain));
-
-    std::copy (ls.begin(), ls.end(), lowShelf.state->getRawCoefficients());
-    std::copy (mp.begin(), mp.end(), midPeak.state->getRawCoefficients());
-    std::copy (hs.begin(), hs.end(), highShelf.state->getRawCoefficients());
 
     appliedLowGainDB = lowGain;
     appliedMidGainDB = midGain;
