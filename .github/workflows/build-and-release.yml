@@ -112,9 +112,9 @@ jobs:
   # ============================================
   build-macos:
     needs: parse-tag
-    # Validate-only dispatch is a Windows-focused COMPAT-01 gate (macOS is already
-    # green at every local gate: auval + pluginval-10 warm). Skip macOS there.
-    if: needs.parse-tag.outputs.validate_only != 'true'
+    # Runs on validate-only dispatches too: on the public repo, macOS minutes are
+    # free and the validate run doubles as the signing/notarization secrets gate.
+    # No Release is published either way — create-release has its own guard.
     runs-on: macos-14  # Apple Silicon runner
     steps:
       - name: Checkout
