@@ -105,11 +105,11 @@ git commit -m "chore: untrack machine-local system-config.json"
 
 ### 2.4 `build-release/` is tracked, including a compiled executable [E3] — ✅ RESOLVED 2026-08-03
 
-**What.** Ten tracked files live under `build-release/`: `CPackConfig.cmake`, `CPackSourceConfig.cmake`, seven files matching `JUCE/*.cmake`, and `build-release/plugins/O-Bowed/O-Bowed_vst3_helper` — a compiled binary. `.gitignore` covers `build/` but not `build-release/` [E3].
+**What (as found 2026-07-30).** Ten tracked files lived under `build-release/`: `CPackConfig.cmake`, `CPackSourceConfig.cmake`, seven files matching `JUCE/*.cmake`, and `build-release/plugins/O-Bowed/O-Bowed_vst3_helper` — a compiled binary. `.gitignore` covers `build/` but still does not cover `build-release/` [E3].
 
 **Why it matters.** Committed build output is noise at best. A committed *executable* is worse: a public repo shipping an unexplained binary invites reasonable suspicion, and nobody reviewing the repo can verify what it was built from.
 
-**What is needed.** Untrack the tree. Note that `.gitignore` currently has no `build-release/` rule; whether to add one is your call, and this document does not edit `.gitignore`.
+**What was needed.** Untrack the tree. Note that `.gitignore` had — and still has — no `build-release/` rule; whether to add one is your call, and this document does not edit `.gitignore`.
 
 > Note: as above, `git rm -r --cached` untracks and leaves the files on disk; it does not remove them from history.
 
@@ -194,7 +194,7 @@ This document does not recommend a side. It does flag one sequencing consequence
 
 ### 3.4 Tracked build logs [S6] — ✅ RESOLVED 2026-08-03
 
-**31 files** matching `logs/**/build_*.log` are tracked, and are also matched by `.gitignore` — the same already-tracked-despite-ignored situation as section 2.3. Build logs embed absolute paths and local environment detail [S6].
+**31 files** matching `logs/**/build_*.log` were tracked, and were also matched by `.gitignore` — the same already-tracked-despite-ignored situation as section 2.3. Build logs embed absolute paths and local environment detail [S6].
 
 Same remedy shape as [S3]:
 
