@@ -10,7 +10,7 @@
 
 **Both hard blockers, legal rather than technical, are now closed.** ✅ The missing root `LICENSE` [L1] is resolved — the repository is licensed **AGPL-3.0**, following the JUCE election in section 5.2. ✅ The audio-sample provenance blocker [L4] is resolved as of 2026-08-01: investigation found the real problem was **three** files, not twelve — three commercial-library assets in O-simpleSampler, since removed with no replacement — while the other nine were provably self-authored and now carry provenance documents. Four of the twelve had never been embedded in a binary at all, and neither affected plugin has ever been released. Section 2.2 has the corrected record.
 
-**⚠️ One open decision replaces that blocker, and it is not a task — it is a choice.** The three withdrawn commercial samples **remain in git history** at commit `4ca27977`. `git rm` does not remove a file from the commits that already contain it, so **publishing with current history publishes them**. Either rewrite history to expunge them (§4.6 / checklist step 14, which stops being optional if you go this way) or record an explicit decision to accept the exposure. Do not let this one go unmade — see §2.2 "Open follow-up" and checklist **step 3b**.
+**✅ That open decision is now resolved — history was rewritten 2026-08-02.** The three withdrawn commercial samples were expunged from all history with `git filter-repo` (targeted at exactly the three paths; every ref, tag, and stash rewritten; the O-simpleSampler v1.0.0 commit formerly `4ca27977` is now `6734552a` and contains no samples). Verified post-rewrite: zero matching blobs across `git rev-list --all --objects`, HEAD tree hash byte-identical, the `plugins/O-Orbit/libs/SAF` gitlink intact, all 291 tags preserved. A full pre-rewrite backup bundle exists at `~/VST-development-pre-rewrite-20260802.bundle` — **that bundle still contains the samples; do not publish it.** One residual: GitHub retains unreachable commits fetchable by SHA until its own GC runs — see checklist **step 3b** for the pre-flip mitigation.
 
 **The licensing decision is worth reading in full (section 5.2), because it was not the obvious one.** JUCE 8 is dual-licensed, and "the free JUCE license" resolves two different ways with opposite consequences. The free *Starter* tier caps you at $20,000 gross annual revenue — and JUCE counts donations and pay-what-you-want income toward that — while its EULA §1.17/§2.3 conflict with publishing the **80 JUCE-owned source files this repository redistributes** (4,451 lines of vendored JUCE overrides plus 78 vendored JUCE JS files). Taking JUCE under **AGPLv3** instead removes the revenue cap and makes those 80 files legally publishable as-is. Nothing needs deleting on license grounds.
 
@@ -65,22 +65,20 @@ Path 3 for the three commercial files, path 1 for the nine cleared ones:
   - `plugins/O-simpleSampler/Source/samples/LICENSE.md`
   - `plugins/O-MicrotonalSampler/tests/fixtures/4-layer/LICENSE.md`
 
-#### ⚠️ Open follow-up — the withdrawn files remain in git history
+#### ✅ Resolved 2026-08-02 — history rewritten, samples expunged
 
-**This is not closed by the removal above, and it is a decision, not a task.**
+The decision was made to **rewrite**. `git filter-repo --invert-paths` was run against exactly the three paths (`plugins/O-simpleSampler/Source/samples/{cello.aif,hit.wav,pizz.aif}`), preceded by a full `git bundle --all` backup at `~/VST-development-pre-rewrite-20260802.bundle`.
 
-The three commercial-library files are still present in git history at commit **`4ca27977`** (2026-07-02, "feat: O-simpleSampler v1.0.0"). `git rm` in a later commit removes a file from the working tree and the index going forward; it does **not** remove it from the commits that already contain it.
+**Post-rewrite verification (all passed):**
+- `git rev-list --all --objects | grep -Ei '(cello\.aif|hit\.wav|pizz\.aif)'` → zero hits across every ref, tag, and stash.
+- HEAD tree hash **byte-identical** before and after (`3e998f41…`) — the rewrite touched history only, not the current tree.
+- `plugins/O-Orbit/libs/SAF` gitlink survived (§4.6's required check).
+- All 291 tags rewritten and preserved; both stashes preserved; commit count 1753.
+- The O-simpleSampler v1.0.0 commit formerly `4ca27977` is now **`6734552a`** and contains no sample files. Historical SHA references in archived `.planning/quick/260801-u3o-*` artifacts refer to the pre-rewrite history and are intentionally left as-is.
 
-**If this repository is published with its current history, the commercial samples are still public** — recoverable by anyone who clones it and checks out that commit. Nothing in this task changed that.
-
-Removing them requires the history rewrite discussed in **§4.6** and listed as **step 14** of the §6 checklist. **This task deliberately did not perform one**, because a rewrite changes every commit SHA and was explicitly out of scope. That leaves an open decision for you:
-
-- **Rewrite history** (`git filter-repo` targeting those three paths) — expunges them, at the cost of rewriting every SHA, breaking existing clones and links into history, and requiring the §4.6 verification that the `plugins/O-Orbit/libs/SAF` gitlink survived.
-- **Publish with current history and accept the exposure** — the files are three assets from a commercial library in one 2026-07-02 commit of an unreleased plugin. If you judge that acceptable, that is a legitimate call; it just needs to be a **made** decision rather than an overlooked one.
-
-Note that §5 already frames step 14 as "genuinely optional — it reclaims repository size and nothing else". **That framing no longer holds unconditionally.** Once this item is on the table, step 14 also carries a legal-exposure dimension for anyone who chooses to close it that way.
-
-**Effort.** Rewrite: hours, plus the mirror backup and post-rewrite verification in §4.6. Accept: zero, but write the decision down.
+**Residuals:**
+1. **The backup bundle contains the old history including the samples.** It lives outside the repo (`~/VST-development-pre-rewrite-20260802.bundle`) — never publish or share it.
+2. **GitHub keeps force-push-orphaned commits fetchable by SHA** until its server-side GC runs (which is not user-triggerable). Anyone with an old SHA could fetch the pre-rewrite commits from github.com even after the force-push. Since the repo is still private, this is mitigated before the visibility flip by either (a) contacting GitHub Support to run GC / purge cached commits, or (b) **deleting the GitHub repo and recreating it from the clean local clone** — simplest and fully deterministic. Tracked as the remaining condition on checklist step 3b.
 
 ---
 
@@ -255,15 +253,7 @@ At 912 MB, a `git clone` is slow and consumes GitHub bandwidth on every fork and
 
 **This is a size decision, not a security one.** Scout confirmed zero credential material across the entire history [S1], so nothing in this section is required to make the repo safe. Do not let the size cleanup [E1] [E2] [E5] be mistaken for a security necessity — if you decide the 912 MB is acceptable, skipping the rewrite entirely is a legitimate and safe choice.
 
-> **⚠️ It is no longer purely a size decision, though.** As of 2026-08-01 there is a second, *legal* reason someone might run this: the three commercial-library samples withdrawn from O-simpleSampler still exist in history at commit **`4ca27977`**, and publishing with current history publishes them. See **§2.2 "Open follow-up"** and **checklist step 3b**. That is an open decision — if you resolve it by expunging, this is the operation, and the three paths below join the filter-repo list:
->
-> ```
-> --path plugins/O-simpleSampler/Source/samples/cello.aif
-> --path plugins/O-simpleSampler/Source/samples/pizz.aif
-> --path plugins/O-simpleSampler/Source/samples/hit.wav
-> ```
->
-> If you resolve it by accepting the exposure instead, nothing here changes and the rewrite stays optional.
+> **✅ The legal dimension of this was resolved 2026-08-02.** The three commercial-library sample paths were expunged in a **targeted** `git filter-repo` rewrite (see §2.2 "Resolved"), so the samples exposure no longer rides on this section. What remains here is the original **size** decision only — the 912 MB reclaim — which stays genuinely optional. Note that a size rewrite would now be the repository's *second* rewrite; that is mechanically fine (rewrites compose), it just changes every SHA again.
 
 If you do decide to proceed, this is the shape of the operation. It is a **proposal for your approval**, not a step this document has taken:
 
@@ -356,7 +346,7 @@ Every audio asset folder in the repository now carries a provenance document. Th
 
 Each of the three new documents records a **per-file MD5 measured from disk**, so a future drift between the document and what it describes is detectable rather than silent — a provenance document that has quietly gone false is worse than none.
 
-The three commercial-library files that were the actual blocker were removed rather than documented. **Section 2.2 carries the full record, including the one exposure this did not close: those files remain in git history at commit `4ca27977`.**
+The three commercial-library files that were the actual blocker were removed rather than documented. **Section 2.2 carries the full record. The history exposure was closed 2026-08-02 by a targeted rewrite — the files no longer exist anywhere in git history.**
 
 ---
 
@@ -367,7 +357,7 @@ Work top to bottom. The order is not arbitrary — each step either gates the ne
 - [x] ~~**1. Answer the JUCE licensing question.**~~ ✅ **Done 2026-08-01 — AGPLv3**, not the free Starter tier. Removes the $20k PWYW revenue cap and makes the 80 redistributed JUCE files publishable as-is. *(Section 5.2 — [L2].)*
 - [x] ~~**2. Add a root `LICENSE` file.**~~ ✅ **Done 2026-08-01** — AGPL-3.0, verbatim from gnu.org, 661 lines. *(Section 2.1 / 5.1 — [L1].)*
 - [x] ~~**3. Resolve the undocumented sample provenance** in O-simpleGrain, O-simpleSampler, and the O-MicrotonalSampler 4-layer fixtures.~~ ✅ **Done 2026-08-01.** Three commercial-library files removed with no replacement; O-simpleSampler rebuilt and re-verified at v1.1.0 (auval 20 params, pluginval@10 ×6, harness 9/9); three provenance `LICENSE.md` files written with per-file MD5s. *(Section 2.2 / 5.4 — [L4].)*
-- [ ] **3b. ⚠️ DECIDE: the withdrawn commercial samples remain in git history at commit `4ca27977`.** `git rm` did not remove them from earlier commits, so **publishing with current history publishes them**. Either rewrite history to expunge them (this is step 14, and it makes step 14 non-optional) or record an explicit decision to accept the exposure. *(Section 2.2 "Open follow-up" / 4.6 — [L4].)* **Must be resolved before step 15.**
+- [x] ~~**3b. DECIDE: the withdrawn commercial samples remain in git history.**~~ ✅ **Done 2026-08-02 — resolved by targeted rewrite.** `git filter-repo` expunged the three sample paths from all history (backup bundle at `~/VST-development-pre-rewrite-20260802.bundle`; blobs verified gone across all refs; HEAD tree byte-identical; SAF gitlink intact; formerly-`4ca27977` now `6734552a`). *(Section 2.2 "Resolved" — [L4].)* **One condition rides forward to step 15: GitHub retains orphaned pre-rewrite commits fetchable by SHA until server-side GC. Before flipping visibility, either have GitHub Support purge them or delete and recreate the repo from the clean clone.**
 - [ ] **4. Write `THIRD-PARTY-NOTICES.md`** aggregating SAF, the bundled JS licenses, moodycamel, and the FetchContent dependencies — and stating explicitly that **JUCE is used under the AGPLv3 option of its dual license**, which a reader cannot otherwise determine. *(Section 5.3 / 5.2 — [L3] [L2].)*
 - [x] ~~**4b. Add AGPL notice headers** to your own source files.~~ ✅ **Done 2026-08-01** — 707 files across 39 plugins and 11 modules, via the idempotent `scripts/add-agpl-headers.py`. Third-party excluded and verified untouched. *(Section 5.2 — [L2].)*
 - [ ] **5. Untrack `.claude/system-config.json`** with `git rm --cached`. *(Section 2.3 — [S3].)*
@@ -379,7 +369,7 @@ Work top to bottom. The order is not arbitrary — each step either gates the ne
 - [ ] **11. Decide: keep or strip `.claude/` and `.planning/`.** *(Section 3.3 — [S5]; also resolves the bulk of [S2].)* Must resolve **before** step 12, because it changes what a rewrite would need to strip.
 - [ ] **12. Move the committed installers off git** and onto GitHub Releases. *(Section 4.3 — [E2].)*
 - [ ] **13. Tidy the repo root** — the scratch renders and images that make the root read as a workspace. *(Section 4.4 — [E4].)*
-- [ ] **14. Rewrite history — optional for size, but see step 3b.** Take a mirror backup, run the `git filter-repo` proposal in section 4.6, and verify the `plugins/O-Orbit/libs/SAF` gitlink survived. *(Sections 4.2 / 4.5 / 4.6 — [E1] [E5] [L3].)* **Last among all local changes** — it changes every commit SHA, so nothing else should follow it. **⚠️ If you resolve step 3b by expunging the withdrawn commercial samples, this step is where that happens and it is no longer optional** — add `plugins/O-simpleSampler/Source/samples/{cello.aif,pizz.aif,hit.wav}` to the filter-repo path list. *(Section 2.2 — [L4].)*
+- [ ] **14. Rewrite history — optional, size only.** The legal dimension was already closed by the targeted step-3b rewrite of 2026-08-02, so this step is back to being **genuinely optional**: it reclaims repository size and nothing else. If run, take a mirror backup, run the `git filter-repo` proposal in section 4.6 (the three sample paths are already gone — no need to include them), and verify the `plugins/O-Orbit/libs/SAF` gitlink survived. *(Sections 4.2 / 4.5 / 4.6 — [E1] [E5].)* **Last among all local changes** — it changes every commit SHA again, so nothing else should follow it.
 - [ ] **15. Flip visibility to public.** Final step, after everything above.
 
   > **IRREVERSIBLE — decide before running.**
