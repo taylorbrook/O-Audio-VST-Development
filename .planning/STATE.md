@@ -29,7 +29,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-08-02 - Completed quick task 260802-ujb: README public-release update (0-Audio intro, plugin catalog, AGPL-3.0 licence section, command-reference parity)
+Last activity: 2026-08-03 - Repo went PUBLIC at github.com/taylorbrook/O-Audio-VST-Development (separate public repo; private VST-development retained as working origin)
 
 Progress: [██████████] 100%
 
