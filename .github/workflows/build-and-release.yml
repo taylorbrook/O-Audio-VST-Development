@@ -196,11 +196,30 @@ jobs:
             -k "$KEYCHAIN_PATH"
           rm installer-certificate.p12
 
+          # Import Apple's Developer ID intermediate CAs. A Keychain Access p12
+          # export carries only the leaf cert + key; without the intermediate in
+          # the search path, codesign reports "no identity found" even though the
+          # leaf and key imported cleanly.
+          curl -fsSL -o DeveloperIDCA.cer   https://www.apple.com/certificateauthority/DeveloperIDCA.cer
+          curl -fsSL -o DeveloperIDG2CA.cer https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security import DeveloperIDCA.cer   -t cert -A -k "$KEYCHAIN_PATH"
+          security import DeveloperIDG2CA.cer -t cert -A -k "$KEYCHAIN_PATH"
+          rm DeveloperIDCA.cer DeveloperIDG2CA.cer
+
           # Allow codesign/productsign to access the keychain without UI prompt
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
 
           # Add temporary keychain to search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Diagnostic: how many VALID signing identities does the keychain hold?
+          # "0 valid identities found" here = chain or key problem; fail fast with
+          # a meaningful message instead of dying later inside codesign.
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          if security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -q "0 valid identities"; then
+            echo "::error::Certificate imported but no VALID codesigning identity — check that the p12 contains the private key and the chain is complete."
+            exit 1
+          fi
 
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
           echo "KEYCHAIN_PWD=$KEYCHAIN_PWD" >> $GITHUB_ENV
