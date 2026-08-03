@@ -82,9 +82,9 @@ The decision was made to **rewrite**. `git filter-repo --invert-paths` was run a
 
 ---
 
-### 2.3 `.claude/system-config.json` is tracked despite its `.gitignore` entry [S3]
+### 2.3 `.claude/system-config.json` is tracked despite its `.gitignore` entry [S3] — ✅ RESOLVED 2026-08-03
 
-**What.** `.gitignore` line 1 lists `.claude/system-config.json`, yet the file is still tracked — confirmed by `git ls-files -i -c --exclude-standard`. The file contains machine-local absolute toolchain paths [S3].
+**What.** `.gitignore` line 9 lists `.claude/system-config.json`, yet the file was still tracked — confirmed by `git ls-files -i -c --exclude-standard`. The file contains machine-local absolute toolchain paths [S3].
 
 **Why it matters.** `.gitignore` only prevents *untracked* files from being added; it has no effect on a file that git is already tracking. This is a common and silent failure mode: the ignore rule is present, the intent is clear, and the file keeps getting committed anyway. On a public repo it publishes your local toolchain layout.
 
@@ -97,11 +97,13 @@ git rm --cached .claude/system-config.json
 git commit -m "chore: untrack machine-local system-config.json"
 ```
 
+**Resolved 2026-08-03.** `ecf3fa39` untracked the file — 1 of the 42 files in that commit (5897 deletions, 0 insertions, all `git rm --cached` untrackings). `git ls-files .claude/system-config.json` now returns nothing, and the file remains on disk where the local toolchain still reads it. `.gitignore` line 9 keeps it from being re-added.
+
 **Effort.** Under a minute.
 
 ---
 
-### 2.4 `build-release/` is tracked, including a compiled executable [E3]
+### 2.4 `build-release/` is tracked, including a compiled executable [E3] — ✅ RESOLVED 2026-08-03
 
 **What.** Ten tracked files live under `build-release/`: `CPackConfig.cmake`, `CPackSourceConfig.cmake`, seven files matching `JUCE/*.cmake`, and `build-release/plugins/O-Bowed/O-Bowed_vst3_helper` — a compiled binary. `.gitignore` covers `build/` but not `build-release/` [E3].
 
@@ -115,6 +117,10 @@ git commit -m "chore: untrack machine-local system-config.json"
 git rm -r --cached build-release/
 git commit -m "chore: untrack build-release output"
 ```
+
+**Resolved 2026-08-03 — with one residual.** `ecf3fa39` untracked all ten files, the compiled `O-Bowed_vst3_helper` among them, and `git ls-files build-release` now returns nothing.
+
+> **Residual — still open.** `.gitignore` still has **no `build-release/` rule**. `git check-ignore -v build-release/CPackConfig.cmake` returns nothing, and `git status --porcelain` shows `?? build-release/` right now — the directory is sitting on disk, untracked *and* unignored. The practical consequence: a single `git add -A` re-commits the whole tree, putting the compiled helper binary back into a repository that is now public. Closing it is a one-line `.gitignore` addition, deliberately left out of scope, consistent with this section's statement above that this document does not edit `.gitignore`. **This is the one part of section 2.4 that is not done.**
 
 **Effort.** Under a minute.
 
@@ -164,6 +170,8 @@ git commit -m "chore: untrack build-release output"
 
 The string `/Users/taylorbrook` appears in **354 tracked files** [S2]. The occurrences are concentrated in the AI-workflow directories: `.claude/agent-memory/*.md`, `.claude/skills/**`, `.claude/system-config.json`, `.planning/STATE.md`, `.planning/codebase/*.md`, and `.planning/milestones/**/*-PLAN.md` [S2].
 
+> **Update 2026-08-03.** One entry in that list is no longer tracked: `.claude/system-config.json` was untracked in `ecf3fa39` (see §2.3), so the measured figure is now **353**. The 354 above stands as the [S2] measurement at the 2026-07-30 assessment date. The file still sits on disk, so the paths it contains remain local — they are simply no longer published.
+
 This discloses the macOS account name and the full local directory layout. **Low severity, high volume** [S2] — no credential is exposed, but the footprint is large enough that piecemeal editing is not practical. In practice this resolves as a side effect of the keep-or-strip decision in section 3.3: strip those trees and the great majority of the 354 files go with them.
 
 ---
@@ -184,7 +192,7 @@ This document does not recommend a side. It does flag one sequencing consequence
 
 ---
 
-### 3.4 Tracked build logs [S6]
+### 3.4 Tracked build logs [S6] — ✅ RESOLVED 2026-08-03
 
 **31 files** matching `logs/**/build_*.log` are tracked, and are also matched by `.gitignore` — the same already-tracked-despite-ignored situation as section 2.3. Build logs embed absolute paths and local environment detail [S6].
 
@@ -196,6 +204,8 @@ Same remedy shape as [S3]:
 git rm -r --cached logs/
 git commit -m "chore: untrack build logs"
 ```
+
+**Resolved 2026-08-03.** `ecf3fa39` untracked all 31 matching files. `.gitignore` line 196 (`*.log`) already covers the pattern, so — unlike `build-release/` — these cannot silently return to tracking.
 
 ---
 
@@ -366,9 +376,9 @@ Work top to bottom. The order is not arbitrary — each step either gates the ne
 - [x] ~~**3b. DECIDE: the withdrawn commercial samples remain in git history.**~~ ✅ **Done 2026-08-02 — resolved by targeted rewrite.** `git filter-repo` expunged the three sample paths from all history (backup bundle at `~/VST-development-pre-rewrite-20260802.bundle`; blobs verified gone across all refs; HEAD tree byte-identical; SAF gitlink intact; formerly-`4ca27977` now `6734552a`). *(Section 2.2 "Resolved" — [L4].)* **One condition rides forward to step 15: GitHub retains orphaned pre-rewrite commits fetchable by SHA until server-side GC. Before flipping visibility, either have GitHub Support purge them or delete and recreate the repo from the clean clone.**
 - [ ] **4. Write `THIRD-PARTY-NOTICES.md`** aggregating SAF, the bundled JS licenses, moodycamel, and the FetchContent dependencies — and stating explicitly that **JUCE is used under the AGPLv3 option of its dual license**, which a reader cannot otherwise determine. *(Section 5.3 / 5.2 — [L3] [L2].)*
 - [x] ~~**4b. Add AGPL notice headers** to your own source files.~~ ✅ **Done 2026-08-01** — 707 files across 39 plugins and 11 modules, via the idempotent `scripts/add-agpl-headers.py`. Third-party excluded and verified untouched. *(Section 5.2 — [L2].)*
-- [ ] **5. Untrack `.claude/system-config.json`** with `git rm --cached`. *(Section 2.3 — [S3].)*
-- [ ] **6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`. *(Section 2.4 — [E3].)*
-- [ ] **7. Untrack the build logs** under `logs/`. *(Section 3.4 — [S6].)*
+- [x] ~~**5. Untrack `.claude/system-config.json`** with `git rm --cached`.~~ ✅ **Done 2026-08-03** — untracked in `ecf3fa39` (1 file, part of a 42-file, 5897-deletion untracking commit); `git ls-files` now returns nothing for the path and the file remains on disk. `.gitignore:9` keeps it from being re-added. *(Section 2.3 — [S3].)*
+- [x] ~~**6. Untrack `build-release/`**, including the compiled `O-Bowed_vst3_helper`.~~ ✅ **Done 2026-08-03** — all 10 tracked files untracked in `ecf3fa39`, the compiled helper binary among them; `git ls-files build-release` now returns nothing. *(Section 2.4 — [E3].)* **Residual, still open: `.gitignore` still has no `build-release/` rule. The directory sits on disk right now as an untracked `??` entry, so a future `git add -A` would re-commit the whole tree — compiled `O-Bowed_vst3_helper` included — into a now-public repository. Adding that ignore rule is the open follow-up; it has not been done.**
+- [x] ~~**7. Untrack the build logs** under `logs/`.~~ ✅ **Done 2026-08-03** — 31 `logs/**/build_*.log` files untracked in `ecf3fa39`; `.gitignore:196` (`*.log`) already covers them, so unlike `build-release/` this one cannot silently return to tracking. *(Section 3.4 — [S6].)*
 - [x] ~~**8. Add a top-level `permissions: contents: read` block** to the release workflow.~~ ✅ **Done 2026-08-03** — added between the `on:` and `env:` blocks as the least-privilege default for every job's `GITHUB_TOKEN`. The `create-release` job keeps its own `contents: write` override, so Release publishing is unaffected. *(Section 3.1 — [S4].)*
 - [x] ~~**9. SHA-pin every tag-pinned action reference** in the release workflow.~~ ✅ **Done 2026-08-03** — all 8 references pinned to 40-hex commit SHAs, each with a trailing `# vN (vN.N.N)` comment carrying both the major tag pinned and the precise release. Zero mutable-tag references remain. *(Section 3.1 — [S4].)*
 - [x] ~~**10. Record the standing CI rule** — never add `pull_request_target` or a secrets-bearing `pull_request` trigger while the workflow holds signing certificates.~~ ✅ **Done 2026-08-03** — recorded as a set-off standing-rule block in the workflow's own header comment, where the next editor sees it first. It names both forbidden triggers, lists the eight Apple signing secrets, and states the stake: signed, notarised malware shipped under the Ouaricon identity. *(Section 3.1 — [S4].)*
