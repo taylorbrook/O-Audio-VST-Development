@@ -229,3 +229,26 @@ plugins/*/.continue-here.md
 
 # Scratch pluginval / validation log dumps
 scratch-pv/
+
+# =============================================================================
+# Installer / Distribution Packages
+# =============================================================================
+# Built installer packages are release artifacts, not source. They belong on
+# GitHub Releases — which .github/workflows/build-and-release.yml already
+# publishes to — and not in git, where every rebuild would store another
+# multi-megabyte blob in history forever.
+#
+# `*.exe` and `*.zip` already appear elsewhere in this file and cover the
+# Windows-installer and archive forms. The three rules below close the macOS
+# installer / disk-image and Windows MSI gap rather than duplicating those.
+#
+# A wildcard rule over every plugin's `dist` folder was considered and
+# DELIBERATELY REJECTED. Those folders also hold hand-authored source:
+# O-Tremolo's Inno Setup script (`installer.iss`) and the install-readme text
+# files for both O-Tremolo and O-Polystutter live in exactly such a folder. A
+# directory-wide rule would silently stop new installer scripts from being
+# tracked. Match on the built-artifact extension instead — do not broaden this
+# to the containing directory.
+*.pkg
+*.dmg
+*.msi
