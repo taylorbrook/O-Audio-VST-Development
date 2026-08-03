@@ -64,6 +64,7 @@ plugins/*/.planning/evidence/**/*.wav
 # =============================================================================
 build/
 Build/
+build-release/
 cmake-build-*/
 out/
 bin/
