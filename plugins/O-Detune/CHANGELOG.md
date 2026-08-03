@@ -1,5 +1,20 @@
 # O-Detune Changelog
 
+## [1.5.4] - 2026-08-02
+
+### Fixed
+
+- **Plugin bundle now reports its real version to hosts.** `juce_add_plugin` had no
+  `VERSION` keyword, so every prior release shipped reporting 1.0.0 (AU version
+  65536) regardless of the actual release number. `VERSION 1.5.4` is now declared
+  in CMakeLists.txt.
+
+### Changed
+
+- Synced vendored preset-manager module to v1.0.5 (byte-identical to
+  `modules/persistence/preset-manager`).
+- Added AGPL-3.0 license notice headers to all Ouaricon-authored sources.
+
 ## [1.5.3] - 2026-07-01
 
 Code-review follow-ups (see `.planning/REVIEW.md`). All changes preserve existing
