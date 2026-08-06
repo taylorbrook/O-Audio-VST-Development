@@ -10,21 +10,23 @@ Every plugin is free and pay-what-you-want, and the entire catalog is open sourc
 
 All plugins build as VST3 (macOS and Windows) and AU (macOS), and load in any compatible DAW.
 
+Linked plugin names go to that plugin's page on the [O-Audio site](https://oaudio.io/), where a release is available to download; unlinked names build from source here.
+
 **Instruments & Synths**
 
 | Plugin | Description |
 |--------|-------------|
-| `O-Bells` | Physical-modeling bells |
+| [`O-Bells`](https://oaudio.io/products/ouaricon-bells) | Physical-modeling bells |
 | `O-Marimba` | Physical-model marimba |
-| `O-Lyrica` | Physical-modeling harp |
+| [`O-Lyrica`](https://oaudio.io/products/ouaricon-lyrica) | Physical-modeling harp |
 | `O-Wind` | Physical-model flute |
 | `O-Reed` | Physical-modeling reed wind |
 | `O-Bowed` | Physical-model bowed string |
 | `O-Contrabass` | Physical-model bowed bass (in development) |
 | `O-Bassoon` | Physical-model bassoon (in development) |
 | `O-Formant` | Physical-model vocal synth |
-| `O-Prism` | Microtonal wavetable synth |
-| `O-IntonationPad` | Wavetable pad with microtonal intonation |
+| [`O-Prism`](https://oaudio.io/products/ouaricon-prism) | Microtonal wavetable synth |
+| [`O-IntonationPad`](https://oaudio.io/products/ouaricon-intonation-pad) | Wavetable pad with microtonal intonation |
 | `O-MicrotonalSampler` | Microtonal sampler |
 | `O-TextureForge` | Concatenative synthesis instrument |
 | `O-Texture` | Neural texture synth (instrument/effect) |
@@ -47,21 +49,21 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 
 | Plugin | Description |
 |--------|-------------|
-| `O-SimpleReverb` | Reverb |
-| `O-DigiDelay` | Digital delay |
+| [`O-SimpleReverb`](https://oaudio.io/products/ouaricon-simple-reverb) | Reverb |
+| [`O-DigiDelay`](https://oaudio.io/products/ouaricon-delay) | Digital delay |
 | `O-ReverseDelay` | Granular reverse delay |
-| `O-Chorus` | Chorus |
-| `O-Tremolo` | Tremolo |
-| `O-Detune` | Detuning |
-| `O-AnalogEQ` | Analog-voiced EQ |
-| `O-AnalogSaturation` | Saturation |
-| `O-Comp` | Compressor |
+| [`O-Chorus`](https://oaudio.io/products/ouaricon-chorus) | Chorus |
+| [`O-Tremolo`](https://oaudio.io/products/ouaricon-tremolo) | Tremolo |
+| [`O-Detune`](https://oaudio.io/products/ouaricon-detune) | Detuning |
+| [`O-AnalogEQ`](https://oaudio.io/products/ouaricon-analog-eq) | Analog-voiced EQ |
+| [`O-AnalogSaturation`](https://oaudio.io/products/ouaricon-saturation) | Saturation |
+| [`O-Comp`](https://oaudio.io/products/ouaricon-compressor) | Compressor |
 | `O-MultiBandCompressor` | Multiband dynamics |
 | `O-Bass` | Bass enhancer |
-| `O-Polystutter` | Beat repeater |
+| [`O-Polystutter`](https://oaudio.io/products/ouaricon-polystutter) | Beat repeater |
 | `O-GrainScatter` | Granular stutter engine |
-| `O-Freeze` | Granular freeze |
-| `O-FreqPulse` | Spectral sequencer |
+| [`O-Freeze`](https://oaudio.io/products/ouaricon-freeze) | Granular freeze |
+| [`O-FreqPulse`](https://oaudio.io/products/ouaricon-frequency-pulse) | Spectral sequencer |
 | `O-SpectralShaper` | Spectral transient shaper |
 | `O-Orbit` | Spatial orbiter |
 
