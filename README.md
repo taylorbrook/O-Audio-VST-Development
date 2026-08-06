@@ -73,6 +73,43 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 
 Per-plugin versions, release state, and history live in the **[plugin registry](PLUGINS.md)**.
 
+## Microtonal Dorico Integration
+
+Dorico drives per-note microtonal playback in these plugins directly from the score — quarter-tones, just intonation, and custom tunings, with no MIDI pitch-bend workarounds and no per-track lane hacks. Write the accidental, and the plugin plays it.
+
+### Per-Note Tuning (VST3 Note Expression)
+
+Per-note tuning is provided by a shared module, `modules/tuning/note-expression` (v1.1.1). It owns the Note Expression Controller for `kTuningTypeID`, drains raw Note Expression events from a patched JUCE wrapper (`scripts/juce-patches/note-expression-juce-8.0.14.patch`), and applies the resulting per-note semitone offset at the voice call site. It composes with the `scala-tuning-engine` module, so a Dorico-driven delta and a plugin-side tuning table stack rather than conflict.
+
+This is the VST3 path — the Note Expression symbols are VST3-only, so the capability requires a plugin's VST3 build. Dorico loads VST3 on both macOS and Windows.
+
+Eleven plugins consume the module:
+
+`O-Bassoon`, `O-Bells`, `O-Bowed`, `O-Contrabass`, `O-Formant`, `O-IntonationPad`, `O-Lyrica`, `O-MicrotonalSampler`, `O-Prism`, `O-Reed`, `O-Wind`
+
+Activation is a one-time step. The installers — PKG on macOS, EXE on Windows — bundle `Ouaricon-VST3-NoteExpression.doricolib`. Import it once via **Dorico → Library → Library Manager → Import**, after which tuned pitches play back automatically in any project using these plugins as VST3 instruments.
+
+### Playback Templates, Expression Maps, and Keyswitches
+
+Two plugins ship full Dorico bundles — `O-MicrotonalSampler` and `O-Contrabass` — each under `plugins/<Name>/Resources/dorico/` with a playback template spec, endpoint configs, an install guide, and a smoke test.
+
+The O-MicrotonalSampler bundle covers four instrument families — Strings, Winds, Brass, and a Generic fallback — in a single Playback Template, with Dorico routing each stave to the matching family map by the stave's instrument family. O-Contrabass ships the same shape with a single endpoint config.
+
+A loose `.doricoexpmap` file is not picked up by Dorico's Library scanner, so the bundles use the multi-folder layout Dorico itself uses for user-saved templates, plus a `DefaultLibraryAdditions/` entry that registers the expression maps globally on launch.
+
+Two O-MicrotonalSampler specifics worth knowing when setting it up:
+
+- **Keyswitching is opt-in.** A fresh instance ships with `ks_enabled` off and forwards every note to the synth, so a library mapped into the low register loses nothing. Enable the toggle when you want the expression map's keyswitches to drive the technique cursor.
+- **Dynamics can follow a continuous CC.** A `Dynamics Mode` parameter selects `Velocity` or `CC Crossfade`; in CC Crossfade mode the plugin crossfades recorded dynamic layers from the controller value, with a Dynamic Range control setting how far the crossfade travels.
+
+### Further Reading
+
+- [`research/microtonal-dorico-integration.md`](research/microtonal-dorico-integration.md) — the developer reference: module architecture, the canonical Dorico setup procedure, host-side behavior quirks, and a table of troubleshooting signatures.
+- [`modules/tuning/note-expression/README.md`](modules/tuning/note-expression/README.md) — module API, JUCE patch management, and integration approach.
+- [`plugins/O-MicrotonalSampler/Resources/dorico/INSTALL-DORICO.md`](plugins/O-MicrotonalSampler/Resources/dorico/INSTALL-DORICO.md) and [`plugins/O-Contrabass/Resources/dorico/INSTALL-DORICO.md`](plugins/O-Contrabass/Resources/dorico/INSTALL-DORICO.md) — per-plugin playback template install steps.
+
+For help inside this repo, the `/dorico` command answers integration questions and troubleshoots playback for a given plugin.
+
 ## The Development System
 
 An AI-assisted JUCE plugin development system that enables conversational creation of professional VST3 and AU audio plugins. Design and build custom audio processors through natural dialogue with Claude Code—no programming experience required. The interactive development loop is macOS-primary; cross-platform release builds (VST3 for macOS and Windows, AU for macOS) are produced through GitHub Actions CI via `/publish`.
@@ -135,14 +172,6 @@ Plugins use web-based interfaces (HTML/CSS/JS) rendered via JUCE's WebView inste
 - **Interactive mockups**: Test and refine interfaces before implementation
 - **Familiar tools**: Use web technologies many creators already understand
 - **Responsive layouts**: Easily adapt UIs to different sizes and contexts
-
-### Microtonal Dorico Playback (v1.5)
-
-Pitched plugins ship with VST3 Note Expression support so Dorico can drive per-note microtonal inflections (quarter-tones, just intonation, custom tunings) directly from the score — no MIDI Pitch Bend hacks, no per-track lane workarounds.
-
-- **Shared module** — `modules/tuning/note-expression` (v1.1.1): a header-only `Ouaricon::NoteExpression` API that owns the Note Expression Controller (`kTuningTypeID`), drains raw NE events from a patched JUCE wrapper, and applies per-note semitone offsets at the voice call site. Composes cleanly with the `scala-tuning-engine` module.
-- **Cohort consumers** — O-Lyrica, O-Bells, O-Prism, O-Wind, O-IntonationPad, O-Reed, O-Bowed, O-Formant.
-- **How it works in Dorico** — installers (PKG on macOS, EXE on Windows) bundle `Ouaricon-VST3-NoteExpression.doricolib`. User runs Dorico → Library → Library Manager → Import once; the plugins then play back tuned pitches automatically when used as VST3 instruments in a Dorico project.
 
 ### GUI-Optional Workflow
 
