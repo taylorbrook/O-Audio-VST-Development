@@ -10,7 +10,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # JucePlugin_VersionString from this. A mismatched harness version rewrites the
 # user's real factory-preset directory (the .factory-version sentinel compares
 # against JucePlugin_VersionString).
-set(OSIMPLEFM_VERSION "1.2.3")
+set(OSIMPLEFM_VERSION "1.2.4")
 
 juce_add_plugin(O-simpleFM
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
