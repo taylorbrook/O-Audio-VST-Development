@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.4] — 2026-08-08
+
+First public release on the O-Audio-VST-Development repo, built and signed
+through the cross-platform CI pipeline. No DSP, parameter, or state-format
+changes.
+
+### Changed
+- Relicensed under AGPL-3.0: license notice headers added to all
+  Ouaricon-authored source files.
+
 ## [1.2.3] — 2026-07-15
 
 Resolves the four Info findings from the 2026-07-15 full-plugin code review
