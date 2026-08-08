@@ -1,5 +1,16 @@
 # O-MicrotonalSampler Changelog
 
+## [1.23.10] - 2026-08-08
+
+### Fixed
+
+- Windows build compatibility: hoisted `SafePointer` init-captures out of
+  nested lambdas (MSVC C2059 workaround)
+
+### Changed
+
+- Added AGPL-3.0 license notice headers to all Ouaricon-authored sources
+
 ## [1.23.9] - 2026-07-21
 
 Patch release fixing a **regression introduced by v1.23.8**: offline export
