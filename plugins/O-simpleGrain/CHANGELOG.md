@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.3] — 2026-08-08
+
+First published release (version aligned with the O-simple pedagogical suite).
+
+### Changed
+- Cross-platform release builds (macOS VST3+AU, Windows VST3, Linux VST3) via GitHub Actions
+- AGPL-3.0 notice headers added to all Ouaricon-authored sources
+
 ## [1.1.2] — 2026-07-16
 
 Resolves the nine deferred Info findings from the 2026-07-15 CODE_REVIEW.md
