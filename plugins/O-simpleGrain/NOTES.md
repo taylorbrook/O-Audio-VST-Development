@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.2
+- **Version:** 1.2.0
 - **Type:** Synth (Pedagogical Granular)
 
 ## Lifecycle Timeline
@@ -15,6 +15,8 @@
 - **2026-07-16 (source recovery):** Discovered the working tree had been reverted to v1.0.1 with the v1.0.2/v1.1.0 source uncommitted — the installed 1.1.0 binary was the only surviving v1.1.0 artifact. Restored v1.0.2 from `backups/O-simpleGrain/v1.0.2/`; recovered the v1.1.0 UI byte-exact from the installed binary's embedded resources and re-implemented its C++ side from the recovered spec.
 - **2026-07-16 (v1.1.1):** CODE_REVIEW.md resolution (CR-01..02, WR-02..05; WR-01 was the v1.0.2 fix resurfacing via the reverted tree) — see CHANGELOG. Dropped-source survival across re-prepare (retained bytes + keep-live), sourceStateLock for the identity race, pre-decode 10 s cap, presets-keep-source contract (Granular Fire force-loads), single-sourced version, lock-free audio-thread source view (retired-list reap). New render gate (`adsr-bypass`). All 11 gates PASS, auval SUCCEEDED, pluginval strictness-10 SUCCESS, installed (VST3 + AU).
 - **2026-07-16 (v1.1.2):** CODE_REVIEW.md deferred-findings resolution (IN-01..IN-09) — see CHANGELOG. Spray-spawn wrap (no more edge-pinned DC thumps), τ-derived rest-ease (rate-independent glide), double read positions, event-driven UI source refresh (`sourceChanged`), cached typed voice pointers (no per-block RTTI), skip-unchanged-rate re-decode, dead member removed, grain cap pushed via initialisation data, gestured preset writes. All 11 gates PASS, auval SUCCEEDED, pluginval strictness-10 SUCCESS, installed (VST3 + AU).
+- **2026-08-08 (v1.1.3):** First published cross-platform release (GitHub Actions; AGPL-3.0 headers) — see CHANGELOG.
+- **2026-08-09 (v1.2.0):** Header/tooltip UX — see CHANGELOG. Title no longer line-breaks (title block `flex-shrink: 0` + nowrap; preset bar pushed right), new "?" button toggles tooltips (persisted, default on), duplicate tooltips fixed (native `title=` fallback replaced with `aria-label`). UI-only; installed (VST3 + AU).
 
 ## Known Issues
 
