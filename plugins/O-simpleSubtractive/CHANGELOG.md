@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.4] — 2026-08-08
+
+First published release (version aligned with the O-simple pedagogical suite).
+
+### Changed
+- Cross-platform release builds (macOS VST3+AU, Windows VST3, Linux VST3) via GitHub Actions
+- AGPL-3.0 notice headers added to all Ouaricon-authored sources
+
 ## [1.0.0] — 2026-06-25
 
 First release. A teaching subtractive synth for the Ouaricon pedagogical suite:
