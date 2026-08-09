@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.3] — 2026-08-09
+
+License-compliance release; no functional changes.
+
+### Changed
+- AGPL-3.0 notice headers added to all Ouaricon-authored sources (repo-wide
+  compliance pass)
+- Render-harness CMake config aligned with the shared harness template (test
+  infrastructure only)
+
 ## [1.0.2] — 2026-07-15
 
 Resolves the remaining Info findings from the 2026-07-15 deep code review
