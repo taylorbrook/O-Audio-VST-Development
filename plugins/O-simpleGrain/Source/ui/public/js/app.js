@@ -886,8 +886,11 @@ function setupTooltips() {
   const tip = document.getElementById("tooltip");
   if (!tip) return;
   let active = null;
+  let enabled = true;
+  try { enabled = localStorage.getItem("osg.tipsEnabled") !== "false"; } catch (e) {}
 
   const show = (key, x, y) => {
+    if (!enabled) return;
     const entry = TIPS[key];
     if (!entry) return;   // 3.1: most keys have no copy yet (3.3 fills TIPS)
     tip.innerHTML = `<span class="tip-title">${entry[0]}</span>${entry[1]}`;
@@ -915,16 +918,28 @@ function setupTooltips() {
   document.querySelectorAll("[data-tip]").forEach((el) => {
     const key = el.getAttribute("data-tip");
     const entry = TIPS[key];
-    // Native title= as a robust fallback (accessibility + hosts where the custom
-    // floating tooltip might be missed). The floating tooltip is the rich version.
-    if (entry && !el.hasAttribute("title"))
-      el.setAttribute("title", `${entry[0]} — ${plain(entry[1])}`);
+    // aria-label keeps the copy readable to assistive tech WITHOUT the native
+    // title= popup, which doubled up with the floating tooltip on hover.
+    if (entry && !el.hasAttribute("aria-label"))
+      el.setAttribute("aria-label", `${entry[0]} — ${plain(entry[1])}`);
+    el.removeAttribute("title");
     el.addEventListener("pointerenter", (e) => { active = key; show(key, e.clientX, e.clientY); });
     el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
     el.addEventListener("pointerleave", hide);
     el.addEventListener("pointerdown", hide);
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+
+  const toggle = document.getElementById("tipToggle");
+  if (toggle) {
+    toggle.setAttribute("aria-pressed", String(enabled));
+    toggle.addEventListener("click", () => {
+      enabled = !enabled;
+      toggle.setAttribute("aria-pressed", String(enabled));
+      if (!enabled) hide();
+      try { localStorage.setItem("osg.tipsEnabled", String(enabled)); } catch (e) {}
+    });
+  }
 }
 
 // ── On-screen keyboard (play without external MIDI) ──────────────────────────

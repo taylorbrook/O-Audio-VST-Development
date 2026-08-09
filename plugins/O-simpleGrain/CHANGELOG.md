@@ -3,6 +3,27 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.0] — 2026-08-09
+
+Header layout fix and a tooltip on/off toggle. UI-only — no parameter, DSP, or
+state-format changes (sessions/presets load unchanged).
+
+### Added
+- **"?" button in the header toggles tooltips on/off.** Sits at the end of the
+  concept-preset tour bar; state persists across editor opens (localStorage,
+  default on). Disabling also hides any tooltip currently showing.
+
+### Fixed
+- **Title "O–simpleGrain" wrapped across three lines.** The header's flex layout
+  let the wide preset bar squeeze the title block. The title block no longer
+  shrinks (`flex-shrink: 0`, `white-space: nowrap`) and the preset bar is pushed
+  to the right edge (`margin-left: auto`), so all slack goes to the title.
+- **Tooltips appeared in duplicate.** `setupTooltips()` set a native `title=`
+  attribute as a fallback on every `data-tip` element, so hovering showed both
+  the OS-native tooltip and the custom floating one. The copy now goes into
+  `aria-label` (assistive tech keeps it; no native popup) and any stale `title`
+  attributes are stripped.
+
 ## [1.1.3] — 2026-08-08
 
 First published release (version aligned with the O-simple pedagogical suite).
