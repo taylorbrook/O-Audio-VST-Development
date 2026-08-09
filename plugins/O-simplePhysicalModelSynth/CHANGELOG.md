@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.3] — 2026-08-08
+
+Maintenance patch. No parameter/state-format changes. First published release since
+v1.0.1 — the v1.0.2 fix below ships in this release as well.
+
+### Fixed
+- **MSVC compatibility — SafePointer init-capture in nested lambdas.** Hoisted
+  `SafePointer(this)` init-captures to locals so the Windows CI build compiles
+  (MSVC rejects the nested-lambda init-capture form).
+
+### Changed
+- Added AGPL-3.0 notice headers to all Ouaricon-authored source files
+  (repo-wide license compliance pass).
+
 ## [1.0.2] — 2026-07-16
 
 Verify-pass residual (VR-01, residual of CR-03). No parameter/state-format changes — PATCH.
