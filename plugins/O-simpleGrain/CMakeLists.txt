@@ -6,8 +6,8 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # juce_add_plugin below AND by tests/render-harness/CMakeLists.txt (whose
 # hand-rolled JucePlugin_VersionString/Code previously drifted).
 # VERSION_CODE = 0x00MMmmpp (major/minor/patch bytes) — keep in sync.
-set(OSIMPLEGRAIN_VERSION "1.1.2")
-set(OSIMPLEGRAIN_VERSION_CODE 0x010102)
+set(OSIMPLEGRAIN_VERSION "1.1.3")
+set(OSIMPLEGRAIN_VERSION_CODE 0x010103)
 
 # O-simpleGrain - Pedagogical Granular Synthesizer
 # Stage 1 (Foundation): silent 8-voice synth shell with the full 18-param APVTS
