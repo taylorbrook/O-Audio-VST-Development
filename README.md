@@ -75,6 +75,10 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 
 Per-plugin versions, release state, and history live in the **[plugin registry](PLUGINS.md)**.
 
+## Support
+
+Everything here is free — no paid tier, no license to buy. If a plugin has earned a place in your work, a contribution at [oaudio.io/support](https://oaudio.io/support) helps keep new ones coming.
+
 ## Microtonal Dorico Integration
 
 Dorico drives per-note microtonal playback in these plugins directly from the score — quarter-tones, just intonation, and custom tunings, with no MIDI pitch-bend workarounds and no per-track lane hacks. Write the accidental, and the plugin plays it.
