@@ -18,7 +18,7 @@ juce_add_plugin(O-simplePhysicalModelSynth
     PLUGIN_CODE OsPM
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simplePhysicalModelSynth${OUARICON_DEV_SUFFIX}"
-    VERSION "1.0.2"
+    VERSION "1.0.3"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
