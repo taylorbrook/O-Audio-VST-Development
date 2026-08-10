@@ -162,6 +162,24 @@ body {
 }
 .preset-act { height: 24px; padding: 0 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
 
+/* ── "?" tooltip toggle (header, right of the preset bar) ─────────────────── */
+.tip-toggle {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tip-toggle:hover { background: var(--green-light); color: #1f2b08; }
+.tip-toggle[aria-pressed="true"] { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+
 .preset-dropdown {
   display: none;
   position: absolute;

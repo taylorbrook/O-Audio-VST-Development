@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.0] — 2026-08-09
+
+UI enhancement. No parameter/state-format changes.
+
+### Added
+- **"?" tooltip toggle button** in the header, right of the preset bar. Toggles
+  the on-hover tooltips on/off (defaults to on). The choice persists across
+  sessions via `localStorage` (`opms.tipsEnabled`). Same pattern as
+  O-simpleGrain v1.2.0; styled as a circular button in the Naturalist palette
+  with `aria-pressed` state.
+
 ## [1.0.3] — 2026-08-08
 
 Maintenance patch. No parameter/state-format changes. First published release since
