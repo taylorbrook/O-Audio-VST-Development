@@ -4,6 +4,47 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.8.1] — 2026-08-10 — AGPL-3.0 notice headers; first published release
+
+Patch release. **No parameter, preset, state, DSP or layout change** — every
+source edit in it is a comment block. A v1.8.0 session, preset or factory patch
+opens and renders identically.
+
+**This is the first O-ReverseDelay release to actually reach GitHub Releases.**
+The `v1.8.0` tag exists on both remotes but no release was ever built from it: it
+was cut on 2026-07-26, before the repository moved to the public
+`O-Audio-VST-Development` origin, and the 2026-08-03 batch that proved the
+signing pipeline end-to-end covered O-Bells, O-Polystutter, O-IntonationPad,
+O-Tremolo and O-Detune without picking this plugin up. So v1.8.1 is a patch in
+version terms and a first publication in distribution terms, and the two should
+not be conflated — nothing about the audio path changed between them.
+
+The bump is not inert, because two sentinels key off `JucePlugin_VersionString`.
+Both were checked rather than assumed:
+
+* `initializeFactoryPresets` re-seeds on the `.factory-version` sentinel. The
+  engineering-unit preset table is untouched, so the re-seed rewrites the eight
+  factory presets to **identical** contents.
+* `migrateUserPresets` re-stamps `.user-migration-version` and walks the user
+  directory once. Its two rescale gates are `< 1.0.1` (delayTime) and `< 1.5.0`
+  (grainSize); a preset written by v1.5.0–v1.8.0 packs to 10500 or higher and
+  trips neither, so `changed` stays false and **no user preset file is
+  rewritten**. Only pre-v1.5.0 files still on disk migrate, which is the
+  behaviour they have been owed since v1.5.0 shipped.
+
+### Changed
+
+**AGPL-3.0 per-file notice headers (repo-wide sweep `cff295d9`).** 15 files under
+`plugins/O-ReverseDelay/` — 6 `.h`, 3 `.cpp`, 4 `.js`, 1 `.css`, 1 `.html` — each
+gain the FSF notice, the file's product subject, an `SPDX-License-Identifier` and
+the warranty disclaimer. **285 insertions, 0 deletions**; the additions-only
+count is asserted from `git show --numstat`, not inferred, because the sweep's
+first pass silently rewrote a CRLF file whole via `Path.read_text` and a
+zero-deletion assertion is what catches that class of damage.
+
+Local `OuariconReverseDelay_VST3` build re-verified clean at 1.8.1 before
+tagging.
+
 ## [1.8.0] — 2026-07-26 — COLOUR: diffusion and loop drive (B4 #7, #8)
 
 Minor release. The last two items of section B4 of the v1.0.0 review, and with
