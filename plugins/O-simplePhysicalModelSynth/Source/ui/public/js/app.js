@@ -575,8 +575,11 @@ function setupTooltips() {
   const tip = document.getElementById("tooltip");
   if (!tip) return;
   let active = null;
+  let enabled = true;
+  try { enabled = localStorage.getItem("opms.tipsEnabled") !== "false"; } catch (e) {}
 
   const show = (key, x, y) => {
+    if (!enabled) return;
     const entry = TIPS[key];
     if (!entry) return;
     tip.innerHTML = `<span class="tip-title">${entry[0]}</span>${entry[1]}`;
@@ -610,6 +613,17 @@ function setupTooltips() {
   });
 
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+
+  const toggle = document.getElementById("tipToggle");
+  if (toggle) {
+    toggle.setAttribute("aria-pressed", String(enabled));
+    toggle.addEventListener("click", () => {
+      enabled = !enabled;
+      toggle.setAttribute("aria-pressed", String(enabled));
+      if (!enabled) hide();
+      try { localStorage.setItem("opms.tipsEnabled", String(enabled)); } catch (e) {}
+    });
+  }
 }
 
 // ── On-screen keyboard (play without external MIDI) ──────────────────────────
