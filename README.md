@@ -27,7 +27,7 @@ Linked plugin names go to that plugin's page on the [O-Audio site](https://oaudi
 | `O-Formant` | Physical-model vocal synth |
 | [`O-Prism`](https://oaudio.io/products/ouaricon-prism) | Microtonal wavetable synth |
 | [`O-IntonationPad`](https://oaudio.io/products/ouaricon-intonation-pad) | Wavetable pad with microtonal intonation |
-| `O-MicrotonalSampler` | Microtonal sampler |
+| [`O-MicrotonalSampler`](https://oaudio.io/products/ouaricon-microtonal-sampler) | Microtonal sampler |
 | `O-TextureForge` | Concatenative synthesis instrument |
 | `O-Texture` | Neural texture synth (instrument/effect) |
 
@@ -38,12 +38,12 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 | Plugin | Description |
 |--------|-------------|
 | `O-simpleSubtractive` | Subtractive synthesis |
-| `O-simpleAdditive` | Additive + wavetable synthesis |
-| `O-simpleFM` | Two-operator FM synthesis |
-| `O-simpleGrain` | Granular synthesis |
-| `O-simplePhysicalModelSynth` | Physical modeling |
+| [`O-simpleAdditive`](https://oaudio.io/products/ouaricon-simple-additive) | Additive + wavetable synthesis |
+| [`O-simpleFM`](https://oaudio.io/products/ouaricon-simple-fm) | Two-operator FM synthesis |
+| [`O-simpleGrain`](https://oaudio.io/products/ouaricon-simple-grain) | Granular synthesis |
+| [`O-simplePhysicalModelSynth`](https://oaudio.io/products/ouaricon-simple-modeling-synth) | Physical modeling |
 | `O-simpleSampler` | Sampling |
-| `O-simpleBeatmaker` | Step-sequencer drum machine |
+| [`O-simpleBeatmaker`](https://oaudio.io/products/ouaricon-simple-beatmaker) | Step-sequencer drum machine |
 
 **Effects & Processors**
 
@@ -51,7 +51,7 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 |--------|-------------|
 | [`O-SimpleReverb`](https://oaudio.io/products/ouaricon-simple-reverb) | Reverb |
 | [`O-DigiDelay`](https://oaudio.io/products/ouaricon-delay) | Digital delay |
-| `O-ReverseDelay` | Granular reverse delay |
+| [`O-ReverseDelay`](https://oaudio.io/products/ouaricon-reverse-delay) | Granular reverse delay |
 | [`O-Chorus`](https://oaudio.io/products/ouaricon-chorus) | Chorus |
 | [`O-Tremolo`](https://oaudio.io/products/ouaricon-tremolo) | Tremolo |
 | [`O-Detune`](https://oaudio.io/products/ouaricon-detune) | Detuning |
