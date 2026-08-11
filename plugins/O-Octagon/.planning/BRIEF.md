@@ -138,7 +138,14 @@ When the source is outside the hull, it is projected to the nearest point on the
 | `airAmount` | 0-1 | 0.35 | Air-absorption LPF depth vs hull distance. 0 = bypassed. |
 | `outputGain` | -24 to +12 dB | 0.0 | Master output trim. |
 
-**18 musical parameters.**
+**17 musical parameters.**
+
+> *Corrected at Stage 0 (2026-08-11). This line originally read "18". The table has 10 rows, one of
+> which (`w1..w8`) collapses 8 parameters, so the correct expansion is 9 + 8 = **17**. The figure 18
+> arose from counting the collapsed weight row **and** its eight expansions. No 18th parameter was
+> intended and none has been added — `hullAtten = 0` and `airAmount = 0` already serve as exact
+> defeats, and host bypass is provided by the host. See `research/ARCHITECTURE.md` §11. The venue
+> count of 42 was already correct.*
 
 ### Venue — measured room data, saved in a separate venue store
 
