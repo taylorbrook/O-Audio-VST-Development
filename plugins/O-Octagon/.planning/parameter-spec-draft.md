@@ -1,5 +1,10 @@
 # O-Octagon - Parameter Specification (Draft)
 
+> ⚠️ **SUPERSEDED — historical artifact. Do not read this file for the parameter set.**
+> The promoted spec is **[`parameter-spec.md`](parameter-spec.md)**. This draft still marks OQ3/OQ4/OQ5
+> and the 17-vs-18 count as *open*; all four were resolved at Stage 0 (count is **17**; the venue is a
+> separate `ValueTree`). Kept only to record what was known at ideation.
+
 > Draft extracted from `BRIEF.md` §Parameters and `REQUIREMENTS.md`.
 > Full specification will be generated during UI mockup finalization (two-screen: Room + Venue).
 

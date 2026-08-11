@@ -1,0 +1,19 @@
+{
+  "gate": "gate-0-to-1",
+  "plugin": "O-Octagon",
+  "fromStage": "0-ideation",
+  "toStage": "1-foundation",
+  "timestamp": "2026-08-11T16:50:00Z",
+  "checks": {
+    "critical": [{"name":"schema","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"No handoff file found\n"},{"name":"build","status":"failed","duration":0,"attempts":3,"output":"[0/2] Re-checking globbed directories...\n","error":"ninja: error: unknown target 'O-Octagon_VST3'\n"},{"name":"pluginval","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"VST3 plugin not found at /Users/taylorbrook/Dev/VST-development/build/plugins/O-Octagon/O-Octagon_artefacts/Release/VST3/O-Octagon.vst3\n"}],
+    "advisory": [{"name":"style","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"naming","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"docs","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"}]
+  },
+  "overallStatus": "BYPASSED",
+  "totalDuration": 3000
+,
+  "bypass": {
+    "used": true,
+    "justification": "0-to-1: no CMakeLists/build target exists yet — creating them IS Stage 1's job; build check is unconditional on stage and cannot pass by construction. Spec gate for 0-to-1 is Schema+artifacts only. PLAN.md present, 14 tasks.\n",
+    "failedChecks": ["build"]
+  }
+}
