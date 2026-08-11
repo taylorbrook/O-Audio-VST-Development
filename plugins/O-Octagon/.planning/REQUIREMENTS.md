@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-Octagon
 created: 2026-08-10
-lastUpdated: 2026-08-10
+lastUpdated: 2026-08-11
 ---
 
 ## Overview
@@ -21,7 +21,7 @@ lastUpdated: 2026-08-10
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Accepts mono or stereo input and renders 8 discrete speaker feeds through an `AudioChannelSet::create7point1()` output bus used purely as an 8-channel carrier | must | pending | stage-1 |
+| FUNC-01 | Accepts mono or stereo input and renders 8 discrete speaker feeds through an `AudioChannelSet::create7point1()` output bus used purely as an 8-channel carrier | must | partial | stage-2 *(re-mapped from stage-1)* |
 | FUNC-02 | User can type real measured coordinates in metres (x, y, z) for all 8 speakers plus front/rear rake heights, and save/load them as a venue store | must | pending | stage-3 |
 | FUNC-03 | User-configurable 8-row mapping table assigning speaker 1-8 to a 7.1 channel label, with a sane shipped default | must | pending | stage-2 |
 | FUNC-04 | Verify mode solo-pings each speaker in turn (manual step and auto-cycle) so physical wiring is confirmable in under a minute | must | pending | stage-3 |
@@ -63,10 +63,10 @@ lastUpdated: 2026-08-10
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU), including strictness level 10 | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU), including strictness level 10 | must | complete | stage-1 |
 | COMPAT-02 | Instantiates in Logic Pro on a surround track and outputs 8 discrete channels | must | pending | stage-4 |
 | COMPAT-03 | Speaker→buffer index map is built once in `prepareToPlay()` via `getChannelIndexForType()`; no hardcoded channel indices anywhere in the codebase | must | pending | stage-2 |
-| COMPAT-04 | Defined, non-crashing behaviour when instantiated on a stereo track (exact policy resolved at Stage 0) | should | pending | stage-1 |
+| COMPAT-04 | Defined, non-crashing behaviour when instantiated on a stereo track (exact policy resolved at Stage 0) | should | complete | stage-1 |
 
 ### Quality (QUAL)
 
@@ -83,9 +83,17 @@ lastUpdated: 2026-08-10
 
 ### FUNC-01: 8-channel transport
 
-- [ ] `isBusesLayoutSupported()` accepts mono-in/7.1-out and stereo-in/7.1-out
-- [ ] Rejects layouts whose output channel count is not 8 (except the Stage-0 stereo-fallback policy)
+- [x] `isBusesLayoutSupported()` accepts mono-in/7.1-out and stereo-in/7.1-out — *met at stage-1;
+      `auval` reports `[1, 8]` and `[2, 8]` in the derived AU config set*
+- [x] Rejects layouts whose output channel count is not 8 (except the Stage-0 stereo-fallback policy)
+      — *met at stage-1; the derived AU set is exactly six configs and admits nothing else*
 - [ ] All 8 output channels carry independent, non-duplicated signal for an off-centre source
+      — **stage-2.** Not satisfiable by the Stage 1 shell: the `PHASE-2.2-REPLACE` placeholder writes
+      the same mono sum to all 8 by design. Independence requires the DBAP solve (DSP-01/DSP-05)
+
+> **Re-mapped stage-1 → stage-2 at Stage 1 verify (2026-08-11).** Two of three criteria were met by
+> the foundation shell; the third cannot be met until Stage 2 exists. See
+> `stages/1-foundation/VERIFICATION.md` §Issues 1.
 
 ### FUNC-02: Measured venue entry
 
@@ -156,9 +164,9 @@ lastUpdated: 2026-08-10
 
 ### COMPAT-01: pluginval
 
-- [ ] VST3 passes pluginval strictness 10
-- [ ] AU passes pluginval strictness 10 and `auval`
-- [ ] Run 2-3 times locally before any publish (per known latent-NaN pattern)
+- [x] VST3 passes pluginval strictness 10 — *SUCCESS ×3, re-run at Stage 1 verify*
+- [x] AU passes pluginval strictness 10 and `auval` — *SUCCESS ×3; `AU VALIDATION SUCCEEDED`*
+- [x] Run 2-3 times locally before any publish (per known latent-NaN pattern) — *3 runs per format*
 
 ### COMPAT-02: Logic Pro
 
@@ -196,8 +204,8 @@ lastUpdated: 2026-08-10
 
 | Stage | Requirements Verified |
 |-------|----------------------|
-| stage-1 | FUNC-01, COMPAT-01, COMPAT-04 |
-| stage-2 | FUNC-03, FUNC-07, DSP-01..08, PERF-01, PERF-02, COMPAT-03, QUAL-01..04 |
+| stage-1 | COMPAT-01 ✅, COMPAT-04 ✅ *(FUNC-01 partial — re-mapped to stage-2)* |
+| stage-2 | **FUNC-01**, FUNC-03, FUNC-07, DSP-01..08, PERF-01, PERF-02, COMPAT-03, QUAL-01..04 |
 | stage-3 | FUNC-02, FUNC-04, FUNC-05, FUNC-06, UI-01..05 |
 | stage-4 | COMPAT-02, all remaining |
 

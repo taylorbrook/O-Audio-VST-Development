@@ -1,8 +1,8 @@
 ---
 plugin: O-Octagon
 stage: 1
-phase: execute
-status: in_progress
+phase: verify
+status: verified_partial
 last_updated: 2026-08-11
 branch: feat/o-octagon
 complexity_tier: 6
@@ -10,8 +10,8 @@ complexity_score: 5.0
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-next_action: verify_stage_1
-next_stage: 1
+next_action: discuss_stage_2
+next_stage: 2
 ready_for_implementation: true
 stage_1_open_manual_gate: logic_8channel_negotiation
 build_target: OuariconOctagon
@@ -29,10 +29,11 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — **execute phase complete (one manual gate outstanding)**
-Status: Shell built, installed and validated. 12 of 14 tasks fully done; Task 13 (Logic) is an
-outstanding **manual** gate, Task 12 item 3 (audio through Standalone) unverified — see below.
-Progress: `[######..............]` 28%
+Stage: 1 of 4 (Foundation) — **verify phase complete: ⚠️ PARTIAL**
+Status: Every automated gate re-run independently at verify and passing with zero failures. The one
+open Stage 1 exit criterion is **Task 13 (Logic)** — a manual gate that blocks Stage 1 *sign-off*,
+not Stage 2 *start*. Task 12 item 3 (audio through Standalone) remains unverified.
+Progress: `[#######.............]` 33%
 Branch: `feat/o-octagon` (cut from `docs/logic-multichannel-dbap-research` @ 12ae50dd)
 
 ## Phase Progress
@@ -44,7 +45,51 @@ Branch: `feat/o-octagon` (cut from `docs/logic-multichannel-dbap-research` @ 12a
 | research | ✓ | 2026-08-11 |
 | plan | ✓ | 2026-08-11 |
 | execute | ✓ | 2026-08-11 |
-| verify | → | |
+| verify | ⚠️ PARTIAL | 2026-08-11 |
+
+## Stage 1 Verify Results (2026-08-11) — `stages/1-foundation/VERIFICATION.md`
+
+**Verdict: ⚠️ PARTIAL. Ready for Stage 2: yes, with one caveat.**
+
+Every automated gate below was **re-run from scratch at verify**, not read out of SUMMARY.md.
+All passed; none regressed.
+
+| Gate | Verify-phase result |
+|---|---|
+| Clean rebuild, 3 formats (forced TU recompile) | ✓ **0 warnings, 0 errors** in the entire log |
+| `auval -a` | ✓ `aufx OuOc OuDv` |
+| `auval -v aufx OuOc OuDv` | ✓ **AU VALIDATION SUCCEEDED** |
+| AU channel config set | ✓ `[1,1] [1,2] [1,8] [2,1] [2,2] [2,8]` — exactly RESEARCH F2 |
+| pluginval s10 VST3 / AU | ✓ SUCCESS ×3 each |
+| State round-trip | ✓ pluginval *Plugin state* + *Plugin state restoration*, ×3 |
+| 17 params vs `parameter-spec.md` | ✓ 17/17 on name, range, default **and** group |
+| Standalone on a 2-ch device (COMPAT-04) | ✓ launched, stayed running |
+| `PHASE-2.2-REPLACE` uniqueness | ✓ exactly 1 occurrence |
+| Forbidden CMake keywords, `setLatencySamples`, non-goals | ✓ all clean |
+
+### Requirements
+
+| Req | Status |
+|---|---|
+| COMPAT-01 (pluginval VST3+AU s10) | ✅ **complete** |
+| COMPAT-04 (defined behaviour on stereo) | ✅ **complete** |
+| FUNC-01 (8 discrete feeds) | ⚠️ **partial → re-mapped to stage-2** |
+
+**Verify finding — FUNC-01 was mis-staged.** Its third acceptance criterion (*"all 8 output channels
+carry independent, non-duplicated signal"*) cannot be met by a shell whose D1 placeholder writes the
+same mono sum to all 8 **by design**. Independence requires the DBAP solve (DSP-01/DSP-05). The first
+two criteria were met at Stage 1 and are recorded as such in REQUIREMENTS.md so Stage 2 does not
+re-derive them. `verifiedAt` moved `stage-1` → `stage-2`.
+
+Corollary: Task 13's "all 8 lanes move" proves **negotiation and writability**, not independence —
+with the placeholder in place all 8 lanes carry identical signal. Do not over-read it.
+
+### Why PARTIAL, and why Stage 2 is not blocked
+
+Nothing in Stage 2 depends on the Logic result: Phase 2.1 builds `ChannelMap` and the `VENUE` tree,
+and the plugin accepts all three 8-channel containers regardless of which one Logic picks. Running
+Task 13 first is nonetheless the cheaper order — if Logic fails to negotiate 8 channels the fault is
+in the bus predicate, and unpicking that after a DBAP solver exists costs materially more.
 
 ## Stage 1 Execute Results (2026-08-11)
 
@@ -171,9 +216,9 @@ is itself the 17-parameter exit criterion).
 
 ## Next Steps
 
-1. **Stage 1 verify phase** — `/plugin-verify O-Octagon 1-foundation`
-2. **Run the Logic check (Task 13)** — the one Stage 1 exit criterion still open
-3. Review `research/ARCHITECTURE.md` and `ROADMAP.md`
+1. **Run the Logic check (Task 13)** — the one Stage 1 exit criterion still open. Blocks Stage 1
+   sign-off, not Stage 2 start.
+2. **Stage 2 discuss** — `/plugin-discuss O-Octagon 2-dsp` (Phase 2.1: `ChannelMap` + `VENUE` tree)
 3. UI mockup — two screens, Room + Venue. Due before Stage 3.1; not a Stage 1/2 blocker.
 4. Measure Roy Barnett Recital Hall — 8 × (x, y, z) metres + front/rear ear heights
 5. Pause here
