@@ -21,19 +21,29 @@
 
 #include <JuceHeader.h>
 
+#include "Data/VenueModel.h"
+#include "Data/VenueSnapshot.h"
+#include "DSP/ChannelMap.h"
+#include "DSP/ConvexHull2D.h"
+
 //==============================================================================
 /**
-    O-Octagon — Stage 1 foundation shell.
+    O-Octagon — Stage 2 Phase 2.1 (Geometry Core).
 
-    An 8-channel DBAP spatialiser for an irregular, non-flat concert array. At Stage 1 this is the
-    transport shell only: the bus declaration and negotiation predicate, the 17 APVTS parameters,
-    and the session-state round-trip. There is no DBAP here — no ChannelMap, no VENUE tree, no
-    smoothers, no control grid, no WebView. The shell exists to prove the 8-channel transport
-    before any geometry depends on it.
+    An 8-channel DBAP spatialiser for an irregular, non-flat concert array.
 
-    Deliberately NOT an AsyncUpdater: there is nothing to defer yet, and adding one now would make
-    Phase 2.1 inherit a cancelPendingUpdate() obligation it did not ask for
-    (pattern_asyncupdater_guard_flag_needs_cancel).
+    At Phase 2.1 the plugin owns the ROOM: the 42-value VENUE tree, the derived geometry, the convex
+    hull, and the speaker→buffer channel map. It still writes the same mono sum to every output —
+    but it writes it THROUGH the channel map. Independent per-speaker signal is FUNC-01 and arrives
+    with the DBAP solver at Phase 2.2.
+
+    Still absent, by plan: DbapSolver, GainStage, the 64-sample control grid, SmoothedValue,
+    SourceShaper, HullProcessor, VerifyPing, any WebView editor.
+
+    Deliberately NOT an AsyncUpdater. The one thing that could have needed deferral —
+    setStateInformation() arriving before prepareToPlay() — is handled by a plain `preparedYet` flag
+    instead, so there is no queued apply that could stomp restored state and therefore no
+    cancelPendingUpdate() obligation (pattern_asyncupdater_guard_flag_needs_cancel).
 */
 class OOctagonProcessor : public juce::AudioProcessor
 {
@@ -74,16 +84,29 @@ public:
     //==============================================================================
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    //==============================================================================
+    /** Read-only access to the room, for the editor and the tests. Message thread. */
+    const oo::VenueModel&   getVenue() const noexcept  { return venue; }
+    const oo::ConvexHull2D& getHull()  const noexcept  { return hull; }
+
+    /** True when the last map build failed and the previous valid map is still in force. Drives the
+        persistent FUNC-03 UI warning; never a reason to route audio anyway. */
+    bool isChannelMapInvalid() const noexcept { return mapInvalid.load (std::memory_order_acquire); }
+
+    /** Applies a venue edit: re-derives geometry, rebuilds the hull and the map, publishes a new
+        snapshot, and writes the venue back into apvts.state. Message thread only. */
+    void applyVenueEdit (const oo::VenueModel& newVenue);
+
 private:
     //==============================================================================
     // ─────────────────────────────────────────────────────────────────────────────
-    // VENUE STORE SLOT — Phase 2.1 declares the venue member HERE, above apvts.
+    // VENUE STORE — the slot claimed at Stage 1 (PLAN P2), now occupied.
     //
-    // Member declaration order is fixed at Stage 1 and is annoying to change once Phase 2.1
-    // depends on it: a venue-aware construct would need the member to already exist by the time
-    // apvts is initialised. The position is claimed now; at Stage 1 there is no member to declare,
-    // so this costs one comment. See RESEARCH §3.3 / PLAN P2.
+    // Declaration order matters and is why the slot was reserved above apvts rather than below it.
     // ─────────────────────────────────────────────────────────────────────────────
+
+    oo::VenueModel   venue;
+    oo::ConvexHull2D hull;
 
     juce::AudioProcessorValueTreeState apvts;
 
@@ -97,16 +120,62 @@ private:
     std::atomic<float>* widthParam      { nullptr };
     std::atomic<float>* rolloffParam    { nullptr };
     std::atomic<float>* blurParam       { nullptr };
-    std::atomic<float>* weightParam[8]  { nullptr, nullptr, nullptr, nullptr,
-                                          nullptr, nullptr, nullptr, nullptr };
+    std::atomic<float>* weightParam[ochan::kNumSpeakers] { nullptr, nullptr, nullptr, nullptr,
+                                                           nullptr, nullptr, nullptr, nullptr };
     std::atomic<float>* hullAttenParam  { nullptr };
     std::atomic<float>* airAmountParam  { nullptr };
     std::atomic<float>* outputGainParam { nullptr };
 
     //==============================================================================
-    // Explicitly absent at Stage 1, by plan: ChannelMap / rebuildChannelMap(), VenueSnapshot,
-    // SmoothedValue, FirstOrderTPTFilter, absoluteSampleCounter, and any Source/DSP or
-    // Source/Data include. See PLAN.md §Non-goals.
+    // ── Channel map state (R1) ───────────────────────────────────────────────────────────────
+
+    /** Speaker n → output buffer index. The LAST VALID map: on a failed rebuild this is retained
+        unchanged and mapInvalid is raised, so the plugin never silently routes to a half-applied
+        assignment. Initialised to identity so a pre-prepareToPlay read is defined. */
+    std::array<int, ochan::kNumSpeakers> speakerToBuffer { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+    std::atomic<bool> mapInvalid { false };
+
+    oo::VenueSnapshotPublisher venuePublisher;
+
+    /** setStateInformation() can arrive before prepareToPlay(). The map must be built from the
+        NEGOTIATED layout, so in that window the rebuild is deferred to prepareToPlay() rather than
+        adding a second construction site. A plain flag, not an AsyncUpdater — there is no queued
+        apply to cancel (pattern_asyncupdater_guard_flag_needs_cancel). */
+    bool preparedYet { false };
+
+    //==============================================================================
+    /** THE SINGLE CHANNEL-MAP CONSTRUCTION SITE.
+
+        The only caller of ochan::buildSpeakerToBuffer() in the plugin, the only writer of
+        mapInvalid, and the only publisher of speakerToBuffer into the snapshot. Called from
+        prepareToPlay() and on a label-map edit — nowhere else.
+    */
+    void rebuildChannelMap();
+
+    /** Reads the VENUE child of apvts.state (defaults if missing or partial), re-derives geometry,
+        rebuilds the hull, and publishes a new snapshot. Message thread only. */
+    void readVenueFromState();
+
+    /** Copies the current venue + hull + map into a snapshot and publishes it. */
+    void publishSnapshot();
+
+    /** True iff the channel map may be used to index THIS block's buffer.
+
+        BOTH conditions are load-bearing and neither implies the other (RESEARCH-2.1 G1):
+
+          - a VALID map is not evidence of an 8-channel BUFFER. Under the F3 hazard — Standalone on
+            a 3-7 output device — canonicalChannelSet(n) is rejected, Release KEEPS the 7.1 layout,
+            and the buffer arrives with n < 8 channels. mapInvalid stays false the whole time while
+            speakerToBuffer still holds indices up to 7. The map is derived from
+            getTotalNumOutputChannels(), which is the accessor that lies in exactly this state;
+          - an 8-channel buffer is not evidence of a valid map.
+
+        Phase 2.2's GainStage inner loop CALLS THIS. It does not re-derive it.
+
+        @param numOutputChannels  the count the caller already read from buffer.getNumChannels()
+    */
+    bool mappedOutputAvailable (int numOutputChannels) const noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OOctagonProcessor)
 };

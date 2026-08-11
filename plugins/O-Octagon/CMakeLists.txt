@@ -31,6 +31,10 @@ juce_add_plugin(OuariconOctagon
 target_sources(OuariconOctagon
     PRIVATE
         Source/PluginProcessor.cpp
+        Source/Data/VenueModel.cpp
+        Source/DSP/ChannelMap.cpp
+        Source/DSP/ConvexHull2D.cpp
+        # Source/DSP/Vec.h and Source/Data/VenueSnapshot.h are header-only and deliberately absent.
 )
 
 # No juce_add_binary_data target at Stage 1 — the WebView UI lands at Phase 3.1.
@@ -77,3 +81,20 @@ target_compile_definitions(OuariconOctagon
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# ── Test targets (Phase 2.1) ──────────────────────────────────────────────────
+# One option gates both, matching the repo convention across twelve existing harnesses.
+#
+#   O-Octagon-geometry-test  — links ONLY the three geometry TUs (no PluginProcessor.cpp)
+#   O-Octagon-render-test    — links the processor; bus layouts constructed programmatically
+#
+# DO NOT add these to .github/workflows/build-and-release.yml: it is tag-triggered and
+# secrets-bearing, and carries a standing rule against widening its trigger surface. The residual
+# gap — a JUCE bump performed without running the test target ships silently — is logged as a
+# repo-level todo instead (PLAN-2.1 P13).
+option(OUARICON_BUILD_TESTS "Build O-Octagon test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/unit)
+    add_subdirectory(tests/render-harness)
+endif()
