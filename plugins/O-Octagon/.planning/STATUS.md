@@ -20,7 +20,7 @@ musical_parameter_count: 17
 venue_value_count: 42
 contract_checksums:
   brief: sha256:697a4f32890d7420cdef85bafbf8fe45775bf805cf1ff7b449ed2c14f6b9fbd6
-  parameter_spec: sha256:5c5f4f06dcb3f344bea400232d1c91e25518974a0a2a9581825619fa93f7022f
+  parameter_spec: sha256:b45f88dc5017ec2c1a9da49ba35242d01903000a4ff199d16758e1b6cbb9e02f
   architecture: sha256:bff8a83b379113ac8b1e2a8915d6f1edc7183558b992bdc3808877f86c406cfe
   roadmap: sha256:aec7d0ce0db9ad6c78cb1c9e9574a0a2f8ddb1cf258e6e4b701f2e2e0137ee29
 ---

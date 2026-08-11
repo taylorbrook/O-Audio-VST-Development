@@ -106,6 +106,7 @@ Standalone. The Standalone was launched this phase on a 2-channel default output
 | Non-goals honoured | `ls Source/`, `grep` for the eight banned components | ✅ two files; no `PluginEditor`, no `ChannelMap`, no `VENUE` |
 | Registry | `PLUGINS.md:68` | ✅ `🚧 Stage 1 \| 1.0.0-dev \| 2026-08-11` |
 | Working tree | `git status` | ✅ Stage 1 fully committed at `bb8086c9` |
+| Contract checksums | `shasum -a 256` × 4 vs STATUS.md frontmatter | ⚠️ 3 of 4 byte-exact; `parameter_spec` pinned the wrong file — **fixed this phase**, see *Issues 7* |
 
 ### Parameter diff — full result
 
@@ -168,6 +169,33 @@ float round-trip of 0 dB in a −24…+12 range, not a spec deviation.
 
 6. **Known-benign.** pluginval on the AU emits `WARNING: Current program is -1`. JUCE AU-wrapper
    program reporting, present across the repo; the run still returns SUCCESS.
+
+7. **`contract_checksums.parameter_spec` pinned the superseded draft. FIXED this phase.**
+   Three of the four recorded contract checksums verified byte-exact. The fourth did not — against a
+   file `git diff bb8086c9 HEAD` shows is **unchanged**, so the recorded value was never valid for it.
+
+   | | SHA-256 |
+   |---|---|
+   | Recorded as `parameter_spec` | `5c5f4f06…7022f` |
+   | Actual `parameter-spec.md` | `b45f88dc…9e02f` |
+   | `parameter-spec-draft.md` **at `bb8086c9^`** (pre-banner) | `5c5f4f06…7022f` ← **exact match** |
+
+   The checksum meant to pin the promoted spec was pinning **the stale draft, as it stood before the
+   superseded banner was added** — the very file PLAN P4 exists to stop anything from reading, and
+   which still marks OQ3/4/5 and the 17-vs-18 count as *open*. A future contract-drift check would
+   have validated against the wrong document and passed while doing it — and drift in the *promoted*
+   spec, the one the code is built from, would have gone undetected indefinitely.
+
+   Nothing downstream consumed the bad value: the shipped binary matches `parameter-spec.md` 17/17,
+   which is the check that actually matters and it was made directly against the binary.
+
+   **Resolution:** frontmatter updated to `b45f88dc…9e02f`. Verified this phase that the other three
+   (`brief`, `architecture`, `roadmap`) are byte-exact.
+
+   **Carry to Stage 2:** whatever writes `contract_checksums` hashed the file the promotion *replaced*
+   rather than the file it *produced*. Re-verify all four checksums at every stage boundary — a
+   checksum that silently points at the wrong file is worse than no checksum, because it reports
+   green.
 
 ---
 
