@@ -84,7 +84,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
     // "norm" or "%" would misrepresent them.
     auto weights = std::make_unique<juce::AudioProcessorParameterGroup> ("weights", "Weights", "|");
 
-    for (int i = 1; i <= 8; ++i)
+    for (int i = 1; i <= ochan::kNumSpeakers; ++i)
         weights->addChild (makeFloat ("w" + juce::String (i),
                                       "Weight " + juce::String (i),
                                       linearRange (0.0f, 1.0f),
@@ -124,12 +124,26 @@ OOctagonProcessor::OOctagonProcessor()
     rolloffParam    = apvts.getRawParameterValue ("rolloff");
     blurParam       = apvts.getRawParameterValue ("blur");
 
-    for (int i = 0; i < 8; ++i)
+    // ochan::kNumSpeakers rather than a literal 8: this is a speaker-count loop, and the COMPAT-03
+    // gate greps for bare channel-count literals. Naming it costs nothing and removes the need for
+    // a reader (or the gate) to decide whether this particular 8 is a channel index.
+    for (int i = 0; i < ochan::kNumSpeakers; ++i)
         weightParam[i] = apvts.getRawParameterValue ("w" + juce::String (i + 1));
 
     hullAttenParam  = apvts.getRawParameterValue ("hullAtten");
     airAmountParam  = apvts.getRawParameterValue ("airAmount");
     outputGainParam = apvts.getRawParameterValue ("outputGain");
+
+    // Give apvts.state a VENUE child from birth, on the message thread, so that:
+    //   - a session saved before prepareToPlay() still carries a complete room;
+    //   - readVenueFromState() and writeToState() are never the ones mutating the ValueTree from
+    //     whatever thread a host chooses to call prepareToPlay() on.
+    // The venue is already at its §OQ4 defaults — VenueModel's constructor put it there.
+    venue.writeToState (apvts.state);
+
+    hull.build (venue.speakerPositions());
+
+    publishSnapshot();
 }
 
 OOctagonProcessor::~OOctagonProcessor() = default;
@@ -170,56 +184,181 @@ bool OOctagonProcessor::isBusesLayoutSupported (const BusesLayout& layouts) cons
 //==============================================================================
 void OOctagonProcessor::prepareToPlay (double, int)
 {
-    // Nothing to prepare at Stage 1: no channel map, no filters, no smoothers, no control grid.
     // Parameter names are omitted (rather than cast to void) to satisfy -Wunused-parameter.
     //
     // NEVER call setLatencySamples() here — latency is zero and getLatencySamples() is
     // non-virtual in JUCE 8.
+    //
+    // Order is fixed: the venue defines the labels, and the map is built from the labels against
+    // the layout the host has just negotiated.
+    readVenueFromState();
+    rebuildChannelMap();
+
+    preparedYet = true;
 }
 
 void OOctagonProcessor::releaseResources()
 {
 }
 
+//==============================================================================
+bool OOctagonProcessor::mappedOutputAvailable (int numOutputChannels) const noexcept
+{
+    return numOutputChannels == ochan::kNumSpeakers
+        && ! mapInvalid.load (std::memory_order_acquire);
+}
+
+//==============================================================================
+void OOctagonProcessor::rebuildChannelMap()
+{
+    const auto outSet = getBusesLayout().getMainOutputChannelSet();
+
+   #if JUCE_DEBUG
+    // Layer 1 of the three-layer strategy, called here as well as from the unit target so that a
+    // developer who never builds the tests still trips it on the first prepareToPlay().
+    {
+        juce::String whyNot;
+
+        if (! ochan::verifyEnumBitOrder (outSet, &whyNot))
+        {
+            DBG ("O-Octagon channel-map Layer 1 FAILED: " << whyNot);
+            jassertfalse;
+        }
+    }
+   #endif
+
+    // buildSpeakerToBuffer() leaves speakerToBuffer untouched unless it fully succeeds, so the
+    // failure path below really does retain the LAST VALID map rather than half of a rejected one.
+    const bool ok = ochan::buildSpeakerToBuffer (outSet, venue.labelTypes(), speakerToBuffer);
+
+    mapInvalid.store (! ok, std::memory_order_release);
+
+    // Published either way: on failure the snapshot carries the retained map, and the audio thread
+    // is stopped from using it by mappedOutputAvailable(), not by stale data.
+    publishSnapshot();
+}
+
+void OOctagonProcessor::readVenueFromState()
+{
+    // A missing OR partial VENUE node yields the §OQ4 defaults per attribute — never zeros, never
+    // an error. Every session saved during Stage 1 takes exactly that path.
+    venue.readFromState (apvts.state);
+
+    hull.build (venue.speakerPositions());
+
+    publishSnapshot();
+}
+
+void OOctagonProcessor::publishSnapshot()
+{
+    oo::VenueSnapshot snapshot;
+
+    snapshot.spk             = venue.speakerPositions();
+    snapshot.speakerToBuffer = speakerToBuffer;
+
+    for (int i = 0; i < ochan::kNumSpeakers; ++i)
+    {
+        // trimLin is CARRIED here but APPLIED nowhere in Phase 2.1 — trim application is FUNC-07
+        // at Phase 2.3. Putting it in the snapshot now costs nothing and means 2.3 adds a
+        // multiply, not a plumbing change.
+        snapshot.trimLin[(size_t) i] = venue.trimLin (i);
+        snapshot.hullPts[(size_t) i] = hull.getHullPoint (i);
+    }
+
+    snapshot.hullCount    = hull.getNumHullPoints();
+    snapshot.hullEpsCross = hull.getCrossEpsilon();
+
+    snapshot.centroid  = venue.centroid();
+    snapshot.rigScale  = venue.rigScale();
+    snapshot.bbMinX    = venue.bbMinX();
+    snapshot.bbMaxX    = venue.bbMaxX();
+    snapshot.bbMinY    = venue.bbMinY();
+    snapshot.bbMaxY    = venue.bbMaxY();
+    snapshot.rakeFront = venue.rakeFront();
+    snapshot.rakeRear  = venue.rakeRear();
+
+    venuePublisher.publish (snapshot);
+}
+
+void OOctagonProcessor::applyVenueEdit (const oo::VenueModel& newVenue)
+{
+    venue = newVenue;
+    venue.writeToState (apvts.state);
+
+    hull.build (venue.speakerPositions());
+
+    // A label edit can change the map, so the single construction site runs — and publishes.
+    if (preparedYet)
+        rebuildChannelMap();
+    else
+        publishSnapshot();
+}
+
 void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // ── PHASE-2.2-REPLACE: ──────────────────────────────────────────────────────────────
-    // Stage 1 placeholder. Writes the mono-summed dry input to EVERY output channel at unity,
-    // by RAW BUFFER INDEX, so that a successful 8-channel negotiation is visible on Logic's
-    // surround meters (FUNC-01/COMPAT-01).
+    // Phase 2.1: the mono sum still reaches every output at unity, but it now reaches them THROUGH
+    // THE CHANNEL MAP. The Stage-1 placeholder block that wrote by raw buffer index is retired, not
+    // grandfathered — its greppable marker token is gone from this file entirely.
     //
-    // This is the ONLY hardcoded output index in the plugin and it is deleted wholesale by the
-    // GainStage inner loop at Phase 2.2. It must acquire no dependants. Phase 2.1's "zero
-    // hardcoded output indices outside ChannelMap" gate is EXPECTED to fail against this block —
-    // retire it, do not grandfather it.
-    // ────────────────────────────────────────────────────────────────────────────────────
+    // All 8 lanes still carry IDENTICAL signal, and that is correct here — independence needs the
+    // DBAP solve and is FUNC-01 at Phase 2.2. Do not read a moving meter as evidence of routing.
 
     const int numSamples = buffer.getNumSamples();
 
-    // Bound by buffer.getNumChannels(), NOT 8 and NOT getTotalNumOutputChannels(). On a 3–7
-    // output device canonicalChannelSet(n) is rejected, Debug asserts, and Release KEEPS the 7.1
-    // layout while the buffer holds only n channels (RESEARCH F3). getTotalNumOutputChannels()
-    // returns 8 in exactly that state — it is the accessor that lies. A loop bounded by 8 would
-    // write past the end of the buffer.
+    // Bound by buffer.getNumChannels(), NOT 8 and NOT getTotalNumOutputChannels(). On a 3-7 output
+    // device canonicalChannelSet(n) is rejected, Debug asserts, and Release KEEPS the 7.1 layout
+    // while the buffer holds only n channels (RESEARCH F3). getTotalNumOutputChannels() returns 8
+    // in exactly that state — it is the accessor that lies.
     const int numOut = buffer.getNumChannels();
     const int numIn  = juce::jmin (getTotalNumInputChannels(), numOut);
 
-    for (int n = 0; n < numSamples; ++n)
-    {
-        // Read BEFORE writing: out[0] and in[0] alias the same memory. Writing all outputs
-        // channel-major would destroy in[1] before it is summed. Sample-interleaved read-then-
-        // write avoids needing a scratch buffer for a block that gets deleted.
-        //
-        // numIn == 0 yields silence rather than a read of channel 0 — defensive, costs one branch.
-        // Correct at 1 and 2 output channels, not only 8: auval exercises all six AU configs.
-        const float s = numIn >= 2 ? 0.5f * (buffer.getSample (0, n) + buffer.getSample (1, n))
-                      : numIn == 1 ? buffer.getSample (0, n)
-                                   : 0.0f;
+    // Read BEFORE writing: out[0] and in[0] alias the same memory, so writing outputs channel-major
+    // would destroy in[1] before it is summed. Summing per sample keeps that ordering without a
+    // scratch buffer. The loop also removes the last literal channel indices from this function —
+    // the Stage-1 version named input channels 0 and 1 explicitly.
+    const float inScale = numIn > 0 ? 1.0f / static_cast<float> (numIn) : 0.0f;
 
-        for (int ch = 0; ch < numOut; ++ch)
-            buffer.setSample (ch, n, s);
+    const auto monoSumAt = [&buffer, numIn, inScale] (int n)
+    {
+        float sum = 0.0f;
+
+        for (int ch = 0; ch < numIn; ++ch)
+            sum += buffer.getSample (ch, n);
+
+        return sum * inScale;                    // numIn == 0 yields silence, not a read of ch 0
+    };
+
+    // Acquired ONCE per block and held. Re-reading mid-block would let a venue edit land between
+    // two speakers of one write.
+    const auto& snapshot = venuePublisher.read();
+
+    // The G1 branch, stated in exactly one place (mappedOutputAvailable) and consumed here.
+    // Phase 2.2's GainStage calls the same helper rather than re-deriving the condition.
+    if (mappedOutputAvailable (numOut))
+    {
+        for (int n = 0; n < numSamples; ++n)
+        {
+            const float s = monoSumAt (n);
+
+            for (int i = 0; i < ochan::kNumSpeakers; ++i)
+                buffer.setSample (snapshot.speakerToBuffer[(size_t) i], n, s);
+        }
+    }
+    else
+    {
+        // SAFE mode. Load-bearing for AU, not only for Standalone on a 2-channel interface: JUCE
+        // derives the (1,1), (1,2), (2,1) and (2,2) AU configs from isBusesLayoutSupported() and
+        // auval exercises all of them (RESEARCH F2). Also the F3 path, where the map is valid but
+        // the buffer is narrower than it.
+        for (int n = 0; n < numSamples; ++n)
+        {
+            const float s = monoSumAt (n);
+
+            for (int ch = 0; ch < numOut; ++ch)
+                buffer.setSample (ch, n, s);
+        }
     }
 }
 
@@ -231,11 +370,21 @@ bool OOctagonProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* OOctagonProcessor::createEditor()
 {
-    // No PluginEditor.{h,cpp} at Stage 1. The generic editor renders all 17 parameters with their
-    // names, ranges, defaults and units — which IS the Stage 1 exit criterion — and gives the
-    // Standalone build a non-empty window for the COMPAT-04 eyeball check. It is deleted at
-    // Phase 3.1; nothing may come to depend on it.
+    // No PluginEditor.{h,cpp} yet. The generic editor renders all 17 parameters with their names,
+    // ranges, defaults and units, and gives the Standalone build a non-empty window for the
+    // COMPAT-04 eyeball check. It is deleted at Phase 3.1; nothing may come to depend on it.
+    //
+    // ── The #if is PROVABLY INERT TODAY, and that is exactly why it goes in now (G8) ────────────
+    // Both arms are identical because there is no WebView editor yet. The render-harness target
+    // compiles this TU with JUCE_WEB_BROWSER=0, under which WebBrowserComponent's types do not
+    // exist. When Phase 3.1 swaps the real editor into the #else arm, the harness keeps building.
+    // Added after the swap instead, it would be a build break in a target nobody is looking at
+    // (pattern_render_harness_breaks_on_webview_editor).
+   #if JUCE_WEB_BROWSER
     return new juce::GenericAudioProcessorEditor (*this);
+   #else
+    return new juce::GenericAudioProcessorEditor (*this);
+   #endif
 }
 
 //==============================================================================
@@ -270,17 +419,28 @@ void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (xml->hasTagName (apvts.state.getType()))
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
 
-    // ── Forward-compatibility notes for Phase 2.1, recorded here so 2.1 need not rediscover them:
+    // ── ORDERING HAZARD (ARCHITECTURE §4.1). This sequence is not interchangeable ───────────────
     //
-    // 1. Stage 1 sessions carry NO VENUE child. Every session saved between now and Phase 2.1
-    //    restores a tree holding 17 parameters and nothing else. readVenueFromState() must
-    //    therefore treat a missing OR PARTIAL VENUE node as "use defaults" — not as an error —
-    //    and must not assume 8 SPEAKER children exist.
+    // 1. replaceState() above swaps in the restored tree, VENUE child and all.
+    // 2. readVenueFromState() re-derives the geometry and the hull from whatever that tree carries.
+    //    A session written during Stage 1 has NO VENUE child; it restores to the §OQ4 defaults
+    //    silently, per attribute, and that is the common case for every project saved so far.
+    // 3. Only then can the map be rebuilt, because the labels it resolves come from the venue.
+    readVenueFromState();
+
+    // Normalise the tree: a missing or partial VENUE node is written back complete, so the next
+    // getStateInformation() is self-describing and a Stage-1 session is upgraded exactly once.
+    venue.writeToState (apvts.state);
+
+    // The map is built from the NEGOTIATED layout, so it can only be built once the host has
+    // negotiated one. A host that calls setStateInformation() before prepareToPlay() gets the
+    // rebuild deferred to prepareToPlay() rather than a second construction site appearing here.
     //
-    // 2. Phase 2.1 calls readVenueFromState() AFTER replaceState(), and rebuildChannelMap()
-    //    after both.
-    //
-    // No AsyncUpdater, no deferral and no guard flag at Stage 1 — there is nothing to defer.
+    // This is a plain flag, not an AsyncUpdater: there is no queued apply that could stomp the
+    // state we have just restored, and therefore no cancelPendingUpdate() obligation
+    // (pattern_asyncupdater_guard_flag_needs_cancel).
+    if (preparedYet)
+        rebuildChannelMap();
 }
 
 //==============================================================================

@@ -5,6 +5,7 @@ version: 1.0.0
 plugin: O-Octagon
 created: 2026-08-10
 lastUpdated: 2026-08-11
+lastVerified: stage-2 phase 2.1 (geometry-core)
 ---
 
 ## Overview
@@ -23,7 +24,7 @@ lastUpdated: 2026-08-11
 |----|-------------|----------|--------|-------------|
 | FUNC-01 | Accepts mono or stereo input and renders 8 discrete speaker feeds through an `AudioChannelSet::create7point1()` output bus used purely as an 8-channel carrier | must | partial | stage-2 *(re-mapped from stage-1)* |
 | FUNC-02 | User can type real measured coordinates in metres (x, y, z) for all 8 speakers plus front/rear rake heights, and save/load them as a venue store | must | pending | stage-3 |
-| FUNC-03 | User-configurable 8-row mapping table assigning speaker 1-8 to a 7.1 channel label, with a sane shipped default | must | pending | stage-2 |
+| FUNC-03 | User-configurable 8-row mapping table assigning speaker 1-8 to a 7.1 channel label, with a sane shipped default | must | partial | stage-2 *(criteria 1-2 at 2.1; criterion 3 → 2.2)* |
 | FUNC-04 | Verify mode solo-pings each speaker in turn (manual step and auto-cycle) so physical wiring is confirmable in under a minute | must | pending | stage-3 |
 | FUNC-05 | Venue data and musical state are separate preset stores; loading a musical preset never writes venue geometry, trims, or the label map | must | pending | stage-3 |
 | FUNC-06 | Weight scenes (ALL / FRONT / REAR / LEFT / RIGHT / SIDES + 4 user slots) write all 8 weight parameters at once so they record as ordinary automation | should | pending | stage-3 |
@@ -35,8 +36,8 @@ lastUpdated: 2026-08-11
 |----|-------------|----------|--------|-------------|
 | DSP-01 | DBAP implemented per the 2011-04-14 revised equations, in three dimensions (`d_i` includes the `(z_i-z_s)²` term) | must | pending | stage-2 |
 | DSP-02 | Constant intensity: `Σ v_i² = 1` holds within tolerance for every source position, inside and outside the hull, at every rolloff and blur setting | must | pending | stage-2 |
-| DSP-03 | Convex hull computed by a proper algorithm with explicit collinearity handling — no rectangle assumption, no assumption that all 8 speakers are vertices; sources outside are projected to the nearest hull point for gain computation | must | pending | stage-2 |
-| DSP-04 | Audience plane modelled as sloped from front-row to rear-row ear height; `srcZ` is height above that plane, so `srcZ = 0` tracks ear level front-to-back | must | pending | stage-2 |
+| DSP-03 | Convex hull computed by a proper algorithm with explicit collinearity handling — no rectangle assumption, no assumption that all 8 speakers are vertices; sources outside are projected to the nearest hull point for gain computation | must | complete | stage-2 *(2.1)* |
+| DSP-04 | Audience plane modelled as sloped from front-row to rear-row ear height; `srcZ` is height above that plane, so `srcZ = 0` tracks ear level front-to-back | must | partial | stage-2 *(criteria 1-2 at 2.1; criterion 3 → 2.2)* |
 | DSP-05 | Per-speaker weights `w_1..w_8` (0-1) restrict a source to a subset of speakers and redistribute rather than reduce level | must | pending | stage-2 |
 | DSP-06 | Stereo input with `width > 0` renders as two sub-points straddling the puck, spread perpendicular to the puck's bearing from room centre; `width = 0` collapses to a mono-summed single point | should | pending | stage-2 |
 | DSP-07 | Source→hull distance drives a gain trim (0-3 dB/m) and a 1-pole air-absorption LPF, each independently defeatable | should | pending | stage-2 |
@@ -65,7 +66,7 @@ lastUpdated: 2026-08-11
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU), including strictness level 10 | must | complete | stage-1 |
 | COMPAT-02 | Instantiates in Logic Pro on a surround track and outputs 8 discrete channels | must | pending | stage-4 |
-| COMPAT-03 | Speaker→buffer index map is built once in `prepareToPlay()` via `getChannelIndexForType()`; no hardcoded channel indices anywhere in the codebase | must | pending | stage-2 |
+| COMPAT-03 | Speaker→buffer index map is built once in `prepareToPlay()` via `getChannelIndexForType()`; no hardcoded channel indices anywhere in the codebase | must | complete | stage-2 *(2.1)* |
 | COMPAT-04 | Defined, non-crashing behaviour when instantiated on a stereo track (exact policy resolved at Stage 0) | should | complete | stage-1 |
 
 ### Quality (QUAL)
@@ -103,9 +104,20 @@ lastUpdated: 2026-08-11
 
 ### FUNC-03: Label map
 
-- [ ] Each of the 8 rows can be assigned any of the 8 7.1 channel labels
-- [ ] A duplicate or missing assignment is detected and surfaced rather than silently routed
+- [x] Each of the 8 rows can be assigned any of the 8 7.1 channel labels — *met at stage-2 phase 2.1;
+      probe D drives a **non-identity** map (built `{1,2,3,4,5,6,7,0}`), so a hardcoded 0..7 fails
+      immediately (C1)*
+- [x] A duplicate or missing assignment is detected and surfaced rather than silently routed —
+      *met at stage-2 phase 2.1; probe E (missing label → rejected, output completely untouched),
+      probe F (duplicate → rejected, last valid map retained), probe G (a label of `"7"` resolves to
+      type 134, a plausible discrete channel **not** `unknown`, and is rejected by the permutation
+      check)*
 - [ ] Changing a row moves audio to the corresponding physical output, confirmed by verify-ping
+      — **stage-2 phase 2.2.** Unobservable while all 8 lanes carry identical signal; verify-ping
+      itself is FUNC-04 at stage-3. Staged at the 2.1 plan phase, not discovered at verify
+
+> **Partial at 2.1 by plan, not by shortfall (2026-08-11).** See
+> `stages/2-dsp/VERIFICATION-2.1.md`.
 
 ### FUNC-04: Verify-ping
 
@@ -133,10 +145,21 @@ lastUpdated: 2026-08-11
 
 ### DSP-03: Convex hull
 
-- [ ] Hull of the traced layout yields vertices 1, 2, 4, 5, 6, 7, correctly classifying collinear speakers 3 and 8 as on-edge rather than interior or vertex
-- [ ] A source at a physical rear corner of the room is correctly classified as outside the hull
-- [ ] Hull projection returns the nearest point on the boundary, verified against brute-force nearest-point-on-segment for a fixture set
-- [ ] Degenerate venues (all speakers collinear, duplicate coordinates) do not crash or produce NaN
+- [x] Hull of the traced layout yields vertices 1, 2, 4, 5, 6, 7, correctly classifying collinear speakers 3 and 8 as on-edge rather than interior or vertex — *met at stage-2 phase 2.1 by probes **H and I together**. H alone is not the coverage: the §OQ4 side walls are dead straight, so speakers 3 and 8 have exactly zero cross product and pop for any non-negative epsilon — H would pass with `EPS_CROSS = 0`. Probe I exercises the epsilon (1 µm popped, 1 mm kept, against a measured `EPS_CROSS` of 1.0e-4)*
+- [x] A source at a physical rear corner of the room is correctly classified as outside the hull — *met at stage-2 phase 2.1; probe J, `d_hull = 4.0608 m`*
+- [x] Hull projection returns the nearest point on the boundary, verified against brute-force nearest-point-on-segment for a fixture set — *met at stage-2 phase 2.1; probe K, `max |impl − oracle| = 8.67e-7 m` over 200 points, 147 outside. The oracle is genuinely independent — ternary search on a convex 1-D function in double precision, not the closed-form dot-product projection the implementation uses*
+- [x] Degenerate venues (all speakers collinear, duplicate coordinates) do not crash or produce NaN — *met at stage-2 phase 2.1; probe L, the full §3.1.6 matrix*
+
+### DSP-04: Sloped audience plane
+
+- [x] With `srcZ = 0`, the resolved absolute source height varies linearly from `rakeFront` at the front of the room to `rakeRear` at the rear — *met at stage-2 phase 2.1; probe M (`front 1.100, mid 3.550, rear 6.000`)*
+- [x] A source at `srcZ = 0` at the rear of a steeply raked room is never below the rear-row ear height — *met at stage-2 phase 2.1; probe N, worst deficit 0.000000*
+- [ ] Changing `rakeRear` alone changes the gain vector for a rear-positioned source — **stage-2
+      phase 2.2.** Requires `DbapSolver`, an explicit 2.1 non-goal. Staged at the 2.1 plan phase,
+      not discovered at verify
+
+> **Partial at 2.1 by plan, not by shortfall (2026-08-11).** See
+> `stages/2-dsp/VERIFICATION-2.1.md`.
 
 ### DSP-04: Sloped audience plane
 
@@ -170,15 +193,30 @@ lastUpdated: 2026-08-11
 
 ### COMPAT-02: Logic Pro
 
-- [ ] Instantiates on a surround track with 7.1 output
-- [ ] Verify-ping confirms all 8 outputs reach distinct physical channels
+- [ ] Instantiates on a surround track with 7.1 output — *observed working at the stage-2 phase 2.1
+      manual gate: Logic negotiated **`7.1`** (`create7point1()`), all 8 surround-meter lanes moved.
+      **This contradicts the Stage-0 R2 prediction of 7.1-SDDS**, which is now retired in favour of
+      the observation. Left open here because COMPAT-02 is verified at stage-4*
+- [ ] Verify-ping confirms all 8 outputs reach distinct physical channels — *needs FUNC-04 (stage-3).
+      The 2.1 meter check proves negotiation and writability only: all 8 lanes carry identical
+      signal at that phase. Do not over-read it*
 - [ ] Automation of `srcX`/`srcY`/`srcZ` and `w1..w8` is visible and writable in Logic's automation lanes
+      — *visibility observed at the 2.1 manual gate: 17 parameters under 5 groups, matching the
+      `auval` clump dump. Writability not yet exercised per-parameter*
 
 ### COMPAT-03: Channel map
 
-- [ ] Grep confirms zero hardcoded channel indices in the output path
-- [ ] Unit test asserts the map built by `getChannelIndexForType()` against known JUCE enum-bit order for 7.1
-- [ ] Test fails loudly if JUCE's enum-bit order changes (asserted against parsed source, not a mirrored constant)
+- [x] Grep confirms zero hardcoded channel indices in the output path — *met at stage-2 phase 2.1;
+      re-run at verify, 3 hits all doc-comment prose, plus a line-by-line read of `processBlock`*
+- [x] Unit test asserts the map built by `getChannelIndexForType()` against known JUCE enum-bit order
+      for 7.1 — *met at stage-2 phase 2.1; probes A and B, all 3 accepted 8-channel sets, scan bound
+      256 and the `expected.size() == set.size()` assertion (G2)*
+- [x] Test fails loudly if JUCE's enum-bit order changes (asserted against parsed source, not a
+      mirrored constant) — *met at stage-2 phase 2.1, and **proven by negative control at verify**:
+      mutating `leftSurroundRear = 20 → 90` in a copied JUCE tree moved the generated SHA
+      `5cd774cb…` → `39298098…`, and substituting that value for the committed constant produced
+      `error: static assertion failed` with `BUILD_EXIT=1`. The gate fails the **build**, per
+      ROADMAP:131 — not merely a test run*
 
 ### QUAL-01: No artifacts
 
@@ -205,7 +243,9 @@ lastUpdated: 2026-08-11
 | Stage | Requirements Verified |
 |-------|----------------------|
 | stage-1 | COMPAT-01 ✅, COMPAT-04 ✅ *(FUNC-01 partial — re-mapped to stage-2)* |
-| stage-2 | **FUNC-01**, FUNC-03, FUNC-07, DSP-01..08, PERF-01, PERF-02, COMPAT-03, QUAL-01..04 |
+| stage-2 phase 2.1 | COMPAT-03 ✅, DSP-03 ✅, DSP-04 ⚠️ partial *(criterion 3 → 2.2)*, FUNC-03 ⚠️ partial *(criterion 3 → 2.2)* |
+| stage-2 phase 2.2 | **FUNC-01**, DSP-01, DSP-02, DSP-05, PERF-01, PERF-02, QUAL-02..04, **+ DSP-04/3 and FUNC-03/3** |
+| stage-2 phase 2.3 | FUNC-07, DSP-06, DSP-07, DSP-08, QUAL-01 |
 | stage-3 | FUNC-02, FUNC-04, FUNC-05, FUNC-06, UI-01..05 |
 | stage-4 | COMPAT-02, all remaining |
 
