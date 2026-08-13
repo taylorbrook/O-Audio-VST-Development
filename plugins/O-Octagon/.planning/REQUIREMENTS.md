@@ -4,8 +4,8 @@
 version: 1.0.0
 plugin: O-Octagon
 created: 2026-08-10
-lastUpdated: 2026-08-12
-lastVerified: stage-3 phase 3.3 (scenes/meters/gradient/elevation) — STAGE 3 COMPLETE
+lastUpdated: 2026-08-13
+lastVerified: stage-4 phase 4.1 (machine gates) — 29 of 30 complete, 0 partial, 1 pending
 openRows: COMPAT-02 (pending, stage-4 phase 4.2 — the ONLY open row; three criteria, all needing a host)
 ---
 
@@ -717,7 +717,15 @@ openRows: COMPAT-02 (pending, stage-4 phase 4.2 — the ONLY open row; three cri
       the observation. Left open here because COMPAT-02 is verified at stage-4*
 - [ ] Verify-ping confirms all 8 outputs reach distinct physical channels — *needs FUNC-04 (stage-3).
       The 2.1 meter check proves negotiation and writability only: all 8 lanes carry identical
-      signal at that phase. Do not over-read it*
+      signal at that phase. Do not over-read it.*
+      **Scope stated 2026-08-13 at the 4.2 discuss boundary (D11); the criterion wording above is
+      deliberately left unchanged.** *No physical 8-out interface is attached, so this closes
+      against the **CoreAudio device boundary** — BlackHole 64ch, evidenced by **per-channel
+      capture and script analysis**, which exercises Logic's surround assignment, I/O routing and
+      the driver boundary, and is stronger evidence than eight moving meters. The residual is
+      **one specific hardware driver**, recorded with **owner: none** — a property of hardware that
+      would not generalise across interfaces even if one were present. A criterion is never
+      re-worded to fit its rig; see ROADMAP §Stage 4 D11*
 - [ ] Automation of `srcX`/`srcY`/`srcZ` and `w1..w8` is visible and writable in Logic's automation lanes
       — *visibility observed at the 2.1 manual gate: 17 parameters under 5 groups, matching the
       `auval` clump dump. Writability not yet exercised per-parameter*

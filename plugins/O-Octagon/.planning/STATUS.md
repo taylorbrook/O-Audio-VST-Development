@@ -2,11 +2,11 @@
 plugin: O-Octagon
 stage: 4
 stage_name: polish
-stage_phase: 1                             # DECIDED AT THIS BOUNDARY (D1). Stage 4 is TWO phases,
-stage_phase_name: machine-gates            # not the "single pass" ROADMAP said: 4.1 = machine
+stage_phase: 2                             # DECIDED AT THE 4.1 BOUNDARY (D1). Stage 4 is TWO phases,
+stage_phase_name: host-and-ear             # not the "single pass" ROADMAP said: 4.1 = machine
 stage_phase_total: 2                       # (CI, Windows, pluginval/auval, presets, COMPAT-04,
-artifact_suffix: "-4.1"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
-phase: execute
+artifact_suffix: "-4.2"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
+phase: plan
 status: phase_complete
 last_updated: 2026-08-13
 branch: feat/o-octagon
@@ -15,7 +15,170 @@ complexity_score: 5.0
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-next_action: verify_stage_4_phase_4_1
+next_action: execute_stage_4_phase_4_2   # 4.2 PLAN COMPLETE 2026-08-13 — PLAN-4.2.md, P101-P112,
+                                         # 15 tasks in THREE BLOCKS (desk / re-freeze / session), 25
+                                         # gates, NC1-NC4. Entry check green and NO CONTRACT AMENDED
+                                         # — the first Stage-4 plan boundary where that is true.
+                                         # THE PHASE IS NO LONGER ONE SESSION (D18 corrected): N8 and
+                                         # N10 moved work to the desk, and D19 edits Source/, so P110
+                                         # schedules EXACTLY ONE RE-FREEZE at the end of block B and
+                                         # forbids any Source/ edit after it. A D16 finding re-enters
+                                         # block B rather than opening a 4.3. JS gate sections move
+                                         # 69 -> 70 (P101's new layout section), STATED HERE so a
+                                         # re-run against 69 is not misread as a failure.
+                                         # FOUR DECISIONS THE RESEARCH DID NOT ASK FOR:
+                                         #  - P109: the re-spelled Gate 16b would COUNT ITS OWN
+                                         #    DOC-COMMENT. Measured at this boundary — the receiver-
+                                         #    agnostic regex returns TWO hits, one being
+                                         #    PresetPolicy.h:202's description of the gate. De-match
+                                         #    the comment, THEN assert exactly 1; otherwise the gate
+                                         #    is off by one on day one and the next reader loosens it
+                                         #    to 2, making a real second call site invisible
+                                         #  - P111: a bounce measures the RENDER path only. The :84
+                                         #    claim is about what reaches an output, so CS runs TWICE
+                                         #    — bounced AND through the realtime loopback CT already
+                                         #    builds. "Bounce flat, realtime not" is a real third
+                                         #    outcome that would otherwise ship overclaimed
+                                         #  - P101 mechanics: diagnostics() is unreachable on the
+                                         #    app's live instance (N9) AND from page.evaluate, so the
+                                         #    new layout section DYNAMIC-IMPORTS js/meters.js and
+                                         #    builds its OWN createMeters instance with a controlled
+                                         #    nativeFn. No source change, no window handle. Deadline
+                                         #    measured: METER_POLL_MS 33 x GUARD_DEADLINE_TICKS 5 =
+                                         #    165 ms. NC1 (remove the release, section must FAIL) is
+                                         #    what makes it a gate rather than a claim
+                                         #  - P104: CT records EIGHT MONO FILES while CR/CS produce
+                                         #    ONE 8-channel file. analyse_bounce.py --input takes one
+                                         #    or many, removing an export step that could itself
+                                         #    re-order channels — the exact class of thing the phase
+                                         #    exists to measure
+                                         # AND ONE TASK NOT NEEDED: N15's three "gitignored evidence"
+                                         # files are untracked debris left in the SHARED checkout by
+                                         # a sibling session. On feat/o-octagon the 3.3 evidence dir
+                                         # holds .txt/.png only, all committed. The RULE stands
+                                         # (P108, no *.log); the remediation it implies does not.
+                                         # ── 4.2 RESEARCH (history) ─────────────────────────────
+                                         # RESEARCH-4.2.md, N7-N15,
+                                         # asks for P101-P108. Entry check green: all four contracts
+                                         # match the LEDGER BLOCK BELOW (not a prior artifact's prose)
+                                         # and BOTH FROZEN BUNDLES RE-MEASURED on disk — c0fdd8f2… /
+                                         # 1e04f0a8… — because a sibling session is live on
+                                         # improve/o-spectralshaper-tooltips in the shared tree.
+                                         # Q1 DID NOT COLLAPSE: D11 STANDS. The gate is not WHETHER
+                                         # Logic offers 7.1 but WHICH — JUCE names create7point1() as
+                                         # Logic's "7.1 (3/4.1)" and create7point1SDDS() as "7.1
+                                         # (SDDS)", and the shipped Lss/Rss/Lrs/Rrs labels are ABSENT
+                                         # from SDDS and from 5.1.2 (probe E already says so). So Q1
+                                         # reduces to a ONE-LINE PRE-FLIGHT: getStatus.mapInvalid ==
+                                         # false, read BEFORE the first bounce, not off one.
+                                         # TWO PREMISES FALSIFIED, BOTH CARRIED UNRUN FOR 4+ PHASES:
+                                         #  - N8: GATE 13's Q5 ITEM IS VACUOUS. The completion gate
+                                         #    is Component::isVisible() — the component's OWN flag,
+                                         #    set by addAndMakeVisible and never cleared in
+                                         #    Source/. Minimise/⌘H/occlusion/Spaces all leave it
+                                         #    TRUE; JUCE's own hidden-page path uses isSHOWING and
+                                         #    withKeepPageLoadedWhenBrowserIsHidden() makes it a
+                                         #    no-op. "Hide 10 s, re-show, meters resume" CANNOT drop
+                                         #    a completion — and what it DOES observe is WebKit
+                                         #    timer throttling, which looks identical. Worse than
+                                         #    vacuous: confusable
+                                         #  - N10: THE VERIFY-PING CANNOT BE BOUNCED. prepareToPlay
+                                         #    -> verifyPing.prepare() sets phase=idle, cmd=kCmdNone,
+                                         #    activeFlag=false, and Logic prepares at the start of
+                                         #    every offline bounce. COMPAT-02/2 needs a REALTIME
+                                         #    capture; ffmpeg/sox are NOT installed
+                                         # N9: diagnostics().dropped is UNREADABLE on the freeze —
+                                         # developerExtrasEnabled is #if JUCE_DEBUG, AND `meters` is
+                                         # a module-scope let never put on window. D18's "confirmed
+                                         # present in shipped source" is true and INSUFFICIENT.
+                                         # N11: airAmount MUST be 0 on every bounce test — the air
+                                         # filter's fc is position-dependent, so two instances at
+                                         # different positions give a FALSE per-band delta that
+                                         # reads exactly like bass management and triggers D16's
+                                         # re-freeze on nothing.
+                                         # PRIOR: 4.2 DISCUSS COMPLETE 2026-08-13 — CONTEXT-4.2.md, D11-D21.
+                                         # Entry check applied 4.1-Issue-2's rule (compare against
+                                         # STATUS.md's LIVE contract_checksums block, never a prior
+                                         # artifact's prose): all four exact. The FROZEN 4.1 BINARY
+                                         # IS ON DISK AND MEASURED — VST3 c0fdd8f2… / AU 1e04f0a8…
+                                         # both match the freeze record, so 4.2 runs against
+                                         # fba35081 as instructed. Research owes Q1-Q6; Q1 GATES
+                                         # THE PHASE. 4.1 VERIFIED 2026-08-13: all 18 gates re-run
+                                         # from scratch, not read out of SUMMARY-4.1.md. 95/0, six
+                                         # pluginval runs, auval, CI run 31708358940 with headSha =
+                                         # the freeze commit, and all five negative controls
+                                         # reproduced. See VERIFICATION-4.1.md
+stage_4_2_rig: blackhole-64ch            # D11. NO PHYSICAL 8-OUT INTERFACE IS ATTACHED — the
+                                         # devices present are BlackHole 2ch, BlackHole 64ch, MBP
+                                         # Speakers (2), MBP Mic, Teams, Zoom; NO aggregate. This
+                                         # AMENDS the no_hall_this_milestone premise below, which
+                                         # assumed "an 8-channel interface at the desk" and leaned
+                                         # on it twice: verify-ping's "8 PHYSICAL OUTPUTS" and the
+                                         # audible clause's "any-monitoring" judgement. Neither
+                                         # holds as written. Disposition, per D11/D12:
+                                         #  - verify-ping closes against the COREAUDIO DEVICE
+                                         #    BOUNDARY via PER-CHANNEL CAPTURE, which is STRONGER
+                                         #    than 8 moving meters. Residual = one specific
+                                         #    hardware driver, OWNER: NONE (ungeneralisable across
+                                         #    interfaces even if one were present). The criterion
+                                         #    KEEPS THE WORD "PHYSICAL" — it is not edited to fit
+                                         #    what the rig can prove
+                                         #  - the audible clause runs off an OFFLINE BOUNCE on
+                                         #    headphones, valid because QUAL-03 proved block-size
+                                         #    invariance and 4.1 proved bit-reproducibility. Two
+                                         #    halves, NOT interchangeable: the soloed difference
+                                         #    signal is a LOCATOR only (soloing removes masking);
+                                         #    the full bounce in context is THE REQUIREMENT
+                                         #  - bounce-order and LFE-gain need NO device to RUN — the
+                                         #    bounce is offline. BlackHole 64ch is needed only to
+                                         #    CONFIGURE a 7.1 output at all (D13), which is Q1
+stage_4_2_bounce_order_is_a_pair: true   # D20. THE §6a BOUNCE-ORDER TEST PASSES VACUOUSLY IF RUN
+                                         # ONLY ON THE SHIPPED DEFAULT. The plugin says so in its
+                                         # own source — VenueModel.cpp:87-89: "because this default
+                                         # is the identity … a channel-map test driven by it alone
+                                         # is VACUOUS — a hardcoded 0..7 map would pass it". So the
+                                         # test is CR-a (identity → proves Logic's canonical bounce
+                                         # order, the §6 MEDIUM-confidence claim) PLUS CR-b
+                                         # (NON-IDENTITY permutation → proves the LABEL MAP is what
+                                         # determines bounce order). Source material must be EIGHT
+                                         # DISTINCT TONES; eight copies of one tone makes CR-b
+                                         # unreadable
+stage_4_2_lfe_test_widened: true         # D15. Source/Data/VenueModel.cpp:84 ASSERTS AS FACT a
+                                         # claim the locked research doc rates MEDIUM-LOW: "Logic
+                                         # applies no automatic bass management or LFE low-pass".
+                                         # §6 is explicit — "absence of evidence, not proof". The
+                                         # §6a test as written (ONE −20 dBFS tone) catches a GAIN
+                                         # OFFSET and is BLIND TO A LOW-PASS, closing half the
+                                         # claim while reading as if it closed all of it. Widened
+                                         # to a multi-tone/log sweep compared PER BAND
+stage_4_2_failure_dispositions: |
+  Both decided AT THE DISCUSS BOUNDARY, not in the session — this project puts dispositions here
+  precisely so a curve does not get re-tuned to satisfy one tired judgement at the end of a run.
+
+  LFE TEST FAILS (D16) → FIX, RE-FREEZE, RE-RUN 4.1's 18 GATES. A 10 dB hot speaker is a broken
+  default, not an artifact. Four edit sites: (1) speaker-4 compensating default trim — FUNC-07's
+  venue-scoped post-solve trim path already exists, no new mechanism; (2) VenueModel.cpp:84, which
+  must then state the MEASUREMENT not the assumption; (3) research/logic-pro-multichannel-
+  octaphonic-dbap.md §6's confidence row; (4) re-cut freeze + re-run 4.2 against it. The identity
+  label map is NOT the lever — moving speaker 4 off the LFE slot breaks channel N = speaker N,
+  which §6a calls the entire reason for the default.
+
+  AUDIBLE CLAUSE TICKS (D17) → LOG IT, SHIP v1.0, open a v1.1 row. The lever (RESEARCH-2.3 H3,
+  raising fc(d_hull = 0) toward Nyquist) re-tunes the WHOLE musical air curve and is therefore a
+  DISCUSS-BOUNDARY CHANGE, NOT A FIX — the ROADMAP already says so at D2.
+stage_4_2_pre_session_code_edits: |
+  TWO code changes are owed BEFORE the host session, because each re-cuts the freeze and a freeze
+  re-cut after the session invalidates the session.
+
+  D19 — Gate 16b, carried from 4.1 verify Issue 1. The gate is spelled `presetManager.loadPreset (`
+  and counts ZERO call sites: the parameter is named `manager`, and the only hit without the space
+  is PresetPolicy.h:202, the doc-comment DESCRIBING the gate. Re-spell receiver-agnostically —
+  grep -rnE '\.loadPreset[[:space:]]*\(' Source/ must return exactly one NON-COMMENT hit. Three
+  sites: PLAN-4.1 Gate 16, the PresetPolicy.h:202 comment, and any future stage's gate list.
+
+  D21 — THE 4.1 VERIFY ARTIFACTS ARE UNCOMMITTED. VERIFICATION-4.1.md is untracked;
+  REQUIREMENTS.md and STATUS.md are modified. Commit before the host session
+  (pattern_uncommitted_improve_versions_lost).
 stage_4_cycle_structure: "4.1 machine · 4.2 host-and-ear"  # D1. The split is a HARD DEPENDENCY, not
                                            # a preference: 4.2 should run against a binary 4.1 has
                                            # frozen. A single pass plans the human session before
@@ -218,8 +381,13 @@ stage_4_phase_4_1_discussed: true          # CONTEXT-4.1.md — D1-D10. TWO CONT
                                            # byte-exact ON ARRIVAL before any amendment
 stage_3_verified: true                     # STAGE 3 CLOSES. VERIFICATION.md — NINE rows, 40 criteria,
                                            # ZERO partials, across 3.1 / 3.2 / 3.3. 92 C++ probes
-stage_3_verified: true                     # STAGE 3 CLOSES. VERIFICATION.md — NINE rows, 40 criteria,
-                                           # ZERO partials, across 3.1 / 3.2 / 3.3. 92 C++ probes
+                                           # (dedup 2026-08-13 at the 4.2 discuss boundary: this key
+                                           # appeared TWICE, an orphaned two-line paste artifact
+                                           # duplicating the head of this block. Both read `true`,
+                                           # so nothing was lost — but it is the same silent-shadow
+                                           # hazard as roadmap_checksum_superseded below, found by
+                                           # the same duplicate-key scan and worth keeping in the
+                                           # boundary checklist)
                                            # (44 unit + 48 harness) and 69 JS sections (42 + 27), 0
                                            # failures, re-run from a FORCED FULL RECOMPILE at each of
                                            # three verify boundaries. 8 negative controls run as NEW
@@ -1049,9 +1217,30 @@ contract_checksums:                        # RE-MEASURED AND CORRECTED AT THE 4.
   brief: sha256:697a4f32890d7420cdef85bafbf8fe45775bf805cf1ff7b449ed2c14f6b9fbd6
   parameter_spec: sha256:b45f88dc5017ec2c1a9da49ba35242d01903000a4ff199d16758e1b6cbb9e02f
   architecture: sha256:2806c788092d9ec9c54c04bfbd3c227ce900644dd9973f66178bc0fa57bceb17
-  roadmap: sha256:90c651318ac7a1cc5ec7416076b18b854308e4f072f92d39d10cb230fa562c92
+  roadmap: sha256:ea50d991d1a6b158c8ba12b57e9a0881e25308e19dc1236ca6af96d91063d424
+                                           # RE-PINNED AT THE 4.2 DISCUSS BOUNDARY (2026-08-13).
+                                           # Was 90c65131…fa562c92 (the 4.1-plan pin), which was
+                                           # MEASURED EXACT ON ARRIVAL here before the amendment —
+                                           # this is an authored change, not drift. ROADMAP §Stage 4
+                                           # amended in three places by D11/D15/D20; see
+                                           # roadmap_checksum_superseded (the list further down this
+                                           # file — NOT a second copy; see the note there)
 checksum_referent_discrepancy_4_1_discuss: |
-  OPEN, owner 4.1 verify. NOT a wrong contract — a wrong COMPARISON, which is the same family as
+  DISCHARGED WITH RESIDUAL at 4.1 VERIFY (2026-08-13). The finding below is CONFIRMED, not
+  dismissed; what changes is that it is now closed rather than open, and the residual is PERMANENT
+  rather than pending. Git holds ARCHITECTURE.md at exactly two points — 12ae50dd (Stage 0) blob
+  bff8a83b, and fba35081 (the 4.1 freeze) blob 2806c788. P100 anchors BOTH ENDS of the chain but
+  lands AFTER every intermediate re-pin, so cd881a10, a8a358f4 and 32a85018 are permanently
+  unreconstructible. That is a fact to record once, not a gap to close later. What IS settled: all
+  four contracts were re-measured at the 4.1 verify boundary and match this block exactly, and from
+  fba35081 forward every boundary is independently checkable from git for the first time in this
+  project. Recorded so no future reader mistakes the 3.3-era arrival tick for something that was
+  ever independently confirmed — it was not, and it now cannot be.
+  STANDING RULE THIS YIELDS: an arrival check compares against THIS BLOCK — the ledger — never
+  against a value quoted in a prior artifact's prose. The 4.1-discuss check failed by doing exactly
+  the latter. Carried to 4.2 and every boundary after it.
+  ── The original finding, verbatim ────────────────────────────────────────────────────────────
+  NOT a wrong contract — a wrong COMPARISON, which is the same family as
   D7 and A3 and the THIRD instance of it at this stage boundary.
   CONTEXT-4.1.md's Entry Check reports ARCHITECTURE.md "on arrival" as a8a358f4…9b6d4408 and ticks
   it ✅ "matches the Stage 3.3-discuss re-pin". But a8a358f4 is listed in this file's OWN
@@ -1065,7 +1254,41 @@ checksum_referent_discrepancy_4_1_discuss: |
   Stage 0 and today can be independently reconstructed. That is the actual lesson and it has a
   standing fix, not an investigation: COMMIT (4.1 Task 15, P100). The OPERATIVE pins are not in
   doubt — the files measure 2806c788 and 90c65131 today, and that is what the block above now says.
-roadmap_checksum_superseded:
+gate_16b_literal_does_not_match_the_code: |
+  OPEN, owner 4.2. Found at 4.1 VERIFY by re-running the gate rather than reading SUMMARY-4.1.md.
+  PLAN-4.1 Task 6 and Gate 16 specify: "presetManager.loadPreset (" appears EXACTLY ONCE in Source/.
+  Measured at 4952a8ca: that literal WITH the space returns ZERO hits; without the space it returns
+  ONE — and that one is PresetPolicy.h:202, the DOC-COMMENT DESCRIBING THE GATE, not a call. The
+  parameter is named `manager`, not `presetManager`, so the real call is manager.loadPreset
+  (presetName) at :222. The gate as spelled counts ZERO call sites and reports a plausible "1" only
+  by matching its own description.
+  SUBSTANCE HOLDS AND WAS VERIFIED DIRECTLY: exactly one loadPreset call site in Source/, inside
+  loadPreserving. P93's "one implementation, two consumers" discipline is intact; no shipped
+  behaviour is affected. WHAT DOES NOT HOLD: a future call site written presets.loadPreset(...) or
+  mgr.loadPreset(...) is invisible to a grep anchored on `presetManager` — i.e. the gate cannot catch
+  the likely bypass, which is the whole reason it exists.
+  Same family this project keeps catching, one level up — a check that is not looking at what it
+  claims to look at (pattern_criterion_discriminator_states_outcome_backwards,
+  pattern_zipper_sweep_probe_needs_liveness_gate) — and this time the defect is IN A GATE.
+  FIX (one line, three sites, in ONE edit per the standing parting rule): re-spell
+  receiver-agnostically as  grep -rnE '\.loadPreset[[:space:]]*\(' Source/  requiring exactly one
+  NON-COMMENT hit; update PLAN-4.1.md Gate 16, the PresetPolicy.h:202 doc-comment, and any later
+  stage's gate list.
+roadmap_checksum_superseded:               # ⚠ THE ONLY COPY OF THIS KEY. A duplicate block was
+                                           # briefly added near contract_checksums at the 4.2 discuss
+                                           # boundary and REMOVED on discovery: YAML resolves
+                                           # duplicate keys silently (last wins), so a second list
+                                           # would have DISCARDED this history without any error —
+                                           # a ledger that loses entries while still parsing clean.
+                                           # Keep all entries here. The same edit also nearly
+                                           # recorded the 3.3 pin as "unreconstructible"; it is
+                                           # recorded IN FULL at the bottom of this list
+  - sha256:90c651318ac7a1cc5ec7416076b18b854308e4f072f92d39d10cb230fa562c92  # superseded at 4.2 DISCUSS (D11/D15/D20 — §Stage 4's rig premise
+                                                                            # corrected: D2 assumed "an 8-channel interface at the desk" and NONE
+                                                                            # IS ATTACHED; plus the bounce-order bullet split into the CR-a/CR-b
+                                                                            # pair and the LFE bullet widened to gain AND low-pass). FULL value,
+                                                                            # measured at the 4.2 arrival check BEFORE the amendment — this pin
+                                                                            # is checkable, unlike the two elided ones below
   - sha256:643471baa689b63436a6a78573df1f1a0fa2a7f4322fb6bb833d82b43b4383d8  # superseded at 4.1 DISCUSS (D1/D2/D5/D6/D7/D9 — §Stage 4 split into
                                                                             # 4.1/4.2, "in the hall" corrected, and FOUR carried-prose residuals
                                                                             # promoted to checkboxes). Recorded HERE at the 4.1 plan boundary:
@@ -1109,11 +1332,102 @@ architecture_checksum_superseded:
 
 ## Current Position
 
-Stage: **4 of 4 (Polish) — phase 4.1 of 2, discuss COMPLETE.** Stages 1, 2 and 3 all ✅ VERIFIED
-AND CLOSED.
-Status: **`stages/4-polish/CONTEXT-4.1.md` written — D1–D10.** Stage 4's structure decided (D1):
-**4.1 machine gates · 4.2 host-and-ear against a frozen 4.1 binary.**
-Next: **research phase for 4.1** — Q1–Q7.
+Stage: **4 of 4 (Polish) — phase 4.1 of 2, ✅ VERIFIED AND CLOSED.** Stages 1, 2 and 3 all ✅
+VERIFIED AND CLOSED.
+Status: **`stages/4-polish/VERIFICATION-4.1.md` written.** All 18 gates **re-run from scratch**,
+none read out of `SUMMARY-4.1.md`. **95 probes / 0 failures**, six pluginval s10 runs, `auval`
+SUCCEEDED, CI run 31708358940 green on both jobs with `headSha` = the freeze commit, and all five
+negative controls reproduced as declared with the tree byte-identical afterwards.
+**Ledger: 29 complete · 0 partial · 1 pending of 30.** `COMPAT-02` is the only open row.
+Next: **discuss phase for 4.2** — host-and-ear against `fba35081`.
+
+---
+
+## Stage 4 Phase 4.1 Verify Results (2026-08-13) — `stages/4-polish/VERIFICATION-4.1.md`
+
+**Verdict: ✅ VERIFIED. No blockers.** `COMPAT-04` closed 3 of 3; `COMPAT-01` re-confirmed on the
+final binary; `COMPAT-02` correctly untouched and owned by 4.2.
+
+**The freeze turns out to be bit-reproducible, which is stronger than P100 asked for.** A forced
+full recompile from the committed tree reproduced **both** bundle binaries byte-for-byte —
+`c0fdd8f2…` (VST3) and `1e04f0a8…` (AU), matching the freeze record and the installed bundles on all
+three sides. P100 asked for the freeze to be *recorded*; it is *checkable*. This changes what a 4.2
+finding can conclude: a checksum mismatch at 4.2 is now a real signal, not a build-nondeterminism
+excuse.
+
+**All five negative controls reproduced**, including the sixth observation (a data-only golden
+perturbation compiles clean and is caught at runtime by probe B, `slot 6 runtime 20 != golden 21`).
+NC3's byproduct is the phase's sharpest single piece of evidence: under the stubbed apply, the six
+read `0.00 / 4.00 / 0.10 / 1.00 / 0.35 / 0.00` — *exactly Concert Default's authored values*, so
+P94's "never use Concert Default" rule is demonstrated by the failing output printing the passing
+preset's value set.
+
+### The one defect found — `gate_16b_literal_does_not_match_the_code`
+
+**OPEN, owner 4.2.** Low in effect, notable in kind: the gate's substance holds, its spelling cannot
+detect the drift it exists to prevent.
+
+`PLAN-4.1.md` Task 6 and Gate 16 specify `presetManager.loadPreset (` appears **exactly once** in
+`Source/`. Measured against `4952a8ca`:
+
+| Search | Hits |
+|---|---|
+| `presetManager.loadPreset (` — the gate **exactly as written** | **0** |
+| `presetManager.loadPreset(` — no space | **1**, and it is `PresetPolicy.h:202` — **the doc-comment describing the gate**, not a call |
+| `\.loadPreset[[:space:]]*\(` — receiver-agnostic | **2**: that comment, and the real call `manager.loadPreset (presetName)` at `:222` |
+
+The parameter is named `manager`, not `presetManager`, so the gate as spelled **counts zero call
+sites** and reports a plausible "1" only by matching its own description. `SUMMARY-4.1.md` records it
+as `.loadPreset (` once — true of the substance, silently re-worded from the plan's literal, which is
+why reading the summary would not have surfaced it.
+
+**Substance verified directly and holds:** exactly one `loadPreset` call site in `Source/`, inside
+`loadPreserving`. P93's "one implementation, two consumers" discipline is intact and no shipped
+behaviour is affected. **What does not hold:** a future call site written `presets.loadPreset(...)`
+or `mgr.loadPreset(...)` is invisible to a grep anchored on `presetManager`.
+
+**Same family this project keeps catching, one level up** — a check that is not looking at what it
+claims to look at (`pattern_criterion_discriminator_states_outcome_backwards`,
+`pattern_zipper_sweep_probe_needs_liveness_gate`), and this time the defect is *in a gate*.
+
+**Fix, carried to 4.2 — one line, three sites:** re-spell receiver-agnostically as
+`grep -rnE '\.loadPreset[[:space:]]*\(' Source/` → exactly one non-comment hit; update `PLAN-4.1.md`
+Gate 16, the `PresetPolicy.h:202` doc-comment, and any later stage's gate list **in the same edit**,
+per the standing parting rule.
+
+### Gate results — every one re-run
+
+| # | Gate | Result |
+|---|---|---|
+| 1 | Forced full recompile, 3 formats + both test targets | ✅ exit 0, **zero** `warning:`/`error:`/`FAILED` |
+| 2 | Both C++ test targets | ✅ **95 / 0** — unit 45, harness 50 |
+| 3 | `ui_frontend_check.js` | ✅ **42 sections** |
+| 4 | `ui_layout_check.js` | ✅ **27 sections**, zero SKIP |
+| 5 | `auval -v aufx OuOc OuDv` | ✅ SUCCEEDED, `[1,1] [1,2] [1,8] [2,1] [2,2] [2,8]` |
+| 6 | pluginval s10, VST3 ×3 / AU ×3 | ✅ six exit 0, zero `FAILED` |
+| 7 | CI macOS job | ✅ run 31708358940, `headSha` = `fba35081` |
+| 8 | CI Windows job | ✅ **0** MSVC warnings; Editor Automation **11.18 s**; 1-in/8-out |
+| 9 | JUCE pin derived | ✅ exactly one `8.0.14` in `.github/` |
+| 10 | 17 params, three sides | ✅ 17/17, ranges and defaults row-for-row |
+| 11 | Unit-target link line | ✅ narrow — `RigPolicy.h` did not widen it |
+| 12 | `createEditor` guard; TU absent from harness | ✅ both |
+| 13 | Contract checksums + `STATUS.md` agrees | ✅ all four exact |
+| 14 | Five negative controls | ✅ all five + the sixth observation; tree byte-identical |
+| 15 | `gen_dbap_reference.py --check` | ✅ 102 cases |
+| 16 | Static gates | ⚠️ 16a ✅, 16c ✅, **16b — see above** |
+| 17 | `User/` byte-identical | ✅ **still never created**; Factory's seven files byte-identical across the run |
+| 18 | Install + dual-variant sweep | ✅ `⚠ Sweeping ALTERNATE-variant` **absent**, recorded |
+
+### Verification environment — stated so the result is re-derivable
+
+This verify ran with two sibling Claude sessions live in the same repository. Partway through, one of
+them checked the shared working tree out to `improve/o-spectralshaper-tooltips`, removing
+`plugins/O-Octagon/` from disk. **No result is affected** — every gate had already been measured
+against `feat/o-octagon` @ `4952a8ca`, and the remaining static measurement (Gate 16b) was taken
+read-only from the commit via `git grep`. Artifacts were written from a dedicated worktree at
+`../VST-development-octagon` rather than by switching the shared checkout back, so the sibling
+session was not disturbed. Recorded because it is this stage's own hazard class: **a result whose
+provenance is not stated is a result nobody can re-derive.**
 
 ---
 
