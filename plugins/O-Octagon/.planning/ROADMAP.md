@@ -406,8 +406,36 @@ Two screens: **Room** (performance) and **Venue** (measurement).
 > hull-crossing gesture, tick audibly on HF-rich material?* — is a **one-gesture, any-monitoring**
 > judgement that needs no room. What a hall would add is spatial-coherence judgement, which **no
 > requirement row asks for**. Stated so it is a decision and not an omission.
+>
+> **D11 — amended again 2026-08-13 at the 4.2 discuss boundary. D2's rig does not exist.** No
+> physical 8-out interface is attached: the devices present are BlackHole 2ch, **BlackHole 64ch**,
+> MacBook Pro Speakers (2), the built-in mic, Teams and Zoom, with no aggregate configured. D2 leaned
+> on the interface **twice** — for verify-ping's "8 physical outputs" and for the audible clause's
+> "any-monitoring" judgement — and neither holds as written. *(Surfaced by this stage's own parting
+> rule: when an amendment corrects a claim, grep the other contracts for the same claim. It fired at
+> D7 one boundary ago and it fires here.)*
+>
+> The rig is **Logic Pro 12.3 + BlackHole 64ch**, and the two leans are discharged differently:
+>
+> - **Verify-ping** closes against the **CoreAudio device boundary**, evidenced by per-channel
+>   capture and script analysis — Logic's surround assignment, I/O routing and the driver boundary
+>   are all exercised, and capture is *stronger* evidence than eight moving meters. The residual is
+>   **one specific hardware driver**, recorded with **owner: none**, because it is a property of a
+>   piece of hardware and would not generalise across interfaces even if one were present.
+>   **The criterion below keeps the word "physical".** It is not edited to fit what the rig can
+>   prove — this project has been caught three times by a check that stopped looking at what it
+>   claimed to look at, and the fix is to record the scope, never to re-word the criterion.
+> - **The audible clause** runs off an **offline bounce on headphones**, which is valid because
+>   QUAL-03 proved block-size invariance and 4.1 proved the binary bit-reproducible: the bounce holds
+>   the same samples realtime would. Two halves, not interchangeable — a soloed difference signal is
+>   a **locator** (soloing removes masking); the full bounce in context is **the requirement**.
+>
+> **Bounce-order and LFE-gain need no device to run** — the bounce is offline. BlackHole 64ch is
+> required only to make Logic offer a 7.1 output at all, which is 4.2 research question Q1 and gates
+> the phase. See `stages/4-polish/CONTEXT-4.2.md` D11–D13.
 
-**Goal:** Logic Pro on an 8-channel desk rig, with the bounce path confirmed.
+**Goal:** Logic Pro 12.3 on BlackHole 64ch, with the bounce path confirmed.
+*(Goal line amended 2026-08-13, D11 — was "an 8-channel desk rig".)*
 
 ### Phase 4.1 — machine gates (no host, no ear)
 
@@ -491,15 +519,39 @@ Two screens: **Room** (performance) and **Venue** (measurement).
       have re-derived a settled fact against a stale premise.)* Stage 4 **confirms on the shipping
       binary**, whose `isBusesLayoutSupported()` is byte-identical to the commit the observation was
       made at, and additionally checks **stability across session recall**, which 2.1 could not.
-- [ ] Verify-ping confirms all 8 outputs reach distinct physical channels
+- [ ] Verify-ping confirms all 8 outputs reach distinct physical channels *(**scope stated
+      2026-08-13, D11** — closes against the CoreAudio device boundary by per-channel capture;
+      residual "one specific hardware driver", **owner: none**. The wording is deliberately
+      unchanged; see the D11 block above for why a criterion is never re-worded to fit its rig.)*
 - [ ] Automation of `srcX`/`srcY`/`srcZ` and `w1..w8` is visible and writable in Logic's
       automation lanes
 - [ ] **Bounce-order test** (`research/logic-pro-multichannel-octaphonic-dbap.md` §6a test 1):
       bounce a 7.1 project with a distinct tone in each of the 8 slots, interleaved; read off
       the order; confirm the identity label map gives *channel N = speaker N*
+      *(**Split into a PAIR 2026-08-13 at the 4.2 discuss boundary, D20 — as written it passes
+      vacuously.** The plugin says so in its own source: `VenueModel.cpp:87-89` — "because this
+      default is the identity under all three accepted 8-channel containers, a channel-map test
+      driven by it alone is **VACUOUS** — a hardcoded 0..7 map would pass it (RESEARCH-2.1 C1/G5).
+      Every map probe must drive a **NON-IDENTITY** assignment." This bullet drives exactly that
+      default, so run alone it confirms Logic's canonical bounce order and says **nothing** about
+      the label map, while reading as though it confirmed both. **CR-a** = identity map → proves
+      the §6 MEDIUM-confidence canonical-order claim. **CR-b** = a non-identity permutation →
+      proves the label map is what determines bounce order. Source material must be **eight
+      distinct tones**; eight copies of one tone makes CR-b unreadable.)*
 - [ ] **LFE-gain test** (§6a test 2): bounce identical −20 dBFS tone into the LFE slot and one
       other slot; compare levels. Any delta means Logic is touching the LFE path and speaker 4
       needs a compensating default trim
+      *(**Widened 2026-08-13, D15 — the test as written closes half of the claim it checks.**
+      `Source/Data/VenueModel.cpp:84` asserts **as fact** that "Logic applies no automatic bass
+      management or LFE low-pass", while §6 of the locked research doc rates that **MEDIUM-LOW** and
+      says plainly it is "absence of evidence, not proof". A single −20 dBFS tone catches a **gain
+      offset** and is **blind to a low-pass** unless it happens to sit above the crossover. Widened
+      to a multi-tone or log sweep into the LFE slot and a reference slot, compared **per band**:
+      a broadband delta catches the +10 dB offset, HF-band attenuation catches bass management,
+      and both ≈ 0 lets the `:84` comment cite a measurement instead of an assumption. **If it
+      fails: fix, re-freeze, re-run 4.1's 18 gates** — D16. The identity map is not the lever;
+      moving speaker 4 off the LFE slot breaks *channel N = speaker N*, which §6a calls the entire
+      reason for the default.)*
 - [ ] **Gate 13's interactive half** — ~15 min Standalone launch-and-drive. The static half is fully
       discharged across 3.1 / 3.2 / 3.3 in real WKWebView; every remaining item needs synthetic
       clicks this environment cannot deliver (`-25208`) *(added 2026-08-12, D9 — carried from 3.3
