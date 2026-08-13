@@ -1,0 +1,200 @@
+O-Octagon — Phase 4.2 (host-and-ear) — DESK GATES 1-11 + 24
+================================================================================
+Freeze commit : 378fb4cdc70ef7e7b4523771dd4f014f189246ec
+Branch        : feat/o-octagon
+Worktree      : /Users/taylorbrook/Dev/VST-development-octagon
+Toolchain     : JUCE 8.0.14, Ninja, AppleClang (Xcode 26.3), Python 3.14.2,
+                node v20.20.2, Playwright 1.62.1, pluginval (/Applications)
+
+Every gate below was RUN, not read out of a summary. Gates 12-25 are the SESSION
+gates and are NOT in this file: they require Logic Pro 12.3, a BlackHole 64ch
+device and a human ear, and none of them has been run. See SUMMARY-4.2.md.
+
+--------------------------------------------------------------------------------
+GATE 1 — contract checksums vs the STATUS.md LEDGER (never a prior artifact's prose)
+--------------------------------------------------------------------------------
+  PASS  brief           697a4f32890d7420cdef85bafbf8fe45775bf805cf1ff7b449ed2c14f6b9fbd6
+  PASS  parameter_spec  b45f88dc5017ec2c1a9da49ba35242d01903000a4ff199d16758e1b6cbb9e02f
+  PASS  architecture    2806c788092d9ec9c54c04bfbd3c227ce900644dd9973f66178bc0fa57bceb17
+  PASS  roadmap         ea50d991d1a6b158c8ba12b57e9a0881e25308e19dc1236ca6af96d91063d424
+
+  All four exact. NO CONTRACT IS AMENDED AT THIS BOUNDARY — the first plan
+  boundary in Stage 4 where that is true. parameter-spec.md does not move: 4.2
+  adds no parameter.
+
+  Measured at:  plugins/O-Octagon/.planning/{BRIEF,parameter-spec,ROADMAP}.md
+                plugins/O-Octagon/.planning/research/ARCHITECTURE.md
+
+--------------------------------------------------------------------------------
+GATE 2 — forced full recompile + both C++ test targets
+--------------------------------------------------------------------------------
+  Method: rm -rf build && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DSKIP_PLUGINS="O-Orbit" -DOUARICON_BUILD_TESTS=ON
+          && cmake --build build --target <five targets>
+
+  Five targets: OuariconOctagon_VST3, OuariconOctagon_AU,
+                OuariconOctagon_Standalone, O-Octagon-geometry-test,
+                O-Octagon-render-test
+
+  PASS  exit 0
+  PASS  grep -c 'warning:' = 0
+  PASS  grep -c 'error:'   = 0
+  PASS  grep -c 'FAILED'   = 0
+  PASS  unit    : 45 probe(s), 0 failure(s)   (exit 0)
+  PASS  harness : 50 probe(s), 0 failure(s)   (exit 0)
+  PASS  TOTAL 95 PROBES, 0 FAILURES — 4.2 ADDS NO C++ PROBE, AND THIS ASSERTS IT
+
+  NOTE — two configure facts, recorded because they cost time and will cost it
+  again. (a) OUARICON_BUILD_TESTS defaults OFF; without -DOUARICON_BUILD_TESTS=ON
+  the two test targets are not generated at all and ninja reports
+  "unknown target 'O-Octagon-geometry-test'". (b) A bare configure of this repo
+  FAILS in an unrelated plugin: O-Orbit's CMakeLists add_subdirectory's
+  libs/SAF/framework, which is not checked out in this worktree. -DSKIP_PLUGINS
+  is the documented escape and it does not touch O-Octagon's targets.
+
+--------------------------------------------------------------------------------
+GATE 3 — node tests/ui_frontend_check.js
+--------------------------------------------------------------------------------
+  PASS  exit 0 — ALL SECTIONS PASS — 42 sections  (UNCHANGED, as planned)
+
+--------------------------------------------------------------------------------
+GATE 4 — node tests/ui_layout_check.js
+--------------------------------------------------------------------------------
+  PASS  exit 0 — ALL SECTIONS PASS — 28 sections  (27 + P101's new one)
+  PASS  did not SKIP
+
+  P110's new invariant holds: frontend 42 + layout 28 = 70 SECTIONS.
+  The move from 69 was STATED AT PLAN, not discovered at execute.
+
+--------------------------------------------------------------------------------
+GATE 5 — Gate 16b, re-spelled (D19 / P109)
+--------------------------------------------------------------------------------
+  Command: grep -rnE '\.loadPreset[[:space:]]*\(' Source/
+
+  BEFORE the edit (measured on 4952a8ca, reproduced here):
+    Source/Data/PresetPolicy.h:202   <- the DOC-COMMENT describing the gate
+    Source/Data/PresetPolicy.h:222   <- the real call
+    = 2 hits, which is why a naive "exactly one" re-spell is off by one on day one.
+  And the literal PLAN-4.1 spelled ("presetManager.loadPreset (") returned 0 hits
+  — it matched nothing from the day it was written.
+
+  AFTER the edit:
+  PASS  exactly 1 hit
+  PASS  and it IS the call, not the comment:
+          Source/Data/PresetPolicy.h:226:    const bool ok = manager.loadPreset (presetName);
+
+  LINE NUMBER MOVED, DELIBERATELY: the call is at :226, not the :222 quoted in
+  PLAN-4.2, because the re-spelled doc-comment is four lines longer. Recorded so
+  a verify pass reading the plan's :222 does not score it as drift.
+
+  PLAN-4.1.md's Gate 16 literal is HISTORY AND IS NOT EDITED (P109's parting rule).
+
+--------------------------------------------------------------------------------
+GATE 6 — NC1: the control that makes section 28 a gate
+--------------------------------------------------------------------------------
+  Mutation: delete meters.js:151-152 — the deadline release —
+              if (now - inFlightSince < METER_POLL_MS * GUARD_DEADLINE_TICKS) return;
+              ++dropped;
+  Applied byte-safely (binary-mode line splice; the file is LF-only, 0 CRLF, so
+  pattern_bulk_edit_crlf_universal_newline does not apply but was checked).
+
+  PASS  section 28 FAILS under the mutation, on both mechanism clauses:
+          FAIL: [28] the guard RELEASED on its 165 ms deadline ... dropped = 0
+          FAIL: [28] and the poll CONTINUED past it ... called null time(s)
+  PASS  tree byte-identical after revert
+          before 9f121647cc6d34df762f05a7d72314b84893821a5e1ed7a83c3cf05fc7ab6541
+          after  9f121647cc6d34df762f05a7d72314b84893821a5e1ed7a83c3cf05fc7ab6541
+
+  WHAT NC1 CAUGHT, beyond firing. The section's third clause originally read
+  "(request 1 never settled, so call 2 is only reachable through the deadline)".
+  That is true of the SHIPPED guard and FALSE under this mutation, where the
+  guard is inert and the count rises for the opposite reason. The clause printed
+  PASS with a false explanation attached. The wording was corrected to claim only
+  what it measures — that the stimulus arrived. A negative control that changes
+  the positive control is the control working.
+
+--------------------------------------------------------------------------------
+GATE 7 — pluginval strictness 10, x3 per format, then auval
+--------------------------------------------------------------------------------
+  PASS  VST3 run 1  exit 0      PASS  AU run 1  exit 0
+  PASS  VST3 run 2  exit 0      PASS  AU run 2  exit 0
+  PASS  VST3 run 3  exit 0      PASS  AU run 3  exit 0
+  PASS  grep -c FAILED = 0 in all six logs
+  PASS  non-vacuity: the logs show real work — "Main bus num output channels: 8",
+        "Fuzz parameters", terminal "SUCCESS"
+
+  auval -v aufx OuOc OuDv
+  PASS  AU VALIDATION SUCCEEDED.
+  PASS  the SIX AUChannelInfo configs, verbatim from the report:
+          Reported Channel Capabilities (explicit):
+                [1, 1]  [1, 2]  [1, 8]  [2, 1]  [2, 2]  [2, 8]
+
+  x3 per format per pattern_ci_pluginval10_catches_latent_nan.
+
+--------------------------------------------------------------------------------
+GATE 8 — ci-tests.yml green on the NEW freeze SHA
+--------------------------------------------------------------------------------
+  PASS  run 31753001642 — https://github.com/taylorbrook/O-Audio-VST-Development/actions/runs/31753001642
+  PASS  headSha = 378fb4cdc70ef7e7b4523771dd4f014f189246ec — THE FREEZE COMMIT
+  PASS  octagon-probes-macos : success
+  PASS  octagon-windows-vst3 : success
+  PASS  probe counts read from THE RUNNER'S OWN LOG, not inferred from a green tick:
+          octagon-probes-macos  Run geometry unit probes    45 probe(s), 0 failure(s)
+          octagon-probes-macos  Run render-harness probes   50 probe(s), 0 failure(s)
+
+--------------------------------------------------------------------------------
+GATE 9 — gen_dbap_reference.py --check
+--------------------------------------------------------------------------------
+  PASS  exit 0 — "--check OK — 102 cases, tests/fixtures/DbapReferenceFixture.h"
+  4.2 does not touch the solver, and this is what proves it.
+
+--------------------------------------------------------------------------------
+GATE 10 — install + dual-variant sweep
+--------------------------------------------------------------------------------
+  ./scripts/build-and-install.sh O-Octagon   -> exit 0, total time 1s
+  (1s confirms it did NOT rebuild: the build dir was already configured, so the
+  installed binary is byte-for-byte the one gated above.)
+
+  PASS  VST3: ~/Library/Audio/Plug-Ins/VST3/O-Octagon-dev.vst3          (4.7M)
+  PASS  AU  : ~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component (4.6M)
+  PASS  "Sweeping ALTERNATE-variant" — RECORDED ABSENT. No unsuffixed
+        O-Octagon.{vst3,component} was on disk to shadow the dev build
+        (critical_dev_release_variant_shadowing).
+  PASS  installed binaries match the freeze checksums exactly:
+          VST3 928cd447c57435c93554fbb90fd14ec035cd39e8a8db54a5aba37a1597e0bb42
+          AU   cc54db026875173e47daf691228c4c80c52da4c9050880aea0976bc16fe1fc99
+
+--------------------------------------------------------------------------------
+GATE 11 — the re-freeze is BIT-REPRODUCIBLE
+--------------------------------------------------------------------------------
+  Second forced recompile, from a full rm -rf build + reconfigure (STRONGER than
+  4.1's `ninja -t clean`, which reuses the configured tree).
+
+  PASS  VST3 identical  928cd447c57435c93554fbb90fd14ec035cd39e8a8db54a5aba37a1597e0bb42
+  PASS  AU   identical  cc54db026875173e47daf691228c4c80c52da4c9050880aea0976bc16fe1fc99
+  PASS  build 2: 0 warnings, 0 errors
+
+--------------------------------------------------------------------------------
+GATE 24 — ~/Library/O-Octagon/Presets/User/ byte-identical (DESK HALF ONLY)
+--------------------------------------------------------------------------------
+  PASS  across Block A and Block B:
+          baseline e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          after    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        (the User directory does not exist; that IS the empty-tree hash)
+
+  INCOMPLETE BY CONSTRUCTION: Gate 24 is "across the whole phase, desk AND
+  session". The session half has not run. Re-measure after Block C.
+
+--------------------------------------------------------------------------------
+NOT RUN — GATES 12-25 (the session)
+--------------------------------------------------------------------------------
+  12 Q2 surround bounce on BlackHole        13 getStatus pre-flight
+  14 COMPAT-02/1 instantiation + recall     15 COMPAT-02/3 automation writability
+  16 CT — COMPAT-02/2                       17 CR-a
+  18 CR-b                                   19 NC2 + NC3
+  20 CS — LFE, both paths                   21 NC4
+  22 CU — the audible clause                23 Gate 13's interactive half
+  25 analyse_bounce.py --check on committed session artifacts
+
+  Every one of these needs Logic Pro 12.3, a BlackHole 64ch device, or a human
+  ear. None has been run and none is claimed.
