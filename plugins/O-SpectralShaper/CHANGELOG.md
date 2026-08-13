@@ -1,5 +1,25 @@
 # O-SpectralShaper Changelog
 
+## [1.4.0] - 2026-08-12
+
+### Changed
+- **UI reskinned to the Ouaricon Naturalist brand aesthetic.** The interface was a generic dark charcoal theme (`#1A1A1A`) with modern blue/orange accents, Georgia type and plain dark-disc knobs — it carried none of the house style. It is now a field-guide page: aged-paper ground, Garamond typography, warm earth palette (walnut `#8B7355` / oak `#5C4033` / `#3C2F2F` text), botanical seed cross-section knobs, green botanical toggle and buttons, and fleuron ornaments.
+- **Analysis displays kept as dark specimen plates.** The spectrogram and both curve editors retain dark grounds, now set in 3px walnut frames with inset shadow so they read as photographic plates mounted on the paper page. The WebGL inferno colormap is unchanged — spectral legibility was the reason to keep these areas dark rather than invert them to ink-on-cream.
+- **Curve accents moved from modern blue/orange to earth tones** that stay legible on the dark plate: attack moss `#9BB877`, sustain ochre `#D4A257`. These were duplicated as string literals in three places in `app.js`; they are now a single `ACCENT_COLORS` constant mirroring the `--accent-attack` / `--accent-sustain` CSS custom properties.
+- **Botanical specimen made visible.** The plugin already shipped a nudibranch illustration (after Trinchese, lith. Armanino, *Atti della R. Università di Genova*, Vol. II, Tav. VI — public domain) but rendered it at 0.08 opacity where it was effectively invisible, and as a dark-plate image that could not sit on a light ground. It is now converted to sepia ink on a transparent ground and placed right-side per the house spec at 0.42 opacity, bleeding off the edge behind the control column.
+
+### Fixed
+- **Three controls were unreachable.** The knob sidebar laid seven controls out in a single flex column whose content ran 638px tall inside a 418px container — a 220px overflow with `overflow` unset, so **Lookahead, LA Time and Output Gain were all clipped off the bottom of the window with no way to scroll to them**. Output Gain in particular has been inaccessible from the UI since the sidebar was introduced. The sidebar is now a two-column grid (Mix/Attack, Sustain/Sensitivity, Output/LA Time, with the Lookahead toggle spanning both columns); all seven controls fit with 60px of vertical slack, verified stable across the Garamond, Times New Roman and Georgia font fallbacks.
+- **Header version string was stale:** `index.html` hard-coded `v1.3.0` while the plugin shipped as 1.3.2. Now reads v1.4.0.
+
+### Removed
+- **Watermarked stock background texture.** `Resources/ui/images/paper-bg.webp` was a tiled-"Adobe Stock"-watermarked image (visible when brightened; it went unnoticed because it rendered at 0.1 opacity over a dark background). It was also a *dark navy* grunge texture, unusable for the aged-paper ground. Replaced with the clean aged-paper texture already used by O-Tremolo, re-encoded to WebP at 700×500. Filename is unchanged, so the `juce_add_binary_data` list needed no edit.
+
+### Notes
+- Visual restyle only — no DSP, parameter, preset-format or state changes. Parameter IDs, ranges, factory presets and the saved-state format are untouched, so existing sessions and presets load unchanged.
+- The Lookahead control remains inert (see the 1.3.2 Known Limitations); this release only makes it reachable, it does not change its behaviour.
+- Two sibling plugins still ship the same watermarked texture — `O-Lyrica/Resources/ui/images/paper1.jpg` and `O-Gain/Source/ui/public/images/paper1.jpg` are byte-identical (md5 `b7c865c45f2fb95a7a8651071da186e6`). Out of scope here; flagged for a separate pass.
+
 ## [1.3.2] - 2026-07-07
 
 ### Fixed

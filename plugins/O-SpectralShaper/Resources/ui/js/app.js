@@ -36,6 +36,14 @@ import { PresetManager } from '../modules/preset-manager.js';
 // APPLICATION STATE
 // ============================================================================
 
+// Curve accents, Ouaricon Naturalist palette. Earth tones chosen to stay
+// legible against the dark specimen plate the curve editors are drawn on.
+// Mirrors --accent-attack / --accent-sustain in css/styles.css.
+const ACCENT_COLORS = {
+    attack: '#9BB877',  // moss
+    sustain: '#D4A257'  // ochre
+};
+
 const app = {
     knobs: {},
     curves: {},
@@ -234,7 +242,7 @@ function initializeCurveEditors() {
 
     // Attack curve editor
     app.curveEditors.attack = new FreehandCurve('attack-curve-canvas', {
-        accentColor: '#4A90D9', // Attack blue
+        accentColor: ACCENT_COLORS.attack,
         numBands: 32
     });
 
@@ -244,7 +252,7 @@ function initializeCurveEditors() {
 
     // Sustain curve editor
     app.curveEditors.sustain = new FreehandCurve('sustain-curve-canvas', {
-        accentColor: '#D9944A', // Sustain orange
+        accentColor: ACCENT_COLORS.sustain,
         numBands: 32
     });
 
@@ -272,7 +280,7 @@ function initializeCurveEditors() {
 function setupModeToggle(curveType) {
     const toggleButton = document.getElementById(`${curveType}-mode-toggle`);
     const canvasId = `${curveType}-curve-canvas`;
-    const accentColor = curveType === 'attack' ? '#4A90D9' : '#D9944A';
+    const accentColor = ACCENT_COLORS[curveType];
 
     toggleButton.addEventListener('click', () => {
         // Toggle mode
