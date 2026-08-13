@@ -673,6 +673,15 @@ body {
                         <div class="knob-label">Noise</div>
                         <div class="knob-value"></div>
                     </div>
+                    <!-- v1.3 — how fast the string decays once the bow lifts.
+                         Occupies the row's existing third slot (the row is sized
+                         for three, as the Speed/Pressure/Position row above it),
+                         so no panel geometry changes. -->
+                    <div class="knob-control" data-param="RELEASE">
+                        <div class="knob-wrapper"></div>
+                        <div class="knob-label">Release</div>
+                        <div class="knob-value"></div>
+                    </div>
                 </div>
             </div>
 
@@ -951,6 +960,9 @@ const FMT = {
     BOW_POSITION:       v => "β " + v.toFixed(3),
     ROSIN:              v => Math.round(v * 100) + "%",
     BOW_NOISE:          v => Math.round(v * 100) + "%",
+    // Sub-second releases are the ones players nudge in small steps, so keep two
+    // decimals down there and drop to one above 1 s where the extra digit is noise.
+    RELEASE:            v => v < 1 ? v.toFixed(2) + " s" : v.toFixed(1) + " s",
     BODY_SIZE:          v => Math.round(v * 100) + "%",
     BODY_DAMPING:       v => Math.round(v * 100) + "%",
     BODY_MIX:           v => Math.round(v * 100) + "%",
@@ -1623,8 +1635,8 @@ function tick(t) {
 /* ============================================================================
    Init (module scripts are deferred — DOM is ready)
    ============================================================================ */
-// knobs (29 slider params incl. mini REFERENCE_PITCH; detunes bound below)
-["BOW_SPEED", "BOW_PRESSURE", "BOW_POSITION", "ROSIN", "BOW_NOISE",
+// knobs (30 slider params incl. mini REFERENCE_PITCH and v1.3 RELEASE; detunes bound below)
+["BOW_SPEED", "BOW_PRESSURE", "BOW_POSITION", "ROSIN", "BOW_NOISE", "RELEASE",
  "BODY_SIZE", "BODY_DAMPING", "BODY_MIX", "BRIGHTNESS",
  "STRING_TENSION", "STRING_STIFFNESS",
  "EXPRESSION_MACRO", "VIBRATO_RATE", "VIBRATO_DEPTH", "VIBRATO_ONSET",

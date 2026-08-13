@@ -90,6 +90,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> bowPositionRelay;       // BOW_POSITION
     std::unique_ptr<juce::WebSliderRelay> rosinRelay;             // ROSIN
     std::unique_ptr<juce::WebSliderRelay> bowNoiseRelay;          // BOW_NOISE
+    std::unique_ptr<juce::WebSliderRelay> releaseRelay;           // RELEASE (v1.3)
     // ---- II · Body (4) ----
     std::unique_ptr<juce::WebSliderRelay> bodySizeRelay;          // BODY_SIZE
     std::unique_ptr<juce::WebSliderRelay> bodyDampingRelay;       // BODY_DAMPING
@@ -133,6 +134,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> bowPositionAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> rosinAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bowNoiseAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> releaseAttachment;
     // ---- II · Body (4) ----
     std::unique_ptr<juce::WebSliderParameterAttachment> bodySizeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bodyDampingAttachment;

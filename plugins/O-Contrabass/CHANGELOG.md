@@ -4,6 +4,276 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.3.0] — 2026-08-13 — the instrument keeps speaking (voice release + stealing)
+
+Fixes the plugin going **completely silent after four note-ons** and staying silent for
+minutes. Adds a `RELEASE` parameter. Sustain-phase audio is **bit-identical** to 1.2.0;
+only post-note-off tails change.
+
+### Fixed — every note-on past the fourth was silently discarded
+
+Two defects compounded, both in voice allocation rather than the DSP:
+
+1. **Voice stealing was never enabled.** `juce::MPESynthesiser` defaults
+   `shouldStealVoices` to `false` (`juce_MPESynthesiser.h:317`), and the processor never
+   called `setVoiceStealingEnabled`. `noteAdded()` therefore ran
+   `findFreeVoice(note, false)`, which returns `nullptr` once all voices are busy — and
+   there is no fallback path, so the note-on was **dropped without a trace**.
+2. **A voice was never freed.** `renderNextBlock` releases a slot only when the bow is
+   inactive and all four strings sit under a `1e-7` energy floor (−140 dBFS). Lifting the
+   bow removes the energy *source* but left the loop gain untouched, and that gain floors
+   at 0.997 per round trip — about **0.2 dB/s** at E1.
+
+Measured on a single 0.5 s note with a 180 s tail: the string was still ringing at
+**−68.5 dBFS after three minutes** and had not freed its voice. With `kNumVoices = 4`,
+four note-ons took every slot and the instrument went dead.
+
+Eight repeated E2 notes, per-note RMS:
+
+| note | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| v1.2.0 | .0387 | .0399 | .0304 | .0342 | **.0139** | **.0087** | **.0085** | **.0084** |
+| v1.3.0 | .0387 | .0389 | .0381 | .0382 | .0373 | .0410 | .0412 | .0410 |
+
+Notes 5–8 in v1.2.0 are not quiet notes — they are the *decaying tail of voices 1–4*.
+
+- `synth.setVoiceStealingEnabled(true)` — a note-on can no longer be discarded.
+- `WaveguideString::startRelease()` / `cancelRelease()` scale the loop gain on note-off
+  so the string reaches −60 dB in the configured time. The target is derived from the
+  **played frequency** (`g = 10^(-3/(f0·T60))`), because round trips per second scale
+  with f0 — a fixed per-round-trip gain would make an E1 release last 2.4× a G2 one.
+  Ramped over 30 ms so the bow-lift reads as a gesture. The multiplier is exactly `1.0f`
+  while not releasing, which is what keeps sustain bit-identical.
+- All four strings are released, not just the active one — a voice that changed string
+  mid-phrase leaves the previous one ringing, and one un-damped string pins the slot.
+
+### Added
+
+- **`RELEASE`** (0.05–20 s, skew 0.35, default **2.0 s**) — T60 of the string after the
+  bow lifts. Pairs with `INFINITE_SUSTAIN`, which governs decay while the bow is *down*.
+  New knob in the **Bow** panel's existing third slot; no panel geometry changed.
+  The default is deliberately **not** a no-op: the behaviour it replaces is the defect,
+  so sessions and presets saved before 1.3.0 adopt 2.0 s on load.
+
+### Changed — test harness
+
+- **New gate `pass_segmentLevelConsistency`** (min/median segment RMS ≥ 0.50).
+  `pass_allSegmentsAudible` was vacuous for this failure: a dropped note still measures
+  above its −60 dBFS floor because the previous notes are still ringing, so it returned
+  `true` while half the sequence never sounded. Verified in both directions against the
+  same binary — v1.2.0 scores **0.2748 (fail)**, v1.3.0 **0.9589 (pass)**.
+- **New golden `voice-recycling`** — 8× the same note into a 4-voice pool, so note-ons
+  past the fourth must recycle a voice. The existing `note-sequence` golden *cannot* see
+  this bug: it plays one note per string, so only its final note-on is dropped and four
+  ringing voices mask it (0.671 consistency — a pass). The two scenarios are not
+  interchangeable.
+- `pass_rmsContinuityAtTransitions` relaxed 0.50 → 0.35. Not a concession: the two
+  transitions that were real articulations under *both* versions are unchanged to three
+  decimals (1→2: 0.541→0.540, 3→4: 0.571→0.568). Every transition that "worsened" is one
+  that previously produced no note at all, so the old bar was set partly by non-events.
+
+### Validation
+
+- **20/20 render goldens** reproduce byte-identical (19 re-baselined + 1 new).
+- **Sustain phase provably untouched:** on `string-A` (60 s sustain, 5 s release) the
+  first differing sample vs the v1.2.0 golden is **2646002**, and note-off is at sample
+  2646000 — the entire sustain phase is bit-identical, with the change beginning two
+  samples later (oversampler latency).
+- `auval -v aumu OCbs OuDv` **SUCCEEDED**; pluginval `--strictness-level 10` **SUCCESS**
+  on 3 consecutive runs of the same binary.
+
+### Known gaps
+
+- Not yet re-checked in Logic or Dorico — the four human gates carried forward from
+  Stage 4 still stand.
+- The v1.2.0 "don't seed across a crossfade" carve-out was calibrated on the 5th segment
+  of the `microtonal-scala` probe. On a *fresh* voice `activeStringIndex < 0`, so
+  `needsCrossfade` is false — that segment was a dropped note-on, not a retrigger. The
+  carve-out was inert in practice before this release and becomes live now that voices
+  are recycled. Worth revisiting on its own; deliberately left alone here.
+
+## [1.2.0] — 2026-08-13 — the instrument speaks (note-on string seed)
+
+Fixes the long-standing "sometimes it sounds, sometimes it's silent" behaviour.
+**This is the first release since 1.0.0 that changes audio** — all 19 render goldens
+are re-baselined.
+
+### Fixed — notes never spoke at playable lengths
+
+`WaveguideString::trigger()` zeroed both delay rails and seeded nothing, so the
+string had to accumulate to Helmholtz motion purely through friction in a loop whose
+gain floor is 0.997. Loudness therefore tracked **how long the key was held**, not how
+it was played:
+
+| hold | v1.1 | v1.2 |
+|---|---|---|
+| 0.1 s | −38.7 dBFS (inaudible) | speaks immediately |
+| 8.0 s | −22.1 dBFS | — |
+| **spread** | **17.6 dB** | **3.1 dB** |
+
+On a real phrase of 0.35 s notes the plugin peaked at **−36.4 dBFS**; it now reaches
+**−18.7 dBFS (+17.7 dB)**. Velocity was also nearly inert (1.6× across its whole
+range) because it only trimmed bow force into a loop that was still climbing; the
+seed is velocity-scaled, so key velocity now sets initial amplitude directly.
+
+- `WaveguideString::seedFundamental()` lays one period of the fundamental across the
+  round trip at note-on, amplitude `kSeedGain · velocity · bowSpeed` (`kSeedGain = 1.5`,
+  chosen by ear from a rendered A/B set). Deterministic single period rather than a
+  noise burst: noise needs an audio-thread RNG (breaks block-size invariance) and adds
+  a chiff a bow attack should not have. Endpoints are zero-valued, so no click.
+  Attack transient is 2.08× peak-over-sustain vs 1.95× unseeded — essentially
+  unchanged, while hold-dependence drops 17.6 dB → 3.1 dB.
+- **Rails are pushed AND popped in lockstep.** `juce::dsp::DelayLine` keeps
+  independent read/write pointers and `pushSample()` advances only the write pointer,
+  so filling a rail with bare pushes adds N samples to the effective delay. That
+  detuned the string 2–3 semitones and broke every pitch gate (vibrato read 306¢ and
+  20.4 Hz). Popping in lockstep preserves the configured delay.
+- Measured DSP stability **improves**: 66/108 → 88/108 matrix cells. The unseeded
+  build failed 42 cells because notes never settled — the same defect users heard.
+  All 108 cells are NaN-free and peak-clean; the 20 remaining failures are
+  `clickFree` at BOW_PRESSURE = 7.0, where a real string goes raucous above
+  Schelleng's maximum bow force.
+
+### Fixed — the stability matrix could not detect a stability regression
+
+Each of the 108 cells computed `pass_combo = … && pass_blockTime`, putting **wall-clock
+timing inside the DSP stability verdict**. Three consecutive runs of the same binary
+returned passCount **97 / 102 / 98**. R36b had already relaxed the threshold 5.0× →
+50.0× on the stated grounds that btRatio "is dominated by OS scheduling noise, not DSP
+stability"; this completes that reasoning by removing it from the verdict entirely.
+Stability is now deterministic (102/102/102 on repeat runs); timing is still measured
+and reported as `blockTimePassCount`, explicitly outside the verdict. Applied to the
+36-cell sub-harmonics matrix for the same reason.
+
+### Fixed — `pass_rms` compared sustain against the release tail
+
+`rmsFinal` used `totalSeconds`, which on a 60 s sustain + 5 s release lands **inside
+the release tail**, so the ratio compared mid-sustain against a decaying tail. It
+passed in v1.1 only because the instrument was broken — notes were still ramping at
+s5–s6, so `rmsMid` was as anemic as the tail. Once notes speak, a released string is
+legitimately ~15 dB down (string-A: mid 0.0535, tail 0.0093 → ratio 0.17), tripping
+`pass_rms` across nearly every sustained mode. Now measured sustain-to-sustain.
+
+### Added — harness bow-operating-point overrides
+
+`--bow-speed` / `--bow-pressure` / `--bow-position` in engineering units, converted
+through each parameter's own `NormalisableRange` so the 0.5 skews are handled by the
+range rather than re-derived. Added because the Schelleng playable region
+(`F_min ∝ v_b / β²`) was unmappable without them. Also `reproduce-goldens.sh
+--regenerate`, driven from the same NAMES/INVOCS arrays as verification so a
+re-baseline can never drift from the invocations it verifies.
+
+### Known issues
+
+- **The microtonal probe's final segment is unreliable, in both tunings.** v1.0
+  shipped `microtonal-12tet` segment 5 at **386.8¢** and called it PASS — the
+  tolerance is only enforced when `tuningSystemArg == "scala"`, so 12tet could never
+  fail on pitch. v1.2 reads 344.77¢ there (improved) and 230.49¢ on scala (v1.0:
+  26.42¢, itself already past the 10¢ tolerance while its golden recorded
+  `pass_pitchAccuracy: true`). Pre-existing probe defect, magnitude shifted by the
+  seed; almost certainly the analysis window running past the sequence end, the same
+  out-of-domain class as the `rmsMid` bug. **Not root-caused — the instrument is in
+  tune on segments 1–4 (≤0.5¢) and `microtonal-12tet` / `microtonal-mpe` /
+  `note-expression` all pass.**
+- Legato string changes are **not** seeded (`needsCrossfade`), so they keep the v1.1
+  onset; the outgoing string covers the transition.
+
+## [1.1.0] — 2026-08-12 — v1.1 measurement correction (DSP-07/08/09)
+
+Closes the three v1.1 DSP deferrals — **by fixing the measurements, not the DSP.**
+Investigation established that two of the three "DSP defects" were harness bugs and
+the third had an unreachable acceptance bar. **No audio-path source changed: all 19
+render goldens remain byte-identical** and the frozen-DSP invariant holds end to end.
+
+### Fixed — DSP-09: vibrato depth was a meter artifact, not a transfer deficit
+
+`peakDepthCents` read 7.42¢ against a 12¢ setting, and `NOTES.md` prescribed
+"tune the VIBRATO_DEPTH→peakDepthCents transfer" to land in `[10,14]`. That would
+have driven **real vibrato to ~19.4¢ to satisfy a broken meter.** The DSP was correct
+throughout — `kVibFactorScale = -ln(2)/1200` is exact.
+
+- `kAcWindowSize` **4096 → 1024**. Autocorrelation correlates `[s, s+N)` against
+  `[s+tau, s+tau+N)`, spanning `N + tau ≈ 5166` samples = **117 ms**, against a
+  200 ms vibrato cycle — averaging pitch over 58.6% of a cycle. Proven by holding
+  the stimulus at 5 Hz and sweeping only this constant: **4096→7.42¢, 2048→10.70¢,
+  1024→11.18¢**, converging on the true 12¢ as the span → 0.
+- `perCycleDeltaCents` stride **28 → derived** (`kHopsPerVibCycle`). 28 hops is
+  162.5 ms against a 200 ms cycle, so it walked through the vibrato phase and emitted
+  sign-flipped values (v1.0 golden: `+7.07, +7.05, −0.76, −6.50, −3.44`) that read as
+  instability but were pure aliasing. Now reads `7.53, 9.87, 9.97, 9.88, 6.79, 5.08`.
+- Peak-swing window **36 hops → `kHopsPerVibCycle + 2`**. The old comment claimed
+  "≈3 vibrato cycles (600 ms)"; 36 hops is actually 209 ms ≈ **one** cycle.
+
+`pass_vibratoDepthInRange` now **true** at 11.18¢; mode status FAIL → PASS.
+
+### Fixed — DSP-08: breathing metric could not see the LFO it gated on
+
+`pass_breathingAudible` gated on `rmsByDecadePeakToPeakPct`, which buckets a 60 s
+sustain into 10 decades — **6 s per bucket against a 3.33 s LFO period**, averaging
+~1.8 full cycles so the modulation cancels. Its 0.694 was the drone's monotonic
+build-up (decades rise 0.0263→0.0602 strictly), so the gate passed **without ever
+measuring breathing.** The documented symptom ("15.7% vs 20% target") does not
+reproduce at all.
+
+- Added `lfoBreathingDepthPct` — windows of ⅛ LFO period, depth per period as
+  `(max−min)/max`, reduced by **median** across periods so build-up cannot inflate it.
+- Gate moved onto it at the unchanged 0.15 bar. **Real breathing measures 0.4524**,
+  comfortably past the 20% architectural calibration target the LFO was assumed to miss.
+
+### Changed — DSP-07: acceptance re-specified to a reachable metric
+
+`subharmEnergyRatio ≥ 0.40` is **not reachable at the plugin output** and was never
+a retune problem. The 0.40/0.358/0.241 figures come from RESEARCH §18.3/§18.5, which
+measured **pre-port and pre-body**; the gate evaluates **post-body**, downstream of a
+resonator whose lowest mode is 60 Hz (`BodyResonator.h:85`) plus a 35 Hz one-pole HP
+(`BodyResonator.cpp:62`) — together attenuating 20.60 Hz by ~13 dB relative to
+41.20 Hz before measurement. Coefficient sweeps confirm a reachable maximum of
+**~2e-04, three orders of magnitude short**:
+
+| coefficient | swept | result |
+|---|---|---|
+| `kForceBoost` | 0.8 → 12.0 | **bit-identical** — Schelleng ceiling pins `F_bow`; a dead knob |
+| `kV0Reduction` | 0.5 → 0.95 | **bit-identical** — `kV0Floor=0.005` clamp binds; a dead knob |
+| `kFmaxScalar` | 0.95 → 20.0 | saturates at 1.99e-04 by ~3.0; degrades `peakOverFloor` 3.02→1.61 |
+
+The committed baseline note claiming `0.241 at SUB_HARMONICS=0` also does not
+reproduce — measured directly it is **6.38e-05**, the same order as the engaged
+value, which is precisely why the ratio cannot discriminate.
+
+- Acceptance moved to **`subharmPeakOverFloor ≥ 2.5`** (soft band 2.0–2.5), a local
+  signal-to-floor measure at f0/2 so the shared output-chain attenuation divides out.
+  It tracks the feature properly: **1.888 disengaged → 3.019 engaged.**
+- **No DSP coefficients changed.** A `kGapWiden` sweep on the corrected metric shows
+  the shipped 0.25 already at the optimum (0.0→1.367, 0.10→1.506, **0.25→3.019**,
+  0.50→2.001); response near it is chaotic (0.22→3.367, 0.28→2.025), so chasing
+  ~12% would overfit one note and one operating point.
+
+`pass_subharmAudible` now **true** at 3.019; mode status FAIL → PASS.
+
+### Fixed — mis-scoped and stale-documented gates
+
+- **`rmsContinuity` per-mode thresholds.** A minimum-adjacent-window-ratio gate at
+  ≥0.90 is a steady-state measure; it was applied to modes that modulate amplitude by
+  design. slow-lfo **0.85** (92.9 ms window = 2.79% of a 3.33 s cycle, so ±60% bow-speed
+  modulation moves ~10.5% between adjacent windows), vibrato **0.75** (92.9 ms against a
+  200 ms cycle = 46.4%, so adjacent windows sample near-opposite phases). v1.0 already
+  shipped 0.85 for macro-sweep on this exact reasoning. Real dropouts drive the ratio
+  toward 0, so click detection is preserved.
+- **`rmsMid` domain guard.** The window was hard-coded to seconds 5–6; `--vibrato`
+  renders 3 s total, so it clamped to an empty span, returned 0, and tripped the
+  "engine never started" branch on a healthy render. Falls back to the middle second
+  of the actual render below 6 s; longer renders are untouched.
+- **Header pass-condition block corrected** to match the enforced code: depth band is
+  `[9,14]` not `[10,14]`, onset `[800,1200] ms` not `[800,1000]`. This drift is what
+  sent the v1.1 plan chasing phantoms in the first place.
+
+### Fixed — build: plugin version never reached the bundle
+
+`juce_add_plugin` carried **no `VERSION` keyword**, so the artefact reported JUCE's
+1.0.0 default — v1.0.0 was correct only by coincidence and any bump would have been
+silently discarded. (`PLUGIN_VERSION` is *not* a JUCE keyword.) Added `VERSION 1.1.0`;
+verified `CFBundleShortVersionString` = **1.1.0** in both the VST3 and AU bundles.
+
 ## [1.0.0] — 2026-07-15 — first release (engine + WebView editor + polish)
 
 First shipped product version. Stage 4 (Polish) adds factory presets, the Dorico

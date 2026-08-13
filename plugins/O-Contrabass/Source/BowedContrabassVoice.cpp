@@ -59,6 +59,11 @@ namespace
     constexpr float kPressureLagRad      = 0.4014f;                    // 23° in radians
     constexpr float kAntiCorrPerDepth    = 0.13f;                      // Q5 anti-correlation guard
     constexpr float kVibFactorScale      = -0.69314718056f / 1200.0f;  // -ln(2)/1200
+
+    // v1.2 note-on string seed (see WaveguideString::seedFundamental). Scales the
+    // seeded Helmholtz velocity amplitude; calibrated so a short note lands at the
+    // same level a long held note reaches, removing the hold-time dependence.
+    constexpr float kSeedGain            = 1.5f;
 }
 
 BowedContrabassVoice::BowedContrabassVoice (juce::AudioProcessorValueTreeState* apvts,
@@ -143,6 +148,31 @@ void BowedContrabassVoice::noteStarted()
     strings[newStringIndex].trigger (currentFrequency);
     strings[newStringIndex].setDelaySamples (targetSamples);
 
+    // v1.2 — seed the string so it speaks immediately. trigger() zeroes both
+    // rails; without a seed the string had to accumulate to Helmholtz motion
+    // through a loop with gain >= 0.997, so loudness tracked how long the key was
+    // held (0.1 s note = -38.7 dBFS, 8 s note = -22.1 dBFS) rather than how it was
+    // played. Seeded AFTER setDelaySamples so the rail lengths are final.
+    //
+    // Amplitude tracks Helmholtz velocity, which scales with bow speed; note
+    // velocity scales it on top so key velocity finally controls loudness. It
+    // previously spanned only 1.6x across its whole range because it merely
+    // trimmed bow force into a loop that was still climbing.
+    //
+    // NOT seeded across a string crossfade. During a crossfade the PREVIOUS string
+    // is still sounding and is blended out over crossfadeTotalSamples, so the new
+    // string's slow build-up is already covered — seeding into that window instead
+    // superimposes a fresh full-amplitude fundamental on a decaying neighbour a
+    // few semitones away, and the sum reads as a badly mistuned note (the
+    // microtonal-scala 28->33->38->43->28 probe went from 26 cents to 230 cents on
+    // the final retrigger). Legato string changes therefore keep the v1.1 onset;
+    // every other note-on gets the seed.
+    if (! needsCrossfade)
+    {
+        const float bowSpeedNow = parameters->getRawParameterValue ("BOW_SPEED")->load();
+        strings[newStringIndex].seedFundamental (kSeedGain * velocity * bowSpeedNow);
+    }
+
     // 5. Engage bow.
     bowModel.startBow (velocity);
     oversampling.reset();
@@ -166,6 +196,18 @@ void BowedContrabassVoice::noteStopped (bool allowTailOff)
     {
         // Bow lifts; release ramp begins, voice stays active until energy decays.
         bowModel.stopBow();
+
+        // v1.3 — damp the strings so "until energy decays" is a musical duration
+        // rather than a theoretical one. Lifting the bow removes the energy
+        // SOURCE but left the loop gain untouched, so the string kept ringing at
+        // ~0.2 dB/s and the renderNextBlock cleanup gate (which needs every
+        // string under 1e-7) could not fire for minutes. All four strings are
+        // released, not just the active one: a voice that changed string
+        // mid-phrase leaves the previous one ringing, and a single un-damped
+        // string is enough to pin the slot.
+        const float releaseSeconds = parameters->getRawParameterValue ("RELEASE")->load();
+        for (auto& s : strings)
+            s.startRelease (releaseSeconds);
 
         // Phase 2.3 — start vibrato 150 ms linear fade-out. The
         // `vibratoOnsetGateAtNoteOff` snapshot is captured one-shot in the

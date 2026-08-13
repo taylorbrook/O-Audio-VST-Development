@@ -119,6 +119,45 @@ public:
     // both rails (used by vibrato/detune ramps in Phase 2.2/2.3).
     void setDelaySamples (float totalSamples);
 
+    // v1.2 — seed the rails with one period of the fundamental at note-on.
+    //
+    // trigger() zeroes both rails, so before this existed the string had to build
+    // up to Helmholtz motion purely by friction accumulation through a loop whose
+    // gain floor is 0.997. Measured result: a 0.1 s note reached −38.7 dBFS while
+    // an 8 s note reached −22.1 dBFS — a 17 dB swing driven by hold time alone,
+    // which is why the instrument read as "sometimes sounds, sometimes silent".
+    //
+    // Deliberately a deterministic single period of f0 rather than a noise burst:
+    // noise would need an audio-thread RNG (breaks the harness's block-size
+    // invariance) and adds a percussive chiff that a bow attack should not have.
+    // A single period starts and ends at zero (no click) and puts the energy
+    // exactly at the fundamental, so the friction nonlinearity locks to Helmholtz
+    // within a few periods instead of seconds.
+    void seedFundamental (float amplitude) noexcept;
+
+    // v1.3 — note-off release damping.
+    //
+    // The bow lifting removes the ENERGY SOURCE but not the loop gain, and the
+    // loop gain floors at 0.997 per round trip (computeLoopGain). At E1 that is
+    // ~0.2 dB/s, so a released string was measured still ringing at -68.5 dBFS
+    // 180 s after note-off and never fell to the 1e-7 energy floor that frees the
+    // voice. With four voices and no stealing the instrument went silent after
+    // four note-ons. See CHANGELOG 1.3.0.
+    //
+    // startRelease scales the loop gain so the string decays to -60 dB in
+    // `t60Seconds` at its CURRENT played frequency — the round trips per second
+    // scale with f0, so a fixed per-round-trip gain would give a pitch-dependent
+    // decay (an E1 release would last 2.4x a G2 one). Ramped over kReleaseRampMs
+    // rather than stepped so the bow-lift reads as a gesture, not a gate.
+    //
+    // The multiplier is EXACTLY 1.0f while not releasing, so the sustain path
+    // stays bit-identical to v1.2 — only the post-note-off tail changes.
+    void startRelease (float t60Seconds) noexcept;
+
+    // Returns the loop gain to unity-multiplier. Called by trigger()/reset(), so
+    // a re-triggered or stolen voice never inherits a neighbour's release ramp.
+    void cancelRelease() noexcept;
+
 private:
     void updateDelayLengths();
     void updateBridgeFilterCoeffs();
@@ -152,6 +191,12 @@ private:
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> bridgeDelay { 8192 };
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> neckDelay   { 8192 };
 
+    // Rail lengths actually handed to the delay lines (post clamp + group-delay
+    // compensation). Cached by updateDelayLengths() / setDelaySamples() so
+    // seedFundamental() can lay one period across the true round trip.
+    float lastBridgeSamples = 4.0f;
+    float lastNeckSamples   = 4.0f;
+
     // Bridge LP state — explicit one-pole inlined recurrence (cheaper +
     // clearer than juce::dsp::IIR::Filter for the F2-corrected form).
     float bridgeY = 0.0f;       // bridge LP state y[n-1]
@@ -161,6 +206,13 @@ private:
     float bridgeP = 0.5f;       // HF damping pole (clamped [0.05, 0.95])
     float bridgeOneMinusP = 0.5f;
     float denormalLeak = -1.0e-20f;  // 0 in drone mode (INFINITE_SUSTAIN >= 0.95)
+
+    // v1.3 release damping — multiplier on bridgeG, EXACTLY 1.0f when not
+    // releasing (keeps the sustain path bit-identical to v1.2). Ramped per
+    // sample in processSample; see startRelease().
+    float releaseGain       = 1.0f;
+    float releaseGainTarget = 1.0f;
+    float releaseGainStep   = 0.0f;   // per-sample decrement while ramping
 
     // Energy tracking for voice cleanup
     float energyEstimate = 0.0f;
