@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.5.0
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
@@ -13,6 +13,7 @@
 - **2026-03-08 (v1.1.2):** Fix thread safety — SafePointer for callAfterDelay, curve value clamping/NaN protection, division-by-zero in NodeCurve
 - **2026-03-08 (v1.1.3):** Performance optimizations — cache APVTS pointers, eliminate magic numbers, reuse FFT magnitudes, pre-allocate JSON, cache band frequencies
 - **(v1.1.4 – v1.3.1):** See CHANGELOG.md for intervening releases (curve-editor undo/redo, WOLA synthesis window, spectrum overlay, preset-manager v1.0.2 sync).
+- **2026-08-13 (v1.5.0):** Added hover tooltips to all 25 controls, armed by a "?" toggle beside the version string; off by default, preference persists with the session (not with presets). Converted the nine existing `title=` attributes so no native tooltip doubles up. Tooltip ranges are sourced from the actual parameter definitions and `MAX_SHAPE_DB`, and the Lookahead tooltips state that the control is inert rather than describing behaviour it lacks.
 - **2026-08-12 (v1.4.0):** UI reskinned to the Ouaricon Naturalist aesthetic — aged-paper page, Garamond, seed cross-section knobs, green botanical controls, analysis displays kept as dark specimen plates in walnut frames. Fixed a sidebar overflow that had left **Lookahead, LA Time and Output Gain unreachable** (638px of content in a 418px column). Removed a watermarked Adobe Stock background texture. See CHANGELOG for detail.
 - **2026-07-07 (v1.3.2):** Code-review fixes — **CR-01** SafePointer guard on preset file-dialog completions (UAF); **CR-02** factory presets authored in engineering units + `convertTo0to1` so the ATTACK/SUSTAIN skew is applied (all presets were recalling ~10–30× wrong times); **WR-01** knob readouts use `getScaledValue()`; **WR-02** curve-less presets carry explicit flat curve state; **WR-03** latency re-signalled only on change, not every block.
 

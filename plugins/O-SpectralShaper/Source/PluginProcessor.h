@@ -84,6 +84,12 @@ public:
     juce::AbstractFifo& getVisualizationFifo() { return visualizationFifo; }
     const std::vector<VisualizationFrame>& getVisualizationBuffer() const { return visualizationBuffer; }
 
+    // Tooltip preference (v1.5.0). A UI-only setting, not an APVTS parameter:
+    // it must not be automatable, and it is deliberately kept out of preset
+    // files so loading a preset never changes the user's help preference.
+    bool getTooltipsEnabled() const { return tooltipsEnabled.load(std::memory_order_acquire); }
+    void setTooltipsEnabled(bool enabled) { tooltipsEnabled.store(enabled, std::memory_order_release); }
+
 private:
     // DSP Components (declared BEFORE parameters for correct initialization order)
     STFTProcessor stftProcessor[2];  // L/R stereo
@@ -127,6 +133,10 @@ private:
     std::atomic<float>* cachedLookaheadEnabled = nullptr;
     std::atomic<float>* cachedLookaheadTime = nullptr;
     std::atomic<float>* cachedOutputGain = nullptr;
+
+    // Tooltip preference (v1.5.0). Written from the message thread via the
+    // WebView native function, read back when the editor reopens.
+    std::atomic<bool> tooltipsEnabled { false };
 
     // Helper methods
     float getDryDelayedSample(int channel, float input);

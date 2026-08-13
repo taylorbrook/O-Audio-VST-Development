@@ -1,5 +1,23 @@
 # O-SpectralShaper Changelog
 
+## [1.5.0] - 2026-08-13
+
+### Added
+- **Hover tooltips across the whole interface, gated by a "?" toggle in the header.** Every control now carries a `data-tooltip` describing what it does and its real range — 25 in total: the seven knobs/toggles, both curve editors and their ten buttons, the spectrogram, and the five preset-bar controls. Tooltips are off by default and only arm when the "?" beside the version string is lit, so the field-guide layout stays uncluttered for users who don't need them. Ranges quoted in the text are taken from the actual `NormalisableRange` definitions (Attack 0.1–50 ms, Sustain 10–500 ms, LA Time 0.1–10 ms, Output −12 to +12 dB) and the curve range from `STFTProcessor::MAX_SHAPE_DB` (±12 dB), rather than being written from the UI labels.
+- **Tooltip preference persists with the session.** The toggle state round-trips through two new native functions (`setTooltipsEnabled` / `getTooltipsEnabled`) into a `tooltipsEnabled` attribute on the session XML. The WebView *pulls* the stored value during its own init rather than having the editor push it on open, which would race the WebView load. The attribute is stamped on after `presetManager.getStateAsXml()` has built the tree, so a UI preference never leaks into a saved preset file — loading a preset cannot change whether your tooltips are on.
+
+### Changed
+- **The nine existing `title=` attributes became `data-tooltip`.** They previously produced the OS's own native tooltip; leaving them in place alongside the new system would have shown two overlapping tooltips on the same control. They are now part of the toggle-gated system and share its styling.
+
+### Fixed
+- **Tooltip measurement is done at a neutral origin before placing.** An absolutely positioned element's shrink-to-fit width is computed against (containing-block width − `left`), so measuring the surface while it still sits at its previous position reports a wrapped, narrow box near the right edge and the edge-clamp then mispositions it. Measured against the Lookahead tooltip at `left: 600px`, the naive ordering collapses the surface to **100 × 269 px** instead of the correct **240 × 110 px**. The surface is now reset to `0,0` with `width: auto`, measured, and its width pinned in px before the final placement is applied. (The reference implementation in O-FreqPulse v1.5.0 measures in the naive order and carries this latent bug — flagged for a separate pass.)
+
+### Notes
+- UI-only release. No DSP, parameter, preset-format or state-format changes: parameter IDs, ranges and factory presets are untouched, and the added session attribute is optional on read (absent in pre-1.5.0 sessions ⇒ defaults to off), so existing sessions and presets load unchanged.
+- The Lookahead tooltips state plainly that the control is inert rather than describing behaviour it does not have, matching the Known Limitation carried since 1.3.2.
+- Verified in a headless WebView harness against a stubbed JUCE bridge: all 25 tooltips resolve their text, become visible only while armed, and stay inside the 700×500 window (0 overflowing, 0 collapsed, widths 206–240 px). Toggle off/on, hover-while-disabled, and mouseout were each asserted, as was the C++ persistence round-trip.
+- The comment at `STFTProcessor.cpp:320` describes the curve range as ±18 dB while `MAX_SHAPE_DB` is `12.0f`. The tooltips follow the constant. The stale comment is left as-is here — flagged, not fixed, to keep this release UI-only.
+
 ## [1.4.0] - 2026-08-12
 
 ### Changed

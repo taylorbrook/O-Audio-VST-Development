@@ -640,6 +640,86 @@ body::after {
 }
 
 /* ============================================================================
+   TOOLTIPS (v1.5.0)
+   ============================================================================ */
+
+/* Groups the "?" toggle with the version string so the header keeps three
+   space-between clusters (title / preset bar / right group). */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+/* Wax-seal disc, sized to sit on the header baseline without changing its height. */
+.tooltip-toggle {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--paper-accent);
+    border: 1px solid var(--brown-border);
+    color: var(--brown-text);
+    font-family: var(--serif);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    box-shadow: 1px 1px 2px var(--shadow-light);
+}
+
+.tooltip-toggle:hover {
+    background: var(--green-light);
+    border-color: var(--green-dark);
+}
+
+.tooltip-toggle.active {
+    background: var(--green-mid);
+    border-color: var(--green-darkest);
+    color: var(--paper-light);
+    box-shadow: 0 0 5px rgba(60, 92, 26, 0.45);
+}
+
+/* Single reused surface. Absolutely positioned against #app (position: relative),
+   so it is out of flow and never becomes a grid item. */
+.tooltip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    max-width: 240px;
+    padding: 6px 10px;
+    background: rgba(60, 47, 47, 0.96);   /* --brown-text at 96% */
+    color: var(--plate-ink);
+    border: 1px solid var(--brown-border);
+    border-radius: 3px;
+    font-family: var(--serif);
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: normal;
+    text-shadow: none;
+    box-shadow: 0 2px 8px var(--shadow-medium);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 1000;
+    transition: opacity 140ms ease;
+}
+
+.tooltip.visible {
+    opacity: 1;
+}
+
+/* Hover affordance — only while tooltips are armed. */
+.tooltips-enabled [data-tooltip]:hover {
+    outline: 1px dashed rgba(107, 142, 78, 0.55);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
    UTILITY
    ============================================================================ */
 

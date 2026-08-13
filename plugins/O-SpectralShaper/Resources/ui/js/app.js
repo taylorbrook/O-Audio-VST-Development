@@ -58,6 +58,7 @@ const app = {
     spectrogram: null,
     presetManager: null,
     animationFrameId: null,
+    tooltipsEnabled: false,  // v1.5.0: armed by the header "?" toggle, persisted in session state
     initialized: false
 };
 
@@ -90,6 +91,9 @@ function initializeApp() {
 
     // Initialize preset manager
     initializePresetManager();
+
+    // Initialize tooltip system (v1.5.0)
+    initializeTooltips();
 
     // Mark as initialized
     app.initialized = true;
@@ -434,6 +438,136 @@ function initializePresetManager() {
     });
 
     app.presetManager.initialize();
+}
+
+// ============================================================================
+// TOOLTIP SYSTEM (v1.5.0)
+// ============================================================================
+
+/**
+ * Hover tooltips for every [data-tooltip] element, armed by the header "?" toggle.
+ *
+ * One reused .tooltip element positioned against #app rather than per-element
+ * popups: the controls live in a fixed 700x500 grid, so a single absolutely
+ * positioned surface avoids 25 extra nodes and lets the edge clamping live in
+ * one place.
+ */
+function initializeTooltips() {
+    const toggle = document.getElementById('tooltip-toggle');
+    const tooltip = document.getElementById('tooltip');
+    const container = document.getElementById('app');
+
+    if (!toggle || !tooltip || !container) {
+        console.warn('Tooltip system: required elements missing, skipping');
+        return;
+    }
+
+    const EDGE_MARGIN = 8;   // keep the surface clear of the window edge
+    const GAP = 8;           // vertical gap between control and tooltip
+
+    function applyEnabledState(enabled) {
+        app.tooltipsEnabled = !!enabled;
+        toggle.classList.toggle('active', app.tooltipsEnabled);
+        toggle.setAttribute('aria-pressed', String(app.tooltipsEnabled));
+        container.classList.toggle('tooltips-enabled', app.tooltipsEnabled);
+
+        if (!app.tooltipsEnabled) {
+            hideTooltip();
+        }
+    }
+
+    function hideTooltip() {
+        tooltip.classList.remove('visible');
+        tooltip.setAttribute('aria-hidden', 'true');
+    }
+
+    function showTooltipFor(target) {
+        const text = target.getAttribute('data-tooltip');
+        if (!text) return;
+
+        tooltip.textContent = text;
+
+        // Measure at a neutral origin BEFORE placing. An absolutely positioned
+        // element's shrink-to-fit width is computed against (containing block
+        // width - left), so measuring while it still sits near the right edge
+        // reports a narrow, wrapped box and the clamp below then mispositions
+        // it. Reset to 0,0 with width:auto, measure, then pin the width in px.
+        // See pattern_fixed_tooltip_shrink_to_fit_edge.
+        tooltip.style.width = 'auto';
+        tooltip.style.left = '0px';
+        tooltip.style.top = '0px';
+
+        const width = tooltip.offsetWidth;
+        const height = tooltip.offsetHeight;
+        tooltip.style.width = width + 'px';
+
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        // Horizontal: centre on the control, then clamp both edges.
+        let left = rect.left - containerRect.left + rect.width / 2 - width / 2;
+        const maxLeft = containerRect.width - width - EDGE_MARGIN;
+        if (left > maxLeft) left = maxLeft;
+        if (left < EDGE_MARGIN) left = EDGE_MARGIN;
+
+        // Vertical: prefer above the control, flip below if it would clip the top.
+        let top = rect.top - containerRect.top - height - GAP;
+        if (top < EDGE_MARGIN) {
+            top = rect.bottom - containerRect.top + GAP;
+        }
+        // If flipping below would clip the bottom, clamp back inside.
+        const maxTop = containerRect.height - height - EDGE_MARGIN;
+        if (top > maxTop) top = maxTop;
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.classList.add('visible');
+        tooltip.setAttribute('aria-hidden', 'false');
+    }
+
+    toggle.addEventListener('click', () => {
+        applyEnabledState(!app.tooltipsEnabled);
+
+        // Persist to C++. getNativeFunction lives on the `Juce` ES-module
+        // namespace, NOT window.__JUCE__.backend (that object only carries
+        // addEventListener/removeEventListener/emitEvent).
+        try {
+            Juce.getNativeFunction('setTooltipsEnabled')(app.tooltipsEnabled);
+        } catch (error) {
+            console.warn('Could not persist tooltip preference:', error);
+        }
+    });
+
+    // Delegated hover — covers controls created after init too.
+    container.addEventListener('mouseover', (e) => {
+        if (!app.tooltipsEnabled) return;
+        if (e.target.closest('#tooltip-toggle')) return;  // don't cover the toggle itself
+
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+
+        showTooltipFor(target);
+    });
+
+    container.addEventListener('mouseout', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+
+        // Ignore moves that stay inside the same tooltipped control.
+        if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+        hideTooltip();
+    });
+
+    // Pull the persisted preference now that the bridge is live. Doing this here
+    // rather than having C++ push on open avoids racing the WebView load.
+    try {
+        Juce.getNativeFunction('getTooltipsEnabled')().then((enabled) => {
+            applyEnabledState(!!enabled);
+        });
+    } catch (error) {
+        console.warn('Could not read tooltip preference:', error);
+    }
 }
 
 // ============================================================================
