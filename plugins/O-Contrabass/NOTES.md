@@ -13,6 +13,25 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
+- **2026-08-13 — v1.4.0 crossfade-seed carve-out removed; 21st golden.**
+  v1.2 skipped `seedFundamental()` on legato string changes, citing a `microtonal-scala`
+  segment reading 230 cents. That branch **never executed in the probe that justified
+  it**: `needsCrossfade` requires `activeStringIndex >= 0` and every note-on there
+  landed on a fresh voice — instrumented, it reports 0 crossfades across 5 note-ons.
+  The 230 cents was also an estimator artifact (autocorrelation on a harmonic string
+  peaks nearly as hard at `2T` as `T`, giving a spurious ≈−1200 ¢; it reproduces in
+  *both* arms of an A/B and vanishes once the search is constrained to ±6 semitones).
+  Measured on a probe that does reach the path: seeding is **+13.2 dB** RMS, **+26.0 dB**
+  at the note's own f0, and *better* in tune (6.7 ¢ → 1.1 ¢ max). Unseeded, a legato
+  string change did not speak — the segment's pitch tracked the ringing outgoing string
+  (49.03 Hz measured for a note played at 98 Hz). All 20 prior goldens byte-identical,
+  because none of them ever reached the branch.
+  ⚠️ Reaching `needsCrossfade` is not just "play fast": JUCE's voice-stealing heuristic
+  hands a recycled voice back the pitch it last played, so a repeating passage always
+  gives `newStringIndex == activeStringIndex`. Fill the 4-voice pool on ONE string, then
+  leap to another. Any future claim about legato string changes must gate on the
+  `crossfade_note_ons` liveness counter or it is measuring nothing.
+  **Not yet checked in Logic or Dorico.**
 - **2026-08-13 — v1.3.0 voice release + stealing; new `RELEASE` param (32 params).**
   The plugin went silent after four note-ons and stayed silent for minutes. Two causes:
   `MPESynthesiser` defaults voice stealing OFF, so `findFreeVoice` returned `nullptr`
@@ -69,15 +88,13 @@ change (19/19 goldens byte-identical).
 
 ## Known Limitations
 
-- **The v1.2 "don't seed across a crossfade" carve-out rests on a void measurement
-  (open, v1.3).** `noteStarted()` skips `seedFundamental()` when `needsCrossfade`, and
-  that decision was calibrated on the 5th segment of the `microtonal-scala` probe
-  reading 230 cents. But `needsCrossfade` requires `activeStringIndex >= 0`, and every
-  note-on in that probe landed on a **fresh** voice (`activeStringIndex == -1`), so the
-  crossfade path never ran — and under v1.2 that 5th note-on was **dropped entirely**
-  (see the v1.3.0 entry). What was measured was four ringing strings summing, not a
-  retrigger. The carve-out was therefore inert in practice; now that voices are
-  recycled it is live for the first time. Re-measure before trusting or removing it.
+- **A tracked `.json.sha256` is written but never verified, and encodes wall-clock.**
+  `reproduce-goldens.sh` checks only `<name>.wav.sha256`; the four tracked
+  `<name>.json.sha256` files (microtonal-12tet / -scala / -mpe, vibrato) are rewritten
+  on every `--regenerate` and compared by nothing. They could not be a gate as they
+  stand: the JSON carries `blockMicros_median` / `blockTime_max_over_median`, which are
+  wall-clock and differ run to run on the same binary. Either drop them or strip the
+  timing fields before checksumming — do not "fix" it by starting to verify them.
 
 - **Two stale AU variants remain installed:** `O-Contrabass-pre-2-5-dev.component` and
   `O-Contrabass-pre-port.component`. They carry distinct names so they do not shadow the

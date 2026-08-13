@@ -128,6 +128,11 @@ void BowedContrabassVoice::noteStarted()
                               && bowModel.isActive()
                               && (newStringIndex != activeStringIndex);
 
+    // v1.4 — liveness tap. Counts note-ons that take the string-crossfade path,
+    // so a probe can PROVE it exercised legato string changes. See the header.
+    if (needsCrossfade)
+        sCrossfadeNoteOns.fetch_add (1, std::memory_order_relaxed);
+
     if (needsCrossfade)
     {
         previousStringIndex       = activeStringIndex;
@@ -159,18 +164,30 @@ void BowedContrabassVoice::noteStarted()
     // previously spanned only 1.6x across its whole range because it merely
     // trimmed bow force into a loop that was still climbing.
     //
-    // NOT seeded across a string crossfade. During a crossfade the PREVIOUS string
-    // is still sounding and is blended out over crossfadeTotalSamples, so the new
-    // string's slow build-up is already covered — seeding into that window instead
-    // superimposes a fresh full-amplitude fundamental on a decaying neighbour a
-    // few semitones away, and the sum reads as a badly mistuned note (the
-    // microtonal-scala 28->33->38->43->28 probe went from 26 cents to 230 cents on
-    // the final retrigger). Legato string changes therefore keep the v1.1 onset;
-    // every other note-on gets the seed.
-    if (! needsCrossfade)
+    // EVERY note-on is seeded, legato string changes included (v1.4). v1.2 carved
+    // string crossfades out of the seed on the theory that the outgoing string
+    // covers the new one's build-up, and that seeding into that window would sum
+    // with the decaying neighbour into a badly mistuned note (a `microtonal-scala`
+    // segment reading 230 cents). Both halves of that were wrong:
+    //
+    //   * The calibrating probe never ran this branch. `needsCrossfade` requires
+    //     `activeStringIndex >= 0`, and every note-on in it landed on a FRESH
+    //     voice, so the carve-out was inert. Re-measured with a liveness counter
+    //     (`crossfade_note_ons`), that probe reports 0 crossfades out of 5 note-ons.
+    //   * Measured on a probe that does reach it — fill the 4-voice pool on one
+    //     string, then leap to another, over 5 string pairs — seeding across the
+    //     crossfade makes the note 13.2 dB louder overall, lifts its own
+    //     fundamental 26.0 dB, and IMPROVES tuning (max error 6.7c -> 1.1c).
+    //     Unseeded, the new string is so quiet that the segment's pitch tracks the
+    //     ringing OUTGOING string instead of the note that was played.
+    //
+    // The 230-cent figure was an octave-ambiguity artifact of the estimator, not
+    // a beat against the neighbour; it reproduces in both arms of the A/B and
+    // disappears once the search is constrained to +/-6 semitones.
     {
         const float bowSpeedNow = parameters->getRawParameterValue ("BOW_SPEED")->load();
         strings[newStringIndex].seedFundamental (kSeedGain * velocity * bowSpeedNow);
+        sSeedApplied.fetch_add (1, std::memory_order_relaxed);
     }
 
     // 5. Engage bow.

@@ -1,0 +1,216 @@
+{
+  "status": "PASS",
+  "mode": "note-sequence",
+  "midiNote": 28,
+  "velocity": 0.699999988079071,
+  "sustainSeconds": 60.0,
+  "releaseSeconds": 5.0,
+  "infiniteSustain": 1.0,
+  "stringStiffness": -1.0,
+  "totalSamples": 538000,
+  "peak": 0.10009203851223,
+  "nanCount": 0,
+  "infCount": 0,
+  "rmsMid_s5_s6": 0.040206719189882,
+  "rmsFinal_lastSecond": 0.0,
+  "rmsRatio_final_over_mid": 0.0,
+  "blockMicros_median": 266.416999999999973,
+  "blockMicros_max": 341.833000000000027,
+  "blockTime_max_over_median": 1.283075028995898,
+  "pass_nan": true,
+  "pass_peak": true,
+  "pass_blockTime": true,
+  "pass_rms": false,
+  "outputWav": "/tmp/repro/crossfade-seed.wav",
+  "seed_applied": 25,
+  "crossfade_note_ons": 5,
+  "pass_crossfadeLiveness": true,
+  "pass_crossfadeNoteLevel": true,
+  "minCrossfadeNoteRms": 0.027264123782516,
+  "numCrossfadeNotes": 5,
+  "sequence": [
+    {
+      "midiNote": 28,
+      "sampleStart": 0,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 29,
+      "sampleStart": 2645,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 30,
+      "sampleStart": 5290,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 31,
+      "sampleStart": 7935,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 43,
+      "sampleStart": 10580,
+      "sampleCount": 52920
+    },
+    {
+      "midiNote": 43,
+      "sampleStart": 63500,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 44,
+      "sampleStart": 66145,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 45,
+      "sampleStart": 68790,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 46,
+      "sampleStart": 71435,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 28,
+      "sampleStart": 74080,
+      "sampleCount": 52920
+    },
+    {
+      "midiNote": 28,
+      "sampleStart": 127000,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 29,
+      "sampleStart": 129645,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 30,
+      "sampleStart": 132290,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 31,
+      "sampleStart": 134935,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 38,
+      "sampleStart": 137580,
+      "sampleCount": 52920
+    },
+    {
+      "midiNote": 38,
+      "sampleStart": 190500,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 39,
+      "sampleStart": 193145,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 195790,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 41,
+      "sampleStart": 198435,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 33,
+      "sampleStart": 201080,
+      "sampleCount": 52920
+    },
+    {
+      "midiNote": 33,
+      "sampleStart": 254000,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 34,
+      "sampleStart": 256645,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 35,
+      "sampleStart": 259290,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 36,
+      "sampleStart": 261935,
+      "sampleCount": 2645
+    },
+    {
+      "midiNote": 43,
+      "sampleStart": 264580,
+      "sampleCount": 52920
+    }
+  ],
+  "transitionSampleIndices": [
+    2645,
+    5290,
+    7935,
+    10580,
+    63500,
+    66145,
+    68790,
+    71435,
+    74080,
+    127000,
+    129645,
+    132290,
+    134935,
+    137580,
+    190500,
+    193145,
+    195790,
+    198435,
+    201080,
+    254000,
+    256645,
+    259290,
+    261935,
+    264580
+  ],
+  "perSegmentRms": [
+    0.018081365153193,
+    0.021160857751966,
+    0.025218354538083,
+    0.027842722833157,
+    0.037956584244967,
+    0.032074529677629,
+    0.037236388772726,
+    0.045099232345819,
+    0.025892898440361,
+    0.027264123782516,
+    0.024446526542306,
+    0.020755438134074,
+    0.024781556800008,
+    0.027999851852655,
+    0.028997294604778,
+    0.019394593313336,
+    0.026714025065303,
+    0.02767887711525,
+    0.049201317131519,
+    0.039122693240643,
+    0.0369977876544,
+    0.037077199667692,
+    0.031897094100714,
+    0.030175361782312,
+    0.036972533911467
+  ],
+  "pass_allSegmentsAudible": true,
+  "segmentLevelConsistency": 0.64576643705368,
+  "pass_segmentLevelConsistency": true,
+  "rmsContinuityAtTransitions": 0.202259466052055,
+  "pass_rmsContinuityAtTransitions": false
+}
