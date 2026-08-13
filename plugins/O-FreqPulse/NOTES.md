@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.16.3
+- **Version:** 1.17.0
 - **Type:** Audio Effect (Spectral Sequencer)
 
 ## Lifecycle Timeline
@@ -19,6 +19,8 @@
 - **2026-03-05 (v1.13.0):** Added per-band Mute (M) and Solo (S) buttons — surfaces existing band_enable parameter in UI with visual dimming and exclusive solo
 - **2026-07-08 (v1.16.3):** Resolved all 11 warnings from the v1.16.2 deep code review (no critical issues). Fixed tooltip persistence (wrong bridge object + one-shot restore race, WR-01), factory step-velocity leak into Euclidean bands (WR-02), save dialog ignoring the chosen directory (WR-03), and hardened DSP/preset edges (Nyquist clamp WR-04, channel-count clamp WR-05, version-string factory sentinel WR-06, non-destructive factory init WR-07, preset-manager.js resync WR-08). Marked freq_low/freq_high non-automatable (display-only, WR-10) and reduced the DAW native program menu to 1 entry (WR-11). Documented approximate LR-tree unity-gain (WR-09).
 - **2026-07-08 (v1.16.4):** Resolved the safe/mechanical info-level review findings (IN-02, IN-03, IN-06, IN-10, IN-13). Corrected stale docs that described the removed FFT design + phantom ~46 ms latency (IN-02); scoped the WebView2 user-data folder to a plugin-specific child dir (IN-03); added a self-safe `numSteps <= 0` guard to `calculateCurrentStep` (IN-06); fixed the `"steps"` param version-hint typo `2`→`1` — verified no VST3/AU param-ID impact (IN-10); removed a dead `globalSteps` local and corrected a stale gain-smoothing comment (IN-13). No audio-path behavior change; auval passed.
+- **2026-08-02 (v1.16.5):** Licensing release — no functional changes.
+- **2026-08-13 (v1.17.0):** Fixed the tooltip shrink-to-fit measurement bug. The surface was measured at its *previous* `left`, so a `position:absolute` box with `width:auto` + `max-width:220px` reported an already-squeezed width near the right edge, and the edge clamp then placed it from that wrong number — self-reinforcing, so it never recovered. Also fixed the vertical placement (tooltips covered the control they described — 46 of 53), a sub-pixel `offsetWidth` rounding issue that re-wrapped the pinned box, and mouseout flicker between a control's own children. Verified in a browser harness at the true 850×550 editor size: overlaps 46→0, offscreen 5→0, squeezed 10→0. auval passed.
 
 ## Concept Summary
 

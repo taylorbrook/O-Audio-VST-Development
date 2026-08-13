@@ -2,6 +2,39 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.17.0] - 2026-08-13
+
+MINOR: tooltip surfaces now render at their intended size and sit clear of the control they describe. No audio-path, parameter, or state changes.
+
+### Fixed
+
+- **Tooltip geometry is measured at a neutral origin before the surface is placed.** `.tooltip` is `position: absolute` with `width: auto` and `max-width: 220px`, so its shrink-to-fit width resolves against *(containing-block width − `left`)*. The old code read `offsetWidth` while the surface still sat at its **previous** `left`, so hovering anything near the right edge measured an already-squeezed box, computed the new `left` from that wrong number, and then let the box re-flow again once `left` was applied. The failure was self-reinforcing: a squeezed width resolved `left` straight back against the right edge, so it never recovered on later hovers. Measured at the plugin's real 850×550 window, the band Expand buttons (`expand-0..3`, centred at x≈804) collapsed to **66 × 154 px** — a 77-character string in a 66 px ribbon — instead of the correct **220 × 42 px**. 10 of 53 tooltips were squeezed below `max-width` and 5 rendered outside the container entirely. The surface is now reset to `0,0` with `width: auto`, measured, and its width pinned before the final placement is applied.
+- **The pinned width is the fractional `getBoundingClientRect().width`, not the integer `offsetWidth`.** A natural width of 208.48 px rounds to 208, and pinning that makes the box 0.48 px narrower than its own shrink-to-fit — enough to push the last word onto a second line. Height is only stable once the width is pinned, so it is now read after: the Clear-band tooltip was being placed using a measured height of 28 px while it actually rendered 42 px, overlapping its button by 14 px.
+- **Tooltips sit above their control instead of covering it.** `top` was set to *(control top − 8)* and used directly as the CSS `top` with no `translateY(-100%)`, so the surface rendered on top of the control it described — **46 of 53 tooltips** overlapped their own anchor. The guard `top - height < 0` was written as though `top` were a bottom edge and so fired on the wrong condition; the above-placement had never worked as intended. Placement now computes `top = control top − height − GAP`, flips below only when that would clip the top edge, and clamps back inside if flipping below would clip the bottom.
+- **Hovering between a control's own children no longer flickers the tooltip.** Several control-groups wrap a label, a slider and a value-display; crossing between them fired `mouseout` → `mouseover` and blinked the surface off and back on. `mouseout` now ignores moves whose `relatedTarget` is still inside the same tooltipped element.
+
+### Changed
+
+- Horizontal placement computes a real left edge (centre − width/2) and clamps both sides, replacing the previous centre-point plus `translateX(-50%)`. The clamp arithmetic and the box the browser lays out are now the same geometry.
+
+### Testing
+
+Verified in a browser harness at the plugin's true 850×550 editor size (`PluginEditor.cpp:334`) against a stubbed JUCE bridge — WebView layout defects are invisible to build, `auval` and `pluginval`, and a wider viewport never fires the edge clamp at all. All 53 `[data-tooltip]` elements were hovered in sequence so stale-state carry-over between hovers was exercised:
+
+| Metric | v1.16.5 | v1.17.0 |
+|---|---|---|
+| Tooltips overlapping their own control | 46 | 0 |
+| Tooltips rendering outside the container | 5 | 0 |
+| Long tooltips squeezed below `max-width` | 10 | 0 |
+| Worst case (`expand-0`) | 66 × 154 px | 220 × 42 px |
+
+Clamps land exactly on their bounds: `minLeft` 10, `maxRight` 840 (= 850 − `EDGE_MARGIN`), `minTop` 8.
+
+### Notes
+
+- `.container` was deliberately left without `position: relative`. The absolute coordinates already resolve correctly because the universal `margin: 0; padding: 0` reset plus `html, body { width: 100%; height: 100% }` make the initial containing block coincide with `#plugin-container`; adding a positioned ancestor would have moved `.tooltip-toggle` and `.euclidean-panel` as a side effect.
+- The sub-pixel `offsetWidth` rounding issue above also exists in the O-SpectralShaper v1.5.0 implementation this fix was ported from — flagged for a separate pass.
+
 ## [1.16.5] - 2026-08-02
 
 Licensing release — no functional changes. PATCH: no audio-path, parameter, or state changes.
