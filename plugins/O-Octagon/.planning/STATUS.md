@@ -6,8 +6,18 @@ stage_phase: 2                             # DECIDED AT THE 4.1 BOUNDARY (D1). S
 stage_phase_name: host-and-ear             # not the "single pass" ROADMAP said: 4.1 = machine
 stage_phase_total: 2                       # (CI, Windows, pluginval/auval, presets, COMPAT-04,
 artifact_suffix: "-4.2"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
-phase: plan
-status: phase_complete
+phase: verify                              # 4.2 VERIFIED 2026-08-13 — VERIFICATION-4.2.md.
+status: phase_partial                      # VERDICT: PARTIAL. Blocks A+B verified (all 11 desk
+                                           # gates RE-RUN FROM SCRATCH at verify, all green, incl.
+                                           # NC1 executed mutation-and-revert and a THIRD full
+                                           # rebuild reproducing both bundle checksums). Block C —
+                                           # the Logic session, gates 12-25 — HAS NOT RUN. COMPAT-02
+                                           # is still 0 of 3 and the ledger did NOT move: 29/0/1.
+                                           # STAGE 4 IS NOT COMPLETE. Do NOT run /install-plugin.
+                                           # NOTE: this field said `phase: plan / phase_complete`
+                                           # until now — neither execute commit (378fb4cd, 300d8cf0)
+                                           # touched STATUS.md, so a resume would have re-run execute
+                                           # from Task 1 and re-cut the freeze. Recorded as Issue 2.
 last_updated: 2026-08-13
 branch: feat/o-octagon
 complexity_tier: 6
@@ -15,7 +25,39 @@ complexity_score: 5.0
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-next_action: execute_stage_4_phase_4_2   # 4.2 PLAN COMPLETE 2026-08-13 — PLAN-4.2.md, P101-P112,
+next_action: run_stage_4_phase_4_2_block_c
+                                         # ── WHAT IS ACTUALLY NEXT (2026-08-13, at 4.2 verify) ──
+                                         # BLOCK C: the Logic Pro 12.3 session. 14 gates (12-25),
+                                         # tasks 8-15. Needs Logic + a BlackHole 64ch device + a
+                                         # human ear. Est. 60-90 min. There is NO 4.3 (D18): Block C
+                                         # completes 4.2, which completes Stage 4.
+                                         # RUNS AGAINST THE FREEZE, NOT AGAINST WHATEVER IS ON DISK:
+                                         #   commit 378fb4cdc70ef7e7b4523771dd4f014f189246ec
+                                         #   VST3   928cd447c57435c93554fbb90fd14ec035cd39e8a8db54a5aba37a1597e0bb42
+                                         #   AU     cc54db026875173e47daf691228c4c80c52da4c9050880aea0976bc16fe1fc99
+                                         # Verified at 4.2 verify: Source/ has NOT moved since the
+                                         # freeze, and the binary rebuilds byte-identically from
+                                         # source on a fresh rm -rf build. A mismatch in the session
+                                         # is a REAL SIGNAL, not build nondeterminism.
+                                         # FIVE THINGS TO RE-READ BEFORE STARTING:
+                                         #  1. airAmount = 0 on CR-a/CR-b/CT/CS, NEVER on CU. An
+                                         #     airAmount HF delta reads exactly like bass management
+                                         #     and would trigger D16's re-freeze on nothing.
+                                         #  2. CS runs under the CR-a IDENTITY venue — under CR-b,
+                                         #     speaker 4 is not the LFE slot.
+                                         #  3. NC4 runs BEFORE any D16 disposition.
+                                         #  4. Gates 12 and 13 STOP the phase; they cost 2 minutes.
+                                         #  5. No Source/ edit — anything needing one re-enters
+                                         #     Block B with a SECOND freeze.
+                                         # TWO THINGS OWED AT BLOCK C's CLOSE (4.2 verify issues):
+                                         #  - Gate 9's spelling in desk-gates-4.2.txt: recorded as
+                                         #    `gen_dbap_reference.py --check`, which EXITS 2. --output
+                                         #    is required=True. Same defect class as 4.1's Issue 1.
+                                         #  - Gate 23's relabelling sentence (hidden-editor check is
+                                         #    THROTTLING-RECOVERY, and cannot drop a completion) is
+                                         #    not yet carried by any artifact.
+                                         # ── superseded plan-boundary note below, kept for history ──
+                                         # 4.2 PLAN COMPLETE 2026-08-13 — PLAN-4.2.md, P101-P112,
                                          # 15 tasks in THREE BLOCKS (desk / re-freeze / session), 25
                                          # gates, NC1-NC4. Entry check green and NO CONTRACT AMENDED
                                          # — the first Stage-4 plan boundary where that is true.
