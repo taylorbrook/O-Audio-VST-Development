@@ -25,7 +25,7 @@ Silent auto-repair erodes trust. Users should understand what changed and why.
 MANUAL REPAIR INSTRUCTIONS
 ==========================
 
-Issue: Registry and STATUS.md disagree on stage
+Issue: PLUGINS.md and STATUS.md disagree on stage
 
 Steps:
 1. Open: plugins/O-IntonationPad/.planning/STATUS.md
@@ -34,12 +34,12 @@ Steps:
 4. Save file
 5. Run /reconcile to verify
 
-Alternative - update registry instead:
-1. Open: .planning/workflow/registry.json
-2. Find: "O-IntonationPad" -> "stage"
-3. Change from: "1-foundation"
-4. Change to: "2-dsp"
-5. Save file
+Alternative - update the roster row instead:
+1. Open: PLUGINS.md
+2. Find: the O-IntonationPad row
+3. Change from: 1-foundation
+4. Change to: 2-dsp
+5. Save file (edit ONLY that plugin's row -- the file is union-merged)
 6. Run /reconcile to verify
 ```
 
@@ -68,18 +68,17 @@ Alternative - update registry instead:
    - Changes since checkpoint will be discarded
    - Files not in checkpoint will be orphaned
 4. Confirm with user
-5. Restore registry.json entry from checkpoint
-6. Restore STATUS.md from checkpoint
-7. Update active-plugin.json if affected
-8. Re-validate to confirm
+5. Restore STATUS.md from checkpoint
+6. Re-sync that plugin's PLUGINS.md row from the restored STATUS.md
+7. Re-validate to confirm
 ```
 
 **When this is best:** Corruption happened during current session, checkpoint represents known-good state.
 
 ### Option 3: Rebuild from Filesystem
 
-**When to offer:** Registry corruption, missing registry entries, orphan plugins
-**What it does:** Scans plugins/ directory and rebuilds registry
+**When to offer:** PLUGINS.md corruption, missing rows, orphan plugins
+**What it does:** Scans plugins/ directory and rebuilds the PLUGINS.md roster
 **Risk level:** MEDIUM (may lose metadata not in filesystem)
 
 **Rebuild logic:**
@@ -92,16 +91,16 @@ Alternative - update registry instead:
       - stage: "0-ideation"
       - phase: "discuss"
       - status: "active"
-   d. Create registry entry with:
-      - path: plugins/{name}
-      - stage, phase, status from above
-      - created: file creation date or today
-      - modules: [] (must be manually restored)
-3. Set focused to:
+   d. Create a PLUGINS.md row with:
+      - plugin name
+      - status from above
+      - version from plugins/{name}/CHANGELOG.md top entry
+      - updated: CHANGELOG date or today
+3. Set focused: true in exactly one plugin's STATUS.md:
    a. First active plugin (if any)
-   b. null (if no active plugins)
-4. Write new registry.json
-5. Update active-plugin.json to match
+   b. none (if no active plugins)
+4. Write the rebuilt PLUGINS.md table
+5. Re-derive module usage with scripts/regen-registry-used-by.sh
 6. Re-validate to confirm
 ```
 
@@ -111,7 +110,7 @@ Alternative - update registry instead:
 - All source files
 
 **What may be lost:**
-- Module dependency lists (requires manual restoration)
+- Module dependency lists (regenerate with scripts/regen-registry-used-by.sh)
 - Express mode settings
 - Blocked by descriptions
 - Original created dates (approximated from filesystem)
@@ -195,24 +194,24 @@ Which option? [1/2/3/4]
 ```
 STATE CORRUPTION DETECTED
 
-Registry file has invalid JSON structure.
-  File: .planning/workflow/registry.json
-  Error: Unexpected token at position 234
+PLUGINS.md table has invalid structure.
+  File: PLUGINS.md
+  Error: Duplicate row for O-IntonationPad at line 234 (union-merge artifact)
 
 Recovery options:
-1. Manual repair - I'll guide you through fixing the JSON
+1. Manual repair - I'll guide you through fixing the table
 2. Reset to checkpoint - Restore from 2026-01-30T14:30:00Z (loses recent changes)
-3. Rebuild from filesystem - Reconstruct registry from plugins/ directory
+3. Rebuild from filesystem - Reconstruct the roster from plugins/ directory
 
 Which option? [1/2/3]
 ```
 
-### Missing Registry Entry
+### Missing Roster Row
 
 ```
 ORPHAN PLUGIN DETECTED
 
-Plugin directory exists but has no registry entry.
+Plugin directory exists but has no PLUGINS.md row.
   Directory: plugins/O-NewPlugin
   STATUS.md: exists (stage: 1-foundation, phase: execute)
 
@@ -231,9 +230,9 @@ MULTIPLE STATE ISSUES DETECTED
 
 Found 3 issues:
 
-1. [ERROR] stage_consistency: Registry/STATUS.md mismatch for O-IntonationPad
-2. [ERROR] focus_consistency: Registry.focused doesn't match active-plugin.json
-3. [WARNING] orphan_plugin: plugins/O-TestPlugin has no registry entry
+1. [ERROR] stage_consistency: PLUGINS.md/STATUS.md mismatch for O-IntonationPad
+2. [ERROR] focus_consistency: two plugins both carry focused: true
+3. [WARNING] orphan_plugin: plugins/O-TestPlugin has no PLUGINS.md row
 
 Recovery strategy:
 1. Fix all issues automatically (sync from STATUS.md, add orphans)
@@ -252,7 +251,7 @@ After any recovery action, ALWAYS re-run validation:
 RECOVERY COMPLETE
 
 Changes made:
-- Updated registry.json: O-IntonationPad.stage = "2-dsp"
+- Updated STATUS.md: O-IntonationPad stage = "2-dsp"
 
 Re-validating state...
 
@@ -274,7 +273,7 @@ If issues remain:
 RECOVERY PARTIAL
 
 Changes made:
-- Updated registry.json: O-IntonationPad.stage = "2-dsp"
+- Updated STATUS.md: O-IntonationPad stage = "2-dsp"
 
 Re-validating state...
 

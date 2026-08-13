@@ -25,33 +25,28 @@ Switch focus to a specific plugin, loading only that plugin's state. Implements 
 When focused on a plugin:
 - Load ONLY that plugin's `.planning/` state
 - Do NOT load other plugins' STATUS.md or plans
-- Central registry read-only for awareness
+- `PLUGINS.md` read-only, for roster awareness only
 - Module dependencies tracked but not cross-loaded
 
 ## Process
 
 1. **Validate plugin exists**
    Check `plugins/{plugin}/` directory exists
-   Check `.planning/workflow/registry.json` has entry
+   Check `PLUGINS.md` has a row for it
 
 2. **Run state validation** (for target plugin only)
    @.claude/skills/state-validation/SKILL.md
-   Validate registry entry matches STATUS.md
+   Validate the PLUGINS.md row matches STATUS.md
    If issues: offer recovery before switching
 
-3. **Update active plugin state**
-   Write to `.planning/workflow/active-plugin.json`:
-   ```json
-   {
-     "plugin": "{plugin}",
-     "focusedAt": "{ISO 8601 timestamp}",
-     "loadedContext": {
-       "statusMd": true,
-       "currentPlan": "{path or null}",
-       "currentContext": "{path or null}"
-     }
-   }
+3. **Update focus state**
+   STATUS.md is authoritative — there is no separate focus-state file.
+   In `plugins/{plugin}/.planning/STATUS.md` frontmatter, set:
+   ```yaml
+   focused: true
+   focusedAt: "{ISO 8601 timestamp}"
    ```
+   Then clear `focused: true` from the previously focused plugin's STATUS.md.
 
 4. **Load plugin context**
    Read `plugins/{plugin}/.planning/STATUS.md`
@@ -73,13 +68,13 @@ When focused on a plugin:
 | ARCHITECTURE.md | On demand | Planning output |
 | stages/{stage}/CONTEXT.md | If exists | Stage discussion |
 | stages/{stage}/PLAN.md | If in execute | Current plan |
-| dependencies.json | Always | Module awareness |
+| modules/registry.yaml | Always | Module awareness (`used_by`) |
 
 ## State NOT Loaded
 
 - Other plugins' STATUS.md
 - Other plugins' plans or context
-- Central registry details (beyond validation)
+- Other plugins' PLUGINS.md detail (beyond the roster row)
 - Historical checkpoints from other plugins
 
 This isolation ensures:
@@ -93,7 +88,7 @@ To view another plugin without switching focus:
 ```
 /peek {other-plugin}
 ```
-Shows STATUS.md frontmatter only. No context loading. Does not change active-plugin.json.
+Shows STATUS.md frontmatter only. No context loading. Does not change any plugin's `focused` flag.
 
 ## Output Format
 
@@ -143,14 +138,14 @@ Timestamp: 2026-01-31T10:00:00Z
 
 ISSUES FOUND:
 -------------
-1. [ERROR] phase_consistency: Registry and STATUS.md disagree
-   Registry value: plan
+1. [ERROR] phase_consistency: PLUGINS.md and STATUS.md disagree
+   PLUGINS.md value: plan
    STATUS.md value: execute
    Recoverable: YES
 
 RECOVERY OPTIONS:
-1. Sync registry from STATUS.md (recommended)
-2. Sync STATUS.md from registry
+1. Sync the PLUGINS.md row from STATUS.md (recommended)
+2. Sync STATUS.md from the PLUGINS.md row
 3. Manual repair
 
 Select option [1-3] to proceed with focus:
@@ -200,9 +195,9 @@ Once focused, these commands will use the focused plugin by default:
 ## Parallel Instance Support
 
 Multiple Claude Code instances can focus different plugins:
-- Each instance writes to active-plugin.json with its focus
-- Registry.json is read for awareness, written only for state updates
-- No file locking needed for different-plugin focus
+- Each instance writes `focused: true` only into ITS plugin's own STATUS.md
+- `PLUGINS.md` is read for awareness; it is union-merged, so only ever edit your own row
+- No file locking needed for different-plugin focus — the writes touch different files
 - Same-plugin focus from multiple instances: last writer wins (by design)
 
 Note: This is designed for the common case of working on different plugins. If you need to work on the same plugin from multiple instances, coordinate manually.
@@ -213,10 +208,12 @@ When focusing a plugin, check for available module updates to notify the user pr
 
 ### Workflow
 
-1. **Load plugin's installed modules** from `registry.json` `plugins.{plugin}.modules` array
-2. **For each InstalledModule:**
-   - Get installed version from entry
-   - Get current version from `modules.{module}.version`
+1. **Find the plugin's modules** in `modules/registry.yaml` — scan every module entry's
+   `used_by:` list for `- plugin: {plugin}` (the registry stores `used_by` per module,
+   not a `modules` array per plugin)
+2. **For each match:**
+   - Get the installed version from that `used_by` entry's `version`
+   - Get the current version from the module entry's `version`
    - Compare using semver: `python3 modules/scripts/semver.py compare <installed> <current>`
    - If current > installed, add to updates list
 3. **Display notification** (only if updates exist)
@@ -247,16 +244,19 @@ Or /module:upgrade-all for batch update with preview.
 
 ```python
 # Pseudocode for update check
-for module in plugin.modules:
-    installed_version = module.version
-    current_version = registry.modules[module.name].version
+for module in registry["modules"]:
+    entry = next((u for u in module["used_by"] if u["plugin"] == plugin), None)
+    if entry is None:
+        continue
+    installed_version = entry["version"]
+    current_version = module["version"]
 
     result = run(f"python3 modules/scripts/semver.py compare {installed_version} {current_version}")
     # Returns: 0 (v1 == v2), 1 (v1 > v2), or 255 (v1 < v2)
 
     if result.returncode == 255:  # installed < current
         updates.append({
-            "name": module.name,
+            "name": module["name"],
             "from": installed_version,
             "to": current_version
         })
@@ -268,12 +268,12 @@ User decision from CONTEXT.md: "Notify on plugin focus when module updates are a
 
 This proactive notification helps users stay aware of available improvements without being intrusive (only shows when updates exist).
 
-## Registry Updates
+## Focus State Updates
 
 On focus:
-1. Update `registry.json` focused field
-2. Update `active-plugin.json` with focus state
-3. Set `lastActivity` timestamp
+1. Set `focused: true` in `plugins/{plugin}/.planning/STATUS.md` frontmatter
+2. Clear `focused: true` from the previously focused plugin's STATUS.md
+3. Set `lastActivity` timestamp in STATUS.md
 4. Validate before completing switch
 5. **Check for module updates** (new step)
 

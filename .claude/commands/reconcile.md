@@ -10,7 +10,7 @@ Run state validation and offer recovery options if issues found.
 
 ## When to Use
 
-- After manual file edits to STATUS.md or registry
+- After manual file edits to STATUS.md or PLUGINS.md
 - When session state seems wrong
 - After git merge that touched .planning/ files
 - Debugging "plugin not found" or stale state issues
@@ -26,29 +26,22 @@ Run state validation and offer recovery options if issues found.
 
 Execute the check sequence from state-validation:
 
-1. **Registry validation**
-   - File exists at `.planning/workflow/registry.json`
-   - Valid JSON structure
-   - Matches registry.schema.json
+1. **Roster validation**
+   - `PLUGINS.md` exists and its table parses
+   - Every row's `plugins/{name}/` directory exists on disk
 
-2. **Active plugin validation**
-   - File exists at `.planning/workflow/active-plugin.json`
-   - Valid JSON structure
-   - Matches active-plugin.schema.json
+2. **Focus consistency**
+   - At most one plugin carries `focused: true` in its STATUS.md frontmatter
 
-3. **Focus consistency**
-   - `registry.focused` === `active-plugin.plugin`
-   - Focused plugin exists in registry
-
-4. **Per-plugin validation**
-   For each plugin in registry:
+3. **Per-plugin validation**
+   For each plugin row in `PLUGINS.md`:
    - Plugin directory exists
-   - STATUS.md exists with valid YAML frontmatter
-   - stage/phase/status match between registry and STATUS.md
+   - `plugins/{name}/.planning/STATUS.md` exists with valid YAML frontmatter
+   - The PLUGINS.md status column matches STATUS.md frontmatter `status`
 
-5. **Orphan detection** (warnings)
+4. **Orphan detection** (warnings)
    - Scan `plugins/*/` directories
-   - Flag any with `.planning/` but no registry entry
+   - Flag any with `.planning/` but no `PLUGINS.md` row
 
 ### 3. Report findings
 
@@ -87,7 +80,7 @@ Present recovery options based on issue type:
 **For inconsistencies:**
 1. Manual repair (safest)
 2. Sync from STATUS.md (recommended)
-3. Sync from Registry
+3. Sync from PLUGINS.md
 4. Skip
 
 **For corruption:**
@@ -132,9 +125,9 @@ Failed: 1
 
 ISSUES FOUND:
 -------------
-1. stage_consistency: Registry and STATUS.md disagree on stage
-   Location: plugins.O-IntonationPad.stage
-   Registry: 1-foundation
+1. status_consistency: PLUGINS.md and STATUS.md disagree on status
+   Location: PLUGINS.md row O-IntonationPad
+   PLUGINS.md: 1-foundation
    STATUS.md: 2-dsp
 
 RECOMMENDED ACTION:
@@ -144,15 +137,15 @@ Load recovery skill and synchronize. STATUS.md is typically more current.
 
 STATE INCONSISTENCY DETECTED
 
-Registry and STATUS.md disagree on plugin stage.
+PLUGINS.md and STATUS.md disagree on plugin state.
   Plugin: O-IntonationPad
-  Registry: 1-foundation
+  PLUGINS.md: 1-foundation
   STATUS.md: 2-dsp
 
 Recovery options:
 1. Manual repair (safest) - I'll show you exactly what to edit
-2. Sync from STATUS.md (recommended) - Update registry to match STATUS.md
-3. Sync from Registry - Update STATUS.md to match registry
+2. Sync from STATUS.md (recommended) - Update the PLUGINS.md row to match STATUS.md
+3. Sync from PLUGINS.md - Update STATUS.md to match the PLUGINS.md row
 4. Skip - Continue with current state (not recommended)
 
 Which option? [1/2/3/4]

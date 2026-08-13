@@ -34,7 +34,7 @@ CONTEXT.md RESEARCH.md PLAN.md SUMMARY.md VERIFICATION.md
 ### State Files
 
 - **Primary:** `plugins/[Name]/.planning/improvements/[slug]/STATUS.yaml`
-- **Secondary:** `.planning/workflow/registry.json` (activeMilestone field)
+- **Secondary:** `plugins/[Name]/.planning/STATUS.md` (activeMilestone frontmatter field)
 
 ## Related Assets
 

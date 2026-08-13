@@ -28,9 +28,9 @@ Upgrade a module to its latest version with per-plugin control. Detects local cu
 python3 modules/scripts/semver.py compare <installed> <available>
 ```
 
-- Load registry.json
-- Get current module version from `modules.<module>.version`
-- For each plugin using this module, check `plugins.<plugin>.modules[]` for installed version
+- Load `modules/registry.yaml` (the per-plugin `modules` array in the retired workflow state file is no longer written)
+- Get the available module version from the module entry's `version` field
+- For each entry in that module's `used_by:` list, compare its recorded `version` against the module's `version`
 - List all plugins where update is available
 
 ### 2. For Each Dependent Plugin (Per-Plugin Choice)

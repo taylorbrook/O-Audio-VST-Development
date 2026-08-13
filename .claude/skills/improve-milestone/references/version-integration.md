@@ -181,8 +181,8 @@ Git operations performed **after CHANGELOG update**, as final step.
 
 ```bash
 # Stage all milestone-related changes
+# plugin-local STATUS.md and the improvements/ dir are under plugins/[PluginName]/
 git add plugins/[PluginName]/
-git add .planning/workflow/registry.json
 
 # Create commit with conventional format
 git commit -m "improve: [PluginName] v[version] - [milestone-slug]
