@@ -5,8 +5,8 @@ version: 1.0.0
 plugin: O-Octagon
 created: 2026-08-10
 lastUpdated: 2026-08-13
-lastVerified: stage-4 phase 4.1 (machine gates) — 29 of 30 complete, 0 partial, 1 pending
-openRows: COMPAT-02 (pending, stage-4 phase 4.2 — the ONLY open row; three criteria, all needing a host)
+lastVerified: "stage-4 phase 4.2 desk blocks A+B (host-and-ear) — VERDICT PARTIAL. 29 of 30 complete, 0 partial, 1 pending. THE LEDGER DID NOT MOVE IN 4.2 — all 11 desk gates re-ran from scratch at verify and all passed, but Block C (the Logic session, gates 12-25) has NOT run and nothing from it is claimed."
+openRows: "COMPAT-02 (pending, 0 of 3) — stage-4 phase 4.2 BLOCK C; the ONLY open row. All three criteria need Logic Pro 12.3 + BlackHole 64ch + a human ear. QUAL-01 criterion 2's audible clause is also unconcluded and rides the same session."
 ---
 
 ## Overview
