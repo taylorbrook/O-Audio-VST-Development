@@ -101,6 +101,59 @@ See `.claude/references/handoff-protocol.md` for the full format specification.
 
 **If you forget: the user MUST see `/clear` as Step 1 and the specific next phase command as Step 2 before you stop.**
 
+## Parallel Plugin Development
+
+Multiple plugins are routinely worked on at the same time. These rules keep that work isolated.
+
+### One branch per plugin
+
+Every plugin gets its own branch, and every branch is cut from `main` — never from another plugin's feature branch. An improve branch cut off a second plugin's feature branch strands that plugin's release behind unrelated work.
+
+```bash
+git switch main
+git switch -c improve/o-someplugin-v1.2
+```
+
+### One worktree per concurrently-developed plugin
+
+Two plugins in flight at once means two worktrees, not one checkout being switched back and forth. A worktree keeps each plugin's build directory, installed bundles, and dirty files separate.
+
+### Worktree naming: `VST-development-<slug>`
+
+Worktree directories are named `VST-development-<slug>` where `<slug>` identifies the plugin or feature (for example `VST-development-octagon` for `feat/o-octagon`). The worktree `VST-contrabass-v1.1` broke this convention — it dropped the `VST-development-` prefix — and was removed.
+
+### Worktrees live OUTSIDE the repo
+
+Create worktrees as **siblings** of the repo inside `~/Dev`, never inside the repo tree. A worktree nested under the repo shows up as an untracked path in `git status`, pollutes every `git add -A`, and can be swept by cleanup tooling.
+
+```
+~/Dev/VST-development/            <- the repo
+~/Dev/VST-development-octagon/    <- sibling worktree, correct
+```
+
+### PLUGINS.md is a shared registry — only edit YOUR plugin's row
+
+`PLUGINS.md` is a single global registry table with one row per plugin, and every plugin branch edits it. The repo root `.gitattributes` maps it to git's built-in `union` merge driver so parallel-branch row edits merge without a conflict.
+
+Two caveats, stated honestly:
+
+- **Union merge trades a conflict for a possible DUPLICATE row.** When two branches touch the same hunk, union keeps both sides' lines rather than flagging them. Editing another plugin's row is exactly what turns a clean merge into a duplicated or contradictory row — so only ever edit your own plugin's row.
+- **The merge attribute is read from the working tree of the branch being merged INTO.** `main` must carry `.gitattributes` for the driver to apply at all; a branch that has it while `main` does not gets a plain conflict.
+
+### Worktree commands
+
+```bash
+# Create a worktree + branch for a new plugin effort (cut from main)
+git worktree add ../VST-development-<slug> -b <branch> main
+
+# See what is currently checked out where
+git worktree list
+
+# Tear down when the branch is merged
+git worktree remove ../VST-development-<slug>
+git branch -d <branch>          # -d refuses if unmerged; never use -D
+```
+
 ## Project Structure
 - Plugins are in `plugins/[PluginName]/`
 - Build output is in `build/plugins/[PluginName]/[PluginName]_artefacts/Release/`
