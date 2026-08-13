@@ -44,10 +44,24 @@ bool isPermutationOf0to7 (const std::array<int, kNumSpeakers>& map) noexcept
 //==============================================================================
 bool buildSpeakerToBuffer (const juce::AudioChannelSet& outSet,
                            const std::array<juce::AudioChannelSet::ChannelType, kNumSpeakers>& labels,
-                           std::array<int, kNumSpeakers>& out)
+                           std::array<int, kNumSpeakers>& out,
+                           MapDiagnosis* whyNot)
 {
-    if (outSet.size() != kNumSpeakers)
+    // Cleared up front so the success path leaves `{ none, -1 }` and a caller that reuses one
+    // MapDiagnosis across several builds cannot inherit a stale reason from the previous one.
+    if (whyNot != nullptr)
+        *whyNot = {};
+
+    const auto fail = [whyNot] (MapFailure reason, int speakerIndex)
+    {
+        if (whyNot != nullptr)
+            *whyNot = { reason, speakerIndex };
+
         return false;
+    };
+
+    if (outSet.size() != kNumSpeakers)
+        return fail (MapFailure::notEightChannels, -1);
 
     std::array<int, kNumSpeakers> next {};
 
@@ -59,13 +73,26 @@ bool buildSpeakerToBuffer (const juce::AudioChannelSet& outSet,
         const int idx = outSet.getChannelIndexForType (labels[(size_t) n]);
 
         if (idx < 0)
-            return false;                       // this type is not a member of the negotiated set
+            return fail (MapFailure::labelNotInSet, n);   // not a member of the negotiated set
 
         next[(size_t) n] = idx;
     }
 
     if (! isPermutationOf0to7 (next))
-        return false;
+    {
+        // isPermutationOf0to7 is NOT changed to carry the row — it is probed by name at Phase 2.1
+        // and its contract is a pure predicate. The row is recovered here instead, by the scan that
+        // could not have run before `next` was complete. Reporting the SECOND of the two colliding
+        // rows is deliberate: under commit-on-blur it is the one the operator just typed.
+        for (int n = 1; n < kNumSpeakers; ++n)
+            for (int m = 0; m < n; ++m)
+                if (next[(size_t) n] == next[(size_t) m])
+                    return fail (MapFailure::duplicateLabel, n);
+
+        // Unreachable in practice — every non-permutation of eight in-range indices contains a
+        // repeat — but a bare `return false` here would be a reason of `none` on a failure.
+        return fail (MapFailure::duplicateLabel, -1);
+    }
 
     // `out` is written ONLY here, on the success path. A partially-written map is worse than no
     // map: the caller's "retain the last valid map" contract would silently inherit half of a

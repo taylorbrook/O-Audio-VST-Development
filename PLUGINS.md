@@ -42,7 +42,7 @@ Ouaricon Plugins:
 | O-Detune | 📦 Installed | 1.5.4 | Audio Effect (Detuning) | 2026-08-02 |
 | O-Freeze | 📦 Installed | 2.0.1 | Audio Effect (Granular Freeze) | 2026-07-01 |
 | O-FreqPulse | 📦 Installed | 1.16.5 | Audio Effect (Spectral Sequencer) | 2026-08-02 |
-| O-SpectralShaper | 📦 Installed | 1.3.2 | Audio Effect (Spectral Transient Shaper) | 2026-07-07 |
+| O-SpectralShaper | 📦 Installed | 1.4.0 | Audio Effect (Spectral Transient Shaper) | 2026-08-12 |
 | O-GrainScatter | 📦 Installed | 2.4.2 | Audio Effect (Granular Stutter Engine) | 2026-07-09 |
 | O-Chorus | 📦 Installed | 1.2.3 | Audio Effect (Chorus) | 2026-06-30 |
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
@@ -65,7 +65,7 @@ Ouaricon Plugins:
 | O-simpleBeatmaker | 📦 Installed | 1.0.3 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-08-09 |
 | O-simplePhysicalModelSynth | 📦 Installed | 1.1.0 | Synth (Pedagogical Physical Modeling) | 2026-08-09 |
 | O-ReverseDelay | 📦 Installed | 1.8.1 | Audio Effect (Granular Reverse Delay) | 2026-08-10 |
-| O-Octagon | 🚧 Stage 1 | 1.0.0-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-11 |
+| O-Octagon | 🚧 Stage 4 (4.1 complete) | 1.0.0-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-12 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`

@@ -21,24 +21,29 @@
 
 #include <JuceHeader.h>
 
+#include "Data/SceneModel.h"
 #include "Data/VenueModel.h"
 #include "Data/VenueSnapshot.h"
 #include "DSP/ChannelMap.h"
 #include "DSP/ConvexHull2D.h"
+#include "DSP/GainStage.h"
+#include "DSP/VerifyPing.h"
 
 //==============================================================================
 /**
-    O-Octagon — Stage 2 Phase 2.1 (Geometry Core).
+    O-Octagon — Stage 2 Phase 2.2 (DBAP Solve + Gain Application).
 
     An 8-channel DBAP spatialiser for an irregular, non-flat concert array.
 
-    At Phase 2.1 the plugin owns the ROOM: the 42-value VENUE tree, the derived geometry, the convex
-    hull, and the speaker→buffer channel map. It still writes the same mono sum to every output —
-    but it writes it THROUGH the channel map. Independent per-speaker signal is FUNC-01 and arrives
-    with the DBAP solver at Phase 2.2.
+    Phase 2.1 gave the plugin the ROOM — the 42-value VENUE tree, the derived geometry, the convex
+    hull and the speaker→buffer channel map — while every output still carried the same mono sum.
+    PHASE 2.2 IS WHERE THE EIGHT LANES BECOME DIFFERENT: the DBAP solver, the 64-sample
+    absolute-sample-aligned control grid, the 17 smoothed gains and the per-sample inner loop, all
+    written through speakerToBuffer.
 
-    Still absent, by plan: DbapSolver, GainStage, the 64-sample control grid, SmoothedValue,
-    SourceShaper, HullProcessor, VerifyPing, any WebView editor.
+    Still absent, by plan: the hull gain trim and the air-absorption LPF (§5 step 6), the FUNC-07
+    venue-trim fold, any read of `width` — all Phase 2.3, each marked by a greppable marker token in
+    GainStage.cpp. Also absent: VerifyPing, metering, any WebView editor.
 
     Deliberately NOT an AsyncUpdater. The one thing that could have needed deferral —
     setStateInformation() arriving before prepareToPlay() — is handled by a plain `preparedYet` flag
@@ -57,6 +62,14 @@ public:
     void releaseResources() override;
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    /** OVERRIDDEN, and it is not free — JUCE's default already passes through silently, but it
+        would leave the ping's STATE running and the 120 s clock ticking (D11, RESEARCH-3.2).
+
+        A bypassed plugin that keeps emitting noise is a genuinely confusing thing to debug on a
+        stage: the first instinct is to bypass, and if that does not silence it the diagnosis goes
+        somewhere wrong. */
+    void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     //==============================================================================
     juce::AudioProcessorEditor* createEditor() override;
@@ -84,18 +97,192 @@ public:
     //==============================================================================
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    /** The bound `publishSnapshot()` clamps every venue trim to, in dB, before converting to a
+        linear factor (PLAN-2.3 P29 / RESEARCH-2.3 H5).
+
+        PUBLIC so probe BH can assert against THIS SYMBOL rather than a transcribed 24.0f
+        (`pattern_test_fixture_mirrors_drift_silently`). ±24 dB matches the hull trim's own −24 dB
+        floor and comfortably contains FUNC-07's criteria, which require −12 dB and +6 dB to be
+        reachable from the venue store.
+    */
+    static constexpr float kVenueTrimClampDb = 24.0f;
+
     //==============================================================================
     /** Read-only access to the room, for the editor and the tests. Message thread. */
     const oo::VenueModel&   getVenue() const noexcept  { return venue; }
     const oo::ConvexHull2D& getHull()  const noexcept  { return hull; }
 
+    /** The parameter tree, for the Stage-3 editor's relays and for the render harness. Message
+        thread. Matches the accessor name used across the rest of this repo. */
+    juce::AudioProcessorValueTreeState& getAPVTS() noexcept { return apvts; }
+
     /** True when the last map build failed and the previous valid map is still in force. Drives the
         persistent FUNC-03 UI warning; never a reason to route audio anyway. */
     bool isChannelMapInvalid() const noexcept { return mapInvalid.load (std::memory_order_acquire); }
 
+    /** True when the host negotiated a mono or stereo output — the defined, non-destructive SAFE
+        fold rather than the 8-channel rig. Drives the Phase 3.1 SAFE banner (PLAN-3.1 P43).
+
+        Written in prepareToPlay(), which is already the single site that knows the negotiated
+        layout, so the derivation stays ADJACENT to the isBusesLayoutSupported() rule it mirrors.
+        Deriving it a second time inside the editor's native function would have put a second copy
+        of "which sets count as SAFE" a long way from the first.
+    */
+    bool isSafeMode() const noexcept { return safeMode.load (std::memory_order_acquire); }
+
+    /** The venue publication counter, for the editor's geometry cache: the page refetches
+        getVenueGeometry when this moves, which is how a venue change from ANY source — a session
+        restore, a .venue load, a host preset — invalidates a cached envelope (PLAN-3.1 P42).
+
+        Message thread / diagnostics ONLY. THE DIRTY CHECK MUST NOT READ THIS: it reads
+        `snapshot.generation`, which arrives with the geometry it belongs to, and that is the H1
+        bug P16 made unreachable at Phase 2.2.
+    */
+    std::uint32_t getVenueGeneration() const noexcept { return venuePublisher.getGeneration(); }
+
     /** Applies a venue edit: re-derives geometry, rebuilds the hull and the map, publishes a new
-        snapshot, and writes the venue back into apvts.state. Message thread only. */
+        snapshot, and writes the venue back into apvts.state. Message thread only.
+
+        THE ONLY VENUE-APPLY PATH IN THE PLUGIN, and Phase 3.2 adds no second one — what it adds is
+        the guard below, in FRONT of this. Still public because render-harness probe BL calls it
+        directly; ui_frontend_check.js section 22 asserts that PluginEditor.cpp does NOT, which is
+        what keeps "public" from becoming a hole. */
     void applyVenueEdit (const oo::VenueModel& newVenue);
+
+    /** VALIDATES THE LABEL SET, THEN APPLIES. The editor's only route to the venue (PLAN-3.2 P52).
+
+        ── WHY A GUARD IN FRONT OF applyVenueEdit() RATHER THAN A CHECK INSIDE IT ────────────────
+        An invalid map is not a quiet retention. `mappedOutputAvailable()` false sends GainStage to
+        its else arm, which writes `out[ch][n] = ch == 0 ? sL : sR` with `numWrite 8` — SPEAKER 1
+        GETS THE LEFT INPUT AND SPEAKERS 2 THROUGH 8 ALL GET THE RIGHT ONE, AT UNITY
+        (GainStage.cpp:408, :461; RESEARCH-3.2 N8). Under D8's commit-on-blur a label swap would
+        hold that state on the PA for as long as the operator takes to type the second label.
+
+        ── THE PREDICATE IS ochan::buildSpeakerToBuffer() ITSELF ────────────────────────────────
+        It builds into a SCRATCH array, so this is not a second implementation of "is this label set
+        valid" and the guard cannot drift from the audio path's backstop. One extra map build per
+        commit, on the message thread, into a std::array<int,8>: free.
+
+        The backstop stays exactly where it is. A session restored from a foreign venue, or a host
+        renegotiating to a set that no longer contains a stored label, still fails in
+        rebuildChannelMap() and still raises mapInvalid. This removes the TRANSIENT, not the net.
+
+        @param whyNot  optional; on failure receives the reason and the 0-based row
+        @returns       false and NOTHING APPLIED, or true and applyVenueEdit() has run
+    */
+    bool applyVenueEditChecked (const oo::VenueModel& newVenue, ochan::MapDiagnosis* whyNot = nullptr);
+
+    /** The diagnosis from the last rebuildChannelMap(). Message thread both ends, so a plain member
+        rather than an atomic (P43 reused, not re-argued): rebuildChannelMap() runs on the message
+        thread and getStatus reads it there. `mapInvalid` itself STAYS the atomic it is, because
+        that one really is read by the audio thread through mappedOutputAvailable(). */
+    ochan::MapDiagnosis lastMapDiagnosis() const noexcept { return mapDiagnosis; }
+
+    //==============================================================================
+    // ── FUNC-04 — the verify ping ───────────────────────────────────────────────────────────────
+
+    /** @param speakerOrAuto  1..8, or oo::VerifyPing::kAuto for the 1->8 cycle.
+        @returns false, having started nothing, when the map is not usable.
+
+        REFUSING IS THE POINT (RESEARCH-3.2 Q5). Pinging "speaker 5" on a stereo fold names a
+        speaker that does not exist, during the one procedure whose entire purpose is confirming
+        that speaker N is speaker N — R1 reproduced inside its own diagnostic tool. */
+    bool startVerifyPing (int speakerOrAuto);
+
+    /** D11's explicit Stop, and the editor destructor's. Graceful: the audio thread runs the 20 ms
+        release. Message thread. */
+    void stopVerifyPing();
+
+    /** For the editor's 100 ms poll. Message thread; reads atomics the audio thread publishes. */
+    oo::VerifyPing::State verifyPingState() const noexcept { return verifyPing.getState(); }
+
+    //==============================================================================
+    // ── UI-03 — the eight meters (Phase 3.3) ────────────────────────────────────────────────────
+
+    /** The eight peaks since the last read, LINEAR, and ZEROED BY THE READ. Message thread.
+
+        ── `exchange(0)` AND NOT A PLAIN LOAD (ARCHITECTURE §4.3 amendment 2 / PLAN-3.3 P77) ──────
+        Read-and-zero means a DROPPED FRAME WIDENS THE MEASUREMENT WINDOW INSTEAD OF LOSING THE
+        PEAK. That matters more here than the phrase suggests: a WebView completion is silently
+        dropped when the editor is hidden (RESEARCH-3.2 N4), so frames really are lost in normal
+        operation, and a plain load would show the operator the level from whichever 33 ms window
+        happened to survive rather than the loudest thing that has happened since they last looked.
+
+        LINEAR, not dB. The −60..0 dBFS mapping and the ballistics both live in js/meters.js, and
+        sending the raw measurement keeps that transform in exactly one place.
+    */
+    std::array<float, ochan::kNumSpeakers> readAndZeroMeters() noexcept;
+
+    //==============================================================================
+    // ── FUNC-06 — weight scenes (Phase 3.3) ─────────────────────────────────────────────────────
+
+    /** The four USER slots. Message thread; the editor reads them for `getScenes`. */
+    const oo::SceneStore& getScenes() const noexcept { return sceneStore; }
+
+    /** FUNC-06's write, and THE THIRD AND FINAL SITE OF THE GESTURE-BRACKET OBLIGATION (D18/P78).
+
+        `beginChangeGesture()` → `setValueNotifyingHost()` → `endChangeGesture()` on EACH of
+        `w1..w8`, closed on BOTH paths. `setValueNotifyingHost` is `setValue` +
+        `sendValueChangedMessageToListeners` AND NOTHING ELSE — the wrappers turn that into a bare
+        `kAudioUnitEvent_ParameterValueChange` (AU_1.mm:1341-1360) and a bare `paramChanged`
+        (VST3.cpp:1498-1501), so in Logic with a lane in Latch or Touch the eight weights MOVE THE
+        SOUND AND ARE NOT RECORDED. Nothing in build, `auval` or `pluginval` can see the omission.
+
+        Closes `gesture_bracket_obligation` after the 3.1 puck (two parameters) and the 3.2 preset
+        load (seventeen).
+
+        ── WHY IT IS HERE AND NOT AT THE EDITOR'S CALL SITE — A RECORDED DEVIATION FROM P78 ──────
+        P78 sites this beside `loadPreset` in PluginEditor.cpp. Its actual argument is C++-vs-JS:
+        eight `SliderState` writes would scatter the obligation across 24 bridge messages where no
+        single grep can confirm it. That argument is fully honoured by ONE C++ function with ONE
+        call site — and putting it on the PROCESSOR buys something the editor cannot:
+        **PLAN-3.3's own probe table makes CI a HARNESS probe**, and the render harness never
+        compiles PluginEditor.cpp. On the editor the brackets could only ever have been grepped;
+        here they are MEASURED, through real parameter listeners, by probe CI.
+
+        @returns true. The empty-set refusal happens UPSTREAM, in the editor's `applyScene`, because
+                 emptiness is a property of the SCENE and this function only sees eight numbers.
+    */
+    bool applySceneWeights (const std::array<float, oo::SceneStore::kNumSpeakers>& weights);
+
+    /** D22's capture: reads the eight live `w` parameters into a slot and normalises the tree.
+
+        In the PROCESSOR and not the editor because the processor owns `apvts.state`, and because
+        the slot must survive an editor that is closed the instant after the click. The APPLY
+        direction lives in the editor instead — it is eight bracketed host gestures, and brackets
+        belong beside the other two sites of that obligation (P78).
+    */
+    void captureScene (int slot);
+
+    /** Bumps on every scene-store write. The page mirrors `venueGen` with this so it knows when to
+        refetch the four slots — they are NOT a function of the venue and so cannot ride
+        `getVenueGeometry` the way named-scene membership does (P79 / Q10). */
+    std::uint32_t getScenesGeneration() const noexcept { return scenesGeneration; }
+
+    /** The four slots as a `var`, for the ONE `setCustomStateCallbacks` registration (D17 / P80).
+
+        THIS IS THE ONLY ROUTE FROM A PRESET TO NON-PARAMETER STATE, and it reaches `SCENES` and
+        nothing else — `VENUE` is not representable through it. That is what keeps FUNC-05's
+        guarantee true while letting a musical preset carry its weight scenes, and it is why §27's
+        assertion changed from "the symbol appears nowhere" to "exactly one registration, touching
+        only SCENES". */
+    juce::var    scenesToVar() const;
+    void         scenesFromVar (const juce::var& payload);
+
+    /** The published room, for the editor's field sampler. Message thread.
+
+        `dbap::solve` is a free function with no state and no allocation (Q1), so sampling the field
+        from here is not a threading question — but the GEOMETRY still has to be the one the audio
+        thread is using, and that is this. */
+    const oo::VenueSnapshot& getVenueSnapshot() const noexcept { return venuePublisher.read(); }
+
+   #if OOCTAGON_INSTRUMENT
+    /** The 17 smoothers' current values — test targets only (PLAN-2.2 P20). */
+    std::array<float, oo::GainStage::kNumSmoothers> currentSmoothedGains() const noexcept
+    {
+        return gainStage.currentSmoothedValues();
+    }
+   #endif
 
 private:
     //==============================================================================
@@ -108,23 +295,73 @@ private:
     oo::VenueModel   venue;
     oo::ConvexHull2D hull;
 
+    /** FUNC-06's four user slots. A SIBLING of VENUE under apvts.state, never a child (D17), which
+        is what makes FUNC-06/4's session round-trip STRUCTURAL: `getStateInformation` is
+        `apvts.copyState()` → XML and the child rides along with no new code.
+
+        Declared here, above apvts, for the same reason venue and hull are: the constructor writes
+        it into `apvts.state` and declaration order decides what exists when. */
+    oo::SceneStore   sceneStore;
+
     juce::AudioProcessorValueTreeState apvts;
 
     //==============================================================================
-    // Cached raw parameter pointers. Stage 1 does not read these in processBlock — they are the
-    // Phase 2.2 control-grid snapshot source, and caching them here is what makes the constructor
-    // complete. Matches the O-Orbit idiom.
-    std::atomic<float>* srcXParam       { nullptr };
-    std::atomic<float>* srcYParam       { nullptr };
-    std::atomic<float>* srcZParam       { nullptr };
-    std::atomic<float>* widthParam      { nullptr };
-    std::atomic<float>* rolloffParam    { nullptr };
-    std::atomic<float>* blurParam       { nullptr };
-    std::atomic<float>* weightParam[ochan::kNumSpeakers] { nullptr, nullptr, nullptr, nullptr,
-                                                           nullptr, nullptr, nullptr, nullptr };
-    std::atomic<float>* hullAttenParam  { nullptr };
-    std::atomic<float>* airAmountParam  { nullptr };
-    std::atomic<float>* outputGainParam { nullptr };
+    // ── The control-grid snapshot source ─────────────────────────────────────────────────────────
+    //
+    // Indexed by oo::params::Index rather than seventeen named members, because the control block
+    // wants them as a flat array it can sanitise in one loop and memcmp in one call. The names live
+    // in oo::params::id(), beside the enum, so there is one ordering rather than two.
+
+    std::array<std::atomic<float>*, oo::params::kCount> paramPtr {};
+
+    /** Each parameter's DECLARED default, in the same order.
+
+        Used as the fallback when an atomic reads back non-finite (PLAN-2.2 P17). A NaN carries no
+        information about which end to clamp to, so the default is the only honest substitute.
+
+        DERIVED FROM THE PARAMETER OBJECTS in the constructor, never hand-transcribed: a written-out
+        table of 17 defaults is exactly pattern_test_fixture_mirrors_drift_silently, and the
+        parameter-spec gate would not catch the drift because it compares the PARAMETERS, not this
+        array.
+    */
+    std::array<float, oo::params::kCount> paramDefaults {};
+
+    //==============================================================================
+    oo::GainStage gainStage;
+
+    /** FUNC-04. A POST-WRITE OVERWRITE of the eight mapped output pointers, applied at the end of
+        GainStage's REAL arm and indexed through the same speakerToBuffer — which is what makes it
+        test the MAP rather than the chain (§7.2 / §OQ2). GainStage does not own it and does not
+        decide when it runs; the processor passes it in (P24). */
+    oo::VerifyPing verifyPing;
+
+    //==============================================================================
+    /** UI-03. Per-speaker peaks of THE WRITTEN OUTPUT BUFFER — max-held by the audio thread,
+        consumed and zeroed by the message thread.
+
+        ── THE INVARIANT IS A static_assert, NOT A COMMENT ──────────────────────────────────────
+        A lock inside `std::atomic<float>` would be a lock on the audio thread, and it would be
+        completely invisible: every probe would pass and the RT violation would only ever surface
+        as a dropout in a hall. This project does not leave that class of invariant in prose
+        (`pattern_ring_invariant_needs_static_assert`).
+
+        ── THE LOAD/COMPARE/STORE RACE IS BENIGN, AND IS DOCUMENTED RATHER THAN HARDENED ────────
+        One audio-thread writer does `if (pk > load) store (pk)`; one message-thread reader does
+        `exchange (0)`. The only interleaving that differs from the sequential case is a store
+        landing just after an exchange, which RE-PUBLISHES A PEAK THAT WAS ALREADY REPORTED — a
+        duplicate on a max-hold display, never a lost peak. A CAS loop would buy nothing and would
+        put a retry loop on the audio thread.
+    */
+    std::array<std::atomic<float>, ochan::kNumSpeakers> meterPeak {};
+
+    static_assert (std::atomic<float>::is_always_lock_free,
+                   "the meter array is written from the audio thread. A locking std::atomic<float> "
+                   "would put a mutex in processBlock, PERF-01 would be violated with every probe "
+                   "still green, and the only symptom would be a dropout in a hall.");
+
+    /** Mirrors venueGeneration for the four user slots. Plain, not atomic: both ends are the
+        message thread, which is P43's rule reused rather than re-argued. */
+    std::uint32_t scenesGeneration { 1 };
 
     //==============================================================================
     // ── Channel map state (R1) ───────────────────────────────────────────────────────────────
@@ -135,6 +372,18 @@ private:
     std::array<int, ochan::kNumSpeakers> speakerToBuffer { 0, 1, 2, 3, 4, 5, 6, 7 };
 
     std::atomic<bool> mapInvalid { false };
+
+    /** Why the last build failed, for the D13 banner. NOT an atomic and it does not need to be —
+        both ends are the message thread. The same reasoning that keeps `outputSetName` off an
+        atomic keeps this off one (P43). */
+    ochan::MapDiagnosis mapDiagnosis {};
+
+    /** Phase 3.1 (P43). Written in prepareToPlay() from the NEGOTIATED output layout, beside
+        preparedYet, and read from the editor's message thread. An atomic because those are two
+        different threads; and it is a bool rather than the set's NAME because a cross-thread
+        juce::String is a race — the name is resolved inside the native function, on the message
+        thread, from the bus that owns it. */
+    std::atomic<bool> safeMode { false };
 
     oo::VenueSnapshotPublisher venuePublisher;
 
@@ -176,6 +425,24 @@ private:
         @param numOutputChannels  the count the caller already read from buffer.getNumChannels()
     */
     bool mappedOutputAvailable (int numOutputChannels) const noexcept;
+
+    /** Loads the 17 atomics into a flat array, substituting the declared default for any value that
+        reads back non-finite (PLAN-2.2 P17 / RESEARCH-2.2 H2).
+
+        ── This guard closes a reachable, PERMANENT failure ──────────────────────────────────────
+        A host really can write NaN into a parameter: juce::jlimit passes it straight through
+        (juce_MathsFunctions.h:520-527) and the jassert inside clampTo0To1 is Debug-only. §3.3.4's
+        all-zero-weight guard does not catch it either, because `NaN < kDenomEpsilon` is FALSE. It
+        then reaches SmoothedValue::setTargetValue(NaN), which sets step = NaN, after which
+        currentValue is NaN for the life of the object WITH NO SELF-HEALING PATH.
+
+        ARCHITECTURE §3.5.2's claim that the TPT filter is "the only recursive element" is wrong —
+        the 17 SmoothedValues are recursive too. Probe AR drives a parameter NaN, not only an input
+        NaN, precisely because the input path self-heals and this one does not.
+
+        Sanitising here also keeps NaN and denormal anomalies out of the dirty check.
+    */
+    oo::ParamSnapshot snapshotParameters() const noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OOctagonProcessor)
 };

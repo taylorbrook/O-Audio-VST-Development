@@ -1,0 +1,73 @@
+O-Octagon — Phase 3.3 VERIFY — the AO residual, reproduced and attributed
+=========================================================================
+Date:    2026-08-12
+Binary:  build/plugins/O-Octagon/tests/render-harness/.../O-Octagon-render-test
+Probes:  AO (PERF-01/1, no allocation in processBlock)
+         CN (UI-03/4, the same measurement with metering live)
+
+WHAT SUMMARY-3.3.md CARRIED FORWARD
+-----------------------------------
+"Probe AO reported 1 allocation, exactly once in 35 runs — on the first execution after a
+ full clean rebuild. All 34 other runs read 0 ... It did not reproduce. Attribution to 3.3
+ is not established and not ruled out ... Verify should re-derive it."
+
+
+1. QUIET — DID NOT REPRODUCE, exactly as the summary said
+---------------------------------------------------------
+  first execution after this verify's own forced full recompile   AO 0   CN 0
+  20 consecutive quiet runs                                       AO 0 x20   CN 0 x20
+  first execution after a SECOND clean rebuild                    AO 0   CN 0
+
+
+2. UNDER 8-WAY CPU LOAD — REPRODUCED IMMEDIATELY
+-------------------------------------------------
+  10 runs   ->  1 firing   (CN, run 9: "1 allocation(s) ... 8/8 meters registered")
+  40 runs   ->  4 firings  (AO, runs 9 / 12 / 13 / 33)
+
+  Note it appeared on CN in one sample and on AO in the others. That alone rules out a
+  code path specific to either probe.
+
+
+3. ATTRIBUTION — a temporary diagnostic recording the allocating thread
+------------------------------------------------------------------------
+  note() was instrumented to compare std::this_thread::get_id() against the thread that
+  armed the counter, and the AO verdict was made to print the foreign tally.
+
+  40 runs under 8-way CPU load:
+
+     4 of 40 FIRED    ->  "1 allocation(s) ... [DIAG foreign-thread 1]"     <-- all four
+    36 of 40 clean    ->  "0 allocation(s) ... [DIAG foreign-thread 0]"
+
+  4 of 4 attributed to a thread OTHER than the one calling processBlock. No exceptions.
+
+  CAUSE: rtcheck::armed is a PROCESS-WIDE flag, so the replaced operator new family counted
+  any thread's allocation inside the window — the JUCE message thread and the macOS runtime
+  threads a console app keeps alive included. Contention does not make processBlock
+  allocate; it widens the window in which some other thread's allocation lands inside it.
+
+
+4. THE FIX (tests/render-harness/main.cpp — the only tree change made at verify)
+---------------------------------------------------------------------------------
+  - note() counts only allocations on the ARMING thread
+  - foreign allocations are tallied separately and STILL REPORTED beside the verdict
+  - every arm site routes through one rtcheck::arm(), so the unattributed form cannot be
+    reintroduced by writing armed.store(true) directly
+
+  BEFORE:  4 of 40 loaded runs FAILED
+  AFTER:   0 of 40 loaded runs failed; the one foreign allocation observed printed as
+
+     [PASS] CN no-allocation-with-metering 0 allocation(s) across 65 processBlock calls
+            incl. an 8192-sample over-size block, with the eight meters live; 8/8 meters
+            registered the render [+1 foreign-thread, NOT counted — see rtcheck]
+
+  That exact run would have FAILED before the fix.
+
+
+5. WHAT THIS SETTLES, AND WHAT IT DOES NOT
+--------------------------------------------
+  SETTLED:      PERF-01 does not regress and never did. processBlock measured 0 allocations
+                at every load level. UI-03/4 closes with no residual.
+
+  NOT SETTLED:  locks and file I/O in processBlock remain grep + inspection. Only ALLOCATION
+                is measured. -fsanitize=realtime is unsupported by Apple clang 17.0.0.
+                Unchanged since 2.2.

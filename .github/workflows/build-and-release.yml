@@ -66,12 +66,18 @@ permissions:
   contents: read
 
 env:
-  # JUCE 8.0.14 — matches the local dev install. The note-expression module
+  # The JUCE version is NOT here. It lives in .github/juce-version.txt and is
+  # surfaced as a parse-tag output below, because ci-tests.yml needs the same
+  # value and a second literal in a second workflow drifts silently — in the
+  # direction that matters most: bump one, and the other keeps proving the OLD
+  # JUCE green (pattern_test_fixture_mirrors_drift_silently). A workflow-level
+  # env: block cannot read a file, which is why this is an output and not an env.
+  #
+  # The version matches the local dev install. The note-expression module
   # requires JUCE-NE-PATCH markers in two upstream files (Dorico microtonal
   # kNoteExpressionValueEvent surfacing). Rather than apply a brittle patch
   # to vanilla JUCE on each runner, we vendor the two patched files in
   # vendored/JUCE-overrides/ and copy them over the JUCE download below.
-  JUCE_VERSION: '8.0.14'
   BUILD_TYPE: Release
 
 jobs:
@@ -84,7 +90,24 @@ jobs:
       plugin_name: ${{ steps.parse.outputs.plugin_name }}
       version: ${{ steps.parse.outputs.version }}
       validate_only: ${{ steps.parse.outputs.validate_only }}
+      juce_version: ${{ steps.juce.outputs.juce_version }}
     steps:
+      # Both build jobs already `needs: parse-tag`, so this is where the single
+      # JUCE source of truth becomes reachable to them. See the env: block above.
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+
+      - name: Read JUCE version
+        id: juce
+        run: |
+          JUCE_VERSION="$(tr -d '[:space:]' < .github/juce-version.txt)"
+          if [ -z "$JUCE_VERSION" ]; then
+            echo "::error::.github/juce-version.txt is empty"
+            exit 1
+          fi
+          echo "juce_version=$JUCE_VERSION" >> $GITHUB_OUTPUT
+          echo "JUCE version: $JUCE_VERSION"
+
       - name: Parse tag
         id: parse
         run: |
@@ -125,7 +148,7 @@ jobs:
       - name: Setup JUCE
         run: |
           # Download and extract JUCE
-          curl -L "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-osx.zip" -o juce.zip
+          curl -L "https://github.com/juce-framework/JUCE/releases/download/${{ needs.parse-tag.outputs.juce_version }}/juce-${{ needs.parse-tag.outputs.juce_version }}-osx.zip" -o juce.zip
           unzip -q juce.zip
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
@@ -490,7 +513,7 @@ jobs:
       - name: Setup JUCE
         run: |
           # Download and extract JUCE
-          Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-windows.zip" -OutFile juce.zip
+          Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/${{ needs.parse-tag.outputs.juce_version }}/juce-${{ needs.parse-tag.outputs.juce_version }}-windows.zip" -OutFile juce.zip
           Expand-Archive -Path juce.zip -DestinationPath .
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $env:GITHUB_ENV

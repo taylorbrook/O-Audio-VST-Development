@@ -170,7 +170,19 @@ void VenueModel::resetToDefaults()
     rakeFrontM = kDefaultRakeFront;
     rakeRearM  = kDefaultRakeRear;
 
-    name    = "Default (placeholder — NOT measured)";
+    // juce::String (const char*) converts through CharPointer_ASCII (juce_String.cpp:307-308) and
+    // MANGLES every byte above 127 — and `name = "..."` builds exactly that temporary, because the
+    // only assignment overloads take a String. The em-dash here is U+2014, three UTF-8 bytes, so
+    // the plain form shipped three garbage characters into apvts.state's VENUE @name, into every
+    // .venue file written from Phase 3.2 on, and (from Phase 3.1, which is the first thing to
+    // RENDER this string) onto the Room screen. There is no compiler warning; the damage is visible
+    // only in output, which is why it survived Stage 2 unnoticed
+    // (critical_juce_string_char_ctor_is_ascii_only).
+    //
+    // CharPointer_UTF8 is the explicit form. `+`, `+=` and `<<` are also safe — they take the UTF-8
+    // path (juce_String.cpp:773-777) — which is why the two diagnostic strings built with `+` in
+    // ChannelMap.cpp were never affected and need no change.
+    name    = juce::String (juce::CharPointer_UTF8 ("Default (placeholder — NOT measured)"));
     savedAt = {};
 
     recomputeDerived();
@@ -393,19 +405,19 @@ void VenueModel::recomputeDerived() noexcept
 }
 
 //==============================================================================
+// ── One-line delegates to oo::plane (PLAN-2.2 P14) ────────────────────────────────────────────
+//
+// The arithmetic — including BOTH independent zero-span guards — lives in Source/Data/VenueGeometry.h
+// so the audio thread can run it against a VenueSnapshot. These members exist because the message
+// thread and the editor already hold a VenueModel and should not have to unpack four scalars to ask
+// it a question.
+//
+// Probes V and W assert member == free function over a swept set on a NON-DEFAULT venue, so
+// "there is no second implementation to drift" is a test rather than a claim.
+
 float VenueModel::earHeight (float yMetres) const noexcept
 {
-    const float span = boxMaxY - boxMinY;
-
-    // Zero-span guard (QUAL-02, ARCHITECTURE §2). All eight speakers at one depth is a legitimate
-    // venue-entry state, not a programming error: the audience plane collapses to a constant rather
-    // than dividing by zero or producing NaN.
-    if (span < kMinSpan)
-        return rakeFrontM;
-
-    // Extrapolated linearly outside [bbMinY, bbMaxY] — deliberately unclamped, so a source placed
-    // behind the rear speakers keeps rising with the rake instead of flattening at a seam.
-    return rakeFrontM + (rakeRearM - rakeFrontM) * ((yMetres - boxMinY) / span);
+    return plane::earHeight (rakeFrontM, rakeRearM, boxMinY, boxMaxY, yMetres);
 }
 
 float VenueModel::absoluteHeight (float yMetres, float srcZ) const noexcept
@@ -415,14 +427,7 @@ float VenueModel::absoluteHeight (float yMetres, float srcZ) const noexcept
 
 Vec2 VenueModel::normToMetres (float nx, float ny) const noexcept
 {
-    // A SECOND zero-span guard, independent of earHeight's. The two degeneracies are not the same
-    // state: a rig with all eight speakers at one x has a fine rake but a zero-width bbox, and
-    // reusing the rake guard would leave this path dividing by zero.
-    const float spanX = boxMaxX - boxMinX;
-    const float spanY = boxMaxY - boxMinY;
-
-    return { spanX < kMinSpan ? boxMinX : boxMinX + nx * spanX,
-             spanY < kMinSpan ? boxMinY : boxMinY + ny * spanY };
+    return plane::normToMetres (boxMinX, boxMaxX, boxMinY, boxMaxY, nx, ny);
 }
 
 } // namespace oo
