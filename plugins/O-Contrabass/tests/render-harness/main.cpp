@@ -176,6 +176,9 @@ struct Args
     // Phase 2.3 R29 — modulator + macro modes (presence flags; mutually-exclusive
     // ladder: matrix-stability > macro-sweep > schelleng-stress > vibrato > slow-lfo > Phase 2.2 modes).
     bool  vibratoMode         = false;
+    // v1.4 — legato string-change seed probe. Rides the --note-sequence machinery
+    // with a canonical sequence plus a liveness gate; see kCrossfadeSeedSequence.
+    bool  crossfadeSeed       = false;
     bool  slowLfoMode         = false;
     bool  schellengStress     = false;
     bool  macroSweep          = false;
@@ -256,6 +259,7 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--output-chain")              { args.outputChainMode   = true; continue; }
         else if (key == "--saturator-tail-comparison") { args.saturatorTailMode = true; continue; }
         else if (key == "--vibrato")          { args.vibratoMode         = true; continue; }
+        else if (key == "--crossfade-seed")   { args.crossfadeSeed       = true; continue; }
         else if (key == "--slow-lfo")         { args.slowLfoMode         = true; continue; }
         else if (key == "--schelleng-stress") { args.schellengStress     = true; continue; }
         else if (key == "--macro-sweep")      { args.macroSweep          = true; continue; }
@@ -680,6 +684,11 @@ int main (int argc, char** argv)
             args.outWav  = juce::String ("detune-sweep-") + juce::String::charToString (args.detuneSweepString) + ".wav";
         if (! args.outJsonSet)
             args.outJson = juce::String ("detune-sweep-") + juce::String::charToString (args.detuneSweepString) + ".json";
+    }
+    else if (args.crossfadeSeed)
+    {
+        if (! args.outWavSet)  args.outWav  = "crossfade-seed.wav";
+        if (! args.outJsonSet) args.outJson = "crossfade-seed.json";
     }
     else if (args.noteSequence.isNotEmpty())
     {
@@ -3619,12 +3628,39 @@ int main (int argc, char** argv)
     proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
     proc.prepareToPlay (sampleRate, blockSize);
 
+    // v1.4 — zero the seed liveness counters so they describe THIS render only.
+    BowedContrabassVoice::resetSeedCounters();
+
     int totalSeconds   = static_cast<int> (std::ceil (args.sustainSeconds + args.releaseSeconds));
     int totalSamples   = static_cast<int> (totalSeconds * sampleRate);
     int sustainSamples = static_cast<int> (args.sustainSeconds * sampleRate);
 
     const int channel  = 1;       // MPE legacy zone master channel
     const int velMidi  = juce::jlimit (1, 127, static_cast<int> (std::round (args.velocity * 127.0f)));
+
+    // v1.4 — canonical legato string-change probe (--crossfade-seed).
+    //
+    // Reaching `needsCrossfade` is not a matter of just playing fast: JUCE's
+    // voice-stealing heuristic hands a recycled voice back the pitch it last
+    // played, so any repeating passage produces newStringIndex == activeStringIndex
+    // and NO crossfade. (Measured: the 28/33/38/43/28 sequence originally used to
+    // calibrate the v1.2 seed carve-out yields 0 crossfades out of 5 note-ons.)
+    //
+    // What does reach it: fill all 4 voices on ONE string with short notes, then
+    // leap to a different string while those bows are still inside their ~0.43 s
+    // release. The first note after each leap steals a voice whose activeStringIndex
+    // belongs to the old string -> crossfade. Five string pairs, so five crossfades,
+    // each on a 1.2 s note long enough to measure pitch at bass frequencies.
+    static const char* const kCrossfadeSeedSequence =
+        "28:0.06,29:0.06,30:0.06,31:0.06,43:1.20,"   // E string -> G  (crossfade)
+        "43:0.06,44:0.06,45:0.06,46:0.06,28:1.20,"   // G string -> E  (crossfade)
+        "28:0.06,29:0.06,30:0.06,31:0.06,38:1.20,"   // E string -> D  (crossfade)
+        "38:0.06,39:0.06,40:0.06,41:0.06,33:1.20,"   // D string -> A  (crossfade)
+        "33:0.06,34:0.06,35:0.06,36:0.06,43:1.20";   // A string -> G  (crossfade)
+    static constexpr int kCrossfadeSeedExpectedCrossfades = 5;
+
+    if (args.crossfadeSeed && args.noteSequence.isEmpty())
+        args.noteSequence = kCrossfadeSeedSequence;
 
     // Phase 2.2 R23 — pre-build note-sequence event list, override sustain/total
     // sample counts when in sequence mode (sustain phase = sum of segment durations).
@@ -4033,6 +4069,30 @@ int main (int argc, char** argv)
             passAllSegmentsAudible = false;
     }
 
+    // v1.4 — crossfade-seed REGRESSION GATE. In --crossfade-seed mode the long
+    // (>= 1.0 s) segments are exactly the notes that land on a freshly-crossfaded
+    // string. Seeded they sit at about -29.9 dBFS RMS; with the v1.2 carve-out
+    // reinstated they collapse to about -43.1 dBFS, because the new string barely
+    // speaks and what you hear is the ringing OUTGOING string. The -36 dBFS floor
+    // sits between those two populations, so reintroducing the carve-out fails
+    // here rather than passing quietly.
+    constexpr float kCrossfadeNoteRmsFloor = 0.0158f;   // -36 dBFS
+    float  minCrossfadeNoteRms = std::numeric_limits<float>::max();
+    int    numCrossfadeNotes   = 0;
+    for (const auto& seg : sequenceSegments)
+    {
+        if (static_cast<float> (seg.sampleCount) / static_cast<float> (sampleRate) < 1.0f)
+            continue;
+        const int s0 = seg.sampleStart;
+        const int s1 = juce::jmin (s0 + seg.sampleCount, totalSamples);
+        minCrossfadeNoteRms = juce::jmin (minCrossfadeNoteRms, rmsOverMono (s0, s1));
+        ++numCrossfadeNotes;
+    }
+    if (numCrossfadeNotes == 0)
+        minCrossfadeNoteRms = 0.0f;
+    const bool passCrossfadeNoteLevel =
+        (! args.crossfadeSeed) || (minCrossfadeNoteRms >= kCrossfadeNoteRmsFloor);
+
     // v1.3 NEW GATE — segment level CONSISTENCY.
     //
     // passAllSegmentsAudible above is vacuous for the failure it looks like it
@@ -4383,6 +4443,20 @@ int main (int argc, char** argv)
     const bool isStiffnessSweep = args.stiffnessSweep;
     const bool isDetuneSweep    = (args.detuneSweepString != ' ');
     const bool isNoteSequence   = (! sequenceEvents.empty());
+
+    // v1.4 — LIVENESS GATE. In --crossfade-seed mode the whole point is to execute
+    // the legato string-change path, so a run that never reached it has proved
+    // nothing and must FAIL rather than report a confident PASS over a branch that
+    // never ran. This is the guard the original v1.2 carve-out calibration lacked.
+    const int  crossfadeNoteOns   = (int) BowedContrabassVoice::getCrossfadeNoteOns();
+    const bool passCrossfadeLiveness =
+        (! args.crossfadeSeed) || (crossfadeNoteOns >= kCrossfadeSeedExpectedCrossfades);
+
+    if (args.crossfadeSeed && ! passCrossfadeLiveness)
+        std::fprintf (stderr,
+                      "error: --crossfade-seed executed only %d crossfade note-ons (need >= %d);\n"
+                      "       the probe is VACUOUS - it did not exercise a legato string change.\n",
+                      crossfadeNoteOns, kCrossfadeSeedExpectedCrossfades);
     const char* modeStr = args.macroSweep      ? "macro-sweep"
                         : args.schellengStress ? "schelleng-stress"
                         : args.vibratoMode     ? "vibrato"
@@ -4411,6 +4485,15 @@ int main (int argc, char** argv)
                    && passRmsContinuity && passRmsRampDirection;
     else if (isDetuneSweep)
         overallPass = passNan && passPeak && passBlockTime && passRmsContinuity;
+    else if (args.crossfadeSeed)
+        // The probe deliberately mixes 0.06 s fill notes with 1.2 s crossfade
+        // notes across different strings, so the transition-continuity and
+        // level-consistency gates (which assume a uniform sequence) do not
+        // apply. What it asserts instead: it really did execute the legato
+        // string-change path, and the notes landing on the new string speak.
+        overallPass = passNan && passPeak && passBlockTime
+                   && passAllSegmentsAudible
+                   && passCrossfadeLiveness && passCrossfadeNoteLevel;
     else if (isNoteSequence)
         overallPass = passNan && passPeak && passBlockTime
                    && passAllSegmentsAudible && passRmsContinuityAtTransitions
@@ -4457,6 +4540,20 @@ int main (int argc, char** argv)
     summary->setProperty ("pass_blockTime",         passBlockTime);
     summary->setProperty ("pass_rms",               passRms);
     summary->setProperty ("outputWav",              args.outWav);
+
+    // v1.4 — note-on LIVENESS. `crossfade_note_ons` counts note-ons that took the
+    // legato string-crossfade path. Any claim about legato string changes drawn
+    // from a run reporting 0 here is VOID: the branch never executed. That is
+    // exactly how the v1.2 seed carve-out came to be calibrated on nothing.
+    summary->setProperty ("seed_applied",       (int) BowedContrabassVoice::getSeedAppliedCount());
+    summary->setProperty ("crossfade_note_ons", crossfadeNoteOns);
+    if (args.crossfadeSeed)
+    {
+        summary->setProperty ("pass_crossfadeLiveness",  passCrossfadeLiveness);
+        summary->setProperty ("pass_crossfadeNoteLevel", passCrossfadeNoteLevel);
+        summary->setProperty ("minCrossfadeNoteRms",     minCrossfadeNoteRms);
+        summary->setProperty ("numCrossfadeNotes",       numCrossfadeNotes);
+    }
 
     if (args.stringOverride != ' ')
         summary->setProperty ("string", juce::String::charToString (args.stringOverride));

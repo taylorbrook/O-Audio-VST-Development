@@ -14,12 +14,14 @@
   "rmsMid_s5_s6": 0.043235454708338,
   "rmsFinal_lastSecond": 0.046772599220276,
   "rmsRatio_final_over_mid": 1.081811189651489,
-  "blockMicros_median": 79.25,
-  "blockMicros_max": 198.957999999999998,
-  "blockTime_max_over_median": 2.510511041009464,
+  "blockMicros_median": 73.125,
+  "blockMicros_max": 171.375,
+  "blockTime_max_over_median": 2.343589743589744,
   "pass_nan": true,
   "pass_peak": true,
   "pass_blockTime": true,
   "pass_rms": true,
-  "outputWav": "/tmp/repro/stiffness-zero-pre.wav"
+  "outputWav": "/tmp/repro/stiffness-zero-pre.wav",
+  "seed_applied": 1,
+  "crossfade_note_ons": 0
 }

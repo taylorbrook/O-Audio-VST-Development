@@ -57,7 +57,7 @@ fi
 # Parallel arrays (bash 3.2 compatible). Canonical invocations per RESEARCH §17.1:
 # sustain 60 / release 5 default for sustained modes; 3-s notes for note-sequence;
 # mode-locked sustain for vibrato/macro/slow/schelleng.
-NAMES=(stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence voice-recycling vibrato macro-sweep slow-lfo schelleng-stress sub-harmonics sub-harmonics-stability saturator-tail-comparison output-chain microtonal-12tet microtonal-scala microtonal-mpe note-expression mpe-yz)
+NAMES=(stiffness-zero-pre string-A string-D string-G detune-sweep-A note-sequence voice-recycling crossfade-seed vibrato macro-sweep slow-lfo schelleng-stress sub-harmonics sub-harmonics-stability saturator-tail-comparison output-chain microtonal-12tet microtonal-scala microtonal-mpe note-expression mpe-yz)
 INVOCS=(
     "--note 28 --velocity 0.7 --sustain 60 --release 5 --infinite-sustain 1.0 --string-stiffness 0"
     "--string A"
@@ -75,6 +75,16 @@ INVOCS=(
     # only its last note-on is dropped and four ringing voices mask it (0.671
     # consistency, a pass). Do not fold these two scenarios together.
     "--note-sequence 40:0.5,40:0.5,40:0.5,40:0.5,40:0.5,40:0.5,40:0.5,40:0.5 --velocity 0.8 --release 4"
+    # v1.4 legato string-change golden. Neither `note-sequence` (one note per
+    # string, all on fresh voices) nor `voice-recycling` (eight of the SAME note,
+    # so the recycled voice keeps its string) ever reaches `needsCrossfade` —
+    # both report crossfade_note_ons = 0. JUCE hands a stolen voice back the pitch
+    # it last played, so the only way in is to fill the pool on one string and
+    # then leap to another, which is what this mode's built-in sequence does.
+    # Gates on crossfade_note_ons >= 5 (else the probe is vacuous) AND on the
+    # crossfaded notes actually speaking (>= -36 dBFS RMS). Reinstating the v1.2
+    # "don't seed across a crossfade" carve-out drops them to -41 dBFS and fails.
+    "--crossfade-seed"
     "--vibrato"
     "--macro-sweep"
     "--slow-lfo"
@@ -98,10 +108,19 @@ INVOCS=(
 
 FAIL=0
 TOTAL=0
+SKIPPED=0
 for i in "${!NAMES[@]}"; do
     g="${NAMES[$i]}"
     invoc="${INVOCS[$i]}"
-    [ -f "$GOLDEN_DIR/$g.wav.sha256" ] || continue
+    # A name with no committed .sha256 is skipped when verifying, but --regenerate
+    # MUST be able to create it or a newly-added golden would silently never run
+    # (it would sit in NAMES looking covered while contributing nothing, and the
+    # summary line would still say "all N reproduce"). Announce the skip loudly.
+    if [ ! -f "$GOLDEN_DIR/$g.wav.sha256" ] && [ -z "$REGEN" ]; then
+        echo "[SKIP] $g — no committed golden yet; run --regenerate to create it"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
     wav="$OUTDIR/$g.wav"
     json="$OUTDIR/$g.json"
     # Harness may exit non-zero on quality-gate FAILs (peak / RMS thresholds);
@@ -141,6 +160,11 @@ fi
 
 if [ "$FAIL" -gt 0 ]; then
     [ -z "$QUIET" ] && echo "FAILED: $FAIL of $TOTAL goldens drifted"
+    exit 1
+fi
+if [ "$SKIPPED" -gt 0 ]; then
+    echo "ERROR: $SKIPPED golden(s) in NAMES have no committed baseline and were NOT verified."
+    echo "       Run --regenerate to create them; a skipped golden is not a passing one."
     exit 1
 fi
 [ -z "$QUIET" ] && echo "OK: all $TOTAL goldens reproduce byte-identical"

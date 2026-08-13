@@ -1,5 +1,5 @@
 {
-  "status": "FAIL",
+  "status": "PASS",
   "mode": "sustained",
   "midiNote": 43,
   "velocity": 0.699999988079071,
@@ -14,13 +14,15 @@
   "rmsMid_s5_s6": 0.039173528552055,
   "rmsFinal_lastSecond": 0.030704351142049,
   "rmsRatio_final_over_mid": 0.783803582191467,
-  "blockMicros_median": 76.707999999999998,
-  "blockMicros_max": 2535.541999999999916,
-  "blockTime_max_over_median": 33.054466287740524,
+  "blockMicros_median": 72.957999999999998,
+  "blockMicros_max": 100.207999999999998,
+  "blockTime_max_over_median": 1.373502563118506,
   "pass_nan": true,
   "pass_peak": true,
-  "pass_blockTime": false,
+  "pass_blockTime": true,
   "pass_rms": true,
   "outputWav": "/tmp/repro/string-G.wav",
+  "seed_applied": 1,
+  "crossfade_note_ons": 0,
   "string": "G"
 }

@@ -4,6 +4,70 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.4.0] — 2026-08-13 — legato string changes speak too (crossfade-seed carve-out removed)
+
+Removes the v1.2.0 "don't seed across a string crossfade" carve-out. Notes that land
+on a freshly-crossfaded string are now **13.2 dB louder** and their own fundamental
+**26.0 dB louder**, and they are *better* in tune, not worse. **All 20 pre-existing
+render goldens are byte-identical** — the carve-out was unreachable in every one of
+them, which is the whole story.
+
+### Fixed — a carve-out justified by a measurement that never ran
+
+`noteStarted()` skipped `seedFundamental()` whenever `needsCrossfade` was true. The
+stated reason was that seeding into a crossfade window "superimposes a fresh
+full-amplitude fundamental on a decaying neighbour a few semitones away", citing a
+`microtonal-scala` segment that read 230 cents. Both halves were wrong:
+
+1. **The calibrating probe never executed the branch.** `needsCrossfade` requires
+   `activeStringIndex >= 0`, and every note-on in `28:1.5,33:1.5,38:1.5,43:1.5,28:1.5`
+   landed on a *fresh* voice. Instrumented with the new liveness counter, that
+   sequence reports **0 crossfades across 5 note-ons** — and under v1.2.0 its 5th
+   note-on was dropped outright by the voice-allocation bug fixed in 1.3.0. What the
+   230 cents actually measured was four ringing strings summing, not a retrigger.
+2. **The 230 cents was an estimator artifact.** Autocorrelation on a harmonic bowed
+   string peaks nearly as strongly at `2T` as at `T`; an unconstrained search reports
+   a spurious ≈−1200 cents. It reproduces in *both* arms of the A/B and vanishes once
+   the search is constrained to ±6 semitones.
+
+Reaching the path at all is subtle: JUCE's voice-stealing heuristic hands a recycled
+voice back the pitch it last played, so any repeating passage yields
+`newStringIndex == activeStringIndex` and no crossfade. It takes filling the 4-voice
+pool on one string and then leaping to another.
+
+Measured that way, over 5 string pairs (E→G, G→E, E→D, D→A, A→G):
+
+| crossfaded note | carve-out (v1.3.0) | seeded (v1.4.0) |
+|---|---|---|
+| RMS | −43.1 dBFS | **−29.9 dBFS** |
+| level at own f0 | −60.8 dBFS | **−34.8 dBFS** |
+| max pitch error | 6.7 ¢ | **1.1 ¢** |
+
+Unseeded, the new string is so quiet that the segment's pitch tracks the *outgoing*
+string — segment 5 of the first probe measured 49.03 Hz for a note played at 98 Hz,
+which is the previous note (MIDI 31 = 49.00 Hz) still ringing. That is the actual
+audible defect the carve-out caused: a legato string change did not speak.
+
+- `BowedContrabassVoice::noteStarted()` — seeds **every** note-on; the
+  `if (! needsCrossfade)` guard is gone.
+
+### Added — `--crossfade-seed` render golden (21st)
+
+A probe that genuinely reaches the legato string-change path, with a **liveness gate**:
+it FAILS if `crossfade_note_ons < 5` rather than reporting a confident PASS over a
+branch that never ran. Also gates the crossfaded notes at ≥ −36 dBFS RMS, a floor
+sitting between the seeded (−29.9) and carve-out (−43.1) populations. Verified
+discriminating by negative control: reinstating the carve-out fails the level gate
+(0.0088 vs 0.0158) while liveness stays green, so it fails for the right reason.
+
+- New voice counters `seed_applied` / `crossfade_note_ons` are emitted in every
+  harness JSON. `note-sequence` and `voice-recycling` both report
+  `crossfade_note_ons = 0`, confirming neither ever covered this path.
+- `reproduce-goldens.sh` now **hard-fails** on a golden listed in `NAMES` with no
+  committed baseline. Previously such an entry was silently skipped while the summary
+  still read "all N reproduce byte-identical" — a new golden could look covered while
+  contributing nothing.
+
 ## [1.3.0] — 2026-08-13 — the instrument keeps speaking (voice release + stealing)
 
 Fixes the plugin going **completely silent after four note-ons** and staying silent for
