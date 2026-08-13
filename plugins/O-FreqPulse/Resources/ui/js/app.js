@@ -1093,6 +1093,68 @@ function initializeTooltips() {
         }
     });
 
+    const EDGE_MARGIN = 10;  // keep the surface clear of the window edge
+    const GAP = 8;           // vertical gap between control and tooltip
+
+    function showTooltipFor(target) {
+        const text = target.getAttribute('data-tooltip');
+        if (!text) return;
+
+        tooltip.textContent = text;
+
+        // v1.17.0: Measure at a neutral origin BEFORE placing. `.tooltip` is
+        // position:absolute with width:auto + max-width:220px, so its shrink-to-fit
+        // width resolves against (containing block width - left). Measuring while it
+        // still sits at its PREVIOUS left reports a narrow, over-wrapped box near the
+        // right edge; the clamp below then computes the new left from that wrong
+        // number and the box re-flows again once left is applied. Worse, the squeezed
+        // width resolves left straight back against the right edge, so it never
+        // recovers on subsequent hovers. Reset to 0,0 with width:auto, measure, then
+        // pin the width in px so the box can no longer re-flow under us.
+        // See pattern_fixed_tooltip_shrink_to_fit_edge.
+        tooltip.style.width = 'auto';
+        tooltip.style.left = '0px';
+        tooltip.style.top = '0px';
+
+        // Pin the FRACTIONAL width from getBoundingClientRect, not the integer
+        // offsetWidth: a natural width of 208.48px rounds to 208, and pinning that
+        // makes the box 0.48px narrower than its own shrink-to-fit, which pushes the
+        // last word onto a second line. Height is only stable once the width is
+        // pinned, so it must be read after — reading it first placed the surface
+        // using 28px while it actually rendered 42px, overlapping the control.
+        const width = tooltip.getBoundingClientRect().width;
+        tooltip.style.width = width + 'px';
+        const height = tooltip.getBoundingClientRect().height;
+
+        const rect = target.getBoundingClientRect();
+        const containerRect = pluginContainer.getBoundingClientRect();
+
+        // Horizontal: centre on the control, then clamp both edges. Computed as a
+        // real left edge rather than a centre + translateX(-50%), so the clamp
+        // arithmetic and the box the browser lays out are the same geometry.
+        let left = rect.left - containerRect.left + rect.width / 2 - width / 2;
+        const maxLeft = containerRect.width - width - EDGE_MARGIN;
+        if (left > maxLeft) left = maxLeft;
+        if (left < EDGE_MARGIN) left = EDGE_MARGIN;
+
+        // Vertical: prefer above the control, flip below if it would clip the top.
+        // v1.17.0: previously `top` was set to (control top - 8) and used directly as
+        // the CSS top with no translateY(-100%), so the surface covered the control it
+        // described; the old guard `top - height < 0` was written as though `top` were
+        // a bottom edge and so fired on the wrong condition.
+        let top = rect.top - containerRect.top - height - GAP;
+        if (top < EDGE_MARGIN) {
+            top = rect.bottom - containerRect.top + GAP;
+        }
+        // If flipping below would clip the bottom, clamp back inside.
+        const maxTop = containerRect.height - height - EDGE_MARGIN;
+        if (top > maxTop) top = maxTop;
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.classList.add('visible');
+    }
+
     // Show tooltip on hover over elements with data-tooltip
     pluginContainer.addEventListener('mouseover', function(e) {
         if (!state.tooltipsEnabled) return;
@@ -1100,46 +1162,21 @@ function initializeTooltips() {
         const target = e.target.closest('[data-tooltip]');
         if (!target) return;
 
-        const text = target.getAttribute('data-tooltip');
-        if (!text) return;
-
-        tooltip.textContent = text;
-        tooltip.classList.add('visible');
-
-        // Position tooltip above the element
-        const rect = target.getBoundingClientRect();
-        const containerRect = pluginContainer.getBoundingClientRect();
-
-        let left = rect.left - containerRect.left + rect.width / 2;
-        let top = rect.top - containerRect.top - 8;
-
-        // Constrain within container bounds
-        const tooltipWidth = tooltip.offsetWidth || 200;
-        const tooltipHeight = tooltip.offsetHeight || 40;
-
-        // Keep tooltip within horizontal bounds
-        if (left - tooltipWidth / 2 < 10) {
-            left = tooltipWidth / 2 + 10;
-        } else if (left + tooltipWidth / 2 > containerRect.width - 10) {
-            left = containerRect.width - tooltipWidth / 2 - 10;
-        }
-
-        // If tooltip would go above container, show below instead
-        if (top - tooltipHeight < 0) {
-            top = rect.bottom - containerRect.top + 8;
-        }
-
-        tooltip.style.left = left + 'px';
-        tooltip.style.top = top + 'px';
-        tooltip.style.transform = 'translateX(-50%)';
+        showTooltipFor(target);
     });
 
     // Hide tooltip on mouseout
     pluginContainer.addEventListener('mouseout', function(e) {
         const target = e.target.closest('[data-tooltip]');
-        if (target) {
-            tooltip.classList.remove('visible');
-        }
+        if (!target) return;
+
+        // v1.17.0: ignore moves that stay inside the same tooltipped control. Several
+        // control-groups wrap a label, a slider and a value-display, so crossing
+        // between those children previously fired mouseout->mouseover and flickered
+        // the surface off and back on.
+        if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+        tooltip.classList.remove('visible');
     });
 
     // WR-01: pull the persisted tooltip state from C++ once, now that the JS is ready.
