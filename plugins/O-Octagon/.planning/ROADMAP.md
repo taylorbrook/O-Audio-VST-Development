@@ -55,7 +55,7 @@ Every phase below is a subdivision of an existing stage, never a re-assignment.
 | Stage 1 — Foundation | FUNC-01, COMPAT-01, COMPAT-04 | single pass |
 | Stage 2 — DSP | FUNC-03, FUNC-07, DSP-01..08, PERF-01, PERF-02, COMPAT-03, QUAL-01..04 | 2.1, 2.2, 2.3 |
 | Stage 3 — GUI | FUNC-02, FUNC-04, FUNC-05, FUNC-06, UI-01..05 | 3.1, 3.2, 3.3 |
-| Stage 4 — Validation | COMPAT-02, all remaining | single pass |
+| Stage 4 — Validation | COMPAT-02, all remaining | 4.1, 4.2 *(amended 2026-08-12, D1 — was "single pass")* |
 
 ---
 
@@ -327,14 +327,46 @@ Two screens: **Room** (performance) and **Venue** (measurement).
 
 **Components**
 
-- 8 live per-speaker level indicators at their plan positions — atomic array, ~30 Hz Timer
-  read, `requestAnimationFrame` ballistics, attack 0.5 / decay 0.12, −60..0 dBFS scale,
-  1.5 s peak-hold releasing at 20 dB/s (critical-patterns §20)
+- 8 live per-speaker level indicators at their plan positions — atomic array, ~30 Hz read
+  **by a fixed-interval JS pull with a deadline-released in-flight guard** (*not* a
+  `juce::Timer`), `requestAnimationFrame` ballistics, attack 0.5 / decay 0.12, −60..0 dBFS
+  scale, 1.5 s peak-hold releasing at 20 dB/s (critical-patterns §20)
+
+  > **Amended 2026-08-12 at the Phase 3.3 plan boundary (P70), same re-pin as the gradient
+  > bullet below.** "~30 Hz Timer read" names a mechanism this plugin does not use, and
+  > honouring it literally would undo Phase 3.1's deliberate choice to keep `PluginEditor`
+  > `Timer`-free — which is what lets `tests/ui-stub/` render the whole UI and makes the
+  > pre-integration half of every layout gate possible. `ARCHITECTURE.md` §4.3 carried the
+  > identical error and was corrected at the 3.3 **discuss** boundary (amendment 2); this
+  > bullet is the same error in the second document. The **rate** was always right; only the
+  > mechanism was wrong. The deadline clause is RESEARCH-3.3 N9, measured: a guard released
+  > only on settlement latches permanently the first time a completion is dropped.
 - Scene buttons `ALL` `FRONT` `REAR` `LEFT` `RIGHT` `SIDES` + 4 user slots — each writes all
   8 weight parameters via `setValueNotifyingHost` so scenes record as ordinary automation
-- DBAP level-field gradient backdrop (paper figs 1-3): per-pixel `max_i v_i²` over a coarse
-  grid, recomputed on the message thread on geometry/weight change, drawn to an offscreen
-  canvas and blitted — **never** recomputed per frame
+- DBAP level-field gradient backdrop (paper figs 1-3): per-pixel **`1/k = √denom`, the
+  un-normalised DBAP field** over a coarse grid, recomputed on the message thread on
+  geometry/weight change, drawn to an offscreen canvas and blitted — **never** recomputed
+  per frame
+
+  > **Amended 2026-08-12 at the Phase 3.3 plan boundary (P70).** This bullet originally
+  > specified `max_i v_i²`. That formula is **degenerate and was measured so** against the
+  > shipping `DbapSolver` over the default envelope (RESEARCH-3.3 N10): DBAP normalises to
+  > `Σ v_i² = 1`, so `max_i v_i²` measures only how *concentrated* the image is — it reads
+  > **identically 1.0000 at every point in the room** whenever exactly one weight is
+  > non-zero, and 3.2–5.4 dB otherwise. The picture goes blank precisely when the spatial
+  > situation is most extreme. `1/k` is the same quantity the solver **already computes**
+  > as `denom` before normalising, gives 1.3–10.4 dB with correct radial structure, and
+  > never degenerates. Reached through a defaulted `float* outInvK = nullptr` out-param, so
+  > no call site changes and `powCalls == 16` is untouched. REQUIREMENTS.md's four UI-04
+  > criteria never named a formula and are unaffected; this bullet was the only place one
+  > was named.
+  >
+  > **The field over a real raked audience plane is genuinely flat** — every grid point sits
+  > at `z = 0` while the speakers are 4.50–5.40 m up, so the minimum 3-D distance is ≥ 4.5 m
+  > in a 12 × 15 m hall. That is a property of the rig, not of either formula. The backdrop
+  > therefore normalises to the **per-recompute observed min/max** and prints the actual dB
+  > span in a legend; an absolute 0..1 colour map renders a uniform wash while looking as
+  > though it carries information.
 - Side-elevation strip: raked audience line, speaker heights, source height above the plane
 
 **Test criteria**
@@ -358,16 +390,107 @@ Two screens: **Room** (performance) and **Venue** (measurement).
 
 ---
 
-## Stage 4 — Validation (single pass)
+## Stage 4 — Validation (phases 4.1, 4.2)
 
-**Goal:** Logic Pro, in the hall, with the bounce path confirmed.
+> **Amended 2026-08-12 at the Stage 4 discuss boundary.** Two changes, D1 and D2.
+>
+> **D1 — the pass is split, not single.** Every criterion below is either closable at the desk with
+> no host and no ear, or needs a running Logic session and a human. Running them as one pass means
+> planning the human session before the machine gates have frozen the binary it would be run
+> against. **4.1 = machine. 4.2 = host-and-ear, against a frozen 4.1 binary.**
+>
+> **D2 — the goal line "in the hall" is corrected.** No hall is available this milestone; the rig is
+> **Logic + an 8-channel interface at the desk**. This costs less than it reads: every criterion
+> below closes at the desk. `D5`'s *only* unique coverage is QUAL-01 criterion 2's **audible**
+> clause, whose open question — *does ~15 % of an 8 kHz component, as a one-sample step on a single
+> hull-crossing gesture, tick audibly on HF-rich material?* — is a **one-gesture, any-monitoring**
+> judgement that needs no room. What a hall would add is spatial-coherence judgement, which **no
+> requirement row asks for**. Stated so it is a decision and not an omission.
 
-**Components and test criteria**
+**Goal:** Logic Pro on an 8-channel desk rig, with the bounce path confirmed.
+
+### Phase 4.1 — machine gates (no host, no ear)
+
+- [ ] **CI wiring** — the 44 unit + 48 harness C++ probes are **built and run in a new secretless
+      `.github/workflows/ci-tests.yml`** on macOS, on push and pull_request. *(Added 2026-08-12, D6.
+      Carried as a residual since Phase 2.1 verify and widened by every phase since, but **never
+      written into this list** — a residual nobody owned. The two JS gates stay local-only by
+      decision, not by omission: they are DPR/viewport-sensitive and CI-flaky in this repo.
+      O-Octagon is the **first plugin in this repo to run a test target in CI at all**.)*
+      *(**Destination amended 2026-08-12 at the 4.1 plan boundary, A1/P86.** This bullet previously
+      named `build-and-release.yml`, which `plugins/O-Octagon/CMakeLists.txt:172-176` — PLAN-2.1 P13
+      — explicitly forbids: it is tag-triggered and secrets-bearing. Two live contracts contradicted
+      each other one day after this bullet was written. A new secretless workflow honours P13
+      literally **and** delivers D6's stated intent better than the original destination could: the
+      failure mode is "a JUCE bump ships silently", and a JUCE bump is a **commit**, not a tag.
+      P13 is not overturned; it is satisfied. The CMakeLists comment is corrected in the same
+      commit — A2/P86, because it says the gap "is logged as a repo-level todo instead" and after
+      this it is not.)*
+- [ ] **The JUCE version is a single derived source** — `.github/juce-version.txt`, read by both
+      workflows. A second literal in a second workflow would drift **silently in the one direction
+      that matters** (bump the release workflow, and the probe workflow keeps proving the old JUCE
+      green — a gate reporting green about a JUCE nobody ships).
+      *(Added 2026-08-12 at the 4.1 plan boundary, P87 — `pattern_test_fixture_mirrors_drift_silently`)*
+- [ ] Windows CI: VST3 builds under MSVC and passes pluginval 10, **in `ci-tests.yml`**, not by
+      dispatching the signing workflow. *(Amended 2026-08-12 at the 4.1 plan boundary, P88. Two
+      changes. **(a)** The pre-CI scan this bullet asked for is **discharged** — RESEARCH-4.1 N4
+      found **zero** non-static `constexpr` in any lambda in `Source/**` and **zero** occurrences of
+      `SafePointer` anywhere in `Source/`, so neither named pattern can fire and the bullet must
+      stop describing the Windows risk as those two. The real risk is that **no MSVC has ever parsed
+      this code**; a static scan is not a compile, and only a CI run answers it. **(b)** The
+      existing `workflow_dispatch --validate_only` path would work, but `build-macos` has no
+      `validate_only` guard — deliberately, it doubles as the signing-secrets gate — so dispatching
+      it **signs and notarises**, which **D4 excludes**. Putting the Windows job in the secretless
+      workflow keeps D4 true as written.)*
+- [ ] pluginval strictness 10, VST3 and AU, **run 2-3 times** before publishing
+- [ ] `auval -v aufx OuOc <manufacturer>` passes
+- [ ] Factory musical presets authored in **engineering units** with `convertTo0to1` — **5–6, on the
+      room-character axis only** (`width`, `rolloff`, `blur`, `hullAtten`, `airAmount`,
+      `outputGain`). *(Scoped 2026-08-12, D5: position is per-cue automation and the 8 weights are
+      already FUNC-06's scenes; a preset that wrote either would put two mechanisms on the same
+      parameters.)*
+      *(**Mechanism amended 2026-08-12 at the 4.1 plan boundary, A4/P92.** D5's intent survives; its
+      premise does not. `applyPresetJson` **resets all 17 parameters to their defaults before
+      applying** (module WR-01, `OuariconPresetManager.h:315-331`), so **omitting a key does not
+      leave that parameter alone — it resets it**: `srcX`/`srcY` → 0.5, `srcZ` → 0 m, `w1..w8` → 1.0.
+      Loading any factory preset would therefore un-do whatever FUNC-06 scene is applied and
+      re-centre the source — precisely the two-mechanism collision D5 exists to prevent, arriving
+      through the module's defensive behaviour instead of the preset's content. **The scope is
+      achieved by a snapshot-and-restore at O-Octagon's own call site**, inside the 17-parameter
+      gesture bracket already open there — never by editing the shared module, which nine plugins
+      include. Its probe must assert the **eleven are bit-unchanged**, not merely that the six
+      moved: asserting only the six passes with the bug present.)*
+- [ ] **`COMPAT-04` criterion 3** — the SAFE banner asserted through the **complement predicate**,
+      with a negative control on a fourth 8-channel set confirming the banner **is raised** — which
+      is what discriminates the complement spelling from `== mono || == stereo`, under which it
+      would stay down. *(**Wording corrected 2026-08-12 at the 4.1 plan boundary, A3/P90.** This
+      read "confirms the banner **stays down**", which is the outcome of the spelling D8 rejects:
+      under the shipped complement form a fourth container is **not** one of the three real rigs, so
+      `safeMode` is **true** and the banner goes **up**. Verified as written, the criterion would
+      have passed **only if the code had the spelling D8 rejects** — an acceptance criterion that
+      fails against correct code and passes against the defect. Same shape as D7, one boundary
+      later, in a criterion authored specifically to be un-vacuous. The identical sentence in
+      `REQUIREMENTS.md` is corrected in the same edit, and a **third** site — the shipped comment at
+      `PluginProcessor.cpp:229-232`, which states the same direction backwards — is corrected in
+      code at Task 3.)*
+      *(Added 2026-08-12, D8. Criteria were derived at the 4.1 discuss boundary — the row had none,
+      owed since Phase 2.2 verify. Criteria 1 and 2 carry real stage-1 evidence and are ticked;
+      **criterion 3 covers `safeMode`, which landed at Phase 3.1 — two stages after the row was
+      closed.** Criterion 2 also gains a render clause stage-1 had no DSP to exercise.)*
+- [ ] CHANGELOG.md *(does not yet exist)*, NOTES.md, PLUGINS.md updated
+- [ ] Installed to system plugin folders via `build-and-install.sh`, **dual-variant sweep confirmed**
+
+### Phase 4.2 — host-and-ear gates (frozen 4.1 binary)
 
 - [ ] Instantiates in Logic Pro on a surround track with 7.1 output
-- [ ] **Record which 8-channel set Logic actually negotiated** (surfaced on the Venue
-      screen). ARCHITECTURE §3.2.2 predicts this may be 7.1-SDDS, not plain 7.1 — this is
-      risk R2 and Stage 4 is where it is settled. Feed the answer back into the research doc.
+- [ ] **Read the negotiated 8-channel set off the Venue screen and record it.** *(Amended
+      2026-08-12 at the Stage 4 discuss boundary, D7. This bullet previously read "ARCHITECTURE
+      §3.2.2 predicts this may be 7.1-SDDS … risk R2 and Stage 4 is where it is settled." **R2 was
+      already settled at Phase 2.1 by observation — Logic negotiated plain `create7point1()`** — and
+      the retirement was recorded only in `REQUIREMENTS.md`. Verifying this bullet as written would
+      have re-derived a settled fact against a stale premise.)* Stage 4 **confirms on the shipping
+      binary**, whose `isBusesLayoutSupported()` is byte-identical to the commit the observation was
+      made at, and additionally checks **stability across session recall**, which 2.1 could not.
 - [ ] Verify-ping confirms all 8 outputs reach distinct physical channels
 - [ ] Automation of `srcX`/`srcY`/`srcZ` and `w1..w8` is visible and writable in Logic's
       automation lanes
@@ -377,12 +500,18 @@ Two screens: **Room** (performance) and **Venue** (measurement).
 - [ ] **LFE-gain test** (§6a test 2): bounce identical −20 dBFS tone into the LFE slot and one
       other slot; compare levels. Any delta means Logic is touching the LFE path and speaker 4
       needs a compensating default trim
-- [ ] pluginval strictness 10, VST3 and AU, **run 2-3 times** before publishing
-- [ ] `auval -v aufx OuOc <manufacturer>` passes
-- [ ] Windows CI: VST3 builds and passes pluginval 10. Scan for MSVC C3493 (non-static
-      `constexpr` in a lambda) and `SafePointer(this)` init-capture in nested lambdas
-- [ ] Factory musical presets authored in **engineering units** with `convertTo0to1`
-- [ ] CHANGELOG.md, NOTES.md, PLUGINS.md updated
+- [ ] **Gate 13's interactive half** — ~15 min Standalone launch-and-drive. The static half is fully
+      discharged across 3.1 / 3.2 / 3.3 in real WKWebView; every remaining item needs synthetic
+      clicks this environment cannot deliver (`-25208`) *(added 2026-08-12, D9 — carried from 3.3
+      verify)*
+- [ ] **Q5 — a 30 Hz meter poll against a HIDDEN WKWebView.** Unrun by **four consecutive phases**.
+      The JS half is measured (3.2's N9), the JUCE drop is read from source, the two together have
+      never been executed. Needs a human with **signal running**, which the 8-channel desk rig now
+      supplies; `js/meters.js` exposes a `dropped` counter for exactly this *(added 2026-08-12, D9)*
+- [ ] **D5 / QUAL-01 criterion 2's audible clause** — one hull-crossing gesture on **HF-rich**
+      material, listening for the bounded ~15 %-of-8 kHz one-sample step. The lever if it ticks is
+      RESEARCH-2.3 H3 (raising `fc(d_hull = 0)` toward Nyquist), which re-tunes the whole musical
+      curve and is therefore a **discuss-boundary change, not a fix** *(added 2026-08-12, D2)*
 - [ ] **COMPAT-02 verified; all remaining requirements closed**
 
 ---
@@ -437,9 +566,12 @@ element; its 500 Hz cutoff floor keeps it clear of denormal territory on normal 
    gate, audible only in the hall. Three-layer test suite in Phase 2.1 + 2.2. For
    `create7point1()` the enum-bit order *coincidentally* equals the initializer-list order —
    which means a hardcoded map looks correct today. Do not be reassured by that.
-2. **Logic may negotiate 7.1-SDDS, not 7.1** (`kAudioChannelLayoutTag_Emagic_Default_7_1`).
-   Mitigated by accepting all three 8-channel containers and keying the label map on
-   `ChannelType`. Settled at Stage 4.
+2. ~~**Logic may negotiate 7.1-SDDS, not 7.1**~~ (`kAudioChannelLayoutTag_Emagic_Default_7_1`).
+   **RETIRED by observation at Phase 2.1** — Logic negotiated plain `create7point1()`, all 8
+   surround-meter lanes moved *(amended 2026-08-12 at the Stage 4 discuss boundary, D7; see
+   ARCHITECTURE §3.2.2)*. The mitigation — accepting all three 8-channel containers and keying the
+   label map on `ChannelType` — **stays shipped**, because it is what makes one observation safe to
+   rely on. Stage 4 confirms rather than settles.
 3. **PERF-02 and QUAL-03 are incompatible under a per-block solve.** The 64-sample
    absolute-sample-aligned control grid is the only construction that satisfies both. This
    is not an implementation detail — it is the reason offline bounces will match what was

@@ -380,6 +380,25 @@ JUCE's `octagonal()` buffer order puts it at index 2 — the divergence is real 
 
 #### 3.2.2 NEW FINDING — Logic may negotiate 7.1 (SDDS), not plain 7.1
 
+> **AMENDED 2026-08-12 at the Stage 4 discuss boundary (D7). The *prediction* below is RETIRED; the
+> *analysis* stands.** At the Phase 2.1 manual gate Logic negotiated plain **`create7point1()`**, and
+> all 8 surround-meter lanes moved. That observation was recorded in `REQUIREMENTS.md` COMPAT-02 on
+> 2026-08-11 and **nowhere else** — this section, §R2, and two `ROADMAP.md` bullets went on stating
+> the prediction as live for three further phases. Found by applying Stage 3's own parting rule:
+> *when an amendment corrects a claim, grep the other contracts for the same claim.*
+>
+> The observation carries forward to the shipping binary because
+> `OOctagonProcessor::isBusesLayoutSupported()` is **byte-identical to commit `a47cef88`**, the commit
+> at which it was made — verified at this boundary by diffing the extracted function body. Nothing
+> since Stage 2 can have changed what Logic is offered.
+>
+> **Stage 4 therefore CONFIRMS the retirement on the shipping binary; it does not settle R2.**
+> What remains genuinely unobserved is whether Logic's choice is stable across *session recall* and
+> across the 5.1.2 container — not whether the initial negotiation is 7.1.
+>
+> The mitigation below is **shipped and stays shipped.** Accepting all three containers costs three
+> lines and is what makes the retirement safe to act on rather than merely true today.
+
 `juce_CoreAudioLayouts_mac.h:117` contains:
 
 ```cpp
@@ -562,13 +581,13 @@ r_s = min( blur · kBlurScale · rigScale , kMaxBlurMetres )
 "covariance of speaker distances from rig centre" made dimensional. This makes `blur` room-size
 independent by construction, satisfying DSP-08.
 
-For the recommended default venue (§OQ4), `rigScale ≈ 7.95 m`:
+For the recommended default venue (§OQ4), `rigScale = 7.93165 m`:
 
 | `blur` | `r_s` | Character |
 |--------|-------|-----------|
 | 0.00 | 0 m | No *additional* blur — the physical speaker height still supplies a floor |
 | **0.10 (default)** | **0.40 m** | ≈ one cabinet width; the image can still collapse convincingly onto one speaker |
-| 0.50 | 1.99 m | Noticeably softened |
+| 0.50 | 1.98 m | Noticeably softened |
 | 1.00 (cap) | 3.97 m | Half the RMS rig radius — the paper's precedence-effect warning zone |
 
 **The exposed 0-1 range IS the cap.** There is no separate cap parameter; `blur = 1.0` maps to
@@ -759,6 +778,35 @@ the plugin is never bit-transparent, which quietly breaks QUAL-01's "no level ju
 expects 0 to mean off. The skip branch is safe with respect to QUAL-03 because it is driven by a
 parameter value that the harness controls at defined sample positions.
 
+> **AMENDED 2026-08-11 at the Phase 2.3 discuss boundary (decision D2). The skip condition is
+> `airAmount · d_hull == 0`, not `airAmount == 0`.**
+>
+> The paragraph above is correct and its reasoning is unchanged — it was applied to only one of the
+> two axes that can zero the effect. `d_hull = 0` for **every source inside the hull**, which is the
+> common case and the default patch, and there `fc` clamps to 20 kHz. The TPT one-pole carries a zero
+> at Nyquist, so that configuration imposes ≈ −3 dB at 20 kHz and ≈ −0.7 dB at 10 kHz **with no
+> distance to justify it**. Under the original wording the plugin is bit-transparent only when
+> `airAmount = 0`, i.e. never on the shipping default of 0.35.
+>
+> ```
+> airActive = (airAmount > 0.0f && d_hull > 0.0f)      // per sub-point
+> ```
+>
+> **`reset()` fires only on the `airAmount` transition to zero, NOT on every `d_hull == 0` block.**
+> A puck oscillating across the hull edge would otherwise re-zero the filter state repeatedly — a
+> self-inflicted QUAL-01 criterion 2 hazard. Leaving the state resident makes re-entry seamless; the
+> state is stale by at most one control block and the corner it resumes at is 20 kHz.
+>
+> **The cost is named, not hidden.** Crossing the hull boundary now steps the transfer function
+> rather than sliding it: bounded at 3 dB @ 20 kHz, 0.7 dB @ 10 kHz, 0 dB at DC. That step is
+> **inaudible to a DC probe by construction**, so QUAL-01 criterion 2 must measure it with the
+> differential sine probe (D3), not with QUAL-04's DC method. This is a measurement obligation
+> accepted deliberately in exchange for a transparent default patch.
+>
+> Checksum re-pinned; the superseded hash is recorded in `STATUS.md` frontmatter under
+> `architecture_checksum_superseded`. Precedent: the identical mechanism at the 2.2 discuss boundary
+> (`rigScale` 7.95 → 7.93165).
+
 **Sticky-NaN guard.** The TPT filter is the only recursive element in the plugin. Per
 `pattern_envelope_follower_state_sticky_nan`, a single non-finite input latches its state forever
 and the ring never self-heals. Once per block, check the filter state (or the block output max) with
@@ -901,11 +949,27 @@ leaned this way; it is confirmed, and the decisive argument is repo-specific.
 ```
 apvts.state  (root: "OOctagon")
 ├── PARAM × 17            ← JUCE-managed, automatable, musical presets write ONLY these
-└── VENUE                 ← our child tree, message-thread only, NEVER touched by a preset
-    ├── @name, @savedAt, @schemaVersion
-    ├── @rakeFront, @rakeRear
-    └── SPEAKER × 8  { @index, @x, @y, @z, @trimDb, @label }
+├── VENUE                 ← our child tree, message-thread only, NEVER touched by a preset
+│   ├── @name, @savedAt, @schemaVersion
+│   ├── @rakeFront, @rakeRear
+│   └── SPEAKER × 8  { @index, @x, @y, @z, @trimDb, @label }
+└── SCENES                ← our child tree, message-thread only, SIBLING of VENUE (3.3)
+    └── SLOT × 4     { @index, @name, @w1 … @w8 }
 ```
+
+> **Re-pinned at Stage 3 Phase 3.3 discuss (amendment 1 of 4).** The tree has **three** children, not
+> two. `SCENES` holds FUNC-06's four user slots and **must be a sibling of `VENUE`, never a child** —
+> a preset is permitted to carry scenes and must still leave all 42 venue values bit-identical, which
+> is only structural if the two nodes are siblings.
+>
+> **`SCENES` is reached through the FIRST and ONLY `setCustomStateCallbacks` registration in this
+> plugin.** Through Phase 3.2 the symbol appeared in **zero** source files, and FUNC-05 criterion 1's
+> strongest form was exactly that grep. From 3.3 the assertion **changes shape**: *exactly one
+> registration exists, and its body touches only `SCENES`.* This is why FUNC-06 criterion 5 **re-runs**
+> FUNC-05's 42-value bit-compare against the new tree shape rather than inheriting the 3.2 result.
+>
+> The six **named** scenes are **not** persisted here — they are derived from the measured geometry on
+> demand (§6.3), so there is nothing about them to save and nothing to go stale when the venue moves.
 
 Four reasons, in order of weight:
 
@@ -1015,6 +1079,32 @@ releasing at 20 dB/s. Faster attack than a VU meter (0.4) because these are posi
 composer needs to see the instantaneous spatial distribution, not an averaged loudness. Scale:
 −60..0 dBFS mapped to 0..1.
 
+> **Re-pinned at Stage 3 Phase 3.3 discuss (amendment 2 of 4).** *"The UI reads and zeroes at ~30 Hz"*
+> is correct; **"on a `juce::Timer`" is not the mechanism this plugin uses**, and the difference is
+> load-bearing rather than cosmetic.
+>
+> **The read is a pull from the page**, on a fixed-interval JS scheduler, exactly as Phase 3.1's
+> `getStatus` poll already is at 2 Hz. Two reasons, both established in shipped code: it keeps
+> `PluginEditor` `Timer`-free, and it lets `tests/ui-stub/` render the entire UI without modelling
+> `backend.addEventListener` — which is what makes the pre-integration half of every layout gate
+> possible.
+>
+> **The scheduler must be a fixed interval with an in-flight guard, never a promise chain.**
+> `juce_WebBrowserComponent.cpp:336-344` gates completion on `owner.isVisible()` and drops the event
+> when hidden (`:607-611`), so in Release the JS promise simply **never settles** — no error, no
+> rejection. A `poll().then(poll)` recursion therefore stops **permanently** the first time the editor
+> is hidden, and the meters never return. A fixed interval that skips a tick while one request is
+> outstanding degrades to *dropped frames* instead.
+>
+> **Read-and-zero stays on the C++ side** — `meterPeak[i].exchange (0.0f)` — so a dropped frame widens
+> the measurement window rather than losing the peak.
+>
+> **The ballistics coefficients are per-`requestAnimationFrame` frame, not per poll.** 0.5 and 0.12 are
+> defined against the ~60 Hz rAF loop; the ~30 Hz poll only refreshes the *target*. Stating the basis
+> is required, not pedantic — a coefficient applied on the wrong clock is
+> `pattern_block_rate_envelope_breaks_blocksize_invariance` in its UI form. The **1.5 s hold and the
+> 20 dB/s release are wall-clock**, read from timestamps, so they are frame-rate independent.
+
 ### 4.4 File I/O
 
 Only two operations, both message-thread, both user-initiated: venue save and venue load, via
@@ -1068,6 +1158,7 @@ is itself a use-after-free). No file I/O of any kind occurs in `processBlock` (P
 ║  6. Outside-hull, PER SUB-POINT:                                                        ║
 ║        v_i *= dbToGain( max(−hullAtten·d_hull, −24) )                                   ║
 ║        air fc = clamp( 20k · 2^(−airAmount·d_hull/3), 500, 20k )   [set on filter]      ║
+║        airActive = (airAmount > 0 && d_hull > 0)   — §3.5.2 as amended at 2.3 discuss    ║
 ║                                                                                          ║
 ║  7. Fold venue trim, set 16 + 1 smoothed targets:                                       ║
 ║        gL[i].setTargetValue (v_L,i · trimLin_i)                                         ║
@@ -1163,9 +1254,57 @@ axis (minimum 1.0 m). This is an explicit decision *not* to add two more venue v
 
 | Action | Behaviour |
 |--------|-----------|
-| Scenes `ALL` `FRONT` `REAR` `LEFT` `RIGHT` `SIDES` + 4 user slots | Writes all 8 weight parameters at once via `setValueNotifyingHost`, so scenes record as ordinary automation and fade (FUNC-06). The scene is not itself a parameter. |
+| Scenes `ALL` `FRONT` `REAR` `LEFT` `RIGHT` `SIDES` + 4 user slots | Writes all 8 weight parameters at once via `setValueNotifyingHost`, **each one bracketed** by `beginChangeGesture()` / `endChangeGesture()`, so scenes record as ordinary automation and fade (FUNC-06). The scene is not itself a parameter. Named-scene membership is **derived from the measured geometry** by the predicate below. |
 | Verify mode | Solo-ping; see §OQ2. Level bounded independent of `outputGain`. |
 | Venue save / load | Named `.venue` file. Never written by a musical preset (FUNC-05). |
+
+> **Re-pinned at Stage 3 Phase 3.3 discuss (amendments 3 and 4 of 4).** The row above previously said
+> only *"writes all 8 weight parameters at once via `setValueNotifyingHost`"*, and named `SIDES`
+> without defining it. Both gaps were found at Phase 3.1 research (N1, N3) and are closed here.
+
+**Amendment 3 — the named-scene predicates, stated so they are derivable.**
+
+Let `c` be the speaker centroid and `hx`, `hy` the bounding-box half-spans. All four axis scenes split
+on the centroid; `SIDES` selects **lateral dominance among non-interior speakers**:
+
+```
+FRONT  =  { i : y_i <  c.y }
+REAR   =  { i : y_i >  c.y }
+LEFT   =  { i : x_i <  c.x }
+RIGHT  =  { i : x_i >  c.x }
+SIDES  =  { i : classify(i) != INTERIOR  ∧  |x_i − c.x| / hx  >  |y_i − c.y| / hy }
+ALL    =  all 8, each at 1.0
+```
+
+Selected speakers take weight **1.0**, unselected **0.0**. `SIDES` reads as *"a hull speaker whose
+displacement from the centroid is predominantly lateral, measured in half-span units"* — the
+normalisation is what makes it meaningful on a rectangular hall rather than only a square one.
+
+On the default venue (§OQ4) this gives `SIDES = {3, 4, 7, 8}`, the four mid-wall speakers. **Speakers
+1 and 2 miss it by 6 %** (`dx/hx` vs `dy/hy = 1.0617`). That margin is a property of the hall, not a
+defect in the rule: a re-measurement that moves the rear pair inward flips the front pair into
+`SIDES`. **This is precisely why FUNC-06 criterion 3 requires the resolved set to be shown on the
+plan before the scene is committed** — a 6 % margin must be visible, not silent.
+
+**Membership is computed in C++ and returned to the UI. The page performs no speaker arithmetic**,
+the same rule Phase 3.2 fixed for the verify-ping readout (*the indicated speaker is
+`getPingState().speaker` and nothing else*). A JS re-derivation would be a mirrored fixture over the
+highest-risk component in the project (R1).
+
+**A named scene may legitimately resolve to the empty set** on a degenerate venue. An empty scene must
+render as empty and **must not be writable**: all-zero weights are DSP-05's silence path, and reaching
+it by a mis-derived scene click mid-concert is unrecoverable.
+
+**Amendment 4 — the gesture brackets, which the stated mechanism omitted.**
+
+`setValueNotifyingHost` alone does **not** open a gesture. `WebSliderParameterAttachment::sliderValueChanged`
+routes through `setValueAsPartOfGesture` (`juce_ParameterAttachments.cpp:324, 76`) with no
+begin/end pair, so without explicit brackets Logic's Touch and Latch modes may move the sound and
+**not record it**. Committing a scene must therefore call
+`beginChangeGesture()` → `setValueNotifyingHost()` → `endChangeGesture()` on **each of `w1..w8`** —
+eight brackets per scene click. The same obligation was discharged for the puck drag (both `srcX` and
+`srcY`) at Phase 3.1 and for preset load (17 gestures) at Phase 3.2; scenes are the third and last
+site.
 
 ---
 
@@ -1253,7 +1392,13 @@ verify-ping routed through the same map (§OQ2); meters read post-map so a wrong
 default and read-only**, exposing only verify-ping. Loses FUNC-03's flexibility, keeps the plugin
 safe. Do not ship a writable map without Layer 3.
 
-### R2 — Logic negotiates a different 8-channel set than expected (HIGH)
+### R2 — Logic negotiates a different 8-channel set than expected (~~HIGH~~ → **RETIRED by observation**)
+
+> **RETIRED 2026-08-12 at the Stage 4 discuss boundary (D7).** Logic negotiated plain
+> `create7point1()` at the Phase 2.1 manual gate; see the §3.2.2 amendment for the evidence and for
+> why it carries to the shipping binary. **The mitigation stays shipped** — it is what makes the
+> observation safe to rely on. Stage 4 phase 4.2 confirms, and additionally checks the one thing 2.1
+> could not: stability across session recall.
 
 `kAudioChannelLayoutTag_Emagic_Default_7_1` (§3.2.2) shows Logic's native 7.1 ordering corresponds to
 JUCE's `create7point1SDDS()` membership, not `create7point1()`. If Logic offers only SDDS, a plugin
@@ -1420,7 +1565,20 @@ speaker span: 12.0 m between the side-wall lines (0.5 m in from each wall), 15.0
 | `rakeFront` | **1.10 m** | Seated ear height at the front row, floor at stage level |
 | `rakeRear` | **3.20 m** | 2.1 m of rise over ~13 rows — steep for a recital hall, consistent with the brief |
 
-Derived: `rigScale ≈ 7.95 m`, centroid ≈ (6.50, 12.46, 4.93), bbox x[0.50, 12.50] y[4.50, 19.50].
+Derived: `rigScale = 7.93165 m` (RMS **3-D** speaker radius from the centroid), centroid =
+(6.5000, 12.4625, 4.9250), bbox x[0.50, 12.50] y[4.50, 19.50].
+
+> **Corrected 2026-08-11 at the Phase 2.2 discuss boundary (decision D2).** This line and §3.3.2
+> previously read `rigScale ≈ 7.95 m`, with a blur table entry of `1.99 m` at `blur = 0.50`. The
+> figure was a hand-calculation slip in this document, not an implementation error: recomputing the
+> RMS 3-D radius from the coordinate table immediately above gives **7.93165 m**, which is what
+> `VenueModel` has produced since Phase 2.1 (measured independently at 2.1 verify, NC4, and again at
+> 2.2 discuss). The 0.23 % error was inert while nothing consumed `rigScale`; Phase 2.2 introduces
+> the blur mapping that does. Corrected here rather than deferred so 2.2 never asserts against a
+> number known to be wrong. Centroid and bbox in this section were already exact and are unchanged —
+> only their displayed precision has increased. The ARCHITECTURE checksum is re-pinned in
+> `STATUS.md` at this boundary; `contract_checksums.architecture` before this edit was
+> `sha256:bff8a83b379113ac8b1e2a8915d6f1edc7183558b992bdc3808877f86c406cfe`.
 
 **Why the heights are graded rather than uniform.** Two reasons, and the second is an engineering
 argument: (1) wall mounts are installed at a constant height above the *local* floor, so over a rake

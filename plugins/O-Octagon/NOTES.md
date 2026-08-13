@@ -1,8 +1,8 @@
 # O-Octagon Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 0
-- **Version:** N/A (pre-implementation)
+- **Current Status:** 🚧 Stage 4 — phase 4.1 (machine gates) complete; 4.2 (host-and-ear) open
+- **Version:** 1.0.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -16,10 +16,19 @@
 - **2026-08-11 (Stage 0):** Research & Planning complete — ARCHITECTURE.md and ROADMAP.md
   documented (Complexity 5.0, staged). All 5 open questions resolved; parameter-count
   discrepancy resolved to 17.
+- **2026-08-11 (Stage 1):** Foundation shell — CMake, APVTS (17 parameters), 8-channel transport
+  validated.
+- **2026-08-12 (Stage 2, phases 2.1–2.3):** Geometry core (channel map, convex hull, audience
+  plane), DBAP solve, source shaping and outside-hull processing.
+- **2026-08-12 (Stage 3, phases 3.1–3.3):** WebView UI — room plan and puck, venue editor and
+  `.venue` I/O, verify ping, preset rail, scenes, field visualisation, eight meters.
+- **2026-08-12 (Stage 4, phase 4.1):** Machine gates. Per-commit CI added; first MSVC compile; six
+  factory presets; `COMPAT-04` closed 3 of 3; `COMPAT-01` re-confirmed on the final binary.
+  95 probes, 0 failures.
 
 ## Known Issues
 
-None (pre-implementation). **Registered risks** — see
+**Registered risks** — see
 `.planning/stages/0-ideation/CONTEXT.md` for the full register:
 
 - **R1 (CRITICAL):** the speaker→buffer channel map fails *silently*. A wrong map does not crash,
@@ -58,6 +67,20 @@ perceived level, since `Σ v_i² = 1` means dropping weights redistributes rathe
 *orbiter* with a motion engine across many surround formats. O-Octagon has no motion engine, one
 locked 8-channel transport, and DBAP distance weighting for a specific irregular non-flat rig.
 O-Octagon does **not** fork O-Orbit and must **not** link SAF.
+
+**Presets store `blur` (0–1), not metres — and that is deliberate.** The blur radius is resolved
+against the venue's `rigScale`, so the same `blur` gives a proportionally different radius on a
+differently-sized rig. Factory presets are therefore venue-portable *by construction*: a patch means
+the same musical thing in a different hall. On the default venue `rigScale` is 7.9317 m, so
+`blur = 0.55` resolves to `r_s = 2.18 m` **there and only there**. If a preset's audible diffusion
+changes after a venue edit, that is the design working, not drift.
+
+**A preset never moves the source or the scene.** The six values a factory preset carries are room
+character (`width`, `rolloff`, `blur`, `hullAtten`, `airAmount`, `outputGain`). The other eleven —
+`srcX`, `srcY`, `srcZ` and the eight weights — are snapshotted and restored around the load
+(`oo::presets::loadPreserving`). This is not the same as omitting them from the preset: the shared
+preset manager resets *every* parameter to its default before applying anything, so omission alone
+would re-centre the source and clear the scene mid-cue.
 
 **Deferred to v1.1+:** VBAP A/B mode; binaural/stereo fold-down; quadraphonic variant; internal
 diffuse reverb; motion engine; multiple simultaneous sources.

@@ -25,6 +25,7 @@
 #include <array>
 
 #include "../DSP/Vec.h"
+#include "VenueGeometry.h"
 
 namespace oo
 {
@@ -51,8 +52,12 @@ public:
     static constexpr int   kSchemaVersion = 1;
 
     /** Below this span the audience plane and the bbox denormalisation are both degenerate. Two
-        separate guards use it — see earHeight() and normToMetres(). */
-    static constexpr float kMinSpan       = 1.0e-6f;
+        separate guards use it — see earHeight() and normToMetres().
+
+        AN ALIAS, not a second definition: the value lives in `oo::plane` (PLAN-2.2 P14) because the
+        audio thread needs the same guard against a VenueSnapshot and two constants that happen to
+        agree are two constants that can stop agreeing. */
+    static constexpr float kMinSpan       = plane::kMinSpan;
 
     //==============================================================================
     // ValueTree schema (§4.1):

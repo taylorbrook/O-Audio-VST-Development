@@ -70,6 +70,36 @@ inline constexpr int kNumSpeakers = 8;
 inline constexpr int kMaxChannelTypeScan = 256;
 
 //==============================================================================
+/** Why a map build failed.
+
+    buildSpeakerToBuffer() has always SEPARATED these three cases — the size test at the top, the
+    unresolvable-label return with the row already in hand, and the permutation check — and then
+    thrown the distinction away in a `bool`. Phase 3.2 surfaces it, and the reason is not
+    tidiness: after RESEARCH-3.2 N8 the banner is the only thing telling an operator why seven
+    speakers just went mono, and IN A HALL, WHICH ROW IS THE ACTIONABLE HALF.
+
+    The idiom is the one this file already uses for verifyEnumBitOrder's `juce::String* whyNot` — an
+    OPTIONAL, DEFAULTED out-param, so every existing call site compiles unchanged and nothing has to
+    be touched to add a diagnosis.
+*/
+enum class MapFailure
+{
+    none = 0,
+    notEightChannels,   ///< the negotiated set is not 8 channels; speakerIndex is -1
+    labelNotInSet,      ///< that speaker's label is absent from the negotiated set
+    duplicateLabel      ///< two speakers resolved to the same output slot
+};
+
+struct MapDiagnosis
+{
+    MapFailure reason { MapFailure::none };
+
+    /** 0-based speaker row, or -1 when the failure names no single row. For duplicateLabel it is
+        the SECOND of the two colliding rows — the one whose edit created the collision. */
+    int speakerIndex { -1 };
+};
+
+//==============================================================================
 /** True iff `map` is a permutation of 0..7.
 
     THIS IS THE FUNC-03 DUPLICATE/MISSING DETECTOR, not a defensive afterthought:
@@ -89,10 +119,22 @@ bool isPermutationOf0to7 (const std::array<int, kNumSpeakers>& map) noexcept;
     @param outSet  the NEGOTIATED output channel set (getBusesLayout().getMainOutputChannelSet())
     @param labels  speaker 0..7 → the ChannelType that speaker is assigned to
     @param out     written only on success
+    @param whyNot  optional, DEFAULTED. Receives the reason and the row on failure, and
+                   `{ none, -1 }` on success. The default argument is what lets Phase 3.2 add a
+                   diagnosis without touching a single existing call site.
+
+    ── THIS FUNCTION IS ALSO THE PRE-COMMIT GUARD'S PREDICATE (PLAN-3.2 P52) ────────────────────
+    OOctagonProcessor::applyVenueEditChecked() validates a proposed venue by calling THIS, into a
+    scratch array, before applying anything. Deliberately not a second implementation of "is this
+    label set valid": the guard and the audio path's backstop cannot drift if they are the same
+    function. It matters because an invalid map is AUDIBLE, not a quiet retention —
+    mappedOutputAvailable() false sends GainStage to its else arm, which writes
+    out[ch][n] = ch == 0 ? sL : sR with numWrite 8 (RESEARCH-3.2 N8).
 */
 bool buildSpeakerToBuffer (const juce::AudioChannelSet& outSet,
                            const std::array<juce::AudioChannelSet::ChannelType, kNumSpeakers>& labels,
-                           std::array<int, kNumSpeakers>& out);
+                           std::array<int, kNumSpeakers>& out,
+                           MapDiagnosis* whyNot = nullptr);
 
 /** Layer 1 of the three-layer channel-map test strategy — a RUNTIME INVARIANT.
 

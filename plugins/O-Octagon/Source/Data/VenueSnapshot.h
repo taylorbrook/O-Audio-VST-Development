@@ -59,6 +59,25 @@ struct VenueSnapshot
 
     float bbMinX { 0.0f }, bbMaxX { 0.0f }, bbMinY { 0.0f }, bbMaxY { 0.0f };
     float rakeFront { 0.0f }, rakeRear { 0.0f };
+
+    /** Venue publication counter, STAMPED BY publish() — the solver's dirty check reads this and
+        nothing else (PLAN-2.2 P16 / RESEARCH-2.2 H1).
+
+        ── Why this is a field and not the separate atomic it used to be ──────────────────────────
+        Publishing the slot and the generation as two atomics means the audio thread performs two
+        separate acquires. A publish() landing between them hands the control block the NEW geometry
+        with the OLD generation. That generation is then stored as lastSolvedGeneration and every
+        subsequent block compares EQUAL — the venue edit is present in the snapshot and the solve
+        never runs against it, PERMANENTLY. Reversing the read order only swaps which half is stale.
+
+        Carried inside the payload, one acquire delivers data and generation together and the failure
+        is structurally unreachable.
+
+        NOT in ARCHITECTURE §3.6.6's field list — the same class of deviation as `hullEpsCross`, and
+        recorded as one in SUMMARY-2.2. Probe AQ measures it by publishing a venue edit BETWEEN two
+        processBlock calls; no probe that edits the venue while audio is stopped can see it.
+    */
+    std::uint32_t generation { 0 };
 };
 
 static_assert (std::is_trivially_copyable_v<VenueSnapshot>,
@@ -88,17 +107,21 @@ class VenueSnapshotPublisher
 public:
     VenueSnapshotPublisher() = default;
 
-    /** Message thread only. Fills the inactive slot, then publishes it. */
+    /** Message thread only. Fills the inactive slot, stamps its generation, then publishes it. */
     void publish (const VenueSnapshot& newSnapshot) noexcept
     {
         const int target = 1 - activeSlot.load (std::memory_order_relaxed);
 
         slots[(size_t) target] = newSnapshot;
 
-        // Release pairs with the acquire in read(): every write to slots[target] above is visible
-        // to a thread that observes this store.
+        // Stamped INSIDE the payload, before the release store. publishCounter is a plain integer
+        // because only the message thread ever touches it — the audio thread reads the copy that
+        // rode across the release/acquire edge (P16).
+        slots[(size_t) target].generation = ++publishCounter;
+
+        // ONE release, pairing with the ONE acquire in read(): every write to slots[target] above —
+        // geometry and generation alike — is visible to a thread that observes this store.
         activeSlot.store (target, std::memory_order_release);
-        generation.fetch_add (1, std::memory_order_release);
     }
 
     /** Audio thread. Call ONCE per control block and hold the reference for the whole block —
@@ -108,16 +131,23 @@ public:
         return slots[(size_t) activeSlot.load (std::memory_order_acquire)];
     }
 
-    /** Doubles as the solver's dirty check at Phase 2.2. */
+    /** How many snapshots have been published. MESSAGE THREAD / DIAGNOSTICS ONLY.
+
+        THE DIRTY CHECK MUST NOT READ THIS. It reads `snapshot.generation`, which arrives with the
+        geometry it belongs to. Reading a counter separately from the payload is the H1 bug this
+        class was changed to make unreachable — see VenueSnapshot::generation.
+    */
     std::uint32_t getGeneration() const noexcept
     {
-        return generation.load (std::memory_order_acquire);
+        return publishCounter;
     }
 
 private:
     std::array<VenueSnapshot, 2> slots {};
     std::atomic<int>             activeSlot { 0 };
-    std::atomic<std::uint32_t>   generation { 0 };
+
+    /// Message thread only, deliberately not atomic — see publish().
+    std::uint32_t publishCounter { 0 };
 };
 
 } // namespace oo
