@@ -199,8 +199,12 @@ factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
     (delete the restore; CP's six-changed clause still passes while the eleven-unchanged clause
     fails) is what proves that clause is the probe.
 
-    STATIC GATE: presetManager.loadPreset( appears EXACTLY ONCE in Source/, inside this function.
-    That single grep is what stops a future call site bypassing the restore.
+    STATIC GATE, receiver-agnostic:  grep -rnE '\.loadPreset[[:space:]]*\(' Source/  returns
+    EXACTLY ONE hit, and that hit is the call inside this function. Two properties are deliberate:
+    the pattern names no receiver, because the previous spelling pinned one ("presetManager") and
+    so matched zero lines from the day it was written; and this description names the method bare,
+    with no opening paren, so the gate does not count its own doc-comment and read as two. That
+    single grep is what stops a future call site bypassing the restore.
 
     @note Gesture brackets are the CALLER's job and are already open around this call (P59's
           seventeen). The restore writes land inside a bracket whose correctness was established at

@@ -23,8 +23,10 @@
     ui_layout_check.js
     O-Octagon — both screens, MEASURED on the rendered page at 1100 x 720.
 
-    EIGHTEEN sections. 1-10 are the Room plan (3.1); 11-18 are the Venue screen
-    (3.2). This file is the SOLE evidence for UI-02 criteria 1, 3, 4 and 5 and
+    TWENTY-EIGHT sections. 1-10 are the Room plan (3.1); 11-18 are the Venue
+    screen (3.2); 19-27 are scenes, meters, the field and the elevation (3.3);
+    28 is Q5's in-flight guard deadline (4.2).
+    This file is the SOLE evidence for UI-02 criteria 1, 3, 4 and 5 and
     for UI-01 criteria 1 and 2, and it runs TWICE per phase: once against the
     ui-stub before that phase's C++ exists, and again afterwards, to prove the
     resource provider serves the same tree the stub did.
@@ -944,8 +946,14 @@ async function nudge(page, id) {
     //
     // §28/§29/§30 of PLAN-3.3's requirement-staging table — UI-05's three
     // construction assertions — are folded in below as sub-checks of the
-    // elevation sections rather than as three further top-level sections. THE
-    // SECTION COUNT THAT GATES IS 27, and it is the number Gate 3 asserts.
+    // elevation sections rather than as three further top-level sections. That
+    // kept 3.3's gating section count at 27.
+    //
+    // 4.2 ADDS ONE TOP-LEVEL SECTION (28, Q5's guard deadline), so THE SECTION
+    // COUNT THAT GATES IS NOW 28. PLAN-4.2 P110 states the move rather than
+    // leaving it to be discovered: frontend 42 + layout 28 = 70. A re-run
+    // against the old 27 would report a failure that is actually the plan
+    // working.
     // ══════════════════════════════════════════════════════════════════════
 
     await page.click('#tab-room', { force: true });
@@ -1476,6 +1484,37 @@ async function nudge(page, id) {
     const puck = await page.$('#puck');
     const pb = await puck.boundingBox();
 
+    // ── QUIESCE BEFORE SAMPLING THE BASELINE (added 4.2) ─────────────────────
+    // This section was FLAKY at roughly 1 run in 5, on the pristine 3.3 file as
+    // well as with 4.2's section 28 present (measured interleaved, 1/5 and 1/5).
+    // It failed reading "11 -> 12": one recompute inside the drag window that
+    // the drag did not cause.
+    //
+    // field.js:161 — refresh() runs AT MOST ONCE PER STATUS TICK, and the tick
+    // is 2 Hz. So a field input marked dirty by an EARLIER section is owed a
+    // recompute that lands whenever the next tick fires — including part-way
+    // through this section's 24-frame drag, where it reads as a drag-caused
+    // recompute. The measurement window overlapped the poll period
+    // (pattern_metric_window_vs_modulation_period).
+    //
+    // The assertion is unchanged. Only its starting state is: wait until the
+    // count has been STABLE across three consecutive ticks before sampling, so
+    // the window opens with nothing owed.
+    let quiesced = -1;
+    let stableTicks = 0;
+    for (let i = 0; i < 12 && stableTicks < 3; ++i) {
+        await page.waitForTimeout(STATUS_POLL_MS);
+        const n = await fieldCalls();
+        stableTicks = (n === quiesced) ? stableTicks + 1 : 0;
+        quiesced = n;
+    }
+
+    // If it never settles, that is a FINDING about the page, not a reason to
+    // measure anyway — an unsettled baseline is what made this section flaky.
+    check(stableTicks >= 3,
+        `[precondition] the recompute count QUIESCED before the drag window opened `
+        + `— stable at ${quiesced} across ${stableTicks} consecutive ${STATUS_POLL_MS} ms ticks`);
+
     const callsBeforeDrag = await fieldCalls();
 
     // OFF-CENTRE, for the reason section 4 grabs off-centre: a centred grab
@@ -1518,13 +1557,125 @@ async function nudge(page, id) {
         'no console errors after driving scenes, meters, the field and the strip'
         + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
 
+    // ══════════════════════════════════════════════════════════════════════
+    // PHASE 4.2 — section 28. Q5's MECHANISM, executed.
+    //
+    // Five phases have described this mechanism and none has run it. The host
+    // half of Gate 13 — minimise / ⌘H and watch the meters recover — CANNOT
+    // reach it: Component::isVisible() is the component's own flag, set once at
+    // PluginEditor.cpp:1139 and never cleared, and it stays true under minimise,
+    // ⌘H, occlusion and Spaces (RESEARCH-4.2 §3.3). So that half never drops a
+    // completion, and what it actually observes is WebKit throttling. It is kept
+    // and RELABELLED as a throttling-recovery smoke check (P101).
+    //
+    // Frontend §33 is a STATIC section: it greps meters.js for performance.now()
+    // and for a deadline-shaped comparison. It proves the deadline is WRITTEN.
+    // It cannot prove it RELEASES. That gap is the four-phase-old premise and it
+    // closes here.
+    //
+    // THE READOUT PROBLEM (N9), AND WHY THIS CONSTRUCTS ITS OWN INSTANCE.
+    // The app's live `meters` binding is a module-scope `let` in app.js:639 with
+    // no window handle, so page.evaluate cannot reach it either. meters.js:116
+    // exports createMeters(deps), a factory taking deps.nativeFn — so the
+    // section builds a FRESH instance whose getMeters it controls and whose
+    // diagnostics() it holds directly. No source change, no window handle, and
+    // the module under test is the SHIPPED FILE BYTE-FOR-BYTE.
+    // Rejected: exposing meters.diagnostics on window. It would ride P110's
+    // re-freeze to buy a convenience the dynamic import already supplies.
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── 28 ───────────────────────────────────────────────────────────────────
+    head(28, 'the in-flight guard RELEASES ON ITS DEADLINE and the poll survives a dropped completion (Q5)');
+
+    // Measured constants, re-read from the shipped module rather than mirrored
+    // here (pattern_test_fixture_mirrors_drift_silently): the deadline is
+    // METER_POLL_MS * GUARD_DEADLINE_TICKS = 33 * 5 = 165 ms. The section waits
+    // ~480 ms — more than two deadlines, with margin for a loaded machine.
+    const metersSrc = fs.readFileSync(path.join(publicDir, 'js', 'meters.js'), 'utf8');
+    const pollMs  = Number((metersSrc.match(/METER_POLL_MS\s*=\s*(\d+)/)       || [])[1]);
+    const ticks   = Number((metersSrc.match(/GUARD_DEADLINE_TICKS\s*=\s*(\d+)/) || [])[1]);
+    const deadlineMs = pollMs * ticks;
+
+    check(Number.isFinite(deadlineMs) && deadlineMs > 0,
+        `the deadline is READ from the shipped module — ${pollMs} ms x ${ticks} ticks = ${deadlineMs} ms`);
+
+    // One constant, used for the wait AND for every message about it, so a
+    // report cannot quote a duration the run did not use.
+    const GUARD_WAIT_MS = 480;
+
+    const guard = await page.evaluate(async ({ origin, waitMs }) => {
+        const { createMeters } = await import(`${origin}/js/meters.js`);
+
+        let calls = 0;
+        const getMeters = () => {
+            ++calls;
+            // THE FIRST REQUEST NEVER SETTLES. This is the completion the
+            // WebView drops — the one a settlement-only guard waits for
+            // forever (pattern_webview_completion_gated_on_isvisible).
+            if (calls === 1) return new Promise(() => {});
+            return Promise.resolve({ peaks: new Array(8).fill(0.25) });
+        };
+
+        const m = createMeters({
+            nativeFn: (name) => (name === 'getMeters' ? getMeters : () => Promise.resolve(null)),
+            onLevels: () => {},
+        });
+
+        m.start();
+
+        // Sample so the ORDERING is observed, not inferred: record how many
+        // calls had been made at the moment `dropped` first went non-zero.
+        let callsWhenDropSeen = null;
+        let droppedSeen = 0;
+        for (let i = 0; i < Math.ceil(waitMs / 20); ++i) {
+            await new Promise(r => setTimeout(r, 20));
+            const d = m.diagnostics();
+            if (callsWhenDropSeen === null && d.dropped >= 1) {
+                callsWhenDropSeen = calls;
+                droppedSeen = d.dropped;
+            }
+        }
+
+        const final = m.diagnostics();
+        m.stop();
+        return { dropped: final.dropped, calls, callsWhenDropSeen, droppedSeen };
+    }, { origin: `http://127.0.0.1:${port}`, waitMs: GUARD_WAIT_MS });
+
+    // Clause 1 — the guard released on the DEADLINE. A settlement-only guard
+    // would sit at 0 here forever, because request 1 never settles.
+    check(guard.dropped >= 1,
+        `the guard RELEASED on its ${deadlineMs} ms deadline against a never-settling request `
+        + `— dropped = ${guard.dropped}`);
+
+    // Clause 2 — and the poll CONTINUED. This is the clause that matters:
+    // `dropped` rising only proves a counter moved; the call count rising AFTER
+    // the drop proves the poll is not latched, which is the property the whole
+    // pattern is about.
+    check(guard.callsWhenDropSeen !== null && guard.calls > guard.callsWhenDropSeen,
+        `and the poll CONTINUED past it — getMeters had been called ${guard.callsWhenDropSeen} time(s) `
+        + `when the drop was first observed, ${guard.calls} by the end`);
+
+    // [non-vacuity] If this reads 1, the stimulus never reached the module and
+    // both clauses above are passing on nothing.
+    //
+    // NOTE THE CLAIM THIS DOES *NOT* MAKE. On the SHIPPED guard, request 1 never
+    // settles, so call 2 is reachable only through the deadline — and it would
+    // be tempting to write that here as if the count alone proved the mechanism.
+    // It does not: NC1 deletes the guard outright, and the count then rises for
+    // the opposite reason (nothing is holding the poll back at all). NC1 was run
+    // and this line was corrected because of what it showed. The mechanism is
+    // proved by clauses 1 and 2; this clause only proves the stimulus arrived.
+    check(guard.calls >= 2,
+        `[non-vacuity] the stimulus REACHED the module — ${guard.calls} getMeters calls in `
+        + `${GUARD_WAIT_MS} ms (a latched poll would read exactly 1)`);
+
     // ── done ─────────────────────────────────────────────────────────────────
     await context.close();
     await browser.close();
     server.close();
     fs.rmSync(root, { recursive: true, force: true });
 
-    console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 27 sections`);
+    console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 28 sections`);
     process.exit(failed);
 })().catch(err => {
     console.error('\nui_layout_check crashed:', err);
