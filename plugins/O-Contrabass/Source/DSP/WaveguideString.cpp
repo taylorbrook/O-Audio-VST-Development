@@ -89,6 +89,51 @@ void WaveguideString::reset()
     bridgeDispersion.reset();
     bridgeY = 0.0f;
     energyEstimate = 0.0f;
+    cancelRelease();
+}
+
+//==============================================================================
+// v1.3 release damping (see WaveguideString.h for the measured rationale)
+//==============================================================================
+
+void WaveguideString::cancelRelease() noexcept
+{
+    // Exact 1.0f — processSample multiplies bridgeG by this every sample, so any
+    // value other than exactly 1.0f would perturb the sustain path.
+    releaseGain       = 1.0f;
+    releaseGainTarget = 1.0f;
+    releaseGainStep   = 0.0f;
+}
+
+void WaveguideString::startRelease (float t60Seconds) noexcept
+{
+    // Guard the whole domain: a non-finite or non-positive T60 would produce a
+    // negative or NaN exponent below and poison the loop for the voice's life.
+    if (! std::isfinite (t60Seconds) || t60Seconds <= 0.0f)
+        t60Seconds = 0.05f;
+
+    const float f0 = std::max (1.0f, currentFrequency);
+
+    // Round trips per second == f0, so -60 dB over t60Seconds needs
+    //   20·log10(g_eff) · f0 · t60 = -60  =>  g_eff = 10^(-3 / (f0 · t60)).
+    // Deriving from f0 is what makes the release time pitch-INDEPENDENT: a fixed
+    // per-round-trip gain would make an E1 release last 2.4x a G2 release.
+    const float gEff = std::pow (10.0f, -3.0f / (f0 * t60Seconds));
+
+    // bridgeG is the sustain-mode loop gain (>= 0.997), so the multiplier that
+    // lands the effective gain on gEff is gEff/bridgeG. Never allowed above 1.0 —
+    // a release must not ADD energy, which it otherwise would whenever the
+    // requested T60 is longer than the free-decay time INFINITE_SUSTAIN implies.
+    const float safeBridgeG = std::max (1.0e-6f, bridgeG);
+    releaseGainTarget = std::min (1.0f, gEff / safeBridgeG);
+
+    // Ramp rather than step, so the bow-lift reads as a gesture. Positive step;
+    // processSample subtracts it. Guard the ramp length against a zero/absurd
+    // sample rate so the step stays finite.
+    constexpr float kReleaseRampMs = 30.0f;
+    const float rampSamples = std::max (1.0f,
+                                        static_cast<float> (sampleRate) * kReleaseRampMs * 0.001f);
+    releaseGainStep = std::max (0.0f, (releaseGain - releaseGainTarget) / rampSamples);
 }
 
 void WaveguideString::updateDelayLengths()
@@ -114,6 +159,9 @@ void WaveguideString::updateDelayLengths()
     bridgeSamples = juce::jlimit (4.0f, 8190.0f, bridgeSamples);
     neckSamples   = juce::jlimit (4.0f, 8190.0f, neckSamples);
 
+    lastBridgeSamples = bridgeSamples;
+    lastNeckSamples   = neckSamples;
+
     bridgeDelay.setDelay (bridgeSamples);
     neckDelay.setDelay   (neckSamples);
 }
@@ -134,8 +182,46 @@ void WaveguideString::setDelaySamples (float totalSamples)
     float neckSamples   = compensated * (1.0f - bowPosition);
     bridgeSamples = juce::jlimit (4.0f, 8190.0f, bridgeSamples);
     neckSamples   = juce::jlimit (4.0f, 8190.0f, neckSamples);
+    lastBridgeSamples = bridgeSamples;
+    lastNeckSamples   = neckSamples;
     bridgeDelay.setDelay (bridgeSamples);
     neckDelay.setDelay   (neckSamples);
+}
+
+void WaveguideString::seedFundamental (float amplitude) noexcept
+{
+    if (! (amplitude > 0.0f) || ! std::isfinite (amplitude))
+        return;
+
+    const int nB = juce::jlimit (1, 8190, static_cast<int> (std::lround (lastBridgeSamples)));
+    const int nN = juce::jlimit (1, 8190, static_cast<int> (std::lround (lastNeckSamples)));
+    const int L  = nB + nN;                       // full round trip in samples
+
+    // One period of the fundamental laid across the round trip, split across the
+    // two rails at the bow contact point. Both rails carry velocity waves and the
+    // junction sums their reflections, so a continuous phase ramp over L keeps the
+    // seed coherent across the split. Endpoints are zero-valued, so no click.
+    const float k = juce::MathConstants<float>::twoPi / static_cast<float> (L);
+
+    // CRITICAL: push AND pop each sample, exactly as processSample() does.
+    // juce::dsp::DelayLine keeps independent read/write pointers; pushSample()
+    // advances only the write pointer. Filling a rail with N bare pushSample()
+    // calls therefore shifts the write pointer N samples relative to the read
+    // pointer, ADDING N samples to the effective delay — which detuned the string
+    // by 2-3 semitones and broke every pitch-dependent gate (vibrato read 306
+    // cents and 20.4 Hz; microtonal pitchAccuracy and note-expression tracking
+    // all failed). Popping in lockstep keeps the configured delay intact.
+    for (int i = 0; i < nB; ++i)
+    {
+        bridgeDelay.pushSample (0, amplitude * std::sin (k * static_cast<float> (i)));
+        juce::ignoreUnused (bridgeDelay.popSample (0));
+    }
+
+    for (int i = 0; i < nN; ++i)
+    {
+        neckDelay.pushSample (0, amplitude * std::sin (k * static_cast<float> (nB + i)));
+        juce::ignoreUnused (neckDelay.popSample (0));
+    }
 }
 
 float WaveguideString::computeLoopGain (float infSustainParam01) noexcept
@@ -209,7 +295,23 @@ float WaveguideString::processSample (float v_bow, float F_bow,
     //  coefficient form (b0, b1, a0, a1) = (g·(1−p), 0, 1, −p).)
     if (! std::isfinite (bridgeY))
         bridgeY = 0.0f;
-    float bridgeFiltered = bridgeG * bridgeOneMinusP * bridgeDispersed
+
+    // v1.3 release ramp. While not releasing releaseGain is EXACTLY 1.0f and
+    // releaseGainStep is 0.0f, so the multiply below is an exact identity and the
+    // sustain path stays bit-identical to v1.2 (verified against the 19 goldens'
+    // sustain phases). Advanced here rather than per block so the ramp is
+    // block-size invariant.
+    if (releaseGainStep > 0.0f)
+    {
+        releaseGain -= releaseGainStep;
+        if (releaseGain <= releaseGainTarget)
+        {
+            releaseGain     = releaseGainTarget;
+            releaseGainStep = 0.0f;
+        }
+    }
+
+    float bridgeFiltered = (bridgeG * releaseGain) * bridgeOneMinusP * bridgeDispersed
                          + bridgeP * bridgeY
                          + denormalLeak;
     bridgeY = bridgeFiltered;

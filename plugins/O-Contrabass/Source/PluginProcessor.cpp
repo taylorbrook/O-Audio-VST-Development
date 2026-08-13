@@ -125,6 +125,20 @@ OContrabassAudioProcessor::createParameterLayout()
     layout.add(std::make_unique<APF>(juce::ParameterID{"SUB_HARMONICS", 1},    "Sub-Harmonics",
         NR(0.0f, 1.0f, 0.001f),            0.0f));
 
+    // -- Release (v1.3, 1 param) --
+    // Sits with the drone pair because it is the other half of the same control:
+    // INFINITE_SUSTAIN governs decay while the bow is DOWN, RELEASE governs it
+    // after the bow lifts. Before v1.3 there was no second half — the loop gain
+    // was unchanged by note-off, so a released string rang for minutes and held
+    // its voice slot the whole time.
+    //
+    // 0.05-20 s, skewed 0.35 so the musical 0.5-4 s span occupies the middle of
+    // the knob instead of its first eighth. Default 2.0 s = a released orchestral
+    // bass note; NOT a no-op default, because the v1.2 behaviour it replaces is
+    // the defect. Sessions saved before v1.3 therefore adopt 2.0 s on load.
+    layout.add(std::make_unique<APF>(juce::ParameterID{"RELEASE", 1},          "Release",
+        NR(0.05f, 20.0f, 0.01f, 0.35f),    2.0f));
+
     // -- Output (1 param) --
     layout.add(std::make_unique<APF>(juce::ParameterID{"WIDTH", 1},            "Width",
         NR(0.0f, 2.0f, 0.001f),            1.0f));
@@ -178,6 +192,17 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         voice->setPendingTuningSource(&vst3Extensions.getPendingTable());
         synth.addVoice(voice);
     }
+
+    // v1.3 CRITICAL: MPESynthesiser defaults shouldStealVoices to FALSE
+    // (juce_MPESynthesiser.h:317). With it false, noteAdded() calls
+    // findFreeVoice(note, false), which returns nullptr once all four voices are
+    // busy and then SILENTLY DISCARDS the note-on — there is no fallback path.
+    // Combined with voices that took minutes to free (see WaveguideString::
+    // startRelease), the instrument went dead after four note-ons. Measured:
+    // notes 5-8 of an eight-note probe produced no output at all.
+    // Stealing must stay enabled even now that voices free properly — it is what
+    // makes a dropped note structurally impossible rather than merely unlikely.
+    synth.setVoiceStealingEnabled (true);
 
     // MPE legacy mode for non-MPE DAWs (RESEARCH §5 pitfall #8).
     // Pitchbend range 24 semitones, channels 1..16 — covers omni MIDI input.

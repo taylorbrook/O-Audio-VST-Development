@@ -1,0 +1,93 @@
+{
+  "status": "PASS",
+  "mode": "note-sequence",
+  "midiNote": 28,
+  "velocity": 0.800000011920929,
+  "sustainSeconds": 60.0,
+  "releaseSeconds": 4.0,
+  "infiniteSustain": 1.0,
+  "stringStiffness": -1.0,
+  "totalSamples": 352800,
+  "peak": 0.098938062787056,
+  "nanCount": 0,
+  "infCount": 0,
+  "rmsMid_s5_s6": 0.000106597013655,
+  "rmsFinal_lastSecond": 0.0,
+  "rmsRatio_final_over_mid": 0.0,
+  "blockMicros_median": 254.5,
+  "blockMicros_max": 386.958000000000027,
+  "blockTime_max_over_median": 1.520463654223969,
+  "pass_nan": true,
+  "pass_peak": true,
+  "pass_blockTime": true,
+  "pass_rms": false,
+  "outputWav": "/tmp/repro/voice-recycling.wav",
+  "seed_applied": 8,
+  "crossfade_note_ons": 0,
+  "sequence": [
+    {
+      "midiNote": 40,
+      "sampleStart": 0,
+      "sampleCount": 22050
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 22050,
+      "sampleCount": 22050
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 44100,
+      "sampleCount": 22050
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 66150,
+      "sampleCount": 22050
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 88200,
+      "sampleCount": 22050
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 110250,
+      "sampleCount": 22050
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 132300,
+      "sampleCount": 22050
+    },
+    {
+      "midiNote": 40,
+      "sampleStart": 154350,
+      "sampleCount": 22050
+    }
+  ],
+  "transitionSampleIndices": [
+    22050,
+    44100,
+    66150,
+    88200,
+    110250,
+    132300,
+    154350
+  ],
+  "perSegmentRms": [
+    0.03866433724761,
+    0.038863874971867,
+    0.038135852664709,
+    0.038180518895388,
+    0.037268437445164,
+    0.040961377322674,
+    0.041190776973963,
+    0.041021265089512
+  ],
+  "pass_allSegmentsAudible": true,
+  "segmentLevelConsistency": 0.958948075771332,
+  "pass_segmentLevelConsistency": true,
+  "rmsContinuityAtTransitions": 0.448832720518112,
+  "pass_rmsContinuityAtTransitions": true
+}
