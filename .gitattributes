@@ -1,0 +1,6 @@
+# PLUGINS.md is a row-scoped global registry table — one row per plugin — that
+# every plugin branch edits. Parallel plugin branches therefore collide there by
+# construction. `union` is a git built-in merge driver that keeps BOTH sides'
+# lines instead of raising a conflict, which resolves parallel-branch row edits
+# cleanly as long as each branch only ever edits its OWN plugin's row.
+PLUGINS.md merge=union
