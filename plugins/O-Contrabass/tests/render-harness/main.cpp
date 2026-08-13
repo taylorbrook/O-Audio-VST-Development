@@ -69,16 +69,20 @@
       - detune-sweep:                 pass_nan && pass_peak && pass_blockTime && pass_rmsContinuity (≥0.90).
       - note-sequence:                pass_nan && pass_peak && pass_blockTime
                                       && pass_allSegmentsAudible (per-segment RMS > 1e-3)
-                                      && pass_rmsContinuityAtTransitions (≥0.50, 256-sample window).
+                                      && pass_segmentLevelConsistency (min/median ≥ 0.50 — v1.3;
+                                         this is the gate that catches a DROPPED note-on, which
+                                         pass_allSegmentsAudible cannot: a dropped note still
+                                         reads "audible" from its neighbours' tail)
+                                      && pass_rmsContinuityAtTransitions (≥0.35, 256-sample window;
+                                         relaxed from 0.50 in v1.3 — see the comment at the metric).
       - vibrato:                      pass_nan && pass_peak && pass_blockTime
-                                      && pass_vibratoDepthInRange (peakDepthCents ∈ [10, 14])
-                                      && pass_onsetWindow (∈ [800, 1000] ms)
+                                      && pass_vibratoDepthInRange (peakDepthCents ∈ [9, 14])
+                                      && pass_onsetWindow (∈ [800, 1200] ms)
                                       && pass_rateHzInRange (∈ [4.5, 5.5] Hz)
-                                      && pass_rmsContinuity (≥0.90).
+                                      && pass_rmsContinuity (≥0.75 — see per-mode note).
       - slow-lfo:                     pass_nan && pass_peak && pass_blockTime
-                                      && pass_breathingAudible (rmsByDecadePeakToPeakPct ≥ 0.05 — v1.0;
-                                         20% Phase 2.4 calibration target)
-                                      && pass_rmsContinuity (≥0.90)
+                                      && pass_breathingAudible (lfoBreathingDepthPct ≥ 0.15)
+                                      && pass_rmsContinuity (≥0.85 — see per-mode note)
                                       && pass_clampEngagement (clampedDepthMean > 0.0).
       - schelleng-stress:             pass_nan && pass_peak && pass_blockTime
                                       && pass_noNaN && pass_clampEngaged (clampedDepthMean < 0.5).
@@ -160,6 +164,10 @@ struct Args
     float infiniteSustain   = 1.0f;
     float stringStiffness   = -1.0f;   // sentinel: <0 = unset, use APVTS factory default
     bool  stiffnessSweep    = false;   // Phase 2.1c R18
+    // Bow operating-point overrides in engineering units (v1.1 diagnostics).
+    float bowSpeed          = 0.15f;   bool bowSpeedSet    = false;   // range 0.02–1.5, skew 0.5
+    float bowPressure       = 1.0f;    bool bowPressureSet = false;   // range 0.05–8.0, skew 0.5
+    float bowPosition       = 0.10f;   bool bowPositionSet = false;   // range 0.02–0.25, linear
     int   activeStrings     = -1;      // Phase 2.2 R23: sentinel <0 = use APVTS factory default (=4)
     char  stringOverride    = ' ';     // Phase 2.2 R23: 'E','A','D','G' or ' '
     char  detuneSweepString = ' ';     // Phase 2.2 R23: 'E','A','D','G' or ' '
@@ -269,6 +277,10 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--release")          { args.releaseSeconds  = val.getFloatValue(); args.releaseSet  = true; }
         else if (key == "--infinite-sustain") { args.infiniteSustain = val.getFloatValue(); }
         else if (key == "--string-stiffness") { args.stringStiffness = val.getFloatValue(); }
+        // Bow operating point in ENGINEERING units (v1.1 diagnostics).
+        else if (key == "--bow-speed")        { args.bowSpeed    = val.getFloatValue(); args.bowSpeedSet    = true; }
+        else if (key == "--bow-pressure")     { args.bowPressure = val.getFloatValue(); args.bowPressureSet = true; }
+        else if (key == "--bow-position")     { args.bowPosition = val.getFloatValue(); args.bowPositionSet = true; }
         else if (key == "--stiffness-sweep")  { args.stiffnessSweep  = (val.getIntValue() != 0); }
         else if (key == "--active-strings")   { args.activeStrings   = val.getIntValue(); }
         else if (key == "--string")           { args.stringOverride    = parseStringLetter (val); }
@@ -805,6 +817,7 @@ int main (int argc, char** argv)
 
         juce::Array<juce::var> comboArr;
         int passCount = 0;
+        int blockTimePassCount = 0;   // v1.2 — reported, but NOT part of the verdict
         int comboLinearIdx = 0;
 
         for (int s = 0; s < 4; ++s)
@@ -943,9 +956,11 @@ int main (int argc, char** argv)
             const bool pass_peak      = (comboPeak <= 1.0f);
             const bool pass_clickFree = (rmsContinuity >= 0.70f);
             const bool pass_blockTime = (blockMicros.size() < 8) || (btRatio <= 50.0);
-            const bool pass_combo     = pass_noNaN && pass_peak && pass_clickFree
-                                     && pass_blockTime;
+            // v1.2 — pass_blockTime removed from the stability verdict here for the
+            // same reason as the 108-cell matrix (wall-clock noise flipping cells).
+            const bool pass_combo     = pass_noNaN && pass_peak && pass_clickFree;
             if (pass_combo) ++passCount;
+            if (pass_blockTime) ++blockTimePassCount;
 
             juce::DynamicObject::Ptr e (new juce::DynamicObject());
             e->setProperty ("stringIdx",          s);
@@ -985,6 +1000,7 @@ int main (int argc, char** argv)
         summary->setProperty ("totalCombos",     totalCombos);
         summary->setProperty ("passCount",       passCount);
         summary->setProperty ("failCount",       totalCombos - passCount);
+        summary->setProperty ("blockTimePassCount", blockTimePassCount);
         summary->setProperty ("pass_all_36",     passAll36);
         summary->setProperty ("infiniteSustainAxis", juce::String ("[0.0, 0.5, 1.0]"));
         summary->setProperty ("subHarmonicsAxis",    juce::String ("[0.0, 0.5, 1.0]"));
@@ -3075,9 +3091,36 @@ int main (int argc, char** argv)
         const bool pass_peak           = (peak <= 1.0f);
         const bool pass_clickFree      = (rmsContinuity >= 0.85f);
         const bool pass_blockTime      = (blockMicros.size() < 8) || (btRatio <= 5.0);
-        const bool pass_subharmAudible = (subharmEnergyRatio >= 0.40);
-        const bool soft_subharmAudible = (subharmEnergyRatio >= 0.30
-                                          && subharmEnergyRatio < 0.40);
+        // v1.1 DSP-07 — acceptance re-specified from subharmEnergyRatio to
+        // subharmPeakOverFloor.
+        //
+        // The old bar was `subharmEnergyRatio >= 0.40`, i.e. the f0/2 bin must
+        // carry 40 % of the f0 bin's ENERGY, measured at the plugin OUTPUT. That
+        // number came from RESEARCH §18.3/§18.5, which measured PRE-port and
+        // PRE-body (0.358 / 0.241). It is not reachable at the output: the body
+        // resonator's lowest mode is 60 Hz (BodyResonator.h:85) and a 35 Hz
+        // one-pole HP follows it (BodyResonator.cpp:62), so 20.60 Hz is
+        // structurally attenuated ~13 dB relative to 41.20 Hz before it is ever
+        // measured. Sweeping every bias coefficient confirms it empirically —
+        // the reachable maximum is ~2e-04, three orders of magnitude short:
+        //   kForceBoost  0.8 → 12.0 : bit-identical (Schelleng ceiling pins F_bow)
+        //   kV0Reduction 0.5 → 0.95 : bit-identical (kV0Floor clamp binds)
+        //   kFmaxScalar  0.95 → 20  : saturates at 1.99e-04 by ~3.0
+        // The committed baseline note claiming 0.241 at SUB_HARMONICS=0 does not
+        // reproduce either — measured directly it is 6.38e-05, i.e. the same
+        // order as the engaged value, which is why the ratio cannot discriminate.
+        //
+        // subharmPeakOverFloor DOES track the feature, because it is a local
+        // signal-to-floor measure at f0/2 rather than an absolute cross-bin
+        // energy ratio, so the shared output-chain attenuation divides out:
+        //   SUB_HARMONICS = 0.0 → 1.888
+        //   SUB_HARMONICS = 1.0 → 3.019
+        // Bar set at 2.5: comfortably above the disengaged floor (1.888) with
+        // margin below the engaged value (3.019). Soft band 2.0–2.5 retains the
+        // v1.0 two-tier reporting shape.
+        const bool pass_subharmAudible = (subharmPeakOverFloor >= 2.5);
+        const bool soft_subharmAudible = (subharmPeakOverFloor >= 2.0
+                                          && subharmPeakOverFloor < 2.5);
         const bool pass_combo          = pass_noNaN && pass_peak && pass_clickFree
                                        && pass_blockTime
                                        && (pass_subharmAudible || soft_subharmAudible);
@@ -3100,7 +3143,11 @@ int main (int argc, char** argv)
         summary->setProperty ("subharmEnergyRatio",  subharmEnergyRatio);
         summary->setProperty ("subharmPeakOverFloor", subharmPeakOverFloor);
         summary->setProperty ("fftBaselineNote",
-                              juce::String ("subharmEnergyRatio at SUB_HARMONICS=0 measured 0.241 per RESEARCH §18.3"));
+                              juce::String ("v1.1: acceptance is subharmPeakOverFloor (>=2.5); "
+                                            "SUB_HARMONICS=0 measures 1.888, =1.0 measures 3.019. "
+                                            "subharmEnergyRatio retained as diagnostic only - the "
+                                            "RESEARCH 18.3 figure of 0.241 was pre-body and does not "
+                                            "reproduce at the output (measured 6.38e-05 at =0)."));
         summary->setProperty ("nanCount",            nanCount);
         summary->setProperty ("infCount",            infCount);
         summary->setProperty ("pass_noNaN",          pass_noNaN);
@@ -3178,6 +3225,7 @@ int main (int argc, char** argv)
 
         juce::Array<juce::var> comboArr;
         int passCount = 0;
+        int blockTimePassCount = 0;   // v1.2 — reported, but NOT part of the verdict
 
         for (int s = 0; s < 4; ++s)
         for (int i = 0; i < 3; ++i)
@@ -3367,8 +3415,18 @@ int main (int argc, char** argv)
             const bool pass_peak      = (comboPeak <= 1.0f);
             const bool pass_clickFree = (rmsContinuity >= 0.70f);
             const bool pass_blockTime = (blockMicros.size() < 8) || (btRatio <= 50.0);
-            const bool pass_combo     = pass_noNaN && pass_peak && pass_clickFree && pass_blockTime;
+            // v1.2 — pass_blockTime REMOVED from the per-cell STABILITY verdict.
+            // R36b already relaxed it 5.0x -> 50.0x on the stated grounds that btRatio
+            // "is dominated by OS scheduling noise, not DSP stability"; this completes
+            // that reasoning by taking it out of the verdict entirely. Relaxing alone did
+            // not remove the contamination: three consecutive runs of the SAME binary
+            // returned passCount 97 / 102 / 98. A +-5-cell swing means the 108-cell matrix
+            // could not resolve a real stability regression — the one thing it exists to
+            // do. Stability is now deterministic (NaN / peak / click-free); timing is
+            // still measured and reported per cell and aggregated separately below.
+            const bool pass_combo     = pass_noNaN && pass_peak && pass_clickFree;
             if (pass_combo) ++passCount;
+            if (pass_blockTime) ++blockTimePassCount;
 
             // ── Per-combo JSON entry (RESEARCH §17.5 schema). ─────────────
             juce::DynamicObject::Ptr e (new juce::DynamicObject());
@@ -3414,6 +3472,9 @@ int main (int argc, char** argv)
         summary->setProperty ("totalCombos",   totalCombos);
         summary->setProperty ("passCount",     passCount);
         summary->setProperty ("failCount",     totalCombos - passCount);
+        // Timing kept visible but OUTSIDE the stability verdict — this figure is
+        // expected to vary with machine load and is NOT a regression signal.
+        summary->setProperty ("blockTimePassCount", blockTimePassCount);
         summary->setProperty ("pass_all_108",  passAll108);
         summary->setProperty ("speedAxis",     juce::String ("[0.05, 0.15, 0.5]"));
         summary->setProperty ("pressAxis",     juce::String ("[1.0, 3.0, 7.0]"));
@@ -3536,6 +3597,24 @@ int main (int argc, char** argv)
         // EXPRESSION_MACRO ramped per-block in render loop below (start at 0).
         setNorm ("EXPRESSION_MACRO", 0.0f);
     }
+
+    // Bow-parameter overrides in ENGINEERING units, applied last so they win over
+    // any mode's own setup. Converted through each parameter's own
+    // NormalisableRange so the 0.5 skew on BOW_SPEED / BOW_PRESSURE is handled by
+    // the range itself rather than re-derived here (hand-computed norms are how
+    // skewed values silently drift). Added to make the Schelleng playable region
+    // sweepable — F_min ∝ v_b / β², so silence at high speed / low force is a
+    // physical prediction that needs a map, not a guess.
+    auto setDenorm = [&] (const char* paramId, float engineeringValue)
+    {
+        if (auto* p = proc.parameters.getParameter (paramId))
+            p->setValueNotifyingHost (
+                p->getNormalisableRange().convertTo0to1 (engineeringValue));
+    };
+
+    if (args.bowSpeedSet)    setDenorm ("BOW_SPEED",    args.bowSpeed);
+    if (args.bowPressureSet) setDenorm ("BOW_PRESSURE", args.bowPressure);
+    if (args.bowPositionSet) setDenorm ("BOW_POSITION", args.bowPosition);
 
     proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
     proc.prepareToPlay (sampleRate, blockSize);
@@ -3775,8 +3854,27 @@ int main (int argc, char** argv)
         return static_cast<float> (std::sqrt (sumSq / n));
     };
 
-    const float rmsMid    = rmsOverWindow (5, 6);                                              // s5–s6
-    const float rmsFinal  = rmsOverWindow (totalSeconds - 1, totalSeconds);                    // last 1s
+    // v1.1 — the s5–s6 window lies outside short renders: --vibrato is 2 s
+    // sustain + 1 s release = 3 s total, so rmsOverWindow clamps to an empty
+    // span, returns 0, and trips the "engine never started" branch below —
+    // reporting pass_rms=false on a completely healthy render. Fall back to the
+    // middle second of the actual render when s5–s6 does not exist. Renders
+    // longer than 6 s keep the original window, so their JSON is unchanged.
+    const int   rmsMidStartSec = (totalSeconds > 6) ? 5 : juce::jmax (0, totalSeconds / 2);
+    const float rmsMid    = rmsOverWindow (rmsMidStartSec, rmsMidStartSec + 1);                // s5–s6 (long renders)
+    // v1.2 — measured over the last second of SUSTAIN, not of the whole render.
+    // It previously used totalSeconds, which on a 60 s sustain + 5 s release lands
+    // inside the RELEASE TAIL, so pass_rms compared mid-sustain against a decaying
+    // tail. That gate passed in v1.1 only because the instrument was broken: notes
+    // were still ramping at s5-s6, so rmsMid was as anemic as the tail. With the
+    // note-on seed the string speaks immediately and a released string is
+    // legitimately ~15 dB down (string-A: mid 0.0535, tail 0.0093 -> ratio 0.17),
+    // which tripped pass_rms across nearly every sustained mode. Comparing
+    // sustain-to-sustain measures what the ratio is actually for: runaway or
+    // collapse during the held note.
+    const float rmsFinalSec = juce::jmax (1.0f, args.sustainSeconds);
+    const float rmsFinal  = rmsOverWindow (static_cast<int> (rmsFinalSec) - 1,
+                                           static_cast<int> (rmsFinalSec));
 
     // Block-time stats — median + max for the spike sentinel.
     auto sortedTimes = blockMicros;
@@ -3851,11 +3949,32 @@ int main (int argc, char** argv)
                           / juce::jmax (juce::jmax (a, b), 1.0e-9f);
         rmsContinuityRatio = juce::jmin (rmsContinuityRatio, ratio);
     }
-    // Phase 2.3 R29 — per-mode rmsContinuity threshold: macro-sweep gets 0.85
-    // (looser; macro intentionally lifts loudness so adjacent-window ratios
-    // can drift slightly more than a steady-state sustained tone). All other
-    // modes use the unified 0.90 threshold (RESEARCH §16.7.4 + PLAN R31 step 5).
-    const float rmsContinuityThreshold = args.macroSweep ? 0.85f : 0.90f;
+    // Per-mode rmsContinuity threshold.
+    //
+    // This metric is the MINIMUM adjacent-window RMS ratio over the sustain, on
+    // 4096-sample (92.9 ms @ 44.1 kHz) windows. It exists to catch clicks and
+    // dropouts, which drive the ratio toward 0. It is a steady-state measure,
+    // so applying the unified 0.90 bar to modes that modulate amplitude BY
+    // DESIGN penalises them for working correctly. v1.0 shipped 0.85 for
+    // macro-sweep on exactly this reasoning; v1.1 extends it to the other two
+    // deliberately-modulated modes, with the window arithmetic made explicit:
+    //
+    //   slow-lfo  — SLOW_LFO_DEPTH=1.0 drives bow speed ×(1 ± 0.6) and bow
+    //               pressure ×(1 ± 0.5) at 0.3 Hz (3333 ms period). A 92.9 ms
+    //               window is 2.79 % of a cycle, so near the sine's steepest
+    //               slope the commanded bow speed moves 2π·0.0279·0.6 ≈ 10.5 %
+    //               between adjacent windows. A sub-0.90 ratio is therefore the
+    //               designed breathing, not a discontinuity. Measured 0.877.
+    //   vibrato   — 92.9 ms against a 200 ms cycle is 46.4 %, so adjacent
+    //               windows sample near-opposite vibrato phases and the ratio
+    //               reports the vibrato's own amplitude ripple. Measured 0.790.
+    //
+    // Both remain far above what a real dropout produces, so click detection is
+    // preserved. Steady-state modes keep 0.90 (RESEARCH §16.7.4 + PLAN R31 step 5).
+    const float rmsContinuityThreshold = args.macroSweep  ? 0.85f
+                                       : args.slowLfoMode ? 0.85f
+                                       : args.vibratoMode ? 0.75f
+                                                          : 0.90f;
     const bool  passRmsContinuity      = (rmsContinuityRatio >= rmsContinuityThreshold);
 
     // Mono sustain-phase view (channel 0) for note-sequence transition + segment audits.
@@ -3882,10 +4001,26 @@ int main (int argc, char** argv)
                           / juce::jmax (juce::jmax (beforeRms, afterRms), 1.0e-9f);
         rmsContinuityAtTransitions = juce::jmin (rmsContinuityAtTransitions, ratio);
     }
-    const bool passRmsContinuityAtTransitions = (rmsContinuityAtTransitions >= 0.50f);
+    // v1.3: threshold relaxed 0.50 -> 0.35. NOT a regression concession — before
+    // v1.3 a 5+ note sequence had its 5th and later note-ons DROPPED (voice
+    // stealing was off and voices never freed), so those transitions measured a
+    // smoothly continuing tail and scored 0.83-0.93. The 0.50 bar was therefore
+    // set by a mixture of real articulations and non-events. Measured per
+    // transition on 8x E2, v1.2.0 -> v1.3.0:
+    //     1->2  0.541 -> 0.540     5->6  0.916 -> 0.399
+    //     2->3  0.772 -> 0.573     6->7  0.892 -> 0.402
+    //     3->4  0.571 -> 0.568     7->8  0.839 -> 0.408
+    //     4->5  0.929 -> 0.566
+    // The two transitions that were real articulations in BOTH versions (1->2,
+    // 3->4) are unchanged to three decimals. Everything that "worsened" is a
+    // transition that previously produced no note. The new floor is set by
+    // stolen-voice re-articulations, which overlap less than fresh-voice ones
+    // because trigger() zeroes the reused string's rails.
+    const bool passRmsContinuityAtTransitions = (rmsContinuityAtTransitions >= 0.35f);
 
     // Per-segment audibility (note-sequence): each segment's RMS must exceed 1e-3 (≈−60 dBFS).
     juce::Array<juce::var> perSegmentRmsArr;
+    std::vector<float>     segRmsValues;
     bool passAllSegmentsAudible = true;
     for (const auto& seg : sequenceSegments)
     {
@@ -3893,9 +4028,44 @@ int main (int argc, char** argv)
         const int s1 = juce::jmin (s0 + seg.sampleCount, totalSamples);
         const float segRms = rmsOverMono (s0, s1);
         perSegmentRmsArr.add (juce::var (static_cast<double> (segRms)));
+        segRmsValues.push_back (segRms);
         if (segRms <= 1.0e-3f)
             passAllSegmentsAudible = false;
     }
+
+    // v1.3 NEW GATE — segment level CONSISTENCY.
+    //
+    // passAllSegmentsAudible above is vacuous for the failure it looks like it
+    // covers: when v1.2.0 dropped note-ons 5-8 of an 8-note sequence, the four
+    // ringing voices left behind a tail well above the 1e-3 floor, so every
+    // segment read "audible" and the gate returned true while half the notes
+    // never sounded. Absolute floors cannot distinguish a note from its
+    // predecessor's tail.
+    //
+    // Compare each segment against the MEDIAN segment instead. A dropped note
+    // collapses to its neighbours' decay and falls far below the median, while
+    // legitimate dynamic variation across a sequence stays well inside 0.5x.
+    // Measured on 8x E2 @ 0.5 s: v1.2.0 = 0.2748 (FAIL, correctly — notes 5-8 were
+    // dropped), v1.3.0 = 0.9589 (PASS). Both verified against the same binary.
+    //
+    // KNOWN LIMIT — this gate needs a sequence that OUTRUNS the voice pool by
+    // enough notes to let the ringing tail decay. On the 5-note/4-voice
+    // `note-sequence` golden (28/33/38/43/28, one note per string) only the last
+    // note-on was dropped, and the four still-ringing voices held segment 5 at
+    // 0.02997 vs a 0.04465 median — 0.671, a PASS. That scenario cannot see this
+    // bug at all. The `voice-recycling` golden (8x the SAME note, so each
+    // note-on recycles rather than lighting a fresh string) is the probe that
+    // does; keep it whenever this gate is trusted for voice-allocation coverage.
+    float segmentLevelConsistency = 1.0f;
+    if (segRmsValues.size() >= 3)
+    {
+        std::vector<float> sorted = segRmsValues;
+        std::sort (sorted.begin(), sorted.end());
+        const float median = sorted[sorted.size() / 2];
+        const float minRms = sorted.front();
+        segmentLevelConsistency = minRms / juce::jmax (median, 1.0e-9f);
+    }
+    const bool passSegmentLevelConsistency = (segmentLevelConsistency >= 0.50f);
 
     // ─── Phase 2.3 R29 — vibrato autocorrelation pitch-tracking (RESEARCH §16.7.1) ───
     //
@@ -3909,8 +4079,21 @@ int main (int argc, char** argv)
 
     if (args.vibratoMode)
     {
-        constexpr int    kAcWindowSize = 4096;
+        // v1.1 DSP-09 — kAcWindowSize was 4096. The autocorrelation compares
+        // [sStart, sStart+N) against [sStart+tau, sStart+tau+N), so it spans
+        // N + tau ≈ 4096 + 1070 = 5166 samples = 117 ms of audio. One vibrato
+        // cycle at the mode's 5 Hz rate is 200 ms, so the old window averaged
+        // pitch over 58.6 % of a cycle and reported ~0.62× the true excursion
+        // (12¢ set → 7.42¢ measured). Confirmed by holding the stimulus at 5 Hz
+        // and sweeping only this constant: 4096→7.42¢, 2048→10.70¢, 1024→11.18¢,
+        // converging on the true 12¢ as the span → 0. The DSP transfer was
+        // always correct; do NOT "fix" this by scaling VIBRATO_DEPTH (that would
+        // drive real vibrato to ~19.4¢ to satisfy a broken meter).
+        // 1024 + tau ≈ 47.5 ms = 23.7 % of a cycle → ~4 % residual under-read.
+        constexpr int    kAcWindowSize = 1024;
         constexpr int    kAcHopSize    =  256;
+        // The --vibrato mode pins VIBRATO_RATE to 5 Hz (see setNorm above).
+        constexpr double kVibratoRateHz = 5.0;
         // Phase 2.4c R36a — MIDI-28-derived ±20% range bias eliminates octave-jump
         // (RESEARCH §19.2.2 documents pre-fix peakDepthCents=625.44 from period/2 latch
         //  at ~535 samples / ~82.4 Hz; range [856, 1285] = [34.32, 51.52] Hz brackets
@@ -3931,6 +4114,14 @@ int main (int argc, char** argv)
         const int analysisStart = static_cast<int> (1.0 * sampleRate);   // skip 1 s onset window
         const int analysisEnd   = juce::jmin (totalSamples - kAcWindowSize - kTauMax,
                                               sustainSamples);
+
+        // v1.1 DSP-09 — hops spanning exactly one vibrato cycle:
+        // (44100 / 5) / 256 = 34.45 → 34. Both the peak-swing window and the
+        // per-cycle sampling stride below are derived from this instead of the
+        // previous hard-coded 36 / 28 (which assumed 600 ms and 200 ms
+        // respectively; 36 hops is really 209 ms and 28 hops really 162.5 ms).
+        const int kHopsPerVibCycle = juce::jmax (1, juce::roundToInt (
+            (sampleRate / kVibratoRateHz) / static_cast<double> (kAcHopSize)));
 
         std::vector<float> deltaCentsTrace;
         const auto* mono = output.getReadPointer (0);
@@ -3990,12 +4181,15 @@ int main (int argc, char** argv)
             deltaCentsTrace.push_back (static_cast<float> (cents));
         }
 
-        // Peak-to-trough swing across the last ~3 vibrato cycles (≈600 ms at 5 Hz,
-        // 36 hops at hop=256).
-        if (deltaCentsTrace.size() >= 36)
+        // Peak-to-trough swing across the last full vibrato cycle (+2 hops of
+        // margin so both extrema are guaranteed to fall inside the window even
+        // when the trace does not end on a cycle boundary). Half the peak-to-
+        // trough swing is the excursion amplitude.
+        const int kPeakWindowHops = kHopsPerVibCycle + 2;
+        if (static_cast<int> (deltaCentsTrace.size()) >= kPeakWindowHops)
         {
             const auto endIt   = deltaCentsTrace.end();
-            const auto startIt = endIt - 36;
+            const auto startIt = endIt - kPeakWindowHops;
             const auto mm      = std::minmax_element (startIt, endIt);
             peakDepthCents = 0.5f * (*mm.second - *mm.first);
         }
@@ -4015,8 +4209,13 @@ int main (int argc, char** argv)
             }
         }
 
-        // Per-cycle delta-cents — sample at ~5 Hz cycle period (200 ms = 28 hops).
-        for (size_t hop = 0; hop < deltaCentsTrace.size(); hop += 28)
+        // Per-cycle delta-cents — sampled once per vibrato cycle. The previous
+        // stride of 28 hops was 162.5 ms against a 200 ms cycle, so it walked
+        // through the vibrato phase instead of sampling it at a fixed point and
+        // produced sign-flipped values (the v1.0 golden shows +7.07, +7.05,
+        // −0.76, −6.50, −3.44, …) that read as instability but were pure aliasing.
+        for (size_t hop = 0; hop < deltaCentsTrace.size();
+             hop += static_cast<size_t> (kHopsPerVibCycle))
             perCycleDeltaCents.add (juce::var (static_cast<double> (deltaCentsTrace[hop])));
 
         // Crude rate estimate: zero-crossings of deltaCentsTrace over the analysis window.
@@ -4087,6 +4286,54 @@ int main (int argc, char** argv)
         }
     }
 
+    // v1.1 DSP-08 — LFO-period-matched breathing depth.
+    //
+    // rmsByDecadePeakToPeakPct buckets the sustain into 10 equal decades. At the
+    // --slow-lfo mode's 60 s sustain that is 6 s per bucket against a 0.3 Hz
+    // (3333 ms) LFO period, so every bucket averages ~1.8 full LFO cycles and
+    // the modulation very largely cancels. What survives is the drone's
+    // monotonic build-up — the v1.0 golden's decades rise 0.0263 → 0.0602
+    // strictly — so the 0.694 it reported was energy growth, not breathing, and
+    // pass_breathingAudible passed without ever measuring the quantity it names.
+    // The decade array is retained (JSON shape + build-up audit); the gate below
+    // now uses this measure instead.
+    //
+    // Windows of one eighth of an LFO period resolve the modulation. Depth is
+    // taken per LFO period as (max − min) / max across those windows, then
+    // reduced by MEDIAN over periods so the build-up trend cannot inflate it.
+    float lfoBreathingDepthPct = 0.0f;
+    if (args.slowLfoMode)
+    {
+        constexpr double kSlowLfoRateHz = 0.3;          // pinned by --slow-lfo
+        const int periodSamples = juce::jmax (8, juce::roundToInt (sampleRate / kSlowLfoRateHz));
+        const int winSamples    = juce::jmax (1, periodSamples / 8);
+        const int settleSamples = juce::jmin (sustainSamples, 2 * periodSamples);
+
+        std::vector<float> perPeriodDepth;
+        for (int p0 = settleSamples; p0 + periodSamples <= sustainSamples; p0 += periodSamples)
+        {
+            float mn = std::numeric_limits<float>::max();
+            float mx = 0.0f;
+            for (int w = p0; w + winSamples <= p0 + periodSamples; w += winSamples)
+            {
+                const float r = rmsOverStereoWindow (w, w + winSamples);
+                mn = juce::jmin (mn, r);
+                mx = juce::jmax (mx, r);
+            }
+            if (mx > 1.0e-9f)
+                perPeriodDepth.push_back ((mx - mn) / mx);
+        }
+
+        if (! perPeriodDepth.empty())
+        {
+            const size_t mid = perPeriodDepth.size() / 2;
+            std::nth_element (perPeriodDepth.begin(),
+                              perPeriodDepth.begin() + static_cast<long> (mid),
+                              perPeriodDepth.end());
+            lfoBreathingDepthPct = perPeriodDepth[mid];
+        }
+    }
+
     // Phase 2.3 R29 — per-mode pass-condition flags.
     // Phase 2.4c R36a — strict ranges tuned against post-octave-fix measurements.
     // Phase 2.3 PLAN rev-7 design intent (depth ∈ [10, 14]¢, onset ∈ [800, 1000] ms)
@@ -4117,7 +4364,12 @@ int main (int argc, char** argv)
     // (a) tune Step 4 bow-speed/pressure modulation gain (currently ±60%/±50%)
     // or (b) refine the metric to capture per-cycle RMS variation rather than
     // 10-decile averaging. The 15% threshold matches calibrated DSP reality.
-    const bool passBreathingAudible = args.slowLfoMode && (rmsByDecadePeakToPeakPct >= 0.15f);
+    // v1.1 DSP-08 — gate moved off rmsByDecadePeakToPeakPct (which measured the
+    // drone build-up, not the LFO) onto the period-matched lfoBreathingDepthPct.
+    // Bar held at the v1.0 numeric value of 0.15 so the intent is unchanged;
+    // what changed is that it is now applied to a quantity that actually
+    // resolves 0.3 Hz breathing.
+    const bool passBreathingAudible = args.slowLfoMode && (lfoBreathingDepthPct >= 0.15f);
     const bool passClampEngagement  = args.slowLfoMode && (clampedDepthMean > 0.0f);
 
     const bool passSchellengPeak = args.schellengStress && (peak <= 1.0f);
@@ -4161,7 +4413,8 @@ int main (int argc, char** argv)
         overallPass = passNan && passPeak && passBlockTime && passRmsContinuity;
     else if (isNoteSequence)
         overallPass = passNan && passPeak && passBlockTime
-                   && passAllSegmentsAudible && passRmsContinuityAtTransitions;
+                   && passAllSegmentsAudible && passRmsContinuityAtTransitions
+                   && passSegmentLevelConsistency;
     else
         overallPass = passNan && passPeak && passBlockTime && passRms;
 
@@ -4271,6 +4524,8 @@ int main (int argc, char** argv)
 
         summary->setProperty ("perSegmentRms",                 juce::var (perSegmentRmsArr));
         summary->setProperty ("pass_allSegmentsAudible",        passAllSegmentsAudible);
+        summary->setProperty ("segmentLevelConsistency",        static_cast<double> (segmentLevelConsistency));
+        summary->setProperty ("pass_segmentLevelConsistency",   passSegmentLevelConsistency);
         summary->setProperty ("rmsContinuityAtTransitions",     static_cast<double> (rmsContinuityAtTransitions));
         summary->setProperty ("pass_rmsContinuityAtTransitions", passRmsContinuityAtTransitions);
     }
@@ -4341,6 +4596,7 @@ int main (int argc, char** argv)
         summary->setProperty ("rmsByDecadePeakToPeakPct", static_cast<double> (rmsByDecadePeakToPeakPct));
         summary->setProperty ("clampedDepthMean",         static_cast<double> (clampedDepthMean));
         summary->setProperty ("rmsContinuityRatio",       static_cast<double> (rmsContinuityRatio));
+        summary->setProperty ("lfoBreathingDepthPct",     static_cast<double> (lfoBreathingDepthPct));
         summary->setProperty ("pass_breathingAudible",    passBreathingAudible);
         summary->setProperty ("pass_rmsContinuity",       passRmsContinuity);
         summary->setProperty ("pass_clampEngagement",     passClampEngagement);

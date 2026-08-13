@@ -8,20 +8,20 @@
   "infiniteSustain": 1.0,
   "stringStiffness": -1.0,
   "totalSamples": 882000,
-  "peak": 0.070587739348412,
+  "peak": 0.128106042742729,
   "nanCount": 0,
   "infCount": 0,
-  "rmsMid_s5_s6": 0.022707659751177,
-  "rmsFinal_lastSecond": 0.00539016071707,
-  "rmsRatio_final_over_mid": 0.237371921539307,
-  "blockMicros_median": 253.540999999999997,
-  "blockMicros_max": 365.375,
-  "blockTime_max_over_median": 1.441088423568575,
+  "rmsMid_s5_s6": 0.05171861499548,
+  "rmsFinal_lastSecond": 0.0,
+  "rmsRatio_final_over_mid": 0.0,
+  "blockMicros_median": 145.375,
+  "blockMicros_max": 264.541999999999973,
+  "blockTime_max_over_median": 1.819721410146174,
   "pass_nan": true,
   "pass_peak": true,
   "pass_blockTime": true,
   "pass_rms": false,
-  "outputWav": "golden/note-sequence.wav",
+  "outputWav": "/tmp/repro/note-sequence.wav",
   "sequence": [
     {
       "midiNote": 28,
@@ -56,13 +56,15 @@
     529200
   ],
   "perSegmentRms": [
-    0.01563186198473,
-    0.017840577289462,
-    0.017393244430423,
-    0.017844190821052,
-    0.006184631492943
+    0.032505638897419,
+    0.046510897576809,
+    0.034600358456373,
+    0.040471609681845,
+    0.03286125138402
   ],
   "pass_allSegmentsAudible": true,
-  "rmsContinuityAtTransitions": 0.605980277061462,
+  "segmentLevelConsistency": 0.939459621906281,
+  "pass_segmentLevelConsistency": true,
+  "rmsContinuityAtTransitions": 0.617143392562866,
   "pass_rmsContinuityAtTransitions": true
 }

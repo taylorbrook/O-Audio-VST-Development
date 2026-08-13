@@ -9,6 +9,12 @@ juce_add_plugin(O-Contrabass
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Contrabass${OUARICON_DEV_SUFFIX}"
 
+    # VERSION is the keyword JUCE actually reads (NOT PLUGIN_VERSION, which JUCE
+    # silently ignores). Without it the bundle Info.plist reports JUCE's 1.0.0
+    # default, so v1.0.0 was correct only by coincidence and any future bump
+    # would never have reached the built artefact.
+    VERSION 1.3.0
+
     # Synthesizer configuration (juce8-critical-patterns #22)
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
