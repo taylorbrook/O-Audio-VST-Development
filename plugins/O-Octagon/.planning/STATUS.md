@@ -6,16 +6,16 @@ stage_phase: 1                             # DECIDED AT THIS BOUNDARY (D1). Stag
 stage_phase_name: machine-gates            # not the "single pass" ROADMAP said: 4.1 = machine
 stage_phase_total: 2                       # (CI, Windows, pluginval/auval, presets, COMPAT-04,
 artifact_suffix: "-4.1"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
-phase: plan
+phase: execute
 status: phase_complete
-last_updated: 2026-08-12
+last_updated: 2026-08-13
 branch: feat/o-octagon
 complexity_tier: 6
 complexity_score: 5.0
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-next_action: execute_stage_4_phase_4_1
+next_action: verify_stage_4_phase_4_1
 stage_4_cycle_structure: "4.1 machine · 4.2 host-and-ear"  # D1. The split is a HARD DEPENDENCY, not
                                            # a preference: 4.2 should run against a binary 4.1 has
                                            # frozen. A single pass plans the human session before
