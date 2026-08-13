@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  O-Octagon Phase 4.2 — CR-b fixture.  PLAN-4.2 P106, D20.
+
+  ═══ WHAT THIS FILE IS FOR ═══════════════════════════════════════════════════════════════════════
+  CR-a bounces through the SHIPPED DEFAULT venue and records which bounce channel carries tone k.
+  On its own that measures Logic's canonical interleaved 7.1 order — and nothing else.  It cannot
+  tell a map that is consulted from a map that is ignored, because under the default venue the map
+  IS the identity (VenueModel.cpp:87-89).
+
+  CR-b bounces the same project through THIS venue.  Every speaker's label moves, so if the map is
+  actually consulted the whole bounce order shifts by one; if it is ignored, the result is
+  indistinguishable from CR-a and the test fails.
+
+  ═══ WHY AN 8-CYCLE AND NOT A SWAP ═══════════════════════════════════════════════════════════════
+  A two-element swap leaves six speakers on the identity, so six of the eight columns would prove
+  nothing — D20's vacuity at one-quarter scale.  This is a DERANGEMENT: every speaker moves.
+
+    speaker   default label (CR-a)   CR-b label   buffer idx   CR-b bounce channel
+      1              L                   R             1               2
+      2              R                   C             2               3
+      3              C                   Lfe           3               4
+      4              Lfe                 Lss           4               5
+      5              Lss                 Rss           5               6
+      6              Rss                 Lrs           6               7
+      7              Lrs                 Rrs           7               8
+      8              Rrs                 L             0               1
+
+  Buffer indices are derived from ASCENDING ENUM-BIT ORDER, not from declaration order
+  (critical_audiochannelset_is_a_bitset_not_an_order; ChannelMap.cpp:105-151 asserts it).
+
+    analyse_bounce.py  with  mode=order  label=CR-b  expect=2,3,4,5,6,7,8,1
+    (spelled with the usual double-dash flags on the command line; XML comments cannot contain a
+    double dash, which is the only reason they are written as key=value here)
+
+  The analyser REFUSES an identity expectation on a CR-b label (P105 clause 2 / N13), so a run
+  against a venue that silently failed to load cannot report a clean CR-a pass.
+
+  ═══ WHY ONLY @index AND @label APPEAR ON EACH SPEAKER ═══════════════════════════════════════════
+  P106 requires this venue be "otherwise identical to the shipped default venue".  Transcribing the
+  eight default positions here would make that identity a TRANSCRIPTION, and a transcription drifts
+  the first time a default moves — silently, while still loading and still passing
+  (pattern_test_fixture_mirrors_drift_silently).
+
+  So the positions, trims and rake are OMITTED.  VenueFile::load reads into a fresh model that has
+  already run resetToDefaults(), and every attribute the file does not carry falls back to that
+  known default (VenueModel.cpp:194-197 and the per-attribute readFloat/readString fallbacks at
+  :216-241).  The identity is therefore BY CONSTRUCTION rather than by copying, and it survives any
+  future change to the default geometry.
+
+  Speakers are located by the @index attribute, not by child position (VenueModel.cpp:219-221), so
+  the eight children below are unambiguous.
+
+  All eight labels are members of create7point1(), so buildSpeakerToBuffer cannot fail
+  `labelNotInSet` on this file — the permutation is a re-assignment WITHIN the set, not a new set.
+  Verify that claim the cheap way before using it: load this file in Standalone and confirm the
+  status line reads mapInvalid == false (PLAN-4.2 Task 5).
+
+  @name is deliberately NOT the default name: it is what tells the operator at a glance that all
+  eight instances actually took the fixture.  The name is not part of the geometry or the map and
+  does not enter any measurement.
+-->
+
+<VENUE name="CR-b permuted (Phase 4.2 fixture - NOT a measured venue)"
+       schemaVersion="1">
+  <SPEAKER index="1" label="R"/>
+  <SPEAKER index="2" label="C"/>
+  <SPEAKER index="3" label="Lfe"/>
+  <SPEAKER index="4" label="Lss"/>
+  <SPEAKER index="5" label="Rss"/>
+  <SPEAKER index="6" label="Lrs"/>
+  <SPEAKER index="7" label="Rrs"/>
+  <SPEAKER index="8" label="L"/>
+</VENUE>
