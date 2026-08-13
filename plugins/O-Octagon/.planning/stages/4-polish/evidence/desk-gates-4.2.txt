@@ -143,10 +143,27 @@ GATE 8 — ci-tests.yml green on the NEW freeze SHA
           octagon-probes-macos  Run render-harness probes   50 probe(s), 0 failure(s)
 
 --------------------------------------------------------------------------------
-GATE 9 — gen_dbap_reference.py --check
+GATE 9 — python3 tests/tools/gen_dbap_reference.py --check --output tests/fixtures/DbapReferenceFixture.h
 --------------------------------------------------------------------------------
   PASS  exit 0 — "--check OK — 102 cases, tests/fixtures/DbapReferenceFixture.h"
   4.2 does not touch the solver, and this is what proves it.
+
+  SPELLING CORRECTED 2026-08-13 at the Block C boundary (VERIFICATION-4.2 Issue 1).
+  This gate was recorded as the bare `gen_dbap_reference.py --check`, which does
+  NOT run: --output is required=True (gen_dbap_reference.py:363), so --check is a
+  modifier on it and never a standalone mode. Run as originally spelled it exits 2
+  with "the following arguments are required: --output". Both forms were re-measured
+  at this boundary before the line was touched:
+      as spelled    -> exit 2, argparse usage error, no cases checked
+      as above      -> exit 0, "--check OK — 102 cases"
+  The PASS above was always TRUE ON SUBSTANCE — the 102 cases were really checked —
+  so this is a spelling defect, not a behaviour defect. The line now carries the
+  invocation that actually produced the recorded output.
+  Second occurrence of this class in two phases (4.1 Issue 1 was Gate 16b's literal
+  matching nothing from the day it was written). Named pattern: a gate command that
+  is TRANSCRIBED rather than pasted from a real run will drift.
+  PLAN-4.2.md:605 is deliberately NOT edited — P109: history is not rewritten to
+  look correct.
 
 --------------------------------------------------------------------------------
 GATE 10 — install + dual-variant sweep
