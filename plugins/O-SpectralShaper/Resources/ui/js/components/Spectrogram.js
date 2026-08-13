@@ -414,10 +414,10 @@ export class Spectrogram {
 
         // TODO: Implement Canvas 2D fallback if needed
         // For now, just display a message
-        this.ctx.fillStyle = '#1A1A1A';
+        this.ctx.fillStyle = '#1C1712';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle = '#E8E0D4';
-        this.ctx.font = '14px Georgia';
+        this.ctx.fillStyle = '#C9B79A';
+        this.ctx.font = "14px Garamond, 'Times New Roman', serif";
         this.ctx.textAlign = 'center';
         this.ctx.fillText('WebGL not supported', this.canvas.width / 2, this.canvas.height / 2);
     }

@@ -37,7 +37,7 @@
                 <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
                 <button class="preset-action-btn" id="preset-load" title="Load preset from file">Load</button>
             </div>
-            <div class="version">v1.3.0</div>
+            <div class="version">v1.4.0</div>
         </div>
 
         <!-- SPECTROGRAM (Main display area) -->
@@ -110,21 +110,6 @@
                 <div class="knob-value" id="sensitivity-value">50%</div>
             </div>
 
-            <!-- Lookahead Enabled Toggle -->
-            <div class="toggle-container">
-                <div class="toggle-switch" id="lookahead-toggle"></div>
-                <div class="toggle-label">Lookahead</div>
-            </div>
-
-            <!-- Lookahead Time Knob (small) -->
-            <div class="knob-wrapper">
-                <div class="knob-container" id="lookahead-time-knob-container" style="width: 40px; height: 40px;">
-                    <div class="knob" id="lookahead-time-knob" style="width: 40px; height: 40px;"></div>
-                </div>
-                <div class="knob-label">LA Time</div>
-                <div class="knob-value" id="lookahead-time-value">2.0ms</div>
-            </div>
-
             <!-- Output Gain Knob -->
             <div class="knob-wrapper">
                 <div class="knob-container" id="output-gain-knob-container">
@@ -132,6 +117,21 @@
                 </div>
                 <div class="knob-label">Output</div>
                 <div class="knob-value" id="output-gain-value">0.0dB</div>
+            </div>
+
+            <!-- Lookahead Time Knob -->
+            <div class="knob-wrapper">
+                <div class="knob-container" id="lookahead-time-knob-container">
+                    <div class="knob" id="lookahead-time-knob"></div>
+                </div>
+                <div class="knob-label">LA Time</div>
+                <div class="knob-value" id="lookahead-time-value">2.0ms</div>
+            </div>
+
+            <!-- Lookahead Enabled Toggle (spans both columns, sits under LA Time) -->
+            <div class="toggle-container">
+                <div class="toggle-switch" id="lookahead-toggle"></div>
+                <div class="toggle-label">Lookahead</div>
             </div>
         </div>
     </div>
