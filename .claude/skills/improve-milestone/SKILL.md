@@ -148,13 +148,13 @@ When `/improve-milestone` is invoked:
 
 ### 2. Check Existing Milestone
 
-Read `registry.json` and check for `activeMilestone` field:
+Read `plugins/[Name]/.planning/STATUS.md` frontmatter and check for `activeMilestone`:
 
 ```javascript
-const plugin = registry.plugins[pluginName];
-if (plugin.activeMilestone) {
+const status = readFrontmatter(`plugins/${pluginName}/.planning/STATUS.md`);
+if (status.activeMilestone) {
   // Resume existing milestone
-  presentResumeMenu(plugin.activeMilestone);
+  presentResumeMenu(status.activeMilestone);
 } else {
   // Start new milestone
   startNewMilestone(pluginName, description);
@@ -179,7 +179,7 @@ Choose (1-4): _
 1. Generate slug from description (e.g., "add chorus effect" → "add-chorus-effect")
 2. Create directory: `plugins/[Name]/.planning/improvements/[slug]/`
 3. Initialize STATUS.yaml
-4. Update registry.json with `activeMilestone`
+4. Set `activeMilestone` in `plugins/[Name]/.planning/STATUS.md` frontmatter
 5. Begin discuss phase
 
 ---
@@ -568,9 +568,9 @@ git commit -m "improve: [PluginName] v[version] - [milestone-slug]"
 git tag -a "v[version]" -m "[PluginName] v[version]: [description]"
 ```
 
-### 4. Registry Cleanup
+### 4. State Cleanup
 
-Remove `activeMilestone` from plugin entry in registry.json.
+Remove `activeMilestone` from `plugins/[Name]/.planning/STATUS.md` frontmatter.
 
 ---
 
@@ -645,7 +645,7 @@ If any phase fails:
 
 **Updates:**
 - `plugins/[Name]/.planning/improvements/[slug]/` (all phase outputs)
-- `.planning/workflow/registry.json` (activeMilestone field)
+- `plugins/[Name]/.planning/STATUS.md` (activeMilestone frontmatter field)
 - `CHANGELOG.md` (version entry)
 - Source files (execute phase)
 

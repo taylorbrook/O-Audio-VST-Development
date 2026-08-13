@@ -37,8 +37,10 @@ Resume the Plugin Freedom System session from where you left off. Restores conte
    @.claude/skills/session-checkpoint/SKILL.md
 
 2. **Load active plugin state**
-   Read `.planning/workflow/active-plugin.json`
-   Identify focused plugin (or use specified plugin name)
+   Read `PLUGINS.md` for the plugin roster and status column, then read
+   `plugins/{plugin}/.planning/STATUS.md` for per-plugin state. STATUS.md is
+   authoritative. Identify the focused plugin via `focused: true` in STATUS.md
+   frontmatter (or use the specified plugin name).
 
 3. **Run state validation**
    @.claude/skills/state-validation/SKILL.md
@@ -243,13 +245,13 @@ Resuming at Stage 2 (DSP), Phase research
 - Remaining: plan, execute, verify
 ```
 
-## Registry Integration
+## State Integration
 
-On resume:
-1. Set plugin as focused in registry
+On resume, write to `plugins/{plugin}/.planning/STATUS.md` frontmatter:
+1. Set `focused: true` (and clear `focused: true` from the previously focused plugin's STATUS.md)
 2. Update `lastActivity` timestamp
-3. Set status to "active" (if was "paused")
-4. Update `.planning/workflow/active-plugin.json`
+3. Set `status: active` (if it was `paused`)
+4. Reflect the status change in that plugin's `PLUGINS.md` row if it changed
 
 ## Related Commands
 

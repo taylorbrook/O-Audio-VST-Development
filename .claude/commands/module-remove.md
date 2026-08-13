@@ -37,15 +37,18 @@ This is a "soft" removal:
 
 ### Step 1: Validate inputs
 
-1. Check plugin exists in `.planning/workflow/registry.json`
-2. Check module is in plugin's `modules` array
+1. Check plugin exists in `PLUGINS.md` (and that `plugins/{plugin}/` is on disk)
+2. Check the plugin appears in that module's `used_by:` list in `modules/registry.yaml`
 3. If validation fails: report error and stop
 
-### Step 2: Update registry.json
+### Step 2: Update modules/registry.yaml
 
-1. **Remove InstalledModule entry** from `plugins.{plugin}.modules` array
-2. **Remove plugin from dependents** in `modules.{module}.dependents` array
-3. **Increment usage stats**: `modules.{module}.usageStats.removeCount += 1`
+The registry stores `used_by` per module, not a `modules` array per plugin.
+
+1. **Remove the `- plugin: {plugin}` entry** from that module's `used_by:` list
+2. **Bump `version` and `last_updated`** at the top of `modules/registry.yaml`
+3. Preferred: run `scripts/regen-registry-used-by.sh`, which regenerates `used_by`
+   from disk truth and bumps the header automatically — then confirm the diff
 
 ### Step 3: Update CMakeLists.txt (optional, ask user)
 
@@ -78,10 +81,9 @@ Step 1: Validating inputs
   [ok] Plugin O-IntonationPad exists in registry
   [ok] Module scala-tuning-engine is installed (v1.0.0)
 
-Step 2: Updating registry.json
-  [ok] Removed InstalledModule entry from plugin
-  [ok] Removed O-IntonationPad from module dependents
-  [ok] Incremented removeCount (now 1)
+Step 2: Updating modules/registry.yaml
+  [ok] Removed O-IntonationPad from scala-tuning-engine used_by
+  [ok] Bumped registry version + last_updated
 
 Step 3: CMakeLists.txt
   [?] What should I do with the ouaricon_add_module() line?

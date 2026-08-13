@@ -43,7 +43,7 @@ When user runs `/improve-milestone [PluginName] [description?]`, execute a 5-pha
 3. Wait for user selection, then proceed
 
 **If plugin name provided:**
-1. Check registry.json for `activeMilestone` field on this plugin
+1. Check `plugins/[Name]/.planning/STATUS.md` frontmatter for an `activeMilestone` field
 2. If active milestone exists → Present resume menu
 3. If no active milestone and no description → Prompt for description
 4. If plugin + description → Start new milestone
@@ -64,7 +64,7 @@ Files created per phase:
 
 ### On Invocation - Determine Current Phase
 
-1. Read registry.json to check for `activeMilestone`
+1. Read `plugins/[Name]/.planning/STATUS.md` frontmatter to check for `activeMilestone`
 2. If found, read `plugins/[Name]/.planning/improvements/[slug]/STATUS.yaml`
 3. Find current phase (first with status: pending or in_progress)
 4. Execute that phase
@@ -158,7 +158,7 @@ HALT if backup fails.
 - Update CHANGELOG.md with version entry
 - Update CMakeLists.txt version
 - Git commit and tag
-- Clear activeMilestone from registry
+- Clear `activeMilestone` from the plugin's STATUS.md frontmatter
 - Present completion menu
 
 **On Issues Found:**
@@ -224,17 +224,16 @@ baseVersion: 1.1.1
 targetVersion: 1.2.0
 ```
 
-## Registry Update
+## Plugin State Update
 
-On milestone start:
-```json
-"O-Bells": {
-  ...existing...,
-  "activeMilestone": "add-chorus-effect"
-}
+State is plugin-local: `plugins/[Name]/.planning/STATUS.md` is authoritative.
+
+On milestone start, in that file's YAML frontmatter:
+```yaml
+activeMilestone: add-chorus-effect
 ```
 
-On milestone complete: set `activeMilestone` to null.
+On milestone complete: remove `activeMilestone` (or set it to null).
 
 ## Reference Documentation
 
