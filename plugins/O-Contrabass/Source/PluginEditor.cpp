@@ -73,6 +73,7 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
     bowPositionRelay     = std::make_unique<juce::WebSliderRelay>("BOW_POSITION");
     rosinRelay           = std::make_unique<juce::WebSliderRelay>("ROSIN");
     bowNoiseRelay        = std::make_unique<juce::WebSliderRelay>("BOW_NOISE");
+    releaseRelay         = std::make_unique<juce::WebSliderRelay>("RELEASE");
     // II · Body
     bodySizeRelay        = std::make_unique<juce::WebSliderRelay>("BODY_SIZE");
     bodyDampingRelay     = std::make_unique<juce::WebSliderRelay>("BODY_DAMPING");
@@ -552,6 +553,7 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
             .withOptionsFrom(*bowPositionRelay)
             .withOptionsFrom(*rosinRelay)
             .withOptionsFrom(*bowNoiseRelay)
+            .withOptionsFrom(*releaseRelay)
             .withOptionsFrom(*bodySizeRelay)
             .withOptionsFrom(*bodyDampingRelay)
             .withOptionsFrom(*bodyMixRelay)
@@ -597,6 +599,8 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
         *apvts.getParameter("ROSIN"), *rosinRelay, nullptr);
     bowNoiseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("BOW_NOISE"), *bowNoiseRelay, nullptr);
+    releaseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("RELEASE"), *releaseRelay, nullptr);
 
     bodySizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("BODY_SIZE"), *bodySizeRelay, nullptr);

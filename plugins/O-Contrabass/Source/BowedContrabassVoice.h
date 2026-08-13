@@ -125,6 +125,33 @@ public:
     float        getVizBowPressure()  const noexcept { return vizBowPressure.load (std::memory_order_relaxed); }
     float        getVizBowBeta()      const noexcept { return vizBowBeta.load (std::memory_order_relaxed); }
 
+    // ------------------------------------------------------------------------
+    // v1.4 — note-on LIVENESS counters (test instrumentation).
+    //
+    // `crossfadeNoteOns` counts note-ons that took the legato string-crossfade
+    // path. It exists because the v1.2 seed carve-out was calibrated against a
+    // probe in which that path NEVER EXECUTED: `needsCrossfade` requires
+    // `activeStringIndex >= 0`, and every note-on in that probe landed on a
+    // fresh voice. The conclusion drawn from it was therefore void.
+    //
+    // Reaching the path is harder than it looks — JUCE's voice-stealing
+    // heuristic hands a recycled voice back the pitch it last played, so a
+    // repeating passage yields `newStringIndex == activeStringIndex` and no
+    // crossfade. It takes filling the voice pool on one string and then leaping
+    // to another. Any probe asserting anything about legato string changes MUST
+    // gate on `crossfadeNoteOns > 0` or it is measuring nothing.
+    //
+    // Relaxed atomics bumped once per note-on from the audio thread; never read
+    // back into the signal path, so goldens are unaffected.
+    // ------------------------------------------------------------------------
+    static juce::uint32 getSeedAppliedCount()   noexcept { return sSeedApplied.load (std::memory_order_relaxed); }
+    static juce::uint32 getCrossfadeNoteOns()   noexcept { return sCrossfadeNoteOns.load (std::memory_order_relaxed); }
+    static void         resetSeedCounters()     noexcept
+    {
+        sSeedApplied.store (0, std::memory_order_relaxed);
+        sCrossfadeNoteOns.store (0, std::memory_order_relaxed);
+    }
+
 private:
     void updateParametersFromAPVTS();
 
@@ -269,4 +296,9 @@ private:
     std::atomic<juce::uint32> vizStartOrdinal { 0 };
     // Shared monotonic note-start ordinal across all voices (viz ordering only).
     static inline std::atomic<juce::uint32> sVizOrdinalCounter { 0 };
+
+    // v1.4 seed liveness counters (see getSeedAppliedCount above). Shared across
+    // voices — a probe asserts on the totals, not per-voice.
+    static inline std::atomic<juce::uint32> sSeedApplied      { 0 };
+    static inline std::atomic<juce::uint32> sCrossfadeNoteOns { 0 };
 };

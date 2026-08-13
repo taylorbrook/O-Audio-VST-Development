@@ -5,12 +5,62 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** pre-release. Stage-2 DSP engine complete through Phase 2.6c; Stage-3 WebView
-editor complete (mockup v1 integrated, 31 bindings, preset bar, full Tuning tab, three
-real-data visualizations). PLUGINS.md still carried a stale `🚧 Stage 0` marker — the
-source is Stage-3.
+**Status:** 📦 Installed — **v1.3.0** (2026-08-13). Stage-2 DSP engine complete through
+Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
+bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
+v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
+change (19/19 goldens byte-identical).
 
 ## Timeline
+
+- **2026-08-13 — v1.4.0 crossfade-seed carve-out removed; 21st golden.**
+  v1.2 skipped `seedFundamental()` on legato string changes, citing a `microtonal-scala`
+  segment reading 230 cents. That branch **never executed in the probe that justified
+  it**: `needsCrossfade` requires `activeStringIndex >= 0` and every note-on there
+  landed on a fresh voice — instrumented, it reports 0 crossfades across 5 note-ons.
+  The 230 cents was also an estimator artifact (autocorrelation on a harmonic string
+  peaks nearly as hard at `2T` as `T`, giving a spurious ≈−1200 ¢; it reproduces in
+  *both* arms of an A/B and vanishes once the search is constrained to ±6 semitones).
+  Measured on a probe that does reach the path: seeding is **+13.2 dB** RMS, **+26.0 dB**
+  at the note's own f0, and *better* in tune (6.7 ¢ → 1.1 ¢ max). Unseeded, a legato
+  string change did not speak — the segment's pitch tracked the ringing outgoing string
+  (49.03 Hz measured for a note played at 98 Hz). All 20 prior goldens byte-identical,
+  because none of them ever reached the branch.
+  ⚠️ Reaching `needsCrossfade` is not just "play fast": JUCE's voice-stealing heuristic
+  hands a recycled voice back the pitch it last played, so a repeating passage always
+  gives `newStringIndex == activeStringIndex`. Fill the 4-voice pool on ONE string, then
+  leap to another. Any future claim about legato string changes must gate on the
+  `crossfade_note_ons` liveness counter or it is measuring nothing.
+  **Not yet checked in Logic or Dorico.**
+- **2026-08-13 — v1.3.0 voice release + stealing; new `RELEASE` param (32 params).**
+  The plugin went silent after four note-ons and stayed silent for minutes. Two causes:
+  `MPESynthesiser` defaults voice stealing OFF, so `findFreeVoice` returned `nullptr`
+  and the note-on was **silently discarded**; and a voice was only freed once every
+  string fell under a −140 dBFS floor, which a 0.997 loop gain (~0.2 dB/s) never reached
+  — measured still ringing at −68.5 dBFS 180 s after note-off. Fixed with
+  `setVoiceStealingEnabled(true)` + `WaveguideString::startRelease()` (loop-gain damping
+  to a pitch-independent T60). Sustain audio bit-identical: on `string-A` the first
+  differing sample is 2646002 with note-off at 2646000. 20/20 goldens byte-identical
+  (19 re-baselined + new `voice-recycling`), auval SUCCEEDED, pluginval-10 SUCCESS ×3.
+  **Not yet checked in Logic or Dorico.**
+- **2026-08-13 — v1.2.0 note-on string seed (first audio change since 1.0.0).**
+  `trigger()` zeroed the rails and seeded nothing, so loudness tracked key hold-time
+  rather than playing: a 0.35 s phrase peaked at −36.4 dBFS. `seedFundamental()` lays
+  one velocity-scaled period of f0 across the round trip at note-on (`kSeedGain=1.5`).
+  Phrase level +17.7 dB, hold-spread 17.6 → 3.1 dB, matrix stability 66 → 88/108.
+  ⚠️ Rails must be pushed AND popped in lockstep — `DelayLine::pushSample()` advances
+  only the write pointer, so bare pushes add N samples to the delay and detune the
+  string by semitones. Also removed wall-clock `pass_blockTime` from the stability
+  matrix verdict (it made passCount vary 97/102/98 across identical runs) and fixed
+  `pass_rms` comparing sustain against the release tail. All 19 goldens re-baselined.
+  See CHANGELOG [1.2.0], including the known microtonal segment-5 probe defect.
+
+- **2026-08-12 — v1.1.0 measurement correction.**
+  Closed DSP-07/08/09. DSP-09 (vibrato) and DSP-08 (breathing) were harness bugs; DSP-07's
+  acceptance bar was unreachable at the output and re-specified to `subharmPeakOverFloor`.
+  No DSP coefficient changed — all 19 render goldens byte-identical. Also added the missing
+  `VERSION` keyword to `juce_add_plugin` (the bundle had been reporting JUCE's 1.0.0
+  default regardless of the declared version). See CHANGELOG [1.1.0].
 
 - **2026-07-10/11 — Stage 3 GUI (WebView editor).**
   Integrated finalized mockup v1 (1000×650 fixed): 31 relay/attachment bindings,
@@ -37,6 +87,19 @@ source is Stage-3.
   legacy MPE, defer zone layout to Stage 3.
 
 ## Known Limitations
+
+- **A tracked `.json.sha256` is written but never verified, and encodes wall-clock.**
+  `reproduce-goldens.sh` checks only `<name>.wav.sha256`; the four tracked
+  `<name>.json.sha256` files (microtonal-12tet / -scala / -mpe, vibrato) are rewritten
+  on every `--regenerate` and compared by nothing. They could not be a gate as they
+  stand: the JSON carries `blockMicros_median` / `blockTime_max_over_median`, which are
+  wall-clock and differ run to run on the same binary. Either drop them or strip the
+  timing fields before checksumming — do not "fix" it by starting to verify them.
+
+- **Two stale AU variants remain installed:** `O-Contrabass-pre-2-5-dev.component` and
+  `O-Contrabass-pre-port.component`. They carry distinct names so they do not shadow the
+  shipped bundle in the AU registry (unlike the dev↔release pair the build script
+  sweeps), but they are dead weight in Logic's plugin list. Safe to delete.
 
 - **STRING_TENSION is known-inert in v1.0 (D2, user-confirmed 2026-07-10).** The knob
   is visible, bound, and its state round-trips (host automation / presets / session),
@@ -109,11 +172,33 @@ until actually wired. **Do not "fix" these during a v1.0.x patch without re-base
 - **AnaMark `.tun` parser absent** — Scala picker is `.scl`-only; TUN import is a
   v1.1 shared-module upgrade. `TUNING_SYSTEM` choice map frozen (0=Scala, 1=MTS-ESP,
   2=12-TET).
-- **DSP-07 sub-harmonic audible depth** — engagement collapses post-tanh-port/post-body;
-  v1.1 retune (kForceBoost / bias-amplitude / injection-point). Wire-up stable,
-  default-state bit-exact.
-- **DSP-08 slow-LFO breathing** — 15.7% vs 20% target; v1.1 metric/gain tune.
-- **DSP-09 vibrato depth** — peakDepthCents ~7.95¢ vs the 10–14¢ band; v1.1 transfer tune.
+- ~~**DSP-07 sub-harmonic audible depth**~~ — **RESOLVED v1.1 (2026-08-12), acceptance
+  re-specified; no DSP change.** The old bar `subharmEnergyRatio ≥ 0.40` is not
+  reachable at the output and was never a retune problem: 0.40/0.358/0.241 were
+  measured **pre-port/pre-body**, but the gate evaluates **post-body**, behind a
+  resonator whose lowest mode is 60 Hz plus a 35 Hz one-pole HP (~13 dB of
+  attenuation at 20.60 Hz vs 41.20 Hz). Sweeps put the reachable maximum at ~2e-04.
+  **The two remedies this entry used to prescribe are dead knobs:** `kForceBoost`
+  0.8→12.0 is bit-identical (the Schelleng ceiling pins `F_bow`) and `kV0Reduction`
+  0.5→0.95 is bit-identical (`kV0Floor` clamp binds). `kFmaxScalar` is live but
+  saturates at 1.99e-04. Acceptance is now `subharmPeakOverFloor ≥ 2.5`
+  (1.888 disengaged → 3.019 engaged). Shipped `kGapWiden=0.25` is already optimal on
+  that metric. Remaining option if a genuinely audible sub-octave is ever wanted:
+  **post-body injection** (a topology change — a synthesised sub rather than emergent
+  period-doubling — not a retune).
+- ~~**DSP-08 slow-LFO breathing**~~ — **RESOLVED v1.1 (2026-08-12), harness bug.**
+  The "15.7% vs 20%" symptom **does not reproduce**. `rmsByDecadePeakToPeakPct`
+  buckets a 60 s sustain into 6 s decades against a 3.33 s LFO period, averaging ~1.8
+  cycles per bucket, so it measured the drone's monotonic build-up rather than the LFO.
+  Replaced by `lfoBreathingDepthPct` (⅛-period windows, per-period `(max−min)/max`,
+  median across periods): **real breathing is 0.4524**, already past the 20% target.
+- ~~**DSP-09 vibrato depth**~~ — **RESOLVED v1.1 (2026-08-12), harness bug — the DSP was
+  always correct.** ⚠️ This entry previously prescribed tuning the
+  VIBRATO_DEPTH→peakDepthCents transfer; **doing so would have driven real vibrato to
+  ~19.4¢ to satisfy a broken meter.** `kVibFactorScale = −ln(2)/1200` is exact. The
+  meter's `kAcWindowSize=4096` spanned 117 ms of a 200 ms vibrato cycle; sweeping only
+  that constant gives 4096→7.42¢, 2048→10.70¢, 1024→11.18¢, converging on the true 12¢.
+  Fixed to 1024 plus a cycle-derived per-cycle stride and peak window.
 - **FUNC-07 MTS-ESP** — present-but-stub (returns 12-TET); v1.1 SDK linkage. Scala/TUN
   *import* itself is complete.
 - **Dorico CC11 sustained-dynamics listener** — the Dorico bundle ships `kNoteVelocity`
@@ -124,14 +209,33 @@ until actually wired. **Do not "fix" these during a v1.0.x patch without re-base
 ## Regression harness
 
 - Offline render harness is the Stage-2 correctness gate:
-  `tests/render-harness/reproduce-goldens.sh` (19 goldens, sha256 truth-bar).
+  `tests/render-harness/reproduce-goldens.sh` (**20** goldens, sha256 truth-bar).
   Build with `-DOUARICON_BUILD_TESTS=ON`; the target is `O-Contrabass-render-test`.
+- ⚠️ **An absolute audibility floor cannot detect a dropped note.** `pass_allSegmentsAudible`
+  (segment RMS > 1e-3) returned `true` all through v1.2.0 while note-ons 5–8 of an
+  8-note sequence were being discarded, because the four voices still ringing held every
+  segment above the floor. v1.3 added `pass_segmentLevelConsistency` (min/median ≥ 0.50),
+  which scores that render 0.2748 instead. **The scenario matters as much as the gate:**
+  the 5-note `note-sequence` golden plays one note per string, so only its last note-on
+  was dropped and the ringing voices masked it (0.671 — a pass). The `voice-recycling`
+  golden (8× the same note) is the probe that actually exercises voice reuse; keep both.
 - Acceptance criteria beyond byte-identity live in the per-mode JSON (`pass_nan`,
   `pass_peak`, `pass_blockTime`, `pass_rms*`, vibrato rate/depth ranges, stability
-  matrices). Note: several modes (stiffness-zero-pre, macro-sweep, slow-lfo,
-  sub-harmonics, output-chain) carry **pre-existing** acceptance-criteria FAILs that
-  predate the code-review resolution — these are level/shape-tolerance gaps, not
-  stability failures, and were unchanged by this pass.
+  matrices). As of **v1.1**, `vibrato`, `slow-lfo` and `sub-harmonics` all PASS —
+  their v1.0 FAILs were measurement defects, not DSP defects (see the resolved
+  DSP-07/08/09 entries above). Remaining acceptance FAILs (stiffness-zero-pre,
+  macro-sweep, detune-sweep-A, output-chain, string-*) are **pre-existing**
+  level/shape-tolerance gaps, not stability failures, and were unchanged by this pass.
+- ⚠️ **`pass_blockTime` is wall-clock and non-deterministic.** It gates
+  `blockTime_max_over_median ≤ 5.0`; a single scheduler hiccup on a loaded machine
+  spikes it (observed: vibrato 3.35 idle vs >5 under concurrent compilation). Re-run
+  on a quiet machine before treating a `pass_blockTime` FAIL as a regression. Several
+  modes zero these fields in the committed JSON precisely for sha256 stability.
+- ⚠️ **Metric windows must be checked against the thing being measured.** Every v1.1
+  defect was a window/stride sized wrongly relative to a modulation period or a render
+  length, and each one passed review for a full release cycle while reporting a
+  confident wrong number. When a metric disagrees with the design intent, sweep the
+  metric's own constants before changing DSP to satisfy it.
 
 ## Build / validate
 

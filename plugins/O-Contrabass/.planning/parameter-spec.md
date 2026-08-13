@@ -62,6 +62,7 @@ Source: extracted from `BRIEF.md` (2026-04-25). Refine into full `parameter-spec
 |----|------|------|-------|---------|------|-------------|
 | INFINITE_SUSTAIN | Infinite Sustain | Float | 0.0 - 1.0 | 0.0 | - | Reduces damping toward zero — endless resonance. Loop gain capped at 0.99995 for stability. |
 | SUB_HARMONICS | Sub-Harmonics | Float | 0.0 - 1.0 | 0.0 | - | Friction-junction operating-point bias toward period-doubling regime — musical bass extension. |
+| RELEASE | Release | Float | 0.05 - 20.0 (skew 0.35) | 2.0 | s | v1.3. T60 of the string after note-off, pitch-independent. INFINITE_SUSTAIN governs decay while the bow is down; RELEASE governs it once the bow lifts. Also what frees the voice slot — see Design Notes. |
 
 ### Output
 
@@ -103,18 +104,30 @@ Source: extracted from `BRIEF.md` (2026-04-25). Refine into full `parameter-spec
 - Per-String Detune: 4
 - Expression: 6
 - Drone Features: 2
+- Release (v1.3): 1
 - Output: 1
 - Output Chain (Phase 2.6a): 2
 - Microtonal: 3
-- **Total: 31**
+- **Total: 32**
 
 ## Design Notes
 
 - **4 voices** (`kNumVoices = 4`, `PluginProcessor.h`) — one per E/A/D/G string, so
   double-stop drones (the core use case for `ACTIVE_STRINGS`, the four `DETUNE_*`
-  params, and `INFINITE_SUSTAIN`) and MPE per-note tuning don't steal each other.
+  params, and `INFINITE_SUSTAIN`) and MPE per-note tuning have a slot each.
   (This supersedes the original "monophonic" brief note — `MPESynthesiser` allocates
   a voice per note-on; idle voices no-op.)
+- **Voice stealing is ENABLED** (`setVoiceStealingEnabled(true)`, v1.3). It is not an
+  optimisation — `MPESynthesiser` defaults it to `false`, and with it false
+  `findFreeVoice` returns `nullptr` once all four voices are busy and the note-on is
+  silently discarded with no fallback. Do not remove it to "protect" drone voices:
+  a stolen voice is recoverable, a dropped note-on is not.
+- **A voice is freed by RELEASE, not by the bow.** `renderNextBlock` clears the slot
+  only when the bow is inactive AND all four strings are under the 1e-7 energy floor.
+  The bow lifting removes the energy source but not the loop gain, so before v1.3 a
+  released string decayed at ~0.2 dB/s — measured still ringing at -68.5 dBFS 180 s
+  after note-off. Four note-ons then killed the instrument. Any future change to the
+  release path must keep a bounded, pitch-independent time-to-free.
 - **Sustained-first articulation:** bow held while MIDI note held, release tail on note-off. CC11 controls dynamic shape over the held note.
 - **Bass-tuned defaults** throughout: slower bow speed (0.15 vs violin's ~0.3), higher pressure (1.0 N vs ~0.5), more rosin grip (0.65), heavier bow noise (0.35), beta closer to bridge (0.10).
 - **Drone defaults to off:** Infinite Sustain and Sub-Harmonics start at 0.0; preset banks engage them.
@@ -137,3 +150,4 @@ Extracted from `BRIEF.md` on 2026-04-26 to unblock Stage 0 planning. Will be sup
 
 - Phase 2.3 R28 (2026-04-29): VIBRATO_DEPTH default flipped 12.0 → 0.0 (HR-1 short-circuit; Phase 2.2 strict byte-equal regression bar). EXPRESSION_MACRO default flipped 0.50 → 0.0 (Q7a). Sha bump deferred (informally tracked in this section); next sha-bump at Phase 2.6a R39d.
 - Phase 2.6a R39d (2026-05-XX): NEW MASTER_SAT_AMOUNT + LIMITER_CEILING_DB per CONTEXT rev-11 §"Phase 2.6a — Output chain" + Q4 LOCKED limiter ceiling. Total parameter count 29 → 31.
+- v1.3.0 (2026-08-13): NEW RELEASE (0.05–20 s, skew 0.35, default 2.0 s). Total parameter count 31 → 32. Default is deliberately NOT a no-op: before v1.3 note-off left the loop gain untouched, so the released string decayed at ~0.2 dB/s and held its voice slot for minutes. Sessions and presets saved before v1.3 adopt 2.0 s on load.
