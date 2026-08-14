@@ -609,13 +609,102 @@ GATE 20 — CS, LFE               ** BOUNCE PATH: PASS.  LOOPBACK: OPERATOR-ACCE
 
   D16 NOT INVOKED. No bass-management signature was found on either path, so
   there is nothing to dispose of and no re-freeze is triggered.
-GATE 21 — NC4, airAmount confound control                               NOT RUN
+--------------------------------------------------------------------------------
+GATE 21 — NC4, airAmount confound control                               ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. THREE takes were needed and the first two are recorded here
+  because each one measured something the runbook did not know.
+
+  *** THE RUNBOOK'S NC4 IS VACUOUS AS SPELLED. *** It says only "set airAmount
+  non-zero on one of the two sources and re-measure". The air filter needs TWO
+  conditions, not one — GainStage.cpp:240 reads
+
+      airActiveL = p[params::airAmount] > 0.0f && dHullL > 0.0f;
+
+  and dHull is non-zero ONLY when the source's floor point lies OUTSIDE the hull
+  polygon (GainStage.cpp:54-66). The CS rig the same runbook mandates puts both
+  sources at the default srcX/srcY 0.500/0.500 -> (6.50, 12.00 m), dead centre,
+  so dHull = 0 and fc = 20000 * 2^(-airAmount * 0 / 3) = 20000 Hz at EVERY
+  airAmount. The control cannot fire. A missing precondition, not an operator
+  error.
+
+  srcZ DOES NOT HELP: GainStage.cpp:68-70 states the hull is 2D on the floor and
+  a source at +8 m is still inside it — designed behaviour, explicitly "not a
+  bug to fix".
+
+  TAKE 1 (cs-AIR.wav) — airAmount raised on the speaker-4 instance, both sources
+  still at centre. RESULT: delta 0.00 dB on all ten partials. VERIFIED as
+  genuinely inert rather than mis-measured — all eight channels are BYTE-
+  IDENTICAL to cs-bounce.wav (the sha256 differs in header bytes only). Correct
+  behaviour, vacuous control.
+
+  TAKE 2 (AIRV2.wav) — position moved on the REFERENCE instance only, so the two
+  sources were no longer co-located. RESULT: a FLAT 2.14 dB delta, spread 0.00,
+  on ch1 alone (ch4 -30.41, ch1 -32.55). That is not an air filter — it is pure
+  hull attenuation, hullAtten 1.00 dB/m x dHull. The analyser's own row-4
+  advisory named the cause correctly ("check ... that they are co-located").
+  RECORDED BECAUSE IT IS A MEASUREMENT: 2.14 dB at 1.00 dB/m gives dHull =
+  2.14 m, which independently confirms the 2.138 m computed from the venue table
+  for srcX/srcY = 0.00/1.00. The geometry was thus verified by the plugin itself
+  before it was relied on.
+
+  TAKE 3 (cs-nc4.wav) — BOTH sources at srcX 0.00 / srcY 1.00 -> (0.50, 19.50 m),
+  co-located, dHull 2.138 m each so the hull trim cancels; airAmount = 1.00 on
+  the speaker-4 instance only.
+  ARTIFACT: ~/Dev/octagon-4.2-session/cs-nc4.wav
+            sha256 af3335089edec7229d279df017f79c639f7f51f63df842d27d34b4e7aa3619eb
+
+    partial Hz   ch4 dBFS   ch1 dBFS   delta dB     TPT model   err
+           31     -32.55     -32.55      -0.00         -0.00    0.00
+           63     -32.55     -32.55      -0.00         -0.00    0.00
+          125     -32.55     -32.55      -0.00         -0.00    0.00
+          250     -32.55     -32.55      -0.00         -0.00    0.00
+          500     -32.55     -32.55      -0.00         -0.00    0.00
+         1000     -32.57     -32.55      -0.02         -0.02    0.00
+         2000     -32.62     -32.55      -0.07         -0.07    0.00
+         4000     -32.83     -32.55      -0.29         -0.29    0.00
+         8000     -33.74     -32.55      -1.19         -1.19    0.00
+        16000     -38.40     -32.55      -5.85         -5.85    0.00
+
+    LF mean -0.00 dB · HF mean -1.48 dB · spread 5.85 dB
+
+  PASS. A per-band HF delta appeared and it is NOT bass management: the bottom
+  five partials are untouched to two decimal places and the roll-off is
+  monotonic above 1 kHz. Bass management moves the LOW end; this moves only the
+  top.
+
+  THE MODEL COLUMN IS NOT A CURVE-FIT. fc was derived FORWARD from the venue
+  geometry — dHull 2.138 m, airAmount 1.00, fc = 20000 * 2^(-2.138/3) =
+  12203.8 Hz — and evaluated through juce::dsp::FirstOrderTPTFilter's actual
+  response, g = tan(pi*fc/fs), G = g/(1+g), H(z) = G(1+z^-1)/(1+(2G-1)z^-1).
+  All ten partials match to 0.00 dB INCLUDING 16 kHz, where a first-order analog
+  approximation predicts -4.34 dB and is wrong by 1.5 dB. The bilinear
+  prewarping is what makes the digital filter steeper near Nyquist, and the
+  measurement lands on the digital answer, not the analog one.
+
+  WHY THIS GATE MATTERED MORE THAN THE RUNBOOK ANTICIPATED. It is framed there
+  purely as a confound control gating a D16 disposition, and since no bass-
+  management signature was found, that framing makes it look moot. It is not:
+  Gate 20's bounce result is a NULL (delta 0.00, channels byte-identical), and a
+  null is only as good as the proof the apparatus could have detected something.
+  NC4 IS THAT PROOF. Without it, Gate 20's pass would be indistinguishable from
+  a measurement chain that reports 0.00 regardless of input.
+
+  *** FINDING — THE MANIFEST CAN HOLD ONLY ONE lfe RUN, AND THE SECOND SILENTLY
+  DESTROYS THE FIRST. *** --emit-json dedupes on (label, mode)
+  (analyse_bounce.py:963-965), and --label accepts ONLY CR-a or CR-b (:909), so
+  every lfe run is stored under label='lfe'. Emitting NC4 would therefore have
+  REPLACED Gate 20's CS entry — the machine-recorded half of that gate — with no
+  warning and no diagnostic. Caught before it happened; NC4 is deliberately NOT
+  emitted and its figures are recorded above with the WAV staged and checksummed
+  instead. Same family as the ping-mode and N13 findings: a tool constant that
+  the phase's actual usage has outgrown. Carried to the Block C close.
 GATE 22 — CU, the audible clause (headphones must be NAMED)             NOT RUN
 GATE 23 — interactive drive + throttling-recovery relabelling           NOT RUN
 GATE 24 — User/ presets byte-identical after the session                NOT RUN
 GATE 25 — analyse_bounce.py --check on committed artifacts              NOT RUN
 
-  NOTHING IN THE SIX ROWS DIRECTLY ABOVE (gates 20-25) IS CLAIMED. No result
+  NOTHING IN THE FOUR ROWS DIRECTLY ABOVE (gates 22-25) IS CLAIMED. No result
   from any of them is asserted, implied, or inherited anywhere in this file.
   Gates 17, 18 and 19 WERE run on 2026-08-14 and are recorded in full above;
   this sentence was amended from "NINE ROWS (gates 17-25)" at that point, and
