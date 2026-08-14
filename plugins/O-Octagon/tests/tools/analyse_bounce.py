@@ -781,11 +781,26 @@ MODES = {"probe": mode_probe, "order": mode_order, "lfe": mode_lfe, "ping": mode
 # ═══ Clause 6: --check ══════════════════════════════════════════════════════════════════════════
 
 
-def run_check(manifest_path):
+def run_check(manifest_path, session_root=None):
     """Re-run the committed expectation table against the committed artifacts.
 
-    The manifest records each invocation AND its result. --check re-derives both. Paths are
-    resolved relative to the manifest, so the pair travels together.
+    The manifest records each invocation AND its result. --check re-derives both.
+
+    Where the artifacts are read from, in priority order:
+
+      1. --session-root, for a second person who has the WAVs at a different path;
+      2. the run's own recorded `input_dir` — where --emit-json actually read it from;
+      3. the manifest's directory (legacy runs, and the self-test's fixtures).
+
+    Rule 2 exists because this phase's bounces are deliberately kept OUTSIDE the repo
+    (the gitignore rule does not cover stages/4-polish/evidence/, so a WAV dropped next
+    to the manifest would be committed). Resolving manifest-relative therefore looked for
+    every artifact in the one directory it is forbidden to be in, and --check could not
+    pass by construction. Recording the directory keeps the pair travelling together
+    without moving audio into the repo.
+
+    This changes only WHERE a file is looked for. Every assertion still re-runs in full,
+    and a missing artifact is still a failure.
     """
     if not os.path.exists(manifest_path):
         die("--check: %s does not exist. The committed expectation table is missing."
@@ -802,10 +817,12 @@ def run_check(manifest_path):
         die("--check: %s records zero runs. Nothing analysed is not a pass (clause 5)."
             % manifest_path)
 
-    base = os.path.dirname(os.path.abspath(manifest_path))
+    manifest_base = os.path.dirname(os.path.abspath(manifest_path))
     failures = []
     print("── check ─────────────────────────────────────────────────────────────────")
     print("  manifest: %s" % manifest_path)
+    if session_root:
+        print("  root    : %s (--session-root override)" % session_root)
     if manifest.get("freeze_sha"):
         print("  freeze  : %s" % manifest["freeze_sha"])
     print("  runs    : %d" % len(runs))
@@ -818,6 +835,7 @@ def run_check(manifest_path):
             failures.append("run %d (%s): unknown mode %r" % (index + 1, label, mode))
             continue
 
+        base = session_root or run.get("input_dir") or manifest_base
         paths = [os.path.normpath(os.path.join(base, p)) for p in run.get("input", [])]
         args = argparse.Namespace(
             mode=mode, input=paths,
@@ -884,6 +902,10 @@ def main():
                         help="lfe mode: two 1-based channels, e.g. 4,1")
     parser.add_argument("--check", nargs="?", const=DEFAULT_MANIFEST, metavar="MANIFEST",
                         help="re-run the committed expectation table (clause 6)")
+    parser.add_argument("--session-root", metavar="DIR",
+                        help="--check: read every recorded artifact from DIR instead of the "
+                             "directory it was recorded from. For a second person re-deriving "
+                             "the table with the WAVs at a different path")
     parser.add_argument("--emit-json", metavar="PATH",
                         help="append this run to a --check manifest, so the recorded figures are "
                              "MEASURED rather than transcribed")
@@ -900,7 +922,7 @@ def main():
     args = parser.parse_args()
 
     if args.check:
-        sys.exit(run_check(args.check))
+        sys.exit(run_check(args.check, args.session_root))
 
     if not args.mode:
         die("--mode is required (one of %s), or use --check." % ", ".join(sorted(MODES)))
@@ -911,8 +933,17 @@ def main():
     result = MODES[args.mode](data, args)
 
     if args.emit_json:
+        # Record WHERE the artifacts were read from. Without it --check resolves
+        # manifest-relative, and this phase's WAVs are deliberately kept outside the
+        # repo — so every recorded run would point at a path that cannot exist.
+        input_dirs = {os.path.dirname(os.path.abspath(p)) for p in args.input}
+        if len(input_dirs) > 1:
+            die("--emit-json: this run's inputs span %d directories (%s). A run records ONE "
+                "input_dir, so --check could not re-derive it. Stage the inputs together."
+                % (len(input_dirs), ", ".join(sorted(input_dirs))))
         entry = {"label": args.label or args.mode, "mode": args.mode,
-                 "input": [os.path.basename(p) for p in args.input], "result": result}
+                 "input": [os.path.basename(p) for p in args.input],
+                 "input_dir": input_dirs.pop(), "result": result}
         for key, value in (("expect", args.expect), ("tones", args.tones),
                            ("partials", args.partials), ("channels", args.channels)):
             if value:

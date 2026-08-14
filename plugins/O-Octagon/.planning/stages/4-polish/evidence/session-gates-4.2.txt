@@ -342,5 +342,91 @@ GATE 23 — interactive drive + throttling-recovery relabelling           NOT RU
 GATE 24 — User/ presets byte-identical after the session                NOT RUN
 GATE 25 — analyse_bounce.py --check on committed artifacts              NOT RUN
 
-  NOTHING ABOVE IS CLAIMED. COMPAT-02 remains 0 of 3; the ledger stands at
-  29 complete / 0 partial / 1 pending of 30, unmoved by this session so far.
+  NOTHING IN THE NINE ROWS DIRECTLY ABOVE (gates 17-25) IS CLAIMED. No result
+  from any of them is asserted, implied, or inherited anywhere in this file.
+
+  LEDGER AS IT ACTUALLY STANDS: 30 complete / 0 partial / 0 pending of 30.
+  COMPAT-02 is CLOSED 3 of 3 by gates 14, 15 and 16 recorded above.
+
+  CORRECTION, 2026-08-14, recorded rather than silently overwritten. Until now
+  these two lines read:
+
+      "NOTHING ABOVE IS CLAIMED. COMPAT-02 remains 0 of 3; the ledger stands at
+       29 complete / 0 partial / 1 pending of 30, unmoved by this session so far."
+
+  That was true when it was written — before gates 12-16 ran — and was left
+  unamended when they did. As it stood, "NOTHING ABOVE" read over the WHOLE file
+  including the three criteria closed at lines 168, 204 and 307, and the ledger
+  sentence flatly contradicted the committed ledger (commit 1628d433, 30/0/0).
+
+  WHY IT MATTERED MORE THAN A STALE LINE: a verify boundary reading this file
+  would have found its evidence contradicting itself, and the safe reading of a
+  contradiction — trust the pessimistic line — would have REOPENED a correctly
+  closed row and re-run four host gates to do it. This is
+  pattern_evidence_line_orphaned_past_next_heading: a summary written for one
+  scope that ends up reading over another.
+
+  P109 is not in tension here. It protects recorded gate SPELLINGS and past
+  RESULTS from being rewritten to look correct; nothing above was touched. This
+  was a live state summary that went stale, and the original is preserved above.
+
+  QUAL-01 criterion 2's audible clause remains UNCONCLUDED and rides gate 22.
+  THE PHASE IS NOT COMPLETE. Do NOT run /install-plugin.
+
+════════════════════════════════════════════════════════════════════════════
+DESK BOUNDARY 2026-08-14 — Block C part 2 prep. NOT A GATE RESULT.
+════════════════════════════════════════════════════════════════════════════
+
+  Nothing here claims a gate. Gates 17-25 remain NOT RUN. This records desk-side
+  work done between session parts, because two defects were found that would
+  have corrupted the session had it started against them.
+
+  FREEZE RE-CONFIRMED AT THIS BOUNDARY (measured, not inherited):
+    git status                       clean
+    Source/ moved since 378fb4cd     NO  (git diff --name-only, empty)
+    installed VST3 vs freeze         928cd447…97e0bb42  EXACT MATCH
+    installed AU   vs freeze         cc54db02…6fe1fc99  EXACT MATCH
+    variants on disk                 -dev only; no alternate to shadow the AU slot
+    Gate 24 hash, re-measured        e3b0c442…7852b855 (empty-tree; User/ absent)
+    cr-b-permuted.venue fixture      present
+
+  DEFECT 1 — GATE 25 WAS UNPASSABLE BY CONSTRUCTION. Fixed. --emit-json recorded
+  inputs as bare basenames and --check resolved them relative to the MANIFEST,
+  i.e. inside the repo — while this phase's runbook mandates every WAV live
+  OUTSIDE the repo, because the gitignore rule does not cover the
+  stages/4-polish/evidence/ path. Mutually exclusive. Proven, not inferred: the
+  bare --check exited 1 on the single already-recorded run.
+
+  Fixed BEFORE the session deliberately. Had it been left to Gate 25, all eight
+  session runs would have baked in unresolvable paths and the repair would have
+  been eight hand-edited entries — the transcribed-not-measured failure mode
+  --emit-json exists to prevent, and the same weakness already conceded for CT.
+
+  Runs now record input_dir; --check resolves against it; --session-root DIR
+  overrides it for a second person. Manifest-relative remains the fallback.
+  ONLY path resolution changed. NO ASSERTION WAS TOUCHED OR LOOSENED — and that
+  distinction is the one the CT entry above insisted on, so it is held to here.
+
+    selftest_analyse_bounce.py                     OK, 24 cases, all clauses fire
+    Gate 12 probe RE-DERIVED (measured, not edited) 8ch/48000/24-bit/19.500 s, exact
+    bare --check                                   exit 0, 1 run re-derived
+    NC: --check --session-root /tmp/nonexistent    exit 1  <- still fails on a
+                                                      missing artifact, so the
+                                                      gate is not vacuous
+
+  DEFECT 2 — THIS FILE CONTRADICTED ITSELF. Fixed above, original preserved. The
+  closing summary still asserted COMPAT-02 0 of 3 and a 29/0/1 ledger, written
+  before gates 12-16 ran and left unamended when they did. A verify boundary
+  taking the pessimistic side of that contradiction would have reopened a
+  correctly closed row and re-run four host gates to do it.
+
+  CARRIED INTO THE SESSION — GATE 20's SPELLING IS CORRECTED IN THE RUNBOOK.
+  PLAN-4.2's `--channels 4,1` measures Rrs against L in a device-order capture
+  and would report a CONFIDENT WRONG ANSWER. Loopback path is determined by CT:
+  LFE = dev 6, reference = dev 1, so `--channels 6,1`. The BOUNCE path must be
+  re-derived from CR-a's measured result and is left as a placeholder in the
+  runbook on purpose. PLAN-4.2.md is NOT edited (P109).
+
+  STILL OWED, NOT DISCHARGED HERE: Gate 23's throttling-recovery relabelling.
+  It requires the interactive drive to have happened; writing the sentence now
+  would assert an unrun gate. It stays owed rather than being quietly absorbed.

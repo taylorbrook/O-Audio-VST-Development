@@ -4,6 +4,7 @@
       "input": [
         "q2-probe.wav"
       ],
+      "input_dir": "/Users/taylorbrook/Dev/octagon-4.2-session",
       "label": "probe",
       "mode": "probe",
       "result": {
