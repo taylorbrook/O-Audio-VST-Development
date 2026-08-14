@@ -4,9 +4,9 @@
 version: 1.0.0
 plugin: O-Octagon
 created: 2026-08-10
-lastUpdated: 2026-08-13
-lastVerified: "stage-4 phase 4.2 desk blocks A+B (host-and-ear) — VERDICT PARTIAL. 29 of 30 complete, 0 partial, 1 pending. THE LEDGER DID NOT MOVE IN 4.2 — all 11 desk gates re-ran from scratch at verify and all passed, but Block C (the Logic session, gates 12-25) has NOT run and nothing from it is claimed."
-openRows: "COMPAT-02 (pending, 0 of 3) — stage-4 phase 4.2 BLOCK C; the ONLY open row. All three criteria need Logic Pro 12.3 + BlackHole 64ch + a human ear. QUAL-01 criterion 2's audible clause is also unconcluded and rides the same session."
+lastUpdated: 2026-08-14
+lastVerified: "stage-4 phase 4.2 BLOCK C, PART 1 (gates 12-16 of 25) — EXECUTE, NOT VERIFY. 30 of 30 complete, 0 partial, 0 pending. COMPAT-02 CLOSED 3 of 3 this session: criterion 1 by Gate 14 (7.1 negotiated AND surviving save/quit/reopen), criterion 3 by Gate 15 (all 11 lanes written and read back), criterion 2 by probe CT / Gate 16 (8 distinct channels, one per window, minimum isolation 219.9 dB vs a 40 dB floor). These figures have NOT yet been re-run from scratch at a verify boundary — that is owed before the row is treated as settled."
+openRows: "NONE. COMPAT-02 closed 2026-08-14 at stage-4 phase 4.2 Block C. TWO RESIDUALS STAND, both owner: none and neither reopening a row — (1) D11: criterion 2 closed against the CoreAudio device boundary (BlackHole 64ch); the specific-hardware-interface half is a property of an absent machine. (2) QUAL-01 criterion 2's audible clause is STILL UNCONCLUDED and rides gate 22 (CU), which has not run. THE PHASE IS NOT COMPLETE: gates 17-25 are outstanding."
 ---
 
 ## Overview
@@ -66,7 +66,7 @@ openRows: "COMPAT-02 (pending, 0 of 3) — stage-4 phase 4.2 BLOCK C; the ONLY o
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU), including strictness level 10 | must | complete | stage-1 |
-| COMPAT-02 | Instantiates in Logic Pro on a surround track and outputs 8 discrete channels | must | pending | stage-4 |
+| COMPAT-02 | Instantiates in Logic Pro on a surround track and outputs 8 discrete channels | must | complete | stage-4 |
 | COMPAT-03 | Speaker→buffer index map is built once in `prepareToPlay()` via `getChannelIndexForType()`; no hardcoded channel indices anywhere in the codebase | must | complete | stage-2 *(2.1)* |
 | COMPAT-04 | Defined, non-crashing behaviour when instantiated on a stereo track (exact policy resolved at Stage 0) | should | ✅ **complete** — 3 of 3 | stage-1 *(criteria 1, 2)* → **stage-4 (4.1)** *(criterion 3 via CO + BM + NC1; criterion 2's render clause via CQ; criterion 1 re-run on the final binary)* |
 
@@ -711,11 +711,20 @@ openRows: "COMPAT-02 (pending, 0 of 3) — stage-4 phase 4.2 BLOCK C; the ONLY o
 
 ### COMPAT-02: Logic Pro
 
-- [ ] Instantiates on a surround track with 7.1 output — *observed working at the stage-2 phase 2.1
+- [x] Instantiates on a surround track with 7.1 output — *observed working at the stage-2 phase 2.1
       manual gate: Logic negotiated **`7.1`** (`create7point1()`), all 8 surround-meter lanes moved.
       **This contradicts the Stage-0 R2 prediction of 7.1-SDDS**, which is now retired in favour of
-      the observation. Left open here because COMPAT-02 is verified at stage-4*
-- [ ] Verify-ping confirms all 8 outputs reach distinct physical channels — *needs FUNC-04 (stage-3).
+      the observation. **CLOSED at stage-4 phase 4.2 Block C, Gate 14.** `getStatus` read directly
+      before any bounce (Gate 13): `safeMode == false`, `mapInvalid == false`,
+      `numOutputChannels == 8`, `outputSetName == "7.1 Surround"` — the **primary** container, not
+      SDDS and not 5.1.2, confirming the 2.1 observation on the shipping binary. The second half,
+      **never observed by anyone before this phase**, is session recall: saved, **quit Logic
+      entirely**, reopened — all four fields unchanged. That was a live risk, not a formality:
+      Logic's DEFAULT insert pick for this plugin is **multi-mono**, so a restore by plugin name
+      rather than by stored channel configuration would have come back as eight mono instances
+      with both banners raised. **Instantiation requires the insert slot's `Stereo → 7.1` entry**;
+      clicking the plugin name yields multi-mono and both banners fire correctly*
+- [x] Verify-ping confirms all 8 outputs reach distinct physical channels — *needs FUNC-04 (stage-3).
       The 2.1 meter check proves negotiation and writability only: all 8 lanes carry identical
       signal at that phase. Do not over-read it.*
       **Scope stated 2026-08-13 at the 4.2 discuss boundary (D11); the criterion wording above is
@@ -726,9 +735,32 @@ openRows: "COMPAT-02 (pending, 0 of 3) — stage-4 phase 4.2 BLOCK C; the ONLY o
       **one specific hardware driver**, recorded with **owner: none** — a property of hardware that
       would not generalise across interfaces even if one were present. A criterion is never
       re-worded to fit its rig; see ROADMAP §Stage 4 D11*
-- [ ] Automation of `srcX`/`srcY`/`srcZ` and `w1..w8` is visible and writable in Logic's automation lanes
+      **CLOSED at stage-4 phase 4.2 Block C, probe CT (Gate 16)** — realtime loopback capture,
+      eight mono tracks on BlackHole inputs 1–8, `airAmount = 0`, 19.131 s (cycle is 12.800 s).
+      `analyse_bounce.py --mode ping`: **8 bursts**, period **1.600 s constant**, burst length
+      **1.205 s** against `kOnSeconds 1.200` — constants **parsed from `VerifyPing.h`**, not
+      mirrored. **Exactly one channel energised per window across all 8 windows; minimum measured
+      isolation 219.9 dB against a 40.0 dB floor** — the other seven channels sit at digital zero.
+      The observed sequence is **`1,2,5,6,7,8,3,4`**, not the identity, and the identity
+      expectation is what this measurement falsifies: `AudioChannelSet` is a **bitset**, so
+      `create7point1()`'s buffer order is enum-bit order — `L R C Lfe Lss Rss Lrs Rrs`, exactly the
+      venue table, an **identity map on the plugin's side**. Inverting gives the device order
+      `L R Lrs Rrs C Lfe Lss Rss` = **`Emagic_Default_7_1`, tag `0x810008`** — the tag `auval` shows
+      this AU publishing. **Every speaker landed on the channel bearing its own label.** Scored PASS
+      on substance; the permutation is recorded as the measured JUCE-buffer→Logic-device mapping,
+      which is the answer the verify-ping feature exists to give an operator in a hall. Figures are
+      **transcribed, not in `bounce-manifest.json`** — the tool declines to emit a run that failed
+      its own assertion, and loosening `ping` mode would have fit the assertion to its own result*
+- [x] Automation of `srcX`/`srcY`/`srcZ` and `w1..w8` is visible and writable in Logic's automation lanes
       — *visibility observed at the 2.1 manual gate: 17 parameters under 5 groups, matching the
-      `auval` clump dump. Writability not yet exercised per-parameter*
+      `auval` clump dump. **CLOSED at stage-4 phase 4.2 Block C, Gate 15**: all **11** lanes
+      (`Source X`, `Source Y`, `Source Z`, `Weight 1`..`Weight 8`) verified on three counts each —
+      the lane exists, it took a **written** value under Latch on a moving playhead, and the plugin
+      UI control **followed it back** on a Read pass. The read-back clause is the point: 2.1
+      established visibility only, and a lane can be listed and accept a write while nothing routes
+      back to the parameter. `Source Z` carried the highest risk of the eleven and passed — it is
+      the only lane with a non-0–1 range (−2..8 m) and the only one with a unit, so the only place
+      a normalised-vs-denormalised host round-trip could have surfaced*
 
 ### COMPAT-03: Channel map
 
