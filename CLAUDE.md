@@ -137,7 +137,7 @@ Create worktrees as **siblings** of the repo inside `~/Dev`, never inside the re
 
 Two caveats, stated honestly:
 
-- **Union merge trades a conflict for a possible DUPLICATE row.** When two branches touch the same hunk, union keeps both sides' lines rather than flagging them. Editing another plugin's row is exactly what turns a clean merge into a duplicated or contradictory row — so only ever edit your own plugin's row.
+- **Union merge trades a conflict for a possible DUPLICATE row.** When two branches touch the same hunk, union keeps both sides' lines rather than flagging them. This fires even when each branch edits ONLY its own row — adjacent rows fall in the same diff hunk (proven on the first live merge, 2026-08-13: two single-row branches produced four rows). After EVERY merge that touches PLUGINS.md, run the duplicate check and keep the newest row: `grep "^| O-" PLUGINS.md | awk -F'|' '{print $2}' | sort | uniq -d` (empty = clean).
 - **The merge attribute is read from the working tree of the branch being merged INTO.** `main` must carry `.gitattributes` for the driver to apply at all; a branch that has it while `main` does not gets a plain conflict.
 
 ### Worktree commands
