@@ -216,17 +216,41 @@ speaker 1 (reference). `sources/lfe-multitone.wav` into both.
 
 Run **both** paths — the bounce, then **the same project captured through the realtime loopback**:
 
+> ### ⚠️ `--channels 4,1` AS SPELLED IS WRONG — re-derive it per path
+>
+> This section was written before CT measured the device order. CT (Gate 16) found the
+> **Emagic 7.1 device order** to be
+>
+> ```
+> dev 1=L  2=R  3=Lrs  4=Rrs  5=C  6=Lfe  7=Lss  8=Rss
+> ```
+>
+> so in a **device-order capture channel 4 is Rrs, and the LFE is at channel 6.** Run as
+> originally spelled, CS would measure a rear surround against L, find no bass-management
+> signature, and **report a confident wrong answer.** NC4 does not cover this door — it
+> controls for an `airAmount` confound, not for a mis-addressed channel.
+>
+> **`--channels` MUST be re-derived per path.** The two paths need not agree: a Logic bounce
+> writes channels per the **file's layout tag**, which need not equal the **device** order.
+> That is exactly why CR-a is a separate gate.
+
 ```bash
-# path 1 — bounce
-python3 tests/tools/analyse_bounce.py --mode lfe --channels 4,1 \
+# path 1 — bounce. --channels comes from CR-a's MEASURED result (Gate 17), not from here.
+#   Substitute: <lfe-slot-in-the-BOUNCE>,<reference-slot-in-the-BOUNCE>
+python3 tests/tools/analyse_bounce.py --mode lfe --channels <LFE>,<REF> \
   --input ~/Dev/octagon-4.2-session/cs-bounce.wav \
   --emit-json .planning/stages/4-polish/evidence/bounce-manifest.json
 
-# path 2 — realtime loopback, nearly free on CT's rig
-python3 tests/tools/analyse_bounce.py --mode lfe --channels 4,1 \
+# path 2 — realtime loopback, nearly free on CT's rig.
+#   Device order is already measured, so this one IS determined: LFE = dev 6, reference L = dev 1.
+python3 tests/tools/analyse_bounce.py --mode lfe --channels 6,1 \
   --input ~/Dev/octagon-4.2-session/cs-loopback.wav \
   --emit-json .planning/stages/4-polish/evidence/bounce-manifest.json
 ```
+
+**Do not pre-load the CT permutation into CR-a.** Run Gate 17 as spelled first and record what
+comes back; fitting CR-a's `--expect` to data from a different path is the one mistake that would
+make the bounce-order pair vacuous.
 
 Compare per-partial and broadband against P103's verdict table. **The risk this catches:** the LFE
 claim being true of the bounce and false of monitoring — which would ship a sentence about "an
@@ -314,6 +338,41 @@ python3 tests/tools/analyse_bounce.py --check
 
 **Pass:** exit 0 against the committed manifest, **after** the session. This re-derives every recorded
 figure rather than reading it back.
+
+> ### This gate could not pass as specified until 2026-08-14 — fixed at the desk, before the session
+>
+> `--emit-json` recorded each input as a **bare basename** (`analyse_bounce.py:915`), and `--check`
+> resolved it **relative to the manifest** (`:805, :821`) — i.e. it looked for every WAV in
+> `.planning/stages/4-polish/evidence/`. But this runbook mandates the opposite: **every WAV lives
+> outside the repo**, because the gitignore rule `plugins/*/.planning/evidence/**/*.wav` does not
+> match this phase's `stages/4-polish/` path and a WAV dropped next to the manifest would be
+> committed.
+>
+> The two requirements were mutually exclusive, so **Gate 25 was unpassable by construction.** Proven
+> at this boundary against the one already-recorded run: the bare `--check` exited **1** with
+> `input does not exist: …/evidence/q2-probe.wav`.
+>
+> **Why it had to be fixed BEFORE the session, not at Gate 25:** every `--emit-json` during gates
+> 17–22 would have baked in another unresolvable basename. Fixing it afterwards would mean
+> hand-editing eight entries — which is exactly the "transcribed rather than measured" failure mode
+> `--emit-json` exists to prevent, and the same weakness already conceded for CT.
+>
+> **The fix:** each run now records the directory it was read from (`input_dir`), and `--check`
+> resolves against it; `--check --session-root DIR` overrides for a second person holding the WAVs
+> elsewhere. Legacy manifest-relative resolution is the fallback, so the self-test is unaffected.
+> **It changes only WHERE a file is looked for — no assertion was touched or loosened.**
+>
+> Verified at the desk:
+>
+> | Check | Result |
+> |---|---|
+> | `selftest_analyse_bounce.py` | ✅ 24 cases, every clause seen to fire |
+> | Gate 12's probe re-derived (a re-measurement, not a hand edit) | ✅ 8 ch / 48000 Hz / 24-bit / 19.500 s — reproduced exactly |
+> | bare `--check` | ✅ **exit 0** — `--check OK — 1 runs re-derived` |
+> | **anti-vacuity control:** `--check --session-root /tmp/nonexistent-octagon` | ✅ **exit 1** — a missing artifact still fails |
+>
+> The control matters: without it, "Gate 25 now passes" would be indistinguishable from a gate that
+> passes regardless of the artifacts.
 
 ---
 

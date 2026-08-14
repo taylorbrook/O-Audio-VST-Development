@@ -64,7 +64,42 @@ next_action: run_stage_4_phase_4_2_block_c_gates_17_to_25
                                          #   24 User/ presets byte-identical
                                          #   25 analyse_bounce.py --check
                                          #
+                                         # ── DESK BOUNDARY 2026-08-14, between session parts ──
+                                         # NO GATE RAN. Gates 17-25 are still NOT RUN. Two defects
+                                         # were fixed that would have corrupted the session:
+                                         #
+                                         # 1. GATE 25 WAS UNPASSABLE BY CONSTRUCTION. --emit-json
+                                         #    recorded bare basenames and --check resolved them
+                                         #    relative to the MANIFEST (inside the repo), while the
+                                         #    runbook mandates every WAV live OUTSIDE it. Proven,
+                                         #    not inferred: bare --check exited 1 on the one
+                                         #    recorded run. Fixed BEFORE the session on purpose —
+                                         #    left to Gate 25, all eight session runs would have
+                                         #    baked in unresolvable paths. Runs now record
+                                         #    input_dir; --session-root DIR overrides. ONLY path
+                                         #    resolution changed; no assertion was loosened.
+                                         #    selftest 24/24, Gate 12 probe re-derived exactly,
+                                         #    bare --check exit 0, and the anti-vacuity control
+                                         #    (--session-root /tmp/nonexistent) still exits 1.
+                                         #    analyse_bounce.py is a TEST TOOL — it cannot enter
+                                         #    the binary, so the freeze is intact (re-verified:
+                                         #    Source/ unmoved, both installed binaries still match
+                                         #    the freeze checksums exactly).
+                                         #
+                                         # 2. session-gates-4.2.txt CONTRADICTED ITSELF — its
+                                         #    closing summary still asserted COMPAT-02 0 of 3 and a
+                                         #    29/0/1 ledger, stale since gates 12-16 ran. A verify
+                                         #    taking the pessimistic side would have REOPENED a
+                                         #    correctly closed row. Corrected, original preserved.
+                                         #
+                                         # GATE 20's SPELLING IS NOW CORRECTED IN THE RUNBOOK
+                                         # (loopback = --channels 6,1 from CT's device order; the
+                                         # bounce path left as a placeholder to be re-derived from
+                                         # CR-a). PLAN-4.2.md deliberately NOT edited (P109).
+                                         #
                                          # *** READ BEFORE GATE 20 — CS's SPELLING IS WRONG ***
+                                         # *** (corrected in BLOCK-C-RUNBOOK.md at the 08-14 desk ***
+                                         # *** boundary; the original analysis is kept below)    ***
                                          # PLAN-4.2 spells CS as `--mode lfe --channels 4,1`. CT
                                          # measured the device order as L R Lrs Rrs C Lfe Lss Rss,
                                          # so in a DEVICE-order capture channel 4 is Rrs and the
