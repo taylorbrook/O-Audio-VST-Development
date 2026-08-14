@@ -78,9 +78,9 @@ Guaranteed on success:
 ## Tool Inventory
 
 **Orchestrator tools:**
-1. Read - Load STATUS.yaml, registry.json, phase outputs
+1. Read - Load STATUS.yaml, plugin-local STATUS.md, phase outputs
 2. Write - Create phase outputs, update STATUS.yaml
-3. Edit - Update registry.json, CHANGELOG.md
+3. Edit - Update plugin-local STATUS.md, CHANGELOG.md
 4. Bash - Git operations, backup creation
 5. Task - Delegate to phase agents
 6. AskUserQuestion - Phase completion menus
@@ -125,8 +125,8 @@ State survives context clearing:
 - Version information
 - Timestamps
 
-**Secondary state:** `.planning/workflow/registry.json`
-- `activeMilestone` field for quick lookup
+**Secondary state:** `plugins/[Name]/.planning/STATUS.md`
+- `activeMilestone` frontmatter field for quick lookup
 
 **Phase outputs:** Individual markdown files in improvement directory
 - Consumed by subsequent phases

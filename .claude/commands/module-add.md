@@ -24,14 +24,14 @@ Add a module dependency to a plugin. Updates CMakeLists.txt, copies JS files, tr
 
 ### Step 1: Validate inputs
 
-1. Check plugin exists in `.planning/workflow/registry.json`
-2. Check module exists in registry.json `modules` section
-3. Check module not already installed in plugin's `modules` array
+1. Check plugin exists in `PLUGINS.md` (and that `plugins/{plugin}/` is on disk)
+2. Check module exists in `modules/registry.yaml` under `modules:`
+3. Check plugin is not already listed in that module's `used_by:` entries
 4. If validation fails: report error and stop
 
 ### Step 2: Read module metadata
 
-1. Get version, path, category from `registry.json` modules section
+1. Get `version`, `path`, `category` from that module's entry in `modules/registry.yaml`
 2. Read integration info from `modules/{category}/{module}/module.yaml` if present
 
 ### Step 3: Compute content hash
@@ -53,23 +53,21 @@ Add a module dependency to a plugin. Updates CMakeLists.txt, copies JS files, tr
 2. Copy all `.js` files to `plugins/{plugin}/Source/ui/public/modules/`
 3. Create destination directory if needed
 
-### Step 6: Update registry.json
+### Step 6: Update modules/registry.yaml
 
-1. **Add InstalledModule entry** to `plugins.{plugin}.modules` array:
-   ```json
-   {
-     "name": "{module}",
-     "version": "{version}",
-     "installedAt": "{ISO 8601 timestamp}",
-     "modified": false,
-     "contentHash": "{computed hash}",
-     "originalHash": "{computed hash}"
-   }
+The registry stores the relation as `used_by` **per module**, not as a `modules` array per plugin.
+
+1. **Add the plugin to that module's `used_by:` list** (if not already present):
+   ```yaml
+   used_by:
+     - plugin: {plugin}
+       version: {plugin version from its CMakeLists.txt}
    ```
 
-2. **Add plugin to dependents** in `modules.{module}.dependents` array (if not present)
+2. **Bump `version` and `last_updated`** at the top of `modules/registry.yaml`
 
-3. **Increment usage stats**: `modules.{module}.usageStats.addCount += 1`
+3. Preferred: run `scripts/regen-registry-used-by.sh`, which regenerates every `used_by`
+   list from disk truth and bumps the header automatically — then confirm the diff
 
 ### Step 7: Trigger build
 
@@ -108,10 +106,9 @@ Step 5: Copying JS files
   [ok] Copied tuning-panel.js to ui/public/modules/
   [ok] Copied pitch-circle.js to ui/public/modules/
 
-Step 6: Updating registry.json
-  [ok] Added InstalledModule entry
-  [ok] Added O-IntonationPad to module dependents
-  [ok] Incremented addCount (now 2)
+Step 6: Updating modules/registry.yaml
+  [ok] Added O-IntonationPad to scala-tuning-engine used_by
+  [ok] Bumped registry version + last_updated
 
 Step 7: Building plugin
   [ok] ninja O-IntonationPad_VST3 O-IntonationPad_AU succeeded
@@ -155,8 +152,8 @@ If any step fails:
 | Error | Cause | Fix |
 |-------|-------|-----|
 | Plugin not found | Typo in name | Check `/plugin:list` |
-| Module not found | Typo or missing registration | Check `registry.json` modules section |
-| Already installed | Module in plugin's array | No action needed, or use `/module:upgrade` |
+| Module not found | Typo or missing registration | Check the `modules:` section of `modules/registry.yaml` |
+| Already installed | Plugin already in the module's `used_by` list | No action needed, or use `/module:upgrade` |
 | Build failed | Missing dependencies | Check ninja output, fix code |
 
 ## CMakeLists.txt Changes
@@ -171,49 +168,28 @@ ouaricon_add_module(${PROJECT_NAME} scala-tuning-engine)
 
 ## Registry Changes
 
+Edits land in `modules/registry.yaml`, which stores `used_by` per module.
+
 ### Before
 
-```json
-{
-  "plugins": {
-    "O-IntonationPad": {
-      "modules": []
-    }
-  },
-  "modules": {
-    "scala-tuning-engine": {
-      "dependents": [],
-      "usageStats": { "addCount": 1, "removeCount": 0 }
-    }
-  }
-}
+```yaml
+  - name: scala-tuning-engine
+    path: tuning/scala-tuning-engine
+    version: 1.0.0
+    category: tuning
+    used_by: []
 ```
 
 ### After
 
-```json
-{
-  "plugins": {
-    "O-IntonationPad": {
-      "modules": [
-        {
-          "name": "scala-tuning-engine",
-          "version": "1.0.0",
-          "installedAt": "2026-02-01T15:30:00Z",
-          "modified": false,
-          "contentHash": "sha256:b6c81f83d245841c",
-          "originalHash": "sha256:b6c81f83d245841c"
-        }
-      ]
-    }
-  },
-  "modules": {
-    "scala-tuning-engine": {
-      "dependents": ["O-IntonationPad"],
-      "usageStats": { "addCount": 2, "removeCount": 0 }
-    }
-  }
-}
+```yaml
+  - name: scala-tuning-engine
+    path: tuning/scala-tuning-engine
+    version: 1.0.0
+    category: tuning
+    used_by:
+      - plugin: O-IntonationPad
+        version: 2.8.0
 ```
 
 ## Related Commands

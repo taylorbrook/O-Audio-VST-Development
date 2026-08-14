@@ -61,23 +61,18 @@ error: null                           # Error info if failed
 errorPhase: null                      # Which phase failed
 ```
 
-### Secondary: registry.json
+### Secondary: plugin-local STATUS.md
 
-Location: `.planning/workflow/registry.json`
+Location: `plugins/[Name]/.planning/STATUS.md`
 
-Quick lookup field for active milestones:
+Quick lookup field for active milestones, in the YAML frontmatter:
 
-```json
-{
-  "plugins": {
-    "O-Bells": {
-      "path": "plugins/O-Bells",
-      "stage": "4-polish",
-      "status": "complete",
-      "activeMilestone": "add-chorus-effect"  // <-- Added field
-    }
-  }
-}
+```yaml
+---
+stage: 4-polish
+status: complete
+activeMilestone: add-chorus-effect   # <-- Added field
+---
 ```
 
 ---
@@ -102,12 +97,9 @@ Quick lookup field for active milestones:
    baseVersion: null
    targetVersion: null
    ```
-3. Update registry.json:
-   ```json
-   "O-Bells": {
-     ...existing fields...,
-     "activeMilestone": "[slug]"
-   }
+3. Set `activeMilestone` in `plugins/[Name]/.planning/STATUS.md` frontmatter:
+   ```yaml
+   activeMilestone: [slug]
    ```
 
 ### On Phase Start
@@ -195,12 +187,9 @@ lastActivity: [now]
    lastActivity: [now]
    ```
 
-2. Update registry.json (remove activeMilestone):
-   ```json
-   "O-Bells": {
-     ...existing fields...,
-     "activeMilestone": null
-   }
+2. Clear `activeMilestone` in `plugins/[Name]/.planning/STATUS.md` frontmatter:
+   ```yaml
+   activeMilestone: null
    ```
 
 ### On Error
@@ -222,13 +211,12 @@ lastActivity: [now]
 ### Check for Active Milestone
 
 ```javascript
-// Quick check via registry
-const registry = JSON.parse(fs.readFileSync('.planning/workflow/registry.json'));
-const plugin = registry.plugins[pluginName];
+// Quick check via the plugin-local STATUS.md frontmatter
+const status0 = readFrontmatter(`plugins/${pluginName}/.planning/STATUS.md`);
 
-if (plugin.activeMilestone) {
+if (status0.activeMilestone) {
   // Load full state
-  const statusPath = `plugins/${pluginName}/.planning/improvements/${plugin.activeMilestone}/STATUS.yaml`;
+  const statusPath = `plugins/${pluginName}/.planning/improvements/${status0.activeMilestone}/STATUS.yaml`;
   const status = yaml.parse(fs.readFileSync(statusPath));
 
   // Find current phase
