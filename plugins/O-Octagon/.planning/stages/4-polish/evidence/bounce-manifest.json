@@ -108,6 +108,44 @@
         "min_isolation_db": 158.3,
         "observed": "2,3,4,7,8,5,6,1"
       }
+    },
+    {
+      "channels": "4,1",
+      "input": [
+        "cs-bounce.wav"
+      ],
+      "input_dir": "/Users/taylorbrook/Dev/octagon-4.2-session",
+      "label": "lfe",
+      "mode": "lfe",
+      "result": {
+        "broadband_delta_db": 0.0,
+        "delta_db": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean_delta_db": 0.0,
+        "partials_hz": [
+          31,
+          63,
+          125,
+          250,
+          500,
+          1000,
+          2000,
+          4000,
+          8000,
+          16000
+        ],
+        "spread_db": 0.0
+      }
     }
   ]
 }

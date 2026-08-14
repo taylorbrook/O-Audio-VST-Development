@@ -523,14 +523,92 @@ GATE 19 — NC2 + NC3, the controls for 17/18                             ** PAS
   mid-session (Gate 16). Carried to the Block C close as a named deferral
   alongside that one, not silently absorbed and not quietly patched.
 
-GATE 20 — CS, LFE on bounce AND realtime loopback                       NOT RUN
-  --channels FOR THE BOUNCE PATH IS NOW DERIVED, NOT ASSUMED: under the CR-a
-  default venue, LFE = speaker 4 = Lfe = buffer idx 3 -> bounce ch4, and the
-  reference = speaker 1 = L = idx 0 -> bounce ch1, so --channels 4,1. The value
-  COINCIDES with what the runbook spelled, but the runbook's warning was still
-  correct and load-bearing: 4,1 is right for the BOUNCE and wrong for the DEVICE
-  path, where CT put Lfe at channel 6 (--channels 6,1 on the loopback). Speakers
-  1-4 happen to map identity; 5-8 do not.
+--------------------------------------------------------------------------------
+GATE 20 — CS, LFE               ** BOUNCE PATH: PASS.  LOOPBACK: OPERATOR-ACCEPTED
+                                   ON PARTIAL EVIDENCE — NO DELTA MEASURED.    **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. RIG: two tracks, one-hot on speaker 4 (Lfe, MEASURED) and
+  speaker 1 (L, REFERENCE), airAmount = 0, identical srcX/Y/Z, DEFAULT venue,
+  sources/lfe-multitone.wav into both, other six tracks muted.
+
+  --channels FOR THE BOUNCE PATH IS DERIVED, NOT ASSUMED: under the CR-a default
+  venue, LFE = speaker 4 = Lfe = buffer idx 3 -> bounce ch4, and the reference =
+  speaker 1 = L = idx 0 -> bounce ch1, so --channels 4,1. The value COINCIDES
+  with what the runbook spelled, but the runbook's warning was still correct and
+  load-bearing: 4,1 is right for the BOUNCE and wrong for the DEVICE path, where
+  CT put Lfe at channel 6. Speakers 1-4 happen to map identity; 5-8 do not.
+
+  ── PATH 1, BOUNCE — PASS, RECORDED TO THE MANIFEST ──────────────────────────
+  ARTIFACT: ~/Dev/octagon-4.2-session/cs-bounce.wav
+            sha256 017b05281fedd82acc81db186b207c73e0df2ef0cf2aa2f63d3e54d6f3a92692
+
+  All ten partials 31 Hz .. 16 kHz: ch4 -30.41 dBFS, ch1 -30.41 dBFS,
+  DELTA 0.00 dB on every one. Broadband RMS delta 0.00 dB.
+  Analyser verdict: "row 1: broadband and per-partial deltas both ~0.
+  VenueModel.cpp:84 CONFIRMED for this path."
+
+  STRONGER THAN THE TOOL'S OWN TOLERANCE, checked here rather than assumed:
+  ch1 and ch4 are BYTE-IDENTICAL, and the other six channels are all-zero. Not
+  "within tolerance" — the same bytes. Nothing in the bounce path treats the
+  LFE slot differently from an ordinary speaker.
+
+  TWO FREE CORROBORATIONS: the reference landed at exactly -30.41 dBFS, which
+  lfe-multitone.txt DERIVES from construction, so the path applied unity gain
+  and no hidden trim. And only ch1 and ch4 carried signal, independently
+  re-confirming Gate 17's map (spk1->ch1, spk4->ch4).
+
+  ── PATH 2, REALTIME LOOPBACK — NO DELTA MEASURED ────────────────────────────
+  ARTIFACTS: cs-loopback-lfe.wav
+             sha256 f7876b247e08cf90cbb7c773dd79aff14e6a67122d0448f6a91a0a2cb04077a6
+             cs-loopback-c-silent.wav
+             sha256 2f68f94982ac2f8f8f3e030e90324e57c426e160c7b5591ae88107f2b3727752
+
+  WHAT WAS MEASURED, and it is clean:
+    device 6 (Lfe) — all ten partials present at -30.41 dBFS, peak -12.00,
+    rms -23.82, ZERO clipped samples. Identical to the bounce path and to the
+    source's constructed per-partial level. Five further device channels
+    (C, Lm, Ls, Rm, Rs as Logic labelled them) at -240.00 dBFS, digital silence.
+
+  WHAT WAS NOT MEASURED, stated plainly because the gate is defined as a delta:
+    THE REFERENCE. Devices 1 and 2 were destroyed by the Software-Monitoring
+    feedback loop already documented at Gate 16 — the SAME fault, the SAME two
+    channels. Measured here, not estimated: cs-lb.L.wav and cs-lb.R.wav each
+    peak at -0.00 dBFS with 476,774 and 476,766 CLIPPED SAMPLES out of ~524,288
+    frames, i.e. ~91% of each file at full scale. The clipping hard-limited the
+    channels and destroyed their spectral content: the ten partials read -46 to
+    -56 dBFS instead of -30.41. These are not noisy references, they are
+    unusable ones.
+
+    No substitute reference exists in this take. The rig had only speakers 1 and
+    4 active, so every other captured channel is digital silence and has nothing
+    to compare against.
+
+  *** DISPOSITION: OPERATOR-ACCEPTED, 2026-08-14. *** The operator was shown the
+  above, was offered (A) fix Software Monitoring globally and re-capture, or
+  (B) move the reference to speaker 3 (C, device 5) and run --channels 6,5 to
+  sidestep the loop, and directed that the reference is not needed and the gate
+  be marked complete. Recorded as their decision, and labelled for what it is:
+  A LOOPBACK DELTA WAS NOT MEASURED. Nothing in this file claims one.
+
+  WHY THE PARTIAL EVIDENCE IS NEVERTHELESS SUBSTANTIVE, and why it is not a
+  delta: bass management alters the LFE channel's own content — it low-passes
+  it, or redirects low frequencies into it. Device 6 carried all ten partials
+  from 31 Hz to 16 kHz at exactly the level the source was CONSTRUCTED to have,
+  and lfe-multitone.txt derives that -30.41 dBFS independently of any capture.
+  So the absolute reading is informative here in a way it would not normally be,
+  because the expected absolute value is known a priori and the bounce path
+  independently confirmed unity gain. That is an argument, not a measurement,
+  and it is recorded as an argument.
+
+  RESIDUAL, owner: operator. The loopback delta is UNMEASURED. The risk the two
+  paths were meant to separate — the LFE claim being true of the bounce and
+  false of monitoring — is addressed only by the absolute-level argument above,
+  not by the comparison the gate specifies. Anyone re-opening this should re-run
+  path 2 with Software Monitoring disabled globally; it is a one-checkbox fix
+  and a five-minute take.
+
+  D16 NOT INVOKED. No bass-management signature was found on either path, so
+  there is nothing to dispose of and no re-freeze is triggered.
 GATE 21 — NC4, airAmount confound control                               NOT RUN
 GATE 22 — CU, the audible clause (headphones must be NAMED)             NOT RUN
 GATE 23 — interactive drive + throttling-recovery relabelling           NOT RUN
