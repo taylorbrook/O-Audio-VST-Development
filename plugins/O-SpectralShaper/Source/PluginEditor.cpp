@@ -79,6 +79,16 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
             .withNativeFunction("setSustainCurve", [this](const juce::Array<juce::var>& args, auto) {
                 handleCurveUpdate(args, &OSpectralShaperAudioProcessor::setSustainCurve);
             })
+            // Tooltip preference (v1.5.0). The WebView pulls the stored value on
+            // init rather than the editor pushing it, which would race the load.
+            .withNativeFunction("setTooltipsEnabled", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                processorRef.setTooltipsEnabled(static_cast<bool>(args[0]));
+                complete(juce::var(true));  // settle the JS promise; unsettled ones accumulate per click
+            })
+            .withNativeFunction("getTooltipsEnabled", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(juce::var(processorRef.getTooltipsEnabled()));
+            })
             // Preset Manager native functions
             .withNativeFunction("savePreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)

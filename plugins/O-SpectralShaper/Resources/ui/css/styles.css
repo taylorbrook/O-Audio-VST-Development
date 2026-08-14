@@ -19,16 +19,59 @@
 */
 /*
   ==============================================================================
-    O-SpectralShaper Dark Botanical Theme
-    Color Palette:
-    - Background: #1A1A1A (dark charcoal)
-    - Text primary: #E8E0D4 (warm cream)
-    - Text secondary: #A89888 (muted sepia)
-    - Attack accent: #4A90D9 (botanical blue)
-    - Sustain accent: #D9944A (botanical orange)
-    - Transient heat: #FF4444 → #FF8844 (red-orange gradient)
+    O-SpectralShaper — Ouaricon Audio Naturalist theme
+
+    A field-guide page: aged paper ground, Garamond typography, seed
+    cross-section knobs, and the analysis displays set as dark specimen plates
+    in walnut frames — like mounted photographic plates on a naturalist's page.
+
+    Specimen: nudibranch after Trinchese, lith. Armanino,
+    "Atti della R. Universita di Genova", Vol. II, Tav. VI (public domain),
+    rendered as sepia ink on transparent ground.
   ==============================================================================
 */
+
+/* ============================================================================
+   DESIGN TOKENS
+   ============================================================================ */
+
+:root {
+    /* Paper */
+    --paper-light: #FAF0E6;
+    --paper: #F0DFC8;
+    --paper-mid: #EBD9C7;
+    --paper-accent: #D4C4B0;
+
+    /* Browns */
+    --brown-border: #8B7355;   /* walnut — borders, secondary text */
+    --brown-frame: #5C4033;    /* oak — plate frames, strong borders */
+    --brown-text: #3C2F2F;     /* primary text */
+    --brown-soft: #6B5645;     /* tertiary text */
+
+    /* Botanical greens */
+    --green-light: #8BA870;
+    --green-mid: #6B8E4E;
+    --green-dark: #3C5C1A;
+    --green-darkest: #2C3E10;
+
+    /* Specimen plates (dark grounds) */
+    --plate: #1C1712;
+    --plate-curve: #221C15;
+    --plate-ink: #C9B79A;      /* legible warm text on plate */
+    --plate-ink-dim: #94816A;
+
+    /* Curve accents — earth tones, legible on the dark plate */
+    --accent-attack: #9BB877;  /* moss */
+    --accent-sustain: #D4A257; /* ochre */
+
+    /* Effects */
+    --shadow-light: rgba(60, 47, 47, 0.16);
+    --shadow-medium: rgba(60, 47, 47, 0.28);
+    --text-emboss: rgba(255, 250, 240, 0.55);
+    --fleuron: rgba(92, 64, 51, 0.32);
+
+    --serif: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+}
 
 /* ============================================================================
    RESET & LAYOUT
@@ -46,11 +89,20 @@ html, body {
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    font-family: 'Georgia', 'Times New Roman', serif;
-    background: #1A1A1A;
+    font-family: var(--serif);
+    color: var(--brown-text);
+
+    /* Aged paper ground: a cream wash over the paper grain */
+    background-color: var(--paper-mid);
+    background-image:
+        linear-gradient(rgba(252, 246, 236, 0.42), rgba(252, 246, 236, 0.42)),
+        url('/images/paper-bg.webp');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
-/* Paper texture overlay (10% opacity) */
+/* Page vignette — suggests a bound, matted page */
 body::before {
     content: '';
     position: fixed;
@@ -58,28 +110,25 @@ body::before {
     left: 0;
     width: 700px;
     height: 500px;
-    background-image: url('/images/paper-bg.webp');
-    background-size: cover;
-    background-position: center;
-    opacity: 0.1;
+    box-shadow: inset 0 0 46px rgba(92, 64, 51, 0.20);
     pointer-events: none;
     z-index: 1;
 }
 
-/* Slug illustration overlay (8% opacity, centered) */
+/* Botanical specimen — sepia ink, right side, bleeding off the edge */
 body::after {
     content: '';
     position: fixed;
     top: 50%;
-    left: 50%;
-    width: 200px;
-    height: 314px;
-    transform: translate(-50%, -50%);
+    right: -12px;
+    width: 152px;
+    height: 388px;
+    transform: translateY(-50%);
     background-image: url('/images/slug-overlay.webp');
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.08;
+    opacity: 0.42;
     pointer-events: none;
     z-index: 2;
 }
@@ -107,21 +156,33 @@ body::after {
     align-items: center;
     justify-content: space-between;
     padding: 0 12px;
-    border-bottom: 1px solid rgba(232, 224, 212, 0.15);
+    border-bottom: 1px solid rgba(139, 115, 85, 0.45);
 }
 
 .header h1 {
-    font-size: 22px;
+    font-size: 23px;
     font-weight: 400;
-    letter-spacing: 2px;
-    color: #E8E0D4;
+    letter-spacing: 2.5px;
+    color: var(--brown-text);
     text-transform: uppercase;
+    text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+/* Fleuron flanking the title */
+.header h1::before {
+    content: '\2766';
+    margin-right: 10px;
+    font-size: 14px;
+    color: var(--fleuron);
+    vertical-align: 2px;
+    letter-spacing: 0;
 }
 
 .header .version {
     font-size: 11px;
     letter-spacing: 1px;
-    color: #A89888;
+    color: var(--brown-border);
+    text-shadow: 1px 1px 2px var(--text-emboss);
 }
 
 /* ============================================================================
@@ -141,74 +202,88 @@ body::after {
     text-align: center;
     font-size: 12px;
     letter-spacing: 0.5px;
-    color: #E8E0D4;
+    color: var(--brown-text);
     padding: 3px 8px;
-    background: rgba(232, 224, 212, 0.08);
-    border: 1px solid rgba(232, 224, 212, 0.2);
+    background: rgba(250, 240, 230, 0.55);
+    border: 1px solid rgba(139, 115, 85, 0.50);
     border-radius: 3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: default;
+    box-shadow: inset 1px 1px 2px rgba(92, 64, 51, 0.12);
 }
 
 .preset-nav-btn {
     width: 22px;
     height: 22px;
     font-size: 16px;
-    line-height: 20px;
+    line-height: 18px;
     text-align: center;
     padding: 0;
-    color: #E8E0D4;
-    background: rgba(232, 224, 212, 0.08);
-    border: 1px solid rgba(232, 224, 212, 0.2);
+    color: var(--brown-frame);
+    background: rgba(250, 240, 230, 0.50);
+    border: 1px solid rgba(139, 115, 85, 0.50);
     border-radius: 3px;
     cursor: pointer;
-    transition: all 0.15s ease;
-    font-family: 'Georgia', serif;
+    transition: all 0.2s ease;
+    font-family: var(--serif);
 }
 
 .preset-nav-btn:hover {
-    background: rgba(232, 224, 212, 0.15);
-    border-color: rgba(232, 224, 212, 0.4);
+    background: rgba(139, 168, 112, 0.28);
+    border-color: var(--green-dark);
+    transform: translateY(-1px);
+    box-shadow: 1px 2px 4px var(--shadow-light);
 }
 
 .preset-nav-btn:active {
-    background: rgba(232, 224, 212, 0.05);
+    transform: translateY(0);
+    background: rgba(107, 142, 78, 0.42);
 }
 
 .preset-action-btn {
     padding: 3px 8px;
     font-size: 9px;
-    font-family: 'Georgia', serif;
-    letter-spacing: 0.5px;
-    color: #A89888;
-    background: transparent;
-    border: 1px solid rgba(232, 224, 212, 0.15);
-    border-radius: 3px;
+    font-family: var(--serif);
+    letter-spacing: 0.8px;
+    color: var(--green-darkest);
+    background: rgba(139, 168, 112, 0.26);
+    border: 1px solid var(--green-dark);
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s ease;
     text-transform: uppercase;
 }
 
 .preset-action-btn:hover {
-    color: #E8E0D4;
-    border-color: rgba(232, 224, 212, 0.35);
-    background: rgba(232, 224, 212, 0.08);
+    background: rgba(107, 142, 78, 0.50);
+    border-color: var(--green-darkest);
+    transform: translateY(-1px);
+    box-shadow: 1px 2px 4px var(--shadow-light);
+}
+
+.preset-action-btn:active {
+    transform: translateY(0);
 }
 
 /* ============================================================================
-   SPECTROGRAM AREA
+   SPECIMEN PLATES (spectrogram + curve editors)
+
+   Dark grounds in walnut frames — mounted plates on the paper page.
    ============================================================================ */
 
 .spectrogram-container {
     grid-column: 1;
     grid-row: 2;
     position: relative;
-    background: rgba(26, 26, 26, 0.8);
-    border: 1px solid rgba(232, 224, 212, 0.2);
-    border-radius: 4px;
+    background: var(--plate);
+    border: 3px solid var(--brown-frame);
+    border-radius: 2px;
     overflow: hidden;
+    box-shadow:
+        inset 0 0 14px rgba(0, 0, 0, 0.60),
+        0 2px 7px var(--shadow-medium);
 }
 
 .spectrogram-canvas {
@@ -219,37 +294,35 @@ body::after {
 
 .spectrogram-label {
     position: absolute;
-    top: 8px;
-    left: 8px;
+    top: 7px;
+    left: 9px;
     font-size: 10px;
-    letter-spacing: 1px;
-    color: #A89888;
+    letter-spacing: 1.4px;
+    color: var(--plate-ink-dim);
     text-transform: uppercase;
+    font-family: var(--serif);
     pointer-events: none;
 }
-
-/* ============================================================================
-   CURVE EDITOR AREAS
-   ============================================================================ */
 
 .curve-container {
     grid-column: 1;
     position: relative;
-    background: rgba(26, 26, 26, 0.6);
-    border: 1px solid rgba(232, 224, 212, 0.2);
-    border-radius: 4px;
+    background: var(--plate-curve);
+    border: 3px solid var(--brown-frame);
+    border-radius: 2px;
     overflow: hidden;
     height: 100px;
+    box-shadow:
+        inset 0 0 12px rgba(0, 0, 0, 0.55),
+        0 2px 6px var(--shadow-medium);
 }
 
 .attack-curve-container {
     grid-row: 3;
-    border-left: 3px solid #4A90D9; /* Attack accent */
 }
 
 .sustain-curve-container {
     grid-row: 4;
-    border-left: 3px solid #D9944A; /* Sustain accent */
 }
 
 .curve-canvas {
@@ -262,13 +335,34 @@ body::after {
 .curve-label {
     position: absolute;
     top: 6px;
-    left: 8px;
+    left: 9px;
     font-size: 10px;
-    letter-spacing: 1px;
-    color: #A89888;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
+    font-family: var(--serif);
     pointer-events: none;
 }
+
+/* The accent lives in the plate's label and its curve stroke, so the
+   frames stay uniform — a consistent set of mounted plates. */
+.attack-curve-container .curve-label {
+    color: var(--accent-attack);
+}
+
+.sustain-curve-container .curve-label {
+    color: var(--accent-sustain);
+}
+
+.curve-label::before {
+    content: '\2766';
+    margin-right: 6px;
+    opacity: 0.55;
+    letter-spacing: 0;
+}
+
+/* ============================================================================
+   PLATE CONTROLS (buttons overlaid on the dark plates)
+   ============================================================================ */
 
 .curve-controls {
     position: absolute;
@@ -286,12 +380,13 @@ body::after {
 .curve-redo-btn {
     padding: 4px 10px;
     font-size: 9px;
-    font-family: 'Georgia', serif;
-    letter-spacing: 0.5px;
-    color: #E8E0D4;
-    background: rgba(26, 26, 26, 0.7);
-    border: 1px solid rgba(232, 224, 212, 0.3);
-    border-radius: 3px;
+    font-family: var(--serif);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--paper-light);
+    background: rgba(139, 168, 112, 0.20);
+    border: 1px solid rgba(155, 184, 119, 0.55);
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -300,8 +395,9 @@ body::after {
 .curve-redo-btn {
     padding: 4px 6px;
     font-size: 11px;
-    font-family: sans-serif;
+    font-family: var(--serif);
     min-width: 22px;
+    letter-spacing: 0;
 }
 
 .curve-spectrum-btn:hover,
@@ -309,8 +405,10 @@ body::after {
 .curve-reset-btn:hover,
 .curve-undo-btn:hover:not(:disabled),
 .curve-redo-btn:hover:not(:disabled) {
-    background: rgba(40, 40, 40, 0.9);
-    border-color: rgba(232, 224, 212, 0.5);
+    background: rgba(139, 168, 112, 0.42);
+    border-color: var(--green-light);
+    transform: translateY(-1px);
+    box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.35);
 }
 
 .curve-spectrum-btn:active,
@@ -318,42 +416,48 @@ body::after {
 .curve-reset-btn:active,
 .curve-undo-btn:active:not(:disabled),
 .curve-redo-btn:active:not(:disabled) {
-    background: rgba(20, 20, 20, 0.9);
+    transform: translateY(0);
+    background: rgba(107, 142, 78, 0.55);
 }
 
-/* Spectrum toggle active state — accent color highlight per curve type */
+/* Spectrum toggle active state — accent per plate */
 .attack-curve-container .curve-spectrum-btn.active {
-    background: rgba(74, 144, 217, 0.25);
-    border-color: #4A90D9;
-    color: #4A90D9;
+    background: rgba(155, 184, 119, 0.30);
+    border-color: var(--accent-attack);
+    color: var(--accent-attack);
 }
 
 .sustain-curve-container .curve-spectrum-btn.active {
-    background: rgba(217, 148, 74, 0.25);
-    border-color: #D9944A;
-    color: #D9944A;
+    background: rgba(212, 162, 87, 0.28);
+    border-color: var(--accent-sustain);
+    color: var(--accent-sustain);
 }
 
 .curve-undo-btn:disabled,
 .curve-redo-btn:disabled {
-    opacity: 0.3;
+    opacity: 0.28;
     cursor: default;
 }
 
 /* ============================================================================
-   KNOB SIDEBAR
+   KNOB SIDEBAR — seed cross-sections on paper
    ============================================================================ */
 
+/* Two columns: seven controls in one column overflowed the sidebar by 220px,
+   which left Lookahead, LA Time and Output unreachable. */
 .knob-sidebar {
     grid-column: 2;
     grid-row: 2 / -1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 8px;
-    background: rgba(26, 26, 26, 0.4);
-    border: 1px solid rgba(232, 224, 212, 0.15);
-    border-radius: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: start;
+    justify-items: center;
+    gap: 10px 4px;
+    padding: 10px 8px;
+    /* Translucent so the specimen shows through behind the controls */
+    background: rgba(250, 240, 230, 0.14);
+    border: 1px solid rgba(139, 115, 85, 0.42);
+    border-radius: 3px;
 }
 
 .knob-wrapper {
@@ -364,57 +468,127 @@ body::after {
 }
 
 .knob-container {
-    width: 60px;
-    height: 60px;
+    width: 56px;
+    height: 56px;
     position: relative;
     cursor: ns-resize;
+    /* Scale lives here: RotaryKnob.js owns .knob's transform (rotation) */
+    transition: transform 0.1s ease;
 }
 
+.knob-container:hover {
+    transform: scale(1.05);
+}
+
+.knob-container:active {
+    transform: scale(0.98);
+}
+
+/* Botanical seed cross-section: 20 radial segments with engraved dividers */
 .knob {
-    width: 60px;
-    height: 60px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #2A2A2A 0%, #1A1A1A 100%);
-    border: 2px solid rgba(232, 224, 212, 0.3);
+    border: 2px solid var(--brown-border);
     position: relative;
+    background:
+        /* centre core */
+        radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%),
+        /* outer ring */
+        radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+        /* radial segments */
+        conic-gradient(from 0deg,
+            #F5DEB3 0deg, #F5DEB3 17deg,
+            #8B7355 17deg, #8B7355 18deg,
+            #E8D5B7 18deg, #E8D5B7 35deg,
+            #8B7355 35deg, #8B7355 36deg,
+            #F5DEB3 36deg, #F5DEB3 53deg,
+            #8B7355 53deg, #8B7355 54deg,
+            #E8D5B7 54deg, #E8D5B7 71deg,
+            #8B7355 71deg, #8B7355 72deg,
+            #F5DEB3 72deg, #F5DEB3 89deg,
+            #8B7355 89deg, #8B7355 90deg,
+            #E8D5B7 90deg, #E8D5B7 107deg,
+            #8B7355 107deg, #8B7355 108deg,
+            #F5DEB3 108deg, #F5DEB3 125deg,
+            #8B7355 125deg, #8B7355 126deg,
+            #E8D5B7 126deg, #E8D5B7 143deg,
+            #8B7355 143deg, #8B7355 144deg,
+            #F5DEB3 144deg, #F5DEB3 161deg,
+            #8B7355 161deg, #8B7355 162deg,
+            #E8D5B7 162deg, #E8D5B7 179deg,
+            #8B7355 179deg, #8B7355 180deg,
+            #F5DEB3 180deg, #F5DEB3 197deg,
+            #8B7355 197deg, #8B7355 198deg,
+            #E8D5B7 198deg, #E8D5B7 215deg,
+            #8B7355 215deg, #8B7355 216deg,
+            #F5DEB3 216deg, #F5DEB3 233deg,
+            #8B7355 233deg, #8B7355 234deg,
+            #E8D5B7 234deg, #E8D5B7 251deg,
+            #8B7355 251deg, #8B7355 252deg,
+            #F5DEB3 252deg, #F5DEB3 269deg,
+            #8B7355 269deg, #8B7355 270deg,
+            #E8D5B7 270deg, #E8D5B7 287deg,
+            #8B7355 287deg, #8B7355 288deg,
+            #F5DEB3 288deg, #F5DEB3 305deg,
+            #8B7355 305deg, #8B7355 306deg,
+            #E8D5B7 306deg, #E8D5B7 323deg,
+            #8B7355 323deg, #8B7355 324deg,
+            #F5DEB3 324deg, #F5DEB3 341deg,
+            #8B7355 341deg, #8B7355 342deg,
+            #E8D5B7 342deg, #E8D5B7 359deg,
+            #8B7355 359deg, #8B7355 360deg
+        );
+    box-shadow:
+        inset 1px 1px 3px rgba(0, 0, 0, 0.30),
+        inset -1px -1px 2px rgba(255, 248, 220, 0.50),
+        2px 2px 6px var(--shadow-medium);
     transition: border-color 0.2s ease;
 }
 
 .knob:hover {
-    border-color: rgba(232, 224, 212, 0.5);
+    border-color: var(--green-mid);
 }
 
+/* Indicator — a botanical stem from the core to the rim */
 .knob::before {
     content: '';
     position: absolute;
-    top: 8px;
+    top: 5px;
     left: 50%;
-    width: 2px;
-    height: 18px;
-    background: #E8E0D4;
+    width: 3px;
+    height: 20px;
+    background: var(--green-darkest);
     transform-origin: bottom center;
     transform: translateX(-50%);
     border-radius: 1px;
+    box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
 }
 
 .knob-label {
     font-size: 10px;
-    letter-spacing: 0.5px;
-    color: #A89888;
+    letter-spacing: 1px;
+    color: var(--brown-soft);
     text-align: center;
     text-transform: uppercase;
     max-width: 80px;
+    text-shadow: 1px 1px 2px var(--text-emboss);
 }
 
 .knob-value {
     font-size: 11px;
-    color: #E8E0D4;
+    color: var(--brown-text);
     text-align: center;
     font-variant-numeric: tabular-nums;
+    text-shadow: 1px 1px 2px var(--text-emboss);
 }
 
-/* Toggle switch style for lookahead enabled */
+/* ============================================================================
+   LOOKAHEAD TOGGLE — botanical green
+   ============================================================================ */
+
 .toggle-container {
+    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -424,17 +598,18 @@ body::after {
 .toggle-switch {
     width: 44px;
     height: 24px;
-    background: rgba(232, 224, 212, 0.2);
+    background: rgba(139, 168, 112, 0.28);
     border-radius: 12px;
     position: relative;
     cursor: pointer;
-    transition: background 0.3s ease;
-    border: 1px solid rgba(232, 224, 212, 0.3);
+    transition: background 0.3s ease, border-color 0.3s ease;
+    border: 2px solid var(--green-dark);
+    box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.22);
 }
 
 .toggle-switch.active {
-    background: #4A90D9;
-    border-color: #4A90D9;
+    background: rgba(107, 142, 78, 0.75);
+    border-color: var(--green-darkest);
 }
 
 .toggle-switch::after {
@@ -442,11 +617,13 @@ body::after {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 18px;
-    height: 18px;
-    background: #E8E0D4;
+    width: 16px;
+    height: 16px;
+    background: radial-gradient(circle at 40% 35%, #FFF8DC 0%, #E8D5B7 70%, #C9A27B 100%);
+    border: 1px solid var(--brown-border);
     border-radius: 50%;
     transition: transform 0.3s ease;
+    box-shadow: 1px 1px 3px var(--shadow-medium);
 }
 
 .toggle-switch.active::after {
@@ -455,10 +632,91 @@ body::after {
 
 .toggle-label {
     font-size: 9px;
-    letter-spacing: 0.5px;
-    color: #A89888;
+    letter-spacing: 1px;
+    color: var(--brown-soft);
     text-align: center;
     text-transform: uppercase;
+    text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+/* ============================================================================
+   TOOLTIPS (v1.5.0)
+   ============================================================================ */
+
+/* Groups the "?" toggle with the version string so the header keeps three
+   space-between clusters (title / preset bar / right group). */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+/* Wax-seal disc, sized to sit on the header baseline without changing its height. */
+.tooltip-toggle {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--paper-accent);
+    border: 1px solid var(--brown-border);
+    color: var(--brown-text);
+    font-family: var(--serif);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    box-shadow: 1px 1px 2px var(--shadow-light);
+}
+
+.tooltip-toggle:hover {
+    background: var(--green-light);
+    border-color: var(--green-dark);
+}
+
+.tooltip-toggle.active {
+    background: var(--green-mid);
+    border-color: var(--green-darkest);
+    color: var(--paper-light);
+    box-shadow: 0 0 5px rgba(60, 92, 26, 0.45);
+}
+
+/* Single reused surface. Absolutely positioned against #app (position: relative),
+   so it is out of flow and never becomes a grid item. */
+.tooltip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    max-width: 240px;
+    padding: 6px 10px;
+    background: rgba(60, 47, 47, 0.96);   /* --brown-text at 96% */
+    color: var(--plate-ink);
+    border: 1px solid var(--brown-border);
+    border-radius: 3px;
+    font-family: var(--serif);
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: normal;
+    text-shadow: none;
+    box-shadow: 0 2px 8px var(--shadow-medium);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 1000;
+    transition: opacity 140ms ease;
+}
+
+.tooltip.visible {
+    opacity: 1;
+}
+
+/* Hover affordance — only while tooltips are armed. */
+.tooltips-enabled [data-tooltip]:hover {
+    outline: 1px dashed rgba(107, 142, 78, 0.55);
+    outline-offset: 2px;
 }
 
 /* ============================================================================
