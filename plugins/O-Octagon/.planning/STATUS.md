@@ -6,8 +6,33 @@ stage_phase: 2                             # DECIDED AT THE 4.1 BOUNDARY (D1). S
 stage_phase_name: host-and-ear             # not the "single pass" ROADMAP said: 4.1 = machine
 stage_phase_total: 2                       # (CI, Windows, pluginval/auval, presets, COMPAT-04,
 artifact_suffix: "-4.2"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
-phase: verify                              # 4.2 VERIFIED 2026-08-13 — VERIFICATION-4.2.md.
-status: phase_partial                      # VERDICT: PARTIAL. Blocks A+B verified (all 11 desk
+phase: execute                             # BLOCK C IN PROGRESS — gates 12-16 of 25 are DONE and
+status: block_c_in_progress                # committed; gates 17-25 have NOT run. See
+                                           # evidence/session-gates-4.2.txt for the gate-by-gate
+                                           # record and evidence/BLOCK-C-RUNBOOK.md for the
+                                           # remaining procedure.
+                                           #
+                                           # *** COMPAT-02 IS CLOSED, 3 of 3, 2026-08-14. ***
+                                           # The ledger moved for the first time in 4.2: 30/0/0,
+                                           # openRows empty. Gate 13 (getStatus: safeMode false,
+                                           # mapInvalid false, 8 ch, "7.1 Surround"), Gate 12
+                                           # (probe: 8 ch / 48 kHz / 24-bit), Gate 14 (recall
+                                           # survives save-quit-reopen), Gate 15 (all 11 lanes
+                                           # written AND read back), Gate 16 / CT (8 distinct
+                                           # channels, one per window, isolation 219.9 dB vs a
+                                           # 40 dB floor).
+                                           #
+                                           # STAGE 4 IS STILL NOT COMPLETE. Do NOT run
+                                           # /install-plugin. Nine gates remain and QUAL-01
+                                           # criterion 2's audible clause is unconcluded.
+                                           #
+                                           # NOTHING FROM THIS SESSION HAS BEEN RE-RUN AT A VERIFY
+                                           # BOUNDARY. Every figure above is an EXECUTE-side
+                                           # measurement and is owed a from-scratch re-run.
+                                           #
+                                           # superseded note kept for history:
+                                           # 4.2 VERIFIED 2026-08-13 — VERIFICATION-4.2.md.
+                                           # VERDICT: PARTIAL. Blocks A+B verified (all 11 desk
                                            # gates RE-RUN FROM SCRATCH at verify, all green, incl.
                                            # NC1 executed mutation-and-revert and a THIRD full
                                            # rebuild reproducing both bundle checksums). Block C —
@@ -18,19 +43,69 @@ status: phase_partial                      # VERDICT: PARTIAL. Blocks A+B verifi
                                            # until now — neither execute commit (378fb4cd, 300d8cf0)
                                            # touched STATUS.md, so a resume would have re-run execute
                                            # from Task 1 and re-cut the freeze. Recorded as Issue 2.
-last_updated: 2026-08-13
+last_updated: 2026-08-14
 branch: feat/o-octagon
 complexity_tier: 6
 complexity_score: 5.0
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-next_action: run_stage_4_phase_4_2_block_c
-                                         # ── WHAT IS ACTUALLY NEXT (2026-08-13, at 4.2 verify) ──
-                                         # BLOCK C: the Logic Pro 12.3 session. 14 gates (12-25),
-                                         # tasks 8-15. Needs Logic + a BlackHole 64ch device + a
-                                         # human ear. Est. 60-90 min. There is NO 4.3 (D18): Block C
-                                         # completes 4.2, which completes Stage 4.
+next_action: run_stage_4_phase_4_2_block_c_gates_17_to_25
+                                         # ── WHAT IS ACTUALLY NEXT (2026-08-14) ──
+                                         # RESUME AT GATE 17 (CR-a). Gates 12-16 are DONE.
+                                         # Nine gates remain, est. 45-60 min:
+                                         #   17 CR-a  bounce order, shipped default venue
+                                         #   18 CR-b  same under cr-b-permuted.venue, 8-cycle
+                                         #   19 NC2+NC3  the controls that prove 17/18 can fail
+                                         #   20 CS    LFE on BOTH bounce and realtime loopback
+                                         #   21 NC4   airAmount confound control, BEFORE any D16
+                                         #   22 CU    the audible clause — NAME the headphones
+                                         #   23 interactive drive + throttling-recovery relabel
+                                         #   24 User/ presets byte-identical
+                                         #   25 analyse_bounce.py --check
+                                         #
+                                         # *** READ BEFORE GATE 20 — CS's SPELLING IS WRONG ***
+                                         # PLAN-4.2 spells CS as `--mode lfe --channels 4,1`. CT
+                                         # measured the device order as L R Lrs Rrs C Lfe Lss Rss,
+                                         # so in a DEVICE-order capture channel 4 is Rrs and the
+                                         # LFE is at channel 6. Run as spelled it would measure a
+                                         # rear surround against L, find no bass-management
+                                         # signature, and report a CONFIDENT WRONG ANSWER. NC4 does
+                                         # not cover this door. --channels MUST be re-derived per
+                                         # path: from CR-a's result for the bounce, from CT's for
+                                         # the realtime loopback. A Logic bounce writes channels per
+                                         # the file's layout tag and NEED NOT match the device
+                                         # order — that is exactly why CR-a is a separate gate.
+                                         #
+                                         # CR-a's own `--expect 1,2,3,4,5,6,7,8` may likewise not
+                                         # hold. Run it AS SPELLED first and record what comes back;
+                                         # do NOT pre-load the CT permutation, which would fit the
+                                         # expectation to data from a different path.
+                                         #
+                                         # RIG FACTS ESTABLISHED THIS SESSION — carry them:
+                                         #  - Instantiate ONLY via the insert slot's `Stereo -> 7.1`
+                                         #    entry. Clicking the plugin NAME gives MULTI-MONO:
+                                         #    eight mono instances, each raising both banners
+                                         #    correctly. A surround-INPUT track can never work —
+                                         #    isBusesLayoutSupported rejects input wider than stereo.
+                                         #  - Logic's global "Software Monitoring" MUST be OFF, or
+                                         #    BlackHole out->in->out feeds back and pins channels
+                                         #    1-2 to infinity. Per-track I buttons undo themselves
+                                         #    on each arm; disable it globally.
+                                         #  - Project sample rate 48 kHz; the tone set is 48 kHz.
+                                         #  - Session sources are staged OUTSIDE the repo at
+                                         #    ~/Dev/octagon-4.2-session/sources (8 tones, the LFE
+                                         #    multitone + sidecar, the CU audible probe). Keep every
+                                         #    WAV there: the gitignore rule is
+                                         #    plugins/*/.planning/evidence/**/*.wav and does NOT
+                                         #    match this phase's stages/4-polish/evidence/ path.
+                                         #  - Manifest: evidence/bounce-manifest.json (the tool's
+                                         #    own DEFAULT_MANIFEST, so gate 25's bare --check finds
+                                         #    it). 1 run recorded so far (Gate 12's probe).
+                                         #
+                                         # There is NO 4.3 (D18): Block C completes 4.2, which
+                                         # completes Stage 4. A D16 finding re-enters Block B with a
+                                         # SECOND freeze rather than opening a phase.
                                          # RUNS AGAINST THE FREEZE, NOT AGAINST WHATEVER IS ON DISK:
                                          #   commit 378fb4cdc70ef7e7b4523771dd4f014f189246ec
                                          #   VST3   928cd447c57435c93554fbb90fd14ec035cd39e8a8db54a5aba37a1597e0bb42
