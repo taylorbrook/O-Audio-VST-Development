@@ -6,8 +6,50 @@ stage_phase: 2                             # DECIDED AT THE 4.1 BOUNDARY (D1). S
 stage_phase_name: host-and-ear             # not the "single pass" ROADMAP said: 4.1 = machine
 stage_phase_total: 2                       # (CI, Windows, pluginval/auval, presets, COMPAT-04,
 artifact_suffix: "-4.2"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
-phase: execute                             # BLOCK C IN PROGRESS — gates 12-16 of 25 are DONE and
-status: block_c_in_progress                # committed; gates 17-25 have NOT run. See
+phase: verify                              # STAGE-4 ROLL-UP VERIFY LANDED 2026-08-14 —
+status: stage_partial_block_c_part2_owed   # VERIFICATION.md. VERDICT: PARTIAL. STAGE 4 IS NOT
+                                           # COMPLETE and the plugin is NOT ready to ship.
+                                           # (next_action is set below, at its canonical key — a
+                                           # second one here would be a DUPLICATE YAML KEY, the
+                                           # same trap caught and reverted at the 4.2 discuss
+                                           # boundary.)
+                                           #
+                                           # RE-MEASURED AT THAT BOUNDARY (not inherited): four
+                                           # contract checksums exact; Source/ unmoved since the
+                                           # freeze; both installed binaries EXACT vs the freeze
+                                           # record; 95 probes 0 failures; 70 JS gate sections;
+                                           # Gate 9 run as its LITERAL recorded string (exit 0,
+                                           # 102 cases — the 4.2 Issue-1 spelling defect is
+                                           # genuinely closed); selftest 24 cases; Gate 25 --check
+                                           # exit 0 WITH its negative control exiting 1; Gate 12's
+                                           # probe re-derived; and GATE 16 / CT FULLY RE-DERIVED
+                                           # from the capture WAVs — every isolation figure, the
+                                           # period, the length and the sequence 1,2,5,6,7,8,3,4
+                                           # reproduce EXACTLY, including the tool's FAILED verdict.
+                                           # Gate 16's routing argument was checked against JUCE
+                                           # source itself (create7point1 order + enum bits
+                                           # 10/11/20/21) and holds: the permutation is the host's,
+                                           # not a plugin defect.
+                                           #
+                                           # THE STAGE GOAL'S SECOND CLAUSE IS UNMET: "with the
+                                           # bounce path confirmed" is Gate 17 (CR-a) and it did
+                                           # NOT run. CT measured the DEVICE order; the BOUNCE
+                                           # order is a separate measurement and is unmeasured.
+                                           #
+                                           # THE 30/0/0 LEDGER IS NOT THE COMPLETION SIGNAL.
+                                           # QUAL-01 criterion 2's audible clause is UNCONCLUDED
+                                           # and rides Gate 22. Do NOT run /install-plugin.
+                                           #
+                                           # OWED AT THE BLOCK C CLOSE: (1) Gate 13's banner
+                                           # screenshots are NEITHER on disk NOR committed, and
+                                           # Gate 14 half 1 INHERITS that unevidenced observation
+                                           # (Finding 1); (2) the ping-mode --expect decision
+                                           # (Finding 3); (3) Gate 23's throttling-recovery
+                                           # relabelling, now at its third boundary (Finding 4).
+                                           #
+                                           # superseded note kept for history:
+                                           # BLOCK C PART 1 — gates 12-16 of 25 are DONE and
+                                           # committed; gates 17-25 have NOT run. See
                                            # evidence/session-gates-4.2.txt for the gate-by-gate
                                            # record and evidence/BLOCK-C-RUNBOOK.md for the
                                            # remaining procedure.
