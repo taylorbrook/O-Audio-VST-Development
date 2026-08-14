@@ -145,9 +145,193 @@ GATE 12 — Q2 surround bounce  [STOP-GATE]                                ** PA
   --check re-derives this figure instead of reading it back.
 
 --------------------------------------------------------------------------------
-GATE 14 — COMPAT-02/1, instantiate + save/quit/reopen recall            NOT RUN
-GATE 15 — COMPAT-02/3, 11 automation lanes written AND read back        NOT RUN
-GATE 16 — CT, realtime ping capture (COMPAT-02/2)                       NOT RUN
+--------------------------------------------------------------------------------
+GATE 14 — COMPAT-02 criterion 1                                          ** PASS **
+--------------------------------------------------------------------------------
+  Two halves, and the second had never been observed by anyone — stage 2.1 saw
+  a fresh instantiation only.
+
+  Half 1, instantiation on a 7.1 surround track:
+      PASS — established at Gate 13 (Set = "7.1 Surround", both banners clear).
+
+  Half 2, SESSION RECALL — save, QUIT LOGIC ENTIRELY, reopen the project:
+      safeMode      == false     SAFE banner ABSENT after reload
+      mapInvalid    == false     MAP banner ABSENT after reload
+      outputSetName == "7.1 Surround"    unchanged across the round trip
+
+  WHY THIS WAS A LIVE RISK AND NOT A FORMALITY: Logic's DEFAULT insert pick for
+  this plugin is multi-mono (see RIG SETUP above). Had Logic restored the
+  instance by plugin name rather than by stored channel configuration, the
+  reopened session would have come back as eight mono instances with both
+  banners raised. It did not. The stored configuration survives.
+
+  => COMPAT-02 criterion 1 CLOSED. 1 of 3.
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+GATE 15 — COMPAT-02 criterion 3                                          ** PASS **
+--------------------------------------------------------------------------------
+  All ELEVEN automation lanes, each verified on three counts: the lane exists,
+  it took a written value (Latch on a moving playhead), and the plugin UI
+  control FOLLOWED it back on a Read pass.
+
+    Source X    srcX    0.00 - 1.00 normalised     default 0.5
+    Source Y    srcY    0.00 - 1.00 normalised     default 0.5
+    Source Z    srcZ    -2.00 - 8.00 m             default 0.0
+    Weight 1    w1      0.00 - 1.00                default 1.0
+    Weight 2    w2      "                          "
+    Weight 3    w3      "                          "
+    Weight 4    w4      "                          "
+    Weight 5    w5      "                          "
+    Weight 6    w6      "                          "
+    Weight 7    w7      "                          "
+    Weight 8    w8      "                          "
+
+  THE READ-BACK CLAUSE IS THE POINT. Stage 2.1 established VISIBILITY only, and
+  a lane can be listed and even accept a write while nothing routes back to the
+  parameter. Criterion 3 asks for written AND read back, per parameter.
+
+  Source Z carried the highest risk of the eleven and passed: it is the only
+  lane with a non-0-1 range and the only one with a unit, so it is the only
+  place a normalised-vs-denormalised host round-trip mismatch could have
+  surfaced (cf. critical_apvts_denormalised_vs_preset_normalised).
+
+  PROVENANCE: operator-reported pass against the three clauses above. This is a
+  human-verification gate by construction — there is no tool that can drive
+  Logic's automation lanes — so the artifact records it as observed rather than
+  as machine-measured, and does not dress it up as the latter.
+
+  => COMPAT-02 criterion 3 CLOSED. 2 of 3.
+     Only criterion 2 remains, and it needs CT.
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+GATE 16 — CT, realtime ping capture (COMPAT-02/2)      ** SUBSTANCE PASS, see below **
+--------------------------------------------------------------------------------
+  RIG: BlackHole 64ch in AND out. Eight MONO tracks on inputs 1-8, record-armed,
+  outputs to No Output. Air = 0.00 (Execution Constraint 1). Ping AUTO cycle.
+  Capture 19.131 s (>= the 12.800 s cycle). Cannot be bounced (Note N10).
+
+  RIG HAZARD FOUND AND FIXED BEFORE THE TAKE — worth carrying:
+  with Logic's global "Software Monitoring" ON, the record tracks monitored back
+  to the main output, so BlackHole out 1 -> in 1 -> track 1 -> out 1 became a
+  runaway feedback loop and channels 1 and 2 pinned to infinity. Fixed by
+  DISABLING Software Monitoring globally (Logic re-enables per-track monitoring
+  every time a track is armed, so per-track I buttons undo themselves). Left
+  unfixed this would not have failed loudly — it would have put full-scale
+  garbage in the two channels the isolation margin is computed against and
+  produced a confident wrong isolation figure.
+
+  Files staged in CHANNEL ORDER (ct-chK.wav = input K). Feeding them in ping
+  order would have rigged the assertion to pass and was explicitly not done.
+
+  python3 tests/tools/analyse_bounce.py --mode ping \
+      --input ct-ch1.wav ... ct-ch8.wav
+
+  MEASURED — every clause of criterion 2's substance:
+    ping constants  : PARSED from Source/DSP/VerifyPing.h, not mirrored
+                      kNumSpeakers 8, kOnSeconds 1.200, kGapSeconds 0.400
+                      -> period 1.600 s, cycle 12.800 s
+    bursts found    : 8
+    burst period    : 1.600 s, CONSTANT (tolerance 0.050 s)
+    burst length    : 1.205 s vs kOnSeconds 1.200 s
+    per-file spread : 0 frames — the eight takes are sample-aligned
+    energised       : EXACTLY ONE channel per window, all 8 windows
+    isolation       : minimum 219.9 dB against a 40.0 dB floor
+                      (per-window: 220.0 220.0 220.0 220.2 219.9 220.1 220.0 220.1)
+
+  219.9 dB means the other seven channels are at DIGITAL ZERO. Eight distinct
+  physical channels, one per window, none doubled, none missing.
+
+  TOOL VERDICT: FAILED — "sequence mismatch: observed 1,2,5,6,7,8,3,4,
+  expected 1,2,3,4,5,6,7,8".
+
+  THE SEQUENCE EXPECTATION IS WRONG, AND THIS MEASUREMENT IS WHAT PROVES IT.
+  Established from source, not inferred:
+
+    AudioChannelSet is a BITSET; buffer order is ENUM-BIT order.
+    create7point1() = { left(1), right(2), centre(3), LFE(4),
+                        leftSurroundSide(10), rightSurroundSide(11),
+                        leftSurroundRear(20), rightSurroundRear(21) }
+    -> buffer order  L, R, C, Lfe, Lss, Rss, Lrs, Rrs
+       which is EXACTLY the venue table order. Plugin speaker k -> buffer k-1,
+       an exact identity. The plugin's own map is clean.
+
+    Inverting the measurement, device channel -> label:
+       dev 1=L  2=R  3=Lrs  4=Rrs  5=C  6=Lfe  7=Lss  8=Rss
+    = L R Ls Rs C LFE Lc Rc = kAudioChannelLayoutTag_Emagic_Default_7_1,
+      i.e. TAG 0x810008 — the very tag auval showed this AU publishing.
+      JUCE's own header corroborates the naming: leftSurroundSide is
+      'Left Centre "LC" (AU)'; leftSurroundRear is 'Rls (AU)'.
+
+  EVERY SPEAKER LANDED ON THE DEVICE CHANNEL BEARING ITS OWN LABEL. The
+  permutation is the JUCE-buffer-order -> Logic-device-order mapping. PLAN-4.2's
+  "sequence 1..8" silently assumed those two orders coincide; they do not, and
+  the assumption is falsified here rather than argued away.
+
+  SCOPE OF THIS RESULT — stated narrowly on purpose:
+  CT measured the REALTIME / DEVICE order. A Logic bounce writes channels per
+  the file's layout tag, which need not equal the device order. CR-a (Gate 17)
+  measures the BOUNCE order and is a genuinely separate measurement; this is
+  also why P111 requires the LFE claim on BOTH paths. Nothing here is claimed
+  about the bounce order.
+
+  ** DOWNSTREAM CONSEQUENCE — CS's --channels IS WRONG AS SPECIFIED **
+  Gate 20 is spelled `--mode lfe --channels 4,1`. In the DEVICE order measured
+  here, channel 4 is Rrs and the LFE is at channel 6. Run as written against a
+  device-order capture, CS would measure a rear surround against L, see no
+  bass-management signature, and report a confident wrong answer. NC4 does not
+  cover this door. --channels MUST be re-derived per path: from CR-a's result
+  for the bounce, from CT's for the realtime loopback.
+
+  DISPOSITION: ** PASS ON SUBSTANCE ** — user-approved at the boundary, 2026-08-13.
+
+  Criterion 2 asks that the verify-ping REACH EIGHT DISTINCT PHYSICAL CHANNELS.
+  It does, with 219.9 dB isolation. The permutation is recorded as the MEASURED
+  JUCE-buffer-order -> Emagic-device-order mapping, not scored as a failure.
+
+  Rejected alternative, recorded so the reasoning survives: treating the
+  permutation as a defect would mean re-entering Block B with a second freeze to
+  hard-code a LOGIC-SPECIFIC permutation into the speaker->buffer map — which
+  would misroute in every other host, since the plugin writes a JUCE buffer and
+  the HOST decides where each slot goes physically. The plugin cannot see the
+  device order and must not guess at it.
+
+  Positively, this is the verify-ping feature working as designed: in a concert
+  rig its purpose is to let an operator DISCOVER which physical output each
+  speaker lands on. The measured permutation is the answer it exists to give.
+
+  PLAN-4.2.md:521-522's "sequence 1..8" is NOT edited — P109, history is not
+  rewritten to look correct. The correction lives here.
+
+  => COMPAT-02 criterion 2 CLOSED on its routing half. 3 of 3.
+
+  KNOWN GAP, STATED RATHER THAN PAPERED OVER: CT's figures are NOT in
+  bounce-manifest.json. --emit-json was attempted and the tool declined to write
+  — by design it records only runs that passed their own assertion, so a failed
+  run can never masquerade as a recorded figure. Verified here: the manifest
+  still holds 1 run after the attempt.
+
+  CONSEQUENCE: the isolation and sequence figures above are TRANSCRIBED from the
+  tool's stdout, not re-derivable by Gate 25's --check. That is precisely the
+  weakness --emit-json exists to remove, and it applies to this gate.
+
+  NOT FIXED BY LOOSENING THE TOOL. ping mode hard-codes the 1..8 expectation and
+  takes no --expect (that flag is order-mode only). Adding --expect to ping mode
+  mid-session would have made this gate pass by fitting the assertion to the
+  result it just produced, and would have put a defaultable expectation into the
+  one mode that currently cannot have a vacuous one (cf. P105 clause 1).
+
+  OWED: either add an explicit, MANDATORY --expect to ping mode at a future
+  boundary — so the physical order is stated rather than assumed, matching what
+  order mode already requires — or accept CT as a transcribed-figure gate and
+  say so in the verification. Not decided here. Deliberately left as a named
+  deferral rather than silently absorbed.
+
+  D11 REMAINS: this closes the ROUTING half of criterion 2. The physical-
+  interface half carries owner: none — no 8-out interface is attached and the
+  result would not generalise across interfaces even with one. The criterion
+  keeps its wording.
 GATE 17 — CR-a, canonical bounce order                                  NOT RUN
 GATE 18 — CR-b, permuted venue under the 8-cycle                        NOT RUN
 GATE 19 — NC2 + NC3, the controls for 17/18                             NOT RUN
