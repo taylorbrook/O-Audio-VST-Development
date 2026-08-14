@@ -690,6 +690,35 @@ GATE 21 — NC4, airAmount confound control                               ** PAS
   NC4 IS THAT PROOF. Without it, Gate 20's pass would be indistinguishable from
   a measurement chain that reports 0.00 regardless of input.
 
+  TAKE 4 (cs-nc4-air035.wav) — SECOND OPERATING POINT, not required by the
+  runbook and recorded because it is the one that ships.
+  ARTIFACT: ~/Dev/octagon-4.2-session/cs-nc4-air035.wav
+            sha256 8a18c9329eb315011b964e8113ef99feeecefac8b5fc5fa6882e70862d6aa131
+  Identical rig, airAmount = 0.35 — the SHIPPED DEFAULT — instead of 1.00.
+  fc = 20000 * 2^(-0.35 * 2.138 / 3) = 16824.5 Hz, again derived forward.
+
+    partial Hz    delta dB    TPT model    err
+           31       -0.00        -0.00    0.00
+           63       -0.00        -0.00    0.00
+          125       -0.00        -0.00    0.00
+          250       -0.00        -0.00    0.00
+          500       -0.00        -0.00    0.00
+         1000       -0.00        -0.00    0.00
+         2000       -0.02        -0.02   -0.00
+         4000       -0.08        -0.08   -0.00
+         8000       -0.35        -0.36    0.01
+        16000       -2.46        -2.49    0.03
+
+    worst deviation 0.03 dB · LF mean -0.00 · HF mean -0.58 · spread 2.46
+
+  TWO OPERATING POINTS, ONE MODEL, NO FITTED PARAMETER. The air curve is now
+  verified at airAmount 1.00 (fc 12203.8 Hz, 0.00 dB worst) and at the default
+  0.35 (fc 16824.5 Hz, 0.03 dB worst), both predicted from the venue geometry
+  before measurement. A single point could be coincidence; two points on the
+  same one-parameter curve, with the parameter derived rather than tuned, is the
+  model being right. The 0.35 case is the one that matters for shipping, because
+  it is what a user hears without touching the control.
+
   *** FINDING — THE MANIFEST CAN HOLD ONLY ONE lfe RUN, AND THE SECOND SILENTLY
   DESTROYS THE FIRST. *** --emit-json dedupes on (label, mode)
   (analyse_bounce.py:963-965), and --label accepts ONLY CR-a or CR-b (:909), so
