@@ -40,12 +40,24 @@ status: stage_partial_block_c_part2_owed   # VERIFICATION.md. VERDICT: PARTIAL. 
                                            # QUAL-01 criterion 2's audible clause is UNCONCLUDED
                                            # and rides Gate 22. Do NOT run /install-plugin.
                                            #
-                                           # OWED AT THE BLOCK C CLOSE: (1) Gate 13's banner
-                                           # screenshots are NEITHER on disk NOR committed, and
-                                           # Gate 14 half 1 INHERITS that unevidenced observation
-                                           # (Finding 1); (2) the ping-mode --expect decision
-                                           # (Finding 3); (3) Gate 23's throttling-recovery
-                                           # relabelling, now at its third boundary (Finding 4).
+                                           # OWED AT THE BLOCK C CLOSE: (1) FINDING 1 IS CLOSED
+                                           # 2026-08-14 — Gate 13's two banner screenshots are
+                                           # now COMMITTED as evidence/gate13-banner-room.png and
+                                           # evidence/gate13-banner-venue.png, taken in LOGIC PRO
+                                           # on the 7.1 surround track (host confirmed by the
+                                           # operator, ASKED not inferred — a Standalone capture
+                                           # on BlackHole would read "7.1 Surround" too and would
+                                           # evidence nothing about what Logic negotiated). Both
+                                           # show NO SAFE and NO MAP banner + "Set 7.1 Surround";
+                                           # stages/3-gui/evidence/standalone-verify-3.3.png is
+                                           # the pre-existing negative control showing BOTH
+                                           # banners present, so banner-absence discriminates.
+                                           # Gate 14 half 1 no longer inherits an unevidenced
+                                           # observation. STILL OWED: (2) the ping-mode --expect
+                                           # decision (Finding 3); (3) Gate 23's throttling-
+                                           # recovery relabelling, at its third boundary
+                                           # (Finding 4). Both require gates that have NOT run,
+                                           # so writing either now would assert an unrun gate.
                                            #
                                            # superseded note kept for history:
                                            # BLOCK C PART 1 — gates 12-16 of 25 are DONE and

@@ -93,8 +93,33 @@ GATE 13 — getStatus pre-flight  [STOP-GATE]                              ** PA
   so this is not a screen-specific render.
 
   EVIDENCE: banner-state screenshots of both the Room and Venue screens,
-  supplied by the operator at the boundary. Still owed as a committed file:
-  ~/Dev/octagon-4.2-session/gate13-banner.png
+  supplied by the operator at the boundary. DELIVERED AND COMMITTED 2026-08-14,
+  closing VERIFICATION.md (stage roll-up) Finding 1 — the artifact this gate
+  said it owed is no longer owed:
+
+    evidence/gate13-banner-room.png
+      sha256 a5e6ca3e3fa21f876c52957bf94a3d0918fc81ea2f1d2e7880d40f8dbb2412af
+    evidence/gate13-banner-venue.png
+      sha256 fb73c3d1a742b581ff1d44b2250131fd0582b0073764cffed4e818855208bdc1
+
+  HOST, stated because it is the whole point of this gate: taken in LOGIC PRO
+  with the plugin open on the 7.1 surround track, confirmed by the operator
+  2026-08-14. A Standalone capture driving BlackHole would also read "7.1
+  Surround" and would NOT evidence what Logic negotiated, so the distinction
+  was asked before these were committed rather than inferred from the pixels.
+
+  WHAT THE TWO IMAGES SHOW, read off the images themselves:
+    - Room screen:  header carries NO SAFE banner and NO MAP banner
+    - Venue screen: header clean likewise; "Set 7.1 Surround" top right;
+                    Venue table slots 1-8 = L, R, C, Lfe, Lss, Rss, Lrs, Rrs
+  i.e. safeMode == false, mapInvalid == false, outputSetName == "7.1 Surround",
+  and the identity label set that makes Gate 20's LFE slot speaker 4.
+
+  NEGATIVE CONTROL, already on disk and NOT re-shot for this purpose:
+  stages/3-gui/evidence/standalone-verify-3.3.png shows the SAME UI with the
+  banners PRESENT — SAFE "Stereo fold — not the 8-channel rig" and MAP "output
+  set is not 8 channels". So banner-absence here is a discriminating reading,
+  not a screenshot in which banners merely happen not to appear.
 
   NOTE — THIS GATE DEMONSTRABLY FAILED FIRST, WHICH IS THE GATE WORKING.
   It went red on the real misconfiguration above before it went green, so this
