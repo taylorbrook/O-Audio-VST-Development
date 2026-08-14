@@ -8,35 +8,29 @@ This skill implements **level-based reconciliation**: check ALL state on every i
 
 ## Validation Protocol
 
-### 1. Schema Validation
+### 1. Structural Validation
 
-For each state file, validate against its schema:
+The central JSON state files are **retired**. STATUS.md is authoritative; `PLUGINS.md`
+is the roster. Validate these:
 
-| File | Schema | Location |
-|------|--------|----------|
-| `.planning/workflow/registry.json` | registry.schema.json | `.planning/workflow/schemas/` |
-| `.planning/workflow/active-plugin.json` | active-plugin.schema.json | `.planning/workflow/schemas/` |
-| `plugins/{name}/.planning/STATUS.md` | YAML frontmatter conventions | N/A (documented below) |
+| File | Validated against | Location |
+|------|-------------------|----------|
+| `PLUGINS.md` | Markdown table shape (one row per plugin) | repo root |
+| `plugins/{name}/.planning/STATUS.md` | YAML frontmatter conventions | per plugin |
+| `modules/registry.yaml` | YAML parses; `used_by` entries name real plugins | repo root |
 
-**Registry schema checks:**
-- `$schema` field present and matches `./schemas/registry.schema.json`
-- `version` matches semver pattern `^\d+\.\d+\.\d+$`
-- `focused` is string or null
-- `plugins` is object with valid PluginEntry values
-- Each plugin entry has: path, stage, phase, status, created (required)
-
-**Active plugin schema checks:**
-- `$schema` field present
-- `plugin` is string or null
-- `focusedAt` is ISO 8601 datetime or null
-- `loadedContext` object (if present) has valid structure
+**PLUGINS.md structural checks:**
+- File exists and its plugin table parses
+- Every row's Plugin cell names a directory under `plugins/`
+- No duplicate rows for the same plugin (a duplicate is the classic union-merge artifact)
 
 **STATUS.md frontmatter conventions:**
 ```yaml
 ---
-stage: 2-dsp           # Must match registry enum
-phase: execute         # Must match registry enum
-status: active         # Must match registry enum
+stage: 2-dsp           # Must be a known stage
+phase: execute         # Must be a known phase
+status: active         # Must be a known status
+focused: true          # At most one plugin repo-wide
 last-updated: YYYY-MM-DDTHH:MM:SSZ  # ISO 8601
 ---
 ```
@@ -47,20 +41,20 @@ Compare fields that must match across files:
 
 | Source | Field | Must Match | Severity |
 |--------|-------|------------|----------|
-| `registry.json` | `plugins.{name}.stage` | `STATUS.md` frontmatter `stage` | ERROR |
-| `registry.json` | `plugins.{name}.phase` | `STATUS.md` frontmatter `phase` | ERROR |
-| `registry.json` | `plugins.{name}.status` | `STATUS.md` frontmatter `status` | ERROR |
-| `registry.json` | `focused` | `active-plugin.json` `plugin` | ERROR |
-| `registry.json` | `plugins.{name}` exists | `plugins/{name}/` directory exists | ERROR |
+| `PLUGINS.md` | row status cell | `STATUS.md` frontmatter `status` | ERROR |
+| `PLUGINS.md` | row version cell | `plugins/{name}/CHANGELOG.md` top version | ERROR |
+| `PLUGINS.md` | row exists | `plugins/{name}/` directory exists | ERROR |
+| `STATUS.md` | `focused: true` | at most one across all plugins | ERROR |
+| `modules/registry.yaml` | `used_by[].plugin` | `plugins/{name}/` directory exists | ERROR |
 
 ### 3. Existence Checks
 
 | Check | Severity | Description |
 |-------|----------|-------------|
-| Registry plugin has STATUS.md | ERROR | Every plugin in registry must have `plugins/{name}/.planning/STATUS.md` |
-| Plugin directory in registry | WARNING | Every `plugins/*/` directory with `.planning/` should have registry entry |
-| Focused plugin exists | ERROR | If registry.focused is set, that plugin must exist in registry.plugins |
-| Active plugin matches focus | ERROR | active-plugin.json.plugin must match registry.focused |
+| Roster plugin has STATUS.md | ERROR | Every `PLUGINS.md` row must have `plugins/{name}/.planning/STATUS.md` |
+| Plugin directory in roster | WARNING | Every `plugins/*/` directory with `.planning/` should have a `PLUGINS.md` row |
+| Focused plugin exists | ERROR | If a STATUS.md sets `focused: true`, that plugin must have a `PLUGINS.md` row |
+| Single focus | ERROR | No more than one plugin may carry `focused: true` |
 
 ## Result Format
 
@@ -79,7 +73,7 @@ interface Issue {
   checkName: string;
   severity: 'error' | 'warning';
   description: string;
-  location: string;      // e.g., "registry.json:plugins.O-IntonationPad.stage"
+  location: string;      // e.g., "plugins/O-IntonationPad/.planning/STATUS.md:stage"
   expected: unknown;
   actual: unknown;
   recoverable: boolean;
@@ -96,32 +90,30 @@ interface Issue {
 Execute checks in this order (fail-fast on corruption):
 
 ```
-1. REGISTRY FILE
-   1.1 File exists at .planning/workflow/registry.json
-   1.2 File is valid JSON (parseable)
-   1.3 File matches registry.schema.json structure
-   1.4 Version field is valid semver
+1. ROSTER FILE
+   1.1 File exists at PLUGINS.md
+   1.2 The plugin table parses
+   1.3 No duplicate rows for the same plugin
 
-2. ACTIVE PLUGIN FILE
-   2.1 File exists at .planning/workflow/active-plugin.json
-   2.2 File is valid JSON (parseable)
-   2.3 File matches active-plugin.schema.json structure
+2. MODULE REGISTRY
+   2.1 File exists at modules/registry.yaml
+   2.2 File is valid YAML (parseable)
+   2.3 Header version field is valid semver
 
 3. FOCUS CONSISTENCY
-   3.1 registry.focused === active-plugin.plugin
-   3.2 If focused is set, plugin exists in registry.plugins
+   3.1 At most one STATUS.md carries focused: true
+   3.2 If focus is set, that plugin has a PLUGINS.md row
 
-4. FOR EACH PLUGIN IN REGISTRY
-   4.1 Plugin directory exists at {path}
-   4.2 STATUS.md exists at {path}/.planning/STATUS.md
+4. FOR EACH PLUGIN ROW IN PLUGINS.md
+   4.1 Plugin directory exists at plugins/{name}/
+   4.2 STATUS.md exists at plugins/{name}/.planning/STATUS.md
    4.3 STATUS.md frontmatter is valid YAML
-   4.4 stage matches: registry vs STATUS.md
-   4.5 phase matches: registry vs STATUS.md
-   4.6 status matches: registry vs STATUS.md
+   4.4 status matches: PLUGINS.md row vs STATUS.md
+   4.5 version matches: PLUGINS.md row vs CHANGELOG.md top entry
 
 5. ORPHAN DETECTION (warnings only)
    5.1 Scan plugins/*/ directories
-   5.2 For each with .planning/, check registry entry exists
+   5.2 For each with .planning/, check a PLUGINS.md row exists
    5.3 Warn if orphan found (not blocking)
 ```
 
@@ -156,9 +148,9 @@ Failed: 1
 
 ISSUES FOUND:
 -------------
-1. [ERROR] stage_consistency: Registry and STATUS.md disagree on stage
-   Location: plugins.O-IntonationPad.stage
-   Registry value: 1-foundation
+1. [ERROR] status_consistency: PLUGINS.md and STATUS.md disagree
+   Location: PLUGINS.md row O-IntonationPad
+   PLUGINS.md value: 1-foundation
    STATUS.md value: 2-dsp
    Recoverable: YES
 
@@ -180,10 +172,10 @@ Failed: 1
 
 ISSUES FOUND:
 -------------
-1. [ERROR] registry_schema: Registry file has invalid structure
-   Location: .planning/workflow/registry.json
-   Error: Missing required field 'version'
-   Recoverable: NO (manual intervention or rebuild required)
+1. [ERROR] roster_structure: PLUGINS.md table has invalid structure
+   Location: PLUGINS.md
+   Error: Duplicate row for O-IntonationPad (union-merge artifact)
+   Recoverable: NO (manual intervention required)
 
 RECOMMENDED ACTION:
 Load state-recovery skill for repair options.
@@ -204,11 +196,14 @@ See: @.claude/skills/state-recovery/SKILL.md
 
 **Reading files for validation:**
 ```bash
-# Registry
-cat .planning/workflow/registry.json | jq -e '.' || echo "Invalid JSON"
+# Roster rows
+grep -E '^\| O-' PLUGINS.md
 
-# Active plugin
-cat .planning/workflow/active-plugin.json | jq -e '.' || echo "Invalid JSON"
+# Duplicate-row check (union-merge artifact)
+grep -E '^\| [A-Za-z0-9-]+ \|' PLUGINS.md | cut -d'|' -f2 | sort | uniq -d
+
+# Module registry
+python3 -c "import yaml,sys; yaml.safe_load(open('modules/registry.yaml'))" || echo "Invalid YAML"
 
 # STATUS.md frontmatter (extract YAML between --- markers)
 sed -n '/^---$/,/^---$/p' plugins/{name}/.planning/STATUS.md | head -n -1 | tail -n +2
@@ -220,12 +215,12 @@ sed -n '/^---$/,/^---$/p' plugins/{name}/.planning/STATUS.md | head -n -1 | tail
 - Handle null vs missing field (treat as equivalent)
 
 **Error classification:**
-- JSON parse error -> corrupted
+- YAML/table parse error -> corrupted
 - Missing required field -> corrupted
 - Field value mismatch -> inconsistent
 - Missing STATUS.md -> corrupted
 - Missing plugin directory -> corrupted
-- Orphan plugin (no registry entry) -> warning only
+- Orphan plugin (no PLUGINS.md row) -> warning only
 
 ## Related Skills
 

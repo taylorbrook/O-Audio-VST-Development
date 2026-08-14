@@ -44,7 +44,7 @@ Create a validated handoff document at stage completion for transition to the ne
 
 Read plugin's current state from:
 - `plugins/[plugin]/.planning/STATUS.md` - Current stage/phase
-- `.planning/workflow/registry.json` - Registered state
+- `PLUGINS.md` - Registry row (roster + status column)
 
 ### 2. Gather Stage Information
 
@@ -184,7 +184,7 @@ Next: /plugin-execute [plugin] [next-stage]
   "phase": "complete",
   "parameterCount": [number],
   "buildVerified": true,
-  "source": ["STATUS.md", "registry.json"]
+  "source": ["STATUS.md", "PLUGINS.md"]
 }
 ```
 
@@ -195,7 +195,7 @@ Next: /plugin-execute [plugin] [next-stage]
   "phase": "complete",
   "dspComplexity": "[low|medium|high]",
   "realtimeSafe": true,
-  "source": ["STATUS.md", "registry.json"]
+  "source": ["STATUS.md", "PLUGINS.md"]
 }
 ```
 
@@ -206,7 +206,7 @@ Next: /plugin-execute [plugin] [next-stage]
   "phase": "complete",
   "uiComplete": true,
   "webviewIntegrated": true,
-  "source": ["STATUS.md", "registry.json"]
+  "source": ["STATUS.md", "PLUGINS.md"]
 }
 ```
 
