@@ -1,0 +1,17 @@
+{
+  "runs": [
+    {
+      "input": [
+        "q2-probe.wav"
+      ],
+      "label": "probe",
+      "mode": "probe",
+      "result": {
+        "channels": 8,
+        "depth": 24,
+        "duration_s": 19.5,
+        "rate": 48000
+      }
+    }
+  ]
+}

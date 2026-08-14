@@ -1,0 +1,162 @@
+================================================================================
+O-OCTAGON — STAGE 4 / PHASE 4.2 — BLOCK C (SESSION) GATE EVIDENCE
+================================================================================
+Host          : Logic Pro 12.3
+Device        : BlackHole 64ch
+Freeze commit : 378fb4cdc70ef7e7b4523771dd4f014f189246ec
+VST3 binary   : 928cd447c57435c93554fbb90fd14ec035cd39e8a8db54a5aba37a1597e0bb42
+AU binary     : cc54db026875173e47daf691228c4c80c52da4c9050880aea0976bc16fe1fc99
+Installed AU  : verified byte-identical to the freeze at session start
+Standalone    : built in the SAME compile as the frozen VST3 (build-tree VST3
+                re-hashed to 928cd447… before launch)
+Session date  : 2026-08-13
+
+GATES 12-25 ARE THE SESSION GATES. Anything not explicitly recorded PASS below
+is NOT RUN, and no result from an unrun gate is claimed anywhere in this file.
+
+--------------------------------------------------------------------------------
+RIG SETUP — the root cause that cost the session ~40 minutes
+--------------------------------------------------------------------------------
+  RECORDED BECAUSE IT IS A REAL USAGE CONSTRAINT, NOT A FUMBLE.
+
+  O-Octagon MUST be instantiated in Logic via the insert slot's
+      Stereo -> 7.1
+  channel-configuration entry. Clicking the plugin NAME takes Logic's default
+  pick for the slot, which is MULTI-MONO: eight independent mono instances, one
+  per surround channel. Logic marks this with the multi-mono control bar
+      (...) [L-R|Lm-Rm|Ls-Rs|C] [LFE] [Couple]
+  above the plugin UI.
+
+  Each multi-mono instance sees a 1-in/1-out bus, so EVERY instance correctly
+  raises both banners:
+      SAFE  "Stereo fold — not the 8·channel rig"
+      MAP   "output set is not 8 channels"
+  The banners were accurate throughout. They were describing one of eight mono
+  copies. The plugin never misreported anything.
+
+  WHAT WAS RULED OUT BEFORE THE CAUSE WAS FOUND (each measured, not assumed):
+    - Project surround format / Audio I/O ... correct at 7.1 the whole time
+    - Stale AudioUnitCache ................. cache empty (0 bytes)
+    - Stale Logic plugin database .......... no Octagon entries present
+    - Dev/release variant shadowing ........ only O-Octagon-dev.component on
+                                             disk; no system-wide copy
+    - Plugin-side channel support .......... auval reports the explicit set
+                                             [1,1] [1,2] [1,8] [2,1] [2,2] [2,8]
+                                             and publishes output layout tag
+                                             0x810008 = Emagic_Default_7_1,
+                                             i.e. Logic's OWN 7.1 tag
+    - Plugin real-rig path ................. PROVEN GOOD in Standalone on
+                                             BlackHole 64ch with active outputs
+                                             pinned to 1-8: both banners clear,
+                                             Set = "7.1 Surround"
+
+  A surround-INPUT track does NOT work and cannot: isBusesLayoutSupported
+  rejects any input wider than stereo before it looks at the output, so Logic
+  finds no matching config and falls back to multi-mono. O-Octagon is a PANNER
+  (mono-or-stereo in, 8 out), not a surround processor.
+
+  OWED AT CLOSE: this constraint belongs in COMPAT-02's notes and in the docs.
+  No artifact currently states it, and the next person to open this plugin in
+  Logic will hit it in exactly the same way. The failure is quiet if the banners
+  are not read.
+
+--------------------------------------------------------------------------------
+GATE 13 — getStatus pre-flight  [STOP-GATE]                              ** PASS **
+--------------------------------------------------------------------------------
+  RUN BEFORE THE FIRST BOUNCE, per PLAN-4.2's risk table: mapInvalid must be
+  read directly, never inferred off a bounce. Gate 13 is therefore recorded
+  BEFORE Gate 12 in this file. The plan lists Q2 first; the risk note overrides
+  the ordering and doing 13 first satisfies both.
+
+  Read from the shipped UI, which renders all four fields from ONE getStatus
+  poll at 2 Hz (PluginEditor.cpp withNativeFunction("getStatus")):
+
+    safeMode          == false    SAFE banner ABSENT
+    mapInvalid        == false    MAP banner ABSENT
+    numOutputChannels == 8        no notEightChannels reason raised; the MAP
+                                  banner's own failure taxonomy fires precisely
+                                  when the set is not 8 channels
+    outputSetName     == "7.1 Surround"
+
+  outputSetName is create7point1().getDescription() — the PRIMARY 8-channel
+  container, NOT 7.1 SDDS and NOT 5.1.2. This is the container CR-a's canonical
+  bounce order will be measured against, and it is recorded here so a later
+  reader cannot mistake which of the three the session ran on.
+
+  Corroborating, checked rather than assumed: the Venue table reads the shipped
+  default label set L, R, C, Lfe, Lss, Rss, Lrs, Rrs in slots 1-8 — the set
+  buildSpeakerToBuffer mapped successfully. Speaker 4 is Lfe, which is what
+  makes Gate 20's --channels 4,1 correct UNDER THIS IDENTITY VENUE and wrong
+  under CR-b.
+
+  Verified on BOTH screens (Room and Venue): the banner frame is clean on each,
+  so this is not a screen-specific render.
+
+  EVIDENCE: banner-state screenshots of both the Room and Venue screens,
+  supplied by the operator at the boundary. Still owed as a committed file:
+  ~/Dev/octagon-4.2-session/gate13-banner.png
+
+  NOTE — THIS GATE DEMONSTRABLY FAILED FIRST, WHICH IS THE GATE WORKING.
+  It went red on the real misconfiguration above before it went green, so this
+  PASS is not an assertion about test design. A stop-gate that has never fired
+  is not a gate. It cost ~40 minutes and it spent them BEFORE eight bounces were
+  in the can, which is exactly what it exists to do.
+
+--------------------------------------------------------------------------------
+GATE 12 — Q2 surround bounce  [STOP-GATE]                                ** PASS **
+--------------------------------------------------------------------------------
+  Project sample rate set to 48 kHz BEFORE bouncing, so the tone set used by
+  CR-a / CR-b / CT lands at its nominal frequencies.
+
+  Bounce: Logic interleaved surround bounce, tone-1.wav through the plugin.
+  File:   ~/Dev/octagon-4.2-session/q2-probe.wav  (22,472,082 bytes)
+
+  python3 tests/tools/analyse_bounce.py --mode probe \
+      --input ~/Dev/octagon-4.2-session/q2-probe.wav \
+      --expect-channels 8 --expect-rate 48000 --expect-depth 24 \
+      --emit-json .planning/stages/4-polish/evidence/bounce-manifest.json
+
+    -> probe OK — 8 channels, 48000 Hz, 24-bit, 19.500 s
+
+    channels    : 8
+    sample rate : 48000 Hz
+    bit depth   : 24-bit INTEGER PCM  (not 32-bit float; Python wave rejects 0x0003)
+    duration    : 19.500 s / 936000 frames  (plan asked ~4 s; longer is harmless
+                  for a probe and the extra length was kept rather than re-cut)
+
+    ch    peak dBFS    rms dBFS
+     1        -23.20      -34.48
+     2        -22.65      -33.93
+     3        -20.78      -32.07
+     4        -22.62      -33.90
+     5        -23.17      -34.45
+     6        -21.75      -33.03
+     7        -23.69      -34.97
+     8        -23.91      -35.19
+
+  BEYOND THE GATE'S PASS CONDITION, recorded because it discriminates:
+  ALL EIGHT channels carry signal, across a ~3.1 dB spread (-20.78 .. -23.91).
+  That is a DBAP field distributing energy over the whole rig. The multi-mono
+  fold this session started in would instead show two live channels and six
+  dead ones, so this figure independently corroborates Gate 13's mapInvalid ==
+  false rather than merely co-occurring with it.
+
+  Recorded to bounce-manifest.json (run 1 of N) via --emit-json, so Gate 25's
+  --check re-derives this figure instead of reading it back.
+
+--------------------------------------------------------------------------------
+GATE 14 — COMPAT-02/1, instantiate + save/quit/reopen recall            NOT RUN
+GATE 15 — COMPAT-02/3, 11 automation lanes written AND read back        NOT RUN
+GATE 16 — CT, realtime ping capture (COMPAT-02/2)                       NOT RUN
+GATE 17 — CR-a, canonical bounce order                                  NOT RUN
+GATE 18 — CR-b, permuted venue under the 8-cycle                        NOT RUN
+GATE 19 — NC2 + NC3, the controls for 17/18                             NOT RUN
+GATE 20 — CS, LFE on bounce AND realtime loopback                       NOT RUN
+GATE 21 — NC4, airAmount confound control                               NOT RUN
+GATE 22 — CU, the audible clause (headphones must be NAMED)             NOT RUN
+GATE 23 — interactive drive + throttling-recovery relabelling           NOT RUN
+GATE 24 — User/ presets byte-identical after the session                NOT RUN
+GATE 25 — analyse_bounce.py --check on committed artifacts              NOT RUN
+
+  NOTHING ABOVE IS CLAIMED. COMPAT-02 remains 0 of 3; the ledger stands at
+  29 complete / 0 partial / 1 pending of 30, unmoved by this session so far.
