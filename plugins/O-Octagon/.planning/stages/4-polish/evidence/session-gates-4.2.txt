@@ -357,18 +357,195 @@ GATE 16 — CT, realtime ping capture (COMPAT-02/2)      ** SUBSTANCE PASS, see 
   interface half carries owner: none — no 8-out interface is attached and the
   result would not generalise across interfaces even with one. The criterion
   keeps its wording.
-GATE 17 — CR-a, canonical bounce order                                  NOT RUN
-GATE 18 — CR-b, permuted venue under the 8-cycle                        NOT RUN
-GATE 19 — NC2 + NC3, the controls for 17/18                             NOT RUN
+--------------------------------------------------------------------------------
+GATE 17 — CR-a, canonical bounce order              ** SUBSTANCE PASS, see below **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. Logic Pro 12.3, 7.1 surround output.
+
+  RIG: eight surround tracks, eight O-Octagon instances, one-hot w (instance k
+  has wk=1.00 and the other seven 0.00), airAmount = 0, identical srcX/Y/Z,
+  SHIPPED DEFAULT venue. tone-k.wav on track k from sources/. Interleaved
+  Surround Bounce, 24-bit PCM WAV.
+
+  ARTIFACT: ~/Dev/octagon-4.2-session/cr-a.wav
+            sha256 3a8ee8c5c7f4b121260c3555b25ba126105abe51220e67a5be0b3da1a1c58f51
+            8 ch / 48000 Hz / 24-bit / 10.923 s; every channel peak -20.00 dBFS,
+            rms -23.40 dBFS — uniform across all eight, which is the rig check.
+
+  MEASURED:
+      k   tone Hz   -> channel   isolation dB
+      1       997   ->   ch1          164.8
+      2      1499   ->   ch2          163.2
+      3      2003   ->   ch3          158.3
+      4      2503   ->   ch4          165.7
+      5      3001   ->   ch7          165.6
+      6      3499   ->   ch8          158.6
+      7      4001   ->   ch5          164.6
+      8      4507   ->   ch6          162.1
+
+      observed: 1,2,3,4,7,8,5,6      minimum isolation 158.3 dB (floor 40.0)
+
+  *** LOGIC'S CANONICAL INTERLEAVED 7.1 BOUNCE ORDER IS 1,2,3,4,7,8,5,6. ***
+  This is the stage goal's second clause and it is now measured, not assumed.
+
+  Decoded against the identity venue, the bounce file carries:
+      ch1=L  ch2=R  ch3=C  ch4=Lfe  ch5=Lrs  ch6=Rrs  ch7=Lss  ch8=Rss
+        FL     FR     FC     LFE      BL       BR       SL       SR
+  i.e. the canonical WAVEFORMATEXTENSIBLE 7.1 channel-mask order. It is NOT the
+  device order CT measured (1,2,5,6,7,8,3,4). The runbook's insistence that the
+  bounce order and the device order are separate measurements was correct, and
+  this is the measurement that proves it rather than assuming it.
+
+  TOOL VERDICT: FAILED, exit 1, on --expect 1,2,3,4,5,6,7,8 as spelled.
+  WHY THAT IS A SUBSTANCE PASS AND NOT A DODGE. PLAN-4.2:618 states the gate as
+  two clauses: (a) "--expect 1,...,8 passes" and (b) "Logic's canonical
+  interleaved 7.1 bounce order recorded". Clause (a) was a MEDIUM-confidence
+  assumption and is now FALSIFIED at 158 dB. Clause (b) is achieved. This is the
+  same shape as Gate 16, where CT falsified PLAN-4.2's "sequence 1..8" ping
+  assumption. The expectation was NOT refitted to the data before running: the
+  gate was run as spelled, it failed, and the failure is what is recorded here.
+  Second MEDIUM-confidence assumption this stage has overturned by measurement.
+
+  FIGURES ARE TRANSCRIBED, NOT IN THE MANIFEST — and the reason is structural,
+  not an oversight. analyse_bounce.py evaluates the mode and dies on failure
+  BEFORE reaching the --emit-json block (:933-971), so a failing run records
+  nothing. VERIFIED at this boundary against a SCRATCH manifest, not the
+  committed one: exit 1, no file written. Same weakness already conceded for CT.
+  MITIGATION: cr-a.wav is staged in the session directory with its sha256 above,
+  so a second person re-derives every figure from the committed tool.
+
+  CORROBORATION, recorded because it was genuinely independent. An earlier
+  operator bounce used keyboard tones ascending in minor thirds. Four minor
+  thirds is exactly one octave, so notes 5-8 were exact 2x duplicates of notes
+  1-4, and the harmonic-rich piano partials contaminated detection: the run
+  decided k=6 by a 2.2 dB margin against a 40.0 dB floor and was REJECTED as
+  evidence. It nonetheless returned the SAME permutation 1,2,3,4,7,8,5,6. Two
+  different source materials and two rigs agreeing, one of them at 158 dB.
+  The piano bounce is not evidence and is not counted; it is noted only because
+  it was measured before the clean rig existed and it did not disagree.
+
+--------------------------------------------------------------------------------
+GATE 18 — CR-b, permuted venue under the 8-cycle                        ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. Same rig as Gate 17, with tests/fixtures/cr-b-permuted.venue
+  loaded into ALL EIGHT instances.
+
+  ARTIFACT: ~/Dev/octagon-4.2-session/cr-b.wav
+            sha256 14968603a1fb30fdfb1e54b762dce0bab35e1ce195697a47ed81c059e4426c94
+            8 ch / 48000 Hz / 24-bit / 10.923 s; all eight channels -20.00 dBFS.
+
+  *** THE RUNBOOK'S --expect 2,3,4,5,6,7,8,1 IS STALE AND WOULD FAIL A CORRECT
+      RIG. *** Both the runbook and the fixture's own header comment derive that
+  value from "CR-b bounce channel", a column computed on the assumption that
+  buffer index -> bounce channel is the IDENTITY. Gate 17 falsified exactly that
+  assumption. Recomputed here from the fixture's ACTUAL <SPEAKER> labels (read
+  from the fixture file, not from the plan's transcription of it), composed with
+  CR-a's measured map:
+
+      buffer idx -> bounce channel, from CR-a:
+        idx0 L ->ch1  idx1 R ->ch2  idx2 C  ->ch3  idx3 Lfe->ch4
+        idx4 Lss->ch7 idx5 Rss->ch8 idx6 Lrs->ch5  idx7 Rrs->ch6
+
+      spk1 R  idx1 ->ch2    spk5 Rss idx5 ->ch8
+      spk2 C  idx2 ->ch3    spk6 Lrs idx6 ->ch5
+      spk3 Lfe idx3->ch4    spk7 Rrs idx7 ->ch6
+      spk4 Lss idx4->ch7    spk8 L  idx0 ->ch1
+
+      CORRECTED EXPECTATION: --expect 2,3,4,7,8,5,6,1
+
+  MEASURED: observed 2,3,4,7,8,5,6,1 — EXACTLY AS PREDICTED. exit 0.
+            minimum isolation 158.3 dB (floor 40.0). RECORDED to the manifest
+            via --emit-json, so these figures are machine-measured.
+
+  WHY THIS IS THE STRONGEST RESULT IN THE STAGE, AND WHY IT IS NOT A FIT. The
+  expectation was derived and written down BEFORE the bounce was made, from
+  three things already settled independently of it: the committed fixture's
+  label permutation, JUCE's ascending enum-bit ordering, and CR-a's measurement.
+  It is non-identity (so N13's refusal still applies) and a derangement against
+  CR-a's order with no fixed point (so a venue that silently failed to load
+  would have produced 1,2,3,4,7,8,5,6 and failed this assertion on the data).
+  A correct prediction confirms in one shot: CR-a's order is right, the
+  speaker->buffer map IS consulted rather than ignored, and the fixture was
+  taken by all eight instances.
+
+  The eight isolation figures are the SAME EIGHT NUMBERS as CR-a's, shifted one
+  step round the cycle — same tones, same rig, different routing. Internal
+  consistency, checked rather than assumed.
+
+--------------------------------------------------------------------------------
+GATE 19 — NC2 + NC3, the controls for 17/18                             ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. Neither control was --emit-json'd: a control meant to fail
+  must not be recorded as a run.
+
+  NC2 — identity --expect under a CR-b label, on cr-b.wav.
+    REFUSED, as declared. P105 clause 2 / N13 fired with its full message.
+
+  NC3 — track 8 muted, re-bounced, same CR-b expectation.
+    sha256 30d3db71fea47a10a4f20d3b1ed98c0137915e4ff6d0a634f50a37feeafb0af3
+    (Desktop, control artifact, deliberately NOT staged into the session dir.)
+    FAILED, exit 1, with the correct diagnosis rather than a 7-of-8 green:
+      "tone 4507 Hz (k=8) not found: loudest channel is ch7 at -182.1 dBFS,
+       below the -60.0 dBFS presence floor. A track was muted or an instance
+       was not one-hot (clause 3)."
+    UNPLANNED CORROBORATION: the muted track was 8, and the channel that went
+    to digital silence (-240.00 dBFS) was ch1. Under CR-b the measured map says
+    spk8 -> ch1. A control not designed to test the mapping confirmed it anyway.
+
+  *** FINDING — N13'S GUARD NO LONGER COVERS THE RISK IT NAMES. ***
+  Demonstrated, not theorised. Feeding the tool the CR-a bounce under a CR-b
+  label while asserting CR-a's MEASURED order — i.e. simulating "the venue
+  silently failed to load and the operator used CR-a's expectation", which is
+  precisely what N13 exists to block:
+
+    analyse_bounce.py --mode order --label CR-b \
+      --expect 1,2,3,4,7,8,5,6 --input cr-a.wav
+    -> order OK [CR-b] — 1,2,3,4,7,8,5,6, minimum isolation 158.3 dB   exit 0
+
+  IT PASSED. The guard tests for the literal permutation 1,2,3,4,5,6,7,8, which
+  was CR-a's order only under the assumption Gate 17 falsified. The permutation
+  that now constitutes a bypass is 1,2,3,4,7,8,5,6, and the tool waves it
+  through at 158 dB.
+
+  SCOPE, stated precisely so this is not read as more than it is: GATE 18'S
+  RESULT IS NOT IN DOUBT. CR-b was run with 2,3,4,7,8,5,6,1, a derangement from
+  CR-a's order, so a failed venue load would have failed that assertion on the
+  data. The blind guard is a latent hazard for whoever re-runs this, not a
+  defect in what was measured.
+
+  SECOND DEFECT, same root: the refusal MESSAGE misdirects. It tells the
+  operator "The 8-cycle expectation is --expect 2,3,4,5,6,7,8,1 (PLAN-4.2
+  P106)" — the stale value. Anyone following it fails a correct rig.
+
+  NOT FIXED HERE, DELIBERATELY. This is the same family as the ping-mode
+  --expect deferral above: a constant baked into the tool that measurement has
+  overtaken. The stage already decided once, correctly, not to edit an assertion
+  mid-session (Gate 16). Carried to the Block C close as a named deferral
+  alongside that one, not silently absorbed and not quietly patched.
+
 GATE 20 — CS, LFE on bounce AND realtime loopback                       NOT RUN
+  --channels FOR THE BOUNCE PATH IS NOW DERIVED, NOT ASSUMED: under the CR-a
+  default venue, LFE = speaker 4 = Lfe = buffer idx 3 -> bounce ch4, and the
+  reference = speaker 1 = L = idx 0 -> bounce ch1, so --channels 4,1. The value
+  COINCIDES with what the runbook spelled, but the runbook's warning was still
+  correct and load-bearing: 4,1 is right for the BOUNCE and wrong for the DEVICE
+  path, where CT put Lfe at channel 6 (--channels 6,1 on the loopback). Speakers
+  1-4 happen to map identity; 5-8 do not.
 GATE 21 — NC4, airAmount confound control                               NOT RUN
 GATE 22 — CU, the audible clause (headphones must be NAMED)             NOT RUN
 GATE 23 — interactive drive + throttling-recovery relabelling           NOT RUN
 GATE 24 — User/ presets byte-identical after the session                NOT RUN
 GATE 25 — analyse_bounce.py --check on committed artifacts              NOT RUN
 
-  NOTHING IN THE NINE ROWS DIRECTLY ABOVE (gates 17-25) IS CLAIMED. No result
+  NOTHING IN THE SIX ROWS DIRECTLY ABOVE (gates 20-25) IS CLAIMED. No result
   from any of them is asserted, implied, or inherited anywhere in this file.
+  Gates 17, 18 and 19 WERE run on 2026-08-14 and are recorded in full above;
+  this sentence was amended from "NINE ROWS (gates 17-25)" at that point, and
+  the count is stated so the amendment is checkable rather than assumed.
+
+  The Gate 20 row carries a DERIVATION, not a result: --channels 4,1 for the
+  bounce path follows from Gate 17's measurement, but the CS bounce itself has
+  NOT been made and no LFE figure is claimed.
 
   LEDGER AS IT ACTUALLY STANDS: 30 complete / 0 partial / 0 pending of 30.
   COMPAT-02 is CLOSED 3 of 3 by gates 14, 15 and 16 recorded above.
