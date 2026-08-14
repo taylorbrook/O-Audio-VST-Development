@@ -31,51 +31,54 @@
         <div class="header">
             <h1>O-SpectralShaper</h1>
             <div class="preset-bar">
-                <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lsaquo;</button>
-                <span class="preset-name" id="preset-name">Default</span>
-                <button class="preset-nav-btn" id="preset-next" title="Next preset">&rsaquo;</button>
-                <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
-                <button class="preset-action-btn" id="preset-load" title="Load preset from file">Load</button>
+                <button class="preset-nav-btn" id="preset-prev" data-tooltip="Previous Preset: Step back through the preset list.">&lsaquo;</button>
+                <span class="preset-name" id="preset-name" data-tooltip="Preset Name: The currently loaded preset. Factory presets cannot be overwritten — use Save to store your own.">Default</span>
+                <button class="preset-nav-btn" id="preset-next" data-tooltip="Next Preset: Step forward through the preset list.">&rsaquo;</button>
+                <button class="preset-action-btn" id="preset-save" data-tooltip="Save Preset: Store the current settings — including both shaping curves — as a user preset.">Save</button>
+                <button class="preset-action-btn" id="preset-load" data-tooltip="Load Preset: Open a preset file from disk.">Load</button>
             </div>
-            <div class="version">v1.3.0</div>
+            <div class="header-right">
+                <button class="tooltip-toggle" id="tooltip-toggle" aria-pressed="false" aria-label="Toggle tooltips">?</button>
+                <div class="version">v1.5.0</div>
+            </div>
         </div>
 
         <!-- SPECTROGRAM (Main display area) -->
-        <div class="spectrogram-container">
+        <div class="spectrogram-container" data-tooltip="Spectrogram: Live frequency analysis, scrolling right to left. Brighter areas are louder; the hotter red-orange tones mark energy the transient detector has flagged as attack.">
             <canvas id="spectrogram-canvas" class="spectrogram-canvas"></canvas>
             <div class="spectrogram-label">Spectrogram</div>
         </div>
 
         <!-- ATTACK CURVE EDITOR -->
-        <div class="curve-container attack-curve-container">
+        <div class="curve-container attack-curve-container" data-tooltip="Attack Curve: Per-band gain applied to detected transients, across 32 logarithmic bands from 20 Hz to Nyquist. Drag up to sharpen a band's attack, down to soften it. Full deflection is ±12 dB.">
             <canvas id="attack-curve-canvas" class="curve-canvas"></canvas>
             <div class="curve-label">Attack Curve</div>
             <div class="curve-controls">
-                <button id="attack-spectrum-btn" class="curve-spectrum-btn" title="Show/hide input spectrum">Spectrum</button>
-                <button id="attack-undo-btn" class="curve-undo-btn" title="Undo (Ctrl+Z)" disabled>&#x21A9;</button>
-                <button id="attack-redo-btn" class="curve-redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>&#x21AA;</button>
-                <button id="attack-reset-btn" class="curve-reset-btn" title="Reset curve to flat">Reset</button>
-                <button id="attack-mode-toggle" class="curve-mode-toggle">Freehand</button>
+                <button id="attack-spectrum-btn" class="curve-spectrum-btn" data-tooltip="Spectrum: Overlay the live input spectrum behind the curve, so you can see which bands are actually active while drawing.">Spectrum</button>
+                <button id="attack-undo-btn" class="curve-undo-btn" data-tooltip="Undo: Step back through curve edits (Ctrl+Z)." disabled>&#x21A9;</button>
+                <button id="attack-redo-btn" class="curve-redo-btn" data-tooltip="Redo: Step forward through curve edits (Ctrl+Shift+Z)." disabled>&#x21AA;</button>
+                <button id="attack-reset-btn" class="curve-reset-btn" data-tooltip="Reset: Return every band to 0 dB — flat, with no attack shaping.">Reset</button>
+                <button id="attack-mode-toggle" class="curve-mode-toggle" data-tooltip="Draw Mode: Freehand draws a continuous curve as you drag. Node places draggable control points with smooth interpolation between them.">Freehand</button>
             </div>
         </div>
 
         <!-- SUSTAIN CURVE EDITOR -->
-        <div class="curve-container sustain-curve-container">
+        <div class="curve-container sustain-curve-container" data-tooltip="Sustain Curve: Per-band gain applied to the sustained body of the signal — everything the detector does not flag as transient — across the same 32 bands. Drag up to thicken a band's tail, down to tighten it. Full deflection is ±12 dB.">
             <canvas id="sustain-curve-canvas" class="curve-canvas"></canvas>
             <div class="curve-label">Sustain Curve</div>
             <div class="curve-controls">
-                <button id="sustain-spectrum-btn" class="curve-spectrum-btn" title="Show/hide input spectrum">Spectrum</button>
-                <button id="sustain-undo-btn" class="curve-undo-btn" title="Undo (Ctrl+Z)" disabled>&#x21A9;</button>
-                <button id="sustain-redo-btn" class="curve-redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>&#x21AA;</button>
-                <button id="sustain-reset-btn" class="curve-reset-btn" title="Reset curve to flat">Reset</button>
-                <button id="sustain-mode-toggle" class="curve-mode-toggle">Freehand</button>
+                <button id="sustain-spectrum-btn" class="curve-spectrum-btn" data-tooltip="Spectrum: Overlay the live input spectrum behind the curve, so you can see which bands are actually active while drawing.">Spectrum</button>
+                <button id="sustain-undo-btn" class="curve-undo-btn" data-tooltip="Undo: Step back through curve edits (Ctrl+Z)." disabled>&#x21A9;</button>
+                <button id="sustain-redo-btn" class="curve-redo-btn" data-tooltip="Redo: Step forward through curve edits (Ctrl+Shift+Z)." disabled>&#x21AA;</button>
+                <button id="sustain-reset-btn" class="curve-reset-btn" data-tooltip="Reset: Return every band to 0 dB — flat, with no sustain shaping.">Reset</button>
+                <button id="sustain-mode-toggle" class="curve-mode-toggle" data-tooltip="Draw Mode: Freehand draws a continuous curve as you drag. Node places draggable control points with smooth interpolation between them.">Freehand</button>
             </div>
         </div>
 
         <!-- KNOB SIDEBAR -->
         <div class="knob-sidebar">
             <!-- Mix Knob -->
-            <div class="knob-wrapper">
+            <div class="knob-wrapper" data-tooltip="Mix: Blends the dry input against the spectrally shaped output. 0% is fully dry, 100% fully processed. Default 100%.">
                 <div class="knob-container" id="mix-knob-container">
                     <div class="knob" id="mix-knob"></div>
                 </div>
@@ -84,7 +87,7 @@
             </div>
 
             <!-- Attack Time Knob -->
-            <div class="knob-wrapper">
+            <div class="knob-wrapper" data-tooltip="Attack Time: How quickly the transient detector responds, 0.1–50 ms. Short values catch sharp percussive hits; longer values treat more of each note as attack. Default 10 ms.">
                 <div class="knob-container" id="attack-time-knob-container">
                     <div class="knob" id="attack-time-knob"></div>
                 </div>
@@ -93,7 +96,7 @@
             </div>
 
             <!-- Sustain Time Knob -->
-            <div class="knob-wrapper">
+            <div class="knob-wrapper" data-tooltip="Sustain Time: How long a band keeps being treated as sustain after a transient passes, 10–500 ms. Longer values extend the region the Sustain curve acts on. Default 100 ms.">
                 <div class="knob-container" id="sustain-time-knob-container">
                     <div class="knob" id="sustain-time-knob"></div>
                 </div>
@@ -102,7 +105,7 @@
             </div>
 
             <!-- Sensitivity Knob -->
-            <div class="knob-wrapper">
+            <div class="knob-wrapper" data-tooltip="Sensitivity: Threshold for transient detection, 0–100%. Higher values flag more material as transient, shifting the balance from the Sustain curve toward the Attack curve. Default 50%.">
                 <div class="knob-container" id="sensitivity-knob-container">
                     <div class="knob" id="sensitivity-knob"></div>
                 </div>
@@ -110,30 +113,33 @@
                 <div class="knob-value" id="sensitivity-value">50%</div>
             </div>
 
-            <!-- Lookahead Enabled Toggle -->
-            <div class="toggle-container">
-                <div class="toggle-switch" id="lookahead-toggle"></div>
-                <div class="toggle-label">Lookahead</div>
-            </div>
-
-            <!-- Lookahead Time Knob (small) -->
-            <div class="knob-wrapper">
-                <div class="knob-container" id="lookahead-time-knob-container" style="width: 40px; height: 40px;">
-                    <div class="knob" id="lookahead-time-knob" style="width: 40px; height: 40px;"></div>
-                </div>
-                <div class="knob-label">LA Time</div>
-                <div class="knob-value" id="lookahead-time-value">2.0ms</div>
-            </div>
-
             <!-- Output Gain Knob -->
-            <div class="knob-wrapper">
+            <div class="knob-wrapper" data-tooltip="Output Gain: Final level trim after shaping, −12 to +12 dB. Use it to compensate when heavy boosting or cutting has changed the overall loudness. Default 0 dB.">
                 <div class="knob-container" id="output-gain-knob-container">
                     <div class="knob" id="output-gain-knob"></div>
                 </div>
                 <div class="knob-label">Output</div>
                 <div class="knob-value" id="output-gain-value">0.0dB</div>
             </div>
+
+            <!-- Lookahead Time Knob -->
+            <div class="knob-wrapper" data-tooltip="Lookahead Time: Amount of latency reported to the host when Lookahead is on, 0.1–10 ms. Note that Lookahead does not yet alter the sound — see the Lookahead toggle.">
+                <div class="knob-container" id="lookahead-time-knob-container">
+                    <div class="knob" id="lookahead-time-knob"></div>
+                </div>
+                <div class="knob-label">LA Time</div>
+                <div class="knob-value" id="lookahead-time-value">2.0ms</div>
+            </div>
+
+            <!-- Lookahead Enabled Toggle (spans both columns, sits under LA Time) -->
+            <div class="toggle-container" data-tooltip="Lookahead: Currently inert. Detection and the shaped signal are delayed by the same amount, so they stay time-aligned and nothing audible changes — it only reports added latency to the host. True lookahead is planned for a future release.">
+                <div class="toggle-switch" id="lookahead-toggle"></div>
+                <div class="toggle-label">Lookahead</div>
+            </div>
         </div>
+
+        <!-- Tooltip surface (single reused element, positioned relative to #app) -->
+        <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
     </div>
 
     <!-- JUCE JavaScript Bridge -->

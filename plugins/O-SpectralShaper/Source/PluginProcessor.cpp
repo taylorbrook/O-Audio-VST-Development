@@ -474,13 +474,25 @@ juce::AudioProcessorEditor* OSpectralShaperAudioProcessor::createEditor()
 void OSpectralShaperAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     if (auto xml = presetManager.getStateAsXml())
+    {
+        // v1.5.0: the tooltip preference is stamped onto the session XML *after*
+        // the preset manager has built it, so it rides along with the host
+        // session but never enters a saved preset file.
+        xml->setAttribute("tooltipsEnabled", tooltipsEnabled.load(std::memory_order_acquire));
         copyXmlToBinary(*xml, destData);
+    }
 }
 
 void OSpectralShaperAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
+    {
         presetManager.setStateFromXml(xml.get());
+
+        // v1.5.0: absent in sessions saved before 1.5.0 — default to off.
+        tooltipsEnabled.store(xml->getBoolAttribute("tooltipsEnabled", false),
+                              std::memory_order_release);
+    }
 }
 
 // ============================================================================
