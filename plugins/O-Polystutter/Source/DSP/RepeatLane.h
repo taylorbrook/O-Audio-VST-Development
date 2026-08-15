@@ -61,6 +61,9 @@ public:
     // Phase 2.4: Pitch shifting
     void setPitch(float pitchSemitones);      // -12 to +12 semitones
 
+    // v1.13.0 (WR-02): Per-lane filter sweep on the repeat output
+    void setFilter(float filterPercent);      // -100 (LP darken) to +100 (HP brighten), 0 = bypass
+
     // v1.7.0: Pitch randomization
     void setPitchRandEnabled(bool shouldEnable);
     void setPitchRandMin(float minSemitones);      // -12 to +12
@@ -118,6 +121,19 @@ private:
     float pitchRandMax = 0.0f;       // -12.0 to +12.0
     bool pitchRandQuantize = true;   // true = semitones, false = cents
     float currentRandomPitch = 0.0f; // Current random offset for this repeat
+
+    // v1.13.0 (WR-02): Per-lane filter sweep state.
+    // filterAmount is the knob mapped to -1..+1; negative sweeps a lowpass
+    // down from 20 kHz, positive sweeps a highpass up from 20 Hz, 0 bypasses.
+    // filterActive is derived from filterAmount on EVERY setFilter call —
+    // never inside the cache-miss branch, where it would go stale when the
+    // knob returns to a previously cached value.
+    float filterAmount = 0.0f;
+    float lastFilterAmount = -2.0f;   // Sentinel outside -1..+1 forces first coefficient update
+    bool filterActive = false;
+    juce::dsp::IIR::Filter<float> laneFilterLeft;
+    juce::dsp::IIR::Filter<float> laneFilterRight;
+    void updateFilterCoefficients();
 
     // Phase 2.3: Advanced mode parameters
     bool pingPongEnabled = false;

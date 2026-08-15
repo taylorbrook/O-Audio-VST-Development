@@ -54,6 +54,15 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
     // Calculate crossfade samples (5ms for click-free looping)
     crossfadeSamples = static_cast<int>(spec.sampleRate * 0.005);
 
+    // v1.13.0 (WR-02): Size the filter coefficient arrays now so audio-thread
+    // updates in setFilter() are allocation-free in-place assignments
+    lastFilterAmount = -2.0f;
+    updateFilterCoefficients();
+    laneFilterLeft.prepare(spec);
+    laneFilterRight.prepare(spec);
+    laneFilterLeft.reset();
+    laneFilterRight.reset();
+
     // Initialize timing
     updateTempo(currentBPM, currentSampleRate);
 
@@ -86,6 +95,12 @@ void RepeatLane::reset()
     retriggerCrossfadeSamplesRemaining = 0;
     lastOutputLeft = 0.0f;
     lastOutputRight = 0.0f;
+
+    // v1.13.0 (WR-02): Clear filter state and force a coefficient refresh
+    // on the next setFilter call
+    laneFilterLeft.reset();
+    laneFilterRight.reset();
+    lastFilterAmount = -2.0f;
 }
 
 void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
@@ -260,6 +275,16 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             // Advance playback position (pitch ratio affects playback speed)
             fractionalPlaybackPosition += 1.0;
             playbackPosition = static_cast<int>(fractionalPlaybackPosition);
+        }
+
+        // v1.13.0 (WR-02): Per-lane filter sweep on the repeat output.
+        // Runs on every sample while active — including the silent gaps
+        // between repeats — so the IIR state stays continuous across
+        // repeat boundaries instead of ringing from stale state.
+        if (filterActive)
+        {
+            leftOut = laneFilterLeft.processSample(leftOut);
+            rightOut = laneFilterRight.processSample(rightOut);
         }
 
         // v1.1.1: Apply global envelope for click-free stutter start/end
@@ -517,6 +542,77 @@ void RepeatLane::setPitch(float semitones)
         // Positive semitones = higher pitch = faster playback
         // Negative semitones = lower pitch = slower playback
         pitchRatio = std::pow(2.0f, pitchSemitones / 12.0f);
+    }
+}
+
+void RepeatLane::setFilter(float filterPercent)
+{
+    // Convert -100..+100 knob range to -1..+1
+    filterAmount = juce::jlimit(-1.0f, 1.0f, filterPercent / 100.0f);
+
+    // Derived UNCONDITIONALLY, before the cache guard below — deriving it
+    // inside the cache-miss branch leaves it stale when the knob returns
+    // to the already-cached value.
+    filterActive = std::abs(filterAmount) > 0.005f;
+
+    // Only rebuild coefficients when the amount actually changes (in-place
+    // assignment into arrays sized at prepare() time — no audio-thread
+    // allocation). Epsilon is half the finest param step (0.1% → 0.001).
+    if (std::abs(filterAmount - lastFilterAmount) > 0.0005f)
+    {
+        // Crossing between LP (negative) and HP (positive) swaps the filter
+        // topology — clear state so the new mode doesn't ring from the old
+        // one's history. The knob passes through the bypass deadzone at 0,
+        // so the reset lands on silence-adjacent output and cannot click.
+        const bool crossedMode = (filterAmount > 0.0f) != (lastFilterAmount > 0.0f)
+                                 && lastFilterAmount >= -1.0f;
+
+        updateFilterCoefficients();
+        lastFilterAmount = filterAmount;
+
+        if (crossedMode)
+        {
+            laneFilterLeft.reset();
+            laneFilterRight.reset();
+        }
+    }
+}
+
+void RepeatLane::updateFilterCoefficients()
+{
+    // -1..0: lowpass darkening, cutoff sweeps 20 kHz → 200 Hz (exponential)
+    //  0..+1: highpass brightening, cutoff sweeps 20 Hz → 8 kHz (exponential)
+    // At 0 both map to their transparent extreme (LP @ 20 kHz / HP @ 20 Hz),
+    // and processing is bypassed anyway via filterActive.
+    const float nyquistLimit = static_cast<float>(currentSampleRate) * 0.45f;
+
+    if (filterAmount <= 0.0f)
+    {
+        float cutoffFreq = 20000.0f * std::pow(0.01f, -filterAmount);  // 0.01 = 200/20000
+        cutoffFreq = juce::jlimit(200.0f, juce::jmin(20000.0f, nyquistLimit), cutoffFreq);
+
+        const auto coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
+            currentSampleRate,
+            cutoffFreq,
+            0.707f  // Q = 1/sqrt(2) (Butterworth response)
+        );
+
+        *laneFilterLeft.coefficients = coefficients;
+        *laneFilterRight.coefficients = coefficients;
+    }
+    else
+    {
+        float cutoffFreq = 20.0f * std::pow(400.0f, filterAmount);  // 400 = 8000/20
+        cutoffFreq = juce::jlimit(20.0f, juce::jmin(8000.0f, nyquistLimit), cutoffFreq);
+
+        const auto coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+            currentSampleRate,
+            cutoffFreq,
+            0.707f
+        );
+
+        *laneFilterLeft.coefficients = coefficients;
+        *laneFilterRight.coefficients = coefficients;
     }
 }
 

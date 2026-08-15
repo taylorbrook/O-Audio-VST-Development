@@ -126,6 +126,7 @@ private:
     std::atomic<float>* lane1PanParam = nullptr;
     std::atomic<float>* lane1ProbabilityParam = nullptr;
     std::atomic<float>* lane1SwingParam = nullptr;
+    std::atomic<float>* lane1FilterParam = nullptr;  // v1.13.0 (WR-02)
 
     // Cached parameter pointers for lane 2
     std::atomic<float>* lane2EnabledParam = nullptr;
@@ -136,6 +137,7 @@ private:
     std::atomic<float>* lane2PanParam = nullptr;
     std::atomic<float>* lane2ProbabilityParam = nullptr;
     std::atomic<float>* lane2SwingParam = nullptr;
+    std::atomic<float>* lane2FilterParam = nullptr;  // v1.13.0 (WR-02)
 
     // Cached parameter pointers for lane 3
     std::atomic<float>* lane3EnabledParam = nullptr;
@@ -146,6 +148,7 @@ private:
     std::atomic<float>* lane3PanParam = nullptr;
     std::atomic<float>* lane3ProbabilityParam = nullptr;
     std::atomic<float>* lane3SwingParam = nullptr;
+    std::atomic<float>* lane3FilterParam = nullptr;  // v1.13.0 (WR-02)
 
     // Cached parameter pointers for lane 4
     std::atomic<float>* lane4EnabledParam = nullptr;
@@ -156,6 +159,7 @@ private:
     std::atomic<float>* lane4PanParam = nullptr;
     std::atomic<float>* lane4ProbabilityParam = nullptr;
     std::atomic<float>* lane4SwingParam = nullptr;
+    std::atomic<float>* lane4FilterParam = nullptr;  // v1.13.0 (WR-02)
 
     // Pattern step pointers (cached for performance)
     std::atomic<float>* lane1PatternSteps[16];

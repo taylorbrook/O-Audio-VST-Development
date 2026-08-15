@@ -135,7 +135,7 @@ numB = remaining;
 
 Also update the loop exit: standard Bjorklund stops when the remainder count ≤ 1 (which `numB > 1` then correctly expresses). Fix the JS mirror identically, and add unit assertions for E(3,8)/E(5,8)/E(5,16) against the canonical sequences already written in the comment.
 
-### WR-02: Lane FILTER knob is completely non-functional (dead parameter)
+### WR-02: Lane FILTER knob is completely non-functional (dead parameter) — ✅ RESOLVED v1.13.0 (implemented as spec'd bipolar LP/HP sweep; liveness-probe verified −54.5 dB LP / −45.3 dB HP)
 
 **File:** `Source/PluginProcessor.cpp:58-63` (param), `PluginEditor.cpp:23/218/505` (relay/attachment), `index.html:1041-1044` (knob with tooltip "Applies low-pass (negative) or high-pass (positive) filtering to repeats")
 

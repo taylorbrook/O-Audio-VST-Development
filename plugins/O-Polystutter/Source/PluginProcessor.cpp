@@ -740,6 +740,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     lane1PanParam = apvts.getRawParameterValue("lane1_pan");
     lane1ProbabilityParam = apvts.getRawParameterValue("lane1_probability");
     lane1SwingParam = apvts.getRawParameterValue("lane1_swing");
+    lane1FilterParam = apvts.getRawParameterValue("lane1_filter");  // v1.13.0 (WR-02)
 
     // Cache lane 2 parameter pointers
     lane2EnabledParam = apvts.getRawParameterValue("lane2_enabled");
@@ -750,6 +751,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     lane2PanParam = apvts.getRawParameterValue("lane2_pan");
     lane2ProbabilityParam = apvts.getRawParameterValue("lane2_probability");
     lane2SwingParam = apvts.getRawParameterValue("lane2_swing");
+    lane2FilterParam = apvts.getRawParameterValue("lane2_filter");  // v1.13.0 (WR-02)
 
     // Cache lane 3 parameter pointers
     lane3EnabledParam = apvts.getRawParameterValue("lane3_enabled");
@@ -760,6 +762,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     lane3PanParam = apvts.getRawParameterValue("lane3_pan");
     lane3ProbabilityParam = apvts.getRawParameterValue("lane3_probability");
     lane3SwingParam = apvts.getRawParameterValue("lane3_swing");
+    lane3FilterParam = apvts.getRawParameterValue("lane3_filter");  // v1.13.0 (WR-02)
 
     // Cache lane 4 parameter pointers
     lane4EnabledParam = apvts.getRawParameterValue("lane4_enabled");
@@ -770,6 +773,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     lane4PanParam = apvts.getRawParameterValue("lane4_pan");
     lane4ProbabilityParam = apvts.getRawParameterValue("lane4_probability");
     lane4SwingParam = apvts.getRawParameterValue("lane4_swing");
+    lane4FilterParam = apvts.getRawParameterValue("lane4_filter");  // v1.13.0 (WR-02)
 
     // Cache pattern step pointers
     for (int step = 0; step < 16; ++step)
@@ -1303,6 +1307,9 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.4: Pitch shifting
         lane1->setPitch(lane1PitchParam->load());
 
+        // v1.13.0 (WR-02): Per-lane filter sweep
+        lane1->setFilter(lane1FilterParam->load());
+
         // v1.7.0: Pitch randomization
         lane1->setPitchRandEnabled(lane1PitchRandEnabledParam->load() > 0.5f);
         lane1->setPitchRandMin(lane1PitchRandMinParam->load());
@@ -1346,6 +1353,9 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.4: Pitch shifting
         lane2->setPitch(lane2PitchParam->load());
 
+        // v1.13.0 (WR-02): Per-lane filter sweep
+        lane2->setFilter(lane2FilterParam->load());
+
         // v1.7.0: Pitch randomization
         lane2->setPitchRandEnabled(lane2PitchRandEnabledParam->load() > 0.5f);
         lane2->setPitchRandMin(lane2PitchRandMinParam->load());
@@ -1388,6 +1398,9 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.4: Pitch shifting
         lane3->setPitch(lane3PitchParam->load());
 
+        // v1.13.0 (WR-02): Per-lane filter sweep
+        lane3->setFilter(lane3FilterParam->load());
+
         // v1.7.0: Pitch randomization
         lane3->setPitchRandEnabled(lane3PitchRandEnabledParam->load() > 0.5f);
         lane3->setPitchRandMin(lane3PitchRandMinParam->load());
@@ -1429,6 +1442,9 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
         // Phase 2.4: Pitch shifting
         lane4->setPitch(lane4PitchParam->load());
+
+        // v1.13.0 (WR-02): Per-lane filter sweep
+        lane4->setFilter(lane4FilterParam->load());
 
         // v1.7.0: Pitch randomization
         lane4->setPitchRandEnabled(lane4PitchRandEnabledParam->load() > 0.5f);
