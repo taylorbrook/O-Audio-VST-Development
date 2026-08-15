@@ -1,13 +1,13 @@
 ---
 plugin: O-Tapestop
-stage: 1
-phase: verify
-status: stage_complete
+stage: 2
+phase: plan
+status: phase_complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: implement stage 2 (DSP Phase 2.1)
+next_action: execute stage 2 (/plugin-execute O-Tapestop 2-dsp)
 next_stage: 2
 ready_for_implementation: true
 contract_checksums:
@@ -21,11 +21,12 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 (Foundation) — ✅ COMPLETE (verified 2026-08-15)
-Status: stage verified — COMPAT-01 complete (auval + pluginval strictness 10 VST3+AU re-run at verify); next: Stage 2 DSP Phase 2.1
-Progress: [#######.............] 35%
+Stage: 2 (DSP) — plan ✓ (2026-08-15)
+Status: Stage 2 plan complete — 15 tasks across 3 phases (2.1 core varispeed/stop-start, 2.2 resync + tempo sync, 2.3 scratch + toneTrack); harness scaffold is Task 1; probes P0–P6 mapped to phase gates; git commit per phase; next: execute phase
+Progress: [##########..........] 48%
 
 **Stage 1 phases:** discuss (skipped — no open questions; Stage-0 contracts + O-Bitrot precedent cover scope) → research ✓ → plan ✓ → execute ✓ → verify ✓ (stages/1-foundation/VERIFICATION.md)
+**Stage 2 phases:** discuss ✓ (stages/2-dsp/CONTEXT.md) → research ✓ (stages/2-dsp/RESEARCH.md) → plan ✓ (stages/2-dsp/PLAN.md) → execute ← next → verify
 
 ## Completed So Far
 
@@ -46,7 +47,7 @@ Progress: [#######.............] 35%
 
 ## Next Steps
 
-1. Stage 2 DSP Phase 2.1 (`/implement O-Tapestop`)
+1. Stage 2 execute phase (`/plugin-execute O-Tapestop 2-dsp`)
 2. Create UI mockup (envelope editor is the design centerpiece; parameter set fixed — parameter-spec.md already promoted, mockup owns layout only)
 
 **Execute results (2026-08-15):** CMakeLists (OuariconTapestop/OTsp/0.1.0, WebView wired), 14-param APVTS exact to spec, guarded GenericAudioProcessorEditor; clean build both formats; memcmp bit-transparency PASS at 512+4096; state round-trip PASS; auval PASS; pluginval strictness 10 PASS on VST3 AND AU; installed via build-and-install.sh; gate 0→1 bypassed per documented pattern (logged)
@@ -63,3 +64,5 @@ Progress: [#######.............] 35%
 - plugins/O-Tapestop/.planning/stages/0-ideation/CONTEXT.md
 - plugins/O-Tapestop/.planning/stages/1-foundation/RESEARCH.md
 - plugins/O-Tapestop/.planning/stages/1-foundation/PLAN.md
+- plugins/O-Tapestop/.planning/stages/2-dsp/RESEARCH.md
+- plugins/O-Tapestop/.planning/stages/2-dsp/PLAN.md
