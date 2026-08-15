@@ -2,6 +2,17 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.13.0] - 2026-08-14
+
+### Added
+
+- **WR-02: Per-lane FILTER knob is now functional** — `laneN_filter` was declared, bound to the UI, saved in state, and automatable since v1.0, but no DSP code ever read it (2026-07-01 code review finding WR-02: "The knob rotates, automates, and does nothing"). Root cause: the parameter was never fetched (`getRawParameterValue`) nor pushed into `RepeatLane`. Implemented as the original spec's per-lane filter sweep on the repeat output: negative values sweep a 2nd-order Butterworth lowpass from 20 kHz down to 200 Hz (darkening), positive values sweep a highpass from 20 Hz up to 8 kHz (brightening), 0 bypasses — exactly what the shipped UI tooltip already promised. Coefficients via `IIR::ArrayCoefficients` assigned in place behind a cached-value guard (RT-safe, same pattern as the v1.12.3 CR-01 tape-rolloff fix); the filter-active flag is derived unconditionally on every parameter push, outside the cache-miss branch, so it cannot go stale when the knob returns to a cached value. The filter runs on every sample while active — including silent gaps between repeats — so IIR state stays continuous across repeat boundaries. Implementing (rather than removing the parameter) preserves saved-session automation; parameter IDs, ranges, and state format are unchanged, so existing sessions and presets load as before — sessions that automated the previously-dead knob will now hear filtering.
+
+### Testing
+
+- Liveness-gated sweep probe (offline harness compiling `RepeatLane.cpp` directly): filter at −100 drops >2 kHz energy by **54.5 dB** vs bypass; +100 drops <1 kHz energy by **45.3 dB** — the parameter is provably wired (a plain no-zipper probe is vacuous on an unwired param, which is how this shipped in v1.0). Stale-flag sequence (−100 → 0 → −100 on one lane instance): −54.5 dB / 0.0 dB / −54.5 dB — bypass and re-engage both track the knob. Full −100→+100 sweep while repeating: all output finite.
+- auval PASS (aumf OuPs OuDv); pluginval strictness 10 SUCCESS ×3.
+
 ## [1.12.4] - 2026-08-02
 
 ### Fixed

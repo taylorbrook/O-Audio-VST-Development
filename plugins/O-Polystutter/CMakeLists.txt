@@ -8,7 +8,7 @@ juce_add_plugin(OPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Polystutter${OUARICON_DEV_SUFFIX}"
-    VERSION 1.12.4
+    VERSION 1.13.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
