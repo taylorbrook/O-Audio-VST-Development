@@ -1,45 +1,59 @@
 ---
 plugin: O-Tapestop
-stage: ideation
-status: creative_brief_complete
-last_updated: 2026-08-15 00:00:00
+stage: 0
+status: complete
+last_updated: 2026-08-15
+complexity_score: 5.0
+staged_implementation: true
+orchestration_mode: true
+next_action: invoke_foundation_shell_agent
+next_stage: 1
+ready_for_implementation: true
+contract_checksums:
+  brief: sha256:40122fb710669e6d72ca3e5f058c367ed665e8d07e2d8185bb891977da65bedd
+  parameter_spec: sha256:9c7cb391c84ecb55fb03051e9203ea194c5ba1b8caafa23065b96aae837d843e
+  architecture: sha256:be8f9e1640b5876e0a7c0a312c169cd70390746591517389f2e6c111264277a8
+  roadmap: sha256:7cc76e5431164e7dae7d96c01682faebe6ca30e23e952c9970a27747b06ca34a
 ---
 
-# Resume Point
+# O-Tapestop Status
 
-## Current State: Creative Brief Complete
+## Current Position
 
-Creative brief has been finalized for O-Tapestop. Ready to proceed to UI mockup or Stage 0 planning.
+Stage: 0 (Research & Planning) — complete
+Status: Architecture and roadmap documented; ready for Stage 1 (Foundation)
+Progress: [##..................] 10%
 
 ## Completed So Far
 
 **Ideation:** ✓ Complete
-- Core concept defined (tapestop/start + drawable-envelope scratch, "Path C lite")
-- Parameters specified (12 params incl. engage, mode, curves, toneTrack)
-- Use cases identified
-- Requirements extracted with acceptance criteria
+- Creative brief, requirements (14), parameter draft (14 APVTS params + envelope blob)
+
+**Stage 0:** ✓ Complete — Research & Planning (2026-08-15)
+- Plugin type: stereo effect (varispeed/playhead, tapestop/start + drawable scratch)
+- Complexity tier 3, research depth MODERATE
+- 8 features researched; professional refs: Kilohearts Tape Stop, TimeShaper, Gross Beat, dBlue Glitch, Signalsmith resync (KVR t=538470)
+- Engine decision: single interpolated playhead over O-ReverseDelay CaptureBuffer + 2-voice WindowLut crossfades (periodic GrainScheduler rejected — coherent-sum + null-test arguments; fallback documented)
+- JUCE 8 APIs verified against local 8.0.14 source: FirstOrderTPTFilter, AudioPlayHead::getPosition, SmoothedValue
+- Ring sizing derived: kCaptureSeconds = 26.0 (full-reverse scratch debt bound + margin)
+- Curve law p = 2^(2c) (x² exact at default); resync = fall-behind → 1.25× catchup → 50 ms crossfade-skip
+- Scratch envelope: versioned JSON blob + message-thread-baked 2048-pt LUT, atomic double-buffer, edge-latched
+- Complexity score 5.0 (capped) → staged implementation (DSP 3 phases, GUI 3 phases)
+- ARCHITECTURE.md + ROADMAP.md + Stage-0 CONTEXT.md written
 
 ## Next Steps
 
-1. Stage 0 planning (`/plan O-Tapestop`) — recommended
-2. Create UI mockup (envelope editor is the main design challenge)
-3. Research: none needed — seed research is thorough
+1. Stage 1: Foundation — run `/implement O-Tapestop` (foundation-shell-agent: build system, 14-param APVTS, bitwise pass-through shell, pluginval gate) — note: 0-ideation→1-foundation gate needs `--force`
+2. Create UI mockup (envelope editor is the design centerpiece; parameter set fixed, mockup owns layout) and promote parameter-spec-draft.md → parameter-spec.md
+3. Review research/ARCHITECTURE.md and ROADMAP.md
 
 ## Context to Preserve
 
-**Key Decisions:**
-- Plugin type: Effect (varispeed/playhead)
-- Trigger: automatable engage param only (MIDI notes deferred to v1.1)
-- Scratch: drawable bipolar speed envelope, one pass per engage
-- Timing: tempo-sync + free ms; stop state = silence, release = spin-up resync
-- Engine: reuse O-ReverseDelay grain substrate (CaptureBuffer/ReverseGrain/GrainScheduler/WindowLut)
-- Resync: Signalsmith fall-behind → crossfade-skip; x² default curves
+**Key decisions:** see `stages/0-ideation/CONTEXT.md` (engine shape, curve law, resync law, envelope handoff, ring sizing, bypass-null routing, invariance plan)
 
-**Seed Research:**
-- research/glitch-effects/README.md (concept 4)
-- research/glitch-effects/multi-effect-sequencer-reuse-audit.md §2
-- research/stutter-effects/path-c-playhead-modulator.md
+**Substrate reuse:** O-ReverseDelay CaptureBuffer/WindowLut/voice-POD contracts; O-Polystutter tempo sync + UI bridge
 
-**Files Created:**
-- plugins/O-Tapestop/.planning/BRIEF.md
-- plugins/O-Tapestop/.planning/REQUIREMENTS.md
+## Files Created
+- plugins/O-Tapestop/.planning/research/ARCHITECTURE.md
+- plugins/O-Tapestop/.planning/ROADMAP.md
+- plugins/O-Tapestop/.planning/stages/0-ideation/CONTEXT.md
