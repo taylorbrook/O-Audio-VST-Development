@@ -1,0 +1,59 @@
+cmake_minimum_required(VERSION 3.15)
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
+# Plugin formats: VST3, AU, Standalone
+juce_add_plugin(OBitrot
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
+    PLUGIN_CODE OBrt
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "O-Bitrot${OUARICON_DEV_SUFFIX}"
+    VERSION 0.1.0
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+)
+
+# Source files
+target_sources(OBitrot
+    PRIVATE
+        Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp
+)
+
+# Include paths
+target_include_directories(OBitrot
+    PRIVATE
+        Source
+)
+
+# Required JUCE modules
+target_link_libraries(OBitrot
+    PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_devices
+        juce::juce_audio_formats
+        juce::juce_audio_plugin_client
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_dsp
+        juce::juce_events
+        juce::juce_graphics
+        juce::juce_gui_basics
+        juce::juce_gui_extra
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+# Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
+juce_generate_juce_header(OBitrot)
+
+# Compile definitions
+target_compile_definitions(OBitrot
+    PUBLIC
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_USE_CURL=0
+)
