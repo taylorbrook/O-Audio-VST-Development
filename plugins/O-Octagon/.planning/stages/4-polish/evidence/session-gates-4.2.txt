@@ -800,12 +800,74 @@ GATE 22 — CU, the audible clause                                        ** PAS
   exists in the signal above single-sample resolution — so the exposure is
   limited to sub-measurement perceptual effects, which is why this is a residual
   and not a blocker.
-GATE 23 — interactive drive + throttling-recovery relabelling           NOT RUN
-GATE 24 — User/ presets byte-identical after the session                NOT RUN
-GATE 25 — analyse_bounce.py --check on committed artifacts              NOT RUN
+--------------------------------------------------------------------------------
+GATE 23 — interactive drive + throttling-recovery smoke check           ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14 by the operator. Standalone launch-and-drive, ~15 min, against
+  the frozen build (Standalone is the same compile as the frozen VST3 — see the
+  header block).
 
-  NOTHING IN THE THREE ROWS DIRECTLY ABOVE (gates 23-25) IS CLAIMED. No result
-  from any of them is asserted, implied, or inherited anywhere in this file.
+  DRIVEN AND REPORTED CLEAN, operator-reported and labelled as such:
+    - every control responds
+    - Venue screen exercised
+    - Room screen exercised (source drag, field response)
+    - preset load exercised. NOTE: store-then-delete was deliberately AVOIDED so
+      that Gate 24 measures an untouched User/ tree rather than a mutated-and-
+      restored one — load-only keeps the preset half of the drive honest without
+      contaminating the next gate's precondition.
+    - banner behaviour correct for Standalone
+
+  ── THE RELABELLING, owed since P101 and carried across four boundaries ──────
+  The hidden-editor check — minimise / Cmd-H for 10 s with signal running, then
+  re-show, meters follow the source again — PASSED, and it is RECORDED AS A
+  THROTTLING-RECOVERY SMOKE CHECK.
+
+  THIS CHECK CANNOT DROP A COMPLETION. That sentence is the point of the
+  relabelling: the check was originally framed against the WebView completion-
+  drop hazard (native-function completions dropped while the view is hidden),
+  but O-Octagon's UI POLLS getStatus on a 2 Hz timer — state flows UI-ward by
+  polling, not by C++-initiated completions that could be dropped while hidden.
+  What the check ACTUALLY exercises is that the WebView's timers resume after
+  the compositor throttles a hidden view, i.e. throttling RECOVERY. The false
+  premise had been inherited through four boundaries precisely because the gate
+  had not run; it does not survive a fifth.
+--------------------------------------------------------------------------------
+GATE 24 — User/ presets byte-identical after the session                ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14, AFTER the interactive drive (Gate 23), which is the ordering
+  that gives the measurement teeth.
+
+    find ~/Library/O-Octagon/Presets/User -type f | sort \
+      | xargs shasum -a 256 | shasum -a 256
+    -> e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+  EXACTLY the desk half's figure — the empty-input hash; the User/ directory
+  still does not exist (confirmed by ls). The entire Block C session, including
+  a 15-minute interactive drive that exercised preset LOAD, wrote nothing to
+  User/. Constraint 9 holds.
+
+--------------------------------------------------------------------------------
+GATE 25 — analyse_bounce.py --check on committed artifacts              ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14, after all session gates.
+
+    analyse_bounce.py --check
+    -> --check OK — 3 runs re-derived from bounce-manifest.json     exit 0
+
+  Three machine-recorded runs re-derived from their WAVs, not read back: the
+  Gate 12 probe, CR-b (Gate 18) and CS bounce (Gate 20). Runs that FAILED their
+  own assertion (CR-a) or that would have SILENTLY EVICTED an earlier entry
+  (NC4, the one-lfe-slot finding) are deliberately not in the manifest and are
+  recorded in their gate sections with staged WAVs and checksums instead.
+
+  ANTI-VACUITY CONTROL, re-run at this final boundary:
+    --check --session-root /tmp/nonexistent-octagon -> exit 1
+  A missing artifact still fails, so the green above is a measurement, not a
+  gate that passes regardless.
+
+  ALL FOURTEEN SESSION GATES (12-25) ARE NOW RECORDED ABOVE. The NOT-RUN resid-
+  ual note that stood here through three amendments (nine rows -> six -> four ->
+  three) is retired: no session gate remains unrun and nothing is inherited.
   Gates 17, 18 and 19 WERE run on 2026-08-14 and are recorded in full above;
   this sentence was amended from "NINE ROWS (gates 17-25)" at that point, and
   the count is stated so the amendment is checkable rather than assumed.
