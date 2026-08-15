@@ -69,3 +69,8 @@
 
 ## Last Updated
 2026-07-23 (O-ReverseDelay Stage 0)
+- O-Bitrot: When a pre-existing Level-3 research doc covers the plugin's DSP (research/glitch-effects/degradation-dsp-deep-dive.md), Stage 0 should BUILD on it (cite sections, formalize decisions) not re-research — the Stage 0 value-add becomes integration analysis + risk/fallback + the decisions the research left open (chain order, latency scheme, grid choices).
+- O-Bitrot: A clocked stochastic glitch machine has three different time grids — musical clock (transport re-rolls), fixed 20 ms packet grid (Gilbert–Elliott burst stats only hold per-packet, NOT per musical tick), and per-sample smoothing. Assigning each family to the right grid is the core architectural decision.
+- O-Bitrot: Codec modes with framing latency (GSM 160-sample/8 kHz frames) → report ONE constant latency (one frame at host fs) in prepareToPlay and delay-align every other path, because CODEC_MODE is automatable and dynamic setLatencySamples renegotiation is host-inconsistent. Document the report-0 fallback.
+- O-Bitrot: Parameter ranges must be fs-independent for automation portability — a draft "500 Hz–fs" SRR range becomes a fixed 500 Hz–20 kHz spec with runtime clamp to fs/2 (max = transparent).
+- O-Bitrot: Block-size-invariant seeded randomness spec = consume RNG only at event boundaries (ticks/packets, never per-block), one splitmix-derived juce::Random stream per subsystem, reseed in prepareToPlay + on SEED change; determinism promise scoped to offline renders from zero.
