@@ -1,11 +1,11 @@
-[2026-08-10] research/O-Bowed-market-research.md: no frontmatter
-[2026-08-10] research/O-Contrabass-bass-waveguide-stability.md: missing fields: domain
-[2026-08-10] research/O-Formant-market-research.md: no frontmatter
-[2026-08-10] research/O-Reed-market-research.md: no frontmatter
-[2026-08-10] research/O-Wind-market-research.md: no frontmatter
-[2026-08-10] research/bow-string-friction-models.md: no frontmatter
-[2026-08-10] research/framework-updates-2026-07.md: no frontmatter
-[2026-08-10] research/gain-staging-metering-loudness-textbook-research.md: no frontmatter
-[2026-08-10] research/gain-staging-plugin-market-research.md: no frontmatter
-[2026-08-10] research/serum-2-feature-breakdown-competitive-analysis.md: no frontmatter
-[2026-08-10] research/voice-synthesis-realism.md: no frontmatter
+[2026-08-15] research/O-Bowed-market-research.md: no frontmatter
+[2026-08-15] research/O-Contrabass-bass-waveguide-stability.md: missing fields: domain
+[2026-08-15] research/O-Formant-market-research.md: no frontmatter
+[2026-08-15] research/O-Reed-market-research.md: no frontmatter
+[2026-08-15] research/O-Wind-market-research.md: no frontmatter
+[2026-08-15] research/bow-string-friction-models.md: no frontmatter
+[2026-08-15] research/framework-updates-2026-07.md: no frontmatter
+[2026-08-15] research/gain-staging-metering-loudness-textbook-research.md: no frontmatter
+[2026-08-15] research/gain-staging-plugin-market-research.md: no frontmatter
+[2026-08-15] research/serum-2-feature-breakdown-competitive-analysis.md: no frontmatter
+[2026-08-15] research/voice-synthesis-realism.md: no frontmatter

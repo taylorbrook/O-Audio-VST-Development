@@ -1,7 +1,7 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-08-11T01:06:59Z",
+  "generated": "2026-08-15T15:46:09Z",
   "documents": [
     {
       "path": "research/2d-scatter-plot-concatenative-synthesis.md",
@@ -912,6 +912,98 @@
         0
       ],
       "agents": [
+        "research"
+      ]
+    },
+    {
+      "path": "research/glitch-effects/degradation-dsp-deep-dive.md",
+      "title": "Digital Audio Degradation Effects — Deep Technical Dive",
+      "created": "2026-08-14",
+      "domain": "dsp",
+      "type": "algorithm",
+      "keywords": [
+        "bitcrusher",
+        "sample-rate-reduction",
+        "decimator",
+        "mu-law",
+        "gsm",
+        "packet-loss",
+        "cd-skip",
+        "vinyl",
+        "bitrot",
+        "lo-fi",
+        "dither"
+      ],
+      "summary": "Bitcrush, sample-rate reduction, codec/telecom artifact emulation, and broken-media effects: formulas, anti-zipper techniques, and open-source reference implementations for JUCE 8. Primary DSP source for O-Bitrot.",
+      "last_verified": "2026-08-15",
+      "juce_version": "8.0.14",
+      "stages": [
+        0,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
+      ]
+    },
+    {
+      "path": "research/glitch-effects/multi-effect-sequencer-reuse-audit.md",
+      "title": "Multi-Effect Glitch Sequencer — Suite Reuse Audit & O-Glitch Architecture",
+      "created": "2026-08-14",
+      "domain": "dsp",
+      "type": "reference",
+      "keywords": [
+        "o-glitch",
+        "o-polystutter",
+        "step-sequencer",
+        "multi-effect",
+        "reuse",
+        "capture-buffer",
+        "crossfade",
+        "tapestop",
+        "o-tapestop"
+      ],
+      "summary": "Code audit of O-Polystutter v1.12.4 (plus O-ReverseDelay, O-Freeze) mapping reusable components for a dBlue Glitch 2-style multi-effect step sequencer, with a recommended O-Glitch architecture and effort estimates.",
+      "last_verified": "2026-08-15",
+      "juce_version": "8.0.14",
+      "stages": [
+        0,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
+      ]
+    },
+    {
+      "path": "research/glitch-effects/spectral-glitch-datamosh.md",
+      "title": "Spectral Glitch & Datamosh Audio Techniques",
+      "created": "2026-08-14",
+      "domain": "dsp",
+      "type": "algorithm",
+      "keywords": [
+        "spectral",
+        "stft",
+        "fft",
+        "overlap-add",
+        "cola",
+        "freeze",
+        "phase-vocoder",
+        "datamosh",
+        "paulstretch",
+        "spectral-delay",
+        "birdies",
+        "juce"
+      ],
+      "summary": "STFT glitch primitives (freeze, smear, scramble, gate, spectral delay), spectral freeze state of the art, what datamosh audio products actually do, granular-vs-spectral trade-offs, and JUCE 8 FFT/OLA patterns.",
+      "last_verified": "2026-08-15",
+      "juce_version": "8.0.14",
+      "stages": [
+        0,
+        2
+      ],
+      "agents": [
+        "dsp",
         "research"
       ]
     },
