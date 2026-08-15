@@ -1,14 +1,14 @@
 ---
 plugin: O-Bitrot
 stage: 1
-phase: discuss
+phase: research
 status: in_progress
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: run_research_phase
+next_action: run_plan_phase
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
@@ -22,9 +22,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — discuss phase complete
-Status: Parameter spec promoted to binding contract; ready for research phase
-Progress: [###.................] 15%
+Stage: 1 of 4 (Foundation) — research phase complete
+Status: Foundation implementation research done (CMake/APVTS/verification patterns); ready for plan phase
+Progress: [####................] 18%
 
 ## Phase Progress
 
@@ -32,8 +32,8 @@ Progress: [###.................] 15%
 | Phase | Status | Date | Notes |
 |-------|--------|------|-------|
 | discuss | ✓ | 2026-08-15 | CONTEXT.md; parameter-spec.md promoted (checksum updated) |
-| research | → | | |
-| plan | | | |
+| research | ✓ | 2026-08-15 | RESEARCH.md — target OBitrot, PLUGIN_CODE OBrt, skew centres, traps checklist |
+| plan | → | | |
 | execute | | | |
 | verify | | | |
 
@@ -57,7 +57,7 @@ Progress: [###.................] 15%
 
 ## Next Steps
 
-1. Stage 1 research phase — `/plugin-research O-Bitrot`
+1. Stage 1 plan phase — `/plugin-plan O-Bitrot 1-foundation`
 2. UI mockup (six panels + global strip) — layout/UI-label refinement only; parameter-spec.md
    is now BINDING (IDs/types/ranges/defaults locked at Stage 1 discuss)
 3. Stage 1 execute note: the 0-ideation→1-foundation gate always needs `--force --skip-review`
