@@ -728,12 +728,83 @@ GATE 21 — NC4, airAmount confound control                               ** PAS
   emitted and its figures are recorded above with the WAV staged and checksummed
   instead. Same family as the ping-mode and N13 findings: a tool constant that
   the phase's actual usage has outgrown. Carried to the Block C close.
-GATE 22 — CU, the audible clause (headphones must be NAMED)             NOT RUN
+--------------------------------------------------------------------------------
+GATE 22 — CU, the audible clause                                        ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. THE ONE GATE WHERE airAmount IS NOT ZEROED (0.35, the shipped
+  default) and the one gate a machine cannot answer alone. This concludes
+  QUAL-01 criterion 2's audible clause — the last open clause in the project,
+  unconcluded since Stage 2.
+
+  RIG: one O-Octagon instance at DEFAULTS — all eight weights 1.00, airAmount
+  0.35. Deliberately NOT the one-hot measurement rig: CU asks what a LISTENER
+  hears in normal use, and with one-hot weights DBAP pins the single active
+  speaker's gain at 1.0 everywhere, so the gesture would be half-dead. All-
+  speakers-on is both the ecological condition and the realistic worst case,
+  because the crossing happens while the solver is genuinely redistributing
+  energy across the rig.
+
+  ECOLOGICAL SOURCE, named per the gate: Justin Bieber — "What Do You Mean?"
+  (bright commercial pop master). The audio is NOT committed (licence); the
+  renders are staged outside the repo:
+
+    cu-renderA-moving.wav  (gesture)
+      sha256 ca8b7d96d8f2cf2bb954960aad4d71089535ddb2d8cda5f7e114aeb49588bbb3
+    cu-renderB-static.wav  (null)
+      sha256 ced1dd3ea22ce769d8b2c3965d3ca5753d81300fe2c8c6ba1284dc27902ed04a
+    8 ch / 48 kHz / 24-bit / 16.384 s each, sample-aligned from the same start.
+
+  GESTURE: srcX and srcY automated TOGETHER, (0.500, 0.500) -> (0.000, 1.000),
+  spanning ~0.5-15.5 s. THE DIAGONAL IS LOAD-BEARING: the source travel box is
+  the speakers' bounding rectangle and the hull is a chamfered octagon inside
+  it, so a SINGLE-AXIS sweep (srcX alone or srcY alone) NEVER leaves the hull —
+  measured against the venue geometry, not assumed. A one-axis gesture would
+  have made this gate vacuous exactly the way NC4's first take was. Render B is
+  identical with no automation, source parked at centre.
+
+  ── MACHINE HALF, measured on the null A - B ─────────────────────────────────
+  1. THE GESTURE IS NOT VACUOUS. HF tilt of A relative to B (10-16 kHz band,
+     normalised against 500-2000 Hz so DBAP gain changes cancel) is 0.00 dB flat
+     until 12.0 s, then engages and deepens to -1.1 dB. The hull crossing
+     computed from geometry: 77% of the sweep = 12.1 s. Measured onset 12.0 s.
+     The air filter demonstrably switched on, where predicted.
+  2. THE ENGAGEMENT IS SMOOTH, NOT STEPPED. The tilt ramps over seconds —
+     matching the code: dHull grows continuously from zero at the crossing, so
+     fc glides down from 20 kHz rather than jumping.
+  3. NO SAMPLE-LEVEL DISCONTINUITY ANYWHERE IN THE NULL. First-difference
+     detector scored against local RMS (10 ms window), all 8 channels, full
+     16.384 s at sample resolution. Top candidates (score ~9, all channels
+     coincident at 14.217 s) were ZOOMED and are music transients — A and B
+     carry the same-shaped drum burst, proportionally scaled, no level shift
+     that persists. Nothing bears the signature of D12's one-sample step.
+     Null peak overall -13.4 dBFS, dominated by ordinary DBAP redistribution.
+
+  ── HUMAN HALF ───────────────────────────────────────────────────────────────
+  OPERATOR VERDICT: PASS — no audible step, difference-null and in-context.
+
+  MONITORING PATH, named as the gate requires: MacBook Pro BUILT-IN SPEAKERS.
+  Stated plainly rather than dressed up: this is a weak transducer for the
+  specific artifact in question — D12's residual is a one-sample step at ~15%
+  of an 8 kHz component, and laptop speakers compress and roll off exactly
+  there. On this monitoring path the human half is a coarse screen, and most of
+  the evidential weight for "no step" rests on the machine half above, which
+  searched at single-sample resolution and found none.
+
+  DISPOSITION: CLAUSE CONCLUDED — PASS. D17 is explicit that either outcome
+  closes the clause; this one closes it with a negative on both halves. The
+  QUAL-01 row's audible caveat is discharged at the Task 15 close.
+
+  RESIDUAL, owner: operator, severity low: the in-context audition has not been
+  repeated on revealing monitoring (studio headphones or full-range monitors).
+  The machine null-scan bounds what such a listen could find — no discontinuity
+  exists in the signal above single-sample resolution — so the exposure is
+  limited to sub-measurement perceptual effects, which is why this is a residual
+  and not a blocker.
 GATE 23 — interactive drive + throttling-recovery relabelling           NOT RUN
 GATE 24 — User/ presets byte-identical after the session                NOT RUN
 GATE 25 — analyse_bounce.py --check on committed artifacts              NOT RUN
 
-  NOTHING IN THE FOUR ROWS DIRECTLY ABOVE (gates 22-25) IS CLAIMED. No result
+  NOTHING IN THE THREE ROWS DIRECTLY ABOVE (gates 23-25) IS CLAIMED. No result
   from any of them is asserted, implied, or inherited anywhere in this file.
   Gates 17, 18 and 19 WERE run on 2026-08-14 and are recorded in full above;
   this sentence was amended from "NINE ROWS (gates 17-25)" at that point, and
