@@ -1,7 +1,7 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-07-23T23:08:05Z",
+  "generated": "2026-08-11T01:06:59Z",
   "documents": [
     {
       "path": "research/2d-scatter-plot-concatenative-synthesis.md",
@@ -998,6 +998,24 @@
       "agents": [
         "build",
         "research"
+      ]
+    },
+    {
+      "path": "research/logic-pro-multichannel-octaphonic-dbap.md",
+      "title": "Logic Pro 8-Channel Spatialization: Container Constraints, JUCE Channel Order, and DBAP for Irregular Arrays",
+      "created": "2026-08-10",
+      "domain": "spatial-audio",
+      "type": "research",
+      "keywords": [
+        "logic-pro",
+        "multichannel",
+        "octaphonic",
+        "dbap",
+        "vbap",
+        "surround",
+        "audiochannelset",
+        "au",
+        "spatial-audio"
       ]
     },
     {

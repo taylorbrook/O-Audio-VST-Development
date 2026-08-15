@@ -1,0 +1,1095 @@
+/*
+   This file is part of O-Octagon, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+/* ==========================================================================
+   O-Octagon — Ouaricon Naturalist, darkened (CONTEXT-3.1 D3)
+
+   THE SPLIT IS THE DESIGN: brand owns the chrome, function owns the data.
+   Serif with wide tracking and a botanical watermark in the frame; MONO
+   TABULAR NUMERALS for every metre value and every level.
+
+   `font-variant-numeric: tabular-nums` is a GATE, not taste
+   (ui_frontend_check.js section 18). UI-01 will column-align 42 venue values at
+   3.2, and a mis-scanned metre is a measurement error that propagates silently
+   into the solve.
+
+   The level ramp is the interface's only hue.
+
+   ── 1100 x 720, and it must agree with PluginEditor.cpp's single setSize ──
+   html, body and .frame all read 1100 x 720. section 17 of the static gate
+   diffs those three against setSize; the precedent records that pair diverging
+   across three separate resizes. The REAL gate is still a rendered measurement:
+   ui_layout_check.js section 8 asserts documentElement.scrollWidth <= 1100 and
+   scrollHeight <= 720 on the live page, because row arithmetic that fits on
+   paper is exactly what carried 93.5 px of phantom slack through five releases
+   of O-ReverseDelay (pattern_flex1_container_slack_invisible_to_row_sum).
+
+   Deliberately NO overflow:hidden on html/body. Hiding an overflow would make
+   that measurement vacuous — the page must be allowed to report the truth.
+   ========================================================================== */
+
+:root {
+  /* ── Ground and ink ── */
+  --ground:      #1A1613;
+  --panel:       #241E1A;
+  --panel-lift:  #2C2521;
+  --rule:        #3A312B;
+  --rule-soft:   #2F2823;
+  --ink:         #F0E8DC;
+  --ink-dim:     #A99C8C;
+  --ink-faint:   #6F6459;
+
+  /* ── The level ramp — brass to pale gold, the only hue on the surface ── */
+  --level-lo:    #8A6A2F;
+  --level-mid:   #C29A4A;
+  --level-hi:    #E8C87A;
+
+  /* ── Alert. Used once, for SAFE. ── */
+  --alert:       #C2793A;
+
+  /* ── Type ── */
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --mono:  ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* ── Frame contract. Mirrored by PluginEditor.cpp setSize(1100, 720). ── */
+  --frame-w: 1100px;
+  --frame-h: 720px;
+  --header-h: 56px;
+  --footer-h: 40px;
+  --plan-col-w: 470px;
+
+  --venue-rail-w: 300px;
+
+  /* ── The plan box, written by roomplan.js from a MEASURED stage rect and the
+        RETURNED envelope aspect. Never authored as a literal here: the box has
+        to follow the venue, and a hardcoded aspect is precisely what UI-02
+        criterion 1 forbids. The fallbacks below are pre-first-layout only. ── */
+  --plan-w: 448;
+  --plan-h: 560;
+
+  /* ── The mini-plan box, written by venue.js from the SAME fitBox() the Room
+        plan uses. Also pre-first-layout fallbacks only, and also never an
+        aspect: 270 x 337 is the HEIGHT-BOUND result Q11 measured, and it is a
+        consequence of the returned envelope, not an input to it. ── */
+  --mini-w: 270;
+  --mini-h: 337;
+
+  /* ── The elevation strip (3.3), written by js/elevation.js from a MEASURED
+        .elev-stage rect. 552 x 125 is what RESEARCH-3.3 Q8 measured on the
+        rendered page — NOT Q8's assumed 582 x ~160: 582 is the COLUMN, and the
+        group's padding and borders take 30 px of it. Pre-first-layout
+        fallbacks only, as --plan-w / --mini-w are. ── */
+  --elev-w: 552;
+  --elev-h: 125;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  width: 1100px;
+  height: 720px;
+  margin: 0;
+  padding: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+.frame {
+  position: relative;
+  width: 1100px;
+  height: 720px;
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr var(--footer-h);
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 20% 0%, #221C18 0%, var(--ground) 62%);
+}
+
+/* Botanical watermark — an inline data URI rather than a binary asset, so the
+   juce_add_binary_data SOURCES list stays the six files Task 8 declares and no
+   image has to travel through the resource provider. Low alpha, behind
+   everything, pointer-events off. */
+.frame::before {
+  content: "";
+  position: absolute;
+  right: -40px;
+  bottom: -30px;
+  width: 460px;
+  height: 460px;
+  opacity: 0.055;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23F0E8DC' stroke-width='1.6'><path d='M100 196 C100 150 96 108 84 70 C74 40 58 20 34 8'/><path d='M92 150 C70 148 52 138 40 120 C56 116 76 122 90 136'/><path d='M86 120 C64 116 48 104 38 86 C54 84 72 92 85 106'/><path d='M80 92 C60 86 46 74 38 56 C54 56 70 64 80 78'/><path d='M96 168 C112 160 126 146 132 128 C116 128 102 138 94 154'/><path d='M90 134 C106 126 118 112 124 94 C108 94 96 104 88 120'/><path d='M84 102 C98 94 110 80 114 62 C100 62 88 72 82 88'/></g></svg>");
+}
+
+/* ══ Header ══════════════════════════════════════════════════════════════ */
+
+.header {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  align-self: center;
+}
+
+.title-accent { color: var(--level-mid); }
+
+.subtitle {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  align-self: center;
+}
+
+.screens {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  align-self: center;
+}
+
+.screen-tab {
+  font-family: var(--serif);
+  font-size: 11px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+
+.screen-tab:hover { color: var(--ink); border-color: var(--rule); background: var(--panel); }
+
+.screen-tab.is-active {
+  color: var(--ground);
+  background: var(--level-mid);
+  border-color: var(--level-mid);
+}
+
+.safe-banner {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--alert);
+  border-radius: 2px;
+  background: rgba(194, 121, 58, 0.12);
+}
+
+.safe-banner[hidden] { display: none; }
+
+.safe-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--alert);
+}
+
+.safe-copy {
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  color: var(--ink-dim);
+}
+
+/* MAP INVALID — SAFE's sibling, and frame-level for the same reason (D13). The
+   two can be up at once: a host that negotiated stereo raises SAFE, and a venue
+   whose labels no longer resolve raises this. They describe different failures
+   and neither substitutes for the other. */
+.map-banner {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--alert);
+  border-radius: 2px;
+  background: rgba(194, 121, 58, 0.12);
+}
+
+.map-banner[hidden] { display: none; }
+
+.map-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--alert);
+}
+
+.map-copy {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+/* ══ Content ═════════════════════════════════════════════════════════════ */
+
+.content {
+  position: relative;
+  min-height: 0;   /* a grid child must be allowed to shrink, or it pushes the
+                      footer off the bottom and the page reports 720+ */
+}
+
+.screen {
+  display: none;
+  height: 100%;
+  padding: 16px;
+  gap: 16px;
+}
+
+.screen.is-active { display: flex; }
+.screen[hidden]   { display: none; }
+
+/* ── Plan column ─────────────────────────────────────────────────────────
+   #plan-stage is the AVAILABLE box. roomplan.js measures it and fits the plan
+   box to the RETURNED envelope aspect inside it — the aspect is never authored
+   here. At the shipping frame that lands at 448 x 560 for the default venue,
+   which is the figure RESEARCH-3.1 section 3.1 derived; it is a consequence,
+   not an input. */
+
+.plan-column {
+  width: var(--plan-col-w);
+  flex: 0 0 var(--plan-col-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.plan-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plan-box {
+  position: relative;
+  width: calc(var(--plan-w) * 1px);
+  height: calc(var(--plan-h) * 1px);
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+/* CANVAS IS A CSS REPLACED ELEMENT — left + right does NOT stretch it, and the
+   collapse is silent (o-textureforge-cursor-bug). Explicit width and height in
+   calc(), driven by the same two variables as .plan-box, and the DPR backing
+   store is set in roomplan.js. ui_layout_check.js section 6 measures
+   canvas.width == round(rect.width * dpr) at DPR 1 AND DPR 2, because the bug
+   is invisible at exactly one DPR. */
+#plan-backdrop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--plan-w) * 1px);
+  height: calc(var(--plan-h) * 1px);
+  display: block;
+}
+
+#plan-geometry {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--plan-w) * 1px);
+  height: calc(var(--plan-h) * 1px);
+  overflow: visible;
+}
+
+.hull {
+  fill: rgba(232, 200, 122, 0.05);
+  stroke: var(--level-lo);
+  stroke-width: 1.25;
+  stroke-dasharray: 5 4;
+}
+
+.glyph-dot {
+  fill: var(--panel-lift);
+  stroke: var(--level-mid);
+  stroke-width: 1.5;
+}
+
+.glyph-num {
+  fill: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+}
+
+/* Speaker classification, straight from ConvexHull2D::classify() in the
+   payload. UI-02 criterion 2 reads these classes off the DOM: on the default
+   venue speakers 3 and 8 are ON_EDGE, not vertices. */
+.glyph.is-vertex   .glyph-dot { stroke: var(--level-hi); stroke-width: 2; }
+.glyph.is-onedge   .glyph-dot { stroke: var(--level-mid); stroke-dasharray: 3 2.5; }
+.glyph.is-interior .glyph-dot { stroke: var(--ink-faint); }
+
+/* ── The eight meters (UI-03 / D23) ──────────────────────────────────────
+   A CONCENTRIC ARC OUTSIDE THE GLYPH STROKE. The glyph's own stroke is already
+   carrying hull classification above — dashed for the two ON_EDGE speakers —
+   so the meter cannot reuse it without collapsing two independent readings
+   onto one mark. r = 15 clears the r = 11 dot and its 2 px stroke with 3 px of
+   air.
+
+   THE CIRCUMFERENCE IS 2*pi*15 = 94.2478, AND js/meters.js OWNS IT. The dash
+   array is written from there as `<filled> 94.2478`, rotated -90deg so the
+   sweep starts at twelve o'clock. Authoring the value in both places would be
+   a mirrored constant; it is authored in the JS, where the arithmetic is.
+
+   stroke-linecap: butt, deliberately — a round cap paints ~1.5 px of arc at
+   zero level, so eight silent speakers would each show a dot and "nothing is
+   sounding" would look like "everything is barely sounding". */
+.meter-track {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 2.5;
+}
+
+.meter-arc {
+  fill: none;
+  stroke: var(--level-mid);
+  stroke-width: 2.5;
+  stroke-linecap: butt;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  stroke-dasharray: 0 94.2478;
+}
+
+/* Above -6 dBFS the ramp goes pale gold. One hue, two stops — the level ramp
+   is the interface's only colour and it is not spent on a warning here. */
+.glyph.is-hot .meter-arc { stroke: var(--level-hi); }
+
+/* The peak hold. A TICK on the arc, not a second arc: UI-03/3's 1.5 s hold and
+   20 dB/s release need a mark that is legible at hall distance without adding a
+   second sweeping element beside the first. Rotated by js/meters.js. */
+.meter-peak {
+  stroke: var(--level-hi);
+  stroke-width: 1.5;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.glyph.is-metered .meter-peak { opacity: 1; }
+
+/* THE PREVIEW HIGHLIGHT (D21 / FUNC-06/3). Hovering OR KEYBOARD-FOCUSING a
+   scene button lights the set it resolves to, ON THE PLAN, before any commit.
+   It is a ring outside the meter arc so it cannot be confused with level. */
+.glyph.is-preview .glyph-dot { stroke: var(--level-hi); stroke-width: 2.5; }
+.glyph.is-preview .meter-track { stroke: var(--level-lo); stroke-width: 3.5; }
+
+#plan-controls {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--plan-w) * 1px);
+  height: calc(var(--plan-h) * 1px);
+}
+
+.puck {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--level-hi);
+  background: rgba(232, 200, 122, 0.18);
+  cursor: grab;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.puck.is-dragging { cursor: grabbing; background: rgba(232, 200, 122, 0.34); }
+
+.puck-core {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--level-hi);
+}
+
+.w-cell {
+  position: absolute;
+  width: 68px;
+  margin-left: -34px;
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 4px;
+  align-items: center;
+}
+
+.w-label {
+  grid-column: 1;
+  grid-row: 1;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.w-value {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+  text-align: right;
+}
+
+.w-range {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  width: 68px;
+}
+
+/* ── Range inputs ────────────────────────────────────────────────────────
+   Native <input type="range"> deliberately: the browser moves the thumb, so
+   the 15 ordinary controls need no optimistic-render machinery (only the puck
+   does — PLAN-3.1 P40). */
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--rule);
+  border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--level-mid);
+  border: none;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb { background: var(--level-hi); }
+input[type="range"]:focus { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--level-lo); }
+
+.plan-caption {
+  height: 24px;
+  margin: 8px 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.caption-key {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.caption-note {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Controls column ─────────────────────────────────────────────────────── */
+
+.controls-column {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group {
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  background: var(--panel);
+  padding: 10px 14px 12px 14px;
+}
+
+.group-title {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.group-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 10px;
+}
+
+.cell {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 78px;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.cell-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.cell-range { width: 100%; }
+
+/* ── The group title ROW (3.3) ───────────────────────────────────────────
+   Two groups now carry a trailing control or readout beside the heading, and
+   both do it for the same measured reason: THE TITLE ROW ALREADY EXISTS. P72
+   costed STORE at 5 px there against 30 px as an eleventh button, and the same
+   arithmetic puts UI-05/2's two readings beside "Elevation" rather than under
+   the strip, where they would eat 20 of the strip's 125 px. */
+.group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px 0;
+}
+
+.group-head .group-title { margin: 0; }
+
+/* ── Scenes (FUNC-06) ────────────────────────────────────────────────────
+   TEN BUTTONS IN ONE ROW, 48 px each. The group's content box is 552 px
+   (582 column − 14 px padding × 2 − 1 px border × 2), so ten 48 px buttons and
+   nine 8 px gaps come to exactly 480 + 72 = 552.
+
+   Widest label ink is 33.1 px — FRONT / RIGHT / SIDES — at the page's existing
+   10 px mono. 48 − 2 × 5 px padding leaves 38 px of content, i.e. 4.9 px of
+   spare. THE ELEVEN-BUTTON VARIANT MISSES BY 0.2 PX and would clip silently on
+   exactly those four labels, which is the kind of defect that ships (P72).
+   Section 19 of ui_layout_check.js measures every label's scrollWidth against
+   its clientWidth rather than trusting this comment. */
+.scene-row {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scene-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 6px 5px;
+  color: var(--ink-dim);
+  background: var(--panel-lift);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: center;
+}
+
+.scene-btn:hover:not(:disabled),
+.scene-btn:focus-visible:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--level-mid);
+  outline: none;
+}
+
+/* A USER SLOT THAT HAS NEVER BEEN CAPTURED reads differently from a named
+   scene that resolves to nothing — the first is empty, the second is
+   degenerate — so they do not share one disabled style. */
+.scene-btn.is-slot { color: var(--ink-faint); border-style: dashed; }
+.scene-btn.is-slot.is-occupied { color: var(--ink-dim); border-style: solid; }
+
+/* D20 — AN EMPTY SET IS LEGIBLE AND NOT WRITABLE. All-zero weights are
+   DSP-05's silence path, and reaching it by a mis-derived scene click
+   mid-concert is unrecoverable. This is the AFFORDANCE; applyScene's
+   `{ ok:false, reason:"emptyScene" }` in C++ is the GUARANTEE. */
+.scene-btn:disabled {
+  color: var(--ink-faint);
+  border-color: var(--rule-soft);
+  background: transparent;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* The armed STORE toggle (D22). State lives in aria-pressed and NOWHERE ELSE —
+   the word STORE is HTML-authored and JS never rewrites it. */
+.store-toggle {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 3px 5px;
+  color: var(--ink-faint);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.store-toggle[aria-pressed="true"] {
+  color: var(--ground);
+  background: var(--alert);
+  border-color: var(--alert);
+}
+
+/* ── The side elevation (UI-05) ──────────────────────────────────────────
+   .elev-stage is the AVAILABLE box, exactly as #plan-stage and .miniplan are
+   for the two plans. #elev-strip is the DRAWN box, sized from --elev-w /
+   --elev-h which js/elevation.js writes from a measured stage rect.
+
+   flex:none on the svg is load-bearing and is copied from #mini-geometry: it
+   is what makes an oversized strip OVERFLOW VISIBLY rather than be silently
+   squashed to fit, which is what NC1 has to be able to demonstrate. A squashed
+   strip would make section 21 pass over an arbitrary miscalculation. */
+.elev-stage {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-lift);
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  height: calc(var(--elev-h) * 1px);
+}
+
+#elev-strip {
+  flex: none;
+  width: calc(var(--elev-w) * 1px);
+  height: calc(var(--elev-h) * 1px);
+  overflow: visible;
+}
+
+/* THE RAKE LINE AND ITS EXTRAPOLATION ARE TWO ELEMENTS (P76 rule 1).
+   earHeight() extrapolates linearly outside bbMinY..bbMaxY, so a single line
+   across the whole envelope moves BOTH ends when rakeRear moves and UI-05/1's
+   negative half — "the front endpoint did NOT move" — becomes unmeasurable.
+   The solid line spans the bbox and nothing else; the dashed one is the
+   extrapolation, drawn so the margins are not a lie, and no assertion reads
+   it. */
+.elev-rake {
+  stroke: var(--level-mid);
+  stroke-width: 1.5;
+}
+
+.elev-rake-ext {
+  stroke: var(--level-lo);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.elev-axis-line { stroke: var(--rule); stroke-width: 1; }
+
+.elev-axis-label,
+.elev-end {
+  fill: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+.elev-end { text-anchor: middle; }
+
+.elev-spk {
+  fill: var(--panel);
+  stroke: var(--level-mid);
+  stroke-width: 1.25;
+}
+
+.elev-spk-num {
+  fill: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 8px;
+  text-anchor: middle;
+}
+
+.elev-marker-stem { stroke: var(--level-hi); stroke-width: 1; stroke-dasharray: 2 2; }
+.elev-marker-dot  { fill: var(--level-hi); }
+
+/* THE MARKER CLAMPS, THE NUMBERS NEVER DO (P76 rule 3). srcZ spans −2.0..8.0 m,
+   so absolute source height reaches ≈ 11.5 m against a 6.5 m axis. When it
+   leaves the axis the dot is pinned to the edge and this chevron appears; both
+   readouts in the title row stay exact. */
+.elev-marker-chevron { fill: none; stroke: var(--level-hi); stroke-width: 1.5; }
+.elev-marker-chevron[hidden] { display: none; }
+
+.elev-readouts {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.elev-readouts .cell-value { min-width: 54px; }
+
+/* The field legend. Its numbers are the dB span the plugin RETURNED, so they
+   are tabular like every other measurement on the page. */
+.caption-field { margin-left: 12px; }
+
+/* Every value readout on the page is mono + tabular. Section 18 of the static
+   gate asserts this rule set exists for .cell-value, .w-value and .readout. */
+.cell-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ══ Venue screen (3.2) ══════════════════════════════════════════════════
+   TABLE LEFT, RAIL RIGHT (D9 / P63), at Q11's MEASURED figures: the content
+   area is 1068 x 592, the rail takes 300, the gap 16, and the table therefore
+   renders 752 wide. The 8 rows come to 277 px — 47 % of the available height.
+
+   THE TABLE WAS NEVER THE CONSTRAINT. THE MINI-PLAN WAS. A width-bound plan at
+   the default venue's portrait aspect 0.800 wants 348 px of height and pushes
+   the rail stack to 601 inside 592, while document.scrollHeight stays 720 the
+   whole time. So the fit rule is stated ONCE, in roomplan.js's fitBox(), used
+   by both plans, and the rail carries its OWN overflow assertion
+   (ui_layout_check.js section 11) rather than relying on section 8's document
+   measurement, which would have passed.
+
+   NO overflow:hidden ANYWHERE BELOW. Hiding an overflow makes the measurement
+   vacuous — the rail has to be allowed to report the truth, exactly as
+   html/body are. */
+
+#screen-venue {
+  gap: 16px;
+}
+
+/* Every JS-written value on this screen — the CLASS column, the venue name, the
+   negotiated set name, the current preset, the ping state. Declared FIRST so
+   the base rule is the one section 18 of the static gate reads: a descendant
+   rule written above it (.venue-head .vcell-value) would be matched instead and
+   the gate would report the treatment missing on correct CSS. */
+.vcell-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.venue-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The venue NAME sits on its own full-width row rather than in a 220 px field
+   at the end of the rake row — Q11's other incidental, where
+   "Default (placeholder — NOT measured)" truncated to "…NOT meas". */
+.venue-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.venue-head .vcell-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── The 42-value table ──────────────────────────────────────────────────── */
+
+.vtable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.vcol-head {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-faint);
+  padding: 0 6px 6px 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.vcol-n     { width: 26px; }
+.vcol-label { width: 76px; }
+.vcol-num   { width: 90px; }
+.vcol-class { width: 66px; }
+
+.vtable td.vcell,
+.vtable th.vcell-num {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+/* The row numeral is HTML-authored and never rewritten. Mono and tabular all
+   the same: it heads a column of eight and a proportional 1 next to an 8 reads
+   as a ragged edge. */
+.vcell-num {
+  width: 26px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  color: var(--ink-faint);
+}
+
+/* ── The fields ──────────────────────────────────────────────────────────
+   TYPE="TEXT", never type="number" (D12). tabular-nums is a GATE here rather
+   than taste: UI-01 column-aligns 42 values, and a mis-scanned metre is a
+   measurement error that propagates silently into the DBAP solve. */
+.vfield {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  height: 24px;
+  padding: 4px 6px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+
+.vfield:focus { outline: none; border-color: var(--level-mid); }
+
+/* THE TWO MARKS ARE DIFFERENT, AND THE DIFFERENCE IS P53.
+   .is-invalid  a numeric field holding something that will not parse. It
+                REVERTS on blur — a field left holding invalid text describes a
+                room that does not exist.
+   .is-colliding a label that duplicates another row's. It HOLDS the pending
+                edit, because every route from (L, R) to (R, L) passes through a
+                duplicate: a reverting label makes the swap UNREACHABLE. Both
+                colliding rows are marked, and the commit is blocked until the
+                set is a permutation again. */
+.vfield.is-invalid {
+  border-color: var(--alert);
+  color: var(--alert);
+}
+
+.vfield.is-colliding {
+  border-color: var(--alert);
+  background: rgba(194, 121, 58, 0.14);
+}
+
+.vfield-label { text-transform: none; }
+
+.venue-rake {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.venue-rake .vfield { width: 90px; flex: 0 0 90px; }
+
+.vrake-key {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ── The rail ────────────────────────────────────────────────────────────── */
+
+.venue-rail {
+  flex: 0 0 var(--venue-rail-w);
+  width: var(--venue-rail-w);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rail-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rail-line .vcell-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--rule-soft);
+  border-radius: 3px;
+}
+
+.rail-group .group-title { margin: 0; }
+
+.rail-buttons { display: flex; gap: 8px; }
+
+.vbtn {
+  flex: 1;
+  height: 26px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  background: var(--panel-lift);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.vbtn:hover { color: var(--ink); border-color: var(--level-lo); }
+
+.vselect {
+  width: 100%;
+  height: 26px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--panel-lift);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+
+.ping-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.ping-btn { height: 24px; }
+
+/* The ACTIVE speaker, and it is set from the RETURNED getPingState().speaker
+   and from nothing else (D14 / UI-01 criterion 2). */
+.ping-btn.is-pinging {
+  color: var(--ground);
+  background: var(--level-mid);
+  border-color: var(--level-mid);
+}
+
+/* ── The mini-plan ───────────────────────────────────────────────────────
+   .miniplan is the AVAILABLE box — the rail's residual height, exactly as
+   #plan-stage is the Room plan's available box. #mini-geometry is the FITTED
+   box, sized from --mini-w / --mini-h which venue.js writes from fitBox().
+   There is no aspect literal here, and flex:none on the svg is what makes a
+   width-bound fit OVERFLOW VISIBLY instead of being silently squashed — which
+   is what NC3 has to be able to demonstrate. */
+.miniplan {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--rule-soft);
+  border-radius: 3px;
+}
+
+#mini-geometry {
+  flex: none;
+  width: calc(var(--mini-w) * 1px);
+  height: calc(var(--mini-h) * 1px);
+  overflow: visible;
+}
+
+.mini-dot {
+  fill: var(--panel-lift);
+  stroke: var(--level-mid);
+  stroke-width: 1.25;
+}
+
+.mini-glyph.is-vertex   .mini-dot { stroke: var(--level-hi); stroke-width: 1.75; }
+.mini-glyph.is-onedge   .mini-dot { stroke: var(--level-mid); stroke-dasharray: 2.5 2; }
+.mini-glyph.is-interior .mini-dot { stroke: var(--ink-faint); }
+
+/* ══ Footer ══════════════════════════════════════════════════════════════ */
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  border-top: 1px solid var(--rule);
+}
+
+.readout-label {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.readout {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  margin-right: 14px;
+  white-space: nowrap;
+}

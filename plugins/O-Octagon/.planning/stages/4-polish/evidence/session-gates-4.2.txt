@@ -1,0 +1,1022 @@
+================================================================================
+O-OCTAGON — STAGE 4 / PHASE 4.2 — BLOCK C (SESSION) GATE EVIDENCE
+================================================================================
+Host          : Logic Pro 12.3
+Device        : BlackHole 64ch
+Freeze commit : 378fb4cdc70ef7e7b4523771dd4f014f189246ec
+VST3 binary   : 928cd447c57435c93554fbb90fd14ec035cd39e8a8db54a5aba37a1597e0bb42
+AU binary     : cc54db026875173e47daf691228c4c80c52da4c9050880aea0976bc16fe1fc99
+Installed AU  : verified byte-identical to the freeze at session start
+Standalone    : built in the SAME compile as the frozen VST3 (build-tree VST3
+                re-hashed to 928cd447… before launch)
+Session date  : 2026-08-13
+
+GATES 12-25 ARE THE SESSION GATES. Anything not explicitly recorded PASS below
+is NOT RUN, and no result from an unrun gate is claimed anywhere in this file.
+
+--------------------------------------------------------------------------------
+RIG SETUP — the root cause that cost the session ~40 minutes
+--------------------------------------------------------------------------------
+  RECORDED BECAUSE IT IS A REAL USAGE CONSTRAINT, NOT A FUMBLE.
+
+  O-Octagon MUST be instantiated in Logic via the insert slot's
+      Stereo -> 7.1
+  channel-configuration entry. Clicking the plugin NAME takes Logic's default
+  pick for the slot, which is MULTI-MONO: eight independent mono instances, one
+  per surround channel. Logic marks this with the multi-mono control bar
+      (...) [L-R|Lm-Rm|Ls-Rs|C] [LFE] [Couple]
+  above the plugin UI.
+
+  Each multi-mono instance sees a 1-in/1-out bus, so EVERY instance correctly
+  raises both banners:
+      SAFE  "Stereo fold — not the 8·channel rig"
+      MAP   "output set is not 8 channels"
+  The banners were accurate throughout. They were describing one of eight mono
+  copies. The plugin never misreported anything.
+
+  WHAT WAS RULED OUT BEFORE THE CAUSE WAS FOUND (each measured, not assumed):
+    - Project surround format / Audio I/O ... correct at 7.1 the whole time
+    - Stale AudioUnitCache ................. cache empty (0 bytes)
+    - Stale Logic plugin database .......... no Octagon entries present
+    - Dev/release variant shadowing ........ only O-Octagon-dev.component on
+                                             disk; no system-wide copy
+    - Plugin-side channel support .......... auval reports the explicit set
+                                             [1,1] [1,2] [1,8] [2,1] [2,2] [2,8]
+                                             and publishes output layout tag
+                                             0x810008 = Emagic_Default_7_1,
+                                             i.e. Logic's OWN 7.1 tag
+    - Plugin real-rig path ................. PROVEN GOOD in Standalone on
+                                             BlackHole 64ch with active outputs
+                                             pinned to 1-8: both banners clear,
+                                             Set = "7.1 Surround"
+
+  A surround-INPUT track does NOT work and cannot: isBusesLayoutSupported
+  rejects any input wider than stereo before it looks at the output, so Logic
+  finds no matching config and falls back to multi-mono. O-Octagon is a PANNER
+  (mono-or-stereo in, 8 out), not a surround processor.
+
+  OWED AT CLOSE: this constraint belongs in COMPAT-02's notes and in the docs.
+  No artifact currently states it, and the next person to open this plugin in
+  Logic will hit it in exactly the same way. The failure is quiet if the banners
+  are not read.
+
+--------------------------------------------------------------------------------
+GATE 13 — getStatus pre-flight  [STOP-GATE]                              ** PASS **
+--------------------------------------------------------------------------------
+  RUN BEFORE THE FIRST BOUNCE, per PLAN-4.2's risk table: mapInvalid must be
+  read directly, never inferred off a bounce. Gate 13 is therefore recorded
+  BEFORE Gate 12 in this file. The plan lists Q2 first; the risk note overrides
+  the ordering and doing 13 first satisfies both.
+
+  Read from the shipped UI, which renders all four fields from ONE getStatus
+  poll at 2 Hz (PluginEditor.cpp withNativeFunction("getStatus")):
+
+    safeMode          == false    SAFE banner ABSENT
+    mapInvalid        == false    MAP banner ABSENT
+    numOutputChannels == 8        no notEightChannels reason raised; the MAP
+                                  banner's own failure taxonomy fires precisely
+                                  when the set is not 8 channels
+    outputSetName     == "7.1 Surround"
+
+  outputSetName is create7point1().getDescription() — the PRIMARY 8-channel
+  container, NOT 7.1 SDDS and NOT 5.1.2. This is the container CR-a's canonical
+  bounce order will be measured against, and it is recorded here so a later
+  reader cannot mistake which of the three the session ran on.
+
+  Corroborating, checked rather than assumed: the Venue table reads the shipped
+  default label set L, R, C, Lfe, Lss, Rss, Lrs, Rrs in slots 1-8 — the set
+  buildSpeakerToBuffer mapped successfully. Speaker 4 is Lfe, which is what
+  makes Gate 20's --channels 4,1 correct UNDER THIS IDENTITY VENUE and wrong
+  under CR-b.
+
+  Verified on BOTH screens (Room and Venue): the banner frame is clean on each,
+  so this is not a screen-specific render.
+
+  EVIDENCE: banner-state screenshots of both the Room and Venue screens,
+  supplied by the operator at the boundary. DELIVERED AND COMMITTED 2026-08-14,
+  closing VERIFICATION.md (stage roll-up) Finding 1 — the artifact this gate
+  said it owed is no longer owed:
+
+    evidence/gate13-banner-room.png
+      sha256 a5e6ca3e3fa21f876c52957bf94a3d0918fc81ea2f1d2e7880d40f8dbb2412af
+    evidence/gate13-banner-venue.png
+      sha256 fb73c3d1a742b581ff1d44b2250131fd0582b0073764cffed4e818855208bdc1
+
+  HOST, stated because it is the whole point of this gate: taken in LOGIC PRO
+  with the plugin open on the 7.1 surround track, confirmed by the operator
+  2026-08-14. A Standalone capture driving BlackHole would also read "7.1
+  Surround" and would NOT evidence what Logic negotiated, so the distinction
+  was asked before these were committed rather than inferred from the pixels.
+
+  WHAT THE TWO IMAGES SHOW, read off the images themselves:
+    - Room screen:  header carries NO SAFE banner and NO MAP banner
+    - Venue screen: header clean likewise; "Set 7.1 Surround" top right;
+                    Venue table slots 1-8 = L, R, C, Lfe, Lss, Rss, Lrs, Rrs
+  i.e. safeMode == false, mapInvalid == false, outputSetName == "7.1 Surround",
+  and the identity label set that makes Gate 20's LFE slot speaker 4.
+
+  NEGATIVE CONTROL, already on disk and NOT re-shot for this purpose:
+  stages/3-gui/evidence/standalone-verify-3.3.png shows the SAME UI with the
+  banners PRESENT — SAFE "Stereo fold — not the 8-channel rig" and MAP "output
+  set is not 8 channels". So banner-absence here is a discriminating reading,
+  not a screenshot in which banners merely happen not to appear.
+
+  NOTE — THIS GATE DEMONSTRABLY FAILED FIRST, WHICH IS THE GATE WORKING.
+  It went red on the real misconfiguration above before it went green, so this
+  PASS is not an assertion about test design. A stop-gate that has never fired
+  is not a gate. It cost ~40 minutes and it spent them BEFORE eight bounces were
+  in the can, which is exactly what it exists to do.
+
+--------------------------------------------------------------------------------
+GATE 12 — Q2 surround bounce  [STOP-GATE]                                ** PASS **
+--------------------------------------------------------------------------------
+  Project sample rate set to 48 kHz BEFORE bouncing, so the tone set used by
+  CR-a / CR-b / CT lands at its nominal frequencies.
+
+  Bounce: Logic interleaved surround bounce, tone-1.wav through the plugin.
+  File:   ~/Dev/octagon-4.2-session/q2-probe.wav  (22,472,082 bytes)
+
+  python3 tests/tools/analyse_bounce.py --mode probe \
+      --input ~/Dev/octagon-4.2-session/q2-probe.wav \
+      --expect-channels 8 --expect-rate 48000 --expect-depth 24 \
+      --emit-json .planning/stages/4-polish/evidence/bounce-manifest.json
+
+    -> probe OK — 8 channels, 48000 Hz, 24-bit, 19.500 s
+
+    channels    : 8
+    sample rate : 48000 Hz
+    bit depth   : 24-bit INTEGER PCM  (not 32-bit float; Python wave rejects 0x0003)
+    duration    : 19.500 s / 936000 frames  (plan asked ~4 s; longer is harmless
+                  for a probe and the extra length was kept rather than re-cut)
+
+    ch    peak dBFS    rms dBFS
+     1        -23.20      -34.48
+     2        -22.65      -33.93
+     3        -20.78      -32.07
+     4        -22.62      -33.90
+     5        -23.17      -34.45
+     6        -21.75      -33.03
+     7        -23.69      -34.97
+     8        -23.91      -35.19
+
+  BEYOND THE GATE'S PASS CONDITION, recorded because it discriminates:
+  ALL EIGHT channels carry signal, across a ~3.1 dB spread (-20.78 .. -23.91).
+  That is a DBAP field distributing energy over the whole rig. The multi-mono
+  fold this session started in would instead show two live channels and six
+  dead ones, so this figure independently corroborates Gate 13's mapInvalid ==
+  false rather than merely co-occurring with it.
+
+  Recorded to bounce-manifest.json (run 1 of N) via --emit-json, so Gate 25's
+  --check re-derives this figure instead of reading it back.
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+GATE 14 — COMPAT-02 criterion 1                                          ** PASS **
+--------------------------------------------------------------------------------
+  Two halves, and the second had never been observed by anyone — stage 2.1 saw
+  a fresh instantiation only.
+
+  Half 1, instantiation on a 7.1 surround track:
+      PASS — established at Gate 13 (Set = "7.1 Surround", both banners clear).
+
+  Half 2, SESSION RECALL — save, QUIT LOGIC ENTIRELY, reopen the project:
+      safeMode      == false     SAFE banner ABSENT after reload
+      mapInvalid    == false     MAP banner ABSENT after reload
+      outputSetName == "7.1 Surround"    unchanged across the round trip
+
+  WHY THIS WAS A LIVE RISK AND NOT A FORMALITY: Logic's DEFAULT insert pick for
+  this plugin is multi-mono (see RIG SETUP above). Had Logic restored the
+  instance by plugin name rather than by stored channel configuration, the
+  reopened session would have come back as eight mono instances with both
+  banners raised. It did not. The stored configuration survives.
+
+  => COMPAT-02 criterion 1 CLOSED. 1 of 3.
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+GATE 15 — COMPAT-02 criterion 3                                          ** PASS **
+--------------------------------------------------------------------------------
+  All ELEVEN automation lanes, each verified on three counts: the lane exists,
+  it took a written value (Latch on a moving playhead), and the plugin UI
+  control FOLLOWED it back on a Read pass.
+
+    Source X    srcX    0.00 - 1.00 normalised     default 0.5
+    Source Y    srcY    0.00 - 1.00 normalised     default 0.5
+    Source Z    srcZ    -2.00 - 8.00 m             default 0.0
+    Weight 1    w1      0.00 - 1.00                default 1.0
+    Weight 2    w2      "                          "
+    Weight 3    w3      "                          "
+    Weight 4    w4      "                          "
+    Weight 5    w5      "                          "
+    Weight 6    w6      "                          "
+    Weight 7    w7      "                          "
+    Weight 8    w8      "                          "
+
+  THE READ-BACK CLAUSE IS THE POINT. Stage 2.1 established VISIBILITY only, and
+  a lane can be listed and even accept a write while nothing routes back to the
+  parameter. Criterion 3 asks for written AND read back, per parameter.
+
+  Source Z carried the highest risk of the eleven and passed: it is the only
+  lane with a non-0-1 range and the only one with a unit, so it is the only
+  place a normalised-vs-denormalised host round-trip mismatch could have
+  surfaced (cf. critical_apvts_denormalised_vs_preset_normalised).
+
+  PROVENANCE: operator-reported pass against the three clauses above. This is a
+  human-verification gate by construction — there is no tool that can drive
+  Logic's automation lanes — so the artifact records it as observed rather than
+  as machine-measured, and does not dress it up as the latter.
+
+  => COMPAT-02 criterion 3 CLOSED. 2 of 3.
+     Only criterion 2 remains, and it needs CT.
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+GATE 16 — CT, realtime ping capture (COMPAT-02/2)      ** SUBSTANCE PASS, see below **
+--------------------------------------------------------------------------------
+  RIG: BlackHole 64ch in AND out. Eight MONO tracks on inputs 1-8, record-armed,
+  outputs to No Output. Air = 0.00 (Execution Constraint 1). Ping AUTO cycle.
+  Capture 19.131 s (>= the 12.800 s cycle). Cannot be bounced (Note N10).
+
+  RIG HAZARD FOUND AND FIXED BEFORE THE TAKE — worth carrying:
+  with Logic's global "Software Monitoring" ON, the record tracks monitored back
+  to the main output, so BlackHole out 1 -> in 1 -> track 1 -> out 1 became a
+  runaway feedback loop and channels 1 and 2 pinned to infinity. Fixed by
+  DISABLING Software Monitoring globally (Logic re-enables per-track monitoring
+  every time a track is armed, so per-track I buttons undo themselves). Left
+  unfixed this would not have failed loudly — it would have put full-scale
+  garbage in the two channels the isolation margin is computed against and
+  produced a confident wrong isolation figure.
+
+  Files staged in CHANNEL ORDER (ct-chK.wav = input K). Feeding them in ping
+  order would have rigged the assertion to pass and was explicitly not done.
+
+  python3 tests/tools/analyse_bounce.py --mode ping \
+      --input ct-ch1.wav ... ct-ch8.wav
+
+  MEASURED — every clause of criterion 2's substance:
+    ping constants  : PARSED from Source/DSP/VerifyPing.h, not mirrored
+                      kNumSpeakers 8, kOnSeconds 1.200, kGapSeconds 0.400
+                      -> period 1.600 s, cycle 12.800 s
+    bursts found    : 8
+    burst period    : 1.600 s, CONSTANT (tolerance 0.050 s)
+    burst length    : 1.205 s vs kOnSeconds 1.200 s
+    per-file spread : 0 frames — the eight takes are sample-aligned
+    energised       : EXACTLY ONE channel per window, all 8 windows
+    isolation       : minimum 219.9 dB against a 40.0 dB floor
+                      (per-window: 220.0 220.0 220.0 220.2 219.9 220.1 220.0 220.1)
+
+  219.9 dB means the other seven channels are at DIGITAL ZERO. Eight distinct
+  physical channels, one per window, none doubled, none missing.
+
+  TOOL VERDICT: FAILED — "sequence mismatch: observed 1,2,5,6,7,8,3,4,
+  expected 1,2,3,4,5,6,7,8".
+
+  THE SEQUENCE EXPECTATION IS WRONG, AND THIS MEASUREMENT IS WHAT PROVES IT.
+  Established from source, not inferred:
+
+    AudioChannelSet is a BITSET; buffer order is ENUM-BIT order.
+    create7point1() = { left(1), right(2), centre(3), LFE(4),
+                        leftSurroundSide(10), rightSurroundSide(11),
+                        leftSurroundRear(20), rightSurroundRear(21) }
+    -> buffer order  L, R, C, Lfe, Lss, Rss, Lrs, Rrs
+       which is EXACTLY the venue table order. Plugin speaker k -> buffer k-1,
+       an exact identity. The plugin's own map is clean.
+
+    Inverting the measurement, device channel -> label:
+       dev 1=L  2=R  3=Lrs  4=Rrs  5=C  6=Lfe  7=Lss  8=Rss
+    = L R Ls Rs C LFE Lc Rc = kAudioChannelLayoutTag_Emagic_Default_7_1,
+      i.e. TAG 0x810008 — the very tag auval showed this AU publishing.
+      JUCE's own header corroborates the naming: leftSurroundSide is
+      'Left Centre "LC" (AU)'; leftSurroundRear is 'Rls (AU)'.
+
+  EVERY SPEAKER LANDED ON THE DEVICE CHANNEL BEARING ITS OWN LABEL. The
+  permutation is the JUCE-buffer-order -> Logic-device-order mapping. PLAN-4.2's
+  "sequence 1..8" silently assumed those two orders coincide; they do not, and
+  the assumption is falsified here rather than argued away.
+
+  SCOPE OF THIS RESULT — stated narrowly on purpose:
+  CT measured the REALTIME / DEVICE order. A Logic bounce writes channels per
+  the file's layout tag, which need not equal the device order. CR-a (Gate 17)
+  measures the BOUNCE order and is a genuinely separate measurement; this is
+  also why P111 requires the LFE claim on BOTH paths. Nothing here is claimed
+  about the bounce order.
+
+  ** DOWNSTREAM CONSEQUENCE — CS's --channels IS WRONG AS SPECIFIED **
+  Gate 20 is spelled `--mode lfe --channels 4,1`. In the DEVICE order measured
+  here, channel 4 is Rrs and the LFE is at channel 6. Run as written against a
+  device-order capture, CS would measure a rear surround against L, see no
+  bass-management signature, and report a confident wrong answer. NC4 does not
+  cover this door. --channels MUST be re-derived per path: from CR-a's result
+  for the bounce, from CT's for the realtime loopback.
+
+  DISPOSITION: ** PASS ON SUBSTANCE ** — user-approved at the boundary, 2026-08-13.
+
+  Criterion 2 asks that the verify-ping REACH EIGHT DISTINCT PHYSICAL CHANNELS.
+  It does, with 219.9 dB isolation. The permutation is recorded as the MEASURED
+  JUCE-buffer-order -> Emagic-device-order mapping, not scored as a failure.
+
+  Rejected alternative, recorded so the reasoning survives: treating the
+  permutation as a defect would mean re-entering Block B with a second freeze to
+  hard-code a LOGIC-SPECIFIC permutation into the speaker->buffer map — which
+  would misroute in every other host, since the plugin writes a JUCE buffer and
+  the HOST decides where each slot goes physically. The plugin cannot see the
+  device order and must not guess at it.
+
+  Positively, this is the verify-ping feature working as designed: in a concert
+  rig its purpose is to let an operator DISCOVER which physical output each
+  speaker lands on. The measured permutation is the answer it exists to give.
+
+  PLAN-4.2.md:521-522's "sequence 1..8" is NOT edited — P109, history is not
+  rewritten to look correct. The correction lives here.
+
+  => COMPAT-02 criterion 2 CLOSED on its routing half. 3 of 3.
+
+  KNOWN GAP, STATED RATHER THAN PAPERED OVER: CT's figures are NOT in
+  bounce-manifest.json. --emit-json was attempted and the tool declined to write
+  — by design it records only runs that passed their own assertion, so a failed
+  run can never masquerade as a recorded figure. Verified here: the manifest
+  still holds 1 run after the attempt.
+
+  CONSEQUENCE: the isolation and sequence figures above are TRANSCRIBED from the
+  tool's stdout, not re-derivable by Gate 25's --check. That is precisely the
+  weakness --emit-json exists to remove, and it applies to this gate.
+
+  NOT FIXED BY LOOSENING THE TOOL. ping mode hard-codes the 1..8 expectation and
+  takes no --expect (that flag is order-mode only). Adding --expect to ping mode
+  mid-session would have made this gate pass by fitting the assertion to the
+  result it just produced, and would have put a defaultable expectation into the
+  one mode that currently cannot have a vacuous one (cf. P105 clause 1).
+
+  OWED: either add an explicit, MANDATORY --expect to ping mode at a future
+  boundary — so the physical order is stated rather than assumed, matching what
+  order mode already requires — or accept CT as a transcribed-figure gate and
+  say so in the verification. Not decided here. Deliberately left as a named
+  deferral rather than silently absorbed.
+
+  D11 REMAINS: this closes the ROUTING half of criterion 2. The physical-
+  interface half carries owner: none — no 8-out interface is attached and the
+  result would not generalise across interfaces even with one. The criterion
+  keeps its wording.
+--------------------------------------------------------------------------------
+GATE 17 — CR-a, canonical bounce order              ** SUBSTANCE PASS, see below **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. Logic Pro 12.3, 7.1 surround output.
+
+  RIG: eight surround tracks, eight O-Octagon instances, one-hot w (instance k
+  has wk=1.00 and the other seven 0.00), airAmount = 0, identical srcX/Y/Z,
+  SHIPPED DEFAULT venue. tone-k.wav on track k from sources/. Interleaved
+  Surround Bounce, 24-bit PCM WAV.
+
+  ARTIFACT: ~/Dev/octagon-4.2-session/cr-a.wav
+            sha256 3a8ee8c5c7f4b121260c3555b25ba126105abe51220e67a5be0b3da1a1c58f51
+            8 ch / 48000 Hz / 24-bit / 10.923 s; every channel peak -20.00 dBFS,
+            rms -23.40 dBFS — uniform across all eight, which is the rig check.
+
+  MEASURED:
+      k   tone Hz   -> channel   isolation dB
+      1       997   ->   ch1          164.8
+      2      1499   ->   ch2          163.2
+      3      2003   ->   ch3          158.3
+      4      2503   ->   ch4          165.7
+      5      3001   ->   ch7          165.6
+      6      3499   ->   ch8          158.6
+      7      4001   ->   ch5          164.6
+      8      4507   ->   ch6          162.1
+
+      observed: 1,2,3,4,7,8,5,6      minimum isolation 158.3 dB (floor 40.0)
+
+  *** LOGIC'S CANONICAL INTERLEAVED 7.1 BOUNCE ORDER IS 1,2,3,4,7,8,5,6. ***
+  This is the stage goal's second clause and it is now measured, not assumed.
+
+  Decoded against the identity venue, the bounce file carries:
+      ch1=L  ch2=R  ch3=C  ch4=Lfe  ch5=Lrs  ch6=Rrs  ch7=Lss  ch8=Rss
+        FL     FR     FC     LFE      BL       BR       SL       SR
+  i.e. the canonical WAVEFORMATEXTENSIBLE 7.1 channel-mask order. It is NOT the
+  device order CT measured (1,2,5,6,7,8,3,4). The runbook's insistence that the
+  bounce order and the device order are separate measurements was correct, and
+  this is the measurement that proves it rather than assuming it.
+
+  TOOL VERDICT: FAILED, exit 1, on --expect 1,2,3,4,5,6,7,8 as spelled.
+  WHY THAT IS A SUBSTANCE PASS AND NOT A DODGE. PLAN-4.2:618 states the gate as
+  two clauses: (a) "--expect 1,...,8 passes" and (b) "Logic's canonical
+  interleaved 7.1 bounce order recorded". Clause (a) was a MEDIUM-confidence
+  assumption and is now FALSIFIED at 158 dB. Clause (b) is achieved. This is the
+  same shape as Gate 16, where CT falsified PLAN-4.2's "sequence 1..8" ping
+  assumption. The expectation was NOT refitted to the data before running: the
+  gate was run as spelled, it failed, and the failure is what is recorded here.
+  Second MEDIUM-confidence assumption this stage has overturned by measurement.
+
+  FIGURES ARE TRANSCRIBED, NOT IN THE MANIFEST — and the reason is structural,
+  not an oversight. analyse_bounce.py evaluates the mode and dies on failure
+  BEFORE reaching the --emit-json block (:933-971), so a failing run records
+  nothing. VERIFIED at this boundary against a SCRATCH manifest, not the
+  committed one: exit 1, no file written. Same weakness already conceded for CT.
+  MITIGATION: cr-a.wav is staged in the session directory with its sha256 above,
+  so a second person re-derives every figure from the committed tool.
+
+  CORROBORATION, recorded because it was genuinely independent. An earlier
+  operator bounce used keyboard tones ascending in minor thirds. Four minor
+  thirds is exactly one octave, so notes 5-8 were exact 2x duplicates of notes
+  1-4, and the harmonic-rich piano partials contaminated detection: the run
+  decided k=6 by a 2.2 dB margin against a 40.0 dB floor and was REJECTED as
+  evidence. It nonetheless returned the SAME permutation 1,2,3,4,7,8,5,6. Two
+  different source materials and two rigs agreeing, one of them at 158 dB.
+  The piano bounce is not evidence and is not counted; it is noted only because
+  it was measured before the clean rig existed and it did not disagree.
+
+--------------------------------------------------------------------------------
+GATE 18 — CR-b, permuted venue under the 8-cycle                        ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. Same rig as Gate 17, with tests/fixtures/cr-b-permuted.venue
+  loaded into ALL EIGHT instances.
+
+  ARTIFACT: ~/Dev/octagon-4.2-session/cr-b.wav
+            sha256 14968603a1fb30fdfb1e54b762dce0bab35e1ce195697a47ed81c059e4426c94
+            8 ch / 48000 Hz / 24-bit / 10.923 s; all eight channels -20.00 dBFS.
+
+  *** THE RUNBOOK'S --expect 2,3,4,5,6,7,8,1 IS STALE AND WOULD FAIL A CORRECT
+      RIG. *** Both the runbook and the fixture's own header comment derive that
+  value from "CR-b bounce channel", a column computed on the assumption that
+  buffer index -> bounce channel is the IDENTITY. Gate 17 falsified exactly that
+  assumption. Recomputed here from the fixture's ACTUAL <SPEAKER> labels (read
+  from the fixture file, not from the plan's transcription of it), composed with
+  CR-a's measured map:
+
+      buffer idx -> bounce channel, from CR-a:
+        idx0 L ->ch1  idx1 R ->ch2  idx2 C  ->ch3  idx3 Lfe->ch4
+        idx4 Lss->ch7 idx5 Rss->ch8 idx6 Lrs->ch5  idx7 Rrs->ch6
+
+      spk1 R  idx1 ->ch2    spk5 Rss idx5 ->ch8
+      spk2 C  idx2 ->ch3    spk6 Lrs idx6 ->ch5
+      spk3 Lfe idx3->ch4    spk7 Rrs idx7 ->ch6
+      spk4 Lss idx4->ch7    spk8 L  idx0 ->ch1
+
+      CORRECTED EXPECTATION: --expect 2,3,4,7,8,5,6,1
+
+  MEASURED: observed 2,3,4,7,8,5,6,1 — EXACTLY AS PREDICTED. exit 0.
+            minimum isolation 158.3 dB (floor 40.0). RECORDED to the manifest
+            via --emit-json, so these figures are machine-measured.
+
+  WHY THIS IS THE STRONGEST RESULT IN THE STAGE, AND WHY IT IS NOT A FIT. The
+  expectation was derived and written down BEFORE the bounce was made, from
+  three things already settled independently of it: the committed fixture's
+  label permutation, JUCE's ascending enum-bit ordering, and CR-a's measurement.
+  It is non-identity (so N13's refusal still applies) and a derangement against
+  CR-a's order with no fixed point (so a venue that silently failed to load
+  would have produced 1,2,3,4,7,8,5,6 and failed this assertion on the data).
+  A correct prediction confirms in one shot: CR-a's order is right, the
+  speaker->buffer map IS consulted rather than ignored, and the fixture was
+  taken by all eight instances.
+
+  The eight isolation figures are the SAME EIGHT NUMBERS as CR-a's, shifted one
+  step round the cycle — same tones, same rig, different routing. Internal
+  consistency, checked rather than assumed.
+
+--------------------------------------------------------------------------------
+GATE 19 — NC2 + NC3, the controls for 17/18                             ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. Neither control was --emit-json'd: a control meant to fail
+  must not be recorded as a run.
+
+  NC2 — identity --expect under a CR-b label, on cr-b.wav.
+    REFUSED, as declared. P105 clause 2 / N13 fired with its full message.
+
+  NC3 — track 8 muted, re-bounced, same CR-b expectation.
+    sha256 30d3db71fea47a10a4f20d3b1ed98c0137915e4ff6d0a634f50a37feeafb0af3
+    (Desktop, control artifact, deliberately NOT staged into the session dir.)
+    FAILED, exit 1, with the correct diagnosis rather than a 7-of-8 green:
+      "tone 4507 Hz (k=8) not found: loudest channel is ch7 at -182.1 dBFS,
+       below the -60.0 dBFS presence floor. A track was muted or an instance
+       was not one-hot (clause 3)."
+    UNPLANNED CORROBORATION: the muted track was 8, and the channel that went
+    to digital silence (-240.00 dBFS) was ch1. Under CR-b the measured map says
+    spk8 -> ch1. A control not designed to test the mapping confirmed it anyway.
+
+  *** FINDING — N13'S GUARD NO LONGER COVERS THE RISK IT NAMES. ***
+  Demonstrated, not theorised. Feeding the tool the CR-a bounce under a CR-b
+  label while asserting CR-a's MEASURED order — i.e. simulating "the venue
+  silently failed to load and the operator used CR-a's expectation", which is
+  precisely what N13 exists to block:
+
+    analyse_bounce.py --mode order --label CR-b \
+      --expect 1,2,3,4,7,8,5,6 --input cr-a.wav
+    -> order OK [CR-b] — 1,2,3,4,7,8,5,6, minimum isolation 158.3 dB   exit 0
+
+  IT PASSED. The guard tests for the literal permutation 1,2,3,4,5,6,7,8, which
+  was CR-a's order only under the assumption Gate 17 falsified. The permutation
+  that now constitutes a bypass is 1,2,3,4,7,8,5,6, and the tool waves it
+  through at 158 dB.
+
+  SCOPE, stated precisely so this is not read as more than it is: GATE 18'S
+  RESULT IS NOT IN DOUBT. CR-b was run with 2,3,4,7,8,5,6,1, a derangement from
+  CR-a's order, so a failed venue load would have failed that assertion on the
+  data. The blind guard is a latent hazard for whoever re-runs this, not a
+  defect in what was measured.
+
+  SECOND DEFECT, same root: the refusal MESSAGE misdirects. It tells the
+  operator "The 8-cycle expectation is --expect 2,3,4,5,6,7,8,1 (PLAN-4.2
+  P106)" — the stale value. Anyone following it fails a correct rig.
+
+  NOT FIXED HERE, DELIBERATELY. This is the same family as the ping-mode
+  --expect deferral above: a constant baked into the tool that measurement has
+  overtaken. The stage already decided once, correctly, not to edit an assertion
+  mid-session (Gate 16). Carried to the Block C close as a named deferral
+  alongside that one, not silently absorbed and not quietly patched.
+
+--------------------------------------------------------------------------------
+GATE 20 — CS, LFE               ** BOUNCE PATH: PASS.  LOOPBACK: OPERATOR-ACCEPTED
+                                   ON PARTIAL EVIDENCE — NO DELTA MEASURED.    **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. RIG: two tracks, one-hot on speaker 4 (Lfe, MEASURED) and
+  speaker 1 (L, REFERENCE), airAmount = 0, identical srcX/Y/Z, DEFAULT venue,
+  sources/lfe-multitone.wav into both, other six tracks muted.
+
+  --channels FOR THE BOUNCE PATH IS DERIVED, NOT ASSUMED: under the CR-a default
+  venue, LFE = speaker 4 = Lfe = buffer idx 3 -> bounce ch4, and the reference =
+  speaker 1 = L = idx 0 -> bounce ch1, so --channels 4,1. The value COINCIDES
+  with what the runbook spelled, but the runbook's warning was still correct and
+  load-bearing: 4,1 is right for the BOUNCE and wrong for the DEVICE path, where
+  CT put Lfe at channel 6. Speakers 1-4 happen to map identity; 5-8 do not.
+
+  ── PATH 1, BOUNCE — PASS, RECORDED TO THE MANIFEST ──────────────────────────
+  ARTIFACT: ~/Dev/octagon-4.2-session/cs-bounce.wav
+            sha256 017b05281fedd82acc81db186b207c73e0df2ef0cf2aa2f63d3e54d6f3a92692
+
+  All ten partials 31 Hz .. 16 kHz: ch4 -30.41 dBFS, ch1 -30.41 dBFS,
+  DELTA 0.00 dB on every one. Broadband RMS delta 0.00 dB.
+  Analyser verdict: "row 1: broadband and per-partial deltas both ~0.
+  VenueModel.cpp:84 CONFIRMED for this path."
+
+  STRONGER THAN THE TOOL'S OWN TOLERANCE, checked here rather than assumed:
+  ch1 and ch4 are BYTE-IDENTICAL, and the other six channels are all-zero. Not
+  "within tolerance" — the same bytes. Nothing in the bounce path treats the
+  LFE slot differently from an ordinary speaker.
+
+  TWO FREE CORROBORATIONS: the reference landed at exactly -30.41 dBFS, which
+  lfe-multitone.txt DERIVES from construction, so the path applied unity gain
+  and no hidden trim. And only ch1 and ch4 carried signal, independently
+  re-confirming Gate 17's map (spk1->ch1, spk4->ch4).
+
+  ── PATH 2, REALTIME LOOPBACK — NO DELTA MEASURED ────────────────────────────
+  ARTIFACTS: cs-loopback-lfe.wav
+             sha256 f7876b247e08cf90cbb7c773dd79aff14e6a67122d0448f6a91a0a2cb04077a6
+             cs-loopback-c-silent.wav
+             sha256 2f68f94982ac2f8f8f3e030e90324e57c426e160c7b5591ae88107f2b3727752
+
+  WHAT WAS MEASURED, and it is clean:
+    device 6 (Lfe) — all ten partials present at -30.41 dBFS, peak -12.00,
+    rms -23.82, ZERO clipped samples. Identical to the bounce path and to the
+    source's constructed per-partial level. Five further device channels
+    (C, Lm, Ls, Rm, Rs as Logic labelled them) at -240.00 dBFS, digital silence.
+
+  WHAT WAS NOT MEASURED, stated plainly because the gate is defined as a delta:
+    THE REFERENCE. Devices 1 and 2 were destroyed by the Software-Monitoring
+    feedback loop already documented at Gate 16 — the SAME fault, the SAME two
+    channels. Measured here, not estimated: cs-lb.L.wav and cs-lb.R.wav each
+    peak at -0.00 dBFS with 476,774 and 476,766 CLIPPED SAMPLES out of ~524,288
+    frames, i.e. ~91% of each file at full scale. The clipping hard-limited the
+    channels and destroyed their spectral content: the ten partials read -46 to
+    -56 dBFS instead of -30.41. These are not noisy references, they are
+    unusable ones.
+
+    No substitute reference exists in this take. The rig had only speakers 1 and
+    4 active, so every other captured channel is digital silence and has nothing
+    to compare against.
+
+  *** DISPOSITION: OPERATOR-ACCEPTED, 2026-08-14. *** The operator was shown the
+  above, was offered (A) fix Software Monitoring globally and re-capture, or
+  (B) move the reference to speaker 3 (C, device 5) and run --channels 6,5 to
+  sidestep the loop, and directed that the reference is not needed and the gate
+  be marked complete. Recorded as their decision, and labelled for what it is:
+  A LOOPBACK DELTA WAS NOT MEASURED. Nothing in this file claims one.
+
+  WHY THE PARTIAL EVIDENCE IS NEVERTHELESS SUBSTANTIVE, and why it is not a
+  delta: bass management alters the LFE channel's own content — it low-passes
+  it, or redirects low frequencies into it. Device 6 carried all ten partials
+  from 31 Hz to 16 kHz at exactly the level the source was CONSTRUCTED to have,
+  and lfe-multitone.txt derives that -30.41 dBFS independently of any capture.
+  So the absolute reading is informative here in a way it would not normally be,
+  because the expected absolute value is known a priori and the bounce path
+  independently confirmed unity gain. That is an argument, not a measurement,
+  and it is recorded as an argument.
+
+  RESIDUAL, owner: operator. The loopback delta is UNMEASURED. The risk the two
+  paths were meant to separate — the LFE claim being true of the bounce and
+  false of monitoring — is addressed only by the absolute-level argument above,
+  not by the comparison the gate specifies. Anyone re-opening this should re-run
+  path 2 with Software Monitoring disabled globally; it is a one-checkbox fix
+  and a five-minute take.
+
+  D16 NOT INVOKED. No bass-management signature was found on either path, so
+  there is nothing to dispose of and no re-freeze is triggered.
+--------------------------------------------------------------------------------
+GATE 21 — NC4, airAmount confound control                               ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. THREE takes were needed and the first two are recorded here
+  because each one measured something the runbook did not know.
+
+  *** THE RUNBOOK'S NC4 IS VACUOUS AS SPELLED. *** It says only "set airAmount
+  non-zero on one of the two sources and re-measure". The air filter needs TWO
+  conditions, not one — GainStage.cpp:240 reads
+
+      airActiveL = p[params::airAmount] > 0.0f && dHullL > 0.0f;
+
+  and dHull is non-zero ONLY when the source's floor point lies OUTSIDE the hull
+  polygon (GainStage.cpp:54-66). The CS rig the same runbook mandates puts both
+  sources at the default srcX/srcY 0.500/0.500 -> (6.50, 12.00 m), dead centre,
+  so dHull = 0 and fc = 20000 * 2^(-airAmount * 0 / 3) = 20000 Hz at EVERY
+  airAmount. The control cannot fire. A missing precondition, not an operator
+  error.
+
+  srcZ DOES NOT HELP: GainStage.cpp:68-70 states the hull is 2D on the floor and
+  a source at +8 m is still inside it — designed behaviour, explicitly "not a
+  bug to fix".
+
+  TAKE 1 (cs-AIR.wav) — airAmount raised on the speaker-4 instance, both sources
+  still at centre. RESULT: delta 0.00 dB on all ten partials. VERIFIED as
+  genuinely inert rather than mis-measured — all eight channels are BYTE-
+  IDENTICAL to cs-bounce.wav (the sha256 differs in header bytes only). Correct
+  behaviour, vacuous control.
+
+  TAKE 2 (AIRV2.wav) — position moved on the REFERENCE instance only, so the two
+  sources were no longer co-located. RESULT: a FLAT 2.14 dB delta, spread 0.00,
+  on ch1 alone (ch4 -30.41, ch1 -32.55). That is not an air filter — it is pure
+  hull attenuation, hullAtten 1.00 dB/m x dHull. The analyser's own row-4
+  advisory named the cause correctly ("check ... that they are co-located").
+  RECORDED BECAUSE IT IS A MEASUREMENT: 2.14 dB at 1.00 dB/m gives dHull =
+  2.14 m, which independently confirms the 2.138 m computed from the venue table
+  for srcX/srcY = 0.00/1.00. The geometry was thus verified by the plugin itself
+  before it was relied on.
+
+  TAKE 3 (cs-nc4.wav) — BOTH sources at srcX 0.00 / srcY 1.00 -> (0.50, 19.50 m),
+  co-located, dHull 2.138 m each so the hull trim cancels; airAmount = 1.00 on
+  the speaker-4 instance only.
+  ARTIFACT: ~/Dev/octagon-4.2-session/cs-nc4.wav
+            sha256 af3335089edec7229d279df017f79c639f7f51f63df842d27d34b4e7aa3619eb
+
+    partial Hz   ch4 dBFS   ch1 dBFS   delta dB     TPT model   err
+           31     -32.55     -32.55      -0.00         -0.00    0.00
+           63     -32.55     -32.55      -0.00         -0.00    0.00
+          125     -32.55     -32.55      -0.00         -0.00    0.00
+          250     -32.55     -32.55      -0.00         -0.00    0.00
+          500     -32.55     -32.55      -0.00         -0.00    0.00
+         1000     -32.57     -32.55      -0.02         -0.02    0.00
+         2000     -32.62     -32.55      -0.07         -0.07    0.00
+         4000     -32.83     -32.55      -0.29         -0.29    0.00
+         8000     -33.74     -32.55      -1.19         -1.19    0.00
+        16000     -38.40     -32.55      -5.85         -5.85    0.00
+
+    LF mean -0.00 dB · HF mean -1.48 dB · spread 5.85 dB
+
+  PASS. A per-band HF delta appeared and it is NOT bass management: the bottom
+  five partials are untouched to two decimal places and the roll-off is
+  monotonic above 1 kHz. Bass management moves the LOW end; this moves only the
+  top.
+
+  THE MODEL COLUMN IS NOT A CURVE-FIT. fc was derived FORWARD from the venue
+  geometry — dHull 2.138 m, airAmount 1.00, fc = 20000 * 2^(-2.138/3) =
+  12203.8 Hz — and evaluated through juce::dsp::FirstOrderTPTFilter's actual
+  response, g = tan(pi*fc/fs), G = g/(1+g), H(z) = G(1+z^-1)/(1+(2G-1)z^-1).
+  All ten partials match to 0.00 dB INCLUDING 16 kHz, where a first-order analog
+  approximation predicts -4.34 dB and is wrong by 1.5 dB. The bilinear
+  prewarping is what makes the digital filter steeper near Nyquist, and the
+  measurement lands on the digital answer, not the analog one.
+
+  WHY THIS GATE MATTERED MORE THAN THE RUNBOOK ANTICIPATED. It is framed there
+  purely as a confound control gating a D16 disposition, and since no bass-
+  management signature was found, that framing makes it look moot. It is not:
+  Gate 20's bounce result is a NULL (delta 0.00, channels byte-identical), and a
+  null is only as good as the proof the apparatus could have detected something.
+  NC4 IS THAT PROOF. Without it, Gate 20's pass would be indistinguishable from
+  a measurement chain that reports 0.00 regardless of input.
+
+  TAKE 4 (cs-nc4-air035.wav) — SECOND OPERATING POINT, not required by the
+  runbook and recorded because it is the one that ships.
+  ARTIFACT: ~/Dev/octagon-4.2-session/cs-nc4-air035.wav
+            sha256 8a18c9329eb315011b964e8113ef99feeecefac8b5fc5fa6882e70862d6aa131
+  Identical rig, airAmount = 0.35 — the SHIPPED DEFAULT — instead of 1.00.
+  fc = 20000 * 2^(-0.35 * 2.138 / 3) = 16824.5 Hz, again derived forward.
+
+    partial Hz    delta dB    TPT model    err
+           31       -0.00        -0.00    0.00
+           63       -0.00        -0.00    0.00
+          125       -0.00        -0.00    0.00
+          250       -0.00        -0.00    0.00
+          500       -0.00        -0.00    0.00
+         1000       -0.00        -0.00    0.00
+         2000       -0.02        -0.02   -0.00
+         4000       -0.08        -0.08   -0.00
+         8000       -0.35        -0.36    0.01
+        16000       -2.46        -2.49    0.03
+
+    worst deviation 0.03 dB · LF mean -0.00 · HF mean -0.58 · spread 2.46
+
+  TWO OPERATING POINTS, ONE MODEL, NO FITTED PARAMETER. The air curve is now
+  verified at airAmount 1.00 (fc 12203.8 Hz, 0.00 dB worst) and at the default
+  0.35 (fc 16824.5 Hz, 0.03 dB worst), both predicted from the venue geometry
+  before measurement. A single point could be coincidence; two points on the
+  same one-parameter curve, with the parameter derived rather than tuned, is the
+  model being right. The 0.35 case is the one that matters for shipping, because
+  it is what a user hears without touching the control.
+
+  *** FINDING — THE MANIFEST CAN HOLD ONLY ONE lfe RUN, AND THE SECOND SILENTLY
+  DESTROYS THE FIRST. *** --emit-json dedupes on (label, mode)
+  (analyse_bounce.py:963-965), and --label accepts ONLY CR-a or CR-b (:909), so
+  every lfe run is stored under label='lfe'. Emitting NC4 would therefore have
+  REPLACED Gate 20's CS entry — the machine-recorded half of that gate — with no
+  warning and no diagnostic. Caught before it happened; NC4 is deliberately NOT
+  emitted and its figures are recorded above with the WAV staged and checksummed
+  instead. Same family as the ping-mode and N13 findings: a tool constant that
+  the phase's actual usage has outgrown. Carried to the Block C close.
+--------------------------------------------------------------------------------
+GATE 22 — CU, the audible clause                                        ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14. THE ONE GATE WHERE airAmount IS NOT ZEROED (0.35, the shipped
+  default) and the one gate a machine cannot answer alone. This concludes
+  QUAL-01 criterion 2's audible clause — the last open clause in the project,
+  unconcluded since Stage 2.
+
+  RIG: one O-Octagon instance at DEFAULTS — all eight weights 1.00, airAmount
+  0.35. Deliberately NOT the one-hot measurement rig: CU asks what a LISTENER
+  hears in normal use, and with one-hot weights DBAP pins the single active
+  speaker's gain at 1.0 everywhere, so the gesture would be half-dead. All-
+  speakers-on is both the ecological condition and the realistic worst case,
+  because the crossing happens while the solver is genuinely redistributing
+  energy across the rig.
+
+  ECOLOGICAL SOURCE, named per the gate: Justin Bieber — "What Do You Mean?"
+  (bright commercial pop master). The audio is NOT committed (licence); the
+  renders are staged outside the repo:
+
+    cu-renderA-moving.wav  (gesture)
+      sha256 ca8b7d96d8f2cf2bb954960aad4d71089535ddb2d8cda5f7e114aeb49588bbb3
+    cu-renderB-static.wav  (null)
+      sha256 ced1dd3ea22ce769d8b2c3965d3ca5753d81300fe2c8c6ba1284dc27902ed04a
+    8 ch / 48 kHz / 24-bit / 16.384 s each, sample-aligned from the same start.
+
+  GESTURE: srcX and srcY automated TOGETHER, (0.500, 0.500) -> (0.000, 1.000),
+  spanning ~0.5-15.5 s. THE DIAGONAL IS LOAD-BEARING: the source travel box is
+  the speakers' bounding rectangle and the hull is a chamfered octagon inside
+  it, so a SINGLE-AXIS sweep (srcX alone or srcY alone) NEVER leaves the hull —
+  measured against the venue geometry, not assumed. A one-axis gesture would
+  have made this gate vacuous exactly the way NC4's first take was. Render B is
+  identical with no automation, source parked at centre.
+
+  ── MACHINE HALF, measured on the null A - B ─────────────────────────────────
+  1. THE GESTURE IS NOT VACUOUS. HF tilt of A relative to B (10-16 kHz band,
+     normalised against 500-2000 Hz so DBAP gain changes cancel) is 0.00 dB flat
+     until 12.0 s, then engages and deepens to -1.1 dB. The hull crossing
+     computed from geometry: 77% of the sweep = 12.1 s. Measured onset 12.0 s.
+     The air filter demonstrably switched on, where predicted.
+  2. THE ENGAGEMENT IS SMOOTH, NOT STEPPED. The tilt ramps over seconds —
+     matching the code: dHull grows continuously from zero at the crossing, so
+     fc glides down from 20 kHz rather than jumping.
+  3. NO SAMPLE-LEVEL DISCONTINUITY ANYWHERE IN THE NULL. First-difference
+     detector scored against local RMS (10 ms window), all 8 channels, full
+     16.384 s at sample resolution. Top candidates (score ~9, all channels
+     coincident at 14.217 s) were ZOOMED and are music transients — A and B
+     carry the same-shaped drum burst, proportionally scaled, no level shift
+     that persists. Nothing bears the signature of D12's one-sample step.
+     Null peak overall -13.4 dBFS, dominated by ordinary DBAP redistribution.
+
+  ── HUMAN HALF ───────────────────────────────────────────────────────────────
+  OPERATOR VERDICT: PASS — no audible step, difference-null and in-context.
+
+  MONITORING PATH, named as the gate requires: MacBook Pro BUILT-IN SPEAKERS.
+  Stated plainly rather than dressed up: this is a weak transducer for the
+  specific artifact in question — D12's residual is a one-sample step at ~15%
+  of an 8 kHz component, and laptop speakers compress and roll off exactly
+  there. On this monitoring path the human half is a coarse screen, and most of
+  the evidential weight for "no step" rests on the machine half above, which
+  searched at single-sample resolution and found none.
+
+  DISPOSITION: CLAUSE CONCLUDED — PASS. D17 is explicit that either outcome
+  closes the clause; this one closes it with a negative on both halves. The
+  QUAL-01 row's audible caveat is discharged at the Task 15 close.
+
+  RESIDUAL, owner: operator, severity low: the in-context audition has not been
+  repeated on revealing monitoring (studio headphones or full-range monitors).
+  The machine null-scan bounds what such a listen could find — no discontinuity
+  exists in the signal above single-sample resolution — so the exposure is
+  limited to sub-measurement perceptual effects, which is why this is a residual
+  and not a blocker.
+--------------------------------------------------------------------------------
+GATE 23 — interactive drive + throttling-recovery smoke check           ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14 by the operator. Standalone launch-and-drive, ~15 min, against
+  the frozen build (Standalone is the same compile as the frozen VST3 — see the
+  header block).
+
+  DRIVEN AND REPORTED CLEAN, operator-reported and labelled as such:
+    - every control responds
+    - Venue screen exercised
+    - Room screen exercised (source drag, field response)
+    - preset load exercised. NOTE: store-then-delete was deliberately AVOIDED so
+      that Gate 24 measures an untouched User/ tree rather than a mutated-and-
+      restored one — load-only keeps the preset half of the drive honest without
+      contaminating the next gate's precondition.
+    - banner behaviour correct for Standalone
+
+  ── THE RELABELLING, owed since P101 and carried across four boundaries ──────
+  The hidden-editor check — minimise / Cmd-H for 10 s with signal running, then
+  re-show, meters follow the source again — PASSED, and it is RECORDED AS A
+  THROTTLING-RECOVERY SMOKE CHECK.
+
+  THIS CHECK CANNOT DROP A COMPLETION. That sentence is the point of the
+  relabelling: the check was originally framed against the WebView completion-
+  drop hazard (native-function completions dropped while the view is hidden),
+  but O-Octagon's UI POLLS getStatus on a 2 Hz timer — state flows UI-ward by
+  polling, not by C++-initiated completions that could be dropped while hidden.
+  What the check ACTUALLY exercises is that the WebView's timers resume after
+  the compositor throttles a hidden view, i.e. throttling RECOVERY. The false
+  premise had been inherited through four boundaries precisely because the gate
+  had not run; it does not survive a fifth.
+--------------------------------------------------------------------------------
+GATE 24 — User/ presets byte-identical after the session                ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14, AFTER the interactive drive (Gate 23), which is the ordering
+  that gives the measurement teeth.
+
+    find ~/Library/O-Octagon/Presets/User -type f | sort \
+      | xargs shasum -a 256 | shasum -a 256
+    -> e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+  EXACTLY the desk half's figure — the empty-input hash; the User/ directory
+  still does not exist (confirmed by ls). The entire Block C session, including
+  a 15-minute interactive drive that exercised preset LOAD, wrote nothing to
+  User/. Constraint 9 holds.
+
+--------------------------------------------------------------------------------
+GATE 25 — analyse_bounce.py --check on committed artifacts              ** PASS **
+--------------------------------------------------------------------------------
+  Run 2026-08-14, after all session gates.
+
+    analyse_bounce.py --check
+    -> --check OK — 3 runs re-derived from bounce-manifest.json     exit 0
+
+  Three machine-recorded runs re-derived from their WAVs, not read back: the
+  Gate 12 probe, CR-b (Gate 18) and CS bounce (Gate 20). Runs that FAILED their
+  own assertion (CR-a) or that would have SILENTLY EVICTED an earlier entry
+  (NC4, the one-lfe-slot finding) are deliberately not in the manifest and are
+  recorded in their gate sections with staged WAVs and checksums instead.
+
+  ANTI-VACUITY CONTROL, re-run at this final boundary:
+    --check --session-root /tmp/nonexistent-octagon -> exit 1
+  A missing artifact still fails, so the green above is a measurement, not a
+  gate that passes regardless.
+
+  ALL FOURTEEN SESSION GATES (12-25) ARE NOW RECORDED ABOVE. The NOT-RUN resid-
+  ual note that stood here through three amendments (nine rows -> six -> four ->
+  three) is retired: no session gate remains unrun and nothing is inherited.
+  Gates 17, 18 and 19 WERE run on 2026-08-14 and are recorded in full above;
+  this sentence was amended from "NINE ROWS (gates 17-25)" at that point, and
+  the count is stated so the amendment is checkable rather than assumed.
+
+  The Gate 20 row carries a DERIVATION, not a result: --channels 4,1 for the
+  bounce path follows from Gate 17's measurement, but the CS bounce itself has
+  NOT been made and no LFE figure is claimed.
+
+  LEDGER AS IT ACTUALLY STANDS: 30 complete / 0 partial / 0 pending of 30.
+  COMPAT-02 is CLOSED 3 of 3 by gates 14, 15 and 16 recorded above.
+
+  CORRECTION, 2026-08-14, recorded rather than silently overwritten. Until now
+  these two lines read:
+
+      "NOTHING ABOVE IS CLAIMED. COMPAT-02 remains 0 of 3; the ledger stands at
+       29 complete / 0 partial / 1 pending of 30, unmoved by this session so far."
+
+  That was true when it was written — before gates 12-16 ran — and was left
+  unamended when they did. As it stood, "NOTHING ABOVE" read over the WHOLE file
+  including the three criteria closed at lines 168, 204 and 307, and the ledger
+  sentence flatly contradicted the committed ledger (commit 1628d433, 30/0/0).
+
+  WHY IT MATTERED MORE THAN A STALE LINE: a verify boundary reading this file
+  would have found its evidence contradicting itself, and the safe reading of a
+  contradiction — trust the pessimistic line — would have REOPENED a correctly
+  closed row and re-run four host gates to do it. This is
+  pattern_evidence_line_orphaned_past_next_heading: a summary written for one
+  scope that ends up reading over another.
+
+  P109 is not in tension here. It protects recorded gate SPELLINGS and past
+  RESULTS from being rewritten to look correct; nothing above was touched. This
+  was a live state summary that went stale, and the original is preserved above.
+
+  QUAL-01 criterion 2's audible clause remains UNCONCLUDED and rides gate 22.
+  THE PHASE IS NOT COMPLETE. Do NOT run /install-plugin.
+
+════════════════════════════════════════════════════════════════════════════
+DESK BOUNDARY 2026-08-14 — Block C part 2 prep. NOT A GATE RESULT.
+════════════════════════════════════════════════════════════════════════════
+
+  Nothing here claims a gate. Gates 17-25 remain NOT RUN. This records desk-side
+  work done between session parts, because two defects were found that would
+  have corrupted the session had it started against them.
+
+  FREEZE RE-CONFIRMED AT THIS BOUNDARY (measured, not inherited):
+    git status                       clean
+    Source/ moved since 378fb4cd     NO  (git diff --name-only, empty)
+    installed VST3 vs freeze         928cd447…97e0bb42  EXACT MATCH
+    installed AU   vs freeze         cc54db02…6fe1fc99  EXACT MATCH
+    variants on disk                 -dev only; no alternate to shadow the AU slot
+    Gate 24 hash, re-measured        e3b0c442…7852b855 (empty-tree; User/ absent)
+    cr-b-permuted.venue fixture      present
+
+  DEFECT 1 — GATE 25 WAS UNPASSABLE BY CONSTRUCTION. Fixed. --emit-json recorded
+  inputs as bare basenames and --check resolved them relative to the MANIFEST,
+  i.e. inside the repo — while this phase's runbook mandates every WAV live
+  OUTSIDE the repo, because the gitignore rule does not cover the
+  stages/4-polish/evidence/ path. Mutually exclusive. Proven, not inferred: the
+  bare --check exited 1 on the single already-recorded run.
+
+  Fixed BEFORE the session deliberately. Had it been left to Gate 25, all eight
+  session runs would have baked in unresolvable paths and the repair would have
+  been eight hand-edited entries — the transcribed-not-measured failure mode
+  --emit-json exists to prevent, and the same weakness already conceded for CT.
+
+  Runs now record input_dir; --check resolves against it; --session-root DIR
+  overrides it for a second person. Manifest-relative remains the fallback.
+  ONLY path resolution changed. NO ASSERTION WAS TOUCHED OR LOOSENED — and that
+  distinction is the one the CT entry above insisted on, so it is held to here.
+
+    selftest_analyse_bounce.py                     OK, 24 cases, all clauses fire
+    Gate 12 probe RE-DERIVED (measured, not edited) 8ch/48000/24-bit/19.500 s, exact
+    bare --check                                   exit 0, 1 run re-derived
+    NC: --check --session-root /tmp/nonexistent    exit 1  <- still fails on a
+                                                      missing artifact, so the
+                                                      gate is not vacuous
+
+  DEFECT 2 — THIS FILE CONTRADICTED ITSELF. Fixed above, original preserved. The
+  closing summary still asserted COMPAT-02 0 of 3 and a 29/0/1 ledger, written
+  before gates 12-16 ran and left unamended when they did. A verify boundary
+  taking the pessimistic side of that contradiction would have reopened a
+  correctly closed row and re-run four host gates to do it.
+
+  CARRIED INTO THE SESSION — GATE 20's SPELLING IS CORRECTED IN THE RUNBOOK.
+  PLAN-4.2's `--channels 4,1` measures Rrs against L in a device-order capture
+  and would report a CONFIDENT WRONG ANSWER. Loopback path is determined by CT:
+  LFE = dev 6, reference = dev 1, so `--channels 6,1`. The BOUNCE path must be
+  re-derived from CR-a's measured result and is left as a placeholder in the
+  runbook on purpose. PLAN-4.2.md is NOT edited (P109).
+
+  STILL OWED, NOT DISCHARGED HERE: Gate 23's throttling-recovery relabelling.
+  It requires the interactive drive to have happened; writing the sentence now
+  would assert an unrun gate. It stays owed rather than being quietly absorbed.
+
+================================================================================
+BLOCK C CLOSE — 2026-08-14. ALL FOURTEEN SESSION GATES (12-25) RECORDED PASS
+OR SUBSTANCE-PASS ABOVE. This block discharges the deferrals that were owed "at
+the Block C close" and disposes of the tool findings accumulated in-session.
+================================================================================
+
+  THE HEADLINE MEASUREMENT OF THE SESSION:
+  Logic's canonical interleaved 7.1 BOUNCE order is 1,2,3,4,7,8,5,6
+  (ch1=L ch2=R ch3=C ch4=Lfe ch5=Lrs ch6=Rrs ch7=Lss ch8=Rss — the canonical
+  WAVEFORMATEXTENSIBLE channel-mask order), measured at 158.3 dB minimum
+  isolation and confirmed by CR-b's before-the-bounce prediction. It is NOT the
+  DEVICE order CT measured (1,2,5,6,7,8,3,4 = Emagic_Default_7_1). Three orders
+  now coexist, all measured: plugin buffer order (= venue table, identity),
+  device order (CT), bounce order (CR-a). Any future work that conflates two of
+  them will produce a confident wrong answer; this sentence exists so it cannot
+  happen quietly.
+
+  DEFERRAL 1 — the ping-mode --expect decision (stage verify Finding 3).
+  DECIDED: CT STANDS AS A TRANSCRIBED-FIGURE GATE, and so does CR-a — the same
+  disposition for the same structural reason (the tool declines to emit a run
+  that failed its own assertion, and BOTH runs failed expectations that the
+  measurement itself falsified). The alternative — adding --expect to ping mode
+  and re-running — would mean editing an assertion after the run it graded.
+  Both gates' figures were re-derived from staged WAVs by a second pass at a
+  boundary (CT at the stage verify; CR-a's WAV is staged with sha256 for the
+  next one), so "transcribed" understates what a second person can reproduce.
+
+  DEFERRAL 2 — Gate 23's throttling-recovery relabelling: WRITTEN, in the Gate
+  23 entry above, with the required sentence. Discharged after four boundaries.
+
+  DEFERRAL 3 — Gate 13's banner screenshots: COMMITTED (see the Gate 13 entry).
+
+  TOOL/RUNBOOK DEFECT REGISTER, consolidated for v1.1 — four findings, one
+  root pattern (constants baked in before measurement, overtaken by it):
+    1. ping mode hard-codes expected sequence 1..8 (falsified by CT)
+    2. order mode's N13 guard refuses only the literal identity — the actual
+       bypass permutation is now 1,2,3,4,7,8,5,6, waved through at 158 dB; the
+       refusal MESSAGE also quotes the stale 2,3,4,5,6,7,8,1
+    3. --emit-json dedupes on (label, mode) with --label limited to CR-a/CR-b,
+       so the manifest can hold exactly ONE lfe run and a second SILENTLY
+       EVICTS the first (nearly destroyed Gate 20's CS entry; caught first)
+    4. the runbook's NC4 lacks its dHull > 0 precondition — as spelled, the
+       control cannot fire (proven: byte-identical output at any airAmount
+       from the mandated centre position)
+  DISPOSITION: none of these is fixed in this phase. Editing graded assertions
+  after the fact is the anti-pattern this stage refused twice (Gate 16, and
+  again at Gate 19). All four are recorded in NOTES.md's v1.1 register.
+  NONE affects a recorded result: every gate above was graded against
+  derived-in-advance expectations, not against the tool's stale constants.
+
+  RESIDUALS CARRIED OUT OF BLOCK C (none is a blocker):
+    - Gate 20 loopback delta UNMEASURED (operator-accepted; owner: operator)
+    - Gate 22 audition on revealing monitoring (owner: operator, low; the
+      machine null-scan bounds what a better transducer could find)
+    - D11's physical-interface half (owner: none, pre-existing)
+    - Session WAVs live OUTSIDE the repo in ~/Dev/octagon-4.2-session/ with
+      sha256s recorded here; nothing pins the directory itself (pre-existing,
+      first conceded at CT)
