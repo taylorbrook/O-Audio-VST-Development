@@ -5,8 +5,8 @@ version: 1.0.0
 plugin: O-Octagon
 created: 2026-08-10
 lastUpdated: 2026-08-14
-lastVerified: "stage-4 STAGE ROLL-UP VERIFY, 2026-08-14 (VERIFICATION.md). 30 of 30 complete, 0 partial, 0 pending. COMPAT-02 CLOSED 3 of 3: criterion 1 by Gate 14 (7.1 negotiated AND surviving save/quit/reopen), criterion 3 by Gate 15 (all 11 lanes written and read back), criterion 2 by probe CT / Gate 16 (8 distinct channels, one per window, minimum isolation 219.9 dB vs a 40 dB floor). THE EXECUTE-SIDE RE-RUN DEBT IS NOW PART-DISCHARGED: Gate 16/CT was fully RE-DERIVED at the verify boundary from the capture WAVs — all eight isolation figures, the burst period, the burst length and the sequence 1,2,5,6,7,8,3,4 reproduce EXACTLY, including the tool's FAILED verdict. Gate 12's probe and Gate 25's --check were likewise re-derived; 95 probes and 70 JS gate sections re-run green. Gates 13, 14 and 15 are human-observation gates and CANNOT be machine re-run — they stand on operator report, and Gate 13's own banner-screenshot evidence is NOT on disk and NOT committed (VERIFICATION.md Finding 1). CAUTION: this 30/0/0 ledger DOES NOT mean ship-ready — QUAL-01 criterion 2's audible clause is still UNCONCLUDED and rides Gate 22 (CU), which has not run."
-openRows: "NONE. COMPAT-02 closed 2026-08-14 at stage-4 phase 4.2 Block C. TWO RESIDUALS STAND, both owner: none and neither reopening a row — (1) D11: criterion 2 closed against the CoreAudio device boundary (BlackHole 64ch); the specific-hardware-interface half is a property of an absent machine. (2) QUAL-01 criterion 2's audible clause is STILL UNCONCLUDED and rides gate 22 (CU), which has not run. THE PHASE IS NOT COMPLETE: gates 17-25 are outstanding."
+lastVerified: "stage-4 phase 4.2 BLOCK C PART 2 CLOSE, 2026-08-14 (evidence/session-gates-4.2.txt, all 14 session gates recorded). 30 of 30 complete, 0 partial, 0 pending — and for the first time the ledger and the completion signal AGREE: gates 17-25 all ran. QUAL-01 criterion 2's audible clause is CONCLUDED by Gate 22 (CU): machine null-scan at sample resolution over 16.384 s x 8 ch found NO discontinuity (gesture proven non-vacuous — HF tilt engaged at 12.0 s vs 12.1 s predicted from geometry); operator PASS on Justin Bieber 'What Do You Mean?'; monitoring path MacBook Pro built-in speakers, recorded plainly as weak for an 8 kHz one-sample artifact, so the machine half carries the weight. THE STAGE GOAL'S SECOND CLAUSE IS MET: Logic's canonical interleaved 7.1 BOUNCE order measured by Gate 17 (CR-a) = 1,2,3,4,7,8,5,6 (the WAVEFORMATEXTENSIBLE channel-mask order), 158.3 dB minimum isolation, CONFIRMED by Gate 18 (CR-b) returning the before-the-bounce prediction 2,3,4,7,8,5,6,1 exactly. Gate 20: LFE slot byte-identical to an ordinary speaker on the bounce path; loopback delta NOT measured (operator-accepted — see openRows). Gate 21 (NC4) proves the Gate-20 null sensitive after fixing the runbook's missing dHull>0 precondition: air curve matches the TPT model at TWO operating points (worst 0.00 and 0.03 dB) with fc derived forward from geometry. Gates 23/24/25 pass; the throttling-recovery relabelling owed since P101 is WRITTEN. Gate 13's banner screenshots are COMMITTED (roll-up Finding 1 closed). PRIOR ENTRY superseded but true when written: the roll-up verify's CAUTION about 30/0/0 not meaning ship-ready pointed at exactly the gates this session closed."
+openRows: "NONE, and no clause rides an unrun gate any more. RESIDUALS, none reopening a row: (1) D11, owner none — criterion 2's specific-hardware-interface half, a property of an absent machine. (2) Gate 20's realtime-loopback LFE delta UNMEASURED, owner operator — devices 1-2 destroyed by the documented Software-Monitoring feedback loop; operator directed close without re-capture; the LFE device channel itself captured clean at the constructed level, recorded as an argument not a measurement. (3) Gate 22 audition not repeated on revealing monitoring, owner operator, low — the sample-resolution null-scan bounds what a better transducer could find. NEXT: stage-4 roll-up RE-VERIFY, then /install-plugin."
 ---
 
 ## Overview
@@ -751,6 +751,16 @@ openRows: "NONE. COMPAT-02 closed 2026-08-14 at stage-4 phase 4.2 Block C. TWO R
       which is the answer the verify-ping feature exists to give an operator in a hall. Figures are
       **transcribed, not in `bounce-manifest.json`** — the tool declines to emit a run that failed
       its own assertion, and loosening `ping` mode would have fit the assertion to its own result*
+      **COMPLEMENTED at Block C part 2 (2026-08-14) by the BOUNCE order, a genuinely separate
+      measurement:** *Gate 17 (CR-a) measured Logic's canonical interleaved 7.1 bounce order as
+      **`1,2,3,4,7,8,5,6`** — the WAVEFORMATEXTENSIBLE channel-mask order `FL FR FC LFE BL BR SL SR`
+      — at **158.3 dB minimum isolation**, and Gate 18 (CR-b) **confirmed it by prediction**: the
+      expectation `2,3,4,7,8,5,6,1`, derived before the bounce from the committed fixture's labels
+      composed with CR-a's map, returned exactly, proving the speaker→buffer map is consulted.
+      Three orders now coexist, all measured: plugin buffer order (identity vs the venue table),
+      DEVICE order (CT, `1,2,5,6,7,8,3,4`), BOUNCE order (CR-a, `1,2,3,4,7,8,5,6`). They are three
+      different answers to three different questions; conflating any two produces a confident wrong
+      answer*
 - [x] Automation of `srcX`/`srcY`/`srcZ` and `w1..w8` is visible and writable in Logic's automation lanes
       — *visibility observed at the 2.1 manual gate: 17 parameters under 5 groups, matching the
       `auval` clump dump. **CLOSED at stage-4 phase 4.2 Block C, Gate 15**: all **11** lanes
@@ -891,8 +901,8 @@ openRows: "NONE. COMPAT-02 closed 2026-08-14 at stage-4 phase 4.2 Block C. TWO R
       `A·|H_20k(f) − 1|` to **0.000 %** — 0.005328 at 1 kHz and 0.046267 at 8 kHz, asserted as an
       equality against a prediction rather than as a ceiling. **Proven non-vacuous at verify (NC1):**
       removing P27's entry re-seed makes BB report `entry NOT BIT-EXACT — P27's SEED IS GONE` and
-      blows the DC step to 0.1367314, 33× the bound. **The audibility clause is bounded but not
-      concluded — see the note below.***
+      blows the DC step to 0.1367314, 33× the bound. **The audibility clause was bounded here and
+      CONCLUDED at stage-4 Gate 22 (2026-08-14) — see the notes below.***
 
 > **The *audible* clause of criterion 2 is measured, not listened to** *(recorded 2026-08-11 at 2.3
 > verify)*. Everything measurement can settle is settled: the entry edge is bit-exact, the exit step
@@ -903,7 +913,21 @@ openRows: "NONE. COMPAT-02 closed 2026-08-14 at stage-4 phase 4.2 Block C. TWO R
 > clause is met and the residual is a named, bounded, single-gesture artifact with a documented lever
 > (RESEARCH-2.3 H3 — raising `fc(d_hull = 0)` toward Nyquist, which re-tunes the whole musical curve
 > and is therefore a discuss-boundary change, not a fix).
->
+
+> **CONCLUDED at stage-4 phase 4.2 Block C, Gate 22 (CU), 2026-08-14 — PASS.** The D5/H2 item
+> carried open since 2.3 is closed on both halves. **Machine half:** on the null of two renders
+> (hull-crossing gesture vs static, real program material, `airAmount` at the shipped 0.35), a
+> first-difference detector at **sample resolution** over 16.384 s × 8 channels found **no
+> discontinuity** — top candidates zoomed and identified as music transients. The gesture was
+> **proven non-vacuous** first: HF tilt engaged at 12.0 s against 12.1 s predicted from the venue
+> geometry (a single-axis sweep never leaves the hull and would have made the gate vacuous — the
+> diagonal is load-bearing). **Human half:** operator PASS, no audible step, difference-null and in
+> context, on Justin Bieber "What Do You Mean?" (named per the gate; audio not committed).
+> **Monitoring path: MacBook Pro built-in speakers** — recorded plainly as a weak transducer for a
+> one-sample 8 kHz artifact, so the evidential weight rests on the machine scan; re-audition on
+> revealing monitoring stands as a low residual (owner: operator). Per D17 either outcome closes
+> the clause; it closes with a negative on both halves, and the H3 lever stays unused.
+
 > **Probe AS's position figure moved between 2.2 and 2.3, and it is a real behavioural change.**
 > 2.2 verify recorded **0.0008846**; 2.3 verify measures **0.0008203** (negative control 0.0564730 →
 > 0.0524102). The weights half is unchanged to the last digit. `hullAtten` defaults to 1.0 dB/m, so a

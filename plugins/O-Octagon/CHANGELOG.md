@@ -1,5 +1,31 @@
 # O-Octagon Changelog
 
+## v1.0.0 (unreleased — Stage 4 phase 4.2 Block C complete, 2026-08-14)
+
+### Host validation (Logic Pro 12.3, BlackHole 64ch — phase 4.2)
+
+- **Logic's canonical interleaved 7.1 bounce order measured: `1,2,3,4,7,8,5,6`** — i.e. a bounce
+  file carries `L R C Lfe Lrs Rrs Lss Rss` on channels 1–8, the canonical WAVEFORMATEXTENSIBLE
+  channel-mask order (`FL FR FC LFE BL BR SL SR`). Measured at 158.3 dB minimum isolation and
+  confirmed by a permuted-venue bounce returning its before-the-bounce prediction exactly. This is
+  **not** the realtime device order (`Emagic_Default_7_1`: `L R Ls Rs C LFE Lc Rc`) — the bounce
+  and device paths order channels differently, and both are now measured.
+- **The speaker→buffer map is consulted, not decorative:** an 8-cycle label permutation loaded into
+  all eight instances shifted the whole bounce order by exactly the predicted derangement.
+- **LFE slot confirmed an ordinary speaker on the bounce path** — byte-identical output against a
+  reference speaker fed the same 31 Hz–16 kHz multitone; no bass management, no filtering. The
+  positive control (air filter engaged at a hull excursion) matches the TPT filter model to
+  0.00/0.03 dB at two operating points with the cutoff derived from venue geometry, not fitted.
+- **The hull-crossing audible clause is concluded** (the last open clause): sample-resolution
+  null between a hull-crossing gesture and a static render on commercial program material shows
+  no discontinuity; operator listen passed. Monitoring path recorded (MacBook Pro speakers).
+- **Instantiation constraint documented:** in Logic, insert via the slot's **Stereo → 7.1**
+  channel-config entry. Clicking the plugin *name* yields Logic's default **multi-mono** pick —
+  eight independent mono instances with both banners correctly raised.
+- Session recall (save → quit → reopen), all 11 automation lanes (write + read-back), `auval`,
+  and `User/`-preset non-pollution all verified in-host; full gate-by-gate record in
+  `.planning/stages/4-polish/evidence/session-gates-4.2.txt`.
+
 ## v1.0.0 (unreleased — Stage 4 phase 4.1 complete, 2026-08-12)
 
 Eight-channel DBAP spatializer for irregular concert arrays. First release.
@@ -62,9 +88,12 @@ Eight-channel DBAP spatializer for irregular concert arrays. First release.
 
 ### Not Yet Validated
 
-- **No host testing.** Stage 4 phase 4.2 covers Logic on an 8-channel interface — bounce channel
-  order, LFE gain handling, and the verify ping through eight physical outputs.
-- **No hall.** Every Stage 4 criterion closes at the desk; nothing has been heard on a real array.
+- **Host testing: DONE as of 2026-08-14** (see the Block C entry above) — with two named residuals:
+  the realtime-loopback LFE *delta* was not measured (reference channels lost to a monitoring
+  feedback loop; the LFE device channel itself captured clean at the constructed level), and the
+  audible-clause listen has not been repeated on revealing monitoring.
+- **No hall.** Nothing has been heard on a real 8-speaker array; the physical-interface half of
+  COMPAT-02/2 carries owner: none.
 - **Windows UI correctness.** CI proves the code compiles under MSVC and that pluginval 10 opens the
   editor without a timeout. No human has seen the UI on Windows.
 - **RT-safety beyond allocation.** Allocation is measured by replacing the global `operator new`

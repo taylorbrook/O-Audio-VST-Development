@@ -6,8 +6,51 @@ stage_phase: 2                             # DECIDED AT THE 4.1 BOUNDARY (D1). S
 stage_phase_name: host-and-ear             # not the "single pass" ROADMAP said: 4.1 = machine
 stage_phase_total: 2                       # (CI, Windows, pluginval/auval, presets, COMPAT-04,
 artifact_suffix: "-4.2"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
-phase: verify                              # STAGE-4 ROLL-UP VERIFY LANDED 2026-08-14 —
-status: stage_partial_block_c_part2_owed   # VERIFICATION.md. VERDICT: PARTIAL. STAGE 4 IS NOT
+phase: execute                             # BLOCK C PART 2 COMPLETE 2026-08-14 — gates 17-25 ALL
+status: block_c_complete_reverify_owed     # RAN (evidence/session-gates-4.2.txt, close block at
+                                           # the end of the file). ALL 14 SESSION GATES RECORDED.
+                                           #
+                                           # THE STAGE GOAL'S SECOND CLAUSE IS MET: Logic's
+                                           # canonical interleaved 7.1 BOUNCE order = 1,2,3,4,7,8,5,6
+                                           # (Gate 17 / CR-a, 158.3 dB min isolation), CONFIRMED by
+                                           # Gate 18 / CR-b returning the before-the-bounce
+                                           # prediction 2,3,4,7,8,5,6,1 EXACTLY. NOT the device
+                                           # order (CT: 1,2,5,6,7,8,3,4) — three measured orders now
+                                           # coexist (buffer/device/bounce); never conflate them.
+                                           #
+                                           # QUAL-01's audible clause CONCLUDED (Gate 22): machine
+                                           # null-scan at sample resolution found no step, gesture
+                                           # proven non-vacuous (tilt onset 12.0 s vs 12.1 s
+                                           # predicted); operator PASS; monitoring MacBook Pro
+                                           # speakers, recorded as weak — machine half carries it.
+                                           #
+                                           # THE RUNBOOK WAS WRONG THREE TIMES, EACH CAUGHT BEFORE
+                                           # IT COST A RESULT: Gate 18's --expect was stale
+                                           # (derived from the identity CR-a falsified); NC4 as
+                                           # spelled CANNOT fire (missing dHull>0 precondition —
+                                           # sources at centre have the air filter structurally
+                                           # inert); the manifest can hold only ONE lfe run and a
+                                           # second SILENTLY EVICTS the first (would have destroyed
+                                           # Gate 20's CS entry). Four tool defects consolidated in
+                                           # the close block + NOTES.md v1.1 register; NO tool
+                                           # assertion edited after grading (refused twice already).
+                                           #
+                                           # Gate 20: bounce path PASS (LFE byte-identical to an
+                                           # ordinary speaker); loopback delta NOT MEASURED —
+                                           # devices 1-2 destroyed by the documented Software-
+                                           # Monitoring feedback loop; operator-accepted, residual
+                                           # owner: operator. D16 never invoked. NC4 validated the
+                                           # null at TWO operating points (air 1.00 worst 0.00 dB,
+                                           # air 0.35 worst 0.03 dB vs the TPT model, fc derived
+                                           # forward from geometry both times).
+                                           #
+                                           # OWED: the stage-4 roll-up RE-VERIFY (the standing
+                                           # VERIFICATION.md verdict PARTIAL predates Block C part
+                                           # 2 and is now stale). THEN /install-plugin.
+                                           #
+                                           # superseded note kept for history:
+                                           # STAGE-4 ROLL-UP VERIFY LANDED 2026-08-14 —
+                                           # VERIFICATION.md. VERDICT: PARTIAL. STAGE 4 IS NOT
                                            # COMPLETE and the plugin is NOT ready to ship.
                                            # (next_action is set below, at its canonical key — a
                                            # second one here would be a DUPLICATE YAML KEY, the
@@ -104,8 +147,16 @@ complexity_score: 5.0
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-next_action: run_stage_4_phase_4_2_block_c_gates_17_to_25
-                                         # ── WHAT IS ACTUALLY NEXT (2026-08-14) ──
+next_action: run_stage_4_rollup_reverify
+                                         # ── WHAT IS ACTUALLY NEXT (2026-08-14, Block C closed) ──
+                                         # /plugin-verify O-Octagon 4-polish — re-roll the stage
+                                         # verify. The standing VERIFICATION.md verdict (PARTIAL)
+                                         # predates Block C part 2: its two blockers — gates 17-25
+                                         # unrun, bounce clause unmet — are both discharged in
+                                         # evidence/session-gates-4.2.txt. After a clean verify:
+                                         # /install-plugin O-Octagon.
+                                         #
+                                         # superseded note kept for history:
                                          # RESUME AT GATE 17 (CR-a). Gates 12-16 are DONE.
                                          # Nine gates remain, est. 45-60 min:
                                          #   17 CR-a  bounce order, shipped default venue
