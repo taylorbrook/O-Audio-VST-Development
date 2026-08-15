@@ -1,17 +1,19 @@
 ---
 plugin: O-Bitrot
-stage: 0
-status: complete
+stage: 1
+phase: discuss
+status: in_progress
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
+workflow_mode: manual
+next_action: run_research_phase
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
-  parameter_spec: sha256:95e0e239ab383c9a0fd3fcd680055b7a3b6b09e42b735aeeba21efa61c64bb4f
+  parameter_spec: sha256:12926dbbae23fb1a7b21d958d6e77738f60d26684cf76ac61038d7c334234792
   architecture: sha256:1496c18e09d39f7ce38ce1f4ee037f9db50bac4002eb8d6a7f7f84e9eb16428a
   roadmap: sha256:bdc18fedff3b03d9e5fe3e39377d749821887d668a34e48cb385c03cca02ef7b
 ---
@@ -20,9 +22,20 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Research & Planning) — complete
-Status: Architecture and roadmap documented, ready for implementation
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation) — discuss phase complete
+Status: Parameter spec promoted to binding contract; ready for research phase
+Progress: [###.................] 15%
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| discuss | ✓ | 2026-08-15 | CONTEXT.md; parameter-spec.md promoted (checksum updated) |
+| research | → | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
 
 ## Completed So Far
 
@@ -44,11 +57,11 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. Stage 1: Foundation (build system + APVTS 31 params + passthrough) — Run /implement O-Bitrot
-   (note repo pattern: the 0-ideation→1-foundation gate always needs --force)
-2. UI mockup (six panels + global strip) → finalize parameter-spec.md (carry Stage 0 param deltas:
-   CRUSH_RATE 500 Hz–20 kHz, CLOCK_SYNC_DIV 7 divisions)
-3. Review ARCHITECTURE.md and ROADMAP.md
+1. Stage 1 research phase — `/plugin-research O-Bitrot`
+2. UI mockup (six panels + global strip) — layout/UI-label refinement only; parameter-spec.md
+   is now BINDING (IDs/types/ranges/defaults locked at Stage 1 discuss)
+3. Stage 1 execute note: the 0-ideation→1-foundation gate always needs `--force --skip-review`
+   (unconditional build check; CMakeLists doesn't exist yet)
 
 ## Context to Preserve
 
