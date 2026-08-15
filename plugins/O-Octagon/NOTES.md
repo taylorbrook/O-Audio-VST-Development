@@ -1,8 +1,8 @@
 # O-Octagon Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 4 — phases 4.1 + 4.2 executed (Block C closed 2026-08-14); stage
-  roll-up re-verify owed, then install
+- **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
+  stages complete; dev-branded build (`O-Octagon-dev`), not yet released
 - **Version:** 1.0.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
@@ -30,6 +30,12 @@
   gates, then the Logic Pro 12.3 / BlackHole 64ch session — all 14 session gates. `COMPAT-02`
   closed 3 of 3; the bounce order measured; `QUAL-01`'s audible clause concluded. Ledger 30/0/0
   with the completion signal finally agreeing.
+- **2026-08-14 (Stage 4 verify + install):** Stage-4 roll-up re-verify ✅ VERIFIED (commit
+  `388fa335`) — every machine-checkable figure re-measured, both transcribed-figure gates
+  re-derived second-person, auval PASS. Installation FORMALISED rather than re-copied: the
+  installed `-dev` bundles were measured byte-identical to freeze `378fb4cd` (VST3 `928cd447…`,
+  AU `cc54db02…`), the same binaries every Block C gate validated, so no rm/copy and no cache
+  clear was performed — nothing changed on disk that a cache could go stale against.
 
 ## Known Issues
 
@@ -128,3 +134,8 @@ fact was refused twice), and none affects a recorded result:
 - `research/logic-pro-multichannel-octaphonic-dbap.md` — the locked architecture
 - `research/juce8-multichannel-spatial-audio.md` — `AudioChannelSet` reference, bus negotiation
 - `research/spatial-audio-per-grain-spatialization.md` §1 — VBAP math, for the deferred v1.1 mode
+
+**Installation Locations (dev branding):**
+- VST3: `~/Library/Audio/Plug-Ins/VST3/O-Octagon-dev.vst3`
+- AU: `~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component`
+- Installed binaries byte-identical to freeze `378fb4cd` (VST3 `928cd447…`, AU `cc54db02…`)
