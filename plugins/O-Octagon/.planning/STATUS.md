@@ -6,8 +6,38 @@ stage_phase: 2                             # DECIDED AT THE 4.1 BOUNDARY (D1). S
 stage_phase_name: host-and-ear             # not the "single pass" ROADMAP said: 4.1 = machine
 stage_phase_total: 2                       # (CI, Windows, pluginval/auval, presets, COMPAT-04,
 artifact_suffix: "-4.2"                    # docs), 4.2 = host-and-ear against a FROZEN 4.1 binary
-phase: execute                             # BLOCK C PART 2 COMPLETE 2026-08-14 — gates 17-25 ALL
-status: block_c_complete_reverify_owed     # RAN (evidence/session-gates-4.2.txt, close block at
+phase: verify                              # STAGE-4 ROLL-UP RE-VERIFY LANDED 2026-08-14 (evening).
+status: stage_4_complete                   # VERIFICATION.md REWRITTEN — supersedes the morning
+                                           # PARTIAL roll-up (preserved at commit b628f4b5).
+                                           # VERDICT: ✅ VERIFIED. STAGE 4 COMPLETE — ALL FOUR
+                                           # STAGES COMPLETE. Both morning blockers discharged by
+                                           # measurement, and every machine-checkable figure was
+                                           # RE-MEASURED at the boundary, not inherited: four
+                                           # contract checksums exact; Source/ unmoved since the
+                                           # freeze; installed VST3 928cd447… / AU cc54db02… EXACT;
+                                           # 95 probes 0 failures; 70 JS sections; Gate 9 as its
+                                           # literal string (102 cases); selftest 24 cases; Gate 25
+                                           # --check 3 runs re-derived AND its negative control
+                                           # exit 1; auval PASS re-run at the boundary; CR-a
+                                           # RE-DERIVED from its checksum-exact staged WAV both
+                                           # ways (as spelled: FAILED exit 1 with the identical
+                                           # mismatch; against the measured order: OK, 1,2,3,4,
+                                           # 7,8,5,6 @ 158.3 dB) — every transcribed figure
+                                           # reproduces including the failure; NC4 re-derived at
+                                           # BOTH operating points, exact; all 7 session-WAV
+                                           # sha256s + both Gate-13 PNGs exact; ledger recounted
+                                           # 30/30 from the status column, and it now AGREES with
+                                           # the completion signal. Residuals carried, none a
+                                           # blocker: Gate 20 loopback delta (owner operator),
+                                           # Gate 22 revealing-monitoring audition (operator, low),
+                                           # D11 physical half (owner none), the 4-item v1.1 tool
+                                           # register, session WAVs outside the repo unpinned
+                                           # (checksums re-verified exact here).
+                                           # NEXT: /install-plugin O-Octagon.
+                                           #
+                                           # superseded note kept for history:
+                                           # BLOCK C PART 2 COMPLETE 2026-08-14 — gates 17-25 ALL
+                                           # RAN (evidence/session-gates-4.2.txt, close block at
                                            # the end of the file). ALL 14 SESSION GATES RECORDED.
                                            #
                                            # THE STAGE GOAL'S SECOND CLAUSE IS MET: Logic's
@@ -147,8 +177,20 @@ complexity_score: 5.0
 research_depth: DEEP
 staged_implementation: true
 orchestration_mode: true
-next_action: run_stage_4_rollup_reverify
-                                         # ── WHAT IS ACTUALLY NEXT (2026-08-14, Block C closed) ──
+next_action: install_plugin
+                                         # ── WHAT IS ACTUALLY NEXT (2026-08-14, stage 4 verified) ──
+                                         # /install-plugin O-Octagon. The stage-4 roll-up re-verify
+                                         # is DONE (VERIFICATION.md, verdict ✅ VERIFIED — all four
+                                         # stages complete, no blockers). NOTE FOR INSTALL: the
+                                         # frozen -dev bundles are ALREADY installed and measured
+                                         # byte-identical to the freeze (VST3 928cd447… /
+                                         # AU cc54db02…); every Block C gate ran against them.
+                                         # /install-plugin formalises the lifecycle/registry step
+                                         # and must not rebuild past freeze 378fb4cd without cause.
+                                         #
+                                         # superseded note kept for history:
+                                         # run_stage_4_rollup_reverify —
+                                         # ── (2026-08-14, Block C closed) ──
                                          # /plugin-verify O-Octagon 4-polish — re-roll the stage
                                          # verify. The standing VERIFICATION.md verdict (PARTIAL)
                                          # predates Block C part 2: its two blockers — gates 17-25
