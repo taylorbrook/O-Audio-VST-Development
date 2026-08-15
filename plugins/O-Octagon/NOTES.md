@@ -1,7 +1,8 @@
 # O-Octagon Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 4 — phase 4.1 (machine gates) complete; 4.2 (host-and-ear) open
+- **Current Status:** 🚧 Stage 4 — phases 4.1 + 4.2 executed (Block C closed 2026-08-14); stage
+  roll-up re-verify owed, then install
 - **Version:** 1.0.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
@@ -25,6 +26,10 @@
 - **2026-08-12 (Stage 4, phase 4.1):** Machine gates. Per-commit CI added; first MSVC compile; six
   factory presets; `COMPAT-04` closed 3 of 3; `COMPAT-01` re-confirmed on the final binary.
   95 probes, 0 failures.
+- **2026-08-13/14 (Stage 4, phase 4.2):** Host-and-ear against a frozen binary (`378fb4cd`). Desk
+  gates, then the Logic Pro 12.3 / BlackHole 64ch session — all 14 session gates. `COMPAT-02`
+  closed 3 of 3; the bounce order measured; `QUAL-01`'s audible clause concluded. Ledger 30/0/0
+  with the completion signal finally agreeing.
 
 ## Known Issues
 
@@ -82,8 +87,34 @@ character (`width`, `rolloff`, `blur`, `hullAtten`, `airAmount`, `outputGain`). 
 preset manager resets *every* parameter to its default before applying anything, so omission alone
 would re-centre the source and clear the scene mid-cue.
 
+**Three channel orders coexist, all measured — never conflate them (Stage 4, 2026-08-14).**
+The plugin's *buffer* order is `create7point1()` enum-bit order `L R C Lfe Lss Rss Lrs Rrs` — an
+identity against the venue table. Logic's realtime *device* order is `Emagic_Default_7_1`
+(`L R Ls Rs C LFE Lc Rc`; measured by probe CT as buffer→device `1,2,5,6,7,8,3,4`). A Logic
+*bounce* writes the canonical WAVE channel-mask order `FL FR FC LFE BL BR SL SR` (measured by
+CR-a as buffer→file `1,2,3,4,7,8,5,6`). Three different answers to three different questions —
+which channel a sample occupies depends on which boundary you are looking at.
+
+**Logic instantiation (COMPAT-02, the quiet failure):** insert O-Octagon via the slot's
+**Stereo → 7.1** channel-configuration entry. Clicking the plugin *name* takes Logic's default
+pick, **multi-mono** — eight independent mono instances, each correctly raising the SAFE and MAP
+banners. If both banners are up on a 7.1 track, check for the multi-mono control bar first.
+
 **Deferred to v1.1+:** VBAP A/B mode; binaural/stereo fold-down; quadraphonic variant; internal
 diffuse reverb; motion engine; multiple simultaneous sources.
+
+**v1.1 tool-maintenance register (from the Block C close, 2026-08-14).** Four
+`tests/tools/analyse_bounce.py` / runbook defects, one root pattern — constants baked in before
+measurement and overtaken by it. None was fixed mid-phase (editing graded assertions after the
+fact was refused twice), and none affects a recorded result:
+1. ping mode hard-codes expected sequence `1..8` (falsified by CT; CT stands as a
+   transcribed-figure gate by the Block C close decision)
+2. order mode's N13 guard refuses only the literal identity — the real bypass permutation is now
+   `1,2,3,4,7,8,5,6`, and the refusal message quotes the stale `2,3,4,5,6,7,8,1`
+3. `--emit-json` dedupes on `(label, mode)` with `--label` limited to CR-a/CR-b, so the manifest
+   holds exactly one `lfe` run and a second silently evicts the first
+4. the runbook's NC4 lacks its `dHull > 0` precondition — as spelled the control cannot fire
+   (air is structurally inert at the mandated centre position)
 
 **Planning artifacts:**
 - `.planning/BRIEF.md` — creative brief

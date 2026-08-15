@@ -961,3 +961,62 @@ DESK BOUNDARY 2026-08-14 — Block C part 2 prep. NOT A GATE RESULT.
   STILL OWED, NOT DISCHARGED HERE: Gate 23's throttling-recovery relabelling.
   It requires the interactive drive to have happened; writing the sentence now
   would assert an unrun gate. It stays owed rather than being quietly absorbed.
+
+================================================================================
+BLOCK C CLOSE — 2026-08-14. ALL FOURTEEN SESSION GATES (12-25) RECORDED PASS
+OR SUBSTANCE-PASS ABOVE. This block discharges the deferrals that were owed "at
+the Block C close" and disposes of the tool findings accumulated in-session.
+================================================================================
+
+  THE HEADLINE MEASUREMENT OF THE SESSION:
+  Logic's canonical interleaved 7.1 BOUNCE order is 1,2,3,4,7,8,5,6
+  (ch1=L ch2=R ch3=C ch4=Lfe ch5=Lrs ch6=Rrs ch7=Lss ch8=Rss — the canonical
+  WAVEFORMATEXTENSIBLE channel-mask order), measured at 158.3 dB minimum
+  isolation and confirmed by CR-b's before-the-bounce prediction. It is NOT the
+  DEVICE order CT measured (1,2,5,6,7,8,3,4 = Emagic_Default_7_1). Three orders
+  now coexist, all measured: plugin buffer order (= venue table, identity),
+  device order (CT), bounce order (CR-a). Any future work that conflates two of
+  them will produce a confident wrong answer; this sentence exists so it cannot
+  happen quietly.
+
+  DEFERRAL 1 — the ping-mode --expect decision (stage verify Finding 3).
+  DECIDED: CT STANDS AS A TRANSCRIBED-FIGURE GATE, and so does CR-a — the same
+  disposition for the same structural reason (the tool declines to emit a run
+  that failed its own assertion, and BOTH runs failed expectations that the
+  measurement itself falsified). The alternative — adding --expect to ping mode
+  and re-running — would mean editing an assertion after the run it graded.
+  Both gates' figures were re-derived from staged WAVs by a second pass at a
+  boundary (CT at the stage verify; CR-a's WAV is staged with sha256 for the
+  next one), so "transcribed" understates what a second person can reproduce.
+
+  DEFERRAL 2 — Gate 23's throttling-recovery relabelling: WRITTEN, in the Gate
+  23 entry above, with the required sentence. Discharged after four boundaries.
+
+  DEFERRAL 3 — Gate 13's banner screenshots: COMMITTED (see the Gate 13 entry).
+
+  TOOL/RUNBOOK DEFECT REGISTER, consolidated for v1.1 — four findings, one
+  root pattern (constants baked in before measurement, overtaken by it):
+    1. ping mode hard-codes expected sequence 1..8 (falsified by CT)
+    2. order mode's N13 guard refuses only the literal identity — the actual
+       bypass permutation is now 1,2,3,4,7,8,5,6, waved through at 158 dB; the
+       refusal MESSAGE also quotes the stale 2,3,4,5,6,7,8,1
+    3. --emit-json dedupes on (label, mode) with --label limited to CR-a/CR-b,
+       so the manifest can hold exactly ONE lfe run and a second SILENTLY
+       EVICTS the first (nearly destroyed Gate 20's CS entry; caught first)
+    4. the runbook's NC4 lacks its dHull > 0 precondition — as spelled, the
+       control cannot fire (proven: byte-identical output at any airAmount
+       from the mandated centre position)
+  DISPOSITION: none of these is fixed in this phase. Editing graded assertions
+  after the fact is the anti-pattern this stage refused twice (Gate 16, and
+  again at Gate 19). All four are recorded in NOTES.md's v1.1 register.
+  NONE affects a recorded result: every gate above was graded against
+  derived-in-advance expectations, not against the tool's stale constants.
+
+  RESIDUALS CARRIED OUT OF BLOCK C (none is a blocker):
+    - Gate 20 loopback delta UNMEASURED (operator-accepted; owner: operator)
+    - Gate 22 audition on revealing monitoring (owner: operator, low; the
+      machine null-scan bounds what a better transducer could find)
+    - D11's physical-interface half (owner: none, pre-existing)
+    - Session WAVs live OUTSIDE the repo in ~/Dev/octagon-4.2-session/ with
+      sha256s recorded here; nothing pins the directory itself (pre-existing,
+      first conceded at CT)
