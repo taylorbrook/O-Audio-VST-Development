@@ -1,15 +1,14 @@
 ---
 plugin: O-Bitrot
-stage: 1
-phase: verify
+stage: 2
+phase: discuss
 status: complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: run_discuss_phase
-next_stage: 2
+next_action: run_research_phase
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
@@ -22,11 +21,20 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — ✅ VERIFIED (all phases complete)
-Status: Foundation shell VERIFIED — COMPAT-01 complete; independent param re-audit clean; auval + pluginval s10 re-confirmed at verify; ready for Stage 2 (DSP)
-Progress: [#######.............] 35%
+Stage: 2 of 4 (DSP) — discuss phase complete
+Status: Stage 2 CONTEXT.md written — GSM = real vendored libgsm (harness-gated fallback), constant 20 ms latency all modes, ≤15% CPU budget confirmed; ready for research phase
+Progress: [########............] 40%
 
 ## Phase Progress
+
+### Stage 2: DSP
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| discuss | ✓ | 2026-08-15 | CONTEXT.md — real libgsm w/ harness-gated μ-law fallback; constant 20 ms latency; ≤15% CPU; Substitute auto-degrades to Decay |
+| research | — | | |
+| plan | — | | |
+| execute | — | | |
+| verify | — | | |
 
 ### Stage 1: Foundation
 | Phase | Status | Date | Notes |
@@ -57,7 +65,7 @@ Progress: [#######.............] 35%
 
 ## Next Steps
 
-1. Stage 2 (DSP) discuss phase — `/plugin-discuss O-Bitrot 2-dsp`
+1. Stage 2 (DSP) research phase — `/plugin-research O-Bitrot 2-dsp`
 2. Residual manual nicety (non-blocking): Standalone SEED persistence eyeball
    (set seed → quit → relaunch); pluginval state tests already cover the round-trip
 3. UI mockup (six panels + global strip) — layout/UI-label refinement only; parameter-spec.md
