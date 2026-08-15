@@ -1,14 +1,14 @@
 ---
 plugin: O-Bitrot
 stage: 2
-phase: discuss
+phase: research
 status: complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: run_research_phase
+next_action: run_plan_phase
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
@@ -21,9 +21,12 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss phase complete
-Status: Stage 2 CONTEXT.md written — GSM = real vendored libgsm (harness-gated fallback), constant 20 ms latency all modes, ≤15% CPU budget confirmed; ready for research phase
-Progress: [########............] 40%
+Stage: 2 of 4 (DSP) — research phase complete
+Status: Stage 2 RESEARCH.md written — harness template (O-Octagon CMake + probes), reuse deltas
+(fractional ring read, two-head jump crossfades, sample-accurate ticks are NEW code), CodecStage
+owns all latency (plain kCompLatency delay when not-GSM), libgsm vendoring spec (18 files, SASR/
+NDEBUG/NeedFunctionPrototypes=1, ISC-style license verified); ready for plan phase
+Progress: [########............] 42%
 
 ## Phase Progress
 
@@ -31,7 +34,7 @@ Progress: [########............] 40%
 | Phase | Status | Date | Notes |
 |-------|--------|------|-------|
 | discuss | ✓ | 2026-08-15 | CONTEXT.md — real libgsm w/ harness-gated μ-law fallback; constant 20 ms latency; ≤15% CPU; Substitute auto-degrades to Decay |
-| research | — | | |
+| research | ✓ | 2026-08-15 | RESEARCH.md — harness template + probe recipes; reuse deltas (3 pieces are new code); latency bookkeeping resolved (CodecStage owns it); libgsm CMake/MSVC/license spec |
 | plan | — | | |
 | execute | — | | |
 | verify | — | | |
@@ -65,7 +68,7 @@ Progress: [########............] 40%
 
 ## Next Steps
 
-1. Stage 2 (DSP) research phase — `/plugin-research O-Bitrot 2-dsp`
+1. Stage 2 (DSP) plan phase — `/plugin-plan O-Bitrot 2-dsp`
 2. Residual manual nicety (non-blocking): Standalone SEED persistence eyeball
    (set seed → quit → relaunch); pluginval state tests already cover the round-trip
 3. UI mockup (six panels + global strip) — layout/UI-label refinement only; parameter-spec.md
