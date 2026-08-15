@@ -67,7 +67,7 @@ Ouaricon Plugins:
 | O-ReverseDelay | 📦 Installed | 1.8.1 | Audio Effect (Granular Reverse Delay) | 2026-08-10 |
 | O-Octagon | 📦 Installed | 1.0.0-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-14 |
 | O-Bitrot | 🚧 Stage 1 | - | Audio Effect (Broken-Media Degradation) | 2026-08-15 |
-| O-Tapestop | 🚧 Stage 0 | - | Audio Effect (Tapestop/Start + Scratch Varispeed) | 2026-08-15 |
+| O-Tapestop | 🚧 Stage 1 | - | Audio Effect (Tapestop/Start + Scratch Varispeed) | 2026-08-15 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`

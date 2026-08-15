@@ -1,12 +1,13 @@
 ---
 plugin: O-Tapestop
-stage: 0
-status: complete
+stage: 1
+phase: execute
+status: execute_complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
+next_action: plugin-verify 1-foundation
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
@@ -20,9 +21,11 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 (Research & Planning) — complete
-Status: Architecture and roadmap documented; ready for Stage 1 (Foundation)
-Progress: [##..................] 10%
+Stage: 1 (Foundation) — execute phase complete
+Status: shell built + validated (auval ✓, pluginval strictness 10 VST3+AU ✓, bit-transparency ✓); next: verify phase (`/plugin-verify O-Tapestop 1-foundation`)
+Progress: [######..............] 30%
+
+**Stage 1 phases:** discuss (skipped — no open questions; Stage-0 contracts + O-Bitrot precedent cover scope) → research ✓ → plan ✓ → execute ✓ → verify
 
 ## Completed So Far
 
@@ -43,9 +46,11 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. Stage 1: Foundation — run `/implement O-Tapestop` (foundation-shell-agent: build system, 14-param APVTS, bitwise pass-through shell, pluginval gate) — note: 0-ideation→1-foundation gate needs `--force`
-2. Create UI mockup (envelope editor is the design centerpiece; parameter set fixed, mockup owns layout) and promote parameter-spec-draft.md → parameter-spec.md
-3. Review research/ARCHITECTURE.md and ROADMAP.md
+1. `/plugin-verify O-Tapestop 1-foundation` — goal-backward verification of stages/1-foundation/SUMMARY.md results
+2. Create UI mockup (envelope editor is the design centerpiece; parameter set fixed — parameter-spec.md already promoted, mockup owns layout only)
+3. Stage 2 DSP Phase 2.1 after verify passes
+
+**Execute results (2026-08-15):** CMakeLists (OuariconTapestop/OTsp/0.1.0, WebView wired), 14-param APVTS exact to spec, guarded GenericAudioProcessorEditor; clean build both formats; memcmp bit-transparency PASS at 512+4096; state round-trip PASS; auval PASS; pluginval strictness 10 PASS on VST3 AND AU; installed via build-and-install.sh; gate 0→1 bypassed per documented pattern (logged)
 
 ## Context to Preserve
 
@@ -57,3 +62,5 @@ Progress: [##..................] 10%
 - plugins/O-Tapestop/.planning/research/ARCHITECTURE.md
 - plugins/O-Tapestop/.planning/ROADMAP.md
 - plugins/O-Tapestop/.planning/stages/0-ideation/CONTEXT.md
+- plugins/O-Tapestop/.planning/stages/1-foundation/RESEARCH.md
+- plugins/O-Tapestop/.planning/stages/1-foundation/PLAN.md
