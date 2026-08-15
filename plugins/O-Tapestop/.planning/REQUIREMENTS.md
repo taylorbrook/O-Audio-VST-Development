@@ -51,7 +51,7 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete (stage-1, 2026-08-15) | stage-1 |
 
 ### Quality (QUAL)
 
