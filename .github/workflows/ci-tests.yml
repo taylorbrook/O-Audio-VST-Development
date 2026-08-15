@@ -1,0 +1,235 @@
+# Per-commit C++ probe gate (PLAN-4.1 P86, P87, P88, P89).
+#
+# ---------------------------------------------------------------------------
+# WHY THIS FILE EXISTS SEPARATELY FROM build-and-release.yml
+# ---------------------------------------------------------------------------
+# build-and-release.yml carries eight Apple signing secrets and a standing rule
+# forbidding any fork-reachable trigger. That rule is about TRIGGERS next to
+# SECRETS, and plugins/O-Octagon/CMakeLists.txt states the matching prohibition
+# from the other side: the test targets must not be added to that workflow.
+#
+# This file is orthogonal to both, not an exception to either:
+#   * it consumes NO secrets;
+#   * `permissions: contents: read` and nothing more;
+#   * it builds and runs test binaries only — no signing, no notarisation, no
+#     packaging, no Release (PLAN-4.1 D4).
+#
+# It also delivers the failure mode the release workflow structurally cannot.
+# The gap being closed is "a JUCE bump ships silently", and a JUCE bump is a
+# COMMIT, not a tag — a tag-time gate catches it only at release.
+#
+# ---------------------------------------------------------------------------
+# THE GATE IS THE BUILD STEP, NOT THE RUN STEP
+# ---------------------------------------------------------------------------
+# O-Octagon's COMPAT-03 Layer-2 tripwire is a compile-time static_assert against
+# a golden header GENERATED from parsed JUCE source (tests/unit/CMakeLists.txt).
+# A JUCE bump that reorders AudioChannelSet's enum fails to COMPILE. A job that
+# only executes a cached binary discharges nothing — negative control NC5
+# (PLAN-4.1 P98) demonstrates exactly this. `cmake --build` must run here.
+#
+# ---------------------------------------------------------------------------
+# NO paths: FILTER — DELIBERATE (P89)
+# ---------------------------------------------------------------------------
+# A paths filter is a gate that can silently not run: a green check mark that
+# means "skipped". The job costs 3-4 minutes. Run it on every push and every PR.
+# ---------------------------------------------------------------------------
+
+name: CI Tests
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  # ============================================
+  # macOS — build BOTH C++ test targets, then run them.
+  # ============================================
+  octagon-probes-macos:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          submodules: recursive
+
+      # The JUCE version is DERIVED from one file, never mirrored. A second
+      # literal in a second workflow drifts silently, and in the direction that
+      # matters most: bump the release workflow and this one keeps proving the
+      # OLD JUCE green — a gate reporting green about a JUCE nobody ships
+      # (pattern_test_fixture_mirrors_drift_silently).
+      - name: Read JUCE version
+        id: juce
+        run: |
+          VERSION="$(tr -d '[:space:]' < .github/juce-version.txt)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::.github/juce-version.txt is empty"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "JUCE version: $VERSION"
+
+      - name: Setup JUCE
+        run: |
+          curl -L "https://github.com/juce-framework/JUCE/releases/download/${{ steps.juce.outputs.version }}/juce-${{ steps.juce.outputs.version }}-osx.zip" -o juce.zip
+          unzip -q juce.zip
+          echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
+
+      # Retained even though O-Octagon has no note-expression: the two greps are
+      # a fail-fast that keeps BOTH workflows' JUCE byte-identical, and an
+      # identical JUCE is what makes the Layer-2 golden comparable across them.
+      - name: Apply JUCE overrides (note-expression — Dorico microtonal)
+        run: |
+          cp -R vendored/JUCE-overrides/modules/. JUCE/modules/
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors_headless/utilities/juce_VST3ClientExtensions.h
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
+          echo "JUCE overrides applied."
+
+      # OUARICON_BUILD_TESTS is a SHARED option name across 12 plugins. A
+      # full-tree configure with it ON enables eleven other harnesses that have
+      # never run in CI and are not this job's problem.
+      - name: Configure CMake
+        run: |
+          PLUGIN="O-Octagon"
+          SKIP="O-Orbit"
+          for d in plugins/*/; do
+            name="$(basename "$d")"
+            if [ -f "${d}CMakeLists.txt" ] && [ "$name" != "$PLUGIN" ]; then
+              SKIP="$SKIP;$name"
+            fi
+          done
+          echo "SKIP_PLUGINS=$SKIP"
+          # Single-arch DELIBERATELY: no CMAKE_OSX_ARCHITECTURES. A universal
+          # build roughly doubles the measured CPU cost for nothing here.
+          #
+          # OUARICON_RELEASE is NEVER passed: the render harness hard-codes the
+          # DEV codes (JucePlugin_ManufacturerCode=0x4f754476 = OuDv), which all
+          # probes were authored against. The root CMakeLists force-OFF does not
+          # apply in CI ($ENV{CI} is set), so this is a deliberate OMISSION, not
+          # a reliance on that guard.
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DOUARICON_BUILD_TESTS=ON \
+            -DSKIP_PLUGINS="$SKIP"
+
+      # THIS STEP IS THE GATE. See the header. The Layer-2 golden is regenerated
+      # from the JUCE downloaded above and compared by static_assert during this
+      # compile; a reordered AudioChannelSet fails here, before any binary runs.
+      - name: Build test targets
+        run: |
+          cmake --build build \
+            --target O-Octagon-geometry-test O-Octagon-render-test \
+            --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+
+      - name: Run geometry unit probes
+        run: |
+          ./build/plugins/O-Octagon/tests/unit/O-Octagon-geometry-test_artefacts/${{ env.BUILD_TYPE }}/O-Octagon-geometry-test
+
+      - name: Run render-harness probes
+        run: |
+          ./build/plugins/O-Octagon/tests/render-harness/O-Octagon-render-test_artefacts/${{ env.BUILD_TYPE }}/O-Octagon-render-test
+
+  # ============================================
+  # Windows — the FIRST MSVC compile of this code (PLAN-4.1 D3, P88).
+  #
+  # What this job CAN claim: the code compiles under MSVC; the VST3 loads;
+  # pluginval 10 OPENS THE EDITOR, so a silently-blank WebView surfaces as an
+  # Editor-Automation failure or a timeout rather than passing green.
+  #
+  # What it CANNOT claim: that the UI is CORRECT on Windows. No human sees it
+  # this milestone. Named deferral, owner none, blocked on hardware.
+  #
+  # The C++ test targets are macOS-only (D6): MSVC sees the plugin TUs only.
+  # ============================================
+  octagon-windows-vst3:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          submodules: recursive
+
+      - name: Read JUCE version
+        id: juce
+        shell: bash
+        run: |
+          VERSION="$(tr -d '[:space:]' < .github/juce-version.txt)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::.github/juce-version.txt is empty"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "JUCE version: $VERSION"
+
+      - name: Setup JUCE
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/${{ steps.juce.outputs.version }}/juce-${{ steps.juce.outputs.version }}-windows.zip" -OutFile juce.zip
+          Expand-Archive -Path juce.zip -DestinationPath .
+          echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $env:GITHUB_ENV
+
+      - name: Apply JUCE overrides (note-expression — Dorico microtonal)
+        shell: bash
+        run: |
+          cp -R vendored/JUCE-overrides/modules/. JUCE/modules/
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_processors_headless/utilities/juce_VST3ClientExtensions.h
+          grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
+          echo "JUCE overrides applied."
+
+      - name: Install WebView2 NuGet Package
+        run: |
+          Register-PackageSource -provider NuGet -name nugetRepository -location https://www.nuget.org/api/v2 -Force
+          Install-Package Microsoft.Web.WebView2 -Scope CurrentUser -RequiredVersion 1.0.1901.177 -Source nugetRepository -Force
+
+      - name: Configure CMake
+        shell: bash
+        run: |
+          PLUGIN="O-Octagon"
+          SKIP="O-Orbit"
+          for d in plugins/*/; do
+            name="$(basename "$d")"
+            if [ -f "${d}CMakeLists.txt" ] && [ "$name" != "$PLUGIN" ]; then
+              SKIP="$SKIP;$name"
+            fi
+          done
+          echo "SKIP_PLUGINS=$SKIP"
+          # No OUARICON_BUILD_TESTS here — the C++ test targets are macOS-only.
+          # No OUARICON_RELEASE — same reason as the macOS job.
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DSKIP_PLUGINS="$SKIP"
+
+      - name: Resolve CMake Target
+        id: resolve
+        shell: bash
+        run: |
+          # O-Octagon's CMake target is OuariconOctagon, NOT the folder name
+          # (build_script_target_name_vs_folder — 11 of 37 plugins differ).
+          CMAKE_TARGET=$(bash scripts/resolve-target.sh cmake-target "O-Octagon")
+          echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
+          echo "Resolved CMake target: $CMAKE_TARGET"
+
+      - name: Build VST3
+        run: |
+          $TARGET = "${{ steps.resolve.outputs.cmake_target }}"
+          cmake --build build --target "${TARGET}_VST3" --config ${{ env.BUILD_TYPE }}
+
+      - name: Validate with pluginval (strictness 10)
+        shell: bash
+        run: |
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          curl -L -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.3/pluginval_Windows.zip
+          7z x pluginval.zip -opluginval_bin
+          VST3=$(ls -d "build/plugins/O-Octagon/${TARGET}_artefacts/${{ env.BUILD_TYPE }}/VST3/"*.vst3 | head -1)
+          echo "Validating: $VST3"
+          # 600 s: a fresh Windows runner has a cold WebView2 (no cache), so the
+          # first editor open can be slow. The release workflow's Windows job
+          # justifies the same figure against the same cold first-open.
+          ./pluginval_bin/pluginval.exe --strictness-level 10 --timeout-ms 600000 --validate "$VST3" | tee pluginval-log.txt
+
+      - name: Upload pluginval log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
+        with:
+          name: pluginval-windows-octagon-log
+          path: pluginval-log.txt
