@@ -30,6 +30,14 @@
 #pragma once
 #include <JuceHeader.h>
 
+#include "dsp/CaptureRing.h"
+#include "dsp/RngBank.h"
+#include "dsp/MediaClock.h"
+#include "dsp/ReadHead.h"
+#include "dsp/TapeTransport.h"
+#include "dsp/Arbitration.h"
+#include "dsp/CodecStage.h"
+
 class OBitrotAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -113,6 +121,30 @@ private:
     std::atomic<float>* crushJitterParam = nullptr;
     std::atomic<float>* crushEnvAmtParam = nullptr;
     std::atomic<float>* crushDitherParam = nullptr;
+
+    // ------------------------------------------------------------------------
+    // Stage 2 DSP engine (Phase 2.1: engine core + tape).
+    //
+    // Latency scheme: CodecStage owns ALL latency — a plain integer delay of
+    // kCompLatency = ceil(0.020 * fs) samples until the real codec lands in
+    // Phase 2.5. Reported once via setLatencySamples() in prepareToPlay()
+    // (JUCE 8: the getter is non-virtual — always report via the setter).
+    // ------------------------------------------------------------------------
+    static constexpr int kMaxWetLatencySamples = 8192;  // covers 0.020*fs up to 400 kHz
+
+    CaptureRing   captureRing;
+    ReadHead      readHead;
+    MediaClock    mediaClock;
+    RngBank       rngBank;
+    TapeTransport tapeTransport;
+    Arbitration   arbitration;
+    CodecStage    codecStage;
+
+    juce::dsp::DryWetMixer<float> dryWetMixer { kMaxWetLatencySamples };
+
+    int    compLatencySamples = 0;
+    int    lastSeed           = 0;    // per-block seed-change detection
+    double lastAppliedRate    = 1.0;  // tape ramps start from the applied rate
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

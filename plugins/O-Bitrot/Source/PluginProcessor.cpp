@@ -28,7 +28,13 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+
+#include <cmath>
+
+// NOTE: PluginEditor.h is deliberately NOT included here — the editor include
+// lives inside the #if JUCE_WEB_BROWSER guard above createEditor() so the
+// Stage-2 render harness (JUCE_WEB_BROWSER=0, no editor sources) can compile
+// this TU (pattern_render_harness_breaks_on_webview_editor).
 
 juce::AudioProcessorValueTreeState::ParameterLayout OBitrotAudioProcessor::createParameterLayout()
 {
@@ -359,15 +365,36 @@ OBitrotAudioProcessor::~OBitrotAudioProcessor()
 
 void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Stage 1: passthrough shell — DSP initialization lands in Stage 2.
-    // NOTE: no setLatencySamples() call in Stage 1 (reports 0); the constant
-    // ceil(0.020 * fs) scheme arrives with the compensated read head in Stage 2.
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Constant latency, all modes: kCompLatency = ceil(0.020 * fs) — an exact
+    // integer at every standard rate. CodecStage presents exactly this delay
+    // in every state; reported ONCE here, never renegotiated on CODEC_MODE.
+    compLatencySamples = (int) std::ceil(0.020 * sampleRate);
+    jassert(compLatencySamples <= kMaxWetLatencySamples);
+    setLatencySamples(compLatencySamples);
+
+    captureRing.prepare(sampleRate);
+    readHead.prepare(sampleRate, captureRing.getSize());
+    mediaClock.prepare(sampleRate, samplesPerBlock);
+    tapeTransport.prepare(sampleRate);
+    codecStage.prepare(compLatencySamples);
+
+    juce::dsp::ProcessSpec spec { sampleRate,
+                                  (juce::uint32) juce::jmax(1, samplesPerBlock),
+                                  2u };
+    dryWetMixer.prepare(spec);
+    dryWetMixer.setMixingRule(juce::dsp::DryWetMixingRule::linear);
+    dryWetMixer.setWetLatency((float) compLatencySamples);
+    dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
+
+    lastSeed = (int) seedParam->load();
+    rngBank.reseed(lastSeed);
+    lastAppliedRate = 1.0;
 }
 
 void OBitrotAudioProcessor::releaseResources()
 {
-    // Stage 1: nothing to release — DSP lands in Stage 2.
+    // Ring / delay buffers stay allocated (< 5 MB at 192 kHz); prepareToPlay
+    // re-sizes them on the next start.
 }
 
 bool OBitrotAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -384,6 +411,7 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     const int totalNumInputChannels  = getTotalNumInputChannels();
     const int totalNumOutputChannels = getTotalNumOutputChannels();
+    const int numSamples             = buffer.getNumSamples();
 
     // Clear any output channels that don't have corresponding input data.
     // Bound by buffer.getNumChannels() (Standalone canonical-channelset trap).
@@ -391,15 +419,121 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
          channel < totalNumOutputChannels && channel < buffer.getNumChannels();
          ++channel)
     {
-        buffer.clear(channel, 0, buffer.getNumSamples());
+        buffer.clear(channel, 0, numSamples);
     }
 
-    // Stage 1: bit-transparent passthrough — no DSP.
+    // Defensive: layout is locked stereo/stereo, and the engine needs
+    // prepareToPlay to have run (ring sized, latency reported).
+    if (numSamples == 0 || buffer.getNumChannels() < 2 || captureRing.getSize() == 0)
+        return;
+
+    // ── Block-start bookkeeping (never inside the sample loop) ──────────────
+
+    // Seed-change detection: reseed all streams deterministically at the
+    // block boundary (FUNC-04; dice writes SEED from the message thread).
+    const int seedNow = (int) seedParam->load();
+    if (seedNow != lastSeed)
+    {
+        lastSeed = seedNow;
+        rngBank.reseed(seedNow);
+    }
+
+    const bool   hardEdges = hardEdgesParam->load() > 0.5f;
+    const int    clockMode = (int) clockModeParam->load();      // 0 Sync, 1 Free
+    const int    divIndex  = (int) clockSyncDivParam->load();
+    const double freeRate  = (double) clockFreeRateParam->load();
+
+    Arbitration::Params arbParams;
+    arbParams.tapeEnabled   = tapeEnableParam->load() > 0.5f;
+    arbParams.cdEnabled     = cdEnableParam->load() > 0.5f;
+    arbParams.vinylEnabled  = vinylEnableParam->load() > 0.5f;
+    arbParams.tapeProb      = (double) tapeProbParam->load() * 0.01;
+    arbParams.cdProb        = (double) cdProbParam->load() * 0.01;
+    arbParams.vinylProb     = (double) vinylProbParam->load() * 0.01;
+    arbParams.tapeStopShare = (double) tapeStopProbParam->load() * 0.01;
+    arbParams.tapeRampMs    = (double) tapeRampParam->load();
+
+    // Mid-event disable releases gracefully (ramp back), never teleports.
+    if (! arbParams.tapeEnabled)
+        tapeTransport.release(arbParams.tapeRampMs);
+
+    // ── Dry path (before any mutation) ──────────────────────────────────────
+    dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
+    juce::dsp::AudioBlock<float> block(buffer);
+    dryWetMixer.pushDrySamples(block);
+
+    // ── Clock: sample-accurate tick offsets for this block ──────────────────
+    mediaClock.processBlock(getPlayHead(), numSamples, clockMode, divIndex, freeRate);
+
+    // ── Wet path: per-sample write-then-read (blockSize-invariance trap) ────
+    const float* inL  = buffer.getReadPointer(0);
+    const float* inR  = buffer.getReadPointer(1);
+    float*       outL = buffer.getWritePointer(0);
+    float*       outR = buffer.getWritePointer(1);
+
+    int tickIndex = 0;
+
+    for (int n = 0; n < numSamples; ++n)
+    {
+        // 1. Write the ring FIRST — the NORMAL read head sits at lag 0.
+        captureRing.push(inL[n], inR[n]);
+
+        // 2. Ticks land at exact sample offsets (split-block equivalent).
+        //    RNG is consumed ONLY here, in fixed roll order tape->cd->vinyl.
+        while (tickIndex < mediaClock.getNumTicks()
+               && mediaClock.getTickOffset(tickIndex) == n)
+        {
+            arbitration.onTick(rngBank, tapeTransport, arbParams, lastAppliedRate);
+            ++tickIndex;
+        }
+
+        // 3. Rate for this sample: tape state machine while an event is in
+        //    flight, gentle re-approach trim (<= +2%, ramped) when NORMAL.
+        const double lag = readHead.getLag(captureRing.getTotalWritten());
+        double rate;
+        if (tapeTransport.isIdle())
+        {
+            rate = readHead.reapproachRate(lag);
+        }
+        else
+        {
+            readHead.clearTrim();               // NORMAL trim restarts from 0
+            rate = tapeTransport.nextRate(lag);
+        }
+        lastAppliedRate = rate;
+
+        // 4. Read heads render the transport output.
+        float wetL = 0.0f, wetR = 0.0f;
+        readHead.renderSample(captureRing, rate, hardEdges, wetL, wetR);
+
+        // 5. Packet / Crush / Quant: unity in Phase 2.1 (land 2.3 / 2.4).
+
+        // 6. CodecStage: pure kCompLatency alignment delay in Phase 2.1.
+        codecStage.processSample(wetL, wetR);
+
+        outL[n] = wetL;
+        outR[n] = wetR;
+    }
+
+    // ── Dry/wet blend (dry is delayed inside the mixer by setWetLatency) ────
+    dryWetMixer.mixWetSamples(block);
 }
+
+// The editor include lives INSIDE the guard: the Stage-2 render harness
+// compiles this file with JUCE_WEB_BROWSER=0 and no editor sources, so a
+// top-of-file include would break the harness the moment the editor gains
+// WebView types (pattern_render_harness_breaks_on_webview_editor).
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"
+#endif
 
 juce::AudioProcessorEditor* OBitrotAudioProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new OBitrotAudioProcessorEditor(*this);
+#else
+    return new juce::GenericAudioProcessorEditor(*this);   // harness build
+#endif
 }
 
 void OBitrotAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

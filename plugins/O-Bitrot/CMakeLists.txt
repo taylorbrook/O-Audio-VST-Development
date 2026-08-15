@@ -57,3 +57,12 @@ target_compile_definitions(OBitrot
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_USE_CURL=0
 )
+
+# Test targets (render harness) — off by default, enable with
+# -DOUARICON_BUILD_TESTS=ON. Suite-wide cache option (same name as the other
+# plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Bitrot test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    add_subdirectory(tests/render-harness)
+endif()
