@@ -1,15 +1,15 @@
 ---
 plugin: O-Bitrot
 stage: 1
-phase: execute
+phase: verify
 status: complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: run_verify_phase
-next_stage: 1
+next_action: run_discuss_phase
+next_stage: 2
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
@@ -22,9 +22,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — execute phase complete
-Status: Shell built + installed; all 31 params audited vs spec (zero deviations); auval + pluginval s10 green (3/3 VST3, 3/3 AU); ready for verify phase
-Progress: [######..............] 30%
+Stage: 1 of 4 (Foundation) — ✅ VERIFIED (all phases complete)
+Status: Foundation shell VERIFIED — COMPAT-01 complete; independent param re-audit clean; auval + pluginval s10 re-confirmed at verify; ready for Stage 2 (DSP)
+Progress: [#######.............] 35%
 
 ## Phase Progress
 
@@ -35,7 +35,7 @@ Progress: [######..............] 30%
 | research | ✓ | 2026-08-15 | RESEARCH.md — target OBitrot, PLUGIN_CODE OBrt, skew centres, traps checklist |
 | plan | ✓ | 2026-08-15 | PLAN.md — 9 tasks, success criteria, traps checklist; VERSION 0.1.0 pinned |
 | execute | ✓ | 2026-08-15 | SUMMARY.md — all 9 tasks done; gate bypassed (logged); 31-param audit clean; auval + pluginval s10 3/3 both formats; installed |
-| verify | → | | |
+| verify | ✓ | 2026-08-15 | VERIFICATION.md — ✅ VERIFIED; COMPAT-01 complete; independent 31-param re-audit zero deviations; pluginval s10 + auval re-confirmed |
 
 ## Completed So Far
 
@@ -57,8 +57,8 @@ Progress: [######..............] 30%
 
 ## Next Steps
 
-1. Stage 1 verify phase — `/plugin-verify O-Bitrot 1-foundation`
-2. Verify note: one manual item outstanding — Standalone SEED persistence eyeball
+1. Stage 2 (DSP) discuss phase — `/plugin-discuss O-Bitrot 2-dsp`
+2. Residual manual nicety (non-blocking): Standalone SEED persistence eyeball
    (set seed → quit → relaunch); pluginval state tests already cover the round-trip
 3. UI mockup (six panels + global strip) — layout/UI-label refinement only; parameter-spec.md
    is BINDING (IDs/types/ranges/defaults locked at Stage 1 discuss)
