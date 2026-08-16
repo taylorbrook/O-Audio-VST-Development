@@ -150,6 +150,17 @@ public:
     bool  isBypassed() const noexcept      { return state == State::Bypassed; }
     int   getCarrierIndex() const noexcept { return carrier; }
 
+    /** UI readback (Stage 3): scratch-pass phase φ ∈ [0,1]; 0 outside
+        ScratchPass. Read at the END of processBlock only (audio thread) —
+        a pure observer, touches no state. */
+    double getScratchPhase() const noexcept
+    {
+        return (state == State::ScratchPass && scratchLenSamples > 0)
+             ? juce::jlimit (0.0, 1.0,
+                             (double) scratchPos / (double) scratchLenSamples)
+             : 0.0;
+    }
+
     void setSpliceLaw (SpliceLaw law) noexcept { spliceLaw = law; }
 
     /** ENGAGE=true edge (block header). Honored in EVERY state (CONTEXT

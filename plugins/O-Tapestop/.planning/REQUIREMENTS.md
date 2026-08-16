@@ -38,8 +38,8 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Drawable speed-vs-time envelope editor for Scratch mode | should | pending | stage-3 |
-| UI-02 | Prominent engage control usable as a live performance gesture | nice | pending | stage-3 |
+| UI-01 | Drawable speed-vs-time envelope editor for Scratch mode | should | complete (stage-3, 2026-08-15) | stage-3 |
+| UI-02 | Prominent engage control usable as a live performance gesture | nice | complete (stage-3, 2026-08-15) | stage-3 |
 
 ### Performance (PERF)
 

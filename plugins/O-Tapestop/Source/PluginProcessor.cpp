@@ -55,6 +55,39 @@ namespace
         return { 0.0f, 100.0f, 0.0f, 1.0f };
     }
 
+    // ── Factory-preset envelope blobs (Stage 4) ─────────────────────────────
+    // customState carriage: ONE property, "scratchEnvelope", holding the same
+    // versioned JSON string ScratchEnvelope::toJson() persists — the preset
+    // layer never parses it. EVERY factory preset carries a blob, including
+    // Stop-mode ones: applyPresetJson invokes the load callback only when
+    // customState exists, and a preset without it would silently inherit the
+    // live envelope (no custom-state reset-to-default exists).
+    juce::var envelopeCustomState (const char* envelopeJson)
+    {
+        auto* obj = new juce::DynamicObject();
+        obj->setProperty ("scratchEnvelope", juce::String (envelopeJson));
+        return juce::var (obj);
+    }
+
+    // The ScratchEnvelope default gentle wobble, spelled out (schema v1).
+    // Stop-mode presets carry this so switching them to Scratch behaves like
+    // a fresh instance.
+    constexpr const char* kDefaultWobbleEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.0},{"x":0.25,"y":0.65,"curve":0.0},{"x":0.5,"y":0.35,"curve":0.0},{"x":0.75,"y":0.6,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Baby scratch: symmetric forward/back rock around 1× (y=0.5 is 1×,
+    // y=−0.5 is full reverse at 1×).
+    constexpr const char* kBabyScratchEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.0},{"x":0.25,"y":-0.5,"curve":0.0},{"x":0.5,"y":0.5,"curve":0.0},{"x":0.75,"y":-0.5,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Chirp flare: sharp accelerating strokes with two reverse dips.
+    constexpr const char* kChirpFlareEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.5},{"x":0.15,"y":0.9,"curve":0.0},{"x":0.3,"y":-0.7,"curve":-0.5},{"x":0.45,"y":0.6,"curve":0.0},{"x":0.6,"y":-0.4,"curve":0.5},{"x":0.8,"y":0.8,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Stutter scratch: square-ish alternation via near-vertical segments.
+    constexpr const char* kStutterEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.0},{"x":0.12,"y":0.5,"curve":0.0},{"x":0.13,"y":-0.75,"curve":0.0},{"x":0.37,"y":-0.75,"curve":0.0},{"x":0.38,"y":0.75,"curve":0.0},{"x":0.62,"y":0.75,"curve":0.0},{"x":0.63,"y":-0.75,"curve":0.0},{"x":0.87,"y":-0.75,"curve":0.0},{"x":0.88,"y":0.5,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
     // Division table {1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars, 4 bars} → beats.
     // ASSUMES 4/4 (suite precedent — recorded in stages/2-dsp/NOTES.md).
     // Indices match syncDivisionChoices() above.
@@ -92,6 +125,121 @@ TapestopProcessor::TapestopProcessor()
             && pStartSyncDiv != nullptr && pStartFreeMs != nullptr && pStartCurve != nullptr
             && pEnvSyncDiv != nullptr && pEnvFreeMs != nullptr
             && pToneTrack != nullptr && pMix != nullptr && pOutputGain != nullptr);
+
+    // ── Preset custom state (Stage 4): the scratch-envelope blob ────────────
+    // Save: the SAME string getStateInformation persists — opaque and
+    // self-versioned; the preset layer never parses it. Load: defensive
+    // ladder (null obj → leave the envelope alone; missing/non-string
+    // property → leave it alone), then commitScratchEnvelopeJson(), which
+    // does the message-thread bake + atomic publish AND bumps
+    // uiEnvGeneration, so the 30 Hz editor timer pushes the sanitized echo
+    // to the WebView with zero new plumbing. loadPreset() runs from a native
+    // fn → message thread → thread contract holds.
+    presetManager.setCustomStateCallbacks(
+        [this]() -> juce::var
+        {
+            auto* obj = new juce::DynamicObject();
+            obj->setProperty("scratchEnvelope", scratchEnvelope.toJson());
+            return juce::var(obj);
+        },
+        [this](const juce::var& data)
+        {
+            if (auto* obj = data.getDynamicObject())
+            {
+                const juce::var blob = obj->getProperty("scratchEnvelope");
+                if (blob.isString())
+                    commitScratchEnvelopeJson(blob.toString());
+            }
+        });
+
+    // ── Factory bank (Stage 4): 8 presets ───────────────────────────────────
+    // Authored in ENGINEERING units, then batch-converted through each
+    // parameter's NormalisableRange below (CR-02) — raw-fraction authoring
+    // would ignore the 0.35 skew on the three FREE_MS ranges
+    // (pattern_factory_preset_normalized_ignores_skew). Choice params are
+    // authored as the INDEX. Every preset lists all 14 param IDs (defense in
+    // depth over the WR-01 reset) and carries an explicit envelope blob.
+    // Coverage: both MODEs, both SYNC_MODEs, curve extremes, all three time
+    // params exercised. ENGAGE is 0 everywhere — loading a preset must never
+    // fire a gesture by itself.
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
+        { "Classic Half-Bar Stop",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "TONE_TRACK", 60.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Classic 1-Bar Stop",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 4.0f }, { "STOP_FREE_MS", 1500.0f }, { "STOP_CURVE", 85.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 400.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "TONE_TRACK", 70.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "DJ Spinup",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 180.0f }, { "START_CURVE", 15.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Baby Scratch",
+          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
+            { "TONE_TRACK", 65.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kBabyScratchEnv) },
+
+        { "Chirp Flare",
+          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
+            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kChirpFlareEnv) },
+
+        { "Tempo-Synced Short Stop",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 1.0f }, { "STOP_FREE_MS", 120.0f }, { "STOP_CURVE", 20.0f },
+            { "START_SYNC_DIV", 1.0f }, { "START_FREE_MS", 120.0f }, { "START_CURVE", 20.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "TONE_TRACK", 40.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Slow-Tape Drag",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 1.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 4000.0f }, { "STOP_CURVE", 70.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 800.0f }, { "START_CURVE", 60.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "TONE_TRACK", 90.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Stutter-Scratch",
+          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 250.0f },
+            { "TONE_TRACK", 45.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kStutterEnv) },
+    };
+
+    // CR-02: engineering units → normalized through each parameter's
+    // NormalisableRange, once, here. initializeFactoryPresets stores the
+    // values verbatim and applyPresetJson feeds them back through
+    // setValueNotifyingHost (normalized domain).
+    for (auto& preset : factoryPresets)
+        for (auto& [paramId, value] : preset.parameters)
+            if (auto* p = parameters.getParameter(paramId))
+                value = p->convertTo0to1(value);
+
+    // Sentinel-gated (v1.0.5, WR-04): file writes happen only when
+    // JucePlugin_VersionString changes — auval/pluginval scan-storm safe.
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 TapestopProcessor::~TapestopProcessor() = default;
@@ -374,6 +522,10 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     auto*      dL    = buffer.getWritePointer(0);
     auto*      dR    = buffer.getWritePointer(chR);
 
+    // UI readback (Stage 3): the carrier's last per-sample ratio this block.
+    // Publish-only bookkeeping — no DSP path reads it.
+    double uiLastR = 1.0;
+
     for (int n = 0; n < numSamples; ++n)
     {
         const float inL = dL[n];
@@ -406,6 +558,7 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             if (! transport.isBypassed())
             {
                 engagedAny = true;
+                uiLastR    = t.carrierR;   // UI readback only (Stage 3)
 
                 float wetL = voices[t.carrierIdx].read(capture, 0)   * t.carrierWetGain;
                 float wetR = voices[t.carrierIdx].read(capture, chR) * t.carrierWetGain;
@@ -478,6 +631,16 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Denormal hygiene on the TPT state while engaged (per-block, cheap).
     if (engagedAny)
         toneFilter.snapToZero();
+
+    // ── UI readback publish (Stage 3): relaxed stores once per block at the
+    // END of processBlock. The audio thread only ever writes these; the
+    // editor's 30 Hz timer reads them relaxed. Bypassed reads as 1.0× — the
+    // transport is transparent, so unity is the honest ratio.
+    uiState.store((int) transport.getState(), std::memory_order_relaxed);
+    uiRatio.store(transport.isBypassed() ? 1.0f : (float) uiLastR,
+                  std::memory_order_relaxed);
+    uiScratchPhase.store((float) transport.getScratchPhase(),
+                         std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* TapestopProcessor::createEditor()
@@ -546,6 +709,12 @@ void TapestopProcessor::setStateInformation(const void* data, int sizeInBytes)
                 scratchEnvelope.setFromJson(blob.toString());
             else
                 scratchEnvelope.resetToDefault();
+
+            // Stage 3: tell an open editor the envelope changed under it —
+            // the editor timer compares this counter and pushes the sanitized
+            // JSON via emitEventIfBrowserIsVisible (push model; no JS promise
+            // that could be dropped while hidden).
+            uiEnvGeneration.fetch_add(1, std::memory_order_relaxed);
         }
     }
 }
