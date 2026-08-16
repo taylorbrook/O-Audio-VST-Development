@@ -25,10 +25,10 @@
     Stage 3 (GUI): Ouaricon Naturalist WebView UI, fixed 860 × 580 (mirrored by
     styles.css html/body and .frame — keep in sync, never resize).
 
-    Binds all 14 APVTS parameters two-way: 8 WebSliderRelay knobs + 5
-    WebComboBoxRelay controls (MODE / SYNC_MODE as segment pairs, three
-    SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay (ENGAGE — the
-    large latching performance control, UI-02).
+    Binds all 19 APVTS parameters two-way: 11 WebSliderRelay knobs + 7
+    WebComboBoxRelay controls (MODE / SYNC_MODE / CHARACTER as segment
+    groups, four SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay
+    (ENGAGE — the large latching performance control, UI-02).
 
     The native-function surface is exactly THIRTEEN:
       - getParameterDefaults  (dblclick-reset, engineering units)
@@ -95,7 +95,7 @@ private:
     // attachment would outlive the WebView and call into a freed component.
     // ═══════════════════════════════════════════════════════════════════
 
-    // 1. RELAYS — 8 sliders + 5 combos + 1 toggle = 14, one per APVTS
+    // 1. RELAYS — 11 sliders + 7 combos + 1 toggle = 19, one per APVTS
     //    parameter. Authoritative lists: kSliderIds / kComboIds / kToggleIds
     //    in PluginEditor.cpp. The relay TYPE has to match the parameter type —
     //    a bool bound through a slider relay attaches without error and

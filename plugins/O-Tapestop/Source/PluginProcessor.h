@@ -179,6 +179,11 @@ private:
                                const std::atomic<float>* msParam) const noexcept;
     double gestureDurationSamples (bool isStopGesture) const noexcept;
 
+    // Continuous-mode motion period in samples (v1.1): SYNC_MODE gates the
+    // CONT_RATE_SYNC_DIV / CONT_RATE_HZ pair (division duration vs 1/Hz).
+    // Read at the ENGAGE edge and on the absolute 16-sample grid.
+    double continuousPeriodSamples() const noexcept;
+
     // Cached raw parameter atomics — resolved once in the constructor
     // (getRawParameterValue), read per block on the audio thread
     // (research/ARCHITECTURE.md line 348, suite convention). Unused in the
@@ -194,6 +199,11 @@ private:
     std::atomic<float>* pStartCurve   = nullptr;
     std::atomic<float>* pEnvSyncDiv   = nullptr;
     std::atomic<float>* pEnvFreeMs    = nullptr;
+    std::atomic<float>* pCharacter    = nullptr;
+    std::atomic<float>* pContRateDiv  = nullptr;
+    std::atomic<float>* pContRateHz   = nullptr;
+    std::atomic<float>* pContDepth    = nullptr;
+    std::atomic<float>* pContChaos    = nullptr;
     std::atomic<float>* pToneTrack    = nullptr;
     std::atomic<float>* pMix          = nullptr;
     std::atomic<float>* pOutputGain   = nullptr;

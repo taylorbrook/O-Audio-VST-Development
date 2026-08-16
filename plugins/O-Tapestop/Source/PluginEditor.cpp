@@ -40,15 +40,17 @@ namespace
         "STOP_FREE_MS", "STOP_CURVE",
         "START_FREE_MS", "START_CURVE",
         "ENV_FREE_MS",
+        "CONT_RATE_HZ", "CONT_DEPTH", "CONT_CHAOS",
         "TONE_TRACK", "MIX", "OUTPUT_GAIN"
     };
 
-    // MODE and SYNC_MODE render as segment pairs, the three divisions as
-    // selects — the relay type is the same either way (all five are
-    // AudioParameterChoice).
+    // MODE, SYNC_MODE and CHARACTER render as segment groups, the four
+    // divisions as selects — the relay type is the same either way (all
+    // seven are AudioParameterChoice).
     const juce::StringArray kComboIds {
-        "MODE", "SYNC_MODE",
-        "STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV"
+        "MODE", "SYNC_MODE", "CHARACTER",
+        "STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV",
+        "CONT_RATE_SYNC_DIV"
     };
 
     // ENGAGE is the plugin's only AudioParameterBool and therefore its only

@@ -20,10 +20,10 @@
 // ============================================================================
 // O-Tapestop — WebView UI controller (Stage 3)
 //
-// Binds all 14 APVTS parameters two-way: 8 WebSliderRelay knobs + 5
-// WebComboBoxRelay controls (MODE and SYNC_MODE as segment pairs; the three
-// SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay (ENGAGE, the large
-// latching performance control — UI-02).
+// Binds all 19 APVTS parameters two-way: 11 WebSliderRelay knobs + 7
+// WebComboBoxRelay controls (MODE, SYNC_MODE and CHARACTER as segment
+// groups; the four SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay
+// (ENGAGE, the large latching performance control — UI-02).
 //
 // Native-function surface is exactly THIRTEEN and must match PluginEditor.cpp:
 //   getParameterDefaults  (dblclick-reset, engineering units)
@@ -70,16 +70,19 @@ const KNOB_IDS = [
   "STOP_FREE_MS", "STOP_CURVE",
   "START_FREE_MS", "START_CURVE",
   "ENV_FREE_MS",
+  "CONT_RATE_HZ", "CONT_DEPTH", "CONT_CHAOS",
   "TONE_TRACK", "MIX", "OUTPUT_GAIN",
 ];
 
-// Segment-pair combos (two named modes, not lists).
-const COMBO_MODE = "MODE";           // { Stop, Scratch }, default 0 = Stop
-const COMBO_SYNC = "SYNC_MODE";      // { Sync, Free },    default 0 = Sync
+// Segment-group combos (named modes, not lists).
+const COMBO_MODE      = "MODE";      // { Stop, Scratch, Continuous }, default 0
+const COMBO_SYNC      = "SYNC_MODE"; // { Sync, Free },                default 0
+const COMBO_CHARACTER = "CHARACTER"; // { Wobble, Random, Glitch },    default 0
 
 // Select-backed division combos — options built at runtime from
 // properties.choices (the C++ StringArray is the single source of truth).
-const DIVISION_IDS = ["STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV"];
+const DIVISION_IDS = ["STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV",
+                      "CONT_RATE_SYNC_DIV"];
 
 // The plugin's only bool parameter → its only ToggleState. A bool bound
 // through a slider or combo relay attaches without error and produces a
@@ -98,6 +101,9 @@ const fmtDb  = (v) => {
   if (r === 0) return "0.0 dB";
   return `${r > 0 ? "+" : "−"}${Math.abs(r).toFixed(1)} dB`;
 };
+// Rate range is 0.05–20 Hz (skew 0.3) — two decimals below 10 Hz keep the
+// low end legible.
+const fmtHz  = (v) => `${v >= 10 ? v.toFixed(1) : v.toFixed(2)} Hz`;
 
 const FORMAT = {
   STOP_FREE_MS:  fmtMs,
@@ -105,6 +111,9 @@ const FORMAT = {
   START_FREE_MS: fmtMs,
   START_CURVE:   fmtPct,
   ENV_FREE_MS:   fmtMs,
+  CONT_RATE_HZ:  fmtHz,
+  CONT_DEPTH:    fmtPct,
+  CONT_CHAOS:    fmtPct,
   TONE_TRACK:    fmtPct,
   MIX:           fmtPct,
   OUTPUT_GAIN:   fmtDb,
@@ -121,6 +130,7 @@ const NUDGE_STEP     = 0.02;   // wheel / arrow-key increment
 const sliderState = {};        // id -> Juce SliderState
 let modeState     = null;      // Juce ComboBoxState (MODE)
 let syncState     = null;      // Juce ComboBoxState (SYNC_MODE)
+let characterState = null;     // Juce ComboBoxState (CHARACTER, v1.1)
 const divisionState = {};      // id -> Juce ComboBoxState
 let engageState   = null;      // Juce ToggleState (ENGAGE)
 let paramDefaults = null;      // { id: engineeringDefault } from the native fn
@@ -307,43 +317,79 @@ function bindSelectCombo(juce, paramId) {
   return st;
 }
 
-// ── MODE segment pair + centre-pane swap ────────────────────────────────────
-// Stop/Scratch copy is authored in index.html and never rewritten here —
-// classes + aria only (pattern_js_state_updater_overwrites_html_labels).
-// The pane swap is an instant .hidden toggle of two absolutely-positioned
-// panes in a fixed box: zero layout shift (locked decision).
+// ── MODE segment group + centre-pane swap ───────────────────────────────────
+// Stop/Scratch/Motion copy is authored in index.html and never rewritten here
+// — classes + aria only (pattern_js_state_updater_overwrites_html_labels).
+// The pane swap is an instant .hidden toggle of absolutely-positioned panes
+// in a fixed box: zero layout shift (locked decision). Three-way since v1.1.
 function bindModeSegments(juce) {
   const st = juce.getComboBoxState(COMBO_MODE);
   modeState = st;
 
-  const segStop    = document.getElementById("seg-mode-stop");
-  const segScratch = document.getElementById("seg-mode-scratch");
-  const paneStop    = document.getElementById("pane-stop");
-  const paneScratch = document.getElementById("pane-scratch");
+  const segs = [
+    document.getElementById("seg-mode-stop"),
+    document.getElementById("seg-mode-scratch"),
+    document.getElementById("seg-mode-cont"),
+  ];
+  const panes = [
+    document.getElementById("pane-stop"),
+    document.getElementById("pane-scratch"),
+    document.getElementById("pane-continuous"),
+  ];
 
-  if (!segStop || !segScratch || !paneStop || !paneScratch) {
+  if (segs.some((el) => !el) || panes.some((el) => !el)) {
     console.error("Missing MODE segment / pane elements");
     return;
   }
 
   const refresh = () => {
-    const isScratch = st.getChoiceIndex() === 1;   // { Stop, Scratch }, default 0
+    const idx = Math.min(2, Math.max(0, st.getChoiceIndex()));
 
-    segStop.classList.toggle("active", !isScratch);
-    segScratch.classList.toggle("active", isScratch);
-    segStop.setAttribute("aria-pressed", String(!isScratch));
-    segScratch.setAttribute("aria-pressed", String(isScratch));
-
-    paneStop.classList.toggle("hidden", isScratch);
-    paneScratch.classList.toggle("hidden", !isScratch);
+    segs.forEach((seg, i) => {
+      seg.classList.toggle("active", i === idx);
+      seg.setAttribute("aria-pressed", String(i === idx));
+    });
+    panes.forEach((pane, i) => pane.classList.toggle("hidden", i !== idx));
   };
 
   st.valueChangedEvent.addListener(refresh);
   st.propertiesChangedEvent.addListener(refresh);
   refresh();
 
-  segStop.addEventListener("click", () => st.setChoiceIndex(0));
-  segScratch.addEventListener("click", () => st.setChoiceIndex(1));
+  segs.forEach((seg, i) => seg.addEventListener("click", () => st.setChoiceIndex(i)));
+}
+
+// ── CHARACTER segment stack (Continuous pane, v1.1) ─────────────────────────
+// Same segment-group discipline as MODE: HTML-authored copy, classes + aria
+// only, choice index straight from the ComboBoxState.
+function bindCharacterSegments(juce) {
+  const st = juce.getComboBoxState(COMBO_CHARACTER);
+  characterState = st;
+
+  const segs = [
+    document.getElementById("seg-char-wobble"),
+    document.getElementById("seg-char-random"),
+    document.getElementById("seg-char-glitch"),
+  ];
+
+  if (segs.some((el) => !el)) {
+    console.error("Missing CHARACTER segment elements");
+    return;
+  }
+
+  const refresh = () => {
+    const idx = Math.min(2, Math.max(0, st.getChoiceIndex()));
+    segs.forEach((seg, i) => {
+      seg.classList.toggle("active", i === idx);
+      seg.setAttribute("aria-pressed", String(i === idx));
+    });
+  };
+
+  st.valueChangedEvent.addListener(refresh);
+  st.propertiesChangedEvent.addListener(refresh);
+  refresh();
+
+  segs.forEach((seg, i) => seg.addEventListener("click", () => st.setChoiceIndex(i)));
 }
 
 // ── SYNC_MODE segment pair + triple time-slot swap ──────────────────────────
@@ -364,6 +410,7 @@ function bindSyncSegments(juce) {
     ["wrap-STOP_SYNC_DIV",  "wrap-STOP_FREE_MS"],
     ["wrap-START_SYNC_DIV", "wrap-START_FREE_MS"],
     ["wrap-ENV_SYNC_DIV",   "wrap-ENV_FREE_MS"],
+    ["wrap-CONT_RATE_SYNC_DIV", "wrap-CONT_RATE_HZ"],   // Continuous pane (v1.1)
   ].map(([divId, msId]) => [document.getElementById(divId), document.getElementById(msId)]);
 
   if (!segSync || !segFree || wraps.some(([a, b]) => !a || !b)) {
@@ -626,6 +673,7 @@ function init() {
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
   DIVISION_IDS.forEach((id) => { divisionState[id] = bindSelectCombo(Juce, id); });
   bindModeSegments(Juce);
+  bindCharacterSegments(Juce);
   bindSyncSegments(Juce);
   bindEngage(Juce);
 
