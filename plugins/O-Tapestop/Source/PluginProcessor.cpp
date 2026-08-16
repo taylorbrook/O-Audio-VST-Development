@@ -19,6 +19,8 @@
 */
 #include "PluginProcessor.h"
 
+#include <cmath>
+
 // The editor is WebView-bound from Stage 3; the Stage-2 render harness builds
 // this translation unit with JUCE_WEB_BROWSER=0 and no editor sources
 // (pattern_render_harness_breaks_on_webview_editor).
@@ -37,10 +39,15 @@ namespace
     }
 
     // 10–8000 ms, skew 0.35 — shared by STOP_FREE_MS / START_FREE_MS /
-    // ENV_FREE_MS (parameter-spec.md, BINDING).
+    // ENV_FREE_MS (parameter-spec.md, BINDING). The 8000 ms ceiling is DERIVED
+    // from kMaxGestureSeconds so the ring-sizing static_assert in the header
+    // and this range can never drift apart silently
+    // (pattern_test_fixture_mirrors_drift_silently).
     juce::NormalisableRange<float> freeMsRange()
     {
-        return { 10.0f, 8000.0f, 0.0f, 0.35f };
+        return { 10.0f,
+                 (float) (TapestopProcessor::kMaxGestureSeconds * 1000.0),
+                 0.0f, 0.35f };
     }
 
     juce::NormalisableRange<float> percentRange()
@@ -188,9 +195,31 @@ juce::AudioProcessorValueTreeState::ParameterLayout TapestopProcessor::createPar
 
 void TapestopProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Stage 2 wires the varispeed engine here. Zero latency — no
-    // setLatencySamples call anywhere (Stage-0 constraint).
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    juce::ignoreUnused(samplesPerBlock);
+
+    currentFs = sampleRate;
+
+    // The ONLY allocation on any audio-adjacent path (PERF-01). processBlock
+    // itself allocates nothing.
+    capture.prepare(sampleRate, kCaptureSeconds);
+
+    // Transport → Bypassed; no cached sample counts survive a rate change
+    // (durations are converted from ms at gesture edges using currentFs).
+    transport.prepare(sampleRate);
+    voiceA = VarispeedVoice{};
+
+    mixSmoothed.reset(sampleRate, 0.02);
+    mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
+    gainSmoothed.reset(sampleRate, 0.02);
+    gainSmoothed.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(pOutputGain->load()));
+
+    // A session restored with ENGAGE held ON must re-trigger cleanly: leaving
+    // the edge detector at `false` makes the next block header see the held-on
+    // parameter as a fresh engage edge (research/ARCHITECTURE.md, Sample Rate
+    // Handling).
+    lastEngage = false;
+
+    // Zero latency — no setLatencySamples call anywhere (Stage-0 constraint).
 }
 
 void TapestopProcessor::releaseResources()
@@ -223,14 +252,104 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    // Stage 1: hard pass-through ONLY. Bitwise transparency is contractual
-    // (Stage-0 decision #6) — Stage 2's null probes assume the disengaged path
-    // never touches samples. No smoothing, no gain, no mix stage here.
+    const int numSamples = buffer.getNumSamples();
+    if (numSamples == 0)
+        return;
+
     const int numInputChannels  = getTotalNumInputChannels();
     const int numOutputChannels = getTotalNumOutputChannels();
 
     for (int channel = numInputChannels; channel < numOutputChannels; ++channel)
-        buffer.clear(channel, 0, buffer.getNumSamples());
+        buffer.clear(channel, 0, numSamples);
+
+    // ── Block header: read atomics, detect the ENGAGE edge, update transport
+    // (research/ARCHITECTURE.md Processing Order step 1). Durations and curves
+    // are LATCHED at the edge — mid-gesture parameter moves are inert.
+    // Phase 2.1 reads the Free times only; SYNC_MODE routing lands in 2.2.
+    const bool engagedNow = pEngage->load() > 0.5f;
+
+    if (engagedNow != lastEngage)
+    {
+        if (engagedNow)
+        {
+            const double durSamples = juce::jmax(1.0, (double) pStopFreeMs->load() * 0.001 * currentFs);
+            const double curveP     = std::exp2(2.0 * (double) pStopCurve->load() * 0.01);
+            transport.engage(durSamples, curveP, voiceA, capture);
+        }
+        else
+        {
+            const double durSamples = juce::jmax(1.0, (double) pStartFreeMs->load() * 0.001 * currentFs);
+            const double curveP     = std::exp2(2.0 * (double) pStartCurve->load() * 0.01);
+            transport.release(durSamples, curveP, voiceA, capture);
+        }
+
+        lastEngage = engagedNow;
+    }
+
+    mixSmoothed.setTargetValue(pMix->load() * 0.01f);
+    gainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(pOutputGain->load()));
+
+    // Capture is stereo-fixed; mono buses write/read channel 0 twice
+    // (bounded by the BUFFER's channel count, never the layout's —
+    // pattern_standalone_canonical_channelset_oob).
+    const int  chans = juce::jmin(buffer.getNumChannels(), 2);
+    const int  chR   = chans > 1 ? 1 : 0;
+    auto*      dL    = buffer.getWritePointer(0);
+    auto*      dR    = buffer.getWritePointer(chR);
+
+    for (int n = 0; n < numSamples; ++n)
+    {
+        const float inL = dL[n];
+        const float inR = dR[n];
+
+        // WRITE capture first, then read — per-sample write-then-read makes
+        // 512-vs-4096 bit-identity structural and legalises the d = 0 integer
+        // live-read (pattern_grain_read_before_capture_write_blocksize). The
+        // ring records in EVERY state, including Bypassed.
+        capture.pushSample(inL, inR);
+
+        // Smoothers tick every sample in every state (block-size invariance:
+        // consumption count is a function of the absolute timeline only).
+        const float m = mixSmoothed.getNextValue();
+        const float g = gainSmoothed.getNextValue();
+
+        float outL = inL;
+        float outR = inR;
+
+        if (! transport.isBypassed())
+        {
+            const auto t = transport.tick();
+
+            if (transport.isBypassed())
+            {
+                // Spin-up completed on this very sample → back to dry.
+                // (Phase 2.1 splice; Phase 2.2's resync replaces this edge.)
+                voiceA.active = false;
+            }
+            else
+            {
+                voiceA.readAbsFrac += t.r;
+
+                const float wetL = voiceA.read(capture, 0)   * t.wetGain;
+                const float wetR = voiceA.read(capture, chR) * t.wetGain;
+
+                // MIX blend, then OUTPUT_GAIN last — ENGAGED CHAIN ONLY.
+                const float dry = 1.0f - m;
+                outL = (inL * dry + wetL * m) * g;
+                outR = (inR * dry + wetR * m) * g;
+            }
+        }
+        // Bypassed: TRUE hard pass-through — out = in, NO arithmetic at all
+        // (bitwise null regardless of MIX/OUTPUT_GAIN; Stage-0 decision #6).
+        // The trim CANNOT ride the bypass path even nominally at 0 dB: the
+        // APVTS normalized round-trip of the 0 dB default over −24..+12
+        // returns ~1.2e-6 dB, so decibelsToGain gives ≈ 1.0000001f, not
+        // exactly 1.0f — the multiply flips bits. This is also what makes
+        // the Phase-2.2 post-resync null bitwise BY CONSTRUCTION.
+
+        dL[n] = outL;
+        dR[n] = outR;
+    }
 }
 
 juce::AudioProcessorEditor* TapestopProcessor::createEditor()
