@@ -26,13 +26,20 @@
 #include "dsp/CaptureBuffer.h"
 #include "dsp/VarispeedVoice.h"
 #include "dsp/TapestopTransport.h"
+#include "dsp/ScratchEnvelope.h"
+
+static_assert (TapestopTransport::ScratchLutSize == ScratchEnvelope::kLutSize,
+               "transport LUT read and envelope bake must agree on the table size");
 
 // O-Tapestop — varispeed tapestop/tapestart + drawable-envelope scratch mode.
 //
-// Stage 2 / Phase 2.2: 26 s capture ring + 2-voice varispeed pool + Stop-mode
-// transport with Signalsmith resync (fall-behind → 1.25× catchup → 50 ms
-// crossfade-skip, bitwise post-resync null) + tempo sync (edge-latched
-// divisions, O-Polystutter BPM fallbacks). The Bypassed state is a TRUE hard
+// Stage 2 / Phase 2.3 (complete DSP): 26 s capture ring + 2-voice varispeed
+// pool + Stop-mode transport with Signalsmith resync (fall-behind → 1.25×
+// catchup → 50 ms crossfade-skip, bitwise post-resync null) + tempo sync
+// (edge-latched divisions, O-Polystutter BPM fallbacks) + drawn-envelope
+// Scratch mode (message-thread bake, atomic LUT handoff, r ∈ [−2,+2]) +
+// speed-tracking toneTrack LPF (absolute 16-sample cutoff grid, engage-edge
+// state prime). The Bypassed state is a TRUE hard
 // pass-through — out = in with NO arithmetic, bitwise dry regardless of
 // MIX/OUTPUT_GAIN (Stage-0 decision #6; the DSP-03 null probes depend on
 // it — and the 0 dB "unity" trim is NOT exactly 1.0f after the APVTS
@@ -79,6 +86,16 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    /** MESSAGE THREAD — the UI's envelope-commit path (WebView native fn in
+        Stage 3; the render harness drives the SAME method). Parses, sanitizes,
+        bakes and publishes; invalid JSON falls back to the default envelope
+        silently. The audio thread picks the new LUT up at the NEXT engage
+        edge (latch contract). */
+    bool commitScratchEnvelopeJson (const juce::String& json)
+    {
+        return scratchEnvelope.setFromJson (json);
+    }
+
     // ── Ring sizing (research/ARCHITECTURE.md "Ring Sizing", BINDING) ────────
     // Worst-case debt growth is Scratch full-reverse: d(debt)/dt = 1 − r with
     // r = −2 ⇒ 3 s of debt per second of pass. Over the longest gesture
@@ -111,6 +128,11 @@ public:
         transport.setSpliceLaw (linear ? TapestopTransport::SpliceLaw::Linear
                                        : TapestopTransport::SpliceLaw::EqualPower);
     }
+
+    // Harness-only ring-span read (probe P4 bounds the debt against the
+    // ACTUAL allocated span — never a harness literal;
+    // pattern_test_fixture_mirrors_drift_silently).
+    int getRingSpanForTest() const noexcept { return capture.getBufferSize(); }
 #endif
 
 private:
@@ -119,6 +141,8 @@ private:
     // Gesture duration in samples, latched at the ENGAGE edge (Task 10).
     // SYNC_MODE gates which of the SYNC_DIV/FREE_MS pair is read; the BPM was
     // read into currentBpm at the block header (O-Polystutter fallback+clamp).
+    double durationFromParams (const std::atomic<float>* divParam,
+                               const std::atomic<float>* msParam) const noexcept;
     double gestureDurationSamples (bool isStopGesture) const noexcept;
 
     // Cached raw parameter atomics — resolved once in the constructor
@@ -148,6 +172,12 @@ private:
     CaptureBuffer     capture;
     VarispeedVoice    voices[2];
     TapestopTransport transport;
+    ScratchEnvelope   scratchEnvelope;   // default wobble baked at construction
+
+    // toneTrack (DSP-05): wet-path only, engaged-only. Cutoff updated on the
+    // ABSOLUTE 16-sample grid (totalWritten % 16 == 0, checked per sample) —
+    // never a per-block counter (block-size invariance).
+    juce::dsp::FirstOrderTPTFilter<float> toneFilter;
 
     juce::SmoothedValue<float> mixSmoothed;    // MIX/100, 20 ms
     juce::SmoothedValue<float> gainSmoothed;   // OUTPUT_GAIN dB → linear, 20 ms
@@ -155,6 +185,7 @@ private:
     double currentFs  = 48000.0;
     double currentBpm = 120.0;   // per-block host read; consumed at edges only
     bool   lastEngage = false;   // block-header ENGAGE edge detector
+    bool   tonePrimePending = false;   // prime TPT state on the first engaged sample
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TapestopProcessor)
 };

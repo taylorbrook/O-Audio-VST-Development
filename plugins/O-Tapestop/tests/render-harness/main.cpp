@@ -60,6 +60,26 @@
            low-passed noise); splice-region level bump/dip printed as the
            evidence for the NOTES.md decision.
 
+    ── Phase 2.3 probes (PLAN Task 15) ─────────────────────────────────────────
+      P4   Debt bound — worst-case full-reverse envelope (all y = −1) via the
+           UI's JSON commit path, ENV_FREE_MS = 8000; per-block debt sampling;
+           maxDebt ≤ ringSpan − kInterpGuard with every bound derived from
+           COMPILED source constants; output a coherent 880 Hz reverse read.
+      P4b  Stopped hold > kCaptureSeconds — debt clamped throughout, silent
+           hold, clean resync, tail bitwise dry (specified behavior).
+      P5   Pathological input — silence / DC / impulse train / sine, full
+           gesture each; finite everywhere; BITWISE dry after resync.
+      TONE DSP-05 — centroid falls with |r| at a = 60 with the a = 0 render as
+           the negative control (varispeed darkens content by itself); a = 0
+           preserves band energy across the sweep. Cutoff-glide zipper is
+           covered structurally: every P6 cell runs at the shipped
+           TONE_TRACK = 60, and the invariance probes carry the 16-sample
+           absolute grid.
+      SCR  FUNC-02/DSP-04 — drawn LUT plays ONCE per engage (pitch trace
+           follows the two-level envelope, tail bitwise dry); direction flip
+           artifact-free (palindrome corner); disengaged MODE switch bitwise
+           silent.
+
     No wall-clock inside any verdict; the excitation is POSITION-deterministic
     (noiseAt(n) = hash(n), never a sequential RNG). The settle pre-roll length
     is FIXED across compared renders (absolute-double accumulation trap — see
@@ -424,6 +444,33 @@ double autocorrPitchHz (const std::vector<float>& x, int off, int len,
 float noiseFill (int ch, int n) noexcept  { return noiseAt (n + ch * 7919); }
 float sine440   (int ch, int n) noexcept  { juce::ignoreUnused (ch); return sineAt (n, 440.0); }
 
+// Pathological fills for P5.
+float fillSilence (int ch, int n) noexcept { juce::ignoreUnused (ch, n); return 0.0f; }
+float fillDC      (int ch, int n) noexcept { juce::ignoreUnused (ch, n); return 0.9f; }
+float fillImpulse (int ch, int n) noexcept { juce::ignoreUnused (ch); return (n % 4800 == 0) ? 1.0f : 0.0f; }
+
+/** HF proxy: RMS of the first difference over RMS — falls as an LPF closes. */
+double hfRatio (const std::vector<float>& v, int lo, int hi) noexcept
+{
+    double d = 0.0, e = 0.0;
+    int count = 0;
+    hi = juce::jmin (hi, (int) v.size());
+
+    for (int n = juce::jmax (1, lo); n < hi; ++n)
+    {
+        const double s  = v[(size_t) n];
+        const double df = s - v[(size_t) n - 1];
+        d += df * df;
+        e += s * s;
+        ++count;
+    }
+
+    if (count == 0 || e <= 0.0)
+        return 0.0;
+
+    return std::sqrt (d / e);
+}
+
 // First-difference bound: the dry 440 Hz sine produces A·2π·f0/fs at r = 1.
 // The worst engaged case is the resync crossfade blending the fading voice at
 // catchup speed 1.25× against the live rider at 1× under the equal-power law:
@@ -443,7 +490,7 @@ int main()
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
 
-    std::printf ("O-Tapestop render harness — Phase 2.2 (resync + tempo sync)\n");
+    std::printf ("O-Tapestop render harness — Stage 2 complete (2.1 core + 2.2 resync/sync + 2.3 scratch/toneTrack)\n");
     std::printf ("fs = %.0f Hz\n\n", kFs);
 
     // ── P0: determinism ──────────────────────────────────────────────────────
@@ -1054,6 +1101,367 @@ int main()
                allFinite (ln.L) && allFinite (ln.R) && std::abs (lnStats.first) < 4.0,
                "bump=" + juce::String (lnStats.first, 2) + " dB, dip="
                  + juce::String (lnStats.second, 2) + " dB (evidence → NOTES.md)");
+    }
+
+    // ── P4: worst-case full-reverse debt bound (DSP-04) ──────────────────────
+    // All-y=−1 envelope committed via the SAME JSON path the UI will use,
+    // ENV_FREE_MS = 8000 → r = −2 for 8 s → ~1.15 M samples of debt against
+    // the ring's 26 s span. Debt sampled per block; the bound derives from
+    // the COMPILED source constants (getRingSpanForTest / kInterpGuard /
+    // kCaptureSeconds — never a harness literal). Coherence: full-reverse 2×
+    // of a 440 Hz sine reads as a clean 880 Hz tone, not garbage.
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+        setParam (p, "SYNC_MODE", 1.0f);
+        setParam (p, "MODE", 1.0f);              // Scratch
+        setParam (p, "ENV_FREE_MS", 8000.0f);
+
+        const bool committed = p.commitScratchEnvelopeJson (
+            R"({"v":1,"points":[{"x":0,"y":-1,"curve":0},{"x":1,"y":-1,"curve":0}]})");
+
+        // The pass reads back 2×8 s = 16 s of content, so the ring needs
+        // ≥ 16 s of REAL pre-roll before the engage — a fresh-load engage
+        // would run the reverse into pre-history zeros (safe by design, but
+        // silence would make the coherence window vacuous).
+        const int engageAt = 816000;   // 17 s pre-roll
+        const int passLen  = 384000;
+        const int total    = engageAt + passLen + kFadeLen + 7200;
+
+        const double ringSpan = (double) p.getRingSpanForTest();
+        const double bound    = ringSpan - (double) VarispeedVoice::kInterpGuard;
+
+        // Ring span vs the source derivation constant (compiled, not parsed).
+        const bool spanOk = ringSpan >= kFs * TapestopProcessor::kCaptureSeconds;
+
+        juce::MidiBuffer midi;
+        juce::AudioBuffer<float> block (2, 512);
+        StereoOut y;
+        y.L.reserve ((size_t) total);
+        y.R.reserve ((size_t) total);
+
+        double maxDebt = 0.0;
+        bool   engaged = false;
+        int    n = 0;
+
+        while (n < total)
+        {
+            if (! engaged && n >= engageAt)
+            {
+                setParam (p, "ENGAGE", 1.0f);
+                engaged = true;
+            }
+
+            int chunk = juce::jmin (512, total - n);
+            if (! engaged)
+                chunk = juce::jmin (chunk, engageAt - n);
+            if (chunk <= 0)
+                chunk = 1;
+
+            juce::AudioBuffer<float> view (block.getArrayOfWritePointers(), 2, chunk);
+            for (int s = 0; s < chunk; ++s)
+            {
+                view.setSample (0, s, sine440 (0, n + s));
+                view.setSample (1, s, sine440 (1, n + s));
+            }
+
+            p.processBlock (view, midi);
+
+            for (int s = 0; s < chunk; ++s)
+            {
+                y.L.push_back (view.getSample (0, s));
+                y.R.push_back (view.getSample (1, s));
+            }
+
+            n += chunk;
+            maxDebt = juce::jmax (maxDebt, p.getDebtSamplesForTest());
+        }
+
+        // Coherent 880 Hz mid-pass (reverse 2× of 440).
+        const double fRev = autocorrPitchHz (y.L, engageAt + 200000, 2048, kFs, 700.0, 1050.0, 0.25);
+
+        const int tailBad = firstNonDry (y, sine440, engageAt + passLen + kFadeLen + 4000, total);
+
+        check ("P4-full-reverse-debt-bound",
+               committed && spanOk
+                 && allFinite (y.L) && allFinite (y.R)
+                 && maxDebt <= bound && maxDebt >= 1.0e6
+                 && fRev > 0.0 && std::abs (fRev / 880.0 - 1.0) <= 0.05
+                 && tailBad < 0,
+               "maxDebt=" + juce::String (maxDebt, 0) + " (bound " + juce::String (bound, 0)
+                 + "), fRev=" + juce::String (fRev, 1) + " Hz (exp 880)"
+                 + (tailBad < 0 ? juce::String ("; tail dry")
+                                : juce::String ("; tail diff @") + juce::String (tailBad)));
+    }
+
+    // ── P4b: Stopped hold > kCaptureSeconds (CONTEXT decision 1) ─────────────
+    // Engage → Stopped → hold 27 s (ring laps the frozen playhead) → release.
+    // The stored-position clamp keeps the debt accessor bounded THROUGHOUT;
+    // resume plays the oldest valid material and resyncs clean — specified
+    // behavior, no assert, tail bitwise dry.
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 4096);
+        setParam (p, "SYNC_MODE", 1.0f);
+        setParam (p, "STOP_FREE_MS", 50.0f);
+
+        const int engageAt  = 4096;
+        const int releaseAt = engageAt + 2400 + 1296000;   // 27 s hold in Stopped
+        const int total     = releaseAt + 12000 + kCatchupLen + kFadeLen + 7200;
+
+        const double bound = (double) p.getRingSpanForTest()
+                           - (double) VarispeedVoice::kInterpGuard;
+
+        juce::MidiBuffer midi;
+        juce::AudioBuffer<float> block (2, 4096);
+        StereoOut y;
+        y.L.reserve ((size_t) total);
+        y.R.reserve ((size_t) total);
+
+        double maxDebt = 0.0;
+        int    phase = 0;   // 0: pre-engage, 1: engaged, 2: released
+        int    n = 0;
+
+        while (n < total)
+        {
+            if (phase == 0 && n >= engageAt)  { setParam (p, "ENGAGE", 1.0f); phase = 1; }
+            if (phase == 1 && n >= releaseAt) { setParam (p, "ENGAGE", 0.0f); phase = 2; }
+
+            int chunk = juce::jmin (4096, total - n);
+            if (phase == 0) chunk = juce::jmin (chunk, engageAt - n);
+            if (phase == 1) chunk = juce::jmin (chunk, releaseAt - n);
+            if (chunk <= 0) chunk = 1;
+
+            juce::AudioBuffer<float> view (block.getArrayOfWritePointers(), 2, chunk);
+            for (int s = 0; s < chunk; ++s)
+            {
+                view.setSample (0, s, noiseFill (0, n + s));
+                view.setSample (1, s, noiseFill (1, n + s));
+            }
+
+            p.processBlock (view, midi);
+
+            for (int s = 0; s < chunk; ++s)
+            {
+                y.L.push_back (view.getSample (0, s));
+                y.R.push_back (view.getSample (1, s));
+            }
+
+            n += chunk;
+            maxDebt = juce::jmax (maxDebt, p.getDebtSamplesForTest());
+        }
+
+        // Liveness: the hold was actually silent (Stopped landed).
+        const double holdMag = maxAbsIn (y.L, releaseAt - 96000, releaseAt - 48000);
+
+        const int tailBad = firstNonDry (y, noiseFill,
+                                         releaseAt + 12000 + kCatchupLen + kFadeLen + 2400, total);
+
+        check ("P4b-long-hold-clamped-resume",
+               allFinite (y.L) && allFinite (y.R)
+                 && maxDebt <= bound && holdMag < 1.0e-6 && tailBad < 0,
+               "maxDebt=" + juce::String (maxDebt, 0) + " (bound " + juce::String (bound, 0)
+                 + "), holdMag=" + juce::String (holdMag, 8)
+                 + (tailBad < 0 ? juce::String ("; tail dry")
+                                : juce::String ("; tail diff @") + juce::String (tailBad)));
+    }
+
+    // ── P5: pathological input / sticky state (QUAL-01) ──────────────────────
+    // Silence, DC, full-scale impulse train, clean sine — a full gesture cycle
+    // on each; no NaN/Inf anywhere; output returns to BITWISE dry after the
+    // resync (no sticky transport/TPT state — the Bypassed path is untouched
+    // and every engage re-primes the filter state).
+    {
+        struct PathCase { const char* name; float (*fill) (int, int); };
+
+        const PathCase cases[] = {
+            { "P5-silence",       &fillSilence },
+            { "P5-dc",            &fillDC },
+            { "P5-impulse-train", &fillImpulse },
+            { "P5-sine",          &sine440 },
+        };
+
+        for (const auto& c : cases)
+        {
+            TapestopProcessor p;
+            prepareAndSettle (p, 512);
+            setParam (p, "SYNC_MODE", 1.0f);
+            setParam (p, "STOP_FREE_MS", 100.0f);
+
+            const int total = 49152;
+
+            auto y = renderTimeline (p, total, { 512 },
+                                     { { 4096, "ENGAGE", 1.0f }, { 12288, "ENGAGE", 0.0f } },
+                                     c.fill);
+
+            const int bad = firstNonDry (y, c.fill, 45056, total);
+
+            check (c.name,
+                   allFinite (y.L) && allFinite (y.R) && bad < 0,
+                   bad < 0 ? "finite; tail bitwise dry"
+                           : "tail diff @" + juce::String (bad));
+        }
+    }
+
+    // ── toneTrack: centroid falls with |r|; a = 0 transparent (DSP-05) ───────
+    // Two renders of the SAME 8 s spin-down on noise, a = 0 vs a = 60. The
+    // varispeed slowdown darkens BOTH (content shifts down) — the a = 0
+    // render is the negative control that isolates the FILTER's contribution.
+    // Window E: u ≈ 0.06–0.13 (r ≈ 0.88–0.77); window L: u ≈ 0.50–0.56
+    // (r ≈ 0.25–0.19, fc(a=0.6) ≈ 2 kHz).
+    {
+        auto runTone = [] (float amt)
+        {
+            TapestopProcessor p;
+            prepareAndSettle (p, 512);
+            setParam (p, "SYNC_MODE", 1.0f);
+            setParam (p, "STOP_FREE_MS", 8000.0f);
+            setParam (p, "TONE_TRACK", amt);
+            return renderTimeline (p, 240000, { 512 },
+                                   { { 0, "ENGAGE", 1.0f } },
+                                   noiseFill);
+        };
+
+        auto x0  = runTone (0.0f);
+        auto x60 = runTone (60.0f);
+
+        // E early in the ramp (u ≈ 0.01–0.06, r ≈ 0.97–0.88 → fc(a=0.6) is
+        // nearly open at ~16 kHz); L deep in it (r ≈ 0.25–0.19 → fc ≈ 2 kHz).
+        const int eLo = 4800,   eHi = 24000;
+        const int lLo = 192000, lHi = 216000;
+
+        // METRIC NOTE (fixed after a live false-FAIL): the first-difference
+        // HF proxy weights spectral energy ∝ f, which nearly CANCELS a
+        // one-pole's 1/f rolloff — it is structurally near-blind to a
+        // 6 dB/oct filter (measured: hf-drop 0.280 vs 0.341 while the band
+        // energy showed a genuine −2.9 dB). The discriminating instrument is
+        // the a60-vs-a0 band-energy ATTENUATION and its GROWTH down the
+        // sweep; the hf ratios are kept only as a loose direction check.
+        const double attE = 20.0 * std::log10 (juce::jmax (1.0e-12, rmsIn (x60.L, eLo, eHi))
+                                               / juce::jmax (1.0e-12, rmsIn (x0.L, eLo, eHi)));
+        const double attL = 20.0 * std::log10 (juce::jmax (1.0e-12, rmsIn (x60.L, lLo, lHi))
+                                               / juce::jmax (1.0e-12, rmsIn (x0.L, lLo, lHi)));
+
+        const double drop0  = hfRatio (x0.L,  lLo, lHi) / juce::jmax (1.0e-12, hfRatio (x0.L,  eLo, eHi));
+        const double drop60 = hfRatio (x60.L, lLo, lHi) / juce::jmax (1.0e-12, hfRatio (x60.L, eLo, eHi));
+
+        check ("toneTrack-centroid-falls",
+               allFinite (x60.L)
+                 && attL < attE - 0.8      // attenuation GROWS as |r| falls
+                 && attL < -2.0            // and is unambiguous deep in the ramp
+                 && attE > -3.0            // sanity: near-open at speed ≈ 1
+                 && drop60 < drop0,        // weak metric agrees on direction
+               "att a60-vs-a0: E=" + juce::String (attE, 2) + " dB → L="
+                 + juce::String (attL, 2) + " dB (need L < E−0.8 and < −2); hf drop a60="
+                 + juce::String (drop60, 3) + " vs a0=" + juce::String (drop0, 3));
+
+        const double rmsE0  = rmsIn (x0.L,  eLo, eHi);
+        const double rmsL0  = rmsIn (x0.L,  lLo, lHi);
+        const double rmsL60 = rmsIn (x60.L, lLo, lHi);
+
+        const double a0DeltaDb  = 20.0 * std::log10 (juce::jmax (1.0e-12, rmsL0 / juce::jmax (1.0e-12, rmsE0)));
+        const double a60DropDb  = 20.0 * std::log10 (juce::jmax (1.0e-12, rmsL60 / juce::jmax (1.0e-12, rmsL0)));
+
+        check ("toneTrack-a0-transparent",
+               std::abs (a0DeltaDb) < 2.5 && a60DropDb < -2.0,
+               "a0 band-energy delta E→L=" + juce::String (a0DeltaDb, 2)
+                 + " dB (|.|<2.5, Catmull loss ~1 dB budgeted); a60 vs a0 at L="
+                 + juce::String (a60DropDb, 2) + " dB (<-2, one-pole slope)");
+
+        // No-zipper on the cutoff glide: covered structurally by the P6 grid
+        // (TONE_TRACK sits at its shipped default 60 there, so every P6 cell
+        // sweeps the cutoff through the full ramp under the first-difference
+        // bound) and by the invariance probes (the 16-sample ABSOLUTE grid is
+        // exactly their exposure).
+    }
+
+    // ── Scratch: drawn LUT plays once per engage; pitch follows (FUNC-02) ────
+    // Two flat segments: r = 0.5 (φ < 0.49) then r = 1.5 (φ > 0.51) over a
+    // 2 s pass on a 440 Hz sine → 220 Hz then 660 Hz, then ONE resync back to
+    // bitwise dry (a second pass would keep the tail wet).
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+        setParam (p, "SYNC_MODE", 1.0f);
+        setParam (p, "MODE", 1.0f);
+        setParam (p, "ENV_FREE_MS", 2000.0f);
+
+        const bool committed = p.commitScratchEnvelopeJson (
+            R"({"v":1,"points":[{"x":0,"y":0.25},{"x":0.49,"y":0.25},{"x":0.51,"y":0.75},{"x":1,"y":0.75}]})");
+
+        const int engageAt = 4096;
+        const int total    = 110592;
+
+        auto y = renderTimeline (p, total, { 512 },
+                                 { { engageAt, "ENGAGE", 1.0f } },
+                                 sine440);
+
+        const double fLow  = autocorrPitchHz (y.L, engageAt + 24000, 1024, kFs, 175.0, 275.0, 0.25);
+        const double fHigh = autocorrPitchHz (y.L, engageAt + 72000, 1024, kFs, 520.0, 820.0, 0.25);
+
+        const int tailBad = firstNonDry (y, sine440, 105000, total);
+
+        check ("scratch-lut-plays-once",
+               committed && allFinite (y.L) && allFinite (y.R)
+                 && fLow  > 0.0 && std::abs (fLow  / 220.0 - 1.0) <= 0.08
+                 && fHigh > 0.0 && std::abs (fHigh / 660.0 - 1.0) <= 0.08
+                 && tailBad < 0,
+               "f(phi=.25)=" + juce::String (fLow, 1) + " Hz (exp 220), f(phi=.75)="
+                 + juce::String (fHigh, 1) + " Hz (exp 660)"
+                 + (tailBad < 0 ? juce::String ("; tail dry")
+                                : juce::String ("; tail diff @") + juce::String (tailBad)));
+    }
+
+    // ── Scratch: direction flip artifact-free (DSP-04) ───────────────────────
+    // r runs +1 → −1 linearly over 1 s; the zero crossing at φ = 0.5 is a
+    // palindrome corner — position stays continuous, the stop-fade never
+    // fires, and the P6 metric must stay clean across the flip.
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+        setParam (p, "SYNC_MODE", 1.0f);
+        setParam (p, "MODE", 1.0f);
+        setParam (p, "ENV_FREE_MS", 1000.0f);
+
+        const bool committed = p.commitScratchEnvelopeJson (
+            R"({"v":1,"points":[{"x":0,"y":0.5,"curve":0},{"x":1,"y":-0.5,"curve":0}]})");
+
+        const int engageAt = 4096;
+        const int flipAt   = engageAt + 24000;
+        const int total    = 61952;
+
+        auto y = renderTimeline (p, total, { 512 },
+                                 { { engageAt, "ENGAGE", 1.0f } },
+                                 sine440);
+
+        const double flipDiff = juce::jmax (maxFirstDiff (y.L, flipAt - 2400, flipAt + 2400),
+                                            maxFirstDiff (y.R, flipAt - 2400, flipAt + 2400));
+
+        double dev = 0.0;
+        for (int n = flipAt - 2400; n < flipAt + 2400; ++n)
+            dev = juce::jmax (dev, (double) std::abs (y.L[(size_t) n] - sine440 (0, n)));
+
+        check ("scratch-direction-flip",
+               committed && allFinite (y.L) && allFinite (y.R)
+                 && flipDiff <= kP6Bound && dev > 0.01,
+               "flip maxDiff=" + juce::String (flipDiff, 5) + " (bound "
+                 + juce::String (kP6Bound, 5) + "), dev=" + juce::String (dev, 3));
+    }
+
+    // ── Scratch: disengaged mode switch is bitwise silent (FUNC-02) ──────────
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+
+        auto y = renderTimeline (p, 48000, { 512 },
+                                 { { 12288, "MODE", 1.0f }, { 24576, "MODE", 0.0f } },
+                                 noiseFill);
+
+        const int bad = firstNonDry (y, noiseFill, 0, 48000);
+
+        check ("scratch-mode-switch-silent", bad < 0,
+               bad < 0 ? "48000 samples memcmp-equal to input"
+                       : "first diff @" + juce::String (bad));
     }
 
     //==========================================================================

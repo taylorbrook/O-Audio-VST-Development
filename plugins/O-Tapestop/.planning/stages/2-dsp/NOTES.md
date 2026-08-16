@@ -81,6 +81,53 @@ state. Consequences:
 - On engage, a non-default trim glides in over 50 ms instead of stepping.
 - At the default trim the whole term is ~1e-7 and invisible to every probe.
 
+## Phase 2.3 implementation notes
+
+- **toneTrack engage-edge prime (deviation from the "reset to zero" letter):**
+  a TPT one-pole near Nyquist RINGS from zero state for a few samples
+  (±0.1·x — a P6 metric violation at every engage edge). Instead of
+  `reset()`, the first engaged sample primes the state to the wet sample
+  itself (`reset(wet)` — TPT steady state for input x is s1 = x), so the
+  first filtered sample is a bitwise pass-through and nothing sticks across
+  gestures (the full state overwrite serves the QUAL-01 no-sticky-state
+  intent better than a zero reset). Stereo caveat: R primes to L's value —
+  a 2-sample ~0.2·|R−L| flutter on decorrelated material, far below the
+  zero-state ring it replaces.
+- **Cutoff-glide zipper + "P1 rerun with toneTrack active" are covered
+  structurally, not by new probes:** TONE_TRACK ships at 60, so every P6
+  cell already sweeps the cutoff through a full ramp under the
+  first-difference bound, and every invariance probe (P1a/P1b/P1c) runs with
+  the 16-sample ABSOLUTE update grid active — which is exactly the
+  block-size-invariance exposure the plan names.
+- **P4 needs a ≥ 16 s ring pre-roll before the engage:** the 8 s full-reverse
+  pass reads back 2×8 s of content; a fresh-load engage runs the reverse into
+  pre-history zeros (safe by design, but the coherence window would measure
+  silence and the probe would be vacuous). The probe engages at 17 s.
+- **Stored-position debt clamp (source-level):** the carrier/fading advances
+  clamp the STORED position to [live − (ringSpan − kInterpGuard), live] every
+  sample, not just the effective read. This keeps the debt accessor provably
+  bounded under both full-reverse scratch and > 26 s Stopped holds (during an
+  over-long hold the silent frozen voice rides the oldest-valid rail — the
+  audible result on resume is identical to the SpinUp-entry clamp alone).
+- **Scratch envelope is header-only (`ScratchEnvelope.h`), not .h/.cpp as the
+  plan file list said:** a new translation unit would have required touching
+  the plugin CMakeLists (frozen since Stage 1) AND the harness target;
+  header-only keeps both file lists intact.
+- **Centroid-falls metric corrected after a live false-FAIL (probe defect,
+  DSP correct):** the original HF proxy — rms(first difference)/rms — weights
+  spectral energy ∝ f, which nearly cancels a one-pole's 1/f rolloff above
+  fc; the metric is structurally near-blind to a 6 dB/oct filter. The run
+  measured hf-drop a60 = 0.280 vs a0 = 0.341 (direction correct, margin
+  impossible) while the companion band-energy check on the SAME renders
+  measured a genuine −2.88 dB of a60-vs-a0 darkening at low speed. The check
+  now asserts what the filter actually does: the a60-vs-a0 band-energy
+  attenuation GROWS down the sweep (attL < attE − 0.8 dB, attL < −2 dB,
+  attE > −3 dB near-open sanity), with the weak hf metric kept only as a
+  direction check. Note also that the attenuation SATURATES at low r —
+  fc ∝ 0.0075^(a(1−r)) and the varispeed content bandwidth ∝ r fall
+  together, so fc/W is roughly constant below r ≈ 0.5; no monotonicity
+  assertion across mid-ramp windows is defensible.
+
 ## Two-voice pool: fade force-complete
 
 Fades start only at resync entry and catchup-retrigger. If a new fade must
